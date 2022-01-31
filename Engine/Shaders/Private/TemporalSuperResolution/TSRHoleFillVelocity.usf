@@ -27,10 +27,10 @@ float MaxHollFillPixelVelocity;
 
 Texture2D<uint> PrevClosestDepthTexture;
 Texture2D<float2> DilatedVelocityTexture;
-Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<tsr_half> ParallaxRejectionMaskTexture;
 
 RWTexture2D<float2> HoleFilledVelocityOutput;
-RWTexture2D<taa_half2> HoleFilledVelocityMaskOutput;
+RWTexture2D<tsr_half2> HoleFilledVelocityMaskOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -45,33 +45,33 @@ void MainCS(
 	uint2 DispatchThreadId = (
 		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
-	taa_short2 LaneOffsetSign = GetLaneOffsetSign();
+	tsr_short2 LaneOffsetSign = GetLaneOffsetSign();
 
-	taa_short2 InputPixelPos = taa_short2(InputInfo_ViewportMin + DispatchThreadId);
+	tsr_short2 InputPixelPos = tsr_short2(InputInfo_ViewportMin + DispatchThreadId);
 	
 	float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
 
 	float2 EncodedVelocityNeighborhood[CONFIG_PRE_FETCH_SAMPLES];
-	taa_half ParallaxRejectionMaskNeighborhood[CONFIG_PRE_FETCH_SAMPLES];
+	tsr_half ParallaxRejectionMaskNeighborhood[CONFIG_PRE_FETCH_SAMPLES];
 	ISOLATE
 	{
 		UNROLL_N(CONFIG_PRE_FETCH_SAMPLES)
 		for (uint i = 0; i < CONFIG_PRE_FETCH_SAMPLES; i++)
 		{
-			taa_short2 SampleInputPixelPos;
+			tsr_short2 SampleInputPixelPos;
 			#if CONFIG_BUTTERFLY_KERNEL
 			{
-				taa_short2 Offset = taa_short2(Offsets2x2[i]) * LaneOffsetSign;
+				tsr_short2 Offset = tsr_short2(Offsets2x2[i]) * LaneOffsetSign;
 				
 				SampleInputPixelPos = InputPixelPos + Offset;
 			}
 			#else
 			{
-				taa_short2 Offset;
+				tsr_short2 Offset;
 				#if CONFIG_SAMPLES == 9
-					Offset = taa_short2(kOffsets3x3[kSquareIndexes3x3[i]]);
+					Offset = tsr_short2(kOffsets3x3[kSquareIndexes3x3[i]]);
 				#elif CONFIG_SAMPLES == 5
-					Offset = taa_short2(kOffsets3x3[kPlusIndexes3x3[i]]);
+					Offset = tsr_short2(kOffsets3x3[kPlusIndexes3x3[i]]);
 				#endif
 					
 				SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
@@ -144,11 +144,11 @@ void MainCS(
 	
 	float2 EndodedScreenVelocity = EncodedVelocityNeighborhood[0];
 
-	bool bIsParallaxRejected = ParallaxRejectionMaskNeighborhood[0] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+	bool bIsParallaxRejected = ParallaxRejectionMaskNeighborhood[0] < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
 
-	taa_half HoleFilledVelocityMask = taa_half(0.0);
-	taa_half RejectHighFrequency = taa_half(0.0);
-	//taa_half IsVelocityEdge = taa_half(0.0);
+	tsr_half HoleFilledVelocityMask = tsr_half(0.0);
+	tsr_half RejectHighFrequency = tsr_half(0.0);
+	//tsr_half IsVelocityEdge = tsr_half(0.0);
 
 	{
 		float2 ScreenPixelVelocity = ScreenVelocity * ScreenVelocityToInputPixelVelocity;
@@ -158,8 +158,8 @@ void MainCS(
 		for (uint i = 0; i < CONFIG_SAMPLE_PAIRS; i++)
 		ISOLATE
 		{
-			taa_short2 Offset0;
-			taa_short2 Offset1;
+			tsr_short2 Offset0;
+			tsr_short2 Offset1;
 			
 			float2 NeighborEncodedVelocity0;
 			float2 NeighborEncodedVelocity1;
@@ -189,13 +189,13 @@ void MainCS(
 				{
 					FetchIndex[0] = 2;
 					FetchIndex[1] = 1;
-					Offset0 = taa_short2(-1, 1);
+					Offset0 = tsr_short2(-1, 1);
 				}
 				else
 				{
 					FetchIndex[0] = PairIndex + 1;
 					FetchIndex[1] = PairIndex + 1;
-					Offset0 = taa_short2(Offsets2x2[PairIndex + 1]);
+					Offset0 = tsr_short2(Offsets2x2[PairIndex + 1]);
 				}
 
 				Offset0 *= LaneOffsetSign;
@@ -207,11 +207,11 @@ void MainCS(
 				NeighborPixelVelocity0 = WaveBroadcast(BroadcastSettings[0], PixelVelocityNeighborhood[FetchIndex[0]]);
 				NeighborPixelVelocity1 = WaveBroadcast(BroadcastSettings[1], PixelVelocityNeighborhood[FetchIndex[1]]);
 			
-				NeighborPixelVelocityLength0 = taa_half(WaveBroadcast(BroadcastSettings[0], PixelVelocityLengthNeighborhood[FetchIndex[0]]));
-				NeighborPixelVelocityLength1 = taa_half(WaveBroadcast(BroadcastSettings[1], PixelVelocityLengthNeighborhood[FetchIndex[1]]));
+				NeighborPixelVelocityLength0 = tsr_half(WaveBroadcast(BroadcastSettings[0], PixelVelocityLengthNeighborhood[FetchIndex[0]]));
+				NeighborPixelVelocityLength1 = tsr_half(WaveBroadcast(BroadcastSettings[1], PixelVelocityLengthNeighborhood[FetchIndex[1]]));
 				
-				bNeighborIsParallaxRejected0 = WaveBroadcast(BroadcastSettings[0], ParallaxRejectionMaskNeighborhood[FetchIndex[0]]) < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
-				bNeighborIsParallaxRejected1 = WaveBroadcast(BroadcastSettings[1], ParallaxRejectionMaskNeighborhood[FetchIndex[1]]) < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+				bNeighborIsParallaxRejected0 = WaveBroadcast(BroadcastSettings[0], ParallaxRejectionMaskNeighborhood[FetchIndex[0]]) < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+				bNeighborIsParallaxRejected1 = WaveBroadcast(BroadcastSettings[1], ParallaxRejectionMaskNeighborhood[FetchIndex[1]]) < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
 			}
 			#else
 			{
@@ -219,11 +219,11 @@ void MainCS(
 				const uint NeightbordId1 = i + 1 + CONFIG_SAMPLE_PAIRS;
 			
 				#if CONFIG_SAMPLES == 9
-					Offset0 = taa_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId0]]);
-					Offset1 = taa_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId1]]);
+					Offset0 = tsr_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId0]]);
+					Offset1 = tsr_short2(kOffsets3x3[kSquareIndexes3x3[NeightbordId1]]);
 				#elif CONFIG_SAMPLES == 5
-					Offset0 = taa_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId0]]);
-					Offset1 = taa_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId1]]);
+					Offset0 = tsr_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId0]]);
+					Offset1 = tsr_short2(kOffsets3x3[kPlusIndexes3x3[NeightbordId1]]);
 				#endif
 					
 				NeighborEncodedVelocity0 = EncodedVelocityNeighborhood[NeightbordId0];
@@ -235,17 +235,17 @@ void MainCS(
 				NeighborPixelVelocityLength0 = dot(NeighborPixelVelocity0, NeighborPixelVelocity0);
 				NeighborPixelVelocityLength1 = dot(NeighborPixelVelocity1, NeighborPixelVelocity1);
 				
-				bNeighborIsParallaxRejected0 = ParallaxRejectionMaskNeighborhood[NeightbordId0] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
-				bNeighborIsParallaxRejected1 = ParallaxRejectionMaskNeighborhood[NeightbordId1] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+				bNeighborIsParallaxRejected0 = ParallaxRejectionMaskNeighborhood[NeightbordId0] < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+				bNeighborIsParallaxRejected1 = ParallaxRejectionMaskNeighborhood[NeightbordId1] < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD);
 			}
 			#endif
 
-			taa_half2 NeighborDeltaPixelVelocity0 = taa_half2(ScreenPixelVelocity - NeighborPixelVelocity0);
-			taa_half2 NeighborDeltaPixelVelocity1 = taa_half2(ScreenPixelVelocity - NeighborPixelVelocity1);
+			tsr_half2 NeighborDeltaPixelVelocity0 = tsr_half2(ScreenPixelVelocity - NeighborPixelVelocity0);
+			tsr_half2 NeighborDeltaPixelVelocity1 = tsr_half2(ScreenPixelVelocity - NeighborPixelVelocity1);
 			
 			// Detect edge of the velocity
 			//{
-			//	taa_half MaxDeltaVelocityLength = saturate(max(NeighborPixelVelocityLength0, NeighborPixelVelocityLength1));
+			//	tsr_half MaxDeltaVelocityLength = saturate(max(NeighborPixelVelocityLength0, NeighborPixelVelocityLength1));
 			//
 			//	if (i == 0)
 			//		IsVelocityEdge = MaxDeltaVelocityLength;
@@ -257,28 +257,28 @@ void MainCS(
 			{
 				bool bIsPixelThinRejection = bIsParallaxRejected && !bNeighborIsParallaxRejected0 && !bNeighborIsParallaxRejected1;
 
-				taa_half IsSomeWhatIdentical0 = saturate(taa_half(1.0) - dot(NeighborDeltaPixelVelocity0, NeighborDeltaPixelVelocity0));
-				taa_half IsSomeWhatIdentical1 = saturate(taa_half(1.0) - dot(NeighborDeltaPixelVelocity1, NeighborDeltaPixelVelocity1));
+				tsr_half IsSomeWhatIdentical0 = saturate(tsr_half(1.0) - dot(NeighborDeltaPixelVelocity0, NeighborDeltaPixelVelocity0));
+				tsr_half IsSomeWhatIdentical1 = saturate(tsr_half(1.0) - dot(NeighborDeltaPixelVelocity1, NeighborDeltaPixelVelocity1));
 
 				FLATTEN
 				if (bIsPixelThinRejection && NeighborPixelVelocityLength0 > ScreenPixelVelocityLength && IsSomeWhatIdentical1 > 0.0)
 				{
 					EndodedScreenVelocity = NeighborEncodedVelocity0;
-					HoleFilledVelocityMask = taa_half(1.0);
+					HoleFilledVelocityMask = tsr_half(1.0);
 				}
 				else if (bIsPixelThinRejection && NeighborPixelVelocityLength1 > ScreenPixelVelocityLength && IsSomeWhatIdentical0 > 0.0)
 				{
 					EndodedScreenVelocity = NeighborEncodedVelocity1;
-					HoleFilledVelocityMask = taa_half(1.0);
+					HoleFilledVelocityMask = tsr_half(1.0);
 				}
 			}
 
 			// Reject high frequency on velocity edge discontinuity.
 			{
-				taa_half IsOverlapingEdge0 = taa_half(1.0) - dot(saturate(NeighborDeltaPixelVelocity0 * Offset0), taa_half(1.0).xx); // * saturate(ScreenPixelVelocityLength - NeighborPixelVelocityLength0);
-				taa_half IsOverlapingEdge1 = taa_half(1.0) - dot(saturate(NeighborDeltaPixelVelocity1 * Offset1), taa_half(1.0).xx); // * saturate(ScreenPixelVelocityLength - NeighborPixelVelocityLength1);
+				tsr_half IsOverlapingEdge0 = tsr_half(1.0) - dot(saturate(NeighborDeltaPixelVelocity0 * Offset0), tsr_half(1.0).xx); // * saturate(ScreenPixelVelocityLength - NeighborPixelVelocityLength0);
+				tsr_half IsOverlapingEdge1 = tsr_half(1.0) - dot(saturate(NeighborDeltaPixelVelocity1 * Offset1), tsr_half(1.0).xx); // * saturate(ScreenPixelVelocityLength - NeighborPixelVelocityLength1);
 				
-				taa_half IsOverlapingEdge = min(IsOverlapingEdge0, IsOverlapingEdge1);
+				tsr_half IsOverlapingEdge = min(IsOverlapingEdge0, IsOverlapingEdge1);
 
 				if (i == 0)
 					RejectHighFrequency = IsOverlapingEdge;
@@ -289,27 +289,27 @@ void MainCS(
 
 		// If the hole filling velocity has better result that the neighborhood, use that.
 		FLATTEN
-		if (taa_half(HoleFillingOutOfRange) > HoleFilledVelocityMask && bIsParallaxRejected)
+		if (tsr_half(HoleFillingOutOfRange) > HoleFilledVelocityMask && bIsParallaxRejected)
 		{
 			float VelocityDelta = length(ScreenPixelVelocity - HoleFillingPixelVelocity);
 
 			float2 HoleFillingVelocity = HoleFillingPixelVelocity * InputPixelVelocityToScreenVelocity;
 
 			EndodedScreenVelocity = EncodeVelocityToTexture(float3(HoleFillingVelocity, 0.0)).xy;
-			HoleFilledVelocityMask = taa_half(HoleFillingOutOfRange) * taa_half(saturate(MaxHollFillPixelVelocity - VelocityDelta));
+			HoleFilledVelocityMask = tsr_half(HoleFillingOutOfRange) * tsr_half(saturate(MaxHollFillPixelVelocity - VelocityDelta));
 		}
 
 		// Remove noise from high frequency rejections.
-		RejectHighFrequency = saturate(taa_half(1.0) - RejectHighFrequency * taa_half(1.1));
+		RejectHighFrequency = saturate(tsr_half(1.0) - RejectHighFrequency * tsr_half(1.1));
 
 		// Do not reject high frequency additionally where hole filling happen
 		RejectHighFrequency = max(RejectHighFrequency, HoleFilledVelocityMask);
 	}
 
-	if (all(InputPixelPos < taa_short2(InputInfo_ViewportMax)))
+	if (all(InputPixelPos < tsr_short2(InputInfo_ViewportMax)))
 	{
 		HoleFilledVelocityOutput[InputPixelPos] = EndodedScreenVelocity;
-		HoleFilledVelocityMaskOutput[InputPixelPos] = taa_half2(HoleFilledVelocityMask, RejectHighFrequency);
+		HoleFilledVelocityMaskOutput[InputPixelPos] = tsr_half2(HoleFilledVelocityMask, RejectHighFrequency);
 
 		#if DEBUG_OUTPUT
 		{

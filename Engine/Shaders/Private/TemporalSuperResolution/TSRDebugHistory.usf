@@ -11,15 +11,15 @@
 
 //------------------------------------------------------- PARAMETERS
 
-Texture2D<taa_half3> History_Textures_0;
-Texture2D<taa_half3> History_Textures_1;
-Texture2D<taa_half2> History_Textures_2;
-Texture2D<taa_subpixel_details> History_Textures_3;
+Texture2D<tsr_half3> History_Textures_0;
+Texture2D<tsr_half3> History_Textures_1;
+Texture2D<tsr_half2> History_Textures_2;
+Texture2D<tsr_subpixel_details> History_Textures_3;
 
-Texture2D<taa_half3> PrevHistory_Textures_0;
-Texture2D<taa_half3> PrevHistory_Textures_1;
-Texture2D<taa_half2> PrevHistory_Textures_2;
-Texture2D<taa_subpixel_details> PrevHistory_Textures_3;
+Texture2D<tsr_half3> PrevHistory_Textures_0;
+Texture2D<tsr_half3> PrevHistory_Textures_1;
+Texture2D<tsr_half2> PrevHistory_Textures_2;
+Texture2D<tsr_subpixel_details> PrevHistory_Textures_3;
 
 
 //------------------------------------------------------- FUNCTION
@@ -45,7 +45,7 @@ float Median(float A, float B, float C)
 }
 
 
-taa_subpixel_payload ReadSubpixelDetails(uint2 SubpixelPos)
+tsr_subpixel_payload ReadSubpixelDetails(uint2 SubpixelPos)
 {
 	uint2 HistoryPixelPos = SubpixelPos / SUB_PIXEL_GRID_SIZE;
 
@@ -53,9 +53,9 @@ taa_subpixel_payload ReadSubpixelDetails(uint2 SubpixelPos)
 	uint SubpixelId = dot(SubpixelRelPos, uint2(1, SUB_PIXEL_GRID_SIZE));
 	uint SubpixelShift = SubpixelId * SUB_PIXEL_BIT_COUNT;
 	
-	taa_subpixel_details RawHistory3 = History_Textures_3[HistoryPixelPos];
+	tsr_subpixel_details RawHistory3 = History_Textures_3[HistoryPixelPos];
 
-	return taa_subpixel_payload(RawHistory3 >> SubpixelShift) & SUB_PIXEL_BIT_MASK;
+	return tsr_subpixel_payload(RawHistory3 >> SubpixelShift) & SUB_PIXEL_BIT_MASK;
 }
 
 
@@ -82,18 +82,18 @@ void MainCS(
 	
 	{
 		#if 1
-			taa_half3 RawHistory0 = History_Textures_0[HistoryPixelPos];
-			taa_half3 RawHistory1 = History_Textures_1[HistoryPixelPos];
-			taa_half2 RawHistory2 = History_Textures_2[HistoryPixelPos];
-			taa_subpixel_details RawHistory3 = History_Textures_3[HistoryPixelPos];
+			tsr_half3 RawHistory0 = History_Textures_0[HistoryPixelPos];
+			tsr_half3 RawHistory1 = History_Textures_1[HistoryPixelPos];
+			tsr_half2 RawHistory2 = History_Textures_2[HistoryPixelPos];
+			tsr_subpixel_details RawHistory3 = History_Textures_3[HistoryPixelPos];
 		#else
-			taa_half3 RawHistory0 = PrevHistory_Textures_0[HistoryPixelPos];
-			taa_half3 RawHistory1 = PrevHistory_Textures_1[HistoryPixelPos];
-			taa_half2 RawHistory2 = PrevHistory_Textures_2[HistoryPixelPos];
-			taa_subpixel_details RawHistory3 = PrevHistory_Textures_3[HistoryPixelPos];
+			tsr_half3 RawHistory0 = PrevHistory_Textures_0[HistoryPixelPos];
+			tsr_half3 RawHistory1 = PrevHistory_Textures_1[HistoryPixelPos];
+			tsr_half2 RawHistory2 = PrevHistory_Textures_2[HistoryPixelPos];
+			tsr_subpixel_details RawHistory3 = PrevHistory_Textures_3[HistoryPixelPos];
 		#endif
 
-		taa_subpixel_payload SubpixelDetails = taa_subpixel_payload(RawHistory3 >> SubpixelShift) & SUB_PIXEL_BIT_MASK;
+		tsr_subpixel_payload SubpixelDetails = tsr_subpixel_payload(RawHistory3 >> SubpixelShift) & SUB_PIXEL_BIT_MASK;
 
 		Debug.r = UncompressParallaxFactor(SubpixelDetails);
 		Debug.b = float(SubpixelId);

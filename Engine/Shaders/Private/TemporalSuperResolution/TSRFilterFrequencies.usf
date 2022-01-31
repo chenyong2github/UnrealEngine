@@ -32,31 +32,31 @@
 
 float3 OutputQuantizationError;
 
-Texture2D<taa_halfC> InputTexture;
-Texture2D<taa_halfC> PredictionSceneColorTexture;
-Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<tsr_halfC> InputTexture;
+Texture2D<tsr_halfC> PredictionSceneColorTexture;
+Texture2D<tsr_half> ParallaxRejectionMaskTexture;
 
-RWTexture2D<taa_halfC> FilteredInputOutput;
-RWTexture2D<taa_halfC> FilteredPredictionSceneColorOutput;
-RWTexture2D<taa_half>  InputSceneColorLdrLumaOutput;
+RWTexture2D<tsr_halfC> FilteredInputOutput;
+RWTexture2D<tsr_halfC> FilteredPredictionSceneColorOutput;
+RWTexture2D<tsr_half>  InputSceneColorLdrLumaOutput;
 
 
 //------------------------------------------------------- FUNCTIONS
 
-taa_half ComputeColorWeight(taa_halfC Color)
+tsr_half ComputeColorWeight(tsr_halfC Color)
 #if CONFIG_ACCUMULATE_KARIS_WEIGHTING
 {
 	return HdrWeight4(Color);
 }
 #else
 {
-	return taa_half(1);
+	return tsr_half(1);
 }
 #endif
 
-taa_half ParallaxRejectionMaskToHistoryValidity(taa_half ParallaxRejectionMask)
+tsr_half ParallaxRejectionMaskToHistoryValidity(tsr_half ParallaxRejectionMask)
 {
-	return (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? taa_half(0.0) : taa_half(1.0);
+	return (ParallaxRejectionMask < tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD)) ? tsr_half(0.0) : tsr_half(1.0);
 }
 
 //------------------------------------------------------- ENTRY POINT
@@ -70,28 +70,28 @@ void MainCS(
 
 	float4 Debug = 0.0;
 	
-	taa_short2 InputPixelPos = (
-		taa_short2(InputPixelPosMin) +
-		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
+	tsr_short2 InputPixelPos = (
+		tsr_short2(InputPixelPosMin) +
+		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
 		Map16x16Tile2x2Lane(GroupThreadIndex));
 
 	// Fetch center of the kernel
-	taa_halfC CenterInput;
-	taa_halfC FilteredInput;
-	taa_half FilteredInputWeight;
-	taa_halfC FilteredHistory;
-	taa_half FilteredHistoryWeight;
+	tsr_halfC CenterInput;
+	tsr_halfC FilteredInput;
+	tsr_half FilteredInputWeight;
+	tsr_halfC FilteredHistory;
+	tsr_half FilteredHistoryWeight;
 
 	{
-		taa_half SampleSpatialWeight = 1.0;
+		tsr_half SampleSpatialWeight = 1.0;
 
-		taa_halfC InputSample = InputTexture[InputPixelPos];
-		taa_halfC HistorySample = PredictionSceneColorTexture[InputPixelPos];
-		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
+		tsr_halfC InputSample = InputTexture[InputPixelPos];
+		tsr_halfC HistorySample = PredictionSceneColorTexture[InputPixelPos];
+		tsr_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[InputPixelPos]);
 		
-		taa_half InputWeight = ComputeColorWeight(InputSample);
-		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
+		tsr_half InputWeight = ComputeColorWeight(InputSample);
+		tsr_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
 
 		CenterInput = InputSample;
 
@@ -121,24 +121,24 @@ void MainCS(
 	#endif
 
 	#if CONFIG_USE_DYNAMIC_SPREAD_FACTOR
-		taa_short2 DynamicSpreadFactor = (
-			taa_short(CONFIG_KERNEL_SPREAD_FACTOR) +
-			taa_short2((taa_ushort2(InputPixelPos) % taa_ushort(2)) ^ (taa_ushort2(InputPixelPos.yx) % taa_ushort(2))));
+		tsr_short2 DynamicSpreadFactor = (
+			tsr_short(CONFIG_KERNEL_SPREAD_FACTOR) +
+			tsr_short2((tsr_ushort2(InputPixelPos) % tsr_ushort(2)) ^ (tsr_ushort2(InputPixelPos.yx) % tsr_ushort(2))));
 	#else
-		taa_short2 DynamicSpreadFactor = taa_short(CONFIG_KERNEL_SPREAD_FACTOR);
+		tsr_short2 DynamicSpreadFactor = tsr_short(CONFIG_KERNEL_SPREAD_FACTOR);
 	#endif
 
 	// Fetch neighborhood of the kernel
 	UNROLL
 	for (uint SampleId = StartSampleId; SampleId < SampleCount; SampleId++)
 	{
-		taa_short2 Offset;
-		taa_half SampleSpatialWeight;
+		tsr_short2 Offset;
+		tsr_half SampleSpatialWeight;
 		
 		#if CONFIG_KERNEL == KERNEL_1X1
 		{
 			Offset = 0;
-			SampleSpatialWeight = taa_half(1.0);
+			SampleSpatialWeight = tsr_half(1.0);
 			continue;
 		}
 		#elif CONFIG_KERNEL == KERNEL_3X3 || CONFIG_KERNEL == KERNEL_3X3_PLUS
@@ -147,7 +147,7 @@ void MainCS(
 			{
 				continue;
 			}
-			Offset = taa_short2(kOffsets3x3[SampleId]);
+			Offset = tsr_short2(kOffsets3x3[SampleId]);
 			
 			#if CONFIG_KERNEL == KERNEL_3X3_PLUS
 				if (abs(Offset.x) + abs(Offset.y) > 1)
@@ -157,25 +157,25 @@ void MainCS(
 			#endif
 			
 			#if 0
-				SampleSpatialWeight = taa_half(1.0);
+				SampleSpatialWeight = tsr_half(1.0);
 			#elif 1
-				SampleSpatialWeight = taa_half(rcp(abs(Offset.x) + 1.0) * rcp(abs(Offset.y) + 1.0));
+				SampleSpatialWeight = tsr_half(rcp(abs(Offset.x) + 1.0) * rcp(abs(Offset.y) + 1.0));
 			#else
-				SampleSpatialWeight = taa_half(rcp(abs(Offset.x) + abs(Offset.y)));
+				SampleSpatialWeight = tsr_half(rcp(abs(Offset.x) + abs(Offset.y)));
 			#endif
 		}
 		#else
 			#error Unknown kernel
 		#endif
 		
-		taa_short2 SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
+		tsr_short2 SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 			InputPixelPos,
 			DynamicSpreadFactor * Offset, Offset,
 			InputPixelPosMin, InputPixelPosMax);
 
-		taa_halfC InputSample = InputTexture[SampleInputPixelPos];
-		taa_halfC HistorySample = PredictionSceneColorTexture[SampleInputPixelPos];
-		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
+		tsr_halfC InputSample = InputTexture[SampleInputPixelPos];
+		tsr_halfC HistorySample = PredictionSceneColorTexture[SampleInputPixelPos];
+		tsr_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[SampleInputPixelPos]);
 
 		#if CONFIG_SCENE_COLOR_OVERFLOW
@@ -186,8 +186,8 @@ void MainCS(
 			#endif
 		#endif
 
-		taa_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
-		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
+		tsr_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
+		tsr_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
 
 		FilteredInput       += (SampleSpatialWeight * InputWeight) * InputSample;
 		FilteredInputWeight += (SampleSpatialWeight * InputWeight);
@@ -203,30 +203,30 @@ void MainCS(
 	
 	// Compute the LDR luma used for spatial anti-aliasing's computation of the TexelOffset
 	#if DIM_OUTPUT_ANTI_ALIASING_LUMA
-	taa_half CenterLumaLDR;
+	tsr_half CenterLumaLDR;
 	{
-		const taa_half SpatialAAExposure = taa_half(0.5);
+		const tsr_half SpatialAAExposure = tsr_half(0.5);
 
 		#if 0
-			taa_half3 CenterInputLDR = CenterInput / (SpatialAAExposure + CenterInput);
+			tsr_half3 CenterInputLDR = CenterInput / (SpatialAAExposure + CenterInput);
 			CenterLumaLDR = dot(CenterInputLDR, half3(0.299f, 0.587f, 0.114f));
 		#elif 0
-			taa_half CenterLuma = max(CenterInput.r, max(CenterInput.g, CenterInput.b));
+			tsr_half CenterLuma = max(CenterInput.r, max(CenterInput.g, CenterInput.b));
 			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
 		#else
-			taa_half CenterLuma = dot(CenterInput.rgb, half3(0.299f, 0.587f, 0.114f));
+			tsr_half CenterLuma = dot(CenterInput.rgb, half3(0.299f, 0.587f, 0.114f));
 			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
 		#endif
 	}
 	#endif // DIM_OUTPUT_ANTI_ALIASING_LUMA
 	
-	taa_short2 OutputPixelPos;
+	tsr_short2 OutputPixelPos;
 	#if 1
 		ISOLATE
 		{
 			OutputPixelPos = (
-				taa_short2(InputPixelPosMin) +
-				taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
+				tsr_short2(InputPixelPosMin) +
+				tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
 				Map16x16Tile2x2Lane(GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex)));
 		}
 	#else
@@ -236,14 +236,14 @@ void MainCS(
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
 		uint2 Random = Rand3DPCG16(int3(OutputPixelPos, View.StateFrameIndexMod8)).xy;
-		taa_half E = taa_half(Hammersley16(0, 1, Random).x);
+		tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
 		
 		FilteredInput = QuantizeForFloatRenderTarget(FilteredInput, E.x, OutputQuantizationError);
 		FilteredHistory = QuantizeForFloatRenderTarget(FilteredHistory, E.x, OutputQuantizationError);
 	}
 	#endif
 
-	OutputPixelPos.x = all(OutputPixelPos < taa_short2(LowFrequencyInfo_ViewportMax)) ? OutputPixelPos.x : ~taa_short(0);
+	OutputPixelPos.x = all(OutputPixelPos < tsr_short2(LowFrequencyInfo_ViewportMax)) ? OutputPixelPos.x : ~tsr_short(0);
 
 	FilteredInputOutput[OutputPixelPos] = FilteredInput;
 	FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory;

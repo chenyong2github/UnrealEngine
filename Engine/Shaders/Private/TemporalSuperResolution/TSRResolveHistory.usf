@@ -28,7 +28,7 @@ RWTexture2D<uint> PrevClosestDepthOutput;
 
 //------------------------------------------------------- LDS
 
-groupshared taa_halfC SharedArray0[TILE_SIZE * TILE_SIZE];
+groupshared tsr_halfC SharedArray0[TILE_SIZE * TILE_SIZE];
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -83,14 +83,14 @@ uint2 OutputViewRectMax;
 uint bGenerateOutputMip1;
 float HistoryValidityMultiply;
 
-Texture2D<taa_halfC> History_LowFrequency;
-Texture2D<taa_halfC> History_HighFrequency;
-Texture2D<taa_half2> History_Metadata;
-Texture2D<taa_half3> History_Translucency;
-Texture2D<taa_half>  History_TranslucencyAlpha;
+Texture2D<tsr_halfC> History_LowFrequency;
+Texture2D<tsr_halfC> History_HighFrequency;
+Texture2D<tsr_half2> History_Metadata;
+Texture2D<tsr_half3> History_Translucency;
+Texture2D<tsr_half>  History_TranslucencyAlpha;
 
-RWTexture2D<taa_halfC> SceneColorOutputMip0;
-RWTexture2D<taa_halfC> SceneColorOutputMip1;
+RWTexture2D<tsr_halfC> SceneColorOutputMip0;
+RWTexture2D<tsr_halfC> SceneColorOutputMip1;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -106,9 +106,9 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	taa_halfC LowFrequencyColor = 0.0;
-	taa_halfC HighFrequencyColor = 0.0;
-	taa_half  HistoryValidity = 0.0;
+	tsr_halfC LowFrequencyColor = 0.0;
+	tsr_halfC HighFrequencyColor = 0.0;
+	tsr_half  HistoryValidity = 0.0;
 	
 	// Downsample the history
 	{
@@ -119,9 +119,9 @@ void MainCS(
 		float2 OutputPixelPos = ApplyScreenTransform(float2(DispatchThreadId), DispatchThreadToHistoryPixelPos);
 		float2 TopLeftKernel = floor(OutputPixelPos + (0.5 - 0.5 * KERNEL_SIZE)) + 0.5;
 		
-		taa_half LowFrequencyWeight = 0.0;
-		taa_half HighFrequencyWeight = 0.0;
-		taa_half HistoryValidityWeight = 0.0;
+		tsr_half LowFrequencyWeight = 0.0;
+		tsr_half HighFrequencyWeight = 0.0;
+		tsr_half HistoryValidityWeight = 0.0;
 
 		UNROLL_N(KERNEL_SIZE)
 		for (uint x = 0; x < KERNEL_SIZE; x++)
@@ -135,15 +135,15 @@ void MainCS(
 
 				SampleUV = clamp(SampleUV, HistoryInfo_UVViewportBilinearMin, HistoryInfo_UVViewportBilinearMax);
 
-				taa_halfC SampleLowFrequencyColor  = History_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				taa_halfC SampleHighFrequencyColor = History_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				taa_half2 SampleMetadata   	       = History_Metadata.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_halfC SampleLowFrequencyColor  = History_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_halfC SampleHighFrequencyColor = History_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_half2 SampleMetadata   	       = History_Metadata.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
-				taa_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
-				taa_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				tsr_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
-				taa_half SampleHistoryValidity = SampleMetadata.y;
-				taa_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
+				tsr_half SampleHistoryValidity = SampleMetadata.y;
+				tsr_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
 
 				#if 1
 				{
@@ -151,18 +151,18 @@ void MainCS(
 					SampleHighFrequencyColor.rgb = SampleHighFrequencyColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb * SampleHistoryValidity;
 				
 					#if CONFIG_SCENE_COLOR_APLHA
-						SampleLowFrequencyColor.a = saturate(taa_half(1.0) - saturate(taa_half(1.0) - SampleLowFrequencyColor.a) * SampleTranslucencyAlpha);
-						SampleHighFrequencyColor.a = saturate(taa_half(1.0) - saturate(taa_half(1.0) - SampleHighFrequencyColor.a * InvSampleHistoryValidity) * SampleTranslucencyAlpha) * SampleHistoryValidity;
+						SampleLowFrequencyColor.a = saturate(tsr_half(1.0) - saturate(tsr_half(1.0) - SampleLowFrequencyColor.a) * SampleTranslucencyAlpha);
+						SampleHighFrequencyColor.a = saturate(tsr_half(1.0) - saturate(tsr_half(1.0) - SampleHighFrequencyColor.a * InvSampleHistoryValidity) * SampleTranslucencyAlpha) * SampleHistoryValidity;
 					#endif
 				}
 				#endif
 
 				float2 PixelOffset = abs(SamplePixelPos - OutputPixelPos);
 
-				taa_half kernelWeight = taa_half(MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C));
+				tsr_half kernelWeight = tsr_half(MitchellNetravali(PixelOffset.x, B, C) * MitchellNetravali(PixelOffset.y, B, C));
 				
-				taa_half LowFrequencyHdrWeight  = HdrWeight4(SampleLowFrequencyColor);
-				taa_half HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * InvSampleHistoryValidity);
+				tsr_half LowFrequencyHdrWeight  = HdrWeight4(SampleLowFrequencyColor);
+				tsr_half HighFrequencyHdrWeight = HdrWeight4(SampleHighFrequencyColor * InvSampleHistoryValidity);
 
 				LowFrequencyColor   += (kernelWeight * LowFrequencyHdrWeight)  * SampleLowFrequencyColor;
 				LowFrequencyWeight  += (kernelWeight * LowFrequencyHdrWeight);
@@ -170,30 +170,30 @@ void MainCS(
 				HighFrequencyColor  += (kernelWeight * HighFrequencyHdrWeight) * SampleHighFrequencyColor;
 				HighFrequencyWeight += (kernelWeight * HighFrequencyHdrWeight) * SampleHistoryValidity;
 
-				HistoryValidity       += max(kernelWeight, taa_half(0.0)) * SampleHistoryValidity;
-				HistoryValidityWeight += max(kernelWeight, taa_half(0.0));
+				HistoryValidity       += max(kernelWeight, tsr_half(0.0)) * SampleHistoryValidity;
+				HistoryValidityWeight += max(kernelWeight, tsr_half(0.0));
 			}
 		}
 
 		LowFrequencyColor  *= rcp(LowFrequencyWeight);
 		HighFrequencyColor *= SafeRcp(HighFrequencyWeight);
-		HistoryValidity *= taa_half(HistoryValidityMultiply) / HistoryValidityWeight;
+		HistoryValidity *= tsr_half(HistoryValidityMultiply) / HistoryValidityWeight;
 	}
 	
 	// Compute final output
-	taa_halfC FinalOutputColor;
+	tsr_halfC FinalOutputColor;
 	{
-		taa_half OutputBlend = ComputeLowFrequencyContribution(HistoryValidity);
+		tsr_half OutputBlend = ComputeLowFrequencyContribution(HistoryValidity);
 		
-		taa_half LowFrequencyWeight = HdrWeight4(LowFrequencyColor);
-		taa_half Moment1Weight = HdrWeight4(HighFrequencyColor);
+		tsr_half LowFrequencyWeight = HdrWeight4(LowFrequencyColor);
+		tsr_half Moment1Weight = HdrWeight4(HighFrequencyColor);
 
-		taa_half2 Weights = WeightedLerpFactors(LowFrequencyWeight, Moment1Weight, OutputBlend);
+		tsr_half2 Weights = WeightedLerpFactors(LowFrequencyWeight, Moment1Weight, OutputBlend);
 		
 		FinalOutputColor = LowFrequencyColor * Weights[0] + HighFrequencyColor * Weights[1];
 	}
 
-	taa_short2 OutputPixelPosition = InvalidateOutputPixelPos(taa_short2(OutputViewRectMin + DispatchThreadId), OutputViewRectMax);
+	tsr_short2 OutputPixelPosition = InvalidateOutputPixelPos(tsr_short2(OutputViewRectMin + DispatchThreadId), OutputViewRectMax);
 	
 	// Output final scene color Mip0
 	{
@@ -204,10 +204,10 @@ void MainCS(
 	{
 		uint LocalGroupThreadIndex = GroupThreadIndex;
 
-		taa_halfC HalfResOutput = FinalOutputColor * taa_half(0.25);
-		taa_short2 HalfResOutputPixelPos;
-		HalfResOutputPixelPos[0] = (OutputPixelPosition[0] >> taa_short(1)) | (((OutputPixelPosition[0] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
-		HalfResOutputPixelPos[1] = (OutputPixelPosition[1] >> taa_short(1)) | (((OutputPixelPosition[1] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
+		tsr_halfC HalfResOutput = FinalOutputColor * tsr_half(0.25);
+		tsr_short2 HalfResOutputPixelPos;
+		HalfResOutputPixelPos[0] = (OutputPixelPosition[0] >> tsr_short(1)) | (((OutputPixelPosition[0] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
+		HalfResOutputPixelPos[1] = (OutputPixelPosition[1] >> tsr_short(1)) | (((OutputPixelPosition[1] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
 			
 		#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
 		BRANCH

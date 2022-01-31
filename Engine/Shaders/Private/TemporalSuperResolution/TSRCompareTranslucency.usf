@@ -53,39 +53,39 @@ float TranslucencyHighlightLuminance;
 
 FScreenTransform ScreenPosToPrevTranslucencyTextureUV;
 
-Texture2D<taa_half4> TranslucencyTexture;
+Texture2D<tsr_half4> TranslucencyTexture;
 Texture2D<float2> DilatedVelocityTexture;
-Texture2D<taa_half4> PrevTranslucencyTexture;
+Texture2D<tsr_half4> PrevTranslucencyTexture;
 
-RWTexture2D<taa_half> TranslucencyRejectionOutput;
+RWTexture2D<tsr_half> TranslucencyRejectionOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
 
-taa_half4 TransformToComparisonColorSpace(taa_half4 Color)
+tsr_half4 TransformToComparisonColorSpace(tsr_half4 Color)
 {
-	return taa_half4(RGBToYCoCg(Color.rgb), Color.a);
+	return tsr_half4(RGBToYCoCg(Color.rgb), Color.a);
 }
 
-taa_half MeasureTranslucencyRejectionFactor(
-	taa_half4 PrevTranslucency,
-	taa_half4 Translucency,
-	taa_half4 TranslucencyMin,
-	taa_half4 TranslucencyMax)
+tsr_half MeasureTranslucencyRejectionFactor(
+	tsr_half4 PrevTranslucency,
+	tsr_half4 Translucency,
+	tsr_half4 TranslucencyMin,
+	tsr_half4 TranslucencyMax)
 {
-	taa_half IsHighlight = saturate(PrevTranslucency.x - taa_half(TranslucencyHighlightLuminance));
+	tsr_half IsHighlight = saturate(PrevTranslucency.x - tsr_half(TranslucencyHighlightLuminance));
 
-	taa_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
+	tsr_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
 	
-	taa_half BackbufferQuantizationError = 0.0; //MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], Translucency[0]));
+	tsr_half BackbufferQuantizationError = 0.0; //MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], Translucency[0]));
 	
 	#if CONFIG_SCENE_COLOR_APLHA
-		taa_half Rejection = MeasureRejectionFactor(
+		tsr_half Rejection = MeasureRejectionFactor(
 			PrevTranslucency, ClampedPrevTranslucency,
 			Translucency, TranslucencyMin, TranslucencyMax,
 			BackbufferQuantizationError);
 	#else
-		taa_half Rejection = MeasureRejectionFactor(
+		tsr_half Rejection = MeasureRejectionFactor(
 			PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
 			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
 			BackbufferQuantizationError);
@@ -105,7 +105,7 @@ void MainCS(
 {
 	float4 Debug = 0;
 	
-	taa_short2 InputPixelPos = taa_short2(
+	tsr_short2 InputPixelPos = tsr_short2(
 		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
@@ -113,19 +113,19 @@ void MainCS(
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 	
 	// Sample current frame translucency's
-	taa_half4 Translucency;
-	taa_half4 TranslucencyMin;
-	taa_half4 TranslucencyMax;
+	tsr_half4 Translucency;
+	tsr_half4 TranslucencyMin;
+	tsr_half4 TranslucencyMax;
 	{
 		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		{
-			taa_short2 SampleInputPixelPos;
+			tsr_short2 SampleInputPixelPos;
 			
 			// TODO: handle SeparateTranslucencyScreenPercentage
 			#if CONFIG_SAMPLES == 9
 			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+				tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
 				
 				SampleInputPixelPos = AddAndClampPixelOffset(
 					InputPixelPos,
@@ -134,7 +134,7 @@ void MainCS(
 			}
 			#elif CONFIG_SAMPLES == 5
 			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+				tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
 					
 				SampleInputPixelPos = AddAndClampPixelOffset(
 					InputPixelPos,
@@ -145,7 +145,7 @@ void MainCS(
 				#error Unknown sample count
 			#endif
 
-			taa_half4 TranslucencyColor = TransformToComparisonColorSpace(TranslucencyTexture[SampleInputPixelPos]);
+			tsr_half4 TranslucencyColor = TransformToComparisonColorSpace(TranslucencyTexture[SampleInputPixelPos]);
 
 			if (SampleId == 0)
 			{
@@ -165,14 +165,14 @@ void MainCS(
 		}
 
 		#if CONFIG_KERNEL
-			Translucency *= rcp(taa_half(CONFIG_SAMPLES));
+			Translucency *= rcp(tsr_half(CONFIG_SAMPLES));
 		#endif
 	}
 
 	// Sample previous frame's translucency
-	taa_half4 PrevTranslucency;
-	taa_half4 PrevTranslucencyMin;
-	taa_half4 PrevTranslucencyMax;
+	tsr_half4 PrevTranslucency;
+	tsr_half4 PrevTranslucencyMin;
+	tsr_half4 PrevTranslucencyMax;
 	{
 		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 		float2 PrevTranslucencyTextureUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevTranslucencyTextureUV);
@@ -180,18 +180,18 @@ void MainCS(
 		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		{
-			taa_half2 PixelOffset;
+			tsr_half2 PixelOffset;
 			
 			// TODO: handle r.SeparateTranslucencyScreenPercentage
 			#if CONFIG_SAMPLES == 9
 			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
-				PixelOffset = taa_half2(iPixelOffset);
+				tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+				PixelOffset = tsr_half2(iPixelOffset);
 			}
 			#elif CONFIG_SAMPLES == 5
 			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
-				PixelOffset = taa_half2(iPixelOffset);
+				tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+				PixelOffset = tsr_half2(iPixelOffset);
 			}
 			#else
 				#error Unknown sample count
@@ -202,7 +202,7 @@ void MainCS(
 				PrevTranslucencyInfo_UVViewportBilinearMin,
 				PrevTranslucencyInfo_UVViewportBilinearMax);
 		
-			taa_half4 PrevTranslucencyColor = TransformToComparisonColorSpace(
+			tsr_half4 PrevTranslucencyColor = TransformToComparisonColorSpace(
 				PrevTranslucencyTexture.SampleLevel(GlobalPointClampedSampler, SampleTextureUV, 0));
 
 			if (SampleId == 0)
@@ -223,25 +223,25 @@ void MainCS(
 		}
 
 		#if CONFIG_KERNEL
-			PrevTranslucency *= rcp(taa_half(CONFIG_SAMPLES));
+			PrevTranslucency *= rcp(tsr_half(CONFIG_SAMPLES));
 		#endif
 
-		PrevTranslucency    *= taa_half(PrevTranslucencyPreExposureCorrection);
-		PrevTranslucencyMin *= taa_half(PrevTranslucencyPreExposureCorrection);
-		PrevTranslucencyMax *= taa_half(PrevTranslucencyPreExposureCorrection);
+		PrevTranslucency    *= tsr_half(PrevTranslucencyPreExposureCorrection);
+		PrevTranslucencyMin *= tsr_half(PrevTranslucencyPreExposureCorrection);
+		PrevTranslucencyMax *= tsr_half(PrevTranslucencyPreExposureCorrection);
 	}
 
-	taa_half Rejection = 1.0;
+	tsr_half Rejection = 1.0;
 	#if 1
 	{
 		// TODO: reject with alpha too? Might not need since translucency is premultiplied RGBA 
-		taa_half ForwardRejection = MeasureTranslucencyRejectionFactor(
+		tsr_half ForwardRejection = MeasureTranslucencyRejectionFactor(
 			PrevTranslucency,
 			Translucency,
 			TranslucencyMin,
 			TranslucencyMax);
 		
-		taa_half BackwardRejection = MeasureTranslucencyRejectionFactor(
+		tsr_half BackwardRejection = MeasureTranslucencyRejectionFactor(
 			Translucency,
 			PrevTranslucency,
 			PrevTranslucencyMin,
@@ -251,7 +251,7 @@ void MainCS(
 	}
 	#endif
 
-	if (all(InputPixelPos < taa_short2(InputInfo_ViewportMax)))
+	if (all(InputPixelPos < tsr_short2(InputInfo_ViewportMax)))
 	{
 		TranslucencyRejectionOutput[InputPixelPos] = Rejection;
 

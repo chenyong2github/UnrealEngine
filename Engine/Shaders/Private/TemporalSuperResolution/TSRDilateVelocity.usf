@@ -267,7 +267,7 @@ void MainCS(
 		//DilatedVelocityOutput[OutputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		DilatedVelocityOutput[OutputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		ClosestDepthOutput[OutputPixelPos] = ClosestDeviceZ;
-		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(taa_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(taa_half(ParallaxFactorForHistoryRejection)) << 4);
+		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(tsr_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(tsr_half(ParallaxFactorForHistoryRejection)) << 4);
 
 		// Output motion blur velocity flatten
 		#if DIM_MOTION_BLUR_DIRECTIONS > 0

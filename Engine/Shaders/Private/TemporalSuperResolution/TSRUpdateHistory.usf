@@ -83,19 +83,19 @@
 
 //------------------------------------------------------- PARAMETERS
 
-Texture2D<taa_halfC> InputSceneColorTexture;
+Texture2D<tsr_halfC> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
-Texture2D<taa_half4> InputSceneTranslucencyTexture;
+Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 
-Texture2D<taa_half> HistoryRejectionTexture;
-Texture2D<taa_half> TranslucencyRejectionTexture;
+Texture2D<tsr_half> HistoryRejectionTexture;
+Texture2D<tsr_half> TranslucencyRejectionTexture;
 
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
-Texture2D<taa_half> ParallaxRejectionMaskTexture;
-Texture2D<taa_ushort> AntiAliasingTexture;
-Texture2D<taa_half> NoiseFilteringTexture;
-Texture2D<taa_half2> HoleFilledVelocityMaskTexture;
+Texture2D<tsr_half> ParallaxRejectionMaskTexture;
+Texture2D<tsr_ushort> AntiAliasingTexture;
+Texture2D<tsr_half> NoiseFilteringTexture;
+Texture2D<tsr_half2> HoleFilledVelocityMaskTexture;
 
 float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
@@ -106,22 +106,22 @@ float InputToHistoryFactor;
 uint ResponsiveStencilMask;
 uint bGenerateOutputMip1;
 
-Texture2D<taa_halfC> PrevHistory_LowFrequency;
-Texture2D<taa_halfC> PrevHistory_HighFrequency;
-Texture2D<taa_half2> PrevHistory_Metadata;
-Texture2D<taa_half3> PrevHistory_Translucency;
-Texture2D<taa_half>  PrevHistory_TranslucencyAlpha;
-Texture2D<taa_subpixel_details> PrevHistory_SubpixelDetails;
+Texture2D<tsr_halfC> PrevHistory_LowFrequency;
+Texture2D<tsr_halfC> PrevHistory_HighFrequency;
+Texture2D<tsr_half2> PrevHistory_Metadata;
+Texture2D<tsr_half3> PrevHistory_Translucency;
+Texture2D<tsr_half>  PrevHistory_TranslucencyAlpha;
+Texture2D<tsr_subpixel_details> PrevHistory_SubpixelDetails;
 
-RWTexture2D<taa_halfC> HistoryOutput_LowFrequency;
-RWTexture2D<taa_halfC> HistoryOutput_HighFrequency;
-RWTexture2D<taa_half2> HistoryOutput_Metadata;
-RWTexture2D<taa_half3> HistoryOutput_Translucency;
-RWTexture2D<taa_half>  HistoryOutput_TranslucencyAlpha;
-RWTexture2D<taa_subpixel_details> HistoryOutput_SubpixelDetails;
+RWTexture2D<tsr_halfC> HistoryOutput_LowFrequency;
+RWTexture2D<tsr_halfC> HistoryOutput_HighFrequency;
+RWTexture2D<tsr_half2> HistoryOutput_Metadata;
+RWTexture2D<tsr_half3> HistoryOutput_Translucency;
+RWTexture2D<tsr_half>  HistoryOutput_TranslucencyAlpha;
+RWTexture2D<tsr_subpixel_details> HistoryOutput_SubpixelDetails;
 
-RWTexture2D<taa_halfC> SceneColorOutputMip0;
-RWTexture2D<taa_halfC> SceneColorOutputMip1;
+RWTexture2D<tsr_halfC> SceneColorOutputMip0;
+RWTexture2D<tsr_halfC> SceneColorOutputMip1;
 
 
 //------------------------------------------------------- LDS
@@ -132,44 +132,44 @@ RWTexture2D<taa_halfC> SceneColorOutputMip1;
 #define GROUP_SHARED_SIZE (TILE_SIZE * TILE_SIZE)
 #endif
 
-groupshared taa_half4 SharedArray0[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray1[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray2[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray3[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray4[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray5[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray0[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray1[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray2[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray3[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray4[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray5[GROUP_SHARED_SIZE];
 
-groupshared taa_half4 SharedArray6[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray7[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray8[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray9[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray10[GROUP_SHARED_SIZE];
-groupshared taa_half4 SharedArray11[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray6[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray7[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray8[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray9[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray10[GROUP_SHARED_SIZE];
+groupshared tsr_half4 SharedArray11[GROUP_SHARED_SIZE];
 
-groupshared taa_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
+groupshared tsr_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
 
 
 //------------------------------------------------------- FUNCTIONS
 
 CALL_SITE_DEBUGLOC 
-taa_ushort2x2 Map8x8Tile2x2LaneDPV(uint GroupThreadIndex)
+tsr_ushort2x2 Map8x8Tile2x2LaneDPV(uint GroupThreadIndex)
 {
-	taa_ushort2 GroupId = Map8x8Tile2x2Lane(GroupThreadIndex);
+	tsr_ushort2 GroupId = Map8x8Tile2x2Lane(GroupThreadIndex);
 #if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-	return dpv_interleave_registers(GroupId, GroupId + taa_ushort2(0,  8 / 2));
+	return dpv_interleave_registers(GroupId, GroupId + tsr_ushort2(0,  8 / 2));
 #else
 	return dpv_interleave_mono_registers(GroupId);
 #endif
 }
 
 CALL_SITE_DEBUGLOC 
-taa_halfCx2 TransformColorForClampingBox(taa_halfCx2 Color)
+tsr_halfCx2 TransformColorForClampingBox(tsr_halfCx2 Color)
 {
 	return RGBToYCoCg(Color);
 }
 
 CALL_SITE_DEBUGLOC 
-taa_half3x2 GetColorChannel(taa_half4x2 Color)
+tsr_half3x2 GetColorChannel(tsr_half4x2 Color)
 {
 	return dpv_interleave_registers(
 		dpv_lo(Color).rgb,
@@ -177,17 +177,17 @@ taa_half3x2 GetColorChannel(taa_half4x2 Color)
 }
 
 void ComputeInputKernelSamplePosition(
-	taa_short2x2 InputPixelPos,
-	taa_half2x2 dKO,
+	tsr_short2x2 InputPixelPos,
+	tsr_half2x2 dKO,
 	uint SampleId,
-	out taa_short2x2 SampleInputPixelPos,
-	out taa_half2x2 PixelOffset)
+	out tsr_short2x2 SampleInputPixelPos,
+	out tsr_half2x2 PixelOffset)
 {
 	
 	#if CONFIG_SAMPLES == 9
 	{
-		taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
-		PixelOffset = dpv_interleave_registers(taa_half2(iPixelOffset), taa_half2(iPixelOffset));
+		tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+		PixelOffset = dpv_interleave_registers(tsr_half2(iPixelOffset), tsr_half2(iPixelOffset));
 				
 		SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 			InputPixelPos,
@@ -199,7 +199,7 @@ void ComputeInputKernelSamplePosition(
 		#if CONFIG_SAMPLES == 6
 		if (SampleId == 5)
 		{
-			taa_short2x2 iPixelOffset;
+			tsr_short2x2 iPixelOffset;
 			#if CONFIG_COMPILE_FP16
 				iPixelOffset[0] = int16_t(1) - int16_t2((asuint16(dKO[0]) & uint16_t(0x8000)) >> uint16_t(14));
 				iPixelOffset[1] = int16_t(1) - int16_t2((asuint16(dKO[1]) & uint16_t(0x8000)) >> uint16_t(14));
@@ -217,8 +217,8 @@ void ComputeInputKernelSamplePosition(
 		else
 		#endif
 		{
-			taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
-			PixelOffset = dpv_interleave_registers(taa_half2(iPixelOffset), taa_half2(iPixelOffset));
+			tsr_short2 iPixelOffset = tsr_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+			PixelOffset = dpv_interleave_registers(tsr_half2(iPixelOffset), tsr_half2(iPixelOffset));
 					
 			SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
 				InputPixelPos,
@@ -255,9 +255,9 @@ void MainCS(
 
 	float4x2 Debug = 0.0;
 
-	taa_short2x2 HistoryPixelPos = dpv_add(
-		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE),
-		taa_short2x2(Map8x8Tile2x2LaneDPV(GroupThreadIndex)));
+	tsr_short2x2 HistoryPixelPos = dpv_add(
+		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE),
+		tsr_short2x2(Map8x8Tile2x2LaneDPV(GroupThreadIndex)));
 
 	float2x2 ScreenPos = ApplyScreenTransform(float2x2(HistoryPixelPos), HistoryPixelPosToScreenPos);
 	
@@ -267,19 +267,19 @@ void MainCS(
 	// Pixel coordinate of the center of the nearest input pixel K.
 	float2x2 PPCk = floor(PPCo) + 0.5;
 	
-	taa_short2x2 InputPixelPos = ClampPixelOffset(
-		taa_short2x2(PPCo),
+	tsr_short2x2 InputPixelPos = ClampPixelOffset(
+		tsr_short2x2(PPCo),
 		InputPixelPosMin, InputPixelPosMax);
 
 	// Fetch reprojections related informations.
 	float2x2 PrevScreenPos = ScreenPos;
-	taa_half2 ParallaxRejectionMask = taa_half(1.0).xx;
-	taa_half2 LowFrequencyRejection = taa_half(1.0).xx;
-	taa_half2 TranslucencyRejection = taa_half(1.0).xx;
-	taa_half2 OutputPixelVelocity = taa_half(0.0).xx;
-	taa_half2 NoiseFiltering = taa_half(0.0).xx;
-	taa_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(taa_half(1.0).xx);
-	taa_subpixel_payload2 ParallaxFactorBits = taa_subpixel_payload(0x0).xx;
+	tsr_half2 ParallaxRejectionMask = tsr_half(1.0).xx;
+	tsr_half2 LowFrequencyRejection = tsr_half(1.0).xx;
+	tsr_half2 TranslucencyRejection = tsr_half(1.0).xx;
+	tsr_half2 OutputPixelVelocity = tsr_half(0.0).xx;
+	tsr_half2 NoiseFiltering = tsr_half(0.0).xx;
+	tsr_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(tsr_half(1.0).xx);
+	tsr_subpixel_payload2 ParallaxFactorBits = tsr_subpixel_payload(0x0).xx;
 	bool2 bIsResponsiveAAPixel = false;
 
 	PLATFORM_SPECIFIC_ISOLATE
@@ -290,30 +290,30 @@ void MainCS(
 			float2 RawEncodedVelocity[DPV_PIXEL_PER_LANE];
 		#endif
 
-		taa_half RawParallaxRejectionMask[DPV_PIXEL_PER_LANE];
+		tsr_half RawParallaxRejectionMask[DPV_PIXEL_PER_LANE];
 		uint RawParallaxFactorBits[DPV_PIXEL_PER_LANE];
-		taa_half RawLowFrequencyRejection[DPV_PIXEL_PER_LANE];
-		taa_half RawTranslucencyRejection[DPV_PIXEL_PER_LANE];
-		taa_half RawTranslucencyRejectionNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
+		tsr_half RawLowFrequencyRejection[DPV_PIXEL_PER_LANE];
+		tsr_half RawTranslucencyRejection[DPV_PIXEL_PER_LANE];
+		tsr_half RawTranslucencyRejectionNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
 		
 		uint RawSceneStencilRef[DPV_PIXEL_PER_LANE];
 		uint RawSceneStencilRefNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
 		
 		#if CONFIG_REJECTION_ANTI_ALIASING
-			taa_ushort RawEncodedInputTexelOffset[DPV_PIXEL_PER_LANE];
-			taa_half RawNoiseFiltering[DPV_PIXEL_PER_LANE]; 
-			taa_half2 RawHoleFilledVelocityMask[DPV_PIXEL_PER_LANE];
+			tsr_ushort RawEncodedInputTexelOffset[DPV_PIXEL_PER_LANE];
+			tsr_half RawNoiseFiltering[DPV_PIXEL_PER_LANE]; 
+			tsr_half2 RawHoleFilledVelocityMask[DPV_PIXEL_PER_LANE];
 		#endif
 
 		// Issue overlapped texture fetches
 		PLATFORM_SPECIFIC_ISOLATE
 		{
-			taa_ushort2x2 RejectionPixelPos = dpv_sub(taa_ushort2x2(InputPixelPos), taa_ushort2(InputPixelPosMin)) / 2;
+			tsr_ushort2x2 RejectionPixelPos = dpv_sub(tsr_ushort2x2(InputPixelPos), tsr_ushort2(InputPixelPosMin)) / 2;
 
 			UNROLL_N(DPV_PIXEL_PER_LANE)
 			for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
 			{
-				taa_ushort2 LocalInputPixelPos = dpv_access_pixel(InputPixelPos, PixelId);
+				tsr_ushort2 LocalInputPixelPos = dpv_access_pixel(InputPixelPos, PixelId);
 				
 				#if !CONFIG_INTERPOLATE_VELOCITY
 					RawEncodedVelocity[PixelId]   = DilatedVelocityTexture[LocalInputPixelPos];
@@ -335,13 +335,13 @@ void MainCS(
 			}
 
 			// Vector in pixel between pixel K -> O.
-			taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
+			tsr_half2x2 dKO = tsr_half2x2(PPCo - PPCk);
 		
 			UNROLL_N(CONFIG_SAMPLES - 1)
 			for (uint NeighborId = 0; NeighborId < (CONFIG_SAMPLES - 1); NeighborId++)
 			{
-				taa_short2x2 SampleInputPixelPos;
-				taa_half2x2 PixelOffset;
+				tsr_short2x2 SampleInputPixelPos;
+				tsr_half2x2 PixelOffset;
 				ComputeInputKernelSamplePosition(
 					InputPixelPos, dKO, /* SampleId = */ NeighborId + 1,
 					/* out */ SampleInputPixelPos,
@@ -360,14 +360,14 @@ void MainCS(
 			UNROLL_N(DPV_PIXEL_PER_LANE)
 			for (uint PixelId2 = 0; PixelId2 < DPV_PIXEL_PER_LANE; PixelId2++)
 			{
-				taa_short2 LocalInputPixelPos0 = dpv_access_pixel(InputPixelPos, PixelId2);
-				taa_short2 LocalInputPixelPos1 = LocalInputPixelPos0 + taa_short2(sign(dpv_access_pixel(dKO, PixelId2)));
+				tsr_short2 LocalInputPixelPos0 = dpv_access_pixel(InputPixelPos, PixelId2);
+				tsr_short2 LocalInputPixelPos1 = LocalInputPixelPos0 + tsr_short2(sign(dpv_access_pixel(dKO, PixelId2)));
 				LocalInputPixelPos1 = ClampPixelOffset(LocalInputPixelPos1, InputPixelPosMin, InputPixelPosMax);
 
-				RawEncodedVelocityNeighborhood[0][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos0.y)];
-				RawEncodedVelocityNeighborhood[1][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos0.y)];
-				RawEncodedVelocityNeighborhood[2][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos0.x, LocalInputPixelPos1.y)];
-				RawEncodedVelocityNeighborhood[3][PixelId2] = DilatedVelocityTexture[taa_short2(LocalInputPixelPos1.x, LocalInputPixelPos1.y)];
+				RawEncodedVelocityNeighborhood[0][PixelId2] = DilatedVelocityTexture[tsr_short2(LocalInputPixelPos0.x, LocalInputPixelPos0.y)];
+				RawEncodedVelocityNeighborhood[1][PixelId2] = DilatedVelocityTexture[tsr_short2(LocalInputPixelPos1.x, LocalInputPixelPos0.y)];
+				RawEncodedVelocityNeighborhood[2][PixelId2] = DilatedVelocityTexture[tsr_short2(LocalInputPixelPos0.x, LocalInputPixelPos1.y)];
+				RawEncodedVelocityNeighborhood[3][PixelId2] = DilatedVelocityTexture[tsr_short2(LocalInputPixelPos1.x, LocalInputPixelPos1.y)];
 			}
 			#endif
 		}
@@ -378,7 +378,7 @@ void MainCS(
 		PLATFORM_SPECIFIC_ISOLATE
 		{
 			// Vector in pixel between pixel K -> O.
-			taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
+			tsr_half2x2 dKO = tsr_half2x2(PPCo - PPCk);
 		
 			// Process velocity
 			{
@@ -392,7 +392,7 @@ void MainCS(
 					float2 V01 = DecodeVelocityFromTexture(float4(RawEncodedVelocityNeighborhood[2][PixelId], 0.0, 0.0)).xy;
 					float2 V11 = DecodeVelocityFromTexture(float4(RawEncodedVelocityNeighborhood[3][PixelId], 0.0, 0.0)).xy;
 
-					taa_half2 BilinearInterp = abs(dpv_access_pixel(dKO, PixelId));
+					tsr_half2 BilinearInterp = abs(dpv_access_pixel(dKO, PixelId));
 					
 					float Bilinear00 = saturate(1.0 - BilinearInterp.x) * saturate(1.0 - BilinearInterp.y);
 					float Bilinear10 = saturate(0.0 + BilinearInterp.x) * saturate(1.0 - BilinearInterp.y);
@@ -420,12 +420,12 @@ void MainCS(
 				#endif
 
 				PrevScreenPos = ScreenPos - ScreenVelocity;
-				OutputPixelVelocity = taa_half2(dpv_length(dpv_mul(ScreenVelocity, HistoryInfo_ViewportSize)));
+				OutputPixelVelocity = tsr_half2(dpv_length(dpv_mul(ScreenVelocity, HistoryInfo_ViewportSize)));
 			}
 
 			// Process input texel, forcing to pack register.
 			ParallaxRejectionMask = dpv_force_interleave_registers_array(RawParallaxRejectionMask);
-			ParallaxFactorBits    = dpv_force_interleave_registers_array(RawParallaxFactorBits) & taa_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
+			ParallaxFactorBits    = dpv_force_interleave_registers_array(RawParallaxFactorBits) & tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK);
 			LowFrequencyRejection = dpv_force_interleave_registers_array(RawLowFrequencyRejection);
 			TranslucencyRejection = dpv_force_interleave_registers_array(RawTranslucencyRejection);
 			SceneStencilRef       = dpv_force_interleave_registers_array(RawSceneStencilRef);
@@ -447,22 +447,22 @@ void MainCS(
 				IsOffScreen(bCameraCut, dpv_lo(PrevScreenPos), dpv_lo(ParallaxRejectionMask)),
 				IsOffScreen(bCameraCut, dpv_hi(PrevScreenPos), dpv_hi(ParallaxRejectionMask)));
 			
-			taa_half2 TotalRejection = taa_half2(
+			tsr_half2 TotalRejection = tsr_half2(
 				bOffScreen[0] ? 0.0 : saturate(LowFrequencyRejection[0] * 4.0),
 				bOffScreen[1] ? 0.0 : saturate(LowFrequencyRejection[1] * 4.0));
 
-			taa_ushort2 EncodedInputTexelOffset = dpv_force_interleave_registers_array(RawEncodedInputTexelOffset);
+			tsr_ushort2 EncodedInputTexelOffset = dpv_force_interleave_registers_array(RawEncodedInputTexelOffset);
 			
 			NoiseFiltering = dpv_force_interleave_registers_array(RawNoiseFiltering);
-			HoleFilledVelocityMask = dpv_interleave_mono_registers(taa_half(1.0).xx) - dpv_force_interleave_registers_array(RawHoleFilledVelocityMask);
+			HoleFilledVelocityMask = dpv_interleave_mono_registers(tsr_half(1.0).xx) - dpv_force_interleave_registers_array(RawHoleFilledVelocityMask);
 
-			taa_half2x2 TexelOffset = DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
+			tsr_half2x2 TexelOffset = DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
 			
 			{
-				PPCo += dpv_scale(TexelOffset, taa_half(1.0) - TotalRejection);
+				PPCo += dpv_scale(TexelOffset, tsr_half(1.0) - TotalRejection);
 				PPCk = floor(PPCo) + 0.5;
 				InputPixelPos = ClampPixelOffset(
-					taa_short2x2(PPCo),
+					tsr_short2x2(PPCo),
 					InputPixelPosMin, InputPixelPosMax);
 			}
 		}
@@ -470,7 +470,7 @@ void MainCS(
 		
 		// Final post processing.
 		{
-			TranslucencyRejection = max(TranslucencyRejection, taa_half(MinTranslucencyRejection));
+			TranslucencyRejection = max(TranslucencyRejection, tsr_half(MinTranslucencyRejection));
 		
 			// Fetch wehther the pixel is responsive AA or not.
 			#if CONFIG_RESPONSIVE_STENCIL
@@ -478,16 +478,16 @@ void MainCS(
 				bIsResponsiveAAPixel = (SceneStencilRef & ResponsiveStencilMask) != 0;
 
 				#if CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY
-					TranslucencyRejection = max(TranslucencyRejection, bIsResponsiveAAPixel ? taa_half(0.0) : taa_half(1.0));
+					TranslucencyRejection = max(TranslucencyRejection, bIsResponsiveAAPixel ? tsr_half(0.0) : tsr_half(1.0));
 				#endif
 			}
 			#endif
 
 			#if !CONFIG_CLAMP
 			{
-				ParallaxRejectionMask = taa_half(1.0).xx;
-				LowFrequencyRejection = taa_half(1.0).xx;
-				TranslucencyRejection = taa_half(1.0).xx;
+				ParallaxRejectionMask = tsr_half(1.0).xx;
+				LowFrequencyRejection = tsr_half(1.0).xx;
+				TranslucencyRejection = tsr_half(1.0).xx;
 			}
 			#endif
 		}
@@ -503,22 +503,22 @@ void MainCS(
 		IsOffScreen(bCameraCut, dpv_lo(PrevScreenPos), dpv_lo(ParallaxRejectionMask)),
 		IsOffScreen(bCameraCut, dpv_hi(PrevScreenPos), dpv_hi(ParallaxRejectionMask)));
 	
-	taa_half2 TotalRejection = taa_half2(
+	tsr_half2 TotalRejection = tsr_half2(
 		bOffScreen[0] ? 0.0 : saturate(LowFrequencyRejection[0] * 4.0),
 		bOffScreen[1] ? 0.0 : saturate(LowFrequencyRejection[1] * 4.0));
 
 
 	// Filter input scene color at predictor frequency.
-	taa_halfCx2 FilteredInputColor;
-	taa_halfCx2 InputMinColor;
-	taa_halfCx2 InputMaxColor;
+	tsr_halfCx2 FilteredInputColor;
+	tsr_halfCx2 InputMinColor;
+	tsr_halfCx2 InputMaxColor;
 	
-	taa_half4x2 FilteredTranslucencyColor;
-	taa_half4x2 TranslucencyMinColor;
-	taa_half4x2 TranslucencyMaxColor;
+	tsr_half4x2 FilteredTranslucencyColor;
+	tsr_half4x2 TranslucencyMinColor;
+	tsr_half4x2 TranslucencyMaxColor;
 
-	taa_half2 InputPixelAlignement;
-	taa_half2 ClosestInputLuma4;
+	tsr_half2 InputPixelAlignement;
+	tsr_half2 ClosestInputLuma4;
 	
 	
 	bool2 bUpdateSubpixelDetails;
@@ -527,7 +527,7 @@ void MainCS(
 	PLATFORM_SPECIFIC_ISOLATE
 	{
 		// Vector in pixel between pixel K -> O.
-		taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
+		tsr_half2x2 dKO = tsr_half2x2(PPCo - PPCk);
 
 		// Compresses the sign of dKO into SGPR to keep VGPR pressure low.
 		{
@@ -540,44 +540,44 @@ void MainCS(
 			bKOSign[1] = dKO[1] < 0.0;
 		}
 		
-		taa_halfC RawInputColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
-		taa_half4 RawTranslucencyColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
+		tsr_halfC RawInputColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
+		tsr_half4 RawTranslucencyColorArray[CONFIG_SAMPLES][DPV_PIXEL_PER_LANE];
 
-		taa_half2x2 RawdPPArray[CONFIG_SAMPLES];
-		taa_half2   RawSampleSpatialWeightArray[CONFIG_SAMPLES];
+		tsr_half2x2 RawdPPArray[CONFIG_SAMPLES];
+		tsr_half2   RawSampleSpatialWeightArray[CONFIG_SAMPLES];
 		
 		// Issues overlapped texture fetches
 		PLATFORM_SPECIFIC_ISOLATE
 		{
 			// Soften the spatial kernel when there is high noise in the input to make parrallax disocclusion of detailed geometry less distracting.
-			taa_half2 OffScreenInputToHistoryFactor = taa_half(1.0) - taa_half(0.5) * NoiseFiltering;
+			tsr_half2 OffScreenInputToHistoryFactor = tsr_half(1.0) - tsr_half(0.5) * NoiseFiltering;
 
-			taa_half2 KernelInputToHistoryFactor = taa_half(InputToHistoryFactor).xx;
+			tsr_half2 KernelInputToHistoryFactor = tsr_half(InputToHistoryFactor).xx;
 			
 			FLATTEN
 			if (bOffScreen.x)
 			{
-				KernelInputToHistoryFactor.x = taa_half(OffScreenInputToHistoryFactor.x);
+				KernelInputToHistoryFactor.x = tsr_half(OffScreenInputToHistoryFactor.x);
 			}
 			
 			FLATTEN
 			if (bOffScreen.y)
 			{
-				KernelInputToHistoryFactor.y = taa_half(OffScreenInputToHistoryFactor.y);
+				KernelInputToHistoryFactor.y = tsr_half(OffScreenInputToHistoryFactor.y);
 			}
 
 			UNROLL_N(CONFIG_SAMPLES)
 			for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 			{
-				taa_short2x2 SampleInputPixelPos;
-				taa_half2x2 PixelOffset;
+				tsr_short2x2 SampleInputPixelPos;
+				tsr_half2x2 PixelOffset;
 				ComputeInputKernelSamplePosition(
 					InputPixelPos, dKO, SampleId,
 					/* out */ SampleInputPixelPos,
 					/* out */ PixelOffset);
 				
-				taa_half2x2 dPP = PixelOffset - dKO;
-				taa_half2 SampleSpatialWeight = ComputeSampleWeigth(KernelInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
+				tsr_half2x2 dPP = PixelOffset - dKO;
+				tsr_half2 SampleSpatialWeight = ComputeSampleWeigth(KernelInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
 				
 				RawdPPArray[SampleId] = dPP; 
 				RawSampleSpatialWeightArray[SampleId] = SampleSpatialWeight;
@@ -593,9 +593,9 @@ void MainCS(
 			} // for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		}
 			
-		taa_half2 FilteredInputColorWeight = taa_half(0.0);
+		tsr_half2 FilteredInputColorWeight = tsr_half(0.0);
 		
-		FilteredInputColor = taa_half(0.0);
+		FilteredInputColor = tsr_half(0.0);
 		#if CONFIG_SCENE_COLOR_APLHA
 			InputMinColor = dpv_interleave_mono_registers(+LargestSceneColorYCoCgA);
 			InputMaxColor = dpv_interleave_mono_registers(-LargestSceneColorYCoCgA);
@@ -609,9 +609,9 @@ void MainCS(
 		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		{
-			taa_half2 SampleSpatialWeight = RawSampleSpatialWeightArray[SampleId];
-			taa_halfCx2 InputColor = dpv_force_interleave_registers_array(RawInputColorArray[SampleId]);
-			taa_half4x2 TranslucencyColor = dpv_force_interleave_registers_array(RawTranslucencyColorArray[SampleId]);
+			tsr_half2 SampleSpatialWeight = RawSampleSpatialWeightArray[SampleId];
+			tsr_halfCx2 InputColor = dpv_force_interleave_registers_array(RawInputColorArray[SampleId]);
+			tsr_half4x2 TranslucencyColor = dpv_force_interleave_registers_array(RawTranslucencyColorArray[SampleId]);
 
 			#if CONFIG_SCENE_COLOR_OVERFLOW
 				#if CONFIG_SCENE_COLOR_APLHA
@@ -621,13 +621,13 @@ void MainCS(
 				#endif
 			#endif
 
-			taa_half2 ToneWeight = HdrWeight4(InputColor);
+			tsr_half2 ToneWeight = HdrWeight4(InputColor);
 
 			#if CONFIG_VFX_SURVIVAL
 			if (SampleId == 0)
 			{
-				taa_half2x2 dPP =  RawdPPArray[SampleId];
-				ToneWeight = max(ToneWeight, ToneWeight > taa_half(0.2) ? taa_half(0.0).xx : ComputeSampleWeigth(taa_half(1.0), dPP, /* MinimalContribution = */ 0.0));
+				tsr_half2x2 dPP =  RawdPPArray[SampleId];
+				ToneWeight = max(ToneWeight, ToneWeight > tsr_half(0.2) ? tsr_half(0.0).xx : ComputeSampleWeigth(tsr_half(1.0), dPP, /* MinimalContribution = */ 0.0));
 			}
 			#endif
 
@@ -657,7 +657,7 @@ void MainCS(
 		
 		FilteredInputColor = dpv_scale(FilteredInputColor, rcp(FilteredInputColorWeight));
 
-		InputPixelAlignement = ComputeSampleWeigth(taa_half(InputToHistoryFactor), dKO, /* MinimalContribution = */ float(0.0));
+		InputPixelAlignement = ComputeSampleWeigth(tsr_half(InputToHistoryFactor), dKO, /* MinimalContribution = */ float(0.0));
 		
 		#if CONFIG_SCENE_COLOR_OVERFLOW
 		{
@@ -679,55 +679,55 @@ void MainCS(
 		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-			SharedArray0[LocalGroupThreadIndex] = taa_half4(FilteredInputColor[0], FilteredInputColor[1]);
-			SharedArray1[LocalGroupThreadIndex] = taa_half4(FilteredInputColor[2], LowFrequencyRejection);
-			SharedArray2[LocalGroupThreadIndex] = taa_half4(InputMinColor[0], InputMinColor[1]);
-			SharedArray3[LocalGroupThreadIndex] = taa_half4(InputMinColor[2], InputPixelAlignement);
-			SharedArray4[LocalGroupThreadIndex] = taa_half4(InputMaxColor[0], InputMaxColor[1]);
-			SharedArray5[LocalGroupThreadIndex] = taa_half4(InputMaxColor[2], OutputPixelVelocity);
+			SharedArray0[LocalGroupThreadIndex] = tsr_half4(FilteredInputColor[0], FilteredInputColor[1]);
+			SharedArray1[LocalGroupThreadIndex] = tsr_half4(FilteredInputColor[2], LowFrequencyRejection);
+			SharedArray2[LocalGroupThreadIndex] = tsr_half4(InputMinColor[0], InputMinColor[1]);
+			SharedArray3[LocalGroupThreadIndex] = tsr_half4(InputMinColor[2], InputPixelAlignement);
+			SharedArray4[LocalGroupThreadIndex] = tsr_half4(InputMaxColor[0], InputMaxColor[1]);
+			SharedArray5[LocalGroupThreadIndex] = tsr_half4(InputMaxColor[2], OutputPixelVelocity);
 
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				SharedArray6[LocalGroupThreadIndex] = taa_half4(FilteredTranslucencyColor[0], FilteredTranslucencyColor[1]);
-				SharedArray7[LocalGroupThreadIndex] = taa_half4(FilteredTranslucencyColor[2], FilteredTranslucencyColor[3]);
-				SharedArray8[LocalGroupThreadIndex] = taa_half4(TranslucencyMinColor[0], TranslucencyMinColor[1]);
-				SharedArray9[LocalGroupThreadIndex] = taa_half4(TranslucencyMinColor[2], TranslucencyMinColor[3]);
-				SharedArray10[LocalGroupThreadIndex] = taa_half4(TranslucencyMaxColor[0], TranslucencyMaxColor[1]);
-				SharedArray11[LocalGroupThreadIndex] = taa_half4(TranslucencyMaxColor[2], TranslucencyMaxColor[3]);
+				SharedArray6[LocalGroupThreadIndex] = tsr_half4(FilteredTranslucencyColor[0], FilteredTranslucencyColor[1]);
+				SharedArray7[LocalGroupThreadIndex] = tsr_half4(FilteredTranslucencyColor[2], FilteredTranslucencyColor[3]);
+				SharedArray8[LocalGroupThreadIndex] = tsr_half4(TranslucencyMinColor[0], TranslucencyMinColor[1]);
+				SharedArray9[LocalGroupThreadIndex] = tsr_half4(TranslucencyMinColor[2], TranslucencyMinColor[3]);
+				SharedArray10[LocalGroupThreadIndex] = tsr_half4(TranslucencyMaxColor[0], TranslucencyMaxColor[1]);
+				SharedArray11[LocalGroupThreadIndex] = tsr_half4(TranslucencyMaxColor[2], TranslucencyMaxColor[3]);
 			#endif
 
 			SharedParallaxFactorBits[LocalGroupThreadIndex] = ParallaxFactorBits;
 		#else
-			SharedArray0[LocalGroupThreadIndex] = taa_half4(dpv_lo(FilteredInputColor), dpv_lo(LowFrequencyRejection));
-			SharedArray1[LocalGroupThreadIndex] = taa_half4(dpv_lo(InputMinColor), dpv_lo(InputPixelAlignement));
-			SharedArray2[LocalGroupThreadIndex] = taa_half4(dpv_lo(InputMaxColor), dpv_lo(OutputPixelVelocity));
+			SharedArray0[LocalGroupThreadIndex] = tsr_half4(dpv_lo(FilteredInputColor), dpv_lo(LowFrequencyRejection));
+			SharedArray1[LocalGroupThreadIndex] = tsr_half4(dpv_lo(InputMinColor), dpv_lo(InputPixelAlignement));
+			SharedArray2[LocalGroupThreadIndex] = tsr_half4(dpv_lo(InputMaxColor), dpv_lo(OutputPixelVelocity));
 		#endif
 	}
 	#endif
 	
 	// Reproject history
-	taa_halfCx2 PrevLowFrequencyColor;
-	taa_half2 PrevLowFrequencyWeight;
+	tsr_halfCx2 PrevLowFrequencyColor;
+	tsr_half2 PrevLowFrequencyWeight;
 	
-	taa_halfCx2 PrevHighFrequencyColor;
-	taa_half2 PrevHistoryValidity;
+	tsr_halfCx2 PrevHighFrequencyColor;
+	tsr_half2 PrevHistoryValidity;
 	
-	taa_halfCx2 PrevHistoryMommentMin;
-	taa_halfCx2 PrevHistoryMommentMax;
+	tsr_halfCx2 PrevHistoryMommentMin;
+	tsr_halfCx2 PrevHistoryMommentMax;
 
-	taa_half4x2 PrevHistoryTranslucency;
+	tsr_half4x2 PrevHistoryTranslucency;
 	
-	taa_subpixel_details2 PrevSubpixelDetails;
+	tsr_subpixel_details2 PrevSubpixelDetails;
 
 	PLATFORM_SPECIFIC_ISOLATE
 	{
 		// Reproject history
-		taa_halfCx2 AccumulateLowFrequency = taa_half(0);
-		taa_halfCx2 AccumulateHighFrequency = taa_half(0);
-		taa_half2x2 AccumulateMetadata = taa_half(0);
-		taa_half4x2 AccumulateTranslucency = taa_half(0);
+		tsr_halfCx2 AccumulateLowFrequency = tsr_half(0);
+		tsr_halfCx2 AccumulateHighFrequency = tsr_half(0);
+		tsr_half2x2 AccumulateMetadata = tsr_half(0);
+		tsr_half4x2 AccumulateTranslucency = tsr_half(0);
 
-		taa_halfCx2 HighFrequencyMin = INFINITE_FLOAT;
-		taa_halfCx2 HighFrequencyMax = -INFINITE_FLOAT;
+		tsr_halfCx2 HighFrequencyMin = INFINITE_FLOAT;
+		tsr_halfCx2 HighFrequencyMax = -INFINITE_FLOAT;
 
 		// Sample raw history
 		{
@@ -740,13 +740,13 @@ void MainCS(
 			FCatmullRomSamples Samples1 = GetBicubic2DCatmullRomSamples(
 				dpv_hi(PrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
 			
-			taa_halfC RawLowFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
-			taa_halfC RawHighFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
-			taa_half2 RawMetadata[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
-			taa_half3 RawTranslucencyColor[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
-			taa_half  RawTranslucencyAlpha[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+			tsr_halfC RawLowFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+			tsr_halfC RawHighFrequency[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+			tsr_half2 RawMetadata[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+			tsr_half3 RawTranslucencyColor[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
+			tsr_half  RawTranslucencyAlpha[BICUBIC_CATMULL_ROM_SAMPLES][DPV_PIXEL_PER_LANE];
 
-			taa_half2 RawKernelWeight[BICUBIC_CATMULL_ROM_SAMPLES];
+			tsr_half2 RawKernelWeight[BICUBIC_CATMULL_ROM_SAMPLES];
 
 			// Issues texture fetches.
 			PLATFORM_SPECIFIC_ISOLATE
@@ -757,7 +757,7 @@ void MainCS(
 					float2 SampleUV0 = clamp(Samples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 					float2 SampleUV1 = clamp(Samples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 					
-					taa_half2 KernelWeight = dpv_force_interleave_registers(taa_half(Samples0.Weight[i]), taa_half(Samples1.Weight[i]));
+					tsr_half2 KernelWeight = dpv_force_interleave_registers(tsr_half(Samples0.Weight[i]), tsr_half(Samples1.Weight[i]));
 
 					RawKernelWeight[i] = KernelWeight;
 
@@ -785,16 +785,16 @@ void MainCS(
 				UNROLL_N(BICUBIC_CATMULL_ROM_SAMPLES)
 				for (uint i = 0; i < BICUBIC_CATMULL_ROM_SAMPLES; i++)
 				{
-					taa_halfCx2 SampleLowFrequency = dpv_force_interleave_registers_array(RawLowFrequency[i]);
-					taa_halfCx2 SampleHighFrequency = dpv_force_interleave_registers_array(RawHighFrequency[i]);
-					taa_half2x2 SampleMetadata = dpv_force_interleave_registers_array(RawMetadata[i]);
-					taa_half4x2 SampleTranslucency = dpv_force_interleave_registers(
-						taa_half4(RawTranslucencyColor[i][0], RawTranslucencyAlpha[i][0]),
-						taa_half4(RawTranslucencyColor[i][1], RawTranslucencyAlpha[i][1]));
+					tsr_halfCx2 SampleLowFrequency = dpv_force_interleave_registers_array(RawLowFrequency[i]);
+					tsr_halfCx2 SampleHighFrequency = dpv_force_interleave_registers_array(RawHighFrequency[i]);
+					tsr_half2x2 SampleMetadata = dpv_force_interleave_registers_array(RawMetadata[i]);
+					tsr_half4x2 SampleTranslucency = dpv_force_interleave_registers(
+						tsr_half4(RawTranslucencyColor[i][0], RawTranslucencyAlpha[i][0]),
+						tsr_half4(RawTranslucencyColor[i][1], RawTranslucencyAlpha[i][1]));
 					
-					taa_half2 KernelWeight = RawKernelWeight[i];
+					tsr_half2 KernelWeight = RawKernelWeight[i];
 
-					taa_half2 InvWeight = SafeRcp(SampleMetadata[1]);
+					tsr_half2 InvWeight = SafeRcp(SampleMetadata[1]);
 
 					HighFrequencyMin = min(HighFrequencyMin, dpv_scale(SampleHighFrequency, InvWeight));
 					HighFrequencyMax = max(HighFrequencyMax, dpv_scale(SampleHighFrequency, InvWeight));
@@ -808,7 +808,7 @@ void MainCS(
 					#endif
 				}
 				
-				taa_half2 FinalMultiplier = dpv_force_interleave_registers(taa_half(Samples0.FinalMultiplier), taa_half(Samples1.FinalMultiplier));
+				tsr_half2 FinalMultiplier = dpv_force_interleave_registers(tsr_half(Samples0.FinalMultiplier), tsr_half(Samples1.FinalMultiplier));
 
 				AccumulateLowFrequency  = dpv_scale(AccumulateLowFrequency, FinalMultiplier);
 				AccumulateHighFrequency = dpv_scale(AccumulateHighFrequency, FinalMultiplier);
@@ -823,22 +823,22 @@ void MainCS(
 				UNROLL_N(SUB_PIXEL_COUNT)
 				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
 				{
-					taa_subpixel_payload SubpixelPayload0 = GetSubpixelPayload(SubpixelNeighborhood0, SubpixelId);
-					taa_subpixel_payload SubpixelPayload1 = GetSubpixelPayload(SubpixelNeighborhood1, SubpixelId);
-					PrevSubpixelDetails[0] |= SubpixelPayload0 << taa_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
-					PrevSubpixelDetails[1] |= SubpixelPayload1 << taa_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
+					tsr_subpixel_payload SubpixelPayload0 = GetSubpixelPayload(SubpixelNeighborhood0, SubpixelId);
+					tsr_subpixel_payload SubpixelPayload1 = GetSubpixelPayload(SubpixelNeighborhood1, SubpixelId);
+					PrevSubpixelDetails[0] |= SubpixelPayload0 << tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
+					PrevSubpixelDetails[1] |= SubpixelPayload1 << tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT * SubpixelId);
 				}
 			}
 			
 			#if CONFIG_SCENE_COLOR_APLHA
-				AccumulateLowFrequency  = -dpv_min(-AccumulateLowFrequency, taa_half(0.0).xxxx);
-				AccumulateHighFrequency = -dpv_min(-AccumulateHighFrequency, taa_half(0.0).xxxx);
+				AccumulateLowFrequency  = -dpv_min(-AccumulateLowFrequency, tsr_half(0.0).xxxx);
+				AccumulateHighFrequency = -dpv_min(-AccumulateHighFrequency, tsr_half(0.0).xxxx);
 			#else
-				AccumulateLowFrequency  = -dpv_min(-AccumulateLowFrequency, taa_half(0.0).xxx);
-				AccumulateHighFrequency = -dpv_min(-AccumulateHighFrequency, taa_half(0.0).xxx);
+				AccumulateLowFrequency  = -dpv_min(-AccumulateLowFrequency, tsr_half(0.0).xxx);
+				AccumulateHighFrequency = -dpv_min(-AccumulateHighFrequency, tsr_half(0.0).xxx);
 			#endif
-			AccumulateMetadata      = -dpv_min(-AccumulateMetadata, taa_half(0.0).xx);
-			AccumulateTranslucency  = -dpv_min(-AccumulateTranslucency, taa_half(0.0).xxxx);
+			AccumulateMetadata      = -dpv_min(-AccumulateMetadata, tsr_half(0.0).xx);
+			AccumulateTranslucency  = -dpv_min(-AccumulateTranslucency, tsr_half(0.0).xxxx);
 		}
 		
 		// Unpack history.
@@ -857,13 +857,13 @@ void MainCS(
 
 		// Correct history
 		{
-			PrevHistoryMommentMin *= taa_half(HistoryPreExposureCorrection);
-			PrevHistoryMommentMax *= taa_half(HistoryPreExposureCorrection);
-			PrevHighFrequencyColor *= taa_half(HistoryPreExposureCorrection);
-			PrevLowFrequencyColor *= taa_half(HistoryPreExposureCorrection);
+			PrevHistoryMommentMin *= tsr_half(HistoryPreExposureCorrection);
+			PrevHistoryMommentMax *= tsr_half(HistoryPreExposureCorrection);
+			PrevHighFrequencyColor *= tsr_half(HistoryPreExposureCorrection);
+			PrevLowFrequencyColor *= tsr_half(HistoryPreExposureCorrection);
 
 			// Fixes negative validity that can happen due to negative lobes of Catrom.
-			PrevHistoryValidity = max(PrevHistoryValidity, taa_half(0.0).xx);
+			PrevHistoryValidity = max(PrevHistoryValidity, tsr_half(0.0).xx);
 		}
 	}
 		
@@ -873,41 +873,41 @@ void MainCS(
 		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 	
 		#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-			taa_half4 RawLDS0 = SharedArray0[LocalGroupThreadIndex];
-			taa_half4 RawLDS1 = SharedArray1[LocalGroupThreadIndex];
-			taa_half4 RawLDS2 = SharedArray2[LocalGroupThreadIndex];
-			taa_half4 RawLDS3 = SharedArray3[LocalGroupThreadIndex];
-			taa_half4 RawLDS4 = SharedArray4[LocalGroupThreadIndex];
-			taa_half4 RawLDS5 = SharedArray5[LocalGroupThreadIndex];
+			tsr_half4 RawLDS0 = SharedArray0[LocalGroupThreadIndex];
+			tsr_half4 RawLDS1 = SharedArray1[LocalGroupThreadIndex];
+			tsr_half4 RawLDS2 = SharedArray2[LocalGroupThreadIndex];
+			tsr_half4 RawLDS3 = SharedArray3[LocalGroupThreadIndex];
+			tsr_half4 RawLDS4 = SharedArray4[LocalGroupThreadIndex];
+			tsr_half4 RawLDS5 = SharedArray5[LocalGroupThreadIndex];
 			
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				taa_half4 RawLDS6 = SharedArray6[LocalGroupThreadIndex];
-				taa_half4 RawLDS7 = SharedArray7[LocalGroupThreadIndex];
-				taa_half4 RawLDS8 = SharedArray8[LocalGroupThreadIndex];
-				taa_half4 RawLDS9 = SharedArray9[LocalGroupThreadIndex];
-				taa_half4 RawLDS10 = SharedArray10[LocalGroupThreadIndex];
-				taa_half4 RawLDS11 = SharedArray11[LocalGroupThreadIndex];
+				tsr_half4 RawLDS6 = SharedArray6[LocalGroupThreadIndex];
+				tsr_half4 RawLDS7 = SharedArray7[LocalGroupThreadIndex];
+				tsr_half4 RawLDS8 = SharedArray8[LocalGroupThreadIndex];
+				tsr_half4 RawLDS9 = SharedArray9[LocalGroupThreadIndex];
+				tsr_half4 RawLDS10 = SharedArray10[LocalGroupThreadIndex];
+				tsr_half4 RawLDS11 = SharedArray11[LocalGroupThreadIndex];
 			#endif
 
 			ParallaxFactorBits = SharedParallaxFactorBits[LocalGroupThreadIndex];
 
-			FilteredInputColor = taa_half3x2(RawLDS0.rg, RawLDS0.ba, RawLDS1.rg);
-			InputMinColor = taa_half3x2(RawLDS2.rg, RawLDS2.ba, RawLDS3.rg);
-			InputMaxColor = taa_half3x2(RawLDS4.rg, RawLDS4.ba, RawLDS5.rg);
+			FilteredInputColor = tsr_half3x2(RawLDS0.rg, RawLDS0.ba, RawLDS1.rg);
+			InputMinColor = tsr_half3x2(RawLDS2.rg, RawLDS2.ba, RawLDS3.rg);
+			InputMaxColor = tsr_half3x2(RawLDS4.rg, RawLDS4.ba, RawLDS5.rg);
 		
 			LowFrequencyRejection = RawLDS1.ba;
 			InputPixelAlignement = RawLDS3.ba;
 			OutputPixelVelocity = RawLDS5.ba;
 			
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				FilteredTranslucencyColor = taa_half4x2(RawLDS6.rg, RawLDS6.ba, RawLDS7.rg, RawLDS7.ba);
-				TranslucencyMinColor = taa_half4x2(RawLDS8.rg, RawLDS8.ba, RawLDS9.rg, RawLDS9.ba);
-				TranslucencyMaxColor = taa_half4x2(RawLDS10.rg, RawLDS10.ba, RawLDS11.rg, RawLDS11.ba);
+				FilteredTranslucencyColor = tsr_half4x2(RawLDS6.rg, RawLDS6.ba, RawLDS7.rg, RawLDS7.ba);
+				TranslucencyMinColor = tsr_half4x2(RawLDS8.rg, RawLDS8.ba, RawLDS9.rg, RawLDS9.ba);
+				TranslucencyMaxColor = tsr_half4x2(RawLDS10.rg, RawLDS10.ba, RawLDS11.rg, RawLDS11.ba);
 			#endif
 		#else
-			taa_half4 RawLDS0 = SharedArray0[LocalGroupThreadIndex];
-			taa_half4 RawLDS1 = SharedArray1[LocalGroupThreadIndex];
-			taa_half4 RawLDS2 = SharedArray2[LocalGroupThreadIndex];
+			tsr_half4 RawLDS0 = SharedArray0[LocalGroupThreadIndex];
+			tsr_half4 RawLDS1 = SharedArray1[LocalGroupThreadIndex];
+			tsr_half4 RawLDS2 = SharedArray2[LocalGroupThreadIndex];
 
 			FilteredInputColor = dpv_interleave_mono_registers(RawLDS0.rgb);
 			InputMinColor = dpv_interleave_mono_registers(RawLDS1.rgb);
@@ -923,13 +923,13 @@ void MainCS(
 	// Rejects high frequency details if their low frequencies drift from the low frequency history
 	#if CONFIG_LOW_FREQUENCY_DRIFT_REJECTION
 	{
-		taa_halfCx2 NormalizedPrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, SafeRcp(PrevHistoryValidity));
+		tsr_halfCx2 NormalizedPrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, SafeRcp(PrevHistoryValidity));
 
-		taa_halfCx2 PrevHighFrequencyYCoCg = TransformColorForClampingBox(NormalizedPrevHighFrequencyColor);
-		taa_halfCx2 PrevYCoCg = TransformColorForClampingBox(PrevLowFrequencyColor);
-		taa_halfCx2 ClampedPrevYCoCg = TransformColorForClampingBox(clamp(PrevLowFrequencyColor, PrevHistoryMommentMin, PrevHistoryMommentMax));
+		tsr_halfCx2 PrevHighFrequencyYCoCg = TransformColorForClampingBox(NormalizedPrevHighFrequencyColor);
+		tsr_halfCx2 PrevYCoCg = TransformColorForClampingBox(PrevLowFrequencyColor);
+		tsr_halfCx2 ClampedPrevYCoCg = TransformColorForClampingBox(clamp(PrevLowFrequencyColor, PrevHistoryMommentMin, PrevHistoryMommentMax));
 
-		taa_half2 HighFrequencyRejection = MeasureRejectionFactor(
+		tsr_half2 HighFrequencyRejection = MeasureRejectionFactor(
 			PrevYCoCg, ClampedPrevYCoCg,
 			PrevHighFrequencyYCoCg, InputMinColor, InputMaxColor,
 			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevYCoCg[0], ClampedPrevYCoCg[0])));
@@ -941,21 +941,21 @@ void MainCS(
 	#endif
 
 	// Contribute current frame input into the predictor for next frame.
-	const taa_half Histeresis = rcp(taa_half(MAX_SAMPLE_COUNT));
-	const taa_half PredictionOnlyValidity = Histeresis * taa_half(2.0);
+	const tsr_half Histeresis = rcp(tsr_half(MAX_SAMPLE_COUNT));
+	const tsr_half PredictionOnlyValidity = Histeresis * tsr_half(2.0);
 	
 	// Clamp low frequency
-	taa_half2 LumaMin;
-	taa_half2 LumaMax;
-	taa_halfCx2 ClampedLowFrequencyColor;
-	taa_half2 MidFrequencyRejection;
+	tsr_half2 LumaMin;
+	tsr_half2 LumaMax;
+	tsr_halfCx2 ClampedLowFrequencyColor;
+	tsr_half2 MidFrequencyRejection;
 	{
 		LumaMin = InputMinColor[0];
 		LumaMax = InputMaxColor[0];
 
-		taa_halfCx2 PrevYCoCg = TransformColorForClampingBox(PrevLowFrequencyColor);
-		taa_halfCx2 ClampedPrevYCoCg = dpv_clamp(PrevYCoCg, InputMinColor, InputMaxColor);
-		taa_halfCx2 InputCenterYCoCg = TransformColorForClampingBox(FilteredInputColor);
+		tsr_halfCx2 PrevYCoCg = TransformColorForClampingBox(PrevLowFrequencyColor);
+		tsr_halfCx2 ClampedPrevYCoCg = dpv_clamp(PrevYCoCg, InputMinColor, InputMaxColor);
+		tsr_halfCx2 InputCenterYCoCg = TransformColorForClampingBox(FilteredInputColor);
 
 		ClampedLowFrequencyColor = YCoCgToRGB(ClampedPrevYCoCg);
 		
@@ -967,7 +967,7 @@ void MainCS(
 		#if !CONFIG_CLAMP
 		{
 			ClampedLowFrequencyColor = PrevLowFrequencyColor;
-			MidFrequencyRejection = taa_half(1.0);
+			MidFrequencyRejection = tsr_half(1.0);
 		}
 		#endif
 	}
@@ -979,13 +979,13 @@ void MainCS(
 	}
 	#endif
 	
-	taa_halfCx2 FinalHighFrequencyColor;
-	taa_half2 FinalHistoryValidity;
+	tsr_halfCx2 FinalHighFrequencyColor;
+	tsr_half2 FinalHistoryValidity;
 	{
-		taa_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
+		tsr_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
 
 		// Compute how much the history needs to be rejected, based on the completeness.
-		taa_half2 PrevHistoryRejectionWeight = LowFrequencyRejection * HoleFilledVelocityMask[1];
+		tsr_half2 PrevHistoryRejectionWeight = LowFrequencyRejection * HoleFilledVelocityMask[1];
 			
 		//#if !CONFIG_CLAMP
 		//	PrevHistoryRejectionWeight = 1.0;
@@ -994,33 +994,33 @@ void MainCS(
 		FLATTEN
 		if (bOffScreen[0])
 		{
-			PrevHistoryRejectionWeight[0] = taa_half(0.0);
+			PrevHistoryRejectionWeight[0] = tsr_half(0.0);
 		}
 
 		FLATTEN
 		if (bOffScreen[1])
 		{
-			PrevHistoryRejectionWeight[1] = taa_half(0.0);
+			PrevHistoryRejectionWeight[1] = tsr_half(0.0);
 		}
 
-		taa_half2 DesiredCurrentContribution = max(Histeresis * InputPixelAlignement, taa_half(0.0));
+		tsr_half2 DesiredCurrentContribution = max(Histeresis * InputPixelAlignement, tsr_half(0.0));
 
 		// Determine whether the the prediction based rejection was confident enough.
-		taa_half2 RejectionConfidentEnough = taa_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
+		tsr_half2 RejectionConfidentEnough = tsr_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
 		
 		// Clamp the validity due to motion to maintain better sharpness in history reprojection under motion.
-		taa_half2 ClampedPrevHistoryValidity;
+		tsr_half2 ClampedPrevHistoryValidity;
 		#if 1
 		{
-			taa_half2 MaxValidity = taa_half(1.0) - (taa_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * taa_half(InvWeightClampingPixelSpeed));
+			tsr_half2 MaxValidity = tsr_half(1.0) - (tsr_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * tsr_half(InvWeightClampingPixelSpeed));
 
 			// Clamp up the max validity to favorise stability under motion on high contrast edges.
 			#if 1
 			{
-				taa_half2 PrevHistoryLuma = Luma4(PrevHighFrequencyColor) * InvPrevHistoryValidity;
-				taa_half2 FilteredLuma = Luma4(FilteredInputColor);
+				tsr_half2 PrevHistoryLuma = Luma4(PrevHighFrequencyColor) * InvPrevHistoryValidity;
+				tsr_half2 FilteredLuma = Luma4(FilteredInputColor);
 
-				taa_half2 MinValidityForStability = abs(FilteredLuma - PrevHistoryLuma) / max(FilteredLuma, PrevHistoryLuma);
+				tsr_half2 MinValidityForStability = abs(FilteredLuma - PrevHistoryLuma) / max(FilteredLuma, PrevHistoryLuma);
 				
 				MaxValidity = max(MaxValidity, MinValidityForStability);
 			}
@@ -1035,43 +1035,43 @@ void MainCS(
 		#endif
 
 		// Compute the newly rejected validity
-		taa_half2 RejectedValidity = (
+		tsr_half2 RejectedValidity = (
 			min(ClampedPrevHistoryValidity, PredictionOnlyValidity - DesiredCurrentContribution) +
-			max(ClampedPrevHistoryValidity - PredictionOnlyValidity + DesiredCurrentContribution, taa_half(0.0)) * PrevHistoryRejectionWeight);
+			max(ClampedPrevHistoryValidity - PredictionOnlyValidity + DesiredCurrentContribution, tsr_half(0.0)) * PrevHistoryRejectionWeight);
 
 		RejectedValidity = ClampedPrevHistoryValidity * PrevHistoryRejectionWeight;
 
 		// Compute the maximum output validity.
-		taa_half2 OutputValidity = (
-			clamp(RejectedValidity + DesiredCurrentContribution, taa_half(0.0), PredictionOnlyValidity) +
-			clamp(RejectedValidity + DesiredCurrentContribution * PrevHistoryRejectionWeight * RejectionConfidentEnough - PredictionOnlyValidity, taa_half(0.0), taa_half(1.0) - PredictionOnlyValidity));
+		tsr_half2 OutputValidity = (
+			clamp(RejectedValidity + DesiredCurrentContribution, tsr_half(0.0), PredictionOnlyValidity) +
+			clamp(RejectedValidity + DesiredCurrentContribution * PrevHistoryRejectionWeight * RejectionConfidentEnough - PredictionOnlyValidity, tsr_half(0.0), tsr_half(1.0) - PredictionOnlyValidity));
 
 		#if !CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 			FLATTEN
 			if (bIsResponsiveAAPixel[0])
 			{
-				OutputValidity[0] = taa_half(0.0);
+				OutputValidity[0] = tsr_half(0.0);
 			}
 
 			FLATTEN
 			if (bIsResponsiveAAPixel[1])
 			{
-				OutputValidity[1] = taa_half(0.0);
+				OutputValidity[1] = tsr_half(0.0);
 			}
 		#endif
 		
-		taa_half2 PrevMomentWeight = max(OutputValidity - DesiredCurrentContribution, taa_half(0.0));
-		taa_half2 CurrentMomentWeight = min(DesiredCurrentContribution, OutputValidity);
+		tsr_half2 PrevMomentWeight = max(OutputValidity - DesiredCurrentContribution, tsr_half(0.0));
+		tsr_half2 CurrentMomentWeight = min(DesiredCurrentContribution, OutputValidity);
 		
 		#if 1
 		{
-			taa_half2 PrevHistoryToneWeight = HdrWeightY(Luma4(PrevHighFrequencyColor) * InvPrevHistoryValidity);
-			taa_half2 FilteredInputToneWeight = HdrWeight4(FilteredInputColor);
+			tsr_half2 PrevHistoryToneWeight = HdrWeightY(Luma4(PrevHighFrequencyColor) * InvPrevHistoryValidity);
+			tsr_half2 FilteredInputToneWeight = HdrWeight4(FilteredInputColor);
 			
-			taa_half2 BlendPrevHistory = PrevMomentWeight * PrevHistoryToneWeight;
-			taa_half2 BlendFilteredInput = CurrentMomentWeight * FilteredInputToneWeight;
+			tsr_half2 BlendPrevHistory = PrevMomentWeight * PrevHistoryToneWeight;
+			tsr_half2 BlendFilteredInput = CurrentMomentWeight * FilteredInputToneWeight;
 
-			taa_half2 CommonWeight = SafeRcp(BlendPrevHistory + BlendFilteredInput);
+			tsr_half2 CommonWeight = SafeRcp(BlendPrevHistory + BlendFilteredInput);
 
 			FinalHighFrequencyColor = (
 				dpv_scale(PrevHighFrequencyColor, CommonWeight * BlendPrevHistory * InvPrevHistoryValidity) +
@@ -1087,7 +1087,7 @@ void MainCS(
 		#if 0
 			FinalHistoryValidity = OutputValidity;
 		#else
-			FinalHistoryValidity = ceil(taa_half(255.0) * OutputValidity) * rcp(taa_half(255.0));
+			FinalHistoryValidity = ceil(tsr_half(255.0) * OutputValidity) * rcp(tsr_half(255.0));
 		#endif
 
 		#if 0 // DEBUG
@@ -1099,46 +1099,46 @@ void MainCS(
 	}
 
 	// Compute the low frequency history
-	taa_halfCx2 FinalLowFrequencyColor;
-	taa_half2 FinalLowFrequencyWeight;
+	tsr_halfCx2 FinalLowFrequencyColor;
+	tsr_half2 FinalLowFrequencyWeight;
 	{
-		const taa_half TargetHesteresisCurrentFrameWeight = rcp(taa_half(MAX_FALLBACK_SAMPLE_COUNT));
+		const tsr_half TargetHesteresisCurrentFrameWeight = rcp(tsr_half(MAX_FALLBACK_SAMPLE_COUNT));
 
-		taa_half2 LumaHistory = Luma4(PrevLowFrequencyColor);
-		taa_half2 LumaFiltered = Luma4(FilteredInputColor);
+		tsr_half2 LumaHistory = Luma4(PrevLowFrequencyColor);
+		tsr_half2 LumaFiltered = Luma4(FilteredInputColor);
 
 		{
-			taa_half2 OutputBlend = ComputeLowFrequencyContribution(FinalHistoryValidity);
+			tsr_half2 OutputBlend = ComputeLowFrequencyContribution(FinalHistoryValidity);
 
 			//ClampedLowFrequencyColor = lerp(ClampedLowFrequencyColor, PrevLowFrequencyColor, OutputBlend);
 		}
 
-		taa_half2 BlendFinal;
+		tsr_half2 BlendFinal;
 		#if 1
 		{
-			taa_half2 CurrentFrameSampleCount = max(InputPixelAlignement, taa_half(0.005));
+			tsr_half2 CurrentFrameSampleCount = max(InputPixelAlignement, tsr_half(0.005));
 			
 			// Use only one sample count to be extremely fast to recover in history rejection. But then stabilize imediately so sub pixel
 			// frequency can be used as soon as possible.
-			taa_half2 PrevLowFrequencySampleCount;
+			tsr_half2 PrevLowFrequencySampleCount;
 			FLATTEN
-			if (PrevLowFrequencyWeight[0] < taa_half(1.0))
+			if (PrevLowFrequencyWeight[0] < tsr_half(1.0))
 			{
 				PrevLowFrequencySampleCount[0] = PrevLowFrequencyWeight[0];
 			}
 			else
 			{
-				PrevLowFrequencySampleCount[0] = taa_half(MAX_FALLBACK_SAMPLE_COUNT);
+				PrevLowFrequencySampleCount[0] = tsr_half(MAX_FALLBACK_SAMPLE_COUNT);
 			}
 
 			FLATTEN
-			if (PrevLowFrequencyWeight[1] < taa_half(1.0))
+			if (PrevLowFrequencyWeight[1] < tsr_half(1.0))
 			{
 				PrevLowFrequencySampleCount[1] = PrevLowFrequencyWeight[1];
 			}
 			else
 			{
-				PrevLowFrequencySampleCount[1] = taa_half(MAX_FALLBACK_SAMPLE_COUNT);
+				PrevLowFrequencySampleCount[1] = tsr_half(MAX_FALLBACK_SAMPLE_COUNT);
 			}
 
 			// Reject the history based on the low frequencies.
@@ -1147,7 +1147,7 @@ void MainCS(
 				// float InvertedBlendFinal = PrevLowFrequencySampleCount / (CurrentFrameSampleCount + PrevLowFrequencySampleCount);
 				// float PrevLowFrequencyRejectionFactor = saturate(LowFrequencyRejection / InvertedBlendFinal);
 				
-				taa_half2 PrevLowFrequencyRejectionFactor = saturate(LowFrequencyRejection * (CurrentFrameSampleCount + PrevLowFrequencySampleCount) * rcp(PrevLowFrequencySampleCount));
+				tsr_half2 PrevLowFrequencyRejectionFactor = saturate(LowFrequencyRejection * (CurrentFrameSampleCount + PrevLowFrequencySampleCount) * rcp(PrevLowFrequencySampleCount));
 
 				PrevLowFrequencySampleCount *= PrevLowFrequencyRejectionFactor;
 			}
@@ -1158,34 +1158,34 @@ void MainCS(
 			// Increase the blending on motion
 			#if 1
 			{
-				BlendFinal = lerp(BlendFinal, max(taa_half(0.2), BlendFinal), saturate(OutputPixelVelocity * rcp(taa_half(40.0))));
+				BlendFinal = lerp(BlendFinal, max(tsr_half(0.2), BlendFinal), saturate(OutputPixelVelocity * rcp(tsr_half(40.0))));
 			}
 			#endif
 
 			// Antiflicker
 			#if 1
 			{
-				taa_half2 DistToClamp = min( abs(LumaHistory - LumaMin), abs(LumaHistory - LumaMax) ) * rcp(max3( LumaHistory, LumaFiltered, taa_half(1e-4) ));
-				BlendFinal *= taa_half(0.2) + taa_half(0.8) * saturate(taa_half(0.5) * DistToClamp);
+				tsr_half2 DistToClamp = min( abs(LumaHistory - LumaMin), abs(LumaHistory - LumaMax) ) * rcp(max3( LumaHistory, LumaFiltered, tsr_half(1e-4) ));
+				BlendFinal *= tsr_half(0.2) + tsr_half(0.8) * saturate(tsr_half(0.5) * DistToClamp);
 			}
 			#endif
 			
 			// Make sure to have at least some small contribution
 			#if 1
 			{
-				BlendFinal = max(BlendFinal, saturate(taa_half(0.01) * LumaHistory * rcp(abs(LumaFiltered - LumaHistory))));
+				BlendFinal = max(BlendFinal, saturate(tsr_half(0.01) * LumaHistory * rcp(abs(LumaFiltered - LumaHistory))));
 			}
 			#endif
 
 			#if !CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 				// Responsive forces 1/4 of new frame.
-				BlendFinal[0] = bIsResponsiveAAPixel[0] ? taa_half(1.0/4.0) : BlendFinal[0];
-				BlendFinal[1] = bIsResponsiveAAPixel[1] ? taa_half(1.0/4.0) : BlendFinal[1];
+				BlendFinal[0] = bIsResponsiveAAPixel[0] ? tsr_half(1.0/4.0) : BlendFinal[0];
+				BlendFinal[1] = bIsResponsiveAAPixel[1] ? tsr_half(1.0/4.0) : BlendFinal[1];
 			#endif
 
 			// Completely discard the history
 			{
-				taa_half2 TotalRejectionBlending = max(BlendFinal, HoleFilledVelocityMask[0]);
+				tsr_half2 TotalRejectionBlending = max(BlendFinal, HoleFilledVelocityMask[0]);
 
 				PrevLowFrequencySampleCount *= TotalRejection;
 				BlendFinal = lerp(TotalRejectionBlending, BlendFinal, TotalRejection);
@@ -1194,90 +1194,90 @@ void MainCS(
 			FinalLowFrequencyWeight = saturate(CurrentFrameSampleCount + PrevLowFrequencySampleCount);
 			
 			#if 1
-				FinalLowFrequencyWeight = saturate(floor(taa_half(255.0) * (CurrentFrameSampleCount + PrevLowFrequencySampleCount)) * rcp(taa_half(255.0)));
+				FinalLowFrequencyWeight = saturate(floor(tsr_half(255.0) * (CurrentFrameSampleCount + PrevLowFrequencySampleCount)) * rcp(tsr_half(255.0)));
 			#endif
 		}
 		#endif
 
 		{
-			taa_half2 FilterWeight = HdrWeight4(FilteredInputColor);
-			taa_half2 ClampedHistoryWeight = HdrWeight4(ClampedLowFrequencyColor);
+			tsr_half2 FilterWeight = HdrWeight4(FilteredInputColor);
+			tsr_half2 ClampedHistoryWeight = HdrWeight4(ClampedLowFrequencyColor);
 
-			taa_half2x2 Weights = WeightedLerpFactors(ClampedHistoryWeight, FilterWeight, BlendFinal);
+			tsr_half2x2 Weights = WeightedLerpFactors(ClampedHistoryWeight, FilterWeight, BlendFinal);
 
 			FinalLowFrequencyColor = dpv_scale(ClampedLowFrequencyColor, Weights[0]) + dpv_scale(FilteredInputColor, Weights[1]);
 		}
 	}
 	
 	// Compute the low frequency history
-	taa_half4x2 FinalTranslucencyColor;
+	tsr_half4x2 FinalTranslucencyColor;
 	#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 	{
-		taa_half2 TranslucencyLumaMin = Luma4(GetColorChannel(TranslucencyMinColor));
-		taa_half2 TranslucencyLumaMax = Luma4(GetColorChannel(TranslucencyMaxColor));
+		tsr_half2 TranslucencyLumaMin = Luma4(GetColorChannel(TranslucencyMinColor));
+		tsr_half2 TranslucencyLumaMax = Luma4(GetColorChannel(TranslucencyMaxColor));
 
-		taa_half2 TranslucencyLumaHistory  = Luma4(GetColorChannel(PrevHistoryTranslucency));
-		taa_half2 TranslucencyLumaFiltered = Luma4(GetColorChannel(FilteredTranslucencyColor));
+		tsr_half2 TranslucencyLumaHistory  = Luma4(GetColorChannel(PrevHistoryTranslucency));
+		tsr_half2 TranslucencyLumaFiltered = Luma4(GetColorChannel(FilteredTranslucencyColor));
 
-		taa_half4x2 ClampedPrevHistoryTranslucency = clamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
+		tsr_half4x2 ClampedPrevHistoryTranslucency = clamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
 		
 		#if CONFIG_SCENE_COLOR_APLHA
-			taa_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
+			tsr_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
 				PrevHistoryTranslucency, ClampedPrevHistoryTranslucency,
 				FilteredTranslucencyColor, TranslucencyMinColor, TranslucencyMaxColor,
-				taa_half(0.0));
+				tsr_half(0.0));
 		#else
-			taa_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
+			tsr_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
 				GetColorChannel(PrevHistoryTranslucency), GetColorChannel(ClampedPrevHistoryTranslucency),
 				GetColorChannel(FilteredTranslucencyColor), GetColorChannel(TranslucencyMinColor), GetColorChannel(TranslucencyMaxColor),
-				taa_half(0.0));
+				tsr_half(0.0));
 		#endif
 
-		taa_half2 BlendFinal = taa_half(0.2) * InputPixelAlignement;
+		tsr_half2 BlendFinal = tsr_half(0.2) * InputPixelAlignement;
 
 		// Antiflicker
 		#if 1
 		{
-			taa_half2 DistToClamp = min( abs(TranslucencyLumaHistory - TranslucencyLumaMin), abs(TranslucencyLumaHistory - TranslucencyLumaMax) ) / max3( TranslucencyLumaHistory, TranslucencyLumaFiltered, taa_half(1e-4) );
-			BlendFinal *= taa_half(0.2) + taa_half(0.8) * saturate(taa_half(0.5) * DistToClamp);
+			tsr_half2 DistToClamp = min( abs(TranslucencyLumaHistory - TranslucencyLumaMin), abs(TranslucencyLumaHistory - TranslucencyLumaMax) ) / max3( TranslucencyLumaHistory, TranslucencyLumaFiltered, tsr_half(1e-4) );
+			BlendFinal *= tsr_half(0.2) + tsr_half(0.8) * saturate(tsr_half(0.5) * DistToClamp);
 		}
 		#endif
 			
 		// Make sure to have at least some small contribution
 		#if 0
 		{
-			BlendFinal = max( BlendFinal, saturate( taa_half(0.01) * TranslucencyLumaHistory * rcp(abs(TranslucencyLumaFiltered - TranslucencyLumaHistory))));
+			BlendFinal = max( BlendFinal, saturate( tsr_half(0.01) * TranslucencyLumaHistory * rcp(abs(TranslucencyLumaFiltered - TranslucencyLumaHistory))));
 		}
 		#endif
 		
-		BlendFinal = max(BlendFinal, (taa_half(1.0) - TranslucencyRejection));
+		BlendFinal = max(BlendFinal, (tsr_half(1.0) - TranslucencyRejection));
 		
 		FLATTEN
 		if (bCameraCut)
 		{
-			BlendFinal = taa_half(1.0);
+			BlendFinal = tsr_half(1.0);
 		}
 		
 		#if 0
 		{
-			taa_half2 OneMinusBlendFinal = taa_half(1.0) - BlendFinal;
+			tsr_half2 OneMinusBlendFinal = tsr_half(1.0) - BlendFinal;
 		
 			FinalTranslucencyColor = dpv_scale(ClampedPrevHistoryTranslucency, OneMinusBlendFinal) + dpv_scale(FilteredTranslucencyColor, BlendFinal);
 		}
 		#else
 		{
-			taa_half2 FilterWeight = HdrWeight4(GetColorChannel(FilteredTranslucencyColor));
-			taa_half2 ClampedHistoryWeight = HdrWeight4(GetColorChannel(ClampedPrevHistoryTranslucency));
+			tsr_half2 FilterWeight = HdrWeight4(GetColorChannel(FilteredTranslucencyColor));
+			tsr_half2 ClampedHistoryWeight = HdrWeight4(GetColorChannel(ClampedPrevHistoryTranslucency));
 
 			
-			taa_half2 BlendA = saturate(taa_half(1.0) - 1.05 * BlendFinal) * ClampedHistoryWeight;
-			taa_half2 BlendB = BlendFinal * FilterWeight;
-			taa_half2 RcpBlend = SafeRcp(BlendA + BlendB);
+			tsr_half2 BlendA = saturate(tsr_half(1.0) - 1.05 * BlendFinal) * ClampedHistoryWeight;
+			tsr_half2 BlendB = BlendFinal * FilterWeight;
+			tsr_half2 RcpBlend = SafeRcp(BlendA + BlendB);
 			BlendA *= RcpBlend;
 			BlendB *= RcpBlend;
-			taa_half2x2 Weights =  taa_half2x2(BlendA, BlendB);
+			tsr_half2x2 Weights =  tsr_half2x2(BlendA, BlendB);
 
-			//taa_half2x2 Weights = WeightedLerpFactors(ClampedHistoryWeight, FilterWeight, BlendFinal);
+			//tsr_half2x2 Weights = WeightedLerpFactors(ClampedHistoryWeight, FilterWeight, BlendFinal);
 
 			FinalTranslucencyColor = dpv_scale(ClampedPrevHistoryTranslucency, Weights[0]) + dpv_scale(FilteredTranslucencyColor, Weights[1]);
 		}
@@ -1286,13 +1286,13 @@ void MainCS(
 	#endif
 
 	// Update subpixel detail
-	taa_subpixel_details2 FinalSubpixelDetails;
+	tsr_subpixel_details2 FinalSubpixelDetails;
 	{
 		FinalSubpixelDetails = PrevSubpixelDetails;
 
 
 		{
-			const taa_subpixel_details ParallaxFactorMask = taa_subpixel_details(
+			const tsr_subpixel_details ParallaxFactorMask = tsr_subpixel_details(
 				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 0 * SUB_PIXEL_BIT_COUNT)) | 
 				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 1 * SUB_PIXEL_BIT_COUNT)) | 
 				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 2 * SUB_PIXEL_BIT_COUNT)) | 
@@ -1315,11 +1315,11 @@ void MainCS(
 		
 		uint2 SubpixelId = dpv_dot(uint2x2(bKOSign), uint2(1, SUB_PIXEL_GRID_SIZE));
 
-		taa_subpixel_payload2 SubpixelShift = taa_subpixel_payload2(SubpixelId) * taa_subpixel_payload(SUB_PIXEL_BIT_COUNT);
+		tsr_subpixel_payload2 SubpixelShift = tsr_subpixel_payload2(SubpixelId) * tsr_subpixel_payload(SUB_PIXEL_BIT_COUNT);
 
-		taa_subpixel_payload2 SubpixelPayload = (ParallaxFactorBits << taa_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET));
+		tsr_subpixel_payload2 SubpixelPayload = (ParallaxFactorBits << tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET));
 
-		taa_subpixel_details2 UpdatedFinalSubpixelDetails = (FinalSubpixelDetails & (~(taa_subpixel_payload(SUB_PIXEL_BIT_MASK) << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
+		tsr_subpixel_details2 UpdatedFinalSubpixelDetails = (FinalSubpixelDetails & (~(tsr_subpixel_payload(SUB_PIXEL_BIT_MASK) << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
 
 		FLATTEN
 		if (bUpdateSubpixelDetails[0])
@@ -1335,9 +1335,9 @@ void MainCS(
 	}
 
 	// Compute final output
-	taa_halfCx2 FinalOutputColor;
+	tsr_halfCx2 FinalOutputColor;
 	{
-		taa_half2 OutputBlend = ComputeLowFrequencyContribution(FinalHistoryValidity);
+		tsr_half2 OutputBlend = ComputeLowFrequencyContribution(FinalHistoryValidity);
 
 		#if 0 // DEBUG
 		{
@@ -1356,18 +1356,18 @@ void MainCS(
 		}
 		#endif
 
-		taa_half2 LowFrequencyWeight = HdrWeight4(FinalLowFrequencyColor);
-		taa_half2 Moment1Weight = HdrWeight4(FinalHighFrequencyColor);
+		tsr_half2 LowFrequencyWeight = HdrWeight4(FinalLowFrequencyColor);
+		tsr_half2 Moment1Weight = HdrWeight4(FinalHighFrequencyColor);
 
-		taa_half2x2 Weights = WeightedLerpFactors(LowFrequencyWeight, Moment1Weight, OutputBlend);
+		tsr_half2x2 Weights = WeightedLerpFactors(LowFrequencyWeight, Moment1Weight, OutputBlend);
 
 		#if DEBUG_FALLBACK_BLENDING
-			taa_half3 LowFrequencyColor = taa_half3(1, 0.25, 0.25);
-			taa_half3 HighFrequencyColor = taa_half3(0.25, 1, 0.25);
+			tsr_half3 LowFrequencyColor = tsr_half3(1, 0.25, 0.25);
+			tsr_half3 HighFrequencyColor = tsr_half3(0.25, 1, 0.25);
 
 			FinalOutputColor = dpv_scale(FinalLowFrequencyColor * dpv_interleave_mono_registers(LowFrequencyColor), Weights[0]) + dpv_scale(FinalHighFrequencyColor * dpv_interleave_mono_registers(HighFrequencyColor), Weights[1]);
 		#elif DEBUG_LOW_FREQUENCY_REJECTION
-			taa_half3 DebugColor = lerp(taa_half3(1, 0.5, 0.5), taa_half3(0.5, 1, 0.5), LowFrequencyRejection);
+			tsr_half3 DebugColor = lerp(tsr_half3(1, 0.5, 0.5), tsr_half3(0.5, 1, 0.5), LowFrequencyRejection);
 			
 			FinalOutputColor = FinalLowFrequencyColor * Weights.x * DebugColor + FinalHighFrequencyColor * Weights.y * DebugColor;
 		#else
@@ -1379,7 +1379,7 @@ void MainCS(
 			FinalOutputColor[1] = FinalOutputColor[1] * FinalTranslucencyColor[3] + FinalTranslucencyColor[1];
 			FinalOutputColor[2] = FinalOutputColor[2] * FinalTranslucencyColor[3] + FinalTranslucencyColor[2];
 			#if CONFIG_SCENE_COLOR_APLHA
-				FinalOutputColor[3] = saturate(taa_half(1.0) - (taa_half(1.0) - FinalOutputColor[3]) * FinalTranslucencyColor[3]);
+				FinalOutputColor[3] = saturate(tsr_half(1.0) - (tsr_half(1.0) - FinalOutputColor[3]) * FinalTranslucencyColor[3]);
 			#endif
 		#endif
 	}
@@ -1388,34 +1388,34 @@ void MainCS(
 	PLATFORM_SPECIFIC_ISOLATE
 	{
 		#if CONFIG_SCENE_COLOR_APLHA
-			const taa_halfC ColorNull = taa_half(0.0).xxxx;
-			const taa_halfC ColorMax10BitsFloat = taa_half(Max10BitsFloat).xxxx;
+			const tsr_halfC ColorNull = tsr_half(0.0).xxxx;
+			const tsr_halfC ColorMax10BitsFloat = tsr_half(Max10BitsFloat).xxxx;
 		#else
-			const taa_halfC ColorNull = taa_half(0.0).xxx;
-			const taa_halfC ColorMax10BitsFloat = taa_half(Max10BitsFloat).xxx;
+			const tsr_halfC ColorNull = tsr_half(0.0).xxx;
+			const tsr_halfC ColorMax10BitsFloat = tsr_half(Max10BitsFloat).xxx;
 		#endif
 
 		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		#if 1
-			taa_short2x2 LocalHistoryPixelPos = dpv_add(
-				taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE),
-				taa_short2x2(Map8x8Tile2x2LaneDPV(LocalGroupThreadIndex)));
+			tsr_short2x2 LocalHistoryPixelPos = dpv_add(
+				tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE),
+				tsr_short2x2(Map8x8Tile2x2LaneDPV(LocalGroupThreadIndex)));
 		#else
-			taa_short2x2 LocalHistoryPixelPos = HistoryPixelPos;
+			tsr_short2x2 LocalHistoryPixelPos = HistoryPixelPos;
 		#endif
 			
 		LocalHistoryPixelPos = InvalidateOutputPixelPos(LocalHistoryPixelPos, HistoryInfo_ViewportMax);
 		
 		// Premultiply FinalHighFrequencyColor to have validity weighted average in next frame history reprojection.
-		taa_halfCx2 PremultipliedHighFrequencyColor = dpv_scale(FinalHighFrequencyColor, FinalHistoryValidity);
+		tsr_halfCx2 PremultipliedHighFrequencyColor = dpv_scale(FinalHighFrequencyColor, FinalHistoryValidity);
 
 		// Stocastically round up or down using the hardware RWTexture2D truncation unit to take into precision
 		// loss due to pixel format encoding.
 		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 		{
 			uint2 Random = Rand3DPCG16(int3(dpv_lo(LocalHistoryPixelPos), View.StateFrameIndexMod8)).xy;
-			taa_half E = taa_half(Hammersley16(0, 1, Random).x);
+			tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
 
 			PremultipliedHighFrequencyColor = QuantizeForFloatRenderTarget(PremultipliedHighFrequencyColor, E, HistoryQuantizationError);
 			FinalLowFrequencyColor = QuantizeForFloatRenderTarget(FinalLowFrequencyColor, E, HistoryQuantizationError);
@@ -1431,8 +1431,8 @@ void MainCS(
 			PremultipliedHighFrequencyColor = dpv_min(PremultipliedHighFrequencyColor, ColorMax10BitsFloat);	
 
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-				FinalTranslucencyColor = -dpv_min(-FinalTranslucencyColor, taa_half(0.0).xxxx);
-				FinalTranslucencyColor = dpv_min(FinalTranslucencyColor, taa_half(Max10BitsFloat).xxxx);
+				FinalTranslucencyColor = -dpv_min(-FinalTranslucencyColor, tsr_half(0.0).xxxx);
+				FinalTranslucencyColor = dpv_min(FinalTranslucencyColor, tsr_half(Max10BitsFloat).xxxx);
 			#endif
 		}
 
@@ -1440,7 +1440,7 @@ void MainCS(
 		{
 			HistoryOutput_LowFrequency[dpv_lo(LocalHistoryPixelPos)]  = dpv_lo(FinalLowFrequencyColor);
 			HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
-			HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = taa_half2(dpv_lo(FinalLowFrequencyWeight), dpv_lo(FinalHistoryValidity));
+			HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalLowFrequencyWeight), dpv_lo(FinalHistoryValidity));
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 				HistoryOutput_Translucency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).rgb;
 				HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
@@ -1453,7 +1453,7 @@ void MainCS(
 		{
 			HistoryOutput_LowFrequency[dpv_hi(LocalHistoryPixelPos)]  = dpv_hi(FinalLowFrequencyColor);
 			HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
-			HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = taa_half2(dpv_hi(FinalLowFrequencyWeight), dpv_hi(FinalHistoryValidity));
+			HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalLowFrequencyWeight), dpv_hi(FinalHistoryValidity));
 			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
 				HistoryOutput_Translucency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).rgb;
 				HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
@@ -1463,7 +1463,7 @@ void MainCS(
 		#endif
 
 		// Output final scene color Mip0
-		taa_halfCx2 OutputColor;
+		tsr_halfCx2 OutputColor;
 		{
 			OutputColor = FinalOutputColor;
 
@@ -1480,11 +1480,11 @@ void MainCS(
 		// Output final scene color Mip1
 		#if !DEBUG_OUTPUT // running out of UAVs
 		{
-			taa_halfCx2 HalfResOutput = OutputColor * taa_half(0.25);
-			//taa_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> taa_short(1)) | (((LocalHistoryPixelPos & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
-			taa_short2x2 HalfResOutputPixelPos;
-			HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> taa_short(1)) | (((LocalHistoryPixelPos[0] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
-			HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> taa_short(1)) | (((LocalHistoryPixelPos[1] & taa_short(0x1)) | taa_short(!bGenerateOutputMip1)) * taa_short(~0));
+			tsr_halfCx2 HalfResOutput = OutputColor * tsr_half(0.25);
+			//tsr_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> tsr_short(1)) | (((LocalHistoryPixelPos & tsr_short(0x1)) | !bGenerateOutputMip1) * tsr_short(~0));
+			tsr_short2x2 HalfResOutputPixelPos;
+			HalfResOutputPixelPos[0] = (LocalHistoryPixelPos[0] >> tsr_short(1)) | (((LocalHistoryPixelPos[0] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
+			HalfResOutputPixelPos[1] = (LocalHistoryPixelPos[1] >> tsr_short(1)) | (((LocalHistoryPixelPos[1] & tsr_short(0x1)) | tsr_short(!bGenerateOutputMip1)) * tsr_short(~0));
 			
 			#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
 			BRANCH
@@ -1506,9 +1506,9 @@ void MainCS(
 						SharedArray1[LocalGroupThreadIndex] = dpv_hi(HalfResOutput);
 					#endif
 				#else
-					SharedArray0[LocalGroupThreadIndex] = taa_half4(dpv_lo(HalfResOutput), 0.0);
+					SharedArray0[LocalGroupThreadIndex] = tsr_half4(dpv_lo(HalfResOutput), 0.0);
 					#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-						SharedArray1[LocalGroupThreadIndex] = taa_half4(dpv_hi(HalfResOutput), 0.0);
+						SharedArray1[LocalGroupThreadIndex] = tsr_half4(dpv_hi(HalfResOutput), 0.0);
 					#endif
 				#endif
 

@@ -17,42 +17,42 @@
 float4x4 RotationalClipToPrevClip;
 float3 OutputQuantizationError;
 
-Texture2D<taa_halfC> InputSceneColorTexture;
+Texture2D<tsr_halfC> InputSceneColorTexture;
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<float> ClosestDepthTexture;
 Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
 Texture2D<uint> ParallaxFactorTexture;
 
-Texture2D<taa_halfC> PrevHistory_LowFrequency;
-Texture2D<taa_halfC> PrevHistory_HighFrequency;
-Texture2D<taa_half2> PrevHistory_Metadata;
-Texture2D<taa_half4> PrevHistory_Translucency;
-Texture2D<taa_subpixel_details> PrevHistory_SubpixelDetails;
+Texture2D<tsr_halfC> PrevHistory_LowFrequency;
+Texture2D<tsr_halfC> PrevHistory_HighFrequency;
+Texture2D<tsr_half2> PrevHistory_Metadata;
+Texture2D<tsr_half4> PrevHistory_Translucency;
+Texture2D<tsr_subpixel_details> PrevHistory_SubpixelDetails;
 
-RWTexture2D<taa_halfC> HalfResSceneColorOutput;
-RWTexture2D<taa_halfC> HalfResPredictionSceneColorOutput;
-RWTexture2D<taa_half> HalfResParallaxRejectionMaskOutput;
+RWTexture2D<tsr_halfC> HalfResSceneColorOutput;
+RWTexture2D<tsr_halfC> HalfResPredictionSceneColorOutput;
+RWTexture2D<tsr_half> HalfResParallaxRejectionMaskOutput;
 
-RWTexture2D<taa_halfC> PredictionSceneColorOutput;
-RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
+RWTexture2D<tsr_halfC> PredictionSceneColorOutput;
+RWTexture2D<tsr_half> ParallaxRejectionMaskOutput;
 
 
 //------------------------------------------------------- LDS
 
-groupshared taa_halfC SharedInputColor[TILE_SIZE * TILE_SIZE];
+groupshared tsr_halfC SharedInputColor[TILE_SIZE * TILE_SIZE];
 
 #if CONFIG_SCENE_COLOR_APLHA
-groupshared taa_halfC SharedHistoryColor[TILE_SIZE * TILE_SIZE];
-groupshared taa_half  SharedMask[TILE_SIZE * TILE_SIZE];
+groupshared tsr_halfC SharedHistoryColor[TILE_SIZE * TILE_SIZE];
+groupshared tsr_half  SharedMask[TILE_SIZE * TILE_SIZE];
 #else
-groupshared taa_half4 SharedHistoryColorAndMask[TILE_SIZE * TILE_SIZE];
+groupshared tsr_half4 SharedHistoryColorAndMask[TILE_SIZE * TILE_SIZE];
 #endif
 
 
 //------------------------------------------------------- ENTRY POINT
 
-taa_half3 TransformToComparisonColorSpace(taa_half3 Color)
+tsr_half3 TransformToComparisonColorSpace(tsr_half3 Color)
 {
 	return Color;
 	//return log2(Color);
@@ -81,13 +81,13 @@ void MainCS(
 	
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 	float DeviceZ = ClosestDepthTexture[InputPixelPos];
-	taa_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
-	taa_halfC InputSceneColor = InputSceneColorTexture[InputPixelPos];
+	tsr_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
+	tsr_halfC InputSceneColor = InputSceneColorTexture[InputPixelPos];
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
 	
 	// Compute the parralax rejection mask
-	taa_half ParallaxRejectionMask = 0.0;
+	tsr_half ParallaxRejectionMask = 0.0;
 	{
 		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
@@ -115,7 +115,7 @@ void MainCS(
 			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos] >> VELOCITY_HOLE_FILLING_BITS);
 			float HistoryClosestWorldDepth = ConvertFromDeviceZ(HistoryClosestDeviceZ);
 
-			taa_half DepthRejection;
+			tsr_half DepthRejection;
 			{
 				const float WorldDepthToPixelWorldRadius = GetTanHalfFieldOfView().x * InputInfo_ViewportSizeInverse.x;
 				const float PixelDepthError = 3.0;
@@ -124,14 +124,14 @@ void MainCS(
 				float WorldDepthEpsilon = (WorldDepthToPixelWorldRadius * RadiusToDiamater * PixelDepthError) * HistoryClosestWorldDepth; 
 				float DeltaDepth = abs(HistoryClosestWorldDepth - WorldDepth);
 
-				DepthRejection = saturate(taa_half(2.0) - taa_half(DeltaDepth / WorldDepthEpsilon));
+				DepthRejection = saturate(tsr_half(2.0) - tsr_half(DeltaDepth / WorldDepthEpsilon));
 			}
 
-			taa_half HistoryGhostingRejection = saturate(taa_half(1.0) - taa_half(3.0) * abs(taa_half(HistoryUseCount) * rcp(taa_half(PREV_USE_COUNT_QUANTIZATION)) - taa_half(1.0)));
+			tsr_half HistoryGhostingRejection = saturate(tsr_half(1.0) - tsr_half(3.0) * abs(tsr_half(HistoryUseCount) * rcp(tsr_half(PREV_USE_COUNT_QUANTIZATION)) - tsr_half(1.0)));
 
 			FLATTEN
 			if (bValidPixelPos)
-				ParallaxRejectionMask += taa_half(BilinearWeight) * max(DepthRejection, HistoryGhostingRejection);
+				ParallaxRejectionMask += tsr_half(BilinearWeight) * max(DepthRejection, HistoryGhostingRejection);
 		}
 	}
 
@@ -151,16 +151,16 @@ void MainCS(
 	float2 HistoryBufferUV = HistoryPPCo * PrevHistoryInfo_ExtentInverse;
 
 	// Vector in pixel between pixel K -> O.
-	taa_half2 dKO = taa_half2(HistoryPPCo - HistoryPPCk);
+	tsr_half2 dKO = tsr_half2(HistoryPPCo - HistoryPPCk);
 	
 	// Sample the history
-	taa_halfC DecimatedColor;
-	taa_half HistoryMaxRejectionFactor;
+	tsr_halfC DecimatedColor;
+	tsr_half HistoryMaxRejectionFactor;
 
-	taa_half ClosestInterferenceSeed;
-	taa_half IntegratedInterferenceSeed;
-	taa_half MinInterferenceSeed;
-	taa_half MaxInterferenceSeed;
+	tsr_half ClosestInterferenceSeed;
+	tsr_half IntegratedInterferenceSeed;
+	tsr_half MinInterferenceSeed;
+	tsr_half MaxInterferenceSeed;
 	{
 		float2 KernelHistoryBufferUV = clamp(
 			HistoryPPCk * PrevHistoryInfo_ExtentInverse,
@@ -187,7 +187,7 @@ void MainCS(
 					PrevHistoryInfo_UVViewportBilinearMin,
 					PrevHistoryInfo_UVViewportBilinearMax);
 				
-				taa_halfC HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
+				tsr_halfC HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
 
 				DecimatedColor += HistorySample;
 			}
@@ -204,8 +204,8 @@ void MainCS(
 			UNROLL_N(SUB_PIXEL_COUNT)
 			for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
 			{
-				taa_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
-				taa_subpixel_payload EncodedRejectionFactor = (SubpixelPayload >> SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
+				tsr_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
+				tsr_subpixel_payload EncodedRejectionFactor = (SubpixelPayload >> SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
 
 				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, EncodedRejectionFactor);
 			}
@@ -216,7 +216,7 @@ void MainCS(
 	
 	// Reject subpixel details that might be in history but not input just based on their parrallax
 	{
-		taa_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, taa_half(1.0));
+		tsr_half HistorySubdetailRejectionFactor = max(HistoryMaxRejectionFactor / ParallaxFactor, tsr_half(1.0));
 
 		float4 ThisClip = float4(ScreenPos, DeviceZ, 1);
 		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
@@ -225,13 +225,13 @@ void MainCS(
 		float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
 		float2 RotationalPrevScreen = RotationalPrevClip.xy / RotationalPrevClip.w;
 			
-		taa_half PixelParallaxVelocity = taa_half(0.5) * length(taa_half2(RotationalPrevScreen - PrevScreen) * taa_half2(InputInfo_ViewportSize));
-		taa_half HistorySubdetailAdditionalParralax = (HistorySubdetailRejectionFactor - taa_half(1.0)) * PixelParallaxVelocity;
+		tsr_half PixelParallaxVelocity = tsr_half(0.5) * length(tsr_half2(RotationalPrevScreen - PrevScreen) * tsr_half2(InputInfo_ViewportSize));
+		tsr_half HistorySubdetailAdditionalParralax = (HistorySubdetailRejectionFactor - tsr_half(1.0)) * PixelParallaxVelocity;
 
 		// PixelParallaxVelocity can be +inf and generate NaN if HistorySubdetailRejectionFactor = 1.0;
-		HistorySubdetailAdditionalParralax = -min(-HistorySubdetailAdditionalParralax, taa_half(0.0));
+		HistorySubdetailAdditionalParralax = -min(-HistorySubdetailAdditionalParralax, tsr_half(0.0));
 
-		taa_half HistoryParallaxRejectionMask = saturate(taa_half(1.0) - HistorySubdetailAdditionalParralax);
+		tsr_half HistoryParallaxRejectionMask = saturate(tsr_half(1.0) - HistorySubdetailAdditionalParralax);
 
 		ParallaxRejectionMask = min(ParallaxRejectionMask, HistoryParallaxRejectionMask);
 	}
@@ -244,7 +244,7 @@ void MainCS(
 		(PrevOutputScreenPos.y > 1.0))
 	//if (IsOffScreen2(bCameraCut, PrevOutputScreenPos, /* ParallaxRejectionMask = */ 1.0))
 	{
-		ParallaxRejectionMask = taa_half(0.0);
+		ParallaxRejectionMask = tsr_half(0.0);
 	}
 
 	
@@ -255,16 +255,16 @@ void MainCS(
 			SharedHistoryColor[GroupThreadIndex] = DecimatedColor;
 			SharedMask[GroupThreadIndex] = ParallaxRejectionMask;
 		#else
-			SharedHistoryColorAndMask[GroupThreadIndex] = taa_half4(DecimatedColor, ParallaxRejectionMask);
+			SharedHistoryColorAndMask[GroupThreadIndex] = tsr_half4(DecimatedColor, ParallaxRejectionMask);
 		#endif
 
 		GroupMemoryBarrierWithGroupSync();
 
 		bool bCheckerboard = (((InputPixelPos.x ^ InputPixelPos.y) >> 1) & 0x1) != 0;
 
-		taa_halfC HalfResInputSceneColor = InputSceneColor;
-		taa_halfC HalfResDecimatedColor = DecimatedColor;
-		taa_half HalfResParallaxRejectionMask = ParallaxRejectionMask;
+		tsr_halfC HalfResInputSceneColor = InputSceneColor;
+		tsr_halfC HalfResDecimatedColor = DecimatedColor;
+		tsr_half HalfResParallaxRejectionMask = ParallaxRejectionMask;
 
 		UNROLL
 		for (uint i = 1; i < 4; i++)
@@ -289,13 +289,13 @@ void MainCS(
 			#endif
 		}
 
-		HalfResDecimatedColor *= taa_half(0.25);
-		HalfResParallaxRejectionMask *= taa_half(0.25);
+		HalfResDecimatedColor *= tsr_half(0.25);
+		HalfResParallaxRejectionMask *= tsr_half(0.25);
 
 		#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 		{
 			uint2 Random = Rand3DPCG16(int3((InputPixelPos - InputInfo_ViewportMin) / 2, View.StateFrameIndexMod8)).xy;
-			taa_half E = taa_half(Hammersley16(0, 1, Random).x);
+			tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
 
 			HalfResInputSceneColor = QuantizeForFloatRenderTarget(HalfResInputSceneColor, E, OutputQuantizationError);
 			HalfResDecimatedColor = QuantizeForFloatRenderTarget(HalfResDecimatedColor, E, OutputQuantizationError);
@@ -314,7 +314,7 @@ void MainCS(
 	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 	{
 		uint2 Random = Rand3DPCG16(int3(InputPixelPos - InputInfo_ViewportMin, View.StateFrameIndexMod8)).xy;
-		taa_half E = taa_half(Hammersley16(0, 1, Random).x);
+		tsr_half E = tsr_half(Hammersley16(0, 1, Random).x);
 
 		DecimatedColor = QuantizeForFloatRenderTarget(DecimatedColor, E, OutputQuantizationError);
 	}
