@@ -246,9 +246,6 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category=Preview)
 	USkeletalMesh *Mesh = nullptr;
-
-	UPROPERTY(EditAnywhere, Category=Transfor)
-	FVector Scale;
 	
 protected:
 	friend class UOptimusNodeGraph;

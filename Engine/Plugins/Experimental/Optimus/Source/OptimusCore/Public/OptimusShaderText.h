@@ -62,14 +62,12 @@ struct OPTIMUSCORE_API FOptimusShaderText
 {
 	GENERATED_BODY()
 
-	// 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category=ShaderText)
 	FString Declarations;
 	
-	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=ShaderText)
 	FString ShaderText;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category=ShaderText)
 	TArray<FOptimusCompilerDiagnostic> Diagnostics;
 };
