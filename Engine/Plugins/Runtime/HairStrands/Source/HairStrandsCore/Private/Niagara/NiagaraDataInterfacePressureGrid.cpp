@@ -518,13 +518,13 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Feat
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE;
-		const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
+		const FIntVector ExtendedSize = GridSize + FIntVector(1, 1, 1);
 		
-		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)(GridSize.X+1), GroupSize);
-		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)(GridSize.Y+1), GroupSize);
-		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)(GridSize.Z+1), GroupSize);
+		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)(ExtendedSize.X), GroupSize);
+		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)(ExtendedSize.Y), GroupSize);
+		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)(ExtendedSize.Z), GroupSize);
 
-		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, GridSize, CopyPressure);
+		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, ExtendedSize, CopyPressure);
 		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCountX, DispatchCountY, DispatchCountZ);
 		ComputeShader->UnsetParameters(RHICmdList);
 	}

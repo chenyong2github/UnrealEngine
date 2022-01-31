@@ -19,24 +19,24 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (all(DispatchThreadId < GridSize))
 	{
-		const int LinearIndexYZ = DispatchThreadId.y * (GridSize.z+1) + DispatchThreadId.z;
-		const int GridSizeYZ = (GridSize.y+1) * (GridSize.z+1);
+		const int LinearIndexYZ = DispatchThreadId.y * GridSize.z + DispatchThreadId.z;
+		const int GridSizeYZ = GridSize.y * GridSize.z;
 		
 		[unroll]
 		for(int i = 0; i < NUM_ATTRIBUTES; ++i)
 		{
-			const int AttrIndex = DispatchThreadId.x+i*(GridSize.x+1);
+			const int AttrIndex = DispatchThreadId.x+i*GridSize.x;
 			const int LinearIndex = AttrIndex.x * GridSizeYZ + LinearIndexYZ;
 			GridDestinationBuffer[LinearIndex] = 0;
 		}
 		if(CopyPressure)
 		{
-			const int PressureIndex = DispatchThreadId.x+FLUID_PRESSURE_OFFSET*(GridSize.x+1);
+			const int PressureIndex = DispatchThreadId.x+FLUID_PRESSURE_OFFSET*GridSize.x;
 			const int LinearIndex = PressureIndex.x * GridSizeYZ + LinearIndexYZ;
 			GridDestinationBuffer[LinearIndex] = GridCurrentBuffer[LinearIndex];
 		}
 
-		const int DistanceIndex = DispatchThreadId.x+FLUID_DISTANCE_OFFSET*(GridSize.x+1);
+		const int DistanceIndex = DispatchThreadId.x+FLUID_DISTANCE_OFFSET*GridSize.x;
 		const int LinearIndex = DistanceIndex.x * GridSizeYZ + LinearIndexYZ;
 		GridDestinationBuffer[LinearIndex] = MAX_DISTANCE;
 	}

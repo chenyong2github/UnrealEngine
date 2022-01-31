@@ -39,8 +39,7 @@ void UpdateMeshSamples(
 	TArray<FVector3f>& OutSampleDeformationsBuffer
 )
 {
-	OutSampleDeformationsBuffer.SetNum(MaxSampleCount + 5);
-	OutSampleDeformationsBuffer[MaxSampleCount + 4] = SampleDeformedPositionsBuffer[0]; // offset used to workaround numerical issues when deformed and rest positions are far apart
+	OutSampleDeformationsBuffer.SetNum(MaxSampleCount + 4);
 
 	for (uint32 SampleIndex = 0; SampleIndex < MaxSampleCount + 4; ++SampleIndex)
 	{
@@ -49,7 +48,7 @@ void UpdateMeshSamples(
 		for (uint32 i = 0; i < MaxSampleCount; ++i, ++WeightsOffset)
 		{
 			SampleDeformation += InterpolationWeightsBuffer[WeightsOffset] *
-				(SampleDeformedPositionsBuffer[i] - (SampleRestPositionsBuffer[i] + SampleDeformedPositionsBuffer[0]) ); // offset added to workaround numerical issues when deformed and rest positions are far apart
+				(SampleDeformedPositionsBuffer[i] - SampleRestPositionsBuffer[i]); 
 		}
 
 		OutSampleDeformationsBuffer[SampleIndex] = SampleDeformation;
@@ -77,7 +76,7 @@ FVector3f DisplacePosition(
 	ControlPoint += MeshSampleWeightsBuffer[SampleCount + 1] * RestControlPoint.X;
 	ControlPoint += MeshSampleWeightsBuffer[SampleCount + 2] * RestControlPoint.Y;
 	ControlPoint += MeshSampleWeightsBuffer[SampleCount + 3] * RestControlPoint.Z;
-	return ControlPoint + MeshSampleWeightsBuffer[SampleCount + 4]; // offset added to workaround numerical issues when deformed and rest positions are far apart
+	return ControlPoint;
 }
 
 void DeformStrands(	

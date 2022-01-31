@@ -1745,6 +1745,19 @@ void UGroomComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
 	}
 }
 
+void UGroomComponent::AddCollisionComponent(USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	if(SkeletalMeshComponent && (CollisionComponents.Find(SkeletalMeshComponent) == INDEX_NONE))
+	{
+		CollisionComponents.Add(SkeletalMeshComponent);
+	}
+}
+
+void UGroomComponent::ResetCollisionComponents()
+{
+	CollisionComponents.Reset();
+}
+
 void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
 {
 	if (SimulationSettings.bOverrideSettings)

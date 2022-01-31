@@ -909,7 +909,7 @@ float3 DIHairStrands_ApplyRBF(in FDIHairStrandsContext DIContext, in float3 Rest
 	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 1].xyz * RestControlPoint.x;
 	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 2].xyz * RestControlPoint.y;
 	ControlPoint += DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 3].xyz * RestControlPoint.z;
-	return ControlPoint + DIContext.MeshSampleWeightsBuffer[DIContext.SampleCount + 4].xyz; // offset added to workaround numerical issues when deformed and rest positions are far apart
+	return ControlPoint;
 }
 
  // Compute the global position

@@ -47,6 +47,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
 	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 
+	/** List of collision components to be used */
+	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> CollisionComponents;
+	
 	/** Groom's simulation settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Simulation")
 	FHairSimulationSettings SimulationSettings;
@@ -168,6 +171,14 @@ public:
 	/* Accessor function for changing Groom physics asset from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset);
+
+	/* Add a skeletal mesh to the collision components */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	void AddCollisionComponent(USkeletalMeshComponent* SkeletalMeshComponent);
+	
+	/* Reset the collision components */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	void ResetCollisionComponents();
 
 	/* Accessor function for changing the enable simulation flag from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
