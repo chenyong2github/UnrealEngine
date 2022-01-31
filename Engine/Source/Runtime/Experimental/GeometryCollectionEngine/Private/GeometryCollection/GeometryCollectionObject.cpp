@@ -21,6 +21,7 @@
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
@@ -69,7 +70,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, EnableNanite(false)
 #if WITH_EDITORONLY_DATA
 	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
-	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Convex)
 	, MinLevelSetResolution_DEPRECATED(10)
 	, MaxLevelSetResolution_DEPRECATED(10)
 	, MinClusterLevelSetResolution_DEPRECATED(50)
@@ -111,7 +112,7 @@ FGeometryCollectionCollisionParticleData::FGeometryCollectionCollisionParticleDa
 
 FGeometryCollectionCollisionTypeData::FGeometryCollectionCollisionTypeData()
 	: CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
-	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Convex)
 	, LevelSet()
 	, CollisionParticles()
 	, CollisionObjectReductionPercentage(0.0f)
@@ -124,7 +125,7 @@ FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 	, CollisionShapes({ FGeometryCollectionCollisionTypeData()})
 #if WITH_EDITORONLY_DATA
 	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
-	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Box)
+	, ImplicitType_DEPRECATED(EImplicitTypeEnum::Chaos_Implicit_Convex)
 	, MinLevelSetResolution_DEPRECATED(5)
 	, MaxLevelSetResolution_DEPRECATED(10)
 	, MinClusterLevelSetResolution_DEPRECATED(25)
@@ -211,7 +212,7 @@ FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeS
 	if (Data.CollisionShapes.Num())
 	{
 		Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
-		Data.CollisionShapes[0].ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
+		Data.CollisionShapes[0].ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Capsule;
 		Data.CollisionShapes[0].LevelSet.MinLevelSetResolution = 5;
 		Data.CollisionShapes[0].LevelSet.MaxLevelSetResolution = 10;
 		Data.CollisionShapes[0].LevelSet.MinClusterLevelSetResolution = 25;
@@ -263,6 +264,18 @@ void UGeometryCollection::ValidateSizeSpecificDataDefaults()
 		SizeSpecificData.Add(Data);
 	}
 	check(SizeSpecificData.Num());
+}
+
+void UGeometryCollection::UpdateConvexGeometry()
+{
+#if WITH_EDITOR
+	if (GeometryCollection)
+	{
+		FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = GeometryCollection->GetConvexProperties();
+		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeometryCollection.Get(), ConvexProperties.FractionRemove, ConvexProperties.SimplificationThreshold);
+		InvalidateCollection();
+	}
+#endif
 }
 
 
@@ -1150,6 +1163,7 @@ bool UGeometryCollection::Modify(bool bAlwaysMarkDirty /*= true*/)
 	UPackage* Package = GetOutermost();
 	if (Package->IsDirty())
 	{
+		UpdateConvexGeometry();
 		InvalidateCollection();
 		ValidateSizeSpecificDataDefaults();
 	}

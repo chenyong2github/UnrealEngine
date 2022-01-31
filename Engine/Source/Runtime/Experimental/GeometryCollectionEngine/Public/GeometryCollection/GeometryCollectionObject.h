@@ -583,6 +583,11 @@ public:
 	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
+	/*
+	* Update the convex geometry on the collection.
+	*/
+	void UpdateConvexGeometry();
+
 private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC);
@@ -590,7 +595,7 @@ private:
 
 	/*
 	* Used to transfer deprecated properties to the size specific structures during serialization
-	* and to add back the default size specific data when deleted. 
+	* and to add back the default size specific data when deleted.
 	*/
 	void ValidateSizeSpecificDataDefaults();
 

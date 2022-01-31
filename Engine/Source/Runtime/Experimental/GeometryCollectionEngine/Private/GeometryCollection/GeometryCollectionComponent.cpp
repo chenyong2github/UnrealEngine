@@ -2241,7 +2241,7 @@ FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* I
 
 	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
 	{
-		GetRestCollection()->Modify();
+		Component->Modify();
 	}
 }
 
@@ -2253,6 +2253,12 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
 		{
 			Component->ResetDynamicCollection();
+		}
+
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
+		{
+			GetRestCollection()->UpdateConvexGeometry();
+			GetRestCollection()->InvalidateCollection();
 		}
 
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)

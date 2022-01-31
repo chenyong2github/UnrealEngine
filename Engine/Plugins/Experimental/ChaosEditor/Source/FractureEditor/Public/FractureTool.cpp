@@ -356,6 +356,8 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 				FractureContext.GetFracturedGeometryCollection()->InitResources();
 			}
 
+			FractureContext.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+
 			if (bNeedPhysicsUpdate)
 			{
 				FractureContext.GetGeometryCollectionComponent()->RecreatePhysicsState();
