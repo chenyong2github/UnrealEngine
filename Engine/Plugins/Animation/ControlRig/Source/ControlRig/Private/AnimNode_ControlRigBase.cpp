@@ -651,15 +651,15 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 			{
 				const FSmartNameMapping* CurveMapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 				URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-				CurveMapping->Iterate([Hierarchy, this](const FSmartNameMapping* Mapping, SmartName::UID_Type ID)
+				CurveMapping->Iterate([Hierarchy, this](const FSmartNameMappingIterator& Iterator)
 				{
 					// see if the curve name exists in the control rig
 					FName CurveName;
-					if (Mapping->GetName(ID, CurveName))
+					if (Iterator.GetName(CurveName))
 					{
 						if (Hierarchy->GetIndex(FRigElementKey(CurveName, ERigElementType::Curve)) != INDEX_NONE)
 						{
-							ControlRigCurveMappingByName.Add(CurveName, ID);
+							ControlRigCurveMappingByName.Add(CurveName, Iterator.GetIndex());
 						}
 					}
 				});

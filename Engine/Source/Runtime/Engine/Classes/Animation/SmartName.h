@@ -59,6 +59,8 @@ struct FCurveMetaData
 USTRUCT()
 struct ENGINE_API FSmartNameMapping
 {
+	friend struct FSmartNameMappingIterator;
+	
 	GENERATED_USTRUCT_BODY();
 
 	FSmartNameMapping();
@@ -150,7 +152,7 @@ struct ENGINE_API FSmartNameMapping
 	SmartName::UID_Type GetMaxUID() const { return (SmartName::UID_Type)(CurveNameList.Num() - 1); }
 
 	/** Iterate over all Names in this Mapping */
-	void Iterate(TFunction<void(const FSmartNameMapping* Mapping, SmartName::UID_Type ID)> Callback) const;
+	void Iterate(TFunction<void(const struct FSmartNameMappingIterator& Iterator)> Callback) const;
 
 private:
 	/*Internal no lock function to prevent re-entrant locking, see API function GetName for documentation.*/
@@ -164,6 +166,9 @@ private:
 
 	/*Internal no lock function to prevent re-entrant locking, see API function FindUID for documentation.*/
 	SmartName::UID_Type FindUID_NoLock(const FName& Name) const;
+	
+	/*Internal no lock function to prevent re-entrant locking, see API function GetCurveMetaData for documentation.*/
+	const FCurveMetaData* GetCurveMetaData_NoLock(FName CurveName) const;
 
 	// List of curve names, indexed by UID
 	TArray<FName> CurveNameList;
@@ -174,6 +179,42 @@ private:
 #endif
 
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
+};
+
+// Struct for providing access to SmartNameMapping data within FSmartNameMapping::Iterate callback functions
+struct ENGINE_API FSmartNameMappingIterator
+{
+	public:
+		friend struct FSmartNameMapping;
+	
+		bool GetName(FName& OutCurveName) const
+		{
+			return Mapping->GetName_NoLock(Index, OutCurveName);
+		}
+	
+		const FCurveMetaData* GetCurveMetaData() const
+		{
+			FName Name;
+			if (Mapping->GetName_NoLock(Index, Name))
+			{
+				return Mapping->GetCurveMetaData_NoLock(Name);
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+	
+		SmartName::UID_Type GetIndex() const { return Index; }
+	
+	private:
+		// This class struct should only be crated by FSmartNameMapping::Iterate
+		FSmartNameMappingIterator(const FSmartNameMapping* InMapping, SmartName::UID_Type InIndex):
+			Mapping(InMapping), Index(InIndex)
+		{}
+	
+		const FSmartNameMapping* Mapping;
+		SmartName::UID_Type Index;
 };
 
 USTRUCT()

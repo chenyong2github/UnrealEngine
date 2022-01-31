@@ -20,13 +20,14 @@ FSmartNameMapping::FSmartNameMapping()
 {
 }
 
-void FSmartNameMapping::Iterate(TFunction<void(const FSmartNameMapping* Mapping, SmartName::UID_Type ID)> Callback) const
+void FSmartNameMapping::Iterate(TFunction<void(const FSmartNameMappingIterator& Iterator)> Callback) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
 
 	for (int32 NameIndex = 0; NameIndex < CurveNameList.Num(); ++NameIndex)
 	{
-		Callback(this, NameIndex);	
+		FSmartNameMappingIterator Iterator(this, NameIndex);
+		Callback(Iterator);	
 	}
 }
 
@@ -58,6 +59,11 @@ FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName)
 const FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
+	return GetCurveMetaData_NoLock(CurveName);
+}
+
+const FCurveMetaData* FSmartNameMapping::GetCurveMetaData_NoLock(FName CurveName) const
+{
 	checkSlow(Exists_NoLock(CurveName));
 	return CurveMetaDataMap.Find(CurveName);
 }
