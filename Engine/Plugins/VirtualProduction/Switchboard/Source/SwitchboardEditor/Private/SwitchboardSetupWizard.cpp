@@ -558,6 +558,10 @@ void SSwitchboardSetupWizard::Handle_RequestDestroyWindow(const TSharedRef<SWind
 		}
 	}
 
+	// Ensure we update the verification any time the wizard closes.
+	const bool bVerifyForceRefresh = true;
+	FSwitchboardEditorModule::Get().GetVerifyResult(bVerifyForceRefresh);
+
 	FSlateApplicationBase::Get().RequestDestroyWindow(InWindow);
 }
 

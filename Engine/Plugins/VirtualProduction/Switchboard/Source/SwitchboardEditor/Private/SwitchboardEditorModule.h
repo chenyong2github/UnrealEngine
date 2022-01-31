@@ -51,7 +51,7 @@ public:
 	bool LaunchSwitchboard();
 	bool LaunchListener();
 
-	TSharedFuture<FSwitchboardVerifyResult> GetVerifyResult();
+	TSharedFuture<FSwitchboardVerifyResult> GetVerifyResult(bool bForceRefresh = false);
 
 #if SB_LISTENER_AUTOLAUNCH
 	/**

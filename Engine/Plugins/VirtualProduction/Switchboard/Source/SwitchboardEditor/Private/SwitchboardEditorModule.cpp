@@ -142,11 +142,11 @@ bool FSwitchboardEditorModule::RunProcess(const FString& InExe, const FString& I
 }
 
 
-TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResult()
+TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResult(bool bForceRefresh /* = false */)
 {
 	const FString CurrentVenv = GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path;
 
-	if (!VerifyResult.IsValid() || VerifyPath != CurrentVenv)
+	if (bForceRefresh || !VerifyResult.IsValid() || VerifyPath != CurrentVenv)
 	{
 		UE_LOG(LogSwitchboardPlugin, Log, TEXT("Issuing verify for venv: %s"), *CurrentVenv);
 
