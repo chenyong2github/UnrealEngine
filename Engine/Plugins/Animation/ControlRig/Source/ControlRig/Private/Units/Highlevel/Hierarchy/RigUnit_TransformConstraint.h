@@ -271,13 +271,13 @@ struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_ParentConstraint_AdvancedSettings AdvancedSettings;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
-	float Weight;	
+	float Weight;
 };
 
 /**
 * Constrains an item's position to multiple items' positions 
 */
-USTRUCT(meta=(DisplayName="Position Constraint", Category="Constraints", Keywords = "Parent,Translation"))
+USTRUCT(meta=(DisplayName="Position Constraint", Category="Constraints", Keywords = "Parent,Translation", Deprecated = "5.0"))
 struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -309,6 +309,42 @@ struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 	float Weight;
 };
 
+/**
+* Constrains an item's position to multiple items' positions 
+*/
+USTRUCT(meta=(DisplayName="Position Constraint", Category="Constraints", Keywords = "Parent,Translation"))
+struct FRigUnit_PositionConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_PositionConstraintLocalSpaceOffset()
+		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+		, bMaintainOffset(true)
+		, Weight(1.0f)
+	{
+		Parents.Add(FConstraintParent());
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
+};
+
+
 USTRUCT()
 struct FRigUnit_RotationConstraint_AdvancedSettings
 {
@@ -335,7 +371,7 @@ struct FRigUnit_RotationConstraint_AdvancedSettings
 /**
 * Constrains an item's rotation to multiple items' rotations 
 */
-USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Constraints", Keywords = "Parent,Orientation,Orient,Rotate"))
+USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Constraints", Keywords = "Parent,Orientation,Orient,Rotate", Deprecated = "5.0"))
 struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -371,9 +407,47 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 };
 
 /**
+* Constrains an item's rotation to multiple items' rotations 
+*/
+USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Constraints", Keywords = "Parent,Orientation,Orient,Rotate"))
+struct FRigUnit_RotationConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_RotationConstraintLocalSpaceOffset()
+		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+		, bMaintainOffset(true)
+		, Weight(1.0f)
+	{
+		Parents.Add(FConstraintParent());
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FRigUnit_RotationConstraint_AdvancedSettings AdvancedSettings;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
+};
+
+/**
 * Constrains an item's scale to multiple items' scales
 */
-USTRUCT(meta=(DisplayName="Scale Constraint", Category="Constraints", Keywords = "Parent, Size"))
+USTRUCT(meta=(DisplayName="Scale Constraint", Category="Constraints", Keywords = "Parent, Size", Deprecated = "5.0"))
 struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -388,6 +462,41 @@ struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 	
 	RIGVM_METHOD()
     virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	float Weight;
+};
+
+/**
+* Constrains an item's scale to multiple items' scales
+*/
+USTRUCT(meta=(DisplayName="Scale Constraint", Category="Constraints", Keywords = "Parent, Size"))
+struct FRigUnit_ScaleConstraintLocalSpaceOffset : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_ScaleConstraintLocalSpaceOffset()
+		: Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+		, bMaintainOffset(true)
+		, Weight(1.0f)
+	{
+		Parents.Add(FConstraintParent());
+	}
+	
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
 	FRigElementKey Child;
