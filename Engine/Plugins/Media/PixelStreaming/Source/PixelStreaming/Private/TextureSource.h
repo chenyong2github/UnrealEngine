@@ -91,7 +91,7 @@ namespace UE
 					OnBackbuffer->Remove(BackbufferDelegateHandle);
 				}
 
-				SetEnabled(false);
+				*bEnabled = false;
 			}
 
 			TRefCountPtr<TextureType> GetCurrent()
