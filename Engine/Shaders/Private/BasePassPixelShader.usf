@@ -1817,8 +1817,8 @@ void FPixelShaderInOut_MainPS(
 				Out.MRT[1] = 0;
 				SetGBufferForUnlit(Out.MRT[2]);
 				Out.MRT[3] = 0;
-				Out.MRT[4] = 0;
-				Out.MRT[5] = 0;
+				Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = 0;
+				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = 0;
 			}
 		}
 		#else
