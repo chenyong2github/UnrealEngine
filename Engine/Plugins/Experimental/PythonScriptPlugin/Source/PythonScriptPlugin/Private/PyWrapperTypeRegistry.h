@@ -25,6 +25,7 @@ struct FPyWrapperArray;
 struct FPyWrapperFixedArray;
 struct FPyWrapperSet;
 struct FPyWrapperMap;
+struct FPyWrapperStructMetaData;
 
 class FPyWrapperOwnerContext;
 class UPythonGeneratedClass;
@@ -504,6 +505,12 @@ private:
 
 	/** Map from the Unreal module name to its generated type names (names are the Unreal names) */
 	TMultiMap<FName, FName> GeneratedWrappedTypesForModule;
+
+	/** Map make func name to the meta data of the struct to make. Used when meta 'HasNativeMake' references a function not loaded yet. */
+	TMap<FString, TSharedPtr<FPyWrapperStructMetaData>> UnresolvedMakeFuncs;
+
+	/** Map break func name to the meta data of the struct to break. Used when meta 'HasNativeBreak' references a function not loaded yet. */
+	TMap<FString, TSharedPtr<FPyWrapperStructMetaData>> UnresolvedBreakFuncs;
 
 	/** Array of generated Python type data that has been orphaned (due to its owner module being unloaded/reloaded) */
 	TArray<TSharedPtr<PyGenUtil::FGeneratedWrappedType>> OrphanedWrappedTypes;
