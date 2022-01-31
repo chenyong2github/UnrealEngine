@@ -88,10 +88,15 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 {
 	const FViewInfo& FirstView = Views[0];
 
-	if (!UseDistanceFieldAO()
-		|| FeatureLevel < ERHIFeatureLevel::SM5
-		|| !DoesPlatformSupportDistanceFieldAO(FirstView.GetShaderPlatform())
-		|| Scene->DistanceFieldSceneData.NumObjectsInBuffer == 0)
+	const bool bAnyMeshSDFs = Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
+	const bool bAnyHeightFields = Scene->DistanceFieldSceneData.HeightfieldPrimitives.Num() > 0;
+
+	const bool bVisualizeGlobalDistanceField = FirstView.Family->EngineShowFlags.VisualizeGlobalDistanceField && UseGlobalDistanceField(Parameters) && (bAnyMeshSDFs || bAnyHeightFields);
+	const bool bVisualizeMeshDistanceFields = FirstView.Family->EngineShowFlags.VisualizeMeshDistanceFields && bAnyMeshSDFs;
+
+	if (FeatureLevel < ERHIFeatureLevel::SM5
+		|| !DoesPlatformSupportDistanceFields(FirstView.GetShaderPlatform())
+		|| !(bVisualizeGlobalDistanceField || bVisualizeMeshDistanceFields))
 	{
 		return;
 	}
@@ -100,12 +105,9 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AOIssueGPUWork);
 
-	const bool bUseGlobalDistanceField = UseGlobalDistanceField(Parameters) && FirstView.Family->EngineShowFlags.VisualizeGlobalDistanceField;
-
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeMeshDistanceFields");
 
 	FRDGTextureRef VisualizeResultTexture = nullptr;
-
 	{
 		const FIntPoint BufferSize = GetBufferSizeForAO();
 		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_UAV));
@@ -113,25 +115,30 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 	}
 
 	FVisualizeMeshDistanceFieldCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FVisualizeMeshDistanceFieldCS::FUseGlobalDistanceFieldDim>(bUseGlobalDistanceField);
+	PermutationVector.Set<FVisualizeMeshDistanceFieldCS::FUseGlobalDistanceFieldDim>(bVisualizeGlobalDistanceField);
 	TShaderMapRef<FVisualizeMeshDistanceFieldCS> ComputeShader(FirstView.ShaderMap, PermutationVector);
 
 	for (const FViewInfo& View : Views)
 	{
-		check(!bUseGlobalDistanceField || View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
-
 		FRDGBufferRef ObjectIndirectArguments = nullptr;
 		FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 
-		AllocateDistanceFieldCulledObjectBuffers(
-			GraphBuilder,
-			false,
-			FMath::DivideAndRoundUp(Scene->DistanceFieldSceneData.NumObjectsInBuffer, 256) * 256,
-			DFPT_SignedDistanceField,
-			ObjectIndirectArguments,
-			CulledObjectBufferParameters);
+		if (bVisualizeGlobalDistanceField)
+		{
+			check(View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
+		}
+		else
+		{
+			AllocateDistanceFieldCulledObjectBuffers(
+				GraphBuilder,
+				false,
+				FMath::DivideAndRoundUp(Scene->DistanceFieldSceneData.NumObjectsInBuffer, 256) * 256,
+				DFPT_SignedDistanceField,
+				ObjectIndirectArguments,
+				CulledObjectBufferParameters);
 
-		CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
+			CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
+		}
 
 		uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor, GDistanceFieldAOTileSizeX);
 		uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor, GDistanceFieldAOTileSizeY);

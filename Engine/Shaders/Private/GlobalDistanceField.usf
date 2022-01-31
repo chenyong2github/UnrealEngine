@@ -242,6 +242,10 @@ uint3 PageGridCoordToPageTableTextureCoord(uint3 PageGridCoord)
 	return PageTableTextureCoord;
 }
 
+#ifndef PROCESS_DISTANCE_FIELDS
+#define PROCESS_DISTANCE_FIELDS 0
+#endif // PROCESS_DISTANCE_FIELDS
+
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
 void AllocatePagesCS(
 	uint3 GroupId : SV_GroupID,
@@ -265,6 +269,7 @@ void AllocatePagesCS(
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
 	float3 PageWorldCenter = PageGridCoord * PageCoordToPageWorldCenterScale + PageCoordToPageWorldCenterBias;
 
+#if PROCESS_DISTANCE_FIELDS
 	// Loop through objects to find out if the current page contains any objects and should be allocated
 	if (!bAnyObjectsInPage)
 	{
@@ -330,15 +335,18 @@ void AllocatePagesCS(
 	}
 
 	GroupMemoryBarrierWithGroupSync();
+#endif // PROCESS_DISTANCE_FIELDS
 
 	if (ThreadIndex == 0)
 	{
+#if PROCESS_DISTANCE_FIELDS
 		float MinPageDistance = min(GroupMinPageDistance[0], GroupMinPageDistance[1]);
 
 		if (MinPageDistance + PageWorldRadius >= -ClipmapInfluenceRadius && MinPageDistance - PageWorldRadius <= ClipmapInfluenceRadius)
 		{
 			bAnyObjectsInPage = true;
 		}
+#endif // PROCESS_DISTANCE_FIELDS
 
 		uint PageId = RWPageTableLayerTexture[PageTableTextureCoord];
 

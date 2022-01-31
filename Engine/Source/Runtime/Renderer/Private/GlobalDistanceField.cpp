@@ -1401,9 +1401,10 @@ class FAllocatePagesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FProcessDistanceFields : SHADER_PERMUTATION_BOOL("PROCESS_DISTANCE_FIELDS");
 	class FMarkedHeightfieldPageBuffer : SHADER_PERMUTATION_BOOL("MARKED_HEIGHTFIELD_PAGE_BUFFER");
 	class FComposeParentDistanceField : SHADER_PERMUTATION_BOOL("COMPOSE_PARENT_DISTANCE_FIELD");
-	using FPermutationDomain = TShaderPermutationDomain<FMarkedHeightfieldPageBuffer, FComposeParentDistanceField>;
+	using FPermutationDomain = TShaderPermutationDomain<FProcessDistanceFields, FMarkedHeightfieldPageBuffer, FComposeParentDistanceField>;
 	
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -1569,7 +1570,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 	UpdateGlobalDistanceFieldViewOrigin(View, bLumenEnabled);
 
-	if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
+	if (DistanceFieldSceneData.NumObjectsInBuffer > 0 || DistanceFieldSceneData.HeightfieldPrimitives.Num() > 0)
 	{
 		const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance), 0, GMaxGlobalDistanceFieldClipmaps);
 		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance, bLumenEnabled);
@@ -1808,6 +1809,7 @@ void UpdateGlobalDistanceFieldVolume(
 					if (NumUpdateBounds > 0 && PageAtlasTexture)
 					{
 						// Cull the global objects to the update regions
+						if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
 						{
 							uint32 AcceptOftenMovingObjectsOnlyValue = 0;
 
@@ -2019,6 +2021,7 @@ void UpdateGlobalDistanceFieldVolume(
 						FDistanceFieldAtlasParameters DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 
 						// Cull objects into a cull grid
+						if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
 						{
 							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CullGridAllocator, PF_R32_UINT), 0);
 							AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CullGridObjectHeader, PF_R32_UINT), 0);
@@ -2093,6 +2096,7 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->DistanceFieldAtlas = DistanceFieldAtlas;
 
 								FAllocatePagesCS::FPermutationDomain PermutationVector;
+								PermutationVector.Set<FAllocatePagesCS::FProcessDistanceFields>(Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0);
 								PermutationVector.Set<FAllocatePagesCS::FMarkedHeightfieldPageBuffer>(MarkedHeightfieldPageBuffer != nullptr);
 								PermutationVector.Set<FAllocatePagesCS::FComposeParentDistanceField>(ParentPageTableLayerTexture != nullptr);
 								auto ComputeShader = View.ShaderMap->GetShader<FAllocatePagesCS>(PermutationVector);
@@ -2147,6 +2151,8 @@ void UpdateGlobalDistanceFieldVolume(
 						}
 
 						// Compose the mesh SDFs into allocated pages
+						const bool bComposeMeshSDFsIntoPages = Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
+						if (bComposeMeshSDFsIntoPages)
 						{
 							const FVector PageVoxelExtent = 0.5f * ClipmapSize / FVector(ClipmapResolution);
 							const FVector PageCoordToVoxelCenterScale = ClipmapSize / FVector(ClipmapResolution);
@@ -2227,6 +2233,7 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->ComposeIndirectArgBuffer = PageComposeHeightfieldIndirectArgBuffer;
 									PassParameters->ComposeTileBuffer = GraphBuilder.CreateSRV(PageComposeHeightfieldTileBuffer, PF_R32_UINT);
 									PassParameters->PageTableLayerTexture = PageTableLayerTexture;
+									PassParameters->ParentPageTableLayerTexture = ParentPageTableLayerTexture;
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 									PassParameters->PageCoordToVoxelCenterScale = PageCoordToVoxelCenterScale;
 									PassParameters->PageCoordToVoxelCenterBias = PageCoordToVoxelCenterBias;
@@ -2246,7 +2253,20 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->VisibilitySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 									PassParameters->HeightfieldDescriptions = GraphBuilder.CreateSRV(HeightfieldDescriptionBuffer, EPixelFormat::PF_A32B32G32R32F);
 
-									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>();
+									EComposeDistanceFieldMode ComposeMode = EComposeDistanceFieldMode::None;
+
+									if (bComposeMeshSDFsIntoPages)
+									{
+										ComposeMode = EComposeDistanceFieldMode::Previous;
+									}
+									else if (ParentPageTableLayerTexture != nullptr)
+									{
+										ComposeMode = EComposeDistanceFieldMode::Parent;
+									}
+
+									FComposeHeightfieldsIntoPagesCS::FPermutationDomain PermutationVector;
+									PermutationVector.Set<FComposeHeightfieldsIntoPagesCS::FComposeDistanceFieldMode>(ComposeMode);
+									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>(PermutationVector);
 
 									FComputeShaderUtils::AddPass(
 										GraphBuilder,
