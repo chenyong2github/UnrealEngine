@@ -209,10 +209,14 @@ namespace Jupiter
         private void OnAddHealthChecks(IServiceCollection services)
         {
             IHealthChecksBuilder healthChecks = services.AddHealthChecks()
-                .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] {"self"});
+                .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
             OnAddHealthChecks(services, healthChecks);
 
-            healthChecks.AddDatadogPublisher("jupiter.healthchecks");
+            string? ddAgentHost = System.Environment.GetEnvironmentVariable("DD_AGENT_HOST");
+            if (!String.IsNullOrEmpty(ddAgentHost))
+            {
+                healthChecks.AddDatadogPublisher("jupiter.healthchecks");
+            }
         }
 
         /// <summary>
