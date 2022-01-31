@@ -1640,7 +1640,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 	TArray<uint32, SceneRenderingAllocator> PrimitivesIds;
 };
 
-void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, bool bIsShadowView)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
 
@@ -1678,7 +1678,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		ensure(UploadIdStart < DynamicPrimitivesOffset);
 		ensure(InstanceIdStart != INDEX_NONE);
 
-		if (Scene != nullptr && Scene->VirtualShadowMapArrayCacheManager != nullptr)
+		if (bIsShadowView && Scene != nullptr && Scene->VirtualShadowMapArrayCacheManager != nullptr)
 		{
 			// Enqueue cache invalidations for all dynamic primitives' instances, as they will be removed this frame and are not associated
 			// with any particular FPrimitiveSceneInfo. Will occur on the next call to UpdateAllPrimitiveSceneInfos
@@ -1822,11 +1822,11 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 	}
 }
 
-void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View)
+void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene *Scene, FViewInfo& View, bool bIsShadowView)
 {
 	if (bIsEnabled)
 	{
-		UploadDynamicPrimitiveShaderDataForViewInternal(GraphBuilder, Scene, View);
+		UploadDynamicPrimitiveShaderDataForViewInternal(GraphBuilder, Scene, View, bIsShadowView);
 	}
 }
 
