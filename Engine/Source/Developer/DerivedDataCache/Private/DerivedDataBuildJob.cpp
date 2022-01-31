@@ -493,10 +493,10 @@ static FCacheRecordPolicy MakeCacheRecordQueryPolicy(const FBuildPolicy& BuildPo
 	const ECachePolicy DefaultCachePolicy = MakeCacheQueryPolicy(BuildPolicy.GetDefaultPolicy(), Context);
 	const ECachePolicy CombinedCachePolicy = MakeCacheQueryPolicy(BuildPolicy.GetCombinedPolicy(), Context);
 
-	FCacheRecordPolicyBuilder Builder(DefaultCachePolicy);
-	for (const FBuildValuePolicy& ValuePolicy : BuildPolicy.GetValuePolicies())
+	FCacheRecordPolicyBuilder Builder(DefaultCachePolicy | (CombinedCachePolicy & ECachePolicy::KeepAlive));
+	for (const FBuildValuePolicy& Value : BuildPolicy.GetValuePolicies())
 	{
-		Builder.AddValuePolicy(ValuePolicy.Id, MakeCacheQueryPolicy(ValuePolicy.Policy, Context));
+		Builder.AddValuePolicy(Value.Id, MakeCacheQueryPolicy(Value.Policy, Context) & ~ECachePolicy::KeepAlive);
 	}
 
 	// Output can only be loaded if its value is present. Add a policy for the output value which

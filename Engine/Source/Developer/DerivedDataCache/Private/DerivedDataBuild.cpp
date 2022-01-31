@@ -3,6 +3,7 @@
 #include "DerivedDataBuild.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/BinarySearch.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildFunctionRegistry.h"
@@ -158,14 +159,14 @@ public:
 		return Values;
 	}
 
-	inline void AddValuePolicy(const FBuildValuePolicy& Policy) final
+	inline void AddValuePolicy(const FBuildValuePolicy& Value) final
 	{
-		Values.Add(Policy);
-	}
-
-	inline void Build() final
-	{
-		Algo::SortBy(Values, &FBuildValuePolicy::Id);
+		checkf(Value.Id.IsValid(), TEXT("Failed to add value policy because the ID is null."));
+		const int32 Index = Algo::LowerBoundBy(Values, Value.Id, &FBuildValuePolicy::Id);
+		checkf(!(Values.IsValidIndex(Index) && Values[Index].Id == Value.Id),
+			TEXT("Failed to add value policy with ID %s because it has an existing value policy with that ID."),
+			*WriteToString<32>(Value.Id));
+		Values.Insert(Value, Index);
 	}
 
 private:
@@ -177,12 +178,10 @@ EBuildPolicy FBuildPolicy::GetValuePolicy(const FValueId& Id) const
 {
 	if (Shared)
 	{
-		if (TConstArrayView<FBuildValuePolicy> Values = Shared->GetValuePolicies(); !Values.IsEmpty())
+		const TConstArrayView<FBuildValuePolicy> Values = Shared->GetValuePolicies();
+		if (const int32 Index = Algo::BinarySearchBy(Values, Id, &FBuildValuePolicy::Id); Index != INDEX_NONE)
 		{
-			if (int32 Index = Algo::BinarySearchBy(Values, Id, &FBuildValuePolicy::Id); Index != INDEX_NONE)
-			{
-				return Values[Index].Policy;
-			}
+			return Values[Index].Policy;
 		}
 	}
 	return DefaultPolicy;
@@ -202,13 +201,17 @@ FBuildPolicy FBuildPolicy::Transform(TFunctionRef<EBuildPolicy (EBuildPolicy)> O
 	return Builder.Build();
 }
 
-void FBuildPolicyBuilder::AddValuePolicy(const FBuildValuePolicy& Policy)
+void FBuildPolicyBuilder::AddValuePolicy(const FBuildValuePolicy& Value)
 {
+	if (Value.Policy == BasePolicy)
+	{
+		return;
+	}
 	if (!Shared)
 	{
 		Shared = new Private::FBuildPolicyShared;
 	}
-	Shared->AddValuePolicy(Policy);
+	Shared->AddValuePolicy(Value);
 }
 
 FBuildPolicy FBuildPolicyBuilder::Build()
@@ -216,10 +219,12 @@ FBuildPolicy FBuildPolicyBuilder::Build()
 	FBuildPolicy Policy(BasePolicy);
 	if (Shared)
 	{
-		Shared->Build();
-		const auto PolicyOr = [](EBuildPolicy A, EBuildPolicy B) { return A | (B & EBuildPolicy::Default); };
+		const auto Add = [](const EBuildPolicy A, const EBuildPolicy B)
+		{
+			return ((A | B) & ~EBuildPolicy::SkipData) | ((A & B) & EBuildPolicy::SkipData);
+		};
 		const TConstArrayView<FBuildValuePolicy> Values = Shared->GetValuePolicies();
-		Policy.CombinedPolicy = Algo::TransformAccumulate(Values, &FBuildValuePolicy::Policy, BasePolicy, PolicyOr);
+		Policy.CombinedPolicy = Algo::TransformAccumulate(Values, &FBuildValuePolicy::Policy, BasePolicy, Add);
 		Policy.Shared = MoveTemp(Shared);
 	}
 	return Policy;

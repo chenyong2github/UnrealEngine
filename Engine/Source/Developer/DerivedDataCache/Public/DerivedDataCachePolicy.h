@@ -109,6 +109,9 @@ struct FCacheValuePolicy
 {
 	FValueId Id;
 	ECachePolicy Policy = ECachePolicy::Default;
+
+	/** Flags that are valid on a value policy. */
+	static constexpr ECachePolicy PolicyMask = ECachePolicy::Default | ECachePolicy::SkipData;
 };
 
 /** Interface for the private implementation of the cache record policy. */
@@ -138,9 +141,9 @@ public:
 	FCacheRecordPolicy() = default;
 
 	/** Construct a cache record policy with a uniform policy for the record and every value. */
-	inline FCacheRecordPolicy(ECachePolicy Policy)
-		: RecordPolicy(Policy)
-		, DefaultPolicy(Policy)
+	inline FCacheRecordPolicy(ECachePolicy BasePolicy)
+		: RecordPolicy(BasePolicy)
+		, DefaultValuePolicy(BasePolicy & FCacheValuePolicy::PolicyMask)
 	{
 	}
 
@@ -150,8 +153,11 @@ public:
 	/** Returns the cache policy to use for the record. */
 	inline ECachePolicy GetRecordPolicy() const { return RecordPolicy; }
 
-	/** Returns the cache policy to use for values with no override. */
-	inline ECachePolicy GetDefaultPolicy() const { return DefaultPolicy; }
+	/** Returns the base cache policy that this was constructed from. */
+	inline ECachePolicy GetBasePolicy() const
+	{
+		return DefaultValuePolicy | (RecordPolicy & ~FCacheValuePolicy::PolicyMask);
+	}
 
 	/** Returns the cache policy to use for the value. */
 	UE_API ECachePolicy GetValuePolicy(const FValueId& Id) const;
@@ -176,7 +182,7 @@ private:
 	friend class FOptionalCacheRecordPolicy;
 
 	ECachePolicy RecordPolicy = ECachePolicy::Default;
-	ECachePolicy DefaultPolicy = ECachePolicy::Default;
+	ECachePolicy DefaultValuePolicy = ECachePolicy::Default;
 	TRefCountPtr<const Private::ICacheRecordPolicyShared> Shared;
 };
 
@@ -194,7 +200,7 @@ public:
 	}
 
 	/** Adds a cache policy override for a value. */
-	UE_API void AddValuePolicy(const FCacheValuePolicy& Policy);
+	UE_API void AddValuePolicy(const FCacheValuePolicy& Value);
 	inline void AddValuePolicy(const FValueId& Id, ECachePolicy Policy) { AddValuePolicy({Id, Policy}); }
 
 	/** Build a cache record policy, which makes this builder subsequently unusable. */

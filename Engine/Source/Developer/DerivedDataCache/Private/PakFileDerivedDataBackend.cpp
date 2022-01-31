@@ -776,6 +776,7 @@ bool FPakFileDerivedDataBackend::PutCacheRecord(
 	}
 
 	const FCacheKey& Key = Record.GetKey();
+	const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
 
 	// Skip the request if storing to the cache is disabled.
 	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreLocal))
@@ -797,16 +798,14 @@ bool FPakFileDerivedDataBackend::PutCacheRecord(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Buckets"), Key);
-	const ECachePolicy CombinedValuePolicy = Algo::TransformAccumulate(
-		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultPolicy(), UE_PROJECTION(operator|));
-	if (EnumHasAnyFlags(CombinedValuePolicy, ECachePolicy::SkipData))
+	const bool bReplaceExisting = !EnumHasAnyFlags(RecordPolicy, ECachePolicy::QueryLocal);
+	if (!bReplaceExisting)
 	{
-		bRecordExists = FileExists(Path);
-	}
-	else if (FSharedBuffer Buffer = LoadFile(Path, Name))
-	{
-		FCbFieldIterator It = FCbFieldIterator::MakeRange(MoveTemp(Buffer));
-		bRecordExists = ExistingPackage.TryLoad(It);
+		if (FSharedBuffer Buffer = LoadFile(Path, Name))
+		{
+			FCbFieldIterator It = FCbFieldIterator::MakeRange(MoveTemp(Buffer));
+			bRecordExists = ExistingPackage.TryLoad(It);
+		}
 	}
 
 	// Save the record to a package and remove attachments that will be stored externally.
@@ -951,6 +950,7 @@ FOptionalCacheRecord FPakFileDerivedDataBackend::GetCacheRecord(
 	OutStatus = EStatus::Ok;
 
 	FCacheRecordBuilder RecordBuilder(Key);
+	const ECachePolicy RecordOnlyPolicy = Policy.GetRecordPolicy() & ~FCacheValuePolicy::PolicyMask;
 
 	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
 	{
@@ -960,7 +960,7 @@ FOptionalCacheRecord FPakFileDerivedDataBackend::GetCacheRecord(
 	for (FValueWithId Value : Record.Get().GetValues())
 	{
 		const ECachePolicy ValuePolicy = Policy.GetValuePolicy(Value.GetId());
-		GetCacheContent(Name, Key, ValuePolicy, Value, OutStatus);
+		GetCacheContent(Name, Key, ValuePolicy | RecordOnlyPolicy, Value, OutStatus);
 		if (Value.IsNull())
 		{
 			return FOptionalCacheRecord();

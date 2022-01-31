@@ -2450,14 +2450,12 @@ bool FHttpDerivedDataBackend::PutCacheRecord(
 	}
 
 	const FCacheKey& Key = Record.GetKey();
-	const ECachePolicy CombinedValuePolicy = Algo::TransformAccumulate(
-		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultPolicy(), UE_PROJECTION(operator|));
-	const ECachePolicy CombinedPolicy = Policy.GetRecordPolicy() | CombinedValuePolicy;
+	const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
 
 	// Skip the request if storing to the cache is disabled.
 	// Http backends won't generally be "local" but including handling for this possibility for consistency
 	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
-	if (!EnumHasAnyFlags(CombinedPolicy, StoreFlag))
+	if (!EnumHasAnyFlags(RecordPolicy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
 			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());

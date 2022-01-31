@@ -814,9 +814,9 @@ private:
 	void BuildCachePackagePath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const;
 	void BuildCacheContentPath(const FIoHash& RawHash, FStringBuilderBase& Path) const;
 
-	[[nodiscard]] bool SaveFileWithHash(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction) const;
+	[[nodiscard]] bool SaveFileWithHash(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction, bool bReplaceExisting = false) const;
 	[[nodiscard]] bool LoadFileWithHash(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> ReadFunction) const;
-	[[nodiscard]] bool SaveFile(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction) const;
+	[[nodiscard]] bool SaveFile(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction, bool bReplaceExisting = false) const;
 	[[nodiscard]] bool LoadFile(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> ReadFunction) const;
 	[[nodiscard]] TUniquePtr<FArchive> OpenFile(FStringBuilderBase& Path, FStringView DebugName) const;
 
@@ -1779,13 +1779,11 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	}
 
 	const FCacheKey& Key = Record.GetKey();
-	const ECachePolicy CombinedValuePolicy = Algo::TransformAccumulate(
-		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultPolicy(), UE_PROJECTION(operator|));
-	const ECachePolicy CombinedPolicy = Policy.GetRecordPolicy() | CombinedValuePolicy;
+	const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
 
 	// Skip the request if storing to the cache is disabled.
 	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
-	if (!EnumHasAnyFlags(CombinedPolicy, StoreFlag))
+	if (!EnumHasAnyFlags(RecordPolicy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
 			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -1804,11 +1802,9 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	BuildCachePackagePath(Key, Path);
-	if (EnumHasAnyFlags(CombinedValuePolicy, ECachePolicy::SkipData))
-	{
-		bRecordExists = FileExists(Path);
-	}
-	else
+	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const bool bReplaceExisting = !EnumHasAnyFlags(RecordPolicy, QueryFlag);
+	if (!bReplaceExisting)
 	{
 		bRecordExists = LoadFileWithHash(Path, Name, [&ExistingPackage](FArchive& Ar) { ExistingPackage.TryLoad(Ar); });
 	}
@@ -1868,7 +1864,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 
 	// Save the record package to storage.
 	const auto WriteRecord = [&](FArchive& Ar) { Package.Save(Ar); OutWriteSize += uint64(Ar.TotalSize()); };
-	if (!bRecordExists && !SaveFileWithHash(Path, Name, WriteRecord))
+	if (!bRecordExists && !SaveFileWithHash(Path, Name, WriteRecord, bReplaceExisting))
 	{
 		return false;
 	}
@@ -1974,7 +1970,8 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 
 	FCacheRecordBuilder RecordBuilder(Key);
 
-	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
+	const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
+	if (!EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipMeta))
 	{
 		RecordBuilder.SetMeta(FCbObject(Record.Get().GetMeta()));
 	}
@@ -1988,7 +1985,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 		{
 			RecordBuilder.AddValue(Id, MoveTemp(Content));
 		}
-		else if (EnumHasAnyFlags(ValuePolicy, ECachePolicy::PartialRecord))
+		else if (EnumHasAnyFlags(RecordPolicy, ECachePolicy::PartialRecord))
 		{
 			OutStatus = EStatus::Error;
 			RecordBuilder.AddValue(Value);
@@ -2039,11 +2036,9 @@ bool FFileSystemCacheStore::PutCacheValue(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	BuildCachePackagePath(Key, Path);
-	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
-	{
-		bValueExists = FileExists(Path);
-	}
-	else
+	const ECachePolicy QueryFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	const bool bReplaceExisting = !EnumHasAnyFlags(Policy, QueryFlag);
+	if (!bReplaceExisting)
 	{
 		bValueExists = LoadFileWithHash(Path, Name, [&ExistingPackage](FArchive& Ar) { ExistingPackage.TryLoad(Ar); })
 			&& (ExistingPackage.FindAttachment(Value.GetRawHash()) || GetCacheContentExists(Key, Value.GetRawHash()));
@@ -2087,7 +2082,7 @@ bool FFileSystemCacheStore::PutCacheValue(
 
 		// Save the value package to storage.
 		const auto WritePackage = [&](FArchive& Ar) { Package.Save(Ar); OutWriteSize += uint64(Ar.TotalSize()); };
-		if (!SaveFileWithHash(Path, Name, WritePackage))
+		if (!SaveFileWithHash(Path, Name, WritePackage, bReplaceExisting))
 		{
 			return false;
 		}
@@ -2383,7 +2378,8 @@ void FFileSystemCacheStore::BuildCacheContentPath(const FIoHash& RawHash, FStrin
 bool FFileSystemCacheStore::SaveFileWithHash(
 	FStringBuilderBase& Path,
 	const FStringView DebugName,
-	const TFunctionRef<void (FArchive&)> WriteFunction) const
+	const TFunctionRef<void (FArchive&)> WriteFunction,
+	const bool bReplaceExisting) const
 {
 	return SaveFile(Path, DebugName, [&WriteFunction](FArchive& Ar)
 	{
@@ -2391,7 +2387,7 @@ bool FFileSystemCacheStore::SaveFileWithHash(
 		WriteFunction(HashAr);
 		FBlake3Hash Hash = HashAr.GetHash();
 		Ar << Hash;
-	});
+	}, bReplaceExisting);
 }
 
 bool FFileSystemCacheStore::LoadFileWithHash(
@@ -2421,7 +2417,8 @@ bool FFileSystemCacheStore::LoadFileWithHash(
 bool FFileSystemCacheStore::SaveFile(
 	FStringBuilderBase& Path,
 	const FStringView DebugName,
-	const TFunctionRef<void (FArchive&)> WriteFunction) const
+	const TFunctionRef<void (FArchive&)> WriteFunction,
+	const bool bReplaceExisting) const
 {
 	TStringBuilder<256> TempPath;
 	TempPath << FPathViews::GetPath(Path) << TEXT("/Temp.") << FGuid::NewGuid();
@@ -2460,7 +2457,7 @@ bool FFileSystemCacheStore::SaveFile(
 	}
 
 	if (!IFileManager::Get().Move(*Path, *TempPath,
-		/*bReplace*/ false, /*bEvenIfReadOnly*/ false, /*bAttributes*/ false, /*bDoNotRetryOrError*/ true))
+		bReplaceExisting, /*bEvenIfReadOnly*/ false, /*bAttributes*/ false, /*bDoNotRetryOrError*/ true))
 	{
 		UE_LOG(LogDerivedDataCache, Log,
 			TEXT("%s: Move collision when writing file %s from '%.*s'."),

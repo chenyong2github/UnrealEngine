@@ -84,7 +84,6 @@ public:
 	virtual void Release() const = 0;
 	virtual TConstArrayView<FBuildValuePolicy> GetValuePolicies() const = 0;
 	virtual void AddValuePolicy(const FBuildValuePolicy& Policy) = 0;
-	virtual void Build() = 0;
 };
 
 /** Flags to control the behavior of build requests, with optional overrides by value. */
@@ -144,7 +143,7 @@ public:
 	}
 
 	/** Adds a build policy override for a value. */
-	UE_API void AddValuePolicy(const FBuildValuePolicy& Policy);
+	UE_API void AddValuePolicy(const FBuildValuePolicy& Value);
 	inline void AddValuePolicy(const FValueId& Id, EBuildPolicy Policy) { AddValuePolicy({Id, Policy}); }
 
 	/** Build a build policy, which makes this builder subsequently unusable. */

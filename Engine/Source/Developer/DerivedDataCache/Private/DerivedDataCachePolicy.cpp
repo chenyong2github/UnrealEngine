@@ -3,6 +3,7 @@
 #include "DerivedDataCachePolicy.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/BinarySearch.h"
 #include "Containers/StringConv.h"
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
@@ -158,15 +159,13 @@ ECachePolicy FCacheRecordPolicy::GetValuePolicy(const FValueId& Id) const
 {
 	if (Shared)
 	{
-		if (TConstArrayView<FCacheValuePolicy> Values = Shared->GetValuePolicies(); !Values.IsEmpty())
+		const TConstArrayView<FCacheValuePolicy> Values = Shared->GetValuePolicies();
+		if (const int32 Index = Algo::BinarySearchBy(Values, Id, &FCacheValuePolicy::Id); Index != INDEX_NONE)
 		{
-			if (int32 Index = Algo::BinarySearchBy(Values, Id, &FCacheValuePolicy::Id); Index != INDEX_NONE)
-			{
-				return Values[Index].Policy;
-			}
+			return Values[Index].Policy;
 		}
 	}
-	return DefaultPolicy;
+	return DefaultValuePolicy;
 }
 
 FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy (ECachePolicy)> Op) const
@@ -176,7 +175,7 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 		return Op(RecordPolicy);
 	}
 
-	FCacheRecordPolicyBuilder Builder(Op(DefaultPolicy));
+	FCacheRecordPolicyBuilder Builder(Op(GetBasePolicy()));
 	for (const FCacheValuePolicy& Value : GetValuePolicies())
 	{
 		Builder.AddValuePolicy({Value.Id, Op(Value.Policy)});
@@ -187,7 +186,7 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 {
 	Writer.BeginObject();
-	Writer.AddString("DefaultValuePolicy"_ASV, WriteToUtf8String<128>(GetDefaultPolicy()));
+	Writer.AddString("DefaultValuePolicy"_ASV, WriteToUtf8String<128>(GetBasePolicy()));
 	if (!IsUniform())
 	{
 		Writer.BeginArray("ValuePolicies"_ASV);
@@ -205,13 +204,13 @@ void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 
 FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
 {
-	const FUtf8StringView DefaultPolicyText = Object["DefaultValuePolicy"_ASV].AsString();
-	if (DefaultPolicyText.IsEmpty())
+	const FUtf8StringView BasePolicyText = Object["DefaultValuePolicy"_ASV].AsString();
+	if (BasePolicyText.IsEmpty())
 	{
 		return {};
 	}
 
-	FCacheRecordPolicyBuilder Builder(ParseCachePolicy(DefaultPolicyText));
+	FCacheRecordPolicyBuilder Builder(ParseCachePolicy(BasePolicyText));
 	for (const FCbFieldView Value : Object["ValuePolicies"_ASV])
 	{
 		const FValueId Id = Value["Id"_ASV].AsObjectId();
@@ -220,18 +219,22 @@ FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
 		{
 			return {};
 		}
-		Builder.AddValuePolicy(Id, ParseCachePolicy(PolicyText));
+		const ECachePolicy Policy = ParseCachePolicy(PolicyText);
+		if (EnumHasAnyFlags(Policy, ~FCacheValuePolicy::PolicyMask))
+		{
+			return {};
+		}
+		Builder.AddValuePolicy(Id, Policy);
 	}
 	return Builder.Build();
 }
 
 void FCacheRecordPolicyBuilder::AddValuePolicy(const FCacheValuePolicy& Value)
 {
-	constexpr ECachePolicy RecordOnlyPolicyFlags = ECachePolicy::SkipMeta | ECachePolicy::PartialRecord | ECachePolicy::KeepAlive;
-	checkf(!EnumHasAnyFlags(Value.Policy, RecordOnlyPolicyFlags),
+	checkf(!EnumHasAnyFlags(Value.Policy, ~Value.PolicyMask),
 		TEXT("Value policy contains flags that only make sense on the record policy. Policy: %s"),
 		*WriteToString<128>(Value.Policy));
-	if (Value.Policy == (BasePolicy & ~RecordOnlyPolicyFlags))
+	if (Value.Policy == (BasePolicy & Value.PolicyMask))
 	{
 		return;
 	}
@@ -247,9 +250,12 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 	FCacheRecordPolicy Policy(BasePolicy);
 	if (Shared)
 	{
-		const auto PolicyOr = [](ECachePolicy A, ECachePolicy B) { return A | (B & ~ECachePolicy::SkipData); };
+		const auto Add = [](const ECachePolicy A, const ECachePolicy B)
+		{
+			return ((A | B) & ~ECachePolicy::SkipData) | ((A & B) & ECachePolicy::SkipData);
+		};
 		const TConstArrayView<FCacheValuePolicy> Values = Shared->GetValuePolicies();
-		Policy.RecordPolicy = Algo::TransformAccumulate(Values, &FCacheValuePolicy::Policy, BasePolicy, PolicyOr);
+		Policy.RecordPolicy = Algo::TransformAccumulate(Values, &FCacheValuePolicy::Policy, BasePolicy, Add);
 		Policy.Shared = MoveTemp(Shared);
 	}
 	return Policy;

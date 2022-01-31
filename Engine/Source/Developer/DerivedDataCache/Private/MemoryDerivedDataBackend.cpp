@@ -662,6 +662,11 @@ void FMemoryDerivedDataBackend::Put(
 			}
 		};
 
+		if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::StoreLocal))
+		{
+			continue;
+		}
+
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
@@ -676,44 +681,39 @@ void FMemoryDerivedDataBackend::Put(
 			continue;
 		}
 
-		if (Values.IsEmpty())
+		COOK_STAT(auto Timer = UsageStats.TimePut());
+		const int64 RecordSize = Private::GetCacheRecordCompressedSize(Record);
+		const bool bReplaceExisting = !EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::QueryLocal);
+
+		FWriteScopeLock ScopeLock(SynchronizationObject);
+		FCacheRecord* const ExistingRecord = CacheRecords.Find(Key);
+		Status = ExistingRecord && !bReplaceExisting ? EStatus::Ok : EStatus::Error;
+		if (bDisabled || Status == EStatus::Ok)
 		{
-			FWriteScopeLock ScopeLock(SynchronizationObject);
-			if (bDisabled)
-			{
-				continue;
-			}
-			if (const FCacheRecord* Existing = CacheRecords.Find(Key))
-			{
-				CacheRecords.Remove(Key);
-				CurrentCacheSize -= Private::GetCacheRecordCompressedSize(*Existing);
-				bMaxSizeExceeded = false;
-			}
-			Status = EStatus::Ok;
+			continue;
+		}
+
+		const int64 ExistingRecordSize = ExistingRecord ? Private::GetCacheRecordCompressedSize(*ExistingRecord) : 0;
+		const int64 RequiredSize = RecordSize - ExistingRecordSize;
+
+		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %" INT64_FMT " KiB / MaxSize: %" INT64_FMT " KiB"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
+			bMaxSizeExceeded = true;
+			continue;
+		}
+
+		CurrentCacheSize += RequiredSize;
+		if (ExistingRecord)
+		{
+			*ExistingRecord = Record;
 		}
 		else
 		{
-			COOK_STAT(auto Timer = UsageStats.TimePut());
-			const int64 RecordSize = Private::GetCacheRecordCompressedSize(Record);
-
-			FWriteScopeLock ScopeLock(SynchronizationObject);
-			Status = CacheRecords.Contains(Key) ? EStatus::Ok : EStatus::Error;
-			if (bDisabled || Status == EStatus::Ok)
-			{
-				continue;
-			}
-			if (MaxCacheSize > 0 && (CurrentCacheSize + RecordSize) > MaxCacheSize)
-			{
-				UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %" INT64_FMT " KiB / MaxSize: %" INT64_FMT " KiB"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
-				bMaxSizeExceeded = true;
-				continue;
-			}
-
-			CurrentCacheSize += RecordSize;
 			CacheRecords.Add(Record);
-			COOK_STAT(Timer.AddHit(RecordSize));
-			Status = EStatus::Ok;
 		}
+		COOK_STAT(Timer.AddHit(RecordSize));
+		Status = EStatus::Ok;
 	}
 }
 
@@ -747,7 +747,7 @@ void FMemoryDerivedDataBackend::Get(
 				if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipData))
 				{
 					Status = EStatus::Error;
-					if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialRecord))
+					if (!EnumHasAllFlags(Policy.GetRecordPolicy(), ECachePolicy::PartialRecord))
 					{
 						Record.Reset();
 						break;
