@@ -6,7 +6,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Note: 
-// * This version of environement lighting is very much in WIP state, with a lot of option to tune tweak to explore 
+// * This version of environement lighting is very much in WIP state, with a lot of option to tune tweak to explore
 //   what kind of approximation works the best for certains type of grooms and lighting condition
 // * There is a few fudges factor as well (roughness mapping, TT density, reflected vector orientations, ...)
 
