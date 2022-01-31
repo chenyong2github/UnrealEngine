@@ -156,11 +156,12 @@ public:
 		const TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
 		int Index = RenderThread_FindParameterByNameInternal<ValueType>(ParameterInfo, bWasFound);
 
-		if (bWasFound)
+		if (bWasFound && IsValidParameterValue(ValueArray[Index].Value))
 		{
 			OutValue = ValueArray[Index].Value;
+			return true;
 		}
-		return bWasFound;
+		return false;
 	}
 
 private:
