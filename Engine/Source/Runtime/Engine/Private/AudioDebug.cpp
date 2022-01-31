@@ -2449,7 +2449,7 @@ namespace Audio
 
 			if (Subtitle.Len() == 0)
 			{
-				Subtitle = InSoundWave.SpokenText;
+				Subtitle = InSoundWave.SpokenText_DEPRECATED;
 			}
 
 			if (Subtitle.Len() == 0)

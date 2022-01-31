@@ -19,7 +19,7 @@ UObject* UDialogueWaveFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 
 	if (InitialSoundWave)
 	{
-		DialogueWave->SpokenText = InitialSoundWave->SpokenText;
+		DialogueWave->SpokenText = InitialSoundWave->SpokenText_DEPRECATED;
 		DialogueWave->bMature = InitialSoundWave->bMature;
 	}
 

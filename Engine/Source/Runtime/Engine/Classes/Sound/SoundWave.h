@@ -585,8 +585,8 @@ public:
 	mutable ESoundWaveLoadingBehavior LoadingBehavior;
 
 	/** A localized version of the text that is actually spoken phonetically in the audio. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-	FString SpokenText;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Subtitles instead."))
+	FString SpokenText_DEPRECATED;
 
 	/** The priority of the subtitle. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
@@ -642,8 +642,7 @@ public:
 	int32 TrackedMemoryUsage;
 
 	/**
-	 * Subtitle cues.  If empty, use SpokenText as the subtitle.  Will often be empty,
-	 * as the contents of the subtitle is commonly identical to what is spoken.
+	 * Subtitle cues. 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
 	TArray<struct FSubtitleCue> Subtitles;
