@@ -37,6 +37,7 @@ public class SequencerPlaylists : ModuleRules
 			"LevelSequenceEditor",
 			"TakesCore",
 			"ToolWidgets",
+			"MovieSceneTools",
 		});
 
 		DynamicallyLoadedModuleNames.AddRange(new string[] {

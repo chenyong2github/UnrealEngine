@@ -5,11 +5,14 @@
 #include "SequencerPlaylistsLog.h"
 
 #include "ISequencer.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "LevelSequence.h"
 #include "MovieSceneFolder.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "TrackEditors/SubTrackEditorBase.h" // for FSubTrackEditorUtil::CanAddSubSequence
 #include "Tracks/MovieSceneSubTrack.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
 #define LOCTEXT_NAMESPACE "SequencerPlaylists"
@@ -41,13 +44,21 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(USequencerPlaylistItem* Item)
 		return false;
 	}
 
-	FItemState& ItemState = GetOrCreateItemState(Item);
-
-	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 	ULevelSequence* RootSequence = Cast<ULevelSequence>(Sequencer->GetRootMovieSceneSequence());
 	UMovieScene* RootScene = RootSequence->GetMovieScene();
 
+	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->Sequence))
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->Sequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return false;
+	}
+
 	RootSequence->Modify();
+
+	FItemState& ItemState = GetOrCreateItemState(Item);
+	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 
 	const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
 
@@ -184,11 +195,20 @@ bool FSequencerPlaylistItemPlayer_Sequence::AddHold(USequencerPlaylistItem* Item
 		return false;
 	}
 
-	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 	ULevelSequence* RootSequence = Cast<ULevelSequence>(Sequencer->GetRootMovieSceneSequence());
 	UMovieScene* RootScene = RootSequence->GetMovieScene();
 
+	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->Sequence))
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->Sequence->GetDisplayName()));
+		Info.bUseLargeFont = false;
+		FSlateNotificationManager::Get().AddNotification(Info);
+		return false;
+	}
+
 	RootSequence->Modify();
+
+	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 
 	const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
 	const FFrameNumber StartFrame = GlobalTime.Time.FloorToFrame();
