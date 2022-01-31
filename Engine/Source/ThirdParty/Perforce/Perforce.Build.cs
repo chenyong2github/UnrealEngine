@@ -11,7 +11,8 @@ public class Perforce : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string Windows_P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2018.1/";
+			// SDK downloaded at http://ftp.perforce.com/perforce/r21.2/bin.ntx64/p4api_vs2015_dyn_openssl1.1.1.zip
+			string Windows_P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2021.2/";
 
 			string PlatformSubdir = Target.Platform.ToString();
 			string VisualStudioVersionFolder = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
@@ -24,6 +25,12 @@ public class Perforce : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libclient.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "librpc.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libsupp.lib"));
+			
+			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libp4api.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libp4script.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libp4script_c.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libp4script_curl.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibFolder, "libp4script_sqlite.lib"));
 		}
 		else
 		{
@@ -42,7 +49,7 @@ public class Perforce : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
-				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2014.1/" ;
+				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2014.1/";
 				LibFolder += "linux/" + Target.Architecture;
 			}
 
