@@ -764,14 +764,7 @@ void ARecastNavMesh::OnRegistered()
 	check(RecastNavMeshImpl);
 
 	// This check can fail when the NavMeshVersion indicates the map needs the nav mesh rebuilt
-	if (RecastNavMeshImpl->GetRecastMesh())
-	{
-		// Set walkable climb / radius / height in recast remembering to convert to recast cell units
-		RecastNavMeshImpl->GetRecastMesh()->setWalkableClimb(AgentMaxStepHeight);
-		RecastNavMeshImpl->GetRecastMesh()->setWalkableHeight(AgentHeight);
-		RecastNavMeshImpl->GetRecastMesh()->setWalkableRadius(AgentRadius);
-		RecastNavMeshImpl->GetRecastMesh()->setBVQuantFactor(1.f / CellSize);
-	}
+	ensure(RecastNavMeshImpl->GetRecastMesh() == nullptr || RecastNavMeshImpl->GetRecastMesh()->getBVQuantFactor() != 0);
 }
 
 void ARecastNavMesh::SerializeRecastNavMesh(FArchive& Ar, FPImplRecastNavMesh*& NavMesh, int32 InNavMeshVersion)

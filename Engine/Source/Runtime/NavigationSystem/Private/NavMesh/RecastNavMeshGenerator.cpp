@@ -4732,14 +4732,7 @@ void FRecastNavMeshGenerator::Init()
 		}
 	}
 
-	// This check can fail when the NavMeshVersion indicates the map needs the nav mesh rebuilt
-	if (DestNavMesh->GetRecastMesh())
-	{
-		DestNavMesh->GetRecastMesh()->setWalkableClimb(Config.AgentMaxClimb);
-		DestNavMesh->GetRecastMesh()->setWalkableHeight(Config.AgentHeight);
-		DestNavMesh->GetRecastMesh()->setWalkableRadius(Config.AgentRadius);
-		DestNavMesh->GetRecastMesh()->setBVQuantFactor(1.f / Config.cs);
-	}
+	ensure(DestNavMesh->GetRecastMesh() == nullptr || DestNavMesh->GetRecastMesh()->getBVQuantFactor() != 0);
 
 	UpdateNavigationBounds();
 
@@ -4891,10 +4884,10 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		CalcNavMeshProperties(TiledMeshParameters.maxTiles, TiledMeshParameters.maxPolys);
 		Config.MaxPolysPerTile = TiledMeshParameters.maxPolys;
 
-		DetourMesh->setWalkableClimb(Config.AgentMaxClimb);
-		DetourMesh->setWalkableHeight(Config.AgentHeight);
-		DetourMesh->setWalkableRadius(Config.AgentRadius);
-		DetourMesh->setBVQuantFactor(1.f / Config.cs);
+		TiledMeshParameters.walkableClimb = Config.AgentMaxClimb;
+		TiledMeshParameters.walkableHeight = Config.AgentHeight;
+		TiledMeshParameters.walkableRadius = Config.AgentRadius;
+		TiledMeshParameters.bvQuantFactor = 1.f / Config.cs;
 
 		if (TiledMeshParameters.maxTiles == 0)
 		{

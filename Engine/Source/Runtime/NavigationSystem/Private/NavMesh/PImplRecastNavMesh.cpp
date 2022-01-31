@@ -605,13 +605,6 @@ void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 		{
 			UE_VLOG(NavMeshOwner, LogNavigation, Error, TEXT("Failed to allocate Recast navmesh"));
 		}
-		else if (NavMeshOwner)
-		{
-			DetourNavMesh->setWalkableClimb(NavMeshOwner->AgentMaxStepHeight);
-			DetourNavMesh->setWalkableHeight(NavMeshOwner->AgentHeight);
-			DetourNavMesh->setWalkableRadius(NavMeshOwner->AgentRadius);
-			DetourNavMesh->setBVQuantFactor(1.f / NavMeshOwner->CellSize);
-		}
 	}
 
 	int32 NumTiles = 0;
@@ -667,6 +660,21 @@ void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 	Ar << Params.tileHeight;			///< The height of each tile. (Along the z-axis.)
 	Ar << Params.maxTiles;				///< The maximum number of tiles the navigation mesh can contain.
 	Ar << Params.maxPolys;
+
+	if(NavMeshOwner->NavMeshVersion >= NAVMESHVER_OPTIM_FIX_SERIALIZE_PARAMS)
+	{
+		Ar << Params.walkableHeight;
+		Ar << Params.walkableRadius;
+		Ar << Params.walkableClimb;
+		Ar << Params.bvQuantFactor;
+	}
+	else
+	{
+		Params.walkableHeight = NavMeshOwner->AgentHeight;
+		Params.walkableRadius = NavMeshOwner->AgentRadius;
+		Params.walkableClimb = NavMeshOwner->AgentMaxStepHeight;
+		Params.bvQuantFactor = 1.f / NavMeshOwner->CellSize;
+	}
 
 	if (Ar.IsLoading())
 	{

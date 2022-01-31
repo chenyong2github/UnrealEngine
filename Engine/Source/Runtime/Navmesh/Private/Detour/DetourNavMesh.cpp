@@ -825,6 +825,12 @@ dtNavMesh::~dtNavMesh()
 		
 dtStatus dtNavMesh::init(const dtNavMeshParams* params)
 {
+	m_walkableHeight = params->walkableHeight;
+	m_walkableRadius = params->walkableRadius; 
+	m_walkableClimb = params->walkableClimb;	
+	m_bvQuantFactor = params->bvQuantFactor;
+	check(m_bvQuantFactor != 0);
+	
 	memcpy(&m_params, params, sizeof(dtNavMeshParams));
 	dtVcopy(m_orig, params->orig);
 	m_tileWidth = params->tileWidth;

@@ -465,6 +465,13 @@ struct dtMeshTile
 /// @ingroup detour
 struct dtNavMeshParams
 {
+	//@UE BEGIN Memory optimization
+	dtReal walkableHeight;			///< The height of the agents using the tile.
+	dtReal walkableRadius;			///< The radius of the agents using the tile.
+	dtReal walkableClimb;			///< The maximum climb height of the agents using the tile.	
+	dtReal bvQuantFactor;			///< The bounding volume quantization factor.
+	//@UE END Memory optimization 	
+	
 	dtReal orig[3];					///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
 	dtReal tileWidth;				///< The width of each tile. (Along the x-axis.)
 	dtReal tileHeight;				///< The height of each tile. (Along the z-axis.)
@@ -846,11 +853,6 @@ public:
 	dtReal getWalkableRadius() const { return m_walkableRadius; }
 	dtReal getWalkableClimb() const { return m_walkableClimb; }
 	dtReal getBVQuantFactor() const { return m_bvQuantFactor; }
-
-	void setWalkableHeight(dtReal height) { m_walkableHeight = height; }
-	void setWalkableRadius(dtReal radius) { m_walkableRadius = radius; }
-	void setWalkableClimb(dtReal climb) { m_walkableClimb = climb; }
-	void setBVQuantFactor(dtReal factor) { m_bvQuantFactor = factor; }
 	//@UE END LWCoords
 
 private:
@@ -924,10 +926,10 @@ private:
 	dtReal m_tileWidth, m_tileHeight;	///< Dimensions of each tile.
 
 	//@UE BEGIN Memory optimization
-	dtReal m_walkableHeight;				///< The height of the agents using the tile.
-	dtReal m_walkableRadius;				///< The radius of the agents using the tile.
+	dtReal m_walkableHeight;			///< The height of the agents using the tile.
+	dtReal m_walkableRadius;			///< The radius of the agents using the tile.
 	dtReal m_walkableClimb;				///< The maximum climb height of the agents using the tile.
-	dtReal m_bvQuantFactor;				///<  The bounding volume quantization factor. 
+	dtReal m_bvQuantFactor;				///< The bounding volume quantization factor. 
 	//@UE END Memory optimization
 
 	int m_maxTiles;						///< Max number of tiles.
