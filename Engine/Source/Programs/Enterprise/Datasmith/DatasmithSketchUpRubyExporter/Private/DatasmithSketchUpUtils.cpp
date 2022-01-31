@@ -236,11 +236,7 @@ void DatasmithSketchUpUtils::SetActorTransform(
 
 	// Set the world transform of the Datasmith actor.
 	InActorElement->SetTranslation(Translation.X, Translation.Y, Translation.Z, false);
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	InActorElement->SetRotation(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W, false);
-#else
 	InActorElement->SetRotation((float)Rotation.X, (float)Rotation.Y, (float)Rotation.Z, (float)Rotation.W, false);
-#endif
 	InActorElement->SetScale(Scale.x, Scale.y, Scale.z, false);
 }
 

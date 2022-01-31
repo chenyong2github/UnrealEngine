@@ -108,10 +108,6 @@ bool bGPUSkin_CopyBones_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarGPUSkinCopyBonesISPCEnabled(TEXT("r.GPUSkin.CopyBones.ISPC"), bGPUSkin_CopyBones_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when copying bones for GPU skinning"));
 #endif
 
-#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
-namespace ispc { typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
-#endif
-
 #if INTEL_ISPC
 static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
 static_assert(sizeof(ispc::FMatrix3x4) == sizeof(FMatrix3x4), "sizeof(ispc::FMatrix3x4) != sizeof(FMatrix3x4)");

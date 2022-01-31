@@ -657,20 +657,12 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector2D>(
 						*NewMovieScene, CameraComponentBindingID, BasePPSettings, *OverridenFieldProperty);
 			}
-			else if (OverridenFieldProperty->Struct->GetFName() == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-					|| OverridenFieldProperty->Struct->GetFName() == NAME_Vector
-#endif
-					)
+			else if (OverridenFieldProperty->Struct->GetFName() == NAME_Vector3f)
 			{
 				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector3f>(
 						*NewMovieScene, CameraComponentBindingID, BasePPSettings, *OverridenFieldProperty);
 			}
-			else if (OverridenFieldProperty->Struct->GetFName() == NAME_Vector4f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-				|| OverridenFieldProperty->Struct->GetFName() == NAME_Vector4
-#endif
-				)
+			else if (OverridenFieldProperty->Struct->GetFName() == NAME_Vector4f)
 			{
 				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector4f>(
 						*NewMovieScene, CameraComponentBindingID, BasePPSettings, *OverridenFieldProperty);

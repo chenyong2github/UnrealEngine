@@ -2257,11 +2257,6 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bCompileISPC; }
 		}
-
-		public bool bLWCDisabled 
-		{
-			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }
-		}
 		
 		public bool bCompilePython
 		{

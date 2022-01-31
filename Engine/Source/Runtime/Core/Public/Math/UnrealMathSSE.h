@@ -179,17 +179,9 @@ typedef VectorRegister4Int VectorRegister4i;
 typedef VectorRegister4Float VectorRegister4f;
 typedef VectorRegister4Double VectorRegister4d;
 typedef VectorRegister2Double VectorRegister2d;
-
-// LWC: Alias VectorRegister to correct precision based on LWC
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-	typedef VectorRegister4Double VectorRegister4;
-	#define VectorZeroVectorRegister() VectorZeroDouble()
-	#define VectorOneVectorRegister() VectorOneDouble()
-#else
-	typedef VectorRegister4Float VectorRegister4;
-	#define VectorZeroVectorRegister() VectorZeroFloat()
-	#define VectorOneVectorRegister() VectorOneFloat()
-#endif
+typedef VectorRegister4Double VectorRegister4;
+#define VectorZeroVectorRegister() VectorZeroDouble()
+#define VectorOneVectorRegister() VectorOneDouble()
 
 // Backwards compatibility
 typedef VectorRegister4 VectorRegister;
@@ -242,13 +234,7 @@ struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 	}
 };
 
-// LWC: Alias AlignedRegister4 to correct precision based on LWC
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 typedef AlignedDouble4 AlignedRegister4;
-#else
-typedef AlignedFloat4 AlignedRegister4;
-#endif
-
 
 #define DECLARE_VECTOR_REGISTER(X, Y, Z, W) MakeVectorRegister(X, Y, Z, W)
 

@@ -61,13 +61,8 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 				// so we need to iterate updating the points one by one.
 				for (int32 i = 0; i < ControlPointsCount; ++i)
 				{
-#if (UE_LARGE_WORLD_COORDINATES_DISABLED && !TINYSPLINE_FLOAT_PRECISION)
-					FVector3d Point = InPoints[i];
-					ts_bspline_set_control_point_at(SplineData->Spline.data(), i, &Point.X, nullptr);
-#else
 					FVector Point = InPoints[i];
 					ts_bspline_set_control_point_at(SplineData->Spline.data(), i, &Point.X, nullptr);
-#endif
 				}
 
 				break;
@@ -92,11 +87,7 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 			case ESplineType::BSpline:
 			{
 				// Cache sample positions of the spline
-#if (UE_LARGE_WORLD_COORDINATES_DISABLED && !TINYSPLINE_FLOAT_PRECISION)					
-				double* SamplesPtr = nullptr;
-#else
 				FVector::FReal* SamplesPtr = nullptr;
-#endif
 				size_t ActualSamplesPerSegment = 0;
 				ts_bspline_sample(SplineData->Spline.data(), (ControlPointsCount - 1) * SamplesPerSegment, &SamplesPtr, &ActualSamplesPerSegment, nullptr);
 				SplineData->SamplesArray.SetNumUninitialized((ControlPointsCount - 1) * SamplesPerSegment, false);

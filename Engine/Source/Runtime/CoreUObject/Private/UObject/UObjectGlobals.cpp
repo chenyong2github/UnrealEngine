@@ -4427,18 +4427,13 @@ namespace UECodeGen_Private
 			}
 			break;
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-			case EPropertyGenFlags::LargeWorldCoordinatesReal:
-#endif
 			case EPropertyGenFlags::Float:
 			{
 				NewProp = NewFProperty<FFloatProperty, FFloatPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 			case EPropertyGenFlags::LargeWorldCoordinatesReal:
-#endif
 			case EPropertyGenFlags::Double:
 			{
 				NewProp = NewFProperty<FDoubleProperty, FDoublePropertyParams>(Outer, *PropBase);

@@ -248,7 +248,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorSelectBool)
 	return true;
 }
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#if 0  // LWC_TODO: Fix this for LWC
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorDeg)
 {

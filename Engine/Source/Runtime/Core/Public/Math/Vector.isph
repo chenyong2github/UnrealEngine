@@ -4,7 +4,7 @@
 #define __VECTOR_ISPH__
 
 #ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#include "Misc/LargeWorldCoordinates.h"
+#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
 #endif
 
 #include "Math/Aossoa.isph"

@@ -101,11 +101,7 @@ using TPersistentVectorRegisterType = std::conditional_t<std::is_same_v<T, float
 
 
 /** Vector that represents (1/255,1/255,1/255,1/255) */
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-static constexpr VectorRegister VECTOR_INV_255 = MakeVectorRegisterFloatConstant(1.f / 255, 1.f / 255, 1.f / 255, 1.f / 255);
-#else
 static constexpr VectorRegister VECTOR_INV_255 = MakeVectorRegisterDoubleConstant(1.0 / 255, 1.0 / 255, 1.0 / 255, 1.0 / 255);
-#endif
 
 // Old names for comparison functions, kept for compatibility.
 #define VectorMask_LT( Vec1, Vec2 )			VectorCompareLT(Vec1, Vec2)
@@ -123,13 +119,7 @@ static constexpr VectorRegister VECTOR_INV_255 = MakeVectorRegisterDoubleConstan
 
 namespace GlobalVectorConstants
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	static constexpr VectorRegister AnimWeightThreshold = MakeVectorRegisterConstant(ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH);
-	static constexpr VectorRegister RotationSignificantThreshold = MakeVectorRegisterConstant(1.f - DELTA*DELTA, 1.f - DELTA*DELTA, 1.f - DELTA*DELTA, 1.f - DELTA*DELTA);
-#else
-
 	static constexpr VectorRegister AnimWeightThreshold = MakeVectorRegisterConstant(ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE, ZERO_ANIMWEIGHT_THRESH_DOUBLE);
 	static constexpr VectorRegister RotationSignificantThreshold = MakeVectorRegisterConstant(1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA, 1.0 - DELTA*DELTA);
-#endif
 }
 

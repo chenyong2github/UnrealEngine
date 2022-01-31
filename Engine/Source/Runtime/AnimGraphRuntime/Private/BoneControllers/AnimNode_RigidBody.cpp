@@ -62,7 +62,7 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngVel(TEXT("p.RigidBodyNod
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinAcc(TEXT("p.RigidBodyNode.Space.MaxLinearAcceleration"), RBAN_SimSpaceOverride.MaxLinearAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngAcc(TEXT("p.RigidBodyNode.Space.MaxAngularAcceleration"), RBAN_SimSpaceOverride.MaxAngularAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 // LWC_TODO: Double support for console variables
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#if 0
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragX(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.X"), RBAN_SimSpaceOverride.ExternalLinearDragV.X, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragY(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Y"), RBAN_SimSpaceOverride.ExternalLinearDragV.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragZ(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Z"), RBAN_SimSpaceOverride.ExternalLinearDragV.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);

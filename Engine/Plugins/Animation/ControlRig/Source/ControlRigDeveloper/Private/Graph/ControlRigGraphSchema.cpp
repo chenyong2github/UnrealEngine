@@ -1566,9 +1566,8 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 		}
 	}
 
-	// if large world coordinate support is enabled we should allow connections
+	// for large world coordinate support we should allow connections
 	// between float and double
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	if(PinA->PinType.ContainerType == EPinContainerType::None &&
 		PinB->PinType.ContainerType == EPinContainerType::None)
 	{
@@ -1580,7 +1579,6 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 			return true;
 		}
 	}
-#endif
 
 	struct Local
 	{

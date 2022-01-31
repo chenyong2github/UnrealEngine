@@ -65,10 +65,6 @@
 #include "Chaos/VelocityField.h"
 #endif
 
-#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
-namespace ispc { typedef FVector FVector3f; typedef FVector4 FVector4f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
-#endif
-
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
 static_assert(sizeof(ispc::FVector4f) == sizeof(FQuat4f), "sizeof(ispc::FVector4f) != sizeof(Chaos::FQuat4f))");

@@ -72,7 +72,7 @@ const FString& FBuilderModule::GetVersionString() const
 		VersionString = FString::Printf(TEXT("%s%s%s%s"), NANITE_DERIVEDDATA_VER,
 										USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
 										USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
-										!UE_LARGE_WORLD_COORDINATES_DISABLED ? TEXT("_LWC") : TEXT(""));
+										TEXT("_LWC"));	// LWC_TODO: This can be removed.
 	}
 
 	return VersionString;

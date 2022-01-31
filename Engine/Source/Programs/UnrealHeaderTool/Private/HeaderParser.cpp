@@ -3529,7 +3529,7 @@ void FHeaderParser::GetVarType(
 		// Intrinsic double precision floating point type type.
 		VarProperty = FPropertyBase(CPT_Double);
 	}
-	else if (VarType.IsValue(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove with UE_LARGE_WORLD_COORDINATES_DISABLED toggle.
+	else if (VarType.IsValue(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove FLargeWorldCoordinatesReal?
 	{
 		if (!SourceFile.IsNoExportTypes())
 		{

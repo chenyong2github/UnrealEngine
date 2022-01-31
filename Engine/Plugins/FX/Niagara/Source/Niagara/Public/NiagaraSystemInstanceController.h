@@ -153,9 +153,7 @@ private:
 	void SetVariable(FName InVariableName, float InValue);
 	void SetVariable(FName InVariableName, FVector2f InValue);
 	void SetVariable(FName InVariableName, FVector3f InValue);
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	void SetVariable(FName InVariableName, FVector InValue);
-#endif
 	void SetVariable(FName InVariableName, FVector4f InValue);
 	void SetVariable(FName InVariableName, FLinearColor InValue);
 	void SetVariable(FName InVariableName, FQuat4f InValue);

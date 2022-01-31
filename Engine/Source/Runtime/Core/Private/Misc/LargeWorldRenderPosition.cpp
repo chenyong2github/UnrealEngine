@@ -3,8 +3,6 @@
 #include "Misc/LargeWorldRenderPosition.h"
 #include "EngineDefines.h"
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 #define UE_LWC_RENDER_TILE_SIZE_MIN (262144.0)	// LWC_TODO: Make this smaller?
 
 #define UE_LWC_RENDER_TILE_SIZE 2097152.0
@@ -92,5 +90,3 @@ void FLargeWorldRenderScalar::Validate(double InAbsolute)
 	ensureMsgf(Delta < Tolerance, TEXT("Bad FLargeWorldRenderScalar (%g) vs (%g)"),
 		InAbsolute, CheckAbsolute);
 }
-
-#endif // !UE_LARGE_WORLD_COORDINATES_DISABLED

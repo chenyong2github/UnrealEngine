@@ -1069,15 +1069,11 @@ inline FRigControlValue FRigControlValue::Make(FVector2D InValue)
 	return Make<FVector3f>(FVector3f(InValue.X, InValue.Y, 0.f));
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 template<>
 inline FRigControlValue FRigControlValue::Make(FVector InValue)
 {
 	return Make<FVector3f>(InValue);
 }
-
-#endif
 
 template<>
 inline FRigControlValue FRigControlValue::Make(FRotator InValue)
@@ -1126,8 +1122,6 @@ inline FString FRigControlValue::ToString<float>() const
 	return FString::SanitizeFloat(Value);
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 template<>
 inline FString FRigControlValue::ToString<FVector>() const
 {
@@ -1146,8 +1140,6 @@ inline FString FRigControlValue::ToString<FVector2D>() const
 	TBaseStructure<FVector2D>::Get()->ExportText(Result, &Value2D, nullptr, nullptr, PPF_None, nullptr);
 	return Result;
 }
-
-#endif
 
 template<>
 inline FString FRigControlValue::ToString<FRotator>() const
@@ -1185,8 +1177,6 @@ inline FString FRigControlValue::ToString<FEulerTransform>() const
 	return Result;
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 template<>
 inline FVector FRigControlValue::SetFromString<FVector>(const FString& InString)
 {
@@ -1195,8 +1185,6 @@ inline FVector FRigControlValue::SetFromString<FVector>(const FString& InString)
 	Set<FVector3f>(Value);
 	return Value;
 }
-
-#endif
 
 template<>
 inline FQuat FRigControlValue::SetFromString<FQuat>(const FString& InString)
@@ -1258,9 +1246,7 @@ void FRigControlValue::Set(T InValue) = delete;
 // float variations purely for storage purposes,
 // from which we'll cast back and forth to FTransform etc.
 UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector2D)
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector)
-#endif
 UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector4)
 UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FRotator)
 UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FQuat)

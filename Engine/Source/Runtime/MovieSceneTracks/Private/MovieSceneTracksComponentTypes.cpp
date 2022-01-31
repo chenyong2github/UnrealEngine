@@ -419,12 +419,10 @@ struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTrait
 				{
 					OutMetaData.NumChannels = 3;
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 					if (BoundProperty->Struct->GetFName() == NAME_Vector)
 					{
 						OutMetaData.bIsDouble = true;
 					}
-#endif
 				}
 				else
 				{

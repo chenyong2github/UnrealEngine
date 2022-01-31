@@ -535,7 +535,7 @@ namespace ChaosTest
 			EXPECT_EQ(SerializedGeomData.Scale, OriginalGeomData.Scale);
 			EXPECT_EQ(SerializedGeomData.NumRows, OriginalGeomData.NumRows);
 			EXPECT_EQ(SerializedGeomData.NumCols, OriginalGeomData.NumCols);
-#if UE_LARGE_WORLD_COORDINATES_DISABLED 
+#if 0 
 			EXPECT_EQ(SerializedGeomData.Range, OriginalGeomData.Range);
 			EXPECT_EQ(SerializedGeomData.HeightPerUnit, OriginalGeomData.HeightPerUnit);
 #else

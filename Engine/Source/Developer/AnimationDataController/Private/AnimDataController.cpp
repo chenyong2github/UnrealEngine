@@ -1469,7 +1469,6 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 				CONDITIONAL_ACTION(UE::Anim::FSetTrackKeysAction, *TrackPtr);
 
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 				TrackPtr->InternalTrackData.PosKeys.SetNum(MaxNumKeys);
 				TrackPtr->InternalTrackData.ScaleKeys.SetNum(MaxNumKeys);
 				TrackPtr->InternalTrackData.RotKeys.SetNum(MaxNumKeys);
@@ -1479,11 +1478,6 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 					TrackPtr->InternalTrackData.ScaleKeys[KeyIndex] = FVector3f(ScalingKeys[KeyIndex]);
 					TrackPtr->InternalTrackData.RotKeys[KeyIndex] = FQuat4f(RotationalKeys[KeyIndex]);
 				}
-#else
-				TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
-				TrackPtr->InternalTrackData.ScaleKeys = ScalingKeys;
-				TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
-#endif
 
 				FAnimationTrackChangedPayload Payload;
 				Payload.Name = BoneName;
@@ -1510,7 +1504,6 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 	return false;
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector3f>& PositionalKeys, const TArray<FQuat4f>& RotationalKeys, const TArray<FVector3f>& ScalingKeys, bool bShouldTransact /*= true*/)
 {
 	if (!CheckOuterClass(UAnimSequence::StaticClass()))
@@ -1563,7 +1556,6 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector3
 
 	return false;
 }
-#endif
 
 
 void UAnimDataController::ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact /*= true*/)

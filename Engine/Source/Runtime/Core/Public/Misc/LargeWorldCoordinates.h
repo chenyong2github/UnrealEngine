@@ -2,13 +2,6 @@
 
 #pragma once
 
-// NOTE: UE_LARGE_WORLD_COORDINATES_DISABLED has temporarily been overridden in the build scripts.
-
-// Use float based world coordinates throughout. Note: This is unsupported!
-#ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
-#endif
-
 // Forward declaration of LWC supported core types
 #define UE_DECLARE_LWC_TYPE_EX(TYPE, CC, DEFAULT_TYPENAME, COMPONENT_TYPE)				\
 namespace UE { namespace Math { template<typename T> struct T##TYPE; } }				\
@@ -21,12 +14,7 @@ namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */
 //typedef UE::Math::T##TYPE<COMPONENT_TYPE> F##TYPE##CC;				/* FVector3 */
 
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_DECLARE_LWC_TYPE_3(TYPE, DIM, UE_TYPENAME)			UE_DECLARE_LWC_TYPE_EX(TYPE, DIM, UE_TYPENAME, float)
-#else
 #define UE_DECLARE_LWC_TYPE_3(TYPE, DIM, UE_TYPENAME)			UE_DECLARE_LWC_TYPE_EX(TYPE, DIM, UE_TYPENAME, double)
-#endif
-
 #define UE_DECLARE_LWC_TYPE_2(TYPE, DIM)						UE_DECLARE_LWC_TYPE_3(TYPE, DIM, F##TYPE)
 #define UE_DECLARE_LWC_TYPE_1(TYPE)								UE_DECLARE_LWC_TYPE_2(TYPE,)
 
@@ -42,16 +30,8 @@ namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */
 #define UE_REAL_TO_FLOAT(argument) static_cast<float>(argument)
 
 // Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to max float.
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) argument
-#else
 #define UE_REAL_TO_FLOAT_CLAMPED_MAX(argument) static_cast<float>(FMath::Min(argument, TNumericLimits<float>::Max()))
-#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
 
 // Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range clamped to min / max float.
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_REAL_TO_FLOAT_CLAMPED(argument) argument
-#else
 #define UE_REAL_TO_FLOAT_CLAMPED(argument) static_cast<float>(FMath::Clamp(argument, TNumericLimits<float>::Lowest(), TNumericLimits<float>::Max()))
-#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
 

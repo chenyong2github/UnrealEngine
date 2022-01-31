@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 // LWCNormalizeTile will convert a LWC value to have an integral tile value, and an offset value within (-TileSize, TileSize)
 // This is important if we want to compare LWC values, or to ensure that fractional part is fully contained within the offset
 FLWCType LWCNormalizeTile(FLWCType V)
@@ -26,23 +24,6 @@ FFloatType LWCRcpScaled(FLWCType V, float Scale) { return LWCRcpUnscaled(V) * Sc
 FFloatType LWCSqrt(FLWCType V) { return LWCSqrtScaled(V, UE_LWC_RENDER_TILE_SIZE_SQRT); }
 FFloatType LWCRsqrt(FLWCType V) { return LWCRsqrtScaled(V, UE_LWC_RENDER_TILE_SIZE_RSQRT); }
 FFloatType LWCRcp(FLWCType V) { return LWCRcpScaled(V, UE_LWC_RENDER_TILE_SIZE_RCP); }
-
-#else // !UE_LARGE_WORLD_COORDINATES_DISABLED
-
-FLWCType LWCNormalizeTile(FLWCType V) { return V; }
-FLWCType LWCMakeIntTile(FLWCType V) { return V; }
-
-FFloatType LWCSqrtUnscaled(FLWCType V) { return sqrt(V.Offset); }
-FFloatType LWCRsqrtUnscaled(FLWCType V) { return rsqrt(V.Offset); }
-FFloatType LWCRcpUnscaled(FLWCType V) { return rcp(V.Offset); }
-FFloatType LWCSqrtScaled(FLWCType V, float Scale) { return LWCSqrtUnscaled(V); }
-FFloatType LWCRsqrtScaled(FLWCType V, float Scale) { return LWCRsqrtUnscaled(V); }
-FFloatType LWCRcpScaled(FLWCType V, float Scale) { return LWCRcpUnscaled(V); }
-FFloatType LWCSqrt(FLWCType V) { return LWCSqrtUnscaled(V); }
-FFloatType LWCRsqrt(FLWCType V) { return LWCRsqrtUnscaled(V); }
-FFloatType LWCRcp(FLWCType V) { return LWCRcpUnscaled(V); }
-
-#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
 
 #define LWC_COMPARE_OP(Name, Op, FLWCType, FFloatType, FBoolType) \
 	FBoolType Name(FLWCType Lhs, FLWCType Rhs) { \
@@ -189,11 +170,9 @@ FFloatType LWCStep(FLWCType Lhs, FLWCType Rhs) { return LWCGreaterEqual(Rhs, Lhs
 FFloatType LWCStep(FLWCType Lhs, FFloatType Rhs) { return LWCGreaterEqual(Rhs, Lhs) ? (FFloatType)1.0f : (FFloatType)0.0f; }
 FFloatType LWCStep(FFloatType Lhs, FLWCType Rhs) { return LWCGreaterEqual(Rhs, Lhs) ? (FFloatType)1.0f : (FFloatType)0.0f; }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 // LWCSquareScaled returns the value squared, scaled by the LWC tile size
 FLWCType LWCSquareScaled(FLWCType V)
 {
 	FFloatType OffsetScaled = V.Offset * UE_LWC_RENDER_TILE_SIZE_RCP;
 	return LWCConstructor(LWCGetTile(V) * (LWCGetTile(V) + OffsetScaled * 2.0f), V.Offset * OffsetScaled);
 }
-#endif

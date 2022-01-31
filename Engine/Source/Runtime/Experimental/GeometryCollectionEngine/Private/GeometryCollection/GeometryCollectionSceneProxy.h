@@ -83,16 +83,12 @@ public:
 
 inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransforms, const TArray<FMatrix>& SrcTransforms)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	DstTransforms = SrcTransforms; // add move option?
-#else
 	// LWC_TODO : we have no choice but to convert each element at this point to avoid changing GeometryCollectionAlgo::GlobalMatrices that is used all over the place
 	DstTransforms.SetNumUninitialized(SrcTransforms.Num());
 	for (int TransformIndex = 0; TransformIndex < SrcTransforms.Num(); ++TransformIndex)
 	{
 		DstTransforms[TransformIndex] = FMatrix44f(SrcTransforms[TransformIndex]); // LWC_TODO: Perf pessimization
 	}
-#endif
 }
 
 /** Immutable rendering data (kind of) */

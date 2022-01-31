@@ -69,13 +69,8 @@ namespace GlobalVectorConstants
 	inline constexpr VectorRegister4Double DoubleThreshQuatNormalized = MakeVectorRegisterDoubleConstant(DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED, DOUBLE_THRESH_QUAT_NORMALIZED);
 	inline constexpr VectorRegister4Double DoubleBigNumber = MakeVectorRegisterDoubleConstant(DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER, DOUBLE_BIG_NUMBER);
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	inline constexpr VectorRegister Vector0001 = Float0001;
-	inline constexpr VectorRegister Vector1110 = Float1110;
-#else
 	inline constexpr VectorRegister Vector0001 = MakeVectorRegisterConstant(0.0, 0.0, 0.0, 1.0);
 	inline constexpr VectorRegister Vector1110 = MakeVectorRegisterConstant(1.0, 1.0, 1.0, 0.0);
-#endif
 
 	inline constexpr VectorRegister4Int IntOne = MakeVectorRegisterIntConstant(1, 1, 1, 1);
 	inline constexpr VectorRegister4Int IntZero = MakeVectorRegisterIntConstant(0, 0, 0, 0);

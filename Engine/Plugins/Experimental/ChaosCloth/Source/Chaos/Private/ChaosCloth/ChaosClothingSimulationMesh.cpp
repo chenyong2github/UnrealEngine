@@ -12,10 +12,6 @@
 #include "ChaosClothingSimulationMesh.ispc.generated.h"
 #endif
 
-#if INTEL_ISPC && UE_LARGE_WORLD_COORDINATES_DISABLED
-namespace ispc { typedef FVector FVector3f; typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
-#endif
-
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 bool bChaos_SkinPhysicsMesh_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSkinPhysicsMeshISPCEnabled(TEXT("p.Chaos.SkinPhysicsMesh.ISPC"), bChaos_SkinPhysicsMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations on skinned physics meshes"));

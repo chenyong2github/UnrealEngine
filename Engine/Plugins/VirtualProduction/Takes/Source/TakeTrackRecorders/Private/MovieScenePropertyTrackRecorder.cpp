@@ -136,19 +136,12 @@ void UMovieScenePropertyTrackRecorder::CreateTrackImpl()
  		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
  		{
 			// LWC_TODO: vector types
-			if (StructProperty->Struct->GetFName() == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-					|| StructProperty->Struct->GetFName() == NAME_Vector
-#endif
-			   )
+			if (StructProperty->Struct->GetFName() == NAME_Vector3f)
  			{
  				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3f>(Binding));
  			}
 			else if (StructProperty->Struct->GetFName() == NAME_Vector3d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-					|| StructProperty->Struct->GetFName() == NAME_Vector
-#endif
-			   )
+					|| StructProperty->Struct->GetFName() == NAME_Vector )
  			{
  				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3d>(Binding));
  			}

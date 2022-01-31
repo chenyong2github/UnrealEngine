@@ -31,17 +31,8 @@ void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPr
 	FName StructName = StructProp->Struct->GetFName();
 
 	bool bIsVector2D = StructName == NAME_Vector2D;
-	bool bIsVector = (StructName == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-			|| StructName == NAME_Vector
-#endif
-			);
-
-	bool bIsVector4 = (StructName == NAME_Vector4f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-		|| StructName == NAME_Vector4
-#endif
-		);
+	bool bIsVector = (StructName == NAME_Vector3f);
+	bool bIsVector4 = (StructName == NAME_Vector4f);
 
 	FVector4f VectorValues;
 	int32 Channels;
@@ -97,11 +88,7 @@ void FFloatVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneFloatVector
 	{
 		NewTrack->SetNumChannelsUsed( 2 );
 	}
-	if ( StructName == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-			|| StructName == NAME_Vector 
-#endif
-			)
+	if ( StructName == NAME_Vector3f)		// LWC_TODO: Investigate why only this is the float variant
 	{
 		NewTrack->SetNumChannelsUsed( 3 );
 	}
@@ -201,15 +188,11 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 	FName StructName = StructProp->Struct->GetFName();
 
 	bool bIsVector = (StructName == NAME_Vector3d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 			|| StructName == NAME_Vector
-#endif
 			);
 
 	bool bIsVector4 = (StructName == NAME_Vector4d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 		|| StructName == NAME_Vector4
-#endif
 		);
 
 	ensure(bIsVector || bIsVector4);
@@ -255,17 +238,13 @@ void FDoubleVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneDoubleVect
 	FName StructName = StructProp->Struct->GetFName();
 
 	if (StructName == NAME_Vector3d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 			|| StructName == NAME_Vector
-#endif
 			)
 	{
 		NewTrack->SetNumChannelsUsed( 3 );
 	}	
 	if ( StructName == NAME_Vector4d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 		|| StructName == NAME_Vector4
-#endif
 	)
 	{
 		NewTrack->SetNumChannelsUsed( 4 );

@@ -678,11 +678,7 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 			}
 		}
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-		bool bForceStructConversion = false;
-#else
 		bool bForceStructConversion = PropertyType.GetScriptStruct() && !FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(PropertyType.GetScriptStruct(), ENiagaraStructConversion::UserFacing);
-#endif
 		
 		if (PropertyType.IsValid() && DataVariable.GetType() != PropertyType && (!PropertySetter->bIgnoreConversion || bForceStructConversion))
 		{

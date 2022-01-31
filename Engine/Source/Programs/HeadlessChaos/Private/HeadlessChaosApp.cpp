@@ -133,7 +133,7 @@ TEST(Clustering, Clustering) {
 
 TEST(SerializationTests, Serialization) {
 	// LWC-TODO : re-enable that when we have proper double serialization in LWC mode
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#if 0
 	ChaosTest::SimpleTypesSerialization();
 #endif
 	ChaosTest::SimpleObjectsSerialization();

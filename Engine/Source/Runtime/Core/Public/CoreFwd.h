@@ -45,13 +45,8 @@ using FBoxSphereBounds3d = UE::Math::TBoxSphereBounds<double, double>;
 // FCompactBoxSphereBounds always stores float extents
 using FCompactBoxSphereBounds3d = UE::Math::TBoxSphereBounds<double, float>;
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-using FBoxSphereBounds = FBoxSphereBounds3f;
-using FCompactBoxSphereBounds = FBoxSphereBounds3f;
-#else
 using FBoxSphereBounds = FBoxSphereBounds3d;
 using FCompactBoxSphereBounds = FCompactBoxSphereBounds3d;
-#endif
 
 // Misc
 struct FResourceSizeEx;

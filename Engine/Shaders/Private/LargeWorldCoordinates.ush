@@ -2,39 +2,27 @@
 
 #pragma once
 
-#ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
-#endif
-
 struct FLWCScalar
 {
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float Tile;
-#endif
 	float Offset;
 };
 
 struct FLWCVector2
 {
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float2 Tile;
-#endif
 	float2 Offset;
 };
 
 struct FLWCVector3
 {
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float3 Tile;
-#endif
 	float3 Offset;
 };
 
 struct FLWCVector4
 {
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float4 Tile;
-#endif
 	float4 Offset;
 };
 
@@ -42,33 +30,19 @@ struct FLWCVector4
 struct FLWCMatrix
 {
 	float4x4 M;
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float3 Tile; // Added to result, *after* multiplying 'M'
-#endif
 };
 
 // Transforms *from* absolute world space
 struct FLWCInverseMatrix
 {
 	float4x4 M;
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	float3 Tile; // Added to input position *before* multiplying 'M'
-#endif
 	int Dummy; // avoid problem with stupid HLSL overloading
 };
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-	#define LWCSetTile(V, InTile) (V).Tile = (InTile)
-	#define LWCGetTile(V) ((V).Tile)
-#else
-	#define LWCSetTile(V, InTile)
-	float LWCGetTile(FLWCScalar V) { return (float)0; }
-	float2 LWCGetTile(FLWCVector2 V) { return (float2)0; }
-	float3 LWCGetTile(FLWCVector3 V) { return (float3)0; }
-	float4 LWCGetTile(FLWCVector4 V) { return (float4)0; }
-	float3 LWCGetTile(FLWCMatrix V) { return (float3)0; }
-	float3 LWCGetTile(FLWCInverseMatrix V) { return (float3)0; }
-#endif
+#define LWCSetTile(V, InTile) (V).Tile = (InTile)
+#define LWCGetTile(V) ((V).Tile)
 
 float LWCGetTileOffset(FLWCScalar V) { return LWCGetTile(V) * UE_LWC_RENDER_TILE_SIZE; }
 float2 LWCGetTileOffset(FLWCVector2 V) { return LWCGetTile(V) * UE_LWC_RENDER_TILE_SIZE; }
@@ -448,8 +422,6 @@ FLWCScalar LWCDot(FLWCVector4 Lhs, float4 Rhs)
 	return LWCAdd(LWCAdd(LWCAdd(X2, Y2), Z2), W2);
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 // LWCLength2Scaled returns the length2 of the vector, scaled by the LWC tile size
 FLWCScalar LWCLength2Scaled(FLWCScalar V)
 {
@@ -491,20 +463,6 @@ float LWCRcpLength(FLWCScalar V) { return LWCRsqrtScaled(LWCLength2Scaled(V), UE
 float LWCRcpLength(FLWCVector2 V) { return LWCRsqrtScaled(LWCLength2Scaled(V), UE_LWC_RENDER_TILE_SIZE_RCP); }
 float LWCRcpLength(FLWCVector3 V) { return LWCRsqrtScaled(LWCLength2Scaled(V), UE_LWC_RENDER_TILE_SIZE_RCP); }
 float LWCRcpLength(FLWCVector4 V) { return LWCRsqrtScaled(LWCLength2Scaled(V), UE_LWC_RENDER_TILE_SIZE_RCP); }
-
-#else
-
-FLWCScalar LWCLength(FLWCScalar V) { return MakeLWCScalar(0.0f, length(V.Offset)); }
-FLWCScalar LWCLength(FLWCVector2 V) { return MakeLWCScalar(0.0f, length(V.Offset)); }
-FLWCScalar LWCLength(FLWCVector3 V) { return MakeLWCScalar(0.0f, length(V.Offset)); }
-FLWCScalar LWCLength(FLWCVector4 V) { return MakeLWCScalar(0.0f, length(V.Offset)); }
-
-float LWCRcpLength(FLWCScalar V) { return rsqrt(dot(V.Offset, V.Offset)); }
-float LWCRcpLength(FLWCVector2 V) { return rsqrt(dot(V.Offset, V.Offset)); }
-float LWCRcpLength(FLWCVector3 V) { return rsqrt(dot(V.Offset, V.Offset)); }
-float LWCRcpLength(FLWCVector4 V) { return rsqrt(dot(V.Offset, V.Offset)); }
-
-#endif
 
 float LWCNormalize(FLWCScalar V) { return 1.0f; } // Normalizing a scalar always results in 1
 float2 LWCNormalize(FLWCVector2 V) { return LWCToFloat(LWCMultiply(V, LWCRcpLength(V))); }

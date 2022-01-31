@@ -37,10 +37,6 @@
     MSVC_PRAGMA( warning( pop ) )
 #endif    // USING_CODE_ANALYSIS
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	namespace ispc { typedef FVector FVector3f; typedef FMatrix FMatrix44f; } // Need this because ISPC doesn't expose typedefs in header and optimized function uses mixed types
-#endif
-
 static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
 static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
 #endif

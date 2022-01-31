@@ -309,7 +309,6 @@ inline TAABB<FReal, 3> TransformedAABBHelperISPC(const TAABB<FReal, 3>& AABB, co
 #endif
 }
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 inline TAABB<Chaos::FRealSingle, 3> TransformedAABBHelperISPC(const TAABB<Chaos::FRealSingle, 3>& AABB, const FTransform& SpaceTransform)
 {
 	check(bRealTypeCompatibleWithISPC);
@@ -326,7 +325,6 @@ inline TAABB<Chaos::FRealSingle, 3> TransformedAABBHelperISPC(const TAABB<Chaos:
 	return TAABB<Chaos::FRealSingle, 3>::EmptyAABB();
 #endif
 }
-#endif
 
 template<typename T, int d>
 TAABB<T, d> TAABB<T, d>::TransformedAABB(const Chaos::TRigidTransform<FReal, 3>& SpaceTransform) const
@@ -387,7 +385,4 @@ inline TAABB<T, d> TAABB<T, d>::InverseTransformedAABB(const FRigidTransform3& S
 }
 
 template class Chaos::TAABB<Chaos::FRealSingle, 3>;
-
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 template class Chaos::TAABB<Chaos::FRealDouble, 3>;
-#endif

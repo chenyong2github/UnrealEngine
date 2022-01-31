@@ -26,11 +26,8 @@ namespace UE
 			//LWCDisabled version tell if the code was compile with serialization compatibility.
 			static bool GetLWCDisabled()
 			{
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-				return true;
-#else
+				// LWC_TODO: This is now redundant, and will be removed in the future. 
 				return false;
-#endif
 			}
 
 			/** Return the version in string format "Major.Minor.Patch" */

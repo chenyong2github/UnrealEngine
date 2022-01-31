@@ -88,7 +88,7 @@ namespace UE
 
 			// The purpose of this function is to upgrade ValueBytes to the correct size/values if we last saved our e.g. FVector
 			// recorded data when FVector contained floats, but now it should hold doubles (i.e. ValueBytes holds 12 bytes, but
-			// it should really hold 24 now). This change can happen both ways because UE_LARGE_WORLD_COORDINATES_DISABLED can be defined or not.
+			// it should really hold 24 now).
 			void UpdateRecordedDataSizesIfNeeded( UScriptStruct* StructClass, TArray<uint8>& ValueBytes )
 			{
 				if ( !StructClass )

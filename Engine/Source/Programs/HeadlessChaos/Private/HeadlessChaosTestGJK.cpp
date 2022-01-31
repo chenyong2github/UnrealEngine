@@ -403,7 +403,7 @@ namespace ChaosTest
 		}
 
 		// LWC-TODO : this is failing when using LWC, disabling it for now to avoid blocking builds
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
+#if 0
 		{
 			// Previous failing case observed with Voronoi region implementation - Not quite degenerate (totally degenerate cases work)
 			FReal Barycentric[4];

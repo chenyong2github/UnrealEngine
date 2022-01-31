@@ -2985,8 +2985,6 @@ struct CONTROLRIG_API FRigHierarchyValidityBracket
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr;
 };
 
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
-
 template<>
 FORCEINLINE_DEBUGGABLE FVector2D URigHierarchy::GetControlValue(FRigControlElement* InControlElement, ERigControlValueType InValueType) const
 {
@@ -2999,8 +2997,6 @@ FORCEINLINE_DEBUGGABLE void URigHierarchy::SetControlValue(int32 InElementIndex,
 {
 	return SetControlValue(InElementIndex, FRigControlValue::Make<FVector3f>(FVector3f(InValue.X, InValue.Y, 0.f)), InValueType, bSetupUndo);
 }
-
-#endif
 
 #if WITH_EDITOR
 

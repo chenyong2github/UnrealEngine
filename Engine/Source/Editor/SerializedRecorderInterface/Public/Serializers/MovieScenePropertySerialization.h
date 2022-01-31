@@ -84,18 +84,12 @@ struct FPropertyFileHeader
 			else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 			{
 				// LWC_TODO: vector types
-				if (StructProperty->Struct->GetFName() == NAME_Vector3f
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-						|| StructProperty->Struct->GetFName() == NAME_Vector
-#endif
-						)
+				if (StructProperty->Struct->GetFName() == NAME_Vector3f)
 				{
 					PropertyType = (ESerializedPropertyType::Vector3fType);
 				}
 				else if (StructProperty->Struct->GetFName() == NAME_Vector3d
-#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 						|| StructProperty->Struct->GetFName() == NAME_Vector
-#endif
 						)
 				{
 					PropertyType = (ESerializedPropertyType::Vector3dType);
