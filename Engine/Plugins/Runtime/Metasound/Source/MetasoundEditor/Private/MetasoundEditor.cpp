@@ -1815,7 +1815,7 @@ namespace Metasound
 					{
 						const FVector2D NewNodeLocation = FVector2D(GraphNode->NodePosX, GraphNode->NodePosY);
 						FMetasoundFrontendNodeStyle NodeStyle = NodeHandle->GetNodeStyle();
-						NodeStyle.Display.Locations.FindOrAdd(NodeHandle->GetID()) = NewNodeLocation;
+						NodeStyle.Display.Locations.FindOrAdd(MetasoundGraphNode->NodeGuid) = NewNodeLocation;
 						NodeHandle->SetNodeStyle(NodeStyle);
 					}
 				}
