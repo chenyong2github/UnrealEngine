@@ -308,7 +308,7 @@ class IOnlineIdRegistry
 public:
 	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
 	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
-	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8> Handle) = 0;
+	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& Handle) = 0;
 };
 
 using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
@@ -349,8 +349,9 @@ public:
 	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const;
 	COREONLINE_API FOnlineAccountIdHandle ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;
 
+	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
+
 private:
-	IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
 
 	struct FAccountIdRegistryAndPriority
 	{

@@ -226,7 +226,7 @@ TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccoun
 	return ReplicationData;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8> ReplicationData)
+FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>& ReplicationData)
 {
 	const EEOSAccountIdElements Elements = EEOSAccountIdElements(ReplicationData[0]);
 	const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
