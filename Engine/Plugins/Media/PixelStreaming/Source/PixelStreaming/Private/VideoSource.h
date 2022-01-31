@@ -8,8 +8,10 @@
 #include "TextureSource.h"
 #include "IPixelStreamingSessions.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		class FVideoSourceFactory;
 
 		/*
@@ -27,7 +29,7 @@ namespace UE {
 			/* Begin rtc::AdaptedVideoTrackSource overrides */
 			virtual webrtc::MediaSourceInterface::SourceState state() const override { return CurrentState; }
 			virtual bool remote() const override { return false; }
-			virtual bool is_screencast() const override { return false;}
+			virtual bool is_screencast() const override { return false; }
 			virtual absl::optional<bool> needs_denoising() const override { return false; }
 			/* End rtc::AdaptedVideoTrackSource overrides */
 
@@ -44,7 +46,7 @@ namespace UE {
 			virtual webrtc::VideoFrame CreateFrame(int32 FrameId) = 0;
 
 		private:
-			mutable webrtc::webrtc_impl::RefCounter RefCount{0};
+			mutable webrtc::webrtc_impl::RefCounter RefCount{ 0 };
 
 		protected:
 			webrtc::MediaSourceInterface::SourceState CurrentState;
@@ -56,18 +58,22 @@ namespace UE {
 		*/
 		class FVideoSourceP2P : public FVideoSourceBase
 		{
-			public:
-				FVideoSourceP2P(FPixelStreamingPlayerId InPlayerId, IPixelStreamingSessions* InSessions);
+		public:
+			FVideoSourceP2P(FPixelStreamingPlayerId InPlayerId, IPixelStreamingSessions* InSessions);
 
-			protected:
-				IPixelStreamingSessions* Sessions;
-				TSharedPtr<ITextureSource> TextureSource;
+		protected:
+			IPixelStreamingSessions* Sessions;
+			TSharedPtr<ITextureSource> TextureSource;
+			Settings::ECodec Codec;
 
-			protected:
-				/* Begin FVideoSourceBase */
-				virtual webrtc::VideoFrame CreateFrame(int32 FrameId) override;
-				virtual bool IsReadyForPump() const override;
-				/* End FVideoSourceBase */
+		protected:
+			/* Begin FVideoSourceBase */
+			virtual webrtc::VideoFrame CreateFrame(int32 FrameId) override;
+			virtual bool IsReadyForPump() const override;
+			/* End FVideoSourceBase */
+
+			virtual webrtc::VideoFrame CreateFrameH264(int32 FrameId);
+			virtual webrtc::VideoFrame CreateFrameVPX(int32 FrameId);
 		};
 
 		/*
@@ -75,18 +81,18 @@ namespace UE {
 		*/
 		class FVideoSourceSFU : public FVideoSourceBase
 		{
-			public:
-				FVideoSourceSFU();
+		public:
+			FVideoSourceSFU();
 
-			protected:
-				TArray<TSharedPtr<ITextureSource>> LayerTextures;
+		protected:
+			TArray<TSharedPtr<ITextureSource>> LayerTextures;
 
-			protected:
-				/* Begin FVideoSourceBase */
-				virtual webrtc::VideoFrame CreateFrame(int32 FrameId) override;
-				virtual bool IsReadyForPump() const override;
-				/* End FVideoSourceBase */
+		protected:
+			/* Begin FVideoSourceBase */
+			virtual webrtc::VideoFrame CreateFrame(int32 FrameId) override;
+			virtual bool IsReadyForPump() const override;
+			/* End FVideoSourceBase */
 		};
 
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

@@ -107,6 +107,12 @@ namespace UE::PixelStreaming::Settings
 		300,
 		TEXT("How many frames before a key frame is sent. Default: 300. Values <=0 will disable sending of periodic key frames. Note: NVENC does not support changing this after encoding has started."),
 		ECVF_Default);
+
+	TAutoConsoleVariable<FString> CVarPixelStreamingEncoderCodec(
+		TEXT("PixelStreaming.Encoder.Codec"),
+		TEXT("H264"),
+		TEXT("PixelStreaming encoder codec. Supported values are `H264`, `VP8`, `VP9`"),
+		ECVF_Default);
 	// End Encoder CVars
 
 	// Begin WebRTC CVars
@@ -368,6 +374,36 @@ namespace UE::PixelStreaming::Settings
 	}
 
 	/*
+	* Selected Codec.
+	*/
+	ECodec GetSelectedCodec()
+	{
+		const FString CodecStr = CVarPixelStreamingEncoderCodec.GetValueOnAnyThread();
+		if (CodecStr == TEXT("H264"))
+		{
+			return ECodec::H264;
+		}
+		else if (CodecStr == TEXT("VP8"))
+		{
+			return ECodec::VP8;
+		}
+		else if (CodecStr == TEXT("VP9"))
+		{
+			return ECodec::VP9;
+		}
+		else
+		{
+			return ECodec::H264;
+		}
+	}
+
+	bool IsCodecVPX()
+	{
+		ECodec SelectedCodec = GetSelectedCodec();
+		return SelectedCodec == ECodec::VP8 || SelectedCodec == ECodec::VP9;
+	}
+
+	/*
 	* Stats logger - as turned on/off by CVarPixelStreamingLogStats
 	*/
 	void ConsumeStat(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue)
@@ -411,6 +447,7 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMaxQP="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderRateControl);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMultipass);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderCodec="), UE::PixelStreaming::Settings::CVarPixelStreamingEncoderCodec);
 		CommandLineParseValue(TEXT("PixelStreamingH264Profile="), UE::PixelStreaming::Settings::CVarPixelStreamingH264Profile);
 		CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), UE::PixelStreaming::Settings::CVarPixelStreamingDegradationPreference);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCDegradationPreference="), UE::PixelStreaming::Settings::CVarPixelStreamingDegradationPreference);

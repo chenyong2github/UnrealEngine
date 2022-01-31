@@ -6,8 +6,10 @@
 #include "WebRTCIncludes.h"
 #include "TextureSource.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 
 		enum FFrameBufferType
 		{
@@ -110,5 +112,29 @@ namespace UE {
 		private:
 			TSharedPtr<ITextureSource> TextureSource;
 		};
-	}
-}
+
+		/*
+		* ----------------- FFrameBufferI420 -----------------
+		* Holds a texture source that is capable of being converted to I420 for encoding.
+		*/
+		class FFrameBufferI420 : public FFrameBuffer
+		{
+		public:
+			FFrameBufferI420(TSharedPtr<ITextureSource> InTextureSource);
+			virtual ~FFrameBufferI420();
+
+			virtual FFrameBufferType GetFrameBufferType() const { return Layer; }
+			FTexture2DRHIRef GetFrame() const;
+
+			virtual int width() const override;
+			virtual int height() const override;
+			virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
+			virtual const webrtc::I420BufferInterface* GetI420() const override;
+
+		private:
+			TSharedPtr<ITextureSource> TextureSource;
+			rtc::scoped_refptr<webrtc::I420Buffer> Buffer;
+		};
+
+	} // namespace PixelStreaming
+} // namespace UE

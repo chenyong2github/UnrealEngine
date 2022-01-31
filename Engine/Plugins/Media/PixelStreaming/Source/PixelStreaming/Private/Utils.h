@@ -9,8 +9,10 @@
 #include "Modules/ModuleManager.h"
 #include "PixelStreamingPrivate.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef DestinationTexture, FGPUFenceRHIRef& CopyFence)
 		{
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -88,5 +90,12 @@ namespace UE {
 			}
 			return Texture;
 		}
-	}
-}
+
+		inline void ReadTextureToCPU(FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef& TextureRef, TArray<FColor>& OutPixels)
+		{
+			FIntRect Rect(0, 0, TextureRef->GetSizeX(), TextureRef->GetSizeY());
+			RHICmdList.ReadSurfaceData(TextureRef, Rect, OutPixels, FReadSurfaceDataFlags());
+		}
+
+	} // namespace PixelStreaming
+} // namespace UE

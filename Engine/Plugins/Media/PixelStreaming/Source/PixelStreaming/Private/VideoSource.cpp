@@ -11,12 +11,12 @@ UE::PixelStreaming::FVideoSourceBase::FVideoSourceBase(FPixelStreamingPlayerId I
 {
 }
 
-void UE::PixelStreaming::FVideoSourceBase::AddRef() const 
-{ 
-	RefCount.IncRef(); 
+void UE::PixelStreaming::FVideoSourceBase::AddRef() const
+{
+	RefCount.IncRef();
 }
 
-rtc::RefCountReleaseStatus UE::PixelStreaming::FVideoSourceBase::Release() const 
+rtc::RefCountReleaseStatus UE::PixelStreaming::FVideoSourceBase::Release() const
 {
 	const rtc::RefCountReleaseStatus Status = RefCount.DecRef();
 	if (Status == rtc::RefCountReleaseStatus::kDroppedLastRef)
@@ -78,9 +78,19 @@ bool UE::PixelStreaming::FVideoSourceBase::AdaptCaptureFrame(const int64 Timesta
 UE::PixelStreaming::FVideoSourceP2P::FVideoSourceP2P(FPixelStreamingPlayerId InPlayerId, UE::PixelStreaming::IPixelStreamingSessions* InSessions)
 	: UE::PixelStreaming::FVideoSourceBase(InPlayerId)
 	, Sessions(InSessions)
-	, TextureSource(MakeShared<FTextureSourceBackBuffer>(1.0))
 {
-	
+	if (UE::PixelStreaming::Settings::IsCodecVPX())
+	{
+		TextureSource = MakeShared<FTextureSourceBackBufferToCPU>(1.0);
+	}
+	else
+	{
+		TextureSource = MakeShared<FTextureSourceBackBuffer>(1.0);
+	}
+
+	// We store the codec during construction as querying it everytime seem overly wasteful
+	// especially considering we don't actually support switching codec mid-stream.
+	Codec = Settings::GetSelectedCodec();
 }
 
 bool UE::PixelStreaming::FVideoSourceP2P::IsReadyForPump() const
@@ -88,7 +98,7 @@ bool UE::PixelStreaming::FVideoSourceP2P::IsReadyForPump() const
 	return TextureSource.IsValid() && TextureSource->IsAvailable();
 }
 
-webrtc::VideoFrame UE::PixelStreaming::FVideoSourceP2P::CreateFrame(int32 FrameId)
+webrtc::VideoFrame UE::PixelStreaming::FVideoSourceP2P::CreateFrameH264(int32 FrameId)
 {
 	bool bQualityController = Sessions->IsQualityController(PlayerId);
 	TextureSource->SetEnabled(bQualityController);
@@ -119,6 +129,39 @@ webrtc::VideoFrame UE::PixelStreaming::FVideoSourceP2P::CreateFrame(int32 FrameI
 	return Frame;
 }
 
+webrtc::VideoFrame UE::PixelStreaming::FVideoSourceP2P::CreateFrameVPX(int32 FrameId)
+{
+	// We always send the the `FLayerFrameBuffer` as our usage of VPX has no notion of a "quality controller"
+	// for hacky encoder sharing - unlike what we do for H264.
+
+	TextureSource->SetEnabled(true);
+	const int64 TimestampUs = rtc::TimeMicros();
+
+	rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer = new rtc::RefCountedObject<UE::PixelStreaming::FFrameBufferI420>(TextureSource);
+
+	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()
+								   .set_video_frame_buffer(FrameBuffer)
+								   .set_timestamp_us(TimestampUs)
+								   .set_rotation(webrtc::VideoRotation::kVideoRotation_0)
+								   .set_id(FrameId)
+								   .build();
+
+	return Frame;
+}
+
+webrtc::VideoFrame UE::PixelStreaming::FVideoSourceP2P::CreateFrame(int32 FrameId)
+{
+	switch (Codec)
+	{
+		case UE::PixelStreaming::Settings::ECodec::VP8:
+		case UE::PixelStreaming::Settings::ECodec::VP9:
+			return CreateFrameVPX(FrameId);
+		case UE::PixelStreaming::Settings::ECodec::H264:
+		default:
+			return CreateFrameH264(FrameId);
+	}
+}
+
 /*
 * ------------------ FVideoSourceSFU ------------------
 */
@@ -135,7 +178,7 @@ UE::PixelStreaming::FVideoSourceSFU::FVideoSourceSFU()
 		SortedLayers.Add(&Layer);
 	}
 	SortedLayers.Sort([](const FLayer& LayerA, const FLayer& LayerB) { return LayerA.Scaling > LayerB.Scaling; });
-	
+
 	for (FLayer* SimulcastLayer : SortedLayers)
 	{
 		const float Scale = 1.0f / SimulcastLayer->Scaling;
@@ -150,7 +193,7 @@ bool UE::PixelStreaming::FVideoSourceSFU::IsReadyForPump() const
 	// Check all texture sources are ready.
 	int NumReady = 0;
 
-	for(int i = 0; i < LayerTextures.Num(); i++)
+	for (int i = 0; i < LayerTextures.Num(); i++)
 	{
 		bool bIsReady = LayerTextures[i].IsValid() && LayerTextures[i]->IsAvailable();
 		NumReady += bIsReady ? 1 : 0;
@@ -165,11 +208,11 @@ webrtc::VideoFrame UE::PixelStreaming::FVideoSourceSFU::CreateFrame(int32 FrameI
 	const int64 TimestampUs = rtc::TimeMicros();
 
 	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()
-								.set_video_frame_buffer(FrameBuffer)
-								.set_timestamp_us(TimestampUs)
-								.set_rotation(webrtc::VideoRotation::kVideoRotation_0)
-								.set_id(FrameId)
-								.build();
+								   .set_video_frame_buffer(FrameBuffer)
+								   .set_timestamp_us(TimestampUs)
+								   .set_rotation(webrtc::VideoRotation::kVideoRotation_0)
+								   .set_id(FrameId)
+								   .build();
 
 	return Frame;
 }

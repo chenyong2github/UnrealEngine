@@ -10,8 +10,10 @@
 #include "VideoEncoder.h"
 #include "WebRTCIncludes.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		// Console variables (CVars)
 		namespace Settings
 		{
@@ -28,6 +30,7 @@ namespace UE {
 			extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
 			extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
 			extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval;
+			extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderCodec;
 			// End Encoder CVars
 
 			// Begin WebRTC CVars
@@ -56,7 +59,16 @@ namespace UE {
 			extern TArray<FKey> FilteredKeys;
 			// Ends Pixel Streaming Plugin CVars
 
+			enum ECodec
+			{
+				H264,
+				VP8,
+				VP9
+			};
+
 			// Begin utility functions etc.
+			bool IsCodecVPX();
+			ECodec GetSelectedCodec();
 			AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
 			AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
 			webrtc::DegradationPreference GetDegradationPreference();
@@ -84,11 +96,6 @@ namespace UE {
 				return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
 			}
 
-			inline bool IsForceVP8()
-			{
-				return FParse::Param(FCommandLine::Get(), TEXT("PSForceVP8"));
-			}
-
 			inline bool GetSignallingServerIP(FString& OutSignallingServerIP)
 			{
 				return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), OutSignallingServerIP);
@@ -111,6 +118,6 @@ namespace UE {
 
 			// End Command line args
 
-		} // namespace UE::PixelStreaming::Settings
-	}
-}
+		} // namespace Settings
+	}	  // namespace PixelStreaming
+} // namespace UE

@@ -5,6 +5,7 @@
 #include "Settings.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "Misc/ScopeLock.h"
 #include "VideoEncoderH264Wrapper.h"
 #include "SimulcastEncoderAdapter.h"
@@ -70,18 +71,18 @@ webrtc::SdpVideoFormat UE::PixelStreaming::FVideoEncoderFactory::CreateH264Forma
 
 std::vector<webrtc::SdpVideoFormat> UE::PixelStreaming::FVideoEncoderFactory::GetSupportedFormats() const
 {
-	const bool bForceVP8 = UE::PixelStreaming::Settings::IsForceVP8();
-
 	std::vector<webrtc::SdpVideoFormat> video_formats;
-	if (bForceVP8)
-	{
-		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
-	}
-	else
-	{
-		video_formats.push_back(UE::PixelStreaming::FVideoEncoderFactory::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
-	}
 
+	switch (UE::PixelStreaming::Settings::GetSelectedCodec())
+	{
+		case UE::PixelStreaming::Settings::ECodec::VP8:
+			video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
+		case UE::PixelStreaming::Settings::ECodec::VP9:
+			video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
+		case UE::PixelStreaming::Settings::ECodec::H264:
+		default:
+			video_formats.push_back(UE::PixelStreaming::FVideoEncoderFactory::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
+	}
 	return video_formats;
 }
 
@@ -96,7 +97,13 @@ UE::PixelStreaming::FVideoEncoderFactory::CodecInfo UE::PixelStreaming::FVideoEn
 std::unique_ptr<webrtc::VideoEncoder> UE::PixelStreaming::FVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat& format)
 {
 	if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
+	{
 		return webrtc::VP8Encoder::Create();
+	}
+	else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
+	{
+		return webrtc::VP9Encoder::Create();
+	}
 	else
 	{
 		// Lock during encoder creation
@@ -148,7 +155,7 @@ TOptional<UE::PixelStreaming::FVideoEncoderFactory::FHardwareEncoderId> UE::Pixe
 {
 	FHardwareEncoderId EncoderId = HashResolution(Width, Height);
 	UE::PixelStreaming::FVideoEncoderH264Wrapper* Existing = GetHardwareEncoder(EncoderId);
-	
+
 	TOptional<FHardwareEncoderId> Result = EncoderId;
 
 	if (Existing == nullptr)
@@ -168,7 +175,7 @@ TOptional<UE::PixelStreaming::FVideoEncoderFactory::FHardwareEncoderId> UE::Pixe
 		// Make the actual AVEncoder encoder.
 		const TArray<AVEncoder::FVideoEncoderInfo>& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
 		TUniquePtr<AVEncoder::FVideoEncoder> Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, FrameFactory->GetOrCreateVideoEncoderInput(EncoderConfig.Width, EncoderConfig.Height), EncoderConfig);
-		if(Encoder.IsValid())
+		if (Encoder.IsValid())
 		{
 			Encoder->SetOnEncodedPacket([EncoderId, this](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) {
 				// Note: this is a static method call.
