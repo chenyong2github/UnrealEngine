@@ -652,7 +652,6 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 			StopRecord(true);
 			return;
 		}
-
 		TArray<FTransform> BlendedSpaceBases;
 		BlendedSpaceBases.AddZeroed(SpaceBases.Num());
 
