@@ -436,6 +436,17 @@ void FConsoleVariablesEditorModule::OpenConsoleVariablesEditor()
 	FGlobalTabmanager::Get()->TryInvokeTab(ConsoleVariablesToolkitPanelTabId);
 }
 
+void FConsoleVariablesEditorModule::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(EditingPresetAsset);
+	Collector.AddReferencedObject(EditingGlobalSearchAsset);
+}
+
+FString FConsoleVariablesEditorModule::GetReferencerName() const
+{
+	return TEXT("FConsoleVariablesEditorModule");
+}
+
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FConsoleVariablesEditorModule, ConsoleVariablesEditor)

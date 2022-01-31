@@ -17,7 +17,7 @@ class FConsoleVariablesEditorMainPanel;
 class FConsoleVariablesEditorToolkit;
 class ISettingsSection;
 
-class FConsoleVariablesEditorModule : public IModuleInterface
+class FConsoleVariablesEditorModule : public IModuleInterface, public FGCObject
 {
 public:
 	
@@ -86,7 +86,10 @@ public:
 
 	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString) const;
 	void OnRemoteCvarChanged(const FString InName, const FString InValue);
-	
+
+	virtual void AddReferencedObjects( FReferenceCollector& Collector )  override;
+	virtual FString GetReferencerName() const override;
+
 private:
 
 	void OnFEngineLoopInitComplete();

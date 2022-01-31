@@ -402,7 +402,8 @@ struct FManagerImpl
 		}
 
 		FConcertSetConsoleVariableEvent OutEvent{MoveTemp(InName), MoveTemp(InValue)};
-		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(),
+								 EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 	}
 
 	/** Reference to the customization object so that we can sync with the session.*/
