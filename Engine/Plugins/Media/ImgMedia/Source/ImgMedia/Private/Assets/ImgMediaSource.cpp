@@ -189,6 +189,12 @@ void UImgMediaSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 FString UImgMediaSource::GetFullPath() const
 {
+	// Use the import path?
+	if ((ImportInfo.bIsUsable) && (ImportInfo.DestinationPath.Path.IsEmpty() == false))
+	{
+		return ImportInfo.DestinationPath.Path;
+	}
+
 	if (!FPaths::IsRelative(SequencePath.Path))
 	{
 		return SequencePath.Path;
