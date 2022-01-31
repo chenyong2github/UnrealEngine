@@ -12,36 +12,11 @@ using System.Text;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Auth type for the storage system
-	/// </summary>
-	public enum StorageAuthType
-	{
-		/// <summary>
-		/// No auth necessary
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// Use OAuth2 for auth
-		/// </summary>
-		OAuth2,
-	}
-
-	/// <summary>
 	/// Settings to configure a connected Horde.Storage instance
 	/// </summary>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1056:URI-like properties should not be strings")]
-	public class StorageSettings
+	public class StorageOptions : HttpServiceClientOptions
 	{
-		/// <summary>
-		/// URL for the storage service
-		/// </summary>
-		public string Url { get; set; } = String.Empty;
-
-		/// <summary>
-		/// Options for OAuth2
-		/// </summary>
-		public OAuth2Options? OAuth2 { get; set; }
 	}
 
 	/// <summary>
@@ -55,17 +30,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Services">The current service collection</param>
 		public static void AddHordeStorage(this IServiceCollection Services)
 		{
-			Services.AddOptions<StorageSettings>();
+			Services.AddOptions<StorageOptions>();
 
-			Services.AddSingleton<NullAuthProvider<HttpStorageClient>>();
-
-			Services.AddSingleton<OAuth2AuthProviderFactory<HttpStorageClient>>();
-			Services.AddHttpClient<OAuth2AuthProviderFactory<HttpStorageClient>>();
-
-			Services.AddSingleton<IAuthProvider<HttpStorageClient>>(ServiceProvider => CreateAuthProvider(ServiceProvider));
-
-			Services.AddTransient<IStorageClient, HttpStorageClient>();
-			Services.AddHttpClient<IStorageClient, HttpStorageClient>();
+			Services.AddScoped<IStorageClient, HttpStorageClient>();
+			Services.AddHttpClientWithAuth<IStorageClient, HttpStorageClient>(ServiceProvider => ServiceProvider.GetRequiredService<IOptions<StorageOptions>>().Value);
 		}
 
 		/// <summary>
@@ -73,28 +41,10 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="Services">The current service collection</param>
 		/// <param name="Configure">Callback for configuring the storage service</param>
-		public static void AddHordeStorage(this IServiceCollection Services, Action<StorageSettings> Configure)
+		public static void AddHordeStorage(this IServiceCollection Services, Action<StorageOptions> Configure)
 		{
 			AddHordeStorage(Services);
-			Services.Configure<StorageSettings>(Configure);
-		}
-
-		/// <summary>
-		/// Creates an auth provider based on the configured settings
-		/// </summary>
-		/// <param name="Services"></param>
-		/// <returns></returns>
-		static IAuthProvider<HttpStorageClient> CreateAuthProvider(IServiceProvider Services)
-		{
-			StorageSettings Settings = Services.GetRequiredService<IOptions<StorageSettings>>().Value;
-			if (Settings.OAuth2 != null)
-			{
-				return Services.GetRequiredService<OAuth2AuthProviderFactory<HttpStorageClient>>().Create(Settings.OAuth2);
-			}
-			else
-			{
-				return Services.GetRequiredService<NullAuthProvider<HttpStorageClient>>();
-			}
+			Services.Configure<StorageOptions>(Configure);
 		}
 	}
 }

@@ -29,38 +29,38 @@ namespace EpicGames.Horde.Auth
 	/// <summary>
 	/// Options for authenticating particular requests
 	/// </summary>
-	public class OAuth2Options
+	public interface IOAuthOptions
 	{
 		/// <summary>
 		/// Url of the auth server
 		/// </summary>
-		public string AuthUrl { get; set; } = String.Empty;
+		string AuthUrl { get; }
 
 		/// <summary>
 		/// Type of grant
 		/// </summary>
-		public string GrantType { get; set; } = String.Empty;
+		string GrantType { get; }
 
 		/// <summary>
 		/// Client id
 		/// </summary>
-		public string ClientId { get; set; } = String.Empty;
+		string ClientId { get; }
 
 		/// <summary>
 		/// Client secret
 		/// </summary>
-		public string ClientSecret { get; set; } = String.Empty;
+		string ClientSecret { get; }
 
 		/// <summary>
 		/// Scope of the token
 		/// </summary>
-		public string Scope { get; set; } = String.Empty;
+		string Scope { get; }
 	}
 
 	/// <summary>
 	/// Http message handler which adds an OAuth authorization header using a cached/periodically refreshed bearer token
 	/// </summary>
-	public class OAuth2AuthProvider : IAuthProvider
+	public class OAuthHandler<T> : HttpClientHandler
 	{
 		class ClientCredentialsResponse
 		{
@@ -71,18 +71,18 @@ namespace EpicGames.Horde.Auth
 		}
 
 		HttpClient Client;
-		OAuth2Options Options;
+		IOAuthOptions Options;
 		string CachedAccessToken = String.Empty;
 		DateTime ExpiresAt = DateTime.MinValue;
 
-		public OAuth2AuthProvider(HttpClient Client, OAuth2Options Options)
+		public OAuthHandler(HttpClient Client, IOAuthOptions Options)
 		{
 			this.Client = Client;
 			this.Options = Options;
 		}
 
 		/// <inheritdoc/>
-		public async Task AddAuthorizationAsync(HttpRequestMessage Request, CancellationToken CancellationToken)
+		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage Request, CancellationToken CancellationToken)
 		{
 			if (DateTime.UtcNow > ExpiresAt)
 			{
@@ -90,6 +90,7 @@ namespace EpicGames.Horde.Auth
 			}
 
 			Request.Headers.Add("Authorization", $"Bearer {CachedAccessToken}");
+			return await base.SendAsync(Request, CancellationToken);
 		}
 
 		/// <summary>
@@ -139,7 +140,7 @@ namespace EpicGames.Horde.Auth
 	/// <summary>
 	/// Factory for creating OAuth2AuthProvider instances from a set of options
 	/// </summary>
-	public class OAuth2AuthProviderFactory<T>
+	public class OAuthHandlerFactory
 	{
 		HttpClient HttpClient;
 
@@ -147,7 +148,7 @@ namespace EpicGames.Horde.Auth
 		/// Constructor
 		/// </summary>
 		/// <param name="HttpClient"></param>
-		public OAuth2AuthProviderFactory(HttpClient HttpClient)
+		public OAuthHandlerFactory(HttpClient HttpClient)
 		{
 			this.HttpClient = HttpClient;
 		}
@@ -157,6 +158,6 @@ namespace EpicGames.Horde.Auth
 		/// </summary>
 		/// <param name="Options"></param>
 		/// <returns></returns>
-		public IAuthProvider<T> Create(OAuth2Options Options) => new TypedAuthProvider<T>(new OAuth2AuthProvider(HttpClient, Options));
+		public OAuthHandler<T> Create<T>(IOAuthOptions Options) => new OAuthHandler<T>(HttpClient, Options);
 	}
 }

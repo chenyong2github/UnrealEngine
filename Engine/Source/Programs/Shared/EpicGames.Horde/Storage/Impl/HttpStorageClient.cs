@@ -69,20 +69,14 @@ namespace EpicGames.Horde.Storage.Impl
 		const string CompactBinaryMimeType = "application/x-ue-cb";
 
 		HttpClient HttpClient;
-		StorageSettings Settings;
-		Uri BaseUrl;
-		IAuthProvider AuthProvider;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="HttpClient">Http client for the blob store. Should be pre-configured with a base address and appropriate authentication headers.</param>
-		public HttpStorageClient(HttpClient HttpClient, IOptions<StorageSettings> Settings, IAuthProvider<HttpStorageClient> AuthProvider)
+		public HttpStorageClient(HttpClient HttpClient)
 		{
 			this.HttpClient = HttpClient;
-			this.Settings = Settings.Value;
-			this.BaseUrl = new Uri(Settings.Value.Url);
-			this.AuthProvider = AuthProvider;
 		}
 
 		#region Blobs
@@ -90,8 +84,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUrl, $"api/v1/blobs/{NamespaceId}/{Hash}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/blobs/{NamespaceId}/{Hash}");
 
 			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			try
@@ -114,8 +107,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, new Uri(BaseUrl, $"api/v1/blobs/{NamespaceId}/{Hash}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/blobs/{NamespaceId}/{Hash}");
 
 			StreamContent Content = new StreamContent(Stream);
 			Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
@@ -132,8 +124,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
 
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CompactBinaryMimeType));
@@ -164,8 +155,7 @@ namespace EpicGames.Horde.Storage.Impl
 			Content.Headers.ContentType = new MediaTypeHeaderValue(CompactBinaryMimeType);
 			Content.Headers.Add(HashHeaderName, IoHash.Compute(Value.GetView().Span).ToString());
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
 
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -189,8 +179,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<List<IoHash>> TryFinalizeRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, IoHash Hash, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}/finalize/{Hash}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}/finalize/{Hash}");
 
 			Request.Headers.Accept.Clear();
 			Request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -213,8 +202,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Delete, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
 
 			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			return Response.IsSuccessStatusCode;
@@ -223,8 +211,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, new Uri(BaseUrl, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/refs/{NamespaceId}/{BucketId}/{RefId}");
 
 			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			if (Response.IsSuccessStatusCode)
@@ -246,10 +233,9 @@ namespace EpicGames.Horde.Storage.Impl
 		{
 			string RefList = String.Join("&", RefIds.Select(x => $"id={x}"));
 
-			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, new Uri(BaseUrl, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}"));
-			await AuthProvider.AddAuthorizationAsync(Request, CancellationToken);
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}");
 
-			using HttpResponseMessage Response = await HttpClient.PostAsync(new Uri(BaseUrl, $"/api/v1/refs/{NamespaceId}/{BucketId}/exists?{RefList}"), null);
+			using HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
 			if (!Response.IsSuccessStatusCode)
 			{
 				throw new RefException(NamespaceId, BucketId, new RefId(IoHash.Zero), await GetMessageFromResponse(Response));

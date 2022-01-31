@@ -45,6 +45,8 @@ namespace HordeAgent.Commands
 
 		class JsonComputeTask
 		{
+			public ComputeOptions ComputeServer { get; set; } = new ComputeOptions();
+			public StorageOptions StorageServer { get; set; } = new StorageOptions();
 			public string Executable { get; set; } = String.Empty;
 			public List<string> Arguments { get; set; } = new List<string>();
 			public Dictionary<string, string> EnvVars { get; set; } = new Dictionary<string, string>();
@@ -153,10 +155,9 @@ namespace HordeAgent.Commands
 
 			IConfiguration Configuration = new ConfigurationBuilder()
 				.AddEnvironmentVariables()
-				.AddJsonFile("appsettings.json")
+				.AddJsonFile(Input.FullName)
 				.Build();
 
-			IConfigurationSection ConfigSection = Configuration.GetSection(AgentSettings.SectionName);
 			IHostBuilder HostBuilder = Host.CreateDefaultBuilder()
 				.ConfigureLogging(Builder =>
 				{
@@ -164,23 +165,19 @@ namespace HordeAgent.Commands
 				})
 				.ConfigureServices(Services =>
 				{
-					Services.AddOptions<AgentSettings>().Configure(Options => ConfigSection.Bind(Options)).ValidateDataAnnotations();
 					Services.AddLogging();
 
-					IConfigurationSection StorageSettings = ConfigSection.GetCurrentServerProfile().GetSection(nameof(ServerProfile.Storage));
-					Services.AddHordeStorage(Settings => StorageSettings.Bind(Settings));
+					IConfigurationSection ComputeSettings = Configuration.GetSection(nameof(JsonComputeTask.ComputeServer));
+					Services.AddHordeCompute(Settings => ComputeSettings.Bind(Settings));
 
-					Services.AddSingleton<GrpcService>();
-					Services.AddSingleton<IComputeClient, HttpComputeClient>(SP => new HttpComputeClient(new HttpClient() { BaseAddress = new Uri(Server) }));
+					IConfigurationSection StorageSettings = Configuration.GetSection(nameof(JsonComputeTask.StorageServer));
+					Services.AddHordeStorage(Settings => StorageSettings.Bind(Settings));
 				});
 
 			using (IHost Host = HostBuilder.Build())
 			{
 				IStorageClient StorageClient = Host.Services.GetRequiredService<IStorageClient>();
 				IComputeClient ComputeClient = Host.Services.GetRequiredService<IComputeClient>();
-
-				byte[] Json = await FileReference.ReadAllBytesAsync(Input);
-				JsonComputeTask JsonComputeTask = JsonSerializer.Deserialize<JsonComputeTask>(Json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
 				ByteString SaltBytes = ByteString.Empty;
 				if (Salt != null)
@@ -199,6 +196,9 @@ namespace HordeAgent.Commands
 
 				Dictionary<IoHash, byte[]> Blobs = new Dictionary<IoHash, byte[]>();
 				(_, IoHash SandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), Blobs);
+
+				JsonComputeTask JsonComputeTask = new JsonComputeTask();
+				Configuration.Bind(JsonComputeTask);
 
 				JsonRequirements JsonRequirements = JsonComputeTask.Requirements;
 				Requirements Requirements = new Requirements(JsonRequirements.Condition ?? String.Empty);

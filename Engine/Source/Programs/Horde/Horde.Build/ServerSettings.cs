@@ -565,7 +565,7 @@ namespace HordeServer
 		/// <summary>
 		/// Settings for the storage service
 		/// </summary>
-		public StorageSettings? Storage { get; set; }
+		public StorageOptions? Storage { get; set; }
 
 		/// <summary>
 		/// Lazily computed timezone value

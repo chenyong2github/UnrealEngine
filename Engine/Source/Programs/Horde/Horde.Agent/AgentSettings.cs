@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Compute;
 using EpicGames.Horde.Storage;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Configuration;
@@ -95,7 +96,7 @@ namespace HordeAgent
 		/// <summary>
 		/// Storage settings for using this server
 		/// </summary>
-		public StorageSettings Storage { get; set; } = new StorageSettings();
+		public StorageOptions Storage { get; set; } = new StorageOptions();
 
 		/// <summary>
 		/// Checks whether the given certificate thumbprint should be trusted
