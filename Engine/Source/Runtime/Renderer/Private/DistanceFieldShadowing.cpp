@@ -506,10 +506,9 @@ void CullDistanceFieldObjectsForLight(
 	const FScene* Scene = (const FScene*)(View.Family->Scene);
 	FRDGBufferRef ObjectIndirectArguments = nullptr;
 
-	RDG_EVENT_SCOPE(GraphBuilder, "CullMeshSDFsForLight");
+	RDG_EVENT_SCOPE(GraphBuilder, "CullDistanceFieldObjectsForLight %s", PrimitiveType == DFPT_SignedDistanceField ? TEXT("MeshSDF") : TEXT("Heightfield"));
 
-	const FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
-	const int32 NumObjectsInBuffer = bIsHeightfield ? SceneData.NumHeightFieldObjectsInBuffer : SceneData.NumObjectsInBuffer;
+	const int32 NumObjectsInBuffer = bIsHeightfield ? ObjectBufferParameters.NumSceneHeightfieldObjects : ObjectBufferParameters.NumSceneObjects;
 
 	AllocateDistanceFieldCulledObjectBuffers(
 		GraphBuilder, 

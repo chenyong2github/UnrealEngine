@@ -602,7 +602,6 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
 		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
@@ -756,14 +755,14 @@ void SetupMeshSDFShadowInitializer(
 	OutShadowBounds = Bounds;
 }
 
-void CullMeshSDFsForLightCards(
+void CullMeshObjectsForLightCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
+	EDistanceFieldPrimitiveType PrimitiveType,
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
 	FMatrix& WorldToMeshSDFShadowValue,
-	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters)
 {
 	const FVector LumenSceneViewOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance) - 1);
@@ -796,11 +795,13 @@ void CullMeshSDFsForLightCards(
 
 	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
 
+	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
+
 	CullDistanceFieldObjectsForLight(
 		GraphBuilder,
 		View,
 		LightSceneInfo->Proxy,
-		DFPT_SignedDistanceField,
+		PrimitiveType,
 		WorldToMeshSDFShadowValue,
 		NumPlanes,
 		PlaneData,
@@ -1033,8 +1034,12 @@ void TraceDistanceFieldShadows(
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
+	// Patch DF heightfields with Lumen heightfields
+	ObjectBufferParameters.SceneHeightfieldObjectBounds = LumenSceneData.HeightfieldBuffer.SRV;
+	ObjectBufferParameters.SceneHeightfieldObjectData = nullptr;
+	ObjectBufferParameters.NumSceneHeightfieldObjects = LumenSceneData.Heightfields.Num();
+
 	FLightTileIntersectionParameters LightTileIntersectionParameters;
-	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
 
 	// Whether to trace individual mesh SDFs or heightfield objects for higher quality offscreen shadowing
@@ -1052,7 +1057,39 @@ void TraceDistanceFieldShadows(
 
 	if (bTraceMeshSDFs)
 	{
-		CullMeshSDFsForLightCards(GraphBuilder, Scene, View, Light.LightSceneInfo, ObjectBufferParameters, WorldToMeshSDFShadowValue, CulledObjectBufferParameters, LightTileIntersectionParameters);
+		CullMeshObjectsForLightCards(
+			GraphBuilder,
+			Scene,
+			View,
+			Light.LightSceneInfo,
+			DFPT_SignedDistanceField,
+			ObjectBufferParameters,
+			WorldToMeshSDFShadowValue,
+			LightTileIntersectionParameters);
+	}
+
+	if (bTraceHeighfieldObjects)
+	{
+		FLightTileIntersectionParameters LightTileHeightfieldIntersectionParameters;
+
+		CullMeshObjectsForLightCards(
+			GraphBuilder, 
+			Scene, 
+			View, 
+			Light.LightSceneInfo,
+			DFPT_HeightField,
+			ObjectBufferParameters,
+			WorldToMeshSDFShadowValue,
+			LightTileHeightfieldIntersectionParameters);
+
+		if (!bTraceMeshSDFs)
+		{
+			LightTileIntersectionParameters = LightTileHeightfieldIntersectionParameters;
+		}
+
+		LightTileIntersectionParameters.HeightfieldShadowTileNumCulledObjects = LightTileHeightfieldIntersectionParameters.ShadowTileNumCulledObjects;
+		LightTileIntersectionParameters.HeightfieldShadowTileStartOffsets = LightTileHeightfieldIntersectionParameters.ShadowTileStartOffsets;
+		LightTileIntersectionParameters.HeightfieldShadowTileArrayData = LightTileHeightfieldIntersectionParameters.ShadowTileArrayData;
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters>();
@@ -1068,7 +1105,6 @@ void TraceDistanceFieldShadows(
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->DeferredLightUniforms);
 
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
-		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
 
 		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);

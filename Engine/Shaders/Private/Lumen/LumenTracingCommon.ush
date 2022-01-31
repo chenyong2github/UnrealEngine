@@ -824,7 +824,7 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	if (tMinValue < tMaxValue
 		&& LumenCardData.bVisible)
 	{
-		const uint MaxSteps = 64;
+		const uint MaxSteps = 32;
 		float MinStepSize = (tMaxValue - tMinValue) / MaxSteps;
 
 		float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tMinValue, TraceInput.MinSampleRadius);

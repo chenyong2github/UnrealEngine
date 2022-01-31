@@ -225,13 +225,17 @@ float ShadowTraceHeightfield(
 		/*StepFactor*/ 1.0f
 	);
 
-	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
+	uint NumIntersectingObjects = 0;
+	uint CulledDataStart = 0;
+	GetHeightfieldShadowTileCulledData(WorldRayStart, CulledDataStart, NumIntersectingObjects);
+
+	for (uint IndexInCulledList = 0; IndexInCulledList < NumIntersectingObjects; ++IndexInCulledList)
 	{
+		const uint HeightfieldObjectIndex = HeightfieldShadowTileArrayData.Load(IndexInCulledList + CulledDataStart);
 		FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldObjectIndex);
 		if (LumenHeightfield.bValid)
 		{
 			FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(ConeTraceInput, HeightfieldObjectIndex);
-
 			if (SimpleResult.bIsHit)
 			{
 				return 0.0f;

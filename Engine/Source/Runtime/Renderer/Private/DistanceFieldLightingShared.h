@@ -198,6 +198,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightTileIntersectionParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NextStartOffset)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShadowTileArrayData)
 
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HeightfieldShadowTileNumCulledObjects)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HeightfieldShadowTileStartOffsets)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HeightfieldShadowTileArrayData)
+
 	SHADER_PARAMETER(FIntPoint, ShadowTileListGroupSize)
 	SHADER_PARAMETER(uint32, ShadowMaxObjectsPerTile)
 END_SHADER_PARAMETER_STRUCT()

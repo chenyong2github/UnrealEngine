@@ -8,29 +8,25 @@
 	#define COMPACT_CULLED_SHADOW_OBJECTS 1
 #endif
 
-Buffer<uint> ShadowTileNumCulledObjects;
-Buffer<uint> ShadowTileStartOffsets;
-
-Buffer<uint> ShadowTileArrayData;
 uint2 ShadowTileListGroupSize;
 uint ShadowMaxObjectsPerTile;
 
-uint2 GetShadowTileHead(uint2 TileCoordinate)
+uint2 GetShadowTileHead(uint2 TileCoordinate, Buffer<uint> InShadowTileNumCulledObjects, Buffer<uint> InShadowTileStartOffsets)
 {
 	uint TileIndex = TileCoordinate.y * ShadowTileListGroupSize.x + TileCoordinate.x;
 
 	return uint2(
 #if COMPACT_CULLED_SHADOW_OBJECTS
-		ShadowTileStartOffsets[TileIndex],
+		InShadowTileStartOffsets[TileIndex],
 #else
 		TileIndex * ShadowMaxObjectsPerTile,
 #endif
-		ShadowTileNumCulledObjects[TileIndex]); 
+		InShadowTileNumCulledObjects[TileIndex]); 
 }
 
 float4x4 WorldToShadow;
 
-void GetShadowTileCulledData(float3 WorldPosition, out uint CulledDataStart, out uint NumIntersectingObjects)
+void GetShadowTileCulledDataEx(float3 WorldPosition, Buffer<uint> InShadowTileNumCulledObjects, Buffer<uint> InShadowTileStartOffsets, out uint CulledDataStart, out uint NumIntersectingObjects)
 {
 	// Transform into shadow space
 	float4 HomogeneousShadowPosition = mul(float4(WorldPosition, 1), WorldToShadow);
@@ -39,9 +35,27 @@ void GetShadowTileCulledData(float3 WorldPosition, out uint CulledDataStart, out
 	// Quantize the shadow position to get our tile position
 	uint2 TilePosition = (uint2)(NormalizedShadowPosition * ShadowTileListGroupSize);
 	// Fetch the tile head information
-	uint2 TileHead = GetShadowTileHead(TilePosition);
+	uint2 TileHead = GetShadowTileHead(TilePosition, InShadowTileNumCulledObjects, InShadowTileStartOffsets);
 	CulledDataStart = TileHead.x;
 	NumIntersectingObjects = TileHead.y;
+}
+
+Buffer<uint> ShadowTileNumCulledObjects;
+Buffer<uint> ShadowTileStartOffsets;
+Buffer<uint> ShadowTileArrayData;
+
+Buffer<uint> HeightfieldShadowTileNumCulledObjects;
+Buffer<uint> HeightfieldShadowTileStartOffsets;
+Buffer<uint> HeightfieldShadowTileArrayData;
+
+void GetShadowTileCulledData(float3 WorldPosition, out uint CulledDataStart, out uint NumIntersectingObjects)
+{
+	GetShadowTileCulledDataEx(WorldPosition, ShadowTileNumCulledObjects, ShadowTileStartOffsets, CulledDataStart, NumIntersectingObjects);
+}
+
+void GetHeightfieldShadowTileCulledData(float3 WorldPosition, out uint CulledDataStart, out uint NumIntersectingObjects)
+{
+	GetShadowTileCulledDataEx(WorldPosition, HeightfieldShadowTileNumCulledObjects, HeightfieldShadowTileStartOffsets, CulledDataStart, NumIntersectingObjects);
 }
 
 #define MAX_INTERSECTING_OBJECTS 1024
