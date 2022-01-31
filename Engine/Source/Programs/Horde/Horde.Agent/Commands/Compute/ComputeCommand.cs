@@ -31,11 +31,9 @@ namespace HordeAgent.Commands
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
-	[Command("ExecuteV2", "Executes a command through the remote execution API")]
-	class ExecuteCommandV2 : Command
+	[Command("Compute", "Executes a command through the Horde Compute API")]
+	class ComputeCommand : Command
 	{
-		static ClusterId ClusterId { get; } = new ClusterId("default");
-
 		class JsonRequirements
 		{
 			public string? Condition { get; set; }
@@ -47,6 +45,7 @@ namespace HordeAgent.Commands
 		{
 			public ComputeOptions ComputeServer { get; set; } = new ComputeOptions();
 			public StorageOptions StorageServer { get; set; } = new StorageOptions();
+			public ClusterId ClusterId { get; set; } = new ClusterId("default");
 			public string Executable { get; set; } = String.Empty;
 			public List<string> Arguments { get; set; } = new List<string>();
 			public Dictionary<string, string> EnvVars { get; set; } = new Dictionary<string, string>();
@@ -96,24 +95,6 @@ namespace HordeAgent.Commands
 		/// </summary>
 		[CommandLine("-LogLevel")]
 		public string LogLevelStr = "debug";
-
-		/// <summary>
-		/// Use the HTTP server endpoints
-		/// </summary>
-		[CommandLine("-Http")]
-		public bool UseHttp;
-
-		/// <summary>
-		/// The server url
-		/// </summary>
-		[CommandLine("-Server=")]
-		public string Server = Environment.GetEnvironmentVariable("HORDE_SERVER") ?? "https://localhost:5001";
-
-		/// <summary>
-		/// The token to use to connect with
-		/// </summary>
-		[CommandLine("-Token=")]
-		public string? Token = Environment.GetEnvironmentVariable("HORDE_TOKEN");
 
 		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo BaseDirInfo, Dictionary<IoHash, byte[]> UploadList)
 		{
@@ -200,6 +181,9 @@ namespace HordeAgent.Commands
 				JsonComputeTask JsonComputeTask = new JsonComputeTask();
 				Configuration.Bind(JsonComputeTask);
 
+				Logger.LogInformation("compute server: {ServerUrl}", JsonComputeTask.ComputeServer.Url);
+				Logger.LogInformation("storage server: {ServerUrl}", JsonComputeTask.StorageServer.Url);
+
 				JsonRequirements JsonRequirements = JsonComputeTask.Requirements;
 				Requirements Requirements = new Requirements(JsonRequirements.Condition ?? String.Empty);
 				Requirements.Resources = JsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
@@ -211,7 +195,7 @@ namespace HordeAgent.Commands
 				Task.OutputPaths.AddRange(JsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
 				Task.RequirementsHash = AddCbObject(Blobs, Requirements);
 
-				await ExecuteAction(Logger, ComputeClient, StorageClient, Task, Blobs);	
+				await ExecuteAction(Logger, ComputeClient, StorageClient, JsonComputeTask.ClusterId, Task, Blobs);	
 			}
 			return 0;
 		}
@@ -224,12 +208,12 @@ namespace HordeAgent.Commands
 			return Hash;
 		}
 
-		private async Task ExecuteAction(ILogger Logger, IComputeClient ComputeClient, IStorageClient StorageClient, ComputeTask Task, Dictionary<IoHash, byte[]> UploadList)
+		private async Task ExecuteAction(ILogger Logger, IComputeClient ComputeClient, IStorageClient StorageClient, ClusterId ClusterId, ComputeTask Task, Dictionary<IoHash, byte[]> UploadList)
 		{
 			IComputeClusterInfo Cluster = await ComputeClient.GetClusterInfoAsync(ClusterId);
 
 			List<KeyValuePair<IoHash, byte[]>> UploadBlobs = UploadList.ToList();
-			for(int Idx = 0; Idx < UploadBlobs.Count; Idx++)
+			for (int Idx = 0; Idx < UploadBlobs.Count; Idx++)
 			{
 				KeyValuePair<IoHash, byte[]> Pair = UploadBlobs[Idx];
 				Logger.LogInformation("Uploading blob {Idx}/{Count}: {Hash}", Idx + 1, UploadBlobs.Count, Pair.Key);
@@ -241,11 +225,14 @@ namespace HordeAgent.Commands
 			RefId TaskRefId = new RefId(TaskHash);
 			await StorageClient.SetRefAsync(Cluster.NamespaceId, Cluster.RequestBucketId, TaskRefId, TaskObject);
 
+			ChannelId ChannelId = new ChannelId(Guid.NewGuid().ToString());
+			Logger.LogInformation("cluster: {ClusterId}", ClusterId);
+			Logger.LogInformation("channel: {ChannelId}", ChannelId);
 			Logger.LogInformation("task: {TaskHash}", TaskHash);
 			Logger.LogInformation("requirements: {RequirementsHash}", Task.RequirementsHash);
 
+
 			// Execute the action
-			ChannelId ChannelId = new ChannelId(Guid.NewGuid().ToString());
 			await ComputeClient.AddTaskAsync(ClusterId, ChannelId, TaskRefId, Task.RequirementsHash, SkipCacheLookup);
 
 			await foreach(IComputeTaskInfo Response in ComputeClient.GetTaskUpdatesAsync(ClusterId, ChannelId))
