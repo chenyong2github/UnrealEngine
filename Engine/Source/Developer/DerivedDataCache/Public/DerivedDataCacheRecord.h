@@ -199,7 +199,7 @@ public:
 
 	/** Returns the cache record. The caller must check for null before using this accessor. */
 	inline const FCacheRecord& Get() const & { return *this; }
-	inline FCacheRecord&& Get() && { return MoveTemp(*this); }
+	inline FCacheRecord Get() && { return MoveTemp(*this); }
 
 	inline bool IsNull() const { return !IsValid(); }
 	inline bool IsValid() const { return Record.IsValid(); }

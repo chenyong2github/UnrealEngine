@@ -132,7 +132,7 @@ public:
 
 	/** Returns the build inputs. The caller must check for null before using this accessor. */
 	inline const FBuildInputs& Get() const & { return *this; }
-	inline FBuildInputs&& Get() && { return MoveTemp(*this); }
+	inline FBuildInputs Get() && { return MoveTemp(*this); }
 
 	inline bool IsNull() const { return !IsValid(); }
 	inline bool IsValid() const { return Inputs.IsValid(); }

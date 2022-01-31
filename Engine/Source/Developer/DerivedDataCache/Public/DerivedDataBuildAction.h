@@ -197,7 +197,7 @@ public:
 
 	/** Returns the build action. The caller must check for null before using this accessor. */
 	inline const FBuildAction& Get() const & { return *this; }
-	inline FBuildAction&& Get() && { return MoveTemp(*this); }
+	inline FBuildAction Get() && { return MoveTemp(*this); }
 
 	inline bool IsNull() const { return !IsValid(); }
 	inline bool IsValid() const { return Action.IsValid(); }

@@ -251,7 +251,7 @@ public:
 
 	/** Returns the build definition. The caller must check for null before using this accessor. */
 	inline const FBuildDefinition& Get() const & { return *this; }
-	inline FBuildDefinition&& Get() && { return MoveTemp(*this); }
+	inline FBuildDefinition Get() && { return MoveTemp(*this); }
 
 	inline bool IsNull() const { return !IsValid(); }
 	inline bool IsValid() const { return Definition.IsValid(); }
