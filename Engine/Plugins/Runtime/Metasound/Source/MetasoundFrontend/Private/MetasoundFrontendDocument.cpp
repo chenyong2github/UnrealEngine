@@ -182,7 +182,7 @@ bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 	return !(InLHS == InRHS);
 }
 
-FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata)
+FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClassDescription(const Metasound::FVertexInterface& InDefaultInterface)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -191,7 +191,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 	// Copy over inputs
 	{
-		const FInputVertexInterface& InputInterface = InNodeClassMetadata.DefaultInterface.GetInputInterface();
+		const FInputVertexInterface& InputInterface = InDefaultInterface.GetInputInterface();
 		FMetasoundFrontendInterfaceStyle InputStyle;
 		for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
 		{
@@ -235,7 +235,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 	// Copy over outputs
 	{
-		const FOutputVertexInterface& OutputInterface = InNodeClassMetadata.DefaultInterface.GetOutputInterface();
+		const FOutputVertexInterface& OutputInterface = InDefaultInterface.GetOutputInterface();
 		FMetasoundFrontendInterfaceStyle OutputStyle;
 		for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
 		{
@@ -268,7 +268,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 		ClassInterface.OutputStyle = MoveTemp(OutputStyle);
 	}
 
-	for (auto& EnvTuple : InNodeClassMetadata.DefaultInterface.GetEnvironmentInterface())
+	for (auto& EnvTuple : InDefaultInterface.GetEnvironmentInterface())
 	{
 		FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
@@ -306,7 +306,8 @@ void FMetasoundFrontendClassMetadata::SetCategoryHierarchy(const TArray<FText>& 
 void FMetasoundFrontendClassMetadata::SetKeywords(const TArray<FText>& InKeywords)
 {
 	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InKeywords, Keywords, ChangeID);
+	TArray<FText>& TextToSet = bSerializeText ? Keywords : KeywordsTransient;
+	SetWithChangeID(InKeywords, TextToSet, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClassName& InClassName)
@@ -387,6 +388,17 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
 
+FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassDescription(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
+{
+	FMetasoundFrontendClassStyle Style;
+	Style.Display.bShowName = InNodeDisplayStyle.bShowName;
+	Style.Display.bShowInputNames = InNodeDisplayStyle.bShowInputNames;
+	Style.Display.bShowOutputNames = InNodeDisplayStyle.bShowOutputNames;
+	Style.Display.ImageName = InNodeDisplayStyle.ImageName;
+
+	return Style;
+}
+
 #if WITH_EDITORONLY_DATA
 bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoundFrontendClass& InOutDependency)
 {
@@ -401,6 +413,7 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 		if (Registry->FindFrontendClassFromRegistered(Key, RegistryClass))
 		{
 			InOutDependency.Metadata = RegistryClass.Metadata;
+			InOutDependency.Style = RegistryClass.Style;
 
 			using FNameTypeKey = TPair<FName, FName>;
 			TMap<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> InterfaceMembers;
@@ -431,8 +444,6 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 
 			InOutDependency.Interface.InputStyle = RegistryClass.Interface.InputStyle;
 			InOutDependency.Interface.OutputStyle = RegistryClass.Interface.OutputStyle;
-
-			InOutDependency.Style = RegistryClass.Style;
 
 			return true;
 		}

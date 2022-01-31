@@ -840,7 +840,7 @@ private:
 public:
 	// Generates class interface intended to be used as a registry descriptor from FNodeClassMetadata.
 	// Does not initialize a change ID as it is not considered to be transactional.
-	static FMetasoundFrontendClassInterface GenerateClassDescription(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
+	static FMetasoundFrontendClassInterface GenerateClassDescription(const Metasound::FVertexInterface& InNodeClassMetadata);
 
 	// Description of class inputs.
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
@@ -1151,6 +1151,9 @@ struct FMetasoundFrontendClassStyle
 
 	UPROPERTY()
 	FMetasoundFrontendClassStyleDisplay Display;
+
+	// Generates class style from core node class metadata.
+	static FMetasoundFrontendClassStyle GenerateClassDescription(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle);
 };
 
 USTRUCT()
