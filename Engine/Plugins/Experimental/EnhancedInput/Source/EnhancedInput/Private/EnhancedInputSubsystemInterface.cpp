@@ -391,6 +391,19 @@ int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingNa
 	return NumMappingsApplied;
 }
 
+int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options)
+{
+	int32 NumMappingsApplied = 0;
+	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	{
+		NumMappingsApplied = PlayerMappedSettings.Remove(MappingName);
+	}
+
+	RequestRebuildControlMappings(Options);
+	
+	return NumMappingsApplied;
+}
+
 void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)
 {
 	if(Config)
@@ -398,6 +411,17 @@ void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMapp
 		for(TPair<UInputMappingContext*, int32> Pair : Config->GetMappingContexts())
 		{
 			AddMappingContext(Pair.Key, Pair.Value, Options);
+		}	
+	}
+}
+
+void IEnhancedInputSubsystemInterface::RemovePlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)
+{
+	if(Config)
+	{
+		for(TPair<UInputMappingContext*, int32> Pair : Config->GetMappingContexts())
+		{
+			RemoveMappingContext(Pair.Key, Options);
 		}	
 	}
 }
