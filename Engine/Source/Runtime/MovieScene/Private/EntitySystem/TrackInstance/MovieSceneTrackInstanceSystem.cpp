@@ -199,14 +199,30 @@ void UMovieSceneTrackInstanceInstantiator::OnRun(FSystemTaskPrerequisites& InPre
 	// Gather all the inputs for any invalidated output indices
 	TSortedMap<int32, TArray<FMovieSceneTrackInstanceInput> > NewInputs;
 	{
-		auto ReLinkInputs = [this, &NewInputs](FInstanceHandle SourceInstance, FTrackInstanceInputComponent InputComponent)
+		auto ReLinkInputs = [this, &NewInputs, BuiltInComponents](FEntityAllocationIteratorItem Item, const FInstanceHandle* SourceInstances, const FTrackInstanceInputComponent* InputComponents)
 		{
-			if (this->InvalidatedOutputs.IsValidIndex(InputComponent.OutputIndex) && this->InvalidatedOutputs[InputComponent.OutputIndex] == true)
+			const int32 Num = Item.GetAllocation()->Num();
+
+			// If the input does not have the NeedsLink tag, it has already been processed, so doesn't need removing and re-adding
+			const bool bInputHasBeenProcessed = !Item.GetAllocationType().Contains(BuiltInComponents->Tags.NeedsLink);
+			
+			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				NewInputs.FindOrAdd(InputComponent.OutputIndex).Add(FMovieSceneTrackInstanceInput{ InputComponent.Section, SourceInstance });
+				const int32 OutputIndex = InputComponents[Index].OutputIndex;
+
+				FMovieSceneTrackInstanceInput NewInput{ InputComponents[Index].Section, SourceInstances[Index], bInputHasBeenProcessed };
+				if (this->InvalidatedOutputs.IsValidIndex(OutputIndex) && this->InvalidatedOutputs[OutputIndex] == true)
+				{
+					NewInputs.FindOrAdd(OutputIndex).Add(NewInput);
+				}
 			}
+			
 		};
-		FEntityTaskBuilder().Read(BuiltInComponents->InstanceHandle).Read(BuiltInComponents->TrackInstanceInput).FilterNone({ BuiltInComponents->Tags.NeedsUnlink }).Iterate_PerEntity(&Linker->EntityManager, ReLinkInputs);
+		FEntityTaskBuilder()
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(BuiltInComponents->TrackInstanceInput)
+		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
+		.Iterate_PerAllocation(&Linker->EntityManager, ReLinkInputs);
 	}
 
 	// Update the inputs for each of the invalidated indices

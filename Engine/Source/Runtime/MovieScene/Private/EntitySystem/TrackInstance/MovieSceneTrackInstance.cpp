@@ -55,7 +55,8 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 
 	Algo::Sort(InNewInputs);
 
-	// Fast path if they are the same
+	// Fast path if they are the same - this includes checking whether bInputHasBeenProcessed is the
+	// same on all pre/post inputs, which technically should never happen for us to have gotten this far
 	if (Inputs == InNewInputs)
 	{
 		// We still call OnBegin/EndUpdateInputs since some of them must have been invalidated for us to get this far
@@ -77,8 +78,22 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 
 	for ( ; OldIndex < OldNum || NewIndex < NewNum; )
 	{
-		while (OldIndex < OldNum && NewIndex < NewNum && Inputs[OldIndex] == InNewInputs[NewIndex])
+		while (OldIndex < OldNum && NewIndex < NewNum && Inputs[OldIndex].IsSameInput(InNewInputs[NewIndex]))
 		{
+			if (!InNewInputs[NewIndex].bInputHasBeenProcessed)
+			{
+				// This input is the same as one already existing in the track instance
+				// But it is being reimported - remove it and add it again
+				OnInputRemoved(Inputs[OldIndex]);
+				if (InputMetaData)
+				{
+					InputMetaData->StopTrackingCaptureSource(Inputs[OldIndex]);
+				}
+
+				InNewInputs[NewIndex].bInputHasBeenProcessed = true;
+				OnInputAdded(InNewInputs[NewIndex]);
+			}
+
 			++OldIndex;
 			++NewIndex;
 		}
@@ -104,6 +119,7 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 				// and in with the new
 				FScopedPreAnimatedCaptureSource CaptureSource(PrivateLinker, InNewInputs[NewIndex]);
 
+				InNewInputs[NewIndex].bInputHasBeenProcessed = true;
 				OnInputAdded(InNewInputs[NewIndex]);
 				++NewIndex;
 			}
@@ -121,6 +137,7 @@ void UMovieSceneTrackInstance::UpdateInputs(TArray<FMovieSceneTrackInstanceInput
 		else if (ensure(NewIndex < NewNum))
 		{
 			// and in with the new
+			InNewInputs[NewIndex].bInputHasBeenProcessed = true;
 			OnInputAdded(InNewInputs[NewIndex]);
 			++NewIndex;
 		}
