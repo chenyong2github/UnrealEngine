@@ -291,7 +291,7 @@ IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlin
 
 FString ToLogString(const FOnlineAccountIdHandle& Id)
 {
-	return FOnlineIdRegistryRegistry::Get().ToLogString(Id);
+	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
 }
 
 FString ToLogString(const FOnlineLobbyIdHandle& Id)

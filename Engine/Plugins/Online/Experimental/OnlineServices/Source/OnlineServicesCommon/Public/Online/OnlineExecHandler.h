@@ -19,6 +19,7 @@ class IOnlineExecHandler
 public:
 	virtual ~IOnlineExecHandler() {}
 	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) = 0;
+	virtual bool Help(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) = 0;
 };
 
 namespace Private {
@@ -172,10 +173,10 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value)
 
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FPlatformUserId& Value)
 {
-	int32 InternalId = -1;
-	if (ParseOnlineExecParams(Cmd, InternalId))
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
 	{
-		Value.CreateFromInternalId(InternalId);
+		Value = FPlatformMisc::GetPlatformUserForUserIndex(FCString::Strtoi(Cmd, nullptr, 10));
 	}
 	else
 	{
@@ -261,12 +262,20 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant)
 template<typename IdType>
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value)
 {
-	EOnlineServices Type;
-	uint32 Handle;
-	if (ParseOnlineExecParams(Cmd, Type) && ParseOnlineExecParams(Cmd, Handle))
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = TOnlineIdHandle<IdType>(Type, Handle);
-		return true;
+		FString ServicesString;
+		FString HandleString;
+
+		if (Token.Split(TEXT(":"), &ServicesString, &HandleString, ESearchCase::CaseSensitive))
+		{
+			EOnlineServices Services;
+			LexFromString(Services, *ServicesString);
+			uint32 Handle = static_cast<uint32>(FCString::Strtoui64(*HandleString, nullptr, 10));
+			Value = TOnlineIdHandle<IdType>(Services, Handle);
+			return true;
+		}
 	}
 
 	return false;
@@ -315,7 +324,7 @@ public:
 	{
 	}
 
-	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
+	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override
 	{
 		typename OpType::Params Params;
 		if (!Private::ParseOnlineExecParams(Cmd, Params))
@@ -341,6 +350,20 @@ public:
 		return true;
 	}
 
+	virtual bool Help(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override
+	{
+		FString HelpString = OpType::Name;
+		Meta::VisitFields<typename OpType::Params>([&HelpString](const auto& Field)
+			{
+				HelpString += TEXT(" ");
+				HelpString += Field.Name;
+			});
+
+		Ar.Log(HelpString);
+		
+		return true;
+	}
+
 private:
 	InterfaceType* Interface;
 	MemberFunctionPtrType Function;
@@ -358,6 +381,11 @@ public:
 	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 		return Component->Exec(World, Cmd, Ar);
+	}
+
+	virtual bool Help(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override
+	{
+		return Component->Help(World, Cmd, Ar);
 	}
 
 private:

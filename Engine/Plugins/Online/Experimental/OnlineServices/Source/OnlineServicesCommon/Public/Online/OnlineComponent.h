@@ -142,6 +142,20 @@ public:
 			{
 				return (*ExecHandler)->Exec(World, Cmd, Ar);
 			}
+			else if (Command == TEXT("HELP"))
+			{
+				return Help(World, Cmd, Ar);
+			}
+		}
+
+		return false;
+	}
+
+	bool Help(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		for (const TPair<FString, TUniquePtr<IOnlineExecHandler>>& Command : ExecCommands)
+		{
+			Command.Value->Help(World, Cmd, Ar);
 		}
 
 		return false;
