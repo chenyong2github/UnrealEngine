@@ -158,6 +158,8 @@ $ bEnableMemorySanitizer : Enables memory sanitizer (MSan)
 
 $ bTuneDebugInfoForLLDB : Turns on tuning of debug info for LLDB
 
+$ bUseDSYMFiles : Enables the generation of .dsym files. This can be disabled to enable faster iteration times during development.
+
 $ bWriteSolutionOptionFile : Whether to write a solution option (suo) file for the sln.
 
 $ bAddFastPDBToProjects : Whether to add the -FastPDB option to build command lines by default.
