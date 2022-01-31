@@ -54,6 +54,17 @@ container_base::~container_base() {
 	delete [] mem;
 }
 
+voro_compute<container> container::make_compute() const
+{
+	return voro_compute<container>((container&)*this, xperiodic ? 2 * nx + 1 : nx, yperiodic ? 2 * ny + 1 : ny, zperiodic ? 2 * nz + 1 : nz);
+}
+
+
+voro_compute<container_poly> container_poly::make_compute() const
+{
+	return voro_compute<container_poly>((container_poly&)*this, xperiodic ? 2 * nx + 1 : nx, yperiodic ? 2 * ny + 1 : ny, zperiodic ? 2 * nz + 1 : nz);
+}
+
 /** The class constructor sets up the geometry of container.
  * \param[in] (ax_,bx_) the minimum and maximum x coordinates.
  * \param[in] (ay_,by_) the minimum and maximum y coordinates.
@@ -66,8 +77,7 @@ container_base::~container_base() {
  * \param[in] init_mem the initial memory allocation for each block. */
 container::container(double ax_,double bx_,double ay_,double by_,double az_,double bz_,
 	int nx_,int ny_,int nz_,bool xperiodic_,bool yperiodic_,bool zperiodic_,int init_mem)
-	: container_base(ax_,bx_,ay_,by_,az_,bz_,nx_,ny_,nz_,xperiodic_,yperiodic_,zperiodic_,init_mem,3),
-	vc(*this,xperiodic_?2*nx_+1:nx_,yperiodic_?2*ny_+1:ny_,zperiodic_?2*nz_+1:nz_) {}
+	: container_base(ax_,bx_,ay_,by_,az_,bz_,nx_,ny_,nz_,xperiodic_,yperiodic_,zperiodic_,init_mem,3) {}
 
 /** The class constructor sets up the geometry of container.
  * \param[in] (ax_,bx_) the minimum and maximum x coordinates.
@@ -81,8 +91,7 @@ container::container(double ax_,double bx_,double ay_,double by_,double az_,doub
  * \param[in] init_mem the initial memory allocation for each block. */
 container_poly::container_poly(double ax_,double bx_,double ay_,double by_,double az_,double bz_,
 	int nx_,int ny_,int nz_,bool xperiodic_,bool yperiodic_,bool zperiodic_,int init_mem)
-	: container_base(ax_,bx_,ay_,by_,az_,bz_,nx_,ny_,nz_,xperiodic_,yperiodic_,zperiodic_,init_mem,4),
-	vc(*this,xperiodic_?2*nx_+1:nx_,yperiodic_?2*ny_+1:ny_,zperiodic_?2*nz_+1:nz_) {ppr=p;}
+	: container_base(ax_,bx_,ay_,by_,az_,bz_,nx_,ny_,nz_,xperiodic_,yperiodic_,zperiodic_,init_mem,4) {ppr=p;}
 
 /** Put a particle into the correct region of the container.
  * \param[in] n the numerical ID of the inserted particle.
@@ -171,7 +180,7 @@ bool container_base::put_locate_block(int &ijk,double &x,double &y,double &z) {
  *                        domain if necessary.
  * \return True if the particle can be successfully placed into the container,
  * false otherwise. */
-inline bool container_base::put_remap(int &ijk,double &x,double &y,double &z) {
+inline bool container_base::put_remap(int &ijk,double &x,double &y,double &z) const {
 	int l;
 
 	ijk=step_int((x-ax)*xsp);
@@ -200,7 +209,7 @@ inline bool container_base::put_remap(int &ijk,double &x,double &y,double &z) {
  * \param[out] ijk the block index that the vector is within.
  * \return True if the particle is within the container or can be remapped into
  * it, false if it lies outside of the container bounds. */
-inline bool container_base::remap(int &ai,int &aj,int &ak,int &ci,int &cj,int &ck,double &x,double &y,double &z,int &ijk) {
+inline bool container_base::remap(int &ai,int &aj,int &ak,int &ci,int &cj,int &ck,double &x,double &y,double &z,int &ijk) const {
 	ci=step_int((x-ax)*xsp);
 	if(ci<0||ci>=nx) {
 		if(xperiodic) {ai=step_div(ci,nx);x-=ai*(bx-ax);ci-=ai*nx;}
@@ -234,7 +243,7 @@ inline bool container_base::remap(int &ai,int &aj,int &ak,int &ci,int &cj,int &c
  * \param[out] pid the ID of the particle.
  * \return True if a particle was found. If the container has no particles,
  * then the search will not find a Voronoi cell and false is returned. */
-bool container::find_voronoi_cell(double x,double y,double z,double &rx,double &ry,double &rz,int &pid) {
+bool container::find_voronoi_cell(double x,double y,double z,double &rx,double &ry,double &rz,int &pid,voro_compute<container>& vc) const {
 	int ai,aj,ak,ci,cj,ck,ijk;
 	particle_record w;
 	double mrs;
@@ -272,7 +281,7 @@ bool container::find_voronoi_cell(double x,double y,double z,double &rx,double &
  * \param[out] pid the ID of the particle.
  * \return True if a particle was found. If the container has no particles,
  * then the search will not find a Voronoi cell and false is returned. */
-bool container_poly::find_voronoi_cell(double x,double y,double z,double &rx,double &ry,double &rz,int &pid) {
+bool container_poly::find_voronoi_cell(double x,double y,double z,double &rx,double &ry,double &rz,int &pid,voro_compute<container>& vc) const {
 	int ai,aj,ak,ci,cj,ck,ijk;
 	particle_record w;
 	double mrs;
@@ -327,7 +336,7 @@ void container_base::add_particle_memory(int i) {
 
 /** Outputs the a list of all the container regions along with the number of
  * particles stored within each. */
-void container_base::region_count() {
+void container_base::region_count() const {
 	int i,j,k,*cop=co;
 	for(k=0;k<nz;k++) for(j=0;j<ny;j++) for(i=0;i<nx;i++)
 		printf("Region (%d,%d,%d): %d particles\n",i,j,k,*(cop++));
@@ -349,10 +358,10 @@ void container_poly::clear() {
  * with the output. It is useful for measuring the pure computation time
  * of the Voronoi algorithm, without any additional calculations such as
  * volume evaluation or cell output. */
-void container::compute_all_cells() {
+void container::compute_all_cells(voro_compute<container>& vc) {
 	voronoicell c;
 	c_loop_all vl(*this);
-	if(vl.start()) do compute_cell(c,vl);
+	if(vl.start()) do compute_cell(c,vl,vc);
 	while(vl.inc());
 }
 
@@ -360,21 +369,21 @@ void container::compute_all_cells() {
  * with the output. It is useful for measuring the pure computation time
  * of the Voronoi algorithm, without any additional calculations such as
  * volume evaluation or cell output. */
-void container_poly::compute_all_cells() {
+void container_poly::compute_all_cells(voro_compute<container>& vc) {
 	voronoicell c;
 	c_loop_all vl(*this);
-	if(vl.start()) do compute_cell(c,vl);while(vl.inc());
+	if(vl.start()) do compute_cell(c,vl,vc);while(vl.inc());
 }
 
 /** Calculates all of the Voronoi cells and sums their volumes. In most cases
  * without walls, the sum of the Voronoi cell volumes should equal the volume
  * of the container to numerical precision.
  * \return The sum of all of the computed Voronoi volumes. */
-double container::sum_cell_volumes() {
+double container::sum_cell_volumes(voro_compute<container>& vc) {
 	voronoicell c;
 	double vol=0;
 	c_loop_all vl(*this);
-	if(vl.start()) do if(compute_cell(c,vl)) vol+=c.volume();while(vl.inc());
+	if(vl.start()) do if(compute_cell(c,vl,vc)) vol+=c.volume();while(vl.inc());
 	return vol;
 }
 
@@ -382,11 +391,11 @@ double container::sum_cell_volumes() {
  * without walls, the sum of the Voronoi cell volumes should equal the volume
  * of the container to numerical precision.
  * \return The sum of all of the computed Voronoi volumes. */
-double container_poly::sum_cell_volumes() {
+double container_poly::sum_cell_volumes(voro_compute<container>& vc) {
 	voronoicell c;
 	double vol=0;
 	c_loop_all vl(*this);
-	if(vl.start()) do if(compute_cell(c,vl)) vol+=c.volume();while(vl.inc());
+	if(vl.start()) do if(compute_cell(c,vl,vc)) vol+=c.volume();while(vl.inc());
 	return vol;
 }
 
@@ -395,7 +404,7 @@ double container_poly::sum_cell_volumes() {
  * \param[in] (x,y,z) the position vector to be tested.
  * \return True if the point is inside the container, false if the point is
  *         outside. */
-bool container_base::point_inside(double x,double y,double z) {
+bool container_base::point_inside(double x,double y,double z) const {
 	if(x<ax||x>bx||y<ay||y>by||z<az||z>bz) return false;
 	return point_inside_walls(x,y,z);
 }

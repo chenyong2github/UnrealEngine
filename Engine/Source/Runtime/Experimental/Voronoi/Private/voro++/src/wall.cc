@@ -17,7 +17,7 @@ namespace voro {
 /** Tests to see whether a point is inside the sphere wall object.
  * \param[in,out] (x,y,z) the vector to test.
  * \return True if the point is inside, false if the point is outside. */
-bool wall_sphere::point_inside(double x,double y,double z) {
+bool wall_sphere::point_inside(double x,double y,double z) const {
 	return (x-xc)*(x-xc)+(y-yc)*(y-yc)+(z-zc)*(z-zc)<rc*rc;
 }
 
@@ -29,7 +29,7 @@ bool wall_sphere::point_inside(double x,double y,double z) {
  * \param[in] (x,y,z) the location of the Voronoi cell.
  * \return True if the cell still exists, false if the cell is deleted. */
 template<class v_cell>
-bool wall_sphere::cut_cell_base(v_cell &c,double x,double y,double z) {
+bool wall_sphere::cut_cell_base(v_cell &c,double x,double y,double z) const {
 	double xd=x-xc,yd=y-yc,zd=z-zc,dq=xd*xd+yd*yd+zd*zd;
 	if (dq>1e-5) {
 		dq=2*(sqrt(dq)*rc-dq);
@@ -41,7 +41,7 @@ bool wall_sphere::cut_cell_base(v_cell &c,double x,double y,double z) {
 /** Tests to see whether a point is inside the plane wall object.
  * \param[in] (x,y,z) the vector to test.
  * \return True if the point is inside, false if the point is outside. */
-bool wall_plane::point_inside(double x,double y,double z) {
+bool wall_plane::point_inside(double x,double y,double z) const {
 	return x*xc+y*yc+z*zc<ac;
 }
 
@@ -50,7 +50,7 @@ bool wall_plane::point_inside(double x,double y,double z) {
  * \param[in] (x,y,z) the location of the Voronoi cell.
  * \return True if the cell still exists, false if the cell is deleted. */
 template<class v_cell>
-bool wall_plane::cut_cell_base(v_cell &c,double x,double y,double z) {
+bool wall_plane::cut_cell_base(v_cell &c,double x,double y,double z) const {
 	double dq=2*(ac-x*xc-y*yc-z*zc);
 	return c.nplane(xc,yc,zc,dq,w_id);
 }
@@ -58,7 +58,7 @@ bool wall_plane::cut_cell_base(v_cell &c,double x,double y,double z) {
 /** Tests to see whether a point is inside the cylindrical wall object.
  * \param[in] (x,y,z) the vector to test.
  * \return True if the point is inside, false if the point is outside. */
-bool wall_cylinder::point_inside(double x,double y,double z) {
+bool wall_cylinder::point_inside(double x,double y,double z) const {
 	double xd=x-xc,yd=y-yc,zd=z-zc;
 	double pa=(xd*xa+yd*ya+zd*za)*asi;
 	xd-=xa*pa;yd-=ya*pa;zd-=za*pa;
@@ -74,7 +74,7 @@ bool wall_cylinder::point_inside(double x,double y,double z) {
  * \param[in] (x,y,z) the location of the Voronoi cell.
  * \return True if the cell still exists, false if the cell is deleted. */
 template<class v_cell>
-bool wall_cylinder::cut_cell_base(v_cell &c,double x,double y,double z) {
+bool wall_cylinder::cut_cell_base(v_cell &c,double x,double y,double z) const {
 	double xd=x-xc,yd=y-yc,zd=z-zc,pa=(xd*xa+yd*ya+zd*za)*asi;
 	xd-=xa*pa;yd-=ya*pa;zd-=za*pa;
 	pa=xd*xd+yd*yd+zd*zd;
@@ -88,7 +88,7 @@ bool wall_cylinder::cut_cell_base(v_cell &c,double x,double y,double z) {
 /** Tests to see whether a point is inside the cone wall object.
  * \param[in] (x,y,z) the vector to test.
  * \return True if the point is inside, false if the point is outside. */
-bool wall_cone::point_inside(double x,double y,double z) {
+bool wall_cone::point_inside(double x,double y,double z) const {
 	double xd=x-xc,yd=y-yc,zd=z-zc,pa=(xd*xa+yd*ya+zd*za)*asi;
 	xd-=xa*pa;yd-=ya*pa;zd-=za*pa;
 	pa*=gra;
@@ -106,7 +106,7 @@ bool wall_cone::point_inside(double x,double y,double z) {
  * \param[in] (x,y,z) the location of the Voronoi cell.
  * \return True if the cell still exists, false if the cell is deleted. */
 template<class v_cell>
-bool wall_cone::cut_cell_base(v_cell &c,double x,double y,double z) {
+bool wall_cone::cut_cell_base(v_cell &c,double x,double y,double z) const {
 	double xd=x-xc,yd=y-yc,zd=z-zc,xf,yf,zf,q,pa=(xd*xa+yd*ya+zd*za)*asi;
 	xd-=xa*pa;yd-=ya*pa;zd-=za*pa;
 	pa=xd*xd+yd*yd+zd*zd;
@@ -123,13 +123,13 @@ bool wall_cone::cut_cell_base(v_cell &c,double x,double y,double z) {
 }
 
 // Explicit instantiation
-template bool wall_sphere::cut_cell_base(voronoicell&,double,double,double);
-template bool wall_sphere::cut_cell_base(voronoicell_neighbor&,double,double,double);
-template bool wall_plane::cut_cell_base(voronoicell&,double,double,double);
-template bool wall_plane::cut_cell_base(voronoicell_neighbor&,double,double,double);
-template bool wall_cylinder::cut_cell_base(voronoicell&,double,double,double);
-template bool wall_cylinder::cut_cell_base(voronoicell_neighbor&,double,double,double);
-template bool wall_cone::cut_cell_base(voronoicell&,double,double,double);
-template bool wall_cone::cut_cell_base(voronoicell_neighbor&,double,double,double);
+template bool wall_sphere::cut_cell_base(voronoicell&,double,double,double) const;
+template bool wall_sphere::cut_cell_base(voronoicell_neighbor&,double,double,double) const;
+template bool wall_plane::cut_cell_base(voronoicell&,double,double,double) const;
+template bool wall_plane::cut_cell_base(voronoicell_neighbor&,double,double,double) const;
+template bool wall_cylinder::cut_cell_base(voronoicell&,double,double,double) const;
+template bool wall_cylinder::cut_cell_base(voronoicell_neighbor&,double,double,double) const;
+template bool wall_cone::cut_cell_base(voronoicell&,double,double,double) const;
+template bool wall_cone::cut_cell_base(voronoicell_neighbor&,double,double,double) const;
 
 }

@@ -28,6 +28,7 @@ class VORONOI_API FVoronoiDiagram
 public:
 	// we typically add extra space to the bounds of the Voronoi diagram, to avoid numerical issues of a Voronoi site being on the boundary
 	const static float DefaultBoundingBoxSlack;
+	const static int MinDefaultSitesPerThread;
 
 	/**
 	 * @param Sites							Voronoi sites for the diagram
@@ -42,7 +43,6 @@ public:
 	* @param ExtraBoundingSpace				Voronoi diagram will be computed within the input Bounds + this amount of extra space in each dimension
 	* @param SquaredDistSkipPtThreshold		A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added.
 	*										(If you know there will be no duplicate sites, can set to zero for faster perf.)
-	*
 	*/
 	FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold = KINDA_SMALL_NUMBER);
 	~FVoronoiDiagram();
@@ -54,12 +54,29 @@ public:
 
 	void AddSites(const TArrayView<const FVector>& Sites, float SquaredDistSkipPtThreshold = 0.0f);
 
-	void ComputeAllCells(TArray<FVoronoiCellInfo> &AllCells);
+	void ComputeAllCellsSerial(TArray<FVoronoiCellInfo>& AllCells);
+	void ComputeAllCells(TArray<FVoronoiCellInfo>& AllCells, int32 ApproxSitesPerThread = -1);
+
+	void ComputeCellEdgesSerial(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember);
+	void ComputeCellEdges(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, int32 ApproxSitesPerThread = -1);
 
 	/**
 	 * Find the id of the Voronoi cell containing the given position (or -1 if position is outside diagram)
+	 * TODO: expose a "compute" parameter to store cached state across calls to this function, and un-comment it back
 	 */
-	int32 FindCell(const FVector& Pos);
+	//int32 FindCell(const FVector& Pos);
+
+	int32 ApproxSitesPerThreadWithDefault(int32 ApproxSitesPerThreadIn)
+	{
+		if (ApproxSitesPerThreadIn < 0)
+		{
+			return FMath::Max(MinDefaultSitesPerThread, NumSites / 64);
+		}
+		return ApproxSitesPerThreadIn;
+	}
+
+private:
+	TArray<int32> GetParallelBlockRanges(int32 ApproxSitesPerThread);
 };
 
 

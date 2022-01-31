@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Voronoi/Voronoi.h"
 
+#include "Async/ParallelFor.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "voro++/voro++.hh"
@@ -44,6 +45,7 @@ namespace {
 	int32 PutSitesWithDistanceCheck(voro::container *Container, const TArrayView<const FVector>& Sites, int32 Offset, float SquaredDistThreshold = 1e-4)
 	{
 		int32 SkippedPts = 0;
+		voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
 		for (int i = 0; i < Sites.Num(); i++)
 		{
 			const FVector &V = Sites[i];
@@ -56,7 +58,7 @@ namespace {
 			{
 				double EX, EY, EZ;
 				int ExistingPtID;
-				if (Container->find_voronoi_cell(V.X, V.Y, V.Z, EX, EY, EZ, ExistingPtID))
+				if (Container->find_voronoi_cell(V.X, V.Y, V.Z, EX, EY, EZ, ExistingPtID, VoroCompute))
 				{
 					float dx = V.X - EX;
 					float dy = V.Y - EY;
@@ -109,6 +111,7 @@ namespace {
 
 FVoronoiDiagram::~FVoronoiDiagram() = default;
 
+// TODO: ExtraBoundingSpace unused
 FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
 {
 	FBox BoundingBox = SafeInitBounds(Sites);
@@ -117,6 +120,7 @@ FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, float E
 	NumSites = Sites.Num();
 }
 
+// TODO: ExtraBoundingSpace unused
 FVoronoiDiagram::FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, float ExtraBoundingSpace, float SquaredDistSkipPtThreshold) : NumSites(0), Container(nullptr)
 {
 	FBox BoundingBox(Bounds);
@@ -136,13 +140,14 @@ bool VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>
 	Neighbors.Empty(NumSites);
 	Neighbors.SetNum(NumSites, true);
 
+	voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
 	voro::c_loop_all CellIterator(*Container);
 	voro::voronoicell_neighbor cell;
 	if (CellIterator.start())
 	{
 		do
 		{
-			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator);
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
 			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
 			if (bCouldComputeCell)
 			{
@@ -156,61 +161,14 @@ bool VoronoiNeighbors(const TArrayView<const FVector> &Sites, TArray<TArray<int>
 	return true;
 }
 
-bool GetVoronoiEdges(const TArrayView<const FVector> &Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>> &Edges, TArray<int32> &CellMember, float SquaredDistSkipPtThreshold)
+bool GetVoronoiEdges(const TArrayView<const FVector>& Sites, const FBox& Bounds, TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, float SquaredDistSkipPtThreshold)
 {
 	int32 NumSites = Sites.Num();
 	FBox BoundingBox(Bounds);
-	auto Container = StandardVoroContainerInit(Sites, BoundingBox, FVoronoiDiagram::DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
-
-	voro::container &con = *Container;
-	voro::c_loop_all CellIterator(con);
-	voro::voronoicell cell;
-
-	int32 id = 0;
-
-	std::vector<double> Vertices;
-	std::vector<int> FaceVertices;
-
-	if (CellIterator.start())
-	{
-		do
-		{
-			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator);
-			if (bCouldComputeCell)
-			{
-				const double *pp = con.p[CellIterator.ijk] + con.ps * CellIterator.q;
-				const FVector Center(*pp, pp[1], pp[2]);
-				
-				cell.vertices(Center.X, Center.Y, Center.Z, Vertices);
-				cell.face_vertices(FaceVertices);
-
-				int32 FaceOffset = 0;
-				for (size_t ii = 0, ni = FaceVertices.size(); ii < ni; ii += FaceVertices[ii] + 1)
-				{
-					int32 VertCount = FaceVertices[ii];
-					int32 PreviousVertexIndex = FaceVertices[FaceOffset + VertCount] * 3;
-					for (int32 kk = 0; kk < VertCount; ++kk)
-					{
-						CellMember.Emplace(id);
-						int32 VertexIndex = FaceVertices[1 + FaceOffset + kk] * 3; // Index of vertex X coordinate in raw coordinates array
-
-						Edges.Emplace(
-							FVector(Vertices[PreviousVertexIndex], Vertices[PreviousVertexIndex + 1], Vertices[PreviousVertexIndex + 2]),
-							FVector(Vertices[VertexIndex], Vertices[VertexIndex + 1], Vertices[VertexIndex + 2])
-						);
-						PreviousVertexIndex = VertexIndex;
-					}
-					FaceOffset += VertCount + 1;
-				}
-
-				++id;
-			}
-		} while (CellIterator.inc());
-	}
+	FVoronoiDiagram Diagram(Sites, Bounds, FVoronoiDiagram::DefaultBoundingBoxSlack, SquaredDistSkipPtThreshold);
+	Diagram.ComputeCellEdges(Edges, CellMember, Diagram.ApproxSitesPerThreadWithDefault(-1));
 	return true;
 }
-
-
 
 
 // TODO: maybe make this a "SetSites" instead of an Add?
@@ -228,21 +186,21 @@ void FVoronoiDiagram::AddSites(const TArrayView<const FVector>& AddSites, float 
 	NumSites += AddSites.Num();
 }
 
-void FVoronoiDiagram::ComputeAllCells(TArray<FVoronoiCellInfo> &AllCells)
+void FVoronoiDiagram::ComputeAllCellsSerial(TArray<FVoronoiCellInfo>& AllCells)
 {
 	check(Container);
+	voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
 
 	AllCells.SetNum(NumSites);
 
 	voro::c_loop_all CellIterator(*Container);
 	voro::voronoicell_neighbor cell;
 
-	// TODO: multithread?
 	if (CellIterator.start())
 	{
 		do
 		{
-			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator);
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
 			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
 			if (bCouldComputeCell)
 			{
@@ -257,19 +215,220 @@ void FVoronoiDiagram::ComputeAllCells(TArray<FVoronoiCellInfo> &AllCells)
 	}
 }
 
-int32 FVoronoiDiagram::FindCell(const FVector& Pos)
+TArray<int32> FVoronoiDiagram::GetParallelBlockRanges(int32 ApproxSitesPerThread)
 {
-	check(Container);
-	double rx, ry, rz; // holds position of the found Voronoi site (if any); currently unused
-	int pid;
-	bool found = Container->find_voronoi_cell(Pos.X, Pos.Y, Pos.Z, rx, ry, rz, pid);
-	return found ? pid : -1;
+	TArray<int32> BlockBounds;
+
+	ApproxSitesPerThread = ApproxSitesPerThreadWithDefault(ApproxSitesPerThread);
+	if (ApproxSitesPerThread >= NumSites * 1.5)
+	{
+		BlockBounds.Add(0); // just single-thread; put everything in a single chunk
+		BlockBounds.Add(Container->nxyz);
+		return BlockBounds;
+	}
+
+	BlockBounds.Reserve(2 + NumSites / ApproxSitesPerThread);
+	BlockBounds.Add(0);
+	int32 AccumSites = 0;
+	for (int32 ijk = 0; ijk < Container->nxyz; ijk++)
+	{
+		if (AccumSites >= ApproxSitesPerThread)
+		{
+			BlockBounds.Add(ijk);
+			AccumSites = 0;
+		}
+		AccumSites += Container->co[ijk];
+	}
+	// final bound should cover the full container, either by extending the existing final bound to cover it or creating a new final bound
+	if (AccumSites < ApproxSitesPerThread * .5)
+	{
+		BlockBounds.Last() = Container->nxyz;
+	}
+	else // enough sites to merit a separate 'thread'
+	{
+		BlockBounds.Add(Container->nxyz);
+	}
+	return BlockBounds;
 }
 
-//void FVoronoiDiagram::GetCells(const TArrayView<const FVector> &Sites, TArray<FVoronoiCellInfo> &AllCells)
+void FVoronoiDiagram::ComputeAllCells(TArray<FVoronoiCellInfo>& AllCells, int32 ApproxSitesPerThread)
+{
+	check(Container);
+
+	TArray<int32> ChunkBounds = GetParallelBlockRanges(ApproxSitesPerThread);
+	if (ChunkBounds.Num() < 3)
+	{
+		ComputeAllCellsSerial(AllCells);
+		return;
+	}
+
+	AllCells.SetNum(NumSites);
+
+	ParallelFor(ChunkBounds.Num() - 1, [&](int ChunkIdx)
+	{
+		voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
+		voro::c_loop_block_range CellIterator(*Container);
+		CellIterator.setup_range(ChunkBounds[ChunkIdx], ChunkBounds[ChunkIdx + 1]);
+		voro::voronoicell_neighbor cell;
+		if (!CellIterator.start())
+		{
+			return;
+		}
+		do
+		{
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
+			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
+			if (bCouldComputeCell)
+			{
+				int32 id = CellIterator.pid();
+				double x, y, z;
+				CellIterator.pos(x, y, z);
+
+				FVoronoiCellInfo& Cell = AllCells[id];
+				check(Cell.Faces.Num() == 0); // TODO RM
+				cell.extractCellInfo(FVector(x,y,z), Cell.Vertices, Cell.Faces, Cell.Neighbors, Cell.Normals);
+			}
+		} while (CellIterator.inc());
+	});
+}
+
+void FVoronoiDiagram::ComputeCellEdgesSerial(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember)
+{
+	check(Container);
+
+	TArray<FVector> Vertices;
+	TArray<int32> FacesVertices;
+
+	voro::c_loop_all CellIterator(*Container);
+	voro::voronoicell cell;
+	voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
+
+	if (CellIterator.start())
+	{
+		if (!CellIterator.start())
+		{
+			return;
+		}
+		do
+		{
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
+			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
+			if (bCouldComputeCell)
+			{
+				int32 ID = CellIterator.pid();
+				double X, Y, Z;
+				CellIterator.pos(X, Y, Z);
+				cell.extractCellInfo(FVector(X, Y, Z), Vertices, FacesVertices);
+
+				int32 FaceOffset = 0;
+				for (size_t ii = 0, ni = FacesVertices.Num(); ii < ni; ii += FacesVertices[ii] + 1)
+				{
+					int32 VertCount = FacesVertices[ii];
+					int32 PreviousVertexIndex = FacesVertices[FaceOffset + VertCount];
+					for (int32 kk = 0; kk < VertCount; ++kk)
+					{
+						CellMember.Emplace(ID);
+						int32 VertexIndex = FacesVertices[1 + FaceOffset + kk]; // Index of vertex X coordinate in raw coordinates array
+
+						Edges.Emplace(Vertices[PreviousVertexIndex], Vertices[VertexIndex]);
+						PreviousVertexIndex = VertexIndex;
+					}
+					FaceOffset += VertCount + 1;
+				}
+			}
+		} while (CellIterator.inc());
+	}
+}
+
+void FVoronoiDiagram::ComputeCellEdges(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, int32 ApproxSitesPerThread)
+{
+	check(Container);
+
+	TArray<int32> ChunkBounds = GetParallelBlockRanges(ApproxSitesPerThread);
+
+	if (ChunkBounds.Num() < 3)
+	{
+		ComputeCellEdgesSerial(Edges, CellMember);
+		return;
+	}
+
+	struct FChunkOutput
+	{
+		TArray<TTuple<FVector, FVector>> Edges;
+		TArray<int32> CellMember;
+	};
+	TArray<FChunkOutput> ChunkOutputs;
+	ChunkOutputs.SetNum(ChunkBounds.Num() - 1);
+
+	ParallelFor(ChunkBounds.Num() - 1, [this, &ChunkOutputs, &ChunkBounds](int ChunkIdx)
+	{
+		FChunkOutput& Chunk = ChunkOutputs[ChunkIdx];
+		TArray<FVector> Vertices;
+		TArray<int32> FacesVertices;
+
+		voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
+		voro::c_loop_block_range CellIterator(*Container);
+		CellIterator.setup_range(ChunkBounds[ChunkIdx], ChunkBounds[ChunkIdx + 1]);
+		voro::voronoicell cell;
+		if (!CellIterator.start())
+		{
+			return;
+		}
+		do
+		{
+			bool bCouldComputeCell = Container->compute_cell(cell, CellIterator, VoroCompute);
+			ensureMsgf(bCouldComputeCell, TEXT("Failed to compute a Voronoi cell -- this may indicate sites positioned directly on top of other sites, which is not valid for a Voronoi diagram"));
+			if (bCouldComputeCell)
+			{
+				int32 ID = CellIterator.pid();
+				double X, Y, Z;
+				CellIterator.pos(X, Y, Z);
+				cell.extractCellInfo(FVector(X, Y, Z), Vertices, FacesVertices);
+
+				int32 FaceOffset = 0;
+				for (size_t ii = 0, ni = FacesVertices.Num(); ii < ni; ii += FacesVertices[ii] + 1)
+				{
+					int32 VertCount = FacesVertices[ii];
+					int32 PreviousVertexIndex = FacesVertices[FaceOffset + VertCount];
+					for (int32 kk = 0; kk < VertCount; ++kk)
+					{
+						Chunk.CellMember.Emplace(ID);
+						int32 VertexIndex = FacesVertices[1 + FaceOffset + kk]; // Index of vertex X coordinate in raw coordinates array
+
+						Chunk.Edges.Emplace(Vertices[PreviousVertexIndex], Vertices[VertexIndex]);
+						PreviousVertexIndex = VertexIndex;
+					}
+					FaceOffset += VertCount + 1;
+				}
+			}
+		} while (CellIterator.inc());
+	});
+
+	int ToReserve = 0;
+	for (const FChunkOutput& Chunk : ChunkOutputs)
+	{
+		ToReserve += Chunk.Edges.Num();
+	}
+	Edges.Reset(ToReserve);
+	CellMember.Reset(ToReserve);
+
+	for (const FChunkOutput& Chunk : ChunkOutputs)
+	{
+		Edges.Append(Chunk.Edges);
+		CellMember.Append(Chunk.CellMember);
+	}
+}
+
+//// TODO: expose separate compute data as something we can pass into this fn, and uncomment it
+//int32 FVoronoiDiagram::FindCell(const FVector& Pos)
 //{
-//	FVoronoiDiagram Voronoi(Sites, FVoronoiDiagram::DefaultBoundingBoxSlack);
-//	Voronoi.ComputeAllCells(AllCells);
+//	check(Container);
+//	voro::voro_compute<voro::container> VoroCompute = Container->make_compute();
+//	double rx, ry, rz; // holds position of the found Voronoi site (if any); currently unused
+//	int pid;
+//	bool found = Container->find_voronoi_cell(Pos.X, Pos.Y, Pos.Z, rx, ry, rz, pid, VoroCompute);
+//	return found ? pid : -1;
 //}
 
 const float FVoronoiDiagram::DefaultBoundingBoxSlack = .1f;
+const int FVoronoiDiagram::MinDefaultSitesPerThread = 150;

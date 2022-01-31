@@ -100,7 +100,7 @@ void voro_base::compute_minimum(double &minr,double &xlo,double &xhi,double &ylo
  * whether neighbor information is required or not.
  * \param[in] format the format string to check.
  * \return True if a "%n" is found, false otherwise. */
-bool voro_base::contains_neighbor(const char *format) {
+bool voro_base::contains_neighbor(const char *format) const {
 	char *fmp=(const_cast<char*>(format));
 
 	// Check to see if "%n" appears in the format sequence
