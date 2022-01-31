@@ -168,7 +168,7 @@ FTextureResource* UMediaTexture::CreateResource()
 		}
 	}
 
-	Filter = (EnableGenMips && (TextureNumMips > 1)) ? TF_Trilinear : TF_Bilinear;
+	Filter = (TextureNumMips > 1) ? TF_Trilinear : TF_Bilinear;
 
 	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, EnableGenMips, NumMips);
 }
@@ -436,7 +436,7 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	}
 
 	// update filter state, responding to mips setting
-	Filter = (EnableGenMips && (TextureNumMips > 1)) ? TF_Trilinear : TF_Bilinear;
+	Filter = (TextureNumMips > 1) ? TF_Trilinear : TF_Bilinear;
 
 	// setup render parameters
 	RenderParams.CanClear = AutoClear;

@@ -575,7 +575,7 @@ uint32 FMediaTextureResource::GetSizeY() const
 
 void FMediaTextureResource::SetupSampler()
 {
-	ESamplerFilter OwnerFilter = bEnableGenMips ? (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(&Owner) : SF_Bilinear;
+	ESamplerFilter OwnerFilter = (CurrentNumMips > 1) ? (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(&Owner) : SF_Bilinear;
 
 	if (CurrentSamplerFilter != OwnerFilter)
 	{
