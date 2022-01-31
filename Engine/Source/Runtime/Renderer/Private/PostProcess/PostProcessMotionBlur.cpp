@@ -51,7 +51,7 @@ namespace
 	TAutoConsoleVariable<int32> CVarMotionBlurHalfResGather(
 		TEXT("r.MotionBlur.HalfResGather"), 1,
 		TEXT("Whether to do motion blur filter dynamically at half res under heavy motion."),
-		ECVF_RenderThreadSafe);
+		ECVF_Scalability | ECVF_RenderThreadSafe);
 
 	TAutoConsoleVariable<int32> CVarMotionBlurAllowExternalVelocityFlatten(
 		TEXT("r.MotionBlur.AllowExternalVelocityFlatten"), 1,
