@@ -922,6 +922,10 @@ void UAnimGraphNode_Base::AutowireNewNode(UEdGraphPin* FromPin)
 			ensure(GetSchema()->TryCreateConnection(FromPin, PinToConnectTo));
 		}
 	}
+	else
+	{
+		UK2Node::AutowireNewNode(FromPin);
+	}
 }
 
 TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPropertyBindingWidgetArgs& InArgs)
