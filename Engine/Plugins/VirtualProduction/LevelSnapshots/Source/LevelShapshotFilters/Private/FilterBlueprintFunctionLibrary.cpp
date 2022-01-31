@@ -7,7 +7,7 @@
 
 ULevelSnapshotFilter* UFilterBlueprintFunctionLibrary::CreateFilterByClass(const TSubclassOf<ULevelSnapshotFilter>& Class, FName Name, UObject* Outer)
 {
-	if (IsValid(Outer))
+	if (!IsValid(Outer))
 	{
 		Outer = GetTransientPackage();
 	}
