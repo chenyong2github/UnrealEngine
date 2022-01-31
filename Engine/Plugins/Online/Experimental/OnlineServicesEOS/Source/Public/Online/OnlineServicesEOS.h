@@ -3,7 +3,10 @@
 #pragma once
 
 #include "Online/OnlineServicesCommon.h"
+
+#if WITH_ENGINE
 #include "SocketSubsystemEOS.h"
+#endif
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
@@ -16,6 +19,7 @@ namespace UE::Online {
 
 class FOnlineServicesEOS;
 
+#if WITH_ENGINE
 class FSocketSubsystemEOSUtils_OnlineServicesEOS : public ISocketSubsystemEOSUtils
 {
 public:
@@ -28,6 +32,7 @@ public:
 private:
 	FOnlineServicesEOS* ServicesEOS;
 };
+#endif
 
 class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesCommon
 {
@@ -45,7 +50,9 @@ public:
 protected:
 	IEOSPlatformHandlePtr EOSPlatformHandle;
 
+#if WITH_ENGINE
 	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
+#endif
 };
 
 /* UE::Online */ }

@@ -13,12 +13,15 @@
 #include "Online/OnlineIdEOS.h"
 #include "Online/PresenceEOS.h"
 #include "Online/ExternalUIEOS.h"
+
+#if WITH_ENGINE
 #include "InternetAddrEOS.h"
-#include "Engine/EngineBaseTypes.h"
 #include "NetDriverEOS.h"
+#endif
 
 namespace UE::Online {
 
+#if WITH_ENGINE
 FSocketSubsystemEOSUtils_OnlineServicesEOS::FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOS* InServicesEOS)
 	: ServicesEOS(InServicesEOS)
 {
@@ -107,6 +110,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 
 	return Result;
 }
+#endif
 
 struct FEOSPlatformConfig
 {
@@ -189,6 +193,7 @@ void FOnlineServicesEOS::Initialize()
 	EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	if (EOSPlatformHandle)
 	{
+#if WITH_ENGINE
 		SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineServicesEOS(this))));
 		if (SocketSubsystem)
 		{
@@ -198,6 +203,7 @@ void FOnlineServicesEOS::Initialize()
 				UE_LOG(LogOnlineServices, Verbose, TEXT("[FOnlineServicesEOS::Initialize] Unable to initialize Socket Subsystem. Error=[%s]"), *ErrorStr);
 			}
 		}
+#endif
 	}
 	else
 	{
@@ -219,10 +225,14 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOS::GetResolvedConnectS
 		{
 			if (Lobby->LobbyId == Params.LobbyId)
 			{
-				//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
-				FString NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName.ToString();
-				FInternetAddrEOS TempAddr(GetProductUserIdChecked(Lobby->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
-				return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
+#if WITH_ENGINE
+ 				//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
+ 				FString NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName.ToString();
+ 				FInternetAddrEOS TempAddr(GetProductUserIdChecked(Lobby->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
+ 				return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
+#else
+				return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
+#endif
 			}
 		}
 		// No matching lobby

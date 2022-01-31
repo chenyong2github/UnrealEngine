@@ -6,7 +6,7 @@ using System.IO;
 public class OnlineServicesEOS : ModuleRules
 {
 	public OnlineServicesEOS(ReadOnlyTargetRules Target) : base(Target)
-    {
+	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -20,11 +20,19 @@ public class OnlineServicesEOS : ModuleRules
 				"CoreOnline",
 				"CoreUObject",
 				"EOSSDK",
-				"EOSShared",
-				"Sockets",
-				"SocketSubsystemEOS",
-				"Engine"
+				"EOSShared"
 			}
 		);
+
+		if (Target.bCompileAgainstEngine)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"SocketSubsystemEOS",
+					"Sockets"
+				}
+			);
+		}
 	}
 }
