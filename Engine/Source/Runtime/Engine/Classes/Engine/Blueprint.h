@@ -180,6 +180,9 @@ public:
 	/** Whether or not to use Delta Serialization when copying unrelated objects */
 	bool bUseDeltaSerializationDuringReinstancing;
 
+	/** Whether or not to skip new variable defaults detection */
+	bool bSkipNewVariableDefaultsDetection;
+
 	TSharedPtr<FString> OutHeaderSourceCode;
 	TSharedPtr<FString> OutCppSourceCode;
 

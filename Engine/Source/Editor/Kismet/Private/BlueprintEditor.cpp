@@ -3865,7 +3865,7 @@ void FBlueprintEditor::Compile()
 
 		if (bIsReparentingBlueprint)
 		{
-			CompileOptions |= EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing;
+			CompileOptions |= (EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing | EBlueprintCompileOptions::SkipNewVariableDefaultsDetection);
 		}
 
 		FKismetEditorUtilities::CompileBlueprint(BlueprintObj, CompileOptions, &LogResults);

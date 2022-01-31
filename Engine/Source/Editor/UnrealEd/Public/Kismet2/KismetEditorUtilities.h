@@ -56,6 +56,8 @@ enum class EBlueprintCompileOptions
 	SkipFiBSearchMetaUpdate = 0x200,
 	/** Allow the delta serialization during FBlueprintCompileReinstancer::CopyPropertiesForUnrelatedObjects */
 	UseDeltaSerializationDuringReinstancing = 0x400,
+	/** Skips the new variable defaults detection - in some cases we do not want to use the defaults from the generated class such as during a reparent */
+	SkipNewVariableDefaultsDetection = 0x800,
 };
 
 ENUM_CLASS_FLAGS(EBlueprintCompileOptions)

@@ -413,6 +413,7 @@ struct FCompilerData
 		InternalOptions.bSkipDefaultObjectValidation = (UserOptions & EBlueprintCompileOptions::SkipDefaultObjectValidation) != EBlueprintCompileOptions::None;
 		InternalOptions.bSkipFiBSearchMetaUpdate = (UserOptions & EBlueprintCompileOptions::SkipFiBSearchMetaUpdate) != EBlueprintCompileOptions::None;
 		InternalOptions.bUseDeltaSerializationDuringReinstancing = (UserOptions & EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing) != EBlueprintCompileOptions::None;
+		InternalOptions.bSkipNewVariableDefaultsDetection = (UserOptions & EBlueprintCompileOptions::SkipNewVariableDefaultsDetection) != EBlueprintCompileOptions::None;
 		InternalOptions.CompileType = bBytecodeOnly ? EKismetCompileType::BytecodeOnly : EKismetCompileType::Full;
 
 		Compiler = FKismetCompilerContext::GetCompilerForBP(BP, *ActiveResultsLog, InternalOptions);
@@ -434,7 +435,8 @@ struct FCompilerData
 	bool ShouldValidateClassDefaultObject() const { return JobType == ECompilationManagerJobType::Normal && !InternalOptions.bSkipDefaultObjectValidation; }
 	bool ShouldUpdateBlueprintSearchMetadata() const { return JobType == ECompilationManagerJobType::Normal && !InternalOptions.bSkipFiBSearchMetaUpdate; }
 	bool UseDeltaSerializationDuringReinstancing() const { return InternalOptions.bUseDeltaSerializationDuringReinstancing; }
-
+	bool ShouldSkipNewVariableDefaultsDetection() const { return InternalOptions.bSkipNewVariableDefaultsDetection; }
+	
 	UBlueprint* BP;
 	FCompilerResultsLog* ActiveResultsLog;
 	TUniquePtr<FCompilerResultsLog> ResultsLog;
@@ -1081,7 +1083,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			{
 				if (CompilerData.JobType == ECompilationManagerJobType::Normal &&
 					 CompilerData.BP->bHasBeenRegenerated &&		// Note: This ensures that we'll only do this after the Blueprint has been loaded/created; otherwise the class may not contain any properties to find.
-					 CompilerData.BP->GeneratedClass)
+					 CompilerData.BP->GeneratedClass &&
+					 !CompilerData.ShouldSkipNewVariableDefaultsDetection())
 				{
 					const UClass* ParentClass = CompilerData.BP->ParentClass;
 					while (const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(ParentClass))
