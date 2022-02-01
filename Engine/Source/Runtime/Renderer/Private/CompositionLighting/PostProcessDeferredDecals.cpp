@@ -9,6 +9,7 @@
 #include "RendererUtils.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
+#include "VelocityRendering.h"
 #include "VisualizeTexture.h"
 
 static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
@@ -44,11 +45,8 @@ static TAutoConsoleVariable<bool> CVarDBufferDecalNormalReprojectionEnabled(
 	TEXT("r.Decal.NormalReprojectionEnabled"),
 	true, 
 	TEXT("If true, normal reprojection from the previous frame is allowed in SceneTexture nodes on DBuffer decals, provided that motion ")
-	TEXT("in depth prepass is enabled as well (r.DepthPassMergedWithVelocity). Otherwise the fallback is the normal extracted from the depth buffer."),
+	TEXT("in depth prepass is enabled as well (r.VelocityOutputPass=0). Otherwise the fallback is the normal extracted from the depth buffer."),
 	ECVF_RenderThreadSafe);
-
-// This is a temporary extern while testing the Velocity changes. Will be removed once a decision is made.
-extern bool IsVelocityMergedWithDepthPass();
 
 bool IsDBufferEnabled(const FSceneViewFamily& ViewFamily, EShaderPlatform ShaderPlatform)
 {
@@ -167,7 +165,7 @@ void GetDeferredDecalPassParameters(
 
 TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuffer(const FViewInfo& View)
 {
-	bool bIsMotionInDepth = IsVelocityMergedWithDepthPass();
+	bool bIsMotionInDepth = FVelocityRendering::DepthPassCanOutputVelocity();
 	// if we have early motion vectors (bIsMotionInDepth) and the cvar is enabled and we actually have a buffer from the previous frame (View.PrevViewInfo.GBufferA.IsValid())
 	bool bIsNormalReprojectionEnabled = (bIsMotionInDepth && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread() && View.PrevViewInfo.GBufferA.IsValid());
 
@@ -566,7 +564,7 @@ void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, const FSc
 	static auto CVarNormalReprojectionEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Decal.NormalReprojectionEnabled"));
 
 	// save the previous frame if early motion vectors are enabled and normal reprojection is enabled, so there should be no cost if these options are off
-	bool bApplyReproject = IsVelocityMergedWithDepthPass() && CVarNormalReprojectionEnabled && CVarNormalReprojectionEnabled->GetInt() > 0;
+	bool bApplyReproject = FVelocityRendering::DepthPassCanOutputVelocity() && CVarNormalReprojectionEnabled && CVarNormalReprojectionEnabled->GetInt() > 0;
 
 	if (bApplyReproject)
 	{

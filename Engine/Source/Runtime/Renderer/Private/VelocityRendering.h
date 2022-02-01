@@ -32,11 +32,17 @@ EMeshPass::Type GetMeshPassFromVelocityPass(EVelocityPass VelocityPass);
 // Group Velocity Rendering accessors, types, etc.
 struct FVelocityRendering
 {
+	/** Returns the texture format for the velocity buffer. */
 	static EPixelFormat GetFormat(EShaderPlatform ShaderPlatform);
+	
+	/** Returns the render target description for the velocity buffer. */
 	static FRDGTextureDesc GetRenderTargetDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent);
 
-	/** Returns true if the separate velocity pass is enabled. */
-	static bool IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform);
+	/** Returns true if a velocity pass is supported. */
+	static bool IsVelocityPassSupported(EShaderPlatform ShaderPlatform);
+
+	/** Returns true if the velocity can be output during depth pass. */
+	static bool DepthPassCanOutputVelocity();
 
 	/** Returns true if the velocity can be output in the BasePass. */
 	static bool BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform);
@@ -46,6 +52,12 @@ struct FVelocityRendering
 
 	/** Returns true if a separate velocity pass is required (i.e. not rendered by the base pass) given the provided vertex factory settings. */
 	static bool IsSeparateVelocityPassRequiredByVertexFactory(EShaderPlatform ShaderPlatform, bool bVertexFactoryUsesStaticLighting);
+
+	/** Returns true if the velocity pass is using parallel dispatch. */
+	static bool IsParallelVelocity(EShaderPlatform ShaderPlatform);
+
+	/** Returns true if we wait for outstanding tasks in velocity pass. */
+	static bool IsVelocityWaitForTasksEnabled(EShaderPlatform ShaderPlatform);
 };
 
 /**

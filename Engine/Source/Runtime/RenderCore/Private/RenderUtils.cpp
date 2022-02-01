@@ -1281,8 +1281,8 @@ RENDERCORE_API void RenderUtilsInit()
 		GDBufferPlatformMask = ~0ull;
 	}
 
-	static IConsoleVariable* BasePassVelocityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
-	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
+	static IConsoleVariable* VelocityPassCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
+	if (VelocityPassCVar && VelocityPassCVar->GetInt() == 1)
 	{
 		GBasePassVelocityPlatformMask = ~0ull;
 	}

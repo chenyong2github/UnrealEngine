@@ -62,6 +62,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "HairStrandsInterface.h"
+#include "VelocityRendering.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
@@ -144,8 +145,6 @@ TGlobalResource< FGlobalDistanceCullFadeUniformBuffer > GDistanceCullFadedInUnif
 TGlobalResource< FGlobalDitherUniformBuffer > GDitherFadedInUniformBuffer;
 
 static FThreadSafeCounter FSceneViewState_UniqueID;
-
-extern bool IsVelocityMergedWithDepthPass();
 
 #define ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV 0
 
@@ -3777,8 +3776,8 @@ void FScene::UpdateEarlyZPassMode()
 		if (ShouldForceFullDepthPass(ShaderPlatform))
 		{
 			// DBuffer decals and stencil LOD dithering force a full prepass
-			EarlyZPassMode = IsVelocityMergedWithDepthPass() ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
-			bEarlyZPassMovable = IsVelocityMergedWithDepthPass() ? false : true;
+			EarlyZPassMode = FVelocityRendering::DepthPassCanOutputVelocity() ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
+			bEarlyZPassMovable = FVelocityRendering::DepthPassCanOutputVelocity() ? false : true;
 		}
 
 		if ((EarlyZPassMode == DDM_AllOpaque || EarlyZPassMode == DDM_AllOpaqueNoVelocity)

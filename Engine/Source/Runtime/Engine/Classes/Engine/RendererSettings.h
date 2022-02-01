@@ -79,6 +79,20 @@ namespace EEarlyZPass
 }
 
 /**
+ * Enumerates available options for early Z-passes.
+ */
+UENUM()
+namespace EVelocityOutputPass
+{
+	enum Type
+	{
+		DepthPass = 0 UMETA(DisplayName = "Write during depth pass"),
+		BasePass = 1 UMETA(DisplayName = "Write during base pass"),
+		AfterBasePass = 2 UMETA(DisplayName = "Write after base pass"),
+	};
+}
+
+/**
  * Enumerates available options for alpha channel through post processing. The renderer will always generate premultiplied RGBA
  * with alpha as translucency (0 = fully opaque; 1 = fully translucent).
  */
@@ -689,19 +703,17 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Select how the g-buffer is cleared in game mode (only affects deferred shading)."))
 	TEnumAsByte<EClearSceneOptions::Type> ClearSceneMethod;
 
-	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
-		DisplayName="Output velocities during base pass",
-		ConsoleVariable="r.BasePassOutputsVelocity",
-		ConfigRestartRequired = true,
-		ToolTip="Enables emitting velocity during Base Pass rendering. Changing this setting requires restarting the editor.\nNote: enabling this behaves as if 'Output velocities due to vertex deformation' (r.VertexDeformationOutputsVelocity) is also enabled."
-		))
-	uint32 bBasePassOutputsVelocity:1;
+	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
+		ConsoleVariable = "r.VelocityOutputPass", DisplayName = "Velocity Pass",
+		ToolTip = "When to write velocity buffer. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+	TEnumAsByte<EVelocityOutputPass::Type> VelocityPass;
 
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
 		DisplayName="Output velocities due to vertex deformation",
 		ConsoleVariable="r.VertexDeformationOutputsVelocity",
-		EditCondition = "!bBasePassOutputsVelocity",
-		ToolTip="Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees - in that case consider 'Output velocities during base pass' (r.BasePassOutputsVelocity) and disabling this option."
+		EditCondition = "VelocityPass == EVelocityOutputPass::AfterBasePass",
+		ToolTip="Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees. Instead consider outputting velocities during depth or base pass (r.VelocityOutputPass)."
 		))
 	uint32 bVertexDeformationOutputsVelocity:1;
 

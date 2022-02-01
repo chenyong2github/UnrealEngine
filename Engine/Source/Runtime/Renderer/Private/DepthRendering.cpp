@@ -69,11 +69,6 @@ static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("Forces a full prepass when enabled."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarDepthPassMergedWithVelocity(
-	TEXT("r.DepthPassMergedWithVelocity"),
-	0,
-	TEXT("If enabled, and we are doing a full depth pass, then the depth pass will ignore movable objects and the velocity pass will write depth directly after the depth pass. After the velocity pass is finished, a full opaque depth-only texture is ready."));
-
 extern bool IsHMDHiddenAreaMaskActive();
 
 FDepthPassInfo GetDepthPassInfo(const FScene* Scene)

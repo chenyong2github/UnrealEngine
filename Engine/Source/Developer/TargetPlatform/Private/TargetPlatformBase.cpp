@@ -27,8 +27,8 @@ bool FTargetPlatformBase::UsesDBuffer() const
 
 bool FTargetPlatformBase::UsesBasePassVelocity() const
 {
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
-	return CVar ? (CVar->GetInt() != 0) : false;
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
+	return CVar ? (CVar->GetInt() == 1) : false;
 }
 
 bool FTargetPlatformBase::VelocityEncodeDepth() const

@@ -22,14 +22,22 @@
 #include "VisualizeTexture.h"
 #include "MeshPassProcessor.inl"
 #include "DebugProbeRendering.h"
+#include "RendererModule.h"
 
 // Changing this causes a full shader recompile
+static TAutoConsoleVariable<int32> CVarVelocityOutputPass(
+	TEXT("r.VelocityOutputPass"),
+	0,
+	TEXT("When to write velocity buffer.\n") \
+	TEXT(" 0: Renders during the depth pass. This splits the depth pass into 2 phases: with and without velocity.\n") \
+	TEXT(" 1: Renders during the regular base pass. This adds an extra GBuffer target during base pass rendering.") \
+	TEXT(" 2: Renders after the regular base pass.\n"), \
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarBasePassOutputsVelocity(
 	TEXT("r.BasePassOutputsVelocity"),
-	1,
-	TEXT("Enables rendering WPO velocities on the base pass.\n") \
-	TEXT(" 0: Renders in a separate pass/rendertarget, all movable static meshes + dynamic.\n") \
-	TEXT(" 1: Renders during the regular base pass adding an extra GBuffer, but allowing motion blur on materials with Time-based WPO."),
+	-1,
+	TEXT("Deprecated CVar. Use r.VelocityOutputPass instead.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarParallelVelocity(
@@ -42,8 +50,9 @@ static TAutoConsoleVariable<int32> CVarParallelVelocity(
 static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
 	TEXT("r.VertexDeformationOutputsVelocity"),
 	0,
-	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. ")
-	TEXT("This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees - in that case consider r.BasePassOutputsVelocity and disabling this option."));
+	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
+	TEXT("This only has an impact if r.VelocityOutputPass=2. \n")
+	TEXT("This will incur a performance cost that can be quite significant if many objects are using WPO, such as a forest of trees."));
 
 static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksVelocityPass(
 	TEXT("r.RHICmdFlushRenderThreadTasksVelocityPass"),
@@ -52,23 +61,21 @@ static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksVelocityPass(
 
 DECLARE_GPU_STAT_NAMED(RenderVelocities, TEXT("Render Velocities"));
 
-bool IsParallelVelocity(EShaderPlatform ShaderPlatform)
+/** Validate that deprecated CVars are no longer set. */
+inline void ValidateVelocityCVars()
 {
-	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread()
-		// Parallel dispatch is not supported on mobile platform
-		&& !IsMobilePlatform(ShaderPlatform);
-}
-
-bool IsVelocityWaitForTasksEnabled(EShaderPlatform ShaderPlatform)
-{
-	return IsParallelVelocity(ShaderPlatform) && (CVarRHICmdFlushRenderThreadTasksVelocityPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
-}
-
-bool IsVelocityMergedWithDepthPass()
-{
-	static const auto CVarMergeDepth = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthPassMergedWithVelocity"));
-	bool bIsMerged = (CVarMergeDepth && CVarMergeDepth->GetValueOnAnyThread() != 0);
-	return bIsMerged;
+#if !UE_BUILD_SHIPPING
+	static bool bHasValidatedCVars = false;
+	if (!bHasValidatedCVars)
+	{
+		const int32 Value = CVarBasePassOutputsVelocity.GetValueOnAnyThread();
+		if (Value != -1)
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("Deprectaed CVar r.BasePassOutputsVelocity is set to %d. Use r.VelocityOutputPass instead."), Value);
+		}
+		bHasValidatedCVars = true;
+	}
+#endif
 }
 
 class FVelocityVS : public FMeshMaterialShader
@@ -158,7 +165,7 @@ DECLARE_CYCLE_STAT(TEXT("Velocity"), STAT_CLP_Velocity, STATGROUP_ParallelComman
 
 bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS())
+	if (!FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS())
 	{
 		return false;
 	}
@@ -191,7 +198,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 
 bool FMobileSceneRenderer::ShouldRenderVelocities() const
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS() || !PlatformSupportsVelocityRendering(ShaderPlatform))
+	if (!FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) || ViewFamily.UseDebugViewPS() || !PlatformSupportsVelocityRendering(ShaderPlatform))
 	{
 		return false;
 	}
@@ -236,7 +243,7 @@ void FSceneRenderer::RenderVelocities(
 		: ERenderTargetLoadAction::EClear;
 
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderVelocities);
-	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsVelocityWaitForTasksEnabled(ShaderPlatform));
+	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, FVelocityRendering::IsVelocityWaitForTasksEnabled(ShaderPlatform));
 
 	const EMeshPass::Type MeshPass = GetMeshPassFromVelocityPass(VelocityPass);
 	FExclusiveDepthStencil ExclusiveDepthStencil = (VelocityPass == EVelocityPass::Opaque && !(Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity))
@@ -259,7 +266,7 @@ void FSceneRenderer::RenderVelocities(
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			const bool bIsParallelVelocity = IsParallelVelocity(ShaderPlatform);
+			const bool bIsParallelVelocity = FVelocityRendering::IsParallelVelocity(ShaderPlatform);
 
 			// Clear velocity render target explicitly when velocity rendering in parallel or no draw but force to.
 			// Avoid adding a separate clear pass in non parallel rendering.
@@ -357,9 +364,17 @@ FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPl
 	return FRDGTextureDesc::Create2D(Extent, GetFormat(ShaderPlatform), FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource | FastVRamFlag);
 }
 
-bool FVelocityRendering::IsSeparateVelocityPassSupported(EShaderPlatform ShaderPlatform)
+bool FVelocityRendering::IsVelocityPassSupported(EShaderPlatform ShaderPlatform)
 {
+	ValidateVelocityCVars();
+
 	return GPixelFormats[GetFormat(ShaderPlatform)].Supported;
+}
+
+bool FVelocityRendering::DepthPassCanOutputVelocity()
+{
+	static bool bIsMerged = CVarVelocityOutputPass.GetValueOnAnyThread() == 0;
+	return bIsMerged;
 }
 
 bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform)
@@ -382,6 +397,18 @@ bool FVelocityRendering::IsSeparateVelocityPassRequiredByVertexFactory(EShaderPl
 	const bool bVertexFactoryRequiresSeparateVelocityPass = IsUsingSelectiveBasePassOutputs(ShaderPlatform) && bVertexFactoryUsesStaticLighting;
 
 	return bBasePassVelocityNotSupported || bVertexFactoryRequiresSeparateVelocityPass;
+}
+
+bool FVelocityRendering::IsParallelVelocity(EShaderPlatform ShaderPlatform)
+{
+	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread()
+		// Parallel dispatch is not supported on mobile platform
+		&& !IsMobilePlatform(ShaderPlatform);
+}
+
+bool FVelocityRendering::IsVelocityWaitForTasksEnabled(EShaderPlatform ShaderPlatform)
+{
+	return FVelocityRendering::IsParallelVelocity(ShaderPlatform) && (CVarRHICmdFlushRenderThreadTasksVelocityPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
 }
 
 bool FVelocityMeshProcessor::PrimitiveHasVelocityForView(const FViewInfo& View, const FPrimitiveSceneProxy* PrimitiveSceneProxy)
@@ -415,7 +442,7 @@ bool FVelocityMeshProcessor::PrimitiveHasVelocityForView(const FViewInfo& View, 
 
 bool FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform ShaderPlatform, const FPrimitiveSceneProxy* PrimitiveSceneProxy)
 {
-	if (!FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) || !PlatformSupportsVelocityRendering(ShaderPlatform))
+	if (!FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) || !PlatformSupportsVelocityRendering(ShaderPlatform))
 	{
 		return false;
 	}
@@ -553,7 +580,7 @@ bool FTranslucentVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform
 	 * Therefore, the primitive can't be filtered based on motion, or it will break post
 	 * effects like depth of field which rely on depth information.
 	 */
-	return FVelocityRendering::IsSeparateVelocityPassSupported(ShaderPlatform) && PlatformSupportsVelocityRendering(ShaderPlatform);
+	return FVelocityRendering::IsVelocityPassSupported(ShaderPlatform) && PlatformSupportsVelocityRendering(ShaderPlatform);
 }
 
 bool FTranslucentVelocityMeshProcessor::PrimitiveHasVelocityForFrame(const FPrimitiveSceneProxy* PrimitiveSceneProxy)
