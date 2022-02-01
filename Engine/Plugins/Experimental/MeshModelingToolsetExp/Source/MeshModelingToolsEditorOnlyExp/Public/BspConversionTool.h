@@ -19,7 +19,7 @@
  * Builder for UBspConversionTool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UBspConversionToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBspConversionToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -42,7 +42,7 @@ enum class EBspConversionMode : uint8
  * 
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UBspConversionToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBspConversionToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -91,7 +91,7 @@ enum class EBspConversionToolAction
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UBspConversionToolActionPropertySet : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBspConversionToolActionPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -124,7 +124,7 @@ public:
  *   path because boolean operations do not allow them. The user gets properly notified of this if it comes up.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UBspConversionTool : public UInteractiveTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UBspConversionTool : public UInteractiveTool
 {
 	GENERATED_BODY()
 

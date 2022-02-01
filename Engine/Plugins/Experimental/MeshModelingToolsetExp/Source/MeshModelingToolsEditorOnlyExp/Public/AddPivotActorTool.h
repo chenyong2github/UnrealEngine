@@ -16,7 +16,7 @@ class UTransformProxy;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAddPivotActorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -33,7 +33,7 @@ protected:
  * animation.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAddPivotActorTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:

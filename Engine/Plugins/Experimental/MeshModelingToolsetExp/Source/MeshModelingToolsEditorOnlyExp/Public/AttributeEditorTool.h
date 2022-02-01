@@ -18,7 +18,7 @@ class UAttributeEditorTool;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ struct FAttributeEditorAttribInfo
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorAttribProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorAttribProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -118,7 +118,7 @@ enum class EAttributeEditorToolActions
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorActionPropertySet : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorActionPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -132,7 +132,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorNormalsActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorNormalsActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -147,7 +147,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorUVActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorUVActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -194,7 +194,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorLightmapUVActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorLightmapUVActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -232,7 +232,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorNewAttributeActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorNewAttributeActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -271,7 +271,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorModifyAttributeActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorModifyAttributeActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -301,7 +301,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorCopyAttributeActions : public UAttributeEditorActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorCopyAttributeActions : public UAttributeEditorActionPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -327,7 +327,7 @@ public:
  * Mesh Attribute Editor Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAttributeEditorTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UAttributeEditorTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -406,7 +406,7 @@ protected:
 };
 
 
-class MESHMODELINGTOOLSEDITORONLY_API FAttributeEditor_AttributeListsChange : public FToolCommandChange
+class MESHMODELINGTOOLSEDITORONLYEXP_API FAttributeEditor_AttributeListsChange : public FToolCommandChange
 {
 public:
 	virtual void Apply(UObject* Object) override;

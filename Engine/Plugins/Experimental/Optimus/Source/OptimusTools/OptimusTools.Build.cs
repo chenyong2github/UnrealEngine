@@ -34,7 +34,7 @@ namespace UnrealBuildTool.Rules
 					"ModelingComponentsEditorOnly",
 					"MeshModelingTools",
 					"MeshModelingToolsExp",
-					"MeshModelingToolsEditorOnly",
+					"MeshModelingToolsEditorOnlyExp",
 					"ModelingToolsEditorMode",
 					"InteractiveToolsFramework",
 					"EditorInteractiveToolsFramework",

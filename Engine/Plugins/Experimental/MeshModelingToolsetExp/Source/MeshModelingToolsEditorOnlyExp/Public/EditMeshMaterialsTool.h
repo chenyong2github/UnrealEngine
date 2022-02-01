@@ -10,7 +10,7 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsToolBuilder : public UMeshSelectionToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UEditMeshMaterialsToolBuilder : public UMeshSelectionToolBuilder
 {
 	GENERATED_BODY()
 
@@ -24,7 +24,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UEditMeshMaterialsToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -59,7 +59,7 @@ enum class EEditMeshMaterialsToolActions
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsEditActions : public UMeshSelectionToolActionPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UEditMeshMaterialsEditActions : public UMeshSelectionToolActionPropertySet
 {
 	GENERATED_BODY()
 
@@ -82,7 +82,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsTool : public UMeshSelectionTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UEditMeshMaterialsTool : public UMeshSelectionTool
 {
 	GENERATED_BODY()
 
@@ -132,7 +132,7 @@ protected:
 
 /**
  */
-class MESHMODELINGTOOLSEDITORONLY_API FEditMeshMaterials_MaterialSetChange : public FToolCommandChange
+class MESHMODELINGTOOLSEDITORONLYEXP_API FEditMeshMaterials_MaterialSetChange : public FToolCommandChange
 {
 public:
 	TArray<UMaterialInterface*> MaterialsBefore;

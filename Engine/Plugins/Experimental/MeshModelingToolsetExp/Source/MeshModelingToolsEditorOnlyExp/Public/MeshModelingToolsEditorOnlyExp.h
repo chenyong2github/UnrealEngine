@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FMeshModelingToolsEditorOnlyModule : public IModuleInterface
+class FMeshModelingToolsEditorOnlyExpModule : public IModuleInterface
 {
 public:
 

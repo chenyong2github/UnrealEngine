@@ -20,7 +20,7 @@ class UPreviewGeometry;
  * Tool builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API USubdividePolyToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -32,7 +32,7 @@ public:
  */
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API USubdividePolyToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -71,7 +71,7 @@ public:
  * Tool actual
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USubdividePolyTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API USubdividePolyTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 

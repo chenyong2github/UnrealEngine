@@ -19,7 +19,7 @@ PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3)
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API USimplifyMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ public:
  * Standard properties of the Simplify operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshToolProperties : public UMeshConstraintProperties
+class MESHMODELINGTOOLSEDITORONLYEXP_API USimplifyMeshToolProperties : public UMeshConstraintProperties
 {
 	GENERATED_BODY()
 public:
@@ -105,7 +105,7 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API USimplifyMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLYEXP_API USimplifyMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 

@@ -31,7 +31,7 @@ class ULineSetComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UPolygonOnMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -58,7 +58,7 @@ enum class EPolygonType
  * Standard properties of the polygon-on-mesh operations
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UPolygonOnMeshToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -117,7 +117,7 @@ enum class EPolygonOnMeshToolActions
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshToolActionPropertySet : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UPolygonOnMeshToolActionPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -143,7 +143,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory, public IClickBehaviorTarget, public IHoverBehaviorTarget
+class MESHMODELINGTOOLSEDITORONLYEXP_API UPolygonOnMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 

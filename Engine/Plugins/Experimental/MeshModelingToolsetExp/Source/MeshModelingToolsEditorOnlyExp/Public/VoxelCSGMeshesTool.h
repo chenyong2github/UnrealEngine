@@ -16,7 +16,7 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -49,7 +49,7 @@ enum class EVoxelCSGOperation : uint8
  * Standard properties of the Voxel CSG operation
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -81,7 +81,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 

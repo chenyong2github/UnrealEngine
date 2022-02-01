@@ -20,7 +20,7 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshToVolumeToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -43,7 +43,7 @@ enum class EMeshToVolumeMode
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshToVolumeToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -69,7 +69,7 @@ public:
  * tool can be moved out of the editor-only section and put with VolumeToMeshTool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshToVolumeTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 

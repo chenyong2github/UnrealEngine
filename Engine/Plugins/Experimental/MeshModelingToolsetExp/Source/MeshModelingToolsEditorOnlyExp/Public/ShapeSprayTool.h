@@ -12,7 +12,7 @@
  * UMeshSurfacePointMeshEditingToolBuilder override for UShapeSprayTool
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UShapeSprayToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -25,7 +25,7 @@ public:
  * Settings UObject for UShapeSprayTool. 
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UShapeSprayToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -59,7 +59,7 @@ public:
  * be emitted as a new StaticMeshComponent on Accept.
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayTool : public UDynamicMeshBrushTool
+class MESHMODELINGTOOLSEDITORONLYEXP_API UShapeSprayTool : public UDynamicMeshBrushTool
 {
 	GENERATED_BODY()
 

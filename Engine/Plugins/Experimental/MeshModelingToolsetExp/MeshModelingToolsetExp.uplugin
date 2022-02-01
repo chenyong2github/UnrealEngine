@@ -21,7 +21,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "MeshModelingToolsEditorOnly",
+			"Name": "MeshModelingToolsEditorOnlyExp",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},

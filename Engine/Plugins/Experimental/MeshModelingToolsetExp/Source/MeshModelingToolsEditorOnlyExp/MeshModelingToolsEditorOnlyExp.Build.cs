@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class MeshModelingToolsEditorOnly : ModuleRules
+public class MeshModelingToolsEditorOnlyExp : ModuleRules
 {
-	public MeshModelingToolsEditorOnly(ReadOnlyTargetRules Target) : base(Target)
+	public MeshModelingToolsEditorOnlyExp(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		

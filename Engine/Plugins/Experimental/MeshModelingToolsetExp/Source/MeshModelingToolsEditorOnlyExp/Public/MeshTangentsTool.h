@@ -24,7 +24,7 @@ class UMaterialInstanceDynamic;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshTangentsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ protected:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshTangentsToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -89,7 +89,7 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
+class MESHMODELINGTOOLSEDITORONLYEXP_API UMeshTangentsTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
 {
 	GENERATED_BODY()
 public:
