@@ -44,15 +44,6 @@ export class Api {
     this.send(res, UnrealEngine.getView(req.query.preset?.toString()));
   }
 
-  @Get('assets/search')
-  private search(req: Request, res: Response) {
-    const prefix = req.query.prefix?.toString() || '/Game';
-    const query = req.query.q?.toString() ?? '';
-    const count = parseInt(req.query.count?.toString()) || 50;
-    const types = req.query.types?.toString().split(',') ?? [];
-    this.send(res, UnrealEngine.search(query, types, prefix, count));
-  }
-
   @Put('proxy')
   private proxy(req: Request, res: Response) {
     this.send(res, UnrealEngine.proxy(req.body?.method, req.body?.url, req.body?.body));

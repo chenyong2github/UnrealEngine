@@ -16,7 +16,8 @@ export namespace Notify {
         .on('value', UnrealEngine.setPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
         .on('metadata', UnrealEngine.setPresetPropertyMetadata)
-        .on('rebind', UnrealEngine.rebindProperties);
+        .on('rebind', UnrealEngine.rebindProperties)
+        .on('search', UnrealEngine.search);
 
       if (UnrealEngine.isConnected())
         socket.emit('connected', true);

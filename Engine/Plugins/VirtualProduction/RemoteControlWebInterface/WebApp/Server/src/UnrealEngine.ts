@@ -708,18 +708,21 @@ export namespace UnrealEngine {
     await put(`/remote/preset/${preset}/metadata/view`, { Value });
   }
 
-  export async function search(query: string, types: string[], prefix: string, count: number): Promise<IAsset[]> {
+  export async function search(query: string, types: string[], prefix: string, filterArgs: any, count: number, callback: (assets: IAsset[]) => void): Promise<void> {
     const ret = await put<UnrealApi.Assets>('/remote/search/assets', {
       Query: query,
       Limit: count,
+      
       Filter: {
         ClassNames: types,
         PackagePaths: [prefix],
-        RecursivePaths: true
+        RecursivePaths: true,
+        RecursiveClasses: true,
+        ...filterArgs,
       }
     });
 
-    return ret.Assets;
+    callback?.(ret.Assets);
   }
 
   export function proxy(method: 'GET' | 'PUT', url: string, body?: any): Promise<any> {

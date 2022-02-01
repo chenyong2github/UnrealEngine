@@ -154,19 +154,8 @@ export const _api = {
     },
   },
   assets: {
-    search: (q: string, types: string[], prefix: string, count: number = 50): Promise<IAsset[]> => {
-      const args = {
-        q,
-        prefix,
-        count,
-        types: types.join(','),
-      };
-      
-      let url = '/api/assets/search?';
-      for (const arg in args)
-        url += `${arg}=${encodeURIComponent(args[arg])}&`;
-      
-      return _get(url);
+    search: (q: string, types: string[], prefix: string, filterArgs = {}, count: number = 50): Promise<IAsset[]> => {
+      return new Promise(resolve => _socket.emit('search', q, types, prefix, filterArgs, count, resolve));
     },
     thumbnailUrl: (asset: string) => `${_host}/api/thumbnail?asset=${asset}`,
   },
