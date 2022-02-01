@@ -18,6 +18,7 @@
 class FPolygonSelectionMechanicSelectionChange;
 class UPersistentMeshSelection;
 class UMouseHoverBehavior;
+class UPolygonSelectionMechanic;
 class URectangleMarqueeMechanic;
 class USingleClickOrDragInputBehavior;
 
@@ -73,6 +74,22 @@ public:
 	/** Do not check whether the closest element is occluded from the current view. */
 	UPROPERTY(EditAnywhere, Category = "SelectionFilter|Ortho Viewport Behavior")
 	bool bIgnoreOcclusion = false;
+
+	/** Invert current selection. If selection is empty, has same effect as Select All, and is similarly dependent on selection filter. */
+	UFUNCTION(CallInEditor, Category = SelectionActions)
+	void InvertSelection();
+
+	/** Select all elements. Depends on selection filter, where vertices are preferred to edges to faces. */
+	UFUNCTION(CallInEditor, Category = SelectionActions)
+	void SelectAll();
+
+	void Initialize(UPolygonSelectionMechanic* MechanicIn)
+	{
+		Mechanic = MechanicIn;
+	}
+
+protected:
+	TWeakObjectPtr<UPolygonSelectionMechanic> Mechanic;
 };
 
 
@@ -238,6 +255,9 @@ public:
 	 * Clear the current selection.
 	 */
 	void ClearSelection();
+
+	void InvertSelection();
+	void SelectAll();
 
 	/** 
 	 * @return true if the current selection is non-empty 

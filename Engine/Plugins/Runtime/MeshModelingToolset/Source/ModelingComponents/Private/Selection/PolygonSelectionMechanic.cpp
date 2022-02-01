@@ -14,6 +14,22 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPolygonSelectionMechanic"
 
+void UPolygonSelectionMechanicProperties::InvertSelection()
+{
+	if (Mechanic.IsValid())
+	{
+		Mechanic->InvertSelection();
+	}
+}
+
+void UPolygonSelectionMechanicProperties::SelectAll()
+{
+	if (Mechanic.IsValid())
+	{
+		Mechanic->SelectAll();
+	}
+}
+
 UPolygonSelectionMechanic::~UPolygonSelectionMechanic()
 {
 	checkf(PreviewGeometryActor == nullptr, TEXT("Shutdown() should be called before UPolygonSelectionMechanic is destroyed."));
@@ -49,6 +65,7 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ParentTool->AddInputBehavior(ClickOrDragBehavior, this);
 
 	Properties = NewObject<UPolygonSelectionMechanicProperties>(this);
+	Properties->Initialize(this);
 	if (bAddSelectionFilterPropertiesToParentTool)
 	{
 		AddToolPropertySource(Properties);
@@ -525,6 +542,105 @@ void UPolygonSelectionMechanic::ClearSelection()
 	PersistentSelection.Clear();
 	SelectionTimestamp++;
 	OnSelectionChanged.Broadcast();
+}
+
+void UPolygonSelectionMechanic::InvertSelection()
+{
+	if (PersistentSelection.IsEmpty())
+	{
+		SelectAll();
+		return;
+	}
+
+	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("SelectionChange", "Selection"));
+	BeginChange();
+
+	const FGroupTopologySelection PreviousSelection = PersistentSelection;
+	PersistentSelection.Clear();
+
+	if (!PreviousSelection.SelectedCornerIDs.IsEmpty())
+	{
+		for (int32 CornerID = 0; CornerID < Topology->Corners.Num(); ++CornerID)
+		{
+			if (!PreviousSelection.SelectedCornerIDs.Contains(CornerID))
+			{
+				PersistentSelection.SelectedCornerIDs.Add(CornerID);
+			}
+		}
+	}
+	else if (!PreviousSelection.SelectedEdgeIDs.IsEmpty())
+	{
+		for (int32 EdgeID = 0; EdgeID < Topology->Edges.Num(); ++EdgeID)
+		{
+			if (!PreviousSelection.SelectedEdgeIDs.Contains(EdgeID))
+			{
+				PersistentSelection.SelectedEdgeIDs.Add(EdgeID);
+			}
+		}
+	}
+	else if (!PreviousSelection.SelectedGroupIDs.IsEmpty())
+	{
+		for (const FGroupTopology::FGroup& Group : Topology->Groups)
+		{
+			if (!PreviousSelection.SelectedGroupIDs.Contains(Group.GroupID))
+			{
+				PersistentSelection.SelectedGroupIDs.Add(Group.GroupID);
+			}
+		}
+	}
+
+	SelectionTimestamp++;
+	OnSelectionChanged.Broadcast();
+	EndChangeAndEmitIfModified();
+	ParentTool->GetToolManager()->EndUndoTransaction();
+}
+
+void UPolygonSelectionMechanic::SelectAll()
+{
+	const FGroupTopologySelection PreviousSelection = PersistentSelection;
+
+	ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("SelectionChange", "Selection"));
+	BeginChange();
+
+	auto SelectAllIndices = [](int32 MaxExclusiveIndex, TSet<int32>& ContainerOut)
+	{
+		for (int32 i = 0; i < MaxExclusiveIndex; ++i)
+		{
+			ContainerOut.Add(i);
+		}
+	};
+
+	PersistentSelection.Clear();
+
+	// Select based on settings, prefering corners to edges to groups (since this is the preference we have
+	// elsewhere, eg in marquee).
+	if (Properties->bSelectVertices)
+	{
+		SelectAllIndices(Topology->Corners.Num(), PersistentSelection.SelectedCornerIDs);
+	}
+	else if (Properties->bSelectEdges)
+	{
+		SelectAllIndices(Topology->Edges.Num(), PersistentSelection.SelectedEdgeIDs);
+	}
+	else if (Properties->bSelectFaces)
+	{
+		for (const FGroupTopology::FGroup& Group : Topology->Groups)
+		{
+			PersistentSelection.SelectedGroupIDs.Add(Group.GroupID);
+		}
+	}
+
+	SelectionTimestamp++;
+	OnSelectionChanged.Broadcast();
+	
+	if (PreviousSelection != PersistentSelection)
+	{
+		SelectionTimestamp++;
+		OnSelectionChanged.Broadcast();
+	}
+	
+	EndChangeAndEmitIfModified();
+	ParentTool->GetToolManager()->EndUndoTransaction();
 }
 
 FInputRayHit UPolygonSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
