@@ -46,6 +46,26 @@ struct FMaterialAudit
 
 		return nullptr;
 	}
+
+	FORCEINLINE bool HasPerInstanceRandomID(int32 MaterialIndex) const
+	{
+		if (Entries.IsValidIndex(MaterialIndex))
+		{
+			return Entries[MaterialIndex].bHasPerInstanceRandomID;
+		}
+
+		return false;
+	}
+
+	FORCEINLINE bool HasPerInstanceCustomData(int32 MaterialIndex) const
+	{
+		if (Entries.IsValidIndex(MaterialIndex))
+		{
+			return Entries[MaterialIndex].bHasPerInstanceCustomData;
+		}
+
+		return false;
+	}
 };
 
 ENGINE_API void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit);

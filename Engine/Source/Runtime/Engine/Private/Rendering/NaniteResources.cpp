@@ -509,6 +509,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		MaterialSection.RasterMaterial = nullptr;
 		MaterialSection.ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
+		// Copy over per-instance material flags for this section
+		MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
+		MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
+
 		if (bHasSurfaceStaticLighting && MaterialSection.ShadingMaterial && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
 		{
 			MaterialSection.ShadingMaterial = nullptr;
