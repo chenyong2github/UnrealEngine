@@ -101,7 +101,56 @@ namespace ChaosInterface
 		return Ar;
 	}
 
+	struct FPTActorShape
+	{
+		Chaos::FGeometryParticleHandle* Actor;
+		const Chaos::FPerShapeData* Shape;
+	};
+
+	struct FPTQueryHit : public FPTActorShape
+	{
+		/**
+		Face index of touched triangle, for triangle meshes, convex meshes and height fields. Defaults to -1 if face index is not available
+		*/
+
+		int32 FaceIndex = -1; // Signed int to match TArray's size type, and so INDEX_NONE/-1 doesn't underflow.
+
+		int32 ElementIndex = -1; // Currently used to indicate which shape was hit for a particle with multiple shapes.
+	};
+
+	struct FPTLocationHit : public FPTQueryHit
+	{
+		FHitFlags Flags;
+		FVector WorldPosition;
+		FVector WorldNormal;
+		float Distance;	// LWC_TODO: Should be FVector::FReal, but that causes precision issues resulting in collision failures. Investigate!
+
+		bool operator<(const FPTLocationHit& Other) const { return Distance < Other.Distance; }
+	};
+
+	struct FPTRaycastHit : public FPTLocationHit
+	{
+		float U;
+		float V;
+	};
+	
+	struct FPTOverlapHit : public FPTQueryHit
+	{
+	};
+
+	struct FPTSweepHit : public FPTLocationHit
+	{
+	};
+
 	inline void FinishQueryHelper(TArray<FOverlapHit>& Hits, const FOverlapHit& BlockingHit, bool bHasBlockingHit)
+	{
+		if (bHasBlockingHit)
+		{
+			Hits.Add(BlockingHit);
+		}
+	}
+
+	inline void FinishQueryHelper(TArray<FPTOverlapHit>& Hits, const FPTOverlapHit& BlockingHit, bool bHasBlockingHit)
 	{
 		if (bHasBlockingHit)
 		{

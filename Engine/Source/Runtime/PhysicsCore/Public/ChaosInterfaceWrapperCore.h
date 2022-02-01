@@ -116,7 +116,17 @@ inline bool HadInitialOverlap(const FLocationHit& Hit)
 	return Hit.Distance <= 0.f;
 }
 
+inline bool HadInitialOverlap(const FPTLocationHit& Hit)
+{
+	return Hit.Distance <= 0.f;
+}
+
 inline const Chaos::FPerShapeData* GetShape(const FActorShape& Hit)
+{
+	return Hit.Shape;
+}
+
+inline const Chaos::FPerShapeData* GetShape(const FPTActorShape& Hit)
 {
 	return Hit.Shape;
 }
@@ -126,7 +136,17 @@ inline Chaos::FGeometryParticle* GetActor(const FActorShape& Hit)
 	return Hit.Actor;
 }
 
+inline Chaos::FGeometryParticleHandle* GetActor(const FPTActorShape& Hit)
+{
+	return Hit.Actor;
+}
+
 inline Chaos::FReal GetDistance(const FLocationHit& Hit)
+{
+	return Hit.Distance;
+}
+
+inline Chaos::FReal GetDistance(const FPTLocationHit& Hit)
 {
 	return Hit.Distance;
 }
@@ -136,7 +156,17 @@ inline FVector GetPosition(const FLocationHit& Hit)
 	return Hit.WorldPosition;
 }
 
+inline FVector GetPosition(const FPTLocationHit& Hit)
+{
+	return Hit.WorldPosition;
+}
+
 inline FVector GetNormal(const FLocationHit& Hit)
+{
+	return Hit.WorldNormal;
+}
+
+inline FVector GetNormal(const FPTLocationHit& Hit)
 {
 	return Hit.WorldNormal;
 }
@@ -146,7 +176,18 @@ inline FHitFlags GetFlags(const FLocationHit& Hit)
 	return Hit.Flags;
 }
 
+inline FHitFlags GetFlags(const FPTLocationHit& Hit)
+{
+	return Hit.Flags;
+}
+
+
 FORCEINLINE void SetFlags(FLocationHit& Hit, FHitFlags Flags)
+{
+	Hit.Flags = Flags;
+}
+
+FORCEINLINE void SetFlags(FPTLocationHit& Hit, FHitFlags Flags)
 {
 	Hit.Flags = Flags;
 }
@@ -156,7 +197,17 @@ inline uint32 GetInternalFaceIndex(const FQueryHit& Hit)
 	return Hit.FaceIndex;
 }
 
+inline uint32 GetInternalFaceIndex(const FPTQueryHit& Hit)
+{
+	return Hit.FaceIndex;
+}
+
 inline void SetInternalFaceIndex(FQueryHit& Hit, uint32 FaceIndex)
+{
+	Hit.FaceIndex = FaceIndex;
+}
+
+inline void SetInternalFaceIndex(FPTQueryHit& Hit, uint32 FaceIndex)
 {
 	Hit.FaceIndex = FaceIndex;
 }
