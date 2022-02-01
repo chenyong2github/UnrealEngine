@@ -9,23 +9,6 @@
 #define EXPLICIT_MATRIX 0
 #endif
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-struct FMatrix
-{
-#if EXPLICIT_MATRIX == 0
-	float M[16];
-#else
-	float<16> M;
-#endif
-};
-
-struct FMatrix44d
-{
-	double M[16];
-};
-
-typedef FMatrix FMatrix44f;
-#else
 struct FMatrix44f
 {
 #if EXPLICIT_MATRIX == 0
@@ -41,7 +24,6 @@ struct FMatrix
 };
 
 typedef FMatrix FMatrix44d;
-#endif
 
 #ifndef EXPLICIT_MATRIX3x4
 #define EXPLICIT_MATRIX3x4 0

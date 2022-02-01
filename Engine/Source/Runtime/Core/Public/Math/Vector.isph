@@ -3,10 +3,6 @@
 #ifndef __VECTOR_ISPH__
 #define __VECTOR_ISPH__
 
-#ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
-#endif
-
 #include "Math/Aossoa.isph"
 #include "Math/Soaaos.isph"
 #include "Math/Scalar.isph"
@@ -16,21 +12,6 @@
 #define EXPLICIT_VECTOR2 0
 #endif
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-struct FVector2
-{
-#if EXPLICIT_VECTOR2 == 0
-	float V[2];
-#else
-	float<2> V;
-#endif
-};
-
-struct FVector2d
-{
-	double V[2];
-};
-#else
 struct FVector2f
 {
 #if EXPLICIT_VECTOR2 == 0
@@ -44,27 +25,11 @@ struct FVector2
 {
 	double V[2];
 };
-#endif
 
 #ifndef EXPLICIT_VECTOR
 #define EXPLICIT_VECTOR 0
 #endif
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-struct FVector
-{
-#if EXPLICIT_VECTOR == 0
-	float V[3];
-#else
-	float<3> V;
-#endif
-};
-
-struct FVector3d
-{
-	double V[3];
-};
-#else
 struct FVector3f
 {
 #if EXPLICIT_VECTOR == 0
@@ -78,27 +43,11 @@ struct FVector
 {
 	double V[3];
 };
-#endif
 
 #ifndef EXPLICIT_VECTOR4
 #define EXPLICIT_VECTOR4 0
 #endif
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-struct FVector4
-{
-#if EXPLICIT_VECTOR4 == 0
-	float V[4];
-#else
-	float<4> V;
-#endif
-};
-
-struct FVector4d
-{
-	double V[4];
-};
-#else
 struct FVector4f
 {
 #if EXPLICIT_VECTOR4 == 0
@@ -112,7 +61,6 @@ struct FVector4
 {
 	double V[4];
 };
-#endif
 
 struct FVector8
 {
@@ -163,15 +111,9 @@ struct FIntVector
 };
 
 // Define types
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-typedef FVector2 FVector2f;
-typedef FVector FVector3f;
-typedef FVector4 FVector4f;
-#else
 typedef FVector2 FVector2d;
 typedef FVector FVector3d;
 typedef FVector4 FVector4d;
-#endif
 
 static const uniform struct FVector4f FLOAT_QMULTI_SIGN_MASK0 = { {1.f, -1.f, 1.f, -1.f} };
 static const uniform struct FVector4f FLOAT_QMULTI_SIGN_MASK1 = { {1.f, 1.f, -1.f, -1.f} };
@@ -266,45 +208,6 @@ static const uniform struct FVector8 ForwardVector8 = { {1.0f, 0.0f, 0.0f, 0.0f,
 static const uniform struct FVector8 RightVector8 = { {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f} };
 
 // Define vector type constants
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-
-#define VectorZero				FloatZero
-#define VectorOne				FloatOne
-#define VectorMinusOne			FloatMinusOne
-#define Vector0001				Float0001
-#define Vector1110				Float1110
-#define VectorOneHalf			FloatOneHalf
-#define SmallLengthThreshold	FloatSmallLengthThreshold
-
-#define VectorPi				FloatPi
-#define VectorTwoPi				FloatTwoPi
-#define VectorPiByTwo			FloatPiByTwo
-#define VectorPiByFour			FloatPiByFour
-#define VectorOneOverPi			FloatOneOverPi
-#define VectorOneOverTwoPi		FloatOneOverTwoPi
-
-#define Vector255				Float255
-#define Vector127				Float127
-#define VectorNeg127			FloatNeg127
-#define Vector360				Float360
-#define Vector180				Float180
-#define VectorNonFractional		FloatNonFractional
-
-#define UpVector4				FloatUpVector4
-#define ForwardVector4			FloatForwardVector4
-#define RightVector4			FloatRightVector4
-
-#define ZeroVector				FloatZeroVector
-#define OneVector				FloatOneVector
-#define HalfVector				FloatHalfVector
-#define UpVector				FloatUpVector
-#define DownVector				FloatDownVector
-#define ForwardVector			FloatForwardVector
-#define BackwardVector			FloatBackwardVector
-#define RightVector				FloatRightVector
-#define LeftVector				FloatLeftVector
-
-#else
 
 #define VectorZero				DoubleZero
 #define VectorOne				DoubleOne
@@ -341,7 +244,6 @@ static const uniform struct FVector8 RightVector8 = { {0.0f, 1.0f, 0.0f, 0.0f, 0
 #define BackwardVector			DoubleBackwardVector
 #define RightVector				DoubleRightVector
 #define LeftVector				DoubleLeftVector
-#endif
 
 #if (defined(ISPC_TARGET_AVX2) || defined(ISPC_TARGET_AVX512SKX))
 #define HW_GATHER_SUPPORTED 1
@@ -1208,38 +1110,22 @@ inline uniform FVector4f ConvertVector4dTo4f(const uniform FVector4d &V)
 
 inline uniform FVector4 ConvertVector4dTo4Native(const uniform FVector4d &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return ConvertVector4dTo4f(V);
-#else
 	return V;
-#endif
 }
 
 inline uniform FVector4 ConvertVector4fTo4Native(const uniform FVector4f &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return V;
-#else
 	return ConvertVector4fTo4d(V);
-#endif
 }
 
 inline uniform FVector4d ConvertVector4NativeTo4d(const uniform FVector4 &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return ConvertVector4fTo4d(V);
-#else
 	return V;
-#endif
 }
 
 inline uniform FVector4f ConvertVector4NativeTo4f(const uniform FVector4 &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return V;
-#else
 	return ConvertVector4dTo4f(V);
-#endif
 }
 
 inline FVector3d operator+(const FVector3d &A, const FVector3d &B)
@@ -1767,38 +1653,22 @@ inline uniform FVector3f ConvertVector3dTo3f(const uniform FVector3d &V)
 
 inline uniform FVector ConvertVector3dTo3Native(const uniform FVector3d &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return ConvertVector3dTo3f(V);
-#else
 	return V;
-#endif
 }
 
 inline uniform FVector ConvertVector3fTo3Native(const uniform FVector3f &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return V;
-#else
 	return ConvertVector3fTo3d(V);
-#endif
 }
 
 inline uniform FVector3d ConvertVector3NativeTo3d(const uniform FVector &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return ConvertVector3fTo3d(V);
-#else
 	return V;
-#endif
 }
 
 inline uniform FVector3f ConvertVector3NativeTo3f(const uniform FVector &V)
 {
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	return V;
-#else
 	return ConvertVector3dTo3f(V);
-#endif
 }
 
 inline uniform FVector8 operator+(const uniform FVector8 &A, const uniform FVector8 &B)
@@ -3422,13 +3292,8 @@ inline void VectorSinCos(uniform FVector4 &VSinAngles, uniform FVector4 &VCosAng
 
 	// 11-degree minimax approximation
 	//*ScalarSin = (((((-2.3889859e-08f * y2 + 2.7525562e-06f) * y2 - 0.00019840874f) * y2 + 0.0083333310f) * y2 - 0.16666667f) * y2 + 1.0f) * y;
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	static const uniform FVector4f SinCoeff0 = {{ 1.0f, -0.16666667f, 0.0083333310f, -0.00019840874f }};
-	static const uniform FVector4f SinCoeff1 = {{ 2.7525562e-06f, -2.3889859e-08f, /*unused*/ 0.f, /*unused*/ 0.f }};
-#else
 	static const uniform FVector4d SinCoeff0 = {{ 1.0d, -0.16666667d, 0.0083333310d, -0.00019840874d }};
 	static const uniform FVector4d SinCoeff1 = {{ 2.7525562d-06, -2.3889859d-08, /*unused*/ 0.d, /*unused*/ 0.d }};
-#endif
 
 	uniform FVector4 S;
 	S = VectorReplicate(SinCoeff1, 1);
@@ -3441,13 +3306,8 @@ inline void VectorSinCos(uniform FVector4 &VSinAngles, uniform FVector4 &VCosAng
 
 	// 10-degree minimax approximation
 	//*ScalarCos = sign * (((((-2.6051615e-07f * y2 + 2.4760495e-05f) * y2 - 0.0013888378f) * y2 + 0.041666638f) * y2 - 0.5f) * y2 + 1.0f);
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-	static const uniform FVector4f CosCoeff0 = {{ 1.0f, -0.5f, 0.041666638f, -0.0013888378f }};
-	static const uniform FVector4f CosCoeff1 = {{ 2.4760495e-05f, -2.6051615e-07f, /*unused*/ 0.f, /*unused*/ 0.f }};
-#else
 	static const uniform FVector4d CosCoeff0 = {{ 1.0d, -0.5d, 0.041666638d, -0.0013888378d }};
 	static const uniform FVector4d CosCoeff1 = {{ 2.4760495d-05, -2.6051615d-07, /*unused*/ 0.d, /*unused*/ 0.d }};
-#endif
 
 	uniform FVector4 C;
 	C = VectorReplicate(CosCoeff1, 1);

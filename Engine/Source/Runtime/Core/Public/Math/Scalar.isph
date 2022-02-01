@@ -3,24 +3,12 @@
 #ifndef __SCALAR_ISPH__
 #define __SCALAR_ISPH__
 
-#ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
-#endif
-
 // Define types
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-typedef float FReal;
-typedef uint32 UIntType;
-typedef int32 IntType;
-
-#define REAL_BITS floatbits
-#else
 typedef double FReal;
 typedef uint64 UIntType;
 typedef int64 IntType;
 
 #define REAL_BITS doublebits
-#endif
 
 #define FLOAT_PI					(3.1415926535897932f)
 #define FLOAT_SMALL_NUMBER			(1.e-8f)
@@ -52,30 +40,6 @@ typedef int64 IntType;
 
 #undef  PI
 // Define type constants
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-#define PI						FLOAT_PI
-#define SMALL_NUMBER			FLOAT_SMALL_NUMBER
-#define KINDA_SMALL_NUMBER		FLOAT_KINDA_SMALL_NUMBER
-#define SIGN_BIT				FLOAT_SIGN_BIT
-#define REAL_MAX				FLT_MAX
-#define REAL_MIN				FLT_MIN
-#define NON_FRACTIONAL			FLOAT_NON_FRACTIONAL
-#define NAN						FLOAT_NAN
-#define ZERO					FLOAT_ZERO
-#define ONE_HALF				FLOAT_ONE_HALF
-#define ONE						FLOAT_ONE
-#define TWO						FLOAT_TWO
-
-#define QMULTI_SIGN_MASK0		FLOAT_QMULTI_SIGN_MASK0
-#define QMULTI_SIGN_MASK1		FLOAT_QMULTI_SIGN_MASK1
-#define QMULTI_SIGN_MASK2		FLOAT_QMULTI_SIGN_MASK2
-#define QINV_SIGN_MASK			FLOAT_QINV_SIGN_MASK
-
-#define DEG_TO_RAD				FLOAT_DEG_TO_RAD
-#define DEG_TO_RAD_HALF			FLOAT_DEG_TO_RAD_HALF
-#define RAD_TO_DEG				FLOAT_RAD_TO_DEG
-
-#else
 
 #define PI						DOUBLE_PI
 #define SMALL_NUMBER			DOUBLE_SMALL_NUMBER
@@ -98,7 +62,6 @@ typedef int64 IntType;
 #define DEG_TO_RAD				DOUBLE_DEG_TO_RAD
 #define DEG_TO_RAD_HALF			DOUBLE_DEG_TO_RAD_HALF
 #define RAD_TO_DEG				DOUBLE_RAD_TO_DEG
-#endif
 
 // _mm_cmpge_pd
 inline uniform double VectorCompareGE(const uniform double A, const uniform double B)

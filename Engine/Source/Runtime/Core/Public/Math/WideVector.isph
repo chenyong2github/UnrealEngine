@@ -5,17 +5,6 @@
 
 #include "Math/Vector.isph"
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-struct WideFVector4
-{
-	float V[programCount];
-};
-
-struct WideFVector4d
-{
-	double V[programCount];
-};
-#else
 struct WideFVector4f
 {
 	float V[programCount];
@@ -25,30 +14,10 @@ struct WideFVector4
 {
 	double V[programCount];
 };
-#endif
 
 // Define types
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-typedef WideFVector4 WideFVector4f;
-#else
 typedef WideFVector4 WideFVector4d;
-#endif
 
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-#if TARGET_WIDTH == 4
-static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
-#elif TARGET_WIDTH == 8
-static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
-#elif TARGET_WIDTH == 16
-static const uniform struct WideFVector4f WFloatZero = { {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f} };
-static const uniform struct WideFVector4f WFloat0001 = { {0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f} };
-static const uniform struct WideFVector4f WSmallLengthThreshold = { {1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f, 1.e-8f} };
-#endif
-#else
 #if TARGET_WIDTH == 4
 static const uniform struct WideFVector4d WFloatZero = { {0.0d, 0.0d, 0.0d, 0.0d} };
 static const uniform struct WideFVector4d WFloat0001 = { {0.0d, 0.0d, 0.0d, 1.0d} };
@@ -62,7 +31,6 @@ static const uniform struct WideFVector4d WFloatZero = { {0.0d, 0.0d, 0.0d, 0.0d
 static const uniform struct WideFVector4d WFloat0001 = { {0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d, 0.0d, 0.0d, 0.0d, 1.0d} };
 static const uniform struct WideFVector4d WSmallLengthThreshold = { {1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8, 1.d-8} };
 #endif
-#endif // UE_LARGE_WORLD_COORDINATES_DISABLED
 
 unmasked inline uniform WideFVector4 operator+(const uniform WideFVector4 &A, const uniform WideFVector4 &B)
 {
