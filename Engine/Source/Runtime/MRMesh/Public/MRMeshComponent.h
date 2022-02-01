@@ -1,5 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// MR stands for Mixed Reality, but this component could possibly have more general use.
+// It was specifically designed to support the case for Augmented Reality world mesh detection.  Where a device scans the real world and provides a mesh representing the geometry
+// of the real world environment.  This mesh is expected to arrive in chunks called 'bricks' over time and for bricks to be added, removed, or updated.
+// We provide the ability to render the mesh, to generate collision from it, and to generate ai navigation data on that collision.
+// We do not intend to support using the MRMesh as a physics body that could be moved.
+// It is somewhat similar to ProceduralMeshComponent.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -36,8 +43,9 @@ public:
 	typedef uint64 FBrickId;
 	struct FSendBrickDataArgs
 	{
+		// Note: many members are references!  Be aware of the lifetime of the underlying data.  FBrickDataReceipt is intended to help manage that.
 		TSharedPtr<FBrickDataReceipt, ESPMode::ThreadSafe> BrickDataReceipt;
-		const FBrickId BrickId;
+		const FBrickId BrickId = 0;
 		const TArray<FVector3f>& PositionData;
 		const TArray<FVector2D>& UVData;
 		const TArray<FPackedNormal>& TangentXZData;
@@ -55,21 +63,56 @@ public:
 	virtual void ClearAllBrickData() = 0;
 };
 
+// Because physics cooking uses GetOuter() to get the IInterface_CollisionDataProvider and provides no way to determine which physics body it
+// is currently working on we are wrapping each body in this Holder so that it can be the Outer and provide the correct data.
+UCLASS(transient)
+class UMRMeshBodyHolder : public UObject, public IInterface_CollisionDataProvider
+{
+public:
+	GENERATED_BODY()
+
+	void Initialize(IMRMesh::FBrickId InBrickId);
+	void Update(const IMRMesh::FSendBrickDataArgs& Args);
+	void AbortCook();
+	void ReleaseArgData();
+	void Cleanup();
+
+	//~ Begin Interface_CollisionDataProvider Interface
+	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
+	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
+	virtual bool WantsNegXTriMesh() override { return false; }
+	//~ End Interface_CollisionDataProvider Interface
+
+	/** Once async physics cook is done, create needed state */
+	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup);
+
+	UPROPERTY(transient)
+	TObjectPtr<class UBodySetup> BodySetup;
+
+	UPROPERTY(transient)
+	FBodyInstance BodyInstance;
+
+	// Hold references to the bulk data which is owned externally, like FSendBrickDataArgs.  The receipt keeps the references valid.
+	TSharedPtr<IMRMesh::FBrickDataReceipt, ESPMode::ThreadSafe> BrickDataReceipt;
+	IMRMesh::FBrickId BrickId = 0;
+	const TArray<FVector3f>* PositionData = nullptr;
+	const TArray<MRMESH_INDEX_TYPE>* Indices = nullptr;
+	FBox Bounds = FBox(EForceInit::ForceInit);
+
+	bool bCookInProgress = false;
+};
+
+
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMRMeshBrickDataUpdatedDelegate, const UMRMeshComponent*, const IMRMesh::FSendBrickDataArgs&);
 
-UCLASS(hideCategories=(Physics), meta = (BlueprintSpawnableComponent, Experimental), ClassGroup = Rendering)
-class MRMESH_API UMRMeshComponent : public UPrimitiveComponent, public IMRMesh, public IInterface_CollisionDataProvider
+UCLASS(hideCategories=(Physics), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
+class MRMESH_API UMRMeshComponent : public UPrimitiveComponent, public IMRMesh
 {
 public:
 	friend class FMRMeshProxy;
 
 	GENERATED_UCLASS_BODY()
-	
-	//~ IInterface_CollisionDataProvider
-	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
-	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
-	//~ IInterface_CollisionDataProvider
 
 	virtual void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -80,8 +123,17 @@ public:
 	void SetConnected(bool value) override { bConnected = value; }
 	virtual void SendRelativeTransform(const FTransform& Transform) override { SetRelativeTransform(Transform); }
 
+	/**
+	* Force navmesh generation to run using the current collision data.  This will run even if the collision data has not been udpated! Unless you are changing navmesh settings or similar RequestNavMeshUpdate is reccomended.
+	*/	
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
 	void ForceNavMeshUpdate();
+
+	/**
+	* Generate nav mesh if collision data has changed since the last nav mesh generation.  
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
+	void RequestNavMeshUpdate();
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
 	void Clear() override;
@@ -134,6 +186,7 @@ public:
 
 	void SetNeverCreateCollisionMesh(bool bNeverCreate) { bNeverCreateCollisionMesh = bNeverCreate; }
 	void SetEnableNavMesh(bool bEnable) { bUpdateNavMeshOnMeshUpdate = bEnable;  }
+	void SuggestNavMeshUpdate();
 
 	/** Trackers feeding mesh data to this component may want to know when we clear our mesh data */
 	DECLARE_EVENT(UMRMeshComponent, FOnClear);
@@ -145,7 +198,7 @@ private:
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
-	virtual class UBodySetup* GetBodySetup();
+
 	//~ UPrimitiveComponent
 	//~ UActorComponent
 	virtual bool ShouldCreatePhysicsState() const override;
@@ -158,8 +211,6 @@ private:
 	//~ IMRMesh
 
 private:
-	void CacheBodySetupHelper();
-	class UBodySetup* CreateBodySetupHelper();
 	void SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args);
 
 	void RemoveBodyInstance(int32 BodyIndex);
@@ -181,34 +232,36 @@ private:
 	UPROPERTY(EditAnywhere, Category = MRMesh)
 	bool bUpdateNavMeshOnMeshUpdate = true;
 
+	bool bNavMeshUpdateSuggested = false;
+
 	/** If true, MRMesh will not create a collidable ridgid body for each mesh section and can therefore never have collision.  Avoids the cost of generating collision.*/
 	UPROPERTY(EditAnywhere, Category = MRMesh)
 	bool bNeverCreateCollisionMesh = false;
 
+	/**
+	*	Controls whether the physics cooking should be done off the game thread. This should be used when collision geometry doesn't have to be immediately up to date (For example streaming in far away objects).  
+	*   Fixing this to true for now.
+	*/
+	bool bUseAsyncCooking = true;
+
 	bool bConnected = false;
-
-	UPROPERTY(Transient)
-	TObjectPtr<class UBodySetup> CachedBodySetup = nullptr;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UBodySetup>> BodySetups;
-
 
 	/** Whether this mesh should write z-depth to occlude meshes or not */
 	bool bEnableOcclusion;
 	/** Whether this mesh should draw using the wireframe material when no material is set or not */
 	bool bUseWireframe;
 
-	TArray<FBodyInstance*> BodyInstances;
-	TArray<IMRMesh::FBrickId> BodyIds;
-
 	FOnClear OnClearEvent;
 	
 	FLinearColor WireframeColor = FLinearColor::White;
-	
-	/** Temporarily saved data pointers used for constructing the collision mesh */
-	const TArray<FVector3f>* TempPosition = nullptr;
-	const TArray<MRMESH_INDEX_TYPE>* TempIndices = nullptr;
-	
+
 	FOnMRMeshBrickDataUpdatedDelegate OnBrickDataUpdatedDelegate;
+
+
+	// Collision/Physics data
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMRMeshBodyHolder>> BodyHolders;
+
+	// This array is parallel to BodyHolders
+	TArray<IMRMesh::FBrickId> BodyIds;
 };

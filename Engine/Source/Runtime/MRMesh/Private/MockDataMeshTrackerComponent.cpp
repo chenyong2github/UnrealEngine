@@ -425,9 +425,11 @@ void UMockDataMeshTrackerComponent::RemoveBlock(int32 BlockIndex)
 void UMockDataMeshTrackerComponent::UpdateBlock(int32 BlockIndex)
 {
 	// Create a brick index for any new mesh block
+	bool bBlockIsNew = false;
 	if (!Impl->MeshBrickCache.Contains(BlockIndex))
 	{
 		Impl->MeshBrickCache.Add(BlockIndex, Impl->MeshBrickIndex++);
+		bBlockIsNew = true;
 	}
 
 	const FMockDataMeshTrackerImpl::FRawMockMeshData& RawMeshData = Impl->RawMockMeshData[BlockIndex];
@@ -438,14 +440,15 @@ void UMockDataMeshTrackerComponent::UpdateBlock(int32 BlockIndex)
 	CurrentMeshDataCache->BrickId = BrickId;
 
 	// Pull vertices
+	const FVector UpdateShiftVector = bBlockIsNew ? FVector::ZeroVector : FVector(0.0f, 0.0f, 15.0f);  // when we update we will shift the verts up a little, so we can see that something happened.
 	const FVector VertexOffset = FVector::ZeroVector; // If this was the inverse of the worldToTrackingTransform position the mesh would be located in tracker space, but we don't want a dependency on HMD here.  
 	const int32 VertexCount = RawMeshData.Vertices.Num();
 	CurrentMeshDataCache->OffsetVertices.Reserve(VertexCount);
 	CurrentMeshDataCache->WorldVertices.Reserve(VertexCount);
 	for (int32 v = 0; v < VertexCount; ++ v)
 	{
-			CurrentMeshDataCache->OffsetVertices.Add(RawMeshData.Vertices[v] - VertexOffset);
-			CurrentMeshDataCache->WorldVertices.Add(RawMeshData.Vertices[v]);
+			CurrentMeshDataCache->OffsetVertices.Add(RawMeshData.Vertices[v] - VertexOffset + UpdateShiftVector);
+			CurrentMeshDataCache->WorldVertices.Add(RawMeshData.Vertices[v] + UpdateShiftVector);
 	}
 
 	// Pull indices
