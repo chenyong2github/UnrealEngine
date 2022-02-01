@@ -533,7 +533,7 @@ FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFa
 	Config.ColorFormat = PF_Unknown;
 	Config.ColorClearValue = FClearValueBinding::Black;
 	Config.DepthClearValue = FClearValueBinding::DepthFar;
-	Config.CustomDepthDownsampleFactor = GetCustomDepthDownsampleFactor(Config.FeatureLevel);
+	Config.CustomDepthDownsampleFactor = GetCustomDepthDownsampleFactor(Config.ShaderPlatform);
 	Config.bRequireMultiView = ViewFamily.bRequireMultiView;
 	Config.bIsUsingGBuffers = IsUsingGBuffers(Config.ShaderPlatform);
 
@@ -1096,6 +1096,7 @@ void SetupMobileSceneTextureUniformParameters(
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	bool bMobileSupportFetchBindedCustomStencilBuffer = FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 
 	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
 	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<>::GetRHI();
@@ -1104,6 +1105,7 @@ void SetupMobileSceneTextureUniformParameters(
 	// CustomDepthTexture is a color texture on mobile, with DeviceZ values
 	SceneTextureParameters.CustomDepthTexture = SystemTextures.Black;
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
+	SceneTextureParameters.CustomStencilTexture = SystemTextures.StencilDummySRV;
 	SceneTextureParameters.MobileCustomStencilTexture = SystemTextures.Black;
 	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneVelocityTexture = SystemTextures.Black;
@@ -1169,14 +1171,23 @@ void SetupMobileSceneTextureUniformParameters(
 		{
 			const FCustomDepthTextures& CustomDepthTextures = SceneTextures->CustomDepth;
 
-			if (HasBeenProduced(CustomDepthTextures.MobileDepth))
+			if (bMobileSupportFetchBindedCustomStencilBuffer)
 			{
-				SceneTextureParameters.CustomDepthTexture = CustomDepthTextures.MobileDepth;
-			}
+				bool bCustomDepthProduced = HasBeenProduced(CustomDepthTextures.Depth);
+				SceneTextureParameters.CustomDepthTexture = bCustomDepthProduced ? CustomDepthTextures.Depth : SystemTextures.DepthDummy;
+				SceneTextureParameters.CustomStencilTexture = bCustomDepthProduced ? CustomDepthTextures.Stencil : SystemTextures.StencilDummySRV;
+			}				
+			else
+			{
+				if (HasBeenProduced(CustomDepthTextures.MobileDepth))
+				{
+					SceneTextureParameters.CustomDepthTexture = CustomDepthTextures.MobileDepth;
+				}
 
-			if (HasBeenProduced(CustomDepthTextures.MobileStencil) && !EnumHasAnyFlags(CustomDepthTextures.MobileStencil->Desc.Flags, TexCreate_Memoryless))
-			{
-				SceneTextureParameters.MobileCustomStencilTexture = CustomDepthTextures.MobileStencil;
+				if (HasBeenProduced(CustomDepthTextures.MobileStencil) && !EnumHasAnyFlags(CustomDepthTextures.MobileStencil->Desc.Flags, TexCreate_Memoryless))
+				{
+					SceneTextureParameters.MobileCustomStencilTexture = CustomDepthTextures.MobileStencil;
+				}
 			}
 		}
 

@@ -149,7 +149,7 @@ public:
 			}
 			else
 			{
-				return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+				return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsMobileSupportFetchBindedCustomStencilBuffer(Parameters.Platform);
 			}
 		}
 		return false;
@@ -167,6 +167,12 @@ public:
 		if (PermutationVector.Get<FMobileDimension>())
 		{
 			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.MaterialParameters.BlendableLocation != BL_AfterTonemapping) ? 1 : 0);
+		}
+
+
+		if (IsMobileSupportFetchBindedCustomStencilBuffer(Parameters.Platform))
+		{
+			OutEnvironment.SetDefine(TEXT("MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER"), 1);
 		}
 
 		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
@@ -257,9 +263,9 @@ void GetMaterialInfo(
 {
 	FMaterialShaderTypes ShaderTypes;
 	{
-		const bool bIsMobile = InFeatureLevel <= ERHIFeatureLevel::ES3_1;
+		const bool bUseMobilePath = IsMobileSeparateDepthStencilRenderTargets(GShaderPlatformForFeatureLevel[InFeatureLevel]);
 		FPostProcessMaterialShader::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bIsMobile);
+		PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bUseMobilePath);
 
 		ShaderTypes.AddShaderType< FPostProcessMaterialVS>(PermutationVector.ToDimensionValueId());
 		ShaderTypes.AddShaderType< FPostProcessMaterialPS>(PermutationVector.ToDimensionValueId());
@@ -496,7 +502,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	// The target color will be decoded if bForceIntermediateTarget is true in any case, but we might still need to decode the input color
 	PostProcessMaterialParameters->bMetalMSAAHDRDecode = Inputs.bMetalMSAAHDRDecode ? 1 : 0;
 
-	if (DepthStencilTexture && !bMobilePlatform)
+	if (DepthStencilTexture && (!bMobilePlatform || IsMobileSupportFetchBindedCustomStencilBuffer(View.GetShaderPlatform())))
 	{
 		PostProcessMaterialParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
@@ -504,7 +510,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilRead);
 	}
-	else if (!DepthStencilTexture && bMobilePlatform && Material->IsStencilTestEnabled()) // we have to set a default texture for MobileStencilTexture and override the MobileStencilValueRef to make all function to pass the stencil test
+	else if (!DepthStencilTexture && IsMobileSeparateDepthStencilRenderTargets(View.GetShaderPlatform()) && Material->IsStencilTestEnabled()) // we have to set a default texture for MobileStencilTexture and override the MobileStencilValueRef to make all function to pass the stencil test
 	{
 		PostProcessMaterialParameters->MobileCustomStencilTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		

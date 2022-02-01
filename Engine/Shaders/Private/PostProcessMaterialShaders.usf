@@ -22,8 +22,8 @@
 #error POST_PROCESS_MATERIAL must be defined to non-zero in the shader compilation environment.
 #endif
 
-#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1) != POST_PROCESS_MATERIAL_MOBILE
-#error POST_PROCESS_MATERIAL_MOBILE define does not match feature level.
+#ifndef MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
+#define MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER 0
 #endif
 
 // Must match ESceneTextureId
@@ -119,7 +119,7 @@ FMaterialVertexParameters GetPostProcessMaterialVSParameters(float2 UV)
 	return Result;
 }
 
-#if (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
+#if (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER)
 
 #if VERTEXSHADER
 
@@ -213,6 +213,8 @@ void MainPS(
 	// Grab emissive colour as output
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
 	Alpha = UnlitBSDF.Coverage;
+  #elif (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
+	Alpha = Parameters.BackupSceneColorAlpha;
   #endif
 	const float3 Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
 #else
@@ -270,7 +272,7 @@ void MainPS_VideoOverlay(
 
 #endif
 
-#else // FEATURE_LEVEL_ES3_1
+#else // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
 
 Texture2D MobileCustomStencilTexture;
 SamplerState MobileCustomStencilTextureSampler;
@@ -419,4 +421,4 @@ void MainPS(
 #endif
 	OutColor = FullSceneColor;
 }
-#endif //(FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
+#endif // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1 || MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER

@@ -381,6 +381,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsInlineRayTracing : 1;
 	uint32 bSupportsRayTracingShaders : 1;
 	uint32 bSupportsVertexShaderLayer : 1;
+	uint32 bMobileSupportFetchBindedCustomStencilBuffer : 1;
 	uint32 bSupportsBindless : 1;
 
 		
@@ -888,6 +889,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsVertexShaderLayer;
+	}
+	
+	static FORCEINLINE_DEBUGGABLE const bool GetMobileSupportFetchBindedCustomStencilBuffer(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bMobileSupportFetchBindedCustomStencilBuffer;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsBindless(const FStaticShaderPlatform Platform)
@@ -2518,6 +2525,7 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 	checkNoEntry();
 	return ERHIResourceType::RRT_None;
 }
+
 
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)

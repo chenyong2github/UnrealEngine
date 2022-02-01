@@ -60,21 +60,35 @@ ECustomDepthMode GetCustomDepthMode()
 	return ECustomDepthMode::Disabled;
 }
 
-bool IsCustomDepthPassWritingStencil(ERHIFeatureLevel::Type FeatureLevel)
+bool IsMobileSeparateDepthStencilRenderTargets(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) && !FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(Platform);
+}
+
+bool IsMobileSupportFetchBindedCustomStencilBuffer(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform) && FDataDrivenShaderPlatformInfo::GetMobileSupportFetchBindedCustomStencilBuffer(Platform);
+}
+
+bool IsCustomDepthPassWritingStencil(EShaderPlatform Platform)
 {
 	switch (GetCustomDepthMode())
 	{
-	case ECustomDepthMode::Disabled:
-		return false;
-	case ECustomDepthMode::Enabled:
-		return FeatureLevel <= ERHIFeatureLevel::ES3_1;
+		case ECustomDepthMode::Disabled:
+		{
+			return false;
+		}
+		case ECustomDepthMode::Enabled:
+		{
+			return IsMobileSeparateDepthStencilRenderTargets(Platform);
+		}
 	}
 	return true;
 }
 
-uint32 GetCustomDepthDownsampleFactor(ERHIFeatureLevel::Type FeatureLevel)
+uint32 GetCustomDepthDownsampleFactor(EShaderPlatform Platform)
 {
-	return FeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
+	return IsMobileSeparateDepthStencilRenderTargets(Platform) && CVarMobileCustomDepthDownSample.GetValueOnRenderThread() > 0 ? 2 : 1;
 }
 
 FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint Extent, ERHIFeatureLevel::Type FeatureLevel, uint32 DownsampleFactor)
@@ -86,12 +100,13 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 		return {};
 	}
 
-	const bool bWritesCustomStencil = IsCustomDepthPassWritingStencil(FeatureLevel);
+	EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
+	const bool bWritesCustomStencil = IsCustomDepthPassWritingStencil(Platform);
 	const FIntPoint CustomDepthExtent = FIntPoint::DivideAndRoundUp(Extent, DownsampleFactor);
 
 	FCustomDepthTextures CustomDepthTextures;
-
-	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	
+	if (IsMobileSeparateDepthStencilRenderTargets(Platform))
 	{
 		const float DepthFar = (float)ERHIZBuffer::FarPlane;
 		const FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar, DepthFar, DepthFar, DepthFar));
@@ -170,9 +185,6 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
 
-	const bool bMobilePath = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
-	const bool bWritesCustomStencilValues = IsCustomDepthPassWritingStencil(FeatureLevel);
-
 	bool bCustomDepthRendered = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -200,7 +212,7 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 			const ERenderTargetLoadAction DepthLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.DepthAction);
 			const ERenderTargetLoadAction StencilLoadAction = GetLoadActionIfProduced(CustomDepthTextures.Depth, CustomDepthTextures.StencilAction);
 
-			if (bMobilePath)
+			if (IsMobileSeparateDepthStencilRenderTargets(View.GetShaderPlatform()))
 			{
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(CustomDepthTextures.MobileDepth, DepthLoadAction);
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(CustomDepthTextures.MobileStencil, StencilLoadAction);
@@ -308,11 +320,12 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
+	EShaderPlatform Platform = GShaderPlatformForFeatureLevel[FeatureLevel];
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil(FeatureLevel);
+	const bool bWriteCustomStencilValues = IsCustomDepthPassWritingStencil(Platform);
 	float MobileColorValue = 0.0f;
 
 	if (bWriteCustomStencilValues)
@@ -336,18 +349,15 @@ bool FCustomDepthPassMeshProcessor::TryAddMeshBatch(
 		PassDrawRenderState.SetDepthStencilState(StencilStates[(int32)PrimitiveSceneProxy->GetStencilWriteMask()]);
 		PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
 
-		if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
-		{
-			// On mobile platforms write custom stencil value to color target
-			MobileColorValue = CustomDepthStencilValue / 255.0f;
-		}
+		// On mobile platforms write custom stencil value to color target
+		MobileColorValue = CustomDepthStencilValue / 255.0f;
 	}
 	else
 	{
 		PassDrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 	}
 
-	const bool bUsesMobileColorValue = FeatureLevel <= ERHIFeatureLevel::ES3_1;
+	const bool bUsesMobileColorValue = IsMobileSeparateDepthStencilRenderTargets(Platform);
 
 	bool bResult = true;
 	if (BlendMode == BLEND_Opaque

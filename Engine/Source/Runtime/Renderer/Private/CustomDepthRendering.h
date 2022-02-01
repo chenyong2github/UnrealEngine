@@ -32,12 +32,18 @@ enum class ECustomDepthMode : uint32
 extern ECustomDepthMode GetCustomDepthMode();
 
 // Returns the requested downsample factor for custom depth textures.
-extern uint32 GetCustomDepthDownsampleFactor(ERHIFeatureLevel::Type InFeatureLevel);
+extern uint32 GetCustomDepthDownsampleFactor(EShaderPlatform Platform);
 
 inline bool IsCustomDepthPassEnabled()
 {
 	return GetCustomDepthMode() != ECustomDepthMode::Disabled;
 }
+
+// Check if the mobile uses separate depth and stencil render targets for the custom renderer
+extern bool IsMobileSeparateDepthStencilRenderTargets(EShaderPlatform Platform);
+
+// Check if the mobile support to directly fetch from the depthStencil buffer
+extern bool IsMobileSupportFetchBindedCustomStencilBuffer(EShaderPlatform Platform);
 
 struct FCustomDepthTextures
 {
