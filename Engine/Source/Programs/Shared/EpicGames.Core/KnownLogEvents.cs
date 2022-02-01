@@ -30,6 +30,11 @@ namespace EpicGames.Core
 		public static EventId Exception { get; } = new EventId(2);
 
 		/// <summary>
+		/// Exit code error
+		/// </summary>
+		public static EventId ExitCode { get; } = new EventId(3);
+
+		/// <summary>
 		/// Compiler error
 		/// </summary>
 		public static EventId Compiler { get; } = new EventId(100);
@@ -138,6 +143,11 @@ namespace EpicGames.Core
 		/// BuildService.exe is not running
 		/// </summary>
 		public static EventId Systemic_Xge_ServiceNotRunning { get; } = new EventId(712);
+
+		/// <summary>
+		/// General build failed error
+		/// </summary>
+		public static EventId Systemic_Xge_BuildFailed { get; } = new EventId(713);
 
 		/// <summary>
 		/// DDC is slow

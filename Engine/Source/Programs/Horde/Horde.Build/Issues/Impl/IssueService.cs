@@ -681,6 +681,17 @@ namespace HordeServer.Services.Impl
 					EventGroup.Events.Add(new NewEvent(StepEvent, StepEventData));
 				}
 			}
+			
+			List<NewIssueFingerprint> SystemicFingerprints = FingerprintToEventGroup.Keys.Where(x => x.Type == "Systemic").ToList();
+
+			// Only generate user issues for systemic issues where there are no other failures, otherwise this leads to many false positives (Experimental)
+			if ((SystemicFingerprints.Count != 0) && (SystemicFingerprints.Count != FingerprintToEventGroup.Values.Count))
+			{
+				for (int i = 0; i < SystemicFingerprints.Count; i++)
+				{
+					FingerprintToEventGroup.Remove(SystemicFingerprints[i]);
+				}
+			}
 
 			// Print the list of new events
 			HashSet<NewEventGroup> EventGroups = new HashSet<NewEventGroup>(FingerprintToEventGroup.Values);

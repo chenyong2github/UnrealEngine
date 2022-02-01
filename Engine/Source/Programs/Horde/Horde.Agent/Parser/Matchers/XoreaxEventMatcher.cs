@@ -24,6 +24,12 @@ namespace HordeAgent.Parser.Matchers
 				return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
 			}
 
+			if (Cursor.IsMatch(@"BUILD FAILED: (.*)xgConsole\.exe(.*)"))
+			{
+				LogEventBuilder Builder = new LogEventBuilder(Cursor);
+				return Builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_BuildFailed);
+			}
+
 			if (Cursor.IsMatch(@"^\s*--------------------Build System Warning[- ]"))
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);

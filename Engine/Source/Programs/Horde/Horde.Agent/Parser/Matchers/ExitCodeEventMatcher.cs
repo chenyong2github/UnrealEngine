@@ -39,7 +39,7 @@ namespace HordeAgent.Parser.Matchers
 			{
 				LogEventBuilder Builder = new LogEventBuilder(Cursor);
 				Builder.MoveNext(NumLines - 1);
-				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
+				return Builder.ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.ExitCode);
 			}
 			return null;
 		}

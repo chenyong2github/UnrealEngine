@@ -126,7 +126,7 @@ namespace HordeAgentTests
 			};
 
 			List<LogEvent> Events = Parse(Lines);
-			CheckEventGroup(Events, 1, 3, LogLevel.Error, KnownLogEvents.Generic);
+			CheckEventGroup(Events, 1, 3, LogLevel.Error, KnownLogEvents.ExitCode);
 		}
 
 		[TestMethod]
@@ -964,13 +964,15 @@ namespace HordeAgentTests
 				@"    Tasks execution is impeded due to low agent responsiveness",
 				@"-------------------------------------------------------------------------------",
 				@"    LogXGEController: Warning: XGE's background service (BuildService.exe) is not running - service is likely disabled on this machine.",
+				@"BUILD FAILED: Command failed (Result:1): C:\Program Files (x86)\IncrediBuild\xgConsole.exe ""d:\build\Sync\Engine\Programs\AutomationTool\Saved\Logs\UAT_XGE.xml"" /Rebuild /NoLogo /ShowAgent /ShowTime"
 			};
 
 			List<LogEvent> Events = Parse(Lines);
-			Assert.AreEqual(7, Events.Count);
+			Assert.AreEqual(8, Events.Count);
 			CheckEventGroup(Events.Slice(0, 3), 0, 3, LogLevel.Information, KnownLogEvents.Systemic_Xge_Standalone);
 			CheckEventGroup(Events.Slice(3, 3), 3, 3, LogLevel.Information, KnownLogEvents.Systemic_Xge);
 			CheckEventGroup(Events.Slice(6, 1), 7, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_ServiceNotRunning);
+			CheckEventGroup(Events.Slice(7, 1), 8, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_BuildFailed);
 		}
 
 		string GetSubProperty(LogEvent Event, string SpanName, string Name)
