@@ -1661,31 +1661,40 @@ class SwitchboardDialog(QtCore.QObject):
         if current_level and current_level in levels:
             self.level = current_level
 
+    def filter_empty_abiguated_path(path, file_name):
+        path = path.removesuffix(file_name)
+        if path == "/":
+            return f"{file_name}"
+        else:
+            return f"{file_name} ({path})"
+
+    def generate_short_map_path(path: str, file_name: str) -> str:
+            path = path.replace("/Game", "", 1)
+            return SwitchboardDialog.filter_empty_abiguated_path(path, file_name)
+        
+    def generate_disambiguated_names(path_list, shortening_function):
+        name_counts = {}
+        for path in path_list:
+            file_name = os.path.basename(path)
+            name_counts[file_name] = name_counts.get(file_name, 0) + 1
+            
+        # Show only level name if unique and show path behind to disambiguate duplicates
+        short_name_list = []
+        short_name_to_path = {}
+        for path in path_list:
+            file_name = os.path.basename(path)
+            short_name = file_name if name_counts[file_name] == 1 else shortening_function(path, file_name)
+            short_name_list.append(short_name)
+            short_name_to_path[short_name] = path
+            
+        return short_name_list, short_name_to_path
 
     def _update_level_list(self, level_combo_box: QtWidgets.QComboBox, level_path_list: List[str]):
         def compare_file_names(path_a: str, path_b: str):
             return -1 if path_a.lower() < path_b.lower() \
                 else 1 if path_a.lower() > path_b.lower() else 0
         
-        def generate_short_map_path(map_path: str, file_name: str) -> str:
-            map_path = map_path.replace("/Game", "", 1)
-            map_path = map_path.removesuffix(file_name)
-            return f"{file_name} ({map_path})"
-            
-        
-        name_counts = {}
-        for map_path in level_path_list:
-            file_name = os.path.basename(map_path)
-            name_counts[file_name] = name_counts.get(file_name, 0) + 1
-            
-        # Show only level name if unique and show path behind to disambiguate duplicates
-        short_name_list = []
-        short_name_to_path = {}
-        for map_path in level_path_list:
-            file_name = os.path.basename(map_path)
-            short_name = file_name if name_counts[file_name] == 1 else generate_short_map_path(map_path, file_name)
-            short_name_list.append(short_name)
-            short_name_to_path[short_name] = map_path
+        short_name_list, short_name_to_path = SwitchboardDialog.generate_disambiguated_names(level_path_list, SwitchboardDialog.generate_short_map_path)
             
         from functools import cmp_to_key
         short_name_list = sorted(short_name_list, key=cmp_to_key(compare_file_names))

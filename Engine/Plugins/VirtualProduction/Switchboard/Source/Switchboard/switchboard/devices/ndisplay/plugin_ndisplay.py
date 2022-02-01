@@ -16,6 +16,7 @@ from PySide2 import QtWidgets
 from switchboard import message_protocol
 from switchboard import switchboard_utils as sb_utils
 from switchboard import switchboard_widgets as sb_widgets
+from switchboard import switchboard_dialog as sb_dialog
 from switchboard.config import CONFIG, BoolSetting, FilePathSetting, \
     LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS, StringListSetting, \
     migrate_comma_separated_string_to_list
@@ -151,16 +152,20 @@ class AddnDisplayDialog(AddDeviceDialog):
             self.cbConfigs.setCurrentText(cfg_path)
             SETTINGS.LAST_BROWSED_PATH = os.path.dirname(cfg_path)
             SETTINGS.save()
-
+    
+    def generate_short_unique_config_name(config_path: str, file_name: str) -> str:
+        config_path = CONFIG.shrink_path(config_path)
+        return sb_dialog.SwitchboardDialog.filter_empty_abiguated_path(config_path, file_name)
+    
     def on_clicked_btnFindConfigs(self):
         ''' Finds and populates config combobox '''
+        
         # We will look for config files in the project's Content folder
         configs_path = os.path.normpath(
             os.path.join(
                 os.path.dirname(
                     CONFIG.UPROJECT_PATH.get_value().replace('"', '')),
                 'Content'))
-
         config_names = []
         config_paths = []
 
@@ -224,11 +229,12 @@ class AddnDisplayDialog(AddDeviceDialog):
                 # paths.
                 try:
                     asset = future.result()
-                    if asset['name'] not in config_names:
-                        config_names.append(asset['name'])
-                        config_paths.append(asset['path'])
+                    config_names.append(asset['name'])
+                    config_paths.append(asset['path'])
                 except Exception:
                     pass
+
+        config_names, _ = sb_dialog.SwitchboardDialog.generate_disambiguated_names(config_paths, AddnDisplayDialog.generate_short_unique_config_name)
 
         # close progress bar window
         progressDiag.close()
@@ -250,6 +256,8 @@ class AddnDisplayDialog(AddDeviceDialog):
 
         # update the combo box with the items.
         self.recall_config_itemDatas()
+        
+
 
     def devices_to_add(self):
         cfg_file = self.current_config_path()

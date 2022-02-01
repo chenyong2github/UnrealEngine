@@ -2365,15 +2365,22 @@ class Config(object):
         del self._device_settings[(device_type, device_name)]
         self.save()
 
+    def shrink_path(self, path):
+        path_name = path.replace(self.get_project_dir(), '', 1)
+        path_name = path_name.replace(os.sep, '/')
+        return path_name
+        
+    def get_project_dir(self):
+        return os.path.dirname(self.UPROJECT_PATH.get_value().replace('"', ''))
+
     def maps(self):
         '''
         Returns a list of ful map paths in an Unreal Engine project such as [ "/Game/Maps/MapName" ].
         It will always start with Game and the slashes will always be "/" independent of the platform's separator.
         '''
-        project_dir = os.path.dirname(self.UPROJECT_PATH.get_value().replace('"', ''))
         maps_path = os.path.normpath(
             os.path.join(
-                project_dir,
+                self.get_project_dir(),
                 'Content',
                 self.MAPS_PATH.get_value()))
 
@@ -2384,11 +2391,10 @@ class Config(object):
                     continue
                 
                 map_name, _ = os.path.splitext(name)
-                path_name = path_to_map.replace(project_dir, '', 1)
                 # Ignore the fact that maps may exist in plugins - we only search game content
-                path_name = path_name.replace('Content', 'Game', 1)
+                path_name = path_to_map.replace('Content', 'Game', 1)
                 path_name = os.path.join(path_name, map_name)
-                path_name = path_name.replace(os.sep, '/')
+                path_name = self.shrink_path(path_name)
                 
                 if path_name not in maps:
                     maps.append(path_name)
