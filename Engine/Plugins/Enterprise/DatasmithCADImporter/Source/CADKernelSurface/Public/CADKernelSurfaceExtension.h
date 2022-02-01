@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "ParametricSurfaceExtension.h"
+#include "ParametricSurfaceData.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithCustomAction.h"
 #include "DatasmithImportOptions.h"
@@ -18,14 +18,6 @@ class CADKERNELSURFACE_API UCADKernelParametricSurfaceData : public UParametricS
 	GENERATED_BODY()
 
 public:
-	// Too costly to serialize as a UPROPERTY, will use custom serialization.
-	TArray<uint8> RawData;
-
-	virtual bool IsValid() override
-	{
-		return RawData.Num() > 0;
-	}
-	
 	virtual bool Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions) override;
 
 private:

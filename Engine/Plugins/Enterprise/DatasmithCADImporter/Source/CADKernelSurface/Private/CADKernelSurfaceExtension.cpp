@@ -97,25 +97,14 @@ namespace CADKernelSurface
 	void AddSurfaceDataForMesh(const TCHAR* CADKernelArchive, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
 	{
 		// Store CADKernel archive if provided
-		if (FPaths::FileExists(CADKernelArchive))
+		UCADKernelParametricSurfaceData* CADKernelData = Datasmith::MakeAdditionalData<UCADKernelParametricSurfaceData>();
+		if (CADKernelData->SetFile(CADKernelArchive))
 		{
-			TArray<uint8> ByteArray;
-			if (FFileHelper::LoadFileToArray(ByteArray, CADKernelArchive))
-			{
-				UCADKernelParametricSurfaceData* CADKernelData = Datasmith::MakeAdditionalData<UCADKernelParametricSurfaceData>();
-				CADKernelData->RawData = MoveTemp(ByteArray);
-				CADKernelData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.GetModelCoordSys());
-				CADKernelData->SceneParameters.MetricUnit = InSceneParameters.GetMetricUnit();
-				CADKernelData->SceneParameters.ScaleFactor = InSceneParameters.GetScaleFactor();
+			CADKernelData->SetImportParameters(InSceneParameters);
+			CADKernelData->SetMeshParameters(InMeshParameters);
+			CADKernelData->SetLastTessellationOptions(InTessellationOptions);
 
-				CADKernelData->MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
-				CADKernelData->MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;
-				CADKernelData->MeshParameters.SymmetricNormal = InMeshParameters.SymmetricNormal;
-				CADKernelData->MeshParameters.SymmetricOrigin = InMeshParameters.SymmetricOrigin;
-
-				CADKernelData->LastTessellationOptions = InTessellationOptions;
-				OutMeshPayload.AdditionalData.Add(CADKernelData);
-			}
+			OutMeshPayload.AdditionalData.Add(CADKernelData);
 		}
 	}
 

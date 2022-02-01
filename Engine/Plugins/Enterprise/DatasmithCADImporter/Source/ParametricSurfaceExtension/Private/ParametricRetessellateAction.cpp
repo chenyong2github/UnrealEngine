@@ -103,7 +103,7 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 						Parameters.CancelButtonTooltip = LOCTEXT("OptionWindow_CancelButtonTooltip", "Cancel the retessellation operation");
 
 						bAskForSameOption = false; // ask only the fist time
-						RetessellateOptions->Options = ParametricSurfaceData->LastTessellationOptions;
+						RetessellateOptions->Options = ParametricSurfaceData->GetLastTessellationOptions();
 						Datasmith::FDisplayResult Result = Datasmith::DisplayOptions(RetessellateOptions, Parameters);
 						if (!Result.bValidated)
 						{
@@ -111,7 +111,7 @@ void FParametricRetessellateAction_Impl::ApplyOnAssets(const TArray<FAssetData>&
 						}
 						bSameOptionsForAll |= Result.bUseSameOption;
 					}
-					ParametricSurfaceData->LastTessellationOptions = RetessellateOptions->Options;
+					ParametricSurfaceData->SetLastTessellationOptions(RetessellateOptions->Options);
 
 					int32 RemainingAssetsToProcess = NumAssetsToProcess - AssetIndex;
 					if (bSameOptionsForAll && !Progress.IsValid() && RemainingAssetsToProcess > 1)

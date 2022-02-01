@@ -10,11 +10,21 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/MatrixH.h"
 
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
 THIRD_PARTY_INCLUDES_START
+#pragma push_macro("TEXT")
 #include "A3DSDKEnums.h"
 #include "A3DSDKGeometry.h"
 #include "A3DSDKGeometrySrf.h"
+#pragma pop_macro("TEXT")
 THIRD_PARTY_INCLUDES_END
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 typedef void A3DAsmProductOccurrence;
 typedef void A3DCrvBase;

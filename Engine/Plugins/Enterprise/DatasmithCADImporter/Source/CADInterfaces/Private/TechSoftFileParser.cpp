@@ -8,6 +8,8 @@
 
 #include "TechSoftInterface.h"
 
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace CADLibrary
@@ -375,7 +377,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 			//	{
 			//		// Aggregate all the bodies into one?
 			//		MeshRepresentationsWithTechSoft(NewBRepCount, NewBReps, Body);
-			//		TechSoftInterface.FillBodyMesh(NewBRepCount, NewBReps, CADFileData.GetImportParameters(), FileUnit, BodyMesh);???
+			//		TechSoftInterface.FillBodyMeshes(NewBRepCount, NewBReps, CADFileData.GetImportParameters(), FileUnit, BodyMesh);???
 			//	}
 			//}
 			//else
@@ -396,7 +398,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 				uint32 CachedStyleIndex = Tessellation.MaterialName;
 				Tessellation.MaterialName = 0;
 
-				if (CachedStyleIndex != 0xffffffff)
+				if (CachedStyleIndex != FTechSoftInterface::InvalidScriptIndex)
 				{
 					ExtractGraphStyleProperties(CachedStyleIndex, ColorName, MaterialName);
 				}
@@ -417,7 +419,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 			Body.ColorFaceSet = BodyMesh.ColorSet;
 			Body.MaterialFaceSet = BodyMesh.MaterialSet;
 
-			// Write part's representation as hsf file
+			// Write part's representation as hsf file if it is a BRep
 			A3DEEntityType Type;
 			A3DEntityGetType(RepresentationItemPtr, &Type);
 
@@ -426,14 +428,22 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 				FString FilePath = CADFileData.GetBodyCachePath(Body.MeshActorName);
 				if (!FilePath.IsEmpty())
 				{
-					this->TechSoftInterface.SaveBodyToHsfFile(RepresentationItemPtr, FilePath);
+					TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+
+					// Save file unit and default color and material attributes in a json string
+					// This will be used when the file is reloaded
+					JsonObject->SetNumberField(JSON_ENTRY_FILE_UNIT, FileUnit);
+					JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
+					JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
+
+					FString JsonString;
+					TSharedRef< TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> >::Create(&JsonString);
+
+					FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+
+					TechSoftInterface.SaveBodyToHsfFile(RepresentationItemPtr, FilePath, JsonString);
 				}
 			}
-
-			// #ueent_techsoft: Take care of materials stored in BodyMesh
-
-			Body.ColorFaceSet = BodyMesh.ColorSet;
-			Body.MaterialFaceSet = BodyMesh.MaterialSet;
 		}
 	}
 	else
@@ -1442,7 +1452,7 @@ FArchiveColor& FTechSoftFileParser::FindOrAddColor(uint32 ColorIndex, uint8 Alph
 	}
 
 	FArchiveColor& NewColor = CADFileData.AddColor(ColorHId);
-	NewColor.Color = TechSoftFileParserImpl::GetColorAt(ColorIndex);
+	NewColor.Color = TechSoftUtils::GetColorAt(ColorIndex);
 	NewColor.Color.A = Alpha;
 	
 	NewColor.UEMaterialName = BuildColorName(NewColor.Color);
@@ -1457,9 +1467,9 @@ FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave,
 	TUniqueTSObjFromIndex<A3DGraphMaterialData> MaterialData(MaterialIndexToSave);
 	if(MaterialData.IsValid())
 	{
-		Material.Diffuse = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiDiffuse);
-		Material.Ambient = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiAmbient);
-		Material.Specular = TechSoftFileParserImpl::GetColorAt(MaterialData->m_uiSpecular);
+		Material.Diffuse = TechSoftUtils::GetColorAt(MaterialData->m_uiDiffuse);
+		Material.Ambient = TechSoftUtils::GetColorAt(MaterialData->m_uiAmbient);
+		Material.Specular = TechSoftUtils::GetColorAt(MaterialData->m_uiSpecular);
 		Material.Shininess = MaterialData->m_dShininess;
 		if(GraphStyleData.m_bIsTransparencyDefined)
 		{
@@ -1474,6 +1484,8 @@ FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave,
 }
 
 
+// Look at TechSoftUtils::BuildCADMaterial if any loigc changes in this method
+// or any of the methos it calls
 FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex, const A3DGraphStyleData& GraphStyleData)
 {
 	if (FArchiveMaterial* MaterialArchive = CADFileData.FindMaterial(MaterialIndex))
@@ -1556,6 +1568,8 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 	}
 }
 
+// Please review TechSoftUtils::GetMaterialValues if anything changes
+// in this method or the methods it calls
 void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutMaterialName)
 {
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);

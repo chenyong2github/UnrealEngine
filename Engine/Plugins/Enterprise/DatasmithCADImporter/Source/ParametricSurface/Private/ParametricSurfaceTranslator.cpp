@@ -2,7 +2,13 @@
 
 #include "ParametricSurfaceTranslator.h"
 
+#include "ParametricSurfaceData.h"
+#include "ParametricSurfaceModule.h"
+
 #include "DatasmithImportOptions.h"
+#include "IDatasmithSceneElements.h"
+
+#include "Misc/FileHelper.h"
 
 void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
@@ -30,3 +36,31 @@ void FParametricSurfaceTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr
 	}
 }
 
+bool FParametricSurfaceTranslator::AddSurfaceData(const TCHAR* MeshFilePath, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& MeshParameters, FDatasmithMeshElementPayload& OutMeshPayload)
+{
+	if (MeshFilePath && IFileManager::Get().FileExists(MeshFilePath))
+	{
+		UParametricSurfaceData* ParametricSurfaceData = FParametricSurfaceModule::CreateParametricSurface(*CADLibrary::FImportParameters::GCADLibrary);
+
+		if (!ParametricSurfaceData || !ParametricSurfaceData->SetFile(MeshFilePath))
+		{
+			return false;
+		}
+
+		ParametricSurfaceData->SetImportParameters(ImportParameters);
+		ParametricSurfaceData->SetMeshParameters(MeshParameters);
+		ParametricSurfaceData->SetLastTessellationOptions(CommonTessellationOptions);
+
+		OutMeshPayload.AdditionalData.Add(ParametricSurfaceData);
+
+		// Remove the file because it is temporary since caching is disabled.
+		if (!CADLibrary::FImportParameters::bGEnableCADCache)
+		{
+			IFileManager::Get().Delete(MeshFilePath);
+		}
+
+		return true;
+	}
+
+	return false;
+}

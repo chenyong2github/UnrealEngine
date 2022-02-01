@@ -20,14 +20,15 @@ namespace TechSoftInterfaceUtils
 
 		bool  FillBodyMesh(CADLibrary::FBodyMesh& BodyMesh, double FileUnit)
 		{
+			int32 VertexOffset = BodyMesh.VertexArray.Num();
 			FillVertexArray(FileUnit, BodyMesh.VertexArray);
 
-			if (BodyMesh.VertexArray.Num() == 0)
+			if (BodyMesh.VertexArray.Num() == VertexOffset)
 			{
 				return false;
 			}
 
-			FillFaceArray(BodyMesh);
+			FillFaceArray(BodyMesh, VertexOffset);
 
 			return BodyMesh.Faces.Num() > 0 ? true : false;
 		}
@@ -45,7 +46,7 @@ namespace TechSoftInterfaceUtils
 			}
 
 			int32 VertexCount = TessellationBaseData->m_uiCoordSize / 3;
-			VertexArray.Reserve(VertexCount);
+			VertexArray.Reserve(VertexArray.Num() + VertexCount);
 
 			double* Coordinates = TessellationBaseData->m_pdCoords;
 			for (unsigned int Index = 0; Index < TessellationBaseData->m_uiCoordSize; ++Index)
@@ -103,7 +104,7 @@ namespace TechSoftInterfaceUtils
 			return TriangleCount;
 		}
 
-		void FillFaceArray(CADLibrary::FBodyMesh& BodyMesh)
+		void FillFaceArray(CADLibrary::FBodyMesh& BodyMesh, int32 VertexOffset = 0)
 		{
 			using namespace CADLibrary;
 
@@ -125,8 +126,8 @@ namespace TechSoftInterfaceUtils
 				const A3DTessFaceData& FaceTessData = TessellationData->m_psFaceTessData[Index];
 				FTessellationData& Tessellation = Faces.Emplace_GetRef();
 
-				Tessellation.MaterialName = 0xffffffff; // Assumes -1 is an invalid value for m_puiStyleIndexes
-				if (FaceTessData.m_uiStyleIndexesSize == 1)
+				Tessellation.MaterialName = FTechSoftInterface::InvalidScriptIndex;
+				if (FaceTessData.m_uiStyleIndexesSize > 0)
 				{
 					// Store the StyleIndex on the MaterialName. It will be processed after tessellation
 					Tessellation.MaterialName = FaceTessData.m_puiStyleIndexes[0];
@@ -269,6 +270,14 @@ namespace TechSoftInterfaceUtils
 						AddFaceTriangleStripeWithUniqueNormalAndTexture(Tessellation, PointCount, FaceTessData.m_uiTextureCoordIndexesSize, LastTrianguleIndex, LastVertexIndex);
 					}
 					bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
+				}
+				
+				if (VertexOffset > 0)
+				{
+					for (int32& VertexIndex : Tessellation.VertexIndices)
+					{
+						VertexIndex += VertexOffset;
+					}
 				}
 
 				ensure(!bMustProcess);

@@ -10,9 +10,6 @@
 
 void FCoreTechSurfaceModule::StartupModule()
 {
-	TArray<FCoreRedirect> Redirects;
-	Redirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("UCoreTechParametricSurfaceData.RawData"), TEXT("RawData_DEPRECATED"));
-	FCoreRedirects::AddRedirectList(Redirects, CORETECHSURFACE_MODULE_NAME);
 }
 
 FCoreTechSurfaceModule& FCoreTechSurfaceModule::Get()

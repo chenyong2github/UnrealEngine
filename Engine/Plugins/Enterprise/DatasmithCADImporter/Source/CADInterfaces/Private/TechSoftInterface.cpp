@@ -4,20 +4,34 @@
 
 #include "TechSoftInterface.h"
 
+#include "TUniqueTechSoftObj.h"
+
 #include "CADOptions.h"
 #include "CADInterfacesModule.h"
 
 #include "HAL/PlatformProcess.h"
+#include "Math/Color.h"
 #include "Misc/Paths.h"
-#include "TUniqueTechSoftObj.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 #ifndef CADKERNEL_DEV
 #include "TechSoftInterfaceUtils.inl"
 #endif
 
+#include <string>
+
 namespace CADLibrary
 {
-FTechSoftInterface& GetTechSoftInterface()
+namespace TechSoftUtils
+{
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
+	TSharedPtr<FJsonObject> GetJsonObject(A3DAsmProductOccurrence* ProductOcccurence);
+	void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, CADLibrary::FBodyMesh& BodyMesh);
+#endif
+}
+
+	FTechSoftInterface& GetTechSoftInterface()
 {
 	static FTechSoftInterface TechSoftInterface;
 	return TechSoftInterface;
@@ -70,14 +84,41 @@ bool FTechSoftInterface::InitializeKernel(const TCHAR* InEnginePluginsPath)
 #endif
 }
 
-void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filename)
+#ifdef USE_TECHSOFT_SDK
+
+A3DUns32 FTechSoftInterface::InvalidScriptIndex = -1;
+
+A3DStatus FTechSoftInterface::Import(const A3DImport& Import)
 {
+	return ExchangeLoader->Import(Import);
+}
+
+A3DStatus FTechSoftInterface::UnloadModel()
+{
+	A3DStatus Ret = A3DStatus::A3D_ERROR;
+	if (ExchangeLoader)
+	{
+		Ret = A3DAsmModelFileDelete(ExchangeLoader->m_psModelFile);
+	}
+	ExchangeLoader->m_psModelFile = nullptr;
+	return Ret;
+}
+
+A3DAsmModelFile* FTechSoftInterface::GetModelFile()
+{
+	return ExchangeLoader->m_psModelFile;
+}
+#endif
+
+void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filename, const FString& JsonString)
+{
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	if (!BodyPtr)
 	{
 		return;
 	}
 
-#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
+	// Create PartDefinition
 	A3DRiRepresentationItem* RepresentationItem = (A3DRiRepresentationItem*)BodyPtr;
 	A3DAsmPartDefinition* PartDefinition = nullptr;
 
@@ -89,6 +130,7 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 
 	A3DAsmPartDefinitionCreate(&PartDefinitionData, &PartDefinition);
 
+	// Create ProductOccurrence
 	A3DAsmProductOccurrence* ProductOccurrence = nullptr;
 
 	A3DAsmProductOccurrenceData ProductOccurrenceData;
@@ -98,6 +140,35 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 
 	A3DInt32 iRet = A3DAsmProductOccurrenceCreate(&ProductOccurrenceData, &ProductOccurrence);
 
+	// Add MaterialTable as attribute to ProductOccurrence
+	std::string StringAnsi(TCHAR_TO_UTF8(*JsonString));
+
+	A3DMiscSingleAttributeData SingleAttributeData;
+	A3D_INITIALIZE_DATA(A3DMiscSingleAttributeData, SingleAttributeData);
+
+	SingleAttributeData.m_eType = kA3DModellerAttributeTypeString;
+	SingleAttributeData.m_pcTitle = "MaterialTable";
+	SingleAttributeData.m_pcData = (char*)StringAnsi.c_str();
+
+	A3DMiscAttributeData AttributesData;
+	A3D_INITIALIZE_DATA(A3DMiscAttributeData, AttributesData);
+
+	A3DMiscAttribute* Attributes = nullptr;
+
+	AttributesData.m_pcTitle = SingleAttributeData.m_pcTitle;
+	AttributesData.m_asSingleAttributesData = &SingleAttributeData;
+	AttributesData.m_uiSize = 1;
+	A3DMiscAttributeCreate(&AttributesData, &Attributes);
+
+	A3DRootBaseData RootBaseData;
+	A3D_INITIALIZE_DATA(A3DRootBaseData, RootBaseData);
+
+	RootBaseData.m_pcName = SingleAttributeData.m_pcTitle;
+	RootBaseData.m_ppAttributes = &Attributes;
+	RootBaseData.m_uiSize = 1;
+	A3DRootBaseSet(ProductOccurrence, &RootBaseData);
+
+	// Create ModelFile
 	A3DAsmModelFile* ModelFile = nullptr;
 
 	A3DAsmModelFileData ModelFileData;
@@ -109,6 +180,7 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 
 	A3DAsmModelFileCreate(&ModelFileData, &ModelFile);
 
+	// Save ModelFile to hsf file
 	A3DRWParamsExportPrcData sParamsExportData;
 	A3D_INITIALIZE_DATA(A3DRWParamsExportPrcData, sParamsExportData);
 
@@ -121,12 +193,15 @@ void FTechSoftInterface::SaveBodyToHsfFile(void* BodyPtr, const FString& Filenam
 	iRet = A3DAsmModelFileExportToPrcFile(ModelFile, &sParamsExportData, HsfFileName, nullptr);
 
 	// #ueent_techsoft: Deleting the model seems to delete the entire content. To be double-checked
+	A3DEntityDelete(Attributes);
 	A3DEntityDelete(ModelFile);
 #endif
 }
 
-bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
+bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImportParameters& ImportParameters, FBodyMesh& BodyMesh)
 {
+	bool bExtractionSuccessful = false;
+
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	A3DRWParamsPrcReadHelper* ReadHelper = nullptr;
 	A3DAsmModelFile* ModelFile = nullptr;
@@ -156,10 +231,25 @@ bool FTechSoftInterface::GetBodyFromHsfFile(const FString& Filename, const FImpo
 		return false;
 	}
 
-	return FillBodyMesh(PartDefinitionData->m_ppRepItems[0], ImportParameters, FileUnit, BodyMesh);
-#else
-	return false;
+	TSharedPtr<FJsonObject> JsonObject = TechSoftUtils::GetJsonObject(ModelFileData->m_ppPOccurrences[0]);
+	if (JsonObject.IsValid())
+	{
+		double FileUnit = 1.0;
+
+		JsonObject->TryGetNumberField(JSON_ENTRY_FILE_UNIT, FileUnit);
+
+		if (FillBodyMesh(PartDefinitionData->m_ppRepItems[0], ImportParameters, FileUnit, BodyMesh))
+		{
+			bExtractionSuccessful = true;
+
+			TechSoftUtils::RestoreMaterials(JsonObject, BodyMesh);
+		}
+	}
+
+	A3DEntityDelete(ModelFile);
 #endif
+
+	return bExtractionSuccessful;
 }
 
 bool FTechSoftInterface::FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh)
@@ -206,33 +296,254 @@ bool FTechSoftInterface::FillBodyMesh(void* BodyPtr, const FImportParameters& Im
 	TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
 	return Extractor.FillBodyMesh(BodyMesh, FileUnit);
 #else
-return false;
+	return false;
 #endif
+}
+
+namespace TechSoftUtils
+{
+
+#if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
+TSharedPtr<FJsonObject> GetJsonObject(A3DAsmProductOccurrence* ProductOcccurence)
+{
+	TUniqueTSObj<A3DRootBaseData> RootBaseData(ProductOcccurence);
+
+	if (RootBaseData.IsValid() && RootBaseData->m_uiSize > 0)
+	{
+		TUniqueTSObj<A3DMiscAttributeData> AttributeData(RootBaseData->m_ppAttributes[0]);
+		if (AttributeData->m_uiSize > 0 && AttributeData->m_asSingleAttributesData[0].m_eType == kA3DModellerAttributeTypeString)
+		{
+			FString JsonString = UTF8_TO_TCHAR(AttributeData->m_asSingleAttributesData[0].m_pcData);
+
+			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonString);
+			TSharedPtr<FJsonObject> JsonObject;
+
+			if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
+			{
+				return JsonObject;
+			}
+		}
+	}
+
+	return {};
+}
+
+FColor GetColorAt(uint32 ColorIndex)
+{
+	TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
+	if (ColorData.IsValid())
+	{
+		return FColor((uint8)(ColorData->m_dRed * 255)
+			, (uint8)(ColorData->m_dGreen * 255)
+			, (uint8)(ColorData->m_dBlue * 255));
+	}
+	else
+	{
+		return FColor(200, 200, 200);
+	}
+}
+
+// Replicate logic in FTechSoftFileParser::FindOrAddMaterial and the methods it calls
+void BuildCADMaterial(uint32 MaterialIndex, const A3DGraphStyleData& GraphStyleData, FCADMaterial& Material)
+{
+	if (TechSoftUtils::IsMaterialTexture(MaterialIndex))
+	{
+		TUniqueTSObjFromIndex<A3DGraphTextureApplicationData> TextureData(MaterialIndex);
+		if (TextureData.IsValid())
+		{
+			MaterialIndex = TextureData->m_uiMaterialIndex;
+		}
+	}
+
+	TUniqueTSObjFromIndex<A3DGraphMaterialData> MaterialData(MaterialIndex);
+	if (MaterialData.IsValid())
+	{
+		Material.Diffuse = GetColorAt(MaterialData->m_uiDiffuse);
+		Material.Ambient = GetColorAt(MaterialData->m_uiAmbient);
+		Material.Specular = GetColorAt(MaterialData->m_uiSpecular);
+		Material.Shininess = MaterialData->m_dShininess;
+		if (GraphStyleData.m_bIsTransparencyDefined)
+		{
+			Material.Transparency = 1. - GraphStyleData.m_ucTransparency / 255.;
+		}
+		// todo: find how to convert Emissive color into ? reflexion coef...
+		// Material.Emissive = GetColor(MaterialData->m_uiEmissive);
+		// Material.Reflexion;
+	}
+}
+
+// Replicates the logic in FTechSoftFileParser::ExtractGraphStyleProperties
+void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutMaterialName)
+{
+	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
+
+	if (GraphStyleData.IsValid())
+	{
+		if (GraphStyleData->m_bMaterial)
+		{
+			FCADMaterial Material;
+
+			BuildCADMaterial(GraphStyleData->m_uiRgbColorIndex, *GraphStyleData, Material);
+
+			OutMaterialName = BuildMaterialName(Material);
+		}
+		else
+		{
+			TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(GraphStyleData->m_uiRgbColorIndex);
+			if (ColorData.IsValid())
+			{
+				const uint8 Alpha = GraphStyleData->m_bIsTransparencyDefined ? GraphStyleData->m_ucTransparency : 255;
+				const FColor ColorValue((uint8)(ColorData->m_dRed * 255), (uint8)(ColorData->m_dGreen * 255), (uint8)(ColorData->m_dBlue * 255), Alpha);
+
+				OutColorName = BuildColorName(ColorValue);
+			}
+		}
+	}
+}
+
+void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& BodyMesh)
+{
+	FCADUUID DefaultColorName = 0;
+	FCADUUID DefaultMaterialName = 0;
+
+	DefaultValues->TryGetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
+	DefaultValues->TryGetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
+
+	BodyMesh.MaterialSet.Empty();
+	BodyMesh.ColorSet.Empty();
+
+	for (FTessellationData& Tessellation : BodyMesh.Faces)
+	{
+		// Extract proper color or material based on style index
+		uint32 CachedStyleIndex = Tessellation.MaterialName;
+		Tessellation.MaterialName = 0;
+
+		FCADUUID ColorName = DefaultColorName;
+		FCADUUID MaterialName = DefaultMaterialName;
+
+		GetMaterialValues(CachedStyleIndex, ColorName, MaterialName);
+
+		if (ColorName)
+		{
+			Tessellation.ColorName = ColorName;
+			BodyMesh.ColorSet.Add(ColorName);
+		}
+
+		if (MaterialName)
+		{
+			Tessellation.MaterialName = MaterialName;
+			BodyMesh.MaterialSet.Add(MaterialName);
+		}
+	}
+}
+#endif
+
+FTechSoftInterface& GetTechSoftInterface()
+{
+	static FTechSoftInterface TechSoftInterface;
+	return TechSoftInterface;
+}
+
+FString GetTechSoftVersion()
+{
+#ifdef USE_TECHSOFT_SDK
+	A3DInt32 MajorVersion = 0, MinorVersion = 0;
+	A3DDllGetVersion(&MajorVersion, &MinorVersion);
+	return FString::Printf(TEXT("Techsoft %d.%d"), MajorVersion, MinorVersion);
+#endif
+	return FString();
+}
+
+
+bool TECHSOFT_InitializeKernel(const TCHAR* InEnginePluginsPath)
+{
+	return GetTechSoftInterface().InitializeKernel(InEnginePluginsPath);
 }
 
 #ifdef USE_TECHSOFT_SDK
 
-A3DStatus FTechSoftInterface::Import(const A3DImport& Import)
+A3DStatus GetGlobalPointer(A3DGlobal** GlobalPtr)
 {
-	return ExchangeLoader->Import(Import);
+	return A3DGlobalGetPointer(GlobalPtr);
 }
 
-A3DStatus FTechSoftInterface::UnloadModel()
+A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization)
 {
-	A3DStatus Ret = A3DStatus::A3D_ERROR;
-	if (ExchangeLoader)
+	return A3DSurfBaseGetAsNurbs(SurfacePtr, Tolerance, bUseSameParameterization, DataPtr);
+}
+
+A3DStatus GetCurveAsNurbs(const A3DCrvBase* CurvePtr, A3DCrvNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization)
+{
+	return A3DCrvBaseGetAsNurbs(CurvePtr, Tolerance, bUseSameParameterization, DataPtr);
+}
+
+A3DStatus GetOriginalFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
+{
+	return A3DAsmProductOccurrenceGetOriginalFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
+}
+
+A3DStatus GetFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
+{
+	return A3DAsmProductOccurrenceGetFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
+}
+
+A3DStatus GetEntityType(const A3DEntity* EntityPtr, A3DEEntityType* EntityTypePtr)
+{
+	return A3DEntityGetType(EntityPtr, EntityTypePtr);
+}
+
+bool IsEntityBaseWithGraphicsType(const A3DEntity* EntityPtr)
+{
+	return (bool)A3DEntityIsBaseWithGraphicsType(EntityPtr);
+}
+
+bool IsEntityBaseType(const A3DEntity* EntityPtr)
+{
+	return (bool)A3DEntityIsBaseType(EntityPtr);
+}
+
+bool IsMaterialTexture(const uint32 MaterialIndex)
+{
+	A3DBool bIsTexture = false;
+	return A3DGlobalIsMaterialTexture(MaterialIndex, &bIsTexture) == A3DStatus::A3D_SUCCESS ? bool(bIsTexture) : false;
+}
+
+A3DEntity* GetPointerFromIndex(const uint32 Index, const A3DEEntityType Type)
+{
+	A3DEntity* EntityPtr;
+	if (A3DMiscPointerFromIndexGet(Index, Type, &EntityPtr) != A3DStatus::A3D_SUCCESS)
 	{
-		Ret = A3DAsmModelFileDelete(ExchangeLoader->m_psModelFile);
+		return nullptr;
 	}
-	ExchangeLoader->m_psModelFile = nullptr;
-	return Ret;
+	return EntityPtr;
 }
 
-A3DAsmModelFile* FTechSoftInterface::GetModelFile()
+A3DStatus HealBRep(A3DRiBrepModel** BRepToHeal, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
 {
-	return ExchangeLoader->m_psModelFile;
+	A3DUns32 NewBRepCount;
+	A3DStatus Status = A3DSewBrep(&BRepToHeal, 1, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
+	OutNewBRepCount = NewBRepCount;
+	return Status;
 }
 
+A3DStatus SewBReps(A3DRiBrepModel*** BRepsToSew, uint32 const BRepCount, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
+{
+	A3DUns32 NewBRepCount;
+	A3DStatus Status = A3DSewBrep(BRepsToSew, BRepCount, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
+	OutNewBRepCount = NewBRepCount;
+	return Status;
+}
+
+A3DStatus SewModel(A3DAsmModelFile** ModelPtr, double Tolerance, A3DSewOptionsData const* SewOptions)
+{
+	return A3DAsmModelFileSew(ModelPtr, Tolerance, SewOptions);
+}
+
+#endif
+
+}
+
+#ifdef USE_TECHSOFT_SDK
 void TUniqueTSObj<A3DAsmModelFileData>::InitializeData()
 {
 	A3D_INITIALIZE_DATA(A3DAsmModelFileData, Data);
@@ -1013,120 +1324,6 @@ A3DStatus TUniqueTSObj<A3DUTF8Char*>::GetData(const A3DAsmProductOccurrence* InO
 {
 	return A3DAsmProductOccurrenceGetFilePathName(InOccurrencePtr, &Data);
 }
-
 #endif
-
-namespace TechSoftUtils
-{
-
-FTechSoftInterface& GetTechSoftInterface()
-{
-	static FTechSoftInterface TechSoftInterface;
-	return TechSoftInterface;
-}
-
-FString GetTechSoftVersion()
-{
-#ifdef USE_TECHSOFT_SDK
-	A3DInt32 MajorVersion = 0, MinorVersion = 0;
-	A3DDllGetVersion(&MajorVersion, &MinorVersion);
-	return FString::Printf(TEXT("Techsoft %d.%d"), MajorVersion, MinorVersion);
-#endif
-	return FString();
-}
-
-
-bool TECHSOFT_InitializeKernel(const TCHAR* InEnginePluginsPath)
-{
-	return GetTechSoftInterface().InitializeKernel(InEnginePluginsPath);
-}
-
-#ifdef USE_TECHSOFT_SDK
-
-A3DStatus GetGlobalPointer(A3DGlobal** GlobalPtr)
-{
-	return A3DGlobalGetPointer(GlobalPtr);
-}
-
-A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* SurfacePtr, A3DSurfNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization)
-{
-	return A3DSurfBaseGetAsNurbs(SurfacePtr, Tolerance, bUseSameParameterization, DataPtr);
-}
-
-A3DStatus GetCurveAsNurbs(const A3DCrvBase* CurvePtr, A3DCrvNurbsData* DataPtr, A3DDouble Tolerance, A3DBool bUseSameParameterization)
-{
-	return A3DCrvBaseGetAsNurbs(CurvePtr, Tolerance, bUseSameParameterization, DataPtr);
-}
-
-A3DStatus GetOriginalFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
-{
-	return A3DAsmProductOccurrenceGetOriginalFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
-}
-
-A3DStatus GetFilePathName(const A3DAsmProductOccurrence* A3DOccurrencePtr, A3DUTF8Char** FilePathUTF8Ptr)
-{
-	return A3DAsmProductOccurrenceGetFilePathName(A3DOccurrencePtr, FilePathUTF8Ptr);
-}
-
-A3DStatus GetEntityType(const A3DEntity* EntityPtr, A3DEEntityType* EntityTypePtr)
-{
-	return A3DEntityGetType(EntityPtr, EntityTypePtr);
-}
-
-bool IsEntityBaseWithGraphicsType(const A3DEntity* EntityPtr)
-{
-	return (bool)A3DEntityIsBaseWithGraphicsType(EntityPtr);
-}
-
-bool IsEntityBaseType(const A3DEntity* EntityPtr)
-{
-	return (bool)A3DEntityIsBaseType(EntityPtr);
-}
-
-bool IsMaterialTexture(const uint32 MaterialIndex)
-{
-	A3DBool bIsTexture = false;
-	if (A3DGlobalIsMaterialTexture(MaterialIndex, &bIsTexture) != A3DStatus::A3D_SUCCESS)
-	{
-		return false;
-	}
-	return bIsTexture != false;
-}
-
-A3DEntity* GetPointerFromIndex(const uint32 Index, const A3DEEntityType Type)
-{
-	A3DEntity* EntityPtr;
-	if (A3DMiscPointerFromIndexGet(Index, Type, &EntityPtr) != A3DStatus::A3D_SUCCESS)
-	{
-		return nullptr;
-	}
-	return EntityPtr;
-}
-
-A3DStatus HealBRep(A3DRiBrepModel** BRepToHeal, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
-{
-	A3DUns32 NewBRepCount;
-	A3DStatus Status = A3DSewBrep(&BRepToHeal, 1, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
-	OutNewBRepCount = NewBRepCount;
-	return Status;
-}
-
-A3DStatus SewBReps(A3DRiBrepModel*** BRepsToSew, uint32 const BRepCount, double Tolerance, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
-{
-	A3DUns32 NewBRepCount;
-	A3DStatus Status = A3DSewBrep(BRepsToSew, BRepCount, Tolerance, SewOptions, OutNewBReps, &NewBRepCount);
-	OutNewBRepCount = NewBRepCount;
-	return Status;
-}
-
-A3DStatus SewModel(A3DAsmModelFile** ModelPtr, double Tolerance, A3DSewOptionsData const* SewOptions)
-{
-	return A3DAsmModelFileSew(ModelPtr, Tolerance, SewOptions);
-}
-
-#endif
-
-}
-
 
 }

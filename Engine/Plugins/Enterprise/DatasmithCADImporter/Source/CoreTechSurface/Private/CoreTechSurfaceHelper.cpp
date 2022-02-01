@@ -67,26 +67,15 @@ namespace CoreTechSurface
 	{
 		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
 		{
-			if (FPaths::FileExists(InFilePath))
+			UTempCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UTempCoreTechParametricSurfaceData>();
+
+			if (CoreTechData->SetFile(InFilePath))
 			{
-				TArray<uint8> ByteArray;
-				if (FFileHelper::LoadFileToArray(ByteArray, InFilePath))
-				{
-					UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-					CoreTechData->SourceFile = InFilePath;
-					CoreTechData->RawData = MoveTemp(ByteArray);
-					CoreTechData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.GetModelCoordSys());
-					CoreTechData->SceneParameters.MetricUnit = InSceneParameters.GetMetricUnit();
-					CoreTechData->SceneParameters.ScaleFactor = InSceneParameters.GetScaleFactor();
+				CoreTechData->SetImportParameters(InSceneParameters);
+				CoreTechData->SetMeshParameters(InMeshParameters);
+				CoreTechData->SetLastTessellationOptions(InTessellationOptions);
 
-					CoreTechData->MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
-					CoreTechData->MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;
-					CoreTechData->MeshParameters.SymmetricNormal = InMeshParameters.SymmetricNormal;
-					CoreTechData->MeshParameters.SymmetricOrigin = InMeshParameters.SymmetricOrigin;
-
-					CoreTechData->LastTessellationOptions = InTessellationOptions;
-					OutMeshPayload.AdditionalData.Add(CoreTechData);
-				}
+				OutMeshPayload.AdditionalData.Add(CoreTechData);
 			}
 		}
 	}

@@ -18,7 +18,8 @@ namespace UnrealBuildTool.Rules
 					"CADKernel",
 					"CADLibrary",
 					"CADTools",
-					"DatasmithCore"
+					"DatasmithCore",
+					"Json",
 				}
 			);
 

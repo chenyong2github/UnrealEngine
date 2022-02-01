@@ -20,9 +20,14 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"CADInterfaces",
+					"CADLibrary",
 					"CADTools",
-                    "DatasmithContent",
+					"DatasmithContent",
 					"DatasmithTranslator",
+					"Engine",
+					"MeshDescription",
+					"StaticMeshDescription",
 				}
 			);
 		}

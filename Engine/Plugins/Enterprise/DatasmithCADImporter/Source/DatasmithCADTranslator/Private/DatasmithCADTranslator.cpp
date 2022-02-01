@@ -2,10 +2,10 @@
 
 #include "DatasmithCADTranslator.h"
 
-#include "CADInterfacesModule.h"
 #include "CADFileReader.h"
+#include "CADInterfacesModule.h"
 #include "CADKernelSurfaceExtension.h"
-#include "CoreTechSurfaceHelper.h"
+
 #include "DatasmithCADTranslatorModule.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
@@ -206,15 +206,17 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
+
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
+			AddSurfaceData(MeshElement->GetFile(), ImportParameters, MeshParameters, OutMeshPayload);
 		}
 		else
 		{
 			CADKernelSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}
 	}
+
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
 

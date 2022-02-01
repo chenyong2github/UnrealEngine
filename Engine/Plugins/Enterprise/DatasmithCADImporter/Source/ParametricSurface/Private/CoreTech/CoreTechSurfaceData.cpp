@@ -1,22 +1,72 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechSurfaceExtension.h"
+#include "CoreTechSurfaceData.h"
 
 #include "CADInterfacesModule.h"
-#include "CoreTechSurfaceHelper.h"
 #include "CoreTechTypes.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithPayload.h"
+#include "IDatasmithSceneElements.h"
+
 #include "Engine/StaticMesh.h"
 #include "HAL/PlatformFileManager.h"
-#include "IDatasmithSceneElements.h"
 #include "MeshDescriptionHelper.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
-bool UTempCoreTechParametricSurfaceData::SetFile(const TCHAR* FilePath)
+namespace CoreTechParametricSurfaceDataUtils
+{
+	bool Tessellate(uint64 MainObjectId, const CADLibrary::FImportParameters& ImportParams, const CADLibrary::FMeshParameters& MeshParameters, FMeshDescription& MeshDesc)
+	{
+		CADLibrary::CTKIO_SetCoreTechTessellationState(ImportParams);
+
+		CADLibrary::FBodyMesh BodyMesh;
+		BodyMesh.BodyID = 1;
+
+		CADLibrary::CTKIO_GetTessellation(MainObjectId, BodyMesh, false);
+
+		if (BodyMesh.Faces.Num() == 0)
+		{
+			return false;
+		}
+
+		if (!CADLibrary::ConvertBodyMeshToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc))
+		{
+			ensureMsgf(false, TEXT("Error during mesh conversion"));
+			return false;
+		}
+
+		return true;
+	}
+
+	bool LoadFile(const FString& FileName, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& MeshParameters, FMeshDescription& MeshDescription)
+	{
+		CADLibrary::FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"));
+		if (!Session.IsCoreTechSessionValid())
+		{
+			return false;
+		}
+
+		CADLibrary::CTKIO_ChangeUnit(ImportParameters.GetMetricUnit());
+		uint64 MainObjectID;
+		if (!CADLibrary::CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
+		{
+			// Something wrong happened during the load, abort
+			return false;
+		}
+
+		if (ImportParameters.GetStitchingTechnique() != CADLibrary::EStitchingTechnique::StitchingNone)
+		{
+			CADLibrary::CTKIO_Repair(MainObjectID, CADLibrary::EStitchingTechnique::StitchingSew);
+		}
+
+		return Tessellate(MainObjectID, ImportParameters, MeshParameters, MeshDescription);
+	}
+}
+
+bool UCoreTechParametricSurfaceData::SetFile(const TCHAR* FilePath)
 {
 	if (UParametricSurfaceData::SetFile(FilePath))
 	{
@@ -27,14 +77,7 @@ bool UTempCoreTechParametricSurfaceData::SetFile(const TCHAR* FilePath)
 	return false;
 }
 
-void UTempCoreTechParametricSurfaceData::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar << RawData;
-}
-
-bool UTempCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions)
+bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions)
 {
 	bool bSuccessfulTessellation = false;
 
@@ -68,7 +111,7 @@ bool UTempCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, con
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		if (CoreTechSurface::LoadFile(ResourceFile, ImportParameters, CadMeshParameters, MeshDescription))
+		if (CoreTechParametricSurfaceDataUtils::LoadFile(ResourceFile, ImportParameters, CadMeshParameters, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			{

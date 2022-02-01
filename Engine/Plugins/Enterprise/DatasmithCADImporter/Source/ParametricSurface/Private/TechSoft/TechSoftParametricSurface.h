@@ -10,20 +10,13 @@
 #include "DatasmithImportOptions.h"
 #include "DatasmithUtils.h"
 
-#include "CoreTechSurfaceExtension.generated.h"
+#include "TechSoftParametricSurface.generated.h"
 
-UCLASS(meta = (DisplayName = "Kernel IO Parametric Surface Data"))
-class CORETECHSURFACE_API UTempCoreTechParametricSurfaceData : public UParametricSurfaceData
+UCLASS(meta = (DisplayName = "TechSoft Parametric Surface Data"))
+class PARAMETRICSURFACE_API UTechSoftParametricSurfaceData : public UParametricSurfaceData
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	FString SourceFile;
-	
-	virtual bool SetFile(const TCHAR* SourceFile) override;
 	virtual bool Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions) override;
-
-protected:
-	virtual void Serialize(FArchive& Ar) override;
 };

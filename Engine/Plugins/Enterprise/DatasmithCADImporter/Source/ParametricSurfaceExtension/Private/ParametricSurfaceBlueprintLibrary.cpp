@@ -81,7 +81,7 @@ bool UParametricSurfaceBlueprintLibrary::RetessellateStaticMeshWithNotification(
 				}
 
 				// Save last tessellation settings
-				ParametricSurfaceData->LastTessellationOptions = TessellationSettings;
+				ParametricSurfaceData->SetLastTessellationOptions(TessellationSettings);
 
 				bTessellationOutcome = true;
 			}
