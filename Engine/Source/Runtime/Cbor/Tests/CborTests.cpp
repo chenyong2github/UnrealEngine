@@ -8,22 +8,9 @@
 #include "CborReader.h"
 #include "CborWriter.h"
 #include "CoreGlobals.h"
+#include "TestHarness.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-/**
- * FCborAutomationTest
- * Simple unit test that runs Cbor's in-built test cases
- */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCborAutomationTest, "System.Core.Serialization.CBOR", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter )
-
-
-/** 
- * Execute the Cbor test cases
- *
- * @return	true if the test was successful, false otherwise
- */
-bool FCborAutomationTest::RunTest(const FString& Parameters)
+TEST_CASE("Core::FCbor::Smoke Test", "[Core][Smoke]")
 {
 	// Run the test twices, once with little-endian encoding, once with big-endian encoding.
 	auto RunWithEndiannessFn = [](ECborEndianness Endianness)
@@ -42,172 +29,172 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 
 		// Positive Integer Item
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 	
 		TestInt = 1;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 10;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 23;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 24;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AdditionalValue() == ECborCode::Value_1Byte);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_1Byte);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 1000;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AdditionalValue() == ECborCode::Value_2Bytes);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_2Bytes);
 
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 3000000000;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AdditionalValue() == ECborCode::Value_4Bytes);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_4Bytes);
 
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = 9223372036854775807;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Uint);
-		check(Context.AdditionalValue() == ECborCode::Value_8Bytes);
-		check(Context.AsUInt() == TestInt);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Uint);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_8Bytes);
+		CHECK(Context.AsUInt() == TestInt);
+		CHECK(Context.AsInt() == TestInt);
 
 		// Negative numbers
 
 		TestInt = -1;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = -23;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = -25;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AdditionalValue() == ECborCode::Value_1Byte);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_1Byte);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = -1000;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AdditionalValue() == ECborCode::Value_2Bytes);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_2Bytes);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = -3000000000LL;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AdditionalValue() == ECborCode::Value_4Bytes);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_4Bytes);
+		CHECK(Context.AsInt() == TestInt);
 
 		TestInt = -92233720368547758LL; //-9223372036854775807LL;
 		Writer.WriteValue(TestInt);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Int);
-		check(Context.AdditionalValue() == ECborCode::Value_8Bytes);
-		check(Context.AsInt() == TestInt);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Int);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_8Bytes);
+		CHECK(Context.AsInt() == TestInt);
 
 		// Bool
 
 		bool TestBool = false;
 		Writer.WriteValue(TestBool);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Prim);
-		check(Context.AdditionalValue() == ECborCode::False);
-		check(Context.AsBool() == TestBool);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Prim);
+		CHECK(Context.AdditionalValue() == ECborCode::False);
+		CHECK(Context.AsBool() == TestBool);
 
 		TestBool = true;
 		Writer.WriteValue(TestBool);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Prim);
-		check(Context.AdditionalValue() == ECborCode::True);
-		check(Context.AsBool() == TestBool);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Prim);
+		CHECK(Context.AdditionalValue() == ECborCode::True);
+		CHECK(Context.AsBool() == TestBool);
 
 		// Float
 
 		float TestFloat = 3.14159265f;
 		Writer.WriteValue(TestFloat);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Prim);
-		check(Context.AdditionalValue() == ECborCode::Value_4Bytes);
-		check(Context.AsFloat() == TestFloat);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Prim);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_4Bytes);
+		CHECK(Context.AsFloat() == TestFloat);
 
 		// Double
 
 		double TestDouble = 3.14159265; // 3.4028234663852886e+38;
 		Writer.WriteValue(TestDouble);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Prim);
-		check(Context.AdditionalValue() == ECborCode::Value_8Bytes);
-		check(Context.AsDouble() == TestDouble);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Prim);
+		CHECK(Context.AdditionalValue() == ECborCode::Value_8Bytes);
+		CHECK(Context.AsDouble() == TestDouble);
 
 		// String
 
 		FString TestString(TEXT("ANSIString"));
 
 		Writer.WriteValue(TestString);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::TextString);
-		check(Context.AsString() == TestString);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::TextString);
+		CHECK(Context.AsString() == TestString);
 
 		TestString = TEXT("\u3042\u308A\u304C\u3068\u3046");
 		Writer.WriteValue(TestString);
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::TextString);
-		check(Context.AsString() == TestString);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::TextString);
+		CHECK(Context.AsString() == TestString);
 
 		// C String
 		char TestCString[] = "Potato";
 
 		Writer.WriteValue(TestCString, (sizeof(TestCString) / sizeof(char)) - 1); // do not count the null terminating character
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::ByteString);
-		check(TCString<char>::Strcmp(Context.AsCString(), TestCString) == 0);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::ByteString);
+		CHECK(TCString<char>::Strcmp(Context.AsCString(), TestCString) == 0);
 
 		// Byte String. (with '\0' in the middle)
 		uint8 ByteString[] = {static_cast<uint8>(-1), static_cast<uint8>(-55), static_cast<uint8>(-128), 0, 1, 15, 127};
 		Writer.WriteValue(ByteString, sizeof(ByteString)/sizeof(uint8));
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::ByteString);
-		check(FMemory::Memcmp(ByteString, Context.AsByteArray().GetData(), sizeof(ByteString)/sizeof(uint8)) == 0);
-		check(Context.AsByteArray().Num() == sizeof(ByteString)/sizeof(uint8));
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::ByteString);
+		CHECK(FMemory::Memcmp(ByteString, Context.AsByteArray().GetData(), sizeof(ByteString)/sizeof(uint8)) == 0);
+		CHECK(Context.AsByteArray().Num() == sizeof(ByteString)/sizeof(uint8));
 
 		// Array
 		TArray<int64> IntArray { 0, 1, -1, 10, -1000, -3000000000LL, 240, -24 };
@@ -217,22 +204,22 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 			Writer.WriteValue(Val);
 		}
 		// Array start & length
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Array);
-		check(Context.AsLength() == IntArray.Num());
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Array);
+		CHECK(Context.AsLength() == IntArray.Num());
 
 		for (int64 Val : IntArray)
 		{
-			check(Reader.ReadNext(Context) == true);
-			check(Context.AsInt() == Val);
+			CHECK(Reader.ReadNext(Context) == true);
+			CHECK(Context.AsInt() == Val);
 		}
 
 		// Read array end, report length 0 on finite container
 		// although the array wasn't written as indefinite,
 		// the reader will emit a virtual break token to notify the container end
-		check(Reader.ReadNext(Context) == true);
-		check(Context.IsBreak());
-		check(Context.AsLength() == 0);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.IsBreak());
+		CHECK(Context.AsLength() == 0);
 
 		// Indefinite Array
 		Writer.WriteContainerStart(ECborCode::Array, -1);
@@ -243,23 +230,23 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 		Writer.WriteContainerEnd();
 
 		// Array start & length
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Array);
-		check(Context.IsIndefiniteContainer());
-		check(Context.AsLength() == 0);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Array);
+		CHECK(Context.IsIndefiniteContainer());
+		CHECK(Context.AsLength() == 0);
 
 		for (int64 Val : IntArray)
 		{
-			check(Reader.ReadNext(Context) == true);
-			check(Context.AsInt() == Val);
+			CHECK(Reader.ReadNext(Context) == true);
+			CHECK(Context.AsInt() == Val);
 		}
 
 		// Read array end, report length 
 		// although the array wasn't written as indefinite,
 		// the reader will emit a virtual break token to notify the container end
-		check(Reader.ReadNext(Context) == true);
-		check(Context.IsBreak());
-		check(Context.AsLength() == IntArray.Num());
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.IsBreak());
+		CHECK(Context.AsLength() == IntArray.Num());
 
 		// Map
 		TMap<FString, FString> StringMap = { {TEXT("Apple"), TEXT("Orange")}, {TEXT("Potato"), TEXT("Tomato")}, {TEXT("Meat"), TEXT("Treat")} };
@@ -272,28 +259,31 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 		}
 
 		// Map start & length
-		check(Reader.ReadNext(Context) == true);
-		check(Context.MajorType() == ECborCode::Map);
-		check(Context.AsLength() == StringMap.Num() * 2);
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.MajorType() == ECborCode::Map);
+		CHECK(Context.AsLength() == StringMap.Num() * 2);
 
 		for (const auto& Pair : StringMap)
 		{
-			check(Reader.ReadNext(Context) == true);
-			check(Context.AsString() == Pair.Key);
-			check(Reader.ReadNext(Context) == true);
-			check(Context.AsString() == Pair.Value);
+			CHECK(Reader.ReadNext(Context) == true);
+			CHECK(Context.AsString() == Pair.Key);
+			CHECK(Reader.ReadNext(Context) == true);
+			CHECK(Context.AsString() == Pair.Value);
 		}
 
 		// Read map end 
 		// although the array wasn't written as indefinite,
 		// the reader will emit a virtual break token to notify the container end
-		check(Reader.ReadNext(Context) == true);
-		check(Context.IsBreak());
+		CHECK(Reader.ReadNext(Context) == true);
+		CHECK(Context.IsBreak());
 
-		check(Reader.ReadNext(Context) == false);
-		check(Context.RawCode() == ECborCode::StreamEnd);
+		CHECK(Reader.ReadNext(Context) == false);
+		CHECK(Context.RawCode() == ECborCode::StreamEnd);
 		return true;
 	};
+
+	RunWithEndiannessFn(ECborEndianness::LittleEndian);
+	RunWithEndiannessFn(ECborEndianness::BigEndian);
 
 	// Ensure that setting the endianness does something.
 	{
@@ -310,7 +300,7 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 		// Write the same values to both streams and ensure the resulting streams are not identical.
 		WriterBE.WriteValue(0x1122334455667788ull);
 		WriterLE.WriteValue(0x1122334455667788ull);
-		check(BytesBE != BytesLE);
+		CHECK(BytesBE != BytesLE);
 	}
 
 	// Ensure the 'Platform' endianness is correctly handled.
@@ -328,19 +318,11 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 		// Write the same values to both streams and ensure the resulting streams are identical.
 		WriterPlatform.WriteValue((int64)0xDEADBEEFDEADBEEF);
 		Writer.WriteValue((int64)0xDEADBEEFDEADBEEF);
-		check(BytesPlatform == Bytes);
+		CHECK(BytesPlatform == Bytes);
 	}
-
-	// Run full types check for each supported endianness.
-	return RunWithEndiannessFn(ECborEndianness::LittleEndian) && RunWithEndiannessFn(ECborEndianness::BigEndian);
 }
 
-/**
- * Check the performance of reading/writing CBOR with byte swapped.
- */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCborByteSwapPerformanceTest, "System.Core.Serialization.CBORByteSwapPerformance", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::PerfFilter | EAutomationTestFlags::Disabled)
-
-bool FCborByteSwapPerformanceTest::RunTest(const FString& Parameters)
+TEST_CASE("Core::FCbor::ByteSwap Performance Test", "[Core][Perf]")
 {
 	//  NOTE: The most expensive value to write in CBOR is the double as it needs to swap 8 bytes all the time. Integers can be encoded in 1, 2, 4 or 8 bytes depending on their value, but not double.
 	//        String are not considered because they are written in UTF8. The test ensure this is not significantly longer to write/read while swapping the bytes.
@@ -364,7 +346,7 @@ bool FCborByteSwapPerformanceTest::RunTest(const FString& Parameters)
 			Value += I + I * 0.5;
 		}
 		FTimespan WriteSpan = FDateTime::UtcNow() - WriteStartTime;
-		check(Bytes.Num() <= ReservedByteCount);
+		CHECK(Bytes.Num() <= ReservedByteCount);
 
 		TUniquePtr<FArchive> InputStream = MakeUnique<FMemoryReader>(Bytes);
 		FCborReader Reader(InputStream.Get(), Endianness);
@@ -403,12 +385,6 @@ bool FCborByteSwapPerformanceTest::RunTest(const FString& Parameters)
 
 	// The ratio is usually around 1 +/- 0.08 as we don't measure significant performance change, but to account for the testing machine workload, be safe, use a large enough margin.
 	double Margin = 0.5;
-	TestTrue(TEXT(""), WriteRatio >= 1.0 - Margin && WriteRatio <= 1.0 + Margin);
-	TestTrue(TEXT(""), ReadRatio  >= 1.0 - Margin && ReadRatio  <= 1.0 + Margin);
-
-	//GLog->Logf(TEXT("FCborByteSwapPerformanceTest: WriteRatio: %s, ReadRatio: %s"), *LexToString(WriteRatio), *LexToString(ReadRatio));
-
-	return true;
+	CHECK(( WriteRatio >= 1.0 - Margin && WriteRatio <= 1.0 + Margin)==true);
+	CHECK(( ReadRatio  >= 1.0 - Margin && ReadRatio  <= 1.0 + Margin)==true);
 }
-
-#endif //WITH_DEV_AUTOMATION_TESTS

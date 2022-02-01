@@ -3,7 +3,7 @@
 #include "Math/Color.h"
 #include "TestHarness.h"
 
-TEST_CASE("Math::Colour::FLinearColor", "[Core][Math][Smoke]")
+TEST_CASE("Core::Math::FLinearColor::Smoke Test", "[Core][Math][Smoke]")
 {
 	SECTION("FLinearColor")
 	{
@@ -34,7 +34,7 @@ TEST_CASE("Math::Colour::FLinearColor", "[Core][Math][Smoke]")
 	}
 }
 
-TEST_CASE("Math::Colour::FColor", "[Core][Math][Smoke]")
+TEST_CASE("Core::Math::FColor::Smoke Test", "[Core][Math][Smoke]")
 {
 	SECTION("FColor")
 	{

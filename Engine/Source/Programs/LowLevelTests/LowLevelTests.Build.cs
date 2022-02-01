@@ -46,6 +46,7 @@ public class LowLevelTests : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 				"Core",
+				"Cbor",
 				"Projects",
 				"LowLevelTestsRunner"
 				});

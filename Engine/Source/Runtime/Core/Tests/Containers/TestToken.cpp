@@ -3,7 +3,7 @@
 #include "TestToken.h"
 #include "TestHarness.h"
 
-TEST_CASE("Containers::TToken::TTestToken default", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Default", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
@@ -18,7 +18,7 @@ TEST_CASE("Containers::TToken::TTestToken default", "[Container][TTestToken]")
 	REQUIRE(int32Token::NumDestructionCalls() == 1);
 }
 
-TEST_CASE("Containers::TToken::TTestToken explicit constructor", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Explicit constructor", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
@@ -35,7 +35,7 @@ TEST_CASE("Containers::TToken::TTestToken explicit constructor", "[Container][TT
 	REQUIRE(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Containers::TToken::TTestToken copy constructor", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Copy constructor", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
@@ -53,7 +53,7 @@ TEST_CASE("Containers::TToken::TTestToken copy constructor", "[Container][TTestT
 	REQUIRE(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Containers::TToken::TTestToken move constructor", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Move constructor", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
@@ -71,7 +71,7 @@ TEST_CASE("Containers::TToken::TTestToken move constructor", "[Container][TTestT
 	REQUIRE(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Containers::TToken::TTestToken copy assignment", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Copy assignment", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
@@ -90,7 +90,7 @@ TEST_CASE("Containers::TToken::TTestToken copy assignment", "[Container][TTestTo
 	REQUIRE(int32Token::NumMoveAssignmentCalls() == 0);
 }
 
-TEST_CASE("Containers::TToken::TTestToken move assignment", "[Container][TTestToken]")
+TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][Smoke]")
 {
 	int32Token::Reset();
 	{
