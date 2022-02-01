@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "MassCommonFragments.h"
 #include "StructUtilsTypes.h"
-#include "MassLODTypes.h"
+#include "MassLODFragments.h"
 
 void UMassLODCollectorTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {

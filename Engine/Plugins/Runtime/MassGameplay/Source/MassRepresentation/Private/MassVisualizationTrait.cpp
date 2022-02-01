@@ -7,6 +7,7 @@
 #include "MassRepresentationFragments.h"
 #include "MassRepresentationActorManagement.h"
 #include "Engine/World.h"
+#include "MassLODFragments.h"
 
 UMassVisualizationTrait::UMassVisualizationTrait()
 {

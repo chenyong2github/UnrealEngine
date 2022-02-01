@@ -5,7 +5,7 @@
 #include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
-#include "MassLODTypes.h"
+#include "MassLODFragments.h"
 #include "Logging/LogMacros.h"
 
 MASSLOD_API DECLARE_LOG_CATEGORY_EXTERN(LogMassLOD, Log, All);

@@ -17,6 +17,7 @@
 #include "BezierUtilities.h"
 #include "Algo/RandomShuffle.h"
 #include "Engine/World.h"
+#include "MassLODFragments.h"
 
 #define UNSAFE_FOR_MT 1
 

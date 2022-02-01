@@ -6,7 +6,7 @@
 #include "MassEntitySubsystem.h"
 #include "MassRepresentationFragments.h"
 #include "MassCommonFragments.h"
-#include "MassLODTypes.h"
+#include "MassLODFragments.h"
 #include "Engine/World.h"
 
 UMassUpdateISMProcessor::UMassUpdateISMProcessor()

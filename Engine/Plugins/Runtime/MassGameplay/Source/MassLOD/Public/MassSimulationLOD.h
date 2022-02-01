@@ -8,6 +8,7 @@
 #include "MassLODTickRateController.h"
 #include "MassLODLogic.h"
 #include "MassEntityTypes.h"
+#include "MassLODFragments.h"
 
 #include "MassSimulationLOD.generated.h"
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MassLODFragments.h"
 #include "MassRepresentationFragments.h"
 #include "MassActorSpawnerSubsystem.h"
 #include "MassObserverProcessor.h"
