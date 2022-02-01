@@ -2,6 +2,7 @@
 
 #include "CommonActivatableWidget.h"
 #include "CommonUIPrivatePCH.h"
+#include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionRouterTypes.h"
 #include "ICommonInputModule.h"
@@ -144,6 +145,29 @@ void UCommonActivatableWidget::ClearActiveHoldInputs()
 			}
 		}
 	}
+}
+
+UCommonInputActionDomain* UCommonActivatableWidget::GetCalculatedActionDomain()
+{
+	UCommonInputActionDomain* CalculatedActionDomain = ActionDomain;
+
+	if (!bInheritActionDomain)
+	{
+		return CalculatedActionDomain;
+	}
+
+	const UCommonActivatableWidget* CurrentWidget = this;
+	while (CurrentWidget && CurrentWidget->bInheritActionDomain)
+	{
+		CurrentWidget = UCommonUIActionRouterBase::FindOwningActivatable(CurrentWidget->GetCachedWidget(), GetOwningLocalPlayer());
+	}
+
+	if (CurrentWidget && !CurrentWidget->bInheritActionDomain)
+	{
+		return CurrentWidget->ActionDomain;
+	}
+
+	return nullptr;
 }
 
 TSharedRef<SWidget> UCommonActivatableWidget::RebuildWidget()

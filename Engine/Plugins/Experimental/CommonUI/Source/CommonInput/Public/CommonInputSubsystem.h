@@ -12,6 +12,7 @@ class UWidget;
 class ULocalPlayer;
 class APlayerController;
 class FCommonInputPreprocessor;
+class UCommonInputActionDomainTable;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInputMethodChangedDelegate, ECommonInputType, bNewInputType);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FPlatformInputSupportOverrideDelegate, ULocalPlayer*, ECommonInputType, bool&);
@@ -67,6 +68,10 @@ public:
 	/** Should display indicators for the current input device on screen.  This is needed when capturing videos, but we don't want to reveal the capture source device. */
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
 	bool ShouldShowInputKeys() const;
+
+	void SetActionDomainTable(TObjectPtr<UCommonInputActionDomainTable> Table) { ActionDomainTable = Table; }
+
+	TObjectPtr<UCommonInputActionDomainTable> GetActionDomainTable() const { return ActionDomainTable; }
 
 	/** Returns true if the specified key can be present on both a mobile device and mobile gamepads */
 	static bool IsMobileGamepadKey(const FKey& InKey);
@@ -144,6 +149,9 @@ private:
 	TOptional<ECommonInputType> CurrentInputLock;
 
 	TSharedPtr<FCommonInputPreprocessor> CommonInputPreprocessor;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonInputActionDomainTable> ActionDomainTable;
 
 	/** Is the current click simulated by the gamepad's face button down/right (platform dependent) */
 	UPROPERTY(Transient)

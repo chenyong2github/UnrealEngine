@@ -21,8 +21,10 @@ class UPlayerInput;
 class FCommonAnalogCursor;
 class IInputProcessor;
 
+enum class EProcessHoldActionResult;
 class FActivatableTreeNode;
 class UCommonInputSubsystem;
+class UCommonInputActionDomain;
 struct FUIActionBinding;
 class FDebugDisplayInfo;
 struct FAutoCompleteCommand;
@@ -157,6 +159,11 @@ private:
 
 	void HandlePostGarbageCollect();
 
+	void AddToActionDomain(FActivatableTreeRootRef RootNode);
+	void RemoveFromActionDomain(FActivatableTreeRootRef RootNode);
+	bool ProcessInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
+	EProcessHoldActionResult ProcessHoldInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const;
+
 	struct FPendingWidgetRegistration
 	{
 		TWeakObjectPtr<const UWidget> Widget;
@@ -200,4 +207,21 @@ private:
 	friend class FActionRouterDebugUtils;
 
 	mutable TArray<FKey> HeldKeys;
+
+	/** A wrapper around TArray that keeps RootList sorted by PaintLayer during insertion */
+	struct FActionDomainSortedRootList 
+	{
+		TArray<FActivatableTreeRootRef> RootList;
+
+		// Inserts RootNode into RootList based on its paint layer
+		void Add(FActivatableTreeRootRef RootNode);
+
+		// Trivial removal
+		int32 Remove(FActivatableTreeRootRef RootNode);
+
+		// Trivial Contains check
+		bool Contains(FActivatableTreeRootRef RootNode);
+	};
+
+	TMap<TObjectPtr<UCommonInputActionDomain>, FActionDomainSortedRootList> ActionDomainRootNodes;
 };

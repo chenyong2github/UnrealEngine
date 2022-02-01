@@ -712,6 +712,21 @@ EProcessHoldActionResult FActivatableTreeNode::ProcessHoldInput(ECommonInputMode
 	return EProcessHoldActionResult::Unhandled;
 }
 
+bool FActivatableTreeNode::ProcessActionDomainHoldInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent, EProcessHoldActionResult& OutHoldActionResult) const
+{
+	for (const FActivatableTreeNodeRef& ChildNode : Children)
+	{
+		EProcessHoldActionResult ChildResult = ChildNode->ProcessHoldInput(ActiveInputMode, Key, InputEvent);
+		if (ChildResult != EProcessHoldActionResult::Unhandled)
+		{
+			OutHoldActionResult = ChildResult;
+			return true;
+		}
+	}
+	OutHoldActionResult = FActionRouterBindingCollection::ProcessHoldInput(ActiveInputMode, Key, InputEvent);
+	return OutHoldActionResult != EProcessHoldActionResult::Unhandled;
+}
+
 bool FActivatableTreeNode::ProcessNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
 {
 	if (IsReceivingInput())
@@ -726,6 +741,18 @@ bool FActivatableTreeNode::ProcessNormalInput(ECommonInputMode ActiveInputMode, 
 		return FActionRouterBindingCollection::ProcessNormalInput(ActiveInputMode, Key, InputEvent);
 	}
 	return false;
+}
+
+bool FActivatableTreeNode::ProcessActionDomainNormalInput(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+{
+	for (const FActivatableTreeNodeRef& ChildNode : Children)
+	{
+		if (ChildNode->ProcessActionDomainNormalInput(ActiveInputMode, Key, InputEvent))
+		{
+			return true;
+		}
+	}
+	return FActionRouterBindingCollection::ProcessNormalInput(ActiveInputMode, Key, InputEvent);
 }
 
 bool FActivatableTreeNode::IsWidgetValid() const

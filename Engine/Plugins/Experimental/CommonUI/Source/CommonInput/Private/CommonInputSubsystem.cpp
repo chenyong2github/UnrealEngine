@@ -323,6 +323,8 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonInputSubsystem::Tick), 0.1f);
 
 	CVarInputKeysVisible->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCommonInputSubsystem::ShouldShowInputKeysChanged));
+
+	SetActionDomainTable(FCommonInputBase::GetInputSettings()->GetActionDomainTable());
 }
 
 void UCommonInputSubsystem::Deinitialize()

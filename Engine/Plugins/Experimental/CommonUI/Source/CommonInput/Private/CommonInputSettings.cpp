@@ -6,6 +6,7 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "CommonInputActionDomain.h"
 #include "CommonInputBaseTypes.h"
 #include "Engine/PlatformSettings.h"
 
@@ -21,6 +22,7 @@ UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer
 void UCommonInputSettings::LoadData()
 {
 	LoadInputData();
+	LoadActionDomainTable();
 }
 
 #if WITH_EDITOR
@@ -61,6 +63,27 @@ void UCommonInputSettings::LoadInputData()
 		//	}
 		//}
 		bInputDataLoaded = true;
+	}
+}
+
+void UCommonInputSettings::LoadActionDomainTable()
+{
+	if (!bActionDomainTableLoaded)
+	{
+		// If we were created early enough to be disregarded by the GC (which we should be), then we need to 
+		// add all of our members to the root set, since our hard reference to them is totally meaningless to the GC.
+		const bool bIsDisregardForGC = GUObjectArray.IsDisregardForGC(this);
+
+		ActionDomainTablePtr = ActionDomainTable.LoadSynchronous();
+		if (ActionDomainTablePtr)
+		{
+			if (bIsDisregardForGC)
+			{
+				ActionDomainTablePtr->AddToRoot();
+			}
+		}
+
+		bActionDomainTableLoaded = true;
 	}
 }
 

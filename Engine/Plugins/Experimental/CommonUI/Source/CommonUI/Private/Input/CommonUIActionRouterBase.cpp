@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/CommonUIActionRouterBase.h"
-#include "Input/UIActionRouterTypes.h"
 #include "Input/CommonAnalogCursor.h"
 #include "Input/CommonUIInputSettings.h"
+#include "Input/UIActionRouterTypes.h"
 #include "CommonInputSettings.h"
+#include "CommonInputActionDomain.h"
 #include "ICommonInputModule.h"
 
 #include "Framework/Application/SlateUser.h"
@@ -28,6 +29,12 @@ bool bAlwaysShowCursor = false;
 static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	TEXT("CommonUI.AlwaysShowCursor"),
 	bAlwaysShowCursor,
+	TEXT(""));
+
+bool bEnableActionDomainRouting = false;
+static const FAutoConsoleVariableRef CVarEnableActionDomainRouting(
+	TEXT("CommonUI.EnableActionDomainRouting"),
+	bEnableActionDomainRouting,
 	TEXT(""));
 
 //@todo DanH: TEMP LOCATION
@@ -347,18 +354,35 @@ ERouteUIInputResult UCommonUIActionRouterBase::ProcessInput(FKey Key, EInputEven
 	// Begin with a pass to see if the input corresponds to a hold action
 	// We do this first to make sure that a higher-priority press binding doesn't prevent a hold on the same key from being triggerable
 	EProcessHoldActionResult ProcessHoldResult = PersistentActions->ProcessHoldInput(ActiveMode, Key, InputEvent);
-	if (bIsActivatableTreeEnabled && ActiveRootNode && ProcessHoldResult == EProcessHoldActionResult::Unhandled)
+	
+	if (ProcessHoldResult == EProcessHoldActionResult::Unhandled)
 	{
-		ProcessHoldResult = ActiveRootNode->ProcessHoldInput(ActiveMode, Key, InputEvent);
+		if (bEnableActionDomainRouting)
+		{
+			ProcessHoldResult = ProcessHoldInputOnActionDomains(ActiveMode, Key, InputEvent);
+		}
+		else if (bIsActivatableTreeEnabled && ActiveRootNode)
+		{
+			ProcessHoldResult = ActiveRootNode->ProcessHoldInput(ActiveMode, Key, InputEvent);
+		}
 	}
 
 	const auto ProcessNormalInputFunc = [Key, ActiveMode, this](EInputEvent Event)
 		{
 			bool bHandled = PersistentActions->ProcessNormalInput(ActiveMode, Key, Event);
-			if (!bHandled && ActiveRootNode && bIsActivatableTreeEnabled)
+
+			if (!bHandled)
 			{
-				bHandled = ActiveRootNode->ProcessNormalInput(ActiveMode, Key, Event);
+				if (bEnableActionDomainRouting)
+				{
+					bHandled = ProcessInputOnActionDomains(ActiveMode, Key, Event);
+				}
+				else if (ActiveRootNode && bIsActivatableTreeEnabled)
+				{
+					bHandled = ActiveRootNode->ProcessNormalInput(ActiveMode, Key, Event);
+				}
 			}
+
 			return bHandled;
 		};
 
@@ -547,6 +571,12 @@ void UCommonUIActionRouterBase::HandleRootWidgetSlateReleased(UCommonActivatable
 		}
 
 		TWeakPtr<FActivatableTreeRoot> ToBeRemoved = RootNodes[RootToRemoveIdx];
+
+		if (bEnableActionDomainRouting)
+		{
+			RemoveFromActionDomain(RootNodes[RootToRemoveIdx]);
+		}
+
 		RootNodes.RemoveAtSwap(RootToRemoveIdx);
 		// Cannot actually have this ensure here, because we may be in a function called on the ToBeRemoved node itself, keeping one remaining strong reference
 		// ensureAlways(!ToBeRemoved.IsValid());
@@ -614,9 +644,132 @@ void UCommonUIActionRouterBase::HandlePostGarbageCollect()
 	{
 		if (!Iter->Get().IsWidgetValid())
 		{
+			RemoveFromActionDomain(*Iter);
 			Iter.RemoveCurrent();
 		}
 	}
+}
+
+void UCommonUIActionRouterBase::AddToActionDomain(FActivatableTreeRootRef RootNode)
+{
+	UCommonInputActionDomain* ActionDomain = RootNode->GetWidget()->GetCalculatedActionDomain();
+
+	if (ActionDomain)
+	{
+		ActionDomainRootNodes.FindOrAdd(ActionDomain).Add(RootNode);
+	}
+	else
+	{
+		UE_LOG(LogUIActionRouter, Error, TEXT("ActionDomain of CommonActivatableWidget could not be resolved. Widget: %s"), *RootNode->GetWidget()->GetName());
+	}
+}
+
+void UCommonUIActionRouterBase::RemoveFromActionDomain(FActivatableTreeRootRef RootNode)
+{
+	UCommonInputActionDomain* ActionDomain = RootNode->GetWidget()->GetCalculatedActionDomain();
+
+	if (ActionDomain)
+	{
+		FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(ActionDomain);
+
+		if (ensure(ActionDomainRootList))
+		{
+			verify(ActionDomainRootList->Remove(RootNode) != INDEX_NONE);
+		}
+	}
+	else
+	{
+		UE_LOG(LogUIActionRouter, Error, TEXT("ActionDomain of CommonActivatableWidget could not be resolved. Widget: %s"), *RootNode->GetWidget()->GetName());
+	}
+}
+
+bool UCommonUIActionRouterBase::ProcessInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+{
+	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+	UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
+
+	bool bInputEventHandledAtLeastOnce = false;
+
+	for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
+	{
+		const FActionDomainSortedRootList* SortedRootList = ActionDomainRootNodes.Find(ActionDomain);
+		if (!SortedRootList)
+		{
+			// No widget with this Domain was added
+			continue;
+		}
+
+		bool bInputEventHandledInDomain = false;
+		bool bDomainHadActiveRoots = false;
+
+		for (const FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
+		{
+			if (RootNode->IsWidgetActivated())
+			{
+				bool bInputEventHandled = RootNode->ProcessActionDomainNormalInput(ActiveInputMode, Key, InputEvent);
+				bInputEventHandledInDomain |= bInputEventHandled;
+				bDomainHadActiveRoots = true;
+
+				if (ActionDomain->ShouldBreakInnerEventFlow(bInputEventHandled))
+				{
+					break;
+				}
+			}
+		}
+
+		bInputEventHandledAtLeastOnce |= bInputEventHandledInDomain;
+
+		if (ActionDomain->ShouldBreakEventFlow(bDomainHadActiveRoots, bInputEventHandledInDomain))
+		{
+			break;
+		}
+	}
+
+	return bInputEventHandledAtLeastOnce;
+}
+
+EProcessHoldActionResult UCommonUIActionRouterBase::ProcessHoldInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
+{
+	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+	UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
+
+	EProcessHoldActionResult OutHoldActionResult = EProcessHoldActionResult::Unhandled;
+
+	for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
+	{
+		const FActionDomainSortedRootList* SortedRootList = ActionDomainRootNodes.Find(ActionDomain);
+		if (!SortedRootList)
+		{
+			// No widget with this Domain was added
+			continue;
+		}
+
+		bool bInputEventHandledInDomain = false;
+		bool bDomainHadActiveRoots = false;
+
+		for (const FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
+		{
+			if (RootNode->IsWidgetActivated())
+			{
+				bool bInputEventHandled = RootNode->ProcessActionDomainHoldInput(ActiveInputMode, Key, InputEvent, OutHoldActionResult);
+				bInputEventHandledInDomain |= bInputEventHandled;
+				bDomainHadActiveRoots = true;
+
+				if (ActionDomain->ShouldBreakInnerEventFlow(bInputEventHandled))
+				{
+					break;
+				}
+			}
+
+		}
+
+		if (ActionDomain->ShouldBreakEventFlow(bDomainHadActiveRoots, bInputEventHandledInDomain))
+		{
+			break;
+		}
+	}
+
+	return OutHoldActionResult;
 }
 
 void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
@@ -650,6 +803,11 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 		RootNode->OnDeactivated.BindUObject(this, &UCommonUIActionRouterBase::HandleRootNodeDeactivated, WeakRoot);
 		RootWidget->OnSlateReleased().AddUObject(this, &UCommonUIActionRouterBase::HandleRootWidgetSlateReleased, RootWidget);
 		RootNodes.Add(RootNode);
+
+		if (bEnableActionDomainRouting)
+		{
+			AddToActionDomain(RootNode);
+		}
 
 		AssembleTreeRecursive(RootNode, WidgetsByDirectParent);
 
@@ -1281,3 +1439,24 @@ static const FAutoConsoleCommandWithWorld DumpInputConfigCommand(
 	TEXT("Outputs the current Input Config for each player"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&FActionRouterDebugUtils::HandleDumpCurrentInputConfig)
 );
+
+void UCommonUIActionRouterBase::FActionDomainSortedRootList::Add(FActivatableTreeRootRef RootNode)
+{
+	auto SortFunc = [](const FActivatableTreeRootRef& A, const FActivatableTreeRootRef& B) 
+		{
+			return A->GetLastPaintLayer() < B->GetLastPaintLayer();
+		};
+
+	RootList.Add(RootNode);
+	RootList.Sort(SortFunc);
+}
+
+int32 UCommonUIActionRouterBase::FActionDomainSortedRootList::Remove(FActivatableTreeRootRef RootNode)
+{
+	return RootList.Remove(RootNode);
+}
+
+bool UCommonUIActionRouterBase::FActionDomainSortedRootList::Contains(FActivatableTreeRootRef RootNode)
+{
+	return RootList.Contains(RootNode);
+}

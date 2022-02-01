@@ -4,9 +4,11 @@
 
 #include "CommonUserWidget.h"
 #include "Input/UIActionBindingHandle.h"
+#include "CommonInputActionDomain.h"
 #include "CommonActivatableWidget.generated.h"
 
 class FActivatableTreeNode;
+class UCommonInputActionDomain;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
 
@@ -96,6 +98,11 @@ public:
 	void RegisterInputTreeNode(const TSharedPtr<FActivatableTreeNode>& OwnerNode);
 	void ClearActiveHoldInputs();
 
+	/**
+	 * Returns the widget's ActionDomain, respecting any inheritance requirements.
+	 */
+	UCommonInputActionDomain* GetCalculatedActionDomain();
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
@@ -177,7 +184,16 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, Category = Activation, meta = (EditCondition = bSupportsActivationFocus))
 	bool bAutoRestoreFocus = false;
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (InlineEditConditionToggle))
+	bool bInheritActionDomain = true;
+
+	/**
+	 * Disable to inherit from owning CommonActivatableWidget.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "!bInheritActionDomain"))
+	TObjectPtr<UCommonInputActionDomain> ActionDomain;
+
 private:
 	/** See BindVisibilityToMultipleActivations */
 	void HandleVisibilityBoundWidgetActivations();
