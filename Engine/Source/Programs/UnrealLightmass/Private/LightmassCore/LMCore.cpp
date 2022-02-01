@@ -81,12 +81,16 @@ void FLightmassLog::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, co
 #endif
 	fflush( stdout );
 
+	// FUnixPlatformMisc::LowLevelOutputDebugString does a "fprintf(stderr..."
+	//  Don't print these messages twice when running under debugger on Linux.
+#if !PLATFORM_LINUX
 	if( FPlatformMisc::IsDebuggerPresent() )
 	{
 		FPlatformMisc::LowLevelOutputDebugString( V );
 		FPlatformMisc::LowLevelOutputDebugString( TEXT("\n") );
 		fflush( stderr );
 	}
+#endif
 }
 
 

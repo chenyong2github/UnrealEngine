@@ -84,6 +84,12 @@ int LightmassMain(int argc, ANSICHAR* argv[])
 		CommandLine += TEXT(" -Messaging");
 	}
 
+	// Don't spew all log messages to console (unless user has specified "-stdout" on command line)
+	if (!FParse::Param(*CommandLine, TEXT("-stdout")))
+	{
+		CommandLine += TEXT(" -nostdout");
+	}
+
 	GEngineLoop.PreInit(*CommandLine);
 
 	// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded

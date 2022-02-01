@@ -19,6 +19,9 @@ private:
 	/** true if we are outputting to a terminal */
 	bool bOutputtingToTerminal;
 
+	/** true if window is visible */
+	bool bIsWindowShown;
+
 public:
 
 	/**

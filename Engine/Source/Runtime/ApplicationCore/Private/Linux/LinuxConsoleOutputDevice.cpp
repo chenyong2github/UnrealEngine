@@ -20,8 +20,19 @@
 
 FLinuxConsoleOutputDevice::FLinuxConsoleOutputDevice()
 	: bOverrideColorSet(false),
-	  bOutputtingToTerminal(isatty(STDOUT_FILENO))
+	  bOutputtingToTerminal(isatty(STDOUT_FILENO)),
+	  bIsWindowShown(true)
 {
+	FString CommandLine = FCommandLine::Get();
+
+	// If -nostdout is specified and not -stdout, default to not spewing log messages.
+	// This is useful on apps like UnrealLightmass so we don't overwhelm console output
+	//  with duplicate entries and all the UE_LOG messages.
+	if (FParse::Param(*CommandLine, TEXT("nostdout")) &&
+		!FParse::Param(*CommandLine, TEXT("stdout")))
+	{
+		bIsWindowShown = false;
+	}
 }
 
 FLinuxConsoleOutputDevice::~FLinuxConsoleOutputDevice()
@@ -30,15 +41,19 @@ FLinuxConsoleOutputDevice::~FLinuxConsoleOutputDevice()
 
 void FLinuxConsoleOutputDevice::Show(bool bShowWindow)
 {
+	bIsWindowShown = bShowWindow;
 }
 
 bool FLinuxConsoleOutputDevice::IsShown()
 {
-	return true;
+	return bIsWindowShown;
 }
 
 void FLinuxConsoleOutputDevice::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
+	if (!bIsWindowShown)
+		return;
+
 	static bool bEntry=false;
 	if (!GIsCriticalError || bEntry)
 	{
