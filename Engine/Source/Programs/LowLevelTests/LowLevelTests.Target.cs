@@ -15,6 +15,12 @@ public class LowLevelTestsTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 
+		// LowLevelTests to produce executable with Core tests
+		if (GetType() == typeof(LowLevelTestsTarget))
+		{
+			bIncludeAllTestsOverride = true;
+		}
+
 		bDeployAfterCompile = false;
 		bIsBuildingConsoleApplication = true;
 

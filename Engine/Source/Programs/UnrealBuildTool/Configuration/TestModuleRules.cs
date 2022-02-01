@@ -62,8 +62,18 @@ namespace UnrealBuildTool
 			PrivateIncludePathModuleNames.Add("Launch");
 
 			// Tests can refer to tested module's Public and Private paths
-			PublicIncludePaths.Add(Path.Combine(TestedModule.ModuleDirectory, "Public"));
-			PrivateIncludePaths.Add(Path.Combine(TestedModule.ModuleDirectory, "Private"));
+			string ModulePublicDir = Path.Combine(TestedModule.ModuleDirectory, "Public");
+			if (System.IO.Directory.Exists(ModulePublicDir))
+			{
+				PublicIncludePaths.Add(ModulePublicDir);
+			}
+
+			string ModulePrivateDir = Path.Combine(TestedModule.ModuleDirectory, "Private");
+			if (System.IO.Directory.Exists(ModulePrivateDir))
+			{
+				PrivateIncludePaths.Add(ModulePrivateDir);
+			}
+			
 
 			// Platforms specific setup
 			if (Target.Platform == UnrealTargetPlatform.Android)

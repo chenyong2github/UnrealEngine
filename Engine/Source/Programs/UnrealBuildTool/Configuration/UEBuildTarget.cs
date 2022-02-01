@@ -4160,10 +4160,12 @@ namespace UnrealBuildTool
 				DirectoryReference ModuleDirectory = RulesObject.File.Directory;
 
 				// If we're building a test executable, include test harness dependency
-				if (!IsTestModule && ReferenceChain.Contains(typeof(TestModuleRules).Name) && Directory.Exists(RulesObject.TestsDirectory))
+				if (!IsTestModule && ReferenceChain.Contains(typeof(TestModuleRules).Name) && Directory.Exists(RulesObject.TestsDirectory) || RulesObject.Target.bIncludeAllTests)
 				{
-					// TODO: If explicit Tests module rules exists, use that one instead
-					RulesObject.PrivateDependencyModuleNames.Add("LowLevelTestsRunner");
+					if (RulesObject.Name != "LowLevelTestsRunner")
+					{
+						RulesObject.PrivateDependencyModuleNames.Add("LowLevelTestsRunner");
+					}
 				}
 
 				// Clear the bUsePrecompiled flag if we're compiling a foreign plugin; since it's treated like an engine module, it will default to true in an installed build.

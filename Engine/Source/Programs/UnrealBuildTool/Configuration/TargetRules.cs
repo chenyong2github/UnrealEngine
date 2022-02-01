@@ -380,6 +380,18 @@ namespace UnrealBuildTool
 		public bool bBuildAllModules = false;
 
 		/// <summary>
+		/// Decides whether to compile with all the "Tests" folders from all dependent modules.
+		/// </summary>
+		public bool bIncludeAllTests
+		{
+			get { return bIncludeAllTestsOverride ?? false; }
+		}
+		/// <summary>
+		/// Set this override to true in derived target classes to compile with all the "Tests" folders from all dependent modules.
+		/// </summary>
+		protected bool? bIncludeAllTestsOverride;
+
+		/// <summary>
 		/// Additional plugins that are built for this target type but not enabled.
 		/// </summary>
 		[CommandLine("-BuildPlugin=", ListSeparator = '+')]
@@ -2135,6 +2147,11 @@ namespace UnrealBuildTool
 			get { return Inner.bBuildAllModules; }
 		}
 
+		public bool bIncludeAllTests
+		{
+			get { return Inner.bIncludeAllTests; }
+		}
+		
 		public IEnumerable<string> AdditionalPlugins
 		{
 			get { return Inner.AdditionalPlugins; }
