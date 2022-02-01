@@ -30,7 +30,7 @@ public:
 
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
-	virtual void RequestInertialization(float InRequestedDuration) = 0;
+	virtual void RequestInertialization(float InRequestedDuration, const UBlendProfile* InBlendProfile = nullptr) = 0;
 
 	// Add a record of this request
 	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId) = 0;
@@ -111,6 +111,47 @@ struct ENGINE_API FInertializationCurve
 		}
 	}
 };
+
+USTRUCT()
+struct FInertializationRequest
+{
+	GENERATED_BODY()
+
+	FInertializationRequest()
+		: Duration(-1.0f)
+		, BlendProfile(nullptr)
+	{
+	}
+
+	FInertializationRequest(float InDuration, const UBlendProfile* InBlendProfile)
+		: Duration(InDuration)
+		, BlendProfile(InBlendProfile)
+	{
+	}
+
+	void Clear()
+	{
+		Duration = -1.0f;
+		BlendProfile = nullptr;
+	}
+
+	friend bool operator==(const FInertializationRequest& A, const FInertializationRequest& B)
+	{
+		return A.Duration == B.Duration && A.BlendProfile == B.BlendProfile;
+	}
+
+	friend bool operator!=(const FInertializationRequest& A, const FInertializationRequest& B)
+	{
+		return !(A == B);
+	}
+
+	UPROPERTY(Transient)
+	float Duration;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UBlendProfile> BlendProfile;
+};
+
 
 USTRUCT()
 struct FInertializationPose
@@ -245,18 +286,24 @@ struct FInertializationPoseDiff
 
 	// Initialize the pose difference from the current pose and the two previous snapshots
 	//
-	// Pose					the current frame's pose
-	// ComponentTransform	the current frame's component to world transform
-	// AttachParentName		the current frame's attach parent name (for checking if the attachment has changed)
-	// Prev1				the previous frame's pose
-	// Prev2				the pose from two frames before
-	// FilteredCurvesUIDs	list of curves we don't want to inertialize
+	// Pose								the current frame's pose
+	// ComponentTransform				the current frame's component to world transform
+	// AttachParentName					the current frame's attach parent name (for checking if the attachment has changed)
+	// Prev1							the previous frame's pose
+	// Prev2							the pose from two frames before
+	// FilteredCurvesUIDs				list of curves we don't want to inertialize
 	//
 	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& Curves, const FTransform& ComponentTransform, const FName& AttachParentName, const FInertializationPose& Prev1, const FInertializationPose& Prev2, const TSet<SmartName::UID_Type>& FilteredCurvesUIDs);
 
 	// Apply this difference to a pose, decaying over time as InertializationElapsedTime approaches InertializationDuration
 	//
-	void ApplyTo(FCompactPose& Pose, FBlendedCurve& Curves, float InertializationElapsedTime, float InertializationDuration) const;
+	// Pose								[in/out] the current frame's pose
+	// Curves							[in/out] the current frame's animation curves
+	// InertializationElapsedTime		time elapsed since the start of the inertialization
+	// InertializationDuration			total inertialization duration (used for curves)
+	// InertializationDurationPerBone	inertialization duration per bone (indexed by skeleton bone index) (used for pose)
+	//
+	void ApplyTo(FCompactPose& Pose, FBlendedCurve& Curves, float InertializationElapsedTime, float InertializationDuration, TArrayView<const float> InertializationDurationPerBone) const;
 
 	// Get the inertialization space for this pose diff (for debug display)
 	//
@@ -285,11 +332,17 @@ struct ENGINE_API FAnimNode_Inertialization : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
+	UPROPERTY(EditAnywhere, Category = Links)
 	FPoseLink Source;
 
+private:
+
+	// Optional default blend profile to use when no blend profile is supplied with the inertialization request
+	UPROPERTY(EditAnywhere, Category = BlendProfile, meta = (UseAsBlendProfile = true))
+	TObjectPtr<UBlendProfile> DefaultBlendProfile = nullptr;
+
 	// List of curves that should not use inertial blending. These curves will instantly change when inertialization begins.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Filter)
+	UPROPERTY(EditAnywhere, Category = Filter)
 	TArray<FName> FilteredCurves;
 
 public: // FAnimNode_Inertialization
@@ -299,9 +352,7 @@ public: // FAnimNode_Inertialization
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	//
-	virtual void RequestInertialization(float Duration);
-
-	virtual float GetRequestedDuration() const { return RequestedDuration; }
+	virtual void RequestInertialization(float Duration, const UBlendProfile* BlendProfile);
 
 	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
 	//
@@ -320,28 +371,20 @@ public: // FAnimNode_Base
 
 protected:
 
-	// Consume Inertialization Request
-	//
-	// Returns any pending inertialization request and removes it from future processing.  Returns zero if there is no pending request.
-	// This function is virtual so that a derived class could optionally hook into other external sources of inertialization requests
-	// (for example from the owning actor for requests triggered from game code).
-	//
-	virtual float ConsumeInertializationRequest(FPoseContext& Context);
-
 	// Start Inertialization
 	//
 	// Computes the inertialization pose difference from the current pose and the two previous poses (to capture velocity).  This function
 	// is virtual so that a derived class could optionally regularize the pose snapshots to align better with the current frame's pose
 	// before computing the inertial difference (for example to correct for instantaneous changes in the root relative to its children).
 	//
-	virtual void StartInertialization(FPoseContext& Context, FInertializationPose& PreviousPose1, FInertializationPose& PreviousPose2, float Duration, /*OUT*/ FInertializationPoseDiff& OutPoseDiff);
+	virtual void StartInertialization(FPoseContext& Context, FInertializationPose& PreviousPose1, FInertializationPose& PreviousPose2, float Duration, TArrayView<const float> DurationPerBone, /*OUT*/ FInertializationPoseDiff& OutPoseDiff);
 
 	// Apply Inertialization
 	//
 	// Applies the inertialization pose difference to the current pose (feathering down to zero as ElapsedTime approaches Duration).  This
 	// function is virtual so that a derived class could optionally adjust the pose based on any regularization done in StartInertialization.
 	//
-	virtual void ApplyInertialization(FPoseContext& Context, const FInertializationPoseDiff& PoseDiff, float ElapsedTime, float Duration);
+	virtual void ApplyInertialization(FPoseContext& Context, const FInertializationPoseDiff& PoseDiff, float ElapsedTime, float Duration, TArrayView<const float> DurationPerBone);
 
 
 private:
@@ -355,8 +398,9 @@ private:
 	// Elapsed delta time between calls to evaluate
 	float DeltaTime;
 
-	// Pending inertialization request
-	float RequestedDuration;
+	// Pending inertialization requests
+	UPROPERTY(Transient)
+	TArray<FInertializationRequest> RequestQueue;
 
 	// Teleport type
 	ETeleportType TeleportType;
@@ -364,7 +408,17 @@ private:
 	// Inertialization state
 	EInertializationState InertializationState;
 	float InertializationElapsedTime;
+
+	// Inertialization duration for the main inertialization request (used for curve blending and deficit tracking)
 	float InertializationDuration;
+
+	// Inertialization durations indexed by skeleton bone index (used for per-bone blending)
+	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> InertializationDurationPerBone;
+
+	// Maximum of InertializationDuration and all entries in InertializationDurationPerBone (used for knowing when to shutdown the inertialization)
+	float InertializationMaxDuration;
+
+	// Inertialization deficit (for tracking and reducing 'pose melting' when thrashing inertialization requests)
 	float InertializationDeficit;
 
 	// Inertialization pose differences

@@ -30,6 +30,9 @@ public:
 	// Get Mirror State
 	virtual bool GetMirror() const;
 
+	// Get the BlendProfile to use when transitioning between mirrored and unmirrored states
+	virtual UBlendProfile* GetBlendProfile() const;
+
 	// How long to blend using inertialization when switching  mirrored state
 	virtual float GetBlendTimeOnMirrorStateChange() const;
 
@@ -47,6 +50,9 @@ public:
 
 	// Set Mirror State
 	virtual bool SetMirror(bool bInMirror);
+
+	// Set the BlendProfile to use when transitioning between mirrored and unmirrored states
+	virtual bool SetBlendProfile(UBlendProfile* BlendProfile);
 
 	// Set how long to blend using inertialization when switching  mirrored state
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
@@ -104,6 +110,7 @@ public:
 	virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
 
 	virtual bool GetMirror() const override;
+	virtual UBlendProfile* GetBlendProfile() const;
 	virtual float GetBlendTimeOnMirrorStateChange() const override;
 	virtual bool GetBoneMirroring() const override;
 	virtual bool GetCurveMirroring() const override;
@@ -111,6 +118,7 @@ public:
 	virtual bool GetResetChildOnMirrorStateChange() const override;
 
 	virtual bool SetMirror(bool bInMirror) override;
+	virtual bool SetBlendProfile(UBlendProfile* BlendProfile);
 	virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
 	virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
 	virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
@@ -126,8 +134,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty))
 	TObjectPtr<UMirrorDataTable> MirrorDataTable = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
-	float BlendTimeOnMirrorStateChange = 0.0f;
+	// Inertialization blend time to use when transitioning between mirrored and unmirrored states
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (PinHiddenByDefault, FoldProperty))
+	float BlendTime = 0.0f;
+
+	// Blend profile to use when transitioning between mirrored and unmirrored states
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (PinHiddenByDefault, UseAsBlendProfile = true, FoldProperty))
+	TObjectPtr<UBlendProfile> BlendProfile = nullptr;
+
+	// Whether to reset (reinitialize) the child (source) pose when the mirror state changes
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (FoldProperty))
+	bool bResetChild = false;
 
 	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName="Bone", FoldProperty))
 	bool bBoneMirroring = true;
@@ -137,10 +154,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta=(DisplayName = "Attributes", FoldProperty))
 	bool bAttributeMirroring = true;
-
-	// Whether to reset (reinitialize) the child (source)pose when the mirror state changes
-	UPROPERTY(EditAnywhere, Category = Settings, meta = ( FoldProperty))
-	bool bResetChildOnMirrorStateChange = false;
 #endif
 };
 
@@ -159,6 +172,7 @@ public:
 	virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
 
 	virtual bool GetMirror() const override;
+	virtual UBlendProfile* GetBlendProfile() const;
 	virtual float GetBlendTimeOnMirrorStateChange() const override;
 	virtual bool GetBoneMirroring() const override;
 	virtual bool GetCurveMirroring() const override;
@@ -166,6 +180,7 @@ public:
 	virtual bool GetResetChildOnMirrorStateChange() const override;
 
 	virtual bool SetMirror(bool bInMirror) override;
+	virtual bool SetBlendProfile(UBlendProfile* BlendProfile);
 	virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
 	virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
 	virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
@@ -180,8 +195,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TObjectPtr<UMirrorDataTable> MirrorDataTable = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
-	float BlendTimeOnMirrorStateChange = 0.0f;
+	// Inertialization blend time to use when transitioning between mirrored and unmirrored states
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (PinHiddenByDefault, FoldProperty))
+	float BlendTime = 0.0f;
+
+	// Blend profile to use when transitioning between mirrored and unmirrored states
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (PinHiddenByDefault, UseAsBlendProfile = true, FoldProperty))
+	TObjectPtr<UBlendProfile> BlendProfile = nullptr;
+
+	// Whether to reset (reinitialize) the child (source) pose when the mirror state changes
+	UPROPERTY(EditAnywhere, Category = MirrorTransition, meta = (FoldProperty))
+	bool bResetChild = false;
 
 	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta = (DisplayName = "Bone", FoldProperty))
 	bool bBoneMirroring = true;
@@ -191,8 +215,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = MirroredChannels, meta = (DisplayName = "Attributes", FoldProperty))
 	bool bAttributeMirroring = true;
-
-	// Whether to reset (reinitialize) the child (source)pose when the mirror state changes
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (FoldProperty))
-	bool bResetChildOnMirrorStateChange = false;
 };

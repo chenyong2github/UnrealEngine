@@ -3,6 +3,7 @@
 #include "AnimNodes/AnimNode_Mirror.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
+#include "Animation/AnimTrace.h"
 #include "AnimationRuntime.h"
 #include "Animation/AttributesRuntime.h"
 #include "Animation/MirrorSyncScope.h"
@@ -28,6 +29,11 @@ bool FAnimNode_MirrorBase::SetMirrorDataTable(UMirrorDataTable* MirrorTable)
 bool FAnimNode_MirrorBase::GetMirror() const
 {
 	return false;
+}
+
+UBlendProfile* FAnimNode_MirrorBase::GetBlendProfile() const
+{
+	return nullptr;
 }
 
 float FAnimNode_MirrorBase::GetBlendTimeOnMirrorStateChange() const
@@ -56,6 +62,11 @@ bool FAnimNode_MirrorBase::GetResetChildOnMirrorStateChange() const
 }
 
 bool FAnimNode_MirrorBase::SetMirror(bool bInMirror)
+{
+	return false;
+}
+
+bool FAnimNode_MirrorBase::SetBlendProfile(UBlendProfile* BlendProfile)
 {
 	return false;
 }
@@ -140,7 +151,7 @@ void FAnimNode_MirrorBase::Update_AnyThread(const FAnimationUpdateContext& Conte
 			UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 			if (InertializationRequester)
 			{
-				InertializationRequester->RequestInertialization(GetBlendTimeOnMirrorStateChange());
+				InertializationRequester->RequestInertialization(GetBlendTimeOnMirrorStateChange(), GetBlendProfile());
 				InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 			}
 			else
@@ -163,6 +174,8 @@ void FAnimNode_MirrorBase::Update_AnyThread(const FAnimationUpdateContext& Conte
 	bMirrorStateIsValid = true;
 
 	Source.Update(Context);
+
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Mirrored"), bMirrorState);
 }
 
 void FAnimNode_MirrorBase::Evaluate_AnyThread(FPoseContext& Output)
@@ -235,9 +248,14 @@ bool FAnimNode_Mirror::GetMirror() const
 	return GET_ANIM_NODE_DATA(bool, bMirror);
 }
 
+UBlendProfile* FAnimNode_Mirror::GetBlendProfile() const
+{
+	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendProfile>, BlendProfile);
+}
+
 float FAnimNode_Mirror::GetBlendTimeOnMirrorStateChange() const
 {
-	return GET_ANIM_NODE_DATA(float, BlendTimeOnMirrorStateChange);
+	return GET_ANIM_NODE_DATA(float, BlendTime);
 }
 
 bool FAnimNode_Mirror::GetBoneMirroring() const
@@ -257,7 +275,7 @@ bool FAnimNode_Mirror::GetAttributeMirroring() const
 
 bool FAnimNode_Mirror::GetResetChildOnMirrorStateChange() const
 {
-	return GET_ANIM_NODE_DATA(bool, bResetChildOnMirrorStateChange);
+	return GET_ANIM_NODE_DATA(bool, bResetChild);
 }
 
 bool FAnimNode_Mirror::SetMirror(bool bInMirror)
@@ -274,13 +292,29 @@ bool FAnimNode_Mirror::SetMirror(bool bInMirror)
 	return false;
 }
 
+bool FAnimNode_Mirror::SetBlendProfile(UBlendProfile* InBlendProfile)
+{
+#if WITH_EDITORONLY_DATA
+	BlendProfile = InBlendProfile;
+	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UBlendProfile>, BlendProfile) = InBlendProfile;
+#endif
+
+	if (TObjectPtr<UBlendProfile>* BlendProfilePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UBlendProfile>, BlendProfile))
+	{
+		*BlendProfilePtr = InBlendProfile;
+		return true;
+	}
+
+	return false;
+}
+
 bool FAnimNode_Mirror::SetBlendTimeOnMirrorStateChange(float InBlendTime)
 {
 #if WITH_EDITORONLY_DATA
-	BlendTimeOnMirrorStateChange = InBlendTime;
+	BlendTime = InBlendTime;
 #endif
 
-	if (float* BlendTimePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, BlendTimeOnMirrorStateChange))
+	if (float* BlendTimePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, BlendTime))
 	{
 		*BlendTimePtr = InBlendTime;
 		return true;
@@ -336,12 +370,12 @@ bool FAnimNode_Mirror::SetAttributeMirroring(bool bInAttributeMirroring)
 bool FAnimNode_Mirror::SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange)
 {
 #if WITH_EDITORONLY_DATA
-	bResetChildOnMirrorStateChange = bInResetChildOnMirrorStateChange;
+	bResetChild = bInResetChildOnMirrorStateChange;
 #endif
 
-	if (bool* bResetChildOnMirrorStateChangePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bResetChildOnMirrorStateChange))
+	if (bool* bResetChildPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bResetChild))
 	{
-		*bResetChildOnMirrorStateChangePtr = bInResetChildOnMirrorStateChange;
+		*bResetChildPtr = bInResetChildOnMirrorStateChange;
 		return true;
 	}
 
@@ -369,9 +403,14 @@ bool FAnimNode_Mirror_Standalone::GetMirror() const
 	return bMirror;
 }
 
+UBlendProfile* FAnimNode_Mirror_Standalone::GetBlendProfile() const
+{
+	return BlendProfile.Get();
+}
+
 float FAnimNode_Mirror_Standalone::GetBlendTimeOnMirrorStateChange() const
 {
-	return BlendTimeOnMirrorStateChange;
+	return BlendTime;
 }
 
 bool FAnimNode_Mirror_Standalone::GetBoneMirroring() const
@@ -391,7 +430,7 @@ bool FAnimNode_Mirror_Standalone::GetAttributeMirroring() const
 
 bool FAnimNode_Mirror_Standalone::GetResetChildOnMirrorStateChange() const
 {
-	return bResetChildOnMirrorStateChange;
+	return bResetChild;
 }
 
 bool FAnimNode_Mirror_Standalone::SetMirror(bool bInMirror)
@@ -400,9 +439,15 @@ bool FAnimNode_Mirror_Standalone::SetMirror(bool bInMirror)
 	return true;
 }
 
+bool FAnimNode_Mirror_Standalone::SetBlendProfile(UBlendProfile* InBlendProfile)
+{
+	BlendProfile = InBlendProfile;
+	return true;
+}
+
 bool FAnimNode_Mirror_Standalone::SetBlendTimeOnMirrorStateChange(float InBlendTime)
 {
-	BlendTimeOnMirrorStateChange = InBlendTime;
+	BlendTime = InBlendTime;
 	return true;
 }
 
@@ -427,7 +472,7 @@ bool FAnimNode_Mirror_Standalone::SetAttributeMirroring(bool bInAttributeMirrori
 
 bool FAnimNode_Mirror_Standalone::SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange)
 {
-	bResetChildOnMirrorStateChange = bInResetChildOnMirrorStateChange;
+	bResetChild = bInResetChildOnMirrorStateChange;
 	return true;
 }
 

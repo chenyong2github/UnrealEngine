@@ -8,27 +8,6 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimTrace.h"
 
-static float GetBlendDuration(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass, FName Layer)
-{
-	const FAnimGraphBlendOptions* PriorBlendOptions = PriorAnimBPClass ? PriorAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
-	const FAnimGraphBlendOptions* NewBlendOptions = NewAnimBPClass ? NewAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
-
-	float BlendOutTime = PriorBlendOptions ? PriorBlendOptions->BlendOutTime : -1.0f;
-	float BlendInTime = NewBlendOptions ? NewBlendOptions->BlendInTime : -1.0f;
-
-	if (BlendInTime < 0.0f)
-	{
-		return BlendOutTime;
-	}
-
-	if (BlendOutTime < 0.0f)
-	{
-		return BlendInTime;
-	}
-
-	return FMath::Min(BlendInTime, BlendOutTime);
-}
-
 FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	: InstanceClass(nullptr)
 #if WITH_EDITORONLY_DATA
@@ -37,7 +16,10 @@ FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	, LinkedRoot(nullptr)
 	, NodeIndex(INDEX_NONE)
 	, CachedLinkedNodeIndex(INDEX_NONE)
-	, PendingBlendDuration(-1.0f)
+	, PendingBlendOutDuration(-1.0f)
+	, PendingBlendOutProfile(nullptr)
+	, PendingBlendInDuration(-1.0f)
+	, PendingBlendInProfile(nullptr)
 	, bReceiveNotifiesFromLinkedInstances(false)
 	, bPropagateNotifiesToLinkedInstances(false)
 {
@@ -125,22 +107,32 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		InputPoses[0].Update(InContext);
 	}
 
-	// Consume pending inertial blend request
-	if(PendingBlendDuration >= 0.0f)
+	// Consume pending inertial blend requests
+	if(PendingBlendOutDuration >= 0.0f || PendingBlendInDuration >= 0.0f)
 	{
 		UE::Anim::IInertializationRequester* InertializationRequester = InContext.GetMessage<UE::Anim::IInertializationRequester>();
 		if(InertializationRequester)
 		{
-			InertializationRequester->RequestInertialization(PendingBlendDuration);
+			// Issue the pending inertialization requests (which will get merged together by the inertialization node itself)
+			if (PendingBlendOutDuration >= 0.0f)
+			{
+				InertializationRequester->RequestInertialization(PendingBlendOutDuration, PendingBlendOutProfile);
+			}
+			if (PendingBlendInDuration >= 0.0f)
+			{
+				InertializationRequester->RequestInertialization(PendingBlendInDuration, PendingBlendInProfile);
+			}
 			InertializationRequester->AddDebugRecord(*InContext.AnimInstanceProxy, InContext.GetCurrentNodeId());
 		}
-		else if ((PendingBlendDuration != 0.0f) && (InputPoses.Num() > 0))
+		else if ((PendingBlendOutDuration != 0.0f) && (PendingBlendInDuration != 0.0f) && (InputPoses.Num() > 0))
 		{
 			FAnimNode_Inertialization::LogRequestError(InContext, InputPoses[0]);
 		}
-
-		PendingBlendDuration = -1.0f;
 	}
+	PendingBlendOutDuration = -1.0f;
+	PendingBlendOutProfile = nullptr;
+	PendingBlendInDuration = -1.0f;
+	PendingBlendInProfile = nullptr;
 
 	TRACE_ANIM_NODE_VALUE(InContext, TEXT("Name"), GetDynamicLinkFunctionName());
 	TRACE_ANIM_NODE_VALUE(InContext, TEXT("Target Class"), InstanceClass.Get());
@@ -453,5 +445,30 @@ int32 FAnimNode_LinkedAnimGraph::FindFunctionInputIndex(const FAnimBlueprintFunc
 
 void FAnimNode_LinkedAnimGraph::RequestBlend(const IAnimClassInterface* PriorAnimBPClass, const IAnimClassInterface* NewAnimBPClass)
 {
-	PendingBlendDuration = GetBlendDuration(PriorAnimBPClass, NewAnimBPClass, GetDynamicLinkFunctionName());
+	const FName Layer = GetDynamicLinkFunctionName();
+
+	const FAnimGraphBlendOptions* PriorBlendOptions = PriorAnimBPClass ? PriorAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
+	const FAnimGraphBlendOptions* NewBlendOptions = NewAnimBPClass ? NewAnimBPClass->GetGraphBlendOptions().Find(Layer) : nullptr;
+
+	if (PriorBlendOptions && PriorBlendOptions->BlendOutTime >= 0.0f)
+	{
+		PendingBlendOutDuration = PriorBlendOptions->BlendOutTime;
+		PendingBlendOutProfile = PriorBlendOptions->BlendOutProfile;
+	}
+	else
+	{
+		PendingBlendOutDuration = -1.0f;
+		PendingBlendOutProfile = nullptr;
+	}
+
+	if (NewBlendOptions && NewBlendOptions->BlendInTime >= 0.0f)
+	{
+		PendingBlendInDuration = NewBlendOptions->BlendInTime;
+		PendingBlendInProfile = NewBlendOptions->BlendInProfile;
+	}
+	else
+	{
+		PendingBlendInDuration = -1.0f;
+		PendingBlendInProfile = nullptr;
+	}
 }

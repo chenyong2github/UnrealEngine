@@ -56,8 +56,19 @@ public:
 	int32 CachedLinkedNodeIndex;
 
 protected:
-	// Inertial blending duration to request next update
-	float PendingBlendDuration;
+	// Inertial blending duration to request next update (pulled from the prior state's blend out)
+	float PendingBlendOutDuration;
+
+	// Optional blend profile to use during inertial blending (pulled from the prior state's blend out)
+	UPROPERTY(Transient)
+	TObjectPtr<const UBlendProfile> PendingBlendOutProfile;
+
+	// Inertial blending duration to request next update (pulled from the new state's blend in)
+	float PendingBlendInDuration;
+
+	// Optional blend profile to use during inertial blending (pulled from the new state's blend in)
+	UPROPERTY(Transient)
+	TObjectPtr<const UBlendProfile> PendingBlendInProfile;
 
 public:
 	/** Whether named notifies will be received by this linked instance from other instances (outer or other linked instances) */

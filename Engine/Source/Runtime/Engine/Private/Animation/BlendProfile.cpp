@@ -209,6 +209,51 @@ void UBlendProfile::FillBoneScalesArray(TArray<float>& OutBoneBlendProfileFactor
 	}
 }
 
+void UBlendProfile::FillSkeletonBoneDurationsArray(TCustomBoneIndexArrayView<float, FSkeletonPoseBoneIndex> OutDurationPerBone, float Duration) const
+{
+	check(OwningSkeleton != nullptr);
+	const FReferenceSkeleton& RefSkeleton = OwningSkeleton->GetReferenceSkeleton();
+	const int32 NumSkeletonBones = RefSkeleton.GetNum();
+	check(OutDurationPerBone.Num() == NumSkeletonBones);
+
+	for(float& BoneDuration: OutDurationPerBone)
+	{
+		BoneDuration = Duration;
+	}
+
+	switch (Mode)
+	{
+		case EBlendProfileMode::TimeFactor:
+		{
+			for (const FBlendProfileBoneEntry& Entry : ProfileEntries)
+			{
+				const FSkeletonPoseBoneIndex SkeletonBoneIndex(Entry.BoneReference.BoneIndex);
+				OutDurationPerBone[SkeletonBoneIndex] *= Entry.BlendScale;
+			}
+		}
+		break;
+
+		case EBlendProfileMode::WeightFactor:
+		{
+			for (const FBlendProfileBoneEntry& Entry : ProfileEntries)
+			{
+				const FSkeletonPoseBoneIndex SkeletonBoneIndex(Entry.BoneReference.BoneIndex);
+				if (Entry.BlendScale > SMALL_NUMBER)
+				{
+					OutDurationPerBone[SkeletonBoneIndex] /= Entry.BlendScale;
+				}
+			}
+		}
+		break;
+
+		default:
+		{
+			checkf(false, TEXT("The selected Blend Profile Mode is not supported (Mode=%d)"), Mode);
+		}
+		break;
+	}
+}
+
 float UBlendProfile::CalculateBoneWeight(float BoneFactor, EBlendProfileMode Mode, const FAlphaBlend& BlendInfo, float BlendStartAlpha, float MainWeight, bool bInverse)
 {
 	switch (Mode)

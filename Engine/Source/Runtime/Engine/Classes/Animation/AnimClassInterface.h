@@ -148,15 +148,29 @@ struct FAnimGraphBlendOptions
 	float BlendInTime;       
 
 	/**
+	* Optional blend profile to use when blending this graph in (if BlendInTime > 0)
+	*/
+	UPROPERTY(EditAnywhere, Category = GraphBlending, meta = (UseAsBlendProfile = true))
+	TObjectPtr<UBlendProfile> BlendInProfile;
+
+	/**
 	* Time to blend this graph out using Inertialization. Specify -1.0 to defer to the BlendInTime of the next graph.
 	* To blend this graph out you must place an Inertialization node after the Linked Anim Graph node or Linked Anim Layer node that uses this graph.
 	*/
 	UPROPERTY(EditAnywhere, Category = GraphBlending)
 	float BlendOutTime;
 
+	/**
+	* Optional blend profile to use when blending this graph out (if BlendOutTime > 0)
+	*/
+	UPROPERTY(EditAnywhere, Category = GraphBlending, meta = (UseAsBlendProfile = true))
+	TObjectPtr<UBlendProfile> BlendOutProfile;
+
 	FAnimGraphBlendOptions()
 		: BlendInTime(-1.0f)
+		, BlendInProfile(nullptr)
 		, BlendOutTime(-1.0f)
+		, BlendOutProfile(nullptr)
 	{}
 };
 
