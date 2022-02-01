@@ -60,6 +60,8 @@ TMap<FMaterialShaderMapId,FMaterialShaderMap*> FMaterialShaderMap::GIdToMaterial
 TArray<FMaterialShaderMap*> FMaterialShaderMap::AllMaterialShaderMaps;
 FCriticalSection FMaterialShaderMap::AllMaterialShaderMapsGuard;
 #endif
+// defined in the same module (Material.cpp)
+bool PoolSpecialMaterialsCompileJobs();
 
 /** 
  * Tracks material resources and their shader maps that are being compiled.
@@ -2066,7 +2068,8 @@ void FMaterialShaderMap::Compile(
 	}
 
 	// Compile the shaders for this shader map now if the material is not deferring and deferred compiles are not enabled globally
-	if (PrecompileMode == EMaterialShaderPrecompileMode::Synchronous)
+	// If we're early in the startup we can save some time by compiling all special/default materials asynchronously, even if normally they are synchronous
+	if (PrecompileMode == EMaterialShaderPrecompileMode::Synchronous && !PoolSpecialMaterialsCompileJobs())
 	{
 		TArray<int32> CurrentShaderMapId;
 		CurrentShaderMapId.Add(CompilingId);

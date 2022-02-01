@@ -124,6 +124,9 @@ static FAutoConsoleCommand GFlushMaterialUniforms(
 })
 );
 
+// defined in the same module (Material.cpp)
+bool PoolSpecialMaterialsCompileJobs();
+
 bool AllowDitheredLODTransition(ERHIFeatureLevel::Type FeatureLevel)
 {
 	// On mobile support for 'Dithered LOD Transition' has to be explicitly enabled in projects settings
@@ -2497,7 +2500,8 @@ bool FMaterial::BeginCompileShaderMap(
 		// Compile the shaders for the material.
 		NewShaderMap->Compile(this, ShaderMapId, MaterialEnvironment, NewCompilationOutput, Platform, PrecompileMode);
 
-		if (PrecompileMode == EMaterialShaderPrecompileMode::Synchronous)
+		// early in the startup we can save some time by compiling all special/default materials asynchronously, even if normally they are synchronous
+		if (PrecompileMode == EMaterialShaderPrecompileMode::Synchronous && !PoolSpecialMaterialsCompileJobs())
 		{
 			// If this is a synchronous compile, assign the compile result to the output
 			check(NewShaderMap->GetCompilingId() == 0u);

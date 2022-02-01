@@ -567,6 +567,12 @@ void UMaterialInterface::PostCDOContruct()
 	}
 }
 
+// We can save time if instead of blocking after compilation of each synchronous material we block after scheduling all of them
+bool GPoolSpecialMaterialsCompileJobs = true;
+bool PoolSpecialMaterialsCompileJobs()
+{
+	return GPoolSpecialMaterialsCompileJobs;
+}
 
 void UMaterialInterface::PostLoadDefaultMaterials()
 {
@@ -609,6 +615,14 @@ void UMaterialInterface::PostLoadDefaultMaterials()
 			{
 				bPostLoaded = false;
 			}
+		}
+
+		// Block after scheduling for compilation all (hopefully) default materials.
+		// Even if not all of them ended up being post-loaded, block here just out of extra caution
+		if (GPoolSpecialMaterialsCompileJobs == true)
+		{
+			GPoolSpecialMaterialsCompileJobs = false;
+			GShaderCompilingManager->FinishAllCompilation();
 		}
 	}
 }
