@@ -4,10 +4,10 @@
 namespace CADLibrary
 {
 
-FString GCADLibrary = TEXT("KernelIO");
+FString FImportParameters::GCADLibrary = TEXT("KernelIO");
 FAutoConsoleVariableRef GCADTranslatorLibrary(
 	TEXT("ds.CADTranslator.CADLibrary"),
-	GCADLibrary,
+	FImportParameters::GCADLibrary,
 	TEXT("Define the used library to import CAD file i.e. \"TechSoft\" or \"KernelIO\".\n"),
 	ECVF_Default);
 

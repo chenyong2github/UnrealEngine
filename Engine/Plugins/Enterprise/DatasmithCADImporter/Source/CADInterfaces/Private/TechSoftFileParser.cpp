@@ -278,6 +278,7 @@ FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString&
 	: CADFileData(InCADData)
 	, TechSoftInterface(TechSoftUtils::GetTechSoftInterface())
 {
+	TechSoftInterface.InitializeKernel(*EnginePluginsPath);
 }
 
 ECADParsingResult FTechSoftFileParser::Process()

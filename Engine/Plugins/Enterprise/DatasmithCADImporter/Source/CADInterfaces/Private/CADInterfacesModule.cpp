@@ -36,14 +36,14 @@ ECADInterfaceAvailability ICADInterfacesModule::GetAvailability()
 {
 	if (FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
 	{
-		if (CADLibrary::GCADLibrary == TEXT("KernelIO"))
+		if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
 		{
 			if (CADLibrary::CTKIO_InitializeKernel())
 			{
 				return ECADInterfaceAvailability::Available;
 			}
 		}
-		else if (CADLibrary::GCADLibrary == TEXT("TechSoft"))
+		else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
 		{
 			if (CADLibrary::TechSoftUtils::TECHSOFT_InitializeKernel())
 			{

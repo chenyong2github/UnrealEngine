@@ -190,6 +190,7 @@ namespace CADLibrary
 		, FileDescription(InCADData.GetCADFileDescription())
 		, LastHostIdUsed(1<<30)
 	{
+		CTKIO_InitializeKernel(*EnginePluginsPath);
 	}
 
 	ECADParsingResult FCoreTechFileParser::Process()

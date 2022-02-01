@@ -11,7 +11,6 @@
 namespace CADLibrary
 {
 	CADTOOLS_API extern int32 GMaxImportThreads;
-	CADTOOLS_API extern FString GCADLibrary;
 
 	enum EStitchingTechnique
 	{
@@ -55,6 +54,8 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGEnableCADCache;
 		CADTOOLS_API static bool bGOverwriteCache;
 		CADTOOLS_API static bool bGPreferJtFileEmbeddedTessellation;
+		CADTOOLS_API static FString GCADLibrary;
+
 
 	public:
 		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 0.1, FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -128,6 +129,7 @@ namespace CADLibrary
 			Ar << ImportParameters.bGEnableTimeControl;
 			Ar << ImportParameters.bGEnableCADCache;
 			Ar << ImportParameters.bGPreferJtFileEmbeddedTessellation;
+			Ar << ImportParameters.GCADLibrary;
 			return Ar;
 		}
 
@@ -212,7 +214,7 @@ namespace CADLibrary
 
 		if (FImportParameters::bGDisableCADKernelTessellation)
 		{
-			OutFileName += GCADLibrary.Equals("TechSoft") ? TEXT(".hsf") : TEXT(".ct");
+			OutFileName += FImportParameters::GCADLibrary.Equals("TechSoft") ? TEXT(".hsf") : TEXT(".ct");
 		}
 		else
 		{

@@ -21,7 +21,7 @@ namespace CADLibrary
 		: CADFileData(ImportParams, InFile, InCachePath)
 	{
 #ifdef USE_KERNEL_IO_SDK
-		if (GCADLibrary == TEXT("KernelIO"))
+		if (FImportParameters::GCADLibrary == TEXT("KernelIO"))
 		{
 			CADParser = MakeUnique<FCoreTechFileParser>(CADFileData, EnginePluginsPath);
 		}
@@ -30,7 +30,7 @@ namespace CADLibrary
 		else
 #endif
 #ifdef USE_TECHSOFT_SDK
-		if (GCADLibrary == TEXT("TechSoft"))
+		if (FImportParameters::GCADLibrary == TEXT("TechSoft"))
 		{
 			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
 		}
