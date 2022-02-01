@@ -21,6 +21,7 @@ DECLARE_ENUM_TO_STRING(EMLAdapterSpaceType);
 
 namespace FMLAdapter
 {
+	/** Defines the numerical space of a sensor, actuator, or agent. Similar to OpenAI Gym's spaces. */
 	struct MLADAPTER_API FSpace : public IJsonable, public TSharedFromThis<FSpace>
 	{
 		virtual ~FSpace() {}
@@ -30,6 +31,7 @@ namespace FMLAdapter
 		virtual int32 Num() const { return 0; }
 	};
 
+	/** A discrete space contains a countable number of values. */
 	struct MLADAPTER_API FSpace_Discrete : public FSpace
 	{
 		uint32 Count;
@@ -51,6 +53,7 @@ namespace FMLAdapter
 		virtual int32 Num() const override { return Options.Num(); }
 	};
 
+	/** A continuous space that contains a number of ranges defined by the shape, whose values will fall inside the Low to High range. */
 	struct MLADAPTER_API FSpace_Box : public FSpace
 	{
 		TArray<uint32> Shape;
@@ -65,12 +68,14 @@ namespace FMLAdapter
 		static TSharedPtr<FSpace> Vector2D(float Low = -1.f, float High = 1.f) { return MakeShareable(new FSpace_Box({ 2 }, Low, High)); }
 	};
 
+	/** A placeholder shape - typically returned in invalid scenarios. */
 	struct MLADAPTER_API FSpace_Dummy : public FSpace_Box
 	{
 		FSpace_Dummy() : FSpace_Box({ 0 }) {}
 		virtual int32 Num() const override { return 0; }
 	};
 
+	/** Container for multiple subspaces. */
 	struct MLADAPTER_API FSpace_Tuple : public FSpace
 	{
 		TArray<TSharedPtr<FSpace> > SubSpaces;
@@ -114,6 +119,7 @@ struct FMLAdapterDescription
 	void Reset() { Data.Reset(); PrepData.Reset(); }
 
 	bool IsEmpty() const { return (Data.Num() == 0); }
+
 protected:
 	TArray<TPair<FString, FString>> Data;
 	TArray<FString> PrepData;
@@ -127,6 +133,7 @@ struct FMLAdapterSpaceDescription
 
 	FMLAdapterSpaceDescription& Add(FString Key, FMLAdapterDescription&& Element) { Data.Add(ValuePair(Key, Element)); return(*this); }
 	FMLAdapterSpaceDescription& Add(FString Key, FMLAdapterDescription Element) { Data.Add(ValuePair(Key, Element)); return(*this); }
+
 protected:
 	TArray<ValuePair> Data;
 };

@@ -7,7 +7,8 @@
 #include "MLAdapterNoRPCManager.generated.h"
 
 /**
- * No RPC manager won't start RPC server and will immediately start a session and spawn the default agent.
+ * UMLAdapterNoRPCManager won't start the RPC server and will immediately start a session and spawn the default agent. This is
+ * intended to be used when there will only be a single inference agent that exists for the life of the game.
  */
 UCLASS()
 class MLADAPTER_API UMLAdapterNoRPCManager : public UMLAdapterManager

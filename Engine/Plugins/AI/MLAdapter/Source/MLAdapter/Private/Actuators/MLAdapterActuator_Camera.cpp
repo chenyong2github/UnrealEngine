@@ -23,7 +23,6 @@ UMLAdapterActuator_Camera::UMLAdapterActuator_Camera(const FObjectInitializer& O
 {
 	bVectorMode = true;
 	bConsumeData = true;
-	bDeltaMode = true;
 }
 
 void UMLAdapterActuator_Camera::Configure(const TMap<FName, FString>& Params)

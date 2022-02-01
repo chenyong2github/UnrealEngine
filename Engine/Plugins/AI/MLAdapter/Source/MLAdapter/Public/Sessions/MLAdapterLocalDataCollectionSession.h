@@ -7,7 +7,7 @@
 #include "MLAdapterLocalDataCollectionSession.generated.h"
 
 /**
- * Collects data from Agents' Sensors and writes them to a file for offline processing. Only works with a locally
+ * Collects data from agents' sensors and writes them to a file for offline processing. Only works with a locally
  * controlled, single-player game.
  */
 UCLASS(Blueprintable, EditInlineNew)

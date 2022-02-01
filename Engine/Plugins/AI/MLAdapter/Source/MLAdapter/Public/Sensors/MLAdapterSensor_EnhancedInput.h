@@ -26,7 +26,6 @@ protected:
 
 	TMap<FString, int32> InputStateIndices;
 
-public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
 	TArray<TObjectPtr<UInputAction>> TrackedActions;
 

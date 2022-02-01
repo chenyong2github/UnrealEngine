@@ -26,6 +26,7 @@ UMLAdapterSensor::UMLAdapterSensor(const FObjectInitializer& ObjectInitializer)
 void UMLAdapterSensor::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		if (GetClass()->HasAnyClassFlags(CLASS_Abstract) == false)
@@ -36,13 +37,15 @@ void UMLAdapterSensor::PostInitProperties()
 	else
 	{
 		const UMLAdapterSensor* CDO = GetDefault<UMLAdapterSensor>(GetClass());
-		// already checked 
+		check(CDO);
 		ElementID = CDO->ElementID;
 	}
 }
 
 void UMLAdapterSensor::Configure(const TMap<FName, FString>& Params)
 {
+	Super::Configure(Params);
+
 	const FName NAME_EveryTick = TEXT("tick_every_frame");
 	const FName NAME_EveryNTicks = TEXT("tick_every_n_frames");
 	const FName NAME_EveryXFrames = TEXT("tick_every_x_seconds");
@@ -136,5 +139,5 @@ void UMLAdapterSensor::OnPawnChanged(APawn* OldPawn, APawn* NewPawn)
 
 void UMLAdapterSensor::ClearPawn(APawn& InPawn)
 {
-
+	// Can be overridden in derived classes
 }

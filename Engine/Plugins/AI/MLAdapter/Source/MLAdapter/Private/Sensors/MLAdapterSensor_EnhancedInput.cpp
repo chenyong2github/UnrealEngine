@@ -127,6 +127,8 @@ void UMLAdapterSensor_EnhancedInput::OnInputAction(const FInputActionInstance& A
 	int32* ActionIndexPtr = InputStateIndices.Find(SourceAction->GetName());
 	if (ActionIndexPtr != nullptr)
 	{
+		FScopeLock Lock(&ObservationCS);
+
 		int32 ActionIndex = *ActionIndexPtr;
 
 		FInputActionValue ActionValue = ActionInstance.GetValue();

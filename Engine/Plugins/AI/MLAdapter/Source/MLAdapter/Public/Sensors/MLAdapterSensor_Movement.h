@@ -6,7 +6,7 @@
 #include "MLAdapterTypes.h"
 #include "MLAdapterSensor_Movement.generated.h"
 
-
+/** Allows an agent to sense its avatar's location and velocity. */
 UCLASS(Blueprintable)
 class MLADAPTER_API UMLAdapterSensor_Movement : public UMLAdapterSensor
 {

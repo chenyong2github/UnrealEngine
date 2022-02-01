@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 
-/** Describes requested data in an rpclib-usable format */
+/** Describes requested data in an rpclib-usable format. */
 namespace FMLAdapterScribe
 {
 	std::vector<std::string> ToStringVector(const TArray<FString>& Array);
@@ -19,7 +19,12 @@ namespace FMLAdapterScribe
 	std::map<std::string, uint32> ListSensorTypes();
 	std::map<std::string, uint32> ListActuatorTypes();
 
-	// will search for the given names first in function names, then sensors, 
-	// actuators, agent classes. To be expanded
+	/**
+	* Gets the description for the given name. Searches the Librarian for registered names in the following order:
+	*	1. Functions
+	*	2. Sensors
+	*	3. Actuators
+	* @return The description if found. Otherwise, returns string literal "Not Found".
+	*/ 
 	std::string GetDescription(std::string const& ElementName);
 };

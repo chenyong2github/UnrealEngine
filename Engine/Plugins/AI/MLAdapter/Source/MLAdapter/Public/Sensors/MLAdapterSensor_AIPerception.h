@@ -9,7 +9,8 @@
 class UAIPerceptionComponent;
 class AActor;
 
-/** When applied to a player controller will create an AIPerception component for 
+/**
+ *	When applied to a player controller will create an AIPerception component for 
  *	that player and plug it into the AIPerceptionSystem. The sensor will report 
  *	information gathered by the perception system on the behalf of this agent.
  *	@see UAIPerceptionComponent::ProcessStimuli
@@ -75,10 +76,12 @@ protected:
 	UPROPERTY()
 	UAIPerceptionComponent* PerceptionComponent;
 
-	/** When set to true will only gather perception "delta" meaning consecutive
+	/**
+	 *	When set to true will only gather perception "delta" meaning consecutive
 	 *	updates will consist of new perception information. Defaults to "false" 
 	 *	which means that every update all of data contained by the PerceptionComponent 
-	 *	will be "sensed" */
+	 *	will be "sensed"
+	 */
 	UPROPERTY()
 	bool bSenseOnlyChanges = false;
 

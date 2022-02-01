@@ -31,7 +31,8 @@ namespace FMLAdapter
 	static const uint32 InvalidSensorID = 0;
 	static const uint32 InvalidActuatorID = 0;
 
-	/** MLAdapter-flavored new object creation. We're using this with all the objects 
+	/**
+	 *	MLAdapter-flavored new object creation. We're using this with all the objects 
 	 *	we intend to access from outside the game-thread (most notably from the 
 	 *	rpc calls). This gives us more control over objects' life cycle.
 	 *

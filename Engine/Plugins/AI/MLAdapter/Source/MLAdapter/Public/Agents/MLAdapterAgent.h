@@ -18,6 +18,7 @@ class UMLAdapterActuator;
 struct FMLAdapterSpaceDescription;
 
 
+/** Provides a serializable mapping from parameter name to value that is used to configure sensors & actuators. */
 USTRUCT()
 struct MLADAPTER_API FMLAdapterParameterMap
 {
@@ -27,6 +28,7 @@ struct MLADAPTER_API FMLAdapterParameterMap
 	TMap<FName, FString> Params;
 };
 
+/** A serializable config for an agent. Used in the external API to define agents. */
 USTRUCT()
 struct MLADAPTER_API FMLAdapterAgentConfig
 {
@@ -44,7 +46,7 @@ struct MLADAPTER_API FMLAdapterAgentConfig
 	UPROPERTY()
 	FName AgentClassName;
 
-	/** if set to true won't accept child classes of AvatarClass */
+	/** If set to true, won't accept child classes of the AvatarClass. */
 	UPROPERTY()
 	bool bAvatarClassExact = false;
 
@@ -57,47 +59,71 @@ struct MLADAPTER_API FMLAdapterAgentConfig
 
 namespace FMLAdapterAgentHelpers
 {
+	/** Get the Pawn and Controller from the given Avatar if possible. */
 	bool MLADAPTER_API GetAsPawnAndController(AActor* Avatar, AController*& OutController, APawn*& OutPawn);
 }
 
-
+/**
+ * An agent capable of controlling a single avatar (e.g. a Pawn or Controller). Contains sensors for
+ * perceiving information about the environment and actuators for taking actions in the game.
+ */
 UCLASS(Blueprintable, EditInlineNew)
 class MLADAPTER_API UMLAdapterAgent : public UObject
 {
     GENERATED_BODY()
+
 public:
 	UMLAdapterAgent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** Perform initial setup for blueprint spawned agents. */
 	virtual void PostInitProperties() override;
 
+	/** Shutdown all the sensors and actuators and cleanup references to the avatar. */
 	virtual void BeginDestroy() override;
 
+	/** Add a sensor to this agent. Returns true if the sensor was successfully added. */
 	virtual bool RegisterSensor(UMLAdapterSensor& Sensor);
 	
-	/** Updates all the senses that are configured as 'IsPolling'*/
+	/** Updates all the sensors that are configured as 'IsPolling'. */
 	virtual void Sense(const float DeltaTime);
 	
-	// Decide what action to take based on the current observations
+	/** 
+	 * Decide what action to take based on the current observations.
+	 * @see UMLAdapterAgent_Inference for an agent that implements this.
+	 */
 	virtual void Think(const float DeltaTime);
 
-	// trigger all of the agent's 
+	/** Tick all of the agent's actuators. */
 	virtual void Act(const float DeltaTime);
 	
-	//virtual void DigestActions(const std::vector<float>& ValueStream);
+	/** Move data into the actuators for the next time Act is called. */
 	virtual void DigestActions(FMLAdapterMemoryReader& ValueStream);
 
+	/** Get this agent's ID. */
 	FMLAdapter::FAgentID GetAgentID() const { return AgentID; }
+
+	/** Get the Pawn this agent is controlling. */
 	APawn* GetPawn() { return Pawn; }
+
+	/** Get the Pawn this agent is controlling. */
 	const APawn* GetPawn() const { return Pawn; }
+
+	/** Get the Controller this agent is controlling. */
 	AController* GetController() { return Controller; }
+
+	/** Get the Controller this agent is controlling. */
 	const AController* GetController() const { return Controller; }
 	
 	TArray<UMLAdapterSensor*>::TConstIterator GetSensorsConstIterator() const { return Sensors.CreateConstIterator(); }
 	TArray<UMLAdapterActuator*>::TConstIterator GetActuatorsConstIterator() const { return Actuators.CreateConstIterator(); }
 	
+	/** If the avatar is a controller, then get the current score from the controller's player state. */
 	virtual float GetReward() const;
+
+	/** The agent is done if its avatar has been destroyed and it can't request a new one. */
 	virtual bool IsDone() const;
 
+	/** Get the actuator with the given ID if this agent has it. */
 	UMLAdapterActuator* GetActuator(const uint32 ActuatorID) 
 	{ 
 		UMLAdapterActuator** FoundActuator = Actuators.FindByPredicate([ActuatorID](const UMLAdapterActuator* Actuator) { return (Actuator->GetElementID() == ActuatorID); });
@@ -109,31 +135,53 @@ public:
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 protected:
+
+	/** When the agent's avatar is destroyed, we need to cleanup callbacks and references to the avatar. Will request a new avatar if AgentConfig.bAutoRequestNewAvatarUponClearingPrev is true. */
 	UFUNCTION()
 	virtual void OnAvatarDestroyed(AActor* DestroyedActor);
 	
-	/** will be bound to UGameInstance.OnPawnControllerChanged if current avatar is a pawn or a controller */
+	/** Will be bound to UGameInstance.OnPawnControllerChanged if current avatar is a pawn or a controller. */
 	UFUNCTION()
 	void OnPawnControllerChanged(APawn* InPawn, AController* InController);
 
+	/** If the Pawn changed, we need to let all the sensors know. */
 	virtual void OnPawnChanged(APawn* NewPawn, AController* InController);
 
 	friend UMLAdapterSession;
+
+	/** Set this agent's ID to its new ID. */
 	void SetAgentID(FMLAdapter::FAgentID NewAgentID) { AgentID = NewAgentID; }
 
 public:
+
+	/** Retrieve all the sensor data from the last time Sense was called. */
 	void GetObservations(FMLAdapterMemoryWriter& Ar);
+
+	/** Get this agent's current config. This will not be accurate if the agent was spawned from a blueprint. */
 	const FMLAdapterAgentConfig& GetConfig() const { return AgentConfig; }
+
+	/** Setup this agent's avatar, sensors, and actuators. Typically used for agents spawned via RPC. */
 	virtual void Configure(const FMLAdapterAgentConfig& NewConfig);
+
+	/** Get the overall action space of this agent based on all its actuators. Used to determine the necessary output shape of the ML model. */
 	virtual void GetActionSpaceDescription(FMLAdapterSpaceDescription& OutSpaceDesc) const;
+
+	/** Get the overall observation space of this agent based on all its sensors. Used to determine the necessary input shape of the ML model. */
 	virtual void GetObservationSpaceDescription(FMLAdapterSpaceDescription& OutSpaceDesc) const;
 
+	/** Get the session that this agent belongs to. */
 	UMLAdapterSession& GetSession();
 	
+	/** Returns true is the given avatar can be controlled by this agent. */
 	virtual bool IsSuitableAvatar(AActor& InAvatar) const;
+
+	/** Sets the avatar for this agent and all of its sensors and actuators. Registers callbacks. */
 	virtual void SetAvatar(AActor* InAvatar);
+
+	/** Get the avatar this agent is controlling. */
 	AActor* GetAvatar() const { return Avatar; }
 
+	/** Returns true if this agent has an avatar set. */
 	bool IsReady() const { return Avatar != nullptr; }
 
 protected:
@@ -160,8 +208,12 @@ private:
 	APawn* Pawn;
 
 	FMLAdapter::FAgentID AgentID;
+
 	FMLAdapterAgentConfig AgentConfig;
 
+	/** True if the agent ever had a Pawn. Otherwise, false. */
 	uint32 bEverHadAvatar : 1;
+
+	/** True if we have callbacks registered. */
 	uint32 bRegisteredForPawnControllerChange : 1;
 };

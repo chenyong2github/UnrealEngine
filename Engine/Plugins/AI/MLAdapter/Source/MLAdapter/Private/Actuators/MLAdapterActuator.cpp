@@ -19,6 +19,7 @@ UMLAdapterActuator::UMLAdapterActuator(const FObjectInitializer& ObjectInitializ
 void UMLAdapterActuator::PostInitProperties()
 {
 	Super::PostInitProperties();
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		if (GetClass()->HasAnyClassFlags(CLASS_Abstract) == false)

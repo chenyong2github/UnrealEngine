@@ -23,7 +23,7 @@ class APlayerController;
 class UWorld;
 
 UENUM()
-enum class EMLAdapterServerMode
+enum class EMLAdapterServerMode : uint8
 {
 	Invalid,
 	Server,
@@ -32,7 +32,11 @@ enum class EMLAdapterServerMode
 	AutoDetect,
 };
 
-
+/**
+ * The manager of the MLAdapter system. Sets up the RPC server for communication with remote client. Based on settings,
+ * creates and ticks the UMLAdapterSession. Tells the UMLAdapterLibrarian to gather its classes.
+ * A singleton instance is setup automatically during OnPostEngineInit if this plugin is included.
+ */
 UCLASS(Transient)
 class MLADAPTER_API UMLAdapterManager : public UObject, public FTickableGameObject, public FSelfRegisteringExec
 {
@@ -59,47 +63,72 @@ public:
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	// FExec end
 
+	/** Binds the manager's world, game mode, and editor delegates - called during PostInitProperties. */
 	virtual void BindToDelegates();
+
+	/** Cleans up all the manager's delegates - called during BeginDestroy. */
 	virtual void CleanUpDelegates();
 
+	/** Starts the RPC server if the world is a game world */
 	virtual void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
+
+	/** Closes the current session. */
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+
 	virtual void OnBeginPIE(const bool bIsSimulating);
 	virtual void OnEndPIE(const bool bIsSimulating);
+
+	/** Notifies the session that the game mode has initialized. */
 	virtual void OnGameModeInitialized(AGameModeBase* GameMode);
+
+	/** Notifies the session a player has connected. */
 	virtual void OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer);
-	/** @note that this might not get called at all if the project's game mode 
-	 *	doesn't extend AGameMode*/
+
+	/** @note This might not get called at all if the project's game mode doesn't extend AGameMode. */
 	virtual void OnGameModeMatchStateSet(FName MatchState);
 
-	/** If a server is already running it will be shut down before the new instance gets created
-	 *	@param ServerThreads best set at the number of external clients that are going to be connecting */
+	/**
+	 * Starts a new RPC server. If a server is already running, it will be shut down before the new instance gets created.
+	 * @param ServerThreads best set at the number of external clients that are going to be connecting
+	 */
 	virtual void StartServer(uint16 Port, EMLAdapterServerMode InMode = EMLAdapterServerMode::AutoDetect, uint16 ServerThreads = 1);
+	
+	/** Stop the RPC server. */
 	virtual void StopServer();
+
+	/** True if there is an RPC server currently running. */
 	virtual bool IsRunning() const;
 
+	/** "Server" in this context means UnrealEngine game server, not RPC server. */
 	virtual void ConfigureAsServer(FRPCServer& Server);
-	/** "Client" in this context means UnrealEngine game client, not RPC client */
+
+	/** "Client" in this context means UnrealEngine game client, not RPC client. */
 	virtual void ConfigureAsClient(FRPCServer& Server);
-	/** Essentially calls both the server and client versions */
+
+	/** Essentially calls both the server and client versions. */
 	virtual void ConfigureAsStandalone(FRPCServer& Server);
 
-	/** if given World doesn't have an AI system this call results in creating one */
+	/** If given World doesn't have an AI system, this call results in creating one. */
 	virtual void EnsureAISystemPresence(UWorld& World);
 
-	/** if given World doesn't have a Navigation system instance this call results in creating one */
+	/** If given World doesn't have a Navigation system instance, this call results in creating one. */
 	virtual void EnsureNavigationSystemPresence(UWorld& World);
 
 	virtual UMLAdapterSession* CreateNewSession();
 	virtual void SetSession(UMLAdapterSession* NewSession);
 	virtual void CloseSession(UMLAdapterSession& InSession);
 
-	/** Returns current session. If one doesn't exist, it gets created. */
+	/** Returns the current session. If one doesn't exist, it gets created. */
 	virtual UMLAdapterSession& GetSession();
 	bool HasSession() const { return IsValid(Session) && (Session->IsUnreachable() == false); }
 
+	/** Register a sensor class with this manager's librarian. */
 	void RegisterSensorClass(const TSubclassOf<UMLAdapterSensor>& Class) { Librarian.RegisterSensorClass(Class); }
+
+	/** Register an actuator class with this manager's librarian. */
 	void RegisterActuatorClass(const TSubclassOf<UMLAdapterActuator>& Class) { Librarian.RegisterActuatorClass(Class); }
+
+	/** Register an agent class with this manager's librarian. */
 	void RegisterAgentClass(const TSubclassOf<UMLAdapterAgent>& Class) { Librarian.RegisterAgentClass(Class); }
 
 	virtual void ResetWorld();
@@ -108,11 +137,16 @@ public:
 	FOnGenericRPCServerDelegate& GetOnAddClientFunctions() { return OnAddClientFunctions; }
 	FOnGenericRPCServerDelegate& GetOnAddServerFunctions() { return OnAddServerFunctions; }
 
+	/** Get the current manager instance. */
 	FORCEINLINE static UMLAdapterManager& Get();
+
+	/** Returns true if the manager instance exists. */
 	FORCEINLINE static bool IsReady();
 
+	/** Get this manager's librarian. */
 	const FMLAdapterLibrarian& GetLibrarian() const { return Librarian; }
 
+	/** Returns true if this manager is not being ticked manually by the remote client. */
 	bool IsWorldRealTime() const { return (bTickWorldManually == false); }
 
 	FOnGenericEvent& GetOnCurrentSessionChanged() { return OnCurrentSessionChanged; }
@@ -153,7 +187,7 @@ protected:
 	uint32 bTickWorldManually : 1;
 	
 	/** is the manager is in 'manual ticking mode' (where external client is 
-	 *	responsible for progressing the world sim by calling 'request_world_tick' 
+	 * responsible for progressing the world sim by calling 'request_world_tick' 
 	 *	function) the simulation will progress by StepsRequested ticks before pausing */
 	int32 StepsRequested = 0;
 
