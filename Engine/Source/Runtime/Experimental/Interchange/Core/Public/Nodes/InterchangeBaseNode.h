@@ -401,13 +401,6 @@ public:
 	inline bool ApplyAttributeToObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
 
 	/**
-	 * Specialized version of ApplyAttributeToObject for strings.
-	 * If the target property is a FObjectPropertyBase, treat the string as an object path.
-	 */
-	template<>
-	bool ApplyAttributeToObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
-
-	/**
 	 * Reads an attribute value from a UObject.
 	 * @param NodeAttributeKey	The key for the attribute to update.
 	 * @param Object			The object to read from.
@@ -416,13 +409,6 @@ public:
 	 */
 	template<typename AttributeType>
 	inline bool FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName);
-
-	/**
-	 * Specialized version of FillAttributeFromObject for strings.
-	 * If the target property is a FObjectPropertyBase, treat the string as an object path.
-	 */
-	template<>
-	inline bool FillAttributeFromObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName);
 
 	/**
 	 * Return the unique id pass in the constructor.
@@ -656,20 +642,27 @@ inline bool UInterchangeBaseNode::ApplyAttributeToObject(const FString& NodeAttr
 		Container.Set<UObject*>(Object);
 		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
 		{
+			AttributeType* PropertyValueAddress;
 			if (Container.IsType<UObject*>())
 			{
-				*(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>())) = ValueData;
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>());
 			}
 			else
 			{
-				*(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>())) = ValueData;
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>());
 			}
+
+			*PropertyValueAddress = ValueData;
 		}
 		return true;
 	}
 	return false;
 }
 
+/**
+ * Specialized version of ApplyAttributeToObject for strings.
+ * If the target property is a FObjectPropertyBase, treat the string as an object path.
+ */
 template<>
 inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
@@ -685,31 +678,67 @@ inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FString&
 		Container.Set<UObject*>(Object);
 		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
 		{
+			FString* PropertyValueAddress;
+			if (Container.IsType<UObject*>())
+			{
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>());
+			}
+			else
+			{
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>());
+			}
+
 			if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 			{
-				void* PropertyValueAddress;
-
-				if (Container.IsType<UObject*>())
-				{
-					PropertyValueAddress = Property->ContainerPtrToValuePtr<void>(Container.Get<UObject*>());
-				}
-				else
-				{
-					PropertyValueAddress =  Property->ContainerPtrToValuePtr<void>(Container.Get<uint8*>());
-				}
-
 				ObjectProperty->SetObjectPropertyValue(PropertyValueAddress, FSoftObjectPath(ValueData).TryLoad());
 			}
 			else
 			{
-				if (Container.IsType<UObject*>())
-				{
-					*(Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>())) = ValueData;
-				}
-				else
-				{
-					*(Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>())) = ValueData;
-				}
+				*PropertyValueAddress = ValueData;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Specialized version of ApplyAttributeToObject for bools.
+ * If the target property is a FBoolProperty, treat the propertyg as a bitfield.
+ */
+template<>
+inline bool UInterchangeBaseNode::ApplyAttributeToObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+{
+	if (!Object)
+	{
+		return false;
+	}
+
+	bool bValueData;
+	if (GetAttribute<bool>(NodeAttributeKey, bValueData))
+	{
+		TVariant<UObject*, uint8*> Container;
+		Container.Set<UObject*>(Object);
+		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
+		{
+			bool* PropertyValueAddress;
+			if (Container.IsType<UObject*>())
+			{
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<UObject*>());
+			}
+			else
+			{
+				PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<uint8*>());
+			}
+
+			// Support for bitfields
+			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+			{
+				BoolProperty->SetPropertyValue(PropertyValueAddress, bValueData);
+			}
+			else
+			{
+				*PropertyValueAddress = bValueData;
 			}
 		}
 		return true;
@@ -724,25 +753,35 @@ inline bool UInterchangeBaseNode::FillAttributeFromObject(const FString& NodeAtt
 	Container.Set<UObject*>(Object);
 	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
 	{
-		AttributeType ValueData;
+		AttributeType* PropertyValueAddress;
 		if (Container.IsType<UObject*>())
 		{
-			ValueData = *(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>()));
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>());
 		}
 		else
 		{
-			ValueData = *(Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>()));
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>());
 		}
 
-		if (SetAttribute(NodeAttributeKey, ValueData))
+		// Support for bitfields
+		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 		{
-			return true;
+			const bool bPropertyValue = BoolProperty->GetPropertyValue(PropertyValueAddress);
+			return SetAttribute(NodeAttributeKey, bPropertyValue);
+		}
+		else
+		{
+			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
 		}
 	}
 
 	return false;
 }
 
+/**
+ * Specialized version of FillAttributeFromObject for strings.
+ * If the target property is a FObjectPropertyBase, treat the string as an object path.
+ */
 template<>
 inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
@@ -750,35 +789,60 @@ inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FString
 	Container.Set<UObject*>(Object);
 	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
 	{
+		FString* PropertyValueAddress;
+		if (Container.IsType<UObject*>())
+		{
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>());
+		}
+		else
+		{
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>());
+		}
+
 		if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
-			void* PropertyValueAddress;
-
-			if (Container.IsType<UObject*>())
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<void>(Container.Get<UObject*>());
-			}
-			else
-			{
-				PropertyValueAddress =  Property->ContainerPtrToValuePtr<void>(Container.Get<uint8*>());
-			}
-
 			UObject* ObjectValue = ObjectProperty->GetObjectPropertyValue(PropertyValueAddress);
 			return SetAttribute(NodeAttributeKey, ObjectValue->GetPathName());
 		}
 		else
 		{
-			FString ValueData;
-			if (Container.IsType<UObject*>())
-			{
-				ValueData = *(Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>()));
-			}
-			else
-			{
-				ValueData = *(Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>()));
-			}
+			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
+		}
+	}
 
-			return SetAttribute(NodeAttributeKey, ValueData);
+	return false;
+}
+
+/**
+ * Specialized version of FillAttributeFromObject for bools.
+ * If the target property is a FBoolProperty, treat the property as a bitfield.
+ */
+template<>
+inline bool UInterchangeBaseNode::FillAttributeFromObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
+{
+	TVariant<UObject*, uint8*> Container;
+	Container.Set<UObject*>(Object);
+	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
+	{
+		bool* PropertyValueAddress;
+		if (Container.IsType<UObject*>())
+		{
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<UObject*>());
+		}
+		else
+		{
+			PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<uint8*>());
+		}
+
+		// Support for bitfields
+		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+		{
+			const bool bPropertyValue = BoolProperty->GetPropertyValue(PropertyValueAddress);
+			return SetAttribute(NodeAttributeKey, bPropertyValue);
+		}
+		else
+		{
+			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
 		}
 	}
 

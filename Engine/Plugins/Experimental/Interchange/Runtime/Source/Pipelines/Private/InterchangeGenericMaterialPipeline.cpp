@@ -10,6 +10,7 @@
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTextureCubeNode.h"
+#include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangeSourceData.h"
@@ -298,6 +299,13 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 {
 	using namespace UE::Interchange::Materials::Common;
 
+	// Two sidedness
+	{
+		bool bTwoSided = false;
+		ShaderGraphNode->GetCustomTwoSided(bTwoSided);
+		MaterialFactoryNode->SetCustomTwoSided(bTwoSided);
+	}
+
 	// Emissive
 	{
 		const bool bHasEmissiveInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::EmissiveColor);
@@ -320,6 +328,8 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 
 		if (bHasNormalInput)
 		{
+			TGuardValue<bool> ParsingForNormalInputGuard(bParsingForNormalInput, true);
+
 			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
 				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Normal.ToString(), MaterialFactoryNode->GetUniqueID());
 
@@ -342,6 +352,40 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 			if (OpacityExpressionFactoryNode.Get<0>())
 			{
 				MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+				MaterialFactoryNode->SetCustomBlendMode(EBlendMode::BLEND_Translucent);
+				MaterialFactoryNode->SetCustomTranslucencyLightingMode(ETranslucencyLightingMode::TLM_Surface);
+			}
+		}
+	}
+
+	// Ambient Occlusion
+	{
+		const bool bHasOcclusionInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Occlusion);
+
+		if (bHasOcclusionInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Occlusion.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToOcclusion(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+		}
+	}
+
+	// Index of Refraction
+	{
+		const bool bHasIorInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::IndexOfRefraction);
+
+		if (bHasIorInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::IndexOfRefraction.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToRefraction(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 		}
 	}
@@ -349,12 +393,13 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 
 void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
 {
-	using namespace UE::Interchange::Materials::Standard;
+	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
 
 	FString TextureUid;
-	ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::Texture.ToString()), TextureUid);
+	ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureUid);
 
 	FString ExpressionClassName;
+	FString TextureFactoryUid;
 
 	if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))
 	{
@@ -374,9 +419,26 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		{
 			ExpressionClassName = UMaterialExpressionTextureSampleParameter2D::StaticClass()->GetName();
 		}
+
+		TArray<FString> TextureTargetNodes;
+		TextureNode->GetTargetNodeUids(TextureTargetNodes);
+
+		if (TextureTargetNodes.Num() > 0)
+		{
+			TextureFactoryUid = TextureTargetNodes[0];
+		}
 	}
 
 	TextureSampleFactoryNode->SetCustomExpressionClassName(ExpressionClassName);
+	TextureSampleFactoryNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryUid);
+
+	if (bParsingForNormalInput)
+	{
+		if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(TextureFactoryUid)))
+		{
+			TextureFactoryNode->SetCustomCompressionSettings(TextureCompressionSettings::TC_Normalmap);
+		}
+	}
 
 	HandleTextureCoordinates(ShaderNode, TextureSampleFactoryNode);
 }

@@ -24,6 +24,17 @@ namespace Interchange
 					}
 				}
 
+				namespace Multiply
+				{
+					const FName Name = TEXT("Multiply");
+
+					namespace Inputs
+					{
+						const FName A = TEXT("A");
+						const FName B = TEXT("B");
+					}
+				}
+
 				namespace TextureSample
 				{
 					const FName Name = TEXT("TextureSample");
@@ -33,6 +44,16 @@ namespace Interchange
 						const FName Texture = TEXT("TextureUid"); // Type: FString (unique id of a texture node)
 						const FName UTiling = TEXT("UTiling"); // Type: float
 						const FName VTiling = TEXT("VTiling"); // Type: float
+					}
+
+					namespace Outputs
+					{
+						const FName RGB = TEXT("RGB"); // Type: linear color
+						const FName R = TEXT("R"); // Type: float
+						const FName G = TEXT("G"); // Type: float
+						const FName B = TEXT("B"); // Type: float
+						const FName A = TEXT("A"); // Type: float
+						const FName RGBA = TEXT("RGBA"); // Type: linear color
 					}
 				}
 			}
@@ -45,6 +66,8 @@ namespace Interchange
 				const FName EmissiveColor = TEXT("EmissiveColor"); // Type: linear color
 				const FName Normal = TEXT("Normal"); // Type: vector3f
 				const FName Opacity = TEXT("Opacity"); // Type: float
+				const FName Occlusion = TEXT("Occlusion"); // Type: float
+				const FName IndexOfRefraction = TEXT("IOR"); // Type: float
 			}
 		}
 

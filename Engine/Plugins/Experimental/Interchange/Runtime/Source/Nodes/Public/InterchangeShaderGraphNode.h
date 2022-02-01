@@ -129,4 +129,17 @@ public:
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const override;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool GetCustomTwoSided(bool& AttributeValue) const;
+ 
+	/**
+	 * Sets if this shader graph should be rendered two sided or not. Defaults to off.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetCustomTwoSided(const bool& AttributeValue);
+
+private:
+	const UE::Interchange::FAttributeKey Macro_CustomTwoSidedKey = UE::Interchange::FAttributeKey(TEXT("TwoSided"));
 };

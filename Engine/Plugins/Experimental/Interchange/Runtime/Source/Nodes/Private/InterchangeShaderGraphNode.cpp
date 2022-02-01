@@ -133,3 +133,13 @@ FString UInterchangeShaderGraphNode::GetTypeName() const
 	const FString TypeName = TEXT("ShaderGraphNode");
 	return TypeName;
 }
+
+bool UInterchangeShaderGraphNode::GetCustomTwoSided(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TwoSided, bool);
+}
+
+bool UInterchangeShaderGraphNode::SetCustomTwoSided(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TwoSided, bool);
+}

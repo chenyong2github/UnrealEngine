@@ -112,34 +112,16 @@ namespace UE
 
 				void SetupTextureExpression(const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode* ExpressionNode, UMaterialExpressionTextureBase* TextureExpression)
 				{
-					const UInterchangeTextureNode* TextureNode = nullptr;
+					using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
 
-					FString TextureDependency;
+					FString TextureFactoryNodeUid;
+					ExpressionNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Inputs::Texture.ToString()), TextureFactoryNodeUid);
 
-					TArray<FString> TargetNodes;
-					ExpressionNode->GetTargetNodeUids(TargetNodes);
-					if (!TargetNodes.IsEmpty())
+					if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(Arguments.NodeContainer->GetNode(TextureFactoryNodeUid)))
 					{
-						if (const UInterchangeShaderNode* ShaderNode = Cast<UInterchangeShaderNode>(Arguments.NodeContainer->GetNode(TargetNodes[0])))
+						if (UTexture* Texture = Cast<UTexture>(TextureFactoryNode->ReferenceObject.TryLoad()))
 						{
-							FString TextureUid;
-							ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TEXT("TextureUid")), TextureUid);
-
-							TextureNode = Cast<UInterchangeTextureNode>(Arguments.NodeContainer->GetNode(TextureUid));
-						}
-					}
-
-					if (TextureNode)
-					{
-						TArray<FString> TextureNodeTargetNodes;
-						TextureNode->GetTargetNodeUids(TextureNodeTargetNodes);
-
-						if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(Arguments.NodeContainer->GetNode(TextureNodeTargetNodes[0])))
-						{
-							if (UTexture* Texture = Cast<UTexture>(TextureFactoryNode->ReferenceObject.TryLoad()))
-							{
-								TextureExpression->Texture = Texture;
-							}
+							TextureExpression->Texture = Texture;
 						}
 					}
 
@@ -339,17 +321,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString BaseColorUid;
 		FString OutputName;
-		MaterialFactoryNode->GetBaseColorConnection(BaseColorUid, OutputName);
 
-		const UInterchangeMaterialExpressionFactoryNode* BaseColor = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(BaseColorUid));
-
-		if (BaseColor)
+		if (MaterialFactoryNode->GetBaseColorConnection(BaseColorUid, OutputName))
 		{
-			if (UMaterialExpression* BaseColorExpression = CreateExpressionsForNode(Material, Arguments, BaseColor, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* BaseColor = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(BaseColorUid));
+
+			if (BaseColor)
 			{
-				if (FExpressionInput* BaseColorInput = Material->GetExpressionInputForProperty(MP_BaseColor))
+				if (UMaterialExpression* BaseColorExpression = CreateExpressionsForNode(Material, Arguments, BaseColor, Expressions))
 				{
-					BaseColorExpression->ConnectExpression(BaseColorInput, GetOutputIndex(*BaseColorExpression, OutputName));
+					if (FExpressionInput* BaseColorInput = Material->GetExpressionInputForProperty(MP_BaseColor))
+					{
+						BaseColorExpression->ConnectExpression(BaseColorInput, GetOutputIndex(*BaseColorExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -359,17 +343,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString MetallicUid;
 		FString OutputName;
-		MaterialFactoryNode->GetMetallicConnection(MetallicUid, OutputName);
 
-		const UInterchangeMaterialExpressionFactoryNode* MetallicNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(MetallicUid));
-
-		if (MetallicNode)
+		if (MaterialFactoryNode->GetMetallicConnection(MetallicUid, OutputName))
 		{
-			if (UMaterialExpression* MetallicExpression = CreateExpressionsForNode(Material, Arguments, MetallicNode, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* MetallicNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(MetallicUid));
+
+			if (MetallicNode)
 			{
-				if (FExpressionInput* MetallicInput = Material->GetExpressionInputForProperty(MP_Metallic))
+				if (UMaterialExpression* MetallicExpression = CreateExpressionsForNode(Material, Arguments, MetallicNode, Expressions))
 				{
-					MetallicExpression->ConnectExpression(MetallicInput, GetOutputIndex(*MetallicExpression, OutputName));
+					if (FExpressionInput* MetallicInput = Material->GetExpressionInputForProperty(MP_Metallic))
+					{
+						MetallicExpression->ConnectExpression(MetallicInput, GetOutputIndex(*MetallicExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -379,17 +365,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString SpecularUid;
 		FString OutputName;
-		MaterialFactoryNode->GetSpecularConnection(SpecularUid, OutputName);
-
-		const UInterchangeMaterialExpressionFactoryNode* SpecularNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(SpecularUid));
-
-		if (SpecularNode)
+		
+		if (MaterialFactoryNode->GetSpecularConnection(SpecularUid, OutputName))
 		{
-			if (UMaterialExpression* SpecularExpression = CreateExpressionsForNode(Material, Arguments, SpecularNode, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* SpecularNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(SpecularUid));
+
+			if (SpecularNode)
 			{
-				if (FExpressionInput* SpecularInput = Material->GetExpressionInputForProperty(MP_Specular))
+				if (UMaterialExpression* SpecularExpression = CreateExpressionsForNode(Material, Arguments, SpecularNode, Expressions))
 				{
-					SpecularExpression->ConnectExpression(SpecularInput, GetOutputIndex(*SpecularExpression, OutputName));
+					if (FExpressionInput* SpecularInput = Material->GetExpressionInputForProperty(MP_Specular))
+					{
+						SpecularExpression->ConnectExpression(SpecularInput, GetOutputIndex(*SpecularExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -399,17 +387,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString RoughnessUid;
 		FString OutputName;
-		MaterialFactoryNode->GetRoughnessConnection(RoughnessUid, OutputName);
 
-		const UInterchangeMaterialExpressionFactoryNode* Roughness = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(RoughnessUid));
-
-		if (Roughness)
+		if (MaterialFactoryNode->GetRoughnessConnection(RoughnessUid, OutputName))
 		{
-			if (UMaterialExpression* RoughnessExpression = CreateExpressionsForNode(Material, Arguments, Roughness, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* Roughness = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(RoughnessUid));
+
+			if (Roughness)
 			{
-				if (FExpressionInput* RoughnessInput = Material->GetExpressionInputForProperty(MP_Roughness))
+				if (UMaterialExpression* RoughnessExpression = CreateExpressionsForNode(Material, Arguments, Roughness, Expressions))
 				{
-					RoughnessExpression->ConnectExpression(RoughnessInput, GetOutputIndex(*RoughnessExpression, OutputName));
+					if (FExpressionInput* RoughnessInput = Material->GetExpressionInputForProperty(MP_Roughness))
+					{
+						RoughnessExpression->ConnectExpression(RoughnessInput, GetOutputIndex(*RoughnessExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -419,17 +409,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString EmissiveColorUid;
 		FString OutputName;
-		MaterialFactoryNode->GetEmissiveColorConnection(EmissiveColorUid, OutputName);
-
-		const UInterchangeMaterialExpressionFactoryNode* EmissiveColor = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(EmissiveColorUid));
-
-		if (EmissiveColor)
+		
+		if (MaterialFactoryNode->GetEmissiveColorConnection(EmissiveColorUid, OutputName))
 		{
-			if (UMaterialExpression* EmissiveExpression = CreateExpressionsForNode(Material, Arguments, EmissiveColor, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* EmissiveColor = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(EmissiveColorUid));
+
+			if (EmissiveColor)
 			{
-				if (FExpressionInput* EmissiveInput = Material->GetExpressionInputForProperty(MP_EmissiveColor))
+				if (UMaterialExpression* EmissiveExpression = CreateExpressionsForNode(Material, Arguments, EmissiveColor, Expressions))
 				{
-					EmissiveExpression->ConnectExpression(EmissiveInput, GetOutputIndex(*EmissiveExpression, OutputName));
+					if (FExpressionInput* EmissiveInput = Material->GetExpressionInputForProperty(MP_EmissiveColor))
+					{
+						EmissiveExpression->ConnectExpression(EmissiveInput, GetOutputIndex(*EmissiveExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -439,17 +431,19 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString NormalUid;
 		FString OutputName;
-		MaterialFactoryNode->GetNormalConnection(NormalUid, OutputName);
-
-		const UInterchangeMaterialExpressionFactoryNode* NormalNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(NormalUid));
-
-		if (NormalNode)
+		
+		if (MaterialFactoryNode->GetNormalConnection(NormalUid, OutputName))
 		{
-			if (UMaterialExpression* NormalExpression = CreateExpressionsForNode(Material, Arguments, NormalNode, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* NormalNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(NormalUid));
+
+			if (NormalNode)
 			{
-				if (FExpressionInput* NormalInput = Material->GetExpressionInputForProperty(MP_Normal))
+				if (UMaterialExpression* NormalExpression = CreateExpressionsForNode(Material, Arguments, NormalNode, Expressions))
 				{
-					NormalExpression->ConnectExpression(NormalInput, GetOutputIndex(*NormalExpression, OutputName));
+					if (FExpressionInput* NormalInput = Material->GetExpressionInputForProperty(MP_Normal))
+					{
+						NormalExpression->ConnectExpression(NormalInput, GetOutputIndex(*NormalExpression, OutputName));
+					}
 				}
 			}
 		}
@@ -459,17 +453,63 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 	{
 		FString OpacityUid;
 		FString OutputName;
-		MaterialFactoryNode->GetOpacityConnection(OpacityUid, OutputName);
 
-		const UInterchangeMaterialExpressionFactoryNode* OpacityNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(OpacityUid));
-
-		if (OpacityNode)
+		if (MaterialFactoryNode->GetOpacityConnection(OpacityUid, OutputName))
 		{
-			if (UMaterialExpression* OpacityExpression = CreateExpressionsForNode(Material, Arguments, OpacityNode, Expressions))
+			const UInterchangeMaterialExpressionFactoryNode* OpacityNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(OpacityUid));
+
+			if (OpacityNode)
 			{
-				if (FExpressionInput* OpacityInput = Material->GetExpressionInputForProperty(MP_Opacity))
+				if (UMaterialExpression* OpacityExpression = CreateExpressionsForNode(Material, Arguments, OpacityNode, Expressions))
 				{
-					OpacityExpression->ConnectExpression(OpacityInput, GetOutputIndex(*OpacityExpression, OutputName));
+					if (FExpressionInput* OpacityInput = Material->GetExpressionInputForProperty(MP_Opacity))
+					{
+						OpacityExpression->ConnectExpression(OpacityInput, GetOutputIndex(*OpacityExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Occlusion
+	{
+		FString OcclusionUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetOcclusionConnection(OcclusionUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* OcclusionNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(OcclusionUid));
+
+			if (OcclusionNode)
+			{
+				if (UMaterialExpression* OcclusionExpression = CreateExpressionsForNode(Material, Arguments, OcclusionNode, Expressions))
+				{
+					if (FExpressionInput* OcclusionInput = Material->GetExpressionInputForProperty(MP_AmbientOcclusion))
+					{
+						OcclusionExpression->ConnectExpression(OcclusionInput, GetOutputIndex(*OcclusionExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Refraction
+	{
+		FString RefractionUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetRefractionConnection(RefractionUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* RefractionNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(RefractionUid));
+
+			if (RefractionNode)
+			{
+				if (UMaterialExpression* RefractionExpression = CreateExpressionsForNode(Material, Arguments, RefractionNode, Expressions))
+				{
+					if (FExpressionInput* RefractionInput = Material->GetExpressionInputForProperty(MP_Refraction))
+					{
+						RefractionExpression->ConnectExpression(RefractionInput, GetOutputIndex(*RefractionExpression, OutputName));
+					}
 				}
 			}
 		}

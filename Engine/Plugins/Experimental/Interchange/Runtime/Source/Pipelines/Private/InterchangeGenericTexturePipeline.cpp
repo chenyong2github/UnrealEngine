@@ -176,29 +176,32 @@ void UInterchangeGenericAssetsPipeline::PostImportTextureAssetImport(UObject* Cr
 		// Verify if the texture is a normal map
 		if (UTexture* Texture = Cast<UTexture>(CreatedAsset))
 		{
-			// This can create 2 build of the texture (we should revisit this at some point)
-			if (FTextureCompilingManager::Get().IsCompilingTexture(Texture))
+			if (!Texture->IsNormalMap())
 			{
-				TWeakObjectPtr<UTexture> WeakTexturePtr = Texture;
-				TSharedRef<FDelegateHandle> HandlePtr = MakeShared<FDelegateHandle>();
-				HandlePtr.Get() = FTextureCompilingManager::Get().OnTexturePostCompileEvent().AddLambda([this, WeakTexturePtr, HandlePtr](const TArrayView<UTexture* const>&)
-					{
-						if (UTexture* TextureToTest = WeakTexturePtr.Get())
+				// This can create 2 build of the texture (we should revisit this at some point)
+				if (FTextureCompilingManager::Get().IsCompilingTexture(Texture))
+				{
+					TWeakObjectPtr<UTexture> WeakTexturePtr = Texture;
+					TSharedRef<FDelegateHandle> HandlePtr = MakeShared<FDelegateHandle>();
+					HandlePtr.Get() = FTextureCompilingManager::Get().OnTexturePostCompileEvent().AddLambda([this, WeakTexturePtr, HandlePtr](const TArrayView<UTexture* const>&)
 						{
-							if (FTextureCompilingManager::Get().IsCompilingTexture(TextureToTest))
+							if (UTexture* TextureToTest = WeakTexturePtr.Get())
 							{
-								return;
+								if (FTextureCompilingManager::Get().IsCompilingTexture(TextureToTest))
+								{
+									return;
+								}
+
+								UE::Interchange::Private::AdjustTextureForNormalMap(TextureToTest, bFlipNormalMapGreenChannel);
 							}
 
-							UE::Interchange::Private::AdjustTextureForNormalMap(TextureToTest, bFlipNormalMapGreenChannel);
-						}
-
-						FTextureCompilingManager::Get().OnTexturePostCompileEvent().Remove(HandlePtr.Get());
-					});
-			}
-			else
-			{
-				UE::Interchange::Private::AdjustTextureForNormalMap(Texture, bFlipNormalMapGreenChannel);
+							FTextureCompilingManager::Get().OnTexturePostCompileEvent().Remove(HandlePtr.Get());
+						});
+				}
+				else
+				{
+					UE::Interchange::Private::AdjustTextureForNormalMap(Texture, bFlipNormalMapGreenChannel);
+				}
 			}
 		}
 	}
