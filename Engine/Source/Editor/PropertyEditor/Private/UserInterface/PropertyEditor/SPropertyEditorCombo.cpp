@@ -138,6 +138,7 @@ void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> 
 	}
 
 	TArray<FText> BasicTooltips;
+
 	bUsesAlternateDisplayValues = ComboArgs.PropertyHandle->GeneratePossibleValues(OutComboBoxStrings, BasicTooltips, OutRestrictedItems);
 
 	// For enums, look for rich tooltip information
@@ -159,7 +160,8 @@ void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> 
 			if(Enum)
 			{
 				TArray<FName> AllowedPropertyEnums = PropertyEditorHelpers::GetValidEnumsFromPropertyOverride(Property, Enum);
-
+				TArray<FName> DisallowedPropertyEnums = PropertyEditorHelpers::GetInvalidEnumsFromPropertyOverride(Property, Enum);
+				
 				// Get enum doc link (not just GetDocumentationLink as that is the documentation for the struct we're in, not the enum documentation)
 				FString DocLink = PropertyEditorHelpers::GetEnumDocumentationLink(Property);
 
@@ -168,9 +170,17 @@ void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> 
 					FString Excerpt = Enum->GetNameStringByIndex(EnumIdx);
 
 					bool bShouldBeHidden = Enum->HasMetaData(TEXT("Hidden"), EnumIdx) || Enum->HasMetaData(TEXT("Spacer"), EnumIdx);
-					if(!bShouldBeHidden && AllowedPropertyEnums.Num() != 0)
+					if(!bShouldBeHidden)
 					{
-						bShouldBeHidden = AllowedPropertyEnums.Find(Enum->GetNameByIndex(EnumIdx)) == INDEX_NONE;
+						if(AllowedPropertyEnums.Num() > 0)
+						{
+							bShouldBeHidden = AllowedPropertyEnums.Find(Enum->GetNameByIndex(EnumIdx)) == INDEX_NONE;
+						}
+						// If both are specified, InvalidEnumValues takes precedence
+						else if(DisallowedPropertyEnums.Num() > 0)
+						{
+							bShouldBeHidden = DisallowedPropertyEnums.Find(Enum->GetNameByIndex(EnumIdx)) != INDEX_NONE;
+						}
 					}
 
 					if (!bShouldBeHidden)

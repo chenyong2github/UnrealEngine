@@ -244,9 +244,19 @@ namespace PropertyEditorHelpers
 	 *
 	 * @param Property	The property which may contain the "ValidEnumValues" metadata
 	 * @param InEnum	The enum to search
-	 * @return The array of allowed enums.  NOTE: If an empty array is returned all enum values are allowed.  It is an error for a property to hide all enum values so that state is undefined here.
+	 * @return The array of allowed enums.  NOTE: If an empty array is returned all enum values are allowed. It is an error for a property to hide all enum values so that state is undefined here.
 	 */
 	TArray<FName> GetValidEnumsFromPropertyOverride(const FProperty* Property, const UEnum* InEnum);
+
+	/**
+	 * Returns any enums that are explicitly Disallowed by the "InvalidEnumValues" metadata on FProperty using the specified enum.
+	 *
+	 * @param Property	The property which may contain the "InvalidEnumValues" metadata
+	 * @param InEnum	The enum to search
+	 * @return The array of disallowed enums.
+	 */
+	TArray<FName> GetInvalidEnumsFromPropertyOverride(const FProperty* Property, const UEnum* InEnum);
+	
 	/**
 	 * Whether or not a category is hidden by a given root object
 	 * @param InRootNode	The root node that for the objects we are customizing

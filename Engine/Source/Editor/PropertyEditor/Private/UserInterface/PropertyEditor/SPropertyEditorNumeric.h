@@ -90,14 +90,23 @@ public:
 					};
 
 					const TArray<FName> AllowedPropertyEnums = PropertyEditorHelpers::GetValidEnumsFromPropertyOverride(Prop, BitmaskEnum);
+					const TArray<FName> DisallowedPropertyEnums = PropertyEditorHelpers::GetInvalidEnumsFromPropertyOverride(Prop, BitmaskEnum);
 					// Note: This loop doesn't include (BitflagsEnum->NumEnums() - 1) in order to skip the implicit "MAX" value that gets added to the enum type at compile time.
 					for (int32 BitmaskEnumIndex = 0; BitmaskEnumIndex < BitmaskEnum->NumEnums() - 1; ++BitmaskEnumIndex)
 					{
 						const int64 EnumValue = BitmaskEnum->GetValueByIndex(BitmaskEnumIndex);
 						bool bShouldBeHidden = BitmaskEnum->HasMetaData(TEXT("Hidden"), BitmaskEnumIndex);
-						if (!bShouldBeHidden && AllowedPropertyEnums.Num() > 0)
+						if (!bShouldBeHidden)
 						{
-							bShouldBeHidden = AllowedPropertyEnums.Find(BitmaskEnum->GetNameByIndex(BitmaskEnumIndex)) == INDEX_NONE;
+							if(AllowedPropertyEnums.Num() > 0)
+							{
+								bShouldBeHidden = AllowedPropertyEnums.Find(BitmaskEnum->GetNameByIndex(BitmaskEnumIndex)) == INDEX_NONE;
+							}
+							// If both are specified, InvalidEnumValues takes precedence
+							else if(DisallowedPropertyEnums.Num() > 0)
+							{
+								bShouldBeHidden = DisallowedPropertyEnums.Find(BitmaskEnum->GetNameByIndex(BitmaskEnumIndex)) != INDEX_NONE;
+							}
 						}
 						if (EnumValue >= 0 && !bShouldBeHidden)
 						{

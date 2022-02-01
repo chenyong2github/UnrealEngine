@@ -1085,7 +1085,7 @@ namespace PropertyEditorHelpers
 			TArray<FString> ValidEnumValuesAsString;
 
 			Property->GetMetaData(ValidEnumValuesName).ParseIntoArray(ValidEnumValuesAsString, TEXT(","));
-			for(auto& Value : ValidEnumValuesAsString)
+			for(FString& Value : ValidEnumValuesAsString)
 			{
 				Value.TrimStartInline();
 				ValidEnumValues.Add(*InEnum->GenerateFullEnumName(*Value));
@@ -1093,6 +1093,26 @@ namespace PropertyEditorHelpers
 		}
 
 		return ValidEnumValues;
+	}
+
+	TArray<FName> GetInvalidEnumsFromPropertyOverride(const FProperty* Property, const UEnum* InEnum)
+	{
+		TArray<FName> InvalidEnumValues;
+
+		static const FName InvalidEnumValuesName("InvalidEnumValues");
+		if(Property->HasMetaData(InvalidEnumValuesName))
+		{
+			TArray<FString> InvalidEnumValuesAsString;
+
+			Property->GetMetaData(InvalidEnumValuesName).ParseIntoArray(InvalidEnumValuesAsString, TEXT(","));
+			for(FString& Value : InvalidEnumValuesAsString)
+			{
+				Value.TrimStartInline();
+				InvalidEnumValues.Add(*InEnum->GenerateFullEnumName(*Value));
+			}
+		}
+
+		return InvalidEnumValues;
 	}
 
 	bool IsCategoryHiddenByClass(const TSharedPtr<FComplexPropertyNode>& InRootNode, FName CategoryName)
