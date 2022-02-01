@@ -82,7 +82,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
 	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency;
 	bOverrideMaterials = Properties->bOverrideMaterials;
-	SubImageSize = Properties->SubImageSize;
+	SubImageSize = FVector2f(Properties->SubImageSize);	// LWC_TODO: Precision loss
 	bSubImageBlend = Properties->bSubImageBlend;
 	bEnableFrustumCulling = Properties->bEnableFrustumCulling;
 	bEnableCulling = bEnableFrustumCulling;

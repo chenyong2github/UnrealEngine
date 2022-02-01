@@ -239,7 +239,7 @@ namespace DatasmithMeshHelper
 		if (HasUVChannel(Mesh, ChannelIndex))
 		{
 			TVertexInstanceAttributesConstRef<FVector2f> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
-			const FVector2D DefValue = UVChannels.GetDefaultValue();
+			const FVector2f DefValue = UVChannels.GetDefaultValue();
 			for (FVertexInstanceID InstanceID : Mesh.VertexInstances().GetElementIDs())
 			{
 				if (UVChannels.Get(InstanceID, ChannelIndex) != DefValue)
@@ -330,7 +330,7 @@ namespace DatasmithMeshHelper
 		{
 			if (const FVector2D* UVCoord = TexCoords.Find(VertexInstanceID))
 			{
-				UVs.Set(VertexInstanceID, 0, *UVCoord);
+				UVs.Set(VertexInstanceID, 0, FVector2f(*UVCoord));
 			}
 			else
 			{

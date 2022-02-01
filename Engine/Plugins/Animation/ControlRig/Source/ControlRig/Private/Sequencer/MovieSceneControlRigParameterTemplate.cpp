@@ -1768,7 +1768,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 				}
 			}
 
-			Values.Vector2DValues.Emplace(Vector2D.ParameterName, Value);
+			Values.Vector2DValues.Emplace(Vector2D.ParameterName, FVector2D(Value));
 		}
 
 		for (int32 Index = 0; Index < Vectors.Num(); ++Index)

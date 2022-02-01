@@ -1093,7 +1093,7 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 		{
 			uint32 VertexIndex = IndexBuffer.GetIndex(TriangleIndex * 3 + CornerIndex);
 			VertexPosition[CornerIndex] = PositionBuffer.VertexPosition(VertexIndex);
-			LightmapUVs[CornerIndex] = VertexBuffer.GetVertexUV(VertexIndex, StaticMesh->GetLightMapCoordinateIndex());
+			LightmapUVs[CornerIndex] = FVector2D(VertexBuffer.GetVertexUV(VertexIndex, StaticMesh->GetLightMapCoordinateIndex()));
 		}
 
 		const float PolygonArea = DatasmithStaticMeshBlueprintLibraryUtil::ParallelogramArea(VertexPosition[0], VertexPosition[1], VertexPosition[2]);

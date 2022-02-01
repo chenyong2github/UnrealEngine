@@ -114,7 +114,7 @@ namespace IFC
 
 				for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
 				{
-					VertexInstanceUVs.Set(VertexInstanceID, UVIndex, FVector2D::ZeroVector);
+					VertexInstanceUVs.Set(VertexInstanceID, UVIndex, FVector2f::ZeroVector);
 				}
 
 				const float* Vertex = &(InObject->facesVertices[(IFCVertexIndex * (InObject->vertexElementSize / sizeof(float)))]);

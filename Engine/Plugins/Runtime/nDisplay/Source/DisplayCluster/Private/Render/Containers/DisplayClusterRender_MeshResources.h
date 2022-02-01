@@ -18,9 +18,9 @@ struct FDisplayClusterMeshVertexType
 	/** type conversion double -> float */
 	FORCEINLINE void SetVertexData(const FDisplayClusterMeshVertex& In)
 	{
-		Position = (FVector4f)In.Position; // LWC_TODO: precision loss
-		UV = In.UV;
-		UV_Chromakey = In.UV_Chromakey;
+		Position = FVector4f(In.Position); // LWC_TODO: precision loss
+		UV = FVector2f(In.UV);
+		UV_Chromakey = FVector2f(In.UV_Chromakey);
 	}
 };
 

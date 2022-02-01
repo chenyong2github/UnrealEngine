@@ -139,7 +139,7 @@ FGroupedSpriteSceneProxy::FGroupedSpriteSceneProxy(UPaperGroupedSpriteComponent*
 			{
 				const FVector LocalPos((PaperAxisX * SourceVert.X) + (PaperAxisY * SourceVert.Y));
 				const FVector ComponentSpacePos = InstanceData.Transform.TransformPosition(LocalPos);
-				const FVector2D UV(SourceVert.Z, SourceVert.W);
+				const FVector2f UV(SourceVert.Z, SourceVert.W);	// LWC_TODO: Precision loss
 
 				*VertexWritePtr++ = FDynamicMeshVertex(ComponentSpacePos, TangentX.ToFVector(), TangentZ.ToFVector(), UV, VertColor);
 			}

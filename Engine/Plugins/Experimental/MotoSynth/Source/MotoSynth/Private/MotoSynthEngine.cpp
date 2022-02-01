@@ -123,7 +123,7 @@ void FMotoSynthEngine::SetSourceData(uint32 InAccelerationSourceID, uint32 InDec
 		FVector2f DecelRPMRange;
 		InDecelerationSourceData->RPMCurve.GetValueRange(DecelRPMRange.X, DecelRPMRange.Y);
 
-		FVector2D NewRPMRange = { FMath::Max(AccelRPMRange.X, DecelRPMRange.X), FMath::Min(AccelRPMRange.Y, DecelRPMRange.Y) };
+		FVector2f NewRPMRange = { FMath::Max(AccelRPMRange.X, DecelRPMRange.X), FMath::Min(AccelRPMRange.Y, DecelRPMRange.Y) };
 		RPMRange = NewRPMRange;
 
 		SynthCommand([this, InAccelerationSourceData, InDecelerationSourceData, NewRPMRange]() mutable
@@ -139,7 +139,7 @@ void FMotoSynthEngine::SetSourceData(uint32 InAccelerationSourceID, uint32 InDec
 
 void FMotoSynthEngine::GetRPMRange(FVector2D& OutRPMRange)
 {
-	OutRPMRange = RPMRange;
+	OutRPMRange = FVector2D(RPMRange);
 }
 
 void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)

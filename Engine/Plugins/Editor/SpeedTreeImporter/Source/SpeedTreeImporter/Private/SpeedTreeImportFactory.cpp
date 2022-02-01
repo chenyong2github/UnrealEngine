@@ -1846,7 +1846,7 @@ FVertexInstanceID ProcessTriangleCorner(
 	// keep texcoords padded to align indices
 	for( int32 PadIndex = 0; PadIndex < NumUVs; ++PadIndex )
 	{
-		VertexInstanceUVs.Set(VertexInstanceID, PadIndex, FVector2D(0.0f, 0.0f));
+		VertexInstanceUVs.Set(VertexInstanceID, PadIndex, FVector2f::ZeroVector);
 	}
 
 	// All texcoords are packed into 4 float4 vertex attributes
@@ -1866,28 +1866,28 @@ FVertexInstanceID ProcessTriangleCorner(
 
 	// diffuse
 	DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_DIFFUSE_TEXCOORDS, VertexIndex, Data );
-	VertexInstanceUVs.Set( VertexInstanceID, 0, FVector2D( Data[ 0 ], Data[ 1 ] ) );
+	VertexInstanceUVs.Set( VertexInstanceID, 0, FVector2f( Data[ 0 ], Data[ 1 ] ) );
 
 	// lightmap
 	DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_LIGHTMAP_TEXCOORDS, VertexIndex, Data );
-	VertexInstanceUVs.Set( VertexInstanceID, 1, FVector2D( Data[ 0 ], Data[ 1 ] ) );
+	VertexInstanceUVs.Set( VertexInstanceID, 1, FVector2f( Data[ 0 ], Data[ 1 ] ) );
 
 	// branch wind
 	DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_WIND_BRANCH_DATA, VertexIndex, Data );
-	VertexInstanceUVs.Set( VertexInstanceID, 2, FVector2D( Data[ 0 ], Data[ 1 ] ) );
+	VertexInstanceUVs.Set( VertexInstanceID, 2, FVector2f( Data[ 0 ], Data[ 1 ] ) );
 
 	// lod
 	if( RenderState->m_bFacingLeavesPresent )
 	{
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_LEAF_CARD_LOD_SCALAR, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 3, FVector2D( Data[ 0 ], 0.0f ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2D( 0.0f, 0.0f ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 3, FVector2f( Data[ 0 ], 0.0f ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2f( 0.0f, 0.0f ) );
 	}
 	else
 	{
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_LOD_POSITION, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 3, FVector2D( -Data[ 0 ], Data[ 1 ] ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2D( Data[ 2 ], 0.0f ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 3, FVector2f( -Data[ 0 ], Data[ 1 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2f( Data[ 2 ], 0.0f ) );
 	}
 
 	// other
@@ -1895,19 +1895,19 @@ FVertexInstanceID ProcessTriangleCorner(
 	{
 		// detail
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_DETAIL_TEXCOORDS, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2D( Data[ 0 ], Data[ 1 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2f( Data[ 0 ], Data[ 1 ] ) );
 
 		// branch seam
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_BRANCH_SEAM_DIFFUSE, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2D( Data[ 0 ], Data[ 1 ] ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2D( VertexInstanceUVs.Get( VertexInstanceID, 4 ).X, Data[ 2 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2f( Data[ 0 ], Data[ 1 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2f( VertexInstanceUVs.Get( VertexInstanceID, 4 ).X, Data[ 2 ] ) );
 	}
 	else if( RenderState->m_bFrondsPresent )
 	{
 		// frond wind
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_WIND_EXTRA_DATA, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2D( Data[ 0 ], Data[ 1 ] ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2D( Data[ 2 ], 0.0f ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2f( Data[ 0 ], Data[ 1 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2f( Data[ 2 ], 0.0f ) );
 	}
 	else if( RenderState->m_bLeavesPresent || RenderState->m_bFacingLeavesPresent )
 	{
@@ -1922,15 +1922,15 @@ FVertexInstanceID ProcessTriangleCorner(
 		{
 			DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_LEAF_ANCHOR_POINT, VertexIndex, Data );
 		}
-		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2D( VertexInstanceUVs.Get( VertexInstanceID, 4 ).X, -Data[ 0 ] ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2D( Data[ 1 ], Data[ 2 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 4, FVector2f( VertexInstanceUVs.Get( VertexInstanceID, 4 ).X, -Data[ 0 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 5, FVector2f( Data[ 1 ], Data[ 2 ] ) );
 
 		// leaf wind
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_WIND_EXTRA_DATA, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2D( Data[ 0 ], Data[ 1 ] ) );
-		VertexInstanceUVs.Set( VertexInstanceID, 7, FVector2D( Data[ 2 ], 0 ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 6, FVector2f( Data[ 0 ], Data[ 1 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 7, FVector2f( Data[ 2 ], 0 ) );
 		DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_WIND_FLAGS, VertexIndex, Data );
-		VertexInstanceUVs.Set( VertexInstanceID, 7, FVector2D( VertexInstanceUVs.Get( VertexInstanceID, 7 ).X, Data[ 0 ] ) );
+		VertexInstanceUVs.Set( VertexInstanceID, 7, FVector2f( VertexInstanceUVs.Get( VertexInstanceID, 7 ).X, Data[ 0 ] ) );
 	}
 	return VertexInstanceID;
 }
@@ -2379,11 +2379,11 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 								VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 								if (bRotated)
 								{
-									VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2D(TexCoords[0] + Vertex[1] * TexCoords[2], TexCoords[1] + Vertex[0] * TexCoords[3]));
+									VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2f(TexCoords[0] + Vertex[1] * TexCoords[2], TexCoords[1] + Vertex[0] * TexCoords[3]));
 								}
 								else
 								{
-									VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2D(TexCoords[0] + Vertex[0] * TexCoords[2], TexCoords[1] + Vertex[1] * TexCoords[3]));
+									VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2f(TexCoords[0] + Vertex[0] * TexCoords[2], TexCoords[1] + Vertex[1] * TexCoords[3]));
 								}
 
 								// lightmap coord
@@ -2724,57 +2724,57 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 						// 7	0					0					Leaf Wind Z, Leaf Group
 
 						// diffuse
-						VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2D(Vertex.m_vTexCoord.x, Vertex.m_vTexCoord.y));
+						VertexInstanceUVs.Set(VertexInstanceID, 0, FVector2f(Vertex.m_vTexCoord.x, Vertex.m_vTexCoord.y));
 
 						// lightmap
-						VertexInstanceUVs.Set(VertexInstanceID, 1, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
+						VertexInstanceUVs.Set(VertexInstanceID, 1, FVector2f(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
 
 						if (DrawCall.m_eWindGeometryType == GameEngine8::Billboard)
 						{
-							VertexInstanceUVs.Set(VertexInstanceID, 2, FVector2D((Vertex.m_vNormal.z > 0.5f) ? 1.0f : 0.0f, 0.0f));
+							VertexInstanceUVs.Set(VertexInstanceID, 2, FVector2f((Vertex.m_vNormal.z > 0.5f) ? 1.0f : 0.0f, 0.0f));
 						}
 						else
 						{
 							// branch wind
-							VertexInstanceUVs.Set(VertexInstanceID, 2, FVector2D(Vertex.m_vWindBranch.x, Vertex.m_vWindBranch.y));
+							VertexInstanceUVs.Set(VertexInstanceID, 2, FVector2f(Vertex.m_vWindBranch.x, Vertex.m_vWindBranch.y));
 
 							// lod
 							FVector vLodPosition = FVector(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y, Vertex.m_vAnchor.z) +
 								FVector(Vertex.m_vLodOffset.x, Vertex.m_vLodOffset.y, Vertex.m_vLodOffset.z);
-							VertexInstanceUVs.Set(VertexInstanceID, 3, FVector2D(vLodPosition[0], vLodPosition[1]));
-							VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2D(vLodPosition[2], 0.0f));
+							VertexInstanceUVs.Set(VertexInstanceID, 3, FVector2f(vLodPosition[0], vLodPosition[1]));
+							VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2f(vLodPosition[2], 0.0f));
 
 							// other
 							if (DrawCall.m_eWindGeometryType == GameEngine8::Branch)
 							{
 								// detail (not used in v8)
-								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2D(0.0f, 0.0f));
+								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2f(0.0f, 0.0f));
 
 								// branch seam
-								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2D(0.0f, 0.0f));
-								VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2D(VertexInstanceUVs.Get(VertexInstanceID, 4).X, Vertex.m_fBlendWeight));
+								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2f(0.0f, 0.0f));
+								VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2f(VertexInstanceUVs.Get(VertexInstanceID, 4).X, Vertex.m_fBlendWeight));
 
 								// keep alignment
-								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2D(0.0f, 0.0f));
+								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2f(0.0f, 0.0f));
 							}
 							else if (DrawCall.m_eWindGeometryType == GameEngine8::Frond)
 							{
 								// frond wind
-								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2D(Vertex.m_vWindNonBranch.x, Vertex.m_vWindNonBranch.y));
-								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2D(Vertex.m_vWindNonBranch.z, 0.0f));
+								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2f(Vertex.m_vWindNonBranch.x, Vertex.m_vWindNonBranch.y));
+								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2f(Vertex.m_vWindNonBranch.z, 0.0f));
 
 								// keep alignment
-								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2D(0.0f, 0.0f));
+								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2f(0.0f, 0.0f));
 							}
 							else if (DrawCall.m_eWindGeometryType == GameEngine8::Leaf || DrawCall.m_eWindGeometryType == GameEngine8::FacingLeaf)
 							{
 								// anchor
-								VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2D(VertexInstanceUVs.Get(VertexInstanceID, 4).X, Vertex.m_vAnchor.x));
-								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2D(Vertex.m_vAnchor.y, Vertex.m_vAnchor.z));
+								VertexInstanceUVs.Set(VertexInstanceID, 4, FVector2f(VertexInstanceUVs.Get(VertexInstanceID, 4).X, Vertex.m_vAnchor.x));
+								VertexInstanceUVs.Set(VertexInstanceID, 5, FVector2f(Vertex.m_vAnchor.y, Vertex.m_vAnchor.z));
 
 								// leaf wind
-								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2D(Vertex.m_vWindNonBranch.x, Vertex.m_vWindNonBranch.y));
-								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2D(Vertex.m_vWindNonBranch.z, (Vertex.m_bWindLeaf2Flag ? 1.0f : 0.0f)));
+								VertexInstanceUVs.Set(VertexInstanceID, 6, FVector2f(Vertex.m_vWindNonBranch.x, Vertex.m_vWindNonBranch.y));
+								VertexInstanceUVs.Set(VertexInstanceID, 7, FVector2f(Vertex.m_vWindNonBranch.z, (Vertex.m_bWindLeaf2Flag ? 1.0f : 0.0f)));
 							}
 						}
 						CornerVertexInstanceIDs[Corner] = VertexInstanceID;
@@ -3058,27 +3058,27 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 
 						// diffuse
 						int32 CurrentUV = 0;
-						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vTexCoord.x, Vertex.m_vTexCoord.y));
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vTexCoord.x, Vertex.m_vTexCoord.y));
 
 						// branch1 / ripple
-						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.x, Vertex.m_vBranchWind1.y));
-						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.z, Vertex.m_fRippleWeight));
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vBranchWind1.x, Vertex.m_vBranchWind1.y));
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vBranchWind1.z, Vertex.m_fRippleWeight));
 
 						// lightmap (lightmass can only access 4 uvs)
-						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
 
 						// branch 2
 						if (bHasBranch2Data)
 						{
-							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind2.x, Vertex.m_vBranchWind2.y));
-							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind2.z, 0.0f));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vBranchWind2.x, Vertex.m_vBranchWind2.y));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vBranchWind2.z, 0.0f));
 						}
 
 						// camera-facing
 						if (bHasFacingData)
 						{
-							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y));
-							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.z, Vertex.m_bCameraFacing ? 1.0f : 0.0f));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y));
+							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2f(Vertex.m_vAnchor.z, Vertex.m_bCameraFacing ? 1.0f : 0.0f));
 						}
 					}
 

@@ -119,10 +119,10 @@ namespace
 			Vertices[2].Position  = FVector(0,  1.f,  1.f);
 			Vertices[3].Position  = FVector(0,  1.f, -1.f);
 
-			Vertices[0].TextureCoordinate[0] = FVector2D(0,0);
-			Vertices[1].TextureCoordinate[0] = FVector2D(0,1);
-			Vertices[2].TextureCoordinate[0] = FVector2D(1,0);
-			Vertices[3].TextureCoordinate[0] = FVector2D(1,1);
+			Vertices[0].TextureCoordinate[0] = FVector2f(0,0);
+			Vertices[1].TextureCoordinate[0] = FVector2f(0,1);
+			Vertices[2].TextureCoordinate[0] = FVector2f(1,0);
+			Vertices[3].TextureCoordinate[0] = FVector2f(1,1);
 
 			VertexBuffers.InitFromDynamicVertex(&VertexFactory, Vertices);
 

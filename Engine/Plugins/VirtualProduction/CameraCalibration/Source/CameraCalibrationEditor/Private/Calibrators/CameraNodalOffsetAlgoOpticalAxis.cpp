@@ -123,7 +123,7 @@ void UCameraNodalOffsetAlgoOpticalAxis::Tick(float DeltaTime)
 	if (LastPrincipalPoint != DistortionState.ImageCenter.PrincipalPoint)
 	{
 		FCrosshairOverlayParams OverlayParams;
-		OverlayParams.PrincipalPoint = DistortionState.ImageCenter.PrincipalPoint;
+		OverlayParams.PrincipalPoint = FVector2f(DistortionState.ImageCenter.PrincipalPoint);
 		OverlayRendering::DrawCrosshairOverlay(OverlayTexture, OverlayParams);
 		StepsController->RefreshOverlay();
 

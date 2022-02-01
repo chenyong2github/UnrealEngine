@@ -126,7 +126,7 @@ void DeformStrands(
 
 
 		const uint32 PackedBarycentric = RootTriangleBarycentricBuffer[RootIndex];
-		const FVector2D B0 = FHairStrandsRootUtils::DecodeBarycentrics(PackedBarycentric);
+		const FVector2f B0 = FHairStrandsRootUtils::DecodeBarycentrics(PackedBarycentric);
 		const FVector3f   B  = FVector3f(B0.X, B0.Y, 1.f - B0.X - B0.Y);
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */

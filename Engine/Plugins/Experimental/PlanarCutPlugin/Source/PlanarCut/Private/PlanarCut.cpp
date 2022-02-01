@@ -110,11 +110,11 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollecti
 	{
 		const FIntVector& Tri = Collection.Indices[FaceIdx];
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(Collection.UVs[Tri.X][0], Collection.UVs[Tri.Y][0]);
+		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Y][0]));
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.Z], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(Collection.UVs[Tri.Z][0], Collection.UVs[Tri.Y][0]);
+		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.Z][0]), FVector2D(Collection.UVs[Tri.Y][0]));
 		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Z]);
-		UVDistance += FVector2D::Distance(Collection.UVs[Tri.X][0], Collection.UVs[Tri.Z][0]);
+		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Z][0]));
 	}
 
 	if (WorldDistance > 0)

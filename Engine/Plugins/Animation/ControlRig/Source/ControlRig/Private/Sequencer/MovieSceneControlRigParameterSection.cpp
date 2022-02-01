@@ -2971,7 +2971,7 @@ TOptional<FVector2D> UMovieSceneControlRigParameterSection::EvaluateVector2DPara
 		FVector2f Value(0.0f, 0.0f);
 		FloatChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value.X);
 		FloatChannels[ChannelInfo->ChannelIndex + 1]->Evaluate(InTime, Value.Y);
-		OptValue = Value;
+		OptValue = FVector2D(Value);
 	}
 	return OptValue;
 }

@@ -52,7 +52,7 @@ void FGlyphLoader::FLine::Add(FGlyphLoader* const Loader)
 {
 	if (!Loader->ProcessedContour.Num() || !(Position - Loader->FirstPosition).IsNearlyZero())
 	{
-		Loader->ProcessedContour.AddHead(Position);
+		Loader->ProcessedContour.AddHead(FVector2f(Position));
 	}
 }
 
@@ -105,7 +105,7 @@ void FGlyphLoader::FCurve::Add(FGlyphLoader* const LoaderIn)
 	Start.T = StartT;
 	Start.Position = Position(Start.T);
 	Start.Tangent = Tangent(Start.T);
-	Loader->ProcessedContour.AddHead(Start.Position);
+	Loader->ProcessedContour.AddHead(FVector2f(Start.Position));
 	Start.Point = Loader->ProcessedContour.GetHead();
 	First = Start.Point;
 	bFirstSplit = false;
@@ -158,7 +158,7 @@ void FGlyphLoader::FCurve::Split(const FPointData& Start, const FPointData& End)
 	Middle.T = (Start.T + End.T) / 2.f;
 	Middle.Position = Position(Middle.T);
 	Middle.Tangent = Tangent(Middle.T);
-	Loader->ProcessedContour.InsertNode(Middle.Position, Start.Point);
+	Loader->ProcessedContour.InsertNode(FVector2f(Middle.Position), Start.Point);
 	Middle.Point = Start.Point->GetPrevNode();
 
 	CheckPart(Start, Middle);

@@ -1254,7 +1254,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 			// First occurrence of vertex instance
 			if( GroupIndexPtr == nullptr )
 			{
-				UVChannels.Set( FVertexInstanceID( Face.UvIndex[Corner] ), UVChannel, Face.Uvs[Corner] );
+				UVChannels.Set( FVertexInstanceID( Face.UvIndex[Corner] ), UVChannel, FVector2f(Face.Uvs[Corner]) );
 				ProcessedVertexInstances.Add( Face.UvIndex[Corner], Face.Group );
 			}
 			// Vertex instance is shared across islands. Split it.
@@ -1276,7 +1276,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 				);
 
 				// Update new vertex instance with flattened uvs
-				UVChannels.Set( NewInstanceID, UVChannel, Face.Uvs[Corner] );
+				UVChannels.Set( NewInstanceID, UVChannel, FVector2f(Face.Uvs[Corner]) );
 
 				// Update contour of associated polygon with new vertex instance
 				const FPolygonID PolygonID( Face.PolygonID );

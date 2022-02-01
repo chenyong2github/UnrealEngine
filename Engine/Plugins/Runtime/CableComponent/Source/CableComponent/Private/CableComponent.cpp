@@ -148,7 +148,7 @@ public:
 
 				FDynamicMeshVertex Vert;
 				Vert.Position = InPoints[PointIdx] + (OutDir * 0.5f * CableWidth);
-				Vert.TextureCoordinate[0] = FVector2D(AlongFrac * TileMaterial, AroundFrac);
+				Vert.TextureCoordinate[0] = FVector2f(AlongFrac * TileMaterial, AroundFrac);
 				Vert.Color = VertexColor;
 				Vert.SetTangents(ForwardDir, OutDir ^ ForwardDir, OutDir);
 				OutVertices.Add(Vert);

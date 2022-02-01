@@ -1243,7 +1243,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 				int32 UVMapIndex = (FBXUVs[UVLayerIndex].UVMappingMode == FbxLayerElement::eByControlPoint) ? CornerVertexIDs[CornerIndex].GetValue() : FirstFbxInstanceIndexForPoly + CornerIndex;
 				int32 UVIndex = (FBXUVs[UVLayerIndex].UVReferenceMode == FbxLayerElement::eDirect) ? UVMapIndex : FBXUVs[UVLayerIndex].LayerElementUV->GetIndexArray().GetAt(UVMapIndex);
 				FbxVector2 UVVector = FBXUVs[UVLayerIndex].LayerElementUV->GetDirectArray().GetAt(UVIndex);
-				FVector2D FinalUVVector(static_cast<float>(UVVector[0]), 1.f - static_cast<float>(UVVector[1])); // flip the Y of UVs for DirectX
+				FVector2f FinalUVVector(static_cast<float>(UVVector[0]), 1.f - static_cast<float>(UVVector[1])); // flip the Y of UVs for DirectX
 				if (!FinalUVVector.ContainsNaN())
 				{
 					VertexInstanceUVs.Set(CornerVertexInstanceIDs[CornerIndex], UVLayerIndex, FinalUVVector);

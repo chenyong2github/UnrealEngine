@@ -583,12 +583,12 @@ void FEdModeGeometry::RenderPoly( const FSceneView* View, FViewport* Viewport, F
 				}
 
 				// Draw Polygon Triangles
-				const int32 VertexOffset = MeshBuilder.AddVertex(Verts[0], FVector2D::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
-				MeshBuilder.AddVertex(Verts[1], FVector2D::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
+				const int32 VertexOffset = MeshBuilder.AddVertex(Verts[0], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
+				MeshBuilder.AddVertex(Verts[1], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
 
 				for( int32 VertIdx = 2 ; VertIdx < Verts.Num() ; ++VertIdx )
 				{
-					MeshBuilder.AddVertex(Verts[VertIdx], FVector2D::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
+					MeshBuilder.AddVertex(Verts[VertIdx], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
 					MeshBuilder.AddTriangle( VertexOffset + VertIdx - 1, VertexOffset, VertexOffset + VertIdx);
 				}
 

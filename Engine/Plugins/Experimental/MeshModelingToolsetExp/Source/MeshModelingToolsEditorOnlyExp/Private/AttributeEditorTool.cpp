@@ -471,7 +471,7 @@ void UAttributeEditorTool::ClearUVs()
 			{
 				for (const FVertexInstanceID ElID : Instances.GetElementIDs())
 				{
-					InstanceUVs.Set(ElID, LayerIndex, FVector2D::ZeroVector);
+					InstanceUVs.Set(ElID, LayerIndex, FVector2f::ZeroVector);
 				}
 			}
 		}
@@ -520,7 +520,7 @@ void UAttributeEditorTool::DeleteSelectedUVSet()
 			const FVertexInstanceArray& Instances = EditedMesh.VertexInstances();
 			for (const FVertexInstanceID InstanceID : Instances.GetElementIDs())
 			{
-				InstanceUVs.Set(InstanceID, DeleteIndex, FVector2D::ZeroVector);
+				InstanceUVs.Set(InstanceID, DeleteIndex, FVector2f::ZeroVector);
 			}
 		}
 
@@ -597,7 +597,7 @@ void UAttributeEditorTool::DuplicateSelectedUVSet()
 			const FVertexInstanceArray& Instances = EditedMesh.VertexInstances();
 			for (const FVertexInstanceID InstanceID : Instances.GetElementIDs())
 			{
-				FVector2D SourceUV = InstanceUVs.Get(InstanceID, SourceIndex);
+				FVector2f SourceUV = InstanceUVs.Get(InstanceID, SourceIndex);
 				InstanceUVs.Set(InstanceID, NewChannelIndex, SourceUV);
 			}
 

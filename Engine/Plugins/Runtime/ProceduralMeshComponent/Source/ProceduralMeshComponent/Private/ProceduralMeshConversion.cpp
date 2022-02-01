@@ -84,7 +84,7 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 				SectionData.Positions.Add( VertexPositions[VertexID] );
 				SectionData.Triangles.Add( NewVertexIndex );
 				SectionData.Normals.Add( Normals[VertexInstanceID] );
-				SectionData.UV0.Add( UVs[VertexInstanceID] );
+				SectionData.UV0.Add( FVector2D(UVs[VertexInstanceID]) );
 				SectionData.Tangents.Add( FProcMeshTangent( Tangents[VertexInstanceID], BinormalSigns[VertexInstanceID] < 0.f ) );
 			}
 		}
@@ -200,10 +200,10 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 
 			Colors[VertexInstanceID] = FLinearColor(ProcVertex.Color);
 
-			UVs.Set(VertexInstanceID, 0, ProcVertex.UV0);
-			UVs.Set(VertexInstanceID, 1, ProcVertex.UV1);
-			UVs.Set(VertexInstanceID, 2, ProcVertex.UV2);
-			UVs.Set(VertexInstanceID, 3, ProcVertex.UV3);
+			UVs.Set(VertexInstanceID, 0, FVector2f(ProcVertex.UV0));	// LWC_TODO: Precision loss
+			UVs.Set(VertexInstanceID, 1, FVector2f(ProcVertex.UV1));	// LWC_TODO: Precision loss
+			UVs.Set(VertexInstanceID, 2, FVector2f(ProcVertex.UV2));	// LWC_TODO: Precision loss
+			UVs.Set(VertexInstanceID, 3, FVector2f(ProcVertex.UV3));	// LWC_TODO: Precision loss
 		}
 
 		// Create the polygons for this section

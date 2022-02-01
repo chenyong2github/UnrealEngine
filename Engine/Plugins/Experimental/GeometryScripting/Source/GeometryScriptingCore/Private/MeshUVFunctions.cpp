@@ -192,7 +192,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::ScaleMeshUVs(
 		return TargetMesh;
 	}
 
-	FVector2f UseScale = Scale;
+	FVector2f UseScale = FVector2f(Scale);
 	if (UseScale.Length() < 0.0001)
 	{
 		UseScale = FVector2f::One();

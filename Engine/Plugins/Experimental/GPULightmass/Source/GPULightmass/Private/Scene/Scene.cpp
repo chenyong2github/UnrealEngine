@@ -762,7 +762,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(FVector2f(Lightmap->LightmapObject->CoordinateScale), FVector2f(Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(MoveTemp(Initializer));
@@ -987,7 +987,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 					{
 						int32 X = RenderIndex % InstancesPerRow;
 						int32 Y = RenderIndex / InstancesPerRow;
-						FVector2D Bias = (FVector2D(X, Y) * FVector2D(BaseLightMapWidth, BaseLightMapHeight) + FVector2D(1, 1)) / Lightmap->Size;
+						FVector2f Bias = (FVector2f(X, Y) * FVector2f(BaseLightMapWidth, BaseLightMapHeight) + FVector2f(1, 1)) / Lightmap->Size;
 						Lightmap->MeshMapBuildData->PerInstanceLightmapData[GameThreadInstanceIndex].LightmapUVBias = Bias;
 						Lightmap->MeshMapBuildData->PerInstanceLightmapData[GameThreadInstanceIndex].ShadowmapUVBias = Bias;
 					}
@@ -1006,7 +1006,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);
@@ -1219,7 +1219,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias))
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);

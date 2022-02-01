@@ -2967,7 +2967,7 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& FromCollection, 
 		{
 			FVector2f UV;
 			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
-			Output.UVs[CopyToIdx][UVLayer] = FVector2D(UV);
+			Output.UVs[CopyToIdx][UVLayer] = UV;
 		}
 		
 		FVector3f TangentU, TangentV;
@@ -3069,7 +3069,7 @@ int32 FDynamicMeshCollection::AppendToCollection(const FTransform& FromCollectio
 		{
 			FVector2f UV;
 			AugmentedDynamicMesh::GetUV(Mesh, VID, UV, UVLayer);
-			Output.UVs[CopyToIdx][UVLayer] = FVector2D(UV);
+			Output.UVs[CopyToIdx][UVLayer] = UV;
 		}
 
 		FVector3f TangentU, TangentV;

@@ -386,7 +386,7 @@ void FSpriteGeometryEditingHelper::DrawGeometry(const FSceneView& View, FPrimiti
 
 				FDynamicMeshVertex MeshVertex;
 				MeshVertex.Color = BackgroundColor;
-				MeshVertex.TextureCoordinate[0] = FVector2D::ZeroVector;
+				MeshVertex.TextureCoordinate[0] = FVector2f::ZeroVector;
 				MeshVertex.SetTangents(PaperAxisX, PaperAxisY, PaperAxisZ);
 
 				for (const FVector2D& SrcTriangleVertex : TriangulatedPolygonVertices)

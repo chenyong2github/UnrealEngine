@@ -171,7 +171,7 @@ public:
 			const FVector A = WireSource->GetVertex(EdgeInfo.B);
 			const FVector B = WireSource->GetVertex(EdgeInfo.C);
 			const FVector LineDirection = (B - A).GetSafeNormal();
-			const FVector2D UV(UseThickness, LineDepthBias);
+			const FVector2f UV(UseThickness, LineDepthBias);
 
 			VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = A;
 			VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = B;

@@ -57,7 +57,7 @@ namespace DistortionRenderingUtils
 				InputPointsResourceArray.Reserve(NumPoints);
 				for (int32 Index = 0; Index < NumPoints; Index++)
 				{
-					InputPointsResourceArray.Add(Points[Index]);
+					InputPointsResourceArray.Add(FVector2f(Points[Index]));	// LWC_TODO: Precision loss
 				}
 
 				TResourceArray<FVector2f> EmptyBuffer;
@@ -95,7 +95,7 @@ namespace DistortionRenderingUtils
 				{
 					for (int32 Index = 0; Index < NumPoints; ++Index)
 					{
-						OutUndistortedPoints[Index] = UndistortedPointData[Index];
+						OutUndistortedPoints[Index] = FVector2D(UndistortedPointData[Index]);
 					}
 				}
 

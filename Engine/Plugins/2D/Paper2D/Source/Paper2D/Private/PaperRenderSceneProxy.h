@@ -94,7 +94,7 @@ struct PAPER2D_API FSpriteRenderSection
 			const FVector4& SourceVert = Record.RenderVerts[VertexIndex];
 			
 			const FVector Pos((PaperAxisX * SourceVert.X) + (PaperAxisY * SourceVert.Y) + Record.Destination);
-			const FVector2D UV(SourceVert.Z, SourceVert.W);
+			const FVector2f UV(SourceVert.Z, SourceVert.W);	// LWC_TODO: Precision loss
 
 			new (Vertices) FDynamicMeshVertex(Pos, FPaperSpriteTangents::PackedNormalX.ToFVector(), FPaperSpriteTangents::PackedNormalZ.ToFVector(), UV, VertColor);
 		}
@@ -105,7 +105,7 @@ struct PAPER2D_API FSpriteRenderSection
 	{
 		const FVector Pos((PaperAxisX * X) + (PaperAxisY * Y) + Origin);
 
-		new (Vertices) FDynamicMeshVertex(Pos, FPaperSpriteTangents::PackedNormalX.ToFVector(), FPaperSpriteTangents::PackedNormalZ.ToFVector(), FVector2D(U, V), Color);
+		new (Vertices) FDynamicMeshVertex(Pos, FPaperSpriteTangents::PackedNormalX.ToFVector(), FPaperSpriteTangents::PackedNormalZ.ToFVector(), FVector2f(U, V), Color);
 		++NumVertices;
 	}
 

@@ -131,7 +131,7 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 		{
 			for (FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs())
 			{
-				FVector2D UVCoords = VertexInstanceUVs.Get(InstanceID, Index);
+				FVector2f UVCoords = VertexInstanceUVs.Get(InstanceID, Index);
 				if (UVCoords.ContainsNaN())
 				{
 					VertexInstanceUVs.RemoveChannel(Index);

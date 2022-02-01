@@ -1613,7 +1613,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 
 			for (uint32 UVIndex = 0; UVIndex < Sample->NumUVSets; ++UVIndex)
 			{
-				Section.UVs[UVIndex].Add(Sample->UVs[UVIndex][FaceOffset + VertexIndex]);
+				Section.UVs[UVIndex].Add(FVector2D(Sample->UVs[UVIndex][FaceOffset + VertexIndex]));
 			}		
 			
 			Section.Colors.Add(Sample->Colors[FaceOffset + VertexIndex].ToFColor(false));
@@ -1675,7 +1675,7 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 				NewVertex.TangentZ = (FVector3f)SourceSection.TangentZ[FaceOffset + VertexIndex]; // LWC_TODO: precision loss
 				for (uint32 UVIndex = 0; UVIndex < SourceSection.NumUVSets; ++UVIndex)
 				{
-					NewVertex.UVs[UVIndex] = SourceSection.UVs[UVIndex][FaceOffset + VertexIndex];
+					NewVertex.UVs[UVIndex] = FVector2f(SourceSection.UVs[UVIndex][FaceOffset + VertexIndex]);
 				}
 				
 				NewVertex.Color = SourceSection.Colors[FaceOffset + VertexIndex];

@@ -517,7 +517,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 						if (!UVValues.ContainsNaN())
 						{
 							// Convert UVs - bottom-left Rhino's texture origin to Unreal's top-left
-							VertexInstanceUVs.Set(CornerVertexInstanceIDs[CornerIndex], 0, FVector2D(UVValues[0], 1.f - UVValues[1]));
+							VertexInstanceUVs.Set(CornerVertexInstanceIDs[CornerIndex], 0, FVector2f(UVValues[0], 1.f - UVValues[1]));
 						}
 					}
 				}

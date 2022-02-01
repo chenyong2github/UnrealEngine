@@ -1025,9 +1025,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMExternalFunctionC
 				const int32 Idx1 = IndexBuffer->Get(Tri + 1);
 				const int32 Idx2 = IndexBuffer->Get(Tri + 2);
 				const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
-				const FVector2f UV0 = VertAccessor.GetVertexUV(LODData, Idx0, UVSet);
-				const FVector2f UV1 = VertAccessor.GetVertexUV(LODData, Idx1, UVSet);
-				const FVector2f UV2 = VertAccessor.GetVertexUV(LODData, Idx2, UVSet);
+				const FVector2f UV0 = FVector2f(VertAccessor.GetVertexUV(LODData, Idx0, UVSet));	// LWC_TODO: Precision loss
+				const FVector2f UV1 = FVector2f(VertAccessor.GetVertexUV(LODData, Idx1, UVSet));	// LWC_TODO: Precision loss
+				const FVector2f UV2 = FVector2f(VertAccessor.GetVertexUV(LODData, Idx2, UVSet));	// LWC_TODO: Precision loss
 
 				FVector2f UV = BarycentricInterpolate(BaryParam.GetAndAdvance(), UV0, UV1, UV2);
 				OutUV.SetAndAdvance(UV);
@@ -1083,7 +1083,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMExternalFu
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const bool Enabled = InEnabled.GetAndAdvance();
-			const FVector2D SourceUv = InUV.GetAndAdvance();
+			const FVector2D SourceUv = FVector2D(InUV.GetAndAdvance());
 			const float Tolerance = InTolerance.GetAndAdvance();
 
 			FVector3f BaryCoord(ForceInitToZero);
@@ -1153,8 +1153,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb(FVectorVMExternal
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const bool Enabled = InEnabled.GetAndAdvance();
-			const FVector2D MinExtent = InMinExtent.GetAndAdvance();
-			const FVector2D MaxExtent = InMaxExtent.GetAndAdvance();
+			const FVector2D MinExtent = FVector2D(InMinExtent.GetAndAdvance());
+			const FVector2D MaxExtent = FVector2D(InMaxExtent.GetAndAdvance());
 
 			FVector3f BaryCoord(ForceInitToZero);
 			int32 TriangleIndex = INDEX_NONE;

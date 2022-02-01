@@ -64,10 +64,10 @@ inline FBufferRHIRef CreateTempOcculusVertexBuffer()
 	Vertices[1].Position = FVector4f(1.0f, 1.0f, 0, 1.0f);
 	Vertices[2].Position = FVector4f(-1.0f, -1.0f, 0, 1.0f);
 	Vertices[3].Position = FVector4f(1.0f, -1.0f, 0, 1.0f);
-	Vertices[0].UV = FVector2D(0, 0);
-	Vertices[1].UV = FVector2D(1, 0);
-	Vertices[2].UV = FVector2D(0, 1);
-	Vertices[3].UV = FVector2D(1, 1);
+	Vertices[0].UV = FVector2f(0, 0);
+	Vertices[1].UV = FVector2f(1, 0);
+	Vertices[2].UV = FVector2f(0, 1);
+	Vertices[3].UV = FVector2f(1, 1);
 	RHIUnlockBuffer(VertexBufferRHI);
 
 	return VertexBufferRHI;

@@ -198,9 +198,9 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 					PSParameters.InputSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 					PSParameters.InputTextureSize = InputTextureSize;
 					PSParameters.OutputTextureSize = OutputTextureSize;
-					PSParameters.PixelFactor = (FVector4f)PixelParam.PixelFactor;
+					PSParameters.PixelFactor = FVector4f(PixelParam.PixelFactor);
 					PSParameters.InvertPixel = PixelParam.InvertPixel;
-					PSParameters.UVCellSize = PixelParam.UVCellSize;
+					PSParameters.UVCellSize = FVector2f(PixelParam.UVCellSize);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
 
 					// Draw a two triangle on the entire viewport.

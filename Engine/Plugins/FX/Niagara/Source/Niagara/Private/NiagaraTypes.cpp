@@ -74,19 +74,19 @@ void FNiagaraStructConversionStep::CopyToSim(uint8* DestinationData, const uint8
 	else if (ConversionType == ENiagaraStructConversionType::Vector2)
 	{
 		checkf(SourceBytes == 16 && SimulationBytes == 8, TEXT("Wrong bytesizes for Vector2 d->f conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector2f Vector2 = *static_cast<const FVector2d*>(Src);
+		FVector2f Vector2(*static_cast<const FVector2d*>(Src));
 		FMemory::Memcpy(Dest, &Vector2, SimulationBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Vector3)
 	{
 		checkf(SourceBytes == 24 && SimulationBytes == 12, TEXT("Wrong bytesizes for Vector3 d->f conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector3f Vector = *static_cast<const FVector3d*>(Src);
+		FVector3f Vector(*static_cast<const FVector3d*>(Src));
 		FMemory::Memcpy(Dest, &Vector, SimulationBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Vector4)
 	{
 		checkf(SourceBytes == 32 && SimulationBytes == 16, TEXT("Wrong bytesizes for Vector4 d->f conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector4f Vector4 = FVector4f(*static_cast<const FVector4d*>(Src));
+		FVector4f Vector4(*static_cast<const FVector4d*>(Src));
 		FMemory::Memcpy(Dest, &Vector4, SimulationBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Quat)
@@ -115,19 +115,19 @@ void FNiagaraStructConversionStep::CopyFromSim(uint8* DestinationData, const uin
 	else if (ConversionType == ENiagaraStructConversionType::Vector2)
 	{
 		checkf(SourceBytes == 16 && SimulationBytes == 8, TEXT("Wrong bytesizes for Vector2 f->d conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector2d Vector2 = *static_cast<const FVector2f*>(Src);
+		FVector2d Vector2(*static_cast<const FVector2f*>(Src));
 		FMemory::Memcpy(Dest, &Vector2, SourceBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Vector3)
 	{
 		checkf(SourceBytes == 24 && SimulationBytes == 12, TEXT("Wrong bytesizes for Vector3 f->d conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector3d Vector3 = *static_cast<const FVector3f*>(Src);
+		FVector3d Vector3(*static_cast<const FVector3f*>(Src));
         FMemory::Memcpy(Dest, &Vector3, SourceBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Vector4)
 	{
 		checkf(SourceBytes == 32 && SimulationBytes == 16, TEXT("Wrong bytesizes for Vector4 f->d conversion: Source %i, Simulation %i"), SourceBytes, SimulationBytes);
-		FVector4d Vector4 = FVector4d(*static_cast<const FVector4f*>(Src));
+		FVector4d Vector4(*static_cast<const FVector4f*>(Src));
 		FMemory::Memcpy(Dest, &Vector4, SourceBytes);
 	}
 	else if (ConversionType == ENiagaraStructConversionType::Quat)

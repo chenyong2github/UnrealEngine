@@ -350,7 +350,7 @@ namespace GLTF
 				}
 				else if (Normalized)
 				{
-					return GetNormalized<FVector2f, 2>(ComponentType, Pointer);
+					return FVector2D(GetNormalized<FVector2f, 2>(ComponentType, Pointer));
 				}
 			}
 		}
@@ -380,7 +380,7 @@ namespace GLTF
 				}
 				else if (Normalized)
 				{
-					return GetNormalized<FVector3f, 3>(ComponentType, Pointer);
+					return FVector(GetNormalized<FVector3f, 3>(ComponentType, Pointer));
 				}
 			}
 		}

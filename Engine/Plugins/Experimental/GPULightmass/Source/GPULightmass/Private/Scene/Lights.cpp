@@ -229,7 +229,7 @@ FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() 
 	LightParameters.Direction = -Direction;
 	LightParameters.Tangent = -Direction;
 
-	LightParameters.SpotAngles = FVector2D(0, 0);
+	LightParameters.SpotAngles = FVector2f(0, 0);
 	LightParameters.SpecularScale = 0; // Irrelevant when tracing shadow rays
 	LightParameters.SourceRadius = FMath::Sin(0.5f * FMath::DegreesToRadians(LightSourceAngle));
 	LightParameters.SoftSourceRadius = 0; // Irrelevant when tracing shadow rays. FMath::Sin(0.5f * FMath::DegreesToRadians(LightSourceSoftAngle));
@@ -260,7 +260,7 @@ FLightRenderParameters FSpotLightRenderState::GetLightShaderParameters() const
 	LightParameters.WorldPosition = Position;
 	LightParameters.Direction = -Direction;
 	LightParameters.Tangent = Tangent;
-	LightParameters.SpotAngles = SpotAngles;
+	LightParameters.SpotAngles = FVector2f(SpotAngles);					// LWC_TODO: Precision loss?
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;

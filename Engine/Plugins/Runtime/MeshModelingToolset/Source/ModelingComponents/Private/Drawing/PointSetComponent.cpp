@@ -107,7 +107,7 @@ public:
 				// have to convert it back to linear. The ToFColor(false) call just scales back into 0-255 space.
 				FColor color = FLinearColor::FromSRGBColor(Point.Color).ToFColor(false);
 
-				const FVector2D UV(Point.Size, Point.DepthBias);
+				const FVector2f UV(Point.Size, Point.DepthBias);
 				for (int j = 0; j < 4; ++j)
 				{
 					VertexBuffers.PositionVertexBuffer.VertexPosition(UseVertexBufferIndex + j) = Point.Position;

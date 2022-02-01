@@ -474,7 +474,7 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	};
 	auto VertPositionToUV = [this, ScaleFactor](const FVector3d& VertPosition)
 	{
-		return FVector2D(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
+		return FVector2f(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
 	};
 
 	// Construct the full input objects that the tools actually operate on.

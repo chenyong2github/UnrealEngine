@@ -1037,11 +1037,11 @@ namespace NDIStaticMeshLocal
 
 		FORCEINLINE FVector2D GetTriangleUV(const FVector3f& BaryCoord, int32 Index0, int32 Index1, int32 Index2, int32 UVSet) const
 		{
-			FVector2D UV;
+			FVector2f UV;
 			UV = LODResource->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, UVSet) * BaryCoord.X;
 			UV += LODResource->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, UVSet) * BaryCoord.Y;
 			UV += LODResource->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, UVSet) * BaryCoord.Z;
-			return UV;
+			return FVector2D(UV);
 		}
 
 		FORCEINLINE FVector3f GetPosition(int32 Vertex) const
@@ -1084,7 +1084,7 @@ namespace NDIStaticMeshLocal
 
 		FORCEINLINE FVector2D GetUV(int32 Vertex, int32 UVSet) const
 		{
-			return LODResource->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Vertex, UVSet);
+			return FVector2D(LODResource->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Vertex, UVSet));
 		}
 
 		FORCEINLINE bool IsCpuUniformlyDistributedSampling() const
@@ -2898,7 +2898,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetVertexUV(FVectorVMExternalFunctionCon
 		{
 			const int32 Vertex = VertexParam.GetAndAdvance();
 			const int32 UVSet = UVSetParam.GetAndAdvance();
-			const FVector2f UV = StaticMeshHelper.GetUV(FMath::Clamp(Vertex, 0, VertexMax), FMath::Clamp(UVSet, 0, UVSetMax));
+			const FVector2f UV = FVector2f(StaticMeshHelper.GetUV(FMath::Clamp(Vertex, 0, VertexMax), FMath::Clamp(UVSet, 0, UVSetMax)));	// LWC_TODO: Precision loss
 			OutUV.SetAndAdvance(UV);
 		}
 	}
@@ -3254,7 +3254,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetTriangleUV(FVectorVMExternalFunctionC
 			const int32 Triangle = FMath::Clamp(TriangleParam.GetAndAdvance(), 0, TriangleMax);
 			const FVector3f BaryCoord = BaryCoordParam.GetAndAdvance();
 			const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
-			const FVector2f UV = StaticMeshHelper.GetTriangleUV(BaryCoord, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2], UVSet);
+			const FVector2f UV = FVector2f(StaticMeshHelper.GetTriangleUV(BaryCoord, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2], UVSet));	// LWC_TODO: Precision loss
 			OutUVParam.SetAndAdvance(UV);
 		}
 	}

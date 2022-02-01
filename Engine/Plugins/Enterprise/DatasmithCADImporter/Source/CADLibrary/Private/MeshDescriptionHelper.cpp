@@ -476,7 +476,7 @@ namespace CADLibrary
 						for (int32 VertexIndex = 0; VertexIndex < VertexCountPerFace; VertexIndex++)
 						{
 							const FVertexInstanceID& VertexInstanceID = MeshVertexInstanceIDs[FaceIndex + Orientation[VertexIndex]];
-							VertexInstanceUVs.Set(VertexInstanceID, UVChannel, Tessellation.TexCoordArray[NewFaceIndex[FaceIndex + VertexIndex]]);
+							VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FVector2f(Tessellation.TexCoordArray[NewFaceIndex[FaceIndex + VertexIndex]]));
 						}
 					}
 				}

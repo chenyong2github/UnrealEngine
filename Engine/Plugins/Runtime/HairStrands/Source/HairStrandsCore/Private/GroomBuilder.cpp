@@ -127,7 +127,7 @@ namespace HairStrandsBuilder
 		uint32 Index = 0;
 		for (FVector2f& RootUV : Curves.CurvesRootUV)
 		{
-			RootUV = (RootUVs[Index++] + UVOffset) * UVScale;
+			RootUV = (FVector2f(RootUVs[Index++]) + UVOffset) * UVScale;	// LWC_TODO: Precision loss
 		}
 	}
 
@@ -305,7 +305,7 @@ namespace HairStrandsBuilder
 				PackedPosition.PackedRadiusAndType = PackedRadiusAndType.Packed;
 				PackedPosition.UCoord = uint8(FMath::Clamp(CoordU * 255.f, 0.f, 255.f));
 
-				FVector2D RootUV = Curves.CurvesRootUV[CurveIndex]; 
+				FVector2D RootUV = FVector2D(Curves.CurvesRootUV[CurveIndex]); 
 				FHairStrandsAttribute0Format::Type& PackedAttributes0 = OutPackedAttributes0[PointIndex + IndexOffset];
 				PackedAttributes0.NormalizedLength = uint8(FMath::Clamp(NormalizedLength * 255.f, 0.f, 255.f));
 				PackedAttributes0.Seed = CurveSeed;

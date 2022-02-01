@@ -579,7 +579,7 @@ namespace UE
 							{
 								FUVID UVID = MeshDescription->CreateUV(UVLayerIndex);
 								FbxVector2 UVVector = FBXUVs.LayerElementUV[UVLayerIndex]->GetDirectArray().GetAt(UVIndex);
-								UVCoordinates[UVID] = FVector2D(static_cast<float>(UVVector[0]), 1.0f - static_cast<float>(UVVector[1]));	// flip the Y of UVs for DirectX
+								UVCoordinates[UVID] = FVector2f(static_cast<float>(UVVector[0]), 1.0f - static_cast<float>(UVVector[1]));	// flip the Y of UVs for DirectX
 							}
 						}
 					}
@@ -712,7 +712,7 @@ namespace UE
 										FinalUVVector.X = static_cast<float>(UVVector[0]);
 										FinalUVVector.Y = 1.f - static_cast<float>(UVVector[1]);   //flip the Y of UVs for DirectX
 									}
-									VertexInstanceUVs.Set(AddedVertexInstanceId, UVLayerIndex, FinalUVVector);
+									VertexInstanceUVs.Set(AddedVertexInstanceId, UVLayerIndex, FVector2f(FinalUVVector));	// LWC_TODO: Precision loss
 								}
 
 								//Color attribute

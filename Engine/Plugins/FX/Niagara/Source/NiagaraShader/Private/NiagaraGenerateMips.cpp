@@ -74,8 +74,8 @@ void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2
 		FUnorderedAccessViewRHIRef MipOutUAV = RHICreateUnorderedAccessView(TextureRHI, iDstMip);
 
 		FNiagaraGenerateMipsCS::FParameters PassParameters;
-		PassParameters.SrcTexelSize	= FVector2D(1.0f / float(SrcMipSize.X), 1.0f / float(SrcMipSize.Y));
-		PassParameters.DstTexelSize = FVector2D(1.0f / float(DstMipSize.X), 1.0f / float(DstMipSize.Y));
+		PassParameters.SrcTexelSize	= FVector2f(1.0f / float(SrcMipSize.X), 1.0f / float(SrcMipSize.Y));
+		PassParameters.DstTexelSize = FVector2f(1.0f / float(DstMipSize.X), 1.0f / float(DstMipSize.Y));
 		PassParameters.KernelHWidth = KernelHWidth;
 		PassParameters.MipOutSize	= DstMipSize;
 		PassParameters.MipInSRV		= MipInSRV;

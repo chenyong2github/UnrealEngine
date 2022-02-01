@@ -49,17 +49,17 @@ public:
 			Vert.SetTangents(TangentX, TangentY, TangentZ);
 
 			Vert.Position = Tri.Vertex0;
-			Vert.TextureCoordinate[0] = Tri.UV0;
+			Vert.TextureCoordinate[0] = FVector2f(Tri.UV0);	// LWC_TODO: Precision loss
 			Vertices[TriIdx * 3 + 0] = Vert;
 			Indices[TriIdx * 3 + 0] = TriIdx * 3 + 0;
 
 			Vert.Position = Tri.Vertex1;
-			Vert.TextureCoordinate[0] = Tri.UV1;
+			Vert.TextureCoordinate[0] = FVector2f(Tri.UV1);	// LWC_TODO: Precision loss
 			Vertices[TriIdx * 3 + 1] = Vert;
 			Indices[TriIdx * 3 + 1] = TriIdx * 3 + 1;
 
 			Vert.Position = Tri.Vertex2;
-			Vert.TextureCoordinate[0] = Tri.UV2;
+			Vert.TextureCoordinate[0] = FVector2f(Tri.UV2);	// LWC_TODO: Precision loss
 			Vertices[TriIdx * 3 + 2] = Vert;
 			Indices[TriIdx * 3 + 2] = TriIdx * 3 + 2;
 		}

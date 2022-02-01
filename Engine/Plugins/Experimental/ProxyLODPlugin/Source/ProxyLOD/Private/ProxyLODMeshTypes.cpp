@@ -372,7 +372,7 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 				{
 					if (AttributesGetter->VertexInstanceUVs.GetNumChannels() > Idx)
 					{
-						RawPoly.WedgeTexCoords[Idx][i] = AttributesGetter->VertexInstanceUVs.Get(VertexInstanceIDs[i], Idx);
+						RawPoly.WedgeTexCoords[Idx][i] = FVector2D(AttributesGetter->VertexInstanceUVs.Get(VertexInstanceIDs[i], Idx));
 					}
 					else
 					{

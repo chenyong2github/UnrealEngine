@@ -139,8 +139,8 @@ namespace LensFileRendering
 			PassParameters->OutputTextureExtent = OutputTexture->Desc.Extent;
 			PassParameters->SourceTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(); 
 			PassParameters->SourceTextureOne = TextureOne;
-			PassParameters->FxFyScale = BlendParams.FxFyScale;
-			PassParameters->PrincipalPoint = BlendParams.PrincipalPoint;
+			PassParameters->FxFyScale = FVector2f(BlendParams.FxFyScale);	// LWC_TODO: Precision loss
+			PassParameters->PrincipalPoint = FVector2f(BlendParams.PrincipalPoint);	// LWC_TODO: Precision loss
 
 			//Setup parameters based on blending type
 			FDisplacementMapBlendPS::FPermutationDomain PermutationVector;

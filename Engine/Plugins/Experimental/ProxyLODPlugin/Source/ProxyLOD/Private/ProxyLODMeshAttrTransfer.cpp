@@ -112,7 +112,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 					VertexInstanceBinormalSigns[Idx] = GetBasisDeterminantSign(VertexInstanceTangents[Idx], AverageUnitVector(RawPoly.WedgeTangentY), VertexInstanceNormals[Idx]);
 
 					// Average Texture Coords
-					VertexInstanceUVs.Set(Idx, 0, AverageTexCoord(RawPoly.WedgeTexCoords[0]));
+					VertexInstanceUVs.Set(Idx, 0, FVector2f(AverageTexCoord(RawPoly.WedgeTexCoords[0])));	// LWC_TODO: Precision loss
 				}
 			}
 			// Assign the material index that the last vertex of this face sees.

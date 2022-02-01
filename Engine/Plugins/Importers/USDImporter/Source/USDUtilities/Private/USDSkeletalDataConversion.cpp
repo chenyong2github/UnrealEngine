@@ -735,7 +735,7 @@ namespace UnrealToUsdImpl
 
 						for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 						{
-							FVector2D TexCoord = Vertices[ VertexIndex ].UVs[ TexCoordSourceIndex ];
+							FVector2D TexCoord = FVector2D(Vertices[ VertexIndex ].UVs[ TexCoordSourceIndex ]);
 							TexCoord[ 1 ] = 1.f - TexCoord[ 1 ];
 
 							UVs.push_back( UnrealToUsd::ConvertVector( TexCoord ) );
@@ -1552,7 +1552,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 					}
 
 					// Flip V for Unreal uv's which match directx
-					FVector2D FinalUVVector( UV[0], 1.f - UV[1] );
+					FVector2f FinalUVVector( UV[0], 1.f - UV[1] );
 					SkelMeshWedge.UVs[ UVLayerIndex ] = FinalUVVector;
 
 					++UVLayerIndex;

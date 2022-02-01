@@ -101,7 +101,7 @@ int32 FData::AddVertex(const FVector& Position, const FVector& TangentX, const F
 	StaticMeshAttributes.GetVertexPositions()[FVertexID(VertexIndex)] = Position;
 	const FVertexInstanceID Instance(static_cast<uint32>(VertexIndex));
 
-	StaticMeshAttributes.GetVertexInstanceUVs()[Instance] = TextureCoordinates;
+	StaticMeshAttributes.GetVertexInstanceUVs()[Instance] = FVector2f(TextureCoordinates);
 	StaticMeshAttributes.GetVertexInstanceNormals()[Instance] = TangentZ;
 	StaticMeshAttributes.GetVertexInstanceTangents()[Instance] = TangentX;
 

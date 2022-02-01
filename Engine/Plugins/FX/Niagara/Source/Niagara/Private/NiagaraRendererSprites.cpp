@@ -90,10 +90,10 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	SourceMode = Properties->SourceMode;
 	Alignment = Properties->Alignment;
 	FacingMode = Properties->FacingMode;
-	PivotInUVSpace = Properties->PivotInUVSpace;
+	PivotInUVSpace = FVector2f(Properties->PivotInUVSpace);	// LWC_TODO: Precision loss
 	MacroUVRadius = Properties->MacroUVRadius;
 	SortMode = Properties->SortMode;
-	SubImageSize = Properties->SubImageSize;
+	SubImageSize = FVector2f(Properties->SubImageSize);	// LWC_TODO: Precision loss
 	NumIndicesPerInstance = Properties->GetNumIndicesPerInstance();
 	bSubImageBlend = Properties->bSubImageBlend;
 	bRemoveHMDRollInVR = Properties->bRemoveHMDRollInVR;

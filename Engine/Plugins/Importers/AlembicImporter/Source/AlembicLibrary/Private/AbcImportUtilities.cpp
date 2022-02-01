@@ -1318,13 +1318,13 @@ void AbcImporterUtilities::ApplyConversion(FAbcMeshSample* InOutSample, const FA
 	{
 		// Apply UV matrix to flip channels
 		FMatrix2x2 UVMatrix( FScale2D(InConversionSettings.bFlipU ? -1.0f : 1.0f, InConversionSettings.bFlipV ? -1.0f : 1.0f) );
-		FVector2D UVOffset(InConversionSettings.bFlipU ? 1.0f : 0.0f, InConversionSettings.bFlipV ? 1.0f : 0.0f);
+		FVector2f UVOffset(InConversionSettings.bFlipU ? 1.0f : 0.0f, InConversionSettings.bFlipV ? 1.0f : 0.0f);
 				
 		for (uint32 UVIndex = 0; UVIndex < InOutSample->NumUVSets; ++UVIndex)
 		{
 			for (FVector2f& UV : InOutSample->UVs[UVIndex])
 			{
-				UV = UVOffset + UVMatrix.TransformPoint(UV);
+				UV = UVOffset + FVector2f(UVMatrix.TransformPoint(FVector2D(UV)));
 			}
 		}
 	}

@@ -1077,7 +1077,7 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 		{
 			DisplacerDownCast->SetFilterDirection(DirectionalFilterProperties->FilterDirection);
 			DisplacerDownCast->SetSineWaveDirection(SineWaveProperties->SineWaveDirection);
-			DisplacerDownCast->SetDisplacementMapUVAdjustment(TextureMapProperties->UVScale, TextureMapProperties->UVOffset);
+			DisplacerDownCast->SetDisplacementMapUVAdjustment(FVector2f(TextureMapProperties->UVScale), FVector2f(TextureMapProperties->UVOffset));	// LWC_TODO: Precision loss
 		}
 
 		StartComputation();

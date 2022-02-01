@@ -268,7 +268,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateVec2LocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, FVector2D InVec2Value)
 {
 	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition::GetVec2Def();
-	const FVector2f InVec2ValueFloat = InVec2Value;
+	const FVector2f InVec2ValueFloat = FVector2f(InVec2Value);	// LWC_TODO: Precision loss
 	TArray<uint8> Vec2ValueFloat;
 	Vec2ValueFloat.AddUninitialized(InputType.GetSize());
 	FMemory::Memcpy(Vec2ValueFloat.GetData(), &InVec2ValueFloat, InputType.GetSize());

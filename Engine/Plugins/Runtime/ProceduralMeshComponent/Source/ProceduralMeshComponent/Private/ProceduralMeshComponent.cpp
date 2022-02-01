@@ -100,10 +100,10 @@ static void ConvertProcMeshToDynMeshVertex(FDynamicMeshVertex& Vert, const FProc
 {
 	Vert.Position = ProcVert.Position;
 	Vert.Color = ProcVert.Color;
-	Vert.TextureCoordinate[0] = ProcVert.UV0;
-	Vert.TextureCoordinate[1] = ProcVert.UV1;
-	Vert.TextureCoordinate[2] = ProcVert.UV2;
-	Vert.TextureCoordinate[3] = ProcVert.UV3;
+	Vert.TextureCoordinate[0] = FVector2f(ProcVert.UV0);	// LWC_TODO: Precision loss
+	Vert.TextureCoordinate[1] = FVector2f(ProcVert.UV1);	// LWC_TODO: Precision loss
+	Vert.TextureCoordinate[2] = FVector2f(ProcVert.UV2);	// LWC_TODO: Precision loss
+	Vert.TextureCoordinate[3] = FVector2f(ProcVert.UV3);	// LWC_TODO: Precision loss
 	Vert.TangentX = ProcVert.Tangent.TangentX;
 	Vert.TangentZ = ProcVert.Normal;
 	Vert.TangentZ.Vector.W = ProcVert.Tangent.bFlipTangentY ? -127 : 127;

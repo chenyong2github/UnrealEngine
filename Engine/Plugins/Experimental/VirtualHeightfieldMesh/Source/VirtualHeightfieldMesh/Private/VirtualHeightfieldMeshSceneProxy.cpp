@@ -463,7 +463,7 @@ void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
 				UniformParams.PageTableSize = FVector4f(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
 
 				const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
-				UniformParams.PhysicalTextureSize = FVector2D(PhysicalTextureSize, 1.f / PhysicalTextureSize);
+				UniformParams.PhysicalTextureSize = FVector2f(PhysicalTextureSize, 1.f / PhysicalTextureSize);
 
 				UniformParams.VirtualHeightfieldToLocal = FMatrix44f(UVToLocal);
 				UniformParams.VirtualHeightfieldToWorld = FMatrix44f(UVToWorld);		// LWC_TODO: Precision loss

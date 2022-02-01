@@ -70,7 +70,7 @@ public:
 			for (const FRenderableLine& OverlayLine : Component->Lines)
 			{
 				const FVector LineDirection = (OverlayLine.End - OverlayLine.Start).GetSafeNormal();
-				const FVector2D UV(OverlayLine.Thickness, OverlayLine.DepthBias);
+				const FVector2f UV(OverlayLine.Thickness, OverlayLine.DepthBias);
 
 				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = OverlayLine.Start;
 				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = OverlayLine.End;

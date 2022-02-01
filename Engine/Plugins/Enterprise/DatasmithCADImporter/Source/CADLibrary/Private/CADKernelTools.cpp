@@ -212,7 +212,7 @@ namespace CADLibrary
 					for (int32 Index = 0; Index < TriangleCount; Index++)
 					{
 						const FVertexInstanceID VertexInstanceID = MeshVertexInstanceIDs[IndexFace + Index];
-						VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FaceMesh->UVMap[TriangleVertexIndices[IndexFace + Orientation[Index]]]);
+						VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FVector2f(FaceMesh->UVMap[TriangleVertexIndices[IndexFace + Orientation[Index]]]));
 
 						VertexInstanceColors[VertexInstanceID] = FLinearColor::White;
 						VertexInstanceTangents[VertexInstanceID] = FVector(ForceInitToZero);

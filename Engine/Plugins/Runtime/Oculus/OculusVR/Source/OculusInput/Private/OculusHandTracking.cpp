@@ -326,7 +326,7 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 		SoftVertex.TangentZ = FVector3f(Normal.x, Normal.z, Normal.y);
 		SoftVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
 		SoftVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);// SoftVertex.TangentZ^ SoftVertex.TangentX* SoftVertex.TangentZ.W;
-		SoftVertex.UVs[0] = FVector2D(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
+		SoftVertex.UVs[0] = FVector2f(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
 
 		// Update the Bounds
 		float VertexDistSq = SoftVertex.Position.SizeSquared();

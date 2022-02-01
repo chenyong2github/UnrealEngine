@@ -298,7 +298,7 @@ void FAppleARKitVideoOverlay::RenderVideoOverlayWithMaterial(FRHICommandListImme
 		{
 			const auto& Position = Positions[Index];
 			Vertices[Index].Position = Position;
-			Vertices[Index].UV = FVector2D(Position.X, Position.Y);
+			Vertices[Index].UV = FVector2f(Position.X, Position.Y);
 		}
 		
 		FRHIResourceCreateInfo CreateInfoVB(TEXT("VideoOverlayVertexBuffer"), &Vertices);

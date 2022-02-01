@@ -195,16 +195,16 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImme
 		Vertices.SetNumUninitialized(4);
 
 		Vertices[0].Position = FVector4f(0.f, 0.f, 0.f, 1.f);
-		Vertices[0].UV = FVector2D(0.f, 0.f);
+		Vertices[0].UV = FVector2f(0.f, 0.f);
 
 		Vertices[1].Position = FVector4f(1.f, 0.f, 0.f, 1.f);
-		Vertices[1].UV = FVector2D(1.f, 0.f);
+		Vertices[1].UV = FVector2f(1.f, 0.f);
 
 		Vertices[2].Position = FVector4f(0.f, 1.f, 0.f, 1.f);
-		Vertices[2].UV = FVector2D(0.f, 1.f);
+		Vertices[2].UV = FVector2f(0.f, 1.f);
 
 		Vertices[3].Position = FVector4f(1.f, 1.f, 0.f, 1.f);
-		Vertices[3].UV = FVector2D(1.f, 1.f);
+		Vertices[3].UV = FVector2f(1.f, 1.f);
 
 		FRHIResourceCreateInfo CreateInfoVB(TEXT("FARCameraSceneViewExtension"), &Vertices);
 		VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);

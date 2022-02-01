@@ -716,7 +716,7 @@ void SDataprepGraphTrackNode::OnStartNodeDrag(const TSharedRef<SDataprepGraphBas
 
 	const FGeometry& PanelGeometry = GetOwnerPanel()->GetTickSpaceGeometry();
 
-	const FVector2D PanelPosition = PanelGeometry.AbsolutePosition;
+	const FVector2f PanelPosition = PanelGeometry.AbsolutePosition;
 	const FVector2D PanelSize = PanelGeometry.GetLocalSize();
 	RECT Boundaries;
 	Boundaries.left = FMath::RoundToInt(PanelPosition.X);

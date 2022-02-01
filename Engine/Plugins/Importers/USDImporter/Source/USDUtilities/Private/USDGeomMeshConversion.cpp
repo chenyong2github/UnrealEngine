@@ -179,7 +179,7 @@ namespace UE
 
 								for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 								{
-									FVector2D TexCoord = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV( VertexIndex, TexCoordSourceIndex );
+									FVector2D TexCoord = FVector2D(LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV( VertexIndex, TexCoordSourceIndex ));
 									TexCoord[ 1 ] = 1.f - TexCoord[ 1 ];
 
 									UVs.push_back( UnrealToUsd::ConvertVector( TexCoord ) );
@@ -436,7 +436,7 @@ namespace UE
 
 							for ( const FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs() )
 							{
-								FVector2D UV = VertexInstanceUVs.Get( InstanceID, UVIndex );
+								FVector2D UV = FVector2D(VertexInstanceUVs.Get( InstanceID, UVIndex ));
 								UV[ 1 ] = 1.f - UV[ 1 ];
 								UVs.push_back( UnrealToUsd::ConvertVector( UV ) );
 							}
@@ -913,7 +913,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 					}
 
 					// Flip V for Unreal uv's which match directx
-					FVector2D FinalUVVector( UV[0], 1.f - UV[1] );
+					FVector2f FinalUVVector( UV[0], 1.f - UV[1] );
 					MeshDescriptionUVs.Set( AddedVertexInstanceId, UVSet.UVSetIndexUE, FinalUVVector );
 				}
 

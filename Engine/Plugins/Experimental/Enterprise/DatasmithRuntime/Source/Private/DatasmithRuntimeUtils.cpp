@@ -55,7 +55,7 @@ namespace DatasmithRuntime
 		for (; FirstEmptyUVs < NumberOfUVs; ++FirstEmptyUVs)
 		{
 			const TVertexInstanceAttributesConstRef<FVector2f> UVChannels = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
-			const FVector2D DefValue = UVChannels.GetDefaultValue();
+			const FVector2f DefValue = UVChannels.GetDefaultValue();
 			bool bHasNonDefaultValue = false;
 
 			for (FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs())

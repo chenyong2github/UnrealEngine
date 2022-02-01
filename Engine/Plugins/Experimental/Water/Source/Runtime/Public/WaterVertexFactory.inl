@@ -119,7 +119,7 @@ void TWaterVertexFactory<bWithWaterSelectionSupport>::SetupUniformDataForGroup(E
 	FWaterVertexFactoryParameters UniformParams;
 	UniformParams.NumQuadsPerTileSide = NumQuadsPerSide;
 	UniformParams.LODScale = LODScale;
-	UniformParams.MorphOrigin = MorphOrigin;
+	UniformParams.MorphOrigin = FVector2f(MorphOrigin);	// LWC_TODO: Precision loss
 	UniformParams.bRenderSelected = true;
 	UniformParams.bRenderUnselected = true;
 

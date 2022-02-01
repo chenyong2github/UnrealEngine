@@ -121,8 +121,8 @@ bool FOptimizeGeometryCachePreprocessor::AreIndexedVerticesEqual(int32 IndexBuff
 
 		if (BufferedFrames[Frame].MeshData.Positions.Num() == BufferedFrames[Frame].MeshData.TextureCoordinates.Num())
 		{
-			const FVector2D& UVA = BufferedFrames[Frame].MeshData.TextureCoordinates[VertexIndexA];
-			const FVector2D& UVB = BufferedFrames[Frame].MeshData.TextureCoordinates[VertexIndexB];
+			const FVector2f& UVA = BufferedFrames[Frame].MeshData.TextureCoordinates[VertexIndexA];
+			const FVector2f& UVB = BufferedFrames[Frame].MeshData.TextureCoordinates[VertexIndexB];
 
 			if (!UVsEqual(UVA, UVB))
 			{

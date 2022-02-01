@@ -122,8 +122,8 @@ public:
 						check(true);
 					}
 
-					const FVector2D& UVA = OriginalMeshData.TextureCoordinates[Index];
-					const FVector2D& UVB = DecodedMeshData.TextureCoordinates[Index];
+					const FVector2f& UVA = OriginalMeshData.TextureCoordinates[Index];
+					const FVector2f& UVB = DecodedMeshData.TextureCoordinates[Index];
 
 					if (!UVsEqual(UVA, UVB))
 					{

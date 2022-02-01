@@ -2293,10 +2293,11 @@ void UNiagaraDataInterfaceGrid2DCollection::GetWorldBBoxSize(FVectorVMExternalFu
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<FVector2f> OutWorldBounds(Context);
+	const FVector2f BBoxSize = FVector2f(InstData->WorldBBoxSize);	// LWC_TODO: Precision loss
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		OutWorldBounds.SetAndAdvance(InstData->WorldBBoxSize);
+		OutWorldBounds.SetAndAdvance(BBoxSize);
 	}
 }
 
@@ -2305,10 +2306,11 @@ void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMExternalFunctio
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<FVector2f> OutCellSize(Context);
+	const FVector2f CellSize = FVector2f(InstData->CellSize);	// LWC_TODO: Precision loss
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		OutCellSize.SetAndAdvance(InstData->CellSize);
+		OutCellSize.SetAndAdvance(CellSize);
 	}
 }
 

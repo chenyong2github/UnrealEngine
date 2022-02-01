@@ -2861,7 +2861,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 	IDsCopy.SetNumUninitialized(3);
 	TArray<FVector> QuadNormals;
 	QuadNormals.SetNumZeroed(4);
-	TArray<FVector2D> QuadUVs;
+	TArray<FVector2f> QuadUVs;
 	QuadUVs.SetNumZeroed(4);
 
 	// Used to check for degenerate triangles
@@ -2947,7 +2947,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 			for (int32 VertexIndex = 0; VertexIndex < 4; ++VertexIndex)
 			{
 				melange::Vector& PointUVs = UVs[VertexIndex];
-				FVector2D& UnrealUVs = QuadUVs[VertexIndex];
+				FVector2f& UnrealUVs = QuadUVs[VertexIndex];
 
 				if (PointUVs.z != 0.0f && PointUVs.z != 1.0f)
 				{

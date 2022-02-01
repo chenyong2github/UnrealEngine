@@ -325,7 +325,7 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 		const FVector Normal = VertexNormals[InstanceID];
 		const FVector Tangent = VertexTangents[InstanceID];
 
-		Data->AddVertex({ Extrude - Position.X, Position.Y, Position.Z }, { -Tangent.X, Tangent.Y, Tangent.Z }, { -Normal.X, Normal.Y, Normal.Z }, VertexUVs[InstanceID]);
+		Data->AddVertex({ Extrude - Position.X, Position.Y, Position.Z }, { -Tangent.X, Tangent.Y, Tangent.Z }, { -Normal.X, Normal.Y, Normal.Z }, FVector2D(VertexUVs[InstanceID]));
 	}
 
 	Data->AddTriangles(TrianglesInNum);

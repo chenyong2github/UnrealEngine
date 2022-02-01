@@ -642,7 +642,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMExternalFunctionCon
 				const int32 Vert = FMath::Clamp(VertParam.GetAndAdvance(), 0, VertMax);
 				const int32 UVSet = UVSetParam.GetAndAdvance();
 				const FVector2D UV = VertAccessor.GetVertexUV(LODData, Vert, UVSet);
-				OutUV.SetAndAdvance(UV);
+				OutUV.SetAndAdvance(FVector2f(UV));	// LWC_TODO: Precision loss
 			}
 			// We are done
 			return;

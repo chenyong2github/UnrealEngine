@@ -1748,7 +1748,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 					{
 						FVector2D UVValues(AlUVs[2 * Triangles[TIndex] + 0], AlUVs[2 * Triangles[TIndex] + 1]);
 						UVBBox += FVector(UVValues, 0.0f);
-						VertexInstanceUVs.Set(CornerVertexInstanceIDs[VertexIndex], 0, UVValues);
+						VertexInstanceUVs.Set(CornerVertexInstanceIDs[VertexIndex], 0, FVector2f(UVValues));
 					}
 				}
 
@@ -1790,7 +1790,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 					{
 						FVector2D UVValues(AlUVs[2 * Triangles[VertexIndex] + 0], AlUVs[2 * Triangles[VertexIndex] + 1]);
 						UVBBox += FVector(UVValues, 0.0f);
-						VertexInstanceUVs.Set(CornerVertexInstanceIDs[VertexIndex], 0, UVValues);
+						VertexInstanceUVs.Set(CornerVertexInstanceIDs[VertexIndex], 0, FVector2f(UVValues));
 					}
 				}
 

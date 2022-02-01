@@ -113,9 +113,9 @@ void SetupPathTracingLightParameters(
 		DestLight.Normal = Light.Direction;
 		DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
 		DestLight.dPdv = Light.Tangent;
-		DestLight.Color = FVector(Light.Color);
-		DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
-		DestLight.Shaping = Light.SpotAngles;
+		DestLight.Color = FVector3f(Light.Color);
+		DestLight.Dimensions = FVector3f(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
+		DestLight.Shaping = FVector2f(Light.SpotAngles);
 		DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
 		DestLight.FalloffExponent = Light.FalloffExponent;
 
@@ -167,11 +167,11 @@ void SetupPathTracingLightParameters(
 
 		FLinearColor LightColor = Light.Color;
 		LightColor /= 0.5f * Light.SourceWidth * Light.SourceHeight;
-		DestLight.Color = FVector(LightColor);
+		DestLight.Color = FVector3f(LightColor);
 
-		DestLight.Dimensions = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
+		DestLight.Dimensions = FVector3f(Light.SourceWidth, Light.SourceHeight, 0.0f);
 		DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-		DestLight.Shaping = FVector2D(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
+		DestLight.Shaping = FVector2f(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
 
 		if (Light.IESTexture)
 		{

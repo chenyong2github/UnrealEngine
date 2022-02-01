@@ -324,7 +324,7 @@ struct FGeomFlatUVMesh
 
 	inline FVector3d GetVertex(int32 VID) const
 	{
-		const FVector2D& UV = Collection->UVs[VID][UVLayer];
+		const FVector2f& UV = Collection->UVs[VID][UVLayer];
 		return FVector3d(UV.X, UV.Y, 0);
 	}
 

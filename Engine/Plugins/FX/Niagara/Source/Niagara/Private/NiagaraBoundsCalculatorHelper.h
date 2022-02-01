@@ -91,7 +91,7 @@ public:
 
 			if (SpriteSizeAccessor.IsValid())
 			{
-				const FVector2D MaxSpriteSize2D = SpriteSizeAccessor.GetReader(DataSet).GetMax();
+				const FVector2f MaxSpriteSize2D = SpriteSizeAccessor.GetReader(DataSet).GetMax();
 				MaxSpriteSize = FMath::Max(MaxSpriteSize2D.X, MaxSpriteSize2D.Y);
 			}
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxSpriteSize) ? 1.0f : MaxSpriteSize);

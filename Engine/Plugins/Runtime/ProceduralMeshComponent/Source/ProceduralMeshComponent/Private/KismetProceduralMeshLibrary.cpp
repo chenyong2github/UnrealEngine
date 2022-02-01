@@ -433,7 +433,7 @@ static int32 GetNewIndexForOldVertIndex(int32 MeshVertIndex, TMap<int32, int32>&
 		check(Normals.Num() == Vertices.Num());
 
 		// Copy UVs
-		UVs.Add(VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(MeshVertIndex, 0));
+		UVs.Add(FVector2D(VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(MeshVertIndex, 0)));
 		check(UVs.Num() == Vertices.Num());
 
 		// Copy tangents

@@ -210,15 +210,15 @@ namespace LedWallCalibration
 			// Now we just need to find the 4th vertex/uv. 
 			// In this algorithm, we assume they are rectangular. So it is a matter of adding the 2 vectors.
 
-			const float DistanceUV01 = FVector2D::Distance(WallPanel.UVs[0], WallPanel.UVs[1]);
-			const float DistanceUV02 = FVector2D::Distance(WallPanel.UVs[0], WallPanel.UVs[2]);
-			const float DistanceUV12 = FVector2D::Distance(WallPanel.UVs[1], WallPanel.UVs[2]);
+			const float DistanceUV01 = FVector2f::Distance(WallPanel.UVs[0], WallPanel.UVs[1]);
+			const float DistanceUV02 = FVector2f::Distance(WallPanel.UVs[0], WallPanel.UVs[2]);
+			const float DistanceUV12 = FVector2f::Distance(WallPanel.UVs[1], WallPanel.UVs[2]);
 
 			const float DistanceMax = FMath::Max(DistanceUV01, FMath::Max(DistanceUV02, DistanceUV12));
 
 			if (FMath::IsNearlyEqual(DistanceMax, DistanceUV01))
 			{
-				const FVector2D& OriginUV = WallPanel.UVs[2];
+				const FVector2f& OriginUV = WallPanel.UVs[2];
 				const FVector& Origin3d = WallPanel.Vertices[2];
 
 				WallPanel.UVs[3] = OriginUV + (WallPanel.UVs[0] - OriginUV) + (WallPanel.UVs[1] - OriginUV);
@@ -226,7 +226,7 @@ namespace LedWallCalibration
 			}
 			else if (FMath::IsNearlyEqual(DistanceMax, DistanceUV02))
 			{
-				const FVector2D& OriginUV = WallPanel.UVs[1];
+				const FVector2f& OriginUV = WallPanel.UVs[1];
 				const FVector& Origin3d = WallPanel.Vertices[1];
 
 				WallPanel.UVs[3] = OriginUV + (WallPanel.UVs[0] - OriginUV) + (WallPanel.UVs[2] - OriginUV);
@@ -234,7 +234,7 @@ namespace LedWallCalibration
 			}
 			else
 			{
-				const FVector2D& OriginUV = WallPanel.UVs[0];
+				const FVector2f& OriginUV = WallPanel.UVs[0];
 				const FVector& Origin3d = WallPanel.Vertices[0];
 
 				WallPanel.UVs[3] = OriginUV + (WallPanel.UVs[1] - OriginUV) + (WallPanel.UVs[2] - OriginUV);
