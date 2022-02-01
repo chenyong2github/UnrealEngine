@@ -309,58 +309,58 @@ namespace DatasmithRuntime
 				ChildActorComponent = CreateComponent< UChildActorComponent >(ActorData, ParentActor);
 
 				ChildActorComponent->SetChildActorClass( TSubclassOf< AActor > ( LightShapeBlueprint->GeneratedClass ) );
-				ChildActorComponent->CreateChildActor();
 			}
 
-			ADatasmithAreaLightActor* LightShapeActor = Cast< ADatasmithAreaLightActor >( ChildActorComponent->GetChildActor() );
+			ChildActorComponent->DestroyChildActor();
 
-			if ( LightShapeActor )
+			auto LightShapeCustomizer = [AreaLightElement](AActor* Actor)
+			{
+				if (ADatasmithAreaLightActor* LightShapeActor = Cast<ADatasmithAreaLightActor>(Actor))
+				{
+					LightShapeActor->LightType = GetLightActorTypeForLightType( AreaLightElement->GetLightType() );
+					LightShapeActor->LightShape = (EDatasmithAreaLightActorShape)AreaLightElement->GetLightShape();
+					LightShapeActor->Dimensions = FVector2D( AreaLightElement->GetLength(), AreaLightElement->GetWidth() );
+					LightShapeActor->Color = AreaLightElement->GetColor();
+					LightShapeActor->Intensity = AreaLightElement->GetIntensity();
+					LightShapeActor->IntensityUnits = (ELightUnits)AreaLightElement->GetIntensityUnits();
+
+					if ( AreaLightElement->GetUseTemperature() )
+					{
+						LightShapeActor->Temperature = AreaLightElement->GetTemperature();
+					}
+
+					if ( AreaLightElement->GetUseIes() )
+					{
+						LightShapeActor->bUseIESBrightness = AreaLightElement->GetUseIesBrightness();
+						LightShapeActor->IESBrightnessScale = AreaLightElement->GetIesBrightnessScale();
+						LightShapeActor->Rotation = AreaLightElement->GetIesRotation().Rotator();
+					}
+
+					if ( AreaLightElement->GetSourceRadius() > 0.f )
+					{
+						LightShapeActor->SourceRadius = AreaLightElement->GetSourceRadius();
+					}
+
+					if ( AreaLightElement->GetSourceLength() > 0.f )
+					{
+						LightShapeActor->SourceLength = AreaLightElement->GetSourceLength();
+					}
+
+					if ( AreaLightElement->GetAttenuationRadius() > 0.f )
+					{
+						LightShapeActor->AttenuationRadius = AreaLightElement->GetAttenuationRadius();
+					}
+				}
+			};
+
+			ChildActorComponent->CreateChildActor(MoveTemp(LightShapeCustomizer));
+
+			if (ADatasmithAreaLightActor* LightShapeActor = Cast<ADatasmithAreaLightActor>(ChildActorComponent->GetChildActor()))
 			{
 				RenameObject(LightShapeActor, AreaLightElement->GetName());
 #if WITH_EDITOR
-				LightShapeActor->SetActorLabel( AreaLightElement->GetLabel() );
+				LightShapeActor->SetActorLabel(AreaLightElement->GetLabel());
 #endif
-
-				LightShapeActor->UnregisterAllComponents( true );
-
-				LightShapeActor->LightType = GetLightActorTypeForLightType( AreaLightElement->GetLightType() );
-				LightShapeActor->LightShape = (EDatasmithAreaLightActorShape)AreaLightElement->GetLightShape();
-				LightShapeActor->Dimensions = FVector2D( AreaLightElement->GetLength(), AreaLightElement->GetWidth() );
-				LightShapeActor->Color = AreaLightElement->GetColor();
-				LightShapeActor->Intensity = AreaLightElement->GetIntensity();
-				LightShapeActor->IntensityUnits = (ELightUnits)AreaLightElement->GetIntensityUnits();
-
-				if ( AreaLightElement->GetUseTemperature() )
-				{
-					LightShapeActor->Temperature = AreaLightElement->GetTemperature();
-				}
-
-				if ( AreaLightElement->GetUseIes() )
-				{
-					LightShapeActor->bUseIESBrightness = AreaLightElement->GetUseIesBrightness();
-					LightShapeActor->IESBrightnessScale = AreaLightElement->GetIesBrightnessScale();
-					LightShapeActor->Rotation = AreaLightElement->GetIesRotation().Rotator();
-				}
-
-				if ( AreaLightElement->GetSourceRadius() > 0.f )
-				{
-					LightShapeActor->SourceRadius = AreaLightElement->GetSourceRadius();
-				}
-
-				if ( AreaLightElement->GetSourceLength() > 0.f )
-				{
-					LightShapeActor->SourceLength = AreaLightElement->GetSourceLength();
-				}
-
-				if ( AreaLightElement->GetAttenuationRadius() > 0.f )
-				{
-					LightShapeActor->AttenuationRadius = AreaLightElement->GetAttenuationRadius();
-				}
-
-				LightShapeActor->RegisterAllComponents();
-
-				LightShapeActor->RerunConstructionScripts();
-
 				return ChildActorComponent;
 			}
 		}

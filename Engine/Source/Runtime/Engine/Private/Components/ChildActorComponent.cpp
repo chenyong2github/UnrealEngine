@@ -592,7 +592,7 @@ bool UChildActorComponent::IsChildActorReplicated() const
 	return (bChildActorClassReplicated || bChildActorTemplateReplicated);
 }
 
-void UChildActorComponent::CreateChildActor()
+void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerFunc)
 {
 	AActor* MyOwner = GetOwner();
 
@@ -680,6 +680,11 @@ void UChildActorComponent::CreateChildActor()
 					}
 
 					ChildActorName = ChildActor->GetFName();
+
+					if (CustomizerFunc)
+					{
+						CustomizerFunc(ChildActor);
+					}
 
 					// Parts that we deferred from SpawnActor
 					const FComponentInstanceDataCache* ComponentInstanceData = (CachedInstanceData ? CachedInstanceData->ComponentInstanceData.Get() : nullptr);

@@ -174,7 +174,7 @@ public:
 	void ApplyComponentInstanceData(FChildActorComponentInstanceData* ComponentInstanceData, const ECacheApplyPhase CacheApplyPhase);
 
 	/** Create the child actor */
-	virtual void CreateChildActor();
+	virtual void CreateChildActor(TFunction<void(AActor*)> CustomizerFunc = nullptr);
 
 	AActor* GetChildActor() const { return ChildActor; }
 	AActor* GetChildActorTemplate() const { return ChildActorTemplate; }
