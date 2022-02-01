@@ -285,17 +285,17 @@ TArray<UObject*> UAlembicImportFactory::ImportSkeletalMesh(FAbcImporter& Importe
 			
 		if (SkeletalMesh)
 		{
-		// Setup asset import data
-		if (!SkeletalMesh->GetAssetImportData() || !SkeletalMesh->GetAssetImportData()->IsA<UAbcAssetImportData>())
-		{
-			SkeletalMesh->SetAssetImportData(NewObject<UAbcAssetImportData>(SkeletalMesh));
-		}
-		SkeletalMesh->GetAssetImportData()->Update(UFactory::CurrentFilename);
-		UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(SkeletalMesh->GetAssetImportData());
-		if (AssetImportData)
-		{
-			Importer.UpdateAssetImportData(AssetImportData);
-		}
+			// Setup asset import data
+			if (!SkeletalMesh->GetAssetImportData() || !SkeletalMesh->GetAssetImportData()->IsA<UAbcAssetImportData>())
+			{
+				SkeletalMesh->SetAssetImportData(NewObject<UAbcAssetImportData>(SkeletalMesh));
+			}
+			SkeletalMesh->GetAssetImportData()->Update(UFactory::CurrentFilename);
+			UAbcAssetImportData* AssetImportData = Cast<UAbcAssetImportData>(SkeletalMesh->GetAssetImportData());
+			if (AssetImportData)
+			{
+				Importer.UpdateAssetImportData(AssetImportData);
+			}
 		}
 
 		UAnimSequence* AnimSequence = [&GeneratedObjects]()
@@ -654,12 +654,12 @@ EReimportResult::Type UAlembicImportFactory::ReimportSkeletalMesh(USkeletalMesh*
 	if (bShowOption)
 	{
 		TSharedPtr<SAlembicImportOptions> Options;
-	ShowImportOptionsWindow(Options, CurrentFilename, Importer);
+		ShowImportOptionsWindow(Options, CurrentFilename, Importer);
 
-	if (!Options->ShouldImport())
-	{
-		return EReimportResult::Cancelled;
-	}
+		if (!Options->ShouldImport())
+		{
+			return EReimportResult::Cancelled;
+		}
 	}
 
 	int32 NumThreads = 1;
@@ -736,6 +736,11 @@ EReimportResult::Type UAlembicImportFactory::ReimportSkeletalMesh(USkeletalMesh*
 void UAlembicImportFactory::PopulateOptionsWithImportData(UAbcAssetImportData* ImportData)
 {
 	ImportSettings->SamplingSettings = ImportData->SamplingSettings;
+	ImportSettings->NormalGenerationSettings = ImportData->NormalGenerationSettings;
+	ImportSettings->CompressionSettings = ImportData->CompressionSettings;
+	ImportSettings->StaticMeshSettings = ImportData->StaticMeshSettings;
+	ImportSettings->GeometryCacheSettings = ImportData->GeometryCacheSettings;
+	ImportSettings->ConversionSettings = ImportData->ConversionSettings;
 }
 
 EReimportResult::Type UAlembicImportFactory::ReimportStaticMesh(UStaticMesh* Mesh)

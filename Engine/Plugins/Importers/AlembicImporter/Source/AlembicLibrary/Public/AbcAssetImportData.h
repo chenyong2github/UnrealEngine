@@ -21,4 +21,22 @@ public:
 
 	UPROPERTY()
 	FAbcSamplingSettings SamplingSettings;
+
+	UPROPERTY()
+	FAbcNormalGenerationSettings NormalGenerationSettings;
+
+	UPROPERTY()
+	FAbcMaterialSettings MaterialSettings;
+
+	UPROPERTY()
+	FAbcCompressionSettings CompressionSettings;
+
+	UPROPERTY()
+	FAbcStaticMeshSettings StaticMeshSettings;
+
+	UPROPERTY()
+	FAbcGeometryCacheSettings GeometryCacheSettings;
+
+	UPROPERTY()
+	FAbcConversionSettings ConversionSettings;
 };

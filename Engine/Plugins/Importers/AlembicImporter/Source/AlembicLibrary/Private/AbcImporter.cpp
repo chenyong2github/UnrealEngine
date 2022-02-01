@@ -87,6 +87,11 @@ void FAbcImporter::UpdateAssetImportData(UAbcAssetImportData* AssetImportData)
 	}
 
 	AssetImportData->SamplingSettings = ImportSettings->SamplingSettings;
+	AssetImportData->NormalGenerationSettings = ImportSettings->NormalGenerationSettings;
+	AssetImportData->CompressionSettings = ImportSettings->CompressionSettings;
+	AssetImportData->StaticMeshSettings = ImportSettings->StaticMeshSettings;
+	AssetImportData->GeometryCacheSettings = ImportSettings->GeometryCacheSettings;
+	AssetImportData->ConversionSettings = ImportSettings->ConversionSettings;
 }
 
 void FAbcImporter::RetrieveAssetImportData(UAbcAssetImportData* AssetImportData)
