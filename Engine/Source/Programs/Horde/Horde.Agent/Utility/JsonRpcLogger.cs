@@ -215,7 +215,7 @@ namespace HordeAgent.Parser
 					{
 						if (Data.Event != null)
 						{
-							if ((Data.Event.Severity == EventSeverity.Warning && ++NumWarnings < MaxWarnings) || (Data.Event.Severity == EventSeverity.Error && ++NumErrors < MaxErrors))
+							if ((Data.Event.Severity == EventSeverity.Warning && ++NumWarnings <= MaxWarnings) || (Data.Event.Severity == EventSeverity.Error && ++NumErrors <= MaxErrors))
 							{
 								Data.Event.LineIndex = LineIndex;
 								Events.Add(Data.Event);
