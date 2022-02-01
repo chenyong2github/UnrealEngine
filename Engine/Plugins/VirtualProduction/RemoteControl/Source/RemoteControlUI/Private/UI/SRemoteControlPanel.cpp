@@ -499,7 +499,6 @@ void SRemoteControlPanel::ToggleProperty(const FRCExposesPropertyArgs& InPropert
 
 	auto PostExpose = [this, InPropertyArgs]()
 	{
-		Refresh();
 		CachedExposedPropertyArgs.Emplace(InPropertyArgs);
 	};
 
