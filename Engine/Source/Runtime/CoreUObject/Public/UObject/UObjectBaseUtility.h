@@ -686,7 +686,6 @@ public:
 
 	/**
 	 * Returns whether this component was instanced from a component/subobject template, or if it is a component/subobject template.
-	 * This is based on a name comparison with the outer class instance lookup table
 	 *
 	 * @return	true if this component was instanced from a template.  false if this component was created manually at runtime.
 	 */
