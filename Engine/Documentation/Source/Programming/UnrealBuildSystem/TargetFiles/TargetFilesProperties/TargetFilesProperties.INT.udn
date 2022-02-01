@@ -18,6 +18,8 @@ $ Version (ReadOnlyBuildVersion): The current build version
 
 $ NameSuffix (String): Optional suffix to append to Name
 
+$ bIncludeAllTests (Boolean): Decides whether to compile with all the "Tests" folders from all dependent modules.
+
 $ HostPlatform (UnrealTargetPlatform): Gets the host platform being built on
 
 $ bGenerateProjectFiles (Boolean): Expose the bGenerateProjectFiles flag to targets, so we can modify behavior as appropriate for better intellisense
