@@ -392,7 +392,7 @@ public:
 	FORCEINLINE const UGeometryCollection* GetRestCollection() const { return RestCollection; }
 	FORCEINLINE FGeometryCollectionEdit EditRestCollection(GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics, bool bShapeIsUnchanged = false) { return FGeometryCollectionEdit(this, EditUpdate, bShapeIsUnchanged); }
 #if WITH_EDITOR
-	FORCEINLINE FScopedColorEdit EditBoneSelection() { return FScopedColorEdit(this); }
+	FORCEINLINE FScopedColorEdit EditBoneSelection(bool bForceUpdate = false) { return FScopedColorEdit(this, bForceUpdate); }
 
 	/** Propagate bone selection to embedded geometry components. */
 	void SelectEmbeddedGeometry();

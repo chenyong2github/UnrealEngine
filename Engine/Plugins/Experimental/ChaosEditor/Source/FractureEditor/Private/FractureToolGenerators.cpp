@@ -450,7 +450,7 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 		
 		GeometryCollectionComponent->InitializeEmbeddedGeometry();
 		
-		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection(true);
 		EditBoneColor.ResetBoneSelection();
 		EditBoneColor.ResetHighlightedBones();
 	}
