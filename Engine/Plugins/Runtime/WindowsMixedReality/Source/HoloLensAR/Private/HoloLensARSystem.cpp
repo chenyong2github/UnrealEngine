@@ -53,9 +53,9 @@ struct FMeshUpdate
 
 	// These will use MoveTemp to avoid another copy
 	// The interop fills these in directly
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	TArray<MRMESH_INDEX_TYPE> Indices;
-	TArray<FVector> Normals;
+	TArray<FVector3f> Normals;
 
 	bool bIsRightHandMesh;
 };
@@ -1487,8 +1487,16 @@ bool FHoloLensARSystem::GetHandMeshData(EControllerHand Hand, TArray<FVector>& O
 	OutVertices.AddUninitialized(HandState.Vertices.Num());
 	OutNormals.AddUninitialized(HandState.Normals.Num());
 
-	OutVertices = CopyTemp(HandState.Vertices);
-	OutNormals = CopyTemp(HandState.Normals);
+	const int Num = HandState.Vertices.Num();
+	for (int i = 0; i < Num; i++)
+	{
+		OutVertices[i] = HandState.Vertices[i];
+	}
+	const int Num2 = HandState.Normals.Num();
+	for (int i = 0; i < Num2; i++)
+	{
+		OutNormals[i] = HandState.Normals[i];
+	}	
 
 	auto DestIndices = OutIndices.GetData();
 	for (size_t i = 0; i < HandState.Indices.Num(); i++)

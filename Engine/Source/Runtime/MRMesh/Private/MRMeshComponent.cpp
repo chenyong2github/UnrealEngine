@@ -979,11 +979,51 @@ struct FMeshArrayHolder :
 	TArray<FPackedNormal> BogusTangents;
 	TArray<FColor> BogusColors;
 
+	FMeshArrayHolder(TArray<FVector3f>& InVertices, TArray<MRMESH_INDEX_TYPE>& InIndices, TArray<FVector2D>& UVData, TArray<FPackedNormal>& TangentXZData, TArray<FColor>& ColorData)
+		: Indices(MoveTemp(InIndices))
+	{
+		const int32 CurrentNumVertices = InVertices.Num();
+
+		// This constructor is a bit slower because it has to copy the vertices one by one to convert them from float to double.
+		Vertices.AddUninitialized(CurrentNumVertices);
+		for (int i = 0; i < CurrentNumVertices; i++)
+		{
+			Vertices[i] = InVertices[i];
+		}
+
+		if (UVData.Num() == CurrentNumVertices)
+		{
+			BogusUVs = MoveTemp(UVData);
+		}
+		else
+		{
+			BogusUVs.AddZeroed(CurrentNumVertices);
+		}
+
+		if (ColorData.Num() == CurrentNumVertices)
+		{
+			BogusColors = MoveTemp(ColorData);
+		}
+		else
+		{
+			BogusColors.AddZeroed(CurrentNumVertices);
+		}
+
+		if (TangentXZData.Num() == CurrentNumVertices * 2)
+		{
+			BogusTangents = MoveTemp(TangentXZData);
+		}
+		else
+		{
+			BogusTangents.AddZeroed(CurrentNumVertices * 2);
+		}
+	}
+
 	FMeshArrayHolder(TArray<FVector>& InVertices, TArray<MRMESH_INDEX_TYPE>& InIndices, TArray<FVector2D>& UVData, TArray<FPackedNormal>& TangentXZData, TArray<FColor>& ColorData)
 		: Vertices(MoveTemp(InVertices))
 		, Indices(MoveTemp(InIndices))
 	{
-		int32 CurrentNumVertices = Vertices.Num();
+		const int32 CurrentNumVertices = Vertices.Num();
 		
 		if (UVData.Num() == CurrentNumVertices)
 		{
@@ -1013,6 +1053,38 @@ struct FMeshArrayHolder :
 		}
 	}
 };
+
+void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector3f>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData, TArray<FPackedNormal> TangentXZData, TArray<FColor> ColorData)
+{
+	SetRelativeLocationAndRotation(InLocation, InRotation);
+	SetRelativeScale3D(Scale);
+
+	// Create our struct that will hold the data until the render thread is done with it
+	TSharedPtr<FMeshArrayHolder, ESPMode::ThreadSafe> MeshHolder = MakeShared<FMeshArrayHolder>(Vertices, Indices, UVData, TangentXZData, ColorData);
+	// NOTE: Indices are empty due to MoveTemp()!!!
+	 
+	// Set a valid bounding box so meshes get correctly culled.
+	FBox bounds = FBox(ForceInit);
+	const int Num = Vertices.Num();
+	for (int i = 0; i < Num; i++)
+	{
+		bounds += Vertices[i];
+	}
+	bounds = bounds.TransformBy(FTransform(InRotation.Rotator(), InLocation, Scale));
+
+	SendBrickData_Internal(IMRMesh::FSendBrickDataArgs
+		{
+			MeshHolder,
+			0,
+			MeshHolder->Vertices,
+			MeshHolder->BogusUVs,
+			MeshHolder->BogusTangents,
+			MeshHolder->BogusColors,
+			MeshHolder->Indices,
+			bounds
+		}
+	);
+}
 
 void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData, TArray<FPackedNormal> TangentXZData, TArray<FColor> ColorData)
 {
