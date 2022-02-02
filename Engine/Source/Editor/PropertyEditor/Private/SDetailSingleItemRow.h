@@ -79,8 +79,10 @@ private:
 
 	void CreateGlobalExtensionWidgets(TArray<FPropertyRowExtensionButton>& ExtensionButtons) const;
 	void PopulateExtensionWidget();
+
+	void UpdateResetToDefault();
 	void OnResetToDefaultClicked() const;
-	bool IsResetToDefaultEnabled() const;
+	bool IsResetToDefaultVisible() const;
 
 	bool IsHighlighted() const;
 
@@ -111,13 +113,12 @@ private:
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
-	bool UpdateResetToDefault();
 private:
 	/** Customization for this widget */
 	FDetailLayoutCustomization* Customization;
 	FDetailWidgetRow WidgetRow;
 	bool bAllowFavoriteSystem;
-	bool bCachedResetToDefaultEnabled;
+	bool bCachedResetToDefaultVisible;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
 	TSharedPtr<SButton> ExpanderArrow;
 	TWeakPtr<FDragDropOperation> DragOperation; // last drag initiated by this widget

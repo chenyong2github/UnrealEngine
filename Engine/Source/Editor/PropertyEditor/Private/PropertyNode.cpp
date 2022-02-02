@@ -2014,7 +2014,7 @@ bool FPropertyNode::GetDiffersFromDefault()
 		}
 
 		FObjectPropertyNode* ObjectNode = FindObjectItemParent();
-		if (ObjectNode && Property.IsValid() && !IsEditConst())
+		if (ObjectNode && Property.IsValid())
 		{
 			// Get an iterator for the enclosing objects.
 			for(int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
