@@ -1055,6 +1055,47 @@ bool CopyHulls(
 	return true;
 }
 
+// helper to compute the volume of an individual piece of geometry
+double ComputeGeometryVolume(
+	const FGeometryCollection* Collection,
+	int32 GeometryIdx,
+	const FTransform& GlobalTransform,
+	double ScalePerDimension
+)
+{
+	int32 VStart = Collection->VertexStart[GeometryIdx];
+	int32 VEnd = VStart + Collection->VertexCount[GeometryIdx];
+	if (VStart == VEnd)
+	{
+		return 0.0;
+	}
+	FVector3d Center = FVector::ZeroVector;
+	for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
+	{
+		FVector Pos = GlobalTransform.TransformPosition(Collection->Vertex[VIdx]);
+		Center += (FVector3d)Pos;
+	}
+	Center /= double(VEnd - VStart);
+	int32 FStart = Collection->FaceStart[GeometryIdx];
+	int32 FEnd = FStart + Collection->FaceCount[GeometryIdx];
+	double VolOut = 0;
+	for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
+	{
+		FIntVector Tri = Collection->Indices[FIdx];
+		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.X]);
+		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.Y]);
+		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.Z]);
+
+		// add volume of the tetrahedron formed by the triangles and the reference point
+		FVector3d V1mRef = (V1 - Center) * ScalePerDimension;
+		FVector3d V2mRef = (V2 - Center) * ScalePerDimension;
+		FVector3d N = V2mRef.Cross(V1mRef);
+
+		VolOut += ((V0 - Center) * ScalePerDimension).Dot(N) / 6.0;
+	}
+	return VolOut;
+}
+
 
 }
 
@@ -1073,6 +1114,8 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 		FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
 		ProximityUtility.UpdateProximity();
 	}
+	SetVolumeAttributes(GeometryCollection);
+
 	const TManagedArray<TSet<int32>>* GCProximity = GeometryCollection->FindAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	const TManagedArray<float>* Volume = GeometryCollection->FindAttribute<float>("Volume", FGeometryCollection::TransformGroup);
 	TArray<TUniquePtr<Chaos::FConvex>> Convexes;
@@ -1339,6 +1382,58 @@ void FGeometryCollectionConvexUtility::CopyChildConvexes(const FGeometryCollecti
 	for (int32 i = 0; i < ConvexToAdd.Num(); i++)
 	{
 		OutConvex->ConvexHull[NewNumConvex + i] = MoveTemp(ConvexToAdd[i]);
+	}
+}
+
+void FGeometryCollectionConvexUtility::SetVolumeAttributes(FGeometryCollection* Collection)
+{
+	if (!Collection->HasAttribute("Volume", FGeometryCollection::TransformGroup))
+	{
+		Collection->AddAttribute<float>("Volume", FGeometryCollection::TransformGroup);
+	}
+	if (!Collection->HasAttribute("Size", FGeometryCollection::TransformGroup))
+	{
+		Collection->AddAttribute<float>("Size", FGeometryCollection::TransformGroup);
+	}
+	TManagedArray<float>& Volumes = Collection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
+	TManagedArray<float>& Sizes = Collection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
+
+	const TManagedArray<int32>& SimulationType = Collection->SimulationType;
+	const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
+	const TManagedArray<int32>& Parent = Collection->Parent;
+
+	TArray<FTransform> Transforms;
+	GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, Transforms);
+	TArray<int32> RecursiveOrder = GeometryCollectionAlgo::ComputeRecursiveOrder(*Collection);
+	float MaxGeoVolume = 0.0f;
+	for (int32 Bone : RecursiveOrder)
+	{
+		if (SimulationType[Bone] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+		{
+			int32 GeoIdx = TransformToGeometryIndex[Bone];
+			if (GeoIdx == INDEX_NONE)
+			{
+				Volumes[Bone] = 0.0f;
+				continue;
+			}
+			else
+			{
+				float GeoVolume = (float)ComputeGeometryVolume(Collection, GeoIdx, Transforms[Bone], 1.0);
+				MaxGeoVolume = FMath::Max(MaxGeoVolume, GeoVolume);
+				Volumes[Bone] = GeoVolume;
+			}
+		}
+		int32 ParentIdx = Parent[Bone];
+		if (ParentIdx != INDEX_NONE)
+		{
+			Volumes[ParentIdx] += Volumes[Bone];
+		}
+	}
+	float SizeScaleFactor = MaxGeoVolume > 0 ? (1.0f / FGenericPlatformMath::Pow(MaxGeoVolume, (1.0f / 3.0f))) : 1.0f;
+	for (int32 BoneIdx = 0; BoneIdx < Volumes.Num(); BoneIdx++)
+	{
+		float Rt3Volume = FGenericPlatformMath::Pow(Volumes[BoneIdx], 1.0f / 3.0f);
+		Sizes[BoneIdx] = Rt3Volume * SizeScaleFactor;
 	}
 }
 

@@ -36,6 +36,7 @@
 
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 #include "Styling/AppStyle.h"
 #include "EditorStyleSet.h"
@@ -1486,128 +1487,20 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 		if (RestCollection && IsValidChecked(RestCollection))
 		{
 			FGeometryCollectionPtr GeometryCollection = RestCollection->GetGeometryCollection();
-
 			if (!GeometryCollection->HasAttribute("Volume", FTransformCollection::TransformGroup))
 			{
-				GeometryCollection->AddAttribute<float>("Volume", FTransformCollection::TransformGroup);
+				// Note: SetVolumeAttributes (below) will add the attribute as needed
 				UE_LOG(LogFractureTool, Warning, TEXT("Added Volume attribute to GeometryCollection."));
 			}
 
-			TArray<FTransform> Transform;
-			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, Transform);
-
-			const TManagedArray<FVector3f>& Vertex = GeometryCollection->Vertex;
-			const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
-
-			Chaos::TParticles<Chaos::FReal, 3> MassSpaceParticles;
-			MassSpaceParticles.AddParticles(Vertex.Num());
-			for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
-			{
-				MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
-			}
-
-			// recalculate mass recursively from root nodes
-			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
-			for (int32 Idx = 0; Idx < Parent.Num(); ++Idx)
-			{
-				if (Parent[Idx] == INDEX_NONE)
-				{
-					UpdateVolumes(GeometryCollection, MassSpaceParticles, Idx);
-				}
-			}
-
-			// Normalize Size
-			if (!GeometryCollection->HasAttribute("Size", FTransformCollection::TransformGroup))
-			{
-				GeometryCollection->AddAttribute<float>("Size", FTransformCollection::TransformGroup);
-				UE_LOG(LogFractureTool, Warning, TEXT("Added Size attribute to GeometryCollection."));
-			}
-			TManagedArray<float>& Size = GeometryCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
-			const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
-			float MaxSize = 0.0f;
-			for (int32 Idx = 0; Idx < Size.Num(); ++Idx)
-			{
-				// We use cube root because it's a more manageable way to look at the numbers
-				Size[Idx] = FGenericPlatformMath::Pow(static_cast<float>(Size[Idx]), (1.0f / 3.0f));
-				
-				if (SimulationType[Idx] == FGeometryCollection::ESimulationTypes::FST_Rigid)
-				{ 
-					MaxSize = FMath::Max(Size[Idx], MaxSize);
-				}
-			}
-			if (MaxSize > 0.0)
-			{ 
-				for (int32 Idx = 0; Idx < Size.Num(); ++Idx)
-				{ 
-					Size[Idx] /= MaxSize;
-				}
-			}
+			// TODO: this should instead be called systematically in FGeometryCollectionEdit or similar
+			// (it is currently also called by the convex generation, however it is relatively fast so is ok if we call it twice)
+			FGeometryCollectionConvexUtility::SetVolumeAttributes(GeometryCollection.Get());
 		}
 	}
 	
 }
 
-void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<Chaos::FReal, 3>& MassSpaceParticles, int32 TransformIndex)
-{
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
-	const TManagedArray<bool>& Visible = GeometryCollection->Visible;
-	const TManagedArray<int32>& FaceCount = GeometryCollection->FaceCount;
-	const TManagedArray<int32>& FaceStart = GeometryCollection->FaceStart;
-	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
-	const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
-	TManagedArray<float>& Volumes = GeometryCollection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
-	
-	if (!GeometryCollection->HasAttribute("Size", FTransformCollection::TransformGroup))
-	{
-		GeometryCollection->AddAttribute<float>("Size", FTransformCollection::TransformGroup);
-	}
-	TManagedArray<float>& Size = GeometryCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
-
-	if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
-	{
-		int32 GeometryIndex = TransformToGeometryIndex[TransformIndex];
-
-		if (ensureMsgf(GeometryIndex > INDEX_NONE, TEXT("Leaf node %d expected to map to geometry but did not."), TransformIndex))
-		{
-			TUniquePtr<Chaos::FTriangleMesh> TriMesh(
-				CreateTriangleMesh(
-					FaceStart[GeometryIndex],
-					FaceCount[GeometryIndex],
-					Visible,
-					Indices,
-					true));
-
-			Chaos::FReal Volume = 0.0;
-			Chaos::FVec3 CenterOfMass;
-			Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), Volume, CenterOfMass);
-
-			// Since we're only interested in relative mass, we assume density = 1.0
-			Volumes[TransformIndex] = Volume; // todo(lwc) potential conversion from double to float
-			Size[TransformIndex] = Volume;
-		}	
-	}
-	else if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered)
-	{
-		// Recurse to children and sum the volumes for this node
-		float LocalVolume = 0.0;
-		float LocalSize = 0.0;
-		for (int32 ChildIndex : Children[TransformIndex])
-		{
-			UpdateVolumes(GeometryCollection, MassSpaceParticles, ChildIndex);
-			LocalVolume += Volumes[ChildIndex];
-			LocalSize += Size[ChildIndex];
-		}
-
-		Volumes[TransformIndex] = LocalVolume;
-		Size[TransformIndex] = LocalSize;
-	}
-	else
-	{
-		// Node is embedded geometry, for which we do not require volume calculations.
-		Volumes[TransformIndex] = 0.0;
-	}
-}
 
 bool GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {
