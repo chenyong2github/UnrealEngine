@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Online/AuthOSSAdapter.h"
 
 #include "Online/OnlineServicesOSSAdapter.h"

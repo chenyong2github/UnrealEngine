@@ -2,6 +2,7 @@
 
 #include "Online/OnlineServicesOSSAdapter.h"
 
+#include "Online/OnlineIdOSSAdapter.h"
 #include "Online/AuthOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
