@@ -30,7 +30,7 @@ void UMassObserverProcessor::PostInitProperties()
 void UMassFragmentInitializer::Register()
 {
 	check(FragmentType);
-	UMassObserverRegistry::GetMutable().RegisterFragmentInitializer(*FragmentType, GetClass());
+	UMassObserverRegistry::GetMutable().RegisterFragmentAddedObserver(*FragmentType, GetClass());
 }
 
 //----------------------------------------------------------------------//
@@ -39,5 +39,5 @@ void UMassFragmentInitializer::Register()
 void UMassFragmentDeinitializer::Register()
 {
 	check(FragmentType);
-	UMassObserverRegistry::GetMutable().RegisterFragmentDeinitializer(*FragmentType, GetClass());
+	UMassObserverRegistry::GetMutable().RegisterFragmentRemovedObserver(*FragmentType, GetClass());
 }

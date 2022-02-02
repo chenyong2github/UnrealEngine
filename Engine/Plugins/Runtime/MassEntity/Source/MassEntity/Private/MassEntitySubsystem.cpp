@@ -348,7 +348,7 @@ TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::B
 	// @todo this could probably be optimized since one would assume we're adding elements to OutEntities in order.
 	// Then again, if that's the case, the sorting will be almost instant
 	new (&CreationContext->ChunkCollection)FMassArchetypeSubChunks(Archetype, MakeArrayView(&OutEntities[OutEntities.Num() - Count], Count), FMassArchetypeSubChunks::NoDuplicates);
-	if (ObserverManager.HasOnAddedObserversForFragments(ArchetypePtr->GetCompositionDescriptor().Fragments))
+	if (ObserverManager.HasOnAddedObserversForBitSet(ArchetypePtr->GetCompositionDescriptor().Fragments))
 	{
 		CreationContext->OnSpawningFinished = [this](FEntityCreationContext& Context){
 			ObserverManager.OnPostEntitiesCreated(Context.ChunkCollection);

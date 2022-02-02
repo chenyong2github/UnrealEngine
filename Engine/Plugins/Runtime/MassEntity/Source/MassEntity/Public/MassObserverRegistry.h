@@ -35,7 +35,7 @@ public:
 	{
 		ensureMsgf(CDO.HasAnyFlags(RF_ClassDefaultObject) && CDO.GetClass()->HasAnyClassFlags(CLASS_Abstract) == false
 			, TEXT("Only CDOs are expected to be registered with UMassObserverRegistry::RegisterInitializer"));
-		GetMutable().RegisterFragmentInitializer(*TFragment::StaticStruct(), CDO.GetClass());
+		GetMutable().RegisterFragmentAddedObserver(*TFragment::StaticStruct(), CDO.GetClass());
 	}
 
 	template<typename TFragment>
@@ -43,11 +43,13 @@ public:
 	{
 		ensureMsgf(CDO.HasAnyFlags(RF_ClassDefaultObject) && CDO.GetClass()->HasAnyClassFlags(CLASS_Abstract) == false
 			, TEXT("Only CDOs are expected to be registered with UMassObserverRegistry::RegisterDeinitializer"));
-		GetMutable().RegisterFragmentDeinitializer(*TFragment::StaticStruct(), CDO.GetClass());
+		GetMutable().RegisterFragmentRemovedObserver(*TFragment::StaticStruct(), CDO.GetClass());
 	}
 
-	void RegisterFragmentInitializer(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentInitializerClass);
-	void RegisterFragmentDeinitializer(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentDeinitializerClass);
+	void RegisterFragmentAddedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentInitializerClass);
+	void RegisterFragmentRemovedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentDeinitializerClass);
+	void RegisterTagAddedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentInitializerClass);
+	void RegisterTagRemovedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentDeinitializerClass);
 
 protected:
 	friend FMassObserverManager;
@@ -60,4 +62,10 @@ protected:
 
 	UPROPERTY()
 	TMap<const UScriptStruct*, FMassProcessorClassCollection> FragmentDeinitializersMap;
+
+	UPROPERTY()
+	TMap<const UScriptStruct*, FMassProcessorClassCollection> TagAddedObserversMap;
+	
+	UPROPERTY()
+	TMap<const UScriptStruct*, FMassProcessorClassCollection> TagRemovedObserversMap;
 };

@@ -107,7 +107,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 				for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 				{
 					check(It.Key);
-					ObserverManager.OnPreFragmentRemoved(*It.Key, Collection);
+					ObserverManager.OnPreItemRemoved(*It.Key, Collection);
 				}
 			}
 		}
@@ -165,7 +165,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
-				ObserverManager.OnPostFragmentAdded(*It.Key, Collection);
+				ObserverManager.OnPostItemAdded(*It.Key, Collection);
 			}
 		}
 	}

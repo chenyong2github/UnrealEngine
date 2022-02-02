@@ -11,16 +11,28 @@ UMassObserverRegistry::UMassObserverRegistry()
 	check(HasAnyFlags(RF_ClassDefaultObject));
 }
 
-void UMassObserverRegistry::RegisterFragmentInitializer(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentInitializerClass)
+void UMassObserverRegistry::RegisterFragmentAddedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> ObserverClass)
 {
-	check(FragmentInitializerClass);
-	FragmentInitializersMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(FragmentInitializerClass);
+	check(ObserverClass);
+	FragmentInitializersMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(ObserverClass);
 }
 
-void UMassObserverRegistry::RegisterFragmentDeinitializer(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> FragmentDeinitializerClass)
+void UMassObserverRegistry::RegisterFragmentRemovedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> ObserverClass)
 {
-	check(FragmentDeinitializerClass);
-	FragmentDeinitializersMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(FragmentDeinitializerClass);
+	check(ObserverClass);
+	FragmentDeinitializersMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(ObserverClass);
+}
+
+void UMassObserverRegistry::RegisterTagAddedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> ObserverClass)
+{
+	check(ObserverClass);
+	TagAddedObserversMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(ObserverClass);
+}
+
+void UMassObserverRegistry::RegisterTagRemovedObserver(const UScriptStruct& FragmentType, TSubclassOf<UMassProcessor> ObserverClass)
+{
+	check(ObserverClass);
+	TagRemovedObserversMap.FindOrAdd(&FragmentType).ClassCollection.AddUnique(ObserverClass);
 }
 
 TConstArrayView<TSubclassOf<UMassProcessor>> UMassObserverRegistry::GetFragmentInitializers(const UScriptStruct& FragmentType) const
