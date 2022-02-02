@@ -159,7 +159,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	BuildScale_DEPRECATED = 1.0f;
 #endif
-	BuildScale3D = FVector3f::OneVector;
+	BuildScale3D = FVector::OneVector;
 	SetFlags(RF_Transactional);
 	bSharedCookedData = false;
 	CookedFormatDataOverride = nullptr;
@@ -1006,7 +1006,7 @@ void UBodySetup::RescaleSimpleCollision( FVector BuildScale )
 			SphylElem->Length *= ScaleMultiplier;
 		}
 
-		BuildScale3D = FVector3f(BuildScale);	//LWC_TODO: Precision loss
+		BuildScale3D = BuildScale;
 	}
 }
 
@@ -1231,7 +1231,7 @@ void UBodySetup::PostLoad()
 #if WITH_EDITORONLY_DATA
 	if ( GetLinkerUEVersion() < VER_UE4_BUILD_SCALE_VECTOR )
 	{
-		BuildScale3D = FVector3f( BuildScale_DEPRECATED );
+		BuildScale3D = BuildScale_DEPRECATED;
 	}
 #endif
 

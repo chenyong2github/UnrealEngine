@@ -3241,7 +3241,7 @@ void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBas
 		{
 			FVector3f WorldPos;
 			FMemory::Memcpy(&WorldPos, InValue.GetBytes(), InValue.GetNumBytes());
-			OverrideParameters.SetPositionParameterValue(WorldPos, InKey.GetName(), true);
+			OverrideParameters.SetPositionParameterValue((FVector)WorldPos, InKey.GetName(), true);
 		}
 		else
 		{
