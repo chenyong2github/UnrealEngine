@@ -1028,11 +1028,6 @@ public:
 	void ResetRouteActorInitializationState();
 
 	/**
-	 * Old implementation for routing actor initialization in full.
-	 */
-	void RouteActorInitializeOld();
-
-	/**
 	 * Routes pre and post initialize to actors and also sets volumes.
 	 *
 	 * @param NumActorsToProcess	The maximum number of actors to update in this pass, 0 to process all actors.
