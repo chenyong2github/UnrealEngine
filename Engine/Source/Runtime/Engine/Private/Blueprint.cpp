@@ -1430,7 +1430,6 @@ bool UBlueprint::GetBlueprintHierarchyFromClass(const UClass* InClass, TArray<UB
 		OutBlueprintParents.Add(CurrentClass);
 
 #if WITH_EDITORONLY_DATA
-		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentClass);
 
 		if (BP)

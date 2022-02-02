@@ -121,8 +121,8 @@ public:
 	void RemoveOnGraphChangedHandler( FDelegateHandle Handle );
 
 	//~ Begin UObject interface
-	virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const override;
 #if WITH_EDITORONLY_DATA
+	virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const override;
 	virtual void Serialize(FStructuredArchiveRecord Record) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;

@@ -82,9 +82,9 @@ UEdGraph::UEdGraph(const FObjectInitializer& ObjectInitializer)
 	bAllowDeletion = true;
 }
 
+#if WITH_EDITORONLY_DATA
 void UEdGraph::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const
 {
-#if WITH_EDITORONLY_DATA
 	UEdGraph* OtherGraph = CastChecked<UEdGraph>(OtherObject);
 
 	auto FindMatchingNode = [](UEdGraph* InGraphToSearch, UEdGraphNode* InNodeToFind) -> UEdGraphNode*
@@ -131,12 +131,10 @@ void UEdGraph::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObjec
 			ObjectMapping.Emplace(GraphNode, OtherGraphNode);
 		}
 	}
-#endif // WITH_EDITORONLY_DATA
 
 	Super::BuildSubobjectMapping(OtherObject, ObjectMapping);
 }
 
-#if WITH_EDITORONLY_DATA
 void UEdGraph::PostInitProperties()
 {
 	Super::PostInitProperties();

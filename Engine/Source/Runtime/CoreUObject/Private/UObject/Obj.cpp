@@ -1644,7 +1644,6 @@ void UObject::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject
 
 		UClass* OtherSubObjectClass = InSubObject->GetClass();
 #if WITH_EDITORONLY_DATA
-		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		if (OtherSubObjectClass->ClassGeneratedBy && OtherSubObjectClass->ClassGeneratedBy->GetOutermost() == ThisPackage)
 		{
 			// This is a generated class type, so we actually need to use the new generated class type from the new package otherwise our type check will fail
@@ -1655,7 +1654,6 @@ void UObject::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject
 		}
 #endif
 
-		//UObject* OtherSubObject = StaticLoadObject(OtherSubObjectClass, OtherObject, *NewSubObjectName, nullptr, LOAD_Quiet | LOAD_NoRedirects, nullptr, true);
 		UObject* OtherSubObject = StaticFindObjectFast(OtherSubObjectClass, OtherObject, *NewSubObjectName);
 		ObjectMapping.Emplace(InSubObject, OtherSubObject);
 

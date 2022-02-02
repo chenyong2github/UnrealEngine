@@ -40,7 +40,6 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 	if (Component && Component->SkeletalMesh && ControlRig)
 	{
 #if WITH_EDITORONLY_DATA
-		// ClassGeneratedBy TODO: This may be wrong in cooked builds
 		UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(ControlRig->GetClass());
 		if (BlueprintClass)
 		{

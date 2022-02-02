@@ -271,7 +271,6 @@ FObjectRef MakeObjectRef(const UObject* Object)
 	}
 
 #if WITH_EDITORONLY_DATA	
-	// ClassGeneratedBy TODO: This may be wrong in cooked builds
 	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
 	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
 	return FObjectRef {GetNameOrNone(Object->GetOutermost()), GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object)};
@@ -299,7 +298,6 @@ FPackedObjectRef MakePackedObjectRef(const UObject* Object)
 
 	FName PackageName = GetNameOrNone(Object->GetOutermost());
 #if WITH_EDITORONLY_DATA
-	// ClassGeneratedBy TODO: This may be wrong in cooked builds
 	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
 	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
 	return ObjectHandle_Private::MakePackedObjectRef(PackageName, GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object));
