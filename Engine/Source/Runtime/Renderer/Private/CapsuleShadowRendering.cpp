@@ -928,7 +928,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->NumLightDirectionData = NumLightDataElements;
 			PassParameters->SkyLightMode = SkyLightMode;
-			PassParameters->CapsuleIndirectConeAngle = GCapsuleSkyAngleScale;
+			PassParameters->CapsuleIndirectConeAngle = GCapsuleIndirectConeAngle;
 			PassParameters->CapsuleSkyAngleScale = GCapsuleSkyAngleScale;
 			PassParameters->CapsuleMinSkyAngle = GCapsuleMinSkyAngle;
 			PassParameters->RWComputedLightDirectionData = ComputedLightDirectionUAV;
