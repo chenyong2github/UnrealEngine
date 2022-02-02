@@ -1,4 +1,3 @@
-
 @echo off
 
 set CWD=%cd%
@@ -22,3 +21,4 @@ REM Wait for 2s to shut down so that CHROME_USER_DATA can be deleted completly
 timeout /t 2 /nobreak > NUL
 
 rmdir /S /Q "%CHROME_USER_DATA%"
+
