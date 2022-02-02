@@ -1096,8 +1096,8 @@ void FStaticMeshVertexBuffers::InitModelBuffers(TArray<FModelVertex>& Vertices)
 
 		PositionVertexBuffer.VertexPosition(0) = FVector3f(0, 0, 0);
 		StaticMeshVertexBuffer.SetVertexTangents(0, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
-		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2D(0, 0));
-		StaticMeshVertexBuffer.SetVertexUV(0, 1, FVector2D(0, 0));
+		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2f(0, 0));
+		StaticMeshVertexBuffer.SetVertexUV(0, 1, FVector2f(0, 0));
 	}
 }
 
@@ -1184,7 +1184,7 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 
 		PositionVertexBuffer.VertexPosition(0) = FVector3f(0, 0, 0);
 		StaticMeshVertexBuffer.SetVertexTangents(0, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
-		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2D(0, 0));
+		StaticMeshVertexBuffer.SetVertexUV(0, 0, FVector2f(0, 0));
 		ColorVertexBuffer.VertexColor(0) = FColor(1,1,1,1);
 		NumTexCoords = 1;
 		LightMapIndex = 0;
@@ -2670,9 +2670,9 @@ void FStaticMeshRenderData::ComputeUVDensities()
 					for (int32 UVIndex = 0; UVIndex < NumTexCoords; ++UVIndex)
 					{
 						const float UVAera = FUVDensityAccumulator::GetUVChannelAera(
-												LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, UVIndex), 
-												LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, UVIndex), 
-												LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, UVIndex));
+												FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, UVIndex)), 
+												FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, UVIndex)), 
+												FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, UVIndex)));
 
 						UVDensityAccs[UVIndex].PushTriangle(Aera, UVAera);
 					}
@@ -6465,7 +6465,7 @@ static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int
 		for (int32 ChannelIdx = 0; ChannelIdx < OutUVs.Num(); ChannelIdx++)
 		{
 			check(OutPositions.Num() == OutUVs[ChannelIdx].Num());
-			OutUVs[ChannelIdx].Add(InVertBuffer.GetVertexUV(MeshVertIndex, ChannelIdx));
+			OutUVs[ChannelIdx].Add(FVector2D(InVertBuffer.GetVertexUV(MeshVertIndex, ChannelIdx)));
 		}
 
 		// Copy position
@@ -7073,7 +7073,7 @@ void UStaticMesh::CheckLightMapUVs( UStaticMesh* InStaticMesh, TArray< FString >
 			const uint32 VertexIndices[] = {Indices[StartIndex + 0], Indices[StartIndex + 1], Indices[StartIndex + 2]};
 			for(int i = 0; i<3;i++)
 			{
-				TriangleUVsOUT[i] = MeshLOD.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndices[i], UVChannel);		
+				TriangleUVsOUT[i] = FVector2D(MeshLOD.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndices[i], UVChannel));		
 			}
 		}
 

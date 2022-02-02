@@ -270,9 +270,9 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 
 			Mesh.GetFaceUV( FaceIndex, UVChannel, UVIndex1, UVIndex2, UVIndex3 );
 
-			RawMesh.WedgeTexCoords[ UVChannel ].Add( Mesh.GetUV( UVChannel, UVIndex1 ) );
-			RawMesh.WedgeTexCoords[ UVChannel ].Add( Mesh.GetUV( UVChannel, UVIndex2 ) );
-			RawMesh.WedgeTexCoords[ UVChannel ].Add( Mesh.GetUV( UVChannel, UVIndex3 ) );
+			RawMesh.WedgeTexCoords[ UVChannel ].Add( FVector2f(Mesh.GetUV( UVChannel, UVIndex1 )) );
+			RawMesh.WedgeTexCoords[ UVChannel ].Add( FVector2f(Mesh.GetUV( UVChannel, UVIndex2 )) );
+			RawMesh.WedgeTexCoords[ UVChannel ].Add( FVector2f(Mesh.GetUV( UVChannel, UVIndex3 )) );
 		}
 	}
 
@@ -384,7 +384,7 @@ bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescrip
 				FVector2D UVVector = DsMesh.GetUV(UVChannelIndex, UV[CornerIndex]);
 				if (!UVVector.ContainsNaN())
 				{
-					VertexInstanceUVs.Set(CornerVertexInstanceIDs[CornerIndex], UVChannelIndex, UVVector);
+					VertexInstanceUVs.Set(CornerVertexInstanceIDs[CornerIndex], UVChannelIndex, FVector2f(UVVector));
 				}
 			}
 		}

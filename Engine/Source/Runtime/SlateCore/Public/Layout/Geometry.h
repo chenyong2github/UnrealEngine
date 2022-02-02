@@ -67,9 +67,9 @@ public:
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(LocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		AccumulatedRenderTransform = TransformCast<FSlateRenderTransform>(AccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = FVector2f(AccumulatedLayoutTransform.GetTranslation());
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2f&>( Position ) = LocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = FVector2f(LocalLayoutTransform.GetTranslation());
 	}
 
 private:
@@ -110,9 +110,9 @@ private:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(InLocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = FVector2f(AccumulatedLayoutTransform.GetTranslation());
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2f&>( Position ) = InLocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = FVector2f(InLocalLayoutTransform.GetTranslation());
 	}
 
 	/**
@@ -137,9 +137,9 @@ private:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(InLocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = FVector2f(AccumulatedLayoutTransform.GetTranslation());
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2f&>( Position ) = InLocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = FVector2f(InLocalLayoutTransform.GetTranslation());
 	}
 
 public:
@@ -491,7 +491,7 @@ public:
 	/** @return the accumulated layout transform. Shouldn't be needed in general. */
 	FORCEINLINE FSlateLayoutTransform GetAccumulatedLayoutTransform() const
 	{
-		return FSlateLayoutTransform(Scale, AbsolutePosition);
+		return FSlateLayoutTransform(Scale, FVector2D(AbsolutePosition));
 	}
 
 	/**
@@ -506,7 +506,7 @@ public:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = ::Concatenate(GetAccumulatedLayoutTransform(), LayoutTransform);
 		AccumulatedRenderTransform = ::Concatenate(AccumulatedRenderTransform, LayoutTransform);
-		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = FVector2f(AccumulatedLayoutTransform.GetTranslation());
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
 	}
 
@@ -547,7 +547,7 @@ public:
 	 */
 	FORCEINLINE FVector2D GetLocalPositionAtCoordinates(const FVector2D& NormalCoordinates) const
 	{
-		return Position + (NormalCoordinates * GetLocalSize());
+		return FVector2D(Position) + (NormalCoordinates * GetLocalSize());
 	}
 
 	bool HasRenderTransform() const { return bHasRenderTransform; }

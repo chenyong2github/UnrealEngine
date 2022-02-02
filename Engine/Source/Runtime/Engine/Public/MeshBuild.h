@@ -65,6 +65,11 @@ inline bool UVsEqual(const FVector2D& V1, const FVector2D& V2)
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon;
 }
 
+inline bool UVsEqual(const FVector2f& V1, const FVector2f& V2)
+{
+	return UVsEqual(FVector2D(V1), FVector2D(V2));
+}
+
 inline bool NormalsEqual(const FVector& V1,const FVector& V2, const FOverlappingThresholds& OverlappingThreshold)
 {
 	const float Epsilon = OverlappingThreshold.ThresholdTangentNormal;
@@ -75,4 +80,9 @@ inline bool UVsEqual(const FVector2D& V1, const FVector2D& V2, const FOverlappin
 {
 	const float Epsilon = OverlappingThreshold.ThresholdUV;
 	return FMath::Abs(V1.X - V2.X) <= Epsilon && FMath::Abs(V1.Y - V2.Y) <= Epsilon;
+}
+
+inline bool UVsEqual(const FVector2f& V1, const FVector2f& V2, const FOverlappingThresholds& OverlappingThreshold)
+{
+	return UVsEqual(FVector2D(V1), FVector2D(V2), OverlappingThreshold);
 }

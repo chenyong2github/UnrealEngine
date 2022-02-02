@@ -27,12 +27,12 @@ public:
 
 	FVector2D GetSizeInLocalSpace() const
 	{
-		return LocalSize;
+		return FVector2D(LocalSize);
 	}
 
 	FVector2D GetSizeInParentSpace() const
 	{
-		return TransformVector(LocalToParent, LocalSize);
+		return TransformVector(LocalToParent, FVector2D(LocalSize));
 	}
 
 	FVector2D GetOffsetInParentSpace() const
@@ -42,7 +42,7 @@ public:
 
 	FSlateRect GetRectInLocalSpace() const
 	{
-		return FSlateRect(FVector2D(0.0f, 0.0f), LocalSize);
+		return FSlateRect(FVector2D(0.0f, 0.0f), FVector2D(LocalSize));
 	}
 
 	FSlateRect GetRectInParentSpace() const

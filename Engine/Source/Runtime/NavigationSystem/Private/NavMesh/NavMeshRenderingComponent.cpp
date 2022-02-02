@@ -212,7 +212,7 @@ namespace FNavMeshRenderingHelpers
 	{
 		FDynamicMeshVertex* Vertex = new(MeshData.Vertices) FDynamicMeshVertex;
 		Vertex->Position = Pos;
-		Vertex->TextureCoordinate[0] = FVector2D::ZeroVector;
+		Vertex->TextureCoordinate[0] = FVector2f::ZeroVector;
 		Vertex->TangentX = FVector(1.0f, 0.0f, 0.0f);
 		Vertex->TangentZ = FVector(0.0f, 1.0f, 0.0f);
 		// store the sign of the determinant in TangentZ.W (-1=-128,+1=127)

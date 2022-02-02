@@ -705,7 +705,7 @@ void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
 
 FVector2D SWidget::GetDesiredSize() const
 {
-	return DesiredSize.Get(FVector2D::ZeroVector);
+	return FVector2D(DesiredSize.Get(FVector2f::ZeroVector));
 }
 
 void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
@@ -1573,11 +1573,11 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 		FSlateClippingZone ClippingZone(AllottedGeometry);
 
 		TArray<FVector2D> Points;
-		Points.Add(ClippingZone.TopLeft);
-		Points.Add(ClippingZone.TopRight);
-		Points.Add(ClippingZone.BottomRight);
-		Points.Add(ClippingZone.BottomLeft);
-		Points.Add(ClippingZone.TopLeft);
+		Points.Add(FVector2D(ClippingZone.TopLeft));
+		Points.Add(FVector2D(ClippingZone.TopRight));
+		Points.Add(FVector2D(ClippingZone.BottomRight));
+		Points.Add(FVector2D(ClippingZone.BottomLeft));
+		Points.Add(FVector2D(ClippingZone.TopLeft));
 
 		const bool bAntiAlias = true;
 		FSlateDrawElement::MakeLines(

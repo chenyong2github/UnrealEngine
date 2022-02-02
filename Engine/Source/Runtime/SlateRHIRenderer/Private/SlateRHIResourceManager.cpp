@@ -591,8 +591,8 @@ FSlateShaderResourceProxy* FSlateRHIResourceManager::GenerateTextureResource( co
 		NewProxy = new FSlateShaderResourceProxy;
 		NewProxy->Resource = Atlas->GetAtlasTexture();
 		const uint32 Padding = NewSlot->Padding;
-		NewProxy->StartUV = FVector2D((float)(NewSlot->X + Padding) / Atlas->GetWidth(), (float)(NewSlot->Y + Padding) / Atlas->GetHeight());
-		NewProxy->SizeUV = FVector2D( (float)(NewSlot->Width-Padding*2) / Atlas->GetWidth(), (float)(NewSlot->Height-Padding*2) / Atlas->GetHeight() );
+		NewProxy->StartUV = FVector2f((float)(NewSlot->X + Padding) / Atlas->GetWidth(), (float)(NewSlot->Y + Padding) / Atlas->GetHeight());
+		NewProxy->SizeUV = FVector2f( (float)(NewSlot->Width-Padding*2) / Atlas->GetWidth(), (float)(NewSlot->Height-Padding*2) / Atlas->GetHeight() );
 		NewProxy->ActualSize = FIntPoint( Width, Height );
 	}
 	else
@@ -610,8 +610,8 @@ FSlateShaderResourceProxy* FSlateRHIResourceManager::GenerateTextureResource( co
 
 		// The texture proxy only contains a single texture
 		NewProxy->Resource = Texture;
-		NewProxy->StartUV = FVector2D(0.0f, 0.0f);
-		NewProxy->SizeUV = FVector2D(1.0f, 1.0f);
+		NewProxy->StartUV = FVector2f::ZeroVector;
+		NewProxy->SizeUV = FVector2f::UnitVector;
 		NewProxy->ActualSize = FIntPoint( Width, Height );
 	}
 

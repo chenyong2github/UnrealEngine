@@ -477,7 +477,7 @@ bool FLandscapeGrassWeightMeshProcessor::Process(
 	for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 	{
 		ShaderElementData.OutputPass = (PassIndex >= FirstHeightMipsPassIndex) ? 0 : PassIndex;
-		ShaderElementData.RenderOffset = ViewOffset + FVector2f(PassOffsetX * PassIndex, 0);
+		ShaderElementData.RenderOffset = FVector2f(ViewOffset) + FVector2f(PassOffsetX * PassIndex, 0);	// LWC_TODO: Precision loss
 
 		uint64 Mask = (PassIndex >= FirstHeightMipsPassIndex) ? HeightMips[PassIndex - FirstHeightMipsPassIndex] : BatchElementMask;
 

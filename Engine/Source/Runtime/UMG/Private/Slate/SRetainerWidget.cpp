@@ -381,7 +381,7 @@ SRetainerWidget::EPaintRetainedContentResult SRetainerWidget::PaintRetainedConte
 
 	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
 	FSlateRenderTransform AccumulatedRenderTransform = PaintGeometry.GetAccumulatedRenderTransform();
-	const FVector2D RenderSize = PaintGeometry.GetLocalSize() * AccumulatedRenderTransform.GetMatrix().GetScale().GetVector();
+	const FVector2f RenderSize = FVector2f(PaintGeometry.GetLocalSize()) * AccumulatedRenderTransform.GetMatrix().GetScale().GetVector();
 	const FIntPoint RoundedRenderSize = RenderSize.IntPoint();
 
 	if (RenderOnInvalidation)

@@ -76,10 +76,10 @@ void DrawPlane10x10(class FPrimitiveDrawInterface* PDI,const FMatrix& ObjectToWo
 			float U1 = FMath::Lerp(UVMin.X, UVMax.X, x1 * 0.5f + 0.5f);
 
 			// Calculate verts for a face pointing down Z
-			MeshBuilder.AddVertex(FVector(x0, y0, 0), FVector2D(U0, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x0, y1, 0), FVector2D(U0, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x1, y1, 0), FVector2D(U1, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x1, y0, 0), FVector2D(U1, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector(x0, y0, 0), FVector2f(U0, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector(x0, y1, 0), FVector2f(U0, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector(x1, y1, 0), FVector2f(U1, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector(x1, y0, 0), FVector2f(U1, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 
 			int Index = (x + y * TileCount) * 4;
 			MeshBuilder.AddTriangle(Index + 0, Index + 1, Index + 2);
@@ -92,12 +92,12 @@ void DrawPlane10x10(class FPrimitiveDrawInterface* PDI,const FMatrix& ObjectToWo
 
 void DrawTriangle(class FPrimitiveDrawInterface* PDI, const FVector& A, const FVector& B, const FVector& C, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriorityGroup)
 {
-	FVector2D UVs[4] =
+	FVector2f UVs[4] =
 	{
-		FVector2D(0,0),
-		FVector2D(0,1),
-		FVector2D(1,1),
-		FVector2D(1,0),
+		FVector2f(0,0),
+		FVector2f(0,1),
+		FVector2f(1,1),
+		FVector2f(1,0),
 	};
 
 	FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
@@ -556,7 +556,7 @@ void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector
 		FDynamicMeshVertex MeshVertex;
 
 		MeshVertex.Position = Vertex - TopOffset;
-		MeshVertex.TextureCoordinate[0] = TC;
+		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 
 		MeshVertex.SetTangents(
 			-ZAxis,
@@ -583,7 +583,7 @@ void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector
 		FDynamicMeshVertex MeshVertex;
 
 		MeshVertex.Position = Vertex + TopOffset;
-		MeshVertex.TextureCoordinate[0] = TC;
+		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 
 		MeshVertex.SetTangents(
 			-ZAxis,
@@ -864,7 +864,7 @@ void DrawDisc(class FPrimitiveDrawInterface* PDI,const FVector& Base,const FVect
 		FDynamicMeshVertex MeshVertex;
 		MeshVertex.Position = Vertex;
 		MeshVertex.Color = Color;
-		MeshVertex.TextureCoordinate[0] = TC;
+		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 		MeshVertex.TextureCoordinate[0].X += TCStep * SideIndex;
 
 		MeshVertex.SetTangents(
@@ -934,7 +934,7 @@ void DrawFlatArrow(class FPrimitiveDrawInterface* PDI,const FVector& Base,const 
 		FDynamicMeshVertex MeshVertex;
 		MeshVertex.Position = ArrowPoints[i];
 		MeshVertex.Color = Color;
-		MeshVertex.TextureCoordinate[0] = FVector2D(0.0f, 0.0f);;
+		MeshVertex.TextureCoordinate[0] = FVector2f(0.0f, 0.0f);;
 		MeshVertex.SetTangents(XAxis^YAxis, YAxis, XAxis);
 		MeshBuilder.AddVertex(MeshVertex); //Add bottom vertex
 	}
@@ -1836,7 +1836,7 @@ void DrawUVsInternal(FViewport* InViewport, FCanvas* InCanvas, int32 InTextYPos,
 
 				for (int32 Corner = 0; Corner < 3; Corner++)
 				{
-					UVs[Corner] = (VertexBuffer.GetVertexUV(Indices[i + Corner], UVChannel));
+					UVs[Corner] = FVector2D(VertexBuffer.GetVertexUV(Indices[i + Corner], UVChannel));
 					bOutOfBounds[Corner] = IsUVOutOfBounds(UVs[Corner]);
 				}
 

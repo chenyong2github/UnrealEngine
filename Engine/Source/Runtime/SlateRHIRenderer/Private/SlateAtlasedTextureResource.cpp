@@ -30,8 +30,8 @@ FSlateShaderResourceProxy* FSlateAtlasedTextureResource::FindOrCreateAtlasedProx
 		Proxy = new FSlateShaderResourceProxy();
 		Proxy->Resource = this;
 		Proxy->ActualSize = ActualSize.IntPoint();
-		Proxy->StartUV = AtlasData.StartUV;
-		Proxy->SizeUV = AtlasData.SizeUV;
+		Proxy->StartUV = FVector2f(AtlasData.StartUV);	// LWC_TODO: Precision loss
+		Proxy->SizeUV = FVector2f(AtlasData.SizeUV);	// LWC_TODO: Precision loss
 
 		ProxyMap.Add(InAtlasedObject, Proxy);
 	}

@@ -129,10 +129,10 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempUint32 = UE::Color::COLORSPACE_VER; Ar << TempUint32;
 		TempColorSpace = UE::Color::FColorSpace::GetWorking(); Ar << TempColorSpace;
 
-		TempVector2f = Settings.RedChromaticityCoordinate; Ar << TempVector2f;
-		TempVector2f = Settings.GreenChromaticityCoordinate; Ar << TempVector2f;
-		TempVector2f = Settings.BlueChromaticityCoordinate; Ar << TempVector2f;
-		TempVector2f = Settings.WhiteChromaticityCoordinate; Ar << TempVector2f;
+		TempVector2f = FVector2f(Settings.RedChromaticityCoordinate); Ar << TempVector2f;
+		TempVector2f = FVector2f(Settings.GreenChromaticityCoordinate); Ar << TempVector2f;
+		TempVector2f = FVector2f(Settings.BlueChromaticityCoordinate); Ar << TempVector2f;
+		TempVector2f = FVector2f(Settings.WhiteChromaticityCoordinate); Ar << TempVector2f;
 		TempByte = Settings.ChromaticAdaptationMethod; Ar << TempByte;
 	}
 
@@ -703,10 +703,10 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bLongLatSource = false;
 	OutBuildSettings.SourceEncodingOverride = static_cast<uint8>(Texture.SourceColorSettings.EncodingOverride);
 	OutBuildSettings.bHasColorSpaceDefinition = Texture.SourceColorSettings.ColorSpace != ETextureColorSpace::TCS_None;
-	OutBuildSettings.RedChromaticityCoordinate = Texture.SourceColorSettings.RedChromaticityCoordinate;
-	OutBuildSettings.GreenChromaticityCoordinate = Texture.SourceColorSettings.GreenChromaticityCoordinate;
-	OutBuildSettings.BlueChromaticityCoordinate = Texture.SourceColorSettings.BlueChromaticityCoordinate;
-	OutBuildSettings.WhiteChromaticityCoordinate = Texture.SourceColorSettings.WhiteChromaticityCoordinate;
+	OutBuildSettings.RedChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.RedChromaticityCoordinate);
+	OutBuildSettings.GreenChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.GreenChromaticityCoordinate);
+	OutBuildSettings.BlueChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.BlueChromaticityCoordinate);
+	OutBuildSettings.WhiteChromaticityCoordinate = FVector2f(Texture.SourceColorSettings.WhiteChromaticityCoordinate);
 	OutBuildSettings.ChromaticAdaptationMethod = static_cast<uint8>(Texture.SourceColorSettings.ChromaticAdaptationMethod);
 
 	if (Texture.MaxTextureSize > 0)

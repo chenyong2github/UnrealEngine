@@ -1421,7 +1421,7 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 	else
 	{
 		// In manual absorption mode, the frequency ranges are interpreted as a true "range"
-		FVector2f ActualFreqRange(FMath::Min(FrequencyRange.X, FrequencyRange.Y), FMath::Max(FrequencyRange.X, FrequencyRange.Y));
+		FVector2D ActualFreqRange(FMath::Min(FrequencyRange.X, FrequencyRange.Y), FMath::Max(FrequencyRange.X, FrequencyRange.Y));
 
 		// Normalize the distance values to a value between 0 and 1
 		FVector2f AbsorptionDistanceRange = { Settings->LPFRadiusMin, Settings->LPFRadiusMax };
@@ -1434,12 +1434,12 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 		if (Settings->bEnableLogFrequencyScaling)
 		{
 			// Use the mapped value in the log scale mapping
-			OutputFrequency = Audio::GetLogFrequencyClamped(MappedFrequencyValue, FVector2f(0.0f, 1.0f), ActualFreqRange);
+			OutputFrequency = Audio::GetLogFrequencyClamped(MappedFrequencyValue, FVector2D(0.0f, 1.0f), ActualFreqRange);
 		}
 		else
 		{
 			// Do a straight linear interpolation between the absorption frequency ranges
-			OutputFrequency = FMath::GetMappedRangeValueClamped(FVector2f(0.0f, 1.0f), ActualFreqRange, MappedFrequencyValue);
+			OutputFrequency = FMath::GetMappedRangeValueClamped(FVector2f(0.0f, 1.0f), FVector2f(ActualFreqRange), MappedFrequencyValue);
 		}
 	}
 

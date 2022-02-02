@@ -44,7 +44,7 @@ static void GetStaticLightingVertex(
 	checkSlow(VertexBuffer.GetNumTexCoords() <= UE_ARRAY_COUNT(OutVertex.TextureCoordinates));
 	for(uint32 LightmapTextureCoordinateIndex = 0;LightmapTextureCoordinateIndex < VertexBuffer.GetNumTexCoords();LightmapTextureCoordinateIndex++)
 	{
-		OutVertex.TextureCoordinates[LightmapTextureCoordinateIndex] = VertexBuffer.GetVertexUV(VertexIndex,LightmapTextureCoordinateIndex);
+		OutVertex.TextureCoordinates[LightmapTextureCoordinateIndex] = FVector2D(VertexBuffer.GetVertexUV(VertexIndex,LightmapTextureCoordinateIndex));
 	}
 }
 

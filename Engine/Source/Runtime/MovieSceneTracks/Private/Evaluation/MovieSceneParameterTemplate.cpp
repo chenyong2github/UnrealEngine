@@ -49,7 +49,7 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 		if (bAnyEvaluated)
 		{
-			Values.Vector2DValues.Emplace(Vector.ParameterName, Value);
+			Values.Vector2DValues.Emplace(Vector.ParameterName, FVector2D(Value));
 		}
 	}
 

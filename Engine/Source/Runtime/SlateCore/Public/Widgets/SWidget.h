@@ -780,7 +780,7 @@ private:
 	 */
 	void SetDesiredSize(const FVector2D& InDesiredSize)
 	{
-		DesiredSize = InDesiredSize;
+		DesiredSize = FVector2f(InDesiredSize);
 	}
 
 #if STATS || ENABLE_STATNAMEDEVENTS

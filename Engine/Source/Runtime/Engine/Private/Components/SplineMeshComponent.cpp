@@ -82,10 +82,10 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	// LWC_TODO: Precision loss
 	ParamData[0] = FVector4f(SplineParams.StartPos, SplineParams.StartRoll);
 	ParamData[1] = FVector4f(SplineParams.StartTangent, SplineParams.EndRoll);
-	ParamData[2] = FVector4f(SplineParams.StartScale, SplineParams.StartOffset);
+	ParamData[2] = FVector4f(FVector2f(SplineParams.StartScale), FVector2f(SplineParams.StartOffset));
 	ParamData[3] = FVector4f(SplineParams.EndPos, (float)(int32)SplineProxy->bSmoothInterpRollScale);
 	ParamData[4] = FVector4f(SplineParams.EndTangent, SplineProxy->SplineMeshMinZ);
-	ParamData[5] = FVector4f(SplineParams.EndScale, SplineParams.EndOffset);
+	ParamData[5] = FVector4f(FVector2f(SplineParams.EndScale), FVector2f(SplineParams.EndOffset));
 	ParamData[6] = FVector4f(SplineProxy->SplineUpDir, SplineProxy->SplineMeshScaleZ);
 
 		FVector3f DirMask(0, 0, 0);

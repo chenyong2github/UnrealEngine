@@ -39,7 +39,7 @@ ECursorAction FMoveCursor::GetAction() const
 
 FVector2D FMoveCursor::GetLocalPosition() const
 {
-	return DirectionOrPosition;
+	return FVector2D(DirectionOrPosition);
 }
 
 ECursorMoveGranularity FMoveCursor::GetGranularity() const

@@ -634,7 +634,7 @@ public:
 				{
 					FVector2f UV = (UVTriangles[k][j] != FDynamicMesh3::InvalidID) ?
 						UVOverlays[k]->GetElement(UVTriangles[k][j]) : FVector2f::Zero();
-					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, (FVector2D)UV);
+					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, UV);
 				}
 
 				FColor VertexFColor = (bHaveColors && TriColor[j] != FDynamicMesh3::InvalidID) ?
@@ -880,7 +880,7 @@ public:
 				{
 					FVector2f UV = (UVTriangles[k][j] != FDynamicMesh3::InvalidID) ?
 						UVOverlays[k]->GetElement(UVTriangles[k][j]) : FVector2f::Zero();
-					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, (FVector2D)UV);
+					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, UV);
 				}
 
 				++VertIdx;

@@ -188,9 +188,9 @@ static TTuple<FVector3f, FVector3f, FVector3f> GetTriangleTangentsAndNormals(flo
 	const FVector3f DPosition1 = VertexPositions[1] - Position0;
 	const FVector3f DPosition2 = VertexPositions[2] - Position0;
 
-	const FVector2f UV0 = VertexUVs[0];
-	const FVector2f DUV1 = VertexUVs[1] - UV0;
-	const FVector2f DUV2 = VertexUVs[2] - UV0;
+	const FVector2f UV0 = FVector2f(VertexUVs[0]);
+	const FVector2f DUV1 = FVector2f(VertexUVs[1]) - UV0;
+	const FVector2f DUV2 = FVector2f(VertexUVs[2]) - UV0;
 
 	// We have a left-handed coordinate system, but a counter-clockwise winding order
 	// Hence normal calculation has to take the triangle vectors cross product in reverse.
@@ -291,9 +291,9 @@ void FStaticMeshOperations::ComputeTriangleTangentsAndNormals(FMeshDescription& 
 
 				FVector2D TriangleUVs[3] =
 				{
-					VertexUVs[TriangleVertexInstanceIDs[TriIndex]],
-					VertexUVs[TriangleVertexInstanceIDs[TriIndex + 1]],
-					VertexUVs[TriangleVertexInstanceIDs[TriIndex + 2]]
+					FVector2D(VertexUVs[TriangleVertexInstanceIDs[TriIndex]]),
+					FVector2D(VertexUVs[TriangleVertexInstanceIDs[TriIndex + 1]]),
+					FVector2D(VertexUVs[TriangleVertexInstanceIDs[TriIndex + 2]])
 				};
 
 				TTuple<FVector3f, FVector3f, FVector3f> Result = GetTriangleTangentsAndNormals(ComparisonThreshold, TriangleVertexPositions, TriangleUVs);
@@ -379,7 +379,7 @@ struct FVertexInfo
 	{
 		TriangleID = INDEX_NONE;
 		VertexInstanceID = INDEX_NONE;
-		UVs = FVector2D(0.0f, 0.0f);
+		UVs = FVector2f(0.0f, 0.0f);
 	}
 
 	FTriangleID TriangleID;

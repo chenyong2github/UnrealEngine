@@ -288,7 +288,7 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 
 			for (uint32 UVIndex = 0; UVIndex < LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(); ++UVIndex)
 			{
-				MeshLOD.StaticMeshVertexBuffer.SetVertexUV(i, UVIndex, FVector2D(CachedFinalVertices[i].TextureCoordinates[UVIndex].X, CachedFinalVertices[i].TextureCoordinates[UVIndex].Y));
+				MeshLOD.StaticMeshVertexBuffer.SetVertexUV(i, UVIndex, FVector2f(CachedFinalVertices[i].TextureCoordinates[UVIndex].X, CachedFinalVertices[i].TextureCoordinates[UVIndex].Y));
 			}
 		}
 
@@ -1037,7 +1037,7 @@ static void SkinVertexSection(
 			// Copy UVs.
 			for (int32 UVIndex = 0; UVIndex < NumberOfUVs; ++UVIndex)
 			{
-				DestVertex->TextureCoordinates[UVIndex] = LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Section.GetVertexBufferIndex() + VertexIndex, UVIndex);
+				DestVertex->TextureCoordinates[UVIndex] = FVector2D(LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Section.GetVertexBufferIndex() + VertexIndex, UVIndex));
 			}
 
 			CurBaseVertIdx++;

@@ -244,7 +244,7 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 		{
 			SlowTask.EnterProgressFrame(1.0f);
 		}
-		const FVector2D& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
+		const FVector2f& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
 		int32 NewVertexIndex = (int32)(Wedges[WedgeIndex].VertexIndex);
 		FVector3f& NewPointA = Points[NewVertexIndex];
 		SkeletalMeshImportData::FTriangle& NewFace = Faces[(WedgeIndex / 3)];
@@ -330,9 +330,9 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 					int32 OldVertexIndex = Other.Wedges[OldWedgeIndex].VertexIndex;
 					int32 OldFaceIndex = (OldWedgeIndex / 3);
 					int32 OldFaceCorner = (OldWedgeIndex % 3);
-					const FVector2D& OldUV = Other.Wedges[OldWedgeIndex].UVs[0];
+					const FVector2f& OldUV = Other.Wedges[OldWedgeIndex].UVs[0];
 					const FVector3f& OldNormal = Other.Faces[OldFaceIndex].TangentZ[OldFaceCorner];
-					float UVDelta = FVector2D::DistSquared(CurWedgeUV, OldUV);
+					float UVDelta = FVector2f::DistSquared(CurWedgeUV, OldUV);
 					float NormalDelta = FMath::Abs(FMath::Acos(FVector3f::DotProduct(NewNormal, OldNormal)));
 					if (UVDelta > MaxUVDistance)
 					{

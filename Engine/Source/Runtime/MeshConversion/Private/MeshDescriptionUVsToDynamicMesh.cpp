@@ -152,7 +152,7 @@ TSharedPtr<FDynamicMesh3> FMeshDescriptionUVsToDynamicMesh::GetUVMesh(const FMes
 			TArrayView<const FVertexInstanceID> SourceTriangleInstanceIds = MeshDescription->GetTriangleVertexInstances(TriangleIDIn);
 			for (int32 i = 0; i < 3; ++i)
 			{
-				FVector2D UV = InstanceUVs.Get(SourceTriangleInstanceIds[i], UVLayerIndex);
+				FVector2f UV = InstanceUVs.Get(SourceTriangleInstanceIds[i], UVLayerIndex);
 				TriangleToInsertOut[i] = UVMeshWelder.FindOrAddUnique(UV, SourceTriangleVids[i].GetValue());
 			}
 		};

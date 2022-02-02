@@ -432,19 +432,19 @@ void FSkeletalMeshMerge::CopyVertexFromSource(VertexDataType& DestVert, const FS
 	const uint32 ValidLoopCount = FMath::Min(VertexDataType::NumTexCoords, LODNumTexCoords);
 	for (uint32 UVIndex = 0; UVIndex < ValidLoopCount; ++UVIndex)
 	{
-		FVector2D UVs = SrcLODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV_Typed<VertexDataType::StaticMeshVertexUVType>(SourceVertIdx, UVIndex);
+		FVector2D UVs = FVector2D(SrcLODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV_Typed<VertexDataType::StaticMeshVertexUVType>(SourceVertIdx, UVIndex));
 		if (UVIndex < (uint32)MergeSectionInfo.UVTransforms.Num())
 		{
 			FVector Transformed = MergeSectionInfo.UVTransforms[UVIndex].TransformPosition(FVector(UVs, 1.f));
 			UVs = FVector2D(Transformed.X, Transformed.Y);
 		}
-		DestVert.UVs[UVIndex] = UVs;
+		DestVert.UVs[UVIndex] = FVector2f(UVs);	// LWC_TODO: Precision loss
 	}
 	
 	// now just fill up zero value if we didn't reach till end
 	for (uint32 UVIndex = ValidLoopCount; UVIndex < VertexDataType::NumTexCoords; ++UVIndex)
 	{
-		DestVert.UVs[UVIndex] = FVector2D::ZeroVector;
+		DestVert.UVs[UVIndex] = FVector2f::ZeroVector;
 	}
 }
 

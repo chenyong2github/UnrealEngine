@@ -106,11 +106,13 @@ public:
 	explicit FScale2D(float InScaleX, float InScaleY) :Scale(InScaleX, InScaleY) {}
 	/** Ctor. initialize from an FVector defining the 3D scale. */
 	explicit FScale2D(const FVector2D& InScale) :Scale((FVector2f)InScale) {}
+	/** Ctor. initialize from an FVector defining the 3D scale. */
+	explicit FScale2D(const FVector2f& InScale) :Scale(InScale) {}
 	
 	/** Transform 2D Point */
 	FVector2D TransformPoint(const FVector2D& Point) const
 	{
-		return Scale * Point;
+		return FVector2D(Scale) * Point;
 	}
 	/** Transform 2D Vector*/
 	FVector2D TransformVector(const FVector2D& Vector) const
@@ -126,7 +128,7 @@ public:
 	/** Invert the scale. */
 	FScale2D Inverse() const
 	{
-		return FScale2D(FVector2f(1.0f / Scale.X, 1.0f / Scale.Y));
+		return FScale2D(1.0f / Scale.X, 1.0f / Scale.Y);
 	}
 
 	/** Equality. */
@@ -193,7 +195,7 @@ public:
 	 */
 	FVector2D TransformPoint(const FVector2D& Point) const
 	{
-		return Point + FVector2D(Point.Y, Point.X) * Shear;
+		return Point + FVector2D(Point.Y, Point.X) * FVector2D(Shear);
 	}
 	/** Transform 2D Vector*/
 	FVector2D TransformVector(const FVector2D& Vector) const
@@ -295,7 +297,7 @@ public:
 	 */
 	FQuat2D Concatenate(const FQuat2D& RHS) const
 	{
-		return FQuat2D(TransformPoint(RHS.Rot));
+		return FQuat2D(TransformPoint(FVector2D(RHS.Rot)));
 	}
 	/**
 	 * Invert the rotation  defined by complex numbers:
@@ -616,7 +618,7 @@ public:
 	{
 		return FTransform2D(
 			::Concatenate(M, RHS.M),
-			::Concatenate(::TransformPoint(RHS.M, Trans), RHS.Trans));
+			::Concatenate(::TransformPoint(RHS.M, FVector2D(Trans)), FVector2D(RHS.Trans)));
 	}
 
 	/** 
@@ -671,14 +673,14 @@ public:
 	/** Access to the translation */
 	const FVector2D GetTranslation() const { return FVector2D(Trans); }
 
-	void SetTranslation(const FVector2D& InTrans) { Trans = InTrans; }
+	void SetTranslation(const FVector2D& InTrans) { Trans = FVector2f(InTrans); }
 
 	/**
 	 * Specialized function to determine if a transform is precisely the identity transform. Uses exact float comparison, so rounding error is not considered.
 	 */
 	bool IsIdentity() const
 	{
-		return M.IsIdentity() && Trans == FVector2D::ZeroVector;
+		return M.IsIdentity() && Trans == FVector2f::ZeroVector;
 	}
 
 	/**

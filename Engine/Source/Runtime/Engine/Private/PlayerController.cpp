@@ -2038,7 +2038,7 @@ bool APlayerController::GetHitResultUnderFinger(ETouchIndex::Type FingerIndex, E
 		GetInputTouchState(FingerIndex, TouchPosition.X, TouchPosition.Y, bIsPressed);
 		if (bIsPressed)
 		{
-			bHit = GetHitResultAtScreenPosition(TouchPosition, TraceChannel, bTraceComplex, HitResult);
+			bHit = GetHitResultAtScreenPosition(FVector2D(TouchPosition), TraceChannel, bTraceComplex, HitResult);
 		}
 	}
 
@@ -2060,7 +2060,7 @@ bool APlayerController::GetHitResultUnderFingerByChannel(ETouchIndex::Type Finge
 		GetInputTouchState(FingerIndex, TouchPosition.X, TouchPosition.Y, bIsPressed);
 		if (bIsPressed)
 		{
-			bHit = GetHitResultAtScreenPosition(TouchPosition, TraceChannel, bTraceComplex, HitResult);
+			bHit = GetHitResultAtScreenPosition(FVector2D(TouchPosition), TraceChannel, bTraceComplex, HitResult);
 		}
 	}
 
@@ -2082,7 +2082,7 @@ bool APlayerController::GetHitResultUnderFingerForObjects(ETouchIndex::Type Fing
 		GetInputTouchState(FingerIndex, TouchPosition.X, TouchPosition.Y, bIsPressed);
 		if (bIsPressed)
 		{
-			bHit = GetHitResultAtScreenPosition(TouchPosition, ObjectTypes, bTraceComplex, HitResult);
+			bHit = GetHitResultAtScreenPosition(FVector2D(TouchPosition), ObjectTypes, bTraceComplex, HitResult);
 		}
 	}
 

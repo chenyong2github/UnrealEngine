@@ -111,7 +111,7 @@ public:
 	{
 		if (bIsAxisAligned)
 		{
-			FVector2D Difference = TopLeft - BottomRight;
+			FVector2f Difference = TopLeft - BottomRight;
 			return FMath::IsNearlyZero(Difference.X) || FMath::IsNearlyZero(Difference.Y);
 		}
 
@@ -153,7 +153,7 @@ public:
 
 	FSlateClippingZone ConvertRelativeToAbsolute(const FVector2D& WindowOffset) const
 	{
-		FSlateClippingZone Absolute(TopLeft + WindowOffset, TopRight + WindowOffset, BottomLeft + WindowOffset, BottomRight + WindowOffset);
+		FSlateClippingZone Absolute(FVector2D(TopLeft) + WindowOffset, FVector2D(TopRight) + WindowOffset, FVector2D(BottomLeft) + WindowOffset, FVector2D(BottomRight) + WindowOffset);
 		Absolute.bIsAxisAligned = bIsAxisAligned;
 		Absolute.bIntersect = bIntersect;
 		Absolute.bAlwaysClip = bAlwaysClip;

@@ -386,10 +386,10 @@ void UCanvasPanelSlot::RebaseLayout(bool PreserveSize)
 			// Determine the amount that would be offset from the anchor position if alignment was applied.
 			FVector2D AlignmentOffset = LayoutData.Alignment * PreEditGeometry.Size;
 
-			FVector2D MoveDelta = Geometry.Position - PreEditGeometry.Position;
+			FVector2D MoveDelta = FVector2D(Geometry.Position) - FVector2D(PreEditGeometry.Position);
 
 			// Determine where the widget's new position needs to be to maintain a stable location when the anchors change.
-			FVector2D LeftTopDelta = PreEditGeometry.Position - DefaultAnchorPosition;
+			FVector2D LeftTopDelta = FVector2D(PreEditGeometry.Position) - FVector2D(DefaultAnchorPosition);
 
 			const bool bAnchorsMoved = PreEditLayoutData.Anchors.Minimum != LayoutData.Anchors.Minimum || PreEditLayoutData.Anchors.Maximum != LayoutData.Anchors.Maximum;
 			const bool bMoved = PreEditLayoutData.Offsets.Left != LayoutData.Offsets.Left || PreEditLayoutData.Offsets.Top != LayoutData.Offsets.Top;

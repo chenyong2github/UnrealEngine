@@ -54,9 +54,9 @@ struct SLATECORE_API FPaintGeometry
 	{ 
 		if (!bUsingLegacyConstructor) return;
 		
-		AccumulatedRenderTransform = FSlateRenderTransform(DrawScale, DrawPosition);
-		FSlateLayoutTransform AccumulatedLayoutTransform = FSlateLayoutTransform(DrawScale, DrawPosition);
-		LocalSize = TransformVector(Inverse(AccumulatedLayoutTransform), DrawSize);
+		AccumulatedRenderTransform = FSlateRenderTransform(DrawScale, FVector2D(DrawPosition));
+		FSlateLayoutTransform AccumulatedLayoutTransform = FSlateLayoutTransform(DrawScale, FVector2D(DrawPosition));
+		LocalSize = TransformVector(Inverse(AccumulatedLayoutTransform), FVector2D(DrawSize));
 	}
 
 	bool HasRenderTransform() const { return bHasRenderTransform; }

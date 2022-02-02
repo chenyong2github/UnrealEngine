@@ -186,7 +186,7 @@ float FSlateTextBlockLayout::GetLayoutScale() const
 int32 FSlateTextBlockLayout::OnPaint(const FPaintArgs& InPaintArgs, const FGeometry& InAllottedGeometry, const FSlateRect& InClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled)
 {
 	// Store a new cached size with the scale
-	CachedSize = InAllottedGeometry.GetLocalSize();
+	CachedSize = FVector2f(InAllottedGeometry.GetLocalSize());
 
 	// Recompute wrapping in case the cached size changed.
 	TextLayout->SetWrappingWidth(CalculateWrappingWidth());
@@ -217,7 +217,7 @@ int32 FSlateTextBlockLayout::OnPaint(const FPaintArgs& InPaintArgs, const FGeome
 		}
 	}
 
-	TextLayout->SetVisibleRegion(CachedSize, AutoScrollValue * TextLayout->GetScale());
+	TextLayout->SetVisibleRegion(FVector2D(CachedSize), AutoScrollValue * TextLayout->GetScale());
 	TextLayout->UpdateIfNeeded();
 
 	return TextLayout->OnPaint(InPaintArgs, InAllottedGeometry, InClippingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);

@@ -81,7 +81,7 @@ public:
 	/** Invert the transform/scale. */
 	FSlateLayoutTransform Inverse() const
 	{
-		return FSlateLayoutTransform(::Inverse(Scale), ::Inverse(Translation) * ::Inverse(Scale));
+		return FSlateLayoutTransform(::Inverse(Scale), ::Inverse(FVector2D(Translation)) * ::Inverse(Scale));
 	}
 
 	/** Equality. */

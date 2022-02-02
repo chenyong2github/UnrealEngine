@@ -139,7 +139,7 @@ void FMeshDescriptionBuilder::AppendUVTriangle(const FTriangleID& TriangleID, co
 		const FVertexInstanceID CornerInstanceID = TriVertInstances[j];
 		const FVector2f& UVvalue = UVCoordinates[TempUVBuffer[j]];
 		
-		SetInstanceUV(CornerInstanceID, UVvalue, UVLayerIndex);
+		SetInstanceUV(CornerInstanceID, FVector2D(UVvalue), UVLayerIndex);
 	}
 }
 

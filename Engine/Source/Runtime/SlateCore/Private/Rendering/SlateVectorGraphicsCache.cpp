@@ -99,8 +99,8 @@ void FSlateVectorGraphicsCache::UpdateCache()
 					TUniquePtr<FSlateShaderResourceProxy>& NewProxy = ResourceMap.FindChecked(Request.Key);
 					NewProxy->Resource = NewResource.Get();
 
-					NewProxy->StartUV = FVector2D(0, 0);
-					NewProxy->SizeUV = FVector2D(1, 1);
+					NewProxy->StartUV = FVector2f(0, 0);
+					NewProxy->SizeUV = FVector2f(1, 1);
 					NewProxy->ActualSize = FIntPoint(PixelSize.X, PixelSize.Y);
 
 					NonAtlasedTextures.Add(MoveTemp(NewResource));
@@ -139,8 +139,8 @@ void FSlateVectorGraphicsCache::UpdateCache()
 
 						NewProxy->Resource = FoundAtlas->GetAtlasTexture();
 						// Compute the sub-uvs for the location of this texture in the atlas, accounting for padding
-						NewProxy->StartUV = FVector2D((float)(NewSlot->X + Padding) / FoundAtlas->GetWidth(), (float)(NewSlot->Y + Padding) / FoundAtlas->GetHeight());
-						NewProxy->SizeUV = FVector2D((float)(NewSlot->Width - Padding * 2) / FoundAtlas->GetWidth(), (float)(NewSlot->Height - Padding * 2) / FoundAtlas->GetHeight());
+						NewProxy->StartUV = FVector2f((float)(NewSlot->X + Padding) / FoundAtlas->GetWidth(), (float)(NewSlot->Y + Padding) / FoundAtlas->GetHeight());
+						NewProxy->SizeUV = FVector2f((float)(NewSlot->Width - Padding * 2) / FoundAtlas->GetWidth(), (float)(NewSlot->Height - Padding * 2) / FoundAtlas->GetHeight());
 						NewProxy->ActualSize = FIntPoint(PixelSize.X, PixelSize.Y);
 					}
 				}

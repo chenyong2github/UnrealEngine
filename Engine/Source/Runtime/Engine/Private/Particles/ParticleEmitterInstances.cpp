@@ -2887,7 +2887,7 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 		NewReplayData->NormalsSphereCenter = LODLevel->RequiredModule->NormalsSphereCenter;
 		NewReplayData->NormalsCylinderDirection = LODLevel->RequiredModule->NormalsCylinderDirection;
 
-		NewReplayData->PivotOffset = PivotOffset;
+		NewReplayData->PivotOffset = FVector2f(PivotOffset);
 
 		NewReplayData->bRemoveHMDRoll = LODLevel->RequiredModule->bRemoveHMDRoll;
 		NewReplayData->MinFacingCameraBlendDistance = LODLevel->RequiredModule->MinFacingCameraBlendDistance;

@@ -655,7 +655,7 @@ bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Collis
 		CollisionData->Vertices[i] = Model->VertexBuffer.Vertices[i].Position;
 		if (bCopyUVs)
 		{
-			CollisionData->UVs[0][i] = Model->VertexBuffer.Vertices[i].TexCoord;
+			CollisionData->UVs[0][i] = FVector2D(Model->VertexBuffer.Vertices[i].TexCoord);
 		}
 	}
 

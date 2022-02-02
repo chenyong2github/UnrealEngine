@@ -63,7 +63,7 @@ void FLineBatcherSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 				// set up geometry
 				for (int32 VertIdx=0; VertIdx < M.MeshVerts.Num(); ++VertIdx)
 				{
-					MeshBuilder.AddVertex( M.MeshVerts[VertIdx], FVector2D::ZeroVector, PosX, PosY, PosZ, FColor::White );
+					MeshBuilder.AddVertex( M.MeshVerts[VertIdx], FVector2f::ZeroVector, PosX, PosY, PosZ, FColor::White );
 				}
 				//MeshBuilder.AddTriangles(M.MeshIndices);
 				for (int32 Idx=0; Idx < M.MeshIndices.Num(); Idx+=3)

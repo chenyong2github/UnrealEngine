@@ -345,7 +345,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 					const FVector2D DesiredContentSize = MenuContentRef->GetDesiredSize();  // @todo slate: This is ignoring any window border size!
 					const EMenuPlacement PlacementMode = Placement.Get();
 
-					const FVector2D NewPosition = MyGeometry.AbsolutePosition;
+					const FVector2D NewPosition = FVector2D(MyGeometry.AbsolutePosition);
 					FVector2D NewWindowSize = DesiredContentSize;
 
 					FPopupTransitionEffect TransitionEffect( FPopupTransitionEffect::None );

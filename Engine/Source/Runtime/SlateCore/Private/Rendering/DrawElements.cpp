@@ -152,7 +152,7 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	RenderTransform = PaintGeometry.GetAccumulatedRenderTransform();
 	Position = PaintGeometry.DrawPosition;
 	Scale = PaintGeometry.DrawScale;
-	LocalSize = PaintGeometry.GetLocalSize();
+	LocalSize = FVector2f(PaintGeometry.GetLocalSize());
 	ClipStateHandle.SetPreCachedClipIndex(ElementList.GetClippingIndex());
 
 #if UE_SLATE_VERIFY_PIXELSIZE
@@ -167,7 +167,7 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	DrawEffects = InDrawEffects;
 	
 	// Calculate the layout to render transform as this is needed by several calculations downstream.
-	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
+	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, FVector2D(Position))));
 
 	{
 		// This is a workaround because we want to keep track of the various Scenes 
@@ -199,7 +199,7 @@ void FSlateDrawElement::ApplyPositionOffset(const FVector2D& InOffset)
 	RenderTransform = Concatenate(RenderTransform, InOffset);
 
 	// Recompute cached layout to render transform
-	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
+	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, FVector2D(Position))));
 }
 
 void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FLinearColor Tint)

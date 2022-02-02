@@ -7259,23 +7259,23 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 				float HeightmapOffsetV = Component->HeightmapScaleBias.W + HeightmapSubsectionOffsetV * (float)SubY;
 
 				FCanvasUVTri Tri1;
-				Tri1.V0_Pos = FVector2f(SubSectionSectionBase.X, SubSectionSectionBase.Y);
-				Tri1.V1_Pos = FVector2f(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y);
-				Tri1.V2_Pos = FVector2f(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y + SubsectionSizeVerts);
+				Tri1.V0_Pos = FVector2D(SubSectionSectionBase.X, SubSectionSectionBase.Y);
+				Tri1.V1_Pos = FVector2D(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y);
+				Tri1.V2_Pos = FVector2D(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y + SubsectionSizeVerts);
 
-				Tri1.V0_UV = FVector2f(HeightmapOffsetU, HeightmapOffsetV);
-				Tri1.V1_UV = FVector2f(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV);
-				Tri1.V2_UV = FVector2f(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
+				Tri1.V0_UV = FVector2D(HeightmapOffsetU, HeightmapOffsetV);
+				Tri1.V1_UV = FVector2D(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV);
+				Tri1.V2_UV = FVector2D(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
 				TrianglesPerMID->TriangleList.Add(Tri1);
 
 				FCanvasUVTri Tri2;
-				Tri2.V0_Pos = FVector2f(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y + SubsectionSizeVerts);
-				Tri2.V1_Pos = FVector2f(SubSectionSectionBase.X, SubSectionSectionBase.Y + SubsectionSizeVerts);
-				Tri2.V2_Pos = FVector2f(SubSectionSectionBase.X, SubSectionSectionBase.Y);
+				Tri2.V0_Pos = FVector2D(SubSectionSectionBase.X + SubsectionSizeVerts, SubSectionSectionBase.Y + SubsectionSizeVerts);
+				Tri2.V1_Pos = FVector2D(SubSectionSectionBase.X, SubSectionSectionBase.Y + SubsectionSizeVerts);
+				Tri2.V2_Pos = FVector2D(SubSectionSectionBase.X, SubSectionSectionBase.Y);
 
-				Tri2.V0_UV = FVector2f(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
-				Tri2.V1_UV = FVector2f(HeightmapOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
-				Tri2.V2_UV = FVector2f(HeightmapOffsetU, HeightmapOffsetV);
+				Tri2.V0_UV = FVector2D(HeightmapOffsetU + HeightmapSubsectionOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
+				Tri2.V1_UV = FVector2D(HeightmapOffsetU, HeightmapOffsetV + HeightmapSubsectionOffsetV);
+				Tri2.V2_UV = FVector2D(HeightmapOffsetU, HeightmapOffsetV);
 
 				TrianglesPerMID->TriangleList.Add(Tri2);
 			}

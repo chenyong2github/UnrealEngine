@@ -781,7 +781,7 @@ void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform&
 		const int32 NumVerts = VertexData.Num();
 		for (const FVector& Vert : VertexData)
 		{
-			MeshBuilder.AddVertex(ElemTM.TransformPosition(Vert), DummyUV, DummyTangentX, DummyTangentY, DummyTangentZ, FColor::White);
+			MeshBuilder.AddVertex(ElemTM.TransformPosition(Vert), FVector2f(DummyUV), DummyTangentX, DummyTangentY, DummyTangentZ, FColor::White);
 		}
 
 		for (int32 Base = 0; Base < NumIndices; Base += 3)

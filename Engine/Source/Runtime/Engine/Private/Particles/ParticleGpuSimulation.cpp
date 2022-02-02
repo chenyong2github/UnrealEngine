@@ -4201,7 +4201,7 @@ private:
 			FVector2D UVFlipSizeOffset = FVector2D(BaseSize.X < 0.0f ? 0.0f : 0.5f, BaseSize.Y < 0.0f ? 0.0f : 0.5f);
 			NewParticle->Size.X = (FMath::Abs(BaseSize.X) * EmitterInfo.InvMaxSize.X * 0.5f);
 			NewParticle->Size.Y = bSquare ? (NewParticle->Size.X) : (FMath::Abs(BaseSize.Y) * EmitterInfo.InvMaxSize.Y * 0.5f);
-			NewParticle->Size += UVFlipSizeOffset;
+			NewParticle->Size += FVector2f(UVFlipSizeOffset);
 
 			NewParticle->Rotation = FMath::Fractional( TempParticle->Rotation * OneOverTwoPi );
 			NewParticle->RelativeRotationRate = TempParticle->BaseRotationRate * OneOverTwoPi * EmitterInfo.InvRotationRateScale / NewParticle->TimeScale;
@@ -5312,7 +5312,7 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 	Resources->UniformParameters.RotationRateScale = InResourceData.RotationRateScale;
 	Resources->UniformParameters.CameraMotionBlurAmount = InResourceData.CameraMotionBlurAmount;
 
-	Resources->UniformParameters.PivotOffset = InResourceData.PivotOffset;
+	Resources->UniformParameters.PivotOffset = FVector2f(InResourceData.PivotOffset);
 
 	Resources->SimulationParameters.AttributeCurve = GParticleCurveTexture.ComputeCurveScaleBias(Resources->SimulationAttrTexelAllocation);
 	Resources->SimulationParameters.AttributeCurveScale = (FVector4f)InResourceData.SimulationAttrCurveScale; // LWC_TODO: change property to FVector4f

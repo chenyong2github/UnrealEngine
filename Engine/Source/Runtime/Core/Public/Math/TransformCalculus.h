@@ -401,13 +401,23 @@ inline VectorType TransformVector(const TransformType& Transform, const VectorTy
 {
 	return Transform.TransformVector(Vector);
 }
+
 /**
- * Generic implementation of TransformPoint for 2D vectors. Attempts to use a member function of the TransformType.
+ * Generic implementation of TransformPoint for 2D vectors with double precision. Attempts to use a member function of the TransformType.
  */
 template<typename TransformType>
 inline FVector2D TransformPoint(const TransformType& Transform, const FVector2D& Point)
 {
 	return Transform.TransformPoint(Point);
+}
+
+/**
+ * Generic implementation of TransformPoint for 2D vectors with float precision. Attempts to use a member function of the TransformType.
+ */
+template<typename TransformType>
+inline FVector2f TransformPoint(const TransformType& Transform, const FVector2f& Point)
+{
+	return FVector2f(Transform.TransformPoint(FVector2D(Point)));
 }
 
 /**

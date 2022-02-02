@@ -60,7 +60,7 @@ public:
 		LightParameters.FalloffExponent = FalloffExponent;
 		LightParameters.Direction = -GetDirection();
 		LightParameters.Tangent = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
-		LightParameters.SpotAngles = FVector2D(CosOuterCone, InvCosConeDifference);
+		LightParameters.SpotAngles = FVector2f(CosOuterCone, InvCosConeDifference);
 		LightParameters.SpecularScale = SpecularScale;
 		LightParameters.SourceRadius = SourceRadius;
 		LightParameters.SoftSourceRadius = SoftSourceRadius;

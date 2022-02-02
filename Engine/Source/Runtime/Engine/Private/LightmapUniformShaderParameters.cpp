@@ -72,7 +72,7 @@ void GetPrecomputedLightingParameters(
 	const FShadowMapInteraction ShadowMapInteraction = LCI ? LCI->GetShadowMapInteraction(FeatureLevel) : FShadowMapInteraction();
 	if (ShadowMapInteraction.GetType() == SMIT_Texture)
 	{
-		Parameters.ShadowMapCoordinateScaleBias = FVector4f(ShadowMapInteraction.GetCoordinateScale(), ShadowMapInteraction.GetCoordinateBias());
+		Parameters.ShadowMapCoordinateScaleBias = FVector4f(FVector2f(ShadowMapInteraction.GetCoordinateScale()), FVector2f(ShadowMapInteraction.GetCoordinateBias()));
 		Parameters.StaticShadowMapMasks = FVector4f(ShadowMapInteraction.GetChannelValid(0), ShadowMapInteraction.GetChannelValid(1), ShadowMapInteraction.GetChannelValid(2), ShadowMapInteraction.GetChannelValid(3));
 		Parameters.InvUniformPenumbraSizes = ShadowMapInteraction.GetInvUniformPenumbraSize();
 	}

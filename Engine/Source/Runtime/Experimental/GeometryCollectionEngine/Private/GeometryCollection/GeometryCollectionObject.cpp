@@ -918,7 +918,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 				Vertex.UVs[UVIdx] = UVsArray[VertexStart + VertexIndex][UVIdx];
 				if (Vertex.UVs[UVIdx].ContainsNaN())
 				{
-					Vertex.UVs[UVIdx] = FVector2D::ZeroVector;
+					Vertex.UVs[UVIdx] = FVector2f::ZeroVector;
 				}
 			}
 		}

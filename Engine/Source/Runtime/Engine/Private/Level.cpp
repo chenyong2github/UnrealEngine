@@ -1845,7 +1845,7 @@ void ULevel::CreateModelComponents()
 						DestVertex->WorldTangentZ = NodeTangentZ;
 
 						// TEMP - Will be overridden when lighting is build!
-						Vert.ShadowTexCoord = DestVertex->TextureCoordinates[1];
+						Vert.ShadowTexCoord = FVector2f(DestVertex->TextureCoordinates[1]);
 
 						// Include the vertex in the surface's bounding box.
 						NodeGroup->BoundingBox += VertexWorldPosition;

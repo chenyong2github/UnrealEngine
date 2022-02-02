@@ -485,7 +485,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* Dy
 			FillVertex->OldPosition = ParticleOldPosition;
 			// Create a floating point particle ID from the counter, map into approximately 0-1
 			FillVertex->ParticleId = (Particle.Flags & STATE_CounterMask) / 10000.0f;
-			FillVertex->Size = GetParticleSizeWithUVFlipInSign(Particle, Size);
+			FillVertex->Size = FVector2f(GetParticleSizeWithUVFlipInSign(Particle, Size));
 			FillVertex->Rotation = Particle.Rotation;
 			FillVertex->SubImageIndex = SubImageIndex;
 			FillVertex->Color = Particle.Color;
@@ -637,7 +637,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexDataNonInstanced(void* VertexDa
 			FillVertex[VertexIndex].OldPosition	= ParticleOldPosition;
 			// Create a floating point particle ID from the counter, map into approximately 0-1
 			FillVertex[VertexIndex].ParticleId = (Particle.Flags & STATE_CounterMask) / 10000.0f;
-			FillVertex[VertexIndex].Size = GetParticleSizeWithUVFlipInSign(Particle, Size);
+			FillVertex[VertexIndex].Size = FVector2f(GetParticleSizeWithUVFlipInSign(Particle, Size));
 			FillVertex[VertexIndex].Rotation	= Particle.Rotation;
 			FillVertex[VertexIndex].SubImageIndex = SubImageIndex;
 			FillVertex[VertexIndex].Color		= Particle.Color;
@@ -3232,7 +3232,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= Location + Offset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= 0.0f;
 				Vertex->Tex_V		= 0.0f;
 				Vertex->Tex_U2		= 0.0f;
@@ -3245,7 +3245,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= Location - Offset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= 0.0f;
 				Vertex->Tex_V		= 1.0f;
 				Vertex->Tex_U2		= 0.0f;
@@ -3270,7 +3270,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= EndPoint + Offset;
 				Vertex->OldPosition	= Particle->OldLocation;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fUEnd;
 				Vertex->Tex_V		= 0.0f;
 				Vertex->Tex_U2		= 1.0f;
@@ -3283,7 +3283,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= EndPoint - Offset;
 				Vertex->OldPosition	= Particle->OldLocation;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fUEnd;
 				Vertex->Tex_V		= 1.0f;
 				Vertex->Tex_U2		= 1.0f;
@@ -3412,7 +3412,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= Location + Offset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 0.0f;
 				Vertex->Tex_U2		= 0.0f;
@@ -3425,7 +3425,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex->Position	= Location - Offset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 1.0f;
 				Vertex->Tex_U2		= 0.0f;
@@ -3474,7 +3474,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 					Vertex->Position	= EndPoint + Offset;
 					Vertex->OldPosition	= EndPoint;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU + fTextureIncrement;
 					Vertex->Tex_V		= 0.0f;
 					Vertex->Tex_U2		= Tex_U2;
@@ -3487,7 +3487,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 					Vertex->Position	= EndPoint - Offset;
 					Vertex->OldPosition	= EndPoint;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU + fTextureIncrement;
 					Vertex->Tex_V		= 1.0f;
 					Vertex->Tex_U2		= Tex_U2;
@@ -3752,7 +3752,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex->Position	= Location + LastOffset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 0.0f;
 				Vertex->Rotation	= Particle->Rotation;
@@ -3763,7 +3763,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex->Position	= Location - LastOffset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 1.0f;
 				Vertex->Rotation	= Particle->Rotation;
@@ -3909,7 +3909,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos + Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 0.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -3920,7 +3920,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos - Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 1.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4028,7 +4028,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos + Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 0.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4039,7 +4039,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos - Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 1.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4164,7 +4164,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex->Position	= Location + LastOffset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 0.0f;
 				Vertex->Rotation	= Particle->Rotation;
@@ -4175,7 +4175,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex->Position	= Location - LastOffset;
 				Vertex->OldPosition	= Location;
 				Vertex->ParticleId	= 0;
-				Vertex->Size		= Size;
+				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
 				Vertex->Tex_V		= 1.0f;
 				Vertex->Rotation	= Particle->Rotation;
@@ -4323,7 +4323,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos + Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 0.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4334,7 +4334,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos - Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 1.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4442,7 +4442,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos + Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 0.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4453,7 +4453,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex->Position	= InterpDrawPos - Offset;
 						Vertex->OldPosition	= InterpDrawPos;
 						Vertex->ParticleId	= 0;
-						Vertex->Size		= Size;
+						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
 						Vertex->Tex_V		= 1.0f;
 						Vertex->Rotation	= Particle->Rotation;
@@ -4738,7 +4738,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			Vertex->Position	= Location + LastOffset;
 			Vertex->OldPosition	= Location;
 			Vertex->ParticleId	= 0;
-			Vertex->Size		= Size;
+			Vertex->Size		= FVector2f(Size);
 			Vertex->Tex_U		= fU;
 			Vertex->Tex_V		= 0.0f;
 			Vertex->Rotation	= Particle->Rotation;
@@ -4749,7 +4749,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			Vertex->Position	= Location - LastOffset;
 			Vertex->OldPosition	= Location;
 			Vertex->ParticleId	= 0;
-			Vertex->Size		= Size;
+			Vertex->Size		= FVector2f(Size);
 			Vertex->Tex_U		= fU;
 			Vertex->Tex_V		= 1.0f;
 			Vertex->Rotation	= Particle->Rotation;
@@ -4945,7 +4945,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex->Position	= InterpDrawPos + Offset;
 					Vertex->OldPosition	= InterpDrawPos;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
 					Vertex->Tex_V		= 0.0f;
 					Vertex->Rotation	= Particle->Rotation;
@@ -4956,7 +4956,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex->Position	= InterpDrawPos - Offset;
 					Vertex->OldPosition	= InterpDrawPos;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
 					Vertex->Tex_V		= 1.0f;
 					Vertex->Rotation	= Particle->Rotation;
@@ -5064,7 +5064,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex->Position	= InterpDrawPos + Offset;
 					Vertex->OldPosition	= InterpDrawPos;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
 					Vertex->Tex_V		= 0.0f;
 					Vertex->Rotation	= Particle->Rotation;
@@ -5075,7 +5075,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex->Position	= InterpDrawPos - Offset;
 					Vertex->OldPosition	= InterpDrawPos;
 					Vertex->ParticleId	= 0;
-					Vertex->Size		= Size;
+					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
 					Vertex->Tex_V		= 1.0f;
 					Vertex->Rotation	= Particle->Rotation;
