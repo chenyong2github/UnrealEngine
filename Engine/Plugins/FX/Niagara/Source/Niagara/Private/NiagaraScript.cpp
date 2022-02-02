@@ -1893,17 +1893,6 @@ void UNiagaraScript::PostLoad()
         		ScriptData->LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
         	}
         }
-
-		if (Data.InputSections.Num() > 0)
-		{
-			for (FNiagaraStackSection& InputSection : Data.InputSections)
-			{
-				if (InputSection.SectionIdentifier == NAME_None)
-				{
-					InputSection.SectionIdentifier = *InputSection.SectionDisplayName.ToString();
-				}
-			}
-		}
 	}
 
 #endif
