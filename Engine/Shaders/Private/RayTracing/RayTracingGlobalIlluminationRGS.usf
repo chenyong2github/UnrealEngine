@@ -184,6 +184,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 					uint SkyLightId = 0;
 					RayDesc LightRay = Ray;
 					LightRay.TMax = POSITIVE_INFINITY;
+					LightRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 					float3 EnvironmentRadiance = SkyLight_TraceLight(Ray, SkyLightId).Radiance;
 					Irradiance += EnvironmentRadiance * RayThroughput / RayPdf;
 				}
@@ -233,7 +234,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 
 				RayDesc LightRay;
 				if (SampleLight(RandSample3,
-								Ray.Origin,
+								Ray.Origin + LWCHackToFloat(PrimaryView.PreViewTranslation), // RT_LWC_TODO,
 								Payload.WorldNormal,
 								Payload.PrimitiveLightingChannelMask,
 								ENABLE_TRANSMISSION,

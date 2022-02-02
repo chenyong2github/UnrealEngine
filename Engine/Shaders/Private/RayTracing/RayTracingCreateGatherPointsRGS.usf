@@ -388,7 +388,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 
 				RayDesc LightRay;
 				if (SampleLight(RandSample3,
-								Position,
+								Position + LWCHackToFloat(PrimaryView.PreViewTranslation), // RT_LWC_TODO,
 								Normal,
 								Payload.PrimitiveLightingChannelMask,
 								ENABLE_TRANSMISSION,

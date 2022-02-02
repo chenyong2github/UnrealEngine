@@ -12,7 +12,6 @@
 uint SceneInfiniteLightCount;
 float3 SceneLightsTranslatedBoundMin;
 float3 SceneLightsTranslatedBoundMax;
-float3 PreViewTranslation;
 RWTexture2D<uint> RWLightGrid;
 RWBuffer<uint> RWLightGridData;
 uint LightGridResolution;
@@ -46,7 +45,7 @@ void PathTracingBuildLightGridCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	for (uint LightIndex = SceneInfiniteLightCount; LightIndex < SceneLightCount; LightIndex++)
 	{
 		uint LightType = SceneLights[LightIndex].Flags & PATHTRACER_FLAG_TYPE_MASK;
-		float3 Center = GetPosition(LightIndex) + PreViewTranslation; // RT_LWC_TODO
+		float3 Center = GetTranslatedPosition(LightIndex);
 		float Radius = 1.0 / GetAttenuation(LightIndex);
 
 		float3 E = max(Lo - Center, 0) + max(Center - Hi, 0);
@@ -68,8 +67,8 @@ void PathTracingBuildLightGridCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		if (LightType == PATHTRACING_LIGHT_SPOT)
 		{
-			float3 LightBoundLo = SceneLights[LightIndex].BoundMin;
-			float3 LightBoundHi = SceneLights[LightIndex].BoundMax;
+			float3 LightBoundLo = SceneLights[LightIndex].TranslatedBoundMin;
+			float3 LightBoundHi = SceneLights[LightIndex].TranslatedBoundMax;
 
 			if (any(Hi < LightBoundLo) || any(Lo > LightBoundHi))
 			{

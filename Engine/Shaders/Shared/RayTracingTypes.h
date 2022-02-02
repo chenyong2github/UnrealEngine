@@ -12,7 +12,9 @@
 // C++ representation of a light for the path tracer
 // #dxr_todo: Unify this with FRTLightingData ?
 struct FPathTracingLight {
-	FVector3f Position;
+// 	FVector3f RelativeWorldPosition;
+// 	FVector3f TilePosition;
+	FVector3f TranslatedWorldPosition;
 	FVector3f Normal;
 	FVector3f dPdu;
 	FVector3f dPdv;
@@ -24,8 +26,8 @@ struct FPathTracingLight {
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines PATHTRACER_FLAG_*
 	int32   RectLightTextureIndex;
-	FVector3f BoundMin;
-	FVector3f BoundMax;
+	FVector3f TranslatedBoundMin;
+	FVector3f TranslatedBoundMax;
 	float Padding; // keep structure aligned
 };
 
@@ -54,7 +56,9 @@ static_assert(sizeof(FPathTracingPackedPathState) == 88, "Packed Path State size
 // HLSL side of the structs above
 
 struct FPathTracingLight {
-	float3  Position;
+// 	float3  RelativeWorldPosition;
+// 	float3  TilePosition;
+	float3  TranslatedWorldPosition;
 	float3  Normal;
 	float3  dPdu;
 	float3  dPdv;
@@ -66,8 +70,8 @@ struct FPathTracingLight {
 	int     IESTextureSlice;
 	uint    Flags;
 	int	    RectLightTextureIndex;
-	float3  BoundMin;
-	float3  BoundMax;
+	float3  TranslatedBoundMin;
+	float3  TranslatedBoundMax;
 	float Padding;
 };
 

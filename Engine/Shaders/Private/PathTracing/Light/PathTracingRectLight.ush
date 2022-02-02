@@ -91,9 +91,9 @@ float4 SampleApproxProjectionSphericalRect(float2 Rand, FSphericalRect Spherical
 
 FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 {
-	float3 LightPosition = GetPosition(LightId);
+	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
-	float3 LightDirection = LightPosition - Ray.Origin;
+	float3 LightDirection = TranslatedLightPosition - Ray.Origin;
 	float DoN = dot(Ray.Direction, LightNormal);
 	float t = dot(LightDirection, LightNormal) / DoN;
 	// ray points toward the plane and intersect it?
@@ -139,11 +139,11 @@ FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 FLightSample RectLight_SampleLight(
 	int LightId,
 	float2 RandSample,
-	float3 WorldPos,
+	float3 TranslatedWorldPos,
 	float3 WorldNormal
 )
 {
-	float3 LightPosition = GetPosition(LightId);
+	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
 	float3 LightdPdu = GetdPdu(LightId);
 	float3 LightdPdv = GetdPdv(LightId);
@@ -151,7 +151,7 @@ FLightSample RectLight_SampleLight(
 	float LightHeight = GetHeight(LightId);
 
 	// Define rectangle and compute solid angle
-	float3 LightDirection = LightPosition - WorldPos;
+	float3 LightDirection = TranslatedLightPosition - TranslatedWorldPos;
 	FRect Rect = GetRect(LightDirection,
 		-LightNormal,
 		LightdPdv,
@@ -174,7 +174,7 @@ FLightSample RectLight_SampleLight(
 	float3 Direction = UniformSampleSphericalRect(RandSample, SphericalRect);
 #endif
 
-	float3 RadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
+	float3 RadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, TranslatedWorldPos);
 	RadianceOverPdf *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
 #if USE_RECT_LIGHT_TEXTURES
 	float2 UV = 0.5 * ((2 * ClippedUV - 1) * Rect.Extent + Rect.Offset) / Rect.FullExtent + 0.5;
@@ -186,14 +186,14 @@ FLightSample RectLight_SampleLight(
 
 float RectLight_EstimateLight(
 	int LightId,
-	float3 WorldPos,
+	float3 TranslatedWorldPos,
 	float3 WorldNormal,
 	bool IsTransmissiveMaterial
 )
 {
 	// Distance to centroid
 	// #dxr_todo: UE-72533 Use closest point, instead
-	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float3 LightDirection = GetTranslatedPosition(LightId) - TranslatedWorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 	float3 LightNormal = GetNormal(LightId);
 

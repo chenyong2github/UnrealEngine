@@ -195,6 +195,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCa
 		{
 			RayDesc LightRay = Ray;
 			LightRay.TMax = PackedPayload.IsMiss() ? Ray.TMax : PackedPayload.HitT;
+			LightRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
 		}
@@ -485,7 +486,7 @@ void PathTracingKernel(
 			AdjustMaterialRoughness(Payload, PathRoughness);
 		}
 		
-		FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos);
+		FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation)); // RT_LWC_TODO
 
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
@@ -501,7 +502,8 @@ void PathTracingKernel(
 		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
 		{
 			// Choose a light and sample it
-			float3 WorldPos = Payload.WorldPos;
+			float3 WorldPos = Payload.WorldPos; // RT_LWC_TODO
+			float3 TranslatedWorldPos = Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 			float3 WorldNormal = Payload.WorldNormal;
 			uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
@@ -510,7 +512,7 @@ void PathTracingKernel(
 			for (uint Index = 0, Num = LightLoopCount.NumLights; Index < Num; ++Index)
 			{
 				uint LightIndex = GetLightId(Index, LightLoopCount);
-				LightPickingCdfSum += EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
+				LightPickingCdfSum += EstimateLight(LightIndex, TranslatedWorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
 				LightPickingCdf[Index] = LightPickingCdfSum;
 			}
 
@@ -522,7 +524,7 @@ void PathTracingKernel(
 
 				SelectLight(RandSample.x * LightPickingCdfSum, LightLoopCount.NumLights, LightPickingCdf, LightId, LightPickPdf);
 
-				FLightSample LightSample = SampleLight(LightId, RandSample.yz, WorldPos, WorldNormal);
+				FLightSample LightSample = SampleLight(LightId, RandSample.yz, TranslatedWorldPos, WorldNormal);
 
 				LightPickPdf /= LightPickingCdfSum;
 
@@ -667,7 +669,9 @@ void PathTracingKernel(
 					continue;
 				}
 
-				FLightHit LightResult = TraceLight(Ray, LightId);
+				RayDesc TranslatedRay = Ray;
+				TranslatedRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
+				FLightHit LightResult = TraceLight(TranslatedRay, LightId);
 
 				if (LightResult.IsMiss())
 				{

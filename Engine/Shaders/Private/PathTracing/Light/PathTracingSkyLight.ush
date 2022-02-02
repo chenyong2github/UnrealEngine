@@ -17,7 +17,6 @@ SkyLight.usf: Light sampling functions for SkyLight implementation
 
 float SkyLight_EstimateLight(
 	int LightId,
-	float3 WorldPos,
 	float3 WorldNormal,
 	bool IsTransmissiveMaterial
 )
@@ -42,7 +41,6 @@ FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId)
 FLightSample SkyLight_SampleLight(
 	int LightId,
 	float2 RandSample,
-	float3 WorldPos,
 	float3 WorldNormal
 )
 {

@@ -26,13 +26,13 @@ float GetCapsuleRadius(int LightId)
 
 FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 {
-	float3 LightPosition = GetPosition(LightId);
+	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float LightRadius = GetCapsuleRadius(LightId);
 	float LightRadius2 = Pow2(LightRadius);
 	float SourceLength = GetSourceLength(LightId);
 
 #if 0 // DEBUG code: visualize the bounding rectangle against the capsule intersection test
-	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(LightPosition - Ray.Origin, GetdPdv(LightId), LightRadius, SourceLength);
+	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(TranslatedLightPosition - Ray.Origin, GetdPdv(LightId), LightRadius, SourceLength);
 
 	float ConeSolidAngle = CapsuleBounds.ConeSolidAngle;
 	float RectSolidAngle = CapsuleBounds.SphericalRect.SolidAngle;
@@ -42,7 +42,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 	{
 		// Is ray pointing inside the cone of directions?
 		float CosTheta = dot(normalize(Ray.Direction), CapsuleBounds.ConeAxis);
-		t = CosTheta >= SqrtOneMinusX(CapsuleBounds.ConeSinThetaMax2) ? length(LightPosition) : -1.0;
+		t = CosTheta >= SqrtOneMinusX(CapsuleBounds.ConeSinThetaMax2) ? length(TranslatedLightPosition) : -1.0;
 	}
 	else
 	{
@@ -72,7 +72,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 		float BodyArea = 0.5 * LightRadius * SourceLength;
 		float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 		float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
-		float t = CapsuleIntersect(Ray.Direction, LightPosition - Ray.Origin, GetdPdv(LightId), LightRadius2, SourceLength);
+		float t = CapsuleIntersect(Ray.Direction, TranslatedLightPosition - Ray.Origin, GetdPdv(LightId), LightRadius2, SourceLength);
 		if (t > Ray.TMin && t < Ray.TMax)
 		{
 			LightRadiance *= float3(0, 1, 0);
@@ -88,7 +88,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 		float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
 		{
 			// exact
-			float t = CapsuleIntersect(Ray.Direction, LightPosition - Ray.Origin, GetdPdv(LightId), LightRadius2, SourceLength);
+			float t = CapsuleIntersect(Ray.Direction, TranslatedLightPosition - Ray.Origin, GetdPdv(LightId), LightRadius2, SourceLength);
 			if (t > Ray.TMin && t < Ray.TMax)
 			{
 				LightRadiance *= float3(1, 0, 0);
@@ -98,20 +98,20 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 	}
 #else
 	float3 Axis = GetdPdv(LightId);
-	float t = CapsuleIntersect(Ray.Direction, LightPosition - Ray.Origin, Axis, LightRadius2, SourceLength);
+	float t = CapsuleIntersect(Ray.Direction, TranslatedLightPosition - Ray.Origin, Axis, LightRadius2, SourceLength);
 	if (t > Ray.TMin && t < Ray.TMax)
 	{
 		float CapsArea = LightRadius2;
 		float BodyArea = 0.5 * LightRadius * SourceLength;
 		float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 		float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
-		float3 LightDirection = LightPosition - Ray.Origin;
+		float3 LightDirection = TranslatedLightPosition - Ray.Origin;
 		float LightDistanceSquared = dot(LightDirection, LightDirection);
 		LightRadiance *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 #if CAPSULE_SOLIDANGLE_SAMPLING
 		float Pdf = 1.0 / GetCapsuleBoundsSolidAngle(CapsuleGetSphericalBounds(LightDirection, Axis, LightRadius, SourceLength));
 #else
-		float3 Normal = CapsuleNormal(Ray.Origin + t * Ray.Direction, LightPosition, Axis * SourceLength);
+		float3 Normal = CapsuleNormal(Ray.Origin + t * Ray.Direction, TranslatedLightPosition, Axis * SourceLength);
 
 		float CosTheta = saturate(-dot(Normal, Ray.Direction));
 
@@ -127,7 +127,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 FLightSample CapsuleLight_SampleLight(
 	int LightId,
 	float2 RandSample,
-	float3 WorldPos,
+	float3 TranslatedWorldPos,
 	float3 WorldNormal
 )
 {
@@ -150,7 +150,7 @@ FLightSample CapsuleLight_SampleLight(
 	float3 LightPower = GetColor(LightId);
 	float3 LightRadiance = LightPower / (PI * (CapsArea + BodyArea));
 
-	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float3 LightDirection = GetTranslatedPosition(LightId) - TranslatedWorldPos;
 	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(LightDirection, Axis, Radius, SourceLength);
 
 	float4 Result = SampleCapsuleBounds(CapsuleBounds, RandSample);
@@ -202,7 +202,7 @@ FLightSample CapsuleLight_SampleLight(
 	}
 	float3x3 CylinderBasis = GetTangentBasis(Axis);
 
-	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float3 LightDirection = GetTranslatedPosition(LightId) - TranslatedWorldPos;
 	float3 LocalLightDirection = mul(CylinderBasis, LightDirection); // World To Local
 
 	float CosTheta = saturate(dot(LightNormal, -normalize(LocalLightDirection + LightPoint)));

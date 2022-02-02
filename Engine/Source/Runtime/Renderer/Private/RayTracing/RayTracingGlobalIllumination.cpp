@@ -314,7 +314,7 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationRectLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.Position = LightShaderParameters.WorldPosition; // LWC_TODO
+			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
 			DestLight.Normal = -LightShaderParameters.Direction;
 			DestLight.dPdu = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
 			DestLight.dPdv = LightShaderParameters.Tangent;
@@ -329,7 +329,7 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationPointLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.Position = LightShaderParameters.WorldPosition; // LWC_TODO
+			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = FVector3f(LightShaderParameters.Color);
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
@@ -341,7 +341,7 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationSpotLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.Position = LightShaderParameters.WorldPosition; // LWC_TODO
+			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
 			DestLight.Normal = -LightShaderParameters.Direction;
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = FVector3f(LightShaderParameters.Color);

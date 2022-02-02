@@ -134,6 +134,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		{
 			RayDesc LightRay = PathState.Ray;
 			LightRay.TMax = PackedPayload.IsMiss() ? PathState.Ray.TMax : PackedPayload.HitT;
+			LightRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * LightRadiance, bIsCameraRay);
 		}
@@ -767,6 +768,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	{
 		// Choose a light and sample it
 		float3 WorldPos = Payload.WorldPos;
+		float3 TranslatedWorldPos = Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 		float3 WorldNormal = Payload.WorldNormal;
 		uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
@@ -775,7 +777,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		for (uint Index = 0, Num = LightLoopCount.NumLights; Index < Num; ++Index)
 		{
 			uint LightIndex = GetLightId(Index, LightLoopCount);
-			LightPickingCdfSum += EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
+			LightPickingCdfSum += EstimateLight(LightIndex, TranslatedWorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
 			LightPickingCdf[Index] = LightPickingCdfSum;
 		}
 
@@ -789,7 +791,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			LightPickPdf /= LightPickingCdfSum;
 
 			LightId = GetLightId(LightId, LightLoopCount);
-			FLightSample LightSample = SampleLight(LightId, RandSample.yz, WorldPos, WorldNormal);
+			FLightSample LightSample = SampleLight(LightId, RandSample.yz, TranslatedWorldPos, WorldNormal);
 
 			LightSample.RadianceOverPdf /= LightPickPdf;
 			LightSample.Pdf *= LightPickPdf;
@@ -925,7 +927,9 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				continue;
 			}
 
-			FLightHit LightResult = TraceLight(PathState.Ray, LightId);
+			RayDesc TranslatedRay = PathState.Ray;
+			TranslatedRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
+			FLightHit LightResult = TraceLight(TranslatedRay, LightId);
 
 			if (LightResult.IsMiss())
 			{

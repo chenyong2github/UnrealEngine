@@ -73,7 +73,7 @@ void SetupPathTracingLightParameters(
 	{
 		FPathTracingLight& DestLight = Lights.AddDefaulted_GetRef();
 
-		DestLight.Position = Light.Position;
+		DestLight.TranslatedWorldPosition = Light.Position + View.ViewMatrices.GetPreViewTranslation();
 		DestLight.Color = FVector(Light.Color);
 		DestLight.Normal = Light.Direction;
 		DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
@@ -100,17 +100,17 @@ void SetupPathTracingLightParameters(
 		DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 
 		float Radius = Light.AttenuationRadius;
-		FVector Center = DestLight.Position;
+		FVector3f Center = DestLight.TranslatedWorldPosition;
 		// simple sphere of influence
-		DestLight.BoundMin = Center - FVector(Radius, Radius, Radius);
-		DestLight.BoundMax = Center + FVector(Radius, Radius, Radius);
+		DestLight.TranslatedBoundMin = Center - FVector3f(Radius, Radius, Radius);
+		DestLight.TranslatedBoundMax = Center + FVector3f(Radius, Radius, Radius);
 	}
 
 	for (auto Light : LightScene.SpotLights.Elements)
 	{
 		FPathTracingLight& DestLight = Lights.AddDefaulted_GetRef();
 
-		DestLight.Position = Light.Position;
+		DestLight.TranslatedWorldPosition = Light.Position + View.ViewMatrices.GetPreViewTranslation();
 		DestLight.Normal = Light.Direction;
 		DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
 		DestLight.dPdv = Light.Tangent;
@@ -137,31 +137,31 @@ void SetupPathTracingLightParameters(
 		DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 
 		float Radius = Light.AttenuationRadius;
-		FVector Center = DestLight.Position;
-		FVector Normal = DestLight.Normal;
-		FVector Disc = FVector(
+		FVector3f Center = DestLight.TranslatedWorldPosition;
+		FVector3f Normal = DestLight.Normal;
+		FVector3f Disc = FVector3f(
 			FMath::Sqrt(FMath::Clamp(1 - Normal.X * Normal.X, 0.0f, 1.0f)),
 			FMath::Sqrt(FMath::Clamp(1 - Normal.Y * Normal.Y, 0.0f, 1.0f)),
 			FMath::Sqrt(FMath::Clamp(1 - Normal.Z * Normal.Z, 0.0f, 1.0f))
 		);
 		// box around ray from light center to tip of the cone
-		FVector Tip = Center + Normal * Radius;
-		DestLight.BoundMin = Center.ComponentMin(Tip);
-		DestLight.BoundMax = Center.ComponentMax(Tip);
+		FVector3f Tip = Center + Normal * Radius;
+		DestLight.TranslatedBoundMin = Center.ComponentMin(Tip);
+		DestLight.TranslatedBoundMax = Center.ComponentMax(Tip);
 		// expand by disc around the farthest part of the cone
 
 		float CosOuter = Light.SpotAngles.X;
 		float SinOuter = FMath::Sqrt(1.0f - CosOuter * CosOuter);
 
-		DestLight.BoundMin = DestLight.BoundMin.ComponentMin(Center + Radius * (Normal * CosOuter - Disc * SinOuter));
-		DestLight.BoundMax = DestLight.BoundMax.ComponentMax(Center + Radius * (Normal * CosOuter + Disc * SinOuter));
+		DestLight.TranslatedBoundMin = DestLight.TranslatedBoundMin.ComponentMin(Center + Radius * (Normal * CosOuter - Disc * SinOuter));
+		DestLight.TranslatedBoundMax = DestLight.TranslatedBoundMax.ComponentMax(Center + Radius * (Normal * CosOuter + Disc * SinOuter));
 	}
 
 	for (auto Light : LightScene.RectLights.Elements)
 	{
 		FPathTracingLight& DestLight = Lights.AddDefaulted_GetRef();
 
-		DestLight.Position = Light.Position;
+		DestLight.TranslatedWorldPosition = Light.Position + View.ViewMatrices.GetPreViewTranslation();
 		DestLight.Normal = Light.Direction;
 		DestLight.dPdu = FVector::CrossProduct(Light.Tangent, -Light.Direction);
 		DestLight.dPdv = Light.Tangent;
@@ -190,18 +190,18 @@ void SetupPathTracingLightParameters(
 		DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 
 		float Radius = Light.AttenuationRadius;
-		FVector Center = DestLight.Position;
-		FVector Normal = DestLight.Normal;
-		FVector Disc = FVector(
+		FVector3f Center = DestLight.TranslatedWorldPosition;
+		FVector3f Normal = DestLight.Normal;
+		FVector3f Disc = FVector3f(
 			FMath::Sqrt(FMath::Clamp(1 - Normal.X * Normal.X, 0.0f, 1.0f)),
 			FMath::Sqrt(FMath::Clamp(1 - Normal.Y * Normal.Y, 0.0f, 1.0f)),
 			FMath::Sqrt(FMath::Clamp(1 - Normal.Z * Normal.Z, 0.0f, 1.0f))
 		);
 		// quad bbox is the bbox of the disc +  the tip of the hemisphere
 		// TODO: is it worth trying to account for barndoors? seems unlikely to cut much empty space since the volume _inside_ the barndoor receives light
-		FVector Tip = Center + Normal * Radius;
-		DestLight.BoundMin = Tip.ComponentMin(Center - Radius * Disc);
-		DestLight.BoundMax = Tip.ComponentMax(Center + Radius * Disc);
+		FVector3f Tip = Center + Normal * Radius;
+		DestLight.TranslatedBoundMin = Tip.ComponentMin(Center - Radius * Disc);
+		DestLight.TranslatedBoundMax = Tip.ComponentMax(Center + Radius * Disc);
 	}
 
 	PassParameters->SceneLightCount = Lights.Num();

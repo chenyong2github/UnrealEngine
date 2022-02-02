@@ -32,10 +32,10 @@ FLightHit SpotLight_TraceLight(RayDesc Ray, int LightId) {
 	FLightHit Result = PointLight_TraceLight(Ray, LightId);
 	if (Result.IsHit())
 	{
-		float3 LightPosition = GetPosition(LightId);
+		float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 		float3 LightNormal = GetNormal(LightId);
 		float2 CosConeAngles = GetCosConeAngles(LightId);
-		Result.Radiance *= SpotAttenuation(-normalize(Ray.Origin - LightPosition), LightNormal, CosConeAngles);
+		Result.Radiance *= SpotAttenuation(-normalize(Ray.Origin - TranslatedLightPosition), LightNormal, CosConeAngles);
 	}
 	return Result;
 }
@@ -43,34 +43,34 @@ FLightHit SpotLight_TraceLight(RayDesc Ray, int LightId) {
 FLightSample SpotLight_SampleLight(
 	int LightId,
 	float2 RandSample,
-	float3 WorldPos,
+	float3 TranslatedWorldPos,
 	float3 WorldNormal
 )
 {
-	FLightSample Result = PointLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+	FLightSample Result = PointLight_SampleLight(LightId, RandSample, TranslatedWorldPos, WorldNormal);
 
-	float3 LightPosition = GetPosition(LightId);
+	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
 	float2 CosConeAngles = GetCosConeAngles(LightId);
-	Result.RadianceOverPdf *= SpotAttenuation(-normalize(WorldPos - LightPosition), LightNormal, CosConeAngles);
+	Result.RadianceOverPdf *= SpotAttenuation(-normalize(TranslatedWorldPos - TranslatedLightPosition), LightNormal, CosConeAngles);
 
 	return Result;
 }
 
 float SpotLight_EstimateLight(
 	int LightId,
-	float3 WorldPos,
+	float3 TranslatedWorldPos,
 	float3 WorldNormal,
 	bool IsTransmissiveMaterial
 )
 {
-	float3 LightPosition = GetPosition(LightId);
+	float3 TranslatedLightPosition = GetTranslatedPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
 	float LightPower = Luminance(GetColor(LightId));
 	float Radius = GetRadius(LightId);
 	
 	// Distance
-	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float3 LightDirection = TranslatedLightPosition - TranslatedWorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 
 	// Geometric term

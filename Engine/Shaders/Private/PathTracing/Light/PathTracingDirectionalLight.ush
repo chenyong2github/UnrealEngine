@@ -36,7 +36,6 @@ FLightHit DirectionalLight_TraceLight(RayDesc Ray, int LightId)
 FLightSample DirectionalLight_SampleLight(
 	int LightId,
 	float2 RandSample,
-	float3 WorldPos,
 	float3 WorldNormal
 )
 {
@@ -50,7 +49,6 @@ FLightSample DirectionalLight_SampleLight(
 
 float DirectionalLight_EstimateLight(
 	int LightId,
-	float3 WorldPos,
 	float3 WorldNormal,
 	bool IsTransmissiveMaterial
 )

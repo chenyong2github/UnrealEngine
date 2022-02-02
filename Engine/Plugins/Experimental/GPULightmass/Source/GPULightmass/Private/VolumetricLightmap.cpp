@@ -75,8 +75,6 @@ void ReleaseBrickData(FVolumetricLightmapBrickData& BrickData)
 	BrickData.DirectionalLightShadowing.UAV.SafeRelease();
 }
 
-void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState& LightScene, FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGBufferSRV** OutLightBuffer, uint32* OutLightCount);
-
 namespace GPULightmass
 {
 

@@ -450,7 +450,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid, RENDERER_API)
 	SHADER_PARAMETER(uint32, SceneInfiniteLightCount)
 	SHADER_PARAMETER(FVector3f, SceneLightsTranslatedBoundMin)
 	SHADER_PARAMETER(FVector3f, SceneLightsTranslatedBoundMax)
-	SHADER_PARAMETER(FVector3f, PreViewTranslation) // RT_LWC_TODO
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightGrid)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, LightGridData)
 	SHADER_PARAMETER(unsigned, LightGridResolution)
@@ -904,7 +903,6 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	LightGridParameters->SceneInfiniteLightCount = NumInfiniteLights;
 	LightGridParameters->SceneLightsTranslatedBoundMin = FVector(+Inf, +Inf, +Inf);
 	LightGridParameters->SceneLightsTranslatedBoundMax = FVector(-Inf, -Inf, -Inf);
-	LightGridParameters->PreViewTranslation = View.ViewMatrices.GetPreViewTranslation(); // RT_LWC_TODO
 	LightGridParameters->LightGrid = nullptr;
 	LightGridParameters->LightGridData = nullptr;
 
@@ -912,20 +910,14 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	// if we have some finite lights -- build a light grid
 	if (NumFiniteLights > 0)
 	{
-		FVector SceneLightsBoundMin = FVector(+Inf, +Inf, +Inf);
-		FVector SceneLightsBoundMax = FVector(-Inf, -Inf, -Inf);
-
 		// get bounding box of all finite lights
 		const FPathTracingLight* FiniteLights = Lights + NumInfiniteLights;
 		for (int Index = 0; Index < NumFiniteLights; Index++)
 		{
 			const FPathTracingLight& Light = FiniteLights[Index];
-			SceneLightsBoundMin = FVector::Min(SceneLightsBoundMin, Light.BoundMin);
-			SceneLightsBoundMax = FVector::Max(SceneLightsBoundMax, Light.BoundMax);
+			LightGridParameters->SceneLightsTranslatedBoundMin = FVector3f::Min(LightGridParameters->SceneLightsTranslatedBoundMin, Light.TranslatedBoundMin);
+			LightGridParameters->SceneLightsTranslatedBoundMax = FVector3f::Max(LightGridParameters->SceneLightsTranslatedBoundMax, Light.TranslatedBoundMax);
 		}
-
-		LightGridParameters->SceneLightsTranslatedBoundMin = SceneLightsBoundMin + View.ViewMatrices.GetPreViewTranslation();
-		LightGridParameters->SceneLightsTranslatedBoundMax = SceneLightsBoundMax + View.ViewMatrices.GetPreViewTranslation();
 
 		const uint32 Resolution = FMath::RoundUpToPowerOfTwo(CVarPathTracingLightGridResolution.GetValueOnRenderThread());
 		const uint32 MaxCount = FMath::Clamp(
@@ -937,7 +929,7 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		LightGridParameters->LightGridMaxCount = MaxCount;
 
 		// pick the shortest axis
-		FVector Diag = SceneLightsBoundMax - SceneLightsBoundMin;
+		FVector3f Diag = LightGridParameters->SceneLightsTranslatedBoundMax - LightGridParameters->SceneLightsTranslatedBoundMin;
 		if (Diag.X < Diag.Y && Diag.X < Diag.Z)
 		{
 			LightGridParameters->LightGridAxis = 0;
@@ -1030,8 +1022,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
-		DestLight.BoundMin = FVector(-Inf, -Inf, -Inf);
-		DestLight.BoundMax = FVector( Inf,  Inf,  Inf);
+		DestLight.TranslatedBoundMin = FVector(-Inf, -Inf, -Inf);
+		DestLight.TranslatedBoundMax = FVector( Inf,  Inf,  Inf);
 		if (Scene->SkyLight->bRealTimeCaptureEnabled || CVarPathTracingVisibleLights.GetValueOnRenderThread() == 2)
 		{
 			// When using the realtime capture system, always make the skylight visible
@@ -1073,7 +1065,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 			// these mean roughly the same thing across all light types
 			DestLight.Color = FVector3f(LightParameters.Color);
-			DestLight.Position = LightParameters.WorldPosition; // LWC_TODO
+			DestLight.TranslatedWorldPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
 			DestLight.Normal = -LightParameters.Direction;
 			DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 			DestLight.dPdv = LightParameters.Tangent;
@@ -1084,8 +1076,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Dimensions = FVector(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, 0.0f);
 			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 
-			DestLight.BoundMin = FVector(-Inf, -Inf, -Inf);
-			DestLight.BoundMax = FVector( Inf,  Inf,  Inf);
+			DestLight.TranslatedBoundMin = FVector(-Inf, -Inf, -Inf);
+			DestLight.TranslatedBoundMax = FVector( Inf,  Inf,  Inf);
 		}
 	}
 
@@ -1138,7 +1130,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 		// these mean roughly the same thing across all light types
 		DestLight.Color = FVector3f(LightParameters.Color);
-		DestLight.Position = LightParameters.WorldPosition; // LWC_TODO
+		DestLight.TranslatedWorldPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
 		DestLight.Normal = -LightParameters.Direction;
 		DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 		DestLight.dPdv = LightParameters.Tangent;
@@ -1184,18 +1176,18 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				}
 
 				float Radius = 1.0f / LightParameters.InvRadius;
-				FVector Center = DestLight.Position;
-				FVector Normal = DestLight.Normal;
-				FVector Disc = FVector(
+				FVector3f Center = DestLight.TranslatedWorldPosition;
+				FVector3f Normal = DestLight.Normal;
+				FVector3f Disc = FVector3f(
 					FMath::Sqrt(FMath::Clamp(1 - Normal.X * Normal.X, 0.0f, 1.0f)),
 					FMath::Sqrt(FMath::Clamp(1 - Normal.Y * Normal.Y, 0.0f, 1.0f)),
 					FMath::Sqrt(FMath::Clamp(1 - Normal.Z * Normal.Z, 0.0f, 1.0f))
 				);
 				// quad bbox is the bbox of the disc +  the tip of the hemisphere
 				// TODO: is it worth trying to account for barndoors? seems unlikely to cut much empty space since the volume _inside_ the barndoor receives light
-				FVector Tip = Center + Normal * Radius;
-				DestLight.BoundMin = FVector::Min(Tip, Center - Radius * Disc);
-				DestLight.BoundMax = FVector::Max(Tip, Center + Radius * Disc);
+				FVector3f Tip = Center + Normal * Radius;
+				DestLight.TranslatedBoundMin = FVector3f::Min(Tip, Center - Radius * Disc);
+				DestLight.TranslatedBoundMax = FVector3f::Max(Tip, Center + Radius * Disc);
 				break;
 			}
 			case LightType_Spot:
@@ -1207,24 +1199,24 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 
 				float Radius = 1.0f / LightParameters.InvRadius;
-				FVector Center = DestLight.Position;
-				FVector Normal = DestLight.Normal;
-				FVector Disc = FVector(
+				FVector3f Center = DestLight.TranslatedWorldPosition;
+				FVector3f Normal = DestLight.Normal;
+				FVector3f Disc = FVector3f(
 					FMath::Sqrt(FMath::Clamp(1 - Normal.X * Normal.X, 0.0f, 1.0f)),
 					FMath::Sqrt(FMath::Clamp(1 - Normal.Y * Normal.Y, 0.0f, 1.0f)),
 					FMath::Sqrt(FMath::Clamp(1 - Normal.Z * Normal.Z, 0.0f, 1.0f))
 				);
 				// box around ray from light center to tip of the cone
-				FVector Tip = Center + Normal * Radius;
-				DestLight.BoundMin = FVector::Min(Center, Tip);
-				DestLight.BoundMax = FVector::Max(Center, Tip);
+				FVector3f Tip = Center + Normal * Radius;
+				DestLight.TranslatedBoundMin = FVector3f::Min(Center, Tip);
+				DestLight.TranslatedBoundMax = FVector3f::Max(Center, Tip);
 				// expand by disc around the farthest part of the cone
 
 				float CosOuter = LightParameters.SpotAngles.X;
 				float SinOuter = FMath::Sqrt(1.0f - CosOuter * CosOuter);
 
-				DestLight.BoundMin = FVector::Min(DestLight.BoundMin, Center + Radius * (Normal * CosOuter - Disc * SinOuter));
-				DestLight.BoundMax = FVector::Max(DestLight.BoundMax, Center + Radius * (Normal * CosOuter + Disc * SinOuter));
+				DestLight.TranslatedBoundMin = FVector3f::Min(DestLight.TranslatedBoundMin, Center + Radius * (Normal * CosOuter - Disc * SinOuter));
+				DestLight.TranslatedBoundMax = FVector3f::Max(DestLight.TranslatedBoundMax, Center + Radius * (Normal * CosOuter + Disc * SinOuter));
 				break;
 			}
 			case LightType_Point:
@@ -1234,10 +1226,10 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 				float Radius = 1.0f / LightParameters.InvRadius;
-				FVector Center = DestLight.Position;
+				FVector3f Center = DestLight.TranslatedWorldPosition;
 				// simple sphere of influence
-				DestLight.BoundMin = Center - FVector(Radius, Radius, Radius);
-				DestLight.BoundMax = Center + FVector(Radius, Radius, Radius);
+				DestLight.TranslatedBoundMin = Center - FVector3f(Radius, Radius, Radius);
+				DestLight.TranslatedBoundMax = Center + FVector3f(Radius, Radius, Radius);
 				break;
 			}
 			default:

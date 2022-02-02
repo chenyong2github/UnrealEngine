@@ -88,9 +88,12 @@ bool IsPhysicalLight(int LightId)
 	return IsEnvironmentLight(LightId);
 }
 
-float3 GetPosition(int LightId)
+float3 GetTranslatedPosition(int LightId)
 {
-	return SceneLights[LightId].Position;
+	//const FLWCVector3 WorldPosition = MakeLWCVector3(SceneLights[LightId].TilePosition, SceneLights[LightId].RelativeWorldPosition);
+	//return LWCToFloat(LWCAdd(WorldPosition, PreViewTranslation));
+
+	return SceneLights[LightId].TranslatedWorldPosition;
 }
 
 float3 GetNormal(int LightId)
@@ -200,13 +203,13 @@ Texture2DArray<float> IESTexture;
 SamplerState          IESTextureSampler;
 #endif
 
-float ComputeIESAttenuation(int LightId, float3 WorldPosition)
+float ComputeIESAttenuation(int LightId, float3 TranslatedWorldPosition)
 {
 	float Result = 1.f;
 #if USE_IES_TERM
 	if (SceneLights[LightId].IESTextureSlice >= 0)
 	{
-		float3 LightDirection = normalize(GetPosition(LightId) - WorldPosition);
+		float3 LightDirection = normalize(GetTranslatedPosition(LightId) - TranslatedWorldPosition);
 
 		float DotProd = dot(LightDirection, GetNormal(LightId));
 		float Angle = asin(DotProd);
