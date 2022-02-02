@@ -1970,6 +1970,17 @@ void UNiagaraScript::GenerateStatIDs()
 
 #if WITH_EDITOR
 
+void UNiagaraScript::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	FNiagaraSystemUpdateContext UpdateContext;
+	UpdateContext.SetDestroyOnAdd(true);
+	UpdateContext.Add(this, true);
+
+	InvalidateCompileResults(TEXT("Post Undo"));
+}
+
 void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
