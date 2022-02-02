@@ -53,12 +53,12 @@ struct FAllocatedVTDescription
 
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
+	uint32 MaxSpaceSize = 0u;
+	uint32 IndirectionTextureSize = 0u;
 	uint8 Dimensions = 0u;
 	uint8 NumTextureLayers = 0u;
-	
-	uint32 MaxSpaceSize = 0u;
 	uint8 ForceSpaceID = 0xff;
-	uint32 IndirectionTextureSize = 0u;
+	uint8 AdaptiveLevelBias = 0u;
 
 	/** Producer for each texture layer. */
 	FVirtualTextureProducerHandle ProducerHandle[VIRTUALTEXTURE_SPACE_MAXLAYERS];

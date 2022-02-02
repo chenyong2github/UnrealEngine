@@ -140,6 +140,7 @@ namespace
 		AllocatedDesc.bPrivateSpace = true;
 		AllocatedDesc.ForceSpaceID = InForcedSpaceID;
 		AllocatedDesc.IndirectionTextureSize = FMath::Max(InGridSize.X, InGridSize.Y);
+		AllocatedDesc.AdaptiveLevelBias = InLevelOffset;
 
 		for (int32 LayerIndex = 0; LayerIndex < InAllocatedDesc.NumTextureLayers; ++LayerIndex)
 		{
