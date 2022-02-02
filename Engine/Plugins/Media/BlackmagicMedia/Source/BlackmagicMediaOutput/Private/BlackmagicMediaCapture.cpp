@@ -21,7 +21,7 @@
 #include "EngineAnalytics.h"
 #endif
 
-TAutoConsoleVariable<int32> CVarEnableGPUDirect(
+TAutoConsoleVariable<int32> CVarBlackmagicEnableGPUDirect(
 	TEXT("Blackmagic.EnableGPUDirect"), 0,
 	TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
 	ECVF_RenderThreadSafe);
@@ -426,7 +426,7 @@ void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess
 bool UBlackmagicMediaCapture::ShouldCaptureRHITexture() const
 {
 	// Todo: also test if dvp was initialized correctly.
-	return bGPUTextureTransferAvailable && CVarEnableGPUDirect.GetValueOnAnyThread() == 1;
+	return bGPUTextureTransferAvailable && CVarBlackmagicEnableGPUDirect.GetValueOnAnyThread() == 1;
 }
 
 void UBlackmagicMediaCapture::ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport)
