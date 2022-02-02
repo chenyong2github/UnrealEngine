@@ -179,7 +179,7 @@ void MainVS(
 	ResolvedView = ResolveView();
 
 	// Full screen triangle
-	Interpolants.Position = float4(FactoryInput.VertexId == 2 || FactoryInput.VertexId == 1 ? 1.0 : -3.0, FactoryInput.VertexId == 1 ? -3.0 : 1.0, 0.5f, 1.0f);
+	Interpolants.Position = FactoryInput.Position;
 
 	const float3 WorldPosition = 0.0f;
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(FactoryInput);

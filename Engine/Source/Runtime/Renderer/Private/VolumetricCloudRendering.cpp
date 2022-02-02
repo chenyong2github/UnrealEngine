@@ -871,9 +871,9 @@ public:
 		TArray<FDynamicMeshVertex> Vertices;
 
 		// Vertex position constructed in the shader
-		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
-		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
-		Vertices.Add(FDynamicMeshVertex(FVector3f(0.0f, 0.0f, 0.0f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f(-3.0f,  1.0f, 0.5f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f( 1.0f, -3.0f, 0.5f)));
+		Vertices.Add(FDynamicMeshVertex(FVector3f( 1.0f,  1.0f, 0.5f)));
 
 		Buffers.PositionVertexBuffer.Init(Vertices.Num());
 		Buffers.StaticMeshVertexBuffer.Init(Vertices.Num(), 1);
@@ -946,7 +946,7 @@ static void GetSingleTriangleMeshBatch(FMeshBatch& LocalSingleTriangleMesh, cons
 
 	LocalSingleTriangleMesh.VertexFactory = GSingleTriangleMeshVertexFactory;
 	LocalSingleTriangleMesh.MaterialRenderProxy = CloudVolumeMaterialProxy;
-	LocalSingleTriangleMesh.Elements[0].IndexBuffer = nullptr;
+	LocalSingleTriangleMesh.Elements[0].IndexBuffer = &GScreenRectangleIndexBuffer;
 	LocalSingleTriangleMesh.Elements[0].FirstIndex = 0;
 	LocalSingleTriangleMesh.Elements[0].NumPrimitives = 1;
 	LocalSingleTriangleMesh.Elements[0].MinVertexIndex = 0;
