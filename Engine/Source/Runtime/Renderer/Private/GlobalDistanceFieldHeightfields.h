@@ -116,16 +116,6 @@ class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FBuildHeightfieldComposeTilesCS, "/Engine/Private/GlobalDistanceFieldHeightfields.usf", "BuildHeightfieldComposeTilesCS", SF_Compute);
 
-// Must match COMPOSE_DISTANCE_FIELD_ in usf
-enum class EComposeDistanceFieldMode
-{
-	None,
-	Parent,
-	Previous,
-
-	MAX
-};
-
 class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FComposeHeightfieldsIntoPagesCS);
@@ -156,9 +146,6 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, NumHeightfields)
 		SHADER_PARAMETER(float, HeightfieldThickness)
 	END_SHADER_PARAMETER_STRUCT()
-
-	class FComposeDistanceFieldMode : SHADER_PERMUTATION_ENUM_CLASS("COMPOSE_DISTANCE_FIELD_MODE", EComposeDistanceFieldMode);
-	using FPermutationDomain = TShaderPermutationDomain<FComposeDistanceFieldMode>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{

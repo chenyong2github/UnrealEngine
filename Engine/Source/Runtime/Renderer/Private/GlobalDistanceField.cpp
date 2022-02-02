@@ -1307,7 +1307,8 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FComposeParentDistanceField : SHADER_PERMUTATION_BOOL("COMPOSE_PARENT_DISTANCE_FIELD");
-	using FPermutationDomain = TShaderPermutationDomain<FComposeParentDistanceField>;
+	class FProcessDistanceFields : SHADER_PERMUTATION_BOOL("PROCESS_DISTANCE_FIELDS");
+	using FPermutationDomain = TShaderPermutationDomain<FComposeParentDistanceField, FProcessDistanceFields>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -2146,9 +2147,8 @@ void UpdateGlobalDistanceFieldVolume(
 							}
 						}
 
-						// Compose the mesh SDFs into allocated pages
-						const bool bComposeMeshSDFsIntoPages = Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
-						if (bComposeMeshSDFsIntoPages)
+						// Initialize pages and compose the mesh SDFs into allocated pages
+						if(Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0 || UpdateRegionHeightfield.ComponentDescriptions.Num() > 0)
 						{
 							const FVector PageVoxelExtent = 0.5f * ClipmapSize / FVector(ClipmapResolution);
 							const FVector PageCoordToVoxelCenterScale = ClipmapSize / FVector(ClipmapResolution);
@@ -2188,6 +2188,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 							FComposeObjectsIntoPagesCS::FPermutationDomain PermutationVector;
 							PermutationVector.Set<FComposeObjectsIntoPagesCS::FComposeParentDistanceField>(ParentPageTableLayerTexture != nullptr);
+							PermutationVector.Set<FComposeObjectsIntoPagesCS::FProcessDistanceFields>(Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0);
 							auto ComputeShader = View.ShaderMap->GetShader<FComposeObjectsIntoPagesCS>(PermutationVector);
 
 							FComputeShaderUtils::AddPass(
@@ -2249,20 +2250,7 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->VisibilitySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 									PassParameters->HeightfieldDescriptions = GraphBuilder.CreateSRV(HeightfieldDescriptionBuffer, EPixelFormat::PF_A32B32G32R32F);
 
-									EComposeDistanceFieldMode ComposeMode = EComposeDistanceFieldMode::None;
-
-									if (bComposeMeshSDFsIntoPages)
-									{
-										ComposeMode = EComposeDistanceFieldMode::Previous;
-									}
-									else if (ParentPageTableLayerTexture != nullptr)
-									{
-										ComposeMode = EComposeDistanceFieldMode::Parent;
-									}
-
-									FComposeHeightfieldsIntoPagesCS::FPermutationDomain PermutationVector;
-									PermutationVector.Set<FComposeHeightfieldsIntoPagesCS::FComposeDistanceFieldMode>(ComposeMode);
-									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>(PermutationVector);
+									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>();
 
 									FComputeShaderUtils::AddPass(
 										GraphBuilder,

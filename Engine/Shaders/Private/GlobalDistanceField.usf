@@ -595,6 +595,7 @@ void ComposeObjectsIntoPagesCS(
 
 	float MinDistance = InfluenceRadius;
 
+#if PROCESS_DISTANCE_FIELDS
 #undef USE_OBJECT_COMPOSITING_TILE_CULLING
 #define USE_OBJECT_COMPOSITING_TILE_CULLING 1
 #if USE_OBJECT_COMPOSITING_TILE_CULLING
@@ -654,6 +655,7 @@ void ComposeObjectsIntoPagesCS(
 	}
 
 #endif
+#endif // PROCESS_DISTANCE_FIELDS
 
 	if (all(TexelCoordInPage < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS))
 	{

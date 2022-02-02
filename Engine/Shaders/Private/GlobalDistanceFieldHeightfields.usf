@@ -11,10 +11,6 @@
 #define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / 8)
 #define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM (GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X)
 
-#define COMPOSE_DISTANCE_FIELD_NONE 0
-#define COMPOSE_DISTANCE_FIELD_PARENT 1
-#define COMPOSE_DISTANCE_FIELD_PREVIOUS 2
-
 RWStructuredBuffer<uint> RWMarkedHeightfieldPageBuffer;
 RWTexture3D<UNORM float> RWPageAtlasTexture;
 
@@ -231,7 +227,6 @@ void BuildHeightfieldComposeTilesCS(
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void ComposeHeightfieldsIntoPagesCS(
 	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint PackedPageTile = ComposeTileBuffer[GroupId.x / GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM];
@@ -305,20 +300,8 @@ void ComposeHeightfieldsIntoPagesCS(
 
 				const uint3 PageAtlasCoordZ = PageAtlasCoord + uint3(0, 0, ZIndex);
 
-#if COMPOSE_DISTANCE_FIELD_MODE == COMPOSE_DISTANCE_FIELD_PARENT
-				uint ParentPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-				if (ParentPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
-				{
-					uint3 ParentPageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(ParentPageId);
-					ParentPageAtlasCoord += TexelCoordInPage;
-
-					float ParentDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[ParentPageAtlasCoord].x, InfluenceRadius);
-					MinDistance = min(MinDistance, ParentDistanceField);
-				}
-#elif COMPOSE_DISTANCE_FIELD_MODE == COMPOSE_DISTANCE_FIELD_PREVIOUS
 				float PreviousDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[PageAtlasCoordZ], InfluenceRadius);
 				MinDistance = min(MinDistance, PreviousDistanceField);
-#endif
 
 				RWPageAtlasTexture[PageAtlasCoordZ] = EncodeGlobalDistanceFieldPageDistance(MinDistance, InfluenceRadius);
 			}
