@@ -100,8 +100,14 @@ public:
 	/** [ALL] set actor for debugging */
 	void SetDebugActor(AActor* Actor, bool bSelectInEditor = false);
 
-	/** [ALL] set view matrix that should be used for culling */
+	/** [ALL] set view matrix that should be used for culling and picking instead of the associated controller view point */
 	void SetViewPoint(const FVector& InViewLocation, const FVector& InViewDirection);
+
+	/** Indicates that a view matrix has been set for culling and picking instead of the associated controller view point */
+	bool IsViewPointSet() const { return ViewLocation.IsSet() && ViewDirection.IsSet(); }
+
+	/** [ALL] reset view matrix that should be used for culling and picking to revert on the associated controller view point */
+	void ResetViewPoint();
 
 	/** [ALL] send input event to category */
 	void SendCategoryInputEvent(int32 CategoryId, int32 HandlerId);
@@ -217,6 +223,9 @@ protected:
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSetViewPoint(const FVector& InViewLocation, const FVector& InViewDirection);
+
+	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
+	void ServerResetViewPoint();
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSetCategoryEnabled(int32 CategoryId, bool bEnable);

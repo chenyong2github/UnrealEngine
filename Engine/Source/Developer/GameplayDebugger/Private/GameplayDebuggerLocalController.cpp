@@ -167,7 +167,14 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 			RebuildDataPackMap();
 		}
 
-		CachedReplicator->SetViewPoint(Canvas->SceneView->ViewLocation, Canvas->SceneView->ViewRotation.Vector());
+		if (Canvas->SceneView->ViewActor == nullptr)
+		{
+			CachedReplicator->SetViewPoint(Canvas->SceneView->ViewLocation, Canvas->SceneView->ViewRotation.Vector());
+		}
+		else if (CachedReplicator->IsViewPointSet())
+		{
+			CachedReplicator->ResetViewPoint();
+		}
 
 		const bool bHasDebugActor = CachedReplicator->HasDebugActor();
 		for (int32 Idx = 0; Idx < NumCategories; Idx++)
