@@ -137,7 +137,7 @@ private:
 
 	EVisibility GetTypeModifierIconVisibility() const;
 
-	FText GetTypeModifierIconText() const;
+	const FSlateBrush* GetTypeModifierIcon() const;
 
 	FText GetTypeModifierIconToolTip() const;
 

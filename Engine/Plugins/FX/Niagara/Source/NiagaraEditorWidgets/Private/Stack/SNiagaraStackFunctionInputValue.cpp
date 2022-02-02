@@ -110,10 +110,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.VAlign(VAlign_Center)
 					.Visibility(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconVisibility)
 					[
-						SNew(STextBlock)
-						.Text(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconText)
-						.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconToolTip)
-						.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconColor)
+						SNew(SImage)
+						.Image(GetTypeModifierIcon())
+						.ToolTipText(GetTypeModifierIconToolTip())
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -810,9 +809,9 @@ EVisibility SNiagaraStackFunctionInputValue::GetTypeModifierIconVisibility() con
 	return FunctionInput->GetInputType().IsStatic() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-FText SNiagaraStackFunctionInputValue::GetTypeModifierIconText() const
+const FSlateBrush* SNiagaraStackFunctionInputValue::GetTypeModifierIcon() const
 {
-	return FText::FromString(FString(TEXT("S")));
+	return FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.StaticInputValue");
 }
 
 FText SNiagaraStackFunctionInputValue::GetTypeModifierIconToolTip() const

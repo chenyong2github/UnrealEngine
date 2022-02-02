@@ -388,6 +388,8 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	Set("NiagaraEditor.Stack.InputValueIconColor.Dynamic", FLinearColor(FColor::Cyan));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Expression", FLinearColor(FColor::Green));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Default", FLinearColor(FColor::White));
+	
+	Set("NiagaraEditor.Stack.StaticInputValue", new IMAGE_BRUSH("Icons/StaticBoolStack", Icon16x16, FLinearColor::White));
 
  	Set("NiagaraEditor.Stack.DropTarget.BackgroundColor", FLinearColor(1.0f, 1.0f, 1.0f, 0.25f));
  	Set("NiagaraEditor.Stack.DropTarget.BackgroundColorHover", FLinearColor(1.0f, 1.0f, 1.0f, 0.1f));
