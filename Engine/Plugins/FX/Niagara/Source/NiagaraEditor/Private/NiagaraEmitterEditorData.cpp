@@ -56,26 +56,25 @@ void UNiagaraEmitterEditorData::StackEditorDataChanged()
 
 
 
-TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> UNiagaraEmitterEditorData::GetSummaryViewMetaDataMap() const
+const TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata>& UNiagaraEmitterEditorData::GetSummaryViewMetaDataMap() const
 {
 	return SummaryViewFunctionInputMetadata;
 }
 
-FFunctionInputSummaryViewMetadata UNiagaraEmitterEditorData::GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const
+TOptional<FFunctionInputSummaryViewMetadata> UNiagaraEmitterEditorData::GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const
 {
-	return SummaryViewFunctionInputMetadata.Contains(Key)? SummaryViewFunctionInputMetadata[Key] : FFunctionInputSummaryViewMetadata();
+	return SummaryViewFunctionInputMetadata.Contains(Key)? SummaryViewFunctionInputMetadata[Key] : TOptional<FFunctionInputSummaryViewMetadata>();
 }
 
-void UNiagaraEmitterEditorData::SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, const FFunctionInputSummaryViewMetadata& NewMetadata)
+void UNiagaraEmitterEditorData::SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, TOptional<FFunctionInputSummaryViewMetadata> NewMetadata)
 {	
-	static const FFunctionInputSummaryViewMetadata Empty;
-	if (NewMetadata == Empty)
+	if (NewMetadata.IsSet() == false)
 	{
 		SummaryViewFunctionInputMetadata.Remove(Key);
 	}
 	else
 	{
-		SummaryViewFunctionInputMetadata.FindOrAdd(Key) = NewMetadata;
+		SummaryViewFunctionInputMetadata.FindOrAdd(Key) = NewMetadata.GetValue();
 	}
 	
 	OnPersistentDataChanged().Broadcast();
@@ -96,4 +95,14 @@ void UNiagaraEmitterEditorData::ToggleShowSummaryView()
 FSimpleMulticastDelegate& UNiagaraEmitterEditorData::OnSummaryViewStateChanged()
 {
 	return OnSummaryViewStateChangedDelegate;
+}
+
+const TArray<FNiagaraStackSection>& UNiagaraEmitterEditorData::GetSummarySections() const
+{
+	return SummarySections;
+}
+
+void UNiagaraEmitterEditorData::SetSummarySections(const TArray<FNiagaraStackSection>& InSummarySections)
+{
+	SummarySections = InSummarySections;
 }

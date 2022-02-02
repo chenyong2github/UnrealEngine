@@ -54,7 +54,7 @@ static TOptional<FFunctionInputSummaryViewKey> GetSummaryViewInputKeyForFunction
 	return TOptional<FFunctionInputSummaryViewKey>();
 }
 
-static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall* FunctionCall, const FNiagaraVariable& InputVariable, const TOptional<FNiagaraVariableMetaData>& InputMetaData)
+static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall* FunctionCall, const FNiagaraVariable& InputVariable, const TOptional<FNiagaraVariableMetaData>& InputMetaData, bool bIsSummaryInEditMode)
 {
 	const UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
 	if (EditorData)
@@ -62,7 +62,8 @@ static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFuncti
 		TOptional<FFunctionInputSummaryViewKey> SummaryViewKey = GetSummaryViewInputKeyForFunctionInput(FunctionCall, InputVariable, InputMetaData);
 		if (SummaryViewKey.IsSet())
 		{
-			return EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue()).bVisible;
+			TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetadata = EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue());
+			return SummaryViewMetadata.IsSet() && (bIsSummaryInEditMode || SummaryViewMetadata->bVisible);
 		}
 	}
 	return false;
@@ -301,10 +302,10 @@ void UNiagaraStackFunctionInputCollectionBase::AppendInputsForFunctionCall(FFunc
 		const TOptional<FFunctionInputSummaryViewKey> SummaryViewKey = GetSummaryViewInputKeyForFunctionInput(InputFunctionCallNode, InputVariable, InputMetaData);
 		if (EditorData && bShouldApplySummaryFilter && SummaryViewKey.IsSet())
 		{
-			const FFunctionInputSummaryViewMetadata SummaryViewData = EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue());
-			if (SummaryViewData.Category != NAME_None)
+			TOptional<FFunctionInputSummaryViewMetadata> SummaryViewData = EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue());
+			if (SummaryViewData.IsSet() && SummaryViewData->Category != NAME_None)
 			{
-				InputCategory = FText::FromName(SummaryViewData.Category);
+				InputCategory = FText::FromName(SummaryViewData->Category);
 			}
 			else
 			{
@@ -321,11 +322,11 @@ void UNiagaraStackFunctionInputCollectionBase::AppendInputsForFunctionCall(FFunc
 					InputCategory = FText::FromString(*InputFunctionCallNode->GetFunctionName());
 				}				
 			}
-			EditorSortPriority = SummaryViewData.SortIndex != INDEX_NONE? SummaryViewData.SortIndex : EditorSortPriority;
-			DisplayName = (SummaryViewData.DisplayName != NAME_None) ? FText::FromName(SummaryViewData.DisplayName) : TOptional<FText>();		
+			EditorSortPriority = SummaryViewData.IsSet() && SummaryViewData->SortIndex != INDEX_NONE ? SummaryViewData->SortIndex : EditorSortPriority;
+			DisplayName = SummaryViewData.IsSet() && SummaryViewData->DisplayName != NAME_None ? FText::FromName(SummaryViewData->DisplayName) : TOptional<FText>();		
 		}
 		
-		return ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputVariable, InputMetaData);
+		return ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputVariable, InputMetaData, GetEmitterViewModel().IsValid() && GetEmitterViewModel()->GetSummaryIsInEditMode());
 	};
 
 
