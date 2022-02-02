@@ -1316,7 +1316,8 @@ void USocialUser::SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNe
 			if (UserInterface.IsValid())
 			{
 				TSharedPtr<FOnlineUser> UserInfo = UserInterface->GetUserInfo(OwningToolkit.GetLocalUserNum(), *SubsystemId);
-				if (UserInfo.IsValid())
+				//If this is our local user, we always want to get the freshest data, to make sure any updates to the account (linking, name changes, etc.) are seen on re-login
+				if (UserInfo.IsValid() && !IsLocalUser())
 				{
 					SetUserInfo(SubsystemType, UserInfo.ToSharedRef());
 				}
