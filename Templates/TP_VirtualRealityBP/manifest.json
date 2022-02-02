@@ -59,10 +59,9 @@
 	"AdditionalFeaturePacks": 
 	[
 		{
-			"MountName": "Geometry",
+			"MountName": "LevelPrototyping",
 			"DetailLevels": 
 			[
-				"Standard",
 				"High"
 			]
 		},
