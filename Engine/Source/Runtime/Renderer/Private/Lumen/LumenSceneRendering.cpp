@@ -907,17 +907,7 @@ void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 	const float ZScale = 1.0f / (FarPlane - NearPlane);
 	const float ZOffset = -NearPlane;
 
-	FVector4f ProjectionRect = FVector4f(2.0f, 2.0f, 2.0f, 2.0f) * CardUVRect - FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-	FVector2D CardBorderOffset;
-	CardBorderOffset = FVector2D(0.5f * (Lumen::PhysicalPageSize - Lumen::VirtualPageSize));
-	CardBorderOffset.X *= 2.0f * (CardUVRect.Z - CardUVRect.X) / CardCaptureAtlasRect.Width();
-	CardBorderOffset.Y *= 2.0f * (CardUVRect.W - CardUVRect.Y) / CardCaptureAtlasRect.Height();
-
-	ProjectionRect.X = FMath::Clamp(ProjectionRect.X - CardBorderOffset.X, -1.0f, 1.0f);
-	ProjectionRect.Y = FMath::Clamp(ProjectionRect.Y - CardBorderOffset.Y, -1.0f, 1.0f);
-	ProjectionRect.Z = FMath::Clamp(ProjectionRect.Z + CardBorderOffset.X, -1.0f, 1.0f);
-	ProjectionRect.W = FMath::Clamp(ProjectionRect.W + CardBorderOffset.Y, -1.0f, 1.0f);
+	const FVector4f ProjectionRect = FVector4f(2.0f, 2.0f, 2.0f, 2.0f) * CardUVRect - FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 	const float ProjectionL = ProjectionRect.X * 0.5f * FaceLocalExtent.X;
 	const float ProjectionR = ProjectionRect.Z * 0.5f * FaceLocalExtent.X;
