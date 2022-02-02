@@ -32,8 +32,9 @@ public:
 #endif
 				if(FString("VulkanRHI") == FString(DynamicRHIModuleName))
 				{
-#if PLATFORM_WINDOWS
-					UE_LOG(LogEncoderAMF, Fatal, TEXT("Vulkan Amf support under Windows is currently unstable and has been hard disabled for the time being."));
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+					UE_LOG(LogEncoderAMF, Error, TEXT("Vulkan AMF is currently unsuported and has been disabled."));
+					return;
 #endif
 					AMF.InitializeContext("Vulkan", NULL);
 					amf::AMFContext1Ptr pContext1(AMF.GetContext());

@@ -302,15 +302,15 @@ void FCUDAModule::InitCuda()
 		return;
 	}
 	else
+	{
+		OnPostCUDAInit.Broadcast();
+	}
 #else
 
 	UE_LOG(LogCUDA, Error, TEXT("CUDA attemped to be initialized on unsupported Platform (Currently supported platforms are Win32, Win64, Linux and LinuxAArch64)."));
 
 #endif //PLATFORM_SUPPORTS_CUDA
 
-	{
-		OnPostCUDAInit.Broadcast();
-	}
 }
 
 CUcontext FCUDAModule::GetCudaContext()

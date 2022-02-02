@@ -19,7 +19,7 @@ public:
 	void StartupModule()
 	{
 		using namespace AVEncoder;
-		if(FApp::CanEverRender())
+		if (FApp::CanEverRender())
 		{
 			FNVENCCommon& NVENC = FNVENCCommon::Setup();
 
@@ -31,7 +31,7 @@ public:
                 const TCHAR* DynamicRHIModuleName = TEXT("VulkanRHI");
 #endif
 				
-				if(FString("VulkanRHI") == FString(DynamicRHIModuleName))
+				if (FString("VulkanRHI") == FString(DynamicRHIModuleName))
 				{					
 #if PLATFORM_WINDOWS
 					const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME };
@@ -40,6 +40,7 @@ public:
 #endif
 					VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
+
 				FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
 			}
 		}
