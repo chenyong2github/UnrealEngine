@@ -65,8 +65,8 @@ public:
 protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void RerunConstructionScripts() override;
 #if WITH_EDITOR
+	virtual void RerunConstructionScripts() override;
 	virtual bool CanEditChange(const FProperty* InProperty) const { return false; }
 	virtual bool CanEditChangeComponent(const UActorComponent* Component, const FProperty* InProperty) const { return false; }
 #endif

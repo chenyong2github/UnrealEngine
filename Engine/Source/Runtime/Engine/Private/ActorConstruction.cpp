@@ -231,6 +231,7 @@ bool AActor::HasNonTrivialUserConstructionScript() const
 	return false;
 }
 
+#if WITH_EDITOR
 void AActor::RerunConstructionScripts()
 {
 	checkf(!HasAnyFlags(RF_ClassDefaultObject), TEXT("RerunConstructionScripts should never be called on a CDO as it can mutate the transient data on the CDO which then propagates to instances!"));
@@ -242,7 +243,6 @@ void AActor::RerunConstructionScripts()
 	if (bAllowReconstruction)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AActor::RerunConstructionScripts);
-#if WITH_EDITOR
 		if(GIsEditor)
 		{
 			// Don't allow reconstruction if we're still in the middle of construction.
@@ -266,7 +266,7 @@ void AActor::RerunConstructionScripts()
 				}
 			}
 		}
-#endif
+
 		// Child Actors can be customized in many ways by their parents construction scripts and rerunning directly on them would wipe
 		// that out. So instead we redirect up the hierarchy
 		if (IsChildActor())
@@ -328,7 +328,6 @@ void AActor::RerunConstructionScripts()
 			}
 		}
 
-#if WITH_EDITOR
 		if (!CurrentTransactionAnnotation.IsValid())
 		{
 			CurrentTransactionAnnotation = FActorTransactionAnnotation::Create(this, false);
@@ -367,9 +366,6 @@ void AActor::RerunConstructionScripts()
 
 			bUseRootComponentProperties = false;
 		}
-#else
-		InstanceDataCache = new FComponentInstanceDataCache(this);
-#endif
 
 		if (bUseRootComponentProperties)
 		{
@@ -429,8 +425,6 @@ void AActor::RerunConstructionScripts()
 				OldTransformRotationCache = RootComponent->GetRelativeRotationCache();
 			}
 		}
-
-#if WITH_EDITOR
 
 		// Return the component which was added by the construction script.
 		// It may be the same as the argument, or a parent component if the argument was a native subobject.
@@ -516,7 +510,6 @@ void AActor::RerunConstructionScripts()
 				ComponentData.UCSComponentIndex = Component->GetUCSSerializationIndex();
 			}
 		}
-#endif
 
 		// Destroy existing components
 		DestroyConstructedComponents();
@@ -569,7 +562,6 @@ void AActor::RerunConstructionScripts()
 		// Restore the undo buffer
 		GUndo = CurrentTransaction;
 
-#if WITH_EDITOR
 		// Create the mapping of old->new components and notify the editor of the replacements
 		TInlineComponentArray<UActorComponent*> NewComponents;
 		GetComponents(NewComponents);
@@ -688,12 +680,9 @@ void AActor::RerunConstructionScripts()
 		{
 			CurrentTransactionAnnotation = nullptr;
 		}
-#else
-		delete InstanceDataCache;
-#endif
-
 	}
 }
+#endif
 
 namespace
 {

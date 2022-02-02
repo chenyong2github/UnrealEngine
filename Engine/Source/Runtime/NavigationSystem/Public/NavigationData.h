@@ -554,6 +554,7 @@ public:
 	virtual void PostInitializeComponents() override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
+	virtual void RerunConstructionScripts() override;
 	virtual void PostEditUndo() override;
 	virtual bool SupportsExternalPackaging() const override { return false; }
 	bool IsBuildingOnLoad() const { return bIsBuildingOnLoad; }
@@ -583,8 +584,6 @@ public:
 	FORCEINLINE uint16 GetNavDataUniqueID() const { return NavDataUniqueID; }
 
 	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
-
-	virtual void RerunConstructionScripts() override;
 
 	virtual bool NeedsRebuild() const { return false; }
 	virtual bool SupportsRuntimeGeneration() const;

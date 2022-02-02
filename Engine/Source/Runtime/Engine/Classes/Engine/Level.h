@@ -683,7 +683,9 @@ public:
 	{
 		Init,
 		RegisterInitialComponents,
+#if WITH_EDITOR
 		RunConstructionScripts,
+#endif
 		Finalize
 	};
 
@@ -1311,9 +1313,9 @@ public:
 
 private:
 	bool IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context);
+#if WITH_EDITOR
 	bool IncrementalRunConstructionScripts(bool bProcessAllActors);
 
-#if WITH_EDITOR
 private:
 	/**
 	 * Potentially defer the running of an actor's construction script on load

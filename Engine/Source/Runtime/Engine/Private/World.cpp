@@ -1998,7 +1998,8 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS, bool bInSkipInit
 		InitWorld(IVS);
 
 		// Update components.
-		UpdateWorldComponents(true, false);
+		const bool bRerunConstructionScripts = !FPlatformProperties::RequiresCookedData();
+		UpdateWorldComponents(bRerunConstructionScripts, false);
 	}
 }
 
@@ -2189,6 +2190,10 @@ void UWorld::ClearWorldComponents()
 void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrentLevelOnly, FRegisterComponentContext* Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorld::UpdateWorldComponents);
+
+#if !WITH_EDITOR
+	ensure(!bRerunConstructionScripts);
+#endif
 
 	if ( !IsRunningDedicatedServer() )
 	{

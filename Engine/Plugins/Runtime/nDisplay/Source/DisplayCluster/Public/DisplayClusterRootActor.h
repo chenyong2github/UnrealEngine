@@ -104,7 +104,9 @@ protected:
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
 	virtual void BeginDestroy() override;
+#if WITH_EDITOR
 	virtual void RerunConstructionScripts() override;
+#endif
 
 	// Initializes the actor on spawn and load
 	void InitializeRootActor();

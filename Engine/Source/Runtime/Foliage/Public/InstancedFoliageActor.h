@@ -53,7 +53,9 @@ public:
 
 	//~ Begin AActor Interface.
 	// we don't want to have our components automatically destroyed by the Blueprint code
+#if WITH_EDITOR
 	virtual void RerunConstructionScripts() override {}
+#endif
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 
 public:

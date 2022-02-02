@@ -860,6 +860,7 @@ void ACompositingElement::BeginDestroy()
 #endif
 }
 
+#if WITH_EDITOR
 void ACompositingElement::RerunConstructionScripts()
 {
 	int32 ClearCount = CompositingElement_Impl::ClearBlueprintConstructedPasses(UserConstructedInputs);
@@ -873,13 +874,12 @@ void ACompositingElement::RerunConstructionScripts()
 		RefreshAllInternalPassLists();
 	}
 
-#if WITH_EDITOR
 	if (ICompositingEditor* CompositingEditor = ICompositingEditor::Get())
 	{
 		CompositingEditor->RequestRedraw();
 	}
-#endif
 }
+#endif
 
 void ACompositingElement::PostInitProperties()
 {

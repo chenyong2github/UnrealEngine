@@ -366,12 +366,14 @@ void ANavigationData::TickActor(float DeltaTime, enum ELevelTick TickType, FActo
 	}
 }
 
+#if WITH_EDITOR
 void ANavigationData::RerunConstructionScripts()
 {
 	Super::RerunConstructionScripts();
 
 	InstantiateAndRegisterRenderingComponent();
 }
+#endif
 
 void ANavigationData::OnRegistered() 
 { 

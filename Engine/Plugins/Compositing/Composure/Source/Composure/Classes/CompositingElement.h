@@ -386,9 +386,9 @@ public:
 #endif
 	//~ End UObject interface
 	
-	//~ Begin AAcotr interface
-	virtual void RerunConstructionScripts() override;
+	//~ Begin AActor interface
 #if WITH_EDITOR
+	virtual void RerunConstructionScripts() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 #endif
 	//~ End AAcotr interface

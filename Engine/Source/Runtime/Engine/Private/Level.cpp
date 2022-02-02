@@ -1351,6 +1351,10 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors, ULevel* Level)
 DECLARE_CYCLE_STAT(TEXT("Deferred Init Bodies"), STAT_DeferredUpdateBodies, STATGROUP_Physics);
 void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bRerunConstructionScripts, FRegisterComponentContext* Context)
 {
+#if !WITH_EDITOR
+	ensure(!bRerunConstructionScripts);
+#endif
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULevel::IncrementalUpdateComponents);
 
 	// A value of 0 means that we want to update all components.
@@ -1380,17 +1384,23 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 		case EIncrementalComponentState::RegisterInitialComponents:
 			if (IncrementalRegisterComponents(true, NumComponentsToUpdate, Context))
 			{
-				bool ShouldRunConstructionScripts = !bHasRerunConstructionScripts && bRerunConstructionScripts && !IsTemplate() && !GIsUCCMakeStandaloneHeaderGenerator;
-				IncrementalComponentState = ShouldRunConstructionScripts ? EIncrementalComponentState::RunConstructionScripts : EIncrementalComponentState::Finalize;
+#if WITH_EDITOR
+				const bool bShouldRunConstructionScripts = !bHasRerunConstructionScripts && bRerunConstructionScripts && !IsTemplate() && !GIsUCCMakeStandaloneHeaderGenerator;
+				IncrementalComponentState = bShouldRunConstructionScripts ? EIncrementalComponentState::RunConstructionScripts : EIncrementalComponentState::Finalize;
+#else
+				IncrementalComponentState = EIncrementalComponentState::Finalize;
+#endif
 			}
 			break;
 
+#if WITH_EDITOR
 		case EIncrementalComponentState::RunConstructionScripts:
 			if (IncrementalRunConstructionScripts(bFullyUpdateComponents))
 			{
 				IncrementalComponentState = EIncrementalComponentState::Finalize;
 			}
 			break;
+#endif
 
 		case EIncrementalComponentState::Finalize:
 			IncrementalComponentState = EIncrementalComponentState::Init;
@@ -1471,6 +1481,7 @@ bool ULevel::IncrementalRegisterComponents(bool bPreRegisterComponents, int32 Nu
 	return false;
 }
 
+#if WITH_EDITOR
 bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 {
 	// Find next valid actor to process components registration
@@ -1530,6 +1541,7 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 	}
 	return false;
 }
+#endif
 
 bool ULevel::IncrementalUnregisterComponents(int32 NumComponentsToUnregister)
 {

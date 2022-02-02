@@ -59,8 +59,10 @@ public:
 	virtual void SetAutoRunChildrenAndSelf(bool bAutoRunChildAndSelf) {}
 
 public:
+#if WITH_EDITOR
 	//~ AActor interface
 	virtual void RerunConstructionScripts() override;
+#endif
 
 protected:
 	/**

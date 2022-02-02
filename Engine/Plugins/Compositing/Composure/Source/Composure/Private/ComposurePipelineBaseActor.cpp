@@ -33,19 +33,19 @@ AComposurePipelineBaseActor::AComposurePipelineBaseActor(const FObjectInitialize
 	}
 }
 
+#if WITH_EDITOR
 void AComposurePipelineBaseActor::RerunConstructionScripts()
 {
-#if WITH_EDITOR
 	if (GEditor && GEditor->bIsSimulatingInEditor)
 	{
 		// Don't reconstruct blueprints if simulating so that keyframe in sequencer doesn't clobber the
 		// pipeline state.
 		return;
 	}
-#endif
 
 	Super::RerunConstructionScripts();
 }
+#endif
 
 bool AComposurePipelineBaseActor::IsActivelyRunning_Implementation() const
 {

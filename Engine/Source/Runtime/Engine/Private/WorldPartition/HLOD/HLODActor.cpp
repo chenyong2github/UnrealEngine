@@ -96,10 +96,10 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 #endif
 }
 
+#if WITH_EDITOR
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
 
-#if WITH_EDITOR
 
 TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc() const
 {
