@@ -60,7 +60,7 @@ struct FMassRepresentationSubsystemFragment : public FMassSharedFragment
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	UMassRepresentationSubsystem* RepresentationSubsystem;
+	UMassRepresentationSubsystem* RepresentationSubsystem = nullptr;
 };
 
 USTRUCT()
