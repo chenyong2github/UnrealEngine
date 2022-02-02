@@ -3853,7 +3853,10 @@ void UNiagaraSystem::FixupPositionUserParameters()
 		if (Script)
 		{
 			Script->ConditionalPostLoad();
-			Script->GetLatestSource()->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
+			if (UNiagaraScriptSourceBase* LatestSource = Script->GetLatestSource())
+			{
+				LatestSource->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
+			}
 		}
 	});
 
