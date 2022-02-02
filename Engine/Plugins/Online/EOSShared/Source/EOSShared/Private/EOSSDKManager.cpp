@@ -47,9 +47,9 @@ namespace
 #if !NO_LOGGING
 	void EOS_CALL EOSLogMessageReceived(const EOS_LogMessage* Message)
 	{
-#define EOSLOG(Level) UE_LOG(LogEOSSDK, Level, TEXT("%s: %s"), ANSI_TO_TCHAR(Message->Category), *MessageStr)
+#define EOSLOG(Level) UE_LOG(LogEOSSDK, Level, TEXT("%s: %s"), UTF8_TO_TCHAR(Message->Category), *MessageStr)
 
-		FString MessageStr(ANSI_TO_TCHAR(Message->Message));
+		FString MessageStr(UTF8_TO_TCHAR(Message->Message));
 		MessageStr.TrimStartAndEndInline();
 
 		switch (Message->Level)
