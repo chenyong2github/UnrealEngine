@@ -859,7 +859,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 	// Reset transaction buffer and run GC to clear out the destroyed level
 	GEditor->Cleanse(bClearSelection, false, TransResetText, bResetTransBuffer);
 
-	auto CheckPackage = [](const TArray<FName>& PackageNames, bool bFatal)
+	auto CheckPackage = [](const TArray<FName>& PackageNames, ELogVerbosity::Type Verbosity)
 	{
 		// Check Package no longer exists
 		for (const FName& LevelPackageName : PackageNames)
@@ -871,7 +871,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 				UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
 				if (TheWorld != nullptr)
 				{
-					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, bFatal ? ELogVerbosity::Fatal : ELogVerbosity::Log);
+					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, Verbosity);
 					return false;
 				}
 			}
@@ -880,13 +880,17 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 	};
 
 	// Check that packages no longer exist
-	bool bFatal = bResetTransBuffer;
-	bool bFailed = !CheckPackage(PackageNames, bFatal);
-	if (bFailed && !bFatal)
+	ELogVerbosity::Type Verbosity = ELogVerbosity::Log;
+	if (bResetTransBuffer)
+	{
+		Verbosity = UObjectBaseUtility::IsPendingKillEnabled() ? ELogVerbosity::Fatal : ELogVerbosity::Error;
+	}
+	bool bFailed = !CheckPackage(PackageNames, Verbosity);
+	if (bFailed && Verbosity != ELogVerbosity::Fatal)
 	{
 		// We tried avoiding clearing the Transaction buffer but it failed. Plan B.
 		GEditor->Cleanse(bClearSelection, false, TransResetText, true);
-		CheckPackage(PackageNames, true);
+		CheckPackage(PackageNames, Verbosity);
 	}
 
 	return true;
