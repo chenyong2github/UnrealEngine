@@ -130,6 +130,13 @@ FAutoConsoleVariableRef CVarLumenMeshCardsDebugSingleCard(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenSurfaceCacheHeightfieldCaptureMargin(
+	TEXT("r.Lumen.SurfaceCache.HeightfieldCaptureMargin"),
+	100.0f,
+	TEXT("Amount to expand heightfield component bbox for card capture purposes."),
+	ECVF_RenderThreadSafe
+);
+
 extern int32 GLumenSceneUploadEveryFrame;
 
 namespace LumenMeshCards
@@ -555,18 +562,14 @@ void BuildMeshCardsDataForHeightfield(const FLumenPrimitiveGroup& PrimitiveGroup
 
 	MeshCardsLocalToWorld = Proxy->GetLocalToWorld();
 
+	// Make sure that the card isn't placed directly on the geometry
+	const FVector BoundsMargin = FVector(CVarLumenSurfaceCacheHeightfieldCaptureMargin.GetValueOnRenderThread()) / MeshCardsLocalToWorld.GetScaleVector();
+
 	MeshCardsBuildData.MaxLODLevel = 0;
-	MeshCardsBuildData.Bounds.Init();
+	MeshCardsBuildData.Bounds = Proxy->GetLocalBounds().GetBox().ExpandBy(BoundsMargin);
 
-	// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
-	const FBox LocalBBox = Proxy->GetLocalBounds().GetBox();
-	const FVector SafeCenter = LocalBBox.GetCenter();
-	const FVector SafeExtent = FVector::Max(LocalBBox.GetExtent() + 1.0f, FVector(5.0f));
-	const FBox SafeMergedBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
-
-	MeshCardsBuildData.Bounds = SafeMergedBounds;
+	// Add a single top down card
 	MeshCardsBuildData.CardBuildData.SetNum(1);
-
 	{
 		FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[0];
 
@@ -577,8 +580,8 @@ void BuildMeshCardsDataForHeightfield(const FLumenPrimitiveGroup& PrimitiveGroup
 		CardBuildData.OBB.AxisX = FVector3f::CrossProduct(CardBuildData.OBB.AxisZ, CardBuildData.OBB.AxisY);
 		CardBuildData.OBB.AxisX.Normalize();
 
-		CardBuildData.OBB.Origin = (FVector3f)SafeMergedBounds.GetCenter();
-		CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard((FVector3f)SafeMergedBounds.GetExtent() + FVector3f(1.0f)).GetAbs();
+		CardBuildData.OBB.Origin = (FVector3f)MeshCardsBuildData.Bounds.GetCenter();
+		CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard((FVector3f)MeshCardsBuildData.Bounds.GetExtent()).GetAbs();
 
 		CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
 		CardBuildData.LODLevel = 0;
