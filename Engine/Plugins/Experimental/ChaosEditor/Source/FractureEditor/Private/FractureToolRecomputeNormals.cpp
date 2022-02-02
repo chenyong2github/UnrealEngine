@@ -117,10 +117,10 @@ void UFractureToolRecomputeNormals::FractureContextChanged()
 				{
 					if (ShowVerts[VIdx - VertStart])
 					{
-						DisplayVertices.Add(CombinedTransform.TransformPosition(Collection.Vertex[VIdx]));
-						DisplayNormals.Add(CombinedTransform.TransformVectorNoScale(Collection.Normal[VIdx]));
-						DisplayTanUs.Add(CombinedTransform.TransformVectorNoScale(Collection.TangentU[VIdx]));
-						DisplayTanVs.Add(CombinedTransform.TransformVectorNoScale(Collection.TangentV[VIdx]));
+						DisplayVertices.Add(CombinedTransform.TransformPosition((FVector)Collection.Vertex[VIdx]));
+						DisplayNormals.Add(CombinedTransform.TransformVectorNoScale((FVector)Collection.Normal[VIdx]));
+						DisplayTanUs.Add(CombinedTransform.TransformVectorNoScale((FVector)Collection.TangentU[VIdx]));
+						DisplayTanVs.Add(CombinedTransform.TransformVectorNoScale((FVector)Collection.TangentV[VIdx]));
 					}
 				}
 			}

@@ -181,9 +181,9 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MeshData.RenderData = Mesh->GetRenderData();
 			MeshData.MinimumLOD = Mesh->GetMinLODIdx();
 			MeshData.SourceMeshIndex = SourceMeshIndex;
-			MeshData.PivotOffset = MeshProperties.PivotOffset;
+			MeshData.PivotOffset = (FVector3f)MeshProperties.PivotOffset;
 			MeshData.PivotOffsetSpace = MeshProperties.PivotOffsetSpace;
-			MeshData.Scale = MeshProperties.Scale;
+			MeshData.Scale = (FVector3f)MeshProperties.Scale;
 			MeshData.Rotation = FQuat4f(MeshProperties.Rotation.Quaternion());
 			MeshData.LocalBounds = Mesh->GetExtendedBounds().GetBox();
 
@@ -566,19 +566,19 @@ void FNiagaraRendererMeshes::PreparePerMeshData(FParticleMeshRenderData& Particl
 {
 	// Calculate pivot offset / culling sphere
 	FBox MeshLocalBounds = MeshData.LocalBounds;
-	MeshLocalBounds.Min *= MeshData.Scale;
-	MeshLocalBounds.Max *= MeshData.Scale;
+	MeshLocalBounds.Min *= (FVector)MeshData.Scale;
+	MeshLocalBounds.Max *= (FVector)MeshData.Scale;
 	ParticleMeshRenderData.CullingSphere.Center = MeshLocalBounds.GetCenter();
 	ParticleMeshRenderData.CullingSphere.W = MeshLocalBounds.GetExtent().Length();
 
 	if (MeshData.PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
 	{
 		ParticleMeshRenderData.WorldSpacePivotOffset = FVector::ZeroVector;
-		ParticleMeshRenderData.CullingSphere.Center += MeshData.PivotOffset;
+		ParticleMeshRenderData.CullingSphere.Center += (FVector)MeshData.PivotOffset;
 	}
 	else
 	{
-		ParticleMeshRenderData.WorldSpacePivotOffset = MeshData.PivotOffset;
+		ParticleMeshRenderData.WorldSpacePivotOffset = (FVector)MeshData.PivotOffset;
 		if (MeshData.PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Local ||
 			(bLocalSpace && MeshData.PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Simulation))
 		{
@@ -676,12 +676,12 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 	}
 	else
 	{
-		Params.MeshOffset 				= ParticleMeshRenderData.WorldSpacePivotOffset;
+		Params.MeshOffset 				= (FVector3f)ParticleMeshRenderData.WorldSpacePivotOffset;
 		Params.bMeshOffsetIsWorldSpace	= true;
 	}
 
 	Params.bLockedAxisEnable			= bLockedAxisEnable;
-	Params.LockedAxis 					= LockedAxis;
+	Params.LockedAxis 					= (FVector3f)LockedAxis;
 	Params.LockedAxisSpace				= (uint32)LockedAxisSpace;
 
 	if (bUseLocalSpace)
@@ -690,7 +690,7 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 	}
 	else
 	{
-		Params.DefaultPosition = FVector4f(SceneProxy.GetLocalToWorld().GetOrigin() - FVector(SceneProxy.GetLWCRenderTile()) * FLargeWorldRenderScalar::GetTileSize());
+		Params.DefaultPosition = FVector3f(SceneProxy.GetLocalToWorld().GetOrigin() - FVector(SceneProxy.GetLWCRenderTile()) * FLargeWorldRenderScalar::GetTileSize());
 	}
 
 	Params.DefaultPrevPosition			= Params.DefaultPosition;
@@ -943,7 +943,7 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		GPUSceneRes.GPUWriteParams.MeshIndexDataOffset 		= ParticleMeshRenderData.MeshIndexOffset;
 		GPUSceneRes.GPUWriteParams.RendererVisibility 		= RendererVisibility;
 		GPUSceneRes.GPUWriteParams.VisibilityTagDataOffset 	= ParticleMeshRenderData.RendererVisTagOffset;
-		GPUSceneRes.GPUWriteParams.LocalBoundingCenter		= MeshData.LocalBounds.GetCenter();
+		GPUSceneRes.GPUWriteParams.LocalBoundingCenter		= (FVector3f)MeshData.LocalBounds.GetCenter();
 		GPUSceneRes.GPUWriteParams.DistanceCullRangeSquared = DistanceCullRange * DistanceCullRange;
 		GPUSceneRes.GPUWriteParams.bNeedsPrevTransform		= bNeedsPrevTransform ? 1 : 0;
 
@@ -1487,7 +1487,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		const bool bUseLocalSpace = UseLocalSpace(SceneProxy);
 		if (SourceMode == ENiagaraRendererSourceDataMode::Emitter)
 		{
-			FVector3f Pos = bUseLocalSpace ? FVector() : LocalTransform.GetOrigin();
+			FVector3f Pos = bUseLocalSpace ? FVector3f() : (FVector3f)LocalTransform.GetOrigin();
 			FVector3f Scale{ 1.0f, 1.0f, 1.0f };
 			FQuat Rot = FQuat::Identity;
 

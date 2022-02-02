@@ -245,9 +245,9 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ShadowViewToClipMatrix = FMatrix44f(Level.ViewToClip);
 	Data.TranslatedWorldToShadowUVMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
 	Data.TranslatedWorldToShadowUVNormalMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVNormalMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
-	Data.ShadowPreViewTranslation = -Level.WorldCenter;
+	Data.ShadowPreViewTranslation = (FVector3f)-Level.WorldCenter;
 	Data.LightType = ELightComponentType::LightType_Directional;
-	Data.ClipmapWorldOrigin = WorldOrigin;
+	Data.ClipmapWorldOrigin = (FVector3f)WorldOrigin;
 	Data.ClipmapIndex = ClipmapIndex;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();

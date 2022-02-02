@@ -143,7 +143,7 @@ namespace ProxyLOD
 				int32 Offset = tri * 3;
 				uint32 Idxs[3] = { IndexArray[Offset], IndexArray[Offset + 1], IndexArray[Offset + 2] };
 
-				FVector Verts[3] = { VertArray[Idxs[0]].GetPos(), VertArray[Idxs[1]].GetPos(), VertArray[Idxs[2]].GetPos() };
+				FVector Verts[3] = { (FVector)VertArray[Idxs[0]].GetPos(), (FVector)VertArray[Idxs[1]].GetPos(), (FVector)VertArray[Idxs[2]].GetPos() };
 
 				PartitionArray[tri] = Functor(Verts);
 			}
@@ -434,7 +434,7 @@ namespace ProxyLOD
 		{
 			// Vert Id
 			const uint32 VertId = SeamVerts[i];
-			const FVector& Position = TmpMesh.Vertexes[VertId].Position;
+			const FVector& Position = (FVector)TmpMesh.Vertexes[VertId].Position;
 			const uint32 HashValue = HashPoint(Position);
 			PositionHashValues[i] = HashValue;
 			PositionHashTable.Add(HashValue, VertId);
@@ -453,7 +453,7 @@ namespace ProxyLOD
 		for (int32 i = 0; i < NumSeamVerts; ++i)
 		{
 			const uint32 VertId = SeamVerts[i];
-			const FVector& Position = TmpMesh.Vertexes[VertId].Position;
+			const FVector& Position = (FVector)TmpMesh.Vertexes[VertId].Position;
 			const int32 HashValue = PositionHashValues[i];
 
 			// Collect the indexes of all the verts that share location with this one.
@@ -462,7 +462,7 @@ namespace ProxyLOD
 			{
 				if (j != VertId) // make sure we aren't comparing with ourself.
 				{
-					const FVector& OtherPosition = TmpMesh.Vertexes[j].Position;
+					const FVector& OtherPosition = (FVector)TmpMesh.Vertexes[j].Position;
 
 					// Are the positions the same?
 					if (Position == OtherPosition)

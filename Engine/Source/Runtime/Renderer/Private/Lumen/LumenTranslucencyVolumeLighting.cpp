@@ -357,7 +357,7 @@ FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(FRDG
 	Parameters.TranslucencyGIVolumeHistory0     = LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : SystemTextures.VolumetricBlack;
 	Parameters.TranslucencyGIVolumeHistory1     = LumenTranslucencyGIVolume.HistoryTexture1 ? LumenTranslucencyGIVolume.HistoryTexture1 : SystemTextures.VolumetricBlack;
 	Parameters.TranslucencyGIVolumeSampler      = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters.TranslucencyGIGridZParams        = LumenTranslucencyGIVolume.GridZParams;
+	Parameters.TranslucencyGIGridZParams        = (FVector3f)LumenTranslucencyGIVolume.GridZParams;
 	Parameters.TranslucencyGIGridPixelSizeShift = LumenTranslucencyGIVolume.GridPixelSizeShift;
 	Parameters.TranslucencyGIGridSize           = LumenTranslucencyGIVolume.GridSize;
 	return Parameters;
@@ -552,12 +552,12 @@ FLumenTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParamete
 	const FIntVector TranslucencyGridSize(GridSizeXY.X, GridSizeXY.Y, FMath::Max(GridSizeZ, 1));
 
 	FLumenTranslucencyLightingVolumeParameters Parameters;
-	Parameters.TranslucencyGIGridZParams = ZParams;
+	Parameters.TranslucencyGIGridZParams = (FVector3f)ZParams;
 	Parameters.TranslucencyGIGridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);
 	Parameters.TranslucencyGIGridSize = TranslucencyGridSize;
 
 	Parameters.UseJitter = GTranslucencyVolumeJitter;
-	Parameters.FrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() : 0);
+	Parameters.FrameJitterOffset = (FVector3f)TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() : 0);
 	Parameters.UnjitteredClipToTranslatedWorld = FMatrix44f(View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed());		// LWC_TODO: Precision loss?
 		
 	Parameters.TranslucencyVolumeTracingOctahedronResolution = GTranslucencyVolumeTracingOctahedronResolution;
@@ -736,7 +736,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->VolumeParameters = VolumeParameters;
 				const int32 PreviousFrameIndexOffset = View.bStatePrevViewInfoIsReadOnly ? 0 : 1;
-				PassParameters->PreviousFrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
+				PassParameters->PreviousFrameJitterOffset = (FVector3f)TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
 				PassParameters->UnjitteredPrevWorldToClip = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 
 				FTranslucencyVolumeSpatialFilterCS::FPermutationDomain PermutationVector;
@@ -800,7 +800,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 
 			PassParameters->HistoryWeight = GTranslucencyVolumeHistoryWeight;
 			const int32 PreviousFrameIndexOffset = View.bStatePrevViewInfoIsReadOnly ? 0 : 1;
-			PassParameters->PreviousFrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
+			PassParameters->PreviousFrameJitterOffset = (FVector3f)TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() - PreviousFrameIndexOffset : 0);
 			PassParameters->UnjitteredPrevWorldToClip = FMatrix44f(View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix());		// LWC_TODO: Precision loss?
 			PassParameters->TranslucencyGIHistory0 = TranslucencyGIVolumeHistory0;
 			PassParameters->TranslucencyGIHistory1 = TranslucencyGIVolumeHistory1;
@@ -832,7 +832,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 		View.LumenTranslucencyGIVolume.HistoryTexture0 = TranslucencyGIVolumeNewHistory0;
 		View.LumenTranslucencyGIVolume.HistoryTexture1 = TranslucencyGIVolumeNewHistory1;
 
-		View.LumenTranslucencyGIVolume.GridZParams = VolumeParameters.TranslucencyGIGridZParams;
+		View.LumenTranslucencyGIVolume.GridZParams = (FVector)VolumeParameters.TranslucencyGIGridZParams;
 		View.LumenTranslucencyGIVolume.GridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);
 		View.LumenTranslucencyGIVolume.GridSize = TranslucencyGridSize;
 	}

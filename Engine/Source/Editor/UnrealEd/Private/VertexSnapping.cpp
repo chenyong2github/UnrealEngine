@@ -87,7 +87,7 @@ public:
 	/** FVertexIterator interface */
 	virtual FVector Position() const override
 	{
-		return StaticMeshComponent->GetComponentTransform().TransformPosition( PositionBuffer.VertexPosition( CurrentVertexIndex ) );	
+		return StaticMeshComponent->GetComponentTransform().TransformPosition( (FVector)PositionBuffer.VertexPosition( CurrentVertexIndex ) );
 	}
 
 	virtual FVector Normal() const override
@@ -135,7 +135,7 @@ public:
 			FPoly& Poly = Model->Polys->Element[PolyIndex];
 			for( int32 VertexIndex = 0;VertexIndex < Poly.Vertices.Num();++VertexIndex )
 			{
-				Vertices.Add( Poly.Vertices[VertexIndex] );
+				Vertices.Add( (FVector)Poly.Vertices[VertexIndex] );
 			}
 		}
 	}
@@ -190,7 +190,7 @@ public:
 	/** FVertexIterator interface */
 	virtual FVector Position() const override
 	{
-		const FVector VertPos = LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+		const FVector VertPos = (FVector)LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 		return SkinnedMeshComponent->GetComponentTransform().TransformPosition(VertPos);
 	}
 

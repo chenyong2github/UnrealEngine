@@ -857,20 +857,20 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 							{
 								FPoly* Poly = &(Brush->Brush->Polys->Element[poly]);
 
-								Poly->TextureU /= ScaleVec;
-								Poly->TextureV /= ScaleVec;
-								Poly->Base = ((Poly->Base - Brush->GetPivotOffset()) * ScaleVec) + Brush->GetPivotOffset();
+								Poly->TextureU /= (FVector3f)ScaleVec;
+								Poly->TextureV /= (FVector3f)ScaleVec;
+								Poly->Base = ((Poly->Base - (FVector3f)Brush->GetPivotOffset()) * (FVector3f)ScaleVec) + (FVector3f)Brush->GetPivotOffset();
 
 								for( int32 vtx = 0 ; vtx < Poly->Vertices.Num() ; vtx++ )
 								{
-									Poly->Vertices[vtx] = ((Poly->Vertices[vtx] - Brush->GetPivotOffset()) * ScaleVec) + Brush->GetPivotOffset();
+									Poly->Vertices[vtx] = ((Poly->Vertices[vtx] - (FVector3f)Brush->GetPivotOffset()) * (FVector3f)ScaleVec) + (FVector3f)Brush->GetPivotOffset();
 
 									// "Then snap the vertices new positions by the specified Snap amount"
 									if ( bSnap )
 									{
-										FVector VPos = Poly->Vertices[vtx];	// LWC_TODO: Perf pessimization
+										FVector VPos = (FVector)Poly->Vertices[vtx];	// LWC_TODO: Perf pessimization
 										FSnappingUtils::SnapPointToGrid( VPos, FVector(0, 0, 0) );
-										Poly->Vertices[vtx] = VPos;
+										Poly->Vertices[vtx] = (FVector3f)VPos;
 									}
 								}
 
@@ -1614,7 +1614,7 @@ bool UUnrealEdEngine::Exec_Pivot( const TCHAR* Str, FOutputDevice& Ar )
 					{
 						for (const auto& Vertex : Element.Vertices)
 						{
-							UniqueVertices.Add(Vertex);
+							UniqueVertices.Add((FVector)Vertex);
 						}
 					}
 
@@ -1707,9 +1707,9 @@ TArray<FPoly*> GetSelectedPolygons()
 							Polygon->Init();
 							Polygon->PolyFlags = PF_DefaultFlags;
 
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx2) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx1) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx0) ));
 
 							Polygon->CalcNormal(1);
 							Polygon->Fix();
@@ -1726,9 +1726,9 @@ TArray<FPoly*> GetSelectedPolygons()
 							Polygon->Init();
 							Polygon->PolyFlags = PF_DefaultFlags;
 
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx2) ));
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx0) ));
-							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( PositionVertexBuffer.VertexPosition(Idx1) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx2) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx0) ));
+							new(Polygon->Vertices) FVector3f(ActorToWorld.TransformPosition( (FVector)PositionVertexBuffer.VertexPosition(Idx1) ));
 							Polygon->CalcNormal(1);
 							Polygon->Fix();
 							if( Polygon->Vertices.Num() > 2 )
@@ -1773,11 +1773,11 @@ void CreateBoundingBoxBuilderBrush( UWorld* InWorld, const TArray<FPoly*> Select
 		{
 			if( bSnapVertsToGrid )
 			{
-				Vertex = Poly->Vertices[v].GridSnap(GEditor->GetGridSize());
+				Vertex = (FVector)Poly->Vertices[v].GridSnap(GEditor->GetGridSize());
 			}
 			else
 			{
-				Vertex = Poly->Vertices[v];
+				Vertex = (FVector)Poly->Vertices[v];
 			}
 
 			BBox += Vertex;
@@ -1945,7 +1945,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 			// Get a splitting plane from the first poly in our selection
 
 			poly = SelectedPolys[p];
-			FPlane* SplittingPlane = new FPlane( poly->Vertices[0], poly->Normal );
+			FPlane* SplittingPlane = new FPlane( (FVector)poly->Vertices[0], (FVector)poly->Normal );
 
 			// Make sure this poly doesn't clip any other polys in the selection.  If it does, we can't use it for generating the convex volume.
 
@@ -2039,7 +2039,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 				poly = &(*BuilderBrushPolys)[bp];
 
 				FPoly Front, Back;
-				int res = poly->SplitWithPlane( FVector( plane->X, plane->Y, plane->Z ) * plane->W, plane->GetSafeNormal(), &Front, &Back, true );
+				int res = poly->SplitWithPlane( FVector3f( plane->X, plane->Y, plane->Z ) * plane->W, (FVector3f)plane->GetSafeNormal(), &Front, &Back, true );
 				switch( res )
 				{
 					// Ignore these results.  We don't want them.
@@ -2087,10 +2087,10 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 					for( int bp = 0 ; bp < BuilderBrushPolys->Num() ; ++bp )
 					{
 						poly = &((*BuilderBrushPolys)[bp]);
-						plane = new FPlane( poly->Vertices[0], poly->Vertices[1], poly->Vertices[2] );
+						plane = new FPlane((FVector)poly->Vertices[0], (FVector)poly->Vertices[1], (FVector)poly->Vertices[2] );
 
 						FPoly Front, Back;
-						int res = CappingPoly->SplitWithPlane( FVector( plane->X, plane->Y, plane->Z ) * plane->W, plane->GetSafeNormal(), &Front, &Back, true );
+						int res = CappingPoly->SplitWithPlane( FVector3f( plane->X, plane->Y, plane->Z ) * plane->W, (FVector3f)plane->GetSafeNormal(), &Front, &Back, true );
 						switch( res )
 						{
 							case SP_Split:

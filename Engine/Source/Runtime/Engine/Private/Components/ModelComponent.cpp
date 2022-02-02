@@ -443,7 +443,7 @@ void UModelComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext&
 					const FBspNode& Node = Model->Nodes[SurfaceNodes[NodeIndex]];
 					for(int32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 					{
-						const FVector WorldVertex = GetComponentTransform().TransformPosition(Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex]);
+						const FVector WorldVertex = GetComponentTransform().TransformPosition((FVector)Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex]);
 						SurfaceVertices.Add(WorldVertex);
 					}
 				}
@@ -702,9 +702,9 @@ bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Collis
 
 			if (AreaThreshold >= 0.f)
 			{
-				const FVector V0 = Model->VertexBuffer.Vertices[Triangle.v0].Position;
-				const FVector V1 = Model->VertexBuffer.Vertices[Triangle.v1].Position;
-				const FVector V2 = Model->VertexBuffer.Vertices[Triangle.v2].Position;
+				const FVector V0 = (FVector)Model->VertexBuffer.Vertices[Triangle.v0].Position;
+				const FVector V1 = (FVector)Model->VertexBuffer.Vertices[Triangle.v1].Position;
+				const FVector V2 = (FVector)Model->VertexBuffer.Vertices[Triangle.v2].Position;
 
 				const FVector V01 = (V1 - V0);
 				const FVector V02 = (V2 - V0);

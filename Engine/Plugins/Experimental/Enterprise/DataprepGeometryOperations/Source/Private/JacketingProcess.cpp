@@ -270,7 +270,7 @@ void FJacketingProcess::FindOverlappingActors(const TArray<AActor*>& InActorsToT
 
 			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
-				const FVector WorldPosition = ComponentTransform.TransformPosition(VertexPositions[VertexID]);
+				const FVector WorldPosition = ComponentTransform.TransformPosition((FVector)VertexPositions[VertexID]);
 				if (Volume->QueryDistance(WorldPosition) <= MaxDistance)
 				{
 					bComponentInside = true;
@@ -523,7 +523,7 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 			TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
-				if (Volume->QueryDistance(VertexPositions[VertexID]) > MaxDistance)
+				if (Volume->QueryDistance((FVector)VertexPositions[VertexID]) > MaxDistance)
 				{
 					bComponentInside = false;
 					break;
@@ -612,7 +612,7 @@ void FJacketingProcess::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors
 	ParallelFor(VertexDataArray.Num(), [&](int32 Index) {
 		FVertexData& VertexData = VertexDataArray[Index];
 
-		if (!VertexData.Get<2>() && Volume->QueryDistance(*VertexData.Get<1>()) > MaxDistance)
+		if (!VertexData.Get<2>() && Volume->QueryDistance((FVector)*VertexData.Get<1>()) > MaxDistance)
 		{
 			VertexData.Get<2>() = true;
 		}

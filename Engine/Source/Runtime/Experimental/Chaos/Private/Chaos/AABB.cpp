@@ -370,14 +370,14 @@ inline TAABB<T, d> TAABB<T, d>::InverseTransformedAABB(const FRigidTransform3& S
 {
 	TVector<T, d> CurrentExtents = Extents();
 	int32 Idx = 0;
-	const TVector<T, d> MinToNewSpace = SpaceTransform.InverseTransformPosition(Min());
+	const TVector<T, d> MinToNewSpace = SpaceTransform.InverseTransformPosition(FVector(Min()));
 	TAABB<T, d> NewAABB(MinToNewSpace, MinToNewSpace);
-	NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Max()));
+	NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(FVector(Max())));
 
 	for (int32 j = 0; j < d; ++j)
 	{
-		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Min() + TVector<T, d>::AxisVector(j) * CurrentExtents));
-		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Max() - TVector<T, d>::AxisVector(j) * CurrentExtents));
+		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(FVector(Min() + TVector<T, d>::AxisVector(j) * CurrentExtents)));
+		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(FVector(Max() - TVector<T, d>::AxisVector(j) * CurrentExtents)));
 	}
 
 	return NewAABB;

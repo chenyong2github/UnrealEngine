@@ -77,7 +77,7 @@ FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParam
 	InvDisplayGammaValue.Z = 1.0f / FMath::Max(Gamma, 1.0f);
 
 	FDeviceEncodingOnlyOutputDeviceParameters Parameters;
-	Parameters.InverseGamma = InvDisplayGammaValue;
+	Parameters.InverseGamma = (FVector3f)InvDisplayGammaValue;
 	Parameters.OutputDevice = static_cast<uint32>(OutputDeviceValue);
 	Parameters.OutputGamut = CVarOutputGamut->GetValueOnRenderThread();
 	return Parameters;

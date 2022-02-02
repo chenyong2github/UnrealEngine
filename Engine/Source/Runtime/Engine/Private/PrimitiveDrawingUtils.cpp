@@ -76,10 +76,10 @@ void DrawPlane10x10(class FPrimitiveDrawInterface* PDI,const FMatrix& ObjectToWo
 			float U1 = FMath::Lerp(UVMin.X, UVMax.X, x1 * 0.5f + 0.5f);
 
 			// Calculate verts for a face pointing down Z
-			MeshBuilder.AddVertex(FVector(x0, y0, 0), FVector2f(U0, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x0, y1, 0), FVector2f(U0, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x1, y1, 0), FVector2f(U1, V1), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-			MeshBuilder.AddVertex(FVector(x1, y0, 0), FVector2f(U1, V0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector3f(x0, y0, 0), FVector2f(U0, V0), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector3f(x0, y1, 0), FVector2f(U0, V1), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector3f(x1, y1, 0), FVector2f(U1, V1), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
+			MeshBuilder.AddVertex(FVector3f(x1, y0, 0), FVector2f(U1, V0), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
 
 			int Index = (x + y * TileCount) * 4;
 			MeshBuilder.AddTriangle(Index + 0, Index + 1, Index + 2);
@@ -102,13 +102,13 @@ void DrawTriangle(class FPrimitiveDrawInterface* PDI, const FVector& A, const FV
 
 	FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
 
-	FVector Normal = FVector(0, 0, 1);
-	FVector Tangent = FVector(1, 0, 0);	
+	FVector3f Normal = FVector3f(0, 0, 1);
+	FVector3f Tangent = FVector3f(1, 0, 0);	
 
-	MeshBuilder.AddVertex(FDynamicMeshVertex(A, Tangent, Normal, UVs[0],FColor::White));
+	MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)A, Tangent, Normal, UVs[0],FColor::White));
 
-	MeshBuilder.AddVertex(FDynamicMeshVertex(B, Tangent, Normal, UVs[1], FColor::White));
-	MeshBuilder.AddVertex(FDynamicMeshVertex(C, Tangent, Normal, UVs[2], FColor::White));
+	MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)B, Tangent, Normal, UVs[1], FColor::White));
+	MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)C, Tangent, Normal, UVs[2], FColor::White));
 
 	MeshBuilder.AddTriangle(0, 1, 2);
 	MeshBuilder.Draw(PDI, FMatrix::Identity, MaterialRenderProxy, DepthPriorityGroup, false, false);
@@ -250,8 +250,8 @@ void GetOrientedHalfSphereMesh(const FVector& Center, const FRotator& Orientatio
 			ArcVert->Position.Z = FMath::Cos(angle);
 
 			ArcVert->SetTangents(
-				FVector(1, 0, 0),
-				FVector(0.0f, -ArcVert->Position.Z, ArcVert->Position.Y),
+				FVector3f(1, 0, 0),
+				FVector3f(0.0f, -ArcVert->Position.Z, ArcVert->Position.Y),
 				ArcVert->Position
 				);
 
@@ -273,9 +273,9 @@ void GetOrientedHalfSphereMesh(const FVector& Center, const FRotator& Orientatio
 				Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[v].Position);
 
 				Verts[VIx].SetTangents(
-					ArcRot.TransformVector(ArcVerts[v].TangentX.ToFVector()),
+					ArcRot.TransformVector(ArcVerts[v].TangentX.ToFVector3f()),
 					ArcRot.TransformVector(ArcVerts[v].GetTangentY()),
-					ArcRot.TransformVector(ArcVerts[v].TangentZ.ToFVector())
+					ArcRot.TransformVector(ArcVerts[v].TangentZ.ToFVector3f())
 					);
 
 				Verts[VIx].TextureCoordinate[0].X = XTexCoord;
@@ -351,8 +351,8 @@ void DrawSphere(FPrimitiveDrawInterface* PDI,const FVector& Center,const FRotato
 			ArcVert->Position.Z = FMath::Cos(angle);
 
 			ArcVert->SetTangents(
-				FVector(1,0,0),
-				FVector(0.0f,-ArcVert->Position.Z,ArcVert->Position.Y),
+				FVector3f(1,0,0),
+				FVector3f(0.0f,-ArcVert->Position.Z,ArcVert->Position.Y),
 				ArcVert->Position
 				);
 
@@ -374,9 +374,9 @@ void DrawSphere(FPrimitiveDrawInterface* PDI,const FVector& Center,const FRotato
 				Verts[VIx].Position = ArcRot.TransformPosition( ArcVerts[v].Position );
 				
 				Verts[VIx].SetTangents(
-					ArcRot.TransformVector( ArcVerts[v].TangentX.ToFVector()),
+					ArcRot.TransformVector( ArcVerts[v].TangentX.ToFVector3f()),
 					ArcRot.TransformVector( ArcVerts[v].GetTangentY() ),
-					ArcRot.TransformVector( ArcVerts[v].TangentZ.ToFVector())
+					ArcRot.TransformVector( ArcVerts[v].TangentZ.ToFVector3f())
 					);
 
 				Verts[VIx].TextureCoordinate[0].X = XTexCoord;
@@ -470,24 +470,24 @@ void BuildConeVerts(float Angle1, float Angle2, float Scale, float XOffset, uint
 
 		FDynamicMeshVertex V0, V1, V2;
 
-		V0.Position = FVector(0) + FVector(XOffset,0,0);
+		V0.Position = FVector3f(0) + FVector3f(XOffset,0,0);
 		V0.TextureCoordinate[0].X = 0.0f;
 		V0.TextureCoordinate[0].Y = (float)i / NumSides;
-		V0.SetTangents(TriTangentX, TriTangentY, FVector(-1, 0, 0));
+		V0.SetTangents((FVector3f)TriTangentX, (FVector3f)TriTangentY, (FVector3f)FVector(-1, 0, 0));
 		int32 I0 = OutVerts.Add(V0);
 
-		V1.Position = ConeVerts[i];
+		V1.Position = (FVector3f)ConeVerts[i];
 		V1.TextureCoordinate[0].X = 1.0f;
 		V1.TextureCoordinate[0].Y = (float)i / NumSides;
 		FVector TriTangentZPrev = ConeVerts[i] ^ ConeVerts[i == 0 ? NumSides - 1 : i - 1]; // Normal of the previous face connected to this face
-		V1.SetTangents(TriTangentX, TriTangentY, (TriTangentZPrev + TriTangentZ).GetSafeNormal());
+		V1.SetTangents((FVector3f)TriTangentX, (FVector3f)TriTangentY, (FVector3f)(TriTangentZPrev + TriTangentZ).GetSafeNormal());
 		int32 I1 = OutVerts.Add(V1);
 
-		V2.Position = ConeVerts[(i + 1) % NumSides];
+		V2.Position = (FVector3f)ConeVerts[(i + 1) % NumSides];
 		V2.TextureCoordinate[0].X = 1.0f;
 		V2.TextureCoordinate[0].Y = (float)((i + 1) % NumSides) / NumSides;
 		FVector TriTangentZNext = ConeVerts[(i + 2) % NumSides] ^ ConeVerts[(i + 1) % NumSides]; // Normal of the next face connected to this face
-		V2.SetTangents(TriTangentX, TriTangentY, (TriTangentZNext + TriTangentZ).GetSafeNormal());
+		V2.SetTangents((FVector3f)TriTangentX, (FVector3f)TriTangentY, (FVector3f)(TriTangentZNext + TriTangentZ).GetSafeNormal());
 		int32 I2 = OutVerts.Add(V2);
 
 		// Flip winding for negative scale
@@ -555,13 +555,13 @@ void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector
 
 		FDynamicMeshVertex MeshVertex;
 
-		MeshVertex.Position = Vertex - TopOffset;
+		MeshVertex.Position = FVector3f(Vertex - TopOffset);
 		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 
 		MeshVertex.SetTangents(
-			-ZAxis,
-			(-ZAxis) ^ Normal,
-			Normal
+			(FVector3f)-ZAxis,
+			FVector3f((-ZAxis) ^ Normal),
+			(FVector3f)Normal
 			);
 
 		OutVerts.Add(MeshVertex); //Add bottom vertex
@@ -582,13 +582,13 @@ void BuildCylinderVerts(const FVector& Base, const FVector& XAxis, const FVector
 
 		FDynamicMeshVertex MeshVertex;
 
-		MeshVertex.Position = Vertex + TopOffset;
+		MeshVertex.Position = FVector3f(Vertex + TopOffset);
 		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 
 		MeshVertex.SetTangents(
-			-ZAxis,
-			(-ZAxis) ^ Normal,
-			Normal
+			(FVector3f)-ZAxis,
+			FVector3f((-ZAxis) ^ Normal),
+			(FVector3f)Normal
 			);
 
 		OutVerts.Add(MeshVertex); //Add top vertex
@@ -862,15 +862,15 @@ void DrawDisc(class FPrimitiveDrawInterface* PDI,const FVector& Base,const FVect
 		Normal.Normalize();
 
 		FDynamicMeshVertex MeshVertex;
-		MeshVertex.Position = Vertex;
+		MeshVertex.Position = (FVector3f)Vertex;
 		MeshVertex.Color = Color;
 		MeshVertex.TextureCoordinate[0] = FVector2f(TC);
 		MeshVertex.TextureCoordinate[0].X += TCStep * SideIndex;
 
 		MeshVertex.SetTangents(
-			-ZAxis,
-			(-ZAxis) ^ Normal,
-			Normal
+			(FVector3f)-ZAxis,
+			FVector3f((-ZAxis) ^ Normal),
+			(FVector3f)Normal
 			);
 
 		MeshBuilder.AddVertex(MeshVertex); //Add bottom vertex
@@ -932,10 +932,10 @@ void DrawFlatArrow(class FPrimitiveDrawInterface* PDI,const FVector& Base,const 
 	for(int32 i = 0; i< 7; ++i)
 	{
 		FDynamicMeshVertex MeshVertex;
-		MeshVertex.Position = ArrowPoints[i];
+		MeshVertex.Position = (FVector3f)ArrowPoints[i];
 		MeshVertex.Color = Color;
 		MeshVertex.TextureCoordinate[0] = FVector2f(0.0f, 0.0f);;
-		MeshVertex.SetTangents(XAxis^YAxis, YAxis, XAxis);
+		MeshVertex.SetTangents(FVector3f(XAxis^YAxis), (FVector3f)YAxis, (FVector3f)XAxis);
 		MeshBuilder.AddVertex(MeshVertex); //Add bottom vertex
 	}
 	

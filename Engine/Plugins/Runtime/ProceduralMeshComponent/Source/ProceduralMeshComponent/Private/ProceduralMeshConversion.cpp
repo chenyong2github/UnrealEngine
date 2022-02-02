@@ -81,11 +81,11 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 				FVertexID VertexID = MeshDescription.GetVertexInstanceVertex( VertexInstanceID );
 				int32 NewVertexIndex = SectionData.IndexOfInstances.Num();
 				SectionData.IndexOfInstances.Add( VertexInstanceID,  NewVertexIndex );
-				SectionData.Positions.Add( VertexPositions[VertexID] );
+				SectionData.Positions.Add( (FVector)VertexPositions[VertexID] );
 				SectionData.Triangles.Add( NewVertexIndex );
-				SectionData.Normals.Add( Normals[VertexInstanceID] );
+				SectionData.Normals.Add( (FVector)Normals[VertexInstanceID] );
 				SectionData.UV0.Add( FVector2D(UVs[VertexInstanceID]) );
-				SectionData.Tangents.Add( FProcMeshTangent( Tangents[VertexInstanceID], BinormalSigns[VertexInstanceID] < 0.f ) );
+				SectionData.Tangents.Add( FProcMeshTangent( (FVector)Tangents[VertexInstanceID], BinormalSigns[VertexInstanceID] < 0.f ) );
 			}
 		}
 	}
@@ -175,7 +175,7 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 		{
 			FProcMeshVertex &Vert = ProcSection->ProcVertexBuffer[VertexIndex];
 			const FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = Vert.Position;
+			VertexPositions[VertexID] = (FVector3f)Vert.Position;
 			VertexIndexToVertexID.Add(VertexIndex, VertexID);
 		}
 		// Create the VertexInstance
@@ -193,8 +193,8 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 
 			FProcMeshVertex &ProcVertex = ProcSection->ProcVertexBuffer[VertexIndex];
 
-			Tangents[VertexInstanceID] = ProcVertex.Tangent.TangentX;
-			Normals[VertexInstanceID] = ProcVertex.Normal;
+			Tangents[VertexInstanceID] = (FVector3f)ProcVertex.Tangent.TangentX;
+			Normals[VertexInstanceID] = (FVector3f)ProcVertex.Normal;
 			BinormalSigns[VertexInstanceID] =
 				ProcVertex.Tangent.bFlipTangentY ? -1.f : 1.f;
 

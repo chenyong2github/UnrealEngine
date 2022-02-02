@@ -71,7 +71,7 @@ void FMeshDescriptionBuilder::ReserveNewVertices(int32 Count)
 FVertexID FMeshDescriptionBuilder::AppendVertex(const FVector& Position)
 {
 	FVertexID VertexID = MeshDescription->CreateVertex();
-	VertexPositions.Set(VertexID, Position);
+	VertexPositions.Set(VertexID, FVector3f(Position));	//LWC_TODO: Precision loss
 	return VertexID;
 }
 
@@ -145,17 +145,17 @@ void FMeshDescriptionBuilder::AppendUVTriangle(const FTriangleID& TriangleID, co
 
 void FMeshDescriptionBuilder::SetPosition(const FVertexID& VertexID, const FVector& NewPosition)
 {
-	VertexPositions.Set(VertexID, 0, NewPosition);
+	VertexPositions.Set(VertexID, 0, FVector3f(NewPosition));	//LWC_TODO: Precision loss
 }
 
 FVector FMeshDescriptionBuilder::GetPosition(const FVertexID& VertexID)
 {
-	return VertexPositions.Get(VertexID, 0);
+	return FVector(VertexPositions.Get(VertexID, 0));
 }
 
 FVector FMeshDescriptionBuilder::GetPosition(const FVertexInstanceID& InstanceID)
 {
-	return VertexPositions.Get(MeshDescription->GetVertexInstanceVertex(InstanceID), 0);
+	return FVector(VertexPositions.Get(MeshDescription->GetVertexInstanceVertex(InstanceID), 0));
 }
 
 
@@ -164,7 +164,7 @@ void FMeshDescriptionBuilder::SetInstanceNormal(const FVertexInstanceID& Instanc
 {
 	if (InstanceNormals.IsValid())
 	{
-		InstanceNormals.Set(InstanceID, Normal);
+		InstanceNormals.Set(InstanceID, FVector3f(Normal));	//LWC_TODO: Precision loss
 	}
 }
 
@@ -175,7 +175,7 @@ void FMeshDescriptionBuilder::SetInstanceTangentSpace(const FVertexInstanceID& I
 
 	if (InstanceTangents.IsValid())
 	{
-		InstanceTangents.Set(InstanceID, Tangent);
+		InstanceTangents.Set(InstanceID, FVector3f(Tangent));	//LWC_TODO: Precision loss
 	}
 	if (InstanceBiTangentSign.IsValid())
 	{
@@ -291,8 +291,8 @@ void FMeshDescriptionBuilder::Translate(const FVector& Translation)
 {
 	for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 	{
-		FVector Position = VertexPositions.Get(VertexID);
-		Position += Translation;
+		FVector3f Position = VertexPositions.Get(VertexID);
+		Position += FVector3f(Translation);		//LWC_TODO: Precision loss
 		VertexPositions.Set(VertexID, Position);
 	}
 }

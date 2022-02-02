@@ -279,7 +279,7 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateVec3LocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, FVector InVec3Value)
 {
 	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition::GetVec3Def();
-	const FVector3f InVec3ValueFloat = InVec3Value;
+	const FVector3f InVec3ValueFloat = (FVector3f)InVec3Value;
 	TArray<uint8> Vec3ValueFloat;
 	Vec3ValueFloat.AddUninitialized(InputType.GetSize());
 	FMemory::Memcpy(Vec3ValueFloat.GetData(), &InVec3ValueFloat, InputType.GetSize());

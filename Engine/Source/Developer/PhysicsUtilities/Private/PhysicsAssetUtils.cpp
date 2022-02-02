@@ -57,7 +57,7 @@ static float CalcBoneInfoLength(const FBoneVertInfo& Info)
 	FBox BoneBox(ForceInit);
 	for(int32 j=0; j<Info.Positions.Num(); j++)
 	{
-		BoneBox += Info.Positions[j];
+		BoneBox += (FVector)Info.Positions[j];
 	}
 
 	if(BoneBox.IsValid)
@@ -106,12 +106,12 @@ void AddInfoToParentInfo(const FTransform& LocalToParentTM, const FBoneVertInfo&
 
 	for(const FVector3f& Pos : ChildInfo.Positions)
 	{
-		ParentInfo.Positions.Add( LocalToParentTM.TransformPosition(Pos) );
+		ParentInfo.Positions.Add((FVector3f)LocalToParentTM.TransformPosition((FVector)Pos));
 	}
 
 	for (const FVector3f& Normal : ChildInfo.Normals)
 	{
-		ParentInfo.Normals.Add(LocalToParentTM.TransformVectorNoScale(Normal));
+		ParentInfo.Normals.Add((FVector3f)LocalToParentTM.TransformVectorNoScale((FVector)Normal));
 	}
 }
 
@@ -400,7 +400,7 @@ FMatrix ComputeCovarianceMatrix(const FBoneVertInfo& VertInfo)
 	FVector U = FVector::ZeroVector;
 	for (int32 i = 0; i < N; ++i)
 	{
-		U += Positions[i];
+		U += (FVector)Positions[i];
 	}
 
 	U = U / N;
@@ -411,7 +411,7 @@ FMatrix ComputeCovarianceMatrix(const FBoneVertInfo& VertInfo)
 
 	for (int32 i = 0; i < N; ++i)
 	{
-		Errors[i] = Positions[i] - U;
+		Errors[i] = (FVector)Positions[i] - U;
 	}
 
 	FMatrix Covariance = FMatrix::Identity;
@@ -486,7 +486,7 @@ bool CreateCollisionFromBoneInternal(UBodySetup* bs, USkeletalMesh* skelMesh, in
 	FBox BoneBox(ForceInit);
 	for (int32 j = 0; j < Info.Positions.Num(); j++)
 	{
-		BoneBox += ElementTransform.InverseTransformPosition(Info.Positions[j]);
+		BoneBox += ElementTransform.InverseTransformPosition((FVector)Info.Positions[j]);
 	}
 
 	FVector BoxCenter(0, 0, 0), BoxExtent(0, 0, 0);

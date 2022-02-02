@@ -226,9 +226,9 @@ public:
 						const FVector2D& UV = Data.TexCoords[SrcVertIndex];
 						Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
 					}
-					FVector TangentX = VertexInstanceTangents[SrcVertexInstanceID];
-					FVector TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
-					FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
+					FVector3f TangentX = VertexInstanceTangents[SrcVertexInstanceID];
+					FVector3f TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
+					FVector3f TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
 					Vert->SetTangents(TangentX, TangentY, TangentZ);
 					for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)
 					{
@@ -455,7 +455,7 @@ public:
 			int Y = (VertIndex >> 1) & 1;
 
 			Vert->Position.Set(ScaleX * X, ScaleY * Y, 0);
-			Vert->SetTangents(FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1));
+			Vert->SetTangents(FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
 			FMemory::Memzero(&Vert->TextureCoordinate, sizeof(Vert->TextureCoordinate));
 			Vert->TextureCoordinate[0].Set(U + SizeU * X, V + SizeV * Y);
 			Vert->Color = FColor::White;

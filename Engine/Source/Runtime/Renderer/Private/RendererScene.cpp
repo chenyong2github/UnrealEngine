@@ -3994,7 +3994,7 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	// Reflection captures
 	for (auto It = ReflectionSceneData.RegisteredReflectionCaptures.CreateIterator(); It; ++It)
 	{
-		FMatrix NewTransform = FMatrix((*It)->BoxTransform.Inverse().ConcatTranslation(InOffset));
+		FMatrix NewTransform = FMatrix((*It)->BoxTransform.Inverse().ConcatTranslation((FVector3f)InOffset));
 		(*It)->SetTransform(NewTransform);
 	}
 
@@ -4016,7 +4016,7 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 	// SkyAtmospheres
 	for (FSkyAtmosphereSceneProxy* SkyAtmosphereProxy : SkyAtmosphereStack)
 	{
-		SkyAtmosphereProxy->ApplyWorldOffset(InOffset);
+		SkyAtmosphereProxy->ApplyWorldOffset((FVector3f)InOffset);
 	}
 	
 	

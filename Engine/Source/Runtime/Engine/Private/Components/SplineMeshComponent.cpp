@@ -80,13 +80,13 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 
 	FVector4f ParamData[10];
 	// LWC_TODO: Precision loss
-	ParamData[0] = FVector4f(SplineParams.StartPos, SplineParams.StartRoll);
-	ParamData[1] = FVector4f(SplineParams.StartTangent, SplineParams.EndRoll);
+	ParamData[0] = FVector4f(FVector3f(SplineParams.StartPos), SplineParams.StartRoll);
+	ParamData[1] = FVector4f(FVector3f(SplineParams.StartTangent), SplineParams.EndRoll);
 	ParamData[2] = FVector4f(FVector2f(SplineParams.StartScale), FVector2f(SplineParams.StartOffset));
-	ParamData[3] = FVector4f(SplineParams.EndPos, (float)(int32)SplineProxy->bSmoothInterpRollScale);
-	ParamData[4] = FVector4f(SplineParams.EndTangent, SplineProxy->SplineMeshMinZ);
+	ParamData[3] = FVector4f(FVector3f(SplineParams.EndPos), (float)(int32)SplineProxy->bSmoothInterpRollScale);
+	ParamData[4] = FVector4f(FVector3f(SplineParams.EndTangent), SplineProxy->SplineMeshMinZ);
 	ParamData[5] = FVector4f(FVector2f(SplineParams.EndScale), FVector2f(SplineParams.EndOffset));
-	ParamData[6] = FVector4f(SplineProxy->SplineUpDir, SplineProxy->SplineMeshScaleZ);
+	ParamData[6] = FVector4f(FVector3f(SplineProxy->SplineUpDir), SplineProxy->SplineMeshScaleZ);
 
 		FVector3f DirMask(0, 0, 0);
 	DirMask = FVector3f::ZeroVector;
@@ -847,7 +847,7 @@ bool USplineMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* C
 
 		for (FVector3f& CollisionVert : CollisionData->Vertices)
 		{
-			CollisionVert = CalcSliceTransform(GetAxisValue(CollisionVert, ForwardAxis)).TransformPosition(CollisionVert * Mask);
+			CollisionVert = (FVector3f)CalcSliceTransform(GetAxisValue(CollisionVert, ForwardAxis)).TransformPosition(FVector(CollisionVert * Mask));
 		}
 
 		CollisionData->bDeformableMesh = true;

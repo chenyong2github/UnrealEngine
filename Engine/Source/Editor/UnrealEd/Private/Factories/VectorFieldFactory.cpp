@@ -126,8 +126,8 @@ static bool ParseFGA(
 	Stream = ParseFloatCsv( Stream, &BMax.X );
 	Stream = ParseFloatCsv( Stream, &BMax.Y );
 	Stream = ParseFloatCsv( Stream, &BMax.Z );
-	Bounds.Min = BMin;
-	Bounds.Max = BMax;
+	Bounds.Min = (FVector)BMin;
+	Bounds.Max = (FVector)BMax;
 
 	// Make sure there is more to read.
 	if ( *Stream == 0 )

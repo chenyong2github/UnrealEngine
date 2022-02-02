@@ -653,9 +653,9 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 							, VertexInstanceIDValue));
 						bError = true;
 					}
-					if (!RawMesh.WedgeTangentY[WedgeIndex].Equals(FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID], THRESH_NORMALS_ARE_SAME))
+					if (!RawMesh.WedgeTangentY[WedgeIndex].Equals(FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID], THRESH_NORMALS_ARE_SAME))
 					{
-						FVector MeshDescriptionBinormalResult = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
+						FVector MeshDescriptionBinormalResult = (FVector)FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 						OutputError(FString::Printf(TEXT("Vertex binormal is different between MeshDescription [%s] and FRawMesh [%s].   Indice[%d]")
 							, *(MeshDescriptionBinormalResult.ToString())
 							, *(RawMesh.WedgeTangentY[WedgeIndex].ToString())
@@ -727,10 +727,10 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 		const float Y = Radius * FMath::Sin(PI * 2.0f * Index / NumSides);
 
 		TopVertexIDs[Index] = MeshDescription.CreateVertex();
-		Positions[TopVertexIDs[Index]] = FVector(X, Y, -Height);
+		Positions[TopVertexIDs[Index]] = FVector3f(X, Y, -Height);
 
 		BottomVertexIDs[Index] = MeshDescription.CreateVertex();
-		Positions[BottomVertexIDs[Index]] = FVector(X, Y, Height);
+		Positions[BottomVertexIDs[Index]] = FVector3f(X, Y, Height);
 
 		// Each vertex has two vertex instances: one for the side polygons, and one for the top/bottom polygons
 
@@ -744,7 +744,7 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 	// Create central vertex at bottom, and associated instances
 
 	FVertexID BottomCenterVertexID = MeshDescription.CreateVertex();
-	Positions[BottomCenterVertexID] = FVector(0.0f, 0.0f, Height);
+	Positions[BottomCenterVertexID] = FVector3f(0.0f, 0.0f, Height);
 
 	FVertexInstanceID BottomCenterVertexInstanceID = MeshDescription.CreateVertexInstance(BottomCenterVertexID);
 
@@ -881,8 +881,8 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 
 	// Move some points and check retriangulation
 
-	Positions[TopVertexIDs[0]] = FVector(Radius * 0.25f, 0.0f, -Height);	// create a concave top and bottom
-	Positions[BottomVertexIDs[0]] = FVector(Radius * 0.25f, 0.0f, Height);
+	Positions[TopVertexIDs[0]] = FVector3f(Radius * 0.25f, 0.0f, -Height);	// create a concave top and bottom
+	Positions[BottomVertexIDs[0]] = FVector3f(Radius * 0.25f, 0.0f, Height);
 
 	// Get list of unique polygons connected to the vertices that have moved
 	TArray<FPolygonID> ConnectedPolygons = MeshDescription.GetVertexConnectedPolygons(TopVertexIDs[0]);

@@ -662,7 +662,7 @@ struct FNDIRandomInfoPolicy
 	{
 		if (IsDeterministic())
 		{
-			FVector Rand3D = Rand3(InstanceIndex);
+			FVector3f Rand3D = Rand3(InstanceIndex);
 			return FVector2f(Rand3D.X, Rand3D.Y);
 		}
 		else

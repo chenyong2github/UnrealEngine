@@ -253,7 +253,7 @@ void SetupMobileDirectionalLightUniformParameters(
 	if (Light)
 	{
 		Params.DirectionalLightColor = Light->Proxy->GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance() / PI;
-		Params.DirectionalLightDirectionAndShadowTransition = FVector4f(-Light->Proxy->GetDirection(), 0.f);
+		Params.DirectionalLightDirectionAndShadowTransition = FVector4f((FVector3f)-Light->Proxy->GetDirection(), 0.f);
 
 		const FVector2D FadeParams = Light->Proxy->GetDirectionalLightDistanceFadeParameters(FeatureLevel, Light->IsPrecomputedLightingValid(), SceneView.MaxShadowCascades);
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.X = FadeParams.Y;

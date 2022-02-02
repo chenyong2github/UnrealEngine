@@ -1978,7 +1978,7 @@ void FEdModeFoliage::TransformSelectedInstances(UWorld* InWorld, const FVector& 
 					Instance.Location += InDrag;
 					Instance.ZOffset = 0.f;
 					Instance.Rotation += InRot;
-					Instance.DrawScale3D += InScale;
+					Instance.DrawScale3D += (FVector3f)InScale;
 				}
 
 				FoliageInfo.PostMoveInstances(SelectedIndices, /*bFinished*/false);
@@ -2150,7 +2150,7 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 					UModelComponent* ModelComponent = Cast<UModelComponent>(HitComponent);
 					if (ModelComponent)
 					{
-						ABrush* BrushActor = ModelComponent->GetModel()->FindBrush(Hit.Location);
+						ABrush* BrushActor = ModelComponent->GetModel()->FindBrush((FVector3f)Hit.Location);
 						if (BrushActor)
 						{
 							HitComponent = BrushActor->GetBrushComponent();
@@ -2357,7 +2357,7 @@ void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliage
 				{
 					if (Settings->Scaling == EFoliageScaling::Uniform)
 					{
-						Instance.DrawScale3D = NewScale;
+						Instance.DrawScale3D = (FVector3f)NewScale;
 					}
 					else
 					{
@@ -2827,9 +2827,9 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 					const int32 Index1 = Indices[Idx + 1];
 					const int32 Index2 = Indices[Idx + 2];
 
-					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition(PositionVertexBuffer.VertexPosition(Index0) * Mask);
-					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition(PositionVertexBuffer.VertexPosition(Index1) * Mask);
-					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition(PositionVertexBuffer.VertexPosition(Index2) * Mask);
+					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0) * Mask);
+					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1) * Mask);
+					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue((FVector)PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2) * Mask);
 
 					new(PotentialTriangles)FFoliagePaintBucketTriangle(LocalToWorld
 						, Vert0
@@ -2851,9 +2851,9 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 					const int32 Index2 = Indices[Idx + 2];
 
 					new(PotentialTriangles)FFoliagePaintBucketTriangle(LocalToWorld
-						, PositionVertexBuffer.VertexPosition(Index0)
-						, PositionVertexBuffer.VertexPosition(Index1)
-						, PositionVertexBuffer.VertexPosition(Index2)
+						, (FVector)PositionVertexBuffer.VertexPosition(Index0)
+						, (FVector)PositionVertexBuffer.VertexPosition(Index1)
+						, (FVector)PositionVertexBuffer.VertexPosition(Index2)
 						, bHasInstancedColorData ? InstanceMeshLODInfo->PaintedVertices[Index0].Color : (bHasColorData ? ColorVertexBuffer.VertexColor(Index0) : FColor::White)
 						, bHasInstancedColorData ? InstanceMeshLODInfo->PaintedVertices[Index1].Color : (bHasColorData ? ColorVertexBuffer.VertexColor(Index1) : FColor::White)
 						, bHasInstancedColorData ? InstanceMeshLODInfo->PaintedVertices[Index2].Color : (bHasColorData ? ColorVertexBuffer.VertexColor(Index2) : FColor::White)
@@ -2990,9 +2990,9 @@ bool FEdModeFoliage::GetStaticMeshVertexColorForHit(const UStaticMeshComponent* 
 				int32 Index2 = Indices[IndexBufferIdx + 2];
 
 				// Lookup the triangle world positions and colors.
-				FVector WorldVert0 = InStaticMeshComponent->GetComponentTransform().TransformPosition(PositionVertexBuffer.VertexPosition(Index0));
-				FVector WorldVert1 = InStaticMeshComponent->GetComponentTransform().TransformPosition(PositionVertexBuffer.VertexPosition(Index1));
-				FVector WorldVert2 = InStaticMeshComponent->GetComponentTransform().TransformPosition(PositionVertexBuffer.VertexPosition(Index2));
+				FVector WorldVert0 = InStaticMeshComponent->GetComponentTransform().TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0));
+				FVector WorldVert1 = InStaticMeshComponent->GetComponentTransform().TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1));
+				FVector WorldVert2 = InStaticMeshComponent->GetComponentTransform().TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2));
 
 				FLinearColor Color0;
 				FLinearColor Color1;
@@ -3122,7 +3122,7 @@ bool FEdModeFoliage::SnapInstanceToGround(AInstancedFoliageActor* InIFA, const U
 		UModelComponent* ModelComponent = Cast<UModelComponent>(HitComponent);
 		if (ModelComponent)
 		{
-			ABrush* BrushActor = ModelComponent->GetModel()->FindBrush(Hit.Location);
+			ABrush* BrushActor = ModelComponent->GetModel()->FindBrush((FVector3f)Hit.Location);
 			if (BrushActor)
 			{
 				HitComponent = BrushActor->GetBrushComponent();
@@ -3538,7 +3538,7 @@ void FEdModeFoliage::BakeFoliage(UFoliageType* Settings, bool bSelectedOnly)
 			check(World != nullptr);
 			AStaticMeshActor* SMA = World->SpawnActor<AStaticMeshActor>(Instance.Location, Instance.Rotation);
 			SMA->GetStaticMeshComponent()->SetStaticMesh(Cast<UStaticMesh>(Settings->GetSource()));
-			SMA->GetRootComponent()->SetRelativeScale3D(Instance.DrawScale3D);
+			SMA->GetRootComponent()->SetRelativeScale3D((FVector)Instance.DrawScale3D);
 			SMA->MarkComponentsRenderStateDirty();
 		}
 

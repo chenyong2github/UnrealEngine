@@ -1841,7 +1841,7 @@ void AddHairStrandUpdatePositionOffsetPass(
 	const bool bUseGPUOffset = DeformedRootResources != nullptr && GHairStrandsUseGPUPositionOffset > 0;
 	const uint32 OffsetIndex = DeformedResources->GetIndex(FHairStrandsDeformedResource::Current);
 	FHairUpdatePositionOffsetCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairUpdatePositionOffsetCS::FParameters>();
-	PassParameters->CPUPositionOffset = DeformedResources->PositionOffset[OffsetIndex];
+	PassParameters->CPUPositionOffset = (FVector3f)DeformedResources->PositionOffset[OffsetIndex];
 	PassParameters->RootTrianglePosition0Buffer = RootTrianglePositionBuffer.SRV;
 	PassParameters->OutOffsetBuffer = OutPositionOffsetBuffer.UAV;
 

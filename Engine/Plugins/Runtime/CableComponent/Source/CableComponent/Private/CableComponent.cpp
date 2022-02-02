@@ -147,10 +147,10 @@ public:
 				const FVector OutDir = (FMath::Cos(RadAngle) * UpDir) + (FMath::Sin(RadAngle) * RightDir);
 
 				FDynamicMeshVertex Vert;
-				Vert.Position = InPoints[PointIdx] + (OutDir * 0.5f * CableWidth);
+				Vert.Position = FVector3f(InPoints[PointIdx] + (OutDir * 0.5f * CableWidth));
 				Vert.TextureCoordinate[0] = FVector2f(AlongFrac * TileMaterial, AroundFrac);
 				Vert.Color = VertexColor;
-				Vert.SetTangents(ForwardDir, OutDir ^ ForwardDir, OutDir);
+				Vert.SetTangents((FVector3f)ForwardDir, FVector3f(OutDir ^ ForwardDir), (FVector3f)OutDir);
 				OutVertices.Add(Vert);
 			}
 		}
@@ -196,7 +196,7 @@ public:
 				const FDynamicMeshVertex& Vertex = Vertices[i];
 
 				VertexBuffers.PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector3f(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector3f());
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, 0, Vertex.TextureCoordinate[0]);
 				VertexBuffers.ColorVertexBuffer.VertexColor(i) = Vertex.Color;
 			}

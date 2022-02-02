@@ -1233,7 +1233,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 	}
 
 	const float InvBrickSize = 1.0f / BrickSize;
-	const FVector DetailCellSize = VolumetricLightmapSettings.VolumeSize / FVector(VolumetricLightmapSettings.TopLevelGridSize * DetailCellsPerTopLevelBrick);
+	const FVector DetailCellSize = FVector(VolumetricLightmapSettings.VolumeSize) / FVector(VolumetricLightmapSettings.TopLevelGridSize * DetailCellsPerTopLevelBrick);
 
 	for (int32 DilatePassIndex = 0; DilatePassIndex < NumDilateOverEmbeddedVoxelsPasses; DilatePassIndex++)
 	{

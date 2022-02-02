@@ -190,18 +190,18 @@ void FLidarPointCloudEditorViewportClient::Tick(float DeltaSeconds)
 				const FLidarPointCloudRay Ray = DeprojectCurrentMousePosition();
 				if (FLidarPointCloudPoint* Point = PC->LineTraceSingle(Ray, TraceRadius, true))
 				{
-					const float NewDistance = FVector::Dist(Point->Location, Ray.Origin);
+					const float NewDistance = FVector3f::Dist(Point->Location, Ray.Origin);
 					const float Deviation = (NewDistance - LineTraceDistance) / LineTraceDistance;
 
 					// If painting, prevent large depth changes
 					// If not, query larger trace radius - if it passes the deviation test, it was a gap
-					if (Deviation > PaintMaxDeviation && (bPainting || (FVector::Dist(PC->LineTraceSingle(Ray, TraceRadius * 6, true)->Location, Ray.Origin) - LineTraceDistance) / LineTraceDistance <= PaintMaxDeviation))
+					if (Deviation > PaintMaxDeviation && (bPainting || (FVector3f::Dist(PC->LineTraceSingle(Ray, TraceRadius * 6, true)->Location, Ray.Origin) - LineTraceDistance) / LineTraceDistance <= PaintMaxDeviation))
 					{
-						LineTraceHitPoint = Ray.Origin + Ray.GetDirection() * LineTraceDistance;
+						LineTraceHitPoint = FVector(Ray.Origin + Ray.GetDirection() * LineTraceDistance);
 					}
 					else
 					{
-						LineTraceHitPoint = Point->Location;
+						LineTraceHitPoint = (FVector)Point->Location;
 						LineTraceDistance = NewDistance;
 					}
 
@@ -629,7 +629,7 @@ FLidarPointCloudRay FLidarPointCloudEditorViewportClient::DeprojectCurrentMouseP
 	FVector Origin, Direction;
 	FSceneView::DeprojectScreenToWorld(FVector2D(CurrentMousePosition), FIntRect(FIntPoint(0, 0), Viewport->GetSizeXY()), InvViewProjectionMatrix, Origin, Direction);
 
-	return FLidarPointCloudRay(Origin, Direction);
+	return FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction);
 }
 
 void FLidarPointCloudEditorViewportClient::OnBoxSelectionEnd()
@@ -1001,7 +1001,7 @@ void FLidarPointCloudEditorViewportClient::ResetCamera()
 		{
 			for (FLidarPointCloudPoint** Point = Editor->GetSelectedPoints().GetData(), **DataEnd = Point + Editor->GetSelectedPoints().Num(); Point != DataEnd; ++Point)
 			{
-				FocusBounds += (*Point)->Location;
+				FocusBounds += (FVector)(*Point)->Location;
 			}
 		}
 

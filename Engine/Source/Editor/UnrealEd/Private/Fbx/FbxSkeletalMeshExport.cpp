@@ -131,7 +131,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 	FbxVector4* ControlPoints = Mesh->GetControlPoints();
 	for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 	{
-		FVector Position			= Vertices[VertIndex].Position;
+		FVector Position			= (FVector)Vertices[VertIndex].Position;
 		ControlPoints[VertIndex]	= Converter.ConvertToFbxPos(Position);
 	}
 
@@ -279,7 +279,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 					// Replicate the base mesh in the shape control points to set up the data.
 					for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 					{
-						FVector Position = Vertices[VertIndex].Position;
+						FVector Position = (FVector)Vertices[VertIndex].Position;
 						ShapeControlPoints[VertIndex] = Converter.ConvertToFbxPos(Position);
 					}
 				
@@ -301,7 +301,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 						if ( RemappedSourceIndex < static_cast<uint32>( VertexCount ) )
 						{
-							ShapeControlPoints[RemappedSourceIndex] = Converter.ConvertToFbxPos(Vertices[RemappedSourceIndex].Position + CurrentDelta.PositionDelta);
+							ShapeControlPoints[RemappedSourceIndex] = Converter.ConvertToFbxPos(FVector(Vertices[RemappedSourceIndex].Position + CurrentDelta.PositionDelta));
 						}
 						else
 						{

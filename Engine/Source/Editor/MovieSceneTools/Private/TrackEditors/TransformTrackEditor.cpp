@@ -1200,9 +1200,9 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 
 				Range = TRange<FFrameNumber>::Hull(Range, TRange<FFrameNumber>(KeyTime));
 
-				const FVector3f Translation = TempKey.Transform.GetTranslation();
-				const FVector3f Rotation = TempKey.WoundRotation.Euler();
-				const FVector3f Scale = TempKey.Transform.GetScale3D();
+				const FVector3f Translation = (FVector3f)TempKey.Transform.GetTranslation();
+				const FVector3f Rotation = (FVector3f)TempKey.WoundRotation.Euler();
+				const FVector3f Scale = (FVector3f)TempKey.Transform.GetScale3D();
 
 				TArrayView<FMovieSceneDoubleChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 

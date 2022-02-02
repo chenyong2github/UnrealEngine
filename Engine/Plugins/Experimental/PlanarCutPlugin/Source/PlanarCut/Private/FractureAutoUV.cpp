@@ -205,8 +205,8 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 		GlobalNormals.SetNum(Collection->Vertex.Num());
 		for (int32 Idx = 0; Idx < GlobalVertices.Num(); Idx++)
 		{
-			GlobalNormals[Idx] = (FVector3f)GlobalTransformArray[Collection->BoneMap[Idx]].TransformVectorNoScale(Collection->Normal[Idx]);
-			GlobalVertices[Idx] = (FVector3d)GlobalTransformArray[Collection->BoneMap[Idx]].TransformPosition(Collection->Vertex[Idx]);
+			GlobalNormals[Idx] = (FVector3f)GlobalTransformArray[Collection->BoneMap[Idx]].TransformVectorNoScale(FVector(Collection->Normal[Idx]));
+			GlobalVertices[Idx] = (FVector3d)GlobalTransformArray[Collection->BoneMap[Idx]].TransformPosition(FVector(Collection->Vertex[Idx]));
 		}
 	}
 

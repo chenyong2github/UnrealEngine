@@ -217,7 +217,7 @@ bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, 
 						InstanceData.TextureReferenceRHI = nullptr;
 						InstanceData.SamplerStateRHI = nullptr;
 					}
-					InstanceData.TextureSize = FVector(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
+					InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
 				}
 			);
 		}

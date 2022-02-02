@@ -211,7 +211,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
 	Parameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(Lumen::UseFarField(*View.Family) ? (float)WORLD_MAX : View.FinalPostProcessSettings.LumenMaxTraceDistance);
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
-	Parameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	
 	Parameters->SurfaceBias = 1.0f;
 	Parameters->SlopeScaledSurfaceBias = 2.0f;

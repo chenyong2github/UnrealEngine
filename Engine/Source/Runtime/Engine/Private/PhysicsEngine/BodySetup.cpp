@@ -159,7 +159,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	BuildScale_DEPRECATED = 1.0f;
 #endif
-	BuildScale3D = FVector(1.0f, 1.0f, 1.0f);
+	BuildScale3D = FVector3f::OneVector;
 	SetFlags(RF_Transactional);
 	bSharedCookedData = false;
 	CookedFormatDataOverride = nullptr;
@@ -363,7 +363,7 @@ void FBodySetupUVInfo::FillFromTriMesh(const FTriMeshCollisionData& TriangleMesh
 	VertPositions.AddUninitialized(NumVerts);
 	for (int32 VertIdx = 0; VertIdx < TriangleMeshDesc.Vertices.Num(); VertIdx++)
 	{
-		VertPositions[VertIdx] = TriangleMeshDesc.Vertices[VertIdx];
+		VertPositions[VertIdx] = FVector3d(TriangleMeshDesc.Vertices[VertIdx]);
 	}
 
 	// Copy UV channels (checking they are correct size)
@@ -952,10 +952,10 @@ void UBodySetup::RemoveSimpleCollision()
 
 void UBodySetup::RescaleSimpleCollision( FVector BuildScale )
 {
-	if( BuildScale3D != BuildScale )
+	if( FVector(BuildScale3D) != BuildScale )
 	{					
 		// Back out the old scale when applying the new scale
-		const FVector ScaleMultiplier3D = (BuildScale / BuildScale3D);
+		const FVector ScaleMultiplier3D = (BuildScale / FVector(BuildScale3D));
 
 		for (int32 i = 0; i < AggGeom.ConvexElems.Num(); i++)
 		{
@@ -1006,7 +1006,7 @@ void UBodySetup::RescaleSimpleCollision( FVector BuildScale )
 			SphylElem->Length *= ScaleMultiplier;
 		}
 
-		BuildScale3D = BuildScale;
+		BuildScale3D = FVector3f(BuildScale);	//LWC_TODO: Precision loss
 	}
 }
 
@@ -1231,7 +1231,7 @@ void UBodySetup::PostLoad()
 #if WITH_EDITORONLY_DATA
 	if ( GetLinkerUEVersion() < VER_UE4_BUILD_SCALE_VECTOR )
 	{
-		BuildScale3D = FVector( BuildScale_DEPRECATED );
+		BuildScale3D = FVector3f( BuildScale_DEPRECATED );
 	}
 #endif
 

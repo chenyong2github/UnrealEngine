@@ -105,10 +105,10 @@ public:
 
 		WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
 		WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
-		WorldOBB.AxisX = FVector::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
+		WorldOBB.AxisX = FVector3f::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
 		FVector3f::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
 
-		WorldOBB.Extent = Extent * FVector(XAxisLength, YAxisLength, ZAxisLength);
+		WorldOBB.Extent = Extent * FVector3f(XAxisLength, YAxisLength, ZAxisLength);
 		WorldOBB.Extent.Z = FMath::Max(WorldOBB.Extent.Z, 1.0f);
 
 		return WorldOBB;
@@ -117,8 +117,8 @@ public:
 	FBox GetBox()
 	{
 		FBox Box;
-		Box.Min = AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin;
-		Box.Max = AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin;
+		Box.Min = FVector(AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin);
+		Box.Max = FVector(AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin);
 		return Box;
 	}
 

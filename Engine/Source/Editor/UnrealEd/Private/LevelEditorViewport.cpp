@@ -2240,7 +2240,7 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 		}
 		else if (HitProxy->IsA(HBSPBrushVert::StaticGetType()) && ((HBSPBrushVert*)HitProxy)->Brush.IsValid())
 		{
-			FVector Vertex = *((HBSPBrushVert*)HitProxy)->Vertex;
+			FVector Vertex = FVector(*((HBSPBrushVert*)HitProxy)->Vertex);
 			LevelViewportClickHandlers::ClickBrushVertex(this,((HBSPBrushVert*)HitProxy)->Brush.Get(),&Vertex,Click);
 		}
 		else if (HitProxy->IsA(HStaticMeshVert::StaticGetType()))
@@ -4363,16 +4363,16 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 
 				if (Poly->Vertices.Num() > 2)
 				{
-					const FVector Vertex0 = Poly->Vertices[0];
-					FVector Vertex1 = Poly->Vertices[1];
+					const FVector3f Vertex0 = Poly->Vertices[0];
+					FVector3f Vertex1 = Poly->Vertices[1];
 
-					MeshBuilder.AddVertex(Vertex0, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-					MeshBuilder.AddVertex(Vertex1, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+					MeshBuilder.AddVertex(Vertex0, FVector2f::ZeroVector, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
+					MeshBuilder.AddVertex(Vertex1, FVector2f::ZeroVector, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
 
 					for (int32 VertexIdx = 2; VertexIdx < Poly->Vertices.Num(); ++VertexIdx)
 					{
-						const FVector Vertex2 = Poly->Vertices[VertexIdx];
-						MeshBuilder.AddVertex(Vertex2, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+						const FVector3f Vertex2 = Poly->Vertices[VertexIdx];
+						MeshBuilder.AddVertex(Vertex2, FVector2f::ZeroVector, FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
 						MeshBuilder.AddTriangle(VertexOffset, VertexOffset + VertexIdx, VertexOffset + VertexIdx - 1);
 						Vertex1 = Vertex2;
 					}
@@ -4428,7 +4428,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 						for(int32 VertexIndex = 0; VertexIndex < poly->Vertices.Num(); ++VertexIndex)
 						{
 							const FVector3f& PolyVertex = poly->Vertices[VertexIndex];
-							const FVector WorldLocation = BrushTransform.TransformPosition(PolyVertex);
+							const FVector WorldLocation = FVector(BrushTransform.TransformPosition((FVector)PolyVertex));
 
 							const float Scale = View->WorldToScreen(WorldLocation).W * (4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0]);
 

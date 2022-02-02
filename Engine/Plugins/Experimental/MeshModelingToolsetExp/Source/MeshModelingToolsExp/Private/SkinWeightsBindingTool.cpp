@@ -406,7 +406,7 @@ struct FOccupancyGrid
 
 	FBox GetCellBoxFromIndex(const UE::Geometry::FVector3i &Index) const
 	{
-		const FVector3f P = GetCellCenterFromIndex(Index);
+		const FVector3f P = (FVector3f)GetCellCenterFromIndex(Index);
 		return {P - CellMidPoint, P + CellMidPoint};
 	}
 };

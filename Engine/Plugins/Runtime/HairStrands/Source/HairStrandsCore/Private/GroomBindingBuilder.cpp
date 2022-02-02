@@ -1139,15 +1139,15 @@ namespace GroomBinding_RootProjection
 
 					if (bHasTransferredPosition)
 					{
-						T.P0 = InTransferredPositions[LODIt][T.I0];
-						T.P1 = InTransferredPositions[LODIt][T.I1];
-						T.P2 = InTransferredPositions[LODIt][T.I2];
+						T.P0 = (FVector)InTransferredPositions[LODIt][T.I0];
+						T.P1 = (FVector)InTransferredPositions[LODIt][T.I1];
+						T.P2 = (FVector)InTransferredPositions[LODIt][T.I2];
 					}
 					else
 					{
-						T.P0 = MeshLODData.GetVertexPosition(T.I0);
-						T.P1 = MeshLODData.GetVertexPosition(T.I1);
-						T.P2 = MeshLODData.GetVertexPosition(T.I2);
+						T.P0 = (FVector)MeshLODData.GetVertexPosition(T.I0);
+						T.P1 = (FVector)MeshLODData.GetVertexPosition(T.I1);
+						T.P2 = (FVector)MeshLODData.GetVertexPosition(T.I2);
 					}
 
 					T.UV0 = MeshLODData.GetVertexUV(T.I0, ChannelIndex);
@@ -1202,15 +1202,15 @@ namespace GroomBinding_RootProjection
 
 					if (bHasTransferredPosition)
 					{
-						T.P0 = InTransferredPositions[LODIt][T.I0];
-						T.P1 = InTransferredPositions[LODIt][T.I1];
-						T.P2 = InTransferredPositions[LODIt][T.I2];
+						T.P0 = (FVector)InTransferredPositions[LODIt][T.I0];
+						T.P1 = (FVector)InTransferredPositions[LODIt][T.I1];
+						T.P2 = (FVector)InTransferredPositions[LODIt][T.I2];
 					}
 					else
 					{
-						T.P0 = MeshLODData.GetVertexPosition(T.I0);
-						T.P1 = MeshLODData.GetVertexPosition(T.I1);
-						T.P2 = MeshLODData.GetVertexPosition(T.I2);
+						T.P0 = (FVector)MeshLODData.GetVertexPosition(T.I0);
+						T.P1 = (FVector)MeshLODData.GetVertexPosition(T.I1);
+						T.P2 = (FVector)MeshLODData.GetVertexPosition(T.I2);
 					}
 
 					T.UV0 = MeshLODData.GetVertexUV(T.I0, ChannelIndex);
@@ -1250,7 +1250,7 @@ namespace GroomBinding_RootProjection
 #endif
 			{
 				const uint32 Offset = InStrandsData.StrandsCurves.CurvesOffset[CurveIndex];
-				const FVector& RootP = InStrandsData.StrandsPoints.PointsPosition[Offset];
+				const FVector& RootP = (FVector)InStrandsData.StrandsPoints.PointsPosition[Offset];
 				const FTriangleGrid::FCells Cells = Grid.ToCells(RootP);
 
 				if (Cells.Num() == 0)
@@ -1285,9 +1285,9 @@ namespace GroomBinding_RootProjection
 				const uint32 EncodedTriangleIndex = FHairStrandsRootUtils::EncodeTriangleIndex(ClosestTriangle.TriangleIndex, ClosestTriangle.SectionIndex);
 				OutRootData.MeshProjectionLODs[LODIt].RootTriangleIndexBuffer[CurveIndex] = EncodedTriangleIndex;
 				OutRootData.MeshProjectionLODs[LODIt].RootTriangleBarycentricBuffer[CurveIndex] = EncodedBarycentrics;
-				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition0Buffer[CurveIndex] = FVector4f(ClosestTriangle.P0, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV0)));	// LWC_TODO: Precision loss
-				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition1Buffer[CurveIndex] = FVector4f(ClosestTriangle.P1, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV1)));	// LWC_TODO: Precision loss
-				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition2Buffer[CurveIndex] = FVector4f(ClosestTriangle.P2, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV2)));	// LWC_TODO: Precision loss
+				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition0Buffer[CurveIndex] = FVector4f((FVector3f)ClosestTriangle.P0, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV0)));	// LWC_TODO: Precision loss
+				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition1Buffer[CurveIndex] = FVector4f((FVector3f)ClosestTriangle.P1, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV1)));	// LWC_TODO: Precision loss
+				OutRootData.MeshProjectionLODs[LODIt].RestRootTrianglePosition2Buffer[CurveIndex] = FVector4f((FVector3f)ClosestTriangle.P2, FHairStrandsRootUtils::PackUVsToFloat(FVector2f(ClosestTriangle.UV2)));	// LWC_TODO: Precision loss
 			}
 #if BINDING_PARALLEL_BUILDING
 			);
@@ -1625,9 +1625,9 @@ namespace GroomBinding_Transfer
 				T.I1 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 1];
 				T.I2 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 2];
 
-				T.P0 = MeshLODData.GetVertexPosition(T.I0);
-				T.P1 = MeshLODData.GetVertexPosition(T.I1);
-				T.P2 = MeshLODData.GetVertexPosition(T.I2);
+				T.P0 = (FVector)MeshLODData.GetVertexPosition(T.I0);
+				T.P1 = (FVector)MeshLODData.GetVertexPosition(T.I1);
+				T.P2 = (FVector)MeshLODData.GetVertexPosition(T.I2);
 
 				T.UV0 = MeshLODData.GetVertexUV(T.I0, InChannelIndex);
 				T.UV1 = MeshLODData.GetVertexUV(T.I1, InChannelIndex);
@@ -1758,10 +1758,10 @@ namespace GroomBinding_Transfer
 						const float UVDistanceToTriangle = FVector2D::Distance(FVector2D(ClosestPoint.P.X, ClosestPoint.P.Y), Target_UV);
 						if (UVDistanceToTriangle < ClosestUVDistance)
 						{
-							RetargetedVertexPosition =
+							RetargetedVertexPosition = FVector3f(
 								ClosestPoint.Barycentric.X * CellTriangle.P0 +
 								ClosestPoint.Barycentric.Y * CellTriangle.P1 +
-								ClosestPoint.Barycentric.Z * CellTriangle.P2;
+								ClosestPoint.Barycentric.Z * CellTriangle.P2);
 							ClosestUVDistance = UVDistanceToTriangle;
 						}
 					}

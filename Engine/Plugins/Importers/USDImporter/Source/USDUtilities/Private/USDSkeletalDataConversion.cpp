@@ -185,8 +185,8 @@ namespace SkelDataConversionImpl
 						{
 							// Add a new vertex and delta if we don't have one for this vertex yet
 							FMorphTargetDelta& NewDelta = NewDeltas.Emplace_GetRef();
-							NewDelta.PositionDelta = FVector(0, 0, 0);
-							NewDelta.TangentZDelta = FVector(0, 0, 0);
+							NewDelta.PositionDelta = FVector3f::ZeroVector;
+							NewDelta.TangentZDelta = FVector3f::ZeroVector;
 							NewDelta.SourceIdx = SourceIndex;
 
 							MorphedIndex = OutBundle.Vertices.Add( InMeshDataBundle.Vertices[ SourceIndex ] );
@@ -238,12 +238,12 @@ namespace SkelDataConversionImpl
 
 			// Note that we store the source normals as one per vertex, but we don't need to do that conversion for the
 			// morphed normals, as we're iterating directly over the indices anyway
-			const FVector& SourceNormal = MeshDataBundle.NormalsPerVertex[ SourceIndex ];
-			const FVector& MorphedNormal = MorphedBundle.NormalsPerIndex[ MorphedIndexIndex ];
+			const FVector& SourceNormal = (FVector)MeshDataBundle.NormalsPerVertex[ SourceIndex ];
+			const FVector& MorphedNormal = (FVector)MorphedBundle.NormalsPerIndex[ MorphedIndexIndex ];
 
 			if ( FMorphTargetDelta** FoundDelta = SourceIndexToMorphDelta.Find( SourceIndex ) )
 			{
-				( *FoundDelta )->TangentZDelta = MorphedNormal - SourceNormal;
+				( *FoundDelta )->TangentZDelta = FVector3f(MorphedNormal - SourceNormal);
 
 				// We will visit each delta multiple times because we're iterating indices and these are per-vertex,
 				// so this prevents us from recalculating the delta many times
@@ -324,8 +324,8 @@ namespace SkelDataConversionImpl
 
 			// Intentionally ignore translation on PositionDelta as this is really a direction vector,
 			// and geomBindTransform's translation is already applied to the mesh vertices
-			ModifiedVertex.PositionDelta = AdditionalTransform.TransformVector(UEOffset);
-			ModifiedVertex.TangentZDelta = NormalTransform.TransformVector(UENormal);
+			ModifiedVertex.PositionDelta = (FVector3f)AdditionalTransform.TransformVector(UEOffset);
+			ModifiedVertex.TangentZDelta = (FVector3f)NormalTransform.TransformVector(UENormal);
 			ModifiedVertex.SourceIdx = BaseIndices[ OffsetIndex ];
 		}
 
@@ -697,7 +697,7 @@ namespace UnrealToUsdImpl
 
 					for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 					{
-						PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, Vertices[ VertexIndex ].Position ) );
+						PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, (FVector)Vertices[ VertexIndex ].Position ) );
 					}
 
 					Points.Set( PointsArray, TimeCode );
@@ -978,9 +978,9 @@ namespace UnrealToUsdImpl
 		{
 			const FMorphTargetDelta& Delta = DeltaArray[ DeltaIndex ];
 
-			Offsets.push_back( UnrealToUsd::ConvertVector( StageInfo, Delta.PositionDelta ) );
+			Offsets.push_back( UnrealToUsd::ConvertVector( StageInfo, (FVector)Delta.PositionDelta ) );
 			PointIndices.push_back( Delta.SourceIdx );
-			Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, Delta.TangentZDelta ) );
+			Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, (FVector)Delta.TangentZDelta ) );
 		}
 
 		BlendShape.CreateOffsetsAttr().Set(Offsets, TimeCode);
@@ -1165,7 +1165,7 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 			FVector Pos = UsdToUnreal::ConvertVector(StageInfo, Point);
 			Pos = AdditionalTransform.TransformPosition(Pos);
 
-			SkelMeshImportData.Points[PointIndex + NumExistingPoints] = Pos;
+			SkelMeshImportData.Points[PointIndex + NumExistingPoints] = (FVector3f)Pos;
 		}
 	}
 
@@ -1558,9 +1558,9 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 					++UVLayerIndex;
 				}
 
-				Triangle.TangentX[ FinalCornerIndex ] = FVector::ZeroVector;
-				Triangle.TangentY[ FinalCornerIndex ] = FVector::ZeroVector;
-				Triangle.TangentZ[ FinalCornerIndex ] = FVector::ZeroVector;
+				Triangle.TangentX[ FinalCornerIndex ] = FVector3f::ZeroVector;
+				Triangle.TangentY[ FinalCornerIndex ] = FVector3f::ZeroVector;
+				Triangle.TangentZ[ FinalCornerIndex ] = FVector3f::ZeroVector;
 
 				Triangle.WedgeIndex[ FinalCornerIndex ] = WedgeIndex;
 			}

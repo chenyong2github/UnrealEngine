@@ -229,7 +229,7 @@ int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FVector2D& InUv, flo
 	{
 		FVector BarycentricCoord3d = FVector::ZeroVector;
 		int32 Tri = UvMappingData->FindFirstTriangle(InUv, Tolerance, BarycentricCoord3d);
-		BarycentricCoord = BarycentricCoord3d;
+		BarycentricCoord = (FVector3f)BarycentricCoord3d;
 		return Tri;
 	}
 
@@ -242,7 +242,7 @@ int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FBox2D& InUvBox, FVe
 	{
 		FVector BarycentricCoord3d = FVector::ZeroVector;
 		int32 Tri = UvMappingData->FindFirstTriangle(InUvBox, BarycentricCoord3d);
-		BarycentricCoord = BarycentricCoord3d;
+		BarycentricCoord = (FVector3f)BarycentricCoord3d;
 		return Tri;
 	}
 	return INDEX_NONE;

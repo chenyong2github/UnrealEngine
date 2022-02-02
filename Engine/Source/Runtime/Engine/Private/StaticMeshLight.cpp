@@ -36,9 +36,9 @@ static void GetStaticLightingVertex(
 	FStaticLightingVertex& OutVertex
 	)
 {
-	OutVertex.WorldPosition = LocalToWorld.TransformPosition(PositionVertexBuffer.VertexPosition(VertexIndex));
+	OutVertex.WorldPosition = LocalToWorld.TransformPosition((FVector)PositionVertexBuffer.VertexPosition(VertexIndex));
 	OutVertex.WorldTangentX = LocalToWorld.TransformVector((FVector4)VertexBuffer.VertexTangentX(VertexIndex)).GetSafeNormal();
-	OutVertex.WorldTangentY = LocalToWorld.TransformVector(VertexBuffer.VertexTangentY(VertexIndex)).GetSafeNormal();
+	OutVertex.WorldTangentY = LocalToWorld.TransformVector((FVector)VertexBuffer.VertexTangentY(VertexIndex)).GetSafeNormal();
 	OutVertex.WorldTangentZ = LocalToWorldInverseTranspose.TransformVector((FVector4)VertexBuffer.VertexTangentZ(VertexIndex)).GetSafeNormal();
 
 	checkSlow(VertexBuffer.GetNumTexCoords() <= UE_ARRAY_COUNT(OutVertex.TextureCoordinates));

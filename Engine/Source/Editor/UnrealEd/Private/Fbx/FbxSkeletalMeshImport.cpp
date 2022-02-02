@@ -146,7 +146,7 @@ struct FSkeletalMeshVertPosOctreeSemantics
 	 */
 	FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const FSoftSkinVertex& Element)
 	{
-		return FBoxCenterAndExtent(Element.Position, FVector::ZeroVector);
+		return FBoxCenterAndExtent((FVector)Element.Position, FVector::ZeroVector);
 	}
 
 	/**
@@ -185,7 +185,7 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 	for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
 	{
 		SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
-		const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+		const FVector& Position = (FVector)SkelMeshImportData->Points[Wedge.VertexIndex];
 		Bounds += Position;
 	}
 
@@ -194,7 +194,7 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 	for (int32 SkinVertexIndex = 0; SkinVertexIndex < Vertices.Num(); ++SkinVertexIndex)
 	{
 		const FSoftSkinVertex& SkinVertex = Vertices[SkinVertexIndex];
-		Bounds += SkinVertex.Position;
+		Bounds += (FVector)SkinVertex.Position;
 	}
 
 	TSKCVertPosOctree VertPosOctree(Bounds.GetCenter(), Bounds.GetExtent().GetMax());
@@ -222,7 +222,7 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 	for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
 	{
 		SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
-		const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+		const FVector& Position = (FVector)SkelMeshImportData->Points[Wedge.VertexIndex];
 		const FVector2f UV = Wedge.UVs[0];
 		const FVector3f& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
 
@@ -457,7 +457,7 @@ void FFbxImporter::SkinControlPointsToPose(FSkeletalMeshImportData& ImportData, 
 		int32 StartPointIndex = ExistPointNum - VertexCount;
 		for(int32 ControlPointsIndex = 0 ; ControlPointsIndex < VertexCount ;ControlPointsIndex++ )
 		{
-			ImportData.Points[ControlPointsIndex+StartPointIndex] = Converter.ConvertPos(MeshMatrix.MultT(VertexArray[ControlPointsIndex]));
+			ImportData.Points[ControlPointsIndex+StartPointIndex] = (FVector3f)Converter.ConvertPos(MeshMatrix.MultT(VertexArray[ControlPointsIndex]));
 		}
 		
 	}
@@ -1501,7 +1501,7 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportPoints(FSkeletalMeshImportData* 
 			ConvertedPosition = FVector::ZeroVector;
 		}
 
-		OutData->Points[ ControlPointsIndex + ExistPointNum ] = ConvertedPosition;
+		OutData->Points[ ControlPointsIndex + ExistPointNum ] = (FVector3f)ConvertedPosition;
 	}
 
 	if (bInvalidPositionFound)
@@ -3519,18 +3519,18 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 				{
 					TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentMapIndex);
 					TempValue = TotalMatrixForNormal.MultT(TempValue);
-					Triangle.TangentX[ UnrealVertexIndex ] = Converter.ConvertDir(TempValue);
+					Triangle.TangentX[ UnrealVertexIndex ] = (FVector3f)Converter.ConvertDir(TempValue);
 					Triangle.TangentX[ UnrealVertexIndex ].Normalize();
 
 					TempValue = LayerElementBinormal->GetDirectArray().GetAt(TangentMapIndex);
 					TempValue = TotalMatrixForNormal.MultT(TempValue);
-					Triangle.TangentY[ UnrealVertexIndex ] = -Converter.ConvertDir(TempValue);
+					Triangle.TangentY[ UnrealVertexIndex ] = (FVector3f)-Converter.ConvertDir(TempValue);
 					Triangle.TangentY[ UnrealVertexIndex ].Normalize();
 				}
 
 				TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
 				TempValue = TotalMatrixForNormal.MultT(TempValue);
-				Triangle.TangentZ[ UnrealVertexIndex ] = Converter.ConvertDir(TempValue);
+				Triangle.TangentZ[ UnrealVertexIndex ] = (FVector3f)Converter.ConvertDir(TempValue);
 				Triangle.TangentZ[ UnrealVertexIndex ].Normalize();
 			
 			}
@@ -3539,9 +3539,9 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 				int32 NormalIndex;
 				for( NormalIndex = 0; NormalIndex < 3; ++NormalIndex )
 				{
-					Triangle.TangentX[ NormalIndex ] = FVector::ZeroVector;
-					Triangle.TangentY[ NormalIndex ] = FVector::ZeroVector;
-					Triangle.TangentZ[ NormalIndex ] = FVector::ZeroVector;
+					Triangle.TangentX[ NormalIndex ] = FVector3f::ZeroVector;
+					Triangle.TangentY[ NormalIndex ] = FVector3f::ZeroVector;
+					Triangle.TangentZ[ NormalIndex ] = FVector3f::ZeroVector;
 				}
 			}
 		}
@@ -3701,7 +3701,7 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 		{
 			for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 			{
-				const FVector VertexPosition = ImportData.Points[TmpWedges[VertexIndex].VertexIndex];
+				const FVector VertexPosition = (FVector)ImportData.Points[TmpWedges[VertexIndex].VertexIndex];
 				const FColor* PaintedColor = ExistingVertexColorData.Find(VertexPosition);
 				
 				// try to match this wedge current vertex with one that existed in the previous mesh.

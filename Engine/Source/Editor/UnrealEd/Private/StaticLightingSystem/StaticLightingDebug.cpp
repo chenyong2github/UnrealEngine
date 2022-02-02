@@ -226,9 +226,9 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 						uint32 Index2 = Indices[TriangleIndex + 2];
 
 						// Transform positions to world space
-						FVector Position0 = SMComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index0));
-						FVector Position1 = SMComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1));
-						FVector Position2 = SMComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
+						FVector Position0 = SMComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index0));
+						FVector Position1 = SMComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1));
+						FVector Position2 = SMComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
 
 						float PlaneDistance;
 						FVector BaryCentricWeights;
@@ -370,9 +370,9 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 							uint32 Index2 = (*IndexBufferRef)->Indices[TriangleIndex + 2];
 
 							FModelVertex* ModelVertices = (FModelVertex*)Model->VertexBuffer.Vertices.GetData();
-							FVector Position0 = ModelVertices[Index0].Position;
-							FVector Position1 = ModelVertices[Index1].Position;
-							FVector Position2 = ModelVertices[Index2].Position;
+							FVector Position0 = (FVector)ModelVertices[Index0].Position;
+							FVector Position1 = (FVector)ModelVertices[Index1].Position;
+							FVector Position2 = (FVector)ModelVertices[Index2].Position;
 
 							float PlaneDistance;
 							FVector BaryCentricWeights;

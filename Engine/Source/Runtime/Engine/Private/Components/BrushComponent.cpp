@@ -473,7 +473,7 @@ FBoxSphereBounds UBrushComponent::CalcBounds(const FTransform& LocalToWorld) con
 		{
 			for( int32 j=0; j<Brush->Polys->Element[i].Vertices.Num(); j++ )
 			{
-				Points.Add(Brush->Polys->Element[i].Vertices[j]);
+				Points.Add((FVector)Brush->Polys->Element[i].Vertices[j]);
 			}
 		}
 		return FBoxSphereBounds( Points.GetData(), Points.Num() ).TransformBy(LocalToWorld);
@@ -580,7 +580,7 @@ bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, con
 				{
 					for (const auto& Vertex : Poly.Vertices)
 					{
-						const FVector Location = GetComponentTransform().TransformPosition(Vertex);
+						const FVector Location = GetComponentTransform().TransformPosition((FVector)Vertex);
 						const bool bLocationIntersected = FMath::PointBoxIntersection(Location, InSelBBox);
 
 						// If the selection box doesn't have to encompass the entire component and any poly vertex intersects with the selection
@@ -601,10 +601,10 @@ bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, con
 					const int32 NumVerts = Poly.Vertices.Num();
 					if (NumVerts > 0)
 					{
-						FVector StartVert = GetComponentTransform().TransformPosition(Poly.Vertices[NumVerts - 1]);
+						FVector StartVert = GetComponentTransform().TransformPosition((FVector)Poly.Vertices[NumVerts - 1]);
 						for (int32 Index = 0; Index < NumVerts; ++Index)
 						{
-							const FVector EndVert = GetComponentTransform().TransformPosition(Poly.Vertices[Index]);
+							const FVector EndVert = GetComponentTransform().TransformPosition((FVector)Poly.Vertices[Index]);
 
 							if (FMath::LineBoxIntersection(InSelBBox, StartVert, EndVert, EndVert - StartVert))
 							{
@@ -627,7 +627,7 @@ bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, con
 				// The component must be entirely within the bounding box...
 				for (const auto& Vertex : Poly.Vertices)
 				{
-					const FVector Location = GetComponentTransform().TransformPosition(Vertex);
+					const FVector Location = GetComponentTransform().TransformPosition((FVector)Vertex);
 					const bool bLocationIntersected = FMath::PointBoxIntersection(Location, InSelBBox);
 
 					// If the selection box has to encompass the entire component and a poly vertex didn't intersect with the selection
@@ -663,7 +663,7 @@ bool UBrushComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& I
 		{
 			for (const auto& Vertex : Poly.Vertices)
 			{
-				const FVector Location = GetComponentTransform().TransformPosition(Vertex);
+				const FVector Location = GetComponentTransform().TransformPosition((FVector)Vertex);
 				const bool bIntersect = InFrustum.IntersectSphere(Location, 0.0f);
 
 				if (bIntersect && !bMustEncompassEntireComponent)
@@ -750,7 +750,7 @@ static FVector GetPolyCenter(const FPoly& Poly)
 	FVector Result = FVector::ZeroVector;
 	for (const auto& Vertex : Poly.Vertices)
 	{
-		Result += Vertex;
+		Result += (FVector)Vertex;
 	}
 
 	return Result / Poly.Vertices.Num();
@@ -780,15 +780,15 @@ bool UBrushComponent::HasInvertedPolys() const
 				{
 					// Calculate a nominal center point for the poly being tested for intersection
 					const FVector OtherPolyCenter = GetPolyCenter(OtherPoly);
-					const float Dot = FVector::DotProduct(Poly.Normal, OtherPoly.Normal);
+					const float Dot = FVector3f::DotProduct(Poly.Normal, OtherPoly.Normal);
 					// If normals are perpendicular, skip it - this implies that the poly normal is parallel to the plane
 					if (Dot != 0.0f)
 					{
-						const float Distance = FVector::DotProduct(OtherPolyCenter - PolyCenter, OtherPoly.Normal) / Dot;
+						const float Distance = FVector3f::DotProduct((FVector3f)OtherPolyCenter - (FVector3f)PolyCenter, OtherPoly.Normal) / Dot;
 						// Only consider intersections in the direction of the poly normal
 						if (Distance > 0.0f)
 						{
-							const FVector Intersection = PolyCenter + Poly.Normal * Distance;
+							const FVector Intersection = PolyCenter + (FVector)Poly.Normal * Distance;
 
 							// Does the ray intersect with the actual poly?
 							if (OtherPoly.OnPoly(Intersection))

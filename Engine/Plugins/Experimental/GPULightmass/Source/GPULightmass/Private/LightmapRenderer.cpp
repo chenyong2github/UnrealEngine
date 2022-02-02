@@ -781,7 +781,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.ViewFamily = &ViewFamily;
 	ViewInitOptions.SetViewRectangle(ViewRect);
-	ViewInitOptions.ViewOrigin = FVector3f::ZeroVector;
+	ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 	ViewInitOptions.ProjectionMatrix = FCanvas::CalcBaseTransform2D(GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize);
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;

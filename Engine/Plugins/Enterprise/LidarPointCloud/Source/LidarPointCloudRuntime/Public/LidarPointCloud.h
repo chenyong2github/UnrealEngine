@@ -252,11 +252,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	bool HasPointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) const
 	{
-		return HasPointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly);
+		return HasPointsByRay(FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly);
 	}
 	bool HasPointsByRay(const FLidarPointCloudRay& Ray, float Radius, bool bVisibleOnly) const
 	{
-		return Octree.HasPointsByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly);
+		return Octree.HasPointsByRay(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly);
 	}
 
 	/** Populates the given array with points from the tree */
@@ -308,7 +308,7 @@ public:
 	/** Performs a raycast test against the point cloud. Returns the pointer if hit or nullptr otherwise. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
 	bool LineTraceSingle(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudPoint& PointHit);
-	FLidarPointCloudPoint* LineTraceSingle(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { return Octree.RaycastSingle(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	FLidarPointCloudPoint* LineTraceSingle(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { return Octree.RaycastSingle(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/**
 	 * Performs a raycast test against the point cloud.
@@ -317,13 +317,13 @@ public:
 	 * Returns true it anything has been hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (Keywords = "raycast"))
-	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits) { return LineTraceMulti(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly, bReturnWorldSpace, OutHits); }
+	bool LineTraceMulti(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits) { return LineTraceMulti(FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly, bReturnWorldSpace, OutHits); }
 	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, bool bReturnWorldSpace, TArray<FLidarPointCloudPoint>& OutHits)
 	{
 		FTransform LocalToWorld(LocationOffset.ToVector());
-		return Octree.RaycastMulti(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr, OutHits);
+		return Octree.RaycastMulti(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr, OutHits);
 	}
-	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint*>& OutHits) { return Octree.RaycastMulti(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly, OutHits); }
+	bool LineTraceMulti(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly, TArray<FLidarPointCloudPoint*>& OutHits) { return Octree.RaycastMulti(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly, OutHits); }
 
 	/** Sets visibility of points within the given sphere. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -341,13 +341,13 @@ public:
 
 	/** Sets visibility of the first point hit by the given ray. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfFirstPointByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfFirstPointByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-	void SetVisibilityOfFirstPointByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfFirstPointByRay(bNewVisibility, Ray.ShiftBy(-LocationOffset.ToVector()), Radius); }
+	void SetVisibilityOfFirstPointByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfFirstPointByRay(bNewVisibility, FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius); }
+	void SetVisibilityOfFirstPointByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfFirstPointByRay(bNewVisibility, Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius); }
 
 	/** Sets visibility of points hit by the given ray. */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void SetVisibilityOfPointsByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-	void SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfPointsByRay(bNewVisibility, Ray.ShiftBy(-LocationOffset.ToVector()), Radius); }
+	void SetVisibilityOfPointsByRay(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius); }
+	void SetVisibilityOfPointsByRay(const bool& bNewVisibility, const FLidarPointCloudRay& Ray, const float& Radius) { Octree.SetVisibilityOfPointsByRay(bNewVisibility, Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius); }
 
 	/** Marks all points hidden */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -373,10 +373,10 @@ public:
 	void ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly) { Octree.ExecuteActionOnPointsInBox(MoveTemp(Action), Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
 	/** Executes the provided action on the first point hit by the given ray. */
-	void ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnFirstPointByRay(MoveTemp(Action), Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnFirstPointByRay(MoveTemp(Action), Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Executes the provided action on each of the points hit by the given ray. */
-	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnPointsByRay(MoveTemp(Action), Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ExecuteActionOnPointsByRay(MoveTemp(Action), Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Applies the given color to all points */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -398,13 +398,13 @@ public:
 
 	/** Applies the given color to the first point hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void ApplyColorToFirstPointByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToFirstPointByRay(NewColor, FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
-	void ApplyColorToFirstPointByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToFirstPointByRay(NewColor, Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void ApplyColorToFirstPointByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToFirstPointByRay(NewColor, FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly); }
+	void ApplyColorToFirstPointByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToFirstPointByRay(NewColor, Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Applies the given color to all points hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void ApplyColorToPointsByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToPointsByRay(NewColor, FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
-	void ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToPointsByRay(NewColor, Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void ApplyColorToPointsByRay(FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { ApplyColorToPointsByRay(NewColor, FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly); }
+	void ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.ApplyColorToPointsByRay(NewColor, Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/**
 	 * This should to be called if any manual modification to individual points' visibility has been made.
@@ -556,13 +556,13 @@ public:
 
 	/** Removes the first point hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemoveFirstPointByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemoveFirstPointByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
-	void RemoveFirstPointByRay(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.RemoveFirstPointByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void RemoveFirstPointByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemoveFirstPointByRay(FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly); }
+	void RemoveFirstPointByRay(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.RemoveFirstPointByRay(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Removes all points hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
-	void RemovePointsByRay(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { Octree.RemovePointsByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemovePointsByRay(FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly); }
+	void RemovePointsByRay(const FLidarPointCloudRay& Ray, const float& Radius, const bool& bVisibleOnly) { Octree.RemovePointsByRay(Ray.ShiftBy((FVector3f)-LocationOffset.ToVector()), Radius, bVisibleOnly); }
 
 	/** Removes all hidden points */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -818,15 +818,15 @@ public:
 
 	/** Sets the given normal using provided vector */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	static void NormalFromVector(UPARAM(ref) FLidarPointCloudNormal& Normal, FVector Vector) { Normal.SetFromVector(Vector); }
+	static void NormalFromVector(UPARAM(ref) FLidarPointCloudNormal& Normal, FVector Vector) { Normal.SetFromVector((FVector3f)Vector); }
 
 	/** Converts a Lidar Point Cloud Normal to a Vector */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Normal to Vector", CompactNodeTitle = "->", BlueprintAutocast), Category = "Lidar Point Cloud")
-	static FVector Conv_LidarPointCloudNormalToVector(const FLidarPointCloudNormal& Normal) { return Normal.ToVector(); }
+	static FVector Conv_LidarPointCloudNormalToVector(const FLidarPointCloudNormal& Normal) { return (FVector)Normal.ToVector(); }
 
 	/** Converts a Vector to a Lidar Point Cloud Normal */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Vector to Normal", CompactNodeTitle = "->", BlueprintAutocast), Category = "Lidar Point Cloud")
-	static FLidarPointCloudNormal Conv_VectorToLidarPointCloudNormal(const FVector& Vector) { return FLidarPointCloudNormal(Vector); }
+	static FLidarPointCloudNormal Conv_VectorToLidarPointCloudNormal(const FVector& Vector) { return FLidarPointCloudNormal((FVector3f)Vector); }
 };
 
 UCLASS(hidecategories = (Collision, Brush, Attachment, Physics, Volume, BrushBuilder), MinimalAPI)

@@ -953,9 +953,9 @@ namespace UsdGeomMeshTranslatorImpl
 				{
 					for ( FVertexInstanceID VertexInstanceID : MeshDescription.GetTriangleVertexInstances( TriangleID ) )
 					{
-						const FVector& Position = VertexPositions[ MeshDescription.GetVertexInstanceVertex( VertexInstanceID ) ];
+						const FVector3f& Position = VertexPositions[ MeshDescription.GetVertexInstanceVertex( VertexInstanceID ) ];
 						OutMeshData.Positions.Add( Position );
-						BoundingBox += Position;
+						BoundingBox += (FVector)Position;
 
 						OutMeshData.Indices.Add( VertexIndex++ );
 

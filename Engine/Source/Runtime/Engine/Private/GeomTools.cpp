@@ -466,7 +466,7 @@ bool FGeomTools::TriangulatePoly(TArray<FClipSMTriangle>& OutTris, const FClipSM
 				// Check that this vertex is convex (cross product must be positive)
 				const FVector3f ABEdge = PolyVerts[BIndex].Pos - PolyVerts[AIndex].Pos;
 				const FVector3f ACEdge = PolyVerts[CIndex].Pos - PolyVerts[AIndex].Pos;
-				const float TriangleDeterminant = (ABEdge ^ ACEdge) | InPoly.FaceNormal;
+				const float TriangleDeterminant = (ABEdge ^ ACEdge) | (FVector3f)InPoly.FaceNormal;
 				if(FMath::IsNegativeFloat(TriangleDeterminant))
 				{
 					continue;
@@ -603,16 +603,16 @@ static FVector ColorToVector(const FLinearColor& Color)
 void FClipSMTriangle::ComputeGradientsAndNormal()
 {
 	// Compute the transform from triangle parameter space to local space.
-	const FMatrix ParameterToLocal = ComputeTriangleParameterToAttribute(Vertices[0].Pos,Vertices[1].Pos,Vertices[2].Pos);
+	const FMatrix ParameterToLocal = ComputeTriangleParameterToAttribute((FVector)Vertices[0].Pos, (FVector)Vertices[1].Pos, (FVector)Vertices[2].Pos);
 	const FMatrix LocalToParameter = ParameterToLocal.Inverse();
 
 	// Compute the triangle's normal.
 	FaceNormal = ParameterToLocal.TransformVector(FVector(0,0,1));
 
 	// Compute the normal's gradient in local space.
-	const FMatrix ParameterToTangentX = ComputeTriangleParameterToAttribute(Vertices[0].TangentX,Vertices[1].TangentX,Vertices[2].TangentX);
-	const FMatrix ParameterToTangentY = ComputeTriangleParameterToAttribute(Vertices[0].TangentY,Vertices[1].TangentY,Vertices[2].TangentY);
-	const FMatrix ParameterToTangentZ = ComputeTriangleParameterToAttribute(Vertices[0].TangentZ,Vertices[1].TangentZ,Vertices[2].TangentZ);
+	const FMatrix ParameterToTangentX = ComputeTriangleParameterToAttribute((FVector)Vertices[0].TangentX, (FVector)Vertices[1].TangentX, (FVector)Vertices[2].TangentX);
+	const FMatrix ParameterToTangentY = ComputeTriangleParameterToAttribute((FVector)Vertices[0].TangentY, (FVector)Vertices[1].TangentY, (FVector)Vertices[2].TangentY);
+	const FMatrix ParameterToTangentZ = ComputeTriangleParameterToAttribute((FVector)Vertices[0].TangentZ, (FVector)Vertices[1].TangentZ, (FVector)Vertices[2].TangentZ);
 	TangentXGradient = LocalToParameter * ParameterToTangentX;
 	TangentYGradient = LocalToParameter * ParameterToTangentY;
 	TangentZGradient = LocalToParameter * ParameterToTangentZ;

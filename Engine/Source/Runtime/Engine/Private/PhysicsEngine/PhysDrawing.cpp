@@ -240,12 +240,12 @@ void FKSphylElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D,
 		SpherePos.Y = ScaleRadius * Radius * FMath::Sin(Angle);
 		SpherePos.Z = ScaleRadius * Radius * FMath::Cos(Angle);
 
-		ArcVert->Position = SpherePos + FVector(0, 0, ZOffset);
+		ArcVert->Position = FVector3f(SpherePos + FVector(0, 0, ZOffset));
 
 		ArcVert->SetTangents(
-			FVector(1, 0, 0),
-			FVector(0.0f, -SpherePos.Z, SpherePos.Y),
-			SpherePos
+			FVector3f(1, 0, 0),
+			FVector3f(0.0f, -SpherePos.Z, SpherePos.Y),
+			(FVector3f)SpherePos
 			);
 
 		ArcVert->TextureCoordinate[0].X = 0.0f;
@@ -266,9 +266,9 @@ void FKSphylElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D,
 			Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[VertIdx].Position);
 
 			Verts[VIx].SetTangents(
-				ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector()),
+				ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector3f()),
 				ArcRot.TransformVector(ArcVerts[VertIdx].GetTangentY()),
-				ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector())
+				ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector3f())
 				);
 
 			Verts[VIx].TextureCoordinate[0].X = XTexCoord;
@@ -343,12 +343,12 @@ void FKSphylElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& 
 		SpherePos.Y = ScaleRadius * Radius * FMath::Sin(Angle);
 		SpherePos.Z = ScaleRadius * Radius * FMath::Cos(Angle);
 
-		ArcVert->Position = SpherePos + FVector(0, 0, ZOffset);
+		ArcVert->Position = FVector3f(SpherePos + FVector(0, 0, ZOffset));
 
 		ArcVert->SetTangents(
-			FVector(1, 0, 0),
-			FVector(0.0f, -SpherePos.Z, SpherePos.Y),
-			SpherePos
+			FVector3f(1, 0, 0),
+			FVector3f(0.0f, -SpherePos.Z, SpherePos.Y),
+			(FVector3f)SpherePos
 			);
 
 		ArcVert->TextureCoordinate[0].X = 0.0f;
@@ -369,9 +369,9 @@ void FKSphylElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& 
 			Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[VertIdx].Position);
 
 			Verts[VIx].SetTangents(
-				ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector()),
+				ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector3f()),
 				ArcRot.TransformVector(ArcVerts[VertIdx].GetTangentY()),
-				ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector())
+				ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector3f())
 				);
 
 			Verts[VIx].TextureCoordinate[0].X = XTexCoord;
@@ -588,12 +588,12 @@ struct FScopedTaperedCapsuleBuilder
 				SpherePos.Z = ScaledRadius1 * FMath::Cos(Angle);
 			}
 
-			ArcVert->Position = SpherePos + FVector(0, 0, ZOffset);
+			ArcVert->Position = FVector3f(SpherePos + FVector(0, 0, ZOffset));
 
 			ArcVert->SetTangents(
-				FVector(1, 0, 0),
-				FVector(0.0f, -SpherePos.Z, SpherePos.Y),
-				SpherePos
+				FVector3f(1, 0, 0),
+				FVector3f(0.0f, -SpherePos.Z, SpherePos.Y),
+				(FVector3f)SpherePos
 				);
 
 			ArcVert->TextureCoordinate[0].X = 0.0f;
@@ -614,9 +614,9 @@ struct FScopedTaperedCapsuleBuilder
 				Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[VertIdx].Position);
 
 				Verts[VIx].SetTangents(
-					ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector()),
+					ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector3f()),
 					ArcRot.TransformVector(ArcVerts[VertIdx].GetTangentY()),
-					ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector())
+					ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector3f())
 					);
 
 				Verts[VIx].TextureCoordinate[0].X = XTexCoord;
@@ -771,9 +771,9 @@ void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform&
 		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
 
 		const FVector2D DummyUV(0);
-		const FVector DummyTangentX(1, 0, 0);
-		const FVector DummyTangentY(0, 1, 0);
-		const FVector DummyTangentZ(0, 0, 1);
+		const FVector3f DummyTangentX(1, 0, 0);
+		const FVector3f DummyTangentY(0, 1, 0);
+		const FVector3f DummyTangentZ(0, 0, 1);
 
 		// NOTE: With chaos, instead of using a mesh with transformed verts, we use the 
 		// VertexData directly, so we don't need to remove the body->elem transform like
@@ -781,7 +781,7 @@ void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform&
 		const int32 NumVerts = VertexData.Num();
 		for (const FVector& Vert : VertexData)
 		{
-			MeshBuilder.AddVertex(ElemTM.TransformPosition(Vert), FVector2f(DummyUV), DummyTangentX, DummyTangentY, DummyTangentZ, FColor::White);
+			MeshBuilder.AddVertex((FVector3f)ElemTM.TransformPosition(Vert), FVector2f(DummyUV), DummyTangentX, DummyTangentY, DummyTangentZ, FColor::White);
 		}
 
 		for (int32 Base = 0; Base < NumIndices; Base += 3)
@@ -904,9 +904,9 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 			{
 				const int32 Index = TriVertexIndex[TriVertCount];
 				FDynamicMeshVertex Vert;
-				Vert.Position = VertexData[Index];
+				Vert.Position = (FVector3f)VertexData[Index];
 				Vert.Color = VertexColor;
-				Vert.SetTangents(TangentX, TangentY, TangentZ);
+				Vert.SetTangents((FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)TangentZ);
 				VertexBuffer.Add(Vert);
 				IndexBuffer.Add(VertexBuffer.Num() - 1); // Output indices
 			}

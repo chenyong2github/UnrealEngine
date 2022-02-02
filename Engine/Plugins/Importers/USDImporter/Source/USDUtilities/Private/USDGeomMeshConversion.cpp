@@ -137,7 +137,7 @@ namespace UE
 
 							for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 							{
-								FVector VertexPosition = LODRenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
+								FVector VertexPosition = (FVector)LODRenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition( VertexIndex );
 								PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexPosition ) );
 							}
 
@@ -395,7 +395,7 @@ namespace UE
 
 						for ( const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs() )
 						{
-							FVector UEPosition = AdditionalTransform.TransformPosition( VertexPositions[ VertexID ] );
+							FVector UEPosition = AdditionalTransform.TransformPosition( (FVector)VertexPositions[ VertexID ] );
 							PointsArray.push_back( UnrealToUsd::ConvertVector( StageInfo, UEPosition ) );
 						}
 
@@ -412,7 +412,7 @@ namespace UE
 
 						for ( const FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs() )
 						{
-							FVector UENormal = VertexInstanceNormals[ InstanceID ].GetSafeNormal();
+							FVector UENormal = (FVector)VertexInstanceNormals[ InstanceID ].GetSafeNormal();
 							Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, UENormal ) );
 						}
 
@@ -685,7 +685,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 				FVector Position = AdditionalTransform.TransformPosition( UsdToUnreal::ConvertVector( StageInfo, Point ) );
 
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
-				MeshDescriptionVertexPositions[ AddedVertexId ] = Position;
+				MeshDescriptionVertexPositions[ AddedVertexId ] = (FVector3f)Position;
 			}
 		}
 	}
@@ -868,7 +868,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 				const FVertexInstanceID VertexInstanceID(VertexInstanceIndex);
 				const int32 ControlPointIndex = FaceIndices[CurrentVertexInstanceIndex];
 				const FVertexID VertexID(VertexOffset + ControlPointIndex);
-				const FVector VertexPosition = MeshDescriptionVertexPositions[VertexID];
+				const FVector VertexPosition = (FVector)MeshDescriptionVertexPositions[VertexID];
 
 				// Make sure a face doesn't use the same vertex twice as MeshDescription doesn't like that
 				if ( CornerVerticesIDs.Contains( VertexID ) )
@@ -890,7 +890,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 						const GfVec3f& Normal = Normals[NormalIndex];
 						FVector TransformedNormal = AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageInfo, Normal ) ).GetSafeNormal();
 
-						MeshDescriptionNormals[AddedVertexInstanceId] = TransformedNormal.GetSafeNormal();
+						MeshDescriptionNormals[AddedVertexInstanceId] = (FVector3f)TransformedNormal.GetSafeNormal();
 					}
 				}
 

@@ -461,10 +461,10 @@ public:
 					const float InfluenceMultiplier = 1.0f / 255.0f;
 					for (FSoftSkinVertex& Vertex : Section.SoftVertices)
 					{
-						FVector TangentX = Vertex.TangentX;
-						FVector TangentY = Vertex.TangentY;
-						FVector TangentZ = (FVector4)Vertex.TangentZ;
-						FVector Position = Vertex.Position;
+						FVector TangentX = (FVector)Vertex.TangentX;
+						FVector TangentY = (FVector)Vertex.TangentY;
+						FVector TangentZ = (FVector)Vertex.TangentZ;
+						FVector Position = (FVector)Vertex.Position;
 						for (uint8 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 				        {
 							if (Vertex.InfluenceWeights[InfluenceIndex] > 0)
@@ -472,20 +472,20 @@ public:
 								const int32 ArrayIndex = BoneIndices.IndexOfByKey(Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]]);
 								if (ArrayIndex != INDEX_NONE)
 								{
-									Position += (FVector(RemovedBoneMatrices[ArrayIndex].TransformPosition(Vertex.Position)) - FVector(Vertex.Position)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									Position += (FVector(RemovedBoneMatrices[ArrayIndex].TransformPosition((FVector)Vertex.Position)) - FVector(Vertex.Position)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
 
-									TangentX += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentX)) - FVector(Vertex.TangentX)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
-									TangentY += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentY)) - FVector(Vertex.TangentY)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
-									TangentZ += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector3f)Vertex.TangentZ)) - FVector(Vertex.TangentZ)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentX += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentX)) - FVector(Vertex.TangentX)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentY += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentY)) - FVector(Vertex.TangentY)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
+									TangentZ += (FVector(RemovedBoneMatrices[ArrayIndex].TransformVector((FVector)Vertex.TangentZ)) - FVector(Vertex.TangentZ)) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier);
 								}
 							}
 				        }
 
-						Vertex.Position = Position;
-						Vertex.TangentX = TangentX.GetSafeNormal();
-						Vertex.TangentY = TangentY.GetSafeNormal();
+						Vertex.Position = (FVector3f)Position;
+						Vertex.TangentX = (FVector3f)TangentX.GetSafeNormal();
+						Vertex.TangentY = (FVector3f)TangentY.GetSafeNormal();
 						const uint8 WComponent = Vertex.TangentZ.W;
-						Vertex.TangentZ = (FVector4f)TangentZ.GetSafeNormal();
+						Vertex.TangentZ = (FVector3f)TangentZ.GetSafeNormal();
 						Vertex.TangentZ.W = WComponent;
 					}
 				}

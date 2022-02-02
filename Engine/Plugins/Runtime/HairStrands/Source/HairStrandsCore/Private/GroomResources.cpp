@@ -1622,8 +1622,8 @@ void CreateHairStrandsDebugDatas(
 		{
 			const uint32 Index0 = PointOffset + PointIndex;
 			const uint32 Index1 = PointOffset + PointIndex + 1;
-			const FVector& P0 = InData.StrandsPoints.PointsPosition[Index0];
-			const FVector& P1 = InData.StrandsPoints.PointsPosition[Index1];
+			const FVector& P0 = (FVector)InData.StrandsPoints.PointsPosition[Index0];
+			const FVector& P1 = (FVector)InData.StrandsPoints.PointsPosition[Index1];
 			const FVector Segment = P1 - P0;
 
 			const float Length = Segment.Size();

@@ -1646,7 +1646,7 @@ static void StorePathfindingDebugData(const dtNavMeshQuery& NavQuery, const dtNa
 			NodeInfo.NumVerts = NavPoly->vertCount;
 			for (int32 VertIdx = 0; VertIdx < NavPoly->vertCount; VertIdx++)
 			{
-				NodeInfo.Verts.Add(Recast2UnrealPoint(&NavTile->verts[NavPoly->verts[VertIdx] * 3]));
+				NodeInfo.Verts.Add((FVector3f)Recast2UnrealPoint(&NavTile->verts[NavPoly->verts[VertIdx] * 3]));
 			}
 		}
 

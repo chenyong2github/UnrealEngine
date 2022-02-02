@@ -29,7 +29,7 @@ FRelativeViewMatrices FRelativeViewMatrices::Create(const FInitializer& Initiali
 	const FVector ViewOriginTile = FLargeWorldRenderScalar::MakeQuantizedTile(ViewOrigin, 8.0);
 
 	FRelativeViewMatrices Result;
-	Result.TilePosition = ViewOriginTile;
+	Result.TilePosition = (FVector3f)ViewOriginTile;
 	Result.RelativeWorldToView = FLargeWorldRenderScalar::MakeFromRelativeWorldMatrix(ViewOriginTile * TileSize, Initializer.WorldToView);
 	Result.ViewToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(ViewOriginTile * TileSize, Initializer.ViewToWorld);
 	Result.ViewToClip = FMatrix44f(Initializer.ViewToClip);

@@ -369,7 +369,7 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 				
 				BoneTrack.PosKeys[FrameIndex] = FVector3f(LocalPose.GetLocation());
 				BoneTrack.RotKeys[FrameIndex] = FQuat4f(LocalPose.GetRotation());
-				BoneTrack.ScaleKeys[FrameIndex] = FVector4f(LocalPose.GetScale3D());
+				BoneTrack.ScaleKeys[FrameIndex] = FVector3f(LocalPose.GetScale3D());
 			}
 		}
 

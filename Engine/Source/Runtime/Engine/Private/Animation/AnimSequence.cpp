@@ -3711,10 +3711,10 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 									for(int32 Key = 0; Key < NumKeys; ++Key)
 									{
 										const FTransform& AnimCompSpace = AnimationDataInComponentSpace[ParentBoneIndex][Key];
-										ComponentTranslation = FTransform(RiggingAnimationData->AnimationTracks[NodeIndex].PosKeys[Key]) * AnimCompSpace;
+										ComponentTranslation = FTransform(FVector(RiggingAnimationData->AnimationTracks[NodeIndex].PosKeys[Key])) * AnimCompSpace;
 										AnimationDataInComponentSpace[BoneIndex][Key].SetTranslation(ComponentTranslation.GetTranslation());
 
-										ComponentScale = AnimCompSpace.GetScale3D() * RiggingAnimationData->AnimationTracks[NodeIndex].ScaleKeys[Key];
+										ComponentScale = AnimCompSpace.GetScale3D() * FVector(RiggingAnimationData->AnimationTracks[NodeIndex].ScaleKeys[Key]);
 										AnimationDataInComponentSpace[BoneIndex][Key].SetScale3D(ComponentScale);
 									}
 								}
@@ -3729,10 +3729,10 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 							{
 								for(int32 Key = 0; Key < NumKeys; ++Key)
 								{
-									ComponentTranslation = FTransform(RiggingAnimationData->AnimationTracks[NodeIndex].PosKeys[Key]);
+									ComponentTranslation = FTransform(FVector(RiggingAnimationData->AnimationTracks[NodeIndex].PosKeys[Key]));
 									AnimationDataInComponentSpace[BoneIndex][Key].SetTranslation(ComponentTranslation.GetTranslation());
 									
-									ComponentScale = RiggingAnimationData->AnimationTracks[NodeIndex].ScaleKeys[Key];
+									ComponentScale = FVector(RiggingAnimationData->AnimationTracks[NodeIndex].ScaleKeys[Key]);
 									AnimationDataInComponentSpace[BoneIndex][Key].SetScale3D(ComponentScale);
 								}
 							}
@@ -3920,16 +3920,16 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 								{
 									FTransform ParentTransform = AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex];
 									FTransform RelativeTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(ParentTransform);
-									Track.PosKeys[KeyIndex] = RelativeTransform.GetTranslation();
-									Track.ScaleKeys[KeyIndex] = RelativeTransform.GetScale3D();
+									Track.PosKeys[KeyIndex] = FVector3f(RelativeTransform.GetTranslation());
+									Track.ScaleKeys[KeyIndex] = FVector3f(RelativeTransform.GetScale3D());
 								}
 							}
 							else
 							{
 								for (int32 KeyIndex = 0; KeyIndex < NumModelKeys; ++KeyIndex)
 								{
-									Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
-									Track.ScaleKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D();
+									Track.PosKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation());
+									Track.ScaleKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D());
 								}
 							}
 						}
@@ -3937,8 +3937,8 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 						{
 							for (int32 KeyIndex = 0; KeyIndex < NumModelKeys; ++KeyIndex)
 							{
-								Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
-								Track.ScaleKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D();
+								Track.PosKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation());
+								Track.ScaleKeys[KeyIndex] = FVector3f(AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D());
 							}
 						}
 					}
@@ -4085,7 +4085,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 			if (Track.ScaleKeys.Num() == 0)
 			{
 				// at least add one
-				static FVector ScaleConstantKey(1.f);
+				static FVector3f ScaleConstantKey(1.f);
 				Track.ScaleKeys.Add(ScaleConstantKey);
 			}
 		}
@@ -4149,7 +4149,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				// if 1 (which meant constant), just expands to # of frames
 				if (RawTrack.PosKeys.Num() == 1)
 				{
-					FVector OneKey = RawTrack.PosKeys[0];
+					FVector3f OneKey = RawTrack.PosKeys[0];
 					RawTrack.PosKeys.Init(OneKey, NumberOfSampledKeys);
 				}
 				else
@@ -4172,7 +4172,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				// so make sure this also is included
 				if (RawTrack.ScaleKeys.Num() == 1)
 				{
-					FVector OneKey = RawTrack.ScaleKeys[0];
+					FVector3f OneKey = RawTrack.ScaleKeys[0];
 					RawTrack.ScaleKeys.Init(OneKey, NumberOfSampledKeys);
 				}
 				else
@@ -5626,13 +5626,13 @@ void UAnimSequence::PopulateModel()
 		};
 
 		TArray<FVector3f> PosKeys = SequenceTracks[TrackIndex].PosKeys;
-		GenerateUniformKeys(PosKeys, FVector::ZeroVector);
+		GenerateUniformKeys(PosKeys, FVector3f::ZeroVector);
 
 		TArray<FQuat4f> RotKeys = SequenceTracks[TrackIndex].RotKeys;
 		GenerateUniformKeys(RotKeys, FQuat4f::Identity);
 
 		TArray<FVector3f> ScaleKeys = SequenceTracks[TrackIndex].ScaleKeys;
-		GenerateUniformKeys(ScaleKeys, FVector::OneVector);
+		GenerateUniformKeys(ScaleKeys, FVector3f::OneVector);
 
 		Controller->SetBoneTrackKeys(TempAnimationTrackNames[TrackIndex], PosKeys, RotKeys, ScaleKeys);
 	}

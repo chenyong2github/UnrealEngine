@@ -804,11 +804,11 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								const FRenderBounds& RenderBoundingBox = SceneProxy->GetInstanceLocalBounds(InstanceIndex);
 								const FRenderBounds InstanceBounds = RenderBoundingBox.TransformBy(Instance.LocalToPrimitive);
 								LocalBounds += InstanceBounds;
-								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceBounds.GetExtent());
+								const double InstanceSurfaceArea = BoxSurfaceArea((FVector)InstanceBounds.GetExtent());
 								TotalInstanceSurfaceArea += InstanceSurfaceArea;
 							}
 
-							const double BoundsSurfaceArea = BoxSurfaceArea(LocalBounds.GetExtent());
+							const double BoundsSurfaceArea = BoxSurfaceArea((FVector)LocalBounds.GetExtent());
 							const float SurfaceAreaRatio = BoundsSurfaceArea / TotalInstanceSurfaceArea;
 
 							extern float GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio;

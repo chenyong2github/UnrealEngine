@@ -63,7 +63,7 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 	FBox BoundingBox(ForceInit);
 	for (uint32 VertexIndex = 0; VertexIndex < UsePositionBuffer.GetNumVertices(); VertexIndex++)
 	{
-		BoundingBox += UsePositionBuffer.VertexPosition(VertexIndex);
+		BoundingBox += (FVector)UsePositionBuffer.VertexPosition(VertexIndex);
 	}
 	BoundingBox.GetCenterAndExtents(OriginOut, ExtentOut);
 
@@ -72,7 +72,7 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 	for (uint32 VertexIndex = 0; VertexIndex < UsePositionBuffer.GetNumVertices(); VertexIndex++)
 	{
 		RadiusOut = FMath::Max<FVector::FReal>(
-			(UsePositionBuffer.VertexPosition(VertexIndex) - OriginOut).Size(),
+			((FVector)UsePositionBuffer.VertexPosition(VertexIndex) - OriginOut).Size(),
 			RadiusOut
 		);
 	}
@@ -88,7 +88,7 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 	FBox BoundingBox(ForceInit);
 	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); VertexIndex++)
 	{
-		BoundingBox += Vertices[VertexIndex].Position;
+		BoundingBox += (FVector)Vertices[VertexIndex].Position;
 	}
 	BoundingBox.GetCenterAndExtents(OriginOut, ExtentOut);
 
@@ -97,7 +97,7 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); VertexIndex++)
 	{
 		RadiusOut = FMath::Max<FVector::FReal>(
-			(Vertices[VertexIndex].Position - OriginOut).Size(),
+			((FVector)Vertices[VertexIndex].Position - OriginOut).Size(),
 			RadiusOut
 		);
 	}
@@ -677,7 +677,7 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 			const FStaticMeshConstAttributes Attributes(MeshDescription);
 			TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
 			TArrayView<const FVertexID> VertexIndices = Attributes.GetTriangleVertexIndices().GetRawArray();
-			const FVector3f BuildScale3D = BuildSettings.BuildScale3D;
+			const FVector3f BuildScale3D = (FVector3f)BuildSettings.BuildScale3D;
 
 			BuiltVertices.Reserve(VertexPositions.Num());
 			for (int32 VertexIndex = 0; VertexIndex < VertexPositions.Num(); ++VertexIndex)
@@ -720,9 +720,9 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 bool AreVerticesEqual(FStaticMeshBuildVertex const& A, FStaticMeshBuildVertex const& B, float ComparisonThreshold)
 {
 	if (   !A.Position.Equals(B.Position, ComparisonThreshold)
-		|| !NormalsEqual(A.TangentX, B.TangentX)
-		|| !NormalsEqual(A.TangentY, B.TangentY)
-		|| !NormalsEqual(A.TangentZ, B.TangentZ)
+		|| !NormalsEqual((FVector)A.TangentX, (FVector)B.TangentX)
+		|| !NormalsEqual((FVector)A.TangentY, (FVector)B.TangentY)
+		|| !NormalsEqual((FVector)A.TangentZ, (FVector)B.TangentZ)
 		|| A.Color != B.Color)
 	{
 		return false;
@@ -815,7 +815,7 @@ void BuildVertexBuffer(
 		FVector CornerPositions[3];
 		for (int32 TriVert = 0; TriVert < 3; ++TriVert)
 		{
-			CornerPositions[TriVert] = VertexPositions[VertexIDs[TriVert]];
+			CornerPositions[TriVert] = (FVector)VertexPositions[VertexIDs[TriVert]];
 		}
 		FOverlappingThresholds OverlappingThresholds;
 		OverlappingThresholds.ThresholdPosition = VertexComparisonThreshold;
@@ -833,17 +833,17 @@ void BuildVertexBuffer(
 		{
 			const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[TriVert];
 			const FVector& VertexPosition = CornerPositions[TriVert];
-			const FVector& VertexInstanceNormal = VertexInstanceNormals[VertexInstanceID];
-			const FVector& VertexInstanceTangent = VertexInstanceTangents[VertexInstanceID];
+			const FVector& VertexInstanceNormal = (FVector)VertexInstanceNormals[VertexInstanceID];
+			const FVector& VertexInstanceTangent = (FVector)VertexInstanceTangents[VertexInstanceID];
 			const float VertexInstanceBinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
 
 			FStaticMeshBuildVertex StaticMeshVertex;
 
-			StaticMeshVertex.Position = VertexPosition * BuildSettings.BuildScale3D;
+			StaticMeshVertex.Position = FVector3f(VertexPosition * BuildSettings.BuildScale3D);
 			if( bIgnoreTangents )
 			{
-				StaticMeshVertex.TangentX = FVector( 1.0f, 0.0f, 0.0f );
-				StaticMeshVertex.TangentY = FVector( 0.0f, 1.0f, 0.0f );
+				StaticMeshVertex.TangentX = FVector3f( 1.0f, 0.0f, 0.0f );
+				StaticMeshVertex.TangentY = FVector3f( 0.0f, 1.0f, 0.0f );
 			}
 			else
 			{

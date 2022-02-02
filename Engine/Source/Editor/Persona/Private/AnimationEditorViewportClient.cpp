@@ -1783,7 +1783,7 @@ void FAnimationViewportClient::TransformVertexPositionsToWorld(TArray<FFinalSkin
 	for ( int32 VertexIndex = 0; VertexIndex < LocalVertices.Num(); ++VertexIndex )
 	{
 		FVector3f& VertexPosition = LocalVertices[VertexIndex].Position;
-		VertexPosition = LocalToWorldTransform.TransformPosition(VertexPosition);
+		VertexPosition = (FVector3f)LocalToWorldTransform.TransformPosition((FVector)VertexPosition);
 	}
 }
 
@@ -1838,7 +1838,7 @@ FBox FAnimationViewportClient::ComputeBoundingBoxForSelectedEditorSection() cons
 	for ( int32 Index = 0; Index < VertexIndices.Num(); ++Index )
 	{
 		const int32 VertexIndex = VertexIndices[Index];
-		BoundingBox += SkinnedVertices[VertexIndex].Position;
+		BoundingBox += (FVector)SkinnedVertices[VertexIndex].Position;
 	}
 
 	return BoundingBox;

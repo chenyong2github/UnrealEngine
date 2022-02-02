@@ -1169,7 +1169,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 
 		FbxVector4 FbxPosition = InMesh->GetControlPoints()[VertexIndex];
 		const FVector VertexPosition = FBXFileImporterImpl::ConvertPos(FbxPosition);
-		VertexPositions[AddedVertexId] = VertexPosition;
+		VertexPositions[AddedVertexId] = (FVector3f)VertexPosition;
 	}
 
 	TArray<int32> ValidFbxUVLayerIndices;
@@ -1218,7 +1218,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 		{
 			const int32 ControlPointIndex = InMesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 			CornerVertexIDs[CornerIndex] = FVertexID(ControlPointIndex);
-			CornerPositions[CornerIndex] = VertexPositions[CornerVertexIDs[CornerIndex]];
+			CornerPositions[CornerIndex] = (FVector)VertexPositions[CornerVertexIDs[CornerIndex]];
 		}
 
 		// Skip degenerated polygons
@@ -1280,7 +1280,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 				int NormalValueIndex = (NormalReferenceMode == FbxLayerElement::eDirect) ? NormalMapIndex : LayerElementNormal->GetIndexArray().GetAt(NormalMapIndex);
 				FbxVector4 FbxTangentZ = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
 				const FVector TangentZ = FBXFileImporterImpl::ConvertDir(FbxTangentZ);
-				VertexInstanceNormals[InstanceID] = TangentZ.GetSafeNormal();
+				VertexInstanceNormals[InstanceID] = (FVector3f)TangentZ.GetSafeNormal();
 
 				//tangents and binormals share the same reference, mapping mode and index array
 				if (bHasNTBInformation)
@@ -1289,7 +1289,7 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 					int TangentValueIndex = (TangentReferenceMode == FbxLayerElement::eDirect) ? TangentMapIndex : LayerElementTangent->GetIndexArray().GetAt(TangentMapIndex);
 					FbxVector4 FbxTangentX = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
 					FVector TangentX = FBXFileImporterImpl::ConvertDir(FbxTangentX);
-					VertexInstanceTangents[InstanceID] = TangentX.GetSafeNormal();
+					VertexInstanceTangents[InstanceID] = (FVector3f)TangentX.GetSafeNormal();
 
 					int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ? VertexIndex : FbxInstanceIndex;
 					int BinormalValueIndex = (BinormalReferenceMode == FbxLayerElement::eDirect) ? BinormalMapIndex : LayerElementBinormal->GetIndexArray().GetAt(BinormalMapIndex);

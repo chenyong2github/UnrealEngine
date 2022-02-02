@@ -65,8 +65,8 @@ static bool SphereOnNode(UModel* Model,uint32 NodeIndex,FVector Point,float Radi
 	for(uint32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 	{
 		// Create plane perpendicular to both this side and the polygon's normal.
-		FVector	Edge = Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex] - Model->Points[Model->Verts[Node.iVertPool + ((VertexIndex + Node.NumVertices - 1) % Node.NumVertices)].pVertex],
-				EdgeNormal = Edge ^ (FVector)Surf.Plane;
+		FVector	Edge(Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex] - Model->Points[Model->Verts[Node.iVertPool + ((VertexIndex + Node.NumVertices - 1) % Node.NumVertices)].pVertex]);
+		FVector EdgeNormal = Edge ^ (FVector)Surf.Plane;
 		float	VertexDot = Node.Plane.PlaneDot(Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex]);
 
 		// Ignore degenerate edges.
@@ -74,7 +74,7 @@ static bool SphereOnNode(UModel* Model,uint32 NodeIndex,FVector Point,float Radi
 			continue;
 
 		// If point is not behind all the planes created by this polys edges, it's outside the poly.
-		if(FVector::PointPlaneDist(Point,Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex],EdgeNormal.GetSafeNormal()) > Radius)
+		if(FVector::PointPlaneDist(Point, (FVector)Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex],EdgeNormal.GetSafeNormal()) > Radius)
 			return 0;
 	}
 
@@ -419,7 +419,7 @@ void UModelComponent::GetSurfaceLightMapResolution( int32 SurfaceIndex, int32 Qu
 			{
 				bFoundNode = true;
 
-				FVector	Position = Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
+				FVector3f	Position = Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
 				float	X = MapX | Position,
 					Y = MapY | Position;
 				MinUV.X = FMath::Min(X,MinUV.X);
@@ -1293,8 +1293,8 @@ void UModel::ApplyStaticLighting(ULevel* LightingScenario)
 				for(int32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 				{
 					FVert& Vert = Verts[Node.iVertPool + VertexIndex];
-					const FVector& WorldPosition = Points[Vert.pVertex];
-					const FVector4 StaticLightingTextureCoordinate = SurfaceStaticLighting->NodeGroup->WorldToMap.TransformPosition(WorldPosition);
+					const FVector3f& WorldPosition = Points[Vert.pVertex];
+					const FVector4 StaticLightingTextureCoordinate = SurfaceStaticLighting->NodeGroup->WorldToMap.TransformPosition((FVector)WorldPosition);
 
 					uint32 PaddedSizeX = SurfaceStaticLighting->SizeX;
 					uint32 PaddedSizeY = SurfaceStaticLighting->SizeY;

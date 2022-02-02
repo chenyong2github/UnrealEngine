@@ -43,7 +43,7 @@ bool EmbreePointQueryFunction(RTCPointQueryFunctionArguments* args)
 	const FVector3f V2 = VertexBuffer[I2];
 
 	const FVector3f QueryPosition(args->query->x, args->query->y, args->query->z);
-	const FVector3f ClosestPoint = FMath::ClosestPointOnTriangleToPoint(QueryPosition, V0, V1, V2);
+	const FVector3f ClosestPoint = (FVector3f)FMath::ClosestPointOnTriangleToPoint((FVector)QueryPosition, (FVector)V0, (FVector)V1, (FVector)V2);
 	const float QueryDistanceSq = (ClosestPoint - QueryPosition).SizeSquared();
 
 	if (QueryDistanceSq < ClosestDistanceSq)
@@ -176,7 +176,7 @@ void FSparseMeshDistanceFieldAsyncTask::DoWork()
 
 					for (int32 SampleIndex = 0; SampleIndex < SampleDirections->Num(); SampleIndex++)
 					{
-						const FVector UnitRayDirection = (*SampleDirections)[SampleIndex];
+						const FVector UnitRayDirection = (FVector)(*SampleDirections)[SampleIndex];
 						const float PullbackEpsilon = 1.e-4f;
 						// Pull back the starting position slightly to make sure we hit a triangle that VoxelPosition is exactly on.  
 						// This happens a lot with boxes, since we trace from voxel corners.
@@ -206,7 +206,7 @@ void FSparseMeshDistanceFieldAsyncTask::DoWork()
 								check(EmbreeContext.ElementIndex != -1);
 								Hit++;
 
-								const FVector HitNormal = EmbreeRay.GetHitNormal();
+								const FVector HitNormal = (FVector)EmbreeRay.GetHitNormal();
 
 								if (FVector::DotProduct(UnitRayDirection, HitNormal) > 0 && !EmbreeContext.IsHitTwoSided())
 								{

@@ -136,7 +136,7 @@ int TryToMerge( FPoly *Poly1, FPoly *Poly2 )
 	int32 Start1=0, Start2=0;
 	for( Start1=0; Start1<Poly1->Vertices.Num(); Start1++ )
 		for( Start2=0; Start2<Poly2->Vertices.Num(); Start2++ )
-			if( FVector::PointsAreSame(Poly1->Vertices[Start1], Poly2->Vertices[Start2]) )
+			if( FVector3f::PointsAreSame(Poly1->Vertices[Start1], Poly2->Vertices[Start2]) )
 				goto FoundOverlap;
 	return 0;
 	FoundOverlap:
@@ -146,7 +146,7 @@ int TryToMerge( FPoly *Poly1, FPoly *Poly2 )
 	int32 End2  = Start2;
 	int32 Test1 = Start1+1; if (Test1>=Poly1->Vertices.Num()) Test1 = 0;
 	int32 Test2 = Start2-1; if (Test2<0)                   Test2 = Poly2->Vertices.Num()-1;
-	if( FVector::PointsAreSame(Poly1->Vertices[Test1],Poly2->Vertices[Test2]) )
+	if( FVector3f::PointsAreSame(Poly1->Vertices[Test1],Poly2->Vertices[Test2]) )
 	{
 		End1   = Test1;
 		Start2 = Test2;
@@ -155,7 +155,7 @@ int TryToMerge( FPoly *Poly1, FPoly *Poly2 )
 	{
 		Test1 = Start1-1; if (Test1<0)                   Test1=Poly1->Vertices.Num()-1;
 		Test2 = Start2+1; if (Test2>=Poly2->Vertices.Num()) Test2=0;
-		if( FVector::PointsAreSame(Poly1->Vertices[Test1],Poly2->Vertices[Test2]) )
+		if( FVector3f::PointsAreSame(Poly1->Vertices[Test1],Poly2->Vertices[Test2]) )
 		{
 			Start1 = Test1;
 			End2   = Test2;
@@ -300,8 +300,8 @@ void FBSPUtils::bspMergeCoplanars( UModel* Model, bool RemapLinks, bool MergeDis
 					&&	Dist<0.001
 					&&	(OtherPoly->Normal|EdPoly->Normal)>0.9999
 					&&	(MergeDisparateTextures
-						||	(	FVector::PointsAreNear(OtherPoly->TextureU,EdPoly->TextureU,THRESH_VECTORS_ARE_NEAR)
-							&&	FVector::PointsAreNear(OtherPoly->TextureV,EdPoly->TextureV,THRESH_VECTORS_ARE_NEAR) ) ) )
+						||	(	FVector::PointsAreNear((FVector)OtherPoly->TextureU, (FVector)EdPoly->TextureU,THRESH_VECTORS_ARE_NEAR)
+							&&	FVector::PointsAreNear((FVector)OtherPoly->TextureV, (FVector)EdPoly->TextureV,THRESH_VECTORS_ARE_NEAR) ) ) )
 					{
 						OtherPoly->PolyFlags |= PF_EdProcessed;
 						PolyList[PolyCount++] = j;
@@ -767,7 +767,7 @@ void FilterEdPoly
 		// See whether Node's iFront or iBack points to the side of the tree on the front
 		// of this polygon (will be as expected if this polygon is facing the same
 		// way as first coplanar in link, otherwise opposite).
-		if( (FVector(Model->Nodes[iNode].Plane) | EdPoly->Normal) >= 0.0 )
+		if( (FVector(Model->Nodes[iNode].Plane) | (FVector)EdPoly->Normal) >= 0.0 )
 		{
 			iOurFront = Model->Nodes[iNode].iFront;
 			iOurBack  = Model->Nodes[iNode].iBack;
@@ -1011,7 +1011,7 @@ void FilterWorldThroughBrush
 		int DoFront = 1, DoBack = 1;
 		if( BrushSphere )
 		{
-			float Dist = Model->Nodes[iNode].Plane.PlaneDot( BrushSphere->Center );
+			float Dist = Model->Nodes[iNode].Plane.PlaneDot( (FVector3f)BrushSphere->Center );
 			DoFront    = (Dist >= -BrushSphere->W);
 			DoBack     = (Dist <= +BrushSphere->W);
 		}
@@ -1172,9 +1172,9 @@ int FBSPUtils::bspBrushCSG
 	const bool bIsMirrored = (Scale.X * Scale.Y * Scale.Z < 0.0f);
 
 	// Cache actor transform which is used for the geometry being built
-	Brush->OwnerLocationWhenLastBuilt = Location;
+	Brush->OwnerLocationWhenLastBuilt = (FVector3f)Location;
 	Brush->OwnerRotationWhenLastBuilt = Rotation;
-	Brush->OwnerScaleWhenLastBuilt = Scale;
+	Brush->OwnerScaleWhenLastBuilt = (FVector3f)Scale;
 	Brush->bCachedOwnerTransformValid = true;
 
 	for( i=0; i<Brush->Polys->Element.Num(); i++ )
@@ -1209,9 +1209,9 @@ int FBSPUtils::bspBrushCSG
 		}
 
 		// Transform it.
-		DestEdPoly.Scale( Scale );
+		DestEdPoly.Scale( (FVector3f)Scale );
 		DestEdPoly.Rotate( FRotator3f(Rotation) );	// LWC_TODO: Precision loss?
-		DestEdPoly.Transform( Location );
+		DestEdPoly.Transform( (FVector3f)Location );	// LWC_TODO: Precision loss
 
 		// Reverse winding and normal if the parent brush is mirrored
 		if (bIsMirrored)
@@ -1338,9 +1338,9 @@ int FBSPUtils::bspBrushCSG
 		for( i=0; i<Brush->Polys->Element.Num(); i++ )
 		{
 			FPoly *DestEdPoly = &Brush->Polys->Element[i];
-			DestEdPoly->Transform(-Location);
+			DestEdPoly->Transform((FVector3f)-Location);
 			DestEdPoly->Rotate(FRotator3f(Rotation.GetInverse()));
-			DestEdPoly->Scale(FVector3f(1.0f) / Scale);
+			DestEdPoly->Scale(FVector3f(1.0f) / (FVector3f)Scale);
 			DestEdPoly->Fix();
 			DestEdPoly->Actor		= NULL;
 			DestEdPoly->iBrushPoly	= i;
@@ -1625,14 +1625,14 @@ int DistributePoint
 				int32 j = (i>0) ? (i-1) : (Model->Nodes[iNode].NumVertices-1);
 
 				// Create cutting plane perpendicular to both this side and the polygon's normal.
-				FVector Side            = Model->Points[VertPool[i].pVertex] - Model->Points[VertPool[j].pVertex];
-				FVector SidePlaneNormal = Side ^ Model->Nodes[iNode].Plane;
+				FVector Side            = FVector(Model->Points[VertPool[i].pVertex] - Model->Points[VertPool[j].pVertex]);
+				FVector SidePlaneNormal = Side ^ (FVector)Model->Nodes[iNode].Plane;
 				float   SizeSquared     = SidePlaneNormal.SizeSquared();
 
 				if( SizeSquared>FMath::Square(0.001) )
 				{
 					// Points aren't coincedent.
-					Dist = ((Model->Points[pVertex]-Model->Points[VertPool[i].pVertex]) | SidePlaneNormal)/FMath::Sqrt(SizeSquared);
+					Dist = ((FVector(Model->Points[pVertex] - Model->Points[VertPool[i].pVertex])) | SidePlaneNormal)/FMath::Sqrt(SizeSquared);
 					if( Dist >= THRESH_OPTGEOM_COSIDAL )
 					{
 						// Point is outside polygon, can't possibly fall on a side.
@@ -1649,8 +1649,8 @@ int DistributePoint
 						// Do this by checking distance from point to side's midpoint and
 						// comparing with the side's half-length.
 
-						FVector MidPoint    = (Model->Points[VertPool[i].pVertex] + Model->Points[VertPool[j].pVertex])*0.5;
-						FVector MidDistVect = Model->Points[pVertex] - MidPoint;
+						FVector MidPoint    = FVector(Model->Points[VertPool[i].pVertex] + Model->Points[VertPool[j].pVertex])*0.5;
+						FVector MidDistVect = (FVector)Model->Points[pVertex] - MidPoint;
 						if( MidDistVect.SizeSquared() <= FMath::Square(0.501)*Side.SizeSquared() )
 						{
 							FoundSide = i;
@@ -1986,8 +1986,8 @@ void FBSPUtils::polyUpdateMaster
 	{
 		// Use transform cached when the geometry was last built, in case the current Actor transform has changed since then
 		// (e.g. because Auto Update BSP is disabled)
-		ActorLocation = Brush->OwnerLocationWhenLastBuilt;
-		ActorScale = Brush->OwnerScaleWhenLastBuilt;
+		ActorLocation = (FVector)Brush->OwnerLocationWhenLastBuilt;
+		ActorScale = (FVector)Brush->OwnerScaleWhenLastBuilt;
 		ActorRotation = Brush->OwnerRotationWhenLastBuilt;
 	}
 	else
@@ -2010,9 +2010,9 @@ void FBSPUtils::polyUpdateMaster
 
 			if (bUpdateTexCoords)
 			{
-				MasterEdPoly.Base = RotationMatrix.InverseTransformVector(Model->Points[Surf.pBase] - ActorLocation) / ActorScale;
-				MasterEdPoly.TextureU = RotationMatrix.InverseTransformVector(Model->Vectors[Surf.vTextureU]) * ActorScale;
-				MasterEdPoly.TextureV = RotationMatrix.InverseTransformVector(Model->Vectors[Surf.vTextureV]) * ActorScale;
+				MasterEdPoly.Base = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Points[Surf.pBase] - ActorLocation) / ActorScale);
+				MasterEdPoly.TextureU = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureU]) * ActorScale);
+				MasterEdPoly.TextureV = FVector3f(RotationMatrix.InverseTransformVector((FVector)Model->Vectors[Surf.vTextureV]) * ActorScale);
 			}
 		}
 	}
@@ -2061,8 +2061,8 @@ void FBSPUtils::polySplitOverlappingEdges( TArray<FPoly>* InPolyList, TArray<FPo
 
 		for( int32 edge = 0 ; edge < SrcPoly->Vertices.Num() ; edge++ )
 		{
-			FEdge SrcEdge = FEdge( SrcPoly->Vertices[edge], SrcPoly->Vertices[ edge+1 < SrcPoly->Vertices.Num() ? edge+1 : 0 ] );
-			FPlane SrcEdgePlane( SrcEdge.Vertex[0], SrcEdge.Vertex[1], SrcEdge.Vertex[0] + (SrcPoly->Normal * 16) );
+			FEdge SrcEdge = FEdge( (FVector)SrcPoly->Vertices[edge], (FVector)SrcPoly->Vertices[ edge+1 < SrcPoly->Vertices.Num() ? edge+1 : 0 ] );
+			FPlane SrcEdgePlane( SrcEdge.Vertex[0], SrcEdge.Vertex[1], SrcEdge.Vertex[0] + (FVector)(SrcPoly->Normal * 16) );
 
 			for( int32 poly2 = 0 ; poly2 < InPolyList->Num() ; poly2++ )
 			{
@@ -2074,7 +2074,7 @@ void FBSPUtils::polySplitOverlappingEdges( TArray<FPoly>* InPolyList, TArray<FPo
 
 				for( int32 edge2 = 0 ; edge2 < CmpPoly->Vertices.Num() ; edge2++ )
 				{
-					FEdge CmpEdge = FEdge( CmpPoly->Vertices[edge2], CmpPoly->Vertices[ edge2+1 < CmpPoly->Vertices.Num() ? edge2+1 : 0 ] );
+					FEdge CmpEdge = FEdge( (FVector)CmpPoly->Vertices[edge2], (FVector)CmpPoly->Vertices[ edge2+1 < CmpPoly->Vertices.Num() ? edge2+1 : 0 ] );
 
 					// If both vertices on this edge lie on the same plane as the original edge, create
 					// a sphere around the original 2 vertices.  If either of this edges vertices are inside of
@@ -2122,7 +2122,7 @@ void FBSPUtils::polyGetOuterEdgeList
 	{
 		FPoly* Poly = &NewPolyList[poly];
 		for( int32 vtx = 0 ; vtx < Poly->Vertices.Num() ; vtx++ )
-			new( TempEdges )FEdge( Poly->Vertices[vtx], Poly->Vertices[ vtx+1 < Poly->Vertices.Num() ? vtx+1 : 0] );
+			new( TempEdges )FEdge( (FVector)Poly->Vertices[vtx], (FVector)Poly->Vertices[ vtx+1 < Poly->Vertices.Num() ? vtx+1 : 0] );
 	}
 
 	// Add all the unique edges into the final edge list.

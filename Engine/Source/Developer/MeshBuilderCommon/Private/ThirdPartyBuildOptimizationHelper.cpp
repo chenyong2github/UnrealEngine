@@ -197,7 +197,7 @@ namespace BuildOptimizationThirdParty
 
 			check(Index < PositionVertexBuffer.GetNumVertices());
 
-			const FVector& Position = PositionVertexBuffer.VertexPosition(Index);
+			const FVector3f& Position = PositionVertexBuffer.VertexPosition(Index);
 			Vertex.pos.x = Position.X;
 			Vertex.pos.y = Position.Y;
 			Vertex.pos.z = Position.Z;

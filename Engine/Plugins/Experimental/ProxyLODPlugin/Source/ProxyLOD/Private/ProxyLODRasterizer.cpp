@@ -58,8 +58,8 @@ namespace ProxyLOD
 			for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
 				int32 offset = i * 3;
-				const FVector E10 = Position[Indices[offset + 1]] - Position[Indices[offset]];
-				const FVector E20 = Position[Indices[offset + 2]] - Position[Indices[offset]];
+				const FVector E10 = FVector(Position[Indices[offset + 1]] - Position[Indices[offset]]);
+				const FVector E20 = FVector(Position[Indices[offset + 2]] - Position[Indices[offset]]);
 
 				const FVector Wedge = FVector::CrossProduct(E10, E20);
 

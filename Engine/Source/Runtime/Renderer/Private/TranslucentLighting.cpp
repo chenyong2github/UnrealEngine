@@ -1338,7 +1338,7 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->VolumeCascadeIndex = VolumeCascadeIndex;
 						PassParameters->SimpleLightPositionAndRadius = FVector4f(TranslatedLightPosition, SimpleLight.Radius);
-						PassParameters->SimpleLightColorAndExponent = FVector4f(SimpleLight.Color, SimpleLight.Exponent);
+						PassParameters->SimpleLightColorAndExponent = FVector4f((FVector3f)SimpleLight.Color, SimpleLight.Exponent);
 						PassParameters->RenderTargets[0] = FRenderTargetBinding(VolumeAmbientTexture, ERenderTargetLoadAction::ELoad);
 						PassParameters->RenderTargets[1] = FRenderTargetBinding(VolumeDirectionalTexture, ERenderTargetLoadAction::ELoad);
 

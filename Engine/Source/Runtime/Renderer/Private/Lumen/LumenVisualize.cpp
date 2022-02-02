@@ -1004,8 +1004,8 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 		const FLumenCardBuildDebugData::FSurfel& Surfel = Surfels[SurfelIndex];
 		if (Surfel.Type == SurfelType)
 		{
-			FVector3f DiskPosition = (FVector4f)PrimitiveToWorld.TransformPosition(Surfel.Position);
-			FVector3f DiskNormal = (FVector4f)WorldToPrimitiveT.TransformVector(Surfel.Normal).GetSafeNormal();
+			FVector3f DiskPosition = (FVector4f)PrimitiveToWorld.TransformPosition((FVector)Surfel.Position);
+			FVector3f DiskNormal = (FVector4f)WorldToPrimitiveT.TransformVector((FVector)Surfel.Normal).GetSafeNormal();
 
 			// Surface bias
 			DiskPosition += DiskNormal * 0.5f;
@@ -1020,7 +1020,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 			{
 				const FVector3f VertexPosition = DiskPosition + (AxisX * FMath::Cos(AngleDelta * (SideIndex)) + AxisY * FMath::Sin(AngleDelta * (SideIndex))) * SurfelRadius * GVisualizeLumenCardGenerationSurfelScale;
 
-				MeshBuilder.AddVertex(VertexPosition, FVector2f(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+				MeshBuilder.AddVertex(VertexPosition, FVector2f(0, 0), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
 			}
 
 			for (int32 SideIndex = 0; SideIndex < NumSides - 1; ++SideIndex)
@@ -1035,7 +1035,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 			NormalSum += DiskNormal;
 			++NumSurfels;
 
-			LocalBounds += Surfel.Position;
+			LocalBounds += (FVector)Surfel.Position;
 		}
 	}
 
@@ -1050,7 +1050,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 		DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBounds, FLinearColor::Yellow, DepthPriority);
 
 		const FVector Start = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter());
-		const FVector End = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter() + NormalSum.GetSafeNormal() * 1000.0f);
+		const FVector End = PrimitiveToWorld.TransformPosition(LocalBounds.GetCenter() + (FVector)NormalSum.GetSafeNormal() * 1000.0f);
 		ViewPDI.DrawLine(Start, End, FLinearColor::Red, 0, 0.2f, 0.0f, false);
 	}
 }
@@ -1069,8 +1069,8 @@ void VisualizeRayTracingGroups(const FViewInfo& View, const FLumenSceneData& Lum
 	{
 		if ((GVisualizeLumenRayTracingGroups != 2 || !PrimitiveGroup.HasMergedInstances())
 			&& PrimitiveGroup.HasMergedPrimitives()
-			&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
-			&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
+			&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint((FVector3f)View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
+			&& ViewFrustum.IntersectBox((FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), (FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
 		{
 			const uint32 GroupIdHash = GetTypeHash(PrimitiveGroup.RayTracingGroupMapElementId.GetIndex());
 			const uint8 DepthPriority = SDPG_World;
@@ -1120,8 +1120,8 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 		}
 
 		if (bVisible
-			&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
-			&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
+			&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint((FVector3f)View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
+			&& ViewFrustum.IntersectBox((FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), (FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
 		{
 			const FLumenMeshCards& MeshCardsEntry = LumenSceneData.MeshCards[PrimitiveGroup.MeshCardsIndex];
 
@@ -1175,7 +1175,7 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 							BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
 							BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
 							BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
-							MeshBuilder.AddVertex(BoxVertex, FVector2f(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+							MeshBuilder.AddVertex((FVector3f)BoxVertex, FVector2f(0, 0), FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1), FColor::White);
 						}
 
 						AddBoxFaceTriangles(MeshBuilder, 1);
@@ -1201,8 +1201,8 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 
 	for (const FLumenPrimitiveGroup& PrimitiveGroup : LumenSceneData.PrimitiveGroups)
 	{
-		if (PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
-			&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
+		if (PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint((FVector3f)View.ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
+			&& ViewFrustum.IntersectBox((FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), (FVector)PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
 		{
 			for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 			{
@@ -1222,8 +1222,8 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 
 							for (const FLumenCardBuildDebugData::FRay& Ray : DebugData.SurfelRays)
 							{
-								const FVector Start = PrimitiveToWorld.TransformPosition(Ray.RayStart);
-								const FVector End = PrimitiveToWorld.TransformPosition(Ray.RayEnd);
+								const FVector Start = PrimitiveToWorld.TransformPosition((FVector)Ray.RayStart);
+								const FVector End = PrimitiveToWorld.TransformPosition((FVector)Ray.RayEnd);
 								ViewPDI.DrawLine(Start, End, Ray.bHit ? FLinearColor::Red : FLinearColor::White, 0, 0.2f, 0.0f, false);
 							}
 						}
@@ -1247,8 +1247,8 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 
 									for (const FLumenCardBuildDebugData::FRay& Ray : Cluster.Rays)
 									{
-										const FVector Start = PrimitiveToWorld.TransformPosition(Ray.RayStart);
-										const FVector End = PrimitiveToWorld.TransformPosition(Ray.RayEnd);
+										const FVector Start = PrimitiveToWorld.TransformPosition((FVector)Ray.RayStart);
+										const FVector End = PrimitiveToWorld.TransformPosition((FVector)Ray.RayEnd);
 										ViewPDI.DrawLine(Start, End, Ray.bHit ? FLinearColor::Red : FLinearColor::White, 0, 0.2f, 0.0f, false);
 									}
 								}

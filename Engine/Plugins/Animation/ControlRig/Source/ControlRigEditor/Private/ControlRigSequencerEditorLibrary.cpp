@@ -1414,7 +1414,7 @@ FVector UControlRigSequencerEditorLibrary::GetLocalControlRigPosition(ULevelSequ
 		FRigControlValue RigValue;
 		if (GetControlRigValue(WeakSequencer.Pin().Get(), ControlRig, ControlName, TimeUnit, Frame, RigValue))
 		{
-			Value = RigValue.Get<FVector3f>();
+			Value = (FVector)RigValue.Get<FVector3f>();
 		}
 	}
 	return Value;
@@ -1441,7 +1441,7 @@ TArray<FVector> UControlRigSequencerEditorLibrary::GetLocalControlRigPositions(U
 			Values.Reserve(RigValues.Num());
 			for (const FRigControlValue& RigValue : RigValues)
 			{
-				FVector Value = RigValue.Get<FVector3f>();
+				FVector Value = (FVector)RigValue.Get<FVector3f>();
 				Values.Add(Value);
 			}
 		}
@@ -1473,7 +1473,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigPosition(ULevelSequenc
 		FRigControlModifiedContext Context;
 		Context.SetKey = bSetKey ? EControlRigSetKey::Always : EControlRigSetKey::DoNotCare;
 		Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-		ControlRig->SetControlValue<FVector3f>(ControlName, Value, true, Context);
+		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value, true, Context);
 	}
 }
 
@@ -1506,7 +1506,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigPositions(ULevelSequen
 			}
 			FVector Value = Values[Index];
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-			ControlRig->SetControlValue<FVector3f>(ControlName, Value, true, Context);
+			ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value, true, Context);
 		}
 	}
 }
@@ -1530,7 +1530,7 @@ FRotator UControlRigSequencerEditorLibrary::GetLocalControlRigRotator(ULevelSequ
 		FRigControlValue RigValue;
 		if (GetControlRigValue(WeakSequencer.Pin().Get(), ControlRig, ControlName,TimeUnit, Frame, RigValue))
 		{
-			Value = FRotator::MakeFromEuler(RigValue.Get<FVector3f>());
+			Value = FRotator::MakeFromEuler((FVector)RigValue.Get<FVector3f>());
 		}
 	}
 	return Value;
@@ -1557,7 +1557,7 @@ TArray<FRotator> UControlRigSequencerEditorLibrary::GetLocalControlRigRotators(U
 			Values.Reserve(RigValues.Num());
 			for (const FRigControlValue& RigValue : RigValues)
 			{
-				FRotator Value = FRotator::MakeFromEuler(RigValue.Get<FVector3f>());
+				FRotator Value = FRotator::MakeFromEuler((FVector)RigValue.Get<FVector3f>());
 				Values.Add(Value);
 			}
 		}
@@ -1589,7 +1589,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigRotator(ULevelSequence
 		FRigControlModifiedContext Context;
 		Context.SetKey = bSetKey ? EControlRigSetKey::Always : EControlRigSetKey::DoNotCare;
 		Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-		ControlRig->SetControlValue<FVector3f>(ControlName, Value.Euler(), true, Context);
+		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value.Euler(), true, Context);
 	}
 }
 
@@ -1622,7 +1622,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigRotators(ULevelSequenc
 			}
 			FRotator Value = Values[Index];
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-			ControlRig->SetControlValue<FVector3f>(ControlName, Value.Euler(), true, Context);
+			ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value.Euler(), true, Context);
 		}
 	}
 }
@@ -1646,7 +1646,7 @@ FVector UControlRigSequencerEditorLibrary::GetLocalControlRigScale(ULevelSequenc
 		FRigControlValue RigValue;
 		if (GetControlRigValue(WeakSequencer.Pin().Get(), ControlRig, ControlName,TimeUnit, Frame, RigValue))
 		{
-			Value = RigValue.Get<FVector3f>();
+			Value = (FVector)RigValue.Get<FVector3f>();
 		}
 	}
 	return Value;
@@ -1673,7 +1673,7 @@ TArray<FVector>UControlRigSequencerEditorLibrary::GetLocalControlRigScales(ULeve
 			Values.Reserve(RigValues.Num());
 			for (const FRigControlValue& RigValue : RigValues)
 			{
-				FVector Value = RigValue.Get<FVector3f>();
+				FVector Value = (FVector)RigValue.Get<FVector3f>();
 				Values.Add(Value);
 			}
 		}
@@ -1705,7 +1705,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigScale(ULevelSequence* 
 		FRigControlModifiedContext Context;
 		Context.SetKey = bSetKey ? EControlRigSetKey::Always : EControlRigSetKey::DoNotCare;
 		Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-		ControlRig->SetControlValue<FVector3f>(ControlName, Value, true, Context);
+		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value, true, Context);
 	}
 }
 
@@ -1738,7 +1738,7 @@ void UControlRigSequencerEditorLibrary::SetLocalControlRigScales(ULevelSequence*
 			}
 			FVector Value = Values[Index];
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-			ControlRig->SetControlValue<FVector3f>(ControlName, Value, true, Context);
+			ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Value, true, Context);
 		}
 	}
 }

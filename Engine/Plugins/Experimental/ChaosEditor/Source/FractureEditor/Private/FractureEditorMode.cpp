@@ -551,7 +551,7 @@ void UFractureEditorMode::GetComponentGlobalBounds(UGeometryCollectionComponent*
 			{
 				const FVector3f& Offset = ExplodedVectors[Idx];
 				const FBox& Bounds = BoundingBox[TransformToGeometryIndex[Idx]];
-				BoundsToBone.Add(Idx, Bounds.ShiftBy(Offset).TransformBy(Transforms[Idx]));
+				BoundsToBone.Add(Idx, Bounds.ShiftBy((FVector)Offset).TransformBy(Transforms[Idx]));
 			}
 		}
 	}

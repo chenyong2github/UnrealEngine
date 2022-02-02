@@ -919,7 +919,7 @@ void FIndirectLightingCache::UpdateBlock(FScene* Scene, FViewInfo* DebugDrawingV
 	BlockInfo.Allocation->TargetDirectionalShadowing = DirectionalShadowing;
 
 	const float BentNormalLength = SkyBentNormal.Size();
-	BlockInfo.Allocation->TargetSkyBentNormal = FVector4f(SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
+	BlockInfo.Allocation->TargetSkyBentNormal = FVector4f(FVector3f(SkyBentNormal / FMath::Max(BentNormalLength, .0001f)), BentNormalLength);
 
 	if (!BlockInfo.Allocation->bHasEverUpdatedSingleSample)
 	{

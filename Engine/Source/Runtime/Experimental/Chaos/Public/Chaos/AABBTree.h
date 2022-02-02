@@ -2633,8 +2633,8 @@ private:
 						WorkSnapshot.Bounds.GrowToInclude(ElemBounds);
 
 						// Include the current particle in the average and scaled variance of the particle centers using Welford's method.
-						FVec3 CenterDelta = ElemBounds.Center() - WorkSnapshot.AverageCenter;
-						WorkSnapshot.AverageCenter += CenterDelta / NumElems;
+						TVec3<T> CenterDelta = ElemBounds.Center() - WorkSnapshot.AverageCenter;
+						WorkSnapshot.AverageCenter += CenterDelta / (T)NumElems;
 						WorkSnapshot.ScaledCenterVariance += (ElemBounds.Center() - WorkSnapshot.AverageCenter) * CenterDelta;
 					}
 				}

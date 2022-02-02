@@ -542,7 +542,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExtern
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			ExecutionDatas.SamplePositions[InstanceIdx] = (FVector)SamplePositionParam.GetAndAdvance();
 			VectorTarget = VectorTargetParam.GetAndAdvance();
 		}
 		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.GetNumInstances());
@@ -564,14 +564,14 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExtern
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			OutVectorFieldParam.SetAndAdvance(SampleMax[InstanceIdx]);
+			OutVectorFieldParam.SetAndAdvance((FVector3f)SampleMax[InstanceIdx]);
 		}
 	}
 	else
 	{
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			OutVectorFieldParam.SetAndAdvance(FVector::ZeroVector);
+			OutVectorFieldParam.SetAndAdvance(FVector3f::ZeroVector);
 		}
 	}
 }
@@ -596,7 +596,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMExter
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			ExecutionDatas.SamplePositions[InstanceIdx] = (FVector)SamplePositionParam.GetAndAdvance();
 			IntegerTarget = IntegerTargetParam.GetAndAdvance();
 		}
 		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.GetNumInstances());
@@ -651,7 +651,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMExtern
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			ExecutionDatas.SamplePositions[InstanceIdx] = SamplePositionParam.GetAndAdvance();
+			ExecutionDatas.SamplePositions[InstanceIdx] = (FVector)SamplePositionParam.GetAndAdvance();
 			ScalarTarget = ScalarTargetParam.GetAndAdvance();
 		}
 		FFieldContextIndex::ContiguousIndices(ExecutionDatas.SampleIndices, Context.GetNumInstances());

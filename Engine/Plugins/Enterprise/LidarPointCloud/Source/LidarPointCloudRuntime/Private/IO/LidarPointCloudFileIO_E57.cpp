@@ -236,7 +236,7 @@ bool ULidarPointCloudFileIO_E57::HandleImport(const FString& Filename, TSharedPt
 						Data->Color.R = Data->Color.G = Data->Color.B = 255;
 					}
 
-					Points.Emplace(ProcessedLocation, Data->Color.B, Data->Color.G, Data->Color.R, bHasIntensity ? Data->Color.A : 255, 0);
+					Points.Emplace((FVector3f)ProcessedLocation, Data->Color.B, Data->Color.G, Data->Color.R, bHasIntensity ? Data->Color.A : 255, 0);
 				}
 
 				ThreadBuffer->MarkAsFree();

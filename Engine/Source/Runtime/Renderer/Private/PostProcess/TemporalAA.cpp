@@ -621,7 +621,7 @@ FTAAOutputs AddTemporalAAPass(
 		PassParameters->OutputViewportSize = FVector4f(
 			PracticableDestRect.Width(), PracticableDestRect.Height(), 1.0f / float(PracticableDestRect.Width()), 1.0f / float(PracticableDestRect.Height()));
 		PassParameters->OutputViewportRect = FVector4f(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
-		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(NewHistoryTexture[0]->Desc.Format);
+		PassParameters->OutputQuantizationError = (FVector3f)ComputePixelFormatQuantizationError(NewHistoryTexture[0]->Desc.Format);
 
 		// Set history shader parameters.
 		{

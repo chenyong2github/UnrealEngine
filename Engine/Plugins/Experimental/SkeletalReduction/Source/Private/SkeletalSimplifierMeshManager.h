@@ -493,7 +493,7 @@ namespace SkeletalSimplifier
 
 		uint32 HashEdgePosition(const SimpEdgeType& Edge)
 		{
-			return HashPoint(Edge.v0->GetPos()) ^ HashPoint(Edge.v1->GetPos());
+			return HashPoint((FVector)Edge.v0->GetPos()) ^ HashPoint((FVector)Edge.v1->GetPos());
 		}
 
 		TPair<uint32, uint32> GetEdgeHashPair(const SimpVertType* u, const SimpVertType* v) const

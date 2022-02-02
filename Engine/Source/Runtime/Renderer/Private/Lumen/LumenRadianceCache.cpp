@@ -143,9 +143,9 @@ namespace LumenRadianceCache
 
 			SetRadianceProbeClipmapTMin(OutParameters, ClipmapIndex, Clipmap.ProbeTMin);
 			SetWorldPositionToRadianceProbeCoordScale(OutParameters, ClipmapIndex, Clipmap.WorldPositionToProbeCoordScale);
-			SetWorldPositionToRadianceProbeCoordBias(OutParameters, ClipmapIndex, Clipmap.WorldPositionToProbeCoordBias);
+			SetWorldPositionToRadianceProbeCoordBias(OutParameters, ClipmapIndex, (FVector3f)Clipmap.WorldPositionToProbeCoordBias);
 			SetRadianceProbeCoordToWorldPositionScale(OutParameters, ClipmapIndex, Clipmap.ProbeCoordToWorldCenterScale);
-			SetRadianceProbeCoordToWorldPositionBias(OutParameters, ClipmapIndex, Clipmap.ProbeCoordToWorldCenterBias);
+			SetRadianceProbeCoordToWorldPositionBias(OutParameters, ClipmapIndex, (FVector3f)Clipmap.ProbeCoordToWorldCenterBias);
 		}
 
 		const FVector2f ProbeAtlasResolutionInProbesAsFloat = FVector2f(RadianceCacheInputs.ProbeAtlasResolutionInProbes);
@@ -185,8 +185,8 @@ namespace LumenRadianceCache
 		{
 			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
 
-			SetWorldPositionToRadianceProbeCoord(MarkParameters.PackedWorldPositionToRadianceProbeCoord[ClipmapIndex], Clipmap.WorldPositionToProbeCoordBias, Clipmap.WorldPositionToProbeCoordScale);
-			SetRadianceProbeCoordToWorldPosition(MarkParameters.PackedRadianceProbeCoordToWorldPosition[ClipmapIndex], Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
+			SetWorldPositionToRadianceProbeCoord(MarkParameters.PackedWorldPositionToRadianceProbeCoord[ClipmapIndex], (FVector3f)Clipmap.WorldPositionToProbeCoordBias, Clipmap.WorldPositionToProbeCoordScale);
+			SetRadianceProbeCoordToWorldPosition(MarkParameters.PackedRadianceProbeCoordToWorldPosition[ClipmapIndex], (FVector3f)Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
 		}
 
 		MarkParameters.RadianceProbeClipmapResolutionForMark = RadianceCacheInputs.RadianceProbeClipmapResolution;
@@ -1321,7 +1321,7 @@ void RenderRadianceCache(
 				{
 					const FRadianceCacheClipmap& Clipmap = LastFrameClipmaps[ClipmapIndex];
 
-					SetRadianceProbeCoordToWorldPosition(PassParameters->PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex], Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
+					SetRadianceProbeCoordToWorldPosition(PassParameters->PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex], (FVector3f)Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
 				}
 
 				auto ComputeShader = View.ShaderMap->GetShader<FUpdateCacheForUsedProbesCS>(0);

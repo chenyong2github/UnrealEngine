@@ -44,7 +44,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 			ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
 			ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ClipmapWorldToUVScale[ClipmapIndex];
-			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f(Clipmap.VoxelSize, Clipmap.VoxelRadius);
+			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
 			ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
 			ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
 			ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
@@ -93,12 +93,12 @@ void GetLumenVoxelParametersForClipmapLevel(const FLumenCardTracingInputs& Traci
 	int SrcClipmapLevel, int DstClipmapLevel)
 {
 	// LWC_TODO: precision loss
-	LumenVoxelTracingParameters.ClipmapWorldToUVScale[DstClipmapLevel] = (FVector4f)TracingInputs.ClipmapWorldToUVScale[SrcClipmapLevel];
-	LumenVoxelTracingParameters.ClipmapWorldToUVBias[DstClipmapLevel] = (FVector4f)TracingInputs.ClipmapWorldToUVBias[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldToUVScale[DstClipmapLevel] = (FVector3f)TracingInputs.ClipmapWorldToUVScale[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldToUVBias[DstClipmapLevel] = (FVector3f)TracingInputs.ClipmapWorldToUVBias[SrcClipmapLevel];
 	LumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[DstClipmapLevel] = TracingInputs.ClipmapVoxelSizeAndRadius[SrcClipmapLevel];
-	LumenVoxelTracingParameters.ClipmapWorldCenter[DstClipmapLevel] = (FVector4f)TracingInputs.ClipmapWorldCenter[SrcClipmapLevel];
-	LumenVoxelTracingParameters.ClipmapWorldExtent[DstClipmapLevel] = (FVector4f)TracingInputs.ClipmapWorldExtent[SrcClipmapLevel];
-	LumenVoxelTracingParameters.ClipmapWorldSamplingExtent[DstClipmapLevel] = (FVector4f)TracingInputs.ClipmapWorldSamplingExtent[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldCenter[DstClipmapLevel] = (FVector3f)TracingInputs.ClipmapWorldCenter[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldExtent[DstClipmapLevel] = (FVector3f)TracingInputs.ClipmapWorldExtent[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldSamplingExtent[DstClipmapLevel] = (FVector3f)TracingInputs.ClipmapWorldSamplingExtent[SrcClipmapLevel];
 }
 
 //@todo Create the uniform buffer as less as possible.

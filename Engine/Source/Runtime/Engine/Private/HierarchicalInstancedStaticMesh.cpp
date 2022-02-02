@@ -484,14 +484,14 @@ public:
 
 				if (GenerateInstanceScalingRange)
 				{
-					FVector CurrentScale = ThisInstTrans.GetScaleVector();
+					FVector3f CurrentScale(ThisInstTrans.GetScaleVector());
 
 					Node.MinInstanceScale = Node.MinInstanceScale.ComponentMin(CurrentScale);
 					Node.MaxInstanceScale = Node.MaxInstanceScale.ComponentMax(CurrentScale);
 				}
 			}
-			Node.BoundMin = NodeBox.Min;
-			Node.BoundMax = NodeBox.Max;
+			Node.BoundMin = (FVector3f)NodeBox.Min;
+			Node.BoundMax = (FVector3f)NodeBox.Max;
 		}
 		TArray<int32> NodesPerLevel;
 		NodesPerLevel.Add(NumRoots);
@@ -515,7 +515,7 @@ public:
 			{
 				SortIndex[Index] = Index;
 				FClusterNode& Node = Result->Nodes[Index];
-				SortPoints[Index] = (Node.BoundMin + Node.BoundMax) * 0.5f;
+				SortPoints[Index] = (FVector)(Node.BoundMin + Node.BoundMax) * 0.5f;
 			}
 			BranchingFactor = InternalNodeBranchingFactor;
 			if (BranchingFactor > 2 && OcclusionLayerTarget && NumRoots / BranchingFactor <= OcclusionLayerTarget)
@@ -662,8 +662,8 @@ public:
 					for (int32 ChildIndex = Node.FirstChild; ChildIndex <= Node.LastChild; ChildIndex++)
 					{
 						FClusterNode& ChildNode = Result->Nodes[ChildIndex];
-						NodeBox += ChildNode.BoundMin;
-						NodeBox += ChildNode.BoundMax;
+						NodeBox += (FVector)ChildNode.BoundMin;
+						NodeBox += (FVector)ChildNode.BoundMax;
 
 						if (GenerateInstanceScalingRange)
 						{
@@ -671,8 +671,8 @@ public:
 							Node.MaxInstanceScale = Node.MaxInstanceScale.ComponentMax(ChildNode.MaxInstanceScale);
 						}
 					}
-					Node.BoundMin = NodeBox.Min;
-					Node.BoundMax = NodeBox.Max;
+					Node.BoundMin = (FVector3f)NodeBox.Min;
+					Node.BoundMax = (FVector3f)NodeBox.Max;
 				}
 				NumRoots = Clusters.Num();
 				NodesPerLevel.Insert(NumRoots, 0);
@@ -689,8 +689,8 @@ public:
 		// Output a general scale of 1 if we dont want the scaling range
 		if (!GenerateInstanceScalingRange)
 		{
-			Result->Nodes[0].MinInstanceScale = FVector::OneVector;
-			Result->Nodes[0].MaxInstanceScale = FVector::OneVector;
+			Result->Nodes[0].MinInstanceScale = FVector3f::OneVector;
+			Result->Nodes[0].MaxInstanceScale = FVector3f::OneVector;
 		}
 	}
 };
@@ -704,7 +704,7 @@ static bool PrintLevel(const FClusterTree& Tree, int32 NodeIndex, int32 Level, i
 			Level,
 			Parent
 			);
-		FVector Extent = Node.BoundMax - Node.BoundMin;
+		FVector Extent(Node.BoundMax - Node.BoundMin);
 		UE_LOG(LogConsoleResponse, Display, TEXT("    Bound (%5.1f, %5.1f, %5.1f) [(%5.1f, %5.1f, %5.1f) - (%5.1f, %5.1f, %5.1f)]"),
 			Extent.X, Extent.Y, Extent.Z, 
 			Node.BoundMin.X, Node.BoundMin.Y, Node.BoundMin.Z, 
@@ -1198,8 +1198,8 @@ static FORCEINLINE_DEBUGGABLE bool CullNode(const FFoliageCullInstanceParams& Pa
 		// Check for completely outside
 		return !!VectorAnyGreaterThan(Distance,PushOut);
 	}
-	FVector Center = (Node.BoundMin + Node.BoundMax) * 0.5f;
-	FVector Extent = (Node.BoundMax - Node.BoundMin) * 0.5f;
+	FVector Center = (FVector)(Node.BoundMin + Node.BoundMax) * 0.5f;
+	FVector Extent = (FVector)(Node.BoundMax - Node.BoundMin) * 0.5f;
 	if (!Params.ViewFrustumLocal.IntersectBox(Center, Extent, bOutFullyContained)) 
 	{
 		return true;
@@ -1257,7 +1257,7 @@ void FHierarchicalStaticMeshSceneProxy::Traverse(const FFoliageCullInstanceParam
 
 	if (MinLOD != MaxLOD)
 	{
-		CalcLOD(MinLOD, MaxLOD, Node.BoundMin, Node.BoundMax, Params.ViewOriginInLocalZero, Params.ViewOriginInLocalOne, Params.LODPlanesMin, Params.LODPlanesMax);
+		CalcLOD(MinLOD, MaxLOD, (FVector)Node.BoundMin, (FVector)Node.BoundMax, Params.ViewOriginInLocalZero, Params.ViewOriginInLocalOne, Params.LODPlanesMin, Params.LODPlanesMax);
 
 		if (MinLOD >= Params.LODs)
 		{
@@ -1278,7 +1278,7 @@ void FHierarchicalStaticMeshSceneProxy::Traverse(const FFoliageCullInstanceParam
 
 	bool bShouldGroup = Node.FirstChild < 0
 		|| ((Node.LastInstance - Node.FirstInstance + 1) < Params.MinInstancesToSplit[MinLOD]
-			&& CanGroup(Node.BoundMin, Node.BoundMax, Params.ViewOriginInLocalZero, Params.ViewOriginInLocalOne, Params.LODPlanesMax[Params.LODs - 1]));
+			&& CanGroup((FVector)Node.BoundMin, (FVector)Node.BoundMax, Params.ViewOriginInLocalZero, Params.ViewOriginInLocalOne, Params.LODPlanesMax[Params.LODs - 1]));
 	bool bSplit = (!bFullyContained || MinLOD < MaxLOD || Index < Params.FirstOcclusionNode)
 		&& !bShouldGroup;
 
@@ -1687,7 +1687,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
 				float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
 				
-				FVector AverageScale = (InstanceParams.Tree[0].MinInstanceScale + (InstanceParams.Tree[0].MaxInstanceScale - InstanceParams.Tree[0].MinInstanceScale) / 2.0f);
+				FVector AverageScale(InstanceParams.Tree[0].MinInstanceScale + (InstanceParams.Tree[0].MaxInstanceScale - InstanceParams.Tree[0].MinInstanceScale) / 2.0f);
 				FBoxSphereBounds ScaledBounds = RenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, AverageScale));
 				float SphereRadius = ScaledBounds.SphereRadius;
 

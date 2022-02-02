@@ -316,8 +316,7 @@ namespace ClothingMeshUtils
 
 				// If we're super close to a vertex just take it's value.
 				// Otherwise call the provided interp lambda
-				const static FVector OneVec(1.0f, 1.0f, 1.0f);
-				FVector DiffVec = OneVec - Bary;
+				FVector DiffVec = FVector::OneVector - Bary;
 				if(FMath::Abs(DiffVec.X) <= SMALL_NUMBER)
 				{
 					DestVal = A;
@@ -332,7 +331,7 @@ namespace ClothingMeshUtils
 				}
 				else
 				{
-					DestVal = Func(Bary, A, B, C);
+					DestVal = Func((FVector3f)Bary, A, B, C);
 				}
 			}
 		}

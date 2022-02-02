@@ -403,13 +403,13 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_AI::CreateDebugSceneProxy(cons
 			if (Poly.Points.Num() > 2)
 			{
 				FDebugRenderSceneProxy::FMesh PolyMesh;
-				PolyMesh.Vertices.Add(FDynamicMeshVertex(Poly.Points[0]));
+				PolyMesh.Vertices.Add(FDynamicMeshVertex((FVector3f)Poly.Points[0]));
 				PolyMesh.Color = Poly.Color;
 
 				for (int32 VertIdx = 2; VertIdx < Poly.Points.Num(); VertIdx++)
 				{
-					PolyMesh.Vertices.Add(FDynamicMeshVertex(Poly.Points[VertIdx - 1]));
-					PolyMesh.Vertices.Add(FDynamicMeshVertex(Poly.Points[VertIdx]));
+					PolyMesh.Vertices.Add(FDynamicMeshVertex((FVector3f)Poly.Points[VertIdx - 1]));
+					PolyMesh.Vertices.Add(FDynamicMeshVertex((FVector3f)Poly.Points[VertIdx]));
 
 					PolyMesh.Indices.Add(0);
 					PolyMesh.Indices.Add(PolyMesh.Vertices.Num() - 2);

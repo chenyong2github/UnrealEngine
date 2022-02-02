@@ -492,7 +492,7 @@ namespace Chaos
 		// Reorder the vertices to be counter-clockwise about the normal
 		static void SortFaceVerticesCCW(const FPlaneType& Face, TArray<int32>& InOutFaceVertexIndices, const TArray<FVec3Type>& Vertices)
 		{
-			FMatrix33 FaceMatrix = (FMatrix44f)FRotationMatrix::MakeFromZ(Face.Normal());
+			FMatrix33 FaceMatrix = (FMatrix44f)FRotationMatrix::MakeFromZ(FVector(Face.Normal()));
 
 			FVec3Type Centroid(0);
 			for (int32 VertexIndex = 0; VertexIndex < InOutFaceVertexIndices.Num(); ++VertexIndex)

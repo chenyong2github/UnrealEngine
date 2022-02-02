@@ -1834,8 +1834,8 @@ FVertexInstanceID ProcessTriangleCorner(
 	FVector Normal( -Data[ 0 ], Data[ 1 ], Data[ 2 ] );
 	DrawCall->GetProperty( SpeedTree::VERTEX_PROPERTY_TANGENT, VertexIndex, Data );
 	FVector Tangent( -Data[ 0 ], Data[ 1 ], Data[ 2 ] );
-	VertexInstanceTangents[VertexInstanceID] = Tangent;
-	VertexInstanceNormals[VertexInstanceID] = Normal;
+	VertexInstanceTangents[VertexInstanceID] = (FVector3f)Tangent;
+	VertexInstanceNormals[VertexInstanceID] = (FVector3f)Normal;
 	VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(Tangent.GetSafeNormal(), (Normal ^ Tangent).GetSafeNormal(), Normal.GetSafeNormal());
 
 	// ao
@@ -2230,7 +2230,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 									Data[2] += Data2[2];                                    
 								}
 								FVertexID VertexID = MeshDescription->CreateVertex();
-								VertexPositions[VertexID] = FVector(-Data[0], Data[1], Data[2]);
+								VertexPositions[VertexID] = FVector3f(-Data[0], Data[1], Data[2]);
 							}
 
 							const SpeedTree::st_byte* pIndexData = &*DrawCall->m_pIndexData;
@@ -2356,7 +2356,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 							FVector Position = BillboardRotate.TransformVector(FVector(Vertex[0] * BillboardWidth - BillboardWidth * 0.5f, 0.0f, Vertex[1] * BillboardHeight + BillboardBottom));
 							
 							FVertexID VertexID = MeshDescription->CreateVertex();
-							VertexPositions[VertexID] = FVector(Position);
+							VertexPositions[VertexID] = FVector3f(Position);
 						}
 
 						// other data
@@ -2374,8 +2374,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 								FVertexID VertexID(IndexOffset + Index);
 								const FVertexInstanceID& VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
 
-								VertexInstanceTangents[VertexInstanceID] = TangentX;
-								VertexInstanceNormals[VertexInstanceID] = TangentZ;
+								VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
+								VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
 								VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 								if (bRotated)
 								{
@@ -2626,7 +2626,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				const GameEngine8::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
 				FVector vPosition = FVector(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y, Vertex.m_vAnchor.z) + FVector(Vertex.m_vOffset.x, Vertex.m_vOffset.y, Vertex.m_vOffset.z);
 				FVertexID VertexID = MeshDescription->CreateVertex();
-				VertexPositions[VertexID] = FVector(vPosition);
+				VertexPositions[VertexID] = FVector3f(vPosition);
 			}
 
 			// Per-LOD material -> polygon group mapping
@@ -2698,8 +2698,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 						FVector TangentY(-Vertex.m_vBinormal.x, -Vertex.m_vBinormal.y, -Vertex.m_vBinormal.z);
 						FVector TangentZ(Vertex.m_vNormal.x, Vertex.m_vNormal.y, Vertex.m_vNormal.z);
 
-						VertexInstanceTangents[VertexInstanceID] = TangentX;
-						VertexInstanceNormals[VertexInstanceID] = TangentZ;
+						VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
+						VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
 						VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 						
 						// ao and branch blend in vertex color
@@ -2985,7 +2985,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 				const GameEngine9::SVertex& Vertex = LOD.Vertices()[VertexIndex]; //-V758
 				FVector vPosition = FVector(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y, Vertex.m_vAnchor.z) + FVector(Vertex.m_vOffset.x, Vertex.m_vOffset.y, Vertex.m_vOffset.z);
 				FVertexID VertexID = MeshDescription->CreateVertex();
-				VertexPositions[VertexID] = FVector(vPosition);
+				VertexPositions[VertexID] = FVector3f(vPosition);
 			}
 
 			for (uint32 DrawCallIndex = 0; DrawCallIndex < LOD.DrawCalls().Count(); ++DrawCallIndex)
@@ -3035,8 +3035,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 						FVector TangentY(-Vertex.m_vBinormal.x, -Vertex.m_vBinormal.y, -Vertex.m_vBinormal.z);
 						FVector TangentZ(Vertex.m_vNormal.x, Vertex.m_vNormal.y, Vertex.m_vNormal.z);
 
-						VertexInstanceTangents[VertexInstanceID] = TangentX;
-						VertexInstanceNormals[VertexInstanceID] = TangentZ;
+						VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
+						VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
 						VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
 
 						// color and branch blend in vertex color

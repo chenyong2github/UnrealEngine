@@ -60,9 +60,9 @@ void PropagateVertexPaintToAsset(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 
 	for (int32 IndexBufferIndex = 0, SrcIndexBufferNum = SrcIndexBuffer.Num(); IndexBufferIndex < SrcIndexBufferNum; IndexBufferIndex += 3)
 	{
-		FVector PositionA = SrcVertices[SrcIndexBuffer[IndexBufferIndex]].Position;
-		FVector PositionB = SrcVertices[SrcIndexBuffer[IndexBufferIndex + 1]].Position;
-		FVector PositionC = SrcVertices[SrcIndexBuffer[IndexBufferIndex + 2]].Position;
+		FVector PositionA = (FVector)SrcVertices[SrcIndexBuffer[IndexBufferIndex]].Position;
+		FVector PositionB = (FVector)SrcVertices[SrcIndexBuffer[IndexBufferIndex + 1]].Position;
+		FVector PositionC = (FVector)SrcVertices[SrcIndexBuffer[IndexBufferIndex + 2]].Position;
 
 		FSHAHash Key = GetMatchKey(PositionA, PositionB, PositionC);
 		FMatchFaceData MatchFaceData;
@@ -79,9 +79,9 @@ void PropagateVertexPaintToAsset(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 		SkeletalMeshImportData::FVertex& WedgeA = ImportData.Wedges[Triangle.WedgeIndex[0]];
 		SkeletalMeshImportData::FVertex& WedgeB = ImportData.Wedges[Triangle.WedgeIndex[1]];
 		SkeletalMeshImportData::FVertex& WedgeC = ImportData.Wedges[Triangle.WedgeIndex[2]];
-		FVector PositionA = ImportData.Points[WedgeA.VertexIndex];
-		FVector PositionB = ImportData.Points[WedgeB.VertexIndex];
-		FVector PositionC = ImportData.Points[WedgeC.VertexIndex];
+		FVector PositionA = (FVector)ImportData.Points[WedgeA.VertexIndex];
+		FVector PositionB = (FVector)ImportData.Points[WedgeB.VertexIndex];
+		FVector PositionC = (FVector)ImportData.Points[WedgeC.VertexIndex];
 
 		const FSHAHash Key = GetMatchKey(PositionA, PositionB, PositionC);
 		if (FMatchFaceData* MatchFaceData = MatchTriangles.Find(Key))
@@ -175,8 +175,8 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeVertexData()
 	MeshVertices.AddDefaulted(NumVertices);
 	for (int32 Index = 0; Index < NumVertices; Index++)
 	{
-		const FVector& Position = LODData->StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index);
-		MeshVertices[Index] = Position;
+		const FVector3f& Position = LODData->StaticVertexBuffers.PositionVertexBuffer.VertexPosition(Index);
+		MeshVertices[Index] = (FVector)Position;
 	}
 
 	MeshIndices.Reserve(LODData->MultiSizeIndexContainer.GetIndexBuffer()->Num());

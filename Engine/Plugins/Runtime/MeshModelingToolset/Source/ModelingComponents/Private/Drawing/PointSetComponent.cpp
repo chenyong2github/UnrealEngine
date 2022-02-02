@@ -110,10 +110,10 @@ public:
 				const FVector2f UV(Point.Size, Point.DepthBias);
 				for (int j = 0; j < 4; ++j)
 				{
-					VertexBuffers.PositionVertexBuffer.VertexPosition(UseVertexBufferIndex + j) = Point.Position;
+					VertexBuffers.PositionVertexBuffer.VertexPosition(UseVertexBufferIndex + j) = (FVector3f)Point.Position;
 					VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(UseVertexBufferIndex + j, 0, UV);
 					VertexBuffers.ColorVertexBuffer.VertexColor(UseVertexBufferIndex + j) = color;
-					VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(UseVertexBufferIndex + j, FVector::ZeroVector, FVector::ZeroVector, TangentVectors[j]);
+					VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(UseVertexBufferIndex + j, FVector3f::ZeroVector, FVector3f::ZeroVector, (FVector3f)TangentVectors[j]);
 				}
 
 				IndexBuffer.Indices[UseIndexBufferIndex + 0] = UseVertexBufferIndex + 0;

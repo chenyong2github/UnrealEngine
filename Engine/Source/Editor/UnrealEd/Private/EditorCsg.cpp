@@ -632,15 +632,15 @@ void UEditorEngine::polySelectCoplanars(UWorld* InWorld, UModel* InModel)
 
 			if(SelectedSurf.PolyFlags & PF_Selected)
 			{
-				const FVector	SelectedBase = Model->Points[Model->Verts[SelectedNode.iVertPool].pVertex];
-				const FVector SelectedNormal = Model->Vectors[SelectedSurf.vNormal];
+				const FVector	SelectedBase = (FVector)Model->Points[Model->Verts[SelectedNode.iVertPool].pVertex];
+				const FVector SelectedNormal = (FVector)Model->Vectors[SelectedSurf.vNormal];
 
 				for(int32 NodeIndex = 0;NodeIndex < Model->Nodes.Num();NodeIndex++)
 				{
 					FBspNode&	Node = Model->Nodes[NodeIndex];
 					FBspSurf&	Surf = Model->Surfs[Node.iSurf];
-					const FVector Base = Model->Points[Model->Verts[Node.iVertPool].pVertex];
-					const FVector Normal = Model->Vectors[Surf.vNormal];
+					const FVector Base = (FVector)Model->Points[Model->Verts[Node.iVertPool].pVertex];
+					const FVector Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 					const float ParallelDotThreshold = 0.98f; // roughly 11.4 degrees (!), but this is the long-standing behavior.
 					if (FVector::Coincident(SelectedNormal, Normal, ParallelDotThreshold) &&
@@ -1269,14 +1269,14 @@ void UEditorEngine::polyTexPan(UModel *Model,int32 PanU,int32 PanV,int32 Absolut
 		{
 			if(Absolute)
 			{
-				Model->Points[Surf.pBase] = FVector::ZeroVector;
+				Model->Points[Surf.pBase] = FVector3f::ZeroVector;
 			}
 
-			const FVector TextureU = Model->Vectors[Surf.vTextureU];
-			const FVector TextureV = Model->Vectors[Surf.vTextureV];
+			const FVector TextureU = (FVector)Model->Vectors[Surf.vTextureU];
+			const FVector TextureV = (FVector)Model->Vectors[Surf.vTextureV];
 
-			Model->Points[Surf.pBase] += PanU * (TextureU / TextureU.SizeSquared());
-			Model->Points[Surf.pBase] += PanV * (TextureV / TextureV.SizeSquared());
+			Model->Points[Surf.pBase] += FVector3f(PanU * (TextureU / TextureU.SizeSquared()));
+			Model->Points[Surf.pBase] += FVector3f(PanV * (TextureV / TextureV.SizeSquared()));
 
 			const bool bUpdateTexCoords = true;
 			const bool bOnlyRefreshSurfaceMaterials = true;
@@ -1293,8 +1293,8 @@ void UEditorEngine::polyTexScale( UModel* Model, float UU, float UV, float VU, f
 		FBspSurf *Poly = &Model->Surfs[i];
 		if (Poly->PolyFlags & PF_Selected)
 		{
-			FVector OriginalU = Model->Vectors[Poly->vTextureU];
-			FVector OriginalV = Model->Vectors[Poly->vTextureV];
+			FVector OriginalU = (FVector)Model->Vectors[Poly->vTextureU];
+			FVector OriginalV = (FVector)Model->Vectors[Poly->vTextureV];
 
 			if( Absolute )
 			{
@@ -1303,8 +1303,8 @@ void UEditorEngine::polyTexScale( UModel* Model, float UU, float UV, float VU, f
 			}
 
 			// Calc new vectors.
-			Model->Vectors[Poly->vTextureU] = OriginalU * UU + OriginalV * UV;
-			Model->Vectors[Poly->vTextureV] = OriginalU * VU + OriginalV * VV;
+			Model->Vectors[Poly->vTextureU] = FVector3f(OriginalU * UU + OriginalV * UV);
+			Model->Vectors[Poly->vTextureV] = FVector3f(OriginalU * VU + OriginalV * VV);
 
 			// Update generating brush poly.
 			const bool bUpdateTexCoords = true;

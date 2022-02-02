@@ -367,7 +367,7 @@ static const TCHAR* ImportProperties(
 						{
 							FVector DrawScale3D;
 							GetFVECTOR(*Temp, DrawScale3D);
-							Instance.DrawScale3D = DrawScale3D;
+							Instance.DrawScale3D = (FVector3f)DrawScale3D;
 						}
 						FParse::Value(StrPtr, TEXT("Flags="), Instance.Flags);
 

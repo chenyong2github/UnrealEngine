@@ -658,7 +658,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMExternalF
 			OutQueryValid.SetAndAdvance(true);
 			OutInsideMesh.SetAndAdvance(Res.IsInsideMesh);
 			OutCollisionPos.SetAndAdvance(LWCConverter.ConvertWorldToSimulationPosition(Res.CollisionPos));
-			OutCollisionNormal.SetAndAdvance(Res.CollisionNormal);
+			OutCollisionNormal.SetAndAdvance((FVector3f)Res.CollisionNormal);
 			OutFriction.SetAndAdvance(Res.Friction);
 			OutRestitution.SetAndAdvance(Res.Restitution);
 			OutPhysicalMaterialIdx.SetAndAdvance(Res.PhysicalMaterialIdx);
@@ -718,7 +718,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMExternal
 			OutQueryValid.SetAndAdvance(true);
 			OutInsideMesh.SetAndAdvance(Res.IsInsideMesh);
 			OutCollisionPos.SetAndAdvance(LWCConverter.ConvertWorldToSimulationPosition(Res.CollisionPos));
-			OutCollisionNormal.SetAndAdvance(Res.CollisionNormal);
+			OutCollisionNormal.SetAndAdvance((FVector3f)Res.CollisionNormal);
 			OutFriction.SetAndAdvance(Res.Friction);
 			OutRestitution.SetAndAdvance(Res.Restitution);
 			OutPhysicalMaterialIdx.SetAndAdvance(Res.PhysicalMaterialIdx);

@@ -457,7 +457,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 
 				// Fill the vertex array
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
-				VertexPositions[AddedVertexId] = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Pos);
+				VertexPositions[AddedVertexId] = (FVector3f)FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Pos);
 			}
 
 			int32 VertexIndices[3];
@@ -479,7 +479,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					VertexIndices[CornerIndex] = NodeToIndex[&FaceNode];
 
 					CornerVertexIDs[CornerIndex] = FVertexID(VertexIndices[CornerIndex]);
-					CornerPositions[CornerIndex] = VertexPositions[CornerVertexIDs[CornerIndex]];
+					CornerPositions[CornerIndex] = (FVector)VertexPositions[CornerVertexIDs[CornerIndex]];
 				}
 
 				// Skip degenerated polygons
@@ -503,7 +503,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					// Check to see if normal is correct. If not replace by face's normal
 					if (UENormal.IsNormalized())
 					{
-						VertexInstanceNormals[CornerVertexInstanceIDs[CornerIndex]] = UENormal;
+						VertexInstanceNormals[CornerVertexInstanceIDs[CornerIndex]] = (FVector3f)UENormal;
 					}
 					else
 					{
@@ -1041,7 +1041,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 
 				// Note that the offset from m_uvw has the rotation applied to it
 				FVector Translation = Transform.GetTranslation();
-				FVector3f Tiling = Transform.GetScale3D();
+				FVector3f Tiling = (FVector3f)Transform.GetScale3D();	// LWC_TODO: Precision Loss
 				FVector RotationAngles = Transform.GetRotation().Euler();
 
 				UVParameters.UVTiling.X = Tiling.X;

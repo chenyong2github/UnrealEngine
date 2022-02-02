@@ -655,7 +655,7 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 				TargetData->SplineTransformInverseTranspose = FMatrix44f(TransformInverseTranspose);
 				TargetData->SplineTransformRotation = FQuat4f(TransformRot);
 					
-				TargetData->DefaultUpVector = DefaultUp;
+				TargetData->DefaultUpVector = (FVector3f)DefaultUp;
 					
 				TargetData->SplineLength = rtShaderLUT.SplineLength;
 				TargetData->SplineDistanceStep = rtShaderLUT.SplineDistanceStep;

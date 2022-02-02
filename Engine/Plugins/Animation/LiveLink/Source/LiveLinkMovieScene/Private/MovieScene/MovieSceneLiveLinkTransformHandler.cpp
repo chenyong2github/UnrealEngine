@@ -18,7 +18,7 @@ namespace LiveLinkTransformHandlerUtils
 		{
 			InSourceChannels[InOutStartIndex++].Evaluate(InFrameTime, TempVector[i]);
 		}
-		OutTransform.SetLocation(TempVector);
+		OutTransform.SetLocation((FVector)TempVector);
 
 		for (int32 i = 0; i < 3; ++i)
 		{
@@ -32,12 +32,12 @@ namespace LiveLinkTransformHandlerUtils
 		{
 			InSourceChannels[InOutStartIndex++].Evaluate(InFrameTime, TempVector[i]);
 		}
-		OutTransform.SetScale3D(TempVector);
+		OutTransform.SetScale3D((FVector)TempVector);
 	}
 
 	void FillTransform(int32 InKeyIndex, int32& InOutStartIndex, const TArray<FMovieSceneFloatChannel>& InSourceChannels, FTransform& OutTransform)
 	{
-		FVector3f TempVector;
+		FVector TempVector;
 
 		for (int32 i = 0; i < 3; ++i)
 		{

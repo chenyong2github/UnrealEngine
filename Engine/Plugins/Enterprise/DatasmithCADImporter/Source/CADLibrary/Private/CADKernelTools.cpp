@@ -70,7 +70,7 @@ namespace CADLibrary
 			VertexIndex++;
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
+			VertexPositions[VertexID] = (FVector3f)FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
 			Context.VertexIds[VertexIndex] = VertexID;
 		}
 
@@ -85,8 +85,8 @@ namespace CADLibrary
 			for (const FVector& Vertex : VertexArray)
 			{
 				FVertexID VertexID = MeshDescription.CreateVertex();
-				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
-				VertexPositions[VertexID] = FVector4f(SymmetricMatrix.TransformPosition(VertexPositions[VertexID]));
+				VertexPositions[VertexID] = (FVector3f)FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
+				VertexPositions[VertexID] = FVector4f(SymmetricMatrix.TransformPosition((FVector)VertexPositions[VertexID]));
 				Context.SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
 		}
@@ -215,7 +215,7 @@ namespace CADLibrary
 						VertexInstanceUVs.Set(VertexInstanceID, UVChannel, FVector2f(FaceMesh->UVMap[TriangleVertexIndices[IndexFace + Orientation[Index]]]));
 
 						VertexInstanceColors[VertexInstanceID] = FLinearColor::White;
-						VertexInstanceTangents[VertexInstanceID] = FVector(ForceInitToZero);
+						VertexInstanceTangents[VertexInstanceID] = FVector3f(ForceInitToZero);
 						VertexInstanceBinormalSigns[VertexInstanceID] = 0.0f;
 					}
 				}
@@ -234,7 +234,7 @@ namespace CADLibrary
 					for (int32 Index = 0; Index < 3; Index++)
 					{
 						const FVertexInstanceID VertexInstanceID = MeshVertexInstanceIDs[IndexFace + Index];
-						VertexInstanceNormals[VertexInstanceID] = FaceMesh->Normals[TriangleVertexIndices[IndexFace + Orientation[Index]]];
+						VertexInstanceNormals[VertexInstanceID] = (FVector3f)FaceMesh->Normals[TriangleVertexIndices[IndexFace + Orientation[Index]]];
 					}
 				}
 
@@ -246,7 +246,7 @@ namespace CADLibrary
 					SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(Context.MeshParameters.SymmetricOrigin, Context.MeshParameters.SymmetricNormal);
 					for (const FVertexInstanceID& VertexInstanceID : MeshVertexInstanceIDs)
 					{
-						VertexInstanceNormals[VertexInstanceID] = FVector4f(SymmetricMatrix.TransformVector(VertexInstanceNormals[VertexInstanceID]));
+						VertexInstanceNormals[VertexInstanceID] = FVector4f(SymmetricMatrix.TransformVector((FVector)VertexInstanceNormals[VertexInstanceID]));
 					}
 				}
 			}

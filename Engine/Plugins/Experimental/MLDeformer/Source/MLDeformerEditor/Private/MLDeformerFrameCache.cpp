@@ -194,7 +194,7 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 						// Calculate the pre-skinning data.
 						const FSkeletalMeshLODRenderData& LODData = SkelMesh->GetResourceForRendering()->LODRenderData[0];
 						const FVector3f UnskinnedPosition = LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(RenderVertexIndex);
-						const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+						const FVector3f GeomCacheVertexPos = (FVector3f)AlignmentTransform.TransformPosition((FVector)GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
 						const FVector3f PreSkinningTargetPos = InvSkinningTransform.TransformPosition(GeomCacheVertexPos);
 						Delta = PreSkinningTargetPos - UnskinnedPosition;
 
@@ -209,7 +209,7 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 				{
 					check(DeltaMode == EDeltaMode::PostSkinning);
 					const FVector3f SkinnedVertexPos = SkinnedPositions[SkinnedVertexIndex];
-					const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+					const FVector3f GeomCacheVertexPos = (FVector3f)AlignmentTransform.TransformPosition((FVector)GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
 					Delta = GeomCacheVertexPos - SkinnedVertexPos;
 				}
 

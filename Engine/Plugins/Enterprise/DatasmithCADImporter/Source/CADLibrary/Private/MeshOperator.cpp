@@ -129,7 +129,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 						float MaxComponent = 0;
 						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{
-							FVector Normal = Normals[ VertexInstanceID ];
+							FVector Normal = (FVector)Normals[ VertexInstanceID ];
 							if (FMath::Abs(MaxComponent) < FMath::Abs(Normal[VertexIndex]))
 							{
 								MaxComponent = Normal[VertexIndex];
@@ -153,7 +153,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 						float MaxComponent = 0;
 						for (const FVertexInstanceID VertexInstanceID : CoincidentVertexInstanceIdSet)
 						{
-							FVector Normal = Normals[ VertexInstanceID ];
+							FVector Normal = (FVector)Normals[ VertexInstanceID ];
 							if (FMath::Abs(MaxComponent) < FMath::Abs(Normal[VertexIndex]))
 							{
 								MaxComponent = Normal[VertexIndex];

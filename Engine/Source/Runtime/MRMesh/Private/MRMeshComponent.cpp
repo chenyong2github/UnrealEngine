@@ -1068,7 +1068,7 @@ void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRota
 	const int Num = Vertices.Num();
 	for (int i = 0; i < Num; i++)
 	{
-		bounds += Vertices[i];
+		bounds += (FVector)Vertices[i];
 	}
 	bounds = bounds.TransformBy(FTransform(InRotation.Rotator(), InLocation, Scale));
 
@@ -1234,7 +1234,7 @@ bool UMRMeshBodyHolder::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Coll
 		CollisionData->Vertices.AddUninitialized(PositionData->Num());
 		for (auto Position = 0; Position < PositionData->Num(); ++Position)
 		{
-			CollisionData->Vertices[Position] = (*PositionData)[Position];
+			CollisionData->Vertices[Position] = (FVector3f)(*PositionData)[Position];
 		}
 
 		// Copy the indices

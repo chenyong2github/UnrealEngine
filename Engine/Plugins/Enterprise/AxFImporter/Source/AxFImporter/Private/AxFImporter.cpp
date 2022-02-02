@@ -1143,7 +1143,7 @@ public:
 									float HoV = H_V[U][V];
 
 									float xrite = NoL*CarPaint2BRDF.CT(Params, 3, NoV, NoL, NoH, HoV);
-									FVector3f ue = NoL*UeGgxBRDF.SpecularGGX(Roughness, FVector3f(Specularity), NoV, NoL, NoH, HoV);
+									FVector3f ue = FVector3f(NoL*UeGgxBRDF.SpecularGGX(Roughness, FVector(Specularity), NoV, NoL, NoH, HoV));
 
 									SumOfSquaredDiff += FMath::Square(FMath::Max(xrite, 0.0f) - FMath::Max(ue.X, 0.0f));
 									SumOfAbsDiff += FMath::Abs(FMath::Max(xrite, 0.0f) - FMath::Max(ue.X, 0.0f));

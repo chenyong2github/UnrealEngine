@@ -593,9 +593,9 @@ void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& Accu
 		};
 		const FVector Verts[3] =
 		{
-			Vertices[VertIndices[0]] * PositionScale,
-			Vertices[VertIndices[1]] * PositionScale,
-			Vertices[VertIndices[2]] * PositionScale
+			(FVector)Vertices[VertIndices[0]] * PositionScale,
+			(FVector)Vertices[VertIndices[1]] * PositionScale,
+			(FVector)Vertices[VertIndices[2]] * PositionScale
 		};
 		auto FaceNormal = (Verts[0] - Verts[1]) ^ (Verts[2] - Verts[0]);
 		FaceNormal.Normalize();
@@ -626,7 +626,7 @@ void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& Accu
 		
 		// We don't have UV info to calculate the correct tangent here
 		// so juse use an arbitrary vector to get a tangent perpendicular to the normal...
-		const auto Cross = (MeshCenter - Vertices[Index]) ^ AccumulatedNormal.Normal;
+		const auto Cross = (MeshCenter - (FVector)Vertices[Index]) ^ AccumulatedNormal.Normal;
 		auto Tangent = (AccumulatedNormal.Normal ^ Cross);
 		Tangent.Normalize();
 		OutTangentData[2 * Index + 0] = FPackedNormal(Tangent);

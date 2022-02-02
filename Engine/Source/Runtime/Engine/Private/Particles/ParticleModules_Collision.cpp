@@ -150,8 +150,8 @@ void UParticleModuleCollision::Spawn(FParticleEmitterInstance* Owner, int32 Offs
 	SPAWN_INIT;
 	{
 		PARTICLE_ELEMENT(FParticleCollisionPayload, CollisionPayload);
-		CollisionPayload.UsedDampingFactor = DampingFactor.GetValue(Owner->EmitterTime, Owner->Component);
-		CollisionPayload.UsedDampingFactorRotation = DampingFactorRotation.GetValue(Owner->EmitterTime, Owner->Component);
+		CollisionPayload.UsedDampingFactor = (FVector3f)DampingFactor.GetValue(Owner->EmitterTime, Owner->Component);
+		CollisionPayload.UsedDampingFactorRotation = (FVector3f)DampingFactorRotation.GetValue(Owner->EmitterTime, Owner->Component);
 		CollisionPayload.UsedCollisions = FMath::RoundToInt(MaxCollisions.GetValue(Owner->EmitterTime, Owner->Component));
 		CollisionPayload.Delay = DelayAmount.GetValue(Owner->EmitterTime, Owner->Component);
 		if (CollisionPayload.Delay > SpawnTime)
@@ -324,7 +324,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 		FVector			OldLocation;
 
 		// Location won't be calculated till after tick so we need to calculate an intermediate one here.
-		Location	= Particle.Location + Particle.Velocity * DeltaTime;
+		Location	= Particle.Location + (FVector)Particle.Velocity * DeltaTime;
 		if (LODLevel->RequiredModule->bUseLocalSpace)
 		{
 			// Transform the location and old location into world space
@@ -338,7 +338,7 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 		FVector	Direction = (Location - OldLocation).GetSafeNormal();
 
 		// Determine the size
-		FVector Size = Particle.Size * ParentScale;
+		FVector Size = (FVector)Particle.Size * ParentScale;
 		FVector	Extent(0.0f);
 
 		// Setup extent for mesh particles. 
@@ -413,11 +413,11 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 					if (LODLevel->RequiredModule->bUseLocalSpace)
 					{
 						// Transform the particle velocity to world space
-						FVector OldVelocity		= OwnerTM.TransformVector(Particle.Velocity);
-						FVector	BaseVelocity	= OwnerTM.TransformVector(Particle.BaseVelocity);
-						BaseVelocity			= BaseVelocity.MirrorByVector(Hit.Normal) * CollisionPayload.UsedDampingFactor;
+						FVector OldVelocity		= OwnerTM.TransformVector((FVector)Particle.Velocity);
+						FVector	BaseVelocity	= OwnerTM.TransformVector((FVector)Particle.BaseVelocity);
+						BaseVelocity			= BaseVelocity.MirrorByVector(Hit.Normal) * (FVector)CollisionPayload.UsedDampingFactor;
 
-						Particle.BaseVelocity		= OwnerTM.InverseTransformVector(BaseVelocity);
+						Particle.BaseVelocity		= (FVector3f)OwnerTM.InverseTransformVector(BaseVelocity);
 						Particle.BaseRotationRate	= Particle.BaseRotationRate * CollisionPayload.UsedDampingFactorRotation.X;
 						if (bMeshRotationActive && MeshRotationOffset > 0)
 						{
@@ -426,8 +426,8 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 						}
 
 						// Reset the current velocity and manually adjust location to bounce off based on normal and time of collision.
-						FVector NewVelocity	= Direction.MirrorByVector(Hit.Normal) * (Location - OldLocation).Size() * CollisionPayload.UsedDampingFactor;
-						Particle.Velocity		= FVector::ZeroVector;
+						FVector NewVelocity	= Direction.MirrorByVector(Hit.Normal) * (Location - OldLocation).Size() * (FVector)CollisionPayload.UsedDampingFactor;
+						Particle.Velocity		= FVector3f::ZeroVector;
 
 						// New location
 						FVector	NewLocation		= Location + NewVelocity * (1.f - Hit.Time);
@@ -447,10 +447,10 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 					}
 					else
 					{
-						FVector vOldVelocity = Particle.Velocity;
+						FVector vOldVelocity(Particle.Velocity);
 
 						// Reflect base velocity and apply damping factor.
-						Particle.BaseVelocity		= Particle.BaseVelocity.MirrorByVector(Hit.Normal) * CollisionPayload.UsedDampingFactor;
+						Particle.BaseVelocity		= Particle.BaseVelocity.MirrorByVector((FVector3f)Hit.Normal) * CollisionPayload.UsedDampingFactor;
 						Particle.BaseRotationRate	= Particle.BaseRotationRate * CollisionPayload.UsedDampingFactorRotation.X;
 						if (bMeshRotationActive && MeshRotationOffset > 0)
 						{
@@ -459,8 +459,8 @@ void UParticleModuleCollision::Update(FParticleEmitterInstance* Owner, int32 Off
 						}
 
 						// Reset the current velocity and manually adjust location to bounce off based on normal and time of collision.
-						FVector vNewVelocity	= Direction.MirrorByVector(Hit.Normal) * (Location - OldLocation).Size() * CollisionPayload.UsedDampingFactor;
-						Particle.Velocity		= FVector::ZeroVector;
+						FVector vNewVelocity	= Direction.MirrorByVector(Hit.Normal) * (Location - OldLocation).Size() * (FVector)CollisionPayload.UsedDampingFactor;
+						Particle.Velocity		= FVector3f::ZeroVector;
 						Particle.Location	   += vNewVelocity * (1.f - Hit.Time);
 
 						if (bApplyPhysics)

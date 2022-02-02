@@ -1148,9 +1148,9 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 				Face.Uvs[i] = FVector2D::ZeroVector;
 			}
 
-			const FVector& P0 = VertexPositions[VertexIDs[0]];
-			const FVector& P1 = VertexPositions[VertexIDs[1]];
-			const FVector& P2 = VertexPositions[VertexIDs[2]];
+			const FVector& P0 = (FVector)VertexPositions[VertexIDs[0]];
+			const FVector& P1 = (FVector)VertexPositions[VertexIDs[1]];
+			const FVector& P2 = (FVector)VertexPositions[VertexIDs[2]];
 
 			// Compute triangle normal and area
 			FVector RawNormal = (P1 - P2) ^ (P0 - P2);
@@ -1162,7 +1162,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 			if (Face.Area < SMALL_NUMBER)
 			{
 				// The face is degenerate, use the wedge normal mean
-				Face.Normal = (Normals[InstanceIDs[0]] + Normals[InstanceIDs[1]] + Normals[InstanceIDs[2]]) / 3.f;
+				Face.Normal = (FVector)(Normals[InstanceIDs[0]] + Normals[InstanceIDs[1]] + Normals[InstanceIDs[2]]) / 3.f;
 				if (!Face.Normal.Normalize())
 				{
 					continue;

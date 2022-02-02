@@ -187,7 +187,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	// copy vertex positions. Later we may have to append duplicate vertices to resolve non-manifold structures.
 	for (const FVertexID VertexID : MeshIn->Vertices().GetElementIDs())
 	{
-		const FVector Position = VertexPositions.Get(VertexID);
+		const FVector3f Position = VertexPositions.Get(VertexID);
 		int NewVertIdx = MeshOut.AppendVertex( (FVector3d)Position);
 		VertIDMap[NewVertIdx] = VertexID;
 	}
@@ -332,7 +332,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				if (bDuplicate[i])
 				{
 					const FVertexID& TriangleVertID = TriangleVertexIDs[i];
-					const FVector Position = VertexPositions[TriangleVertID];
+					const FVector3f Position = VertexPositions[TriangleVertID];
 					const int32 NewVertIdx = MeshOut.AppendVertex( (FVector3d)Position );
 					VertexIDs[i] = NewVertIdx;
 					VertIDMap.SetNumUninitialized(NewVertIdx + 1);
@@ -860,8 +860,8 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 		TArrayView<const FVertexInstanceID> InstanceTri = SourceMesh->GetTriangleVertexInstances(TriangleID);
 		for (int32 j = 0; j < 3; ++j)
 		{
-			FVector Normal = InstanceNormals[InstanceTri[j]];
-			FVector Tangent = InstanceTangents[InstanceTri[j]];
+			FVector Normal(InstanceNormals[InstanceTri[j]]);
+			FVector Tangent(InstanceTangents[InstanceTri[j]]);
 			float BitangentSign = InstanceSigns[InstanceTri[j]];
 			TVector<RealType> Bitangent = VectorUtil::Bitangent((TVector<RealType>)Normal, (TVector<RealType>)Tangent, (RealType)BitangentSign);
 			Tangent.Normalize();

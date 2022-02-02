@@ -1216,7 +1216,7 @@ FReflectionCaptureProxy::FReflectionCaptureProxy(const UReflectionCaptureCompone
 {
 	PackedIndex = INDEX_NONE;
 	SortedCaptureIndex = INDEX_NONE;
-	CaptureOffset = InComponent->CaptureOffset;
+	CaptureOffset = FVector3f(InComponent->CaptureOffset);
 
 	const USphereReflectionCaptureComponent* SphereComponent = Cast<const USphereReflectionCaptureComponent>(InComponent);
 	const UBoxReflectionCaptureComponent* BoxComponent = Cast<const UBoxReflectionCaptureComponent>(InComponent);

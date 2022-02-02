@@ -128,7 +128,7 @@ bool UParticleModuleEventGenerator::HandleParticleSpawned(FParticleEmitterInstan
 				FVector ParticleLocation = EventGenInfo.bUseOrbitOffset ? Owner->GetParticleLocationWithOrbitOffset(NewParticle) : FVector(NewParticle->Location);
 
 				Owner->Component->ReportEventSpawn(EventGenInfo.CustomName, Owner->EmitterTime, 
-					ParticleLocation, NewParticle->Velocity, EventGenInfo.ParticleModuleEventsToSendToGame);
+					ParticleLocation, FVector(NewParticle->Velocity), EventGenInfo.ParticleModuleEventsToSendToGame);
 				bProcessed = true;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				Owner->EventCount++;
@@ -158,7 +158,7 @@ bool UParticleModuleEventGenerator::HandleParticleKilled(FParticleEmitterInstanc
 				FVector ParticleLocation = EventGenInfo.bUseOrbitOffset ? Owner->GetParticleLocationWithOrbitOffset(DeadParticle) : FVector(DeadParticle->Location);
 
 				Owner->Component->ReportEventDeath(EventGenInfo.CustomName, 
-					Owner->EmitterTime, ParticleLocation, DeadParticle->Velocity, 
+					Owner->EmitterTime, ParticleLocation, (FVector)DeadParticle->Velocity,
 					EventGenInfo.ParticleModuleEventsToSendToGame, DeadParticle->RelativeTime);
 				bProcessed = true;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -208,7 +208,7 @@ bool UParticleModuleEventGenerator::HandleParticleCollision(FParticleEmitterInst
 					Owner->EmitterTime, 
 					Hit->Location,
 					CollideDirection, 
-					CollideParticle->Velocity, 
+					(FVector)CollideParticle->Velocity,
 					EventGenInfo.ParticleModuleEventsToSendToGame,
 					CollideParticle->RelativeTime, 
 					Hit->Normal, 

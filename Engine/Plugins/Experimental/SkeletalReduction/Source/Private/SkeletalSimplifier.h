@@ -372,7 +372,7 @@ namespace SkeletalSimplifier
 		for (int i = 0; i < newWedgeQuadrics.Num(); ++i)
 		{
 			MeshVertType& simpVert = EdgeAndNewVertArray[i].Get<2>();
-			simpVert.GetPos() = newPos;
+			simpVert.GetPos() = (FVector3f)newPos;
 
 			// If the area is non-degenerate:  by default the elements in newVertPair are copies of the original v1 verts.
 			if (newWedgeQuadrics[i].TotalArea() > 1.e-6)
@@ -549,13 +549,13 @@ namespace SkeletalSimplifier
 			
 				if (bCheckDistance)
 				{
-					const FVector NewPos = VertexUpdateArray[0].Get<2>().GetPos();
+					const FVector NewPos = (FVector)VertexUpdateArray[0].Get<2>().GetPos();
 
 					float Dist = 0.f;
 					for (SimpTriType* Tri : DirtyTris)
 					{
-						FVector TriNorm = Tri->GetNormal();
-						FVector PosToTri = NewPos - Tri->verts[0]->GetPos();
+						FVector TriNorm = (FVector)Tri->GetNormal();
+						FVector PosToTri = NewPos - (FVector)Tri->verts[0]->GetPos();
 						Dist = FMath::Max(FMath::Abs(FVector::DotProduct(TriNorm, PosToTri)), Dist);
 					}
 

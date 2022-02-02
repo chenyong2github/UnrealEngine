@@ -170,7 +170,7 @@ const FVector FCombinedGraphDataSource::GetUncachedValueFromTimeRange( const flo
 	}
 	AggregatedValue.Z *= InvNumSources;
 
-	return AggregatedValue;
+	return (FVector)AggregatedValue;
 }
 
 void FCombinedGraphDataSource::GetStartIndicesFromTimeRange( const float StartTimeMS, const float EndTimeMS, TMap<FGuid,uint32>& out_StartIndices ) const

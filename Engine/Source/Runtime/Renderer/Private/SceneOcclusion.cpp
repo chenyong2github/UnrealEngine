@@ -553,7 +553,7 @@ static bool AllocateProjectedShadowOcclusionQuery(
 	{
 		// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to
 		// be translated.
-		const FVector4f PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation,0);
+		const FVector4f PreShadowToPreViewTranslation(FVector3f(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation),0);
 	
 		// If the shadow frustum is farther from the view origin than the near clipping plane,
 		// it can't intersect the near clipping plane.
@@ -617,10 +617,10 @@ static void PrepareDirectionalLightShadowOcclusionQuery(uint32& BaseVertexIndex,
 
 	FVector3f Verts[4] =
 	{
-		CameraDirection * SplitNear + StartCameraRightOffset + StartCameraUpOffset,
-		CameraDirection * SplitNear + StartCameraRightOffset - StartCameraUpOffset,
-		CameraDirection * SplitNear - StartCameraRightOffset - StartCameraUpOffset,
-		CameraDirection * SplitNear - StartCameraRightOffset + StartCameraUpOffset
+		FVector3f(CameraDirection * SplitNear + StartCameraRightOffset + StartCameraUpOffset),
+		FVector3f(CameraDirection * SplitNear + StartCameraRightOffset - StartCameraUpOffset),
+		FVector3f(CameraDirection * SplitNear - StartCameraRightOffset - StartCameraUpOffset),
+		FVector3f(CameraDirection * SplitNear - StartCameraRightOffset + StartCameraUpOffset)
 	};
 
 	DestinationBuffer[BaseVertexIndex + 0] = Verts[0];
@@ -646,7 +646,7 @@ static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVecto
 {
 	// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to
 	// be translated.
-	const FVector4f PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation, 0);
+	const FVector4f PreShadowToPreViewTranslation(FVector3f(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation), 0);
 
 	FVector3f* Vertices = &DestinationBuffer[BaseVertexIndex];
 	// Generate vertices for the shadow's frustum.

@@ -616,7 +616,7 @@ TArray<FVector> UMeshPaintingSubsystem::GetVerticesForLOD( const UStaticMesh* St
 		const uint32 NumVertices = VertexBuffer->GetNumVertices();
 		for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
-			Vertices.Add(VertexBuffer->VertexPosition(VertexIndex));
+			Vertices.Add((FVector)VertexBuffer->VertexPosition(VertexIndex));
 		}		
 	}
 	return Vertices;
@@ -1288,7 +1288,7 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 				FPaintedMeshVertex PaintedVertex;
 				for (uint32 VertexIndex = 0; VertexIndex < BaseLOD.GetNumVertices(); ++VertexIndex )
 				{
-					const FVector VertexPos = BaseLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+					const FVector VertexPos = (FVector)BaseLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 
 					FPackedNormal VertexTangentX, VertexTangentZ;
 					VertexTangentX = BaseLOD.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex);
@@ -1317,7 +1317,7 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 
 					for (uint32 VertIndex=0; VertIndex<ApplyLOD.GetNumVertices(); VertIndex++)
 					{
-						const FVector VertexPos = ApplyLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
+						const FVector VertexPos = (FVector)ApplyLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
 						CombinedBounds += VertexPos;
 					}
 					
@@ -1336,7 +1336,7 @@ void UMeshPaintingSubsystem::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapt
 					for (uint32 VertexIndex = 0; VertexIndex < ApplyLOD.GetNumVertices(); ++VertexIndex)
 					{
 						TArray<FPaintedMeshVertex> PointsToConsider;
-						const FVector CurPosition = ApplyLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+						const FVector CurPosition = (FVector)ApplyLOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 
 						FPackedNormal VertexTangentZ;
 						VertexTangentZ = BaseLOD.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);

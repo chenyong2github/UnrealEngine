@@ -191,7 +191,7 @@ FORCENOINLINE bool TestVectorsEqual3(const VectorRegister4Double& Vec0, const Ve
 }
 
 /**
- * Tests if two vectors (xyz) are equal within an optional tolerance
+ * Tests if two vectors of floats (xyz) are equal within an optional tolerance
  *
  * @param Vec0 First vector
  * @param Vec1 Second vector
@@ -217,6 +217,35 @@ FORCENOINLINE bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Ve
 	}
 	CheckPassing(GSum <= Tolerance);
 	return GSum <= Tolerance;
+}
+
+/**
+ * Tests if two vectors of doubles (xyz) are equal within an optional tolerance
+ *
+ * @param Vec0 First vector
+ * @param Vec1 Second vector
+ * @param Tolerance Error allowed for the comparison
+ *
+ * @return true if equal(ish)
+ */
+FORCENOINLINE bool TestFVector3Equal(const FVector3d& Vec0, const FVector3d& Vec1, double Tolerance = 0.0l)
+{
+	GScratchDouble[0] = Vec0.X;
+	GScratchDouble[1] = Vec0.Y;
+	GScratchDouble[2] = Vec0.Z;
+	GScratchDouble[3] = 0.0f;
+	GScratchDouble[4] = Vec1.X;
+	GScratchDouble[5] = Vec1.Y;
+	GScratchDouble[6] = Vec1.Z;
+	GScratchDouble[7] = 0.0f;
+	GSumDouble = 0.f;
+
+	for (int32 Component = 0; Component < 3; Component++)
+	{
+		GSumDouble += FMath::Abs<double>(GScratchDouble[Component + 0] - GScratchDouble[Component + 4]);
+	}
+	CheckPassing(GSumDouble <= Tolerance);
+	return GSumDouble <= Tolerance;
 }
 
 FORCENOINLINE bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)

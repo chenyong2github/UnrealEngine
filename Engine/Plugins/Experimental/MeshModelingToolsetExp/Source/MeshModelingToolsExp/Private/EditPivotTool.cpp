@@ -141,7 +141,7 @@ void VertexIteration(const FMeshDescription* Mesh, TFunctionRef<void(int32, cons
 
 	for (const FVertexID VertexID : Mesh->Vertices().GetElementIDs())
 	{
-		const FVector Position = VertexPositions[VertexID];
+		const FVector Position = (FVector)VertexPositions[VertexID];
 		ApplyFunc(VertexID.GetValue(), Position);
 	}
 }

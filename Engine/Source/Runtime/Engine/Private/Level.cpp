@@ -1693,7 +1693,7 @@ void ULevel::CreateModelComponents()
 				FBox NodeBounds(ForceInit);
 				for (int32 VertexIndex = 0; VertexIndex < Node.NumVertices; VertexIndex++)
 				{
-					NodeBounds += Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
+					NodeBounds += (FVector)Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
 				}
 
 				// Create a sort key for this node using the grid cell containing the center of the node's bounding box.
@@ -1828,20 +1828,20 @@ void ULevel::CreateModelComponents()
 				{
 					const FBspNode& Node = Model->Nodes[NodeGroup->Nodes[NodeIndex]];
 					const FBspSurf& NodeSurf = Model->Surfs[Node.iSurf];
-					const FVector& TextureBase = Model->Points[NodeSurf.pBase];
-					const FVector& TextureX = Model->Vectors[NodeSurf.vTextureU];
-					const FVector& TextureY = Model->Vectors[NodeSurf.vTextureV];
+					const FVector& TextureBase = (FVector)Model->Points[NodeSurf.pBase];
+					const FVector& TextureX = (FVector)Model->Vectors[NodeSurf.vTextureU];
+					const FVector& TextureY = (FVector)Model->Vectors[NodeSurf.vTextureV];
 					const int32 BaseVertexIndex = NodeGroup->Vertices.Num();
 					// Compute the surface's tangent basis.
-					FVector NodeTangentX = Model->Vectors[NodeSurf.vTextureU].GetSafeNormal();
-					FVector NodeTangentY = Model->Vectors[NodeSurf.vTextureV].GetSafeNormal();
-					FVector NodeTangentZ = Model->Vectors[NodeSurf.vNormal].GetSafeNormal();
+					FVector NodeTangentX = (FVector)Model->Vectors[NodeSurf.vTextureU].GetSafeNormal();
+					FVector NodeTangentY = (FVector)Model->Vectors[NodeSurf.vTextureV].GetSafeNormal();
+					FVector NodeTangentZ = (FVector)Model->Vectors[NodeSurf.vNormal].GetSafeNormal();
 
 					// Generate the node's vertices.
 					for(uint32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 					{
 						/*const*/ FVert& Vert = Model->Verts[Node.iVertPool + VertexIndex];
-						const FVector& VertexWorldPosition = Model->Points[Vert.pVertex];
+						const FVector VertexWorldPosition = (FVector)Model->Points[Vert.pVertex];
 
 						FStaticLightingVertex* DestVertex = new(NodeGroup->Vertices) FStaticLightingVertex;
 						DestVertex->WorldPosition = VertexWorldPosition;

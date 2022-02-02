@@ -370,7 +370,7 @@ namespace ShaderDrawDebug
 	{
 		OutParameters.ShaderDrawCursorPos				= Data.CursorPosition;
 		OutParameters.ShaderDrawMaxElementCount			= Data.MaxElementCount;
-		OutParameters.ShaderDrawTranslatedWorldOffset	= Data.ShaderDrawTranslatedWorldOffset;
+		OutParameters.ShaderDrawTranslatedWorldOffset	= (FVector3f)Data.ShaderDrawTranslatedWorldOffset;
 
 		check(Data.Buffer != nullptr);
 		OutParameters.OutShaderDrawPrimitive = GraphBuilder.CreateUAV(Data.Buffer);		

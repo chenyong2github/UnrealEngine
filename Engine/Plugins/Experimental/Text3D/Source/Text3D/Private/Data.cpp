@@ -98,12 +98,12 @@ int32 FData::AddVertex(const FVector& Position, const FVector& TangentX, const F
 	check(Glyph.Get());
 	FStaticMeshAttributes& StaticMeshAttributes = Glyph->GetStaticMeshAttributes();
 	const int32 VertexIndex = VertexCountBeforeAdd + AddVertexIndex++;
-	StaticMeshAttributes.GetVertexPositions()[FVertexID(VertexIndex)] = Position;
+	StaticMeshAttributes.GetVertexPositions()[FVertexID(VertexIndex)] = (FVector3f)Position;
 	const FVertexInstanceID Instance(static_cast<uint32>(VertexIndex));
 
 	StaticMeshAttributes.GetVertexInstanceUVs()[Instance] = FVector2f(TextureCoordinates);
-	StaticMeshAttributes.GetVertexInstanceNormals()[Instance] = TangentZ;
-	StaticMeshAttributes.GetVertexInstanceTangents()[Instance] = TangentX;
+	StaticMeshAttributes.GetVertexInstanceNormals()[Instance] = (FVector3f)TangentZ;
+	StaticMeshAttributes.GetVertexInstanceTangents()[Instance] = (FVector3f)TangentX;
 
 	return VertexIndex;
 }

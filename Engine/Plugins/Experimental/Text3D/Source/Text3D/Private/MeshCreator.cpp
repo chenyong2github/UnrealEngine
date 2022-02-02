@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "MeshCreator.h"
@@ -72,7 +72,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 
 		for (int32 Index = TypeFirstVertex; Index < TypeLastVertex; Index++)
 		{
-			const FVector Position = VertexPositions[FVertexID(Index)];
+			const FVector Position = (FVector)VertexPositions[FVertexID(Index)];
 			const FVector2f TextureCoordinate = (FVector2f(Position.Y, Position.Z) - Box.Min) / Box.Max;
 			VertexInstanceUVs[FVertexInstanceID(Index)] = { TextureCoordinate.X, 1.f - TextureCoordinate.Y };
 		}
@@ -321,9 +321,9 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 		const FVertexID VertexID(GroupIn.FirstVertex + VertexIndex);
 		const FVertexInstanceID InstanceID(static_cast<uint32>(VertexID.GetValue()));
 
-		const FVector Position = VertexPositions[VertexID];
-		const FVector Normal = VertexNormals[InstanceID];
-		const FVector Tangent = VertexTangents[InstanceID];
+		const FVector Position = (FVector)VertexPositions[VertexID];
+		const FVector Normal = (FVector)VertexNormals[InstanceID];
+		const FVector Tangent = (FVector)VertexTangents[InstanceID];
 
 		Data->AddVertex({ Extrude - Position.X, Position.Y, Position.Z }, { -Tangent.X, Tangent.Y, Tangent.Z }, { -Normal.X, Normal.Y, Normal.Z }, FVector2D(VertexUVs[InstanceID]));
 	}

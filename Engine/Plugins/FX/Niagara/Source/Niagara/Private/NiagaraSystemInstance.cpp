@@ -1962,12 +1962,12 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineLocalToWorldNoScale = FMatrix44f(LocalToWorldNoScale);
 		CurrentOwnerParameters.EngineWorldToLocalNoScale = FMatrix44f(LocalToWorldNoScale.Inverse());
 		CurrentOwnerParameters.EngineRotation = FQuat4f((float)LastRotation.X, (float)LastRotation.Y, (float)LastRotation.Z, (float)LastRotation.W);
-		CurrentOwnerParameters.EnginePosition = (FVector4f)Location; // LWC_TODO: precision loss
-		CurrentOwnerParameters.EngineVelocity = (FVector4f)((Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds);
+		CurrentOwnerParameters.EnginePosition = (FVector3f)Location; // LWC_TODO: precision loss
+		CurrentOwnerParameters.EngineVelocity = (FVector3f)((Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds);
 		CurrentOwnerParameters.EngineXAxis = CurrentOwnerParameters.EngineRotation.GetAxisX();
 		CurrentOwnerParameters.EngineYAxis = CurrentOwnerParameters.EngineRotation.GetAxisY();
 		CurrentOwnerParameters.EngineZAxis = CurrentOwnerParameters.EngineRotation.GetAxisZ();
-		CurrentOwnerParameters.EngineScale = (FVector4f)GatheredInstanceParameters.ComponentTrans.GetScale3D();
+		CurrentOwnerParameters.EngineScale = (FVector3f)GatheredInstanceParameters.ComponentTrans.GetScale3D();
 		CurrentOwnerParameters.EngineLWCTile = LWCTile;
 		CurrentOwnerParameters.EngineLWCTile.W = FLargeWorldRenderScalar::GetTileSize();
 	}

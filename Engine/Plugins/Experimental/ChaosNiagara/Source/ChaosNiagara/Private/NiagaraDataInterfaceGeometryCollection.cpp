@@ -159,13 +159,13 @@ void FNDIGeometryCollectionData::Init(UNiagaraDataInterfaceGeometryCollection* I
 			FVector Extents;
 			Interface->GeometryCollectionActor->GetActorBounds(false, Origin, Extents, true);
 
-			BoundsOrigin = Origin;
-			BoundsExtent = Extents;
+			BoundsOrigin = (FVector3f)Origin;	// LWC_TODO: Precision Loss
+			BoundsExtent = (FVector3f)Extents;	// LWC_TODO: Precision Loss
 
 			for (int i = 0; i < NumPieces; ++i)
 			{
 				FBox CurrBox = BoundingBoxes[i];
-				FVector3f BoxSize = CurrBox.Max - CurrBox.Min;
+				FVector3f BoxSize = FVector3f(CurrBox.Max - CurrBox.Min);
 				AssetArrays->BoundsBuffer[i] = FVector4f(BoxSize.X, BoxSize.Y, BoxSize.Z, 0);
 			}
 		}
@@ -217,8 +217,8 @@ void FNDIGeometryCollectionData::Update(UNiagaraDataInterfaceGeometryCollection*
 			FVector Extents;
 			Interface->GeometryCollectionActor->GetActorBounds(false, Origin, Extents, true);
 
-			BoundsOrigin = Origin;
-			BoundsExtent = Extents;
+			BoundsOrigin = (FVector3f)Origin;
+			BoundsExtent = (FVector3f)Extents;
 
 			for (int i = 0; i < NumPieces; ++i)
 			{
@@ -234,7 +234,7 @@ void FNDIGeometryCollectionData::Update(UNiagaraDataInterfaceGeometryCollection*
 				FBox CurrBox = BoundingBoxes[i];
 
 				// #todo(dmp): save this somewhere in an array?
-				FVector3f LocalTranslation = (CurrBox.Max + CurrBox.Min) * .5;
+				FVector LocalTranslation = (CurrBox.Max + CurrBox.Min) * .5;
 				FTransform LocalOffset(LocalTranslation);
 								
 				int32 CurrTransformIndex = TransformIndexArray[i];

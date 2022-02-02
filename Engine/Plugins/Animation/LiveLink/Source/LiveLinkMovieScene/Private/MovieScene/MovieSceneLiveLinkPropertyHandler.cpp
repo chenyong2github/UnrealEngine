@@ -21,12 +21,12 @@ namespace LiveLinkPropertyHandlerUtils
 			InSourceChannels[InOutStartIndex++].Evaluate(InFrameTime, TempVector[i]);
 		}
 
-		OutVector = TempVector;
+		OutVector = (FVector)TempVector;
 	}
 
 	void FillVector(int32 InKeyIndex, int32& InOutStartIndex, const TArray<FMovieSceneFloatChannel>& InSourceChannels, FVector& OutVector)
 	{
-		FVector3f TempVector;
+		FVector TempVector;
 
 		for (int32 i = 0; i < 3; ++i)
 		{

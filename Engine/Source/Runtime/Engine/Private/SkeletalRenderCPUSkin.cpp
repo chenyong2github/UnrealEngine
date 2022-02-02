@@ -284,7 +284,7 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 		for (int i = 0; i < CachedFinalVertices.Num(); i++)
 		{
 			MeshLOD.PositionVertexBuffer.VertexPosition(i) = CachedFinalVertices[i].Position;
-			MeshLOD.StaticMeshVertexBuffer.SetVertexTangents(i, CachedFinalVertices[i].TangentX.ToFVector(), CachedFinalVertices[i].GetTangentY(), CachedFinalVertices[i].TangentZ.ToFVector());
+			MeshLOD.StaticMeshVertexBuffer.SetVertexTangents(i, (FVector3f)CachedFinalVertices[i].TangentX.ToFVector(), CachedFinalVertices[i].GetTangentY(), (FVector3f)CachedFinalVertices[i].TangentZ.ToFVector());
 
 			for (uint32 UVIndex = 0; UVIndex < LOD.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(); ++UVIndex)
 			{
@@ -674,7 +674,7 @@ FORCEINLINE void ApplyMorphBlend( VertexType& DestVertex, const FMorphTargetDelt
 	FVector TanZ = DestVertex.TangentZ.ToFVector();
 
 	// add normal offset. can only apply normal deltas up to a weight of 1
-	DestVertex.TangentZ = FVector(TanZ + SrcMorph.TangentZDelta * FMath::Min(Weight,1.0f)).GetUnsafeNormal();
+	DestVertex.TangentZ = (TanZ + FVector(SrcMorph.TangentZDelta * FMath::Min(Weight,1.0f))).GetUnsafeNormal();
 	// Recover W
 	DestVertex.TangentZ.Vector.W = W;
 } 
@@ -758,10 +758,10 @@ static void SkinVertexSection(
 			const int32 VertexBufferIndex = Section.GetVertexBufferIndex() + VertexIndex;
 
 			VertexType SrcSoftVertex;
-			const FVector& VertexPosition = LOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex);
+			const FVector& VertexPosition = (FVector)LOD.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex);
 			FPlatformMisc::Prefetch(&VertexPosition, PLATFORM_CACHE_LINE_SIZE);	// Prefetch next vertices
 			
-			SrcSoftVertex.Position = VertexPosition;
+			SrcSoftVertex.Position = (FVector3f)VertexPosition;
 			SrcSoftVertex.TangentX = LOD.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexBufferIndex);
 			SrcSoftVertex.TangentZ = LOD.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexBufferIndex);
 			for (uint32 j = 0; j < VertexType::NumTexCoords; j++)
@@ -961,7 +961,7 @@ static void SkinVertexSection(
 					{
 						if (InClothSimData.Positions.IsValidIndex(InIndex))
 						{
-							return FVector(InClothSimData.Transform.TransformPosition(InClothSimData.Positions[InIndex]));
+							return FVector(InClothSimData.Transform.TransformPosition((FVector)InClothSimData.Positions[InIndex]));
 						}
 
 						return FVector::ZeroVector;
@@ -971,7 +971,7 @@ static void SkinVertexSection(
 					{
 						if (InClothSimData.Normals.IsValidIndex(InIndex))
 						{
-							return FVector(InClothSimData.Transform.TransformVector(InClothSimData.Normals[InIndex]));
+							return FVector(InClothSimData.Transform.TransformVector((FVector)InClothSimData.Normals[InIndex]));
 						}
 
 						return FVector(0, 0, 1);

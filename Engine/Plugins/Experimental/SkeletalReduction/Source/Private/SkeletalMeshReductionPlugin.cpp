@@ -499,7 +499,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		bool bHasBadNTB =  ( Vertex.TangentX.ContainsNaN() || Vertex.TangentY.ContainsNaN() || Vertex.TangentZ.ContainsNaN() );
 
 		// transform position
-		FVector3f WeightedPosition = (FVector4f)XForm.TransformPosition(Vertex.Position);
+		FVector3f WeightedPosition = (FVector4f)XForm.TransformPosition((FVector)Vertex.Position);
 
 		// transform tangent space
 		FVector3f WeightedTangentX(1.f, 0.f, 0.f);
@@ -508,8 +508,8 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 
 		if (!bHasBadNTB)
 		{
-			WeightedTangentX = (FVector4f)XForm.TransformVector(Vertex.TangentX);
-			WeightedTangentY = (FVector4f)XForm.TransformVector(Vertex.TangentY);
+			WeightedTangentX = (FVector4f)XForm.TransformVector((FVector)Vertex.TangentX);
+			WeightedTangentY = (FVector4f)XForm.TransformVector((FVector)Vertex.TangentY);
 			WeightedTangentZ = (FVector4f)XForm.TransformVector((FVector4)Vertex.TangentZ);
 		}
 		

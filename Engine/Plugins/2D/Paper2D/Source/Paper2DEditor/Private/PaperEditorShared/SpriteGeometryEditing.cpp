@@ -387,11 +387,11 @@ void FSpriteGeometryEditingHelper::DrawGeometry(const FSceneView& View, FPrimiti
 				FDynamicMeshVertex MeshVertex;
 				MeshVertex.Color = BackgroundColor;
 				MeshVertex.TextureCoordinate[0] = FVector2f::ZeroVector;
-				MeshVertex.SetTangents(PaperAxisX, PaperAxisY, PaperAxisZ);
+				MeshVertex.SetTangents((FVector3f)PaperAxisX, (FVector3f)PaperAxisY, (FVector3f)PaperAxisZ);
 
 				for (const FVector2D& SrcTriangleVertex : TriangulatedPolygonVertices)
 				{
-					MeshVertex.Position = EditorContext->TextureSpaceToWorldSpace(SrcTriangleVertex);
+					MeshVertex.Position = (FVector3f)EditorContext->TextureSpaceToWorldSpace(SrcTriangleVertex);
 					MeshBuilder.AddVertex(MeshVertex);
 				}
 

@@ -125,8 +125,8 @@ void UParticleModuleTypeDataBeam2::Spawn(FParticleEmitterInstance* Owner, int32 
 	// If there is no Source module, use the emitter position as the source point
 	if (BeamInst->BeamModule_Source == NULL)
 	{
-		BeamData->SourcePoint	= Component->GetComponentLocation();
-		BeamData->SourceTangent = Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+		BeamData->SourcePoint	= (FVector3f)Component->GetComponentLocation();
+		BeamData->SourceTangent = FVector3f(Component->GetComponentTransform().GetScaledAxis( EAxis::X ));
 		BeamData->SourceStrength = 1.0f;
 	}
 
@@ -136,7 +136,7 @@ void UParticleModuleTypeDataBeam2::Spawn(FParticleEmitterInstance* Owner, int32 
 		// Set the particle target based on the distance
 		float	TotalDistance	= Distance.GetValue(Particle.RelativeTime, Component);
 		// Always use the X-axis of the component as the direction
-		FVector	Direction		= Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+		FVector3f	Direction		= (FVector3f)Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 		Direction.Normalize();
 		// Calculate the final target point
 		BeamData->TargetPoint	= BeamData->SourcePoint + Direction * TotalDistance;
@@ -244,8 +244,8 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 		// If there is no Source module, use the emitter location
 		if (BeamInst->BeamModule_Source == NULL)
 		{
-			BeamData->SourcePoint	= Component->GetComponentLocation();
-			BeamData->SourceTangent = Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			BeamData->SourcePoint	= (FVector3f)Component->GetComponentLocation();
+			BeamData->SourceTangent = FVector3f(Component->GetComponentTransform().GetScaledAxis( EAxis::X ));
 		}
 
 		// If the method is set for distance, or there is no target, determine the target point
@@ -253,7 +253,7 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 		{
 			// Set the particle target based on the distance
 			float	TotalDistance	= Distance.GetValue(Particle.RelativeTime, Component);
-			FVector	Direction		= Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			FVector3f	Direction		= (FVector3f)Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			Direction.Normalize();
 			BeamData->TargetPoint	= BeamData->SourcePoint + Direction * TotalDistance;
 			BeamData->TargetTangent = -Direction;
@@ -292,10 +292,10 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 		if ((Speed != 0.0f) && (!BEAM2_TYPEDATA_LOCKED(BeamData->Lock_Max_NumNoisePoints)))
 		{
 			// If the beam isn't locked, then move it towards the target...
-			if (Particle.Location != BeamData->TargetPoint)
+			if (Particle.Location != (FVector)BeamData->TargetPoint)
 			{
 				// Determine the direction of travel
-				FVector Direction	= BeamData->TargetPoint - Particle.Location;
+				FVector Direction	= (FVector)BeamData->TargetPoint - Particle.Location;
 				Direction.Normalize();
 				// Setup the offset and the current distance travelled
 				const FVector BeamOffset		= Direction * Speed * DeltaTime;
@@ -305,7 +305,7 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 					(FMath::Abs(Sum.Z - BeamData->TargetPoint.Z) < LockRadius))
 				{
 					// We are within the lock radius, so lock the beam
-					Particle.Location	= BeamData->TargetPoint;
+					Particle.Location	= (FVector)BeamData->TargetPoint;
 					BEAM2_TYPEDATA_SETLOCKED(BeamData->Lock_Max_NumNoisePoints, 1);
 				}
 				else
@@ -318,12 +318,12 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 		else
 		{
 			// Pop right to the target and set the beam as locked
-			Particle.Location = BeamData->TargetPoint;
+			Particle.Location = (FVector)BeamData->TargetPoint;
 			BEAM2_TYPEDATA_SETLOCKED(BeamData->Lock_Max_NumNoisePoints, 1);
 		}
 
 		// Determine the step size, count, and travelled ratio
-		BeamData->Direction		= BeamData->TargetPoint - BeamData->SourcePoint;
+		BeamData->Direction		= FVector3f(BeamData->TargetPoint - BeamData->SourcePoint);
 		float	FullMagnitude	= FMath::Max(BeamData->Direction.Size(), 0.001f);
 		BeamData->Direction.Normalize();
 
@@ -342,13 +342,13 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 			else
 			{
 				// Determine the number of steps we have traveled
-				FVector	TrueDistance	= Particle.Location - BeamData->SourcePoint;
+				FVector	TrueDistance	= Particle.Location - (FVector)BeamData->SourcePoint;
 				float	TrueMagnitude	= TrueDistance.Size();
 				if (TrueMagnitude > FullMagnitude)
 				{
 					// Lock to the target if we are over-shooting and determine the steps and step size
-					Particle.Location	= BeamData->TargetPoint;
-					TrueDistance		= Particle.Location - BeamData->SourcePoint;
+					Particle.Location	= (FVector)BeamData->TargetPoint;
+					TrueDistance		= Particle.Location - (FVector)BeamData->SourcePoint;
 					TrueMagnitude		= TrueDistance.Size();
 					BEAM2_TYPEDATA_SETLOCKED(BeamData->Lock_Max_NumNoisePoints, true);
 					BeamData->StepSize		= FullMagnitude / InterpolationCount;
@@ -408,7 +408,7 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 			else
 			{
 				// Determine that actual distance traveled, and its magnitude
-				FVector	TrueDistance	= Particle.Location - BeamData->SourcePoint;
+				FVector	TrueDistance	= Particle.Location - (FVector)BeamData->SourcePoint;
 				float	TrueMagnitude	= TrueDistance.Size();
 
 				if (BeamNoise->FrequencyDistance > 0.0f)
@@ -489,8 +489,8 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 
 			float	InvTess	= 1.0f / InterpolationPoints;
 
-			SourcePosition	 = BeamData->SourcePoint;
-			SourceTangent	 = BeamData->SourceTangent;
+			SourcePosition	 = (FVector)BeamData->SourcePoint;
+			SourceTangent	 = FVector(BeamData->SourceTangent);
 #if defined(_BEAM2_TYPEDATA_NORMAL_TANGENTS_)
 			SourceTangent.Normalize();
 #endif	//#if defined(_BEAM2_TYPEDATA_NORMAL_TANGENTS_)
@@ -500,8 +500,8 @@ void UParticleModuleTypeDataBeam2::Update(FParticleEmitterInstance* Owner, int32
 			}
 			SourceTangent	*= BeamData->SourceStrength;
 
-			TargetPosition	 = BeamData->TargetPoint;
-			TargetTangent	 = BeamData->TargetTangent;
+			TargetPosition	 = (FVector)BeamData->TargetPoint;
+			TargetTangent	 = FVector(BeamData->TargetTangent);
 #if defined(_BEAM2_TYPEDATA_NORMAL_TANGENTS_)
 			TargetTangent.Normalize();
 #endif	//#if defined(_BEAM2_TYPEDATA_NORMAL_TANGENTS_)
@@ -1090,7 +1090,7 @@ void UParticleModuleBeamModifier::Spawn(FParticleEmitterInstance* Owner, int32 O
 			ModifierPayload->bModifyPosition = PositionOptions.bModify;
 			if (PositionOptions.bModify == true)
 			{
-				ModifierPayload->Position = Position.GetValue(Owner->EmitterTime, Owner->Component);
+				ModifierPayload->Position = (FVector3f)Position.GetValue(Owner->EmitterTime, Owner->Component);
 				ModifierPayload->bScalePosition = PositionOptions.bScale;
 			}
 
@@ -1098,7 +1098,7 @@ void UParticleModuleBeamModifier::Spawn(FParticleEmitterInstance* Owner, int32 O
 			ModifierPayload->bModifyTangent = TangentOptions.bModify;
 			if (TangentOptions.bModify == true)
 			{
-				ModifierPayload->Tangent = Tangent.GetValue(Owner->EmitterTime, Owner->Component);
+				ModifierPayload->Tangent = (FVector3f)Tangent.GetValue(Owner->EmitterTime, Owner->Component);
 				ModifierPayload->bScaleTangent = TangentOptions.bScale;
 			}
 
@@ -1140,7 +1140,7 @@ void UParticleModuleBeamModifier::Update(FParticleEmitterInstance* Owner, int32 
 			ModifierPayload->bModifyPosition = PositionOptions.bModify;
 			if ((PositionOptions.bModify == true) && (PositionOptions.bLock == false))
 			{
-				ModifierPayload->Position = Position.GetValue(Owner->EmitterTime, Owner->Component);
+				ModifierPayload->Position = (FVector3f)Position.GetValue(Owner->EmitterTime, Owner->Component);
 				ModifierPayload->bScalePosition = PositionOptions.bScale;
 			}
 
@@ -1148,7 +1148,7 @@ void UParticleModuleBeamModifier::Update(FParticleEmitterInstance* Owner, int32 
 			ModifierPayload->bModifyTangent = TangentOptions.bModify;
 			if ((TangentOptions.bModify == true) && (TangentOptions.bLock == false))
 			{
-				ModifierPayload->Tangent = Tangent.GetValue(Owner->EmitterTime, Owner->Component);
+				ModifierPayload->Tangent = (FVector3f)Tangent.GetValue(Owner->EmitterTime, Owner->Component);
 				ModifierPayload->bScaleTangent = TangentOptions.bScale;
 			}
 
@@ -1699,7 +1699,7 @@ void UParticleModuleBeamSource::Spawn(FParticleEmitterInstance* Owner, int32 Off
 	ResolveSourceData(BeamInst, BeamData, (uint8*)ParticleBase, Offset, BeamInst->ActiveParticles, true, SourceModifier);
 
 	// Set the location and clear the initial data flags
-	Particle.Location					= BeamData->SourcePoint - BeamInst->PositionOffsetThisTick;
+	Particle.Location					= (FVector)BeamData->SourcePoint - BeamInst->PositionOffsetThisTick;
 	BeamData->Lock_Max_NumNoisePoints	= 0;
 	BeamData->StepSize					= 0.0f;
 	BeamData->Steps						= 0;
@@ -1867,18 +1867,18 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 				if (ParticleIndex >= BeamInst->UserSetSourceArray.Num())
 				{
 					//@todo. How to handle this situation???
-					BeamData->SourcePoint	= BeamInst->UserSetSourceArray[0];
+					BeamData->SourcePoint	= (FVector3f)BeamInst->UserSetSourceArray[0];
 				}
 				else
 				{
-					BeamData->SourcePoint	= BeamInst->UserSetSourceArray[ParticleIndex];
+					BeamData->SourcePoint	= (FVector3f)BeamInst->UserSetSourceArray[ParticleIndex];
 				}
 				bSetSource	= true;
 			}
 			break;
 		case PEB2STM_Emitter:
 			// The position of the owner component is the source
-			BeamData->SourcePoint	= BeamInst->Component->GetComponentLocation();
+			BeamData->SourcePoint	= (FVector3f)BeamInst->Component->GetComponentLocation();
 			bSetSource				= true;
 			break;
 		case PEB2STM_Particle:
@@ -1978,7 +1978,7 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 						}
 
 						//@todo. fill this in correctly...
-						BeamData->SourcePoint = CalcSourcePosition; 
+						BeamData->SourcePoint = (FVector3f)CalcSourcePosition;
 						bSetSource = true;
 					}
 				}
@@ -1991,7 +1991,7 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 				// Use the actor position as the source
 				if (BeamInst->SourceActor)
 				{
-					BeamData->SourcePoint	= BeamInst->SourceActor->ActorToWorld().GetLocation();
+					BeamData->SourcePoint	= (FVector3f)BeamInst->SourceActor->ActorToWorld().GetLocation();
 					bSetSource = true;
 				}
 			}
@@ -2005,14 +2005,14 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 			if (bSourceAbsolute)
 			{
 				// Use the value as a world space position
-				BeamData->SourcePoint	= Source.GetValue(BeamInst->EmitterTime, BeamInst->Component);
+				BeamData->SourcePoint	= (FVector3f)Source.GetValue(BeamInst->EmitterTime, BeamInst->Component);
 				// Take into account current world origin offset
-				BeamData->SourcePoint  -= FVector(BeamInst->Component->GetWorld()->OriginLocation);
+				BeamData->SourcePoint  -= FVector3f(BeamInst->Component->GetWorld()->OriginLocation);
 			}
 			else
 			{
 				// Use the value as a local space position.
-				BeamData->SourcePoint	= BeamInst->Component->GetComponentTransform().TransformPosition(
+				BeamData->SourcePoint	= (FVector3f)BeamInst->Component->GetComponentTransform().TransformPosition(
 					Source.GetValue(BeamInst->EmitterTime, BeamInst->Component));
 			}
 		}
@@ -2026,7 +2026,7 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 		{
 		case PEB2STTM_Direct:
 			// Use the emitter direction as the tangent
-			BeamData->SourceTangent	= BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			BeamData->SourceTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			bSetSourceTangent		= true;
 			break;
 		case PEB2STTM_UserSet:
@@ -2036,23 +2036,23 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 				if (ParticleIndex >= BeamInst->UserSetSourceTangentArray.Num())
 				{
 					//@todo. How to handle this situation???
-					BeamData->SourceTangent	= BeamInst->UserSetSourceTangentArray[0];
+					BeamData->SourceTangent	= (FVector3f)BeamInst->UserSetSourceTangentArray[0];
 				}
 				else
 				{
-					BeamData->SourceTangent	= BeamInst->UserSetSourceTangentArray[ParticleIndex];
+					BeamData->SourceTangent	= (FVector3f)BeamInst->UserSetSourceTangentArray[ParticleIndex];
 				}
 				bSetSourceTangent	= true;
 			}
 			break;
 		case PEB2STTM_Distribution:
 			// Use the tangent contained in the distribution
-			BeamData->SourceTangent	= SourceTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
+			BeamData->SourceTangent	= (FVector3f)SourceTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
 			bSetSourceTangent		= true;
 			break;
 		case PEB2STTM_Emitter:
 			// Use the emitter direction as the tangent
-			BeamData->SourceTangent	= BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			BeamData->SourceTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			bSetSourceTangent		= true;
 			break;
 		}
@@ -2061,11 +2061,11 @@ bool UParticleModuleBeamSource::ResolveSourceData(FParticleBeam2EmitterInstance*
 		{
 			// By default, use the distribution. This will allow artists an easier setup phase...
 //			BeamData->SourceTangent	= BeamInst->Component->LocalToWorld.GetScaledAxis( EAxis::X );
-			BeamData->SourceTangent	= SourceTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
+			BeamData->SourceTangent	= (FVector3f)SourceTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
 			if (bSourceAbsolute == false)
 			{
 				// If not tagged as absolute, transform it to world space
-				BeamData->SourceTangent	= BeamInst->Component->GetComponentTransform().TransformVector(BeamData->SourceTangent);
+				BeamData->SourceTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().TransformVector((FVector)BeamData->SourceTangent);
 			}
 		}
 	}
@@ -2322,7 +2322,7 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 			}
 			FVector	Direction		= BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			Direction.Normalize();
-			BeamData->TargetPoint	= BeamData->SourcePoint + Direction * Distance;
+			BeamData->TargetPoint	= BeamData->SourcePoint + FVector3f(Direction * Distance);
 			bSetTarget				= true;
 		}
 
@@ -2336,11 +2336,11 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 					if (ParticleIndex >= BeamInst->UserSetTargetArray.Num())
 					{
 						//@todo. How to handle this situation???
-						BeamData->TargetPoint	= BeamInst->UserSetTargetArray[0];
+						BeamData->TargetPoint	= (FVector3f)BeamInst->UserSetTargetArray[0];
 					}
 					else
 					{
-						BeamData->TargetPoint	= BeamInst->UserSetTargetArray[ParticleIndex];
+						BeamData->TargetPoint	= (FVector3f)BeamInst->UserSetTargetArray[ParticleIndex];
 					}
 					bSetTarget	= true;
 				}
@@ -2443,7 +2443,7 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 							}
 
 							//@todo. fill this in correctly...
-							BeamData->TargetPoint = LocalTargetPosition; //BeamInst->TargetEmitter->Component->GetComponentLocation();
+							BeamData->TargetPoint = (FVector3f)LocalTargetPosition; //BeamInst->TargetEmitter->Component->GetComponentLocation();
 							bSetTarget = true;
 						}
 					}
@@ -2455,7 +2455,7 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 					BeamInst->ResolveTarget();
 					if (BeamInst->TargetActor)
 					{
-						BeamData->TargetPoint	= BeamInst->TargetActor->ActorToWorld().GetLocation();
+						BeamData->TargetPoint	= (FVector3f)BeamInst->TargetActor->ActorToWorld().GetLocation();
 						bSetTarget = true;
 					}
 				}
@@ -2467,13 +2467,13 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 		{
 			if (bTargetAbsolute)
 			{
-				BeamData->TargetPoint	= Target.GetValue(BeamInst->EmitterTime, BeamInst->Component);
+				BeamData->TargetPoint	= (FVector3f)Target.GetValue(BeamInst->EmitterTime, BeamInst->Component);
 				// Take into account current world origin offset
-				BeamData->TargetPoint  -= FVector(BeamInst->Component->GetWorld()->OriginLocation);
+				BeamData->TargetPoint  -= FVector3f(BeamInst->Component->GetWorld()->OriginLocation);
 			}
 			else
 			{
-				BeamData->TargetPoint	= BeamInst->Component->GetComponentTransform().TransformPosition(
+				BeamData->TargetPoint	= (FVector3f)BeamInst->Component->GetComponentTransform().TransformPosition(
 					Target.GetValue(BeamInst->EmitterTime, BeamInst->Component));
 			}
 		}
@@ -2486,7 +2486,7 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 		switch (TargetTangentMethod)
 		{
 		case PEB2STTM_Direct:
-			BeamData->TargetTangent	= BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			BeamData->TargetTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			bSetTargetTangent		= true;
 			break;
 		case PEB2STTM_UserSet:
@@ -2495,21 +2495,21 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 				if (ParticleIndex >= BeamInst->UserSetTargetTangentArray.Num())
 				{
 					//@todo. How to handle this situation???
-					BeamData->TargetTangent	= BeamInst->UserSetTargetTangentArray[0];
+					BeamData->TargetTangent	= (FVector3f)BeamInst->UserSetTargetTangentArray[0];
 				}
 				else
 				{
-					BeamData->TargetTangent	= BeamInst->UserSetTargetTangentArray[ParticleIndex];
+					BeamData->TargetTangent	= (FVector3f)BeamInst->UserSetTargetTangentArray[ParticleIndex];
 				}
 				bSetTargetTangent	= true;
 			}
 			break;
 		case PEB2STTM_Distribution:
-			BeamData->TargetTangent	= TargetTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
+			BeamData->TargetTangent	= (FVector3f)TargetTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
 			bSetTargetTangent		= true;
 			break;
 		case PEB2STTM_Emitter:
-			BeamData->TargetTangent	= BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
+			BeamData->TargetTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().GetScaledAxis( EAxis::X );
 			bSetTargetTangent		= true;
 			break;
 		}
@@ -2517,10 +2517,10 @@ bool UParticleModuleBeamTarget::ResolveTargetData(FParticleBeam2EmitterInstance*
 		if (bSetTargetTangent == false)
 		{
 //			BeamData->TargetTangent	= BeamInst->Component->LocalToWorld.GetScaledAxis( EAxis::X );
-			BeamData->TargetTangent	= TargetTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
+			BeamData->TargetTangent	= (FVector3f)TargetTangent.GetValue(Particle.RelativeTime, BeamInst->Component);
 			if (bTargetAbsolute == false)
 			{
-				BeamData->TargetTangent	= BeamInst->Component->GetComponentTransform().TransformVector(BeamData->TargetTangent);
+				BeamData->TargetTangent	= (FVector3f)BeamInst->Component->GetComponentTransform().TransformVector((FVector)BeamData->TargetTangent);
 			}
 		}
 	}

@@ -279,7 +279,7 @@ namespace UE
 							return false;
 						}
 						//Add the delta position, so we do not have to recompute it later
-						VertexPositions[AddedVertexId] = VertexPosition;// -MeshVertexPosition;
+						VertexPositions[AddedVertexId] = (FVector3f)VertexPosition;// -MeshVertexPosition;
 					}
 					MeshDescription->ResumeVertexIndexing();
 					FElementIDRemappings OutRemappings;
@@ -556,7 +556,7 @@ namespace UE
 						const FVector VertexPosition = FFbxConvert::ConvertPos(FbxPosition);
 
 						FVertexID AddedVertexId = MeshDescription->CreateVertex();
-						VertexPositions[AddedVertexId] = VertexPosition;
+						VertexPositions[AddedVertexId] = (FVector3f)VertexPosition;
 						if (AddedVertexId.GetValue() != RealVertexIndex)
 						{
 							UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
@@ -657,7 +657,7 @@ namespace UE
 								{
 									const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 									const FVertexID VertexID(VertexOffset + ControlPointIndex);
-									P[CornerIndex] = VertexPositions[VertexID];
+									P[CornerIndex] = (FVector)VertexPositions[VertexID];
 								}
 								check(P.Num() > 2); //triangle is the smallest polygon we can have
 								const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
@@ -682,7 +682,7 @@ namespace UE
 								CornerInstanceIDs[CornerIndex] = VertexInstanceID;
 								const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 								const FVertexID VertexID(VertexOffset + ControlPointIndex);
-								const FVector VertexPosition = VertexPositions[VertexID];
+								const FVector VertexPosition = (FVector)VertexPositions[VertexID];
 								CornerVerticesIDs[CornerIndex] = VertexID;
 
 								FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
@@ -746,7 +746,7 @@ namespace UE
 									FbxVector4 TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
 									TempValue = TotalMatrixForNormal.MultT(TempValue);
 									FVector TangentZ = FFbxConvert::ConvertDir(TempValue);
-									VertexInstanceNormals[AddedVertexInstanceId] = TangentZ.GetSafeNormal();
+									VertexInstanceNormals[AddedVertexInstanceId] = (FVector3f)TangentZ.GetSafeNormal();
 									//tangents and binormals share the same reference, mapping mode and index array
 									if (bHasNTBInformation)
 									{
@@ -758,7 +758,7 @@ namespace UE
 										TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
 										TempValue = TotalMatrixForNormal.MultT(TempValue);
 										FVector TangentX = FFbxConvert::ConvertDir(TempValue);
-										VertexInstanceTangents[AddedVertexInstanceId] = TangentX.GetSafeNormal();
+										VertexInstanceTangents[AddedVertexInstanceId] = (FVector3f)TangentX.GetSafeNormal();
 
 										int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ?
 											ControlPointIndex : RealFbxVertexIndex;
@@ -779,9 +779,9 @@ namespace UE
 							{
 								float TriangleComparisonThreshold = THRESH_POINTS_ARE_SAME;
 								FVector VertexPosition[3];
-								VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
-								VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
-								VertexPosition[2] = VertexPositions[CornerVerticesIDs[2]];
+								VertexPosition[0] = (FVector)VertexPositions[CornerVerticesIDs[0]];
+								VertexPosition[1] = (FVector)VertexPositions[CornerVerticesIDs[1]];
+								VertexPosition[2] = (FVector)VertexPositions[CornerVerticesIDs[2]];
 								if (!(VertexPosition[0].Equals(VertexPosition[1], TriangleComparisonThreshold)
 									|| VertexPosition[0].Equals(VertexPosition[2], TriangleComparisonThreshold)
 									|| VertexPosition[1].Equals(VertexPosition[2], TriangleComparisonThreshold)))

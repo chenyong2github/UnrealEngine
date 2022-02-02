@@ -123,7 +123,7 @@ FLidarPointCloudBatchElementUserData::FLidarPointCloudBatchElementUserData()
 	}
 
 #if WITH_EDITOR
-	SelectionColor = FVector(GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(true));
+	SelectionColor = FVector3f(GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(true));
 #endif
 }
 

@@ -79,9 +79,9 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.TranslatedWorldToClip		= FMatrix44f(Params.ViewMatrices.GetTranslatedViewProjectionMatrix());
 	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
 	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
-	PackedView.PreViewTranslation			= FVector4f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
-	PackedView.WorldCameraOrigin			= FVector4f(Params.ViewMatrices.GetViewOrigin() - ViewTileOffset, 0.0f);
-	PackedView.ViewForwardAndNearPlane		= FVector4f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
+	PackedView.PreViewTranslation			= FVector4f(FVector3f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset)); // LWC_TODO: precision loss
+	PackedView.WorldCameraOrigin			= FVector4f(FVector3f(Params.ViewMatrices.GetViewOrigin() - ViewTileOffset), 0.0f);
+	PackedView.ViewForwardAndNearPlane		= FVector4f((FVector3f)Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
 	PackedView.ViewTilePosition				= AbsoluteViewOrigin.GetTile();
 	PackedView.Padding0						= 0u;
 	PackedView.MatrixTilePosition			= RelativeMatrices.TilePosition;
@@ -91,7 +91,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.PrevTranslatedWorldToClip	= FMatrix44f(Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix());
 	PackedView.PrevViewToClip				= FMatrix44f(Params.PrevViewMatrices.GetProjectionMatrix());
 	PackedView.PrevClipToRelativeWorld		= RelativeMatrices.PrevClipToRelativeWorld;
-	PackedView.PrevPreViewTranslation		= FVector4f(Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset); // LWC_TODO: precision loss
+	PackedView.PrevPreViewTranslation		= FVector4f(FVector3f(Params.PrevViewMatrices.GetPreViewTranslation() + ViewTileOffset)); // LWC_TODO: precision loss
 
 	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));

@@ -226,8 +226,8 @@ FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() 
 	LightParameters.Color = Color;
 	LightParameters.FalloffExponent = 0.0f;
 
-	LightParameters.Direction = -Direction;
-	LightParameters.Tangent = -Direction;
+	LightParameters.Direction = (FVector3f)-Direction;					// LWC_TODO: Precision loss?
+	LightParameters.Tangent = (FVector3f)-Direction;					// LWC_TODO: Precision loss?
 
 	LightParameters.SpotAngles = FVector2f(0, 0);
 	LightParameters.SpecularScale = 0; // Irrelevant when tracing shadow rays
@@ -244,8 +244,8 @@ FLightRenderParameters FPointLightRenderState::GetLightShaderParameters() const
 	FLightRenderParameters LightParameters;
 	
 	LightParameters.WorldPosition = Position;
-	LightParameters.Direction = -Direction;
-	LightParameters.Tangent = Tangent;
+	LightParameters.Direction = (FVector3f)-Direction;					// LWC_TODO: Precision loss?
+	LightParameters.Tangent = (FVector3f)Tangent;						// LWC_TODO: Precision loss?
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;
@@ -258,8 +258,8 @@ FLightRenderParameters FSpotLightRenderState::GetLightShaderParameters() const
 	FLightRenderParameters LightParameters;
 
 	LightParameters.WorldPosition = Position;
-	LightParameters.Direction = -Direction;
-	LightParameters.Tangent = Tangent;
+	LightParameters.Direction = (FVector3f)-Direction;					// LWC_TODO: Precision loss?
+	LightParameters.Tangent = (FVector3f)Tangent;						// LWC_TODO: Precision loss?
 	LightParameters.SpotAngles = FVector2f(SpotAngles);					// LWC_TODO: Precision loss?
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = Color;
@@ -273,8 +273,8 @@ FLightRenderParameters FRectLightRenderState::GetLightShaderParameters() const
 	FLightRenderParameters LightParameters;
 
 	LightParameters.WorldPosition = Position;
-	LightParameters.Direction = -Direction;
-	LightParameters.Tangent = Tangent;
+	LightParameters.Direction = (FVector3f)-Direction;					// LWC_TODO: Precision loss?
+	LightParameters.Tangent = (FVector3f)Tangent;						// LWC_TODO: Precision loss?
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 
 	FLinearColor LightColor = Color;

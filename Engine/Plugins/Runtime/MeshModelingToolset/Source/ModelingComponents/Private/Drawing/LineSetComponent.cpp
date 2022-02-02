@@ -72,15 +72,15 @@ public:
 				const FVector LineDirection = (OverlayLine.End - OverlayLine.Start).GetSafeNormal();
 				const FVector2f UV(OverlayLine.Thickness, OverlayLine.DepthBias);
 
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = OverlayLine.Start;
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = OverlayLine.End;
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 2) = OverlayLine.End;
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 3) = OverlayLine.Start;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = (FVector3f)OverlayLine.Start;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = (FVector3f)OverlayLine.End;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 2) = (FVector3f)OverlayLine.End;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 3) = (FVector3f)OverlayLine.Start;
 
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 0, FVector::ZeroVector, FVector::ZeroVector, -LineDirection);
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 1, FVector::ZeroVector, FVector::ZeroVector, -LineDirection);
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 2, FVector::ZeroVector, FVector::ZeroVector, LineDirection);
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 3, FVector::ZeroVector, FVector::ZeroVector, LineDirection);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 0, FVector3f::ZeroVector, FVector3f::ZeroVector, (FVector3f)-LineDirection);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 1, FVector3f::ZeroVector, FVector3f::ZeroVector, (FVector3f)-LineDirection);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 2, FVector3f::ZeroVector, FVector3f::ZeroVector, (FVector3f)LineDirection);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 3, FVector3f::ZeroVector, FVector3f::ZeroVector, (FVector3f)LineDirection);
 
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 0, 0, UV);
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 1, 0, UV);

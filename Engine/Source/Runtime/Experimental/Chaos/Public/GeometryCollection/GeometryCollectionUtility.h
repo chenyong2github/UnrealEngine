@@ -56,7 +56,7 @@ namespace GeometryCollection
 		// Set vertex info
 		for (int32 Idx = 0; Idx < PointsIn.Num(); ++Idx)
 		{
-			Vertices[Idx] = GeoXf.TransformPosition(FVector(PointsIn[Idx][0], PointsIn[Idx][1], PointsIn[Idx][2])); // transform points by GeoXf
+			Vertices[Idx] = (FVector3f)GeoXf.TransformPosition(FVector(PointsIn[Idx][0], PointsIn[Idx][1], PointsIn[Idx][2])); // transform points by GeoXf
 			Normals[Idx] = NormalsIn.Num() > Idx ? FVector(NormalsIn[Idx][0], NormalsIn[Idx][1], NormalsIn[Idx][2]) : FVector(0);
 
 			FVector2D UV = UVsIn.Num() > Idx ? FVector2D(UVsIn[Idx][0], UVsIn[Idx][1]) : FVector2D(0);
@@ -187,7 +187,7 @@ void GeometryCollection::AttributeTransfer(const FGeometryCollection * FromColle
 		Chaos::FReal ClosestDist = MAX_FLT;
 		for (int32 FromIndex = 0, ni = FromVertex.Num(); FromIndex < ni ; ++FromIndex)
 		{
-			Chaos::FReal CurrDist = FVector::DistSquared(FromVertex[FromIndex], ToVertex[ToIndex]);
+			Chaos::FReal CurrDist = FVector3f::DistSquared(FromVertex[FromIndex], ToVertex[ToIndex]);
 			if (CurrDist < ClosestDist)
 			{
 				ClosestDist = CurrDist;

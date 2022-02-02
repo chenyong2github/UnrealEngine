@@ -91,7 +91,7 @@ struct FDynamicMeshVertex
 
 	FVector3f GetTangentY() const
 	{
-		return GenerateYAxis(TangentX, TangentZ);
+		return FVector3f(GenerateYAxis(TangentX, TangentZ));	//LWC_TODO: Precision loss
 	};
 
 	FVector3f Position;

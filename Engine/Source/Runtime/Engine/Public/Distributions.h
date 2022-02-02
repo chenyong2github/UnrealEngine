@@ -394,8 +394,8 @@ public:
 	{
 		FVector3f OutMinFloat, OutMaxFloat;
 		GetRange(&OutMinFloat, &OutMaxFloat);
-		*OutMin = OutMinFloat;
-		*OutMax = OutMaxFloat;
+		*OutMin = FVector3d(OutMinFloat);
+		*OutMax = FVector3d(OutMaxFloat);
 	}
 
 private:

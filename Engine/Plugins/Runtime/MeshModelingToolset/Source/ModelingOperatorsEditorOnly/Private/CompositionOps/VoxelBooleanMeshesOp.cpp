@@ -197,7 +197,7 @@ float FVoxelBooleanMeshesOp::ComputeVoxelSize() const
 		TArrayView<const FVector3f> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 		for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 		{
-			const FVector& Pos = VertexPositions[VertexID];
+			const FVector3f& Pos = VertexPositions[VertexID];
             
 			BBoxMin.X = FMath::Min(BBoxMin.X, Pos.X);
 			BBoxMin.Y = FMath::Min(BBoxMin.Y, Pos.Y);

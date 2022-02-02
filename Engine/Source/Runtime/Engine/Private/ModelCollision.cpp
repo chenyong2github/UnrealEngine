@@ -140,14 +140,14 @@ int32 ClipNode(const UModel& Model, int32 iNode, const FVector3f& HitLocation)
 		{
 			int32 iVertPool = Node.iVertPool;
 
-			FVector3f PrevPt = Model.Points[Model.Verts[iVertPool + NumVertices - 1].pVertex];
-			FVector3f Normal = Model.Surfs[Node.iSurf].Plane;
+			FVector PrevPt(Model.Points[Model.Verts[iVertPool + NumVertices - 1].pVertex]);
+			FVector Normal(Model.Surfs[Node.iSurf].Plane);
 			float PrevDot = 0.f;
 
 			for (int32 i = 0; i<NumVertices; i++)
 			{
-				FVector3f Pt = Model.Points[Model.Verts[iVertPool + i].pVertex];
-				float Dot = FPlane(Pt, Normal ^ (Pt - PrevPt)).PlaneDot(HitLocation);
+				FVector Pt(Model.Points[Model.Verts[iVertPool + i].pVertex]);
+				float Dot = FPlane(Pt, Normal ^ (Pt - PrevPt)).PlaneDot((FVector)HitLocation);
 				// Check for sign change
 				if ((Dot < 0.f && PrevDot > 0.f) || (Dot > 0.f && PrevDot < 0.f))
 				{
@@ -235,7 +235,7 @@ static void PrecomputeSphereFilter( UModel& Model, int32 iNode, const FPlane& Sp
 	{
 		FBspNode* Node   = &Model.Nodes[ iNode ];
 		Node->NodeFlags &= ~(NF_IsFront | NF_IsBack);
-		float Dist       = Node->Plane.PlaneDot( Sphere );
+		float Dist       = Node->Plane.PlaneDot( (FVector3f)Sphere );
 		if( Dist < -Sphere.W )
 		{
 			Node->NodeFlags |= NF_IsBack;
@@ -283,7 +283,7 @@ void UModel::GetNodeBoundingBox( const FBspNode& Node, FBox& OutBox ) const
 	{
 		const FVert&	ModelVert	= Verts[ FirstVertexIndex + VertexIndex ];
 		const FVector3f	Vertex		= Points[ ModelVert.pVertex ];
-		OutBox += Vertex;
+		OutBox += (FVector)Vertex;
 	}
 }
 

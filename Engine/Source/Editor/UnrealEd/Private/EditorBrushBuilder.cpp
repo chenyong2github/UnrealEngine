@@ -130,7 +130,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 		FPoly Poly;
 		Poly.Init();
 		Poly.ItemName = It->ItemName;
-		Poly.Base = Vertices[It->VertexIndices[0]];
+		Poly.Base = (FVector3f)Vertices[It->VertexIndices[0]];
 		Poly.PolyFlags = It->PolyFlags;
 
 		// Try and maintain the polygons material where possible

@@ -346,7 +346,7 @@ void UParticleModuleLocationDirect::Update(FParticleEmitterInstance* Owner, int3
 		FVector	ScaleDiffA	 = Diff * Scale.X;
 		FVector	ScaleDiffB	 = Diff * (1.0f - Scale.X);
 		float InvDeltaTime = (DeltaTime > 0.0f) ? 1.0f / DeltaTime : 0.0f;
-		Particle.Velocity	 = ScaleDiffA * InvDeltaTime;
+		Particle.Velocity	 = (FVector3f)ScaleDiffA * InvDeltaTime;
 		Particle.Location	+= ScaleDiffB;
 		ensureMsgf(!Particle.Location.ContainsNaN(), TEXT("NaN in Particle Location. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
 	}
@@ -1077,8 +1077,8 @@ void UParticleModuleLocationPrimitiveCylinder::SpawnEx(FParticleEmitterInstance*
 		vVelocity	*= VelocityScale.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		vVelocity = Owner->EmitterToSimulation.TransformVector(vVelocity);
 
-		Particle.Velocity		+= vVelocity;
-		Particle.BaseVelocity	+= vVelocity;
+		Particle.Velocity		+= (FVector3f)vVelocity;
+		Particle.BaseVelocity	+= (FVector3f)vVelocity;
 	}
 	ensureMsgf(!Particle.Location.ContainsNaN(), TEXT("NaN in Particle Location. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
 	ensureMsgf(!Particle.Velocity.ContainsNaN(), TEXT("NaN in Particle Velocity. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
@@ -1303,8 +1303,8 @@ void UParticleModuleLocationPrimitiveSphere::SpawnEx(FParticleEmitterInstance* O
 	{
 		FVector vVelocity		 = (vOffset - vStartLoc) * VelocityScale.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		vVelocity = Owner->EmitterToSimulation.TransformVector(vVelocity);
-		Particle.Velocity		+= vVelocity;
-		Particle.BaseVelocity	+= vVelocity;
+		Particle.Velocity		+= (FVector3f)vVelocity;
+		Particle.BaseVelocity	+= (FVector3f)vVelocity;
 	}
 	ensureMsgf(!Particle.Location.ContainsNaN(), TEXT("NaN in Particle Location. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
 	ensureMsgf(!Particle.Velocity.ContainsNaN(), TEXT("NaN in Particle Velocity. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
@@ -1593,10 +1593,10 @@ void UParticleModuleLocationBoneSocket::Spawn(FParticleEmitterInstance* Owner, i
 			if (bMeshRotationActive) // Note that right now the rotation wil *always* be Identity (see comments above)
 			{
 				FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-				PayloadData->Rotation = RotationQuat.Euler();
+				PayloadData->Rotation = (FVector3f)RotationQuat.Euler();
 				if (Owner->CurrentLODLevel->RequiredModule->bUseLocalSpace == true)
 				{
-					PayloadData->Rotation = Owner->Component->GetComponentTransform().InverseTransformVectorNoScale(PayloadData->Rotation);
+					PayloadData->Rotation = (FVector3f)Owner->Component->GetComponentTransform().InverseTransformVectorNoScale((FVector)PayloadData->Rotation);
 				}
 			}
 		}
@@ -1616,15 +1616,15 @@ void UParticleModuleLocationBoneSocket::UpdatePrevBoneLocationsAndVelocities(FMo
 		if (GetBoneInfoForSourceIndex(InstancePayload, SourceComponent, SourceIndex, WorldBoneTM, Offset) && SourceIndex < InstancePayload->BoneSocketVelocities.Num())
 		{
 			// Calculate the velocity
-			const FVector CurrLocation = WorldBoneTM.GetOrigin();
-			const FVector Diff = CurrLocation - InstancePayload->PrevFrameBoneSocketPositions[SourceIndex];
+			const FVector3f CurrLocation = (FVector3f)WorldBoneTM.GetOrigin();	// LWC_TODO: Precision Loss
+			const FVector3f Diff = CurrLocation - InstancePayload->PrevFrameBoneSocketPositions[SourceIndex];
 			InstancePayload->BoneSocketVelocities[SourceIndex] = Diff * InvDeltaTime;
 			InstancePayload->PrevFrameBoneSocketPositions[SourceIndex] = CurrLocation;
 		}
 		else
 		{
-			InstancePayload->BoneSocketVelocities[SourceIndex] = FVector::ZeroVector;
-			InstancePayload->PrevFrameBoneSocketPositions[SourceIndex] = SourceComponent->GetComponentLocation();
+			InstancePayload->BoneSocketVelocities[SourceIndex] = FVector3f::ZeroVector;
+			InstancePayload->PrevFrameBoneSocketPositions[SourceIndex] = (FVector3f)SourceComponent->GetComponentLocation();
 		}
 	}
 }
@@ -1674,10 +1674,10 @@ void UParticleModuleLocationBoneSocket::Update(FParticleEmitterInstance* Owner, 
 			if (bMeshRotationActive) // Note that right now due to logic above, the rotation will always be identity
 			{
 				FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-				PayloadData->Rotation = RotationQuat.Euler();
+				PayloadData->Rotation = (FVector3f)RotationQuat.Euler();
 				if (Owner->CurrentLODLevel->RequiredModule->bUseLocalSpace == true)
 				{
-					PayloadData->Rotation = OwnerTM.InverseTransformVectorNoScale(PayloadData->Rotation);
+					PayloadData->Rotation = (FVector3f)OwnerTM.InverseTransformVectorNoScale((FVector)PayloadData->Rotation);
 				}
 			}
 		}
@@ -2435,8 +2435,8 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 				{
 					Rot = Owner->Component->GetComponentTransform().InverseTransformVectorNoScale(Rot);
 				}
-				PayloadData->Rotation = Rot;
-				PayloadData->InitRotation = Rot;
+				PayloadData->Rotation = (FVector3f)Rot;
+				PayloadData->InitRotation = (FVector3f)Rot;
 			}
 		}
 	}
@@ -2476,7 +2476,7 @@ void UParticleModuleLocationSkelVertSurface::Update(FParticleEmitterInstance* Ow
 			if (BoneIndex != INDEX_NONE)
 			{
 				const FMatrix WorldBoneTM = SourceComponent->GetBoneMatrix(BoneIndex);
-				const FVector Diff = WorldBoneTM.GetOrigin() - InstancePayload->PrevFrameBonePositions[ValidBoneIndex];
+				const FVector3f Diff = (FVector3f)WorldBoneTM.GetOrigin() - InstancePayload->PrevFrameBonePositions[ValidBoneIndex];	// LWC_TODO: Precision Loss
 				InstancePayload->BoneVelocities[ValidBoneIndex] = Diff * InvDeltaTime;
 			}
 		}
@@ -2523,7 +2523,7 @@ void UParticleModuleLocationSkelVertSurface::Update(FParticleEmitterInstance* Ow
 				{
 					Rot = OwnerTM.InverseTransformVectorNoScale(Rot);
 				}
-				PayloadData->Rotation = Rot;
+				PayloadData->Rotation = (FVector3f)Rot;
 			}
 		}
 	}
@@ -2553,7 +2553,7 @@ void UParticleModuleLocationSkelVertSurface::FinalUpdate(FParticleEmitterInstanc
 			if (BoneIndex != INDEX_NONE)
 			{
 				const FMatrix WorldBoneTM = SourceComponent->GetBoneMatrix(BoneIndex);
-				InstancePayload->PrevFrameBonePositions[ValidBoneIndex] = WorldBoneTM.GetOrigin();
+				InstancePayload->PrevFrameBonePositions[ValidBoneIndex] = (FVector3f)WorldBoneTM.GetOrigin();
 			}
 		}
 	}
@@ -2820,7 +2820,7 @@ bool UParticleModuleLocationSkelVertSurface::GetParticleLocation(FParticleEmitte
 				return false;
 			}
 
-			FVector VertPos = USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, InPrimaryVertexIndex, LODData, SkinWeightBuffer);
+			FVector VertPos(USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, InPrimaryVertexIndex, LODData, SkinWeightBuffer));
 			OutPosition = InSkelMeshComponent->GetComponentTransform().TransformPosition(VertPos);
 			OutRotation = FQuat::Identity;
 		}
@@ -2838,9 +2838,9 @@ bool UParticleModuleLocationSkelVertSurface::GetParticleLocation(FParticleEmitte
 			VertIndex[0] = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Get( InPrimaryVertexIndex );
 			VertIndex[1] = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Get( InPrimaryVertexIndex+1 );
 			VertIndex[2] = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Get( InPrimaryVertexIndex+2 );
-			Verts[0] = InSkelMeshComponent->GetComponentTransform().TransformPosition(USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[0], LODData, SkinWeightBuffer));
-			Verts[1] = InSkelMeshComponent->GetComponentTransform().TransformPosition(USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[1], LODData, SkinWeightBuffer));
-			Verts[2] = InSkelMeshComponent->GetComponentTransform().TransformPosition(USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[2], LODData, SkinWeightBuffer));
+			Verts[0] = InSkelMeshComponent->GetComponentTransform().TransformPosition((FVector)USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[0], LODData, SkinWeightBuffer));
+			Verts[1] = InSkelMeshComponent->GetComponentTransform().TransformPosition((FVector)USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[1], LODData, SkinWeightBuffer));
+			Verts[2] = InSkelMeshComponent->GetComponentTransform().TransformPosition((FVector)USkeletalMeshComponent::GetSkinnedVertexPosition(InSkelMeshComponent, VertIndex[2], LODData, SkinWeightBuffer));
 
 			FVector V0ToV2 = (Verts[2] - Verts[0]);
 			V0ToV2.Normalize();

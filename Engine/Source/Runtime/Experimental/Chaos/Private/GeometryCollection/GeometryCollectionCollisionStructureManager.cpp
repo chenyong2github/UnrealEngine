@@ -265,7 +265,7 @@ FCollisionStructureManager::NewImplicitConvex(
 			TArray<FConvexVec3> ConvexVertices = (*ConvexGeometry)[Index]->GetVertices();
 			for (int32 Idx = 0; Idx < ConvexVertices.Num(); Idx++)
 			{
-				ConvexVertices[Idx] = MassTransform.InverseTransformPosition(ConvexVertices[Idx]);
+				ConvexVertices[Idx] = MassTransform.InverseTransformPosition(FVector(ConvexVertices[Idx]));
 			}
 
 			Chaos::FReal Margin = (Chaos::FReal)(*ConvexGeometry)[Index]->BoundingBox().Extents().Min() * CollisionMarginFraction;

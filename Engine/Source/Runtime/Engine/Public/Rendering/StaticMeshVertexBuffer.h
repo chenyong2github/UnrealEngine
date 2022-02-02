@@ -18,7 +18,7 @@ struct TStaticMeshVertexTangentDatum
 
 	FORCEINLINE FVector3f GetTangentX() const
 	{
-		return TangentX.ToFVector();
+		return FVector3f(TangentX.ToFVector());
 	}
 
 	FORCEINLINE FVector4f GetTangentZ() const
@@ -28,13 +28,13 @@ struct TStaticMeshVertexTangentDatum
 
 	FORCEINLINE FVector3f GetTangentY() const
 	{
-		return GenerateYAxis(TangentX, TangentZ);
+		return FVector3f(GenerateYAxis(TangentX, TangentZ));
 	}
 
 	FORCEINLINE void SetTangents(FVector3f X, FVector3f Y, FVector3f Z)
 	{
 		TangentX = X;
-		TangentZ = FVector4f(Z.X, Z.Y, Z.Z, GetBasisDeterminantSign(X, Y, Z));
+		TangentZ = FVector4f(Z.X, Z.Y, Z.Z, GetBasisDeterminantSign(FVector3d(X), FVector3d(Y), FVector3d(Z)));
 	}
 
 	/**

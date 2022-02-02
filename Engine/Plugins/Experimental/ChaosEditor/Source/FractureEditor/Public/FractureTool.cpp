@@ -399,7 +399,7 @@ FVector FVisualizationMappings::GetExplodedVector(int32 MappingIdx, const UGeome
 		const FGeometryCollection& Collection = *CollectionComponent->GetRestCollection()->GetGeometryCollection();
 		if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 		{
-			FVector Offset = Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup)[BoneIdx];
+			FVector Offset = (FVector)Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup)[BoneIdx];
 			return CollectionComponent->GetOwner()->GetActorTransform().TransformVector(Offset);
 		}
 	}

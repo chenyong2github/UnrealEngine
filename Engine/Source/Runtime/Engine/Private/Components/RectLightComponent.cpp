@@ -228,8 +228,8 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Ligh
 	LightParameters.Color = LightColor;
 	LightParameters.FalloffExponent = 0.0f;
 
-	LightParameters.Direction = -GetDirection();
-	LightParameters.Tangent = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
+	LightParameters.Direction = FVector3f(-GetDirection());
+	LightParameters.Tangent = FVector3f(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
 	LightParameters.SpotAngles = FVector2f(-2.0f, 1.0f);
 	LightParameters.SpecularScale = SpecularScale;
 	LightParameters.SourceRadius = SourceWidth * 0.5f;

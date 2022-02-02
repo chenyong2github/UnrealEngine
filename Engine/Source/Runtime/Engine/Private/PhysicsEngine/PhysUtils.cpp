@@ -54,7 +54,7 @@ static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UMod
 			continue;
 		}
 
-		SnapVerts.Add(InModel->Points[PointIx]);
+		SnapVerts.Add((FVector)InModel->Points[PointIx]);
 	}
 
 	// Create a hull from a set of planes

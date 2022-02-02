@@ -231,7 +231,7 @@ namespace DataprepGeometryOperationsUtils
 				TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 				for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 				{
-					if (Volume->QueryDistance(VertexPositions[VertexID]) > MaxDistance)
+					if (Volume->QueryDistance((FVector)VertexPositions[VertexID]) > MaxDistance)
 					{
 						bComponentInside = false;
 						break;

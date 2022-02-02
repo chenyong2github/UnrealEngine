@@ -100,7 +100,7 @@ namespace Chaos
 			if (IsDynamic() && (Dt != FReal(0)))
 			{
 				const FSolverReal InvDt = FSolverReal(1) / FSolverReal(Dt);
-				State.V += State.DP * InvDt;
+				State.V += FVec3(State.DP * InvDt);
 				SetW(State.W + State.DQ * InvDt);
 			}
 		}
@@ -301,7 +301,7 @@ namespace Chaos
 		*/
 		inline void ApplyLinearVelocityDelta(const FSolverVec3& DV)
 		{
-			State.V += DV;
+			State.V += FVec3(DV);
 		}
 
 		/**

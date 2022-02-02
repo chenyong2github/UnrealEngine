@@ -356,7 +356,7 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetWorldBBoxSize(FVectorVMExternalFunc
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		OutWorldBounds.SetAndAdvance(WorldBBoxSize);
+		OutWorldBounds.SetAndAdvance((FVector3f)WorldBBoxSize);	// LWC_TODO: Precision Loss
 	}
 }
 

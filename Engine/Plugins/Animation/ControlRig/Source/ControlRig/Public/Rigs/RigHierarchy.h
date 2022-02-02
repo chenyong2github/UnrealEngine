@@ -2185,7 +2185,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromVector(FVector InValue)
 	{
-		return FRigControlValue::Make<FVector3f>(InValue);
+		return FRigControlValue::Make<FVector>(InValue);
 	}
 
 	/**
@@ -2196,7 +2196,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FVector GetVectorFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FVector3f>();
+		return (FVector)InValue.Get<FVector3f>();
 	}
 
 	/**
@@ -2207,7 +2207,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromRotator(FRotator InValue)
 	{
-		return FRigControlValue::Make<FVector3f>(InValue.Euler());
+		return FRigControlValue::Make<FVector>(InValue.Euler());
 	}
 
 	/**
@@ -2218,7 +2218,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FRotator GetRotatorFromControlValue(FRigControlValue InValue)
 	{
-		return FRotator::MakeFromEuler(InValue.Get<FVector3f>());
+		return FRotator::MakeFromEuler((FVector)InValue.Get<FVector3f>());
 	}
 
 	/**

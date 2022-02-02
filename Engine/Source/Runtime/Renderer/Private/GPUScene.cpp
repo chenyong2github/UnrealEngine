@@ -2047,8 +2047,8 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 			FVector PickingRayDir(ForceInit);
 			View.DeprojectFVector2D(View.CursorPos, PickingRayStart, PickingRayDir);
 
-			PassParameters->PickingRayStart = PickingRayStart;
-			PassParameters->PickingRayEnd = PickingRayStart + PickingRayDir * WORLD_MAX;
+			PassParameters->PickingRayStart = (FVector3f)PickingRayStart;
+			PassParameters->PickingRayEnd = FVector3f(PickingRayStart + PickingRayDir * WORLD_MAX);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FGPUSceneDebugRenderCS>();
 

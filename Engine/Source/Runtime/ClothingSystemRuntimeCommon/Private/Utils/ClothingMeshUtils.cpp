@@ -60,9 +60,9 @@ namespace ClothingMeshUtils
 		const uint32 IB = Indices[TriangleBaseIndex + 1];
 		const uint32 IC = Indices[TriangleBaseIndex + 2];
 
-		const FVector& A = Positions[IA];
-		const FVector& B = Positions[IB];
-		const FVector& C = Positions[IC];
+		const FVector& A = (FVector)Positions[IA];
+		const FVector& B = (FVector)Positions[IB];
+		const FVector& C = (FVector)Positions[IC];
 
 		const FVector PointOnTri = FMath::ClosestPointOnTriangleToPoint(Position, A, B, C);
 		return (PointOnTri - Position).Size();
@@ -127,8 +127,8 @@ namespace ClothingMeshUtils
 				{
 					const int32 Vertex1Idx = (Vertex0Idx + 1) % 3;
 
-					const FVector& P0 = Positions[Triangle[Vertex0Idx]];
-					const FVector& P1 = Positions[Triangle[Vertex1Idx]];
+					const FVector& P0 = (FVector)Positions[Triangle[Vertex0Idx]];
+					const FVector& P1 = (FVector)Positions[Triangle[Vertex1Idx]];
 
 					const float EdgeLength = FVector::Distance(P0, P1);
 					MaxEdgeLengths[Triangle[Vertex0Idx]] = FMath::Max(MaxEdgeLengths[Triangle[Vertex0Idx]], EdgeLength);
@@ -248,8 +248,8 @@ namespace ClothingMeshUtils
 			FTransform PostTransformInternal = PostTransform;
 			PostTransformInternal.SetScale3D(FVector(1.0f));
 
-			OutPosition = PostTransformInternal.InverseTransformPosition(OutPosition);
-			OutNormal = PostTransformInternal.InverseTransformVector(OutNormal);
+			OutPosition = (FVector3f)PostTransformInternal.InverseTransformPosition((FVector)OutPosition);
+			OutNormal = (FVector3f)PostTransformInternal.InverseTransformVector((FVector)OutNormal);
 
 			if (OutNormal.SizeSquared() > SMALL_NUMBER)
 			{
@@ -335,13 +335,13 @@ namespace ClothingMeshUtils
 				FTransform PostTransformInternal = PostTransform;
 				PostTransformInternal.SetScale3D(FVector(1.0f));
 
-				OutPosition = PostTransformInternal.InverseTransformPosition(OutPosition);
-				OutNormal = PostTransformInternal.InverseTransformVector(OutNormal);
+				OutPosition = (FVector3f)PostTransformInternal.InverseTransformPosition((FVector)OutPosition);
+				OutNormal = (FVector3f)PostTransformInternal.InverseTransformVector((FVector)OutNormal);
 			}
 			else
 			{
-				OutPosition = PostTransform.TransformPosition(OutPosition);
-				OutNormal = PostTransform.TransformVector(OutNormal);
+				OutPosition = (FVector3f)PostTransform.TransformPosition((FVector)OutPosition);
+				OutNormal = (FVector3f)PostTransform.TransformVector((FVector)OutNormal);
 			}
 
 			if (OutNormal.SizeSquared() > SMALL_NUMBER)
@@ -375,9 +375,9 @@ namespace ClothingMeshUtils
 			const uint32 IB = Mesh.GetIndices()[TriBaseIdx + 1];
 			const uint32 IC = Mesh.GetIndices()[TriBaseIdx + 2];
 
-			const FVector& A = Mesh.GetPositions()[IA];
-			const FVector& B = Mesh.GetPositions()[IB];
-			const FVector& C = Mesh.GetPositions()[IC];
+			const FVector& A = (FVector)Mesh.GetPositions()[IA];
+			const FVector& B = (FVector)Mesh.GetPositions()[IB];
+			const FVector& C = (FVector)Mesh.GetPositions()[IC];
 
 			FVector PointOnTri = FMath::ClosestPointOnTriangleToPoint(Position, A, B, C);
 			float DistSq = (PointOnTri - Position).SizeSquared();
@@ -511,7 +511,7 @@ namespace ClothingMeshUtils
 
 			// Before generating the skinning data we need to check for a degenerate triangle.
 			// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
-			const FVector TriNormal = FVector::CrossProduct(B - A, C - A);
+			const FVector3f TriNormal = FVector3f::CrossProduct(B - A, C - A);
 			if (TriNormal.SizeSquared() < SMALL_NUMBER)
 			{
 				// Failed, we have 2 identical vertices
@@ -558,17 +558,17 @@ namespace ClothingMeshUtils
 			FVector VertTangent;
 			if (TargetMesh.HasTangents())
 			{
-				VertTangent = TargetMesh.GetTangents()[VertIdx0];
+				VertTangent = (FVector)TargetMesh.GetTangents()[VertIdx0];
 			}
 			else
 			{
 				FVector3f Tan0, Tan1;
 				VertNormal.FindBestAxisVectors(Tan0, Tan1);
-				VertTangent = Tan0;
+				VertTangent = (FVector)Tan0;
 			}
 
 			TStaticArray<TriangleDistance, NUM_INFLUENCES> NearestTriangles =
-				GetNBestTrianglesBaseIndices<NUM_INFLUENCES>(SourceMesh, VertPosition);
+				GetNBestTrianglesBaseIndices<NUM_INFLUENCES>(SourceMesh, (FVector)VertPosition);
 
 			float SumWeight = 0.0f;
 
@@ -594,7 +594,7 @@ namespace ClothingMeshUtils
 
 				// Before generating the skinning data we need to check for a degenerate triangle.
 				// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
-				const FVector TriNormal = FVector::CrossProduct(B - A, C - A);
+				const FVector3f TriNormal = FVector3f::CrossProduct(B - A, C - A);
 				if (TriNormal.SizeSquared() < SMALL_NUMBER)
 				{
 					// Failed, we have 2 identical vertices
@@ -614,7 +614,7 @@ namespace ClothingMeshUtils
 
 				CurrentData.PositionBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition);
 				CurrentData.NormalBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition + VertNormal);
-				CurrentData.TangentBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition + VertTangent);
+				CurrentData.TangentBaryCoordsAndDist = GetPointBaryAndDistWithNormals(A, B, C, NA, NB, NC, VertPosition + (FVector3f)VertTangent);
 				CurrentData.SourceMeshVertIndices[0] = SourceMesh.GetIndices()[ClosestTriangleBaseIdx];
 				CurrentData.SourceMeshVertIndices[1] = SourceMesh.GetIndices()[ClosestTriangleBaseIdx + 1];
 				CurrentData.SourceMeshVertIndices[2] = SourceMesh.GetIndices()[ClosestTriangleBaseIdx + 2];
@@ -686,7 +686,7 @@ namespace ClothingMeshUtils
 					// Compute single-influence attachment for the first skinning data
 					FMeshToMeshVertData& FirstData = InOutSkinningData[NUM_INFLUENCES_PER_VERTEX * VID];
 
-					const int32 ClosestTriangleBaseIdx = ClothingMeshUtils::GetBestTriangleBaseIndex(SourceMesh, VertPosition, MaxEdgeLengths[VID]);
+					const int32 ClosestTriangleBaseIdx = ClothingMeshUtils::GetBestTriangleBaseIndex(SourceMesh, (FVector)VertPosition, MaxEdgeLengths[VID]);
 					if (!ensure(ClosestTriangleBaseIdx != INDEX_NONE))
 					{
 						FirstData.Weight = 0.0f;
@@ -791,19 +791,19 @@ namespace ClothingMeshUtils
 				FVector VertTangent;
 				if (TargetMesh.HasTangents())
 				{
-					VertTangent = TargetMesh.GetTangents()[VertIdx0];
+					VertTangent = (FVector)TargetMesh.GetTangents()[VertIdx0];
 				}
 				else
 				{
 					FVector3f Tan0, Tan1;
 					VertNormal.FindBestAxisVectors(Tan0, Tan1);
-					VertTangent = Tan0;
+					VertTangent = (FVector)Tan0;
 				}
 
-				const int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition, MaxEdgeLengths[VertIdx0]);
+				const int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, (FVector)VertPosition, MaxEdgeLengths[VertIdx0]);
 				check(ClosestTriangleBaseIdx != INDEX_NONE);
 
-				SingleSkinningDataForVertex(VertPosition, VertNormal, VertTangent, SourceMesh, ClosestTriangleBaseIdx, SkinningData);
+				SingleSkinningDataForVertex(VertPosition, VertNormal, (FVector3f)VertTangent, SourceMesh, ClosestTriangleBaseIdx, SkinningData);
 			}
 
 			check(OutMeshToMeshVertData.Num() == NumMesh0Verts);
@@ -880,7 +880,7 @@ namespace ClothingMeshUtils
 				// Compute single-influence attachment for the first skinning data
 				FMeshToMeshVertData& FirstData = InOutSkinningData[NUM_INFLUENCES_PER_VERTEX * VID];
 
-				const int32 ClosestTriangleBaseIdx = ClothingMeshUtils::GetBestTriangleBaseIndex(SourceMesh, VertPosition, MaxEdgeLength[VID]);
+				const int32 ClosestTriangleBaseIdx = ClothingMeshUtils::GetBestTriangleBaseIndex(SourceMesh, (FVector)VertPosition, MaxEdgeLength[VID]);
 				if (!ensure(ClosestTriangleBaseIdx != INDEX_NONE))
 				{
 					FirstData.Weight = 0.0f;
@@ -908,7 +908,7 @@ namespace ClothingMeshUtils
 	{
 		FPlane4f TrianglePlane(A, B, C);
 		const FVector3f PointOnTriPlane = FVector3f::PointPlaneProject(Point, TrianglePlane);
-		const FVector3f BaryCoords = (FVector3f)FMath::ComputeBaryCentric2D(PointOnTriPlane, A, B, C); // LWC_TODO: ComputeBaryCentric2D only supports FVector
+		const FVector3f BaryCoords = (FVector3f)FMath::ComputeBaryCentric2D((FVector)PointOnTriPlane, (FVector)A, (FVector)B, (FVector)C); // LWC_TODO: ComputeBaryCentric2D only supports FVector
 		return FVector4f(BaryCoords, TrianglePlane.PlaneDot(Point)); // Note: The normal of the plane points away from the Clockwise face (instead of the counter clockwise face) in Left Handed Coordinates (This is why we need to invert the normals later on when before sending it to the shader)
 	}
 
@@ -1133,7 +1133,7 @@ namespace ClothingMeshUtils
 			return GetPointBaryAndDist(A, B, C, Point);
 		}
 
-		const FVector3f ClosestPoint = FMath::ClosestPointOnTriangleToPoint(Point, A, B, C);
+		const FVector3f ClosestPoint = (FVector3f)FMath::ClosestPointOnTriangleToPoint((FVector)Point, (FVector)A, (FVector)B, (FVector)C);
 		const float DistanceToTriangle = FVector3f::Distance(Point, ClosestPoint);
 		
 		FVector4f BaryAndDist;
@@ -1158,7 +1158,7 @@ namespace ClothingMeshUtils
 			FPlane4f TrianglePlane(AW, BW, CW);
 
 			const FVector3f PointOnTriPlane = FVector3f::PointPlaneProject(Point, TrianglePlane);
-			const FVector3f BaryCoords = FMath::ComputeBaryCentric2D(PointOnTriPlane, AW, BW, CW);
+			const FVector3f BaryCoords = (FVector3f)FMath::ComputeBaryCentric2D((FVector)PointOnTriPlane, (FVector)AW, (FVector)BW, (FVector)CW);
 
 			if (BaryCoords.X == BaryCoords.Y && BaryCoords.Y == BaryCoords.Z && BaryCoords.Z == 0.0f)
 			{
@@ -1240,7 +1240,7 @@ namespace ClothingMeshUtils
 		{
 			const FVector3f& Position = Positions[PositionIndex];
 
-			int32 TriBaseIndex = GetBestTriangleBaseIndex(SourceMesh, Position);
+			int32 TriBaseIndex = GetBestTriangleBaseIndex(SourceMesh, (FVector)Position);
 
 			const int32 IA = SourceMesh.GetIndices()[TriBaseIndex];
 			const int32 IB = SourceMesh.GetIndices()[TriBaseIndex + 1];
@@ -1337,7 +1337,7 @@ namespace ClothingMeshUtils
 		{
 			const FVector3f& Position = Mesh0Positions[PositionIndex];
 
-			const int32 TriBaseIndex = GetBestTriangleBaseIndex(SourceMesh, Position);
+			const int32 TriBaseIndex = GetBestTriangleBaseIndex(SourceMesh, (FVector)Position);
 
 			const int32 IA = Mesh1Indices[TriBaseIndex];
 			const int32 IB = Mesh1Indices[TriBaseIndex + 1];

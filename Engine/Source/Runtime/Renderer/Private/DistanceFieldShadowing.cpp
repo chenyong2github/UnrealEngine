@@ -535,7 +535,7 @@ void CullDistanceFieldObjectsForLight(
 
 		for (int32 i = 0; i < NumPlanes; i++)
 		{
-			PassParameters->ShadowConvexHull[i] = FVector4f(PlaneData[i], PlaneData[i].W);
+			PassParameters->ShadowConvexHull[i] = FVector4f((FVector3f)PlaneData[i], PlaneData[i].W);
 		}
 
 		FCullObjectsForShadowCS::FPermutationDomain PermutationVector;
@@ -741,7 +741,7 @@ void RayTraceShadows(
 		LightProxy.GetLightShaderParameters(LightParameters);
 
 		PassParameters->LightDirection = LightParameters.Direction;
-		PassParameters->LightPositionAndInvRadius = FVector4f(LightParameters.WorldPosition, LightParameters.InvRadius); // LWC_TODO
+		PassParameters->LightPositionAndInvRadius = FVector4f((FVector3f)LightParameters.WorldPosition, LightParameters.InvRadius); // LWC_TODO
 		// Default light source radius of 0 gives poor results
 		PassParameters->LightSourceRadius = LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius));
 		PassParameters->RayStartOffsetDepthScale = LightProxy.GetRayStartOffsetDepthScale();
@@ -750,7 +750,7 @@ void RayTraceShadows(
 		const float MaxLightAngle = bHeightfield ? 45.0f : 5.0f;
 		const float MinLightAngle = bHeightfield ? FMath::Min(GMinDirectionalLightAngleForRTHF, MaxLightAngle) : 0.001f;
 		const float LightSourceAngle = FMath::Clamp(LightProxy.GetLightSourceAngle(), MinLightAngle, MaxLightAngle) * PI / 180.0f;
-		PassParameters->TanLightAngleAndNormalThreshold = FVector(FMath::Tan(LightSourceAngle), FMath::Cos(PI / 2 + LightSourceAngle), LightProxy.GetTraceDistance());
+		PassParameters->TanLightAngleAndNormalThreshold = FVector3f(FMath::Tan(LightSourceAngle), FMath::Cos(PI / 2 + LightSourceAngle), LightProxy.GetTraceDistance());
 		PassParameters->ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;

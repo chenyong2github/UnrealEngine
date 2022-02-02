@@ -570,7 +570,7 @@ namespace GLTF
 		FMaterial& Material = Asset->Materials.Last();
 
 		GLTF::SetTextureMap(Object, TEXT("emissiveTexture"), nullptr, Asset->Textures, Material.Emissive, ExtensionsHandler->GetMessages());
-		Material.EmissiveFactor = GetVec3(Object, TEXT("emissiveFactor"));
+		Material.EmissiveFactor = (FVector3f)GetVec3(Object, TEXT("emissiveFactor"));
 
 		Material.NormalScale       = GLTF::SetTextureMap(Object, TEXT("normalTexture"), TEXT("scale"), Asset->Textures, Material.Normal, ExtensionsHandler->GetMessages());
 		Material.OcclusionStrength = GLTF::SetTextureMap(Object, TEXT("occlusionTexture"), TEXT("strength"), Asset->Textures, Material.Occlusion, ExtensionsHandler->GetMessages());

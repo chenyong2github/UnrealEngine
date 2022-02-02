@@ -448,7 +448,7 @@ void UMockDataMeshTrackerComponent::UpdateBlock(int32 BlockIndex)
 	for (int32 v = 0; v < VertexCount; ++ v)
 	{
 			CurrentMeshDataCache->OffsetVertices.Add(RawMeshData.Vertices[v] - VertexOffset + UpdateShiftVector);
-			CurrentMeshDataCache->WorldVertices.Add(RawMeshData.Vertices[v] + UpdateShiftVector);
+			CurrentMeshDataCache->WorldVertices.Add(FVector3f(RawMeshData.Vertices[v] + UpdateShiftVector));
 	}
 
 	// Pull indices

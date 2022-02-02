@@ -96,7 +96,7 @@ void FDynamicMeshToMeshDescription::UpdateAttributes(const FDynamicMesh3* MeshIn
 				check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
 				for (int VertID : MeshIn->VertexIndicesItr())
 				{
-					FVector Normal = (FVector)MeshIn->GetVertexNormal(VertID);
+					FVector3f Normal = MeshIn->GetVertexNormal(VertID);
 					for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstanceIDs(FVertexID(VertID)))
 					{
 						InstanceAttrib.Set(InstanceID, Normal);
@@ -249,7 +249,7 @@ void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, 
 				FVector3d Tangent, Bitangent;
 				Tangents->GetPerTriangleTangent(k, j, Tangent, Bitangent);
 				float BitangentSign = (float)VectorUtil::BitangentSign((FVector3d)TriNormals[j], Tangent, Bitangent);
-				TangentAttrib.Set(TriInstances[j], (FVector)Tangent);
+				TangentAttrib.Set(TriInstances[j], (FVector3f)Tangent);
 				BinormalSignAttrib.Set(TriInstances[j], BitangentSign);
 			}
 		}
@@ -305,7 +305,7 @@ void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, 
 		{
 			const float BiTangentSign = VectorUtil::BitangentSign(TriNormals[i], TriTangents[i], TriBiTangents[i]);
 
-			TangentAttrib.Set(TriInstances[i], (FVector)TriTangents[i]);
+			TangentAttrib.Set(TriInstances[i], TriTangents[i]);
 			BiTangentSignAttrib.Set(TriInstances[i], BiTangentSign);
 		}
 	}

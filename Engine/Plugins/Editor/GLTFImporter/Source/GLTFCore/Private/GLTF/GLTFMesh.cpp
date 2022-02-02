@@ -41,7 +41,7 @@ namespace GLTF
 		Buffer.Reserve(Tangent.Count);
 		for (uint32 Index = 0; Index < Tangent.Count; ++Index)
 		{
-			Buffer.Push(GLTF::ConvertTangent(Tangent.GetVec4(Index)));
+			Buffer.Push((FVector3f)GLTF::ConvertTangent(Tangent.GetVec4(Index)));
 		}
 	}
 
@@ -58,7 +58,7 @@ namespace GLTF
 			for (int32 Index = 0; Index < N; ++Index)
 			{
 				const FVector Vec = Color0.GetVec3(Index);
-				Buffer.Emplace(Vec, 1.f);
+				Buffer.Emplace((FVector3f)Vec, 1.f);
 			}
 		}
 		else

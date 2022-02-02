@@ -93,7 +93,7 @@ bool FMeshPaintStaticMeshComponentAdapter::InitializeVertexData()
 	MeshVertices.AddDefaulted(NumVertices);
 	for (int32 Index = 0; Index < NumVertices; Index++)
 	{
-		const FVector& Position = LODModel->VertexBuffers.PositionVertexBuffer.VertexPosition(Index);
+		const FVector& Position = (FVector)LODModel->VertexBuffers.PositionVertexBuffer.VertexPosition(Index);
 		MeshVertices[Index] = Position;
 	}
 

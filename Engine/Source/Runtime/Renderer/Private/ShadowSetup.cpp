@@ -1063,7 +1063,7 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 
 
 	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
-	PreShadowTranslation = Data.ShadowPreViewTranslation;
+	PreShadowTranslation = (FVector)Data.ShadowPreViewTranslation;
 	const FMatrix CasterMatrix = FMatrix(Data.TranslatedWorldToShadowViewMatrix * Data.ShadowViewToClipMatrix);
 	GetViewFrustumBounds(CasterOuterFrustum, CasterMatrix, true);
 	ReceiverInnerFrustum = CasterOuterFrustum;

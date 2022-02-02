@@ -65,7 +65,7 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 		if (bAnyEvaluated)
 		{
-			Values.VectorValues.Emplace(Vector.ParameterName, Value);
+			Values.VectorValues.Emplace(Vector.ParameterName, (FVector)Value);
 		}
 	}
 
@@ -106,7 +106,7 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 		if (bAnyEvaluated)
 		{
-			FTransformParameterNameAndValue NameAndValue(Transform.ParameterName, Translation, FRotator(Rotator), Scale);
+			FTransformParameterNameAndValue NameAndValue(Transform.ParameterName, (FVector)Translation, FRotator(Rotator), (FVector)Scale);
 			Values.TransformValues.Emplace(NameAndValue);
 		}
 	}

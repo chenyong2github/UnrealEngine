@@ -211,7 +211,7 @@ namespace FNavMeshRenderingHelpers
 	void AddVertex(FNavMeshSceneProxyData::FDebugMeshData& MeshData, const FVector& Pos, const FColor Color)
 	{
 		FDynamicMeshVertex* Vertex = new(MeshData.Vertices) FDynamicMeshVertex;
-		Vertex->Position = Pos;
+		Vertex->Position = (FVector3f)Pos;
 		Vertex->TextureCoordinate[0] = FVector2f::ZeroVector;
 		Vertex->TangentX = FVector(1.0f, 0.0f, 0.0f);
 		Vertex->TangentZ = FVector(0.0f, 1.0f, 0.0f);
@@ -341,7 +341,7 @@ void FNavMeshSceneProxyData::Serialize(FArchive& Ar)
 
 		for (int32 VertIdx = 0; VertIdx < NumVerts; VertIdx++)
 		{
-			FVector SerializedVert = MeshBuilder.Vertices[VertIdx].Position;
+			FVector3f SerializedVert = MeshBuilder.Vertices[VertIdx].Position;
 			Ar << SerializedVert;
 
 			if (Ar.IsLoading())

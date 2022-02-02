@@ -267,7 +267,7 @@ public:
 				const FVector3f vtx0 = Poly->Vertices[v];
 				const FVector3f vtx1 = Poly->Vertices[ (v+1) % Poly->Vertices.Num() ];
 
-				FEdge Edge( vtx0, vtx1 );
+				FEdge Edge( (FVector)vtx0, (FVector)vtx1 );
 
 				int32 idx;
 				if( EdgePool.Find( Edge, idx ) )
@@ -339,9 +339,9 @@ public:
 				FPoly TestPoly;
 				TestPoly.Init();
 
-				TestPoly.Vertices.Add( OrderedEdges[0].Vertex[0] );
-				TestPoly.Vertices.Add( OrderedEdges[1].Vertex[0] );
-				TestPoly.Vertices.Add( OrderedEdges[2].Vertex[0] );
+				TestPoly.Vertices.Add( (FVector3f)OrderedEdges[0].Vertex[0] );
+				TestPoly.Vertices.Add( (FVector3f)OrderedEdges[1].Vertex[0] );
+				TestPoly.Vertices.Add( (FVector3f)OrderedEdges[2].Vertex[0] );
 
 				if( TestPoly.Finalize( InOwnerBrush, 1 ) == 0 )
 				{
@@ -368,7 +368,7 @@ public:
 			{
 				FEdge* Edge = &OrderedEdges[e];
 
-				WindingVerts.Add( Edge->Vertex[0] );
+				WindingVerts.Add( (FVector3f)Edge->Vertex[0] );
 			}
 
 			InWindings.Add( WindingVerts );

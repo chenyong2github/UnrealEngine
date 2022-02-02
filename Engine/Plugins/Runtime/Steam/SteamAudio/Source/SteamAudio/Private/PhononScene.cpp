@@ -616,10 +616,10 @@ namespace SteamAudio
 				for (auto v = 2; v > -1; v--)
 				{
 					auto i = Indices[BaseIndex + v];
-					auto vtx = bGetRelativeVertexPos ? FVector3f(StaticMeshComponent->GetComponentTransform().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i)))
+					auto vtx = bGetRelativeVertexPos ? FVector3f(StaticMeshComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i)))
 						: LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
 
-					VertexArray.Add(UnrealToPhononIPLVector3(vtx));
+					VertexArray.Add(UnrealToPhononIPLVector3((FVector)vtx));
 					NumVerts++;
 				}
 			}
@@ -790,7 +790,7 @@ namespace SteamAudio
 		// Gather and convert all world vertices to Phonon coords
 		for (auto& WorldVertex : World->GetModel()->Points)
 		{
-			IplVertices.Add(SteamAudio::UnrealToPhononIPLVector3(WorldVertex));
+			IplVertices.Add(SteamAudio::UnrealToPhononIPLVector3((FVector)WorldVertex));
 		}
 
 		// Gather vertex indices for all faces ("nodes" are faces)

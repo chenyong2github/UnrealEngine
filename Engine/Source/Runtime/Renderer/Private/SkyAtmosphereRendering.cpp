@@ -1390,7 +1390,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		FLightSceneInfo* Light1 = Scene->AtmosphereLights[1];
 		if (Light0)
 		{
-			PassParameters->AtmosphereLightDirection0 = FVector4f(-Light0->Proxy->GetDirection());
+			PassParameters->AtmosphereLightDirection0 = FVector3f(-Light0->Proxy->GetDirection());
 			PassParameters->AtmosphereLightIlluminanceOuterSpace0 = Light0->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
@@ -1400,7 +1400,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		}
 		if (Light1)
 		{
-			PassParameters->AtmosphereLightDirection1 = FVector4f(-Light1->Proxy->GetDirection());
+			PassParameters->AtmosphereLightDirection1 = FVector3f(-Light1->Proxy->GetDirection());
 			PassParameters->AtmosphereLightIlluminanceOuterSpace1 = Light1->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
@@ -1460,7 +1460,6 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		AtmosphereSetup.ComputeViewData(
 			Scene->SkyLight->CapturePosition, View.ViewMatrices.GetPreViewTranslation(), SkyViewLutReferentialForward, SkyViewLutReferentialRight,
 			SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
-		// LWC_TODO: Precision loss
 		ReflectionViewParameters.SkyPlanetTranslatedWorldCenterAndViewHeight = TempSkyPlanetData;
 		ReflectionViewParameters.SkyCameraTranslatedWorldOrigin = SkyCameraTranslatedWorldOrigin;
 		ReflectionViewParameters.SkyViewLutReferential = SkyViewLutReferential;
@@ -1725,8 +1724,8 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 	FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
 	const float AerialPerspectiveStartDepthInCm = SkyRC.AerialPerspectiveStartDepthInCm;
 
-	const FVector3f ViewOrigin = ViewMatrices.GetViewOrigin();
-	const FVector3f PlanetCenter = Atmosphere.PlanetCenterKm * KM_TO_CM;
+	const FVector3f ViewOrigin = (FVector3f)ViewMatrices.GetViewOrigin();
+	const FVector3f PlanetCenter = (FVector3f)Atmosphere.PlanetCenterKm * KM_TO_CM;	// LWC_TODO: Precision Loss
 	const float TopOfAtmosphere = Atmosphere.TopRadiusKm * KM_TO_CM;
 	const float PlanetRadiusTraceSafeEdgeCm = 1000.0f;	// 10 meters, must match PLANET_RADIUS_SAFE_TRACE_EDGE
 	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector3f::Distance(ViewOrigin, PlanetCenter) - TopOfAtmosphere - PlanetRadiusTraceSafeEdgeCm) > 0.0f;
@@ -2080,7 +2079,7 @@ FScreenPassTexture AddSkyAtmosphereDebugPasses(FRDGBuilder& GraphBuilder, FScene
 
 		if (bSkyAtmosphereVisualizeShowFlag)
 		{
-			const float ViewPlanetAltitude = (View.ViewLocation * FAtmosphereSetup::CmToSkyUnit - Atmosphere.PlanetCenterKm).Size() - Atmosphere.BottomRadiusKm;
+			const float ViewPlanetAltitude = (View.ViewLocation * FAtmosphereSetup::CmToSkyUnit - (FVector)Atmosphere.PlanetCenterKm).Size() - Atmosphere.BottomRadiusKm;
 			const bool bViewUnderGroundLevel = ViewPlanetAltitude < 0.0f;
 			if (bViewUnderGroundLevel)
 			{

@@ -263,13 +263,13 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 
 FORCEINLINE void Copy( const FSplineMeshParams& In, Lightmass::FSplineMeshParams& Out )
 {
-	Out.StartPos = In.StartPos;
-	Out.StartTangent = In.StartTangent;
+	Out.StartPos = FVector3f(In.StartPos);	//LWC_TODO: Precision loss
+	Out.StartTangent = FVector3f(In.StartTangent);
 	Out.StartScale = FVector2f(In.StartScale);	// LWC_TODO: Precision loss
 	Out.StartRoll = In.StartRoll;
 	Out.StartOffset = FVector2f(In.StartOffset);	// LWC_TODO: Precision loss
-	Out.EndPos = In.EndPos;
-	Out.EndTangent = In.EndTangent;
+	Out.EndPos = FVector3f(In.EndPos);	//LWC_TODO: Precision loss
+	Out.EndTangent = FVector3f(In.EndTangent);
 	Out.EndScale = FVector2f(In.EndScale);	// LWC_TODO: Precision loss
 	Out.EndOffset = FVector2f(In.EndOffset);	// LWC_TODO: Precision loss
 	Out.EndRoll = In.EndRoll;
@@ -1056,7 +1056,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 
 		PointData.Radius = Light->AttenuationRadius;
 		PointData.FalloffExponent = Light->LightFalloffExponent;
-		PointData.LightTangent = Light->GetComponentTransform().GetUnitAxis(EAxis::Z);
+		PointData.LightTangent = FVector3f(Light->GetComponentTransform().GetUnitAxis(EAxis::Z));
 		Swarm.WriteChannel( Channel, &LightData, sizeof(LightData) );
 		Swarm.WriteChannel( Channel, LightProfileTextureData.GetData(), LightProfileTextureData.Num() * LightProfileTextureData.GetTypeSize() );
 		Swarm.WriteChannel( Channel, &PointData, sizeof(PointData) );
@@ -1082,7 +1082,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 
 		PointData.Radius = Light->AttenuationRadius;
 		PointData.FalloffExponent = Light->LightFalloffExponent;
-		PointData.LightTangent = Light->GetComponentTransform().GetUnitAxis(EAxis::Z);
+		PointData.LightTangent = FVector3f(Light->GetComponentTransform().GetUnitAxis(EAxis::Z));
 		SpotData.InnerConeAngle = Light->InnerConeAngle; 
 		SpotData.OuterConeAngle = Light->OuterConeAngle;
 		Swarm.WriteChannel( Channel, &LightData, sizeof(LightData) );
@@ -1110,7 +1110,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 		Lightmass::FPointLightData PointData;
 		PointData.Radius = Light->AttenuationRadius;
 		PointData.FalloffExponent = 0.0f;
-		PointData.LightTangent = Light->GetComponentTransform().GetUnitAxis(EAxis::Z);
+		PointData.LightTangent = FVector3f(Light->GetComponentTransform().GetUnitAxis(EAxis::Z));
 
 		Lightmass::FRectLightData RectData = { 0, 0, FLinearColor::White };
 		// TODO export texture data. Below code is written for that in mind but source data doesn't contain mips.
@@ -1770,7 +1770,7 @@ void FLightmassExporter::WriteMeshInstances( int32 Channel )
 			const USplineMeshComponent* SplineComponent = CastChecked<USplineMeshComponent>(SMLightingMesh->Component);
 			SMInstanceMeshData.bIsSplineMesh = true;
 			Copy(*SplineParams, SMInstanceMeshData.SplineParameters);
-			SMInstanceMeshData.SplineParameters.SplineUpDir = SplineComponent->SplineUpDir;
+			SMInstanceMeshData.SplineParameters.SplineUpDir = FVector3f(SplineComponent->SplineUpDir);
 			SMInstanceMeshData.SplineParameters.bSmoothInterpRollScale = SplineComponent->bSmoothInterpRollScale;
 
 			if (FMath::IsNearlyEqual(SplineComponent->SplineBoundaryMin, SplineComponent->SplineBoundaryMax))
@@ -2057,7 +2057,7 @@ void FLightmassExporter::SetVolumetricLightmapSettings(Lightmass::FVolumetricLig
 	// We prevent refinement outside of importance volumes in FStaticLightingSystem::ShouldRefineVoxel
 	const float MaxExtent = FMath::Max(ImportanceExtent.X, FMath::Max(ImportanceExtent.Y, ImportanceExtent.Z));
 
-	OutSettings.VolumeMin = CombinedImportanceVolume.Min;
+	OutSettings.VolumeMin = FVector3f(CombinedImportanceVolume.Min);	//LWC_TODO: Precision loss
 	const FVector RequiredVolumeSize = FVector(MaxExtent * 2);
 
 	VERIFYLIGHTMASSINI(GConfig->GetInt(TEXT("DevOptions.VolumetricLightmaps"), TEXT("BrickSize"), OutSettings.BrickSize, GLightmassIni));
@@ -2111,7 +2111,7 @@ void FLightmassExporter::SetVolumetricLightmapSettings(Lightmass::FVolumetricLig
 
 	OutSettings.TopLevelGridSize = FIntVector::DivideAndRoundUp(FullGridSize, DetailCellsPerTopLevelBrick);
 
-	OutSettings.VolumeSize = FVector(OutSettings.TopLevelGridSize) * DetailCellsPerTopLevelBrick * TargetDetailCellSize;
+	OutSettings.VolumeSize = FVector3f(OutSettings.TopLevelGridSize) * DetailCellsPerTopLevelBrick * TargetDetailCellSize;
 }
 
 /** Fills out the Scene's settings, read from the engine ini. */
@@ -2517,7 +2517,7 @@ void FLightmassExporter::WriteDebugInput( Lightmass::FDebugLightingInputData& In
 	
 	InputData.MappingGuid = DebugMappingGuid;
 	InputData.NodeIndex = GCurrentSelectedLightmapSample.NodeIndex;
-	InputData.Position = FVector4f(GCurrentSelectedLightmapSample.Position, 0);
+	InputData.Position = FVector4f(FVector3f(GCurrentSelectedLightmapSample.Position), 0);
 	InputData.LocalX = GCurrentSelectedLightmapSample.LocalX;
 	InputData.LocalY = GCurrentSelectedLightmapSample.LocalY;
 	InputData.MappingSizeX = GCurrentSelectedLightmapSample.MappingSizeX;
@@ -3525,7 +3525,7 @@ void FLightmassProcessor::ImportVolumeSamples()
 						FVolumeLightingSample NewHighQualitySample;
 						NewHighQualitySample.Position = FVector4f(CurrentSample.PositionAndRadius);
 						NewHighQualitySample.Radius = CurrentSample.PositionAndRadius.W;
-						NewHighQualitySample.SetPackedSkyBentNormal(CurrentSample.SkyBentNormal); 
+						NewHighQualitySample.SetPackedSkyBentNormal(FVector3d(CurrentSample.SkyBentNormal)); 
 						NewHighQualitySample.DirectionalLightShadowing = CurrentSample.DirectionalLightShadowing;
 
 						for (int32 CoefficientIndex = 0; CoefficientIndex < NUM_INDIRECT_LIGHTING_SH_COEFFICIENTS; CoefficientIndex++)
@@ -3539,7 +3539,7 @@ void FLightmassProcessor::ImportVolumeSamples()
 						NewLowQualitySample.Position = FVector4f(CurrentSample.PositionAndRadius);
 						NewLowQualitySample.Radius = CurrentSample.PositionAndRadius.W;
 						NewLowQualitySample.DirectionalLightShadowing = CurrentSample.DirectionalLightShadowing;
-						NewLowQualitySample.SetPackedSkyBentNormal(CurrentSample.SkyBentNormal); 
+						NewLowQualitySample.SetPackedSkyBentNormal(FVector3d(CurrentSample.SkyBentNormal)); 
 
 						for (int32 CoefficientIndex = 0; CoefficientIndex < NUM_INDIRECT_LIGHTING_SH_COEFFICIENTS; CoefficientIndex++)
 						{

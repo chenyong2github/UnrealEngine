@@ -1414,7 +1414,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							}
 							else
 							{
-								VertexPosition = Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+								VertexPosition = (FVector)Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 							}
 						}
 					}
@@ -1435,7 +1435,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							}
 							else
 							{
-								VertexPosition = Mesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+								VertexPosition = (FVector)Mesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 							}
 						}
 					}

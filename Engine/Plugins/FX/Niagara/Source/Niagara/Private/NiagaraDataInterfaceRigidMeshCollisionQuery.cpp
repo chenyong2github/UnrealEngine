@@ -247,12 +247,12 @@ void CreateInternalArrays(TArray<AActor*> Actors,
 
 
 								FBox BBox = ConvexElem.ElemBox;
-								FVector3f Extent = BBox.Max - BBox.Min;
-								FVector3f Center = (BBox.Max + BBox.Min) * .5;
+								FVector3f Extent = FVector3f(BBox.Max - BBox.Min);
+								FVector3f Center = FVector3f(BBox.Max + BBox.Min) * .5;
 								OutAssetArrays->PhysicsType[BoxCount] = (ConvexElem.GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics);
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 								
-								const FTransform ElementTransform = FTransform(Center) * MeshTransform;
+								const FTransform ElementTransform = FTransform((FVector)Center) * MeshTransform;
 								OutAssetArrays->ElementExtent[BoxCount] = FVector4f(Extent.X, Extent.Y, Extent.Z, 0);
 								FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 
@@ -366,10 +366,10 @@ void UpdateInternalArrays(const TArray<AActor*> &Actors, FNDIRigidMeshCollisionA
 					if (CollisionEnabledHasPhysics(ConvexElem.GetCollisionEnabled()))
 					{
 						FBox BBox = ConvexElem.ElemBox;												
-						FVector3f Center = (BBox.Max + BBox.Min) * .5;
+						FVector3f Center = FVector3f(BBox.Max + BBox.Min) * .5;
 
 						OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
-						const FTransform ElementTransform = FTransform(Center) * MeshTransform;
+						const FTransform ElementTransform = FTransform((FVector)Center) * MeshTransform;
 						FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 					}
 				}

@@ -453,7 +453,7 @@ public:
 
 	FORCEINLINE FLidarPointCloudPoint Transform(const FTransform& Transform) const
 	{
-		return FLidarPointCloudPoint(Transform.TransformPosition(Location), Color, bVisible, ClassificationID);
+		return FLidarPointCloudPoint((FVector3f)Transform.TransformPosition((FVector)Location), Color, bVisible, ClassificationID);
 	}
 
 	bool operator==(const FLidarPointCloudPoint& P) const { return Location == P.Location && Color == P.Color && bVisible == P.bVisible && ClassificationID == P.ClassificationID && Normal == P.Normal; }
@@ -588,13 +588,13 @@ public:
 
 	FLidarPointCloudRay& TransformBy(const FTransform& Transform)
 	{
-		Origin = Transform.TransformPosition(Origin);
-		SetDirection(Transform.TransformVector(Direction));
+		Origin = (FVector3f)Transform.TransformPosition((FVector)Origin);
+		SetDirection((FVector3f)Transform.TransformVector((FVector)Direction));
 		return *this;
 	}
 	FLidarPointCloudRay TransformBy(const FTransform& Transform) const
 	{
-		return FLidarPointCloudRay(Transform.TransformPosition(Origin), Transform.TransformVector(Direction));
+		return FLidarPointCloudRay((FVector3f)Transform.TransformPosition((FVector)Origin), (FVector3f)Transform.TransformVector((FVector)Direction));
 	}
 	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector3f& Offset) const
 	{

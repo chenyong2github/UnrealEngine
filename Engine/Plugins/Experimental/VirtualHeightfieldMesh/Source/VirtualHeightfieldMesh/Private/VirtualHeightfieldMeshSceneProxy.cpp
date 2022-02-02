@@ -569,14 +569,14 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 
 				//todo[vhm]: Move all the view dependent lod logic into shader. Would help us to move to static mesh batches in the future.
 				FSceneView const* MainView = ViewFamily.Views[0];
-				UserData->LodViewOrigin = MainView->ViewMatrices.GetViewOrigin();
+				UserData->LodViewOrigin = (FVector3f)MainView->ViewMatrices.GetViewOrigin();	// LWC_TODO: Precision Loss
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				// Support the freezerendering mode. Use any frozen view state for culling.
 				const FViewMatrices* FrozenViewMatrices = MainView->State != nullptr ? MainView->State->GetFrozenViewMatrices() : nullptr;
 				if (FrozenViewMatrices != nullptr)
 				{
-					UserData->LodViewOrigin = FrozenViewMatrices->GetViewOrigin();
+					UserData->LodViewOrigin = (FVector3f)FrozenViewMatrices->GetViewOrigin();
 				}
 #endif
 				
@@ -1101,8 +1101,8 @@ namespace VirtualHeightfieldMesh
 		PassParameters->PageTableSize = FVector4f(InDesc.PageTableSize); // LWC_TODO: precision loss
 		PassParameters->PageTableFeedbackId = InDesc.PageTableFeedbackId;
 		PassParameters->UVToWorld = FMatrix44f(InDesc.UVToWorld);		// LWC_TODO: Precision loss
-		PassParameters->UVToWorldScale = InDesc.UVToWorldScale;
-		PassParameters->ViewOrigin = InViewDesc.ViewOrigin;
+		PassParameters->UVToWorldScale = (FVector3f)InDesc.UVToWorldScale;
+		PassParameters->ViewOrigin = (FVector3f)InViewDesc.ViewOrigin;
 		PassParameters->LodDistances = FVector4f(InViewDesc.LodDistances); // LWC_TODO: precision loss
 		PassParameters->LodBiasScale = InViewDesc.LodBiasScale;
 		for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)

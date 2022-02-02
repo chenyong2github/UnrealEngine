@@ -57,8 +57,8 @@ void FClothPhysicalMeshData::MigrateFrom(UClothPhysicalMeshDataBase_Legacy* Clot
 
 void FClothPhysicalMeshData::Reset(const int32 InNumVerts, const int32 InNumIndices)
 {
-	Vertices.Init(FVector::ZeroVector, InNumVerts);
-	Normals.Init(FVector::ZeroVector, InNumVerts);
+	Vertices.Init(FVector3f::ZeroVector, InNumVerts);
+	Normals.Init(FVector3f::ZeroVector, InNumVerts);
 #if WITH_EDITORONLY_DATA
 	VertexColors.Init(FColor::Black, InNumVerts);
 #endif //#if WITH_EDITORONLY_DATA
@@ -125,7 +125,7 @@ void FClothPhysicalMeshData::BuildSelfCollisionData(float SelfCollisionRadius)
 			continue;
 		}
 
-		const FVector& V0Pos = Vertices[V0Index];
+		const FVector& V0Pos = (FVector)Vertices[V0Index];
 
 		// Start one after our current V0, we've done the other checks
 		for (int32 Vert1Itr = Vert0Itr + 1; Vert1Itr < SelfCollisionIndices.Num(); ++Vert1Itr)
@@ -137,7 +137,7 @@ void FClothPhysicalMeshData::BuildSelfCollisionData(float SelfCollisionRadius)
 				continue;
 			}
 
-			const FVector& V1Pos = Vertices[V1Index];
+			const FVector& V1Pos = (FVector)Vertices[V1Index];
 			const float V0ToV1DistSq = (V1Pos - V0Pos).SizeSquared();
 			if (V0ToV1DistSq < SelfCollisionRadiusSq)
 			{
@@ -177,8 +177,8 @@ void FClothPhysicalMeshData::CalculateInverseMasses()
 		const int32 Index1 = Indices[TriBaseIndex + 1];
 		const int32 Index2 = Indices[TriBaseIndex + 2];
 
-		const FVector AB = Vertices[Index1] - Vertices[Index0];
-		const FVector AC = Vertices[Index2] - Vertices[Index0];
+		const FVector AB = FVector(Vertices[Index1] - Vertices[Index0]);
+		const FVector AC = FVector(Vertices[Index2] - Vertices[Index0]);
 		const float TriArea = FVector::CrossProduct(AB, AC).Size();
 
 		InverseMasses[Index0] += TriArea;

@@ -1169,7 +1169,7 @@ void FPerInstanceRenderData::UpdateBoundsTransforms()
 			PerInstanceTransforms.Add(InstTransform);
 
 			FBoxSphereBounds TransformedBounds = LocalBounds.TransformBy(InstTransform.ToMatrix());
-			PerInstanceBounds.Add(FVector4f(TransformedBounds.Origin, TransformedBounds.SphereRadius)); // LWC_TODO: Precision loss
+			PerInstanceBounds.Add(FVector4f((FVector3f)TransformedBounds.Origin, TransformedBounds.SphereRadius)); // LWC_TODO: Precision loss
 		}
 	}
 	else
@@ -1316,11 +1316,11 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 					const FPrimitiveInstance& Instance = InstanceSceneData[i];
 
 					FRenderTransform InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
-					DrawWireStar(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+					DrawWireStar(Collector.GetPDI(ViewIndex), (FVector)InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
 
 					if (WasInstanceCustomDataUpdatedThisFrame(i))
 					{
-						DrawCircle(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Orange, 40.0f, 32, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+						DrawCircle(Collector.GetPDI(ViewIndex), (FVector)InstanceToWorld.Origin, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Orange, 40.0f, 32, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
 					}
 				}
 			}
@@ -1810,7 +1810,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		[&LocalViewPosition, &LocalToWorldScale](const FVector4f& InstanceSphere, float& InstanceRadius, float& DistanceToInstanceCenter, float& DistanceToInstanceStart)
 	{
 		FVector4f InstanceLocation = InstanceSphere;
-		FVector4f VToInstanceCenter = (FVector4f) LocalViewPosition - InstanceLocation;
+		FVector4f VToInstanceCenter = (FVector3f)LocalViewPosition - InstanceLocation;
 
 		DistanceToInstanceCenter = VToInstanceCenter.Size();
 		InstanceRadius = InstanceSphere.W;

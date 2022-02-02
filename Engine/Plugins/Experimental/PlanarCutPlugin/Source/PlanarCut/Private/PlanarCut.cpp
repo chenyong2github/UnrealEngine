@@ -109,11 +109,11 @@ void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollecti
 	for (int32 FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
 	{
 		const FIntVector& Tri = Collection.Indices[FaceIdx];
-		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Y]);
+		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Y]);
 		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Y][0]));
-		WorldDistance += FVector::Distance(Collection.Vertex[Tri.Z], Collection.Vertex[Tri.Y]);
+		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.Z], Collection.Vertex[Tri.Y]);
 		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.Z][0]), FVector2D(Collection.UVs[Tri.Y][0]));
-		WorldDistance += FVector::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Z]);
+		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Z]);
 		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Z][0]));
 	}
 
@@ -795,8 +795,8 @@ void FindBoneVolumes(
 		FVector3d Center = FVector::ZeroVector;
 		for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
 		{
-			FVector Pos = Transform.TransformPosition(Collection.Vertex[VIdx]);
-			Center += (FVector3d)Pos;
+			FVector Pos = Transform.TransformPosition(FVector(Collection.Vertex[VIdx]));
+			Center += Pos;
 		}
 		Center /= double(VEnd - VStart);
 		int32 FStart = Collection.FaceStart[GeomIdx];
@@ -805,9 +805,9 @@ void FindBoneVolumes(
 		for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
 		{
 			FIntVector Tri = Collection.Indices[FIdx];
-			FVector3d V0 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.X]);
-			FVector3d V1 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.Y]);
-			FVector3d V2 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.Z]);
+			FVector3d V0 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.X]));
+			FVector3d V1 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.Y]));
+			FVector3d V2 = Transform.TransformPosition(FVector3d(Collection.Vertex[Tri.Z]));
 
 			// add volume of the tetrahedron formed by the triangles and the reference point
 			FVector3d V1mRef = (V1 - Center) * DimScaleFactor;

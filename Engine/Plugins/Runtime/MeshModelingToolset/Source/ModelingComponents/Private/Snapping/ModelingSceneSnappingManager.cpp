@@ -371,9 +371,9 @@ bool GetComponentHitTriangle_Internal(FHitResult HitResult, VectorType* TriVerti
 		FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
 		int32 TriIdx = 3 * HitResult.FaceIndex;
 		FVector Positions[3];
-		Positions[0] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx]);
-		Positions[1] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 1]);
-		Positions[2] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 2]);
+		Positions[0] = (FVector)LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx]);
+		Positions[1] = (FVector)LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 1]);
+		Positions[2] = (FVector)LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 2]);
 
 		// transform to world space
 		FTransform ComponentTransform = Component->GetComponentTransform();

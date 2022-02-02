@@ -138,7 +138,7 @@ void UFractureToolFixTinyGeo::FractureContextChanged()
 			FBox Bounds(EForceInit::ForceInit);
 			for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
 			{
-				Bounds += CombinedTransform.TransformPosition(Collection.Vertex[VIdx]);
+				Bounds += CombinedTransform.TransformPosition((FVector)Collection.Vertex[VIdx]);
 			}
 			ToRemoveMappings.AddMapping(CollectionIdx, TransformIdx, ToRemoveBounds.Num());
 			ToRemoveBounds.Add(Bounds);

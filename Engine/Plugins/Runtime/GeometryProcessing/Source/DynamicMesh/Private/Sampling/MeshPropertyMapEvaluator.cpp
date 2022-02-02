@@ -144,13 +144,13 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 					const FVector3f DetailNormalTangentSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
 
 					// Convert detail normal tangent space to object space
-					FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * DetailTangentX + DetailNormalTangentSpace.Y * DetailTangentY + DetailNormalTangentSpace.Z * DetailNormal;
+					FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * FVector3f(DetailTangentX) + DetailNormalTangentSpace.Y * FVector3f(DetailTangentY) + DetailNormalTangentSpace.Z * DetailNormal;
 					Normalize(DetailNormalObjectSpace);
 					DetailNormal = DetailNormalObjectSpace;
 				}
 			}
 
-			Color = NormalToColor(DetailNormal);
+			Color = NormalToColor(FVector3d(DetailNormal));
 		}
 	}
 	break;

@@ -690,21 +690,21 @@ void FParticleBeam2EmitterInstance::UpdateBoundingBox(float DeltaTime)
 
 			bool bSkipUpdate = bJustSpawned && bSkipDoubleSpawnUpdate;
 
-			Particle->Location	+= bSkipUpdate ? FVector3f::ZeroVector : DeltaTime * Particle->Velocity;
+			Particle->Location	+= bSkipUpdate ? FVector::ZeroVector : DeltaTime * (FVector)Particle->Velocity;
 			Particle->Rotation	+= bSkipUpdate ? 0.0f : DeltaTime * Particle->RotationRate;
 			Particle->OldLocation += PositionOffsetThisTick;
-			FVector Size = Particle->Size * Scale;
+			FVector Size = (FVector)Particle->Size * Scale;
 			if (bUpdateBox)
 			{
 				ParticleBoundingBox += Particle->Location;
 				ParticleBoundingBox += Particle->Location + NoiseMin;
 				ParticleBoundingBox += Particle->Location + NoiseMax;
-				ParticleBoundingBox += BeamData->SourcePoint;
-				ParticleBoundingBox += BeamData->SourcePoint + NoiseMin;
-				ParticleBoundingBox += BeamData->SourcePoint + NoiseMax;
-				ParticleBoundingBox += BeamData->TargetPoint;
-				ParticleBoundingBox += BeamData->TargetPoint + NoiseMin;
-				ParticleBoundingBox += BeamData->TargetPoint + NoiseMax;
+				ParticleBoundingBox += (FVector)BeamData->SourcePoint;
+				ParticleBoundingBox += (FVector)BeamData->SourcePoint + NoiseMin;
+				ParticleBoundingBox += (FVector)BeamData->SourcePoint + NoiseMax;
+				ParticleBoundingBox += (FVector)BeamData->TargetPoint;
+				ParticleBoundingBox += (FVector)BeamData->TargetPoint + NoiseMin;
+				ParticleBoundingBox += (FVector)BeamData->TargetPoint + NoiseMax;
 			}
 
 			// Do angular integrator, and wrap result to within +/- 2 PI
@@ -762,17 +762,17 @@ void FParticleBeam2EmitterInstance::ForceUpdateBoundingBox()
 				NextNoisePoints, TaperValues, NoiseDistanceScale,
 				SourceModifier, TargetModifier);
 
-			FVector Size = Particle->Size * Scale;
+			FVector Size = (FVector)Particle->Size * Scale;
 
 			ParticleBoundingBox += Particle->Location;
 			ParticleBoundingBox += Particle->Location + NoiseMin;
 			ParticleBoundingBox += Particle->Location + NoiseMax;
-			ParticleBoundingBox += BeamData->SourcePoint;
-			ParticleBoundingBox += BeamData->SourcePoint + NoiseMin;
-			ParticleBoundingBox += BeamData->SourcePoint + NoiseMax;
-			ParticleBoundingBox += BeamData->TargetPoint;
-			ParticleBoundingBox += BeamData->TargetPoint + NoiseMin;
-			ParticleBoundingBox += BeamData->TargetPoint + NoiseMax;
+			ParticleBoundingBox += (FVector)BeamData->SourcePoint;
+			ParticleBoundingBox += (FVector)BeamData->SourcePoint + NoiseMin;
+			ParticleBoundingBox += (FVector)BeamData->SourcePoint + NoiseMax;
+			ParticleBoundingBox += (FVector)BeamData->TargetPoint;
+			ParticleBoundingBox += (FVector)BeamData->TargetPoint + NoiseMin;
+			ParticleBoundingBox += (FVector)BeamData->TargetPoint + NoiseMax;
 
 			MaxSizeScale = FMath::Max<FVector::FReal>(MaxSizeScale, Size.GetAbsMax()); //@todo particles: this does a whole lot of compares that can be avoided using SSE/ Altivec.
 		}
@@ -1404,7 +1404,7 @@ bool FParticleBeam2EmitterInstance::FillReplayData( FDynamicEmitterReplayDataBas
 			//					NewReplayData->NoiseRangeScale	= BeamModule_Noise->NoiseRangeScale.GetValue(Particle->RelativeTime, Component);
 			NewReplayData->NoiseRangeScale = BeamModule_Noise->NoiseRangeScale.GetValue(EmitterTime, Component);
 		}
-		NewReplayData->NoiseSpeed = BeamModule_Noise->NoiseSpeed.GetValue(EmitterTime);
+		NewReplayData->NoiseSpeed = (FVector3f)BeamModule_Noise->NoiseSpeed.GetValue(EmitterTime);
 		NewReplayData->NoiseLockTime = BeamModule_Noise->NoiseLockTime;
 		NewReplayData->NoiseLockRadius = BeamModule_Noise->NoiseLockRadius;
 		NewReplayData->bTargetNoise = BeamModule_Noise->bTargetNoise;

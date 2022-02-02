@@ -117,8 +117,8 @@ FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(USkeletalMeshComponen
 	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensorForContext(NeuralNetworkInferenceHandle).Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
 
 	VertexMapBufferSRV = DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI;
-	VertexDeltaScale = DeformerAsset->GetVertexDeltaScale();
-	VertexDeltaMean = DeformerAsset->GetVertexDeltaMean();
+	VertexDeltaScale = (FVector)DeformerAsset->GetVertexDeltaScale();
+	VertexDeltaMean = (FVector)DeformerAsset->GetVertexDeltaMean();
 
 	VertexDeltaMultiplier = DeformerComponent->GetVertexDeltaMultiplier();
 }
@@ -150,8 +150,8 @@ void FMLDeformerDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR cons
 	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
 	Parameters.NumVertices = 0;
 	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
-	Parameters.VertexDeltaScale = VertexDeltaScale;
-	Parameters.VertexDeltaMean = VertexDeltaMean;
+	Parameters.VertexDeltaScale = (FVector3f)VertexDeltaScale;
+	Parameters.VertexDeltaMean = (FVector3f)VertexDeltaMean;
 	Parameters.VertexDeltaMultiplier = VertexDeltaMultiplier;
 	Parameters.PositionDeltaBuffer = BufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;

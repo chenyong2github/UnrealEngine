@@ -57,9 +57,9 @@ void ProxyLOD::BuildkDOPTree(const FMeshDescription& MeshDescription, FkDOPTree&
 		for (uint32 r = Range.begin(), R = Range.end(); r < R; ++r)
 		{
 
-			FVector Pos[3] = {	VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r))],
-								VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r + 1))],
-								VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r + 2))] };
+			FVector Pos[3] = { (FVector)VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r))],
+								(FVector)VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r + 1))],
+								(FVector)VertexPositions[MeshDescription.GetVertexInstanceVertex(FVertexInstanceID(3 * r + 2))] };
 			BuildTriangles[r] = FkDOPBuildTriangle(r, Pos[0], Pos[1], Pos[2]);
 		}
 
@@ -89,7 +89,7 @@ void ProxyLOD::BuildkDOPTree(const FVertexDataMesh& SrcVertexDataMesh, ProxyLOD:
 
 		for (uint32 r = Range.begin(), R = Range.end(); r < R; ++r)
 		{
-			FVector Pos[3] = { Positions[Idxs[3 * r]],  Positions[Idxs[3 * r + 1]],  Positions[Idxs[3 * r + 2]] };
+			FVector Pos[3] = { (FVector)Positions[Idxs[3 * r]],  (FVector)Positions[Idxs[3 * r + 1]],  (FVector)Positions[Idxs[3 * r + 2]] };
 			BuildTriangles[r] = FkDOPBuildTriangle(r, Pos[0], Pos[1], Pos[2]);
 		}
 

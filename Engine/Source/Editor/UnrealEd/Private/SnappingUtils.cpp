@@ -341,12 +341,12 @@ bool FEditorViewportSnapping::SnapToBSPVertex(FVector& Location, FVector GridBas
 	SnapRotatorToGrid( Rotation );
 	if( IsSnapToVertexEnabled() )
 	{
-		FVector3f	SrcPoint = Location;
+		FVector3f	SrcPoint = (FVector3f)Location;
 		FVector3f	DestPoint;
 		int32 Temp;
 		if( GWorld->GetModel()->FindNearestVertex(SrcPoint, DestPoint, GetDefault<ULevelEditorViewportSettings>()->SnapDistance, Temp ) >= 0.0)
 		{
-			Location = DestPoint;
+			Location = (FVector)DestPoint;
 			bSnapped = true;
 		}
 	}

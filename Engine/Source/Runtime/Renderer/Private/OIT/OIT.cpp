@@ -456,10 +456,10 @@ static void AddOITSortTriangleIndexPass(
 		if (bDebugEnable)
 		{
 			Parameters->ViewToWorld		= FMatrix44f(View.ViewMatrices.GetViewMatrix().Inverse());	 // LWC_TODO: Precision loss?
-			Parameters->WorldBound_Min	= Bounds.GetBox().Min;
-			Parameters->WorldBound_Max	= Bounds.GetBox().Max;
-			Parameters->ViewBound_Min	= ViewBounds.GetBox().Min;
-			Parameters->ViewBound_Max	= ViewBounds.GetBox().Max;
+			Parameters->WorldBound_Min	= (FVector3f)Bounds.GetBox().Min;
+			Parameters->WorldBound_Max	= (FVector3f)Bounds.GetBox().Max;
+			Parameters->ViewBound_Min	= (FVector3f)ViewBounds.GetBox().Min;
+			Parameters->ViewBound_Max	= (FVector3f)ViewBounds.GetBox().Max;
 			if (ShaderDrawDebug::IsEnabled(View))
 			{
 				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);

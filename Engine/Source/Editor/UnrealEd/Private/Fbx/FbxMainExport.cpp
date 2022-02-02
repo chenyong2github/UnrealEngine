@@ -781,7 +781,7 @@ void FFbxExporter::ExportModel(UModel* Model, FbxNode* Node, const char* Name)
 		// If the vertex is outside of the world extent, snap it to the origin.  The faces associated with
 		// these vertices will be removed before exporting.  We leave the snapped vertex in the buffer so
 		// we won't have to deal with reindexing everything.
-		FVector FinalVertexPos = Vertex.Position;
+		FVector FinalVertexPos = (FVector)Vertex.Position;
 		if( FMath::Abs( Vertex.Position.X ) > BiasedHalfWorldExtent ||
 			FMath::Abs( Vertex.Position.Y ) > BiasedHalfWorldExtent ||
 			FMath::Abs( Vertex.Position.Z ) > BiasedHalfWorldExtent )
@@ -855,7 +855,7 @@ void FFbxExporter::ExportModel(UModel* Model, FbxNode* Node, const char* Name)
 			{
 				// Skip triangles that belong to BSP geometry close to the world extent, since its probably
 				// the automatically-added-brush for new levels.  The vertices will be left in the buffer (unreferenced)
-				FVector VertexPos = Model->VertexBuffer.Vertices[ IndexBuffer.Indices[ TriangleIdx * 3 + IndexIdx ] ].Position;
+				FVector VertexPos = (FVector)Model->VertexBuffer.Vertices[ IndexBuffer.Indices[ TriangleIdx * 3 + IndexIdx ] ].Position;
 				if( FMath::Abs( VertexPos.X ) > BiasedHalfWorldExtent ||
 					FMath::Abs( VertexPos.Y ) > BiasedHalfWorldExtent ||
 					FMath::Abs( VertexPos.Z ) > BiasedHalfWorldExtent )
@@ -1093,19 +1093,19 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			//The material ID should follow the unique materials
 			check(Mesh.IsPolygonGroupValid(CurrentPolygonGroupID));
 
-			const FVector& TextureBase = Model->Points[Surf.pBase];
-			const FVector& TextureX = Model->Vectors[Surf.vTextureU];
-			const FVector& TextureY = Model->Vectors[Surf.vTextureV];
-			const FVector& Normal = Model->Vectors[Surf.vNormal];
+			const FVector& TextureBase = (FVector)Model->Points[Surf.pBase];
+			const FVector& TextureX = (FVector)Model->Vectors[Surf.vTextureU];
+			const FVector& TextureY = (FVector)Model->Vectors[Surf.vTextureV];
+			const FVector& Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 			const int32 StartIndex = ExportData->CurrentVertAddIndex;
 
 			for(int32 VertexIndex = 0; VertexIndex < Node.NumVertices ; VertexIndex++ )
 			{
 				const FVert& Vert = Model->Verts[Node.iVertPool + VertexIndex];
-				const FVector& Vertex = Model->Points[Vert.pVertex];
+				const FVector& Vertex = (FVector)Model->Points[Vert.pVertex];
 				FVertexID VertexID = Mesh.CreateVertex();
-				VertexPositions[VertexID] = Vertex;
+				VertexPositions[VertexID] = (FVector3f)Vertex;
 			}
 			ExportData->CurrentVertAddIndex += Node.NumVertices;
 
@@ -1131,7 +1131,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 					VertexIDs[Corner] = FVertexID(WedgeIndices[Corner]);
 					VertexInstanceIDs[Corner] = Mesh.CreateVertexInstance(VertexIDs[Corner]);
 					const FVert& Vert = Model->Verts[TriVertIndices[Corner]];
-					const FVector& Vertex = Model->Points[Vert.pVertex];
+					const FVector& Vertex = (FVector)Model->Points[Vert.pVertex];
 
 					float U = ((Vertex - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
 					float V = ((Vertex - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
@@ -1139,7 +1139,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 					//This is not exported when exporting the whole level via ExportModel so leaving out here for now. 
 					//UVs.Set(VertexInstanceIDs[Corner], 1, Vert.ShadowTexCoord);
 					Colors[VertexInstanceIDs[Corner]] = FVector4f(FLinearColor::White);
-					Normals[VertexInstanceIDs[Corner]] = Normal;
+					Normals[VertexInstanceIDs[Corner]] = (FVector3f)Normal;
 				}
 
 				// Insert a polygon into the mesh
@@ -3131,9 +3131,9 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 			DoubleChannels[8]->Evaluate(LocalTime, Scale.Z);
 
 			FTransform RelativeTransform;
-			RelativeTransform.SetTranslation(Trans);
+			RelativeTransform.SetTranslation((FVector)Trans);
 			RelativeTransform.SetRotation(Rotator.Quaternion());
-			RelativeTransform.SetScale3D(Scale);
+			RelativeTransform.SetScale3D((FVector)Scale);
 
 			RelativeTransform = RotationDirectionConvert * RelativeTransform;
 
@@ -3636,7 +3636,7 @@ void DetermineVertsToWeld(TArray<int32>& VertRemap, TArray<int32>& UniqueVerts, 
 	TMap<FVector,int32> HashedVerts;
 	for(int32 a=0; a < VertexCount; a++)
 	{
-		const FVector& PositionA = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(a);
+		const FVector& PositionA = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(a);
 		const int32* FoundIndex = HashedVerts.Find(PositionA);
 		if ( !FoundIndex )
 		{
@@ -3893,7 +3893,7 @@ private:
 		const TArray<Chaos::FConvex::FPlaneType>& Faces = ConvexMesh->GetFaces();
 		for (int32 PolyIndex = 0; PolyIndex < Faces.Num(); ++PolyIndex)
 		{
-			FVector Normal = Faces[PolyIndex].Normal().GetSafeNormal();
+			FVector Normal = (FVector)Faces[PolyIndex].Normal().GetSafeNormal();
 			FbxVector4 FbxNormal = FbxVector4(Normal.X, -Normal.Y, Normal.Z);
 			// add vertices 
 			for (int32 j = 0; j < 3; ++j)
@@ -4026,8 +4026,8 @@ private:
 			ArcVert->Position.Z = FMath::Cos(angle);
 
 			ArcVert->SetTangents(
-				FVector(1, 0, 0),
-				FVector(0.0f, -ArcVert->Position.Z, ArcVert->Position.Y),
+				FVector3f(1, 0, 0),
+				FVector3f(0.0f, -ArcVert->Position.Z, ArcVert->Position.Y),
 				ArcVert->Position
 				);
 		}
@@ -4045,9 +4045,9 @@ private:
 				Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[v].Position);
 
 				Verts[VIx].SetTangents(
-					ArcRot.TransformVector(ArcVerts[v].TangentX.ToFVector()),
+					ArcRot.TransformVector(ArcVerts[v].TangentX.ToFVector3f()),
 					ArcRot.TransformVector(ArcVerts[v].GetTangentY()),
-					ArcRot.TransformVector(ArcVerts[v].TangentZ.ToFVector())
+					ArcRot.TransformVector(ArcVerts[v].TangentZ.ToFVector3f())
 					);
 			}
 		}
@@ -4055,7 +4055,7 @@ private:
 		// Add all of the vertices we generated to the mesh builder.
 		for (int32 VertexIndex = 0; VertexIndex < SphereNumVerts; VertexIndex++)
 		{
-			FVector Position = SphereTransform.TransformPosition(Verts[VertexIndex].Position);
+			FVector Position = (FVector)SphereTransform.TransformPosition((FVector)Verts[VertexIndex].Position);
 			ControlPoints[CurrentVertexOffset + VertexIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
 		}
 		CurrentVertexOffset += SphereNumVerts;
@@ -4181,12 +4181,12 @@ private:
 			SpherePos.Y = Radius * FMath::Sin(Angle);
 			SpherePos.Z = Radius * FMath::Cos(Angle);
 
-			ArcVert->Position = SpherePos + FVector(0, 0, ZOffset);
+			ArcVert->Position = (FVector3f)SpherePos + FVector3f(0, 0, ZOffset);
 
 			ArcVert->SetTangents(
-				FVector(1, 0, 0),
-				FVector(0.0f, -SpherePos.Z, SpherePos.Y),
-				SpherePos
+				FVector3f(1, 0, 0),
+				FVector3f(0.0f, -SpherePos.Z, SpherePos.Y),
+				(FVector3f)SpherePos
 				);
 		}
 
@@ -4203,9 +4203,9 @@ private:
 				Verts[VIx].Position = ArcRot.TransformPosition(ArcVerts[VertIdx].Position);
 
 				Verts[VIx].SetTangents(
-					ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector()),
+					ArcRot.TransformVector(ArcVerts[VertIdx].TangentX.ToFVector3f()),
 					ArcRot.TransformVector(ArcVerts[VertIdx].GetTangentY()),
-					ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector())
+					ArcRot.TransformVector(ArcVerts[VertIdx].TangentZ.ToFVector3f())
 					);
 			}
 		}
@@ -4213,7 +4213,7 @@ private:
 		// Add all of the vertices we generated to the mesh builder.
 		for (int32 VertexIndex = 0; VertexIndex < CapsuleNumVerts; VertexIndex++)
 		{
-			FVector Position = CapsuleTransform.TransformPosition(Verts[VertexIndex].Position);
+			FVector Position = (FVector)CapsuleTransform.TransformPosition((FVector)Verts[VertexIndex].Position);
 			ControlPoints[CurrentVertexOffset + VertexIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
 		}
 		CurrentVertexOffset += CapsuleNumVerts;
@@ -4485,7 +4485,7 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 		for (int32 PosIndex = 0; PosIndex < UniqueVerts.Num(); ++PosIndex)
 		{
 			int32 UnrealPosIndex = UniqueVerts[PosIndex];
-			FVector Position = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(UnrealPosIndex);
+			FVector Position = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(UnrealPosIndex);
 			ControlPoints[PosIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
 		}
 
@@ -4834,7 +4834,7 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 	for (int32 PosIndex = 0; PosIndex < UniqueVerts.Num(); ++PosIndex)
 	{
 		int32 UnrealPosIndex = UniqueVerts[PosIndex];
-		FVector Position = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(UnrealPosIndex);
+		FVector Position = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(UnrealPosIndex);
 
 		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis));
 		USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis) = 0;
@@ -4882,9 +4882,9 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 	FbxNormals.AddUninitialized(VertexCount);
 	for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 	{
-		FVector Position = RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
+		FVector Position = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
 		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis));
-		FVector Normal = FVector3f(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
+		FVector Normal = FVector(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
 		Normal = SliceTransform.TransformVector(Normal);
 		FbxVector4& FbxNormal = FbxNormals[VertIndex];
 		FbxNormal = FbxVector4(Normal.X, -Normal.Y, Normal.Z);

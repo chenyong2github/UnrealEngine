@@ -193,16 +193,16 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 		}
 
 		// Cache the texture coordinate system for this polygon.
-		FVector3f	TextureBase = Polygon.Base - (Brush ? Brush->GetPivotOffset() : FVector::ZeroVector),
+		FVector3f	TextureBase = Polygon.Base - (Brush ? (FVector3f)Brush->GetPivotOffset() : FVector3f::ZeroVector),
 			TextureX = Polygon.TextureU / UModel::GetGlobalBSPTexelScale(),
 			TextureY = Polygon.TextureV / UModel::GetGlobalBSPTexelScale();
 		// For each vertex after the first two vertices...
 		for (int32 VertexIndex = 2; VertexIndex < Polygon.Vertices.Num(); VertexIndex++)
 		{
 			FVector3f Positions[3];
-			Positions[ReverseVertices ? 0 : 2] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[0]) - PostSub);
-			Positions[1] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex - 1]) - PostSub);
-			Positions[ReverseVertices ? 2 : 0] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex]) - PostSub);
+			Positions[ReverseVertices ? 0 : 2] = FVector4f(ActorToWorld.TransformPosition((FVector)Polygon.Vertices[0]) - PostSub);
+			Positions[1] = FVector4f(ActorToWorld.TransformPosition((FVector)Polygon.Vertices[VertexIndex - 1]) - PostSub);
+			Positions[ReverseVertices ? 2 : 0] = FVector4f(ActorToWorld.TransformPosition((FVector)Polygon.Vertices[VertexIndex]) - PostSub);
 			FVertexID VertexID[3] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };
 			for (FVertexID IterVertexID : MeshDescription.Vertices().GetElementIDs())
 			{

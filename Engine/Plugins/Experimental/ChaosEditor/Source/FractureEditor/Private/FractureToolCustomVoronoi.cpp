@@ -226,10 +226,10 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 			}
 			for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
-				FVector Position = VertexPositions.Get(VertexID);
+				FVector Position = (FVector)VertexPositions.Get(VertexID);
 				if (NormalOffset > 0)
 				{
-					Position += Normals[VertexID] * NormalOffset;
+					Position += (FVector)Normals[VertexID] * NormalOffset;
 				}
 				Sites.Add(VerticesTransform.TransformPosition(Position));
 			}
@@ -273,7 +273,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 					// merge exact duplicate points and average their normals
 					for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
 					{
-						const FVector& Position = Collection.Vertex[VIdx];
+						const FVector& Position = (FVector)Collection.Vertex[VIdx];
 						int32& Idx = VertexHash.FindOrAdd(Position);
 						if (Idx - 1 == INDEX_NONE)
 						{
@@ -287,7 +287,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 					}
 					for (TPair<FVector, int32>& Point : VertexHash)
 					{
-						const FVector OffsetPosition = Point.Key + Normals[Point.Value - 1] * NormalOffset;
+						const FVector OffsetPosition = (FVector)Point.Key + (FVector)Normals[Point.Value - 1] * NormalOffset;
 						const FVector LocalPos = Collection.Transform[Bone].TransformPosition(OffsetPosition);
 						Sites.Add(Context.GetTransform().TransformPosition(LocalPos));
 					}
@@ -297,7 +297,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 						WeightsOnSourceVertices.SetNumZeroed(Count);
 						for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
 						{
-							const FVector& Position = Collection.Vertex[VIdx];
+							const FVector& Position = (FVector)Collection.Vertex[VIdx];
 							int32 NIdx = VertexHash[Position] - 1;
 							float& Wt = WeightsOnSourceVertices[NIdx];
 							Wt = FMath::Max(Wt, 1 - Normals[NIdx].Dot(Collection.Normal[VIdx]));
@@ -315,7 +315,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 					// if no normal offset, allow Voronoi diagram to drop the duplicate points automatically
 					for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
 					{
-						const FVector& Position = Collection.Vertex[VIdx];
+						const FVector& Position = (FVector)Collection.Vertex[VIdx];
 						const FVector LocalPos = Collection.Transform[Bone].TransformPosition(Position);
 						Sites.Add(Context.GetTransform().TransformPosition(LocalPos));
 					}

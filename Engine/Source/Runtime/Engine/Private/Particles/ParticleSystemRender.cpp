@@ -273,7 +273,7 @@ void FDynamicSpriteEmitterDataBase::RenderDebug(const FParticleSystemSceneProxy*
 		FVector DrawLocation = LocalToWorld.TransformPosition(Particle.Location);
 		if (bCrosses)
 		{
-			FVector Size = Particle.Size * SpriteSource.Scale;
+			FVector Size(Particle.Size * SpriteSource.Scale);
 			PDI->DrawLine(DrawLocation - (0.5f * Size.X * CamX), DrawLocation + (0.5f * Size.X * CamX), EmitterEditorColor, Proxy->GetDepthPriorityGroup(View));
 			PDI->DrawLine(DrawLocation - (0.5f * Size.Y * CamY), DrawLocation + (0.5f * Size.Y * CamY), EmitterEditorColor, Proxy->GetDepthPriorityGroup(View));
 		}
@@ -388,13 +388,13 @@ void ApplyOrbitToPosition(
 
 		if (Source.bUseLocalSpace)
 		{
-			ParticlePosition += OrbitPayload.Offset;
-			ParticleOldPosition += OrbitPayload.PreviousOffset;
+			ParticlePosition += (FVector)OrbitPayload.Offset;
+			ParticleOldPosition += (FVector)OrbitPayload.PreviousOffset;
 		}
 		else
 		{
-			ParticlePosition += InLocalToWorld.TransformVector(OrbitPayload.Offset);
-			ParticleOldPosition += InLocalToWorld.TransformVector(OrbitPayload.PreviousOffset);
+			ParticlePosition += InLocalToWorld.TransformVector((FVector)OrbitPayload.Offset);
+			ParticleOldPosition += InLocalToWorld.TransformVector((FVector)OrbitPayload.PreviousOffset);
 		}
 	}
 }
@@ -480,9 +480,9 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* Dy
 		for (uint32 Factor = 0; Factor < InstanceFactor; Factor++)
 		{
 			FillVertex = (FParticleSpriteVertex*)TempVert;
-			FillVertex->Position = ParticlePosition;
+			FillVertex->Position = (FVector3f)ParticlePosition;
 			FillVertex->RelativeTime = Particle.RelativeTime;
-			FillVertex->OldPosition = ParticleOldPosition;
+			FillVertex->OldPosition = (FVector3f)ParticleOldPosition;
 			// Create a floating point particle ID from the counter, map into approximately 0-1
 			FillVertex->ParticleId = (Particle.Flags & STATE_CounterMask) / 10000.0f;
 			FillVertex->Size = FVector2f(GetParticleSizeWithUVFlipInSign(Particle, Size));
@@ -632,9 +632,9 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexDataNonInstanced(void* VertexDa
 				}
 			}
 
-			FillVertex[VertexIndex].Position	= ParticlePosition;
+			FillVertex[VertexIndex].Position	= (FVector3f)ParticlePosition;
 			FillVertex[VertexIndex].RelativeTime = Particle.RelativeTime;
-			FillVertex[VertexIndex].OldPosition	= ParticleOldPosition;
+			FillVertex[VertexIndex].OldPosition	= (FVector3f)ParticleOldPosition;
 			// Create a floating point particle ID from the counter, map into approximately 0-1
 			FillVertex[VertexIndex].ParticleId = (Particle.Flags & STATE_CounterMask) / 10000.0f;
 			FillVertex[VertexIndex].Size = FVector2f(GetParticleSizeWithUVFlipInSign(Particle, Size));
@@ -709,7 +709,7 @@ void GatherParticleLightData(const FDynamicSpriteEmitterReplayDataBase& Source, 
 				
 				FSimpleLightEntry ParticleLight;
 				ParticleLight.Radius =  LightPayload->RadiusScale * (Size.X + Size.Y) / 2.0f;
-				ParticleLight.Color = FVector(Particle.Color) * Particle.Color.A * LightPayload->ColorScale;
+				ParticleLight.Color = FVector(Particle.Color * Particle.Color.A * LightPayload->ColorScale);
 				ParticleLight.Exponent = LightPayload->LightExponent;
 				ParticleLight.VolumetricScatteringIntensity = Source.LightVolumetricScatteringIntensity;
 				ParticleLight.bAffectTranslucency = LightPayload->bAffectsTranslucency;
@@ -1127,10 +1127,10 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 
 		if (NormalsMode != ENM_CameraFacing)
 		{
-			UniformParameters.NormalsSphereCenter = (FVector4f)LocalToWorld.TransformPosition(SourceData->NormalsSphereCenter); // LWC_TODO: Precision loss
+			UniformParameters.NormalsSphereCenter = (FVector4f)LocalToWorld.TransformPosition((FVector)SourceData->NormalsSphereCenter); // LWC_TODO: Precision loss
 			if (NormalsMode == ENM_Cylindrical)
 			{
-				UniformParameters.NormalsCylinderUnitDirection = (FVector4f)LocalToWorld.TransformVector(SourceData->NormalsCylinderDirection); // LWC_TODO: Precision loss
+				UniformParameters.NormalsCylinderUnitDirection = (FVector4f)LocalToWorld.TransformVector((FVector)SourceData->NormalsCylinderDirection); // LWC_TODO: Precision loss
 			}
 		}
 
@@ -1251,7 +1251,7 @@ void FDynamicMeshEmitterData::Init( bool bInSelected,
 		if ((CheckAxisLockOption >= EPAL_X) && (CheckAxisLockOption <= EPAL_NEGATIVE_Z))
 		{
 			bUseMeshLockedAxis = true;
-			Source.LockedAxis = FVector(
+			Source.LockedAxis = FVector3f(
 				(CheckAxisLockOption == EPAL_X) ? 1.0f : ((CheckAxisLockOption == EPAL_NEGATIVE_X) ? -1.0f :  0.0),
 				(CheckAxisLockOption == EPAL_Y) ? 1.0f : ((CheckAxisLockOption == EPAL_NEGATIVE_Y) ? -1.0f :  0.0),
 				(CheckAxisLockOption == EPAL_Z) ? 1.0f : ((CheckAxisLockOption == EPAL_NEGATIVE_Z) ? -1.0f :  0.0)
@@ -1261,7 +1261,7 @@ void FDynamicMeshEmitterData::Init( bool bInSelected,
 		{
 			// Catch the case where we NEED locked axis...
 			bUseMeshLockedAxis = true;
-			Source.LockedAxis = FVector(1.0f, 0.0f, 0.0f);
+			Source.LockedAxis = FVector3f(1.0f, 0.0f, 0.0f);
 		}
 	}
 
@@ -1605,8 +1605,8 @@ void FDynamicMeshEmitterData::GetParticleTransform(
 	const uint8* ParticleBase = (const uint8*)&InParticle;
 
 	const FMeshRotationPayloadData* RotationPayload = (const FMeshRotationPayloadData*)((const uint8*)&InParticle + Source.MeshRotationOffset);
-	FVector RotationPayloadInitialOrientation = RotationPayload->InitialOrientation;
-	FVector RotationPayloadRotation = RotationPayload->Rotation;
+	FVector RotationPayloadInitialOrientation(RotationPayload->InitialOrientation);
+	FVector RotationPayloadRotation(RotationPayload->Rotation);
 
 	FVector CameraPayloadCameraOffset = FVector::ZeroVector;
 	if (Source.CameraPayloadOffset != 0)
@@ -1627,7 +1627,7 @@ void FDynamicMeshEmitterData::GetParticleTransform(
 	{
 		int32 CurrentOffset = Source.OrbitModuleOffset;
 		PARTICLE_ELEMENT(FOrbitChainModuleInstancePayload, OrbitPayload);
-		OrbitPayloadOrbitOffset = OrbitPayload.Offset;
+		OrbitPayloadOrbitOffset = (FVector)OrbitPayload.Offset;
 	}
 
 	CalculateParticleTransform(
@@ -1636,12 +1636,12 @@ void FDynamicMeshEmitterData::GetParticleTransform(
 		InParticle.Rotation,
 		InParticle.Velocity,
 		InParticle.Size,
-		RotationPayloadInitialOrientation,
-		RotationPayloadRotation,
+		(FVector3f)RotationPayloadInitialOrientation,
+		(FVector3f)RotationPayloadRotation,
 		CameraPayloadCameraOffset,
-		OrbitPayloadOrbitOffset,
+		(FVector3f)OrbitPayloadOrbitOffset,
 		View->ViewMatrices.GetViewOrigin(),
-		View->GetViewDirection(),
+		(FVector3f)View->GetViewDirection(),
 		OutTransformMat
 		);
 }
@@ -1689,7 +1689,7 @@ void FDynamicMeshEmitterData::GetParticlePrevTransform(
 		CameraPayloadCameraOffset,
 		MotionBlurPayload->PayloadPrevOrbitOffset,
 		ViewInfo->PrevViewInfo.ViewMatrices.GetViewOrigin(),
-		ViewInfo->GetPrevViewDirection(),
+		(FVector3f)ViewInfo->GetPrevViewDirection(),
 		OutTransformMat
 		);
 }
@@ -1749,7 +1749,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 	if (bUseMeshLockedAxis == true)
 	{
 		// facing axis is taken to be the local x axis.	
-		PointToLockedAxis = FQuat::FindBetweenNormals(FVector(1, 0, 0), Source.LockedAxis);
+		PointToLockedAxis = FQuat::FindBetweenNormals(FVector(1, 0, 0), (FVector)Source.LockedAxis);
 	}
 
 	OutTransformMat = FMatrix::Identity;
@@ -1763,7 +1763,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 	kTransMat.M[3][1] = ParticlePosition.Y;
 	kTransMat.M[3][2] = ParticlePosition.Z;
 
-	FVector ScaledSize = ParticleSize * Source.Scale;
+	FVector3f ScaledSize = ParticleSize * Source.Scale;
 	kScaleMat.M[0][0] = ScaledSize.X;
 	kScaleMat.M[1][1] = ScaledSize.Y;
 	kScaleMat.M[2][2] = ScaledSize.Z;
@@ -1780,7 +1780,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 	if (bUseCameraFacing)
 	{
 		Location = ParticlePosition;
-		FVector	VelocityDirection = ParticleVelocity;
+		FVector	VelocityDirection(ParticleVelocity);
 
 		if (Source.bUseLocalSpace)
 		{
@@ -1810,7 +1810,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 
 		if (bFaceCameraDirectionRatherThanPosition)
 		{
-			DirToCamera = -ViewDirection;
+			DirToCamera = (FVector)-ViewDirection;
 		}
 		else
 		{
@@ -1855,7 +1855,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 			{
 				// Align the X-axis with the selected LockAxis, and point the selected axis towards the camera
 				// PointTo will contain quaternion for locked axis rotation.
-				FacingDir = Source.LockedAxis;
+				FacingDir = (FVector)Source.LockedAxis;
 
 				if (Source.bUseLocalSpace)
 				{
@@ -1899,7 +1899,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 	else if (bUseMeshLockedAxis)
 	{
 		// Add any 'sprite rotation' about the locked axis
-		FQuat AddedRotation = FQuat(Source.LockedAxis, ParticleRotation);
+		FQuat AddedRotation = FQuat((FVector)Source.LockedAxis, ParticleRotation);
 		kLockedAxisQuat = (AddedRotation * PointTo);
 	}
 	else if (Source.ScreenAlignment == PSA_TypeSpecific)
@@ -1931,10 +1931,10 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 			// For the locked axis behavior, only rotate to	face the camera	about the
 			// locked direction, and maintain the up vector	pointing towards the locked	direction
 			// Find	the	rotation that points the localupaxis towards the targetupaxis
-			FQuat PointToUp = FQuat::FindBetweenNormals(LocalSpaceUpAxis, Source.LockedAxis);
+			FQuat PointToUp = FQuat::FindBetweenNormals(LocalSpaceUpAxis, (FVector)Source.LockedAxis);
 
 			// Add in rotation about the TargetUpAxis to point the facing vector towards the camera
-			FVector	DirToCameraInRotationPlane = DirToCamera - ((DirToCamera | Source.LockedAxis)*Source.LockedAxis);
+			FVector	DirToCameraInRotationPlane = DirToCamera - FVector((DirToCamera | (FVector)Source.LockedAxis)*Source.LockedAxis);
 			DirToCameraInRotationPlane.Normalize();
 			FQuat PointToCamera = FQuat::FindBetweenNormals(PointToUp.RotateVector(LocalSpaceFacingAxis), DirToCameraInRotationPlane);
 
@@ -1996,14 +1996,14 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 		FVector kRotVec = FVector(fRot, fRot, fRot);
 		FRotator kRotator = FRotator::MakeFromEuler(kRotVec);
 
-		kRotator += FRotator::MakeFromEuler(ParticlePayloadRotation);
+		kRotator += FRotator::MakeFromEuler((FVector)ParticlePayloadRotation);
 
 		kRotMat = FRotationMatrix(kRotator);
 	}
 
 	if (bApplyPreRotation == true)
 	{
-		FRotator MeshOrient = FRotator::MakeFromEuler(ParticlePayloadInitialOrientation);
+		FRotator MeshOrient = FRotator::MakeFromEuler((FVector)ParticlePayloadInitialOrientation);
 		FRotationMatrix OrientMat(MeshOrient);
 
 		if ((bUseCameraFacing == true) || (bUseMeshLockedAxis == true))
@@ -2024,7 +2024,7 @@ void FDynamicMeshEmitterData::CalculateParticleTransform(
 		OutTransformMat = kScaleMat * kRotMat * kTransMat;
 	}
 
-	FVector OrbitOffset = ParticlePayloadOrbitOffset;
+	FVector OrbitOffset(ParticlePayloadOrbitOffset);
 	if (Source.bUseLocalSpace == false)
 	{
 		OrbitOffset = LocalToWorld.TransformVector(OrbitOffset);
@@ -2134,20 +2134,20 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 
 		// Particle velocity. Calculate on CPU to avoid computing in vertex shader.
 		// Note: It would be preferred if we could check whether the material makes use of the 'Particle Direction' node to avoid this work.
-		FVector3f DeltaPosition = Particle.Location - Particle.OldLocation;
+		FVector3f DeltaPosition(Particle.Location - Particle.OldLocation);
 
 		int32 CurrentOffset = Source.OrbitModuleOffset;
 		if (CurrentOffset != 0)
 		{
 			FOrbitChainModuleInstancePayload& OrbitPayload = *((FOrbitChainModuleInstancePayload*)((uint8*)&Particle + CurrentOffset));																\
-			DeltaPosition = (Particle.Location + OrbitPayload.Offset) - (Particle.OldLocation + OrbitPayload.PreviousOffset);
+			DeltaPosition = ((FVector3f)Particle.Location + OrbitPayload.Offset) - ((FVector3f)Particle.OldLocation + OrbitPayload.PreviousOffset);
 		}
 
 		if (!DeltaPosition.IsZero())
 		{
 			if (Source.bUseLocalSpace)
 			{
-				DeltaPosition = (FVector4f)Proxy->GetLocalToWorld().TransformVector(DeltaPosition);
+				DeltaPosition = (FVector4f)Proxy->GetLocalToWorld().TransformVector((FVector)DeltaPosition);
 			}
 			FVector3f Direction;
 			float Speed; 
@@ -2352,8 +2352,8 @@ FParticleBeamTrailUniformBufferRef CreateBeamTrailUniformBuffer(
 		const FMatrix& LocalToWorld = SourceData->bUseLocalSpace ? Proxy->GetLocalToWorld() : FMatrix::Identity;
 		ComputeLockedAxes( LockAxisFlag, LocalToWorld, CameraUp, CameraRight );
 	}
-	UniformParameters.CameraUp = FVector4f( CameraUp, 0.0f );
-	UniformParameters.CameraRight = FVector4f( CameraRight, 0.0f );
+	UniformParameters.CameraUp = FVector4f( (FVector3f)CameraUp, 0.0f );
+	UniformParameters.CameraRight = FVector4f( (FVector3f)CameraRight, 0.0f );
 
 	// Screen alignment.
 	UniformParameters.ScreenAlignment = FVector4f( (float)SourceData->ScreenAlignment, 0.0f, 0.0f, 0.0f );
@@ -2516,9 +2516,9 @@ void FDynamicBeam2EmitterData::RenderDirectLine(const FParticleSystemSceneProxy*
 			continue;
 		}
 
-		DrawWireStar(PDI, BeamPayloadData->SourcePoint, 20.0f, FColor::Green, Proxy->GetDepthPriorityGroup(View));
-		DrawWireStar(PDI, BeamPayloadData->TargetPoint, 20.0f, FColor::Red, Proxy->GetDepthPriorityGroup(View));
-		PDI->DrawLine(BeamPayloadData->SourcePoint, BeamPayloadData->TargetPoint, FColor::Yellow, Proxy->GetDepthPriorityGroup(View));
+		DrawWireStar(PDI, (FVector)BeamPayloadData->SourcePoint, 20.0f, FColor::Green, Proxy->GetDepthPriorityGroup(View));
+		DrawWireStar(PDI, (FVector)BeamPayloadData->TargetPoint, 20.0f, FColor::Red, Proxy->GetDepthPriorityGroup(View));
+		PDI->DrawLine((FVector)BeamPayloadData->SourcePoint, (FVector)BeamPayloadData->TargetPoint, FColor::Yellow, Proxy->GetDepthPriorityGroup(View));
 	}
 }
 
@@ -2628,14 +2628,14 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			check(TessFactor > 0);
 
 			// Setup the current position as the source point
-			CurrPosition		= BeamPayloadData->SourcePoint;
+			CurrPosition		= (FVector)BeamPayloadData->SourcePoint;
 			CurrDrawPosition	= CurrPosition;
 
 			// Setup the source tangent & strength
 			if (Source.bUseSource)
 			{
 				// The source module will have determined the proper source tangent.
-				LastTangent	= BeamPayloadData->SourceTangent;
+				LastTangent	= (FVector)BeamPayloadData->SourceTangent;
 				fStrength	= BeamPayloadData->SourceStrength;
 			}
 			else
@@ -2658,17 +2658,17 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			FVector	NoiseDir;
 
 			// Reset the texture coordinate
-			LastPosition		= BeamPayloadData->SourcePoint;
+			LastPosition		= (FVector)BeamPayloadData->SourcePoint;
 			LastDrawPosition	= LastPosition;
 
 			// Determine the current position by stepping the direct line and offsetting with the noise point. 
-			CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+			CurrPosition		= LastPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 
 			if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 			{
 				NoiseDir		= NextNoise[0] - NoisePoints[0];
 				NoiseDir.Normalize();
-				CheckNoisePoint	= NoisePoints[0] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+				CheckNoisePoint	= NoisePoints[0] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 				if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[0].X) < Source.NoiseLockRadius) &&
 					(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[0].Y) < Source.NoiseLockRadius) &&
 					(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[0].Z) < Source.NoiseLockRadius))
@@ -2693,13 +2693,13 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			for (int32 StepIndex = 0; StepIndex < BeamPayloadData->Steps; StepIndex++)
 			{
 				// Determine the current position by stepping the direct line and offsetting with the noise point. 
-				CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+				CurrPosition		= LastPosition + FVector(BeamPayloadData->Direction * BeamPayloadData->StepSize);
 
 				if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 				{
 					NoiseDir		= NextNoise[StepIndex] - NoisePoints[StepIndex];
 					NoiseDir.Normalize();
-					CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+					CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 					if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex].X) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex].Y) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex].Z) < Source.NoiseLockRadius))
@@ -2716,19 +2716,19 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 
 				// Prep the next draw position to determine tangents
 				bool bTarget = false;
-				NextTargetPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+				NextTargetPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 				if (bLocked && ((StepIndex + 1) == BeamPayloadData->Steps))
 				{
 					// If we are locked, and the next step is the target point, set the draw position as such.
 					// (ie, we are on the last noise point...)
-					NextTargetDrawPosition	= BeamPayloadData->TargetPoint;
+					NextTargetDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 					if (Source.bTargetNoise)
 					{
 						if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 						{
 							NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -2743,7 +2743,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 
 						NextTargetDrawPosition += NoiseRangeScaleFactor * LocalToWorld.TransformVector(NoisePoints[Source.Frequency] * NoiseDistScale);
 					}
-					TargetTangent = BeamPayloadData->TargetTangent;
+					TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 					fTargetStrength	= BeamPayloadData->TargetStrength;
 				}
 				else
@@ -2753,7 +2753,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 					{
 						NoiseDir		= NextNoise[StepIndex + 1] - NoisePoints[StepIndex + 1];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex + 1].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex + 1].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex + 1].Z) < Source.NoiseLockRadius))
@@ -2809,14 +2809,14 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 			if (bLocked)
 			{
 				// Draw the line from the last point to the target
-				CurrDrawPosition	= BeamPayloadData->TargetPoint;
+				CurrDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 				if (Source.bTargetNoise)
 				{
 					if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 					{
 						NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -2834,11 +2834,11 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 
 				if (Source.bUseTarget)
 				{
-					TargetTangent = BeamPayloadData->TargetTangent;
+					TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 				}
 				else
 				{
-					NextTargetDrawPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+					NextTargetDrawPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 					TargetTangent = ((1.0f - Source.NoiseTension) / 2.0f) * 
 						(NextTargetDrawPosition - LastDrawPosition);
 				}
@@ -2895,7 +2895,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 				}
 
 				FVector EndPoint	= Particle->Location;
-				FVector Location	= BeamPayloadData->SourcePoint;
+				FVector Location	= (FVector)BeamPayloadData->SourcePoint;
 
 				DrawWireStar(PDI, Location, 15.0f, FColor::Red, Proxy->GetDepthPriorityGroup(View));
 				DrawWireStar(PDI, EndPoint, 15.0f, FColor::Red, Proxy->GetDepthPriorityGroup(View));
@@ -2926,7 +2926,7 @@ void FDynamicBeam2EmitterData::RenderLines(const FParticleSystemSceneProxy* Prox
 
 				check(InterpolatedPoints);	// TTP #33139
 
-				Location	= BeamPayloadData->SourcePoint;
+				Location	= (FVector)BeamPayloadData->SourcePoint;
 				EndPoint	= InterpolatedPoints[0];
 
 				DrawWireStar(PDI, Location, 15.0f, FColor::Red, Proxy->GetDepthPriorityGroup(View));
@@ -3166,7 +3166,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			FVector2D Size(Particle->Size.X * Source.Scale.X, Particle->Size.X * Source.Scale.X);
 
 			FVector EndPoint	= Particle->Location;
-			FVector Location	= BeamPayloadData->SourcePoint;
+			FVector Location	= (FVector)BeamPayloadData->SourcePoint;
 			FVector Right, Up;
 			FVector WorkingUp;
 
@@ -3186,7 +3186,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			float	Tiles		= 1.0f;
 			if (Source.TextureTileDistance > KINDA_SMALL_NUMBER)
 			{
-				FVector	Direction	= BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint;
+				FVector	Direction	= FVector(BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint);
 				float	Distance	= Direction.Size();
 				Tiles				= Distance / Source.TextureTileDistance;
 			}
@@ -3229,8 +3229,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Offset.Z		= WorkingUp.Z * Size.X * Taper;
 
 				// 'Lead' edge
-				Vertex->Position	= Location + Offset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location + Offset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= 0.0f;
@@ -3242,8 +3242,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex++;
 				PackedCount++;
 
-				Vertex->Position	= Location - Offset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location - Offset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= 0.0f;
@@ -3267,8 +3267,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Offset.Z		= WorkingUp.Z * Size.X * Taper;
 
 				//
-				Vertex->Position	= EndPoint + Offset;
-				Vertex->OldPosition	= Particle->OldLocation;
+				Vertex->Position	= FVector3f(EndPoint + Offset);
+				Vertex->OldPosition	= (FVector3f)Particle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fUEnd;
@@ -3280,8 +3280,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex++;
 				PackedCount++;
 
-				Vertex->Position	= EndPoint - Offset;
-				Vertex->OldPosition	= Particle->OldLocation;
+				Vertex->Position	= FVector3f(EndPoint - Offset);
+				Vertex->OldPosition	= (FVector3f)Particle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fUEnd;
@@ -3343,7 +3343,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 
 			if (Source.TextureTileDistance > KINDA_SMALL_NUMBER)
 			{
-				FVector	Direction	= BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint;
+				FVector	Direction	= FVector(BeamPayloadData->TargetPoint - BeamPayloadData->SourcePoint);
 				float	Distance	= Direction.Size();
 				float	Tiles		= Distance / Source.TextureTileDistance;
 				fTextureIncrement	= Tiles / Source.InterpolationPoints;
@@ -3370,7 +3370,7 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 			for (int32 SheetIndex = 0; SheetIndex < Source.Sheets; SheetIndex++)
 			{
 				fU			= 0.0f;
-				Location	= BeamPayloadData->SourcePoint;
+				Location	= (FVector)BeamPayloadData->SourcePoint;
 				EndPoint	= InterpolatedPoints[0];
 				Right		= Location - EndPoint;
 				Right.Normalize();
@@ -3409,8 +3409,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 				// 'Lead' edge
-				Vertex->Position	= Location + Offset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location + Offset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -3422,8 +3422,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 				Vertex++;
 				PackedCount++;
 
-				Vertex->Position	= Location - Offset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location - Offset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -3471,8 +3471,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 					Offset.Z		= WorkingUp.Z * Size.X * Taper;
 
 					//
-					Vertex->Position	= EndPoint + Offset;
-					Vertex->OldPosition	= EndPoint;
+					Vertex->Position	= FVector3f(EndPoint + Offset);
+					Vertex->OldPosition	= (FVector3f)EndPoint;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU + fTextureIncrement;
@@ -3484,8 +3484,8 @@ int32 FDynamicBeam2EmitterData::FillVertexData_NoNoise(FAsyncBufferFillData& Me)
 					Vertex++;
 				PackedCount++;
 
-					Vertex->Position	= EndPoint - Offset;
-					Vertex->OldPosition	= EndPoint;
+					Vertex->Position	= FVector3f(EndPoint - Offset);
+					Vertex->OldPosition	= (FVector3f)EndPoint;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU + fTextureIncrement;
@@ -3645,14 +3645,14 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 		if (TessFactor <= 1)
 		{
 			// Setup the current position as the source point
-			CurrPosition		= BeamPayloadData->SourcePoint;
+			CurrPosition		= (FVector)BeamPayloadData->SourcePoint;
 			CurrDrawPosition	= CurrPosition;
 
 			// Setup the source tangent & strength
 			if (Source.bUseSource)
 			{
 				// The source module will have determined the proper source tangent.
-				LastTangent	= BeamPayloadData->SourceTangent;
+				LastTangent	= (FVector)BeamPayloadData->SourceTangent;
 				fStrength	= BeamPayloadData->SourceStrength;
 			}
 			else
@@ -3679,17 +3679,17 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 			{
 				// Reset the texture coordinate
 				fU					= 0.0f;
-				LastPosition		= BeamPayloadData->SourcePoint;
+				LastPosition		= (FVector)BeamPayloadData->SourcePoint;
 				LastDrawPosition	= LastPosition;
 
 				// Determine the current position by stepping the direct line and offsetting with the noise point. 
-				CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+				CurrPosition		= LastPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 
 				if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 				{
 					NoiseDir		= NextNoise[0] - NoisePoints[0];
 					NoiseDir.Normalize();
-					CheckNoisePoint	= NoisePoints[0] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+					CheckNoisePoint	= NoisePoints[0] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 					if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[0].X) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[0].Y) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[0].Z) < Source.NoiseLockRadius))
@@ -3749,8 +3749,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				LastOffset.Z	= WorkingLastUp.Z * Size.X * Taper;
 
 				// 'Lead' edge
-				Vertex->Position	= Location + LastOffset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location + LastOffset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -3760,8 +3760,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex++;
 				CheckVertexCount++;
 
-				Vertex->Position	= Location - LastOffset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location - LastOffset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -3776,13 +3776,13 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				for (int32 StepIndex = 0; StepIndex < BeamPayloadData->Steps; StepIndex++)
 				{
 					// Determine the current position by stepping the direct line and offsetting with the noise point. 
-					CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+					CurrPosition		= LastPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 
 					if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 					{
 						NoiseDir		= NextNoise[StepIndex] - NoisePoints[StepIndex];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex].Z) < Source.NoiseLockRadius))
@@ -3799,19 +3799,19 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					// Prep the next draw position to determine tangents
 					bool bTarget = false;
-					NextTargetPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+					NextTargetPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 					if (bLocked && ((StepIndex + 1) == BeamPayloadData->Steps))
 					{
 						// If we are locked, and the next step is the target point, set the draw position as such.
 						// (ie, we are on the last noise point...)
-						NextTargetDrawPosition	= BeamPayloadData->TargetPoint;
+						NextTargetDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 						if (Source.bTargetNoise)
 						{
 							if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 							{
 								NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 								NoiseDir.Normalize();
-								CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+								CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 								if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 									(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 									(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -3826,7 +3826,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 							NextTargetDrawPosition += NoiseRangeScaleFactor * LocalToWorld.TransformVector(NoisePoints[Source.Frequency] * NoiseDistScale);
 						}
-						TargetTangent = BeamPayloadData->TargetTangent;
+						TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 						fTargetStrength	= BeamPayloadData->TargetStrength;
 					}
 					else
@@ -3836,7 +3836,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						{
 							NoiseDir		= NextNoise[StepIndex + 1] - NoisePoints[StepIndex + 1];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex + 1].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex + 1].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex + 1].Z) < Source.NoiseLockRadius))
@@ -3906,8 +3906,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 						// Generate the vertex
-						Vertex->Position	= InterpDrawPos + Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -3917,8 +3917,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex++;
 						CheckVertexCount++;
 
-						Vertex->Position	= InterpDrawPos - Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -3939,14 +3939,14 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				if (bLocked)
 				{
 					// Draw the line from the last point to the target
-					CurrDrawPosition	= BeamPayloadData->TargetPoint;
+					CurrDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 					if (Source.bTargetNoise)
 					{
 						if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 						{
 							NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -3964,11 +3964,11 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					if (Source.bUseTarget)
 					{
-						TargetTangent = BeamPayloadData->TargetTangent;
+						TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 					}
 					else
 					{
-						NextTargetDrawPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+						NextTargetDrawPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 						TargetTangent = ((1.0f - Source.NoiseTension) / 2.0f) * 
 							(NextTargetDrawPosition - LastDrawPosition);
 					}
@@ -4025,8 +4025,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 						// Generate the vertex
-						Vertex->Position	= InterpDrawPos + Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4036,8 +4036,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex++;
 						CheckVertexCount++;
 
-						Vertex->Position	= InterpDrawPos - Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4056,14 +4056,14 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 		else
 		{
 			// Setup the current position as the source point
-			CurrPosition		= BeamPayloadData->SourcePoint;
+			CurrPosition		= (FVector)BeamPayloadData->SourcePoint;
 			CurrDrawPosition	= CurrPosition;
 
 			// Setup the source tangent & strength
 			if (Source.bUseSource)
 			{
 				// The source module will have determined the proper source tangent.
-				LastTangent	= BeamPayloadData->SourceTangent;
+				LastTangent	= (FVector)BeamPayloadData->SourceTangent;
 				fStrength	= BeamPayloadData->SourceStrength;
 			}
 			else
@@ -4091,17 +4091,17 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 			{
 				// Reset the texture coordinate
 				fU					= 0.0f;
-				LastPosition		= BeamPayloadData->SourcePoint;
+				LastPosition		= (FVector)BeamPayloadData->SourcePoint;
 				LastDrawPosition	= LastPosition;
 
 				// Determine the current position by stepping the direct line and offsetting with the noise point. 
-				CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+				CurrPosition		= LastPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 
 				if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 				{
 					NoiseDir		= NextNoise[0] - NoisePoints[0];
 					NoiseDir.Normalize();
-					CheckNoisePoint	= NoisePoints[0] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+					CheckNoisePoint	= NoisePoints[0] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 					if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[0].X) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[0].Y) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[0].Z) < Source.NoiseLockRadius))
@@ -4161,8 +4161,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				LastOffset.Z	= WorkingLastUp.Z * Size.X * Taper;
 
 				// 'Lead' edge
-				Vertex->Position	= Location + LastOffset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location + LastOffset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -4172,8 +4172,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				Vertex++;
 				CheckVertexCount++;
 
-				Vertex->Position	= Location - LastOffset;
-				Vertex->OldPosition	= Location;
+				Vertex->Position	= FVector3f(Location - LastOffset);
+				Vertex->OldPosition	= (FVector3f)Location;
 				Vertex->ParticleId	= 0;
 				Vertex->Size		= FVector2f(Size);
 				Vertex->Tex_U		= fU;
@@ -4188,13 +4188,13 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				for (int32 StepIndex = 0; StepIndex < BeamPayloadData->Steps; StepIndex++)
 				{
 					// Determine the current position by stepping the direct line and offsetting with the noise point. 
-					CurrPosition		= LastPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+					CurrPosition		= LastPosition + FVector(BeamPayloadData->Direction * BeamPayloadData->StepSize);
 
 					if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 					{
 						NoiseDir		= NextNoise[StepIndex] - NoisePoints[StepIndex];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex].Z) < Source.NoiseLockRadius))
@@ -4211,19 +4211,19 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					// Prep the next draw position to determine tangents
 					bool bTarget = false;
-					NextTargetPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+					NextTargetPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 					if (bLocked && ((StepIndex + 1) == BeamPayloadData->Steps))
 					{
 						// If we are locked, and the next step is the target point, set the draw position as such.
 						// (ie, we are on the last noise point...)
-						NextTargetDrawPosition	= BeamPayloadData->TargetPoint;
+						NextTargetDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 						if (Source.bTargetNoise)
 						{
 							if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 							{
 								NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 								NoiseDir.Normalize();
-								CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+								CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 								if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 									(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 									(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -4238,7 +4238,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 							NextTargetDrawPosition += NoiseRangeScaleFactor * LocalToWorld.TransformVector(NoisePoints[Source.Frequency] * NoiseDistScale);
 						}
-						TargetTangent = BeamPayloadData->TargetTangent;
+						TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 						fTargetStrength	= BeamPayloadData->TargetStrength;
 					}
 					else
@@ -4248,7 +4248,7 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						{
 							NoiseDir		= NextNoise[StepIndex + 1] - NoisePoints[StepIndex + 1];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex + 1].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex + 1].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex + 1].Z) < Source.NoiseLockRadius))
@@ -4320,8 +4320,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 						// Generate the vertex
-						Vertex->Position	= InterpDrawPos + Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4331,8 +4331,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex++;
 						CheckVertexCount++;
 
-						Vertex->Position	= InterpDrawPos - Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4353,14 +4353,14 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 				if (bLocked)
 				{
 					// Draw the line from the last point to the target
-					CurrDrawPosition	= BeamPayloadData->TargetPoint;
+					CurrDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 					if (Source.bTargetNoise)
 					{
 						if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 						{
 							NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -4378,11 +4378,11 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 
 					if (Source.bUseTarget)
 					{
-						TargetTangent = BeamPayloadData->TargetTangent;
+						TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 					}
 					else
 					{
-						NextTargetDrawPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+						NextTargetDrawPosition	= CurrPosition + FVector(BeamPayloadData->Direction * BeamPayloadData->StepSize);
 						TargetTangent = ((1.0f - Source.NoiseTension) / 2.0f) * 
 							(NextTargetDrawPosition - LastDrawPosition);
 					}
@@ -4439,8 +4439,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 						// Generate the vertex
-						Vertex->Position	= InterpDrawPos + Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4450,8 +4450,8 @@ int32 FDynamicBeam2EmitterData::FillData_Noise(FAsyncBufferFillData& Me) const
 						Vertex++;
 						CheckVertexCount++;
 
-						Vertex->Position	= InterpDrawPos - Offset;
-						Vertex->OldPosition	= InterpDrawPos;
+						Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+						Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 						Vertex->ParticleId	= 0;
 						Vertex->Size		= FVector2f(Size);
 						Vertex->Tex_U		= fU;
@@ -4621,14 +4621,14 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 		FVector2D Size(Particle->Size.X * Source.Scale.X, Particle->Size.X * Source.Scale.X);
 
 		// Setup the current position as the source point
-		CurrPosition		= BeamPayloadData->SourcePoint;
+		CurrPosition		= (FVector)BeamPayloadData->SourcePoint;
 		CurrDrawPosition	= CurrPosition;
 
 		// Setup the source tangent & strength
 		if (Source.bUseSource)
 		{
 			// The source module will have determined the proper source tangent.
-			LastTangent	= BeamPayloadData->SourceTangent;
+			LastTangent	= (FVector)BeamPayloadData->SourceTangent;
 			fStrength	= Source.NoiseTangentStrength;
 		}
 		else
@@ -4655,7 +4655,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 		{
 			// Reset the texture coordinate
 			fU					= 0.0f;
-			LastPosition		= BeamPayloadData->SourcePoint;
+			LastPosition		= (FVector)BeamPayloadData->SourcePoint;
 			LastDrawPosition	= LastPosition;
 
 			// Determine the current position by finding it along the interpolated path and 
@@ -4675,7 +4675,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			{
 				NoiseDir		= NextNoise[0] - NoisePoints[0];
 				NoiseDir.Normalize();
-				CheckNoisePoint	= NoisePoints[0] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+				CheckNoisePoint	= NoisePoints[0] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 				if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[0].X) < Source.NoiseLockRadius) &&
 					(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[0].Y) < Source.NoiseLockRadius) &&
 					(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[0].Z) < Source.NoiseLockRadius))
@@ -4735,8 +4735,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			LastOffset.Z	= WorkingLastUp.Z * Size.X * Taper;
 
 			// 'Lead' edge
-			Vertex->Position	= Location + LastOffset;
-			Vertex->OldPosition	= Location;
+			Vertex->Position	= FVector3f(Location + LastOffset);
+			Vertex->OldPosition	= (FVector3f)Location;
 			Vertex->ParticleId	= 0;
 			Vertex->Size		= FVector2f(Size);
 			Vertex->Tex_U		= fU;
@@ -4746,8 +4746,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			Vertex++;
 			CheckVertexCount++;
 
-			Vertex->Position	= Location - LastOffset;
-			Vertex->OldPosition	= Location;
+			Vertex->Position	= FVector3f(Location - LastOffset);
+			Vertex->OldPosition	= (FVector3f)Location;
 			Vertex->ParticleId	= 0;
 			Vertex->Size		= FVector2f(Size);
 			Vertex->Tex_U		= fU;
@@ -4774,7 +4774,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					{
 						CurrPosition = 
 							(InterpolatedPoints[StepIndex * InterpIndex] * (1.0f - InterpFraction)) + 
-							(BeamPayloadData->TargetPoint * InterpFraction);
+							FVector(BeamPayloadData->TargetPoint * InterpFraction);
 					}
 					else
 					{
@@ -4789,7 +4789,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 				{
 					NoiseDir		= NextNoise[StepIndex] - NoisePoints[StepIndex];
 					NoiseDir.Normalize();
-					CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+					CheckNoisePoint	= NoisePoints[StepIndex] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 					if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex].X) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex].Y) < Source.NoiseLockRadius) &&
 						(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex].Z) < Source.NoiseLockRadius))
@@ -4806,14 +4806,14 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 				// Prep the next draw position to determine tangents
 				bool bTarget = false;
-				NextTargetPosition	= CurrPosition + BeamPayloadData->Direction * BeamPayloadData->StepSize;
+				NextTargetPosition	= CurrPosition + (FVector)BeamPayloadData->Direction * BeamPayloadData->StepSize;
 				// Determine the current position by finding it along the interpolated path and 
 				// offsetting with the noise point. 
 				if (bInterpFractionIsZero)
 				{
 					if (StepIndex == (BeamPayloadData->Steps - 2))
 					{
-						NextTargetPosition = BeamPayloadData->TargetPoint;
+						NextTargetPosition = (FVector)BeamPayloadData->TargetPoint;
 					}
 					else
 					{
@@ -4826,7 +4826,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					{
 						NextTargetPosition = 
 							(InterpolatedPoints[(StepIndex + 1) * InterpIndex + 0] * InterpFraction) + 
-							(BeamPayloadData->TargetPoint * (1.0f - InterpFraction));
+							FVector(BeamPayloadData->TargetPoint * (1.0f - InterpFraction));
 					}
 					else
 					{
@@ -4839,14 +4839,14 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 				{
 					// If we are locked, and the next step is the target point, set the draw position as such.
 					// (ie, we are on the last noise point...)
-					NextTargetDrawPosition	= BeamPayloadData->TargetPoint;
+					NextTargetDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 					if (Source.bTargetNoise)
 					{
 						if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 						{
 							NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 							NoiseDir.Normalize();
-							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+							CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 							if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 								(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -4861,7 +4861,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 
 						NextTargetDrawPosition += NoiseRangeScaleFactor * LocalToWorld.TransformVector(NoisePoints[Source.Frequency] * NoiseDistScale);
 					}
-					TargetTangent = BeamPayloadData->TargetTangent;
+					TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 					fTargetStrength	= Source.NoiseTangentStrength;
 				}
 				else
@@ -4871,7 +4871,7 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					{
 						NoiseDir		= NextNoise[StepIndex + 1] - NoisePoints[StepIndex + 1];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[StepIndex + 1] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[StepIndex + 1].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[StepIndex + 1].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[StepIndex + 1].Z) < Source.NoiseLockRadius))
@@ -4942,8 +4942,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 					// Generate the vertex
-					Vertex->Position	= InterpDrawPos + Offset;
-					Vertex->OldPosition	= InterpDrawPos;
+					Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+					Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
@@ -4953,8 +4953,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex++;
 					CheckVertexCount++;
 
-					Vertex->Position	= InterpDrawPos - Offset;
-					Vertex->OldPosition	= InterpDrawPos;
+					Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+					Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
@@ -4975,14 +4975,14 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 			if (bLocked)
 			{
 				// Draw the line from the last point to the target
-				CurrDrawPosition	= BeamPayloadData->TargetPoint;
+				CurrDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 				if (Source.bTargetNoise)
 				{
 					if ((Source.NoiseLockTime >= 0.0f) && Source.bSmoothNoise_Enabled)
 					{
 						NoiseDir		= NextNoise[Source.Frequency] - NoisePoints[Source.Frequency];
 						NoiseDir.Normalize();
-						CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * Source.NoiseSpeed * *NoiseRate;
+						CheckNoisePoint	= NoisePoints[Source.Frequency] + NoiseDir * (FVector)Source.NoiseSpeed * *NoiseRate;
 						if ((FMath::Abs<float>(CheckNoisePoint.X - NextNoise[Source.Frequency].X) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Y - NextNoise[Source.Frequency].Y) < Source.NoiseLockRadius) &&
 							(FMath::Abs<float>(CheckNoisePoint.Z - NextNoise[Source.Frequency].Z) < Source.NoiseLockRadius))
@@ -4998,10 +4998,10 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					CurrDrawPosition += NoiseRangeScaleFactor * LocalToWorld.TransformVector(NoisePoints[Source.Frequency] * NoiseDistScale);
 				}
 
-				NextTargetDrawPosition	= BeamPayloadData->TargetPoint;
+				NextTargetDrawPosition	= (FVector)BeamPayloadData->TargetPoint;
 				if (Source.bUseTarget)
 				{
-					TargetTangent = BeamPayloadData->TargetTangent;
+					TargetTangent = (FVector)BeamPayloadData->TargetTangent;
 				}
 				else
 				{
@@ -5061,8 +5061,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Offset.Z	= WorkingUp.Z * Size.X * Taper;
 
 					// Generate the vertex
-					Vertex->Position	= InterpDrawPos + Offset;
-					Vertex->OldPosition	= InterpDrawPos;
+					Vertex->Position	= FVector3f(InterpDrawPos + Offset);
+					Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
@@ -5072,8 +5072,8 @@ int32 FDynamicBeam2EmitterData::FillData_InterpolatedNoise(FAsyncBufferFillData&
 					Vertex++;
 					CheckVertexCount++;
 
-					Vertex->Position	= InterpDrawPos - Offset;
-					Vertex->OldPosition	= InterpDrawPos;
+					Vertex->Position	= FVector3f(InterpDrawPos - Offset);
+					Vertex->OldPosition	= (FVector3f)InterpDrawPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size		= FVector2f(Size);
 					Vertex->Tex_U		= fU;
@@ -5504,8 +5504,8 @@ void FDynamicRibbonEmitterData::RenderDebug(const FParticleSystemSceneProxy* Pro
 								{
 									float TimeStep = InvCount * SpawnIdx;
 									FVector LineEnd = FMath::CubicInterp<FVector>(
-										DebugParticle->Location, TrailPayload->Tangent,
-										PrevParticle->Location, PrevTrailPayload->Tangent,
+										DebugParticle->Location, (FVector)TrailPayload->Tangent,
+										PrevParticle->Location, (FVector)PrevTrailPayload->Tangent,
 										TimeStep);
 									FLinearColor InterpColor = FMath::Lerp<FLinearColor>(StartColor, EndColor, TimeStep);
 									PDI->DrawLine(LineStart, LineEnd, InterpColor, Proxy->GetDepthPriorityGroup(View));
@@ -5525,7 +5525,7 @@ void FDynamicRibbonEmitterData::RenderDebug(const FParticleSystemSceneProxy* Pro
 
 					if (bRenderTangents == true)
 					{
-						DrawTangentEnd = DrawPosition + TrailPayload->Tangent;
+						DrawTangentEnd = DrawPosition + (FVector)TrailPayload->Tangent;
 						if (TrailPayload == StartTrailPayload)
 						{
 							PDI->DrawLine(DrawPosition, DrawTangentEnd, FLinearColor(0.0f, 1.0f, 0.0f), Proxy->GetDepthPriorityGroup(View));
@@ -5622,12 +5622,12 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 		FBaseParticle* PrevParticle = NULL;
 		FRibbonTypeDataPayload* PrevTrailPayload = NULL;
 
-		FVector WorkingUp = TrailPayload->Up;
+		FVector WorkingUp = (FVector)TrailPayload->Up;
 		if (RenderAxisOption == Trails_CameraUp)
 		{
 			FVector DirToCamera = PackingParticle->Location - ViewOrigin;
 			DirToCamera.Normalize();
-			FVector NormailzedTangent = TrailPayload->Tangent;
+			FVector NormailzedTangent = (FVector)TrailPayload->Tangent;
 			NormailzedTangent.Normalize();
 			WorkingUp = NormailzedTangent ^ DirToCamera;
 			if (WorkingUp.IsNearlyZero())
@@ -5650,12 +5650,12 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 
 				// Interpolate between current and next...
 				FVector CurrPosition = PackingParticle->Location;
-				FVector CurrTangent = TrailPayload->Tangent;
+				FVector CurrTangent = (FVector)TrailPayload->Tangent;
 				FVector CurrUp = WorkingUp;
 				FLinearColor CurrColor = PackingParticle->Color;
 
 				FVector PrevPosition = PrevParticle->Location; //-V522
-				FVector PrevTangent = PrevTrailPayload->Tangent; //-V522
+				FVector PrevTangent = (FVector)PrevTrailPayload->Tangent; //-V522
 				FVector PrevUp = PrevWorkingUp;
 				FLinearColor PrevColor = PrevParticle->Color;
 				float PrevSize = PrevParticle->Size.X * Source.Scale.X;
@@ -5699,8 +5699,8 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 						FinalPos += Data.LocalToWorld.GetOrigin();
 					}
 					Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-					Vertex->Position = FinalPos;
-					Vertex->OldPosition = FinalPos;
+					Vertex->Position = (FVector3f)FinalPos;
+					Vertex->OldPosition = (FVector3f)FinalPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size.X = InterpSize;
 					Vertex->Size.Y = InterpSize;
@@ -5724,8 +5724,8 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 
 					FinalPos = InterpPos - InterpUp * InterpSize;
 					Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-					Vertex->Position = FinalPos;
-					Vertex->OldPosition = FinalPos;
+					Vertex->Position = (FVector3f)FinalPos;
+					Vertex->OldPosition = (FVector3f)FinalPos;
 					Vertex->ParticleId	= 0;
 					Vertex->Size.X = InterpSize;
 					Vertex->Size.Y = InterpSize;
@@ -5767,8 +5767,8 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 				}
 
 				Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-				Vertex->Position = PackingParticle->Location + WorkingUp * CurrSize;
-				Vertex->OldPosition = PackingParticle->OldLocation;
+				Vertex->Position = FVector3f(PackingParticle->Location + WorkingUp * CurrSize);
+				Vertex->OldPosition = (FVector3f)PackingParticle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size.X = CurrSize;
 				Vertex->Size.Y = CurrSize;
@@ -5801,8 +5801,8 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 				//PackedVertexCount++;
 
 				Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-				Vertex->Position = PackingParticle->Location - WorkingUp * CurrSize;
-				Vertex->OldPosition = PackingParticle->OldLocation;
+				Vertex->Position = FVector3f(PackingParticle->Location - WorkingUp * CurrSize);
+				Vertex->OldPosition = (FVector3f)PackingParticle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size.X = CurrSize;
 				Vertex->Size.Y = CurrSize;
@@ -5852,12 +5852,12 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 				DECLARE_PARTICLE_PTR(TempParticle, ParticleData + Source.ParticleStride * NextIdx);
 				PackingParticle = TempParticle;
 				TrailPayload = (FRibbonTypeDataPayload*)((uint8*)TempParticle + Source.TrailDataOffset);
-				WorkingUp = TrailPayload->Up;
+				WorkingUp = (FVector)TrailPayload->Up;
 				if (RenderAxisOption == Trails_CameraUp)
 				{
 					FVector DirToCamera = PackingParticle->Location - ViewOrigin;
 					DirToCamera.Normalize();
-					FVector NormailzedTangent = TrailPayload->Tangent;
+					FVector NormailzedTangent = (FVector)TrailPayload->Tangent;
 					NormailzedTangent.Normalize();
 					WorkingUp = NormailzedTangent ^ DirToCamera;
 					if (WorkingUp.IsNearlyZero())
@@ -5988,7 +5988,7 @@ struct FAnimTrailParticleRenderData
 		check(CanRender());
 		if( InterpFactor == 0.0f )
 		{
-			FVector Offset = (Payload->Direction * Payload->Length);
+			FVector Offset = FVector(Payload->Direction * Payload->Length);
 			OutLocation = Particle->Location;
 			OutFirst = Particle->Location - Offset;
 			OutSecond = Particle->Location + Offset;
@@ -6003,7 +6003,7 @@ struct FAnimTrailParticleRenderData
 		}
 		else if( PrevParticle && InterpFactor == 1.0f )
 		{
-			FVector Offset = (PrevPayload->Direction * PrevPayload->Length);
+			FVector Offset = FVector(PrevPayload->Direction * PrevPayload->Length);
 			OutLocation = PrevParticle->Location;
 			OutFirst = PrevParticle->Location - Offset;
 			OutSecond = PrevParticle->Location + Offset;
@@ -6088,7 +6088,7 @@ struct FAnimTrailParticleRenderData
 				
 			//Interpolate locations
 			FVector Location = FMath::CubicCRSplineInterpSafe(PrevPrevLocation, PrevParticle->Location, Particle->Location, NextLocation, PrevPrevT, PrevT, CurrT, NextT, T);
-			FVector InterpDir = FMath::CubicCRSplineInterpSafe(PrevPrevDirection, PrevPayload->Direction, Payload->Direction, NextDirection, PrevPrevT, PrevT, CurrT, NextT, T);
+			FVector InterpDir = (FVector)FMath::CubicCRSplineInterpSafe(PrevPrevDirection, PrevPayload->Direction, Payload->Direction, NextDirection, PrevPrevT, PrevT, CurrT, NextT, T);
 			InterpDir.Normalize();
 			float InterpLength = FMath::CubicCRSplineInterpSafe(PrevPrevLength, PrevPayload->Length, Payload->Length, NextLength, PrevPrevT, PrevT, CurrT, NextT, T);
 			OutTileU = FMath::CubicCRSplineInterpSafe(PrevPrevTiledU, PrevPayload->TiledU, Payload->TiledU, NextTiledU, PrevPrevT, PrevT, CurrT, NextT, T);
@@ -6254,7 +6254,7 @@ void FDynamicAnimTrailEmitterData::RenderDebug(const FParticleSystemSceneProxy* 
 
 				if (bRenderTangents == true)
 				{
-					DrawTangentEnd = DrawPosition + RenderData.Payload->Tangent * DrawSize * 3.0f;
+					DrawTangentEnd = DrawPosition + (FVector)RenderData.Payload->Tangent * (FVector)DrawSize * 3.0f;
 					PDI->DrawLine(DrawPosition, DrawTangentEnd, FLinearColor(1.0f, 1.0f, 0.0f), Proxy->GetDepthPriorityGroup(View));
 				}
 
@@ -6351,8 +6351,8 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 					}
 
 					Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-					Vertex->Position = FirstSocket;
-					Vertex->OldPosition = FirstSocket;
+					Vertex->Position = (FVector3f)FirstSocket;
+					Vertex->OldPosition = (FVector3f)FirstSocket;
 					Vertex->ParticleId	= 0;
 					Vertex->Size.X = InterpSize;
 					Vertex->Size.Y = InterpSize;
@@ -6374,8 +6374,8 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 					TempVertexData += VertexStride;
 
 					Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-					Vertex->Position = SecondSocket;
-					Vertex->OldPosition = SecondSocket;
+					Vertex->Position = (FVector3f)SecondSocket;
+					Vertex->OldPosition = (FVector3f)SecondSocket;
 					Vertex->ParticleId	= 0;
 					Vertex->Size.X = InterpSize;
 					Vertex->Size.Y = InterpSize;
@@ -6414,8 +6414,8 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 				}
 
 				Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-				Vertex->Position = FirstSocket;//PackingParticle->Location + TrailPayload->FirstEdge * CurrSize;
-				Vertex->OldPosition = RenderData.Particle->OldLocation;
+				Vertex->Position = (FVector3f)FirstSocket;//PackingParticle->Location + TrailPayload->FirstEdge * CurrSize;
+				Vertex->OldPosition = (FVector3f)RenderData.Particle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size.X = InterpSize;
 				Vertex->Size.Y = InterpSize;
@@ -6438,8 +6438,8 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 				//PackedVertexCount++;
 
 				Vertex = (FParticleBeamTrailVertex*)(TempVertexData);
-				Vertex->Position = SecondSocket;//PackingParticle->Location - TrailPayload->SecondEdge * CurrSize;
-				Vertex->OldPosition = RenderData.Particle->OldLocation;
+				Vertex->Position = (FVector3f)SecondSocket;//PackingParticle->Location - TrailPayload->SecondEdge * CurrSize;
+				Vertex->OldPosition = (FVector3f)RenderData.Particle->OldLocation;
 				Vertex->ParticleId	= 0;
 				Vertex->Size.X = InterpSize;
 				Vertex->Size.Y = InterpSize;
@@ -6743,7 +6743,7 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 	if (MacroUVOverride.bOverride)
 	{
 		MacroUVRadius = MacroUVOverride.Radius;
-		MacroUVPosition = GetLocalToWorld().TransformVector(MacroUVOverride.Position);
+		MacroUVPosition = GetLocalToWorld().TransformVector((FVector)MacroUVOverride.Position);
 
 #if !(UE_BUILD_SHIPPING)
 		if (MacroUVPosition.ContainsNaN())

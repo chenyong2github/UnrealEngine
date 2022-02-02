@@ -239,7 +239,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 		// Bounding Box
 		for (int vdx = VerticesIndex; vdx < VerticesIndex+NumNewVertices; vdx++)
 		{
-			BoundingBox[GeometryIndex] += Vertices[vdx];
+			BoundingBox[GeometryIndex] += FVector(Vertices[vdx]);
 		}
 
 		// Find average particle
@@ -879,7 +879,7 @@ void FGeometryCollection::UpdateBoundingBox()
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
 			int32 TransformIndexValue = BoneMap[Idx];
-			BoundingBox[GeometryGroupIndexMap[TransformIndexValue]] += Vertex[Idx];
+			BoundingBox[GeometryGroupIndexMap[TransformIndexValue]] += FVector(Vertex[Idx]);
 		}
 	}
 }
@@ -1378,11 +1378,11 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 
 	// set the vertex information
-	FVector3f TempVertices(0.f, 0.f, 0.f);
+	FVector3d TempVertices(0.f, 0.f, 0.f);
 	for (int32 Idx = 0; Idx < NumNewVertices; ++Idx)
 	{
 		Vertices[Idx] = FVector3f(RawVertexArray[3 * Idx], RawVertexArray[3 * Idx + 1], RawVertexArray[3 * Idx + 2]);
-		TempVertices += Vertices[Idx];
+		TempVertices += FVector3d(Vertices[Idx]);
 
 		UVs[Idx].SetNumZeroed(GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
 		Colors[Idx] = FLinearColor::White;
@@ -1536,8 +1536,8 @@ void FGeometryCollection::WriteDataToHeaderFile(const FString &Name, const FStri
 	for (int32 IdxTransform = 0; IdxTransform < NumTransforms; ++IdxTransform)
 	{
 		FQuat Rotation = TransformArray[IdxTransform].GetRotation();
-		FVector3f Translation = TransformArray[IdxTransform].GetTranslation();
-		FVector3f Scale3D = TransformArray[IdxTransform].GetScale3D();
+		FVector Translation = TransformArray[IdxTransform].GetTranslation();
+		FVector Scale3D = TransformArray[IdxTransform].GetScale3D();
 
 		DataFile << "   FTransform(FQuat(" <<
 			Rotation.X << ", " <<
@@ -1588,7 +1588,7 @@ void FGeometryCollection::WriteDataToOBJFile(const FString &Name, const FString 
 	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 	{
 		FTransform LocalTransform = GlobalTransformArray[BoneMap[IdxVertex]];
-		FVector3f VertexInWorld = LocalTransform.TransformPosition(Vertex[IdxVertex]);
+		FVector3f VertexInWorld = (FVector3f)LocalTransform.TransformPosition((FVector)Vertex[IdxVertex]);
 
 		VertexInWorldArray[IdxVertex] = VertexInWorld;
 	}

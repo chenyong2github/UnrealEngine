@@ -394,7 +394,7 @@ bool CheckIfSurfelIsValid(
 		{
 			++NumHits;
 
-			if (FVector::DotProduct(RayDirection, EmbreeRay.GetHitNormal()) > 0.0f && !EmbreeContext.IsHitTwoSided())
+			if (FVector::DotProduct((FVector)RayDirection, (FVector)EmbreeRay.GetHitNormal()) > 0.0f && !EmbreeContext.IsHitTwoSided())
 			{
 				++NumBackFaceHits;
 			}
@@ -466,8 +466,8 @@ void GenerateSurfelsForDirection(
 					{
 						const int32 HitCoordZ = FMath::Clamp(EmbreeRay.ray.tfar / VoxelSize, 0, ClusterBasis.VolumeSize.Z);
 
-						FVector SurfaceNormal = EmbreeRay.GetHitNormal();
-						float NdotD = FVector::DotProduct(-RayDirection, SurfaceNormal);
+						FVector SurfaceNormal = (FVector)EmbreeRay.GetHitNormal();
+						float NdotD = FVector::DotProduct((FVector)-RayDirection, SurfaceNormal);
 
 						// Handle two sided hits
 						if (NdotD < 0.0f && EmbreeContext.IsHitTwoSided())
@@ -481,7 +481,7 @@ void GenerateSurfelsForDirection(
 						{
 							FSurfelCandidate& SurfelCandidate = SurfelCandidateCells[HitCoordZ].Candidates.AddDefaulted_GetRef();
 							SurfelCandidate.Position = RayOrigin + RayDirection * EmbreeRay.ray.tfar;
-							SurfelCandidate.Normal = SurfaceNormal;
+							SurfelCandidate.Normal = (FVector3f)SurfaceNormal;
 
 							SurfelCandidate.MinRayZ = 0;
 							if (LastHitCoordZ >= 0)
@@ -562,7 +562,7 @@ void GenerateSurfels(
 	const float TargetVoxelSize = 20.0f;
 	const int32 MaxVoxels = 64;
 
-	const FVector3f MeshCardsBoundsSize = 2.0f * MeshCardsBounds.GetExtent();
+	const FVector3f MeshCardsBoundsSize = 2.0f * (FVector3f)MeshCardsBounds.GetExtent();
 	const float MaxMeshCardsBounds = MeshCardsBoundsSize.GetMax();
 	const float MaxSizeInVoxels = FMath::Clamp(MaxMeshCardsBounds / TargetVoxelSize + 0.5f, 1, MaxVoxels);
 	const float VoxelSize = FMath::Max(TargetVoxelSize, MaxMeshCardsBounds / MaxSizeInVoxels);
@@ -572,7 +572,7 @@ void GenerateSurfels(
 	SizeInVoxels.Y = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Y / VoxelSize), 1, MaxVoxels);
 	SizeInVoxels.Z = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Z / VoxelSize), 1, MaxVoxels);
 
-	const FVector3f VoxelBoundsCenter = MeshCardsBounds.GetCenter();
+	const FVector3f VoxelBoundsCenter = (FVector3f)MeshCardsBounds.GetCenter();
 	const FVector3f VoxelBoundsExtent = FVector3f(SizeInVoxels) * VoxelSize * 0.5f;
 	const FVector3f VoxelBoundsMin = VoxelBoundsCenter - VoxelBoundsExtent;
 	const FVector3f VoxelBoundsMax = VoxelBoundsCenter + VoxelBoundsExtent;
@@ -1162,7 +1162,7 @@ void SerializeLOD(
 		TBitArray<> DebugSurfelInAnyCluster(false, Surfels.Num());
 #endif
 
-		const FBox3f LocalMeshCardsBounds = FBox3f(MeshCardsBounds.ShiftBy(-ClusterBasis.LocalToWorldOffset).TransformBy(FMatrix(ClusterBasis.LocalToWorldRotation.GetTransposed())));
+		const FBox3f LocalMeshCardsBounds = FBox3f(MeshCardsBounds.ShiftBy((FVector)-ClusterBasis.LocalToWorldOffset).TransformBy(FMatrix(ClusterBasis.LocalToWorldRotation.GetTransposed())));
 
 		for (const FSurfelCluster& Cluster : Clusters)
 		{

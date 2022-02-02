@@ -52,17 +52,17 @@ public:
 			FDynamicMeshVertex Vert;
 			
 			Vert.Color = VertexColor;
-			Vert.SetTangents(TangentX, TangentY, TangentZ);
+			Vert.SetTangents((FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)TangentZ);
 
-			Vert.Position = Tri.Vertex0;
+			Vert.Position = (FVector3f)Tri.Vertex0;
 			Vertices[TriIdx * 3 + 0] = Vert;
 			IndexBuffer.Indices[TriIdx * 3 + 0] = TriIdx * 3 + 0;
 
-			Vert.Position = Tri.Vertex1;
+			Vert.Position = (FVector3f)Tri.Vertex1;
 			Vertices[TriIdx * 3 + 1] = Vert;
 			IndexBuffer.Indices[TriIdx * 3 + 1] = TriIdx * 3 + 1;
 
-			Vert.Position = Tri.Vertex2;
+			Vert.Position = (FVector3f)Tri.Vertex2;
 			Vertices[TriIdx * 3 + 2] = Vert;
 			IndexBuffer.Indices[TriIdx * 3 + 2] = TriIdx * 3 + 2;
 		}

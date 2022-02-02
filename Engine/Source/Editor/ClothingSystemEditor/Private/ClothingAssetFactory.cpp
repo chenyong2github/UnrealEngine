@@ -1173,7 +1173,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 			{
 				FVector& UniqueVert = UniqueVerts[UniqueVertIndex];
 
-				if((UniqueVert - SourceVert.Position).SizeSquared() <= ThreshSq)
+				if((UniqueVert - (FVector)SourceVert.Position).SizeSquared() <= ThreshSq)
 				{
 					// Not unique
 					bUnique = false;
@@ -1186,7 +1186,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 			if(bUnique)
 			{
 				// Unique
-				UniqueVerts.Add(SourceVert.Position);
+				UniqueVerts.Add((FVector)SourceVert.Position);
 				OriginalIndexes.Add(VertIndex);
 				IndexRemap[VertIndex] = UniqueVerts.Num() - 1;
 			}
@@ -1278,9 +1278,9 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	const int32 NumTriangles = PhysMesh.Indices.Num() / 3;
 	for(int32 TriIndex = 0; TriIndex < NumTriangles; ++TriIndex)
 	{
-		FVector A = PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 0]];
-		FVector B = PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 1]];
-		FVector C = PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 2]];
+		FVector A = (FVector)PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 0]];
+		FVector B = (FVector)PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 1]];
+		FVector C = (FVector)PhysMesh.Vertices[PhysMesh.Indices[TriIndex * 3 + 2]];
 
 		FVector TriNormal = (B - A) ^ (C - A);
 		if(TriNormal.SizeSquared() <= SMALL_NUMBER)

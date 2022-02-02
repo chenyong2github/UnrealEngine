@@ -284,7 +284,7 @@ FBox FVoronoiPartitioner::GenerateBounds(const FGeometryCollection* GeometryColl
 		Vertices.SetNum(VertexCount);
 		for (int32 VertexOffset = 0; VertexOffset < VertexCount; ++VertexOffset)
 		{
-			Vertices[VertexOffset] = GlobalTransform.TransformPosition(GCVertices[VertexStart + VertexOffset]);
+			Vertices[VertexOffset] = GlobalTransform.TransformPosition((FVector)GCVertices[VertexStart + VertexOffset]);
 		}
 
 		return FBox(Vertices);

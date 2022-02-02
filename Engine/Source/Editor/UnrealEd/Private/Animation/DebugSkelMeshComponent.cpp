@@ -1120,7 +1120,7 @@ void UDebugSkelMeshComponent::RebuildCachedClothBounds()
 	
 	for ( int32 Index = 0; Index < SkinnedSelectedClothingPositions.Num(); ++Index )
 	{
-		ClothBBox += SkinnedSelectedClothingPositions[Index];
+		ClothBBox += (FVector)SkinnedSelectedClothingPositions[Index];
 	}
 
 	CachedClothBounds = FBoxSphereBounds(ClothBBox);

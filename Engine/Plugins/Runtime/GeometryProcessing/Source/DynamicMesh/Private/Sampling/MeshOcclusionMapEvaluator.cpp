@@ -208,7 +208,7 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 
 	const FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
 	FVector3d DetailPos = DetailSampler->TriBaryInterpolatePoint(DetailMesh, DetailTriID, DetailBaryCoords);
-	DetailPos += 10.0f * FMathf::ZeroTolerance * DetailTriNormal;
+	DetailPos += 10.0f * FMathf::ZeroTolerance * FVector3d(DetailTriNormal);
 	FFrame3d SurfaceFrame(DetailPos, FVector3d(DetailTriNormal));
 
 	// TODO: Consider pregenerating random rotations.
@@ -226,7 +226,7 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 	for (FVector3d SphereDir : RayDirections)
 	{
 		FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
-		ensure(OcclusionRay.Direction.Dot(DetailTriNormal) > 0);
+		ensure(OcclusionRay.Direction.Dot(FVector3d(DetailTriNormal)) > 0);
 
 		const bool bHit = DetailSampler->TestAnyHitTriangle(OcclusionRay, QueryOptions);
 
@@ -235,7 +235,7 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 			// Have weight of point fall off as it becomes more coplanar with face. 
 			// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
 			double PointWeight = 1.0;
-			const double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
+			const double BiasDot = OcclusionRay.Direction.Dot(FVector3d(DetailTriNormal));
 			if (BiasDot < BiasDotThreshold)
 			{
 				PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot / BiasDotThreshold, 0.0, 1.0));

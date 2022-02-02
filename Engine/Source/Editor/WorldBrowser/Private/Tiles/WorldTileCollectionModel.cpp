@@ -2177,7 +2177,7 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			for (const FVertexID VertexID : LandscapeRawMesh->Vertices().GetElementIDs())
 			{
-				VertexPositions[VertexID] -= LandscapeWorldLocation;
+				VertexPositions[VertexID] -= (FVector3f)LandscapeWorldLocation;
 			}
 
 			//Commit raw mesh and build the staticmesh

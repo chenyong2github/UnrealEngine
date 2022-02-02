@@ -96,10 +96,10 @@ bool FARKitMeshData::GetClassificationAtLocation(const FVector& InWorldLocation,
 		const auto& Vert1 = Vertices[Indices[3 * FaceIndex + 1]];
 		const auto& Vert2 = Vertices[Indices[3 * FaceIndex + 2]];
 		const auto Center = (Vert0 + Vert1 + Vert2) / 3.f;
-		if ((Center - LocalLocation).SizeSquared() < DistanceSquared) // distance less than 5cm
+		if (((FVector)Center - LocalLocation).SizeSquared() < DistanceSquared) // distance less than 5cm
 		{
 			OutClassification = Classifications[FaceIndex];
-			OutClassificationLocation = InLocalToWorldTransform.TransformPosition(Center);
+			OutClassificationLocation = InLocalToWorldTransform.TransformPosition((FVector)Center);
 			return true;
 		}
 	}

@@ -121,7 +121,7 @@ namespace IFC
 
 				// Flip Y to go from RH -> LH
 				FVector Normal = WorldToObject.TransformVector(FVector(Vertex[3], -Vertex[4], Vertex[5]));
-				VertexInstanceNormals.Set(VertexInstanceID, Normal.GetSafeNormal());
+				VertexInstanceNormals.Set(VertexInstanceID, (FVector3f)Normal.GetSafeNormal());
 			}
 
 			MeshDescription->CreatePolygon(MaterialIndexToPolygonGroupID[IFCPolygon.MaterialIndex], VertexInstanceIDs);

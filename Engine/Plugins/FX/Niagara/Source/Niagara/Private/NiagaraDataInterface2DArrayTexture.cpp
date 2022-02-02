@@ -207,7 +207,7 @@ bool UNiagaraDataInterface2DArrayTexture::PerInstanceTick(void* PerInstanceData,
 						InstanceData.TextureReferenceRHI = nullptr;
 						InstanceData.SamplerStateRHI = nullptr;
 					}
-					InstanceData.TextureSize = FVector(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
+					InstanceData.TextureSize = FVector3f(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
 				}
 			);
 		}
@@ -223,7 +223,7 @@ void UNiagaraDataInterface2DArrayTexture::GetTextureDimensions(FVectorVMExternal
 	const FVector FloatTextureSize(InstData->CurrentTextureSize.X, InstData->CurrentTextureSize.Y, InstData->CurrentTextureSize.Z);
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		DimensionsOut.SetAndAdvance(FloatTextureSize);
+		DimensionsOut.SetAndAdvance((FVector3f)FloatTextureSize);
 	}
 }
 

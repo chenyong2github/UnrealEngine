@@ -1077,7 +1077,7 @@ bool UDynamicMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* 
 		CollisionData->Vertices.Reserve(Mesh.VertexCount());
 		for (int32 vid : Mesh.VertexIndicesItr())
 		{
-			int32 Index = CollisionData->Vertices.Add((FVector)Mesh.GetVertex(vid));
+			int32 Index = CollisionData->Vertices.Add((FVector3f)Mesh.GetVertex(vid));
 			if (bIsSparseV)
 			{
 				VertexMap[vid] = Index;

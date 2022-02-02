@@ -35,7 +35,7 @@ namespace DatasmithMeshHelper
 			Positions.Reserve(VertexPositions.GetNumElements());
 			for (const FVertexID VertexID : Mesh.Vertices().GetElementIDs())
 			{
-				Positions.Add(VertexPositions[VertexID]);
+				Positions.Add((FVector)VertexPositions[VertexID]);
 			}
 		}
 	}
@@ -349,9 +349,9 @@ namespace DatasmithMeshHelper
 			TArrayView<const FVertexID> VertexIDs = Mesh.GetTriangleVertices(TriangleID);
 			FVector Corners[3] =
 			{
-				VertexPositions[VertexIDs[0]],
-				VertexPositions[VertexIDs[1]],
-				VertexPositions[VertexIDs[2]]
+				(FVector)VertexPositions[VertexIDs[0]],
+				(FVector)VertexPositions[VertexIDs[1]],
+				(FVector)VertexPositions[VertexIDs[2]]
 			};
 
 			FVector RawNormal = (Corners[1] - Corners[2]) ^ (Corners[0] - Corners[2]);

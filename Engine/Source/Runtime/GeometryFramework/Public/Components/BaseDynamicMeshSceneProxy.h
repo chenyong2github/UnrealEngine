@@ -620,7 +620,7 @@ public:
 
 			for (int j = 0; j < 3; ++j)
 			{
-				RenderBuffers->PositionVertexBuffer.VertexPosition(VertIdx) = (FVector)Mesh->GetVertex(Tri[j]);
+				RenderBuffers->PositionVertexBuffer.VertexPosition(VertIdx) = (FVector3f)Mesh->GetVertex(Tri[j]);
 
 				FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
 					NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
@@ -628,7 +628,7 @@ public:
 				// get tangents
 				TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
 
-				RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector)TangentX, (FVector)TangentY, (FVector)Normal);
+				RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, TangentX, TangentY, Normal);
 
 				for (int32 k = 0; k < NumTexCoords; ++k)
 				{
@@ -807,7 +807,7 @@ public:
 			{
 				if (bUpdatePositions)
 				{
-					RenderBuffers->PositionVertexBuffer.VertexPosition(VertIdx) = (FVector)Mesh->GetVertex(Tri[j]);
+					RenderBuffers->PositionVertexBuffer.VertexPosition(VertIdx) = (FVector3f)Mesh->GetVertex(Tri[j]);
 				}
 
 				if (bUpdateNormals)
@@ -817,7 +817,7 @@ public:
 						NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
 					TangentsFunc(Tri[j], TriangleID, j, Normal, TangentX, TangentY);
 
-					RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector)TangentX, (FVector)TangentY, (FVector)Normal);
+					RenderBuffers->StaticMeshVertexBuffer.SetVertexTangents(VertIdx, (FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)Normal);
 				}
 
 				if (bUpdateColors)

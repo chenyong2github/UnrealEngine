@@ -2351,7 +2351,7 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 					const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
 
 					// Convert axes
-					FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
+					FTransform UETransform{ Instance->Rotation, (FVector)Instance->Location, (FVector)Instance->DrawScale3D };
 					FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
 
 					FVector Translation = USDTransform.GetTranslation();

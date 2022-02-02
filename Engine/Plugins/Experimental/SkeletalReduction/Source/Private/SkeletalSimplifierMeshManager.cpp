@@ -121,7 +121,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupVerts(TArray<SimpVertType>
 
 		for (int32 i = 0; i < NumVerts; ++i)
 		{
-			HashValues[i] = HashPoint(Verts[i].GetPos());
+			HashValues[i] = HashPoint((FVector)Verts[i].GetPos());
 		}
 
 		// insert the hash values.
@@ -387,8 +387,8 @@ void SkeletalSimplifier::FSimplifierMeshManager::GroupEdges(TArray< SimpEdgeType
 	{
 		for (int32 i = 0, I = Edges.Num(); i < I; ++i)
 		{
-			uint32 Hash0 = HashPoint(Edges[i].v0->GetPos());
-			uint32 Hash1 = HashPoint(Edges[i].v1->GetPos());
+			uint32 Hash0 = HashPoint((FVector)Edges[i].v0->GetPos());
+			uint32 Hash1 = HashPoint((FVector)Edges[i].v1->GetPos());
 			HashValues[i] = Murmur32({ FMath::Min(Hash0, Hash1), FMath::Max(Hash0, Hash1) });
 		}
 
@@ -959,7 +959,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::FlagBoxCorners(const ESimpEleme
 
 				SimpTriType* tri = *triIter;
 
-				FVector Nrml = tri->GetNormal();
+				FVector Nrml = (FVector)tri->GetNormal();
 			
 				for (int32 fnIdx = 0; fnIdx < FaceNormals.Num(); ++fnIdx)
 				{
@@ -1310,9 +1310,9 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::RemoveIfDegenerate(TriPtrArray
 			continue;
 
 
-		const FVector& p0 = CandidateTriPtr->verts[0]->GetPos();
-		const FVector& p1 = CandidateTriPtr->verts[1]->GetPos();
-		const FVector& p2 = CandidateTriPtr->verts[2]->GetPos();
+		const FVector& p0 = (FVector)CandidateTriPtr->verts[0]->GetPos();
+		const FVector& p1 = (FVector)CandidateTriPtr->verts[1]->GetPos();
+		const FVector& p2 = (FVector)CandidateTriPtr->verts[2]->GetPos();
 		const FVector n = (p2 - p0) ^ (p1 - p0);
 
 		if (n.SizeSquared() == 0.0f)
@@ -1769,7 +1769,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::OutputMesh(MeshVertType* verts,
 			checkSlow(!vert->TestFlags(SIMP_REMOVED));
 			checkSlow(vert->adjTris.Num() != 0);
 
-			const FVector& p = vert->GetPos();
+			const FVector& p = (FVector)vert->GetPos();
 			uint32 hash = HashPoint(p);
 			uint32 f;
 			for (f = HashTable.First(hash); HashTable.IsValid(f); f = HashTable.Next(f))
@@ -1819,9 +1819,9 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::CountDegeneratesTris() const
 		if (tri->TestFlags(SIMP_REMOVED))
 			continue;
 
-		const FVector& p0 = tri->verts[0]->GetPos();
-		const FVector& p1 = tri->verts[1]->GetPos();
-		const FVector& p2 = tri->verts[2]->GetPos();
+		const FVector& p0 = (FVector)tri->verts[0]->GetPos();
+		const FVector& p1 = (FVector)tri->verts[1]->GetPos();
+		const FVector& p2 = (FVector)tri->verts[2]->GetPos();
 		const FVector n = (p2 - p0) ^ (p1 - p0);
 
 		if (n.SizeSquared() == 0.0f)

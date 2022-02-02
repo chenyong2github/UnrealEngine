@@ -251,7 +251,7 @@ void ProxyLOD::FQuadricMeshSimplifier::GroupVerts()
 			const auto& Verts = this->sVerts;
 			for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 			{
-				HashValues[i] = HashPoint(Verts[i].GetPos());
+				HashValues[i] = HashPoint((FVector)Verts[i].GetPos());
 			}
 		}
 		);
@@ -313,8 +313,8 @@ void ProxyLOD::FQuadricMeshSimplifier::GroupEdges()
 		const auto& Edges = this->edges;
 		for (int32 i = Range.begin(), I = Range.end(); i < I; ++i)
 		{
-			uint32 Hash0 = HashPoint(Edges[i].v0->GetPos());
-			uint32 Hash1 = HashPoint(Edges[i].v1->GetPos());
+			uint32 Hash0 = HashPoint((FVector)Edges[i].v0->GetPos());
+			uint32 Hash1 = HashPoint((FVector)Edges[i].v1->GetPos());
 			HashValues[i] = Murmur32({ FMath::Min(Hash0, Hash1), FMath::Max(Hash0, Hash1) });
 		}
 
@@ -650,12 +650,12 @@ FVector ProxyLOD::FQuadricMeshSimplifier::ComputeNewVertsPos(SimpEdgeType* edge,
 		if (bLocked0)
 		{
 			// v0 position
-			newPos = edge->v0->GetPos();
+			newPos = (FVector)edge->v0->GetPos();
 		}
 		else if (bLocked1)
 		{
 			// v1 position
-			newPos = edge->v1->GetPos();
+			newPos = (FVector)edge->v1->GetPos();
 		}
 		else
 		{
@@ -664,7 +664,7 @@ FVector ProxyLOD::FQuadricMeshSimplifier::ComputeNewVertsPos(SimpEdgeType* edge,
 			if (!valid)
 			{
 				// Couldn't find optimal so choose middle
-				newPos = (edge->v0->GetPos() + edge->v1->GetPos()) * 0.5f;
+				newPos = (FVector)(edge->v0->GetPos() + edge->v1->GetPos()) * 0.5f;
 			}
 		}
 	}
@@ -686,17 +686,17 @@ float ProxyLOD::FQuadricMeshSimplifier::ComputeNewVerts(SimpEdgeType* edge, TArr
 
 	for (int i = 0; i < quadrics.Num(); i++)
 	{
-		newVerts[i].GetPos() = newPos;
+		newVerts[i].GetPos() = (FVector3f)newPos;
 
 		if (quadrics[i].a > 1e-8)
 		{
 			// calculate vert attributes from the new position
-			quadrics[i].CalcAttributes(newVerts[i].GetPos(), newVerts[i].GetAttributes(), attributeWeights);
+			quadrics[i].CalcAttributes((FVector)newVerts[i].GetPos(), newVerts[i].GetAttributes(), attributeWeights);
 			newVerts[i].Correct();
 		}
 
 		// sum cost of new verts
-		cost += quadrics[i].Evaluate(newVerts[i].GetPos(), newVerts[i].GetAttributes(), attributeWeights);
+		cost += quadrics[i].Evaluate((FVector)newVerts[i].GetPos(), newVerts[i].GetAttributes(), attributeWeights);
 	}
 
 	cost += edgeQuadric.Evaluate(newPos);
@@ -720,7 +720,7 @@ float ProxyLOD::FQuadricMeshSimplifier::ComputeEdgeCollapseCost(SimpEdgeType* ed
 #endif
 	float cost = ComputeNewVerts(edge, newVerts);
 
-	const FVector& newPos = newVerts[0].GetPos();
+	const FVector& newPos = (FVector)newVerts[0].GetPos();
 
 	// add penalties
 	// the below penalty code works with groups so no need to worry about remainder verts
@@ -773,7 +773,7 @@ float ProxyLOD::FQuadricMeshSimplifier::ComputeEdgeCollapseCost(SimpEdgeType* ed
 				if (!tri->TestFlags(SIMP_MARK1))
 				{
 					// djh
-					if (!tri->ReplaceVertexIsValid(vert, newPos))
+					if (!tri->ReplaceVertexIsValid(vert, (FVector3f)newPos))
 					{
 						penalty += penaltyToPreventEdgeFolding;
 
@@ -793,7 +793,7 @@ float ProxyLOD::FQuadricMeshSimplifier::ComputeEdgeCollapseCost(SimpEdgeType* ed
 				SimpTriType* tri = *i;
 				if (tri->TestFlags(SIMP_MARK1))
 				{
-					if (!tri->ReplaceVertexIsValid(vert, newPos))
+					if (!tri->ReplaceVertexIsValid(vert, (FVector3f)newPos))
 					{
 						penalty += penaltyToPreventEdgeFolding;
 
@@ -948,9 +948,9 @@ void ProxyLOD::FQuadricMeshSimplifier::UpdateTris()
 
 		quadricCache.DirtyTriQuadric(tri);
 
-		const FVector& p0 = tri->verts[0]->GetPos();
-		const FVector& p1 = tri->verts[1]->GetPos();
-		const FVector& p2 = tri->verts[2]->GetPos();
+		const FVector& p0 = (FVector)tri->verts[0]->GetPos();
+		const FVector& p1 = (FVector)tri->verts[1]->GetPos();
+		const FVector& p2 = (FVector)tri->verts[2]->GetPos();
 		const FVector n = (p2 - p0) ^ (p1 - p0);
 
 		if (n.SizeSquared() == 0.0f)
@@ -1048,7 +1048,7 @@ void ProxyLOD::FQuadricMeshSimplifier::UpdateEdges()
 			edge->next = edge;
 			edge->prev = edge;
 
-			HashTable.Add(HashPoint(edge->v0->GetPos()) ^ HashPoint(edge->v1->GetPos()), i);
+			HashTable.Add(HashPoint((FVector)edge->v0->GetPos()) ^ HashPoint((FVector)edge->v1->GetPos()), i);
 		}
 
 		// regroup edges
@@ -1064,7 +1064,7 @@ void ProxyLOD::FQuadricMeshSimplifier::UpdateEdges()
 				continue;
 
 			// find any matching edges
-			uint32 hash = HashPoint(edge->v0->GetPos()) ^ HashPoint(edge->v1->GetPos());
+			uint32 hash = HashPoint((FVector)edge->v0->GetPos()) ^ HashPoint((FVector)edge->v1->GetPos());
 			SimpEdgeType* e1 = updateEdges[i];
 			for (uint32 j = HashTable.First(hash); HashTable.IsValid(j); j = HashTable.Next(j))
 			{
@@ -1142,9 +1142,9 @@ int32 ProxyLOD::FQuadricMeshSimplifier::CountDegenerates() const
 		if (tri->TestFlags(SIMP_REMOVED))
 			continue;
 
-		const FVector& p0 = tri->verts[0]->GetPos();
-		const FVector& p1 = tri->verts[1]->GetPos();
-		const FVector& p2 = tri->verts[2]->GetPos();
+		const FVector& p0 = (FVector)tri->verts[0]->GetPos();
+		const FVector& p1 = (FVector)tri->verts[1]->GetPos();
+		const FVector& p2 = (FVector)tri->verts[2]->GetPos();
 		const FVector n = (p2 - p0) ^ (p1 - p0);
 
 		if (n.SizeSquared() == 0.0f)
@@ -1184,7 +1184,7 @@ void ProxyLOD::FQuadricMeshSimplifier::OutputMesh(MeshVertType* verts, uint32* i
 			checkSlow(!vert->TestFlags(SIMP_REMOVED));
 			checkSlow(vert->adjTris.Num() != 0);
 
-			const FVector& p = vert->GetPos();
+			const FVector& p = (FVector)vert->GetPos();
 			uint32 hash = HashPoint(p);
 			uint32 f;
 			for (f = HashTable.First(hash); HashTable.IsValid(f); f = HashTable.Next(f))

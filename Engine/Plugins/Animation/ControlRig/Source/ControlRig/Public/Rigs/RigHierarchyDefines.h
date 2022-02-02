@@ -433,7 +433,7 @@ public:
 		{
 			case ERigControlType::Bool:
 			{
-				Transform.SetLocation(FVector3f(Get<bool>() ? 1.f : 0.f, 0.f, 0.f));
+				Transform.SetLocation(FVector(Get<bool>() ? 1.f : 0.f, 0.f, 0.f));
 				break;
 			}
 			case ERigControlType::Float:
@@ -443,17 +443,17 @@ public:
 				{
 					case ERigControlAxis::X:
 					{
-						Transform.SetLocation(FVector3f(ValueToGet, 0.f, 0.f));
+						Transform.SetLocation(FVector(ValueToGet, 0.f, 0.f));
 						break;
 					}
 					case ERigControlAxis::Y:
 					{
-						Transform.SetLocation(FVector3f(0.f, ValueToGet, 0.f));
+						Transform.SetLocation(FVector(0.f, ValueToGet, 0.f));
 						break;
 					}
 					case ERigControlAxis::Z:
 					{
-						Transform.SetLocation(FVector3f(0.f, 0.f, ValueToGet));
+						Transform.SetLocation(FVector(0.f, 0.f, ValueToGet));
 						break;
 					}
 				}
@@ -466,17 +466,17 @@ public:
 				{
 					case ERigControlAxis::X:
 					{
-						Transform.SetLocation(FVector3f((float)ValueToGet, 0.f, 0.f));
+						Transform.SetLocation(FVector((float)ValueToGet, 0.f, 0.f));
 						break;
 					}
 					case ERigControlAxis::Y:
 					{
-						Transform.SetLocation(FVector3f(0.f, (float)ValueToGet, 0.f));
+						Transform.SetLocation(FVector(0.f, (float)ValueToGet, 0.f));
 						break;
 					}
 					case ERigControlAxis::Z:
 					{
-						Transform.SetLocation(FVector3f(0.f, 0.f, (float)ValueToGet));
+						Transform.SetLocation(FVector(0.f, 0.f, (float)ValueToGet));
 						break;
 					}
 				}
@@ -489,17 +489,17 @@ public:
 				{
 					case ERigControlAxis::X:
 					{
-						Transform.SetLocation(FVector3f(0.f, ValueToGet.X, ValueToGet.Y));
+						Transform.SetLocation(FVector(0.f, ValueToGet.X, ValueToGet.Y));
 						break;
 					}
 					case ERigControlAxis::Y:
 					{
-						Transform.SetLocation(FVector3f(ValueToGet.X, 0.f, ValueToGet.Y));
+						Transform.SetLocation(FVector(ValueToGet.X, 0.f, ValueToGet.Y));
 						break;
 					}
 					case ERigControlAxis::Z:
 					{
-						Transform.SetLocation(FVector3f(ValueToGet.X, ValueToGet.Y, 0.f));
+						Transform.SetLocation(FVector(ValueToGet.X, ValueToGet.Y, 0.f));
 						break;
 					}
 				}
@@ -507,18 +507,18 @@ public:
 			}
 			case ERigControlType::Position:
 			{
-				Transform.SetLocation(Get<FVector3f>());
+				Transform.SetLocation((FVector)Get<FVector3f>());
 				break;
 			}
 			case ERigControlType::Scale:
 			{
-				Transform.SetScale3D(Get<FVector3f>());
+				Transform.SetScale3D((FVector)Get<FVector3f>());
 				break;
 			}
 			case ERigControlType::Rotator:
 			{
 				const FVector3f RotatorAxes = Get<FVector3f>();
-				Transform.SetRotation(FQuat(FRotator::MakeFromEuler(RotatorAxes)));
+				Transform.SetRotation(FQuat(FRotator::MakeFromEuler((FVector)RotatorAxes)));
 				break;
 			}
 			case ERigControlType::Transform:
@@ -626,18 +626,18 @@ public:
 			}
 			case ERigControlType::Position:
 			{
-				Set<FVector3f>(InTransform.GetLocation());
+				Set<FVector3f>((FVector3f)InTransform.GetLocation());
 				break;
 			}
 			case ERigControlType::Scale:
 			{
-				Set<FVector3f>(InTransform.GetScale3D());
+				Set<FVector3f>((FVector3f)InTransform.GetScale3D());
 				break;
 			}
 			case ERigControlType::Rotator:
 			{
 				//allow for values ><180/-180 by getting diff and adding that back in.
-				FRotator CurrentRotator = FRotator::MakeFromEuler(Get<FVector3f>());
+				FRotator CurrentRotator = FRotator::MakeFromEuler((FVector)Get<FVector3f>());
 				FRotator CurrentRotWind, CurrentRotRem;
 				CurrentRotator.GetWindingAndRemainder(CurrentRotWind, CurrentRotRem);
 
@@ -648,7 +648,7 @@ public:
 
 				//Add Diff
 				CurrentRotator = CurrentRotator + DeltaRot;
-				Set<FVector3f>(CurrentRotator.Euler());
+				Set<FVector3f>((FVector3f)CurrentRotator.Euler());
 				break;
 			}
 			case ERigControlType::Transform:
@@ -1072,13 +1072,13 @@ inline FRigControlValue FRigControlValue::Make(FVector2D InValue)
 template<>
 inline FRigControlValue FRigControlValue::Make(FVector InValue)
 {
-	return Make<FVector3f>(InValue);
+	return Make<FVector3f>((FVector3f)InValue);
 }
 
 template<>
 inline FRigControlValue FRigControlValue::Make(FRotator InValue)
 {
-	return Make<FVector3f>(InValue.Euler());
+	return Make<FVector3f>((FVector3f)InValue.Euler());
 }
 
 template<>
@@ -1125,7 +1125,7 @@ inline FString FRigControlValue::ToString<float>() const
 template<>
 inline FString FRigControlValue::ToString<FVector>() const
 {
-	FVector Value = GetRef<FVector3f>();
+	FVector3f Value = GetRef<FVector3f>();
 	FString Result;
 	TBaseStructure<FVector>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
 	return Result;
@@ -1144,7 +1144,7 @@ inline FString FRigControlValue::ToString<FVector2D>() const
 template<>
 inline FString FRigControlValue::ToString<FRotator>() const
 {
-	FRotator Value = FRotator::MakeFromEuler(GetRef<FVector3f>());
+	FRotator Value = FRotator::MakeFromEuler((FVector)GetRef<FVector3f>());
 	FString Result;
 	TBaseStructure<FRotator>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
 	return Result;
@@ -1182,7 +1182,7 @@ inline FVector FRigControlValue::SetFromString<FVector>(const FString& InString)
 {
 	FVector Value;
 	TBaseStructure<FVector>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FVector>::Get()->GetName());
-	Set<FVector3f>(Value);
+	Set<FVector3f>((FVector3f)Value);
 	return Value;
 }
 
@@ -1191,7 +1191,7 @@ inline FQuat FRigControlValue::SetFromString<FQuat>(const FString& InString)
 {
 	FQuat Value;
 	TBaseStructure<FQuat>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FQuat>::Get()->GetName());
-	Set<FVector3f>(Value.Rotator().Euler());
+	Set<FVector3f>((FVector3f)Value.Rotator().Euler());
 	return Value;
 }
 
@@ -1200,7 +1200,7 @@ inline FRotator FRigControlValue::SetFromString<FRotator>(const FString& InStrin
 {
 	FRotator Value;
 	TBaseStructure<FRotator>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FRotator>::Get()->GetName());
-	Set<FVector3f>(Value.Euler());
+	Set<FVector3f>((FVector3f)Value.Euler());
 	return Value;
 }
 

@@ -529,9 +529,9 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMExternalFunctionContext& Co
 		const bool ShouldStore = StoreDataParam.GetAndAdvance();
 
 		FBasicParticleData Data;
-		Data.Position = PositionParam.GetAndAdvance();
+		Data.Position = (FVector)PositionParam.GetAndAdvance();
 		Data.Size = SizeParam.GetAndAdvance();
-		Data.Velocity = VelocityParam.GetAndAdvance();
+		Data.Velocity = (FVector)VelocityParam.GetAndAdvance();
 
 		bool Valid = false;
 		if (ValidHandlerData && ShouldStore)
@@ -561,9 +561,9 @@ void UNiagaraDataInterfaceExport::ExportData(FVectorVMExternalFunctionContext& C
 		const bool ShouldStore = StoreDataParam.GetAndAdvance();
 
 		FBasicParticleData Data;
-		Data.Position = PositionParam.GetAndAdvance();
+		Data.Position = (FVector)PositionParam.GetAndAdvance();
 		Data.Size = SizeParam.GetAndAdvance();
-		Data.Velocity = VelocityParam.GetAndAdvance();
+		Data.Velocity = (FVector)VelocityParam.GetAndAdvance();
 
 		bool Valid = false;
 		if (ValidHandlerData && ShouldStore)

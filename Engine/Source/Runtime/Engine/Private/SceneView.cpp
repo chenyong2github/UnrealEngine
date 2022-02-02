@@ -2505,18 +2505,18 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.ViewToClipNoAA = FMatrix44f(InViewMatrices.GetProjectionNoAAMatrix());
 	ViewUniformShaderParameters.ClipToView = RelativeMatrices.ClipToView;
 	ViewUniformShaderParameters.ClipToTranslatedWorld = FMatrix44f(InViewMatrices.GetInvTranslatedViewProjectionMatrix());
-	ViewUniformShaderParameters.ViewForward = InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
-	ViewUniformShaderParameters.ViewUp = InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
-	ViewUniformShaderParameters.ViewRight = InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(0);
-	ViewUniformShaderParameters.HMDViewNoRollUp = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(1);
-	ViewUniformShaderParameters.HMDViewNoRollRight = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(0);
+	ViewUniformShaderParameters.ViewForward = (FVector3f)InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+	ViewUniformShaderParameters.ViewUp = (FVector3f)InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(1);
+	ViewUniformShaderParameters.ViewRight = (FVector3f)InViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(0);
+	ViewUniformShaderParameters.HMDViewNoRollUp = (FVector3f)InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(1);
+	ViewUniformShaderParameters.HMDViewNoRollRight = (FVector3f)InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(0);
 	ViewUniformShaderParameters.InvDeviceZToWorldZTransform = InvDeviceZToWorldZTransform;
 	ViewUniformShaderParameters.RelativeWorldViewOrigin = (FVector4f)(InViewMatrices.GetOverriddenInvTranslatedViewMatrix().TransformPosition(FVector(0)) - InViewMatrices.GetPreViewTranslation() - ViewTileOffset);
 	ViewUniformShaderParameters.ViewTilePosition = AbsoluteViewOrigin.GetTile();
 	ViewUniformShaderParameters.MatrixTilePosition = RelativeMatrices.TilePosition;
-	ViewUniformShaderParameters.RelativeWorldCameraOrigin = InViewMatrices.GetViewOrigin() - ViewTileOffset;
-	ViewUniformShaderParameters.TranslatedWorldCameraOrigin = InViewMatrices.GetViewOrigin() + InViewMatrices.GetPreViewTranslation();
-	ViewUniformShaderParameters.RelativePreViewTranslation = InViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	ViewUniformShaderParameters.RelativeWorldCameraOrigin = FVector3f(InViewMatrices.GetViewOrigin() - ViewTileOffset);
+	ViewUniformShaderParameters.TranslatedWorldCameraOrigin = FVector3f(InViewMatrices.GetViewOrigin() + InViewMatrices.GetPreViewTranslation());
+	ViewUniformShaderParameters.RelativePreViewTranslation = FVector3f(InViewMatrices.GetPreViewTranslation() + ViewTileOffset);
 	ViewUniformShaderParameters.PrevViewToClip = FMatrix44f(InPrevViewMatrices.GetProjectionMatrix());
 	ViewUniformShaderParameters.PrevClipToView = RelativeMatrices.PrevClipToView;
 	ViewUniformShaderParameters.PrevTranslatedWorldToClip = FMatrix44f(InPrevViewMatrices.GetTranslatedViewProjectionMatrix());
@@ -2528,12 +2528,12 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.PrevViewToTranslatedWorld = FMatrix44f(InPrevViewMatrices.GetOverriddenInvTranslatedViewMatrix());
 	ViewUniformShaderParameters.PrevTranslatedWorldToCameraView = FMatrix44f(InPrevViewMatrices.GetTranslatedViewMatrix());
 	ViewUniformShaderParameters.PrevCameraViewToTranslatedWorld = FMatrix44f(InPrevViewMatrices.GetInvTranslatedViewMatrix());
-	ViewUniformShaderParameters.PrevRelativeWorldCameraOrigin = InPrevViewMatrices.GetViewOrigin() - ViewTileOffset;
+	ViewUniformShaderParameters.PrevRelativeWorldCameraOrigin = FVector3f(InPrevViewMatrices.GetViewOrigin() - ViewTileOffset);
 	// previous view world origin is going to be needed only in the base pass or shadow pass
 	// therefore is same as previous camera world origin.
 	ViewUniformShaderParameters.PrevRelativeWorldViewOrigin = ViewUniformShaderParameters.PrevRelativeWorldCameraOrigin;
-	ViewUniformShaderParameters.PrevTranslatedWorldCameraOrigin = InPrevViewMatrices.GetViewOrigin() + InPrevViewMatrices.GetPreViewTranslation();
-	ViewUniformShaderParameters.RelativePrevPreViewTranslation = InPrevViewMatrices.GetPreViewTranslation() + ViewTileOffset;
+	ViewUniformShaderParameters.PrevTranslatedWorldCameraOrigin = FVector3f(InPrevViewMatrices.GetViewOrigin() + InPrevViewMatrices.GetPreViewTranslation());
+	ViewUniformShaderParameters.RelativePrevPreViewTranslation = FVector3f(InPrevViewMatrices.GetPreViewTranslation() + ViewTileOffset);
 	ViewUniformShaderParameters.PrevClipToRelativeWorld = RelativeMatrices.PrevClipToRelativeWorld;
 
 	// Convert global clipping plane to translated world space
@@ -2547,7 +2547,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.SpecularOverrideParameter = SpecularOverrideParameter;
 	ViewUniformShaderParameters.NormalOverrideParameter = NormalOverrideParameter;
 	ViewUniformShaderParameters.RoughnessOverrideParameter = FVector2f(LocalRoughnessOverrideParameter);	// LWC_TODO: Precision loss
-	ViewUniformShaderParameters.WorldCameraMovementSinceLastFrame = InViewMatrices.GetViewOrigin() - InPrevViewMatrices.GetViewOrigin();
+	ViewUniformShaderParameters.WorldCameraMovementSinceLastFrame = FVector3f(InViewMatrices.GetViewOrigin() - InPrevViewMatrices.GetViewOrigin());
 	ViewUniformShaderParameters.CullingSign = bReverseCulling ? -1.0f : 1.0f;
 	ViewUniformShaderParameters.NearPlane = InViewMatrices.ComputeNearPlane();
 	ViewUniformShaderParameters.MaterialTextureMipBias = 0.0f;

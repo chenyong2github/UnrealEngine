@@ -101,7 +101,7 @@ void UOculusAudioGeometryBSP::CreateGeometryFromBSP(ovrAudioContext Context, UWo
 	TArray<int32> Indices;
 	for (auto& WorldVertex : World->GetModel()->Points)
 	{
-		Vertices.Add(OculusAudioSpatializationAudioMixer::ToOVRVector(WorldVertex));
+		Vertices.Add(OculusAudioSpatializationAudioMixer::ToOVRVector((FVector)WorldVertex));
 	}
 
 	if (Vertices.Num() == 0)

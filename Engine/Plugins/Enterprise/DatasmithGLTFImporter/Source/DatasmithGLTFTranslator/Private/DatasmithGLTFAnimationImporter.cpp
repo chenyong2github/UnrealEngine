@@ -105,7 +105,7 @@ namespace DatasmithGLTFImporterImpl
 		{
 			float TimeSeconds = FrameRate.AsSeconds(Frame);
 
-			AnimationElement.AddFrame(TransformType, FDatasmithTransformFrameInfo(Frame, ConvertToUE(InterpCurve.Eval(TimeSeconds))));
+			AnimationElement.AddFrame(TransformType, FDatasmithTransformFrameInfo(Frame, (FVector)ConvertToUE(InterpCurve.Eval(TimeSeconds))));
 		}
 	}
 

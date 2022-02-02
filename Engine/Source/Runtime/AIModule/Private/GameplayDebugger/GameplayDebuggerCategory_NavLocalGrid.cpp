@@ -149,10 +149,10 @@ protected:
 
 		const int32 FirstVertIdx = Verts.Num();
 
-		Verts.Add(FDynamicMeshVertex(Location0 - (DirRight * Width)));
-		Verts.Add(FDynamicMeshVertex(Location0 + (DirRight * Width)));
-		Verts.Add(FDynamicMeshVertex(Location1 - (DirRight * Width)));
-		Verts.Add(FDynamicMeshVertex(Location1 + (DirRight * Width)));
+		Verts.Add(FDynamicMeshVertex((FVector3f)(Location0 - (DirRight * Width))));
+		Verts.Add(FDynamicMeshVertex((FVector3f)(Location0 + (DirRight * Width))));
+		Verts.Add(FDynamicMeshVertex((FVector3f)(Location1 - (DirRight * Width))));
+		Verts.Add(FDynamicMeshVertex((FVector3f)(Location1 + (DirRight * Width))));
 
 		StoreQuadIndices(0, 1, 3, 2, FirstVertIdx, Indices);
 	}
@@ -168,10 +168,10 @@ protected:
 
 		const int32 FirstVertIdx = Verts.Num();
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
 
 		StoreQuadIndices(0, 1, 3, 2, FirstVertIdx, Indices);
 	}
@@ -187,14 +187,14 @@ protected:
 
 		const int32 FirstVertIdx = Verts.Num();
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
 
 		StoreQuadIndices(4, 5, 7, 6, FirstVertIdx, Indices);
 		StoreQuadIndices(1, 3, 7, 5, FirstVertIdx, Indices);
@@ -213,44 +213,44 @@ protected:
 		const FVector Center = GridBounds.GetCenter();
 		const FVector Extent = GridBounds.GetExtent();
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
 
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
 
 		StoreQuadIndices(0, 1, 9, 8, FirstVertIdx, Indices);
 		StoreQuadIndices(1, 5, 11, 9, FirstVertIdx, Indices);

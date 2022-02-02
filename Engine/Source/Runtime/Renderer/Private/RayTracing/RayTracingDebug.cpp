@@ -290,13 +290,13 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	{
 		RayGenParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);
 		RayGenParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
-		RayGenParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+		RayGenParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();	// LWC_TODO: Precision Loss
 	}
 	else
 	{
 		RayGenParameters->MaxTraceDistance = 0.0f;
 		RayGenParameters->FarFieldMaxTraceDistance = 0.0f;
-		RayGenParameters->FarFieldReferencePos = FVector(0.0f);
+		RayGenParameters->FarFieldReferencePos = FVector3f(0.0f);
 	}
 	
 	RayGenParameters->TLAS = View.GetRayTracingSceneViewChecked();

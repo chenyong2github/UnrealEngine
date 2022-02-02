@@ -251,14 +251,14 @@ public:
 
 	FORCEINLINE FRenderBounds(const FBox& Box)
 	{
-		Min = Box.Min;
-		Max = Box.Max;
+		Min = FVector3f(Box.Min);	//LWC_TODO: Precision loss
+		Max = FVector3f(Box.Max);	//LWC_TODO: Precision loss
 	}
 
 	FORCEINLINE FRenderBounds(const FBoxSphereBounds& Bounds)
 	{
-		Min = Bounds.Origin - Bounds.BoxExtent;
-		Max = Bounds.Origin + Bounds.BoxExtent;
+		Min = FVector3f(Bounds.Origin - Bounds.BoxExtent);	//LWC_TODO: Precision loss
+		Max = FVector3f(Bounds.Origin + Bounds.BoxExtent);	//LWC_TODO: Precision loss
 	}
 
 	FORCEINLINE FBox ToBox() const

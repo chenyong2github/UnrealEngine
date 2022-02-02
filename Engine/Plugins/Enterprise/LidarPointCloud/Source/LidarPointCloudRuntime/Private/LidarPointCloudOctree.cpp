@@ -303,7 +303,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(const FLidarPointCloudPoin
 	{
 		for (const FLidarPointCloudPoint* PointsPtr = Points, *DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
 		{
-			Data.Emplace(PointsPtr->Location + Translation, PointsPtr->Color, !!PointsPtr->bVisible, PointsPtr->ClassificationID, PointsPtr->Normal);
+			Data.Emplace((FVector)PointsPtr->Location + Translation, PointsPtr->Color, !!PointsPtr->bVisible, PointsPtr->ClassificationID, PointsPtr->Normal);
 		}
 	}
 }
@@ -323,7 +323,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 	// Filter the local set of incoming data
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		const FVector AdjustedLocation = Points[Index].Location + Translation;
+		const FVector AdjustedLocation = (FVector)Points[Index].Location + Translation;
 		FGridAllocation InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
 		FGridAllocation* GridCell = NewGridAllocationMap.Find(InGridData.Index);
 
@@ -349,7 +349,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 				if (bStoreInBucket)
 				{
 					const FLidarPointCloudPoint& Other = Points[GridCell->Index];
-					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
+					PointBuckets[GridCell->ChildNodeLocation].Emplace((FVector)Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 				}
 				
 				GridCell->Index = Index;
@@ -376,7 +376,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 		// Rebuild Current Grid Mapping
 		for (int32 i = 0; i < Data.Num(); ++i)
 		{
-			FGridAllocation InGridData = CalculateGridCellData(Data[i].Location, Center, LODData);
+			FGridAllocation InGridData = CalculateGridCellData((FVector)Data[i].Location, (FVector)Center, LODData);
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(InGridData.Index);
 
 			// Attempt to allocate the point to this node
@@ -408,7 +408,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 			const int32& GridIndex = Element.Key;
 			const FLidarPointCloudPoint& Point = Points[Element.Value.Index];
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(GridIndex);
-			const FVector AdjustedLocation = Point.Location + Translation;
+			const FVector AdjustedLocation = (FVector)Point.Location + Translation;
 
 			// Attempt to allocate the point to this node
 			if (GridCell)
@@ -416,7 +416,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 				FLidarPointCloudPoint& AllocatedPoint = Data[GridCell->Index];
 				bool bStoreInBucket = true;
 
-				if (DuplicateHandling != ELidarPointCloudDuplicateHandling::Ignore && AllocatedPoint.Location.Equals(AdjustedLocation, MaxDistanceForDuplicate))
+				if (DuplicateHandling != ELidarPointCloudDuplicateHandling::Ignore && AllocatedPoint.Location.Equals((FVector3f)AdjustedLocation, MaxDistanceForDuplicate))
 				{
 					if (DuplicateHandling == ELidarPointCloudDuplicateHandling::SelectFirst || BrightnessFromColor(Point.Color) <= BrightnessFromColor(AllocatedPoint.Color))
 					{
@@ -436,7 +436,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint
 						PointBuckets[GridCell->ChildNodeLocation].Add(AllocatedPoint);
 					}
 
-					AllocatedPoint.Location = AdjustedLocation;
+					AllocatedPoint.Location = (FVector3f)AdjustedLocation;
 					AllocatedPoint.Color = Point.Color;
 					AllocatedPoint.bVisible = Point.bVisible;
 					AllocatedPoint.ClassificationID = Point.ClassificationID;
@@ -517,7 +517,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(FLidarPointCloudPoint** Po
 		for (FLidarPointCloudPoint** PointsPtr = Points, **DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
 		{
 			const FLidarPointCloudPoint* PointData = *PointsPtr;
-			Data.Emplace(PointData->Location + Translation, PointData->Color, !!PointData->bVisible, PointData->ClassificationID, PointData->Normal);
+			Data.Emplace((FVector)PointData->Location + Translation, PointData->Color, !!PointData->bVisible, PointData->ClassificationID, PointData->Normal);
 		}
 	}
 }
@@ -537,7 +537,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 	// Filter the local set of incoming data
 	for (int32 Index = 0; Index < Count; Index++)
 	{
-		const FVector AdjustedLocation = Points[Index]->Location + Translation;
+		const FVector AdjustedLocation = (FVector)Points[Index]->Location + Translation;
 		FGridAllocation InGridData = CalculateGridCellData(AdjustedLocation, Center, LODData);
 		FGridAllocation* GridCell = NewGridAllocationMap.Find(InGridData.Index);
 
@@ -563,7 +563,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 				if (bStoreInBucket)
 				{
 					const FLidarPointCloudPoint& Other = *Points[GridCell->Index];
-					PointBuckets[GridCell->ChildNodeLocation].Emplace(Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
+					PointBuckets[GridCell->ChildNodeLocation].Emplace((FVector)Other.Location + Translation, Other.Color, !!Other.bVisible, Other.ClassificationID, Other.Normal);
 				}
 
 				GridCell->Index = Index;
@@ -590,7 +590,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 		// Rebuild Current Grid Mapping
 		for (int32 i = 0; i < Data.Num(); ++i)
 		{
-			FGridAllocation InGridData = CalculateGridCellData(Data[i].Location, Center, LODData);
+			FGridAllocation InGridData = CalculateGridCellData((FVector)Data[i].Location, (FVector)Center, LODData);
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(InGridData.Index);
 
 			// Attempt to allocate the point to this node
@@ -622,7 +622,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 			const int32& GridIndex = Element.Key;
 			const FLidarPointCloudPoint& Point = *Points[Element.Value.Index];
 			FGridAllocation* GridCell = CurrentGridAllocationMap.Find(GridIndex);
-			FVector AdjustedLocation = Point.Location + Translation;
+			FVector AdjustedLocation = (FVector)Point.Location + Translation;
 
 			// Attempt to allocate the point to this node
 			if (GridCell)
@@ -630,7 +630,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 				FLidarPointCloudPoint& AllocatedPoint = Data[GridCell->Index];
 				bool bStoreInBucket = true;
 
-				if (DuplicateHandling != ELidarPointCloudDuplicateHandling::Ignore && AllocatedPoint.Location.Equals(AdjustedLocation, MaxDistanceForDuplicate))
+				if (DuplicateHandling != ELidarPointCloudDuplicateHandling::Ignore && AllocatedPoint.Location.Equals((FVector3f)AdjustedLocation, MaxDistanceForDuplicate))
 				{
 					if (DuplicateHandling == ELidarPointCloudDuplicateHandling::SelectFirst || BrightnessFromColor(Point.Color) <= BrightnessFromColor(AllocatedPoint.Color))
 					{
@@ -650,7 +650,7 @@ void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Poi
 						PointBuckets[GridCell->ChildNodeLocation].Add(AllocatedPoint);
 					}
 
-					AllocatedPoint.Location = AdjustedLocation;
+					AllocatedPoint.Location = (FVector3f)AdjustedLocation;
 					AllocatedPoint.Color = Point.Color;
 					AllocatedPoint.bVisible = Point.bVisible;
 					AllocatedPoint.ClassificationID = Point.ClassificationID;
@@ -894,7 +894,7 @@ void FLidarPointCloudOctree::RefreshBounds()
 	FBox Bounds(EForceInit::ForceInit);
 
 	// Calculate the current bounds
-	ITERATE_NODES_CONST({ FOR_RO(Point, CurrentNode) { Bounds += Point->Location; } }, true);
+	ITERATE_NODES_CONST({ FOR_RO(Point, CurrentNode) { Bounds += (FVector)Point->Location; } }, true);
 
 	Extent = Bounds.GetExtent();
 	FVector Offset = Bounds.GetCenter();
@@ -911,7 +911,7 @@ void FLidarPointCloudOctree::RefreshBounds()
 
 			FOR(Point, CurrentNode)
 			{
-				Point->Location -= Offset;
+				Point->Location -= (FVector3f)Offset;
 			}
 		}, true);
 	}
@@ -1803,7 +1803,7 @@ void FLidarPointCloudOctree::RemovePoint(const FLidarPointCloudPoint* Point)
 		}
 		else
 		{
-			FVector CenterRelativeLocation = Point->Location - CurrentNode->Center;
+			FVector CenterRelativeLocation = (FVector)Point->Location - CurrentNode->Center;
 			CurrentNode = CurrentNode->GetChildNodeAtLocation((CenterRelativeLocation.X > 0 ? 4 : 0) + (CenterRelativeLocation.Y > 0 ? 2 : 0) + (CenterRelativeLocation.Z > 0));
 		}
 	}
@@ -1835,7 +1835,7 @@ void FLidarPointCloudOctree::RemovePoint(FLidarPointCloudPoint Point)
 		}
 		else
 		{
-			FVector CenterRelativeLocation = Point.Location - CurrentNode->Center;
+			FVector CenterRelativeLocation = (FVector)Point.Location - CurrentNode->Center;
 			CurrentNode = CurrentNode->GetChildNodeAtLocation((CenterRelativeLocation.X > 0 ? 4 : 0) + (CenterRelativeLocation.Y > 0 ? 2 : 0) + (CenterRelativeLocation.Z > 0));
 		}
 	}

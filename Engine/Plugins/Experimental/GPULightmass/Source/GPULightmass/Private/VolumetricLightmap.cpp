@@ -187,8 +187,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FVLMVoxelizationParams* VLMVoxelizationParams = GraphBuilder.AllocParameters<FVLMVoxelizationParams>();
-	VLMVoxelizationParams->VolumeCenter = (FVector4f)CubeVolume.GetCenter(); // LWC_TODO: precision loss
-	VLMVoxelizationParams->VolumeExtent = (FVector4f)CubeVolume.GetExtent(); // LWC_TODO: precision loss
+	VLMVoxelizationParams->VolumeCenter = (FVector3f)CubeVolume.GetCenter(); // LWC_TODO: precision loss
+	VLMVoxelizationParams->VolumeExtent = (FVector3f)CubeVolume.GetExtent(); // LWC_TODO: precision loss
 	VLMVoxelizationParams->VolumeMaxDim = CubeMaxDim;
 	VLMVoxelizationParams->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
 	VLMVoxelizationParams->IndirectionTexture = IndirectionTexture->GetRenderTargetItem().UAV;
@@ -219,8 +219,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 		FVoxelizeImportanceVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelizeImportanceVolumeCS::FParameters>();
 		Parameters->VolumeSize = VoxelizationVolumeMips[0]->GetDesc().GetSize();
-		Parameters->ImportanceVolumeMin = ImportanceVolume.Min;
-		Parameters->ImportanceVolumeMax = ImportanceVolume.Max;
+		Parameters->ImportanceVolumeMin = (FVector3f)ImportanceVolume.Min;
+		Parameters->ImportanceVolumeMax = (FVector3f)ImportanceVolume.Max;
 		Parameters->VLMVoxelizationParams = PassUniformBuffer;
 		Parameters->VoxelizeVolume = VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV;
 
@@ -551,8 +551,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 					FVolumetricLightmapPathTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVolumetricLightmapPathTracingRGS::FParameters>();
 					PassParameters->FrameNumber = FrameNumber / NumFramesOneRound;
-					PassParameters->VolumeMin = (FVector4f)VolumeMin; // LWC_TODO: precision loss
-					PassParameters->VolumeSize = (FVector4f)VolumeSize; // LWC_TODO: precision loss
+					PassParameters->VolumeMin = (FVector3f)VolumeMin; // LWC_TODO: precision loss
+					PassParameters->VolumeSize = (FVector3f)VolumeSize; // LWC_TODO: precision loss
 					PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
 					PassParameters->TLAS = Scene->RayTracingSceneSRV;
 					PassParameters->BrickRequests = BrickRequests.SRV;

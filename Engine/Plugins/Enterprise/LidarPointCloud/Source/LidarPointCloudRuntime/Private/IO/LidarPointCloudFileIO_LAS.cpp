@@ -659,11 +659,11 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 						if (bHasRGB)
 						{
 							FLidarPointCloudFileIO_LAS_PointDataRecordFormatCommonRGB* RecordRGB = (FLidarPointCloudFileIO_LAS_PointDataRecordFormatCommonRGB*)(Data + RGBOffset);
-							Points.Emplace(ProcessedLocation, RecordRGB->Red >> RGBBitShift, RecordRGB->Green >> RGBBitShift, RecordRGB->Blue >> RGBBitShift, Intensity, Classification);
+							Points.Emplace((FVector3f)ProcessedLocation, RecordRGB->Red >> RGBBitShift, RecordRGB->Green >> RGBBitShift, RecordRGB->Blue >> RGBBitShift, Intensity, Classification);
 						}
 						else
 						{
-							Points.Emplace(ProcessedLocation, 255, 255, 255, Intensity, Classification);
+							Points.Emplace((FVector3f)ProcessedLocation, 255, 255, 255, Intensity, Classification);
 						}
 
 						// Increment the data pointer
@@ -859,11 +859,11 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 
 					if (bHasRGB)
 					{
-						_Points.Emplace(ProcessedLocation, Point.rgb[0] >> RGBBitShift, Point.rgb[1] >> RGBBitShift, Point.rgb[2] >> RGBBitShift, Intensity, Classification);
+						_Points.Emplace((FVector3f)ProcessedLocation, Point.rgb[0] >> RGBBitShift, Point.rgb[1] >> RGBBitShift, Point.rgb[2] >> RGBBitShift, Intensity, Classification);
 					}
 					else
 					{
-						_Points.Emplace(ProcessedLocation, 255, 255, 255, Intensity, Classification);
+						_Points.Emplace((FVector3f)ProcessedLocation, 255, 255, 255, Intensity, Classification);
 					}
 
 					if (bUseConcurrentImport)
@@ -973,7 +973,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 			FLidarPointCloudPoint* Data = Points->GetData();
 			for (FLidarPointCloudFileIO_LAS_PointDataRecordFormat2* Dest = PointRecordsPtr, *DestEnd = Dest + Points->Num(); Dest != DestEnd; ++Dest, ++Data)
 			{
-				FDoubleVector Location = (LocationOffset + Data->Location) * ExportScale;
+				FDoubleVector Location = (LocationOffset + (FVector)Data->Location) * ExportScale;
 				Location.Y = -Location.Y;
 
 				Dest->Location = (ForwardScale * (Location - Min)).ToIntVector();
@@ -1029,7 +1029,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 
 	PointCloud->ExecuteActionOnAllPoints([&PointRecord, &LASZipWrapper, &LocationOffset, &ExportScale, &Min, &ForwardScale](FLidarPointCloudPoint* Point)
 	{
-		FDoubleVector Location = (LocationOffset + Point->Location) * ExportScale;
+		FDoubleVector Location = (LocationOffset + (FVector)Point->Location) * ExportScale;
 		Location.Y = -Location.Y;
 
 		PointRecord.Location = (ForwardScale * (Location - Min)).ToIntVector();

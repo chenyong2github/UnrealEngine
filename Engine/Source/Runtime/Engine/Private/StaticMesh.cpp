@@ -1169,7 +1169,7 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 			const FDynamicMeshVertex& Vertex = Vertices[i];
 
 			PositionVertexBuffer.VertexPosition(i) = Vertex.Position;
-			StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector());
+			StaticMeshVertexBuffer.SetVertexTangents(i, Vertex.TangentX.ToFVector3f(), Vertex.GetTangentY(), Vertex.TangentZ.ToFVector3f());
 			for (uint32 j = 0; j < NumTexCoords; j++)
 			{
 				StaticMeshVertexBuffer.SetVertexUV(i, j, Vertex.TextureCoordinate[j]);
@@ -6824,7 +6824,7 @@ void UStaticMesh::GetVertexColorData(TMap<FVector, FColor>& VertexColorData)
 				// Build a mapping of vertex positions to vertex colors.
 				for (int32 WedgeIndex = 0; WedgeIndex < Mesh.WedgeIndices.Num(); ++WedgeIndex)
 				{
-					FVector Position = Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]];
+					FVector Position(Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]]);
 					FColor Color = Mesh.WedgeColors[WedgeIndex];
 					if (!VertexColorData.Contains(Position))
 					{
@@ -6868,7 +6868,7 @@ void UStaticMesh::SetVertexColorData(const TMap<FVector, FColor>& VertexColorDat
 			// Build a mapping of vertex positions to vertex colors.
 			for (int32 WedgeIndex = 0; WedgeIndex < Mesh.WedgeIndices.Num(); ++WedgeIndex)
 			{
-				FVector3f Position = Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]];
+				FVector Position(Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]]);
 				const FColor* Color = VertexColorData.Find(Position);
 				if (Color)
 				{

@@ -614,12 +614,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 			FVector3f R1;
 			FAnimationCompression_PerTrackUtils::DecompressTranslation(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
-			OutAtom.SetTranslation(FMath::Lerp(R0, R1, Alpha));
+			OutAtom.SetTranslation((FVector)FMath::Lerp(R0, R1, Alpha));
 #endif
 		}
 		else // (Index0 == Index1)
 		{
-			OutAtom.SetTranslation(R0);
+			OutAtom.SetTranslation((FVector)R0);
 		}
 	}
 	else
@@ -700,12 +700,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 			FVector3f R1;
 			FAnimationCompression_PerTrackUtils::DecompressScale(KeyFormat, FormatFlags, R1, TrackData, KeyData1);
 
-			OutAtom.SetScale3D(FMath::Lerp(R0, R1, Alpha));
+			OutAtom.SetScale3D((FVector)FMath::Lerp(R0, R1, Alpha));
 #endif
 		}
 		else // (Index0 == Index1)
 		{
-			OutAtom.SetScale3D(R0);
+			OutAtom.SetScale3D((FVector)R0);
 		}
 	}
 	else

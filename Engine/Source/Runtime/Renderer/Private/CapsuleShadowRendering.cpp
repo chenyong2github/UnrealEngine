@@ -433,7 +433,7 @@ void SetupCapsuleShadowingParameters(
 		Parameters.LightDirection = LightParameters.Direction;
 
 		// LWC_TODO
-		FVector4f LightPositionAndInvRadius(LightParameters.WorldPosition, LightParameters.InvRadius);
+		FVector4f LightPositionAndInvRadius((FVector3f)LightParameters.WorldPosition, LightParameters.InvRadius);
 		Parameters.LightPositionAndInvRadius = LightPositionAndInvRadius;
 
 		// Default light source radius of 0 gives poor results
@@ -782,7 +782,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 		if (bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
 			// Encode object position for ComputeLightDirectionsFromVolumetricLightmapCS
-			PackedLightDirection = FVector4f(PrimitiveSceneInfo->Proxy->GetBounds().Origin, 0);
+			PackedLightDirection = FVector4f((FVector3f)PrimitiveSceneInfo->Proxy->GetBounds().Origin, 0);
 		}
 		else if (SkyLight 
 			&& !SkyLight->bHasStaticLighting
@@ -805,7 +805,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			const FVector ExtractedMaxDirection = SkyLightingIntensity.GetMaximumDirection();
 
 			// Get the indirect shadow direction from the primary sky lighting direction
-			PackedLightDirection = FVector4f(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
+			PackedLightDirection = FVector4f((FVector3f)ExtractedMaxDirection, GCapsuleIndirectConeAngle);
 		}
 		else if (Allocation)
 		{
@@ -818,7 +818,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			const FVector ExtractedMaxDirection = IndirectLightingIntensity.GetMaximumDirection();
 
 			// Get the indirect shadow direction from the primary indirect lighting direction
-			PackedLightDirection = FVector4f(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
+			PackedLightDirection = FVector4f((FVector3f)ExtractedMaxDirection, GCapsuleIndirectConeAngle);
 		}
 
 		if (CosFadeStartAngle < 1 && !bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)

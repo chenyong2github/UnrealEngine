@@ -338,7 +338,7 @@ bool UPackedVectorTest::ExecuteWriteDoubleReadFloatTest(TMap<FString, bool>& Tes
 					{
 						if (WriteValue.ContainsNaN())
 						{
-							LocalSuccess &= (ReadValue == FVector::ZeroVector);
+							LocalSuccess &= (ReadValue == FVector3f::ZeroVector);
 						}
 						else
 						{

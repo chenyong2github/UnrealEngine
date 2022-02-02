@@ -696,8 +696,8 @@ void FClothingSimulation::GetSimulationData(
 		{
 			for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
 			{
-				Data.Positions[Index] = ReferenceSpaceTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
-				Data.Normals[Index] = ReferenceSpaceTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+				Data.Positions[Index] = (FVector3f)ReferenceSpaceTransform.InverseTransformPosition((FVector)Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
+				Data.Normals[Index] = (FVector3f)ReferenceSpaceTransform.InverseTransformVector((FVector)-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 			}
 		}
 
@@ -915,16 +915,16 @@ void FClothingSimulation::DebugDrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) 
 			const FVector Pos1 = Positions[Element.Y - Offset];
 			const FVector Pos2 = Positions[Element.Z - Offset];
 
-			const FVector Normal = FVector::CrossProduct(Pos2 - Pos0, Pos1 - Pos0).GetSafeNormal();
-			const FVector Tangent = ((Pos1 + Pos2) * 0.5f - Pos0).GetSafeNormal();
+			const FVector3f Normal = (FVector3f)FVector::CrossProduct(Pos2 - Pos0, Pos1 - Pos0).GetSafeNormal();
+			const FVector3f Tangent = (FVector3f)((Pos1 + Pos2) * 0.5f - Pos0).GetSafeNormal();
 
 			const bool bIsKinematic0 = (InvMasses[Element.X - Offset] == 0.f);
 			const bool bIsKinematic1 = (InvMasses[Element.Y - Offset] == 0.f);
 			const bool bIsKinematic2 = (InvMasses[Element.Z - Offset] == 0.f);
 
-			MeshBuilder.AddVertex(FDynamicMeshVertex(Pos0, Tangent, Normal, FVector2f(0.f, 0.f), bIsKinematic0 ? FColor::Purple : FColor::White));
-			MeshBuilder.AddVertex(FDynamicMeshVertex(Pos1, Tangent, Normal, FVector2f(0.f, 1.f), bIsKinematic1 ? FColor::Purple : FColor::White));
-			MeshBuilder.AddVertex(FDynamicMeshVertex(Pos2, Tangent, Normal, FVector2f(1.f, 1.f), bIsKinematic2 ? FColor::Purple : FColor::White));
+			MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Pos0, (FVector3f)Tangent, (FVector3f)Normal, FVector2f(0.f, 0.f), bIsKinematic0 ? FColor::Purple : FColor::White));
+			MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Pos1, (FVector3f)Tangent, (FVector3f)Normal, FVector2f(0.f, 1.f), bIsKinematic1 ? FColor::Purple : FColor::White));
+			MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Pos2, (FVector3f)Tangent, (FVector3f)Normal, FVector2f(1.f, 1.f), bIsKinematic2 ? FColor::Purple : FColor::White));
 			MeshBuilder.AddTriangle(VertexIndex, VertexIndex + 1, VertexIndex + 2);
 		}
 	}
@@ -1220,7 +1220,7 @@ static void DrawConvex(FPrimitiveDrawInterface* PDI, const FConvex& Convex, cons
 					{
 						const FVector X1(Vertices[ParticleIndex1]);
 						const FVector Position1 = Position + Rotation.RotateVector(X1);
-						const FVector Position2 = Position + Rotation.RotateVector(X);
+						const FVector Position2 = Position + Rotation.RotateVector((FVector)X);
 						DrawLine(PDI, Position1, Position2, Color);
 						break;
 					}

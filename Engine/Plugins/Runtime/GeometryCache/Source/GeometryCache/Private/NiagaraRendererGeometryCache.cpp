@@ -315,8 +315,8 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitter()->bLocalSpace);
 
 		FVector Position = LwcConverter.ConvertSimulationPositionToWorld(PositionAccessor.GetSafe(ParticleIndex, FNiagaraPosition(ForceInit)));
-		FVector Scale = ScaleAccessor.GetSafe(ParticleIndex, FVector3f::OneVector);
-		FVector RotationVector = RotationAccessor.GetSafe(ParticleIndex, FVector3f::ZeroVector);
+		FVector Scale = (FVector)ScaleAccessor.GetSafe(ParticleIndex, FVector3f::OneVector);
+		FVector RotationVector = (FVector)RotationAccessor.GetSafe(ParticleIndex, FVector3f::ZeroVector);
 		FTransform Transform(FRotator(RotationVector.X, RotationVector.Y, RotationVector.Z), Position, Scale);
 		GeometryComponent->SetRelativeTransform(Transform);
 

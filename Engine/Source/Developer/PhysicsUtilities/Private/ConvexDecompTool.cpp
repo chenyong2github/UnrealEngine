@@ -151,7 +151,7 @@ void DecomposeMeshToHulls(UBodySetup* InBodySetup, const TArray<FVector3f>& InVe
 	FBox VertBox(ForceInit);
 	for (const FVector3f& Vert : InVertices)
 	{
-		VertBox += Vert;
+		VertBox += (FVector)Vert;
 	}
 
 	// If box is invalid, or the largest dimension is less than 1 unit, or smallest is less than 0.1, skip trying to generate collision (V-HACD often crashes...)
@@ -343,7 +343,7 @@ private:
 		FBox VertBox(ForceInit);
 		for (const FVector3f& Vert : InVertices)
 		{
-			VertBox += Vert;
+			VertBox += (FVector)Vert;
 		}
 
 		// If box is invalid, or the largest dimension is less than 1 unit, or smallest is less than 0.1, skip trying to generate collision (V-HACD often crashes...)

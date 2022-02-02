@@ -1158,30 +1158,30 @@ void AbcImporterUtilities::PropogateMatrixTransformationToSample(FAbcMeshSample*
 {		
 	for (FVector3f& Position : Sample->Vertices)
 	{
-		Position = (FVector4f)Matrix.TransformPosition(Position);
+		Position = (FVector4f)Matrix.TransformPosition((FVector)Position);
 	}
 
 	for (FVector3f& Velocity : Sample->Velocities)
 	{
-		Velocity = (FVector4f)Matrix.TransformVector(Velocity);
+		Velocity = (FVector4f)Matrix.TransformVector((FVector)Velocity);
 	}
 
 	// TODO could make this a for loop and combine the transforms
 	for (FVector3f& Normal : Sample->Normals)
 	{
-		Normal = (FVector4f)Matrix.TransformVector(Normal);
+		Normal = (FVector4f)Matrix.TransformVector((FVector)Normal);
 		Normal.Normalize();
 	}
 
 	for (FVector3f& TangentX : Sample->TangentX)
 	{
-		TangentX = (FVector4f)Matrix.TransformVector(TangentX);
+		TangentX = (FVector4f)Matrix.TransformVector((FVector)TangentX);
 		TangentX.Normalize();
 	}
 
 	for (FVector3f& TangentY : Sample->TangentY)
 	{
-		TangentY = (FVector4f)Matrix.TransformVector(TangentY);
+		TangentY = (FVector4f)Matrix.TransformVector((FVector)TangentY);
 		TangentY.Normalize();
 	}
 }
@@ -1195,7 +1195,7 @@ void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector3f>&
 	for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 	{
 		const int32 ComponentIndexOffset = (VertexIndex + AverageVertexOffset) * 3;
-		const FVector AverageDifference = (AverageVertexData[VertexIndex + AverageVertexOffset] + SamplePositionOffset) - FrameVertexData[VertexIndex];
+		const FVector AverageDifference = ((FVector)AverageVertexData[VertexIndex + AverageVertexOffset] + SamplePositionOffset) - (FVector)FrameVertexData[VertexIndex];
 
 		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 0] = AverageDifference.X;
 		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
@@ -1208,7 +1208,7 @@ void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector3f>&
 	for (uint32 Index = 0; Index < NumIndices; ++Index)
 	{
 		const int32 ComponentIndexOffset = (Index + AverageIndexOffset) * 3;
-		const FVector AverageNormal = AverageNormalData[Index + AverageIndexOffset] - FrameNormalData[Index];
+		const FVector AverageNormal = (FVector)AverageNormalData[Index + AverageIndexOffset] - (FVector)FrameNormalData[Index];
 
 		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 0] = AverageNormal.X;
 		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 1] = AverageNormal.Y;
@@ -1467,7 +1467,7 @@ FBoxSphereBounds AbcImporterUtilities::ExtractBounds(Alembic::Abc::IBox3dPropert
                         // Set up bounds from Alembic data format
 			const Imath::V3d BoundSize = BoundsSample.size();
 			const Imath::V3d BoundCenter = BoundsSample.center();
-			const FBoxSphereBounds ConvertedBounds(FVector3f(BoundCenter.x, BoundCenter.y, BoundCenter.z), FVector3f(BoundSize.x  * 0.5f, BoundSize.y * 0.5f, BoundSize.z * 0.5f), (const float)BoundSize.length() * 0.5f);
+			const FBoxSphereBounds ConvertedBounds(FVector(BoundCenter.x, BoundCenter.y, BoundCenter.z), FVector(BoundSize.x  * 0.5f, BoundSize.y * 0.5f, BoundSize.z * 0.5f), (const float)BoundSize.length() * 0.5f);
 			Bounds = ( SampleIndex == 0 ) ? ConvertedBounds : Bounds + ConvertedBounds;
 		}
 	}
@@ -1572,7 +1572,7 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 
 			if (bHasVelocities)
 			{
-				FVector MotionVector = MeshSample->Velocities[Index];
+				FVector3f MotionVector = MeshSample->Velocities[Index];
 				MotionVector *= -1.f;
 				MotionVector *= SecondsPerFrame; // Velocity is per seconds but we need per frame for motion vectors
 				OutMeshData.MotionVectors[CornerIndex] = MotionVector;

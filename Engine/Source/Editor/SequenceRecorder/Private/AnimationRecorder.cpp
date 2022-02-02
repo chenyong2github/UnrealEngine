@@ -812,9 +812,9 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					if (FrameToAdd == 0)
 					{
 						const FTransform RefPose = Component->SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
-						RawTrack.PosKeys.Add(RefPose.GetTranslation());
+						RawTrack.PosKeys.Add((FVector3f)RefPose.GetTranslation());
 						RawTrack.RotKeys.Add(FQuat4f(RefPose.GetRotation()));
-						RawTrack.ScaleKeys.Add(RefPose.GetScale3D());
+						RawTrack.ScaleKeys.Add((FVector3f)RefPose.GetScale3D());
 					}
 				}
 			}

@@ -720,7 +720,7 @@ struct FBeamParticleModifierPayloadData
 			{
 				// Transform the modified tangent so it is relative to the real tangent
 				const FQuat RotQuat = FQuat::FindBetweenNormals(FVector(1.0f, 0.0f, 0.0f), FVector(Value));
-				ModTangent = RotQuat.RotateVector(FVector(Tangent));
+				ModTangent = FVector3f(RotQuat.RotateVector(FVector(Tangent)));
 			}
 			else
 			{

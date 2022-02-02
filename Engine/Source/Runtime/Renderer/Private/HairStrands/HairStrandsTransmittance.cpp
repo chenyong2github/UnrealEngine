@@ -97,7 +97,7 @@ static FVector4f GetLightTranslatedWorldPositionAndDirection(const FViewInfo& Vi
 	const FVector& TranslatedWorldOffset = View.ViewMatrices.GetPreViewTranslation();
 	if (LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional)
 	{
-		return FVector4f(LightSceneInfo->Proxy->GetDirection(), 0.f);
+		return FVector4f((FVector3f)LightSceneInfo->Proxy->GetDirection(), 0.f);
 	}
 	else
 	{

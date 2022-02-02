@@ -38,7 +38,7 @@ void GeometryCollectionEngineUtility::PrintDetailedStatistics(const FGeometryCol
 	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 	{
 		FTransform GlobalTransform = GlobalTransformArray[BoneMapArray[IdxVertex]];
-		FVector VertexInWorld = GlobalTransform.TransformPosition(VertexArray[IdxVertex]);
+		FVector VertexInWorld = GlobalTransform.TransformPosition((FVector)VertexArray[IdxVertex]);
 
 		BoundingBox += VertexInWorld;
 	}

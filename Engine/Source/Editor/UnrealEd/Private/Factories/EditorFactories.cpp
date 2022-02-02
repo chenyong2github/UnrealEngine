@@ -1147,7 +1147,7 @@ UObject* ULevelFactory::FactoryCreateText
 						{
 							CurrentLevel->Model->ModifySurf( i, 1 );
 
-							const FVector DstNormal = CurrentLevel->Model->Vectors[ DstSurf->vNormal ];
+							const FVector DstNormal = (FVector)CurrentLevel->Model->Vectors[ DstSurf->vNormal ];
 
 							// Need to compensate for changes in the polygon normal.
 							const FRotator SrcRot = SrcNormal.Rotation();
@@ -1784,7 +1784,7 @@ UObject* UPolysFactory::FactoryCreateText
 			GotBase=1;
 			FVector Base;
 			GetFVECTOR( Str, Base );
-			Poly.Base = Base;
+			Poly.Base = (FVector3f)Base;
 		}
 		else if( FParse::Command(&Str,TEXT("VERTEX")) )
 		{
@@ -1796,13 +1796,13 @@ UObject* UPolysFactory::FactoryCreateText
 		{
 			FVector TextureU;
 			GetFVECTOR( Str, TextureU );
-			Poly.TextureU = TextureU;
+			Poly.TextureU = (FVector3f)TextureU;
 		}
 		else if( FParse::Command(&Str,TEXT("TEXTUREV")) )
 		{
 			FVector TextureV;
 			GetFVECTOR(Str, TextureV);
-			Poly.TextureV = TextureV;
+			Poly.TextureV = (FVector3f)TextureV;
 		}
 		else if( GetEND(&Str,TEXT("POLYGON")) )
 		{

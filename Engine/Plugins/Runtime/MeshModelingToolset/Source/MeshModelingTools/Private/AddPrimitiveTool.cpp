@@ -217,7 +217,7 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->TargetSurface == EMakeMeshPlacementType::GroundPlane)
 	{
-		FVector3f DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+		FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
 	}
@@ -228,18 +228,18 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, ClickPosWorldRay);
 		if (bHit)
 		{
-			FVector3f Normal = Result.ImpactNormal;
+			FVector3f Normal = (FVector3f)Result.ImpactNormal;
 			if (!ShapeSettings->bAlignToNormal)
 			{
 				Normal = FVector3f::UnitZ();
 			}
-			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
+			ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
 		}
 		else
 		{
 			// fall back to ground plane if we don't have a scene hit
-			FVector3f DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 			bHit = true;
 			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
@@ -254,11 +254,11 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			FSceneSnapQueryRequest Request;
 			Request.RequestType = ESceneSnapQueryType::Position;
 			Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-			Request.Position = ShapeFrame.Origin;
+			Request.Position = (FVector)ShapeFrame.Origin;
 			TArray<FSceneSnapQueryResult> Results;
 			if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
 			{
-				ShapeFrame.Origin = Results[0].Position;
+				ShapeFrame.Origin = (FVector3f)Results[0].Position;
 			}
 		}
 	}

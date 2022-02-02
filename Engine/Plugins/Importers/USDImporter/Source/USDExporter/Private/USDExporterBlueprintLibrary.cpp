@@ -87,7 +87,7 @@ TArray<FTransform> UUsdExporterBlueprintLibrary::GetInstanceTransforms( AInstanc
 				for ( int32 InstanceIndex : *InstanceSet )
 				{
 					const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
-					Result.Emplace( Instance->Rotation, Instance->Location, Instance->DrawScale3D );
+					Result.Emplace( FQuat(Instance->Rotation), Instance->Location, (FVector)Instance->DrawScale3D );
 				}
 			}
 		}

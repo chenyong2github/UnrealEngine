@@ -134,10 +134,10 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 		PassParameters->Common.VisualizationMinScreenFraction = GVolumetricLightmapVisualizationMinScreenFraction;
 
 		{
-			FVector DiffuseColorValue(.18f, .18f, .18f);
+			FVector3f DiffuseColorValue(.18f, .18f, .18f);
 			if (!ViewFamily.EngineShowFlags.Materials)
 			{
-				DiffuseColorValue = FVector(GEngine->LightingOnlyBrightness);
+				DiffuseColorValue = FVector3f(GEngine->LightingOnlyBrightness);
 			}
 			PassParameters->Common.DiffuseColor = DiffuseColorValue;
 		}

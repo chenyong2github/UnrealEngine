@@ -148,7 +148,7 @@ void ABrush::CheckForErrors()
 
 				for(int32 VertexIndex = 0;VertexIndex < Poly->Vertices.Num();VertexIndex++)
 				{
-					if(FMath::Abs(FPlane(Poly->Vertices[0],Poly->Normal).PlaneDot(Poly->Vertices[VertexIndex])) > THRESH_POINT_ON_PLANE)
+					if(FMath::Abs(FPlane((FVector)Poly->Vertices[0], (FVector)Poly->Normal).PlaneDot((FVector)Poly->Vertices[VertexIndex])) > THRESH_POINT_ON_PLANE)
 					{
 						FFormatNamedArguments Arguments;
 						Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));

@@ -1164,7 +1164,7 @@ public:
 				AtlasScale.Y,
 				FrameB_X * AtlasScale.X,
 				FrameB_Y * AtlasScale.Y );
-			Parameters.VoxelSize = FVector(1.0f / SizeX, 1.0f / SizeY, 1.0f / SizeZ);
+			Parameters.VoxelSize = FVector3f(1.0f / SizeX, 1.0f / SizeY, 1.0f / SizeZ);
 			Parameters.FrameLerp = FMath::Fractional(FrameTime);
 			Parameters.NoiseScale = AnimatedVectorField->NoiseScale;
 			Parameters.NoiseMax = AnimatedVectorField->NoiseMax;

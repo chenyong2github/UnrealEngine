@@ -1021,7 +1021,7 @@ void FWedgePosition::FindMatchingPositionWegdeIndexes(const FVector3f &Position,
 		//No possible match
 		return;
 	}
-	FWedgePositionHelper::FIndexAndZ PositionIndexAndZ(INDEX_NONE, Position);
+	FWedgePositionHelper::FIndexAndZ PositionIndexAndZ(INDEX_NONE, (FVector)Position);
 	int32 SortedIndex = SortedPositions.Num()/2;
 	int32 StartIndex = 0;
 	int32 LastTopIndex = SortedPositions.Num();
@@ -1098,7 +1098,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector3f& SearchPosition
 	OutNearestWedges.Empty();
 	const float OctreeExtent = WedgePosOctree->GetRootBounds().Extent.Size3();
 	//Use the max between 1e-4 cm and 1% of the bounding box extend
-	FVector3f Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
+	FVector Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
 
 	//Pass Extent size % of the Octree bounding box extent
 	//PassIndex 0 -> 0.5%
@@ -1109,7 +1109,7 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector3f& SearchPosition
 	for(int32 PassIndex = 0; PassIndex < 5; ++PassIndex)
 	{
 		// Query the octree to find the vertices close(inside the extend) to the SearchPosition
-		WedgePosOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges](const FWedgeInfo& WedgeInfo)
+		WedgePosOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent((FVector)SearchPosition, Extend), [&OutNearestWedges](const FWedgeInfo& WedgeInfo)
 		{
 			// Add all of the elements in the current node to the list of points to consider for closest point calculations
 			OutNearestWedges.Add(WedgeInfo);
@@ -1139,7 +1139,7 @@ void FWedgePosition::FillWedgePosition(
 	OutOverlappingPosition.SortedPositions.Reserve(NumWedges);
 	for (int32 WedgeIndex = 0; WedgeIndex < NumWedges; WedgeIndex++)
 	{
-		new(OutOverlappingPosition.SortedPositions)FWedgePositionHelper::FIndexAndZ(WedgeIndex, OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex]);
+		new(OutOverlappingPosition.SortedPositions)FWedgePositionHelper::FIndexAndZ(WedgeIndex, (FVector)OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex]);
 	}
 
 	// Sort the vertices by z value
@@ -1147,14 +1147,14 @@ void FWedgePosition::FillWedgePosition(
 
 
 	FBox3f OldBounds(OutOverlappingPosition.Points);
-	OutOverlappingPosition.WedgePosOctree = new TWedgeInfoPosOctree(OldBounds.GetCenter(), OldBounds.GetExtent().GetMax());
+	OutOverlappingPosition.WedgePosOctree = new TWedgeInfoPosOctree((FVector)OldBounds.GetCenter(), OldBounds.GetExtent().GetMax());
 
 	// Add each old vertex to the octree
 	for (int32 WedgeIndex = 0; WedgeIndex < NumWedges; ++WedgeIndex)
 	{
 		FWedgeInfo WedgeInfo;
 		WedgeInfo.WedgeIndex = WedgeIndex;
-		WedgeInfo.Position = OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex];
+		WedgeInfo.Position = (FVector)OutOverlappingPosition.Points[OutOverlappingPosition.Wedges[WedgeIndex].VertexIndex];
 		OutOverlappingPosition.WedgePosOctree->AddElement(WedgeInfo);
 	}
 }
@@ -1286,8 +1286,8 @@ void FSkeletalMeshImportData::ComputeSmoothGroupFromNormals()
 				const int32 WedgeIndexNext = BaseWedgeIndex + CornerNext;
 				SkeletalMeshImportData::FVertex& Wedge = Wedges[WedgeIndex];
 				SkeletalMeshImportData::FVertex& WedgeNext = Wedges[WedgeIndexNext];
-				const FVector& WedgePosition = Points[Wedge.VertexIndex];
-				const FVector& WedgePositionNext = Points[WedgeNext.VertexIndex];
+				const FVector3f& WedgePosition = Points[Wedge.VertexIndex];
+				const FVector3f& WedgePositionNext = Points[WedgeNext.VertexIndex];
 				InternalImportDataHelper::FEdgeMapKey EdgeMapKey(Wedge.VertexIndex, WedgeNext.VertexIndex);
 				InternalImportDataHelper::FEdgeInfo& EdgeInfo = EdgeInfos.FindChecked(EdgeMapKey);
 				for (int32 EdgeInfoConnectedFaceIndex = 0; EdgeInfoConnectedFaceIndex < EdgeInfo.ConnectedFaces.Num(); ++EdgeInfoConnectedFaceIndex)
@@ -1967,7 +1967,7 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 			}
 			Face.TangentX[Corner] = VertexInstanceTangents[VertexInstanceID];
 			Face.TangentZ[Corner] = VertexInstanceNormals[VertexInstanceID];
-			Face.TangentY[Corner] = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBiNormalSigns[VertexInstanceID];
+			Face.TangentY[Corner] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBiNormalSigns[VertexInstanceID];
 
 			Face.WedgeIndex[Corner] = SkelMeshImportData.Wedges.Add(Wedge);
 		}

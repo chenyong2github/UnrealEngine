@@ -158,7 +158,7 @@ void FSkinnedBoneTriangleCache::AddTriangleIndexToOwnerBoneSets(const FTriangleI
 FVector3f FSkinnedBoneTriangleCache::VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const
 {
 	const FVector3f& Position = VertexBuffer.VertexPosition(VertIndex);
-	return FVector4f(ComponentToBoneMatrix.TransformPosition(Position));
+	return FVector4f(ComponentToBoneMatrix.TransformPosition((FVector)Position));
 }
 
 FMatrix FSkinnedBoneTriangleCache::BoneTransformMatrix(FBoneIndex BoneIndex) const

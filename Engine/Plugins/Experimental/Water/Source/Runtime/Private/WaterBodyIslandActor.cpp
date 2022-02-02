@@ -173,7 +173,7 @@ void AWaterBodyIsland::UpdateOverlappingWaterBodyComponents()
 	{
 		FCollisionShape OverlapShape;
 		// Expand shape in Z to ensure we get overlaps for islands slighty above or below water level
-		OverlapShape.SetBox(SplineComp->Bounds.BoxExtent+FVector(0,0,10000));
+		OverlapShape.SetBox((FVector3f)SplineComp->Bounds.BoxExtent+FVector3f(0,0,10000));
 		GetWorld()->OverlapMultiByObjectType(Overlaps, SplineComp->Bounds.Origin, FQuat::Identity, FCollisionObjectQueryParams::AllObjects, OverlapShape);
 	}
 

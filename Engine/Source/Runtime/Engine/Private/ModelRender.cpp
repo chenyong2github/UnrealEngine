@@ -164,7 +164,7 @@ void UModelComponent::BuildRenderData()
 					{
 						for(int32 VertexIndex = 0; VertexIndex < Node.NumVertices; VertexIndex++)
 						{
-							Element.BoundingBox += TheModel->Points[TheModel->Verts[Node.iVertPool + VertexIndex].pVertex];
+							Element.BoundingBox += (FVector)TheModel->Points[TheModel->Verts[Node.iVertPool + VertexIndex].pVertex];
 						}
 
 						for(int32 VertexIndex = 2; VertexIndex < Node.NumVertices; VertexIndex++)
@@ -863,7 +863,7 @@ FBoxSphereBounds UModelComponent::CalcBounds(const FTransform& LocalToWorld) con
 			FBspNode& Node = Model->Nodes[Nodes[NodeIndex]];
 			for(int32 VertexIndex = 0;VertexIndex < Node.NumVertices;VertexIndex++)
 			{
-				BoundingBox += Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
+				BoundingBox += (FVector)Model->Points[Model->Verts[Node.iVertPool + VertexIndex].pVertex];
 			}
 		}
 		return FBoxSphereBounds(BoundingBox.TransformBy(LocalToWorld));

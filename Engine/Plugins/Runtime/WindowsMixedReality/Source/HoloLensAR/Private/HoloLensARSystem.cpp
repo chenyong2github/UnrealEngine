@@ -1490,12 +1490,12 @@ bool FHoloLensARSystem::GetHandMeshData(EControllerHand Hand, TArray<FVector>& O
 	const int Num = HandState.Vertices.Num();
 	for (int i = 0; i < Num; i++)
 	{
-		OutVertices[i] = HandState.Vertices[i];
+		OutVertices[i] = (FVector)HandState.Vertices[i];
 	}
 	const int Num2 = HandState.Normals.Num();
 	for (int i = 0; i < Num2; i++)
 	{
-		OutNormals[i] = HandState.Normals[i];
+		OutNormals[i] = (FVector)HandState.Normals[i];
 	}	
 
 	auto DestIndices = OutIndices.GetData();

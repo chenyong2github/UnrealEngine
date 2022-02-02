@@ -86,18 +86,18 @@ public:
 	}
 	FVector3d GetVertex(int32 IDValue) const
 	{
-		const FVector& Position = VertexPositions[FVertexID(IDValue)];
+		const FVector3f& Position = VertexPositions[FVertexID(IDValue)];
 		return FVector3d(BuildScale.X * (double)Position.X, BuildScale.Y * (double)Position.Y, BuildScale.Z * (double)Position.Z);
 	}
 
 	inline void GetTriVertices(int32 IDValue, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
 	{
 		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
-		const FVector& A = VertexPositions[TriVertIDs[0]];
+		const FVector3f& A = VertexPositions[TriVertIDs[0]];
 		V0 = FVector3d(BuildScale.X * (double)A.X, BuildScale.Y * (double)A.Y, BuildScale.Z * (double)A.Z);
-		const FVector& B = VertexPositions[TriVertIDs[1]];
+		const FVector3f& B = VertexPositions[TriVertIDs[1]];
 		V1 = FVector3d(BuildScale.X * (double)B.X, BuildScale.Y * (double)B.Y, BuildScale.Z * (double)B.Z);
-		const FVector& C = VertexPositions[TriVertIDs[2]];
+		const FVector3f& C = VertexPositions[TriVertIDs[2]];
 		V2 = FVector3d(BuildScale.X * (double)C.X, BuildScale.Y * (double)C.Y, BuildScale.Z * (double)C.Z);
 	}
 
@@ -133,8 +133,8 @@ public:
 	/** Get Normal by VertexInstanceID */
 	FVector3f GetNormal(int32 IDValue) const
 	{
-		const FVector& InstanceNormal = VertexInstanceNormals[FVertexInstanceID(IDValue)];
-		return (!bScaleNormals) ? FVector3f(InstanceNormal) :
+		const FVector3f& InstanceNormal = VertexInstanceNormals[FVertexInstanceID(IDValue)];
+		return (!bScaleNormals) ? InstanceNormal :
 			UE::Geometry::Normalized(FVector3f(InstanceNormal.X/BuildScale.X, InstanceNormal.Y/BuildScale.Y, InstanceNormal.Z/BuildScale.Z));
 	}
 
@@ -243,7 +243,7 @@ public:
 	}
 	void SetVertex(int32 IDValue, const FVector3d& NewPos)
 	{
-		VertexPositions[FVertexID(IDValue)] = (FVector)NewPos;
+		VertexPositions[FVertexID(IDValue)] = (FVector3f)NewPos;
 	}
 
 	inline void GetTriVertices(int32 IDValue, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
@@ -277,7 +277,7 @@ public:
 	}
 	void SetNormal(int32 IDValue, const FVector3f& Normal)
 	{
-		VertexInstanceNormals[FVertexInstanceID(IDValue)] = (FVector)Normal;
+		VertexInstanceNormals[FVertexInstanceID(IDValue)] = Normal;
 	}
 };
 

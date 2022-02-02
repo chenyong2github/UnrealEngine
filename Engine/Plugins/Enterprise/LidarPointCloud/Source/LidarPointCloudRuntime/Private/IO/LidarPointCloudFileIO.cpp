@@ -69,14 +69,14 @@ void FLidarPointCloudImportResults::SetPointCount(const uint64& InTotalPointCoun
 void FLidarPointCloudImportResults::AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A /*= 1.0f*/)
 {
 	Points.Emplace(X, Y, Z, R, G, B, A);
-	Bounds += Points.Last().Location;
+	Bounds += (FVector)Points.Last().Location;
 	IncrementProgressCounter(1);
 }
 
 void FLidarPointCloudImportResults::AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A, const float& NX, const float& NY, const float& NZ)
 {
 	Points.Emplace(X, Y, Z, R, G, B, A, NX, NY, NZ);
-	Bounds += Points.Last().Location;
+	Bounds += (FVector)Points.Last().Location;
 	IncrementProgressCounter(1);
 }
 
@@ -94,7 +94,7 @@ void FLidarPointCloudImportResults::CenterPoints()
 	// Apply it to the points
 	for (FLidarPointCloudPoint& Point : Points)
 	{
-		Point.Location -= CenterOffset;
+		Point.Location -= (FVector3f)CenterOffset;
 	}
 
 	// Account for this in the original coordinates

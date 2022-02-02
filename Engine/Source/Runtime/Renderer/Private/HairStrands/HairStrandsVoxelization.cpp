@@ -554,8 +554,8 @@ static void AddAllocateVoxelPagesPass(
 
 		OutTotalPageIndexCount += Out.PageIndexCount;
 
-		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB = Out.TranslatedMinAABB;
-		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB = Out.TranslatedMaxAABB;
+		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB = (FVector3f)Out.TranslatedMinAABB;
+		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB = (FVector3f)Out.TranslatedMaxAABB;
 		MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution = Out.PageIndexResolution;
 	}
 
@@ -628,8 +628,8 @@ static void AddAllocateVoxelPagesPass(
 		Parameters->CPU_bUseCPUData = GHairVirtualVoxelGPUDriven == 2 ? 1 : 0;
 		if (Parameters->CPU_bUseCPUData)
 		{
-			Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].TranslatedMinAABB : FVector::ZeroVector;
-			Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].TranslatedMaxAABB : FVector::ZeroVector;
+			Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDescs.Num() > 0 ? (FVector3f)CPUAllocationDescs[0].TranslatedMinAABB : FVector3f::ZeroVector;
+			Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDescs.Num() > 0 ? (FVector3f)CPUAllocationDescs[0].TranslatedMaxAABB : FVector3f::ZeroVector;
 			Parameters->CPU_PageIndexResolution = CPUAllocationDescs.Num() > 0 ? CPUAllocationDescs[0].PageIndexResolution : FIntVector(0, 0, 0);
 		}
 
@@ -780,8 +780,8 @@ static void AddAllocateVoxelPagesPass(
 				Parameters->MaxClusterCount = HairGroupData->GetClusterCount();
 				Parameters->CPU_PageIndexResolution = CPUAllocationDesc.PageIndexResolution;
 				Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
-				Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDesc.TranslatedMinAABB;
-				Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDesc.TranslatedMaxAABB;
+				Parameters->CPU_TranslatedWorldMinAABB = (FVector3f)CPUAllocationDesc.TranslatedMinAABB;
+				Parameters->CPU_TranslatedWorldMaxAABB = (FVector3f)CPUAllocationDesc.TranslatedMaxAABB;
 				Parameters->ClusterAABBsBuffer = RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
 				Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
 
@@ -814,8 +814,8 @@ static void AddAllocateVoxelPagesPass(
 
 			FVoxelAddNodeDescCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelAddNodeDescCS::FParameters>();
 			Parameters->MacroGroupId = MacroGroup.MacroGroupId;
-			Parameters->CPU_TranslatedWorldMinAABB = CPUAllocationDesc.TranslatedMinAABB;
-			Parameters->CPU_TranslatedWorldMaxAABB = CPUAllocationDesc.TranslatedMaxAABB;
+			Parameters->CPU_TranslatedWorldMinAABB = (FVector3f)CPUAllocationDesc.TranslatedMinAABB;
+			Parameters->CPU_TranslatedWorldMaxAABB = (FVector3f)CPUAllocationDesc.TranslatedMaxAABB;
 			Parameters->CPU_PageIndexResolution = CPUAllocationDesc.PageIndexResolution;
 			Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
 			Parameters->OutNodeDescBuffer = GraphBuilder.CreateUAV(NodeDescBuffer);
@@ -1324,7 +1324,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->FrameIdMod8 = FrameIdMode8;
 
 				PassParameters->HairStrandsVF_PositionBuffer = VFInput.Strands.PositionBuffer.SRV;
-				PassParameters->HairStrandsVF_PositionOffset = VFInput.Strands.PositionOffset;
+				PassParameters->HairStrandsVF_PositionOffset = (FVector3f)VFInput.Strands.PositionOffset;
 				PassParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
 				PassParameters->HairStrandsVF_VertexCount = VFInput.Strands.VertexCount;
 				PassParameters->HairStrandsVF_Radius = VFInput.Strands.HairRadius;

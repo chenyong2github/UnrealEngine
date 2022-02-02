@@ -4773,12 +4773,12 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					
 					// Spot falloff
 					FVector L = ToLight.GetSafeNormal();
-					Color.A *= FMath::Square( FMath::Clamp( ( (L | LightParameters.Direction) - LightParameters.SpotAngles.X ) * LightParameters.SpotAngles.Y, 0.0f, 1.0f ) );
+					Color.A *= FMath::Square( FMath::Clamp( ( (L | (FVector)LightParameters.Direction) - LightParameters.SpotAngles.X ) * LightParameters.SpotAngles.Y, 0.0f, 1.0f ) );
 
 					Color.A *= LightParameters.SpecularScale;
 
 					// Rect is one sided
-					if( bIsRectLight && (L | LightParameters.Direction) < 0.0f )
+					if( bIsRectLight && (L | (FVector)LightParameters.Direction) < 0.0f )
 						continue;
 
 					UTexture* SurfaceTexture = nullptr;

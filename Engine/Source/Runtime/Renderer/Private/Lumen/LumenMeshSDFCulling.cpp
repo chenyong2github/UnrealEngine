@@ -441,7 +441,7 @@ void CullMeshSDFObjectsForView(
 
 		for (int32 i = 0; i < View.ViewFrustum.Planes.Num(); i++)
 		{
-			PassParameters->ViewFrustumConvexHull[i] = FVector4f(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
+			PassParameters->ViewFrustumConvexHull[i] = FVector4f((FVector3f)View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
 		}
 
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();
@@ -728,7 +728,7 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
 			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
-			PassParameters->PS.CardGridZParams = ZParams;
+			PassParameters->PS.CardGridZParams = (FVector3f)ZParams;	// LWC_TODO: Precision Loss
 			PassParameters->PS.CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);
 			PassParameters->PS.CullGridSize = CullGridSize;
 			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;

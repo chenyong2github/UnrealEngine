@@ -288,7 +288,7 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 			Cmd.RotationInput.Pitch = CachedLookInput.Y * LookRatePitch;
 			Cmd.RotationInput.Roll = 0;
 					
-			Cmd.MovementInput = CachedMoveInput;
+			Cmd.MovementInput = (FVector)CachedMoveInput;
 			break;
 		}
 		case 1:
@@ -306,7 +306,7 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 				float RotationInputYaw = 0.f;
 				if (CachedMoveInput.Size() >= RotationMagMin)
 				{
-					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector((FVector)CachedMoveInput);
 
 					// 2D xy movement, relative to camera
 					{
@@ -343,7 +343,7 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 
 				if (MoveInputMag >= RotationMagMin)
 				{								
-					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector((FVector)CachedMoveInput);
 
 					const float DesiredYaw = DesiredMovementDir.Rotation().Yaw;
 					const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
@@ -385,7 +385,7 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 				float RotationInputYaw = 0.f;
 				if (MoveInputMag >= RotationMagMin)
 				{
-					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector((FVector)CachedMoveInput);
 
 					const bool bIsUpsideDown = FVector::DotProduct(FVector(0.f, 0.f, 1.f), GetActorQuat().GetUpVector() ) < 0.f;
 					if (bIsUpsideDown)
@@ -411,7 +411,7 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const int32 DeltaMS, FFlyi
 	}
 				
 
-	CachedMoveInput = FVector::ZeroVector;
+	CachedMoveInput = FVector3f::ZeroVector;
 	CachedLookInput = FVector2D::ZeroVector;
 }
 

@@ -874,8 +874,8 @@ struct FParticlePerFrameSimulationParameters
 	FVector3f LWCTile;
 
 	FParticlePerFrameSimulationParameters()
-		: PointAttractor(FVector::ZeroVector,0.0f)
-		, PositionOffsetAndAttractorStrength(FVector::ZeroVector,0.0f)
+		: PointAttractor(FVector3f::ZeroVector,0.0f)
+		, PositionOffsetAndAttractorStrength(FVector3f::ZeroVector,0.0f)
 		, LocalToWorldScale(1.0f, 1.0f)
 		, DeltaSecondsInFix(0.0f)
 		, NumIterationsInFix(0)
@@ -3332,7 +3332,7 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 
 		DynamicData->MacroUVOverride.bOverride = LODLevel->RequiredModule->bOverrideSystemMacroUV;
 		DynamicData->MacroUVOverride.Radius = LODLevel->RequiredModule->MacroUVRadius;
-		DynamicData->MacroUVOverride.Position = LODLevel->RequiredModule->MacroUVPosition;
+		DynamicData->MacroUVOverride.Position = FVector3f(LODLevel->RequiredModule->MacroUVPosition);	// LWC_TODO: Precision loss
 
 		DynamicData->EmitterDynamicParameters.EmitterInstRandom = EmitterInstRandom;
 
@@ -3426,9 +3426,9 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 
 			}
 			
-			FVector PointAttractorPosition = ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition);
+			FVector3f PointAttractorPosition((FVector4f)ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition));	// LWC_TODO: Precision loss
 			DynamicData->PerFrameSimulationParameters.PointAttractor = FVector4f(PointAttractorPosition, EmitterInfo.PointAttractorRadiusSq);
-			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4f(PositionOffsetThisTick, PointAttractorStrength);
+			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4f(FVector3f(PositionOffsetThisTick), PointAttractorStrength);
 			DynamicData->PerFrameSimulationParameters.LocalToWorldScale = DynamicData->EmitterDynamicParameters.LocalToWorldScale;
 			DynamicData->PerFrameSimulationParameters.DeltaSeconds = PendingDeltaSeconds; // This value is used when updating vector fields.
 			DynamicData->PerFrameSimulationParameters.LWCTile = bUseTileOffset ? Component->GetLWCTile() : FVector3f::ZeroVector;
@@ -4116,8 +4116,8 @@ private:
 		for (int32 ParticleIndex = 0; ParticleIndex < ParticleCount; ++ParticleIndex)
 		{
 			FNewParticle* Particle = InNewParticles + ParticleIndex;
-			Particle->Position += (Particle->Velocity + 0.5f * Acceleration * WarmupTime) * WarmupTime;
-			Particle->Velocity += Acceleration * WarmupTime;
+			Particle->Position += (Particle->Velocity + 0.5f * FVector3f(Acceleration) * WarmupTime) * WarmupTime;
+			Particle->Velocity += FVector3f(Acceleration) * WarmupTime;
 			Particle->RelativeTime += Particle->TimeScale * WarmupTime;
 		}
 	}
@@ -4164,7 +4164,7 @@ private:
 			int32 ForceSpawnedOffset = SpawnInfo.Count - ForceSpawned.Num();
 			if (ForceSpawned.Num() && i > ForceSpawnedOffset)
 			{
-				TempParticle->Location = ForceSpawned[i - ForceSpawnedOffset - 1].Position;
+				TempParticle->Location = FVector(ForceSpawned[i - ForceSpawnedOffset - 1].Position);
 				TempParticle->RelativeTime = ForceSpawned[i - ForceSpawnedOffset - 1].RelativeTime;
 				TempParticle->Velocity += ForceSpawned[i - ForceSpawnedOffset - 1].Velocity;
 			}
@@ -4184,20 +4184,20 @@ private:
 			float InterpFraction = (float)i / (float)SpawnInfo.Count;
 
 			NewParticle->Velocity = TempParticle->BaseVelocity;
-			FVector WSPosition = TempParticle->Location + InterpFraction * EmitterDelta + SpawnInfo.StartTime * NewParticle->Velocity + EmitterInfo.OrbitOffsetBase + EmitterInfo.OrbitOffsetRange * RandomOrbit;
+			FVector WSPosition = TempParticle->Location + InterpFraction * EmitterDelta + SpawnInfo.StartTime * (FVector)NewParticle->Velocity + EmitterInfo.OrbitOffsetBase + EmitterInfo.OrbitOffsetRange * RandomOrbit;
 			if (RequiredModule->bUseLocalSpace == false && RequiredModule->bSupportLargeWorldCoordinates)
 			{
-				NewParticle->Position = WSPosition - FLargeWorldRenderScalar::GetTileSize() * FVector(Component->GetLWCTile());
+				NewParticle->Position = FVector3f(WSPosition - FLargeWorldRenderScalar::GetTileSize() * FVector(Component->GetLWCTile()));
 			}
 			else
 			{
-				NewParticle->Position = WSPosition;
+				NewParticle->Position = (FVector3f)WSPosition;
 			}
 			NewParticle->RelativeTime = TempParticle->RelativeTime;
 			NewParticle->TimeScale = FMath::Max<float>(TempParticle->OneOverMaxLifetime, 0.001f);
 
 			//So here I'm reducing the size to 0-0.5 range and using < 0.5 to indicate flipped UVs.
-			FVector BaseSize = GetParticleBaseSize(*TempParticle, true);
+			FVector BaseSize = (FVector)GetParticleBaseSize(*TempParticle, true);
 			FVector2D UVFlipSizeOffset = FVector2D(BaseSize.X < 0.0f ? 0.0f : 0.5f, BaseSize.Y < 0.0f ? 0.0f : 0.5f);
 			NewParticle->Size.X = (FMath::Abs(BaseSize.X) * EmitterInfo.InvMaxSize.X * 0.5f);
 			NewParticle->Size.Y = bSquare ? (NewParticle->Size.X) : (FMath::Abs(BaseSize.Y) * EmitterInfo.InvMaxSize.Y * 0.5f);
@@ -4341,8 +4341,8 @@ private:
 		{
 
 			FNewParticle Particle;
-			Particle.Position = SpawnLocation;
-			Particle.Velocity = InVelocity;
+			Particle.Position = (FVector3f)SpawnLocation;
+			Particle.Velocity = (FVector3f)InVelocity;
 			Particle.RelativeTime = Increment*i;
 			ForceSpawnedParticles.Add(Particle);
 		}
@@ -4353,8 +4353,8 @@ private:
 		for (int32 i = 0; i < InBurstCount; i++)
 		{
 			FNewParticle Particle;
-			Particle.Position = SpawnLocation;
-			Particle.Velocity = InVelocity;
+			Particle.Position = (FVector3f)SpawnLocation;
+			Particle.Velocity = (FVector3f)InVelocity;
 			Particle.RelativeTime = 0.0f;
 			ForceBurstSpawnedParticles.Add(Particle);
 		}
@@ -5332,13 +5332,13 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 	Resources->SimulationParameters.MiscCurve = Resources->UniformParameters.MiscCurve;
 	Resources->SimulationParameters.MiscScale = Resources->UniformParameters.MiscScale;
 	Resources->SimulationParameters.MiscBias = Resources->UniformParameters.MiscBias;
-	Resources->SimulationParameters.Acceleration = InResourceData.ConstantAcceleration;
-	Resources->SimulationParameters.OrbitOffsetBase = InResourceData.OrbitOffsetBase;
-	Resources->SimulationParameters.OrbitOffsetRange = InResourceData.OrbitOffsetRange;
-	Resources->SimulationParameters.OrbitFrequencyBase = InResourceData.OrbitFrequencyBase;
-	Resources->SimulationParameters.OrbitFrequencyRange = InResourceData.OrbitFrequencyRange;
-	Resources->SimulationParameters.OrbitPhaseBase = InResourceData.OrbitPhaseBase;
-	Resources->SimulationParameters.OrbitPhaseRange = InResourceData.OrbitPhaseRange;
+	Resources->SimulationParameters.Acceleration = (FVector3f)InResourceData.ConstantAcceleration;
+	Resources->SimulationParameters.OrbitOffsetBase = (FVector3f)InResourceData.OrbitOffsetBase;
+	Resources->SimulationParameters.OrbitOffsetRange = (FVector3f)InResourceData.OrbitOffsetRange;
+	Resources->SimulationParameters.OrbitFrequencyBase = (FVector3f)InResourceData.OrbitFrequencyBase;
+	Resources->SimulationParameters.OrbitFrequencyRange = (FVector3f)InResourceData.OrbitFrequencyRange;
+	Resources->SimulationParameters.OrbitPhaseBase = (FVector3f)InResourceData.OrbitPhaseBase;
+	Resources->SimulationParameters.OrbitPhaseRange = (FVector3f)InResourceData.OrbitPhaseRange;
 	Resources->SimulationParameters.CollisionRadiusScale = InResourceData.CollisionRadiusScale;
 	Resources->SimulationParameters.CollisionRadiusBias = InResourceData.CollisionRadiusBias;
 	Resources->SimulationParameters.CollisionTimeBias = InResourceData.CollisionTimeBias;

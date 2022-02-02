@@ -92,7 +92,7 @@ public:
 			FMeshEdge* Edge = NULL;
 			TArray<FMeshEdge*> EdgeList;
 			// Search the hash for a corresponding vertex
-			VertexToEdgeList.MultiFind(Vertices[Index2].Position, EdgeList);
+			VertexToEdgeList.MultiFind((FVector)Vertices[Index2].Position, EdgeList);
 			// Now search through the array for a match or not
 			for (int32 EdgeIndex = 0; EdgeIndex < EdgeList.Num() && Edge == NULL;
 				EdgeIndex++)
@@ -130,7 +130,7 @@ public:
 				Edges[EdgeIndex].Faces[1] = -1;
 				// Also add this edge to the hash for faster searches
 				// NOTE: This relies on the array never being realloced!
-				VertexToEdgeList.Add(Vertices[Index1].Position, &Edges[EdgeIndex]);
+				VertexToEdgeList.Add((FVector)Vertices[Index1].Position, &Edges[EdgeIndex]);
 			}
 			else
 			{

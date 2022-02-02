@@ -344,7 +344,7 @@ namespace UE
 						for (FVertexID VertexID : SourceMeshDescription.Vertices().GetElementIDs())
 						{
 							//We can use GetValue because the Meshdescription was compacted before the copy
-							MorphTargetData.Points[VertexID.GetValue()] = GlobalTransform.TransformPosition(VertexPositions[VertexID]);
+							MorphTargetData.Points[VertexID.GetValue()] = (FVector3f)GlobalTransform.TransformPosition((FVector)VertexPositions[VertexID]);
 						}
 
 						for (int32 PointIdx = VertexOffset; PointIdx < DestinationVertexIndexMax; ++PointIdx)

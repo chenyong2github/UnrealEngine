@@ -1022,7 +1022,7 @@ void UAnimCompress::SeparateRawDataIntoTracks(
 		// Copy over position keys.
 		for ( int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex )
 		{
-			TranslationTrack.PosKeys.Add( FVector(RawTrack.PosKeys[PosIndex]) );
+			TranslationTrack.PosKeys.Add( RawTrack.PosKeys[PosIndex] );
 		}
 
 		// Copy over rotation keys.

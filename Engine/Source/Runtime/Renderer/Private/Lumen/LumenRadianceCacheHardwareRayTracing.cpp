@@ -432,7 +432,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 	PassParameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 	PassParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 	PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
-	PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+	PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 	PassParameters->MaxTranslucentSkipCount = CVarLumenRadianceCacheHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 	PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();

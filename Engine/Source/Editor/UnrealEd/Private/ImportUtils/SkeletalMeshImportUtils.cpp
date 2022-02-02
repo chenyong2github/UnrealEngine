@@ -481,7 +481,7 @@ void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkelet
 	for (int32 SrcIndex = 0; SrcIndex < SrcVertices.Num(); ++SrcIndex)
 	{
 		const FSoftSkinVertex& SrcVertex = SrcVertices[SrcIndex];
-		OldBounds += SrcVertex.Position;
+		OldBounds += (FVector)SrcVertex.Position;
 	}
 
 	TWedgeInfoPosOctree SrcWedgePosOctree(OldBounds.GetCenter(), OldBounds.GetExtent().GetMax());
@@ -490,7 +490,7 @@ void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkelet
 	{
 		FWedgeInfo WedgeInfo;
 		WedgeInfo.WedgeIndex = SrcIndex;
-		WedgeInfo.Position = SrcVertices[SrcIndex].Position;
+		WedgeInfo.Position = (FVector)SrcVertices[SrcIndex].Position;
 		SrcWedgePosOctree.AddElement(WedgeInfo);
 	}
 
@@ -538,7 +538,7 @@ void SkeletalMeshImportUtils::ApplySkinning(USkeletalMesh* SkeletalMesh, FSkelet
 				{
 					int32 SrcIndex = SrcWedgeInfo.WedgeIndex;
 					const FSoftSkinVertex& SrcVertex = SrcVertices[SrcIndex];
-					float VectorDelta = FVector::DistSquared(SrcVertex.Position, DestVertex.Position);
+					float VectorDelta = FVector3f::DistSquared(SrcVertex.Position, DestVertex.Position);
 					if (VectorDelta <= (MinDistance + KINDA_SMALL_NUMBER))
 					{
 						if (VectorDelta < MinDistance - KINDA_SMALL_NUMBER)

@@ -61,13 +61,13 @@ public:
 
 			for (const FRenderableTriangle& Triangle : MaterialTriangles)
 			{
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = Triangle.Vertex0.Position;
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = Triangle.Vertex1.Position;
-				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 2) = Triangle.Vertex2.Position;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 0) = (FVector3f)Triangle.Vertex0.Position;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 1) = (FVector3f)Triangle.Vertex1.Position;
+				VertexBuffers.PositionVertexBuffer.VertexPosition(VertexBufferIndex + 2) = (FVector3f)Triangle.Vertex2.Position;
 
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 0, FVector(1, 0, 0), FVector(0, 1, 0), Triangle.Vertex0.Normal);
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 1, FVector(1, 0, 0), FVector(0, 1, 0), Triangle.Vertex1.Normal);
-				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 2, FVector(1, 0, 0), FVector(0, 1, 0), Triangle.Vertex2.Normal);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 0, FVector3f(1, 0, 0), FVector3f(0, 1, 0), (FVector3f)Triangle.Vertex0.Normal);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 1, FVector3f(1, 0, 0), FVector3f(0, 1, 0), (FVector3f)Triangle.Vertex1.Normal);
+				VertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(VertexBufferIndex + 2, FVector3f(1, 0, 0), FVector3f(0, 1, 0), (FVector3f)Triangle.Vertex2.Normal);
 
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 0, 0, FVector2f(Triangle.Vertex0.UV));
 				VertexBuffers.StaticMeshVertexBuffer.SetVertexUV(VertexBufferIndex + 1, 0, FVector2f(Triangle.Vertex1.UV));

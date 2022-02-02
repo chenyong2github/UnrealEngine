@@ -115,16 +115,16 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 			const FVector3f DetailNormalTangentSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
 
 			// Convert detail normal tangent space to object space
-			FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * DetailTangentX + DetailNormalTangentSpace.Y * DetailTangentY + DetailNormalTangentSpace.Z * DetailNormal;
+			FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * FVector3f(DetailTangentX) + DetailNormalTangentSpace.Y * FVector3f(DetailTangentY) + DetailNormalTangentSpace.Z * DetailNormal;
 			Normalize(DetailNormalObjectSpace);
 			DetailNormal = DetailNormalObjectSpace;
 		}
 	}
 
 	// compute normal in tangent space
-	const double dx = DetailNormal.Dot(BaseTangentX);
-	const double dy = DetailNormal.Dot(BaseTangentY);
-	const double dz = DetailNormal.Dot(SampleData.BaseNormal);
+	const double dx = DetailNormal.Dot(FVector3f(BaseTangentX));
+	const double dy = DetailNormal.Dot(FVector3f(BaseTangentY));
+	const double dz = DetailNormal.Dot(FVector3f(SampleData.BaseNormal));
 
 	return FVector3f((float)dx, (float)dy, (float)dz);
 }

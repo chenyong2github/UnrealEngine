@@ -1384,7 +1384,7 @@ void UStaticMeshComponent::CachePaintedDataIfNecessary()
 					for ( int32 VertIndex = 0; VertIndex < CurRenderData->GetNumVertices(); ++VertIndex )
 					{
 						FPaintedVertex* Vertex = new( CurCompLODInfo.PaintedVertices ) FPaintedVertex;
-						Vertex->Position = CurRenderData->VertexBuffers.PositionVertexBuffer.VertexPosition( VertIndex );
+						Vertex->Position = FVector(CurRenderData->VertexBuffers.PositionVertexBuffer.VertexPosition( VertIndex ));
 						Vertex->Normal = (FVector4)CurRenderData->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertIndex );
 						Vertex->Color = CurCompLODInfo.OverrideVertexColors->VertexColor( VertIndex );
 					}
@@ -1534,7 +1534,7 @@ void UStaticMeshComponent::PrivateFixupOverrideColors()
 			for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 			{
 				FPaintedVertex* Vertex = new(LODInfo.PaintedVertices) FPaintedVertex;
-				Vertex->Position = CurRenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
+				Vertex->Position = FVector(CurRenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex));
 				Vertex->Normal = (FVector4)CurRenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
 				Vertex->Color = LODInfo.OverrideVertexColors->VertexColor(VertIndex);
 			}
@@ -2818,7 +2818,7 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox
 					for (int32 i = 0; i < 3; i++)
 					{
 						int32 VertexIndex = Indices[FirstIndex + i];
-						FVector LocalPosition = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+						FVector LocalPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
 						Vertex.Emplace(GetComponentTransform().TransformPosition(LocalPosition));
 					}
 
@@ -2863,7 +2863,7 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolu
 			for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 			{
 				const FVector3f& LocalPosition = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
-				const FVector WorldPosition = GetComponentTransform().TransformPosition(LocalPosition);
+				const FVector WorldPosition = GetComponentTransform().TransformPosition(FVector(LocalPosition));
 				bool bLocationIntersected = InFrustum.IntersectSphere(WorldPosition, 0.0f);
 				if (bLocationIntersected && !bMustEncompassEntireComponent)
 				{

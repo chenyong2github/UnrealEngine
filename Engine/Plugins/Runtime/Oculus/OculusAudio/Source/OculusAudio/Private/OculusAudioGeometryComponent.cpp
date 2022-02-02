@@ -205,7 +205,7 @@ void UOculusAudioGeometryComponent::AppendStaticMesh(UStaticMesh* Mesh,
 
 	// append this mesh's vertices to the merged array after coordinate system conversion
 	for (int32 Index = 0; Index < VertexCount; Index++) {
-		const FVector Vertex = Transform.TransformPosition(VertexBuffer.VertexPosition(Index));
+		const FVector Vertex = Transform.TransformPosition((FVector)VertexBuffer.VertexPosition(Index));
 		MergedVertices.Add(OculusAudioSpatializationAudioMixer::ToOVRVector(Vertex));
 	}
 

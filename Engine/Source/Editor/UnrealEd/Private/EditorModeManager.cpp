@@ -1505,7 +1505,7 @@ void FEditorModeTools::DrawHUD( FEditorViewportClient* InViewportClient,FViewpor
 				const FPositionVertexBuffer& VertexBuffer = Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
 				for (uint32 i = 0; i < VertexBuffer.GetNumVertices(); i++)
 				{
-					Vertices.AddUnique(ActorToWorld.TransformPosition(VertexBuffer.VertexPosition(i)));
+					Vertices.AddUnique(ActorToWorld.TransformPosition((FVector)VertexBuffer.VertexPosition(i)));
 				}
 
 				const float InvDpiScale = 1.0f / Canvas->GetDPIScale();

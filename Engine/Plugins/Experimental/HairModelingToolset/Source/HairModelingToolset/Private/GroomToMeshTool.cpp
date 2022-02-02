@@ -1289,7 +1289,7 @@ void UGroomToMeshTool::UpdateLineSet()
 				int32 Count = Positions.Num() - 1;
 				for (int32 k = 0; k < Count; ++k)
 				{
-					LinesOut.Add(FRenderableLine(Positions[k], Positions[k + 1], FColor::Red, 0.1f));
+					LinesOut.Add(FRenderableLine((FVector)Positions[k], (FVector)Positions[k + 1], FColor::Red, 0.1f));
 				}
 			});
 		});

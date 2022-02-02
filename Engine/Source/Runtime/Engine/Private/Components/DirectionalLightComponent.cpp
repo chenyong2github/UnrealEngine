@@ -380,8 +380,8 @@ public:
 
 		LightParameters.Color = GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance();
 
-		LightParameters.Direction = -GetDirection();
-		LightParameters.Tangent = -GetDirection();
+		LightParameters.Direction = (FVector3f)-GetDirection();
+		LightParameters.Tangent = (FVector3f)-GetDirection();
 
 		LightParameters.SpotAngles = FVector2f::ZeroVector;
 		LightParameters.SpecularScale = SpecularScale;

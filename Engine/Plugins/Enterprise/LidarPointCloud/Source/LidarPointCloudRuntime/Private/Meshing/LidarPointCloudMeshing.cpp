@@ -151,13 +151,13 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 						}
 					} while (PlaneModels.Find(CurrentModel));
 
-					const FPlane Plane(SelectedPoints[CurrentModel.X]->Location, SelectedPoints[CurrentModel.Y]->Location, SelectedPoints[CurrentModel.Z]->Location);
+					const FPlane Plane((FVector)SelectedPoints[CurrentModel.X]->Location, (FVector)SelectedPoints[CurrentModel.Y]->Location, (FVector)SelectedPoints[CurrentModel.Z]->Location);
 
 					// Count Inner Points
 					uint32 NumInnerPoints = 0;
 					for (FLidarPointCloudPoint** Point = SelectedPoints.GetData(), **DataEnd = Point + NumPoints; Point != DataEnd; ++Point)
 					{
-						if (FMath::Abs(Plane.PlaneDot((*Point)->Location)) <= Tolerance)
+						if (FMath::Abs(Plane.PlaneDot((FVector)(*Point)->Location)) <= Tolerance)
 						{
 							++NumInnerPoints;
 						}
@@ -189,7 +189,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 						}
 					}
 
-					BestPlane = CurrentModel != FIntVector::NoneValue ? FPlane(SelectedPoints[CurrentModel.X]->Location, SelectedPoints[CurrentModel.Y]->Location, SelectedPoints[CurrentModel.Z]->Location) : FPlane(EForceInit::ForceInit);
+					BestPlane = CurrentModel != FIntVector::NoneValue ? FPlane((FVector)SelectedPoints[CurrentModel.X]->Location, (FVector)SelectedPoints[CurrentModel.Y]->Location, (FVector)SelectedPoints[CurrentModel.Z]->Location) : FPlane(EForceInit::ForceInit);
 				}
 
 				// If the points array was created temporarily, destroy it
@@ -211,7 +211,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 				// Apply Normals
 				for (FLidarPointCloudPoint** DataStart = SamplingUnit->Points.GetData(), **Point = DataStart, **DataEnd = Point + SamplingUnit->Points.Num(); Point != DataEnd; ++Point)
 				{
-					if (FMath::Abs(BestPlane.PlaneDot((*Point)->Location)) <= Tolerance)
+					if (FMath::Abs(BestPlane.PlaneDot((FVector)(*Point)->Location)) <= Tolerance)
 					{
 						(*Point)->Normal = Normal;
 						--DataEnd;

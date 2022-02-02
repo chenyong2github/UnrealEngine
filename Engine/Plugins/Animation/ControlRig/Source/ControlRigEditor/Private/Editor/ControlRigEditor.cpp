@@ -5797,7 +5797,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 				case ERigControlType::Rotator:
 				{
 					FVector3f RotatorAngles = ControlValue.Get<FVector3f>();
-					FRotator Rotator = FRotator::MakeFromEuler(RotatorAngles);
+					FRotator Rotator = FRotator::MakeFromEuler((FVector)RotatorAngles);
 					FRigControlValue RotatorValue = FRigControlValue::Make<FRotator>(Rotator);
 					NewDefaultValue = RotatorValue.ToString<FRotator>();
 					break;

@@ -82,9 +82,9 @@ namespace
 			{
 				// StaticMeshVertexBuffer.h computes it this way...(see SetTangents)
 				FMatrix Basis(
-					FPlane(SrcPoly.WedgeTangentX[i], 0),
-					FPlane(SrcPoly.WedgeTangentY[i], 0),
-					FPlane(SrcPoly.WedgeTangentZ[i], 0),
+					FPlane((FVector)SrcPoly.WedgeTangentX[i], 0),
+					FPlane((FVector)SrcPoly.WedgeTangentY[i], 0),
+					FPlane((FVector)SrcPoly.WedgeTangentZ[i], 0),
 					FPlane(0, 0, 0, 1)
 				);
 				Chirality[i] = (Basis.Determinant() < 0) ? -1.f : 1.f;
@@ -1323,9 +1323,9 @@ namespace
 				{
 					// StaticMeshVertexBuffer.h computes it this way...(see SetTangents)
 					FMatrix Basis(
-						FPlane(TangentSamples[i], 0),
-						FPlane(BiTangentSamples[i], 0),
-						FPlane(NormalSamples[i], 0),
+						FPlane((FVector)TangentSamples[i], 0),
+						FPlane((FVector)BiTangentSamples[i], 0),
+						FPlane((FVector)NormalSamples[i], 0),
 						FPlane(0, 0, 0, 1)
 					);
 					Chirality[i] = (Basis.Determinant() < 0) ? -1.f : 1.f;

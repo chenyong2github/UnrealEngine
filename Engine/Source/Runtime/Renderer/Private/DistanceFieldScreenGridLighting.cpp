@@ -101,7 +101,7 @@ static FAOSampleParameters SetupAOSampleParameters(uint32 FrameNumber)
 
 	for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
 	{
-		ShaderParameters.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
+		ShaderParameters.SampleDirections[SampleIndex] = FVector3f(SampleDirections[SampleIndex]);
 	}
 
 	return ShaderParameters;

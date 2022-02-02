@@ -514,7 +514,6 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 							SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
 					}
 
-					// LWC_TODO: Precision loss
 					CubeView.CachedViewUniformShaderParameters->SkyPlanetTranslatedWorldCenterAndViewHeight = TempSkyPlanetData;
 					CubeView.CachedViewUniformShaderParameters->SkyCameraTranslatedWorldOrigin = SkyCameraTranslatedWorldOrigin;
 					CubeView.CachedViewUniformShaderParameters->SkyViewLutReferential = SkyViewLutReferential;

@@ -399,7 +399,7 @@ void FPrecomputedLightVolume::InterpolateIncidentRadiancePoint(
 		// Iterate over the octree nodes containing the query point.
 		OctreeForRendering->FindElementsWithBoundsTest(BoundingBox, [&AccumulatedIncidentRadiance, &SkyBentNormal, &AccumulatedDirectionalLightShadowing, &AccumulatedWeight, &WorldPosition](const FVolumeLightingSample& VolumeSample)
 		{
-			const float DistanceSquared = (VolumeSample.Position - WorldPosition).SizeSquared();
+			const float DistanceSquared = ((FVector)VolumeSample.Position - WorldPosition).SizeSquared();
 			const float RadiusSquared = FMath::Square(VolumeSample.Radius);
 
 			if (DistanceSquared < RadiusSquared)
@@ -506,7 +506,7 @@ void FPrecomputedLightVolume::DebugDrawSamples(FPrimitiveDrawInterface* PDI, boo
 			? FLinearColor(VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing, VolumeSample.DirectionalLightShadowing)
 			: VolumeSample.Lighting.CalcIntegral() / (FSHVector2::ConstantBasisIntegral * PI);
 		
-		FVector SamplePosition = VolumeSample.Position + WorldOriginOffset; //relocate from volume to world space
+		FVector SamplePosition = (FVector)VolumeSample.Position + WorldOriginOffset; //relocate from volume to world space
 		PDI->DrawPoint(SamplePosition, AverageColor, 10, SDPG_World);
 	});
 }

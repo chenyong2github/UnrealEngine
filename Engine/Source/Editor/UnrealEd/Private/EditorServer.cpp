@@ -703,13 +703,13 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 					{
 						FPoly* Poly = &(Brush->Brush->Polys->Element[poly]);
 
-						Poly->TextureU *= InvScale;
-						Poly->TextureV *= InvScale;
-						Poly->Base = ((Poly->Base - Brush->GetPivotOffset()) * Scale) + Brush->GetPivotOffset();
+						Poly->TextureU *= (FVector3f)InvScale;
+						Poly->TextureV *= (FVector3f)InvScale;
+						Poly->Base = ((Poly->Base - FVector3f(Brush->GetPivotOffset() * Scale))) + (FVector3f)Brush->GetPivotOffset();
 
 						for( int32 vtx = 0 ; vtx < Poly->Vertices.Num() ; vtx++ )
 						{
-							Poly->Vertices[vtx] = ((Poly->Vertices[vtx] - Brush->GetPivotOffset()) * Scale) + Brush->GetPivotOffset();
+							Poly->Vertices[vtx] = (Poly->Vertices[vtx] - FVector3f(Brush->GetPivotOffset() * Scale)) + (FVector3f)Brush->GetPivotOffset();
 						}
 
 						Poly->CalcNormal();
@@ -949,7 +949,7 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 			const FScopedBusyCursor BusyCursor;
 
 			ResetTransaction( NSLOCTEXT("UnrealEd", "LoadingBrush", "Loading Brush") );
-			const FVector3f TempVector = WorldBrush->GetActorLocation();
+			const FVector TempVector = WorldBrush->GetActorLocation();
 			LoadPackage( InWorld->GetOutermost(), *TempFname, 0 );
 			WorldBrush->SetActorLocation(TempVector, false);
 			FBSPOps::bspValidateBrush( WorldBrush->Brush, 0, 1 );
@@ -4218,11 +4218,11 @@ bool UEditorEngine::Map_Scale( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 
 					Poly->TextureU /= Factor;
 					Poly->TextureV /= Factor;
-					Poly->Base = ((Poly->Base - Brush->GetPivotOffset()) * Factor) + Brush->GetPivotOffset();
+					Poly->Base = ((Poly->Base - (FVector3f)Brush->GetPivotOffset()) * Factor) + (FVector3f)Brush->GetPivotOffset();
 
 					for( int32 vtx = 0 ; vtx < Poly->Vertices.Num() ; vtx++ )
 					{
-						Poly->Vertices[vtx] = ((Poly->Vertices[vtx] - Brush->GetPivotOffset()) * Factor) + Brush->GetPivotOffset();
+						Poly->Vertices[vtx] = ((Poly->Vertices[vtx] - (FVector3f)Brush->GetPivotOffset()) * Factor) + (FVector3f)Brush->GetPivotOffset();
 					}
 
 					Poly->CalcNormal();
@@ -4305,8 +4305,8 @@ namespace {
 			FBspSurf* Surf = *It;
 			UModel* Model = It.GetModel();
 			Model->Modify();
-			const FVector TextureU( Model->Vectors[Surf->vTextureU] );
-			const FVector TextureV( Model->Vectors[Surf->vTextureV] );
+			const FVector3f TextureU( Model->Vectors[Surf->vTextureU] );
+			const FVector3f TextureV( Model->Vectors[Surf->vTextureV] );
 			Surf->vTextureU = Model->Vectors.Add(TextureU);
 			Surf->vTextureV = Model->Vectors.Add(TextureV);
 		}
@@ -4616,7 +4616,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 				FBspSurf* Surf = *It;
 				UModel* Model = It.GetModel();
 				Model->Modify();
-				const FVector Base( Model->Points[Surf->pBase] );
+				const FVector3f Base( Model->Points[Surf->pBase] );
 				Surf->pBase = Model->Points.Add(Base);
 			}
 

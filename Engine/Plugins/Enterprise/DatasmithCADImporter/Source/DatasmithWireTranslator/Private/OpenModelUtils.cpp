@@ -1682,7 +1682,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 				const float* CurVertex = AlVertices + 3 * Index;
 				*VertexPositionIDPtr = MeshDescription.CreateVertex();
 				// ConvertVector_ZUp_RightHanded
-				VertexPositions[*VertexPositionIDPtr] = FVector(-CurVertex[0], CurVertex[1], CurVertex[2]);
+				VertexPositions[*VertexPositionIDPtr] = FVector3f(-CurVertex[0], CurVertex[1], CurVertex[2]);
 			}
 		}
 		else
@@ -1733,7 +1733,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 					{
 						UENormal *= -1.;
 					}
-					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = UENormal;
+					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = (FVector3f)UENormal;
 				}
 				if (CornerVertexIDs[0] == CornerVertexIDs[1] || CornerVertexIDs[0] == CornerVertexIDs[2] || CornerVertexIDs[1] == CornerVertexIDs[2])
 				{
@@ -1776,7 +1776,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 					{
 						UENormal = SymmetricMatrix.TransformVector(UENormal) * -1;
 					}
-					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = UENormal;
+					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = (FVector3f)UENormal;
 				}
 				if (CornerVertexIDs[0] == CornerVertexIDs[1] || CornerVertexIDs[0] == CornerVertexIDs[2] || CornerVertexIDs[1] == CornerVertexIDs[2])
 				{

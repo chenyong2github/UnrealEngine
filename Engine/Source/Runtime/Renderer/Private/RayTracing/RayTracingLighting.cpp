@@ -162,7 +162,7 @@ static void CreateRaytracingLightCullingStructure(
 			FSetupRayTracingLightCullData::FParameters Params;
 			Params.RankedLights = RankedLightsSRV;
 
-			Params.WorldPos = View.ViewMatrices.GetViewOrigin(); // View.ViewLocation;
+			Params.WorldPos = (FVector3f)View.ViewMatrices.GetViewOrigin(); // View.ViewLocation; // LWC_TODO: Precision Loss
 			Params.NumLightsToUse = NumLightsToUse;
 			Params.LightCullingVolume = LightCullVolumeUAV;
 			Params.LightIndices = OutLightingData.LightIndices.UAV;

@@ -288,7 +288,7 @@ void CullForCardTracing(
 	GetCardGridZParams(View.NearClippingDistance, IndirectTracingParameters.CardTraceEndDistanceFromCamera, ZParams, CardGridSizeZ);
 
 	MeshSDFGridParameters.CardGridPixelSizeShift = FMath::FloorLog2(GCardFroxelGridPixelSize);
-	MeshSDFGridParameters.CardGridZParams = ZParams;
+	MeshSDFGridParameters.CardGridZParams = (FVector3f)ZParams; // LWC_TODO: Precision Loss
 
 	const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GCardFroxelGridPixelSize);
 	const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, CardGridSizeZ);

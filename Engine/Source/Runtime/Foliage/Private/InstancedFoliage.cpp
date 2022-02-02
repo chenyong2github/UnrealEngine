@@ -2767,7 +2767,7 @@ void FFoliageInfo::IncludeActor(const UFoliageType* FoliageType, AActor* InActor
 			NewInstance.BaseComponent = nullptr;
 			NewInstance.BaseId = FFoliageInstanceBaseCache::InvalidBaseId;
 
-			NewInstance.DrawScale3D = InActor->GetActorScale3D();
+			NewInstance.DrawScale3D = (FVector3f)InActor->GetActorScale3D();
 			FTransform Transform = InActor->GetTransform();
 			NewInstance.Location = Transform.GetLocation();
 			NewInstance.Rotation = FRotator(Transform.GetRotation());
@@ -4728,7 +4728,7 @@ void AInstancedFoliageActor::AddInstances(UObject* WorldContextObject, UFoliageT
 			FFoliageInstance FoliageInstance;
 			FoliageInstance.Location = InstanceTransfo.GetLocation();
 			FoliageInstance.Rotation = InstanceTransfo.GetRotation().Rotator();
-			FoliageInstance.DrawScale3D = InstanceTransfo.GetScale3D();
+			FoliageInstance.DrawScale3D = (FVector3f)InstanceTransfo.GetScale3D();
 
 			FoliageInstances.Add(FoliageInstance);
 			InstancesToAdd.FindOrAdd(IFA).Add(&FoliageInstances[FoliageInstances.Num() - 1]);
@@ -5313,7 +5313,7 @@ bool AInstancedFoliageActor::CheckCollisionWithWorld(const UWorld* InWorld, cons
 	FBoxSphereBounds WorldBound = LocalBound.TransformBy(OriginalTransform);
 
 	static FName NAME_FoliageCollisionWithWorld = FName(TEXT("FoliageCollisionWithWorld"));
-	if (InWorld->OverlapBlockingTestByChannel(WorldBound.Origin, FQuat(Inst.Rotation), ECC_WorldStatic, FCollisionShape::MakeBox(LocalBound.BoxExtent * Inst.DrawScale3D * Settings->CollisionScale), FCollisionQueryParams(NAME_FoliageCollisionWithWorld, false, HitComponent != nullptr ? HitComponent->GetOwner() : nullptr)))
+	if (InWorld->OverlapBlockingTestByChannel(WorldBound.Origin, FQuat(Inst.Rotation), ECC_WorldStatic, FCollisionShape::MakeBox(LocalBound.BoxExtent * (FVector)Inst.DrawScale3D * Settings->CollisionScale), FCollisionQueryParams(NAME_FoliageCollisionWithWorld, false, HitComponent != nullptr ? HitComponent->GetOwner() : nullptr)))
 	{
 		return false;
 	}
@@ -5336,13 +5336,13 @@ bool FPotentialInstance::PlaceInstance(const UWorld* InWorld, const UFoliageType
 {
 	if (DesiredInstance.PlacementMode != EFoliagePlacementMode::Procedural)
 	{
-		Inst.DrawScale3D = Settings->GetRandomScale();
+		Inst.DrawScale3D = (FVector3f)Settings->GetRandomScale();
 		Inst.ZOffset = Settings->ZOffset.Interpolate(FMath::FRand());
 	}
 	else
 	{
 		//Procedural foliage uses age to get the scale
-		Inst.DrawScale3D = FVector(Settings->GetScaleForAge(DesiredInstance.Age));
+		Inst.DrawScale3D = FVector3f(Settings->GetScaleForAge(DesiredInstance.Age));
 		
 		// Use a deterministic seed for the offset in Procedural placement so that offset is always the same for the same instance position
 		FRandomStream LocalRandomStream(FFoliagePlacementUtil::GetRandomSeedForPosition(FVector2D(Inst.Location)));
@@ -5386,7 +5386,7 @@ bool FPotentialInstance::PlaceInstance(const UWorld* InWorld, const UFoliageType
 	UModelComponent* ModelComponent = Cast<UModelComponent>(HitComponent);
 	if (ModelComponent)
 	{
-		ABrush* BrushActor = ModelComponent->GetModel()->FindBrush(HitLocation);
+		ABrush* BrushActor = ModelComponent->GetModel()->FindBrush((FVector3f)HitLocation);
 		if (BrushActor)
 		{
 			HitComponent = BrushActor->GetBrushComponent();

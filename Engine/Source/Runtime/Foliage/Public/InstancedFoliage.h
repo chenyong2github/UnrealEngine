@@ -96,14 +96,14 @@ struct FFoliageInstance : public FFoliageInstancePlacementInfo
 
 	FTransform GetInstanceWorldTransform() const
 	{
-		return FTransform(Rotation, Location, DrawScale3D);
+		return FTransform(Rotation, Location, FVector(DrawScale3D));
 	}
 
 	void SetInstanceWorldTransform(const FTransform& Transform)
 	{
 		Location = Transform.GetTranslation();
 		Rotation = Transform.Rotator();
-		DrawScale3D = Transform.GetScale3D();
+		DrawScale3D = FVector3f(Transform.GetScale3D());
 	}
 
 	void AlignToNormal(const FVector& InNormal, float AlignMaxAngle = 0.f)

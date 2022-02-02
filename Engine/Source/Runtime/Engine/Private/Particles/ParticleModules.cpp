@@ -1426,7 +1426,7 @@ void UParticleModuleMeshRotation::SpawnEx(FParticleEmitterInstance* Owner, int32
 			//PayloadData->Rotation.X	+= Rotation.X * 360.0f;
 			//PayloadData->Rotation.Y	+= Rotation.Y * 360.0f;
 			//PayloadData->Rotation.Z	+= Rotation.Z * 360.0f;
-			PayloadData->InitRotation = Rotation * 360.0f;
+			PayloadData->InitRotation = FVector3f(Rotation) * 360.0f;
 			PayloadData->Rotation += PayloadData->InitRotation;
 		}
 	}
@@ -1511,7 +1511,7 @@ void UParticleModuleMeshRotationRate::SpawnEx(FParticleEmitterInstance* Owner, i
 		if (MeshRotationOffset)
 		{
 			FVector StartRate = StartRotationRate.GetValue(Owner->EmitterTime, Owner->Component, 0, InRandomStream);// * ((float)PI/180.f);
-			FVector StartValue;
+			FVector3f StartValue;
 			StartValue.X = StartRate.X * 360.0f;
 			StartValue.Y = StartRate.Y * 360.0f;
 			StartValue.Z = StartRate.Z * 360.0f;
@@ -1597,7 +1597,7 @@ void UParticleModuleMeshRotationRateMultiplyLife::Spawn(FParticleEmitterInstance
 		SPAWN_INIT;
 		{
 			FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-			FVector RateScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+			FVector3f RateScale(LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component));
 			PayloadData->RotationRate *= RateScale;
 		}
 	}
@@ -1611,7 +1611,7 @@ void UParticleModuleMeshRotationRateMultiplyLife::Update(FParticleEmitterInstanc
 		BEGIN_UPDATE_LOOP;
 		{
 			FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-			FVector RateScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+			FVector3f RateScale(LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component));
 			PayloadData->RotationRate *= RateScale;
 		}
 		END_UPDATE_LOOP;
@@ -1672,7 +1672,7 @@ void UParticleModuleMeshRotationRateOverLife::Spawn(FParticleEmitterInstance* Ow
 		SPAWN_INIT;
 		{
 			FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-			FVector RateValue = RotRate.GetValue(Particle.RelativeTime, Owner->Component);// * ((float)PI/180.f);
+			FVector3f RateValue(RotRate.GetValue(Particle.RelativeTime, Owner->Component));// * ((float)PI/180.f);
 			RateValue.X = RateValue.X * 360.0f;
 			RateValue.Y = RateValue.Y * 360.0f;
 			RateValue.Z = RateValue.Z * 360.0f;
@@ -1705,7 +1705,7 @@ void UParticleModuleMeshRotationRateOverLife::Update(FParticleEmitterInstance* O
 				RateValue.X = RateValue.X * 360.0f;
 				RateValue.Y = RateValue.Y * 360.0f;
 				RateValue.Z = RateValue.Z * 360.0f;
-				PayloadData->RotationRate += RateValue;
+				PayloadData->RotationRate += FVector3f(RateValue);
 			}
 			END_UPDATE_LOOP;
 		}
@@ -1718,7 +1718,7 @@ void UParticleModuleMeshRotationRateOverLife::Update(FParticleEmitterInstance* O
 				RateValue.X = RateValue.X * 360.0f;
 				RateValue.Y = RateValue.Y * 360.0f;
 				RateValue.Z = RateValue.Z * 360.0f;
-				PayloadData->RotationRate *= RateValue;
+				PayloadData->RotationRate *= FVector3f(RateValue);
 			}
 			END_UPDATE_LOOP;
 		}
@@ -2489,16 +2489,16 @@ void UParticleModuleAccelerationConstant::Spawn(FParticleEmitterInstance* Owner,
 	check(LODLevel);
 	if (bAlwaysInWorldSpace && LODLevel->RequiredModule->bUseLocalSpace)
 	{
-		FVector LocalAcceleration = Owner->Component->GetComponentTransform().InverseTransformVector(Acceleration);
+		FVector3f LocalAcceleration(Owner->Component->GetComponentTransform().InverseTransformVector(Acceleration));
 		Particle.Velocity		+= LocalAcceleration * SpawnTime;
 		Particle.BaseVelocity	+= LocalAcceleration * SpawnTime;
 	}
 	else
 	{
-		FVector LocalAcceleration = Acceleration;
+		FVector3f LocalAcceleration(Acceleration);
 		if (LODLevel->RequiredModule->bUseLocalSpace)
 		{
-			LocalAcceleration = Owner->EmitterToSimulation.TransformVector(LocalAcceleration);
+			LocalAcceleration = FVector4f(Owner->EmitterToSimulation.TransformVector((FVector)LocalAcceleration));
 		}
 		Particle.Velocity		+= LocalAcceleration * SpawnTime;
 		Particle.BaseVelocity	+= LocalAcceleration * SpawnTime;
@@ -2519,7 +2519,7 @@ void UParticleModuleAccelerationConstant::Update(FParticleEmitterInstance* Owner
 	if (bAlwaysInWorldSpace && LODLevel->RequiredModule->bUseLocalSpace)
 	{
 		FTransform Mat = Owner->Component->GetComponentTransform();
-		FVector LocalAcceleration = Mat.InverseTransformVector(Acceleration);
+		FVector3f LocalAcceleration(Mat.InverseTransformVector(Acceleration));
 		BEGIN_UPDATE_LOOP;
 		{
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
@@ -2531,10 +2531,10 @@ void UParticleModuleAccelerationConstant::Update(FParticleEmitterInstance* Owner
 	}
 	else
 	{
-		FVector LocalAcceleration = Acceleration;
+		FVector3f LocalAcceleration(Acceleration);
 		if (LODLevel->RequiredModule->bUseLocalSpace)
 		{
-			LocalAcceleration = Owner->EmitterToSimulation.TransformVector(LocalAcceleration);
+			LocalAcceleration = FVector4f(Owner->EmitterToSimulation.TransformVector((FVector)LocalAcceleration));
 		}
 		BEGIN_UPDATE_LOOP;
 		{
@@ -2621,7 +2621,7 @@ void UParticleModuleAccelerationDrag::Update(FParticleEmitterInstance* Owner, in
 {
 	BEGIN_UPDATE_LOOP;
 	{
-		FVector Drag  = Particle.Velocity * -DragCoefficientRaw.GetValue(Particle.RelativeTime, Owner->Component);
+		FVector3f Drag  = Particle.Velocity * -DragCoefficientRaw.GetValue(Particle.RelativeTime, Owner->Component);
 		Particle.Velocity		+= Drag * DeltaTime;
 		Particle.BaseVelocity	+= Drag * DeltaTime;
 	}
@@ -2809,17 +2809,17 @@ void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 O
 {
 	SPAWN_INIT;
 	PARTICLE_ELEMENT(FVector3f, UsedAcceleration);
-	UsedAcceleration = Acceleration.GetValue(Owner->EmitterTime, Owner->Component);
+	UsedAcceleration = FVector3f(Acceleration.GetValue(Owner->EmitterTime, Owner->Component));
 	if ((bApplyOwnerScale == true) && Owner && Owner->Component)
 	{
-		FVector3f Scale = Owner->Component->GetComponentTransform().GetScale3D();
+		FVector3f Scale(Owner->Component->GetComponentTransform().GetScale3D());
 		UsedAcceleration *= Scale;
 	}
 	UParticleLODLevel* LODLevel	= Owner->SpriteTemplate->GetCurrentLODLevel(Owner);
 	check(LODLevel);
 	if (bAlwaysInWorldSpace && LODLevel->RequiredModule->bUseLocalSpace)
 	{
-		FVector3f TempUsedAcceleration = Owner->Component->GetComponentTransform().InverseTransformVector(UsedAcceleration);
+		FVector3f TempUsedAcceleration = (FVector3f)Owner->Component->GetComponentTransform().InverseTransformVector(FVector(UsedAcceleration));
 		Particle.Velocity		+= TempUsedAcceleration * SpawnTime;
 		Particle.BaseVelocity	+= TempUsedAcceleration * SpawnTime;
 	}
@@ -2827,7 +2827,7 @@ void UParticleModuleAcceleration::Spawn(FParticleEmitterInstance* Owner, int32 O
 	{
 		if (LODLevel->RequiredModule->bUseLocalSpace)
 		{
-			UsedAcceleration = (FVector4f)Owner->EmitterToSimulation.TransformVector(UsedAcceleration);
+			UsedAcceleration = (FVector4f)Owner->EmitterToSimulation.TransformVector(FVector(UsedAcceleration));
 		}
 		Particle.Velocity		+= UsedAcceleration * SpawnTime;
 		Particle.BaseVelocity	+= UsedAcceleration * SpawnTime;
@@ -2851,7 +2851,7 @@ void UParticleModuleAcceleration::Update(FParticleEmitterInstance* Owner, int32 
 		BEGIN_UPDATE_LOOP;
 		{
 			FVector3f& UsedAcceleration = *((FVector3f*)(ParticleBase + CurrentOffset));																\
-			FVector TransformedUsedAcceleration = Mat.InverseTransformVector(UsedAcceleration);
+			FVector3f TransformedUsedAcceleration = (FVector3f)Mat.InverseTransformVector((FVector)UsedAcceleration);
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 			FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 			Particle.Velocity		+= TransformedUsedAcceleration * DeltaTime;
@@ -2942,8 +2942,8 @@ void UParticleModuleAccelerationOverLifetime::Update(FParticleEmitterInstance* O
 			// Acceleration should always be in world space...
 			FVector Accel = AccelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
 			Accel = Mat.InverseTransformVector(Accel);
-			Particle.Velocity		+= Accel * DeltaTime;
-			Particle.BaseVelocity	+= Accel * DeltaTime;
+			Particle.Velocity		+= (FVector3f)Accel * DeltaTime;
+			Particle.BaseVelocity	+= (FVector3f)Accel * DeltaTime;
 		END_UPDATE_LOOP;
 	}
 	else
@@ -2951,8 +2951,8 @@ void UParticleModuleAccelerationOverLifetime::Update(FParticleEmitterInstance* O
 		BEGIN_UPDATE_LOOP;
 		// Acceleration should always be in world space...
 		FVector Accel = AccelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-		Particle.Velocity		+= Accel * DeltaTime;
-		Particle.BaseVelocity	+= Accel * DeltaTime;
+		Particle.Velocity		+= (FVector3f)Accel * DeltaTime;
+		Particle.BaseVelocity	+= (FVector3f)Accel * DeltaTime;
 		END_UPDATE_LOOP;
 	}
 }
@@ -3046,7 +3046,7 @@ void UParticleModuleLight::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset
 		SPAWN_INIT;
 		PARTICLE_ELEMENT(FLightParticlePayload, LightData);
 		const float Brightness = BrightnessOverLife.GetValue(Particle.RelativeTime, Owner->Component, InRandomStream);
-		LightData.ColorScale = ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component, 0, InRandomStream) * Brightness;
+		LightData.ColorScale = (FVector3f)ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component, 0, InRandomStream) * Brightness;
 		LightData.RadiusScale = RadiusScale.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		// Exponent of 0 is interpreted by renderer as inverse squared falloff
 		LightData.LightExponent = bUseInverseSquaredFalloff ? 0 : LightExponent.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
@@ -3205,7 +3205,7 @@ void UParticleModuleLight::Update(FParticleEmitterInstance* Owner, int32 Offset,
 	{
 		PARTICLE_ELEMENT(FLightParticlePayload,	Data);
 		const float Brightness = BrightnessOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-		Data.ColorScale = ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component) * Brightness;
+		Data.ColorScale = (FVector3f)ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component) * Brightness;
 
 		if (bHighQualityLights && (Data.LightId != 0))
 		{
@@ -3303,7 +3303,7 @@ void UParticleModuleLight::Render3DPreview(FParticleEmitterInstance* Owner, cons
 			if (LightPayload->bValid)
 			{
 				const FVector LightPosition = bLocalSpace ? FVector(LocalToWorld.TransformPosition(Particle.Location)) : FVector(Particle.Location);
-				const FVector Size = Scale * Particle.Size;
+				const FVector Size = Scale * (FVector)Particle.Size;
 				const float LightRadius = LightPayload->RadiusScale * (Size.X + Size.Y) / 2.0f;
 
 				DrawWireSphere(PDI, LightPosition, FColor::White, LightRadius, 18, SDPG_World);
@@ -4030,7 +4030,7 @@ void UParticleModuleAttractorLine::Update(FParticleEmitterInstance* Owner, int32
 				float AttractorStrength = Strength.GetValue((AttractorRange - Distance) / AttractorRange, Owner->Component);
 				FVector Direction = LineToPoint^Line;
 				// Adjust the VELOCITY of the particle based on the attractor... 
-				Particle.Velocity += Direction * AttractorStrength * DeltaTime;
+				Particle.Velocity += (FVector3f)Direction * AttractorStrength * DeltaTime;
 			}
 		}
 	END_UPDATE_LOOP;
@@ -4287,11 +4287,11 @@ void UParticleModuleAttractorParticle::Update(FParticleEmitterInstance* Owner, i
 
 			// Adjust the VELOCITY of the particle based on the attractor... 
 			Dir.Normalize();
-			Particle.Velocity	+= Dir * AttractorStrength * DeltaTime;
+			Particle.Velocity	+= (FVector3f)Dir * AttractorStrength * DeltaTime;
 			Data.SourceVelocity	 = Source->Velocity;
 			if (bAffectBaseVelocity)
 			{
-				Particle.BaseVelocity	+= Dir * AttractorStrength * DeltaTime;
+				Particle.BaseVelocity	+= (FVector3f)Dir * AttractorStrength * DeltaTime;
 			}
 		}
 	}
@@ -4432,10 +4432,10 @@ void UParticleModuleAttractorPoint::Update(FParticleEmitterInstance* Owner, int3
 
 			// Adjust the VELOCITY of the particle based on the attractor...
 			Dir = ClampVector(Dir,MinNormalizedDir,MaxNormalizedDir);
-			Particle.Velocity	+= Dir * AttractorStrength * DeltaTime;
+			Particle.Velocity	+= (FVector3f)Dir * AttractorStrength * DeltaTime;
 			if (bAffectBaseVelocity)
 			{
-				Particle.BaseVelocity	+= Dir * AttractorStrength * DeltaTime;
+				Particle.BaseVelocity	+= (FVector3f)Dir * AttractorStrength * DeltaTime;
 			}
 		}
 	END_UPDATE_LOOP;

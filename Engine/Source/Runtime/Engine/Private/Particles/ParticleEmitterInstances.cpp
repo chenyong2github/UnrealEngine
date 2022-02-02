@@ -1254,7 +1254,7 @@ FVector FParticleEmitterInstance::GetParticleLocationWithOrbitOffset(FBasePartic
 		int32 CurrentOffset = OrbitOffsetValue;
 		const uint8* ParticleBase = (const uint8*)Particle;
 		PARTICLE_ELEMENT(FOrbitChainModuleInstancePayload, OrbitPayload);
-		return Particle->Location + OrbitPayload.Offset;
+		return Particle->Location + FVector(OrbitPayload.Offset);
 	}
 }
 
@@ -1332,7 +1332,7 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 			{
 				if ((Particle.Flags & STATE_Particle_FreezeTranslation) == 0)
 				{
-					NewLocation = Particle.Location + (DeltaTime * Particle.Velocity);
+					NewLocation = Particle.Location + FVector(DeltaTime * Particle.Velocity);
 				}
 				else
 				{
@@ -1359,7 +1359,7 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 			{	
 				if (OrbitOffsetValue == -1)
 				{
-					LocalMax = (Particle.Size * Scale).GetAbsMax();
+					LocalMax = (FVector(Particle.Size) * Scale).GetAbsMax();
 				}
 				else
 				{
@@ -1369,7 +1369,7 @@ void FParticleEmitterInstance::UpdateBoundingBox(float DeltaTime)
 					LocalMax = OrbitPayload.Offset.GetAbsMax();
 				}
 
-				LocalMax += (Particle.Size * ParticlePivotOffset).GetAbsMax();
+				LocalMax += (FVector(Particle.Size) * ParticlePivotOffset).GetAbsMax();
 			}
 
 			NewLocation			+= PositionOffsetThisTick;
@@ -1443,7 +1443,7 @@ void FParticleEmitterInstance::ForceUpdateBoundingBox()
 
 			if (OrbitOffsetValue == -1)
 			{
-				LocalMax = (Particle.Size * Scale).GetAbsMax();
+				LocalMax = (FVector(Particle.Size) * Scale).GetAbsMax();
 			}
 			else
 			{
@@ -1742,7 +1742,7 @@ void FParticleEmitterInstance::CalculateOrbitOffset(FOrbitChainModuleInstancePay
 	float DeltaTime, FVector& Result, FMatrix& RotationMat)
 {
 	AccumRotation += AccumRotationRate * DeltaTime;
-	Payload.Rotation = AccumRotation;
+	Payload.Rotation = FVector3f(AccumRotation);
 	if (AccumRotation.IsNearlyZero() == false)
 	{
 		FVector RotRot = RotationMat.TransformVector(AccumRotation);
@@ -1838,9 +1838,9 @@ void FParticleEmitterInstance::UpdateOrbitData(float DeltaTime)
 					{
 						if (OrbitModule->bEnabled == true)
 						{
-							AccumulatedOffset += OrbitPayload.Offset;
-							AccumulatedRotation += OrbitPayload.Rotation;
-							AccumulatedRotationRate += OrbitPayload.RotationRate;
+							AccumulatedOffset += FVector(OrbitPayload.Offset);
+							AccumulatedRotation += FVector(OrbitPayload.Rotation);
+							AccumulatedRotationRate += FVector(OrbitPayload.RotationRate);
 						}
 					}
 					else
@@ -1848,9 +1848,9 @@ void FParticleEmitterInstance::UpdateOrbitData(float DeltaTime)
 					{
 						if (OrbitModule->bEnabled == true)
 						{
-							AccumulatedOffset *= OrbitPayload.Offset;
-							AccumulatedRotation *= OrbitPayload.Rotation;
-							AccumulatedRotationRate *= OrbitPayload.RotationRate;
+							AccumulatedOffset *= FVector(OrbitPayload.Offset);
+							AccumulatedRotation *= FVector(OrbitPayload.Rotation);
+							AccumulatedRotationRate *= FVector(OrbitPayload.RotationRate);
 						}
 					}
 					else
@@ -1874,9 +1874,9 @@ void FParticleEmitterInstance::UpdateOrbitData(float DeltaTime)
 
 						if (OrbitModule->bEnabled == true)
 						{
-							AccumulatedOffset = OrbitPayload.Offset;
-							AccumulatedRotation = OrbitPayload.Rotation;
-							AccumulatedRotationRate = OrbitPayload.RotationRate;
+							AccumulatedOffset = FVector(OrbitPayload.Offset);
+							AccumulatedRotation = FVector(OrbitPayload.Rotation);
+							AccumulatedRotationRate = FVector(OrbitPayload.RotationRate);
 						}
 					}
 
@@ -1899,10 +1899,10 @@ void FParticleEmitterInstance::UpdateOrbitData(float DeltaTime)
 
 				if (LocalOrbitPayload != NULL)
 				{
-					LocalOrbitPayload->Offset = FVector::ZeroVector;
+					LocalOrbitPayload->Offset = FVector3f::ZeroVector;
 					for (int32 AccumIndex = 0; AccumIndex < OffsetIndex; AccumIndex++)
 					{
-						LocalOrbitPayload->Offset += Offsets[AccumIndex];
+						LocalOrbitPayload->Offset += FVector3f(Offsets[AccumIndex]);
 					}
 
 					FMemory::Memzero(Offsets.GetData(), sizeof(FVector) * (ModuleCount + 1));
@@ -2370,8 +2370,8 @@ void FParticleEmitterInstance::PreSpawn(FBaseParticle* Particle, const FVector& 
 
 	// Initialize the particle location.
 	Particle->Location = InitialLocation;
-	Particle->BaseVelocity = InitialVelocity;
-	Particle->Velocity = InitialVelocity;
+	Particle->BaseVelocity = FVector3f(InitialVelocity);
+	Particle->Velocity = FVector3f(InitialVelocity);
 
 	// New particles has already updated spawn location
 	// Subtract offset here, so deferred location offset in UpdateBoundingBox will return this particle back
@@ -2429,7 +2429,7 @@ void FParticleEmitterInstance::PostSpawn(FBaseParticle* Particle, float Interpol
 
 	// Offset caused by any velocity
 	Particle->OldLocation = Particle->Location;
-	Particle->Location   += SpawnTime * Particle->Velocity;
+	Particle->Location   += SpawnTime * FVector(Particle->Velocity);
 
 	// Store a sequence counter.
 	Particle->Flags |= ((ParticleCounter++) & STATE_CounterMask);
@@ -2819,10 +2819,10 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 	OutData.SortMode = SortMode;
 
 	// Take scale into account
-	OutData.Scale = FVector(1.0f, 1.0f, 1.0f);
+	OutData.Scale = FVector3f::OneVector;
 	if (Component)
 	{
-		OutData.Scale = Component->GetComponentTransform().GetScale3D();
+		OutData.Scale = FVector3f(Component->GetComponentTransform().GetScale3D());
 	}
 
 	int32 ParticleMemSize = MaxActiveParticles * ParticleStride;
@@ -2860,7 +2860,7 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 
 		NewReplayData->MacroUVOverride.bOverride = LODLevel->RequiredModule->bOverrideSystemMacroUV;
 		NewReplayData->MacroUVOverride.Radius = LODLevel->RequiredModule->MacroUVRadius;
-		NewReplayData->MacroUVOverride.Position = LODLevel->RequiredModule->MacroUVPosition;
+		NewReplayData->MacroUVOverride.Position = FVector3f(LODLevel->RequiredModule->MacroUVPosition);
         
 		NewReplayData->bLockAxis = false;
 		if (bAxisLockEnabled == true)
@@ -2884,8 +2884,8 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 		}
 
 		NewReplayData->EmitterNormalsMode = LODLevel->RequiredModule->EmitterNormalsMode;
-		NewReplayData->NormalsSphereCenter = LODLevel->RequiredModule->NormalsSphereCenter;
-		NewReplayData->NormalsCylinderDirection = LODLevel->RequiredModule->NormalsCylinderDirection;
+		NewReplayData->NormalsSphereCenter = (FVector3f)LODLevel->RequiredModule->NormalsSphereCenter;
+		NewReplayData->NormalsCylinderDirection = (FVector3f)LODLevel->RequiredModule->NormalsCylinderDirection;
 
 		NewReplayData->PivotOffset = FVector2f(PivotOffset);
 
@@ -3235,7 +3235,7 @@ bool FParticleMeshEmitterInstance::Resize(int32 NewMaxActiveParticles, bool bSet
 			{
 				DECLARE_PARTICLE(Particle, ParticleData + ParticleStride * ParticleIndices[i]);
 				FMeshRotationPayloadData* PayloadData	= (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);
-				PayloadData->RotationRateBase			= FVector::ZeroVector;
+				PayloadData->RotationRateBase			= FVector3f::ZeroVector;
 			}
 		}
 		
@@ -3286,7 +3286,7 @@ void FParticleMeshEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 			}
 			else
 			{
-				MotionBlurPayloadData->PayloadPrevOrbitOffset = FVector::ZeroVector;
+				MotionBlurPayloadData->PayloadPrevOrbitOffset = FVector3f::ZeroVector;
 			}
 		}
 	}
@@ -3305,7 +3305,7 @@ void FParticleMeshEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 				|| LODLevel->RequiredModule->ScreenAlignment == PSA_AwayFromCenter)
 			{
 				// Determine the rotation to the velocity vector and apply it to the mesh
-				FVector	NewDirection	= Particle.Velocity;
+				FVector	NewDirection	= (FVector)Particle.Velocity;
 				
 				if (LODLevel->RequiredModule->ScreenAlignment == PSA_Velocity)
 				{
@@ -3322,9 +3322,9 @@ void FParticleMeshEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 							const FOrbitChainModuleInstancePayload &OrbitPayload = *(FOrbitChainModuleInstancePayload*)((uint8*)&Particle + SpriteOrbitModuleOffset);
 
 							//this should be our current position
-							const FVector NewPos = Particle.Location + OrbitPayload.Offset;
+							const FVector NewPos = Particle.Location + (FVector)OrbitPayload.Offset;
 							//this should be our previous position
-							const FVector OldPos = Particle.OldLocation + OrbitPayload.PreviousOffset;
+							const FVector OldPos = Particle.OldLocation + (FVector)OrbitPayload.PreviousOffset;
 
 							NewDirection = NewPos - OldPos;
 						}
@@ -3339,7 +3339,7 @@ void FParticleMeshEmitterInstance::Tick(float DeltaTime, bool bSuppressSpawning)
 				FVector	OldDirection(1.0f, 0.0f, 0.0f);
 
 				FQuat Rotation = FQuat::FindBetweenNormals(OldDirection, NewDirection);
-				FVector Euler = Rotation.Euler();
+				FVector3f Euler(Rotation.Euler());
 				PayloadData->Rotation = PayloadData->InitRotation + Euler;
 				PayloadData->Rotation += PayloadData->CurContinuousRotation;
 			}
@@ -3507,7 +3507,7 @@ void FParticleMeshEmitterInstance::UpdateBoundingBox(float DeltaTime)
 			{
 				if ((Particle.Flags & STATE_Particle_FreezeTranslation) == 0)
 				{
-					NewLocation	= Particle.Location + DeltaTime * Particle.Velocity;
+					NewLocation	= Particle.Location + DeltaTime * (FVector)Particle.Velocity;
 				}
 				else
 				{
@@ -3529,7 +3529,7 @@ void FParticleMeshEmitterInstance::UpdateBoundingBox(float DeltaTime)
 				NewRotation = Particle.Rotation;
 			}
 
-			FVector LocalExtent = MeshBound.GetBox().GetExtent() * Particle.Size * Scale;
+			FVector LocalExtent = MeshBound.GetBox().GetExtent() * (FVector)Particle.Size * Scale;
 
 			NewLocation			+= PositionOffsetThisTick;
 			Particle.OldLocation+= PositionOffsetThisTick;
@@ -3607,7 +3607,7 @@ void FParticleMeshEmitterInstance::PostSpawn(FBaseParticle* Particle, float Inte
 		|| LODLevel->RequiredModule->ScreenAlignment == PSA_AwayFromCenter)
 	{
 		// Determine the rotation to the velocity vector and apply it to the mesh
-		FVector	NewDirection = Particle->Velocity;
+		FVector	NewDirection(Particle->Velocity);
 		if (LODLevel->RequiredModule->ScreenAlignment == PSA_AwayFromCenter)
 		{
 			NewDirection = Particle->Location;
@@ -3625,7 +3625,7 @@ void FParticleMeshEmitterInstance::PostSpawn(FBaseParticle* Particle, float Inte
 	}
 
 	FVector InitialOrient = MeshTypeData->RollPitchYawRange.GetValue(SpawnTime, 0, 0, &MeshTypeData->RandomStream);
-	PayloadData->InitialOrientation = InitialOrient;
+	PayloadData->InitialOrientation = (FVector3f)InitialOrient;
 
 	if (MeshMotionBlurOffset)
 	{
@@ -3654,7 +3654,7 @@ void FParticleMeshEmitterInstance::PostSpawn(FBaseParticle* Particle, float Inte
 		}
 		else
 		{
-			MotionBlurPayloadData->PayloadPrevOrbitOffset = FVector::ZeroVector;
+			MotionBlurPayloadData->PayloadPrevOrbitOffset = FVector3f::ZeroVector;
 		}
 	}
 }
@@ -3912,7 +3912,7 @@ bool FParticleMeshEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase
 
 	// Scale needs to be handled in a special way for meshes.  The parent implementation set this
 	// itself, but we'll recompute it here.
-	NewReplayData->Scale = FVector(1.0f, 1.0f, 1.0f);
+	NewReplayData->Scale = FVector3f::OneVector;
 	if (Component)
 	{
 		check(SpriteTemplate);
@@ -3924,7 +3924,7 @@ bool FParticleMeshEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase
 		{
 			if (!bIgnoreComponentScale)
 			{
-				NewReplayData->Scale = Component->GetComponentTransform().GetScale3D();
+				NewReplayData->Scale = (FVector3f)Component->GetComponentTransform().GetScale3D();
 			}
 		}
 	}
@@ -3941,24 +3941,24 @@ bool FParticleMeshEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase
 				switch (LockAxisFlags)
 				{
 				case EPAL_X:
-					NewReplayData->LockedAxis = FVector(1,0,0);
+					NewReplayData->LockedAxis = FVector3f(1,0,0);
 					break;
 				case EPAL_Y:
-					NewReplayData->LockedAxis = FVector(0,1,0);
+					NewReplayData->LockedAxis = FVector3f(0,1,0);
 					break;
 				case EPAL_NEGATIVE_X:
-					NewReplayData->LockedAxis = FVector(-1,0,0);
+					NewReplayData->LockedAxis = FVector3f(-1,0,0);
 					break;
 				case EPAL_NEGATIVE_Y:
-					NewReplayData->LockedAxis = FVector(0,-1,0);
+					NewReplayData->LockedAxis = FVector3f(0,-1,0);
 					break;
 				case EPAL_NEGATIVE_Z:
-					NewReplayData->LockedAxis = FVector(0,0,-1);
+					NewReplayData->LockedAxis = FVector3f(0,0,-1);
 					break;
 				case EPAL_Z:
 				case EPAL_NONE:
 				default:
-					NewReplayData->LockedAxis = FVector(0,0,1);
+					NewReplayData->LockedAxis = FVector3f(0,0,1);
 					break;
 				}
 			}

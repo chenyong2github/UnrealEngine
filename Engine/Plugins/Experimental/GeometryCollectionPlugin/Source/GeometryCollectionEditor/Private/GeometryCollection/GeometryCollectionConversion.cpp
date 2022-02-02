@@ -160,12 +160,12 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 				const TArray<FVertexInstanceID>& InstanceIDs = SplitVertex.Value;
 				const FVertexInstanceID& ExemplarInstanceID = InstanceIDs[0];
 
-				TargetVertex[CurrentVertex] = SourcePosition[VertexIndex] * Scale;
+				TargetVertex[CurrentVertex] = SourcePosition[VertexIndex] * (FVector3f)Scale;
 				TargetBoneMap[CurrentVertex] = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
 
 				TargetNormal[CurrentVertex] = SourceNormal[ExemplarInstanceID];
 				TargetTangentU[CurrentVertex] = SourceTangent[ExemplarInstanceID];
-				TargetTangentV[CurrentVertex] = SourceBinormalSign[ExemplarInstanceID] * FVector::CrossProduct(TargetNormal[CurrentVertex], TargetTangentU[CurrentVertex]);
+				TargetTangentV[CurrentVertex] = (FVector3f)SourceBinormalSign[ExemplarInstanceID] * FVector3f::CrossProduct(TargetNormal[CurrentVertex], TargetTangentU[CurrentVertex]);
 
 				TargetUVs[CurrentVertex] = SplitVertex.Key.UVs;
 
@@ -282,7 +282,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		FVector Center(0);
 		for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount; VertexIndex++)
 		{
-			Center += TargetVertex[VertexIndex];
+			Center += (FVector)TargetVertex[VertexIndex];
 		}
 		if (VertexCount) Center /= VertexCount;
 
@@ -292,9 +292,9 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		OuterRadius[GeometryIndex] = -FLT_MAX;
 		for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount; VertexIndex++)
 		{
-			BoundingBox[GeometryIndex] += TargetVertex[VertexIndex];
+			BoundingBox[GeometryIndex] += (FVector)TargetVertex[VertexIndex];
 
-			float Delta = (Center - TargetVertex[VertexIndex]).Size();
+			float Delta = (Center - (FVector)TargetVertex[VertexIndex]).Size();
 			InnerRadius[GeometryIndex] = FMath::Min(InnerRadius[GeometryIndex], Delta);
 			OuterRadius[GeometryIndex] = FMath::Max(OuterRadius[GeometryIndex], Delta);
 		}
@@ -305,7 +305,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			FVector Centroid(0);
 			for (int e = 0; e < 3; e++)
 			{
-				Centroid += TargetVertex[TargetIndices[fdx][e]];
+				Centroid += (FVector)TargetVertex[TargetIndices[fdx][e]];
 			}
 			Centroid /= 3;
 
@@ -320,7 +320,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			for (int e = 0; e < 3; e++)
 			{
 				int i = e, j = (e + 1) % 3;
-				FVector Edge = TargetVertex[TargetIndices[fdx][i]] + 0.5 * (TargetVertex[TargetIndices[fdx][j]] - TargetVertex[TargetIndices[fdx][i]]);
+				FVector Edge = (FVector)TargetVertex[TargetIndices[fdx][i]] + 0.5 * FVector(TargetVertex[TargetIndices[fdx][j]] - TargetVertex[TargetIndices[fdx][i]]);
 				float Delta = (Center - Edge).Size();
 				InnerRadius[GeometryIndex] = FMath::Min(InnerRadius[GeometryIndex], Delta);
 				OuterRadius[GeometryIndex] = FMath::Max(OuterRadius[GeometryIndex], Delta);
@@ -387,7 +387,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 	{
 		const int32 VertexOffset = VertexStart + VertexIndex;
-		TargetVertex[VertexOffset] = SourceVertex[VertexIndex] * Scale;
+		TargetVertex[VertexOffset] = SourceVertex[VertexIndex] * (FVector3f)Scale;
 		
 		TargetTangentU[VertexOffset] = SourceTangentU[VertexIndex];
 		TargetTangentV[VertexOffset] = SourceTangentV[VertexIndex];
@@ -517,7 +517,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 		FVector Center(0);
 		for (int32 VertexIndex = TargetVertexStart[GeometryOffset]; VertexIndex < TargetVertexStart[GeometryOffset] + TargetVertexCount[GeometryOffset]; ++VertexIndex)
 		{
-			Center += TargetVertex[VertexIndex];
+			Center += (FVector)TargetVertex[VertexIndex];
 		}
 		if (TargetVertexCount[GeometryOffset]) Center /= TargetVertexCount[GeometryOffset];
 		
@@ -526,9 +526,9 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 		TargetOuterRadius[GeometryOffset] = -FLT_MAX;
 		for (int32 VertexIndex = TargetVertexStart[GeometryOffset]; VertexIndex < TargetVertexStart[GeometryOffset] + TargetVertexCount[GeometryOffset]; ++VertexIndex)
 		{
-			TargetBoundingBox[GeometryOffset] += TargetVertex[VertexIndex];
+			TargetBoundingBox[GeometryOffset] += (FVector)TargetVertex[VertexIndex];
 
-			float Delta = (Center - TargetVertex[VertexIndex]).Size();
+			float Delta = (Center - (FVector)TargetVertex[VertexIndex]).Size();
 			TargetInnerRadius[GeometryOffset] = FMath::Min(TargetInnerRadius[GeometryOffset], Delta);
 			TargetOuterRadius[GeometryOffset] = FMath::Max(TargetOuterRadius[GeometryOffset], Delta);
 		}
@@ -739,7 +739,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 							if (SkeletalBoneIndex > -1)
 							{
 								BoneMap[VertexOffset] = SkeletalBoneIndex + TransformBaseIndex;
-								Vertex[VertexOffset] = (FVector4f)Transform[BoneMap[VertexOffset]].ToInverseMatrixWithScale().TransformPosition(PositionVertexBuffer.VertexPosition(VertexIndex));
+								Vertex[VertexOffset] = (FVector4f)Transform[BoneMap[VertexOffset]].ToInverseMatrixWithScale().TransformPosition((FVector)PositionVertexBuffer.VertexPosition(VertexIndex));
 							}
 							check(BoneMap[VertexOffset] != -1);
 							TangentU[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex);

@@ -405,8 +405,8 @@ bool StaticMeshImportUtils::AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAgg
 
 	FMatrix BoxTM = FMatrix::Identity;
 
-	BoxTM.SetAxis(0, Planes[0].Normal);
-	BoxTM.SetAxis(1, Planes[1].Normal);
+	BoxTM.SetAxis(0, (FVector)Planes[0].Normal);
+	BoxTM.SetAxis(1, (FVector)Planes[1].Normal);
 
 	// ensure valid TM by cross-product
 	FVector3f ZAxis = Planes[0].Normal ^ Planes[1].Normal;
@@ -417,15 +417,15 @@ bool StaticMeshImportUtils::AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAgg
 		return false;
 	}
 
-	BoxTM.SetAxis(2, ZAxis);
+	BoxTM.SetAxis(2, (FVector)ZAxis);
 
 	// OBB centre == AABB centre.
 	FBox Box(ForceInit);
 	for(int32 i=0; i<Tris.Num(); i++)
 	{
-		Box += Tris[i].Vertices[0];
-		Box += Tris[i].Vertices[1];
-		Box += Tris[i].Vertices[2];
+		Box += (FVector)Tris[i].Vertices[0];
+		Box += (FVector)Tris[i].Vertices[1];
+		Box += (FVector)Tris[i].Vertices[2];
 	}
 
 	BoxTM.SetOrigin( Box.GetCenter() );
@@ -460,7 +460,7 @@ bool StaticMeshImportUtils::AddSphereGeomFromVerts( const TArray<FVector3f>& Ver
 
 	for(int32 i=0; i<Verts.Num(); i++)
 	{
-		Box += Verts[i];
+		Box += (FVector)Verts[i];
 	}
 
 	FVector Center, Extents;
@@ -482,7 +482,7 @@ bool StaticMeshImportUtils::AddSphereGeomFromVerts( const TArray<FVector3f>& Ver
 	float MinR = BIG_NUMBER;
 	for(int32 i=0; i<Verts.Num(); i++)
 	{
-		FVector3f CToV = Verts[i] - Center;
+		FVector3f CToV = Verts[i] - (FVector3f)Center;
 		float RSqr = CToV.SizeSquared();
 
 		MaxR = FMath::Max(RSqr, MaxR);
@@ -546,7 +546,7 @@ bool StaticMeshImportUtils::AddCapsuleGeomFromVerts(const TArray<FVector3f>& Ver
 
 		for (int32 IndexA = 0; IndexA < Verts.Num() - 1; IndexA++)
 		{
-			float DistToAxis = FMath::PointDistToLine(Verts[IndexA], LineDir, LineOrigin);
+			float DistToAxis = FMath::PointDistToLine((FVector)Verts[IndexA], (FVector)LineDir, (FVector)LineOrigin);
 			if (DistToAxis > MaxRadius)
 			{
 				MaxRadius = DistToAxis;
@@ -557,8 +557,8 @@ bool StaticMeshImportUtils::AddCapsuleGeomFromVerts(const TArray<FVector3f>& Ver
 		{
 			// Allocate capsule in array
 			FKSphylElem SphylElem;
-			SphylElem.Center = 0.5f * (AxisStart + AxisEnd);
-			SphylElem.Rotation = FQuat::FindBetweenVectors(FVector3f(0,0,1), LineDir).Rotator(); // Get quat that takes you from z axis to desired axis
+			SphylElem.Center = 0.5f * (FVector)(AxisStart + AxisEnd);
+			SphylElem.Rotation = FQuat::FindBetweenVectors(FVector(0,0,1), (FVector)LineDir).Rotator(); // Get quat that takes you from z axis to desired axis
 			SphylElem.Radius = MaxRadius;
 			SphylElem.Length = FMath::Max(FMath::Sqrt(MaxDistSqr) - (2.f * MaxRadius), 0.f); // subtract two radii from total length to get segment length (ensure > 0)
 			AggGeom->SphylElems.Add(SphylElem);
@@ -734,8 +734,8 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 	ExistingMeshDataPtr->ExistingDistanceFieldSelfShadowBias = ExistingMesh->DistanceFieldSelfShadowBias;
 	ExistingMeshDataPtr->ExistingSupportUniformlyDistributedSampling = ExistingMesh->bSupportUniformlyDistributedSampling;
 	ExistingMeshDataPtr->ExistingAllowCpuAccess = ExistingMesh->bAllowCPUAccess;
-	ExistingMeshDataPtr->ExistingPositiveBoundsExtension = ExistingMesh->GetPositiveBoundsExtension();
-	ExistingMeshDataPtr->ExistingNegativeBoundsExtension = ExistingMesh->GetNegativeBoundsExtension();
+	ExistingMeshDataPtr->ExistingPositiveBoundsExtension = (FVector3f)ExistingMesh->GetPositiveBoundsExtension();
+	ExistingMeshDataPtr->ExistingNegativeBoundsExtension = (FVector3f)ExistingMesh->GetNegativeBoundsExtension();
 
 	UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(ExistingMesh->AssetImportData);
 	if (ImportData && ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
@@ -1262,8 +1262,8 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 	NewMesh->DistanceFieldSelfShadowBias = ExistingMeshDataPtr->ExistingDistanceFieldSelfShadowBias;
 	NewMesh->bSupportUniformlyDistributedSampling = ExistingMeshDataPtr->ExistingSupportUniformlyDistributedSampling;
 	NewMesh->bAllowCPUAccess = ExistingMeshDataPtr->ExistingAllowCpuAccess;
-	NewMesh->SetPositiveBoundsExtension(ExistingMeshDataPtr->ExistingPositiveBoundsExtension);
-	NewMesh->SetNegativeBoundsExtension(ExistingMeshDataPtr->ExistingNegativeBoundsExtension);
+	NewMesh->SetPositiveBoundsExtension((FVector)ExistingMeshDataPtr->ExistingPositiveBoundsExtension);
+	NewMesh->SetNegativeBoundsExtension((FVector)ExistingMeshDataPtr->ExistingNegativeBoundsExtension);
 
 	NewMesh->ComplexCollisionMesh = ExistingMeshDataPtr->ExistingComplexCollisionMesh;
 }

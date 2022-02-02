@@ -794,7 +794,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 
 		float TotalDistance = 0.0f;
 
-		const FVector FirstPos = PosData[RibbonIndices[0]];
+		const FVector FirstPos = (FVector)PosData[RibbonIndices[0]];
 		FVector CurrPos = FirstPos;
 		FVector LastToCurrVec = FVector::ZeroVector;
 		float LastToCurrSize = 0;
@@ -806,7 +806,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		while (CurrentIndex < RibbonIndices.Num())
 		{
 			const int32 CurrentDataIndex = RibbonIndices[CurrentIndex];
-			CurrPos = PosData[CurrentDataIndex];
+			CurrPos = (FVector)PosData[CurrentDataIndex];
 			LastToCurrVec = CurrPos - FirstPos;
 			LastToCurrSize = LastToCurrVec.Size();
 			if (bHasTwist)
@@ -840,7 +840,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		while (NextIndex < RibbonIndices.Num())
 		{
 			const int32 NextDataIndex = RibbonIndices[NextIndex];
-			const FVector NextPos = PosData[NextDataIndex];
+			const FVector NextPos = (FVector)PosData[NextDataIndex];
 			FVector CurrToNextVec = NextPos - CurrPos;
 			const float CurrToNextSize = CurrToNextVec.Size();
 
@@ -907,8 +907,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 		if (NumSegments > 0)
 		{
 			FNiagaraDynamicDataRibbon::FMultiRibbonInfo& MultiRibbonInfo = DynamicData->MultiRibbonInfos[RibbonIndex];
-			MultiRibbonInfo.StartPos = PosData[RibbonIndices[0]];
-			MultiRibbonInfo.EndPos = PosData[RibbonIndices.Last()];
+			MultiRibbonInfo.StartPos = (FVector)PosData[RibbonIndices[0]];
+			MultiRibbonInfo.EndPos = (FVector)PosData[RibbonIndices.Last()];
 			MultiRibbonInfo.BaseSegmentDataIndex = SegmentData.Num();
 			MultiRibbonInfo.NumSegmentDataIndices = NumSegments;
 
@@ -1386,8 +1386,8 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.bLocalSpace = bUseLocalSpace;
 	PerViewUniformParameters.DeltaSeconds = ViewFamily.Time.GetDeltaWorldTimeSeconds();
 	PerViewUniformParameters.SystemLWCTile = SceneProxy->GetLWCRenderTile();
-	PerViewUniformParameters.CameraUp = (FVector4f)View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
-	PerViewUniformParameters.CameraRight = (FVector4f)View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
+	PerViewUniformParameters.CameraUp = (FVector3f)View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
+	PerViewUniformParameters.CameraRight = (FVector3f)View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.ScreenAlignment = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.TotalNumInstances = SourceParticleData->GetNumInstances();
 	PerViewUniformParameters.InterpCount = SegmentTessellation;

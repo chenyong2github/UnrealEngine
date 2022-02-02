@@ -109,7 +109,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 					// The average Tangent Vectors
 					VertexInstanceTangents[Idx] = AverageUnitVector(RawPoly.WedgeTangentX);
 					VertexInstanceNormals[Idx] = AverageUnitVector(RawPoly.WedgeTangentZ);
-					VertexInstanceBinormalSigns[Idx] = GetBasisDeterminantSign(VertexInstanceTangents[Idx], AverageUnitVector(RawPoly.WedgeTangentY), VertexInstanceNormals[Idx]);
+					VertexInstanceBinormalSigns[Idx] = GetBasisDeterminantSign((FVector)VertexInstanceTangents[Idx], (FVector)AverageUnitVector(RawPoly.WedgeTangentY), (FVector)VertexInstanceNormals[Idx]);
 
 					// Average Texture Coords
 					VertexInstanceUVs.Set(Idx, 0, FVector2f(AverageTexCoord(RawPoly.WedgeTexCoords[0])));	// LWC_TODO: Precision loss
@@ -176,7 +176,7 @@ void ProxyLOD::TransferSrcNormals(const FClosestPolyField& SrcPolyField, FAOSMes
 					//bool bNormal = !TransferedNormal.ContainsNaN();
 					bool bNormal = TransferedNormal.Normalize(0.1f);
 					// assume that the transfered normal is more accurate if it is somewhat aligned with the local geometric normal
-					if (bNormal && FVector::DotProduct(TransferedNormal, Normal) > 0.2f)
+					if (bNormal && FVector3f::DotProduct(TransferedNormal, Normal) > 0.2f)
 					{
 						Normal += 3.f * TransferedNormal;
 						Normal.Normalize();
@@ -213,7 +213,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 		{
 			// Get the closest poly to this vertex.
 			FVertexInstanceID VertexInstanceID(CurrentRange);
-			const FVector& Pos = VertexPositions[InOutMesh.GetVertexInstanceVertex(VertexInstanceID)];
+			const FVector& Pos = (FVector)VertexPositions[InOutMesh.GetVertexInstanceVertex(VertexInstanceID)];
 
 			// Find the closest poly to this wedge.  
 			// NB: all wedges that share a vert location will end up with the same color this way
@@ -229,7 +229,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 				// Compute the barycentric weights of the vertex projected onto the nearest face.
 				// We use these to determine the closest corner of the poly
 
-				ProxyLOD::DArray3d Weights = ProxyLOD::ComputeBarycentricWeights(RawPoly.VertexPositions, Pos);
+				ProxyLOD::DArray3d Weights = ProxyLOD::ComputeBarycentricWeights(RawPoly.VertexPositions, (FVector3f)Pos);
 
 				bool MissedPoly = Weights[0] > 1 || Weights[0] < 0 || Weights[1] > 1 || Weights[1] < 0 || Weights[2] > 1 || Weights[2] < 0;
 
@@ -293,7 +293,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 				if (!MissedPoly)
 
 				{
-					Pos = ProjectionOperator(Weights, RawPoly.VertexPositions, Pos);
+					Pos = (FVector3f)ProjectionOperator(Weights, RawPoly.VertexPositions, (FVector)Pos);
 				}
 			}
 		}
@@ -331,7 +331,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 				if (!MissedPoly)
 
 				{
-					Pos = ProjectionOperator(Weights, RawPoly.VertexPositions, Pos);
+					Pos = (FVector3f)ProjectionOperator(Weights, RawPoly.VertexPositions, (FVector)Pos);
 				}
 			}
 		}
@@ -369,7 +369,7 @@ void ProjectVerticiesOntoSrc(const ProjectionOperatorType& ProjectionOperator, c
 				if (!MissedPoly)
 
 				{
-					Pos = ProjectionOperator(Weights, RawPoly.VertexPositions, Pos);
+					Pos = (FVector3f)ProjectionOperator(Weights, RawPoly.VertexPositions, (FVector)Pos);
 				}
 			}
 		}
@@ -383,7 +383,7 @@ public:
 		: MaxCloseDistSqr(MaxDistSqr) 
 	{}
 
-	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector3f(&VertexPos)[3], const FVector3f& CurrentPos) const 
+	FVector operator()(const ProxyLOD::DArray3d& Weights, const FVector3f(&VertexPos)[3], const FVector& CurrentPos) const 
 	{
 		// Identify the closest vertex.
 
@@ -393,18 +393,18 @@ public:
 
 		// Form a vector to the closest vertex.
 
-		FVector ToClosestVertex = VertexPos[MinIdx] - CurrentPos;
+		FVector ToClosestVertex = (FVector)VertexPos[MinIdx] - CurrentPos;
 
 		// Test distance to the closest vertex, if we are further than the cutoff, we
 		// just project the vertex onto the surface.
-		FVector ResultPos = 0.1 * CurrentPos;
+		FVector ResultPos = 0.1 * (FVector)CurrentPos;
 		if (ToClosestVertex.SizeSquared() < MaxCloseDistSqr)
 		{
-			ResultPos += 0.9f * VertexPos[MinIdx];
+			ResultPos += 0.9f * (FVector)VertexPos[MinIdx];
 		}
 		else // just project
 		{
-			ResultPos += 0.9f * ProxyLOD::InterpolateVertexData(Weights, VertexPos);
+			ResultPos += 0.9f * (FVector)ProxyLOD::InterpolateVertexData(Weights, VertexPos);
 		}
 
 		return ResultPos;
@@ -470,7 +470,7 @@ public:
 
 		// Closest location on the surface
 
-		const FVector ProjectedLocation = ProxyLOD::InterpolateVertexData(Weights, VertexPos);
+		const FVector ProjectedLocation = (FVector)ProxyLOD::InterpolateVertexData(Weights, VertexPos);
 
 		// Form a vector to the closest vertex.
 

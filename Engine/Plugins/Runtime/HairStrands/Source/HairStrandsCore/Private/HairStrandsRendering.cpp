@@ -443,7 +443,7 @@ static void AddDeformSimHairStrandsPass(
 	Parameters->OutSimDeformedPositionBuffer = OutSimDeformedPositionBuffer.UAV;
 	Parameters->VertexCount = VertexCount;
 	Parameters->SimDeformedOffsetBuffer = SimDeformedOffsetBuffer;
-	Parameters->SimRestOffset = SimRestOffset;
+	Parameters->SimRestOffset = (FVector3f)SimRestOffset;
 	Parameters->DispatchCountX = DispatchCountX;
 
 	if (DeformationType == EDeformationType::OffsetGuide)
@@ -688,8 +688,8 @@ static void AddHairStrandsInterpolationPass(
 	}
 	Parameters->OutRenderDeformedPositionBuffer = OutRenderPositionBuffer.UAV;
 	Parameters->VertexCount = VertexCount;
-	Parameters->InRenderHairPositionOffset = InRenderHairWorldOffset;
-	Parameters->InSimHairPositionOffset =  InSimHairWorldOffset;
+	Parameters->InRenderHairPositionOffset = (FVector3f)InRenderHairWorldOffset;
+	Parameters->InSimHairPositionOffset = (FVector3f)InSimHairWorldOffset;
 
 	Parameters->OutSimHairPositionOffsetBuffer = OutSimHairPositionOffsetBuffer;
 	Parameters->OutRenHairPositionOffsetBuffer = OutRenHairPositionOffsetBuffer;
@@ -945,8 +945,8 @@ static void AddHairClusterAABBPass(
 	const uint32 GroupSize = ComputeGroupSize();
 
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
-	Parameters->CPUBoundMin = TransformedBounds.GetBox().Min;
-	Parameters->CPUBoundMax = TransformedBounds.GetBox().Max;
+	Parameters->CPUBoundMin = (FVector3f)TransformedBounds.GetBox().Min;
+	Parameters->CPUBoundMax = (FVector3f)TransformedBounds.GetBox().Max;
 	Parameters->LocalToTranslatedWorldMatrix = FMatrix44f(InRenLocalToTranslatedWorld.ToMatrixWithScale());
 	Parameters->RenderDeformedPositionBuffer = RenderPositionBufferSRV;
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
@@ -1091,7 +1091,7 @@ static void AddHairCardsDeformationPass(
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
 	Parameters->LocalToWorld				= FMatrix44f(Instance->GetCurrentLocalToWorld().ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->GuideVertexCount			= LOD.Guides.RestResource->GetVertexCount();
-	Parameters->GuideRestPositionOffset		= LOD.Guides.RestResource->GetPositionOffset();
+	Parameters->GuideRestPositionOffset		= (FVector3f)LOD.Guides.RestResource->GetPositionOffset();
 	Parameters->GuideRestPositionBuffer		= RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 	Parameters->GuideDeformedPositionBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 	Parameters->GuideDeformedPositionOffsetBuffer = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current));

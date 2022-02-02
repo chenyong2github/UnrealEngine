@@ -669,7 +669,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 		FVisualizeTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeTexturePS::FParameters>();
 
 		{
-			PassParameters->TextureExtent = FVector(InputExtent.X, InputExtent.Y, InputDesc.Depth);
+			PassParameters->TextureExtent = FVector3f(InputExtent.X, InputExtent.Y, InputDesc.Depth);
 
 			{
 				// Alternates between 0 and 1 with a short pause

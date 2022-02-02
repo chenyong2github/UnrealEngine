@@ -555,8 +555,8 @@ bool PointInTriangle(const FVector2D& A, const FVector2D& B, const FVector2D& C,
 /** Given three direction vectors, indicates if A and B are on the same 'side' of Vec. */
 bool VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, const FVector3f& B, const float SameSideDotProductEpsilon)
 {
-	const FVector CrossA = Vec ^ A;
-	const FVector CrossB = Vec ^ B;
+	const FVector CrossA = FVector(Vec ^ A);
+	const FVector CrossB = FVector(Vec ^ B);
 	float DotWithEpsilon = SameSideDotProductEpsilon + (CrossA | CrossB);
 	return !FMath::IsNegativeFloat(DotWithEpsilon);
 }
@@ -596,7 +596,7 @@ FVector3f GetBaryCentric(const FVector3f& Point, const FVector3f& A, const FVect
 		}
 		return FVector3f(0.0f, 0.0f, 1.0f);
 	}
-	return FMath::ComputeBaryCentric2D(Point, A, B, C);
+	return (FVector3f)FMath::ComputeBaryCentric2D((FVector)Point, (FVector)A, (FVector)B, (FVector)C);
 }
 
 struct FTriangleElement
@@ -628,7 +628,7 @@ bool FindTrianglePositionMatch(const FVector& Position, const TArray<FTriangleEl
 	{
 		uint32 TriangleIndex = Triangle.TriangleIndex;
 		const FTriangleElement& TriangleElement = Triangles[TriangleIndex];
-		if (PointInTriangle(TriangleElement.Vertices[0].Position, TriangleElement.Vertices[1].Position, TriangleElement.Vertices[2].Position, Position))
+		if (PointInTriangle((FVector3f)TriangleElement.Vertices[0].Position, (FVector3f)TriangleElement.Vertices[1].Position, (FVector3f)TriangleElement.Vertices[2].Position, (FVector3f)Position))
 		{
 			MatchTriangleIndexes.Add(TriangleIndex);
 		}
@@ -685,7 +685,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 				TriangleElement.Indexes.Add(CornerIndice);
 				TriangleElement.Vertices.Add(BaseVertex);
 				TriangleElement.UVsBound += FVector2D(BaseVertex.UVs[0]);
-				BaseMeshPositionBound += BaseVertex.Position;
+				BaseMeshPositionBound += (FVector)BaseVertex.Position;
 			}
 			BaseMeshUVBound += TriangleElement.UVsBound;
 			TriangleElement.TriangleIndex = Triangles.Num();
@@ -743,7 +743,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 			auto GetDistancePointToBaseTriangle = [&Triangles, &TargetVertices, &TargetVertexIndex](const uint32 BaseTriangleIndex)->float
 			{
 				FTriangleElement& CandidateTriangle = Triangles[BaseTriangleIndex];
-				return FVector::DistSquared(FMath::ClosestPointOnTriangleToPoint(TargetVertices[TargetVertexIndex].Position, CandidateTriangle.Vertices[0].Position, CandidateTriangle.Vertices[1].Position, CandidateTriangle.Vertices[2].Position), TargetVertices[TargetVertexIndex].Position);
+				return FVector::DistSquared(FMath::ClosestPointOnTriangleToPoint((FVector)TargetVertices[TargetVertexIndex].Position, (FVector)CandidateTriangle.Vertices[0].Position, (FVector)CandidateTriangle.Vertices[1].Position, (FVector)CandidateTriangle.Vertices[2].Position), (FVector)TargetVertices[TargetVertexIndex].Position);
 			};
 
 			auto FailSafeUnmatchVertex = [&GetDistancePointToBaseTriangle, &QuadTreeTriangleResults](uint32 &OutIndexMatch)->bool
@@ -889,8 +889,8 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, const FInlineReductionDat
 				const FTargetMatch& TargetMatch = TargetMatchData[TargetIndex];
 
 				//Find the Position/tangent delta for the MatchMorphDelta using the barycentric weight
-				MatchMorphDelta.PositionDelta = FVector(0.0f);
-				MatchMorphDelta.TangentZDelta = FVector(0.0f);
+				MatchMorphDelta.PositionDelta = FVector3f::ZeroVector;
+				MatchMorphDelta.TangentZDelta = FVector3f::ZeroVector;
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
 					const uint32* BaseMorphTargetIndexPtr = BaseIndexToMorphTargetDelta.Find(TargetMatch.Indices[Corner]);
@@ -1584,8 +1584,8 @@ void MatchVertexIndexUsingPosition(
 			SoftSkinVertex.UVs[0] = ImportDataDest.Wedges[WedgeIndexDest].UVs[0];
 			TriangleElement.Vertices.Add(SoftSkinVertex);
 			TriangleElement.UVsBound += FVector2D(SoftSkinVertex.UVs[0]);
-			TrianglePositionBound += SoftSkinVertex.Position;
-			BaseMeshPositionBound += SoftSkinVertex.Position;
+			TrianglePositionBound += (FVector)SoftSkinVertex.Position;
+			BaseMeshPositionBound += (FVector)SoftSkinVertex.Position;
 		}
 		BaseMeshPositionBound += TrianglePositionBound;
 		TriangleElement.PositionBound = FBoxCenterAndExtent(TrianglePositionBound);
@@ -1640,7 +1640,7 @@ void MatchVertexIndexUsingPosition(
 
 		//Use the OcTree to find closest triangle
 		FVector Extent(DistanceThreshold, DistanceThreshold, DistanceThreshold);
-		FBoxCenterAndExtent CurBox(PositionSrc, Extent);
+		FBoxCenterAndExtent CurBox((FVector)PositionSrc, Extent);
 		
 		while (OcTreeTriangleResults.Num() <= 0)
 		{
@@ -1657,14 +1657,14 @@ void MatchVertexIndexUsingPosition(
 				//Extend must not be bigger then the whole mesh, its acceptable to have error at this point
 				break;
 			}
-			CurBox = FBox(PositionSrc - Extent, PositionSrc + Extent);
+			CurBox = FBox((FVector)PositionSrc - Extent, (FVector)PositionSrc + Extent);
 		}
 
 		//Get the 3D distance between a point and a destination triangle
 		auto GetDistanceSrcPointToDestTriangle = [&TrianglesDest, &PositionSrc](const uint32 DestTriangleIndex)->float
 		{
 			FTriangleElement& CandidateTriangle = TrianglesDest[DestTriangleIndex];
-			return FVector::DistSquared(FMath::ClosestPointOnTriangleToPoint(PositionSrc, CandidateTriangle.Vertices[0].Position, CandidateTriangle.Vertices[1].Position, CandidateTriangle.Vertices[2].Position), PositionSrc);
+			return FVector::DistSquared(FMath::ClosestPointOnTriangleToPoint((FVector)PositionSrc, (FVector)CandidateTriangle.Vertices[0].Position, (FVector)CandidateTriangle.Vertices[1].Position, (FVector)CandidateTriangle.Vertices[2].Position), (FVector)PositionSrc);
 		};
 
 		//Brute force finding of closest triangle using 3D position
@@ -1691,7 +1691,7 @@ void MatchVertexIndexUsingPosition(
 		{
 			TArray<uint32> MatchTriangleIndexes;
 			uint32 FoundIndexMatch = INDEX_NONE;
-			if (!FindTrianglePositionMatch(PositionSrc, TrianglesDest, OcTreeTriangleResults, MatchTriangleIndexes))
+			if (!FindTrianglePositionMatch((FVector)PositionSrc, TrianglesDest, OcTreeTriangleResults, MatchTriangleIndexes))
 			{
 				//There is no Position match possible, use brute force fail safe
 				if (!FailSafeUnmatchVertex(FoundIndexMatch))
@@ -1810,7 +1810,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	VertIndexAndZ.Reserve(VertexNumberDest);
 	for (int32 VertexIndex = 0; VertexIndex < VertexNumberDest; ++VertexIndex)
 	{
-		new(VertIndexAndZ)FIndexAndZ(VertexIndex, ImportDataDest.Points[VertexIndex]);
+		new(VertIndexAndZ)FIndexAndZ(VertexIndex, (FVector)ImportDataDest.Points[VertexIndex]);
 	}
 	// Sort the vertices by z value
 	VertIndexAndZ.Sort(FCompareIndexAndZ());
@@ -1818,7 +1818,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	auto FindSimilarPosition = [&VertIndexAndZ, &ImportDataDest](const FVector3f& Position, TArray<int32>& PositionMatches, const float ComparisonThreshold)
 	{
 		PositionMatches.Reset();
-		FIndexAndZ PositionZ = FIndexAndZ(0, Position);
+		FIndexAndZ PositionZ = FIndexAndZ(0, (FVector)Position);
 		// Search for duplicates, quickly!
 		for (int32 i = 0; i < VertIndexAndZ.Num(); i++)
 		{
@@ -2515,7 +2515,7 @@ public:
 
 			if (ModifiedPoints.Find(PointIdx) != nullptr)
 			{
-				TangentZ[WedgeIdx] = FVector::ZeroVector;
+				TangentZ[WedgeIdx] = FVector3f::ZeroVector;
 
 				const TArray<int32>& OverlappingWedges = FindIncludingNoOverlapping(OverlappingCorners, WedgeIdx, OverlappingWedgesDummy);
 
@@ -2537,7 +2537,7 @@ public:
 						{
 							int32 WedgeIndex = MeshDataBundle.Faces[FaceIndex].WedgeIndex[CornerIndex];
 
-							TangentZ[WedgeIndex] = FVector::ZeroVector;
+							TangentZ[WedgeIndex] = FVector3f::ZeroVector;
 
 							const TArray<int32>& OtherOverlappingWedges = FindIncludingNoOverlapping(OverlappingCorners, WedgeIndex, OtherOverlappingWedgesDummy);
 
@@ -2552,7 +2552,7 @@ public:
 									{
 										int32 OtherWedgeIndex = MeshDataBundle.Faces[OtherFaceIndex].WedgeIndex[OtherCornerIndex];
 
-										TangentZ[OtherWedgeIndex] = FVector::ZeroVector;
+										TangentZ[OtherWedgeIndex] = FVector3f::ZeroVector;
 									}
 								}
 							}
@@ -2604,8 +2604,8 @@ public:
 					uint32 BasePointIdx = BaseWedgePointIndices[BaseVertIdx];
 					if (MeshDataBundle.Vertices.IsValidIndex(BasePointIdx) && MorphLODPoints.IsValidIndex(BasePointIdx))
 					{
-						FVector BasePosition = MeshDataBundle.Vertices[BasePointIdx];
-						FVector TargetPosition = MorphLODPoints[BasePointIdx];
+						FVector BasePosition = (FVector)MeshDataBundle.Vertices[BasePointIdx];
+						FVector TargetPosition = (FVector)MorphLODPoints[BasePointIdx];
 
 						FVector PositionDelta = TargetPosition - BasePosition;
 
@@ -2615,8 +2615,8 @@ public:
 
 						if (VertexIdx != nullptr)
 						{
-							FVector BaseNormal = BaseTangentZ[*VertexIdx];
-							FVector TargetNormal = TangentZ[*VertexIdx];
+							FVector BaseNormal = (FVector)BaseTangentZ[*VertexIdx];
+							FVector TargetNormal = (FVector)TangentZ[*VertexIdx];
 
 							NormalDeltaZ = TargetNormal - BaseNormal;
 						}
@@ -2631,9 +2631,9 @@ public:
 							// create a new entry
 							FMorphTargetDelta NewVertex;
 							// position delta
-							NewVertex.PositionDelta = PositionDelta;
+							NewVertex.PositionDelta = (FVector3f)PositionDelta;
 							// normal delta
-							NewVertex.TangentZDelta = NormalDeltaZ;
+							NewVertex.TangentZDelta = (FVector3f)NormalDeltaZ;
 							// index of base mesh vert this entry is to modify
 							NewVertex.SourceIdx = BaseVertIdx;
 

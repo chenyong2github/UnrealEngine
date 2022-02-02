@@ -66,15 +66,15 @@ namespace FPNTrianglesLocals
 		auto ComputeControlPoint = [](const FVector3d& Vertex1, const FVector3d& Vertex2, const FVector3f& Normal)
 		{ 
 			FVector3d Edge12 = Vertex2 - Vertex1;
-			double Weight12 = Edge12.Dot(Normal);
-			FVector3d Point = (2.0*Vertex1 + Vertex2 - Weight12*Normal)/3.0;  
+			double Weight12 = Edge12.Dot(FVector3d(Normal));
+			FVector3d Point = (2.0*Vertex1 + Vertex2 - Weight12*FVector3d(Normal))/3.0;  
 			return Point;
 		 };
 
 		auto ComputeControlNormal = [](const FVector3d& Vertex1, const FVector3d& Vertex2, const FVector3f& Normal1, const FVector3f& Normal2)
 		{ 	
 			FVector3d Edge12 = Vertex2 - Vertex1;
-			FVector3d Normal21 = Normal2 + Normal1;
+			FVector3f Normal21 = Normal2 + Normal1;
 
 			double Divisor = Edge12.Dot(Edge12);
 			
@@ -85,8 +85,8 @@ namespace FPNTrianglesLocals
 			} 
 			else
 			{ 
-				double NWeight12 = 2.0*Edge12.Dot(Normal21)/Divisor;
-				Normal = Normalized(Normal21 - NWeight12*Edge12);
+				double NWeight12 = 2.0*Edge12.Dot(FVector3d(Normal21))/Divisor;
+				Normal = Normalized(Normal21 - NWeight12*FVector3f(Edge12));
 			}
 			
 			return Normal;
@@ -134,7 +134,7 @@ namespace FPNTrianglesLocals
 
 				if (bComputePNNormals)
 				{
-					ControlPnts.NormalTriA = ComputeControlNormal(Vertex1, Vertex2, Normal1, Normal2);
+					ControlPnts.NormalTriA = FVector3d(ComputeControlNormal(Vertex1, Vertex2, Normal1, Normal2));
 				}
 
 				FVector3d Point1ForTriA = ComputeControlPoint(Vertex1, Vertex2, Normal1);
@@ -166,7 +166,7 @@ namespace FPNTrianglesLocals
 
 						if (bComputePNNormals)
 						{
-							ControlPnts.NormalTriB = ComputeControlNormal(Vertex1, Vertex2, Normal1, Normal2);
+							ControlPnts.NormalTriB = FVector3d(ComputeControlNormal(Vertex1, Vertex2, Normal1, Normal2));
 						}
 					}
 				}
@@ -358,9 +358,9 @@ namespace FPNTrianglesLocals
 				if (bHasVertexNormals) 
 				{
 					// Compute contribution of the normal control points at the original vertices
-					FVector3d NewNormal = BarySquared[0]*OriginalMesh.GetVertexNormal(TriVertex.A) + 
-										  BarySquared[1]*OriginalMesh.GetVertexNormal(TriVertex.B) +
-										  BarySquared[2]*OriginalMesh.GetVertexNormal(TriVertex.C);
+					FVector3d NewNormal(BarySquared[0]*OriginalMesh.GetVertexNormal(TriVertex.A) + 
+										BarySquared[1]*OriginalMesh.GetVertexNormal(TriVertex.B) +
+										BarySquared[2]*OriginalMesh.GetVertexNormal(TriVertex.C));
 					
 					// Compute contribution of the normal control points at the edges
 					for (int EIDX = 0; EIDX < 3; ++EIDX) 
@@ -372,7 +372,7 @@ namespace FPNTrianglesLocals
 
 					Normalize(NewNormal);
 
-					Mesh.SetVertexNormal(VertexID, NewNormal); 
+					Mesh.SetVertexNormal(VertexID, FVector3f(NewNormal)); 
 				} 
 				
 				if (bHasAttributes) 

@@ -215,7 +215,7 @@ FSkyDiffuseLightingParameters GetSkyDiffuseLightingParameters(const FSkyLightSce
 
 	FSkyDiffuseLightingParameters Out;
 	Out.OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
-	Out.ContrastAndNormalizeMulAdd = FVector(SkyLightContrast, Mul, Add);
+	Out.ContrastAndNormalizeMulAdd = FVector3f(SkyLightContrast, Mul, Add);
 	Out.OcclusionExponent = SkyLightOcclusionExponent;
 	Out.OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
 	Out.ApplyBentNormalAO = DynamicBentNormalAO;

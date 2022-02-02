@@ -22,7 +22,7 @@ public:
 		const FPositionVertexBuffer& PositionBuffer = MeshLODResources.VertexBuffers.PositionVertexBuffer;
 		for (uint32 VertIdx = 0; VertIdx < PositionBuffer.GetNumVertices(); ++VertIdx)
 		{
-			const FVector& Pts = PositionBuffer.VertexPosition(VertIdx);
+			const FVector& Pts = (FVector)PositionBuffer.VertexPosition(VertIdx);
 
 			AABBox.Min.X = FMath::Min(AABBox.Min.X, Pts.X);
 			AABBox.Min.Y = FMath::Min(AABBox.Min.Y, Pts.Y);
@@ -56,9 +56,9 @@ public:
 			const int32 Index1 = MeshLODResources.IndexBuffer.GetIndex(TriIdx * 3 + 1);
 			const int32 Index2 = MeshLODResources.IndexBuffer.GetIndex(TriIdx * 3 + 2);
 
-			const FVector& Pts1 = PositionBuffer.VertexPosition(Index0);
-			const FVector& Pts0 = PositionBuffer.VertexPosition(Index1);
-			const FVector& Pts2 = PositionBuffer.VertexPosition(Index2);
+			const FVector& Pts1 = (FVector)PositionBuffer.VertexPosition(Index0);
+			const FVector& Pts0 = (FVector)PositionBuffer.VertexPosition(Index1);
+			const FVector& Pts2 = (FVector)PositionBuffer.VertexPosition(Index2);
 
 			const FVector N1 = Pts1 - Pts0;
 			const FVector N2 = Pts2 - Pts0;

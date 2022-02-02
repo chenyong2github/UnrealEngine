@@ -80,7 +80,7 @@ namespace HairStrandsBuilder
 		{
 			const uint32 Offset = Curves.CurvesOffset[CurveIndex];
 			check(Offset < uint32(Points.PointsPosition.Num()));
-			const FVector P = Rotation.TransformPosition(Points.PointsPosition[Offset]);
+			const FVector P = Rotation.TransformPosition((FVector)Points.PointsPosition[Offset]);
 
 			RootPoints.Add(P);
 			MinAABB.X = FMath::Min(P.X, MinAABB.X);
@@ -169,14 +169,14 @@ namespace HairStrandsBuilder
 				FVector PreviousPosition(0.0, 0.0, 0.0);
 				for (uint32 PointIndex = 0; PointIndex < StrandCount; ++PointIndex, ++PositionIterator, ++RadiusIterator, ++CoordUIterator)
 				{
-					HairStrands.BoundingBox += *PositionIterator;
+					HairStrands.BoundingBox += (FVector)*PositionIterator;
 
 					if (PointIndex > 0)
 					{
-						StrandLength += (*PositionIterator - PreviousPosition).Size();
+						StrandLength += ((FVector)*PositionIterator - (FVector)PreviousPosition).Size();
 					}
 					*CoordUIterator = StrandLength;
-					PreviousPosition = *PositionIterator;
+					PreviousPosition = (FVector)*PositionIterator;
 
 					Curves.MaxRadius = FMath::Max(Curves.MaxRadius, *RadiusIterator);
 				}
@@ -291,7 +291,7 @@ namespace HairStrandsBuilder
 			{
 				const uint32 PrevIndex = FMath::Max(0, PointIndex - 1);
 				const uint32 NextIndex = FMath::Min(PointCount + 1, PointCount - 1);
-				const FVector& PointPosition = Points.PointsPosition[PointIndex + IndexOffset];
+				const FVector& PointPosition = (FVector)Points.PointsPosition[PointIndex + IndexOffset];
 
 				const float CoordU = Points.PointsCoordU[PointIndex + IndexOffset];
 				const float NormalizedRadius = Points.PointsRadius[PointIndex + IndexOffset];
@@ -434,8 +434,8 @@ namespace HairInterpolationBuilder
 		const uint32 PointNext = PointPrev + 1;
 
 		const float PointAlpha = CurvePoint - static_cast<float>(PointPrev);
-		return CurvesDatas.StrandsPoints.PointsPosition[PointOffset+PointPrev]*(1.0f-PointAlpha) + 
-			CurvesDatas.StrandsPoints.PointsPosition[PointOffset+PointNext]*PointAlpha;
+		return FVector(CurvesDatas.StrandsPoints.PointsPosition[PointOffset+PointPrev]*(1.0f-PointAlpha) +
+			CurvesDatas.StrandsPoints.PointsPosition[PointOffset+PointNext]*PointAlpha);
 	}
 
 	template<uint32 NumSamples>
@@ -448,8 +448,8 @@ namespace HairInterpolationBuilder
 
 		static const float DeltaCoord = 1.0f / static_cast<float>(NumSamples-1);
 
-		const FVector& RenderRoot = RenderCurvesDatas.StrandsPoints.PointsPosition[RenderCurvesDatas.StrandsCurves.CurvesOffset[RenderCurveIndex]];
-		const FVector& GuideRoot = GuideCurvesDatas.StrandsPoints.PointsPosition[GuideCurvesDatas.StrandsCurves.CurvesOffset[GuideCurveIndex]];
+		const FVector& RenderRoot = (FVector)RenderCurvesDatas.StrandsPoints.PointsPosition[RenderCurvesDatas.StrandsCurves.CurvesOffset[RenderCurveIndex]];
+		const FVector& GuideRoot = (FVector)GuideCurvesDatas.StrandsPoints.PointsPosition[GuideCurvesDatas.StrandsCurves.CurvesOffset[GuideCurveIndex]];
 
 		float CurveProximityMetric = 0.0;
 		float CurveShapeMetric = 0.0;
@@ -969,8 +969,8 @@ namespace HairInterpolationBuilder
 			const uint32 PointCount = InData.StrandsCurves.CurvesCount[CurveIndex];
 			const float  CurveLength = InData.StrandsCurves.CurvesLength[CurveIndex] * InData.StrandsCurves.MaxLength;
 			check(PointCount > 1);
-			const FVector& P0 = InData.StrandsPoints.PointsPosition[PointOffset];
-			const FVector& P1 = InData.StrandsPoints.PointsPosition[PointOffset + 1];
+			const FVector& P0 = (FVector)InData.StrandsPoints.PointsPosition[PointOffset];
+			const FVector& P1 = (FVector)InData.StrandsPoints.PointsPosition[PointOffset + 1];
 			FVector N = (P1 - P0).GetSafeNormal();
 
 			// Fallback in case the initial points are too close (this happens on certain assets)
@@ -1119,11 +1119,11 @@ namespace HairInterpolationBuilder
 
 			const uint32 RendPointCount	= RenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
 			const uint32 RenOffset		= RenStrandsData.StrandsCurves.CurvesOffset[RenCurveIndex];
-			const FVector& RenPointPositionRoot = RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
+			const FVector& RenPointPositionRoot = (FVector)RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
 			for (uint32 RenPointIndex = 0; RenPointIndex < RendPointCount; ++RenPointIndex)
 			{
 				const uint32 PointGlobalIndex = RenPointIndex + RenOffset;
-				const FVector& RenPointPosition = RenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				const FVector& RenPointPosition = (FVector)RenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
 				const float RenPointDistance = RenStrandsData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenStrandsData.StrandsCurves.CurvesLength[RenCurveIndex] * RenStrandsData.StrandsCurves.MaxLength;
 
 				float TotalWeight = 0;
@@ -1135,8 +1135,8 @@ namespace HairInterpolationBuilder
 						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
 						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
-						const FVector& SimPointPosition0 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset];
-						const FVector& SimPointPosition1 = SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset];
+						const FVector& SimPointPosition0 = (FVector)SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset];
+						const FVector& SimPointPosition1 = (FVector)SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset];
 						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, FMath::Lerp(SimPointPosition0, SimPointPosition1, Desc.T)));
 
 						InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
@@ -1151,8 +1151,8 @@ namespace HairInterpolationBuilder
 					{
 						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-						const FVector& SimRootPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
-						const FVector& RenRootPointPosition = RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
+						const FVector& SimRootPointPosition = (FVector)SimStrandsData.StrandsPoints.PointsPosition[SimOffset];
+						const FVector& RenRootPointPosition = (FVector)RenStrandsData.StrandsPoints.PointsPosition[RenOffset];
 						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenRootPointPosition, SimRootPointPosition));
 						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
 
@@ -1169,7 +1169,7 @@ namespace HairInterpolationBuilder
 						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
 						const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
 						const uint32 SimPointIndex = FMath::Clamp(RenPointIndex, 0u, SimPointCount - 1);
-						const FVector& SimPointPosition = SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
+						const FVector& SimPointPosition = (FVector)SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset];
 						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, SimPointPosition));
 
 						InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][KIndex] = SimCurveIndex;
@@ -1220,8 +1220,8 @@ namespace HairInterpolationBuilder
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
 				const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
-				const FVector& Weights = HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
-				const FVector& S = HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
+				const FVector& Weights = (FVector)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+				const FVector& S = (FVector)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
 				FHairStrandsInterpolationFormat::Type& OutInterp = OutPointsInterpolation[PointIndex];
 				OutInterp.VertexGuideIndex0 = LowerPart(Indices[0]);
@@ -1242,8 +1242,8 @@ namespace HairInterpolationBuilder
 			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 			{
 				const FIntVector& Indices = HairInterpolation.PointsSimCurvesVertexIndex[PointIndex];
-				const FVector& Weights = HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
-				const FVector& S = HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
+				const FVector& Weights = (FVector)HairInterpolation.PointsSimCurvesVertexWeights[PointIndex];
+				const FVector& S = (FVector)HairInterpolation.PointsSimCurvesVertexLerp[PointIndex];
 
 				FHairStrandsInterpolation0Format::Type& OutInterp0 = OutPointsInterpolation0[PointIndex];
 				OutInterp0.Index0 = LowerPart(Indices[0]);
@@ -1311,7 +1311,7 @@ namespace HairInterpolationBuilder
 			for (uint16 VertexIndex = 0; VertexIndex < CurveNumVertices; ++VertexIndex)
 			{
 				const uint32 PointGlobalIndex = VertexIndex + CurveOffset;
-				const FVector& RenPointPosition = RenData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				const FVector& RenPointPosition = (FVector)RenData.StrandsPoints.PointsPosition[PointGlobalIndex];
 				const float RenPointDistance = RenData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenData.StrandsCurves.CurvesLength[CurveIndex] * RenData.StrandsCurves.MaxLength;
 
 				float TotalWeight = 0;
@@ -1428,7 +1428,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	TOptional<FVector> GroomHairColor;
 	if (GroomHairColorAttribute.IsValid())
 	{
-		GroomHairColor = GroomHairColorAttribute[GroomID];
+		GroomHairColor = (FVector)GroomHairColorAttribute[GroomID];
 	}
 
 	TGroomAttributesConstRef<float> GroomHairRoughnessAttribute = HairDescription.GroomAttributes().GetAttributesRef<float>(HairAttribute::Groom::Roughness);
@@ -1570,8 +1570,8 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			{
 				if (bPrecomputedWeight3)
 				{
-					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideIDs.Add(VectorToIntVector(ClosestGuides[StrandID]));
-					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideWeights.Add(GuideWeights[StrandID]);
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideIDs.Add(VectorToIntVector((FVector)ClosestGuides[StrandID]));
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideWeights.Add((FVector)GuideWeights[StrandID]);
 				}
 				else
 				{
@@ -1870,9 +1870,9 @@ static void DecimateCurve(
 		const uint32 Count = OutIndices.Num();
 		for (uint32 IndexIt = 1; IndexIt < Count - 1; ++IndexIt)
 		{
-			const FVector& P0 = InPoints[InOffset + OutIndices[IndexIt - 1]];
-			const FVector& P1 = InPoints[InOffset + OutIndices[IndexIt]];
-			const FVector& P2 = InPoints[InOffset + OutIndices[IndexIt + 1]];
+			const FVector& P0 = (FVector)InPoints[InOffset + OutIndices[IndexIt - 1]];
+			const FVector& P1 = (FVector)InPoints[InOffset + OutIndices[IndexIt]];
+			const FVector& P2 = (FVector)InPoints[InOffset + OutIndices[IndexIt + 1]];
 
 			const float Area = FVector::CrossProduct(P0 - P1, P2 - P1).Size() * 0.5f;
 
@@ -2051,7 +2051,7 @@ FORCEINLINE FIntVector ClampToVolume(const FIntVector& CellCoord, const FIntVect
 FORCEINLINE FIntVector ToCellCoord(const FVector3f& P, const FVector3f& MinBound, const FVector4f& MaxBound, const FIntVector& Resolution)
 {
 	bool bIsValid = false;
-	const FVector F = ((P - MinBound) / (MaxBound - MinBound));
+	const FVector F = FVector((P - MinBound) / (MaxBound - MinBound));
 	const FIntVector CellCoord = FIntVector(FMath::FloorToInt(F.X * Resolution.X), FMath::FloorToInt(F.Y * Resolution.Y), FMath::FloorToInt(F.Z * Resolution.Z));
 	return ClampToVolume(CellCoord, Resolution, bIsValid);
 }
@@ -2148,7 +2148,7 @@ static void Voxelize(const FHairDescriptionGroups& InGroups, FHairGrid& Out)
 				{
 					const float T = float(StepIt) / float(StepCount);
 					const FVector3f P = P0 + Segment * T;
-					const FIntVector Coord = ToCoord(P, Out.Resolution, Out.MinBound, Out.VoxelSize);
+					const FIntVector Coord = ToCoord((FVector)P, Out.Resolution, (FVector)Out.MinBound, Out.VoxelSize);
 					const uint32 LinearCoord = ToLinearCoord(Coord, Out.Resolution);
 					if (LinearCoord != PrevLinearCoord)
 					{
@@ -2449,9 +2449,9 @@ static void DecimateCurve(
 			const uint32 Count = OutIndices.Num();
 			for (uint32 IndexIt = 1; IndexIt < Count - 1; ++IndexIt)
 			{
-				const FVector& P0 = InPoints[InOffset + OutIndices[IndexIt - 1]];
-				const FVector& P1 = InPoints[InOffset + OutIndices[IndexIt]];
-				const FVector& P2 = InPoints[InOffset + OutIndices[IndexIt + 1]];
+				const FVector& P0 = (FVector)InPoints[InOffset + OutIndices[IndexIt - 1]];
+				const FVector& P1 = (FVector)InPoints[InOffset + OutIndices[IndexIt]];
+				const FVector& P2 = (FVector)InPoints[InOffset + OutIndices[IndexIt + 1]];
 
 				const float Area = FVector::CrossProduct(P0 - P1, P2 - P1).Size() * 0.5f;
 
@@ -2560,10 +2560,10 @@ static void BuildClusterData(
 		for (uint32 RenPointIndex = 0; RenPointIndex < RCurve.Count; ++RenPointIndex)
 		{
 			uint32 PointGlobalIndex = RenPointIndex + RCurve.Offset;
-			const FVector& V0 = InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
+			const FVector& V0 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
 			if (RenPointIndex > 0)
 			{
-				const FVector& V1 = InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex - 1];
+				const FVector& V1 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex - 1];
 				FVector OutDir;
 				float OutLength;
 				(V1 - V0).ToDirectionAndLength(OutDir, OutLength);
@@ -2576,7 +2576,7 @@ static void BuildClusterData(
 		}
 		RCurve.AvgRadius /= FMath::Max(1u, RCurve.Count);
 
-		const FVector Root = InRenStrandsData.StrandsPoints.PointsPosition[RCurve.Offset];
+		const FVector Root = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[RCurve.Offset];
 		ClusterGrid.InsertRenderingCurve(RCurve, Root);
 	}
 
@@ -2663,7 +2663,7 @@ static void BuildClusterData(
 				const uint32 PointGlobalIndex = RenPointIndex + ClusterCurve.Offset;
 				LocalVertexToClusterIds[PointGlobalIndex] = ClusterIt;
 
-				const FVector& P = InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				const FVector& P = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
 				{
 					ClusterMinBound.X = FMath::Min(ClusterMinBound.X, P.X);
 					ClusterMinBound.Y = FMath::Min(ClusterMinBound.Y, P.Y);

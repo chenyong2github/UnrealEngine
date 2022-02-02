@@ -91,10 +91,10 @@ void UParticleModuleSize::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset,
 {
 	SPAWN_INIT;
 	FVector Size		 = StartSize.GetValue(Owner->EmitterTime, Owner->Component, 0, InRandomStream);
-	Particle.Size	+= Size;
+	Particle.Size	+= (FVector3f)Size;
 
 	AdjustParticleBaseSizeForUVFlipping(Size, Owner->CurrentLODLevel->RequiredModule->UVFlippingMode, *InRandomStream);
-	Particle.BaseSize += Size;
+	Particle.BaseSize += (FVector3f)Size;
 }
 
 /*-----------------------------------------------------------------------------
@@ -234,7 +234,7 @@ void UParticleModuleSizeMultiplyLife::Update(FParticleEmitterInstance* Owner, in
 		{
 			BEGIN_UPDATE_LOOP
 			{
-				FVector3f SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+				FVector3f SizeScale(LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 				Particle.Size.X *= SizeScale.X;
@@ -266,7 +266,7 @@ void UParticleModuleSizeMultiplyLife::Update(FParticleEmitterInstance* Owner, in
 		{
 			BEGIN_UPDATE_LOOP
 			{
-				FVector3f SizeScale = LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component);
+				FVector3f SizeScale(LifeMultiplier.GetValue(Particle.RelativeTime, Owner->Component));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride));
 				FPlatformMisc::Prefetch(ParticleData, (ParticleIndices[i+1] * ParticleStride) + PLATFORM_CACHE_LINE_SIZE);
 				if(MultiplyX)
@@ -368,14 +368,14 @@ bool UParticleModuleSizeScale::IsValidForLODLevel(UParticleLODLevel* LODLevel, F
 void UParticleModuleSizeScale::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
 	SPAWN_INIT;
-	FVector ScaleFactor = SizeScale.GetValue(Particle.RelativeTime, Owner->Component);
+	FVector3f ScaleFactor(SizeScale.GetValue(Particle.RelativeTime, Owner->Component));
 	Particle.Size = GetParticleBaseSize(*ParticleBase) * ScaleFactor;
 }
 
 void UParticleModuleSizeScale::Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime)
 {
 	BEGIN_UPDATE_LOOP;
-		FVector ScaleFactor = SizeScale.GetValue(Particle.RelativeTime, Owner->Component);
+		FVector3f ScaleFactor(SizeScale.GetValue(Particle.RelativeTime, Owner->Component));
 		Particle.Size = GetParticleBaseSize(Particle) * ScaleFactor;
 	END_UPDATE_LOOP;
 }
@@ -410,7 +410,7 @@ void UParticleModuleSizeScaleBySpeed::Update(FParticleEmitterInstance* Owner, in
 		FVector Size = Scale * Particle.Velocity.Size();
 		Size = Size.ComponentMax(FVector(1.0f));
 		Size = Size.ComponentMin(ScaleMax);
-		Particle.Size = GetParticleBaseSize(Particle) * Size;
+		Particle.Size = GetParticleBaseSize(Particle) * (FVector3f)Size;
 	END_UPDATE_LOOP;
 }
 

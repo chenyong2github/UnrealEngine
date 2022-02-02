@@ -329,15 +329,15 @@ public:
 		UserDataElement.bUsePerPointScaling = RenderData.RenderParams.ScalingMethod == ELidarPointCloudScalingMethod::PerPoint;
 		UserDataElement.bUseStaticBuffers = RenderData.bUseStaticBuffers;
 		UserDataElement.RootCellSize = RenderData.RootCellSize;
-		UserDataElement.RootExtent = FVector(RenderData.RenderParams.BoundsSize.GetAbsMax() * 0.5f);
+		UserDataElement.RootExtent = FVector3f(RenderData.RenderParams.BoundsSize.GetAbsMax() * 0.5f);
 
 		UserDataElement.LocationOffset = RenderData.RenderParams.LocationOffset;
-		UserDataElement.ViewRightVector = InView->GetViewRight();
-		UserDataElement.ViewUpVector = InView->GetViewUp();
+		UserDataElement.ViewRightVector = (FVector3f)InView->GetViewRight();
+		UserDataElement.ViewUpVector = (FVector3f)InView->GetViewUp();
 		UserDataElement.bUseCameraFacing = !RenderData.RenderParams.bShouldRenderFacingNormals;
 		UserDataElement.BoundsSize = RenderData.RenderParams.BoundsSize;
-		UserDataElement.ElevationColorBottom = FVector(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorBottom);
-		UserDataElement.ElevationColorTop = FVector(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorTop);
+		UserDataElement.ElevationColorBottom = FVector3f(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorBottom);
+		UserDataElement.ElevationColorTop = FVector3f(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorTop);
 		UserDataElement.bUseCircle = bUsesSprites && RenderData.RenderParams.PointShape == ELidarPointCloudSpriteShape::Circle;
 		UserDataElement.bUseColorOverride = RenderData.RenderParams.ColorSource != ELidarPointCloudColorationMode::Data;
 		UserDataElement.bUseElevationColor = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::Elevation || RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None;

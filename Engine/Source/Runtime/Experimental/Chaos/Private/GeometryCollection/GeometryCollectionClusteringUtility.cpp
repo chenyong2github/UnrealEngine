@@ -98,10 +98,10 @@ void FGeometryCollectionClusteringUtility::ClusterAllBonesUnderNewRoot(FGeometry
 		TManagedArray<FVector3f>& ExplodedVectors = GeometryCollection->GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 		TManagedArray<FTransform>& ExplodedTransforms = GeometryCollection->GetAttribute<FTransform>("ExplodedTransform", FGeometryCollection::TransformGroup);
 
-		FVector SumOfOffsets(0, 0, 0);
+		FVector3f SumOfOffsets(0, 0, 0);
 		for (int32 ChildBoneIndex : ChildBones)
 		{
-			ExplodedVectors[ChildBoneIndex] = Transforms[ChildBoneIndex].GetLocation();
+			ExplodedVectors[ChildBoneIndex] = FVector3f(Transforms[ChildBoneIndex].GetLocation());	//LWC_TODO: Precision loss
 			ExplodedTransforms[ChildBoneIndex] = Transforms[ChildBoneIndex];
 			SumOfOffsets += ExplodedVectors[ChildBoneIndex];
 		}

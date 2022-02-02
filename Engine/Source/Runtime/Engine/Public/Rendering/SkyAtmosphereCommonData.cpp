@@ -166,7 +166,7 @@ FLinearColor FAtmosphereSetup::GetTransmittanceAtGroundLevel(const FVector& SunD
 
 	// Assuming camera is along Z on (0,0,earthRadius + 500m)
 	const FVector3f WorldPos = FVector3f(0.0f, 0.0f, BottomRadiusKm + 0.5);
-	FVector2D AzimuthElevation = FMath::GetAzimuthAndElevation(SunDirection, FVector3f::ForwardVector, FVector3f::LeftVector, FVector3f::UpVector); // TODO: make it work over the entire virtual planet with a local basis
+	FVector2D AzimuthElevation = FMath::GetAzimuthAndElevation(SunDirection, FVector::ForwardVector, FVector::LeftVector, FVector::UpVector); // TODO: make it work over the entire virtual planet with a local basis
 	AzimuthElevation.Y = FMath::Max(FMath::DegreesToRadians(TransmittanceMinLightElevationAngle), AzimuthElevation.Y);
 	const FVector3f WorldDir = FVector3f(FMath::Cos(AzimuthElevation.Y), 0.0f, FMath::Sin(AzimuthElevation.Y)); // no need to take azimuth into account as transmittance is symmetrical around zenith axis.
 	FLinearColor OpticalDepthRGB = OpticalDepth(WorldPos, WorldDir);
@@ -195,11 +195,11 @@ void FAtmosphereSetup::ComputeViewData(
 						DistanceToPlanetCenterTranslatedWorld < (BottomRadiusWorld + Offset) ?
 						PlanetCenterTranslatedWorld + (BottomRadiusWorld + Offset) * (PlanetCenterToCameraTranslatedWorld / DistanceToPlanetCenterTranslatedWorld) :
 						WorldCameraOriginTranslatedWorld);
-	SkyPlanetTranslatedWorldCenterAndViewHeight = FVector4f(PlanetCenterTranslatedWorld, (SkyCameraTranslatedWorldOriginTranslatedWorld - PlanetCenterTranslatedWorld).Size());
+	SkyPlanetTranslatedWorldCenterAndViewHeight = FVector4f((FVector3f)PlanetCenterTranslatedWorld, ((FVector)SkyCameraTranslatedWorldOriginTranslatedWorld - PlanetCenterTranslatedWorld).Size());
 
 	// Now compute the referential for the SkyView LUT
-	FVector PlanetCenterToWorldCameraPos = (SkyCameraTranslatedWorldOriginTranslatedWorld - PlanetCenterTranslatedWorld) * CmToSkyUnit;
-	FVector3f Up = PlanetCenterToWorldCameraPos;
+	FVector PlanetCenterToWorldCameraPos = ((FVector)SkyCameraTranslatedWorldOriginTranslatedWorld - PlanetCenterTranslatedWorld) * CmToSkyUnit;
+	FVector3f Up = (FVector3f)PlanetCenterToWorldCameraPos;
 	Up.Normalize();
 	FVector3f Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant world direction instead?
 	//FVector3f	Left = normalize(cross(Forward, Up)); 

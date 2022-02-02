@@ -53,7 +53,7 @@ void FAnimationUtils::BuildSkeletonMetaData(USkeleton* Skeleton, TArray<FBoneDat
 		ensure(SrcTransform.IsRotationNormalized());
 
 		BoneData.Orientation = SrcTransform.GetRotation();
-		BoneData.Position = SrcTransform.GetTranslation();
+		BoneData.Position = (FVector3f)SrcTransform.GetTranslation();
 		BoneData.Name = RefSkeleton.GetBoneName(BoneIndex);
 
 		if ( BoneIndex > 0 )

@@ -696,8 +696,8 @@ void VoxelizeVisBuffer(
 			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
 			PassParameters->ClipmapIndex = ClipmapIndex;
 			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
-			PassParameters->VoxelCoordToUVScale = Clipmap.VoxelCoordToUVScale;
-			PassParameters->VoxelCoordToUVBias = Clipmap.VoxelCoordToUVBias;
+			PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
+			PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
 			auto ComputeShader = View.ShaderMap->GetShader<FCompactVisBufferCS>();
 
@@ -740,10 +740,10 @@ void VoxelizeVisBuffer(
 			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
 			PassParameters->ClipmapIndex = ClipmapIndex;
 			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
-			PassParameters->VoxelCoordToUVScale = Clipmap.VoxelCoordToUVScale;
-			PassParameters->VoxelCoordToUVBias = Clipmap.VoxelCoordToUVBias;
-			PassParameters->GridMin = Clipmap.Center - Clipmap.Extent;
-			PassParameters->GridVoxelSize = Clipmap.VoxelSize;
+			PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
+			PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
+			PassParameters->GridMin = FVector3f(Clipmap.Center - Clipmap.Extent);
+			PassParameters->GridVoxelSize = (FVector3f)Clipmap.VoxelSize;
 
 			bool bDistantScene = false;
 			if (GLumenSceneVoxelLightingDistantScene != 0
@@ -910,7 +910,7 @@ void UpdateVoxelVisBuffer(
 
 		TracingInputs.ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
 		TracingInputs.ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-		TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f(Clipmap.VoxelSize, Clipmap.VoxelRadius);
+		TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f((FVector3f)Clipmap.VoxelSize, Clipmap.VoxelRadius);
 		TracingInputs.ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
 		TracingInputs.ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
 		TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
@@ -934,8 +934,8 @@ void UpdateVoxelVisBuffer(
 			for (int32 BoundsIndex = 0; BoundsIndex < PrimitiveModifiedBounds.Num(); BoundsIndex++)
 			{
 				const FRenderBounds PrimBounds = PrimitiveModifiedBounds[BoundsIndex];
-				const FVector PrimWorldCenter = PrimBounds.GetCenter();
-				const FVector PrimWorldExtent = PrimBounds.GetExtent();
+				const FVector PrimWorldCenter = (FVector)PrimBounds.GetCenter();
+				const FVector PrimWorldExtent = (FVector)PrimBounds.GetExtent();
 				const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
 
 				if (ModifiedBounds.Intersect(ClipmapBounds))
@@ -976,8 +976,8 @@ void UpdateVoxelVisBuffer(
 				{
 					const FClipmapUpdateBounds& Bounds = UpdateBounds[UpdateBoundsIndex];
 
-					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f(Bounds.Center, 0.0f);
-					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f(Bounds.Extent, 0.0f);
+					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f((FVector3f)Bounds.Center, 0.0f);
+					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f((FVector3f)Bounds.Extent, 0.0f);
 					++NumUpdateBounds;
 				}
 
@@ -1032,9 +1032,9 @@ void UpdateVoxelVisBuffer(
 				PassParameters->UpdateBoundsBuffer = GraphBuilder.CreateSRV(UpdateBoundsBuffer, PF_A32B32G32R32F);
 				PassParameters->NumUpdateBounds = NumUpdateBounds;
 				PassParameters->GridResolution = UpdateGridResolution;
-				PassParameters->GridCoordToWorldCenterScale = UpdateGridCoordToWorldCenterScale;
-				PassParameters->GridCoordToWorldCenterBias = UpdateGridCoordToWorldCenterBias;
-				PassParameters->TileWorldExtent = UpdateTileWorldExtent;
+				PassParameters->GridCoordToWorldCenterScale = (FVector3f)UpdateGridCoordToWorldCenterScale;
+				PassParameters->GridCoordToWorldCenterBias = (FVector3f)UpdateGridCoordToWorldCenterBias;
+				PassParameters->TileWorldExtent = (FVector3f)UpdateTileWorldExtent;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FBuildUpdateGridTilesCS>();
 
@@ -1056,8 +1056,8 @@ void UpdateVoxelVisBuffer(
 				PassParameters->ClearVisBufferIndirectArgBuffer = ClearVisBufferIndirectArgBuffer;
 				PassParameters->ClipmapIndex = ClipmapIndex;
 				PassParameters->ClipmapGridResolution = ClipmapResolution;
-				PassParameters->VoxelCoordToUVScale = Clipmap.VoxelCoordToUVScale;
-				PassParameters->VoxelCoordToUVBias = Clipmap.VoxelCoordToUVBias;
+				PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
+				PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FClearVisBuffer>();
 
@@ -1079,8 +1079,8 @@ void UpdateVoxelVisBuffer(
 				PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 				PassParameters->RWTraceSetupIndirectArgBuffer = GraphBuilder.CreateUAV(TraceSetupIndirectArgBuffer, PF_R32_UINT);
 				PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
-				PassParameters->VoxelClipmapWorldCenter = Clipmap.Center;
-				PassParameters->VoxelClipmapWorldExtent = Clipmap.Extent;
+				PassParameters->VoxelClipmapWorldCenter = (FVector3f)Clipmap.Center;
+				PassParameters->VoxelClipmapWorldExtent = (FVector3f)Clipmap.Extent;
 				PassParameters->MeshRadiusThreshold = Clipmap.MeshSDFRadiusThreshold;
 
 				FCullToVoxelClipmapCS::FPermutationDomain PermutationVector;
@@ -1111,9 +1111,9 @@ void UpdateVoxelVisBuffer(
 				//PassParameters->View = View.ViewUniformBuffer;
 				//PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 				PassParameters->UpdateGridResolution = UpdateGridResolution;
-				PassParameters->ClipmapToUpdateGridScale = FVector(1.0f) / (2.0f * UpdateTileWorldExtent);
-				PassParameters->ClipmapToUpdateGridBias = -(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f;
-				PassParameters->ConservativeRasterizationExtent = UpdateTileWorldExtent;
+				PassParameters->ClipmapToUpdateGridScale = FVector3f(1.0f) / (2.0f * (FVector3f)UpdateTileWorldExtent);
+				PassParameters->ClipmapToUpdateGridBias = FVector3f(-(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f);
+				PassParameters->ConservativeRasterizationExtent = (FVector3f)UpdateTileWorldExtent;
 
 				FSetupVoxelTracesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FSetupVoxelTracesCS::FMeshTypeDim>(EMeshType::SDF);
@@ -1139,11 +1139,11 @@ void UpdateVoxelVisBuffer(
 				PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 				PassParameters->ClipmapIndex = ClipmapIndex;
 				PassParameters->ClipmapGridResolution = ClipmapResolution;
-				PassParameters->GridMin = Clipmap.Center - Clipmap.Extent;
-				PassParameters->GridVoxelSize = Clipmap.VoxelSize;
+				PassParameters->GridMin = FVector3f(Clipmap.Center - Clipmap.Extent);
+				PassParameters->GridVoxelSize = (FVector3f)Clipmap.VoxelSize;
 				PassParameters->CullGridResolution = UpdateGridResolution;
-				PassParameters->VoxelCoordToUVScale = Clipmap.VoxelCoordToUVScale;
-				PassParameters->VoxelCoordToUVBias = Clipmap.VoxelCoordToUVBias;
+				PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
+				PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FVoxelTraceCS>();
 
@@ -1195,8 +1195,8 @@ void UpdateVoxelVisBuffer(
 					//PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 					PassParameters->View = View.ViewUniformBuffer;
 					PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
-					PassParameters->VoxelClipmapWorldCenter = Clipmap.Center;
-					PassParameters->VoxelClipmapWorldExtent = Clipmap.Extent;
+					PassParameters->VoxelClipmapWorldCenter = (FVector3f)Clipmap.Center;
+					PassParameters->VoxelClipmapWorldExtent = (FVector3f)Clipmap.Extent;
 					PassParameters->MeshRadiusThreshold = Clipmap.MeshSDFRadiusThreshold;
 
 					FCullToVoxelClipmapCS::FPermutationDomain PermutationVector;
@@ -1224,9 +1224,9 @@ void UpdateVoxelVisBuffer(
 					PassParameters->View = View.ViewUniformBuffer;
 					PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 					PassParameters->UpdateGridResolution = UpdateGridResolution;
-					PassParameters->ClipmapToUpdateGridScale = FVector(1.0f) / (2.0f * UpdateTileWorldExtent);
-					PassParameters->ClipmapToUpdateGridBias = -(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f;
-					PassParameters->ConservativeRasterizationExtent = UpdateTileWorldExtent;
+					PassParameters->ClipmapToUpdateGridScale = FVector3f(1.0f) / (2.0f * (FVector3f)UpdateTileWorldExtent);
+					PassParameters->ClipmapToUpdateGridBias = FVector3f(-(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f);
+					PassParameters->ConservativeRasterizationExtent = (FVector3f)UpdateTileWorldExtent;
 
 					FSetupVoxelTracesCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set<FSetupVoxelTracesCS::FMeshTypeDim>(EMeshType::Heightfield);
@@ -1251,11 +1251,11 @@ void UpdateVoxelVisBuffer(
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
 					PassParameters->ClipmapIndex = ClipmapIndex;
 					PassParameters->ClipmapGridResolution = ClipmapResolution;
-					PassParameters->GridMin = Clipmap.Center - Clipmap.Extent;
-					PassParameters->GridVoxelSize = Clipmap.VoxelSize;
+					PassParameters->GridMin = FVector3f(Clipmap.Center - Clipmap.Extent);
+					PassParameters->GridVoxelSize = (FVector3f)Clipmap.VoxelSize;
 					PassParameters->CullGridResolution = UpdateGridResolution;
-					PassParameters->VoxelCoordToUVScale = Clipmap.VoxelCoordToUVScale;
-					PassParameters->VoxelCoordToUVBias = Clipmap.VoxelCoordToUVBias;
+					PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
+					PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
 					auto ComputeShader = View.ShaderMap->GetShader<FHeightfieldVoxelTraceCS>();
 

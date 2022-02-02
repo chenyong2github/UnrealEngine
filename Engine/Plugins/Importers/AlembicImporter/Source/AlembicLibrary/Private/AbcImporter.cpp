@@ -745,7 +745,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 				{
 					const FVector SampleOffset = SamplesOffsets.GetValue()[SampleIndex];
-					RootBoneTrack.PosKeys.Add(SampleOffset);
+					RootBoneTrack.PosKeys.Add((FVector3f)SampleOffset);
 
 					RootBoneTrack.RotKeys.Add(FQuat4f::Identity);
 					RootBoneTrack.ScaleKeys.Add(FVector3f::OneVector);
@@ -937,7 +937,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 			for (FVector3f& Vertex : AverageVertexData)
 			{
 				Vertex *= Multiplier;
-				AverageBoundingBox += Vertex;
+				AverageBoundingBox += (FVector)Vertex;
 			}
 			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
 
@@ -1003,7 +1003,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 							for ( const FVector3f& Vertex : Vertices )
 							{
-								BoundingBox += Vertex;
+								BoundingBox += (FVector)Vertex;
 							}
 						}
 
@@ -1158,7 +1158,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 				for (FVector3f& Vertex : VertexData)
 				{
 					Vertex *= Multiplier;
-					AverageBoundingBox += Vertex;
+					AverageBoundingBox += (FVector)Vertex;
 				}
 			}
 			const FVector AverageSampleCenter = AverageBoundingBox.GetCenter();
@@ -1204,7 +1204,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 						for ( const FVector3f& Vector : Vertices )
 						{
-							BoundingBox += Vector;
+							BoundingBox += (FVector)Vector;
 						}
 					}
 
@@ -1539,7 +1539,7 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 
 			VertexInstanceTangents[VertexInstanceID] = TangentX;
 			VertexInstanceNormals[VertexInstanceID] = TangentZ;
-			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
+			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign((FVector)TangentX.GetSafeNormal(), (FVector)TangentY.GetSafeNormal(), (FVector)TangentZ.GetSafeNormal());
 
 			if (Sample->Colors.Num())
 			{
@@ -1607,9 +1607,9 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 
 			Section.OriginalIndices.Add(FaceOffset + VertexIndex);
 			Section.Indices.Add(Sample->Indices[FaceOffset + VertexIndex]);
-			Section.TangentX.Add(Sample->TangentX[FaceOffset + VertexIndex]);
-			Section.TangentY.Add(Sample->TangentY[FaceOffset + VertexIndex]);
-			Section.TangentZ.Add(Sample->Normals[FaceOffset + VertexIndex]);
+			Section.TangentX.Add((FVector)Sample->TangentX[FaceOffset + VertexIndex]);
+			Section.TangentY.Add((FVector)Sample->TangentY[FaceOffset + VertexIndex]);
+			Section.TangentZ.Add((FVector)Sample->Normals[FaceOffset + VertexIndex]);
 
 			for (uint32 UVIndex = 0; UVIndex < Sample->NumUVSets; ++UVIndex)
 			{
@@ -1670,8 +1670,8 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 				
 				// Populate vertex data
 				NewVertex.Position = Sample->Vertices[Index];
-				NewVertex.TangentX = SourceSection.TangentX[FaceOffset + VertexIndex];
-				NewVertex.TangentY = SourceSection.TangentY[FaceOffset + VertexIndex];
+				NewVertex.TangentX = (FVector3f)SourceSection.TangentX[FaceOffset + VertexIndex];
+				NewVertex.TangentY = (FVector3f)SourceSection.TangentY[FaceOffset + VertexIndex];
 				NewVertex.TangentZ = (FVector3f)SourceSection.TangentZ[FaceOffset + VertexIndex]; // LWC_TODO: precision loss
 				for (uint32 UVIndex = 0; UVIndex < SourceSection.NumUVSets; ++UVIndex)
 				{

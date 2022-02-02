@@ -531,7 +531,7 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 
 					// Copy face plane
 					const FConvex::FPlaneType& PlaneConcrete = Faces[FaceIndex];
-					Face.Plane = FPlane(PlaneConcrete.X(), PlaneConcrete.Normal());
+					Face.Plane = FPlane((FVector)PlaneConcrete.X(), (FVector)PlaneConcrete.Normal());
 
 					// Copy face indices
 					const int32 NumVertexIndices = ChaosConvex.NumPlaneVertices(FaceIndex);
@@ -547,7 +547,7 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				Convex.SurfacePoints.Reserve(NumSurfacePoints);
 				for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
 				{
-					Convex.SurfacePoints.Add(ChaosConvex.GetVertex(ParticleIndex));
+					Convex.SurfacePoints.Add((FVector)ChaosConvex.GetVertex(ParticleIndex));
 				}
 
 				// Add extracted collision data

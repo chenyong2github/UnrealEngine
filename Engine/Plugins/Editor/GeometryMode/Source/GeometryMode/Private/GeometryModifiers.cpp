@@ -184,7 +184,7 @@ void UGeomModifier::CacheBrushState()
 		//Add all of the verts to the new poly
 		for( int32 vertIndex = 0; vertIndex < currentPoly.Vertices.Num(); ++vertIndex )
 		{
-			FVector newVertex = currentPoly.Vertices[vertIndex];
+			FVector3f newVertex = currentPoly.Vertices[vertIndex];
 			newPoly.Vertices.Add( newVertex );	
 		}
 		CachedPolys->Element.Add(newPoly);
@@ -243,10 +243,10 @@ bool UGeomModifier::DoEdgesOverlap()
 				if( !(edge1->IsSameEdge(*edge2)) )
 				{
 					FVector closestPoint1, closestPoint2;
-					FVector edge1Vert1 = geomObject->VertexPool[ edge1->VertexIndices[0] ];
-					FVector edge2Vert1 = geomObject->VertexPool[ edge2->VertexIndices[0] ];
-					FVector edge1Vert2 = geomObject->VertexPool[ edge1->VertexIndices[1] ];
-					FVector edge2Vert2 = geomObject->VertexPool[ edge2->VertexIndices[1] ];
+					FVector edge1Vert1 = (FVector)geomObject->VertexPool[ edge1->VertexIndices[0] ];
+					FVector edge2Vert1 = (FVector)geomObject->VertexPool[ edge2->VertexIndices[0] ];
+					FVector edge1Vert2 = (FVector)geomObject->VertexPool[ edge1->VertexIndices[1] ];
+					FVector edge2Vert2 = (FVector)geomObject->VertexPool[ edge2->VertexIndices[1] ];
 
 					//Find the distance between the two segments
 					FMath::SegmentDistToSegment( edge1Vert1, edge1Vert2, edge2Vert1, edge2Vert2, closestPoint1, closestPoint2 );
@@ -302,7 +302,7 @@ void UGeomModifier::UpdatePivotOffset()
 			{
 				for (const auto& Vertex : Element.Vertices)
 				{
-					UniqueVertices.Add(Vertex);
+					UniqueVertices.Add((FVector)Vertex);
 				}
 			}
 
@@ -568,7 +568,7 @@ bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FVie
 
 	for( int32 x = 0 ; x < UniqueVertexList.Num() ; ++x )
 	{
-		VertBBox += *UniqueVertexList[x];
+		VertBBox += (FVector)*UniqueVertexList[x];
 	}
 
 	FVector BBoxExtent = VertBBox.GetExtent();
@@ -587,7 +587,7 @@ bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FVie
 
 		if (!InDrag.IsZero())
 		{
-			*vtx += Brush->ActorToWorld().InverseTransformVector(InDrag);
+			*vtx += (FVector3f)Brush->ActorToWorld().InverseTransformVector(InDrag);
 		}
 
 		// Rotate
@@ -601,7 +601,7 @@ bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FVie
 			Wk -= GLevelEditorModeTools().PivotLocation;
 			Wk = Matrix.TransformPosition( Wk );
 			Wk += GLevelEditorModeTools().PivotLocation;
-			*vtx = Brush->ActorToWorld().InverseTransformPosition(Wk);
+			*vtx = (FVector3f)Brush->ActorToWorld().InverseTransformPosition((FVector)Wk);
 		}
 
 		// Scale
@@ -622,7 +622,7 @@ bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FVie
 			Wk = Matrix.TransformPosition(Wk);
 			Wk = GeomBaseTransform.InverseTransformPosition(Wk);
 			Wk += PivotInModelSpace;
-			*vtx = Wk;
+			*vtx = (FVector3f)Wk;
 		}
 	}
 	
@@ -633,7 +633,7 @@ bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FVie
 		{
 			FGeomVertex* vtx = UniqueVertexList[x];
 			const ABrush* Brush = vtx->GetParentObject()->GetActualBrush();
-			*vtx -= Brush->ActorToWorld().InverseTransformVector(InDrag);
+			*vtx -= (FVector3f)Brush->ActorToWorld().InverseTransformVector(InDrag);	// LWC_TODO: Precision Loss
 		}
 		
 		GLevelEditorModeTools().PivotLocation -= InDrag;
@@ -796,7 +796,7 @@ void ExtrudePolygonGroup( ABrush* InBrush, FVector3f InGroupNormal, int32 InStar
 
 			FPoly NewPoly;
 			NewPoly.Init();
-			NewPoly.Base = InBrush->GetActorLocation();
+			NewPoly.Base = (FVector3f)InBrush->GetActorLocation();	// LWC_TODO: Precision Loss
 
 			NewPoly.Vertices.Add( vtx1 );
 			NewPoly.Vertices.Add( vtx0 );
@@ -858,10 +858,10 @@ void UGeomModifier_Extrude::Apply(int32 InLength, int32 InSegments)
 				{
 					FVector3f* vtx = &Poly->Vertices[v];
 
-					*vtx += Normal * (InLength * InSegments);
+					*vtx += FVector3f(Normal * (InLength * InSegments));
 				}
 
-				Poly->Base += Normal * (InLength * InSegments);
+				Poly->Base += FVector3f(Normal * (InLength * InSegments));
 			}
 		}
 
@@ -1086,7 +1086,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 					for( int32 e = 0 ; e < WindingVerts->Num() ; ++e )
 					{
-						FVector vtx = (*WindingVerts)[e] - delta - BrushShape->GetPivotOffset();
+						FVector vtx = (FVector)(*WindingVerts)[e] - delta - BrushShape->GetPivotOffset();
 
 						vtx = RotationMatrix.TransformPosition( vtx );
 
@@ -1118,12 +1118,12 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 						FPoly NewPoly;
 						NewPoly.Init();
-						NewPoly.Base = BuilderBrush->GetActorLocation();
+						NewPoly.Base = (FVector3f)BuilderBrush->GetActorLocation();
 
-						NewPoly.Vertices.Add( vtx0 );
-						NewPoly.Vertices.Add( vtx1 );
-						NewPoly.Vertices.Add( vtx2 );
-						NewPoly.Vertices.Add( vtx3 );
+						NewPoly.Vertices.Add( (FVector3f)vtx0 );
+						NewPoly.Vertices.Add( (FVector3f)vtx1 );
+						NewPoly.Vertices.Add( (FVector3f)vtx2 );
+						NewPoly.Vertices.Add( (FVector3f)vtx3 );
 
 						if( NewPoly.Finalize( BuilderBrush, 1 ) == 0 )
 						{
@@ -1148,13 +1148,13 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 					FPoly Poly;
 					Poly.Init();
-					Poly.Base = BrushShape->GetActorLocation();
+					Poly.Base = (FVector3f)BrushShape->GetActorLocation();
 
 					// Add the verts from the shape
 
 					for( int32 v = 0 ; v < WindingVerts->Num() ; ++v )
 					{
-						Poly.Vertices.Add((*WindingVerts)[v] - delta - BrushShape->GetPivotOffset());
+						Poly.Vertices.Add(FVector3f((FVector)(*WindingVerts)[v] - delta - BrushShape->GetPivotOffset()));
 					}
 
 					Poly.Finalize( BuilderBrush, 1 );
@@ -1182,7 +1182,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 					//
 
 					Poly.Init();
-					Poly.Base = BrushShape->GetActorLocation();
+					Poly.Base = (FVector3f)BrushShape->GetActorLocation();	// LWC_TODO: Precision Loss
 
 					// Add the verts from the shape
 
@@ -1200,7 +1200,7 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 					for( int32 v = 0 ; v < WindingVerts->Num() ; ++v )
 					{
-						Poly.Vertices.Add(RotationMatrix.TransformPosition((*WindingVerts)[v] - delta - BrushShape->GetPivotOffset()));
+						Poly.Vertices.Add(RotationMatrix.TransformPosition(FVector3f((FVector)(*WindingVerts)[v] - delta - BrushShape->GetPivotOffset())));
 					}
 
 					Poly.Finalize( BuilderBrush, 1 );
@@ -1379,7 +1379,7 @@ void UGeomModifier_Pen::Apply()
 
 		FPoly Poly;
 		Poly.Init();
-		Poly.Base = BaseLocation;
+		Poly.Base = (FVector3f)BaseLocation;
 
 		for( int32 v = 0 ; v < ShapeVertices.Num() ; ++v )
 		{
@@ -1418,7 +1418,7 @@ void UGeomModifier_Pen::Apply()
 
 					if (p == 0)
 					{
-						HalfDelta = 0.5f * poly.Normal * ExtrudeDepth;
+						HalfDelta = 0.5f * (FVector)poly.Normal * ExtrudeDepth;
 					}
 
 					if( poly.Finalize( ResultingBrush, 0 ) == 0 )
@@ -1427,7 +1427,7 @@ void UGeomModifier_Pen::Apply()
 						{
 
 							FVector3f* vtx = &poly.Vertices[v];
-							*vtx += HalfDelta;
+							*vtx += (FVector3f)HalfDelta;
 						}
 
 						new(ResultingBrush->Brush->Polys->Element)FPoly( poly );
@@ -1440,7 +1440,7 @@ void UGeomModifier_Pen::Apply()
 						for( int32 v = 0 ; v < poly.Vertices.Num() ; ++v )
 						{
 							FVector3f* vtx = &poly.Vertices[v];
-							*vtx -= 2.0f * HalfDelta;
+							*vtx -= 2.0f * (FVector3f)HalfDelta;
 						}
 
 						new(ResultingBrush->Brush->Polys->Element)FPoly( poly );
@@ -1461,10 +1461,10 @@ void UGeomModifier_Pen::Apply()
 						FPoly SidePoly;
 						SidePoly.Init();
 
-						SidePoly.Vertices.Add( vtx1 - BaseLocation );
-						SidePoly.Vertices.Add( vtx0 - BaseLocation );
-						SidePoly.Vertices.Add( vtx3 - BaseLocation );
-						SidePoly.Vertices.Add( vtx2 - BaseLocation );
+						SidePoly.Vertices.Add( FVector3f(vtx1 - BaseLocation) );
+						SidePoly.Vertices.Add( FVector3f(vtx0 - BaseLocation) );
+						SidePoly.Vertices.Add( FVector3f(vtx3 - BaseLocation) );
+						SidePoly.Vertices.Add( FVector3f(vtx2 - BaseLocation) );
 
 						if( SidePoly.Finalize( ResultingBrush, 1 ) == 0 )
 						{
@@ -1831,77 +1831,77 @@ static void BuildGiantAlignedBrush( ABrush& OutGiantBrush, const FPlane& InPlane
 	FPlane FlippedPlane = InPlane.Flip();
 	FPoly TempPoly = FPoly::BuildInfiniteFPoly( FlippedPlane );
 	TempPoly.Finalize(&OutGiantBrush,0);
-	vtxs[0] = TempPoly.Vertices[0];
-	vtxs[1] = TempPoly.Vertices[1];
-	vtxs[2] = TempPoly.Vertices[2];
-	vtxs[3] = TempPoly.Vertices[3];
+	vtxs[0] = (FVector)TempPoly.Vertices[0];
+	vtxs[1] = (FVector)TempPoly.Vertices[1];
+	vtxs[2] = (FVector)TempPoly.Vertices[2];
+	vtxs[3] = (FVector)TempPoly.Vertices[3];
 
 	FlippedPlane = FlippedPlane.Flip();
 	FPoly TempPoly2 = FPoly::BuildInfiniteFPoly( FlippedPlane );
-	vtxs[4] = TempPoly2.Vertices[0] + (TempPoly2.Normal * -(WORLD_MAX));	vtxs[5] = TempPoly2.Vertices[1] + (TempPoly2.Normal * -(WORLD_MAX));
-	vtxs[6] = TempPoly2.Vertices[2] + (TempPoly2.Normal * -(WORLD_MAX));	vtxs[7] = TempPoly2.Vertices[3] + (TempPoly2.Normal * -(WORLD_MAX));
+	vtxs[4] = FVector(TempPoly2.Vertices[0] + (TempPoly2.Normal * -(WORLD_MAX)));	vtxs[5] = FVector(TempPoly2.Vertices[1] + (TempPoly2.Normal * -(WORLD_MAX)));
+	vtxs[6] = FVector(TempPoly2.Vertices[2] + (TempPoly2.Normal * -(WORLD_MAX)));	vtxs[7] = FVector(TempPoly2.Vertices[3] + (TempPoly2.Normal * -(WORLD_MAX)));
 
 	// Create the polys for the new brush.
 	FPoly newPoly;
 
 	// TOP
 	newPoly.Init();
-	newPoly.Base = vtxs[0];
-	newPoly.Vertices.Add( vtxs[0] );
-	newPoly.Vertices.Add( vtxs[1] );
-	newPoly.Vertices.Add( vtxs[2] );
-	newPoly.Vertices.Add( vtxs[3] );
+	newPoly.Base = (FVector3f)vtxs[0];
+	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// BOTTOM
 	newPoly.Init();
-	newPoly.Base = vtxs[4];
-	newPoly.Vertices.Add( vtxs[4] );
-	newPoly.Vertices.Add( vtxs[5] );
-	newPoly.Vertices.Add( vtxs[6] );
-	newPoly.Vertices.Add( vtxs[7] );
+	newPoly.Base = (FVector3f)vtxs[4];
+	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// SIDES
 	// 1
 	newPoly.Init();
-	newPoly.Base = vtxs[1];
-	newPoly.Vertices.Add( vtxs[1] );
-	newPoly.Vertices.Add( vtxs[0] );
-	newPoly.Vertices.Add( vtxs[7] );
-	newPoly.Vertices.Add( vtxs[6] );
+	newPoly.Base = (FVector3f)vtxs[1];
+	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 2
 	newPoly.Init();
-	newPoly.Base = vtxs[2];
-	newPoly.Vertices.Add( vtxs[2] );
-	newPoly.Vertices.Add( vtxs[1] );
-	newPoly.Vertices.Add( vtxs[6] );
-	newPoly.Vertices.Add( vtxs[5] );
+	newPoly.Base = (FVector3f)vtxs[2];
+	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[1] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[6] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 3
 	newPoly.Init();
-	newPoly.Base = vtxs[3];
-	newPoly.Vertices.Add( vtxs[3] );
-	newPoly.Vertices.Add( vtxs[2] );
-	newPoly.Vertices.Add( vtxs[5] );
-	newPoly.Vertices.Add( vtxs[4] );
+	newPoly.Base = (FVector3f)vtxs[3];
+	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[2] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[5] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
 	// 4
 	newPoly.Init();
-	newPoly.Base = vtxs[0];
-	newPoly.Vertices.Add( vtxs[0] );
-	newPoly.Vertices.Add( vtxs[3] );
-	newPoly.Vertices.Add( vtxs[4] );
-	newPoly.Vertices.Add( vtxs[7] );
+	newPoly.Base = (FVector3f)vtxs[0];
+	newPoly.Vertices.Add( (FVector3f)vtxs[0] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[3] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[4] );
+	newPoly.Vertices.Add( (FVector3f)vtxs[7] );
 	newPoly.Finalize(&OutGiantBrush,0);
 	new(OutGiantBrush.Brush->Polys->Element)FPoly(newPoly);
 
@@ -1994,7 +1994,7 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 
 		if( P->Finalize( ClippedBrush, 1 ) == 0 )
 		{
-			if( !FPlane( P->Vertices[0], P->Normal ).Equals( InPlane, 0.01f ) )
+			if( !FPlane( (FVector)P->Vertices[0], (FVector)P->Normal ).Equals( InPlane, 0.01f ) )
 			{
 				ClippedBrush->Brush->Polys->Element.RemoveAt( p );
 				p = -1;
@@ -2016,7 +2016,7 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 
 		FPoly front, back;
 
-		int32 res = Poly.SplitWithPlane( PlaneBase, InPlane.GetSafeNormal(), &front, &back, true );
+		int32 res = Poly.SplitWithPlane( (FVector3f)PlaneBase, (FVector3f)InPlane.GetSafeNormal(), &front, &back, true );
 
 		switch( res )
 		{
@@ -2040,7 +2040,7 @@ static ABrush* ClipBrushAgainstPlane( const FPlane& InPlane, ABrush* InBrush)
 	{
 		FPoly* Poly = &(ClippedBrush->Brush->Polys->Element[poly]);
 		Poly->iLink = poly;
-		Poly->Normal = FVector::ZeroVector;
+		Poly->Normal = FVector3f::ZeroVector;
 		Poly->Finalize(ClippedBrush,0);
 	}
 
@@ -2425,9 +2425,9 @@ void UGeomModifier_Clip::Render(const FSceneView* View,FViewport* Viewport,FPrim
 				break;
 		}
 
-		NormalPoly.Vertices.Add( vtx1 );
-		NormalPoly.Vertices.Add( vtx2 );
-		NormalPoly.Vertices.Add( vtx3 );
+		NormalPoly.Vertices.Add( (FVector3f)vtx1 );
+		NormalPoly.Vertices.Add( (FVector3f)vtx2 );
+		NormalPoly.Vertices.Add( (FVector3f)vtx3 );
 
 		if( !NormalPoly.CalcNormal(1) )
 		{
@@ -2437,11 +2437,11 @@ void UGeomModifier_Clip::Render(const FSceneView* View,FViewport* Viewport,FPrim
 
 			if( ClipMarkers.Num() == 1 )
 			{
-				DrawDashedLine( PDI, Start, Start + NormalPoly.Normal * NormalLength, FLinearColor(1,.5,0), GEditor->GetGridSize(), SDPG_Foreground );
+				DrawDashedLine( PDI, Start, Start + (FVector)NormalPoly.Normal * NormalLength, FLinearColor(1,.5,0), GEditor->GetGridSize(), SDPG_Foreground );
 			}
 			else
 			{
-				PDI->DrawLine( Start, Start + NormalPoly.Normal * NormalLength, FLinearColor(1,0,0), SDPG_Foreground );
+				PDI->DrawLine( Start, Start + (FVector)NormalPoly.Normal * NormalLength, FLinearColor(1,0,0), SDPG_Foreground );
 			}
 		}
 	}
@@ -2532,7 +2532,7 @@ bool UGeomModifier_Delete::OnApply()
 				for( int32 x = 0 ; x < gv->GetParentObject()->GetActualBrush()->Brush->Polys->Element.Num() ; ++x )
 				{
 					FPoly* Poly = &gv->GetParentObject()->GetActualBrush()->Brush->Polys->Element[x];
-					Poly->RemoveVertex( *gv );
+					Poly->RemoveVertex( (FVector)*gv );
 					bHandled = 1;
 				}
 			}
@@ -2612,7 +2612,7 @@ bool UGeomModifier_Create::OnApply()
 				new(NewPoly->Vertices) FVector3f(*gv);
 			}
 
-			NewPoly->Normal = FVector::ZeroVector;
+			NewPoly->Normal = FVector3f::ZeroVector;
 			NewPoly->Base = *Verts[0];
 			NewPoly->PolyFlags = PF_DefaultFlags;
 		}
@@ -2826,7 +2826,7 @@ bool UGeomModifier_Split::OnApply()
 							// Make sure that the intersection point lies on the same plane as the selected polygon as we only need to add it there and not
 							// to any other edge that might intersect the cutting plane.
 
-							if( SelectedPoly->OnPlane( Intersection ) )
+							if( SelectedPoly->OnPlane( (FVector)Intersection ) )
 							{
 								P->Vertices.Insert( Intersection, (v+1) % P->Vertices.Num() );
 								break;
@@ -2860,8 +2860,8 @@ bool UGeomModifier_Split::OnApply()
 		FGeomVertex* Vertex0 = &GeomObject->VertexPool[ Edge->VertexIndices[0] ];
 		FGeomVertex* Vertex1 = &GeomObject->VertexPool[ Edge->VertexIndices[1] ];
 
-		const FVector v0 = *Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
-		const FVector v1 = *Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
+		const FVector v0 = (FVector)*Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
+		const FVector v1 = (FVector)*Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
 		const FVector PlaneNormal( (v1 - v0).GetSafeNormal() );
 		const FVector PlaneBase = 0.5f*(v1 + v0);
 
@@ -2881,7 +2881,7 @@ bool UGeomModifier_Split::OnApply()
 			Front.Init();
 			Back.Init();
 
-			int32 Res = Poly->SplitWithPlane( PlaneBase, PlaneNormal, &Front, &Back, 1 );
+			int32 Res = Poly->SplitWithPlane( (FVector3f)PlaneBase, (FVector3f)PlaneNormal, &Front, &Back, 1 );
 			switch( Res )
 			{
 				case SP_Split:
@@ -2912,8 +2912,8 @@ bool UGeomModifier_Split::OnApply()
 		FGeomVertex* Vertex0 = Verts[0];
 		FGeomVertex* Vertex1 = Verts[1];
 
-		const FVector v0 = *Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
-		const FVector v1 = *Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
+		const FVector v0 = (FVector)*Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
+		const FVector v1 = (FVector)*Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
 
 		// Get the selected polygon
 		TArray<FGeomPoly*> Polys;
@@ -2929,7 +2929,7 @@ bool UGeomModifier_Split::OnApply()
 		{
 			// 1. Make sure that the selected vertices are part of the selected polygon
 
-			if( !SelectedPoly->GetActualPoly()->Vertices.Contains( v0 ) || !SelectedPoly->GetActualPoly()->Vertices.Contains( v1 ) )
+			if( !SelectedPoly->GetActualPoly()->Vertices.Contains( (FVector3f)v0 ) || !SelectedPoly->GetActualPoly()->Vertices.Contains( (FVector3f)v1 ) )
 			{
 				GeomError( NSLOCTEXT("UnrealEd", "Error_SelectedVerticesMustBelongToSelectedPoly", "The vertices used for splitting must be part of the selected polygon.").ToString() );
 				return false;
@@ -2961,7 +2961,7 @@ bool UGeomModifier_Split::OnApply()
 				Front.Init();
 				Back.Init();
 
-				int32 Res = P->SplitWithPlane( PlaneBase, PlaneNormal, &Front, &Back, 1 );
+				int32 Res = P->SplitWithPlane( (FVector3f)PlaneBase, (FVector3f)PlaneNormal, &Front, &Back, 1 );
 				switch( Res )
 				{
 				case SP_Split:
@@ -2999,8 +2999,8 @@ bool UGeomModifier_Split::OnApply()
 		FGeomVertex* Vertex0 = Verts[0];
 		FGeomVertex* Vertex1 = Verts[1];
 
-		const FVector v0 = *Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
-		const FVector v1 = *Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
+		const FVector v0 = (FVector)*Vertex0->GetActualVertex( Vertex0->ActualVertexIndices[0] );
+		const FVector v1 = (FVector)*Vertex1->GetActualVertex( Vertex1->ActualVertexIndices[0] );
 
 		FVector v2 = ((Vertex0->GetNormal() + Vertex1->GetNormal()) / 2.0f) * 64.f;
 
@@ -3023,7 +3023,7 @@ bool UGeomModifier_Split::OnApply()
 			Front.Init();
 			Back.Init();
 
-			int32 Res = Poly->SplitWithPlane( PlaneBase, PlaneNormal, &Front, &Back, 1 );
+			int32 Res = Poly->SplitWithPlane( (FVector3f)PlaneBase, (FVector3f)PlaneNormal, &Front, &Back, 1 );
 			switch( Res )
 			{
 			case SP_Split:
@@ -3299,9 +3299,9 @@ bool UGeomModifier_Turn::OnApply()
 					idx2 = 1;
 				}
 
-				Quad.Add( Poly->Vertices[idx0] );
-				Quad.Add( Poly->Vertices[idx2] );
-				Quad.Add( Poly->Vertices[idx1] );
+				Quad.Add( (FVector)Poly->Vertices[idx0] );
+				Quad.Add( (FVector)Poly->Vertices[idx2] );
+				Quad.Add( (FVector)Poly->Vertices[idx1] );
 
 				gp = &go->PolyPool[ ge->ParentPolyIndices[1] ];
 				Poly = gp->GetActualPoly();
@@ -3309,7 +3309,7 @@ bool UGeomModifier_Turn::OnApply()
 
 				for( int32 v = 0 ; v < Poly->Vertices.Num() ; ++v )
 				{
-					Quad.AddUnique( Poly->Vertices[v] );
+					Quad.AddUnique( (FVector)Poly->Vertices[v] );
 				}
 
 				// If the adjoining polys were coincident, don't try to turn the edge
@@ -3334,7 +3334,7 @@ bool UGeomModifier_Turn::OnApply()
 				NewPoly->PolyFlags = SavePoly0.PolyFlags;
 				NewPoly->TextureU = SavePoly0.TextureU;
 				NewPoly->TextureV = SavePoly0.TextureV;
-				NewPoly->Normal = FVector::ZeroVector;
+				NewPoly->Normal = FVector3f::ZeroVector;
 				NewPoly->Finalize(go->GetActualBrush(),1);
 
 				NewPoly = new( gp->GetParentObject()->GetActualBrush()->Brush->Polys->Element )FPoly();
@@ -3349,7 +3349,7 @@ bool UGeomModifier_Turn::OnApply()
 				NewPoly->PolyFlags = SavePoly1.PolyFlags;
 				NewPoly->TextureU = SavePoly1.TextureU;
 				NewPoly->TextureV = SavePoly1.TextureV;
-				NewPoly->Normal = FVector::ZeroVector;
+				NewPoly->Normal = FVector3f::ZeroVector;
 				NewPoly->Finalize(go->GetActualBrush(),1);
 
 				// Tag the old polygons

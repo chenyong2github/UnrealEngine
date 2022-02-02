@@ -1071,7 +1071,7 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 		for (FVertexID SourceVertexID : SourceMesh.Vertices().GetElementIDs())
 		{
 			FVertexID TargetVertexID = TargetMesh.CreateVertex();
-			TargetVertexPositions[TargetVertexID] = (SourceVertexPositions[SourceVertexID] - AppendSettings.MergedAssetPivot);
+			TargetVertexPositions[TargetVertexID] = (SourceVertexPositions[SourceVertexID] - FVector3f(AppendSettings.MergedAssetPivot));	//LWC_TODO: Precision loss
 
 			SourceToTargetVertexID.Add(SourceVertexID, TargetVertexID);
 		}
@@ -1083,7 +1083,7 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 			for (const TPair<FVertexID, FVertexID>& VertexIDPair : SourceToTargetVertexID)
 			{
 				FVector3f& Position = TargetVertexPositions[VertexIDPair.Value];
-				Position = Transform.TransformPosition(Position);
+				Position = FVector3f(Transform.TransformPosition(FVector(Position)));	//LWC_TODO: Precision loss
 			}
 		}
 
@@ -1130,10 +1130,10 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 				FVertexInstanceID InstanceID = VertexInstanceIDPair.Value;
 
 				FVector3f& Normal = TargetVertexInstanceNormals[InstanceID];
-				Normal = Transform.TransformVectorNoScale(Normal);
+				Normal = FVector3f(Transform.TransformVectorNoScale(FVector(Normal)));
 
 				FVector3f& Tangent = TargetVertexInstanceTangents[InstanceID];
-				Tangent = Transform.TransformVectorNoScale(Tangent);
+				Tangent = FVector3f(Transform.TransformVectorNoScale(FVector(Tangent)));
 
 				TargetVertexInstanceBinormalSigns[InstanceID] *= BinormalSignsFactor;
 			}
@@ -1352,9 +1352,9 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 
 		for (int32 Index = 0, TriIndex = 0; Index < NumTriangles; Index++, TriIndex += 3)
 		{
-			const FVector3f& PointA = VertexPositions[TriVertexIDs[TriIndex + 0]];
-			const FVector3f& PointB = VertexPositions[TriVertexIDs[TriIndex + 1]];
-			const FVector3f& PointC = VertexPositions[TriVertexIDs[TriIndex + 2]];
+			const FVector PointA(VertexPositions[TriVertexIDs[TriIndex + 0]]);
+			const FVector PointB(VertexPositions[TriVertexIDs[TriIndex + 1]]);
+			const FVector PointC(VertexPositions[TriVertexIDs[TriIndex + 2]]);
 			FTriangleData& TriangleData = TriangleDatas[Index];
 			TriangleData.Area = TriangleUtilities::ComputeTriangleArea(PointA, PointB, PointC);
 			TriangleData.SetCornerAngleData(TriVertexInstanceIDs[TriIndex + 0], TriangleUtilities::ComputeTriangleCornerAngle(PointA, PointB, PointC), 0);
@@ -2147,36 +2147,36 @@ bool FStaticMeshOperations::RemoveUVChannel(FMeshDescription& MeshDescription, i
 void FStaticMeshOperations::GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
 	// Project along X-axis (left view), UV along Z Y axes
-	FVector3f U = FVector3f::UpVector;
-	FVector3f V = FVector3f::RightVector;
+	FVector U = FVector::UpVector;
+	FVector V = FVector::RightVector;
 
 	TMeshAttributesConstRef<FVertexID, FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 	OutTexCoords.Reserve(MeshDescription.VertexInstances().Num());
 
-	FVector3f Size = Params.Size * Params.Scale;
-	FVector3f Offset = Params.Position - Size / 2.f;
+	FVector Size(Params.Size * Params.Scale);
+	FVector Offset = Params.Position - Size / 2.f;
 
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
 		const FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
-		FVector3f Vertex = VertexPositions[VertexID];
+		FVector Vertex(VertexPositions[VertexID]);
 
 		// Apply the gizmo transforms
 		Vertex = Params.Rotation.RotateVector(Vertex);
 		Vertex -= Offset;
 		Vertex /= Size;
 
-		float UCoord = FVector3f::DotProduct(Vertex, U) * Params.UVTile.X;
-		float VCoord = FVector3f::DotProduct(Vertex, V) * Params.UVTile.Y;
+		float UCoord = FVector::DotProduct(Vertex, U) * Params.UVTile.X;
+		float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
 		OutTexCoords.Add(VertexInstanceID, FVector2D(UCoord, VCoord));
 	}
 }
 
 void FStaticMeshOperations::GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
-	FVector3f Size = Params.Size * Params.Scale;
-	FVector3f Offset = Params.Position;
+	FVector3f Size(Params.Size * Params.Scale);	//LWC_TODO: Precision loss
+	FVector3f Offset(Params.Position);	//LWC_TODO: Precision loss
 
 	// Cylinder along X-axis, counterclockwise from -Y axis as seen from left view
 	FVector3f V = FVector3f::ForwardVector;
@@ -2194,7 +2194,7 @@ void FStaticMeshOperations::GenerateCylindricalUV(FMeshDescription& MeshDescript
 		FVector3f Vertex = VertexPositions[VertexID];
 
 		// Apply the gizmo transforms
-		Vertex = Params.Rotation.RotateVector(Vertex);
+		Vertex = FVector3f(Params.Rotation.RotateVector(FVector3d(Vertex)));
 		Vertex -= Offset;
 		Vertex /= Size;
 
@@ -2254,7 +2254,7 @@ void FStaticMeshOperations::GenerateCylindricalUV(FMeshDescription& MeshDescript
 
 void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
-	FVector3f Size = Params.Size * Params.Scale;
+	FVector3f Size(Params.Size * Params.Scale);	//LWC_TODO: Precision loss
 	FVector3f HalfSize = Size / 2.0f;
 
 	TMeshAttributesConstRef<FVertexID, FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
@@ -2271,7 +2271,7 @@ void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescriptio
 	PlaneUVs.Add(TPair<FVector3f, FVector3f>(FVector3f::RightVector, FVector3f::DownVector));		// Back view
 
 	TArray<FPlane4f> BoxPlanes;
-	const FVector3f& Center = Params.Position;
+	const FVector3f Center(Params.Position);	//LWC_TODO: Precision loss
 
 	BoxPlanes.Add(FPlane4f(Center + FVector3f(0, 0, HalfSize.Z), FVector3f::UpVector));		// Top plane
 	BoxPlanes.Add(FPlane4f(Center - FVector3f(0, 0, HalfSize.Z), FVector3f::DownVector));		// Bottom plane
@@ -2308,7 +2308,7 @@ void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescriptio
 
 		FVector3f U = PlaneUVs[BestPlaneIndex].Key;
 		FVector3f V = PlaneUVs[BestPlaneIndex].Value;
-		FVector3f Offset = Params.Position - HalfSize * (U + V);
+		FVector3f Offset = FVector3f(Params.Position) - HalfSize * (U + V);
 
 		for (const FVertexInstanceID& VertexInstanceID : VertexInstances)
 		{
@@ -2316,7 +2316,7 @@ void FStaticMeshOperations::GenerateBoxUV(const FMeshDescription& MeshDescriptio
 			FVector3f Vertex = VertexPositions[VertexID];
 
 			// Apply the gizmo transforms
-			Vertex = Params.Rotation.RotateVector(Vertex);
+			Vertex = FVector3f(Params.Rotation.RotateVector(FVector3d(Vertex)));
 			Vertex -= Offset;
 
 			// Normalize coordinates
@@ -2522,7 +2522,7 @@ void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, co
 
 	for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 	{
-		VertexPositions[VertexID] = Transform.TransformPosition(VertexPositions[VertexID]);
+		VertexPositions[VertexID] = FVector3f(Transform.TransformPosition(FVector3d(VertexPositions[VertexID])));
 	}
 
 	FMatrix Matrix = Transform.ToMatrixWithScale();
@@ -2538,9 +2538,9 @@ void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, co
 		FVector3f Normal = VertexInstanceNormals[VertexInstanceID];
 		float BinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
 
-		VertexInstanceTangents[VertexInstanceID] = FVector3f(FVector(AdjointT.TransformVector(Tangent) * MulBy)); // LWC_TODO: precision loss
+		VertexInstanceTangents[VertexInstanceID] = (FVector3f)FVector(AdjointT.TransformVector((FVector)Tangent) * MulBy);
 		VertexInstanceBinormalSigns[VertexInstanceID] = BinormalSign * MulBy;
-		VertexInstanceNormals[VertexInstanceID] = FVector3f(FVector(AdjointT.TransformVector(Normal) * MulBy)); // LWC_TODO: precision loss
+		VertexInstanceNormals[VertexInstanceID] = (FVector3f)FVector(AdjointT.TransformVector((FVector)Normal) * MulBy);
 	}
 
 	if (bIsMirrored)

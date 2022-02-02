@@ -1061,7 +1061,7 @@ public:
 			const FVector LightDirection = ShadowInfo->GetLightSceneInfo().Proxy->GetDirection();
 			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition() + PreViewTranslation;
 			const bool bIsDirectional = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Directional;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4f(LightDirection,0) : FVector4f(LightPosition,1));
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4f((FVector3f)LightDirection,0) : FVector4f((FVector3f)LightPosition,1));
 		}
 
 		if (SubPixelShadow)
@@ -1176,7 +1176,7 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f );
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector(LightProxy.GetPosition() + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f((FVector)LightProxy.GetPosition() + PreViewTranslation), 1.0f / LightProxy.GetRadius()));
 
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
@@ -1366,7 +1366,7 @@ public:
 		if (LightPositionOrDirection.IsBound())
 		{
 			const FVector LightPosition = ShadowInfo ? FVector(ShadowInfo->GetLightSceneInfo().Proxy->GetPosition()) : FVector::ZeroVector;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4f(LightPosition + PreViewTranslation, 1));
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4f(FVector3f(LightPosition + PreViewTranslation), 1));
 		}
 		
 		if (ShadowDepthCubeComparisonSampler.IsBound())

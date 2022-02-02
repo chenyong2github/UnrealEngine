@@ -699,7 +699,7 @@ void SetupLightFunctionParameters(const FViewInfo& View, const FLightSceneInfo* 
 	OutParameters.LightFunctionTranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
 
 	const float PreviewShadowsMask = 0.0f;
-	OutParameters.LightFunctionParameters2 = FVector(
+	OutParameters.LightFunctionParameters2 = FVector3f(
 		LightSceneInfo->Proxy->GetLightFunctionFadeDistance(),
 		LightSceneInfo->Proxy->GetLightFunctionDisabledBrightness(),
 		PreviewShadowsMask);
@@ -1231,12 +1231,12 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const FViewI
 		LightData.LightType = LightSceneInfo->Proxy->GetLightType();
 		LightData.VirtualShadowMapId = 0;
 
-		LightData.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
+		LightData.InfluenceSphere = FVector4f((FVector3f)LightBounds.Center, LightBounds.W);
 
 		LightData.ProxyPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
 		LightData.ProxyRadius = LightSceneInfo->Proxy->GetRadius();
 
-		LightData.ProxyDirection = LightSceneInfo->Proxy->GetDirection();
+		LightData.ProxyDirection = (FVector3f)LightSceneInfo->Proxy->GetDirection();
 		LightData.CosConeAngle = FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle());
 
 		LightData.SinConeAngle = FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle());

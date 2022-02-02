@@ -1646,27 +1646,27 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 					{
 						case ERigControlType::Position:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
 								.Get<FVector3f>();
-							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector3f::OneVector);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector::OneVector);
 							break;
 						}
 						case ERigControlType::Rotator:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
 								.Get<FVector3f>();
 							FRotator Rotator = FRotator::MakeFromEuler(Data);
-							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, Rotator, FVector3f::OneVector);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector::ZeroVector, Rotator, FVector::OneVector);
 							break;
 						}
 						case ERigControlType::Scale:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Minimum)
 								.Get<FVector3f>();
-							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, FRotator::ZeroRotator, Data);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector::ZeroVector, FRotator::ZeroRotator, Data);
 							break;
 						}
 						case ERigControlType::EulerTransform:
@@ -1685,27 +1685,27 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 					{
 						case ERigControlType::Position:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
 								.Get<FVector3f>();
-							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector3f::OneVector);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(Data, FRotator::ZeroRotator, FVector::OneVector);
 							break;
 						}
 						case ERigControlType::Rotator:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
 								.Get<FVector3f>();
 							FRotator Rotator = FRotator::MakeFromEuler(Data);
-							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, Rotator, FVector3f::OneVector);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector::ZeroVector, Rotator, FVector::OneVector);
 							break;
 						}
 						case ERigControlType::Scale:
 						{
-							const FVector3f Data = 
-								HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
+							const FVector Data = 
+								(FVector)HierarchyBeingDebugged->GetControlValue(ControlElement, ERigControlValueType::Maximum)
 								.Get<FVector3f>();
-							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector3f::ZeroVector, FRotator::ZeroRotator, Data);
+							AbsoluteTransform = RelativeTransform = FEulerTransform(FVector::ZeroVector, FRotator::ZeroRotator, Data);
 							break;
 						}
 						case ERigControlType::EulerTransform:
@@ -1810,20 +1810,20 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 						{
 							case ERigControlType::Position:
 							{
-								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetLocation());
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>((FVector3f)InTransform.GetLocation());
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
 								break;
 							}
 							case ERigControlType::Rotator:
 							{
-								const FVector3f Euler = InTransform.Rotator().Euler();
+								const FVector3f Euler = (FVector3f)InTransform.Rotator().Euler();
 								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(Euler);
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
 								break;
 							}
 							case ERigControlType::Scale:
 							{
-								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetScale3D());
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>((FVector3f)InTransform.GetScale3D());
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Minimum, bSetupUndoRedo, true);
 								break;
 							}
@@ -1841,20 +1841,20 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 						{
 							case ERigControlType::Position:
 							{
-								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetLocation());
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>((FVector3f)InTransform.GetLocation());
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
 								break;
 							}
 							case ERigControlType::Rotator:
 							{
-								const FVector3f Euler = InTransform.Rotator().Euler();
+								const FVector3f Euler = (FVector3f)InTransform.Rotator().Euler();
 								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(Euler);
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
 								break;
 							}
 							case ERigControlType::Scale:
 							{
-								const FRigControlValue Value = FRigControlValue::Make<FVector3f>(InTransform.GetScale3D());
+								const FRigControlValue Value = FRigControlValue::Make<FVector3f>((FVector3f)InTransform.GetScale3D());
 								HierarchyToUpdate->SetControlValue(ControlElement, Value, ERigControlValueType::Maximum, bSetupUndoRedo, true);
 								break;
 							}

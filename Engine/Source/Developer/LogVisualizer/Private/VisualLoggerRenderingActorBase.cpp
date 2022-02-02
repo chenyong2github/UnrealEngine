@@ -128,7 +128,7 @@ namespace
 			for (int32 Index = 0; Index < ElementToDraw->Points.Num(); Index++)
 			{
 				FClipSMVertex v1;
-				v1.Pos = ElementToDraw->Points[Index];
+				v1.Pos = (FVector3f)ElementToDraw->Points[Index];
 				InPoly.Vertices.Add(v1);
 			}
 		}
@@ -137,7 +137,7 @@ namespace
 			for (int32 Index = ElementToDraw->Points.Num() - 1; Index >= 0; Index--)
 			{
 				FClipSMVertex v1;
-				v1.Pos = ElementToDraw->Points[Index];
+				v1.Pos = (FVector3f)ElementToDraw->Points[Index];
 				InPoly.Vertices.Add(v1);
 			}
 		}
@@ -197,7 +197,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 		}
 
 
-		const FVector3f CorridorOffset = FDebugDrawing::NavOffset * 1.25f;
+		const FVector3f CorridorOffset = (FVector3f)FDebugDrawing::NavOffset * 1.25f;
 		const FColor Color = ElementToDraw->GetFColor();
 
 		switch (ElementToDraw->GetType())
@@ -229,8 +229,8 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			for (int32 VIdx = 0; VIdx < ElementToDraw->Points.Num(); VIdx++)
 			{
 				DebugShapes.Lines.Add(FDebugRenderSceneProxy::FDebugLine(
-					ElementToDraw->Points[VIdx] + CorridorOffset,
-					ElementToDraw->Points[(VIdx + 1) % ElementToDraw->Points.Num()] + CorridorOffset,
+					ElementToDraw->Points[VIdx] + (FVector)CorridorOffset,
+					ElementToDraw->Points[(VIdx + 1) % ElementToDraw->Points.Num()] + (FVector)CorridorOffset,
 					FColor::Cyan,
 					2)
 					);

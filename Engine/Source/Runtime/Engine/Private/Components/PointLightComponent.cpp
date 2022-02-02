@@ -38,8 +38,8 @@ void FPointLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Lig
 	LightParameters.FalloffExponent = FalloffExponent;
 
 	// TODO LWC - GetDirection() seems like it needs to be normalized, somehow accumulating error with large-scale position values
-	LightParameters.Direction = -GetDirection();
-	LightParameters.Tangent = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
+	LightParameters.Direction = (FVector3f)-GetDirection(); // LWC_TODO: Precision Loss
+	LightParameters.Tangent = FVector3f(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
 	LightParameters.SpotAngles = FVector2f( -2.0f, 1.0f );
 	LightParameters.SpecularScale = SpecularScale;
 	LightParameters.SourceRadius = SourceRadius;

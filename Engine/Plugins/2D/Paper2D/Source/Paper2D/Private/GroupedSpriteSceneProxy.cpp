@@ -138,10 +138,10 @@ FGroupedSpriteSceneProxy::FGroupedSpriteSceneProxy(UPaperGroupedSpriteComponent*
 			for (const FVector4& SourceVert : SourceSprite->BakedRenderData)
 			{
 				const FVector LocalPos((PaperAxisX * SourceVert.X) + (PaperAxisY * SourceVert.Y));
-				const FVector ComponentSpacePos = InstanceData.Transform.TransformPosition(LocalPos);
+				const FVector3f ComponentSpacePos = (FVector4f)InstanceData.Transform.TransformPosition(LocalPos);
 				const FVector2f UV(SourceVert.Z, SourceVert.W);	// LWC_TODO: Precision loss
 
-				*VertexWritePtr++ = FDynamicMeshVertex(ComponentSpacePos, TangentX.ToFVector(), TangentZ.ToFVector(), UV, VertColor);
+				*VertexWritePtr++ = FDynamicMeshVertex(ComponentSpacePos, TangentX.ToFVector3f(), TangentZ.ToFVector3f(), UV, VertColor);
 			}
 
 			BodySetup = SourceSprite->BodySetup;

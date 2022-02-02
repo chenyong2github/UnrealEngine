@@ -1203,7 +1203,7 @@ FPlane FMeshDescription::ComputePolygonPlane(TArrayView<const FVertexInstanceID>
 	// @todo mesheditor perf: We could cache these computed polygon normals; or just use the normal of the first three vertices' triangle if it is satisfactory in all cases
 	// @todo mesheditor: For non-planar polygons, the result can vary. Ideally this should use the actual polygon triangulation as opposed to the arbitrary triangulation used here.
 
-	FVector Centroid = FVector::ZeroVector;
+	FVector3f Centroid = FVector3f::ZeroVector;
 	FVector Normal = FVector::ZeroVector;
 
 	// Use 'Newell's Method' to compute a robust 'best fit' plane from the vertices of this polygon
@@ -1225,7 +1225,7 @@ FPlane FMeshDescription::ComputePolygonPlane(TArrayView<const FVertexInstanceID>
 	Normal.Normalize();
 
 	// Construct a plane from the normal and centroid
-	return FPlane(Normal, FVector::DotProduct(Centroid, Normal) / (float)PerimeterVertexInstanceIDs.Num());
+	return FPlane(Normal, FVector::DotProduct(FVector(Centroid), Normal) / (float)PerimeterVertexInstanceIDs.Num());
 }
 
 
@@ -1593,7 +1593,7 @@ void FMeshDescription::CreatePolygonTriangles(const FPolygonID PolygonID, TArray
 	// in the polygon.  This will just save us having to iterate later on.
 	TArray<int32> PrevVertexNumbers;
 	TArray<int32> NextVertexNumbers;
-	TArray<FVector> PolyVertexPositions;
+	TArray<FVector3f> PolyVertexPositions;
 	int32 PolygonVertexCount = VertexInstanceIDs.Num();
 	{
 		PrevVertexNumbers.SetNumUninitialized(PolygonVertexCount, false);
@@ -1622,9 +1622,9 @@ void FMeshDescription::CreatePolygonTriangles(const FPolygonID PolygonID, TArray
 		// vertices are colinear or other degenerate cases.
 		if (RemainingVertexCount > 3 && EarTestCount < RemainingVertexCount)
 		{
-			const FVector PrevVertexPosition = PolyVertexPositions[PrevVertexNumbers[EarVertexNumber]];
-			const FVector EarVertexPosition = PolyVertexPositions[EarVertexNumber];
-			const FVector NextVertexPosition = PolyVertexPositions[NextVertexNumbers[EarVertexNumber]];
+			const FVector PrevVertexPosition(PolyVertexPositions[PrevVertexNumbers[EarVertexNumber]]);
+			const FVector EarVertexPosition(PolyVertexPositions[EarVertexNumber]);
+			const FVector NextVertexPosition(PolyVertexPositions[NextVertexNumbers[EarVertexNumber]]);
 
 			// Figure out whether the potential ear triangle is facing the same direction as the polygon
 			// itself.  If it's facing the opposite direction, then we're dealing with a concave triangle
@@ -1637,7 +1637,7 @@ void FMeshDescription::CreatePolygonTriangles(const FPolygonID PolygonID, TArray
 				{
 					// Test every other remaining vertex to make sure that it doesn't lie inside our potential ear
 					// triangle.  If we find a vertex that's inside the triangle, then it cannot actually be an ear.
-					const FVector TestVertexPosition = PolyVertexPositions[TestVertexNumber];
+					const FVector TestVertexPosition(PolyVertexPositions[TestVertexNumber]);
 					if (PointInTriangle(PrevVertexPosition, EarVertexPosition, NextVertexPosition, TestVertexPosition, SMALL_NUMBER))
 					{
 						bIsEar = false;
@@ -1740,7 +1740,7 @@ FBoxSphereBounds FMeshDescription::GetBounds() const
 	{
 		if (!IsVertexOrphaned(VertexID))
 		{
-			BoundingBox += VertexPositions[VertexID];
+			BoundingBox += FVector(VertexPositions[VertexID]);
 		}
 	}
 
@@ -1753,7 +1753,7 @@ FBoxSphereBounds FMeshDescription::GetBounds() const
 	{
 		if (!IsVertexOrphaned(VertexID))
 		{
-			BoundingBoxAndSphere.SphereRadius = FMath::Max<FVector::FReal>((VertexPositions[VertexID] - BoundingBoxAndSphere.Origin).Size(), BoundingBoxAndSphere.SphereRadius);
+			BoundingBoxAndSphere.SphereRadius = FMath::Max<FVector::FReal>((FVector(VertexPositions[VertexID]) - BoundingBoxAndSphere.Origin).Size(), BoundingBoxAndSphere.SphereRadius);
 		}
 	}
 
@@ -1839,9 +1839,9 @@ float FMeshDescription::GetPolygonCornerAngleForVertex(const FPolygonID PolygonI
 		const FVertexID ThisVertexID = GetVertexInstanceVertex(VertexInstanceIDs[ContourIndex]);
 		const FVertexID NextVertexID = GetVertexInstanceVertex(VertexInstanceIDs[NextIndex]);
 
-		const FVector PrevVertexPosition = VertexPositions[PrevVertexID];
-		const FVector ThisVertexPosition = VertexPositions[ThisVertexID];
-		const FVector NextVertexPosition = VertexPositions[NextVertexID];
+		const FVector PrevVertexPosition(VertexPositions[PrevVertexID]);
+		const FVector ThisVertexPosition(VertexPositions[ThisVertexID]);
+		const FVector NextVertexPosition(VertexPositions[NextVertexID]);
 
 		const FVector Direction1 = (PrevVertexPosition - ThisVertexPosition).GetSafeNormal();
 		const FVector Direction2 = (NextVertexPosition - ThisVertexPosition).GetSafeNormal();
@@ -1872,7 +1872,7 @@ FBox FMeshDescription::ComputeBoundingBox() const
 
 	for (const FVertexID VertexID : Vertices().GetElementIDs())
 	{
-		BoundingBox += VertexPositions[VertexID];
+		BoundingBox += FVector(VertexPositions[VertexID]);
 	}
 
 	return BoundingBox;

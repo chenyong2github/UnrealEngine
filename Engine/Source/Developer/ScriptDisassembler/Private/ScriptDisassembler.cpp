@@ -910,7 +910,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		}
 	case EX_Vector3fConst:
 		{
-			FVector3f Vec = ReadFVECTOR(ScriptIndex);
+			FVector3f Vec = (FVector3f)ReadFVECTOR(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: literal float vector (%f,%f,%f)"), *Indents, (int32)Opcode, Vec.X, Vec.Y, Vec.Z);
 			break;
 		}

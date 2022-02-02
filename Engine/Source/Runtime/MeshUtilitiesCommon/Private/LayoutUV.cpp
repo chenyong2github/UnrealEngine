@@ -255,7 +255,7 @@ int32 FLayoutUV::FChartFinder::FindCharts( const FOverlappingCorners& Overlappin
 			{
 				uint32 Index = 3 * SortedTris[ Tri ] + k;
 
-				Positions[k] = MeshView.GetPosition( Index );
+				Positions[k] = FVector(MeshView.GetPosition( Index ));
 				UVs[k] = TexCoords[ Index ];
 
 				Chart.MinUV.X = FMath::Min( Chart.MinUV.X, UVs[k].X );

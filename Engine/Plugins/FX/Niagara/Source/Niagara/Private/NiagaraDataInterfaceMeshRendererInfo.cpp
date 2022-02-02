@@ -280,8 +280,8 @@ void FNDIMeshRendererInfo::ResetMeshData(const UNiagaraMeshRendererProperties& R
 	for (const auto& MeshSlot : Renderer.Meshes)
 	{
 		FMeshData& NewMeshData = OutMeshData.AddDefaulted_GetRef();
-		NewMeshData.MinLocalBounds = FVector(EForceInit::ForceInitToZero);
-		NewMeshData.MaxLocalBounds = FVector(EForceInit::ForceInitToZero);
+		NewMeshData.MinLocalBounds = FVector3f(EForceInit::ForceInitToZero);
+		NewMeshData.MaxLocalBounds = FVector3f(EForceInit::ForceInitToZero);
 
 		if (MeshSlot.Mesh)
 		{
@@ -290,8 +290,8 @@ void FNDIMeshRendererInfo::ResetMeshData(const UNiagaraMeshRendererProperties& R
 			{
 				// Scale the local bounds if there's a scale on this slot
 				// TODO: Should we also apply the pivot offset if it's in mesh space? Seems like that might be strange
-				NewMeshData.MinLocalBounds = LocalBounds.Min * MeshSlot.Scale;
-				NewMeshData.MaxLocalBounds = LocalBounds.Max * MeshSlot.Scale;
+				NewMeshData.MinLocalBounds = FVector3f(LocalBounds.Min * MeshSlot.Scale);
+				NewMeshData.MaxLocalBounds = FVector3f(LocalBounds.Max * MeshSlot.Scale);
 			}
 		}
 	}	

@@ -284,7 +284,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 			int32 VertIndex = FMath::Min(Triangles[(TriIdx * 3) + CornerIdx], NumVerts - 1);
 
 			CornerIndex[CornerIdx] = VertIndex;
-			P[CornerIdx] = Vertices[VertIndex];
+			P[CornerIdx] = (FVector3f)Vertices[VertIndex];
 
 			// Find/add this vert to index buffer
 			TArray<int32> VertOverlaps;
@@ -342,8 +342,8 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-			FaceTangentX[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal());
-			FaceTangentY[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal());
+			FaceTangentX[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
+			FaceTangentY[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
 		}
 		else
 		{
@@ -403,7 +403,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 		TangentX.Normalize();
 		TangentZ.Normalize();
 
-		Normals[VertxIdx] = TangentZ;
+		Normals[VertxIdx] = (FVector)TangentZ;
 
 		// Use Gram-Schmidt orthogonalization to make sure X is orth with Z
 		TangentX -= TangentZ * (TangentZ | TangentX);
@@ -412,7 +412,7 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 		// See if we need to flip TangentY when generating from cross product
 		const bool bFlipBitangent = ((TangentZ ^ TangentX) | TangentY) < 0.f;
 
-		Tangents[VertxIdx] = FProcMeshTangent(TangentX, bFlipBitangent);
+		Tangents[VertxIdx] = FProcMeshTangent((FVector)TangentX, bFlipBitangent);
 	}
 }
 
@@ -426,7 +426,7 @@ static int32 GetNewIndexForOldVertIndex(int32 MeshVertIndex, TMap<int32, int32>&
 	else
 	{
 		// Copy position
-		int32 SectionVertIndex = Vertices.Add(VertexBuffers.PositionVertexBuffer.VertexPosition(MeshVertIndex));
+		int32 SectionVertIndex = Vertices.Add((FVector)VertexBuffers.PositionVertexBuffer.VertexPosition(MeshVertIndex));
 
 		// Copy normal
 		Normals.Add(FVector4(VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(MeshVertIndex)));
@@ -646,7 +646,7 @@ FProcMeshVertex InterpolateVert(const FProcMeshVertex& V0, const FProcMeshVertex
 /** Transform triangle from 2D to 3D static-mesh triangle. */
 void Transform2DPolygonTo3D(const FUtilPoly2D& InPoly, const FMatrix& InMatrix, TArray<FProcMeshVertex>& OutVerts, FBox& OutBox)
 {
-	FVector3f PolyNormal = -InMatrix.GetUnitAxis(EAxis::Z);
+	FVector3f PolyNormal = (FVector3f)-InMatrix.GetUnitAxis(EAxis::Z);
 	FProcMeshTangent PolyTangent(InMatrix.GetUnitAxis(EAxis::X), false);
 
 	for (int32 VertexIndex = 0; VertexIndex < InPoly.Verts.Num(); VertexIndex++)
@@ -655,8 +655,8 @@ void Transform2DPolygonTo3D(const FUtilPoly2D& InPoly, const FMatrix& InMatrix, 
 
 		FProcMeshVertex NewVert;
 
-		NewVert.Position = InMatrix.TransformPosition(FVector3f(InVertex.Pos.X, InVertex.Pos.Y, 0.f));
-		NewVert.Normal = PolyNormal;
+		NewVert.Position = InMatrix.TransformPosition(FVector(InVertex.Pos.X, InVertex.Pos.Y, 0.f));
+		NewVert.Normal = (FVector)PolyNormal;
 		NewVert.Tangent = PolyTangent;
 		NewVert.Color = InVertex.Color;
 		NewVert.UV0 = InVertex.UV;
@@ -711,8 +711,8 @@ bool TriangulatePoly(TArray<uint32>& OutTris, const TArray<FProcMeshVertex>& Pol
 			const FProcMeshVertex& CVert = PolyVerts[VertIndices[CIndex]];
 
 			// Check that this vertex is convex (cross product must be positive)
-			const FVector3f ABEdge = BVert.Position - AVert.Position;
-			const FVector3f ACEdge = CVert.Position - AVert.Position;
+			const FVector3f ABEdge = FVector3f(BVert.Position - AVert.Position);
+			const FVector3f ACEdge = FVector3f(CVert.Position - AVert.Position);
 			const float TriangleDeterminant = (ABEdge ^ ACEdge) | PolyNormal;
 			if (TriangleDeterminant > 0.f)
 			{
@@ -728,7 +728,7 @@ bool TriangulatePoly(TArray<uint32>& OutTris, const TArray<FProcMeshVertex>& Pol
 				if(	VertexIndex != AIndex && 
 					VertexIndex != BIndex && 
 					VertexIndex != CIndex &&
-					FGeomTools::PointInTriangle(AVert.Position, BVert.Position, CVert.Position, TestVert.Position) )
+					FGeomTools::PointInTriangle((FVector3f)AVert.Position, (FVector3f)BVert.Position, (FVector3f)CVert.Position, (FVector3f)TestVert.Position) )
 				{
 					bFoundVertInside = true;
 					break;
@@ -990,11 +990,11 @@ void UKismetProceduralMeshLibrary::SliceProceduralMesh(UProceduralMeshComponent*
 									check(ClippedEdges < 2);
 									if (ClippedEdges == 0)
 									{
-										NewClipEdge.V0 = InterpVert.Position;
+										NewClipEdge.V0 = (FVector3f)InterpVert.Position;
 									}
 									else
 									{
-										NewClipEdge.V1 = InterpVert.Position;
+										NewClipEdge.V1 = (FVector3f)InterpVert.Position;
 									}
 
 									ClippedEdges++;
@@ -1094,7 +1094,7 @@ void UKismetProceduralMeshLibrary::SliceProceduralMesh(UProceduralMeshComponent*
 				Transform2DPolygonTo3D(PolySet.Polys[PolyIdx], PolySet.PolyToWorld, CapSection.ProcVertexBuffer, CapSection.SectionLocalBox);
 
 				// Triangulate this polygon
-				TriangulatePoly(CapSection.ProcIndexBuffer, CapSection.ProcVertexBuffer, PolyVertBase, LocalPlaneNormal);
+				TriangulatePoly(CapSection.ProcIndexBuffer, CapSection.ProcVertexBuffer, PolyVertBase, (FVector3f)LocalPlaneNormal);
 			}
 
 			// Set geom for cap section

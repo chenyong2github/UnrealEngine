@@ -496,12 +496,12 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 
 			// Setting constant buffer data to be passed to the shader.
 			{
-				RegionData.Rotate = FMath::DegreesToRadians<FVector>(Region->GetActorRotation().Euler());
-				RegionData.Translate = Region->GetActorLocation();
+				RegionData.Rotate = FMath::DegreesToRadians<FVector3f>((FVector3f)Region->GetActorRotation().Euler());	// LWC_TODO: Precision Loss
+				RegionData.Translate = (FVector3f)Region->GetActorLocation();	// LWC_TODO: Precision Loss
 
 				const float ScaleMultiplier = 50.;
 				// Pre multiplied scale. 
-				RegionData.Scale = Region->GetActorScale() * ScaleMultiplier;
+				RegionData.Scale = (FVector3f)Region->GetActorScale() * ScaleMultiplier;
 
 				RegionData.WhiteTemp = Region->Temperature;
 				// Inner could be larger than outer, in which case we need to make sure these are swapped.

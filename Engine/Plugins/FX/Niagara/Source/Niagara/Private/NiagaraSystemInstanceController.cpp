@@ -188,7 +188,7 @@ bool FNiagaraSystemInstanceController::GetParticleValueVec3_DebugOnly(TArray<FVe
 
 				for (int32 i = 0; i < NumParticles; ++i)
 				{
-					OutValues[i] = Reader.GetSafe(i, FVector::ZeroVector);
+					OutValues[i] = (FVector)Reader.GetSafe(i, FVector3f::ZeroVector);
 				}
 
 				break;

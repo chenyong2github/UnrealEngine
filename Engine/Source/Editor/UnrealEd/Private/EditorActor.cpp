@@ -83,7 +83,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorActor, Log, All);
 static int32 RecomputePoly( ABrush* InOwner, FPoly* Poly )
 {
 	// force recalculation of normal, and texture U and V coordinates in FPoly::Finalize()
-	Poly->Normal = FVector::ZeroVector;
+	Poly->Normal = FVector3f::ZeroVector;
 
 	return Poly->Finalize( InOwner, 0 );
 }
@@ -2686,14 +2686,14 @@ void UUnrealEdEngine::edactAlignVertices()
 					const float GridSize = GetGridSize();
 
 					// Snap each vertex to the nearest grid.
-					const FVector Vertex = Poly->Vertices[VertIdx];
-					const FVector VertexWorld = BrushTransform.TransformPosition(Vertex);
-					const FVector VertexSnapped(FMath::RoundToFloat(VertexWorld.X / GridSize) * GridSize,
-												FMath::RoundToFloat(VertexWorld.Y / GridSize) * GridSize,
-												FMath::RoundToFloat(VertexWorld.Z / GridSize) * GridSize);
-					const FVector VertexSnappedLocal = BrushTransform.InverseTransformPosition(VertexSnapped);
+					const FVector3f Vertex = Poly->Vertices[VertIdx];
+					const FVector VertexWorld = BrushTransform.TransformPosition((FVector)Vertex);
+					const FVector3f VertexSnapped(FMath::RoundToFloat(VertexWorld.X / GridSize) * GridSize,
+												  FMath::RoundToFloat(VertexWorld.Y / GridSize) * GridSize,
+												  FMath::RoundToFloat(VertexWorld.Z / GridSize) * GridSize);
+					const FVector VertexSnappedLocal = BrushTransform.InverseTransformPosition((FVector)VertexSnapped);
 
-					Poly->Vertices[VertIdx] = VertexSnappedLocal;
+					Poly->Vertices[VertIdx] = (FVector3f)VertexSnappedLocal;
 				}
 
 				// If the snapping resulted in an off plane polygon, triangulate it to compensate.

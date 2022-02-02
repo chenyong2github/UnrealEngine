@@ -85,7 +85,7 @@ void FMLDeformerEditorMode::DrawDebugPoints(FPrimitiveDrawInterface* PDI, const 
 	const float PointSize = MLDeformerCVars::DebugDrawPointSize.GetValueOnAnyThread();
 	for (int32 Index = 0; Index < Points.Num(); ++Index)
 	{
-		const FVector Position = Points[Index];
+		const FVector Position = (FVector)Points[Index];
 		PDI->DrawPoint(Position, Color, PointSize, DepthGroup);
 	}
 }
@@ -119,7 +119,7 @@ void FMLDeformerEditorMode::Render(const FSceneView* View, FViewport* Viewport, 
 					Data->VertexDeltas[ArrayIndex], 
 					Data->VertexDeltas[ArrayIndex + 1], 
 					Data->VertexDeltas[ArrayIndex + 2]);
-				const FVector VertexPos = SkinnedPositions[Index];
+				const FVector VertexPos = (FVector)SkinnedPositions[Index];
 				PDI->DrawLine(VertexPos, VertexPos + Delta, DeltasColor, DepthGroup);
 			}
 		}

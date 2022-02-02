@@ -803,7 +803,7 @@ static void AddDrawDebugCardsGuidesPass(
 	if (bRen)
 	{
 		Parameters->RenVertexCount = LOD.Guides.RestResource->GetVertexCount();
-		Parameters->RenRestOffset = LOD.Guides.RestResource->GetPositionOffset();
+		Parameters->RenRestOffset = (FVector3f)LOD.Guides.RestResource->GetPositionOffset();
 		Parameters->RenRestPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 		if (bDeformed)
 		{
@@ -815,7 +815,7 @@ static void AddDrawDebugCardsGuidesPass(
 	if (!bRen)
 	{
 		Parameters->SimVertexCount = Instance->Guides.RestResource->GetVertexCount();
-		Parameters->SimRestOffset = Instance->Guides.RestResource->GetPositionOffset();
+		Parameters->SimRestOffset = (FVector3f)Instance->Guides.RestResource->GetPositionOffset();
 		Parameters->SimRestPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer);
 		if (bDeformed)
 		{

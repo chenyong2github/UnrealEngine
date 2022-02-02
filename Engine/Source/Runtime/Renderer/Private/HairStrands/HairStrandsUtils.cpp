@@ -162,8 +162,8 @@ void ComputeTranslatedWorldToLightClip(
 	const FVector3f TranslatedLightPosition = FVector3f(FVector(LightProxy.GetPosition()) + TranslatedWorldOffset); // LWC_TODO: precision loss
 
 	const float MinNear = 1.0f; // 1cm, lower value than this cause precision issue. Similar value than in HairStrandsDeepShadowAllocation.usf
-	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance(TranslatedLightPosition, TranslatedSphereBound.Center)) - TranslatedSphereBound.W);
-	const float MaxZ = FMath::Max(0.2f, FVector::Distance(TranslatedLightPosition, TranslatedSphereBound.Center)) + TranslatedSphereBound.W;
+	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance((FVector)TranslatedLightPosition, TranslatedSphereBound.Center)) - TranslatedSphereBound.W);
+	const float MaxZ = FMath::Max(0.2f, FVector::Distance((FVector)TranslatedLightPosition, TranslatedSphereBound.Center)) + TranslatedSphereBound.W;
 	const float MaxDeepShadowFrustumHalfAngleInRad = 0.5f * FMath::DegreesToRadians(GetDeepShadowMaxFovAngle());
 
 	const float StrandHairRasterizationScale = GetDeepShadowRasterizationScale();
@@ -172,7 +172,7 @@ void ComputeTranslatedWorldToLightClip(
 	OutTranslatedWorldToClipTransform = FMatrix::Identity;
 	if (LightType == LightType_Directional)
 	{
-		const FVector3f LightDirection = LightProxy.GetDirection();
+		const FVector& LightDirection = LightProxy.GetDirection();
 		FReversedZOrthoMatrix OrthoMatrix(SphereRadius, SphereRadius, 1.f / (2 * SphereRadius), 0);
 		FLookAtMatrix LookAt(TranslatedSphereBound.Center - LightDirection * SphereRadius, TranslatedSphereBound.Center, FVector(0, 0, 1));
 		OutTranslatedWorldToClipTransform = LookAt * OrthoMatrix;
@@ -184,23 +184,23 @@ void ComputeTranslatedWorldToLightClip(
 	}
 	else if (LightType == LightType_Spot || LightType == LightType_Point)
 	{
-		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, TranslatedSphereBound.Center);
+		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, (FVector3f)TranslatedSphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
-		FLookAtMatrix TranslatedWorldToLight(TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
+		FLookAtMatrix TranslatedWorldToLight((FVector)TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
 		OutTranslatedWorldToClipTransform = TranslatedWorldToLight * ProjMatrix;
 		OutMinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
 	}
 	else if (LightType == LightType_Rect)
 	{
-		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, TranslatedSphereBound.Center);
+		const float SphereDistance = FVector3f::Distance(TranslatedLightPosition, (FVector3f)TranslatedSphereBound.Center);
 		float HalfFov = asin(SphereRadius / SphereDistance);
 		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
-		FLookAtMatrix TranslatedWorldToLight(TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
+		FLookAtMatrix TranslatedWorldToLight((FVector)TranslatedLightPosition, TranslatedSphereBound.Center, FVector(0, 0, 1));
 		OutTranslatedWorldToClipTransform = TranslatedWorldToLight * ProjMatrix;
 		OutMinStrandRadiusAtDepth1 = ComputeMinStrandRadiusAtDepth1(ShadowResolution, 2 * HalfFov, 1, StrandHairRasterizationScale);
 	}

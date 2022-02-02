@@ -558,10 +558,10 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 	{
 		if (Poly.PolyFlags & PF_Selected )
 		{
-			FVector pBase = Model->Points[Poly.pBase];
-			FVector vTextureU = Model->Vectors[Poly.vTextureU];
-			FVector vTextureV = Model->Vectors[Poly.vTextureV];
-			FVector vNormal = Model->Vectors[Poly.vNormal];
+			FVector pBase = (FVector)Model->Points[Poly.pBase];
+			FVector vTextureU = (FVector)Model->Vectors[Poly.vTextureU];
+			FVector vTextureV = (FVector)Model->Vectors[Poly.vTextureV];
+			FVector vNormal = (FVector)Model->Vectors[Poly.vNormal];
 
 			Ar.Logf(TEXT("%sTEXTURE=%s\r\n"),   FCString::Spc(TextIndent + 3), *Poly.Material->GetPathName());
 			Ar.Logf(TEXT("%sBASE      %s\r\n"), FCString::Spc(TextIndent + 3), SetFVECTOR(TempStr, &pBase));
@@ -709,7 +709,7 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 					for( int32 v = 2 ; v > -1 ; v-- )
 					{
 						int32 i = Indices[BaseIndex + v];
-						FVector vtx = Actor->ActorToWorld().TransformPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i));
+						FVector vtx = Actor->ActorToWorld().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i));
 						Triangles.Add(vtx);
 					}
 				}
@@ -731,7 +731,7 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 
 				for( int32 v = 2 ; v < Node->NumVertices ; v++ )
 				{
-					vtx3 = World->GetModel()->Points[World->GetModel()->Verts[Node->iVertPool+v].pVertex];
+					vtx3 = (FVector)World->GetModel()->Points[World->GetModel()->Verts[Node->iVertPool+v].pVertex];
 
 					Triangles.Add( vtx1 );
 					Triangles.Add( vtx2 );
@@ -975,7 +975,7 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 				for (uint32 i = 0; i < VertexCount; i++)
 				{
 					// Vertices
-					VerticesOut[i].Vert = LocalToWorld.TransformPosition(RenderData->VertexBuffers.PositionVertexBuffer.VertexPosition(i));
+					VerticesOut[i].Vert = LocalToWorld.TransformPosition((FVector)RenderData->VertexBuffers.PositionVertexBuffer.VertexPosition(i));
 					// UVs from channel 0
 					VerticesOut[i].UV = FVector2D(RenderData->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(i, 0));
 					// Normal
@@ -1363,10 +1363,10 @@ static void ExportPolys( UPolys* Polys, int32 &PolyNum, int32 TotalPolys, FFeedb
 
 		if( (Surf.PolyFlags & PF_Selected) || !bSelectedOnly )
 		{
-			const FVector& TextureBase = Model->Points[Surf.pBase];
-			const FVector& TextureX = Model->Vectors[Surf.vTextureU];
-			const FVector& TextureY = Model->Vectors[Surf.vTextureV];
-			const FVector& Normal = Model->Vectors[Surf.vNormal];
+			const FVector& TextureBase = (FVector)Model->Points[Surf.pBase];
+			const FVector& TextureX = (FVector)Model->Vectors[Surf.vTextureU];
+			const FVector& TextureY = (FVector)Model->Vectors[Surf.vTextureV];
+			const FVector& Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 			FPoly Poly;
 			GEditor->polyFindMaster( Model, Node->iSurf, Poly );
@@ -1391,7 +1391,7 @@ static void ExportPolys( UPolys* Polys, int32 &PolyNum, int32 TotalPolys, FFeedb
 				for(uint32 TriVertexIndex = 0; TriVertexIndex < 3; TriVertexIndex++)
 				{
 					const FVert& Vert = Model->Verts[TriVertIndices[TriVertexIndex]];
-					const FVector& Vertex = Model->Points[Vert.pVertex];
+					const FVector& Vertex = (FVector)Model->Points[Vert.pVertex];
 
 					float U = ((Vertex - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
 					float V = ((Vertex - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
@@ -1846,9 +1846,9 @@ bool UStaticMeshExporterOBJ::ExportText(const FExportObjectInnerContext* Context
 			uint32 Index2 = Indices[(tri * 3) + 1];
 			uint32 Index3 = Indices[(tri * 3) + 2];
 
-			FVector Vertex1 = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1);		//(FStaticMeshFullVertex*)(RawVertexData + Index1 * VertexStride);
-			FVector Vertex2 = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2);
-			FVector Vertex3 = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index3);
+			FVector Vertex1 = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1);		//(FStaticMeshFullVertex*)(RawVertexData + Index1 * VertexStride);
+			FVector Vertex2 = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2);
+			FVector Vertex3 = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(Index3);
 			
 			// Vertices
 			Verts.Add( Vertex1 );
@@ -1981,7 +1981,7 @@ bool UStaticMeshExporterOBJ::ExportText(const FExportObjectInnerContext* Context
 		File->Logf( TEXT("\r\n") );
 		for(uint32 i = 0; i < VertexCount; i++)
 		{
-			const FVector& OSPos = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition( i );
+			const FVector& OSPos = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition( i );
 //			const FVector WSPos = StaticMeshComponent->LocalToWorld.TransformPosition( OSPos );
 			const FVector WSPos = OSPos;
 
@@ -2004,7 +2004,7 @@ bool UStaticMeshExporterOBJ::ExportText(const FExportObjectInnerContext* Context
 		for(uint32 i = 0 ; i < VertexCount; ++i)
 		{
 			const FVector3f& OSNormal = RenderData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( i ); 
-			const FVector WSNormal = OSNormal; 
+			const FVector WSNormal = (FVector)OSNormal;
 
 			// Transform to Lightwave's coordinate system
 			File->Logf( TEXT("vn %f %f %f\r\n"), WSNormal.X, WSNormal.Z, WSNormal.Y );
@@ -2232,10 +2232,10 @@ void UEditorEngine::RebuildStaticNavigableGeometry(ULevel* Level)
 				FBspNode* Node = &Model->Nodes[i];
 				FBspSurf& Surf = Model->Surfs[Node->iSurf];
 
-				const FVector& TextureBase = Model->Points[Surf.pBase];
-				const FVector& TextureX = Model->Vectors[Surf.vTextureU];
-				const FVector& TextureY = Model->Vectors[Surf.vTextureV];
-				const FVector& Normal = Model->Vectors[Surf.vNormal];
+				const FVector& TextureBase = (FVector)Model->Points[Surf.pBase];
+				const FVector& TextureX = (FVector)Model->Vectors[Surf.vTextureU];
+				const FVector& TextureY = (FVector)Model->Vectors[Surf.vTextureV];
+				const FVector& Normal = (FVector)Model->Vectors[Surf.vNormal];
 
 				FPoly Poly;
 				polyFindMaster( Model, Node->iSurf, Poly );
@@ -2251,7 +2251,7 @@ void UEditorEngine::RebuildStaticNavigableGeometry(ULevel* Level)
 					for(uint32 TriVertexIndex = 0; TriVertexIndex < 3; TriVertexIndex++)
 					{
 						const FVert& Vert = Model->Verts[TriVertIndices[TriVertexIndex]];
-						Level->StaticNavigableGeometry.Add( Model->Points[Vert.pVertex] );
+						Level->StaticNavigableGeometry.Add( (FVector)Model->Points[Vert.pVertex] );
 					}
 				}
 			}

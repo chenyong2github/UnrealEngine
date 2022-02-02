@@ -75,7 +75,7 @@ namespace Chaos
 
 		for (int i = 0; i < LocalSourceVerts.Num(); ++i)
 		{
-			WrapperVerts.Add(FCleanMeshWrapper{LocalSourceVerts[i] });
+			WrapperVerts.Add(FCleanMeshWrapper{ (FVector)LocalSourceVerts[i] });
 		}
 
 		TAABBTree<int32, TAABBTreeLeafArray<int32>> Accel(WrapperVerts);

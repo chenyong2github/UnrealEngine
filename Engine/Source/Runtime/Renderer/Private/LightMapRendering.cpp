@@ -259,7 +259,7 @@ void InterpolateVolumetricLightmap(
 		const FLinearColor SkyBentNormalUnpacked = FilteredVolumeLookup<FColor>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FColor*)VolumetricLightmapData.BrickData.SkyBentNormal.Data.GetData());
 		const FVector SkyBentNormal(SkyBentNormalUnpacked.R, SkyBentNormalUnpacked.G, SkyBentNormalUnpacked.B);
 		const float BentNormalLength = SkyBentNormal.Size();
-		OutInterpolation.PointSkyBentNormal = FVector4f(SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
+		OutInterpolation.PointSkyBentNormal = FVector4f((FVector3f)SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
 		//Swap X and Z channel because it was swapped at ImportVolumetricLightmap for changing format from BGRA to RGBA
 		Swap(OutInterpolation.PointSkyBentNormal.X, OutInterpolation.PointSkyBentNormal.Z);
 	}
@@ -321,17 +321,17 @@ void GetIndirectLightingCacheParameters(
 			Parameters.IndirectLightingSHSingleCoefficient = Interpolation->IndirectLightingSHSingleCoefficient;
 
 			// Unused
-			Parameters.IndirectLightingCachePrimitiveAdd = FVector(0, 0, 0);
-			Parameters.IndirectLightingCachePrimitiveScale = FVector(1, 1, 1);
-			Parameters.IndirectLightingCacheMinUV = FVector(0, 0, 0);
-			Parameters.IndirectLightingCacheMaxUV = FVector(1, 1, 1);
+			Parameters.IndirectLightingCachePrimitiveAdd = FVector3f::ZeroVector;
+			Parameters.IndirectLightingCachePrimitiveScale = FVector3f::OneVector;
+			Parameters.IndirectLightingCacheMinUV = FVector3f::ZeroVector;
+			Parameters.IndirectLightingCacheMaxUV = FVector3f::OneVector;
 		}
 		else if (LightingAllocation)
 		{
-			Parameters.IndirectLightingCachePrimitiveAdd = LightingAllocation->Add;
-			Parameters.IndirectLightingCachePrimitiveScale = LightingAllocation->Scale;
-			Parameters.IndirectLightingCacheMinUV = LightingAllocation->MinUV;
-			Parameters.IndirectLightingCacheMaxUV = LightingAllocation->MaxUV;
+			Parameters.IndirectLightingCachePrimitiveAdd = (FVector3f)LightingAllocation->Add;
+			Parameters.IndirectLightingCachePrimitiveScale = (FVector3f)LightingAllocation->Scale;
+			Parameters.IndirectLightingCacheMinUV = (FVector3f)LightingAllocation->MinUV;
+			Parameters.IndirectLightingCacheMaxUV = (FVector3f)LightingAllocation->MaxUV;
 			Parameters.PointSkyBentNormal = LightingAllocation->CurrentSkyBentNormal;
 			Parameters.DirectionalLightShadowing = LightingAllocation->CurrentDirectionalShadowing;
 
@@ -346,10 +346,10 @@ void GetIndirectLightingCacheParameters(
 		}
 		else
 		{
-			Parameters.IndirectLightingCachePrimitiveAdd = FVector(0, 0, 0);
-			Parameters.IndirectLightingCachePrimitiveScale = FVector(1, 1, 1);
-			Parameters.IndirectLightingCacheMinUV = FVector(0, 0, 0);
-			Parameters.IndirectLightingCacheMaxUV = FVector(1, 1, 1);
+			Parameters.IndirectLightingCachePrimitiveAdd = FVector3f::ZeroVector;
+			Parameters.IndirectLightingCachePrimitiveScale = FVector3f::OneVector;
+			Parameters.IndirectLightingCacheMinUV = FVector3f::ZeroVector;
+			Parameters.IndirectLightingCacheMaxUV = FVector3f::OneVector;
 			Parameters.PointSkyBentNormal = FVector4f(0, 0, 1, 1);
 			Parameters.DirectionalLightShadowing = 1;
 

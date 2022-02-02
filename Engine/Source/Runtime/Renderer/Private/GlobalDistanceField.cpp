@@ -232,7 +232,7 @@ FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobal
 	ShaderParameters.GlobalDistanceFieldMipFactor = ParameterData.MipFactor;
 	ShaderParameters.GlobalDistanceFieldMipTransition = ParameterData.MipTransition;
 	ShaderParameters.GlobalDistanceFieldClipmapSizeInPages = ParameterData.ClipmapSizeInPages;
-	ShaderParameters.GlobalDistanceFieldInvPageAtlasSize = ParameterData.InvPageAtlasSize;
+	ShaderParameters.GlobalDistanceFieldInvPageAtlasSize = (FVector3f)ParameterData.InvPageAtlasSize;
 	ShaderParameters.GlobalVolumeDimension = ParameterData.GlobalDFResolution;
 	ShaderParameters.GlobalVolumeTexelSize = 1.0f / ParameterData.GlobalDFResolution;
 	ShaderParameters.MaxGlobalDFAOConeDistance = ParameterData.MaxDFAOConeDistance;
@@ -415,13 +415,13 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			if (ClipmapIndex < Clipmaps.Num())
 			{
 				const FGlobalDistanceFieldClipmap& Clipmap = Clipmaps[ClipmapIndex];
-				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f(Clipmap.Bounds.GetCenter(), Clipmap.Bounds.GetExtent().X);
+				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f((FVector3f)Clipmap.Bounds.GetCenter(), Clipmap.Bounds.GetExtent().X);
 
 				// GlobalUV = (WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f;
 				// WorldToUVMul = 1.0f / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2)
 				// WorldToUVAdd = (GlobalVolumeScollOffset[ClipmapIndex].xyz - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f
 				const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2) + FVector(.5f);
-				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
+				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f((FVector3f)WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
 
 				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector3f(FVector(1.0f) / (2.0f * Clipmap.Bounds.GetExtent())); // LWC_TODO: precision loss
 				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector3f((-Clipmap.Bounds.Min) / (2.0f * Clipmap.Bounds.GetExtent())); // LWC_TODO: precision loss
@@ -907,8 +907,8 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					for (int32 BoundsIndex = 0; BoundsIndex < ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Num(); BoundsIndex++)
 					{
 						const FRenderBounds PrimBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds[BoundsIndex];
-						const FVector PrimWorldCenter = PrimBounds.GetCenter();
-						const FVector PrimWorldExtent = PrimBounds.GetExtent();
+						const FVector PrimWorldCenter = (FVector)PrimBounds.GetCenter();
+						const FVector PrimWorldExtent = (FVector)PrimBounds.GetExtent();
 						const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
 
 						if (ModifiedBounds.ComputeSquaredDistanceToBox(ClipmapBounds) < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
@@ -1009,7 +1009,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				Clipmap.ScrollOffset = FVector(ClipmapViewState.LastPartialUpdateOriginInPages - ClipmapViewState.FullUpdateOriginInPages) * ClipmapPageSize;
 			}
 
-			ClipmapViewState.CachedClipmapCenter = SnappedCenter;
+			ClipmapViewState.CachedClipmapCenter = (FVector3f)SnappedCenter;
 			ClipmapViewState.CachedClipmapExtent = ClipmapExtent;
 			ClipmapViewState.CacheClipmapInfluenceRadius = ClipmapInfluenceRadius;
 			ClipmapViewState.CacheMostlyStaticSeparately = GAOGlobalDistanceFieldCacheMostlyStaticSeparately;
@@ -1069,7 +1069,7 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = 1.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = 1;
-	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f, 1.0f, 1.0f);
+	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = FVector3f::OneVector;
 	ViewUniformShaderParameters.GlobalVolumeDimension = 0.0f;
 	ViewUniformShaderParameters.GlobalVolumeTexelSize = 0.0f;
 	ViewUniformShaderParameters.MaxGlobalDFAOConeDistance = 0.0f;
@@ -1094,7 +1094,7 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = GlobalDistanceFieldInfo.ParameterData.MipFactor;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = GlobalDistanceFieldInfo.ParameterData.MipTransition;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceFieldInfo.ParameterData.ClipmapSizeInPages;
-	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = GlobalDistanceFieldInfo.ParameterData.InvPageAtlasSize;
+	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = (FVector3f)GlobalDistanceFieldInfo.ParameterData.InvPageAtlasSize;
 	ViewUniformShaderParameters.GlobalVolumeDimension = GlobalDistanceFieldInfo.ParameterData.GlobalDFResolution;
 	ViewUniformShaderParameters.GlobalVolumeTexelSize = 1.0f / GlobalDistanceFieldInfo.ParameterData.GlobalDFResolution;
 	ViewUniformShaderParameters.MaxGlobalDFAOConeDistance = GlobalDistanceFieldInfo.ParameterData.MaxDFAOConeDistance;
@@ -1719,7 +1719,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 					FVector4f ClipmapVolumeWorldToUVAddAndMul;
 					const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2.0f) + FVector(0.5f);
-					ClipmapVolumeWorldToUVAddAndMul = FVector4f(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2.0f));
+					ClipmapVolumeWorldToUVAddAndMul = FVector4f((FVector3f)WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2.0f));
 
 					int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
 					FRDGBufferRef ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndices"));
@@ -1738,8 +1738,8 @@ void UpdateGlobalDistanceFieldVolume(
 						{
 							const FClipmapUpdateBounds& UpdateBounds = Clipmap.UpdateBounds[UpdateBoundsIndex];
 
-							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f(UpdateBounds.Center, UpdateBounds.bExpandByInfluenceRadius ? 1.0f : 0.0f);
-							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f(UpdateBounds.Extent, 0.0f);
+							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f((FVector3f)UpdateBounds.Center, UpdateBounds.bExpandByInfluenceRadius ? 1.0f : 0.0f);
+							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f((FVector3f)UpdateBounds.Extent, 0.0f);
 							++NumUpdateBounds;
 						}
 
@@ -1827,8 +1827,8 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->RWObjectIndexNumBuffer = GraphBuilder.CreateUAV(ObjectIndexNumBuffer, PF_R32_UINT);
 							PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
-							PassParameters->ClipmapWorldCenter = Clipmap.Bounds.GetCenter();
-							PassParameters->ClipmapWorldExtent = Clipmap.Bounds.GetExtent();
+							PassParameters->ClipmapWorldCenter = (FVector3f)Clipmap.Bounds.GetCenter();
+							PassParameters->ClipmapWorldExtent = (FVector3f)Clipmap.Bounds.GetExtent();
 							PassParameters->AcceptOftenMovingObjectsOnly = AcceptOftenMovingObjectsOnlyValue;
 							const float RadiusThresholdScale = bLumenEnabled ? 1.0f / FMath::Clamp(View.FinalPostProcessSettings.LumenSceneDetail, .01f, 100.0f) : 1.0f;
 							PassParameters->MeshSDFRadiusThreshold = GetMinMeshSDFRadius(ClipmapVoxelSize.X) * RadiusThresholdScale;
@@ -1889,9 +1889,9 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->UpdateBoundsBuffer = GraphBuilder.CreateSRV(UpdateBoundsBuffer, PF_A32B32G32R32F);
 							PassParameters->NumUpdateBounds = NumUpdateBounds;
 							PassParameters->GridResolution = PageGridResolution;
-							PassParameters->GridCoordToWorldCenterScale = PageGridCoordToWorldCenterScale;
-							PassParameters->GridCoordToWorldCenterBias = PageGridCoordToWorldCenterBias;
-							PassParameters->TileWorldExtent = PageTileWorldExtent;
+							PassParameters->GridCoordToWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+							PassParameters->GridCoordToWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
+							PassParameters->TileWorldExtent = (FVector3f)PageTileWorldExtent;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
 
 							auto ComputeShader = View.ShaderMap->GetShader<FBuildGridTilesCS>();
@@ -1940,9 +1940,9 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->PageUpdateIndirectArgBuffer = PageUpdateIndirectArgBuffer;
 									PassParameters->PageUpdateTileBuffer = GraphBuilder.CreateSRV(PageUpdateTileBuffer, PF_R32_UINT);
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
-									PassParameters->PageCoordToPageWorldCenterScale = PageGridCoordToWorldCenterScale;
-									PassParameters->PageCoordToPageWorldCenterBias = PageGridCoordToWorldCenterBias;
-									PassParameters->PageWorldExtent = PageTileWorldExtentWithoutBorders;
+									PassParameters->PageCoordToPageWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+									PassParameters->PageCoordToPageWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
+									PassParameters->PageWorldExtent = (FVector3f)PageTileWorldExtentWithoutBorders;
 									PassParameters->ClipmapVoxelExtent = ClipmapVoxelExtent.X;
 									PassParameters->PageGridResolution = PageGridResolution;
 									PassParameters->NumHeightfields = HeightfieldDescriptions.Num();
@@ -2033,9 +2033,9 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->ObjectIndexNumBuffer = GraphBuilder.CreateSRV(ObjectIndexNumBuffer, PF_R32_UINT);
 							PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
 							PassParameters->CullGridResolution = PageGridResolution;
-							PassParameters->CullGridCoordToWorldCenterScale = PageGridCoordToWorldCenterScale;
-							PassParameters->CullGridCoordToWorldCenterBias = PageGridCoordToWorldCenterBias;
-							PassParameters->CullTileWorldExtent = PageTileWorldExtent;
+							PassParameters->CullGridCoordToWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+							PassParameters->CullGridCoordToWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
+							PassParameters->CullTileWorldExtent = (FVector3f)PageTileWorldExtent;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
 
 							auto ComputeShader = View.ShaderMap->GetShader<FCullObjectsToGridCS>();
@@ -2074,14 +2074,14 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->RWPageComposeIndirectArgBuffer = GraphBuilder.CreateUAV(PageComposeIndirectArgBuffer, PF_R32_UINT);
 
 								PassParameters->ParentPageTableLayerTexture = ParentPageTableLayerTexture;
-								PassParameters->PageWorldExtent = PageTileWorldExtentWithoutBorders;
+								PassParameters->PageWorldExtent = (FVector3f)PageTileWorldExtentWithoutBorders;
 								PassParameters->PageWorldRadius = PageTileWorldExtentWithoutBorders.Size();
 								PassParameters->ClipmapInfluenceRadius = ClipmapInfluenceRadius;
 								PassParameters->PageGridResolution = PageGridResolution;
-								PassParameters->InvPageGridResolution = FVector(1.0f) / FVector(PageGridResolution);
+								PassParameters->InvPageGridResolution = FVector3f::OneVector / (FVector3f)PageGridResolution;
 								PassParameters->GlobalDistanceFieldMaxPageNum = GGlobalDistanceFieldMaxPageNum;
-								PassParameters->PageCoordToPageWorldCenterScale = PageGridCoordToWorldCenterScale;
-								PassParameters->PageCoordToPageWorldCenterBias = PageGridCoordToWorldCenterBias;
+								PassParameters->PageCoordToPageWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+								PassParameters->PageCoordToPageWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
 								PassParameters->ClipmapVolumeWorldToUVAddAndMul = ClipmapVolumeWorldToUVAddAndMul;
 								PassParameters->PageTableClipmapOffsetZ = ClipmapIndex * PageGridResolution.Z;
 
@@ -2175,14 +2175,14 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->ClipmapVoxelExtent = ClipmapVoxelExtent.X;
 							PassParameters->CullGridResolution = PageGridResolution;
 							PassParameters->PageGridResolution = PageGridResolution;
-							PassParameters->InvPageGridResolution = FVector(1.0f) / FVector(PageGridResolution);
+							PassParameters->InvPageGridResolution = FVector3f::OneVector / (FVector3f)PageGridResolution;
 							PassParameters->ClipmapResolution = FIntVector(ClipmapResolution);
-							PassParameters->PageCoordToVoxelCenterScale = PageCoordToVoxelCenterScale;
-							PassParameters->PageCoordToVoxelCenterBias = PageCoordToVoxelCenterBias;
-							PassParameters->ComposeTileWorldExtent = PageComposeTileWorldExtent;
-							PassParameters->ClipmapMinBounds = Clipmap.Bounds.Min;
-							PassParameters->PageCoordToPageWorldCenterScale = PageGridCoordToWorldCenterScale;
-							PassParameters->PageCoordToPageWorldCenterBias = PageGridCoordToWorldCenterBias;
+							PassParameters->PageCoordToVoxelCenterScale = (FVector3f)PageCoordToVoxelCenterScale;
+							PassParameters->PageCoordToVoxelCenterBias = (FVector3f)PageCoordToVoxelCenterBias;
+							PassParameters->ComposeTileWorldExtent = (FVector3f)PageComposeTileWorldExtent;
+							PassParameters->ClipmapMinBounds = (FVector3f)Clipmap.Bounds.Min;
+							PassParameters->PageCoordToPageWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+							PassParameters->PageCoordToPageWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
 							PassParameters->ClipmapVolumeWorldToUVAddAndMul = ClipmapVolumeWorldToUVAddAndMul;
 							PassParameters->PageTableClipmapOffsetZ = ClipmapIndex * PageGridResolution.Z;
 
@@ -2232,13 +2232,13 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->PageTableLayerTexture = PageTableLayerTexture;
 									PassParameters->ParentPageTableLayerTexture = ParentPageTableLayerTexture;
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
-									PassParameters->PageCoordToVoxelCenterScale = PageCoordToVoxelCenterScale;
-									PassParameters->PageCoordToVoxelCenterBias = PageCoordToVoxelCenterBias;
+									PassParameters->PageCoordToVoxelCenterScale = (FVector3f)PageCoordToVoxelCenterScale;
+									PassParameters->PageCoordToVoxelCenterBias = (FVector3f)PageCoordToVoxelCenterBias;
 									PassParameters->ClipmapVoxelExtent = ClipmapVoxelExtent.X;
 									PassParameters->PageGridResolution = PageGridResolution;
-									PassParameters->InvPageGridResolution = FVector(1.0f) / FVector(PageGridResolution);
-									PassParameters->PageCoordToPageWorldCenterScale = PageGridCoordToWorldCenterScale;
-									PassParameters->PageCoordToPageWorldCenterBias = PageGridCoordToWorldCenterBias;
+									PassParameters->InvPageGridResolution = FVector3f::OneVector / (FVector3f)PageGridResolution;
+									PassParameters->PageCoordToPageWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+									PassParameters->PageCoordToPageWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
 									PassParameters->ClipmapVolumeWorldToUVAddAndMul = ClipmapVolumeWorldToUVAddAndMul;
 									PassParameters->PageTableClipmapOffsetZ = ClipmapIndex * PageGridResolution.Z;
 									PassParameters->NumHeightfields = HeightfieldDescriptions.Num();
@@ -2289,14 +2289,14 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->RWMipTexture = GraphBuilder.CreateUAV(NextTexture);
 								PassParameters->PageTableCombinedTexture = PageTableCombinedTexture;
 								PassParameters->PageAtlasTexture = PageAtlasTexture;
-								PassParameters->GlobalDistanceFieldInvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance));
+								PassParameters->GlobalDistanceFieldInvPageAtlasSize = FVector3f::OneVector / FVector3f(GlobalDistanceField::GetPageAtlasSize(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance));
 								PassParameters->GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance).X;
 								PassParameters->PrevMipTexture = PrevTexture;
 								PassParameters->ClipmapMipResolution = ClipmapMipResolution;
 								PassParameters->ClipmapIndex = ClipmapIndex;
 								PassParameters->PrevClipmapOffsetZ = PrevClipmapOffsetZ;
 								PassParameters->ClipmapOffsetZ = NextClipmapOffsetZ;
-								PassParameters->ClipmapUVScrollOffset = Clipmap.ScrollOffset / ClipmapSize;
+								PassParameters->ClipmapUVScrollOffset = (FVector3f)Clipmap.ScrollOffset / (FVector3f)ClipmapSize;
 								PassParameters->CoarseDistanceFieldValueScale = 1.0f / GlobalDistanceField::GetMipFactor();
 								PassParameters->CoarseDistanceFieldValueBias = 0.5f - 0.5f / GlobalDistanceField::GetMipFactor();
 

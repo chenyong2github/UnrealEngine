@@ -691,7 +691,7 @@ void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh,
 		{
 			for (int32 i = 0; i < 3; i++)
 			{
-				const FVector UnrealCoords = LocalToWorld.TransformPosition(Vertices.X(Triangles[TriIdx][i]));
+				const FVector UnrealCoords = LocalToWorld.TransformPosition((FVector)Vertices.X(Triangles[TriIdx][i]));
 				UnrealBounds += UnrealCoords;
 
 				VertexBuffer.Add(UnrealCoords.X);
@@ -6443,7 +6443,7 @@ void FRecastNavMeshGenerator::GetDebugGeometry(const FNavigationRelevantData& En
 	const FVector::FReal* VertCoord = reinterpret_cast<const FVector::FReal*>(RawMemory + HeaderSize);
 	for (int VertIndex = 0; VertIndex < HeaderInfo->NumVerts; ++VertIndex, ++DebugVert, VertCoord += 3)
 	{
-		new (DebugVert) FDynamicMeshVertex(Recast2UnrealPoint(VertCoord));
+		new (DebugVert) FDynamicMeshVertex((FVector3f)Recast2UnrealPoint(VertCoord));
 	}
 
 	DebugMeshData.Indices.AddZeroed(IndicesCount);

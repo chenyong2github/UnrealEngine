@@ -779,7 +779,7 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 			{
 				//extract vertex from source
 				int32 SourceGeometryVertexIndex = SourceGeometryVertexStart + PointIdx;
-				FVector const VertexInWorldSpace = GeomToComponent[SubsetIndex].TransformPosition(Vertex[SourceGeometryVertexIndex]);
+				FVector const VertexInWorldSpace = GeomToComponent[SubsetIndex].TransformPosition((FVector)Vertex[SourceGeometryVertexIndex]);
 
 				int32 DestVertexIndex = DestVertex + PointIdx;
 				OutVertexBuffer[DestVertexIndex].X = VertexInWorldSpace.X;
@@ -1333,8 +1333,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 			if(LinearVelocity)
 			{
 				check(AngularVelocity);
-				Pose.LinearVelocity = (*LinearVelocity)[Index];
-				Pose.AngularVelocity = (*AngularVelocity)[Index];
+				Pose.LinearVelocity = (FVector)(*LinearVelocity)[Index];
+				Pose.AngularVelocity = (FVector)(*AngularVelocity)[Index];
 			}
 			else
 			{
@@ -2971,7 +2971,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 
 			for (int32 tt = 0, nt = GlobalMatrices.Num(); tt < nt; ++tt)
 			{
-				GlobalMatrices[tt] = GlobalMatrices[tt].ConcatTranslation(ExplodedVectors[tt]);
+				GlobalMatrices[tt] = GlobalMatrices[tt].ConcatTranslation((FVector)ExplodedVectors[tt]);
 			}
 		}
 	}

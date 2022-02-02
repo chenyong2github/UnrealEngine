@@ -293,7 +293,7 @@ void FGeometryCollectionProximityUtility::TransformVertices()
 			const TManagedArray<FVector3f>& Vertex = Collection->Vertex;
 
 			const FTransform& GlobalTransform = GlobalTransformArray[BoneMap[VertIdx]];
-			TransformedVertices[VertIdx] = GlobalTransform.TransformPosition(Vertex[VertIdx]);
+			TransformedVertices[VertIdx] = (FVector3f)GlobalTransform.TransformPosition(FVector(Vertex[VertIdx]));
 		});
 
 }

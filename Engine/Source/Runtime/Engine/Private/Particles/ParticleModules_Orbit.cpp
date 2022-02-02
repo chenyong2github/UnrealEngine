@@ -126,9 +126,9 @@ void UParticleModuleOrbit::Spawn(FParticleEmitterInstance* Owner, int32 Offset, 
 			{
 				LocalOffset = OffsetAmount.GetValue(Owner->EmitterTime, Owner->Component);
 			}
-			OrbitPayload.BaseOffset += LocalOffset;
+			OrbitPayload.BaseOffset += (FVector3f)LocalOffset;
 			OrbitPayload.PreviousOffset = OrbitPayload.Offset;
-			OrbitPayload.Offset += LocalOffset;
+			OrbitPayload.Offset += (FVector3f)LocalOffset;
 		}
 
 		if (RotationOptions.bProcessDuringSpawn == true)
@@ -143,7 +143,7 @@ void UParticleModuleOrbit::Spawn(FParticleEmitterInstance* Owner, int32 Offset, 
 			{
 				LocalRotation = RotationAmount.GetValue(Owner->EmitterTime, Owner->Component);
 			}
-			OrbitPayload.Rotation += LocalRotation;
+			OrbitPayload.Rotation += (FVector3f)LocalRotation;
 		}
 
 		if (RotationRateOptions.bProcessDuringSpawn == true)
@@ -158,8 +158,8 @@ void UParticleModuleOrbit::Spawn(FParticleEmitterInstance* Owner, int32 Offset, 
 			{
 				LocalRotationRate = RotationRateAmount.GetValue(Owner->EmitterTime, Owner->Component);
 			}
-			OrbitPayload.BaseRotationRate += LocalRotationRate;
-			OrbitPayload.RotationRate += LocalRotationRate;
+			OrbitPayload.BaseRotationRate += (FVector3f)LocalRotationRate;
+			OrbitPayload.RotationRate += (FVector3f)LocalRotationRate;
 		}
 	}
 }
@@ -186,7 +186,7 @@ void UParticleModuleOrbit::Update(FParticleEmitterInstance* Owner, int32 Offset,
 			//@todo. Do we need to update the base offset here???
 //			OrbitPayload.BaseOffset += LocalOffset;
 			OrbitPayload.PreviousOffset = OrbitPayload.Offset;
-			OrbitPayload.Offset += LocalOffset;
+			OrbitPayload.Offset += (FVector3f)LocalOffset;
 		}
 
 		if (RotationOptions.bProcessDuringUpdate == true)
@@ -201,7 +201,7 @@ void UParticleModuleOrbit::Update(FParticleEmitterInstance* Owner, int32 Offset,
 			{
 				LocalRotation = RotationAmount.GetValue(Owner->EmitterTime, Owner->Component);
 			}
-			OrbitPayload.Rotation += LocalRotation;
+			OrbitPayload.Rotation += (FVector3f)LocalRotation;
 		}
 
 
@@ -219,7 +219,7 @@ void UParticleModuleOrbit::Update(FParticleEmitterInstance* Owner, int32 Offset,
 			}
 			//@todo. Do we need to update the base rotationrate here???
 //			OrbitPayload.BaseRotationRate += LocalRotationRate;
-			OrbitPayload.RotationRate += LocalRotationRate;
+			OrbitPayload.RotationRate += (FVector3f)LocalRotationRate;
 		}
 	}
 	END_UPDATE_LOOP;

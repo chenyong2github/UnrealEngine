@@ -1078,8 +1078,8 @@ public:
 
 				for (int32 VertexIndex = Start; VertexIndex < End; ++VertexIndex)
 				{
-					const FVector& CurrentPosition = CurrentGroupData.VertexData.PointsPosition[VertexIndex];
-					const FVector& NextPosition = NextGroupData.VertexData.PointsPosition[VertexIndex];
+					const FVector3f& CurrentPosition = CurrentGroupData.VertexData.PointsPosition[VertexIndex];
+					const FVector3f& NextPosition = NextGroupData.VertexData.PointsPosition[VertexIndex];
 
 					InterpolatedGroupData.VertexData.PointsPosition[VertexIndex] = FMath::Lerp(CurrentPosition, NextPosition, InterpolationFactor);
 

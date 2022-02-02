@@ -537,7 +537,7 @@ void ULidarPointCloud::GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& Sel
 
 bool ULidarPointCloud::LineTraceSingle(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudPoint& PointHit)
 {
-	FLidarPointCloudPoint* Point = LineTraceSingle(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly);
+	FLidarPointCloudPoint* Point = LineTraceSingle(FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction), Radius, bVisibleOnly);
 	if (Point)
 	{
 		PointHit = *Point;
@@ -1354,7 +1354,7 @@ FBox ULidarPointCloud::CalculateBoundsFromPoints(const FLidarPointCloudPoint* Po
 	{
 		for (const FLidarPointCloudPoint* Data = Points, *DataEnd = Data + Count; Data != DataEnd; ++Data)
 		{
-			Bounds += Data->Location;
+			Bounds += (FVector)Data->Location;
 		}
 	}
 
@@ -1370,7 +1370,7 @@ FBox ULidarPointCloud::CalculateBoundsFromPoints(FLidarPointCloudPoint** Points,
 	{
 		for (FLidarPointCloudPoint** Data = Points, **DataEnd = Data + Count; Data != DataEnd; ++Data)
 		{
-			Bounds += (*Data)->Location;
+			Bounds += (FVector)(*Data)->Location;
 		}
 	}
 
@@ -1579,7 +1579,7 @@ void ULidarPointCloudBlueprintLibrary::GetPointsInBoxAsCopies(UObject* WorldCont
 
 bool ULidarPointCloudBlueprintLibrary::LineTraceSingle(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudTraceHit& Hit)
 {
-	const FLidarPointCloudRay Ray(Origin, Direction);
+	const FLidarPointCloudRay Ray((FVector3f)Origin, (FVector3f)Direction);
 
 	ITERATE_CLOUDS({
 		if (FLidarPointCloudPoint* Point = Component->LineTraceSingle(Ray, Radius, bVisibleOnly))
@@ -1596,7 +1596,7 @@ bool ULidarPointCloudBlueprintLibrary::LineTraceSingle(UObject* WorldContextObje
 bool ULidarPointCloudBlueprintLibrary::LineTraceMulti(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudTraceHit>& Hits)
 {
 	Hits.Reset();
-	const FLidarPointCloudRay Ray(Origin, Direction);
+	const FLidarPointCloudRay Ray((FVector3f)Origin, (FVector3f)Direction);
 
 	ITERATE_CLOUDS({
 		FLidarPointCloudTraceHit Hit(Actor, Component);
@@ -1625,12 +1625,12 @@ void ULidarPointCloudBlueprintLibrary::SetVisibilityOfFirstPointByRay(UObject* W
 	float MinDistance = FLT_MAX;
 	ULidarPointCloudComponent* ClosestComponent = nullptr;
 
-	const FLidarPointCloudRay Ray(Origin, Direction);
+	const FLidarPointCloudRay Ray((FVector3f)Origin, (FVector3f)Direction);
 
 	ITERATE_CLOUDS({
 		if (FLidarPointCloudPoint* Point = Component->LineTraceSingle(Ray, Radius, false))
 		{
-			const float DistanceSq = (Point->Location - Origin).SizeSquared();
+			const float DistanceSq = ((FVector)Point->Location - Origin).SizeSquared();
 			if (DistanceSq < MinDistance)
 			{
 				MinDistance = DistanceSq;
@@ -1665,12 +1665,12 @@ void ULidarPointCloudBlueprintLibrary::ApplyColorToFirstPointByRay(UObject* Worl
 	float MinDistance = FLT_MAX;
 	ULidarPointCloudComponent* ClosestComponent = nullptr;
 
-	const FLidarPointCloudRay Ray(Origin, Direction);
+	const FLidarPointCloudRay Ray((FVector3f)Origin, (FVector3f)Direction);
 
 	ITERATE_CLOUDS({
 		if (FLidarPointCloudPoint* Point = Component->LineTraceSingle(Ray, Radius, bVisibleOnly))
 		{
-			const float DistanceSq = (Point->Location - Origin).SizeSquared();
+			const float DistanceSq = ((FVector)Point->Location - Origin).SizeSquared();
 			if (DistanceSq < MinDistance)
 			{
 				MinDistance = DistanceSq;
@@ -1705,12 +1705,12 @@ void ULidarPointCloudBlueprintLibrary::RemoveFirstPointByRay(UObject* WorldConte
 	float MinDistance = FLT_MAX;
 	ULidarPointCloudComponent* ClosestComponent = nullptr;
 
-	const FLidarPointCloudRay Ray(Origin, Direction);
+	const FLidarPointCloudRay Ray((FVector3f)Origin, (FVector3f)Direction);
 
 	ITERATE_CLOUDS({
 		if (FLidarPointCloudPoint* Point = Component->LineTraceSingle(Ray, Radius, bVisibleOnly))
 		{
-			const float DistanceSq = (Point->Location - Origin).SizeSquared();
+			const float DistanceSq = ((FVector)Point->Location - Origin).SizeSquared();
 			if (DistanceSq < MinDistance)
 			{
 				MinDistance = DistanceSq;

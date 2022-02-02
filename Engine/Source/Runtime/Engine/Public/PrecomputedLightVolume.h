@@ -87,7 +87,7 @@ struct FLightVolumeOctreeSemantics
 
 	FORCEINLINE static void ApplyOffset(FVolumeLightingSample& Element, FVector Offset)
 	{
-		Element.Position+= Offset;
+		Element.Position+= FVector3f(Offset);	//LWC_TODO: Precision loss
 	}
 };
 

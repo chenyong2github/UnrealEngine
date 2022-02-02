@@ -742,7 +742,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 				TrianglePolygon.Init();
 				for (int i = 0; i < 3; ++i)
 				{
-					TrianglePolygon.Vertices.Add(Mesh->GetVertex(TriVids[i]));
+					TrianglePolygon.Vertices.Add((FVector3f)Mesh->GetVertex(TriVids[i]));
 				}
 
 				if (!LocalFrustum.ClipPolygon(TrianglePolygon))

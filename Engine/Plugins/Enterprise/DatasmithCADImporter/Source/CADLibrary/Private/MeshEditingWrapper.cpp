@@ -211,7 +211,7 @@ void FMeshEditingWrapper::GetTriangleBoundingBox(FTriangleID Triangle, FVector& 
 void FMeshEditingWrapper::GetVertexBoundingBox(FVertexInstanceID VertexInstanceID, FVector& MinCorner, FVector& MaxCorner, FVertexInstanceID HighestVertex[3], FVertexInstanceID LowestVertex[3]) const
 {
 	FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
-	const FVector VertexPosition = MeshDescription.GetVertexPositions()[VertexID];
+	const FVector VertexPosition = (FVector)MeshDescription.GetVertexPositions()[VertexID];
 
 	if (MaxCorner[0] < VertexPosition[0])
 	{
@@ -289,7 +289,7 @@ bool FMeshEditingWrapper::GetEdgeDirectionInTriangle(FEdgeID EdgeID, int32 Trian
 void FMeshEditingWrapper::SwapVertexNormal(FVertexInstanceID VertexInstanceID)
 {
 	FStaticMeshAttributes StaticMeshAttributes( MeshDescription );
-	FVector Normal = StaticMeshAttributes.GetVertexInstanceNormals()[ VertexInstanceID ];
+	FVector3f Normal = StaticMeshAttributes.GetVertexInstanceNormals()[ VertexInstanceID ];
 	Normal *= -1;
 
 	StaticMeshAttributes.GetVertexInstanceNormals()[ VertexInstanceID ] = Normal;

@@ -308,7 +308,7 @@ protected:
 		{
 			const FQuatFloat96NoW Converter(Points[i]);
 
-			Results += FVector3f(Converter.X, Converter.Y, Converter.Z);
+			Results += FVector(Converter.X, Converter.Y, Converter.Z);
 		}
 
 

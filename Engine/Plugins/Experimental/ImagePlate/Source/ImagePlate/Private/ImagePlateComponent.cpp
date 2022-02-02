@@ -114,10 +114,10 @@ namespace
 			Vertices.AddUninitialized(4);
 
 			// Set up the sprite vertex positions and texture coordinates.
-			Vertices[0].Position  = FVector(0, -1.f,  1.f);
-			Vertices[1].Position  = FVector(0, -1.f, -1.f);
-			Vertices[2].Position  = FVector(0,  1.f,  1.f);
-			Vertices[3].Position  = FVector(0,  1.f, -1.f);
+			Vertices[0].Position  = FVector3f(0, -1.f,  1.f);
+			Vertices[1].Position  = FVector3f(0, -1.f, -1.f);
+			Vertices[2].Position  = FVector3f(0,  1.f,  1.f);
+			Vertices[3].Position  = FVector3f(0,  1.f, -1.f);
 
 			Vertices[0].TextureCoordinate[0] = FVector2f(0,0);
 			Vertices[1].TextureCoordinate[0] = FVector2f(0,1);

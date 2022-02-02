@@ -382,11 +382,11 @@ void CreateNonoverlappingConvexHulls(
 		{
 			return Chaos::FVec2(0, 0);
 		}
-		Chaos::FReal AlongFirst = (Convex.GetVertex(0) - Center).Dot(Normal);
+		Chaos::FReal AlongFirst = (Convex.GetVertex(0) - Center).Dot(FVector3f(Normal));
 		Chaos::FVec2 Range(AlongFirst, AlongFirst);
 		for (int Idx = 1; Idx < NumVertices; Idx++)
 		{
-			const float Along = static_cast<float>((Convex.GetVertex(Idx) - Center).Dot(Normal));
+			const float Along = static_cast<float>((Convex.GetVertex(Idx) - Center).Dot(FVector3f(Normal)));
 			if (Along < Range.X)
 			{
 				Range.X = Along;
@@ -938,7 +938,7 @@ void HullsFromGeometry(
 	GlobalVertices.SetNum(Geometry.Vertex.Num());
 	for (int32 Idx = 0; Idx < GlobalVertices.Num(); Idx++)
 	{
-		GlobalVertices[Idx] = GlobalTransformArray[Geometry.BoneMap[Idx]].TransformPosition(Geometry.Vertex[Idx]);
+		GlobalVertices[Idx] = GlobalTransformArray[Geometry.BoneMap[Idx]].TransformPosition(FVector(Geometry.Vertex[Idx]));
 	}
 
 	int32 NumBones = Geometry.TransformToGeometryIndex.Num();
@@ -956,7 +956,7 @@ void HullsFromGeometry(
 				HullPts.Reset();
 				for (const Chaos::FConvex::FVec3Type& P : OrigConvexData->ConvexHull[OrigConvexIdx]->GetVertices())
 				{
-					HullPts.Add(Transform.TransformPosition(P));
+					HullPts.Add(FVector(Transform.TransformPosition((FVector)P)));
 				}
 				// Do not simplify hulls when we're just trying to transform them
 				int32 NewConvexIdx = Convexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
@@ -1016,7 +1016,7 @@ void TransformHullsToLocal(
 			HullPts.Reset();
 			for (const Chaos::FConvex::FVec3Type& P : Convexes[ConvexIdx]->GetVertices())
 			{
-				HullPts.Add(Transform.InverseTransformPosition(P));
+				HullPts.Add(FVector(Transform.InverseTransformPosition((FVector)P)));
 			}
 			// Do not simplify hulls when we're just trying to transform them
 			*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
@@ -1045,7 +1045,7 @@ bool CopyHulls(
 		HullPts.Reset();
 		for (const Chaos::FConvex::FVec3Type& P : InConvexes[ConvexIdx]->GetVertices())
 		{
-			HullPts.Add(OutTransform.InverseTransformPosition(InTransform.TransformPosition(P)));
+			HullPts.Add(OutTransform.InverseTransformPosition(InTransform.TransformPosition(FVector(P))));
 		}
 		// Do not simplify hulls when we're just trying to transform them
 		int32 OutIdx = OutConvexes.Add(MakeUnique<Chaos::FConvex>(HullPts, KINDA_SMALL_NUMBER));
@@ -1072,7 +1072,7 @@ double ComputeGeometryVolume(
 	FVector3d Center = FVector::ZeroVector;
 	for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
 	{
-		FVector Pos = GlobalTransform.TransformPosition(Collection->Vertex[VIdx]);
+		FVector Pos = GlobalTransform.TransformPosition((FVector)Collection->Vertex[VIdx]);
 		Center += (FVector3d)Pos;
 	}
 	Center /= double(VEnd - VStart);
@@ -1082,9 +1082,9 @@ double ComputeGeometryVolume(
 	for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
 	{
 		FIntVector Tri = Collection->Indices[FIdx];
-		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.X]);
-		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.Y]);
-		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition(Collection->Vertex[Tri.Z]);
+		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.X]);
+		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.Y]);
+		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.Z]);
 
 		// add volume of the tetrahedron formed by the triangles and the reference point
 		FVector3d V1mRef = (V1 - Center) * ScalePerDimension;

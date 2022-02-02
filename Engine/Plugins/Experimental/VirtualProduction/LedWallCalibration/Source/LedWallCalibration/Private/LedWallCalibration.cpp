@@ -199,9 +199,9 @@ namespace LedWallCalibration
 
 			FWallPanel WallPanel;
 
-			WallPanel.Vertices[0] = VertexPositions[V0];
-			WallPanel.Vertices[1] = VertexPositions[V1];
-			WallPanel.Vertices[2] = VertexPositions[V2];
+			WallPanel.Vertices[0] = (FVector)VertexPositions[V0];
+			WallPanel.Vertices[1] = (FVector)VertexPositions[V1];
+			WallPanel.Vertices[2] = (FVector)VertexPositions[V2];
 
 			WallPanel.UVs[0] = VertexInstanceUVs[VI0];
 			WallPanel.UVs[1] = VertexInstanceUVs[VI1];

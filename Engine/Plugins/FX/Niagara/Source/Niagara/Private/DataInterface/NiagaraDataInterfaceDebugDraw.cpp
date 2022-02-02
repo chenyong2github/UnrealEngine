@@ -458,11 +458,11 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Local && DestSpaceConcrete == ENiagaraCoordinateSpace::World)
 			{
-				Vector = SystemInstance->GetWorldTransform().TransformVector(Vector);
+				Vector = (FVector3f)SystemInstance->GetWorldTransform().TransformVector((FVector)Vector);	// LWC_TODO: Precision Loss
 			}
 			else if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World && DestSpaceConcrete == ENiagaraCoordinateSpace::Local)
 			{
-				Vector = SystemInstance->GetWorldTransform().InverseTransformVector(Vector);
+				Vector = (FVector3f)SystemInstance->GetWorldTransform().InverseTransformVector((FVector)Vector);	// LWC_TODO: Precision Loss
 			}
 			else
 			{
@@ -481,11 +481,11 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Local && DestSpaceConcrete == ENiagaraCoordinateSpace::World)
 			{
-				Vector = SystemInstance->GetWorldTransform().GetScale3D() * Vector;
+				Vector = (FVector3f)SystemInstance->GetWorldTransform().GetScale3D() * Vector;
 			}
 			else if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World && DestSpaceConcrete == ENiagaraCoordinateSpace::Local)
 			{
-				Vector = Vector / SystemInstance->GetWorldTransform().GetScale3D();
+				Vector = Vector / (FVector3f)SystemInstance->GetWorldTransform().GetScale3D();
 			}
 			else
 			{
@@ -504,11 +504,11 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Local && DestSpaceConcrete == ENiagaraCoordinateSpace::World)
 			{
-				Point = SystemInstance->GetWorldTransform().TransformPosition(Point);
+				Point = (FVector3f)SystemInstance->GetWorldTransform().TransformPosition((FVector)Point);	// LWC_TODO: Precision Loss
 			}
 			else if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World && DestSpaceConcrete == ENiagaraCoordinateSpace::Local)
 			{
-				Point = SystemInstance->GetWorldTransform().InverseTransformPosition(Point);
+				Point = (FVector3f)SystemInstance->GetWorldTransform().InverseTransformPosition((FVector)Point);	// LWC_TODO: Precision Loss
 			}
 			else
 			{

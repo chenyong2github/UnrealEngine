@@ -94,7 +94,7 @@ void UFractureToolResample::FractureContextChanged()
 			}
 			for (int32 VIdx = VertStart; VIdx < VertEnd; VIdx++)
 			{
-				GeneratedPoints.Add(CombinedTransform.TransformPosition(Collection.Vertex[VIdx]));
+				GeneratedPoints.Add(CombinedTransform.TransformPosition((FVector)Collection.Vertex[VIdx]));
 			}
 		}
 	}

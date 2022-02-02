@@ -126,9 +126,9 @@ public:
 			}
 
 			// Don't process degenerate triangles.
-			if( PointsEqual(CornerPositions[0], CornerPositions[1]) ||
-				PointsEqual(CornerPositions[0], CornerPositions[2]) ||
-				PointsEqual(CornerPositions[1], CornerPositions[2]) )
+			if( PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[1]) ||
+				PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[2]) ||
+				PointsEqual((FVector)CornerPositions[1], (FVector)CornerPositions[2]) )
 			{
 				WedgeIndex += 3;
 				continue;
@@ -500,7 +500,7 @@ public:
 
 					//NTBs information
 					OutVertexTangents[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].Tangents[0];
-					OutVertexBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(Verts[Indexes[VertexInstanceIndex]].Tangents[0].GetSafeNormal(), Verts[Indexes[VertexInstanceIndex]].Tangents[1].GetSafeNormal(), Verts[Indexes[VertexInstanceIndex]].Normal.GetSafeNormal());
+					OutVertexBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign((FVector)Verts[Indexes[VertexInstanceIndex]].Tangents[0].GetSafeNormal(), (FVector)Verts[Indexes[VertexInstanceIndex]].Tangents[1].GetSafeNormal(), (FVector)Verts[Indexes[VertexInstanceIndex]].Normal.GetSafeNormal());
 					OutVertexNormals[AddedVertexInstanceId] = Verts[Indexes[VertexInstanceIndex]].Normal;
 
 					//Vertex Color

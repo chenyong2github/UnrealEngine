@@ -593,7 +593,7 @@ void SAnimTimeline::OnReZeroAnimSequence(int32 FrameIndex)
 				else if(RawTrack.PosKeys.IsValidIndex(FrameIndex))
 				{
 					// Use transform at frame
-					FrameTransform = RawTrack.PosKeys[FrameIndex];
+					FrameTransform = (FVector)RawTrack.PosKeys[FrameIndex];
 				}
 
 				FVector ApplyTranslation = -1.f * FrameTransform;
@@ -604,7 +604,7 @@ void SAnimTimeline::OnReZeroAnimSequence(int32 FrameIndex)
 
 				for(int32 i=0; i<RawTrack.PosKeys.Num(); i++)
 				{
-					RawTrack.PosKeys[i] += ApplyTranslation;
+					RawTrack.PosKeys[i] += (FVector3f)ApplyTranslation;
 				}
 
 				IAnimationDataController& Controller = AnimSequence->GetController();

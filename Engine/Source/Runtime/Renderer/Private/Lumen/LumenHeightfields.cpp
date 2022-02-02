@@ -29,8 +29,8 @@ void FLumenHeightfieldGPUData::FillData(const FLumenHeightfield& RESTRICT Height
 	{
 		MeshCardsIndex = Heightfield.MeshCardsIndex;
 		const FBox WorldSpaceBounds = MeshCards[Heightfield.MeshCardsIndex].GetWorldSpaceBounds();
-		BoundsCenter = WorldSpaceBounds.GetCenter();
-		BoundsExtent = WorldSpaceBounds.GetExtent();
+		BoundsCenter = (FVector3f)WorldSpaceBounds.GetCenter();	// LWC_TODO: Precision Loss
+		BoundsExtent = (FVector3f)WorldSpaceBounds.GetExtent();	// LWC_TODO: Precision Loss
 	}
 
 	OutData[0] = BoundsCenter;

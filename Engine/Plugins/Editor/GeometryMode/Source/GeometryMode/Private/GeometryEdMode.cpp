@@ -567,28 +567,28 @@ void FEdModeGeometry::RenderPoly( const FSceneView* View, FViewport* Viewport, F
 
 					if( EdgeIdx == 0 )
 					{
-						Verts.Add( GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ] );
-						LastPos = GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ];
+						Verts.Add( (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ] );
+						LastPos = (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ];
 					}
-					else if( GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ].Equals( LastPos ) )
+					else if( GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ].Equals((FVector3f)LastPos ) )
 					{
-						Verts.Add( GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[1] ] );
-						LastPos = GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[1] ];
+						Verts.Add( (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[1] ] );
+						LastPos = (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[1] ];
 					}
 					else
 					{
-						Verts.Add( GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ] );
-						LastPos = GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ];
+						Verts.Add( (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ] );
+						LastPos = (FVector)GeomPoly->GetParentObject()->VertexPool[ GeomEdge->VertexIndices[0] ];
 					}
 				}
 
 				// Draw Polygon Triangles
-				const int32 VertexOffset = MeshBuilder.AddVertex(Verts[0], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
-				MeshBuilder.AddVertex(Verts[1], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
+				const int32 VertexOffset = MeshBuilder.AddVertex((FVector3f)Verts[0], FVector2f::ZeroVector, FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), FColor::White);
+				MeshBuilder.AddVertex((FVector3f)Verts[1], FVector2f::ZeroVector, FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), FColor::White);
 
 				for( int32 VertIdx = 2 ; VertIdx < Verts.Num() ; ++VertIdx )
 				{
-					MeshBuilder.AddVertex(Verts[VertIdx], FVector2f::ZeroVector, FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), FColor::White);
+					MeshBuilder.AddVertex((FVector3f)Verts[VertIdx], FVector2f::ZeroVector, FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), FColor::White);
 					MeshBuilder.AddTriangle( VertexOffset + VertIdx - 1, VertexOffset, VertexOffset + VertIdx);
 				}
 
@@ -628,8 +628,8 @@ void FEdModeGeometry::RenderEdge( const FSceneView* View, FPrimitiveDrawInterfac
 
 			PDI->SetHitProxy( new HGeomEdgeProxy(GeometryObject,EdgeIdx) );
 			{
-				FVector V0 = GeometryObject->VertexPool[ GeometryEdge->VertexIndices[0] ];
-				FVector V1 = GeometryObject->VertexPool[ GeometryEdge->VertexIndices[1] ];
+				FVector V0 = (FVector)GeometryObject->VertexPool[ GeometryEdge->VertexIndices[0] ];
+				FVector V1 = (FVector)GeometryObject->VertexPool[ GeometryEdge->VertexIndices[1] ];
 				const FTransform ActorToWorld = GeometryObject->GetActualBrush()->ActorToWorld();
 
 				V0 = ActorToWorld.TransformPosition( V0 );
@@ -663,7 +663,7 @@ void FEdModeGeometry::RenderVertex( const FSceneView* View, FPrimitiveDrawInterf
 			check(GeomVertex);
 			check(GeomObject->GetActualBrush());
 
-			Location = GeomObject->GetActualBrush()->ActorToWorld().TransformPosition( *GeomVertex );
+			Location = (FVector)GeomObject->GetActualBrush()->ActorToWorld().TransformPosition( (FVector)*GeomVertex );
 			Scale = View->WorldToScreen( Location ).W * ( 4.0f / View->UnscaledViewRect.Width() / View->ViewMatrices.GetProjectionMatrix().M[0][0] );
 			Color = GeomVertex->IsSelected() ? FColor(255,128,64) : GeomObject->GetActualBrush()->GetWireColor();
 

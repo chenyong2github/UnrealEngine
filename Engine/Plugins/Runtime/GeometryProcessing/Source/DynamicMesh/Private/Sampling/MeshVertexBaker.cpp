@@ -128,7 +128,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 		const int32 VertexId = ColorOverlay->GetParentVertex(ElementIdx);
 
 		// Compute ray direction
-		FVector3f SurfaceNormal = FVector3f::Zero();
+		FVector SurfaceNormal = FVector::Zero();
 		TArray<int> ColorElementTris;
 		ColorOverlay->GetElementTriangles(ElementIdx, ColorElementTris);
 		for (const int TriId : ColorElementTris)
@@ -143,7 +143,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 			{
 				FVector3f Normal;
 				NormalOverlay->GetElementAtVertex(TriId, VertexId, Normal);
-				SurfaceNormal += NormalWeights[TriVertexId] * Normal;
+				SurfaceNormal += NormalWeights[TriVertexId] * FVector(Normal);
 			}
 			else
 			{

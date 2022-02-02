@@ -330,7 +330,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 		// Copy skinned vertex positions
 		for (int32 VertIndex = 0; VertIndex < FinalVertices.Num(); ++VertIndex)
 		{
-			RawMesh.VertexPositions.Add((FVector4f)InComponentToWorld.TransformPosition(FinalVertices[VertIndex].Position));
+			RawMesh.VertexPositions.Add((FVector4f)InComponentToWorld.TransformPosition((FVector)FinalVertices[VertIndex].Position));
 		}
 
 		const uint32 NumTexCoords = FMath::Min(LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(), (uint32)MAX_MESH_TEXTURE_COORDS);
@@ -428,7 +428,7 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 
 		for (int32 VertIndex = 0; VertIndex < LODResource.GetNumVertices(); ++VertIndex)
 		{
-			RawMesh.VertexPositions.Add(FVector4f(InComponentToWorld.TransformPosition(LODResource.VertexBuffers.PositionVertexBuffer.VertexPosition((uint32)VertIndex))));
+			RawMesh.VertexPositions.Add(FVector4f(InComponentToWorld.TransformPosition((FVector)LODResource.VertexBuffers.PositionVertexBuffer.VertexPosition((uint32)VertIndex))));
 		}
 
 		const FIndexArrayView IndexArrayView = LODResource.IndexBuffer.GetArrayView();
@@ -446,9 +446,9 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 				int32 Index = IndexArrayView[StaticMeshSection.FirstIndex + IndexIndex];
 				RawMesh.WedgeIndices.Add(BaseVertexIndex + Index);
 
-				RawMesh.WedgeTangentX.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentX(Index)))));
-				RawMesh.WedgeTangentY.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentY(Index)))));
-				RawMesh.WedgeTangentZ.Add(FVector4f(InComponentToWorld.TransformVector(FVector3f(StaticMeshVertexBuffer.VertexTangentZ(Index)))));
+				RawMesh.WedgeTangentX.Add(FVector4f(InComponentToWorld.TransformVector(FVector(StaticMeshVertexBuffer.VertexTangentX(Index)))));
+				RawMesh.WedgeTangentY.Add(FVector4f(InComponentToWorld.TransformVector(FVector(StaticMeshVertexBuffer.VertexTangentY(Index)))));
+				RawMesh.WedgeTangentZ.Add(FVector4f(InComponentToWorld.TransformVector(FVector(StaticMeshVertexBuffer.VertexTangentZ(Index)))));
 
 				for (int32 TexCoordIndex = 0; TexCoordIndex < MAX_MESH_TEXTURE_COORDS; TexCoordIndex++)
 				{
@@ -2126,7 +2126,7 @@ static void BuildDepthOnlyIndexBuffer(
 	VertIndexAndZ.Empty(NumVertices);
 	for (int32 VertIndex = 0; VertIndex < NumVertices; VertIndex++)
 	{
-		new(VertIndexAndZ)FIndexAndZ(VertIndex, InVertices[VertIndex].Position);
+		new(VertIndexAndZ)FIndexAndZ(VertIndex, (FVector)InVertices[VertIndex].Position);
 	}
 	VertIndexAndZ.Sort(FCompareIndexAndZ());
 
@@ -2220,9 +2220,9 @@ static bool AreVerticesEqual(
 	)
 {
 	if (!PointsEqual(A.Position, B.Position, ComparisonThreshold)
-		|| !NormalsEqual(A.TangentX, B.TangentX)
-		|| !NormalsEqual(A.TangentY, B.TangentY)
-		|| !NormalsEqual(A.TangentZ, B.TangentZ)
+		|| !NormalsEqual((FVector)A.TangentX, (FVector)B.TangentX)
+		|| !NormalsEqual((FVector)A.TangentY, (FVector)B.TangentY)
+		|| !NormalsEqual((FVector)A.TangentZ, (FVector)B.TangentZ)
 		|| A.Color != B.Color)
 	{
 		return false;
@@ -2767,7 +2767,7 @@ public:
 				TArray<int32>& WedgeMap = SourceModel.ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
 				WedgeMap.Reset();
 				float ComparisonThreshold = GetComparisonThreshold(LODBuildSettings[LODIndex]);
-				MeshUtilities.BuildStaticMeshVertexAndIndexBuffers(Vertices, PerSectionIndices, WedgeMap, RawMesh, LODOverlappingCorners[LODIndex], MaterialToSectionMapping, ComparisonThreshold, LODBuildSettings[LODIndex].BuildScale3D, ImportVersion);
+				MeshUtilities.BuildStaticMeshVertexAndIndexBuffers(Vertices, PerSectionIndices, WedgeMap, RawMesh, LODOverlappingCorners[LODIndex], MaterialToSectionMapping, ComparisonThreshold, (FVector3f)LODBuildSettings[LODIndex].BuildScale3D, ImportVersion);
 				check(WedgeMap.Num() == RawMesh.WedgeIndices.Num());
 
 				if (RawMesh.WedgeIndices.Num() < 100000 * 3)
@@ -2907,7 +2907,7 @@ public:
 		FPositionVertexBuffer& BasePositionVertexBuffer = OutRenderData.LODResources[0].VertexBuffers.PositionVertexBuffer;
 		for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
 		{
-			BoundingBox += BasePositionVertexBuffer.VertexPosition(VertexIndex);
+			BoundingBox += (FVector)BasePositionVertexBuffer.VertexPosition(VertexIndex);
 		}
 		BoundingBox.GetCenterAndExtents(OutRenderData.Bounds.Origin, OutRenderData.Bounds.BoxExtent);
 
@@ -2916,7 +2916,7 @@ public:
 		for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
 		{
 			OutRenderData.Bounds.SphereRadius = FMath::Max(
-				(BasePositionVertexBuffer.VertexPosition(VertexIndex) - OutRenderData.Bounds.Origin).Size(),
+				(BasePositionVertexBuffer.VertexPosition(VertexIndex) - (FVector3f)OutRenderData.Bounds.Origin).Size(),
 				OutRenderData.Bounds.SphereRadius
 				);
 		}
@@ -3292,7 +3292,7 @@ public:
 			for (int32 TriIndex = 0; TriIndex < 3; ++TriIndex)
 			{
 				uint32 Index = BuildData->GetWedgeIndex(FaceIndex, TriIndex);
-				new(VertIndexAndZ)FIndexAndZ(Index, BuildData->GetVertexPosition(Index));
+				new(VertIndexAndZ)FIndexAndZ(Index, (FVector)BuildData->GetVertexPosition(Index));
 			}
 		}
 
@@ -3458,7 +3458,7 @@ public:
 			for (int32 CornerB = 0; CornerB < 3; ++CornerB)
 			{
 				const FVector3f& CornerBPosition = BuildData->GetVertexPosition((FaceIdxB * 3) + CornerB);
-				if (PointsEqual(CornerAPosition, CornerBPosition, BuildData->BuildOptions.OverlappingThresholds))
+				if (PointsEqual((FVector)CornerAPosition, (FVector)CornerBPosition, BuildData->BuildOptions.OverlappingThresholds))
 				{
 					bFoundMatch = true;
 					break;
@@ -3558,9 +3558,9 @@ public:
 			}
 
 			// Don't process degenerate triangles.
-			if (PointsEqual(CornerPositions[0], CornerPositions[1], BuildData->BuildOptions.OverlappingThresholds)
-				|| PointsEqual(CornerPositions[0], CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds)
-				|| PointsEqual(CornerPositions[1], CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds))
+			if (PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[1], BuildData->BuildOptions.OverlappingThresholds)
+				|| PointsEqual((FVector)CornerPositions[0], (FVector)CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds)
+				|| PointsEqual((FVector)CornerPositions[1], (FVector)CornerPositions[2], BuildData->BuildOptions.OverlappingThresholds))
 			{
 				continue;
 			}
@@ -3646,8 +3646,8 @@ public:
 						for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
 						{
 							if (PointsEqual(
-								CornerPositions[OurCornerIndex],
-								BuildData->GetVertexPosition(OtherFaceIndex, OtherCornerIndex),
+								(FVector)CornerPositions[OurCornerIndex],
+								(FVector)BuildData->GetVertexPosition(OtherFaceIndex, OtherCornerIndex),
 								BuildData->BuildOptions.OverlappingThresholds
 								))
 							{
@@ -3704,8 +3704,8 @@ public:
 												int32 NextVertexIndex = BuildData->GetVertexIndex(NextFace.FaceIndex, NextCornerIndex);
 												int32 OtherVertexIndex = BuildData->GetVertexIndex(OtherFace.FaceIndex, OtherCornerIndex);
 												if (PointsEqual(
-													BuildData->GetVertexPosition(NextFace.FaceIndex, NextCornerIndex),
-													BuildData->GetVertexPosition(OtherFace.FaceIndex, OtherCornerIndex),
+													(FVector)BuildData->GetVertexPosition(NextFace.FaceIndex, NextCornerIndex),
+													(FVector)BuildData->GetVertexPosition(OtherFace.FaceIndex, OtherCornerIndex),
 													BuildData->BuildOptions.OverlappingThresholds))
 												{
 													CommonVertices++;
@@ -3780,9 +3780,9 @@ public:
 							if (bComputeWeightedNormals)
 							{
 								FVector3f OtherFacePoint[3] = { BuildData->GetVertexPosition(OtherFaceIndex, 0), BuildData->GetVertexPosition(OtherFaceIndex, 1), BuildData->GetVertexPosition(OtherFaceIndex, 2) };
-								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
+								float OtherFaceArea = TriangleUtilities::ComputeTriangleArea((FVector)OtherFacePoint[0], (FVector)OtherFacePoint[1], (FVector)OtherFacePoint[2]);
 								int32 OtherFaceCornerIndex = RelevantFace.LinkedVertexIndex;
-								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherFaceCornerIndex], OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
+								float OtherFaceAngle = TriangleUtilities::ComputeTriangleCornerAngle((FVector)OtherFacePoint[OtherFaceCornerIndex], (FVector)OtherFacePoint[(OtherFaceCornerIndex + 1) % 3], (FVector)OtherFacePoint[(OtherFaceCornerIndex + 2) % 3]);
 								//Get the CornerWeight
 								CornerWeight = OtherFaceArea * OtherFaceAngle;
 							}
@@ -4200,7 +4200,7 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FS
 			for (int32 VertIndex = 0; VertIndex < NumSoftVertices; ++VertIndex)
 			{
 				FSoftSkinVertex& SrcVert = CurSection.SoftVertices[VertIndex];
-				new(VertIndexAndZ)FIndexAndZ(VertIndex, SrcVert.Position);
+				new(VertIndexAndZ)FIndexAndZ(VertIndex, (FVector)SrcVert.Position);
 			}
 			VertIndexAndZ.Sort(FCompareIndexAndZ());
 
@@ -4219,7 +4219,7 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FS
 
 					const uint32 IterVertIndex = VertIndexAndZ[j].Index;
 					FSoftSkinVertex& IterVert = CurSection.SoftVertices[IterVertIndex];
-					if (PointsEqual(SrcVert.Position, IterVert.Position))
+					if (PointsEqual((FVector)SrcVert.Position, (FVector)IterVert.Position))
 					{
 						// if so, we add to overlapping vert
 						TArray<int32>& SrcValueArray = CurSection.OverlappingVertices.FindOrAdd(SrcVertIndex);
@@ -4469,7 +4469,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 			FVector3f	P1 = Points[Wedges[Faces[FaceIndex].iWedge[0]].iVertex],
 				P2 = Points[Wedges[Faces[FaceIndex].iWedge[1]].iVertex],
 				P3 = Points[Wedges[Faces[FaceIndex].iWedge[2]].iVertex];
-			FVector3f	TriangleNormal = FPlane(P3, P2, P1);
+			FVector3f	TriangleNormal = (FVector3f)FPlane((FVector)P3, (FVector)P2, (FVector)P1);
 			if (!TriangleNormal.IsNearlyZero(FLT_MIN))
 			{
 				FMatrix	ParameterToLocal(
@@ -4604,8 +4604,8 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 
 				// check to see if the points are really overlapping
 				if (PointsEqual(
-					Points[VertIndexAndZ[i].Index],
-					Points[VertIndexAndZ[j].Index], OverlappingThresholds))
+					(FVector)Points[VertIndexAndZ[i].Index],
+					(FVector)Points[VertIndexAndZ[j].Index], OverlappingThresholds))
 				{
 					Vert2Duplicates.Add(VertIndexAndZ[i].Index, VertIndexAndZ[j].Index);
 					Vert2Duplicates.Add(VertIndexAndZ[j].Index, VertIndexAndZ[i].Index);
@@ -4664,10 +4664,10 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				VertexTangentZ[VertexIndex] = FVector3f::ZeroVector;
 			}
 
-			FVector3f	TriangleNormal = FPlane(
-				Points[Wedges[Face.iWedge[2]].iVertex],
-				Points[Wedges[Face.iWedge[1]].iVertex],
-				Points[Wedges[Face.iWedge[0]].iVertex]
+			FVector3f	TriangleNormal = (FVector3f)FPlane(
+				(FVector)Points[Wedges[Face.iWedge[2]].iVertex],
+				(FVector)Points[Wedges[Face.iWedge[1]].iVertex],
+				(FVector)Points[Wedges[Face.iWedge[0]].iVertex]
 				);
 			float	Determinant = FVector3f::Triple(FaceTangentX[FaceIndex], FaceTangentY[FaceIndex], TriangleNormal);
 
@@ -4698,11 +4698,11 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				const SkeletalMeshImportData::FMeshFace&	OtherFace = Faces[OtherFaceIndex];
 
 				FVector3f OtherFacePoint[3] = { Points[Wedges[OtherFace.iWedge[0]].iVertex], Points[Wedges[OtherFace.iWedge[1]].iVertex], Points[Wedges[OtherFace.iWedge[2]].iVertex] };
-				float OtherFaceArea = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleArea(OtherFacePoint[0], OtherFacePoint[1], OtherFacePoint[2]);
-				FVector3f		OtherTriangleNormal = FPlane(
-					OtherFacePoint[2],
-					OtherFacePoint[1],
-					OtherFacePoint[0]
+				float OtherFaceArea = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleArea((FVector)OtherFacePoint[0], (FVector)OtherFacePoint[1], (FVector)OtherFacePoint[2]);
+				FVector3f		OtherTriangleNormal = (FVector3f)FPlane(
+					(FVector)OtherFacePoint[2],
+					(FVector)OtherFacePoint[1],
+					(FVector)OtherFacePoint[0]
 					);
 				float		OtherFaceDeterminant = FVector3f::Triple(FaceTangentX[OtherFaceIndex], FaceTangentY[OtherFaceIndex], OtherTriangleNormal);
 
@@ -4711,13 +4711,13 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 					for (int32 OtherVertexIndex = 0; OtherVertexIndex < 3; OtherVertexIndex++)
 					{
 						if (PointsEqual(
-							OtherFacePoint[OtherVertexIndex],
-							FacePoint[VertexIndex],
+							(FVector)OtherFacePoint[OtherVertexIndex],
+							(FVector)FacePoint[VertexIndex],
 							OverlappingThresholds
 							))
 						{
 							//Compute the angle
-							float OtherFaceAngle = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleCornerAngle(OtherFacePoint[OtherVertexIndex], OtherFacePoint[(OtherVertexIndex + 1) % 3], OtherFacePoint[(OtherVertexIndex + 2) % 3]);
+							float OtherFaceAngle = !bComputeWeightedNormals ? 1.0f : TriangleUtilities::ComputeTriangleCornerAngle((FVector)OtherFacePoint[OtherVertexIndex], (FVector)OtherFacePoint[(OtherVertexIndex + 1) % 3], (FVector)OtherFacePoint[(OtherVertexIndex + 2) % 3]);
 							
 							float CornerWeight = (OtherFaceArea * OtherFaceAngle);
 
@@ -4789,10 +4789,10 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 			if (bTangentXZero || bTangentYZero || bTangentZZero)
 			{
 				NTBErrorCount++;
-				FVector3f TriangleTangentZ = FPlane(
-					Points[Wedges[Face.iWedge[2]].iVertex],
-					Points[Wedges[Face.iWedge[1]].iVertex],
-					Points[Wedges[Face.iWedge[0]].iVertex]
+				FVector3f TriangleTangentZ = (FVector3f)FPlane(
+					(FVector)Points[Wedges[Face.iWedge[2]].iVertex],
+					(FVector)Points[Wedges[Face.iWedge[1]].iVertex],
+					(FVector)Points[Wedges[Face.iWedge[0]].iVertex]
 				);
 				FVector3f TriangleTangentX = FaceTangentX[FaceIndex];
 				FVector3f TriangleTangentY = FaceTangentY[FaceIndex];
@@ -5100,7 +5100,7 @@ void FMeshUtilities::ExtractMeshDataForGeometryCache(FRawMesh& RawMesh, const FM
 		MaterialToSectionMapping.Add(i, i);
 	}
 
-	BuildStaticMeshVertexAndIndexBuffers(OutVertices, OutPerSectionIndices, OutWedgeMap, RawMesh, OverlappingCorners, MaterialToSectionMapping, KINDA_SMALL_NUMBER, BuildSettings.BuildScale3D, ImportVersion);
+	BuildStaticMeshVertexAndIndexBuffers(OutVertices, OutPerSectionIndices, OutWedgeMap, RawMesh, OverlappingCorners, MaterialToSectionMapping, KINDA_SMALL_NUMBER, (FVector3f)BuildSettings.BuildScale3D, ImportVersion);
 
 	if (RawMesh.WedgeIndices.Num() < 100000 * 3)
 	{
@@ -6359,7 +6359,7 @@ void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*
 		if (ACharacter* Character = Cast<ACharacter>(InActor))
 		{
 			RootTransform = Character->GetTransform();
-			RootTransform.SetLocation(RootTransform.GetLocation() - FVector3f(0.0f, 0.0f, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+			RootTransform.SetLocation(RootTransform.GetLocation() - FVector(0.0f, 0.0f, Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
 		}
 		else
 		{
@@ -6379,7 +6379,7 @@ void FMeshUtilities::ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*
 	else
 	{
 		// multiple actors use the average of their origins, with Z being the min of all origins. Rotation is identity for simplicity
-		FVector3f Location(FVector3f::ZeroVector);
+		FVector Location(FVector::ZeroVector);
 		double MinZ = DBL_MAX;
 		for (AActor* Actor : InActors)
 		{

@@ -23,7 +23,7 @@ struct TGPUSkinVertexBase
 
 	FORCEINLINE FVector3f GetTangentY() const
 	{
-		return GenerateYAxis(TangentX, TangentZ);
+		return FVector3f(GenerateYAxis(TangentX, TangentZ));
 	}
 
 	/** Serializer */

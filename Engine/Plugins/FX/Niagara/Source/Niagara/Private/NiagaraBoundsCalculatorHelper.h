@@ -62,7 +62,7 @@ public:
 			FVector MaxScale(1.0f, 1.0f, 1.0f);
 			if (ScaleAccessor.IsValid())
 			{
-				MaxScale = ScaleAccessor.GetReader(DataSet).GetMax();
+				MaxScale = (FVector)ScaleAccessor.GetReader(DataSet).GetMax();
 			}
 
 			// NOTE: Since we're not taking particle rotation into account we have to treat the extents like a sphere,

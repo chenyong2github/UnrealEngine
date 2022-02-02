@@ -65,7 +65,7 @@ void FNavTestSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 
 				//@todo - the rendering thread should never read from UObjects directly!  These are race conditions, the properties should be mirrored on the proxy
 				const FVector ActorLocation = NavTestActor->GetActorLocation();
-				const FVector ProjectedLocation = NavTestActor->ProjectedLocation + NavMeshDrawOffset;
+				const FVector ProjectedLocation = NavTestActor->ProjectedLocation + (FVector)NavMeshDrawOffset;
 				const FColor ProjectedColor = NavTestActor->bProjectedLocationValid ? FColor(0, 255, 0, 120) : FColor(255, 0, 0, 120);
 				const FColor ClosestWallColor = FColorList::Orange;
 				const FVector BoxExtent(20, 20, 20);
@@ -429,7 +429,7 @@ FBoxSphereBounds UNavTestRenderingComponent::CalcBounds(const FTransform& LocalT
 				const FRecastDebugPathfindingNode& DebugNode = *It;
 				for (int32 iv = 0; iv < DebugNode.Verts.Num(); iv++)
 				{
-					BoundingBox += DebugNode.Verts[iv];
+					BoundingBox += (FVector)DebugNode.Verts[iv];
 				}
 			}
 		}

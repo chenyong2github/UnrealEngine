@@ -1212,7 +1212,7 @@ FVector FRawDistributionVector::GetValue(float F, UObject* Data, int32 Extreme, 
 
 	FVector3f Value;
 	FRawDistribution::GetValue3(F, &Value.X, Extreme, InRandomStream);
-	return Value;
+	return (FVector)Value;
 }
 
 const FRawDistribution *FRawDistributionVector::GetFastRawDistribution()

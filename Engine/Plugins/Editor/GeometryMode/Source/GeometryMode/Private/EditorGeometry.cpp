@@ -155,12 +155,12 @@ FGeomVertex::FGeomVertex()
 
 FVector FGeomVertex::GetWidgetLocation()
 {
-	return GetParentObject()->GetActualBrush()->ActorToWorld().TransformPosition( *this );
+	return GetParentObject()->GetActualBrush()->ActorToWorld().TransformPosition((FVector)*this );
 }
 
 FVector FGeomVertex::GetMidPoint() const
 {
-	return *this;
+	return (FVector)*this;
 }
 
 FVector3f* FGeomVertex::GetActualVertex( FPolyVertexIndex& InPVI )
@@ -195,10 +195,10 @@ bool FGeomEdge::IsSameEdge( const FGeomEdge& InEdge ) const
 
 FVector FGeomEdge::GetWidgetLocation()
 {
-	FVector dir = (GetParentObject()->VertexPool[ VertexIndices[1] ] - GetParentObject()->VertexPool[ VertexIndices[0] ]);
+	FVector dir = ((FVector)GetParentObject()->VertexPool[ VertexIndices[1] ] - (FVector)GetParentObject()->VertexPool[ VertexIndices[0] ]);
 	const float dist = dir.Size() / 2;
 	dir.Normalize();
-	const FVector loc = GetParentObject()->VertexPool[ VertexIndices[0] ] + (dir * dist);
+	const FVector loc = (FVector)GetParentObject()->VertexPool[ VertexIndices[0] ] + (dir * dist);
 	return GetParentObject()->GetActualBrush()->ActorToWorld().TransformPosition( loc );
 }
 
@@ -232,7 +232,7 @@ FVector FGeomPoly::GetWidgetLocation()
 	{
 		for( int32 VertIndex = 0 ; VertIndex < Poly->Vertices.Num() ; ++VertIndex )
 		{
-			Wk += Poly->Vertices[VertIndex];
+			Wk += (FVector)Poly->Vertices[VertIndex];
 		}
 		Wk = Wk / Poly->Vertices.Num();
 	}
@@ -248,9 +248,9 @@ FVector FGeomPoly::GetMidPoint() const
 	for( int32 e = 0 ; e < EdgeIndices.Num() ; ++e )
 	{
 		const FGeomEdge* ge = &GetParentObject()->EdgePool[ EdgeIndices[e] ];
-		Wk += GetParentObject()->VertexPool[ ge->VertexIndices[0] ];
+		Wk += (FVector)GetParentObject()->VertexPool[ ge->VertexIndices[0] ];
 		Count++;
-		Wk += GetParentObject()->VertexPool[ ge->VertexIndices[1] ];
+		Wk += (FVector)GetParentObject()->VertexPool[ ge->VertexIndices[1] ];
 		Count++;
 	}
 
@@ -536,7 +536,7 @@ void FGeomObject::ComputeData()
 	{
 		FGeomPoly* poly = &PolyPool[p];
 
-		poly->SetNormal( poly->GetActualPoly()->Normal );
+		poly->SetNormal( (FVector)poly->GetActualPoly()->Normal );
 		poly->SetMid( poly->GetMidPoint() );
 
 	}
@@ -592,7 +592,7 @@ void FGeomObject::ComputeData()
 				{
 					FGeomPoly* gp = &PolyPool[ ge2->ParentPolyIndices[p] ];
 
-					Wk += gp->GetActualPoly()->Normal;
+					Wk += (FVector)gp->GetActualPoly()->Normal;
 					Count++;
 
 				}

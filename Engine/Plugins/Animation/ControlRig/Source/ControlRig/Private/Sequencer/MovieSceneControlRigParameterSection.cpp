@@ -2195,7 +2195,7 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 			if (bSetDefault)
 			{
 				//or use IntialValue?
-				DefaultValue = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+				DefaultValue = (FVector)ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
 			}
 			AddVectorParameter(ControlElement->GetName(), DefaultValue, false);
 			//mz todo specify rotator special so we can do quat interps
@@ -3023,7 +3023,7 @@ TOptional<FTransform> UMovieSceneControlRigParameterSection::EvaluateTransformPa
 
 			}
 		}
-		Value = FTransform(FRotator(Rotator), Translation, Scale);
+		Value = FTransform(FRotator(Rotator), (FVector)Translation, (FVector)Scale);
 		OptValue = Value;
 	}
 	return OptValue;

@@ -282,8 +282,8 @@ namespace Chaos
 						const int32 VertexIndex0 = Shape->GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 						const int32 VertexIndex1 = Shape->GetPlaneVertex(PlaneIndex, Utilities::WrapIndex(PlaneVertexIndex + 1, 0, PlaneVerticesNum));
 
-						const FVec3 OuterP0 = ShapeTransform.TransformPosition(Shape->GetVertex(VertexIndex0));
-						const FVec3 OuterP1 = ShapeTransform.TransformPosition(Shape->GetVertex(VertexIndex1));
+						const FVec3 OuterP0 = ShapeTransform.TransformPosition(FVector(Shape->GetVertex(VertexIndex0)));
+						const FVec3 OuterP1 = ShapeTransform.TransformPosition(FVector(Shape->GetVertex(VertexIndex1)));
 
 						const FVec3 N0 = ShapeTransform.TransformVectorNoScale(Shape->GetPlane(PlaneIndex).Normal());
 						const FVec3 ExplodeDelta = ChaosDebugDrawConvexExplodeDistance * N0;

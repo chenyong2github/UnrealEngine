@@ -98,7 +98,7 @@ bool HModel::ResolveSurface(const FSceneView* View,int32 X,int32 Y,uint32& OutSu
 
 			// Clip the node's FPoly against the view's near clipping plane.
 			if(	!View->bHasNearClippingPlane ||
-				NodePolygon.Split(-FVector(View->NearClippingPlane),View->NearClippingPlane * View->NearClippingPlane.W))
+				NodePolygon.Split(-FVector3f(View->NearClippingPlane),FVector3f(View->NearClippingPlane * View->NearClippingPlane.W)))
 			{
 				for(int32 LeadingVertexIndex = 2;LeadingVertexIndex < NodePolygon.Vertices.Num();LeadingVertexIndex++)
 				{
@@ -106,7 +106,7 @@ bool HModel::ResolveSurface(const FSceneView* View,int32 X,int32 Y,uint32& OutSu
 					FVector4 Vertices[3];
 					for(uint32 VertexIndex = 0;VertexIndex < 3;VertexIndex++)
 					{
-						FVector4 ScreenPosition = View->WorldToScreen(NodePolygon.Vertices[TriangleVertexIndices[VertexIndex]]);
+						FVector4 ScreenPosition = View->WorldToScreen((FVector)NodePolygon.Vertices[TriangleVertexIndices[VertexIndex]]);
 						float InvW = 1.0f / ScreenPosition.W;
 						float SizeX = View->UnscaledViewRect.Width();
 						float SizeY = View->UnscaledViewRect.Height();

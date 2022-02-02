@@ -324,7 +324,7 @@ namespace GeometryCollection
 						if (ParticleIndex == CurrentParticleIndex)
 						{
 							VertexCount[GeometryIndex]++;
-							BoundingBox[GeometryIndex] += Vertex[vdx];
+							BoundingBox[GeometryIndex] += FVector(Vertex[vdx]);
 						}
 						// ensure contiguous particle indices
 						// @todo(ContigiousVertices) : Files on disk are not contiguous, so until they are fixed just use the first set of vertices.
@@ -384,7 +384,7 @@ namespace GeometryCollection
 						int vdx = FaceIndices[fdx][0];
 						int32 GeometryIndex = ReverseMap[BoneMap[vdx]]; // double indexing safe due to check in previous loop.
 
-						FVector Centroid(0);
+						FVector3f Centroid(0);
 						for (int e = 0; e < 3; e++)
 						{
 							Centroid += Vertex[FaceIndices[fdx][e]];
@@ -404,7 +404,7 @@ namespace GeometryCollection
 						for (int e = 0; e < 3; e++)
 						{
 							int i = e, j = (e + 1) % 3;
-							FVector Edge = Vertex[FaceIndices[fdx][i]] + 0.5*(Vertex[FaceIndices[fdx][j]] - Vertex[FaceIndices[fdx][i]]);
+							FVector3f Edge = Vertex[FaceIndices[fdx][i]] + 0.5*(Vertex[FaceIndices[fdx][j]] - Vertex[FaceIndices[fdx][i]]);
 							float Delta = (Center[GeometryIndex] - Edge).Size();
 							InnerRadius[GeometryIndex] = FMath::Min(InnerRadius[GeometryIndex], Delta);
 							OuterRadius[GeometryIndex] = FMath::Max(OuterRadius[GeometryIndex], Delta);

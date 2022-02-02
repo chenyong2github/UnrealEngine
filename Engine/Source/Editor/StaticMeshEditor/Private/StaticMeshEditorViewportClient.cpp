@@ -483,9 +483,9 @@ void DrawCustomComplex(FPrimitiveDrawInterface* PDI, FTriMeshCollisionData Mesh,
 {
 	for (int i = 0; i < Mesh.Indices.Num(); ++i)
 	{
-		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v0], Mesh.Vertices[Mesh.Indices[i].v1], Color, SDPG_World);
-		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v1], Mesh.Vertices[Mesh.Indices[i].v2], Color, SDPG_World);
-		PDI->DrawLine(Mesh.Vertices[Mesh.Indices[i].v2], Mesh.Vertices[Mesh.Indices[i].v0], Color, SDPG_World);
+		PDI->DrawLine((FVector)Mesh.Vertices[Mesh.Indices[i].v0], (FVector)Mesh.Vertices[Mesh.Indices[i].v1], Color, SDPG_World);
+		PDI->DrawLine((FVector)Mesh.Vertices[Mesh.Indices[i].v1], (FVector)Mesh.Vertices[Mesh.Indices[i].v2], Color, SDPG_World);
+		PDI->DrawLine((FVector)Mesh.Vertices[Mesh.Indices[i].v2], (FVector)Mesh.Vertices[Mesh.Indices[i].v0], Color, SDPG_World);
 	}
 }
 
@@ -622,9 +622,9 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 		FMatrix LocalToWorldInverseTranspose = StaticMeshComponent->GetComponentTransform().ToMatrixWithScale().InverseFast().GetTransposed();
 		for (uint32 i = 0; i < NumIndices; i++)
 		{
-			const FVector& VertexPos = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition( Indices[i] );
+			const FVector3f& VertexPos = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition( Indices[i] );
 
-			const FVector WorldPos = StaticMeshComponent->GetComponentTransform().TransformPosition( VertexPos );
+			const FVector WorldPos = StaticMeshComponent->GetComponentTransform().TransformPosition( (FVector)VertexPos );
 			const FVector3f& Normal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( Indices[i] ); 
 			const FVector3f& Binormal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY( Indices[i] ); 
 			const FVector3f& Tangent = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX( Indices[i] ); 
@@ -635,23 +635,23 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 
 			if( bDrawNormals )
 			{
-				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( Normal ).GetSafeNormal() * Len, FLinearColor( 0.0f, 1.0f, 0.0f), SDPG_World );
+				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( (FVector)Normal ).GetSafeNormal() * Len, FLinearColor( 0.0f, 1.0f, 0.0f), SDPG_World );
 			}
 
 			if( bDrawTangents )
 			{
-				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( Tangent ).GetSafeNormal() * Len, FLinearColor( 1.0f, 0.0f, 0.0f), SDPG_World );
+				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( (FVector)Tangent ).GetSafeNormal() * Len, FLinearColor( 1.0f, 0.0f, 0.0f), SDPG_World );
 			}
 
 			if( bDrawBinormals )
 			{
-				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( Binormal ).GetSafeNormal() * Len, FLinearColor( 0.0f, 0.0f, 1.0f), SDPG_World );
+				PDI->DrawLine( WorldPos, WorldPos+LocalToWorldInverseTranspose.TransformVector( (FVector)Binormal ).GetSafeNormal() * Len, FLinearColor( 0.0f, 0.0f, 1.0f), SDPG_World );
 			}
 
 			if( bDrawVertices )
 			{								
 				PDI->SetHitProxy(new HSMEVertexProxy(i));
-				DrawWireBox( PDI, FBox(VertexPos - Box, VertexPos + Box), FLinearColor(0.0f, 1.0f, 0.0f), SDPG_World );
+				DrawWireBox( PDI, FBox((FVector)VertexPos - Box, (FVector)VertexPos + Box), FLinearColor(0.0f, 1.0f, 0.0f), SDPG_World );
 				PDI->SetHitProxy(NULL);								
 			}
 		}	
@@ -1063,7 +1063,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 					FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 					const uint32 Index = Indices[VertexProxy->Index];
 
-					Socket->RelativeLocation = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index);
+					Socket->RelativeLocation = (FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index);
 					Socket->RelativeRotation = FRotator(FRotationMatrix44f::MakeFromYZ(LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index), LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index)).Rotator());
 
 					ClearSelectedSockets = false;
@@ -1127,7 +1127,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 							{
 								WedgeIndex[Corner] = IndexBufferIndex;
 								VertexIndex[Corner] = RenderData.IndexBuffer.GetIndex(IndexBufferIndex);
-								VertexPosition[Corner] = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex[Corner]);
+								VertexPosition[Corner] = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex[Corner]);
 								IndexBufferIndex++;
 							}
 							// We disable edge selection where all adjoining triangles are back face culled and the 
@@ -1270,8 +1270,8 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 							const uint32 VertexIndex2 = RenderData.IndexBuffer.GetIndex(WedgeIndex2);
 							// Cache edge vertices in local space.
 							FVector EdgeVertices[2];
-							EdgeVertices[0] = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
-							EdgeVertices[1] = RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex2);
+							EdgeVertices[0] = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+							EdgeVertices[1] = (FVector)RenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex2);
 
 							SelectedEdgeVertices.Add(EdgeVertices[0]);
 							SelectedEdgeVertices.Add(EdgeVertices[1]);

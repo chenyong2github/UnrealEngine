@@ -147,15 +147,15 @@ FDistanceFieldAtlasParameters DistanceField::SetupAtlasParameters(const FDistanc
 		SceneParameters.DistanceFieldBrickTexture = DistanceFieldSceneData.DistanceFieldBrickVolumeTexture->GetRenderTargetItem().ShaderResourceTexture;
 		SceneParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
-		SceneParameters.DistanceFieldBrickSize = FVector(DistanceField::BrickSize);
-		SceneParameters.DistanceFieldUniqueDataBrickSize = FVector(DistanceField::UniqueDataBrickSize);
+		SceneParameters.DistanceFieldBrickSize = FVector3f(DistanceField::BrickSize);
+		SceneParameters.DistanceFieldUniqueDataBrickSize = FVector3f(DistanceField::UniqueDataBrickSize);
 		SceneParameters.DistanceFieldBrickAtlasSizeInBricks = DistanceFieldSceneData.BrickTextureDimensionsInBricks;
 		SceneParameters.DistanceFieldBrickAtlasMask = DistanceFieldSceneData.BrickTextureDimensionsInBricks - FIntVector(1);
 		SceneParameters.DistanceFieldBrickAtlasSizeLog2 = FIntVector(
 			FMath::FloorLog2(DistanceFieldSceneData.BrickTextureDimensionsInBricks.X),
 			FMath::FloorLog2(DistanceFieldSceneData.BrickTextureDimensionsInBricks.Y),
 			FMath::FloorLog2(DistanceFieldSceneData.BrickTextureDimensionsInBricks.Z));
-		SceneParameters.DistanceFieldBrickAtlasTexelSize = FVector(1.0f) / FVector(DistanceFieldSceneData.BrickTextureDimensionsInBricks * DistanceField::BrickSize);
+		SceneParameters.DistanceFieldBrickAtlasTexelSize = FVector3f(1.0f) / FVector3f(DistanceFieldSceneData.BrickTextureDimensionsInBricks * DistanceField::BrickSize);
 
 		SceneParameters.DistanceFieldBrickAtlasHalfTexelSize = 0.5f * SceneParameters.DistanceFieldBrickAtlasTexelSize;
 		SceneParameters.DistanceFieldUniqueDataBrickSizeInAtlasTexels = SceneParameters.DistanceFieldUniqueDataBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize;
@@ -716,7 +716,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix();
 									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
-									const FVector4f ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
+									const FVector4f ObjectBoundingSphere((FVector3f)WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
 									
 									UploadObjectBounds[0] = ObjectBoundingSphere;
 
@@ -728,7 +728,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const uint32 Flags = bOftenMoving | (bCastShadow << 1U) | (bIsNaniteMesh << 2U) | (bEmissiveLightSource << 4U);
 
-									FVector4f ObjectWorldExtentAndFlags(WorldSpaceMeshBounds.GetExtent(), 0.0f);
+									FVector4f ObjectWorldExtentAndFlags((FVector3f)WorldSpaceMeshBounds.GetExtent(), 0.0f);
 									ObjectWorldExtentAndFlags.W = *(const float*)&Flags;
 									UploadObjectBounds[1] = ObjectWorldExtentAndFlags;
 
@@ -758,7 +758,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									}
 
 									const float WSign = DistanceFieldData->bMostlyTwoSided ? -1 : 1;
-									UploadObjectData[3] = FVector4f(VolumePositionExtent, WSign * ExpandSurfaceDistance);
+									UploadObjectData[3] = FVector4f((FVector3f)VolumePositionExtent, WSign * ExpandSurfaceDistance);
 
 									const int32 PrimIdx = PrimAndInst.Primitive->GetIndex();
 									const FPrimitiveBounds& PrimBounds = PrimitiveBounds[PrimIdx];
@@ -942,8 +942,8 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 
 								const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
 								const FBox BoxBound = Bounds.GetBox();
-								UploadObjectBounds[0] = FVector4f(BoxBound.GetCenter(), Bounds.SphereRadius);
-								UploadObjectBounds[1] = FVector4f(BoxBound.GetExtent(), 0.f);
+								UploadObjectBounds[0] = FVector4f((FVector3f)BoxBound.GetCenter(), Bounds.SphereRadius);
+								UploadObjectBounds[1] = FVector4f((FVector3f)BoxBound.GetExtent(), 0.f);
 
 								const FMatrix& LocalToWorld = HeightFieldCompDesc.LocalToWorld;
 								check(LocalToWorld.GetMaximumAxisScale() > 0.f);

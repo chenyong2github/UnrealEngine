@@ -70,14 +70,14 @@ struct TranslationAdapter
 {
 	typedef FVector3f KeyType;
 
-	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), Component, Atom.GetScale3D()); }
+	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), (FVector)Component, Atom.GetScale3D()); }
 };
 
 struct ScaleAdapter
 {
 	typedef FVector3f KeyType;
 
-	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), Atom.GetTranslation(), Component); }
+	static FTransform UpdateBoneAtom(const FTransform& Atom, const FVector3f& Component) { return FTransform(Atom.GetRotation(), Atom.GetTranslation(), (FVector)Component); }
 };
 
 /**
@@ -515,7 +515,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimDat
 		// scale key
 		if (RawTrack.ScaleKeys.Num() > 0)
 		{
-			const FVector3f InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
+			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)BasePoseTrack.ScaleKeys[0]);
 
 			// transform scale keys.
 			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
@@ -563,7 +563,7 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 		// scale key
 		if (ScaleData.Num() > 0)
 		{
-			const FVector3f InvRefBoneScale = FTransform::GetSafeScaleReciprocal(BasePoseTrack.ScaleKeys[0]);
+			const FVector3f InvRefBoneScale = (FVector3f)FTransform::GetSafeScaleReciprocal((FVector)BasePoseTrack.ScaleKeys[0]);
 
 			// convert the new scale tracks to additive space
 			FScaleTrack& ScaleTrack = ScaleData[TrackIndex];
@@ -727,7 +727,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						const FTransform& RelTM = (RawWorldChild.GetRelativeTransform(NewWorldParent));
 						const FTransform Delta = FTransform(RelTM);
 
-						Key = Delta.GetScale3D();
+						Key = (FVector3f)Delta.GetScale3D();
 					}
 				}
 							
@@ -789,11 +789,11 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 								// limit the range we will retarget to something reasonable (~60 degrees)
 								if (DotResult < 1.0f && DotResult > 0.5f)
 								{
-									FQuat4f Adjustment= FQuat4f::FindBetweenVectors(CurrentHeading, DesiredHeading);
+									FQuat4f Adjustment= FQuat4f::FindBetweenVectors((FVector3f)CurrentHeading, (FVector3f)DesiredHeading);
 									Adjustment = EnforceShortestArc(FQuat4f::Identity, Adjustment);
 
-									const FVector Test = Adjustment.RotateVector(CurrentHeading);
-									const float DeltaSqr = (Test - DesiredHeading).SizeSquared();
+									const FVector3f Test = Adjustment.RotateVector((FVector3f)CurrentHeading);
+									const float DeltaSqr = (Test - (FVector3f)DesiredHeading).SizeSquared();
 									if (DeltaSqr < FMath::Square(0.001f))
 									{
 										FQuat4f NewKey = Adjustment * Key;
@@ -835,7 +835,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						const FTransform Delta = FTransform(RelTM);
 						ensure (!Delta.ContainsNaN());
 
-						Key = Delta.GetTranslation();
+						Key = (FVector3f)Delta.GetTranslation();
 					}
 				}
 

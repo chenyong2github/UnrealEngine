@@ -1626,7 +1626,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 		FVector Center(ForceInitToZero);
 		for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 		{
-			ExplodedVectors[Idx] = FVector::ZeroVector;
+			ExplodedVectors[Idx] = FVector3f::ZeroVector;
 			FVector GeoCenter;
 			if (GetValidGeoCenter(GeometryCollection->GetGeometryCollection().Get(), TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
 			{
@@ -1647,7 +1647,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 			{
 				if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
 				{
-					ExplodedVectors[Idx] = (TransformedCenters[Idx] - Center) * ExplodeAmount;
+					ExplodedVectors[Idx] = (FVector3f)(TransformedCenters[Idx] - Center) * ExplodeAmount;
 				}
 				else
 				{

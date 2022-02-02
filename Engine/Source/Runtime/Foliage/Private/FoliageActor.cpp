@@ -389,7 +389,7 @@ bool FFoliageActor::UpdateInstanceFromActor(int32 Index, FFoliageInfo& FoliageIn
 	FoliageInfo.Instances[Index].Location = ActorTransform.GetLocation();
 	FoliageInfo.Instances[Index].Rotation = FRotator(ActorTransform.GetRotation());
 	FoliageInfo.Instances[Index].PreAlignRotation = FoliageInfo.Instances[Index].Rotation;
-	FoliageInfo.Instances[Index].DrawScale3D = Actor->GetActorScale3D();
+	FoliageInfo.Instances[Index].DrawScale3D = (FVector3f)Actor->GetActorScale3D();
 	FoliageInfo.InstanceHash->InsertInstance(FoliageInfo.Instances[Index].Location, Index);
 	
 	return true;

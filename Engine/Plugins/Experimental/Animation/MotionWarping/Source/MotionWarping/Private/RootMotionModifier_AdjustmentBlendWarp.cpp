@@ -310,7 +310,7 @@ void URootMotionModifier_AdjustmentBlendWarp::AdjustmentBlendWarp(const FBoneCon
 		Track.PosKeys.Add(FVector3f(MotionDeltaTrack.BoneTransformTrack[0].GetLocation()));
 		Track.RotKeys.Add(FQuat4f(MotionDeltaTrack.BoneTransformTrack[0].GetRotation()));
 
-		Track.ScaleKeys.Add(FVector(1));
+		Track.ScaleKeys.Add(FVector3f(1));
 
 		Output.TrackNames[BoneIndex] = BoneContainer.GetReferenceSkeleton().GetBoneName(BoneContainer.GetBoneIndicesArray()[BoneIndex]);
 

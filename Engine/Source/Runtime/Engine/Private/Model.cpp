@@ -345,7 +345,7 @@ void UModel::CalculateUniqueVertCount()
 				bool bAlreadyAdded(false);
 				for(int32 UniqueIndex(0); UniqueIndex < UniquePoints.Num(); ++UniqueIndex)
 				{
-					if(Polys->Element[PolyIndex].Vertices[VertIndex] == UniquePoints[UniqueIndex])
+					if((FVector)Polys->Element[PolyIndex].Vertices[VertIndex] == UniquePoints[UniqueIndex])
 					{
 						bAlreadyAdded = true;
 						break;
@@ -354,7 +354,7 @@ void UModel::CalculateUniqueVertCount()
 
 				if(!bAlreadyAdded)
 				{
-					UniquePoints.Push(Polys->Element[PolyIndex].Vertices[VertIndex]);
+					UniquePoints.Push((FVector)Polys->Element[PolyIndex].Vertices[VertIndex]);
 				}
 			}
 		}
@@ -392,8 +392,8 @@ void UModel::PostLoad()
 #if WITH_EDITOR
 		if (ABrush* Owner = Cast<ABrush>(GetOuter()))
 		{
-			OwnerLocationWhenLastBuilt = Owner->GetActorLocation();
-			OwnerScaleWhenLastBuilt = Owner->GetActorScale();
+			OwnerLocationWhenLastBuilt = (FVector3f)Owner->GetActorLocation();
+			OwnerScaleWhenLastBuilt = (FVector3f)Owner->GetActorScale();
 			OwnerRotationWhenLastBuilt = Owner->GetActorRotation();
 			bCachedOwnerTransformValid = true;
 		}
@@ -700,7 +700,7 @@ void UModel::BuildBound()
 		TArray<FVector> NewPoints;
 		for( int32 i=0; i<Polys->Element.Num(); i++ )
 			for( int32 j=0; j<Polys->Element[i].Vertices.Num(); j++ )
-				NewPoints.Add(Polys->Element[i].Vertices[j]);
+				NewPoints.Add((FVector)Polys->Element[i].Vertices[j]);
 		Bounds = FBoxSphereBounds( NewPoints.GetData(), NewPoints.Num() );
 	}
 }
@@ -710,7 +710,7 @@ void UModel::Transform( ABrush* Owner )
 	check(Owner);
 
 	for( int32 i=0; i<Polys->Element.Num(); i++ )
-		Polys->Element[i].Transform(Owner->GetActorLocation());
+		Polys->Element[i].Transform((FVector3f)Owner->GetActorLocation());
 
 }
 
@@ -792,8 +792,8 @@ FVector UModel::GetCenter()
 		for(uint32 VertexIndex = 0;VertexIndex < NumVerts;VertexIndex++)
 		{
 			const FVert& Vert = Verts[Node.iVertPool + VertexIndex];
-			const FVector& Position = Points[Vert.pVertex];
-			Center += Position;
+			const FVector3f& Position = Points[Vert.pVertex];
+			Center += (FVector)Position;
 			Cnt++;
 		}
 	}
@@ -857,7 +857,7 @@ int32 UModel::BuildVertexBuffers()
 				DestVertex->TangentZ = TangentZ;
 
 				// store the sign of the determinant in TangentZ.W
-				DestVertex->TangentZ.W = GetBasisDeterminantSign( TangentX, TangentY, TangentZ );
+				DestVertex->TangentZ.W = GetBasisDeterminantSign((FVector)TangentX, (FVector)TangentY, (FVector)TangentZ );
 
 				DestVertex++;
 			}
@@ -876,7 +876,7 @@ int32 UModel::BuildVertexBuffers()
 					DestVertex->TangentZ = -TangentZ;
 
 					// store the sign of the determinant in TangentZ.W
-					DestVertex->TangentZ.W = GetBasisDeterminantSign( TangentX, TangentY, -TangentZ );
+					DestVertex->TangentZ.W = GetBasisDeterminantSign((FVector)TangentX, (FVector)TangentY, (FVector)-TangentZ );
 
 					DestVertex++;
 				}

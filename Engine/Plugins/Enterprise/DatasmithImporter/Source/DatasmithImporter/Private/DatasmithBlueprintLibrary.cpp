@@ -1092,7 +1092,7 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			uint32 VertexIndex = IndexBuffer.GetIndex(TriangleIndex * 3 + CornerIndex);
-			VertexPosition[CornerIndex] = PositionBuffer.VertexPosition(VertexIndex);
+			VertexPosition[CornerIndex] = (FVector)PositionBuffer.VertexPosition(VertexIndex);
 			LightmapUVs[CornerIndex] = FVector2D(VertexBuffer.GetVertexUV(VertexIndex, StaticMesh->GetLightMapCoordinateIndex()));
 		}
 

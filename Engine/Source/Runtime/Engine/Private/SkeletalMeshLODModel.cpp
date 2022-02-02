@@ -229,7 +229,7 @@ struct FLegacyRigidSkinVertex
 		DestVertex.TangentY = TangentY;
 		DestVertex.TangentZ = TangentZ;
 		// store the sign of the determinant in TangentZ.W
-		DestVertex.TangentZ.W = GetBasisDeterminantSign(TangentX, TangentY, TangentZ);
+		DestVertex.TangentZ.W = GetBasisDeterminantSign((FVector)TangentX, (FVector)TangentY, (FVector)TangentZ);
 
 		// copy all texture coordinate sets
 		for(int32 i = 0; i < MAX_TEXCOORDS; ++i)

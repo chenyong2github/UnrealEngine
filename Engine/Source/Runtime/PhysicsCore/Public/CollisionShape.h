@@ -193,6 +193,14 @@ struct FCollisionShape
 	static FCollisionShape MakeBox(const FVector& BoxHalfExtent)
 	{
 		FCollisionShape BoxShape;
+		BoxShape.SetBox(FVector3f(BoxHalfExtent));
+		return BoxShape;
+	}
+
+	/** Static utility function to make a box */
+	static FCollisionShape MakeBox(const FVector3f& BoxHalfExtent)
+	{
+		FCollisionShape BoxShape;
 		BoxShape.SetBox(BoxHalfExtent);
 		return BoxShape;
 	}
@@ -217,7 +225,7 @@ struct FCollisionShape
 	static FCollisionShape MakeCapsule(const FVector& Extent)
 	{
 		FCollisionShape CapsuleShape;
-		CapsuleShape.SetCapsule(Extent);
+		CapsuleShape.SetCapsule(FVector3f(Extent));
 		return CapsuleShape;
 	}
 };

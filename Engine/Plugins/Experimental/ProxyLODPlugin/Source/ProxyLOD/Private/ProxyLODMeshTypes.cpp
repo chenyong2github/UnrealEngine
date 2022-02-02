@@ -247,7 +247,7 @@ void FMeshDescriptionArrayAdapter::GetWorldSpacePoint(size_t FaceNumber, size_t 
 
 	if (InstanceIdx != INDEX_NONE)
 	{
-		Position = InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition(Position);
+		Position = (FVector3f)InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition((FVector)Position);
 	}
 
 	pos = openvdb::Vec3d(Position.X, Position.Y, Position.Z);
@@ -330,7 +330,7 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 			{
 				for (int32 i = 0; i < 3; ++i)
 				{
-					RawPoly.VertexPositions[i] = InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition(RawPoly.VertexPositions[i]);
+					RawPoly.VertexPositions[i] = (FVector3f)InstancesTransformArray[MeshIdx][InstanceIdx].TransformPosition((FVector)RawPoly.VertexPositions[i]);
 				}
 			}
 		}
@@ -348,9 +348,9 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 			{
 				for (int32 i = 0; i < 3; ++i)
 				{
-					RawPoly.WedgeTangentX[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentX[i]) * MulBy);
-					RawPoly.WedgeTangentY[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentY[i]) * MulBy);
-					RawPoly.WedgeTangentZ[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentZ[i]) * MulBy);
+					RawPoly.WedgeTangentX[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector((FVector)RawPoly.WedgeTangentX[i]) * MulBy);
+					RawPoly.WedgeTangentY[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector((FVector)RawPoly.WedgeTangentY[i]) * MulBy);
+					RawPoly.WedgeTangentZ[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector((FVector)RawPoly.WedgeTangentZ[i]) * MulBy);
 				}
 			}
 		}

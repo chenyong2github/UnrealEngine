@@ -262,13 +262,13 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 	for (int32 i = 0; i < SelectedVids.Num(); ++i)
 	{
 		int32 Vid = SelectedVids[i];
-		FVector3d OldPosition = Mesh->GetVertex(Vid);
-		FVector3f ExtrusionVector = FVector3d::Zero();
+		FVector OldPosition = Mesh->GetVertex(Vid);
+		FVector ExtrusionVector = FVector::Zero();
 
 		switch (ExtrusionVectorType)
 		{
 		case EVertexExtrusionVectorType::VertexNormal:
-			ExtrusionVector = Mesh->GetVertexNormal(Vid);
+			ExtrusionVector = FVector(Mesh->GetVertexNormal(Vid));
 			break;
 		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage:
 		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted:

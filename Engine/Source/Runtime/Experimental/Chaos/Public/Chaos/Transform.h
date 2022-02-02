@@ -61,6 +61,12 @@ public:
 		Chaos::TVector<Chaos::FReal, 4> NewVector = ToInverseMatrix() * Vector4;
 		return Chaos::TVector<Chaos::FReal, 3>(NewVector[0], NewVector[1], NewVector[2]);
 	}
+	Chaos::TVector<float, 3> InverseTransformVector(const Chaos::TVector<float, 3>& Vector)
+	{
+		Chaos::TVector<float, 4> Vector4(Vector[0], Vector[1], Vector[2], 0);
+		Chaos::TVector<float, 4> NewVector = ToInverseMatrix() * Vector4;
+		return Chaos::TVector<float, 3>(NewVector[0], NewVector[1], NewVector[2]);
+	}
 	Chaos::PMatrix<Chaos::FReal, 3, 3> ToRotationMatrix()
 	{
 		return Chaos::PMatrix<Chaos::FReal, 3, 3>(

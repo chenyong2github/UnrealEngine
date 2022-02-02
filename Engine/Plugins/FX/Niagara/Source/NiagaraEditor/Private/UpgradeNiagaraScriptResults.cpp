@@ -85,7 +85,7 @@ FVector UNiagaraPythonScriptModuleInput::AsVec3() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetVec3Def())
 	{
-		return GetValue<FVector3f>(Input);
+		return (FVector)GetValue<FVector3f>(Input);
 	}
 	return FVector();
 }

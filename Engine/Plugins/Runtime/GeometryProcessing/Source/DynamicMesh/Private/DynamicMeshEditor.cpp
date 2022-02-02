@@ -1634,7 +1634,7 @@ void FDynamicMeshEditor::AppendMesh(const TTriangleMeshAdapter<double>* AppendMe
 
 		if (SetNormals)
 		{
-			FVector3f TriNormal = Mesh->GetTriNormal(NewTriID);
+			FVector3f TriNormal(Mesh->GetTriNormal(NewTriID));	//LWC_TODO: Precision loss
 			FIndex3i NormalTri;
 			for (int32 j = 0; j < 3; ++j)
 			{

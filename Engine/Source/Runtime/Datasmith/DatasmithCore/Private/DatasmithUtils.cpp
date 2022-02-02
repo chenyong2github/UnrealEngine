@@ -228,7 +228,7 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 
 	for ( int32 i = 0; i < Mesh.GetVerticesCount(); ++i )
 	{
-		RawMesh.VertexPositions.Add( Mesh.GetVertex( i ) );
+		RawMesh.VertexPositions.Add( (FVector3f)Mesh.GetVertex( i ) );
 	}
 
 	RawMesh.FaceMaterialIndices.Reserve( Mesh.GetFacesCount() );
@@ -254,7 +254,7 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 
 		for ( int32 j = 0; j < 3; ++j )
 		{
-			RawMesh.WedgeTangentZ.Add( Mesh.GetNormal( FaceIndex * 3 + j ) );
+			RawMesh.WedgeTangentZ.Add( (FVector3f)Mesh.GetNormal( FaceIndex * 3 + j ) );
 		}
 	}
 
@@ -332,7 +332,7 @@ bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescrip
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		FVertexID AddedVertexId = MeshDescription.CreateVertex();
-		VertexPositions[AddedVertexId] = DsMesh.GetVertex(VertexIndex);
+		VertexPositions[AddedVertexId] = (FVector3f)DsMesh.GetVertex(VertexIndex);
 	}
 
 	TMap<int32, FPolygonGroupID> PolygonGroupMapping;
@@ -364,7 +364,7 @@ bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescrip
 		for (int32 CornerIndex = 0; CornerIndex < CornerCount; CornerIndex++)
 		{
 			CornerVertexIDs[CornerIndex] = FVertexID(VertexIndex[CornerIndex]);
-			CornerPositions[CornerIndex] = VertexPositions[CornerVertexIDs[CornerIndex]];
+			CornerPositions[CornerIndex] = (FVector)VertexPositions[CornerVertexIDs[CornerIndex]];
 		}
 
 		// Create Vertex instances
@@ -391,7 +391,7 @@ bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescrip
 
 		for (int32 CornerIndex = 0; CornerIndex < CornerCount; CornerIndex++)
 		{
-			VertexInstanceNormals[CornerVertexInstanceIDs[CornerIndex]] = DsMesh.GetNormal(3 * PolygonIndex + CornerIndex);
+			VertexInstanceNormals[CornerVertexInstanceIDs[CornerIndex]] = (FVector3f)DsMesh.GetNormal(3 * PolygonIndex + CornerIndex);
 		}
 
 		// smoothing information

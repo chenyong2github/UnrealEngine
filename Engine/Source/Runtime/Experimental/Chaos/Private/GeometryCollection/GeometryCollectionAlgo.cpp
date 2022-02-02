@@ -579,7 +579,7 @@ namespace GeometryCollectionAlgo
 				{
 					CenterOfMass[i] /= static_cast<float>(SurfaceParticlesCount[i]);
 
-					FTransform Tmp(CenterOfMass[i]);
+					FTransform Tmp((FVector)CenterOfMass[i]);
 
 					// Translate back to original object space position (because vertex position will be centered at the origin), 
 					// then apply the original parent transform.  This ensures the pivot remains the same
@@ -732,8 +732,8 @@ namespace GeometryCollectionAlgo
 
 					if (MinTriangleAreaSq > 0)
 					{
-						FVector p10 = GeometryCollection->Vertex[B] - GeometryCollection->Vertex[A];
-						FVector p20 = GeometryCollection->Vertex[C] - GeometryCollection->Vertex[A];
+						FVector p10(GeometryCollection->Vertex[B] - GeometryCollection->Vertex[A]);
+						FVector p20(GeometryCollection->Vertex[C] - GeometryCollection->Vertex[A]);
 						FVector Cross = FVector::CrossProduct(p20, p10);
 						if (Cross.SizeSquared() < MinTriangleAreaSq)
 						{

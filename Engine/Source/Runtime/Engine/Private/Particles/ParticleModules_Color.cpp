@@ -598,7 +598,7 @@ void UParticleModuleColorScaleOverLife::Update(FParticleEmitterInstance* Owner, 
 		if (bEmitterTime)
 		{
 			BEGIN_UPDATE_LOOP;
-				ColorVec = ColorScaleOverLife.GetValue(Owner->EmitterTime, Owner->Component);
+				ColorVec = FVector3f(ColorScaleOverLife.GetValue(Owner->EmitterTime, Owner->Component));
 				fAlpha = AlphaScaleOverLife.GetValue(Owner->EmitterTime, Owner->Component);
 				Particle.Color.R *= ColorVec.X;
 				Particle.Color.G *= ColorVec.Y;
@@ -609,7 +609,7 @@ void UParticleModuleColorScaleOverLife::Update(FParticleEmitterInstance* Owner, 
 		else
 		{
 			BEGIN_UPDATE_LOOP;
-				ColorVec = ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component);
+				ColorVec = FVector3f(ColorScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component));
 				fAlpha = AlphaScaleOverLife.GetValue(Particle.RelativeTime, Owner->Component);
 				Particle.Color.R *= ColorVec.X;
 				Particle.Color.G *= ColorVec.Y;

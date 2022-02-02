@@ -29,7 +29,7 @@ FVector3f FLargeWorldRenderScalar::GetTileFor(FVector InPosition)
 	{
 		return FVector3f::ZeroVector;
 	}
-	FVector3f LWCTile = InPosition / UE_LWC_RENDER_TILE_SIZE + 0.5;
+	FVector3f LWCTile = FVector3f(InPosition / UE_LWC_RENDER_TILE_SIZE + 0.5);
 
 	// normalize the tile
 	LWCTile.X = FMath::FloorToFloat(LWCTile.X);

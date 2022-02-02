@@ -642,12 +642,12 @@ namespace HairCards
 
 	void VoxelizeGroom(const FHairStrandsDatas& InData, const uint32 InResolution, FVoxelVolume& Out)
 	{
-		const FVector3f BoundSize = InData.BoundingBox.Max - InData.BoundingBox.Min;
+		const FVector3f BoundSize = FVector3f(InData.BoundingBox.Max - InData.BoundingBox.Min);
 		Out.VoxelSize = FMath::Max3(BoundSize.X, BoundSize.Y, BoundSize.Z) / InResolution;
 
 		Out.Resolution = FIntVector(FMath::CeilToFloat(BoundSize.X / Out.VoxelSize), FMath::CeilToFloat(BoundSize.Y / Out.VoxelSize), FMath::CeilToFloat(BoundSize.Z / Out.VoxelSize));
-		Out.MinBound   = InData.BoundingBox.Min;
-		Out.MaxBound   = FVector3f(Out.Resolution) * Out.VoxelSize + InData.BoundingBox.Min;
+		Out.MinBound   = (FVector3f)InData.BoundingBox.Min;
+		Out.MaxBound   = (FVector3f)Out.Resolution * Out.VoxelSize + (FVector3f)InData.BoundingBox.Min;
 
 		const uint32 TotalVoxelCount = Out.Resolution.X * Out.Resolution.Y * Out.Resolution.Z;
 		Out.Density.Init(0, TotalVoxelCount);
@@ -1296,7 +1296,7 @@ namespace HairCards
 				FVector3f PreviousPosition(0.0, 0.0, 0.0);
 				for (uint32 PointIndex = 0; PointIndex < StrandCount; ++PointIndex, ++PositionIterator, ++RadiusIterator, ++CoordUIterator)
 				{
-					HairStrands.BoundingBox += *PositionIterator;
+					HairStrands.BoundingBox += (FVector)*PositionIterator;
 
 					if (PointIndex > 0)
 					{
@@ -2094,7 +2094,7 @@ namespace HairCards
 					if (VertexIt == 0)
 					{
 						// Bias the initial normal by assuming the groom is centered aroung a head (spherical hypothesis)
-						const FVector3f StartN = (P0- In.BoundingBox.GetCenter()).GetSafeNormal();
+						const FVector3f StartN = (FVector3f)((FVector)P0 - In.BoundingBox.GetCenter()).GetSafeNormal();
 						//PrevN = N;
 						PrevN = StartN;
 					}
@@ -2791,7 +2791,7 @@ namespace HairCards
 				const uint32 PointIndex = PointOffset + PointIt;
 				const FVector3f P0 = InClusters.BoundPositions[PointIndex];
 
-				OutGuides.BoundingBox += P0;
+				OutGuides.BoundingBox += (FVector)P0;
 
 				OutGuides.StrandsPoints.PointsPosition[PointIndex] = P0;
 				OutGuides.StrandsPoints.PointsBaseColor[PointIndex] = FLinearColor(FVector3f::ZeroVector);
@@ -2983,7 +2983,7 @@ namespace HairCards
 			{
 				const FVector3f P0 = CenterPoints[PointIt];
 
-				OutGuides.BoundingBox += P0;
+				OutGuides.BoundingBox += (FVector)P0;
 
 				OutGuides.StrandsPoints.PointsPosition.Add(P0);
 				OutGuides.StrandsPoints.PointsBaseColor.Add(FLinearColor(FVector3f::ZeroVector));
@@ -4125,8 +4125,8 @@ void BuildGeometry(
 	const FBox& InBox,
 	FHairMeshesBulkData& OutBulk)
 {
-	const FVector3f Center = InBox.GetCenter();
-	const FVector3f Extent = InBox.GetExtent();
+	const FVector3f Center = (FVector3f)InBox.GetCenter();
+	const FVector3f Extent = (FVector3f)InBox.GetExtent();
 
 	// Simple (incorrect normal/tangent) cube geomtry in place of the hair rendering
 	const uint32 TotalPointCount = 8;

@@ -545,7 +545,7 @@ bool Compression::CompressAnimationDataTracks(TArray<FRawAnimSequenceTrack>& Raw
 			if (RawData.ScaleKeys.Num() > 0)
 			{
 				// if scale key exists, see if we can just empty it
-				if ((RawData.ScaleKeys.Num() > 1) || (RawData.ScaleKeys[0].Equals(FVector::OneVector) == false))
+				if ((RawData.ScaleKeys.Num() > 1) || (RawData.ScaleKeys[0].Equals(FVector3f::OneVector) == false))
 				{
 					bCompressScaleKeys = true;
 					break;
@@ -611,7 +611,7 @@ bool Compression::CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, 
 	// Check variation of position keys
 	if ((RawTrack.PosKeys.Num() > 1) && (MaxPosDiff >= 0.0f))
 	{
-		FVector FirstPos = RawTrack.PosKeys[0];
+		FVector3f FirstPos = RawTrack.PosKeys[0];
 		bool bFramesIdentical = true;
 		for (int32 j = 1; j < RawTrack.PosKeys.Num() && bFramesIdentical; j++)
 		{
@@ -659,7 +659,7 @@ bool Compression::CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, 
 	// Check variation of Scaleition keys
 	if ((RawTrack.ScaleKeys.Num() > 1) && (MaxScaleDiff >= 0.0f))
 	{
-		FVector FirstScale = RawTrack.ScaleKeys[0];
+		FVector3f FirstScale = RawTrack.ScaleKeys[0];
 		bool bFramesIdentical = true;
 		for (int32 j = 1; j < RawTrack.ScaleKeys.Num() && bFramesIdentical; j++)
 		{

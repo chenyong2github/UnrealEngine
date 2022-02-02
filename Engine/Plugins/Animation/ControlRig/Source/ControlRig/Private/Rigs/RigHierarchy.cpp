@@ -959,7 +959,7 @@ FString URigHierarchy::GetControlPinDefaultValue(FRigControlElement* InControlEl
 		{
 				if(bForEdGraph)
 				{
-					const FRotator Rotator = FRotator::MakeFromEuler(Value.GetRef<FVector3f>());
+					const FRotator Rotator = FRotator::MakeFromEuler((FVector)Value.GetRef<FVector3f>());
 					return Rotator.ToString();
 				}
 				return Value.ToString<FRotator>();

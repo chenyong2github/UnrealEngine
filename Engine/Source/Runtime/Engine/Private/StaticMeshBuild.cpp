@@ -719,7 +719,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 		{
 			PaintedVertex.Color = Colors[Index];
 			PaintedVertex.Normal = (FVector4)OldVertexBuffer.VertexTangentZ(Index);
-			PaintedVertex.Position = OldPositions.VertexPosition(Index);
+			PaintedVertex.Position = (FVector)OldPositions.VertexPosition(Index);
 			Bounds += PaintedVertex.Position;
 
 			PaintedVertices.Add(PaintedVertex);
@@ -730,7 +730,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 	// of the new vertex positions
 	for (int32 VertIndex = 0; VertIndex < (int32)NewPositions.GetNumVertices(); ++VertIndex)
 	{
-		Bounds += NewPositions.VertexPosition(VertIndex);
+		Bounds += (FVector)NewPositions.VertexPosition(VertIndex);
 	}
 
 	TSMCVertPosOctree VertPosOctree( Bounds.GetCenter(), Bounds.GetExtent().GetMax() );
@@ -749,7 +749,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 	for ( uint32 NewVertIndex = 0; NewVertIndex < NewPositions.GetNumVertices(); ++NewVertIndex )
 	{
 		PointsToConsider.Reset();
-		const FVector& CurPosition = NewPositions.VertexPosition( NewVertIndex );
+		const FVector3f& CurPosition = NewPositions.VertexPosition( NewVertIndex );
 		FVector CurNormal = FVector::ZeroVector;
 		if (OptionalVertexBuffer)
 		{
@@ -757,7 +757,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 		}
 
 		// Iterate through the octree attempting to find the vertices closest to the current new point
-		VertPosOctree.FindNearbyElements(CurPosition, [&PointsToConsider](const FPaintedVertex& Vertex)
+		VertPosOctree.FindNearbyElements((FVector)CurPosition, [&PointsToConsider](const FPaintedVertex& Vertex)
 		{
 			PointsToConsider.Add(Vertex);
 		});
@@ -768,7 +768,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 			FPaintedVertex BestVertex = PointsToConsider[0];
 			FVector BestVertexNormal = BestVertex.Normal;
 
-			float BestDistanceSquared = ( BestVertex.Position - CurPosition ).SizeSquared();
+			float BestDistanceSquared = ( BestVertex.Position - (FVector)CurPosition ).SizeSquared();
 			float BestNormalDot = BestVertexNormal | CurNormal;
 
 			for ( int32 ConsiderationIndex = 1; ConsiderationIndex < PointsToConsider.Num(); ++ConsiderationIndex )
@@ -776,7 +776,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 				FPaintedVertex& Vertex = PointsToConsider[ ConsiderationIndex ];
 				FVector VertexNormal = Vertex.Normal;
 
-				const float DistSqrd = ( Vertex.Position - CurPosition ).SizeSquared();
+				const float DistSqrd = ( Vertex.Position - (FVector)CurPosition ).SizeSquared();
 				const float NormalDot = VertexNormal | CurNormal;
 				if ( DistSqrd < BestDistanceSquared - DistanceOverNormalThreshold )
 				{

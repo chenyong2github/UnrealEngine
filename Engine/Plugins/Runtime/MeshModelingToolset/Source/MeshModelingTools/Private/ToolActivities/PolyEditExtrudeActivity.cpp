@@ -308,9 +308,9 @@ void UPolyEditExtrudeActivity::ReinitializeExtrudeHeightMechanic()
 
 	FOffsetMeshRegion Extruder(&ExtrudeHitTargetMesh);
 	Extruder.OffsetPositionFunc = [Length, ExtrudeDirection](const FVector3d& Position,
-		const FVector3f& Normal, int VertexID)
+		const FVector3d& Normal, int VertexID)
 	{
-		return Position + 2.0 * Length * ExtrudeDirection;
+		return FVector3d(Position + 2.0 * Length * ExtrudeDirection);
 	};
 	Extruder.Triangles.Reserve(PatchMesh->TriangleCount());
 	for (int32 Tid : PatchMesh->TriangleIndicesItr())

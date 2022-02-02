@@ -510,7 +510,7 @@ void FNiagaraParameterStore::ConvertParameterType(const FNiagaraVariable& Existi
 	}
 	if (NewType == FNiagaraTypeDefinition::GetPositionDef())
 	{
-		FVector CurrentValue = *reinterpret_cast<FVector3f*>(GetParameterData_Internal(Idx));
+		FVector CurrentValue = (FVector)*reinterpret_cast<FVector3f*>(GetParameterData_Internal(Idx));
 		SetPositionData(ExistingParam.GetName(), CurrentValue);
 		bPositionDataDirty = true;
 	}
@@ -1162,7 +1162,7 @@ bool FNiagaraParameterStore::SetParameterData(const uint8* Data, FNiagaraVariabl
 	if (SourceType == FNiagaraTypeDefinition::GetPositionDef())
 	{
 		FNiagaraPosition Value = *reinterpret_cast<const FNiagaraPosition*>(Data);
-		return SetPositionParameterValue(Value, Param.GetName(), bAdd);
+		return SetPositionParameterValue((FVector)Value, Param.GetName(), bAdd);
 	}
 	
 	int32 Offset = IndexOf(Param);

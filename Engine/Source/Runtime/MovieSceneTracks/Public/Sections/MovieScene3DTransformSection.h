@@ -86,7 +86,7 @@ struct FMovieScene3DScaleKeyStruct
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Scale = FVector::OneVector;
+	FVector3f Scale = FVector3f::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -118,7 +118,7 @@ struct FMovieScene3DTransformKeyStruct
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Scale = FVector::OneVector;
+	FVector3f Scale = FVector3f::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)

@@ -211,16 +211,16 @@ public:
 
 	inline FPrimitiveUniformShaderParametersBuilder& LocalBounds(const FBoxSphereBounds& InLocalBounds)
 	{
-		Parameters.LocalObjectBoundsMin = InLocalBounds.GetBoxExtrema(0); // 0 == minimum
-		Parameters.LocalObjectBoundsMax = InLocalBounds.GetBoxExtrema(1); // 1 == maximum
+		Parameters.LocalObjectBoundsMin = FVector3f(InLocalBounds.GetBoxExtrema(0)); // 0 == minimum		//LWC_TODO: Precision loss
+		Parameters.LocalObjectBoundsMax = FVector3f(InLocalBounds.GetBoxExtrema(1)); // 1 == maximum		//LWC_TODO: Precision loss
 		return *this;
 	}
 
 	inline FPrimitiveUniformShaderParametersBuilder& PreSkinnedLocalBounds(const FBoxSphereBounds& InPreSkinnedLocalBounds)
 	{
 		bHasPreSkinnedLocalBounds = true;
-		Parameters.PreSkinnedLocalBoundsMin = InPreSkinnedLocalBounds.GetBoxExtrema(0); // 0 == minimum
-		Parameters.PreSkinnedLocalBoundsMax = InPreSkinnedLocalBounds.GetBoxExtrema(1); // 1 == maximum
+		Parameters.PreSkinnedLocalBoundsMin = FVector3f(InPreSkinnedLocalBounds.GetBoxExtrema(0)); // 0 == minimum		//LWC_TODO: Precision loss
+		Parameters.PreSkinnedLocalBoundsMax = FVector3f(InPreSkinnedLocalBounds.GetBoxExtrema(1)); // 1 == maximum		//LWC_TODO: Precision loss
 		return *this;
 	}
 
@@ -295,7 +295,7 @@ public:
 			Parameters.RelativeWorldToLocal = Parameters.LocalToRelativeWorld.Inverse();
 		}
 
-		Parameters.ActorRelativeWorldPosition = AbsoluteActorWorldPosition - TilePositionOffset;
+		Parameters.ActorRelativeWorldPosition = FVector3f(AbsoluteActorWorldPosition - TilePositionOffset);	//LWC_TODO: Precision loss
 		const FVector3f ObjectRelativeWorldPositionAsFloat = FVector3f(AbsoluteObjectWorldPosition - TilePositionOffset);
 		Parameters.ObjectRelativeWorldPositionAndRadius = FVector4f(ObjectRelativeWorldPositionAsFloat, ObjectRadius);
 

@@ -74,7 +74,7 @@ void FMeshVertexPainter::PaintVerticesLerpAlongAxis(UStaticMeshComponent* Static
 
 		for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
-			const FVector& VertexPosition = PositionVertexBuffer.VertexPosition(VertexIndex);
+			const FVector3f& VertexPosition = PositionVertexBuffer.VertexPosition(VertexIndex);
 			const FLinearColor Color = FMath::Lerp(StartColor, EndColor, (VertexPosition.Component(static_cast<int32>(Axis)) - AxisMin) / (AxisMax - AxisMin));
 			VertexColors[VertexIndex] = Color.ToFColor(bConvertToSRGB);
 		}

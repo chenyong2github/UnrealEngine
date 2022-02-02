@@ -734,7 +734,7 @@ RENDERER_API void PrepareSkyTexture_Internal(
 	{
 		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FPathTracingSkylightPrepareCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightPrepareCS::FParameters>();
-		PassParameters->SkyColor = FVector(SkyColor.R, SkyColor.G, SkyColor.B);
+		PassParameters->SkyColor = FVector3f(SkyColor.R, SkyColor.G, SkyColor.B);
 		PassParameters->SkyLightCubemap0 = Parameters.SkyLightCubemap;
 		PassParameters->SkyLightCubemap1 = Parameters.SkyLightBlendDestinationCubemap;
 		PassParameters->SkyLightCubemapSampler0 = Parameters.SkyLightCubemapSampler;
@@ -901,8 +901,8 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, const FViewInfo& V
 {
 	const float Inf = std::numeric_limits<float>::infinity();
 	LightGridParameters->SceneInfiniteLightCount = NumInfiniteLights;
-	LightGridParameters->SceneLightsTranslatedBoundMin = FVector(+Inf, +Inf, +Inf);
-	LightGridParameters->SceneLightsTranslatedBoundMax = FVector(-Inf, -Inf, -Inf);
+	LightGridParameters->SceneLightsTranslatedBoundMin = FVector3f(+Inf, +Inf, +Inf);
+	LightGridParameters->SceneLightsTranslatedBoundMax = FVector3f(-Inf, -Inf, -Inf);
 	LightGridParameters->LightGrid = nullptr;
 	LightGridParameters->LightGridData = nullptr;
 
@@ -1016,14 +1016,14 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	{
 		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[NumLights++];
-		DestLight.Color = FVector(1, 1, 1); // not used (it is folded into the importance table directly)
+		DestLight.Color = FVector3f(1, 1, 1); // not used (it is folded into the importance table directly)
 		DestLight.Flags = Scene->SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
-		DestLight.TranslatedBoundMin = FVector(-Inf, -Inf, -Inf);
-		DestLight.TranslatedBoundMax = FVector( Inf,  Inf,  Inf);
+		DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
+		DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
 		if (Scene->SkyLight->bRealTimeCaptureEnabled || CVarPathTracingVisibleLights.GetValueOnRenderThread() == 2)
 		{
 			// When using the realtime capture system, always make the skylight visible
@@ -1065,19 +1065,19 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 			// these mean roughly the same thing across all light types
 			DestLight.Color = FVector3f(LightParameters.Color);
-			DestLight.TranslatedWorldPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+			DestLight.TranslatedWorldPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 			DestLight.Normal = -LightParameters.Direction;
-			DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
+			DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 			DestLight.dPdv = LightParameters.Tangent;
 			DestLight.Attenuation = LightParameters.InvRadius;
 			DestLight.FalloffExponent = 0;
 
 			DestLight.Normal = LightParameters.Direction;
-			DestLight.Dimensions = FVector(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, 0.0f);
+			DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, 0.0f);
 			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 
-			DestLight.TranslatedBoundMin = FVector(-Inf, -Inf, -Inf);
-			DestLight.TranslatedBoundMax = FVector( Inf,  Inf,  Inf);
+			DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
+			DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
 		}
 	}
 
@@ -1130,9 +1130,9 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 		// these mean roughly the same thing across all light types
 		DestLight.Color = FVector3f(LightParameters.Color);
-		DestLight.TranslatedWorldPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+		DestLight.TranslatedWorldPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 		DestLight.Normal = -LightParameters.Direction;
-		DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
+		DestLight.dPdu = FVector3f::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 		DestLight.dPdv = LightParameters.Tangent;
 		DestLight.Attenuation = LightParameters.InvRadius;
 		DestLight.FalloffExponent = 0;
@@ -1141,7 +1141,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		{
 			case LightType_Rect:
 			{
-				DestLight.Dimensions = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
+				DestLight.Dimensions = FVector3f(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
 				DestLight.Shaping = FVector2f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength);
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
@@ -1192,7 +1192,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			}
 			case LightType_Spot:
 			{
-				DestLight.Dimensions = FVector(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
+				DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
 				DestLight.Shaping = LightParameters.SpotAngles;
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
@@ -1221,12 +1221,13 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			}
 			case LightType_Point:
 			{
-				DestLight.Dimensions = FVector(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
+				DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 				float Radius = 1.0f / LightParameters.InvRadius;
 				FVector3f Center = DestLight.TranslatedWorldPosition;
+
 				// simple sphere of influence
 				DestLight.TranslatedBoundMin = Center - FVector3f(Radius, Radius, Radius);
 				DestLight.TranslatedBoundMax = Center + FVector3f(Radius, Radius, Radius);

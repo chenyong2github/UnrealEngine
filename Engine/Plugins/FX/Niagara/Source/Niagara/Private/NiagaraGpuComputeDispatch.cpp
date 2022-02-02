@@ -2012,8 +2012,8 @@ void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHIC
 			Params.CulledGPUParticleCountOffset = SortInfo.CulledGPUParticleCountOffset;
 			Params.EmitterKey = (uint32)SortInfo.AllocationInfo.ElementIndex << KeyGenInfo.ElementKeyShift;
 			Params.OutputOffset = SortInfo.AllocationInfo.BufferOffset;
-			Params.CameraPosition = SortInfo.ViewOrigin;
-			Params.CameraDirection = SortInfo.ViewDirection;
+			Params.CameraPosition = (FVector3f)SortInfo.ViewOrigin;
+			Params.CameraDirection = (FVector3f)SortInfo.ViewDirection;
 			Params.SortMode = (uint32)SortInfo.SortMode;
 			Params.SortAttributeOffset = SortInfo.SortAttributeOffset;
 			Params.CullPositionAttributeOffset = SortInfo.CullPositionAttributeOffset;
@@ -2024,8 +2024,8 @@ void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHIC
 			Params.MeshIndex = SortInfo.MeshIndex;
 			Params.MeshIndexAttributeOffset = SortInfo.MeshIndexAttributeOffset;
 			Params.CullDistanceRangeSquared = SortInfo.DistanceCullRange * SortInfo.DistanceCullRange;
-			Params.LocalBoundingSphere = FVector4f(SortInfo.LocalBSphere.Center, SortInfo.LocalBSphere.W);
-			Params.CullingWorldSpaceOffset = SortInfo.CullingWorldSpaceOffset;
+			Params.LocalBoundingSphere = FVector4f((FVector3f)SortInfo.LocalBSphere.Center, SortInfo.LocalBSphere.W);
+			Params.CullingWorldSpaceOffset = (FVector3f)SortInfo.CullingWorldSpaceOffset;
 			Params.SystemLWCTile = SortInfo.SystemLWCTile;
 
 			Params.NumCullPlanes = 0;

@@ -693,7 +693,7 @@ void UNiagaraDataInterfaceAudioPlayer::UpdateRotation(FVectorVMExternalFunctionC
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
-		FVector Rotation = RotationParam.GetAndAdvance();
+		FVector3f Rotation = RotationParam.GetAndAdvance();
 
 		if (Handle > 0)
 		{
@@ -809,7 +809,7 @@ void UNiagaraDataInterfaceAudioPlayer::PlayPersistentAudio(FVectorVMExternalFunc
 		bool ShouldPlay = PlayAudioParam.GetAndAdvance();
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
 		FVector Position = InstData->LWCConverter.ConvertSimulationVectorToWorld(PositionParam.GetAndAdvance());
-		FVector InRot = RotationParam.GetAndAdvance();
+		FVector3f InRot = RotationParam.GetAndAdvance();
 		FRotator Rotation = FRotator(InRot.X, InRot.Y, InRot.Z);
 		float Volume = VolumeParam.GetAndAdvance();
 		float Pitch = PitchParam.GetAndAdvance();

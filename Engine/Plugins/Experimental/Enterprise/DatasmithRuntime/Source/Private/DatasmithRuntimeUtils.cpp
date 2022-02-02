@@ -500,7 +500,7 @@ namespace DatasmithRuntime
 		{
 			for(int32 DirIndex = 0; DirIndex < DirectionCount; ++DirIndex)
 			{
-				const float Dist = PositionVertexBuffer.VertexPosition(Index) | Directions[DirIndex];
+				const float Dist = (FVector)PositionVertexBuffer.VertexPosition(Index) | Directions[DirIndex];
 				MaxDistances[DirIndex] = FMath::Max(Dist, MaxDistances[DirIndex]);
 			}
 		}
@@ -528,10 +528,10 @@ namespace DatasmithRuntime
 			FVector3f Base, AxisX, AxisY;
 
 			Polygon.Init();
-			Polygon.Normal = Planes[Index];
+			Polygon.Normal = (FVector3f)Planes[Index];
 			Polygon.Normal.FindBestAxisVectors(AxisX, AxisY);
 
-			Base = Planes[Index] * Planes[Index].W;
+			Base = FVector3f(Planes[Index] * Planes[Index].W);
 
 			Polygon.Vertices.Reserve(4);
 			new(Polygon.Vertices) FVector3f(Base + AxisX * HalfWorldMax + AxisY * HalfWorldMax);
@@ -543,7 +543,7 @@ namespace DatasmithRuntime
 			{
 				if(Index != Jndex)
 				{
-					if(!Polygon.Split(-FVector3f(Planes[Jndex]), Planes[Jndex] * Planes[Jndex].W))
+					if(!Polygon.Split(-FVector3f(Planes[Jndex]), FVector3f(Planes[Jndex] * Planes[Jndex].W)))
 					{
 						Polygon.Vertices.Empty();
 						break;
@@ -575,7 +575,7 @@ namespace DatasmithRuntime
 		{
 			for (FVector3f& Position : Poly.Vertices)
 			{
-				ConvexElem.VertexData.Add(Position);
+				ConvexElem.VertexData.Add((FVector)Position);
 			}
 		}
 

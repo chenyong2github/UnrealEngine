@@ -179,7 +179,7 @@ void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FStri
 
 	UOculusSceneCaptureCubemap*	CubemapCapturer = NewObject<UOculusSceneCaptureCubemap>();
 	CubemapCapturer->AddToRoot(); // TODO: Don't add the object to the GC root
-	CubemapCapturer->SetOffset(CaptureOffset);
+	CubemapCapturer->SetOffset((FVector)CaptureOffset);
 	if (Yaw != 0.f)
 	{
 		FRotator Rotation(FRotator::ZeroRotator);

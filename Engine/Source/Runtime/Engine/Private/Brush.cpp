@@ -253,7 +253,7 @@ void ABrush::PostLoad()
 		// They have not been getting fixed up after vertex editing since at least UE2!
 		for(FPoly& Poly : Brush->Polys->Element)
 		{
-			FVector Normal = Poly.Normal;
+			FVector3f Normal = Poly.Normal;
 			if(!Poly.CalcNormal())
 			{
 				if(!Poly.Normal.Equals(Normal))

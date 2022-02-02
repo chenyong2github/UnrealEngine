@@ -291,7 +291,7 @@ namespace GLTF
 		else if (bMeshHasTagents)
 		{
 			// If other primitives in this mesh have tangents, generate filler ones for this primitive, to avoid gaps.
-			Tangents.Init(FVector(0.0f, 0.0f, 1.0f), Primitive.VertexCount());
+			Tangents.Init(FVector3f(0.0f, 0.0f, 1.0f), Primitive.VertexCount());
 		}
 
 		TArray<FVector4f>& Colors = GetVector4dBuffer(ColorBufferIndex);
@@ -366,9 +366,9 @@ namespace GLTF
 
 				VertexInstanceNormals[VertexInstanceID] = Normals[IndiceIndex];
 				VertexInstanceBinormalSigns[VertexInstanceID] =
-					GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceID].GetSafeNormal(),
-					(VertexInstanceNormals[VertexInstanceID] ^ VertexInstanceTangents[VertexInstanceID]).GetSafeNormal(),
-						VertexInstanceNormals[VertexInstanceID].GetSafeNormal());
+					GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceID].GetSafeNormal(),
+						(FVector)(VertexInstanceNormals[VertexInstanceID] ^ VertexInstanceTangents[VertexInstanceID]).GetSafeNormal(),
+						(FVector)VertexInstanceNormals[VertexInstanceID].GetSafeNormal());
 
 				for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
 				{

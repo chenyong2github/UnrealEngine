@@ -80,9 +80,9 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 			VertexInstanceIDs[Corner] = DstRawMesh.CreateVertexInstance(TriangleIndex[Corner]);
 			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
 			VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector3f(0, 0, 1);
-			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
-																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
-																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
+			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
+																							 (FVector)(VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
+																							 (FVector)VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
 			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(0.0f);
 			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2f(0.0f, 0.0f));
 		}
@@ -193,9 +193,9 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 			VertexInstanceIDs[Corner] = OutRawMesh.CreateVertexInstance(TriangleIndex[Corner]);
 			VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
 			VertexInstanceNormals[VertexInstanceIDs[Corner]] = Normals[Corner];
-			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
-																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
-																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
+			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
+																							 (FVector)(VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
+																							 (FVector)VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
 			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(1.0f);
 			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2f(0.0f, 0.0f));
 		}
@@ -293,16 +293,16 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 				FVector3f BiTangent = SrcVertexDataMesh.BiTangent[SrcIndex];
 				FVector3f Normal = SrcVertexDataMesh.Normal[SrcIndex];
 				VertexInstanceTangents[VertexInstanceIDs[Corner]] = Tangent;
-				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(Tangent, BiTangent, Normal);
+				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign((FVector)Tangent, (FVector)BiTangent, (FVector)Normal);
 				VertexInstanceNormals[VertexInstanceIDs[Corner]] = Normal;
 			}
 			else
 			{
 				VertexInstanceTangents[VertexInstanceIDs[Corner]] = FVector3f(1, 0, 0);
 				VertexInstanceNormals[VertexInstanceIDs[Corner]] = FVector3f(0, 0, 1);
-				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
-																		 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
-																		 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
+				VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
+																								 (FVector)(VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
+																								 (FVector)VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
 			}
 
 			//Color
@@ -423,7 +423,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 			// NB: The tangent space is stored per-index in the raw mesh, but only per-vertex in the vertex data mesh.
 			// We assume that the raw mesh per-index data is really duplicated per-vertex data!
 			DstTangentArray[DstIndices[VertexInstanceCount]] = VertexInstanceTangents[VertexInstanceID];
-			DstBiTangentArray[DstIndices[VertexInstanceCount]] = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
+			DstBiTangentArray[DstIndices[VertexInstanceCount]] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 			DstNormalArray[DstIndices[VertexInstanceCount]] = VertexInstanceNormals[VertexInstanceID];
 
 			// Copy the UVs:

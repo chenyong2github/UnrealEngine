@@ -157,7 +157,7 @@ float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) c
 				break;
 			}
 
-			const float DistFromCurrentFrameToSyncPointSq = FVector::DistSquared2D(SyncPointLocation, PosKeys[Idx]);
+			const float DistFromCurrentFrameToSyncPointSq = FVector::DistSquared2D(SyncPointLocation, (FVector)PosKeys[Idx]);
 			if (DistFromCurrentFrameToSyncPointSq < ActualDistToSyncPointSq)
 			{
 				BestTime = Time;

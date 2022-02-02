@@ -110,10 +110,10 @@ protected:
 
 		// Ordered in the way we iterate across the sides of the box
 		FVector3f SideFaceBoxSpaceNormals[4] = {
-			-Box.AxisX(),
-			-Box.AxisY(),
-			Box.AxisX(),
-			Box.AxisY(),
+			(FVector3f)-Box.AxisX(),
+			(FVector3f)-Box.AxisY(),
+			(FVector3f)Box.AxisX(),
+			(FVector3f)Box.AxisY(),
 		};
 
 		// Set up the sides
@@ -210,18 +210,18 @@ protected:
 		FaceWidth = Distance(Box.GetCorner(0), Box.GetCorner(1));
 		FaceHeight = Distance(Box.GetCorner(0), Box.GetCorner(3));
 
-		MakeUVsAndNormals(DiagFaceIdx1, -Box.Frame.Z(), CornerToVert[DiagFaceIdx1]);
-		MakeUVsAndNormals(DiagFaceIdx2, -Box.Frame.Z(), CornerToVert[DiagFaceIdx2]);
+		MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx1]);
+		MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)-Box.Frame.Z(), CornerToVert[DiagFaceIdx2]);
 
 		bool bDiagonalWelded = CornerInfo.WeldedAtBase[DiagFaceIdx1] && CornerInfo.WeldedAtBase[DiagFaceIdx2];
 		if (!(bDiagonalWelded && CornerInfo.WeldedAtBase[CCWFromDiag1]))
 		{
-			MakeUVsAndNormals(CCWFromDiag1, -Box.Frame.Z(), CornerToVert[CCWFromDiag1]);
+			MakeUVsAndNormals(CCWFromDiag1, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag1]);
 			MakeTriangle(DiagFaceIdx1, CCWFromDiag1, DiagFaceIdx2);
 		}
 		if (!(bDiagonalWelded && CornerInfo.WeldedAtBase[CCWFromDiag2]))
 		{
-			MakeUVsAndNormals(CCWFromDiag2, -Box.Frame.Z(), CornerToVert[CCWFromDiag2]);
+			MakeUVsAndNormals(CCWFromDiag2, (FVector3f)-Box.Frame.Z(), CornerToVert[CCWFromDiag2]);
 			MakeTriangle(DiagFaceIdx1, DiagFaceIdx2, CCWFromDiag2);
 		}
 		++GroupID;
@@ -315,15 +315,15 @@ protected:
 
 				if (bFirstTriExists)
 				{
-					NormalIndices[DiagFaceIdx1] = AppendNormal(Normal, FaceCornerToVert[DiagFaceIdx1]);
-					NormalIndices[DiagFaceIdx2] = AppendNormal(Normal, FaceCornerToVert[DiagFaceIdx2]);
+					NormalIndices[DiagFaceIdx1] = AppendNormal((FVector3f)Normal, FaceCornerToVert[DiagFaceIdx1]);
+					NormalIndices[DiagFaceIdx2] = AppendNormal((FVector3f)Normal, FaceCornerToVert[DiagFaceIdx2]);
 				}
 				else
 				{
-					MakeUVsAndNormals(DiagFaceIdx1, Normal, FaceCornerToVert[DiagFaceIdx1]);
-					MakeUVsAndNormals(DiagFaceIdx2, Normal, FaceCornerToVert[DiagFaceIdx2]);
+					MakeUVsAndNormals(DiagFaceIdx1, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx1]);
+					MakeUVsAndNormals(DiagFaceIdx2, (FVector3f)Normal, FaceCornerToVert[DiagFaceIdx2]);
 				}
-				MakeUVsAndNormals(CCWFromDiag2, Normal, FaceCornerToVert[CCWFromDiag2]);
+				MakeUVsAndNormals(CCWFromDiag2, (FVector3f)Normal, FaceCornerToVert[CCWFromDiag2]);
 			}
 			MakeTriangle(DiagFaceIdx1, DiagFaceIdx2, CCWFromDiag2);
 		}// end triangulating second tri

@@ -751,7 +751,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 								{
 									if (ControlRig->FindControl(Value.Name))
 									{
-										ControlRig->SetControlValue<FVector3f>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+										ControlRig->SetControlValue<FVector3f>(Value.Name, (FVector3f)Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
 									}
 								}
 
@@ -877,7 +877,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						SpaceValue.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 						Token.SpaceValues.Add(FControlSpaceAndValue(ControlElement->GetName(), SpaceValue));
 						const FVector3f Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
-						Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), Val });
+						Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), (FVector)Val });
 						//mz todo specify rotator special so we can do quat interps
 						break;
 					}
@@ -1383,7 +1383,7 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 			if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 			{;
 				FVector3f Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
-				return FControlRigTrackTokenVector(Val);
+				return FControlRigTrackTokenVector((FVector)Val);
 			}
 		}
 		return FControlRigTrackTokenVector();
@@ -1406,7 +1406,7 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 				FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 				if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 				{
-						ControlRig->SetControlValue<FVector3f>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+						ControlRig->SetControlValue<FVector3f>(ParameterName, (FVector3f)InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1801,7 +1801,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 				}
 			}
 
-			Values.VectorValues.Emplace(Vector.ParameterName, Value);
+			Values.VectorValues.Emplace(Vector.ParameterName, (FVector)Value);
 		}
 		for (int32 Index = 0; Index < Colors.Num(); ++Index)
 		{
@@ -2004,7 +2004,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 					}
 				}
 			}
-			FTransformParameterStringAndValue NameAndValue(Transform.ParameterName, Translation, FRotator(Rotator), Scale);
+			FTransformParameterStringAndValue NameAndValue(Transform.ParameterName, (FVector)Translation, FRotator(Rotator), (FVector)Scale);
 			Values.TransformValues.Emplace(NameAndValue);
 		}
 	}

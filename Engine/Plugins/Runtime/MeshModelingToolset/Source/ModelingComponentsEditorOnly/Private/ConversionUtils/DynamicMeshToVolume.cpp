@@ -259,14 +259,14 @@ void DynamicMeshToVolume(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace
 		// create FPoly. This is Editor-only and I'm not entirely sure we need it?
 		// int32 PolyIndex = Polys->Element.Num();
 		FPoly NewPoly;
-		NewPoly.Base = (FVector)Face.BoundaryLoop[0];
-		NewPoly.Normal = Normal;
-		NewPoly.TextureU = U;
-		NewPoly.TextureV = V;
+		NewPoly.Base = (FVector3f)Face.BoundaryLoop[0];
+		NewPoly.Normal = (FVector3f)Normal;
+		NewPoly.TextureU = (FVector3f)U;
+		NewPoly.TextureV = (FVector3f)V;
 		NewPoly.Vertices.SetNum(NumVertices);
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
-			NewPoly.Vertices[k] = (FVector)Face.BoundaryLoop[k];
+			NewPoly.Vertices[k] = (FVector3f)Face.BoundaryLoop[k];
 		}
 		NewPoly.PolyFlags = 0;
 		NewPoly.iLink = NewPoly.iLinkSurf = NewPoly.iBrushPoly = -1;

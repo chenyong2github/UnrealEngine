@@ -1097,10 +1097,10 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 			PassParameters->DebugForceNumMips = CVarDebugForceNumMips.GetValueOnRenderThread();
 			extern int32 GAOGlobalDistanceFieldNumClipmaps;
 			// Request Mesh SDF mips based off of the Global SDF clipmaps
-			PassParameters->Mip1WorldCenter = View.ViewMatrices.GetViewOrigin();
-			PassParameters->Mip1WorldExtent = FVector(GlobalDistanceField::GetClipmapExtent(GAOGlobalDistanceFieldNumClipmaps - 1, Scene, bLumenEnabled));
-			PassParameters->Mip2WorldCenter = View.ViewMatrices.GetViewOrigin();
-			PassParameters->Mip2WorldExtent = FVector(GlobalDistanceField::GetClipmapExtent(FMath::Max<int32>(GAOGlobalDistanceFieldNumClipmaps / 2 - 1, 0), Scene, bLumenEnabled));
+			PassParameters->Mip1WorldCenter = (FVector3f)View.ViewMatrices.GetViewOrigin();
+			PassParameters->Mip1WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(GAOGlobalDistanceFieldNumClipmaps - 1, Scene, bLumenEnabled));
+			PassParameters->Mip2WorldCenter = (FVector3f)View.ViewMatrices.GetViewOrigin();
+			PassParameters->Mip2WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(FMath::Max<int32>(GAOGlobalDistanceFieldNumClipmaps / 2 - 1, 0), Scene, bLumenEnabled));
 
 			auto ComputeShader = GlobalShaderMap->GetShader<FComputeDistanceFieldAssetWantedMipsCS>();
 
@@ -1173,12 +1173,12 @@ void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 Rev
 	FloatVector0.Z = *(const float*)&IntVector0[2];
 	FloatVector0.W = *(const float*)&IntVector0[3];
 
-	FVector4f VolumeToIndirectionScale = FVector4f(MipBuiltData.VolumeToVirtualUVScale, DistanceFieldToVolumeScaleBias.X);
+	FVector4f VolumeToIndirectionScale = FVector4f((FVector3f)MipBuiltData.VolumeToVirtualUVScale, DistanceFieldToVolumeScaleBias.X);
 	VolumeToIndirectionScale.X *= MipBuiltData.IndirectionDimensions.X;
 	VolumeToIndirectionScale.Y *= MipBuiltData.IndirectionDimensions.Y;
 	VolumeToIndirectionScale.Z *= MipBuiltData.IndirectionDimensions.Z;
 
-	FVector4f VolumeToIndirectionAdd = FVector4f(MipBuiltData.VolumeToVirtualUVAdd, DistanceFieldToVolumeScaleBias.Y);
+	FVector4f VolumeToIndirectionAdd = FVector4f((FVector3f)MipBuiltData.VolumeToVirtualUVAdd, DistanceFieldToVolumeScaleBias.Y);
 	VolumeToIndirectionAdd.X *= MipBuiltData.IndirectionDimensions.X;
 	VolumeToIndirectionAdd.Y *= MipBuiltData.IndirectionDimensions.Y;
 	VolumeToIndirectionAdd.Z *= MipBuiltData.IndirectionDimensions.Z;

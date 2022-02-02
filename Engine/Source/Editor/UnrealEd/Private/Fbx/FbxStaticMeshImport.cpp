@@ -703,7 +703,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			int32 RealVertexIndex = VertexOffset + VertexIndex;
 			FbxVector4 FbxPosition = Mesh->GetControlPoints()[VertexIndex];
 			FbxPosition = TotalMatrix.MultT(FbxPosition);
-			const FVector3f VertexPosition = Converter.ConvertPos(FbxPosition);
+			const FVector3f VertexPosition = (FVector3f)Converter.ConvertPos(FbxPosition);
 			
 			FVertexID AddedVertexId = MeshDescription->CreateVertex();
 			VertexPositions[AddedVertexId] = VertexPosition;
@@ -853,7 +853,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 					CornerInstanceIDs[CornerIndex] = VertexInstanceID;
 					const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 					const FVertexID VertexID(VertexOffset + ControlPointIndex);
-					const FVector VertexPosition = VertexPositions[VertexID];
+					const FVector VertexPosition = (FVector)VertexPositions[VertexID];
 					CornerVerticesIDs[CornerIndex] = VertexID;
 
 					FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
@@ -934,7 +934,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 					
 						FbxVector4 TempValue = LayerElementNormal->GetDirectArray().GetAt(NormalValueIndex);
 						TempValue = TotalMatrixForNormal.MultT(TempValue);
-						FVector3f TangentZ = Converter.ConvertDir(TempValue);
+						FVector3f TangentZ = (FVector3f)Converter.ConvertDir(TempValue);
 						VertexInstanceNormals[AddedVertexInstanceId] = TangentZ.GetSafeNormal();
 						//tangents and binormals share the same reference, mapping mode and index array
 						if (bHasNTBInformation)
@@ -946,7 +946,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 							TempValue = LayerElementTangent->GetDirectArray().GetAt(TangentValueIndex);
 							TempValue = TotalMatrixForNormal.MultT(TempValue);
-							FVector3f TangentX = Converter.ConvertDir(TempValue);
+							FVector3f TangentX = (FVector3f)Converter.ConvertDir(TempValue);
 							VertexInstanceTangents[AddedVertexInstanceId] = TangentX.GetSafeNormal();
 
 							int BinormalMapIndex = (BinormalMappingMode == FbxLayerElement::eByControlPoint) ?
@@ -956,8 +956,8 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 							TempValue = LayerElementBinormal->GetDirectArray().GetAt(BinormalValueIndex);
 							TempValue = TotalMatrixForNormal.MultT(TempValue);
-							FVector3f TangentY = -Converter.ConvertDir(TempValue);
-							VertexInstanceBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign(TangentX.GetSafeNormal(), TangentY.GetSafeNormal(), TangentZ.GetSafeNormal());
+							FVector3f TangentY = (FVector3f)-Converter.ConvertDir(TempValue);
+							VertexInstanceBinormalSigns[AddedVertexInstanceId] = GetBasisDeterminantSign((FVector)TangentX.GetSafeNormal(), (FVector)TangentY.GetSafeNormal(), (FVector)TangentZ.GetSafeNormal());
 						}
 					}
 				}

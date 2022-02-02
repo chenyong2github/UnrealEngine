@@ -94,7 +94,7 @@ public:
 		const FMatrix44f RelativeWorldToDecalMatrix = FLargeWorldRenderScalar::MakeFromRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), WorldToDecalMatrix);
 		const FMatrix DecalToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
 		const FMatrix44f RelativeDecalToWorldMatrix = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), DecalToWorldMatrix);
-		const FVector3f OrientationVector = DecalProxy.ComponentTrans.GetUnitAxis(EAxis::X);
+		const FVector3f OrientationVector = (FVector3f)DecalProxy.ComponentTrans.GetUnitAxis(EAxis::X);
 
 		if (DecalTilePosition.IsBound())
 		{

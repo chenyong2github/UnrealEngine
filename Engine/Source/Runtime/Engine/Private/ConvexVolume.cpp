@@ -78,7 +78,7 @@ bool FConvexVolume::ClipPolygon(FPoly& Polygon) const
 	for(int32 PlaneIndex = 0;PlaneIndex < Planes.Num();PlaneIndex++)
 	{
 		const FPlane&	Plane = Planes[PlaneIndex];
-		if(!Polygon.Split(-FVector(Plane),Plane * Plane.W))
+		if(!Polygon.Split(-FVector3f(Plane), (FVector3f)Plane * Plane.W))
 			return 0;
 	}
 	return 1;

@@ -77,10 +77,10 @@ FPoly::FPoly()
 
 void FPoly::Init()
 {
-	Base			= FVector::ZeroVector;
-	Normal			= FVector::ZeroVector;
-	TextureU		= FVector::ZeroVector;
-	TextureV		= FVector::ZeroVector;
+	Base			= FVector3f::ZeroVector;
+	Normal			= FVector3f::ZeroVector;
+	TextureU		= FVector3f::ZeroVector;
+	TextureV		= FVector3f::ZeroVector;
 	Vertices.Empty();
 	PolyFlags       = PF_DefaultFlags;
 	Actor			= NULL;
@@ -99,7 +99,7 @@ void FPoly::Init()
 
 void FPoly::Reverse()
 {
-	FVector Temp;
+	FVector3f Temp;
 	int32 i,c;
 
 	Normal *= -1;
@@ -123,7 +123,7 @@ int32 FPoly::Fix()
 	j=0; prev=Vertices.Num()-1;
 	for( i=0; i<Vertices.Num(); i++ )
 	{
-		if( !FVector::PointsAreSame( Vertices[i], Vertices[prev] ) )
+		if( !FVector3f::PointsAreSame( Vertices[i], Vertices[prev] ) )
 		{
 			if( j != i )
 				Vertices[j] = Vertices[i];
@@ -152,7 +152,7 @@ float FPoly::Area()
 		return 0.f;
 	}
 
-	FVector Side1,Side2;
+	FVector3f Side1,Side2;
 	float Area;
 	int32 i;
 
@@ -195,7 +195,7 @@ int32 FPoly::SplitWithPlane
 	// of the normal) from each point to the plane of SplitPoly.
 	for( i=0; i<Vertices.Num(); i++ )
 	{
-		Dist = FVector::PointPlaneDist( Vertices[i], PlaneBase, PlaneNormal );
+		Dist = FVector3f::PointPlaneDist( Vertices[i], PlaneBase, PlaneNormal );
 
 		if( i==0 || Dist>MaxDist ) MaxDist=Dist;
 		if( i==0 || Dist<MinDist ) MinDist=Dist;
@@ -234,7 +234,7 @@ int32 FPoly::SplitWithPlane
 		for( i=0; i<Vertices.Num(); i++ )
 		{
 			PrevDist	= Dist;
-	  		Dist		= FVector::PointPlaneDist( Vertices[i], PlaneBase, PlaneNormal );
+	  		Dist		= FVector3f::PointPlaneDist( Vertices[i], PlaneBase, PlaneNormal );
 
 			if      (Dist > +Thresh)  	Status = V_FRONT;
 			else if (Dist < -Thresh)  	Status = V_BACK;
@@ -275,7 +275,7 @@ int32 FPoly::SplitWithPlane
 				else
 				{
 					// Intersection point is in between.
-					Intersection = FMath::LinePlaneIntersection(Vertices[j],Vertices[i],PlaneBase,PlaneNormal);
+					Intersection = (FVector)FMath::LinePlaneIntersection(Vertices[j],Vertices[i],PlaneBase,PlaneNormal);
 
 					if( PrevStatus == V_FRONT )
 					{
@@ -359,7 +359,7 @@ int32 FPoly::SplitWithPlaneFast
 	EPlaneClassification* StatusPtr = &VertStatus[0];
 	for( int32 i=0; i<Vertices.Num(); i++ )
 	{
-		float Dist = Plane.PlaneDot(Vertices[i]);
+		float Dist = Plane.PlaneDot((FVector)Vertices[i]);
 		if( Dist >= 0.f )
 		{
 			*StatusPtr++ = V_FRONT;
@@ -444,7 +444,7 @@ int32 FPoly::SplitWithPlaneFast
 
 int32 FPoly::CalcNormal( bool bSilent )
 {
-	Normal = FVector::ZeroVector;
+	Normal = FVector3f::ZeroVector;
 	for( int32 i=2; i<Vertices.Num(); i++ )
 		Normal += (Vertices[i-1] - Vertices[0]) ^ (Vertices[i] - Vertices[0]);
 
@@ -632,13 +632,13 @@ bool FPoly::DoesLineIntersect( FVector Start, FVector End, FVector* Intersect )
 bool FPoly::OnPoly( FVector InVtx )
 {
 	FVector  SidePlaneNormal;
-	FVector  Side;
+	FVector3f  Side;
 
 	for( int32 x = 0 ; x < Vertices.Num() ; x++ )
 	{
 		// Create plane perpendicular to both this side and the polygon's normal.
 		Side = Vertices[x] - Vertices[(x-1 < 0 ) ? Vertices.Num()-1 : x-1 ];
-		SidePlaneNormal = Side ^ Normal;
+		SidePlaneNormal = FVector(Side ^ Normal);
 		SidePlaneNormal.Normalize();
 
 		// If point is not behind all the planes created by this polys edges, it's outside the poly.
@@ -656,13 +656,13 @@ void FPoly::InsertVertex( int32 InPos, FVector InVtx )
 {
 	check( InPos <= Vertices.Num() );
 
-	Vertices.Insert(InVtx,InPos);
+	Vertices.Insert((FVector3f)InVtx,InPos);
 }
 
 
 void FPoly::RemoveVertex( FVector InVtx )
 {
-	Vertices.Remove(InVtx);
+	Vertices.Remove((FVector3f)InVtx);
 }
 
 
@@ -681,7 +681,7 @@ bool FPoly::IsCoplanar()
 	// Note that we do not need to test the first vertex since the OnPlane() check uses it as the "reference" vertex, and always return true for it. 
 	for (int32 x = 1; x < Vertices.Num(); ++x)
 	{
-		if( !OnPlane( Vertices[x] ) )
+		if( !OnPlane( (FVector)Vertices[x] ) )
 		{
 			return 0;
 		}
@@ -755,7 +755,7 @@ int32 FPoly::Triangulate( ABrush* InOwnerBrush, TArray<FPoly>& OutTriangles )
 		Polygon.Vertices.Add( vtx );
 	}
 
-	Polygon.FaceNormal = Normal;
+	Polygon.FaceNormal = (FVector)Normal;
 
 	// Attempt to triangulate this polygon
 	TArray<FClipSMTriangle> Triangles;
@@ -813,7 +813,7 @@ FVector FPoly::GetMidPoint()
 
 	for( int32 v = 0 ; v < Vertices.Num() ; ++v )
 	{
-		mid += Vertices[v];
+		mid += (FVector)Vertices[v];
 	}
 
 	return mid / Vertices.Num();
@@ -834,10 +834,10 @@ FPoly FPoly::BuildInfiniteFPoly(const FPlane& InPlane)
 	EdPoly.Normal.Y    = InPlane.Y;
 	EdPoly.Normal.Z    = InPlane.Z;
 	EdPoly.Base        = EdPoly.Normal * InPlane.W;
-	EdPoly.Vertices.Add( EdPoly.Base + Axis1*HALF_WORLD_MAX + Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base - Axis1*HALF_WORLD_MAX + Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base - Axis1*HALF_WORLD_MAX - Axis2*HALF_WORLD_MAX );
-	EdPoly.Vertices.Add( EdPoly.Base + Axis1*HALF_WORLD_MAX - Axis2*HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*HALF_WORLD_MAX + (FVector3f)Axis2*HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*HALF_WORLD_MAX + (FVector3f)Axis2*HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base - (FVector3f)Axis1*HALF_WORLD_MAX - (FVector3f)Axis2*HALF_WORLD_MAX );
+	EdPoly.Vertices.Add( EdPoly.Base + (FVector3f)Axis1*HALF_WORLD_MAX - (FVector3f)Axis2*HALF_WORLD_MAX );
 
 	return EdPoly;
 }
@@ -855,7 +855,7 @@ FPoly FPoly::BuildAndCutInfiniteFPoly(const FPlane& InPlane, const TArray<FPlane
 	{
 		const FPlane* Plane = &InCutPlanes[p];
 
-		result = PolyMerged.SplitWithPlane( Plane->GetSafeNormal() * Plane->W, Plane->GetSafeNormal(), &Front, &Back, 1 );
+		result = PolyMerged.SplitWithPlane(FVector3f(Plane->GetSafeNormal() * Plane->W), (FVector3f)Plane->GetSafeNormal(), &Front, &Back, 1 );
 
 		if( result == SP_Split )
 		{
@@ -871,7 +871,7 @@ FPoly FPoly::BuildAndCutInfiniteFPoly(const FPlane& InPlane, const TArray<FPlane
 
 bool FPoly::OnPlane( FVector InVtx )
 {
-	return ( FMath::Abs( FVector::PointPlaneDist( InVtx, Vertices[0], Normal ) ) < THRESH_POINT_ON_PLANE );
+	return ( FMath::Abs( FVector::PointPlaneDist( InVtx, (FVector)Vertices[0], (FVector)Normal ) ) < THRESH_POINT_ON_PLANE );
 }
 
 
@@ -881,7 +881,7 @@ int32 FPoly::Split( const FVector3f &InNormal, const FVector3f &InBase )
 	FPoly Front, Back;
 	Front.Init();
 	Back.Init();
-	switch( SplitWithPlaneFast( FPlane(InBase,InNormal), &Front, &Back ))
+	switch( SplitWithPlaneFast( FPlane((FVector)InBase, (FVector)InNormal), &Front, &Back ))
 	{
 		case SP_Back:
 			return 0;

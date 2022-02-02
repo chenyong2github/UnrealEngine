@@ -317,7 +317,7 @@ FTransform CalculateCraneCameraTransform(const FCraneCameraAttributes& Params)
 
 	FTransform FinalTransUE = Conv * Cam * Head * Arm * Base;
 	FVector TranslationUE = FinalTransUE.GetTranslation();
-	FVector3f EulerUE = FinalTransUE.GetRotation().Euler();
+	FVector3f EulerUE = (FVector3f)FinalTransUE.GetRotation().Euler();
 
 	// Convert FinalTransUnrealEditor into the melange coordinate system, so that this can be treated
 	// like the other types of animations in ImportAnimations.
@@ -1358,7 +1358,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 		else
 		{
 			float BrightnessValue = MelangeGetFloat(InC4DMaterialPtr, melange::MATERIAL_TRANSPARENCY_BRIGHTNESS);
-			FVector3f TransparencyColor = MelangeGetVector(InC4DMaterialPtr, melange::MATERIAL_TRANSPARENCY_COLOR);
+			FVector3f TransparencyColor = (FVector3f)MelangeGetVector(InC4DMaterialPtr, melange::MATERIAL_TRANSPARENCY_COLOR);
 
 			// In Cinema4D Transparency Color seems to be used just as another multiplier for the opacity, not as an actual color
 			AddFloatToMaterial(MaterialPtr, TEXT("Transparency_Amount"), BrightnessValue * TransparencyColor.X * TransparencyColor.Y * TransparencyColor.Z);
@@ -2285,7 +2285,7 @@ void FDatasmithC4DImporter::ImportAnimations(TSharedPtr<IDatasmithActorElement> 
 			else if (TransFormType == EDatasmithTransformType::Rotation)
 			{
 				// Copy as we might be reusing a LastValue
-				FVector3f TransformValueCopy = *TransformValue;
+				FVector3f TransformValueCopy = (FVector3f)*TransformValue;
 
 				// If the object is in the HPB rotation order, melange will store its euler rotation
 				// as "H, P, B", basically storing the rotations as "YXZ". Lets switch it back to XYZ
@@ -2297,9 +2297,9 @@ void FDatasmithC4DImporter::ImportAnimations(TSharedPtr<IDatasmithActorElement> 
 				// TransformValue represents, in radians, the rotations around the C4D axes
 				// XRot, YRot, ZRot are rotations around UnrealEditor axes, in the UnrealEditor CS,
 				// with the sign given by Quaternion rotations (NOT Rotators)
-				FQuat XRot = FQuat(FVector3f(1, 0, 0), -TransformValueCopy.X);
-				FQuat YRot = FQuat(FVector3f(0, 1, 0),  TransformValueCopy.Z);
-				FQuat ZRot = FQuat(FVector3f(0, 0, 1), -TransformValueCopy.Y);
+				FQuat XRot = FQuat(FVector(1, 0, 0), -TransformValueCopy.X);
+				FQuat YRot = FQuat(FVector(0, 1, 0),  TransformValueCopy.Z);
+				FQuat ZRot = FQuat(FVector(0, 0, 1), -TransformValueCopy.Y);
 
 				// Swap YRot and ZRot in the composition order, as an XYZ order in the C4D CS really means a XZY order in the UnrealEditor CS
 				// This effectively converts the rotation order from the C4D CS to the UnrealEditor CS, the sign of the rotations being handled when
@@ -2841,7 +2841,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 		// We count on this check when creating polygons
 		check(NewVertexID.GetValue() == PointIndex);
 
-		VertexPositions[NewVertexID] = ConvertMelangePosition(Points[PointIndex]);
+		VertexPositions[NewVertexID] = (FVector3f)ConvertMelangePosition(Points[PointIndex]);
 	}
 
 	// Create one material slot per polygon selection tag (including the "unselected" group)
@@ -2901,7 +2901,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 				FVertexID VertID = VerticesForPolygon[ TriangleIndex * 3 + VertexIndex ];
 
 				TriangleVertices[ VertexIndex ] = VertID;
-				TriangleVertexPositions[ VertexIndex ] = VertexPositions[ VertID ];
+				TriangleVertexPositions[ VertexIndex ] = (FVector)VertexPositions[ VertID ];
 			}
 
 			// Check if those vertices lead to degenerate triangles first, to prevent us from ever adding unused data to the MeshDescription
@@ -2931,7 +2931,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DImporter::ImportMesh(melange::Pol
 				FVertexInstanceID& VertInstanceID = VertexInstances[VertexCount];
 				int32 VertexIDInQuad = (*IndexOffsets)[VertexCount];
 
-				VertexInstanceNormals.Set(VertInstanceID, QuadNormals[VertexIDInQuad]);
+				VertexInstanceNormals.Set(VertInstanceID, (FVector3f)QuadNormals[VertexIDInQuad]);
 			}
 		}
 

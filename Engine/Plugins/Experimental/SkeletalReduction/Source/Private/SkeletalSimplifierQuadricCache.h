@@ -252,7 +252,7 @@ namespace SkeletalSimplifier
 			if (faceCount == 1)
 			{
 				// only one face on this edge.  Note, GetNormal attempts to return a unit normal, but this can fail
-				edgeQuadric += EdgeQuadricFatory(v->GetPos(), vert->GetPos(), face->GetNormal());
+				edgeQuadric += EdgeQuadricFatory((FVector)v->GetPos(), (FVector)vert->GetPos(), (FVector)face->GetNormal());
 			}
 		}
 

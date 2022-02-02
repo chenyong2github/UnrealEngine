@@ -89,7 +89,7 @@ public:
 	operator FVector3d() const
 	{
 		FVector3f AsFloat = *this;
-		return AsFloat;
+		return FVector3d(AsFloat);
 	}
 
 	operator FVector4f() const

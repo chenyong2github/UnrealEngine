@@ -685,7 +685,7 @@ void UMeshPaintModeSubsystem::PasteVertexColors(const TArray<UStaticMeshComponen
 							for (int32 VertexIndex = 0; VertexIndex < NumLODVertices; ++VertexIndex)
 							{
 								// Search for color matching this vertex position otherwise fill it with white
-								const FVector& Vertex = LodRenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+								const FVector& Vertex = (FVector)LodRenderData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 								const FColor* FoundColor = LODData.ColorsByPosition.Find(Vertex);
 								PositionMatchedColors.Add(FoundColor ? *FoundColor : FColor::White);
 							}

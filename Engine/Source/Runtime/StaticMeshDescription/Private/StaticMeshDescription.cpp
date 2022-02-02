@@ -85,14 +85,16 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 		VertexIDs[Index] = MeshDescription.CreateVertex();
 	}
 
-	Positions[VertexIDs[0]] = Center + HalfExtents * FVector3f( 1.0f, -1.0f,  1.0f);
-	Positions[VertexIDs[1]] = Center + HalfExtents * FVector3f( 1.0f,  1.0f,  1.0f);
-	Positions[VertexIDs[2]] = Center + HalfExtents * FVector3f(-1.0f,  1.0f,  1.0f);
-	Positions[VertexIDs[3]] = Center + HalfExtents * FVector3f(-1.0f, -1.0f,  1.0f);
-	Positions[VertexIDs[4]] = Center + HalfExtents * FVector3f(-1.0f,  1.0f, -1.0f);
-	Positions[VertexIDs[5]] = Center + HalfExtents * FVector3f(-1.0f, -1.0f, -1.0f);
-	Positions[VertexIDs[6]] = Center + HalfExtents * FVector3f( 1.0f, -1.0f, -1.0f);
-	Positions[VertexIDs[7]] = Center + HalfExtents * FVector3f( 1.0f,  1.0f, -1.0f);
+	const FVector3f CenterPlusHalfExtent(Center + HalfExtents);	//LWC_TODO: Precision loss
+
+	Positions[VertexIDs[0]] = CenterPlusHalfExtent * FVector3f( 1.0f, -1.0f,  1.0f);
+	Positions[VertexIDs[1]] = CenterPlusHalfExtent * FVector3f( 1.0f,  1.0f,  1.0f);
+	Positions[VertexIDs[2]] = CenterPlusHalfExtent * FVector3f(-1.0f,  1.0f,  1.0f);
+	Positions[VertexIDs[3]] = CenterPlusHalfExtent * FVector3f(-1.0f, -1.0f,  1.0f);
+	Positions[VertexIDs[4]] = CenterPlusHalfExtent * FVector3f(-1.0f,  1.0f, -1.0f);
+	Positions[VertexIDs[5]] = CenterPlusHalfExtent * FVector3f(-1.0f, -1.0f, -1.0f);
+	Positions[VertexIDs[6]] = CenterPlusHalfExtent * FVector3f( 1.0f, -1.0f, -1.0f);
+	Positions[VertexIDs[7]] = CenterPlusHalfExtent * FVector3f( 1.0f,  1.0f, -1.0f);
 
 	auto MakePolygon = [this, &MeshDescription, &VertexIDs, PolygonGroup](int32 P0, int32 P1, int32 P2, int32 P3) -> FPolygonID
 	{

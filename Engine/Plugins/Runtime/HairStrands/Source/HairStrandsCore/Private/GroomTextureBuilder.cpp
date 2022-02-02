@@ -685,7 +685,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->UVsChannelCount = UVsChannelCount;
 
 	ParametersPS->InVF_PositionBuffer = InHairStrands_PositionBuffer;
-	ParametersPS->InVF_PositionOffset = InHairStrands_PositionOffset;
+	ParametersPS->InVF_PositionOffset = (FVector3f)InHairStrands_PositionOffset;
 	ParametersPS->InVF_Attribute0Buffer = InHairStrands_AttributeBuffer;
 	ParametersPS->InVF_MaterialBuffer = bHasMaterialData ? InHairStrands_MaterialBuffer : InHairStrands_AttributeBuffer;
 	ParametersPS->InVF_Radius = InHairStrands_Radius;
@@ -693,8 +693,8 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->InVF_ControlPointCount = InHairStrands_ControlPointCount;
 	ParametersPS->InVF_GroupIndex = InHairStrands_GroupIndex;
 
-	ParametersPS->Voxel_MinBound = VoxelMinBound;
-	ParametersPS->Voxel_MaxBound = VoxelMaxBound;
+	ParametersPS->Voxel_MinBound = (FVector3f)VoxelMinBound;
+	ParametersPS->Voxel_MaxBound = (FVector3f)VoxelMaxBound;
 	ParametersPS->Voxel_Resolution = VoxelResolution;
 	ParametersPS->Voxel_Size = VoxelSize;
 	ParametersPS->Voxel_MaxSegmentPerVoxel = VoxelMaxSegmentPerVoxel;

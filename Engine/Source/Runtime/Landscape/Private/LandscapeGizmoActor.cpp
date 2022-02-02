@@ -259,35 +259,35 @@ public:
 						FDynamicMeshBuilder MeshBuilder(View->GetFeatureLevel());
 
 						const FColor GizmoColor = FColor::White;
-						MeshBuilder.AddVertex(FrustumVerts[0], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[1], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[2], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[3], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[0], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[1], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[2], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[3], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
-						MeshBuilder.AddVertex(FrustumVerts[4], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[5], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[6], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[7], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[4], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[5], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[6], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[7], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
-						MeshBuilder.AddVertex(FrustumVerts[1], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[0], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[4], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[5], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[1], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[0], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[4], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[5], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
-						MeshBuilder.AddVertex(FrustumVerts[3], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[2], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[6], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[7], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[3], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[2], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[6], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[7], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
-						MeshBuilder.AddVertex(FrustumVerts[2], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[1], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[5], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[6], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[2], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[1], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[5], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[6], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
-						MeshBuilder.AddVertex(FrustumVerts[0], FVector2f(0, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[3], FVector2f(1, 0), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[7], FVector2f(1, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
-						MeshBuilder.AddVertex(FrustumVerts[4], FVector2f(0, 1), FVector(1,0,0), FVector(0,1,0), FVector(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[0], FVector2f(0, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[3], FVector2f(1, 0), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[7], FVector2f(1, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
+						MeshBuilder.AddVertex((FVector3f)FrustumVerts[4], FVector2f(0, 1), FVector3f(1,0,0), FVector3f(0,1,0), FVector3f(0,0,1), GizmoColor);
 
 						for (int32 i = 0; i < 6; ++i)
 						{
@@ -311,7 +311,7 @@ public:
 								FVector TangentX(SampledNormal.Z, 0, -SampledNormal.X);
 								TangentX = TangentX.GetSafeNormal();
 
-								MeshBuilder.AddVertex(SampledPositions[X + Y * SampleSizeX], FVector2f((float)X / (SampleSizeX), (float)Y / (SampleSizeY)), TangentX, SampledNormal^TangentX, SampledNormal, FColor::White);
+								MeshBuilder.AddVertex((FVector3f)SampledPositions[X + Y * SampleSizeX], FVector2f((float)X / (SampleSizeX), (float)Y / (SampleSizeY)), (FVector3f)TangentX, FVector3f(SampledNormal^TangentX), (FVector3f)SampledNormal, FColor::White);
 							}
 						}
 

@@ -431,7 +431,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromTextu
 				FVector3f Normal = Normals->GetElement(NormalTri[j]);
 
 				double Intensity = Options.Magnitude;
-				DisplacedPositions[vid] += EditMesh.GetVertex(Tri[j]) + (Offset * Intensity * Normal);
+				DisplacedPositions[vid] += EditMesh.GetVertex(Tri[j]) + (FVector)(Offset * Intensity * Normal);
 				Counts[vid]++;
 			}
 		}

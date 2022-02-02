@@ -897,17 +897,17 @@ FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
 
 void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 {
-	ensureMsgf(FVector::DotProduct(CardWorldOBB.AxisX, FVector::CrossProduct(CardWorldOBB.AxisY, CardWorldOBB.AxisZ)) < 0.0f, TEXT("Card has wrong handedness"));
+	ensureMsgf(FVector3f::DotProduct(CardWorldOBB.AxisX, FVector3f::CrossProduct(CardWorldOBB.AxisY, CardWorldOBB.AxisZ)) < 0.0f, TEXT("Card has wrong handedness"));
 
 	FMatrix ViewRotationMatrix = FMatrix::Identity;
-	ViewRotationMatrix.SetColumn(0, CardWorldOBB.AxisX);
-	ViewRotationMatrix.SetColumn(1, CardWorldOBB.AxisY);
-	ViewRotationMatrix.SetColumn(2, -CardWorldOBB.AxisZ);
+	ViewRotationMatrix.SetColumn(0, (FVector)CardWorldOBB.AxisX);
+	ViewRotationMatrix.SetColumn(1, (FVector)CardWorldOBB.AxisY);
+	ViewRotationMatrix.SetColumn(2, (FVector)-CardWorldOBB.AxisZ);
 
-	FVector ViewLocation = CardWorldOBB.Origin;
-	FVector FaceLocalExtent = CardWorldOBB.Extent;
+	FVector ViewLocation(CardWorldOBB.Origin);
+	FVector FaceLocalExtent(CardWorldOBB.Extent);
 	// Pull the view location back so the entire box is in front of the near plane
-	ViewLocation += FaceLocalExtent.Z * CardWorldOBB.AxisZ;
+	ViewLocation += FVector(FaceLocalExtent.Z * CardWorldOBB.AxisZ);
 
 	const float NearPlane = 0.0f;
 	const float FarPlane = NearPlane + FaceLocalExtent.Z * 2.0f;
@@ -1257,7 +1257,7 @@ public:
 					const FLumenCard& LumenCard = LumenCards[CardIndex];
 
 					float CardMaxDistance = MaxDistanceFromCamera;
-					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 100.0f);
+					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint((FVector3f)ViewOrigin)), 100.0f);
 
 					// Compute resolution based on its largest extent
 					float MaxExtent = FMath::Max(LumenCard.WorldOBB.Extent.X, LumenCard.WorldOBB.Extent.Y);
@@ -2143,11 +2143,11 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.NumDistantCards = LumenSceneData.DistantCardIndices.Num();
 	extern float GLumenDistantSceneMaxTraceDistance;
 	OutParameters.DistantSceneMaxTraceDistance = GLumenDistantSceneMaxTraceDistance;
-	OutParameters.DistantSceneDirection = FVector(0.0f, 0.0f, 0.0f);
+	OutParameters.DistantSceneDirection = FVector3f::ZeroVector;
 
 	if (Scene->DirectionalLights.Num() > 0)
 	{
-		OutParameters.DistantSceneDirection = -Scene->DirectionalLights[0]->Proxy->GetDirection();
+		OutParameters.DistantSceneDirection = (FVector3f)-Scene->DirectionalLights[0]->Proxy->GetDirection();
 	}
 	
 	for (int32 i = 0; i < LumenSceneData.DistantCardIndices.Num(); i++)

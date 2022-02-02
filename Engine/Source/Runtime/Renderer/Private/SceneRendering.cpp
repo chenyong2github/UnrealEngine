@@ -891,7 +891,7 @@ void FViewInfo::Init()
 
 	ExponentialFogParameters = FVector4f(0,1,1,0);
 	ExponentialFogParameters2 = FVector4f(0, 1, 0, 0);
-	ExponentialFogColor = FVector::ZeroVector;
+	ExponentialFogColor = FVector3f::ZeroVector;
 	FogMaxOpacity = 1;
 	ExponentialFogParameters3 = FVector4f(0, 0, 0, 0);
 	SinCosInscatteringColorCubemapRotation = FVector2f::ZeroVector;
@@ -1182,21 +1182,21 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 
 		const FVector InvBrickDimensions = BrickDimensions.Reciprocal();
 
-		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = InvVolumeSize;
-		ViewUniformShaderParameters.VolumetricLightmapWorldToUVAdd = -VolumeBounds.Min * InvVolumeSize;
-		ViewUniformShaderParameters.VolumetricLightmapIndirectionTextureSize = FVector(VolumetricLightmapData->IndirectionTextureDimensions);
+		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = (FVector3f)InvVolumeSize;
+		ViewUniformShaderParameters.VolumetricLightmapWorldToUVAdd = FVector3f(-VolumeBounds.Min * InvVolumeSize);
+		ViewUniformShaderParameters.VolumetricLightmapIndirectionTextureSize = FVector3f(VolumetricLightmapData->IndirectionTextureDimensions);
 		ViewUniformShaderParameters.VolumetricLightmapBrickSize = VolumetricLightmapData->BrickSize;
-		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = InvBrickDimensions;
+		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = (FVector3f)InvBrickDimensions;
 	}
 	else
 	{
 		// Resources are initialized in FViewUniformShaderParameters ctor, only need to set defaults for non-resource types
 
-		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = FVector::ZeroVector;
-		ViewUniformShaderParameters.VolumetricLightmapWorldToUVAdd = FVector::ZeroVector;
-		ViewUniformShaderParameters.VolumetricLightmapIndirectionTextureSize = FVector::ZeroVector;
+		ViewUniformShaderParameters.VolumetricLightmapWorldToUVScale = FVector3f::ZeroVector;
+		ViewUniformShaderParameters.VolumetricLightmapWorldToUVAdd = FVector3f::ZeroVector;
+		ViewUniformShaderParameters.VolumetricLightmapIndirectionTextureSize = FVector3f::ZeroVector;
 		ViewUniformShaderParameters.VolumetricLightmapBrickSize = 0;
-		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = FVector::ZeroVector;
+		ViewUniformShaderParameters.VolumetricLightmapBrickTexelSize = FVector3f::ZeroVector;
 	}
 }
 
@@ -1206,7 +1206,7 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 	{
 		FPhysicsFieldResource* FieldResource = Scene->PhysicsField->FieldResource;
 		ViewUniformShaderParameters.PhysicsFieldClipmapBuffer = FieldResource->ClipmapBuffer.SRV.GetReference();
-		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FieldResource->FieldInfos.ClipmapCenter;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = (FVector3f)FieldResource->FieldInfos.ClipmapCenter;
 		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = FieldResource->FieldInfos.ClipmapDistance;
 		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = FieldResource->FieldInfos.ClipmapResolution;
 		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = FieldResource->FieldInfos.ClipmapExponent;
@@ -1224,7 +1224,7 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 	{
 		TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16> EmptyTargets;
 		ViewUniformShaderParameters.PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
-		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector3f::ZeroVector;
 		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
 		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = 2;
 		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = 1;
@@ -1297,7 +1297,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = FLinearColor::Black;
 
 		// We must set a default atmospheric light0 direction because this is use for instance by the height fog directional lobe. And we do not want to add an in shader test for that.
-		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector4f(Index == 0 && Scene && Scene->SimpleDirectionalLight && Scene->SimpleDirectionalLight->Proxy ? -Scene->SimpleDirectionalLight->Proxy->GetDirection() : DefaultSunDirection);
+		ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector3f(Index == 0 && Scene && Scene->SimpleDirectionalLight && Scene->SimpleDirectionalLight->Proxy ? -Scene->SimpleDirectionalLight->Proxy->GetDirection() : DefaultSunDirection);
 	};
 
 	if (Scene)
@@ -1305,12 +1305,12 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (Scene->SimpleDirectionalLight)
 		{
 			ViewUniformShaderParameters.DirectionalLightColor = Scene->SimpleDirectionalLight->Proxy->GetAtmosphereTransmittanceTowardSun() * Scene->SimpleDirectionalLight->Proxy->GetColor() / PI;
-			ViewUniformShaderParameters.DirectionalLightDirection = -Scene->SimpleDirectionalLight->Proxy->GetDirection();
+			ViewUniformShaderParameters.DirectionalLightDirection = -(FVector3f)Scene->SimpleDirectionalLight->Proxy->GetDirection();
 		}
 		else
 		{
 			ViewUniformShaderParameters.DirectionalLightColor = FLinearColor::Black;
-			ViewUniformShaderParameters.DirectionalLightDirection = FVector::ZeroVector;
+			ViewUniformShaderParameters.DirectionalLightDirection = FVector3f::ZeroVector;
 		}
 
 		// Set default atmosphere lights parameters
@@ -1324,7 +1324,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].A = 0.0f;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0] = ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0];
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 0.0f;
-		ViewUniformShaderParameters.AtmosphereLightDirection[0] = FVector4f(SunLight ? -SunLight->Proxy->GetDirection() : DefaultSunDirection);
+		ViewUniformShaderParameters.AtmosphereLightDirection[0] = FVector3f(SunLight ? -SunLight->Proxy->GetDirection() : DefaultSunDirection);
 
 		// Do not clear the first AtmosphereLight data, it has been setup above
 		for (uint8 Index = 1; Index < NUM_ATMOSPHERE_LIGHTS; ++Index)
@@ -1403,7 +1403,7 @@ void FViewInfo::SetupUniformBufferParameters(
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 1.0f; // interactions with HeightFogComponent
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = Light->Proxy->GetOuterSpaceIlluminance();
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index].A = 1.0f;
-				ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector4f(SkyAtmosphereSceneProxy.GetAtmosphereLightDirection(Index, -Light->Proxy->GetDirection()));
+				ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector3f(SkyAtmosphereSceneProxy.GetAtmosphereLightDirection(Index, -Light->Proxy->GetDirection()));
 			}
 			else
 			{
@@ -1457,7 +1457,7 @@ void FViewInfo::SetupUniformBufferParameters(
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 0.0f; // no interactions with HeightFogComponent
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[Index] = Light->Proxy->GetColor();
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOuterSpace[0].A = 0.0f;
-					ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector4f(-Light->Proxy->GetDirection());
+					ViewUniformShaderParameters.AtmosphereLightDirection[Index] = FVector3f(-Light->Proxy->GetDirection());
 				}
 				else
 				{
@@ -1665,7 +1665,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	ERHIFeatureLevel::Type RHIFeatureLevel = Scene == nullptr ? GMaxRHIFeatureLevel : Scene->GetFeatureLevel();
 	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[RHIFeatureLevel];
 
-	ViewUniformShaderParameters.IndirectLightingColorScale = FVector(FinalPostProcessSettings.IndirectLightingColor.R * FinalPostProcessSettings.IndirectLightingIntensity,
+	ViewUniformShaderParameters.IndirectLightingColorScale = FVector3f(FinalPostProcessSettings.IndirectLightingColor.R * FinalPostProcessSettings.IndirectLightingIntensity,
 		FinalPostProcessSettings.IndirectLightingColor.G * FinalPostProcessSettings.IndirectLightingIntensity,
 		FinalPostProcessSettings.IndirectLightingColor.B * FinalPostProcessSettings.IndirectLightingIntensity);
 
@@ -1675,7 +1675,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Note: this has the side effect of removing direct lighting from Static Lights
 	if (ShouldRenderLumenDiffuseGI(Scene, *this))
 	{
-		ViewUniformShaderParameters.PrecomputedIndirectLightingColorScale = FVector::ZeroVector;
+		ViewUniformShaderParameters.PrecomputedIndirectLightingColorScale = FVector3f::ZeroVector;
 	}
 
 	ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = ViewUniformShaderParameters.IndirectLightingColorScale;
@@ -1684,7 +1684,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Note: this has the side effect of removing direct specular from Static Lights
 	if (ShouldRenderLumenReflections(*this))
 	{
-		ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = FVector::ZeroVector;
+		ViewUniformShaderParameters.PrecomputedIndirectSpecularColorScale = FVector3f::ZeroVector;
 	}
 
 	ViewUniformShaderParameters.NormalCurvatureToRoughnessScaleBias.X = FMath::Clamp(CVarNormalCurvatureToRoughnessScale.GetValueOnAnyThread(), 0.0f, 2.0f);
@@ -1794,7 +1794,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.IndirectCapsuleSelfShadowingIntensity = Scene ? Scene->DynamicIndirectShadowsSelfShadowingIntensity : 1.0f;
 
 	extern FVector GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
-	ViewUniformShaderParameters.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight = GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
+	ViewUniformShaderParameters.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight = (FVector3f)GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
 
 	ViewUniformShaderParameters.StereoPassIndex = StereoViewIndex != INDEX_NONE ? StereoViewIndex : 0;
 	ViewUniformShaderParameters.StereoIPD = StereoIPD;

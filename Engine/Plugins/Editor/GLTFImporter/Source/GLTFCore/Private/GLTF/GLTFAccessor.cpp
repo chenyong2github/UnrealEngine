@@ -175,7 +175,7 @@ namespace GLTF
 		GetVec3Array(Buffer);
 		for (uint32 Index = 0; Index < Count; ++Index)
 		{
-			Buffer[Index] = ConvertVec3(Buffer[Index]);
+			Buffer[Index] = (FVector3f)ConvertVec3((FVector)Buffer[Index]);
 		}
 	}
 

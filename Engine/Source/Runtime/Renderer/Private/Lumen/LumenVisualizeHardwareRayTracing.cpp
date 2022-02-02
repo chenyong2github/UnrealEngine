@@ -582,7 +582,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
-			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
 			PassParameters->ApplySkylightStage = bTraceFarField ? 0 : 1;
 
@@ -754,7 +754,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
-			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
 			PassParameters->ApplySkylightStage = 0;
 
@@ -854,7 +854,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
-			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
 			PassParameters->ApplySkylightStage = 1;
 

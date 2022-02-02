@@ -1012,9 +1012,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMExte
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, SocketMax);
-			FVector SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
+			FVector SocketTranslation = (FVector)CurrentFilteredSockets[SocketIndex].GetTranslation();
 			FQuat4f SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
-			FVector SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
+			FVector SocketScale = (FVector)CurrentFilteredSockets[SocketIndex].GetScale3D();
 
 			const bool bApplyTransform = ApplyWorldTransform.GetAndAdvance();
 			if (bApplyTransform)
@@ -1024,9 +1024,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMExte
 				SocketScale = InstanceTransform.TransformVector(SocketScale);
 			}
 
-			OutSocketTranslate.SetAndAdvance(SocketTranslation);
+			OutSocketTranslate.SetAndAdvance((FVector3f)SocketTranslation);
 			OutSocketRotation.SetAndAdvance(SocketRotation);
-			OutSocketScale.SetAndAdvance(SocketScale);
+			OutSocketScale.SetAndAdvance((FVector3f)SocketScale);
 		}
 	}
 	else

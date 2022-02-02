@@ -319,7 +319,7 @@ void FShadowVolumeBoundProjectionVS::SetParameters(
 	{
 		const FVector PreShadowToPreView(View.ViewMatrices.GetPreViewTranslation() - ShadowInfo->PreShadowTranslation);
 		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, ShadowInfo->InvReceiverInnerMatrix);
-		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f(PreShadowToPreView, 0));
+		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f((FVector3f)PreShadowToPreView, 0));
 	}
 	else
 	{
@@ -2467,12 +2467,12 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		OutParameters.ShadowUVMinMax = ShadowmapMinMax;
 
 		const FLightSceneProxy* const LightProxy = ShadowInfo->GetLightSceneInfo().Proxy;
-		OutParameters.DirectionalLightDirection = FVector4f(LightProxy->GetDirection());
+		OutParameters.DirectionalLightDirection = FVector3f(LightProxy->GetDirection());
 
 		//@todo - support fading from both views
 		const float FadeAlpha = ShadowInfo->FadeAlphas[0];
 		// Incorporate the diffuse scale of 1 / PI into the light color
-		OutParameters.DirectionalLightColor = FVector4f(FVector(LightProxy->GetColor() * FadeAlpha / PI), FadeAlpha);
+		OutParameters.DirectionalLightColor = FVector4f(FVector3f(LightProxy->GetColor() * FadeAlpha / PI), FadeAlpha);
 
 		OutParameters.Transmission0 = ShadowInfo->RenderTargets.ColorTargets[0]->GetRenderTargetItem().ShaderResourceTexture.GetReference();
 		OutParameters.Transmission1 = ShadowInfo->RenderTargets.ColorTargets[1]->GetRenderTargetItem().ShaderResourceTexture.GetReference();

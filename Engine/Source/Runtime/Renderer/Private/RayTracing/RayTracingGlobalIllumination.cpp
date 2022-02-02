@@ -265,7 +265,7 @@ static void SetupLightParameters(
 	{
 		FPathTracingLight& DestLight = Lights[LightCount];
 
-		DestLight.Color = FVector(1.0f, 1.0f, 1.0f);
+		DestLight.Color = FVector3f::OneVector;
 		DestLight.Flags = SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		// SkyLight does not have a LightingChannelMask
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
@@ -314,12 +314,12 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationRectLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+			DestLight.TranslatedWorldPosition = FVector3f(LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 			DestLight.Normal = -LightShaderParameters.Direction;
-			DestLight.dPdu = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
+			DestLight.dPdu = FVector3f::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
 			DestLight.dPdv = LightShaderParameters.Tangent;
 			DestLight.Color = FVector3f(LightShaderParameters.Color);
-			DestLight.Dimensions = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
+			DestLight.Dimensions = FVector3f(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
 			DestLight.Shaping = FVector2f(LightShaderParameters.RectLightBarnCosAngle, LightShaderParameters.RectLightBarnLength);
 			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 			break;
@@ -329,11 +329,11 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationPointLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+			DestLight.TranslatedWorldPosition = FVector3f(LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = FVector3f(LightShaderParameters.Color);
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			DestLight.Dimensions = FVector(SourceRadius, 0.0, 0.0);
+			DestLight.Dimensions = FVector3f(SourceRadius, 0.0, 0.0);
 			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 			break;
 		}
@@ -341,12 +341,12 @@ static void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationSpotLight.GetValueOnRenderThread() == 0) continue;
 
-			DestLight.TranslatedWorldPosition = LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+			DestLight.TranslatedWorldPosition = FVector3f(LightShaderParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 			DestLight.Normal = -LightShaderParameters.Direction;
 			// #dxr_todo: UE-72556 define these differences from Lit..
 			DestLight.Color = FVector3f(LightShaderParameters.Color);
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			DestLight.Dimensions = FVector(SourceRadius, 0.0, 0.0);
+			DestLight.Dimensions = FVector3f(SourceRadius, 0.0, 0.0);
 			DestLight.Shaping = LightShaderParameters.SpotAngles;
 			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 			break;

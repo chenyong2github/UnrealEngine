@@ -265,7 +265,7 @@ bool UBrushEditingSubsystemImpl::ProcessClickOnGeomVertex(FLevelEditorViewportCl
 		Tool->StartTrans();
 
 		// Compute out far to move to get back on the grid.
-		const FVector WorldLoc = GeomHitProxy->GetGeomObject()->GetActualBrush()->ActorToWorld().TransformPosition(GeomHitProxy->GetGeomObject()->VertexPool[GeomHitProxy->VertexIndex]);
+		const FVector WorldLoc = GeomHitProxy->GetGeomObject()->GetActualBrush()->ActorToWorld().TransformPosition((FVector)GeomHitProxy->GetGeomObject()->VertexPool[GeomHitProxy->VertexIndex]);
 
 		FVector SnappedLoc = WorldLoc;
 		FSnappingUtils::SnapPointToGrid(SnappedLoc, FVector(GEditor->GetGridSize()));
@@ -278,7 +278,7 @@ bool UBrushEditingSubsystemImpl::ProcessClickOnGeomVertex(FLevelEditorViewportCl
 			FGeomVertex& GeomVertex = GeomHitProxy->GetGeomObject()->VertexPool[VertexIndex];
 			if (GeomVertex.IsSelected())
 			{
-				GeomVertex += Delta;
+				GeomVertex += (FVector3f)Delta;
 			}
 		}
 
@@ -332,7 +332,7 @@ bool UBrushEditingSubsystemImpl::ProcessClickOnGeomVertex(FLevelEditorViewportCl
 				if (VertexIndex != GeomHitProxy->VertexIndex)
 				{
 					FGeomVertex& GeomVertex = GeomHitProxy->GetGeomObject()->VertexPool[VertexIndex];
-					if (OrthoEqual(ViewportClient->ViewportType, GeomVertex, HitVertex))
+					if (OrthoEqual(ViewportClient->ViewportType, (FVector)GeomVertex, (FVector)HitVertex))
 					{
 						GeomVertex.Select(bSelect);
 					}

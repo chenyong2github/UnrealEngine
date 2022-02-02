@@ -596,7 +596,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 				FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
 				PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
 				PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(CompressedSurfaceUAVDesc) : nullptr;
-				PassParameters->ClearValue = LayerConfig.ClearValue;
+				PassParameters->ClearValue = (FVector3f)LayerConfig.ClearValue;
 				PassParameters->OutputAtlasSize = PhysicalAtlasSize;
 
 				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;
@@ -633,7 +633,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 				FClearCompressedAtlasCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearCompressedAtlasCS::FParameters>();
 				PassParameters->RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
 				PassParameters->RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
-				PassParameters->ClearValue = LayerConfig.ClearValue;
+				PassParameters->ClearValue = (FVector3f)LayerConfig.ClearValue;
 				PassParameters->OutputAtlasSize = TempAtlasSize;
 
 				FClearCompressedAtlasCS::FPermutationDomain PermutationVector;

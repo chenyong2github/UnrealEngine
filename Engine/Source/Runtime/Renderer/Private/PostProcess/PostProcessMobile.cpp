@@ -1139,7 +1139,7 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 	PSShaderParameters->View = View.ViewUniformBuffer;
 	PSShaderParameters->BloomDirtMaskTint = Settings.BloomDirtMaskTint * Settings.BloomDirtMaskIntensity;
 	PSShaderParameters->SunColorVignetteIntensity = SunColorVignetteIntensityParam;
-	PSShaderParameters->BloomColor = FVector(BloomColor.R, BloomColor.G, BloomColor.B);
+	PSShaderParameters->BloomColor = FVector3f(BloomColor.R, BloomColor.G, BloomColor.B);
 	PSShaderParameters->BloomIntensity = Settings.BloomIntensity;
 	PSShaderParameters->SunBlurTexture = Inputs.SunBlur.Texture;
 	PSShaderParameters->SunBlurSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -319,8 +319,8 @@ void RenderHairStrandsDeepShadows(
 				// Note: LightPosition.W is used in the transmittance mask shader to differentiate between directional and local lights.
 				FHairStrandsDeepShadowData& DomData = MacroGroup.DeepShadowDatas.AddZeroed_GetRef();
 				ComputeTranslatedWorldToLightClip(TranslatedWorldOffset, DomData.CPU_TranslatedWorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
-				DomData.LightDirection = LightProxy->GetDirection();
-				DomData.TranslatedLightPosition = FVector4f(FVector(LightProxy->GetPosition() + TranslatedWorldOffset), bIsDirectional ? 0 : 1);
+				DomData.LightDirection = (FVector3f)LightProxy->GetDirection();
+				DomData.TranslatedLightPosition = FVector4f(FVector3f((FVector4f)LightProxy->GetPosition() + (FVector3f)TranslatedWorldOffset), bIsDirectional ? 0 : 1);
 				DomData.LightLuminance = LightProxy->GetColor();
 				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.bIsLightDirectional = bIsDirectional;

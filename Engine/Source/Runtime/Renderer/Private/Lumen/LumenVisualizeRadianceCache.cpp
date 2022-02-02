@@ -164,7 +164,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 			LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, VisualizeCommonParameters.RadianceCacheParameters);
 			VisualizeCommonParameters.VisualizeProbeRadiusScale = GLumenRadianceCacheVisualizeRadiusScale;
 			VisualizeCommonParameters.ProbeClipmapIndex = ClipmapIndex;
-			VisualizeCommonParameters.ProbeCoordToWorldCenterBias = Clipmap.ProbeCoordToWorldCenterBias;
+			VisualizeCommonParameters.ProbeCoordToWorldCenterBias = (FVector3f)Clipmap.ProbeCoordToWorldCenterBias;
 			VisualizeCommonParameters.ProbeCoordToWorldCenterScale = Clipmap.ProbeCoordToWorldCenterScale;
 
 			FVisualizeRadianceCacheParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeRadianceCacheParameters>();

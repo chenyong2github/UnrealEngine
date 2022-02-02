@@ -362,7 +362,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Complex()
 			TArray<int32> VertexIDMap;
 			for (int32 k = 0; k < CollisionData.Vertices.Num(); ++k)
 			{
-				int32 vid = CurrentMesh.AppendVertex(CollisionData.Vertices[k]);
+				int32 vid = CurrentMesh.AppendVertex((FVector)CollisionData.Vertices[k]);
 				VertexIDMap.Add(vid);
 			}
 			for (const FTriIndices& TriIndices : CollisionData.Indices)

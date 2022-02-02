@@ -445,12 +445,12 @@ void FMLDeformerEditorData::UpdateVertexDeltaMeanAndScale(const FMLDeformerTrain
 
 	// Update global mean.
 	InOutCount += 1.0f;
-	FVector TempDiff = MeanDelta - InOutMeanVertexDelta;
-	InOutMeanVertexDelta = InOutMeanVertexDelta + (TempDiff / InOutCount);
+	FVector TempDiff = MeanDelta - (FVector)InOutMeanVertexDelta;
+	InOutMeanVertexDelta = InOutMeanVertexDelta + FVector3f(TempDiff / InOutCount);
 
 	// Update global scale.
 	TempDiff = MaxDelta - MinDelta;
-	InOutVertexDeltaScale = InOutVertexDeltaScale.ComponentMax(TempDiff.GetAbs());
+	InOutVertexDeltaScale = InOutVertexDeltaScale.ComponentMax((FVector3f)TempDiff.GetAbs());
 }
 
 bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, FMLDeformerFrameCache* InFrameCache)

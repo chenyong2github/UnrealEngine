@@ -381,9 +381,9 @@ void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshC
 					//@todo: do we need to inverse the sign between skeletalmesh and staticmesh, the old code was doing so.
 					const float TangentYSign = SkinnedVertex.TangentZ.ToFVector4f().W;
 					
-					VertexInstanceTangents[VertexInstanceID] = TangentX;
+					VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
 					VertexInstanceBinormalSigns[VertexInstanceID] = TangentYSign;
-					VertexInstanceNormals[VertexInstanceID] = TangentZ;
+					VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
 
 					for (uint32 TexCoordIndex = 0; TexCoordIndex < MAX_TEXCOORDS; TexCoordIndex++)
 					{
@@ -526,9 +526,9 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 			FVector TangentX = FVector4(StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(WedgeIndex));
 			FVector TangentY = FVector(StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(WedgeIndex));
 			FVector TangentZ = FVector4(StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(WedgeIndex));
-			VertexInstanceTangents[VertexInstanceID] = TangentX;
+			VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
 			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(TangentX, TangentY, TangentZ);
-			VertexInstanceNormals[VertexInstanceID] = TangentZ;
+			VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
 
 			// Vertex colors
 			if (StaticMeshLOD.VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
@@ -653,17 +653,17 @@ void FMeshMergeHelpers::CullTrianglesFromVolumesAndUnderLandscapes(const UWorld*
 				FVector Origin, Extent;
 				Proxy->GetActorBounds(false, Origin, Extent);
 				FBox LandscapeBox(Origin - Extent, Origin + Extent);
-				bVertexWithinLandscapeBounds |= LandscapeBox.IsInsideXY(Position);
+				bVertexWithinLandscapeBounds |= LandscapeBox.IsInsideXY((FVector)Position);
 			}
 
 			if (bVertexWithinLandscapeBounds)
 			{
-				const FVector Start = Position;
-				FVector End = Position - (WORLD_MAX * FVector::UpVector);
+				const FVector Start = (FVector)Position;
+				FVector End = (FVector)Position - (WORLD_MAX * FVector::UpVector);
 				FVector OutHit;
 				const bool IsAboveLandscape = IsLandscapeHit(Start, End, World, Landscapes, OutHit);
 
-				End = Position + (WORLD_MAX * FVector::UpVector);
+				End = (FVector)Position + (WORLD_MAX * FVector::UpVector);
 				const bool IsUnderneathLandscape = IsLandscapeHit(Start, End, World, Landscapes, OutHit);
 
 				// Vertex is visible when above landscape (with actual landscape underneath) or if there is no landscape beneath or above the vertex (falls outside of landscape bounds)
@@ -674,7 +674,7 @@ void FMeshMergeHelpers::CullTrianglesFromVolumesAndUnderLandscapes(const UWorld*
 		// Volume culling	
 		for (AMeshMergeCullingVolume* Volume : CullVolumes)
 		{
-			const bool bVertexIsInsideVolume = Volume->EncompassesPoint(Position, 0.0f, nullptr);
+			const bool bVertexIsInsideVolume = Volume->EncompassesPoint((FVector)Position, 0.0f, nullptr);
 			if (bVertexIsInsideVolume)
 			{
 				// Inside a culling volume so invisible
@@ -755,11 +755,11 @@ void FMeshMergeHelpers::PropagateSplineDeformationToMesh(const USplineMeshCompon
 			const FVertexID VertexID = InOutMeshDescription.GetVertexInstanceVertex(VertexInstanceID);
 			const float& AxisValue = USplineMeshComponent::GetAxisValue(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
 			FTransform SliceTransform = InSplineMeshComponent->CalcSliceTransform(AxisValue);
-			FVector TangentY = FVector::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
-			VertexInstanceTangents[VertexInstanceID] = SliceTransform.TransformVector(VertexInstanceTangents[VertexInstanceID]);
+			FVector TangentY = FVector::CrossProduct((FVector)VertexInstanceNormals[VertexInstanceID], (FVector)VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
+			VertexInstanceTangents[VertexInstanceID] = (FVector3f)SliceTransform.TransformVector((FVector)VertexInstanceTangents[VertexInstanceID]);
 			TangentY = SliceTransform.TransformVector(TangentY);
-			VertexInstanceNormals[VertexInstanceID] = SliceTransform.TransformVector(VertexInstanceNormals[VertexInstanceID]);
-			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceID], TangentY, VertexInstanceNormals[VertexInstanceID]);
+			VertexInstanceNormals[VertexInstanceID] = (FVector3f)SliceTransform.TransformVector((FVector)VertexInstanceNormals[VertexInstanceID]);
+			VertexInstanceBinormalSigns[VertexInstanceID] = GetBasisDeterminantSign((FVector)VertexInstanceTangents[VertexInstanceID], TangentY, (FVector)VertexInstanceNormals[VertexInstanceID]);
 		}
 	}
 
@@ -769,7 +769,7 @@ void FMeshMergeHelpers::PropagateSplineDeformationToMesh(const USplineMeshCompon
 		float& AxisValue = USplineMeshComponent::GetAxisValue(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
 		FTransform SliceTransform = InSplineMeshComponent->CalcSliceTransform(AxisValue);
 		AxisValue = 0.0f;
-		VertexPositions[VertexID] = SliceTransform.TransformPosition(VertexPositions[VertexID]);
+		VertexPositions[VertexID] = (FVector3f)SliceTransform.TransformPosition((FVector)VertexPositions[VertexID]);
 	}
 }
 
@@ -871,7 +871,7 @@ void FMeshMergeHelpers::RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, cons
 		TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
 		for(const FVertexID VertexID : VolumeMesh->Vertices().GetElementIDs())
 		{
-			VertexPositions[VertexID] += VolumeLocation;
+			VertexPositions[VertexID] += (FVector3f)VolumeLocation;
 		}
 
 		OutCullingMeshes.Add(VolumeMesh);
@@ -1194,7 +1194,7 @@ void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*>
 			TVertexAttributesRef<FVector3f> ImposterMeshVertexPositions = ImposterMesh.GetVertexPositions();
 			for (FVertexID VertexID : ImposterMesh.Vertices().GetElementIDs())
 			{
-				ImposterMeshVertexPositions[VertexID] -= InPivot;
+				ImposterMeshVertexPositions[VertexID] -= (FVector3f)InPivot;
 			}
 		}
 

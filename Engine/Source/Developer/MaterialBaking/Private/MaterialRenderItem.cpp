@@ -166,7 +166,7 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 		const int32 X = VertIndex & 1;
 		const int32 Y = (VertIndex >> 1) & 1;
 		Vert->Position.Set(ScaleX * X, ScaleY * Y, 0);
-		Vert->SetTangents(FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1));
+		Vert->SetTangents(FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
 		FMemory::Memzero(&Vert->TextureCoordinate, sizeof(Vert->TextureCoordinate));
 		for (int32 TexcoordIndex = 0; TexcoordIndex < MAX_STATIC_TEXCOORDS; TexcoordIndex++)
 		{
@@ -246,9 +246,9 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 					const FVector2D& UV = MeshSettings->CustomTextureCoordinates[SrcVertIndex];
 					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
 				}
-				FVector TangentX = VertexInstanceTangents[SrcVertexInstanceID];
-				FVector TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
-				FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
+				FVector3f TangentX = VertexInstanceTangents[SrcVertexInstanceID];
+				FVector3f TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
+				FVector3f TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
 				Vert->SetTangents(TangentX, TangentY, TangentZ);
 				for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)
 				{
