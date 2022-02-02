@@ -435,19 +435,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 	EDisplayClusterConfigurationViewportCustomFrustumMode Mode = EDisplayClusterConfigurationViewportCustomFrustumMode::Percent;
 
 	/** Pixel/Percent value to alter the frustum to the left side */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Left", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Left", ClampMin = "-500.0", UIMin = "-500.0", ClampMax = "500.0", UIMax = "500.0", EditCondition = "bEnable"))
 	float Left = 0;
 
 	/** Pixel/Percent value to alter the frustum to the right side */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Right", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Right", ClampMin = "-500.0", UIMin = "-500.0", ClampMax = "500.0", UIMax = "500.0", EditCondition = "bEnable"))
 	float Right = 0;
 
 	/** Pixel/Percent value to alter the frustum to the top*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Top", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Top", ClampMin = "-500.0", UIMin = "-500.0", ClampMax = "500.0", UIMax = "500.0", EditCondition = "bEnable"))
 	float Top = 0;
 
 	/** Pixel/Percent value to alter the frustum to the bottom */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Bottom", ClampMin = "-100.0", UIMin = "-100.0", ClampMax = "100.0", UIMax = "100.0", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Bottom", ClampMin = "-500.0", UIMin = "-500.0", ClampMax = "500.0", UIMax = "500.0", EditCondition = "bEnable"))
 	float Bottom = 0;
 };
 

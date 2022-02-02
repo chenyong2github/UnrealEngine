@@ -106,9 +106,6 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 		r = FMath::Clamp(r, -MaxValue, MaxValue);
 		t = FMath::Clamp(t, -MaxValue, MaxValue);
 		b = FMath::Clamp(b, -MaxValue, MaxValue);
-
-		GetNonZeroFrustumRange(l, r, n);
-		GetNonZeroFrustumRange(b, t, n);
 	}
 
 	// Support custom frustum rendering
@@ -132,6 +129,9 @@ void FDisplayClusterViewport::CalculateProjectionMatrix(const uint32 InContextNu
 			b = OrigValues[3];
 		}
 	}
+
+	GetNonZeroFrustumRange(l, r, n);
+	GetNonZeroFrustumRange(b, t, n);
 
 	Contexts[InContextNum].ProjectionMatrix = ImplCreateProjectionMatrix(l, r, t, b, n, f);
 

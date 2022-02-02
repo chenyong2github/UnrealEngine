@@ -45,8 +45,7 @@ struct FDisplayClusterViewport_OverscanSettings
 
 	static float ClampPercent(float InValue)
 	{
-		// change max value 1 to lower
-		static const float MaxCustomFrustumValue = 1.f;
+		static const float MaxCustomFrustumValue = 5.f;
 
 		return FMath::Clamp(InValue, -MaxCustomFrustumValue, MaxCustomFrustumValue);
 	}
