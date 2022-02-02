@@ -98,6 +98,8 @@ struct FScalarParameterValue
 
 	bool IsOverride() const { return true; }
 
+	bool IsValid() const { return true; }
+
 	bool operator==(const FScalarParameterValue& Other) const
 	{
 		return
@@ -152,6 +154,8 @@ struct FVectorParameterValue
 
 	bool IsOverride() const { return true; }
 
+	bool IsValid() const { return true; }
+
 	bool operator==(const FVectorParameterValue& Other) const
 	{
 		return
@@ -198,6 +202,8 @@ struct FDoubleVectorParameterValue
 	}
 
 	bool IsOverride() const { return true; }
+
+	bool IsValid() const { return true; }
 
 	bool operator==(const FDoubleVectorParameterValue& Other) const
 	{
@@ -250,6 +256,8 @@ struct FTextureParameterValue
 
 	bool IsOverride() const { return true; }
 
+	bool IsValid() const { return GetValue(*this) != nullptr; }
+
 	bool operator==(const FTextureParameterValue& Other) const
 	{
 		return
@@ -295,6 +303,8 @@ struct FRuntimeVirtualTextureParameterValue
 	}
 
 	bool IsOverride() const { return true; }
+
+	bool IsValid() const { return GetValue(*this) != nullptr; }
 
 	bool operator==(const FRuntimeVirtualTextureParameterValue& Other) const
 	{
@@ -349,6 +359,8 @@ struct FFontParameterValue
 	}
 
 	bool IsOverride() const { return true; }
+
+	bool IsValid() const { return GetValue(*this) != nullptr; }
 
 	bool operator==(const FFontParameterValue& Other) const
 	{

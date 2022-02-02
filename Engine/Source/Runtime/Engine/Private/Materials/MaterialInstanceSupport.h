@@ -324,7 +324,7 @@ inline bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters
 	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
 	{
 		const ParameterType* Parameter = &Parameters[ParameterIndex];
-		if (Parameter->IsOverride() && Parameter->ParameterInfo == ParameterInfo)
+		if (Parameter->IsOverride() && Parameter->IsValid() && Parameter->ParameterInfo == ParameterInfo)
 		{
 			Parameter->GetValue(OutResult);
 			return true;

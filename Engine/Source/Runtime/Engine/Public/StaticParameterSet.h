@@ -143,6 +143,8 @@ struct FStaticSwitchParameter : public FStaticParameterBase
 		OutResult.ExpressionGuid = ExpressionGUID;
 #endif
 	}
+
+	bool IsValid() const { return true; }
 };
 
 /**
@@ -228,6 +230,8 @@ struct FStaticComponentMaskParameter : public FStaticParameterBase
 		OutResult.ExpressionGuid = ExpressionGUID;
 #endif
 	}
+
+	bool IsValid() const { return true; }
 };
 
 /**
