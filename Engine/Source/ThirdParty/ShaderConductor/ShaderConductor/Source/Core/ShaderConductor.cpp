@@ -114,6 +114,7 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "force_ubo_std140_layout", opt.force_ubo_std140_layout);
     PARSE_SPIRVCROSS_OPTION(define, "disable_explicit_binding", opt.disable_explicit_binding);
     PARSE_SPIRVCROSS_OPTION(define, "enable_texture_buffer", opt.enable_texture_buffer);
+	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
     return false;
 }
 
