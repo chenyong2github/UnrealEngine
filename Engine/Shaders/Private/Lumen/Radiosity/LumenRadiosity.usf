@@ -84,7 +84,8 @@ void LumenRadiosityDistanceFieldTracingCS(
 
 			float3 WorldRayDirection;
 			float ConeHalfAngle;
-			GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle);
+			float PDF;
+			GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 			//#lumen_todo: derive bias from texel world size
 			WorldPosition += WorldNormal * SurfaceBias;
@@ -142,8 +143,18 @@ void LumenRadiosityDistanceFieldTracingCS(
 RWTexture2D<float3> RWFilteredTraceRadianceAtlas;
 float ProbePlaneWeightingDepthScale;
 
+float CalculatePlaneWeight(float3 WorldPosition, float3 WorldNormal, float3 ProbeWorldPosition)
+{
+	float4 TexelPlane = float4(WorldNormal, dot(ProbeWorldPosition, WorldNormal));
+	float PlaneDistance = abs(dot(float4(WorldPosition, -1), TexelPlane));
+	float RelativeDistance = max(PlaneDistance / (length(ProbeWorldPosition - WorldPosition) + .01f), .1f);
+	float DepthWeight = exp2(ProbePlaneWeightingDepthScale * (RelativeDistance * RelativeDistance));
+	return DepthWeight > .01f ? 1 : 0;
+}
+
 void SampleTraceRadianceAtlas(
 	FRadiosityTexel GatherProbeTexel,
+	uint2 GatherProbeAtlasCoord,
 	uint ResLevelPageTableOffset, 
 	uint2 ResLevelSizeInProbes, 
 	int2 ProbeCoordInCard, 
@@ -180,31 +191,18 @@ void SampleTraceRadianceAtlas(
 
 					#if FILTERING_PLANE_WEIGHTING
 					{
-						float4 TexelPlane = float4(GatherProbeTexel.WorldNormal, dot(GatherProbeTexel.WorldPosition, GatherProbeTexel.WorldNormal));
-						float PlaneDistance = abs(dot(float4(ProbeTexel.WorldPosition, -1), TexelPlane));
-						float RelativeDistance = max(PlaneDistance / (length(GatherProbeTexel.WorldPosition - ProbeTexel.WorldPosition) + .01f), .1f);
-						float DepthWeight = exp2(ProbePlaneWeightingDepthScale * (RelativeDistance * RelativeDistance));
-						Weight = min(Weight, DepthWeight > .01f ? 1 : 0);
+						float PlaneWeight = CalculatePlaneWeight(GatherProbeTexel.WorldPosition, GatherProbeTexel.WorldNormal, ProbeTexel.WorldPosition);
+						Weight = min(Weight, PlaneWeight);
 					}
 					#endif
 
 					#if FILTERING_PROBE_OCCLUSION
 					{
-						float3 SamplePosition = GatherProbeTexel.WorldPosition + 0 * GatherProbeTexel.WorldNormal;
-						float3 ProbeToTexel = SamplePosition - ProbeTexel.WorldPosition;
+						float VisibilityWeight = CalculateProbeVisibility(GatherProbeTexel.WorldPosition, ProbeTexel, ProbeAtlasCoord);
+						Weight = min(Weight, VisibilityWeight);
 
-						if (dot(ProbeToTexel, ProbeToTexel) > .01f)
-						{
-							float3x3 TangentBasis = GetTangentBasisFrisvad(ProbeTexel.WorldNormal);
-							float3 LocalProbeToTexel = mul(ProbeToTexel, transpose(TangentBasis));
-							float2 TexelUV = clamp(UnitVectorToHemiOctahedron(LocalProbeToTexel) * .5f + .5f, 0.0f, .99f);
-
-							uint2 RadiosityProbeTracingAtlasCoord = (ProbeAtlasCoord + TexelUV) * HemisphereProbeResolution;
-							float TraceHitDistance = TraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord];
-
-							float VisibilityWeight = TraceHitDistance * TraceHitDistance < dot(ProbeToTexel, ProbeToTexel) ? 0 : 1;
-							Weight = min(Weight, VisibilityWeight);
-						}
+						float VisibilityWeight2 = CalculateProbeVisibility(ProbeTexel.WorldPosition, GatherProbeTexel, GatherProbeAtlasCoord);
+						Weight = min(Weight, VisibilityWeight2);
 					}
 					#endif
 
@@ -234,7 +232,8 @@ void LumenRadiositySpatialFilterProbeRadiance(
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
-		uint2 RadiosityProbeTracingAtlasCoord = GetRadiosityProbeAtlasCoord(CardPage, CardTile, CoordInCardTile) * HemisphereProbeResolution + TraceTexelCoord;
+		uint2 ProbeAtlasCoord = GetRadiosityProbeAtlasCoord(CardPage, CardTile, CoordInCardTile);
+		uint2 RadiosityProbeTracingAtlasCoord = ProbeAtlasCoord * HemisphereProbeResolution + TraceTexelCoord;
 
 		float CenterWeight = 2.0f;
 		float3 Radiance = TraceRadianceAtlas[RadiosityProbeTracingAtlasCoord] * CenterWeight;
@@ -276,6 +275,7 @@ void LumenRadiositySpatialFilterProbeRadiance(
 			{
 				SampleTraceRadianceAtlas(
 					RadiosityTexel,
+					ProbeAtlasCoord,
 					CardPage.ResLevelPageTableOffset, 
 					ResLevelSizeInProbes, 
 					ProbeCoordInCard + NeighborOffsets[i], 
@@ -325,9 +325,10 @@ void LumenRadiosityConvertToSH(
 
 					float3 WorldRayDirection;
 					float ConeHalfAngle;
-					GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle);
+					float PDF;
+					GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
-					IrradianceSH = AddSH(IrradianceSH, MulSH(SHBasisFunction(WorldRayDirection), TraceRadiance));
+					IrradianceSH = AddSH(IrradianceSH, MulSH(SHBasisFunction(WorldRayDirection), TraceRadiance / PDF));
 					NumValidSamples += 1.0f;
 				}
 			}
@@ -335,7 +336,7 @@ void LumenRadiosityConvertToSH(
 
 		if (NumValidSamples > 0.0f)
 		{
-			IrradianceSH = MulSH(IrradianceSH, (2.0f * PI) / NumValidSamples);
+			IrradianceSH = MulSH(IrradianceSH, 1.0f / NumValidSamples);
 		}
 
 		RWRadiosityProbeSHRedAtlas[RadiosityProbeAtlasCoord] = IrradianceSH.R.V;
@@ -398,32 +399,15 @@ void SampleRadiositySH(
 
 				#if INTERPOLATION_PLANE_WEIGHTING
 				{
-					float4 TexelPlane = float4(TexelNormal, dot(TexelWorldPosition, TexelNormal));
-					float PlaneDistance = abs(dot(float4(NeighborProbeTexel.WorldPosition, -1), TexelPlane));
-					float RelativeDistance = max(PlaneDistance / (length(TexelWorldPosition - NeighborProbeTexel.WorldPosition) + .01f), .1f);
-					float DepthWeight = exp2(ProbePlaneWeightingDepthScale * (RelativeDistance * RelativeDistance));
-					Weight = min(Weight, DepthWeight > .01f ? 1 : 0);
+					float PlaneWeight = CalculatePlaneWeight(TexelWorldPosition, TexelNormal, NeighborProbeTexel.WorldPosition);
+					Weight = min(Weight, PlaneWeight);
 				}
 				#endif
 
 				#if INTERPOLATION_PROBE_OCCLUSION
 				{
-					float3 SamplePosition = TexelWorldPosition + 0 * TexelNormal;
-					float3 ProbeToTexel = SamplePosition - NeighborProbeTexel.WorldPosition;
-
-					if (dot(ProbeToTexel, ProbeToTexel) > .01f)
-					{
-						float3x3 TangentBasis = GetTangentBasisFrisvad(NeighborProbeTexel.WorldNormal);
-						float3 LocalProbeToTexel = mul(ProbeToTexel, transpose(TangentBasis));
-						float2 TexelUV = clamp(UnitVectorToHemiOctahedron(LocalProbeToTexel) * .5f + .5f, 0.0f, .99f);
-
-						uint2 RadiosityProbeTracingAtlasCoord = (ProbeAtlasCoord + TexelUV) * HemisphereProbeResolution;
-						float TraceHitDistance = TraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord];
-
-						float VisibilityWeight = TraceHitDistance * TraceHitDistance < dot(ProbeToTexel, ProbeToTexel) ? 0 : 1;
-						Weight = min(Weight, VisibilityWeight);
-						Debug = VisibilityWeight;
-					}
+					float VisibilityWeight = CalculateProbeVisibility(TexelWorldPosition, NeighborProbeTexel, ProbeAtlasCoord);
+					Weight = min(Weight, VisibilityWeight);
 				}
 				#endif
 

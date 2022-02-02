@@ -186,17 +186,103 @@ float2 GetProbeTexelCenter(uint IndirectLightingTemporalIndex, uint2 ProbeTileCo
 #endif
 }
 
-void GetRadiosityRay(FRadiosityTexel RadiosityTexel, uint2 ProbeTileCoord, uint2 TracingTexelCoord, out float3 WorldRayDirection, out float ConeHalfAngle)
+float2 CosineSampleHemisphereInverseFast(float3 Vector)
+{
+	float CosTheta = Vector.z;
+	float SinTheta = sqrt(1 - CosTheta * CosTheta);
+	float Phi = atan2Fast(Vector.y, Vector.x);
+
+	float2 E;
+	E.x = Phi / (2 * PI);
+	E.y = Vector.z * Vector.z;
+	return E;
+}
+
+float2 UniformSampleHemisphereInverseFast(float3 Vector)
+{
+	float CosTheta = Vector.z;
+	float SinTheta = sqrt(1 - CosTheta * CosTheta);
+	float Phi = atan2Fast(Vector.y, Vector.x);
+
+	float2 E;
+	E.x = Phi / (2 * PI);
+	E.y = Vector.z;
+	return E;
+}
+
+#define PROBE_HEMISPHERE_HEMI_OCTAHEDRON	0
+#define PROBE_HEMISPHERE_UNIFORM			1
+#define PROBE_HEMISPHERE_COSINE				2
+
+#define RADIOSITY_PROBE_MAPPING				PROBE_HEMISPHERE_UNIFORM
+
+void GetRadiosityRay(FRadiosityTexel RadiosityTexel, uint2 ProbeTileCoord, uint2 TracingTexelCoord, out float3 WorldRayDirection, out float ConeHalfAngle, out float PDF)
 {
 	float2 ProbeTexelCenter = GetProbeTexelCenter(RadiosityTexel.IndirectLightingTemporalIndex, ProbeTileCoord);
 	float2 ProbeUV = (TracingTexelCoord + ProbeTexelCenter) / float(HemisphereProbeResolution);
 
-	//@todo - cosine distribution?
+	float3 LocalRayDirection;
+
+	uint RadiosityProbeHemisphereMapping = RADIOSITY_PROBE_MAPPING;
 	// Sample generation must match probe occlusion
-	float3 LocalRayDirection = HemiOctahedronToUnitVector(ProbeUV * 2 - 1);
+	if (RadiosityProbeHemisphereMapping == PROBE_HEMISPHERE_HEMI_OCTAHEDRON)
+	{
+		LocalRayDirection = HemiOctahedronToUnitVector(ProbeUV * 2 - 1);
+		//@todo - hemi octahedron solid angle
+		PDF = 1.0 / (2 * PI);
+	}
+	else if (RadiosityProbeHemisphereMapping == PROBE_HEMISPHERE_UNIFORM)
+	{
+		float4 Sample = UniformSampleHemisphere(ProbeUV);
+		LocalRayDirection = Sample.xyz;
+		PDF = Sample.w;
+	}
+	else
+	{
+		float4 Sample = CosineSampleHemisphere(ProbeUV);
+		LocalRayDirection = Sample.xyz;
+		PDF = Sample.w;
+	}
 
 	float3x3 TangentBasis = GetTangentBasisFrisvad(RadiosityTexel.WorldNormal);
 	WorldRayDirection = mul(LocalRayDirection, TangentBasis);
 
 	ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(NumTracesPerProbe));
+}
+
+float CalculateProbeVisibility(float3 WorldPositionBeingTested, FRadiosityTexel ProbeTexel, uint2 ProbeAtlasCoord)
+{
+	float VisibilityWeight = 1.0f;
+	float3 ProbeToTexel = WorldPositionBeingTested - ProbeTexel.WorldPosition;
+
+	if (dot(ProbeToTexel, ProbeToTexel) > .01f)
+	{
+		float3x3 TangentBasis = GetTangentBasisFrisvad(ProbeTexel.WorldNormal);
+		float3 LocalProbeToTexel = mul(ProbeToTexel, transpose(TangentBasis));
+
+		uint RadiosityProbeHemisphereMapping = RADIOSITY_PROBE_MAPPING;
+		float2 TexelUV;
+
+		if (RadiosityProbeHemisphereMapping == PROBE_HEMISPHERE_HEMI_OCTAHEDRON)
+		{
+			TexelUV = UnitVectorToHemiOctahedron(LocalProbeToTexel) * .5f + .5f;
+		}
+		else if (RadiosityProbeHemisphereMapping == PROBE_HEMISPHERE_UNIFORM)
+		{
+			TexelUV = UniformSampleHemisphereInverseFast(LocalProbeToTexel);
+		}
+		else
+		{
+			TexelUV = CosineSampleHemisphereInverseFast(LocalProbeToTexel);
+		}
+
+		TexelUV = clamp(TexelUV, 0.0f, .99f);
+
+		uint2 RadiosityProbeTracingAtlasCoord = (ProbeAtlasCoord + TexelUV) * HemisphereProbeResolution;
+		float TraceHitDistance = TraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord];
+
+		VisibilityWeight = TraceHitDistance * TraceHitDistance < dot(ProbeToTexel, ProbeToTexel) ? 0 : 1;
+	}
+
+	return VisibilityWeight;
 }

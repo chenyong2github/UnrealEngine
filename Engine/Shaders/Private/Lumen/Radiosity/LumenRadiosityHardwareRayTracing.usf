@@ -67,7 +67,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				
 				float3 WorldRayDirection;
 				float ConeHalfAngle;
-				GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle);
+				float PDF;
+				GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 				RayDesc Ray;
 				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
