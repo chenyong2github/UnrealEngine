@@ -36,12 +36,14 @@ void FMobileSceneRenderer::RenderDecals(FRHICommandListImmediate& RHICmdList, co
 	// Deferred decals
 	if (Scene->Decals.Num() > 0)
 	{
+		SCOPED_DRAW_EVENT(RHICmdList, Decals);
 		RenderDeferredDecalsMobile(RHICmdList, *Scene, View, DecalRenderStage, RenderTargetMode);
 	}
 
 	// Mesh decals
 	if (View.MeshDecalBatches.Num() > 0)
 	{
+		SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
 		RenderMeshDecalsMobile(RHICmdList, View, DecalRenderStage, RenderTargetMode);
 	}
 }

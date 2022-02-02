@@ -166,6 +166,8 @@ FMobileBasePassMovableLightInfo::FMobileBasePassMovableLightInfo(const FPrimitiv
 	}
 }
 
+extern void SetupDummyForwardLightUniformParameters(FRDGBuilder& GraphBuilder, FForwardLightData& ForwardLightData);
+
 void SetupMobileBasePassUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
@@ -175,6 +177,15 @@ void SetupMobileBasePassUniformParameters(
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(GraphBuilder, View, BasePassParameters.Fog);
+
+	if (View.ForwardLightingResources.ForwardLightData)
+	{
+		BasePassParameters.Forward = *View.ForwardLightingResources.ForwardLightData;
+	}
+	else
+	{
+		SetupDummyForwardLightUniformParameters(GraphBuilder, BasePassParameters.Forward);
+	}
 
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;

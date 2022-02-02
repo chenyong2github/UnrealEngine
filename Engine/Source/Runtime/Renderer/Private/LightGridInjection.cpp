@@ -86,31 +86,35 @@ FAutoConsoleVariableRef CVarLightCullingMaxDistanceOverride(
 
 extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
 
-TRDGUniformBufferRef<FForwardLightData> CreateDummyForwardLightUniformBuffer(FRDGBuilder& GraphBuilder)
+void SetupDummyForwardLightUniformParameters(FRDGBuilder& GraphBuilder, FForwardLightData& ForwardLightData)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	
+	ForwardLightData.DirectionalLightShadowmapAtlas = SystemTextures.Black;
+	ForwardLightData.DirectionalLightStaticShadowmap = GBlackTexture->TextureRHI;
 
-	FForwardLightData* ForwardLightData = GraphBuilder.AllocParameters<FForwardLightData>();
-	ForwardLightData->DirectionalLightShadowmapAtlas = SystemTextures.Black;
-	ForwardLightData->DirectionalLightStaticShadowmap = GBlackTexture->TextureRHI;
+	FRDGBufferRef ForwardLocalLightBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(FVector4f));
+	ForwardLightData.ForwardLocalLightBuffer = GraphBuilder.CreateSRV(ForwardLocalLightBuffer, PF_A32B32G32R32F);
 
-	FRDGBufferRef ForwardLocalLightBuffer     = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(FVector4f));
-	ForwardLightData->ForwardLocalLightBuffer = GraphBuilder.CreateSRV(ForwardLocalLightBuffer, PF_A32B32G32R32F);
-
-	FRDGBufferRef NumCulledLightsGrid     = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint32));
-	ForwardLightData->NumCulledLightsGrid = GraphBuilder.CreateSRV(NumCulledLightsGrid, PF_R32_UINT);
+	FRDGBufferRef NumCulledLightsGrid = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint32));
+	ForwardLightData.NumCulledLightsGrid = GraphBuilder.CreateSRV(NumCulledLightsGrid, PF_R32_UINT);
 
 	if (RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform))
 	{
-		FRDGBufferRef CulledLightDataGrid     = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint16));
-		ForwardLightData->CulledLightDataGrid = GraphBuilder.CreateSRV(CulledLightDataGrid, PF_R16_UINT);
+		FRDGBufferRef CulledLightDataGrid = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint16));
+		ForwardLightData.CulledLightDataGrid = GraphBuilder.CreateSRV(CulledLightDataGrid, PF_R16_UINT);
 	}
 	else
 	{
-		FRDGBufferRef CulledLightDataGrid     = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint32));
-		ForwardLightData->CulledLightDataGrid = GraphBuilder.CreateSRV(CulledLightDataGrid, PF_R32_UINT);
+		FRDGBufferRef CulledLightDataGrid = GSystemTextures.GetDefaultBuffer(GraphBuilder, sizeof(uint32));
+		ForwardLightData.CulledLightDataGrid = GraphBuilder.CreateSRV(CulledLightDataGrid, PF_R32_UINT);
 	}
+}
 
+TRDGUniformBufferRef<FForwardLightData> CreateDummyForwardLightUniformBuffer(FRDGBuilder& GraphBuilder)
+{
+	FForwardLightData* ForwardLightData = GraphBuilder.AllocParameters<FForwardLightData>();
+	SetupDummyForwardLightUniformParameters(GraphBuilder, *ForwardLightData);
 	return GraphBuilder.CreateUniformBuffer(ForwardLightData);
 }
 

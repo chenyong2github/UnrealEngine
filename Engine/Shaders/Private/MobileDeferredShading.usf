@@ -5,6 +5,12 @@
 #include "Common.ush"
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
+
+// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
+#define MobileSceneTextures		MobileBasePass.SceneTextures
+#define ForwardLightData		MobileBasePass.Forward
+#define PlanarReflectionStruct	MobileBasePass.PlanarReflection
+
 #include "DynamicLightingCommon.ush"
 #include "ReflectionEnvironmentShared.ush"
 #include "LightGridCommon.ush"
@@ -12,9 +18,6 @@
 #include "IESLightProfilesCommon.ush"
 #include "LightFunctionCommon.ush"
 #include "PlanarReflectionShared.ush"
-
-// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
-#define MobileSceneTextures MobileBasePass.SceneTextures
 
 #if APPLY_SKY_REFLECTION
 #define ENABLE_SKY_LIGHT 1

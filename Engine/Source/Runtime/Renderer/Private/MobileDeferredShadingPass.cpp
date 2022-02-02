@@ -42,11 +42,9 @@ class FMobileDirectLightFunctionPS : public FMaterialShader
 	using FPermutationDomain = TShaderPermutationDomain< FUseClustred, FApplySkyReflection, FApplyCSM, FApplyReflection, FShadowQuality>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FMobileDirectionalLightShaderParameters, MobileDirectionalLight)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
-		SHADER_PARAMETER_STRUCT_REF(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection.
 		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToLight)
 		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
@@ -217,6 +215,13 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 		DirectionalLight = Scene.MobileDirectionalLights[ChannelIdx];
 	}
 
+	FString LightNameWithLevel = TEXT("DirectionalLight");
+	if (DirectionalLight)
+	{
+		FSceneRenderer::GetLightNameForDrawEvent(DirectionalLight->Proxy, LightNameWithLevel);
+	}
+	SCOPED_DRAW_EVENTF(RHICmdList, DirectionalLight, TEXT("%s"), *LightNameWithLevel);
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 	// Add to emissive in SceneColor
@@ -249,23 +254,12 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 	FMobileDirectLightFunctionPS::FParameters PassParameters;
-	PassParameters.Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[1];
 	PassParameters.ReflectionCaptureData = GetShaderBinding(View.ReflectionCaptureUniformBuffer);
 	FReflectionUniformParameters ReflectionUniformParameters;
 	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
 	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 	PassParameters.LightFunctionParameters = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
-
-	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene.GetForwardPassGlobalPlanarReflection();
-	FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
-	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, PlanarReflectionUniformParameters);
-	if (View.PrevViewInfo.MobilePixelProjectedReflection.IsValid())
-	{
-		PlanarReflectionUniformParameters.PlanarReflectionTexture = View.PrevViewInfo.MobilePixelProjectedReflection->GetRenderTargetItem().ShaderResourceTexture;
-	}
-	PassParameters.PlanarReflection = TUniformBufferRef<FPlanarReflectionUniformParameters>::CreateUniformBufferImmediate(PlanarReflectionUniformParameters, UniformBuffer_SingleDraw);
-
 	PassParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	PassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -403,6 +397,10 @@ static void RenderLocalLight(
 	{
 		return;
 	}
+
+	FString LightNameWithLevel;
+	FSceneRenderer::GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
+	SCOPED_DRAW_EVENTF(RHICmdList, LocalLight, TEXT("%s"), *LightNameWithLevel);
 	
 	if (GMobileUseLightStencilCulling != 0)
 	{
@@ -512,6 +510,12 @@ static void RenderSimpleLights(
 	const FCachedLightMaterial& DefaultMaterial)
 {
 	const FSimpleLightArray& SimpleLights = SortedLightSet.SimpleLights;
+	if (SimpleLights.InstanceData.Num() == 0)
+	{
+		return;
+	}
+
+	SCOPED_DRAW_EVENT(RHICmdList, SimpleLights);
 
 	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
@@ -598,6 +602,8 @@ void MobileDeferredShadingPass(
 	const FScene& Scene, 
 	const FSortedLightSetSceneInfo &SortedLightSet)
 {
+	SCOPED_DRAW_EVENT(RHICmdList, DeferredShading);
+	
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 	// Default material for light rendering
