@@ -12,6 +12,11 @@
 #define SkyIrradianceEnvironmentMap		View.SkyIrradianceEnvironmentMap
 #endif
 
+float GetSkyLightCubemapBrightness()
+{
+	return SkyIrradianceEnvironmentMap[7].x; // Refer to FSceneRenderer::UpdateSkyIrradianceGpuBuffer for more details.
+}
+
 #define REFLECTION_CAPTURE_ROUGHEST_MIP 1
 #define REFLECTION_CAPTURE_ROUGHNESS_MIP_SCALE 1.2
 
@@ -40,7 +45,7 @@ float3 GetSkyLightReflection(float3 ReflectionVector, float Roughness, out float
 	float AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ReflectionStruct.SkyLightParameters.x);
 	float3 Reflection = TextureCubeSampleLevel(ReflectionStruct.SkyLightCubemap, ReflectionStruct.SkyLightCubemapSampler, ReflectionVector, AbsoluteSpecularMip).rgb;
 
-	OutSkyAverageBrightness = ReflectionStruct.SkyLightCubemapBrightness * Luminance( View.SkyLightColor.rgb );
+	OutSkyAverageBrightness = GetSkyLightCubemapBrightness() * Luminance(View.SkyLightColor.rgb);
 	return Reflection * View.SkyLightColor.rgb;
 }
 

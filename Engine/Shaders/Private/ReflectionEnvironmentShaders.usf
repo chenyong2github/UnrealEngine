@@ -537,7 +537,6 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 {
 	const uint LinearIndex = THREADGROUP_SIZE_X * ThreadId.y + ThreadId.x;
 
-
 #if 1
 
 	// For a 128x128 cubemap, sampling mip level 2 with only 8x8 samples matches closely the super sampled version.
@@ -652,6 +651,19 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 		OutIrradianceEnvMapSH[6].y = Coefficient4 * SkyIrradiance.G.V2;//[8];
 		OutIrradianceEnvMapSH[6].z = Coefficient4 * SkyIrradiance.B.V2;//[8];
 		OutIrradianceEnvMapSH[6].w = 1.0f;
+
+		// We inverse the weights applied onto the non directional SH component to recover the average sky irradiance.
+		const float3 DummyVector = float3(0.0, 0.0, 1.0);
+		const float SHBasisL0Weight = SHBasisFunction3(DummyVector).V0.x;
+		const float InvSHBand0Weights = 1.0f / (SHBasisL0Weight * 4.0f * PI);
+		const float SkyAverageIrradianceR = SkyIrradiance.R.V0.x * InvSHBand0Weights;
+		const float SkyAverageIrradianceG = SkyIrradiance.G.V0.x * InvSHBand0Weights;
+		const float SkyAverageIrradianceB = SkyIrradiance.B.V0.x * InvSHBand0Weights;
+		const float SkyAverageIrradiance  = dot(float3(SkyAverageIrradianceR, SkyAverageIrradianceG, SkyAverageIrradianceB), .3333f);
+		OutIrradianceEnvMapSH[7].x = SkyAverageIrradiance;
+		OutIrradianceEnvMapSH[7].y = SkyAverageIrradiance;
+		OutIrradianceEnvMapSH[7].z = SkyAverageIrradiance;
+		OutIrradianceEnvMapSH[7].w = SkyAverageIrradiance;
 	}
 }
 #endif

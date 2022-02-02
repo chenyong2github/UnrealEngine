@@ -1729,7 +1729,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	if (RHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		// Make sure there's no padding since we're going to cast to FVector4f*
-		static_assert(sizeof(ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * 7, "unexpected sizeof ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap");
+		static_assert(sizeof(ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT, "unexpected sizeof ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap");
 
 		const bool bSetupSkyIrradiance = Scene
 			&& Scene->SkyLight
@@ -1744,7 +1744,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 		else
 		{
-			FMemory::Memzero((FVector4f*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, sizeof(FVector4f) * 7);
+			FMemory::Memzero((FVector4f*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, sizeof(FVector4f) * SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT);
 		}
 	}
 	else
@@ -5226,14 +5226,14 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 
 	if (!Scene->SkyIrradianceEnvironmentMap.Buffer)
 	{
-		Scene->SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
+		Scene->SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT);
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSkyIrradianceGpuBuffer);
 
-	FVector4f OutSkyIrradianceEnvironmentMap[7];
+	FVector4f OutSkyIrradianceEnvironmentMap[SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT];
 	// Make sure there's no padding since we're going to cast to FVector4f*
-	checkSlow(sizeof(OutSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * 7);
+	checkSlow(sizeof(OutSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT);
 	check(Scene);
 	const bool bUploadIrradiance = 
 		Scene->SkyLight
@@ -5247,10 +5247,14 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 		const FSHVectorRGB3& SkyIrradiance = Scene->SkyLight->IrradianceEnvironmentMap;
 		SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(OutSkyIrradianceEnvironmentMap, SkyIrradiance);
 
+		const float SkyLightAverageBrightness = Scene->SkyLight->AverageBrightness;
+		const FVector4f SkyAverageBrightness = FVector4f(SkyLightAverageBrightness, SkyLightAverageBrightness, SkyLightAverageBrightness, SkyLightAverageBrightness);
+
 		// Set the captured environment map data
-		void* DataPtr = RHICmdList.LockBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
+		FVector4f* DataPtr = (FVector4f*)RHICmdList.LockBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer, 0, Scene->SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
 		checkSlow(Scene->SkyIrradianceEnvironmentMap.NumBytes == sizeof(OutSkyIrradianceEnvironmentMap));
-		FPlatformMemory::Memcpy(DataPtr, &OutSkyIrradianceEnvironmentMap, sizeof(OutSkyIrradianceEnvironmentMap));
+		FPlatformMemory::Memcpy(DataPtr    , &OutSkyIrradianceEnvironmentMap,	sizeof(FVector4f) * 7);
+		FPlatformMemory::Memcpy(DataPtr + 7, &SkyAverageBrightness,				sizeof(FVector4f) * 1);
 		RHICmdList.UnlockBuffer(Scene->SkyIrradianceEnvironmentMap.Buffer);
 	}
 	else if (Scene->SkyIrradianceEnvironmentMap.NumBytes == 0)

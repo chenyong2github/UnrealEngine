@@ -588,6 +588,8 @@ enum ETranslucencyVolumeCascade
 	TVC_MAX,
 };
 
+#define SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT 8
+
 //VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, PrevProjection)
 //VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, PrevViewProj)
 //VIEW_UNIFORM_BUFFER_MEMBER(FMatrix44f, PrevViewRotationProj)
@@ -725,7 +727,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, SkyLightAffectReflectionFlag) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, SkyLightAffectGlobalIlluminationFlag) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FLinearColor, SkyLightColor) \
-	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4f, MobileSkyIrradianceEnvironmentMap, [7]) \
+	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4f, MobileSkyIrradianceEnvironmentMap, [SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT]) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MobilePreviewMode) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, HMDEyePaddingOffset) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, ReflectionCubemapMaxMip, EShaderPrecisionModifier::Half) \
