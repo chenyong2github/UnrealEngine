@@ -816,7 +816,7 @@ float UTimelineComponent::GetPlayRate() const
 	return TheTimeline.GetPlayRate();
 }
 
-void UTimelineComponent::SetNewTime (float NewTime)
+void UTimelineComponent::SetNewTime(float NewTime)
 {
 	TheTimeline.SetNewTime(NewTime);
 }

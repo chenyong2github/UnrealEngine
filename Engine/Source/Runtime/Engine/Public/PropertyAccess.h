@@ -342,6 +342,9 @@ enum class EPropertyAccessCopyType : uint8
 	// Float promotions		// LWC_TODO: Float/double should become synonyms?
 	PromoteFloatToDouble,
 	DemoteDoubleToFloat,	// LWC_TODO: This should not ship!
+
+	PromoteArrayFloatToDouble,
+	DemoteArrayDoubleToFloat,
 };
 
 // A property copy, represents a one-to-many copy operation

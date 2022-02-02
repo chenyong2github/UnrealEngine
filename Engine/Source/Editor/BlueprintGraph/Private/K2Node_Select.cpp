@@ -11,6 +11,7 @@
 #include "EdGraphUtilities.h"
 #include "BPTerminal.h"
 #include "BlueprintCompiledStatement.h"
+#include "KismetCastingUtils.h"
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 #include "BlueprintNodeSpawner.h"
@@ -119,7 +120,8 @@ public:
 
 		TArray<UEdGraphPin*> OptionPins;
 		SelectNode->GetOptionPins(OptionPins);
-		for (int32 OptionIdx = 0; OptionIdx < OptionPins.Num(); OptionIdx++)
+
+		for (int32 OptionIdx = 0; OptionIdx < OptionPins.Num(); ++OptionIdx)
 		{
 			{
 				FBPTerminal* LiteralTerm = Context.CreateLocalTerminal(ETerminalSpecification::TS_Literal);
@@ -135,6 +137,7 @@ public:
 				}
 				SelectStatement->RHS.Add(LiteralTerm);
 			}
+
 			{
 				UEdGraphPin* NetPin = OptionPins[OptionIdx] ? FEdGraphUtilities::GetNetFromPin(OptionPins[OptionIdx]) : nullptr;
 				FBPTerminal** ValueTermPtr = NetPin ? Context.NetMap.Find(NetPin) : nullptr;
@@ -144,6 +147,21 @@ public:
 					Context.MessageLog.Error(*LOCTEXT("Error_NoTermFound", "No term registered for pin @@").ToString(), NetPin);
 					return;
 				}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				{
+					using namespace UE::KismetCompiler;
+
+					TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
+						CastingUtils::InsertImplicitCastStatement(Context, OptionPins[OptionIdx], ValueTerm);
+
+					if (ImplicitCastEntry)
+					{
+						ValueTerm = ImplicitCastEntry->Get<0>();
+					}
+				}
+#endif
+
 				SelectStatement->RHS.Add(ValueTerm);
 			}
 		}

@@ -69,6 +69,6 @@ public:
 	virtual void CheckIfFunctionIsCallable(UFunction* Function, FKismetFunctionContext& Context, UEdGraphNode* Node);
 	virtual void AdditionalCompiledStatementHandling(FKismetFunctionContext& Context, UEdGraphNode* Node, FBlueprintCompiledStatement& Statement) {}
 
-protected:
+private:
 	TMap<UEdGraphPin*, FBPTerminal*> InterfaceTermMap;
 };

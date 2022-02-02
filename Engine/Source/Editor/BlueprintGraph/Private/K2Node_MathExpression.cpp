@@ -79,7 +79,12 @@ static bool PromoteIntToFloat(FEdGraphPinType& InOutType)
 {
 	if (InOutType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		InOutType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		InOutType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+#else
 		InOutType.PinCategory = UEdGraphSchema_K2::PC_Float;
+#endif
 		InOutType.PinSubCategoryObject = nullptr;
 		return true;
 	}
@@ -548,7 +553,7 @@ public:
 class FFunctionExpression : public IFExpressionNode
 {
 public:
-	FFunctionExpression(FString const& InFuncName, TSharedRef<FExpressionList> InParamList)
+	FFunctionExpression(const FString& InFuncName, TSharedRef<FExpressionList> InParamList)
 		: FuncName(InFuncName)
 		, ParamList(InParamList)
 	{
@@ -575,13 +580,13 @@ public:
 	/** For debug purposes, constructs a textual representation of this expression */
 	virtual FString ToString() const override
 	{
-		FString const ParamsString = ParamList->ToString();
+		const FString ParamsString = ParamList->ToString();
 		return FString::Printf(TEXT("(%s%s)"), *FuncName, *ParamsString);
 	}
 
 	virtual FString ToDisplayString(UBlueprint* InBlueprint) const
 	{
-		FString const ParamsString = ParamList->ToDisplayString(InBlueprint);
+		const FString ParamsString = ParamList->ToDisplayString(InBlueprint);
 		return FString::Printf(TEXT("(%s%s)"), *FuncName, *ParamsString);
 	}
 public:
@@ -707,7 +712,7 @@ public:
 	 * Checks to see if there are any functions associated with the specified 
 	 * operator. 
 	 */
-	bool Contains(FString const& Operator) const
+	bool Contains(const FString& Operator) const
 	{
 		return LookupTable.Contains(Operator);
 	}	
@@ -722,7 +727,7 @@ public:
 	 * @param  InputTypeList	A list of parameter types you want to feed the function.
 	 * @return A pointer to the matching function (if one was found), otherwise nullptr.
 	 */
-	UFunction* FindMatchingFunction(FString const& Operator, TArray<FEdGraphPinType> const& InputTypeList) const
+	UFunction* FindMatchingFunction(const FString& Operator, const TArray<FEdGraphPinType>& InputTypeList) const
 	{
 		// make a local copy of the desired input types so that we can promote 
 		// those types as needed
@@ -736,7 +741,7 @@ public:
 		// float), and see if we can lookup a function with those types
 		for (int32 promoterIndex = 0; (promoterIndex < OrderedTypePromoters.Num()) && (MatchingFunc == NULL); ++promoterIndex)
 		{
-			FTypePromoter const& PromotionOperator = OrderedTypePromoters[promoterIndex];
+			const FTypePromoter& PromotionOperator = OrderedTypePromoters[promoterIndex];
 
 			// Apply the promotion operator to any values that match
 			bool bMadeChanges = false;
@@ -766,7 +771,7 @@ public:
 	 * Flags the specified function as one associated with the supplied 
 	 * operator.
 	 */
-	void Add(FString const& Operator, UFunction* OperatorFunc)
+	void Add(const FString& Operator, UFunction* OperatorFunc)
 	{
 		LookupTable.FindOrAdd(Operator).Add(OperatorFunc);
 	}
@@ -798,12 +803,12 @@ public:
 					}
 					
 					FString FunctionName = TestFunction->GetName();
-					TArray<FString> const& OperatorAliases = GetOperatorAliases(FunctionName);
+					const TArray<FString>& OperatorAliases = GetOperatorAliases(FunctionName);
 					
 					// if there are aliases, use those instead of the function's standard name
 					if (OperatorAliases.Num() > 0)
 					{
-						for (FString const& Alias : OperatorAliases)
+						for (const FString& Alias : OperatorAliases)
 						{
 							Add(Alias, TestFunction);
 						}
@@ -847,14 +852,14 @@ private:
 	 * @param  InputTypeList	A list of parameter types you want to feed the function.
 	 * @return A pointer to the matching function (if one was found), otherwise nullptr.
 	 */
-	UFunction* FindFunctionInternal(FString const& Operator, TArray<FEdGraphPinType> const& InputTypeList) const
+	UFunction* FindFunctionInternal(const FString& Operator, const TArray<FEdGraphPinType>& InputTypeList) const
 	{
 		UFunction* MatchedFunction = nullptr;
 
-		FFunctionsList const* OperatorFunctions = LookupTable.Find(Operator);
+		const FFunctionsList* OperatorFunctions = LookupTable.Find(Operator);
 		if (OperatorFunctions != nullptr)
 		{
-			UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 			for (UFunction* TestFunction : *OperatorFunctions)
 			{
 				int32 ArgumentIndex = 0;
@@ -868,7 +873,7 @@ private:
 							FEdGraphPinType ParamType;
 							if (K2Schema->ConvertPropertyToPinType(Param, /*out*/ParamType))
 							{
-								FEdGraphPinType const& TypeToMatch = InputTypeList[ArgumentIndex];
+								const FEdGraphPinType& TypeToMatch = InputTypeList[ArgumentIndex];
 								if (!K2Schema->ArePinTypesCompatible(TypeToMatch, ParamType))
 								{
 									break; // type mismatch
@@ -909,7 +914,7 @@ private:
 	 * @param  FunctionName		The raw name of the function you're looking to replace (not the friendly name)
 	 * @return A reference to the array of aliases for the specified function (an empty array if none were found).
 	 */
-	static TArray<FString> const& GetOperatorAliases(FString const& FunctionName)
+	static const TArray<FString>& GetOperatorAliases(const FString& FunctionName)
 	{
 #define FUNC_ALIASES_BEGIN(FuncName) \
 		if (FunctionName == FString(TEXT(FuncName))) \
@@ -1096,7 +1101,7 @@ public:
 	 * 
 	 * @return The pin type of this fragment's output.
 	 */
-	FEdGraphPinType const& GetOutputType() const
+	const FEdGraphPinType& GetOutputType() const
 	{
 		return FragmentType;
 	}
@@ -1138,7 +1143,7 @@ private:
 class FCodeGenFragment_VariableGet : public FCodeGenFragment
 {
 public:
-	FCodeGenFragment_VariableGet(UK2Node_VariableGet* InNode, FEdGraphPinType const& InType)
+	FCodeGenFragment_VariableGet(UK2Node_VariableGet* InNode, const FEdGraphPinType& InType)
 		: FCodeGenFragment(InType)
 		, GeneratedNode(InNode)
 	{
@@ -1177,7 +1182,7 @@ private:
 class FCodeGenFragment_FuntionCall : public FCodeGenFragment
 {
 public:
-	FCodeGenFragment_FuntionCall(UK2Node_CallFunction* InNode, FEdGraphPinType const& InType)
+	FCodeGenFragment_FuntionCall(UK2Node_CallFunction* InNode, const FEdGraphPinType& InType)
 		: FCodeGenFragment(InType)
 		, GeneratedNode(InNode)
 	{
@@ -1215,7 +1220,7 @@ private:
 class FCodeGenFragment_Literal : public FCodeGenFragment
 {
 public:
-	FCodeGenFragment_Literal(FString const& LiteralVal, FEdGraphPinType const& ResultType) 
+	FCodeGenFragment_Literal(const FString& LiteralVal, const FEdGraphPinType& ResultType)
 		: FCodeGenFragment(ResultType) 
 		, DefaultValue(LiteralVal)
 	{}
@@ -1225,7 +1230,7 @@ public:
 	/// Begin FCodeGenFragment Interface
 	virtual bool ConnectToInput(UEdGraphPin* InputPin, FCompilerResultsLog& MessageLog) override
 	{
-		UEdGraphSchema_K2 const* K2Schema = Cast<UEdGraphSchema_K2>(InputPin->GetSchema());
+		const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(InputPin->GetSchema());
 		bool bSuccess = true;//K2Schema->ArePinTypesCompatible(GetOutputType(), InputPin->PinType);
 		if (bSuccess)
 		{
@@ -1380,7 +1385,7 @@ public:
 
 		if (ExpressionNode.Token.TokenType == FBasicToken::TOKEN_Identifier || ExpressionNode.Token.TokenType == FBasicToken::TOKEN_Guid)
 		{
-			FString const VariableIdentifier = ExpressionNode.Token.Identifier;
+			const FString VariableIdentifier = ExpressionNode.Token.Identifier;
 			// first we try to match up variables with existing variable properties on the blueprint
 
 			FMemberReference VariableReference;
@@ -1634,7 +1639,7 @@ private:
 	TSharedPtr<FCodeGenFragment_InputPin> GenerateInputPinFragment(const FName VariableIdentifier)
 	{
 		TSharedPtr<FCodeGenFragment_InputPin> InputPinFragment;
-		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		
 		UK2Node_Tunnel* EntryNode = CompilingNode->GetEntryNode();
 		// if a pin under this name already exists, use that
@@ -1648,7 +1653,12 @@ private:
 			// Create an input pin (using the default guessed type)
 			FEdGraphPinType DefaultType;
 			// currently, generated expressions ALWAYS take a float (it is the most versatile type)
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+			DefaultType.PinCategory = UEdGraphSchema_K2::PC_Real;
+			DefaultType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+#else
 			DefaultType.PinCategory = UEdGraphSchema_K2::PC_Float;
+#endif
 			
 			UEdGraphPin* NewInputPin = EntryNode->CreateUserDefinedPin(VariableIdentifier, DefaultType, EGPD_Output);
 			InputPinFragment = MakeShareable(new FCodeGenFragment_InputPin(NewInputPin));
@@ -1678,7 +1688,7 @@ private:
 	{
 		check(ExpressionContext.Token.TokenType == FBasicToken::TOKEN_Identifier || ExpressionContext.Token.TokenType == FBasicToken::TOKEN_Guid);
 		check(VariableProperty != nullptr);
-		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		
 		TSharedPtr<FCodeGenFragment_VariableGet> VariableGetFragment;
 		
@@ -1720,7 +1730,7 @@ private:
 	 * @param  ExpressionNode	The expression node that we're generating this fragment for.
      * @return A new literal fragment.
      */
-	TSharedPtr<FCodeGenFragment_Literal> GenerateLiteralFragment(FBasicToken const& Token, FCompilerResultsLog& MessageLog)
+	TSharedPtr<FCodeGenFragment_Literal> GenerateLiteralFragment(const FBasicToken& Token, FCompilerResultsLog& MessageLog)
 	{
 		check(Token.TokenType == FBasicToken::TOKEN_Const);
 		
@@ -1731,7 +1741,12 @@ private:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 				break;
 			case CPT_Float:
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Real;
+				LiteralType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+#else
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Float;
+#endif
 				break;
 			case CPT_Int:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Int;
@@ -1804,7 +1819,7 @@ private:
 			}
 			else
 			{
-				UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+				const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 				
 				FEdGraphPinType ReturnType;
 				if (K2Schema->ConvertPropertyToPinType(ReturnProperty, /*out*/ReturnType))
@@ -2721,9 +2736,9 @@ void UK2Node_MathExpression::ValidateNodeDuringCompilation(FCompilerResultsLog& 
 	// else, this may be some intermediate node in the compile, let's look at the errors from the original...
 	else 
 	{
-		if(UObject const* SourceObject = MessageLog.FindSourceObject(this))
+		if(const UObject* SourceObject = MessageLog.FindSourceObject(this))
 		{
-			UK2Node_MathExpression const* MathExpression = MessageLog.FindSourceObjectTypeChecked<UK2Node_MathExpression>(this);
+			const UK2Node_MathExpression* MathExpression = MessageLog.FindSourceObjectTypeChecked<UK2Node_MathExpression>(this);
 
 			// Should always be able to find the source math expression
 			check(MathExpression);

@@ -74,6 +74,7 @@ protected:
 	virtual void SetCalculatedMetaDataAndFlags(UFunction* Function, UK2Node_FunctionEntry* EntryNode, const UEdGraphSchema_K2* Schema ) override;
 	virtual bool ShouldForceKeepNode(const UEdGraphNode* Node) const override;
 	virtual void PostExpansionStep(const UEdGraph* Graph) override;
+	virtual void PreCompileUpdateBlueprintOnLoad(UBlueprint* BP) override;
 	// End of FKismetCompilerContext interface
 
 protected:

@@ -43,6 +43,7 @@ class UK2Node_GetInputActionValue : public UK2Node
 
 	// Auto pin generation helpers
 	static FName GetValueCategory(const UInputAction* InputAction);
+	static FName GetValueSubCategory(const UInputAction* InputAction);
 	static UScriptStruct* GetValueSubCategoryObject(const UInputAction* InputAction);
 
 private:

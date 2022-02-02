@@ -157,7 +157,7 @@
 
 	switch( Expr )
 	{
-		case EX_PrimitiveCast:
+		case EX_Cast:
 		{
 			// A type conversion.
 			XFER(uint8); //which kind of conversion
@@ -420,6 +420,11 @@
 			}
 			break;
 		}
+		case EX_Vector3fConst:
+		{
+			XFER(float); XFER(float); XFER(float);
+			break;
+		}
 		case EX_TransformConst:
 		{
 			if(Ar.UEVer() >= EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
@@ -574,11 +579,11 @@
 			break;
 		}
 		case EX_ArrayGetByRef:
-			{
-				SerializeExpr( iCode, Ar );
-				SerializeExpr( iCode, Ar );
-				break;
-			}
+		{
+			SerializeExpr( iCode, Ar );
+			SerializeExpr( iCode, Ar );
+			break;
+		}
 		default:
 		{
 			// This should never occur.

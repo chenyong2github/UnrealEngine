@@ -3991,7 +3991,7 @@ template< class T > struct TVariantStructure
 };
 
 #define UE_DECLARE_CORE_VARIANT_TYPE(VARIANT, CORE)														\
-template<> struct TBaseStructure<F##CORE> { COREUOBJECT_API static UScriptStruct* Get(); };		\
+template<> struct TBaseStructure<F##CORE> { COREUOBJECT_API static UScriptStruct* Get(); };				\
 template<> struct TVariantStructure<F##VARIANT##f> { COREUOBJECT_API static UScriptStruct* Get(); };	\
 template<> struct TVariantStructure<F##VARIANT##d> { COREUOBJECT_API static UScriptStruct* Get(); };
 

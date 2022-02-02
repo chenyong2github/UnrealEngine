@@ -856,7 +856,7 @@ public:
 	/**
 	* Allows derived blueprints to require compilation on load, otherwise they may get treated as data only and not compiled on load.
 	*/
-	virtual bool AlwaysCompileOnLoad() const { return false; }
+	virtual bool AlwaysCompileOnLoad() const;
 
 	/**
 	 * Some Blueprints (and classes) can recompile while we are debugging a live session (play in editor).

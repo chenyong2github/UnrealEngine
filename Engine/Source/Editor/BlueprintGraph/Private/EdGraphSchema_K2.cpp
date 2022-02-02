@@ -554,8 +554,12 @@ void UEdGraphSchema_K2::FPinTypeTreeInfo::Init(const FText& InFriendlyName, cons
 
 	FriendlyName = InFriendlyName;
 	Tooltip = InTooltip;
-	PinType.PinCategory = (CategoryName == PC_Enum? PC_Byte : CategoryName);
+	PinType.PinCategory = (CategoryName == PC_Enum ? PC_Byte : CategoryName);
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	PinType.PinSubCategory = (CategoryName == PC_Real ? PC_Double : NAME_None);
+#else
 	PinType.PinSubCategory = NAME_None;
+#endif
 	PinType.PinSubCategoryObject = nullptr;
 
 	bReadOnly = bInReadOnly;
@@ -642,6 +646,9 @@ const FName UEdGraphSchema_K2::PC_Int(TEXT("int"));
 const FName UEdGraphSchema_K2::PC_Int64(TEXT("int64"));
 const FName UEdGraphSchema_K2::PC_Float(TEXT("float"));
 const FName UEdGraphSchema_K2::PC_Double(TEXT("double"));
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+const FName UEdGraphSchema_K2::PC_Real(TEXT("real"));
+#endif
 const FName UEdGraphSchema_K2::PC_Name(TEXT("name"));
 const FName UEdGraphSchema_K2::PC_Delegate(TEXT("delegate"));
 const FName UEdGraphSchema_K2::PC_MCDelegate(TEXT("mcdelegate"));
@@ -688,6 +695,7 @@ const FText UEdGraphSchema_K2::VR_DefaultCategory(LOCTEXT("Default", "Default"))
 const int32 UEdGraphSchema_K2::AG_LevelReference = 100;
 
 const UScriptStruct* UEdGraphSchema_K2::VectorStruct = nullptr;
+const UScriptStruct* UEdGraphSchema_K2::Vector3fStruct = nullptr;
 const UScriptStruct* UEdGraphSchema_K2::RotatorStruct = nullptr;
 const UScriptStruct* UEdGraphSchema_K2::TransformStruct = nullptr;
 const UScriptStruct* UEdGraphSchema_K2::LinearColorStruct = nullptr;
@@ -705,6 +713,7 @@ UEdGraphSchema_K2::UEdGraphSchema_K2(const FObjectInitializer& ObjectInitializer
 	if (VectorStruct == nullptr)
 	{
 		VectorStruct = TBaseStructure<FVector>::Get();
+		Vector3fStruct = TVariantStructure<FVector3f>::Get();
 		RotatorStruct = TBaseStructure<FRotator>::Get();
 		TransformStruct = TBaseStructure<FTransform>::Get();
 		LinearColorStruct = TBaseStructure<FLinearColor>::Get();
@@ -1415,6 +1424,7 @@ bool UEdGraphSchema_K2::PinDefaultValueIsEditable(const UEdGraphPin& InGraphPin)
 		// See FNodeFactory::CreatePinWidget for justification of the above statement!
 		UObject const& SubCategoryObject = *InGraphPin.PinType.PinSubCategoryObject;
 		return &SubCategoryObject == VectorStruct 
+			|| &SubCategoryObject == Vector3fStruct
 			|| &SubCategoryObject == RotatorStruct
 			|| &SubCategoryObject == TransformStruct
 			|| &SubCategoryObject == LinearColorStruct
@@ -1432,6 +1442,7 @@ bool UEdGraphSchema_K2::PinHasCustomDefaultFormat(const UEdGraphPin& InGraphPin)
 		// Some struct types have custom formats for default value for historical reasons
 		UObject const& SubCategoryObject = *InGraphPin.PinType.PinSubCategoryObject;
 		return &SubCategoryObject == VectorStruct
+			|| &SubCategoryObject == Vector3fStruct
 			|| &SubCategoryObject == RotatorStruct
 			|| &SubCategoryObject == TransformStruct
 			|| &SubCategoryObject == LinearColorStruct;
@@ -2881,6 +2892,12 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	{
 		return Settings->InterfacePinTypeColor;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (TypeName == PC_Real)
+	{
+		return Settings->RealPinTypeColor;
+	}
+#else
 	else if (TypeName == PC_Float)
 	{
 		return Settings->FloatPinTypeColor;
@@ -2889,6 +2906,7 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	{
 		return Settings->DoublePinTypeColor;
 	}
+#endif
 	else if (TypeName == PC_Boolean)
 	{
 		return Settings->BooleanPinTypeColor;
@@ -2907,7 +2925,7 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	}
 	else if (TypeName == PC_Struct)
 	{
-		if (PinType.PinSubCategoryObject == VectorStruct)
+		if ((PinType.PinSubCategoryObject == VectorStruct) || (PinType.PinSubCategoryObject == Vector3fStruct))
 		{
 			// vector
 			return Settings->VectorPinTypeColor;
@@ -3332,6 +3350,18 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, F
 			}
 		}
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (TestProperty->IsA<FFloatProperty>())
+	{
+		OutCategory = PC_Real;
+		OutSubCategory = PC_Float;
+	}
+	else if (TestProperty->IsA<FDoubleProperty>())
+	{
+		OutCategory = PC_Real;
+		OutSubCategory = PC_Double;
+	}
+#else
 	else if (TestProperty->IsA<FFloatProperty>())
 	{
 		OutCategory = PC_Float;
@@ -3340,6 +3370,7 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, F
 	{
 		OutCategory = PC_Double;
 	}
+#endif
 	else if (TestProperty->IsA<FInt64Property>())
 	{
 		OutCategory = PC_Int64;
@@ -3635,8 +3666,12 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 		CategoryDescriptions.Add(PC_Class, LOCTEXT("ClassCategory","Class Reference"));
 		CategoryDescriptions.Add(PC_Int, LOCTEXT("IntCategory", "Integer"));
 		CategoryDescriptions.Add(PC_Int64, LOCTEXT("Int64Category", "Integer64"));
-		CategoryDescriptions.Add(PC_Float, LOCTEXT("FloatCategory","Float"));
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		CategoryDescriptions.Add(PC_Real, LOCTEXT("RealCategory", "Real"));
+#else
+		CategoryDescriptions.Add(PC_Float, LOCTEXT("FloatCategory", "Float"));
 		CategoryDescriptions.Add(PC_Double, LOCTEXT("DoubleCategory", "Double"));
+#endif
 		CategoryDescriptions.Add(PC_Name, LOCTEXT("NameCategory","Name"));
 		CategoryDescriptions.Add(PC_Delegate, LOCTEXT("DelegateCategory","Delegate"));
 		CategoryDescriptions.Add(PC_MCDelegate, LOCTEXT("MulticastDelegateCategory","Multicast Delegate"));
@@ -3697,7 +3732,7 @@ FText UEdGraphSchema_K2::TerminalTypeToText(const FName Category, const FName Su
 				Args.Add(TEXT("ObjectName"), FText::FromString(FName::NameToDisplayString(SubCategoryObjName, /*bIsBool =*/false)));
 
 				// Don't display the category for "well-known" struct types
-				if (Category == UEdGraphSchema_K2::PC_Struct && (SubCategoryObject == UEdGraphSchema_K2::VectorStruct || SubCategoryObject == UEdGraphSchema_K2::RotatorStruct || SubCategoryObject == UEdGraphSchema_K2::TransformStruct))
+				if (Category == UEdGraphSchema_K2::PC_Struct && (SubCategoryObject == UEdGraphSchema_K2::VectorStruct || SubCategoryObject == UEdGraphSchema_K2::Vector3fStruct  || SubCategoryObject == UEdGraphSchema_K2::RotatorStruct || SubCategoryObject == UEdGraphSchema_K2::TransformStruct))
 				{
 					PropertyText = FText::Format(LOCTEXT("ObjectAsTextWithoutCategory", "{ObjectName}"), Args);
 				}
@@ -3823,8 +3858,12 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 
 	if (!bIndexTypesOnly)
 	{
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Real, true), PC_Real, this, LOCTEXT("RealType", "Floating point number"))));
+#else
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Float, true), PC_Float, this, LOCTEXT("FloatType", "Floating point number"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Double, true), PC_Double, this, LOCTEXT("DoubleType", "64 bit floating point number"))));
+#endif
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Name, true), PC_Name, this, LOCTEXT("NameType", "A text name"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_String, true), PC_String, this, LOCTEXT("StringType", "A text string"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Text, true), PC_Text, this, LOCTEXT("TextType", "A localizable text string"))));
@@ -4097,6 +4136,18 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			}
 		}
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (PinCategory == PC_Real)
+	{
+		if (!NewDefaultValue.IsEmpty())
+		{
+			if (!FDefaultValueHelper::IsStringValidFloat(NewDefaultValue))
+			{
+				DVSV_RETURN_MSG(TEXT("Expected a valid number for a real property"));
+			}
+		}
+	}
+#else
 	else if (PinCategory == PC_Float)
 	{
 		if (!NewDefaultValue.IsEmpty())
@@ -4117,6 +4168,7 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			}
 		}
 	}
+#endif
 	else if (PinCategory == PC_Int)
 	{
 		if (!NewDefaultValue.IsEmpty())
@@ -4219,7 +4271,7 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 		}
 		else if (!NewDefaultValue.IsEmpty())
 		{
-			if (StructType == VectorStruct)
+			if ((StructType == VectorStruct) || (StructType == Vector3fStruct))
 			{
 				if (!FDefaultValueHelper::IsStringValidVector(NewDefaultValue))
 				{
@@ -4276,8 +4328,8 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 
 bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, const FEdGraphPinType& Input, const UClass* CallingContext, bool bIgnoreArray /*= false*/) const
 {
-	if( !bIgnoreArray && 
-		( Output.ContainerType != Input.ContainerType ) && 
+	if (!bIgnoreArray && 
+		(Output.ContainerType != Input.ContainerType) && 
 		(Input.PinCategory != PC_Wildcard || Input.IsContainer()) && 
 		(Output.PinCategory != PC_Wildcard || Output.IsContainer()))
 	{
@@ -4285,6 +4337,10 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 	}
 	else if (Output.PinCategory == Input.PinCategory)
 	{
+		bool bAreConvertibleVectorTypes =
+			((Output.PinSubCategoryObject == VectorStruct) && (Input.PinSubCategoryObject == Vector3fStruct)) ||
+			((Output.PinSubCategoryObject == Vector3fStruct) && (Input.PinSubCategoryObject == VectorStruct));
+
 		if ((Output.PinSubCategory == Input.PinSubCategory) 
 			&& (Output.PinSubCategoryObject == Input.PinSubCategoryObject)
 			&& (Output.PinSubCategoryMemberReference == Input.PinSubCategoryMemberReference))
@@ -4294,10 +4350,25 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 				return 
 					Input.PinValueType.TerminalCategory == PC_Wildcard ||
 					Output.PinValueType.TerminalCategory == PC_Wildcard ||
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+					((Input.PinValueType.TerminalCategory == PC_Real) && (Output.PinValueType.TerminalCategory == PC_Real)) ||
+#endif
 					Input.PinValueType == Output.PinValueType;
 			}
 			return true;
 		}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		// Reals, whether they're actually a float or double, are always compatible.
+		// We'll insert an implicit conversion in the bytecode where necessary.
+		else if (Output.PinCategory == PC_Real)
+		{
+			return true;
+		}
+		else if (bAreConvertibleVectorTypes)
+		{
+			return true;
+		}
+#endif
 		else if (Output.PinCategory == PC_Interface)
 		{
 			UClass const* OutputClass = Cast<UClass const>(Output.PinSubCategoryObject.Get());
@@ -4772,6 +4843,14 @@ bool UEdGraphSchema_K2::DoesDefaultValueMatchAutogenerated(const UEdGraphPin& In
 	}
 	else if (!InPin.bUseBackwardsCompatForEmptyAutogeneratedValue)
 	{
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		if (InPin.PinType.PinCategory == PC_Real)
+		{
+			const double AutogeneratedDouble = FCString::Atod(*InPin.AutogeneratedDefaultValue);
+			const double DefaultDouble = FCString::Atod(*InPin.DefaultValue);
+			return (AutogeneratedDouble == DefaultDouble);
+		}
+#else
 		if (InPin.PinType.PinCategory == PC_Float)
 		{
 			const float AutogeneratedFloat = FCString::Atof(*InPin.AutogeneratedDefaultValue);
@@ -4784,9 +4863,10 @@ bool UEdGraphSchema_K2::DoesDefaultValueMatchAutogenerated(const UEdGraphPin& In
 			const double DefaultDouble = FCString::Atod(*InPin.DefaultValue);
 			return (AutogeneratedDouble == DefaultDouble);
 		}
+#endif
 		else if (InPin.PinType.PinCategory == PC_Struct)
 		{
-			if (InPin.PinType.PinSubCategoryObject == VectorStruct)
+			if ((InPin.PinType.PinSubCategoryObject == VectorStruct) || (InPin.PinType.PinSubCategoryObject == Vector3fStruct))
 			{
 				FVector AutogeneratedVector = FVector::ZeroVector;
 				FVector DefaultVector = FVector::ZeroVector;
@@ -4999,6 +5079,12 @@ void UEdGraphSchema_K2::SetPinAutogeneratedDefaultValueBasedOnType(UEdGraphPin* 
 			NewValue = TEXT("0");
 		}
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (Pin->PinType.PinCategory == PC_Real)
+	{
+		NewValue = TEXT("0.0");
+	}
+#else
 	else if (Pin->PinType.PinCategory == PC_Float)
 	{
 		// This is a slightly different format than is produced by PropertyValueToString, but changing it has backward compatibility issues
@@ -5008,6 +5094,7 @@ void UEdGraphSchema_K2::SetPinAutogeneratedDefaultValueBasedOnType(UEdGraphPin* 
 	{
 		NewValue = TEXT("0.0");
 	}
+#endif
 	else if (Pin->PinType.PinCategory == PC_Boolean)
 	{
 		NewValue = TEXT("false");
@@ -5016,7 +5103,7 @@ void UEdGraphSchema_K2::SetPinAutogeneratedDefaultValueBasedOnType(UEdGraphPin* 
 	{
 		NewValue = TEXT("None");
 	}
-	else if ((Pin->PinType.PinCategory == PC_Struct) && ((Pin->PinType.PinSubCategoryObject == VectorStruct) || (Pin->PinType.PinSubCategoryObject == RotatorStruct)))
+	else if ((Pin->PinType.PinCategory == PC_Struct) && ((Pin->PinType.PinSubCategoryObject == VectorStruct) || (Pin->PinType.PinSubCategoryObject == Vector3fStruct) || (Pin->PinType.PinSubCategoryObject == RotatorStruct)))
 	{
 		// This is a slightly different format than is produced by PropertyValueToString, but changing it has backward compatibility issues
 		NewValue = TEXT("0, 0, 0");
@@ -5155,6 +5242,7 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetSoftClassName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetSoftClassPropertyByName));
 	static const FName SetNameName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetNamePropertyByName));
 	static const FName SetVectorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetVectorPropertyByName));
+	static const FName SetVector3fName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetVector3fPropertyByName));
 	static const FName SetRotatorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetRotatorPropertyByName));
 	static const FName SetLinearColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetLinearColorPropertyByName));
 	static const FName SetColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetColorPropertyByName));
@@ -5209,6 +5297,12 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetByteName;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		SetFunctionName = FSetVariableByNameFunctionNames::SetDoubleName;
+	}
+#else
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetFloatName;
@@ -5217,6 +5311,7 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetDoubleName;
 	}
+#endif
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetBoolName;
@@ -5256,6 +5351,10 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == VectorStruct)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetVectorName;
+	}
+	else if (PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == Vector3fStruct)
+	{
+		SetFunctionName = FSetVariableByNameFunctionNames::SetVector3fName;
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == RotatorStruct)
 	{

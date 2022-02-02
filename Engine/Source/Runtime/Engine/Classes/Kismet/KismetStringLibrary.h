@@ -40,6 +40,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (Vector)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_VectorToString(FVector InVec);
 
+	/** Converts a float vector value to a string, in the form 'X= Y= Z=' */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (Float Vector)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static FString Conv_Vector3fToString(FVector3f InVec);
+
 	/** Converts an IntVector value to a string, in the form 'X= Y= Z=' */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (IntVector)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_IntVectorToString(FIntVector InIntVec);
@@ -91,6 +95,10 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	/** Convert String Back To Vector. IsValid indicates whether or not the string could be successfully converted. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Vector", CompactNodeTitle = "->"), Category="Utilities|String")
 	static void Conv_StringToVector(const FString& InString, FVector& OutConvertedVector, bool& OutIsValid);
+
+	/** Convert String Back To Float Vector. IsValid indicates whether or not the string could be successfully converted. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "String To Float Vector", CompactNodeTitle = "->"), Category = "Utilities|String")
+	static void Conv_StringToVector3f(const FString& InString, FVector3f& OutConvertedVector, bool& OutIsValid);
 
 	/** Convert String Back To Vector2D. IsValid indicates whether or not the string could be successfully converted. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Vector2D", CompactNodeTitle = "->"), Category="Utilities|String")

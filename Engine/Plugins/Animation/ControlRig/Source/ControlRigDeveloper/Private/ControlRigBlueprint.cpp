@@ -455,6 +455,7 @@ void UControlRigBlueprint::PostLoad()
 
 		PatchFunctionReferencesOnLoad();
 		PatchVariableNodesOnLoad();
+		PatchVariableNodesWithIncorrectType();
 		PatchRigElementKeyCacheOnLoad();
 		PatchBoundVariables();
 
@@ -2584,6 +2585,23 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 					}
 
 					FName DataType = PinType.PinCategory;
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+					if (PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+					{
+						if (PinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
+						{
+							DataType = TEXT("float");
+						}
+						else if (PinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
+						{
+							DataType = TEXT("double");
+						}
+						else
+						{
+							ensure(false);
+						}
+					}
+#endif
 					UObject* DataTypeObject = nullptr;
 					if (DataType == NAME_None)
 					{
@@ -3591,6 +3609,73 @@ void UControlRigBlueprint::PatchBoundVariables()
 						Controller->BindPinToVariable(Pin->GetPinPath(), Pin->BoundVariablePath_DEPRECATED, false);
 						Pin->BoundVariablePath_DEPRECATED = FString();
 						bDirtyDuringLoad = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+void UControlRigBlueprint::PatchVariableNodesWithIncorrectType()
+{
+	TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
+
+	struct Local
+	{
+		static bool RefreshIfNeeded(URigVMController* Controller, URigVMVariableNode* VariableNode, const FString& CPPType, UObject* CPPTypeObject)
+		{
+			if (URigVMPin* ValuePin = VariableNode->GetValuePin())
+			{
+				if (ValuePin->GetCPPType() != CPPType || ValuePin->GetCPPTypeObject() != CPPTypeObject)
+				{
+					Controller->RefreshVariableNode(VariableNode->GetFName(), VariableNode->GetVariableName(), CPPType, CPPTypeObject, false);
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+
+	for (URigVMGraph* Graph : GetAllModels())
+	{
+		URigVMController* Controller = GetOrCreateController(Graph);
+		TArray<URigVMNode*> Nodes = Graph->GetNodes();
+		for (URigVMNode* Node : Nodes)
+		{
+			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+			{
+				FRigVMGraphVariableDescription Description = VariableNode->GetVariableDescription();
+
+				// Check for inputs and local variables
+				TArray<FRigVMGraphVariableDescription> LocalVariables = Graph->GetLocalVariables(true);
+				bool bLocalVariableFound = false;
+				for (FRigVMGraphVariableDescription Variable : LocalVariables)
+				{
+					if (Variable.Name == Description.Name)
+					{
+						if (Local::RefreshIfNeeded(Controller, VariableNode, Variable.CPPType, Variable.CPPTypeObject))
+						{
+							bDirtyDuringLoad = true;
+						}
+						bLocalVariableFound = true;
+						break;
+					}
+				}
+
+				if (!bLocalVariableFound)
+				{
+					for (struct FBPVariableDescription& Variable : NewVariables)
+					{
+						if (Variable.VarName == Description.Name)
+						{
+							FString CPPType;
+							UObject* CPPTypeObject = nullptr;
+							RigVMTypeUtils::CPPTypeFromPinType(Variable.VarType, CPPType, &CPPTypeObject);
+							if (Local::RefreshIfNeeded(Controller, VariableNode, CPPType, CPPTypeObject))
+							{
+								bDirtyDuringLoad = true;
+							}
+						}
 					}
 				}
 			}

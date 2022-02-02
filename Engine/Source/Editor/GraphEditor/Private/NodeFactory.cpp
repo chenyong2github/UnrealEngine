@@ -325,6 +325,12 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 	{
 		return SNew(SGraphPinNum<int64>, InPin);
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		return SNew(SGraphPinNum<double>, InPin);
+	}
+#else
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		return SNew(SGraphPinNum<float>, InPin);
@@ -333,6 +339,7 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 	{
 		return SNew(SGraphPinNum<double>, InPin);
 	}
+#endif
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_String || InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
 		return SNew(SGraphPinString, InPin);
@@ -342,6 +349,7 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 		// If you update this logic you'll probably need to update UEdGraphSchema_K2::ShouldHidePinDefaultValue!
 		UScriptStruct* ColorStruct = TBaseStructure<FLinearColor>::Get();
 		UScriptStruct* VectorStruct = TBaseStructure<FVector>::Get();
+		UScriptStruct* Vector3fStruct = TVariantStructure<FVector3f>::Get();
 		UScriptStruct* Vector2DStruct = TBaseStructure<FVector2D>::Get();
 		UScriptStruct* RotatorStruct = TBaseStructure<FRotator>::Get();
 
@@ -349,7 +357,7 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 		{
 			return SNew(SGraphPinColor, InPin);
 		}
-		else if ((InPin->PinType.PinSubCategoryObject == VectorStruct) || (InPin->PinType.PinSubCategoryObject == RotatorStruct))
+		else if ((InPin->PinType.PinSubCategoryObject == VectorStruct) || (InPin->PinType.PinSubCategoryObject == Vector3fStruct) || (InPin->PinType.PinSubCategoryObject == RotatorStruct))
 		{
 			return SNew(SGraphPinVector, InPin);
 		}

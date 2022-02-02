@@ -32,6 +32,7 @@
 #include "K2Node_FunctionResult.h"
 #include "K2Node_Timeline.h"
 #include "K2Node_Variable.h"
+#include "KismetCastingUtils.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
 
@@ -120,6 +121,26 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 			}
 		}
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			FFloatProperty* SpecificProperty = CastField<FFloatProperty>(TestProperty);
+			bTypeMismatch = (SpecificProperty == nullptr);
+		}
+		else if (PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			FDoubleProperty* SpecificProperty = CastField<FDoubleProperty>(TestProperty);
+			bTypeMismatch = (SpecificProperty == nullptr);
+		}
+		else
+		{
+			checkf(false, TEXT("Erroneous pin subcategory for PC_Real: %s"), *PinSubCategory.ToString());
+			bTypeMismatch = true;
+		}
+	}
+#else
 	else if (PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		FFloatProperty* SpecificProperty = CastField<FFloatProperty>(TestProperty);
@@ -130,6 +151,7 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 		FDoubleProperty* SpecificProperty = CastField<FDoubleProperty>(TestProperty);
 		bTypeMismatch = (SpecificProperty == nullptr);
 	}
+#endif
 	else if (PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		FIntProperty* SpecificProperty = CastField<FIntProperty>(TestProperty);
@@ -851,7 +873,7 @@ UEdGraphPin* FKismetCompilerUtilities::GenerateAssignmentNodes(class FKismetComp
 	return LastThen;
 }
 
-void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionContext& Context, UEdGraphNode* Node, FBPTerminal* SrcTerm, FBPTerminal* DstTerm)
+void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionContext& Context, UEdGraphNode* Node, FBPTerminal* SrcTerm, FBPTerminal* DstTerm, UEdGraphPin* DstPin)
 {
 	UClass* InputObjClass = Cast<UClass>(SrcTerm->Type.PinSubCategoryObject.Get());
 	UClass* OutputObjClass = Cast<UClass>(DstTerm->Type.PinSubCategoryObject.Get());
@@ -878,10 +900,36 @@ void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionCo
 	}
 	else
 	{
+		FBPTerminal* RHSTerm = SrcTerm;
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		using namespace UE::KismetCompiler;
+
+		FBPTerminal* ImplicitCastTerm = nullptr;
+
+		// Some pins can share a single terminal (eg: those in UK2Node_FunctionResult)
+		// In those cases, it's preferable to use a specific pin instead of relying on what DstTerm points to.
+		UEdGraphPin* DstPinSearchKey = DstPin ? DstPin : DstTerm->SourcePin;
+
+		// Some terms don't necessarily have a valid SourcePin (eg: FKCHandler_FunctionEntry)
+		if (DstPinSearchKey)
+		{
+			TOptional<TPair<FBPTerminal*, EKismetCompiledStatementType>> ImplicitCastEntry =
+				CastingUtils::InsertImplicitCastStatement(Context, DstPinSearchKey, RHSTerm);
+
+			ImplicitCastTerm = ImplicitCastEntry ? ImplicitCastEntry->Get<0>() : nullptr;
+		}
+
+		if (ImplicitCastTerm != nullptr)
+		{
+			RHSTerm = ImplicitCastTerm;
+		}
+#endif
+
 		FBlueprintCompiledStatement& Statement = Context.AppendStatementForNode(Node);
 		Statement.Type = KCST_Assignment;
 		Statement.LHS = DstTerm;
-		Statement.RHS.Add(SrcTerm);
+		Statement.RHS.Add(RHSTerm);
 	}
 }
 
@@ -1038,6 +1086,25 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 		NewProperty = new FInt64Property(PropertyScope, ValidatedPropertyName, ObjectFlags);
 		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			NewProperty = new FFloatProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
+			NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		}
+		else if (PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			NewProperty = new FDoubleProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
+			NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		}
+		else
+		{
+			checkf(false, TEXT("Erroneous pin subcategory for PC_Real: %s"), *PinSubCategory.ToString());
+		}
+	}
+#else
 	else if (PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		NewProperty = new FFloatProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
@@ -1048,6 +1115,7 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 		NewProperty = new FDoubleProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
 		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 	}
+#endif
 	else if (PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		FBoolProperty* BoolProperty = new FBoolProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
@@ -1954,6 +2022,26 @@ bool FKismetCompilerUtilities::CheckFunctionCompiledStatementsThreadSafety(const
 			case KCST_DebugSite:
 			case KCST_CastObjToInterface:
 			case KCST_DynamicCast:
+			case KCST_DoubleToFloatCast:
+			case KCST_DoubleToFloatArrayCast:
+			case KCST_DoubleToFloatSetCast:
+			case KCST_FloatToDoubleCast:
+			case KCST_FloatToDoubleArrayCast:
+			case KCST_FloatToDoubleSetCast:
+			case KCST_VectorToVector3fCast:
+			case KCST_VectorToVector3fArrayCast:
+			case KCST_VectorToVector3fSetCast:
+			case KCST_Vector3fToVectorCast:
+			case KCST_Vector3fToVectorArrayCast:
+			case KCST_Vector3fToVectorSetCast:
+			case KCST_FloatToDoubleKeys_MapCast:
+			case KCST_DoubleToFloatKeys_MapCast:
+			case KCST_FloatToDoubleValues_MapCast:
+			case KCST_DoubleToFloatValues_MapCast:
+			case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
+			case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
+			case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
+			case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
 			case KCST_ObjectToBool:
 				break;
 			case KCST_AddMulticastDelegate:
@@ -2031,7 +2119,6 @@ void FNodeHandlingFunctor::ResolveAndRegisterScopedTerm(FKismetFunctionContext& 
 	FProperty* BoundProperty = FKismetCompilerUtilities::FindPropertyInScope(SearchScope, Net, CompilerContext.MessageLog, CompilerContext.GetSchema(), Context.NewClass, bIsSparseProperty);
 	if (BoundProperty != NULL)
 	{
-		UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 		// Create the term in the list
 		FBPTerminal* Term = new FBPTerminal();
 		NetArray.Add(Term);

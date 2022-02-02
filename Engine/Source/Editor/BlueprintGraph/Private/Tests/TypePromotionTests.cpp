@@ -121,14 +121,34 @@ namespace TypePromoTestUtils
 		UK2Node* NodeName = NewObject<UK2Node_CallFunction>(/*outer*/ OwningGraph );	\
 		OwningGraph->AddNode(NodeName);
 
-#define MakeTestPin(OwningNode, PinArray, InPinName, InPinType, PinDirection)		UEdGraphPin* InPinName = UEdGraphPin::CreatePin(OwningNode);		\
+#define MakeTestPin(OwningNode, PinArray, InPinName, InPinType, PinDirection)	UEdGraphPin* InPinName = UEdGraphPin::CreatePin(OwningNode);		\
 																				InPinName->PinType.PinCategory = InPinType;							\
 																				PinArray.Add(InPinName);											\
 																				InPinName->Direction = PinDirection;
 
-#define MakeTestPins(OwningNode, OutArray)																\
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+#define MakeRealNumberTestPin(OwningNode, PinArray, InPinName, PinDirection)	UEdGraphPin* InPinName = UEdGraphPin::CreatePin(OwningNode);		\
+																				InPinName->PinType.PinCategory = UEdGraphSchema_K2::PC_Real;		\
+																				InPinName->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;	\
+																				PinArray.Add(InPinName);											\
+																				InPinName->Direction = PinDirection;
+
+#define MakeRealNumberTestPins(OwningNode, OutArray)													\
+	MakeRealNumberTestPin(OwningNode, OutArray, RealPinA, EGPD_Input);									\
+	MakeRealNumberTestPin(OwningNode, OutArray, RealPinB, EGPD_Input);									\
+	MakeRealNumberTestPin(OwningNode, OutArray, RealOutputPin, EGPD_Output);		
+#else
+#define MakeRealNumberTestPins(OwningNode, OutArray)													\
+	MakeTestPin(OwningNode, OutArray, FloatPinA, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
+	MakeTestPin(OwningNode, OutArray, FloatPinB, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
+	MakeTestPin(OwningNode, OutArray, FloatOutputPin, UEdGraphSchema_K2::PC_Float, EGPD_Output);		\
 	MakeTestPin(OwningNode, OutArray, DoublePinA, UEdGraphSchema_K2::PC_Double, EGPD_Output);			\
 	MakeTestPin(OwningNode, OutArray, DoublePinB, UEdGraphSchema_K2::PC_Double, EGPD_Output);			\
+	MakeTestPin(OwningNode, OutArray, DoubleOutputPin, UEdGraphSchema_K2::PC_Double, EGPD_Output);
+#endif
+
+#define MakeTestPins(OwningNode, OutArray)																\
+	MakeRealNumberTestPins(OwningNode, OutArray)														\
 	MakeTestPin(OwningNode, OutArray, Int64PinA, UEdGraphSchema_K2::PC_Int64, EGPD_Output);				\
 	MakeTestPin(OwningNode, OutArray, Int64PinB, UEdGraphSchema_K2::PC_Int64, EGPD_Input);				\
 	MakeTestPin(OwningNode, OutArray, BytePinA, UEdGraphSchema_K2::PC_Byte, EGPD_Output);				\
@@ -137,10 +157,6 @@ namespace TypePromoTestUtils
 	MakeTestPin(OwningNode, OutArray, BytePinB, UEdGraphSchema_K2::PC_Byte, EGPD_Input);				\
 	MakeTestPin(OwningNode, OutArray, BoolPinA, UEdGraphSchema_K2::PC_Boolean, EGPD_Output);			\
 	MakeTestPin(OwningNode, OutArray, BoolPinB, UEdGraphSchema_K2::PC_Boolean, EGPD_Input);				\
-	MakeTestPin(OwningNode, OutArray, DoubleOutputPin, UEdGraphSchema_K2::PC_Double, EGPD_Output);		\
-	MakeTestPin(OwningNode, OutArray, FloatPinA, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
-	MakeTestPin(OwningNode, OutArray, FloatPinB, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
-	MakeTestPin(OwningNode, OutArray, FloatOutputPin, UEdGraphSchema_K2::PC_Float, EGPD_Output);		\
 	MakeTestPin(OwningNode, OutArray, BoolOutputPin, UEdGraphSchema_K2::PC_Boolean, EGPD_Output);		\
 	MakeTestPin(OwningNode, OutArray, IntPinA, UEdGraphSchema_K2::PC_Int, EGPD_Output);					\
 	MakeTestPin(OwningNode, OutArray, VecInputPinA, UEdGraphSchema_K2::PC_Struct, EGPD_Input);			\
@@ -161,6 +177,34 @@ namespace TypePromoTestUtils
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTypePromotionTest, "Blueprints.Compiler.TypePromotion", EAutomationTestFlags::EditorContext | EAutomationTestFlags::SmokeFilter)
 bool FTypePromotionTest::RunTest(const FString& Parameters)
 {
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	FEdGraphPinType RealPin = {};		RealPin.PinCategory = UEdGraphSchema_K2::PC_Real; RealPin.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+	FEdGraphPinType IntPin = {};		IntPin.PinCategory = UEdGraphSchema_K2::PC_Int;
+	FEdGraphPinType Int64Pin = {};		Int64Pin.PinCategory = UEdGraphSchema_K2::PC_Int64;
+	FEdGraphPinType BytePin = {};		BytePin.PinCategory = UEdGraphSchema_K2::PC_Byte;
+	FEdGraphPinType VecPin = {};		VecPin.PinCategory = UEdGraphSchema_K2::PC_Struct; VecPin.PinSubCategoryObject = TBaseStructure<FVector>::Get();
+
+	// Test promotions that should happen
+	TestEqual(TEXT("Testing real to vector"), FTypePromotion::GetHigherType(RealPin, VecPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+
+	TestEqual(TEXT("Testing int to real"), FTypePromotion::GetHigherType(IntPin, RealPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+	TestEqual(TEXT("Testing int to int64"), FTypePromotion::GetHigherType(IntPin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+
+	TestEqual(TEXT("Testing byte to int"), FTypePromotion::GetHigherType(BytePin, IntPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+	TestEqual(TEXT("Testing byte to int64"), FTypePromotion::GetHigherType(BytePin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+
+	TestEqual(TEXT("Testing real to int64"), FTypePromotion::GetHigherType(RealPin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
+
+	// Test Equality of pins
+	TestEqual(TEXT("Testing byte == byte"), FTypePromotion::GetHigherType(BytePin, BytePin), FTypePromotion::ETypeComparisonResult::TypesEqual);
+	TestEqual(TEXT("Testing real == real"), FTypePromotion::GetHigherType(RealPin, RealPin), FTypePromotion::ETypeComparisonResult::TypesEqual);
+	TestEqual(TEXT("Testing int == int"), FTypePromotion::GetHigherType(IntPin, IntPin), FTypePromotion::ETypeComparisonResult::TypesEqual);
+	TestEqual(TEXT("Testing int64 == int64"), FTypePromotion::GetHigherType(Int64Pin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypesEqual);
+
+	// Test promotions that should not happen
+	TestEqual(TEXT("Testing int64 cannot go to byte"), FTypePromotion::GetHigherType(Int64Pin, BytePin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
+	TestEqual(TEXT("Testing int64 cannot go to int"), FTypePromotion::GetHigherType(Int64Pin, IntPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
+#else
 	FEdGraphPinType DoublePin = {};		DoublePin.PinCategory = UEdGraphSchema_K2::PC_Double;
 	FEdGraphPinType FloatPin = {};		FloatPin.PinCategory = UEdGraphSchema_K2::PC_Float;
 	FEdGraphPinType IntPin = {};		IntPin.PinCategory = UEdGraphSchema_K2::PC_Int;
@@ -193,6 +237,7 @@ bool FTypePromotionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Testing int64 cannot go to byte"), FTypePromotion::GetHigherType(Int64Pin, BytePin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
 	TestEqual(TEXT("Testing int64 cannot go to int"), FTypePromotion::GetHigherType(Int64Pin, IntPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
 	TestEqual(TEXT("Testing int64 cannot go to float"), FTypePromotion::GetHigherType(Int64Pin, FloatPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
+#endif
 
 	return true;
 }
@@ -214,20 +259,20 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 	TArray<UEdGraphPin*> PinTypes = {};
 	MakeTestPins(TestNode, PinTypes);
 
-	#define TestMatchingFunc(OpName, TestPins, ExpectedFuncName) \
-	{\
-		const UFunction* FoundFunc = FTypePromotion::FindBestMatchingFunc(OpName, TestPins);\
-		const FName ExpectedName = FName(ExpectedFuncName);\
-		const FString TestNullMessage = FString::Printf(TEXT(" Find Function '%s' null check"), *ExpectedName.ToString()); \
-		if (TestNotNull(TestNullMessage, FoundFunc)) \
-		{\
-		 	const FString PinTypesString = TypePromoTestUtils::GetPinListDisplayName(TestPins);\
-			const FString TestMessage = FString::Printf(TEXT("Given pins %s Expecting Function '%s' and got '%s'"),\
-				*PinTypesString,\
-				*ExpectedName.ToString(),\
-				*FoundFunc->GetFName().ToString());\
-				TestEqual(TestMessage, FoundFunc->GetFName(), ExpectedName);\
-		}\
+	#define TestMatchingFunc(OpName, TestPins, ExpectedFuncName)															\
+	{																														\
+		const UFunction* FoundFunc = FTypePromotion::FindBestMatchingFunc(OpName, TestPins);								\
+		const FName ExpectedName = FName(ExpectedFuncName);																	\
+		const FString TestNullMessage = FString::Printf(TEXT(" Find Function '%s' null check"), *ExpectedName.ToString());	\
+		if (TestNotNull(TestNullMessage, FoundFunc))																		\
+		{																													\
+		 	const FString PinTypesString = TypePromoTestUtils::GetPinListDisplayName(TestPins);								\
+			const FString TestMessage = FString::Printf(TEXT("Given pins %s Expecting Function '%s' and got '%s'"),			\
+				*PinTypesString,																							\
+				*ExpectedName.ToString(),																					\
+				*FoundFunc->GetFName().ToString());																			\
+				TestEqual(TestMessage, FoundFunc->GetFName(), ExpectedName);												\
+		}																													\
 	}
 
 	{
@@ -238,6 +283,90 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_Vector2DVector2D"));
 	}
 
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	// Multiply_VectorVector given A real input, vector input, and a vector output
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, VecInputPinB, VecOutputPinA,
+		};
+		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
+	}
+
+	// Multiply_VectorVector given a real, vector, real
+	// Order shouldn't matter when passing these pins in, which is what we are testing here
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, VecOutputPinA, VecInputPinA,
+		};
+		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
+	}
+
+	// Multiply_VectorVector given two vector inputs and a vector output
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			VecInputPinA, VecInputPinB, VecOutputPinA,
+		};
+		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
+	}
+
+	// Add_DoubleDouble
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, RealPinB, RealOutputPin
+		};
+		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_DoubleDouble"));
+	}
+
+	// Subtract_DoubleDouble
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, RealPinB, RealOutputPin
+		};
+		TestMatchingFunc(TEXT("Subtract"), TestPins, TEXT("Subtract_DoubleDouble"));
+	}
+
+	// Add_DoubleDouble given only one real pin. This simulates the first connection being made to a 
+	// promotable operator, in which case we should default to a regular old real + real
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA,
+		};
+		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_DoubleDouble"));
+	}
+
+	// Less_DoubleDouble given a real
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, BoolOutputPin
+		};
+		TestMatchingFunc(TEXT("Less"), TestPins, TEXT("Less_DoubleDouble"));
+	}
+
+	// Less_DoubleDouble given just a single real
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA,
+		};
+		TestMatchingFunc(TEXT("Less"), TestPins, TEXT("Less_DoubleDouble"));
+	}
+
+	// Greater_DoubleDouble given reals
+	{
+		TArray<UEdGraphPin*> TestPins =
+		{
+			RealPinA, RealPinA
+		};
+		TestMatchingFunc(TEXT("Greater"), TestPins, TEXT("Greater_DoubleDouble"));
+	}
+#else
 	// Multiply_VectorVector given A float input, vector input, and a vector output
 	{
 		TArray<UEdGraphPin*> TestPins =
@@ -328,6 +457,7 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 		};
 		TestMatchingFunc(TEXT("Greater"), TestPins, TEXT("Greater_DoubleDouble"));
 	}
+#endif
 	
 	TypePromoTestUtils::CleanupTestPins(PinTypes);
 	TestNode->MarkAsGarbage();
@@ -358,8 +488,8 @@ bool FPromotableTypeToOperator::RunTest(const FString& Parameters)
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-	const TMap<FName, TArray<FName>>* const PromoTable = FTypePromotion::GetPrimativePromotionTable();
-	TestNotNull(TEXT("Primative Promotion table exists"), PromoTable);
+	const TMap<FName, TArray<FName>>* const PromoTable = FTypePromotion::GetPrimitivePromotionTable();
+	TestNotNull(TEXT("Primitive Promotion table exists"), PromoTable);
 
 	for (const FName OpName : AllOpNames)
 	{
@@ -635,6 +765,16 @@ bool FPromotableOpNodeAddPinInterface::RunTest(const FString& Parameters)
 		UEdGraphPin* AdditonalPin = AddNode->GetAdditionalPin(2);
 		TestNotNull(TEXT("Additional Pin is not null"), AdditonalPin);
 		
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		// Connect a real pin to the additional input pin
+		const bool bConnected = TypePromoTestUtils::TestPromotedConnection(AdditonalPin, RealOutputPin);
+		TestTrue(TEXT("Connection to additional pin success"), bConnected);
+
+		// The other pins have propagated correctly with this new connection 
+		TestTrue(TEXT("Top Pin type propegates to new connection"), TopInputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
+		TestTrue(TEXT("Bottom Pin type propegates to new connection"), BottomInputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
+		TestTrue(TEXT("Out Pin type propegates to new connection"), OutputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
+#else
 		// Connect a float pin to the additional input pin
 		const bool bConnected = TypePromoTestUtils::TestPromotedConnection(AdditonalPin, FloatOutputPin);
 		TestTrue(TEXT("Connection to additional pin success"), bConnected);
@@ -643,6 +783,7 @@ bool FPromotableOpNodeAddPinInterface::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Top Pin type propegates to new connection"), TopInputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
 		TestTrue(TEXT("Bottom Pin type propegates to new connection"), BottomInputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
 		TestTrue(TEXT("Out Pin type propegates to new connection"), OutputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
+#endif
 
 		// Removing the only pin with a connection with reset the node to wildcard
 		AddNode->RemoveInputPin(AdditonalPin);
@@ -702,10 +843,17 @@ bool FPromotableOperatorConnectionChanged::RunTest(const FString& Parameters)
 
 		check(TopInputPin && BottomInputPin && OutputPin);
 
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		const bool bConnected = K2Schema->TryCreateConnection(TopInputPin, RealOutputPin);
+		AddNode->NotifyPinConnectionListChanged(TopInputPin);
+
+		TestTrue(TEXT("Bottom Pin type propagates to real"), bConnected && BottomInputPin->PinType.PinCategory == RealPinB->PinType.PinCategory);
+#else
 		const bool bConnected = K2Schema->TryCreateConnection(TopInputPin, FloatOutputPin);
 		AddNode->NotifyPinConnectionListChanged(TopInputPin);
 
-		TestTrue(TEXT("Bottom Pin type propegates to float"), bConnected && BottomInputPin->PinType.PinCategory == FloatPinB->PinType.PinCategory);
+		TestTrue(TEXT("Bottom Pin type propagates to float"), bConnected && BottomInputPin->PinType.PinCategory == FloatPinB->PinType.PinCategory);
+#endif
 	}
 
 	// Connecting a vector output should make the other input be a vector as well
@@ -772,7 +920,7 @@ bool FPromotableOperatorPrimitivePromotions::RunTest(const FString& Parameters)
 	FTypePromotion::ClearNodeSpawners();
 	FBlueprintActionDatabase::Get().RefreshAll();
 
-	MakeTestableBP(BP_Primative_Connections, TestGraph);
+	MakeTestableBP(BP_Primitive_Connections, TestGraph);
 	MakeTestableNode(TestNode, TestGraph);
 
 	// Create test pins!
@@ -781,8 +929,8 @@ bool FPromotableOperatorPrimitivePromotions::RunTest(const FString& Parameters)
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-	const TMap<FName, TArray<FName>>* const PromoTable = FTypePromotion::GetPrimativePromotionTable();
-	TestNotNull(TEXT("Primative Promotion table exists"), PromoTable);
+	const TMap<FName, TArray<FName>>* const PromoTable = FTypePromotion::GetPrimitivePromotionTable();
+	TestNotNull(TEXT("Primitive Promotion table exists"), PromoTable);
 	
 	if (!PromoTable)
 	{
@@ -838,8 +986,8 @@ bool FPromotableOperatorPrimitivePromotions::RunTest(const FString& Parameters)
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
 
-		BP_Primative_Connections->MarkAsGarbage();
-		BP_Primative_Connections->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
+		BP_Primitive_Connections->MarkAsGarbage();
+		BP_Primitive_Connections->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
 		TestGraph->MarkAsGarbage();
 		TestNode->MarkAsGarbage();
 	}

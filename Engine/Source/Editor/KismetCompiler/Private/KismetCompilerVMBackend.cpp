@@ -269,6 +269,7 @@ private:
 
 	// Pointers to commonly used structures (found in constructor)
 	UScriptStruct* VectorStruct;
+	UScriptStruct* Vector3fStruct;
 	UScriptStruct* RotatorStruct;
 	UScriptStruct* TransformStruct;
 	UScriptStruct* LatentInfoStruct;
@@ -404,6 +405,7 @@ public:
 		, PureNodeEntryStart(0)
 	{
 		VectorStruct = TBaseStructure<FVector>::Get();
+		Vector3fStruct = TVariantStructure<FVector3f>::Get();
 		RotatorStruct = TBaseStructure<FRotator>::Get();
 		TransformStruct = TBaseStructure<FTransform>::Get();
 		LatentInfoStruct = FLatentActionInfo::StaticStruct();
@@ -476,6 +478,25 @@ public:
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Text);
 		}
 
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		static bool IsFloat(const FEdGraphPinType* Type, const FProperty* Property)
+		{
+			if (Property)
+			{
+				return Property->IsA<FFloatProperty>();
+			}
+			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Real) && (Type->PinSubCategory == UEdGraphSchema_K2::PC_Float);
+		}
+
+		static bool IsDouble(const FEdGraphPinType* Type, const FProperty* Property)
+		{
+			if (Property)
+			{
+				return Property->IsA<FDoubleProperty>();
+			}
+			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Real) && (Type->PinSubCategory == UEdGraphSchema_K2::PC_Double);
+		}
+#else
 		static bool IsFloat(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
@@ -493,6 +514,7 @@ public:
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Double);
 		}
+#endif
 
 		static bool IsInt(const FEdGraphPinType* Type, const FProperty* Property)
 		{
@@ -604,7 +626,7 @@ public:
 		}
 	};
 
-	virtual void EmitTermExpr(FBPTerminal* Term, FProperty* CoerceProperty = NULL, bool bAllowStaticArray = false)
+	virtual void EmitTermExpr(FBPTerminal* Term, const FProperty* CoerceProperty = NULL, bool bAllowStaticArray = false)
 	{
 		if (Term->bIsLiteral)
 		{
@@ -769,11 +791,11 @@ public:
 
 				UEnum* EnumPtr = nullptr;
 
-				if (FByteProperty* ByteProp = CastField< FByteProperty >(CoerceProperty))
+				if (const FByteProperty* ByteProp = CastField< FByteProperty >(CoerceProperty))
 				{
 					EnumPtr = ByteProp->Enum;
 				}
-				else if (FEnumProperty* EnumProp = CastField< FEnumProperty >(CoerceProperty))
+				else if (const FEnumProperty* EnumProp = CastField< FEnumProperty >(CoerceProperty))
 				{
 					EnumPtr = EnumProp->GetEnum();
 				}
@@ -811,7 +833,7 @@ public:
 			}
 			else if (FLiteralTypeHelper::IsStruct(&Term->Type, CoerceProperty))
 			{
-				FStructProperty* StructProperty = CastField<FStructProperty>(CoerceProperty);
+				const FStructProperty* StructProperty = CastField<FStructProperty>(CoerceProperty);
 				UScriptStruct* Struct = StructProperty ? StructProperty->Struct : Cast<UScriptStruct>(Term->Type.PinSubCategoryObject.Get());
 				check(Struct);
 
@@ -827,6 +849,20 @@ public:
 						}
 					}
 					Writer << EX_VectorConst;
+					Writer << V;
+				}
+				else if (Struct == Vector3fStruct)
+				{
+					FVector3f V = FVector3f::ZeroVector;
+					if (!Term->Name.IsEmpty())
+					{
+						const bool bParsedUsingCustomFormat = FDefaultValueHelper::ParseVector(Term->Name, /*out*/ V);
+						if (!bParsedUsingCustomFormat)
+						{
+							Struct->ImportText(*Term->Name, &V, nullptr, PPF_None, GWarn, GetPathNameSafe(StructProperty));
+						}
+					}
+					Writer << EX_Vector3fConst;
 					Writer << V;
 				}
 				else if (Struct == RotatorStruct)
@@ -913,7 +949,7 @@ public:
 					Writer << EX_EndStructConst;
 				}
 			}
-			else if (FArrayProperty* ArrayPropr = CastField<FArrayProperty>(CoerceProperty))
+			else if (const FArrayProperty* ArrayPropr = CastField<FArrayProperty>(CoerceProperty))
 			{
 				FProperty* InnerProp = ArrayPropr->Inner;
 				ensure(InnerProp);
@@ -933,7 +969,7 @@ public:
 				}
 				Writer << EX_EndArrayConst;
 			}
-			else if (FSetProperty* SetPropr = CastField<FSetProperty>(CoerceProperty))
+			else if (const FSetProperty* SetPropr = CastField<FSetProperty>(CoerceProperty))
 			{
 				FProperty* InnerProp = SetPropr->ElementProp;
 				ensure(InnerProp);
@@ -960,7 +996,7 @@ public:
 				}
 				Writer << EX_EndSetConst;
 			}
-			else if (FMapProperty* MapPropr = CastField<FMapProperty>(CoerceProperty))
+			else if (const FMapProperty* MapPropr = CastField<FMapProperty>(CoerceProperty))
 			{
 				FProperty* KeyProp = MapPropr->KeyProp;
 				FProperty* ValProp = MapPropr->ValueProp;
@@ -1373,7 +1409,7 @@ public:
 		Writer << EX_EndFunctionParms;
 	}
 
-	void EmitTerm(FBPTerminal* Term, FProperty* CoerceProperty = NULL, FBPTerminal* RValueTerm = NULL)
+	void EmitTerm(FBPTerminal* Term, const FProperty* CoerceProperty = NULL, FBPTerminal* RValueTerm = NULL)
 	{
 		if (Term->InlineGeneratedParameter)
 		{
@@ -1592,7 +1628,7 @@ public:
 		Writer << PropertyToHandleComplexStruct;
 		EmitTerm(DestinationExpression);
 
-		Writer << EX_PrimitiveCast;
+		Writer << EX_Cast;
 		uint8 CastType = !bIsInterfaceCast ? CST_ObjectToBool : CST_InterfaceToBool;
 		Writer << CastType;
 		
@@ -2014,6 +2050,80 @@ public:
 		EmitTerm(Statement.RHS[1], (FProperty*)(GetDefault<FIntProperty>()));
 	}
 
+	void EmitCastStatement(FBlueprintCompiledStatement& Statement)
+	{
+		FBPTerminal* DestinationExpression = Statement.LHS;
+		FBPTerminal* TargetExpression = Statement.RHS[0];
+
+		Writer << EX_Let;
+		FProperty* PropertyToHandleComplexStruct = nullptr;
+		Writer << PropertyToHandleComplexStruct;
+		EmitTerm(DestinationExpression);
+
+		Writer << EX_Cast;
+
+		ECastToken CastType = CST_Max;
+
+		switch (Statement.Type)
+		{
+			case KCST_DoubleToFloatCast:
+				CastType = CST_DoubleToFloat;
+				break;
+			case KCST_DoubleToFloatArrayCast:
+				CastType = CST_DoubleToFloatArray;
+				break;
+			case KCST_DoubleToFloatSetCast:
+				CastType = CST_DoubleToFloatSet;
+				break;
+			case KCST_FloatToDoubleCast:
+				CastType = CST_FloatToDouble;
+				break;
+			case KCST_FloatToDoubleArrayCast:
+				CastType = CST_FloatToDoubleArray;
+				break;
+			case KCST_FloatToDoubleSetCast:
+				CastType = CST_FloatToDoubleSet;
+				break;
+			case KCST_VectorToVector3fCast:
+				CastType = CST_VectorToVector3f;
+				break;
+			case KCST_Vector3fToVectorCast:
+				CastType = CST_Vector3fToVector;
+				break;
+			case KCST_FloatToDoubleKeys_MapCast:
+				CastType = CST_FloatToDoubleKeys_Map;
+				break;
+			case KCST_DoubleToFloatKeys_MapCast:
+				CastType = CST_DoubleToFloatKeys_Map;
+				break;
+			case KCST_FloatToDoubleValues_MapCast:
+				CastType = CST_FloatToDoubleValues_Map;
+				break;
+			case KCST_DoubleToFloatValues_MapCast:
+				CastType = CST_DoubleToFloatValues_Map;
+				break;
+			case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
+				CastType = CST_FloatToDoubleKeys_FloatToDoubleValues_Map;
+				break;
+			case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
+				CastType = CST_DoubleToFloatKeys_FloatToDoubleValues_Map;
+				break;
+			case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
+				CastType = CST_DoubleToFloatKeys_DoubleToFloatValues_Map;
+				break;
+			case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
+				CastType = CST_FloatToDoubleKeys_DoubleToFloatValues_Map;
+				break;
+			default:
+				check(false);
+				break;
+		}
+
+		Writer << CastType;
+
+		EmitTerm(TargetExpression);
+	}
+
 	void PushReturnAddress(FBlueprintCompiledStatement& ReturnTarget)
 	{
 		Writer << EX_PushExecutionFlow;
@@ -2139,6 +2249,28 @@ public:
 			break;
 		case KCST_CreateMap:
 			EmitCreateMapStatement(Statement);
+			break;
+		case KCST_DoubleToFloatCast:
+		case KCST_DoubleToFloatArrayCast:
+		case KCST_DoubleToFloatSetCast:
+		case KCST_FloatToDoubleCast:
+		case KCST_FloatToDoubleArrayCast:
+		case KCST_FloatToDoubleSetCast:
+		case KCST_VectorToVector3fCast:
+		case KCST_VectorToVector3fArrayCast:
+		case KCST_VectorToVector3fSetCast:
+		case KCST_Vector3fToVectorCast:
+		case KCST_Vector3fToVectorArrayCast:
+		case KCST_Vector3fToVectorSetCast:
+		case KCST_FloatToDoubleKeys_MapCast:
+		case KCST_DoubleToFloatKeys_MapCast:
+		case KCST_FloatToDoubleValues_MapCast:
+		case KCST_DoubleToFloatValues_MapCast:
+		case KCST_FloatToDoubleKeys_FloatToDoubleValues_MapCast:
+		case KCST_DoubleToFloatKeys_FloatToDoubleValues_MapCast:
+		case KCST_DoubleToFloatKeys_DoubleToFloatValues_MapCast:
+		case KCST_FloatToDoubleKeys_DoubleToFloatValues_MapCast:
+			EmitCastStatement(Statement);
 			break;
 		default:
 			UE_LOG(LogK2Compiler, Warning, TEXT("VM backend encountered unsupported statement type %d"), (int32)Statement.Type);

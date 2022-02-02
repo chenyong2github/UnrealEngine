@@ -32,6 +32,7 @@
 #include "AnimBlueprintVariableCreationContext.h"
 #include "Animation/AnimSubsystemInstance.h"
 #include "AnimBlueprintExtension.h"
+#include "UObject/FrameworkObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintCompiler"
@@ -2058,6 +2059,17 @@ const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FAnimBlueprintCom
 	}
 
 	return nullptr;
+}
+
+void FAnimBlueprintCompilerContext::PreCompileUpdateBlueprintOnLoad(UBlueprint* BP)
+{
+	if (UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(BP))
+	{
+		if (AnimBP->GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::AnimBlueprintSubgraphFix)
+		{
+			AnimationEditorUtils::RegenerateSubGraphArrays(AnimBP);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

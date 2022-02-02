@@ -879,6 +879,12 @@ FORCEINLINE FieldType* ExactCastField(FField* Src)
 }
 
 template<typename FieldType>
+FORCEINLINE FieldType* ExactCastField(const FField* Src)
+{
+	return (Src && (Src->GetClass() == FieldType::StaticClass())) ? static_cast<const FieldType*>(Src) : nullptr;
+}
+
+template<typename FieldType>
 FUNCTION_NON_NULL_RETURN_START
 FORCEINLINE FieldType* CastFieldChecked(FField* Src)
 FUNCTION_NON_NULL_RETURN_END

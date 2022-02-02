@@ -86,6 +86,11 @@ FString UKismetStringLibrary::Conv_VectorToString(FVector InVec)
 	return InVec.ToString();	
 }
 
+FString UKismetStringLibrary::Conv_Vector3fToString(FVector3f InVec)
+{
+	return InVec.ToString();
+}
+
 FString UKismetStringLibrary::Conv_IntVectorToString(FIntVector InIntVec)
 {
 	return InIntVec.ToString();
@@ -147,6 +152,11 @@ float UKismetStringLibrary::Conv_StringToFloat(const FString& InString)
 }
 
 void UKismetStringLibrary::Conv_StringToVector(const FString& InString, FVector& OutConvertedVector, bool& OutIsValid)
+{
+	OutIsValid = OutConvertedVector.InitFromString(InString);
+}
+
+void UKismetStringLibrary::Conv_StringToVector3f(const FString& InString, FVector3f& OutConvertedVector, bool& OutIsValid)
 {
 	OutIsValid = OutConvertedVector.InitFromString(InString);
 }

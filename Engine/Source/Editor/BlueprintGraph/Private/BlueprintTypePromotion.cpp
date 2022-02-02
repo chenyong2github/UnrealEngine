@@ -71,16 +71,25 @@ void FTypePromotion::CreatePromotionTable()
 {
 	PromotionTable =
 	{
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		// Type_X...						Can be promoted to...
+		{ UEdGraphSchema_K2::PC_Int,		{ UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Int64 } },
+		{ UEdGraphSchema_K2::PC_Byte,		{ UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64 } },
+		{ UEdGraphSchema_K2::PC_Real,		{ UEdGraphSchema_K2::PC_Int64 } },
+		{ UEdGraphSchema_K2::PC_Wildcard,	{ UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64, UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Byte, UEdGraphSchema_K2::PC_Boolean } },
+#else
 		// Type_X...						Can be promoted to...
 		{ UEdGraphSchema_K2::PC_Int,		{ UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Byte,		{ UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64, UEdGraphSchema_K2::PC_Double } },
 		{ UEdGraphSchema_K2::PC_Float,		{ UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Double,		{ UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Wildcard,	{ UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64, UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Byte, UEdGraphSchema_K2::PC_Boolean } },
+#endif
 	};
 }
 
-const TMap<FName, TArray<FName>>* const FTypePromotion::GetPrimativePromotionTable()
+const TMap<FName, TArray<FName>>* const FTypePromotion::GetPrimitivePromotionTable()
 {
 	if (Instance)
 	{
@@ -92,7 +101,7 @@ const TMap<FName, TArray<FName>>* const FTypePromotion::GetPrimativePromotionTab
 
 const TArray<FName>* FTypePromotion::GetAvailablePrimitivePromotions(const FEdGraphPinType& Type)
 {
-	const TMap<FName, TArray<FName>>* PromoTable = GetPrimativePromotionTable();
+	const TMap<FName, TArray<FName>>* PromoTable = GetPrimitivePromotionTable();
 
 	return PromoTable->Find(Type.PinCategory);
 }

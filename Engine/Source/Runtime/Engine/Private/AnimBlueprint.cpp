@@ -190,13 +190,6 @@ void UAnimBlueprint::PostLoad()
 		});
 	}
 #endif
-
-#if WITH_EDITORONLY_DATA
-	if(GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::AnimBlueprintSubgraphFix)
-	{
-		AnimationEditorUtils::RegenerateSubGraphArrays(this);
-	}
-#endif
 }
 
 bool UAnimBlueprint::CanAlwaysRecompileWhilePlayingInEditor() const

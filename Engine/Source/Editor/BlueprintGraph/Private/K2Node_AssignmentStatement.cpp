@@ -3,6 +3,8 @@
 
 #include "K2Node_AssignmentStatement.h"
 #include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "KismetCastingUtils.h"
 #include "KismetCompiler.h"
 #include "VariableSetHandler.h"
 #include "BlueprintNodeSpawner.h"
@@ -35,10 +37,50 @@ public:
 
 		if (VariablePin->LinkedTo.Num() == 0)
 		{
-			CompilerContext.MessageLog.Error(*LOCTEXT("NoVarriableConnected_Error", "A variable needs to be connected to @@").ToString(), VariablePin);
+			CompilerContext.MessageLog.Error(*LOCTEXT("NoVariableConnected_Error", "A variable needs to be connected to @@").ToString(), VariablePin);
+			return;
 		}
 
 		ValidateAndRegisterNetIfLiteral(Context, ValuePin);
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		{
+			using namespace UE::KismetCompiler;
+
+			UEdGraphPin* VariablePinNet = FEdGraphUtilities::GetNetFromPin(VariablePin);
+			UEdGraphPin* ValuePinNet = FEdGraphUtilities::GetNetFromPin(ValuePin);
+
+			if (VariablePinNet && ValuePinNet)
+			{
+				TOptional<CastingUtils::StatementNamePair> ConversionType =
+					CastingUtils::GetFloatingPointConversionType(*ValuePinNet, *VariablePinNet);
+
+				if (ConversionType)
+				{
+
+					FString DescriptiveName = Node->GetName();
+
+					FString TerminalName = FString::Printf(TEXT("%s_%s_%s"),
+						*DescriptiveName,
+						*VariablePinNet->PinName.ToString(),
+						ConversionType->Get<1>());
+
+					FBPTerminal* NewTerm = Context.CreateLocalTerminal();
+					NewTerm->Name = TerminalName;
+					NewTerm->Type = VariablePinNet->PinType;
+					NewTerm->Source = Node;
+
+					EKismetCompiledStatementType CastType = ConversionType->Get<0>();
+
+					Context.ImplicitCastMap.Add(VariablePin, FImplicitCastParams{CastType, NewTerm, Node});
+				}
+			}
+			else
+			{
+				CompilerContext.MessageLog.Error(*LOCTEXT("NoVariableOrValueNets_Error", "Expected Variable and Value pins to have valid connections in @@").ToString(), Node);
+			}
+		}
+#endif
 	}
 
 
@@ -47,11 +89,18 @@ public:
 		UEdGraphPin* VariablePin = Node->FindPin(TEXT("Variable"));
 		UEdGraphPin* ValuePin = Node->FindPin(TEXT("Value"));
 
+		check(VariablePin);
+		check(VariablePin->LinkedTo.Num() == 1);
+		check(ValuePin);
+
 		InnerAssignment(Context, Node, VariablePin, ValuePin);
 
 		// Generate the output impulse from this node
 		GenerateSimpleThenGoto(Context, *Node);
 	}
+
+protected:
+	virtual bool UsesVariablePinAsKey() const override { return true; }
 };
 
 
@@ -85,13 +134,13 @@ FText UK2Node_AssignmentStatement::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return LOCTEXT("Assign", "Assign");
 }
 
-bool UK2Node_AssignmentStatement::IsCompatibleWithGraph(UEdGraph const* TargetGraph) const
+bool UK2Node_AssignmentStatement::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
 {
 	bool bIsCompatible = Super::IsCompatibleWithGraph(TargetGraph);
 	if (bIsCompatible)
 	{
-		EGraphType const GraphType = TargetGraph->GetSchema()->GetGraphType(TargetGraph);
-		bIsCompatible = GraphType == GT_Macro;
+		const EGraphType GraphType = TargetGraph->GetSchema()->GetGraphType(TargetGraph);
+		bIsCompatible = (GraphType == GT_Macro);
 	}
 
 	return bIsCompatible;

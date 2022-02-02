@@ -33,19 +33,28 @@ UK2Node_GetInputActionValue::UK2Node_GetInputActionValue(const FObjectInitialize
 
 struct FValueTypeData
 {
-	FValueTypeData(FName InCategory, UScriptStruct* InSubCategory = nullptr)
-		: Category(InCategory), SubCategory(InSubCategory) {}
+	FValueTypeData(FName InCategory, FName InSubCategory = NAME_None, UScriptStruct* InSubCategoryObject = nullptr)
+		: Category(InCategory)
+		, SubCategory(InSubCategory)
+		, SubCategoryObject(InSubCategoryObject)
+	{
+	}
 
 	FName Category;
-	UScriptStruct* SubCategory;
+	FName SubCategory;
+	UScriptStruct* SubCategoryObject;
 };
 
 static TMap<EInputActionValueType, FValueTypeData> ValueLookups =
 {
 	{ EInputActionValueType::Boolean, FValueTypeData(UEdGraphSchema_K2::PC_Boolean) },
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	{ EInputActionValueType::Axis1D, FValueTypeData(UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Float) },
+#else
 	{ EInputActionValueType::Axis1D, FValueTypeData(UEdGraphSchema_K2::PC_Float) },
-	{ EInputActionValueType::Axis2D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FVector2D>::Get()) },
-	{ EInputActionValueType::Axis3D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, TBaseStructure<FVector>::Get()) },
+#endif
+	{ EInputActionValueType::Axis2D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, NAME_None, TBaseStructure<FVector2D>::Get()) },
+	{ EInputActionValueType::Axis3D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, NAME_None, TBaseStructure<FVector>::Get()) },
 };
 
 FName UK2Node_GetInputActionValue::GetValueCategory(const UInputAction* InputAction)
@@ -54,12 +63,17 @@ FName UK2Node_GetInputActionValue::GetValueCategory(const UInputAction* InputAct
 	return ValueLookups[Type].Category;
 }
 
-UScriptStruct* UK2Node_GetInputActionValue::GetValueSubCategoryObject(const UInputAction* InputAction)
+FName UK2Node_GetInputActionValue::GetValueSubCategory(const UInputAction* InputAction)
 {
 	EInputActionValueType Type = InputAction ? InputAction->ValueType : EInputActionValueType::Boolean;
 	return ValueLookups[Type].SubCategory;
 }
 
+UScriptStruct* UK2Node_GetInputActionValue::GetValueSubCategoryObject(const UInputAction* InputAction)
+{
+	EInputActionValueType Type = InputAction ? InputAction->ValueType : EInputActionValueType::Boolean;
+	return ValueLookups[Type].SubCategoryObject;
+}
 
 void UK2Node_GetInputActionValue::AllocateDefaultPins()
 {
@@ -68,7 +82,16 @@ void UK2Node_GetInputActionValue::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 
 	// Dynamically typed output
-	CreatePin(EGPD_Output, UK2Node_GetInputActionValue::GetValueCategory(InputAction), UK2Node_GetInputActionValue::GetValueSubCategoryObject(InputAction), UEdGraphSchema_K2::PN_ReturnValue);
+	FName SubCategory = UK2Node_GetInputActionValue::GetValueSubCategory(InputAction);
+
+	if (SubCategory != NAME_None)
+	{
+		CreatePin(EGPD_Output, UK2Node_GetInputActionValue::GetValueCategory(InputAction), SubCategory, UEdGraphSchema_K2::PN_ReturnValue);
+	}
+	else
+	{
+		CreatePin(EGPD_Output, UK2Node_GetInputActionValue::GetValueCategory(InputAction), UK2Node_GetInputActionValue::GetValueSubCategoryObject(InputAction), UEdGraphSchema_K2::PN_ReturnValue);
+	}
 }
 
 void UK2Node_GetInputActionValue::Initialize(const UInputAction* Action)

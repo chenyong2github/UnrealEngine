@@ -58,7 +58,6 @@ private:
 	FString ReadString16(int32& ScriptIndex);
 
 	EExprToken SerializeExpr(int32& ScriptIndex);
-	void ProcessCastByte(int32 CastType, int32& ScriptIndex);
 	void ProcessCommon(int32& ScriptIndex, EExprToken Opcode);
 
 	void InitTables();

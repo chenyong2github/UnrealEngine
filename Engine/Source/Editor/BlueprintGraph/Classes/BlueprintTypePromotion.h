@@ -121,7 +121,7 @@ public:
 	*
 	* @return Const pointer to the primitive promotion table
 	*/
-	static const TMap<FName, TArray<FName>>* const GetPrimativePromotionTable();
+	static const TMap<FName, TArray<FName>>* const GetPrimitivePromotionTable();
 	
 	/**
 	* Get a pointer to an array of available promotion types to a given pin type

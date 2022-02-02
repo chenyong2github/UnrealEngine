@@ -1464,6 +1464,14 @@ void UKismetMathLibrary::BreakVector(FVector InVec, float& X, float& Y, float& Z
 }
 
 KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakVector3f(FVector3f InVec, float& X, float& Y, float& Z)
+{
+	X = InVec.X;
+	Y = InVec.Y;
+	Z = InVec.Z;
+}
+
+KISMET_MATH_FORCEINLINE
 FRotator UKismetMathLibrary::Conv_VectorToRotator(FVector InVec)
 {
 	return InVec.ToOrientationRotator();
@@ -2796,9 +2804,21 @@ FVector UKismetMathLibrary::Conv_FloatToVector(float InFloat)
 }
 
 KISMET_MATH_FORCEINLINE
+FVector UKismetMathLibrary::Conv_DoubleToVector(double InDouble)
+{
+	return FVector(InDouble);
+}
+
+KISMET_MATH_FORCEINLINE
 FLinearColor UKismetMathLibrary::Conv_FloatToLinearColor(float InFloat)
 {
 	return FLinearColor(InFloat, InFloat, InFloat);
+}
+
+KISMET_MATH_FORCEINLINE
+FLinearColor UKismetMathLibrary::Conv_DoubleToLinearColor(double InDouble)
+{
+	return FLinearColor(InDouble, InDouble, InDouble);
 }
 
 KISMET_MATH_FORCEINLINE

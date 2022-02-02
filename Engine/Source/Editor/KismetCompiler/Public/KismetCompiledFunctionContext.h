@@ -32,6 +32,13 @@ enum ETerminalSpecification
 	TS_ForcedShared,
 };
 
+struct FImplicitCastParams
+{
+	EKismetCompiledStatementType CastType = KCST_Nop;
+	FBPTerminal* TargetTerminal = nullptr;
+	UEdGraphNode* TargetNode = nullptr;
+};
+
 //////////////////////////////////////////////////////////////////////////
 // FKismetFunctionContext
 
@@ -60,17 +67,16 @@ public:
 	TArray< FBlueprintCompiledStatement* > AllGeneratedStatements;
 
 	// Individual execution lists for every node that generated code to be consumed by the backend
-	TMap< UEdGraphNode*, TArray<FBlueprintCompiledStatement*> > StatementsPerNode;
+	TMap<UEdGraphNode*, TArray<FBlueprintCompiledStatement*>> StatementsPerNode;
 
 	// Goto fixup requests (each statement (key) wants to goto the first statement attached to the exec out-pin (value))
-	TMap< FBlueprintCompiledStatement*, UEdGraphPin* > GotoFixupRequestMap;
+	TMap<FBlueprintCompiledStatement*, UEdGraphPin*> GotoFixupRequestMap;
 
 	// @todo: BP2CPP_remove
 	// Used to split uber graph into subfunctions by C++ backend
 	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
 	TArray<TSet<UEdGraphNode*>> UnsortedSeparateExecutionGroups;
 
-	// Map from a net to an term (either a literal or a storage location)
 	TIndirectArray<FBPTerminal> Parameters;
 	TIndirectArray<FBPTerminal> Results;
 	TIndirectArray<FBPTerminal> VariableReferences;
@@ -80,8 +86,13 @@ public:
 	TIndirectArray<FBPTerminal> EventGraphLocals;
 	TIndirectArray<FBPTerminal>	LevelActorReferences;
 	TIndirectArray<FBPTerminal>	InlineGeneratedValues; // A function generating the parameter will be called inline. The value won't be stored in a local variable.
+
+	// Map from a net to an term (either a literal or a storage location)
 	TMap<UEdGraphPin*, FBPTerminal*> NetMap;
 	TMap<UEdGraphPin*, FBPTerminal*> LiteralHackMap;
+
+	// Contains a map of destination pins that will need an implicit cast to either a float or double
+	TMap<UEdGraphPin*, FImplicitCastParams> ImplicitCastMap;
 
 	bool bIsUbergraph;
 	bool bCannotBeCalledFromOtherKismet;

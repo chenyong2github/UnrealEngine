@@ -498,12 +498,6 @@ void StaticTick( float DeltaTime, bool bUseFullTimeLimit, float AsyncLoadingTime
 	{
 		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Duplicate native registered: %i"), GNativeDuplicate );
 	}
-	// Check for duplicates.
-	extern int32 GCastDuplicate;
-	if( GCastDuplicate )
-	{
-		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Duplicate cast registered: %i"), GCastDuplicate );
-	}
 
 #if STATS
 	// Set name table stats.

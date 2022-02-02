@@ -49,13 +49,19 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 		if (Field.PropertyClass)
 		{
 			FName PinCategory;
+			FName PinSubCategory = NAME_None;
 			if (Field.PropertyClass->IsChildOf(FStrProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_String;
 			}
 			else if (Field.PropertyClass->IsChildOf(FFloatProperty::StaticClass()))
 			{
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				PinCategory = UEdGraphSchema_K2::PC_Real;
+				PinSubCategory = UEdGraphSchema_K2::PC_Float;
+#else
 				PinCategory = UEdGraphSchema_K2::PC_Float;
+#endif
 			}
 			else if (Field.PropertyClass->IsChildOf(FIntProperty::StaticClass()))
 			{
@@ -77,7 +83,7 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 			}
 			if (!PinCategory.IsNone())
 			{
-				FEdGraphPinType ScriptPinType(PinCategory, NAME_None, InnerType, EPinContainerType::None, false, FEdGraphTerminalType());
+				FEdGraphPinType ScriptPinType(PinCategory, PinSubCategory, InnerType, EPinContainerType::None, false, FEdGraphTerminalType());
 				FProperty* ScriptProperty = CreateVariable(Field.Name, ScriptPinType);
 				if (ScriptProperty)
 				{

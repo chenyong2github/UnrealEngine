@@ -85,6 +85,10 @@ struct RIGVM_API FRigVMExternalVariable
 				*ObjectProperty->PropertyClass->GetName());
 			OutTypeObject = ObjectProperty->PropertyClass;
 		}
+		else
+		{
+			checkNoEntry();
+		}
 	}
 
 	static uint32 GetPropertyTypeHash(const FProperty *InProperty, const uint8 *InMemory)

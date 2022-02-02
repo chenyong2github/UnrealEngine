@@ -6,6 +6,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UnrealType.h"
 #include "UObject/TextProperty.h"
 #include "EdGraph/EdGraph.h"
@@ -161,6 +162,10 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+#endif
+
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
 		Ar << PinCategory;
@@ -297,6 +302,19 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 				bIsUObjectWrapperBool = false;
 			}
 		}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		bool bFixupPinCategories =
+			(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
+			((PinCategory == TEXT("double")) || (PinCategory == TEXT("float")));
+
+		if (bFixupPinCategories)
+		{
+			PinCategory = TEXT("real");
+			PinSubCategory = TEXT("double");
+		}
+#endif
+
 #endif
 
 		bIsUObjectWrapper = bIsUObjectWrapperBool;

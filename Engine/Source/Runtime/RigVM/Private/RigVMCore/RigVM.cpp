@@ -3467,27 +3467,36 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 
 #else
 
-	if(InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	FString RegisterName;
+	FString RegisterOffsetName;
+	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
 	{
-		if(ExternalVariables.IsValidIndex(InOperand.GetRegisterIndex()))
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+		RegisterName = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
+		if (InOperand.GetRegisterOffset() != INDEX_NONE)
 		{
-			return ExternalVariables[InOperand.GetRegisterIndex()].Name.ToString();
+			if(ensure(ExternalPropertyPaths.IsValidIndex(InOperand.GetRegisterOffset())))
+			{
+				RegisterOffsetName = ExternalPropertyPaths[InOperand.GetRegisterOffset()].ToString();
+			}
 		}
 	}
-	
-	URigVMMemoryStorage* Memory = GetMemoryByType(InOperand.GetMemoryType());
-	if(Memory == nullptr)
+	else
 	{
-		return FString();
-	}
+		URigVMMemoryStorage* Memory = GetMemoryByType(InOperand.GetMemoryType());
+		if(Memory == nullptr)
+		{
+			return FString();
+		}
 
-	check(Memory->IsValidIndex(InOperand.GetRegisterIndex()));
-	
-	const FString RegisterName = Memory->GetProperties()[InOperand.GetRegisterIndex()]->GetName();
-	const FString RegisterOffsetName =
-		InOperand.GetRegisterOffset() != INDEX_NONE ?
-		Memory->GetPropertyPaths()[InOperand.GetRegisterOffset()].ToString() :
-		FString();
+		check(Memory->IsValidIndex(InOperand.GetRegisterIndex()));
+		
+		RegisterName = Memory->GetProperties()[InOperand.GetRegisterIndex()]->GetName();
+		RegisterOffsetName =
+			InOperand.GetRegisterOffset() != INDEX_NONE ?
+			Memory->GetPropertyPaths()[InOperand.GetRegisterOffset()].ToString() :
+			FString();
+	}
 	
 	FString OperandLabel = RegisterName;
 	

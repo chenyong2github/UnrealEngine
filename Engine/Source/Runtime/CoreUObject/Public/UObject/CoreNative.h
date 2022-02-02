@@ -22,10 +22,6 @@ struct FNameNativePtrPair
 	FNativeFuncPtr Pointer;
 };
 
-extern COREUOBJECT_API FNativeFuncPtr GCasts[];
-uint8 COREUOBJECT_API GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func );
-
-
 /** A struct that maps a string name to a native function */
 struct FNativeFunctionRegistrar
 {

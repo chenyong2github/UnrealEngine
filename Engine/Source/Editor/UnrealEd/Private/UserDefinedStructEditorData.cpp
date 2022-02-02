@@ -2,6 +2,7 @@
 
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "Misc/ITransaction.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Engine/UserDefinedStruct.h"
@@ -31,6 +32,19 @@ void FStructVariableDescription::PostSerialize(const FArchive& Ar)
 			Category = TEXT("softclass");
 		}
 	}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	bool FixupPinCategories =
+		Ar.IsLoading() &&
+		(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
+		((Category == TEXT("double")) || (Category == TEXT("float")));
+
+	if (FixupPinCategories)
+	{
+		Category = TEXT("real");
+		SubCategory = TEXT("double");
+	}
+#endif
 }
 
 bool FStructVariableDescription::SetPinType(const FEdGraphPinType& VarType)
@@ -64,6 +78,15 @@ uint32 UUserDefinedStructEditorData::GenerateUniqueNameIdForMemberVariable()
 UUserDefinedStruct* UUserDefinedStructEditorData::GetOwnerStruct() const
 {
 	return Cast<UUserDefinedStruct>(GetOuter());
+}
+
+void UUserDefinedStructEditorData::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+#endif
 }
 
 void UUserDefinedStructEditorData::PostUndo(bool bSuccess)

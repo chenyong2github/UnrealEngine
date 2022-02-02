@@ -2,6 +2,7 @@
 
 #include "PropertyAccess.h"
 #include "Misc/MemStack.h"
+#include "UObject/ScriptCastingUtils.h"
 
 #define LOCTEXT_NAMESPACE "PropertyAccess"
 
@@ -370,6 +371,24 @@ struct FPropertyAccessSystem
 			checkSlow(InDestProperty->IsA<FFloatProperty>());
 			static_cast<const FFloatProperty*>(InDestProperty)->SetPropertyValue(InDestAddr, (float)static_cast<const FDoubleProperty*>(InSrcProperty)->GetPropertyValue(InSrcAddr));
 			break;
+		case EPropertyAccessCopyType::PromoteArrayFloatToDouble:
+		{
+			checkSlow(InSrcProperty->IsA<FArrayProperty>());
+			checkSlow(InDestProperty->IsA<FArrayProperty>());
+			const FArrayProperty* SrcArrayProperty = ExactCastField<const FArrayProperty>(InSrcProperty);
+			const FArrayProperty* DestArrayProperty = ExactCastField<const FArrayProperty>(InDestProperty);
+			CopyAndCastArray<float, double>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
+			break;
+		}
+		case EPropertyAccessCopyType::DemoteArrayDoubleToFloat:
+		{
+			checkSlow(InSrcProperty->IsA<FArrayProperty>());
+			checkSlow(InDestProperty->IsA<FArrayProperty>());
+			const FArrayProperty* SrcArrayProperty = ExactCastField<const FArrayProperty>(InSrcProperty);
+			const FArrayProperty* DestArrayProperty = ExactCastField<const FArrayProperty>(InDestProperty);
+			CopyAndCastArray<double, float>(SrcArrayProperty, InSrcAddr, DestArrayProperty, InDestAddr);
+			break;
+		}
 		default:
 			check(false);
 			break;

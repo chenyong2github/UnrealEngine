@@ -24,6 +24,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
+#include "UObject/ScriptCastingUtils.h"
 #include "UObject/Stack.h"
 #include "UObject/Reload.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -86,9 +87,6 @@ static FAutoConsoleVariableRef CVarMaxFunctionStatDepth(
 //
 COREUOBJECT_API FNativeFuncPtr GNatives[EX_Max];
 COREUOBJECT_API int32 GNativeDuplicate=0;
-
-COREUOBJECT_API FNativeFuncPtr GCasts[CST_Max];
-COREUOBJECT_API int32 GCastDuplicate=0;
 
 COREUOBJECT_API int32 GMaximumScriptLoopIterations = 1000000;
 
@@ -701,7 +699,7 @@ int32 FScriptInstrumentationSignal::GetScriptCodeOffset() const
 // Register a native function.
 // Warning: Called at startup time, before engine initialization.
 //
-COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeFuncPtr& Func )
+COREUOBJECT_API uint8 GRegisterNative(int32 NativeBytecodeIndex, const FNativeFuncPtr& Func)
 {
 	static bool bInitialized = false;
 	if (!bInitialized)
@@ -715,7 +713,7 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 
 	if( NativeBytecodeIndex != INDEX_NONE )
 	{
-		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>UE_ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
+		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex > UE_ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex] != &UObject::execUndefined) 
 		{
 			CA_SUPPRESS(6385)
 			if (!ReloadNotifyFunctionRemap(Func, GNatives[NativeBytecodeIndex]))
@@ -730,7 +728,9 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 	return 0;
 }
 
-COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func )
+static FNativeFuncPtr GCasts[CST_Max];
+
+static uint8 GRegisterCast(ECastToken CastCode, const FNativeFuncPtr& Func)
 {
 	static int32 bInitialized = false;
 	if (!bInitialized)
@@ -742,15 +742,8 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 		}
 	}
 
-	//@TODO: UCREMOVAL: Remove rest of cast machinery
-	check((CastCode == CST_ObjectToBool) || (CastCode == CST_ObjectToInterface) || (CastCode == CST_InterfaceToBool));
-
-	if (CastCode != INDEX_NONE)
+	if (CastCode != CST_Max)
 	{
-		if(!IsReloadActive() && (CastCode<0 || (uint32)CastCode>UE_ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
-		{
-			GCastDuplicate = CastCode;
-		}
 		GCasts[CastCode] = Func;
 	}
 	return 0;
@@ -3336,6 +3329,14 @@ DEFINE_FUNCTION(UObject::execVectorConst)
 }
 IMPLEMENT_VM_FUNCTION( EX_VectorConst, execVectorConst );
 
+DEFINE_FUNCTION(UObject::execVector3fConst)
+{
+	((FVector3f*)RESULT_PARAM)->X = Stack.ReadFloat();
+	((FVector3f*)RESULT_PARAM)->Y = Stack.ReadFloat();
+	((FVector3f*)RESULT_PARAM)->Z = Stack.ReadFloat();
+}
+IMPLEMENT_VM_FUNCTION(EX_Vector3fConst, execVector3fConst);
+
 DEFINE_FUNCTION(UObject::execTransformConst)
 {
 	// Rotation
@@ -3649,18 +3650,122 @@ DEFINE_FUNCTION(UObject::execMetaCast)
 }
 IMPLEMENT_VM_FUNCTION( EX_MetaCast, execMetaCast );
 
-DEFINE_FUNCTION(UObject::execPrimitiveCast)
+DEFINE_FUNCTION(UObject::execCast)
 {
 	int32 B = *(Stack.Code)++;
 	(*GCasts[B])( Stack.Object, Stack, RESULT_PARAM );
 }
-IMPLEMENT_VM_FUNCTION( EX_PrimitiveCast, execPrimitiveCast );
+IMPLEMENT_VM_FUNCTION( EX_Cast, execCast );
 
 DEFINE_FUNCTION(UObject::execInterfaceCast)
 {
 	(*GCasts[CST_ObjectToInterface])(Stack.Object, Stack, RESULT_PARAM);
 }
 IMPLEMENT_VM_FUNCTION( EX_ObjToInterfaceCast, execInterfaceCast );
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatCast)
+{
+	Stack.Step(Stack.Object, nullptr);
+
+	DoubleToFloatCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloat, execDoubleToFloatCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatArrayCast)
+{
+	CopyAndCastArrayFromStack<double, float>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatArray, execDoubleToFloatArrayCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatSetCast)
+{
+	CopyAndCastSetFromStack<double, float>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatSet, execDoubleToFloatSetCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleCast)
+{
+	Stack.Step(Stack.Object, nullptr);
+
+	FloatToDoubleCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDouble, execFloatToDoubleCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleArrayCast)
+{
+	CopyAndCastArrayFromStack<float, double>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleArray, execFloatToDoubleArrayCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleSetCast)
+{
+	CopyAndCastSetFromStack<float, double>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleSet, execFloatToDoubleSetCast )
+
+DEFINE_FUNCTION(UObject::execVectorToVector3fCast)
+{
+	Stack.Step(Stack.Object, nullptr);
+
+	FloatingPointCast<FVector, FVector3f>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_VectorToVector3f, execVectorToVector3fCast )
+
+DEFINE_FUNCTION(UObject::execVector3fToVectorCast)
+{
+	Stack.Step(Stack.Object, nullptr);
+
+	FloatingPointCast<FVector3f, FVector>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_Vector3fToVector, execVector3fToVectorCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleKeysMapCast)
+{
+	CopyAndCastMapFromStack<FloatToDoubleCast, CopyElement>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_Map, execFloatToDoubleKeysMapCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatKeysMapCast)
+{
+	CopyAndCastMapFromStack<DoubleToFloatCast, CopyElement>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_Map, execDoubleToFloatKeysMapCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleValuesMapCast)
+{
+	CopyAndCastMapFromStack<CopyElement, FloatToDoubleCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleValues_Map, execFloatToDoubleValuesMapCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatValuesMapCast)
+{
+	CopyAndCastMapFromStack<CopyElement, DoubleToFloatCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatValues_Map, execDoubleToFloatValuesMapCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleKeysFloatToDoubleValuesMapCast)
+{
+	CopyAndCastMapFromStack<FloatToDoubleCast, FloatToDoubleCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_FloatToDoubleValues_Map, execFloatToDoubleKeysFloatToDoubleValuesMapCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatKeysFloatToDoubleValuesMapCast)
+{
+	CopyAndCastMapFromStack<DoubleToFloatCast, FloatToDoubleCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_FloatToDoubleValues_Map, execDoubleToFloatKeysFloatToDoubleValuesMapCast )
+
+DEFINE_FUNCTION(UObject::execDoubleToFloatKeysDoubleToFloatValuesMapCast)
+{
+	CopyAndCastMapFromStack<DoubleToFloatCast, DoubleToFloatCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatKeys_DoubleToFloatValues_Map, execDoubleToFloatKeysDoubleToFloatValuesMapCast )
+
+DEFINE_FUNCTION(UObject::execFloatToDoubleKeysDoubleToFloatValuesMapCast)
+{
+	CopyAndCastMapFromStack<FloatToDoubleCast, DoubleToFloatCast>(Stack, RESULT_PARAM);
+}
+IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleKeys_DoubleToFloatValues_Map, execFloatToDoubleKeysDoubleToFloatValuesMapCast )
 
 DEFINE_FUNCTION(UObject::execObjectToBool)
 {

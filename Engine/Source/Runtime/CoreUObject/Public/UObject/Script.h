@@ -219,7 +219,7 @@ enum EExprToken
 	EX_Int64Const			= 0x35,	// 64-bit integer constant.
 	EX_UInt64Const			= 0x36,	// 64-bit unsigned integer constant.
 	EX_DoubleConst			= 0x37, // Double constant.
-	EX_PrimitiveCast		= 0x38,	// A casting operator for primitives which reads the type as the subsequent byte
+	EX_Cast					= 0x38,	// A casting operator which reads the type as the subsequent byte
 	EX_SetSet				= 0x39,
 	EX_EndSet				= 0x3A,
 	EX_SetMap				= 0x3B,
@@ -228,7 +228,7 @@ enum EExprToken
 	EX_EndSetConst			= 0x3E,
 	EX_MapConst				= 0x3F,
 	EX_EndMapConst			= 0x40,
-	//						= 0x41,
+	EX_Vector3fConst		= 0x41,	// A float vector constant.
 	EX_StructMemberContext	= 0x42, // Context expression to address a property within a struct
 	EX_LetMulticastDelegate	= 0x43, // Assignment to a multi-cast delegate
 	EX_LetDelegate			= 0x44, // Assignment to a delegate
@@ -276,13 +276,29 @@ enum EExprToken
 	EX_Max					= 0x100,
 };
 
-
 enum ECastToken
 {
-	CST_ObjectToInterface	= 0x46,
-	CST_ObjectToBool		= 0x47,
-	CST_InterfaceToBool		= 0x49,
-	CST_Max					= 0xFF,
+	CST_ObjectToInterface		= 0x00,
+	CST_ObjectToBool			= 0x01,
+	CST_InterfaceToBool			= 0x02,
+	CST_DoubleToFloat			= 0x03,
+	CST_DoubleToFloatArray		= 0x04,
+	CST_DoubleToFloatSet		= 0x05,
+	CST_FloatToDouble			= 0x06,
+	CST_FloatToDoubleArray		= 0x07,
+	CST_FloatToDoubleSet		= 0x08,
+	CST_VectorToVector3f		= 0x09,
+	CST_Vector3fToVector		= 0x0A,
+	CST_FloatToDoubleKeys_Map	= 0x0B,
+	CST_DoubleToFloatKeys_Map	= 0x0C,
+	CST_FloatToDoubleValues_Map	= 0x0D,
+	CST_DoubleToFloatValues_Map	= 0x0E,
+	CST_FloatToDoubleKeys_FloatToDoubleValues_Map	= 0x0F,
+	CST_DoubleToFloatKeys_FloatToDoubleValues_Map	= 0x10,
+	CST_DoubleToFloatKeys_DoubleToFloatValues_Map	= 0x11,
+	CST_FloatToDoubleKeys_DoubleToFloatValues_Map	= 0x12,
+
+	CST_Max						= 0xFF,
 };
 
 // Kinds of text literals

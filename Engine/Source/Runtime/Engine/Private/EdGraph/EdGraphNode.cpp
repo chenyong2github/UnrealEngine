@@ -7,6 +7,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Textures/SlateIcon.h"
 #include "EdGraph/EdGraph.h"
@@ -38,6 +39,10 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+#endif
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -88,6 +93,21 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 	{
 		Ar << T.bTerminalIsUObjectWrapper;
 	}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	if (Ar.IsLoading())
+	{
+		bool bFixupPinCategories =
+			(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
+			((T.TerminalCategory == TEXT("double")) || (T.TerminalCategory == TEXT("float")));
+
+		if (bFixupPinCategories)
+		{
+			T.TerminalCategory = TEXT("real");
+			T.TerminalSubCategory = TEXT("double");
+		}
+	}
+#endif
 
 	return Ar;
 }

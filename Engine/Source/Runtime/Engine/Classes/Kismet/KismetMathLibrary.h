@@ -1331,6 +1331,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
 	static void BreakVector(FVector InVec, float& X, float& Y, float& Z);
 
+	UFUNCTION(BlueprintPure, Category = "Math|Vector", meta = (NativeBreakFunc))
+	static void BreakVector3f(FVector3f InVec, float& X, float& Y, float& Z);
+
 	/** Converts a vector to LinearColor */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To LinearColor (Vector)", CompactNodeTitle = "->", ScriptMethod = "LinearColor", Keywords="cast convert", BlueprintAutocast), Category="Math|Conversions")
 	static FLinearColor Conv_VectorToLinearColor(FVector InVec);
@@ -3028,9 +3031,13 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod = "SetRandomHue"), Category = "Math|Color")
 	static void LinearColor_SetRandomHue(UPARAM(ref) FLinearColor& InOutColor);
 
-	/** Convert a float into a LinearColor, where each element is that float */
+	/** Convert a float into a LinearColor, where each element is a float */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To LinearColor (Float)", CompactNodeTitle = "->", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FLinearColor Conv_FloatToLinearColor(float InFloat);
+
+	/** Convert a float into a LinearColor, where each element is a double */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To LinearColor (Double)", CompactNodeTitle = "->", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
+	static FLinearColor Conv_DoubleToLinearColor(double InDouble);
 
 	/** Make a color from individual color components (HSV space; Hue is [0..360) while Saturation and Value are 0..1) */
 	UFUNCTION(BlueprintPure, Category = "Math|Color", meta = (DisplayName = "HSV to RGB"))
@@ -3596,6 +3603,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Vector (Float)", CompactNodeTitle = "->", Keywords="cast convert", BlueprintAutocast), Category="Math|Conversions")
 	static FVector Conv_FloatToVector(float InFloat);
 
+	/** Convert a double into a vector, where each element is that double */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Vector (Double)", CompactNodeTitle = "->", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
+	static FVector Conv_DoubleToVector(double InDouble);
 
 	//
 	// Box functions

@@ -154,7 +154,7 @@ public:
 	FLinearColor IntPinTypeColor;
 
 	/** Integer64 pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor Int64PinTypeColor;
 
 	/** Floating-point pin type color */
@@ -162,19 +162,23 @@ public:
 	FLinearColor FloatPinTypeColor;
 
 	/** Double pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor DoublePinTypeColor;
+
+	/** Real pin type color */
+	UPROPERTY(EditAnywhere, config, Category=PinColors)
+	FLinearColor RealPinTypeColor;
 
 	/** Name pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor NamePinTypeColor;
 
 	/** Asset pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor SoftObjectPinTypeColor;
 
 	/** Asset Class pin type color */
-	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor SoftClassPinTypeColor;
 
 	/** Delegate pin type color */

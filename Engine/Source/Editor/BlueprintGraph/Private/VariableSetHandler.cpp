@@ -75,7 +75,11 @@ void FKCHandler_VariableSet::InnerAssignment(FKismetFunctionContext& Context, UE
 
 	if (VariableTerm && ValueTerm)
 	{
-		FKismetCompilerUtilities::CreateObjectAssignmentStatement(Context, Node, *ValueTerm, *VariableTerm);
+		FKismetCompilerUtilities::CreateObjectAssignmentStatement(Context,
+																  Node,
+																  *ValueTerm,
+																  *VariableTerm,
+																  (UsesVariablePinAsKey() ? VariablePin : nullptr));
 
 		if (!(*VariableTerm)->IsTermWritable())
 		{

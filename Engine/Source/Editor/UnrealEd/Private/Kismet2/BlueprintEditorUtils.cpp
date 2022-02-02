@@ -580,7 +580,6 @@ void FBlueprintEditorUtils::ReconstructAllNodes(UBlueprint* Blueprint)
 	TArray<UK2Node*> AllNodes;
 	FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, AllNodes);
 
-	const bool bIsMacro = (Blueprint->BlueprintType == BPTYPE_MacroLibrary);
 	if (AllNodes.Num() > 1)
 	{
 		AllNodes.Sort(FCompareNodePriority());

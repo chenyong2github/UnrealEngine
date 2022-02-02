@@ -25,4 +25,10 @@ public:
 	void GenerateAssigments(FKismetFunctionContext& Context, UEdGraphNode* Node);
 	virtual void Compile(FKismetFunctionContext& Context, UEdGraphNode* Node) override;
 	virtual void Transform(FKismetFunctionContext& Context, UEdGraphNode* Node) override;
+
+protected:
+
+	// Used for implicit casting.
+	// Some nodes need to use the variable pin when performing a lookup in the implicit cast table.
+	virtual bool UsesVariablePinAsKey() const { return false; }
 };

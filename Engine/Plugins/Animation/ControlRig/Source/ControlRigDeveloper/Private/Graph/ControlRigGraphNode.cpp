@@ -1164,6 +1164,18 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (ModelPinCPPType == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (ModelPinCPPType == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+	}
+#else
 	else if (ModelPinCPPType == TEXT("float"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
@@ -1172,6 +1184,7 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
 	}
+#endif
 	else if (ModelPinCPPType == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
@@ -1191,15 +1204,15 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 		PinType.PinSubCategoryObject = InModelPin->GetCPPTypeObject();
 	}
 	else if (InModelPin->GetEnum() != nullptr)
-		{
+	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
 		PinType.PinSubCategoryObject = InModelPin->GetEnum();
-		}
+	}
 
 	if (InModelPin->IsArray())
-		{
+	{
 		PinType.ContainerType = EPinContainerType::Array;
-		}
+	}
 	else
 	{
 		PinType.ContainerType = EPinContainerType::None;

@@ -85,6 +85,25 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 		}
 		ExternalVariable.Size = sizeof(uint8);
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			ExternalVariable.TypeName = TEXT("float");
+			ExternalVariable.Size = sizeof(float);
+		}
+		else if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			ExternalVariable.TypeName = TEXT("double");
+			ExternalVariable.Size = sizeof(double);
+		}
+		else
+		{
+			checkf(false, TEXT("Unexpected subcategory for PC_Real pin type."));
+		}
+	}		
+#else
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		ExternalVariable.TypeName = TEXT("float");
@@ -95,6 +114,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 		ExternalVariable.TypeName = TEXT("double");
 		ExternalVariable.Size = sizeof(double);
 	}
+#endif
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
 		ExternalVariable.TypeName = TEXT("FName");
@@ -324,6 +344,18 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromExternalVariable(const FRigVMExternal
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (InExternalVariable.TypeName == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (InExternalVariable.TypeName == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+	}
+#else
 	else if (InExternalVariable.TypeName == TEXT("float"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
@@ -332,6 +364,7 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromExternalVariable(const FRigVMExternal
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
 	}
+#endif
 	else if (InExternalVariable.TypeName == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
@@ -389,6 +422,18 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromRigVMVariableDescription(
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (CurrentCPPType == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (CurrentCPPType == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+	}
+#else
 	else if (CurrentCPPType == TEXT("float"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
@@ -397,6 +442,7 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromRigVMVariableDescription(
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
 	}
+#endif
 	else if (CurrentCPPType == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
@@ -493,6 +539,32 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 	{
 		OutCPPType = Prefix + TEXT("int32") + Suffix;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			OutCPPType = Prefix + TEXT("float") + Suffix;
+		}
+		else if (InPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			OutCPPType = Prefix + TEXT("double") + Suffix;
+		}
+		else
+		{
+			checkf(false, TEXT("Unexpected subcategory for PC_Real pin type."));
+		}
+	}		
+#else
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
+	{
+		OutCPPType = Prefix + TEXT("float") + Suffix;
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		OutCPPType = Prefix + TEXT("double") + Suffix;
+	}
+#endif
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		OutCPPType = Prefix + TEXT("float") + Suffix;

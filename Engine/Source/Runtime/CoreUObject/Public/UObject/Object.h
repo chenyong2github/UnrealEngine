@@ -1487,6 +1487,7 @@ public:
 	DECLARE_FUNCTION(execIntConstByte);
 	DECLARE_FUNCTION(execRotationConst);
 	DECLARE_FUNCTION(execVectorConst);
+	DECLARE_FUNCTION(execVector3fConst);
 	DECLARE_FUNCTION(execTransformConst);
 	DECLARE_FUNCTION(execStructConst);
 	DECLARE_FUNCTION(execSetArray);
@@ -1502,17 +1503,34 @@ public:
 	DECLARE_FUNCTION(execNativeParm);
 
 	// Conversions 
+	DECLARE_FUNCTION(execCast);
 	DECLARE_FUNCTION(execDynamicCast);
 	DECLARE_FUNCTION(execMetaCast);
-	DECLARE_FUNCTION(execPrimitiveCast);
 	DECLARE_FUNCTION(execInterfaceCast);
-
-	// Cast functions
+	DECLARE_FUNCTION(execDoubleToFloatCast);
+	DECLARE_FUNCTION(execDoubleToFloatArrayCast);
+	DECLARE_FUNCTION(execDoubleToFloatSetCast);
+	DECLARE_FUNCTION(execFloatToDoubleCast);
+	DECLARE_FUNCTION(execFloatToDoubleArrayCast);
+	DECLARE_FUNCTION(execFloatToDoubleSetCast);
+	DECLARE_FUNCTION(execVectorToVector3fCast);
+	DECLARE_FUNCTION(execVector3fToVectorCast);
 	DECLARE_FUNCTION(execObjectToBool);
 	DECLARE_FUNCTION(execInterfaceToBool);
 	DECLARE_FUNCTION(execObjectToInterface);
 	DECLARE_FUNCTION(execInterfaceToInterface);
 	DECLARE_FUNCTION(execInterfaceToObject);
+
+	// Map-specific conversions
+	DECLARE_FUNCTION(execFloatToDoubleKeysMapCast);
+	DECLARE_FUNCTION(execDoubleToFloatKeysMapCast);
+	DECLARE_FUNCTION(execFloatToDoubleValuesMapCast);
+	DECLARE_FUNCTION(execDoubleToFloatValuesMapCast);
+	DECLARE_FUNCTION(execFloatToDoubleKeysFloatToDoubleValuesMapCast);
+	DECLARE_FUNCTION(execDoubleToFloatKeysFloatToDoubleValuesMapCast);
+	DECLARE_FUNCTION(execDoubleToFloatKeysDoubleToFloatValuesMapCast);
+	DECLARE_FUNCTION(execFloatToDoubleKeysDoubleToFloatValuesMapCast);
+
 
 	// Dynamic array functions
 	// Array support

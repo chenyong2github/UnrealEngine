@@ -215,29 +215,104 @@ FString FKismetBytecodeDisassembler::ReadString16(int32& ScriptIndex)
 	return Result;
 }
 
-void FKismetBytecodeDisassembler::ProcessCastByte(int32 CastType, int32& ScriptIndex)
-{
-	// Expression of cast
-	SerializeExpr(ScriptIndex);
-}
-
 void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken Opcode)
 {
+	static const TCHAR* CastNameTable[CST_Max] = {
+		TEXT("ObjectToInterface"),
+		TEXT("ObjectToBool"),
+		TEXT("InterfaceToBool"),
+		TEXT("DoubleToFloat"),
+		TEXT("DoubleToFloatArray"),
+		TEXT("DoubleToFloatSet"),
+		TEXT("FloatToDouble"),
+		TEXT("FloatToDoubleArray"),
+		TEXT("FloatToDoubleSet"),
+		TEXT("VectorToVector3f"),
+		TEXT("Vector3fToVector"),
+		TEXT("FloatToDoubleKeys_Map"),
+		TEXT("DoubleToFloatKeys_Map"),
+		TEXT("FloatToDoubleValues_Map"),
+		TEXT("DoubleToFloatValues_Map"),
+		TEXT("FloatToDoubleKeys_FloatToDoubleValues_Map"),
+		TEXT("DoubleToFloatKeys_FloatToDoubleValues_Map"),
+		TEXT("DoubleToFloatKeys_DoubleToFloatValues_Map"),
+		TEXT("FloatToDoubleKeys_DoubleToFloatValues_Map"),
+	};
+
+	auto PrintVariable = [&ScriptIndex, Opcode, this](FStringView VariableDescription)
+	{
+		FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
+		FString PropertyName = TEXT("(null)");
+		FString PropertyType = TEXT("(null)");
+		FString ParameterType;
+
+		if (PropertyPtr)
+		{
+			PropertyName = PropertyPtr->GetName();
+
+			FString ExtendedPropertyType;
+			PropertyType = PropertyPtr->GetCPPType(&ExtendedPropertyType);
+			PropertyType += ExtendedPropertyType;
+
+			if (PropertyPtr->HasAnyPropertyFlags(CPF_ParmFlags))
+			{
+				ParameterType = TEXT("(");
+				if (PropertyPtr->HasAnyPropertyFlags(CPF_Parm))
+				{
+					ParameterType += TEXT("Parameter,");
+				}
+
+				if (PropertyPtr->HasAnyPropertyFlags(CPF_OutParm))
+				{
+					ParameterType += TEXT("Out,");
+				}
+
+				if (PropertyPtr->HasAnyPropertyFlags(CPF_ReturnParm))
+				{
+					ParameterType += TEXT("Return,");
+				}
+
+				if (PropertyPtr->HasAnyPropertyFlags(CPF_ReferenceParm))
+				{
+					ParameterType += TEXT("Reference,");
+				}
+
+				if (PropertyPtr->HasAnyPropertyFlags(CPF_ConstParm))
+				{
+					ParameterType += TEXT("Const,");
+				}
+
+				int32 LastCommaLocation = ParameterType.Len() - 1;
+				check(LastCommaLocation > 0);
+				ParameterType[LastCommaLocation] = TCHAR(')');
+			}
+		}
+
+		FString Output = 
+			FString::Printf(TEXT("%s $%X: %s of type %s named %s."), *Indents, (int32)Opcode, VariableDescription.GetData(), *PropertyType, *PropertyName);
+
+		if (ParameterType.Len() > 0)
+		{
+			Output += FString::Printf(TEXT(" Parameter flags: %s."), *ParameterType);
+		}
+
+		Ar.Logf(TEXT("%s"), *Output);
+	};
+
 	switch (Opcode)
 	{
-	case EX_PrimitiveCast:
+	case EX_Cast:
 		{
 			// A type conversion.
 			uint8 ConversionType = ReadBYTE(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: PrimitiveCast of type %d"), *Indents, (int32)Opcode, ConversionType);
+			check(CastNameTable[ConversionType] != nullptr);
+			Ar.Logf(TEXT("%s $%X: Cast of type %d (%s)"), *Indents, (int32)Opcode, ConversionType, CastNameTable[ConversionType]);
 			AddIndent();
 
 			Ar.Logf(TEXT("%s Argument:"), *Indents);
-			ProcessCastByte(ConversionType, ScriptIndex);
+			SerializeExpr(ScriptIndex);
 
-			//@TODO:
-			//Ar.Logf(TEXT("%s Expression:"), *Indents);
-			//SerializeExpr( ScriptIndex );
+			DropIndent();
 			break;
 		}
 	case EX_SetSet:
@@ -245,7 +320,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
  			Ar.Logf(TEXT("%s $%X: set set"), *Indents, (int32)Opcode);
 			SerializeExpr(ScriptIndex);
 			ReadINT(ScriptIndex);
- 			while( SerializeExpr(ScriptIndex) != EX_EndSet)
+ 			while (SerializeExpr(ScriptIndex) != EX_EndSet)
  			{
  				// Set contents
  			}
@@ -277,7 +352,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
  			Ar.Logf(TEXT("%s $%X: set map"), *Indents, (int32)Opcode);
 			SerializeExpr(ScriptIndex);
  			ReadINT(ScriptIndex);
- 			while( SerializeExpr(ScriptIndex) != EX_EndMap)
+ 			while (SerializeExpr(ScriptIndex) != EX_EndMap)
  			{
  				// Map contents
  			}
@@ -463,7 +538,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			UStruct* StackNode = ReadPointer<UStruct>(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: Local Final Script Function (stack node %s::%s)"), *Indents, (int32)Opcode, StackNode ? *StackNode->GetOuter()->GetName() : TEXT("(null)"), StackNode ? *StackNode->GetName() : TEXT("(null)"));
 
-			while (SerializeExpr( ScriptIndex ) != EX_EndFunctionParms)
+			while (SerializeExpr(ScriptIndex) != EX_EndFunctionParms)
 			{
 				// Params
 			}
@@ -485,7 +560,6 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			DropIndent();
 			break;
 		}
-
 	case EX_ComputedJump:
 		{
 			Ar.Logf(TEXT("%s $%X: Computed Jump, offset specified by expression:"), *Indents, (int32)Opcode);
@@ -496,7 +570,6 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 
 			break;
 		}
-
 	case EX_Jump:
 		{
 			CodeSkipSizeType SkipCount = ReadSkipCount(ScriptIndex);
@@ -505,32 +578,27 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		}
 	case EX_LocalVariable:
 		{
-			FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: Local variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			PrintVariable(TEXT("Local variable"));
 			break;
 		}
 	case EX_DefaultVariable:
 		{
-			FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: Default variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			PrintVariable(TEXT("Default variable"));
 			break;
 		}
 	case EX_InstanceVariable:
 		{
-			FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: Instance variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			PrintVariable(TEXT("Instance variable"));
 			break;
 		}
 	case EX_LocalOutVariable:
 		{
-			FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: Local out variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			PrintVariable(TEXT("Local out variable"));
 			break;
 		}
 	case EX_ClassSparseDataVariable:
 		{
-			FProperty* PropertyPtr = ReadPointer<FProperty>(ScriptIndex);
-			Ar.Logf(TEXT("%s $%X: Class sparse data variable named %s"), *Indents, (int32)Opcode, PropertyPtr ? *PropertyPtr->GetName() : TEXT("(null)"));
+			PrintVariable(TEXT("Class sparse data variable"));
 			break;
 		}
 	case EX_InterfaceContext:
@@ -637,7 +705,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			UStruct* StackNode = ReadPointer<UStruct>(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: Final Function (stack node %s::%s)"), *Indents, (int32)Opcode, StackNode ? *StackNode->GetOuter()->GetName() : TEXT("(null)"), StackNode ? *StackNode->GetName() : TEXT("(null)"));
 
-			while (SerializeExpr( ScriptIndex ) != EX_EndFunctionParms)
+			while (SerializeExpr(ScriptIndex) != EX_EndFunctionParms)
 			{
 				// Params
 			}
@@ -649,7 +717,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			Ar.Logf(TEXT("%s $%X: CallMulticastDelegate (signature %s::%s) delegate:"), *Indents, (int32)Opcode, StackNode ? *StackNode->GetOuter()->GetName() : TEXT("(null)"), StackNode ? *StackNode->GetName() : TEXT("(null)"));
 			SerializeExpr( ScriptIndex );
 			Ar.Logf(TEXT("Params:"));
-			while (SerializeExpr( ScriptIndex ) != EX_EndFunctionParms)
+			while (SerializeExpr(ScriptIndex) != EX_EndFunctionParms)
 			{
 				// Params
 			}
@@ -840,6 +908,12 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			Ar.Logf(TEXT("%s $%X: literal vector (%f,%f,%f)"), *Indents, (int32)Opcode, Vec.X, Vec.Y, Vec.Z);
 			break;
 		}
+	case EX_Vector3fConst:
+		{
+			FVector3f Vec = ReadFVECTOR(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: literal float vector (%f,%f,%f)"), *Indents, (int32)Opcode, Vec.X, Vec.Y, Vec.Z);
+			break;
+		}
 	case EX_TransformConst:
 		{
 			float RotX = ReadFLOAT(ScriptIndex);
@@ -858,7 +932,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			UScriptStruct* Struct = ReadPointer<UScriptStruct>(ScriptIndex);
 			int32 SerializedSize = ReadINT(ScriptIndex);
 			Ar.Logf(TEXT("%s $%X: literal struct %s (serialized size: %d)"), *Indents, (int32)Opcode, *Struct->GetName(), SerializedSize);
-			while( SerializeExpr(ScriptIndex) != EX_EndStructConst )
+			while (SerializeExpr(ScriptIndex) != EX_EndStructConst)
 			{
 				// struct contents
 			}
@@ -868,7 +942,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		{
  			Ar.Logf(TEXT("%s $%X: set array"), *Indents, (int32)Opcode);
 			SerializeExpr(ScriptIndex);
- 			while( SerializeExpr(ScriptIndex) != EX_EndArray)
+ 			while (SerializeExpr(ScriptIndex) != EX_EndArray)
  			{
  				// Array contents
  			}
@@ -1063,8 +1137,8 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 		}
 	case EX_SwitchValue:
 		{
-			const auto NumCases = ReadWORD(ScriptIndex);
-			const auto AfterSkip = ReadSkipCount(ScriptIndex);
+			const uint16 NumCases = ReadWORD(ScriptIndex);
+			const CodeSkipSizeType AfterSkip = ReadSkipCount(ScriptIndex);
 
 			Ar.Logf(TEXT("%s $%X: Switch Value %d cases, end in 0x%X"), *Indents, (int32)Opcode, NumCases, AfterSkip);
 			AddIndent();
@@ -1075,7 +1149,7 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			{
 				Ar.Logf(TEXT("%s [%d] Case Index (label: 0x%X):"), *Indents, CaseIndex, ScriptIndex);
 				SerializeExpr(ScriptIndex);	// case index value term
-				const auto OffsetToNextCase = ReadSkipCount(ScriptIndex);
+				const CodeSkipSizeType OffsetToNextCase = ReadSkipCount(ScriptIndex);
 				Ar.Logf(TEXT("%s [%d] Offset to the next case: 0x%X"), *Indents, CaseIndex, OffsetToNextCase);
 				Ar.Logf(TEXT("%s [%d] Case Result:"), *Indents, CaseIndex);
 				SerializeExpr(ScriptIndex);	// case term

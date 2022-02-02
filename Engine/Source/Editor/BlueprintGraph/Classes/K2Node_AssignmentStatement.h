@@ -26,7 +26,7 @@ class UK2Node_AssignmentStatement : public UK2Node
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	virtual bool IsCompatibleWithGraph(UEdGraph const* TargetGraph) const override;
+	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
 	virtual bool CanPasteHere(const UEdGraph* TargetGraph) const override;
 	//~ End UEdGraphNode Interface
 

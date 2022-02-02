@@ -1222,10 +1222,10 @@ TSoftClassPtr<UObject> UKismetSystemLibrary::Conv_ClassToSoftClassReference(cons
 
 void UKismetSystemLibrary::SetTextPropertyByName(UObject* Object, FName PropertyName, const FText& Value)
 {
-	if(Object != NULL)
+	if(Object != nullptr)
 	{
 		FTextProperty* TextProp = FindFProperty<FTextProperty>(Object->GetClass(), PropertyName);
-		if(TextProp != NULL)
+		if(TextProp != nullptr)
 		{
 			TextProp->SetPropertyValue_InContainer(Object, Value);
 		}		
@@ -1234,24 +1234,37 @@ void UKismetSystemLibrary::SetTextPropertyByName(UObject* Object, FName Property
 
 void UKismetSystemLibrary::SetVectorPropertyByName(UObject* Object, FName PropertyName, const FVector& Value)
 {
-	if(Object != NULL)
+	if(Object != nullptr)
 	{
 		UScriptStruct* VectorStruct = TBaseStructure<FVector>::Get();
 		FStructProperty* VectorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
-		if(VectorProp != NULL && VectorProp->Struct == VectorStruct)
+		if(VectorProp != nullptr && VectorProp->Struct == VectorStruct)
 		{
 			*VectorProp->ContainerPtrToValuePtr<FVector>(Object) = Value;
 		}		
 	}
 }
 
+void UKismetSystemLibrary::SetVector3fPropertyByName(UObject* Object, FName PropertyName, const FVector3f& Value)
+{
+	if (Object != nullptr)
+	{
+		UScriptStruct* Vector3fStruct = TVariantStructure<FVector3f>::Get();
+		FStructProperty* Vector3fProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
+		if (Vector3fProp != nullptr && Vector3fProp->Struct == Vector3fStruct)
+		{
+			*Vector3fProp->ContainerPtrToValuePtr<FVector3f>(Object) = Value;
+		}
+	}
+}
+
 void UKismetSystemLibrary::SetRotatorPropertyByName(UObject* Object, FName PropertyName, const FRotator& Value)
 {
-	if(Object != NULL)
+	if(Object != nullptr)
 	{
 		UScriptStruct* RotatorStruct = TBaseStructure<FRotator>::Get();
 		FStructProperty* RotatorProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
-		if(RotatorProp != NULL && RotatorProp->Struct == RotatorStruct)
+		if(RotatorProp != nullptr && RotatorProp->Struct == RotatorStruct)
 		{
 			*RotatorProp->ContainerPtrToValuePtr<FRotator>(Object) = Value;
 		}		
@@ -1286,11 +1299,11 @@ void UKismetSystemLibrary::SetColorPropertyByName(UObject* Object, FName Propert
 
 void UKismetSystemLibrary::SetTransformPropertyByName(UObject* Object, FName PropertyName, const FTransform& Value)
 {
-	if(Object != NULL)
+	if(Object != nullptr)
 	{
 		UScriptStruct* TransformStruct = TBaseStructure<FTransform>::Get();
 		FStructProperty* TransformProp = FindFProperty<FStructProperty>(Object->GetClass(), PropertyName);
-		if(TransformProp != NULL && TransformProp->Struct == TransformStruct)
+		if(TransformProp != nullptr && TransformProp->Struct == TransformStruct)
 		{
 			*TransformProp->ContainerPtrToValuePtr<FTransform>(Object) = Value;
 		}		
@@ -1305,10 +1318,10 @@ void UKismetSystemLibrary::SetCollisionProfileNameProperty(UObject* Object, FNam
 
 void UKismetSystemLibrary::Generic_SetStructurePropertyByName(UObject* OwnerObject, FName StructPropertyName, const void* SrcStructAddr)
 {
-	if (OwnerObject != NULL)
+	if (OwnerObject != nullptr)
 	{
 		FStructProperty* StructProp = FindFProperty<FStructProperty>(OwnerObject->GetClass(), StructPropertyName);
-		if (StructProp != NULL)
+		if (StructProp != nullptr)
 		{
 			void* Dest = StructProp->ContainerPtrToValuePtr<void>(OwnerObject);
 			StructProp->CopyValuesInternal(Dest, SrcStructAddr, 1);

@@ -117,6 +117,9 @@ public:
 	{
 		return true;
 	}
+
+protected:
+	virtual bool UsesVariablePinAsKey() const override { return true; }
 };
 
 #if WITH_EDITORONLY_DATA
@@ -235,7 +238,7 @@ void UK2Node_FunctionResult::GetMenuActions(FBlueprintActionDatabaseRegistrar& A
 
 bool UK2Node_FunctionResult::IsCompatibleWithGraph(UEdGraph const* Graph) const
 {
-	auto K2Schema = Cast<const UEdGraphSchema_K2>(Graph ? Graph->GetSchema() : nullptr);
+	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Graph ? Graph->GetSchema() : nullptr);
 	const bool bIsConstructionScript = (K2Schema != nullptr) ? K2Schema->IsConstructionScript(Graph) : false;
 	const bool bIsCompatible = (K2Schema != nullptr) ? (EGraphType::GT_Function == K2Schema->GetGraphType(Graph)) : false;
 	return bIsCompatible && !bIsConstructionScript && Super::IsCompatibleWithGraph(Graph);
@@ -244,7 +247,7 @@ bool UK2Node_FunctionResult::IsCompatibleWithGraph(UEdGraph const* Graph) const
 TArray<UK2Node_FunctionResult*> UK2Node_FunctionResult::GetAllResultNodes() const
 {
 	TArray<UK2Node_FunctionResult*> AllResultNodes;
-	if (auto Graph = GetGraph())
+	if (const UEdGraph* Graph = GetGraph())
 	{
 		Graph->GetNodesOfClass(AllResultNodes);
 	}
@@ -334,9 +337,9 @@ void UK2Node_FunctionResult::SyncWithEntryNode()
 
 void UK2Node_FunctionResult::SyncWithPrimaryResultNode()
 {
-	UK2Node_FunctionResult* PrimaryNode = nullptr;
+	const UK2Node_FunctionResult* PrimaryNode = nullptr;
 	TArray<UK2Node_FunctionResult*> AllResultNodes = GetAllResultNodes();
-	for (auto ResultNode : AllResultNodes)
+	for (const UK2Node_FunctionResult* ResultNode : AllResultNodes)
 	{
 		if (ResultNode && (this != ResultNode))
 		{
@@ -351,10 +354,10 @@ void UK2Node_FunctionResult::SyncWithPrimaryResultNode()
 		bIsEditable = PrimaryNode->bIsEditable;
 
 		// Temporary array that will contain our list of Old Pins that are no longer part of the return signature
-		TArray< TSharedPtr<FUserPinInfo> > OldPins = UserDefinedPins;
+		TArray<TSharedPtr<FUserPinInfo>> OldPins = UserDefinedPins;
 
 		// Temporary array that will contain our list of Signature Pins that need to be added
-		TArray< TSharedPtr<FUserPinInfo> > SignaturePins = PrimaryNode->UserDefinedPins;
+		TArray<TSharedPtr<FUserPinInfo>> SignaturePins = PrimaryNode->UserDefinedPins;
 
 		for (int OldIndex = OldPins.Num() - 1; OldIndex >= 0; --OldIndex)
 		{
@@ -428,13 +431,14 @@ void UK2Node_FunctionResult::ValidateNodeDuringCompilation(class FCompilerResult
 {
 	Super::ValidateNodeDuringCompilation(MessageLog);
 
-	auto AllResultNodes = GetAllResultNodes();
-	UK2Node_FunctionResult* OtherResult = AllResultNodes.Num() ? AllResultNodes[0] : nullptr;
+	TArray<UK2Node_FunctionResult*> AllResultNodes = GetAllResultNodes();
+	const UK2Node_FunctionResult* OtherResult = AllResultNodes.Num() ? AllResultNodes[0] : nullptr;
 	if (OtherResult && (OtherResult != this))
 	{
-		for (auto Pin : Pins)
+		for (UEdGraphPin* Pin : Pins)
 		{
-			auto OtherPin = OtherResult->FindPin(Pin->PinName);
+			check(Pin);
+			UEdGraphPin* OtherPin = OtherResult->FindPin(Pin->PinName);
 			if (!OtherPin || (OtherPin->PinType != Pin->PinType))
 			{
 				MessageLog.Error(*NSLOCTEXT("K2Node", "FunctionResult_DifferentReturnError", "Return nodes don't match each other: @@, @@").ToString(), this, OtherResult);

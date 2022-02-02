@@ -23,6 +23,7 @@
 #include "Engine/UserDefinedStruct.h"
 #include "Blueprint/BlueprintExtension.h"
 #include "EdGraphUtilities.h"
+#include "K2Node_AddDelegate.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Composite.h"
 #include "K2Node_CreateDelegate.h"
@@ -39,6 +40,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_EditablePinBase.h" // for FUserPinInfo
+#include "KismetCastingUtils.h"
 #include "KismetCompilerBackend.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Engine/SCS_Node.h"
@@ -88,7 +90,7 @@ DECLARE_CYCLE_STAT(TEXT("Calculate checksum of signature"), EKismetCompilerStats
 DECLARE_CYCLE_STAT(TEXT("Pruning"), EKismetCompilerStats_PruneIsolatedNodes, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Merge Ubergraph Pages In"), EKismetCompilerStats_MergeUbergraphPagesIn, STATGROUP_KismetCompiler);
 
-namespace
+namespace UE::KismetCompiler::Private
 {
 	// The function collects all nodes, that can represents entry points of the execution. Any node connected to "root" node (by execution link) won't be consider isolated.
 	static void GatherRootSet(const UEdGraph* Graph, TArray<UEdGraphNode*>& RootSet, bool bIncludeNodesThatCouldBeExpandedToRootSet)
@@ -122,6 +124,319 @@ namespace
 			}
 		}
 	}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	// When we change pins back to real/float types, we also expect that the series of pin types matches that of the UFunction.
+	// If there's ever a discrepancy, then there's not much we can do other than log a warning.
+	// It typically means that the BP is in a bad state, which prevents us from deducing the corresponding pin.
+	static void RestoreFloatPinsToNode(UK2Node_EditablePinBase* Node, const UFunction* FunctionSignature, bool bOutputParamsOnly = false)
+	{
+		check(Node);
+		check(FunctionSignature);
+
+		int UserDefinedPinCursor = 0;
+		int PinCursor = 0;
+
+		if (Node->UserDefinedPins.Num() > 0)
+		{
+			bool bMatchingPinFound = false;
+			
+			check(Node->UserDefinedPins[0]);
+
+			FName UserPinName = Node->UserDefinedPins[0]->PinName;
+
+			for (int i = 0; i < Node->Pins.Num(); ++i)
+			{
+				check(Node->Pins[i]);
+
+				if (Node->Pins[i]->PinName == UserPinName)
+				{
+					PinCursor = i;
+					bMatchingPinFound = true;
+					break;
+				}
+			}
+
+			if (!bMatchingPinFound)
+			{
+				UE_LOG(LogK2Compiler, Warning, TEXT("User pin '%s' ('%s') was not found in the pins list!"),
+					*UserPinName.ToString(),
+					*Node->GetFullName());
+			}
+		}
+
+		auto IsFloatProperty = [Node](const FProperty* Property)
+		{
+			check(Property);
+
+			if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
+			{
+				return true;
+			}
+			else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				check(ArrayProperty->Inner);
+				return ArrayProperty->Inner->IsA<FFloatProperty>();
+			}
+			else if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
+			{
+				check(SetProperty->ElementProp);
+				return SetProperty->ElementProp->IsA<FFloatProperty>();
+			}
+			else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+			{
+				check(MapProperty->KeyProp);
+				check(MapProperty->ValueProp);
+
+				if (MapProperty->KeyProp->IsA<FFloatProperty>() || MapProperty->ValueProp->IsA<FFloatProperty>())
+				{
+					UE_LOG(LogK2Compiler, Warning, TEXT("A map with float entries was found in '%s'. Delegate signature may be inaccurate."),
+						*Node->GetFullName());
+				}
+
+				return false;
+			}
+
+			return false;
+		};
+
+		auto IsValidParameter = [bOutputParamsOnly](FProperty* Property)
+		{
+			check(Property);
+
+			if (bOutputParamsOnly)
+			{
+				return Property->HasAnyPropertyFlags(CPF_OutParm);
+			}
+			else
+			{
+				// HACK: We still have to reckon with arrays that are implicitly copy-by-ref.
+				// Ideally, we should be excluding all output params.
+				bool bIsValidInput =
+					(Property->IsA<FArrayProperty>() && Property->HasAnyPropertyFlags(CPF_Parm)) ||
+					(Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_OutParm));
+
+				return bIsValidInput;
+			}
+		};
+
+		for (TFieldIterator<FProperty> PropIt(FunctionSignature); PropIt; ++PropIt)
+		{
+			FProperty* CurrentProperty = *PropIt;
+			check(CurrentProperty);
+
+			if (IsValidParameter(CurrentProperty))
+			{
+				if (UserDefinedPinCursor < Node->UserDefinedPins.Num())
+				{
+					if (IsFloatProperty(CurrentProperty))
+					{
+						TSharedPtr<FUserPinInfo>& UserPin = Node->UserDefinedPins[UserDefinedPinCursor];
+						check(UserPin);
+
+						if (UserPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+						{
+							UserPin->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+						}
+						else
+						{
+							UE_LOG(LogK2Compiler, Warning, TEXT("Expected a 'real' type for user pin '%s' ('%s'), but found type '%s' instead!"),
+								*UserPin->PinName.ToString(),
+								*Node->GetFullName(),
+								*UserPin->PinType.PinCategory.ToString());
+						}
+
+						if (PinCursor < Node->Pins.Num())
+						{
+							UEdGraphPin* Pin = Node->Pins[PinCursor];
+							check(Pin);
+
+							if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+							{
+								Pin->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+							}
+							else
+							{
+								UE_LOG(LogK2Compiler, Warning, TEXT("Expected a 'real' type for pin '%s' ('%s'), but found type '%s' instead!"),
+									*Pin->PinName.ToString(),
+									*Node->GetFullName(),
+									*Pin->PinType.PinCategory.ToString());
+							}
+						}
+						else
+						{
+							UE_LOG(LogK2Compiler, Warning, TEXT("PinCursor ('%s') has an invalid index: %d!"),
+								*Node->GetFullName(),
+								PinCursor);
+						}
+					}
+
+					++UserDefinedPinCursor;
+					++PinCursor;
+				}
+				else
+				{
+					// It's possible that we'll use up pins before reaching the end of the function signature's properties.
+					// This can happen when a function has reference params. The corresponding pins are split between two nodes (ie: entry and result nodes).
+					break;
+				}
+			}
+		}
+	}
+
+	static UFunction* GetLinkedDelegateSignature(UK2Node* NodeWithDelegate)
+	{
+		check(NodeWithDelegate);
+
+		const UEdGraphPin* DelegateOutPin = NodeWithDelegate->FindPin(UK2Node_Event::DelegateOutputName);
+		if (DelegateOutPin && (DelegateOutPin->LinkedTo.Num() > 0))
+		{
+			// Since the BP hasn't been compiled yet, we'll run into knot nodes that need to be skipped.
+			check(DelegateOutPin->LinkedTo[0]);
+			UEdGraphNode* LinkedNode = DelegateOutPin->LinkedTo[0]->GetOwningNode();
+			while (UK2Node_Knot* KnotNode = Cast<UK2Node_Knot>(LinkedNode))
+			{
+				check(KnotNode->GetOutputPin());
+				UEdGraphPin* OutputPin = KnotNode->GetOutputPin();
+				check(OutputPin);
+				check(OutputPin->LinkedTo.Num() > 0);
+				
+				LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+			}
+
+			// If the delegate pin has been linked, then we should run into either a
+			// AddDelegate or RemoveDelegate node.
+			// In either case, it should have the signature that we need.
+			UK2Node_BaseMCDelegate* DelegateNode = Cast<UK2Node_BaseMCDelegate>(LinkedNode);
+			if (DelegateNode)
+			{
+				return DelegateNode->GetDelegateSignature();
+			}
+		}
+
+		return nullptr;
+	}
+
+	// By default, float pins are changed to real/double pins during serialization.
+	// However, Blueprint functions that are bound to native delegates need to use real/float pins if
+	// that's what the underlying delegate signature requires.
+	// Failure to do so will lead to incorrect UFunction signatures in the skeleton class,
+	// which can cause compilation errors.
+	static void MatchNodesToDelegateSignatures(UBlueprint* BP)
+	{
+		check(BP);
+
+		TArray<UK2Node_CreateDelegate*> CreateDelegateNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(BP, CreateDelegateNodes);
+
+		TMap<FName, UK2Node_CreateDelegate*> CreateDelegateNodeMap;
+		for (UK2Node_CreateDelegate* CreateDelegateNode : CreateDelegateNodes)
+		{
+			check(CreateDelegateNode);
+			if (CreateDelegateNode->SelectedFunctionName != NAME_None)
+			{
+				CreateDelegateNodeMap.Add(CreateDelegateNode->SelectedFunctionName, CreateDelegateNode);
+			}
+		}
+
+		// Handle function terminator nodes
+
+		TArray<UK2Node_FunctionTerminator*> TerminatorNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(BP, TerminatorNodes);
+		for (UK2Node_FunctionTerminator* FunctionTerminatorNode : TerminatorNodes)
+		{
+			check(FunctionTerminatorNode);
+
+			// If the function is an override, then we can't change the signature.
+			UFunction* Function = FunctionTerminatorNode->FunctionReference.ResolveMember<UFunction>(BP->ParentClass);
+			if (!Function)
+			{
+				UK2Node_CreateDelegate** DelegateNodePtr = CreateDelegateNodeMap.Find(FunctionTerminatorNode->FunctionReference.GetMemberName());
+				if (DelegateNodePtr)
+				{
+					UK2Node_CreateDelegate* DelegateNode = *DelegateNodePtr;
+					check(DelegateNode);
+
+					UFunction* DelegateSignature = DelegateNode->GetDelegateSignature();
+
+					if (DelegateSignature == nullptr)
+					{
+						// In some edge cases, the delegate pin for UK2Node_CreateDelegate might be missing PinSubCategoryMemberReference information.
+						// Our fallback case is to find the signature from the linked K2Node_AddDelegate. 
+						DelegateSignature = GetLinkedDelegateSignature(DelegateNode);
+					}
+
+					if (DelegateSignature)
+					{
+						if (DelegateSignature->GetNativeFunc())
+						{
+							bool bUseOutputParams =
+								FunctionTerminatorNode->IsA<UK2Node_FunctionResult>();
+
+							RestoreFloatPinsToNode(FunctionTerminatorNode, DelegateSignature, bUseOutputParams);
+						}
+					}
+					else
+					{
+						UE_LOG(LogK2Compiler, Warning, TEXT("Unable to determine delegate signature for node '%s'!"),
+							*DelegateNode->GetFullName());
+					}
+				}
+			}
+		}
+
+		// Handle custom event nodes
+
+		TArray<UK2Node_CustomEvent*> CustomEventNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(BP, CustomEventNodes);
+		for (UK2Node_CustomEvent* CustomEventNode : CustomEventNodes)
+		{
+			check(CustomEventNode);
+
+			// We'll give precedence to the signature of the linked delegate.
+			// Failing that, we'll then see if the custom event was possibly created via a CreateDelegate node.
+			UFunction* DelegateSignature = GetLinkedDelegateSignature(CustomEventNode);
+
+			if (DelegateSignature && DelegateSignature->GetNativeFunc())
+			{
+				RestoreFloatPinsToNode(CustomEventNode, DelegateSignature);
+			}
+			else
+			{
+				FName NodeName = CustomEventNode->CustomFunctionName;
+
+				UK2Node_CreateDelegate** DelegateNodePtr = CreateDelegateNodeMap.Find(NodeName);
+				if (DelegateNodePtr)
+				{
+					UK2Node_CreateDelegate* DelegateNode = *DelegateNodePtr;
+					check(DelegateNode);
+
+					DelegateSignature = DelegateNode->GetDelegateSignature();
+
+					if (DelegateSignature == nullptr)
+					{
+						// In some edge cases, the delegate pin for UK2Node_CreateDelegate might be missing PinSubCategoryMemberReference information.
+						// Our fallback case is to find the signature from the linked K2Node_AddDelegate. 
+						DelegateSignature = GetLinkedDelegateSignature(DelegateNode);
+					}
+
+					if (DelegateSignature)
+					{
+						if (DelegateSignature->GetNativeFunc())
+						{
+							RestoreFloatPinsToNode(CustomEventNode, DelegateSignature);
+						}
+					}
+					else
+					{
+						UE_LOG(LogK2Compiler, Warning, TEXT("Unable to determine delegate signature for node '%s'!"),
+							*DelegateNode->GetFullName());
+					}
+				}
+			}
+		}
+	}
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -857,7 +1172,11 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 		FEdGraphPinType DirectionPinType(UEdGraphSchema_K2::PC_Byte, NAME_None, FTimeline::GetTimelineDirectionEnum(), EPinContainerType::None, false, FEdGraphTerminalType());
 		CreateVariable(Timeline->GetDirectionPropertyName(), DirectionPinType);
 
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		FEdGraphPinType FloatPinType(UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Float, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+#else
 		FEdGraphPinType FloatPinType(UEdGraphSchema_K2::PC_Float, NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
+#endif
 		for (const FTTFloatTrack& FloatTrack : Timeline->FloatTracks)
 		{
 			CreateVariable(FloatTrack.GetPropertyName(), FloatPinType);
@@ -1498,7 +1817,7 @@ void FKismetCompilerContext::PruneIsolatedNodes(UEdGraph* InGraph, bool bInInclu
 {
 	TArray<UEdGraphNode*> RootSet;
 	// Find any all entry points caused by special nodes
-	GatherRootSet(InGraph, RootSet, bInIncludeNodesThatCouldBeExpandedToRootSet);
+	UE::KismetCompiler::Private::GatherRootSet(InGraph, RootSet, bInIncludeNodesThatCouldBeExpandedToRootSet);
 
 	// Find the connected subgraph starting at the root node and prune out unused nodes
 	PruneIsolatedNodes(RootSet, InGraph->Nodes);
@@ -2057,6 +2376,17 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 	}
 }
 
+void FKismetCompilerContext::PreCompileUpdateBlueprintOnLoad(UBlueprint* BP)
+{
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	check(BP);
+	if (BP->GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers)
+	{
+		UE::KismetCompiler::Private::MatchNodesToDelegateSignatures(BP);
+	}
+#endif
+}
+
 /** Inserts a new item into an array in a sorted position; using an externally stored sort index map */
 template<typename DataType, typename SortKeyType>
 void OrderedInsertIntoArray(TArray<DataType>& Array, const TMap<DataType, SortKeyType>& SortKeyMap, const DataType& NewItem)
@@ -2149,6 +2479,18 @@ void FKismetCompilerContext::CompileFunction(FKismetFunctionContext& Context)
 		}
 	}
 	
+	if (Context.ImplicitCastMap.Num() > 0)
+	{
+		UE_LOG(LogK2Compiler, Warning, TEXT("Unhandled implicit casts found during compilation of function '%s'!"),
+			*Context.Function->GetFullName());
+		for (const auto& It : Context.ImplicitCastMap)
+		{
+			UE_LOG(LogK2Compiler, Warning, TEXT("\tPin '%s' was not handled by node '%s'!"),
+				*It.Key->PinName.ToString(),
+				*It.Key->GetOwningNode()->GetName());
+		}
+	}
+
 	// The LinearExecutionList should be immutable at this point
 	check(Context.LinearExecutionList.Num() == NumNodesAtStart);
 
@@ -3281,6 +3623,12 @@ void FKismetCompilerContext::CreateLocalsAndRegisterNets(FKismetFunctionContext&
 			}
 		}
 	}
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	using namespace UE::KismetCompiler;
+
+	CastingUtils::RegisterImplicitCasts(Context);
+#endif
 
 	// Create net variable declarations
 	CreateLocalVariablesForFunction(Context, FunctionPropertyStorageLocation);

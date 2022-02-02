@@ -22,7 +22,7 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
-	Ar << Info.PinName;
+		Ar << Info.PinName;
 	}
 	else
 	{
@@ -46,8 +46,8 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 		bool bIsReference = Info.PinType.bIsReference;
 		Ar << bIsReference;
 
-			Info.PinType.ContainerType = (bIsArray ? EPinContainerType::Array : EPinContainerType::None);
-			Info.PinType.bIsReference = bIsReference;
+		Info.PinType.ContainerType = (bIsArray ? EPinContainerType::Array : EPinContainerType::None);
+		Info.PinType.bIsReference = bIsReference;
 
 		FString PinCategoryStr;
 		FString PinSubCategoryStr;
@@ -57,6 +57,17 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 
 		Info.PinType.PinCategory = *PinCategoryStr;
 		Info.PinType.PinSubCategory = *PinSubCategoryStr;
+
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		bool bFixupPinCategories =
+			((Info.PinType.PinCategory == TEXT("double")) || (Info.PinType.PinCategory == TEXT("float")));
+
+		if (bFixupPinCategories)
+		{
+			Info.PinType.PinCategory = TEXT("real");
+			Info.PinType.PinSubCategory = TEXT("double");
+		}
+#endif
 
 		Ar << Info.PinType.PinSubCategoryObject;
 	}

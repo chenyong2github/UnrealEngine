@@ -757,12 +757,14 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 		}
 	}
 
+#if !ENABLE_BLUEPRINT_REAL_NUMBERS
 	if(TypeName == UEdGraphSchema_K2::PC_Double)
 	{
 		FEdGraphPinType LocalPinType = PinType;
 		LocalPinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 		return GetPinTypeColor(LocalPinType);
 	}
+#endif
 	
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
 }
@@ -884,8 +886,12 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 
 	if (TypeName == UEdGraphSchema_K2::PC_Boolean ||
 		TypeName == UEdGraphSchema_K2::PC_Int ||
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+		TypeName == UEdGraphSchema_K2::PC_Real ||
+#else
 		TypeName == UEdGraphSchema_K2::PC_Float ||
 		TypeName == UEdGraphSchema_K2::PC_Double ||
+#endif
 		TypeName == UEdGraphSchema_K2::PC_Name ||
 		TypeName == UEdGraphSchema_K2::PC_String ||
 		TypeName == UEdGraphSchema_K2::PC_Enum)
@@ -1652,8 +1658,12 @@ void UControlRigGraphSchema::ResetPinDefaultsRecursive(UEdGraphPin* InPin) const
 void UControlRigGraphSchema::GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const
 {
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Boolean, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Real, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
+#else
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Float, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Double, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
+#endif
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Int, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FVector>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FVector2D>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));

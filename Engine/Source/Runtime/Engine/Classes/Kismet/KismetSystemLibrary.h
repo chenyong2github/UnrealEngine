@@ -876,6 +876,10 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value" ))
 	static void SetVectorPropertyByName(UObject* Object, FName PropertyName, const FVector& Value);
 
+	/** Set a VECTOR3F property by name */
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value"))
+	static void SetVector3fPropertyByName(UObject* Object, FName PropertyName, const FVector3f& Value);
+
 	/** Set a ROTATOR property by name */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "Value" ))
 	static void SetRotatorPropertyByName(UObject* Object, FName PropertyName, const FRotator& Value);

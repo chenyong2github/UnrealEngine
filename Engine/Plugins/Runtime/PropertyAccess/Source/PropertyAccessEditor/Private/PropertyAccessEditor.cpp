@@ -456,6 +456,28 @@ struct FPropertyAccessEditorSystem
 					return EPropertyAccessCopyType::DemoteDoubleToFloat;
 				}
 			}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+			else if (SrcProperty->IsA<FArrayProperty>() && DestProperty->IsA<FArrayProperty>())
+			{
+				const FArrayProperty* SrcArrayProperty = CastField<const FArrayProperty>(SrcProperty);
+				const FArrayProperty* DestArrayProperty = CastField<const FArrayProperty>(DestProperty);
+
+				if (SrcArrayProperty->Inner->IsA<FFloatProperty>())
+				{
+					if (DestArrayProperty->Inner->IsA<FDoubleProperty>())
+					{
+						return EPropertyAccessCopyType::PromoteArrayFloatToDouble;
+					}
+				}
+				else if (SrcArrayProperty->Inner->IsA<FDoubleProperty>())
+				{
+					if (DestArrayProperty->Inner->IsA<FFloatProperty>())
+					{
+						return EPropertyAccessCopyType::DemoteArrayDoubleToFloat;
+					}
+				}
+			}
+#endif
 		}
 
 		OutErrorMessage = FText::Format(LOCTEXT("CopyTypeInvalidFormat", "@@ Cannot copy property ({0} -> {1})"), FText::FromString(SrcProperty->GetCPPType()), FText::FromString(DestProperty->GetCPPType()));
@@ -612,6 +634,28 @@ namespace PropertyAccess
 					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
 				}
 			}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+			else if (InPropertyA->IsA<FArrayProperty>() && InPropertyB->IsA<FArrayProperty>())
+			{
+				const FArrayProperty* ArrayPropertyA = CastField<const FArrayProperty>(InPropertyA);
+				const FArrayProperty* ArrayPropertyB = CastField<const FArrayProperty>(InPropertyB);
+
+				if (ArrayPropertyA->Inner->IsA<FFloatProperty>())
+				{
+					if (ArrayPropertyB->Inner->IsA<FDoubleProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+				else if (ArrayPropertyA->Inner->IsA<FDoubleProperty>())
+				{
+					if (ArrayPropertyB->Inner->IsA<FFloatProperty>())
+					{
+						return EPropertyAccessCompatibility::Promotable;
+					}
+				}
+			}
+#endif
 		}
 
 		return EPropertyAccessCompatibility::Incompatible;
@@ -620,34 +664,47 @@ namespace PropertyAccess
 	EPropertyAccessCompatibility GetPinTypeCompatibility(const FEdGraphPinType& InPinTypeA, const FEdGraphPinType& InPinTypeB)
 	{
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-		if(Schema->ArePinTypesCompatible(InPinTypeA, InPinTypeB))
+		if (Schema->ArePinTypesCompatible(InPinTypeA, InPinTypeB))
 		{
 			return EPropertyAccessCompatibility::Compatible;
 		}
 		else
 		{
 			// Not directly compatible, check for promotions
-			if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Boolean)
+			if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
+#else
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
-			else if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Byte)
+			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Byte)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
+#else
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
-			else if(InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Int)
+			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Int)
 			{
-				if(InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
+#else
+				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
+#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
+#if !ENABLE_BLUEPRINT_REAL_NUMBERS
 			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Float)
 			{
 				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
@@ -662,6 +719,7 @@ namespace PropertyAccess
 					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
 				}
 			}
+#endif
 		}
 
 		return EPropertyAccessCompatibility::Incompatible;
