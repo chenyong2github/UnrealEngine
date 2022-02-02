@@ -272,7 +272,7 @@ static TAutoConsoleVariable<int32> CVarAlwaysAllocateMaxResolutionAtlases(
 
 static TAutoConsoleVariable<int32> CVarVsmUseFarShadowRules(
 	TEXT("r.Shadow.Virtual.UseFarShadowCulling"),
-	0,
+	1,
 	TEXT("Switch between implementing the far shadow culling logic for VSMs."),
 	ECVF_RenderThreadSafe
 );

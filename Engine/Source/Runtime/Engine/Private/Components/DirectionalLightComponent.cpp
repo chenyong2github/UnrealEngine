@@ -974,18 +974,23 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 
 	ShadowCascadeBiasDistribution = 1;
 	WholeSceneDynamicShadowRadius_DEPRECATED = 20000.0f;
-	DynamicShadowDistanceMovableLight = 20000.0f;
 	DynamicShadowDistanceStationaryLight = 0.f;
 
 	ForwardShadingPriority = 0;
-	DistanceFieldShadowDistance = 30000.0f;
+	// For 5.0 double dynamic shadow distance by default & enable DF shadows.
+	// Note, we reset this to old defaults in Serialize for lights created with older versions of the engine.
+	DynamicShadowDistanceMovableLight = 40000.0f;
+	DistanceFieldShadowDistance = 51200.0f;
+	DynamicShadowCascades = 4;
+	bUseRayTracedDistanceFieldShadows = true;
+
 	TraceDistance = 10000.0f;
 	FarShadowDistance = 300000.0f;
 	LightSourceAngle = 0.5357f;		// Angle of earth's sun
 	LightSourceSoftAngle = 0.0f;
 	ShadowSourceAngleFactor = 1.0f;
 
-	DynamicShadowCascades = 3;
+
 	CascadeDistributionExponent = 3.0f;
 	CascadeTransitionFraction = 0.1f;
 	ShadowDistanceFadeoutFraction = 0.1f;
@@ -1290,9 +1295,22 @@ void UDirectionalLightComponent::SetAtmosphereSunLightIndex(int32 NewValue)
 
 void UDirectionalLightComponent::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
-
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		// Reset to older defaults if the light was created with a previous version of the engine.
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::UpdatedDirectionalLightShadowDefaults)
+		{
+			DynamicShadowDistanceMovableLight = 20000.0f;
+			DistanceFieldShadowDistance = 30000.0f;
+			DynamicShadowCascades = 3;
+			bUseRayTracedDistanceFieldShadows = false;
+		}
+	}
+
+	Super::Serialize(Ar);
 
 	if(Ar.UEVer() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
 	{

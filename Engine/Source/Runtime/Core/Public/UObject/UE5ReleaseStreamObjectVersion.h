@@ -101,6 +101,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		BlueprintPinsUseRealNumbers,
 #endif
 		
+		// Changed shadow defaults for directional light components, version needed to not affect old things
+		UpdatedDirectionalLightShadowDefaults,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
