@@ -36,9 +36,19 @@ ENUM_CLASS_FLAGS(EParseTokensOptions);
  * @param Options     Flags to modify the default behavior.
  */
 CORE_API void ParseTokens(
-	FStringView View,
-	TCHAR Delimiter,
-	TFunctionRef<void (FStringView)> Visitor,
+	FAnsiStringView View,
+	ANSICHAR Delimiter,
+	TFunctionRef<void (FAnsiStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokens(
+	FWideStringView View,
+	WIDECHAR Delimiter,
+	TFunctionRef<void (FWideStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokens(
+	FUtf8StringView View,
+	UTF8CHAR Delimiter,
+	TFunctionRef<void (FUtf8StringView)> Visitor,
 	EParseTokensOptions Options = EParseTokensOptions::None);
 
 /**
@@ -54,12 +64,30 @@ CORE_API void ParseTokens(
  */
 template <typename OutputType>
 inline void ParseTokens(
-	const FStringView View,
-	const TCHAR Delimiter,
+	const FAnsiStringView View,
+	const ANSICHAR Delimiter,
 	OutputType& Output,
 	const EParseTokensOptions Options = EParseTokensOptions::None)
 {
-	return ParseTokens(View, Delimiter, [&Output](FStringView Token) { Output.Add(Token); }, Options);
+	return ParseTokens(View, Delimiter, [&Output](FAnsiStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokens(
+	const FWideStringView View,
+	const WIDECHAR Delimiter,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	return ParseTokens(View, Delimiter, [&Output](FWideStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokens(
+	const FUtf8StringView View,
+	const UTF8CHAR Delimiter,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	return ParseTokens(View, Delimiter, [&Output](FUtf8StringView Token) { Output.Add(Token); }, Options);
 }
 
 /**
@@ -73,9 +101,19 @@ inline void ParseTokens(
  * @param Options     Flags to modify the default behavior.
  */
 CORE_API void ParseTokens(
-	FStringView View,
-	FStringView Delimiter,
-	TFunctionRef<void (FStringView)> Visitor,
+	FAnsiStringView View,
+	FAnsiStringView Delimiter,
+	TFunctionRef<void (FAnsiStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokens(
+	FWideStringView View,
+	FWideStringView Delimiter,
+	TFunctionRef<void (FWideStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokens(
+	FUtf8StringView View,
+	FUtf8StringView Delimiter,
+	TFunctionRef<void (FUtf8StringView)> Visitor,
 	EParseTokensOptions Options = EParseTokensOptions::None);
 
 /**
@@ -91,12 +129,30 @@ CORE_API void ParseTokens(
  */
 template <typename OutputType>
 inline void ParseTokens(
-	const FStringView View,
-	const FStringView Delimiter,
+	const FAnsiStringView View,
+	const FAnsiStringView Delimiter,
 	OutputType& Output,
 	const EParseTokensOptions Options = EParseTokensOptions::None)
 {
-	return ParseTokens(View, Delimiter, [&Output](FStringView Token) { Output.Add(Token); }, Options);
+	return ParseTokens(View, Delimiter, [&Output](FAnsiStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokens(
+	const FWideStringView View,
+	const FWideStringView Delimiter,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	return ParseTokens(View, Delimiter, [&Output](FWideStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokens(
+	const FUtf8StringView View,
+	const FUtf8StringView Delimiter,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	return ParseTokens(View, Delimiter, [&Output](FUtf8StringView Token) { Output.Add(Token); }, Options);
 }
 
 /**
@@ -110,9 +166,19 @@ inline void ParseTokens(
  * @param Options      Flags to modify the default behavior.
  */
 CORE_API void ParseTokensMultiple(
-	FStringView View,
-	TConstArrayView<TCHAR> Delimiters,
-	TFunctionRef<void (FStringView)> Visitor,
+	FAnsiStringView View,
+	TConstArrayView<ANSICHAR> Delimiters,
+	TFunctionRef<void (FAnsiStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokensMultiple(
+	FWideStringView View,
+	TConstArrayView<WIDECHAR> Delimiters,
+	TFunctionRef<void (FWideStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokensMultiple(
+	FUtf8StringView View,
+	TConstArrayView<UTF8CHAR> Delimiters,
+	TFunctionRef<void (FUtf8StringView)> Visitor,
 	EParseTokensOptions Options = EParseTokensOptions::None);
 
 /**
@@ -128,12 +194,30 @@ CORE_API void ParseTokensMultiple(
  */
 template <typename OutputType>
 inline void ParseTokensMultiple(
-	const FStringView View,
-	const TConstArrayView<TCHAR> Delimiters,
+	const FAnsiStringView View,
+	const TConstArrayView<ANSICHAR> Delimiters,
 	OutputType& Output,
 	const EParseTokensOptions Options = EParseTokensOptions::None)
 {
-	ParseTokensMultiple(View, Delimiters, [&Output](FStringView Token) { Output.Add(Token); }, Options);
+	ParseTokensMultiple(View, Delimiters, [&Output](FAnsiStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokensMultiple(
+	const FWideStringView View,
+	const TConstArrayView<WIDECHAR> Delimiters,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	ParseTokensMultiple(View, Delimiters, [&Output](FWideStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokensMultiple(
+	const FUtf8StringView View,
+	const TConstArrayView<UTF8CHAR> Delimiters,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	ParseTokensMultiple(View, Delimiters, [&Output](FUtf8StringView Token) { Output.Add(Token); }, Options);
 }
 
 /**
@@ -149,9 +233,19 @@ inline void ParseTokensMultiple(
  * @param Options      Flags to modify the default behavior.
  */
 CORE_API void ParseTokensMultiple(
-	FStringView View,
-	TConstArrayView<FStringView> Delimiters,
-	TFunctionRef<void (FStringView)> Visitor,
+	FAnsiStringView View,
+	TConstArrayView<FAnsiStringView> Delimiters,
+	TFunctionRef<void (FAnsiStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokensMultiple(
+	FWideStringView View,
+	TConstArrayView<FWideStringView> Delimiters,
+	TFunctionRef<void (FWideStringView)> Visitor,
+	EParseTokensOptions Options = EParseTokensOptions::None);
+CORE_API void ParseTokensMultiple(
+	FUtf8StringView View,
+	TConstArrayView<FUtf8StringView> Delimiters,
+	TFunctionRef<void (FUtf8StringView)> Visitor,
 	EParseTokensOptions Options = EParseTokensOptions::None);
 
 /**
@@ -169,12 +263,30 @@ CORE_API void ParseTokensMultiple(
  */
 template <typename OutputType>
 inline void ParseTokensMultiple(
-	const FStringView View,
-	const TConstArrayView<FStringView> Delimiters,
+	const FAnsiStringView View,
+	const TConstArrayView<FAnsiStringView> Delimiters,
 	OutputType& Output,
 	const EParseTokensOptions Options = EParseTokensOptions::None)
 {
-	ParseTokensMultiple(View, Delimiters, [&Output](FStringView Token) { Output.Add(Token); }, Options);
+	ParseTokensMultiple(View, Delimiters, [&Output](FAnsiStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokensMultiple(
+	const FWideStringView View,
+	const TConstArrayView<FWideStringView> Delimiters,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	ParseTokensMultiple(View, Delimiters, [&Output](FWideStringView Token) { Output.Add(Token); }, Options);
+}
+template <typename OutputType>
+inline void ParseTokensMultiple(
+	const FUtf8StringView View,
+	const TConstArrayView<FUtf8StringView> Delimiters,
+	OutputType& Output,
+	const EParseTokensOptions Options = EParseTokensOptions::None)
+{
+	ParseTokensMultiple(View, Delimiters, [&Output](FUtf8StringView Token) { Output.Add(Token); }, Options);
 }
 
 } // UE::String
