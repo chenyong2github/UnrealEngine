@@ -6,6 +6,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SkeletalMergingLibrary.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshMerge, Log, All);
+
 /**
 * Struct containing all parameters used to perform a Skeletal Mesh merge.
 */
@@ -87,6 +89,10 @@ struct SKELETALMERGING_API FSkeletonMergeParams
 	// Whether or not to include Animation Slot Group (names) when merging the Skeletons
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletonMerge)
 	bool bMergeAnimSlotGroups = true;
+
+	// Whether or not to check if there are invalid parent chains or shared bones with different reference transforms
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletonMerge)
+	bool bCheckSkeletonsCompatibility = false;
 };
 
 /**
