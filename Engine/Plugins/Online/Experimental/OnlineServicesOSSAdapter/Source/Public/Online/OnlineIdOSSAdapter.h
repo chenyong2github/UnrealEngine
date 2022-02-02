@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Online/CoreOnline.h"
-
+#include "OnlineSubsystemTypes.h"
 //#include "Online/OnlineServicesTypes.h"
 //#include "Online/OnlineId.h"
 
