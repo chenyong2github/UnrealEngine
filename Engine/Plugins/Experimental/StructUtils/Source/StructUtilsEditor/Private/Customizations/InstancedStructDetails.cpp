@@ -246,20 +246,16 @@ void FInstancedStructDataDetails::GenerateChildContent(IDetailChildrenBuilder& C
 		FSimpleDelegate OnStructValuePreChangeDelegate = FSimpleDelegate::CreateSP(this, &FInstancedStructDataDetails::OnStructValuePreChange);
 		FSimpleDelegate OnStructValuePostChangeDelegate = FSimpleDelegate::CreateSP(this, &FInstancedStructDataDetails::OnStructValuePostChange);
 
-		// Note: We use AddExternalStructureProperty here as it gives the desired result (the struct value properties as direct children of the struct header)
-		// Neither AddExternalStructure (which added an extra row) nor AddAllExternalStructureProperties (which didn't indent the properties as children) were suitable
-		for (TFieldIterator<const FProperty> PropertyIt(StructInstanceData->GetStruct()); PropertyIt; ++PropertyIt)
+		TArray<TSharedPtr<IPropertyHandle>> ChildProperties = StructProperty->AddChildStructure(StructInstanceData.ToSharedRef());
+		for (TSharedPtr<IPropertyHandle> ChildHandle : ChildProperties)
 		{
-			if (IDetailPropertyRow* StructValuePropertyRow = ChildBuilder.AddExternalStructureProperty(StructInstanceData.ToSharedRef(), PropertyIt->GetFName()))
-			{
-				TSharedPtr<IPropertyHandle> StructValuePropertyHandle = StructValuePropertyRow->GetPropertyHandle();
-				StructValuePropertyHandle->SetOnPropertyValuePreChange(OnStructValuePreChangeDelegate);
-				StructValuePropertyHandle->SetOnChildPropertyValuePreChange(OnStructValuePreChangeDelegate);
-				StructValuePropertyHandle->SetOnPropertyValueChanged(OnStructValuePostChangeDelegate);
-				StructValuePropertyHandle->SetOnChildPropertyValueChanged(OnStructValuePostChangeDelegate);
+			ChildHandle->SetOnPropertyValuePreChange(OnStructValuePreChangeDelegate);
+			ChildHandle->SetOnChildPropertyValuePreChange(OnStructValuePreChangeDelegate);
+			ChildHandle->SetOnPropertyValueChanged(OnStructValuePostChangeDelegate);
+			ChildHandle->SetOnChildPropertyValueChanged(OnStructValuePostChangeDelegate);
 
-				OnChildRowAdded(*StructValuePropertyRow);
-			}
+			IDetailPropertyRow& Row = ChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+			OnChildRowAdded(Row);
 		}
 	}
 }

@@ -100,9 +100,9 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 	ArrayOffset = InitParams.ArrayOffset;
 	ArrayIndex = InitParams.ArrayIndex;
 
-	bool bIsSparse = InitParams.bIsSparseProperty;
+	bool bIsSparse = InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::True;
 
-	if (ParentNode)
+	if (ParentNode && InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::Inherit)
 	{
 		//default to parents max child depth
 		MaxChildDepthAllowed = ParentNode->MaxChildDepthAllowed;

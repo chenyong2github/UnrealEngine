@@ -198,6 +198,13 @@ private:
  */
 struct FPropertyNodeInitParams
 {
+	enum class EIsSparseDataProperty : uint8
+	{
+		False,
+		True,
+		Inherit,
+	};
+
 	/** The parent of the property node */
 	TSharedPtr<FPropertyNode> ParentNode;
 	/** The property that the node observes and modifies*/
@@ -215,7 +222,7 @@ struct FPropertyNodeInitParams
 	/** Whether or not to create nodes for properties marked CPF_DisableEditOnInstance */
 	bool bCreateDisableEditOnInstanceNodes;
 	/** Whether or not this property is sparse data */
-	bool bIsSparseProperty;
+	EIsSparseDataProperty IsSparseProperty;
 
 	FPropertyNodeInitParams()
 		: ParentNode(nullptr)
@@ -226,7 +233,7 @@ struct FPropertyNodeInitParams
 		, bForceHiddenPropertyVisibility( false )
 		, bCreateCategoryNodes( true )
 		, bCreateDisableEditOnInstanceNodes( true )
-		, bIsSparseProperty( false )
+		, IsSparseProperty( EIsSparseDataProperty::Inherit )
 	{}
 };
 

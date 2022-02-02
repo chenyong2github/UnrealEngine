@@ -101,7 +101,7 @@ void FCategoryPropertyNode::InitChildNodes()
 		InitParams.bAllowChildren = true;
 		InitParams.bForceHiddenPropertyVisibility = bShowHiddenProperties;
 		InitParams.bCreateDisableEditOnInstanceNodes = bShouldShowDisableEditOnInstance;
-		InitParams.bIsSparseProperty = SparseProperties.Contains(Properties[PropertyIndex]);
+		InitParams.IsSparseProperty = SparseProperties.Contains(Properties[PropertyIndex]) ? FPropertyNodeInitParams::EIsSparseDataProperty::True : FPropertyNodeInitParams::EIsSparseDataProperty::Inherit;
 
 		NewItemNode->InitNode( InitParams );
 
