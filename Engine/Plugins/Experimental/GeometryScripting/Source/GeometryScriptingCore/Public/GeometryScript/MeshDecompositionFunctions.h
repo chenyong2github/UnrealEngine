@@ -35,6 +35,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Decomposition", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	SplitMeshByPolygroups(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer,
+		TArray<UDynamicMesh*>& ComponentMeshes,
+		TArray<int>& ComponentPolygroups,
+		UDynamicMeshPool* MeshPool,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Decomposition", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	GetSubMeshFromMesh(  
 		UDynamicMesh* TargetMesh, 
 		UPARAM(DisplayName = "Copy To Submesh", ref) UDynamicMesh* StoreToSubmesh, 

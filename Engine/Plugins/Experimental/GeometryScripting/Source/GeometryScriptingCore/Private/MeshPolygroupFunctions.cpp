@@ -350,4 +350,86 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::DeleteTrianglesInPo
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetAllTrianglePolygroupIDs(
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptGroupLayer GroupLayer, 
+	FGeometryScriptIndexList& PolygroupIDsOut)
+{
+	PolygroupIDsOut.Reset();
+	PolygroupIDsOut.IndexType = EGeometryScriptIndexType::PolygroupID;
+	TArray<int32>& PolygroupIDs = *PolygroupIDsOut.List;
+
+	bool bIsValidPolygroupLayer = false;
+	SimpleMeshPolygroupQuery<int32>(TargetMesh, GroupLayer, bIsValidPolygroupLayer, 0, 
+		[&](const FDynamicMesh3& Mesh, const FPolygroupSet& PolyGroups) {
+		int32 MaxTriangleID = Mesh.MaxTriangleID();
+		for (int32 TriangleID = 0; TriangleID < MaxTriangleID; ++TriangleID)
+		{
+			int32 GroupID = Mesh.IsTriangle(TriangleID) ? PolyGroups.GetGroup(TriangleID) : -1;
+			PolygroupIDs.Add(GroupID);
+		}
+		return 0;
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetPolygroupIDsInMesh(
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptGroupLayer GroupLayer, 
+	FGeometryScriptIndexList& PolygroupIDsOut)
+{
+	PolygroupIDsOut.Reset();
+	PolygroupIDsOut.IndexType = EGeometryScriptIndexType::PolygroupID;
+	TArray<int32>& PolygroupIDs = *PolygroupIDsOut.List;
+
+	TSet<int32> UniqueGroupIDs;
+	bool bIsValidPolygroupLayer = false;
+	SimpleMeshPolygroupQuery<int32>(TargetMesh, GroupLayer, bIsValidPolygroupLayer, 0, 
+		[&](const FDynamicMesh3& Mesh, const FPolygroupSet& PolyGroups) {
+		int32 MaxTriangleID = Mesh.MaxTriangleID();
+		for (int32 tid : Mesh.TriangleIndicesItr())
+		{
+			int32 GroupID = PolyGroups.GetGroup(tid);
+			if (UniqueGroupIDs.Contains(GroupID) == false)
+			{
+				UniqueGroupIDs.Add(GroupID);
+				PolygroupIDs.Add(GroupID);
+			}
+		}
+		return 0;
+	});
+	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetTrianglesInPolygroup(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptGroupLayer GroupLayer,
+	int PolygroupID,
+	FGeometryScriptIndexList& TriangleIDsOut)
+{
+	TriangleIDsOut.Reset();
+	TriangleIDsOut.IndexType = EGeometryScriptIndexType::Triangle;
+	TArray<int32>& TriangleIDs = *TriangleIDsOut.List;
+
+	bool bIsValidPolygroupLayer = false;
+	SimpleMeshPolygroupQuery<int32>(TargetMesh, GroupLayer, bIsValidPolygroupLayer, 0, 
+		[&](const FDynamicMesh3& Mesh, const FPolygroupSet& PolyGroups) {
+		for (int32 TriangleID : Mesh.TriangleIndicesItr() )
+		{
+			if (PolyGroups.GetGroup(TriangleID) == PolygroupID)
+			{
+				TriangleIDs.Add(TriangleID);
+			}
+		}
+		return 0;
+	});
+	return TargetMesh;
+}
+
+
+
+
 #undef LOCTEXT_NAMESPACE

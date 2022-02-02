@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Polygroups/PolygroupSet.h"
 #include "DynamicMeshEditor.h"
 #include "UDynamicMesh.h"
 
@@ -132,6 +133,64 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::SplitMeshByMate
 
 	return TargetMesh;
 }
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::SplitMeshByPolygroups(  
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptGroupLayer GroupLayer,
+	TArray<UDynamicMesh*>& ComponentMeshes,
+	TArray<int>& ComponentPolygroups,
+	UDynamicMeshPool* MeshPool,
+	UGeometryScriptDebug* Debug)
+{
+	ComponentMeshes.Reset();
+	ComponentPolygroups.Reset();
+
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SplitMeshByPolygroups_InvalidInput", "SplitMeshByPolygroups: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TArray<FDynamicMesh3> SplitMeshes;
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{
+		TUniquePtr<FPolygroupSet> SplitGroups;
+		FPolygroupLayer InputGroupLayer{ GroupLayer.bDefaultLayer, GroupLayer.ExtendedLayerIndex };
+		if (InputGroupLayer.CheckExists(&EditMesh) == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SplitMeshByPolygroups_MissingGroups", "SplitMeshByPolygroups: Target Polygroup Layer does not exist"));
+			return;
+		}
+		SplitGroups = MakeUnique<FPolygroupSet>(&EditMesh, InputGroupLayer);
+
+		for (int32 tid : EditMesh.TriangleIndicesItr())
+		{
+			int32 GroupID = SplitGroups->GetGroup(tid);
+			ComponentPolygroups.AddUnique(GroupID);
+		}
+		ComponentPolygroups.Sort();
+
+		TMap<int32, int32> PolygroupMap;
+		for (int32 k = 0; k < ComponentPolygroups.Num(); ++k)
+		{
+			PolygroupMap.Add(ComponentPolygroups[k], k);
+		}
+
+		FDynamicMeshEditor::SplitMesh(&EditMesh, SplitMeshes, [&](int32 tid) {
+			int32 GroupID = SplitGroups->GetGroup(tid);
+			const int32* FoundIndex = PolygroupMap.Find(GroupID);
+			return (FoundIndex == nullptr) ? 0 : *FoundIndex;
+		});
+	});
+
+	BuildNewDynamicMeshes(TargetMesh, MeshPool, SplitMeshes, ComponentMeshes);
+
+	return TargetMesh;
+}
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromMesh(
