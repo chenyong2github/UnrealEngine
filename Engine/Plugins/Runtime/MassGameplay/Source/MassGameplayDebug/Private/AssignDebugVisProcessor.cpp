@@ -22,13 +22,13 @@ void UAssignDebugVisProcessor::ConfigureQueries()
 
 void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
+#if WITH_EDITORONLY_DATA
 	UMassDebugVisualizationComponent* Visualizer = WeakVisualizer.Get();
 	if (!ensure(Visualizer))
 	{
 		return;
 	}
 
-#if WITH_EDITORONLY_DATA
 	QUICK_SCOPE_CYCLE_COUNTER(AssignDebugVisProcessor_Execute);
 	
 	// note that this function will create the "visual components" only it they're missing or out of sync. 
@@ -54,10 +54,12 @@ void UAssignDebugVisProcessor::Initialize(UObject& InOwner)
 {
 	Super::Initialize(InOwner);
 	
+#if WITH_EDITORONLY_DATA
 	UMassDebuggerSubsystem* Debugger = UWorld::GetSubsystem<UMassDebuggerSubsystem>(InOwner.GetWorld());
 	if (ensure(Debugger))
 	{
 		WeakVisualizer = Debugger->GetVisualizationComponent();	
 		ensure(WeakVisualizer.Get());
 	}
+#endif // WITH_EDITORONLY_DATA
 }
