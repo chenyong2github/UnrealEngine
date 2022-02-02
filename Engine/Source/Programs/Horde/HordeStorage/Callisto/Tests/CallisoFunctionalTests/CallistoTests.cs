@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Callisto.Controllers;
 using Callisto.Implementation;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;

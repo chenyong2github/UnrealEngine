@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Horde.Storage;
 using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;

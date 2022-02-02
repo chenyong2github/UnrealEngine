@@ -8,6 +8,7 @@ using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
 using Callisto.Implementation;
+using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 
 namespace Calliso.UnitTests
