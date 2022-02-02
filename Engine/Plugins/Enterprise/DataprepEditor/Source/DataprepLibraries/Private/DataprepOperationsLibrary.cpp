@@ -788,7 +788,7 @@ void UDataprepOperationsLibrary::SetNaniteSettings(const TArray<UObject*>& Selec
 	FMeshNaniteSettings NewSettings;
 	NewSettings.bEnabled = bEnabled;
 	NewSettings.PositionPrecision = PositionPrecision;
-	NewSettings.PercentTriangles = FMath::Clamp(PercentTriangles, 0.f, 1.f);
+	NewSettings.FallbackPercentTriangles = FMath::Clamp(PercentTriangles, 0.f, 1.f);
 
 	// Apply Nanite settings but do not commit changes
 	TArray<UStaticMesh*> ModifiedMeshes;

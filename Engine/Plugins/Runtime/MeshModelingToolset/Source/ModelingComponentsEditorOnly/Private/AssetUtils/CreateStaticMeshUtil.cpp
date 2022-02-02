@@ -151,7 +151,7 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	NewStaticMesh->NaniteSettings.bEnabled = Options.bGenerateNaniteEnabledMesh;
 	if (Options.bGenerateNaniteEnabledMesh)
 	{
-		NewStaticMesh->NaniteSettings.PercentTriangles = Options.NaniteProxyTrianglePercent * 0.01f;
+		NewStaticMesh->NaniteSettings.FallbackPercentTriangles = Options.NaniteProxyTrianglePercent * 0.01f;
 		NewStaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
 	}
 

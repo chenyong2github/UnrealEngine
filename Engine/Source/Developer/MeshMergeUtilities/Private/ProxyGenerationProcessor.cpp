@@ -294,7 +294,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 
 	// Nanite settings
 	StaticMesh->NaniteSettings.bEnabled = Data->MergeData->InProxySettings.bGenerateNaniteEnabledMesh;
-	StaticMesh->NaniteSettings.PercentTriangles = Data->MergeData->InProxySettings.NaniteProxyTrianglePercent * 0.01f;
+	StaticMesh->NaniteSettings.FallbackPercentTriangles = Data->MergeData->InProxySettings.NaniteProxyTrianglePercent * 0.01f;
 	StaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
 
 	//Set the Imported version before calling the build

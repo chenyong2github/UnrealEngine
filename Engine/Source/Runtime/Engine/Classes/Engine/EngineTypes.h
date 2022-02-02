@@ -3107,35 +3107,45 @@ struct FMeshNaniteSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	int32 PositionPrecision;
 
-	/** Percentage of triangles to keep from LOD0. 1.0 = no reduction, 0.0 = no triangles. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	float PercentTriangles;
-
 	/** How much of the resource should always be resident (In KB). Approximate due to paging. 0: Minimum size (single page). MAX_uint32: Entire mesh.*/
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
 	uint32 TargetMinimumResidencyInKB;
+	
+	/** Percentage of triangles to keep from source mesh. 1.0 = no reduction, 0.0 = no triangles. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	float FallbackPercentTriangles;
+
+	/** Reduce until at least this amount of error is reached relative to size of the mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	float FallbackRelativeError;
 
 	/** Default settings. */
 	FMeshNaniteSettings()
 	: bEnabled(false)
 	, PositionPrecision(MIN_int32)
-	, PercentTriangles(0.0f)
 	, TargetMinimumResidencyInKB(0)
+	, FallbackPercentTriangles(1.0f)
+	, FallbackRelativeError(1.0f)
 	{
 	}
 
 	FMeshNaniteSettings(const FMeshNaniteSettings& Other)
 	: bEnabled(Other.bEnabled)
 	, PositionPrecision(Other.PositionPrecision)
-	, PercentTriangles(Other.PercentTriangles)
 	, TargetMinimumResidencyInKB(Other.TargetMinimumResidencyInKB)
+	, FallbackPercentTriangles(Other.FallbackPercentTriangles)
+	, FallbackRelativeError(Other.FallbackRelativeError)
 	{
 	}
 
 	/** Equality operator. */
 	bool operator==(const FMeshNaniteSettings& Other) const
 	{
-		return bEnabled == Other.bEnabled && PositionPrecision == Other.PositionPrecision && PercentTriangles == Other.PercentTriangles && TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB;
+		return bEnabled == Other.bEnabled
+			&& PositionPrecision == Other.PositionPrecision
+			&& TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB
+			&& FallbackPercentTriangles == Other.FallbackPercentTriangles
+			&& FallbackRelativeError == Other.FallbackRelativeError;
 	}
 
 	/** Inequality operator. */

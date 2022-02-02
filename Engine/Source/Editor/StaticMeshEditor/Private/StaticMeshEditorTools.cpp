@@ -5028,15 +5028,15 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
-		NaniteSettingsCategory.AddCustomRow( LOCTEXT("ProxyTrianglePercent", "Proxy Triangle Percent") )
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent") )
 
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
 		.NameContent()
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("ProxyTrianglePercent", "Proxy Triangle Percent"))
-			.ToolTipText(LOCTEXT("ProxyTrianglePercentTooltip", "Percentage of triangles to reduce down to for generating a coarse proxy\nmesh that will be used anywhere the full detail Nanite data can't,\nincluding platforms that don't support Nanite rendering."))
+			.Text(LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent"))
+			.ToolTipText(LOCTEXT("FallbackTrianglePercentTooltip", "Reduce until less than this percentage of triangles remain when generating a fallback\nmesh that will be used anywhere the full detail Nanite data can't,\nincluding platforms that don't support Nanite rendering."))
 		]
 		.ValueContent()
 		.VAlign(VAlign_Center)
@@ -5048,6 +5048,28 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.Value(this, &FNaniteSettingsLayout::GetPercentTriangles)
 			.OnValueChanged(this, &FNaniteSettingsLayout::OnPercentTrianglesChanged)
 			.OnValueCommitted(this, &FNaniteSettingsLayout::OnPercentTrianglesCommitted)
+		];
+	}
+
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackRelativeError", "Fallback Relative Error") )
+
+		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("FallbackRelativeError", "Fallback Relative Error"))
+			.ToolTipText(LOCTEXT("FallbackRelativeErrorTooltip", "Reduce until at least this amount of error is reached relative to its size\nwhen generating a fallback mesh that will be used anywhere the full detail Nanite data can't,\nincluding platforms that don't support Nanite rendering."))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSpinBox<float>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0.0f)
+			.Value(this, &FNaniteSettingsLayout::GetFallbackRelativeError)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnFallbackRelativeErrorChanged)
 		];
 	}
 
@@ -5229,13 +5251,13 @@ void FNaniteSettingsLayout::OnResidencyChanged(TSharedPtr<FString> NewValue, ESe
 
 float FNaniteSettingsLayout::GetPercentTriangles() const
 {
-	return NaniteSettings.PercentTriangles * 100.0f; // Display fraction as percentage.
+	return NaniteSettings.FallbackPercentTriangles * 100.0f; // Display fraction as percentage.
 }
 
 void FNaniteSettingsLayout::OnPercentTrianglesChanged(float NewValue)
 {
 	// Percentage -> fraction.
-	NaniteSettings.PercentTriangles = NewValue * 0.01f;
+	NaniteSettings.FallbackPercentTriangles = NewValue * 0.01f;
 }
 
 void FNaniteSettingsLayout::OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType)
@@ -5245,6 +5267,16 @@ void FNaniteSettingsLayout::OnPercentTrianglesCommitted(float NewValue, ETextCom
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("PercentTriangles"), FString::Printf(TEXT("%.1f"), NewValue));
 	}
 	OnPercentTrianglesChanged(NewValue);
+}
+
+float FNaniteSettingsLayout::GetFallbackRelativeError() const
+{
+	return NaniteSettings.FallbackRelativeError;
+}
+
+void FNaniteSettingsLayout::OnFallbackRelativeErrorChanged(float NewValue)
+{
+	NaniteSettings.FallbackRelativeError = NewValue;
 }
 
 #undef LOCTEXT_NAMESPACE

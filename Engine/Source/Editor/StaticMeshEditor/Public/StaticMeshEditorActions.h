@@ -30,7 +30,7 @@ public:
 	 */
 
 	 /**  */
-	TSharedPtr<FUICommandInfo> SetShowNaniteProxy;
+	TSharedPtr<FUICommandInfo> SetShowNaniteFallback;
 	TSharedPtr<FUICommandInfo> SetShowWireframe;
 	TSharedPtr<FUICommandInfo> SetShowVertexColor;
 	TSharedPtr<FUICommandInfo> SetShowPhysicalMaterialMasks;

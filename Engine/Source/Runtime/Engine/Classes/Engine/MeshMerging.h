@@ -534,9 +534,9 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NaniteSettings)
 	uint8 bGenerateNaniteEnabledMesh : 1;
 
-	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
+	/** Percentage of triangles to reduce down to for generating a coarse fallback mesh from the Nanite mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = NaniteSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
-	float NaniteProxyTrianglePercent;
+	float NaniteFallbackTrianglePercent;
 
 #if WITH_EDITORONLY_DATA
 	/** Whether we should import vertex colors into merged mesh */
@@ -586,7 +586,7 @@ struct FMeshMergingSettings
 		, bIncludeImposters(true)
 		, bAllowDistanceField(false)
 		, bGenerateNaniteEnabledMesh(false)
-		, NaniteProxyTrianglePercent(100)
+		, NaniteFallbackTrianglePercent(100)
 #if WITH_EDITORONLY_DATA
 		, bImportVertexColors_DEPRECATED(false)
 		, bCalculateCorrectLODModel_DEPRECATED(false)

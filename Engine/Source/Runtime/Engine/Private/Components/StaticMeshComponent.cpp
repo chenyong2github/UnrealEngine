@@ -209,7 +209,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bCustomOverrideVertexColorPerLOD = false;
 	bDisplayVertexColors = false;
 	bDisplayPhysicalMaterialMasks = false;
-	bDisplayNaniteProxyMesh = false;
+	bDisplayNaniteFallbackMesh = false;
 #endif
 }
 
@@ -1613,7 +1613,7 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 {
 	// Whether or not to allow Nanite for this component
 #if WITH_EDITORONLY_DATA
-	const bool bAllowNanite = !bDisplayNaniteProxyMesh;
+	const bool bAllowNanite = !bDisplayNaniteFallbackMesh;
 #else
 	const bool bAllowNanite = true;
 #endif

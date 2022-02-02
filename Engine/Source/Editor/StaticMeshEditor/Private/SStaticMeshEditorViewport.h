@@ -182,11 +182,11 @@ private:
 	/** Override for preview component selection to inform the editor we consider it selected. */
 	bool PreviewComponentSelectionOverride(const UPrimitiveComponent* InComponent) const;
 
-	void ToggleShowNaniteProxy();
+	void ToggleShowNaniteFallback();
 
-	bool IsShowNaniteProxyChecked() const;
+	bool IsShowNaniteFallbackChecked() const;
 
-	bool IsShowNaniteProxyVisible() const;
+	bool IsShowNaniteFallbackVisible() const;
 private:
 	
 	/** The parent tab where this viewport resides */

@@ -418,10 +418,14 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 FCluster FindDAGCut(
 	const TArray< FClusterGroup >& Groups,
 	const TArray< FCluster >& Clusters,
-	uint32 TargetNumTris )
+	uint32 TargetNumTris,
+	float  TargetError,
+	uint32 TargetOvershoot )
 {
 	const FClusterGroup&	RootGroup = Groups.Last();
 	const FCluster&			RootCluster = Clusters[ RootGroup.Children[0] ];
+
+	bool bHitTargetBefore = false;
 
 	float MinError = RootCluster.LODError;
 
@@ -436,8 +440,18 @@ FCluster FindDAGCut(
 		if( Cluster.MipLevel == 0 )
 			break;
 
-		// Could have other targets besides NumTris in the future.
-		bool bHitTarget = Heap.Num() * FCluster::ClusterSize > TargetNumTris;
+		bool bHitTarget =
+			Heap.Num() * FCluster::ClusterSize > TargetNumTris ||
+			MinError < TargetError;
+
+		// Overshoot the target by TargetOvershoot number of triangles. This allows granular edge collapses to better minimize error to the target.
+		if( TargetOvershoot > 0 && bHitTarget && !bHitTargetBefore )
+		{
+			TargetNumTris = Heap.Num() * FCluster::ClusterSize + TargetOvershoot;
+			bHitTarget = false;
+			bHitTargetBefore = true;
+		}
+
 		if( bHitTarget && Cluster.LODError < MinError )
 			break;
 		

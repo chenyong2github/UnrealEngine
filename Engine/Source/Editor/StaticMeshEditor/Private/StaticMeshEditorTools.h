@@ -715,6 +715,9 @@ private:
 	void OnPercentTrianglesChanged(float NewValue);
 	void OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
 
+	float GetFallbackRelativeError() const;
+	void OnFallbackRelativeErrorChanged(float NewValue);
+
 private:
 	/** The Static Mesh Editor this tool is associated with. */
 	FStaticMeshEditor& StaticMeshEditor;

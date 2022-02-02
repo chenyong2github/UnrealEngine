@@ -252,9 +252,9 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 	NumTris = Indexes.Num() / 3;
 }
 
-float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 TargetErrorMaxNumTris )
+float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitNumTris )
 {
-	if( TargetNumTris >= NumTris )
+	if( ( TargetNumTris >= NumTris && TargetError == 0.0f ) || LimitNumTris >= NumTris )
 	{
 		return 0.0f;
 	}
@@ -300,6 +300,7 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 	{
 		GetPosition(i) *= PositionScale;
 	}
+	TargetError *= PositionScale;
 
 	uint32 NumAttributes = GetVertSize() - 3;
 	float* AttributeWeights = (float*)FMemory_Alloca( NumAttributes * sizeof( float ) );
@@ -357,8 +358,8 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 	Simplifier.SetEdgeWeight( 2.0f );
 
 	float MaxErrorSqr = Simplifier.Simplify(
-		NumVerts, TargetNumTris, 0.0f,
-		0, TargetNumTris, MAX_flt );
+		NumVerts, TargetNumTris, FMath::Square( TargetError ),
+		0, LimitNumTris, MAX_flt );
 
 	check( Simplifier.GetRemainingNumVerts() > 0 );
 	check( Simplifier.GetRemainingNumTris() > 0 );

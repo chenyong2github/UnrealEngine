@@ -3027,7 +3027,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 		// Nanite settings
 		StaticMesh->NaniteSettings.bEnabled = InSettings.bGenerateNaniteEnabledMesh;
-		StaticMesh->NaniteSettings.PercentTriangles = InSettings.NaniteProxyTrianglePercent * 0.01f;
+		StaticMesh->NaniteSettings.FallbackPercentTriangles = InSettings.NaniteFallbackTrianglePercent * 0.01f;
 		StaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
 
 #if WITH_EDITOR

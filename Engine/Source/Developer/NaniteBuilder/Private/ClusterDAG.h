@@ -36,6 +36,8 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uin
 FCluster FindDAGCut(
 	const TArray< FClusterGroup >& Groups,
 	const TArray< FCluster >& Clusters,
-	uint32 TargetNumTris );
+	uint32 TargetNumTris,
+	float  TargetError,
+	uint32 TargetOvershoot );
 
 } // namespace Nanite

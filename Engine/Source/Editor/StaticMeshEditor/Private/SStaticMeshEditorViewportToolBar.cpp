@@ -44,7 +44,7 @@ TSharedRef<SWidget> SStaticMeshEditorViewportToolbar::GenerateShowMenu() const
 	{
 		auto Commands = FStaticMeshEditorCommands::Get();
 
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNaniteProxy);
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNaniteFallback);
 
 		ShowMenuBuilder.BeginSection("MeshComponents", LOCTEXT("MeshComponments", "Mesh Components"));
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowSockets);

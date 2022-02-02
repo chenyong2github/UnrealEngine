@@ -151,7 +151,7 @@ public:
 	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
 	FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& MergeList );
 
-	float		Simplify( uint32 TargetNumTris, float TargetError = 0.0f, uint32 TargetErrorMaxNumTris = 0 );
+	float		Simplify( uint32 TargetNumTris, float TargetError = 0.0f, uint32 LimitNumTris = 0 );
 	FAdjacency	BuildAdjacency() const;
 	void		Split( FGraphPartitioner& Partitioner, const FAdjacency& Adjacency ) const;
 	void		Bound();

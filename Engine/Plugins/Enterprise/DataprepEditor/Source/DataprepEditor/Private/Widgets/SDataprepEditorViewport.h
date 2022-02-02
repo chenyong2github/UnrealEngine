@@ -79,7 +79,7 @@ public:
 public:
 	TSharedPtr<FUICommandInfo> SetShowGrid;
 	TSharedPtr<FUICommandInfo> SetShowBounds;
-	TSharedPtr<FUICommandInfo> SetShowNaniteProxy;
+	TSharedPtr<FUICommandInfo> SetShowNaniteFallback;
 
 	TSharedPtr<FUICommandInfo> ApplyOriginalMaterial;
 	TSharedPtr<FUICommandInfo> ApplyBackFaceMaterial;
@@ -309,16 +309,16 @@ private:
 	bool IsComponentSelected(const UPrimitiveComponent* PrimitiveComponent);
 
 	/** Sets the show Nanite flag */
-	void SetShowNaniteProxy(bool bShow);
+	void SetShowNaniteFallback(bool bShow);
 
 	/** Callback for toggling the show Nanite flag. */
-	void ToggleShowNaniteProxy() { SetShowNaniteProxy(!bShowNaniteProxyMenuChecked); }
+	void ToggleShowNaniteFallback() { SetShowNaniteFallback(!bShowNaniteFallbackMenuChecked); }
 
 	/** Callback for checking the Nanite show flag. */
-	bool IsSetShowNaniteProxyChecked() const { return bShowNaniteProxyMenuChecked; }
+	bool IsSetShowNaniteFallbackChecked() const { return bShowNaniteFallbackMenuChecked; }
 
 	/** Callback for checking whether the Nanite show entry should be displayed. */
-	bool IsShowNaniteProxyVisible() const { return bCanShowNaniteProxyMenu; }
+	bool IsShowNaniteFallbackVisible() const { return bCanShowNaniteFallbackMenu; }
 
 private:
 	/** The scene for this viewport */
@@ -408,8 +408,8 @@ private:
 	bool bShowOrientedBox;
 #endif
 
-	bool bCanShowNaniteProxyMenu = false;
-	bool bShowNaniteProxyMenuChecked = false;
+	bool bCanShowNaniteFallbackMenu = false;
+	bool bShowNaniteFallbackMenuChecked = false;
 
 	friend FDataprepEditorViewportClient;
 };

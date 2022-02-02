@@ -921,7 +921,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 	Params.LODIndex						= LODIndex;
 #if WITH_EDITORONLY_DATA
 	Params.StaticMesh					= InParentMesh;
-	Params.bIsCoarseProxy				= InParentMesh->NaniteSettings.bEnabled && InParentMesh->NaniteSettings.PercentTriangles < 1.0f;
+	Params.bIsCoarseProxy				= InParentMesh->NaniteSettings.bEnabled && InParentMesh->NaniteSettings.FallbackPercentTriangles < 1.0f;
 #endif
 
 	// Initialize the static mesh's vertex factory.
@@ -2334,8 +2334,9 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
 	Ar << NaniteSettings.PositionPrecision;
-	Ar << NaniteSettings.PercentTriangles;
 	Ar << NaniteSettings.TargetMinimumResidencyInKB;
+	Ar << NaniteSettings.FallbackPercentTriangles;
+	Ar << NaniteSettings.FallbackRelativeError;
 }
 
 static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSettings& ReductionSettings)
@@ -4169,7 +4170,7 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 #if WITH_EDITORONLY_DATA
 	OutTags.Add(FAssetRegistryTag("NaniteEnabled", NaniteSettings.bEnabled ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
-	OutTags.Add(FAssetRegistryTag("NanitePercent", FString::Printf(TEXT("%.1f"), NaniteSettings.PercentTriangles * 100.0f), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("NaniteFallbackPercent", FString::Printf(TEXT("%.1f"), NaniteSettings.FallbackPercentTriangles * 100.0f), FAssetRegistryTag::TT_Numerical));
 
 	if (AssetImportData)
 	{

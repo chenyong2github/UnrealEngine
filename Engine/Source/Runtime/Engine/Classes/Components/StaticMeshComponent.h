@@ -326,7 +326,7 @@ public:
 
 	/** For nanite enabled meshes, we'll only show the proxy mesh if this is true */
 	UPROPERTY()
-	uint8 bDisplayNaniteProxyMesh:1;
+	uint8 bDisplayNaniteFallbackMesh:1;
 #endif
 
 	/** Enable dynamic sort mesh's triangles to remove ordering issue when rendered with a translucent material */

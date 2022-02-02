@@ -335,7 +335,7 @@ void SDataprepEditorViewport::UpdateScene()
 	// Gather all static meshes used by actors in PreviewWorld
 	TArray< UStaticMeshComponent* > SceneMeshComponents = DataprepEditor3DPreviewUtils::GetComponentsFromWorld<UStaticMeshComponent>( WorldToPreview );
 
-	bCanShowNaniteProxyMenu = false;
+	bCanShowNaniteFallbackMenu = false;
 
 	if(SceneMeshComponents.Num() > 0)
 	{
@@ -396,7 +396,7 @@ void SDataprepEditorViewport::UpdateScene()
 					const FTransform& ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 					SceneBounds += StaticMesh->GetExtendedBounds().GetBox().TransformBy( ComponentToWorldTransform );
 
-					bCanShowNaniteProxyMenu |= StaticMesh->NaniteSettings.bEnabled;
+					bCanShowNaniteFallbackMenu |= StaticMesh->NaniteSettings.bEnabled;
 				}
 			}
 
@@ -448,7 +448,7 @@ void SDataprepEditorViewport::UpdateScene()
 						FComponentReregisterContext ReregisterContext( PreviewMeshComponent );
 						PreviewMeshComponent->SetStaticMesh( StaticMesh );
 
-						PreviewMeshComponent->bDisplayNaniteProxyMesh = bShowNaniteProxyMenuChecked && StaticMesh->NaniteSettings.bEnabled;
+						PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked && StaticMesh->NaniteSettings.bEnabled;
 
 						FTransform ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 
@@ -631,8 +631,8 @@ void SDataprepEditorViewport::UpdateOverlayText()
 				const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
 				if (Resources.RootData.Num() > 0)
 				{
-					NaniteTrianglesCount += bShowNaniteProxyMenuChecked ? LODResource.GetNumTriangles() : Resources.NumInputTriangles;
-					NaniteVerticesCount += bShowNaniteProxyMenuChecked ? LODResource.GetNumVertices() : Resources.NumInputVertices;
+					NaniteTrianglesCount += bShowNaniteFallbackMenuChecked ? LODResource.GetNumTriangles() : Resources.NumInputTriangles;
+					NaniteVerticesCount += bShowNaniteFallbackMenuChecked ? LODResource.GetNumVertices() : Resources.NumInputVertices;
 				}
 			}
 			else
@@ -646,18 +646,18 @@ void SDataprepEditorViewport::UpdateOverlayText()
 
 	if (NaniteTrianglesCount > 0)
 	{
-		static FText ShowingNaniteProxy = LOCTEXT("ShowingNaniteProxy", "(Showing Proxy)");
+		static FText ShowingNaniteFallback = LOCTEXT("ShowingNaniteFallback", "(Showing Fallback)");
 
 		TextItems.Add(FOverlayTextItem(
-			FText::Format(LOCTEXT("NaniteEnabled", "Nanite Enabled {0}"), bShowNaniteProxyMenuChecked ? ShowingNaniteProxy : FText::GetEmpty())));
+			FText::Format(LOCTEXT("NaniteEnabled", "Nanite Enabled {0}"), bShowNaniteFallbackMenuChecked ? ShowingNaniteFallback : FText::GetEmpty())));
 
-		if (bShowNaniteProxyMenuChecked)
+		if (bShowNaniteFallbackMenuChecked)
 		{
 			TextItems.Add(FOverlayTextItem(
-				FText::Format(LOCTEXT("Proxy_Triangles", "#Proxy_Triangles: {0}"), FText::AsNumber(NaniteTrianglesCount))));
+				FText::Format(LOCTEXT("Fallback_Triangles", "#Fallback_Triangles: {0}"), FText::AsNumber(NaniteTrianglesCount))));
 
 			TextItems.Add(FOverlayTextItem(
-				FText::Format(LOCTEXT("Proxy_Vertices", "#Proxy_Vertices: {0}"), FText::AsNumber(NaniteVerticesCount))));
+				FText::Format(LOCTEXT("Fallback_Vertices", "#Fallback_Vertices: {0}"), FText::AsNumber(NaniteVerticesCount))));
 		}
 		else
 		{
@@ -748,11 +748,11 @@ void SDataprepEditorViewport::BindCommands()
 		FIsActionChecked::CreateSP(EditorViewportClientRef, &FEditorViewportClient::IsSetShowBoundsChecked ) );
 
 	CommandList->MapAction(
-		Commands.SetShowNaniteProxy,
-		FExecuteAction::CreateSP(this, &SDataprepEditorViewport::ToggleShowNaniteProxy),
+		Commands.SetShowNaniteFallback,
+		FExecuteAction::CreateSP(this, &SDataprepEditorViewport::ToggleShowNaniteFallback),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SDataprepEditorViewport::IsSetShowNaniteProxyChecked),
-		FIsActionButtonVisible::CreateSP(this, &SDataprepEditorViewport::IsShowNaniteProxyVisible));
+		FIsActionChecked::CreateSP(this, &SDataprepEditorViewport::IsSetShowNaniteFallbackChecked),
+		FIsActionButtonVisible::CreateSP(this, &SDataprepEditorViewport::IsShowNaniteFallbackVisible));
 
 	CommandList->MapAction(
 		Commands.ApplyOriginalMaterial,
@@ -1310,9 +1310,9 @@ void SDataprepEditorViewport::LoadDefaultSettings()
 	}
 }
 
-void SDataprepEditorViewport::SetShowNaniteProxy(bool bShow)
+void SDataprepEditorViewport::SetShowNaniteFallback(bool bShow)
 {
-	bShowNaniteProxyMenuChecked = bShow;
+	bShowNaniteFallbackMenuChecked = bShow;
 
 	for (const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponentPtr : PreviewMeshComponents)
 	{
@@ -1321,7 +1321,7 @@ void SDataprepEditorViewport::SetShowNaniteProxy(bool bShow)
 			const UStaticMesh* StaticMesh = PreviewMeshComponent->GetStaticMesh();
 			if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
 			{
-				PreviewMeshComponent->bDisplayNaniteProxyMesh = bShowNaniteProxyMenuChecked && StaticMesh->NaniteSettings.bEnabled;
+				PreviewMeshComponent->bDisplayNaniteFallbackMesh = bShowNaniteFallbackMenuChecked && StaticMesh->NaniteSettings.bEnabled;
 				PreviewMeshComponent->MarkRenderStateDirty();
 			}
 		}
@@ -1488,7 +1488,7 @@ TSharedRef<SWidget> SDataprepEditorViewportToolbar::GenerateShowMenu() const
 	{
 		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowGrid);
 		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowBounds);
-		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowNaniteProxy);
+		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowNaniteFallback);
 	}
 
 	// #ueent_remark: Look at SAnimViewportToolBar::GenerateShowMenu in SAnimViewportToolBar.cpp for adding ShowFlagFilter to the Show menu
@@ -1624,7 +1624,7 @@ void FDataprepEditorViewportCommands::RegisterCommands()
 	// Show menu
 	UI_COMMAND(SetShowGrid, "Grid", "Displays the viewport grid.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::G));
 	UI_COMMAND(SetShowBounds, "Bounds", "Toggles display of the bounds of the selected component.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::B));
-	UI_COMMAND(SetShowNaniteProxy, "Nanite Proxy", "Toggles the display of the Nanite proxy mesh.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::N));
+	UI_COMMAND(SetShowNaniteFallback, "Nanite Fallback", "Toggles the display of the Nanite fallback mesh.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::N));
 
 	// Rendering Material
 	UI_COMMAND(ApplyOriginalMaterial, "None", "Display all meshes with original materials.", EUserInterfaceActionType::RadioButton, FInputChord());
@@ -1656,7 +1656,7 @@ FPrimitiveSceneProxy* UCustomStaticMeshComponent::CreateSceneProxy()
 
 	// Do not overwrite proxy if Nanite supported and there is built Nanite data for the static mesh
 	// #ueent_todo: Track changes to Nanite::FSceneProxy code in case wireframe display is supported
-	if (ShouldCreateNaniteProxy() && !bDisplayNaniteProxyMesh)
+	if (ShouldCreateNaniteProxy() && !bDisplayNaniteFallbackMesh)
 	{
 		return UStaticMeshComponent::CreateSceneProxy();
 	}

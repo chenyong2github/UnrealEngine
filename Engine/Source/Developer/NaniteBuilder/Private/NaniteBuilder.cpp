@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("512E182E-8C06-4A85-B522-DF0D3673CBB8")
+#define NANITE_DERIVEDDATA_VER TEXT("37DD3B6C-D4A4-41C0-BCF6-32AE2029E647")
 
 namespace Nanite
 {
@@ -58,7 +58,7 @@ public:
 	virtual bool Build(
 		FResources& Resources,
 		FVertexMeshData& InputMeshData,
-		TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
+		TArrayView< FVertexMeshData > OutputLODMeshData,
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings) override;
 };
@@ -172,12 +172,12 @@ static void BuildCoarseRepresentation(
 	TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 	uint32& NumTexCoords,
 	uint32 TargetNumTris,
-	float TargetError,
-	uint32 TargetErrorMaxNumTris
-)
+	float TargetError )
 {
-	FCluster CoarseRepresentation = FindDAGCut(Groups, Clusters, TargetErrorMaxNumTris + 4096);
-	CoarseRepresentation.Simplify(TargetErrorMaxNumTris, TargetError, TargetErrorMaxNumTris);
+	TargetNumTris = FMath::Max( TargetNumTris, 64u );
+
+	FCluster CoarseRepresentation = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 4096 );
+	CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ) );
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -422,10 +422,10 @@ static void ClusterTriangles(
 
 static bool BuildNaniteData(
 	FResources& Resources,
-	Nanite::IBuilderModule::FVertexMeshData& InputMeshData,
+	IBuilderModule::FVertexMeshData& InputMeshData,
 	TArray< int32 >& MaterialIndexes,
-	TArray<uint32>& MeshTriangleCounts,
-	TArray<Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
+	TArray< uint32 >& MeshTriangleCounts,
+	TArrayView< IBuilderModule::FVertexMeshData >& OutputLODMeshData,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings
 )
@@ -489,27 +489,25 @@ static bool BuildNaniteData(
 			BaseTriangle += NumTriangles;
 		}
 	}
-	
-	const int32 OldTriangleCount = Resources.NumInputTriangles;
-	const int32 MinTriCount = 512; // TODO: Should make this configurable
-	// Replace original static mesh data with coarse representation.
-	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && OldTriangleCount > MinTriCount;
 
+	float SurfaceArea = 0.0f;
+	for( FCluster& Cluster : Clusters )
+		SurfaceArea += Cluster.SurfaceArea;
+
+	int32 FallbackTargetNumTris = Resources.NumInputTriangles * Settings.FallbackPercentTriangles;
+	float FallbackTargetError = Settings.FallbackRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, VertexBounds.GetSurfaceArea() ) );
+
+	bool bFallbackIsReduced = Settings.FallbackPercentTriangles < 1.0f || FallbackTargetError > 0.0f;
+	
 	// If we're going to replace the original vertex buffer with a coarse representation, get rid of the old copies
 	// now that we copied it into the cluster representation. We do it before the longer DAG reduce phase to shorten peak memory duration.
 	// This is especially important when building multiple huge Nanite meshes in parallel.
-	if (bUseCoarseRepresentation)
+	if( bFallbackIsReduced )
 	{
-		check(MeshTriangleCounts.Num() == 1);
-		MaterialIndexes.Empty();
+		InputMeshData.Vertices.Empty();
+		InputMeshData.TriangleIndices.Empty();
 	}
-	else if (OutputLODMeshData.Num() > 0)
-	{
-		// Copy over the input mesh data as ouput because the input data will be cleared since it's not used anymore
-		OutputLODMeshData[0] = InputMeshData;
-	}
-	InputMeshData.Vertices.Empty();
-	InputMeshData.TriangleIndices.Empty();
+	MaterialIndexes.Empty();
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
@@ -530,71 +528,67 @@ static bool BuildNaniteData(
 	uint32 ReduceTime = FPlatformTime::Cycles();
 	UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - Time0) / 1000.0f);
 
-	if (bUseCoarseRepresentation)
+	for (int32 FallbackLODIndex = 0; FallbackLODIndex < OutputLODMeshData.Num(); ++FallbackLODIndex)
 	{
-		check(OutputLODMeshData.Num() > 0);
+		const uint32 FallbackStartTime = FPlatformTime::Cycles();
 
-		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
-		float CoarseTargetError = 0.1f;
-		int32 CoarseTargetErrorMaxTriCount = FMath::Max(CoarseTriCount, 8192);
-
-		// Each LOD reduce to 1/8th of previous triangle count
-		const float LODIterationFactor = 1.0f / 8;
-
-		for (int32 CoarseLODIndex = 0; CoarseLODIndex < OutputLODMeshData.Num(); ++CoarseLODIndex)
+		auto& FallbackLODMeshData = OutputLODMeshData[FallbackLODIndex];
+		
+		// Copy the section data which will then be patched up after the simplification
+		FallbackLODMeshData.Sections = InputMeshData.Sections;
+		
+		// % of first proxy not % of original
+		if( FallbackLODIndex > 0 )
 		{
-			const uint32 CoarseStartTime = FPlatformTime::Cycles();
+			FallbackTargetNumTris = OutputLODMeshData[0].TriangleIndices.Num() / 3;
+			FallbackTargetNumTris *= FallbackLODMeshData.PercentTriangles;
+			FallbackTargetError = 0.0f;
+		}
 
-			Nanite::IBuilderModule::FVertexMeshData& CoarseLODMeshData = OutputLODMeshData[CoarseLODIndex];
-			
-			// Copy the section data which will then be patched up after the simplification
-			CoarseLODMeshData.Sections = InputMeshData.Sections;
-
-			TArray<FStaticMeshSection, TInlineAllocator<1>> CoarseSections = InputMeshData.Sections;
-			BuildCoarseRepresentation(Groups, Clusters, CoarseLODMeshData.Vertices, CoarseLODMeshData.TriangleIndices, CoarseSections, NumTexCoords, CoarseTriCount, CoarseTargetError, CoarseTargetErrorMaxTriCount);
+		if( !bFallbackIsReduced && FallbackLODIndex == 0 )
+		{
+			Swap( FallbackLODMeshData.Vertices,			InputMeshData.Vertices );
+			Swap( FallbackLODMeshData.TriangleIndices,	InputMeshData.TriangleIndices );
+			CalcTangents( FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices );
+		}
+		else
+		{
+			TArray<FStaticMeshSection, TInlineAllocator<1>> FallbackSections = InputMeshData.Sections;
+			BuildCoarseRepresentation(Groups, Clusters, FallbackLODMeshData.Vertices, FallbackLODMeshData.TriangleIndices, FallbackSections, NumTexCoords, FallbackTargetNumTris, FallbackTargetError);
 
 			// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
 			// that do not end up with any assigned triangles (due to decimation process).
 
-			for (FStaticMeshSection& Section : CoarseLODMeshData.Sections)
+			for (FStaticMeshSection& Section : FallbackLODMeshData.Sections)
 			{
 				// For each section info, try to find a matching entry in the coarse version.
-				const FStaticMeshSection* CoarseSection = CoarseSections.FindByPredicate(
+				const FStaticMeshSection* FallbackSection = FallbackSections.FindByPredicate(
 					[&Section](const FStaticMeshSection& CoarseSectionIter)
 					{
 						return CoarseSectionIter.MaterialIndex == Section.MaterialIndex;
 					});
 
-				if (CoarseSection != nullptr)
+				if (FallbackSection != nullptr)
 				{
 					// Matching entry found
-					Section.FirstIndex = CoarseSection->FirstIndex;
-					Section.NumTriangles = CoarseSection->NumTriangles;
-					Section.MinVertexIndex = CoarseSection->MinVertexIndex;
-					Section.MaxVertexIndex = CoarseSection->MaxVertexIndex;
+					Section.FirstIndex		= FallbackSection->FirstIndex;
+					Section.NumTriangles	= FallbackSection->NumTriangles;
+					Section.MinVertexIndex	= FallbackSection->MinVertexIndex;
+					Section.MaxVertexIndex	= FallbackSection->MaxVertexIndex;
 				}
 				else
 				{
 					// Section removed due to decimation, set placeholder entry
-					Section.FirstIndex = 0;
-					Section.NumTriangles = 0;
-					Section.MinVertexIndex = 0;
-					Section.MaxVertexIndex = 0;
+					Section.FirstIndex		= 0;
+					Section.NumTriangles	= 0;
+					Section.MinVertexIndex	= 0;
+					Section.MaxVertexIndex	= 0;
 				}
 			}
-
-			const uint32 CoarseEndTime = FPlatformTime::Cycles();
-			UE_LOG(LogStaticMesh, Log, TEXT("Coarse %d/%d [%.2fs], original tris: %d, coarse tris: %d"), CoarseLODIndex + 1, OutputLODMeshData.Num(), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriCount);
-
-			// Find out triangle count of this LOD and set next target depending on the reduce factor
-			int32 LODTriangleCount = 0;
-			for (FStaticMeshSection& Section : CoarseSections)
-			{
-				LODTriangleCount += Section.NumTriangles;
-			}
-			CoarseTriCount = LODTriangleCount * LODIterationFactor;
-			CoarseTargetErrorMaxTriCount = LODTriangleCount * LODIterationFactor;
 		}
+
+		const uint32 FallbackEndTime = FPlatformTime::Cycles();
+		UE_LOG(LogStaticMesh, Log, TEXT("Fallback %d/%d [%.2fs], num tris: %d"), FallbackLODIndex, OutputLODMeshData.Num(), FPlatformTime::ToMilliseconds(FallbackEndTime - FallbackStartTime) / 1000.0f, FallbackLODMeshData.TriangleIndices.Num() / 3);
 	}
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
@@ -645,14 +639,14 @@ bool FBuilderModule::Build(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
-	check(Settings.PercentTriangles == 1.0f); // No coarse representation used by this path
+	check(Settings.FallbackPercentTriangles == 1.0f); // No coarse representation used by this path
 
 	FVertexMeshData InputMeshData;
 	InputMeshData.Vertices = Vertices;
 	InputMeshData.TriangleIndices = TriangleIndices;
 	// Section are left empty because they are not touched anyway (not building a coarse representation)
 	
-	TArray<FVertexMeshData, TInlineAllocator<2>> EmptyOutputLODMeshData;
+	TArrayView< FVertexMeshData > EmptyOutputLODMeshData;
 	
 	return BuildNaniteData(
 		Resources,
@@ -668,7 +662,7 @@ bool FBuilderModule::Build(
 bool FBuilderModule::Build(
 	FResources& Resources,
 	FVertexMeshData& InputMeshData,
-	TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
+	TArrayView< FVertexMeshData > OutputLODMeshData,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)
 {

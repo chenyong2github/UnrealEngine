@@ -796,7 +796,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 
 	if (StaticMesh->NaniteSettings.bEnabled)
 	{
-		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NaniteEnabled", "<TextBlock.ShadowedText>Nanite Enabled</> <TextBlock.ShadowedTextWarning>{0}</>"), StaticMeshComponent->bDisplayNaniteProxyMesh ? NSLOCTEXT("UnrealEd", "ShowingNaniteProxy", "(Showing Proxy)") : FText::GetEmpty()), false, true);
+		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NaniteEnabled", "<TextBlock.ShadowedText>Nanite Enabled</> <TextBlock.ShadowedTextWarning>{0}</>"), StaticMeshComponent->bDisplayNaniteFallbackMesh ? NSLOCTEXT("UnrealEd", "ShowingNaniteFallback", "(Showing Fallback)") : FText::GetEmpty()), false, true);
 
 		if (StaticMesh->GetRenderData())
 		{
@@ -862,9 +862,9 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Nanite_Triangles_F", "Nanite Triangles:  {0}"), NaniteTriangleCount));
 				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Nanite_Vertices_F", "Nanite Vertices:  {0}"), NaniteVertexCount));
 
-				// Proxy Mesh Information
-				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Proxy_Triangles_F", "Proxy Triangles:  {0}"), StaticMeshTriangleCount));
-				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Proxy_Vertices_F", "Proxy Vertices:  {0}"), StaticMeshVertexCount));
+				// Fallback Mesh Information
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Fallback_Triangles_F", "Fallback Triangles:  {0}"), StaticMeshTriangleCount));
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Fallback_Vertices_F", "Fallback Vertices:  {0}"), StaticMeshVertexCount));
 			}
 		}
 	}

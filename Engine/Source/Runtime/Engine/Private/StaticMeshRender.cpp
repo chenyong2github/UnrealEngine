@@ -2369,7 +2369,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
 	if (ShouldCreateNaniteProxy() 
 	#if WITH_EDITORONLY_DATA
-		&& !bDisplayNaniteProxyMesh
+		&& !bDisplayNaniteFallbackMesh
 	#endif
 	)
 	{
@@ -2385,7 +2385,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		const bool bAllowProxyRender = GNaniteProxyRenderMode == 0
 	#if WITH_EDITORONLY_DATA
 			// Check for specific case of static mesh editor "proxy toggle"
-			|| (bDisplayNaniteProxyMesh && GNaniteProxyRenderMode == 2)
+			|| (bDisplayNaniteFallbackMesh && GNaniteProxyRenderMode == 2)
 	#endif
 		;
 

@@ -209,21 +209,21 @@ bool SStaticMeshEditorViewport::PreviewComponentSelectionOverride(const UPrimiti
 	return false;
 }
 
-void SStaticMeshEditorViewport::ToggleShowNaniteProxy()
+void SStaticMeshEditorViewport::ToggleShowNaniteFallback()
 {
 	if (PreviewMeshComponent)
 	{
 		FComponentReregisterContext ReregisterContext(PreviewMeshComponent);
-		PreviewMeshComponent->bDisplayNaniteProxyMesh = !PreviewMeshComponent->bDisplayNaniteProxyMesh;
+		PreviewMeshComponent->bDisplayNaniteFallbackMesh = !PreviewMeshComponent->bDisplayNaniteFallbackMesh;
 	}
 }
 
-bool SStaticMeshEditorViewport::IsShowNaniteProxyChecked() const
+bool SStaticMeshEditorViewport::IsShowNaniteFallbackChecked() const
 {
-	return PreviewMeshComponent ? PreviewMeshComponent->bDisplayNaniteProxyMesh : false;
+	return PreviewMeshComponent ? PreviewMeshComponent->bDisplayNaniteFallbackMesh : false;
 }
 
-bool SStaticMeshEditorViewport::IsShowNaniteProxyVisible() const
+bool SStaticMeshEditorViewport::IsShowNaniteFallbackVisible() const
 {
 	const UStaticMesh* PreviewStaticMesh = PreviewMeshComponent ? ToRawPtr(PreviewMeshComponent->GetStaticMesh()) : nullptr;
 
@@ -566,11 +566,11 @@ void SStaticMeshEditorViewport::BindCommands()
 	TSharedRef<FStaticMeshEditorViewportClient> EditorViewportClientRef = EditorViewportClient.ToSharedRef();
 
 	CommandList->MapAction(
-		Commands.SetShowNaniteProxy,
-		FExecuteAction::CreateSP(this, &SStaticMeshEditorViewport::ToggleShowNaniteProxy),
+		Commands.SetShowNaniteFallback,
+		FExecuteAction::CreateSP(this, &SStaticMeshEditorViewport::ToggleShowNaniteFallback),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteProxyChecked),
-		FIsActionButtonVisible::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteProxyVisible));
+		FIsActionChecked::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteFallbackChecked),
+		FIsActionButtonVisible::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteFallbackVisible));
 
 	CommandList->MapAction(
 		Commands.SetShowWireframe,

@@ -59,12 +59,13 @@ public:
 		TArray<FStaticMeshBuildVertex> Vertices;
 		TArray<uint32> TriangleIndices;
 		TArray<FStaticMeshSection, TInlineAllocator<1>> Sections;
+		float PercentTriangles;
 	};
 
 	virtual bool Build(
 		FResources& Resources,
 		FVertexMeshData& InputMeshData,
-		TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
+		TArrayView< FVertexMeshData > OutputLODMeshData,
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings)
 	{
