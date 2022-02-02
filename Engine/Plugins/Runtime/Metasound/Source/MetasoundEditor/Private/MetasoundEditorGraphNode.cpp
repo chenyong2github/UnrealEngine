@@ -9,6 +9,7 @@
 #include "GraphEditorActions.h"
 #include "Logging/TokenizedMessage.h"
 #include "Metasound.h"
+#include "MetasoundAssetManager.h"
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -179,7 +180,7 @@ void UMetasoundEditorGraphNode::SyncChangeIDs()
 
 	MetadataChangeID = NodeHandle->GetClassMetadata().GetChangeID();
 	InterfaceChangeID = NodeHandle->GetClassInterface().GetChangeID();
-
+	StyleChangeID = NodeHandle->GetClassStyle().GetChangeID();
 }
 
 void UMetasoundEditorGraphNode::CacheTitle()
@@ -205,6 +206,14 @@ bool UMetasoundEditorGraphNode::ContainsInterfaceChange() const
 	FConstNodeHandle NodeHandle = GetConstNodeHandle();
 
 	return InterfaceChangeID != NodeHandle->GetClassInterface().GetChangeID();
+}
+
+bool UMetasoundEditorGraphNode::ContainsStyleChange() const
+{
+	using namespace Metasound::Frontend;
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+
+	return StyleChangeID != NodeHandle->GetClassStyle().GetChangeID();
 }
 
 void UMetasoundEditorGraphNode::ReconstructNode()
@@ -703,28 +712,12 @@ bool UMetasoundEditorGraphExternalNode::CanAutoUpdate() const
 
 void UMetasoundEditorGraphExternalNode::CacheTitle()
 {
-	using namespace Metasound;
+	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	Super::CacheTitle();
-
-	// If version is missing from the registry, then this node will not cache
-	// a useful title.  In that case, just display the next highest available name.
-	if (CachedTitle.IsEmpty())
-	{
-		FMetasoundFrontendClass ClassWithHighestVersion;
-		if (ISearchEngine::Get().FindClassWithHighestVersion(ClassName, ClassWithHighestVersion))
-		{
-			CachedTitle = ClassWithHighestVersion.Metadata.GetDisplayName();
-		}
-	}
-
-	// If that cannot be found, build a title from the cached node registry FName.
-	if (CachedTitle.IsEmpty())
-	{
-		CachedTitle = FText::FromString(ClassName.ToString());
-	}
-
+	constexpr bool bIncludeNamespace = false;
+	FConstNodeHandle NodeHandle = GetNodeHandle();
+	CachedTitle = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
 }
 
 UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
@@ -908,15 +901,15 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 	{
 		if (RegisteredClass.Metadata.GetIsDeprecated())
 		{
+			constexpr bool bIncludeNamespace = true;
 			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Warning,
 				FString::Format(TEXT("Class '{0} {1}' is deprecated."),
 				{
-					*RegisteredClass.Metadata.GetClassName().ToString(),
+					*FGraphBuilder::GetDisplayName(RegisteredClass.Metadata, { }, bIncludeNamespace).ToString(),
 					*RegisteredClass.Metadata.GetVersion().ToString()
 				}));
 		}
 	}
-
 
 	// Find all available versions & report if upgrade available
 	const Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();

@@ -60,8 +60,8 @@ protected:
 	void PostEngineInit();
 	void PostInitAssetScan();
 	void RebuildDenyListCache(const UAssetManager& InAssetManager);
+	void ResetAssetClassDisplayName(const FAssetData& InAssetData);
 	void SearchAndIterateDirectoryAssets(const TArray<FDirectoryPath>& InDirectories, TFunctionRef<void(const FAssetData&)> InFunction);
-	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
 
 private:
 	int32 AutoUpdateDenyListChangeID = INDEX_NONE;

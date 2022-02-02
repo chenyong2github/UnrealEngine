@@ -110,9 +110,13 @@ public:
 	// Returns whether or not Interface has been changed since the last node refresh
 	bool ContainsInterfaceChange() const;
 
+	// Returns whether or not Style has been changed since the last node refresh
+	bool ContainsStyleChange() const;
+
 protected:
 	FGuid InterfaceChangeID;
 	FGuid MetadataChangeID;
+	FGuid StyleChangeID;
 
 	// Not be serialized to avoid text desync as the registry can provide
 	// a new name if the external definition changes between application sessions.

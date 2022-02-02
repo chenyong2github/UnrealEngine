@@ -85,27 +85,79 @@ namespace Metasound
 			}
 		} // namespace GraphBuilderPrivate
 
-		FText FGraphBuilder::GetDisplayName(const Frontend::INodeController& InFrontendNode, bool bInIncludeNamespace)
+		FText FGraphBuilder::GetDisplayName(const FMetasoundFrontendClassMetadata& InClassMetadata, FName InNodeName, bool bInIncludeNamespace)
 		{
+			using namespace Frontend;
+
 			FName Namespace;
 			FName ParameterName;
-			Audio::FParameterPath::SplitName(InFrontendNode.GetNodeName(), Namespace, ParameterName);
+			Audio::FParameterPath::SplitName(InNodeName, Namespace, ParameterName);
 
-			FText DisplayName = InFrontendNode.GetDisplayName();
+			FText DisplayName;
+			auto GetAssetDisplayNameFromMetadata = [&DisplayName](const FMetasoundFrontendClassMetadata& Metadata)
+			{
+				DisplayName = Metadata.GetDisplayName();
+				if (DisplayName.IsEmptyOrWhitespace())
+				{
+					const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
+					bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+					if (!bIsClassNative)
+					{
+						if (IMetaSoundAssetManager* AssetManager = IMetaSoundAssetManager::Get())
+						{
+							if (const FSoftObjectPath* Path = AssetManager->FindObjectPathFromKey(RegistryKey))
+							{
+								DisplayName = FText::FromString(Path->GetAssetName());
+							}
+						}
+					}
+				}
+			};
+
+			// 1. Try to get display name from metadata or asset if one can be found from the asset manager
+			GetAssetDisplayNameFromMetadata(InClassMetadata);
+
+			// 2. If version is missing from the registry or from asset system, then this node
+			// will not provide a useful DisplayName.  In that case, attempt to find the next highest
+			// class & associated DisplayName.
 			if (DisplayName.IsEmptyOrWhitespace())
 			{
-				DisplayName = FText::FromName(ParameterName);
+				FMetasoundFrontendClass ClassWithHighestVersion;
+				if (ISearchEngine::Get().FindClassWithHighestVersion(InClassMetadata.GetClassName(), ClassWithHighestVersion))
+				{
+					GetAssetDisplayNameFromMetadata(ClassWithHighestVersion.Metadata);
+				}
 			}
 
+			// 3. If that cannot be found, build a title from the cached node registry FName.
+			if (DisplayName.IsEmptyOrWhitespace())
+			{
+				DisplayName = FText::FromString(ParameterName.ToString());
+			}
+
+			// 4. Tack on the namespace if requested
 			if (bInIncludeNamespace)
 			{
 				if (!Namespace.IsNone())
 				{
-					return FText::Format(LOCTEXT("MemberDisplayNameWithNamespaceFormat", "{0} ({1})"), DisplayName, FText::FromName(Namespace));
+					return FText::Format(LOCTEXT("ClassMetadataDisplayNameWithNamespaceFormat", "{0} ({1})"), DisplayName, FText::FromName(Namespace));
 				}
 			}
 
 			return DisplayName;
+		}
+
+		FText FGraphBuilder::GetDisplayName(const Frontend::INodeController& InFrontendNode, bool bInIncludeNamespace)
+		{
+			using namespace Frontend;
+
+			FText DisplayName = InFrontendNode.GetDisplayName();
+			if (!DisplayName.IsEmptyOrWhitespace())
+			{
+				return DisplayName;
+			}
+
+			return GetDisplayName(InFrontendNode.GetClassMetadata(), InFrontendNode.GetNodeName(), bInIncludeNamespace);
 		}
 
 		FText FGraphBuilder::GetDisplayName(const Frontend::IInputController& InFrontendInput)
@@ -349,9 +401,10 @@ namespace Metasound
 			{
 				bMarkDirty |= Result.bIsDirty;
 				check(Result.Node);
-				const bool bMetadataChange = Result.Node->ContainsInterfaceChange();
-				const bool bInterfaceChange = Result.Node->ContainsMetadataChange();
-				if (Result.bIsDirty || bMetadataChange || bInterfaceChange || bForceRefreshNodes)
+				const bool bInterfaceChange = Result.Node->ContainsInterfaceChange();
+				const bool bMetadataChange = Result.Node->ContainsMetadataChange();
+				const bool bStyleChange = Result.Node->ContainsStyleChange();
+				if (Result.bIsDirty || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
 				{
 					Result.Node->SyncChangeIDs();
 					Result.Node->CacheTitle();
@@ -1269,7 +1322,7 @@ namespace Metasound
 			}
 		}
 
-		void FGraphBuilder::RegisterGraphWithFrontend(UObject& InMetaSound)
+		void FGraphBuilder::RegisterGraphWithFrontend(UObject& InMetaSound, bool bInForceViewSynchronization)
 		{
 			using namespace Frontend;
 
@@ -1298,8 +1351,8 @@ namespace Metasound
 
 			FMetaSoundAssetRegistrationOptions RegOptions;
 			RegOptions.bForceReregister = true;
+			RegOptions.bForceViewSynchronization = bInForceViewSynchronization;
 			RegOptions.bRegisterDependencies = true;
-
 			// if EditedReferencingMetaSounds is empty, then no MetaSounds are open
 			// that reference this MetaSound, so just register this asset. Otherwise,
 			// this graph will recursively get updated when the open referencing graphs

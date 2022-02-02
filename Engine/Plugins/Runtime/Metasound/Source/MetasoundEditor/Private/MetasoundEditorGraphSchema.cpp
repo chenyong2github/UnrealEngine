@@ -1544,19 +1544,19 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 			FText KeywordsText = FText::Join(SchemaPrivate::KeywordDelim, Metadata.GetKeywords());
 			const FText CategoryText = FText::Join(SchemaPrivate::CategoryDelim, Metadata.GetCategoryHierarchy());
 
+			constexpr bool bShowNamespace = false; // TODO: Make this an option to display
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
 				CategoryText,
-				Metadata.GetDisplayName(),
+				FGraphBuilder::GetDisplayName(Metadata, FName(), bShowNamespace),
 				Tooltip,
 				EPrimaryContextGroup::Conversions,
 				KeywordsText
 			);
 
 			Metadata.SetType(EMetasoundFrontendClassType::External);
-			NewNodeAction->ClassMetadata = Metadata;
+			NewNodeAction->ClassMetadata = MoveTemp(Metadata);
 			ActionMenuBuilder.AddAction(NewNodeAction);
-
 		}
 	}
 }
@@ -1679,10 +1679,11 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 			const FText KeywordsText = FText::Join(KeywordDelim, Metadata.GetKeywords());
 			const FText CategoryText = FText::Join(CategoryDelim, CategoryHierarchy);
 
+			constexpr bool bShowNamespace = false; // TODO: Make this an option to display
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
 				CategoryText,
-				Metadata.GetDisplayName(),
+				FGraphBuilder::GetDisplayName(Metadata, FName(), bShowNamespace),
 				Tooltip,
 				ContextGroup,
 				KeywordsText

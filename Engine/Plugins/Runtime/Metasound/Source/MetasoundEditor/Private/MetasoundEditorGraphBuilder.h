@@ -70,13 +70,22 @@ namespace Metasound
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& InEdGraph);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
-			static void RegisterGraphWithFrontend(UObject& InMetaSound);
+			// @param InMetaSound - MetaSound to register
+			// @param bInForceSynchronize - Forces the synchronize flag for all open graphs being registered by this call (all referenced graphs and
+			// referencing graphs open in editors)
+			static void RegisterGraphWithFrontend(UObject& InMetaSound, bool bInForceViewSynchronization = false);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void UnregisterGraphWithFrontend(UObject& InMetaSound);
 
 			// Returns a display name for a node. If the node has an empty or whitespace
-			// only DisplayName, then the NodeName is used. 
+			// only DisplayName, first attempts to use the asset name if class is defined
+			// in an asset, and finally the NodeName is used.
+			static FText GetDisplayName(const FMetasoundFrontendClassMetadata& InClassMetadata, FName InNodeName, bool bInIncludeNamespace);
+
+			// Returns a display name for a node. If the node has an empty or whitespace
+			// only DisplayName, first attempts to use the asset name if class is defined
+			// in an asset, and finally the NodeName is used.
 			static FText GetDisplayName(const Frontend::INodeController& InFrontendNode, bool bInIncludeNamespace);
 
 			// Returns a display name for an input. If the input has an empty or whitespace

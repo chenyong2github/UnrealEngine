@@ -757,22 +757,6 @@ namespace Metasound
 			return ClassOutputs;
 		}
 
-		bool FSynchronizeAssetClassDisplayName::Transform(FDocumentHandle InDocument) const
-		{
-			const FMetasoundFrontendClassMetadata& Metadata = InDocument->GetRootGraphClass().Metadata;
-			const FText NewAssetName = FText::FromString(AssetName.ToString());
-
-			if (Metadata.GetDisplayName().CompareTo(NewAssetName) != 0)
-			{
-				FMetasoundFrontendClassMetadata NewMetadata = Metadata;
-				NewMetadata.SetDisplayName(NewAssetName);
-				InDocument->GetRootGraph()->SetGraphMetadata(NewMetadata);
-				return true;
-			}
-
-			return false;
-		}
-
 		bool FRegenerateAssetClassName::Transform(FDocumentHandle InDocument) const
 		{
 			FMetasoundFrontendClassMetadata Metadata = InDocument->GetRootGraph()->GetGraphMetadata();
@@ -985,7 +969,14 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
-				FSynchronizeAssetClassDisplayName(AssetName).Transform(InDocument);
+				const FMetasoundFrontendClassMetadata& Metadata = InDocument->GetRootGraphClass().Metadata;
+				const FText NewAssetName = FText::FromString(AssetName.ToString());
+				if (Metadata.GetDisplayName().CompareTo(NewAssetName) != 0)
+				{
+					FMetasoundFrontendClassMetadata NewMetadata = Metadata;
+					NewMetadata.SetDisplayName(NewAssetName);
+					InDocument->GetRootGraph()->SetGraphMetadata(NewMetadata);
+				}
 			}
 
 		private:
@@ -1128,6 +1119,28 @@ namespace Metasound
 			}
 		};
 
+		/** Versions document from 1.8 to 1.9. */
+		class FVersionDocument_1_9 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_9() = default;
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return { 1, 9 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				// Display name text is no longer copied at this versioning point for assets
+				// from the asset's FName to avoid FText warnings regarding generation from
+				// an FString.  It also avoids desync if asset gets moved.
+				FMetasoundFrontendGraphClass RootGraphClass = InDocument->GetRootGraphClass();
+				RootGraphClass.Metadata.SetDisplayName(FText());
+				InDocument->SetRootGraphClass(MoveTemp(RootGraphClass));
+			}
+		};
+
 		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
 			: Name(InName)
 			, Path(InPath)
@@ -1154,12 +1167,13 @@ namespace Metasound
 			bWasUpdated |= FVersionDocument_1_6().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_7().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_8().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_9().Transform(InDocument);
 
 			if (bWasUpdated)
 			{
 				const FText& DisplayName = InDocument->GetRootGraph()->GetGraphMetadata().GetDisplayName();
 				const FMetasoundFrontendVersionNumber NewVersionNumber = InDocument->GetMetadata().Version.Number;
-				UE_LOG(LogMetaSound, Display, TEXT("MetaSound Graph '%s' Parent Document Versioned: '%s' --> '%s'"), *DisplayName.ToString(), *InitVersionNumber.ToString(), *NewVersionNumber.ToString());
+				UE_LOG(LogMetaSound, Display, TEXT("MetaSound at '%s' Document Versioned: '%s' --> '%s'"), *Path, *InitVersionNumber.ToString(), *NewVersionNumber.ToString());
 			}
 
 			return bWasUpdated;

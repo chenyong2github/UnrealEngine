@@ -136,21 +136,6 @@ namespace Metasound
 			const FString DebugAssetPath;
 		};
 
-		/** Synchronizes the document's root graph's display name with that of the asset. */
-		class METASOUNDFRONTEND_API FSynchronizeAssetClassDisplayName : public IDocumentTransform
-		{
-		public:
-			FSynchronizeAssetClassDisplayName(FName InAssetName)
-				: AssetName(InAssetName)
-			{
-			}
-
-			bool Transform(FDocumentHandle InDocument) const override;
-
-		private:
-			FName AssetName;
-		};
-
 		/** Regenerates the class' name, effectively causing the class to get registered as
 		  * a new class (useful for when an asset is duplicated). */
 		class METASOUNDFRONTEND_API FRegenerateAssetClassName : public IDocumentTransform
@@ -171,7 +156,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 8 };
+				return FMetasoundFrontendVersionNumber { 1, 9 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

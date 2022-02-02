@@ -36,6 +36,9 @@ namespace Metasound
 			// if the following option 'bRegisterDependencies' is enabled).
 			bool bForceReregister = true;
 
+			// If true, forces flag to resync all view (editor) data pertaining to the given asset(s) being registered.
+			bool bForceViewSynchronization = true;
+
 			// If true, recursively attempts to register dependencies.
 			bool bRegisterDependencies = false;
 

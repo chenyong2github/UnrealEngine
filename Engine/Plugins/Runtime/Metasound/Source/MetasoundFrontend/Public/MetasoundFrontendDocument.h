@@ -974,7 +974,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Metasound)
 	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
-	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText DisplayName;
 
 	UPROPERTY(Transient)
@@ -999,7 +999,7 @@ private:
 	UPROPERTY(Transient)
 	FText AuthorTransient;
 
-	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	TArray<FText> Keywords;
 
 	UPROPERTY(Transient)
@@ -1012,7 +1012,7 @@ private:
 	TArray<FText> CategoryHierarchyTransient;
 
 	// If true, this node is deprecated and should not be used in new MetaSounds.
-	UPROPERTY(VisibleAnywhere, Category = Metasound)
+	UPROPERTY(EditAnywhere, Category = Metasound)
 	bool bIsDeprecated = false;
 
 	// If true, auto-update will manage (add and remove)
@@ -1045,9 +1045,24 @@ public:
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, CategoryHierarchy);
 	}
 
+	static FName GetDisplayNamePropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, DisplayName);
+	}
+
 	static FName GetDescriptionPropertyName()
 	{
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description);
+	}
+
+	static FName GetIsDeprecatedPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, bIsDeprecated);
+	}
+
+	static FName GetKeywordsPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Keywords);
 	}
 
 	static FName GetClassNamePropertyName()
@@ -1154,6 +1169,23 @@ struct FMetasoundFrontendClassStyle
 
 	// Generates class style from core node class metadata.
 	static FMetasoundFrontendClassStyle GenerateClassStyle(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle);
+
+#if WITH_EDITORONLY_DATA
+	// Editor only ID that allows for pumping view to reflect changes to class.
+	void UpdateChangeID()
+	{
+		ChangeID = FGuid::NewGuid();
+	}
+
+	FGuid GetChangeID() const
+	{
+		return ChangeID;
+	}
+
+private:
+	UPROPERTY(Transient)
+	FGuid ChangeID;
+#endif // WITH_EDITORONLY_DATA
 };
 
 USTRUCT()

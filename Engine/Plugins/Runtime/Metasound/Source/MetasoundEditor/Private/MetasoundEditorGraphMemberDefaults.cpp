@@ -215,7 +215,7 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	}
 
 	// TODO: Remove this once widget Metadata is migrated to frontend
-	// Metadata, which will inherently update the change guid and issue
+	// style, which will inherently update the change guid and issue
 	// resync.
 	UMetasoundEditorGraphMember* Member = GetParentMember();
 	if (ensure(Member))

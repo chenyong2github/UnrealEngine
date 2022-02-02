@@ -343,6 +343,9 @@ namespace Metasound
 					const FName AuthorPropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetAuthorPropertyName());
 					const FName CategoryHierarchyPropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetCategoryHierarchyPropertyName());
 					const FName DescPropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetDescriptionPropertyName());
+					const FName DisplayNamePropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetDisplayNamePropertyName());
+					const FName KeywordsPropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetKeywordsPropertyName());
+					const FName IsDeprecatedPropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetIsDeprecatedPropertyName());
 
 					const FName ClassNamePropertyPath = BuildChildPath(GetMetadataPropertyPath(), FMetasoundFrontendClassMetadata::GetClassNamePropertyName());
 					const FName ClassNameNamePropertyPath = BuildChildPath(ClassNamePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassName, Name));
@@ -356,10 +359,13 @@ namespace Metasound
 					TSharedPtr<IPropertyHandle> AuthorHandle = DetailLayout.GetProperty(AuthorPropertyPath);
 					TSharedPtr<IPropertyHandle> CategoryHierarchyHandle = DetailLayout.GetProperty(CategoryHierarchyPropertyPath);
 					TSharedPtr<IPropertyHandle> ClassNameHandle = DetailLayout.GetProperty(ClassNameNamePropertyPath);
+					TSharedPtr<IPropertyHandle> DisplayNameHandle = DetailLayout.GetProperty(DisplayNamePropertyPath);
 					TSharedPtr<IPropertyHandle> DescHandle = DetailLayout.GetProperty(DescPropertyPath);
+					TSharedPtr<IPropertyHandle> KeywordsHandle = DetailLayout.GetProperty(KeywordsPropertyPath);
+					TSharedPtr<IPropertyHandle> IsDeprecatedHandle = DetailLayout.GetProperty(IsDeprecatedPropertyPath);
+					TSharedPtr<IPropertyHandle> InterfaceVersionsHandle = DetailLayout.GetProperty(InterfaceVersionsPropertyPath);
 					TSharedPtr<IPropertyHandle> MajorVersionHandle = DetailLayout.GetProperty(MajorVersionPropertyPath);
 					TSharedPtr<IPropertyHandle> MinorVersionHandle = DetailLayout.GetProperty(MinorVersionPropertyPath);
-					TSharedPtr<IPropertyHandle> InterfaceVersionsHandle = DetailLayout.GetProperty(InterfaceVersionsPropertyPath);
 
 					// Invalid for UMetaSounds
 					TSharedPtr<IPropertyHandle> OutputFormat = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMetaSoundSource, OutputFormat));
@@ -409,8 +415,32 @@ namespace Metasound
 						OutputFormat->MarkHiddenByCustomization();
 					}
 
-					GeneralCategoryBuilder.AddProperty(AuthorHandle);
+					// Updates FText properties on open editors if required
+					{
+						FSimpleDelegate RegisterOnChange = FSimpleDelegate::CreateLambda([this]()
+							{
+								if (MetaSound.IsValid())
+								{
+									if (FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
+									{
+										MetaSoundAsset->GetDocumentChecked().RootGraph.Style.UpdateChangeID();
+									}
+									constexpr bool bForceViewSynchronization = true;
+									FGraphBuilder::RegisterGraphWithFrontend(*MetaSound.Get(), bForceViewSynchronization);
+								}
+							});
+						AuthorHandle->SetOnChildPropertyValueChanged(RegisterOnChange);
+						DescHandle->SetOnPropertyValueChanged(RegisterOnChange);
+						DisplayNameHandle->SetOnPropertyValueChanged(RegisterOnChange);
+						KeywordsHandle->SetOnPropertyValueChanged(RegisterOnChange);
+						KeywordsHandle->SetOnChildPropertyValueChanged(RegisterOnChange);
+						IsDeprecatedHandle->SetOnPropertyValueChanged(RegisterOnChange);
+					}
+
+					GeneralCategoryBuilder.AddProperty(DisplayNameHandle);
 					GeneralCategoryBuilder.AddProperty(DescHandle);
+					GeneralCategoryBuilder.AddProperty(AuthorHandle);
+					GeneralCategoryBuilder.AddProperty(IsDeprecatedHandle);
 					GeneralCategoryBuilder.AddProperty(MajorVersionHandle);
 					GeneralCategoryBuilder.AddProperty(MinorVersionHandle);
 
@@ -431,6 +461,7 @@ namespace Metasound
 						ClassNameHandle->CreatePropertyValueWidget()
 					];
 					GeneralCategoryBuilder.AddProperty(CategoryHierarchyHandle);
+					GeneralCategoryBuilder.AddProperty(KeywordsHandle);
 
 					CustomizeInterfaces(DetailLayout);
 

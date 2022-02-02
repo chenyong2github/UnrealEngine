@@ -379,8 +379,7 @@ void UMetaSoundAssetSubsystem::RenameAsset(const FAssetData& InAssetData, bool b
 	auto PerformRename = [this, &InAssetData]()
 	{
 		RemoveAsset(InAssetData);
-
-		SynchronizeAssetClassDisplayName(InAssetData);
+		ResetAssetClassDisplayName(InAssetData);
 		AddOrUpdateAsset(InAssetData);
 	};
 
@@ -399,7 +398,7 @@ void UMetaSoundAssetSubsystem::RenameAsset(const FAssetData& InAssetData, bool b
 	}
 }
 
-void UMetaSoundAssetSubsystem::SynchronizeAssetClassDisplayName(const FAssetData& InAssetData)
+void UMetaSoundAssetSubsystem::ResetAssetClassDisplayName(const FAssetData& InAssetData)
 {
 	UObject* Object = nullptr;
 	FSoftObjectPath Path(InAssetData.ObjectPath);
@@ -414,7 +413,8 @@ void UMetaSoundAssetSubsystem::SynchronizeAssetClassDisplayName(const FAssetData
 
 	FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
 	check(MetaSoundAsset);
-	Metasound::Frontend::FSynchronizeAssetClassDisplayName(InAssetData.AssetName).Transform(MetaSoundAsset->GetDocumentHandle());
+	FMetasoundFrontendGraphClass& Class = MetaSoundAsset->GetDocumentChecked().RootGraph;
+	Class.Metadata.SetDisplayName(FText());
 }
 
 void UMetaSoundAssetSubsystem::SearchAndIterateDirectoryAssets(const TArray<FDirectoryPath>& InDirectories, TFunctionRef<void(const FAssetData&)> InFunction)
