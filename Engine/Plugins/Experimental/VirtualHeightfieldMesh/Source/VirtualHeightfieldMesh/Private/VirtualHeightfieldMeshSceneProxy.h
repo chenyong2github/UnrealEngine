@@ -34,7 +34,8 @@ public:
 
 	class URuntimeVirtualTexture* RuntimeVirtualTexture;
 	class FMaterialRenderProxy* Material;
-	
+	FMaterialRelevance MaterialRelevance;
+
 	class UTexture2D* HeightMinMaxTexture;
 	class UTexture2D* LodBiasTexture;
 	class UTexture2D* LodBiasMinMaxTexture;

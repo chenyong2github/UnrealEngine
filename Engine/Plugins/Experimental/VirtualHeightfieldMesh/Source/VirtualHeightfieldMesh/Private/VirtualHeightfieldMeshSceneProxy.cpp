@@ -381,6 +381,7 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	UMaterialInterface* ComponentMaterial = InComponent->GetMaterial();
 	const bool bValidMaterial = ComponentMaterial != nullptr && ComponentMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
 	Material = bValidMaterial ? ComponentMaterial->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	MaterialRelevance = Material->GetMaterialInterface()->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 
 	const FTransform VirtualTextureTransform = InComponent->GetVirtualTextureTransform();
 
@@ -517,6 +518,7 @@ FPrimitiveViewRelevance FVirtualHeightfieldMeshSceneProxy::GetViewRelevance(cons
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 	Result.bTranslucentSelfShadow = false;
 	Result.bVelocityRelevance = false;
+	MaterialRelevance.SetPrimitiveViewRelevance(Result);
 	return Result;
 }
 
