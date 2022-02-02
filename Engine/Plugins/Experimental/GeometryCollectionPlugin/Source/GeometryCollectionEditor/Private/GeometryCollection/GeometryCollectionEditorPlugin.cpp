@@ -21,7 +21,6 @@
 #include "HAL/ConsoleManager.h"
 #include "Features/IModularFeatures.h"
 #include "GeometryCollection/DetailCustomizations/GeomComponentCacheCustomization.h"
-#include "GeometryCollection/DetailCustomizations/SelectedRigidBodyCustomization.h"
 #include "GeometryCollection/DetailCustomizations/WarningMessageCustomization.h"
 #include "GeometryCollection/DetailCustomizations/GeometryCollectionCustomization.h"
 #include "Styling/SlateStyle.h"
@@ -223,7 +222,6 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	if(PropertyModule)
 	{
 		PropertyModule->RegisterCustomPropertyTypeLayout("GeomComponentCacheParameters", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGeomComponentCacheParametersCustomization::MakeInstance));
-		PropertyModule->RegisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawActorSelectedRigidBody", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSelectedRigidBodyCustomization::MakeInstance));
 		PropertyModule->RegisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawWarningMessage", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWarningMessageCustomization::MakeInstance));
 
 		const FName GeometryCollectionName = UGeometryCollection::StaticClass()->GetFName();

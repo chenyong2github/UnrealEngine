@@ -40,7 +40,7 @@ enum class EGeometryCollectionDebugDrawActorHideGeometry : uint8
 *   Empty structure used to embed a warning message in the UI through a detail customization.
 */
 USTRUCT()
-struct FGeometryCollectionDebugDrawWarningMessage
+struct UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics commands") FGeometryCollectionDebugDrawWarningMessage
 {
 	GENERATED_USTRUCT_BODY()
 };
@@ -50,7 +50,7 @@ struct FGeometryCollectionDebugDrawWarningMessage
 *   Structure used to select a rigid body id with a picking tool through a detail customization.
 */
 USTRUCT()
-struct FGeometryCollectionDebugDrawActorSelectedRigidBody
+struct UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics commands") FGeometryCollectionDebugDrawActorSelectedRigidBody
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -81,20 +81,22 @@ struct FGeometryCollectionDebugDrawActorSelectedRigidBody
 *   Only one actor is to be used in the world, and should be automatically 
 *   spawned by any GeometryDebugDrawComponent that needs it.
 */
+class UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics commands") AGeometryCollectionDebugDrawActor;
 UCLASS(HideCategories = ("Rendering", "Replication", "Input", "Actor", "Collision", "LOD", "Cooking"))
 class GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionDebugDrawActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 public:
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Warning message to explain that the debug draw properties have no effect until starting playing/simulating. */
-	UPROPERTY(EditAnywhere, Category = "Debug Draw")
-	FGeometryCollectionDebugDrawWarningMessage WarningMessage;
+	UPROPERTY()
+	FGeometryCollectionDebugDrawWarningMessage WarningMessage_DEPRECATED;
 
 	/** Picking tool used to select a rigid body id. */
-	UPROPERTY(EditAnywhere, Category = "Debug Draw")
-	FGeometryCollectionDebugDrawActorSelectedRigidBody SelectedRigidBody;
-
+	UPROPERTY()
+	FGeometryCollectionDebugDrawActorSelectedRigidBody SelectedRigidBody_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/** Show debug visualization for the rest of the geometry collection related to the current rigid body id selection. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw")
 	bool bDebugDrawWholeCollection;
@@ -331,241 +333,4 @@ public:
 	/** Display icon in the editor. */
 	UPROPERTY()
 	TObjectPtr<UBillboardComponent> SpriteComponent;
-
-	/** Game tick callback. This tick function is required to clean up the persistent debug lines. */
-	static AGeometryCollectionDebugDrawActor* FindOrCreate(UWorld* World);
-
-	/** Game tick callback. This tick function is required to clean up the persistent debug lines. */
-	virtual void Tick(float DeltaSeconds) override;
-
-	/** Actor destruction callback. Used here to clear up the command callbacks. */
-	virtual void BeginDestroy() override;
-
-	/** Register debug draw service. */
-	virtual void BeginPlay() override;
-
-	/** Unregister debug draw service. */
-	virtual void EndPlay(EEndPlayReason::Type ReasonEnd) override;
-
-	/** Reset command variables from the newly loaded properties. */
-	virtual void PostLoad() override;
-
-#if WITH_EDITOR
-	/** Property changed callback. Required to synchronize the command variables to this Actor's properties. */
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
-	/** Some properties are unlocked depending on the value of the indices not being -1. */
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-#endif
-
-	/** Draw vertices. */
-	void DrawVertices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw vertices for the part of the geometry attached to the specified transform index. */
-	void DrawVertices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw vertex indices. */
-	void DrawVertexIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw vertex indices for the part of the geometry attached to the specified transform index. */
-	void DrawVertexIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw vertex normals. */
-	void DrawVertexNormals(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw vertex normals for the part of the geometry attached to the specified transform index. */
-	void DrawVertexNormals(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw faces. */
-	void DrawFaces(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw faces for the part of the geometry attached to the specified transform index. */
-	void DrawFaces(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw face indices. */
-	void DrawFaceIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw face indices for the part of the geometry attached to the specified transform index. */
-	void DrawFaceIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw face normals. */
-	void DrawFaceNormals(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw face normals for the part of the geometry attached to the specified transform index. */
-	void DrawFaceNormals(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw single face. */
-	void DrawSingleFace(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const int32 FaceIndex, const FColor& Color);
-
-	/** Draw geometry indices. */
-	void DrawGeometryIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw the geometry index for the part of the geometry attached to the specified transform index. */
-	void DrawGeometryIndex(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw transforms. */
-	void DrawTransforms(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, float Scale);
-
-	/** Draw the transform for the part of the geometry attached to the specified transform index. */
-	void DrawTransform(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, float Scale);
-
-	/** Draw transform indices. */
-	void DrawTransformIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw the transform index for the part of the geometry attached to the specified transform index. */
-	void DrawTransformIndex(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw hierarchical levels. */
-	void DrawLevels(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw the hierarchical level for the part of the geometry attached to the specified transform index. */
-	void DrawLevel(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw links to the parent. */
-	void DrawParents(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw a link to the parent for the part of the geometry attached to the specified transform index. */
-	void DrawParent(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Draw bounding boxes. */
-	void DrawBoundingBoxes(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
-
-	/** Draw the bounding box for the part of the geometry attached to the specified transform index. */
-	void DrawBoundingBox(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
-
-	/** Return the concatenated transform for the specified particle. */
-	static FTransform GetParticleTransform(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData);
-
-	/** Draw Chaos' rigid body ids. */
-	//void DrawRigidBodiesId(const UGeometryCollectionComponent* GeometryCollectionComponent,  const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color);
-	void DrawRigidBodiesId(const UGeometryCollectionComponent* GeometryCollectionComponent,  const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color);
-
-	/** Draw Chaos' rigid body id. */
-	//void DrawRigidBodyId(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color);
-	void DrawRigidBodyId(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color);
-
-	/** Draw Chaos' rigid body transform. */
-	void DrawRigidBodiesTransform(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, float Scale);
-
-	/** Draw Chaos' single rigid body transform. */
-	void DrawRigidBodyTransform(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, float Scale);
-
-	/** Draw Chaos' implicit collision primitives. */
-	void DrawRigidBodiesCollision(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' implicit single collision primitive. */
-	void DrawRigidBodyCollision(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' inertia tensors. */
-	void DrawRigidBodiesInertia(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body inertia tensor. */
-	void DrawRigidBodyInertia(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' rigid body informations. */
-	void DrawRigidBodiesInfo(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body informations. */
-	void DrawRigidBodyInfo(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' rigid clustering's connectivities edges */
-	//void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray);
-	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray);
-
-	/** Draw Chaos' single rigid clustering's connectivity edges. */
-	//void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, FColor HSVColor = FColor(157, 160, 128));
-	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, FColor HSVColor = FColor(157, 160, 128));
-
-	/** Draw Chaos' rigid body velocity. */
-	void DrawRigidBodiesVelocity(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body velocity. */
-	void DrawRigidBodyVelocity(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' rigid body applied force and torque. */
-	void DrawRigidBodiesForce(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body applied force and torque. */
-	void DrawRigidBodyForce(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-private:
-	/** Return a darker color depending on level. */
-	static FColor MakeDarker(const FColor& Color, int32 Level = 1);
-
-	/** Return a smaller scale depending on level. */
-	static float MakeSmaller(float Scale, int32 Level = 1) { while (--Level >= 0) { Scale *= 0.666666f; } return Scale; }
-
-	/** Return the hierarchy level for this transform index. */
-	static int32 GetLevel(int32 TransformIndex, const TManagedArray<int32>& Parents);
-
-	/** Callback on property changes. */
-	void OnPropertyChanged(bool bForceVisibilityUpdate);
-
-	/** Property update function helper. */
-	template<typename T1, typename T2>
-	void UpdatePropertyValue(T1& PropertyValue, const TAutoConsoleVariable<T2>& ConsoleVariable, bool& bHasChanged);
-
-	/** Property update function helper. */
-	template<typename T, decltype(ImplicitConv<AChaosSolverActor*>(std::declval<T>()))* = nullptr>
-	void UpdatePropertyValue(T& PropertyValue, const TAutoConsoleVariable<FString>& ConsoleVariable, bool& bHasChanged);
-
-	/** Callback on console variable. */
-	void OnCVarsChanged();
-
-	/** Add debug text output. */
-	void AddDebugText(const FString& Text, const FVector& Position = FVector::ZeroVector, const FColor& Color = FColor::White, float Scale = 1.f, bool bDrawShadow = false);
-
-	/** Draw all text output. */
-	void DebugDrawText(UCanvas* Canvas, APlayerController* PlayerController);
-
-	/** Clear all persistent strings and debug lines. */
-	void Flush();
-
-	/** Return the concatenated transform for the specified particle. Must have the ParticleData X, R, and ChildToParentMap already synced. */
-	static FTransform GetParticleTransformNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData);
-
-	/** Draw Chaos' single rigid body id without synchronization checks. */
-	//void DrawRigidBodyIdNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color);
-	void DrawRigidBodyIdNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color);
-
-	/** Draw Chaos' single rigid body transform without synchronization checks. */
-	void DrawRigidBodyTransformNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, float Scale);
-
-	/** Draw Chaos' implicit single collision primitive without synchronization checks. */
-	void DrawRigidBodyCollisionNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' implicit inertia tensor without synchronization checks. */
-	void DrawRigidBodyInertiaNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body informations without synchronization checks. */
-	void DrawRigidBodyInfoNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid clustering's connectivity edges without synchronization checks. */
-	//void DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color);
-	void DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<FGuid>& RigidBodyIdArray, const FColor& Color);
-
-	/** Draw Chaos' single rigid body velocity without synchronization checks. */
-	void DrawRigidBodyVelocityNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-	/** Draw Chaos' single rigid body applied force and torque without synchronization checks. */
-	void DrawRigidBodyForceNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
-
-private:
-	struct FDebugDrawText
-	{
-		FString Text;
-		FVector Position;
-		FColor Color;
-		float Scale;
-		bool bDrawShadow;
-	};
-
-	FConsoleVariableSinkHandle ConsoleVariableSinkHandle;
-	FDelegateHandle DebugDrawTextDelegateHandle;
-	TArray<FDebugDrawText> DebugDrawTexts;
-
-	bool bNeedsDebugLinesFlush;
-#if WITH_EDITOR
-	bool bWasEditorPaused;
-#endif  // #if WITH_EDITOR
 };

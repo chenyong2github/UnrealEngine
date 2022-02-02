@@ -34,10 +34,11 @@ public:
 	TObjectPtr<UGeometryCollectionComponent> GeometryCollectionComponent;
 	UGeometryCollectionComponent* GetGeometryCollectionComponent() const { return GeometryCollectionComponent; }
 
-	UPROPERTY(VisibleAnywhere, Category = Destruction, meta = (ExposeFunctionCategories = "Components|GeometryCollection", AllowPrivateAccess = "true"))
-	TObjectPtr<UGeometryCollectionDebugDrawComponent> GeometryCollectionDebugDrawComponent;
-	UGeometryCollectionDebugDrawComponent* GetGeometryCollectionDebugDrawComponent() const { return GeometryCollectionDebugDrawComponent; }
-
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	TObjectPtr<UGeometryCollectionDebugDrawComponent> GeometryCollectionDebugDrawComponent_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	bool RaycastSingle(FVector Start, FVector End, FHitResult& OutHit) const;
 

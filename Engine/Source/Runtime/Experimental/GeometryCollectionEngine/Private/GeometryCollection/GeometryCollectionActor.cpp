@@ -32,12 +32,7 @@ AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& Obj
 	GeometryCollectionComponent = CreateDefaultSubobject<UGeometryCollectionComponent>(TEXT("GeometryCollectionComponent0"));
 	RootComponent = GeometryCollectionComponent;
 
-#if GEOMETRYCOLLECTION_DEBUG_DRAW
-	GeometryCollectionDebugDrawComponent = CreateDefaultSubobject<UGeometryCollectionDebugDrawComponent>(TEXT("GeometryCollectionDrawComponent0"));
-	GeometryCollectionDebugDrawComponent->GeometryCollectionComponent = GeometryCollectionComponent;
-#else
-	GeometryCollectionDebugDrawComponent = nullptr;
-#endif
+	GeometryCollectionDebugDrawComponent_DEPRECATED = nullptr;
 
 	PrimaryActorTick.bCanEverTick = true;
 	SetActorTickEnabled(true);

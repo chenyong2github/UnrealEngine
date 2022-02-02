@@ -27,19 +27,9 @@ void FWarningMessageCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> S
 	bool bHasBegunPlay = false;
 	for (const TWeakObjectPtr<UObject>& SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
 	{
-		if (AGeometryCollectionDebugDrawActor* const Actor = Cast<AGeometryCollectionDebugDrawActor>(SelectedObject.Get()))
-		{
-			bHasBegunPlay = Actor->HasActorBegunPlay();
-			break;
-		}
 		if (AGeometryCollectionActor* const Actor = Cast<AGeometryCollectionActor>(SelectedObject.Get()))
 		{
 			bHasBegunPlay = Actor->HasActorBegunPlay();
-			break;
-		}
-		if (UGeometryCollectionDebugDrawComponent* const Component = Cast<UGeometryCollectionDebugDrawComponent>(SelectedObject.Get()))
-		{
-			bHasBegunPlay = Component->HasBegunPlay();
 			break;
 		}
 	}
