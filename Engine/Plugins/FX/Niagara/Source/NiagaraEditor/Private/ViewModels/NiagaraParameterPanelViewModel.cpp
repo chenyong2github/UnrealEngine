@@ -180,6 +180,81 @@ FReply FNiagaraScriptToolkitParameterPanelUtilities::CreateDragEventForParameter
 	return FReply::Handled().BeginDragDrop(DragOperation.ToSharedRef());
 }
 
+///////////////////////////////////////////////////////////////////////////////
+/// Generic Parameter Panel Utilities										///
+///////////////////////////////////////////////////////////////////////////////
+
+bool FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceAndToolTipForScriptOrSystem(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip)
+{
+	if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
+	{
+		OutCanSetParameterNamespaceToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespace_ParameterDefinitions", "Cannot change Parameter namespace: Parameters linked to Parameter Definitions may only have their namespace changed in the source Parameter Definitions asset.");
+		return false;
+	}
+	else if (ItemToModify.bExternallyReferenced)
+	{
+		OutCanSetParameterNamespaceToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespace_ExternallyReferenced", "Cannot change Parameter namespace: Parameter is from an externally referenced script and can't be directly edited.");
+		return false;
+	}
+	return true;
+}
+
+bool FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceModifierAndToolTipForScriptOrSystem(const TArray<FNiagaraParameterPanelItem>& CachedViewedItems, const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip)
+{
+	if (FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), NamespaceModifier, OutCanSetParameterNamespaceModifierToolTip) == false)
+	{
+		return false;
+	}
+
+	if (bDuplicateParameter == false)
+	{
+		if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
+		{
+			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespaceModifier_ParameterDefinitions", "Cannot change Parameter namespace modifier: Parameters from Parameter Definitions may only have their namespace modifier changed in the source Parameter Definitions asset.");
+			return false;
+		}
+		else if (ItemToModify.bExternallyReferenced)
+		{
+			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierExternallyReferenced", "Parameter is from an externally referenced script and can't be directly edited.");
+			return false;
+		}
+		else if (NamespaceModifier != NAME_None)
+		{
+			FName NewName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(ItemToModify.GetVariable().GetName(), NamespaceModifier);
+			if (CachedViewedItems.ContainsByPredicate([NewName](const FNiagaraParameterPanelItem& CachedViewedItem) {return CachedViewedItem.GetVariable().GetName() == NewName; }))
+			{
+				OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierAlreadyExits", "Can't set this namespace modifier because it would create a parameter that already exists.");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FNiagaraParameterPanelUtilities::GetCanSetParameterCustomNamespaceModifierAndToolTipForScriptOrSystem(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip)
+{
+	if (FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), OutCanSetParameterNamespaceModifierToolTip) == false)
+	{
+		return false;
+	}
+
+	if (bDuplicateParameter == false) 
+	{
+		if (ItemToModify.bExternallyReferenced)
+		{
+			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierExternallyReferenced", "Parameter is from an externally referenced script and can't be directly edited.");
+			return false;
+		}
+		else if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
+		{
+			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterCustomNamespace_ParameterDefinitions", "Cannot set Parameter custom namespace: Parameters linked to Parameter Definitions may only have a custom namespace set in the source Parameter Definitions asset.");
+			return false;
+		}
+	}
+
+	return true;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Immutable Parameter Panel View Model									///
@@ -451,21 +526,6 @@ void INiagaraParameterPanelViewModel::SetParameterNamespace(const FNiagaraParame
 	}
 }
 
-bool INiagaraParameterPanelViewModel::GetCanSetParameterNamespaceAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip) const 
-{
-	if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
-	{
-		OutCanSetParameterNamespaceToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespace_ParameterDefinitions", "Cannot change Parameter namespace: Parameters linked to Parameter Definitions may only have their namespace changed in the source Parameter Definitions asset.");
-		return false;
-	}
-	else if (ItemToModify.bExternallyReferenced)
-	{
-		OutCanSetParameterNamespaceToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespace_ExternallyReferenced", "Cannot change Parameter namespace: Parameter is from an externally referenced script and can't be directly edited.");
-		return false;
-	}
-	return true;
-}
-
 void INiagaraParameterPanelViewModel::SetParameterNamespaceModifier(const FNiagaraParameterPanelItem ItemToModify, const FName NewNamespaceModifier, bool bDuplicateParameter) const
 {
 	FName NewName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(ItemToModify.GetVariable().GetName(), NewNamespaceModifier);
@@ -500,39 +560,6 @@ void INiagaraParameterPanelViewModel::SetParameterNamespaceModifier(const FNiaga
 			RenameParameter(ItemToModify, NewName);
 		}
 	}
-}
-
-bool INiagaraParameterPanelViewModel::GetCanSetParameterNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
-{
-	if (FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), NamespaceModifier, OutCanSetParameterNamespaceModifierToolTip) == false)
-	{
-		return false;
-	}
-
-	if (bDuplicateParameter == false)
-	{
-		if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
-		{
-			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterNamespaceModifier_ParameterDefinitions", "Cannot change Parameter namespace modifier: Parameters from Parameter Definitions may only have their namespace modifier changed in the source Parameter Definitions asset.");
-			return false;
-		}
-		else if (ItemToModify.bExternallyReferenced)
-		{
-			OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierExternallyReferenced", "Parameter is from an externally referenced script and can't be directly edited.");
-			return false;
-		}
-		else if (NamespaceModifier != NAME_None)
-		{
-			FName NewName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(ItemToModify.GetVariable().GetName(), NamespaceModifier);
-			if (CachedViewedItems.ContainsByPredicate([NewName](const FNiagaraParameterPanelItem& CachedViewedItem) {return CachedViewedItem.GetVariable().GetName() == NewName; }))
-			{
-				OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierAlreadyExits", "Can't set this namespace modifier because it would create a parameter that already exists.");
-				return false;
-			}
-		}
-	}
-
-	return true;
 }
 
 void INiagaraParameterPanelViewModel::SetParameterCustomNamespaceModifier(const FNiagaraParameterPanelItem ItemToModify, bool bDuplicateParameter) const
@@ -582,26 +609,6 @@ void INiagaraParameterPanelViewModel::SetParameterCustomNamespaceModifier(const 
 	}
 }
 
-bool INiagaraParameterPanelViewModel::GetCanSetParameterCustomNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
-{
-	if (ItemToModify.ScriptVariable->GetIsSubscribedToParameterDefinitions())
-	{
-		OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("ParameterPanelViewModel_ChangeParameterCustomNamespace_ParameterDefinitions", "Cannot set Parameter custom namespace: Parameters linked to Parameter Definitions may only have a custom namespace set in the source Parameter Definitions asset.");
-		return false;
-	}
-	else if (FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), OutCanSetParameterNamespaceModifierToolTip) == false)
-	{
-		return false;
-	}
-
-	if (bDuplicateParameter == false && ItemToModify.bExternallyReferenced)
-	{
-		OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierExternallyReferenced", "Parameter is from an externally referenced script and can't be directly edited.");
-		return false;
-	}
-
-	return true;
-}
 
 void INiagaraParameterPanelViewModel::GetChangeNamespaceSubMenu(FMenuBuilder& MenuBuilder, bool bDuplicateParameter, FNiagaraParameterPanelItem Item) const
 {
@@ -1311,6 +1318,21 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanHandleDragDropOperation
 	}
 
 	return true;
+}
+
+bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanSetParameterNamespaceAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceAndToolTipForScriptOrSystem(ItemToModify, NewNamespace, OutCanSetParameterNamespaceToolTip);
+}
+
+bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanSetParameterNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceModifierAndToolTipForScriptOrSystem(CachedViewedItems, ItemToModify, NamespaceModifier, bDuplicateParameter, OutCanSetParameterNamespaceModifierToolTip);
+}
+
+bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanSetParameterCustomNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterCustomNamespaceModifierAndToolTipForScriptOrSystem(ItemToModify, bDuplicateParameter, OutCanSetParameterNamespaceModifierToolTip);
 }
 
 TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParameterMenuForAssignmentNode(UNiagaraNodeAssignment* AssignmentNode, const TSharedPtr<SComboButton>& AddButton) const
@@ -2502,6 +2524,21 @@ bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanHandleDragDropOperation
 	return true;
 }
 
+bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanSetParameterNamespaceAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceAndToolTipForScriptOrSystem(ItemToModify, NewNamespace, OutCanSetParameterNamespaceToolTip);
+}
+
+bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanSetParameterNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterNamespaceModifierAndToolTipForScriptOrSystem(CachedViewedItems, ItemToModify, NamespaceModifier, bDuplicateParameter, OutCanSetParameterNamespaceModifierToolTip);
+}
+
+bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanSetParameterCustomNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	return FNiagaraParameterPanelUtilities::GetCanSetParameterCustomNamespaceModifierAndToolTipForScriptOrSystem(ItemToModify, bDuplicateParameter, OutCanSetParameterNamespaceModifierToolTip);
+}
+
 void FNiagaraScriptToolkitParameterPanelViewModel::SetParameterIsOverridingLibraryDefaultValue(const FNiagaraParameterPanelItem ItemToModify, const bool bOverriding) const
 {
 	if (ensureMsgf(ItemToModify.bExternallyReferenced == false, TEXT("Cannot modify an externally referenced parameter.")) == false)
@@ -2859,7 +2896,7 @@ TSharedPtr<SWidget> FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::
 
 FNiagaraParameterUtilities::EParameterContext FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetParameterContext() const
 {
-	return FNiagaraParameterUtilities::EParameterContext::System;
+	return FNiagaraParameterUtilities::EParameterContext::Definitions;
 }
 
 const TArray<UNiagaraScriptVariable*> FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetEditableScriptVariablesWithName(const FName ParameterName) const
@@ -2930,6 +2967,44 @@ bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanRenamePar
 	}
 
 	OutCanRenameParameterToolTip = LOCTEXT("ParameterPanelViewModel_RenameParameter_CreatedInDefinition", "Rename this Parameter for all Systems, Emitters and Scripts using this Definition.");
+	return true;
+}
+
+bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanSetParameterNamespaceAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NewNamespace, FText& OutCanSetParameterNamespaceToolTip) const
+{
+	return true;
+}
+
+bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanSetParameterNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, const FName NamespaceModifier, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	if (FNiagaraParameterUtilities::TestCanSetSpecificNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), NamespaceModifier, OutCanSetParameterNamespaceModifierToolTip) == false)
+	{
+		return false;
+	}
+
+	if (bDuplicateParameter == false)
+	{
+		if (NamespaceModifier != NAME_None)
+		{
+			FName NewName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(ItemToModify.GetVariable().GetName(), NamespaceModifier);
+			if (CachedViewedItems.ContainsByPredicate([NewName](const FNiagaraParameterPanelItem& CachedViewedItem) {return CachedViewedItem.GetVariable().GetName() == NewName; }))
+			{
+				OutCanSetParameterNamespaceModifierToolTip = LOCTEXT("CantChangeNamespaceModifierAlreadyExits", "Can't set this namespace modifier because it would create a parameter that already exists.");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanSetParameterCustomNamespaceModifierAndToolTip(const FNiagaraParameterPanelItem& ItemToModify, bool bDuplicateParameter, FText& OutCanSetParameterNamespaceModifierToolTip) const
+{
+	if (FNiagaraParameterUtilities::TestCanSetCustomNamespaceModifierWithMessage(ItemToModify.GetVariable().GetName(), OutCanSetParameterNamespaceModifierToolTip) == false)
+	{
+		return false;
+	}
+
 	return true;
 }
 

@@ -358,7 +358,8 @@ namespace FNiagaraParameterUtilities
 	enum class EParameterContext : uint8
 	{
 		Script,
-		System
+		System,
+		Definitions,
 	};
 
 	struct FChangeNamespaceMenuData

@@ -3221,7 +3221,8 @@ void FNiagaraParameterUtilities::GetChangeNamespaceMenuData(FName InParameterNam
 			Metadata == CurrentMetadata ||
 			Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace) ||
 			(InParameterContext == EParameterContext::Script && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
-			(InParameterContext == EParameterContext::System && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)))
+			(InParameterContext == EParameterContext::System && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)) ||
+			(InParameterContext == EParameterContext::Definitions && Metadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInDefinitions)))
 		{
 			continue;
 		}

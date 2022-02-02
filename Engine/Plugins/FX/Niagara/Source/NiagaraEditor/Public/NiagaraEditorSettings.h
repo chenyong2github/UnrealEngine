@@ -57,7 +57,8 @@ enum class ENiagaraNamespaceMetadataOptions
 	PreventEditingNamespace,
 	PreventEditingNamespaceModifier,
 	PreventEditingName,
-	PreventCreatingInSystemEditor
+	PreventCreatingInSystemEditor,
+	HideInDefinitions,
 };
 
 USTRUCT()
