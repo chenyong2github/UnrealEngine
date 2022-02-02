@@ -419,7 +419,7 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 		ModelVertex.Position = FVector(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;
 		ModelVertex.TangentZ = FVector3f(Normal.x, Normal.z, Normal.y);
 		ModelVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
-		ModelVertex.TexCoord = FVector2D(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
+		ModelVertex.TexCoord = FVector2f(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);
 
 		// Add Model Vertex data to vertex buffer
 		LodRenderData->StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex) = ModelVertex.Position;

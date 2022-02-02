@@ -3807,7 +3807,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DDynamicImporter::ImportMesh(cinew
 				FVertexInstanceID& VertInstanceID = VertexInstances[VertexCount];
 				int32 VertexIDInQuad = (*IndexOffsets)[VertexCount];
 
-				VertexInstanceUVs.Set(VertInstanceID, ChannelIndex, QuadUVs[VertexIDInQuad]);
+				VertexInstanceUVs.Set(VertInstanceID, ChannelIndex, FVector2f(QuadUVs[VertexIDInQuad]));
 			}
 		}
 

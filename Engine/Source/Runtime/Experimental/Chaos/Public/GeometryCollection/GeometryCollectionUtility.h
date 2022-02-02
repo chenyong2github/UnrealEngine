@@ -60,7 +60,7 @@ namespace GeometryCollection
 			Normals[Idx] = NormalsIn.Num() > Idx ? FVector(NormalsIn[Idx][0], NormalsIn[Idx][1], NormalsIn[Idx][2]) : FVector(0);
 
 			FVector2D UV = UVsIn.Num() > Idx ? FVector2D(UVsIn[Idx][0], UVsIn[Idx][1]) : FVector2D(0);
-			UVs[Idx].Add(UV);
+			UVs[Idx].Add(FVector2f(UV));
 			
 			Colors[Idx] = FLinearColor::White;
 		}
