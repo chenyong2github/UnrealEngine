@@ -566,9 +566,16 @@ void UAnimGraphNode_IKRig::CreateCustomPinsFromValidAsset()
 	RotationPinType.PinSubCategoryObject = TBaseStructure<FRotator>::Get();
 	
 	// alpha property
+	static const FName PC_Real(TEXT("real"));
 	static const FName PC_Float(TEXT("float"));
+	static const FName PC_Double(TEXT("double"));
 	static FEdGraphPinType AlphaPinType;
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	AlphaPinType.PinCategory = PC_Real;
+	AlphaPinType.PinSubCategory = PC_Double;
+#else
 	AlphaPinType.PinCategory = PC_Float;
+#endif
 
 	// create pins
 	const TArray<UIKRigEffectorGoal*>& AssetGoals = Node.RigDefinitionAsset->GetGoalArray();

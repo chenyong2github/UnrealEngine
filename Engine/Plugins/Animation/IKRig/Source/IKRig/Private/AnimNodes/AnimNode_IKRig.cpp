@@ -353,7 +353,7 @@ void FAnimNode_IKRig::InitializeProperties(const UObject* InSourceInstance, UCla
 				{
 					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
 					{
-						const float* AlphaValue = SourceProperty->ContainerPtrToValuePtr<float>(InSourceInstance);
+						const double* AlphaValue = SourceProperty->ContainerPtrToValuePtr<double>(InSourceInstance);
 						Goal.PositionAlpha = FMath::Clamp<float>(*AlphaValue, 0.f, 1.f);
 					});
 				}
@@ -361,7 +361,7 @@ void FAnimNode_IKRig::InitializeProperties(const UObject* InSourceInstance, UCla
 				{
 					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
 					{
-						const float* AlphaValue = SourceProperty->ContainerPtrToValuePtr<float>(InSourceInstance);
+						const double* AlphaValue = SourceProperty->ContainerPtrToValuePtr<double>(InSourceInstance);
 						Goal.RotationAlpha = FMath::Clamp<float>(*AlphaValue, 0.f, 1.f);
 					});
 				}

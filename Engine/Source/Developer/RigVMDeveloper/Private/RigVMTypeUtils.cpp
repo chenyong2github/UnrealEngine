@@ -300,6 +300,18 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FString& InCPPType, UOb
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
+#if ENABLE_BLUEPRINT_REAL_NUMBERS
+	else if (BaseCPPType == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (BaseCPPType == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
+	}
+#else
 	else if (BaseCPPType == TEXT("float"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
@@ -308,6 +320,7 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FString& InCPPType, UOb
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
 	}
+#endif
 	else if (BaseCPPType == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
