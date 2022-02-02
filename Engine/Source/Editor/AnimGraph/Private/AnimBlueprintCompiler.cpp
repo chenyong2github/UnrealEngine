@@ -1879,15 +1879,16 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 	}
 
 	// Builds a 'data area', returns the total number of properties that were inserted into that area's struct
-	auto BuildDataArea = [this](TArray<TSharedRef<IAnimBlueprintCompilationContext::FFoldedPropertyRecord>>& InRecords, UScriptStruct* InStruct)
+	auto BuildDataArea = [this, NewAnimBlueprintClass](TArray<TSharedRef<IAnimBlueprintCompilationContext::FFoldedPropertyRecord>>& InRecords, UScriptStruct* InStruct)
 	{
 		int32 PropertyIndex = 0;
 
 		if(InStruct)
 		{
 			const UAnimationGraphSchema* AnimationGraphSchema = GetDefault<UAnimationGraphSchema>();
-
-			for(TSharedRef<IAnimBlueprintCompilationContext::FFoldedPropertyRecord>& Record : InRecords)
+			FAnimBlueprintDebugData& AnimBlueprintDebugData = NewAnimBlueprintClass->GetAnimBlueprintDebugData();
+			
+			for(const TSharedRef<IAnimBlueprintCompilationContext::FFoldedPropertyRecord>& Record : InRecords)
 			{
 				// Skip folded records
 				if(Record->FoldIndex == INDEX_NONE)
@@ -1896,7 +1897,7 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 					if(AnimationGraphSchema->ConvertPropertyToPinType(Record->Property, VariableType))
 					{
 						// Patch into sparse class data
-						FName PropertyName = FName(Record->Property->GetClass()->GetFName(), InRecords.Num() - 1 - PropertyIndex);
+						const FName PropertyName = FName(Record->Property->GetClass()->GetFName(), InRecords.Num() - 1 - PropertyIndex);
 						Record->GeneratedProperty = CreateStructVariable(InStruct, PropertyName, VariableType);
 						if (Record->GeneratedProperty == nullptr)
 						{
@@ -1910,6 +1911,9 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 							// Properties need to be BP visible to allow them to be set by the generated exec chains in CreateEvaluationHandlerForNode
 							Record->GeneratedProperty->SetPropertyFlags(CPF_BlueprintVisible);
 							Record->PropertyIndex = PropertyIndex++;
+
+							// Populate the original-to-folded property mapping with the newly generated property
+							AnimBlueprintDebugData.NodeToFoldedPropertyMap.Add(Record->Property, Record->GeneratedProperty);
 						}
 					}
 					else

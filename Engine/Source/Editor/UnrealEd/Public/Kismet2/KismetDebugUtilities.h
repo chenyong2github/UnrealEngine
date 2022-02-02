@@ -55,7 +55,7 @@ struct FPropertyInstanceInfo
 	 */
 	struct FPropertyInstance
 	{
-		FProperty* Property;
+		const FProperty* Property;
 		const void* Value;
 	};
 	
@@ -89,7 +89,7 @@ struct FPropertyInstanceInfo
 	FText Value;
 	FText Type;
 	TWeakObjectPtr<UObject> Object = nullptr; // only filled if property is a UObject
-	TFieldPath<FProperty> Property;
+	TFieldPath<const FProperty> Property;
 	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
 	bool bIsInContainer = false;
 };
@@ -429,7 +429,7 @@ public:
 	static EWatchTextResult GetDebugInfo(TSharedPtr<FPropertyInstanceInfo> &OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin);
 
 	// Retrieves Debug info from a Property and a pointer to it's associated data
-	static void GetDebugInfoInternal(TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* PropertyValue);
+	static void GetDebugInfoInternal(TSharedPtr<FPropertyInstanceInfo> &DebugInfo, const FProperty* Property, const void* PropertyValue);
 
 	//@TODO: Pretty lame way to handle this messaging, ideally the entire Info object gets pushed into the editor when intraframe debugging is triggered!
 	// This doesn't work properly if there is more than one blueprint editor open at once either (one will consume it, the others will be left in the cold)
@@ -438,7 +438,7 @@ protected:
 	static void CheckBreakConditions(UEdGraphNode* NodeStoppedAt, bool bHitBreakpoint, int32 BreakpointOffset, bool& InOutBreakExecution);
 	static void AttemptToBreakExecution(UBlueprint* BlueprintObj, const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info, UEdGraphNode* NodeStoppedAt, int32 DebugOpcodeOffset);
 
-	static void GetDebugInfo_InContainer(int32 Index, TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* Data);
+	static void GetDebugInfo_InContainer(int32 Index, TSharedPtr<FPropertyInstanceInfo> &DebugInfo, const FProperty* Property, const void* Data);
 
 	/**
 	* @brief	Helper function for converting between blueprint and debuggable data
@@ -455,7 +455,7 @@ protected:
 	* @param 	bOutIsDirectPtr	True if OutData/OutDelta point directly at the property rather than its base address
 	* @return	EWTR_Valid if the debug data could be found, otherwise an appropriate error code
 	*/
-	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* bOutIsDirectPtr = nullptr);
+	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, const FProperty*& OutProperty, const void*& OutData, const void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* bOutIsDirectPtr = nullptr);
 
 	/**	Retrieve the user settings associated with a blueprint.
 	*	returns null if the blueprint has default settings (no breakpoints and no watches) */

@@ -953,7 +953,7 @@ public:
 	 *
 	 * @return	The converted type string.
 	 */
-	static FText TypeToText(FProperty* const Property);
+	static FText TypeToText(const FProperty* const Property);
 
 	/**
 	* Converts a terminal type into a fully qualified FText (e.g., object'ObjectName').

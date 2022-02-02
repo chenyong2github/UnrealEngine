@@ -3573,9 +3573,9 @@ bool UEdGraphSchema_K2::IsWildcardProperty(const FProperty* Property)
 		|| FEdGraphUtilities::IsArrayDependentParam(Function, Property->GetFName()) );
 }
 
-FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
+FText UEdGraphSchema_K2::TypeToText(const FProperty* const Property)
 {
-	if (FStructProperty* Struct = CastField<FStructProperty>(Property))
+	if (const FStructProperty* Struct = CastField<FStructProperty>(Property))
 	{
 		if (Struct->Struct)
 		{
@@ -3585,7 +3585,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (FClassProperty* Class = CastField<FClassProperty>(Property))
+	else if (const FClassProperty* Class = CastField<FClassProperty>(Property))
 	{
 		if (Class->MetaClass)
 		{
@@ -3595,7 +3595,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (FInterfaceProperty* Interface = CastField<FInterfaceProperty>(Property))
+	else if (const FInterfaceProperty* Interface = CastField<FInterfaceProperty>(Property))
 	{
 		if (Interface->InterfaceClass != nullptr)
 		{
@@ -3605,7 +3605,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 			return TypeToText(PinType);
 		}
 	}
-	else if (FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property))
+	else if (const FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property))
 	{
 		if( Obj->PropertyClass )
 		{
@@ -3618,7 +3618,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 
 		return FText::GetEmpty();
 	}
-	else if (FArrayProperty* Array = CastField<FArrayProperty>(Property))
+	else if (const FArrayProperty* Array = CastField<FArrayProperty>(Property))
 	{
 		if (Array->Inner)
 		{
@@ -3627,7 +3627,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 			return FText::Format(LOCTEXT("ArrayPropertyText", "Array of {ArrayType}"), Args); 
 		}
 	}
-	else if (FSetProperty* Set = CastField<FSetProperty>(Property))
+	else if (const FSetProperty* Set = CastField<FSetProperty>(Property))
 	{
 		if (Set->ElementProp)
 		{
@@ -3636,7 +3636,7 @@ FText UEdGraphSchema_K2::TypeToText(FProperty* const Property)
 			return FText::Format(LOCTEXT("SetPropertyText", "Set of {SetType}"), Args);
 		}
 	}
-	else if (FMapProperty* Map = CastField<FMapProperty>(Property))
+	else if (const FMapProperty* Map = CastField<FMapProperty>(Property))
 	{
 		if (Map->KeyProp && Map->ValueProp)
 		{

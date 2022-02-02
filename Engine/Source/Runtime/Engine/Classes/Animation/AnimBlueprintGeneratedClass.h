@@ -176,6 +176,9 @@ public:
 	// History of snapshots of animation data
 	TSimpleRingBuffer<FAnimationFrameSnapshot>* SnapshotBuffer;
 
+	// Mapping from animation node properties to folded versions
+	TMap<TFieldPath<const FProperty>, TFieldPath<const FProperty>> NodeToFoldedPropertyMap;
+
 	// Node visit structure
 	struct FNodeVisit
 	{
@@ -356,6 +359,7 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 
 	friend class FAnimBlueprintCompilerContext;
 	friend class FAnimBlueprintGeneratedClassCompiledData;
+	friend class FKismetDebugUtilities;
 
 	// List of state machines present in this blueprint class
 	UPROPERTY()
