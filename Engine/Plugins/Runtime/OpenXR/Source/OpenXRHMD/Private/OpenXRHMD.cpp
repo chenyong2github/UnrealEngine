@@ -1681,8 +1681,12 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 			return false;
 		}
 
-		// Acquire the first swapchain image
-		Swapchain->IncrementSwapChainIndex_RHIThread();
+		// Acquire the first swapchain image if we're already rendering since the old swapchain was already acquired.
+		// We need to be careful here that we only re-acquire swapchains and not acquire swapchain images redundantly.
+		if (bIsRendering)
+		{
+			Swapchain->IncrementSwapChainIndex_RHIThread();
+		}
 
 #if WITH_EDITOR
 		if (GIsEditor)
@@ -1720,6 +1724,14 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 		return false;
 	}
 
+	// Ensure the texture size matches the eye layer. We may get other depth allocations unrelated to the main scene render.
+	// FIXME: This introduces a magic number that will break this logic. A developer can select a scene capture target that
+	// happens to be the same size as the ideal render target and break everything for reasons that will be a mystery to them.
+	if (FIntPoint(SizeX, SizeY) != GetIdealRenderTargetSize())
+	{
+		return false;
+	}
+
 	// We're only creating a 1x target here, but we don't know whether it'll be the targeted texture
 	// or the resolve texture. Because of this, we unify the input flags.
 	ETextureCreateFlags UnifiedCreateFlags = Flags | TargetableTextureFlags;
@@ -1745,8 +1757,12 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 			return false;
 		}
 
-		// Acquire the first swapchain image
-		Swapchain->IncrementSwapChainIndex_RHIThread();
+		// Acquire the first swapchain image if we're already rendering since the old swapchain was already acquired.
+		// We need to be careful here that we only re-acquire swapchains and not acquire swapchain images redundantly.
+		if (bIsRendering)
+		{
+			Swapchain->IncrementSwapChainIndex_RHIThread();
+		}
 	}
 
 	bNeedReAllocatedDepth = false;
@@ -1761,6 +1777,9 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 {
 	ensure(IsInRenderingThread());
 	FReadScopeLock DeviceLock(DeviceMutex);
+
+	UE_CLOG(PipelinedFrameStateRendering.FrameState.predictedDisplayTime >= PipelinedFrameStateGame.FrameState.predictedDisplayTime,
+		LogHMD, VeryVerbose, TEXT("Predicted display time went backwards from %lld to %lld"), PipelinedFrameStateRendering.FrameState.predictedDisplayTime, PipelinedFrameStateGame.FrameState.predictedDisplayTime);
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
@@ -2191,7 +2210,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 	ensure(IsInRenderingThread() || IsInRHIThread());
 
 	// TODO: Add a hook to resolve discarded frames before we start a new frame.
-	UE_CLOG(!bIsRendering, LogHMD, Verbose, TEXT("Discarded previous frame and started rendering a new frame."));
+	UE_CLOG(bIsRendering, LogHMD, Verbose, TEXT("Discarded previous frame and started rendering a new frame."));
 
 	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
 
@@ -2235,6 +2254,8 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 		}
 
 		bIsRendering = true;
+
+		UE_LOG(LogHMD, VeryVerbose, TEXT("Rendering frame predicted to be displayed at %lld"), InFrameState.FrameState.predictedDisplayTime);
 	}
 	else
 	{
@@ -2322,6 +2343,9 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			}
 			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, ColorImages, DepthImages, EndInfo.next);
 		}
+
+		UE_LOG(LogHMD, VeryVerbose, TEXT("Presenting frame predicted to be displayed at %lld"), PipelinedFrameStateRHI.FrameState.predictedDisplayTime);
+
 		XR_ENSURE(xrEndFrame(Session, &EndInfo));
 	}
 

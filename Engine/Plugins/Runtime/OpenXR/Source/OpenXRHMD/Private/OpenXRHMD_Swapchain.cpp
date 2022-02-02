@@ -12,7 +12,8 @@ static TAutoConsoleVariable<int32> CVarOpenXRSwapchainRetryCount(
 
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
-	Handle(InHandle)
+	Handle(InHandle),
+	Acquired(false)
 {
 }
 
@@ -21,11 +22,21 @@ FOpenXRSwapchain::~FOpenXRSwapchain()
 	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
-// TODO: This function should be renamed to IncrementSwapChainIndex_RenderThread.
-// Name change is currently blocked on runtimes still requiring this on the RHI thread.
+// TODO: This function should be moved to the RenderThread, that change is currently blocked
+// by the Vulkan extension requiring access to the VkQueue in xrAcquireSwapchainImage.
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
+
+	// TODO: When moving this function to the RenderThread remove this logic so the RenderThread
+	// can acquire a new swapchain image before the RHI thread is done with it.
+	bool WasAcquired = false;
+	Acquired.compare_exchange_strong(WasAcquired, true);
+	if (WasAcquired)
+	{
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		return;
+	}
 
 	SCOPED_NAMED_EVENT(AcquireImage, FColor::Red);
 
@@ -34,12 +45,20 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 	Info.next = nullptr;
 	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RHIThread));
 
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Acquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+
 	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
 }
 
 void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
+
+	if (!Acquired)
+	{
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		return;
+	}
 
 	SCOPED_NAMED_EVENT(WaitImage, FColor::Red);
 
@@ -64,11 +83,21 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 		// We can't continue without acquiring a new swapchain image since we won't have an image available to render to.
 		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
 	}
+
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Waited on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
 }
 
 void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
+
+	bool WasAcquired = true;
+	Acquired.compare_exchange_strong(WasAcquired, false);
+	if (!WasAcquired)
+	{
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to release unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		return;
+	}
 
 	SCOPED_NAMED_EVENT(ReleaseImage, FColor::Red);
 
@@ -76,6 +105,8 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ReleaseInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
+
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Released on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
 }
 
 uint8 FOpenXRSwapchain::GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat /*= nullptr*/)
