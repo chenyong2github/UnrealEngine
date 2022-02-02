@@ -167,7 +167,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+				Stub->TestActor = ASnapshotTestActor::Spawn(World);;
 
 				Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 				Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->IntProperty = 21;
@@ -231,7 +231,6 @@ namespace UE::LevelSnapshots::Private::Tests
 			virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
-			
 				const int32 Index = DataStorage.AddSubobjectSnapshot(Actor->NonReflectedSubobject);
 				DataStorage.WriteObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
 				{
@@ -263,7 +262,6 @@ namespace UE::LevelSnapshots::Private::Tests
 		
 			virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 			{
-			
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
 				return Actor->NonReflectedSubobject;
 			}
@@ -271,7 +269,6 @@ namespace UE::LevelSnapshots::Private::Tests
 			virtual void PostApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(OriginalObject);
-			
 				DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
 				{
 					Archive << Actor->NonReflectedName;
@@ -300,16 +297,18 @@ namespace UE::LevelSnapshots::Private::Tests
 		};
 
 		ASnapshotTestActor* TestActor = nullptr;
+		// Do not use ASnapshotTestActor as class for referenced actors because we don't want them to be processed by FStub
 		AStaticMeshActor* FirstReferencedActor = nullptr;
 		AStaticMeshActor* SecondReferencedActor = nullptr;
 	
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				TestActor = World->SpawnActor<ASnapshotTestActor>();
+				TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 				TestActor->AllocateNonReflectedSubobject();
-				FirstReferencedActor = World->SpawnActor<AStaticMeshActor>();
-				SecondReferencedActor = World->SpawnActor<AStaticMeshActor>();
+				// Spawn at different locations to avoid them failing to spawn
+				FirstReferencedActor = World->SpawnActor<AStaticMeshActor>(FVector(500.f), FRotator());
+				SecondReferencedActor = World->SpawnActor<AStaticMeshActor>(FVector(-500.f), FRotator());
 			
 				TestActor->IntProperty = 1;
 				TestActor->NonReflectedName = FName("TestNonReflectedName_OnActor");
@@ -444,7 +443,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				TestActor = World->SpawnActor<ASnapshotTestActor>();
+				TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 				ActorSerializer->TestActor = TestActor;
 				SubobjectSerializer->TestActor = TestActor;
 			
@@ -471,7 +470,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				TestActor = World->SpawnActor<ASnapshotTestActor>();
+				TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 				ActorSerializer->TestActor = TestActor;
 				SubobjectSerializer->TestActor = TestActor;
 			
@@ -514,8 +513,8 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ChangedPropertiesActor = World->SpawnActor<ASnapshotTestActor>();
-				NulledActor = World->SpawnActor<ASnapshotTestActor>();
+				ChangedPropertiesActor = ASnapshotTestActor::Spawn(World, "ChangedPropertiesActor");
+				NulledActor = ASnapshotTestActor::Spawn(World, "NulledActor");
 
 				ChangedPropertiesActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 				ChangedPropertiesActor->NakedSubobject_DefaultSubobject->FloatProperty = 21.f;
@@ -601,7 +600,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+				Stub->TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 			
 				Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 			})
@@ -638,7 +637,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+				Stub->TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 			})
 			.TakeSnapshot()
 			.FilterProperties(Stub->TestActor, [&](const FPropertySelectionMap& PropertySelectionMap)
@@ -663,7 +662,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+				Stub->TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 			
 				Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 				Stub->TestActor->IntProperty = 42;
@@ -784,7 +783,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+				Stub->TestActor = ASnapshotTestActor::Spawn(World, "TestActor");
 				Stub->TestActor->IntProperty = 21;
 				Stub->TestActor->AllocateNonReflectedSubobject();
 				Stub->TestActor->NonReflectedSubobject->FloatProperty = 42.f;

@@ -74,7 +74,7 @@ class ASnapshotTestActor : public ACharacter
 	GENERATED_BODY()
 public:
 
-	static ASnapshotTestActor* Spawn(UWorld* World, FName Name);
+	static ASnapshotTestActor* Spawn(UWorld* World, FName Name = FName());
 	
 	ASnapshotTestActor();
 

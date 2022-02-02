@@ -12,15 +12,6 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 
-// TODO: FExistingSubobjectHasDifferentClass > Change a subobject's class and try to restore into it
-// TODO: FCollectionDoesNotContainSameSubobjects > Generates diff
-// TODO: FCollectionOfNonSubobjectsDiffesCorrectly > Generates diff when collection contains non-subobjects
-// TODO: Mixed references in collection: own subobjects and external subobjects
-// TODO: What happens when TArray<UObject*> contains an object with disallowed class > Do not serialize into it. Only try resolving to it.
-// TODO: Unrelated classes but same object name in collection and one of the classes is not allowed. What happens?
-
-// TODO: FSubobjectWithSamePropertiesAndDifferentNames does not diff
-
 namespace UE::LevelSnapshots::Private::Tests
 {
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreSubobjectProperties, "VirtualProduction.LevelSnapshots.Snapshot.Subobject.RestoreSubobjectProperties", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
@@ -34,7 +25,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						Actor = World->SpawnActor<ASnapshotTestActor>();
+						Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 						Actor->AllocateSubobjects();
 
 						Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty					= 1;
@@ -142,7 +133,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						Actor = World->SpawnActor<ASnapshotTestActor>();
+						Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 						Actor->AllocateSubobjects();
 
 						Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty					= 1;
@@ -265,7 +256,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						Actor = World->SpawnActor<ASnapshotTestActor>();
+						Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 						Actor->AllocateSubobjects();
 
 						Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty				= 1;
@@ -338,7 +329,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						Actor = World->SpawnActor<ASnapshotTestActor>();
+						Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 						Actor->AllocateSubobjects();
 
 						Actor->EditableInstancedSubobjectArray_OptionalSubobject[0]->IntProperty		= 1;
@@ -384,7 +375,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						Actor = World->SpawnActor<ASnapshotTestActor>();
+						Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 						Actor->AllocateSubobjects();
 
 						Actor->ObjectReference											= Actor->EditableInstancedSubobjectArray_OptionalSubobject[0];
@@ -493,7 +484,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 				Actor->AllocateSubobjects();
 
 				Subobject = Actor->EditableInstancedSubobject_DefaultSubobject;
@@ -528,7 +519,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World, "TestActor");
 				Actor->AllocateSubobjects();
 
 				Actor->EditableInstancedSubobject_DefaultSubobject->IntProperty = 21;
@@ -576,9 +567,9 @@ namespace UE::LevelSnapshots::Private::Tests
 				FSnapshotTestRunner()
 					.ModifyWorld([&](UWorld* World)
 					{
-						ActorA = World->SpawnActor<ASnapshotTestActor>();
+						ActorA = ASnapshotTestActor::Spawn(World, "ActorA");
 						ActorA->AllocateSubobjects();
-						ActorB = World->SpawnActor<ASnapshotTestActor>();
+						ActorB = ASnapshotTestActor::Spawn(World, "ActorB");
 						ActorB->AllocateSubobjects();
 
 						ActorA->EditableInstancedSubobject_DefaultSubobject->IntProperty = 21;
@@ -651,8 +642,8 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ActorA = World->SpawnActor<ASnapshotTestActor>();
-				ActorB = World->SpawnActor<ASnapshotTestActor>();
+				ActorA = ASnapshotTestActor::Spawn(World, "ActorA");
+				ActorB = ASnapshotTestActor::Spawn(World, "ActorB");
 
 				ActorA->ObjectReference = ActorB->TestComponent;
 			})
@@ -672,8 +663,8 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ActorA = World->SpawnActor<ASnapshotTestActor>();
-				ActorB = World->SpawnActor<ASnapshotTestActor>();
+				ActorA = ASnapshotTestActor::Spawn(World, "ActorA");
+				ActorB = ASnapshotTestActor::Spawn(World, "ActorB");
 
 				ActorA->ObjectReference = ActorB->TestComponent;
 			})
@@ -735,9 +726,9 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ActorA = World->SpawnActor<ASnapshotTestActor>();
+				ActorA = ASnapshotTestActor::Spawn(World, "ActorA");
 				ActorA->AllocateSubobjects();
-				ActorB = World->SpawnActor<ASnapshotTestActor>();
+				ActorB = ASnapshotTestActor::Spawn(World, "ActorB");
 				ActorB->AllocateSubobjects();
 
 				ActorA->EditableInstancedSubobject_DefaultSubobject->IntProperty			= 21;
@@ -957,10 +948,10 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ReferenceExternalSubobjects = World->SpawnActor<ASnapshotTestActor>();
+				ReferenceExternalSubobjects = ASnapshotTestActor::Spawn(World, "ReferenceExternalSubobjects");
 				ReferenceExternalSubobjects->AllocateSubobjects();
 			
-				ReferencedObject = World->SpawnActor<ASnapshotTestActor>();
+				ReferencedObject = ASnapshotTestActor::Spawn(World, "ReferencedObject");
 				ReferencedObject->AllocateSubobjects();
 				DestroyedReferencedSubobject = NewObject<USubobject>(ReferencedObject, USubobject::StaticClass(), TEXT("DestroyedReferencedSubobject"));
 				DestroyedReferencedSubobject->FloatProperty = 42.f;

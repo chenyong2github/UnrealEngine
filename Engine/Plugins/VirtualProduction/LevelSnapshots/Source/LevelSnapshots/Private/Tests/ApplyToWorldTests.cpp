@@ -165,7 +165,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				MaterialAndMesh = World->SpawnActor<ASnapshotTestActor>();
+				MaterialAndMesh = ASnapshotTestActor::Spawn(World);
 			
 				MaterialAndMesh->InstancedMeshComponent->AddInstance(StartFirstTransform);
 				MaterialAndMesh->InstancedMeshComponent->AddInstance(StartSecondTransform);
@@ -203,7 +203,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				TestActor = World->SpawnActor<ASnapshotTestActor>();
+				TestActor = ASnapshotTestActor::Spawn(World);
 			})
 			.TakeSnapshot()
 
@@ -233,7 +233,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World);
 				Actor->AllocateSubobjects();
 			})
 			.TakeSnapshot()
@@ -255,9 +255,9 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ParentOne = World->SpawnActor<ASnapshotTestActor>();
-				ParentTwo = World->SpawnActor<ASnapshotTestActor>();
-				Child = World->SpawnActor<ASnapshotTestActor>();
+				ParentOne = ASnapshotTestActor::Spawn(World, "ParentOne");
+				ParentTwo = ASnapshotTestActor::Spawn(World, "ParentTwo");
+				Child = ASnapshotTestActor::Spawn(World, "Child");
 
 				Child->AttachToActor(ParentOne, FAttachmentTransformRules::KeepRelativeTransform);
 			})

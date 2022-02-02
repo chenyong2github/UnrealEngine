@@ -327,6 +327,7 @@ namespace UE::LevelSnapshots::Private::Internal
 				SpawnParameters.Name = ActorFName;
 				SpawnParameters.OverrideLevel = OverrideLevel;
 				SpawnParameters.bNoFail = true;
+				SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 				SpawnParameters.Template = Cast<AActor>(UE::LevelSnapshots::Private::GetClassDefault(WorldData, Cache, ActorClass));
 				SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags();
 				

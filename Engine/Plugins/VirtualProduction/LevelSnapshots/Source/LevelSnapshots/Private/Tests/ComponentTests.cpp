@@ -40,7 +40,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World);;
 
 				InstancedStaysOnActor = NewObject<UStaticMeshComponent>(Actor, UStaticMeshComponent::StaticClass(), "InstancedStaysOnActor");
 				Actor->AddInstanceComponent(InstancedStaysOnActor);
@@ -98,8 +98,8 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				ActorWithAddedComponent = World->SpawnActor<AActor>();
-				ActorWithRemovedComponent = World->SpawnActor<AActor>();
+				ActorWithAddedComponent = ASnapshotTestActor::Spawn(World, "ActorWithAddedComponent");
+				ActorWithRemovedComponent = ASnapshotTestActor::Spawn(World, "ActorWithRemovedComponent");
 
 				AddedComponent = NewObject<UStaticMeshComponent>(ActorWithRemovedComponent, UStaticMeshComponent::StaticClass(), "AddedComponent");
 				ActorWithRemovedComponent->AddInstanceComponent(AddedComponent);
@@ -150,7 +150,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World);;
 			
 				OriginalMeshComp = Actor->InstancedMeshComponent;
 				OriginalLightComp = Actor->PointLightComponent;
@@ -187,7 +187,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World);;
 			})
 			.TakeSnapshot()
 			.ModifyWorld([&](UWorld* World)
@@ -225,7 +225,7 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				Actor = World->SpawnActor<ASnapshotTestActor>();
+				Actor = ASnapshotTestActor::Spawn(World);;
 
 				// This component will stay on the actor
 				InstancedStaysOnActor = NewObject<UStaticMeshComponent>(Actor, UStaticMeshComponent::StaticClass(), "InstancedStaysOnActor");

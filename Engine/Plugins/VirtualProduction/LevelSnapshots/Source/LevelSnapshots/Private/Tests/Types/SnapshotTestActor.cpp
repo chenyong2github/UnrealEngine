@@ -21,6 +21,7 @@ ASnapshotTestActor* ASnapshotTestActor::Spawn(UWorld* World, FName Name)
 	Params.Name = Name;
 	Params.bNoFail = true;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 	return World->SpawnActor<ASnapshotTestActor>(Params);
 }
 

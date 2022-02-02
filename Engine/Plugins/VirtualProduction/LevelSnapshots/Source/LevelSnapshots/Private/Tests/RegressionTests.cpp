@@ -84,11 +84,11 @@ namespace UE::LevelSnapshots::Private::Tests
 		FSnapshotTestRunner()
 			.ModifyWorld([&](UWorld* World)
 			{
-				CustomBlockAllToOverlapAll = World->SpawnActor<ASnapshotTestActor>();
-				DefaultWithChangedIgnoredProperties = World->SpawnActor<ASnapshotTestActor>();
-				DefaultToCustom = World->SpawnActor<ASnapshotTestActor>();
-				CustomToDefault = World->SpawnActor<ASnapshotTestActor>();
-				ChangeCollisionProfile = World->SpawnActor<ASnapshotTestActor>();
+				CustomBlockAllToOverlapAll = ASnapshotTestActor::Spawn(World, "CustomBlockAllToOverlapAll");
+				DefaultWithChangedIgnoredProperties = ASnapshotTestActor::Spawn(World, "DefaultWithChangedIgnoredProperties");
+				DefaultToCustom = ASnapshotTestActor::Spawn(World, "DefaultToCustom");
+				CustomToDefault = ASnapshotTestActor::Spawn(World, "CustomToDefault");
+				ChangeCollisionProfile = ASnapshotTestActor::Spawn(World, "ChangeCollisionProfile");
 
 				CustomBlockAllToOverlapAll->StaticMeshComponent->bUseDefaultCollision = false;
 				CustomBlockAllToOverlapAll->StaticMeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
