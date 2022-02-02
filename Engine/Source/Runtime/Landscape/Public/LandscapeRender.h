@@ -344,113 +344,31 @@ public:
 };
 
 //
-// FLandscapeNeighborInfo
+// FLandscapeSectionInfo
 //
 
-class FLandscapeNeighborInfo
+class FLandscapeSectionInfo : public TIntrusiveLinkedList<FLandscapeSectionInfo>
 {
 public:
-	static const int8 NEIGHBOR_COUNT = 4;
+	FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase);
+	virtual ~FLandscapeSectionInfo() = default;
 
-	// Key to uniquely identify the landscape to find the correct render proxy map
-	class FLandscapeKey
-	{
-		const UWorld* World;
-		const FGuid Guid;
-	public:
-		FLandscapeKey(const UWorld* InWorld, const FGuid& InGuid)
-			: World(InWorld)
-			, Guid(InGuid)
-		{}
+	void RegisterSection();
+	void UnregisterSection();
 
-		friend inline uint32 GetTypeHash(const FLandscapeKey& InLandscapeKey)
-		{
-			return HashCombine(GetTypeHash(InLandscapeKey.World), GetTypeHash(InLandscapeKey.Guid));
-		}
-
-		friend bool operator==(const FLandscapeKey& A, const FLandscapeKey& B)
-		{
-			return A.World == B.World && A.Guid == B.Guid;
-		}
-	};
-
-	const FLandscapeNeighborInfo* GetNeighbor(int32 Index) const
-	{
-		if (Index < NEIGHBOR_COUNT)
-		{
-			return Neighbors[Index];
-		}
-
-		return nullptr;
-	}
-
-	UTexture2D*				HeightmapTexture; // PC : Heightmap, Mobile : Weightmap
-
-protected:
-
-	virtual const ULandscapeComponent* GetLandscapeComponent() const { return nullptr; }
-
-	// Map of currently registered landscape proxies, used to register with our neighbors
-	static TMap<FLandscapeKey, TMap<FIntPoint, const FLandscapeNeighborInfo*> > SharedSceneProxyMap;
-
-	// For neighbor lookup
-	FLandscapeKey			LandscapeKey;
-	FIntPoint				ComponentBase;
-
-	// Pointer to our neighbor's scene proxies in NWES order (nullptr if there is currently no neighbor)
-	mutable const FLandscapeNeighborInfo* Neighbors[NEIGHBOR_COUNT];
-
-	
-	// Data we need to be able to access about our neighbor
-	int8					ForcedLOD;
-	int8					LODBias;
-	bool					bRegistered;
-
-	friend class FLandscapeComponentSceneProxy;
+	virtual float ComputeLODForView(const FSceneView& InView) const = 0;
+	virtual float ComputeLODBias() const = 0;
+	virtual int32 GetSectionPriority() const { return INDEX_NONE; }
 
 public:
-	FLandscapeNeighborInfo(const UWorld* InWorld, const FGuid& InGuid, const FIntPoint& InComponentBase, UTexture2D* InHeightmapTexture, int8 InForcedLOD, int8 InLODBias)
-	: HeightmapTexture(InHeightmapTexture)
-	, LandscapeKey(InWorld, InGuid)
-	, ComponentBase(InComponentBase)
-	, ForcedLOD(InForcedLOD)
-	, LODBias(InLODBias)
-	, bRegistered(false)
-	{
-		//       -Y       
-		//    - - 0 - -   
-		//    |       |   
-		// -X 1   P   2 +X
-		//    |       |   
-		//    - - 3 - -   
-		//       +Y       
-
-		Neighbors[0] = nullptr;
-		Neighbors[1] = nullptr;
-		Neighbors[2] = nullptr;
-		Neighbors[3] = nullptr;
-	}
-
-	void RegisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy = nullptr);
-	void UnregisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy = nullptr);
+	uint32		LandscapeKey;
+	FIntPoint	ComponentBase;
+	bool		bRegistered;
 };
-
-extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
 
 struct FLandscapeRenderSystem
 {
 	typedef uint32 FViewKey;
-
-	struct FViewParams
-	{
-		FViewKey ViewKey;
-		int32 ViewLODOverride;
-		float ViewLODDistanceFactor;
-		bool ViewEngineShowFlagCollisionPawn;
-		bool ViewEngineShowFlagCollisionVisibility;
-		FVector ViewOrigin;
-		FMatrix ViewProjectionMatrix;
-	};
 
 	struct LODSettingsComponent
 	{
@@ -489,75 +407,59 @@ struct FLandscapeRenderSystem
 	static TBitArray<> LandscapeIndexAllocator;
 
 	int32 LandscapeIndex;
-	int32 NumRegisteredEntities;
 
 	FIntPoint Min;
 	FIntPoint Size;
 
-	TArray<LODSettingsComponent> SectionLODSettings;
 	TResourceArray<float> SectionLODBiases;
-	TArray<FVector4> SectionOriginAndRadius;
-	TArray<FLandscapeComponentSceneProxy*> SceneProxies;
+	TArray<FLandscapeSectionInfo*> SectionInfos;
+	int32 ReferenceCount;
 
 	FBufferRHIRef SectionLODBiasBuffer;
 	FShaderResourceViewRHIRef SectionLODBiasSRV;
 
 	FUniformBufferRHIRef SectionLODUniformBuffer;
 
-	FCriticalSection CachedValuesCS;
 	TMap<FViewKey, TResourceArray<float>> CachedSectionLODValues;
 
-	TMap<FViewKey, FGraphEventRef> PerViewParametersTasks;
 	FGraphEventRef FetchHeightmapLODBiasesEventRef;
 	
 	FLandscapeRenderSystem();
 	~FLandscapeRenderSystem();
 
-	void RegisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
-	void UnregisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
+	static void CreateResources(FLandscapeSectionInfo* SectionInfo);
+	static void DestroyResources(FLandscapeSectionInfo* SectionInfo);
 
-	int32 GetComponentLinearIndex(FIntPoint ComponentBase) const
+	static void RegisterSection(FLandscapeSectionInfo* SectionInfo);
+	static void UnregisterSection(FLandscapeSectionInfo* SectionInfo);
+
+	int32 GetSectionLinearIndex(FIntPoint InSectionBase) const
 	{
-		return (ComponentBase.Y - Min.Y) * Size.X + ComponentBase.X - Min.X;
+		return (InSectionBase.Y - Min.Y) * Size.X + InSectionBase.X - Min.X;
 	}
 	void ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize);
 
-	void SetSectionLODSettings(FIntPoint ComponentBase, LODSettingsComponent LODSettings)
+	void SetSectionInfo(FIntPoint InSectionBase, FLandscapeSectionInfo* InSectionInfo)
 	{
-		SectionLODSettings[GetComponentLinearIndex(ComponentBase)] = LODSettings;
+		SectionInfos[GetSectionLinearIndex(InSectionBase)] = InSectionInfo;
 	}
 
-	void SetSectionOriginAndRadius(FIntPoint ComponentBase, FVector4 OriginAndRadius)
+	FLandscapeSectionInfo* GetSectionInfo(FIntPoint InSectionBase)
 	{
-		SectionOriginAndRadius[GetComponentLinearIndex(ComponentBase)] = OriginAndRadius;
+		return SectionInfos[GetSectionLinearIndex(InSectionBase)];
 	}
 
-	void SetSceneProxy(FIntPoint ComponentBase, FLandscapeComponentSceneProxy* SceneProxy)
+	float GetSectionLODValue(const FSceneView& SceneView, FIntPoint InSectionBase) const
 	{
-		SceneProxies[GetComponentLinearIndex(ComponentBase)] = SceneProxy;
+		return CachedSectionLODValues[SceneView.GetViewKey()][GetSectionLinearIndex(InSectionBase)];
 	}
 
-	float GetSectionLODValue(const FSceneView& SceneView, FIntPoint ComponentBase) const
+	float GetSectionLODBias(FIntPoint InSectionBase) const
 	{
-		return CachedSectionLODValues[SceneView.GetViewKey()][GetComponentLinearIndex(ComponentBase)];
+		return SectionLODBiases[GetSectionLinearIndex(InSectionBase)];
 	}
 
-	float GetSectionLODBias(FIntPoint ComponentBase) const
-	{
-		return SectionLODBiases[GetComponentLinearIndex(ComponentBase)];
-	}
-
-	void ComputeSectionPerViewParameters(
-		FViewKey ViewKey,
-		int32 ViewLODOverride,
-		float ViewLODDistanceFactor,
-		bool bDrawCollisionPawn,
-		bool bDrawCollisionCollision,
-		const FVector& ViewOrigin,
-		const FMatrix& ViewProjectionMarix,
-		const TArray<uint8>& SectionCurrentFirstLODIndices);
-
-	void PrepareView(const FViewParams& InViewParams);
+	const TResourceArray<float>& ComputeSectionsLODForView(const FSceneView& InView);
 
 	void BeginRender();
 
@@ -570,9 +472,11 @@ struct FLandscapeRenderSystem
 	void EndFrame();
 
 	void WaitForTasksCompletion();
-};
 
-LANDSCAPE_API extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
+private:
+	void CreateResources_Internal(FLandscapeSectionInfo* InSectionInfo);
+	void DestroyResources_Internal(FLandscapeSectionInfo* InSectionInfo);
+};
 
 
 //
@@ -610,7 +514,6 @@ public:
 private:
 	bool bRequiresVisibleLevelToRender = false;
 	bool bIsComponentLevelVisible = false;
-	FPrimitiveSceneProxy* Proxy = nullptr;
 };
 
 //
@@ -648,24 +551,28 @@ LANDSCAPE_API extern FLandscapeDebugOptions GLandscapeDebugOptions;
 //
 class FLandscapeMeshProxySceneProxy final : public FStaticMeshSceneProxy
 {
-	TArray<FLandscapeNeighborInfo> ProxyNeighborInfos;
 public:
 	SIZE_T GetTypeHash() const override;
 
-	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InGuid, const TArray<FIntPoint>& InProxyComponentBases, int8 InProxyLOD);
+	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD);
 	virtual void CreateRenderThreadResources() override;
 	virtual void DestroyRenderThreadResources() override;
 	virtual bool OnLevelAddedToWorld_RenderThread() override;
 	virtual void OnLevelRemovedFromWorld_RenderThread() override;
 
 private:
+	void RegisterSections();
+	void UnregisterSections();
+
 	FLandscapeVisibilityHelper VisibilityHelper;
+
+	TArray<TUniquePtr<FLandscapeSectionInfo>> ProxySectionsInfos;
 };
 
 //
 // FLandscapeComponentSceneProxy
 //
-class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLandscapeNeighborInfo
+class LANDSCAPE_API FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLandscapeSectionInfo
 {
 	friend class FLandscapeSharedBuffers;
 
@@ -739,8 +646,6 @@ protected:
 	int32						LastVirtualTextureLOD;
 	float						ComponentMaxExtend; 		// The max extend value in any axis
 	float						ComponentSquaredScreenSizeToUseSubSections; // Size at which we start to draw in sub lod if LOD are different per sub section
-	float						MinValidLOD;							// Min LOD Taking into account LODBias
-	float						MaxValidLOD;							// Max LOD Taking into account LODBias
 
 	FLandscapeRenderSystem::LODSettingsComponent LODSettings;
 
@@ -789,6 +694,7 @@ protected:
 #if WITH_EDITOR
 	TArray<FLinearColor> LayerColors;
 #endif
+	UTexture2D* HeightmapTexture; // PC : Heightmap, Mobile : Weightmap
 	UTexture2D* NormalmapTexture; // PC : Heightmap, Mobile : Weightmap
 	UTexture2D* BaseColorForGITexture;
 	FVector4f HeightmapScaleBias;
@@ -852,7 +758,6 @@ protected:
 protected:
 	virtual ~FLandscapeComponentSceneProxy();
 	
-	virtual const ULandscapeComponent* GetLandscapeComponent() const { return LandscapeComponent; }
 	int8 GetLODFromScreenSize(float InScreenSizeSquared, float InViewLODScale) const;
 
 	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
@@ -910,6 +815,10 @@ public:
 	virtual bool HasRayTracingRepresentation() const override { return true; }
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
+
+	// FLandscapeSceneInfo interface
+	virtual float ComputeLODForView(const FSceneView& InView) const override;
+	virtual float ComputeLODBias() const override;
 };
 
 class FLandscapeDebugMaterialRenderProxy : public FMaterialRenderProxy

@@ -45,14 +45,6 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "Lan
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
 IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryPixelShaderParameters);
 
-int32 GLandscapeMeshLODBias = 0;
-FAutoConsoleVariableRef CVarLandscapeMeshLODBias(
-	TEXT("r.LandscapeLODBias"),
-	GLandscapeMeshLODBias,
-	TEXT("LOD bias for landscape/terrain meshes."),
-	ECVF_Scalability
-);
-
 #if !UE_BUILD_SHIPPING
 static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
 {
@@ -102,6 +94,8 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 #if WITH_EDITOR
 extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
 #endif
+
+extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
 
 #if !UE_BUILD_SHIPPING
 int32 GVarDumpLandscapeLODsCurrentFrame = 0;
@@ -666,65 +660,6 @@ static int32 GetDrawCollisionLodOverride(FSceneView const& View, FCollisionRespo
 
 
 //
-// FComputeSectionPerViewParametersTask
-//
-struct FComputeSectionPerViewParametersTask
-{
-	FLandscapeRenderSystem& RenderSystem;
-
-	FLandscapeRenderSystem::FViewParams ViewParams;
-
-	TArray<uint8> SectionCurrentFirstLODIndices;
-
-	FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FLandscapeRenderSystem::FViewParams& InViewParams)
-		: RenderSystem(InRenderSystem)
-		, ViewParams(InViewParams)
-	{
-#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
-		const int32 NumSceneProxies = InRenderSystem.SceneProxies.Num();
-		SectionCurrentFirstLODIndices.Empty(NumSceneProxies);
-		SectionCurrentFirstLODIndices.AddUninitialized(NumSceneProxies);
-
-		for (int32 Idx = 0; Idx < NumSceneProxies; ++Idx)
-		{
-			const FLandscapeComponentSceneProxy* Proxy = InRenderSystem.SceneProxies[Idx];
-			SectionCurrentFirstLODIndices[Idx] = Proxy ? Proxy->GetCurrentFirstLODIdx_RenderThread() : 0;
-		}
-#endif
-	}
-
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FComputeSectionPerViewParametersTask, STATGROUP_TaskGraphTasks);
-	}
-
-	ENamedThreads::Type GetDesiredThread()
-	{
-		return ENamedThreads::AnyNormalThreadNormalTask;
-	}
-
-	static ESubsequentsMode::Type GetSubsequentsMode()
-	{
-		return ESubsequentsMode::TrackSubsequents;
-	}
-
-	void AnyThreadTask()
-	{
-		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		RenderSystem.ComputeSectionPerViewParameters(
-			ViewParams.ViewKey, ViewParams.ViewLODOverride, ViewParams.ViewLODDistanceFactor,
-			ViewParams.ViewEngineShowFlagCollisionPawn, ViewParams.ViewEngineShowFlagCollisionVisibility,
-			ViewParams.ViewOrigin, ViewParams.ViewProjectionMatrix, SectionCurrentFirstLODIndices);
-	}
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		AnyThreadTask();
-	}
-};
-
-
-//
 // FGetSectionLODBiasesTask
 //
 struct FGetSectionLODBiasesTask
@@ -768,25 +703,12 @@ struct FGetSectionLODBiasesTask
 // FLandscapeComponentSceneProxy
 //
 TMap<uint32, FLandscapeSharedBuffers*>FLandscapeComponentSceneProxy::SharedBuffersMap;
-TMap<FLandscapeNeighborInfo::FLandscapeKey, TMap<FIntPoint, const FLandscapeNeighborInfo*> > FLandscapeNeighborInfo::SharedSceneProxyMap;
 
 const static FName NAME_LandscapeResourceNameForDebugging(TEXT("Landscape"));
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, "LandscapeContinuousLODParameters");
 
-TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
-
-FLandscapeRenderSystem& GetOrCreateLandscapeRenderSystem(FLandscapeNeighborInfo::FLandscapeKey LandscapeKey)
-{
-	check(IsInRenderingThread());
-
-	FLandscapeRenderSystem*& LandscapeRenderSystem = LandscapeRenderSystems.FindOrAdd(LandscapeKey);
-	if (!LandscapeRenderSystem)
-	{
-		LandscapeRenderSystem = new FLandscapeRenderSystem();
-	}
-	return *LandscapeRenderSystem;
-}
+TMap<uint32, FLandscapeRenderSystem*> LandscapeRenderSystems;
 
 TBitArray<> FLandscapeRenderSystem::LandscapeIndexAllocator;
 
@@ -795,9 +717,9 @@ TBitArray<> FLandscapeRenderSystem::LandscapeIndexAllocator;
 // FLandscapeRenderSystem
 //
 FLandscapeRenderSystem::FLandscapeRenderSystem()
-	: NumRegisteredEntities(0)
-	, Min(MAX_int32, MAX_int32)
+	: Min(MAX_int32, MAX_int32)
 	, Size(EForceInit::ForceInitToZero)
+	, ReferenceCount(0)
 {
 	SectionLODBiases.SetAllowCPUAccess(true);
 
@@ -826,18 +748,46 @@ FLandscapeRenderSystem::~FLandscapeRenderSystem()
 	LandscapeIndexAllocator.SetNumUninitialized(LastSetIndex + 1);
 }
 
-void FLandscapeRenderSystem::RegisterEntity(FLandscapeComponentSceneProxy* SceneProxy)
+void FLandscapeRenderSystem::CreateResources(FLandscapeSectionInfo* SectionInfo)
 {
 	check(IsInRenderingThread());
-	check(SceneProxy != nullptr);
 
-	if (NumRegisteredEntities > 0)
+	FLandscapeRenderSystem*& LandscapeRenderSystem = LandscapeRenderSystems.FindOrAdd(SectionInfo->LandscapeKey);
+	if (!LandscapeRenderSystem)
+	{
+		LandscapeRenderSystem = new FLandscapeRenderSystem();
+	}
+
+	LandscapeRenderSystem->CreateResources_Internal(SectionInfo);
+}
+
+void FLandscapeRenderSystem::DestroyResources(FLandscapeSectionInfo* SectionInfo)
+{
+	check(IsInRenderingThread());
+
+	FLandscapeRenderSystem* LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(SectionInfo->LandscapeKey);
+	LandscapeRenderSystem->DestroyResources_Internal(SectionInfo);
+
+	if (LandscapeRenderSystem->ReferenceCount == 0)
+	{
+		delete LandscapeRenderSystem;
+		LandscapeRenderSystems.Remove(SectionInfo->LandscapeKey);
+	}
+}
+
+void FLandscapeRenderSystem::CreateResources_Internal(FLandscapeSectionInfo* SectionInfo)
+{
+	check(IsInRenderingThread());
+	check(SectionInfo != nullptr);
+	check(!SectionInfo->bRegistered);
+
+	if (!SectionInfos.IsEmpty())
 	{
 		// Calculate new bounding rect of landscape components
 		FIntPoint OriginalMin = Min;
 		FIntPoint OriginalMax = Min + Size - FIntPoint(1, 1);
-		FIntPoint NewMin(FMath::Min(Min.X, SceneProxy->ComponentBase.X), FMath::Min(Min.Y, SceneProxy->ComponentBase.Y));
-		FIntPoint NewMax(FMath::Max(OriginalMax.X, SceneProxy->ComponentBase.X), FMath::Max(OriginalMax.Y, SceneProxy->ComponentBase.Y));
+		FIntPoint NewMin(FMath::Min(Min.X, SectionInfo->ComponentBase.X), FMath::Min(Min.Y, SectionInfo->ComponentBase.Y));
+		FIntPoint NewMax(FMath::Max(OriginalMax.X, SectionInfo->ComponentBase.X), FMath::Max(OriginalMax.Y, SectionInfo->ComponentBase.Y));
 
 		FIntPoint SizeRequired = (NewMax - NewMin) + FIntPoint(1, 1);
 
@@ -848,28 +798,88 @@ void FLandscapeRenderSystem::RegisterEntity(FLandscapeComponentSceneProxy* Scene
 	}
 	else
 	{
-		ResizeAndMoveTo(SceneProxy->ComponentBase, FIntPoint(1, 1));
+		ResizeAndMoveTo(SectionInfo->ComponentBase, FIntPoint(1, 1));
 	}
 
-	NumRegisteredEntities++;
-	SetSectionLODSettings(SceneProxy->ComponentBase, SceneProxy->LODSettings);
-	SetSectionOriginAndRadius(SceneProxy->ComponentBase, FVector4(SceneProxy->GetBounds().Origin, SceneProxy->GetBounds().SphereRadius));
-	SetSceneProxy(SceneProxy->ComponentBase, SceneProxy);
+	ReferenceCount++;
 }
 
-void FLandscapeRenderSystem::UnregisterEntity(FLandscapeComponentSceneProxy* SceneProxy)
+void FLandscapeRenderSystem::DestroyResources_Internal(FLandscapeSectionInfo* SectionInfo)
 {
 	check(IsInRenderingThread());
-	check(SceneProxy != nullptr);
+	check(SectionInfo != nullptr);
+	check(!SectionInfo->bRegistered);
 
-	SetSceneProxy(SceneProxy->ComponentBase, nullptr);
-	SetSectionOriginAndRadius(SceneProxy->ComponentBase, FVector4(ForceInitToZero));
+	ReferenceCount--;
+}
 
-	LODSettingsComponent LODSettings;
-	FMemory::Memzero(&LODSettings, sizeof(LODSettingsComponent));
-	SetSectionLODSettings(SceneProxy->ComponentBase, LODSettings);
+void FLandscapeRenderSystem::RegisterSection(FLandscapeSectionInfo* SectionInfo)
+{
+	check(IsInRenderingThread());
+	check(SectionInfo != nullptr);
+	check(!SectionInfo->bRegistered);
 
-	NumRegisteredEntities--;
+	// With HLODs, it's possible to have multiple loaded sections representing the same
+	// landscape patch. For example, raytracing may keep the HLOD proxy around (far field),
+	// even if the actual landscape is loaded & visible.
+	// We keep a linked list of the section infos, sorted by priority, so that unregistration can
+	// properly restore a previously registered section info.
+
+	FLandscapeRenderSystem*& LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(SectionInfo->LandscapeKey);
+	FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->ComponentBase);
+	if (ExistingSection == nullptr)
+	{
+		LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo);
+	}
+	else
+	{
+		FLandscapeSectionInfo* CurrentSection = nullptr;
+		FLandscapeSectionInfo::TIterator SectionIt(ExistingSection);
+		for (; SectionIt; ++SectionIt)
+		{
+			CurrentSection = &*SectionIt;
+
+			// Sort on insertion
+			if (SectionInfo->GetSectionPriority() < CurrentSection->GetSectionPriority())
+			{
+				SectionInfo->LinkBefore(CurrentSection);
+				break;
+			}
+		}
+
+		if (!SectionIt)
+		{
+			// Set as tail
+			SectionInfo->LinkAfter(CurrentSection);
+		}
+		else if (CurrentSection == ExistingSection)
+		{
+			// Set as head
+			LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo);
+		}
+	}
+
+	SectionInfo->bRegistered = true;
+}
+
+void FLandscapeRenderSystem::UnregisterSection(FLandscapeSectionInfo* SectionInfo)
+{
+	check(IsInRenderingThread());
+	check(SectionInfo != nullptr);
+	
+	if (SectionInfo->bRegistered)
+	{
+		FLandscapeRenderSystem* LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(SectionInfo->LandscapeKey);
+		FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->ComponentBase);
+		if (ExistingSection == SectionInfo)
+		{
+			LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo->GetNextLink());
+		}
+
+		SectionInfo->Unlink();
+
+		SectionInfo->bRegistered = false;
+	}
 }
 
 void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize)
@@ -877,14 +887,10 @@ void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize
 	SectionLODBiasBuffer.SafeRelease();
 
 	TResourceArray<float> NewSectionLODBiases;
-	TArray<LODSettingsComponent> NewSectionLODSettings;
-	TArray<FVector4> NewSectionOriginAndRadius;
-	TArray<FLandscapeComponentSceneProxy*> NewSceneProxies;
+	TArray<FLandscapeSectionInfo*> NewSectionInfos;
 
 	NewSectionLODBiases.AddZeroed(NewSize.X * NewSize.Y);
-	NewSectionLODSettings.AddZeroed(NewSize.X * NewSize.Y);
-	NewSectionOriginAndRadius.AddZeroed(NewSize.X * NewSize.Y);
-	NewSceneProxies.AddZeroed(NewSize.X * NewSize.Y);
+	NewSectionInfos.AddZeroed(NewSize.X * NewSize.Y);
 
 	for (int32 Y = 0; Y < Size.Y; Y++)
 	{
@@ -896,38 +902,17 @@ void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize
 			if (NewLinearIndex >= 0 && NewLinearIndex < NewSize.X * NewSize.Y)
 			{
 				NewSectionLODBiases[NewLinearIndex] = SectionLODBiases[LinearIndex];
-				NewSectionLODSettings[NewLinearIndex] = SectionLODSettings[LinearIndex];
-				NewSectionOriginAndRadius[NewLinearIndex] = SectionOriginAndRadius[LinearIndex];
-				NewSceneProxies[NewLinearIndex] = SceneProxies[LinearIndex];
+				NewSectionInfos[NewLinearIndex] = SectionInfos[LinearIndex];
 			}
 		}
 	}
 
 	Min = NewMin;
 	Size = NewSize;
-	SectionLODBiases = NewSectionLODBiases;
-	SectionLODSettings = NewSectionLODSettings;
-	SectionOriginAndRadius = NewSectionOriginAndRadius;
-	SceneProxies = NewSceneProxies;
+	SectionLODBiases = MoveTemp(NewSectionLODBiases);
+	SectionInfos = MoveTemp(NewSectionInfos);
 
 	SectionLODBiases.SetAllowCPUAccess(true);
-}
-
-void FLandscapeRenderSystem::PrepareView(const FViewParams& InViewParams)
-{
-	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
-
-	if (bExecuteInParallel)
-	{
-		PerViewParametersTasks.Add(InViewParams.ViewKey, TGraphTask<FComputeSectionPerViewParametersTask>::CreateTask(
-			nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(*this, InViewParams));
-	}
-	else
-	{
-		FComputeSectionPerViewParametersTask Task(*this, InViewParams);
-		Task.AnyThreadTask();
-	}
 }
 
 void FLandscapeRenderSystem::BeginRender()
@@ -941,72 +926,34 @@ void FLandscapeRenderSystem::BeginRender()
 	UpdateBuffers();
 }
 
-void FLandscapeRenderSystem::ComputeSectionPerViewParameters(
-	FViewKey ViewKey,
-	int32 ViewLODOverride,
-	float ViewLODDistanceFactor,
-	bool bDrawCollisionPawn,
-	bool bDrawCollisionCollision,
-	const FVector& ViewOrigin,
-	const FMatrix& ViewProjectionMarix,
-	const TArray<uint8>& SectionCurrentFirstLODIndices
-)
+const TResourceArray<float>& FLandscapeRenderSystem::ComputeSectionsLODForView(const FSceneView& InView)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionPerViewParameters());
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeSectionsLODForView);
 
-	TResourceArray<float> NewSectionLODValues;
+	TResourceArray<float>& SectionLODValues = CachedSectionLODValues.Add(InView.GetViewKey());
+	SectionLODValues.AddZeroed(SectionInfos.Num());
 
-	NewSectionLODValues.AddZeroed(SectionLODSettings.Num());
-
-	float LODScale = ViewLODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
-
-	for (int32 EntityIndex = 0; EntityIndex < SectionLODSettings.Num(); EntityIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < SectionInfos.Num(); SectionIndex++)
 	{
-		float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(FVector(SectionOriginAndRadius[EntityIndex]), SectionOriginAndRadius[EntityIndex].W, ViewOrigin, ViewProjectionMarix);
+		const float DefaultLODValue = 0.0f;
 
-		float FractionalLOD;
-		GetLODFromScreenSize(SectionLODSettings[EntityIndex], MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
-
-		int32 ForcedLODLevel = SectionLODSettings[EntityIndex].ForcedLOD;
-		ForcedLODLevel = ViewLODOverride >= 0 ? ViewLODOverride : ForcedLODLevel;
-		const int32 DrawCollisionLODOverride = GetDrawCollisionLodOverride(bDrawCollisionPawn, bDrawCollisionCollision, SectionLODSettings[EntityIndex].DrawCollisionPawnLOD, SectionLODSettings[EntityIndex].DrawCollisionVisibilityLOD);
-		ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ForcedLODLevel;
-		ForcedLODLevel = FMath::Min<int32>(ForcedLODLevel, SectionLODSettings[EntityIndex].LastLODIndex);
-
-#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
-		const float CurFirstLODIdx = (float)SectionCurrentFirstLODIndices[EntityIndex];
-#else
-		constexpr float CurFirstLODIdx = 0.f;
-#endif
-
-		NewSectionLODValues[EntityIndex] = FMath::Max(ForcedLODLevel >= 0 ? ForcedLODLevel : FractionalLOD, CurFirstLODIdx);
+		FLandscapeSectionInfo* SectionInfo = SectionInfos[SectionIndex];
+		SectionLODValues[SectionIndex] = SectionInfo ? SectionInfo->ComputeLODForView(InView) : DefaultLODValue;
 	}
 
-	{
-		FScopeLock Lock(&CachedValuesCS);
-
-		CachedSectionLODValues.Add(ViewKey, MoveTemp(NewSectionLODValues));
-	}
+	return SectionLODValues;
 }
 
 void FLandscapeRenderSystem::FetchHeightmapLODBiases()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::FetchHeightmapLODBiases());
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::FetchHeightmapLODBiases);
 
-	// TODO: this function generates A LOT OF cache misses - it should be much better if we have an event of FTexture2DResource::UpdateTexture
-	for (int32 EntityIndex = 0; EntityIndex < SceneProxies.Num(); EntityIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < SectionInfos.Num(); SectionIndex++)
 	{
-		FLandscapeComponentSceneProxy* SceneProxy = SceneProxies[EntityIndex];
-		if (SceneProxy && SceneProxy->HeightmapTexture)
-		{
-			if (const FTexture2DResource* TextureResource = (const FTexture2DResource*)SceneProxy->HeightmapTexture->GetResource())
-			{
-				SectionLODBiases[EntityIndex] = SceneProxy->HeightmapTexture->GetNumMips() - SceneProxy->HeightmapTexture->GetNumResidentMips();
+		const float DefaultLODBias = 0.0f;
 
-				// TODO: support mipmap LOD bias of XY offset map
-				//XYOffsetmapTexture ? ((FTexture2DResource*)XYOffsetmapTexture->Resource)->GetCurrentFirstMip() : 0.0f);
-			}
-		}
+		FLandscapeSectionInfo* SectionInfo = SectionInfos[SectionIndex];
+		SectionLODBiases[SectionIndex] = SectionInfo ? SectionInfo->ComputeLODBias() : DefaultLODBias;
 	}
 }
 
@@ -1082,13 +1029,6 @@ void FLandscapeRenderSystem::WaitForTasksCompletion()
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(FetchHeightmapLODBiasesEventRef, ENamedThreads::GetRenderThread_Local());
 		FetchHeightmapLODBiasesEventRef.SafeRelease();
 	}
-
-	for (auto& Pair : PerViewParametersTasks)
-	{
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(PerViewParametersTasks[Pair.Key], ENamedThreads::GetRenderThread_Local());
-	}
-
-	PerViewParametersTasks.Reset();
 }
 
 
@@ -1112,31 +1052,12 @@ void FLandscapeSceneViewExtension::BeginFrame_RenderThread()
 	for (auto& Pair : LandscapeRenderSystems)
 	{
 		FLandscapeRenderSystem& RenderSystem = *Pair.Value;
-
 		RenderSystem.BeginFrame();
 	}
 }
 
 void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
 {
-	for (const auto& View : InViewFamily.Views)
-	{
-		FLandscapeRenderSystem::FViewParams ViewParams;
-		ViewParams.ViewKey = View->GetViewKey();
-		ViewParams.ViewLODOverride = GetViewLodOverride(*View);
-		ViewParams.ViewLODDistanceFactor = View->LODDistanceFactor;
-		ViewParams.ViewEngineShowFlagCollisionPawn = View->Family->EngineShowFlags.CollisionPawn;
-		ViewParams.ViewEngineShowFlagCollisionVisibility = View->Family->EngineShowFlags.CollisionVisibility;
-		ViewParams.ViewOrigin = GetLODView(*View).ViewMatrices.GetViewOrigin();
-		ViewParams.ViewProjectionMatrix = GetLODView(*View).ViewMatrices.GetProjectionMatrix();
-
-		for (auto& Pair : LandscapeRenderSystems)
-		{
-			FLandscapeRenderSystem& RenderSystem = *Pair.Value;
-			RenderSystem.PrepareView(ViewParams);
-		}
-	}
-
 	for (auto& Pair : LandscapeRenderSystems)
 	{
 		FLandscapeRenderSystem& RenderSystem = *Pair.Value;
@@ -1159,12 +1080,14 @@ void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImm
 		for (auto& Pair : LandscapeRenderSystems)
 		{
 			FLandscapeRenderSystem& RenderSystem = *Pair.Value;
-			uint32& IndirectionEntry = LandscapeIndirection[RenderSystem.LandscapeIndex];
 
-			// Where the data for this landscape starts
+			// Store index where the LOD data for this landscape starts
+			uint32& IndirectionEntry = LandscapeIndirection[RenderSystem.LandscapeIndex];
 			IndirectionEntry = LandscapeLODData.Num();
 
-			LandscapeLODData.Append(RenderSystem.CachedSectionLODValues.FindChecked(InView.GetViewKey()));
+			// Compute sections lod values for this view & append to the global landscape LOD data
+			const TResourceArray<float>& SectionsLODValues = RenderSystem.ComputeSectionsLODForView(InView);
+			LandscapeLODData.Append(SectionsLODValues);
 		}
 
 		FRHIResourceCreateInfo CreateInfoLODBuffer(TEXT("LandscapeLODDataBuffer"), &LandscapeLODData);
@@ -1230,7 +1153,7 @@ bool FLandscapeVisibilityHelper::OnRemoveFromWorld()
 
 FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_LandscapeResourceNameForDebugging)
-	, FLandscapeNeighborInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads, InComponent->GetHeightmap(), InComponent->ForcedLOD, InComponent->LODBias)
+	, FLandscapeSectionInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads)
 	, MaxLOD(FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1) - 1)
 	, NumWeightmapLayerAllocations(InComponent->GetWeightmapLayerAllocations().Num())
 	, StaticLightingLOD(InComponent->GetLandscapeProxy()->StaticLightingLOD)
@@ -1250,6 +1173,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, WeightmapTextures(InComponent->GetWeightmapTextures())
 	, VisibilityWeightmapTexture(nullptr)
 	, VisibilityWeightmapChannel(-1)
+	, HeightmapTexture(InComponent->GetHeightmap())
 	, NormalmapTexture(InComponent->GetHeightmap())
 	, BaseColorForGITexture(InComponent->GIBakedBaseColorTexture)
 	, HeightmapScaleBias(InComponent->HeightmapScaleBias)
@@ -1272,7 +1196,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
-
 	VisibilityHelper.Init(InComponent, this);
 
 	if (!VisibilityHelper.ShouldBeVisible())
@@ -1358,6 +1281,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 
 	// Clamp ForcedLOD to the valid range and then apply
+	int8 ForcedLOD = InComponent->ForcedLOD;
 	ForcedLOD = ForcedLOD >= 0 ? FMath::Clamp<int32>(ForcedLOD, FirstLOD, LastLOD) : ForcedLOD;
 	FirstLOD = ForcedLOD >= 0 ? ForcedLOD : FirstLOD;
 	LastLOD = ForcedLOD >= 0 ? ForcedLOD : LastLOD;
@@ -1365,12 +1289,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	LODSettings.LastLODIndex = LastLOD;
 	LODSettings.LastLODScreenSizeSquared = LODScreenRatioSquared[LastLOD];
 	LODSettings.ForcedLOD = ForcedLOD;
-
-	LODBias = FMath::Clamp<int8>(LODBias, -MaxLOD, MaxLOD);
-
-	int8 LocalLODBias = LODBias + (int8)GLandscapeMeshLODBias;
-	MinValidLOD = FMath::Clamp<int8>(LocalLODBias, -MaxLOD, MaxLOD);
-	MaxValidLOD = FMath::Min<int32>(MaxLOD, MaxLOD + LocalLODBias);
 
 	LastVirtualTextureLOD = MaxLOD;
 	FirstVirtualTextureLOD = FMath::Max(MaxLOD - InComponent->GetLandscapeProxy()->VirtualTextureNumLods, 0);
@@ -1509,11 +1427,11 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	check(HeightmapTexture != nullptr);
 
-	const FLandscapeRenderSystem& RenderSystem = GetOrCreateLandscapeRenderSystem(LandscapeKey);	
+	FLandscapeRenderSystem::CreateResources(this);
 
 	if (VisibilityHelper.ShouldBeVisible())
 	{
-		RegisterNeighbors(this);
+		RegisterSection();
 	}
 
 	auto FeatureLevel = GetScene().GetFeatureLevel();
@@ -1611,7 +1529,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		FLandscapeBatchElementParams* BatchElementParams = &GrassBatchParams[0];
 		BatchElementParams->LandscapeUniformShaderParametersResource = &LandscapeUniformShaderParameters;
 		BatchElementParams->FixedGridUniformShaderParameters = &LandscapeFixedGridUniformShaderParameters;
-		BatchElementParams->LandscapeSectionLODUniformParameters = RenderSystem.SectionLODUniformBuffer;
+		BatchElementParams->LandscapeSectionLODUniformParameters = nullptr; // Not needed for grass rendering
 		BatchElementParams->SceneProxy = this;
 		BatchElementParams->CurrentLOD = 0;
 		GrassBatchElement->UserData = BatchElementParams;
@@ -1677,7 +1595,8 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 void FLandscapeComponentSceneProxy::DestroyRenderThreadResources()
 {
 	FPrimitiveSceneProxy::DestroyRenderThreadResources();
-	UnregisterNeighbors(this);
+	FLandscapeRenderSystem::UnregisterSection(this);
+	FLandscapeRenderSystem::DestroyResources(this);
 }
 
 bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
@@ -1685,7 +1604,7 @@ bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
 	if (VisibilityHelper.OnAddedToWorld())
 	{
 		SetForceHidden(false);
-		CreateRenderThreadResources();
+		FLandscapeRenderSystem::RegisterSection(this);
 		return true;
 	}
 	return false;
@@ -1696,6 +1615,7 @@ void FLandscapeComponentSceneProxy::OnLevelRemovedFromWorld_RenderThread()
 	if (VisibilityHelper.OnRemoveFromWorld())
 	{
 		SetForceHidden(true);
+		FLandscapeRenderSystem::UnregisterSection(this);
 	}
 }
 
@@ -2055,14 +1975,6 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 	LandscapeUniformShaderParameters.SetContents(LandscapeParams);
 
-	if (bRegistered)
-	{
-		FVector4 OriginAndSphereRadius(GetBounds().Origin, GetBounds().SphereRadius);
-
-		FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
-		RenderSystem.SetSectionOriginAndRadius(ComponentBase, OriginAndSphereRadius);
-	}
-
 	// Recache mesh draw commands for changed uniform buffers
 	GetScene().UpdateCachedRenderStates(this);
 
@@ -2277,6 +2189,11 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLandscapeComponentSceneProxy_GetMeshElements);
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeDynamicDrawTime);
 
+	if (!bRegistered)
+	{
+		return;
+	}
+
 	int32 NumPasses = 0;
 	int32 NumTriangles = 0;
 	int32 NumDrawCalls = 0;
@@ -2387,7 +2304,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 					LODMesh.Elements.Add(TemplateMesh.Elements[i]);
 					int32 CurrentLOD = ((FLandscapeBatchElementParams*)TemplateMesh.Elements[i].UserData)->CurrentLOD;
 					LODMesh.VisualizeLODIndex = CurrentLOD;
-					FLinearColor Color = GetColorForLod(CurrentLOD, ForcedLOD, true);
+					FLinearColor Color = GetColorForLod(CurrentLOD, LODSettings.ForcedLOD, true);
 					FMaterialRenderProxy* LODMaterialProxy = (FMaterialRenderProxy*)new FColoredMaterialRenderProxy(GEngine->LevelColorationUnlitMaterial->GetRenderProxy(), Color);
 					Collector.RegisterOneFrameMaterialProxy(LODMaterialProxy);
 					LODMesh.MaterialRenderProxy = LODMaterialProxy;
@@ -4114,121 +4031,117 @@ void FLandscapeComponentSceneProxy::GetLCIs(FLCIArray& LCIs)
 	}
 }
 
-//
-// FLandscapeNeighborInfo
-//
-void FLandscapeNeighborInfo::RegisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy /* = nullptr */)
+float FLandscapeComponentSceneProxy::ComputeLODForView(const FSceneView& InView) const
 {
-	check(IsInRenderingThread());
-	if (!bRegistered)
+	// TODO: this function generates A LOT OF cache misses - it should be much better if we have an event of FTexture2DResource::UpdateTexture
+
+	int32 ViewLODOverride = GetViewLodOverride(InView);
+	float ViewLODDistanceFactor = InView.LODDistanceFactor;
+	bool ViewEngineShowFlagCollisionPawn = InView.Family->EngineShowFlags.CollisionPawn;
+	bool ViewEngineShowFlagCollisionVisibility = InView.Family->EngineShowFlags.CollisionVisibility;
+	const FVector& ViewOrigin = GetLODView(InView).ViewMatrices.GetViewOrigin();
+	const FMatrix& ViewProjectionMatrix = GetLODView(InView).ViewMatrices.GetProjectionMatrix();
+
+	float LODScale = ViewLODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
+
+	int32 ForcedLODLevel = LODSettings.ForcedLOD;
+	ForcedLODLevel = ViewLODOverride >= 0 ? ViewLODOverride : ForcedLODLevel;
+	const int32 DrawCollisionLODOverride = GetDrawCollisionLodOverride(ViewEngineShowFlagCollisionPawn, ViewEngineShowFlagCollisionVisibility, LODSettings.DrawCollisionPawnLOD, LODSettings.DrawCollisionVisibilityLOD);
+	ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ForcedLODLevel;
+	ForcedLODLevel = FMath::Min<int32>(ForcedLODLevel, LODSettings.LastLODIndex);
+
+	float LODLevel = ForcedLODLevel;
+	if (ForcedLODLevel < 0)
 	{
-		FLandscapeRenderSystem& RenderSystem = GetOrCreateLandscapeRenderSystem(LandscapeKey);
+		float MeshScreenSizeSquared = ComputeBoundsScreenRadiusSquared(GetBounds().Origin, GetBounds().SphereRadius, ViewOrigin, ViewProjectionMatrix);
 
-		// Register ourselves in the map.
-		TMap<FIntPoint, const FLandscapeNeighborInfo*>& SceneProxyMap = SharedSceneProxyMap.FindOrAdd(LandscapeKey);
-
-		const FLandscapeNeighborInfo* Existing = SceneProxyMap.FindRef(ComponentBase);
-		if (Existing == nullptr)//(ensure(Existing == nullptr))
-		{
-			SceneProxyMap.Add(ComponentBase, this);
-			bRegistered = true;
-
-			// Find Neighbors
-			Neighbors[0] = SceneProxyMap.FindRef(ComponentBase + FIntPoint(0, -1));
-			Neighbors[1] = SceneProxyMap.FindRef(ComponentBase + FIntPoint(-1, 0));
-			Neighbors[2] = SceneProxyMap.FindRef(ComponentBase + FIntPoint(1, 0));
-			Neighbors[3] = SceneProxyMap.FindRef(ComponentBase + FIntPoint(0, 1));
-
-			// Add ourselves to our neighbors
-			if (Neighbors[0])
-			{
-				Neighbors[0]->Neighbors[3] = this;
-			}
-			if (Neighbors[1])
-			{
-				Neighbors[1]->Neighbors[2] = this;
-			}
-			if (Neighbors[2])
-			{
-				Neighbors[2]->Neighbors[1] = this;
-			}
-			if (Neighbors[3])
-			{
-				Neighbors[3]->Neighbors[0] = this;
-			}
-
-			if (SceneProxy != nullptr)
-			{
-				RenderSystem.RegisterEntity(SceneProxy);
-			}
-		}
-		else
-		{
-			UE_LOG(LogLandscape, Warning, TEXT("Duplicate ComponentBase %d, %d"), ComponentBase.X, ComponentBase.Y);
-		}
+		float FractionalLOD;
+		FLandscapeRenderSystem::GetLODFromScreenSize(LODSettings, MeshScreenSizeSquared, LODScale * LODScale, FractionalLOD);
+		LODLevel = FractionalLOD;
 	}
+
+#if PLATFORM_SUPPORTS_LANDSCAPE_VISUAL_MESH_LOD_STREAMING
+	const float CurFirstLODIdx = GetCurrentFirstLODIdx_RenderThread();
+#else
+	constexpr float CurFirstLODIdx = 0.f;
+#endif
+
+	return FMath::Max(LODLevel, CurFirstLODIdx);
 }
 
-void FLandscapeNeighborInfo::UnregisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy /* = nullptr */)
+float FLandscapeComponentSceneProxy::ComputeLODBias() const
 {
-	check(IsInRenderingThread());
-	
-	if (bRegistered)
+	float ComputedLODBias = 0;
+
+	if (HeightmapTexture)
 	{
-		// Remove ourselves from the map
-		TMap<FIntPoint, const FLandscapeNeighborInfo*>* SceneProxyMap = SharedSceneProxyMap.Find(LandscapeKey);
-		check(SceneProxyMap);
-
-		const FLandscapeNeighborInfo* MapEntry = SceneProxyMap->FindRef(ComponentBase);
-		if (MapEntry == this) //(/*ensure*/(MapEntry == this))
+		if (const FTexture2DResource* TextureResource = (const FTexture2DResource*)HeightmapTexture->GetResource())
 		{
-			SceneProxyMap->Remove(ComponentBase);
-
-			if (SceneProxy != nullptr)
-			{
-				FLandscapeRenderSystem& RenderSystem = *LandscapeRenderSystems.FindChecked(LandscapeKey);
-				RenderSystem.UnregisterEntity(SceneProxy);
-			}
-
-			if (SceneProxyMap->Num() == 0)
-			{
-				FLandscapeRenderSystem* RenderSystemPtr = LandscapeRenderSystems.FindChecked(LandscapeKey);
-				check(RenderSystemPtr->NumRegisteredEntities == 0);
-
-				delete RenderSystemPtr;
-				LandscapeRenderSystems.Remove(LandscapeKey);
-
-				// remove the entire LandscapeKey entry as this is the last scene proxy
-				SharedSceneProxyMap.Remove(LandscapeKey);
-			}
-			else
-			{
-				// remove reference to us from our neighbors
-				if (Neighbors[0])
-				{
-					Neighbors[0]->Neighbors[3] = nullptr;
-				}
-				if (Neighbors[1])
-				{
-					Neighbors[1]->Neighbors[2] = nullptr;
-				}
-				if (Neighbors[2])
-				{
-					Neighbors[2]->Neighbors[1] = nullptr;
-				}
-				if (Neighbors[3])
-				{
-					Neighbors[3]->Neighbors[0] = nullptr;
-				}
-			}
+			ComputedLODBias = HeightmapTexture->GetNumMips() - HeightmapTexture->GetNumResidentMips();
 		}
 	}
+
+	// TODO: support mipmap LOD bias of XY offset map
+	//XYOffsetmapTexture ? ((FTexture2DResource*)XYOffsetmapTexture->Resource)->GetCurrentFirstMip() : 0.0f);
+
+	return ComputedLODBias;
 }
+
+//
+// FLandscapeSectionInfo
+//
+FLandscapeSectionInfo::FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase)
+	: LandscapeKey(HashCombine(GetTypeHash(InWorld), GetTypeHash(InLandscapeGuid)))
+	, ComponentBase(InSectionBase)
+	, bRegistered(false)
+{
+}
+
+void FLandscapeSectionInfo::RegisterSection()
+{
+	FLandscapeRenderSystem::RegisterSection(this);
+}
+
+void FLandscapeSectionInfo::UnregisterSection()
+{
+	FLandscapeRenderSystem::UnregisterSection(this);
+}
+
+//
+// FLandscapeProxySectionInfo
+//
+class FLandscapeProxySectionInfo : public FLandscapeSectionInfo
+{
+public:
+	FLandscapeProxySectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase, int8 InProxyLOD)
+		: FLandscapeSectionInfo(InWorld, InLandscapeGuid, InSectionBase)
+		, ProxyLOD(InProxyLOD)
+	{
+	}
+
+	virtual float ComputeLODForView(const FSceneView& InView) const override
+	{
+		return ProxyLOD;
+	}
+
+	virtual float ComputeLODBias() const override
+	{
+		return 0.0f;
+	}
+
+	virtual int32 GetSectionPriority() const override
+	{
+		return ProxyLOD;
+	}
+
+private:
+	int8 ProxyLOD;
+};
 
 //
 // FLandscapeMeshProxySceneProxy
 //
-FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InGuid, const TArray<FIntPoint>& InProxyComponentBases, int8 InProxyLOD)
+FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD)
 	: FStaticMeshSceneProxy(InComponent, false)
 {
 	VisibilityHelper.Init(InComponent, this);
@@ -4238,10 +4151,26 @@ FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponen
 		bShouldNotifyOnWorldAddRemove = true;
 	}
 
-	ProxyNeighborInfos.Empty(InProxyComponentBases.Num());
-	for (FIntPoint ComponentBase : InProxyComponentBases)
+	ProxySectionsInfos.Empty(InProxySectionsBases.Num());
+	for (FIntPoint SectionBase : InProxySectionsBases)
 	{
-		new(ProxyNeighborInfos) FLandscapeNeighborInfo(InComponent->GetWorld(), InGuid, ComponentBase, nullptr, InProxyLOD, 0);
+		ProxySectionsInfos.Emplace(MakeUnique<FLandscapeProxySectionInfo>(InComponent->GetWorld(), InLandscapeGuid, SectionBase, InProxyLOD));
+	}
+}
+
+void FLandscapeMeshProxySceneProxy::RegisterSections()
+{
+	for (auto& Info : ProxySectionsInfos)
+	{
+		Info->RegisterSection();
+	}
+}
+
+void FLandscapeMeshProxySceneProxy::UnregisterSections()
+{
+	for (auto& Info : ProxySectionsInfos)
+	{
+		Info->UnregisterSection();
 	}
 }
 
@@ -4255,13 +4184,15 @@ SIZE_T FLandscapeMeshProxySceneProxy::GetTypeHash() const
 void FLandscapeMeshProxySceneProxy::CreateRenderThreadResources()
 {
 	FStaticMeshSceneProxy::CreateRenderThreadResources();
+	
+	for (auto& Info : ProxySectionsInfos)
+	{
+		FLandscapeRenderSystem::CreateResources(Info.Get());
+	}
 
 	if (VisibilityHelper.ShouldBeVisible())
 	{
-		for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
-		{
-			Info.RegisterNeighbors();
-		}
+		RegisterSections();
 	}
 }
 
@@ -4270,11 +4201,7 @@ bool FLandscapeMeshProxySceneProxy::OnLevelAddedToWorld_RenderThread()
 	if (VisibilityHelper.OnAddedToWorld())
 	{
 		SetForceHidden(false);
-
-		for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
-		{
-			Info.RegisterNeighbors();
-		}
+		RegisterSections();
 		return true;
 	}
 
@@ -4286,16 +4213,18 @@ void FLandscapeMeshProxySceneProxy::OnLevelRemovedFromWorld_RenderThread()
 	if (VisibilityHelper.OnRemoveFromWorld())
 	{
 		SetForceHidden(true);
+		UnregisterSections();
 	}
 }
 
 void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 {
 	FStaticMeshSceneProxy::DestroyRenderThreadResources();
-
-	for (FLandscapeNeighborInfo& Info : ProxyNeighborInfos)
+	UnregisterSections();
+	
+	for (auto& Info : ProxySectionsInfos)
 	{
-		Info.UnregisterNeighbors();
+		FLandscapeRenderSystem::DestroyResources(Info.Get());
 	}
 }
 

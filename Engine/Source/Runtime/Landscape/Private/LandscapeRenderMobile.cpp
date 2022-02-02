@@ -366,9 +366,11 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 {
 	LLM_SCOPE(ELLMTag::Landscape);
 
+	FLandscapeRenderSystem::CreateResources(this);
+
 	if (VisibilityHelper.ShouldBeVisible())
 	{
-		RegisterNeighbors(this);
+		RegisterSection();
 	}
 	
 	auto FeatureLevel = GetScene().GetFeatureLevel();
