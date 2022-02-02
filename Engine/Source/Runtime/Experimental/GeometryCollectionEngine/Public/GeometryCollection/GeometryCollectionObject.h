@@ -424,8 +424,8 @@ public:
 	int32 MaxClusterLevel;
 
 	/** Damage threshold for clusters at different levels. */
-	UPROPERTY(EditAnywhere, Category = "Clustering")
-	TArray<float> DamageThreshold;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated. Use the default SizeSpecificData instead."))
+	TArray<float> DamageThreshold_DEPRECATED;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "Clustering")
@@ -540,7 +540,7 @@ public:
 	bool bRemoveOnMaxSleep;
 	
 	/** How long may the particle sleep before initiating removal (in seconds). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, DisplayName = "Sleep Min Max")
 	FVector2D MaximumSleepTime;
 
 	/** How long does the removal process take (in seconds). */

@@ -63,7 +63,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, EnableClustering(true)
 	, ClusterGroupIndex(0)
 	, MaxClusterLevel(100)
-	, DamageThreshold({ 250.0 })
+	, DamageThreshold_DEPRECATED({ 500000.f, 50000.f, 5000.f })
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
 	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
@@ -77,12 +77,12 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaxClusterLevelSetResolution_DEPRECATED(50)
 	, CollisionObjectReductionPercentage_DEPRECATED(0.0f)
 #endif
-	, bMassAsDensity(false)
-	, Mass(1.0f)
+	, bMassAsDensity(true)
+	, Mass(2500.0f)
 	, MinimumMassClamp(0.1f)
 	, bRemoveOnMaxSleep(false)
-	, MaximumSleepTime(10.0)
-	, RemovalDuration(5.0)
+	, MaximumSleepTime(5.0, 10.0)
+	, RemovalDuration(2.5, 5.0)
 	, EnableRemovePiecesOnFracture(false)
 	, GeometryCollection(new FGeometryCollection())
 {
@@ -121,7 +121,7 @@ FGeometryCollectionCollisionTypeData::FGeometryCollectionCollisionTypeData()
 }
 
 FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
-	: MaxSize(FLT_MAX)
+	: MaxSize(99999.9)
 	, CollisionShapes({ FGeometryCollectionCollisionTypeData()})
 #if WITH_EDITORONLY_DATA
 	, CollisionType_DEPRECATED(ECollisionTypeEnum::Chaos_Volumetric)
@@ -134,7 +134,7 @@ FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 	, CollisionParticlesFraction_DEPRECATED(1.f)
 	, MaximumCollisionParticles_DEPRECATED(60)
 #endif
-	, DamageThreshold(250.0)
+	, DamageThreshold(5000.0)
 {
 }
 
@@ -208,7 +208,7 @@ FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeS
 {
 	FGeometryCollectionSizeSpecificData Data;
 
-	Data.MaxSize = FLT_MAX;
+	Data.MaxSize = 99999.9;
 	if (Data.CollisionShapes.Num())
 	{
 		Data.CollisionShapes[0].CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
@@ -222,7 +222,7 @@ FGeometryCollectionSizeSpecificData UGeometryCollection::GeometryCollectionSizeS
 		Data.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction = 1.0;
 		Data.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles = 60;
 	}
-	Data.DamageThreshold = 250.0f;
+	Data.DamageThreshold = 5000.0f;
 	return Data;
 }
 
@@ -233,7 +233,7 @@ void UGeometryCollection::ValidateSizeSpecificDataDefaults()
 	{
 		for (const FGeometryCollectionSizeSpecificData& Data : DatasIn)
 		{
-			if (FMath::IsNearlyEqual(Data.MaxSize, FLT_MAX))
+			if (Data.MaxSize >= 99999.9)
 			{
 				return true;
 			}
@@ -322,7 +322,7 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 		InfSize.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction = SizeSpecificDefault.CollisionShapes[0].CollisionParticles.CollisionParticlesFraction;
 		InfSize.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles = SizeSpecificDefault.CollisionShapes[0].CollisionParticles.MaximumCollisionParticles;
 	}
-	InfSize.MaxSize = TNumericLimits<float>::Max();
+	InfSize.MaxSize = 99999.9;
 	OutParams.SizeSpecificData.SetNum(SizeSpecificData.Num() + 1);
 	FillSharedSimulationSizeSpecificData(OutParams.SizeSpecificData[0], InfSize);
 
@@ -1122,29 +1122,64 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 {
 	if (PropertyChangedEvent.Property)
 	{
+		FName PropertyName = PropertyChangedEvent.Property->GetFName();
+
+		bool bDoInvalidateCollection = false;
+		bool bDoEnsureDataIsCooked = false;
+		bool bValidateSizeSpecificDataDefaults = false;
+		bool bDoUpdateConvexGeometry = false;
 		bool bRebuildSimulationData = false;
 
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, EnableNanite))
 		{
-			InvalidateCollection();
-			EnsureDataIsCooked();
+			bDoInvalidateCollection = true;
+			bDoEnsureDataIsCooked = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, bUseFullPrecisionUVs))
 		{
-			InvalidateCollection();
+			bDoInvalidateCollection = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData))
 		{
-			ValidateSizeSpecificDataDefaults();
-			InvalidateCollection();
+			bDoInvalidateCollection = true;
+			bDoUpdateConvexGeometry = true;
+			bValidateSizeSpecificDataDefaults = true;
 			bRebuildSimulationData = true;
+		}		
+		else if (PropertyName.ToString().Contains(FString("ImplicitType")))
+			//SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapes.Num() &&
+			//	PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData[0].CollisionShapes[0].ImplicitType))
+		{
+				bDoInvalidateCollection = true;
+				bDoUpdateConvexGeometry = true;
+				bRebuildSimulationData = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
 		{
-			InvalidateCollection();
+			bDoInvalidateCollection = true;
 			bRebuildSimulationData = true;
 		}
 
+
+		if (bDoInvalidateCollection)
+		{
+			InvalidateCollection();
+		}
+
+		if (bValidateSizeSpecificDataDefaults)
+		{
+			ValidateSizeSpecificDataDefaults();
+		}
+
+		if (bDoUpdateConvexGeometry)
+		{
+			UpdateConvexGeometry();
+		}
+
+		if (bDoEnsureDataIsCooked)
+		{
+			EnsureDataIsCooked();
+		}
 
 		if (bRebuildSimulationData)
 		{

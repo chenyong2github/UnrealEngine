@@ -67,7 +67,7 @@ struct FSharedSimulationSizeSpecificData
 	FSharedSimulationSizeSpecificData()
 		: MaxSize(0.f)
 		, CollisionShapesData({ FCollectionCollisionTypeData() })
-		, DamageThreshold(250.f)
+		, DamageThreshold(5000.f)
 	{
 	}
 
@@ -175,7 +175,7 @@ struct FSimulationParameters
 		, ClusterGroupIndex(0)
 		, MaxClusterLevel(100)
 		, bUseSizeSpecificDamageThresholds(false)
-		, DamageThreshold({250.f})
+		, DamageThreshold({500000.f, 50000.f, 5000.f})
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
 		, CollisionSampleFraction(1.0)
