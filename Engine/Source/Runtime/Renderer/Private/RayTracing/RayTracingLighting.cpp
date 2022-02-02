@@ -272,14 +272,10 @@ static void SetupRaytracingLightDataPacked(
 		LightDataElement.LightProfileIndex = IESLightProfileIndex;
 		LightDataElement.RectLightTextureIndex = InvalidTextureIndex;
 
-		const FVector3f LightColor(LightParameters.Color);
-		for (int32 Element = 0; Element < 3; Element++)
-		{
-			LightDataElement.Direction[Element] = LightParameters.Direction[Element];
-			LightDataElement.LightPosition[Element] = (float)LightParameters.WorldPosition[Element]; // LWC_TODO
-			LightDataElement.LightColor[Element] = LightColor[Element];
-			LightDataElement.Tangent[Element] = LightParameters.Tangent[Element];
-		}
+		LightDataElement.Direction = LightParameters.Direction;
+		LightDataElement.TranslatedLightPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+		LightDataElement.LightColor = FVector3f(LightParameters.Color);
+		LightDataElement.Tangent = LightParameters.Tangent;
 
 		// Ray tracing should compute fade parameters ignoring lightmaps
 		const FVector2D FadeParams = Light.LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), false, View.MaxShadowCascades);

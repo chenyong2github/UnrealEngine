@@ -43,13 +43,13 @@ struct FRTLightingData
 	// Force alignment before next vector
 	int32 Pad;
 
-	float LightPosition[3];
+	FVector3f TranslatedLightPosition;
 	float InvRadius;
-	float Direction[3];
+	FVector3f Direction;
 	float FalloffExponent;
-	float LightColor[3];
+	FVector3f LightColor;
 	float SpecularScale;
-	float Tangent[3];
+	FVector3f Tangent;
 	float SourceRadius;
 	float SpotAngles[2];
 	float SourceLength;

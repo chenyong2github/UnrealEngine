@@ -33,7 +33,7 @@ struct FRTLightingData
 	int LightProfileIndex;
 	uint RectLightTextureIndex;
 	uint Pad;
-	float3 LightPosition;
+	float3 TranslatedLightPosition;
 	float InvRadius;
 	float3 Direction;
 	float FalloffExponent;
@@ -73,7 +73,7 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 
 	Element = LightDataBuffer[LightIndex++];
 
-	Data.LightPosition = asfloat(Element.xyz);
+	Data.TranslatedLightPosition = asfloat(Element.xyz);
 	Data.InvRadius = asfloat(Element.w);
 
 	Element = LightDataBuffer[LightIndex++];
@@ -119,7 +119,8 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 
 	const uint LightType = RayTracingLightData.Type;
 
-	LightData.TranslatedWorldPosition = RayTracingLightData.LightPosition;
+	// We are actually storing WorldPosition at the moment (but FDeferredLightData struct is shared with other systems)
+	LightData.TranslatedWorldPosition = RayTracingLightData.TranslatedLightPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	LightData.InvRadius = RayTracingLightData.InvRadius;
 	LightData.Color = RayTracingLightData.LightColor;
 	LightData.FalloffExponent = RayTracingLightData.FalloffExponent;
