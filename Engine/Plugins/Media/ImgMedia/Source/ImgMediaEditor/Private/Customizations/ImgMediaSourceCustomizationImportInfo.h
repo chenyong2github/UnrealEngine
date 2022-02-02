@@ -10,6 +10,7 @@
 class IImageWrapper;
 class IPropertyHandle;
 class SNotificationItem;
+class UImgMediaSource;
 
 /**
  * Implements a customization for the FImgMediaSourceImportData class.
@@ -122,7 +123,7 @@ private:
 	 * @param InTileWidth			Desired width of tiles. 
 	 * @param InTileHeight			Desired height of tiles.
 	 */
-	static void ImportFiles(const FString& SequencePath,
+	void ImportFiles(const FString& SequencePath,
 		const FString& DestinationPath,
 		TSharedPtr<SNotificationItem> ConfirmNotification,
 		int32 InTileWidth, int32 InTileHeight);
@@ -149,6 +150,8 @@ private:
 	TSharedPtr<IPropertyHandle> IsDestinationPathOverridenPropertyHandle;
 	/** Stores the property that says if the imported files are usable. */
 	TSharedPtr<IPropertyHandle> IsUsablePropertyHandle;
+	/** Stores the ImgMediaSource that we are editing. */
+	TWeakObjectPtr<UImgMediaSource> ImgMediaSource;
 
 	/** Tile width for each image in pixels. */
 	int32 TileWidth = 0;

@@ -79,6 +79,19 @@ void FImgMediaSourceCustomizationImportInfo::CustomizeHeader(TSharedRef<IPropert
 	IsDestinationPathOverridenPropertyHandle = PropertyHandle->GetChildHandle("bIsDestinationPathOverriden");
 	// Get the usable property.
 	IsUsablePropertyHandle = PropertyHandle->GetChildHandle("bIsUsable");
+
+	// Get the ImgMediaSource we are editing.
+	ImgMediaSource = nullptr;
+	TArray<UObject*> OuterObjects;
+	PropertyHandle->GetOuterObjects(OuterObjects);
+	if (OuterObjects.Num() > 0)
+	{
+		UObject* Obj = OuterObjects[0];
+		if (Obj->IsA<UImgMediaSource>())
+		{
+			ImgMediaSource = CastChecked<UImgMediaSource>(Obj);
+		}
+	}
 }
 
 void FImgMediaSourceCustomizationImportInfo::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -143,6 +156,20 @@ void FImgMediaSourceCustomizationImportInfo::CustomizeChildren(TSharedRef<IPrope
 				.Value(this, &FImgMediaSourceCustomizationImportInfo::GetTileHeight)
 				.OnValueChanged(this, &FImgMediaSourceCustomizationImportInfo::SetTileHeight)
 		];
+
+	// Add num tiles x.
+	TSharedPtr<IPropertyHandle> NumTilesX = PropertyHandle->GetChildHandle("NumTilesX");
+	if (NumTilesX.IsValid())
+	{
+		TileGroup.AddPropertyRow(NumTilesX.ToSharedRef());
+	}
+
+	// Add num tiles y.
+	TSharedPtr<IPropertyHandle> NumTilesY = PropertyHandle->GetChildHandle("NumTilesY");
+	if (NumTilesY.IsValid())
+	{
+		TileGroup.AddPropertyRow(NumTilesY.ToSharedRef());
+	}
 }
 
 /* FImgMediaSourceCustomizationImport implementation
@@ -352,6 +379,7 @@ void FImgMediaSourceCustomizationImportInfo::ImportFiles(const FString& Sequence
 
 			// Loop through all files.
 			int NumDone = 0;
+			bool bNeedSetUp = true;
 			for (const FString& FileName : FoundFiles)
 			{
 				// Update notification with current status.
@@ -380,6 +408,28 @@ void FImgMediaSourceCustomizationImportInfo::ImportFiles(const FString& Sequence
 				{
 					UE_LOG(LogImgMediaEditor, Error, TEXT("Failed to create image wrapper for %s"), *FullFileName);
 					break;
+				}
+
+				// Get info for the sequence.
+				if (bNeedSetUp)
+				{
+					bNeedSetUp = false;
+
+					// Get number of tiles.
+					int32 Width = ImageWrapper->GetWidth();
+					int32 Height = ImageWrapper->GetHeight();
+					int32 NumTilesX = InTileWidth > 0 ? Width / InTileWidth : 1;
+					int32 NumTilesY = InTileHeight > 0 ? Height / InTileHeight : 1;
+					if (ImgMediaSource.IsValid())
+					{
+						if ((ImgMediaSource->ImportInfo.NumTilesX != NumTilesX) ||
+							(ImgMediaSource->ImportInfo.NumTilesY != NumTilesY))
+						{
+							ImgMediaSource->ImportInfo.NumTilesX = NumTilesX;
+							ImgMediaSource->ImportInfo.NumTilesY = NumTilesY;
+							ImgMediaSource->MarkPackageDirty();
+						}
+					}
 				}
 
 				// Import this image.

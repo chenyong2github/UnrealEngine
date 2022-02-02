@@ -39,6 +39,14 @@ struct IMGMEDIA_API FImgMediaSourceImportInfo
 	/** True if the imported imagess are to be used. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
 	bool bIsUsable = false;
+
+	/** Number of tiles in the X direction. If 0, then there are no tiles. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
+	int32 NumTilesX = 0;
+
+	/** Number if tiles in the Y direction. If 0, then there are no tiles. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
+	int32 NumTilesY = 0;
 };
 
 /**
