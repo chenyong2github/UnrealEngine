@@ -1260,7 +1260,7 @@ void FInternalThreadState::Run()
 		}
 	}
 
-	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Display, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Stop"), *SharedState.NiceName);
+	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Stop"), *SharedState.NiceName);
 	MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FDirectLinkMsg_EndpointLifecycle>(FDirectLinkMsg_EndpointLifecycle::ELifecycle::Stop));
 	FMessageEndpoint::SafeRelease(MessageEndpoint);
 }
