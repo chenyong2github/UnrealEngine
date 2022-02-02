@@ -124,12 +124,15 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, uint32 MaxLevel, TArray<union FVirtualTextureLocalTile>& OutLocked)
 {
-	for (uint32 i = NumReservedPages; i < NumPages; ++i)
+	TArray<uint32, TInlineAllocator<256>> ToEvict;
+	const uint32 Hash = MurmurFinalize32(ProducerHandle.PackedValue);
+	for (uint32 pAddress = ProducerToPageIndex.First(Hash); ProducerToPageIndex.IsValid(pAddress); pAddress = ProducerToPageIndex.Next(pAddress))
 	{
-		if (Pages[i].PackedProducerHandle == ProducerHandle.PackedValue)
+		const FPageEntry& PageEntry = Pages[pAddress];
+		if (PageEntry.PackedProducerHandle == ProducerHandle.PackedValue)
 		{
-			const uint32 vAddress = Pages[i].Local_vAddress;
-			const uint32 vLevel = Pages[i].Local_vLevel;
+			const uint32 vAddress = Pages[pAddress].Local_vAddress;
+			const uint32 vLevel = Pages[pAddress].Local_vLevel;
 
 			if (vLevel <= MaxLevel)
 			{
@@ -141,18 +144,23 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTexture
 
 				if (!(PageRect.Min.X > TextureRegion.Max.X) && !(TextureRegion.Min.X > PageRect.Max.X) && !(PageRect.Min.Y > TextureRegion.Max.Y) && !(TextureRegion.Min.Y > PageRect.Max.Y))
 				{
-					if (!FreeHeap.IsPresent(i))
+					if (!FreeHeap.IsPresent(pAddress))
 					{
 						OutLocked.Add(FVirtualTextureLocalTile(ProducerHandle, vAddress, vLevel));
 					}
 					else
 					{
-						UnmapAllPages(System, i, true);
-						FreeHeap.Update(0, i);
+						ToEvict.Add(pAddress);
 					}
 				}
 			}
 		}
+	}
+
+	for (uint32 pAddress : ToEvict)
+	{
+		UnmapAllPages(System, pAddress, false);
+		FreeHeap.Update(0, pAddress);
 	}
 }
 
@@ -433,58 +441,68 @@ void FTexturePagePool::RemapPages(FVirtualTextureSystem* System, uint8 SpaceID, 
 	const uint32 NewBaseX = FMath::ReverseMortonCode2(NewVirtualAddress);
 	const uint32 NewBaseY = FMath::ReverseMortonCode2(NewVirtualAddress >> 1);
 
-	for (uint32 pAddress = NumReservedPages; pAddress < NumPages; ++pAddress)
+	TArray<uint32, TInlineAllocator<256>> ToRemap;
+	const uint32 Hash = MurmurFinalize32(OldProducerHandle.PackedValue);
+	for (uint32 pAddress = ProducerToPageIndex.First(Hash); ProducerToPageIndex.IsValid(pAddress); pAddress = ProducerToPageIndex.Next(pAddress))
 	{
-		FPageEntry& PageEntry = Pages[pAddress];
+		const FPageEntry& PageEntry = Pages[pAddress];
 		if (PageEntry.PackedProducerHandle == OldProducerHandle.PackedValue)
 		{
-			if ((int32)PageEntry.Local_vLevel + vLevelBias < 0)
+			ToRemap.Add(pAddress);
+		}
+	}
+
+	for (uint32 pAddress : ToRemap)
+	{
+		FPageEntry& PageEntry = Pages[pAddress];
+		check(PageEntry.PackedProducerHandle == OldProducerHandle.PackedValue);
+
+		if ((int32)PageEntry.Local_vLevel + vLevelBias < 0)
+		{
+			// Remap removes this level 
+			UnmapAllPages(System, pAddress, false);
+			// Queue page for recycling
+			FreeHeap.Update(0, pAddress);
+		}
+		else
+		{
+			// Directly modify page entry for new producer
+			PageHash.Remove(GetPageHash(PageEntry), pAddress);
+			PageEntry.PackedProducerHandle = NewProducerHandle.PackedValue;
+			PageEntry.Local_vLevel += vLevelBias;
+			PageHash.Add(GetPageHash(PageEntry), pAddress);
+
+			ProducerToPageIndex.Remove(OldProducerHash, pAddress);
+			ProducerToPageIndex.Add(NewProducerHash, pAddress);
+
+			if (FreeHeap.IsPresent(pAddress))
 			{
-				// Remap removes this level 
-				UnmapAllPages(System, pAddress, false);
-				// Queue page for recycling
-				FreeHeap.Update(0, pAddress);
+				FreeHeap.Update((Frame << 4) + PageEntry.Local_vLevel, pAddress);
 			}
-			else
+
+			// Go through mappings and modify directly.
+			uint32 MappingIndex = PageMapping[pAddress].NextIndex;
+			while (MappingIndex != pAddress)
 			{
-				// Directly modify page entry for new producer
-				PageHash.Remove(GetPageHash(PageEntry), pAddress);
-				PageEntry.PackedProducerHandle = NewProducerHandle.PackedValue;
-				PageEntry.Local_vLevel += vLevelBias;
-				PageHash.Add(GetPageHash(PageEntry), pAddress);
+				FPageMapping& Mapping = PageMapping[MappingIndex];
 
-				ProducerToPageIndex.Remove(OldProducerHash, pAddress);
-				ProducerToPageIndex.Add(NewProducerHash, pAddress);
+				FVirtualTextureSpace* Space = System->GetSpace(Mapping.SpaceID);
+				FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(Mapping.PageTableLayerIndex);
 
-				if (FreeHeap.IsPresent(pAddress))
-				{
-					FreeHeap.Update((Frame << 4) + PageEntry.Local_vLevel, pAddress);
-				}
+				PageMap.UnmapPage(System, Space, Mapping.vLogSize, Mapping.vAddress, false);
 
-				// Go through mappings and modify directly.
-				uint32 MappingIndex = PageMapping[pAddress].NextIndex;
-				while (MappingIndex != pAddress)
-				{
-					FPageMapping& Mapping = PageMapping[MappingIndex];
+				const uint32 XLocal = FMath::ReverseMortonCode2(Mapping.vAddress) - OldBaseX;
+				const uint32 YLocal = FMath::ReverseMortonCode2(Mapping.vAddress >> 1) - OldBaseY;
+				const uint32 X = NewBaseX + ((vLevelBias >= 0) ? (XLocal << vLevelBias) : (XLocal >> -vLevelBias));
+				const uint32 Y = NewBaseY + ((vLevelBias >= 0) ? (YLocal << vLevelBias) : (YLocal >> -vLevelBias));
 
-					FVirtualTextureSpace* Space = System->GetSpace(Mapping.SpaceID);
-					FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(Mapping.PageTableLayerIndex);
+				Mapping.vAddress = FMath::MortonCode2(X) | (FMath::MortonCode2(Y) << 1);
+				Mapping.vLogSize = (int32)Mapping.vLogSize + vLevelBias;
 
-					PageMap.UnmapPage(System, Space, Mapping.vLogSize, Mapping.vAddress, false);
+				const int32 vLevel = PageEntry.Local_vLevel; // Deal with any producer mip bias?
+				PageMap.MapPage(Space, PhysicalSpace, NewProducerHandle.PackedValue, Mapping.MaxLevel, Mapping.vLogSize, Mapping.vAddress, vLevel, pAddress);
 
-					const uint32 XLocal = FMath::ReverseMortonCode2(Mapping.vAddress) - OldBaseX;
-					const uint32 YLocal = FMath::ReverseMortonCode2(Mapping.vAddress >> 1) - OldBaseY;
-					const uint32 X = NewBaseX + ((vLevelBias >= 0) ? (XLocal << vLevelBias) : (XLocal >> -vLevelBias));
-					const uint32 Y = NewBaseY + ((vLevelBias >= 0) ? (YLocal << vLevelBias) : (YLocal >> -vLevelBias));
-
-					Mapping.vAddress = FMath::MortonCode2(X) | (FMath::MortonCode2(Y) << 1);
-					Mapping.vLogSize = (int32)Mapping.vLogSize + vLevelBias;
-
-					const int32 vLevel = PageEntry.Local_vLevel; // Deal with any producer mip bias?
-					PageMap.MapPage(Space, PhysicalSpace, NewProducerHandle.PackedValue, Mapping.MaxLevel, Mapping.vLogSize, Mapping.vAddress, vLevel, pAddress);
-
-					MappingIndex = Mapping.NextIndex;
-				}
+				MappingIndex = Mapping.NextIndex;
 			}
 		}
 	}

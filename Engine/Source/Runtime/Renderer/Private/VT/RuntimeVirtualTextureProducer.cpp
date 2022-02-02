@@ -43,11 +43,6 @@ void FRuntimeVirtualTextureFinalizer::InitProducer(const FVirtualTextureProducer
 		const uint32 VirtualTextureSceneIndex = RenderScene->GetRuntimeVirtualTextureSceneIndex(ProducerId);
 		RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
 
-		// Store the ProducerHandle in the FRuntimeVirtualTextureSceneProxy object.
-		// This is a bit of a hack: the proxy needs to know the producer handle but can't know it on proxy creation because the producer registration is deferred to the render thread.
-		check(ProducerHandle.PackedValue != 0);
-		RenderScene->RuntimeVirtualTextures[VirtualTextureSceneIndex]->ProducerHandle = ProducerHandle;
-
 		//todo[vt]: 
 		// Add a slow render path inside RenderPage() when this check fails. 
 		// It will need to iterate the virtual textures on each primitive instead of using the RuntimeVirtualTextureMask.

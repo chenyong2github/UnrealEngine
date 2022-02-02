@@ -30,7 +30,7 @@ public:
 	uint32 GetPackedAllocationRequest(uint32 vAddress, uint32 vLevelPlusOne, uint32 Frame) const;
 	/** Queue a batch of allocation requests. These will be used to reallocate any virtual textures during the next call to UpdateAllocations(). */
 	void QueuePackedAllocationRequests(uint32 const* InRequests, uint32 InNumRequests, uint32 InFrame);
-	/** Quee a batch of allocation requests. This static function relays the global requests to the individual object queues. */
+	/** Queue a batch of allocation requests. This static function relays the global requests to the individual object queues. */
 	static void QueuePackedAllocationRequests(FVirtualTextureSystem* InSystem, uint32 const* InRequests, uint32 InNumRequests, uint32 InFrame);
 	/** Update any allocations based on recent requests. */
 	void UpdateAllocations(FVirtualTextureSystem* InSystem, FRHICommandListImmediate& RHICmdList, uint32 InFrame);
@@ -39,6 +39,16 @@ public:
 	virtual IAllocatedVirtualTexture* GetAllocatedVirtualTexture() override;
 	virtual int32 GetSpaceID() const override;
 	//~ End IAdaptiveVirtualTexture Interface.
+
+	/** Information needed by GetProducers() for all producers for the internally allocated virtual textures. */
+	struct FProducerInfo
+	{
+		FVirtualTextureProducerHandle ProducerHandle;
+		FIntRect RemappedTextureRegion;
+		uint32 RemappedMaxLevel;
+	};
+	/** Get internal producers that touch the texture region. */
+	void GetProducers(FIntRect const& InTextureRegion, uint32 InMaxLevel, TArray<FProducerInfo>& OutProducerInfos);
 
 protected:
 	//~ Begin IAdaptiveVirtualTexture Interface.
@@ -61,7 +71,7 @@ private:
 	bool FreeLRU(FVirtualTextureSystem* InSystem, uint32 InFrame, uint32 InFrameUnusedThreshold);
 
 private:
-	/** Adaptive virtual texture descrition. */
+	/** Adaptive virtual texture description. */
 	FAdaptiveVTDescription AdaptiveDesc;
 	/** Allocated virtual texture description for the full virtual texture. Used internally to generate descriptions for the sub allocations. */
 	FAllocatedVTDescription AllocatedDesc;

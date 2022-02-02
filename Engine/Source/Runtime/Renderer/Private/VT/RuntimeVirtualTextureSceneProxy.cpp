@@ -88,6 +88,17 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
 		VirtualTexture->Initialize(Producer, ProducerDesc, Transform, Bounds);
+
+		// Store the ProducerHandle and SpaceID immediately after virtual texture is initialized.
+		ENQUEUE_RENDER_COMMAND(GetProducerHandle)(
+			[this](FRHICommandList& RHICmdList)
+			{
+				if (VirtualTexture != nullptr)
+				{
+					ProducerHandle = VirtualTexture->GetProducerHandle();
+					SpaceID = VirtualTexture->GetAllocatedVirtualTexture()->GetSpaceID();
+				}
+			});
 	}
 }
 
@@ -102,6 +113,8 @@ FRuntimeVirtualTextureSceneProxy::~FRuntimeVirtualTextureSceneProxy()
 
 void FRuntimeVirtualTextureSceneProxy::Release()
 {
+	checkSlow(!IsInRenderingThread());
+
 	if (VirtualTexture != nullptr)
 	{
 		VirtualTexture->Release();
@@ -161,13 +174,13 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 
 			if (bCombinedFlush)
 			{
-				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, CombinedDirtyRect, MaxDirtyLevel);
+				FVirtualTextureSystem::Get().FlushCache(ProducerHandle, SpaceID, CombinedDirtyRect, MaxDirtyLevel);
 			}
 			else
 			{
 				for (FIntRect Rect : DirtyRects)
 				{
-					FVirtualTextureSystem::Get().FlushCache(ProducerHandle, Rect, MaxDirtyLevel);
+					FVirtualTextureSystem::Get().FlushCache(ProducerHandle, SpaceID, Rect, MaxDirtyLevel);
 				}
 			}
 		}

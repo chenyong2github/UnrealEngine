@@ -370,7 +370,7 @@ void FVirtualTextureSystem::FlushCache()
 	bFlushCaches = true;
 }
 
-void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, FIntRect const& TextureRegion, uint32 MaxLevel)
+void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, int32 SpaceID, FIntRect const& TextureRegion, uint32 MaxLevel)
 {
 	checkSlow(IsInRenderingThread());
 
@@ -390,10 +390,30 @@ void FVirtualTextureSystem::FlushCache(FVirtualTextureProducerHandle const& Prod
 
 		check(TransientCollectedPages.Num() == 0);
 
+		// If this is an Adaptive VT we need to collect all of the associated Producers to flush.
+		TArray<FAdaptiveVirtualTexture::FProducerInfo> ProducerInfos;
+		if (AdaptiveVTs[SpaceID] != nullptr)
+		{
+			AdaptiveVTs[SpaceID]->GetProducers(TextureRegion, MaxLevel, ProducerInfos);
+		}
+
 		for (int32 i = 0; i < PhysicalSpacesForProducer.Num(); ++i)
 		{
 			FTexturePagePool& Pool = PhysicalSpacesForProducer[i]->GetPagePool();
-			Pool.EvictPages(this, ProducerHandle, ProducerDescription, TextureRegion, MaxLevel, TransientCollectedPages);
+		
+			if (ProducerInfos.Num())
+			{
+				// Adaptive VT flushes.
+				for (FAdaptiveVirtualTexture::FProducerInfo& Info : ProducerInfos)
+				{
+					Pool.EvictPages(this, Info.ProducerHandle, ProducerDescription, Info.RemappedTextureRegion, Info.RemappedMaxLevel, TransientCollectedPages);
+				}
+			}
+			else
+			{
+				// Regular flush.
+				Pool.EvictPages(this, ProducerHandle, ProducerDescription, TextureRegion, MaxLevel, TransientCollectedPages);
+			}
 		}
 
 		for (auto& Page : TransientCollectedPages)
