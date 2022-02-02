@@ -45,8 +45,8 @@ public:
 		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
 		OutputVertexBaseIndex.Bind(Initializer.ParameterMap, TEXT("OutputVertexBaseIndex"));
 		bApplyWorldPositionOffset.Bind(Initializer.ParameterMap, TEXT("bApplyWorldPositionOffset"));
-		InstanceTransform.Bind(Initializer.ParameterMap, TEXT("InstanceTransform"));
-		InverseTransform.Bind(Initializer.ParameterMap, TEXT("InverseTransform"));
+		InstanceId.Bind(Initializer.ParameterMap, TEXT("InstanceId"));
+		WorldToInstance.Bind(Initializer.ParameterMap, TEXT("WorldToInstance"));
 	}
 
 	FRayTracingDynamicGeometryConverterCS() = default;
@@ -98,8 +98,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, PrimitiveId);
 	LAYOUT_FIELD(FShaderParameter, bApplyWorldPositionOffset);
 	LAYOUT_FIELD(FShaderParameter, OutputVertexBaseIndex);
-	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
-	LAYOUT_FIELD(FShaderParameter, InverseTransform);
+	LAYOUT_FIELD(FShaderParameter, InstanceId);
+	LAYOUT_FIELD(FShaderParameter, WorldToInstance);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDynamicGeometryConverterCS, TEXT("/Engine/Private/RayTracing/RayTracingDynamicMesh.usf"), TEXT("RayTracingDynamicGeometryConverterCS"), SF_Compute);
@@ -204,11 +204,6 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		RWBuffer = &VertexPositionBuffer->RWBuffer;
 	}
 
-	FMatrix44f InstanceTransform = FMatrix44f(UpdateParams.InstanceTransform);		// LWC_TODO: Precision loss
-	FMatrix44f InverseTransform = InstanceTransform;
-	InverseTransform.M[3][3] = 1.0f;
-	InverseTransform = InverseTransform.InverseFast();
-
 	for (const FMeshBatch& MeshBatch : UpdateParams.MeshBatches)
 	{
 		if (!ensureMsgf(MeshBatch.VertexFactory->GetType()->SupportsRayTracingDynamicGeometry(),
@@ -276,8 +271,8 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		SingleShaderBindings.Add(Shader->PrimitiveId, PrimitiveId);
 		SingleShaderBindings.Add(Shader->OutputVertexBaseIndex, OutputVertexBaseIndex);
 		SingleShaderBindings.Add(Shader->bApplyWorldPositionOffset, UpdateParams.bApplyWorldPositionOffset ? 1 : 0);
-		SingleShaderBindings.Add(Shader->InstanceTransform, InstanceTransform);
-		SingleShaderBindings.Add(Shader->InverseTransform, InverseTransform);
+		SingleShaderBindings.Add(Shader->InstanceId, UpdateParams.InstanceId);
+		SingleShaderBindings.Add(Shader->WorldToInstance, UpdateParams.WorldToInstance);
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 		FMeshProcessorShaders ShadersForDebug = Shaders.GetUntypedShaders();

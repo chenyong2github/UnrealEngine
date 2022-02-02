@@ -156,6 +156,28 @@ static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPO(
 	TEXT(" 2: static meshes with world position offset visible in ray tracing, WPO evaluation disabled")
 );
 
+FAutoConsoleVariableSink CVarRayTracingStaticMeshesWPOSink(FConsoleCommandDelegate::CreateLambda([]()
+{
+	static int32 CachedRayTracingStaticMeshesWPO = CVarRayTracingStaticMeshesWPO.GetValueOnGameThread();
+
+	int32 RayTracingStaticMeshesWPO = CVarRayTracingStaticMeshesWPO.GetValueOnGameThread();
+
+	if (CachedRayTracingStaticMeshesWPO != RayTracingStaticMeshesWPO)
+	{
+		CachedRayTracingStaticMeshesWPO = RayTracingStaticMeshesWPO;
+
+		// NV-JIRA UE-668: Do this as a task on the game thread to break up a possible
+		// reentry call to USkeletalMeshComponent::PostAnimEvaluation if BP toggles this CVar
+		FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+		{
+			// Easiest way to update all static scene proxies is to recreate them
+			FlushRenderingCommands();
+			FGlobalComponentReregisterContext ReregisterContext;
+			
+		}, TStatId(), nullptr, ENamedThreads::GameThread);
+	}
+}));
+
 static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPOCulling(
 	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO.Culling"),
 	1,
@@ -265,10 +287,20 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 
 #if RHI_RAYTRACING
 	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
-	bDynamicRayTracingGeometry = bSupportRayTracing && InComponent->bEvaluateWorldPositionOffset && MaterialRelevance.bUsesWorldPositionOffset;
+	bDynamicRayTracingGeometry = false;
 	
 	if (IsRayTracingEnabled() && bSupportRayTracing)
 	{
+		if (CVarRayTracingStaticMeshesWPO.GetValueOnAnyThread() > 0)
+		{
+			bDynamicRayTracingGeometry = MaterialRelevance.bUsesWorldPositionOffset;
+
+			if (CVarRayTracingStaticMeshesWPO.GetValueOnAnyThread() == 1)
+			{
+				bDynamicRayTracingGeometry &= InComponent->bEvaluateWorldPositionOffset;
+			}
+		}
+
 		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
 		{
@@ -371,6 +403,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
 {
 #if RHI_RAYTRACING
+	// Skip this code if the cvar settings are forcing WPO evaluation on/off
+	if (CVarRayTracingStaticMeshesWPO.GetValueOnAnyThread() != 1)
+		return;
+
 	NewValue &= MaterialRelevance.bUsesWorldPositionOffset;
 	if (NewValue && !bDynamicRayTracingGeometry)
 	{
@@ -1699,7 +1735,7 @@ bool FStaticMeshSceneProxy::HasRayTracingRepresentation() const
 
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
-	if (DynamicRayTracingGeometries.Num() <= 0 || CVarRayTracingStaticMeshes.GetValueOnRenderThread() == 0 || CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 0)
+	if (DynamicRayTracingGeometries.Num() <= 0 || CVarRayTracingStaticMeshes.GetValueOnRenderThread() == 0)
 	{
 		return;
 	}
@@ -1708,7 +1744,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 
-	bool bEvaluateWPO = CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 1;
+	bool bEvaluateWPO = bDynamicRayTracingGeometry;
 
 	if (bEvaluateWPO && CVarRayTracingStaticMeshesWPOCulling.GetValueOnRenderThread() > 0)
 	{

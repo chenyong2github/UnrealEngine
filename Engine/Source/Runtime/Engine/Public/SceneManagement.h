@@ -2602,8 +2602,8 @@ struct FRayTracingDynamicGeometryUpdateParams
 
 	bool bApplyWorldPositionOffset = true;
 
-	// contains Instance random in [3][3] by convention
-	FMatrix InstanceTransform = FMatrix::Identity;
+	uint32 InstanceId = 0;
+	FMatrix44f WorldToInstance = FMatrix44f::Identity;
 };
 
 struct FRayTracingMaterialGatheringContext
