@@ -8,11 +8,11 @@
 #include "MassAgentComponent.h"
 #include "MassRepresentationSubsystem.h"
 
-void UMassCrowdRepresentationActorManagement::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
+void UMassCrowdRepresentationActorManagement::SetActorEnabled(const EMassActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
 {
 	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, CommandBuffer);
 
-	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
+	const bool bEnabled = EnabledType != EMassActorEnabledType::Disabled;
 
 	USkeletalMeshComponent* SkeletalMeshComponent = Actor.FindComponentByClass<USkeletalMeshComponent>();
 	if (SkeletalMeshComponent)

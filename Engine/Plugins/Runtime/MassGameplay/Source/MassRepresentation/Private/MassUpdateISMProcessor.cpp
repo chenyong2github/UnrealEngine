@@ -45,7 +45,7 @@ void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMa
 			const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
 			FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
 
-			if (Representation.CurrentRepresentation == ERepresentationType::StaticMeshInstance)
+			if (Representation.CurrentRepresentation == EMassRepresentationType::StaticMeshInstance)
 			{
 				UpdateISMTransform(GetTypeHash(Context.GetEntity(EntityIdx)), ISMInfo[Representation.StaticMeshDescIndex], TransformFragment.GetTransform(), Representation.PrevTransform, RepresentationLOD.LODSignificance, Representation.PrevLODSignificance);
 			}

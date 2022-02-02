@@ -30,13 +30,13 @@ struct MASSACTORS_API FMassActorSpawnRequestHandle : public FIndexedHandleBase
 typedef FIndexedHandleManager<FMassActorSpawnRequestHandle, true/*bOptimizeHandleReuse*/> FMassEntityHandleManager_ActorSpawnRequest;
 
 
-DECLARE_DELEGATE_TwoParams(FMassActorPreSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
+DECLARE_DELEGATE_TwoParams(FMassActorPreSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest);
 enum class EMassActorSpawnRequestAction : uint8
 {
 	Keep, // Will leave spawning request in the queue and it will be users job to call RemoveActorSpawnRequest
 	Remove, // Will remove the spawning request from the queue once the callback ends
 };
-DECLARE_DELEGATE_RetVal_TwoParams(EMassActorSpawnRequestAction, FMassActorPostSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest);
+DECLARE_DELEGATE_RetVal_TwoParams(EMassActorSpawnRequestAction, FMassActorPostSpawnDelegate, const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest);
 
 UENUM()
 enum class ESpawnRequestStatus : uint8
@@ -194,11 +194,11 @@ protected:
 	 *  @return the next best handle to spawn. */
 	virtual FMassActorSpawnRequestHandle GetNextRequestToSpawn() const;
 
-	virtual AActor* SpawnOrRetrieveFromPool(const FStructView& SpawnRequest);
+	virtual AActor* SpawnOrRetrieveFromPool(FConstStructView SpawnRequest);
 
 	/** Actual code that will spawn the actor, overridable by subclass if need to be.
 	 *  @return spawned actor if succeeded. */
-	virtual AActor* SpawnActor(const FStructView& SpawnRequest) const;
+	virtual AActor* SpawnActor(FConstStructView SpawnRequest) const;
 
 	/** Go through the spawning request and spawn them until we reach the budget 
 	 * @param MaxTimeSlicePerTick is the budget in seconds allowed to do spawning */

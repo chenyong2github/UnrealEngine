@@ -108,7 +108,7 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 			{
 				const FMassRepresentationFragment& RepresentationFragment = RepresentationFragmentList[EntityIdx];
 				const FMassViewerInfoFragment& LODInfoFragment = LODInfoFragmentList[EntityIdx];
-				if (RepresentationFragment.CurrentRepresentation == ERepresentationType::StaticMeshInstance && SpecifiedRangeSquaredCentimeters > LODInfoFragment.ClosestViewerDistanceSq)
+				if (RepresentationFragment.CurrentRepresentation == EMassRepresentationType::StaticMeshInstance && SpecifiedRangeSquaredCentimeters > LODInfoFragment.ClosestViewerDistanceSq)
 				{
 					const FDataFragment_Transform& EntityLocation = LocationList[EntityIdx];
 					DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 150.0f), FVector(50.0f), FColor::Red);

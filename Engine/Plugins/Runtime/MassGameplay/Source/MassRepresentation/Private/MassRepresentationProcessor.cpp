@@ -70,13 +70,13 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 		FDataFragment_Actor& ActorInfo = ActorList[EntityIdx];
 
 		// Keeping a copy of the that last calculated previous representation
-		const ERepresentationType PrevRepresentationCopy = Representation.PrevRepresentation;
+		const EMassRepresentationType PrevRepresentationCopy = Representation.PrevRepresentation;
 		Representation.PrevRepresentation = Representation.CurrentRepresentation;
 		
-		ERepresentationType WantedRepresentationType = RepresentationConfig.LODRepresentation[FMath::Min((int32)RepresentationLOD.LOD, (int32)EMassLOD::Off)];
+		EMassRepresentationType WantedRepresentationType = RepresentationConfig.LODRepresentation[FMath::Min((int32)RepresentationLOD.LOD, (int32)EMassLOD::Off)];
 
 		// Make sure we do not have actor spawned in areas not fully loaded
-		if ((WantedRepresentationType == ERepresentationType::HighResSpawnedActor || WantedRepresentationType == ERepresentationType::LowResSpawnedActor) &&
+		if ((WantedRepresentationType == EMassRepresentationType::HighResSpawnedActor || WantedRepresentationType == EMassRepresentationType::LowResSpawnedActor) &&
 			!RepresentationSubsystem->IsCollisionLoaded(RepresentationConfig.WorldPartitionGridNameContainingCollision, TransformFragment.GetTransform()))
 		{
 			WantedRepresentationType = RepresentationConfig.CachedDefaultRepresentationType;
@@ -109,14 +109,14 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 			}
 			if (Actor != nullptr)
 			{
-				RepresentationActorManagement->SetActorEnabled(EActorEnabledType::Disabled, *Actor, EntityIdx, Context.Defer());
+				RepresentationActorManagement->SetActorEnabled(EMassActorEnabledType::Disabled, *Actor, EntityIdx, Context.Defer());
 			}
 		};
 
 		// Process switch between representation if there is a change in the representation or there is a pending spawning request
 		if (WantedRepresentationType != Representation.CurrentRepresentation || Representation.ActorSpawnRequestHandle.IsValid())
 		{
-			if (Representation.CurrentRepresentation == ERepresentationType::None)
+			if (Representation.CurrentRepresentation == EMassRepresentationType::None)
 			{
 				Representation.PrevTransform = TransformFragment.GetTransform();
 				Representation.PrevLODSignificance = RepresentationLOD.LODSignificance;
@@ -125,10 +125,10 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 			AActor* Actor = ActorInfo.GetMutable();
 			switch (WantedRepresentationType)
 			{
-				case ERepresentationType::HighResSpawnedActor:
-				case ERepresentationType::LowResSpawnedActor:
+				case EMassRepresentationType::HighResSpawnedActor:
+				case EMassRepresentationType::LowResSpawnedActor:
 				{
-					const bool bHighResActor = WantedRepresentationType == ERepresentationType::HighResSpawnedActor;
+					const bool bHighResActor = WantedRepresentationType == EMassRepresentationType::HighResSpawnedActor;
 
 					// Reuse actor, if it is valid and not owned by mass or same representation as low res without a valid spawning request
 					AActor* NewActor = nullptr;
@@ -167,12 +167,12 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					{
 						// Make sure our (re)activated actor is at the simulated position
 						// Needs to be done before enabling the actor so the animation initialization can use the new values
-						if (Representation.CurrentRepresentation == ERepresentationType::StaticMeshInstance)
+						if (Representation.CurrentRepresentation == EMassRepresentationType::StaticMeshInstance)
 						{
 							RepresentationActorManagement->TeleportActor(Representation.PrevTransform, *NewActor, Context.Defer());
 						}
 
-						RepresentationActorManagement->SetActorEnabled(bHighResActor ? EActorEnabledType::HighRes : EActorEnabledType::LowRes, *NewActor, EntityIdx, Context.Defer());
+						RepresentationActorManagement->SetActorEnabled(bHighResActor ? EMassActorEnabledType::HighRes : EMassActorEnabledType::LowRes, *NewActor, EntityIdx, Context.Defer());
 						Representation.CurrentRepresentation = WantedRepresentationType;
 					}
 					else if (!Actor)
@@ -181,16 +181,16 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					}
 					break;
 				}
-				case ERepresentationType::StaticMeshInstance:
+				case EMassRepresentationType::StaticMeshInstance:
 					if (!bDoKeepActorExtraFrame || 
-					   (Representation.PrevRepresentation != ERepresentationType::HighResSpawnedActor && Representation.PrevRepresentation != ERepresentationType::LowResSpawnedActor))
+					   (Representation.PrevRepresentation != EMassRepresentationType::HighResSpawnedActor && Representation.PrevRepresentation != EMassRepresentationType::LowResSpawnedActor))
 					{
 						DisableActorForISM(Actor);
 					}
  
-					Representation.CurrentRepresentation = ERepresentationType::StaticMeshInstance;
+					Representation.CurrentRepresentation = EMassRepresentationType::StaticMeshInstance;
 					break;
-				case ERepresentationType::None:
+				case EMassRepresentationType::None:
 					if (!Actor || ActorInfo.IsOwnedByMass())
 					{
 						// Try releasing both, could have an high res spawned actor and a spawning request for a low res one
@@ -199,9 +199,9 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					}
 					else
 					{
-						RepresentationActorManagement->SetActorEnabled(EActorEnabledType::Disabled, *Actor, EntityIdx, Context.Defer());
+						RepresentationActorManagement->SetActorEnabled(EMassActorEnabledType::Disabled, *Actor, EntityIdx, Context.Defer());
 					}
-					Representation.CurrentRepresentation = ERepresentationType::None;
+					Representation.CurrentRepresentation = EMassRepresentationType::None;
 					break;
 				default:
 					checkf(false, TEXT("Unsupported LOD type"));
@@ -209,8 +209,8 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 			}
 		}
 		else if (bDoKeepActorExtraFrame && 
-				 Representation.PrevRepresentation == ERepresentationType::StaticMeshInstance &&
-			    (PrevRepresentationCopy == ERepresentationType::HighResSpawnedActor || PrevRepresentationCopy == ERepresentationType::LowResSpawnedActor))
+				 Representation.PrevRepresentation == EMassRepresentationType::StaticMeshInstance &&
+			    (PrevRepresentationCopy == EMassRepresentationType::HighResSpawnedActor || PrevRepresentationCopy == EMassRepresentationType::LowResSpawnedActor))
 		{
 			AActor* Actor = ActorInfo.GetMutable();
 			DisableActorForISM(Actor);
@@ -341,7 +341,7 @@ FMassVisualizationChunkFragment& UMassVisualizationProcessor::UpdateChunkVisibil
 void UMassVisualizationProcessor::UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassCommandBuffer& CommandBuffer)
 {
 	// Move the visible entities together into same chunks so we can skip entire chunk when not visible as an optimization
-	const EMassVisibility Visibility = Representation.CurrentRepresentation != ERepresentationType::None ? 
+	const EMassVisibility Visibility = Representation.CurrentRepresentation != EMassRepresentationType::None ? 
 		EMassVisibility::CanBeSeen : RepresentationLOD.Visibility;
 	const EMassVisibility ChunkVisibility = ChunkData.GetVisibility();
 	if (ChunkVisibility != Visibility)

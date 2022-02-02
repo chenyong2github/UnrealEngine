@@ -399,7 +399,7 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching(const UMa
 		if (FMassRepresentationFragment* Representation = EntityView.GetFragmentDataPtr<FMassRepresentationFragment>())
 		{
 			// Force a reevaluate of the current representation
-			Representation->CurrentRepresentation = ERepresentationType::None;
+			Representation->CurrentRepresentation = EMassRepresentationType::None;
 		}
 	}
 }

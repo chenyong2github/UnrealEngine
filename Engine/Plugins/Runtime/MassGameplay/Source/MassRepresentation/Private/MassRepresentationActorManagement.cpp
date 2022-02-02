@@ -21,9 +21,9 @@ AActor* UMassRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationS
 }
 
 
-void UMassRepresentationActorManagement::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
+void UMassRepresentationActorManagement::SetActorEnabled(const EMassActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
 {
-	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
+	const bool bEnabled = EnabledType != EMassActorEnabledType::Disabled;
 	if (Actor.IsActorTickEnabled() != bEnabled)
 	{
 		Actor.SetActorTickEnabled(bEnabled);
@@ -49,7 +49,7 @@ void UMassRepresentationActorManagement::TeleportActor(const FTransform& Transfo
 	}
 }
 
-void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
+void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
 {
 	check(EntitySubsystem);
 
@@ -80,7 +80,7 @@ void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRe
 	}
 }
 
-EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, const FStructView& SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
+EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const
 {
 	check(EntitySubsystem);
 

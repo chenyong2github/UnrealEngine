@@ -24,7 +24,7 @@ protected:
 	 * @param EntityIdx is the entity index currently processing
 	 * @param Context is the current Mass execution context
 	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const override;
+	virtual void SetActorEnabled(const EMassActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const override;
 
 	/**
 	 * Returns an actor of the template type and setup fragments values from it

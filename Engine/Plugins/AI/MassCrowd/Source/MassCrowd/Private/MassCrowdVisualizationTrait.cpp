@@ -10,10 +10,10 @@ UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 	// Override the subsystem to support parallelization of the crowd
 	RepresentationSubsystemClass = UMassCrowdRepresentationSubsystem::StaticClass();
 	Config.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
-	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::LowResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::StaticMeshInstance;
-	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
+	Config.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
+	Config.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
 	// Set bKeepLowResActor to true as a spawning optimization, this will keep the low-res actor if available while showing the static mesh instance
 	Config.bKeepLowResActors = true;
 	Config.bKeepActorExtraFrame = true;

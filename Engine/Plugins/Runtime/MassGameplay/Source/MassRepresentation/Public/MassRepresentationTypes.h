@@ -19,7 +19,7 @@ namespace UE::Mass::ProcessorGroupNames
 }
 
 UENUM()
-enum class ERepresentationType : uint8
+enum class EMassRepresentationType : uint8
 {
 	HighResSpawnedActor,
 	LowResSpawnedActor,
@@ -27,7 +27,7 @@ enum class ERepresentationType : uint8
 	None,
 };
 
-enum class EActorEnabledType : uint8
+enum class EMassActorEnabledType : uint8
 {
 	Disabled,
 	LowRes,

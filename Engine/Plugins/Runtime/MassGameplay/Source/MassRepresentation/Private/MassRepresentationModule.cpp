@@ -26,6 +26,11 @@ void FMassRepresentationModule::StartupModule()
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassRepresentation.MassRepresentationLODProcessor"), TEXT("/Script/MassRepresentation.MassVisualizationLODProcessor"));
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassVisualization.MassVisualizationFeature"), TEXT("/Script/MassRepresentation.MassVisualizationTrait"));
 	Redirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Script/MassRepresentation.MassVisualizationTrait.TemplateActor"), TEXT("/Script/MassRepresentation.MassVisualizationTrait.HighResTemplateActor"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Enum, TEXT("/Script/MassRepresentation.RepresentationType"), TEXT("/Script/MassRepresentation.MassRepresentationType"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Enum, TEXT("RepresentationType"),                            TEXT("/Script/MassRepresentation.MassRepresentationType"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Enum, TEXT("/Script/MassRepresentation.ActorEnabledType"), TEXT("/Script/MassRepresentation.MassActorEnabledType"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Enum, TEXT("ActorEnabledType"),                            TEXT("/Script/MassRepresentation.MassActorEnabledType"));
+
 
 	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassRepresentation"));
 }

@@ -14,10 +14,10 @@ UMassVisualizationTrait::UMassVisualizationTrait()
 	RepresentationSubsystemClass = UMassRepresentationSubsystem::StaticClass();
 
 	Config.RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
-	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::LowResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::StaticMeshInstance;
-	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
+	Config.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
+	Config.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const

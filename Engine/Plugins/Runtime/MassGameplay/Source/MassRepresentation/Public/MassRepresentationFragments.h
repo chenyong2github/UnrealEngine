@@ -36,9 +36,9 @@ struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
-	ERepresentationType CurrentRepresentation = ERepresentationType::None;
+	EMassRepresentationType CurrentRepresentation = EMassRepresentationType::None;
 
-	ERepresentationType PrevRepresentation = ERepresentationType::None;
+	EMassRepresentationType PrevRepresentation = EMassRepresentationType::None;
 
 	int16 HighResTemplateActorIndex = INDEX_NONE;
 
@@ -75,7 +75,7 @@ struct FMassRepresentationConfig : public FMassSharedFragment
 
 	/** What should be the representation of this entity for each specific LOD */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	ERepresentationType LODRepresentation[EMassLOD::Max];
+	EMassRepresentationType LODRepresentation[EMassLOD::Max];
 
 	/** If true, LowRes actors will be kept around, disabled, whilst StaticMeshInstance representation is active */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
@@ -101,7 +101,7 @@ struct FMassRepresentationConfig : public FMassSharedFragment
 
 	/** Default representation when unable to spawn an actor, gets calculated at initialization */
 	UPROPERTY(Transient)
-	mutable ERepresentationType CachedDefaultRepresentationType = ERepresentationType::None;
+	mutable EMassRepresentationType CachedDefaultRepresentationType = EMassRepresentationType::None;
 
 	UPROPERTY(Transient)
 	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement = nullptr;
@@ -113,8 +113,8 @@ inline void FMassRepresentationConfig::ComputeCachedValues() const
 	for (int32 LOD = EMassLOD::High; LOD < EMassLOD::Max; LOD++)
 	{
 		// Find the first representation type after any actors
-		if (LODRepresentation[LOD] == ERepresentationType::HighResSpawnedActor ||
-			LODRepresentation[LOD] == ERepresentationType::LowResSpawnedActor)
+		if (LODRepresentation[LOD] == EMassRepresentationType::HighResSpawnedActor ||
+			LODRepresentation[LOD] == EMassRepresentationType::LowResSpawnedActor)
 		{
 			continue;
 		}

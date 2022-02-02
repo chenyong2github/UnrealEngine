@@ -12,10 +12,10 @@
 UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
 {
 	Config.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
-	Config.LODRepresentation[EMassLOD::High] = ERepresentationType::HighResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Medium] = ERepresentationType::None;
-	Config.LODRepresentation[EMassLOD::Low] = ERepresentationType::None;
-	Config.LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
+	Config.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Config.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::None;
+	Config.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::None;
+	Config.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
 	Config.bKeepLowResActors = false;
 	Config.bKeepActorExtraFrame = false;
 	Config.bSpreadFirstVisualizationUpdate = false;

@@ -175,7 +175,7 @@ FMassActorSpawnRequestHandle UMassActorSpawnerSubsystem::GetNextRequestToSpawn()
 	return BestSpawnRequestHandle;
 }
 
-AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(const FStructView& SpawnRequestView)
+AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView SpawnRequestView)
 {
 	if (UE::MassActors::bUseActorPooling != 0 && bActorPoolingEnabled)
 	{
@@ -204,7 +204,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(const FStructView& S
 	return SpawnActor(SpawnRequestView);
 }
 
-AActor* UMassActorSpawnerSubsystem::SpawnActor(const FStructView& SpawnRequestView) const
+AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMassActorSpawnerSubsystem::SpawnActor);
 
