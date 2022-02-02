@@ -608,7 +608,7 @@ static const TCHAR* ImportProperties(
 				{
 					checkSlow(ComponentTemplate->GetArchetype() == Archetype);
 					ReplacementMap.Add(Archetype, ComponentTemplate);
-					InstanceGraph.AddNewInstance(ComponentTemplate);
+					InstanceGraph.AddNewInstance(ComponentTemplate, Archetype);
 				}
 				if (OldComponent)
 				{
