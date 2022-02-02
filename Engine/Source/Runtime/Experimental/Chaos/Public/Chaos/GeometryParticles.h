@@ -93,6 +93,7 @@ namespace Chaos
 
 		// The world-space transform of the leaf geometry (from the last call to UpdateWorldSpaceState)
 		const FRigidTransform3& GetLeafWorldTransform() const { return LeafWorldTransform; }
+		void SetLeafWorldTransform(const FRigidTransform3& InTransform) { LeafWorldTransform = InTransform; }
 
 		// The margin to use with the leaf shape (which could be from its Instanced wrapper if it had one)
 		const FReal GetLeafMargin() const { return LeafMargin; }

@@ -338,11 +338,16 @@ namespace Chaos
 	{
 		if ((Constraint != nullptr) && IsUsedSince(SleepEpoch))
 		{
-			// We just need to refresh the epoch so that the constraint state will be used as the previous
+			// We need to refresh the epoch so that the constraint state will be used as the previous
 			// state iof the pair is still colliding in the next tick
 			const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			Constraint->GetContainerCookie().LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			LastUsedEpoch = CurrentEpoch;
+
+			// We have skipped collision detection for this particle because it was asleep, so we need to update the transforms...
+			// NOTE: this relies on the shape world transforms being up-to-date. They are usually updated in Integarte which
+			// is also skipped for sleeping particles, so they must be updated manually when waking partciles (see IslandManager)
+			Constraint->SetShapeWorldTransforms(Shape0->GetLeafWorldTransform(), Shape1->GetLeafWorldTransform());
 		}
 	}
 

@@ -118,6 +118,20 @@ inline void UpdateSleepState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Par
 			if (!bIsSleeping && IslandParticle->Sleeping())
 			{
 				Particles.ActivateParticle(IslandParticle, true);
+
+				// When we wake particles, we have skipped their integrate step which causes some issues:
+				//	- we have zero velocity (no gravity or external forces applied)
+				//	- the world transforms cached in the ShapesArray will be at the last post-integrate positions
+				//	  which doesn't match what the velocity is telling us
+				// This causes problems for the solver - essentially we have an "initial overlap" situation.
+				// @todo(chaos): We could just run (partial) integrate here for this particle, but we don't know about the Evolution - fix this
+				const FRigidTransform3 ParticleWorldTransform = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(IslandParticle));
+				for (const TUniquePtr<FPerShapeData>& Shape : IslandParticle->ShapesArray())
+				{
+					const FRigidTransform3 ShapeWorldTransform = Shape->GetLeafRelativeTransform() * ParticleWorldTransform;
+					Shape->SetLeafWorldTransform(ShapeWorldTransform);
+				}
+
 				bNeedRebuild = true;
 			}
 			// If sleeping we deactivate the dynamic particles
