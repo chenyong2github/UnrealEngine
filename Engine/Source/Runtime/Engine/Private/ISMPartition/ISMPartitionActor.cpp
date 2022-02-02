@@ -43,7 +43,7 @@ static FAutoConsoleCommand DumpISMPartitionActors(
 				// Also output total ism count
 				int32 TotalCount = 0;
 				int32 ComponentCount = 0;
-				for (TObjectIterator<UInstancedStaticMeshComponent> It(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); It; ++It)
+				for (TObjectIterator<UInstancedStaticMeshComponent> It(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage); It; ++It)
 				{
 					UInstancedStaticMeshComponent* ISMComponent = *It;
 					if (ISMComponent)

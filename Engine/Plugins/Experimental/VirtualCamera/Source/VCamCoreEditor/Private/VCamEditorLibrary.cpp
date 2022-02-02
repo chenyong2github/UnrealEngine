@@ -15,7 +15,7 @@ void UVCamEditorLibrary::GetAllVCamComponentsInLevel(TArray<UVCamComponent*>& VC
 
 	// Loop all VCamComponents which are not pending kill or CDOs
 	const EObjectFlags ExcludeFlags = RF_ClassDefaultObject;
-	for (TObjectIterator<UVCamComponent> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<UVCamComponent> It(ExcludeFlags, true, EInternalObjectFlags::Garbage); It; ++It)
 	{
 		UVCamComponent* VCamComponent = *It;
 		if (IsValid(VCamComponent))

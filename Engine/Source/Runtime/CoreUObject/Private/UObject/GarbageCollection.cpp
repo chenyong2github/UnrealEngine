@@ -696,7 +696,9 @@ public:
 				FUObjectItem* ReferencedMutableObjectItem = GUObjectArray.IndexToObjectUnsafeForGC(ReferencedMutableObjectIndex);
 				if (IsParallel())
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					if (!ReferencedMutableObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					{
 						if (ReferencedMutableObjectItem->IsUnreachable())
 						{
@@ -737,7 +739,9 @@ public:
 						bAddClusterObjectsToSerialize = true;
 					}
 				}
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				else if (!ReferencedMutableObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					if (ReferencedMutableObjectItem->IsUnreachable())
 					{
@@ -793,7 +797,9 @@ public:
 			if (ReferncedClusterIndex >= 0) // Pending Kill support
 			{
 				FUObjectItem* ReferencedClusterRootObjectItem = GUObjectArray.IndexToObjectUnsafeForGC(ReferncedClusterIndex);
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (!ReferencedClusterRootObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					// This condition should get collapsed by the compiler based on the template argument
 					if (IsParallel())
@@ -1340,7 +1346,9 @@ public:
 						{
 							bMarkAsUnreachable = false;
 						}
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						else if (ObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage) && bWithClusters && ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot))
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						{
 							ClustersToDissolveList.Push(ObjectItem);
 						}

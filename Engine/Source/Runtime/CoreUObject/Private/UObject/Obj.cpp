@@ -748,7 +748,7 @@ void UObject::GetArchetypeInstances( TArray<UObject*>& Instances )
 				{
 					Instances.Add(Obj);
 				}
-			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::Garbage); // we need to evaluate CDOs as well, but nothing pending kill
 		}
 		else
 		{
@@ -759,7 +759,7 @@ void UObject::GetArchetypeInstances( TArray<UObject*>& Instances )
 				{
 					Instances.Add(Obj);
 				}
-			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::PendingKill); // we need to evaluate CDOs as well, but nothing pending kill
+			}, bIncludeNestedObjects, RF_NoFlags, EInternalObjectFlags::Garbage); // we need to evaluate CDOs as well, but nothing pending kill
 
 		}
 	}
@@ -1661,7 +1661,7 @@ void UObject::BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject
 		{
 			InSubObject->BuildSubobjectMapping(OtherSubObject, ObjectMapping);
 		}
-	}, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}, false, RF_NoFlags, EInternalObjectFlags::Garbage);
 }
 
 

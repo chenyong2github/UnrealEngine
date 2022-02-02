@@ -669,7 +669,7 @@ bool FStaticLightingSystem::BeginLightmassProcess()
 				}
 				}
 
-				for (TObjectIterator<ULightComponentBase> LightIt(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); LightIt; ++LightIt)
+				for (TObjectIterator<ULightComponentBase> LightIt(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage); LightIt; ++LightIt)
 				{
 					ULightComponentBase* const Light = *LightIt;
 					const bool bLightIsInWorld = IsValid(Light->GetOwner()) 

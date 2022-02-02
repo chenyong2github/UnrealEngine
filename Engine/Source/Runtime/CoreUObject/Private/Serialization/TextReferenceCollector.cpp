@@ -24,7 +24,7 @@ public:
 		// Build up the list of objects that are within our package - we won't follow object references to things outside of our package
 		{
 			TArray<UObject*> AllObjectsInPackageArray;
-			GetObjectsWithOuter(InPackage, AllObjectsInPackageArray, true, RF_Transient, EInternalObjectFlags::PendingKill);
+			GetObjectsWithOuter(InPackage, AllObjectsInPackageArray, true, RF_Transient, EInternalObjectFlags::Garbage);
 
 			AllObjectsInPackage.Reserve(AllObjectsInPackageArray.Num());
 			for (UObject* Object : AllObjectsInPackageArray)
@@ -34,7 +34,7 @@ public:
 		}
 
 		TArray<UObject*> RootObjectsInPackage;
-		GetObjectsWithOuter(InPackage, RootObjectsInPackage, false, RF_Transient, EInternalObjectFlags::PendingKill);
+		GetObjectsWithOuter(InPackage, RootObjectsInPackage, false, RF_Transient, EInternalObjectFlags::Garbage);
 
 		// Iterate over each root object in the package
 		for (UObject* Obj : RootObjectsInPackage)

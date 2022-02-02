@@ -2426,8 +2426,8 @@ bool UPackage::IsEmptyPackage(UPackage* Package, const UObject* LastReferencer)
 				return false;
 			}
 			return true;
-		// Don't consider transient, class default or pending kill / garbage objects
-		}, false, RF_Transient | RF_ClassDefaultObject, EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage);
+		// Don't consider transient, class default or garbage objects
+		}, false, RF_Transient | RF_ClassDefaultObject, EInternalObjectFlags::Garbage);
 		return bIsEmpty;
 	}
 

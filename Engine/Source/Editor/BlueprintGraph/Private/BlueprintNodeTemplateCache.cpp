@@ -123,7 +123,7 @@ static UEdGraph* BlueprintNodeTemplateCacheImpl::FindCompatibleGraph(UBlueprint*
 	UEdGraph* FoundGraph = nullptr;
 
 	TArray<UObject*> BlueprintChildObjs;
-	GetObjectsWithOuter(BlueprintOuter, BlueprintChildObjs, /*bIncludeNestedObjects =*/false, /*ExclusionFlags =*/ RF_NoFlags, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill);
+	GetObjectsWithOuter(BlueprintOuter, BlueprintChildObjs, /*bIncludeNestedObjects =*/false, /*ExclusionFlags =*/ RF_NoFlags, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage);
 
 	for (UObject* Child : BlueprintChildObjs)
 	{

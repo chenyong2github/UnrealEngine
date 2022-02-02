@@ -126,7 +126,7 @@ namespace RCPresetRebindingManager
 		}
 
 		const EObjectFlags ExcludeFlags = RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient;
-		for (TObjectIterator<UActorComponent> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
+		for (TObjectIterator<UActorComponent> It(ExcludeFlags, true, EInternalObjectFlags::Garbage); It; ++It)
 		{
 			AddRelevantClassesForObject(*It);
 		}

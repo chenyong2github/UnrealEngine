@@ -2222,7 +2222,7 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 		// List of unique classes and structs to regenerate bytecode and property referenced objects list
 		TSet<UStruct*> StructsToRegenerateReferencesFor;
 
-		for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::PendingKill); FieldIt; ++FieldIt)
+		for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::Garbage); FieldIt; ++FieldIt)
 		{
 			FStructProperty* StructProperty = *FieldIt;
 			if (StructProperty && (StructureToReinstance == StructProperty->Struct))
@@ -2264,7 +2264,7 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 	}
 	
 	// in the future we could only invalidate caches on affected rig instances, it shouldn't make too much of a difference though
-	for (TObjectIterator<UControlRig> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<UControlRig> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage); It; ++It)
 	{
 		UControlRig* Rig = *It;
 		// rebuild property list and property path list
@@ -2276,7 +2276,7 @@ void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
                                    FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
 {
 	TArray<UControlRigBlueprint*> BlueprintsToRefresh;
-	for (TObjectIterator<URigVMPin> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<URigVMPin> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage); It; ++It)
 	{
 		URigVMPin* Pin = *It;
 		// GetCPPTypeObject also makes sure the pin's type information is update to date

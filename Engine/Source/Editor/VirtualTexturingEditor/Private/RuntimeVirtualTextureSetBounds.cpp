@@ -31,7 +31,7 @@ namespace RuntimeVirtualTexture
 
 		// Expand bounds for the BoundsAlignActor and all primitive components that write to this virtual texture.
 		FBox Bounds(ForceInit);
-		for (TObjectIterator<UPrimitiveComponent> It(RF_ClassDefaultObject, true, EInternalObjectFlags::PendingKill); It; ++It)
+		for (TObjectIterator<UPrimitiveComponent> It(RF_ClassDefaultObject, true, EInternalObjectFlags::Garbage); It; ++It)
 		{
 			bool bUseBounds = BoundsAlignActor.IsValid() && It->GetOwner() == BoundsAlignActor.Get();
 

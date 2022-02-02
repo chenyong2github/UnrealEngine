@@ -102,6 +102,6 @@ void UBaseWidgetBlueprint::ForEachSourceWidgetImpl(TFunctionRef<void(UWidget*)> 
 		},
 		!bIncludeNestedObjects,// Reject nested objects
 		RF_NoFlags,
-		EInternalObjectFlags::PendingKill // Exclude Pending Kills
+		EInternalObjectFlags::Garbage // Exclude Pending Kills
 	);
 }

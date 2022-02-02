@@ -1314,7 +1314,7 @@ void ALODActor::OnCVarsChanged()
 	{
 		CachedMaximumAllowedHLODLevel = MaximumAllowedHLODLevel;
 
-		for (ALODActor* Actor : TObjectRange<ALODActor>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		for (ALODActor* Actor : TObjectRange<ALODActor>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 		{
 			Actor->UpdateRegistrationToMatchMaximumLODLevel();
 		}
@@ -1349,7 +1349,7 @@ void ALODActor::OnCVarsChanged()
 	{
 		CachedDistances = HLODDistances;
 		const int32 NumDistances = CachedDistances.Num();
-		for (ALODActor* Actor : TObjectRange<ALODActor>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		for (ALODActor* Actor : TObjectRange<ALODActor>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 		{
 			Actor->UpdateOverrideTransitionDistance();
 		}

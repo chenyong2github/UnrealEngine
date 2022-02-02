@@ -199,7 +199,9 @@ public:
 		}
 		else
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			checkSlow(GUObjectArray.IndexToObject(InternalIndex)->HasAnyFlags(EInternalObjectFlags::PendingKill) == HasAnyFlags(RF_InternalPendingKill));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return HasAnyFlags(RF_InternalPendingKill);
 		}
 	}
@@ -313,7 +315,9 @@ public:
 	UE_DEPRECATED(5.0, "IsPendingKillOrUnreachable() should no longer be used. Use IsValid(Object), IsValidChecked(Object), GetValid(Object) and/or IsUnreachable() instead.")
 	FORCEINLINE bool IsPendingKillOrUnreachable() const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return GUObjectArray.IndexToObject(InternalIndex)->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage | EInternalObjectFlags::Unreachable);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/** Checks if the object is native. */
@@ -331,7 +335,9 @@ public:
 	FORCEINLINE void SetInternalFlags(EInternalObjectFlags FlagsToSet) const
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		checkf(!(FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || int32(FlagsToSet & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) == (ObjectItem->Flags & int32(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)), TEXT("SetInternalFlags should not set the PendingKill or Garbage flag. Use MarkPendingKill or MarkAsGarbage instead"));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ObjectItem->SetFlags(FlagsToSet);
 	}
 
@@ -366,7 +372,9 @@ public:
 	FORCEINLINE void ClearInternalFlags(EInternalObjectFlags FlagsToClear) const
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		checkf(!(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) || (ObjectItem->Flags & int32(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == 0, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ObjectItem->ClearFlags(FlagsToClear);
 	}
 
@@ -379,7 +387,9 @@ public:
 	FORCEINLINE bool AtomicallyClearInternalFlags(EInternalObjectFlags FlagsToClear) const
 	{
 		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(InternalIndex);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		checkf((ObjectItem->Flags & int32(FlagsToClear & (EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))) == 0, TEXT("ClearInternalFlags should not clear PendingKill or Garbage flag. Use ClearGarbage() instead"));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ObjectItem->ThisThreadAtomicallyClearedFlag(FlagsToClear);
 	}
 
@@ -426,6 +436,24 @@ public:
 	static inline bool IsPendingKillEnabled()
 	{
 		return !bPendingKillDisabled;
+	}
+
+	/** Helper function that sets the appropriate flag based on PK being enabled or not */
+	FORCEINLINE static EInternalObjectFlags FixGarbageOrPendingKillInternalObjectFlags(const EInternalObjectFlags InFlags)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (!(InFlags & (EInternalObjectFlags::Garbage | EInternalObjectFlags::PendingKill)))
+		{
+			// Pass through
+			return InFlags;
+		}
+		else
+		{
+			return bPendingKillDisabled ?
+				((InFlags & ~EInternalObjectFlags::PendingKill) | EInternalObjectFlags::Garbage) : // Replace PK with Garbage
+				((InFlags & ~EInternalObjectFlags::Garbage) | EInternalObjectFlags::PendingKill); // Replace Garbage with PK
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 public:

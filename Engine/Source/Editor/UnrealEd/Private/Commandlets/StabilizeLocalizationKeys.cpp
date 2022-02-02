@@ -80,7 +80,7 @@ public:
 		this->SetIsSaving(true);
 
 		TArray<UObject*> AllObjectsInPackage;
-		GetObjectsWithOuter(InPackage, AllObjectsInPackage, true, RF_Transient, EInternalObjectFlags::PendingKill);
+		GetObjectsWithOuter(InPackage, AllObjectsInPackage, true, RF_Transient, EInternalObjectFlags::Garbage);
 
 		for (UObject* Obj : AllObjectsInPackage)
 		{

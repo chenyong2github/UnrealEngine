@@ -163,7 +163,7 @@ static void FoliageCVarSinkFunction()
 		CachedFoliageDensityScale = FoliageDensityScale;
 		FoliageDensityScale = FMath::Clamp(FoliageDensityScale, 0.0f, 1.0f);
 
-		for (auto* Component : TObjectRange<UHierarchicalInstancedStaticMeshComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		for (auto* Component : TObjectRange<UHierarchicalInstancedStaticMeshComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 		{
 #if WITH_EDITOR
 			if (Component->bCanEnableDensityScaling)

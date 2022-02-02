@@ -173,7 +173,7 @@ static void GetMissingRuntimeVirtualTextureVolumes(ALandscapeProxy* LandscapePro
 	}
 
 	TArray<URuntimeVirtualTexture*> FoundVolumes;
-	for (TObjectIterator<URuntimeVirtualTextureComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<URuntimeVirtualTextureComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
 	{
 		if (It->GetWorld() == World)
 		{

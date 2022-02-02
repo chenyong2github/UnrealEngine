@@ -320,7 +320,7 @@ void UGatherTextFromAssetsCommandlet::PurgeGarbage(const bool bPurgeReferencedPa
 					{
 						ObjectsToKeepAlive.Add(InPackageInner);
 					}
-				}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+				}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 			}
 		}
 	}

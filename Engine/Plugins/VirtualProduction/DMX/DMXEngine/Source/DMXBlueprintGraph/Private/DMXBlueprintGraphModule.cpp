@@ -70,7 +70,7 @@ void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGet
 
 void FDMXBlueprintGraphModule::OnFixtureTypeChanged(const UDMXEntityFixtureType* InFixtureType)
 {
-	for (TObjectIterator<UK2Node_GetDMXAttributeValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<UK2Node_GetDMXAttributeValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::Garbage); It; ++It)
 	{
 		if (It->HasValidBlueprint())
 		{

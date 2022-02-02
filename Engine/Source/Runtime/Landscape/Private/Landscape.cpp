@@ -1454,7 +1454,7 @@ static void OnStaticMeshLODDistanceScaleChanged()
 	{
 		LastValue = CVarStaticMeshLODDistanceScale.GetValueOnAnyThread();
 
-		for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+		for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 		{
 			LandscapeComponent->MarkRenderStateDirty();
 		}

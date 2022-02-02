@@ -2040,7 +2040,7 @@ void ULevel::PostEditUndo()
 		{
 			Actors.Add(InnerActor);
 		}
-	}, /*bIncludeNestedObjects*/ false, /*ExclusionFlags*/ RF_NoFlags, /* InternalExclusionFlags */ EInternalObjectFlags::PendingKill);
+	}, /*bIncludeNestedObjects*/ false, /*ExclusionFlags*/ RF_NoFlags, /* InternalExclusionFlags */ EInternalObjectFlags::Garbage);
 
 	MarkLevelBoundsDirty();
 }
@@ -3341,7 +3341,7 @@ TArray<UBlueprint*> ULevel::GetLevelBlueprints() const
 		{
 			LevelBlueprints.Add(LevelChildBP);
 		}
-	}, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}, false, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	return LevelBlueprints;
 }

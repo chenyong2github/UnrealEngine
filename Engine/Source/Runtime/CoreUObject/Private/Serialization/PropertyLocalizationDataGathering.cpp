@@ -27,7 +27,7 @@ FPropertyLocalizationDataGatherer::FPropertyLocalizationDataGatherer(TArray<FGat
 	{
 		AllObjectsInPackage.Add(Object);
 		return true;
-	}, true, RF_Transient, EInternalObjectFlags::PendingKill);
+	}, true, RF_Transient, EInternalObjectFlags::Garbage);
 
 	// Iterate over each root object in the package
 	for (const UObject* Object : AllObjectsInPackage)
@@ -236,7 +236,7 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObject(const U
 	if (!(GatherTextFlags & EPropertyLocalizationGathererTextFlags::SkipSubObjects))
 	{
 		TArray<UObject*> InnerObjects;
-		GetObjectsWithOuter(Object, InnerObjects, false, RF_Transient, EInternalObjectFlags::PendingKill);
+		GetObjectsWithOuter(Object, InnerObjects, false, RF_Transient, EInternalObjectFlags::Garbage);
 		for (UObject* ChildObject : InnerObjects)
 		{
 			// if the child object as a package set, do not gather from it

@@ -357,7 +357,9 @@ void VerifyObjectFlagMirroring()
 			{
 				UObjectBaseUtility* Object = (UObjectBaseUtility*)ObjectItem.Object;
 				bool bHasObjectFlag = Object->HasAnyFlags(RF_InternalPendingKill);
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				bool bHasInternalFlag = ObjectItem.HasAnyFlags(EInternalObjectFlags::PendingKill);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				if (bHasObjectFlag != bHasInternalFlag)
 				{
 					UE_LOG(LogGarbage, Warning, TEXT("RF_PendingKill (%d) and EInternalObjectFlags::PendingKill (%d) flag mismatch on %s"),

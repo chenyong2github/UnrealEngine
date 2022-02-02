@@ -65,7 +65,7 @@ void UAbilitySystemComponent::InitializeComponent()
 	}
 
 	TArray<UObject*> ChildObjects;
-	GetObjectsWithOuter(Owner, ChildObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	GetObjectsWithOuter(Owner, ChildObjects, false, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	for (UObject* Obj : ChildObjects)
 	{

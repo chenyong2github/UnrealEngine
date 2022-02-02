@@ -223,10 +223,12 @@ FString FReferenceChainSearch::GetObjectFlags(UObject* InObject)
 		Flags += TEXT("(native) ");
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (InObject->HasAnyInternalFlags(EInternalObjectFlags::PendingKill))
 	{
 		Flags += TEXT("(PendingKill) ");
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (InObject->HasAnyInternalFlags(EInternalObjectFlags::Garbage))
 	{

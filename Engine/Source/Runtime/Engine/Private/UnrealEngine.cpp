@@ -15801,7 +15801,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 		{
 			ReferenceReplacementMap.Add(ObjectInOuter, nullptr);
 		}
-	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	if(Params.bClearReferences)
 	{

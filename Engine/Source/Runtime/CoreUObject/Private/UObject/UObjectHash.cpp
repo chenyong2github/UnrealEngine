@@ -984,6 +984,8 @@ void GetObjectsWithOuter(const class UObjectBase* Outer, TArray<UObject *>& Resu
 	{
 		ExclusionInternalFlags |= EInternalObjectFlags::AsyncLoading;
 	}
+	ExclusionInternalFlags = UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(ExclusionInternalFlags);
+
 	int32 StartNum = Results.Num();
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock HashLock(ThreadHash);
@@ -1043,6 +1045,8 @@ void ForEachObjectWithOuterBreakable(const class UObjectBase* Outer, TFunctionRe
 	{
 		ExclusionInternalFlags |= EInternalObjectFlags::AsyncLoading;
 	}
+	ExclusionInternalFlags = UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(ExclusionInternalFlags);
+
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock HashLock(ThreadHash);
 	TArray<FHashBucket*, TInlineAllocator<1> > AllInners;
@@ -1137,6 +1141,8 @@ void ForEachObjectWithPackage(const class UPackage* Package, TFunctionRef<bool(U
 	{
 		ExclusionInternalFlags |= EInternalObjectFlags::AsyncLoading;
 	}
+	ExclusionInternalFlags = UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(ExclusionInternalFlags);
+
 	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
 	FHashTableLock HashLock(ThreadHash);
 	TArray<FHashBucket*, TInlineAllocator<1> > AllInners;
@@ -1242,6 +1248,7 @@ FORCEINLINE void ForEachObjectOfClasses_Implementation(FUObjectHashTables& Threa
 	{
 		ExclusionInternalFlags |= EInternalObjectFlags::AsyncLoading;
 	}
+	ExclusionInternalFlags = UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(ExclusionInternalFlags);
 
 	TBucketMapLock ClassToObjectListMapLock(ThreadHash.ClassToObjectListMap);
 

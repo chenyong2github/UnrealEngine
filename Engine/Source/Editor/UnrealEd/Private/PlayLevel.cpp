@@ -401,7 +401,7 @@ void UEditorEngine::EndPlayMap()
 		{
 			Object->MarkAsGarbage();
 		};
-		ForEachObjectWithOuter(*It, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+		ForEachObjectWithOuter(*It, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 	}
 
 	// Flush any render commands and released accessed UTextures and materials to give them a chance to be collected.

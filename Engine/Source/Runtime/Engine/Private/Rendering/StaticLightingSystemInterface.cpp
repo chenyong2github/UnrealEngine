@@ -181,7 +181,7 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 						int32 NumPrimitiveComponents = 0;
 						int32 NumLightComponents = 0;
 
-						for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+						for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 						{
 							if (Component->HasValidSettingsForStaticLighting(false))
 							{
@@ -189,7 +189,7 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 							}
 						}
 
-						for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+						for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 						{
 							if (Component->bAffectsWorld && Component->HasStaticShadowing())
 							{
@@ -200,7 +200,7 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 						FScopedSlowTask SubSlowTask(NumPrimitiveComponents + NumLightComponents, LOCTEXT("RegisteringComponentsWithStaticLightingSystem", "Registering components with static lighting system"));
 						SubSlowTask.MakeDialog();
 
-						for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+						for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 						{
 							if (Component->HasValidSettingsForStaticLighting(false))
 							{
@@ -210,7 +210,7 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 							}
 						}
 
-						for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+						for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 						{
 							if (Component->bAffectsWorld && Component->HasStaticShadowing())
 							{
@@ -242,12 +242,12 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 					int32 NumPrimitiveComponents = 0;
 					int32 NumLightComponents = 0;
 
-					for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+					for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 					{
 						NumPrimitiveComponents++;
 					}
 
-					for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+					for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 					{
 						NumLightComponents++;
 					}
@@ -255,19 +255,19 @@ ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld)
 					FScopedSlowTask SubSlowTask(NumPrimitiveComponents + NumLightComponents, LOCTEXT("UnregisteringComponentsWithStaticLightingSystem", "Unregistering components with static lighting system"));
 
 					// Unregister all landscapes first to prevent grass picking up landscape lightmaps
-					for (ULandscapeComponent* Component : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+					for (ULandscapeComponent* Component : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 					{
 						FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(Component);
 					}
 
-					for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+					for (UPrimitiveComponent* Component : TObjectRange<UPrimitiveComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 					{
 						FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(Component);
 
 						SubSlowTask.EnterProgressFrame(1, LOCTEXT("UnregisteringComponentsWithStaticLightingSystem", "Unregistering components with static lighting system"));
 					}
 
-					for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+					for (ULightComponentBase* Component : TObjectRange<ULightComponentBase>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
 					{
 						FStaticLightingSystemInterface::OnLightComponentUnregistered.Broadcast(Component);
 

@@ -31,7 +31,7 @@ FStaticMeshComponentRecreateRenderStateContext::FStaticMeshComponentRecreateRend
 
 		const EObjectFlags AdditionalExclusionFlags = RF_ClassDefaultObject;
 		const bool bIncludeDerivedClasses = true;
-		const EInternalObjectFlags InternalExclusionFlags = EInternalObjectFlags::PendingKill;
+		const EInternalObjectFlags InternalExclusionFlags = EInternalObjectFlags::Garbage;
 
 		for (TObjectIterator<UStaticMeshComponent> It(AdditionalExclusionFlags, bIncludeDerivedClasses, InternalExclusionFlags); It; ++It)
 		{

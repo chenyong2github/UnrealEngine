@@ -183,15 +183,21 @@ struct FUObjectItem
 
 	FORCEINLINE void SetPendingKill()
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ThisThreadAtomicallySetFlag(EInternalObjectFlags::PendingKill);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	FORCEINLINE void ClearPendingKill()
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ThisThreadAtomicallyClearedFlag(EInternalObjectFlags::PendingKill);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	FORCEINLINE bool IsPendingKill() const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return !!(Flags & int32(EInternalObjectFlags::PendingKill));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FORCEINLINE void SetRootSet()
@@ -727,7 +733,9 @@ public:
 		FUObjectItem* ObjectItem = IndexToObject(Index);
 		if (ObjectItem && ObjectItem->Object)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (!bEvenIfPendingKill && ObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				ObjectItem = nullptr;;
 			}
@@ -745,7 +753,9 @@ public:
 	{
 		if (ObjectItem)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			return bEvenIfPendingKill ? !ObjectItem->IsUnreachable() : !(ObjectItem->HasAnyFlags(EInternalObjectFlags::Unreachable | EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		return false;
 	}
@@ -766,7 +776,9 @@ public:
 	FORCEINLINE bool IsStale(FUObjectItem* ObjectItem, bool bEvenIfPendingKill)
 	{
 		// This method assumes ObjectItem is valid.
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return bEvenIfPendingKill ? (ObjectItem->HasAnyFlags(EInternalObjectFlags::Unreachable | EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) : (ObjectItem->IsUnreachable());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FORCEINLINE bool IsStale(int32 Index, bool bEvenIfPendingKill)

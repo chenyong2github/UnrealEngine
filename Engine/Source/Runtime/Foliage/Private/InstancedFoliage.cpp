@@ -942,7 +942,7 @@ void UFoliageType::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 	// Notify any currently-loaded InstancedFoliageActors
 	if (IsFoliageReallocationRequiredForPropertyChange(PropertyChangedEvent.Property))
 	{
-		for (TObjectIterator<AInstancedFoliageActor> It(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFalgs */ EInternalObjectFlags::PendingKill); It; ++It)
+		for (TObjectIterator<AInstancedFoliageActor> It(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFalgs */ EInternalObjectFlags::Garbage); It; ++It)
 		{
 			if (It->GetWorld() != nullptr)
 			{
@@ -958,7 +958,7 @@ void UFoliageType::PreEditChange(FProperty* PropertyAboutToChange)
 
 	if (IsSourcePropertyChange(PropertyAboutToChange))
 	{
-		for (TObjectIterator<AInstancedFoliageActor> It(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFalgs */ EInternalObjectFlags::PendingKill); It; ++It)
+		for (TObjectIterator<AInstancedFoliageActor> It(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFalgs */ EInternalObjectFlags::Garbage); It; ++It)
 		{
 			It->NotifyFoliageTypeWillChange(this);
 		}

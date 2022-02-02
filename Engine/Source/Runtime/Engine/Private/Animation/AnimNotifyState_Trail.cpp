@@ -29,7 +29,7 @@ static void GetCandidateSystems(USkeletalMeshComponent& MeshComp, ParticleSystem
 			{
 				Components.Add(ChildPSC);
 			}
-		}, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+		}, false, RF_NoFlags, EInternalObjectFlags::Garbage);
 	}
 }
 

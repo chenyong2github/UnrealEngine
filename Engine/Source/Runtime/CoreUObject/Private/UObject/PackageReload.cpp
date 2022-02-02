@@ -587,7 +587,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 
 			// Main pass to go through and fix-up any references pointing to data from the old package to point to data from the new package
 			// todo: multi-thread this like FHotReloadModule::ReplaceReferencesToReconstructedCDOs?
-			for (FThreadSafeObjectIterator ObjIter(UObject::StaticClass(), false, RF_NoFlags, EInternalObjectFlags::PendingKill); ObjIter; ++ObjIter)
+			for (FThreadSafeObjectIterator ObjIter(UObject::StaticClass(), false, RF_NoFlags, EInternalObjectFlags::Garbage); ObjIter; ++ObjIter)
 			{
 				UObject* PotentialReferencer = *ObjIter;
 
@@ -693,7 +693,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 				//{
 				//	PackageReloadInternal::DumpExternalReferences(InExistingObject, ExistingPackage);
 				//	return true; // continue
-				//}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+				//}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 			}
 		}
 	}

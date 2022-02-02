@@ -2310,7 +2310,7 @@ AActor* UCameraNodalOffsetAlgoPoints::FindFirstCalibrator() const
 	const UWorld* World = StepsController->GetWorld();
 	const EObjectFlags ExcludeFlags = RF_ClassDefaultObject; // We don't want the calibrator CDOs.
 
-	for (TObjectIterator<UCalibrationPointComponent> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
+	for (TObjectIterator<UCalibrationPointComponent> It(ExcludeFlags, true, EInternalObjectFlags::Garbage); It; ++It)
 	{
 		AActor* Actor = It->GetOwner();
 

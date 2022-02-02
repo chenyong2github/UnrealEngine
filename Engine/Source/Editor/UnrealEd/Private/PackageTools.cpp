@@ -415,7 +415,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					bScriptPackageWasUnloaded = true;
 				}
 
-				GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage, true, RF_Transient, EInternalObjectFlags::PendingKill);
+				GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage, true, RF_Transient, EInternalObjectFlags::Garbage);
 				// Notify any Blueprints that are about to be unloaded, and destroy any leftover worlds.
 				for (UObject* Obj : ObjectsInPackage)
 				{
@@ -929,7 +929,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					}
 				}
 				return true;
-			}, true, RF_Transient, EInternalObjectFlags::PendingKill);
+			}, true, RF_Transient, EInternalObjectFlags::Garbage);
 		}
 
 		if (InPackageReloadPhase == EPackageReloadPhase::OnPackageFixup)

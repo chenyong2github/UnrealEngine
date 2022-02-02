@@ -136,6 +136,27 @@ bool UObjectBaseUtility::bPendingKillDisabled = !GPendingKillEnabled;
 
 void InitNoPendingKill()
 {
+#if !UE_BUILD_SHIPPING
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	{
+		UObjectBaseUtility::bPendingKillDisabled = false;
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::None) == EInternalObjectFlags::None);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::PendingKill) == EInternalObjectFlags::PendingKill);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::Garbage) == EInternalObjectFlags::PendingKill);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage) == EInternalObjectFlags::PendingKill);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::RootSet | EInternalObjectFlags::PendingKill) == (EInternalObjectFlags::RootSet | EInternalObjectFlags::PendingKill));
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::RootSet | EInternalObjectFlags::Garbage) == (EInternalObjectFlags::RootSet | EInternalObjectFlags::PendingKill));
+		UObjectBaseUtility::bPendingKillDisabled = true;
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::None) == EInternalObjectFlags::None);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::PendingKill) == EInternalObjectFlags::Garbage);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::Garbage) == EInternalObjectFlags::Garbage);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage) == EInternalObjectFlags::Garbage);
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::RootSet | EInternalObjectFlags::PendingKill) == (EInternalObjectFlags::RootSet | EInternalObjectFlags::Garbage));
+		check(UObjectBaseUtility::FixGarbageOrPendingKillInternalObjectFlags(EInternalObjectFlags::RootSet | EInternalObjectFlags::Garbage) == (EInternalObjectFlags::RootSet | EInternalObjectFlags::Garbage));
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // !UE_BUILD_SHIPPING
+
 	check(GConfig);
 	bool bPendingKillEnabled = false;
 	GConfig->GetBool(TEXT("/Script/Engine.GarbageCollectionSettings"), TEXT("gc.PendingKillEnabled"), bPendingKillEnabled, GEngineIni);

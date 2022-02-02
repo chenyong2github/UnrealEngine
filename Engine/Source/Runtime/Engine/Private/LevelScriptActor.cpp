@@ -125,7 +125,7 @@ TArray<ALevelScriptActor*> ALevelScriptActor::FindSiblingLevelScriptActors() con
 	if (!ThisOuter->IsA<UPackage>())
 	{
 		TArray<UObject*> AllSiblingObjects;
-		GetObjectsWithOuter(ThisOuter, AllSiblingObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+		GetObjectsWithOuter(ThisOuter, AllSiblingObjects, false, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 		for (UObject* Sibling : AllSiblingObjects)
 		{

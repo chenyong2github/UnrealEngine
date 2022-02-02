@@ -168,7 +168,7 @@ public:
 
 		/** Ignore CDOs and objects marked as pending kill */
 		EObjectFlags ExcludeFlags = RF_ClassDefaultObject;
-		EInternalObjectFlags InternalExcludeFlags = EInternalObjectFlags::PendingKill;
+		EInternalObjectFlags InternalExcludeFlags = EInternalObjectFlags::Garbage;
 
 		ForEachObjectOfClasses(AllFilteredClasses, [this](UObject* Object)
 		{

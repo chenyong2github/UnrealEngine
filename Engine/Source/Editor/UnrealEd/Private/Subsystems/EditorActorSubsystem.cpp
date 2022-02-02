@@ -57,7 +57,7 @@ namespace InternalActorUtilitiesSubsystemLibrary
 		}
 
 		const EObjectFlags ExcludeFlags = RF_ClassDefaultObject;
-		for (TObjectIterator<T> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
+		for (TObjectIterator<T> It(ExcludeFlags, true, EInternalObjectFlags::Garbage); It; ++It)
 		{
 			T* Obj = *It;
 			if (InternalActorUtilitiesSubsystemLibrary::IsEditorLevelActor(Obj))

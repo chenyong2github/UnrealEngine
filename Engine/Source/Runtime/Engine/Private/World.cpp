@@ -2044,7 +2044,7 @@ void UWorld::MarkObjectsPendingKill()
 	{
 		Object->MarkAsGarbage();
 	};
-	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 
 	MarkAsGarbage();
 	bMarkedObjectsPendingKill = true;
@@ -3275,9 +3275,9 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 				Packages.Add(Package, &bIsAlreadyInSet);
 				if (!bIsAlreadyInSet)
 				{
-					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 				}
-			}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+			}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 		}
 	}
 
