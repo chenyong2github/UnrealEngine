@@ -7,6 +7,7 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
+#include "ShaderCompilerCore.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterface"
 
@@ -46,6 +47,15 @@ bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisi
 	return true;
 }
 #endif
+
+void UNiagaraDataInterface::ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const
+{
+	if (FDataDrivenShaderPlatformInfo::GetSupportsDxc(ShaderPlatform))
+	{
+		// Always enable DXC to avoid compile errors caused by RWBuffer/Buffer in structs. Example NiagaraDataInterfaceHairStrands.ush struct FDIHairStrandsContext
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+	}
+}
 
 void UNiagaraDataInterface::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {
