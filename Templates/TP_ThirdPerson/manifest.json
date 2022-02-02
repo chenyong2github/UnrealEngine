@@ -54,34 +54,25 @@
 	],
 	"ClassTypes": "GameMode, Character, SpringArmComponent, CameraComponent, InputComponent",
 	"Category": "CodeFeature",
-	"FocusAsset": "/Game/ThirdPersonCPP/ThirdPersonOverview.ThirdPersonOverview",
+	"FocusAsset": "/Game/ThirdPerson/Blueprints",
 	"Thumbnail": "TP_ThirdPerson.png",
 	"Screenshots":
 	[
 		"TP_ThirdPerson_Preview.png"
 	],
 	"AdditionalFeaturePacks":
-	[
+	[		
 		{
-			"MountName": "ThirdPerson",
+			"MountName": "LevelPrototyping",
 			"DetailLevels":
-			[
-				"Standard"
-			]
-		},
-		{
-			"MountName": "Geometry",
-			"DetailLevels":
-			[
-				"Standard",
+			[			
 				"High"
 			]
 		},
 		{
 			"MountName": "Mannequin",
 			"DetailLevels":
-			[
-				"Standard",
+			[		
 				"High"
 			]
 		}
