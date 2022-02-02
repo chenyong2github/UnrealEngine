@@ -757,7 +757,7 @@ void DrawTorus(FPrimitiveDrawInterface* PDI, const FMatrix& Transform, const FVe
 	FVector ZAxis = XAxis ^ YAxis;
 	ZAxis.Normalize();
 
-	FVector2D TC = FVector2D(0.0f, 0.0f);
+	FVector2f TC = FVector2f(0.0f, 0.0f);
 	float TCStepX = 1.0f / InnerSegments;
 	float TCStepY = 1.0f / OuterSegments;
 
@@ -1060,12 +1060,12 @@ void DrawRectangleMesh(FPrimitiveDrawInterface* PDI, const FVector& Center, cons
 		Center - XOffset + YOffset
 	};
 
-	FVector2D UVs[4] =
+	FVector2f UVs[4] =
 	{
-		FVector2D(0.0f,0.0f),
-		FVector2D(0.0f,1.0f),
-		FVector2D(1.0f,1.0f),
-		FVector2D(1.0f,0.0f),
+		FVector2f(0.0f,0.0f),
+		FVector2f(0.0f,1.0f),
+		FVector2f(1.0f,1.0f),
+		FVector2f(1.0f,0.0f),
 	};
 
 	FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());

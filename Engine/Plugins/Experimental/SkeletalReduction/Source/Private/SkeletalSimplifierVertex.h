@@ -157,7 +157,7 @@ namespace SkeletalSimplifier
 			{
 				for (int32 i = 0; i < NumTexCoords; ++i)
 				{
-					TexCoords[i] = FVector2D(ForceInitToZero);
+					TexCoords[i] = FVector2f(ForceInitToZero);
 				}
 			}
 
