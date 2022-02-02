@@ -2648,8 +2648,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	// mark GBufferA for saving for next frame if it's needed
-	ExtractNormalsForNextFrameReprojection(GraphBuilder, SceneTextures, Views);
+	if (bUseGBuffer)
+	{
+		// mark GBufferA for saving for next frame if it's needed
+		ExtractNormalsForNextFrameReprojection(GraphBuilder, SceneTextures, Views);
+	}
 
 	// Rebuild scene textures to include GBuffers.
 	SceneTextures.SetupMode |= ESceneTextureSetupMode::GBuffers;

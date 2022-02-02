@@ -43,7 +43,7 @@ static TAutoConsoleVariable<float> CVarDBufferDecalNormalReprojectionThresholdHi
 
 static TAutoConsoleVariable<bool> CVarDBufferDecalNormalReprojectionEnabled(
 	TEXT("r.Decal.NormalReprojectionEnabled"),
-	true, 
+	false, 
 	TEXT("If true, normal reprojection from the previous frame is allowed in SceneTexture nodes on DBuffer decals, provided that motion ")
 	TEXT("in depth prepass is enabled as well (r.VelocityOutputPass=0). Otherwise the fallback is the normal extracted from the depth buffer."),
 	ECVF_RenderThreadSafe);
@@ -561,10 +561,8 @@ void AddDeferredDecalPass(
 
 void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const TArray<FViewInfo>& Views)
 {
-	static auto CVarNormalReprojectionEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Decal.NormalReprojectionEnabled"));
-
 	// save the previous frame if early motion vectors are enabled and normal reprojection is enabled, so there should be no cost if these options are off
-	bool bApplyReproject = FVelocityRendering::DepthPassCanOutputVelocity() && CVarNormalReprojectionEnabled && CVarNormalReprojectionEnabled->GetInt() > 0;
+	bool bApplyReproject = FVelocityRendering::DepthPassCanOutputVelocity() && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread();
 
 	if (bApplyReproject)
 	{

@@ -38,6 +38,13 @@ static TAutoConsoleVariable<int32> CVarCacheWPOPrimitives(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
+	TEXT("r.VertexDeformationOutputsVelocity"),
+	0,
+	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
+	TEXT("This only has an impact if r.VelocityOutputPass=2. \n")
+	TEXT("This will incur a performance cost that can be quite significant if many objects are using WPO, such as a forest of trees."));
+
 bool CacheShadowDepthsFromPrimitivesUsingWPO()
 {
 	return CVarCacheWPOPrimitives.GetValueOnAnyThread(true) != 0;
@@ -96,6 +103,17 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 	}
 
 	return false;
+}
+
+static bool VertexDeformationOutputsVelocity()
+{
+	// This is only optional when velocity pass is after base pass (when it could create many more draw calls).
+	// Note this output pass setting is read only.
+	static const auto CVarVelocityOutputPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
+	bool bVertexDeformationOutputsVelocityForPass = CVarVelocityOutputPass && CVarVelocityOutputPass->GetInt() != 2;
+	
+	bool bVertexDeformationOutputsVelocity = CVarVertexDeformationOutputsVelocity.GetValueOnAnyThread() != 0;
+	return bVertexDeformationOutputsVelocityForPass || bVertexDeformationOutputsVelocity;
 }
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName InResourceName)
@@ -315,9 +333,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(InComponent, UsedMaterialsForVerification);
 #endif
 
-	static const auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexDeformationOutputsVelocity"));
-
-	if (!bAlwaysHasVelocity && IsMovable() && CVarVertexDeformationOutputsVelocity && CVarVertexDeformationOutputsVelocity->GetInt())
+	if (!bAlwaysHasVelocity && IsMovable() && VertexDeformationOutputsVelocity())
 	{
 		ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 

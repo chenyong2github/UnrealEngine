@@ -47,13 +47,6 @@ static TAutoConsoleVariable<int32> CVarParallelVelocity(
 	ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
-	TEXT("r.VertexDeformationOutputsVelocity"),
-	0,
-	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
-	TEXT("This only has an impact if r.VelocityOutputPass=2. \n")
-	TEXT("This will incur a performance cost that can be quite significant if many objects are using WPO, such as a forest of trees."));
-
 static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksVelocityPass(
 	TEXT("r.RHICmdFlushRenderThreadTasksVelocityPass"),
 	0,
