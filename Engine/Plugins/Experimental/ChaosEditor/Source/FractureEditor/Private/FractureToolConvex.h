@@ -65,7 +65,7 @@ public:
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	/** This is the Text that will appear on the button to execute the fracture **/
-	virtual FText GetApplyText() const override { return FText(NSLOCTEXT("Convex", "ExecuteConvex", "Make Convex Hulls")); }
+	virtual FText GetApplyText() const override { return FText(NSLOCTEXT("Convex", "ExecuteConvex", "Update Convex Hulls")); }
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 	virtual TArray<UObject*> GetSettingsObjects() const override;

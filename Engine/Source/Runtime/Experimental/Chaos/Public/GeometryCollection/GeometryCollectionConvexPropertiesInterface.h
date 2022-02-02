@@ -23,12 +23,15 @@ public :
 	static const FName ConvexFractionRemoveAttribute;
 	// Attribute
 	static const FName ConvexSimplificationThresholdAttribute;
+	// Attribute
+	static const FName ConvexCanExceedFractionAttribute;
 
 
 	struct FConvexCreationProperties {
 		bool Enable = true;
 		float FractionRemove = 0.5f;
 		float SimplificationThreshold = 10.0f;
+		float CanExceedFraction = 0.5f;
 	};
 
 	FGeometryCollectionConvexPropertiesInterface(FGeometryCollection* InGeometryCollection);

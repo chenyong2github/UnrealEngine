@@ -160,12 +160,12 @@ bool UFractureToolConvex::CanExecute() const
 
 FText UFractureToolConvex::GetDisplayText() const
 {
-	return FText(LOCTEXT("FractureToolConvex", "Make Convex Collision Volumes"));
+	return FText(LOCTEXT("FractureToolConvex", "Update Convex Collision Volumes"));
 }
 
 FText UFractureToolConvex::GetTooltipText() const
 {
-	return FText(LOCTEXT("FractureToolConvexTooltip", "This tool creates (non-overlapping) convex volumes for the bones of geometry collections"));
+	return FText(LOCTEXT("FractureToolConvexTooltip", "This tool visualizes and updates settings for convex hull generation on the geometry collections"));
 }
 
 FSlateIcon UFractureToolConvex::GetToolIcon() const
@@ -175,7 +175,7 @@ FSlateIcon UFractureToolConvex::GetToolIcon() const
 
 void UFractureToolConvex::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Convex", "Convex", "Create (and visualize) a hierarchy of non-overlapping convex collision volumes for the bones of geometry collections.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Convex", "Convex", "Update (and visualize) a hierarchy of non-overlapping convex collision volumes for the bones of geometry collections.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->MakeConvex = UICommandInfo;
 }
 
@@ -291,7 +291,14 @@ void UFractureToolConvex::AutoComputeConvex(const FFractureToolContext& Fracture
 
 int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureContext)
 {
-	AutoComputeConvex(FractureContext);
+	if (FractureContext.GetGeometryCollection().IsValid())
+	{
+		FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties Properties = FractureContext.GetGeometryCollection()->GetConvexProperties();
+		Properties.FractionRemove = ConvexSettings->FractionAllowRemove;
+		Properties.SimplificationThreshold = ConvexSettings->SimplificationDistanceThreshold;
+		Properties.CanExceedFraction = ConvexSettings->CanExceedFraction;
+		FractureContext.GetGeometryCollection()->SetConvexProperties(Properties);
+	}
 
 	return INDEX_NONE;
 }
