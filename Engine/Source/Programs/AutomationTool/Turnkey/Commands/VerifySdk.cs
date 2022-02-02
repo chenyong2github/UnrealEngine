@@ -67,11 +67,18 @@ namespace Turnkey.Commands
 				string ManualSDKVersion = "", AutoSDKVersion = "";
 				string MinAllowedVersion = "", MaxAllowedVersion = "";
 				string MinSoftwareAllowedVersion = "", MaxSoftwareAllowedVersion = "";
-				if (PlatformSDK != null)
+
+				try
 				{
-					PlatformSDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
-					PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
-					PlatformSDK.GetValidSoftwareVersionRange(out MinSoftwareAllowedVersion, out MaxSoftwareAllowedVersion);
+					if (PlatformSDK != null)
+					{
+						PlatformSDK.GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
+						PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+						PlatformSDK.GetValidSoftwareVersionRange(out MinSoftwareAllowedVersion, out MaxSoftwareAllowedVersion);
+					}
+				}
+				catch (Exception)
+				{
 				}
 
 				SdkUtils.LocalAvailability ReportedState = LocalState;
