@@ -14924,59 +14924,118 @@ void UEngine::VerifyLoadMapWorldCleanup()
 	}
 }
 
+static void PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch, FGCObjectInfo*& OutGarbageObject, FGCObjectInfo*& OutReferencingObject)
+{
+	RefChainSearch.PrintResults([&ObjectToFindReferencesTo, &OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
+		{
+			check(Params.Object);
+			if (!Params.Object->IsValid())
+			{
+				// We may find many chains that lead to the leak but for brevity we only report the first one in the fatal error below
+				if (!OutGarbageObject)
+				{
+					OutGarbageObject = Params.Object;
+					OutReferencingObject = Params.Referencer;
+				}
+				// We only really care about a reference to the first garbage / pending kill object in the chain
+				// as the reference that holds it is the one that prevents the world from being GC'd
+				return false;
+			}
+			else
+			{
+				UObject* ResolvedObject = Params.Object->TryResolveObject();
+				if (ResolvedObject != ObjectToFindReferencesTo)
+				{
+					// Keep track of the last referencing object, we may need it if there's no garbage referencers
+					OutReferencingObject = Params.Object;
+				}
+				return true;
+			}
+		}, false);
+}
+
+static FString GetPathToStaleObjectReferencer(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch)
+{
+	bool bFirstGarbageObjectFound = false;
+	FString PathToCulprit = RefChainSearch.GetRootPath([&bFirstGarbageObjectFound, ObjectToFindReferencesTo](FReferenceChainSearch::FCallbackParams& Params)
+		{
+			check(Params.Object);
+			// Mark the first garbage reference or the target object reference as the culprit
+			if ((!Params.Object->IsValid() || Params.Object->TryResolveObject() == ObjectToFindReferencesTo) && !bFirstGarbageObjectFound)
+			{
+				bFirstGarbageObjectFound = true;
+				check(Params.Out);
+				Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"), FCString::Spc(Params.Indent));
+				Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^ This reference is preventing the old %s from being GC'd ^"), FCString::Spc(Params.Indent), *ObjectToFindReferencesTo->GetClass()->GetName());
+			}
+			return true;
+		});
+	return PathToCulprit;
+}
+
 void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity)
 {
 	check(ObjectToFindReferencesTo);
 
+	UE_LOG(LogLoad, Log, TEXT("Looking for existing references to %s..."), *ObjectToFindReferencesTo->GetFullName());
+
+	bool bReferenceChainFound = false;
 	FGCObjectInfo* OutGarbageObject = nullptr;
 	FGCObjectInfo* OutReferencingObject = nullptr;
 	FReferenceChainSearch RefChainSearch(ObjectToFindReferencesTo, EReferenceChainSearchMode::Default);
-	RefChainSearch.PrintResults([&OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
+#if ENABLE_GC_HISTORY
+	FReferenceChainSearch HistorySearch(EReferenceChainSearchMode::Default); // we may not need it but it has to live in this scope so that FGCObjectInfos are being kept alive
+#endif
+
+	PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, RefChainSearch, OutGarbageObject, OutReferencingObject);
+
+	FString PathToCulprit;
+	FString GarbageErrorMessage;
+	if (RefChainSearch.GetReferenceChains().Num())
 	{
-		check(Params.Object);
-		if (!Params.Object->IsValid())
+		bReferenceChainFound = true;
+		PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, RefChainSearch);
+		FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
+		checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
+		GarbageErrorMessage = FString::Printf(TEXT("Object %s is being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
+	}
+#if ENABLE_GC_HISTORY
+	else
+	{
+		FGCSnapshot* LastGCSnapshot = FGCHistory::Get().GetLastSnapshot();
+		if (LastGCSnapshot)
 		{
-			// We may find many chains that lead to the leak but for brevity we only report the first one in the fatal error below
-			if (!OutGarbageObject)
+			UE_LOG(LogLoad, Log, TEXT("Looking for references to %s in the last GC run history..."), *ObjectToFindReferencesTo->GetFullName());
+
+			HistorySearch.PerformSearchFromGCSnapshot(ObjectToFindReferencesTo, *LastGCSnapshot);
+
+			OutGarbageObject = nullptr;
+			OutReferencingObject = nullptr;
+			PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, HistorySearch, OutGarbageObject, OutReferencingObject);
+			if (HistorySearch.GetReferenceChains().Num())
 			{
-				OutGarbageObject = Params.Object;
-				OutReferencingObject = Params.Referencer;
+				bReferenceChainFound = true;
+				PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, RefChainSearch);
+				FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
+				checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
+				GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s was previously being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
 			}
-			// We only really care about a reference to the first garbage / pending kill object in the chain
-			// as the reference that holds it is the one that prevents the world from being GC'd
-			return false;
+		}
+	}
+#endif // ENABLE_GC_HISTORY
+
+	if (!bReferenceChainFound)
+	{
+		if (OutGarbageObject)
+		{
+			GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is not referenced so it may have a flag set that's preventing it from being destroyed (see log for details)"), *OutGarbageObject->GetFullName());
 		}
 		else
 		{
-			return true;
+			GarbageErrorMessage = TEXT("However it's not referenced by any object. It may have a flag set that's preventing it from being destroyed (see log for details)");
 		}
-	}, false);
-	bool bFirstGarbageObjectFound = false;
-	FString PathToCulprit = RefChainSearch.GetRootPath([&bFirstGarbageObjectFound, ObjectToFindReferencesTo](FReferenceChainSearch::FCallbackParams& Params)
-	{
-		check(Params.Object);
-		if (!Params.Object->IsValid() && !bFirstGarbageObjectFound)
-		{
-			bFirstGarbageObjectFound = true;
-			check(Params.Out);
-			Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"), FCString::Spc(Params.Indent));
-			Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^ This reference is preventing the old %s from being GC'd ^"), FCString::Spc(Params.Indent), *ObjectToFindReferencesTo->GetClass()->GetName());
-		}
-		return true;
-	});
-	FString GarbageErrorMessage;
-	if (OutGarbageObject && OutReferencingObject)
-	{
-		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is being referenced by %s"), *OutGarbageObject->GetFullName(), *OutReferencingObject->GetFullName());
 	}
-	else if (OutGarbageObject)
-	{
-		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is not referenced so it may have a flag set that's preventing it from being destroyed (see log for details)"), *OutGarbageObject->GetFullName());
-	}
-	else
-	{
-		GarbageErrorMessage = TEXT("However it's not referenced by any garbage object. It may have a flag set that's preventing it from being destroyed (see log for details)");
-	}
+
 	if (Verbosity == ELogVerbosity::Fatal)
 	{
 		UE_LOG(LogLoad, Fatal, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),

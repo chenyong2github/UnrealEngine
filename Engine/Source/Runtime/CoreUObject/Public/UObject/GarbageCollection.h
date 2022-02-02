@@ -29,6 +29,8 @@
 /** Token debug info (token names) enabled in non-shipping builds */
 #define ENABLE_GC_TOKEN_DEBUG_INFO (!UE_BUILD_SHIPPING)
 
+#define ENABLE_GC_HISTORY (!UE_BUILD_SHIPPING)
+
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogGarbage, Warning, All);
 DECLARE_STATS_GROUP(TEXT("Garbage Collection"), STATGROUP_GC, STATCAT_Advanced);
 
@@ -567,6 +569,17 @@ struct FGarbageReferenceInfo
 	FString GetReferencingObjectInfo() const;
 };
 
+struct FGCDirectReference
+{
+	FGCDirectReference() = default;
+	explicit FGCDirectReference(UObject* Obj)
+		: ReferencedObject(Obj)
+	{}
+	/** Property or FGCObject name referencing this object */
+	FName ReferencerName;
+	UObject* ReferencedObject = nullptr;
+};
+
 /** Struct to hold the objects to serialize array and the list of weak references. This is allocated by ArrayPool */
 struct FGCArrayStruct
 {
@@ -577,6 +590,9 @@ struct FGCArrayStruct
 	TArray<UObject*> ObjectsToSerialize;
 	TArray<UObject**> WeakReferences;
 	TArray<FGarbageReferenceInfo> GarbageReferences;
+#if ENABLE_GC_HISTORY
+	TMap<UObject*, TArray<FGCDirectReference>*> History;
+#endif
 
 	FORCEINLINE UObject* GetReferencingObject()
 	{

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/GCObjectInfo.h"
+#include "UObject/GarbageCollectionHistory.h"
 #include "HAL/ThreadHeartBeat.h"
 
 /** Search mode flags */
@@ -233,10 +233,18 @@ public:
 	};
 
 	/** Constructs a new search engine and finds references to the specified object */
-	COREUOBJECT_API FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
+	COREUOBJECT_API explicit FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
+
+	/** Constructs a new search engine but does not find references to any objects until one of the PerformSearch*() functions is called */
+	COREUOBJECT_API explicit FReferenceChainSearch(EReferenceChainSearchMode Mode);
 
 	/** Destructor */
 	COREUOBJECT_API ~FReferenceChainSearch();
+
+#if ENABLE_GC_HISTORY
+	/** Searches for references in a previous GC run snapshot temporarily acquiring its object info */
+	COREUOBJECT_API void PerformSearchFromGCSnapshot(UObject* InObjectToFindReferencesTo, FGCSnapshot& InSnapshot);
+#endif //ENABLE_GC_HISTORY
 
 	/**
 	 * Dumps results to log

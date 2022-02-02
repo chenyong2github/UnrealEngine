@@ -565,6 +565,10 @@ FReferenceChainSearch::FReferenceChainSearch(UObject* InObjectToFindReferencesTo
 	}
 }
 
+FReferenceChainSearch::FReferenceChainSearch(EReferenceChainSearchMode Mode)
+	: SearchMode(Mode)
+{
+}
 
 FReferenceChainSearch::~FReferenceChainSearch()
 {
@@ -586,6 +590,54 @@ void FReferenceChainSearch::PerformSearch()
 		BuildReferenceChainsForDirectReferences(ObjectNodeToFindReferencesTo, ReferenceChains, SearchMode);
 	}
 }
+
+#if ENABLE_GC_HISTORY
+void FReferenceChainSearch::PerformSearchFromGCSnapshot(UObject* InObjectToFindReferencesTo, FGCSnapshot& InSnapshot)
+{
+	FSlowHeartBeatScope DisableHangDetection; // This function can be very slow
+
+	Cleanup();
+
+	// Temporarily move the generated object info structs. We don't want to copy everything to minimize memory usage and save a few ms
+	ObjectToInfoMap = MoveTemp(InSnapshot.ObjectToInfoMap);
+
+	ObjectToFindReferencesTo = InObjectToFindReferencesTo;
+	ObjectInfoToFindReferencesTo = FGCObjectInfo::FindOrAddInfoHelper(ObjectToFindReferencesTo, ObjectToInfoMap);
+	FGCObjectInfo* GCObjectReferencerInfo = FGCObjectInfo::FindOrAddInfoHelper(FGCObject::GGCObjectReferencer, ObjectToInfoMap);
+
+	// We can avoid copying object infos but we need to regenerate direct reference infos
+	for (TPair<FGCObjectInfo*, TArray<FGCDirectReferenceInfo>*>& DirectReferencesInfo : InSnapshot.DirectReferences)
+	{
+		FGraphNode* ObjectNode = FindOrAddNode(DirectReferencesInfo.Key);
+		for (FGCDirectReferenceInfo& ReferenceInfo : *DirectReferencesInfo.Value)
+		{
+			FGraphNode* ReferencedObjectNode = FindOrAddNode(ReferenceInfo.ReferencedObjectInfo);
+			EReferenceType ReferenceType = EReferenceType::Unknown;
+			if (GCObjectReferencerInfo == DirectReferencesInfo.Key || ReferenceInfo.ReferencerName == NAME_None)
+			{
+				ReferenceType = EReferenceType::AddReferencedObjects;
+			}
+			else
+			{
+				ReferenceType = EReferenceType::Property;
+			}
+			ObjectNode->ReferencedObjects.Add(FNodeReferenceInfo(ReferencedObjectNode, ReferenceType, ReferenceInfo.ReferencerName, nullptr, 0));
+			ReferencedObjectNode->ReferencedByObjects.Add(ObjectNode);
+		}
+	}
+
+	// Second pass creates all reference chains
+	PerformSearch();
+
+	if (!!(SearchMode & (EReferenceChainSearchMode::PrintResults | EReferenceChainSearchMode::PrintAllResults)))
+	{
+		PrintResults(!!(SearchMode & EReferenceChainSearchMode::PrintAllResults));
+	}
+
+	// Return the object info struct back to the snapshot
+	InSnapshot.ObjectToInfoMap = MoveTemp(ObjectToInfoMap);
+}
+#endif // ENABLE_GC_HISTORY
 
 void FReferenceChainSearch::FindDirectReferencesForObjects()
 {

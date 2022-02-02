@@ -22,7 +22,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/Object.h"
 #include "Serialization/ArchiveUObject.h"
-#include "UObject/GarbageCollection.h"
+#include "UObject/GarbageCollectionHistory.h"
 #include "UObject/Class.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/UObjectIterator.h"
@@ -4158,6 +4158,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			{
 				
 				EReferenceChainSearchMode SearchModeFlags = EReferenceChainSearchMode::PrintResults;
+				int32 HistoryLevel = 0;
 
 				FString Tok;
 				while(FParse::Token(Str, Tok, false))
@@ -4194,9 +4195,46 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					{
 						SearchModeFlags |= EReferenceChainSearchMode::FullChain;
 					}
+#if ENABLE_GC_HISTORY
+					else if (FParse::Value(Str, TEXT("history="), HistoryLevel))
+					{
+						if (FGCHistory::Get().IsActive())
+						{
+							int32 MaxHistoryLevel = FGCHistory::Get().GetHistorySize() - 1;
+							if (FMath::Abs(HistoryLevel) >= MaxHistoryLevel)
+							{
+								UE_LOG(LogObj, Log, TEXT("GC History level %d will be clamped to the current max %d"), HistoryLevel, MaxHistoryLevel);
+								HistoryLevel = MaxHistoryLevel;
+							}
+						}
+						else if (HistoryLevel != 0)
+						{
+							UE_LOG(LogObj, Log, TEXT("GC History is not currently enabled. Use 'gc.HistorySize 1' console command to enable it."));
+							HistoryLevel = 0;
+						}
+					}
+#endif // ENABLE_GC_HISTORY
 				}
 				
-				FReferenceChainSearch RefChainSearch(Object, SearchModeFlags);
+				if (HistoryLevel == 0)
+				{
+					FReferenceChainSearch RefChainSearch(Object, SearchModeFlags);
+				}
+#if ENABLE_GC_HISTORY
+				else
+				{
+					FReferenceChainSearch HistorySearch(SearchModeFlags);
+					FGCSnapshot* GCSnapshot = FGCHistory::Get().GetSnapshot(HistoryLevel);
+					if (GCSnapshot)
+					{
+						HistorySearch.PerformSearchFromGCSnapshot(Object, *GCSnapshot);
+					}
+					else
+					{
+						UE_LOG(LogObj, Log, TEXT("There's not been that many (%d) GC runs to be able to search for object refs in GC history."), (HistoryLevel + 1));
+					}
+				}
+#endif // ENABLE_GC_HISTORY
 			}
 			else
 			{

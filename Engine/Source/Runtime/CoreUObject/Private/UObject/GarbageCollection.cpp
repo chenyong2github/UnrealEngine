@@ -32,6 +32,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "UObject/FieldPathProperty.h"
+#include "UObject/GarbageCollectionHistory.h"
 
 /*-----------------------------------------------------------------------------
    Garbage collection.
@@ -613,6 +614,9 @@ void ShutdownGarbageCollection()
 	FGCArrayPool::Get().Cleanup();
 	delete GAsyncPurge;
 	GAsyncPurge = nullptr;
+#if ENABLE_GC_HISTORY
+	FGCHistory::Get().Cleanup();
+#endif
 }
 
 /**
@@ -625,7 +629,10 @@ class FGCReferenceProcessor
 {
 	// Local copies of globals to make sure they're cached
 	const int32 MinDesiredObjectsPerSubTask;
-	const bool GarbageReferenceTrackingEnabled;
+	const bool bGarbageReferenceTrackingEnabled;
+#if ENABLE_GC_HISTORY
+	const bool bWithHistory;
+#endif // ENABLE_GC_HISTORY
 
 public:
 
@@ -644,7 +651,10 @@ public:
 
 	FGCReferenceProcessor()
 		: MinDesiredObjectsPerSubTask(GMinDesiredObjectsPerSubTask)
-		, GarbageReferenceTrackingEnabled(!!GGarbageReferenceTrackingEnabled)
+		, bGarbageReferenceTrackingEnabled(!!GGarbageReferenceTrackingEnabled)
+#if ENABLE_GC_HISTORY
+		, bWithHistory(FGCHistory::Get().IsActive())
+#endif // ENABLE_GC_HISTORY
 	{
 	}
 
@@ -866,6 +876,31 @@ public:
 		}
 	}
 
+#if ENABLE_GC_HISTORY
+	FORCEINLINE void HandleHistoryReference(FGCArrayStruct& ObjectsToSerializeStruct, const UObject* const ReferencingObject, UObject*& Object, const int32 TokenIndex)
+	{
+		UObject* Referencer = ReferencingObject ? const_cast<UObject*>(ReferencingObject) : ObjectsToSerializeStruct.GetReferencingObject();		
+		FGCDirectReference Ref(Object);
+
+		if (TokenIndex >= 0)
+		{
+			UClass* Class = Referencer->GetClass();	
+			Ref.ReferencerName = Class->ReferenceTokenStream.GetTokenInfo(TokenIndex).Name;
+		}
+		else if (FGCObject::GGCObjectReferencer == Referencer)
+		{
+			Ref.ReferencerName = *FGCObject::GGCObjectReferencer->GetCurrentlySerializingObject()->GetReferencerName();
+		}
+
+		TArray<FGCDirectReference>*& DirectReferences = ObjectsToSerializeStruct.History.FindOrAdd(Referencer);
+		if (!DirectReferences)
+		{
+			DirectReferences = new TArray<FGCDirectReference>();
+		}
+		DirectReferences->Add(Ref);
+	}
+#endif // ENABLE_GC_HISTORY
+
 	/**
 	 * Handles object reference, potentially NULL'ing
 	 *
@@ -908,12 +943,12 @@ public:
 					return;
 				}
 
-				if (GarbageReferenceTrackingEnabled && !ObjectItem->HasAnyFlags(EInternalObjectFlags::PersistentGarbage))
+				if (bGarbageReferenceTrackingEnabled && !ObjectItem->HasAnyFlags(EInternalObjectFlags::PersistentGarbage))
 				{
 					HandleGarbageReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex);
 				}
 			}
-			else if (GarbageReferenceTrackingEnabled)
+			else if (bGarbageReferenceTrackingEnabled)
 			{
 				// This object is being referenced by a persistent reference which means it wouldn't have been GC'd anyway
 				// so no need to track this object
@@ -937,6 +972,13 @@ public:
 				// Mark it as reachable.
 				if (ObjectItem->ThisThreadAtomicallyClearedRFUnreachable())
 				{
+#if ENABLE_GC_HISTORY
+					if (bWithHistory)
+					{
+						HandleHistoryReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex);
+					}
+#endif // ENABLE_GC_HISTORY
+
 					// Objects that are part of a GC cluster should never have the unreachable flag set!
 					checkSlow(ObjectItem->GetOwnerIndex() <= 0);
 
@@ -967,6 +1009,13 @@ public:
 					}
 				}
 #endif
+
+#if ENABLE_GC_HISTORY
+				if (bWithHistory)
+				{
+					HandleHistoryReference(ObjectsToSerializeStruct, ReferencingObject, Object, TokenIndex);
+				}
+#endif // ENABLE_GC_HISTORY
 
 				// Mark it as reachable.
 				ObjectItem->ClearUnreachable();
@@ -2247,6 +2296,12 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 			UE_LOG(LogGarbage, Log, TEXT("%f ms for GC"), (FPlatformTime::Seconds() - StartTime) * 1000);
 		}
 
+		FGCArrayPool& ArrayPool = FGCArrayPool::Get();
+		TArray<FGCArrayStruct*> AllArrays;
+		ArrayPool.GetAllArrayStructsFromPool(AllArrays);
+		// This needs to happen before clusters get dissolved otherwisise cluster information will be missing from history
+		ArrayPool.UpdateGCHistory(AllArrays);
+
 		// Reconstruct clusters if needed
 		if (GUObjectClusters.ClustersNeedDissolving())
 		{
@@ -2262,9 +2317,6 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		}
 
 		{
-			FGCArrayPool& ArrayPool = FGCArrayPool::Get();
-			TArray<FGCArrayStruct*> AllArrays;
-			ArrayPool.GetAllArrayStructsFromPool(AllArrays);
 			ArrayPool.DumpGarbageReferencers(AllArrays);
 		
 			GatherUnreachableObjects(!(Options & EFastReferenceCollectorOptions::Parallel));
@@ -2287,6 +2339,9 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 					ArrayPool.ReturnToPool(ArrayStruct);
 				}
 			}
+
+			// Make sure nothing will be using potentially freed arrays
+			AllArrays.Empty();
 
 			if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
 			{
@@ -2376,6 +2431,22 @@ void FGCArrayPool::DumpGarbageReferencers(TArray<FGCArrayStruct*>& AllArrays)
 
 		UE_CLOG(NumGarbageReferences > 0, LogGarbage, Log, TEXT("Found %d garbage references."), NumGarbageReferences);
 	}
+}
+
+void FGCArrayPool::UpdateGCHistory(TArray<FGCArrayStruct*>& AllArrays)
+{
+#if ENABLE_GC_HISTORY
+	FGCHistory::Get().Update(AllArrays);
+
+	for (FGCArrayStruct* ArrayStruct : AllArrays)
+	{
+		for (TPair<UObject*, TArray<FGCDirectReference>*>& DirectReferenceInfos : ArrayStruct->History)
+		{
+			delete DirectReferenceInfos.Value;
+		}
+		ArrayStruct->History.Reset();
+	}
+#endif // ENABLE_GC_HISTORY
 }
 
 double GetLastGCTime()

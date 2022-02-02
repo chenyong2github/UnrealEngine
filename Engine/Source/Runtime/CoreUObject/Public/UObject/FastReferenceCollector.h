@@ -239,6 +239,12 @@ public:
 	void DumpGarbageReferencers(TArray<FGCArrayStruct*>& AllArrays);
 
 	/**
+	 * Updates GC history after the last GC run.
+	 * @param AllArrays Arrays to process
+	 */
+	void UpdateGCHistory(TArray<FGCArrayStruct*>& AllArrays);
+
+	/**
 	 * Grabs all arrays from the pool 
 	 */
 	void GetAllArrayStructsFromPool(TArray<FGCArrayStruct*>& AllArrays)
