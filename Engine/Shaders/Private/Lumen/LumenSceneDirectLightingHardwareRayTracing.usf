@@ -63,6 +63,7 @@ float3 FarFieldReferencePos;
 
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
+float HeightfieldBiasScale;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
@@ -125,9 +126,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				bool bIsValid = GenerateOcclusionRay(LumenLight.Type, LightParameters, WorldPosition, WorldNormal, RandSample,
 					Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 #else
-
-				const float BiasScale = 1.0;
-				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, BiasScale);
+				const float ReceiverBiasScale = Card.bHeightfield ? HeightfieldBiasScale : 1.0f;
+				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, ReceiverBiasScale);
 				Ray.Direction = L;
 #endif
 

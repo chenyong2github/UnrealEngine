@@ -85,6 +85,7 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
+		SHADER_PARAMETER(float, HeightfieldBiasScale)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
@@ -213,7 +214,8 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 	
 	Parameters->SurfaceBias = 1.0f;
-	Parameters->SlopeScaledSurfaceBias = 1.0f;
+	Parameters->SlopeScaledSurfaceBias = 2.0f;
+	Parameters->HeightfieldBiasScale = LumenSceneDirectLighting::GetHeightfieldBiasScale();
 
 	// Output
 	Parameters->RWShadowMaskTiles = ShadowMaskTilesUAV;

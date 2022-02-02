@@ -119,7 +119,12 @@ static TAutoConsoleVariable<int32> CVarLumenDirectLightingHeightfieldBiasScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-bool Lumen::UseVirtualShadowMaps()
+float LumenSceneDirectLighting::GetHeightfieldBiasScale()
+{
+	return FMath::Clamp(CVarLumenDirectLightingHeightfieldBiasScale.GetValueOnRenderThread(), .01f, 100.0f);
+}
+
+bool LumenSceneDirectLighting::UseVirtualShadowMaps()
 {
 	return GLumenDirectLightingVirtualShadowMap != 0;
 }
@@ -823,7 +828,7 @@ void CullMeshObjectsForLightCards(
 FLumenShadowSetup GetShadowForLumenDirectLighting(const FViewInfo& View, FVisibleLightInfo& VisibleLightInfo)
 {
 	FLumenShadowSetup ShadowSetup;
-	ShadowSetup.VirtualShadowMapId = Lumen::UseVirtualShadowMaps() ? VisibleLightInfo.GetVirtualShadowMapId(&View) : INDEX_NONE;
+	ShadowSetup.VirtualShadowMapId = LumenSceneDirectLighting::UseVirtualShadowMaps() ? VisibleLightInfo.GetVirtualShadowMapId(&View) : INDEX_NONE;
 	ShadowSetup.DenseShadowMap = nullptr;
 
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
@@ -1008,7 +1013,7 @@ void SampleShadowMap(
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
 		PassParameters->VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
-		PassParameters->HeightfieldBiasScale = FMath::Clamp(CVarLumenDirectLightingHeightfieldBiasScale.GetValueOnRenderThread(), .01f, 100.0f);
+		PassParameters->HeightfieldBiasScale = LumenSceneDirectLighting::GetHeightfieldBiasScale();
 		PassParameters->ForceOffscreenShadowing = (GLumenDirectLightingReuseShadowMaps == 0 || !View.Family->EngineShowFlags.LumenReuseShadowMaps) ? 1 : 0;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}

@@ -200,3 +200,9 @@ namespace Lumen
 	inline EPixelFormat GetIndirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
 	inline EPixelFormat GetNumFramesAccumulatedAtlasFormat() { return PF_R8; }
 };
+
+namespace LumenSceneDirectLighting
+{
+	float GetHeightfieldBiasScale();
+	bool UseVirtualShadowMaps();
+}
