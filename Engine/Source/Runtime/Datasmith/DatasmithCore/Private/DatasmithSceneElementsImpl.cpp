@@ -1160,7 +1160,7 @@ const TSharedPtr< IDatasmithMetaDataElement >& FDatasmithSceneImpl::GetMetaData(
 
 TSharedPtr< IDatasmithMetaDataElement > FDatasmithSceneImpl::GetMetaData(const TSharedPtr<IDatasmithElement>& Element)
 {
-	if (TSharedPtr< IDatasmithMetaDataElement >* MetaDataElement = ElementToMetaDataMap.Find(Element))
+	if (TSharedPtr< IDatasmithMetaDataElement >* MetaDataElement = GetElementToMetaDataCache().Find(Element))
 	{
 		return *MetaDataElement;
 	}
@@ -1172,7 +1172,7 @@ TSharedPtr< IDatasmithMetaDataElement > FDatasmithSceneImpl::GetMetaData(const T
 
 const TSharedPtr< IDatasmithMetaDataElement >& FDatasmithSceneImpl::GetMetaData(const TSharedPtr<IDatasmithElement>& Element) const
 {
-	if (const TSharedPtr< IDatasmithMetaDataElement >* MetaDataElement = ElementToMetaDataMap.Find(Element))
+	if (const TSharedPtr< IDatasmithMetaDataElement >* MetaDataElement = GetElementToMetaDataCache().Find(Element))
 	{
 		return *MetaDataElement;
 	}
@@ -1186,7 +1186,7 @@ void FDatasmithSceneImpl::RemoveMetaData( const TSharedPtr<IDatasmithMetaDataEle
 {
 	if ( Element )
 	{
-		ElementToMetaDataMap.Remove( Element->GetAssociatedElement() );
+		GetElementToMetaDataCache().Remove( Element->GetAssociatedElement() );
 		MetaData.Remove( Element );
 	}
 }
@@ -1194,6 +1194,19 @@ void FDatasmithSceneImpl::RemoveMetaData( const TSharedPtr<IDatasmithMetaDataEle
 void FDatasmithSceneImpl::RemoveMetaDataAt(int32 InIndex)
 {
 	RemoveMetaData(GetMetaData(InIndex));
+}
+
+TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> >& FDatasmithSceneImpl::GetElementToMetaDataCache() const
+{
+	if (ElementToMetaDataMap.Num() == 0)
+	{
+		for (const TSharedPtr<IDatasmithMetaDataElement>& MetaDataElement : MetaData.View())
+		{
+			ElementToMetaDataMap.Add(MetaDataElement->GetAssociatedElement(), MetaDataElement);
+		}
+	}
+
+	return ElementToMetaDataMap;
 }
 
 TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithSceneImpl::GetLevelSequence(int32 InIndex)
