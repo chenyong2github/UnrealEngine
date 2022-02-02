@@ -2107,6 +2107,9 @@ void UDynamicMeshSculptTool::UpdateTarget()
 		}
 	}
 
+	// Allow any in-progress update to finish before starting a new one
+	PendingTargetUpdate.Wait();
+
 	// TODO: could have a second set of target meshes, and swap between them while we update the other one
 	PendingTargetUpdate = Async(DynamicSculptToolAsyncExecTarget, [this]()
 	{
