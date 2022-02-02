@@ -21,6 +21,7 @@ public:
 	void SetParent(TSharedPtr<FEditorConfig> InConfig);
 
 	bool LoadFromString(FStringView Content);
+	bool LoadFromFile(FStringView FilePath);
 	bool SaveToString(FString& OutResult) const;
 
 	bool IsValid() const { return JsonConfig.IsValid() && JsonConfig->IsValid(); }
@@ -75,7 +76,6 @@ private:
 
 	static bool IsDefault(const FProperty* Property, TSharedPtr<FJsonValue> JsonValue, const void* NativeValue);
 
-	bool LoadFromFile(FStringView FilePath);
 	bool SaveToFile(FStringView FilePath) const;
 
 	void SetDirty();

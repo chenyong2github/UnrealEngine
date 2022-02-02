@@ -68,10 +68,22 @@ public:
 	/** Force reload the given config and all its (current and potential) parents from disk. */
 	bool ReloadConfig(TSharedRef<FEditorConfig> Config);
 
+	enum class ESearchDirectoryType : uint8
+	{
+		Engine,
+		Project,
+		User
+	};
+
+	/**
+	 * Append a new config search directory to the given type.
+	 * Engine directories are searched first, then Project, then User.
+	 */
+	void AddSearchDirectory(ESearchDirectoryType Type, FStringView SearchDir);
+
 private:
 	void Initialize(FSubsystemCollectionBase& Collection) override;
 	void Deinitialize() override;
-	void AddSearchDirectory(FStringView SearchDir);
 	void OnSaveCompleted(TSharedPtr<FEditorConfig> Config);
 	void OnEditorConfigDirtied(const FEditorConfig& Config);
 
@@ -90,7 +102,7 @@ private:
 
 	FCriticalSection SaveLock;
 	TArray<FPendingSave> PendingSaves;
-	TArray<FString> SearchDirectories;
+	TArray<TPair<ESearchDirectoryType, FString>> SearchDirectories;
 	TMap<FString, TSharedPtr<FEditorConfig>> LoadedConfigs;
 };
 
