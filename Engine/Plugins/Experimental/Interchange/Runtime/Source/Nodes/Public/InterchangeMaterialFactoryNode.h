@@ -120,22 +120,22 @@ public:
 // Material parameters
 public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomShadingModel(TEnumAsByte<EMaterialShadingModel>& AttributeValue) const;
+	bool GetCustomShadingModel(uint8& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomShadingModel(const TEnumAsByte<EMaterialShadingModel>& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomShadingModel(const uint8& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomTranslucencyLightingMode(TEnumAsByte<ETranslucencyLightingMode>& AttributeValue) const;
+	bool GetCustomTranslucencyLightingMode(uint8& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomTranslucencyLightingMode(const TEnumAsByte<ETranslucencyLightingMode>& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomTranslucencyLightingMode(const uint8& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomBlendMode(TEnumAsByte<EBlendMode>& AttributeValue) const;
+	bool GetCustomBlendMode(uint8& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomBlendMode(const TEnumAsByte<EBlendMode>& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	bool GetCustomTwoSided(bool& AttributeValue) const;
