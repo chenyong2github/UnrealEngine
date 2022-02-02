@@ -6,11 +6,13 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 
 class FAssetTypeActions_ChaosCacheCollection;
 
 class UToolMenu;
 struct FToolMenuSection;
+class AActor;
 
 /**
  * The public interface to this module
@@ -43,8 +45,8 @@ public:
 
 private:
 
-	void RegisterMenus();
-	void RegisterCachingSubMenu(UToolMenu* InMenu, FToolMenuSection* InSection);
+	TSharedRef<FExtender> ExtendLevelViewportContextMenu(const TSharedRef<FUICommandList> InCommandList, const TArray<AActor*> SelectedActors);
+	void RegisterCachingSubMenu(FMenuBuilder& InMenuBuilder);
 	
 	void OnCreateCacheManager();
 
