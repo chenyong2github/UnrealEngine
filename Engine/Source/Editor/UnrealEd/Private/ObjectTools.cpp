@@ -180,9 +180,62 @@ namespace ObjectTools
 
 		return bIsSupported;
 	}
-	
+
+	bool IsNonGCObject(UObject* Object)
+	{
+		FUObjectItem* ObjectItem = GUObjectArray.ObjectToObjectItem(Object);
+		return
+			ObjectItem->IsRootSet() ||
+			ObjectItem->HasAnyFlags(EInternalObjectFlags::GarbageCollectionKeepFlags) ||
+			(GARBAGE_COLLECTION_KEEPFLAGS != RF_NoFlags && Object->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS));
+	}
+
+	TSet<UObject*> FindObjectsRoots(TSet<UObject*>& InObjects)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FindObjectsRoots)
+
+		TSet<UObject*> Roots;
+		UTransactor* Transactor = GEditor ? ToRawPtr(GEditor->Trans) : nullptr;
+
+		// Handle the objects themselves if they can't be GCed
+		for (UObject* Object : InObjects)
+		{
+			if (IsNonGCObject(Object))
+			{
+				Roots.Add(Object);
+			}
+		}
+
+		// We recursively grow the cluster of objects we need to find referencers on until no more referencers are found
+		int32 LastObjectCount = 0;
+		while (InObjects.Num() != LastObjectCount)
+		{
+			LastObjectCount = InObjects.Num();
+			for (UObject* NewReferencer : FReferencerFinder::GetAllReferencers(InObjects, &InObjects))
+			{
+				// Stop walking the dependency chain when the transactor is the referencer
+				if (Transactor == NewReferencer)
+				{
+					Roots.Add(Transactor);
+				}
+				else if (IsNonGCObject(NewReferencer))
+				{
+					Roots.Add(NewReferencer);
+				}
+				else
+				{
+					InObjects.Add(NewReferencer);
+				}
+			}
+		}
+
+		return MoveTemp(Roots);
+	}
+
 	void GatherObjectReferencersForDeletion(UObject* InObject, bool& bOutIsReferenced, bool& bOutIsReferencedInMemoryByUndo, FReferencerInformationList* OutMemoryReferences, bool bInRequireReferencingProperties)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GatherObjectReferencersForDeletion)
+
 		if (OutMemoryReferences)
 		{
 			OutMemoryReferences->ExternalReferences.Reset();
@@ -272,6 +325,30 @@ namespace ObjectTools
 					{
 						bOutIsReferencedInMemoryByUndo = true;
 					}
+				}
+			}
+
+			// Walk the ref chain to make sure external refs we found are actually reachable and can't be GCed
+			if (bOutIsReferenced)
+			{
+				TSet<UObject*> Referencers;
+				Referencers.Reserve(References.ExternalReferences.Num());
+
+				for (FReferencerInformation& RefInfo : References.ExternalReferences)
+				{
+					Referencers.Add(RefInfo.Referencer);
+				}
+
+				TSet<UObject*> Roots = FindObjectsRoots(Referencers);
+
+				if (Roots.Contains(Transactor))
+				{
+					bOutIsReferencedInMemoryByUndo = true;
+					bOutIsReferenced = Roots.Num() > 1;
+				}
+				else
+				{
+					bOutIsReferenced = Roots.Num() > 0;
 				}
 			}
 
