@@ -5,6 +5,7 @@
 #include "AjaMediaFrameGrabberProtocol.h"
 #include "AjaLib.h"
 #include "DynamicRHI.h"
+#include "RenderingThread.h"
 #include "RHI.h"
 
 #define LOCTEXT_NAMESPACE "AjaMediaOutput"

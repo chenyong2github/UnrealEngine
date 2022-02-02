@@ -9,6 +9,10 @@ public class Blackmagic : ModuleRules
 	{
 		Type = ModuleType.External;
 
+		string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+		string MediaIOFrameworkBinaryPath = Path.Combine(EngineDir, "Plugins", "Media", "MediaIOFramework", "Binaries", Target.Platform.ToString());
+		string GPUTextureTransferLibName = "GPUTextureTransferLib";
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDefinitions.Add("BLACKMAGICMEDIA_DLL_PLATFORM=1");
@@ -35,6 +39,7 @@ public class Blackmagic : ModuleRules
 
 			PublicDelayLoadDLLs.Add(LibraryName + ".dll");
 			RuntimeDependencies.Add(Path.Combine(LibPath, LibraryName + ".dll"));
+			RuntimeDependencies.Add(Path.Combine(MediaIOFrameworkBinaryPath, GPUTextureTransferLibName + ".dll"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{

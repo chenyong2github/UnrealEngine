@@ -3,6 +3,7 @@
 #include "BlackmagicMediaOutputModule.h"
 
 #include "BlackmagicLib.h"
+#include "RenderingThread.h"
 #include "RHI.h"
 
 DEFINE_LOG_CATEGORY(LogBlackmagicMediaOutput);
