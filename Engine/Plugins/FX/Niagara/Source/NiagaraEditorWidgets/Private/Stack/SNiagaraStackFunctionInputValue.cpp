@@ -41,6 +41,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/NiagaraHLSLSyntaxHighlighter.h"
@@ -1370,7 +1371,8 @@ EVisibility SNiagaraStackFunctionInputValue::GetFilteredViewContextButtonVisibil
 	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
-	return (Key.IsSet() && EditorData->GetSummaryViewMetaData(Key.GetValue()).bVisible)? EVisibility::Visible : EVisibility::Hidden;
+	TOptional<FFunctionInputSummaryViewMetadata> Metadata = Key.IsSet() ? EditorData->GetSummaryViewMetaData(Key.GetValue()) : TOptional<FFunctionInputSummaryViewMetadata>();
+	return Metadata.IsSet() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 bool SNiagaraStackFunctionInputValue::GetSummaryViewChangeEnabledStateAllowed() const
@@ -1445,7 +1447,17 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetFilteredViewPropertiesCo
 		];
 	MenuBuilder.AddWidget(SortIndexWidget, LOCTEXT("FilteredViewSortIndex", "Sort Index"));
 
-
+	// Visible
+	TSharedRef<SWidget> VisibleWidget =
+		SNew(SBox)
+		.WidthOverride(100)
+		.Padding(FMargin(5, 0, 0, 0))
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &SNiagaraStackFunctionInputValue::GetFilteredViewVisibleCheckState)
+			.OnCheckStateChanged(this, &SNiagaraStackFunctionInputValue::FilteredVisibleCheckStateChanged)
+		];
+	MenuBuilder.AddWidget(VisibleWidget, LOCTEXT("FilteredViewVisible", "Is Visible"));
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1454,10 +1466,11 @@ FText SNiagaraStackFunctionInputValue::GetFilteredViewDisplayName() const
 {
 	const UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
+
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+	TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData != nullptr && Key.IsSet() ? EditorData->GetSummaryViewMetaData(Key.GetValue()) : TOptional<FFunctionInputSummaryViewMetadata>();
 
-	const FName SummaryViewName = (EditorData && Key.IsSet())? EditorData->GetSummaryViewMetaData(Key.GetValue()).DisplayName : NAME_None;
-
+	const FName SummaryViewName = Metadata.IsSet() ? Metadata->DisplayName : NAME_None;
 	return (SummaryViewName != NAME_None) ? FText::FromName(SummaryViewName) : FunctionInput->GetDisplayName();
 }
 
@@ -1483,13 +1496,17 @@ void SNiagaraStackFunctionInputValue::FilteredViewDisplayNameTextCommitted(const
 	if (EditorData && Key.IsSet())
 	{
 		const FName NewName = Text.IsEmptyOrWhitespace()? NAME_None : FName(Text.ToString());
-		FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());		
-		if (NewName != SummaryViewMetaData.DisplayName)
+		TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());	
+		if (SummaryViewMetaData.IsSet() == false)
+		{
+			SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+		}
+		if (NewName != SummaryViewMetaData->DisplayName)
 		{
 			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputDisplayName", "Changed summary view display name for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 			
-			SummaryViewMetaData.DisplayName = NewName;
+			SummaryViewMetaData->DisplayName = NewName;
 			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}		
 	}
@@ -1506,10 +1523,11 @@ FText SNiagaraStackFunctionInputValue::GetFilteredViewCategory() const
 {
 	const UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
+	
 	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+	TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData != nullptr && Key.IsSet() ? EditorData->GetSummaryViewMetaData(Key.GetValue()) : TOptional<FFunctionInputSummaryViewMetadata>();
 
-	const FName SummaryViewCategory = (EditorData && Key.IsSet())? EditorData->GetSummaryViewMetaData(Key.GetValue()).Category : NAME_None;
-
+	const FName SummaryViewCategory = Metadata.IsSet() ? Metadata->Category : NAME_None;
 	return (SummaryViewCategory != NAME_None) ? FText::FromName(SummaryViewCategory) : GetFunctionInputCategory(FunctionInput);
 }
 
@@ -1535,13 +1553,17 @@ void SNiagaraStackFunctionInputValue::FilteredViewCategoryTextCommitted(const FT
 	if (EditorData && Key.IsSet())
 	{
 		const FName NewCategory = Text.IsEmptyOrWhitespace()? NAME_None : FName(Text.ToString());
-		FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());		
-		if (NewCategory != SummaryViewMetaData.Category)
+		TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());	
+		if (SummaryViewMetaData.IsSet() == false)
+		{
+			SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+		}
+		if (NewCategory != SummaryViewMetaData->Category)
 		{
 			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputCategory", "Changed summary view category for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 			
-			SummaryViewMetaData.Category = NewCategory;
+			SummaryViewMetaData->Category = NewCategory;
 			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}		
 	}
@@ -1552,15 +1574,12 @@ FText SNiagaraStackFunctionInputValue::GetFilteredViewSortIndex() const
 {
 	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel()? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;	
 	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
-	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
 
-	if (EditorData && Key.IsSet())
-	{
-		int32 SortIndex = EditorData->GetSummaryViewMetaData(Key.GetValue()).SortIndex;
-		return SortIndex != INDEX_NONE? FText::FromString(FString::FromInt(SortIndex)) : FText::GetEmpty();
-	}
-	
-	return FText::GetEmpty();
+	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+	TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData != nullptr && Key.IsSet() ? EditorData->GetSummaryViewMetaData(Key.GetValue()) : TOptional<FFunctionInputSummaryViewMetadata>();
+
+	int32 SortIndex = Metadata.IsSet() ? Metadata->SortIndex : INDEX_NONE;
+	return SortIndex != INDEX_NONE ? FText::FromString(FString::FromInt(SortIndex)) : FText::GetEmpty();
 }
 
 bool SNiagaraStackFunctionInputValue::VerifyFilteredSortIndex(const FText& InText, FText& OutErrorMessage) const
@@ -1583,15 +1602,55 @@ void SNiagaraStackFunctionInputValue::FilteredSortIndexTextCommitted(const FText
 	
 	if (EditorData && Key.IsSet())
 	{		
-		FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());		
-		if (NewValue != SummaryViewMetaData.SortIndex)
+		TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());	
+		if (SummaryViewMetaData.IsSet() == false)
+		{
+			SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+		}
+		if (NewValue != SummaryViewMetaData->SortIndex)
 		{
 			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputSortIndex", "Changed summary view sorty index for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 			
-			SummaryViewMetaData.SortIndex = NewValue;
+			SummaryViewMetaData->SortIndex = NewValue;
 			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}		
+	}
+}
+
+ECheckBoxState SNiagaraStackFunctionInputValue::GetFilteredViewVisibleCheckState() const
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel() ? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
+
+	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+	TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData != nullptr && Key.IsSet() ? EditorData->GetSummaryViewMetaData(Key.GetValue()) : TOptional<FFunctionInputSummaryViewMetadata>();
+
+	return Metadata.IsSet() && Metadata->bVisible ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputValue::FilteredVisibleCheckStateChanged(ECheckBoxState CheckBoxState)
+{
+	UNiagaraEmitterEditorData* EditorData = FunctionInput->GetEmitterViewModel() ? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
+	TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
+
+	bool bNewValue = CheckBoxState == ECheckBoxState::Checked;
+	if (EditorData && Key.IsSet())
+	{
+		TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+		if (SummaryViewMetaData.IsSet() == false)
+		{
+			SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+		}
+		if (bNewValue != SummaryViewMetaData->bVisible)
+		{
+			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputSortIndex", "Changed summary view visibility for {0}"), FunctionInput->GetDisplayName()));
+			EditorData->Modify();
+
+			SummaryViewMetaData->bVisible = bNewValue;
+			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
+		}
 	}
 }
 

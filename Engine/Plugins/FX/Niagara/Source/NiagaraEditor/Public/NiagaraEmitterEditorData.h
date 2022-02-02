@@ -38,11 +38,12 @@ public:
 	NIAGARAEDITOR_API bool ShouldShowSummaryView() const { return bShowSummaryView; }
 	NIAGARAEDITOR_API void ToggleShowSummaryView();
 	
-	NIAGARAEDITOR_API TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> GetSummaryViewMetaDataMap() const;
-	NIAGARAEDITOR_API FFunctionInputSummaryViewMetadata GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const;
-	NIAGARAEDITOR_API void SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, const FFunctionInputSummaryViewMetadata& NewMetadata);
+	NIAGARAEDITOR_API const TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata>& GetSummaryViewMetaDataMap() const;
+	NIAGARAEDITOR_API TOptional<FFunctionInputSummaryViewMetadata> GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const;
+	NIAGARAEDITOR_API void SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, TOptional<FFunctionInputSummaryViewMetadata> NewMetadata);
 
-	const TArray<FNiagaraStackSection> GetSummarySections() const { return SummarySections; }
+	const TArray<FNiagaraStackSection>& GetSummarySections() const;
+	void SetSummarySections(const TArray<FNiagaraStackSection>& InSummarySections);
 
 private:
 	UPROPERTY(Instanced)
@@ -61,7 +62,7 @@ private:
 	UPROPERTY()
 	TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> SummaryViewFunctionInputMetadata;
 
-	UPROPERTY(EditAnywhere, Category=Summary, meta=(NiagaraNoMerge))
+	UPROPERTY(EditAnywhere, Category=Summary)
 	TArray<FNiagaraStackSection> SummarySections;
 
 	FSimpleMulticastDelegate OnSummaryViewStateChangedDelegate;

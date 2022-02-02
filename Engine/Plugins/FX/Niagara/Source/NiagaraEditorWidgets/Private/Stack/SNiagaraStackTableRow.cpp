@@ -642,12 +642,34 @@ void SNiagaraStackTableRow::ToggleShowInSummaryView()
 	
 		if (Key.IsSet())
 		{
-			FFunctionInputSummaryViewMetadata SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
-			
+			// TODO: Move this parent handling to the UNiagaraStackFunctionInput and merge manager.
+			bool bHasParentSummaryData = false;;
+			UNiagaraEmitter* ParentEmitter = FunctionInput->GetEmitterViewModel()->GetEmitter()->GetParent();
+			if (ParentEmitter != nullptr)
+			{
+				UNiagaraEmitterEditorData* ParentEmitterEditorData = Cast<UNiagaraEmitterEditorData>(ParentEmitter->GetEditorData());
+				if (ParentEmitterEditorData != nullptr)
+				{
+					bHasParentSummaryData = ParentEmitterEditorData->GetSummaryViewMetaData(Key.GetValue()).IsSet();
+				}
+			}
+
+			TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
+			if (SummaryViewMetaData.IsSet() == false)
+			{
+				SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+			}
+
 			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputVisibility", "Changed summary view visibility for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 			
-			SummaryViewMetaData.bVisible = !SummaryViewMetaData.bVisible;
+			SummaryViewMetaData->bVisible = !SummaryViewMetaData->bVisible;
+			if (bHasParentSummaryData == false && SummaryViewMetaData->bVisible == false)
+			{
+				// If there is no parent summary data, and the input is no longer visible, reset the optional value
+				// to remove the input from the summary.
+				SummaryViewMetaData.Reset();
+			}
 			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}
 	}	
@@ -665,7 +687,8 @@ bool SNiagaraStackTableRow::ShouldShowInSummaryView() const
 	
 		if (Key.IsSet())
 		{
-			return EditorData->GetSummaryViewMetaData(Key.GetValue()).bVisible;
+			TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData->GetSummaryViewMetaData(Key.GetValue());
+			return Metadata.IsSet() && Metadata->bVisible;
 		}			
 	}
 

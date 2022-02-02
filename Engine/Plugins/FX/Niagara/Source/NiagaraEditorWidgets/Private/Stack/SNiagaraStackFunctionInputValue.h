@@ -176,6 +176,9 @@ private:
 	bool VerifyFilteredSortIndex(const FText& InText, FText& OutErrorMessage) const;
 	void FilteredSortIndexTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
+	ECheckBoxState GetFilteredViewVisibleCheckState() const;
+	void FilteredVisibleCheckStateChanged(ECheckBoxState CheckBoxState);
+
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 

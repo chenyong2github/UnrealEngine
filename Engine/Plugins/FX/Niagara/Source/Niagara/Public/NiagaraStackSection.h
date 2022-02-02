@@ -13,9 +13,20 @@ struct FNiagaraStackSection
 {
 	GENERATED_BODY()
 
+	FNiagaraStackSection()
+		: bEnabled(true)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, Category=Section)
+	FName SectionIdentifier;
+
 	UPROPERTY(EditAnywhere, Category=Section)
 	FText SectionDisplayName;
 
 	UPROPERTY(EditAnywhere, Category=Section)
 	TArray<FText> Categories;
+
+	UPROPERTY(EditAnywhere, Category=Section)
+	bool bEnabled;
 };
