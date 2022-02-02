@@ -12,6 +12,57 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "UObject/GarbageCollection.h"
 #include "Algo/AnyOf.h"
+#include "Interfaces/ITargetPlatform.h"
+
+FArchive& operator<<(FArchive& Ar, FMorphTargetLODModel& M)
+{
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
+
+	if (!Ar.IsObjectReferenceCollector())
+	{
+		if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::AddedMorphTargetSectionIndices)
+		{
+			Ar << M.Vertices << M.NumBaseMeshVerts;
+			M.bGeneratedByEngine = false;
+		}
+		else if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SaveGeneratedMorphTargetByEngine)
+		{
+			Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices;
+			M.bGeneratedByEngine = false;
+		}
+		else
+		{
+			bool bVerticesAreStrippedForCookedBuilds = false;
+			if (Ar.IsPersistent() && (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::StripMorphTargetSourceDataForCookedBuilds))
+			{
+				// Strip source morph data for cooked build if targets don't include mobile. Mobile uses CPU morphing which needs the source morph data.
+				bVerticesAreStrippedForCookedBuilds = Ar.IsCooking() && (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering));
+				Ar << bVerticesAreStrippedForCookedBuilds;
+			}
+
+			if (bVerticesAreStrippedForCookedBuilds)
+			{
+				M.NumVertices = M.Vertices.Num();
+				Ar << M.NumVertices;
+			}
+			else
+			{
+				Ar << M.Vertices;
+
+				if (Ar.IsLoading())
+				{
+					M.NumVertices = M.Vertices.Num();
+				}
+			}
+
+			Ar << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
+		}
+	}
+
+	return Ar;
+}
 
 /** compare based on base mesh source vertex indices */
 struct FCompareMorphTargetDeltas

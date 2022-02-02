@@ -74,54 +74,7 @@ struct FMorphTargetLODModel
 	{ }
 
 	/** pipe operator */
-	friend FArchive& operator<<(FArchive& Ar, FMorphTargetLODModel& M)
-	{
-		Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
-		Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
-		Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
-
-		if (!Ar.IsObjectReferenceCollector())
-		{
-			if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::AddedMorphTargetSectionIndices)
-			{
-				Ar << M.Vertices << M.NumBaseMeshVerts;
-				M.bGeneratedByEngine = false;
-			}
-			else if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SaveGeneratedMorphTargetByEngine)
-			{
-				Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices;
-				M.bGeneratedByEngine = false;
-			}
-			else
-			{
-				bool bIsCooked = false;
-				if (Ar.IsPersistent() && (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::StripMorphTargetSourceDataForCookedBuilds))
-				{
-					bIsCooked = Ar.IsCooking();
-					Ar << bIsCooked;
-				}
-
-				if (bIsCooked)
-				{
-					M.NumVertices = M.Vertices.Num();
-					Ar << M.NumVertices;
-				}
-				else
-				{
-					Ar << M.Vertices;
-
-					if (Ar.IsLoading())
-					{
-						M.NumVertices = M.Vertices.Num();
-					}
-				}
-
-				Ar << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
-			}
-		}
-
-		return Ar;
-	}
+	friend FArchive& operator<<(FArchive& Ar, FMorphTargetLODModel& M);
 
 	void Reset()
 	{
@@ -202,6 +155,7 @@ public:
 	ENGINE_API virtual void EmptyMorphLODModels();
 
 	/** Discard CPU Buffers after render resources have been created. */
+	UE_DEPRECATED(5.0, "No longer in use, will be deleted. Whether to discard vertex data is now determined during cooking instead of loading.")
 	ENGINE_API virtual void DiscardVertexData();
 
 	/** Return true if this morph target uses engine built-in compression */
