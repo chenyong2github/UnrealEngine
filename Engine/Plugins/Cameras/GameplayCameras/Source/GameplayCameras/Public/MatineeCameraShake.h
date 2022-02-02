@@ -82,7 +82,7 @@ struct GAMEPLAYCAMERAS_API FFOscillator
 
 /** Defines FRotator oscillation. */
 USTRUCT(BlueprintType)
-struct FROscillator
+struct GAMEPLAYCAMERAS_API FROscillator
 {
 	GENERATED_USTRUCT_BODY()
 
