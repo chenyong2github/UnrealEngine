@@ -219,10 +219,10 @@ private:
 	UPROPERTY(ReplicatedUsing=OnRep_ReplicateMovement, Category=Replication, EditDefaultsOnly)
 	uint8 bReplicateMovement:1;    
 
-	UPROPERTY(EditDefaultsOnly, Category = Replication)
+	UPROPERTY(EditDefaultsOnly, Category = Replication, AdvancedDisplay)
 	uint8 bCallPreReplication:1;
 
-	UPROPERTY(EditDefaultsOnly, Category = Replication)
+	UPROPERTY(EditDefaultsOnly, Category = Replication, AdvancedDisplay)
 	uint8 bCallPreReplicationForReplay:1;
 
 	/**
@@ -309,7 +309,7 @@ public:
 	 * Otherwise, RewindForReplay will be called if we detect the actor needs to be reset.
 	 * Note, this Actor must not be destroyed by gamecode, and RollbackViaDeletion may not be used. 
 	 */
-	UPROPERTY(Category=Replication, EditDefaultsOnly)
+	UPROPERTY(Category=Replication, EditDefaultsOnly, AdvancedDisplay)
 	uint8 bReplayRewindable:1;
 
 	/**

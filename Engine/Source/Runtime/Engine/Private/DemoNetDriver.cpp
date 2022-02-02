@@ -1685,6 +1685,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 				if (HasConsiderTimeBeenExhausted())
 				{
+					UE_LOG(LogDemo, Verbose, TEXT("Consider time exhaused prioritizing destruction infos."));
 					break;
 				}
 			}
@@ -1724,9 +1725,13 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 			const float CurrentTime = GetDemoCurrentTime();
 
+			int32 ProcessedCount = 0;
+
 			for (const TSharedPtr<FNetworkObjectInfo>& ObjectInfo : ActiveObjectSet)
 			{
 				FNetworkObjectInfo* ActorInfo = ObjectInfo.Get();
+
+				++ProcessedCount;
 
 				if (GetDemoCurrentTime() > ActorInfo->NextUpdateTime)
 				{
@@ -1818,6 +1823,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 				if (HasConsiderTimeBeenExhausted())
 				{
+					UE_LOG(LogDemo, Verbose, TEXT("Consider time exhaused while iterating the active object list [%d/%d]"), ProcessedCount, ActiveObjectSet.Num());
 					break;
 				}
 			}
@@ -5130,10 +5136,12 @@ void UDemoNetDriver::AdjustConsiderTime(const float ReplicatedPercent)
 		if (ReplicatedPercent > IncreaseThreshold)
 		{
 			RecordBuildConsiderAndPrioritizeTimeSlice += 0.1f;
+			UE_LOG(LogDemo, Verbose, TEXT("AdjustConsiderTime: RecordBuildConsiderAndPrioritizeTimeSlice is now %0.1f"), RecordBuildConsiderAndPrioritizeTimeSlice)
 		}
 		else if (ReplicatedPercent < DecreaseThreshold)
 		{
 			RecordBuildConsiderAndPrioritizeTimeSlice *= (1.f - ReplicatedPercent) * 0.5f;
+			UE_LOG(LogDemo, Verbose, TEXT("AdjustConsiderTime: RecordBuildConsiderAndPrioritizeTimeSlice is now %0.1f"), RecordBuildConsiderAndPrioritizeTimeSlice)
 		}
 
 		RecordBuildConsiderAndPrioritizeTimeSlice = FMath::Clamp<float>(RecordBuildConsiderAndPrioritizeTimeSlice, MinRepTime, MaxRepTime);
