@@ -1820,7 +1820,6 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 		}
 	}
 	// Write Real Export Map
-	bool bContainsAsset = false;
 	if (!SaveContext.IsTextFormat())
 	{
 		check(Linker->Tell() == SaveContext.OffsetAfterImportMap);
@@ -1830,9 +1829,15 @@ ESavePackageResult UpdatePackageHeader(FStructuredArchive::FRecord& StructuredAr
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
 			ExportTableStream.EnterElement() << Export;
-			bContainsAsset |= Export.bIsAsset;
 		}
 		check(Linker->Tell() == SaveContext.OffsetAfterExportMap);
+	}
+
+	// Figure out if at leat one export is marked as an asset
+	bool bContainsAsset = false;
+	for (FObjectExport& Export : Linker->ExportMap)
+	{
+		bContainsAsset |= Export.bIsAsset;
 	}
 
 	// Update Summary
