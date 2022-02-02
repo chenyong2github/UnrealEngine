@@ -109,6 +109,8 @@ bool AWorldPartitionReplay::IsEnabled(UWorld* World)
 
 void AWorldPartitionReplay::BeginPlay()
 {
+	Super::BeginPlay();
+	
 	UWorld* World = GetWorld();
 	check(World->IsGameWorld());
 	check(World->IsPartitionedWorld());
