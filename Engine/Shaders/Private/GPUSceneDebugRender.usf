@@ -158,7 +158,7 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 	if (bIsMouseOver || bIsSelected || bDrawAll != 0)
 	{
 		AddOBBWS(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, LWCHackToFloat(InstanceData.LocalToWorld));
-		AddReferentialWS(LWCHackToFloat(InstanceData.LocalToWorld), 1);
+		AddReferentialWS(LWCHackToFloat(InstanceData.LocalToWorld), 50.f);
 	}
 
 	uint StartOffsetX = 10;
