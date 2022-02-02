@@ -14928,13 +14928,13 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 {
 	check(ObjectToFindReferencesTo);
 
-	UObject* OutGarbageObject = nullptr;
-	UObject* OutReferencingObject = nullptr;
+	FGCObjectInfo* OutGarbageObject = nullptr;
+	FGCObjectInfo* OutReferencingObject = nullptr;
 	FReferenceChainSearch RefChainSearch(ObjectToFindReferencesTo, EReferenceChainSearchMode::Default);
 	RefChainSearch.PrintResults([&OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
 	{
 		check(Params.Object);
-		if (!IsValid(Params.Object))
+		if (!Params.Object->IsValid())
 		{
 			// We may find many chains that lead to the leak but for brevity we only report the first one in the fatal error below
 			if (!OutGarbageObject)
@@ -14955,7 +14955,7 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 	FString PathToCulprit = RefChainSearch.GetRootPath([&bFirstGarbageObjectFound, ObjectToFindReferencesTo](FReferenceChainSearch::FCallbackParams& Params)
 	{
 		check(Params.Object);
-		if (!IsValid(Params.Object) && !bFirstGarbageObjectFound)
+		if (!Params.Object->IsValid() && !bFirstGarbageObjectFound)
 		{
 			bFirstGarbageObjectFound = true;
 			check(Params.Out);

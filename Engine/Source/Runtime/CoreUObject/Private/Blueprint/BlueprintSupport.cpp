@@ -400,13 +400,16 @@ void FBlueprintSupport::ValidateNoExternalRefsToSkeletons()
 		bool bBadRefs = false;
 		for(const FReferenceChainSearch::FReferenceChain* Chain : RefChainSearch.GetReferenceChains())
 		{
-			if(Chain->GetRootNode()->Object->GetOutermost() != SkeletonClass->GetOutermost())
+			UObject* ChainRootObject = Chain->GetRootNode()->ObjectInfo->TryResolveObject();
+			checkf(ChainRootObject, TEXT("Unable to resolve reference chain root object %s"), *Chain->GetRootNode()->ObjectInfo->GetPathName());
+			if(ChainRootObject->GetOutermost() != SkeletonClass->GetOutermost())
 			{
 				bBadRefs = true;
 				for (int32 NodeIndex = 1; bBadRefs && NodeIndex < Chain->Num(); ++NodeIndex)
 				{
 					// if there's a skeleton class (or an object outered to a skeleton class) somewhere in the chain, then it's fine:
-					UObject* ObjectReferencingSkeletonClass = Chain->GetNode(NodeIndex)->Object;
+					UObject* ObjectReferencingSkeletonClass = Chain->GetNode(NodeIndex)->ObjectInfo->TryResolveObject();
+					checkf(ChainRootObject, TEXT("Unable to resolve reference object referencing skeleton class %s"), *Chain->GetNode(NodeIndex)->ObjectInfo->GetPathName());
 					if (UClass* AsClass = Cast<UClass>(ObjectReferencingSkeletonClass))
 					{
 						if (IsSkeleton(AsClass))

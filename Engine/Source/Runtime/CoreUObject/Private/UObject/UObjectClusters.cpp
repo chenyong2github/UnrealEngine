@@ -474,12 +474,11 @@ void FindStaleClusters(const TArray<FString>& Args)
 			if (SearchRefs.GetReferenceChains().Num() > 0)
 			{
 				for (const FReferenceChainSearch::FReferenceChain* ReferenceChain : SearchRefs.GetReferenceChains())
-					{
-					UObject* ReferencingObj = ReferenceChain->GetRootNode()->Object;
-						bReferenced = true;
-						break;
-					}
+				{
+					bReferenced = true;
+					break;
 				}
+			}
 			if (!bReferenced)
 			{
 				NumStaleClusters++;

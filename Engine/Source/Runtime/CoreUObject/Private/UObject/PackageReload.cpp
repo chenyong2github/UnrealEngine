@@ -263,10 +263,12 @@ void DumpExternalReferences(UObject* InObject, UPackage* InPackage)
 			for (int32 NodeIndex = 0; NodeIndex < ObjectRefChain->Num(); ++NodeIndex)
 			{
 				const FReferenceChainSearch::FGraphNode* ObjectRefChainLink = ObjectRefChain->GetNode(NodeIndex);
-				const bool bIsExternalRef = ObjectRefChainLink->Object->GetOutermost() != InPackage;
+				UObject* LinkObject = ObjectRefChainLink->ObjectInfo->TryResolveObject();
+				checkf(LinkObject, TEXT("Unable to resolve object: %s when dumping external references"), *ObjectRefChainLink->ObjectInfo->GetPathName());
+				const bool bIsExternalRef = LinkObject->GetOutermost() != InPackage;
 				if (bIsExternalRef)
 				{
-					ExternalRefDumps.Emplace(ObjectRefChainLink->Object->GetFullName());
+					ExternalRefDumps.Emplace(ObjectRefChainLink->ObjectInfo->GetFullName());
 				}
 			}
 		}

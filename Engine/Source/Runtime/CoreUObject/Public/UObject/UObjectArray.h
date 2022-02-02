@@ -743,7 +743,7 @@ public:
 		return ObjectItem;
 	}
 
-	FORCEINLINE FUObjectItem* ObjectToObjectItem(UObjectBase* Object)
+	FORCEINLINE FUObjectItem* ObjectToObjectItem(const UObjectBase* Object)
 	{
 		FUObjectItem* ObjectItem = IndexToObject(Object->InternalIndex);
 		return ObjectItem;

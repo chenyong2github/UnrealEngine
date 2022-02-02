@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/Class.h"
-#include "UObject/GarbageCollection.h"
+#include "UObject/GCObjectInfo.h"
 #include "HAL/ThreadHeartBeat.h"
 
 /** Search mode flags */
@@ -138,23 +137,21 @@ public:
 	/** Single node in the reference graph */
 	struct FGraphNode
 	{
-		FGraphNode()
-			: Object(nullptr)
-			, Visited(0)
-		{}
-
 		/** Object pointer */
-		UObject* Object;
+		UE_DEPRECATED(5.0, "Direct Object reference has been deprecated. Use ObjectInfo member variable instead.")
+		UObject* Object = nullptr;
+		/** Object pointer */
+		FGCObjectInfo* ObjectInfo = nullptr;
 		/** Objects referenced by this object with reference info */
 		TSet< TReferenceInfo<FGraphNode> > ReferencedObjects;
 		/** Objects that have references to this object */
 		TSet<FGraphNode*> ReferencedByObjects;
 		/** Non-zero if this node has been already visited during reference search */
-		int32 Visited;
+		int32 Visited = 0;
 	};
 
 	/** Convenience type definitions to avoid template hell */
-	typedef TReferenceInfo<UObject> FObjectReferenceInfo;
+	typedef TReferenceInfo<FGCObjectInfo> FObjectReferenceInfo;
 	typedef TReferenceInfo<FGraphNode> FNodeReferenceInfo;
 
 	/** Reference chain. The first object in the list is the target object and the last object is a root object */
@@ -224,9 +221,9 @@ public:
 	struct FCallbackParams
 	{
 		/** Referenced object */
-		UObject* Object = nullptr;
+		FGCObjectInfo* Object = nullptr;
 		/** Object that is referencing the current object */
-		UObject* Referencer = nullptr;
+		FGCObjectInfo* Referencer = nullptr;
 		/** Information about the type of reference (Referencer -> Object) */
 		const FNodeReferenceInfo* ReferenceInfo = nullptr;
 		/** For use when outputting custom information: current indent */
@@ -272,14 +269,21 @@ public:
 private:
 
 	/** The object we're going to look for references to */
-	UObject* ObjectToFindReferencesTo;
+	UObject* ObjectToFindReferencesTo = nullptr;
+	FGCObjectInfo* ObjectInfoToFindReferencesTo = nullptr;
+
+	/** Search mode and options */
+	EReferenceChainSearchMode SearchMode = EReferenceChainSearchMode::Default;
+
 	/** All reference chain found during the search */
 	TArray<FReferenceChain*> ReferenceChains;
 	/** All nodes created during the search */
-	TMap<UObject*, FGraphNode*> AllNodes;
+	TMap<FGCObjectInfo*, FGraphNode*> AllNodes;
+	/** Maps UObject pointers to object info structs */
+	TMap<UObject*, FGCObjectInfo*> ObjectToInfoMap;
 
 	/** Performs the search */
-	void PerformSearch(EReferenceChainSearchMode SearchMode);
+	void PerformSearch();
 
 	/** Performs the search */
 	void FindDirectReferencesForObjects();
@@ -288,7 +292,9 @@ private:
 	void Cleanup();
 
 	/** Tries to find a node for an object and if it doesn't exists creates a new one and returns it */
-	static FGraphNode* FindOrAddNode(TMap<UObject*, FGraphNode*>& AllNodes, UObject* InObjectToFindNodeFor);
+	FGraphNode* FindOrAddNode(UObject* InObjectToFindNodeFor);
+	FGraphNode* FindOrAddNode(FGCObjectInfo* InObjectInfo);
+
 	/** Builds reference chains */
 	static int32 BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode);
 	/** Builds reference chains */
@@ -301,7 +307,7 @@ private:
 	static void RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains);
 
 	/** Returns a string with all flags (we care about) set on an object */
-	static FString GetObjectFlags(UObject* InObject);
+	static FString GetObjectFlags(FGCObjectInfo* InObject);
 	/** Dumps a reference chain to log */
 	static void DumpChain(FReferenceChainSearch::FReferenceChain* Chain, TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, FOutputDevice& Out);
 };
