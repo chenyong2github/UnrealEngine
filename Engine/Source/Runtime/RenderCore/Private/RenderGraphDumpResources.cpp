@@ -405,9 +405,7 @@ struct FRDGResourceDumpContext
 
 			if (GDumpRenderingConsoleVariablesCVar.GetValueOnGameThread() != 0)
 			{
-				IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(OnConsoleVariable), TEXT("r."));
-				IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(OnConsoleVariable), TEXT("sg."));
-				IConsoleManager::Get().ForEachConsoleObjectThatContains(FConsoleObjectVisitor::CreateLambda(OnConsoleVariable), TEXT("rhi"));
+				IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(OnConsoleVariable), TEXT(""));
 			}
 			else
 			{
