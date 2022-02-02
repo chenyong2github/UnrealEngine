@@ -87,9 +87,9 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 		OutParameters.PlanarReflectionYAxis = (FVector4f)ReflectionSceneProxy->PlanarReflectionYAxis; // LWC_TODO: precision loss
 		OutParameters.InverseTransposeMirrorMatrix = ReflectionSceneProxy->InverseTransposeMirrorMatrix;
 		OutParameters.PlanarReflectionParameters = ReflectionSceneProxy->PlanarReflectionParameters;
-		OutParameters.PlanarReflectionParameters2 = ReflectionSceneProxy->PlanarReflectionParameters2;
+		OutParameters.PlanarReflectionParameters2 = FVector2f(ReflectionSceneProxy->PlanarReflectionParameters2);	// LWC_TODO: Precision loss
 		OutParameters.bIsStereo = ReflectionSceneProxy->bIsStereo;
-		OutParameters.PlanarReflectionScreenBound = PlanarReflectionScreenBoundValue;
+		OutParameters.PlanarReflectionScreenBound = FVector2f(PlanarReflectionScreenBoundValue);	// LWC_TODO: Precision loss
 
 		// Instanced stereo needs both view's values available at once
 		if (ReflectionSceneProxy->bIsStereo || View.Family->Views.Num() == 1)

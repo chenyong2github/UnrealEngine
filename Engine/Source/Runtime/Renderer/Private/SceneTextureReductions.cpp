@@ -155,8 +155,8 @@ void BuildHZB(
 	{
 
 		FSharedHZBParameters ShaderParameters;
-		ShaderParameters.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
-		ShaderParameters.InputViewportMaxBound = InputViewportMaxBound;
+		ShaderParameters.InvSize = FVector2f(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
+		ShaderParameters.InputViewportMaxBound = FVector2f(InputViewportMaxBound);	// LWC_TODO: Precision loss
 		ShaderParameters.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
 		ShaderParameters.PixelViewPortMinMax = PixelViewPortMinMax;
 		ShaderParameters.VisBufferTexture = VisBufferTexture;

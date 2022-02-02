@@ -150,8 +150,8 @@ FLightShaftPixelShaderParameters GetLightShaftParameters(
 	const FScreenPassTextureViewportParameters LightShaftParameters = GetScreenPassTextureViewportParameters(LightShaftViewport);
 
 	const FVector2D LightShaftRectToExtentRatio = LightShaftViewport.GetRectToExtentRatio();
-	const FVector2D LightShaftAspectRatio(LightShaftRectToExtentRatio.X, (float)LightShaftViewport.Extent.X * LightShaftRectToExtentRatio.Y / LightShaftViewport.Extent.Y);
-	const FVector2D LightShaftAspectRatioInverse = FVector2D(1.0f) / LightShaftAspectRatio;
+	const FVector2f LightShaftAspectRatio(LightShaftRectToExtentRatio.X, (float)LightShaftViewport.Extent.X * LightShaftRectToExtentRatio.Y / LightShaftViewport.Extent.Y);
+	const FVector2f LightShaftAspectRatioInverse = FVector2f(1.0f) / LightShaftAspectRatio;
 
 	FLightShaftPixelShaderParameters Parameters;
 	Parameters.View = View.ViewUniformBuffer;
@@ -161,7 +161,7 @@ FLightShaftPixelShaderParameters GetLightShaftParameters(
 		const FVector4f LightScreenPosition = GetLightScreenPosition(View, LightSceneProxy);
 		const float InvW = 1.0f / LightScreenPosition.W;
 		const float Y = (GProjectionSignY > 0.0f) ? LightScreenPosition.Y : 1.0f - LightScreenPosition.Y;
-		const FVector2D ScreenSpaceBlurOrigin(
+		const FVector2f ScreenSpaceBlurOrigin(
 			View.ViewRect.Min.X + (0.5f + LightScreenPosition.X * 0.5f * InvW) * View.ViewRect.Width(),
 			View.ViewRect.Min.Y + (0.5f - Y * 0.5f * InvW) * View.ViewRect.Height());
 

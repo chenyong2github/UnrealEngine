@@ -581,7 +581,7 @@ FScreenPassTexture AddMobileBloomUpPass(FRDGBuilder& GraphBuilder, const FViewIn
 	VSShaderParameters.View = View.ViewUniformBuffer;
 	VSShaderParameters.BufferASizeAndInvSize = FVector4f(BufferSizeA.X, BufferSizeA.Y, 1.0f / BufferSizeA.X, 1.0f / BufferSizeA.Y);
 	VSShaderParameters.BufferBSizeAndInvSize = FVector4f(BufferSizeB.X, BufferSizeB.Y, 1.0f / BufferSizeB.X, 1.0f / BufferSizeB.Y);
-	VSShaderParameters.BloomUpScales = Inputs.ScaleAB;
+	VSShaderParameters.BloomUpScales = FVector2f(Inputs.ScaleAB);	// LWC_TODO: Precision loss
 
 	TShaderMapRef<FMobileBloomUpPS> PixelShader(View.ShaderMap);
 
@@ -848,7 +848,7 @@ FScreenPassTexture AddMobileSunAlphaPass(FRDGBuilder& GraphBuilder, const FViewI
 	FMobileSunAlphaVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.LightShaftCenter = View.MobileLightShaft->Center;
+	VSShaderParameters.LightShaftCenter = FVector2f(View.MobileLightShaft->Center);	// LWC_TODO: Precision loss
 
 	auto ShaderPermutationVector = FMobileSunAlphaPS::BuildPermutationVector(Inputs.bUseMobileDof);
 
@@ -959,7 +959,7 @@ FScreenPassTexture AddMobileSunBlurPass(FRDGBuilder& GraphBuilder, const FViewIn
 	FMobileSunBlurVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.LightShaftCenter = View.MobileLightShaft->Center;
+	VSShaderParameters.LightShaftCenter = FVector2f(View.MobileLightShaft->Center);	// LWC_TODO: Precision loss
 
 	TShaderMapRef<FMobileSunBlurPS> PixelShader(View.ShaderMap);
 
@@ -1100,7 +1100,7 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 	{
 		MobileLightShaft = *View.MobileLightShaft;
 	}
-	VSShaderParameters.LightShaftCenter = MobileLightShaft.Center;
+	VSShaderParameters.LightShaftCenter = FVector2f(MobileLightShaft.Center);	// LWC_TODO: Precision loss
 
 	if (Inputs.BloomUp.IsValid())
 	{

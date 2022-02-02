@@ -2016,7 +2016,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 				FMobileBloomUpInputs BloomUpInputs;
 				BloomUpInputs.BloomUpSourceA = BloomUpSourceA;
 				BloomUpInputs.BloomUpSourceB = BloomUpSourceB;
-				BloomUpInputs.ScaleAB = FVector2f(BloomSourceScale, BloomSourceScale);
+				BloomUpInputs.ScaleAB = FVector2D(BloomSourceScale, BloomSourceScale);
 				BloomUpInputs.TintA = TintA;
 				BloomUpInputs.TintB = TintB;
 

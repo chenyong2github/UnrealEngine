@@ -579,7 +579,7 @@ FTAAOutputs AddTemporalAAPass(
 
 		if (!IsTAAUpsamplingConfig(Inputs.Pass))
 		{
-			SetupSampleWeightParameters(PassParameters, Inputs, View.TemporalJitterPixels);
+			SetupSampleWeightParameters(PassParameters, Inputs, FVector2f(View.TemporalJitterPixels));
 		}
 
 		const float ResDivisor = Inputs.ResolutionDivisor;
@@ -726,7 +726,7 @@ FTAAOutputs AddTemporalAAPass(
 			float InputViewSizeInvScale = Inputs.ResolutionDivisor;
 			float InputViewSizeScale = 1.0f / InputViewSizeInvScale;
 
-			PassParameters->TemporalJitterPixels = InputViewSizeScale * View.TemporalJitterPixels;
+			PassParameters->TemporalJitterPixels = InputViewSizeScale * FVector2f(View.TemporalJitterPixels);
 			PassParameters->ScreenPercentage = float(InputViewRect.Width()) / float(OutputViewRect.Width());
 			PassParameters->UpscaleFactor = float(OutputViewRect.Width()) / float(InputViewRect.Width());
 			PassParameters->InputViewMin = InputViewSizeScale * FVector2f(InputViewRect.Min.X, InputViewRect.Min.Y);

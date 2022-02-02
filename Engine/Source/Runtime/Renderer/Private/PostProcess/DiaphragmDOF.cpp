@@ -2274,7 +2274,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FDiaphragmDOFGatherCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFGatherCS::FParameters>();
 			PassParameters->ViewportSize = FVector4f(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
 			PassParameters->ViewportRect = FIntRect(0, 0, GatheringViewSize.X, GatheringViewSize.Y);
-			PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
+			PassParameters->TemporalJitterPixels = FVector2f(View.TemporalJitterPixels);	// LWC_TODO: Precision loss
 			PassParameters->DispatchThreadIdToInputBufferUV = FVector2f(
 				float(PreprocessViewSize.X) / float(GatheringViewSize.X * SrcSize.X),
 				float(PreprocessViewSize.Y) / float(GatheringViewSize.Y * SrcSize.Y));;
@@ -2638,7 +2638,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 		PassParameters->ViewportRect = PassViewRect;
 		PassParameters->ViewportSize = FVector4f(PassViewRect.Width(), PassViewRect.Height(), 1.0f / PassViewRect.Width(), 1.0f / PassViewRect.Height());
-		PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
+		PassParameters->TemporalJitterPixels = FVector2f(View.TemporalJitterPixels);	// LWC_TODO: Precision loss
 		PassParameters->DOFBufferUVMax = FVector2f(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));

@@ -346,7 +346,7 @@ static void UpdatePrimitiveFadingStateHelper(FPrimitiveFadingState& FadingState,
 				}
 
 				FDistanceCullFadeUniformShaderParameters Uniforms;
-				Uniforms.FadeTimeScaleBias = FadingState.FadeTimeScaleBias;
+				Uniforms.FadeTimeScaleBias = FVector2f(FadingState.FadeTimeScaleBias);	// LWC_TODO: Precision loss
 				FadingState.UniformBuffer = FDistanceCullFadeUniformBufferRef::CreateUniformBufferImmediate( Uniforms, UniformBuffer_MultiFrame );
 			}
 			else
@@ -370,7 +370,7 @@ static void UpdatePrimitiveFadingStateHelper(FPrimitiveFadingState& FadingState,
 				}
 
 				FDistanceCullFadeUniformShaderParameters Uniforms;
-				Uniforms.FadeTimeScaleBias = FadingState.FadeTimeScaleBias;
+				Uniforms.FadeTimeScaleBias = FVector2f(FadingState.FadeTimeScaleBias);	// LWC_TODO: Precision loss
 				FadingState.UniformBuffer = FDistanceCullFadeUniformBufferRef::CreateUniformBufferImmediate( Uniforms, UniformBuffer_MultiFrame );
 			}
 		}

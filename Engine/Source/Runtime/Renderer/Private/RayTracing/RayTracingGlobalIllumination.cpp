@@ -320,7 +320,7 @@ static void SetupLightParameters(
 			DestLight.dPdv = LightShaderParameters.Tangent;
 			DestLight.Color = FVector3f(LightShaderParameters.Color);
 			DestLight.Dimensions = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
-			DestLight.Shaping = FVector2D(LightShaderParameters.RectLightBarnCosAngle, LightShaderParameters.RectLightBarnLength);
+			DestLight.Shaping = FVector2f(LightShaderParameters.RectLightBarnCosAngle, LightShaderParameters.RectLightBarnLength);
 			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 			break;
 		}

@@ -516,7 +516,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	const FIntPoint TileAlignedResolution = FIntPoint::DivideAndRoundUp(RayTracingResolution, SortTileSize) * SortTileSize;
 
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
-	CommonParameters.UpscaleFactor           = UpscaleFactor;
+	CommonParameters.UpscaleFactor           = FVector2f(UpscaleFactor); // LWC_TODO: Precision loss
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
 	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;

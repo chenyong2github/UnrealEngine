@@ -296,7 +296,7 @@ void InitDomainAndGetKernel(
 	check(BloomConvolutionTextureResource && PhysicalSpaceKernelTextureRef);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
-	const FVector2f CenterUV = PPSettings.BloomConvolutionCenterUV; // TODO: remove
+	const FVector2f CenterUV = FVector2f(PPSettings.BloomConvolutionCenterUV); // TODO: remove
 
 	// Our frequency storage layout adds two elements to the first transform direction. 
 	const FIntPoint FrequencyPadding = (Intermediates.bDoHorizontalFirst) ? FIntPoint(2, 0) : FIntPoint(0, 2);

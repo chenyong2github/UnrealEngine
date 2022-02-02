@@ -728,7 +728,7 @@ void UpdateHistoryReflections(
 			PassParameters->DepthHistory = OldDepthHistory;
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
-			const FVector2D InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
+			const FVector2f InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
 			PassParameters->InvDiffuseIndirectBufferSize = InvBufferSize;
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
 

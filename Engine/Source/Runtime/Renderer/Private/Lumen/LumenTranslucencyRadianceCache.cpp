@@ -316,7 +316,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 		MarkPassParameters.RadianceCacheMarkParameters.InvClipmapFadeSizeForMark = 1.0f / FMath::Clamp(GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize, .001f, 16.0f);
 
 		MarkPassParameters.FurthestHZBTexture = View.HZB;
-		MarkPassParameters.ViewportUVToHZBBufferUV = FVector2D(
+		MarkPassParameters.ViewportUVToHZBBufferUV = FVector2f(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
 		MarkPassParameters.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2((float)GLumenTranslucencyReflectionsMarkDownsampleFactor) - 1, 0.0f);

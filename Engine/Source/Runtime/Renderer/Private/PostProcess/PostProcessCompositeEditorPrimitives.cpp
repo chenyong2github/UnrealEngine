@@ -337,7 +337,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		NumSamples);
 
 	FScreenPassTexture SceneDepth = Inputs.SceneDepth;
-	FVector2f SceneDepthJitter = View.TemporalJitterPixels;
+	FVector2f SceneDepthJitter = FVector2f(View.TemporalJitterPixels);
 
 	// The editor primitive composition pass is also used when rendering VMI_WIREFRAME in order to use MSAA.
 	// So we need to check whether the editor primitives are enabled inside this function.
@@ -375,7 +375,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->Depth = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Inputs.SceneDepth));
 				PassParameters->History = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(History));
-				PassParameters->DepthTextureJitter = View.TemporalJitterPixels;
+				PassParameters->DepthTextureJitter = FVector2f(View.TemporalJitterPixels);
 
 				PassParameters->DepthTexture = Inputs.SceneDepth.Texture;
 				PassParameters->DepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

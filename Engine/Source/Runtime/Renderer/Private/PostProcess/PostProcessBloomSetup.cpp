@@ -227,7 +227,7 @@ FScreenPassTexture AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FView
 				PassInputs.NameY = TEXT("BloomY");
 				PassInputs.Filter = SceneDownsampleChain->GetTexture(SourceIndex);
 				PassInputs.Additive = PassOutputs;
-				PassInputs.CrossCenterWeight = CrossCenterWeight;
+				PassInputs.CrossCenterWeight = FVector2f(CrossCenterWeight);	// LWC_TODO: Precision loss
 				PassInputs.KernelSizePercent = BloomStage.Size * Settings.BloomSizeScale;
 				PassInputs.TintColor = BloomStage.Tint * TintScale;
 

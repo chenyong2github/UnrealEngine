@@ -1114,13 +1114,13 @@ void DrawLumenMeshCapturePass(
 		TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
 		PackedViews.Reserve(CardPagesToRender.Num());
 
-		const FVector2D ViewportSizeF = FVector2D(float(ViewportSize.X), float(ViewportSize.Y));
+		const FVector2f ViewportSizeF = FVector2f(float(ViewportSize.X), float(ViewportSize.Y));
 
 		for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 		{
-			const FVector2D CardViewportSize = FVector2D(float(CardPageRenderData.CardCaptureAtlasRect.Width()), float(CardPageRenderData.CardCaptureAtlasRect.Height()));
-			const FVector2D RectOffset = FVector2D(float(CardPageRenderData.CardCaptureAtlasRect.Min.X), float(CardPageRenderData.CardCaptureAtlasRect.Min.Y)) / ViewportSizeF;
-			const FVector2D RectScale = CardViewportSize / ViewportSizeF;
+			const FVector2f CardViewportSize = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Width()), float(CardPageRenderData.CardCaptureAtlasRect.Height()));
+			const FVector2f RectOffset = FVector2f(float(CardPageRenderData.CardCaptureAtlasRect.Min.X), float(CardPageRenderData.CardCaptureAtlasRect.Min.Y)) / ViewportSizeF;
+			const FVector2f RectScale = CardViewportSize / ViewportSizeF;
 
 			ViewRectScaleOffsets.Add(FVector4f(RectScale, RectOffset));
 

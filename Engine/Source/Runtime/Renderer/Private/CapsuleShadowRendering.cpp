@@ -419,7 +419,7 @@ void SetupCapsuleShadowingParameters(
 		Parameters.ReceiverBentNormalTexture = nullptr;
 	}
 
-	Parameters.NumGroups = NumGroups;
+	Parameters.NumGroups = FVector2f(NumGroups);
 
 	if (LightSceneInfo)
 	{
@@ -464,7 +464,7 @@ void SetupCapsuleShadowingParameters(
 	Parameters.LightDirectionData = LightDirectionDataSRV;
 
 	const float CosFadeStartAngleValue = FMath::Cos(GCapsuleShadowFadeAngleFromVertical);
-	Parameters.CosFadeStartAngle = FVector2D(CosFadeStartAngleValue, 1.0f / (1.0f - CosFadeStartAngleValue));
+	Parameters.CosFadeStartAngle = FVector2f(CosFadeStartAngleValue, 1.0f / (1.0f - CosFadeStartAngleValue));
 
 	Parameters.DFObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 	Parameters.DFAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
@@ -624,7 +624,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 				PassParameters->VS.TileIntersectionCounts = CapsuleTileIntersectionCountsSRV;
 				PassParameters->VS.TileDimensions = GroupSize;
-				PassParameters->VS.TileSize = FVector2D(GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor(), GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor());
+				PassParameters->VS.TileSize = FVector2f(GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor(), GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor());
 				PassParameters->VS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
 
 				PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
@@ -1112,7 +1112,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 				PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 				PassParameters->VS.TileIntersectionCounts = CapsuleTileIntersectionCountsSRV;
 				PassParameters->VS.TileDimensions = GroupSize;
-				PassParameters->VS.TileSize = FVector2D(GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor(), GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor());
+				PassParameters->VS.TileSize = FVector2f(GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor(), GShadowShapeTileSize * GetCapsuleShadowDownsampleFactor());
 				PassParameters->VS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
 
 				PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);

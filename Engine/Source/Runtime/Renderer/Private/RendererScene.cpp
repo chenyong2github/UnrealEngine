@@ -492,14 +492,14 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 {
 	if (PixelInspectorRequest == nullptr)
 		return false;
-	FVector2D ViewportUV = PixelInspectorRequest->SourceViewportUV;
+	FVector2f ViewportUV = PixelInspectorRequest->SourceViewportUV;
 	if (Requests.Contains(ViewportUV))
 		return false;
 	
 	//Remove the oldest request since the new request use the buffer
 	if (Requests.Num() > 1)
 	{
-		FVector2D FirstKey(-1, -1);
+		FVector2f FirstKey(-1, -1);
 		for (auto kvp : Requests)
 		{
 			FirstKey = kvp.Key;

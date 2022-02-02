@@ -85,7 +85,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 FPaniniProjectionParameters GetPaniniProjectionParameters(FPaniniProjectionConfig InPaniniConfig, const FViewInfo& View)
 {
-	const FVector2f FOVPerAxis = View.ViewMatrices.ComputeHalfFieldOfViewPerAxis();
+	const FVector2f FOVPerAxis = FVector2f(View.ViewMatrices.ComputeHalfFieldOfViewPerAxis());
 	const FVector2f ScreenPosToPaniniFactor = FVector2f(FMath::Tan(FOVPerAxis.X), FMath::Tan(FOVPerAxis.Y));
 	const FVector2f PaniniDirection = FVector2f(1.0f, 0.0f) * ScreenPosToPaniniFactor;
 	const FVector2f PaniniPosition = PaniniProjection(PaniniDirection, InPaniniConfig.D, InPaniniConfig.S);

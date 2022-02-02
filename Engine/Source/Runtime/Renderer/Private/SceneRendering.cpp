@@ -894,8 +894,8 @@ void FViewInfo::Init()
 	ExponentialFogColor = FVector::ZeroVector;
 	FogMaxOpacity = 1;
 	ExponentialFogParameters3 = FVector4f(0, 0, 0, 0);
-	SinCosInscatteringColorCubemapRotation = FVector2D(0, 0);
-	FogInscatteringColorCubemap = NULL;
+	SinCosInscatteringColorCubemapRotation = FVector2f::ZeroVector;
+	FogInscatteringColorCubemap = nullptr;
 	FogInscatteringTextureParameters = FVector::ZeroVector;
 
 	SkyAtmosphereCameraAerialPerspectiveVolume = nullptr;
@@ -1803,8 +1803,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		TArray<FVector2D> CameraUVs;
 		if (XRCamera.IsValid() && XRCamera->GetPassthroughCameraUVs_RenderThread(CameraUVs) && CameraUVs.Num() == 4)
 		{
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4f(CameraUVs[0], CameraUVs[1]);
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4f(CameraUVs[2], CameraUVs[3]);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4f(FVector2f(CameraUVs[0]), FVector2f(CameraUVs[1]));
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4f(FVector2f(CameraUVs[2]), FVector2f(CameraUVs[3]));
 		}
 		else
 		{
@@ -1840,7 +1840,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
 
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4f(ForceInitToZero);
-	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
+	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4f(ForceInitToZero);
 	
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))

@@ -738,7 +738,7 @@ void CullMeshSDFObjectsToViewGrid(
 			PassParameters->PS.FurthestHZBTexture = View.HZB;
 			PassParameters->PS.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GridPixelsPerCellXY) - 1, 0.0f);
 			PassParameters->PS.HaveClosestHZB = View.ClosestHZB ? 1 : 0;
-			PassParameters->PS.ViewportUVToHZBBufferUV = FVector2D(
+			PassParameters->PS.ViewportUVToHZBBufferUV = FVector2f(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
 			);

@@ -262,7 +262,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
 				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(Pass.SurfaceCacheAtlas) : nullptr;
 				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
@@ -309,7 +309,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				PassParameters->PS.RWAtlasBlock4 = LayerConfig.CompressedUAVFormat == PF_R32G32B32A32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
 				PassParameters->PS.RWAtlasBlock2 = LayerConfig.CompressedUAVFormat == PF_R32G32_UINT ? GraphBuilder.CreateUAV(TempAtlas) : nullptr;
 				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);
@@ -375,7 +375,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(Pass.SurfaceCacheAtlas, ERenderTargetLoadAction::ELoad, 0);
 				PassParameters->PS.View = View.ViewUniformBuffer;
 				PassParameters->PS.SourceAtlas = Pass.CardCaptureAtlas;
-				PassParameters->PS.OneOverSourceAtlasSize = FVector2D(1.0f, 1.0f) / FVector2D(CardCaptureAtlasSize);
+				PassParameters->PS.OneOverSourceAtlasSize = FVector2f(1.0f, 1.0f) / FVector2f(CardCaptureAtlasSize);
 
 				FLumenCardCopyPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FLumenCardCopyPS::FSurfaceCacheLayer>(Pass.Layer);

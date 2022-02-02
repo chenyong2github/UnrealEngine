@@ -1237,8 +1237,8 @@ void UpdateHistoryScreenProbeGather(
 					PassParameters->HistoryNormalCosThreshold = FMath::Cos(GLumenScreenProbeTemporalHistoryNormalThreshold * (float)PI / 180.0f);
 					PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
 
-					const FVector2D HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
-					const FVector2D HistoryUVToScreenPositionBias = -FVector2D(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
+					const FVector2f HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
+					const FVector2f HistoryUVToScreenPositionBias = -FVector2f(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
 					PassParameters->HistoryUVToScreenPositionScaleBias = FVector4f(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
 
 					const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
@@ -1376,7 +1376,7 @@ static void HairStrandsMarkUsedProbes(
 	FMarkRadianceProbesUsedByHairStrandsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByHairStrandsCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->HairStrandsResolution = TileResolution;
-	PassParameters->HairStrandsInvResolution = FVector2D(1.f / float(TileResolution.X), 1.f / float(TileResolution.Y));
+	PassParameters->HairStrandsInvResolution = FVector2f(1.f / float(TileResolution.X), 1.f / float(TileResolution.Y));
 	PassParameters->HairStrandsMip = TileMip;
 	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
@@ -1486,10 +1486,10 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenProbeParameters.FixedJitterIndex = GLumenScreenProbeFixedJitterIndex;
 
 	{
-		FVector2D InvAtlasWithBorderBufferSize = FVector2D(1.0f) / (FVector2D(ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder) * FVector2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize));
-		ScreenProbeParameters.SampleRadianceProbeUVMul = FVector2D(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution) * InvAtlasWithBorderBufferSize;
+		FVector2f InvAtlasWithBorderBufferSize = FVector2f(1.0f) / (FVector2f(ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder) * FVector2f(ScreenProbeParameters.ScreenProbeAtlasBufferSize));
+		ScreenProbeParameters.SampleRadianceProbeUVMul = FVector2f(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution) * InvAtlasWithBorderBufferSize;
 		ScreenProbeParameters.SampleRadianceProbeUVAdd = FMath::Exp2(ScreenProbeParameters.ScreenProbeGatherMaxMip) * InvAtlasWithBorderBufferSize;
-		ScreenProbeParameters.SampleRadianceAtlasUVMul = FVector2D(ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder) * InvAtlasWithBorderBufferSize;
+		ScreenProbeParameters.SampleRadianceAtlasUVMul = FVector2f(ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder) * InvAtlasWithBorderBufferSize;
 	}
 
 	extern int32 GLumenScreenProbeGatherVisualizeTraces;

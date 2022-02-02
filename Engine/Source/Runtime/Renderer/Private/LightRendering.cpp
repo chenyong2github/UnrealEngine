@@ -204,7 +204,7 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 	const FVector2D FadeParams = LightSceneInfo.Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), !bIsRayTracedLight && LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
 	
 	// use MAD for efficiency in the shader
-	Out.DistanceFadeMAD = FVector2D(FadeParams.Y, -FadeParams.X * FadeParams.Y);
+	Out.DistanceFadeMAD = FVector2f(FadeParams.Y, -FadeParams.X * FadeParams.Y);
 	
 	int32 ShadowMapChannel = LightSceneInfo.Proxy->GetShadowMapChannel();
 
@@ -274,7 +274,7 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 {
 	FDeferredLightUniformStruct Out;
 	Out.ShadowMapChannelMask = FVector4f(0, 0, 0, 0);
-	Out.DistanceFadeMAD = FVector2D(0, 0);
+	Out.DistanceFadeMAD = FVector2f(0, 0);
 	Out.ContactShadowLength = 0.0f;
 	Out.ContactShadowNonShadowCastingIntensity = 0.f;
 	Out.VolumetricScatteringIntensity = SimpleLight.VolumetricScatteringIntensity;

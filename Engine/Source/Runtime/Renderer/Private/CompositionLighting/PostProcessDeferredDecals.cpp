@@ -185,7 +185,7 @@ TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuf
 
 	UniformParameters.PreviousFrameNormal = (bIsNormalReprojectionEnabled) ? View.PrevViewInfo.GBufferA->GetRHI() : GSystemTextures.BlackDummy->GetRHI();
 
-	UniformParameters.NormalReprojectionJitter = View.PrevViewInfo.ViewMatrices.GetTemporalAAJitter();
+	UniformParameters.NormalReprojectionJitter = FVector2f(View.PrevViewInfo.ViewMatrices.GetTemporalAAJitter());
 
 	return TUniformBufferRef<FDeferredDecalUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleFrame);
 }

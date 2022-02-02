@@ -215,10 +215,10 @@ void DrawTransformedRectangle(
 	Vertices[2].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X,			Y + SizeY,	ClipSpaceQuadZ,	1));
 	Vertices[3].Position = (FVector4f)PosTransform.TransformFVector4(FVector4(X + SizeX,	Y + SizeY,	ClipSpaceQuadZ,	1));
 
-	Vertices[0].UV = FVector2D(TexTransform.TransformFVector4(FVector(U,			V,         0)));
-	Vertices[1].UV = FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V,         0)));
-	Vertices[2].UV = FVector2D(TexTransform.TransformFVector4(FVector(U,			V + SizeV, 0)));
-	Vertices[3].UV = FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V + SizeV, 0)));
+	Vertices[0].UV = (FVector2f)FVector2D(TexTransform.TransformFVector4(FVector(U,			V,         0)));	// LWC_TODO: Precision loss
+	Vertices[1].UV = (FVector2f)FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V,         0)));	// LWC_TODO: Precision loss
+	Vertices[2].UV = (FVector2f)FVector2D(TexTransform.TransformFVector4(FVector(U,			V + SizeV, 0)));	// LWC_TODO: Precision loss
+	Vertices[3].UV = (FVector2f)FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V + SizeV, 0)));	// LWC_TODO: Precision loss
 
 	for (int32 VertexIndex = 0; VertexIndex < 4; VertexIndex++)
 	{

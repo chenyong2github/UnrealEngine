@@ -871,7 +871,7 @@ void CopyCubemapToScratchCubemap(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 		PassParameters->SkyLightCaptureParameters = FVector3f(bIsSkyLight ? 1.0f : 0.0f, 0.0f, bLowerHemisphereIsBlack ? 1.0f : 0.0f);
 		PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->SourceCubemapTexture = SourceCubemapResource->TextureRHI;
-		PassParameters->SinCosSourceCubemapRotation = FVector2D(FMath::Sin(SourceCubemapRotation), FMath::Cos(SourceCubemapRotation));
+		PassParameters->SinCosSourceCubemapRotation = FVector2f(FMath::Sin(SourceCubemapRotation), FMath::Cos(SourceCubemapRotation));
 		PassParameters->CubeFace = CubeFace;
 
 		const int32 EffectiveSize = CubemapSize;

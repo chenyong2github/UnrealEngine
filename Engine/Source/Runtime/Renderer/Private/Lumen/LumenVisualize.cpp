@@ -948,7 +948,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 			{
 				const FVector3f VertexPosition = DiskPosition + (AxisX * FMath::Cos(AngleDelta * (SideIndex)) + AxisY * FMath::Sin(AngleDelta * (SideIndex))) * SurfelRadius * GVisualizeLumenCardGenerationSurfelScale;
 
-				MeshBuilder.AddVertex(VertexPosition, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+				MeshBuilder.AddVertex(VertexPosition, FVector2f(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 			}
 
 			for (int32 SideIndex = 0; SideIndex < NumSides - 1; ++SideIndex)
@@ -1103,7 +1103,7 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 							BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
 							BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
 							BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
-							MeshBuilder.AddVertex(BoxVertex, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+							MeshBuilder.AddVertex(BoxVertex, FVector2f(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 						}
 
 						AddBoxFaceTriangles(MeshBuilder, 1);

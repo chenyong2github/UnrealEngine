@@ -2140,7 +2140,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.NumCardPages = LumenSceneData.GetNumCardPages();
 	OutParameters.MaxConeSteps = GLumenGIMaxConeSteps;	
 	OutParameters.PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-	OutParameters.InvPhysicalAtlasSize = FVector2D(1.0f) / OutParameters.PhysicalAtlasSize;
+	OutParameters.InvPhysicalAtlasSize = FVector2f(1.0f) / OutParameters.PhysicalAtlasSize;
 	OutParameters.IndirectLightingAtlasDownsampleFactor = Lumen::GetRadiosityAtlasDownsampleFactor();
 	OutParameters.NumDistantCards = LumenSceneData.DistantCardIndices.Num();
 	extern float GLumenDistantSceneMaxTraceDistance;

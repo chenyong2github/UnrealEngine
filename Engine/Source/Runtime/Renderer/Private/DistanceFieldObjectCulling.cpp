@@ -283,7 +283,7 @@ void ScatterTilesToObjects(
 	PassParameters->PS.DistanceFieldCulledObjectBuffers = CulledObjectBufferParameters;
 	PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 	PassParameters->PS.AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
-	PassParameters->PS.NumGroups = FVector2D(TileListGroupSize.X, TileListGroupSize.Y);
+	PassParameters->PS.NumGroups = FVector2f(TileListGroupSize.X, TileListGroupSize.Y);
 
 	PassParameters->SceneTextures = SceneTexturesUniformBuffer;
 	PassParameters->ObjectIndirectArguments = ObjectIndirectArguments;

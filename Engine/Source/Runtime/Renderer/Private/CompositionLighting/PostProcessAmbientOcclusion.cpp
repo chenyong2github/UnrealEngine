@@ -472,23 +472,23 @@ FHZBParameters GetHZBParameters(const FViewInfo& View, FScreenPassTexture HZBInp
 
 	if (AOTechnique == EAOTechnique::SSAO)
 	{
-		const FVector2D HZBScaleFactor(
+		const FVector2f HZBScaleFactor(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
 
 		// from -1..1 to UV 0..1*HZBScaleFactor
-		Parameters.HZBRemapping.Scale = FVector2D(0.5f * HZBScaleFactor.X, -0.5f * HZBScaleFactor.Y);
-		Parameters.HZBRemapping.Bias = FVector2D(0.5f * HZBScaleFactor.X, 0.5f * HZBScaleFactor.Y);
+		Parameters.HZBRemapping.Scale = FVector2f(0.5f * HZBScaleFactor.X, -0.5f * HZBScaleFactor.Y);
+		Parameters.HZBRemapping.Bias = FVector2f(0.5f * HZBScaleFactor.X, 0.5f * HZBScaleFactor.Y);
 	}
 	else
 	{
-		const FVector2D HZBScaleFactor(
+		const FVector2f HZBScaleFactor(
 			float(InputTextureSize.X) / float(2 * View.HZBMipmap0Size.X),
 			float(InputTextureSize.Y) / float(2 * View.HZBMipmap0Size.Y)
 		);
 
 		Parameters.HZBRemapping.Scale = HZBScaleFactor;
-		Parameters.HZBRemapping.Bias = FVector2D(0.0f, 0.0f);
+		Parameters.HZBRemapping.Bias = FVector2f(0.0f, 0.0f);
 	}
 	return Parameters;
 }
@@ -563,7 +563,7 @@ FScreenPassTexture AddAmbientOcclusionSetupPass(
 	PassParameters->SceneTextures = CommonParameters.SceneTexturesUniformBuffer;
 	PassParameters->SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::SSAO);
 	PassParameters->ThresholdInverse = ThresholdInverseValue;
-	PassParameters->InputExtentInverse = FVector2D(1.0f) / FVector2D(InputViewport.Extent);
+	PassParameters->InputExtentInverse = FVector2f(1.0f) / FVector2f(InputViewport.Extent);
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
@@ -821,12 +821,12 @@ void AddAmbientOcclusionPass(
 	if (DownsampledAO.IsValid())
 	{
 		SharedParameters.SSAO_DownsampledAO = DownsampledAO.Texture;
-		SharedParameters.SSAO_DownsampledAOInverseSize = FVector2D(1.0f) / FVector2D(DownsampledAO.Texture->Desc.Extent);
+		SharedParameters.SSAO_DownsampledAOInverseSize = FVector2f(1.0f) / FVector2f(DownsampledAO.Texture->Desc.Extent);
 	}
 	else
 	{
 		SharedParameters.SSAO_DownsampledAO = SystemTextures.Black;
-		SharedParameters.SSAO_DownsampledAOInverseSize = FVector2D(1.0f, 1.0f);
+		SharedParameters.SSAO_DownsampledAOInverseSize = FVector2f(1.0f, 1.0f);
 	}
 
 	SharedParameters.SSAO_Sampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -1413,8 +1413,8 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 		OutputAO.LoadAction = ERenderTargetLoadAction::ENoAction;
 	}
 
-	const FVector2D HistoryTextureSize = FVector2D(HistoryColor.Texture->Desc.Extent);
-	const FVector2D HistoryTexturePixelSize = FVector2D(1.0f) / HistoryTextureSize;
+	const FVector2f HistoryTextureSize = FVector2f(HistoryColor.Texture->Desc.Extent);
+	const FVector2f HistoryTexturePixelSize = FVector2f(1.0f) / HistoryTextureSize;
 
 	const FIntPoint ViewportOffset = HistoryViewport.Rect.Min;
 	const FIntPoint ViewportExtent = HistoryViewport.Rect.Size();
@@ -1437,7 +1437,7 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 
 	PassParameters->GTAOTemporalInput = Input.Texture;
 	PassParameters->GTAOTemporalSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->GTAOTemporalInputPixelSize = FVector2D(1.0f) / FVector2D(InputViewport.Extent);
+	PassParameters->GTAOTemporalInputPixelSize = FVector2f(1.0f) / FVector2f(InputViewport.Extent);
 
 	PassParameters->HistoryTexture = HistoryColor.Texture;
 	PassParameters->HistoryTextureSampler = TStaticSamplerState<SF_Point, AM_Border, AM_Border, AM_Border, 0, 0, 0xffffffff >::GetRHI();
@@ -1633,7 +1633,7 @@ FScreenPassTexture AddGTAOUpsamplePass(
 
 	PassParameters->GTAOUpsampleTexture = Input.Texture;
 	PassParameters->GTAOUpsampleSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->GTAOUpsamplePixelSize = FVector2D(1.0f) / FVector2D(InputViewport.Extent);
+	PassParameters->GTAOUpsamplePixelSize = FVector2f(1.0f) / FVector2f(InputViewport.Extent);
 
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 

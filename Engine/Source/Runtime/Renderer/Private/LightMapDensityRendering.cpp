@@ -140,7 +140,7 @@ bool FLightmapDensityMeshProcessor::Process(
 		// BuiltLightingAndSelectedFlags informs the shader is lighting is built or not for this primitive
 		ShaderElementData.BuiltLightingAndSelectedFlags = FVector3f(0.0f, 0.0f, 0.0f);
 		// LightMapResolutionScale is the physical resolution of the lightmap texture
-		ShaderElementData.LightMapResolutionScale = FVector2D(1.0f, 1.0f);
+		ShaderElementData.LightMapResolutionScale = FVector2f::UnitVector;
 
 		bool bHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
 
@@ -183,7 +183,7 @@ bool FLightmapDensityMeshProcessor::Process(
 			if (PrimitiveSceneProxy->IsStatic() && LightMapResolution > 0)
 			{
 				ShaderElementData.bTextureMapped = true;
-				ShaderElementData.LightMapResolutionScale = FVector2D(LightMapResolution, LightMapResolution);
+				ShaderElementData.LightMapResolutionScale = FVector2f(LightMapResolution, LightMapResolution);
 				if (bHighQualityLightMaps)
 				{	// Compensates the math in GetLightMapCoordinates (used to pack more coefficients per texture)
 					ShaderElementData.LightMapResolutionScale.Y *= 2.f;
@@ -193,7 +193,7 @@ bool FLightmapDensityMeshProcessor::Process(
 			}
 			else
 			{
-				ShaderElementData.LightMapResolutionScale = FVector2D(0, 0);
+				ShaderElementData.LightMapResolutionScale = FVector2f::ZeroVector;
 				ShaderElementData.BuiltLightingAndSelectedFlags.X = 0.0f;
 				ShaderElementData.BuiltLightingAndSelectedFlags.Y = 1.0f;
 			}

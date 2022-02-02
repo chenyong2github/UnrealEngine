@@ -60,7 +60,7 @@ void FPackedView::UpdateLODScales()
 	const float LODScale = ViewToPixels / GNaniteMaxPixelsPerEdge;
 	const float LODScaleHW = ViewToPixels / GNaniteMinPixelsPerEdgeHW;
 
-	LODScales = FVector2D(LODScale, LODScaleHW);
+	LODScales = FVector2f(LODScale, LODScaleHW);
 }
 
 FPackedView CreatePackedView( const FPackedViewParams& Params )

@@ -99,8 +99,8 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 		FVector2D EyeToSrcUVScaleValue;
 		FVector2D EyeToSrcUVOffsetValue;
 		HMDDevice->GetEyeRenderParams_RenderThread(PassContext, EyeToSrcUVScaleValue, EyeToSrcUVOffsetValue);
-		PassParameters->EyeToSrcUVScale = EyeToSrcUVScaleValue;
-		PassParameters->EyeToSrcUVOffset = EyeToSrcUVOffsetValue;
+		PassParameters->EyeToSrcUVScale = FVector2f(EyeToSrcUVScaleValue);		// LWC_TODO: Precision loss
+		PassParameters->EyeToSrcUVOffset = FVector2f(EyeToSrcUVOffsetValue);	// LWC_TODO: Precision loss
 	}
 
 	TShaderMapRef<FHMDDistortionVS> VertexShader(View.ShaderMap);

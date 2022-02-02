@@ -295,7 +295,7 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::RenderShadin
 	PassParameters->FixedFoveationFullRateCutoffSquared = VRSImageGenParamsIn.HMDFixedFoveationFullRateCutoff * VRSImageGenParamsIn.HMDFixedFoveationFullRateCutoff;
 	PassParameters->FixedFoveationHalfRateCutoffSquared = VRSImageGenParamsIn.HMDFixedFoveationHalfRateCutoff * VRSImageGenParamsIn.HMDFixedFoveationHalfRateCutoff;
 
-	PassParameters->LeftEyeCenterPixelXY = FVector2D(AttachmentSize.X * VRSImageGenParamsIn.HMDFixedFoveationCenterX, AttachmentSize.Y * VRSImageGenParamsIn.HMDFixedFoveationCenterY);
+	PassParameters->LeftEyeCenterPixelXY = FVector2f(AttachmentSize.X * VRSImageGenParamsIn.HMDFixedFoveationCenterX, AttachmentSize.Y * VRSImageGenParamsIn.HMDFixedFoveationCenterY);
 	PassParameters->RightEyeCenterPixelXY = PassParameters->LeftEyeCenterPixelXY;
 
 	// If instanced (side-by-side) stereo, there's two "center" points, so adjust both eyes
@@ -305,7 +305,7 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::RenderShadin
 		PassParameters->RightEyeCenterPixelXY.X = PassParameters->LeftEyeCenterPixelXY.X + AttachmentSize.X / 2;
 	}
 
-	PassParameters->ViewDiagonalSquaredInPixels = FVector2D::DotProduct(PassParameters->LeftEyeCenterPixelXY, PassParameters->LeftEyeCenterPixelXY);
+	PassParameters->ViewDiagonalSquaredInPixels = FVector2f::DotProduct(PassParameters->LeftEyeCenterPixelXY, PassParameters->LeftEyeCenterPixelXY);
 	PassParameters->CombineSourceCount = 0;
 	PassParameters->ShadingRateAttachmentGenerationFlags = (uint32)GenFlags;
 

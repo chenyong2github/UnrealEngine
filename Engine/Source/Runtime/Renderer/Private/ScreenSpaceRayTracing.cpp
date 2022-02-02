@@ -216,7 +216,7 @@ void SetupCommonScreenSpaceRayParameters(
 			-0.5f * View.ViewRect.Min.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
 			-0.5f * View.ViewRect.Min.Y / float(PrevSceneColor.SceneColor->Desc.Extent.Y));
 
-		OutParameters->ReducedColorUVMax = FVector2D(
+		OutParameters->ReducedColorUVMax = FVector2f(
 			(0.5f * View.ViewRect.Width() - 0.5f) / float(PrevSceneColor.SceneColor->Desc.Extent.X),
 			(0.5f * View.ViewRect.Height() - 0.5f) / float(PrevSceneColor.SceneColor->Desc.Extent.Y));
 	}
@@ -260,12 +260,12 @@ void SetupCommonScreenSpaceRayParameters(
 	if (CommonDiffuseParameters.DownscaleFactor == 2.0f)
 	{
 		OutParameters->PixelPositionToFullResPixel = 2.0f;
-		OutParameters->FullResPixelOffset = FVector2D(0.5f, 0.5f); // TODO.
+		OutParameters->FullResPixelOffset = FVector2f(0.5f, 0.5f); // TODO.
 	}
 	else if (CommonDiffuseParameters.DownscaleFactor == 1.0f)
 	{
 		OutParameters->PixelPositionToFullResPixel = 1.0f;
-		OutParameters->FullResPixelOffset = FVector2D(0.5f, 0.5f);
+		OutParameters->FullResPixelOffset = FVector2f(0.5f, 0.5f);
 	}
 	else
 	{
@@ -817,9 +817,9 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 		DefaultPassParameters.SceneTextures = SceneTextures;
 		DefaultPassParameters.View = View.ViewUniformBuffer;
 
-		DefaultPassParameters.ReducedSceneColorSize = FVector2D(
+		DefaultPassParameters.ReducedSceneColorSize = FVector2f(
 			PrevSceneColorMip.SceneColor->Desc.Extent.X, PrevSceneColorMip.SceneColor->Desc.Extent.Y);
-		DefaultPassParameters.ReducedSceneColorTexelSize = FVector2D(
+		DefaultPassParameters.ReducedSceneColorTexelSize = FVector2f(
 			1.0f / float(PrevSceneColorMip.SceneColor->Desc.Extent.X), 1.0f / float(PrevSceneColorMip.SceneColor->Desc.Extent.Y));
 	}
 
@@ -926,11 +926,11 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 
 		PassParameters->HigherMipDownScaleFactor = 1 << (DownSamplingMip + SrcMip);
 
-		PassParameters->HigherMipBufferBilinearMax = FVector2D(
+		PassParameters->HigherMipBufferBilinearMax = FVector2f(
 			(0.5f * View.ViewRect.Width() - 0.5f) / float(PrevSceneColorMip.SceneColor->Desc.Extent.X),
 			(0.5f * View.ViewRect.Height() - 0.5f) / float(PrevSceneColorMip.SceneColor->Desc.Extent.Y));
 
-		PassParameters->ViewportUVToHZBBufferUV = FVector2D(
+		PassParameters->ViewportUVToHZBBufferUV = FVector2f(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
 
@@ -995,7 +995,7 @@ FSSRTTileClassificationParameters RenderHorizonTileClassification(
 		FIntPoint ThreadCount = ClassificationParameters.TileBufferExtent;
 
 		FSSRTDiffuseTileClassificationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSRTDiffuseTileClassificationCS::FParameters>();
-		PassParameters->SamplePixelToHZBUV = FVector2D(
+		PassParameters->SamplePixelToHZBUV = FVector2f(
 			0.5f / float(FurthestHZBTexture->Desc.Extent.X),
 			0.5f / float(FurthestHZBTexture->Desc.Extent.Y));
 

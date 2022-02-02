@@ -400,8 +400,8 @@ public:
 		{
 			float Angle = VertexIndex / (float)(NumVertices - 1) * 2 * PI;
 			// WriteToBoundingSphereVS only uses UV
-			DestVertex[VertexIndex].Position = FVector2D(0, 0);
-			DestVertex[VertexIndex].UV = FVector2D(RadiusScale * FMath::Cos(Angle) * .5f + .5f, RadiusScale * FMath::Sin(Angle) * .5f + .5f);
+			DestVertex[VertexIndex].Position = FVector2f::ZeroVector;
+			DestVertex[VertexIndex].UV = FVector2f(RadiusScale * FMath::Cos(Angle) * .5f + .5f, RadiusScale * FMath::Sin(Angle) * .5f + .5f);
 		}
 
 		RHIUnlockBuffer(VertexBufferRHI);
@@ -833,7 +833,7 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	FVector ZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 	Parameters.GridZParams = ZParams;
 
-	Parameters.SVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
+	Parameters.SVPosToVolumeUV = FVector2f::UnitVector / (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
 	Parameters.FogGridToPixelXY = FIntPoint(VolumetricFogGridPixelSize, VolumetricFogGridPixelSize);
 	Parameters.MaxDistance = FogInfo.VolumetricFogDistance;
 
@@ -862,14 +862,14 @@ void FViewInfo::SetupVolumetricFogUniformBufferParameters(FViewUniformShaderPara
 		const FVector ZParams = GetVolumetricFogGridZParams(NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 		ViewUniformShaderParameters.VolumetricFogGridZParams = ZParams;
 
-		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
+		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2f::UnitVector / (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
 		ViewUniformShaderParameters.VolumetricFogMaxDistance = FogInfo.VolumetricFogDistance;
 	}
 	else
 	{
 		ViewUniformShaderParameters.VolumetricFogInvGridSize = FVector::ZeroVector;
 		ViewUniformShaderParameters.VolumetricFogGridZParams = FVector::ZeroVector;
-		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2D(0, 0);
+		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2f::ZeroVector;
 		ViewUniformShaderParameters.VolumetricFogMaxDistance = 0;
 	}
 }
@@ -1112,12 +1112,12 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			{
 				PassParameters->PrevConservativeDepthTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->PrevLightScatteringConservativeDepthTexture);
 				FIntVector TextureSize = View.ViewState->PrevLightScatteringConservativeDepthTexture->GetDesc().GetSize();
-				PassParameters->PrevConservativeDepthTextureSize = FVector2D(TextureSize.X, TextureSize.Y);
+				PassParameters->PrevConservativeDepthTextureSize = FVector2f(TextureSize.X, TextureSize.Y);
 			}
 			else
 			{
 				PassParameters->PrevConservativeDepthTexture = BlackDummyTexture;
-				PassParameters->PrevConservativeDepthTextureSize = FVector2D(1, 1);
+				PassParameters->PrevConservativeDepthTextureSize = FVector2f::UnitVector;
 			}
 
 			PassParameters->DirectionalLightFunctionTranslatedWorldToShadow = DirectionalLightFunctionTranslatedWorldToShadow;

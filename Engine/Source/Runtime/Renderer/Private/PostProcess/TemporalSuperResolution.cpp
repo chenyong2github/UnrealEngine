@@ -718,7 +718,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		CommonParameters.HistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			HistoryExtent, FIntRect(FIntPoint(0, 0), HistorySize)));
 
-		CommonParameters.InputJitter = View.TemporalJitterPixels;
+		CommonParameters.InputJitter = FVector2f(View.TemporalJitterPixels);
 		CommonParameters.bCameraCut = bCameraCut;
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	}

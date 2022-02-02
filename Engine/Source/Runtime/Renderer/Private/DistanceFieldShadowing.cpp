@@ -775,7 +775,7 @@ void RayTraceShadows(
 
 		PassParameters->DownsampleFactor = GetDFShadowDownsampleFactor();
 		const FIntPoint OutputBufferSize = GetBufferSizeForDFShadows();
-		PassParameters->InvOutputBufferSize = FVector2D(1.f / OutputBufferSize.X, 1.f / OutputBufferSize.Y);
+		PassParameters->InvOutputBufferSize = FVector2f(1.f / OutputBufferSize.X, 1.f / OutputBufferSize.Y);
 		PassParameters->ShadowFactorsTexture = PrevOutputTexture;
 		PassParameters->ShadowFactorsSampler = TStaticSamplerState<>::GetRHI();
 		
@@ -790,7 +790,7 @@ void RayTraceShadows(
 
 		uint32 GroupSizeX = FMath::DivideAndRoundUp(ScissorRect.Size().X / GetDFShadowDownsampleFactor(), GDistanceFieldShadowTileSizeX);
 		uint32 GroupSizeY = FMath::DivideAndRoundUp(ScissorRect.Size().Y / GetDFShadowDownsampleFactor(), GDistanceFieldShadowTileSizeY);
-		PassParameters->NumGroups = FVector2D(GroupSizeX, GroupSizeY);
+		PassParameters->NumGroups = FVector2f(GroupSizeX, GroupSizeY);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,

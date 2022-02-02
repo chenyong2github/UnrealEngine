@@ -39,32 +39,32 @@ FRDGTextureRef TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FScen
 
 FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport)
 {
-	const FVector2D Extent(InViewport.Extent);
-	const FVector2D ViewportMin(InViewport.Rect.Min.X, InViewport.Rect.Min.Y);
-	const FVector2D ViewportMax(InViewport.Rect.Max.X, InViewport.Rect.Max.Y);
-	const FVector2D ViewportSize = ViewportMax - ViewportMin;
+	const FVector2f Extent(InViewport.Extent);
+	const FVector2f ViewportMin(InViewport.Rect.Min.X, InViewport.Rect.Min.Y);
+	const FVector2f ViewportMax(InViewport.Rect.Max.X, InViewport.Rect.Max.Y);
+	const FVector2f ViewportSize = ViewportMax - ViewportMin;
 
 	FScreenPassTextureViewportParameters Parameters;
 
 	if (!InViewport.IsEmpty())
 	{
 		Parameters.Extent = Extent;
-		Parameters.ExtentInverse = FVector2D(1.0f / Extent.X, 1.0f / Extent.Y);
+		Parameters.ExtentInverse = FVector2f(1.0f / Extent.X, 1.0f / Extent.Y);
 
-		Parameters.ScreenPosToViewportScale = FVector2D(0.5f, -0.5f) * ViewportSize;
+		Parameters.ScreenPosToViewportScale = FVector2f(0.5f, -0.5f) * ViewportSize;
 		Parameters.ScreenPosToViewportBias = (0.5f * ViewportSize) + ViewportMin;
 
 		Parameters.ViewportMin = InViewport.Rect.Min;
 		Parameters.ViewportMax = InViewport.Rect.Max;
 
 		Parameters.ViewportSize = ViewportSize;
-		Parameters.ViewportSizeInverse = FVector2D(1.0f / Parameters.ViewportSize.X, 1.0f / Parameters.ViewportSize.Y);
+		Parameters.ViewportSizeInverse = FVector2f(1.0f / Parameters.ViewportSize.X, 1.0f / Parameters.ViewportSize.Y);
 
 		Parameters.UVViewportMin = ViewportMin * Parameters.ExtentInverse;
 		Parameters.UVViewportMax = ViewportMax * Parameters.ExtentInverse;
 
 		Parameters.UVViewportSize = Parameters.UVViewportMax - Parameters.UVViewportMin;
-		Parameters.UVViewportSizeInverse = FVector2D(1.0f / Parameters.UVViewportSize.X, 1.0f / Parameters.UVViewportSize.Y);
+		Parameters.UVViewportSizeInverse = FVector2f(1.0f / Parameters.UVViewportSize.X, 1.0f / Parameters.UVViewportSize.Y);
 
 		Parameters.UVViewportBilinearMin = Parameters.UVViewportMin + 0.5f * Parameters.ExtentInverse;
 		Parameters.UVViewportBilinearMax = Parameters.UVViewportMax - 0.5f * Parameters.ExtentInverse;
@@ -219,7 +219,7 @@ void AddDownsampleDepthPass(
 
 	const int32 DownsampledSizeX = OutputViewport.Rect.Width();
 	const int32 DownsampledSizeY = OutputViewport.Rect.Height();
-	PassParameters->DestinationResolution = FVector2D(DownsampledSizeX, DownsampledSizeY);
+	PassParameters->DestinationResolution = FVector2f(DownsampledSizeX, DownsampledSizeY);
 
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Output.Texture, Output.LoadAction, Output.LoadAction, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
