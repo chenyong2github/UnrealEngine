@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "IpNetDriver.h"
-#include "NetDriverEOS.generated.h"
+#include "NetDriverEOSBase.generated.h"
 
 class ISocketSubsystem;
 
 UCLASS(Transient, Config=Engine)
-class SOCKETSUBSYSTEMEOS_API UNetDriverEOS
+class SOCKETSUBSYSTEMEOS_API UNetDriverEOSBase
 	: public UIpNetDriver
 {
 	GENERATED_BODY()

@@ -16,10 +16,6 @@
 #define EOS_CONNECTION_URL_PREFIX TEXT("EOS")
 #define EOS_URL_SEPARATOR TEXT(":")
 
-#ifndef EOS_SOCKETSUBSYSTEM
-#define EOS_SOCKETSUBSYSTEM FName(TEXT("EOS"))
-#endif
-
 /** Used to store a pointer to the EOS callback object without knowing type */
 class EOSSHARED_API FCallbackBase
 {

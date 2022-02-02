@@ -16,101 +16,11 @@
 
 #if WITH_ENGINE
 #include "InternetAddrEOS.h"
-#include "NetDriverEOS.h"
+#include "NetDriverEOSBase.h"
+#include "SocketSubsystemEOSUtils_OnlineServicesEOS.h"
 #endif
 
 namespace UE::Online {
-
-#if WITH_ENGINE
-FSocketSubsystemEOSUtils_OnlineServicesEOS::FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOS* InServicesEOS)
-	: ServicesEOS(InServicesEOS)
-{
-	check(ServicesEOS);
-}
-
-FSocketSubsystemEOSUtils_OnlineServicesEOS::~FSocketSubsystemEOSUtils_OnlineServicesEOS()
-{
-	ServicesEOS = nullptr;
-}
-
-EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineServicesEOS::GetLocalUserId()
-{
-	EOS_ProductUserId Result = nullptr;
-
-	if (ServicesEOS)
-	{
-		using namespace UE::Online;
-
-		IAuthPtr AuthEOS = ServicesEOS->GetAuthInterface();
-		check(AuthEOS);
-
-		FAuthGetAccountByPlatformUserId::Params AuthParams;
-		AuthParams.PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(0);
-		TOnlineResult<FAuthGetAccountByPlatformUserId> AuthResult = AuthEOS->GetAccountByPlatformUserId(MoveTemp(AuthParams));
-		if (AuthResult.IsOk())
-		{
-			UE::Online::FAuthGetAccountByPlatformUserId::Result OkValue = AuthResult.GetOkValue();
-
-			Result = GetProductUserIdChecked(OkValue.AccountInfo->UserId);
-		}
-		else
-		{
-			UE_LOG(LogOnlineServices, Verbose, TEXT("[FSocketSubsystemEOSUtils_OnlineServicesEOS::GetLocalUserId] Unable to get account for platform user id [%s]. Error=[%s]"), *ToLogString(AuthParams.PlatformUserId), *AuthResult.GetErrorValue().GetLogString(true));
-		}
-	}
-
-	return Result;
-}
-
-FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
-{
-	FString Result;
-
-	if (ServicesEOS)
-	{
-		using namespace UE::Online;
-
-		IAuthPtr AuthEOS = ServicesEOS->GetAuthInterface();
-		check(AuthEOS);
-
-		FAuthGetAccountByPlatformUserId::Params AuthParams;
-		AuthParams.PlatformUserId = FPlatformMisc::GetPlatformUserForUserIndex(0);
-		TOnlineResult<FAuthGetAccountByPlatformUserId> AuthResult = AuthEOS->GetAccountByPlatformUserId(MoveTemp(AuthParams));
-		if (AuthResult.IsOk())
-		{
-			FAuthGetAccountByPlatformUserId::Result* AuthOkValue = AuthResult.TryGetOkValue();
-
-			ILobbiesPtr LobbiesEOS = ServicesEOS->GetLobbiesInterface();
-			check(LobbiesEOS);
-
-			FGetJoinedLobbies::Params LobbiesParams;
-			LobbiesParams.LocalUserId = AuthOkValue->AccountInfo->UserId;
-			TOnlineResult<FGetJoinedLobbies> LobbiesResult = LobbiesEOS->GetJoinedLobbies(MoveTemp(LobbiesParams));
-			if (LobbiesResult.IsOk())
-			{
-				FGetJoinedLobbies::Result* LobbiesOkValue = LobbiesResult.TryGetOkValue();
-
-				// TODO: Pending support in Lobbies interface
-				/*for (TSharedRef<FLobby> Lobby : LobbiesOkValue->Lobbies)
-				{
-					 if (Lobby->SessionName == NAME_GameSession)
-						Result = LobbiesEOS->GetLobbyIdString(Lobby);					 
-				}*/
-			}
-			else
-			{
-				UE_LOG(LogOnlineServices, Verbose, TEXT("[FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId] Unable to get joined lobbies for local user id [%s]. Error=[%s]"), *ToLogString(LobbiesParams.LocalUserId), *AuthResult.GetErrorValue().GetLogString(true));
-			}
-		}
-		else
-		{
-			UE_LOG(LogOnlineServices, Verbose, TEXT("[FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId] Unable to get account for platform user id [%s]. Error=[%s]"), *ToLogString(AuthParams.PlatformUserId), *AuthResult.GetErrorValue().GetLogString(true));
-		}
-	}
-
-	return Result;
-}
-#endif
 
 struct FEOSPlatformConfig
 {
@@ -194,20 +104,20 @@ void FOnlineServicesEOS::Initialize()
 	if (EOSPlatformHandle)
 	{
 #if WITH_ENGINE
-		SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineServicesEOS(this))));
-		if (SocketSubsystem)
+		SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineServicesEOS(*this))));
+		check(SocketSubsystem);
+
+		FString ErrorStr;
+		if (!SocketSubsystem->Init(ErrorStr))
 		{
-			FString ErrorStr;
-			if (!SocketSubsystem->Init(ErrorStr))
-			{
-				UE_LOG(LogOnlineServices, Verbose, TEXT("[FOnlineServicesEOS::Initialize] Unable to initialize Socket Subsystem. Error=[%s]"), *ErrorStr);
-			}
+			UE_LOG(LogOnlineServices, Warning, TEXT("[FOnlineServicesEOS::Initialize] Unable to initialize Socket Subsystem. Error=[%s]"), *ErrorStr);
 		}
 #endif
 	}
 	else
 	{
 		UE_LOG(LogOnlineServices, Verbose, TEXT("[FOnlineServicesEOS::Initialize] Unable to initialize Socket Subsystem. EOS Platform Handle was invalid."));
+		return;
 	}
 
 	FOnlineServicesCommon::Initialize();
@@ -227,7 +137,7 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOS::GetResolvedConnectS
 			{
 #if WITH_ENGINE
  				//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
- 				FString NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName.ToString();
+ 				FString NetDriverName = GetDefault<UNetDriverEOSBase>()->NetDriverName.ToString();
  				FInternetAddrEOS TempAddr(GetProductUserIdChecked(Lobby->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
  				return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
 #else

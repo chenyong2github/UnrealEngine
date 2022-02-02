@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemImpl.h"
-#include "SocketSubsystemEOS.h"
 
 #include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
 
@@ -15,6 +14,7 @@ DECLARE_STATS_GROUP(TEXT("EOS"), STATGROUP_EOS, STATCAT_Advanced);
 
 #include "eos_sdk.h"
 
+class FSocketSubsystemEOS;
 class IEOSSDKManager;
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle, ESPMode::ThreadSafe>;
 
@@ -48,19 +48,6 @@ class FOnlineUserCloudEOS;
 typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSPtr;
 
 typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpersPtr;
-
-class FSocketSubsystemEOSUtils_OnlineSubsystemEOS : public ISocketSubsystemEOSUtils
-{
-public:
-	FSocketSubsystemEOSUtils_OnlineSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS);
-	virtual ~FSocketSubsystemEOSUtils_OnlineSubsystemEOS() override;
-
-	virtual EOS_ProductUserId GetLocalUserId() override;
-	virtual FString GetSessionId() override;
-
-private:
-	FOnlineSubsystemEOS* SubsystemEOS;
-};
 
 /**
  *	OnlineSubsystemEOS - Implementation of the online subsystem for EOS services

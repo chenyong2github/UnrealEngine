@@ -8,7 +8,7 @@
 #include "UserManagerEOS.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineAsyncTaskManager.h"
-#include "SocketSubsystem.h"
+#include "SocketSubsystemEOS.h"
 #include "NboSerializerEOS.h"
 #include "InternetAddrEOS.h"
 #include "IEOSSDKManager.h"
@@ -493,7 +493,12 @@ void FOnlineSessionEOS::Init(const FString& InBucketId)
 
 	bIsDedicatedServer = IsRunningDedicatedServer();
 	bIsUsingP2PSockets = false;
-	GConfig->GetBool(TEXT("/Script/SocketSubsystemEOS.NetDriverEOS"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni);
+
+ 	if (!GConfig->GetBool(TEXT("/Script/OnlineSubsystemEOS.NetDriverEOS"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni))
+	{
+		// Fallback to base location
+		GConfig->GetBool(TEXT("/Script/SocketSubsystemEOS.NetDriverEOSBase"), TEXT("bIsUsingP2PSockets"), bIsUsingP2PSockets, GEngineIni);
+	}
 }
 
 /**

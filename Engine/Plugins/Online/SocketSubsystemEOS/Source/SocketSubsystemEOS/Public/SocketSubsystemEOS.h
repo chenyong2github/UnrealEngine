@@ -15,6 +15,10 @@
 	#include "eos_p2p_types.h"
 #endif
 
+#ifndef EOS_SOCKETSUBSYSTEM
+#define EOS_SOCKETSUBSYSTEM FName(TEXT("EOS"))
+#endif
+
 class UNetConnectionEOS;
 class FSocket;
 class FResolveInfoCached;

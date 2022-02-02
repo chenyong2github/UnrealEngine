@@ -13,7 +13,9 @@ public class SocketSubsystemEOS : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Core",
 				"Engine",
+				"EOSShared",
 				"NetCore",
 				"Sockets",
 				"OnlineSubsystemUtils"
@@ -23,11 +25,9 @@ public class SocketSubsystemEOS : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
 				"CoreOnline",
 				"CoreUObject",
-				"EOSSDK",
-				"EOSShared"
+				"EOSSDK"
 			}
 		);
 	}

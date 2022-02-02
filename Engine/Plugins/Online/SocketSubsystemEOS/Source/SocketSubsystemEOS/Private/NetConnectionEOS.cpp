@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetConnectionEOS.h"
-#include "NetDriverEOS.h"
+#include "NetDriverEOSBase.h"
 #include "InternetAddrEOS.h"
 #include "SocketEOS.h"
 
@@ -14,7 +14,7 @@ UNetConnectionEOS::UNetConnectionEOS(const FObjectInitializer& ObjectInitializer
 
 void UNetConnectionEOS::InitLocalConnection(UNetDriver* InDriver, FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {
-	bIsPassthrough = !static_cast<UNetDriverEOS*>(InDriver)->bIsUsingP2PSockets || !InURL.Host.StartsWith(EOS_CONNECTION_URL_PREFIX, ESearchCase::IgnoreCase);
+	bIsPassthrough = !static_cast<UNetDriverEOSBase*>(InDriver)->bIsUsingP2PSockets || !InURL.Host.StartsWith(EOS_CONNECTION_URL_PREFIX, ESearchCase::IgnoreCase);
 	bHasP2PSession = !bIsPassthrough;
 	  
 	if (bHasP2PSession)
@@ -33,7 +33,7 @@ void UNetConnectionEOS::InitLocalConnection(UNetDriver* InDriver, FSocket* InSoc
 
 void UNetConnectionEOS::InitRemoteConnection(UNetDriver* InDriver, FSocket* InSocket, const FURL& InURL, const FInternetAddr& InRemoteAddr, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {
-	bIsPassthrough = static_cast<UNetDriverEOS*>(InDriver)->bIsPassthrough;
+	bIsPassthrough = static_cast<UNetDriverEOSBase*>(InDriver)->bIsPassthrough;
 	bHasP2PSession = !bIsPassthrough;
 
 	if (bHasP2PSession)

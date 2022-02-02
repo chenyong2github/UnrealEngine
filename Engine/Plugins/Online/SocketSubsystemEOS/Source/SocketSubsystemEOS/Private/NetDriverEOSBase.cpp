@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NetDriverEOS.h"
+#include "NetDriverEOSBase.h"
 #include "NetConnectionEOS.h"
 #include "SocketEOS.h"
 #include "SocketSubsystemEOS.h"
@@ -8,7 +8,7 @@
 #include "EOSSharedTypes.h"
 #include "Engine/Engine.h"
 
-bool UNetDriverEOS::IsAvailable() const
+bool UNetDriverEOSBase::IsAvailable() const
 {
 	// Use passthrough sockets if we are a dedicated server
 	if (IsRunningDedicatedServer())
@@ -24,7 +24,7 @@ bool UNetDriverEOS::IsAvailable() const
 	return false;
 }
 
-bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error)
+bool UNetDriverEOSBase::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error)
 {
 	if (bIsPassthrough)
 	{
@@ -80,7 +80,7 @@ bool UNetDriverEOS::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const
 	return true;
 }
 
-bool UNetDriverEOS::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error)
+bool UNetDriverEOSBase::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error)
 {
 	if (!bIsUsingP2PSockets || !IsAvailable() || !ConnectURL.Host.StartsWith(EOS_CONNECTION_URL_PREFIX, ESearchCase::IgnoreCase))
 	{
@@ -137,7 +137,7 @@ bool UNetDriverEOS::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL
 	return true;
 }
 
-bool UNetDriverEOS::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool bReuseAddressAndPort, FString& Error)
+bool UNetDriverEOSBase::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool bReuseAddressAndPort, FString& Error)
 {
 	if (!bIsUsingP2PSockets || !IsAvailable() || LocalURL.HasOption(TEXT("bIsLanMatch")) || LocalURL.HasOption(TEXT("bUseIPSockets")))
 	{
@@ -169,12 +169,12 @@ bool UNetDriverEOS::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 	return true;
 }
 
-ISocketSubsystem* UNetDriverEOS::GetSocketSubsystem()
+ISocketSubsystem* UNetDriverEOSBase::GetSocketSubsystem()
 {
 	return ISocketSubsystem::Get(bIsPassthrough ? PLATFORM_SOCKETSUBSYSTEM : EOS_SOCKETSUBSYSTEM);
 }
 
-void UNetDriverEOS::Shutdown()
+void UNetDriverEOSBase::Shutdown()
 {
 	UE_LOG(LogTemp, Verbose, TEXT("Shutting down NetDriver"));
 
@@ -197,7 +197,7 @@ void UNetDriverEOS::Shutdown()
 	}
 }
 
-int UNetDriverEOS::GetClientPort()
+int UNetDriverEOSBase::GetClientPort()
 {
 	if (bIsPassthrough)
 	{
@@ -208,7 +208,7 @@ int UNetDriverEOS::GetClientPort()
 	return 49152;
 }
 
-UWorld* UNetDriverEOS::FindWorld() const
+UWorld* UNetDriverEOSBase::FindWorld() const
 {
 	UWorld* MyWorld = GetWorld();
 

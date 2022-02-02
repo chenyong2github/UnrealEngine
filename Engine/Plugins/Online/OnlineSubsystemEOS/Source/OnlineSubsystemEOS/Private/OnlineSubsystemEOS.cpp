@@ -13,6 +13,7 @@
 #include "EOSSettings.h"
 #include "EOSShared.h"
 #include "IEOSSDKManager.h"
+#include "SocketSubsystemEOSUtils_OnlineSubsystemEOS.h"
 
 #include "Features/IModularFeatures.h"
 #include "Misc/App.h"
@@ -149,48 +150,6 @@ struct FEOSPlatformOptions :
 };
 
 FPlatformEOSHelpersPtr FOnlineSubsystemEOS::EOSHelpersPtr;
-
-FSocketSubsystemEOSUtils_OnlineSubsystemEOS::FSocketSubsystemEOSUtils_OnlineSubsystemEOS(FOnlineSubsystemEOS* InSubsystemEOS)
-	: SubsystemEOS(InSubsystemEOS)
-{
-	check(SubsystemEOS != nullptr);
-}
-
-FSocketSubsystemEOSUtils_OnlineSubsystemEOS::~FSocketSubsystemEOSUtils_OnlineSubsystemEOS()
-{
-	SubsystemEOS = nullptr;
-}
-
-EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetLocalUserId()
-{
-	EOS_ProductUserId Result = nullptr;
-
-	if (SubsystemEOS)
-	{
-		Result = SubsystemEOS->UserManager->GetLocalProductUserId();
-	}
-
-	return Result;
-}
-
-FString FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetSessionId()
-{
-	FString Result;
-
-	if (SubsystemEOS)
-	{
-		const IOnlineSessionPtr DefaultSessionInt = SubsystemEOS->GetSessionInterface();
-		if (DefaultSessionInt.IsValid())
-		{
-			if (const FNamedOnlineSession* const NamedSession = DefaultSessionInt->GetNamedSession(NAME_GameSession))
-			{
-				Result = NamedSession->GetSessionIdStr();
-			}
-		}
-	}
-
-	return Result;
-}
 
 void FOnlineSubsystemEOS::ModuleInit()
 {
@@ -414,9 +373,13 @@ bool FOnlineSubsystemEOS::Init()
 		return false;
 	}
 
-	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineSubsystemEOS(this))));
+	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineSubsystemEOS(*this))));
+	check(SocketSubsystem);
 	FString ErrorMessage;
-	SocketSubsystem->Init(ErrorMessage);
+	if (!SocketSubsystem->Init(ErrorMessage))
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSubsystemEOS::Init] Unable to initialize Socket Subsystem. Error=[%s]"), *ErrorMessage);
+	}
 
 	// We set the product id
 	FString ArtifactName;

@@ -4,35 +4,18 @@
 
 #include "Online/OnlineServicesCommon.h"
 
-#if WITH_ENGINE
-#include "SocketSubsystemEOS.h"
-#endif
-
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
 #include "eos_sdk.h"
 
+#if WITH_ENGINE
+class FSocketSubsystemEOS;
+#endif
+
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle>;
 
 namespace UE::Online {
-
-class FOnlineServicesEOS;
-
-#if WITH_ENGINE
-class FSocketSubsystemEOSUtils_OnlineServicesEOS : public ISocketSubsystemEOSUtils
-{
-public:
-	FSocketSubsystemEOSUtils_OnlineServicesEOS(FOnlineServicesEOS* InServicesEOS);
-	virtual ~FSocketSubsystemEOSUtils_OnlineServicesEOS() override;
-
-	virtual EOS_ProductUserId GetLocalUserId() override;
-	virtual FString GetSessionId() override;
-
-private:
-	FOnlineServicesEOS* ServicesEOS;
-};
-#endif
 
 class ONLINESERVICESEOS_API FOnlineServicesEOS : public FOnlineServicesCommon
 {
