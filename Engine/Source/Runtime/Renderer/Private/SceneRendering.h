@@ -1876,6 +1876,13 @@ public:
 	 */
 	uint32 InstancedStereoWidth;
 
+#if WITH_EDITOR
+	/**
+	 * True when multiple direcitonal lights are in competiation for the single slot available for forward shading (many have the same highest ForwardShadingPriority)
+	 */
+	bool bMultipleDirLightsConflictForForwardShading;
+#endif
+
 public:
 
 	FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer);

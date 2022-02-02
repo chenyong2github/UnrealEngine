@@ -123,6 +123,13 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(UIMin = "0", UIMax = "100000"), DisplayName = "DistanceField Shadow Distance")
 	float DistanceFieldShadowDistance;
 
+	/**
+	 * Forward lighting priority for the single directional light that will be used for forward shading, translucent, single layer water and volumetric fog.
+	 * When two lights have equal priorities, the selection will be based on their overall brightness as a fallback.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Light, meta = (UIMin = "0", ClampMin = "0"))
+	int32 ForwardShadingPriority;
+
 	/** 
 	 * Angle subtended by light source in degrees (also known as angular diameter).
 	 * Defaults to 0.5357 which is the angle for our sun.

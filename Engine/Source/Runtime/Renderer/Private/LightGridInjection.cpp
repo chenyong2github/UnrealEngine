@@ -288,6 +288,8 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 		float FurthestLight = 1000;
 
+		int32 ConflictingLightCountForForwardShading = 0;
+
 		// Track the end markers for different types
 		int32 SimpleLightsEnd = 0;
 		int32 ClusteredSupportedEnd = 0;
@@ -357,6 +359,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			}
 
 			float SelectedForwardDirectionalLightIntensitySq = 0.0f;
+			int32 SelectedForwardDirectionalLightPriority = -1;
 			const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights = SortedLightSet.SortedLights;
 			ClusteredSupportedEnd = SimpleLightsEnd;
 			// Next add all the other lights, track the end index for clustered supporting lights
@@ -475,8 +478,24 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						// Also some people noticed that depending on the order a two directional lights are made visible in a level, the selected light for volumetric fog lighting will be different.
 						// So to be clear and avoid such issue, we select the most intense directional light for forward shading and volumetric lighting.
 						const float LightIntensitySq = FVector3f(LightParameters.Color).SizeSquared();
-						if (LightIntensitySq > SelectedForwardDirectionalLightIntensitySq)
+						const int32 LightForwardShadingPriority = LightProxy->GetDirectionalLightForwardShadingPriority();
+#if WITH_EDITOR
+						if (LightForwardShadingPriority > SelectedForwardDirectionalLightPriority)
 						{
+							// Reset the count if the new light has a higher priority than the previous one.
+							ConflictingLightCountForForwardShading = 1;
+						}
+						else if (LightForwardShadingPriority == SelectedForwardDirectionalLightPriority)
+						{
+							// Accumulate new light if also has the highest priority value.
+							ConflictingLightCountForForwardShading++;
+						}
+#endif
+						if (LightForwardShadingPriority > SelectedForwardDirectionalLightPriority
+							|| (LightForwardShadingPriority == SelectedForwardDirectionalLightPriority && LightIntensitySq > SelectedForwardDirectionalLightIntensitySq))
+						{
+
+							SelectedForwardDirectionalLightPriority = LightForwardShadingPriority;
 							SelectedForwardDirectionalLightIntensitySq = LightIntensitySq;
 							View.ForwardLightingResources.SelectedForwardDirectionalLightProxy = LightProxy;
 
@@ -555,6 +574,10 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			}
 		}
 
+#if WITH_EDITOR
+		// For any views, if there are more than two light that compete for the forward shaded light, we report it.
+		bMultipleDirLightsConflictForForwardShading |= ConflictingLightCountForForwardShading >= 2;
+#endif
 
 		// Store off the number of lights before we add a fake entry
 		const int32 NumLocalLightsFinal = ForwardLocalLightData.Num();

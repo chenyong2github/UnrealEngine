@@ -1447,6 +1447,11 @@ public:
 		return FVector2D(0, 0);
 	}
 
+	virtual int32 GetDirectionalLightForwardShadingPriority() const
+	{
+		return 0;
+	}
+
 	virtual bool GetLightShaftOcclusionParameters(float& OutOcclusionMaskDarkness, float& OutOcclusionDepthRange) const
 	{
 		OutOcclusionMaskDarkness = 0;
