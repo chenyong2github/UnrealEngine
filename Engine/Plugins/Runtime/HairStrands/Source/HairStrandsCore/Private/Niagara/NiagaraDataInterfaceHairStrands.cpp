@@ -531,7 +531,7 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 				FMatrix44d BoneTransformDouble = BoneTransform.ToMatrixWithScale();
 				const FMatrix44d WorldTransformDouble = WorldTransform.ToMatrixWithScale();
 
-				if(DeltaSeconds != 0.0f)
+				if(DeltaSeconds != 0.0f && (TickCount > GHairSimulationMaxDelay))
 				{
 					const FMatrix44d PreviousBoneTransformDouble = PreviousBoneTransform.ToMatrixWithScale();
 					const FMatrix44d DeltaTransformDouble =  BoneTransformDouble * PreviousBoneTransformDouble.Inverse();
@@ -800,7 +800,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundingBoxOffsets, HairStrandsBuffer->BoundingBoxOffsets);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, WorldTransformFloat);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, WorldTransformFloat.Inverse());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldRotation, WorldTransformFloat.ToQuat());
+			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldRotation, WorldTransformFloat.GetMatrixWithoutScale().ToQuat());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumStrands, ProxyData->NumStrands);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, StrandSize, ProxyData->StrandsSize);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneTransform, BoneTransformFloat);

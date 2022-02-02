@@ -3251,7 +3251,10 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	bResetSimulation = bInitSimulation;
 	if (!bInitSimulation)
 	{
-		if (!SimulationSettings.SimulationSetup.bLocalSimulation)
+		const bool bLocalSimulation = SimulationSettings.SimulationSetup.bLocalSimulation &&
+			(SimulationSettings.SimulationSetup.LinearVelocityScale == 1.0) &&
+			(SimulationSettings.SimulationSetup.AngularVelocityScale == 1.0);
+		if (!bLocalSimulation)
 		{
 			if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(GetAttachParent()))
 			{
