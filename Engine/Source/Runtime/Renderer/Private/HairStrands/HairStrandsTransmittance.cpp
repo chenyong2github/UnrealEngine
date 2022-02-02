@@ -50,6 +50,9 @@ static FAutoConsoleVariableRef CVarHairStrandsTransmittanceMaskUseMipTraversal(T
 static int32 GHairStrandsShadowRandomTraversalType = 2;
 static FAutoConsoleVariableRef CVarHairStrandsShadowRandomTraversalType(TEXT("r.HairStrands.DeepShadow.RandomType"), GHairStrandsShadowRandomTraversalType, TEXT("Change how traversal jittering is initialized. Valid value are 0, 1, and 2. Each type makes different type of tradeoff."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static int32 GHairStrandsShadow_ShadowMaskPassType = 1;
+static FAutoConsoleVariableRef CVarHairStrandsShadow_ShadowMaskPassType(TEXT("r.HairStrands.DeepShadow.ShadowMaskPassType"), GHairStrandsShadow_ShadowMaskPassType, TEXT("Change how shadow mask from hair onto opaque geometry is generated. 0: one pass per hair group, 1: one pass for all groups."), ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static float GetDeepShadowDensityScale() { return FMath::Max(0.0f, GDeepShadowDensityScale); }
 static float GetDeepShadowDepthBiasScale() { return FMath::Max(0.0f, GDeepShadowDepthBiasScale); }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -440,10 +443,14 @@ class FHairStrandsVoxelShadowMaskPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairStrandsVoxelShadowMaskPS);
 	SHADER_USE_PARAMETER_STRUCT(FHairStrandsVoxelShadowMaskPS, FGlobalShader);
 
+	class FOnePass : SHADER_PERMUTATION_BOOL("PERMUTATION_USE_ONEPASS");
+	using FPermutationDomain = TShaderPermutationDomain<FOnePass>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		
 		SHADER_PARAMETER(FVector4f, Voxel_TranslatedLightPosition_LightDirection)
+		SHADER_PARAMETER(uint32, Voxel_MacroGroupCount)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
 		SHADER_PARAMETER(uint32, Voxel_RandomType)
 		SHADER_PARAMETER(uint32, bIsWholeSceneLight)
@@ -471,43 +478,20 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairStrandsVoxelShadowMaskPS, "/Engine/Private/HairStrands/HairStrandsDeepShadowMask.usf", "MainPS", SF_Pixel);
 
-struct FHairStrandsVoxelShadowParams
-{
-	FVector4f		Voxel_TranslatedLightPosition_LightDirection = FVector4f(0, 0, 0, 0);
-	uint32			OutputChannel = ~0;
-	uint32			Voxel_MacroGroupId;
-	bool			bIsWholeSceneLight = false;
-};
-
-// Opaque mask from voxel
+// Opaque mask from voxels
 static void AddHairStrandsVoxelShadowMaskPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepthTexture,
 	const FViewInfo& View,
-	const FHairStrandsVoxelShadowParams& Params,
+	const FLightSceneInfo* LightSceneInfo,
+	const bool bProjectingForForwardShading,
 	FRDGTextureRef& OutShadowMask)
 {
+	check(LightSceneInfo);
 	check(OutShadowMask);
 	check(HairStrands::HasViewHairStrandsVoxelData(View));
 
-	FHairStrandsVoxelShadowMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsVoxelShadowMaskPS::FParameters>();
-	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	Parameters->SceneDepthTexture = SceneDepthTexture;	
-	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	Parameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
-	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters->ShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters->bIsWholeSceneLight = Params.bIsWholeSceneLight ? 1 : 0;
-	Parameters->Voxel_TranslatedLightPosition_LightDirection = Params.Voxel_TranslatedLightPosition_LightDirection;
-	Parameters->Voxel_MacroGroupId		= Params.Voxel_MacroGroupId;
-	Parameters->Voxel_RandomType = FMath::Clamp(GHairStrandsShadowRandomTraversalType, 0, 2);	
-	Parameters->RenderTargets[0] = FRenderTargetBinding(OutShadowMask, ERenderTargetLoadAction::ELoad);
-
-	if (ShaderDrawDebug::IsEnabled(View))
-	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-	}
-
+	// Copy the shadow mask texture to read its content, and early out voxel traversal
 	FRDGTextureRef RayMarchMask = nullptr;
 	{
 		FRDGTextureDesc Desc = OutShadowMask->Desc;
@@ -517,61 +501,88 @@ static void AddHairStrandsVoxelShadowMaskPass(
 		CopyInfo.Size = OutShadowMask->Desc.GetSize();
 		AddCopyTexturePass(GraphBuilder, OutShadowMask, RayMarchMask, CopyInfo);
 	}
-	Parameters->RayMarchMaskTexture = RayMarchMask;
 
-
-	FHairStrandsVoxelShadowMaskPS::FPermutationDomain PermutationVector;
-
+	const bool bOnePass = GHairStrandsShadow_ShadowMaskPassType > 0 && View.HairStrandsViewData.MacroGroupDatas.Num() > 1;
 	const FIntPoint OutputResolution = SceneDepthTexture->Desc.Extent;
+	FHairStrandsVoxelShadowMaskPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairStrandsVoxelShadowMaskPS::FOnePass>(bOnePass);
+
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsVoxelShadowMaskPS> PixelShader(View.ShaderMap, PermutationVector);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
-	const uint32 OutputChannel = Params.OutputChannel;
+	const uint32 OutputChannel = bProjectingForForwardShading ? LightSceneInfo->GetDynamicShadowMapChannel() : ~0;
+	const FIntPoint Resolution = OutShadowMask->Desc.Extent;
+	const bool bIsWholeSceneLight = LightSceneInfo->Proxy->GetLightType() == LightType_Directional;
 
-	ClearUnusedGraphResources(PixelShader, Parameters);
-	FIntPoint Resolution = OutShadowMask->Desc.Extent;
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrands::ShadowMask(Voxel)"),
-		Parameters,
-		ERDGPassFlags::Raster,
-		[Parameters, VertexShader, PixelShader, Viewport, Resolution, OutputChannel](FRHICommandList& RHICmdList)
+	for (int32 GroupIt=0, GroupCount=View.HairStrandsViewData.MacroGroupDatas.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		switch (OutputChannel)
+		if (bOnePass && GroupIt > 0)
 		{
-		case 0:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_RED,   BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
-		case 1:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_GREEN, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
-		case 2:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_BLUE,  BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
-		case 3:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_ALPHA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
-		default: GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA,  BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			return;
 		}
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+		const FHairStrandsMacroGroupData& MacroGroupData = View.HairStrandsViewData.MacroGroupDatas[GroupIt];
 
-		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
-		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
+		FHairStrandsVoxelShadowMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsVoxelShadowMaskPS::FParameters>();
+		Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		Parameters->SceneDepthTexture = SceneDepthTexture;	
+		Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+		Parameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+		Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		Parameters->ShadowSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		Parameters->bIsWholeSceneLight = bIsWholeSceneLight ? 1 : 0;
+		Parameters->Voxel_TranslatedLightPosition_LightDirection = GetLightTranslatedWorldPositionAndDirection(View, LightSceneInfo);
+		Parameters->Voxel_MacroGroupId	= MacroGroupData.MacroGroupId;
+		Parameters->Voxel_MacroGroupCount = GroupCount;
+		Parameters->Voxel_RandomType = FMath::Clamp(GHairStrandsShadowRandomTraversalType, 0, 2);	
+		Parameters->RenderTargets[0] = FRenderTargetBinding(OutShadowMask, ERenderTargetLoadAction::ELoad);
+		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
+		Parameters->RayMarchMaskTexture = RayMarchMask;
 
-		DrawRectangle(
-			RHICmdList,
-			0, 0,
-			Viewport.Width(), Viewport.Height(),
-			Viewport.Min.X, Viewport.Min.Y,
-			Viewport.Width(), Viewport.Height(),
-			Viewport.Size(),
-			Resolution,
-			VertexShader,
-			EDRF_UseTriangleOptimization);
-	});
+		ClearUnusedGraphResources(PixelShader, Parameters);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HairStrands::ShadowMask(Voxel,%s)", bOnePass ? TEXT("OnePass") : TEXT("PerGroup")),
+			Parameters,
+			ERDGPassFlags::Raster,
+			[Parameters, VertexShader, PixelShader, Viewport, Resolution, OutputChannel](FRHICommandList& RHICmdList)
+		{
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			switch (OutputChannel)
+			{
+			case 0:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_RED,   BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			case 1:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_GREEN, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			case 2:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_BLUE,  BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			case 3:  GraphicsPSOInit.BlendState = TStaticBlendState<CW_ALPHA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			default: GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA,  BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI(); break; // Min Operator
+			}
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
+
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				Viewport.Width(), Viewport.Height(),
+				Viewport.Min.X, Viewport.Min.Y,
+				Viewport.Width(), Viewport.Height(),
+				Viewport.Size(),
+				Resolution,
+				VertexShader,
+				EDRF_UseTriangleOptimization);
+		});
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -762,7 +773,7 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 		return Out;
 
 	DECLARE_GPU_STAT(HairStrandsTransmittanceMask);
-	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask");
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrands::TransmittanceMask");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsTransmittanceMask);
 
 	// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
@@ -856,7 +867,7 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
 	if (HairStrands::HasViewHairStrandsData(View) && View.HairStrandsViewData.MacroGroupDatas.Num() > 0)
 	{
 		DECLARE_GPU_STAT(HairStrandsOnePassTransmittanceMask);
-		RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask(OnePass)");
+		RDG_EVENT_SCOPE(GraphBuilder, "HairStrands::TransmittanceMask(OnePass)");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsOnePassTransmittanceMask);
 
 		if (HairStrands::HasViewHairStrandsVoxelData(View))
@@ -924,7 +935,7 @@ static void InternalRenderHairStrandsShadowMask(
 		return;
 
 	DECLARE_GPU_STAT(HairStrandsOpaqueMask);
-	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsOpaqueMask");
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrands::OpaqueShadowMask");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsOpaqueMask);
 	const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
 
@@ -973,28 +984,16 @@ static void InternalRenderHairStrandsShadowMask(
 		}
 	}
 
-	// Code is disabled for now until we have the full DOM/voxel fallback logic
 	// If there is no deep shadow for this light, fallback on the voxel representation
 	if (!bHasDeepShadow && HairStrands::HasViewHairStrandsVoxelData(View))
 	{
-		// TODO: Change this to be a single pass with virtual voxel?
-		for (const FHairStrandsMacroGroupData& MacroGroupData : InMacroGroupDatas)
-		{
-			const bool bIsWholeSceneLight = LightSceneInfo->Proxy->GetLightType() == LightType_Directional;
-
-			FHairStrandsVoxelShadowParams Params;
-			Params.Voxel_TranslatedLightPosition_LightDirection = GetLightTranslatedWorldPositionAndDirection(View, LightSceneInfo);
-			Params.Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
-			Params.bIsWholeSceneLight = bIsWholeSceneLight ? 1 : 0;
-			Params.OutputChannel = bProjectingForForwardShading ? LightSceneInfo->GetDynamicShadowMapChannel() : ~0;
-
-			AddHairStrandsVoxelShadowMaskPass(
-				GraphBuilder,
-				SceneTextures.Depth.Resolve,
-				View,
-				Params,
-				OutShadowMask);
-		}
+		AddHairStrandsVoxelShadowMaskPass(
+			GraphBuilder,
+			SceneTextures.Depth.Resolve,
+			View,
+			LightSceneInfo,
+			bProjectingForForwardShading,
+			OutShadowMask);
 	}
 }
 
