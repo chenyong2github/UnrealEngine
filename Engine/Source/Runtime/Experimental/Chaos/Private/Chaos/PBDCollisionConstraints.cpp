@@ -677,52 +677,62 @@ namespace Chaos
 
 		const FReal EdgePlaneTolerance = Chaos_Collision_EdgePrunePlaneDistance;
 
-		// Loop over edge collisions, then all plane collisions
-		// and remove the edge collision if it is hidden by a plane collision
+		// Loop over edge collisions, then all plane collisions and remove the edge collision if it is hidden by a plane collision
+		// NOTE: We only look at plane collisions where the other shape owns the plane.
 		// @todo(chaos): this should probably only disable individual manifold points
+		// @todo(chaos): we should probably only reject edges if the plane contact is also close to the edge contact
+		// @todo(chaos): we should also try to eliminate face contacts from sub-surface faces
 		// @todo(chaos): perf issue: this processes contacts in world space, but we don't calculated that data until Gather. Fix this.
 		ParticleCollision.VisitCollisions(
-			[&ParticleCollision, EdgePlaneTolerance](FPBDCollisionConstraint& EdgeCollision)
+			[Particle, &ParticleCollision, EdgePlaneTolerance](FPBDCollisionConstraint& EdgeCollision)
 			{
 				if (EdgeCollision.IsEnabled())
 				{
+					const int32 EdgeOtherShapeIndex = (EdgeCollision.GetParticle0() == Particle) ? 1 : 0;
+
 					for (const FManifoldPoint& EdgeManifoldPoint : EdgeCollision.GetManifoldPoints())
 					{
 						if (EdgeManifoldPoint.ContactPoint.ContactType == EContactPointType::EdgeEdge)
 						{
-							const FVec3 EdgePos0 = EdgeCollision.GetShapeWorldTransform0().TransformPositionNoScale(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[0]);
-							const FVec3 EdgePos1 = EdgeCollision.GetShapeWorldTransform1().TransformPositionNoScale(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[1]);
+							const FRigidTransform3& EdgeTransform = (EdgeOtherShapeIndex == 0) ? EdgeCollision.GetShapeWorldTransform0() : EdgeCollision.GetShapeWorldTransform1();
+							const FVec3 EdgePos = EdgeTransform.TransformPositionNoScale(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[EdgeOtherShapeIndex]);
 
 							// Loop over plane collisions
 							ECollisionVisitorResult PlaneResult = ParticleCollision.VisitConstCollisions(
-								[&EdgeCollision, &EdgePos0, &EdgePos1, EdgePlaneTolerance](const FPBDCollisionConstraint& PlaneCollision)
+								[Particle, &EdgeCollision, &EdgePos, EdgePlaneTolerance](const FPBDCollisionConstraint& PlaneCollision)
 								{
 									if ((&PlaneCollision != &EdgeCollision) && PlaneCollision.IsEnabled())
 									{
+										const int32 PlaneOtherShapeIndex = (PlaneCollision.GetParticle0() == Particle) ? 1 : 0;
+
 										for (const FManifoldPoint& PlaneManifoldPoint : PlaneCollision.GetManifoldPoints())
 										{
 											// If the edge position is in the plane, disable it
 											FVec3 PlanePos;
 											FVec3 PlaneNormal;
-											if (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::PlaneVertex)
+											bool bHavePlane = false;
+											if ((PlaneOtherShapeIndex == 0) && (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::PlaneVertex))
 											{
 												PlanePos = PlaneCollision.GetShapeWorldTransform0().TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[0]);
-												PlaneNormal = PlaneCollision.GetShapeWorldTransform0().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
+												bHavePlane = true;
 											}
-											else if (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::VertexPlane)
+											else if ((PlaneOtherShapeIndex == 1) && (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::VertexPlane))
 											{
 												PlanePos = PlaneCollision.GetShapeWorldTransform1().TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[1]);
-												PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
+												bHavePlane = true;
 											}
-											const FVec3 EdgePlaneDelta0 = EdgePos0 - PlanePos;
-											const FVec3 EdgePlaneDelta1 = EdgePos1 - PlanePos;
-											const FReal EdgePlaneDistance0 = FVec3::DotProduct(EdgePlaneDelta0, PlaneNormal);
-											const FReal EdgePlaneDistance1 = FVec3::DotProduct(EdgePlaneDelta1, PlaneNormal);
-											if ((FMath::Abs(EdgePlaneDistance0) < EdgePlaneTolerance) || (FMath::Abs(EdgePlaneDistance1) < EdgePlaneTolerance))
+											PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
+
+											if (bHavePlane)
 											{
-												// The edge contact is hidden by a plane contact so disable it and stop the inner loop
-												EdgeCollision.SetDisabled(true);
-												return ECollisionVisitorResult::Stop;
+												const FVec3 EdgePlaneDelta = EdgePos - PlanePos;
+												const FReal EdgePlaneDistance = FVec3::DotProduct(EdgePlaneDelta, PlaneNormal);
+												if (FMath::Abs(EdgePlaneDistance) < EdgePlaneTolerance)
+												{
+													// The edge contact is hidden by a plane contact so disable it and stop the inner loop
+													EdgeCollision.SetDisabled(true);
+													return ECollisionVisitorResult::Stop;
+												}
 											}
 										}
 									}

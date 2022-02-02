@@ -246,7 +246,9 @@ namespace Chaos
 		}
 
 		// Remove spurious edge contact by removing edge-edge contact that are in the plane of another vertex-plane contact.
-		void PruneEdgeContactPoints(TArray<FContactPoint>& ContactPoints, const FReal Epsilon)
+		// Note: this assumes that the first shape in the contacts is the same convex shape (e.g., a box), and the second
+		// can be from any other shape(s), e.g., triangles of a non-convex shape.
+		void PruneEdgeContactPoints(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance)
 		{
 			if (!bChaos_Collision_EnableEdgePrune)
 			{
@@ -265,21 +267,18 @@ namespace Chaos
 						const FContactPoint PlaneContactPoint = ContactPoints[PlaneContactIndex];
 
 						// Does the edge-edge contact lie in the plane of the vertex-plane contact...?
-						int32 PlaneShapeIndex = INDEX_NONE;
-						if (PlaneContactPoint.ContactType == EContactPointType::PlaneVertex)
+						// We only consider Vertex-Plane contacts. We ignore Plane-Vertex because the first
+						// shape is always the convex object.
+						if (PlaneContactPoint.ContactType == EContactPointType::VertexPlane)
 						{
-							PlaneShapeIndex = 0;
-						}
-						else if (PlaneContactPoint.ContactType == EContactPointType::VertexPlane)
-						{
-							PlaneShapeIndex = 1;
-						}
-						if (PlaneShapeIndex != INDEX_NONE)
-						{
+							const int32 PlaneShapeIndex = 1;
 							const FVec3 DeltaPos = PlaneContactPoint.ShapeContactPoints[PlaneShapeIndex] - EdgeContactPoint.ShapeContactPoints[PlaneShapeIndex];
-							const FReal Distance = FVec3::DotProduct(DeltaPos, PlaneContactPoint.ShapeContactNormal);
-							if (FMath::Abs(Distance) < Epsilon)
+							const FReal PlaneDistance = FVec3::DotProduct(DeltaPos, PlaneContactPoint.ShapeContactNormal);
+							if (FMath::Abs(PlaneDistance) < MaxPlaneDistance)
 							{
+								// @todo(chaos): Pretty sure we'll need to do an absolute distance check here too so we don;t reject edge
+								// contacts because of plane contacts a long way away.
+
 								// Note: Cannot use RemoveAtSwap unless we re-sort at the end. See ReduceManifoldContactPointsTriangeMesh
 								const bool bAllowShrinking = false;
 								ContactPoints.RemoveAt(EdgeContactIndex, 1, bAllowShrinking);
@@ -298,11 +297,6 @@ namespace Chaos
 		// ContactPoints are sorted on phi (ascending)
 		void ReduceManifoldContactPointsTriangeMesh(TArray<FContactPoint>& ContactPoints)
 		{
-			// Remove edge contacts that are "hidden" by face contacts
-			// EdgePruneDistance should be some fraction of the convex margin...
-			const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
-			PruneEdgeContactPoints(ContactPoints, EdgePruneDistance);
-
 			if (ContactPoints.Num() <= 4)
 			{
 				return;
