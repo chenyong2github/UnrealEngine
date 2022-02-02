@@ -17,6 +17,7 @@
 #include "IContentBrowserSingleton.h"
 
 #include "Misc/ScopedSlowTask.h"
+#include "ScopedTransaction.h"
 
 #include "FractureAutoUV.h"
 
