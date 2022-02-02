@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHIDescriptorAllocator.h"
+#include "Misc/ScopeLock.h"
 
 struct FRHIDescriptorAllocatorRange
 {
