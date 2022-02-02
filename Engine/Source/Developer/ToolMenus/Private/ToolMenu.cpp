@@ -22,7 +22,7 @@ UToolMenu::UToolMenu() :
 	, bIsRegistering(false)
 	, bExtendersEnabled(true)
 	, StyleSet(&FCoreStyle::Get())
-	, MaxHeight(800.f)
+	, MaxHeight(1000.f)
 {
 }
 
