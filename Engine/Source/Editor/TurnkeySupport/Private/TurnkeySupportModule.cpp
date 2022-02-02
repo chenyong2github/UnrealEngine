@@ -441,11 +441,6 @@ public:
 				BuildCookRunParams += TEXT(" -distribution");
 			}
 
-			if (!PackagingSettings->IncludeDebugFiles)
-			{
-				BuildCookRunParams += TEXT(" -nodebuginfo");
-			}
-
 			if (PackagingSettings->bGenerateChunks)
 			{
 				BuildCookRunParams += TEXT(" -manifests");
@@ -490,6 +485,11 @@ public:
 				{
 					BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 				}
+			}
+
+			if (ConfigurationInfo.Configuration == EBuildConfiguration::Shipping && !PackagingSettings->IncludeDebugFiles)
+			{
+				BuildCookRunParams += TEXT(" -nodebuginfo");
 			}
 		}
 // 		else if (Mode == EPrepareContentMode::PrepareForDebugging)

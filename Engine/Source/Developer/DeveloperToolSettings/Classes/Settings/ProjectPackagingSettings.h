@@ -215,8 +215,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Project)
 	bool ForDistribution;
 
-	/** If enabled, debug files will be included in the packaged game */
-	UPROPERTY(config, EditAnywhere, Category=Project)
+	/** If enabled, debug files will be included in staged shipping builds. */
+	UPROPERTY(config, EditAnywhere, Category=Project, meta = (DisplayName = "Include Debug Files in Shipping Builds"))
 	bool IncludeDebugFiles;
 
 	/** If enabled, then the project's Blueprint assets (including structs and enums) will be intermediately converted into C++ and used in the packaged project (in place of the .uasset files).*/
