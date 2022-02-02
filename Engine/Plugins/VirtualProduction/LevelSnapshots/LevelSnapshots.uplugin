@@ -18,12 +18,12 @@
 	"Modules": [
 		{
 			"Name": "LevelSnapshots",
-			"Type": "Runtime",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "LevelSnapshotFilters",
-			"Type": "Runtime",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -38,7 +38,7 @@
 		},
         {
             "Name": "nDisplaySupport",
-            "Type": "Runtime",
+            "Type": "UncookedOnly",
             "LoadingPhase": "PostDefault",
             "PlatformAllowList": [
               "Win64",

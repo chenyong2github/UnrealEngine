@@ -718,12 +718,12 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 			// If we are using Composure as our output, then send the WidgetRenderTarget to each one
 			if (CurrentDisplayType == EVPWidgetDisplayType::Composure)
 			{
-				static const FString TextureCompClassName("BP_TextureRTCompElement_C");
+				static const FName TextureCompClassName("BP_TextureRTCompElement_C");
 				static const FName TextureInputPropertyName("TextureRTInput");
 
 				for (ACompositingElement* Layer : PostProcessDisplayType.ComposureLayerTargets)
 				{
-					if (Layer && (Layer->GetClass()->GetName() == TextureCompClassName))
+					if (Layer && (Layer->GetClass()->GetFName() == TextureCompClassName))
 					{
 						FProperty* TextureInputProperty = Layer->GetClass()->FindPropertyByName(TextureInputPropertyName);
 						if (TextureInputProperty)
@@ -742,7 +742,7 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 					}
 					else if (Layer)
 					{
-						UE_LOG(LogVPUtilities, Warning, TEXT("VPFullScreenUserWidget - ComposureLayerTarget entry '%s' is not the correct class '%s'"), *Layer->GetName(), *TextureCompClassName);
+						UE_LOG(LogVPUtilities, Warning, TEXT("VPFullScreenUserWidget - ComposureLayerTarget entry '%s' is not the correct class '%s'"), *Layer->GetName(), *TextureCompClassName.ToString());
 					}
 				}
 			}

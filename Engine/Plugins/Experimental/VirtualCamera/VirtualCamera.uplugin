@@ -17,7 +17,7 @@
 	"Modules": [
 		{
 			"Name": "VCamCore",
-			"Type": "Runtime",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default",
 			"PlatformDenyList": [
 				"TVOS"

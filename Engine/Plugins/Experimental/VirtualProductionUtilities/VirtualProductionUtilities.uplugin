@@ -16,7 +16,7 @@
 	"Modules": [
 		{
 			"Name": "VPUtilities",
-			"Type": "Runtime",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PostDefault"
 		},
 		{
@@ -26,7 +26,7 @@
 		},
 		{
 			"Name": "VPBookmark",
-			"Type": "Runtime",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PostDefault"
 		},
 		{
