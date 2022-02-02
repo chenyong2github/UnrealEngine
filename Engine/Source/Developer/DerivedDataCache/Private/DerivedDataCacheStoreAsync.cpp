@@ -737,6 +737,7 @@ void FDerivedDataBackendAsyncPutWrapper::Execute(
 			else
 			{
 				CompleteWithStatus(Requests, MoveTemp(OnComplete), EStatus::Canceled);
+				FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-Requests.Num());
 			}
 		});
 	Request->Start(Owner.GetPriority());
