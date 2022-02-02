@@ -12,7 +12,6 @@
 #include "Materials/Material.h"
 #include "Engine/StaticMesh.h"
 #include "AssetData.h"
-
 #include "AssetRegistryModule.h"
 #include "ClassIconFinder.h"
 #include "EdGraphSchema_K2.h"
@@ -21,6 +20,9 @@
 #include "Settings/ClassViewerSettings.h"
 #include "ClassViewerFilter.h"
 #include "EditorClassUtils.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "ComponentTypeRegistry"
 
@@ -483,8 +485,11 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 		FComponentClassComboEntryPtr NewBPClass = MakeShareable(new FComponentClassComboEntry(NewComponentsHeading, UActorComponent::StaticClass(), true, EComponentCreateAction::CreateNewBlueprintClass));
 		ComponentClassList.Add(NewBPClass);
 
-		FComponentClassComboEntryPtr NewCPPClass = MakeShareable(new FComponentClassComboEntry(NewComponentsHeading, UActorComponent::StaticClass(), true, EComponentCreateAction::CreateNewCPPClass));
-		ComponentClassList.Add(NewCPPClass);
+		if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+		{
+			FComponentClassComboEntryPtr NewCPPClass = MakeShareable(new FComponentClassComboEntry(NewComponentsHeading, UActorComponent::StaticClass(), true, EComponentCreateAction::CreateNewCPPClass));
+			ComponentClassList.Add(NewCPPClass);
+		}
 
 		FComponentClassComboEntryPtr NewSeparator(new FComponentClassComboEntry());
 		ComponentClassList.Add(NewSeparator);

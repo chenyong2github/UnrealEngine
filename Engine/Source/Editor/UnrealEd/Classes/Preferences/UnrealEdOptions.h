@@ -117,6 +117,13 @@ public:
 		return GetNewAssetDefaultClassesDelegate.IsBound() ? GetNewAssetDefaultClassesDelegate.Execute() : NewAssetDefaultClasses;
 	}
 
+	/* Delegate to disallow C++ creation/editing from the editor */
+	DECLARE_DELEGATE_RetVal(bool, FIsCPPAllowed);
+	FIsCPPAllowed& OnIsCPPAllowed() { return IsCPPAllowedDelegate; }
+
+	/** Returns whether C++ creation/editing from the editor is allowed */
+	bool IsCPPAllowed() { return IsCPPAllowedDelegate.IsBound() ? IsCPPAllowedDelegate.Execute() : true; }
+
 	/** Mapping of command name's to array index. */
 	TMap<FName, int32>	CommandMap;
 
@@ -144,7 +151,7 @@ private:
 
 	/* Delegate to override NewAssetDefaultClasses */
 	FGetNewAssetDefaultClasses GetNewAssetDefaultClassesDelegate;
+
+	/** Delegate to disallow C++ creation/editing from the editor */
+	FIsCPPAllowed IsCPPAllowedDelegate;
 };
-
-
-
