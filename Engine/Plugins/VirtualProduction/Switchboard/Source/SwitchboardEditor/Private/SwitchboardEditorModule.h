@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "SwitchboardShortcuts.h"
 #include "SwitchboardScriptInterop.h"
 
 
@@ -30,6 +31,7 @@ class FSwitchboardEditorModule : public IModuleInterface
 public:
 	static const FString& GetSbScriptsPath();
 	static const FString& GetSbThirdPartyPath();
+	static const FString& GetSbExePath();
 
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
@@ -64,6 +66,21 @@ public:
 	bool SetListenerAutolaunchEnabled(bool bEnabled);
 #endif
 
+#if SWITCHBOARD_SHORTCUTS
+	using EShortcutApp = UE::Switchboard::Private::Shorcuts::EShortcutApp;
+	using EShortcutLocation = UE::Switchboard::Private::Shorcuts::EShortcutLocation;
+	using EShortcutCompare = UE::Switchboard::Private::Shorcuts::EShortcutCompare;
+
+	/**
+	 * Returns whether shortcuts exist for (this engine's) Switchboard / Listener.
+	 * Defaults to returning a cached value to avoid hitting the filesystem.
+	 */
+	EShortcutCompare DoesShortcutExist(EShortcutApp App, EShortcutLocation Location, bool bForceRefreshCache = false);
+
+	/** Creates (or replaces) shortcuts for Switchboard / Listener. */
+	bool CreateOrUpdateShortcut(EShortcutApp App, EShortcutLocation Location);
+#endif
+
 private:
 	void OnEngineInitComplete();
 	bool OnEditorSettingsModified();
@@ -71,17 +88,20 @@ private:
 	void RunDefaultOSCListener();
 
 private:
-#if SB_LISTENER_AUTOLAUNCH
-	bool GetListenerAutolaunchEnabled_Internal() const;
-#endif
 	bool RunProcess(const FString& InExe, const FString& InArgs);
 
 	FDelegateHandle DeferredStartDelegateHandle;
 
+	FString VerifyPath;
+	TSharedFuture<FSwitchboardVerifyResult> VerifyResult;
+
 #if SB_LISTENER_AUTOLAUNCH
+	bool GetListenerAutolaunchEnabled_Internal() const;
+
 	bool bCachedAutolaunchEnabled;
 #endif
 
-	FString VerifyPath;
-	TSharedFuture<FSwitchboardVerifyResult> VerifyResult;
+#if SWITCHBOARD_SHORTCUTS
+	TMap< TPair<EShortcutApp, EShortcutLocation>, EShortcutCompare > CachedShortcutCompares;
+#endif
 };

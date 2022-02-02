@@ -67,6 +67,8 @@ protected:
 	int32 LastStdoutNumBytes = 0;
 	TSharedPtr<SMultiLineEditableTextBox> InstallOutputTextBox;
 	TSharedPtr<SCheckBox> AutolaunchCheckbox;
+	TSharedPtr<SCheckBox> DesktopShortcutCheckbox;
+	TSharedPtr<SCheckBox> ProgramsShortcutCheckbox;
 
 	TSharedPtr<FSwitchboardUtilScript> RunningInstall;
 };

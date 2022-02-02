@@ -29,7 +29,8 @@ TSharedRef<IDetailCustomization> FSwitchboardEditorSettingsCustomization::MakeIn
 
 FSwitchboardEditorSettingsCustomization::ESwitchboardInstallState FSwitchboardEditorSettingsCustomization::GetInstallState() const
 {
-	TSharedFuture<FSwitchboardVerifyResult> VerifyResult = FSwitchboardEditorModule::Get().GetVerifyResult();
+	FSwitchboardEditorModule& SbEditorModule = FSwitchboardEditorModule::Get();
+	TSharedFuture<FSwitchboardVerifyResult> VerifyResult = SbEditorModule.GetVerifyResult();
 
 	if (!VerifyResult.IsReady())
 	{
@@ -41,7 +42,20 @@ FSwitchboardEditorSettingsCustomization::ESwitchboardInstallState FSwitchboardEd
 		return ESwitchboardInstallState::NeedInstallOrRepair;
 	}
 
-	// TODO: Determine existence of shortcuts, indicate ESwitchboardInstallState::ShortcutsMissing
+#if SWITCHBOARD_SHORTCUTS
+	using namespace UE::Switchboard::Private::Shorcuts;
+
+	const bool bListenerDesktopShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
+	const bool bListenerProgramsShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
+	const bool bAppDesktopShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
+	const bool bAppProgramsShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
+
+	if (!bListenerDesktopShortcutExists || !bListenerProgramsShortcutExists
+		|| !bAppDesktopShortcutExists || !bAppProgramsShortcutExists)
+	{
+		return ESwitchboardInstallState::ShortcutsMissing;
+	}
+#endif // #if SWITCHBOARD_SHORTCUTS
 
 	return ESwitchboardInstallState::Nominal;
 }

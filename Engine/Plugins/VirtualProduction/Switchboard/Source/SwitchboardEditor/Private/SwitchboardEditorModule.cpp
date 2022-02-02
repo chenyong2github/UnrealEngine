@@ -36,7 +36,7 @@ DEFINE_LOG_CATEGORY(LogSwitchboardPlugin);
 const FString& FSwitchboardEditorModule::GetSbScriptsPath()
 {
 	using namespace UE::Switchboard::Private;
-	static FString SbScriptsPath = ConcatPaths(FPaths::EnginePluginsDir(),
+	static const FString SbScriptsPath = ConcatPaths(FPaths::EnginePluginsDir(),
 		"VirtualProduction", "Switchboard", "Source", "Switchboard");
 	return SbScriptsPath;
 }
@@ -46,9 +46,22 @@ const FString& FSwitchboardEditorModule::GetSbScriptsPath()
 const FString& FSwitchboardEditorModule::GetSbThirdPartyPath()
 {
 	using namespace UE::Switchboard::Private;
-	static FString SbThirdPartyPath = ConcatPaths(FPaths::EngineDir(),
+	static const FString SbThirdPartyPath = ConcatPaths(FPaths::EngineDir(),
 		"Extras", "ThirdPartyNotUE", "SwitchboardThirdParty");
 	return SbThirdPartyPath;
+}
+
+
+// static
+const FString& FSwitchboardEditorModule::GetSbExePath()
+{
+#if PLATFORM_WINDOWS
+	static const FString ExePath = GetSbScriptsPath() / TEXT("switchboard.bat");
+#elif PLATFORM_LINUX
+	static const FString ExePath = GetSbScriptsPath() / TEXT("switchboard.sh");
+#endif
+
+	return ExePath;
 }
 
 
@@ -106,16 +119,10 @@ void FSwitchboardEditorModule::ShutdownModule()
 
 bool FSwitchboardEditorModule::LaunchSwitchboard()
 {
-#if PLATFORM_WINDOWS
-	const FString ScriptPath = GetSbScriptsPath() / TEXT("switchboard.bat");
-#elif PLATFORM_LINUX
-	const FString ScriptPath = GetSbScriptsPath() / TEXT("switchboard.sh");
-#endif
-
 	const FString ScriptArgs = FString::Printf(TEXT("\"%s\""),
 		*GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path);
 
-	return RunProcess(ScriptPath, ScriptArgs);
+	return RunProcess(GetSbExePath(), ScriptArgs);
 }
 
 
@@ -148,6 +155,10 @@ TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResul
 
 	if (bForceRefresh || !VerifyResult.IsValid() || VerifyPath != CurrentVenv)
 	{
+#if SWITCHBOARD_SHORTCUTS
+		CachedShortcutCompares.Empty();
+#endif
+
 		UE_LOG(LogSwitchboardPlugin, Log, TEXT("Issuing verify for venv: %s"), *CurrentVenv);
 
 		TFuture<FSwitchboardVerifyResult> Future = FSwitchboardVerifyResult::RunVerify(CurrentVenv);
@@ -206,6 +217,47 @@ bool FSwitchboardEditorModule::SetListenerAutolaunchEnabled(bool bEnabled)
 	return bSucceeded;
 }
 #endif // #if SB_LISTENER_AUTOLAUNCH
+
+
+#if SWITCHBOARD_SHORTCUTS
+FSwitchboardEditorModule::EShortcutCompare FSwitchboardEditorModule::DoesShortcutExist(
+	EShortcutApp App,
+	EShortcutLocation Location,
+	bool bForceRefreshCache /* = false */
+)
+{
+	using namespace UE::Switchboard::Private::Shorcuts;
+
+	const TPair<EShortcutApp, EShortcutLocation> CacheKey{ App, Location };
+
+	if (!bForceRefreshCache)
+	{
+		if (const EShortcutCompare* CachedResult = CachedShortcutCompares.Find(CacheKey))
+		{
+			return *CachedResult;
+		}
+	}
+
+	const FShortcutParams ExpectedParams = BuildShortcutParams(App, Location);
+	const EShortcutCompare Result = CompareShortcut(ExpectedParams);
+	CachedShortcutCompares.FindOrAdd(CacheKey) = Result;
+	return Result;
+}
+
+
+bool FSwitchboardEditorModule::CreateOrUpdateShortcut(EShortcutApp App, EShortcutLocation Location)
+{
+	using namespace UE::Switchboard::Private::Shorcuts;
+
+	const FShortcutParams Params = BuildShortcutParams(App, Location);
+	const bool bResult = UE::Switchboard::Private::Shorcuts::CreateOrUpdateShortcut(Params);
+
+	const bool bForceUpdateCache = true;
+	(void)DoesShortcutExist(App, Location, bForceUpdateCache);
+
+	return bResult;
+}
+#endif // #if SWITCHBOARD_SHORTCUTS
 
 
 void FSwitchboardEditorModule::OnEngineInitComplete()

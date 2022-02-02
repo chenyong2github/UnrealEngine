@@ -257,13 +257,21 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			.AutoWidth()
 			.Padding(24.0f, 0.0f, 12.0f, 0.0f)
 			[
-				SNew(SCheckBox)
+				SAssignNew(DesktopShortcutCheckbox, SCheckBox)
+#if !SWITCHBOARD_SHORTCUTS
+				.IsEnabled(false)
+#endif
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(STextBlock)
+#if SWITCHBOARD_SHORTCUTS
 				.Text(LOCTEXT("Wizard_Shortcuts_DesktopCheckboxLabel", "On the Desktop"))
+#else
+				.IsEnabled(false)
+				.Text(LOCTEXT("Wizard_Shortcuts_DesktopCheckboxLabel_Unsupported", "On the Desktop\n(Not supported on this platform)"))
+#endif
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -275,13 +283,19 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			.AutoWidth()
 			.Padding(24.0f, 0.0f, 12.0f, 0.0f)
 			[
-				SNew(SCheckBox)
+				SAssignNew(ProgramsShortcutCheckbox, SCheckBox)
+#if !SWITCHBOARD_SHORTCUTS
+				.Visibility(EVisibility::Collapsed)
+#endif
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("Wizard_Shortcuts_StartMenuCheckboxLabel", "In the Start Menu"))
+#if !SWITCHBOARD_SHORTCUTS
+				.Visibility(EVisibility::Collapsed)
+#endif
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -302,7 +316,19 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
 					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
 					{
-						// TODO: if (...) CreateShortcuts();
+#if SWITCHBOARD_SHORTCUTS
+						if (This->DesktopShortcutCheckbox->IsChecked())
+						{
+							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Desktop);
+							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Desktop);
+						}
+
+						if (This->ProgramsShortcutCheckbox->IsChecked())
+						{
+							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Programs);
+							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Programs);
+						}
+#endif
 						This->SwitchToPage(EWizardPage::Autolaunch);
 					}
 					return FReply::Handled();
@@ -583,7 +609,6 @@ FReply SSwitchboardSetupWizard::Handle_InstallProgress_ContinueClicked()
 {
 	if (GetProgress() == EInstallProgress::Succeeded)
 	{
-		// TODO: if (ShortcutsDontAlreadyExist())?
 		SwitchToPage(EWizardPage::Shortcuts);
 	}
 	else if (GetProgress() == EInstallProgress::Failed)
