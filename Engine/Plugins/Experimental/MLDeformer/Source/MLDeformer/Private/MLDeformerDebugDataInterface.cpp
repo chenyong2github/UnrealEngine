@@ -113,6 +113,30 @@ void UMLDeformerDebugDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTyp
 	OutSourceTypes.Add(UMLDeformerComponent::StaticClass());
 }
 
+#if WITH_EDITORONLY_DATA
+// Return a GeometryCache only if it matches the current test sequence.
+UGeometryCache* GetActiveGeometryCache(UMLDeformerAsset const* DeformerAsset)
+{
+	UGeometryCache* GeometryCache = DeformerAsset->GetVizSettings()->GetGroundTruth();
+	GeometryCache = (GeometryCache != nullptr) ? GeometryCache : const_cast<UGeometryCache*>(DeformerAsset->GetGeometryCache());
+
+	UAnimSequence const* AnimSequence = DeformerAsset->GetVizSettings()->GetTestAnimSequence();
+
+	if (GeometryCache != nullptr && AnimSequence != nullptr)
+	{
+		const float AnimSeqDuration = AnimSequence->GetPlayLength();
+		const float GeomCacheDuration = GeometryCache->CalculateDuration();
+		if (FMath::Abs(AnimSeqDuration - GeomCacheDuration) < 0.001f)
+		{
+			return GeometryCache;
+		}
+	}
+
+	return nullptr;
+}
+#endif
+
+
 UComputeDataProvider* UMLDeformerDebugDataInterface::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UMLDeformerDebugDataProvider* Provider = NewObject<UMLDeformerDebugDataProvider>();
@@ -122,11 +146,13 @@ UComputeDataProvider* UMLDeformerDebugDataInterface::CreateDataProvider(TArrayVi
 		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]);
 	}
 #if WITH_EDITORONLY_DATA
-	UMLDeformerAsset* DeformerAsset = Provider->DeformerComponent != nullptr ? Provider->DeformerComponent->GetDeformerAsset() : nullptr;
+	UMLDeformerAsset* DeformerAsset = (Provider->DeformerComponent != nullptr) ? Provider->DeformerComponent->GetDeformerAsset() : nullptr;
 	if (DeformerAsset != nullptr)
 	{
 		TArray<FString> FailedImportedMeshNames;
-		UMLDeformerAsset::GenerateMeshMappings(DeformerAsset, Provider->MeshMappings, FailedImportedMeshNames);
+		USkeletalMesh* SkelMesh = Provider->SkeletalMeshComponent->SkeletalMesh;
+		UGeometryCache* GeomCache = GetActiveGeometryCache(DeformerAsset);
+		UMLDeformerAsset::GenerateMeshMappings(SkelMesh, GeomCache, Provider->MeshMappings, FailedImportedMeshNames);
 	}
 #endif
 	return Provider;
@@ -156,27 +182,6 @@ FComputeDataProviderRenderProxy* UMLDeformerDebugDataProvider::GetRenderProxy()
 }
 
 #if WITH_EDITORONLY_DATA
-
-// Return a GeometryCache only if it matches the current test sequence.
-UGeometryCache const* GetActiveGeometryCache(UMLDeformerAsset const* DeformerAsset)
-{
-	UGeometryCache const* GeometryCache = DeformerAsset->GetVizSettings()->GetGroundTruth();
-	GeometryCache = GeometryCache != nullptr ? GeometryCache : DeformerAsset->GetGeometryCache();
-
-	UAnimSequence const* AnimSequence = DeformerAsset->GetVizSettings()->GetTestAnimSequence();
-
-	if (GeometryCache != nullptr && AnimSequence != nullptr)
-	{
-		const float AnimSeqDuration = AnimSequence->GetPlayLength();
-		const float GeomCacheDuration = GeometryCache->CalculateDuration();
-		if (FMath::Abs(AnimSeqDuration - GeomCacheDuration) < 0.001f)
-		{
-			return GeometryCache;
-		}
-	}
-
-	return nullptr;
-}
 
 // Fill the ground truth positions from the geometry cache.
 void GetGroundTruthPositions(

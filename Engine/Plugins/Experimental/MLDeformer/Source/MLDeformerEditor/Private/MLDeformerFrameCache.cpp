@@ -400,7 +400,11 @@ void FMLDeformerSampler::Init(const FInitSettings& InInitSettings)
 	SkelMeshActor->SetRootComponent(SkelMeshComponent);
 	GeomCacheActor->SetRootComponent(GeomCacheComponent);
 
-	UMLDeformerAsset::GenerateMeshMappings(InitSettings.DeformerAsset, MeshMappings, FailedImportedMeshNames);
+	UMLDeformerAsset::GenerateMeshMappings(
+		DeformerAsset->GetSkeletalMesh(), 
+		DeformerAsset->GetGeometryCache(), 
+		MeshMappings, 
+		FailedImportedMeshNames);
 }
 
 // Spawn an actor.

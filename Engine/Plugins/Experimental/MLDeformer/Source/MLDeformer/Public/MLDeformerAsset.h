@@ -145,7 +145,7 @@ public:
 
 	static int32 ExtractNumImportedGeomCacheVertices(UGeometryCache* GeomCache);
 	static int32 ExtractNumImportedSkinnedVertices(USkeletalMesh* SkeletalMesh);
-	static void GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames);
+	static void GenerateMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames);
 
 	void UpdateCachedNumVertices();
 	bool IsCompatibleWithNeuralNet() const;

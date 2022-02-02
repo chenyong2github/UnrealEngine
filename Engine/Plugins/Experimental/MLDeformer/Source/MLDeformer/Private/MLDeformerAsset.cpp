@@ -109,13 +109,10 @@ bool IsPotentialMatch(const FString& TrackName, const FString& MeshName)
 	return (TrackName.Find(MeshName) == 0);
 }
 
-void UMLDeformerAsset::GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames)
+void UMLDeformerAsset::GenerateMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames)
 {
 	OutMeshMappings.Empty();
 	OutFailedImportedMeshNames.Empty();
-
-	USkeletalMesh* SkelMesh = DeformerAsset->GetSkeletalMesh();
-	UGeometryCache* GeomCache = DeformerAsset->GetGeometryCache();
 	if (SkelMesh == nullptr || GeomCache == nullptr)
 	{
 		return;
@@ -561,10 +558,9 @@ FText UMLDeformerAsset::GetMeshMappingErrorText() const
 	if (GeometryCache && SkeletalMesh)
 	{
 		// Check for failed mesh mappings.
-		UMLDeformerAsset* Asset = const_cast<UMLDeformerAsset*>(this);
 		TArray<FMLDeformerMeshMapping> MeshMappings;
 		TArray<FString> FailedNames;
-		UMLDeformerAsset::GenerateMeshMappings(Asset, MeshMappings, FailedNames);
+		UMLDeformerAsset::GenerateMeshMappings(SkeletalMesh, GeometryCache, MeshMappings, FailedNames);
 
 		// List all mesh names that have issues.
 		FString ErrorString;
