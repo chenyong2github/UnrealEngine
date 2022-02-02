@@ -267,7 +267,8 @@ private:
 	TArray<FBox> SelectionBounds; // Bounds in global space but without exploded vectors applied
 	FVisualizationMappings SelectionMappings;
 
-	TInterval<double> GetVolumeRange(TArray<double>& Volumes);
+	TInterval<float> GetVolumeRange(const TManagedArray<float>& Volumes, const TManagedArray<int32>& TransformToGeometryIndex);
+	bool GetBonesByVolume(const FGeometryCollection& Collection, TArray<int32>& FilterIndices);
 	const double VolDimScale = .01; // compute volumes in meters instead of cm, for saner units at typical scales
 
 };
