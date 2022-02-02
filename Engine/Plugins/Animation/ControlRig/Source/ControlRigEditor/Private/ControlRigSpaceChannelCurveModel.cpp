@@ -20,7 +20,13 @@ ECurveEditorViewID FControlRigSpaceChannelCurveModel::ViewID = ECurveEditorViewI
 
 FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel> InChannel, UMovieSceneSection* OwningSection, TWeakPtr<ISequencer> InWeakSequencer)
 {
-	ChannelHandle = InChannel;
+	FMovieSceneChannelProxy* NewChannelProxy = &OwningSection->GetChannelProxy();
+	ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneControlRigSpaceChannel>(InChannel.GetChannelIndex());
+	if (FMovieSceneChannelProxy* ChannelProxy = InChannel.GetChannelProxy())
+	{
+		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FControlRigSpaceChannelCurveModel::FixupCurve);
+	}
+
 	WeakSection = OwningSection;
 	WeakSequencer = InWeakSequencer;
 	SupportedViews = ViewID;
@@ -28,6 +34,23 @@ FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieScene
 	Color = FSequencerSectionPainter::BlendColor(OwningSection->GetTypedOuter<UMovieSceneTrack>()->GetColorTint());
 }
 
+FControlRigSpaceChannelCurveModel::~FControlRigSpaceChannelCurveModel()
+{
+	if (FMovieSceneChannelProxy* ChannelProxy = ChannelHandle.GetChannelProxy())
+	{
+		ChannelProxy->OnDestroy.Remove(OnDestroyHandle);
+	}
+}
+
+void FControlRigSpaceChannelCurveModel::FixupCurve()
+{
+	if (UMovieSceneSection* Section = WeakSection.Get())
+	{
+		FMovieSceneChannelProxy* NewChannelProxy = &Section->GetChannelProxy();
+		ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneControlRigSpaceChannel>(ChannelHandle.GetChannelIndex());
+		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FControlRigSpaceChannelCurveModel::FixupCurve);
+	}
+}
 TArray<FKeyBarCurveModel::FBarRange> FControlRigSpaceChannelCurveModel::FindRanges()
 {
 	FMovieSceneControlRigSpaceChannel* Channel = ChannelHandle.Get();
@@ -119,7 +142,7 @@ void FControlRigSpaceChannelCurveModel::GetKeys(const FCurveEditor& CurveEditor,
 {
 	FMovieSceneControlRigSpaceChannel* Channel = ChannelHandle.Get();
 	UMovieSceneSection*      Section = WeakSection.Get();
-
+	
 	if (Channel && Section)
 	{
 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();

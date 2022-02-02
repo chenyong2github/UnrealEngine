@@ -19,7 +19,7 @@ public:
 	static ECurveEditorViewID ViewID;
 
 	FControlRigSpaceChannelCurveModel(TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel> InChannel, UMovieSceneSection* InOwningSection, TWeakPtr<ISequencer> InWeakSequencer);
-
+	~FControlRigSpaceChannelCurveModel();
 	//FCurveModel
 	virtual const void* GetCurve() const override;
 
@@ -51,8 +51,12 @@ public:
 	virtual void BuildContextMenu(const FCurveEditor& CurveEditor,FMenuBuilder& MenuBuilder, TOptional<FCurvePointHandle> ClickedPoint);
 	virtual TArray<FKeyBarCurveModel::FBarRange> FindRanges();
 
+
+private:
+	void FixupCurve();
 private:
 	TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel> ChannelHandle;
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 	TWeakPtr<ISequencer> WeakSequencer;
+	FDelegateHandle OnDestroyHandle;
 };
