@@ -206,7 +206,7 @@ void UFractureActionTool::SetOutlinerComponents(TArray<FFractureToolContext>& In
 	TArray<UGeometryCollectionComponent*> Components;
 	for (FFractureToolContext& Context : InContexts)
 	{
-		Components.Add(Context.GetGeometryCollectionComponent());
+		Components.AddUnique(Context.GetGeometryCollectionComponent());
 	}
 	Toolkit->SetOutlinerComponents(Components);
 }
