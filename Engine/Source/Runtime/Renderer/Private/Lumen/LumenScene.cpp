@@ -1175,10 +1175,6 @@ void FLumenSceneData::ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, i
 		FLumenMipMapDesc MipMapDesc;
 		Card.GetMipMapDesc(ResLevel, MipMapDesc);
 
-		FIntPoint PageResolution;
-		PageResolution.X = FMath::Min<int32>(MipMapDesc.Resolution.X, Lumen::PhysicalPageSize);
-		PageResolution.Y = FMath::Min<int32>(MipMapDesc.Resolution.Y, Lumen::PhysicalPageSize);
-
 		MipMap.bLocked = bLockPages;
 		MipMap.SizeInPagesX = MipMapDesc.SizeInPages.X;
 		MipMap.SizeInPagesY = MipMapDesc.SizeInPages.Y;
@@ -1210,14 +1206,30 @@ void FLumenSceneData::ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, i
 			CardUVRect.W = float(LocalPageCoordY + 1.0f) / MipMapDesc.SizeInPages.Y;
 
 			// Every page has a 0.5 texel border for correct bilinear sampling
-			FVector2D CardBorderOffset;
-			CardBorderOffset = FVector2D(0.5f * (Lumen::PhysicalPageSize - Lumen::VirtualPageSize));
-			CardBorderOffset.X *= (CardUVRect.Z - CardUVRect.X) / PageResolution.X;
-			CardBorderOffset.Y *= (CardUVRect.W - CardUVRect.Y) / PageResolution.Y;
-			CardUVRect.X -= CardBorderOffset.X;
-			CardUVRect.Y -= CardBorderOffset.Y;
-			CardUVRect.Z += CardBorderOffset.X;
-			CardUVRect.W += CardBorderOffset.Y;
+			// This border is only needed on interior page edges
+			{
+				FVector2D CardBorderOffset;
+				CardBorderOffset = FVector2D(0.5f * (Lumen::PhysicalPageSize - Lumen::VirtualPageSize));
+				CardBorderOffset.X *= (CardUVRect.Z - CardUVRect.X) / Lumen::PhysicalPageSize;
+				CardBorderOffset.Y *= (CardUVRect.W - CardUVRect.Y) / Lumen::PhysicalPageSize;
+
+				if (LocalPageCoordX > 0)
+				{
+					CardUVRect.X -= CardBorderOffset.X;
+				}
+				if (LocalPageCoordY > 0)
+				{
+					CardUVRect.Y -= CardBorderOffset.Y;
+				}
+				if (LocalPageCoordX < MipMapDesc.SizeInPages.X - 1)
+				{
+					CardUVRect.Z += CardBorderOffset.X;
+				}
+				if (LocalPageCoordY < MipMapDesc.SizeInPages.Y - 1)
+				{
+					CardUVRect.W += CardBorderOffset.Y;
+				}
+			}
 
 			PageTableEntry.CardUVRect = CardUVRect;
 
