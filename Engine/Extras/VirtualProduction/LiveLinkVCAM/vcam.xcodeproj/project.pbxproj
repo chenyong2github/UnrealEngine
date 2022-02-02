@@ -11,6 +11,7 @@
 		8B05A923275E172F0080AB2A /* Tentacle.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */; };
 		8B05A924275E172F0080AB2A /* Tentacle.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */; };
+		8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B4542D927A7CFB6001703EE /* GameController.framework */; };
 		8B751C67257A407C00755F39 /* ToolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C66257A407C00755F39 /* ToolView.swift */; };
 		8B751C74257A4C2C00755F39 /* Toast.xib in Resources */ = {isa = PBXBuildFile; fileRef = 8B751C73257A4C2C00755F39 /* Toast.xib */; };
 		8B751C76257A4F5F00755F39 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C75257A4F5F00755F39 /* ToastView.swift */; };
@@ -91,6 +92,7 @@
 /* Begin PBXFileReference section */
 		8B01BF2B26CA7DD1001872D2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen_iPad.storyboard; sourceTree = "<group>"; };
 		8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARCoachingOverlayViewDelegate.swift"; sourceTree = "<group>"; };
+		8B4542D927A7CFB6001703EE /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
 		8B751C66257A407C00755F39 /* ToolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolView.swift; sourceTree = "<group>"; };
 		8B751C73257A4C2C00755F39 /* Toast.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Toast.xib; sourceTree = "<group>"; };
 		8B751C75257A4F5F00755F39 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 				8B83F35225A46E000060B452 /* NetworkExtension.framework in Frameworks */,
 				8B881935266A48090061F926 /* Easing in Frameworks */,
 				8BB93C472608A28900293541 /* CocoaAsyncSocket in Frameworks */,
+				8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,6 +270,7 @@
 		8B7D84C424DEA08E00D01C13 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				8B4542D927A7CFB6001703EE /* GameController.framework */,
 				8B83F35125A46E000060B452 /* NetworkExtension.framework */,
 			);
 			name = Frameworks;
@@ -615,7 +619,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development: Brian Smith (H95H5LFFKT)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
@@ -656,7 +660,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: Epic Games International, S.a.r.l. (96DBZ92D3Y)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;

@@ -38,6 +38,8 @@ class StartViewController : BaseViewController {
     
     @objc dynamic let appSettings = AppSettings.shared
     private var observers = [NSKeyValueObservation]()
+    
+    private var gameController : GCController?
 
     var ipAddressIsDemoMode : Bool {
         self.ipAddress.text == "demo.mode"
@@ -114,10 +116,18 @@ class StartViewController : BaseViewController {
                 self.restartView.isHidden = !LiveLink.requiresRestart
             }
         }))
-
-
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidConnectNotification), name: .GCControllerDidConnect, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidDisconnectNotification), name: .GCControllerDidConnect, object: nil)
+        
+        self.gameController = GCController.controllers().first
+        if let gc = self.gameController {
+            if gc.isAttachedToDevice {
+                gc.playerIndex = .index1
+            }
+        }
     }
-    
+     
     func restartLiveLink() {
 
         do {
@@ -214,6 +224,7 @@ class StartViewController : BaseViewController {
                 vc.oscConnection = self.oscConnection
                 
                 vc.liveLink = self.liveLink
+                vc.gameController = self.gameController
 
                 self.oscConnection = nil
             }
@@ -310,6 +321,23 @@ class StartViewController : BaseViewController {
     @IBAction func textFieldChanged(_ sender : Any?) {
         self.connect.isEnabled = !self.ipAddress.text!.isEmpty
     }
+    
+    @objc func gameControllerDidConnectNotification(_ notification: NSNotification) {
+        
+        self.gameController = notification.object as? GCController
+        self.gameController?.playerIndex = .index1
+        
+        if let videoViewController = self.presentedViewController as? VideoViewController {
+            videoViewController.gameController = self.gameController
+        }
+    }
+
+    @objc func gameControllerDidDisconnectNotification(_ notification: NSNotification) {
+        if let gc = notification.object as? GCController {
+            Log.info("gameControllerDidDisconnectNotification \(gc.vendorName ?? "Unknown controller")")
+        }
+    }
+
 }
 
 extension StartViewController : UIGestureRecognizerDelegate {

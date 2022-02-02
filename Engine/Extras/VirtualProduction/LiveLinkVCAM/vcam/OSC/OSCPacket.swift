@@ -82,7 +82,12 @@ class OSCPacket {
         
         return data
     }
-    
+
+    class func encode(_ i : Int8) -> Data {
+
+        withUnsafeBytes(of: i) { Data($0) }
+    }
+
     class func encode(_ i : Int32, bigEndian : Bool = true) -> Data {
 
         withUnsafeBytes(of: bigEndian ? i.bigEndian : i) { Data($0) }

@@ -20,5 +20,8 @@ enum OSCAddressPattern : String {
     case touchStarted = "/MessageHandler/OnTouchStarted"
     case touchMoved = "/MessageHandler/OnTouchMoved"
     case touchEnded = "/MessageHandler/OnTouchEnded"
+    case controllerAnalog = "/MessageHandler/OnControllerAnalog"
+    case controllerButtonPressed = "/MessageHandler/OnControllerButtonPressed"
+    case controllerButtonReleased = "/MessageHandler/OnControllerButtonReleased"
 }
 

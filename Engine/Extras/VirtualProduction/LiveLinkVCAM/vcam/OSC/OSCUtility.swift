@@ -76,8 +76,36 @@ class OSCUtility {
         data.append(OSCPacket.encode(Float(point.x), bigEndian: false))
         data.append(OSCPacket.encode(Float(point.y), bigEndian: false))
         data.append(OSCPacket.encode(Int32(finger), bigEndian: false))
-        data.append(OSCPacket.encode(Int32(force), bigEndian: false))
+        data.append(OSCPacket.encode(Float(force), bigEndian: false))
 
         return data;
+    }
+    
+    class func ueControllerAnalogData(key : String, controller : Int, value : Float) -> Data {
+        
+        var data = Data(capacity: 32);
+        
+        data.append(OSCPacket.encode(Int32(key.count + 1), bigEndian: false))
+        data.append(key.data(using: .utf8)!)
+        data.append(OSCPacket.encode(Int8(0)))
+        data.append(OSCPacket.encode(Int32(controller), bigEndian: false))
+        data.append(OSCPacket.encode(Float(value), bigEndian: false))
+
+        return data;
+        
+    }
+    
+    class func ueControllerButtonData(key : String, controller : Int, isRepeat : Bool) -> Data {
+        
+        var data = Data(capacity: 32);
+        
+        data.append(OSCPacket.encode(Int32(key.count + 1), bigEndian: false))
+        data.append(key.data(using: .utf8)!)
+        data.append(OSCPacket.encode(Int8(0)))
+        data.append(OSCPacket.encode(Int32(controller), bigEndian: false))
+        data.append(OSCPacket.encode(Int8(isRepeat ? 1 : 0)))
+
+        return data;
+        
     }
 }
