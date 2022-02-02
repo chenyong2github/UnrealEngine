@@ -59,6 +59,13 @@ private:
 	TSharedRef<SDockTab> SpawnTab_StateTreeStatistics(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_CompilerResults(const FSpawnTabArgs& Args);
 
+	void BindCommands();
+	void RegisterToolbar();
+
+	void Compile();
+	bool CanCompile() const;
+	FSlateIcon GetCompileStatusImage() const;
+
 	void UpdateAsset();
 
 	void HandleModelAssetChanged();
@@ -68,8 +75,10 @@ private:
 	FText GetStatisticsText() const;
 
 	/* State Tree being edited */
-	UStateTree* StateTree;
+	UStateTree* StateTree = nullptr;
 
+	uint32 EditorDataHash = 0;
+	
 	/** Selection Property View */
 	TSharedPtr<class IDetailsView> SelectionDetailsView;
 

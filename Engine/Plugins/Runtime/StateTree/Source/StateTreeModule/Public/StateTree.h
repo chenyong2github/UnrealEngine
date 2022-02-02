@@ -61,6 +61,10 @@ public:
 	// Edit time data for the StateTree, instance of UStateTreeEditorData
 	UPROPERTY()
 	TObjectPtr<UObject> EditorData;
+
+	// Hash of the editor data from last compile.
+	UPROPERTY()
+	uint32 LastCompiledEditorDataHash = 0;
 #endif
 
 protected:

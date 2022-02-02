@@ -20,6 +20,7 @@
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
 #include "Blueprint/StateTreeTaskBlueprintBase.h"
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
+#include "StateTreeEditorCommands.h"
 
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -32,6 +33,7 @@ void FStateTreeEditorModule::StartupModule()
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
 	FStateTreeEditorStyle::Initialize();
+	FStateTreeEditorCommands::Register();
 
 	// Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -62,6 +64,7 @@ void FStateTreeEditorModule::ShutdownModule()
 	ToolBarExtensibilityManager.Reset();
 
 	FStateTreeEditorStyle::Shutdown();
+	FStateTreeEditorCommands::Unregister();
 
 	// Unregister the data asset type actions
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))

@@ -18,6 +18,9 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Customizations/StateTreeBindingExtension.h"
 #include "Misc/UObjectToken.h"
+#include "StateTreeEditorCommands.h"
+#include "ToolMenus.h"
+#include "StateTreeObjectHash.h"
 
 #include "Developer/MessageLog/Public/IMessageLogListing.h"
 #include "Developer/MessageLog/Public/MessageLogInitializationOptions.h"
@@ -178,14 +181,14 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, StateTreeEditorAppName, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, StateTree);
+
+	BindCommands();
+	RegisterToolbar();
 	
 	FStateTreeEditorModule& StateTreeEditorModule = FModuleManager::LoadModuleChecked<FStateTreeEditorModule>("StateTreeEditorModule");
 	AddMenuExtender(StateTreeEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	RegenerateMenusAndToolbars();
-
-	// TODO: should only do validation here to not edit asset each time it is opened.
-	UpdateAsset();
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeEditor::OnIdentifierChanged);
 	UE::StateTree::Delegates::OnSchemaChanged.AddSP(this, &FStateTreeEditor::OnSchemaChanged);
@@ -417,6 +420,7 @@ void FStateTreeEditor::OnSelectionFinishedChangingProperties(const FPropertyChan
 		if (ChangedStates.Num() > 0)
 		{
 			StateTreeViewModel->NotifyStatesChangedExternally(ChangedStates, PropertyChangedEvent);
+			UpdateAsset();
 		}
 	}
 }
@@ -628,20 +632,55 @@ namespace UE::StateTree::Editor::Internal
 		TreeData->GetAllStructIDs(AllStructIDs);
 		TreeData->GetPropertyEditorBindings()->RemoveUnusedBindings(AllStructIDs);
 	}
+
 }
 
-void FStateTreeEditor::UpdateAsset()
+void FStateTreeEditor::BindCommands()
+{
+	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
+
+	ToolkitCommands->MapAction(
+		Commands.Compile,
+		FExecuteAction::CreateSP(this, &FStateTreeEditor::Compile),
+		FCanExecuteAction::CreateSP(this, &FStateTreeEditor::CanCompile));
+}
+
+void FStateTreeEditor::RegisterToolbar()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* ToolBar;
+	FName ParentName;
+	const FName MenuName = GetToolMenuToolbarName(ParentName);
+	if (ToolMenus->IsMenuRegistered(MenuName))
+	{
+		ToolBar = ToolMenus->ExtendMenu(MenuName);
+	}
+	else
+	{
+		ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
+	}
+
+	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
+	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+	{
+		FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			Commands.Compile,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(this, &FStateTreeEditor::GetCompileStatusImage)));
+	}
+}
+
+void FStateTreeEditor::Compile()
 {
 	if (!StateTree)
 	{
 		return;
 	}
 
-	UE::StateTree::Editor::Internal::UpdateParents(*StateTree);
-	UE::StateTree::Editor::Internal::ApplySchema(*StateTree);
-	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
-	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
-
+	UpdateAsset();
+	
 	if (CompilerResultsListing.IsValid())
 	{
 		CompilerResultsListing->ClearMessages();
@@ -657,13 +696,81 @@ void FStateTreeEditor::UpdateAsset()
 		Log.AppendToLog(CompilerResultsListing.Get());
 	}
 
-	if (!bSuccess)
+	if (bSuccess)
+	{
+		// Success
+		StateTree->LastCompiledEditorDataHash = EditorDataHash;
+	}
+	else
 	{
 		// Make sure not to leave stale data on failed bake.
 		StateTree->ResetBaked();
+		StateTree->LastCompiledEditorDataHash = 0;
 
 		// Show log
 		TabManager->TryInvokeTab(CompilerResultsTabId);
+	}
+}
+
+bool FStateTreeEditor::CanCompile() const
+{
+	if (StateTree == nullptr)
+	{
+		return false;
+	}
+	
+	// We can't recompile while in PIE
+	if (GEditor->IsPlaySessionInProgress())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+FSlateIcon FStateTreeEditor::GetCompileStatusImage() const
+{
+	static const FName CompileStatusBackground("Blueprint.CompileStatus.Background");
+	static const FName CompileStatusUnknown("Blueprint.CompileStatus.Overlay.Unknown");
+	static const FName CompileStatusError("Blueprint.CompileStatus.Overlay.Error");
+	static const FName CompileStatusGood("Blueprint.CompileStatus.Overlay.Good");
+	static const FName CompileStatusWarning("Blueprint.CompileStatus.Overlay.Warning");
+
+	if (StateTree == nullptr)
+	{
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
+	}
+	
+	if (!StateTree->IsValidStateTree())
+	{
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
+	}
+	
+	if (StateTree->LastCompiledEditorDataHash != EditorDataHash)
+	{
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
+	}
+	
+	return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusGood);
+}
+
+void FStateTreeEditor::UpdateAsset()
+{
+	if (!StateTree)
+	{
+		return;
+	}
+
+	UE::StateTree::Editor::Internal::UpdateParents(*StateTree);
+	UE::StateTree::Editor::Internal::ApplySchema(*StateTree);
+	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
+	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
+
+	EditorDataHash = 0;
+	if (StateTree->EditorData != nullptr)
+	{
+		FStateTreeObjectCRC32 Archive;
+		EditorDataHash = Archive.Crc32(StateTree->EditorData, 0);
 	}
 }
 

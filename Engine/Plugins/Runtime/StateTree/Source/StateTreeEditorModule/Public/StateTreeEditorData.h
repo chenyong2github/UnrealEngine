@@ -78,7 +78,7 @@ public:
 	// ~StateTree Builder API
 	
 	
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	FStateTreeEditorPropertyBindings EditorBindings;
 
 	// Top level States aka Routines.
