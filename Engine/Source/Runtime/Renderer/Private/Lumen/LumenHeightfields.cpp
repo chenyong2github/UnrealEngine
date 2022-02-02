@@ -5,8 +5,8 @@
 
 static TAutoConsoleVariable<int32> CVarLumenSceneHeightfield(
 	TEXT("r.LumenScene.Heightfield"),
-	0,
-	TEXT("Enables heightfield (Landscape) software ray tracing (default = 0)"),
+	1,
+	TEXT("Enables heightfield (Landscape) software ray tracing (default = 1)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
