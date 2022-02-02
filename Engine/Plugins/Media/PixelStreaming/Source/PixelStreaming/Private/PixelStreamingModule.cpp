@@ -364,6 +364,15 @@ void UE::PixelStreaming::FPixelStreamingModule::UnfreezeFrame()
 	// Resume streaming.
 	bFrozen = false;
 }
+
+void UE::PixelStreaming::FPixelStreamingModule::KickPlayer(FPixelStreamingPlayerId PlayerId)
+{
+	if(Streamer)
+	{
+		Streamer->KickPlayer(PlayerId);
+	}
+}
+
 void UE::PixelStreaming::FPixelStreamingModule::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 {
 	checkf(InputDevice.IsValid(), TEXT("No Input Device available when populating Player Config"));

@@ -105,6 +105,13 @@ public:
 	 * @param FilePath - The freeze frame to display. If null then the back buffer is captured.
 	 */
 	virtual void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension) = 0;
+
+	/**
+	 * Kick a player by player id.
+	 * @param PlayerId - The ID of the player to kick
+	 */
+	virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) = 0;
+
 	/**
 	 * Get the audio sink associated with a specific peer/player.
 	 */

@@ -5,6 +5,7 @@
 #include "Misc/FileHelper.h"
 #include "PixelStreamingInputComponent.h"
 #include "PixelStreamingAudioComponent.h"
+#include "PixelStreamingPlayerId.h"
 
 void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FString MimeType, FString FileExtension)
 {
@@ -48,6 +49,15 @@ void UPixelStreamingBlueprints::UnfreezeFrame()
 	if (Module)
 	{
 		Module->UnfreezeFrame();
+	}
+}
+
+void UPixelStreamingBlueprints::KickPlayer(FString PlayerId)
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if (Module)
+	{
+		Module->KickPlayer(ToPlayerId(PlayerId));
 	}
 }
 

@@ -56,6 +56,7 @@ namespace UE
 
 			void FreezeFrame(UTexture2D* Texture) override;
 			void UnfreezeFrame() override;
+			void KickPlayer(FPixelStreamingPlayerId PlayerId);
 			IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) override;
 			IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
 			/** End IPixelStreamingModule implementation */

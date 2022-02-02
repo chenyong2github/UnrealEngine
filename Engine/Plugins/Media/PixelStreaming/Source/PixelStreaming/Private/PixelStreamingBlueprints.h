@@ -54,6 +54,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Freeze Frame")
 	static void UnfreezeFrame();
 
+	/**
+	 * Kick a player.
+	 * @param   PlayerId         The ID of the player to kick.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming")
+	static void KickPlayer(FString PlayerId);
+
 	// PixelStreamingDelegates
 	/**
 	 * Get the singleton. This allows application-specific blueprints to bind

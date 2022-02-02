@@ -514,14 +514,6 @@ playerServer.on('connection', function (ws, req) {
 			sendMessageToController(msg, skipSFU);
 		} else if (msg.type == 'stats') {
 			console.log(`player ${playerId}: stats\n${msg.data}`);
-		} else if (msg.type == 'kick') {
-			let playersCopy = new Map(players);
-			for (let p of playersCopy.values()) {
-				if (p.id != playerId) {
-					console.log(`kicking player ${p.id}`)
-					p.ws.close(4000, 'kicked');
-				}
-			}
 		} else {
 			console.error(`player ${playerId}: unsupported message type: ${msg.type}`);
 			ws.close(1008, 'Unsupported message type');

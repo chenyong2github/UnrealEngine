@@ -788,3 +788,9 @@ void UE::PixelStreaming::FStreamer::SendFileData(TArray<uint8>& ByteData, FStrin
 {
 	PlayerSessions.SendFileData(ByteData, MimeType, FileExtension);
 }
+
+
+void UE::PixelStreaming::FStreamer::KickPlayer(FPixelStreamingPlayerId PlayerId)
+{
+	SignallingServerConnection->SendDisconnectPlayer(PlayerId, TEXT("Player was kicked"));
+}

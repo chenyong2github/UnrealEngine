@@ -33,6 +33,7 @@ namespace UE
 			void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 			void SendUnfreezeFrame();
 			void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension);
+			void KickPlayer(FPixelStreamingPlayerId PlayerId);
 			void ForceKeyFrame();
 
 			bool IsStreaming() const { return bStreamingStarted; }

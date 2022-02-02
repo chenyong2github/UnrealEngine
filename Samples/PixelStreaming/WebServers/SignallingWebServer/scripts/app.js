@@ -283,16 +283,6 @@ function setupHtmlEvents() {
         };
     }
 
-    let kickButton = document.getElementById('kick-other-players-button');
-    if (kickButton) {
-        kickButton.onclick = function (event) {
-            console.log("%c[Outbound Signalling Server: kick]", "background: lightgreen; color: black", msg);
-            ws.send(JSON.stringify({
-                type: 'kick'
-            }));
-        };
-    }
-
     let latencyButton = document.getElementById('test-latency-button');
     if (latencyButton) {
         latencyButton.onclick = () => {
@@ -2064,14 +2054,6 @@ function start() {
     } else {
         connect();
     }
-
-    updateKickButton(0);
-}
-
-function updateKickButton(playersCount) {
-    let kickButton = document.getElementById('kick-other-players-button');
-    if (kickButton)
-        kickButton.value = `Kick (${playersCount})`;
 }
 
 function connect() {
@@ -2093,7 +2075,6 @@ function connect() {
             onConfig(msg);
         } else if (msg.type === 'playerCount') {
             console.log("%c[Inbound SS (playerCount)]", "background: lightblue; color: black", msg);
-            updateKickButton(msg.count - 1);
         } else if (msg.type === 'offer') {
             console.log("%c[Inbound SS (offer)]", "background: lightblue; color: black", msg);
             onWebRtcOffer(msg);
