@@ -131,6 +131,16 @@ namespace Metasound
 			RegisterPresetAction<UMetaSound, UMetaSoundFactory>(PresetLabel, PresetToolTip);
 		}
 
+		const TArray<FText>& FAssetTypeActions_MetaSound::GetSubMenus() const
+		{
+			static const TArray<FText> SubMenus
+			{
+				LOCTEXT("AssetSoundMetaSoundsSubMenu", "MetaSounds"),
+			};
+
+			return SubMenus;
+		}
+
 		UClass* FAssetTypeActions_MetaSoundSource::GetSupportedClass() const
 		{
 			return UMetaSoundSource::StaticClass();

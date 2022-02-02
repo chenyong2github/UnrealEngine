@@ -20,6 +20,7 @@ namespace Metasound
 			virtual FColor GetTypeColor() const override { return FColor(13, 55, 13); }
 			virtual UClass* GetSupportedClass() const override;
 			virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
+			virtual const TArray<FText>& GetSubMenus() const override;
 			virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost) override;
 
 			static void RegisterMenuActions();
