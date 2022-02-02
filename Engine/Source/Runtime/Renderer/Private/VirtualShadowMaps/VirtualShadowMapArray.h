@@ -89,7 +89,7 @@ struct FVirtualShadowMapProjectionShaderData
 	FVector3f ClipmapWorldOrigin;
 	float LightSourceRadius;				// This should live in shared light structure...
 	
-	FIntPoint ClipmapCornerOffset;
+	FIntPoint ClipmapCornerOffset = FIntPoint(0, 0);
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;
@@ -311,7 +311,7 @@ public:
 	// Used to clip the rect size of clusters during culling.
 	FRDGBufferRef PageRectBoundsRDG = nullptr;
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
-	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
+	FRDGBufferRef ProjectionDataRDG = nullptr;
 
 	// HZB generated for the *current* frame's physical page pool
 	// We use the *previous* frame's HZB (from VirtualShadowMapCacheManager) for culling the current frame

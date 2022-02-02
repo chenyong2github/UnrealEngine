@@ -381,6 +381,27 @@ void InitPhysicalPageMetaData(uint3 Index : SV_DispatchThreadID)
 	}
 }
 
+// Utility to map from PageIndex -> PageX, PageY, MipLevel
+void CalcPageAddressFromIndex(uint Index, inout uint MipLevel, inout uint2 PageAddress)
+{
+	PageAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
+
+	// TODO: There is probably some clever math we can use for this instead;
+	// See CalcLevelOffsets for a start
+	UNROLL
+	for (MipLevel = 0; MipLevel < VSM_MAX_MIP_LEVELS - 1; ++MipLevel)
+	{
+		if (Index < CalcLevelOffsets(MipLevel + 1))
+		{
+			break;
+		}
+	}
+	const uint Level0RowMask = ((1U << VSM_LOG2_LEVEL0_DIM_PAGES_XY) - 1U);
+	const uint OffsetInLevel = Index - CalcLevelOffsets(MipLevel);
+	PageAddress.x = OffsetInLevel & (Level0RowMask >> MipLevel);
+	PageAddress.y = OffsetInLevel >> (VSM_LOG2_LEVEL0_DIM_PAGES_XY - MipLevel);
+}
+
 int bDynamicPageInvalidation;
 
 /**
@@ -394,9 +415,9 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 		return;
 	}
 
-	const uint PageOffsetInShadowMap = ThreadId.x;
+	const uint PageIndex = ThreadId.x;
 	const uint VirtualShadowMapId = ThreadId.y;
-	const uint GlobalPageOffset = VirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageOffsetInShadowMap;
+	const uint GlobalPageOffset = VirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageIndex;
 
 	uint ResultPageTable = VSM_PHYSICAL_PAGE_INVALID;
 	uint ResultPageFlags = 0;
@@ -410,65 +431,84 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 		const uint PrevVirtualShadowMapId = ShadowMapCacheData[VirtualShadowMapId].PrevVirtualShadowMapId;
 		if (PrevVirtualShadowMapId != INDEX_NONE)
 		{
-			uint PrevGlobalOffset = PrevVirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageOffsetInShadowMap;
-			// NOTE: We only care about the raw page flags from the previous frame, not the hierarchical
-			// portion as we will regenerate that later anyways depending on this frame's allocations.
-			const uint PrevFlags = PrevPageFlags[PrevGlobalOffset] & VSM_PAGE_FLAGS_BITS_MASK;
+			const FVirtualShadowMapProjectionShaderData Projection = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-			// True if the request matches the cached page in terms of whether it includes nanite geometry
-			bool bMatchesNonNanite = (RequestFlags & VSM_NON_NANITE_FLAG) == (PrevFlags & VSM_NON_NANITE_FLAG);
+			uint MipLevel;
+			uint2 PageAddress;
+			CalcPageAddressFromIndex(PageIndex, MipLevel, PageAddress);
 
-			if ((PrevFlags & VSM_ALLOCATED_FLAG) != 0 && bMatchesNonNanite)
+			int2 PrevPageAddress = int2(PageAddress);
+			if (Projection.LightType == LIGHT_TYPE_DIRECTIONAL)
 			{
-				uint2 PhysicalAddress = ShadowDecodePageTable(PrevPageTable[PrevGlobalOffset]).PhysicalAddress;
-				uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
-				FPhysicalPageMetaData PrevMetaData = PrevPhysicalPageMetaData[PhysicalPageIndex];
-				// This should probably always be true but just in case...
-				if ((PrevMetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
+				// Clipmap panning
+				const FVirtualShadowMapProjectionShaderData PrevProjection = DecodeVirtualShadowMapProjectionData(PrevProjectionData, PrevVirtualShadowMapId);
+				const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
+				PrevPageAddress += OffsetScale * (PrevProjection.ClipmapCornerOffset - Projection.ClipmapCornerOffset);
+			}
+
+			if (all(PrevPageAddress >= 0) && all(PrevPageAddress < (VSM_LEVEL0_DIM_PAGES_XY >> MipLevel)))
+			{
+				uint PrevGlobalOffset = CalcPageOffset(PrevVirtualShadowMapId, MipLevel, uint2(PrevPageAddress));
+
+				// NOTE: We only care about the raw page flags from the previous frame, not the hierarchical
+				// portion as we will regenerate that later anyways depending on this frame's allocations.
+				const uint PrevFlags = PrevPageFlags[PrevGlobalOffset] & VSM_PAGE_FLAGS_BITS_MASK;
+
+				// True if the request matches the cached page in terms of whether it includes nanite geometry
+				bool bMatchesNonNanite = (RequestFlags & VSM_NON_NANITE_FLAG) == (PrevFlags & VSM_NON_NANITE_FLAG);
+
+				if ((PrevFlags & VSM_ALLOCATED_FLAG) != 0 && bMatchesNonNanite)
 				{
-					// Check if moving geometry has invalidated the cached page(s)
-					uint DynamicCasterPageFlags = bDynamicPageInvalidation ? PrevDynamicCasterPageFlags[PrevGlobalOffset] : 0;
+					uint2 PhysicalAddress = ShadowDecodePageTable(PrevPageTable[PrevGlobalOffset]).PhysicalAddress;
+					uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
+					FPhysicalPageMetaData PrevMetaData = PrevPhysicalPageMetaData[PhysicalPageIndex];
+					// This should probably always be true but just in case...
+					if ((PrevMetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
+					{
+						// Check if moving geometry has invalidated the cached page(s)
+						uint DynamicCasterPageFlags = bDynamicPageInvalidation ? PrevDynamicCasterPageFlags[PrevGlobalOffset] : 0;
 				
-					bool bDynamicValid = bCacheStaticSeparately ? 
-						(DynamicCasterPageFlags & VSM_DYNAMIC_UNCACHED_FLAG) == 0 :
-						(DynamicCasterPageFlags == 0);
-					bool bStaticValid = bCacheStaticSeparately ? 
-						((DynamicCasterPageFlags & VSM_STATIC_UNCACHED_FLAG) == 0) :
-						(DynamicCasterPageFlags == 0);
+						bool bDynamicValid = bCacheStaticSeparately ? 
+							(DynamicCasterPageFlags & VSM_DYNAMIC_UNCACHED_FLAG) == 0 :
+							(DynamicCasterPageFlags == 0);
+						bool bStaticValid = bCacheStaticSeparately ? 
+							((DynamicCasterPageFlags & VSM_STATIC_UNCACHED_FLAG) == 0) :
+							(DynamicCasterPageFlags == 0);
 
-					// Stats
-					if (!bStaticValid)
-					{
-						StatsBufferInterlockedInc(VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES);
-					}
-					else if (!bDynamicValid)
-					{
-						StatsBufferInterlockedInc(VSM_STAT_DYNAMIC_INVALIDATED_BY_DYNAMIC_PAGES);
-					}
-
-					// If the static page is invalidated we can't use the cache at all
-					if (bStaticValid)
-					{
-						StatsBufferInterlockedInc(VSM_STAT_ALLOCATED_PAGES);			// Total pages
-						StatsBufferInterlockedInc(VSM_STAT_STATIC_CACHED_PAGES);		// Static cached pages
-						if (bDynamicValid)
+						// Stats
+						if (!bStaticValid)
 						{
-							StatsBufferInterlockedInc(VSM_STAT_DYNAMIC_CACHED_PAGES);	// Dynamic cached pages
+							StatsBufferInterlockedInc(VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES);
+						}
+						else if (!bDynamicValid)
+						{
+							StatsBufferInterlockedInc(VSM_STAT_DYNAMIC_INVALIDATED_BY_DYNAMIC_PAGES);
 						}
 
-						// Keep the same cached physical page
-						// Note that we explicitly do not retain the propogated mip data as that could change this
-						// frame, so we always "repropogate" after mapping.
-						ResultPageTable = ShadowEncodePageTable(PhysicalAddress);
+						// If the static page is invalidated we can't use the cache at all
+						if (bStaticValid)
+						{
+							StatsBufferInterlockedInc(VSM_STAT_ALLOCATED_PAGES);			// Total pages
+							StatsBufferInterlockedInc(VSM_STAT_STATIC_CACHED_PAGES);		// Static cached pages
+							if (bDynamicValid)
+							{
+								StatsBufferInterlockedInc(VSM_STAT_DYNAMIC_CACHED_PAGES);	// Dynamic cached pages
+							}
 
-						// Update relevant cache flags and maintain the others
-						ResultPageFlags = PrevFlags & ~(VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG);
-						ResultPageFlags = ResultPageFlags | (bDynamicValid ? 0 : VSM_DYNAMIC_UNCACHED_FLAG);
+							// Keep the same cached physical page
+							// Note that we explicitly do not retain the propogated mip data as that could change this
+							// frame, so we always "repropogate" after mapping.
+							ResultPageTable = ShadowEncodePageTable(PhysicalAddress);
+
+							// Update relevant cache flags and maintain the others
+							ResultPageFlags = PrevFlags & ~(VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG);
+							ResultPageFlags = ResultPageFlags | (bDynamicValid ? 0 : VSM_DYNAMIC_UNCACHED_FLAG);
 						
-						// Update metadata to mark this page as cached
-						// TODO: Separate age for static/dynamic pages probably
-						OutPhysicalPageMetaData[PhysicalPageIndex].Age = bDynamicValid ? PrevMetaData.Age + 1 : 0;
-						OutPhysicalPageMetaData[PhysicalPageIndex].Flags = ResultPageFlags;
+							// Update metadata to mark this page as cached
+							// TODO: Separate age for static/dynamic pages probably
+							OutPhysicalPageMetaData[PhysicalPageIndex].Age = bDynamicValid ? PrevMetaData.Age + 1 : 0;
+							OutPhysicalPageMetaData[PhysicalPageIndex].Flags = ResultPageFlags;
+						}
 					}
 				}
 			}
@@ -510,9 +550,9 @@ void AllocateNewPageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId
 		return;
 	}
 
-	const uint PageOffsetInShadowMap = ThreadId.x;
+	const uint PageIndex = ThreadId.x;
 	const uint VirtualShadowMapId = ThreadId.y;
-	const uint GlobalPageOffset = VirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageOffsetInShadowMap;
+	const uint GlobalPageOffset = VirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageIndex;
 
 	uint ResultPageTable = VSM_PHYSICAL_PAGE_INVALID;
 	uint ResultPageFlags = 0;
@@ -591,29 +631,16 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 #endif
 	if (Flag != 0)
 	{
-		// find the mip-level for this thread.
-		uint MipLevel = 0;
-		UNROLL
-		for (MipLevel = 0; MipLevel < VSM_MAX_MIP_LEVELS - 1; ++MipLevel)
-		{
-			if (PageTableEntryIndex < CalcLevelOffsets( MipLevel + 1))
-			{
-				break;
-			}
-		}
-		uint Level0RowMask = ((1U << VSM_LOG2_LEVEL0_DIM_PAGES_XY) - 1U);
-		// Offset within level
-		uint PageTableLevelOffset = PageTableEntryIndex - CalcLevelOffsets(MipLevel);
-		// Coordinate within Mip Level
-		uint PX = PageTableLevelOffset & (Level0RowMask >> MipLevel);
-		uint PY = PageTableLevelOffset >> (VSM_LOG2_LEVEL0_DIM_PAGES_XY - MipLevel);
+		uint MipLevel;
+		uint2 PageAddress;
+		CalcPageAddressFromIndex(PageTableEntryIndex, MipLevel, PageAddress);
 
 		// Compute the min/max rect of active pages
 		uint PageBoundIndex = ShadowMapID * VSM_MAX_MIP_LEVELS + MipLevel;
-		InterlockedMin(OutPageRectBounds[PageBoundIndex].x, PX);
-		InterlockedMin(OutPageRectBounds[PageBoundIndex].y, PY);
-		InterlockedMax(OutPageRectBounds[PageBoundIndex].z, PX);
-		InterlockedMax(OutPageRectBounds[PageBoundIndex].w, PY);
+		InterlockedMin(OutPageRectBounds[PageBoundIndex].x, PageAddress.x);
+		InterlockedMin(OutPageRectBounds[PageBoundIndex].y, PageAddress.y);
+		InterlockedMax(OutPageRectBounds[PageBoundIndex].z, PageAddress.x);
+		InterlockedMax(OutPageRectBounds[PageBoundIndex].w, PageAddress.y);
 
 		// Loop over H flag levels, this builds a mip pyramid over _each_ mip level in the page table
 		// the 0-th level in this hiearchy is the page table mip level itself.
@@ -621,8 +648,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 		// Note: starting from 1 as level 0 is the ordinary flag mip level
 		for (uint HMipLevel = 1U; HMipLevel < MaxHLevel; ++HMipLevel)
 		{
-			PX >>= 1U;
-			PY >>= 1U;
+			PageAddress.xy >>= 1U;
 
 			uint HMipBitShift = VSM_PAGE_FLAGS_BITS_PER_HMIP * HMipLevel;
 			uint HMipLevelFlagMask = VSM_PAGE_FLAGS_BITS_MASK << HMipBitShift;
@@ -630,7 +656,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 
 			uint PreviousValue = 0;
 			uint MipToSample = MipLevel + HMipLevel;
-			uint HPageFlagOffset = CalcPageOffset(ShadowMapID, MipToSample, uint2(PX, PY));
+			uint HPageFlagOffset = CalcPageOffset(ShadowMapID, MipToSample, PageAddress);
 			InterlockedOr(OutPageFlags[HPageFlagOffset], HMipLevelFlag, PreviousValue);
 			// If this was already the value for this HMip, then whoever did that will continue up the hierarhcy.
 			// TODO: We could probably get fancier here and let a thread carry through HMip values from multiple

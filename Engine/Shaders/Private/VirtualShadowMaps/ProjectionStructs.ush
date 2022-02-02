@@ -27,7 +27,7 @@ struct FVirtualShadowMapProjectionShaderData
 	int VirtualShadowMapId;
 };
 
-FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int VirtualShadowMapId)
+FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteAddressBuffer ProjectionData, int VirtualShadowMapId)
 {
 	FVirtualShadowMapProjectionShaderData Result;
 	Result.VirtualShadowMapId = VirtualShadowMapId;
@@ -36,37 +36,42 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int Virt
 	const uint Stride = 16 * 20;
 	const uint Base = VirtualShadowMapId * Stride;
 
-	Result.TranslatedWorldToShadowViewMatrix[0]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*0));
-	Result.TranslatedWorldToShadowViewMatrix[1]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*1));
-	Result.TranslatedWorldToShadowViewMatrix[2]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*2));
-	Result.TranslatedWorldToShadowViewMatrix[3]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*3));
-	Result.ShadowViewToClipMatrix[0]				= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*4));
-	Result.ShadowViewToClipMatrix[1]				= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*5));
-	Result.ShadowViewToClipMatrix[2]				= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*6));
-	Result.ShadowViewToClipMatrix[3]				= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*7));
-	Result.TranslatedWorldToShadowUVMatrix[0]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*8));
-	Result.TranslatedWorldToShadowUVMatrix[1]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*9));
-	Result.TranslatedWorldToShadowUVMatrix[2]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*10));
-	Result.TranslatedWorldToShadowUVMatrix[3]		= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*11));
-	Result.TranslatedWorldToShadowUVNormalMatrix[0]	= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*12));
-	Result.TranslatedWorldToShadowUVNormalMatrix[1]	= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*13));
-	Result.TranslatedWorldToShadowUVNormalMatrix[2]	= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*14));
-	Result.TranslatedWorldToShadowUVNormalMatrix[3]	= asfloat(VirtualShadowMap.ProjectionData.Load4(Base + 16*15));
+	Result.TranslatedWorldToShadowViewMatrix[0]		= asfloat(ProjectionData.Load4(Base + 16*0));
+	Result.TranslatedWorldToShadowViewMatrix[1]		= asfloat(ProjectionData.Load4(Base + 16*1));
+	Result.TranslatedWorldToShadowViewMatrix[2]		= asfloat(ProjectionData.Load4(Base + 16*2));
+	Result.TranslatedWorldToShadowViewMatrix[3]		= asfloat(ProjectionData.Load4(Base + 16*3));
+	Result.ShadowViewToClipMatrix[0]				= asfloat(ProjectionData.Load4(Base + 16*4));
+	Result.ShadowViewToClipMatrix[1]				= asfloat(ProjectionData.Load4(Base + 16*5));
+	Result.ShadowViewToClipMatrix[2]				= asfloat(ProjectionData.Load4(Base + 16*6));
+	Result.ShadowViewToClipMatrix[3]				= asfloat(ProjectionData.Load4(Base + 16*7));
+	Result.TranslatedWorldToShadowUVMatrix[0]		= asfloat(ProjectionData.Load4(Base + 16*8));
+	Result.TranslatedWorldToShadowUVMatrix[1]		= asfloat(ProjectionData.Load4(Base + 16*9));
+	Result.TranslatedWorldToShadowUVMatrix[2]		= asfloat(ProjectionData.Load4(Base + 16*10));
+	Result.TranslatedWorldToShadowUVMatrix[3]		= asfloat(ProjectionData.Load4(Base + 16*11));
+	Result.TranslatedWorldToShadowUVNormalMatrix[0]	= asfloat(ProjectionData.Load4(Base + 16*12));
+	Result.TranslatedWorldToShadowUVNormalMatrix[1]	= asfloat(ProjectionData.Load4(Base + 16*13));
+	Result.TranslatedWorldToShadowUVNormalMatrix[2]	= asfloat(ProjectionData.Load4(Base + 16*14));
+	Result.TranslatedWorldToShadowUVNormalMatrix[3]	= asfloat(ProjectionData.Load4(Base + 16*15));
 
 	// NOTE: Stick with struct-element-sized loads for the moment since we may only be using subsets
 	// of the data in the calling code and we want to ensure the compiler has simple DCE options.
-	Result.ShadowPreViewTranslation			= asfloat(VirtualShadowMap.ProjectionData.Load3(Base + (16*16 + 4*0)));
-	Result.LightType						=		 (VirtualShadowMap.ProjectionData.Load (Base + (16*16 + 4*3)));
+	Result.ShadowPreViewTranslation			= asfloat(ProjectionData.Load3(Base + (16*16 + 4*0)));
+	Result.LightType						=		 (ProjectionData.Load (Base + (16*16 + 4*3)));
 
-	Result.ClipmapWorldOrigin				= asfloat(VirtualShadowMap.ProjectionData.Load3(Base + (16*17 + 4*0)));
-	Result.LightSourceRadius				= asfloat(VirtualShadowMap.ProjectionData.Load (Base + (16*17 + 4*3)));
+	Result.ClipmapWorldOrigin				= asfloat(ProjectionData.Load3(Base + (16*17 + 4*0)));
+	Result.LightSourceRadius				= asfloat(ProjectionData.Load (Base + (16*17 + 4*3)));
 
-	Result.ClipmapCornerOffset				= asint  (VirtualShadowMap.ProjectionData.Load2(Base + (16*18 + 4*0)));
-	Result.ClipmapIndex						= asint  (VirtualShadowMap.ProjectionData.Load (Base + (16*18 + 4*2)));
-	Result.ClipmapLevel						= asint  (VirtualShadowMap.ProjectionData.Load (Base + (16*18 + 4*3)));
+	Result.ClipmapCornerOffset				= asint  (ProjectionData.Load2(Base + (16*18 + 4*0)));
+	Result.ClipmapIndex						= asint  (ProjectionData.Load (Base + (16*18 + 4*2)));
+	Result.ClipmapLevel						= asint  (ProjectionData.Load (Base + (16*18 + 4*3)));
 
-	Result.ClipmapLevelCount 				= asint  (VirtualShadowMap.ProjectionData.Load (Base + (16*19 + 4*0)));
-	Result.ClipmapResolutionLodBias			= asfloat(VirtualShadowMap.ProjectionData.Load (Base + (16*19 + 4*1)));
+	Result.ClipmapLevelCount 				= asint  (ProjectionData.Load (Base + (16*19 + 4*0)));
+	Result.ClipmapResolutionLodBias			= asfloat(ProjectionData.Load (Base + (16*19 + 4*1)));
 
 	return Result;
+}
+
+FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int VirtualShadowMapId)
+{
+	return DecodeVirtualShadowMapProjectionData(VirtualShadowMap.ProjectionData, VirtualShadowMapId);
 }

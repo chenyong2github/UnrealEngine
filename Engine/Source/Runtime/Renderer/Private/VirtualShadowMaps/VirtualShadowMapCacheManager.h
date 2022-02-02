@@ -82,7 +82,7 @@ struct FVirtualShadowMapArrayFrameData
 	TRefCountPtr<FRDGPooledBuffer>				PageTable;
 	TRefCountPtr<FRDGPooledBuffer>				PageFlags;
 
-	TRefCountPtr<FRDGPooledBuffer>				ShadowMapProjectionDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer>				ProjectionData;
 	TRefCountPtr<FRDGPooledBuffer>				PageRectBounds;
 
 	TRefCountPtr<FRDGPooledBuffer>				DynamicCasterPageFlags;

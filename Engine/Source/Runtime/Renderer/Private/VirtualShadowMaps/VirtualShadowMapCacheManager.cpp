@@ -45,6 +45,14 @@ static TAutoConsoleVariable<int32> CVarCacheVsmUseHzb(
 	TEXT("Enables testing HZB for Virtual Shadow Map invalidations."),
 	ECVF_RenderThreadSafe);
 
+int32 GClipmapPanning = 1;
+FAutoConsoleVariableRef CVarEnableClipmapPanning(
+	TEXT("r.Shadow.Virtual.Cache.ClipmapPanning"),
+	GClipmapPanning,
+	TEXT("Enable support for panning cached clipmap pages for directional lights."),
+	ECVF_RenderThreadSafe
+);
+
 void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
@@ -62,7 +70,7 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
 	}
 
-	if (bCacheValid)
+	if (bCacheValid && GClipmapPanning == 0)
 	{
 		if (PageSpaceLocation.X != PrevPageSpaceLocation.X ||
 			PageSpaceLocation.Y != PrevPageSpaceLocation.Y)
@@ -415,7 +423,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
-			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ProjectionDataRDG, &PrevBuffers.ProjectionData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
 
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.InvalidatingInstancesRDG, &PrevBuffers.InvalidatingInstancesBuffer);
@@ -770,7 +778,7 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 	FVirtualShadowMapArrayFrameData &PrevBuffers = CacheManager->PrevBuffers;
 
 	// Update references in our last frame uniform buffer with reimported resources for this frame
-	CacheManager->PrevUniformParameters.ProjectionData = RegExtCreateSrv(PrevBuffers.ShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevProjectionData"));
+	CacheManager->PrevUniformParameters.ProjectionData = RegExtCreateSrv(PrevBuffers.ProjectionData, TEXT("Shadow.Virtual.PrevProjectionData"));
 	CacheManager->PrevUniformParameters.PageTable = RegExtCreateSrv(PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"));
 	CacheManager->PrevUniformParameters.PageFlags = RegExtCreateSrv(PrevBuffers.PageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
 	CacheManager->PrevUniformParameters.PageRectBounds = RegExtCreateSrv(PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"));

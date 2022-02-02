@@ -293,6 +293,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCacheDataParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPhysicalPageMetaData >,	PrevPhysicalPageMetaData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevDynamicCasterPageFlags)
+	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevProjectionData)
 END_SHADER_PARAMETER_STRUCT()
 
 static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray<FVirtualShadowMap*, SceneRenderingAllocator> &ShadowMaps, FVirtualShadowMapArrayCacheManager* CacheManager, FCacheDataParameters &CacheDataParameters)
@@ -316,6 +317,7 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 	CacheDataParameters.PrevPageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable")));
 	CacheDataParameters.PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PhysicalPageMetaData, TEXT("Shadow.Virtual.PrevPhysicalPageMetaData")));
 	CacheDataParameters.PrevDynamicCasterPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.DynamicCasterPageFlags, TEXT("Shadow.Virtual.PrevDynamicCasterPageFlags")));
+	CacheDataParameters.PrevProjectionData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.ProjectionData, TEXT("Shadow.Virtual.PrevProjectionData")));
 }
 
 static FRDGBufferRef CreateProjectionDataBuffer(
@@ -1049,8 +1051,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 #endif //!UE_BUILD_SHIPPING
 		
 	// Store shadow map projection data for each virtual shadow map
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	ShadowMapProjectionData.AddDefaulted(ShadowMaps.Num());
+	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ProjectionData;
+	ProjectionData.AddDefaulted(ShadowMaps.Num());
 
 	// Gather directional light virtual shadow maps
 	TArray<int32, SceneRenderingAllocator> DirectionalLightIds;
@@ -1063,7 +1065,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			DirectionalLightIds.Add(ClipmapID);
 			for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
 			{
-				ShadowMapProjectionData[ClipmapID + ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
+				ProjectionData[ClipmapID + ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 			}
 
 			if (bDebugOutputEnabled)
@@ -1098,7 +1100,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 					FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices( i, true );
 
-					FVirtualShadowMapProjectionShaderData& Data = ShadowMapProjectionData[ ID ];
+					FVirtualShadowMapProjectionShaderData& Data = ProjectionData[ ID ];
 					Data.TranslatedWorldToShadowViewMatrix		= FMatrix44f(ViewMatrices.GetTranslatedViewMatrix());	// LWC_TODO: Precision loss?
 					Data.ShadowViewToClipMatrix					= FMatrix44f(ViewMatrices.GetProjectionMatrix());
 					Data.TranslatedWorldToShadowUVMatrix		= FMatrix44f(CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() ));
@@ -1119,9 +1121,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	UniformParameters.NumShadowMaps = ShadowMaps.Num();
 	UniformParameters.NumDirectionalLights = DirectionalLightIds.Num();
 
-	ShadowMapProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.ProjectionData"), ShadowMapProjectionData);
+	ProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.ProjectionData"), ProjectionData);
 
-	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
+	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(ProjectionDataRDG);
 
 	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats())
 	{

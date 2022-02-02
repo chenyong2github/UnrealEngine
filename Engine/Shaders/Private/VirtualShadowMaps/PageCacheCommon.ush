@@ -17,3 +17,4 @@ StructuredBuffer<uint> PrevPageFlags;
 StructuredBuffer<uint> PrevPageTable;
 StructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaData;
 StructuredBuffer<uint> PrevDynamicCasterPageFlags;
+ByteAddressBuffer PrevProjectionData;
