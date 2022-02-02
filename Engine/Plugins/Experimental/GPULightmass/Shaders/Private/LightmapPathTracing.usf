@@ -927,7 +927,7 @@ uint MortonEncode3(uint3 Pixel)
 // Must match C++
 struct FLightShaderConstants
 {
-	float3 WorldPosition;
+	float3 RelativeWorldPosition;
 	float  InvRadius;
 	float3 Color;
 	float  FalloffExponent;
@@ -935,17 +935,19 @@ struct FLightShaderConstants
 	float  SpecularScale;
 	float3 Tangent;
 	float  SourceRadius;
+	float3 TilePosition;
+	float  SourceLength;
 	float2 SpotAngles;
 	float  SoftSourceRadius;
-	float  SourceLength;
 	float  RectLightBarnCosAngle;
 	float  RectLightBarnLength;
 	
 	void FillLightShaderParameters(inout FLightShaderParameters LightShaderParameters)
 	{
-		LightShaderParameters.Position = WorldPosition;
-		LightShaderParameters.TranslatedWorldPosition = LWCHackToFloat(PrimaryView.PreViewTranslation) + WorldPosition;
+		const FLWCVector3 WorldPosition = MakeLWCVector3(TilePosition, RelativeWorldPosition);
 
+		LightShaderParameters.Position = LWCHackToFloat(WorldPosition); // RT_LWC_TODO
+		LightShaderParameters.TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, PrimaryView.PreViewTranslation));
 		LightShaderParameters.InvRadius = InvRadius;
 		LightShaderParameters.Color = Color;
 		LightShaderParameters.FalloffExponent = FalloffExponent;

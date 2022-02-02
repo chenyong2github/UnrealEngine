@@ -15,7 +15,7 @@ class FSkyLightImportanceSamplingData;
 
 struct FLightShaderConstants
 {
-	FVector3f	WorldPosition;
+	FVector3f	RelativeWorldPosition;
 	float		InvRadius;
 	FVector3f	Color;
 	float		FalloffExponent;
@@ -23,9 +23,10 @@ struct FLightShaderConstants
 	float		SpecularScale;
 	FVector3f	Tangent;
 	float		SourceRadius;
+	FVector3f	TilePosition;
+	float		SourceLength;
 	FVector2f	SpotAngles;
 	float		SoftSourceRadius;
-	float		SourceLength;
 	float		RectLightBarnCosAngle;
 	float		RectLightBarnLength;
 
@@ -33,7 +34,9 @@ struct FLightShaderConstants
 
 	FLightShaderConstants(const FLightRenderParameters& LightShaderParameters)
 	{
-		WorldPosition = FVector3f(LightShaderParameters.WorldPosition); // LWC_TODO
+		const FLargeWorldRenderPosition AbsoluteWorldPosition(LightShaderParameters.WorldPosition);
+
+		RelativeWorldPosition = AbsoluteWorldPosition.GetOffset();
 		InvRadius = LightShaderParameters.InvRadius;
 		Color = FVector3f(LightShaderParameters.Color);
 		FalloffExponent = LightShaderParameters.FalloffExponent;
@@ -41,9 +44,10 @@ struct FLightShaderConstants
 		SpecularScale = LightShaderParameters.SpecularScale;
 		Tangent = LightShaderParameters.Tangent;
 		SourceRadius = LightShaderParameters.SourceRadius;
+		TilePosition = AbsoluteWorldPosition.GetTile();
+		SourceLength = LightShaderParameters.SourceLength;
 		SpotAngles = LightShaderParameters.SpotAngles;
 		SoftSourceRadius = LightShaderParameters.SoftSourceRadius;
-		SourceLength = LightShaderParameters.SourceLength;
 		RectLightBarnCosAngle = LightShaderParameters.RectLightBarnCosAngle;
 		RectLightBarnLength = LightShaderParameters.RectLightBarnLength;
 	}
