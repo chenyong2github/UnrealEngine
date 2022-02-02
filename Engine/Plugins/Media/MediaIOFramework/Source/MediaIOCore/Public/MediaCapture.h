@@ -117,6 +117,16 @@ public:
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="MediaCapture")
 	bool bForceAlphaToOneOnConversion;
+
+	/** Automatically stop capturing after a predetermined number of images. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	bool bAutostopOnCapture;
+
+	/** The number of images to capture*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	int32 NumberOfFramesToCapture;
+
+
 };
 
 
