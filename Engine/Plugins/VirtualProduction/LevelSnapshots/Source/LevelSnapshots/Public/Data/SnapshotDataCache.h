@@ -67,4 +67,11 @@ struct FSnapshotDataCache
 
 	UPROPERTY()
 	TMap<FSoftClassPath, FClassDefaultSnapshotCache> ClassDefaultCache;
+
+	void Reset()
+	{
+		ActorCache.Reset();
+		SubobjectCache.Reset();
+		ClassDefaultCache.Reset();
+	}
 };

@@ -78,9 +78,10 @@ bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 	}
 	Module.OnPreTakeSnapshot().Broadcast({this});
 
-	EnsureWorldInitialised();
 	MapPath = TargetWorld;
 	CaptureTime = FDateTime::UtcNow();
+	// Existing snapshot world actors are now invalid - clear previous cached data
+	RecreateSnapshotWorld();
 	SerializedData = UE::LevelSnapshots::Private::SnapshotWorld(TargetWorld);
 
 	Module.OnPostTakeSnapshot().Broadcast({ this });
@@ -271,6 +272,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 				UE::LevelSnapshots::Private::Internal::ConditionBreakOnActor(DebugActorName, OriginalActorPath);
 				SCOPED_SNAPSHOT_CORE_TRACE(HandleMatchedActor)
 				
+				UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("Matched actor %s"), *OriginalActorPath.ToString());
 				HandleMatchedActor.Execute(OriginalActorPath);
 			}
 		});
@@ -303,6 +305,15 @@ FString ULevelSnapshot::GenerateDebugLogInfo() const
 	Current.Initialize();
 	
 	return FString::Printf(TEXT("CaptureTime: %s. SnapshotVersionInfo: %s. Current engine version: %s."), *CaptureTime.ToString(), *GetSerializedData().SnapshotVersionInfo.ToString(), *Current.ToString());
+}
+
+void ULevelSnapshot::RecreateSnapshotWorld()
+{
+	if (SnapshotContainerWorld)
+	{
+		DestroyWorld();
+	}
+	EnsureWorldInitialised();
 }
 
 void ULevelSnapshot::EnsureWorldInitialised()
@@ -369,9 +380,7 @@ void ULevelSnapshot::DestroyWorld()
 
 void ULevelSnapshot::ClearCache()
 {
-	Cache.ActorCache.Reset();
-	Cache.SubobjectCache.Reset();
-	Cache.ClassDefaultCache.Reset();
+	Cache.Reset();
 	
 #if WITH_EDITOR
 	CachedDiffedActors.Reset();

@@ -101,6 +101,7 @@ private:
 
 	FString GenerateDebugLogInfo() const;
 
+	void RecreateSnapshotWorld();
 	void EnsureWorldInitialised();
 	void DestroyWorld();
 	void ClearCache();

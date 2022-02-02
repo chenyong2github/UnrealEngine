@@ -45,9 +45,11 @@ void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::Save(FFoliageInfo& 
 	RootArchive.SetCustomVersions(VersionInfo);
 	
 	ImplType = DataToReadFrom.Type;
-	ComponentName = DataToReadFrom.GetComponent() ? DataToReadFrom.GetComponent()->GetFName() : FName(NAME_None);
 	
-	UE_CLOG(DataToReadFrom.GetComponent(), LogLevelSnapshots, Warning, TEXT("Could not save component for ImplType %s"), *AsName(ImplType));
+	const bool bIsComponentValid = DataToReadFrom.GetComponent() != nullptr; 
+	ComponentName = bIsComponentValid ? DataToReadFrom.GetComponent()->GetFName() : FName(NAME_None);
+	UE_CLOG(!bIsComponentValid, LogLevelSnapshots, Warning, TEXT("Could not save component for ImplType %s"), *AsName(ImplType));
+
 	RootArchive << DataToReadFrom;
 }
 
