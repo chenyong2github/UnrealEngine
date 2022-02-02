@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class BlackmagicMediaOutput : ModuleRules
@@ -15,7 +17,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(
 				new string[]
 				{
-					"BlackmagicMediaOutput/Private",
+					"BlackmagicMediaOutput/Private"
 				}
 			);
 
@@ -28,7 +30,8 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"RenderCore",
 					"RHI",
-					"Slate",
+					"RHICore",
+					"Slate"
 				}
             );
 		}

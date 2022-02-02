@@ -17,6 +17,10 @@ namespace BlackmagicMediaCaptureHelpers
 	class FBlackmagicMediaCaptureEventCallback;
 }
 
+namespace BlackmagicDesign
+{
+	struct FTimecode;
+}
 
 /**
  * Output Media for Blackmagic streams.
@@ -37,8 +41,11 @@ protected:
 	virtual bool UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool UpdateRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) override;
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) override;
+	virtual bool ShouldCaptureRHITexture() const override;
 
+	virtual void BeforeFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) override;
 	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow) override;
+	virtual void OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture) override;
 
 private:
 	struct FBlackmagicOutputCallback;
@@ -47,9 +54,9 @@ private:
 private:
 	bool InitBlackmagic(UBlackmagicMediaOutput* InMediaOutput);
 	void WaitForSync_RenderingThread();
+	void OutputAudio_RenderingThread(const FCaptureBaseData& InBaseData, const BlackmagicDesign::FTimecode& Timecode);
 	void ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
 	void RestoreViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
-	void TriggerAudioRender();
 
 private:
 	friend BlackmagicMediaCaptureHelpers::FBlackmagicMediaCaptureEventCallback;
@@ -87,5 +94,10 @@ private:
 	bool bOutputAudio = false;
 
 	uint8 NumOutputChannels = 0;
-	
+
+	/** Textures to release when the capture has stopped. Must be released after GPUTextureTransfer textures have been unregistered. */
+	TArray<FTextureRHIRef> TexturesToRelease;
+
+	/** Whether or not GPUTextureTransfer was initialized successfully. */
+	bool bGPUTextureTransferAvailable = false;
 };

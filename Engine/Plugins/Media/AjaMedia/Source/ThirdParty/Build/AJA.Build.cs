@@ -16,7 +16,7 @@ public class AJA : ModuleRules
 			string AjaLibDir = Path.Combine(ModuleDirectory, "../../../Binaries/ThirdParty/Win64");
 
 			string LibraryName = "AJA";
-			bool bHaveDebugLib = false;// File.Exists(Path.Combine(AjaLibDir, "AJAd.dll"));
+			bool bHaveDebugLib = File.Exists(Path.Combine(AjaLibDir, "AJAd.dll"));
 			if (bHaveDebugLib && Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
 				LibraryName = "AJAd";

@@ -18,8 +18,15 @@
 
 #include "BlackmagicReferencePtr.h"
 
+namespace GPUTextureTransfer
+{
+	class ITextureTransfer;
+}
+
 namespace BlackmagicDesign
 {
+	extern GPUTextureTransfer::ITextureTransfer* TextureTransfer;
+
 	using LoggingCallbackPtr = void(*)(const TCHAR* Format, ...);
 	using FBlackmagicVideoFormat = int32_t; //BMDDisplayMode
 
@@ -60,6 +67,14 @@ namespace BlackmagicDesign
 		SR_48kHz = 48000
 	};
 
+	enum class ERHI : uint8_t
+	{
+		Invalid,
+		D3D11,
+		D3D12,
+		Cuda,
+		Vulkan
+	};
 
 	namespace Private
 	{
@@ -192,6 +207,7 @@ namespace BlackmagicDesign
 		bool bOutputAudio;
 		bool bOutputInterlacedFieldsTimecodeNeedToMatch;
 		bool bLogDropFrames;
+		bool bUseGPUDMA;
 	};
 
 	/* IInputEventCallback definition
@@ -273,6 +289,14 @@ namespace BlackmagicDesign
 		uint32_t FrameIdentifier = 0;
 	};
 
+	struct UEBLACKMAGICDESIGN_API FFrameDescriptor_GPUDMA
+	{
+		void* RHITexture = nullptr;
+
+		FTimecode Timecode;
+		uint32_t FrameIdentifier = 0;
+	};
+
 	struct UEBLACKMAGICDESIGN_API FAudioSamplesDescriptor
 	{
 		uint8_t* AudioBuffer = nullptr;
@@ -281,6 +305,32 @@ namespace BlackmagicDesign
 
 		FTimecode Timecode;
 		uint32_t FrameIdentifier = 0;
+	};
+
+	struct UEBLACKMAGICDESIGN_API FInitializeDMAArgs
+	{
+		ERHI RHI = ERHI::Invalid;
+		void* RHIDevice = nullptr;
+		void* RHICommandQueue = nullptr;
+
+		// Begin Vulkan Only
+		void* VulkanInstance = nullptr;
+		uint8_t RHIDeviceUUID[16] = { 0 };
+		// End Vulkan Only
+	};
+
+	struct UEBLACKMAGICDESIGN_API FRegisterDMABufferArgs
+	{
+		void* Buffer = nullptr;
+		uint32_t Stride = 0;
+		uint32_t Height = 0;
+		uint32_t Width = 0;
+	};
+
+	struct UEBLACKMAGICDESIGN_API FRegisterDMATextureArgs
+	{
+		void* RHITexture = nullptr;
+		void* RHIResourceMemory = nullptr; // Vulkan only
 	};
 	
 
@@ -383,5 +433,15 @@ namespace BlackmagicDesign
 	UEBLACKMAGICDESIGN_API FUniqueIdentifier RegisterOutputChannel(const FChannelInfo& InChannelInfo, const FOutputChannelOptions& InChannelOptions, ReferencePtr<IOutputEventCallback> InCallback);
 	UEBLACKMAGICDESIGN_API void UnregisterOutputChannel(const FChannelInfo& InChannelInfo, FUniqueIdentifier InIdentifier, bool bCallCompleted);
 	UEBLACKMAGICDESIGN_API bool SendVideoFrameData(const FChannelInfo& InChannelInfo, const FFrameDescriptor& InFrame);
+	UEBLACKMAGICDESIGN_API bool SendVideoFrameData(const FChannelInfo& InChannelInfo, FFrameDescriptor_GPUDMA& InFrame);
 	UEBLACKMAGICDESIGN_API bool SendAudioSamples(const FChannelInfo& InChannelInfo, const FAudioSamplesDescriptor& InSamples);
+
+	UEBLACKMAGICDESIGN_API bool InitializeDMA(const FInitializeDMAArgs& Args);
+	UEBLACKMAGICDESIGN_API void UninitializeDMA();
+	UEBLACKMAGICDESIGN_API bool RegisterDMATexture(const FRegisterDMATextureArgs& Args);
+	UEBLACKMAGICDESIGN_API bool UnregisterDMATexture(void* InRHITexture);
+	UEBLACKMAGICDESIGN_API bool RegisterDMABuffer(const FRegisterDMABufferArgs& InArgs);
+	UEBLACKMAGICDESIGN_API bool UnregisterDMABuffer(void* InBuffer);
+	UEBLACKMAGICDESIGN_API bool LockDMATexture(void* InRHITexture);
+	UEBLACKMAGICDESIGN_API bool UnlockDMATexture(void* InRHITexture);
 };

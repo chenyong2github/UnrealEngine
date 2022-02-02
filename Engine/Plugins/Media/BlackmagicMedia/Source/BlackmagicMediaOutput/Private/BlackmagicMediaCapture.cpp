@@ -21,8 +21,10 @@
 #include "EngineAnalytics.h"
 #endif
 
-#include <iostream>
-#include <fstream>
+TAutoConsoleVariable<int32> CVarEnableGPUDirect(
+	TEXT("Blackmagic.EnableGPUDirect"), 0,
+	TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
+	ECVF_RenderThreadSafe);
 
 bool bBlackmagicWritInputRawDataCmdEnable = false;
 static FAutoConsoleCommand BlackmagicWriteInputRawDataCmd(
@@ -66,6 +68,11 @@ namespace BlackmagicMediaCaptureHelpers
 		}
 
 		bool SendVideoFrameData(BlackmagicDesign::FFrameDescriptor& InFrameDescriptor)
+		{
+			return BlackmagicDesign::SendVideoFrameData(ChannelInfo, InFrameDescriptor);
+		}
+
+		bool SendVideoFrameData(BlackmagicDesign::FFrameDescriptor_GPUDMA& InFrameDescriptor)
 		{
 			return BlackmagicDesign::SendVideoFrameData(ChannelInfo, InFrameDescriptor);
 		}
@@ -325,6 +332,7 @@ UBlackmagicMediaCapture::UBlackmagicMediaCapture(const FObjectInitializer& Objec
 	, WakeUpEvent(nullptr)
 	, LastFrameDropCount_BlackmagicThread(0)
 {
+	bGPUTextureTransferAvailable = FBlackmagicMediaOutputModule::Get().IsGPUTextureTransferAvailable();
 }
 
 bool UBlackmagicMediaCapture::ValidateMediaOutput() const
@@ -385,12 +393,22 @@ void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess
 		{
 			// Prevent the rendering thread from copying while we are stopping the capture.
 			FScopeLock ScopeLock(&RenderThreadCriticalSection);
+			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
+				[this](FRHICommandListImmediate& RHICmdList) mutable
+				{
+					for (FTextureRHIRef& Texture : TexturesToRelease)
+					{
+						BlackmagicDesign::UnregisterDMATexture(Texture->GetTexture2D()->GetNativeResource());
+					}
 
-			if (EventCallback)
-			{
-				EventCallback->Uninitialize();
-				EventCallback = nullptr;
-			}
+					TexturesToRelease.Reset();
+
+					if (EventCallback)
+					{
+						EventCallback->Uninitialize();
+						EventCallback = nullptr;
+					}
+				});
 
 			if (WakeUpEvent)
 			{
@@ -403,6 +421,12 @@ void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess
 
 		AudioOutput.Reset();
 	}
+}
+
+bool UBlackmagicMediaCapture::ShouldCaptureRHITexture() const
+{
+	// Todo: also test if dvp was initialized correctly.
+	return bGPUTextureTransferAvailable && CVarEnableGPUDirect.GetValueOnAnyThread() == 1;
 }
 
 void UBlackmagicMediaCapture::ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport)
@@ -466,6 +490,22 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	bLogDropFrame = InBlackmagicMediaOutput->bLogDropFrame;
 	FrameRate = InBlackmagicMediaOutput->GetRequestedFrameRate();
 
+	if (ShouldCaptureRHITexture())
+	{
+		if (InBlackmagicMediaOutput->OutputConfiguration.MediaConfiguration.MediaMode.Standard != EMediaIOStandardType::Progressive)
+		{
+			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("GPU DMA is not supported with interlaced, defaulting to regular path."));
+			bGPUTextureTransferAvailable = false;
+		}
+
+		if (InBlackmagicMediaOutput->PixelFormat != EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV)
+		{
+			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("GPU DMA is not supported with pixel format 10 Bit YUV, defaulting to regular path."));
+			bGPUTextureTransferAvailable = false;
+		}
+	}
+
+
 	// Init Device options
 	BlackmagicDesign::FOutputChannelOptions ChannelOptions;
 	ChannelOptions.FormatInfo.DisplayMode = InBlackmagicMediaOutput->OutputConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
@@ -489,6 +529,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	ChannelOptions.bOutputVideo = true;
 	ChannelOptions.bOutputInterlacedFieldsTimecodeNeedToMatch = InBlackmagicMediaOutput->bInterlacedFieldsTimecodeNeedToMatch && InBlackmagicMediaOutput->OutputConfiguration.MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::Interlaced && InBlackmagicMediaOutput->TimecodeFormat != EMediaIOTimecodeFormat::None;
 	ChannelOptions.bLogDropFrames = bLogDropFrame;
+	ChannelOptions.bUseGPUDMA = ShouldCaptureRHITexture();
 
 	AudioBitDepth = InBlackmagicMediaOutput->AudioBitDepth;
 	bOutputAudio = InBlackmagicMediaOutput->bOutputAudio;
@@ -531,7 +572,32 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 		WakeUpEvent = FPlatformProcess::GetSynchEventFromPool(bIsManualReset);
 	}
 
+	if (ShouldCaptureRHITexture())
+	{
+		UE_LOG(LogBlackmagicMediaOutput, Display, TEXT("BlackmagicMedia capture started using GPU Direct"));
+	}
+
 	return true;
+}
+
+void UBlackmagicMediaCapture::BeforeFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
+{
+	if (ShouldCaptureRHITexture())
+	{
+		if (!TexturesToRelease.Contains(InTexture))
+		{
+			TexturesToRelease.Add(InTexture);
+
+			FRHITexture2D* Texture = InTexture->GetTexture2D();
+			BlackmagicDesign::FRegisterDMATextureArgs Args;
+			Args.RHITexture = Texture->GetNativeResource();
+			//Args.RHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
+			BlackmagicDesign::RegisterDMATexture(Args);
+
+		}
+
+		BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+	}
 }
 
 void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
@@ -567,40 +633,7 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("Frame couldn't be sent to Blackmagic device. Engine might be running faster than output."));
 		}
 
-		if (bOutputAudio/* && bSent*/)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OutputAudio);
-
-			BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
-			AudioSamples.Timecode = Timecode;
-			AudioSamples.FrameIdentifier = InBaseData.SourceFrameNumber;
-			check(NumOutputChannels != 0);
-
-			if (AudioOutput)
-			{
-				if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
-				{
-					TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>();
-					AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-					AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
-					AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
-					EventCallback->SendAudioSamples(AudioSamples);
-				}
-				else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
-				{
-					TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>();
-					AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-					AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
-					AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);
-
-					EventCallback->SendAudioSamples(AudioSamples);
-				}
-				else
-				{
-					checkNoEntry();
-				}
-			}
-		}
+		OutputAudio_RenderingThread(InBaseData, Timecode);
 
 		if (bBlackmagicWritInputRawDataCmdEnable)
 		{
@@ -641,6 +674,50 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 	}
 }
 
+void UBlackmagicMediaCapture::OnRHITextureCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, FTextureRHIRef InTexture)
+{
+	if (!InTexture)
+	{
+		return;
+	}
+
+	BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+
+	// Prevent the rendering thread from copying while we are stopping the capture.
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread);
+	FScopeLock ScopeLock(&RenderThreadCriticalSection);
+
+
+	if (EventCallback)
+	{
+		BlackmagicDesign::FTimecode Timecode = BlackmagicMediaCaptureDevice::ConvertToBlackmagicTimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
+
+		BlackmagicDesign::FFrameDescriptor_GPUDMA Frame;
+		Frame.RHITexture = InTexture->GetTexture2D()->GetNativeResource();
+		Frame.Timecode = Timecode;
+		Frame.FrameIdentifier = InBaseData.SourceFrameNumber;
+
+		bool bSent = false;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::SendVideoFrameData_GPUDirect);
+			bSent = EventCallback->SendVideoFrameData(Frame);
+		}
+
+		if (bLogDropFrame && !bSent)
+		{
+			UE_LOG(LogBlackmagicMediaOutput, Warning, TEXT("Frame couldn't be sent to Blackmagic device. Engine might be running faster than output."));
+		}
+
+		OutputAudio_RenderingThread(InBaseData, Timecode);
+
+		WaitForSync_RenderingThread();
+	}
+	else if (GetState() != EMediaCaptureState::Stopped)
+	{
+		SetState(EMediaCaptureState::Error);
+	}
+}
+
 void UBlackmagicMediaCapture::WaitForSync_RenderingThread()
 {
 	if (bWaitForSyncEvent)
@@ -656,3 +733,42 @@ void UBlackmagicMediaCapture::WaitForSync_RenderingThread()
 		}
 	}
 }
+
+void UBlackmagicMediaCapture::OutputAudio_RenderingThread(const FCaptureBaseData& InBaseData, const BlackmagicDesign::FTimecode& InTimecode)
+{
+	if (bOutputAudio)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OutputAudio);
+
+		BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
+		AudioSamples.Timecode = InTimecode;
+		AudioSamples.FrameIdentifier = InBaseData.SourceFrameNumber;
+		check(NumOutputChannels != 0);
+
+		if (AudioOutput)
+		{
+			if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
+			{
+				TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>();
+				AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
+				AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
+				AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
+				EventCallback->SendAudioSamples(AudioSamples);
+			}
+			else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
+			{
+				TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>();
+				AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
+				AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
+				AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);
+
+				EventCallback->SendAudioSamples(AudioSamples);
+			}
+			else
+			{
+				checkNoEntry();
+			}
+		}
+	}
+}
+

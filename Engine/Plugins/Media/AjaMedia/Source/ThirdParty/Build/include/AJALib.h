@@ -12,8 +12,15 @@
 #define AJA_API __declspec(dllimport)
 #endif
 
+namespace GPUTextureTransfer
+{
+	class ITextureTransfer;
+}
+
 namespace AJA
 {
+	extern void* RHITexture;
+	extern GPUTextureTransfer::ITextureTransfer* TextureTransfer;
 
 	/* Types provided from the interface
 	*****************************************************************************/
@@ -413,6 +420,7 @@ namespace AJA
 				uint32_t bDisplayWarningIfDropFrames : 1;
 				uint32_t bConvertOutputLevelAToB : 1; // enable video output 3G level A to convert it to 3G level B
 				uint32_t bTEST_OutputInterlaced : 1; // when outputting, warn if the field 1 and field 2 are the same color. It except one of the line to be white and the other line to be not white
+				uint32_t bUseGPUDMA : 1; // Whether to use GPU Direct when outputting.
 			};
 			uint32_t Options;
 		};
@@ -471,6 +479,7 @@ namespace AJA
 		bool SetAncillaryFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* AncillaryBuffer, uint32_t AncillaryBufferSize);
 		bool SetAudioFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* AudioBuffer, uint32_t AudioBufferSize);
 		bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, uint8_t* VideoBuffer, uint32_t VideoBufferSize);
+		bool SetVideoFrameData(const AJAOutputFrameBufferData& InFrameData, void* RHITexture);
 
 		bool GetOutputDimension(uint32_t& OutWidth, uint32_t& OutHeight) const;
 		int32_t GetNumAudioSamplesPerFrame(const AJAOutputFrameBufferData& InFrameData) const;
@@ -522,4 +531,49 @@ namespace AJA
 	private:
 		Private::AutoDetectChannel* AutoChannel;
 	};
+
+	enum class ERHI : uint8_t
+	{
+		Invalid,
+		D3D11,
+		D3D12,
+		Cuda,
+		Vulkan
+	};
+
+	struct AJA_API FInitializeDMAArgs
+	{
+		ERHI RHI = ERHI::Invalid;
+		void* RHIDevice = nullptr;
+		void* RHICommandQueue = nullptr;
+
+		// Begin Vulkan Only
+		void* VulkanInstance = nullptr;
+		uint8_t RHIDeviceUUID[16] = { 0 };
+		// End Vulkan Only
+	};
+
+	struct AJA_API FRegisterDMABufferArgs
+	{
+		void* Buffer = nullptr;
+		uint32_t Stride = 0;
+		uint32_t Height = 0;
+		uint32_t Width = 0;
+		uint8_t BytesPerPixel = 0;
+	};
+
+	struct AJA_API FRegisterDMATextureArgs
+	{
+		void* RHITexture = nullptr;
+		void* RHIResourceMemory = nullptr; // Vulkan only
+	};
+
+	AJA_API bool InitializeDMA(const FInitializeDMAArgs& Args);
+	AJA_API void UninitializeDMA();
+	AJA_API bool RegisterDMATexture(const FRegisterDMATextureArgs& Args);
+	AJA_API bool UnregisterDMATexture(void* RHITexture);
+	AJA_API bool RegisterDMABuffer(const FRegisterDMABufferArgs& InArgs);
+	AJA_API bool UnregisterDMABuffer(void* InBuffer);
+	AJA_API bool LockDMATexture(void* RHITexture);
+	AJA_API bool UnlockDMATexture(void* RHITexture);
 }

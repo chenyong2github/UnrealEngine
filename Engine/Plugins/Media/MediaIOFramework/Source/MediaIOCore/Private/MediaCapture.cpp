@@ -250,6 +250,9 @@ bool UMediaCapture::CaptureSceneViewport(TSharedPtr<FSceneViewport>& InSceneView
 	SetState(EMediaCaptureState::Preparing);
 	bool bInitialized = CaptureSceneViewportImpl(InSceneViewport);
 
+	// This could have been updated by the call to CaptureSceneViewportImpl
+	bShouldCaptureRHITexture = ShouldCaptureRHITexture(); 
+
 	if (bInitialized)
 	{
 		InitializeResolveTarget(MediaOutput->NumberOfTextureBuffers);
@@ -313,6 +316,9 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 
 	SetState(EMediaCaptureState::Preparing);
 	bool bInitialized = CaptureRenderTargetImpl(InRenderTarget2D);
+
+	// This could have been updated by the call to CaptureSceneViewportImpl
+	bShouldCaptureRHITexture = ShouldCaptureRHITexture();
 
 	if (bInitialized)
 	{
@@ -530,12 +536,10 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 
 			// CaptureFrames contains FTexture2DRHIRef, therefore should be released on Render Tread thread.
 			// Keep references frames to be released in a temporary array and clear CaptureFrames on Game Thread.
-			TSharedPtr<TArray<FCaptureFrame>> TempArrayToBeReleasedOnRenderThread = MakeShared<TArray<FCaptureFrame>>();
-			*TempArrayToBeReleasedOnRenderThread = MoveTemp(CaptureFrames);
 			ENQUEUE_RENDER_COMMAND(MediaOutputReleaseCaptureFrames)(
-				[TempArrayToBeReleasedOnRenderThread](FRHICommandListImmediate& RHICmdList)
+				[TempArrayToBeReleasedOnRenderThread = MoveTemp(CaptureFrames)](FRHICommandListImmediate& RHICmdList) mutable
 				{
-					TempArrayToBeReleasedOnRenderThread->Reset();
+					TempArrayToBeReleasedOnRenderThread.Reset();
 				});
 		}
 	}
@@ -614,25 +618,29 @@ void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
 		return;
 	}
 
-	if (bShouldCaptureRHITexture)
-	{
-		// No buffer is needed if the callback is with the RHI Texture
-		InNumberOfBuffers = 1;
-	}
-
 	NumberOfCaptureFrame = InNumberOfBuffers;
 	check(CaptureFrames.Num() == 0);
 	CaptureFrames.AddDefaulted(InNumberOfBuffers);
 
-	// Only create CPU readback texture when we are using the CPU callback
-	if (!bShouldCaptureRHITexture)
-	{
-		UMediaCapture* This = this;
-		ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateTexture)(
-			[This](FRHICommandListImmediate& RHICmdList)
+	UMediaCapture* This = this;
+	ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateTexture)(
+		[This](FRHICommandListImmediate& RHICmdList)
+		{
+			FRHIResourceCreateInfo CreateInfo(TEXT("UMediaCapture"));
+			for (int32 Index = 0; Index < This->NumberOfCaptureFrame; ++Index)
 			{
-				FRHIResourceCreateInfo CreateInfo(TEXT("UMediaCapture"));
-				for (int32 Index = 0; Index < This->NumberOfCaptureFrame; ++Index)
+				FPooledRenderTargetDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
+					This->DesiredOutputSize,
+					This->DesiredOutputPixelFormat,
+					FClearValueBinding::None,
+					TexCreate_Shared,
+					TexCreate_RenderTargetable,
+					false);
+
+				GRenderTargetPool.FindFreeElement(RHICmdList, OutputDesc, This->CaptureFrames[Index].RenderTarget, *FString::Format(TEXT("MediaCapture RenderTarget {0}"), { Index }));
+
+				// Only create CPU readback texture when we are using the CPU callback
+				if (!This->bShouldCaptureRHITexture)
 				{
 					This->CaptureFrames[Index].ReadbackTexture = RHICreateTexture2D(
 						This->DesiredOutputSize.X,
@@ -644,13 +652,10 @@ void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
 						CreateInfo
 					);
 				}
-				This->bResolvedTargetInitialized = true;
-			});
-	}
-	else
-	{
-		bResolvedTargetInitialized = true;
-	}
+
+			}
+			This->bResolvedTargetInitialized = true;
+		});
 }
 
 bool UMediaCapture::ValidateMediaOutput() const
@@ -767,6 +772,19 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 {
 	FTexture2DRHIRef SourceTexture;
 
+	if (CapturingFrame)
+	{
+		if (!CapturingFrame->RenderTarget)
+		{
+			InMediaCapture->SetState(EMediaCaptureState::Error);
+			UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. A capture frame had an invalid render target."), *InMediaCapture->MediaOutputName);
+		}
+		else
+		{
+			BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->RenderTarget->GetRenderTargetItem().TargetableTexture);
+		}
+	}
+
 	{
 		if (InCapturingSceneViewport)
 		{
@@ -848,17 +866,7 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CopyToResolve);
 
-		FPooledRenderTargetDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
-			InMediaCapture->DesiredOutputSize,
-			InMediaCapture->DesiredOutputPixelFormat,
-			FClearValueBinding::None,
-			TexCreate_None,
-			TexCreate_RenderTargetable,
-			false);
-		TRefCountPtr<IPooledRenderTarget> ResampleTexturePooledRenderTarget;
-		GRenderTargetPool.FindFreeElement(RHICmdList, OutputDesc, ResampleTexturePooledRenderTarget, TEXT("MediaCapture"));
-		const FSceneRenderTargetItem& DestRenderTarget = ResampleTexturePooledRenderTarget->GetRenderTargetItem();
-
+		FSceneRenderTargetItem& DestRenderTarget = CapturingFrame->RenderTarget->GetRenderTargetItem();
 		// Do we need to crop
 		float ULeft = 0.0f;
 		float URight = 1.0f;
@@ -988,7 +996,6 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 
 			if (InMediaCapture->bShouldCaptureRHITexture)
 			{
-				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_Callback);
 				InMediaCapture->OnRHITextureCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, DestRenderTarget.TargetableTexture);
 				CapturingFrame->bResolvedTargetRequested = false;
 			}
