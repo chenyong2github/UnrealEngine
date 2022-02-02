@@ -52,17 +52,13 @@ void FVirtualShadowMapVisualizationMenuCommands::BuildCommandMap()
 
 		switch (Entry.ModeType)
 		{
+		case FVirtualShadowMapVisualizationData::FModeType::Standard:
+			Record.Type = FVirtualShadowMapVisualizationType::Standard;
+			break;
+
 		default:
-		case FVirtualShadowMapVisualizationData::FModeType::ProjectionStandard:
-			Record.Type = FVirtualShadowMapVisualizationType::ProjectionStandard;
-			break;
-
-		case FVirtualShadowMapVisualizationData::FModeType::ProjectionAdvanced:
-			Record.Type = FVirtualShadowMapVisualizationType::ProjectionAdvanced;
-			break;
-
-		case FVirtualShadowMapVisualizationData::FModeType::DebugStandard:
-			Record.Type = FVirtualShadowMapVisualizationType::DebugStandard;
+		case FVirtualShadowMapVisualizationData::FModeType::Advanced:
+			Record.Type = FVirtualShadowMapVisualizationType::Advanced;
 			break;
 		}
 	}
@@ -77,21 +73,17 @@ void FVirtualShadowMapVisualizationMenuCommands::BuildVisualisationSubMenu(FMenu
 	{
 		Menu.BeginSection("LevelViewportVirtualShadowMapVisualizationMode", LOCTEXT("VirtualShadowMapVisualizationHeader", "Visualization Mode"));
 
-		Commands.AddCommandTypeToMenu(Menu, FVirtualShadowMapVisualizationType::ProjectionStandard);
+		Commands.AddCommandTypeToMenu(Menu, FVirtualShadowMapVisualizationType::Standard, false);
 		if (bShowAdvanced)
 		{
-			Menu.AddMenuSeparator();
-			Commands.AddCommandTypeToMenu(Menu, FVirtualShadowMapVisualizationType::ProjectionAdvanced);
+			Commands.AddCommandTypeToMenu(Menu, FVirtualShadowMapVisualizationType::Advanced, true);
 		}
-
-		//Menu.AddMenuSeparator();
-		//Commands.AddCommandTypeToMenu(Menu, FVirtualShadowMapVisualizationType::DebugStandard);
 
 		Menu.EndSection();
 	}
 }
 
-bool FVirtualShadowMapVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuilder& Menu, const FVirtualShadowMapVisualizationType Type) const
+bool FVirtualShadowMapVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuilder& Menu, const FVirtualShadowMapVisualizationType Type, bool bSeparatorBefore) const
 {
 	bool bAddedCommands = false;
 
@@ -101,6 +93,10 @@ bool FVirtualShadowMapVisualizationMenuCommands::AddCommandTypeToMenu(FMenuBuild
 		const FVirtualShadowMapVisualizationRecord& Record = It.Value();
 		if (Record.Type == Type)
 		{
+			if (!bAddedCommands && bSeparatorBefore)
+			{
+				Menu.AddMenuSeparator();
+			}
 			Menu.AddMenuEntry(Record.Command, NAME_None, Record.Command->GetLabel());
 			bAddedCommands = true;
 		}

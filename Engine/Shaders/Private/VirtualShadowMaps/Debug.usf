@@ -6,183 +6,153 @@
 
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
-//#include "../Nanite/DebugVisualize.ush"
 #include "PageOverlap.ush"
 #include "PageCacheCommon.ush"
+#include "ProjectionCommon.ush"
+#include "../Visualization.ush"
+#include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 
 uint DebugTargetWidth;
 uint DebugTargetHeight;
 uint BorderWidth;
-uint ZoomScaleFactor;
-uint DebugMethod;
+uint VisualizeModeId;	// VIRTUAL_SHADOW_MAP_VISUALIZE_*
+int VirtualShadowMapId;
 
-Texture2D< float >			HZBPhysical;
+RWTexture2D<float4> OutVisualize;
 
-float3 IntToColor(uint Index)
+static const float3 BackGroundColor = float3(0.1f, 0.1f, 0.1f);
+static const float3 BlackColor = float3(0.0f, 0.0f, 0.0f);
+
+
+float3 DebugVisualizeClipmap(float2 PixelUV, FVirtualShadowMapProjectionShaderData ProjectionData0)
 {
-	const float3 ColorTable[9] = {
-		float3(0.0f, 0.0f, 0.0f),
-		float3(1.0f, 0.0f, 0.0f),
-		float3(0.0f, 1.0f, 0.0f),
-		float3(0.0f, 0.0f, 1.0f),
+	float UVScale = 0.0f;
+	int LastValidLevelIndex = -1;
 
-		float3(1.0f, 1.0f, 0.0f),
-		float3(0.0f, 1.0f, 1.0f),
-		float3(1.0f, 0.0f, 1.0f),
+#if 1
+	// First figure out a scale factor to zoom in on non-empty pages.
+	for (int Index = ProjectionData0.ClipmapLevelCount - 1; Index >= 0; --Index)
+	{
+		int LevelSmId = ProjectionData0.VirtualShadowMapId + Index;
+		uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[LevelSmId * VSM_MAX_MIP_LEVELS];
 
-		float3(0.5f, 0.7f, 0.1f),
-		float3(1.0f, 1.0f, 1.0f)
-	};
-	return ColorTable[Index % 9];
+
+		if (all(AllocatedBounds.xy <= AllocatedBounds.zw))
+		{
+			FVirtualShadowMapProjectionShaderData Level = GetVirtualShadowMapProjectionData(LevelSmId);
+
+			float4 ShadowUVz = mul(float4(Level.ClipmapWorldOrigin + Level.ShadowPreViewTranslation, 1.0f), Level.TranslatedWorldToShadowUVMatrix);
+			const float2 PageCenter = ShadowUVz * float(VSM_LEVEL0_DIM_PAGES_XY);
+			float2 AllocatedExtentPages = max(abs(float2(AllocatedBounds.xy) - PageCenter), abs(float2(AllocatedBounds.zw) - PageCenter));
+			
+			float NewUVScale = (2.0f + max(AllocatedExtentPages.x, AllocatedExtentPages.y)) / float(VSM_LEVEL0_DIM_PAGES_XY / 2);
+		
+			if (LastValidLevelIndex < 0)
+			{
+				UVScale = NewUVScale;
+				LastValidLevelIndex = Index;
+			}
+			else
+			{
+				UVScale = max(UVScale, NewUVScale / float(1 << (LastValidLevelIndex - Index)));
+			}
+		}
+	}
+#endif
+
+	if (LastValidLevelIndex < 0)
+	{
+		return BlackColor;
+	}
+
+	const float2 CenteredPixelUV = PixelUV - 0.5f;
+
+	int PageOverlayCount = 0;
+
+	float3 ResultColor = BlackColor;
+	for (int Index = LastValidLevelIndex; Index >= 0; --Index)
+	{
+		int LevelSmId = ProjectionData0.VirtualShadowMapId  + Index;
+
+		FVirtualShadowMapProjectionShaderData Level = GetVirtualShadowMapProjectionData(LevelSmId);
+
+		float4 ShadowUVz = mul(float4(Level.ClipmapWorldOrigin + Level.ShadowPreViewTranslation, 1.0f), Level.TranslatedWorldToShadowUVMatrix);
+
+		int2 vPage = int2((CenteredPixelUV * UVScale + ShadowUVz) * float(VSM_LEVEL0_DIM_PAGES_XY));
+		UVScale *= 2.0f;
+
+		if (any(vPage < 0) || any(vPage >= VSM_LEVEL0_DIM_PAGES_XY))
+		{
+			continue;
+		}
+
+		uint PageOffset = CalcPageOffset(LevelSmId, 0, vPage);
+		FShadowPhysicalPage pPage = ShadowGetPhysicalPage(PageOffset);
+
+		if (pPage.bThisLODValid)
+		{
+			PageOverlayCount += 1;
+			ResultColor = lerp(IntToColor(vPage.x + (vPage.y << 10U)), IntToColor(Level.ClipmapLevel), 0.75f);
+		}
+	}
+
+	if (PageOverlayCount > 0)
+	{
+		//ResultColor = GreenToRedTurbo(float(PageOverlayCount - 1) / float(8));
+	}
+
+	return ResultColor;
 }
 
-RWTexture2D<float4>		DebugOutput;
-/**
- * 
- */
-[numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
-void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
+float3 DebugVisualizeClipmap(uint2 OutputPixel, int VirtualShadowMapId)
 {
-	if (any(OutputPixel >= uint2(DebugTargetWidth, DebugTargetHeight)))
+	// Figure out the square area do draw in (could be any sub-rect)
+	uint SquareDomainDim = min(DebugTargetWidth, DebugTargetHeight) - BorderWidth * 2U;
+
+	// fill background pixels
+	if (any(OutputPixel < BorderWidth || OutputPixel >(SquareDomainDim + BorderWidth)))
+	{
+		return BackGroundColor;
+	}
+
+	// The pixel we are drawing in 0-1 range UV within the domain
+	float2 PixelUV = float2(OutputPixel - BorderWidth) / float(SquareDomainDim);
+
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+	if (ProjectionData.LightType != LIGHT_TYPE_DIRECTIONAL)
+	{
+		return BackGroundColor;
+	}
+
+	return DebugVisualizeClipmap(PixelUV, ProjectionData);
+}
+
+
+[numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
+void DebugVisualizeVirtualSmCS(uint2 PixelPos : SV_DispatchThreadID)
+{
+	if (any(PixelPos >= uint2(DebugTargetWidth, DebugTargetHeight)))
 	{
 		return;
 	}
 
-	if( DebugMethod > 5 )
+	// NOTE: Important to *not* write output if it isn't a recognized mode, as a different
+	// pass may write that output instead.
+	float3 Output = float3(1, 0, 1);
+	bool bWriteOutput = true;
+
+	if (VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_VIRTUAL_SPACE)
 	{
-		float3 Color = 0;
-
-		uint ShadowMapID = 0;
-		uint2 Texel = OutputPixel * ( VSM_VIRTUAL_MAX_RESOLUTION_XY / 2048 );
-
-		float Depth = 0;
-		float HZBDepth = 0;
-
-		uint Level = 0;
-		for( ; Level < VSM_MAX_MIP_LEVELS; Level++ )
-		{
-			uint2 vAddress = Texel >> Level;
-			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
-			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
-
-			if( pPage.bThisLODValid )
-			{
-				uint2 pAddress = pPage.PhysicalAddress * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
-				Depth = asfloat( VirtualShadowMap.PhysicalPagePool[ pAddress ] );
-				break;
-			}
-		}
-
-		Level = DebugMethod - 6;
-		for( ; Level < VSM_MAX_MIP_LEVELS; Level++ )
-		{
-			uint2 vAddress = Texel >> Level;
-			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
-			//uint2 pPage = HZBPageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
-			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
-
-			if( pPage.bThisLODValid )
-			{
-				vAddress >>= 1;
-
-				uint2 pAddress = pPage.PhysicalAddress * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
-				HZBDepth = HZBPhysical[ pAddress ];
-				break;
-			}
-		}
-
-		//Color = Depth - HZBDepth;
-		//Color.r = Depth;
-		Color = Depth;
-		//Color = HZBDepth;
-
-		DebugOutput[OutputPixel] = float4(Color, 1.0f);
-		return;
-	}
-
-	uint2 InputPixel = OutputPixel / ZoomScaleFactor;
-
-	uint VirtualShadowMapId = max(0, int(InputPixel.y) - 2) / (CalcLevelDimsPages(0) + BorderWidth);
-	uint MipLevel = 0;
-	uint Offset = 0;
-
-	while (InputPixel.x >= Offset + CalcLevelDimsPages(MipLevel) + BorderWidth)
-	{
-		Offset += CalcLevelDimsPages(MipLevel) + BorderWidth;
-		MipLevel += 1;
-	}
-
-	uint2 PageAddress = uint2(InputPixel.x - Offset, InputPixel.y % (CalcLevelDimsPages(0) + BorderWidth));
-
-	if (all(PageAddress - BorderWidth < CalcLevelDimsPages(MipLevel)) && VirtualShadowMapId < VirtualShadowMap.NumShadowMaps)
-	{
-		PageAddress -= BorderWidth;
-		if (DebugMethod >= 1 && DebugMethod <= 2)
-		{
-			if (MipLevel == 0 && DebugMethod == 2)
-			{
-				int OverAlloc = 0;
-				//uint PageFlag = PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
-				for (uint Level = 0; Level < VSM_MAX_MIP_LEVELS; ++Level)
-				{
-					if (VirtualShadowMap.PageFlags[CalcPageOffset(VirtualShadowMapId, Level, PageAddress >> Level)] & VSM_ALLOCATED_FLAG)
-					{
-						OverAlloc += 1;
-					}
-				}
-				float3 Color = IntToColor(OverAlloc);
-				DebugOutput[OutputPixel] = float4(Color, 1.0f);
-			}
-			else
-			{
-				float3 Color = IntToColor(MipLevel + 1);
-				uint PageFlag = VirtualShadowMap.PageFlags[CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress)];
-				DebugOutput[OutputPixel] = float4((PageFlag & VSM_ALLOCATED_FLAG) ? Color : float3(0.0f, 0.0f, 0.0f), 1.0f);
-			}
-		}
-		else
-		{
-#if HAS_CACHE_DATA
-			if (DebugMethod == 3)
-			{
-				uint PrevPageFlag = 0;
-				uint PrevDynFlag = 0;
-
-				const uint PrevVirtualShadowMapId = ShadowMapCacheData[VirtualShadowMapId].PrevVirtualShadowMapId;
-				if (PrevVirtualShadowMapId != INDEX_NONE)
-				{
-					uint PrevOffset = CalcPageOffset(PrevVirtualShadowMapId, MipLevel, PageAddress);
-					PrevPageFlag = PrevPageFlags[PrevOffset];
-					PrevDynFlag = PrevDynamicCasterPageFlags[PrevOffset];
-				}
-
-				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-				uint PageFlag = VirtualShadowMap.PageFlags[Offset];
-
-				bool bPrevAllocated = (PrevPageFlag & VSM_ALLOCATED_FLAG) != 0;
-				bool bPageAllocated = (PageFlag & VSM_ALLOCATED_FLAG) != 0;
-
-				float3 Color = float3(!bPrevAllocated && bPageAllocated, bPrevAllocated && bPageAllocated, bPrevAllocated && !bPageAllocated);
-				if (bPageAllocated && PrevDynFlag)
-				{
-					Color = float3(1.0f, 0.1f, 0.7f);
-				}
-				DebugOutput[OutputPixel] = float4(Color, 1.0f);
-			}
-			else
-#endif // HAS_CACHE_DATA
-			{
-				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-				uint PageFlag = VirtualShadowMap.PageFlags[Offset];
-				bool PageValid = ShadowGetPhysicalPage(Offset).bThisLODValid;
-				float3 Color = float3(0, !PageValid && ((PageFlag & VSM_ALLOCATED_FLAG) != 0), 0);
-				DebugOutput[OutputPixel] = float4(Color, 1.0f);
-			}
-		}
+		Output = DebugVisualizeClipmap(PixelPos, VirtualShadowMapId);
 	}
 	else
 	{
-		DebugOutput[OutputPixel] = float4(float3(0.1f, 0.1f, 0.1f), 1.0f);
+		bWriteOutput = false;
+	}
+
+	if (bWriteOutput)
+	{
+		OutVisualize[PixelPos] = float4(Output, 1.0f);
 	}
 }
 

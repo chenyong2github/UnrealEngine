@@ -9,9 +9,8 @@ class FVirtualShadowMapVisualizationData
 public:
 	enum class FModeType : uint8
 	{
-		ProjectionStandard,
-		ProjectionAdvanced,
-		DebugStandard,
+		Standard,
+		Advanced,
 	};
 
 	/** Describes a single available visualization mode. */
@@ -26,7 +25,7 @@ public:
 	};
 
 	/** Mapping of FName to a visualization mode record. */
-	typedef TMultiMap<FName, FModeRecord> TModeMap;
+	typedef TMap<FName, FModeRecord> TModeMap;
 
 public:
 	FVirtualShadowMapVisualizationData()

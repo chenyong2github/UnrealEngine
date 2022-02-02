@@ -2723,15 +2723,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
 	}
 
-	if (VirtualShadowMapArray.IsEnabled())
-	{
-		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder);
-		if (Views.Num() > 0)
-		{
-			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
-		}
-	}
-
 	if (Scene->VirtualShadowMapArrayCacheManager)
 	{
 		// Do this even if VSMs are disabled this frame to clean up any previously extracted data
@@ -3067,6 +3058,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (HairStrandsBookmarkParameters.HasInstances())
 		{
 			RenderHairStrandsDebugInfo(GraphBuilder, Scene, Views, HairStrandsBookmarkParameters.HairClusterData, SceneTextures.Color.Target, SceneTextures.Depth.Target);
+		}
+	}
+
+	if (VirtualShadowMapArray.IsEnabled())
+	{
+		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder);
+		if (Views.Num() > 0)
+		{
+			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
 		}
 	}
 

@@ -18,7 +18,7 @@
 #include "ProjectionDirectional.ush"
 #include "ProjectionSpot.ush"
 #include "TransmissionCommon.ush"
-#include "Visualize.ush"
+#include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 
 #if HAS_HAIR_STRANDS
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
@@ -358,6 +358,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 {
+	// NOTE: Important to *not* write output if it isn't a recognized mode, as a different
+	// pass may write that output instead.
 	float3 Output = float3( 1, 0, 1 );
 	bool bWriteOutput = false;
 
@@ -375,26 +377,26 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 			pPageMeta = PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)];
 		}
 
-		if ( VisualizeModeId == VISUALIZE_SHADOW_FACTOR )
+		if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_SHADOW_FACTOR )
 		{
 			Output = Result.ShadowFactor.xxx;
 		}
-		else if ( VisualizeModeId == VISUALIZE_CLIPMAP_OR_MIP )
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_OR_MIP )
 		{
 			float3 Color = IntToColor( Result.ClipmapIndexOrMipLevel );
 			Output = 0.8f*Color + 0.2f*Result.ShadowFactor.xxx;
 		}
-		else if ( VisualizeModeId == VISUALIZE_VIRTUAL_PAGE && bValidPageAddress )
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_VIRTUAL_PAGE && bValidPageAddress )
 		{
 			float3 PageColor = IntToColor( vPage.x + ( vPage.y << 10U ) );
 			float3 MipColor = IntToColor( Result.ClipmapIndexOrMipLevel );
 			Output = 0.4f*PageColor + 0.4f*MipColor + 0.2f*Result.ShadowFactor.xxx;
 		}		
-		else if ( VisualizeModeId == VISUALIZE_SMRT_RAY_COUNT )
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_SMRT_RAY_COUNT )
 		{
 			Output = GreenToRedTurbo( float( Result.RayCount ) / float( SMRTRayCount ) );
 		}
-		else if ( VisualizeModeId == VISUALIZE_CACHED_PAGE && bValidPageAddress )
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_CACHED_PAGE && bValidPageAddress )
 		{
 			bool bUncachedDynamic = (pPageMeta.Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
 			bool bUncachedStatic = (pPageMeta.Flags & VSM_STATIC_UNCACHED_FLAG) != 0;
@@ -408,7 +410,7 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 			Output = 0.55f*CacheColor + 0.25f*PageColor + 0.2f*Result.ShadowFactor.xxx;
 		}
 		/*
-		else if ( VisualizeModeId == VISUALIZE_CACHED_PAGE_AGE && bValidPageAddress )
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_CACHED_PAGE_AGE && bValidPageAddress )
 		{
 			float3 Color = GreenToRedTurbo( 1.0f - 0.1f * float(pPageMeta.Age) );
 			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );

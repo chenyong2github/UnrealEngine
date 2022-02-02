@@ -64,14 +64,6 @@ TAutoConsoleVariable<int32> CVarCacheStaticSeparate(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarDebugVisualizeVirtualSms(
-	TEXT("r.Shadow.Virtual.DebugVisualize"),
-	0,
-	TEXT("Set Debug Visualization method for virtual shadow maps, default is off (0).\n")
-	TEXT("  To display the result also use the command 'vis VirtSmDebug'"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarShowStats(
 	TEXT("r.Shadow.Virtual.ShowStats"),
 	0,
@@ -234,10 +226,9 @@ TAutoConsoleVariable<int32> CVarDebugSkipMergePhysical(
 );
 
 TAutoConsoleVariable<int32> CVarDebugSkipDynamicPageInvalidation(
-	TEXT("r.Shadow.Virtual.DebugSkipDynamicPageInvalidation"),
+	TEXT("r.Shadow.Virtual.Cache.DebugSkipDynamicPageInvalidation"),
 	0,
-	TEXT("Invalidate cached pages when geometry moves.\n")
-	TEXT("This should be left enabled except for targeted profiling, as disabling it will produce artifacts with moving geometry."),
+	TEXT("Skip invalidation of cached pages when geometry moves for debugging purposes. This will create obvious visual artifacts when disabled.\n"),
 	ECVF_RenderThreadSafe
 );
 #endif // !UE_BUILD_SHIPPING
@@ -258,7 +249,7 @@ TAutoConsoleVariable<int32> CVarVSMHZB32Bit(
 
 
 static TAutoConsoleVariable<float> CVarMaxMaterialPositionInvalidationRange(
-	TEXT("r.Shadow.Virtual.MaxMaterialPositionInvalidationRange"),
+	TEXT("r.Shadow.Virtual.Cache.MaxMaterialPositionInvalidationRange"),
 	-1.0f,
 	TEXT("Beyond this distance in world units, material position effects (e.g., WPO or PDO) cease to cause VSM invalidations.\n")
 	TEXT(" This can be used to tune performance by reducing re-draw overhead, but causes some artifacts.\n")
@@ -984,9 +975,9 @@ void FVirtualShadowMapVisualizeLightSearch::CheckLight(const FLightSceneProxy* C
 #endif
 }
 
-static FRDGTextureRef CreateDebugOutputTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
+static FRDGTextureRef CreateDebugVisualizationTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
 {
-	const FLinearColor ClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+	const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 		Extent,
@@ -1045,7 +1036,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		if (VisualizationData.IsActive() && EngineShowFlags.VisualizeVirtualShadowMap)
 		{
 			bDebugOutputEnabled = true;
-			DebugVisualizationOutput = CreateDebugOutputTexture(GraphBuilder, Extent);
+			DebugVisualizationOutput = CreateDebugVisualizationTexture(GraphBuilder, Extent);
 		}
 	}
 #endif //!UE_BUILD_SHIPPING
@@ -1535,24 +1526,15 @@ class FDebugVisualizeVirtualSmCS : public FVirtualPageManagementShader
 	DECLARE_GLOBAL_SHADER(FDebugVisualizeVirtualSmCS);
 	SHADER_USE_PARAMETER_STRUCT(FDebugVisualizeVirtualSmCS, FVirtualPageManagementShader)
 
-	class FHasCacheDataDim : SHADER_PERMUTATION_BOOL("HAS_CACHE_DATA");
-	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 		SHADER_PARAMETER(uint32, DebugTargetWidth)
 		SHADER_PARAMETER(uint32, DebugTargetHeight)
 		SHADER_PARAMETER(uint32, BorderWidth)
-		SHADER_PARAMETER(uint32, ZoomScaleFactor)
-		SHADER_PARAMETER(uint32, DebugMethod)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
-		
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D< float >,			HZBPhysical )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >,	HZBPageTable )
+		SHADER_PARAMETER(uint32, VisualizeModeId)
+		SHADER_PARAMETER(int32, VirtualShadowMapId)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(FCacheDataParameters, CacheDataParameters)
-
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutVisualize)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FDebugVisualizeVirtualSmCS, "/Engine/Private/VirtualShadowMaps/Debug.usf", "DebugVisualizeVirtualSmCS", SF_Compute);
@@ -1561,71 +1543,38 @@ IMPLEMENT_GLOBAL_SHADER(FDebugVisualizeVirtualSmCS, "/Engine/Private/VirtualShad
 void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder)
 {
 	check(IsEnabled());
-	int32 DebugMethod = CVarDebugVisualizeVirtualSms.GetValueOnRenderThread();
-	if (ShadowMaps.Num() && DebugMethod > 0)
+			
+	if (DebugVisualizationOutput == nullptr || !VisualizeLight.IsValid())
 	{
-		int32 ZoomScaleFactor = 1;
-		int32 BorderWidth = 2;
-		// Make debug target wide enough to show a mip-chain
-		int32 DebugTargetWidth = ZoomScaleFactor * (FVirtualShadowMap::Level0DimPagesXY * 2 + BorderWidth * (FVirtualShadowMap::MaxMipLevels));
-		// Enough rows for all the shadow maps to show
-		int32 DebugTargetHeight = ZoomScaleFactor * (FVirtualShadowMap::Level0DimPagesXY + BorderWidth * 2) * ShadowMaps.Num();
-
-		if( DebugMethod > 5 )
-		{
-			DebugTargetWidth = 2048;
-			DebugTargetHeight = 2048;
-		}
-
-		FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
-			FIntPoint(DebugTargetWidth, DebugTargetHeight),
-			PF_A32B32G32R32F,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
-
-		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
-			DebugOutputDesc,
-			TEXT("Shadow.Virtual.Debug"));
-
-		FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
-		PassParameters->ProjectionParameters = GetSamplingParameters(GraphBuilder);
-		PassParameters->PageFlags = GraphBuilder.CreateSRV( PageFlagsRDG );
-
-		// TODO: unclear if it's preferable to debug the HZB we generated "this frame" here, or the previous frame (that was used for culling)?
-		// We'll stick with the previous frame logic that was there, but it's cleaner to just reference the current frame one
-		TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = CacheManager->PrevBuffers.HZBPhysical;
-		TRefCountPtr<FRDGPooledBuffer>    PrevPageTable = CacheManager->PrevBuffers.PageTable;
-		PassParameters->HZBPhysical	 = RegisterExternalTextureWithFallback( GraphBuilder, PrevHZBPhysical, GSystemTextures.BlackDummy );
-		PassParameters->HZBPageTable = GraphBuilder.CreateSRV( PrevPageTable ? GraphBuilder.RegisterExternalBuffer( PrevPageTable ) : PageTableRDG );
-
-		PassParameters->DebugTargetWidth = DebugTargetWidth;
-		PassParameters->DebugTargetHeight = DebugTargetHeight;
-		PassParameters->BorderWidth = BorderWidth;
-		PassParameters->ZoomScaleFactor = ZoomScaleFactor;
-		PassParameters->DebugMethod = DebugMethod;
-
-		bool bCacheDataAvailable = CacheManager->IsValid();
-		if (bCacheDataAvailable)
-		{
-			SetCacheDataShaderParameters(GraphBuilder, ShadowMaps, CacheManager, PassParameters->CacheDataParameters);
-		}
-		PassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugOutput);
-
-		FDebugVisualizeVirtualSmCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FDebugVisualizeVirtualSmCS::FHasCacheDataDim>(bCacheDataAvailable);
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FDebugVisualizeVirtualSmCS>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("DebugVisualizeVirtualSmCS"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(FIntPoint(DebugTargetWidth, DebugTargetHeight), FVirtualPageManagementShader::DefaultCSGroupXY)
-		);
-
-		// TODO!
-		// DebugVisualizationOutput = GraphBuilder.ConvertToExternalTexture(DebugOutput);		
+		return;
 	}
+
+	const FVirtualShadowMapVisualizationData& VisualizationData = GetVirtualShadowMapVisualizationData();
+
+	int32 BorderWidth = 2;
+
+	FIntPoint DebugTargetExtent = DebugVisualizationOutput->Desc.Extent;
+
+	FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
+	PassParameters->ProjectionParameters = GetSamplingParameters(GraphBuilder);
+	
+	PassParameters->DebugTargetWidth = DebugTargetExtent.X;
+	PassParameters->DebugTargetHeight = DebugTargetExtent.Y;
+	PassParameters->BorderWidth = BorderWidth;
+	PassParameters->VisualizeModeId = VisualizationData.GetActiveModeID();
+	PassParameters->VirtualShadowMapId = VisualizeLight.GetVirtualShadowMapId();
+
+	PassParameters->OutVisualize = GraphBuilder.CreateUAV(DebugVisualizationOutput);
+
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FDebugVisualizeVirtualSmCS>();
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("DebugVisualizeVirtualShadowMap"),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(DebugTargetExtent, FVirtualPageManagementShader::DefaultCSGroupXY)
+	);
 }
 
 

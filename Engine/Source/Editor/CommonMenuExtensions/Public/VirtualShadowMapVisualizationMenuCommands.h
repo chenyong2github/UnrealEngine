@@ -17,9 +17,8 @@ public:
 	// Re-sort into categories for the menu
 	enum class FVirtualShadowMapVisualizationType : uint8
 	{
-		ProjectionStandard,
-		ProjectionAdvanced,
-		DebugStandard,
+		Standard,
+		Advanced,
 	};
 
 	struct FVirtualShadowMapVisualizationRecord
@@ -31,7 +30,7 @@ public:
 		FVirtualShadowMapVisualizationRecord()
 		: Name()
 		, Command()
-		, Type(FVirtualShadowMapVisualizationType::ProjectionStandard)
+		, Type(FVirtualShadowMapVisualizationType::Standard)
 		{
 		}
 	};
@@ -56,7 +55,7 @@ public:
 
 private:
 	void BuildCommandMap();
-	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FVirtualShadowMapVisualizationType Type) const;
+	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FVirtualShadowMapVisualizationType Type, bool bSeparatorBefore = false) const;
 
 	static void ChangeVirtualShadowMapVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
 	static bool IsVirtualShadowMapVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);

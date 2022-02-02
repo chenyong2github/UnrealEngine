@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualShadowMapVisualizationData.h"
+#include "VirtualShadowMapDefinitions.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
@@ -8,15 +9,6 @@
 #define LOCTEXT_NAMESPACE "FVirtualShadowMapVisualizationData"
 
 static FVirtualShadowMapVisualizationData GVirtualShadowMapVisualizationData;
-
-// Must match values in Shadows/VirtualShadowMaps/Visualize.ush
-#define VISUALIZE_NONE						0
-#define VISUALIZE_SHADOW_FACTOR				(1 << 0)
-#define VISUALIZE_CLIPMAP_OR_MIP			(1 << 1)
-#define VISUALIZE_VIRTUAL_PAGE				(1 << 2)
-#define VISUALIZE_CACHED_PAGE				(1 << 3)
-#define VISUALIZE_SMRT_RAY_COUNT			(1 << 4)
-
 
 void FVirtualShadowMapVisualizationData::Initialize()
 {
@@ -27,36 +19,43 @@ void FVirtualShadowMapVisualizationData::Initialize()
 			TEXT("mask"),
 			LOCTEXT("ShadowMask", "Shadow Mask"),
 			LOCTEXT("ShadowMaskDesc", "The final shadow mask that is used by shading"),
-			FModeType::ProjectionStandard,
-			VISUALIZE_SHADOW_FACTOR);
+			FModeType::Standard,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_SHADOW_FACTOR);
 
 		AddVisualizationMode(
 			TEXT("mip"),
 			LOCTEXT("ClipmapOrMip", "Clipmap/Mip Level"),
 			LOCTEXT("ClipmapOrMipDesc", "The chosen clipmap (for directional lights) or mip (for local lights) level"),
-			FModeType::ProjectionStandard,
-			VISUALIZE_CLIPMAP_OR_MIP);
+			FModeType::Standard,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_OR_MIP);
 
 		AddVisualizationMode(
 			TEXT("vpage"),
 			LOCTEXT("VirtualPage", "Virtual Page"),
 			LOCTEXT("VirtualPageDesc", "Visualization of the virtual page address"),
-			FModeType::ProjectionStandard,
-			VISUALIZE_VIRTUAL_PAGE);
+			FModeType::Standard,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_VIRTUAL_PAGE);
 
 		AddVisualizationMode(
 			TEXT("cache"),
 			LOCTEXT("CachedPage", "Cached Page"),
 			LOCTEXT("CachedPageDesc", "Cached pages are tinted green, uncached are red. Pages where only the static page is cached (dynamic uncached) are blue."),
-			FModeType::ProjectionStandard,
-			VISUALIZE_CACHED_PAGE);
+			FModeType::Standard,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_CACHED_PAGE);
 
 		AddVisualizationMode(
 			TEXT("raycount"),
 			LOCTEXT("SMRTRayCount", "SMRT Ray Count"),
 			LOCTEXT("SMRTRayCountDesc", "Rays evaluated per pixel: red is more, green is fewer. Penumbra regions require more rays and are more expensive."),
-			FModeType::ProjectionAdvanced,
-			VISUALIZE_SMRT_RAY_COUNT);
+			FModeType::Advanced,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_SMRT_RAY_COUNT);
+
+		AddVisualizationMode(
+			TEXT("clipmapvirtual"),
+			LOCTEXT("ClipmapVirtualSpace", "Clipmap Virtual Address Space"),
+			LOCTEXT("ClipmapVirtualSpaceDesc", "Visualization of the clipmap virtual address space and mapped pages"),
+			FModeType::Advanced,
+			VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_VIRTUAL_SPACE);
 
 		ConfigureConsoleCommand();
 
