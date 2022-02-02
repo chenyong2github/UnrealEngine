@@ -5,159 +5,244 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
 #include "Hash/Blake3.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Misc/StringBuilder.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCacheStoreTest, "System.DerivedDataCache.CacheStore",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter);
 
-// TODO: remove this ifdef and enable the code it surrounds when we submit zenserver.exe
-// with the change to HandleRpcGetCachePayloads to support the ValueAPI
-#define ZENSERVER_SUPPORTS_VALUEAPI 0
-
 bool FCacheStoreTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
+	FStringView TestVersion = TEXTVIEW("F72150A02AE34B57A9EC91D36BA1CE08");
 
 	FRequestOwner Owner(EPriority::Blocking);
 	FCacheBucket DDCTestBucket(TEXT("DDCTest"));
+	static bool bExpectUpstream = FParse::Param(FCommandLine::Get(), TEXT("CacheStoreTestUpstream"));
+	static bool bExpectWarm = FParse::Param(FCommandLine::Get(), TEXT("CacheStoreTestWarm"));
 
-	// NumRequests/2 must be larger than the batch size in ZenDerivedData,
-	// and NumRequests >= 8 so that we get two results for each possible combination of flags
-	const int32 NumRequests = 24;
+	// NumKeys = (2 Value vs Record)*(2 SkipData vs Default)*(2 ForceMiss vs Not)*(2 use local)*(2 use remote)*(4 cases per type)
+	constexpr int32 NumKeys = 128;
+	constexpr int32 NumValues = 4;
 	TArray<FCachePutRequest> PutRequests;
 	TArray<FCachePutValueRequest> PutValueRequests;
 	TArray<FCacheGetRequest> GetRequests;
 	TArray<FCacheGetValueRequest> GetValueRequests;
 	TArray<FCacheGetChunkRequest> ChunkRequests;
-	struct FTestData
+	FValueId ValueIds[NumValues];
+	for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
 	{
-		FValue Value;
-		uint8 ByteValue;
+		ValueIds[ValueIndex] = FValueId::FromName(*WriteToString<16>(TEXT("ValueId_"), ValueIndex));
+	}
+
+	struct FKeyData;
+	struct FUserData
+	{
+		FUserData& Set(FKeyData* InKeyData, int32 InValueIndex)
+		{
+			KeyData = InKeyData;
+			ValueIndex = InValueIndex;
+			return *this;
+		}
+		FKeyData* KeyData = nullptr;
+		int32 ValueIndex = 0;
+	};
+	struct FKeyData
+	{
+		FValue BufferValues[NumValues];
+		uint64 IntValues[NumValues];
+		FUserData ValueUserData[NumValues];
+		bool ReceivedChunk[NumValues];
+		FCacheKey Key;
+		FUserData KeyUserData;
+		uint32 KeyIndex = 0;
 		bool bGetRequestsData = true;
-		bool bUseValueAPI = true;
+		bool bUseValueAPI = false;
+		bool bForceMiss = false;
+		bool bUseLocal = true;
+		bool bUseRemote = true;
+		bool bShouldBeHit = true;
 		bool bReceivedPut = false;
 		bool bReceivedGet = false;
 		bool bReceivedPutValue = false;
 		bool bReceivedGetValue = false;
-		bool bReceivedChunk = false;
 	};
 
-	TMap<uint64, FTestData> TestDatas;
-	FValueId ValueId = FValueId::FromName(TEXT("ValueName"));
-	for (int32 n = 0; n < NumRequests; ++n)
+	FKeyData KeyDatas[NumKeys];
+	for (uint32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 	{
 		FBlake3 KeyWriter;
 		KeyWriter.Update(*TestName, TestName.Len() * sizeof(TestName[0]));
-		KeyWriter.Update(&n, sizeof(n));
+		KeyWriter.Update(TestVersion.GetData(), TestVersion.Len() * sizeof(TestVersion[0]));
+		KeyWriter.Update(&KeyIndex, sizeof(KeyIndex));
 		FIoHash KeyHash = KeyWriter.Finalize();
-		FCacheKey Key{ DDCTestBucket, KeyHash };
-		FSharedString Name(WriteToString<16>(TEXT("Request"), n));
-		uint64 UserData = (uint64)n;
-		FTestData& TestData = TestDatas.FindOrAdd(UserData);
+		FSharedString Name(WriteToString<16>(TEXT("Key_"), KeyIndex));
+		FKeyData& KeyData = KeyDatas[KeyIndex];
 
-		ECachePolicy PutPolicy = ECachePolicy::Default;
-		ECachePolicy GetPolicy = ECachePolicy::Default;
-		TestData.bGetRequestsData = (n & 0x1) == 0;
-		TestData.bUseValueAPI = (n & 0x2) != 0;
-		if (!TestData.bGetRequestsData)
+		KeyData.Key = FCacheKey{ DDCTestBucket, KeyHash };
+		KeyData.KeyIndex = KeyIndex;
+		KeyData.bGetRequestsData = (KeyIndex & (1 << 1)) == 0;
+		KeyData.bUseValueAPI = (KeyIndex & (1 << 2)) != 0;
+		KeyData.bForceMiss = (KeyIndex & (1 << 3)) == 0;
+		KeyData.bUseLocal = (KeyIndex & (1 << 4)) == 0;
+		KeyData.bUseRemote = (KeyIndex & (1 << 5)) == 0;
+		KeyData.bShouldBeHit = !KeyData.bForceMiss && (KeyData.bUseLocal || (KeyData.bUseRemote && bExpectUpstream));
+		ECachePolicy SharedPolicy = KeyData.bUseLocal ? ECachePolicy::Local : ECachePolicy::None;
+		SharedPolicy |= KeyData.bUseRemote ? ECachePolicy::Remote : ECachePolicy::None;
+		ECachePolicy PutPolicy = SharedPolicy;
+		ECachePolicy GetPolicy = SharedPolicy;
+		GetPolicy |= !KeyData.bGetRequestsData ? ECachePolicy::SkipData : ECachePolicy::None;
+		FCacheKey& Key = KeyData.Key;
+
+		for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
 		{
-			GetPolicy |= ECachePolicy::SkipData;
+			KeyData.IntValues[ValueIndex] = static_cast<uint64>(KeyIndex) | (static_cast<uint64>(ValueIndex) << 32);
+			KeyData.BufferValues[ValueIndex] = FValue::Compress(FSharedBuffer::MakeView(&KeyData.IntValues[ValueIndex], sizeof(KeyData.IntValues[ValueIndex])));
+			KeyData.ReceivedChunk[ValueIndex] = false;
 		}
-		TestData.ByteValue = (uint8)n;
-		TestData.Value = FValue::Compress(FSharedBuffer::MakeView(&TestData.ByteValue, 1));
 
-		if (!TestData.bUseValueAPI)
+		static_assert(sizeof(uint64) == sizeof(FUserData*), "Storing pointers in the UserData");
+		FUserData& KeyUserData = KeyData.KeyUserData.Set(&KeyData, -1);
+		for (uint32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+		{
+			KeyData.ValueUserData[ValueIndex].Set(&KeyData, ValueIndex);
+		}
+		if (!KeyData.bUseValueAPI)
 		{
 			FCacheRecordBuilder Builder(Key);
-			Builder.AddValue(ValueId, TestData.Value);
+			for (uint32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+			{
+				Builder.AddValue(ValueIds[ValueIndex], KeyData.BufferValues[ValueIndex]);
+			}
 
-			PutRequests.Add(FCachePutRequest{ Name, Builder.Build(), FCacheRecordPolicy(PutPolicy), UserData });
-			GetRequests.Add(FCacheGetRequest{ Name, Key, FCacheRecordPolicy(GetPolicy), UserData });
+			if (!KeyData.bForceMiss)
+			{
+				PutRequests.Add(FCachePutRequest{ Name, Builder.Build(), FCacheRecordPolicy(PutPolicy), reinterpret_cast<uint64>(&KeyUserData) });
+			}
+			GetRequests.Add(FCacheGetRequest{ Name, Key, FCacheRecordPolicy(GetPolicy), reinterpret_cast<uint64>(&KeyUserData) });
+			for (uint32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+			{
+				FUserData& ValueUserData = KeyData.ValueUserData[ValueIndex];
+				ChunkRequests.Add(FCacheGetChunkRequest{ Name, Key, ValueIds[ValueIndex],
+					0, MAX_uint64, FIoHash(), GetPolicy, reinterpret_cast<uint64>(&ValueUserData) });
+			}
 		}
 		else
 		{
-			PutValueRequests.Add(FCachePutValueRequest{ Name, Key, TestData.Value, PutPolicy, UserData });
-			GetValueRequests.Add(FCacheGetValueRequest{ Name, Key, GetPolicy, UserData });
+			if (!KeyData.bForceMiss)
+			{
+				PutValueRequests.Add(FCachePutValueRequest{ Name, Key, KeyData.BufferValues[0], PutPolicy, reinterpret_cast<uint64>(&KeyUserData) });
+			}
+			GetValueRequests.Add(FCacheGetValueRequest{ Name, Key, GetPolicy, reinterpret_cast<uint64>(&KeyUserData) });
+			ChunkRequests.Add(FCacheGetChunkRequest{ Name, Key, FValueId(),
+				0, MAX_uint64, FIoHash(), GetPolicy, reinterpret_cast<uint64>(&KeyUserData) });
 		}
-		ChunkRequests.Add(FCacheGetChunkRequest{ Name, Key, TestData.bUseValueAPI ? FValueId() : ValueId,
-			0, TestData.Value.GetRawSize(), FIoHash(), GetPolicy, UserData });
+	}
+
+	if (!bExpectWarm)
+	{
+		{
+			FRequestBarrier Barrier(Owner);
+			Cache.Put(PutRequests, Owner, [this](FCachePutResponse&& Response)
+				{
+					FUserData* UserData = reinterpret_cast<FUserData*>(Response.UserData);
+					FKeyData* KeyData = UserData->KeyData;
+					TestTrue(TEXT("Valid UserData in Put Callback"), KeyData != nullptr);
+					if (KeyData)
+					{
+						KeyData->bReceivedPut = true;
+					}
+				});
+			Cache.PutValue(PutValueRequests, Owner, [this](FCachePutValueResponse&& Response)
+				{
+					FUserData* UserData = reinterpret_cast<FUserData*>(Response.UserData);
+					FKeyData* KeyData = UserData->KeyData;
+					TestTrue(TEXT("Valid UserData in PutValue Callback"), KeyData != nullptr);
+					if (KeyData)
+					{
+						KeyData->bReceivedPutValue = true;
+					}
+				});
+		}
+		Owner.Wait();
+		for (FKeyData& KeyData : KeyDatas)
+		{
+			int32 n = KeyData.KeyIndex;
+			if (!KeyData.bForceMiss)
+			{
+				if (!KeyData.bUseValueAPI)
+				{
+					TestTrue(*WriteToString<16>(TEXT("Put "), n, TEXT(" received")), KeyData.bReceivedPut);
+				}
+				else
+				{
+					TestTrue(*WriteToString<16>(TEXT("PutValue "), n, TEXT(" received")), KeyData.bReceivedPutValue);
+				}
+			}
+		}
 	}
 
 	{
 		FRequestBarrier Barrier(Owner);
-		Cache.Put(PutRequests, Owner, [&TestDatas, this](FCachePutResponse&& Response)
+		Cache.Get(GetRequests, Owner, [&ValueIds, this, NumValues](FCacheGetResponse&& Response)
 			{
-				FTestData* TestData = TestDatas.Find(Response.UserData);
-				TestTrue(TEXT("Valid UserData in Put Callback"), TestData != nullptr);
-				if (TestData)
+				FUserData* UserData = reinterpret_cast<FUserData*>(Response.UserData);
+				FKeyData* KeyData = UserData->KeyData;
+				TestTrue(TEXT("Valid UserData in Get Callback"), KeyData != nullptr);
+				if (KeyData)
 				{
-					TestData->bReceivedPut = true;
-				}
-			});
-		Cache.PutValue(PutValueRequests, Owner, [&TestDatas, this](FCachePutValueResponse&& Response)
-			{
-				FTestData* TestData = TestDatas.Find(Response.UserData);
-				TestTrue(TEXT("Valid UserData in PutValue Callback"), TestData != nullptr);
-				if (TestData)
-				{
-					TestData->bReceivedPutValue = true;
-				}
-			});
-	}
-	Owner.Wait();
-	for (TPair<uint64, FTestData>& Pair : TestDatas)
-	{
-		int32 n = (int32)Pair.Key;
-		if (!Pair.Value.bUseValueAPI)
-		{
-			TestTrue(*WriteToString<16>(TEXT("Put %d received"), n), Pair.Value.bReceivedPut);
-		}
-		else
-		{
-			TestTrue(*WriteToString<16>(TEXT("PutValue %d received"), n), Pair.Value.bReceivedPutValue);
-		}
-
-	}
-
-	{
-		FRequestBarrier Barrier(Owner);
-		Cache.Get(GetRequests, Owner, [&TestDatas, &ValueId, this](FCacheGetResponse&& Response)
-			{
-				FTestData* TestData = TestDatas.Find(Response.UserData);
-				int32 n = (int32)Response.UserData;
-				TestTrue(TEXT("Valid UserData in Get Callback"), TestData != nullptr);
-				if (TestData)
-				{
-					TestData->bReceivedGet = true;
-					if (TestTrue(*WriteToString<32>(TEXT("Get %d succeeded"), n), Response.Status == EStatus::Ok))
+					int32 n = (int32)KeyData->KeyIndex;
+					KeyData->bReceivedGet = true;
+					if (KeyData->bShouldBeHit)
+					{
+						TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" succeeded")), Response.Status, EStatus::Ok);
+					}
+					else if (KeyData->bForceMiss)
+					{
+						TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" failed as expected")), Response.Status, EStatus::Error);
+					}
+					if (!KeyData->bForceMiss && Response.Status == EStatus::Ok)
 					{
 						FCacheRecord& Record = Response.Record;
 						TConstArrayView<FValueWithId> Values = Record.GetValues();
-						if (TestEqual(*WriteToString<32>(TEXT("Get %d ValuesLen"), n), Values.Num(), 1))
+						if (TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" ValuesLen")), Values.Num(), NumValues))
 						{
-							const FValueWithId& ActualValue = Values[0];
-							TestEqual(*WriteToString<32>(TEXT("Get %d ValueId"), n), ActualValue.GetId(), ValueId);
-							FValue& ExpectedValue = TestData->Value;
-							TestEqual(*WriteToString<32>(TEXT("Get %d Hash"), n),
-								ActualValue.GetRawHash(), ExpectedValue.GetRawHash());
-							TestEqual(*WriteToString<32>(TEXT("Get %d Size"), n),
-								ActualValue.GetRawSize(), ExpectedValue.GetRawSize());
-
-							if (TestData->bGetRequestsData)
+							for (int32 ActualValueIndex = 0; ActualValueIndex < NumValues; ++ActualValueIndex)
 							{
-								const FCompressedBuffer& Compressed = ActualValue.GetData();
-								FSharedBuffer Buffer = Compressed.Decompress();
-								TestEqual(*WriteToString<32>(TEXT("Get %d Data Size"), n),
-									Buffer.GetSize(), ActualValue.GetRawSize());
-								if (Buffer.GetSize())
+								const FValueWithId& ActualValue = Values[ActualValueIndex];
+								int32 ExpectedValueIndex = TArrayView<const FValueId>(ValueIds).Find(ActualValue.GetId());
+								const FValueId& ExpectedValueId = ExpectedValueIndex >= 0 ? ValueIds[ExpectedValueIndex] : FValueId();
+
+								TestTrue(*WriteToString<32>(TEXT("Get "), n, TEXT(" ValueId")), ExpectedValueIndex >= 0);
+								if (ExpectedValueIndex >= 0)
 								{
-									TestEqual(*WriteToString<32>(TEXT("Get %d Data Equals"), n),
-										((const uint8*)Buffer.GetData())[0], TestData->ByteValue);
+									FValue& ExpectedValue = KeyData->BufferValues[ExpectedValueIndex];
+									TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" Hash")),
+										ActualValue.GetRawHash(), ExpectedValue.GetRawHash());
+									TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" Size")),
+										ActualValue.GetRawSize(), ExpectedValue.GetRawSize());
+
+									if (KeyData->bGetRequestsData)
+									{
+										const FCompressedBuffer& Compressed = ActualValue.GetData();
+										FSharedBuffer Buffer = Compressed.Decompress();
+										TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" Data Size")),
+											Buffer.GetSize(), ActualValue.GetRawSize());
+										if (Buffer.GetSize())
+										{
+											uint64 ActualIntValue = ((const uint64*)Buffer.GetData())[0];
+											uint64 ExpectedIntValue = KeyData->IntValues[ExpectedValueIndex];
+											TestEqual(*WriteToString<32>(TEXT("Get "), n, TEXT(" Data Equals"), n),
+												ActualIntValue, ExpectedIntValue);
+										}
+									}
 								}
 							}
 						}
@@ -165,85 +250,109 @@ bool FCacheStoreTest::RunTest(const FString& Parameters)
 				}
 			});
 
-		Cache.GetValue(GetValueRequests, Owner, [&TestDatas, this](FCacheGetValueResponse&& Response)
+		Cache.GetValue(GetValueRequests, Owner, [this](FCacheGetValueResponse&& Response)
 			{
-				FTestData* TestData = TestDatas.Find(Response.UserData);
-				int32 n = (int32)Response.UserData;
-				TestTrue(TEXT("Valid UserData in GetValue Callback"), TestData != nullptr);
-				if (TestData)
+				FUserData* UserData = reinterpret_cast<FUserData*>(Response.UserData);
+				FKeyData* KeyData = UserData->KeyData;
+				TestTrue(TEXT("Valid UserData in GetValue Callback"), KeyData != nullptr);
+				if (KeyData)
 				{
-					TestData->bReceivedGetValue = true;
-					if (TestTrue(*WriteToString<32>(TEXT("GetValue %d succeeded"), n), Response.Status == EStatus::Ok))
+					int32 n = KeyData->KeyIndex;
+					KeyData->bReceivedGetValue = true;
+					if (KeyData->bShouldBeHit)
+					{
+						TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" succeeded")), Response.Status, EStatus::Ok);
+					}
+					else if (KeyData->bForceMiss)
+					{
+						TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" failed as expected")), Response.Status, EStatus::Error);
+					}
+					if (!KeyData->bForceMiss && Response.Status == EStatus::Ok)
 					{
 						FValue& ActualValue = Response.Value;
-						FValue& ExpectedValue = TestData->Value;
-						TestEqual(*WriteToString<32>(TEXT("GetValue %d Hash"), n),
+						FValue& ExpectedValue = KeyData->BufferValues[0];
+						TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" Hash")),
 							ActualValue.GetRawHash(), ExpectedValue.GetRawHash());
-						TestEqual(*WriteToString<32>(TEXT("GetValue %d Size"), n),
+						TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" Size")),
 							ActualValue.GetRawSize(), ExpectedValue.GetRawSize());
 
-						if (TestData->bGetRequestsData)
+						if (KeyData->bGetRequestsData)
 						{
 							const FCompressedBuffer& Compressed = ActualValue.GetData();
 							FSharedBuffer Buffer = Compressed.Decompress();
-							TestEqual(*WriteToString<32>(TEXT("GetValue %d Data Size"), n),
+							TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" Data Size")),
 								Buffer.GetSize(), ActualValue.GetRawSize());
 							if (Buffer.GetSize())
 							{
-								TestEqual(*WriteToString<32>(TEXT("GetValue %d Data Equals"), n),
-									((const uint8*)Buffer.GetData())[0], TestData->ByteValue);
+								uint64 Value = ((const uint64*)Buffer.GetData())[0];
+								TestEqual(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" Data Equals")),
+									Value, KeyData->IntValues[0]);
 							}
 						}
 					}
 				}
 			});
 
-#if ZENSERVER_SUPPORTS_VALUEAPI
-		Cache.GetChunks(ChunkRequests, Owner, [&TestDatas, this](FCacheGetChunkResponse&& Response)
+		Cache.GetChunks(ChunkRequests, Owner, [this](FCacheGetChunkResponse&& Response)
 			{
-				FTestData* TestData = TestDatas.Find(Response.UserData);
-				int32 n = (int32)Response.UserData;
-				if (TestTrue(TEXT("Valid UserData in GetChunks Callback"), TestData != nullptr))
+				FUserData* UserData = reinterpret_cast<FUserData*>(Response.UserData);
+				FKeyData* KeyData = UserData->KeyData;
+				if (TestTrue(TEXT("Valid UserData in GetChunks Callback"), KeyData != nullptr))
 				{
-					TestData->bReceivedChunk = true;
-					if (TestTrue(*WriteToString<32>(TEXT("GetChunks %d succeeded"), n), Response.Status == EStatus::Ok))
+					int32 n = KeyData->KeyIndex;
+					int32 ValueIndex = UserData->ValueIndex >= 0 ? UserData->ValueIndex : 0;
+					TStringBuilder<32> Name;
+					Name << TEXT("GetChunks (") << n << TEXT(",") << ValueIndex << TEXT(")");
+
+					KeyData->ReceivedChunk[ValueIndex] = true;
+					if (KeyData->bShouldBeHit)
 					{
-						FValue& ExpectedValue = TestData->Value;
-						TestEqual(*WriteToString<32>(TEXT("GetChunks %d Hash"), n),
+						TestEqual(*WriteToString<32>(*Name, TEXT(" succeeded")), Response.Status, EStatus::Ok);
+					}
+					else if (KeyData->bForceMiss)
+					{
+						TestEqual(*WriteToString<32>(*Name, TEXT(" failed as expected")), Response.Status, EStatus::Error);
+					}
+					if (KeyData->bShouldBeHit && Response.Status == EStatus::Ok)
+					{
+						FValue& ExpectedValue = KeyData->BufferValues[ValueIndex];
+						TestEqual(*WriteToString<32>(*Name, TEXT(" Hash")),
 							Response.RawHash, ExpectedValue.GetRawHash());
-						TestEqual(*WriteToString<32>(TEXT("GetChunks %d Size"), n),
+						TestEqual(*WriteToString<32>(*Name, TEXT(" Size")),
 							Response.RawSize, ExpectedValue.GetRawSize());
-						if (TestData->bGetRequestsData)
+						if (KeyData->bGetRequestsData)
 						{
 							FSharedBuffer Buffer = Response.RawData;
-							TestEqual(*WriteToString<32>(TEXT("GetChunks %d Data Size"), n),
+							TestEqual(*WriteToString<32>(*Name, TEXT(" Data Size")),
 								Buffer.GetSize(), Response.RawSize);
 							if (Buffer.GetSize())
 							{
-								TestEqual(*WriteToString<32>(TEXT("GetChunks %d Data Equals"), n),
-									((const uint8*)Buffer.GetData())[0], TestData->ByteValue);
+								uint64 Value = ((const uint64*)Buffer.GetData())[0];
+								TestEqual(*WriteToString<32>(*Name, TEXT(" Data Equals")),
+									Value, KeyData->IntValues[ValueIndex]);
 							}
 						}
 					}
 				}
 			});
-#endif
 	}
 	Owner.Wait();
-	for (TPair<uint64, FTestData>& Pair : TestDatas)
+	for (FKeyData& KeyData : KeyDatas)
 	{
-		int32 n = (int32)Pair.Key;
-		if (!Pair.Value.bUseValueAPI)
+		int32 n = KeyData.KeyIndex;
+		if (!KeyData.bUseValueAPI)
 		{
-			TestTrue(*WriteToString<16>(TEXT("Get %d received"), n), Pair.Value.bReceivedGet);
+			TestTrue(*WriteToString<32>(TEXT("Get "), n, TEXT(" received")), KeyData.bReceivedGet);
+			for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+			{
+				TestTrue(*WriteToString<32>(TEXT("GetChunk ("), n, TEXT(","), ValueIndex, TEXT(") received")), KeyData.ReceivedChunk[ValueIndex]);
+			}
 		}
 		else
 		{
-			TestTrue(*WriteToString<16>(TEXT("GetValue %d received"), n), TestDatas[n].bReceivedGetValue);
+			TestTrue(*WriteToString<32>(TEXT("GetValue "), n, TEXT(" received")), KeyData.bReceivedGetValue);
+			TestTrue(*WriteToString<32>(TEXT("GetChunk ("), n, TEXT(",0) received")), KeyData.ReceivedChunk[0]);
 		}
-#if ZENSERVER_SUPPORTS_VALUEAPI
-		TestTrue(*WriteToString<16>(TEXT("GetChunk %d received"), n), TestDatas[n].bReceivedChunk);
-#endif
 	}
 
 	return true;

@@ -186,7 +186,7 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 {
 	Writer.BeginObject();
-	Writer.AddString("DefaultValuePolicy"_ASV, WriteToUtf8String<128>(GetBasePolicy()));
+	Writer.AddString("BasePolicy"_ASV, WriteToUtf8String<128>(GetBasePolicy()));
 	if (!IsUniform())
 	{
 		Writer.BeginArray("ValuePolicies"_ASV);
@@ -204,7 +204,7 @@ void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 
 FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
 {
-	const FUtf8StringView BasePolicyText = Object["DefaultValuePolicy"_ASV].AsString();
+	const FUtf8StringView BasePolicyText = Object["BasePolicy"_ASV].AsString();
 	if (BasePolicyText.IsEmpty())
 	{
 		return {};
