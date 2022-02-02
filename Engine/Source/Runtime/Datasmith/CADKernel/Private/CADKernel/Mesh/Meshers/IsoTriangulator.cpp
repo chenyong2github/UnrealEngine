@@ -2719,7 +2719,7 @@ void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 	{
 		FPoint2D& BaryCenter = LoopBarycenters.Emplace_GetRef(FPoint2D::ZeroPoint);
 
-		// the external loop is not proceed 
+		// the external loop is not processed 
 		if (Nodes[0]->GetLoopIndex() == 0)
 		{
 			continue;

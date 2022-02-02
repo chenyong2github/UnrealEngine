@@ -107,7 +107,7 @@ private:
 	int32 LoopIndex;  
 
 	/**
-	 * Array of the proceed loop's nodes
+	 * Array of the processed loop's nodes
 	 * Warning: some nodes can be deleted -> check with Node.IsDelete
 	 */
 	TArray<FLoopNode*> NodesOfLoop;
@@ -188,6 +188,9 @@ private:
 	bool RemoveLoopPicks();
 	bool RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1);
 
+	/**
+	 * @return true if the node has been deleted
+	 */
 	bool CheckAndRemovePick(const FPoint2D& PreviousPoint, const FPoint2D& NodeToRemovePoint, const FPoint2D& NextPoint, FLoopNode& NodeToRemove)
 	{
 		double Slop = ComputeUnorientedSlope(NodeToRemovePoint, PreviousPoint, NextPoint);
@@ -210,6 +213,22 @@ private:
 		return false;
 	};
 
+	/**
+	 * @return true if the node has been deleted
+	 */
+	bool CheckAndRemoveCoincidence(const FPoint2D& Point0, const FPoint2D& Point1, FLoopNode& NodeToRemove)
+	{
+		double SquareDistance = Point0.SquareDistance(Point1);
+		if (SquareDistance < SquareGeometricTolerance2)
+		{
+			return RemoveNodeOfLoop(NodeToRemove);
+		}
+		return false;
+	};
+
+	/**
+	 * @return true if the node has been deleted
+	 */
 	bool RemoveNodeOfLoop(FLoopNode& NodeToRemove);
 
 	void FindLoopIntersections();
@@ -226,6 +245,11 @@ private:
 	bool SwapNodes(const TPair<double, double>& Intersection);
 
 	/**
+	 * @return false if the process failed => the surface cannot be meshed
+	 */
+	bool RemovePickOrCoincidenceBetween(FLoopNode* StartNode, FLoopNode* StopNode);
+
+	/**
 	 * Two cases:
 	 *    - the segments of the intersection a closed parallel and in same orientation. in this case, the sub-loop is a long pick. The sub-Loop is delete
 	 *    - the loop is an inner loop closed to the border:
@@ -240,7 +264,7 @@ private:
 	void SwapSubLoopOrientation(int32 FirstSegmentIndex, int32 LastSegmentIndex);
 	bool RemoveSubLoop(FLoopNode* StartNode, FLoopNode* EndNode);
 
-	void MoveIntersectingSectionBehindOppositeSection(LoopCleanerImpl::FLoopSection IntersectingSection, LoopCleanerImpl::FLoopSection OppositeSection);
+	bool MoveIntersectingSectionBehindOppositeSection(LoopCleanerImpl::FLoopSection IntersectingSection, LoopCleanerImpl::FLoopSection OppositeSection);
 	void MoveNodeBehindSegment(const FIsoSegment& IntersectingSegment, FLoopNode& NodeToMove);
 	void MoveNode(FLoopNode& NodeToMove, FPoint2D& NewPosition);
 
