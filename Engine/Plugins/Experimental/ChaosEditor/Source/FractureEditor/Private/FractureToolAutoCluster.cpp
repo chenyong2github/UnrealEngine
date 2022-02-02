@@ -69,6 +69,8 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 		
 		for (FFractureToolContext& Context : Contexts)
 		{
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+
 			Context.ConvertSelectionToClusterNodes();
 			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
 

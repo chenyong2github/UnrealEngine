@@ -46,6 +46,7 @@ void UFractureToolDeleteBranch::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 
 		for (FFractureToolContext& Context : Contexts)
 		{
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
 			UGeometryCollection* FracturedGeometryCollection = Context.GetFracturedGeometryCollection();
 

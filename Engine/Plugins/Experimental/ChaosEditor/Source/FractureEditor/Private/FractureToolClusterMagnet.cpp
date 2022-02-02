@@ -84,6 +84,8 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 				continue;
 			}
 
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+
 			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
 			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
 			int32 StartTransformCount = Children.Num();
@@ -186,12 +188,11 @@ TMap<int32, TSet<int32>> UFractureToolClusterMagnet::InitializeConnectivity(cons
 
 void UFractureToolClusterMagnet::CollectTopNodeConnections(FGeometryCollectionPtr GeometryCollection, int32 Index, int32 OperatingLevel, TSet<int32>& OutConnections) const
 {
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-	if (Children[Index].Num() == 0) // leaf node
+	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
+	if (TransformToGeometryIndex[Index] == INDEX_NONE) // leaf node
 	{
 		const TManagedArray<TSet<int32>>& Proximity = GeometryCollection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 		const TManagedArray<int32>& GeometryToTransformIndex = GeometryCollection->TransformIndex;
-		const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
 
 
 		for (int32 Neighbor : Proximity[TransformToGeometryIndex[Index]])
@@ -202,6 +203,7 @@ void UFractureToolClusterMagnet::CollectTopNodeConnections(FGeometryCollectionPt
 	}
 	else
 	{
+		const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 		for (int32 ChildIndex : Children[Index])
 		{
 			CollectTopNodeConnections(GeometryCollection, ChildIndex, OperatingLevel, OutConnections);

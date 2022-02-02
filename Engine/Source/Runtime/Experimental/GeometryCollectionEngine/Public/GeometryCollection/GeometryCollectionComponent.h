@@ -177,7 +177,12 @@ namespace GeometryCollection
 class GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEdit
 {
 public:
-	FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics);
+	/**
+	 * @param InComponent				The component to edit
+	 * @param EditUpdate				What parts of the geometry collection to update
+	 * @param bShapeIsUnchanged			Override indicating the overall shape of the geometry and clusters is unchanged, even if the rest collection changed.  Useful to e.g., not re-compute convex hulls when we don't need to.
+	 */
+	FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics, bool bShapeIsUnchanged = false);
 	~FGeometryCollectionEdit();
 
 	UGeometryCollection* GetRestCollection();
@@ -186,6 +191,7 @@ private:
 	UGeometryCollectionComponent* Component;
 	const GeometryCollection::EEditUpdate EditUpdate;
 	bool bHadPhysicsState;
+	bool bShapeIsUnchanged;
 };
 
 #if WITH_EDITOR
@@ -384,7 +390,7 @@ public:
 	/** RestCollection */
 	void SetRestCollection(const UGeometryCollection * RestCollectionIn);
 	FORCEINLINE const UGeometryCollection* GetRestCollection() const { return RestCollection; }
-	FORCEINLINE FGeometryCollectionEdit EditRestCollection(GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics) { return FGeometryCollectionEdit(this, EditUpdate); }
+	FORCEINLINE FGeometryCollectionEdit EditRestCollection(GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics, bool bShapeIsUnchanged = false) { return FGeometryCollectionEdit(this, EditUpdate, bShapeIsUnchanged); }
 #if WITH_EDITOR
 	FORCEINLINE FScopedColorEdit EditBoneSelection() { return FScopedColorEdit(this); }
 

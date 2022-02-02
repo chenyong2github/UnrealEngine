@@ -148,8 +148,8 @@ public:
 	/** Executes the command.  Derived types need to be implemented in a thread safe way*/
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	virtual bool CanExecute() const override;
-	// @return true if the physics state needs to be updated after executing (e.g., can be false if tool is just updating UVs)
-	virtual bool ExecuteUpdatesPhysics() const
+	// @return true if the edit will change the shape data of the geometry collection(s) (including changing the clusters) -- used to indicate whether we need to update the convex hulls
+	virtual bool ExecuteUpdatesShape() const
 	{
 		return true;
 	}

@@ -60,6 +60,10 @@ public:
 	/** Executes function that generates new geometry. Returns the first new geometry index. */
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 	virtual bool CanExecute() const override;
+	virtual bool ExecuteUpdatesShape() const override
+	{
+		return false;
+	}
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	/** Gets the UI command info for this command */

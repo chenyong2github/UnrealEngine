@@ -59,7 +59,7 @@ void UFractureToolSetInitialDynamicState::Execute(TWeakPtr<FFractureEditorModeTo
 		GetSelectedGeometryCollectionComponents(GeomCompSelection);
 		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 		{
-			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
+			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysics, true /*bShapeIsUnchanged*/);
 			if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
 			{
 				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();

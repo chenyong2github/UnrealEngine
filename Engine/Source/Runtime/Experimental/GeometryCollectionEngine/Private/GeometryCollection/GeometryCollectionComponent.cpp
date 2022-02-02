@@ -2229,9 +2229,10 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 	}
 }
 
-FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate)
+FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate, bool bShapeIsUnchanged)
 	: Component(InComponent)
 	, EditUpdate(InEditUpdate)
+	, bShapeIsUnchanged(bShapeIsUnchanged)
 {
 	bHadPhysicsState = Component->HasValidPhysicsState();
 	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
@@ -2258,7 +2259,10 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
 		{
-			GetRestCollection()->UpdateConvexGeometry();
+			if (!bShapeIsUnchanged)
+			{
+				GetRestCollection()->UpdateConvexGeometry();
+			}
 			GetRestCollection()->InvalidateCollection();
 		}
 

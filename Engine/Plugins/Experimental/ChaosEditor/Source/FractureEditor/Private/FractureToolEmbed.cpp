@@ -60,7 +60,7 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 
 		for (FFractureToolContext& Context : Contexts)
 		{
-			FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic, true /*bShapeIsUnchanged*/);
 			UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
 
 			FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
@@ -188,6 +188,8 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 
 			for (FFractureToolContext& Context : Contexts)
 			{
+				FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic, true /*bShapeIsUnchanged*/);
+
 				FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
 				FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::GetValidConvexHullData(GeometryCollection);
 				const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
@@ -247,7 +249,7 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 				if (BoneIndex > INDEX_NONE)
 				{
 					// We found the closest bone, now we embed the geometry.
-					FGeometryCollectionEdit GeometryCollectionEdit = ClosestComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+					FGeometryCollectionEdit GeometryCollectionEdit = ClosestComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic, true /*bShapeIsUnchanged*/);
 					UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
 
 					FTransform BoneGlobalTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, Parent, BoneIndex);
@@ -398,7 +400,7 @@ void UFractureToolFlushEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToo
 			if (RemovalList.Num())
 			{
 				// Remove all instanced embedded geometry.
-				FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+				FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic, true /*bShapeIsUnchanged*/);
 				UGeometryCollection* FracturedCollection = GeometryCollectionEdit.GetRestCollection();
 				FracturedCollection->GetGeometryCollection()->RemoveElements(FGeometryCollection::TransformGroup, RemovalList);
 

@@ -307,14 +307,7 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 
 		for (FFractureToolContext& FractureContext : FractureContexts)
 		{
-			FractureContext.GetFracturedGeometryCollection()->Modify();
-			FractureContext.GetGeometryCollectionComponent()->Modify();
-			bool bHadPhysicsState = FractureContext.GetGeometryCollectionComponent()->HasValidPhysicsState();
-			bool bNeedPhysicsUpdate = ExecuteUpdatesPhysics() && bHadPhysicsState;
-			if (bNeedPhysicsUpdate)
-			{
-				FractureContext.GetGeometryCollectionComponent()->DestroyPhysicsState();
-			}
+			FGeometryCollectionEdit EditCollection(FractureContext.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic, !ExecuteUpdatesShape());
 
 			int32 FirstNewGeometryIndex = ExecuteFracture(FractureContext);
 			
@@ -354,13 +347,6 @@ void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 					FractureContext.GetFracturedGeometryCollection()->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
 				}
 				FractureContext.GetFracturedGeometryCollection()->InitResources();
-			}
-
-			FractureContext.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
-
-			if (bNeedPhysicsUpdate)
-			{
-				FractureContext.GetGeometryCollectionComponent()->RecreatePhysicsState();
 			}
 
 			Refresh(FractureContext, Toolkit);

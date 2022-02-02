@@ -208,8 +208,7 @@ public:
 	/** Executes function that generates new geometry. Returns the first new geometry index. */
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 	virtual bool CanExecute() const override;
-	// don't need to update physics state when the tool just changes UVs
-	virtual bool ExecuteUpdatesPhysics() const override
+	virtual bool ExecuteUpdatesShape() const override
 	{
 		return false;
 	}

@@ -51,6 +51,10 @@ public:
 
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
+	virtual bool ExecuteUpdatesShape() const override
+	{
+		return false;
+	}
 
 protected:
 	virtual void ClearVisualizations() override
