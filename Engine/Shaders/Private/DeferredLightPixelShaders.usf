@@ -133,10 +133,10 @@ float GetExposure()
 
 #if USE_ATMOSPHERE_TRANSMITTANCE
 
-float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in float2 ScreenUV, in float3 LightDirection)
+float3 GetAtmosphericLightTransmittance(in float3 StableTranslatedLargeWorldPosition, in float2 ScreenUV, in float3 LightDirection)
 {
 	// The following is the only way to retrieve a world space position that is always stable under camera movement + long view distance. (DerivedParams.WorldPosition is not stable)
-	const float3 PlanetCenterToWorldPos = (StableLargeWorldPosition - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+	const float3 PlanetCenterToWorldPos = (StableTranslatedLargeWorldPosition - View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
 
 	const float3 AtmosphereTransmittance = GetAtmosphereTransmittance(
 		PlanetCenterToWorldPos, LightDirection, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm,
@@ -147,29 +147,29 @@ float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in f
 
 #endif // USE_ATMOSPHERE_TRANSMITTANCE
 
-float3 GetAtmosphereAndCloudAttenuation(float3 StableLargeWorldPosition, float2 ScreenUV)
+float3 GetAtmosphereAndCloudAttenuation(float3 StableTranslatedLargeWorldPosition, float2 ScreenUV)
 {
 	float3 Out = 1;
 
 	#if USE_ATMOSPHERE_TRANSMITTANCE
-	Out *= GetAtmosphericLightTransmittance(StableLargeWorldPosition, ScreenUV, DeferredLightUniforms.Direction.xyz);
+	Out *= GetAtmosphericLightTransmittance(StableTranslatedLargeWorldPosition, ScreenUV, DeferredLightUniforms.Direction.xyz);
 	#endif
 
 	#if USE_CLOUD_TRANSMITTANCE
 	float OutOpticalDepth = 0.0f;
-	Out *= lerp(1.0f, GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+	Out *= lerp(1.0f, GetCloudVolumetricShadow(StableTranslatedLargeWorldPosition, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 	#endif
 
 	return Out;
 }
 
-float3 GetStableLargeWorldPosition(float2 SVPos, float DeviceZ)
+float3 GetStableTranslatedLargeWorldPosition(float2 SVPos, float DeviceZ)
 {
-	float3 StableLargeWorldPosition = 0;
+	float3 StableTranslatedLargeWorldPosition = 0;
 	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
-	StableLargeWorldPosition = LWCHackToFloat(SvPositionToWorld(float4(SVPos, DeviceZ, 1.0)));
+	StableTranslatedLargeWorldPosition = SvPositionToTranslatedWorld(float4(SVPos, DeviceZ, 1.0));
 	#endif
-	return StableLargeWorldPosition;
+	return StableTranslatedLargeWorldPosition;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -310,7 +310,7 @@ void DeferredLightPixelMain(
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.TranslatedWorldPosition, GetDeferredLightTranslatedWorldPosition(), -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 		OutColor += (Radiance * Attenuation);
-		OutColor.rgb *= GetAtmosphereAndCloudAttenuation(GetStableLargeWorldPosition(InputParams.PixelPos, LookupDeviceZ(InputParams.ScreenUV)), InputParams.ScreenUV);
+		OutColor.rgb *= GetAtmosphereAndCloudAttenuation(GetStableTranslatedLargeWorldPosition(InputParams.PixelPos, LookupDeviceZ(InputParams.ScreenUV)), InputParams.ScreenUV);
 	}
 
 	// RGB:SceneColor Specular and Diffuse
@@ -406,7 +406,7 @@ void DeferredLightPixelMain(
 	float SurfaceShadow = 1.0f;
 	const float4 Radiance = GetDynamicLighting(TranslatedWorldPosition, CameraVector, HairScreenSpaceData.GBuffer, HairScreenSpaceData.AmbientOcclusion, HairScreenSpaceData.GBuffer.ShadingModelID, LightData, LightAttenuation, Dither, PixelCoord, RectTexture, SurfaceShadow);
 	const float  Attenuation = ComputeLightProfileMultiplier(TranslatedWorldPosition, GetDeferredLightTranslatedWorldPosition(), -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
-	const float3 AtmosphericTransmittance = GetAtmosphereAndCloudAttenuation(GetStableLargeWorldPosition(ScreenPosition, Sample.Depth), UV);
+	const float3 AtmosphericTransmittance = GetAtmosphereAndCloudAttenuation(GetStableTranslatedLargeWorldPosition(ScreenPosition, Sample.Depth), UV);
 
 	const float LocalCoverage = From8bitCoverage(Sample.Coverage8bit);
 

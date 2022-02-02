@@ -237,8 +237,7 @@ void ApplyCloudVolumetricShadow(in float3 TranslatedWorldPosition, inout float3 
 	if (CloudSkyAOEnabled)
 	{
 		float OutOpticalDepth = 0.0f;
-		// TODO LWC - use TranslatedWorldPosition here
-		SkyLighting *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
+		SkyLighting *= GetCloudVolumetricShadow(TranslatedWorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
 	}
 #endif
 }

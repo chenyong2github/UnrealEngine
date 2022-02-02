@@ -182,8 +182,8 @@ void Main(
 			DirectionalLightCloudShadow = lerp(
 				1.0f,
 				GetCloudVolumetricShadow(
-					WorldPositionForVertexLighting,
-					TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapWorldToLightClipMatrix,
+					WorldPositionForVertexLightingTranslated,
+					TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTranslatedWorldToLightClipMatrix,
 					TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapFarDepthKm,
 					TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTexture,
 					TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapSampler,
@@ -203,8 +203,8 @@ void Main(
 		Output.BasePassInterpolants.VertexCloudShadow = lerp(
 			1.0f,
 			GetCloudVolumetricShadow(
-				WorldPositionForVertexLighting,
-				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapWorldToLightClipMatrix,
+				WorldPositionForVertexLightingTranslated,
+				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTranslatedWorldToLightClipMatrix,
 				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapFarDepthKm,
 				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTexture,
 				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapSampler,

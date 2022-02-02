@@ -1454,14 +1454,15 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		const FAtmosphereSetup& AtmosphereSetup = SkyAtmosphereSceneProxy.GetAtmosphereSetup();
 		const FVector3f SkyViewLutReferentialForward = FVector3f(1.0f, 0.0f, 0.0f);
 		const FVector3f SkyViewLutReferentialRight = FVector3f(0.0f, 1.0f, 0.0f);
-		FVector3f SkyWorldCameraOrigin;
+		FVector3f SkyCameraTranslatedWorldOrigin;
 		FMatrix44f SkyViewLutReferential;
 		FVector4f TempSkyPlanetData;
-		AtmosphereSetup.ComputeViewData(Scene->SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+		AtmosphereSetup.ComputeViewData(
+			Scene->SkyLight->CapturePosition, View.ViewMatrices.GetPreViewTranslation(), SkyViewLutReferentialForward, SkyViewLutReferentialRight,
+			SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
 		// LWC_TODO: Precision loss
-		ReflectionViewParameters.SkyPlanetCenterAndViewHeight = TempSkyPlanetData;
-		ReflectionViewParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+		ReflectionViewParameters.SkyPlanetTranslatedWorldCenterAndViewHeight = TempSkyPlanetData;
+		ReflectionViewParameters.SkyCameraTranslatedWorldOrigin = SkyCameraTranslatedWorldOrigin;
 		ReflectionViewParameters.SkyViewLutReferential = SkyViewLutReferential;
 
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();

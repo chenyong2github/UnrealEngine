@@ -147,34 +147,34 @@ float RaySphereIntersectNearest(float3 RayOrigin, float3 RayDir, float3 SphereCe
 }
 
 
-float4 GetScreenWorldPos(float4 SVPos, float DeviceZ)
+float4 GetScreenTranslatedWorldPos(float4 SVPos, float DeviceZ)
 {
 #if HAS_INVERTED_Z_BUFFER
 	DeviceZ = max(0.000000000001, DeviceZ);	// TODO: investigate why SvPositionToWorld returns bad values when DeviceZ is far=0 when using inverted z
 #endif
-	return float4(LWCHackToFloat(SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0))), 1.0);
+	return float4(SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0)), 1.0);
 }
 
 float3 GetScreenWorldDir(in float4 SVPos)
 {
 	float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 	const float Depth = 1000000.0f;
-	float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
-	return normalize(WorldPos.xyz - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToTranslatedWorld);
+	return normalize(WorldPos.xyz - View.TranslatedWorldCameraOrigin);
 }
 
 // This is the world position of the camera. It is also force to be at the top of the virutal planet surface. 
 // This is to always see the sky even when the camera is buried into the virtual planet.
-float3 GetCameraWorldPos()
+float3 GetCameraTranslatedWorldPos()
 {
-	return View.SkyWorldCameraOrigin;
+	return View.SkyCameraTranslatedWorldOrigin;
 }
 
 // This is the camera position relative to the virtual planet center.
 // This is convenient because for all the math in this file using world position relative to the virtual planet center.
-float3 GetCameraPlanetPos()
+float3 GetTranslatedCameraPlanetPos()
 {
-	return (GetCameraWorldPos() - View.SkyPlanetCenterAndViewHeight.xyz)*CM_TO_SKY_UNIT;
+	return (GetCameraTranslatedWorldPos() - View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz)*CM_TO_SKY_UNIT;
 }
 
 bool MoveToTopAtmosphere(inout float3 WorldPos, in float3 WorldDir, in float AtmosphereTopRadius)
@@ -307,15 +307,15 @@ int VirtualShadowMapId1;
 
 uint SourceDiskEnabled; 
 
-float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
+float3 GetLightDiskLuminance(float3 PlanetCenterToCamera, float3 WorldDir, uint LightIndex)
 {
-	float t = RaySphereIntersectNearest(WorldPos, WorldDir, float3(0.0f, 0.0f, 0.0f), Atmosphere.BottomRadiusKm);
+	float t = RaySphereIntersectNearest(PlanetCenterToCamera, WorldDir, float3(0.0f, 0.0f, 0.0f), Atmosphere.BottomRadiusKm);
 	if (t < 0.0f												// No intersection with the planet
 		&& View.RenderingReflectionCaptureMask==0.0f)	// Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
 	{
 		// GetLightDiskLuminance contains a tiny soft edge effect
 		float3 LightDiskLuminance = GetLightDiskLuminance(
-			WorldPos, WorldDir, Atmosphere.BottomRadiusKm, Atmosphere.TopRadiusKm,
+			PlanetCenterToCamera, WorldDir, Atmosphere.BottomRadiusKm, Atmosphere.TopRadiusKm,
 			TransmittanceLutTexture, TransmittanceLutTextureSampler,
 			View.AtmosphereLightDirection[LightIndex].xyz, View.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, View.AtmosphereLightDiscLuminance[LightIndex].xyz);
 
@@ -388,6 +388,7 @@ struct SamplingSetup
 	float DistanceToSampleCountMaxInv;
 };
 
+// In this function, all world position are relative to the planet center (itself expressed within translated world space)
 SingleScatteringResult IntegrateSingleScatteredLuminance(
 	in float4 SVPos, in float3 WorldPos, in float3 WorldDir,
 	in bool Ground, in SamplingSetup Sampling, in float DeviceZ, in bool MieRayPhase,
@@ -447,9 +448,9 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #else // SAMPLE_ATMOSPHERE_ON_CLOUDS
 	if (DeviceZ != FarDepthValue)
 	{
-		const float3 DepthBufferWorldPosKm = GetScreenWorldPos(SVPos, DeviceZ).xyz * CM_TO_SKY_UNIT;
-		const float3 TraceStartWorldPosKm = WorldPos + View.SkyPlanetCenterAndViewHeight.xyz * CM_TO_SKY_UNIT; // apply planet offset to go back to world from planet local referencial.
-		const float3 TraceStartToSurfaceWorldKm = DepthBufferWorldPosKm - TraceStartWorldPosKm;
+		const float3 DepthBufferTranslatedWorldPosKm = GetScreenTranslatedWorldPos(SVPos, DeviceZ).xyz * CM_TO_SKY_UNIT;
+		const float3 TraceStartTranslatedWorldPosKm  = WorldPos + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz * CM_TO_SKY_UNIT; // apply planet offset to go back to world from planet local referencial.
+		const float3 TraceStartToSurfaceWorldKm = DepthBufferTranslatedWorldPosKm - TraceStartTranslatedWorldPosKm;
 		float tDepth = length(TraceStartToSurfaceWorldKm);
 		if (tDepth < tMax)
 		{
@@ -595,12 +596,12 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float3 ShadowP0 = P;
 		bool bUnused = false;
 #if SKYVIEWLUT_PASS
-		ShadowP0 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
+		ShadowP0 = GetTranslatedCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 #endif
 #if SAMPLE_OPAQUE_SHADOW
 		{
-			float3 ShadowSampleWorldPosition0 = ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
-			PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowSampleWorldPosition0 - LWCHackToFloat(PrimaryView.PreViewTranslation), false, false, bUnused);
+			float3 ShadowSampleWorldPosition0 = ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz;
+			PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowSampleWorldPosition0 /* - LWCHackToFloat(PrimaryView.PreViewTranslation)*/, false, false, bUnused);
 
 		#if VIRTUAL_SHADOW_MAP
 			if (VirtualShadowMapId0 != INDEX_NONE)
@@ -613,12 +614,12 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 #if SAMPLE_CLOUD_SKYAO
 		float OutOpticalDepth = 0.0f;
-		MultiScatteredLuminance0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudSkyAOWorldToLightClipMatrix,
+		MultiScatteredLuminance0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudSkyAOTranslatedWorldToLightClipMatrix,
 			VolumetricCloudCommonParameters.CloudSkyAOFarDepthKm, VolumetricCloudSkyAOTexture, VolumetricCloudSkyAOTextureSampler, OutOpticalDepth);
 #endif
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth2 = 0.0f;
-		PlanetShadow0 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[0],
+		PlanetShadow0 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapTranslatedWorldToLightClipMatrix[0],
 			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[0].x, VolumetricCloudShadowMapTexture0, VolumetricCloudShadowMapTexture0Sampler, OutOpticalDepth2), VolumetricCloudShadowStrength0));
 #endif
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
@@ -631,11 +632,11 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float3 ShadowP1 = P;
 #if SAMPLE_OPAQUE_SHADOW
 	#if SKYVIEWLUT_PASS
-		ShadowP1 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
+		ShadowP1 = GetTranslatedCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 	#endif
 		{
-			float3 ShadowSampleWorldPosition1 = ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
-			PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowSampleWorldPosition1 - LWCHackToFloat(PrimaryView.PreViewTranslation), false, false, bUnused);
+			float3 ShadowSampleWorldPosition1 = ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz;
+			PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowSampleWorldPosition1/* - LWCHackToFloat(PrimaryView.PreViewTranslation)*/, false, false, bUnused);
 		#if VIRTUAL_SHADOW_MAP
 			if (VirtualShadowMapId1 != INDEX_NONE)
 			{
@@ -647,7 +648,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif // SAMPLE_OPAQUE_SHADOW
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth3 = 0.0f;
-		PlanetShadow1 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[1],
+		PlanetShadow1 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapTranslatedWorldToLightClipMatrix[1],
 			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[1].x, VolumetricCloudShadowMapTexture1, VolumetricCloudShadowMapTexture1Sampler, OutOpticalDepth3), VolumetricCloudShadowStrength1));
 #endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
@@ -769,7 +770,8 @@ void RenderSkyAtmosphereRayMarchingPS(
 	//	return;
 	//}
 
-	float3 WorldPos = GetCameraPlanetPos();
+	// World position are relative to the planet center (itself expressed within translated world space)
+	float3 WorldPos = GetTranslatedCameraPlanetPos();
 	float3 WorldDir = GetScreenWorldDir(SVPos);
 
 	float3 PreExposedL = 0;
@@ -864,12 +866,12 @@ void RenderSkyAtmosphereRayMarchingPS(
 #error The FASTAERIALPERSPECTIVE_ENABLED path does not support COLORED_TRANSMITTANCE_ENABLED.
 #else
 
-	float3 DepthBufferWorldPos = GetScreenWorldPos(SVPos, DeviceZ).xyz;
-	float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+	float3 DepthBufferTranslatedWorldPos = GetScreenTranslatedWorldPos(SVPos, DeviceZ).xyz;
+	float4 NDCPosition = mul(float4(DepthBufferTranslatedWorldPos.xyz, 1), View.TranslatedWorldToClip);
 
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-		NDCPosition, DepthBufferWorldPos*CM_TO_SKY_UNIT, GetCameraWorldPos()*CM_TO_SKY_UNIT,
+		NDCPosition, DepthBufferTranslatedWorldPos *CM_TO_SKY_UNIT, GetCameraTranslatedWorldPos()*CM_TO_SKY_UNIT,
 		CameraAerialPerspectiveVolumeTexture, CameraAerialPerspectiveVolumeTextureSampler,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolutionInv,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolution,
@@ -1124,7 +1126,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float2 PixPos = float2(ThreadId.xy) + 0.5f;
 	float2 UV = PixPos * SkyAtmosphere.SkyViewLutSizeAndInvSize.zw;
 
-	float3 WorldPos = GetCameraPlanetPos();
+	float3 WorldPos = GetTranslatedCameraPlanetPos();
 
 	// For the sky view lut to work, and not be distorted, we need to transform the view and light directions 
 	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
@@ -1302,7 +1304,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 
 	float4 SVPos = float4(View.ViewRectMin.xy + UV * View.ViewSizeAndInvSize.xy, 0.0f, 1.0f);// SV_POS as if resolution was the one from the scene view.
 	float3 WorldDir = GetScreenWorldDir(SVPos);
-	float3 CamPos = GetCameraPlanetPos();
+	float3 CamPos = GetTranslatedCameraPlanetPos();
 
 	if (RealTimeReflection360Mode)
 	{
@@ -1463,7 +1465,7 @@ void RenderSkyAtmosphereDebugPS(
 	const float AerialPespectiveViewDistanceScale = 1.0f;
 
 	// We position the camera at the same height as the view port camera, along z-up vector
-	float3 WorldPos = float3(0.0f, 0.0f, length((LWCHackToFloat(PrimaryView.WorldCameraOrigin) - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT));
+	float3 WorldPos = float3(0.0f, 0.0f, length((View.TranslatedWorldCameraOrigin - View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT));
 
 	// Some organisation constants
 	const float Margin = 2.0f;

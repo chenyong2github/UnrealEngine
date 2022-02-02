@@ -285,16 +285,6 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 
 #endif
 
-// TODO MAKE all phase function common between sky, cloud anmd volumetric
-float HgPhase(float G, float CosTheta)
-{
-	// Reference implementation (i.e. not schlick approximation). 
-	// See http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html
-	float Numer = 1.0f - G * G;
-	float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
-	return Numer / (4.0f * PI * Denom * sqrt(Denom));
-}
-
 float SamplePhaseFunction(in float PhaseCosTheta, in float PhaseG, in float PhaseG2, in float PhaseBlend)
 {
 	PhaseG = clamp(PhaseG, -0.999f, 0.999f);
@@ -645,6 +635,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		{
 			int ms;
 			float3 SampleWorldPosition = RayOrigin + t * Raydir;
+			float3 SampleTranslatedWorldPosition = SampleWorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // TODO_ keep world pos as LWCVEctor
 
 
 			//////////////////////////////
@@ -690,7 +681,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			ParticipatingMediaPhaseContext PMPC = SetupParticipatingMediaPhaseContext(Phase0, Phase1, MsPhaseFactor);
 #endif
 
-			const float3 PlanetCenterToWorldPos = (SampleWorldPosition - ResolvedView.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+			const float3 PlanetCenterToWorldPos = (SampleWorldPosition - ResolvedView.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
 #if CLOUD_PER_SAMPLE_ATMOSPHERE_TRANSMITTANCE
 			// Apply per sample change of transmittance due to atmosphere. More expenssive but higher quality, (and required for space view)
 			const float3 AtmosphereTransmittanceToLight0 = GetAtmosphereTransmittance(
@@ -830,7 +821,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				const float ShadowJitterNorm = 0.5f; // InterleavedGradientNoise(SvPosition.xy, ShadowJitteringSeed); // Disabled jittering for now as this one cannot be hidden well by TAA in some cases.
 #if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
 				float OutOpticalDepth = 0.0f;
-				float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0].x,
+				float CloudShadow = GetCloudVolumetricShadow(SampleTranslatedWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapTranslatedWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0].x,
 					RenderVolumetricCloudParameters.CloudShadowTexture0, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
 				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
@@ -908,7 +899,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				{ // CLOUD_SAMPLE_SECOND_LIGHT
 #if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
 					float OutOpticalDepth = 0.0f;
-					float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1].x,
+					float CloudShadow = GetCloudVolumetricShadow(SampleTranslatedWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapTranslatedWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1].x,
 						RenderVolumetricCloudParameters.CloudShadowTexture1, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
 					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
@@ -1401,8 +1392,8 @@ struct CloudShadowTraceContext
 	float4		SizeInvSize;
 	float4		TracingPixelScaleOffset;
 	float4		TracingSizeInvSize;
-	float4x4	WorldToLightClipMatrix;
-	float4x4	WorldToLightClipMatrixInv;
+	float4x4	TranslatedWorldToLightClipMatrix;
+	float4x4	TranslatedWorldToLightClipMatrixInv;
 	float3		TraceDir;
 };
 
@@ -1425,8 +1416,8 @@ void MainPS(
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudShadowmapSizeInvSize[LightIndex];
 		TraceContext.TracingSizeInvSize			= RenderVolumetricCloudParameters.CloudShadowmapTracingSizeInvSize[LightIndex];
 		TraceContext.TracingPixelScaleOffset	= RenderVolumetricCloudParameters.CloudShadowmapTracingPixelScaleOffset[LightIndex];
-		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[LightIndex];
-		TraceContext.WorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrixInv[LightIndex];
+		TraceContext.TranslatedWorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudShadowmapTranslatedWorldToLightClipMatrix[LightIndex];
+		TraceContext.TranslatedWorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudShadowmapTranslatedWorldToLightClipMatrixInv[LightIndex];
 		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudShadowmapLightDir[LightIndex].xyz;
 	}
 	else
@@ -1438,8 +1429,8 @@ void MainPS(
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudSkyAOSizeInvSize;
 		TraceContext.TracingSizeInvSize			= TraceContext.SizeInvSize;
 		TraceContext.TracingPixelScaleOffset    = float4(1.0f, 1.0f, 0.0f, 0.0f);
-		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudSkyAOWorldToLightClipMatrix;
-		TraceContext.WorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudSkyAOWorldToLightClipMatrixInv;
+		TraceContext.TranslatedWorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudSkyAOTranslatedWorldToLightClipMatrix;
+		TraceContext.TranslatedWorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudSkyAOTranslatedWorldToLightClipMatrixInv;
 		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudSkyAOTraceDir;
 	}
 
@@ -1454,7 +1445,7 @@ void MainPS(
 	float2 UV = float2(SvPosition.xy * TraceContext.TracingPixelScaleOffset.xy + TraceContext.TracingPixelScaleOffset.zw) * TraceContext.SizeInvSize.zw;
 
 	const float NearZDepth = 1.0f; // using FReversedZOrthoMatrix
-	float3 NearClipPlaneWorldPos = CloudShadowUvToWorldSpace(NearZDepth, UV, TraceContext.WorldToLightClipMatrixInv);
+	float3 NearClipPlaneWorldPos = CloudShadowUvToWorldSpace(NearZDepth, UV, TraceContext.TranslatedWorldToLightClipMatrixInv) - LWCHackToFloat(PrimaryView.PreViewTranslation); // TODO_ keep world pos as LWCVEctor
 	const float3 LightDirection = TraceContext.TraceDir; // It points from light to surface
 
 
@@ -1706,7 +1697,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 Texture2D<float2> CloudTracedTexture;
 float4 CloudTextureSizeInvSize;
 float3 CloudTraceDirection;
-float4x4 CloudWorldToLightClipMatrixInv;
+float4x4 CloudTranslatedWorldToLightClipMatrixInv;
 
 [numthreads(8, 8, 1)]
 void MainDrawDebugShadowCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -1720,10 +1711,10 @@ void MainDrawDebugShadowCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float OpticalDepth = CloudShadowData.y;
 
 		const float NearZDepth = 1.0f; // using FReversedZOrthoMatrix
-		float3 NearClipPlaneWorldPos00 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(0,0)) * CloudTextureSizeInvSize.zw, CloudWorldToLightClipMatrixInv);
-		float3 NearClipPlaneWorldPos01 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(0,1)) * CloudTextureSizeInvSize.zw, CloudWorldToLightClipMatrixInv);
-		float3 NearClipPlaneWorldPos11 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(1,1)) * CloudTextureSizeInvSize.zw, CloudWorldToLightClipMatrixInv);
-		float3 NearClipPlaneWorldPos10 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(1,0)) * CloudTextureSizeInvSize.zw, CloudWorldToLightClipMatrixInv);
+		float3 NearClipPlaneWorldPos00 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(0,0)) * CloudTextureSizeInvSize.zw, CloudTranslatedWorldToLightClipMatrixInv);
+		float3 NearClipPlaneWorldPos01 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(0,1)) * CloudTextureSizeInvSize.zw, CloudTranslatedWorldToLightClipMatrixInv);
+		float3 NearClipPlaneWorldPos11 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(1,1)) * CloudTextureSizeInvSize.zw, CloudTranslatedWorldToLightClipMatrixInv);
+		float3 NearClipPlaneWorldPos10 = CloudShadowUvToWorldSpace(NearZDepth, float2(DispatchThreadId.xy+uint2(1,0)) * CloudTextureSizeInvSize.zw, CloudTranslatedWorldToLightClipMatrixInv);
 
 		//
 
@@ -1753,8 +1744,8 @@ Texture2D<float3> CurrCloudShadowTexture;
 Texture2D<float3> PrevCloudShadowTexture;
 RWTexture2D<float3> OutCloudShadowTexture;
 
-float4x4 CurrFrameCloudShadowmapWorldToLightClipMatrixInv;
-float4x4 PrevFrameCloudShadowmapWorldToLightClipMatrix;
+float4x4 CurrFrameCloudShadowmapTranslatedWorldToLightClipMatrixInv;
+float4x4 PrevFrameCloudShadowmapTranslatedWorldToLightClipMatrix;
 
 float3 CurrFrameLightPos;
 float3 PrevFrameLightPos;
@@ -1791,9 +1782,9 @@ void MainShadowTemporalProcessCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		{
 			const float DummyDepth = 0.0f;
 			float4 ClipCoord = float4(CenterUV * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), DummyDepth, 1.0f); 
-			float4 HomogeneousCoord = mul(ClipCoord, CurrFrameCloudShadowmapWorldToLightClipMatrixInv);
+			float4 HomogeneousCoord = mul(ClipCoord, CurrFrameCloudShadowmapTranslatedWorldToLightClipMatrixInv);
 			float3 WorldPos = HomogeneousCoord.xyz / HomogeneousCoord.www;
-			ClipCoord = mul(float4(WorldPos, 1.0f), PrevFrameCloudShadowmapWorldToLightClipMatrix);
+			ClipCoord = mul(float4(WorldPos, 1.0f), PrevFrameCloudShadowmapTranslatedWorldToLightClipMatrix);
 			ClipCoord /= ClipCoord.wwww;
 			float2 PreviousUVs = 0.5f + float2(0.5f, -0.5f) * ClipCoord.xy;
 

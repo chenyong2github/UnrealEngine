@@ -16,7 +16,7 @@
 	Texture2D<float3> CloudShadowmapTexture;
 	SamplerState CloudShadowmapSampler;
 	float CloudShadowmapFarDepthKm;
-	float4x4 CloudShadowmapWorldToLightClipMatrix;
+	float4x4 CloudShadowmapTranslatedWorldToLightClipMatrix;
 	float CloudShadowmapStrength;
 #endif
 
@@ -37,9 +37,9 @@ float3 CloudShadowUvToWorldSpace(in float ZDepth, in float2 UV, in float4x4 Worl
 // WorldSpace in centimeters
 // returns UV in [0,1]
 // returns UV in [0,1]
-float2 CloudShadowWorldSpaceToUv(in float3 WorldSpace, in float4x4 WorldToLightClipShadowMatrix, inout float z)
+float2 CloudShadowWorldSpaceToUv(in float3 TranslatedWorldPosition, in float4x4 TranslatedWorldToLightClipMatrix, inout float z)
 {
-	float4 ClipSpace = mul(float4(WorldSpace, 1.0f), WorldToLightClipShadowMatrix);
+	float4 ClipSpace = mul(float4(TranslatedWorldPosition, 1.0f), TranslatedWorldToLightClipMatrix);
 	ClipSpace /= ClipSpace.wwww;
 	z = ClipSpace.z;
 	float2 UVs = ClipSpace.xy;
@@ -51,11 +51,11 @@ float2 CloudShadowWorldSpaceToUv(in float3 WorldSpace, in float4x4 WorldToLightC
 
 // WorldSpace in centimeters
 // returns transmittance
-float GetCloudVolumetricShadow(in float3 WorldSpace, in float4x4 CloudShadowmapWorldToLightClipMatrix, in float ShadowmapFarDepthKm,
+float GetCloudVolumetricShadow(in float3 TranslatedWorldPosition, in float4x4 CloudShadowmapTranslatedWorldToLightClipMatrix, in float ShadowmapFarDepthKm,
 	Texture2D<float3> VolumetricCloudShadowMapTexture, SamplerState VolumetricCloudShadowMapTextureSampler, inout float OutOpticalDepth)
 {
 	float CloudShadowSampleZ = 0.0f;
-	float2 UVs = CloudShadowWorldSpaceToUv(WorldSpace, CloudShadowmapWorldToLightClipMatrix, CloudShadowSampleZ);
+	float2 UVs = CloudShadowWorldSpaceToUv(TranslatedWorldPosition, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowSampleZ);
 	const float3 CloudShadowData = VolumetricCloudShadowMapTexture.SampleLevel(VolumetricCloudShadowMapTextureSampler, UVs.xy, 0).rgb;
 	const float ShadowFrontDepthKm = CloudShadowData.r;	// unit kilometer
 	const float MeanExtinction = CloudShadowData.g;		// unit 1/m

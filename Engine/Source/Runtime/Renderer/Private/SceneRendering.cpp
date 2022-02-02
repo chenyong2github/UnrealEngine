@@ -1412,14 +1412,15 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 
 		// Regular view sampling of the SkyViewLUT. This is only changed when sampled from a sky material for the real time reflection capture around sky light position)
-		FVector3f SkyWorldCameraOrigin;
+		FVector3f SkyCameraTranslatedWorldOrigin;
 		FMatrix44f SkyViewLutReferential;
 		FVector4f TempSkyPlanetData;
-		AtmosphereSetup.ComputeViewData(InViewMatrices.GetViewOrigin(), ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
-			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+		AtmosphereSetup.ComputeViewData(
+			InViewMatrices.GetViewOrigin(), InViewMatrices.GetPreViewTranslation(), ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
+			SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
 		// LWC_TODO: Precision loss
-		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(TempSkyPlanetData);
-		ViewUniformShaderParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+		ViewUniformShaderParameters.SkyPlanetTranslatedWorldCenterAndViewHeight = FVector4f(TempSkyPlanetData);
+		ViewUniformShaderParameters.SkyCameraTranslatedWorldOrigin = SkyCameraTranslatedWorldOrigin;
 		ViewUniformShaderParameters.SkyViewLutReferential = SkyViewLutReferential;
 	}
 	else
@@ -1437,8 +1438,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = 0.0f;
-		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.RelativeWorldCameraOrigin;
-		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(ForceInitToZero);
+		ViewUniformShaderParameters.SkyCameraTranslatedWorldOrigin = ViewUniformShaderParameters.RelativeWorldCameraOrigin;
+		ViewUniformShaderParameters.SkyPlanetTranslatedWorldCenterAndViewHeight = FVector4f(ForceInitToZero);
 		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix44f::Identity;
 
 		if(Scene)

@@ -488,7 +488,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				// We have rendered a sky dome with identity rotation at the SkyLight position for the capture.
 				if (AtmosphereSetup)
 				{
-					FVector3f SkyWorldCameraOrigin;
+					FVector3f SkyCameraTranslatedWorldOrigin;
 					FMatrix44f SkyViewLutReferential;
 					FVector4f TempSkyPlanetData;
 					if (MainView.bSceneHasSkyMaterial)
@@ -497,8 +497,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// This is to have the FastSkyViewLUT match the one generated specifically for the capture point of view.
 						const FVector3f SkyViewLutReferentialForward = FVector3f(1.0f, 0.0f, 0.0f);
 						const FVector3f SkyViewLutReferentialRight = FVector3f(0.0f, 0.0f, -1.0f);
-						AtmosphereSetup->ComputeViewData(SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-							SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+						AtmosphereSetup->ComputeViewData(
+							SkyLight->CapturePosition, MainView.ViewMatrices.GetPreViewTranslation(), SkyViewLutReferentialForward, SkyViewLutReferentialRight,
+							SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
 						CubeView.CachedViewUniformShaderParameters->SkyViewLutTexture = RealTimeReflectionCaptureSkyAtmosphereViewLutTexture->GetRenderTargetItem().ShaderResourceTexture;
 					}
 					else
@@ -507,14 +508,15 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// But, we still need to udpate the sky parameters on the view according to the sky light capture position
 						const FVector3f SkyViewLutReferentialForward = FVector3f(1.0f, 0.0f, 0.0f);
 						const FVector3f SkyViewLutReferentialRight = FVector3f(0.0f, 0.0f, -1.0f);
-						// LWC_TODO: SkyPlanetCenterAndViewHeight is FVector4f because it's from a shader, and will have lost precision already.
-						AtmosphereSetup->ComputeViewData(SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-							SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+						// LWC_TODO: SkyPlanetTranslatedWorldCenterAndViewHeight is FVector4f because it's from a shader, and will have lost precision already.
+						AtmosphereSetup->ComputeViewData(
+							SkyLight->CapturePosition, MainView.ViewMatrices.GetPreViewTranslation(), SkyViewLutReferentialForward, SkyViewLutReferentialRight,
+							SkyCameraTranslatedWorldOrigin, TempSkyPlanetData, SkyViewLutReferential);
 					}
 
 					// LWC_TODO: Precision loss
-					CubeView.CachedViewUniformShaderParameters->SkyPlanetCenterAndViewHeight = TempSkyPlanetData;
-					CubeView.CachedViewUniformShaderParameters->SkyWorldCameraOrigin = SkyWorldCameraOrigin;
+					CubeView.CachedViewUniformShaderParameters->SkyPlanetTranslatedWorldCenterAndViewHeight = TempSkyPlanetData;
+					CubeView.CachedViewUniformShaderParameters->SkyCameraTranslatedWorldOrigin = SkyCameraTranslatedWorldOrigin;
 					CubeView.CachedViewUniformShaderParameters->SkyViewLutReferential = SkyViewLutReferential;
 				}
 

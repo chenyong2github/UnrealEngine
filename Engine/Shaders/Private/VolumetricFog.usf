@@ -606,7 +606,7 @@ void LightScatteringCS(
 
 #if USE_CLOUD_TRANSMITTANCE
 				float OutOpticalDepth = 0.0f; 
-				ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+				ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(TranslatedWorldPosition, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 #endif
 			}
 

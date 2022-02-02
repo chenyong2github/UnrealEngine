@@ -127,7 +127,7 @@ void LumenCardDirectLightingPS(
 				#if USE_CLOUD_TRANSMITTANCE
 				{
 					float OutOpticalDepth = 0.0f;
-					ShadowMaskRay.ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+					ShadowMaskRay.ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(TranslatedWorldPosition, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 				}
 				#endif
 

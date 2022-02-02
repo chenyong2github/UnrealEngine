@@ -210,7 +210,7 @@ void InjectMainPS(
 		if (VolumetricCloudShadowEnabled > 0)
 		{
 			float OutOpticalDepth = 0.0f;
-			ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPositionForLighting, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+			ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(TranslatedWorldPositionForLighting, CloudShadowmapTranslatedWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 		}
 		#endif
 		
@@ -241,8 +241,8 @@ void InjectMainPS(
 		// Apply color atmosphere transmittance for atmosphere directional lights only if ndeeded
 		if (AtmospherePerPixelTransmittanceEnabled > 0)
 		{
-			const float3 PlanetCenterToWorldPos = (WorldPositionForLighting - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
-			Lighting *= GetAtmosphereTransmittance(PlanetCenterToWorldPos, NormalizedLightVector, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm, View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+			const float3 TranslatedWorldPlanetCenterToPos = (TranslatedWorldPositionForLighting - View.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+			Lighting *= GetAtmosphereTransmittance(TranslatedWorldPlanetCenterToPos, NormalizedLightVector, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm, View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
 		}
 		#endif
 
