@@ -261,6 +261,8 @@ struct DATASMITHCONTENT_API FDatasmithTessellationOptions
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Geometry & Tessellation Options", meta = (ToolTip = "Stitching technique applied on model before tessellation. Sewing could impact number of objects."))
 	EDatasmithCADStitchingTechnique StitchingTechnique;
 
+	bool bUseCADKernel = false;
+
 public:
 	bool operator == (const FDatasmithTessellationOptions& Other) const
 	{

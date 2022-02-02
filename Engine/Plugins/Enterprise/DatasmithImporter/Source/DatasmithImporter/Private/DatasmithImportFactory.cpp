@@ -333,8 +333,32 @@ namespace DatasmithImportFactoryImpl
 			EventAttributes.Emplace( TEXT("ExporterOS"), ImportContext.Scene->GetUserOS() );
 			EventAttributes.Emplace( TEXT("ExportDuration"), ImportContext.Scene->GetExportDuration() );
 
-			FString SourceFileExtension = ImportContext.SceneTranslator ? ImportContext.SceneTranslator->GetSource().GetSourceFileExtension() : TEXT("Unknown");
-			EventAttributes.Emplace( TEXT("SourceFileExtension"), SourceFileExtension );
+			if (ImportContext.SceneTranslator)
+			{
+				EventAttributes.Emplace(TEXT("SourceFileExtension"), ImportContext.SceneTranslator->GetSource().GetSourceFileExtension());
+
+				// Log tessellator if CADKernel has been used
+				bool bUseCADKernel = false;
+				TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options;
+				ImportContext.SceneTranslator->GetSceneImportOptions(Options);
+
+				for (const TStrongObjectPtr<UDatasmithOptionsBase>& Option : Options)
+				{
+					if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(Option.Get()))
+					{
+						bUseCADKernel = TessellationOptionsObject->Options.bUseCADKernel;
+					}
+				}
+
+				if (bUseCADKernel)
+				{
+					EventAttributes.Emplace(TEXT("Tessellator"), TEXT("CADKernel"));
+				}
+			}
+			else
+			{
+				EventAttributes.Emplace(TEXT("SourceFileExtension"), TEXT("Unknown"));
+			}
 
 			FString EventText = TEXT("Datasmith.");
 			EventText += ImportContext.bIsAReimport ? TEXT("Reimport") : TEXT("Import");
