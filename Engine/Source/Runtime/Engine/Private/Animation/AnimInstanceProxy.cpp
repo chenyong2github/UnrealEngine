@@ -844,12 +844,12 @@ void FAnimInstanceProxy::UpdateSlotNodeWeight(const FName& SlotNodeName, float I
 	}
 }
 
-bool FAnimInstanceProxy::GetSlotInertializationRequest(const FName& SlotName, float& OutDuration)
+bool FAnimInstanceProxy::GetSlotInertializationRequest(const FName& SlotName, UE::Anim::FSlotInertializationRequest& OutRequest)
 {
 	const FName GroupName = Skeleton ? Skeleton->GetSlotGroupName(SlotName) : NAME_None;
-	if (const float* RequestDuration = GetSlotGroupInertializationRequestMap().Find(GroupName))
+	if (const UE::Anim::FSlotInertializationRequest* FoundRequest = GetSlotGroupInertializationRequestMap().Find(GroupName))
 	{
-		OutDuration = *RequestDuration;
+		OutRequest = *FoundRequest;
 		return true;
 	}
 

@@ -1388,7 +1388,7 @@ void FAnimMontageInstance::Play(float InPlayRate, const FMontageBlendSettings& B
 		const float InertialBlendDuration = BlendInArgs.BlendTime;
 		// Request new inertialization for new montage's group name
 		// If there is an existing inertialization request, we overwrite that here.
-		AnimInstance->RequestMontageInertialization(Montage, InertialBlendDuration);
+		AnimInstance->RequestMontageInertialization(Montage, InertialBlendDuration, BlendInSettings.BlendProfile);
 
 		// When using inertialization, we need to instantly blend in.
 		BlendInArgs.BlendTime = 0.0f;
@@ -1456,7 +1456,7 @@ void FAnimMontageInstance::Stop(const FMontageBlendSettings& InBlendOutSettings,
 				if (bShouldInertialize)
 				{
 					// Send the inertial blend request to the anim instance
-					Inst->RequestMontageInertialization(Montage, InBlendOutSettings.Blend.BlendTime);
+					Inst->RequestMontageInertialization(Montage, InBlendOutSettings.Blend.BlendTime, InBlendOutSettings.BlendProfile);
 				}
 			}
 		}

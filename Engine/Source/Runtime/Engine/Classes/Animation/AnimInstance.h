@@ -36,6 +36,11 @@ struct FAnimNode_LinkedAnimLayer;
 
 typedef TArray<FTransform> FTransformArrayA2;
 
+namespace UE::Anim
+{
+	using FSlotInertializationRequest = TPair<float, const UBlendProfile*>;
+}	// namespace UE::Anim
+
 struct FParallelEvaluationData
 {
 	FBlendedHeapCurve& OutCurve;
@@ -884,7 +889,7 @@ protected:
 	TMap<class UAnimMontage*, struct FAnimMontageInstance*> ActiveMontagesMap;
 
 	/**  Inertialization requests gathered this frame. Gets reset in UpdateMontageEvaluationData */
-	TMap<FName, float> SlotGroupInertializationRequestMap;
+	TMap<FName, UE::Anim::FSlotInertializationRequest> SlotGroupInertializationRequestMap;
 
 	/* StopAllMontagesByGroupName needs a BlendMode and BlendProfile to function properly if using non-default ones in your montages. If you want default BlendMode/BlendProfiles, you need to update the calling code to do so. */
 	UE_DEPRECATED(5.0, "Use StopAllMontagesByGroupName with other signature.")
@@ -903,12 +908,12 @@ protected:
 
 public:
 
-	/**  Builds an inertialization request from the montage's group and provided duration */
-	void RequestMontageInertialization(const UAnimMontage* Montage, float Duration);
+	/**  Builds an inertialization request from the montage's group, provided duration and optional blend profile*/
+	void RequestMontageInertialization(const UAnimMontage* Montage, float Duration, const UBlendProfile* BlendProfile = nullptr);
 
 	/**  Requests an inertial blend during the next anim graph update. Requires your anim graph to have a slot node belonging to the specified group name */
 	UFUNCTION(BlueprintCallable, Category = "Inertial Blend")
-	void RequestSlotGroupInertialization(FName InSlotGroupName, float Duration);
+	void RequestSlotGroupInertialization(FName InSlotGroupName, float Duration, const UBlendProfile* BlendProfile = nullptr);
 
 	/** Queue a Montage BlendingOut Event to be triggered. */
 	void QueueMontageBlendingOutEvent(const FQueuedMontageBlendingOutEvent& MontageBlendingOutEvent);
