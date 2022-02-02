@@ -19,7 +19,12 @@ DEFINE_LOG_CATEGORY(SandboxFile);
 #if PLATFORM_SUPPORTS_DEFAULT_SANDBOX && (UE_GAME || UE_SERVER)
 static FString GetCookedSandboxDir()
 {
-	return FPaths::Combine(*(FPaths::ProjectSavedDir()), TEXT("Cooked"), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
+	TStringBuilder<512> Dir;
+	Dir << *FPaths::ProjectDir();
+	Dir << "Saved/Cooked/";
+	Dir << FPlatformProperties::PlatformName();
+	Dir << "/";
+	return Dir.ToString();
 }
 #endif
 
