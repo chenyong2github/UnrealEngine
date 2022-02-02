@@ -222,6 +222,52 @@ protected:
 		return true;
 	}
 
+	bool GetValues(TConstArrayView<UE::DerivedData::FValue> Values, UE::DerivedData::ECachePolicy Policy, TArray<UE::DerivedData::FValue>& OutValues, const char* BucketName = nullptr)
+	{
+		using namespace UE::DerivedData;
+		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+		FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
+
+		TArray<FCacheGetValueRequest> Requests;
+		Requests.Reserve(Values.Num());
+
+		for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+		{
+			const FValue& Value = Values[ValueIndex];
+			FCacheKey Key;
+			Key.Bucket = TestCacheBucket;
+			Key.Hash = Value.GetRawHash();
+			Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Key, Policy, static_cast<uint64>(ValueIndex) });
+		}
+
+		struct FGetValueOutput
+		{
+			FValue Value;
+			EStatus Status = EStatus::Error;
+		};
+
+		TArray<TOptional<FGetValueOutput>> GetValueOutputs;
+		GetValueOutputs.SetNum(Values.Num());
+		FRequestOwner RequestOwner(EPriority::Blocking);
+		TestBackend->GetValue(Requests, RequestOwner, [&GetValueOutputs](FCacheGetValueResponse&& Response)
+			{
+				GetValueOutputs[Response.UserData].Emplace(FGetValueOutput{ Response.Value, Response.Status });
+			});
+		RequestOwner.Wait();
+
+		for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+		{
+			FGetValueOutput& ReceivedOutput = GetValueOutputs[ValueIndex].GetValue();
+			if (ReceivedOutput.Status != EStatus::Ok)
+			{
+				return false;
+			}
+			OutValues.Add(MoveTemp(ReceivedOutput.Value));
+		}
+
+		return true;
+	}
+
 	bool GetRecordChunks(TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size, TArray<FSharedBuffer>& OutChunks)
 	{
 		using namespace UE::DerivedData;
@@ -314,6 +360,33 @@ protected:
 		}
 	}
 
+	void ValidateValues(const TCHAR* Name, TConstArrayView<UE::DerivedData::FValue> ValuesToTest, TConstArrayView<UE::DerivedData::FValue> ReferenceValues, UE::DerivedData::ECachePolicy Policy)
+	{
+		using namespace UE::DerivedData;
+
+		if (!TestEqual(FString::Printf(TEXT("%s::Value quantity"), Name), ValuesToTest.Num(), ReferenceValues.Num()))
+		{
+			return;
+		}
+
+		for (int32 ValueIndex = 0; ValueIndex < ValuesToTest.Num(); ++ValueIndex)
+		{
+			const FValue& ExpectedValue = ReferenceValues[ValueIndex];
+			const FValue& ValueToTest = ValuesToTest[ValueIndex];
+
+			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
+			{
+				TestTrue(FString::Printf(TEXT("%s::Get value[%d] !HasData"), Name, ValueIndex), !ValueToTest.HasData());
+			}
+			else
+			{
+				TestTrue(FString::Printf(TEXT("%s::Get value[%d] HasData"), Name, ValueIndex), ValueToTest.HasData());
+				TestTrue(FString::Printf(TEXT("%s::Get value[%d] equality"), Name, ValueIndex), ExpectedValue == ValueToTest);
+				TestTrue(FString::Printf(TEXT("%s::Get value[%d] data equality"), Name, ValueIndex), FIoHash::HashBuffer(ValueToTest.GetData().GetCompressed()) == FIoHash::HashBuffer(ExpectedValue.GetData().GetCompressed()));
+			}
+		}
+	}
+
 	void ValidateRecordChunks(const TCHAR* Name, TConstArrayView<FSharedBuffer> RecordChunksToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
 	{
 		using namespace UE::DerivedData;
@@ -373,6 +446,22 @@ protected:
 
 		ValidateRecords(Name, ReceivedRecords, Records, Policy);
 		return ReceivedRecords;
+	}
+
+	TArray<UE::DerivedData::FValue> GetAndValidateValues(const TCHAR* Name, TConstArrayView<UE::DerivedData::FValue> Values, UE::DerivedData::ECachePolicy Policy)
+	{
+		using namespace UE::DerivedData;
+		TArray<FValue> ReceivedValues;
+		bool bGetSuccessful = GetValues(Values, Policy, ReceivedValues);
+		TestTrue(FString::Printf(TEXT("%s::Get status"), Name), bGetSuccessful);
+
+		if (!bGetSuccessful)
+		{
+			return TArray<FValue>();
+		}
+
+		ValidateValues(Name, ReceivedValues, Values, Policy);
+		return ReceivedValues;
 	}
 
 	TArray<FSharedBuffer> GetAndValidateRecordChunks(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
@@ -488,6 +577,52 @@ TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::IC
 	return CacheRecords;
 }
 
+TArray<UE::DerivedData::FValue> CreateTestCacheValues(UE::DerivedData::ICacheStore* InTestBackend, uint32 InNumValues, const char* BucketName = nullptr)
+{
+	using namespace UE::DerivedData;
+	FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
+
+	TArray<FCachePutValueRequest> PutValueRequests;
+	PutValueRequests.Reserve(InNumValues);
+
+	TArray<FSharedBuffer> ValueBuffers;
+	for (uint32 ValueIndex = 0; ValueIndex < InNumValues; ++ValueIndex)
+	{
+		TArray<uint8> ValueContents;
+		// Add N zeroed bytes where N corresponds to the value index times 10.
+		const int32 NumBytes = (ValueIndex+1)*10;
+		ValueContents.AddUninitialized(NumBytes);
+		for (int32 ContentIndex = 0; ContentIndex < NumBytes; ++ContentIndex)
+		{
+			ValueContents[ContentIndex] = (uint8)(ValueIndex + ContentIndex + 42); // offset of 42 to keep the contents distinct from record test data
+		}
+		ValueBuffers.Emplace(MakeSharedBufferFromArray(MoveTemp(ValueContents)));
+	}
+
+	uint64 KeyIndex = 0;
+	for (const FSharedBuffer& ValueBuffer : ValueBuffers)
+	{
+		FIoHash ValueHash(FIoHash::HashBuffer(ValueBuffer));
+
+		FCacheKey Key;
+		Key.Bucket = TestCacheBucket;
+		Key.Hash = ValueHash;
+
+		PutValueRequests.Add({ {TEXT("AutoTest")}, Key, FValue::Compress(ValueBuffer), ECachePolicy::Default, KeyIndex++ });
+	}
+
+	TArray<FValue> Values;
+	FRequestOwner Owner(EPriority::Blocking);
+	InTestBackend->PutValue(PutValueRequests, Owner, [&Values, &PutValueRequests](FCachePutValueResponse&& Response)
+		{
+			check(Response.Status == EStatus::Ok);
+			Values.Add(PutValueRequests[Response.UserData].Value);
+		});
+	Owner.Wait();
+
+	return Values;
+}
+
 IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentCachedDataProbablyExistsBatch, TEXT(".FConcurrentCachedDataProbablyExistsBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters)
 {
@@ -594,6 +729,7 @@ bool CacheStore::RunTest(const FString& Parameters)
 #endif // UE_WITH_ZEN
 
 	const uint32 RecordsInBatch = 3;
+	const uint32 ValuesInBatch = RecordsInBatch;
 
 	{
 		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 1);
@@ -653,6 +789,12 @@ bool CacheStore::RunTest(const FString& Parameters)
 			ValidateRecords(TEXT("MultiValueSkipDataZenAndDirect"), GetAndValidateRecords(TEXT("MultiValueSkipDataZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipData), RecievedRecordsSkipData, ECachePolicy::Default | ECachePolicy::SkipData);
 		}
 #endif // UE_WITH_ZEN
+	}
+
+	{
+		TArray<FValue> PutValues = CreateTestCacheValues(TestBackend, ValuesInBatch);
+		GetAndValidateValues(TEXT("SimpleValue"), PutValues, ECachePolicy::Default);
+		GetAndValidateValues(TEXT("SimpleValueSkipData"), PutValues, ECachePolicy::Default | ECachePolicy::SkipData);
 	}
 
 	return true;
