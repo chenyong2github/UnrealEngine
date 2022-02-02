@@ -379,6 +379,8 @@ private:
 class FNaniteGeometryCollectionSceneProxy : public Nanite::FSceneProxyBase
 {
 public:
+	using Super = Nanite::FSceneProxyBase;
+	
 	FNaniteGeometryCollectionSceneProxy(UGeometryCollectionComponent* Component);
 
 	virtual ~FNaniteGeometryCollectionSceneProxy() = default;

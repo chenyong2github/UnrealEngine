@@ -1593,8 +1593,7 @@ HHitProxy* FNaniteGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveCompo
 		}
 	}
 
-	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
-	return nullptr;
+	return Super::CreateHitProxies(Component, OutHitProxies);
 }
 #endif
 

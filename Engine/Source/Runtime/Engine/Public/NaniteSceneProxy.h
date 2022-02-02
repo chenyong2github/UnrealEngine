@@ -108,6 +108,10 @@ public:
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
 
+#if WITH_EDITOR
+	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
+#endif
+
 	virtual bool CanBeOccluded() const override
 	{
 		// Disable slow occlusion paths(Nanite does its own occlusion culling)
@@ -172,6 +176,8 @@ protected:
 class FSceneProxy : public FSceneProxyBase
 {
 public:
+	using Super = FSceneProxyBase;
+
 	FSceneProxy(UStaticMeshComponent* Component);
 	FSceneProxy(UInstancedStaticMeshComponent* Component);
 	FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component);
@@ -184,7 +190,7 @@ public:
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 
 #if WITH_EDITOR
-	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
 #endif
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;

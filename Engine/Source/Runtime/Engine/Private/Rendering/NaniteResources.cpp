@@ -380,6 +380,21 @@ SIZE_T FSceneProxyBase::GetTypeHash() const
 	return reinterpret_cast<size_t>(&UniquePointer);
 }
 
+#if WITH_EDITOR
+HHitProxy* FSceneProxyBase::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
+{
+	// Subclasses will have populated OutHitProxies already - update the hit proxy ID before used by GPUScene
+	HitProxyIds.SetNumUninitialized(OutHitProxies.Num());
+	for (int32 HitProxyId = 0; HitProxyId < HitProxyIds.Num(); ++HitProxyId)
+	{
+		HitProxyIds[HitProxyId] = OutHitProxies[HitProxyId]->Id;
+	}
+
+	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
+	return nullptr;
+}
+#endif
+
 void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* PDI, const FLightCacheInterface* LCI)
 {
 	LLM_SCOPE_BYTAG(Nanite);
@@ -872,14 +887,7 @@ HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<
 			break;
 	}
 
-	HitProxyIds.SetNumUninitialized(OutHitProxies.Num());
-	for (int32 HitProxyId = 0; HitProxyId < HitProxyIds.Num(); ++HitProxyId)
-	{
-		HitProxyIds[HitProxyId] = OutHitProxies[HitProxyId]->Id;
-	}
-
-	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
-	return nullptr;
+	return Super::CreateHitProxies(Component, OutHitProxies);
 }
 
 #endif
