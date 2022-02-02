@@ -56,7 +56,7 @@ private:
 	bool RequestIndexAsset(UObject* InAsset);
 	bool IsAssetIndexable(UObject* InAsset);
 	bool TryLoadIndexForAsset(const FAssetData& InAsset);
-	void AsyncRequestDownlaod(const FAssetData& InAssetData, const FString& InDDCKey);
+	void AsyncRequestDownload(const FAssetData& InAssetData, const FString& InDDCKey);
 	bool AsyncGetDerivedDataKey(const FAssetData& UnindexedAsset, TFunction<void(bool, FString)> DDCKeyCallback);
 	bool HasIndexerForClass(const UClass* InAssetClass) const;
 	FString GetIndexerVersion(const UClass* InAssetClass) const;

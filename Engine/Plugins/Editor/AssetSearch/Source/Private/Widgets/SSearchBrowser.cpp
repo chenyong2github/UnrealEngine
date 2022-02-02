@@ -119,20 +119,6 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 					SNew(SOverlay)
 
 					+ SOverlay::Slot()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Clipping(EWidgetClipping::Inherit)
-						.Text(this, &SSearchBrowser::GetSearchBackgroundText)
-						.Justification(ETextJustify::Center)
-						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 30))
-						.ColorAndOpacity(FLinearColor(1,1,1,0.05))
-						.RenderTransformPivot(FVector2D(0.5, 0.5))
-						.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(-30.0f))))
-					]
-
-					+ SOverlay::Slot()
 					[
 						SAssignNew(SearchTreeView, STreeView< TSharedPtr<FSearchNode> >)
 						.ItemHeight(24.0f)
@@ -150,16 +136,24 @@ void SSearchBrowser::Construct( const FArguments& InArgs )
 							.FillWidth(70)
 						)
 					]
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Visibility(EVisibility::HitTestInvisible)
+						.Clipping(EWidgetClipping::Inherit)
+						.Text(this, &SSearchBrowser::GetSearchBackgroundText)
+						.Justification(ETextJustify::Center)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 30))
+						.ColorAndOpacity(FLinearColor(1,1,1,0.05))
+						.RenderTransformPivot(FVector2D(0.5, 0.5))
+						.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(-30.0f))))
+					]
 				]
 			]
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0, 0, 0, 1)
-			[
-				SNew(SSeparator)
-			]
-
+			
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(0, 0, 0, 1)
@@ -283,8 +277,8 @@ FText SSearchBrowser::GetSearchBackgroundText() const
 	}
 	else if (FilterString.Len() == 0)
 	{
-		IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-		FSearchStats SearchStats = SearchModule.GetStats();
+		const IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+		const FSearchStats SearchStats = SearchModule.GetStats();
 
 		if (SearchStats.IsUpdating() && SearchStats.TotalRecords > 0)
 		{
@@ -318,15 +312,15 @@ FText SSearchBrowser::GetStatusText() const
 
 FText SSearchBrowser::GetAdvancedStatus() const
 {
-	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-	FSearchStats SearchStats = SearchModule.GetStats();
+	const IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	const FSearchStats SearchStats = SearchModule.GetStats();
 	return FText::Format(LOCTEXT("AdvancedSearchStatusTextFmt", "Scanning {0}\nProcessing {1}\nUpdating {2}\n\nTotal Records {3}"), SearchStats.Scanning, SearchStats.Processing, SearchStats.Updating, SearchStats.TotalRecords);
 }
 
 FText SSearchBrowser::GetUnindexedAssetsText() const
 {
-	IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
-	FSearchStats SearchStats = SearchModule.GetStats();
+	const IAssetSearchModule& SearchModule = IAssetSearchModule::Get();
+	const FSearchStats SearchStats = SearchModule.GetStats();
 
 	if (SearchStats.AssetsMissingIndex > 0)
 	{

@@ -550,7 +550,7 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAssetData)
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			if (!SearchDatabase.IsAssetUpToDate(InAssetData, InDDCKey))
 			{
-				AsyncRequestDownlaod(InAssetData, InDDCKey);
+				AsyncRequestDownload(InAssetData, InDDCKey);
 			}
 
 			IsAssetUpToDateCount--;
@@ -565,7 +565,7 @@ bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAssetData)
 	return bSuccess;
 }
 
-void FAssetSearchManager::AsyncRequestDownlaod(const FAssetData& InAssetData, const FString& InDDCKey)
+void FAssetSearchManager::AsyncRequestDownload(const FAssetData& InAssetData, const FString& InDDCKey)
 {
 	DownloadQueueCount++;
 
@@ -578,6 +578,12 @@ void FAssetSearchManager::AsyncRequestDownlaod(const FAssetData& InAssetData, co
 bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, TFunction<void(bool, FString)> DDCKeyCallback)
 {
 	check(IsInGameThread());
+
+	const FString AssetPath = InAssetData.PackagePath.ToString();
+	if (AssetPath.Contains(FPackagePath::GetExternalActorsFolderName()) || AssetPath.Contains(FPackagePath::GetExternalObjectsFolderName()))
+	{
+		return false;
+	}
 
 	FString IndexersNamesAndVersions = GetIndexerVersion(InAssetData.GetClass());
 
