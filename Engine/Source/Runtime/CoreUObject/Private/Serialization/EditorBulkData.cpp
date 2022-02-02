@@ -73,7 +73,7 @@ static TAutoConsoleVariable<bool> CVarShouldRehydrateOnSave(
 	TEXT("When true FVirtualizedUntypedBulkData virtualized payloads will by hydrated and stored locally when saved to a package"));
 
 /** Wrapper around the config file option [Core.System.Experimental]EnablePackageSidecarSaving */
-bool ShouldSaveToPackageSidecar()
+static bool ShouldSaveToPackageSidecar()
 {
 	static const struct FSaveToPackageSidecar
 	{
@@ -106,7 +106,7 @@ bool ShouldAllowVirtualizationOptOut()
 #endif // UE_ENABLE_VIRTUALIZATION_TOGGLE
 
 /** Utility for logging extended error messages when we fail to open a package for reading */
-void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegment PackageSegment)
+static void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegment PackageSegment)
 {
 	// TODO: Check the various error paths here again!
 	const uint32 SystemError = FPlatformMisc::GetLastError();
@@ -131,7 +131,7 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegme
  * If the contents are validated we check the loaded result against the members of a bulkdata object to 
  * see if they match.
  */
-bool IsDataValid(const FEditorBulkData& BulkData, const FCompressedBuffer& Payload)
+static bool IsDataValid(const FEditorBulkData& BulkData, const FCompressedBuffer& Payload)
 {
 	if (!Payload.IsNull())
 	{
@@ -166,7 +166,7 @@ const FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
 }
 
 /** Utility for finding the FPackageTrailer associated with a given UObject */
-const FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
+static const FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
 {
 	const FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
 	if (Linker != nullptr)
@@ -180,7 +180,7 @@ const FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
 }
 
 /** Utility for finding the package path associated with a given UObject */
-FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment)
+static FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment)
 {
 	OutPackageSegment = EPackageSegment::Header;
 
@@ -194,6 +194,53 @@ FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackage
 	{
 		return FPackagePath();
 	}
+}
+
+/** Utility for hashing a payload, will return a default FIoHash if the payload is invalid or of zero length */
+static FIoHash HashPayload(const FSharedBuffer& InPayload)
+{
+	if (InPayload.GetSize() > 0)
+	{
+		return FIoHash::HashBuffer(InPayload);
+	}
+	else
+	{
+		return FIoHash();
+	}
+}
+
+/** Returns the FIoHash of a FGuid */
+static FIoHash GuidToIoHash(const FGuid& Guid)
+{
+	if (Guid.IsValid())
+	{
+		// Hash each element individually rather than making assumptions about
+		// the internal layout of FGuid and treating it as a contiguous buffer.
+		// Slightly slower, but safer.
+		FBlake3 Hash;
+
+		Hash.Update(&Guid[0], sizeof(uint32));
+		Hash.Update(&Guid[1], sizeof(uint32));
+		Hash.Update(&Guid[2], sizeof(uint32));
+		Hash.Update(&Guid[3], sizeof(uint32));
+
+		return FIoHash(Hash.Finalize());
+	}
+	else
+	{
+		return FIoHash();
+	}
+}
+
+FGuid IoHashToGuid(const FIoHash& Hash)
+{
+	// We use the first 16 bytes of the FIoHash to create the guid, there is
+	// no specific reason why these were chosen, we could take any pattern or combination
+	// of bytes.
+	// Note that if the input hash is invalid (all zeros) then the FGuid returned will
+	// also be considered as invalid
+	uint32* HashBytes = (uint32*)Hash.GetBytes();
+	return FGuid(HashBytes[0], HashBytes[1], HashBytes[2], HashBytes[3]);
 }
 
 /** Utility for updating an existing entry in an Archive before returning the archive to it's original seek position */
@@ -476,7 +523,7 @@ void FEditorBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGu
 	if (InBulkData.GetBulkDataSize() > 0)
 	{
 		BulkDataId = CreateUniqueGuid(InGuid, Owner, *InBulkData.GetPackagePath().GetDebugName());
-		PayloadContentId = UE::Virtualization::FPayloadId(BulkDataId);
+		PayloadContentId = GuidToIoHash(BulkDataId);
 		bWasKeyGuidDerived = true;
 	}
 	
@@ -617,7 +664,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 
 		// TODO: Can probably remove these checks before UE5 release
 		check(!Ar.IsSaving() || GetPayloadSize() == 0 || BulkDataId.IsValid()); // Sanity check to stop us saving out bad data
-		check(!Ar.IsSaving() || GetPayloadSize() == 0 || PayloadContentId.IsValid()); // Sanity check to stop us saving out bad data
+		check(!Ar.IsSaving() || GetPayloadSize() == 0 || !PayloadContentId.IsZero()); // Sanity check to stop us saving out bad data
 		
 		Ar << BulkDataId;
 		Ar << PayloadContentId;
@@ -625,7 +672,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 
 		// TODO: Can probably remove these checks before UE5 release
 		check(!Ar.IsLoading() || GetPayloadSize() == 0 || BulkDataId.IsValid()); // Sanity check to stop us loading in bad data
-		check(!Ar.IsLoading() || GetPayloadSize() == 0 || PayloadContentId.IsValid()); // Sanity check to stop us loading in bad data
+		check(!Ar.IsLoading() || GetPayloadSize() == 0 || !PayloadContentId.IsZero()); // Sanity check to stop us loading in bad data
 
 		if (Ar.IsSaving())
 		{
@@ -711,7 +758,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			}
 
 			// Make sure that the trailer builder is correct (if it is being used)
-			if (IsStoredInPackageTrailer(UpdatedFlags) && PayloadContentId.IsValid())
+			if (IsStoredInPackageTrailer(UpdatedFlags) && !PayloadContentId.IsZero())
 			{
 				check(LinkerSave != nullptr);
 				check(LinkerSave->PackageTrailerBuilder.IsValid());
@@ -900,8 +947,8 @@ FCompressedBuffer FEditorBulkData::LoadFromDisk() const
 			FCompressedBuffer SidecarBuffer = LoadFromSidecarFile();
 			FCompressedBuffer AssetBuffer = LoadFromPackageFile();
 
-			UE::Virtualization::FPayloadId SidecarId(SidecarBuffer.Decompress());
-			UE::Virtualization::FPayloadId AssetId(AssetBuffer.Decompress());
+			const FIoHash SidecarId = HashPayload(SidecarBuffer.Decompress());
+			const FIoHash AssetId = HashPayload(AssetBuffer.Decompress());
 
 			UE_CLOG(SidecarId != PayloadContentId, LogSerialization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *LexToString(SidecarId), *LexToString(PayloadContentId));
 			UE_CLOG(AssetId != PayloadContentId, LogSerialization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *LexToString(AssetId), *LexToString(PayloadContentId))
@@ -1174,7 +1221,7 @@ void FEditorBulkData::PushData(const FPackagePath& InPackagePath)
 		// serialization, we need a better way to save the results of 'RecompressForSerialization'
 		RecompressForSerialization(PayloadToPush, Flags);
 
-		// TODO: We could make this a config option?
+		// TODO: We could make the storage type a config option?
 		if (VirtualizationSystem.PushData(PayloadContentId, PayloadToPush, UE::Virtualization::EStorageType::Local, InPackagePath.GetPackageName()))
 		{
 			EnumAddFlags(Flags, EFlags::IsVirtualized);
@@ -1399,7 +1446,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
 }
 
-void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, UE::Virtualization::FPayloadId&& InPayloadID)
+void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InPayloadID)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayloadImpl);
 
@@ -1531,7 +1578,7 @@ TFuture<FCompressedBuffer>FEditorBulkData::GetCompressedPayload() const
 void FEditorBulkData::UpdatePayload(FSharedBuffer InPayload)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayload);
-	UE::Virtualization::FPayloadId NewPayloadId(InPayload);
+	FIoHash NewPayloadId = HashPayload(InPayload);
 	UpdatePayloadImpl(MoveTemp(InPayload), MoveTemp(NewPayloadId));
 }
 
@@ -1616,7 +1663,7 @@ void FEditorBulkData::UpdateKeyIfNeeded()
 
 		// Load the payload from disk (or memory) so that we can hash it
 		FSharedBuffer InPayload = GetDataInternal().Decompress();
-		PayloadContentId = UE::Virtualization::FPayloadId(InPayload);
+		PayloadContentId = HashPayload(InPayload);
 
 		// Store as the in memory payload, since this method is only called during saving 
 		// we know it will get cleared anyway.
@@ -1826,13 +1873,13 @@ FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
 
 void FPayloadToc::AddEntry(const FEditorBulkData& BulkData)
 {
-	if (BulkData.GetPayloadId().IsValid())
+	if (!BulkData.GetPayloadId().IsZero())
 	{
 		Contents.Emplace(BulkData);
 	}
 }
 
-bool FPayloadToc::FindEntry(const UE::Virtualization::FPayloadId& Identifier, FTocEntry& OutEntry)
+bool FPayloadToc::FindEntry(const FIoHash& Identifier, FTocEntry& OutEntry)
 {
 	for (const FTocEntry& Entry : Contents)
 	{

@@ -7,8 +7,9 @@
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 #include "Templates/UniquePtr.h"
-#include "Virtualization/PayloadId.h"
 #include "Virtualization/VirtualizationSystem.h"
+
+struct FIoHash;
 
 namespace UE::Virtualization
 {
@@ -84,7 +85,7 @@ public:
 	 * @param Payload	A potentially compressed buffer representing the payload
 	 * @return			The result of the push operation
 	 */
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& PackageContext) = 0;
+	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext) = 0;
 
 	virtual bool PushData(TArrayView<FPushRequest> Requests)
 	{
@@ -121,7 +122,7 @@ public:
 	 *				operation succeeded and a null FCompressedBuffer
 	 *				if it did not.
 	 */
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
+	virtual FCompressedBuffer PullData(const FIoHash& Id) = 0;
 	
 	/**
 	 * Checks if a payload exists in the backends storage.
@@ -130,21 +131,21 @@ public:
 	 * 
 	 * @return True if the backend storage already contains the payload, otherwise false
 	 */
-	virtual bool DoesPayloadExist(const FPayloadId& Id) = 0;
+	virtual bool DoesPayloadExist(const FIoHash& Id) = 0;
 	
 	/**
 	 * Checks if a number of payload exists in the backends storage.
 	 *
-	 * @param[in]	PayloadIds	An array of FPayloadId that should be checked
+	 * @param[in]	PayloadIds	An array of FIoHash that should be checked
 	 * @param[out]	OutResults	An array to contain the result, true if the payload
 	 *							exists in the backends storage, false if not.
 	 *							This array will be resized to match the size of PayloadIds.
 	 * 
 	 * @return True if the operation completed without error, otherwise false
 	 */
-	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> PayloadIds, TArray<bool>& OutResults)
+	virtual bool DoPayloadsExist(TArrayView<const FIoHash> PayloadIds, TArray<bool>& OutResults)
 	{
-		// This is the default implementation that just calls ::DoesExist on each FPayloadId in the
+		// This is the default implementation that just calls ::DoesExist on each FIoHash in the
 		// array, one at a time. 
 		// Backends may override this with their own implementations if it can be done with less
 		// overhead by performing the check on the entire batch instead.

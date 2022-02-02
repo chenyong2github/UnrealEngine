@@ -35,7 +35,7 @@ SVirtualAssetsStatisticsDialog::~SVirtualAssetsStatisticsDialog()
 	System.GetNotificationEvent().RemoveAll(this);
 }
 
-void SVirtualAssetsStatisticsDialog::OnNotificationEvent(IVirtualizationSystem::ENotification Notification, const FPayloadId& PayloadId)
+void SVirtualAssetsStatisticsDialog::OnNotificationEvent(IVirtualizationSystem::ENotification Notification, const FIoHash& PayloadId)
 {
 	FScopeLock SocpeLock(&NotificationCS);
 	

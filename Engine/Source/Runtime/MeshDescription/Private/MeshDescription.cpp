@@ -2215,7 +2215,7 @@ FGuid FMeshDescriptionBulkData::GetHash() const
 {
 	if (BulkData.GetPayloadSize() > 0)
 	{
-		return BulkData.GetPayloadId().ToGuid();
+		return UE::Serialization::IoHashToGuid(BulkData.GetPayloadId());
 	}
 
 	return FGuid();

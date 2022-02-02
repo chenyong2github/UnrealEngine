@@ -312,7 +312,7 @@ bool FVirtualizationManager::IsPushingEnabled(EStorageType StorageType) const
 	}
 }
 
-bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
+bool FVirtualizationManager::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
 {
 	FPushRequest Request(Id, Payload, Context);
 	return FVirtualizationManager::PushData(MakeArrayView(&Request, 1), StorageType);
@@ -339,7 +339,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		OriginalToValidatedRequest[Index] = INDEX_NONE;
 
 		FPushRequest& Request = Requests[Index];
-		if (!Request.Identifier.IsValid() || Request.Payload.GetCompressedSize() == 0)
+		if (Request.Identifier.IsZero() || Request.Payload.GetCompressedSize() == 0)
 		{
 			Request.Status = FPushRequest::EStatus::Invalid;
 			continue;
@@ -430,14 +430,14 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 	return StorageType == EStorageType::Local ? ErrorCount < Backends.Num() : ErrorCount == 0;
 }
 
-FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
+FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PullData);
 
-	if (!Id.IsValid())
+	if (Id.IsZero())
 	{
 		// TODO: See below, should errors here be fatal?
-		UE_LOG(LogVirtualization, Error, TEXT("Attempting to pull a virtualized payload with an invalid FPayloadId"));
+		UE_LOG(LogVirtualization, Error, TEXT("Attempting to pull a virtualized payload with an invalid FIoHash"));
 		return FCompressedBuffer();
 	}
 
@@ -484,7 +484,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	return FCompressedBuffer();
 }
 
-bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::DoPayloadsExist);
 
@@ -497,7 +497,7 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FPayloadId> Ids, E
 
 	for (int32 Index = 0; Index < Ids.Num(); ++Index)
 	{
-		OutStatuses[Index] = Ids[Index].IsValid() ? FPayloadStatus::NotFound : FPayloadStatus::Invalid;
+		OutStatuses[Index] = Ids[Index].IsZero() ? FPayloadStatus::Invalid : FPayloadStatus::NotFound;
 	}
 
 	FBackendArray& Backends = StorageType == EStorageType::Local ? LocalCachableBackends : PersistentStorageBackends;
@@ -522,7 +522,7 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FPayloadId> Ids, E
 
 			for (int32 Index = 0; Index < Ids.Num(); ++Index)
 			{
-				if (Ids[Index].IsValid() && Results[Index])
+				if (!Ids[Index].IsZero() && Results[Index])
 				{
 					HitCount[Index]++;
 				}
@@ -533,7 +533,7 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FPayloadId> Ids, E
 	// Now we total up the hit count for each payload to see if it was found in none, all or some of the backends
 	for (int32 Index = 0; Index < Ids.Num(); ++Index)
 	{
-		if (Ids[Index].IsValid())
+		if (!Ids[Index].IsZero())
 		{
 			if (HitCount[Index] == 0)
 			{
@@ -877,7 +877,7 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *BackendRef->GetDebugName());
 }
 
-void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
+void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::CachePayload);
 
@@ -908,7 +908,7 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 	}
 }
 
-bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
+bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
 	const EPushResult Result = Backend.PushData(Id, Payload, FString());
@@ -951,7 +951,7 @@ bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backen
 	return bPushResult;
 }
 
-FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id)
+FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPullStats(Backend)));
 	FCompressedBuffer Payload = Backend.PullData(Id);

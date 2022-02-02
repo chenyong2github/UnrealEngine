@@ -4,6 +4,7 @@
 
 #include "Containers/Ticker.h"
 #include "HAL/FileManager.h"
+#include "IO/IoHash.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
 #include "Logging/MessageLog.h"
@@ -12,7 +13,6 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 #include "SourceControlOperations.h"
-#include "Virtualization/PayloadId.h"
 #include "VirtualizationSourceControlUtilities.h"
 #include "VirtualizationUtilities.h"
 
@@ -165,7 +165,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
-FCompressedBuffer FSourceControlBackend::PullData(const FPayloadId& Id)
+FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
 
@@ -194,11 +194,11 @@ FCompressedBuffer FSourceControlBackend::PullData(const FPayloadId& Id)
 	return FCompressedBuffer::FromCompressed(Buffer);
 }
 
-bool FSourceControlBackend::DoesPayloadExist(const FPayloadId& Id)
+bool FSourceControlBackend::DoesPayloadExist(const FIoHash& Id)
 {
 	TArray<bool> Result;
 
-	if (FSourceControlBackend::DoPayloadsExist(MakeArrayView<const FPayloadId>(&Id, 1), Result))
+	if (FSourceControlBackend::DoPayloadsExist(MakeArrayView<const FIoHash>(&Id, 1), Result))
 	{
 		check(Result.Num() == 1);
 		return Result[0];
@@ -209,7 +209,7 @@ bool FSourceControlBackend::DoesPayloadExist(const FPayloadId& Id)
 	}
 }
 
-EPushResult FSourceControlBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& Context)
+EPushResult FSourceControlBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& Context)
 {
 	FPushRequest Request(Id, Payload, Context);
 	return FSourceControlBackend::PushData(MakeArrayView(&Request, 1)) ? EPushResult::Success : EPushResult::Failed;
@@ -444,7 +444,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 	return true;
 }
 
-bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FPayloadId> PayloadIds, TArray<bool>& OutResults)
+bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FIoHash> PayloadIds, TArray<bool>& OutResults)
 {
 	ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
 
@@ -453,9 +453,9 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FPayloadId> Payload
 
 	TArray<FSourceControlStateRef> PathStates;
 
-	for (const FPayloadId& PayloadId : PayloadIds)
+	for (const FIoHash& PayloadId : PayloadIds)
 	{
-		if (PayloadId.IsValid())
+		if (!PayloadId.IsZero())
 		{
 			TStringBuilder<52> LocalPayloadPath;
 			Utils::PayloadIdToPath(PayloadId, LocalPayloadPath);
@@ -478,7 +478,7 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FPayloadId> Payload
 	int32 StatusIndex = 0;
 	for (int32 Index = 0; Index < PayloadIds.Num(); ++Index)
 	{
-		if (PayloadIds[Index].IsValid())
+		if (!PayloadIds[Index].IsZero())
 		{
 			OutResults[Index] = PathStates[StatusIndex++]->IsSourceControlled();
 		}
@@ -487,7 +487,7 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FPayloadId> Payload
 	return true;
 }
 
-void FSourceControlBackend::CreateDepotPath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath)
+void FSourceControlBackend::CreateDepotPath(const FIoHash& PayloadId, FStringBuilderBase& OutPath)
 {
 	TStringBuilder<52> PayloadPath;
 	Utils::PayloadIdToPath(PayloadId, PayloadPath);

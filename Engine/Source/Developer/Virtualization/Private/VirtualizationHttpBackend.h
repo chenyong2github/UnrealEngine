@@ -36,11 +36,11 @@ private:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext) override;
+	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext) override;
 
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
+	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
 
-	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
+	virtual bool DoesPayloadExist(const FIoHash& Id) override;
 
 private:
 
@@ -56,8 +56,8 @@ private:
 
 	bool ShouldRetryOnError(int64 ResponseCode);
 
-	bool PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString);
-	bool PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize);
+	bool PostChunk(const TArrayView<const uint8>& ChunkData, const FIoHash& PayloadId, FString& OutHashAsString);
+	bool PullChunk(const FString& Hash, const FIoHash& PayloadId, uint8* DataPtr, int64 BufferSize);
 	bool DoesChunkExist(const FString& Hash);
 
 	/** Address of the service*/

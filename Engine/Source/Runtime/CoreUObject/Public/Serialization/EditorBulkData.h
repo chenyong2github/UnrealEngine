@@ -5,11 +5,11 @@
 #include "Async/Future.h"
 #include "Compression/CompressedBuffer.h"
 #include "HAL/Platform.h"
+#include "IO/IoHash.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
-#include "Virtualization/PayloadId.h"
 
 class FArchive;
 class UObject;
@@ -153,7 +153,7 @@ public:
 	FGuid GetIdentifier() const;
 
 	/** Returns an unique identifier for the content of the payload. */
-	const UE::Virtualization::FPayloadId& GetPayloadId() const
+	const FIoHash& GetPayloadId() const
 	{ 
 		return PayloadContentId; 
 	}
@@ -221,7 +221,7 @@ public:
 		friend FEditorBulkData;
 
 		FSharedBuffer Payload;
-		UE::Virtualization::FPayloadId PayloadId;
+		FIoHash PayloadId;
 	};
 
 	/**
@@ -364,7 +364,7 @@ private:
 	/** The new path that saves payloads to the FPackageTrailer which is then appended to the end of the package file */
 	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 
-	void UpdatePayloadImpl(FSharedBuffer&& InPayload, UE::Virtualization::FPayloadId&& InPayloadID);
+	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InPayloadID);
 
 	FCompressedBuffer GetDataInternal() const;
 
@@ -462,7 +462,7 @@ private:
 	FGuid BulkDataId;
 
 	/** Unique identifier for the contents of the payload*/
-	UE::Virtualization::FPayloadId PayloadContentId;
+	FIoHash PayloadContentId;
 
 	/** Pointer to the payload if it is held in memory (it has been updated but not yet saved to disk for example) */
 	FSharedBuffer Payload;
@@ -528,7 +528,7 @@ struct COREUOBJECT_API FTocEntry
 	static constexpr uint32 PayloadSidecarFileVersion = 1;
 
 	/** Identifier for the payload */
-	UE::Virtualization::FPayloadId Identifier;
+	FIoHash Identifier;
 	/** The offset into the file where we can find the payload, note that a virtualized payload will have an offset of INDEX_NONE */
 	int64 OffsetInFile = INDEX_NONE;
 	/** The size of the payload when uncompressed. */
@@ -544,7 +544,7 @@ class COREUOBJECT_API FPayloadToc
 public:
 
 	void AddEntry(const FEditorBulkData& BulkData);
-	bool FindEntry(const UE::Virtualization::FPayloadId& Identifier, FTocEntry& OutEntry);
+	bool FindEntry(const FIoHash& Identifier, FTocEntry& OutEntry);
 
 	const TArray<FTocEntry>& GetContents() const;
 
@@ -564,6 +564,12 @@ private:
 
 	TArray<FTocEntry> Contents;
 };
+
+/** 
+ * Returns a FGuid representation of a FIoHash, to be used in existing code paths that require the id of 
+ * an FEditorBulkData payload to be in FGuid form 
+ */
+COREUOBJECT_API FGuid IoHashToGuid(const FIoHash& Hash);
 
 } // namespace UE::Serialization
 

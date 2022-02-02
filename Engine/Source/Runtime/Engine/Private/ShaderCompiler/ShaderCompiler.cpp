@@ -70,7 +70,6 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequestOwner.h"
-#include "Virtualization/PayloadId.h"
 
 #include "TextureCompiler.h"
 #include "Rendering/StaticLightingSystemInterface.h"

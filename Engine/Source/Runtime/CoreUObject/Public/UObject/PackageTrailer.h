@@ -4,8 +4,8 @@
 
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
+#include "IO/IoHash.h"
 #include "UObject/NameTypes.h"
-#include "Virtualization/PayloadId.h"
 
 class FArchive;
 class FLinkerSave;
@@ -122,7 +122,7 @@ struct FLookupTableEntry
 												// AccessMode		| 1 byte
 
 	FLookupTableEntry() = default;
-	FLookupTableEntry(const Virtualization::FPayloadId& InIdentifier, uint64 InRawSize);
+	FLookupTableEntry(const FIoHash& InIdentifier, uint64 InRawSize);
 
 	void Serialize(FArchive& Ar, EPackageTrailerVersion PackageTrailerVersion);
 	
@@ -132,7 +132,7 @@ struct FLookupTableEntry
 	}
 
 	/** Identifier for the payload */
-	Virtualization::FPayloadId Identifier;
+	FIoHash Identifier;
 	/** The offset into the file where we can find the payload, note that a virtualized payload will have an offset of INDEX_NONE */
 	int64 OffsetInFile = INDEX_NONE;
 	/** The size of the payload when compressed. This will be the same value as RawSize if the payload is not compressed */
@@ -193,7 +193,7 @@ public:
 	 * @param Payload		The payload data
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
-	void AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback);
+	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback);
 
 	/**
 	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
@@ -204,7 +204,7 @@ public:
 	 * @param Identifier	The identifier of the payload
 	 * @param RawSize		The size of the payload (in bytes) when uncompressed
 	 */
-	void AddVirtualizedPayload(const Virtualization::FPayloadId& Identifier, int64 RawSize);
+	void AddVirtualizedPayload(const FIoHash& Identifier, int64 RawSize);
 	
 	/**
 	 * @param ExportsArchive	The linker associated with the package being written to disk.
@@ -216,9 +216,9 @@ public:
 	/** Returns if the builder has any payload entries or not */
 	[[nodiscard]] bool IsEmpty() const;
 
-	[[nodiscard]] bool IsLocalPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
-	[[nodiscard]] bool IsReferencedPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
-	[[nodiscard]] bool IsVirtualizedPayloadEntry(const Virtualization::FPayloadId& Identifier) const;
+	[[nodiscard]] bool IsLocalPayloadEntry(const FIoHash& Identifier) const;
+	[[nodiscard]] bool IsReferencedPayloadEntry(const FIoHash& Identifier) const;
+	[[nodiscard]] bool IsVirtualizedPayloadEntry(const FIoHash& Identifier) const;
 
 	/** Returns the total number of payload entries in the builder */
 	[[nodiscard]] int32 GetNumPayloads() const;
@@ -285,11 +285,11 @@ private:
 	FName PackageName;
 
 	/** Payloads that will be stored locally when the trailer is written to disk */
-	TMap<Virtualization::FPayloadId, LocalEntry> LocalEntries;
+	TMap<FIoHash, LocalEntry> LocalEntries;
 	/** Payloads that reference entries in another trailer */
-	TMap<Virtualization::FPayloadId, ReferencedEntry> ReferencedEntries;
+	TMap<FIoHash, ReferencedEntry> ReferencedEntries;
 	/** Payloads that are already virtualized and so will not be written to disk */
-	TMap<Virtualization::FPayloadId, VirtualizedEntry> VirtualizedEntries;
+	TMap<FIoHash, VirtualizedEntry> VirtualizedEntries;
 	/** Callbacks to invoke once the trailer has been written to the end of a package */
 	TArray<AdditionalDataCallback> Callbacks;
 };
@@ -350,7 +350,7 @@ public:
 	 * @return	The payload in the form of a FCompressedBuffer. If the payload does not exist in the trailer or is not
 	 *			stored locally in the trailer then the FCompressedBuffer will be null.
 	 */
-	[[nodiscard]] FCompressedBuffer LoadLocalPayload(const Virtualization::FPayloadId& Id, FArchive& Ar) const;
+	[[nodiscard]] FCompressedBuffer LoadLocalPayload(const FIoHash& Id, FArchive& Ar) const;
 
 	/** 
 	 * Calling this indicates that the payload has been virtualized and will no longer be stored on disk. 
@@ -358,19 +358,19 @@ public:
 	 * @param Identifier The payload that has been virtualized
 	 * @return True if the payload was in the trailer, otherwise false
 	 */
-	[[nodiscard]] bool UpdatePayloadAsVirtualized(const Virtualization::FPayloadId& Identifier);
+	[[nodiscard]] bool UpdatePayloadAsVirtualized(const FIoHash& Identifier);
 
 	/** Attempt to find the status of the given payload. @See EPayloadStatus */
-	[[nodiscard]] EPayloadStatus FindPayloadStatus(const Virtualization::FPayloadId& Id) const;
+	[[nodiscard]] EPayloadStatus FindPayloadStatus(const FIoHash& Id) const;
 
 	/** Returns the absolute offset of the payload in the package file, invalid and virtualized payloads will return INDEX_NONE */
-	[[nodiscard]] int64 FindPayloadOffsetInFile(const Virtualization::FPayloadId& Id) const;
+	[[nodiscard]] int64 FindPayloadOffsetInFile(const FIoHash& Id) const;
 
 	/** Returns the total size of the of the trailer on disk in bytes */
 	[[nodiscard]] int64 GetTrailerLength() const;
 
 	/** Returns an array of the payloads that match the given filter type. @See EPayloadType */
-	[[nodiscard]] TArray<Virtualization::FPayloadId> GetPayloads(EPayloadFilter Type) const;
+	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadFilter Type) const;
 
 	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadType */
 	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Type) const;
@@ -452,6 +452,6 @@ private:
  *
  * @return 				True if the package was parsed successfully (although it might not have contained any payloads) and false if opening or parsing the package file failed.
  */
-[[nodiscard]] COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<Virtualization::FPayloadId>& OutPayloadIds);
+[[nodiscard]] COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<FIoHash>& OutPayloadIds);
 
 } //namespace UE

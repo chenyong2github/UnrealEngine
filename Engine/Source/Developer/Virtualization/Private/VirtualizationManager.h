@@ -6,7 +6,6 @@
 #include "HAL/CriticalSection.h"
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
-#include "Virtualization/PayloadId.h"
 
 #include "Virtualization/VirtualizationSystem.h"
 
@@ -94,12 +93,12 @@ private:
 	virtual bool IsEnabled() const override;
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
 	
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
+	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
 
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
+	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
 
-	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
+	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
 
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 
@@ -124,12 +123,12 @@ private:
 
 	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
 
-	void CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
+	void CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
 
-	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
+	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload);
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 
-	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
+	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id);
 
 	/** 
 	 * Determines if a package should be virtualized or not based on it's package path and the current 

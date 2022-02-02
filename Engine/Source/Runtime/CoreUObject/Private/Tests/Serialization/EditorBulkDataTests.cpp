@@ -87,19 +87,31 @@ bool FEditorBulkDataTestBasic::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestEmpty, TEXT("System.CoreUObject.Serialization.EditorBulkData.Empty"), TestFlags)
 bool FEditorBulkDataTestEmpty::RunTest(const FString& Parameters)
 {
-	FEditorBulkData BulkData;
+	auto Validate = [](const TCHAR* Id, FAutomationTestBase& Test, const FEditorBulkData& BulkData)
+	{
+		// Validate the general accessors
+		Test.TestEqual(FString::Printf(TEXT("(%s) Return value of ::GetBulkDataSize()"), Id), BulkData.GetPayloadSize(), (int64)0);
+		Test.TestTrue(FString::Printf(TEXT("(%s) Payload key is invalid"), Id), BulkData.GetPayloadId().IsZero());
+		Test.TestFalse(FString::Printf(TEXT("(%s) Return value of ::DoesPayloadNeedLoading()"), Id), BulkData.DoesPayloadNeedLoading());
 
-	// Validate the general accessors
-	TestEqual(TEXT("Return value of ::GetBulkDataSize()"), BulkData.GetPayloadSize(), (int64)0);
-	TestTrue(TEXT("Payload key is invalid"), !BulkData.GetPayloadId().IsValid());
-	TestFalse(TEXT("Return value of ::DoesPayloadNeedLoading()"), BulkData.DoesPayloadNeedLoading());
+		// Validate the payload accessors
+		FSharedBuffer Payload = BulkData.GetPayload().Get();
+		Test.TestTrue(FString::Printf(TEXT("(%s) The payload from the GetPayload TFuture is null"), Id), Payload.IsNull());
 
-	// Validate the payload accessors
-	FSharedBuffer Payload = BulkData.GetPayload().Get();
-	TestTrue(TEXT("The payload from the GetPayload TFuture is null"), Payload.IsNull());
+		FCompressedBuffer CompressedPayload = BulkData.GetCompressedPayload().Get();
+		Test.TestTrue(FString::Printf(TEXT("(%s) The payload from the GetCompressedPayload TFuture is null"), Id), Payload.IsNull());
+	};
 
-	FCompressedBuffer CompressedPayload = BulkData.GetCompressedPayload().Get();
-	TestTrue(TEXT("The payload from the GetCompressedPayload TFuture is null"), Payload.IsNull());
+	FEditorBulkData DefaultBulkData;
+	Validate(TEXT("DefaultBulkData"), *this, DefaultBulkData);
+		
+	FEditorBulkData NullPayloadBulkData;
+	NullPayloadBulkData.UpdatePayload(FSharedBuffer());
+	Validate(TEXT("NullPayloadBulkData"), *this, NullPayloadBulkData);
+
+	FEditorBulkData ZeroLengthPayloadBulkData;
+	ZeroLengthPayloadBulkData.UpdatePayload(FUniqueBuffer::Alloc(0).MoveToShared());
+	Validate(TEXT("ZeroLengthPayloadBulkData"), *this, ZeroLengthPayloadBulkData);
 
 	return true;
 }
@@ -507,6 +519,31 @@ bool FEditorBulkDataTestZeroSizedAllocs::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+/** This tests the function UE::Serialization::IoHashToGuid which is closely used with the FEditorBulkData system */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataIoHashToGuid, TEXT("System.CoreUObject.Serialization.EditorBulkData.IoHashToGuid"), TestFlags)
+bool FEditorBulkDataIoHashToGuid::RunTest(const FString& Parameters)
+{
+	// Test that an empty hash will give an invalid FGuid
+	FIoHash DefaultHash;
+	FGuid InvalidGuid = IoHashToGuid(DefaultHash);
+
+	TestTrue(TEXT("Calling::IoHashToGuid on a all zero FIoHash should result in an invalid FGuid"), !InvalidGuid.IsValid());
+	
+	// Test that finding the FGuid of a known hash results in the FGuid we expect. If not then the generation algorithm has
+	// changed. The failing test should remind whoever changed the algorithm to double check that changing the results 
+	// will not have knock on effects.
+	const uint8 KnownHashData[20] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 , 19};
+
+	FIoHash KnownHash(KnownHashData);
+	FGuid KnownGuid = IoHashToGuid(KnownHash);
+	FGuid KnownResult(TEXT("04030201-0807-0605-0C0B-0A09100F0E0D"));
+
+	TestEqual(TEXT("That the result of hashing known data will be unchanged"), KnownGuid, KnownResult);
+
+	return true;
+}
+
 
 } // namespace UE::Serialization
 

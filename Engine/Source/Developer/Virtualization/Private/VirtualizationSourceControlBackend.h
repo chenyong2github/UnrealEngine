@@ -38,18 +38,18 @@ private:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 	
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& Context) override;
+	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests) override;
 
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
+	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
 
-	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
+	virtual bool DoesPayloadExist(const FIoHash& Id) override;
 	
-	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> PayloadIds, TArray<bool>& OutResults) override;
+	virtual bool DoPayloadsExist(TArrayView<const FIoHash> PayloadIds, TArray<bool>& OutResults) override;
 
 private:
 
-	void CreateDepotPath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath);
+	void CreateDepotPath(const FIoHash& PayloadId, FStringBuilderBase& OutPath);
 
 	/** Will display a FMessage notification to the user on the next valid engine tick to try and keep them aware of connection failures */
 	void OnConnectionError();

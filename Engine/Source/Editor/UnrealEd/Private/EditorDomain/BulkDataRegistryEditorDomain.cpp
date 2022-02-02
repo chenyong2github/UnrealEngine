@@ -219,7 +219,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 		if (!BulkData.HasPlaceholderPayloadId())
 		{
 			TPromise<UE::BulkDataRegistry::FMetaData> Promise;
-			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ true, BulkData.GetPayloadId().GetIdentifier(), static_cast<uint64>(BulkData.GetPayloadSize()) });
+			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ true, BulkData.GetPayloadId(), static_cast<uint64>(BulkData.GetPayloadSize()) });
 			return Promise.GetFuture();
 		}
 

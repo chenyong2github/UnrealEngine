@@ -57,7 +57,7 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath)
 namespace Private
 {
 
-FLookupTableEntry::FLookupTableEntry(const Virtualization::FPayloadId& InIdentifier, uint64 InRawSize)
+FLookupTableEntry::FLookupTableEntry(const FIoHash& InIdentifier, uint64 InRawSize)
 	: Identifier(InIdentifier)
 	, RawSize(InRawSize)
 {
@@ -90,7 +90,7 @@ FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageT
 
 	for (const Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
-		checkf(Entry.Identifier.IsValid(), TEXT("PackageTrailer for package should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *PackageName.ToString());
 
 		switch (Entry.AccessMode)
 		{
@@ -129,7 +129,7 @@ TUniquePtr<UE::FPackageTrailerBuilder> FPackageTrailerBuilder::CreateReferenceTo
 
 	for (const Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
-		checkf(Entry.Identifier.IsValid(), TEXT("PackageTrailer for package should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+		checkf(!Entry.Identifier.IsZero(), TEXT("PackageTrailer for package should not contain invalid FIoHash entry. Package '%s'"), *PackageName.ToString());
 
 		switch (Entry.AccessMode)
 		{
@@ -170,19 +170,19 @@ FPackageTrailerBuilder::FPackageTrailerBuilder(const FName& InPackageName)
 {
 }
 
-void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
+void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
 {
 	Callbacks.Emplace(MoveTemp(Callback));
 
-	if (Identifier.IsValid())
+	if (!Identifier.IsZero())
 	{
 		LocalEntries.FindOrAdd(Identifier, LocalEntry(MoveTemp(Payload)));
 	}
 }
 
-void FPackageTrailerBuilder::AddVirtualizedPayload(const Virtualization::FPayloadId& Identifier, int64 RawSize)
+void FPackageTrailerBuilder::AddVirtualizedPayload(const FIoHash& Identifier, int64 RawSize)
 {
-	if (Identifier.IsValid())
+	if (!Identifier.IsZero())
 	{
 		VirtualizedEntries.FindOrAdd(Identifier, VirtualizedEntry(RawSize));
 	}
@@ -208,9 +208,9 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	Trailer.Header.PayloadsDataLength = 0;
 	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + VirtualizedEntries.Num());
 
-	for (const TPair<Virtualization::FPayloadId, LocalEntry>& It : LocalEntries)
+	for (const TPair<FIoHash, LocalEntry>& It : LocalEntries)
 	{
-		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -222,9 +222,9 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		Trailer.Header.PayloadsDataLength += It.Value.Payload.GetCompressedSize();
 	}
 
-	for (const TPair<Virtualization::FPayloadId, ReferencedEntry>& It : ReferencedEntries)
+	for (const TPair<FIoHash, ReferencedEntry>& It : ReferencedEntries)
 	{
-		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -234,9 +234,9 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		Entry.AccessMode = EPayloadAccessMode::Referenced;
 	}
 
-	for (const TPair<Virtualization::FPayloadId, VirtualizedEntry>& It : VirtualizedEntries)
+	for (const TPair<FIoHash, VirtualizedEntry>& It : VirtualizedEntries)
 	{
-		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+		checkf(!It.Key.IsZero(), TEXT("PackageTrailer should not contain invalid FIoHash values. Package '%s'"), *PackageName.ToString());
 
 		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
@@ -256,7 +256,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	const int64 PayloadPosInFile = DataArchive.Tell();
 
-	for (TPair<Virtualization::FPayloadId, LocalEntry>& It : LocalEntries)
+	for (TPair<FIoHash, LocalEntry>& It : LocalEntries)
 	{
 		DataArchive << It.Value.Payload;
 	}
@@ -283,17 +283,17 @@ bool FPackageTrailerBuilder::IsEmpty() const
 	return LocalEntries.IsEmpty() && ReferencedEntries.IsEmpty() && VirtualizedEntries.IsEmpty();
 }
 
-bool FPackageTrailerBuilder::IsLocalPayloadEntry(const Virtualization::FPayloadId& Identifier) const
+bool FPackageTrailerBuilder::IsLocalPayloadEntry(const FIoHash& Identifier) const
 {
 	return LocalEntries.Find(Identifier) != nullptr;
 }
 
-bool FPackageTrailerBuilder::IsReferencedPayloadEntry(const Virtualization::FPayloadId& Identifier) const
+bool FPackageTrailerBuilder::IsReferencedPayloadEntry(const FIoHash& Identifier) const
 {
 	return ReferencedEntries.Find(Identifier) != nullptr;
 }
 
-bool FPackageTrailerBuilder::IsVirtualizedPayloadEntry(const Virtualization::FPayloadId& Identifier) const
+bool FPackageTrailerBuilder::IsVirtualizedPayloadEntry(const FIoHash& Identifier) const
 {
 	return VirtualizedEntries.Find(Identifier) != nullptr;
 }
@@ -424,7 +424,7 @@ bool FPackageTrailer::TryLoadBackwards(FArchive& Ar)
 	return TryLoad(Ar);
 }
 
-FCompressedBuffer FPackageTrailer::LoadLocalPayload(const Virtualization::FPayloadId& Id, FArchive& Ar) const
+FCompressedBuffer FPackageTrailer::LoadLocalPayload(const FIoHash& Id, FArchive& Ar) const
 {
 	// TODO: This method should be able to load the payload in all cases, but we need a good way of passing the Archive/PackagePath 
 	// to the trailer etc. Would work if we stored the package path in the trailer.
@@ -447,7 +447,7 @@ FCompressedBuffer FPackageTrailer::LoadLocalPayload(const Virtualization::FPaylo
 	return Payload;
 }
 
-bool FPackageTrailer::UpdatePayloadAsVirtualized(const Virtualization::FPayloadId& Identifier)
+bool FPackageTrailer::UpdatePayloadAsVirtualized(const FIoHash& Identifier)
 {
 	Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Identifier](const Private::FLookupTableEntry& Entry)->bool
 		{
@@ -468,7 +468,7 @@ bool FPackageTrailer::UpdatePayloadAsVirtualized(const Virtualization::FPayloadI
 	}
 }
 
-EPayloadStatus FPackageTrailer::FindPayloadStatus(const Virtualization::FPayloadId& Id) const
+EPayloadStatus FPackageTrailer::FindPayloadStatus(const FIoHash& Id) const
 {
 	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
 		{
@@ -501,9 +501,9 @@ EPayloadStatus FPackageTrailer::FindPayloadStatus(const Virtualization::FPayload
 	}
 }
 
-int64 FPackageTrailer::FindPayloadOffsetInFile(const Virtualization::FPayloadId& Id) const
+int64 FPackageTrailer::FindPayloadOffsetInFile(const FIoHash& Id) const
 {
-	if (Id.IsValid())
+	if (!Id.IsZero())
 	{
 		const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
 			{
@@ -546,9 +546,9 @@ int64 FPackageTrailer::GetTrailerLength() const
 	return Header.HeaderLength + Header.PayloadsDataLength + FFooter::SizeOnDisk;
 }
 
-TArray<Virtualization::FPayloadId> FPackageTrailer::GetPayloads(EPayloadFilter Type) const
+TArray<FIoHash> FPackageTrailer::GetPayloads(EPayloadFilter Type) const
 {
-	TArray<Virtualization::FPayloadId> Identifiers;
+	TArray<FIoHash> Identifiers;
 	Identifiers.Reserve(Header.PayloadLookupTable.Num());
 
 	for (const Private::FLookupTableEntry& Entry : Header.PayloadLookupTable)
@@ -651,7 +651,7 @@ FArchive& operator<<(FArchive& Ar, FPackageTrailer::FFooter& Footer)
 	return Ar;
 }
 
-bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<Virtualization::FPayloadId>& OutPayloadIds)
+bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<FIoHash>& OutPayloadIds)
 {
 	if (FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
 	{

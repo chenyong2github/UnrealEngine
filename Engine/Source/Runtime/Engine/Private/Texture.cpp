@@ -2042,7 +2042,7 @@ void FTextureSource::UseHashAsGuid()
 		checkf(LockState == ELockState::None, TEXT("UseHashAsGuid shouldn't be called in-between LockMip/UnlockMip"));
 
 		bGuidIsHash = true;
-		Id = BulkData.GetPayloadId().ToGuid();
+		Id = UE::Serialization::IoHashToGuid(BulkData.GetPayloadId());
 	}
 	else
 	{

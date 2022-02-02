@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualizationHttpBackend.h"
-#include "Virtualization/PayloadId.h"
 
 // TODO: Our libcurl implementation does not currently support MacOS
 // (not registering this will cause a fatal log error if the backend is actually used)
@@ -1374,7 +1373,7 @@ bool FHttpBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
-EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
+EPushResult FHttpBackend::PushData(const FIoHash& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
 {
 	using namespace Utility;
 
@@ -1492,7 +1491,7 @@ EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer
 	return EPushResult::Failed;
 }
 
-FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
+FCompressedBuffer FHttpBackend::PullData(const FIoHash& Id)
 {
 	using namespace Utility;
 
@@ -1609,7 +1608,7 @@ FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 	}
 }
 
-bool FHttpBackend::DoesPayloadExist(const FPayloadId& Id)
+bool FHttpBackend::DoesPayloadExist(const FIoHash& Id)
 {
 	using namespace Utility;
 
@@ -1875,7 +1874,7 @@ bool FHttpBackend::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-bool FHttpBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString)
+bool FHttpBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FIoHash& PayloadId, FString& OutHashAsString)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PostChunk);
 
@@ -1924,7 +1923,7 @@ bool FHttpBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPa
 	return false;
 }
 
-bool FHttpBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize)
+bool FHttpBackend::PullChunk(const FString& Hash, const FIoHash& PayloadId, uint8* DataPtr, int64 BufferSize)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PullChunk);
 

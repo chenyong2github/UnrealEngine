@@ -29,7 +29,7 @@ public:
 		return false;
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
+	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
 	{
 		return false;
 	}
@@ -39,12 +39,12 @@ public:
 		return false;
 	}
 
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) override
+	virtual FCompressedBuffer PullData(const FIoHash& Id) override
 	{
 		return FCompressedBuffer();
 	}
 
-	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override
+	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override
 	{
 		OutStatuses.Reset();
 

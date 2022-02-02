@@ -2,13 +2,13 @@
 
 #include "VirtualizationUtilities.h"
 
+#include "IO/IoHash.h"
 #include "Misc/StringBuilder.h"
-#include "Virtualization/PayloadId.h"
 
 namespace UE::Virtualization::Utils
 {
 
-void PayloadIdToPath(const FPayloadId& Id, FStringBuilderBase& OutPath)
+void PayloadIdToPath(const FIoHash& Id, FStringBuilderBase& OutPath)
 {
 	OutPath.Reset();
 	OutPath << Id;
@@ -23,7 +23,7 @@ void PayloadIdToPath(const FPayloadId& Id, FStringBuilderBase& OutPath)
 	OutPath << TEXT(".payload");
 }
 
-FString PayloadIdToPath(const FPayloadId& Id)
+FString PayloadIdToPath(const FIoHash& Id)
 {
 	TStringBuilder<52> Path;
 	PayloadIdToPath(Id, Path);

@@ -28,7 +28,7 @@ private:
 
 	FText GetNotificationText() const;
 
-	void OnNotificationEvent(UE::Virtualization::IVirtualizationSystem::ENotification Notification, const UE::Virtualization::FPayloadId& PayloadId);
+	void OnNotificationEvent(UE::Virtualization::IVirtualizationSystem::ENotification Notification, const FIoHash& PayloadId);
 
 	SVerticalBox::FSlot* GridSlot = nullptr;
 

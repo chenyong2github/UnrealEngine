@@ -158,7 +158,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		FPackagePath Path;
 		FPackageTrailer Trailer;
 
-		TArray<FPayloadId> LocalPayloads;
+		TArray<FIoHash> LocalPayloads;
 		int32 PayloadIndex = INDEX_NONE;
 
 		bool bWasTrailerUpdated = false;
@@ -169,7 +169,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	TArray<FPackageInfo> Packages;
 	Packages.Reserve(FilesToSubmit.Num());
 
-	TArray<FPayloadId> AllLocalPayloads;
+	TArray<FIoHash> AllLocalPayloads;
 	AllLocalPayloads.Reserve(FilesToSubmit.Num());
 
 	// From the list of files to submit we need to find all of the valid packages that contain
@@ -289,9 +289,9 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 		PackageInfo.PayloadIndex = PayloadsToSubmit.Num();
 
-		for (const FPayloadId& PayloadId : PackageInfo.LocalPayloads)
+		for (const FIoHash& PayloadId : PackageInfo.LocalPayloads)
 		{
-			checkf(PayloadId.IsValid(), TEXT("PackageTrailer for package '%s' should not contain invalid FPayloadIds"), *PackageInfo.Path.GetDebugName());
+			checkf(!PayloadId.IsZero(), TEXT("PackageTrailer for package '%s' should not contain invalid FIoHashs"), *PackageInfo.Path.GetDebugName());
 			
 			FCompressedBuffer Payload = PackageInfo.Trailer.LoadLocalPayload(PayloadId, *PackageAr);
 

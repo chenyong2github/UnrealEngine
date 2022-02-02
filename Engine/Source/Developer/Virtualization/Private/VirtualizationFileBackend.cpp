@@ -6,7 +6,6 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
-#include "Virtualization/PayloadId.h"
 #include "VirtualizationUtilities.h"
 
 namespace UE::Virtualization
@@ -54,7 +53,7 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
-EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
+EPushResult FFileSystemBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
@@ -143,7 +142,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 	return EPushResult::Success;
 }
 
-FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
+FCompressedBuffer FFileSystemBackend::PullData(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PullData);
 
@@ -176,7 +175,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	return FCompressedBuffer::Load(*FileAr);
 }
 
-bool FFileSystemBackend::DoesPayloadExist(const FPayloadId& Id)
+bool FFileSystemBackend::DoesPayloadExist(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::DoesPayloadExist);
 
@@ -186,7 +185,7 @@ bool FFileSystemBackend::DoesPayloadExist(const FPayloadId& Id)
 	return IFileManager::Get().FileExists(FilePath.ToString());
 }
 
-void FFileSystemBackend::CreateFilePath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath)
+void FFileSystemBackend::CreateFilePath(const FIoHash& PayloadId, FStringBuilderBase& OutPath)
 {
 	TStringBuilder<52> PayloadPath;
 	Utils::PayloadIdToPath(PayloadId, PayloadPath);

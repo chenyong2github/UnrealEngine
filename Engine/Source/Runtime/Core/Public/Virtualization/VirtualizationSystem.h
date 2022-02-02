@@ -4,9 +4,9 @@
 
 #include "Compression/CompressedBuffer.h"
 #include "Containers/StringFwd.h"
+#include "IO/IoHash.h"
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
-#include "Virtualization/PayloadId.h"
 
 class FPackagePath;
 
@@ -70,7 +70,7 @@ struct FPushRequest
 		Success
 	};
 
-	FPushRequest(const FPayloadId& InIdentifier, const FCompressedBuffer& InPayload, const FString& InContext)
+	FPushRequest(const FIoHash& InIdentifier, const FCompressedBuffer& InPayload, const FString& InContext)
 		: Identifier(InIdentifier)
 		, Payload(InPayload)
 		, Context(InContext)
@@ -78,7 +78,7 @@ struct FPushRequest
 
 	}
 
-	FPushRequest(const FPayloadId& InIdentifier, FCompressedBuffer&& InPayload, FString&& InContext)
+	FPushRequest(const FIoHash& InIdentifier, FCompressedBuffer&& InPayload, FString&& InContext)
 		: Identifier(InIdentifier)
 		, Payload(InPayload)
 		, Context(InContext)
@@ -87,7 +87,7 @@ struct FPushRequest
 	}
 
 	/** The identifier of the payload */
-	FPayloadId Identifier;
+	FIoHash Identifier;
 	/** The payload data */
 	FCompressedBuffer Payload;
 	/** A string containing context for the payload, typically a package name */
@@ -144,7 +144,7 @@ public:
 	 * 
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) = 0;
+	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) = 0;
 	
 	/**
 	 * Push one or more payloads to a backend storage system. @See FPushRequest.
@@ -170,7 +170,7 @@ public:
 	 *			up to the caller if they want to retain the payload in compressed or uncompressed format.  If no
 	 *			backend contained the payload then an empty invalid FCompressedBuffer will be returned.
 	 */
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
+	virtual FCompressedBuffer PullData(const FIoHash& Id) = 0;
 
 	
 
@@ -185,7 +185,7 @@ public:
 	 * @return	True if the operation succeeded and the contents of OutStatuses is valid. False if errors were 
 	 * 			encountered in which case the contents of OutStatuses should be ignored.
 	 */
-	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
+	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
 
 	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PayloadInfo)>;
 
@@ -208,7 +208,7 @@ public:
 	};
 
 	/** Declare delegate for notifications*/
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNotification, ENotification, const FPayloadId&);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNotification, ENotification, const FIoHash&);
 
 	virtual FOnNotification& GetNotificationEvent() = 0;
 };

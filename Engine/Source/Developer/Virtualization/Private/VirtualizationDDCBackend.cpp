@@ -3,7 +3,6 @@
 #include "VirtualizationDDCBackend.h"
 
 #include "Misc/Parse.h"
-#include "Virtualization/PayloadId.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequestOwner.h"
@@ -12,10 +11,10 @@
 namespace UE::Virtualization
 {
 
-/** Utility function to help convert from UE::Virtualization::FPayloadId to UE::DerivedData::FValueId */
-static UE::DerivedData::FValueId ToDerivedDataValueId(const FPayloadId& Id)
+/** Utility function to help convert from UE::Virtualization::FIoHash to UE::DerivedData::FValueId */
+static UE::DerivedData::FValueId ToDerivedDataValueId(const FIoHash& Id)
 {
-	return UE::DerivedData::FValueId::FromHash(Id.GetIdentifier());
+	return UE::DerivedData::FValueId::FromHash(Id);
 }
 
 FDDCBackend::FDDCBackend(FStringView ConfigName, FStringView InDebugName)
@@ -71,7 +70,7 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 	return true;	
 }
 
-EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
+EPushResult FDDCBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
 
@@ -85,10 +84,10 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 	
 	UE::DerivedData::FCacheKey Key;
 	Key.Bucket = Bucket;
-	Key.Hash = Id.GetIdentifier();
+	Key.Hash = Id;
 
 	UE::DerivedData::FValue DerivedDataValue(Payload);
-	check(DerivedDataValue.GetRawHash() == Id.GetIdentifier());
+	check(DerivedDataValue.GetRawHash() == Id);
 
 	UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
 	RecordBuilder.AddValue(ToDerivedDataValueId(Id), DerivedDataValue);
@@ -116,7 +115,7 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 	}
 }
 
-FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
+FCompressedBuffer FDDCBackend::PullData(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
 
@@ -124,7 +123,7 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 
 	UE::DerivedData::FCacheKey Key;
 	Key.Bucket = Bucket; 
-	Key.Hash = Id.GetIdentifier();
+	Key.Hash = Id;
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
 
@@ -148,7 +147,7 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	return ResultData;
 }
 
-bool FDDCBackend::DoesPayloadExist(const FPayloadId& Id)
+bool FDDCBackend::DoesPayloadExist(const FIoHash& Id)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::DoesPayloadExist);
 
@@ -156,7 +155,7 @@ bool FDDCBackend::DoesPayloadExist(const FPayloadId& Id)
 
 	UE::DerivedData::FCacheKey Key;
 	Key.Bucket = Bucket;
-	Key.Hash = Id.GetIdentifier();
+	Key.Hash = Id;
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
 	

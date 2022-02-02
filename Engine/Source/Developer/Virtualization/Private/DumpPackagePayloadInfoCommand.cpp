@@ -31,8 +31,8 @@ void DumpPackagePayloadInfo(const TArray<FString>& Args)
 
 		if (FPackagePath::TryFromMountedName(Arg, Path))
 		{
-			TArray<Virtualization::FPayloadId> LocalPayloadIds;
-			TArray<Virtualization::FPayloadId> VirtualizedPayloadIds;
+			TArray<FIoHash> LocalPayloadIds;
+			TArray<FIoHash> VirtualizedPayloadIds;
 
 			if (!UE::FindPayloadsInPackageFile(Path, UE::EPayloadFilter::Local, LocalPayloadIds))
 			{

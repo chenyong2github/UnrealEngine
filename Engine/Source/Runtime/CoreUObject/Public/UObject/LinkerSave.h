@@ -11,7 +11,6 @@
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectThreadContext.h"
-#include "Virtualization/PayloadId.h"
 
 class FObjectPostSaveContext;
 struct FUntypedBulkData;
@@ -107,7 +106,7 @@ public:
 	
 	struct FSidecarStorageInfo
 	{
-		UE::Virtualization::FPayloadId Identifier;
+		FIoHash Identifier;
 		FCompressedBuffer Payload;
 	};
 
