@@ -7,8 +7,10 @@
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		// This class provides a mechanism to read/write FPlayerSession on any thread.
 		// This is mostly achieved by submitting all such work to the WebRTC signalling thread
 		// using the WebRTC task queue (which is a single thread).
@@ -38,8 +40,8 @@ namespace UE {
 			void DeleteAllPlayerSessions();
 			int DeletePlayerSession(FPixelStreamingPlayerId PlayerId);
 			FDataChannelObserver* GetDataChannelObserver(FPixelStreamingPlayerId PlayerId);
-			void SetPlayerSessionDataChannel(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel);
-			void SetVideoSource(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource);
+			void SetPlayerSessionDataChannel(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::DataChannelInterface>& DataChannel);
+			void SetVideoSource(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>& VideoSource);
 
 			// Begin IPixelStreamingSessions
 			virtual int GetNumPlayers() const override;
@@ -57,8 +59,8 @@ namespace UE {
 			// Note: This is very intentionally internal and there is no public version because as soon as we hand it out it isn't thread safe anymore.
 			FPlayerSession* GetPlayerSession_SignallingThread(FPixelStreamingPlayerId PlayerId) const;
 
-			void SetVideoSource_SignallingThread(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource);
-			void SetPlayerSessionDataChannel_SignallingThread(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel);
+			void SetVideoSource_SignallingThread(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>& VideoSource);
+			void SetPlayerSessionDataChannel_SignallingThread(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::DataChannelInterface>& DataChannel);
 			void PollWebRTCStats_SignallingThread() const;
 			void OnRemoteIceCandidate_SignallingThread(FPixelStreamingPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 			void OnAnswer_SignallingThread(FPixelStreamingPlayerId PlayerId, FString Sdp);
@@ -93,5 +95,5 @@ namespace UE {
 			mutable FCriticalSection QualityControllerCS;
 			FPixelStreamingPlayerId QualityControllingPlayer = ToPlayerId(FString(TEXT("No quality controlling peer.")));
 		};
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

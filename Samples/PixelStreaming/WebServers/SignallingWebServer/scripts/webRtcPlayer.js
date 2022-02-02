@@ -414,6 +414,8 @@ function webRtcPlayer(parOptions) {
 
     setupTransceiversAsync = async function(pc){
         
+        let hasTransceivers = pc.getTransceivers().length > 0;
+
         // Setup a transceiver for getting UE video
         pc.addTransceiver("video", { direction: "recvonly" });
 
@@ -431,7 +433,7 @@ function webRtcPlayer(parOptions) {
                 echoCancellation: false,
                 latency: 0,
                 noiseSuppression: false,
-                sampleRate: 16000,
+                sampleRate: 48000,
                 volume: 1.0
             } : false;
 
@@ -439,10 +441,27 @@ function webRtcPlayer(parOptions) {
             const stream = await navigator.mediaDevices.getUserMedia({video: false, audio: audioSendOptions});
             if(stream)
             {
-                for (const track of stream.getTracks()) {
-                    if(track.kind && track.kind == "audio")
-                    {
-                        pc.addTransceiver(track, { direction: "sendrecv" });
+                if(hasTransceivers){
+                    for(let transceiver of pc.getTransceivers()){
+                        if(transceiver && transceiver.receiver && transceiver.receiver.track && transceiver.receiver.track.kind === "audio")
+                        {
+                            for (const track of stream.getTracks()) {
+                                if(track.kind && track.kind == "audio")
+                                {
+                                    transceiver.sender.replaceTrack(track);
+                                    transceiver.direction = "sendrecv";
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    for (const track of stream.getTracks()) {
+                        if(track.kind && track.kind == "audio")
+                        {
+                            pc.addTransceiver(track, { direction: "sendrecv" });
+                        }
                     }
                 }
             }
@@ -522,27 +541,28 @@ function webRtcPlayer(parOptions) {
             self.pcClient = new RTCPeerConnection(self.cfg);
             setupPeerConnection(self.pcClient);
 
-            // If we are receiving not need to create a datachannel ourselves, pc.ondatachannel will get hit instead
-            setupTransceiversAsync(self.pcClient).finally(function()
+            // Put things here that happen post transceiver setup
+            self.pcClient.setRemoteDescription(offerDesc)
+            .then(() => 
             {
-                // Put things here that happen post transceiver setup
+                setupTransceiversAsync(self.pcClient).finally(function(){
+                self.pcClient.createAnswer()
+                .then(answer => self.pcClient.setLocalDescription(answer))
+                .then(() => {
+                    if (self.onWebRtcAnswer) {
+                        self.onWebRtcAnswer(self.pcClient.currentLocalDescription);
+                    }
+                })
+                .then(()=> {
+                    let receivers = self.pcClient.getReceivers();
+                    for(let receiver of receivers)
+                    {
+                        receiver.playoutDelayHint = 0;
+                    }
+                })
+                .catch((error) => console.error("createAnswer() failed:", error));
+                });
             });
-        }
-
-        self.pcClient.setRemoteDescription(offerDesc)
-        .then(() => self.pcClient.createAnswer())
-        .then(answer => this.pcClient.setLocalDescription(answer))
-        .then(() => {
-            if (self.onWebRtcAnswer) {
-                self.onWebRtcAnswer(this.pcClient.currentLocalDescription);
-            }
-        })
-        .catch((error) => console.error("createAnswer() failed:", error));
-
-        let receivers = self.pcClient.getReceivers();
-        for(let receiver of receivers)
-        {
-            receiver.playoutDelayHint = 0;
         }
     };
 

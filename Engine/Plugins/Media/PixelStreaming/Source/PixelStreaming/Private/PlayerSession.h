@@ -12,8 +12,10 @@
 #include "RTCStatsCollector.h"
 #include "IPixelStreamingStatsConsumer.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		class FSignallingServerConnection;
 		class IPixelStreamingSessions;
 
@@ -47,6 +49,7 @@ namespace UE {
 
 		private:
 			void ModifyAudioTransceiverDirection();
+			void AddSinkToAudioTrack();
 
 			//
 			// webrtc::PeerConnectionObserver implementation.
@@ -78,5 +81,5 @@ namespace UE {
 			TSharedPtr<IPixelStreamingStatsConsumer> QPReporter;
 			rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource;
 		};
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

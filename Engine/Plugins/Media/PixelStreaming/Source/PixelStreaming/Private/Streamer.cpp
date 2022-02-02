@@ -521,7 +521,7 @@ void UE::PixelStreaming::FStreamer::AddStreams(FPixelStreamingPlayerId PlayerId,
 
 	// Use PeerConnection's transceiver API to add create audio/video tracks.
 	SetupVideoTrack(PlayerId, PeerConnection, GetVideoStreamID(), VideoTrackLabel, Flags);
-	SetupAudioTrack(PeerConnection, GetAudioStreamID(), AudioTrackLabel, Flags);
+	SetupAudioTrack(PlayerId, PeerConnection, GetAudioStreamID(), AudioTrackLabel, Flags);
 }
 
 std::vector<webrtc::RtpEncodingParameters> UE::PixelStreaming::FStreamer::CreateRTPEncodingParams(int Flags)
@@ -634,7 +634,7 @@ void UE::PixelStreaming::FStreamer::SetupVideoTrack(FPixelStreamingPlayerId Play
 	}
 }
 
-void UE::PixelStreaming::FStreamer::SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const InAudioStreamId, FString const InAudioTrackLabel, int Flags)
+void UE::PixelStreaming::FStreamer::SetupAudioTrack(FPixelStreamingPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const InAudioStreamId, FString const InAudioTrackLabel, int Flags)
 {
 
 	bool bIsSFU = (Flags & UE::PixelStreaming::Protocol::EPlayerFlags::PSPFlag_IsSFU) != UE::PixelStreaming::Protocol::EPlayerFlags::PSPFlag_None;

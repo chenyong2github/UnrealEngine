@@ -135,12 +135,12 @@ webrtc::PeerConnectionInterface* UE::PixelStreaming::FThreadSafePlayerSessions::
 	SUBMIT_TASK_WITH_PARAMS_AND_RETURN(webrtc::PeerConnectionInterface*, CreatePlayerSession_SignallingThread, PlayerId, PeerConnectionFactory, PeerConnectionConfig, SignallingServerConnection, Flags)
 }
 
-void UE::PixelStreaming::FThreadSafePlayerSessions::SetPlayerSessionDataChannel(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel)
+void UE::PixelStreaming::FThreadSafePlayerSessions::SetPlayerSessionDataChannel(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::DataChannelInterface>& DataChannel)
 {
 	SUBMIT_TASK_WITH_PARAMS(SetPlayerSessionDataChannel_SignallingThread, PlayerId, DataChannel)
 }
 
-void UE::PixelStreaming::FThreadSafePlayerSessions::SetVideoSource(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource)
+void UE::PixelStreaming::FThreadSafePlayerSessions::SetVideoSource(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>& VideoSource)
 {
 	SUBMIT_TASK_WITH_PARAMS(SetVideoSource_SignallingThread, PlayerId, VideoSource)
 }
@@ -431,8 +431,10 @@ UE::PixelStreaming::FPlayerSession* UE::PixelStreaming::FThreadSafePlayerSession
 	return nullptr;
 }
 
-void UE::PixelStreaming::FThreadSafePlayerSessions::SetPlayerSessionDataChannel_SignallingThread(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel)
+void UE::PixelStreaming::FThreadSafePlayerSessions::SetPlayerSessionDataChannel_SignallingThread(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::DataChannelInterface>& DataChannel)
 {
+	checkf(IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
+
 	UE::PixelStreaming::FPlayerSession* Player = GetPlayerSession_SignallingThread(PlayerId);
 	if (Player)
 	{
@@ -440,8 +442,10 @@ void UE::PixelStreaming::FThreadSafePlayerSessions::SetPlayerSessionDataChannel_
 	}
 }
 
-void UE::PixelStreaming::FThreadSafePlayerSessions::SetVideoSource_SignallingThread(FPixelStreamingPlayerId PlayerId, rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource)
+void UE::PixelStreaming::FThreadSafePlayerSessions::SetVideoSource_SignallingThread(FPixelStreamingPlayerId PlayerId, const rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>& VideoSource)
 {
+	checkf(IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
+
 	UE::PixelStreaming::FPlayerSession* Player = GetPlayerSession_SignallingThread(PlayerId);
 	if (Player)
 	{
@@ -552,7 +556,7 @@ webrtc::PeerConnectionInterface* UE::PixelStreaming::FThreadSafePlayerSessions::
 	UE::PixelStreaming::FPlayerSession* Session = new UE::PixelStreaming::FPlayerSession(this, SignallingServerConnection, PlayerId);
 
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection = PeerConnectionFactory->CreatePeerConnection(PeerConnectionConfig, webrtc::PeerConnectionDependencies{ Session });
-	if(!PeerConnection)
+	if (!PeerConnection)
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("Failed to created PeerConnection. This may indicate you passed malformed peerConnectionOptions."));
 		return nullptr;

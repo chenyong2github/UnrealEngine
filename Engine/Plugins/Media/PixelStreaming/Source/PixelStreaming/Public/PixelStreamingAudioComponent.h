@@ -7,7 +7,50 @@
 #include "Components/SynthComponent.h"
 #include "IPixelStreamingAudioConsumer.h"
 #include "IPixelStreamingAudioSink.h"
+#include "Sound/SoundGenerator.h"
 #include "PixelStreamingAudioComponent.generated.h"
+
+/*
+* An `ISoundGenerator` implementation to pump some audio from WebRTC into this synth component
+*/
+
+class FWebRTCSoundGenerator : public ISoundGenerator
+{
+public:
+	FWebRTCSoundGenerator();
+
+	// Called when a new buffer is required.
+	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
+
+	// Returns the number of samples to render per callback
+	virtual int32 GetDesiredNumSamplesToRenderPerCallback() const { return Params.NumFramesPerCallback * Params.NumChannels; }
+
+	// Optional. Called on audio generator thread right when the generator begins generating.
+	virtual void OnBeginGenerate() { bGeneratingAudio = true; };
+
+	// Optional. Called on audio generator thread right when the generator ends generating.
+	virtual void OnEndGenerate() { bGeneratingAudio = false; };
+
+	// Optional. Can be overridden to end the sound when generating is finished.
+	virtual bool IsFinished() const { return false; };
+
+	void AddAudio(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames);
+
+	int32 GetSampleRate() { return Params.SampleRate; }
+	int32 GetNumChannels() { return Params.NumChannels; }
+	bool UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate);
+	void EmptyBuffers();
+	void SetParameters(const FSoundGeneratorInitParams& InitParams);
+
+private:
+	FSoundGeneratorInitParams Params;
+	TArray<int16_t> Buffer;
+	FCriticalSection CriticalSection;
+
+public:
+	FThreadSafeBool bGeneratingAudio = false;
+	FThreadSafeBool bShouldGenerateAudio = false;
+};
 
 /**
  * Allows in-engine playback of incoming WebRTC audio from a particular Pixel Streaming player/peer using their mic in the browser.
@@ -22,9 +65,9 @@ protected:
 	UPixelStreamingAudioComponent(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin USynthComponent interface
-	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
 	virtual void OnBeginGenerate() override;
 	virtual void OnEndGenerate() override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	//~ End USynthComponent interface
 
 	//~ Begin UObject interface
@@ -35,30 +78,24 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent interface
 
-	bool UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate);
-
 public:
 	/** 
-        *   The Pixel Streaming player/peer whose audio we wish to listen to.
-        *   If this is left blank this component will listen to the first non-listened to peer that connects after this component is ready.
-        *   Note: that when the listened to peer disconnects this component is reset to blank and will once again listen to the next non-listened to peer that connects.
-        */
+	*   The Pixel Streaming player/peer whose audio we wish to listen to.
+	*   If this is left blank this component will listen to the first non-listened to peer that connects after this component is ready.
+	*   Note: that when the listened to peer disconnects this component is reset to blank and will once again listen to the next non-listened to peer that connects.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pixel Streaming Audio Component")
 	FString PlayerToHear;
 
 	/**
-         *  If not already listening to a player/peer will try to attach for listening to the "PlayerToHear" each tick.
-         */
+	 *  If not already listening to a player/peer will try to attach for listening to the "PlayerToHear" each tick.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pixel Streaming Audio Component")
 	bool bAutoFindPeer;
 
 private:
-	TArray<int16_t> Buffer;
-	bool bIsListeningToPeer;
-	bool bComponentWantsAudio;
 	IPixelStreamingAudioSink* AudioSink;
-	FCriticalSection CriticalSection;
-	uint32 SampleRate;
+	TSharedPtr<FWebRTCSoundGenerator, ESPMode::ThreadSafe> SoundGenerator;
 
 public:
 	// Listen to a specific player. If the player is not found this component will be silent.

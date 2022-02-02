@@ -5,16 +5,15 @@
 #include "PixelStreamingPrivate.h"
 #include "CoreMinimal.h"
 
+/*
+* Component that recieves audio from a remote webrtc connection and outputs it into UE using a "synth component".
+*/
 UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PlayerToHear(FPixelStreamingPlayerId())
 	, bAutoFindPeer(true)
-	, Buffer()
-	, bIsListeningToPeer(false)
-	, bComponentWantsAudio(false)
 	, AudioSink(nullptr)
-	, CriticalSection()
-	, SampleRate(16000)
+	, SoundGenerator(MakeShared<FWebRTCSoundGenerator, ESPMode::ThreadSafe>())
 {
 
 	bool bPixelStreamingLoaded = IPixelStreamingModule::IsAvailable();
@@ -25,76 +24,27 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 		UE_LOG(LogPixelStreaming, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
 	}
 
-	//NumChannels = 2; //2 channels seem to cause problems
+	NumChannels = 1; //2 channels seem to cause problems
+	PreferredBufferLength = 512u;
 	PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
 	SetComponentTickEnabled(bPixelStreamingLoaded);
 	bAutoActivate = true;
 };
 
-int32 UPixelStreamingAudioComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
+ISoundGeneratorPtr UPixelStreamingAudioComponent::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
-	// Not listening to peer, return zero'd buffer.
-	if (!bIsListeningToPeer)
-	{
-		return 0;
-	}
-
-	// Critical section
-	{
-		FScopeLock Lock(&CriticalSection);
-
-		int32 NumSamplesToCopy = FGenericPlatformMath::Min(NumSamples, Buffer.Num());
-
-		// Not enough samples to copy anything across
-		if (NumSamplesToCopy <= 0)
-		{
-			return 0;
-		}
-
-		// Copy from local buffer into OutAudio if we have enough samples
-		for (int SampleIndex = 0; SampleIndex < NumSamplesToCopy; SampleIndex++)
-		{
-			// Convert from int16 to float audio
-			*OutAudio = ((float)Buffer[SampleIndex]) / 32767.0f;
-			OutAudio++;
-		}
-
-		// Remove front NumSamples from the local buffer
-		Buffer.RemoveAt(0, NumSamplesToCopy, false);
-		return NumSamplesToCopy;
-	}
-}
-
-bool UPixelStreamingAudioComponent::UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate)
-{
-
-	if (InNumChannels != NumChannels || InSampleRate != SampleRate)
-	{
-
-		// Critical Section - empty buffer because sample rate/num channels changed
-		FScopeLock Lock(&CriticalSection);
-		Buffer.Empty();
-
-		//this is the smallest buffer size we can set without triggering internal checks to fire
-		PreferredBufferLength = FGenericPlatformMath::Max(512, InSampleRate * InNumChannels / 100);
-		NumChannels = InNumChannels;
-		SampleRate = InSampleRate;
-		Initialize(SampleRate);
-
-		return true;
-	}
-
-	return false;
+	SoundGenerator->SetParameters(InParams);
+	return SoundGenerator;
 }
 
 void UPixelStreamingAudioComponent::OnBeginGenerate()
 {
-	bComponentWantsAudio = true;
+	SoundGenerator->bGeneratingAudio = true;
 }
 
 void UPixelStreamingAudioComponent::OnEndGenerate()
 {
-	bComponentWantsAudio = false;
+	SoundGenerator->bGeneratingAudio = false;
 }
 
 void UPixelStreamingAudioComponent::BeginDestroy()
@@ -136,23 +86,18 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 void UPixelStreamingAudioComponent::Reset()
 {
 	PlayerToHear = FString();
-	bIsListeningToPeer = false;
+	SoundGenerator->bShouldGenerateAudio = false;
 	if (AudioSink)
 	{
 		AudioSink->RemoveAudioConsumer(this);
 	}
 	AudioSink = nullptr;
-
-	// Critical section
-	{
-		FScopeLock Lock(&CriticalSection);
-		Buffer.Empty();
-	}
+	SoundGenerator->EmptyBuffers();
 }
 
 bool UPixelStreamingAudioComponent::IsListeningToPlayer()
 {
-	return bIsListeningToPeer;
+	return SoundGenerator->bShouldGenerateAudio;
 }
 
 bool UPixelStreamingAudioComponent::WillListenToAnyPlayer()
@@ -162,8 +107,99 @@ bool UPixelStreamingAudioComponent::WillListenToAnyPlayer()
 
 void UPixelStreamingAudioComponent::ConsumeRawPCM(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames)
 {
+	if (SoundGenerator->GetSampleRate() != InSampleRate || SoundGenerator->GetNumChannels() != NChannels)
+	{
+		SoundGenerator->UpdateChannelsAndSampleRate(NChannels, InSampleRate);
 
-	if (!bComponentWantsAudio)
+		//this is the smallest buffer size we can set without triggering internal checks to fire
+		PreferredBufferLength = FGenericPlatformMath::Max(512.0f, InSampleRate * NChannels / 100.0f);
+
+		NumChannels = NChannels;
+		Initialize(InSampleRate);
+	}
+	else
+	{
+		SoundGenerator->AddAudio(AudioData, InSampleRate, NChannels, NFrames);
+	}
+}
+
+void UPixelStreamingAudioComponent::OnConsumerAdded()
+{
+	SoundGenerator->bShouldGenerateAudio = true;
+	Start();
+}
+
+void UPixelStreamingAudioComponent::OnConsumerRemoved()
+{
+	Reset();
+}
+
+void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+
+	// if auto connect turned off don't bother
+	if (!bAutoFindPeer)
+	{
+		return;
+	}
+
+	// if listening to a peer don't auto connect
+	if (IsListeningToPlayer())
+	{
+		return;
+	}
+
+	if (ListenTo(PlayerToHear))
+	{
+		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming audio component found a WebRTC peer to listen to."));
+	}
+}
+
+/*
+* ---------------- FWebRTCSoundGenerator -------------------------
+*/
+
+FWebRTCSoundGenerator::FWebRTCSoundGenerator()
+	: Params()
+	, Buffer()
+	, CriticalSection()
+{
+}
+
+void FWebRTCSoundGenerator::SetParameters(const FSoundGeneratorInitParams& InitParams)
+{
+	Params = InitParams;
+	UpdateChannelsAndSampleRate(Params.NumChannels, Params.SampleRate);
+}
+
+void FWebRTCSoundGenerator::EmptyBuffers()
+{
+	FScopeLock Lock(&CriticalSection);
+	Buffer.Empty();
+}
+
+bool FWebRTCSoundGenerator::UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate)
+{
+
+	if (InNumChannels != Params.NumChannels || InSampleRate != Params.SampleRate)
+	{
+
+		// Critical Section - empty buffer because sample rate/num channels changed
+		FScopeLock Lock(&CriticalSection);
+		Buffer.Empty();
+
+		Params.NumChannels = InNumChannels;
+		Params.SampleRate = InSampleRate;
+
+		return true;
+	}
+
+	return false;
+}
+
+void FWebRTCSoundGenerator::AddAudio(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames)
+{
+	if (!bGeneratingAudio)
 	{
 		return;
 	}
@@ -184,38 +220,36 @@ void UPixelStreamingAudioComponent::ConsumeRawPCM(const int16_t* AudioData, int 
 	{
 		FScopeLock Lock(&CriticalSection);
 		Buffer.Append(AudioData, NSamples);
-		checkf((uint32)Buffer.Num() < SampleRate,
-			TEXT("Pixel Streaming Audio Component internal buffer is getting too big, for some reason OnGenerateAudio is not consuming samples quickly enough."))
+		// checkf((uint32)Buffer.Num() < SampleRate,
+		// 	TEXT("Pixel Streaming Audio Component internal buffer is getting too big, for some reason OnGenerateAudio is not consuming samples quickly enough."))
 	}
 }
 
-void UPixelStreamingAudioComponent::OnConsumerAdded()
+// Called when a new buffer is required.
+int32 FWebRTCSoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 {
-	bIsListeningToPeer = true;
-}
-
-void UPixelStreamingAudioComponent::OnConsumerRemoved()
-{
-	Reset();
-}
-
-void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-
-	// if auto connect turned off don't bother
-	if (!bAutoFindPeer)
+	// Not listening to peer, return zero'd buffer.
+	if (!bShouldGenerateAudio || Buffer.Num() == 0)
 	{
-		return;
+		return NumSamples;
 	}
 
-	// if listening to a peer don't auto connect
-	if (bIsListeningToPeer)
+	// Critical section
 	{
-		return;
-	}
+		FScopeLock Lock(&CriticalSection);
 
-	if (ListenTo(PlayerToHear))
-	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming audio component found a WebRTC peer to listen to."));
+		int32 NumSamplesToCopy = FGenericPlatformMath::Min(NumSamples, Buffer.Num());
+
+		// Copy from local buffer into OutAudio if we have enough samples
+		for (int SampleIndex = 0; SampleIndex < NumSamplesToCopy; SampleIndex++)
+		{
+			// Convert from int16 to float audio
+			*OutAudio = ((float)Buffer[SampleIndex]) / 32767.0f;
+			OutAudio++;
+		}
+
+		// Remove front NumSamples from the local buffer
+		Buffer.RemoveAt(0, NumSamplesToCopy, false);
+		return NumSamplesToCopy;
 	}
 }
