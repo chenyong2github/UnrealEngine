@@ -1,7 +1,7 @@
 # README
 
 More ONNX Runtime compiling info in [onnxruntime.ai/docs/how-to/build/inferencing.html](https://www.onnxruntime.ai/docs/how-to/build/inferencing.html).
-For questions, ask Gines.Hidalgo.
+For questions, ask Francisco.Vicente.
 
 
 
@@ -20,11 +20,10 @@ All changes in ORT have been (and should be!) labeled in the code with `WITH_UE`
 
 ## Upgrading ONNX Runtime
 ### Step 0: Compiling Third Parties
-Francisco Vicente understands this step better, in case of questions, ping him.
 - MLAS: The following script will compile the latest ORT and copy it into NNI (manually repeat the process for every platform).
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_MLAS_PARENT_PATH = "D:/Users/gines.hidalgo/Downloads/" # D:/Users/gines.hidalgo/Downloads or D:/UpdatingMLAS
+$ORT_MLAS_PARENT_PATH = "D:/Users/francisco.vicente/Downloads/" # D:/Users/francisco.vicente/Downloads or D:/UpdatingMLAS
 $NNI_ORT_MLAS_LOCATION = "D:/P4/ue5_main_pitt64/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps"
 $NNI_ORT_MLAS_FINAL_NAME = "MLAS_2021_11_30"
 $NNI_ORT_MLAS_OLD_NAME = "MLAS_2021_10_20"
@@ -62,11 +61,11 @@ Finally, manually go into `$NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FI
 ### Step 1: Prerequisites
 Do this before starting with the scripts:
 1. Create and open the following folders on your explorer:
-	- A wrapper folder `$ORT_TEMP`, e.g., `D:/Users/gineshidalgo99/Desktop/ONNXRuntime` or `D:/UpdatingORT/ONNXRuntime`
+	- A wrapper folder `$ORT_TEMP`, e.g., `D:/Users/francisco.vicente/Desktop/ONNXRuntime` or `D:/UpdatingORT/ONNXRuntime`
 	- `${ORT_TEMP}/ONNXRuntime_code_from_NNI`
 	- `${ORT_TEMP}/onnxruntime` (this is the actual GitHub)
 	- `${ORT_TEMP}/ONNXRuntime_code_to_push_to_NNI`
-2. Fork https://github.com/Microsoft/onnxruntime into your personal (not Epic enterprise) GitHub account. E.g., open that link from Google Chrome & click "Fork" on the top-right, resulting e.g. in https://github.com/gineshidalgo99/onnxruntime or https://github.com/fkvicente/onnxruntime/.
+2. Fork https://github.com/Microsoft/onnxruntime into your personal (not Epic enterprise) GitHub account. E.g., open that link from Google Chrome & click "Fork" on the top-right, resulting e.g. in https://github.com/francisco.vicente/onnxruntime or https://github.com/fkvicente/onnxruntime/.
 
 
 
@@ -74,8 +73,8 @@ Do this before starting with the scripts:
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
-$GITHUB_URL = "https://github.com/gineshidalgo99/onnxruntime" # https://github.com/gineshidalgo99/onnxruntime or https://github.com/fkvicente/onnxruntime/ or https://github.com/Microsoft/onnxruntime
+$ORT_PARENT_PATH = "D:/Users/francisco.vicente/Desktop/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+$GITHUB_URL = "https://github.com/francisco.vicente/onnxruntime" # https://github.com/francisco.vicente/onnxruntime or https://github.com/fkvicente/onnxruntime/ or https://github.com/Microsoft/onnxruntime
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 cd $ORT_PARENT_PATH
@@ -106,7 +105,7 @@ DO THIS - You can now run the following commands:
 - Part 1: Reverting your ORT fork (locally) to the right commit:
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+$ORT_PARENT_PATH = "D:/Users/francisco.vicente/Desktop/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
 $CURRENT_NNI_ORT_COMMIT_HASH = "740679d3290b0df594d2e14be959dfbdb405f80b" # The one NNI's ORT is using on UE5/Main
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
@@ -214,7 +213,7 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
 $FINAL_COMMIT_HASH = "740679d3290b0df594d2e14be959dfbdb405f80b" # The one NNI's ORT will be using after this merge
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+$ORT_PARENT_PATH = "D:/Users/francisco.vicente/Desktop/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
 $FINAL_ZIP_FILE_PATH = "${ORT_PARENT_PATH}/ort_compressed.zip"
 ```
 
@@ -308,7 +307,7 @@ VERY IMPORTANT: If there are errors like `rm : Cannot find path '${ORT_TEMP}\ort
 
 This new code zipped as `${ORT_TEMP}/ort_compressed.zip` can be manually copied into `NNI/ThirdParty/ONNNXRuntime_YYYY_MM_DD` and tested in there. To test it properly, do the following tests (in this order):
 1. Compile UE and run QA tests to make sure they are successful.
-2. Package game for Windows and run tests on the Windows game to make sure they are successful. Trick: If your game is saved on `D:/Users/gines.hidalgo/Desktop/GameTest/`, the logging of the application will be saved on `D:/Users/gines.hidalgo/Desktop/GameTest/Windows/NNIExample/Saved/Logs/NNIExample.log`.
+2. Package game for Windows and run tests on the Windows game to make sure they are successful. Trick: If your game is saved on `D:/Users/francisco.vicente/Desktop/GameTest/`, the logging of the application will be saved on `D:/Users/francisco.vicente/Desktop/GameTest/Windows/NNIExample/Saved/Logs/NNIExample.log`.
 3. Package game for Linux from Windows to make sure it compiles on Linux.
 4. Run the Static Analysis. How to run "UE4 Static Analysis Win64 (MSVC)" locally:
 	1. Sync the latest green commit to minimize non-NNI errors/warnings.
@@ -343,7 +342,7 @@ This new code zipped as `${ORT_TEMP}/ort_compressed.zip` can be manually copied 
 	7. Optionally run NonUnity Compile UnrealEditor Win64:
 	```
 	cd D:/P4/ue5_main_pitt64_2/
-	Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script="Engine/Restricted/NotForLicensees/Build/DevStreams.xml" -Target="NonUnity Compile UnrealEditor Win64" -P4 -SkipTargetsWithoutTokens *> D:/Users/gines.hidalgo/Desktop/NonUnityTest.txt
+	Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script="Engine/Restricted/NotForLicensees/Build/DevStreams.xml" -Target="NonUnity Compile UnrealEditor Win64" -P4 -SkipTargetsWithoutTokens *> D:/Users/francisco.vicente/Desktop/NonUnityTest.txt
 	```
 5. Do extensive pre-flights for all targeted platforms by running a `Editor, Tools & Monolithics` and a `Full Build` test.
 
@@ -416,7 +415,7 @@ If minor compiler error on NNI about version missmatch:
 ## Test and Debug ONNX Runtime on GitHub
 - ORT CI (Test/Fix some PR)
 ```
-git clone https://github.com/gineshidalgo99/onnxruntime
+git clone https://github.com/francisco.vicente/onnxruntime
 git checkout REPO_NAME
 # What ORT guys run on their CI system
 \build.bat --config Release --build_dir build --build_shared_lib --cmake_generator "Visual Studio 16 2019" --build_wheel --use_winml --build_shared_lib --enable_wcos --use_dnnl --use_dml --parallel
