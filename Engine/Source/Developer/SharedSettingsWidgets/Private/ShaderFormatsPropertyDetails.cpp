@@ -69,7 +69,10 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_ES3_1_ANDROID:
 			FriendlyRHIName = LOCTEXT("VulkanES31", "Vulkan (ES 3.1)");
-			break;	
+			break;
+		case SP_D3D_ES3_1_HOLOLENS:
+			FriendlyRHIName = LOCTEXT("D3DES31HL", "Direct3D (ES3.1, Hololens)");
+			break;
 		default:
 			break;
 	}

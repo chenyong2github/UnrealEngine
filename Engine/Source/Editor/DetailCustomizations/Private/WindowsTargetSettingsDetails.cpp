@@ -64,6 +64,10 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("DirectXES31", "DirectX Mobile Emulation (ES3.1)");
 	}
+	else if (InRHIName == TEXT("D3D_ES3_1_HOLOLENS"))
+	{
+		FriendlyRHIName = LOCTEXT("DirectXES31HL", "DirectX Hololens (ES3.1)");
+	}
 	else if (InRHIName == TEXT("SF_VULKAN_SM5"))
 	{
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");

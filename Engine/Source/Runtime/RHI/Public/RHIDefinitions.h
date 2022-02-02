@@ -90,6 +90,7 @@ enum EShaderPlatform
 	//---------------------------------------------------------------------------------
 	SP_VULKAN_SM5_ANDROID			= SP_StaticPlatform_Last+1,
 	SP_PCD3D_SM6,
+	SP_D3D_ES3_1_HOLOLENS,
 
 	SP_NumPlatforms,
 	SP_NumBits						= 7,

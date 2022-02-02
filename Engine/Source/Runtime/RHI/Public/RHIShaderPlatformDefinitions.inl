@@ -30,6 +30,7 @@ static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatfor
 	case SP_PCD3D_ES3_1:
 	case SP_VULKAN_PCES3_1:
 	case SP_OPENGL_PCES3_1:
+	case SP_D3D_ES3_1_HOLOLENS:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Generic_ES31_loc", "ES31");
 		return Description;

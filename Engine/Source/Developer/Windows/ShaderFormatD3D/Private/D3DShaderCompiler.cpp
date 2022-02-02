@@ -134,11 +134,11 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return TEXT("lib_6_3");
 		}
 	}
-	else if (Target.Platform == SP_PCD3D_ES3_1)
+	else if ((Target.Platform == SP_PCD3D_ES3_1) || (Target.Platform == SP_D3D_ES3_1_HOLOLENS))
 	{
 		checkSlow(Target.Frequency == SF_Vertex ||
 			Target.Frequency == SF_Pixel ||
-			Target.Frequency == SF_Geometry || 
+			Target.Frequency == SF_Geometry ||
 			Target.Frequency == SF_Compute);
 
 		//set defines and profiles for the appropriate shader paths
@@ -1304,7 +1304,7 @@ void CompileShader_Windows(const FShaderCompilerInput& Input,FShaderCompilerOutp
 	}
 	else if (Language == ELanguage::ES3_1)
 	{
-		check(Input.Target.Platform == SP_PCD3D_ES3_1);
+		check((Input.Target.Platform == SP_PCD3D_ES3_1) || (Input.Target.Platform == SP_D3D_ES3_1_HOLOLENS));
 		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 	}
 	else

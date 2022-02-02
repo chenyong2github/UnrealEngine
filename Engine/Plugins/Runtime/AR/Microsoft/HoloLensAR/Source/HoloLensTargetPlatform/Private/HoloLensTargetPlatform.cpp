@@ -96,18 +96,20 @@ bool FHoloLensTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) c
 	}
 }
 
-static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
+// Hololens previously used PCD3D_ES3_1 as a shader format/platform until we
+// had to split to properly support DataDrivenPlatformInfo
+static FName NAME_D3D_ES3_1_HOLOLENS(TEXT("D3D_ES3_1_HOLOLENS"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 
 void FHoloLensTargetPlatform::GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const
 {
-	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
+	OutFormats.AddUnique(NAME_D3D_ES3_1_HOLOLENS);
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
 }
 
 void FHoloLensTargetPlatform::GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const
 {
-	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
+	OutFormats.AddUnique(NAME_D3D_ES3_1_HOLOLENS);
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
 }
 

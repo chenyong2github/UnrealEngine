@@ -30,6 +30,7 @@ static FName NAME_VULKAN_ES3_1(TEXT("SF_VULKAN_ES31"));
 static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 static FName NAME_VULKAN_SM5_ANDROID(TEXT("SF_VULKAN_SM5_ANDROID"));
 
+static FName NAME_D3D_ES3_1_HOLOLENS(TEXT("D3D_ES3_1_HOLOLENS"));
 
 static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 {
@@ -69,6 +70,8 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 		return NAME_VULKAN_SM5;
 	case SP_VULKAN_SM5_ANDROID:
 		return NAME_VULKAN_SM5_ANDROID;
+	case SP_D3D_ES3_1_HOLOLENS:
+		return NAME_D3D_ES3_1_HOLOLENS;
 
 	default:
 		if (FStaticShaderPlatformNames::IsStaticPlatform(Platform))
@@ -104,6 +107,8 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_VULKAN_ES3_1)				return SP_VULKAN_PCES3_1;
 	if (ShaderFormat == NAME_VULKAN_SM5)				return SP_VULKAN_SM5;
 	if (ShaderFormat == NAME_VULKAN_SM5_ANDROID)		return SP_VULKAN_SM5_ANDROID;
+
+	if (ShaderFormat == NAME_D3D_ES3_1_HOLOLENS)		return SP_D3D_ES3_1_HOLOLENS;
 
 	for (int32 StaticPlatform = SP_StaticPlatform_First; StaticPlatform <= SP_StaticPlatform_Last; ++StaticPlatform)
 	{

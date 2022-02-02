@@ -11,6 +11,7 @@
 static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
+static FName NAME_D3D_ES3_1_HOLOLENS(TEXT("D3D_ES3_1_HOLOLENS"));
 
 class FShaderFormatD3D : public IShaderFormat
 {
@@ -22,11 +23,12 @@ class FShaderFormatD3D : public IShaderFormat
 		UE_SHADER_PCD3D_SM6_VER = UE_SHADER_PCD3D_SHARED_VER + 3,
 		UE_SHADER_PCD3D_SM5_VER = UE_SHADER_PCD3D_SHARED_VER + 9,
 		UE_SHADER_PCD3D_ES3_1_VER = UE_SHADER_PCD3D_SHARED_VER + 8,
+		UE_SHADER_D3D_ES3_1_HOLOLENS_VER = UE_SHADER_PCD3D_ES3_1_VER,
 	};
 
 	void CheckFormat(FName Format) const
 	{
-		check(Format == NAME_PCD3D_SM6 || Format == NAME_PCD3D_SM5 || Format == NAME_PCD3D_ES3_1);
+		check(Format == NAME_PCD3D_SM6 || Format == NAME_PCD3D_SM5 || Format == NAME_PCD3D_ES3_1 || Format == NAME_D3D_ES3_1_HOLOLENS);
 	}
 
 	uint32 DxcVersionHash = 0;
@@ -62,6 +64,11 @@ public:
 			// Shader DXC signature is intentionally not included, as ES3_1 target always uses legacy compiler.
 			return UE_SHADER_PCD3D_ES3_1_VER;
 		}
+		else if (Format == NAME_D3D_ES3_1_HOLOLENS)
+		{
+			// Shader DXC signature is intentionally not included, as ES3_1 target always uses legacy compiler.
+			return UE_SHADER_D3D_ES3_1_HOLOLENS_VER;
+		}
 		checkf(0, TEXT("Unknown Format %s"), *Format.ToString());
 		return 0;
 	}
@@ -71,6 +78,7 @@ public:
 		OutFormats.Add(NAME_PCD3D_SM6);
 		OutFormats.Add(NAME_PCD3D_SM5);
 		OutFormats.Add(NAME_PCD3D_ES3_1);
+		OutFormats.Add(NAME_D3D_ES3_1_HOLOLENS);
 	}
 
 	virtual void CompileShader(FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output,const FString& WorkingDirectory) const
@@ -85,6 +93,10 @@ public:
 			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::SM5);
 		}
 		else if (Format == NAME_PCD3D_ES3_1)
+		{
+			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::ES3_1);
+		}
+		else if (Format == NAME_D3D_ES3_1_HOLOLENS)
 		{
 			CompileShader_Windows(Input, Output, WorkingDirectory, ELanguage::ES3_1);
 		}
@@ -137,6 +149,13 @@ public:
 			}
 		}
 		else if (Input.ShaderFormat == NAME_PCD3D_ES3_1)
+		{
+			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
+			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
+			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MAJOR"), 5);
+			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MINOR"), 0);
+		}
+		else if (Input.ShaderFormat == NAME_D3D_ES3_1_HOLOLENS)
 		{
 			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
