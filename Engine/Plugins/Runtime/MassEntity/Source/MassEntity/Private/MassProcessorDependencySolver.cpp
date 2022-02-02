@@ -842,13 +842,13 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 		const UWorld* World = Processors.IsEmpty() ? nullptr : Processors[0]->GetWorld();
 	    for (const FName& DependencyName : GroupRootNode.ExecuteBefore)
 	    {
-		    UE_LOG(LogMass, Warning, TEXT("(%s) %s found an unresolved execute before dependency (%s)"),
+		    UE_LOG(LogMass, Log, TEXT("(%s) %s found an unresolved execute before dependency (%s)"),
 		    	World != nullptr ? *ToString(World->GetNetMode()) : TEXT("unknown"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyName.ToString());
 	    }
     
 	    for (const FName& DependencyName : GroupRootNode.ExecuteAfter)
 	    {
-		    UE_LOG(LogMass, Warning, TEXT("(%s) %s found an unresolved execute after dependency (%s)"),
+		    UE_LOG(LogMass, Log, TEXT("(%s) %s found an unresolved execute after dependency (%s)"),
 		    	World != nullptr ? *ToString(World->GetNetMode()) : TEXT("unknown"), ANSI_TO_TCHAR(__FUNCTION__), *DependencyName.ToString());
 	    }
 	}
@@ -885,8 +885,8 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 		}
 		if(bAnyUnresolvedDependencies)
 		{
-		    EditorErrors.Error(LOCTEXT("ProcessorUnresolvedDependencies", "Unresolved processor dependencies found!"));
-		    EditorErrors.Notify(LOCTEXT("ProcessorUnresolvedDependencies", "Unresolved processor dependencies found!"));
+		    EditorErrors.Info(LOCTEXT("ProcessorUnresolvedDependencies", "Unresolved processor dependencies found!"));
+		    //EditorErrors.Notify(LOCTEXT("ProcessorUnresolvedDependencies", "Unresolved processor dependencies found!"));
 		}
 		EditorErrors.Info(FText::FromString(TEXT("See the log for details")));
 	}
