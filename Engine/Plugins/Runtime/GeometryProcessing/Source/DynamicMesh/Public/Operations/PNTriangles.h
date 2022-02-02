@@ -14,7 +14,7 @@ namespace Geometry
 class FDynamicMesh3;
 
 /**
- * FPNTriangles implements curved PN (Point-Normal) Triangles - https://alex.vlachos.com/graphics/CurvedPNTriangles.pdf.
+ * FPNTriangles implements curved PN (Point-Normal) Triangles (Curved PN Triangles, Vlachos, 2001).
  * Each PN triangle replaces one original flat triangle by a curved shape that is retriangulated into 
  * a number of small subtriangles. The geometry of a PN triangle is defined as one cubic Bezier patch using control 
  * points. The patch matches the point and normal information at the vertices of the original flat triangle.
@@ -42,10 +42,11 @@ public:
 	int32 TessellationLevel = 1;
 
 	/**
-	 * If true, use the quadratically varying normal computation. 
-	 * Otherwise, if the vertex normals are enabled, use standard per-vertex normal computation.
+	 * If true and the mesh has the normal overlay then recalculate it. 
+	 * If true and the normal overlay doesn't exists, compute per-vertex normals (if they are enabled in the mesh).
+	 * If false, only perform the displacement.
 	 */
-	bool bComputePNNormals = true;
+	bool bRecalculateNormals = false;
 
 public:
 	FPNTriangles(FDynamicMesh3* Mesh) : Mesh(Mesh)

@@ -73,6 +73,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyPNTessellation
 	{
 		FPNTriangles Tessellator(&EditMesh);
 		Tessellator.TessellationLevel = TessellationLevel;
+		Tessellator.bRecalculateNormals = Options.bRecomputeNormals;
 		
 		if (Tessellator.Validate() != EOperationValidationResult::Ok)
 		{
@@ -85,14 +86,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyPNTessellation
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ApplyPNTessellation_Failed", "ApplyPNTessellation: Tessellation failed."));
 			return;
 		}
-
-		if (Options.bRecomputeNormals && EditMesh.HasAttributes() && EditMesh.Attributes()->PrimaryNormals() != nullptr)
-		{
-			FMeshNormals MeshNormals(&EditMesh);
-			MeshNormals.RecomputeOverlayNormals(EditMesh.Attributes()->PrimaryNormals(), true, true);
-			MeshNormals.CopyToOverlay(EditMesh.Attributes()->PrimaryNormals(), false);
-		}
-
+		
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
 	return TargetMesh;

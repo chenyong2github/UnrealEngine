@@ -293,12 +293,12 @@ namespace FPNTrianglesLocals
 	 * @return true if the operation succeeded, false if it failed or was canceled by the user.
 	 */
 
-	bool DisplaceAndSetNormals(const FDynamicMesh3& OriginalMesh,
-					           const FControlPoints& FControlPoints,
-					           const TArray<FIndex2i>& VerticesToDisplace,
-					           const bool bComputePNNormals,
-							   FProgressCancel* ProgressCancel,
-							   FDynamicMesh3& Mesh)
+	bool DisplaceAndSetQuadraticNormals(const FDynamicMesh3& OriginalMesh,
+					           			const FControlPoints& FControlPoints,
+					           			const TArray<FIndex2i>& VerticesToDisplace,
+					           			const bool bComputePNNormals,
+							   			FProgressCancel* ProgressCancel,
+							   			FDynamicMesh3& Mesh)
 	{
 		bool bHasVertexNormals = Mesh.HasVertexNormals();
 		bool bHasAttributes = Mesh.HasAttributes();
@@ -420,6 +420,13 @@ bool FPNTriangles::Compute()
 	
 	// Compute PN triangle control points for each flat triangle of the original mesh
 	FControlPoints FControlPoints;
+
+	// TODO: We disable quadratically varying normal computation until we fully support seam normal overlay edges.
+	// We might remove them completely since using quadratically varying normals would imply that we should be using 
+	// the same approach when computing normals inside the shaders for lighting computations 
+	// (see Tessellation on Any Budget, GDC, 2011). 
+	const bool bComputePNNormals = false;
+	
 	bool bOk = ComputeControlPoints(FControlPoints, *Mesh, UseNormals, bComputePNNormals, Progress);
 	if (bOk == false) 
 	{
@@ -435,11 +442,26 @@ bool FPNTriangles::Compute()
 		return false;
 	}
 
-	// Compute displacement and normals
-	bOk = DisplaceAndSetNormals(*Mesh, FControlPoints, NewVertices, bComputePNNormals, Progress, ResultMesh);
+	// Compute displacement and optionally quadratically varying normals
+	bOk = DisplaceAndSetQuadraticNormals(*Mesh, FControlPoints, NewVertices, bComputePNNormals, Progress, ResultMesh);
 	if (bOk == false) 
 	{
 		return false;
+	}
+				
+	if (bRecalculateNormals && bComputePNNormals == false)
+	{
+		if (ResultMesh.HasAttributes())
+		{
+			FMeshNormals NewNormals(&ResultMesh);
+			FDynamicMeshNormalOverlay* NormalOverlay = ResultMesh.Attributes()->PrimaryNormals();
+			NewNormals.RecomputeOverlayNormals(NormalOverlay);
+			NewNormals.CopyToOverlay(NormalOverlay);
+		}
+		else if (ResultMesh.HasVertexNormals())
+		{
+			FMeshNormals::QuickComputeVertexNormals(ResultMesh);
+		}
 	}
 
 	Mesh->Copy(ResultMesh);
