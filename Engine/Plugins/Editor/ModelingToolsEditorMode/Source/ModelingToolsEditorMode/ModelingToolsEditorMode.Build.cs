@@ -7,55 +7,46 @@ public class ModelingToolsEditorMode : ModuleRules
 	public ModelingToolsEditorMode(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
 		PublicIncludePaths.AddRange(
-			new string[] {
-                //"ContentBrowser"
+			new string[]
+			{
 				// ... add public include paths required here ...
 			}
-			);
-				
-		
+		);
+
 		PrivateIncludePaths.AddRange(
-			new string[] {
+			new string[]
+			{
 				// ... add other private include paths required here ...
 			}
-			);
-			
-		
+		);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core"
 				// ... add other public dependencies that you statically link with here ...
 			}
-			);
-			
-		
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "Core",
-                "CoreUObject",
-                "ApplicationCore",
-                "Slate",
-                "SlateCore",
-                "Engine",
-                "InputCore",
+				"CoreUObject",
+				"Slate",
+				"SlateCore",
+				"Engine",
+				"InputCore",
 				"EditorFramework",
 				"UnrealEd",
-                "ContentBrowser",
 				"ContentBrowserData",
-                "LevelEditor",
 				"StatusBar",
 				"EditorStyle",
-                "Projects",
+				"Projects",
 				"TypedElementRuntime",
-				"MeshDescription",
-				"StaticMeshDescription",
-                "InteractiveToolsFramework",
+				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
-				"GeometryFramework",
 				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
 				"MeshModelingTools",
@@ -67,21 +58,11 @@ public class ModelingToolsEditorMode : ModuleRules
 				"EditorWidgets",
 				"ModelingEditorUI",
 				"StylusInput",
-				"DeveloperSettings"
-
+				"DeveloperSettings",
 				// ... add private dependencies that you statically link with here ...	
 			}
-			);
-		
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				"Settings"
-			}
-			);
+		);
 
 		PublicDefinitions.Add("WITH_PROXYLOD=" + (Target.Platform == UnrealTargetPlatform.Win64 ? '1' : '0'));
-
 	}
 }
