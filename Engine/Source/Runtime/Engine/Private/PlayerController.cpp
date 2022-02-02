@@ -1772,7 +1772,7 @@ void APlayerController::ServerUpdateCamera_Implementation(FVector_NetQuantize Ca
 #endif
 	{
 		//@TODO: CAMERA: Fat pipe
-		FMinimalViewInfo NewInfo = PlayerCameraManager->GetCameraCachePOV();
+		FMinimalViewInfo NewInfo = PlayerCameraManager->GetCameraCacheView();
 		NewInfo.Location = NewPOV.Location;
 		NewInfo.Rotation = NewPOV.Rotation;
 		PlayerCameraManager->FillCameraCache(NewInfo);

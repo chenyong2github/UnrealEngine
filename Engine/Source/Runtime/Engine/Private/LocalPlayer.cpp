@@ -707,7 +707,7 @@ void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo) const
 	{
 		if (PlayerController->PlayerCameraManager != NULL)
 		{
-			OutViewInfo = PlayerController->PlayerCameraManager->GetCameraCachePOV();
+			OutViewInfo = PlayerController->PlayerCameraManager->GetCameraCacheView();
 			OutViewInfo.FOV = PlayerController->PlayerCameraManager->GetFOVAngle();
 			PlayerController->GetPlayerViewPoint(/*out*/ OutViewInfo.Location, /*out*/ OutViewInfo.Rotation);
 		}

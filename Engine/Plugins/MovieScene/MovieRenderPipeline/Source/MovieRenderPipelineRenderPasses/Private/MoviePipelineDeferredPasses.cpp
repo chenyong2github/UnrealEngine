@@ -618,9 +618,9 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	
 	// Draw letterboxing
 	APlayerCameraManager* PlayerCameraManager = GetPipeline()->GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
-	if(PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
+	if(PlayerCameraManager && PlayerCameraManager->GetCameraCacheView().bConstrainAspectRatio)
 	{
-		const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
+		const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCacheView();
 		UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 		check(OutputSettings);
 		

@@ -322,10 +322,18 @@ public:
 	virtual void SetLastFrameCameraCachePOV(const FMinimalViewInfo& InPOV);
 
 	/** Gets value of CameraCachePrivate.POV */
-	virtual const FMinimalViewInfo& GetCameraCachePOV() const;
+	virtual const FMinimalViewInfo& GetCameraCacheView() const;
 
 	/** Gets value of LastFrameCameraCachePrivate.POV */
-	virtual const FMinimalViewInfo& GetLastFrameCameraCachePOV() const;
+	virtual const FMinimalViewInfo& GetLastFrameCameraCacheView() const;
+
+	/** Gets value of CameraCachePrivate.POV */
+	UE_DEPRECATED(5.0, "APlayerCameraManager::GetCameraCacheView is favored now, and this function forwards to that one.")
+	virtual FMinimalViewInfo GetCameraCachePOV() const;
+
+	/** Gets value of LastFrameCameraCachePrivate.POV */
+	UE_DEPRECATED(5.0, "APlayerCameraManager::GetLastFrameCameraCacheView is favored now, and this function forwards to that one.")
+	virtual FMinimalViewInfo GetLastFrameCameraCachePOV() const;
 
 	/** Get value of CameraCachePrivate.Time  */
 	float GetCameraCacheTime() const { return CameraCachePrivate.TimeStamp; }

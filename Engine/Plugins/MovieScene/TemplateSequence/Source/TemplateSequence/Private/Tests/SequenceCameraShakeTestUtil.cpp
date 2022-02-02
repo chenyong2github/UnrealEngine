@@ -7,12 +7,12 @@
 
 FMinimalViewInfo USequenceCameraShakeTestUtil::GetCameraCachePOV(APlayerController* PlayerController)
 {
-	return PlayerController->PlayerCameraManager->GetCameraCachePOV();
+	return PlayerController->PlayerCameraManager->GetCameraCacheView();
 }
 
 FMinimalViewInfo USequenceCameraShakeTestUtil::GetLastFrameCameraCachePOV(APlayerController* PlayerController)
 {
-	return PlayerController->PlayerCameraManager->GetLastFrameCameraCachePOV();
+	return PlayerController->PlayerCameraManager->GetLastFrameCameraCacheView();
 }
 
 bool USequenceCameraShakeTestUtil::GetPostProcessBlendCache(APlayerController* PlayerController, int32 PPIndex, FPostProcessSettings& OutPPSettings, float& OutPPBlendWeight)

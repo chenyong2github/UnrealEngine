@@ -150,7 +150,7 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 			}
 
 			// use last frame's POV
-			ViewTarget.POV = GetLastFrameCameraCachePOV();
+			ViewTarget.POV = GetLastFrameCameraCacheView();
 			BlendParams = TransitionParams;
 			BlendTimeToGo = TransitionParams.BlendTime;
 
@@ -836,7 +836,7 @@ void APlayerCameraManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void APlayerCameraManager::InitializeFor(APlayerController* PC)
 {
-	FMinimalViewInfo DefaultFOVCache = GetCameraCachePOV();
+	FMinimalViewInfo DefaultFOVCache = GetCameraCacheView();
 	DefaultFOVCache.FOV = DefaultFOV;
 	SetCameraCachePOV(DefaultFOVCache);
 
@@ -855,7 +855,7 @@ void APlayerCameraManager::InitializeFor(APlayerController* PC)
 
 float APlayerCameraManager::GetFOVAngle() const
 {
-	return (LockedFOV > 0.f) ? LockedFOV : GetCameraCachePOV().FOV;
+	return (LockedFOV > 0.f) ? LockedFOV : GetCameraCacheView().FOV;
 }
 
 void APlayerCameraManager::SetFOV(float NewFOV)
@@ -890,19 +890,19 @@ void APlayerCameraManager::UnlockOrthoWidth()
 
 void APlayerCameraManager::GetCameraViewPoint(FVector& OutCamLoc, FRotator& OutCamRot) const
 {
-	const FMinimalViewInfo& CurrentPOV = GetCameraCachePOV();
+	const FMinimalViewInfo& CurrentPOV = GetCameraCacheView();
 	OutCamLoc = CurrentPOV.Location;
 	OutCamRot = CurrentPOV.Rotation;
 }
 
 FRotator APlayerCameraManager::GetCameraRotation() const
 {
-	return GetCameraCachePOV().Rotation;
+	return GetCameraCacheView().Rotation;
 }
 
 FVector APlayerCameraManager::GetCameraLocation() const
 {
-	return GetCameraCachePOV().Location;
+	return GetCameraCacheView().Location;
 }
 
 void APlayerCameraManager::SetDesiredColorScale(FVector NewColorScale, float InterpTime)
@@ -953,8 +953,8 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 			const float ClientNetCamUpdateDeltaTime = GameNetworkManager->ClientNetCamUpdateDeltaTime;
 			const float ClientNetCamUpdatePositionLimit = GameNetworkManager->ClientNetCamUpdatePositionLimit;
 
-			const FMinimalViewInfo& CurrentPOV = GetCameraCachePOV();
-			const FMinimalViewInfo& LastPOV = GetLastFrameCameraCachePOV();
+			const FMinimalViewInfo& CurrentPOV = GetCameraCacheView();
+			const FMinimalViewInfo& LastPOV = GetLastFrameCameraCacheView();
 
 			FVector ClientCameraPosition = FRepMovement::RebaseOntoZeroOrigin(CurrentPOV.Location, this);
 			FVector PrevClientCameraPosition = FRepMovement::RebaseOntoZeroOrigin(LastPOV.Location, this);
@@ -1173,7 +1173,7 @@ void APlayerCameraManager::FillCameraCache(const FMinimalViewInfo& NewInfo)
 	const float CurrentGameTime = GetWorld()->TimeSeconds;
 	if (CurrentCacheTime != CurrentGameTime)
 	{
-		SetLastFrameCameraCachePOV(GetCameraCachePOV());
+		SetLastFrameCameraCachePOV(GetCameraCacheView());
 		SetLastFrameCameraCacheTime(CurrentCacheTime);
 	}
 
@@ -1240,7 +1240,7 @@ void APlayerCameraManager::LimitViewYaw(FRotator& ViewRotation, float InViewYawM
 
 void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
-	const FMinimalViewInfo& CurrentPOV = GetCameraCachePOV();
+	const FMinimalViewInfo& CurrentPOV = GetCameraCacheView();
 
 	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
 	DisplayDebugManager.SetDrawColor(FColor(255, 255, 255));
@@ -1266,11 +1266,11 @@ void APlayerCameraManager::ApplyWorldOffset(const FVector& InOffset, bool bWorld
 {
 	Super::ApplyWorldOffset(InOffset, bWorldShift);
 
-	FMinimalViewInfo CurrentPOV = GetCameraCachePOV();
+	FMinimalViewInfo CurrentPOV = GetCameraCacheView();
 	CurrentPOV.Location += InOffset;
 	SetCameraCachePOV(CurrentPOV);
 
-	FMinimalViewInfo LastFramePOV = GetLastFrameCameraCachePOV();
+	FMinimalViewInfo LastFramePOV = GetLastFrameCameraCacheView();
 	LastFramePOV.Location += InOffset;
 	SetLastFrameCameraCachePOV(LastFramePOV);
 
@@ -1568,14 +1568,24 @@ void APlayerCameraManager::SetLastFrameCameraCachePOV(const FMinimalViewInfo& In
 	LastFrameCameraCachePrivate.POV = InPOV;
 }
 
-const FMinimalViewInfo& APlayerCameraManager::GetCameraCachePOV() const
+const FMinimalViewInfo& APlayerCameraManager::GetCameraCacheView() const
 {
 	return CameraCachePrivate.POV;
 }
 
-const FMinimalViewInfo& APlayerCameraManager::GetLastFrameCameraCachePOV() const
+const FMinimalViewInfo& APlayerCameraManager::GetLastFrameCameraCacheView() const
 {
 	return LastFrameCameraCachePrivate.POV;
+}
+
+FMinimalViewInfo APlayerCameraManager::GetCameraCachePOV() const
+{
+	return GetCameraCacheView();
+}
+
+FMinimalViewInfo APlayerCameraManager::GetLastFrameCameraCachePOV() const
+{
+	return GetLastFrameCameraCacheView();
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

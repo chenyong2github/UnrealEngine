@@ -306,9 +306,9 @@ FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFa
 		APlayerCameraManager* PlayerCameraManager = GetPipeline()->GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
 		
 		// Stretch the fovs if the view is constrained to the camera's aspect ratio
-		if (PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
+		if (PlayerCameraManager && PlayerCameraManager->GetCameraCacheView().bConstrainAspectRatio)
 		{
-			const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
+			const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCacheView();
 			const float DestAspectRatio = ViewInitOptions.GetViewRect().Width() / (float)ViewInitOptions.GetViewRect().Height();
 
 			// If the camera's aspect ratio has a thinner width, then stretch the horizontal fov more than usual to 
@@ -460,7 +460,7 @@ void UMoviePipelineImagePassBase::BlendPostProcessSettings(FSceneView* InView)
 			InView->ColorScale = FLinearColor(ColorScale.X, ColorScale.Y, ColorScale.Z);
 		}
 
-		FMinimalViewInfo ViewInfo = LocalPlayerController->PlayerCameraManager->GetCameraCachePOV();
+		FMinimalViewInfo ViewInfo = LocalPlayerController->PlayerCameraManager->GetCameraCacheView();
 		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
 		{
 			InView->OverridePostProcessSettings((*CameraAnimPPSettings)[PPIdx], (*CameraAnimPPBlendWeights)[PPIdx]);
