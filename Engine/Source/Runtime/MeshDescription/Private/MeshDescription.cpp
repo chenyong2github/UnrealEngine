@@ -1886,7 +1886,7 @@ void FMeshDescription::ReverseTriangleFacing(const FTriangleID TriangleID)
 	TArrayView<FEdgeID> TriEdges = TriangleEdges[TriangleID];
 	Swap(TriVertexInstances[0], TriVertexInstances[1]);
 	Swap(TriVertices[0], TriVertices[1]);
-	Swap(TriEdges[0], TriEdges[1]);
+	Swap(TriEdges[1], TriEdges[2]);
 }
 
 

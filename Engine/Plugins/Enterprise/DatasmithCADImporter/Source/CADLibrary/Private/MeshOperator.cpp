@@ -80,14 +80,16 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 					NbBorderEdges++;
 					continue;
 				}
-				NbSurfaceEdges++;
 
 				AdjacentTriangle = MeshWrapper.GetOtherTriangleAtEdge(Edge, Triangle);
 				if (MeshWrapper.IsTriangleMarked(AdjacentTriangle))
 				{
 					continue;
 				}
+
+				NbSurfaceEdges++;
 				NbConnectedFaces++;
+
 				ConnectedTriangles.Add(AdjacentTriangle);
 
 				if(MeshWrapper.GetEdgeDirectionInTriangle(Edge, 0) == MeshWrapper.GetEdgeDirectionInTriangle(Edge, 1))
@@ -105,7 +107,7 @@ bool MeshOperator::OrientMesh(FMeshDescription& MeshDescription)
 		// Check if the mesh orientation need to be swapped
 		int NbInverted = 0;
 		int NbNotInverted = 0;
-		if (NbBorderEdges == 0 || NbBorderEdges * 40 < NbSurfaceEdges)  // NbBorderEdges * 40 < nbSurfaceEdges => basic rule to define if a mesh is a surface mesh or if the mesh is a volume mesh with gaps 
+		if (NbBorderEdges == 0 || NbBorderEdges * 20 < NbSurfaceEdges)  // NbBorderEdges * 20 < nbSurfaceEdges => basic rule to define if a mesh is a surface mesh or if the mesh is a volume mesh with gaps 
 		{
 			// case of volume mesh
 			// A vertex can have many normal (one by vertex instance) e.g. the corner of a box that have 3 normal and could be the highest 
