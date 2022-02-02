@@ -234,7 +234,7 @@ FAutoConsoleVariableRef GVarLumenScreenSpaceBentNormal(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenScreenBentNormalApplyDuringIntegration = 1;
+int32 GLumenScreenBentNormalApplyDuringIntegration = 0;
 FAutoConsoleVariableRef CVarLumenScreenBentNormalApplyDuringIntegration(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.ApplyDuringIntegration"),
 	GLumenScreenBentNormalApplyDuringIntegration,
