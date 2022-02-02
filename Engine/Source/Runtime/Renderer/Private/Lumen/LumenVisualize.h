@@ -19,8 +19,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneParameters, )
 	SHADER_PARAMETER(FIntPoint, OutputViewOffset)
 	SHADER_PARAMETER(float, PreviewConeAngle)
 	SHADER_PARAMETER(float, TanPreviewConeAngle)
-	SHADER_PARAMETER(int, VisualizeHiResSurface)
-	SHADER_PARAMETER(int, VisualizeMode)
+	SHADER_PARAMETER(int32, VisualizeHiResSurface)
+	SHADER_PARAMETER(int32, Tonemap)
+	SHADER_PARAMETER(int32, VisualizeMode)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, ColorGradingLUT)
+	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 namespace LumenVisualize
@@ -39,3 +43,25 @@ namespace LumenVisualize
 		FRDGTextureRef SceneColor,
 		bool bVisualizeModeWithHitLighting);
 };
+
+struct FVisualizeLumenSceneInputs
+{
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// [Required] The scene color
+	FScreenPassTexture SceneColor;
+
+	// [Required] The scene depth
+	FScreenPassTexture SceneDepth;
+
+	FRDGTextureRef ColorGradingTexture = nullptr;
+	FRDGTextureRef EyeAdaptationTexture = nullptr;
+
+	// [Required] Used when scene textures are required by the material.
+	FSceneTextureShaderParameters SceneTextures;
+};
+
+extern FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, bool bAnyLumenActive, const FVisualizeLumenSceneInputs& Inputs, FLumenSceneFrameTemporaries& FrameTemporaries);
+
+extern int32 GetLumenVisualizeMode(const FViewInfo& View);

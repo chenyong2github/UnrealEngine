@@ -1580,7 +1580,7 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
 		Section.AddSubMenu(
 			"VisualizeLumenViewMode",
-			LOCTEXT("VisualizeLumenViewModeDisplayName", "Lumen Visualization"),
+			LOCTEXT("VisualizeLumenViewModeDisplayName", "Lumen"),
 			LOCTEXT("LumenVisualizationMenu_ToolTip", "Select a mode for Lumen visualization"),
 			FNewMenuDelegate::CreateStatic(&FLumenVisualizationMenuCommands::BuildVisualisationSubMenu),
 			FUIAction(

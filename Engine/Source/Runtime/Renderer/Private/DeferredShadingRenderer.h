@@ -542,7 +542,7 @@ private:
 		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
-	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
 

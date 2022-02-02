@@ -7,6 +7,11 @@
 
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
+#include "LumenVisualize.ush"
+
+#if LUMEN_HARDWARE_RAYTRACING
+#include "LumenHardwareRayTracingCommon.ush"
+#endif
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -55,12 +60,6 @@ RWBuffer<uint> RWTileAllocator;
 RWStructuredBuffer<FTileDataPacked> RWTileDataPacked;
 
 groupshared uint SharedTileNeedsTracing;
-
-uint2 InputViewSize;
-uint2 InputViewOffset;
-uint2 OutputViewSize;
-uint2 OutputViewOffset;
-float TanPreviewConeAngle;
 
 [numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
 void FLumenVisualizeCreateTilesCS(
@@ -128,16 +127,6 @@ FRayData UnpackRayData(FRayDataPacked RayDataPacked)
 	return RayData;
 }
 
-float3 CreateRayDirection(float2 UV)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-
-	float4 A = mul(float4(ScreenPosition, 1, 1), View.ClipToTranslatedWorld); // near 
-	float4 B = mul(float4(ScreenPosition, 0, 1), View.ClipToTranslatedWorld); // far
-	float3 RayDirection = normalize(A.w * B.xyz - B.w * A.xyz);
-	return RayDirection;
-}
-
 StructuredBuffer<FTileDataPacked> TileDataPacked;
 float MaxTraceDistance;
 
@@ -165,10 +154,8 @@ void FLumenVisualizeCreateRaysCS(
 		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
 		uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
 
-		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(InputScreenCoord, 0)).x);
-		bool bIsRayValid = SceneDepth < MaxTraceDistance;
+		bool bIsRayValid = true;
 
-		//@todo - this assumes ray tracing hits the same thing as the rasterizer, which is not true with backfaces
 		if (bIsRayValid)
 		{
 			uint ThreadOffset;
@@ -189,30 +176,6 @@ void FLumenVisualizeCreateRaysCS(
 	{
 		FRayDataPacked RayDataPacked = SharedRayDataPacked[GroupThreadId];
 		RWRayDataPacked[SharedGroupOffset + GroupThreadId] = RayDataPacked;
-	}
-}
-
-RWTexture2D<float3> RWRadiance;
-
-[numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
-void FLumenVisualizeApplySkylightCS(
-	uint2 DispatchThreadId : SV_DispatchThreadID
-)
-{
-	uint2 TraceCoord = DispatchThreadId.xy;
-	uint2 OutputScreenCoord = TraceCoord + OutputViewOffset;
-	if (all(TraceCoord < OutputViewSize))
-	{
-		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
-		uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
-
-		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(InputScreenCoord, 0)).x);
-		bool bIsRayValid = SceneDepth < MaxTraceDistance;
-		if (!bIsRayValid)
-		{
-			float3 RayDirection = CreateRayDirection(ViewportUV);
-			RWRadiance[OutputScreenCoord] = EvaluateSkyRadiance(RayDirection, TanPreviewConeAngle) * View.PreExposure;
-		}
 	}
 }
 
@@ -308,23 +271,28 @@ void FLumenVisualizeCompactRaysCS(
 	GroupMemoryBarrierWithGroupSync();
 
 	uint RayIndex = DispatchThreadId;
-	FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
-#if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
-	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
-#elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
-	bool bIsRayValid = TraceData.bIsHit;
-#else // DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE
-	bool bIsRayValid = !TraceData.bIsHit;
-#endif // DIM_COMPACT_MODE
-	if (bIsRayValid)
-	{
-		// Allocate rays to re-trace with hit lighting
-		uint ThreadOffset;
-		InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
 
-		SharedRayDataPacked[ThreadOffset] = RayDataPacked[RayIndex];
-		SharedTraceDataPacked[ThreadOffset] = TraceDataPacked[RayIndex];
+	if (RayIndex < RayAllocator[0])
+	{
+		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+#if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
+		bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
+#elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
+		bool bIsRayValid = TraceData.bIsHit;
+#else // DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE
+		bool bIsRayValid = !TraceData.bIsHit;
+#endif // DIM_COMPACT_MODE
+		if (bIsRayValid)
+		{
+			// Allocate rays to re-trace with hit lighting
+			uint ThreadOffset;
+			InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
+
+			SharedRayDataPacked[ThreadOffset] = RayDataPacked[RayIndex];
+			SharedTraceDataPacked[ThreadOffset] = TraceDataPacked[RayIndex];
+		}
 	}
+	
 	GroupMemoryBarrierWithGroupSync();
 
 	if (GroupThreadId == 0)
@@ -422,8 +390,9 @@ void FLumenVisualizeBucketRaysByMaterialIdCS(
 	}
 }
 
+RWTexture2D<float3> RWRadiance;
+
 #if LUMEN_HARDWARE_RAYTRACING
-#include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE
 #define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
@@ -443,6 +412,7 @@ uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
 float FarFieldDitheredStartDistanceFactor;
+uint ApplySkylightStage;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
@@ -473,6 +443,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 
 		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
 		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
+
+		// We are rendering after TAAU, remove jitter
+		BufferUV += View.TemporalAAJitter.xy * View.ScreenPositionScaleBias.xy;
 
 		RayDesc Ray = CreatePrimaryRay(BufferUV);
 		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
@@ -529,21 +502,23 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 #endif
 #endif
 
-#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
-		if (VisualizeMode == 0 && !Result.bIsHit)
+#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted));
+#endif // DIM_TRACE_MODE
+
+		if (ApplySkylightStage != 0 && !Result.bIsHit)
 		{
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Transparency = 1;
 			EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
 			Result.Radiance = TraceResult.Lighting;
 		}
-#endif // DIM_TRACE_MODE
-
-#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted));
-#endif // DIM_TRACE_MODE
 
 		Result.Radiance *= View.PreExposure;
+
+		// The overview outputs after the tonemapper to overwrite editor primitives and must apply its own tonemapping
+		Result.Radiance.rgb = VisualizeTonemap(Result.Radiance.rgb);
+
 		RWRadiance[OutputScreenCoord] = Result.Radiance;
 	}
 }

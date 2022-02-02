@@ -67,7 +67,7 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingGroupCoun
 
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingRetraceHitLighting(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.Retrace.HitLighting"),
-	1,
+	0,
 	TEXT("Determines whether a second trace will be fired for hit-lighting for invalid surface-cache hits (default = 1"),
 	ECVF_RenderThreadSafe
 );
@@ -406,6 +406,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 		SHADER_PARAMETER(float, FarFieldDitheredStartDistanceFactor)
+		SHADER_PARAMETER(uint32, ApplySkylightStage)
 
 		// Output
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
@@ -432,41 +433,6 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "LumenVisualizeHardwareRayTracingRGS", SF_RayGen);
-
-class FLumenVisualizeApplySkylightCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenVisualizeApplySkylightCS)
-	SHADER_USE_PARAMETER_STRUCT(FLumenVisualizeApplySkylightCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		// Input
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenVisualizeSceneParameters, VisualizeParameters)
-		SHADER_PARAMETER(float, MaxTraceDistance)
-
-		// Output
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
-	}
-
-	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
-	static int32 GetThreadGroupSize2D() { return 8; }
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeApplySkylightCS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "FLumenVisualizeApplySkylightCS", SF_Compute);
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualize(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
@@ -618,6 +584,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
+			PassParameters->ApplySkylightStage = bTraceFarField ? 0 : 1;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -650,29 +617,29 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	FRDGBufferRef FarFieldRayDataPackedBuffer = RayDataPackedBuffer;
 	FRDGBufferRef FarFieldTraceDataPackedBuffer = TraceDataPackedBuffer;
 
+	FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Visualize.CompactTracingIndirectArgs"));
+	{
+		FLumenVisualizeCompactRaysIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysIndirectArgsCS::FParameters>();
+		{
+			PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
+			PassParameters->RWCompactRaysIndirectArgs = GraphBuilder.CreateUAV(CompactRaysIndirectArgsBuffer, PF_R32_UINT);
+		}
+
+		TShaderRef<FLumenVisualizeCompactRaysIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysIndirectArgsCS>();
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("FLumenVisualizeCompactRaysIndirectArgsCS"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+	}
+
 	// Fire secondary rays for hit-lighting, resolving some of the screen and collecting miss rays
 	if (bRetraceForHitLighting || bForceHitLighting)
 	{
 		// Compact rays which need to be re-traced
 		if ((CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread() != 0) || bForceHitLighting)
 		{
-			FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Visualize.CompactTracingIndirectArgs"));
-			{
-				FLumenVisualizeCompactRaysIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysIndirectArgsCS::FParameters>();
-				{
-					PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
-					PassParameters->RWCompactRaysIndirectArgs = GraphBuilder.CreateUAV(CompactRaysIndirectArgsBuffer, PF_R32_UINT);
-				}
-
-				TShaderRef<FLumenVisualizeCompactRaysIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysIndirectArgsCS>();
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("FLumenVisualizeCompactRaysIndirectArgsCS"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(1, 1, 1));
-			}
-
 			FRDGBufferRef CompactedRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.CompactedRayAllocator"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
@@ -789,6 +756,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
+			PassParameters->ApplySkylightStage = 0;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -821,23 +789,6 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 		// Compact rays which need to be re-traced
 		if (CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread())
 		{
-			FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Visualize.CompactTracingIndirectArgs"));
-			{
-				FLumenVisualizeCompactRaysIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysIndirectArgsCS::FParameters>();
-				{
-					PassParameters->RayAllocator = GraphBuilder.CreateSRV(FarFieldRayAllocatorBuffer, PF_R32_UINT);;
-					PassParameters->RWCompactRaysIndirectArgs = GraphBuilder.CreateUAV(CompactRaysIndirectArgsBuffer, PF_R32_UINT);
-				}
-
-				TShaderRef<FLumenVisualizeCompactRaysIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysIndirectArgsCS>();
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("FLumenVisualizeCompactRaysIndirectArgsCS"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(1, 1, 1));
-			}
-
 			FRDGBufferRef CompactedRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.CompactedRayAllocator"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
@@ -905,6 +856,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
+			PassParameters->ApplySkylightStage = 1;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -929,32 +881,6 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 				RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchResolution.X, DispatchResolution.Y);
 			}
 		);
-	}
-	
-	// Apply Sky Lighting for rays that would begin beyond FarFieldMaxTraceDistance
-	{
-		FLumenVisualizeApplySkylightCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeApplySkylightCS::FParameters>();
-		{
-			// Input
-			PassParameters->SceneTextures = SceneTextures;
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-
-			PassParameters->VisualizeParameters = VisualizeParameters;
-			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
-
-			// Output
-			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
-		}
-
-		TShaderRef<FLumenVisualizeApplySkylightCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeApplySkylightCS>();
-
-		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(VisualizeParameters.OutputViewSize, FLumenVisualizeApplySkylightCS::GetThreadGroupSize2D());
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("FLumenVisualizeApplySkylightCS"),
-			ComputeShader,
-			PassParameters,
-			GroupCount);
 	}
 }
 #else

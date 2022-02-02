@@ -16,16 +16,11 @@
 #include "../DeferredShadingCommon.ush"
 #include "../SHCommon.ush"
 #include "../ShaderPrintCommon.ush"
+#include "LumenVisualize.ush"
 
 uint3 CullGridSize;
 uint CardGridPixelSizeShift;
 int VisualizeTileIndex;
-uint2 InputViewSize;
-uint2 InputViewOffset;
-uint2 OutputViewSize;
-uint2 OutputViewOffset;
-float PreviewConeAngle;
-float TanPreviewConeAngle;
 float VisualizeStepFactor;
 float VoxelStepFactor;
 float MinTraceDistance;
@@ -62,7 +57,8 @@ void VisualizeQuadsCS(
 	}
 
 	float2 ScreenPosition = float2(2.0f, -2.0f) * ViewportUV + float2(-1.0f, 1.0f);
-	float3 ScreenVector = mul(float4(ScreenPosition, 1, 0), View.ScreenToTranslatedWorld).xyz;
+	// We are rendering after TAAU, remove jitter
+	float3 ScreenVector = mul(float4(ScreenPosition + View.TemporalAAJitter.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
 	float3 CameraVector = normalize(ScreenVector);
 	float Noise = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8);
 
@@ -99,7 +95,9 @@ void VisualizeQuadsCS(
 	TraceInput.VoxelTraceStartDistance = min(TraceInput.VoxelTraceStartDistance, TraceDistance);
 #endif
 
-	int2 CellCoord = clamp((int2)PixelPos >> CardGridPixelSizeShift, int2(0, 0), (int2)CullGridSize.xy - 1);
+	// The visualization pass is after TAAU, correct for being after the upscaler
+	int2 RenderingViewportPixelPos = PixelPos * (int2)View.ViewSizeAndInvSize / InputViewSize;
+	int2 CellCoord = clamp((int2)RenderingViewportPixelPos >> CardGridPixelSizeShift, int2(0, 0), (int2)CullGridSize.xy - 1);
 	uint CardGridCellIndex = CellCoord.x + CellCoord.y * CullGridSize.x;
 
 	TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
@@ -166,6 +164,9 @@ void VisualizeQuadsCS(
 	{
 		FinalColor = float4(Debug, 0);
 	}
+
+	// The overview outputs after the tonemapper to overwrite editor primitives and must apply its own tonemapping
+	FinalColor.rgb = VisualizeTonemap(FinalColor.rgb);
 
 	RWSceneColor[OutputScreenCoord] = FinalColor;
 }

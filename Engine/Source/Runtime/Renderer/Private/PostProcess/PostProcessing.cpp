@@ -56,6 +56,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
+#include "Lumen/LumenVisualize.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -186,10 +187,12 @@ bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View);
 void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	bool bAnyLumenActive,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager,
-	FVirtualShadowMapArray* VirtualShadowMapArray)
+	FVirtualShadowMapArray* VirtualShadowMapArray, 
+	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -241,12 +244,15 @@ void AddPostProcessingPasses(
 	const bool bVisualizeGBufferDumpToFile = IsVisualizeGBufferDumpToFileEnabled(View);
 	const bool bVisualizeGBufferDumpToPIpe = IsVisualizeGBufferDumpToPipeEnabled(View);
 	const bool bOutputInHDR = IsPostProcessingOutputInHDR();
+	const int32 VisualizeMode = GetLumenVisualizeMode(View);
+	const bool bPostProcessingEnabled = IsPostProcessingEnabled(View);
 
 	const FPaniniProjectionConfig PaniniConfig(View);
 
 	enum class EPass : uint32
 	{
 		MotionBlur,
+		VisualizeLumenScene,
 		Tonemap,
 		FXAA,
 		PostProcessMaterialAfterTonemapping,
@@ -263,6 +269,7 @@ void AddPostProcessingPasses(
 		VisualizeGBufferHints,
 		VisualizeSubsurface,
 		VisualizeGBufferOverview,
+		VisualizeLumenSceneOverview,
 		VisualizeHDR,
 		VisualizeLocalExposure,
 		PixelInspector,
@@ -291,6 +298,7 @@ void AddPostProcessingPasses(
 	const TCHAR* PassNames[] =
 	{
 		TEXT("MotionBlur"),
+		TEXT("VisualizeLumenScene"),
 		TEXT("Tonemap"),
 		TEXT("FXAA"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
@@ -307,6 +315,7 @@ void AddPostProcessingPasses(
 		TEXT("VisualizeGBufferHints"),
 		TEXT("VisualizeSubsurface"),
 		TEXT("VisualizeGBufferOverview"),
+		TEXT("VisualizeLumenSceneOverview"),
 		TEXT("VisualizeHDR"),
 		TEXT("VisualizeLocalExposure"),
 		TEXT("PixelInspector"),
@@ -316,10 +325,11 @@ void AddPostProcessingPasses(
 		TEXT("SecondaryUpscale")
 	};
 
-	static_assert(static_cast<uint32>(EPass::MAX) == UE_ARRAY_COUNT(PassNames), "EPass does not match PassNames.");
+	static_assert(static_cast<uint32>(EPass::MAX) == UE_ARRAY_COUNT(PassNames), "EPass does not match PassNames."); 
 
 	TOverridePassSequence<EPass> PassSequence(ViewFamilyOutput);
 	PassSequence.SetNames(PassNames, UE_ARRAY_COUNT(PassNames));
+	PassSequence.SetEnabled(EPass::VisualizeLumenScene, VisualizeMode != VISUALIZE_MODE_OVERVIEW);
 	PassSequence.SetEnabled(EPass::VisualizeStationaryLightOverlap, EngineShowFlags.StationaryLightOverlap);
 	PassSequence.SetEnabled(EPass::VisualizeLightCulling, EngineShowFlags.VisualizeLightCulling);
 #if DEBUG_POST_PROCESS_VOLUME_ENABLE
@@ -343,6 +353,7 @@ void AddPostProcessingPasses(
 	PassSequence.SetEnabled(EPass::VisualizeGBufferHints, EngineShowFlags.GBufferHints);
 	PassSequence.SetEnabled(EPass::VisualizeSubsurface, EngineShowFlags.VisualizeSSS);
 	PassSequence.SetEnabled(EPass::VisualizeGBufferOverview, bVisualizeGBufferOverview || bVisualizeGBufferDumpToFile || bVisualizeGBufferDumpToPIpe);
+	PassSequence.SetEnabled(EPass::VisualizeLumenSceneOverview, VisualizeMode == VISUALIZE_MODE_OVERVIEW && bPostProcessingEnabled);
 	PassSequence.SetEnabled(EPass::VisualizeHDR, EngineShowFlags.VisualizeHDR);
 #if WITH_EDITOR
 	PassSequence.SetEnabled(EPass::PixelInspector, View.bUsePixelInspector);
@@ -390,7 +401,7 @@ void AddPostProcessingPasses(
 		return MoveTemp(InSceneColor);
 	};
 
-	if (IsPostProcessingEnabled(View))
+	if (bPostProcessingEnabled)
 	{
 		const bool bPrimaryView = IStereoRendering::IsAPrimaryView(View);
 		const bool bHasViewState = View.ViewState != nullptr;
@@ -681,6 +692,17 @@ void AddPostProcessingPasses(
 			}
 
 			SceneColor = NewSceneColor;
+		}
+
+		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
+		{
+			FVisualizeLumenSceneInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenScene, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
+
+			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
 		}
 
 		// Generate post motion blur lower res scene color if they have not been generated.
@@ -978,6 +1000,17 @@ void AddPostProcessingPasses(
 			SceneColor = TranslucencyComposition.SceneColor;
 		}
 
+		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
+		{
+			FVisualizeLumenSceneInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenScene, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
+
+			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
+		}
+
 		SceneColorBeforeTonemap = SceneColor;
 
 		if (PassSequence.IsEnabled(EPass::Tonemap))
@@ -1142,6 +1175,19 @@ void AddPostProcessingPasses(
 		PassInputs.bOutputInHDR = bOutputInHDR;
 
 		SceneColor = AddVisualizeGBufferOverviewPass(GraphBuilder, View, PassInputs);
+	}
+
+	if (PassSequence.IsEnabled(EPass::VisualizeLumenSceneOverview))
+	{
+		FVisualizeLumenSceneInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenSceneOverview, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.SceneDepth = SceneDepth;
+		PassInputs.ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT());
+		PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
+		PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
+
+		SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
 	}
 
 	if (PassSequence.IsEnabled(EPass::VisualizeHDR))

@@ -16,7 +16,7 @@ FLumenVisualizationMenuCommands::FLumenVisualizationMenuCommands()
 	: TCommands<FLumenVisualizationMenuCommands>
 	(
 		TEXT("LumenVisualizationMenu"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "LumenVisualizationMenu", "Lumen Visualization"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "LumenVisualizationMenu", "Lumen"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
 		FEditorStyle::GetStyleSetName() // Icon Style Set
 	),

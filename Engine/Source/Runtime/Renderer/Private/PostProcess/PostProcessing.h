@@ -44,10 +44,12 @@ struct FPostProcessingInputs
 void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	bool bAnyLumenActive,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager,
-	FVirtualShadowMapArray* VirtualShadowMapArray);
+	FVirtualShadowMapArray* VirtualShadowMapArray,
+	struct FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
 void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 

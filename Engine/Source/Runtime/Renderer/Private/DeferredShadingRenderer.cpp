@@ -3200,8 +3200,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bRenderDeferredLighting)
 	{
-		RenderLumenSceneVisualization(GraphBuilder, SceneTextures, LumenFrameTemporaries);
-		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+		RenderLumenMiscVisualizations(GraphBuilder, SceneTextures, LumenFrameTemporaries);
 		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 	}
 
@@ -3301,10 +3300,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				else
 #endif
 				{
-					AddPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray);
+					const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+					const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+
+					AddPostProcessingPasses(GraphBuilder, View, bAnyLumenActive, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray, LumenFrameTemporaries);
 				}
 			}
 		}
+	}
+
+	if (bRenderDeferredLighting)
+	{
+		// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
+		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 	}
 
 	for (FViewInfo& View : Views)
