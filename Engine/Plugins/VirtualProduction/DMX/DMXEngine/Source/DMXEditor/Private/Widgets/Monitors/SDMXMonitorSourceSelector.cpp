@@ -275,7 +275,7 @@ void SDMXMonitorSourceSelector::UpdateMonitoredPorts()
 			}
 
 			// Make a selection if nothing was already selected
-			if (SelectedOutputPorts.IsEmpty() && FDMXPortManager::Get().GetInputPorts().Num() > 0)
+			if (SelectedOutputPorts.IsEmpty() && FDMXPortManager::Get().GetOutputPorts().Num() > 0)
 			{
 				const FDMXOutputPortSharedRef& NewSelection = FDMXPortManager::Get().GetOutputPorts()[0];
 				PortSelector->SelectPort(NewSelection->GetPortGuid());
