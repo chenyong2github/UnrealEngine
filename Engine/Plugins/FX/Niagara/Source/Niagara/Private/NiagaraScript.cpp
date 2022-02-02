@@ -3166,7 +3166,10 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 	CachedScriptVM.Reset();
 	ScriptResource->Invalidate();
 	CachedScriptVMId.Invalidate();
-	GetLastGeneratedVMId().Invalidate();
+	if (VersionData.Num() > 0)
+	{
+		GetLastGeneratedVMId().Invalidate();
+	}
 	CachedDefaultDataInterfaces.Reset();
 	CachedScriptVM.OptimizationTask.State = nullptr;
 }
