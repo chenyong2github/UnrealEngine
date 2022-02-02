@@ -902,7 +902,7 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 #if RAYHITGROUPSHADER
 	FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 	{
-		FVertexFactoryInput Input;
+		FVertexFactoryInput Input = (FVertexFactoryInput) 0;
 
 		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
 		uint VertexId = Tri.Indices[VertexIndex];
@@ -915,6 +915,12 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 #if PASS_NEEDS_VERTEX_ID || MANUAL_VERTEX_FETCH
 		Input.VertexId = VertexId;
 #endif // #if PASS_NEEDS_VERTEX_ID
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+		// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
+		int PrimitiveId = GetInstanceUserData();
+		Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
+#endif
 
 		return Input;
 	}
