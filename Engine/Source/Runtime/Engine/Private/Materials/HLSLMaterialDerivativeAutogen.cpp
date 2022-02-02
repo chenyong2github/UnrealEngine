@@ -448,8 +448,6 @@ FMaterialDerivativeAutogen::FOperationType2 FMaterialDerivativeAutogen::GetFunc2
 		}
 		break;
 	case EFunc2::Cross:
-		check(LhsNonLWCType == EDerivativeType::Float3);
-		check(RhsNonLWCType == EDerivativeType::Float3);
 		return EDerivativeType::Float3;
 	default:
 		check(0);
