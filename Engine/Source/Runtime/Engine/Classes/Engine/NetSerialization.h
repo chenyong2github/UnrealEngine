@@ -11,13 +11,11 @@
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
-#include "Serialization/BitReader.h"
-#include "Misc/NetworkGuid.h"
+#include "Misc/NetworkVersion.h"
 #include "UObject/CoreNet.h"
 #include "EngineLogs.h"
+#include "Net/Core/Serialization/QuantizedVectorSerialization.h"
 #include "Net/Serialization/FastArraySerializer.h"
-#include "Containers/ArrayView.h"
-#include "HAL/IConsoleManager.h"
 
 #include "NetSerialization.generated.h"
 
@@ -171,57 +169,14 @@ struct TStructOpsTypeTraits< FExampleStruct > : public TStructOpsTypeTraitsBase2
  *
 */
 
-// LWC_TODO: Proper double FVector serialization required.
-template<int32 ScaleFactor, int32 MaxBitsPerComponent>
-bool WritePackedVector(FVector3f Value, FArchive& Ar)	// Note Value is intended to not be a reference since we are scaling it before serializing!
+namespace UE::Net::Private
 {
-	check(Ar.IsSaving());
 
-	// Scale vector by quant factor first
-	Value *= ScaleFactor;
-
-	// Nan Check
-	if( Value.ContainsNaN() )
-	{
-		logOrEnsureNanError(TEXT("WritePackedVector: Value contains NaN, clearing for safety."));
-		FVector	Dummy(0, 0, 0);
-		WritePackedVector<ScaleFactor, MaxBitsPerComponent>(Dummy, Ar);
-		return false;
-	}
-
-	// Some platforms have RoundToInt implementations that essentially reduces the allowed inputs to 2^31.
-	const FVector3f ClampedValue = ClampVector(Value, FVector3f(-1073741824.0f), FVector3f(1073741760.0f));
-	bool bClamp = ClampedValue != Value;
-
-	// Do basically FVector::SerializeCompressed
-	int32 IntX	= FMath::RoundToInt(ClampedValue.X);
-	int32 IntY	= FMath::RoundToInt(ClampedValue.Y);
-	int32 IntZ	= FMath::RoundToInt(ClampedValue.Z);
-			
-	uint32 Bits	= FMath::Clamp<uint32>( FMath::CeilLogTwo( 1 + FMath::Max3( FMath::Abs(IntX), FMath::Abs(IntY), FMath::Abs(IntZ) ) ), 1, MaxBitsPerComponent ) - 1;
-
-	// Serialize how many bits each component will have
-	Ar.SerializeInt( Bits, MaxBitsPerComponent );
-
-	int32  Bias	= 1<<(Bits+1);
-	uint32 Max	= 1<<(Bits+2);
-	uint32 DX	= IntX + Bias;
-	uint32 DY	= IntY + Bias;
-	uint32 DZ	= IntZ + Bias;
-
-	if (DX >= Max) { bClamp=true; DX = static_cast<int32>(DX) > 0 ? Max-1 : 0; }
-	if (DY >= Max) { bClamp=true; DY = static_cast<int32>(DY) > 0 ? Max-1 : 0; }
-	if (DZ >= Max) { bClamp=true; DZ = static_cast<int32>(DZ) > 0 ? Max-1 : 0; }
-	
-	Ar.SerializeInt( DX, Max );
-	Ar.SerializeInt( DY, Max );
-	Ar.SerializeInt( DZ, Max );
-
-	return !bClamp;
-}
-
-template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
-bool ReadPackedVector(FVector3f &Value, FArchive& Ar)
+// ScaleFactor is multiplied before send and divided by post receive. A higher ScaleFactor means more precision.
+// MaxBitsPerComponent is the maximum number of bits to use per component. This is only a maximum. A header is
+// written (size = Log2 (MaxBitsPerComponent)) to indicate how many bits are actually used. 
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool LegacyReadPackedVector(FVector3f& Value, FArchive& Ar)
 {
 	uint32 Bits	= 0;
 
@@ -238,7 +193,6 @@ bool ReadPackedVector(FVector3f &Value, FArchive& Ar)
 	Ar.SerializeInt( DY, Max );
 	Ar.SerializeInt( DZ, Max );
 	
-	
 	float fact = (float)ScaleFactor;
 
 	Value.X = (float)(static_cast<int32>(DX)-Bias) / fact;
@@ -248,45 +202,83 @@ bool ReadPackedVector(FVector3f &Value, FArchive& Ar)
 	return true;
 }
 
-template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
+}
+
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool WritePackedVector(FVector3f Value, FArchive& Ar)
+{
+	return UE::Net::WriteQuantizedVector(ScaleFactor, Value, Ar);
+}
+
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool WritePackedVector(FVector3d Vector, FArchive& Ar)
+{
+	return UE::Net::WriteQuantizedVector(ScaleFactor, Vector, Ar);
+}
+
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool ReadPackedVector(FVector3f& Value, FArchive& Ar)
+{
+	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT)
+	{
+		return UE::Net::ReadQuantizedVector(ScaleFactor, Value, Ar);
+	}
+	else
+	{
+		return UE::Net::Private::LegacyReadPackedVector<ScaleFactor, MaxBitsPerComponent>(Value, Ar);
+	}
+}
+
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
 bool ReadPackedVector(FVector3d& Value, FArchive& Ar)
 {
-	// LWC_TODO: Proper double FVector serialization required.
-	FVector3f AsFloat;
-	bool bRet = ReadPackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
-	Value = AsFloat;
-	return bRet;
-}
-
-// ScaleFactor is multiplied before send and divided by post receive. A higher ScaleFactor means more precision.
-// MaxBitsPerComponent is the maximum number of bits to use per component. This is only a maximum. A header is
-// written (size = Log2 (MaxBitsPerComponent)) to indicate how many bits are actually used. 
-
-template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
-bool SerializePackedVector(FVector3f &Vector, FArchive& Ar)
-{
-	if (Ar.IsSaving())
+	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT)
 	{
-		return  WritePackedVector<ScaleFactor, MaxBitsPerComponent>(Vector, Ar);
+		return UE::Net::ReadQuantizedVector(ScaleFactor, Value, Ar);
 	}
-
-	ReadPackedVector<ScaleFactor, MaxBitsPerComponent>(Vector, Ar);
-	return true;
+	else
+	{
+		FVector3f AsFloat;
+		const bool bRet =  UE::Net::Private::LegacyReadPackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
+		Value = FVector3d(AsFloat);
+		return bRet;
+	}
 }
 
-template<uint32 ScaleFactor, int32 MaxBitsPerComponent>
-bool SerializePackedVector(FVector3d& Vector, FArchive& Ar)
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool SerializePackedVector(FVector3f& Value, FArchive& Ar)
 {
-	// LWC_TODO: Proper double FVector serialization required.
-	FVector3f AsFloat(Vector);
-	bool bRet = SerializePackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
-	Vector = AsFloat;
-	return bRet;
+	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT)
+	{
+		return UE::Net::SerializeQuantizedVector<ScaleFactor>(Value, Ar);
+	}
+	else
+	{
+		check(Ar.IsLoading());
+		return UE::Net::Private::LegacyReadPackedVector<ScaleFactor, MaxBitsPerComponent>(Value, Ar);
+	}
+}
+
+template<int32 ScaleFactor, int32 MaxBitsPerComponent>
+bool SerializePackedVector(FVector3d& Value, FArchive& Ar)
+{
+	if (Ar.EngineNetVer() >= HISTORY_PACKED_VECTOR_LWC_SUPPORT)
+	{
+		return UE::Net::SerializeQuantizedVector<ScaleFactor>(Value, Ar);
+	}
+	else
+	{
+		check(Ar.IsLoading());
+		FVector3f AsFloat(Value);
+		const bool bRet = UE::Net::Private::LegacyReadPackedVector<ScaleFactor, MaxBitsPerComponent>(AsFloat, Ar);
+		Value = FVector3d(AsFloat);
+		return bRet;
+	}
 }
 
 // --------------------------------------------------------------
 
-template<int32 MaxValue, int32 NumBits>
+template<int32 MaxValue, uint32 NumBits>
 struct TFixedCompressedFloatDetails
 {
 	                                                                // NumBits = 8:
@@ -294,26 +286,10 @@ struct TFixedCompressedFloatDetails
 	static constexpr int32 Bias = (1 << (NumBits - 1));             //   1000 0000 - Bias to pivot around (in order to support signed values)
 	static constexpr int32 SerIntMax = (1 << (NumBits - 0));        // 1 0000 0000 - What we pass into SerializeInt
 	static constexpr int32 MaxDelta = (1 << (NumBits - 0)) - 1;     //   1111 1111 - Max delta is
-
-#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-	static constexpr float GetInvScale()
-	{
-		if (MaxValue > MaxBitValue)
-		{
-			// We have to scale down, scale needs to be a float:
-			return (float)MaxValue / (float)MaxBitValue;
-		}
-		else
-		{
-			int32 scale = MaxBitValue / MaxValue;
-			return 1.f / scale;
-		}
-	}
-#endif
 };
 
-template<int32 MaxValue, int32 NumBits>
-bool WriteFixedCompressedFloat(const float Value, FArchive& Ar)
+template<int32 MaxValue, uint32 NumBits, typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value), TEMPLATE_REQUIRES(NumBits < 32)>
+bool WriteFixedCompressedFloat(const T Value, FArchive& Ar)
 {
 	using Details = TFixedCompressedFloatDetails<MaxValue, NumBits>;
 
@@ -321,15 +297,15 @@ bool WriteFixedCompressedFloat(const float Value, FArchive& Ar)
 	int32 ScaledValue;
 	if ( MaxValue > Details::MaxBitValue )
 	{
-		// We have to scale this down, scale needs to be a float:
-		const float scale = (float)Details::MaxBitValue / (float)MaxValue;
-		ScaledValue = FMath::TruncToInt(scale * Value);
+		// We have to scale this down
+		const T Scale = T(Details::MaxBitValue)/MaxValue;
+		ScaledValue = FMath::TruncToInt(Scale * Value);
 	}
 	else
 	{
 		// We will scale up to get extra precision. But keep is a whole number preserve whole values
-		enum { scale = Details::MaxBitValue / MaxValue };
-		ScaledValue = FMath::RoundToInt( scale * Value );
+		enum { Scale = Details::MaxBitValue / MaxValue };
+		ScaledValue = FMath::RoundToInt( Scale * Value );
 	}
 
 	uint32 Delta = static_cast<uint32>(ScaledValue + Details::Bias);
@@ -345,33 +321,28 @@ bool WriteFixedCompressedFloat(const float Value, FArchive& Ar)
 	return !clamp;
 }
 
-template<int32 MaxValue, int32 NumBits>
-bool ReadFixedCompressedFloat(float &Value, FArchive& Ar)
+template<int32 MaxValue, uint32 NumBits, typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value), TEMPLATE_REQUIRES(NumBits < 32)>
+bool ReadFixedCompressedFloat(T& Value, FArchive& Ar)
 {
 	using Details = TFixedCompressedFloatDetails<MaxValue, NumBits>;
 
 	uint32 Delta;
 	Ar.SerializeInt(Delta, Details::SerIntMax);
-	float UnscaledValue = static_cast<float>( static_cast<int32>(Delta) - Details::Bias );
+	T UnscaledValue = static_cast<T>( static_cast<int32>(Delta) - Details::Bias );
 
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 	if constexpr (MaxValue > Details::MaxBitValue)
 	{
 		// We have to scale down, scale needs to be a float:
-		const float InvScale = MaxValue / (float)Details::MaxBitValue;
+		const T InvScale = MaxValue / (T)Details::MaxBitValue;
 		Value = UnscaledValue * InvScale;
 	}
 	else
 	{
-		enum { scale = Details::MaxBitValue / MaxValue };
-		const float InvScale = 1.f / (float)scale;
+		enum { Scale = Details::MaxBitValue / MaxValue };
+		const T InvScale = T(1) / (T)Scale;
 
 		Value = UnscaledValue * InvScale;
 	}
-#else
-	constexpr float InvScale = Details::GetInvScale();
-	Value = UnscaledValue * InvScale;
-#endif
 
 	return true;
 }
@@ -381,7 +352,7 @@ bool ReadFixedCompressedFloat(float &Value, FArchive& Ar)
 // NumBits is the total number of bits to use - this includes the sign bit!
 //
 // So passing in NumBits = 8, and MaxValue = 2^8, you will scale down to fit into 7 bits so you can leave 1 for the sign bit.
-template<int32 MaxValue, int32 NumBits>
+template<int32 MaxValue, uint32 NumBits>
 bool SerializeFixedVector(FVector3f &Vector, FArchive& Ar)
 {
 	if (Ar.IsSaving())
@@ -399,14 +370,24 @@ bool SerializeFixedVector(FVector3f &Vector, FArchive& Ar)
 	return true;
 }
 
-template<int32 MaxValue, int32 NumBits>
-bool SerializeFixedVector(FVector3d& Vector, FArchive& Ar)
+template<int32 MaxValue, uint32 NumBits>
+bool SerializeFixedVector(FVector3d &Vector, FArchive& Ar)
 {
-	// LWC_TODO: SerializeFixedVector workaround. Double versions of Read/WriteFixedCompressedFloat for improved performance?
-	FVector3f AsFloat(Vector);
-	bool bResult = SerializeFixedVector<MaxValue, NumBits>(AsFloat, Ar);
-	Vector = AsFloat;
-	return bResult;
+	if (Ar.IsSaving())
+	{
+		bool success = true;
+		success &= WriteFixedCompressedFloat<MaxValue, NumBits>(Vector.X, Ar);
+		success &= WriteFixedCompressedFloat<MaxValue, NumBits>(Vector.Y, Ar);
+		success &= WriteFixedCompressedFloat<MaxValue, NumBits>(Vector.Z, Ar);
+		return success;
+	}
+	else
+	{
+		ReadFixedCompressedFloat<MaxValue, NumBits>(Vector.X, Ar);
+		ReadFixedCompressedFloat<MaxValue, NumBits>(Vector.Y, Ar);
+		ReadFixedCompressedFloat<MaxValue, NumBits>(Vector.Z, Ar);
+		return true;
+	}
 }
 // --------------------------------------------------------------
 

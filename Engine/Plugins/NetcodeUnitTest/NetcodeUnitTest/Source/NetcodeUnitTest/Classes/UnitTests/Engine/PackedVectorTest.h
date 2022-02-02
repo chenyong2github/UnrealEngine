@@ -19,4 +19,10 @@ class UPackedVectorTest : public UUnitTest
 
 private:
 	virtual bool ExecuteUnitTest() override;
+
+	bool ExecuteFloatTest(TMap<FString,bool>& TestResults);
+	bool ExecuteDoubleTest(TMap<FString,bool>& TestResults);
+	bool ExecuteWriteDoubleReadFloatTest(TMap<FString,bool>& TestResults);
+	bool ExecuteWriteFloatReadDoubleTest(TMap<FString,bool>& TestResults);
+	void VerifyTestResults(const TMap<FString,bool>& TestResults);
 };
