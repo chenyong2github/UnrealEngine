@@ -15,7 +15,8 @@
 #endif
 
 #if WITH_UNREAL_TRACE_LAUNCH
-#	include "Misc/Parse.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
 #endif
 
 #if UE_TRACE_ENABLED
