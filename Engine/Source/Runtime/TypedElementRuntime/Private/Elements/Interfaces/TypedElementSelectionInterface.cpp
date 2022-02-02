@@ -23,7 +23,7 @@ bool ITypedElementSelectionInterface::DeselectElement(const FTypedElementHandle&
 	return InSelectionSet && InSelectionSet->Remove(InElementHandle);
 }
 
-bool ITypedElementSelectionInterface::IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool ITypedElementSelectionInterface::IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
 	if (!NativeHandle)
@@ -66,7 +66,7 @@ bool ITypedElementSelectionInterface::CanDeselectElement(const FScriptTypedEleme
 	return CanDeselectElement(NativeHandle, InSelectionOptions);
 }
 
-bool ITypedElementSelectionInterface::SelectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool ITypedElementSelectionInterface::SelectElement(const FScriptTypedElementHandle& InElementHandle, FScriptTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
 	if (!NativeHandle)
@@ -85,7 +85,7 @@ bool ITypedElementSelectionInterface::SelectElement(const FScriptTypedElementHan
 	return SelectElement(NativeHandle, NativeList, InSelectionOptions);
 }
 
-bool ITypedElementSelectionInterface::DeselectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool ITypedElementSelectionInterface::DeselectElement(const FScriptTypedElementHandle& InElementHandle, FScriptTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
 	if (!NativeHandle)
@@ -104,7 +104,7 @@ bool ITypedElementSelectionInterface::DeselectElement(const FScriptTypedElementH
 	return DeselectElement(NativeHandle, NativeList, InSelectionOptions);
 }
 
-bool ITypedElementSelectionInterface::AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet)
+bool ITypedElementSelectionInterface::AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InSelectionSet)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
 	if (!NativeHandle)
@@ -123,7 +123,7 @@ bool ITypedElementSelectionInterface::AllowSelectionModifiers(const FScriptTyped
 	return AllowSelectionModifiers(NativeHandle, NativeList);
 }
 
-FScriptTypedElementHandle ITypedElementSelectionInterface::GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
+FScriptTypedElementHandle ITypedElementSelectionInterface::GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
 {
 	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
 	if (!NativeHandle)

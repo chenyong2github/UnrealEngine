@@ -105,7 +105,7 @@ public:
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
-	bool DeleteNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
+	bool DeleteNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
 
 	/**
 	 * Duplicate any elements from the given selection set that can be duplicated.
@@ -119,7 +119,7 @@ public:
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	TArray<FScriptTypedElementHandle> DuplicateNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset);
+	TArray<FScriptTypedElementHandle> DuplicateNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset);
 
 private:
 	/**

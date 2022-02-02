@@ -18,7 +18,7 @@ public:
 	 * Create an empty list of elements associated with the given registry.
 	 */
 	UFUNCTION(BlueprintCallable, DisplayName="Create Element List", Category = "TypedElementFramework|Registry", meta=(ScriptMethod, ScriptName="CreateElementList"))
-	static FManagedTypedElementListProxy CreateScriptElementList(UTypedElementRegistry* Registry)
+	static FScriptTypedElementListProxy CreateScriptElementList(UTypedElementRegistry* Registry)
 	{
 		return Registry->CreateScriptElementList();
 	}
@@ -28,10 +28,10 @@ public:
 	 * @note Only copies elements; does not copy any bindings!
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static FManagedTypedElementListProxy Clone(const FManagedTypedElementListProxy ElementList)
+	static FScriptTypedElementListProxy Clone(const FScriptTypedElementListProxy ElementList)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
-		return ElementListPtr ? ElementListPtr->Clone() : FManagedTypedElementListProxy();
+		return ElementListPtr ? ElementListPtr->Clone() : FScriptTypedElementListProxy();
 	}
 
 	/**
@@ -39,7 +39,7 @@ public:
 	 * @note Use IsValidIndex to test for validity.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static FScriptTypedElementHandle GetElementHandleAt(const FManagedTypedElementListProxy ElementList, const int32 Index)
+	static FScriptTypedElementHandle GetElementHandleAt(const FScriptTypedElementListProxy ElementList, const int32 Index)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->GetElementHandleAt(Index) : FScriptTypedElementHandle();
@@ -49,7 +49,7 @@ public:
 	 * Get the element interface from the given handle.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static UObject* GetElementInterface(const FManagedTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle, const TSubclassOf<UInterface> BaseInterfaceType)
+	static UObject* GetElementInterface(const FScriptTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle, const TSubclassOf<UInterface> BaseInterfaceType)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->GetElementInterface(ElementHandle, BaseInterfaceType) : nullptr;
@@ -59,7 +59,7 @@ public:
 	 * Test whether there are elements in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool HasElements(const FManagedTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
+	static bool HasElements(const FScriptTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->HasElements(BaseInterfaceType);
@@ -69,7 +69,7 @@ public:
 	 * Count the number of elements in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static int32 CountElements(const FManagedTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
+	static int32 CountElements(const FScriptTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->CountElements(BaseInterfaceType) : 0;
@@ -79,7 +79,7 @@ public:
 	 * Test whether there are elements in this list of the given type.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool HasElementsOfType(const FManagedTypedElementListProxy ElementList, const FName ElementTypeName)
+	static bool HasElementsOfType(const FScriptTypedElementListProxy ElementList, const FName ElementTypeName)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->HasElementsOfType(ElementTypeName);
@@ -89,7 +89,7 @@ public:
 	 * Count the number of elements in this list of the given type.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static int32 CountElementsOfType(const FManagedTypedElementListProxy ElementList, const FName ElementTypeName)
+	static int32 CountElementsOfType(const FScriptTypedElementListProxy ElementList, const FName ElementTypeName)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->CountElementsOfType(ElementTypeName) : 0;
@@ -99,7 +99,7 @@ public:
 	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static TArray<FScriptTypedElementHandle> GetElementHandles(const FManagedTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType)
+	static TArray<FScriptTypedElementHandle> GetElementHandles(const FScriptTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->GetElementHandles(BaseInterfaceType) : TArray<FScriptTypedElementHandle>();
@@ -109,7 +109,7 @@ public:
 	 * Is the given index a valid entry within this element list?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool IsValidIndex(const FManagedTypedElementListProxy ElementList, const int32 Index)
+	static bool IsValidIndex(const FScriptTypedElementListProxy ElementList, const int32 Index)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->IsValidIndex(Index);
@@ -119,7 +119,7 @@ public:
 	 * Get the number of entries within this element list.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static int32 Num(const FManagedTypedElementListProxy ElementList)
+	static int32 Num(const FScriptTypedElementListProxy ElementList)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->Num() : 0;
@@ -129,7 +129,7 @@ public:
 	 * Shrink this element list storage to avoid slack.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void Shrink(FManagedTypedElementListProxy ElementList)
+	static void Shrink(FScriptTypedElementListProxy ElementList)
 	{
 		if (FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
@@ -141,7 +141,7 @@ public:
 	 * Pre-allocate enough memory in this element list to store the given number of entries.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void Reserve(FManagedTypedElementListProxy ElementList, const int32 Size)
+	static void Reserve(FScriptTypedElementListProxy ElementList, const int32 Size)
 	{
 		if (FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
@@ -153,7 +153,7 @@ public:
 	 * Remove all entries from this element list, potentially leaving space allocated for the given number of entries.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void Empty(FManagedTypedElementListProxy ElementList, const int32 Slack = 0)
+	static void Empty(FScriptTypedElementListProxy ElementList, const int32 Slack = 0)
 	{
 		if (FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
@@ -165,7 +165,7 @@ public:
 	 * Remove all entries from this element list, preserving existing allocations.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void Reset(FManagedTypedElementListProxy ElementList)
+	static void Reset(FScriptTypedElementListProxy ElementList)
 	{
 		if (FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
@@ -177,7 +177,7 @@ public:
 	 * Does this element list contain an entry for the given element handle?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool Contains(const FManagedTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
+	static bool Contains(const FScriptTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
 	{
 		FScriptTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->Contains(ElementHandle);
@@ -188,7 +188,7 @@ public:
 	 * @return True if the element handle was added, false if it is already in the list.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool Add(FManagedTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
+	static bool Add(FScriptTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
 	{
 		FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->Add(ElementHandle);
@@ -198,7 +198,7 @@ public:
 	 * Append the given element handles to this element list.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void Append(FManagedTypedElementListProxy ElementList, const TArray<FScriptTypedElementHandle>& ElementHandles)
+	static void Append(FScriptTypedElementListProxy ElementList, const TArray<FScriptTypedElementHandle>& ElementHandles)
 	{
 		if (FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
@@ -210,7 +210,7 @@ public:
 	 * Append the another element list to this element list.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static void AppendList(FManagedTypedElementListProxy ElementList, const FManagedTypedElementListProxy OtherElementList)
+	static void AppendList(FScriptTypedElementListProxy ElementList, const FScriptTypedElementListProxy OtherElementList)
 	{
 		FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList();
 		FScriptTypedElementListConstPtr OtherElementListPtr = OtherElementList.GetElementList();
@@ -225,7 +225,7 @@ public:
 	 * @return True if the element handle was removed, false if it isn't in the list.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool Remove(FManagedTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
+	static bool Remove(FScriptTypedElementListProxy ElementList, const FScriptTypedElementHandle& ElementHandle)
 	{
 		FScriptTypedElementListPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->Remove(ElementHandle);

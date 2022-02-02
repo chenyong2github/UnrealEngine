@@ -217,7 +217,7 @@ public:
 	 * Test to see whether the given element is currently considered selected.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|Selection")
-	virtual bool IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
+	virtual bool IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
 
 	/**
 	 * Test to see whether the given element can be selected.
@@ -236,26 +236,26 @@ public:
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
-	virtual bool SelectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions);
+	virtual bool SelectElement(const FScriptTypedElementHandle& InElementHandle, FScriptTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
-	virtual bool DeselectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions);
+	virtual bool DeselectElement(const FScriptTypedElementHandle& InElementHandle, FScriptTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions);
 
 	/**
 	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
-	virtual bool AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet);
+	virtual bool AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InSelectionSet);
 
 	/**
 	 * Given an element, return the element that should actually perform a selection operation.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
-	virtual FScriptTypedElementHandle GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod);
+	virtual FScriptTypedElementHandle GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const FScriptTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod);
 
 protected:
 	/**

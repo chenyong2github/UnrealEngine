@@ -87,7 +87,7 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedEleme
 	return NewElements;
 }
 
-bool UTypedElementCommonActions::DeleteNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
+bool UTypedElementCommonActions::DeleteNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
 	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
 	if (!NativeList)
@@ -109,7 +109,7 @@ TArray<FScriptTypedElementHandle> UTypedElementCommonActions::K2_DuplicateSelect
 	return TypedElementUtil::ConvertToScriptElementArray(DuplicateSelectedElements(SelectionSet, World, LocationOffset), SelectionSet->GetElementList()->GetRegistry());
 }
 
-TArray<FScriptTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset)
+TArray<FScriptTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset)
 {
 	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
 	if (!NativeList)
