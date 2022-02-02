@@ -668,6 +668,15 @@ public:
 	/** The next cached derived data in the list. */
 	TUniquePtr<class FStaticMeshRenderData> NextCachedRenderData;
 
+	/** Estimate of total compressed size of all rendering data, including Nanite data. */
+	uint64 EstimatedCompressedSize = 0;
+
+	/** Estimate of total compressed size of Nanite data. Includes streaming and non-streaming data. */
+	uint64 EstimatedNaniteTotalCompressedSize = 0;
+
+	/** Estimate of compressed size of Nanite streaming data. */
+	uint64 EstimatedNaniteStreamingCompressedSize = 0;
+
 
 	void SyncUVChannelData(const TArray<FStaticMaterial>& ObjectData);
 

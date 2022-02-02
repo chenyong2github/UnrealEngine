@@ -907,6 +907,19 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NumPrimitives_F", "Num Collision Primitives:  {0}"), FText::AsNumber(StaticMesh->GetBodySetup()->AggGeom.GetElementCount())));
 	}
 
+	// Estimated compressed size
+	if(StaticMesh->GetRenderData())
+	{
+		FNumberFormattingOptions NumberOptions;
+		NumberOptions.MinimumFractionalDigits = 2;
+		NumberOptions.MaximumFractionalDigits = 2;
+
+		TextItems.Emplace(
+			FText::Format(NSLOCTEXT("UnrealEd", "EstimatedCompressedSize", "Estimated Compressed Disk Size: {0} MB ({1} MB Nanite)"),
+			FText::AsNumber(StaticMesh->GetRenderData()->EstimatedCompressedSize / 1048576.0f, &NumberOptions),
+			FText::AsNumber(StaticMesh->GetRenderData()->EstimatedNaniteTotalCompressedSize / 1048576.0f, &NumberOptions)));
+	}
+
 	if (StaticMeshComponent && StaticMeshComponent->SectionIndexPreview != INDEX_NONE)
 	{
 		TextItems.Emplace(NSLOCTEXT("UnrealEd", "MeshSectionsHiddenWarning",  "Mesh Sections Hidden"));
