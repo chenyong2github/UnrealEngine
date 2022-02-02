@@ -7,7 +7,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
 #include "NiagaraHlslTranslator.h"
@@ -952,6 +952,18 @@ UObject*  UNiagaraNodeFunctionCall::GetReferencedAsset() const
 	else
 	{
 		return nullptr;
+	}
+}
+
+void UNiagaraNodeFunctionCall::OpenReferencedAsset() const
+{
+	if (FunctionScript && FunctionScript->GetOutermost() != GetOutermost())
+	{
+		if (FunctionScript->IsVersioningEnabled())
+		{
+			FunctionScript->VersionToOpenInEditor = SelectedScriptVersion;
+		}
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(FunctionScript);
 	}
 }
 

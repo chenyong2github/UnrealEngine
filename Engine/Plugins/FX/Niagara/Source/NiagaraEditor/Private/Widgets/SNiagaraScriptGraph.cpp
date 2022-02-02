@@ -20,17 +20,13 @@
 #include "NiagaraEditorSettings.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ScopedTransaction.h"
-#include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeFactory.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraNodeOutput.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GraphEditorActions.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/SNiagaraGraphActionMenu.h"
 
@@ -279,11 +275,7 @@ void SNiagaraScriptGraph::OnNodeDoubleClicked(UEdGraphNode* ClickedNode)
 	UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(ClickedNode);
 	if (NiagaraNode != nullptr)
 	{
-		UObject* ReferencedAsset = NiagaraNode->GetReferencedAsset();
-		if (ReferencedAsset != nullptr)
-		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ReferencedAsset);
-		}
+		NiagaraNode->OpenReferencedAsset();
 	}
 }
 
