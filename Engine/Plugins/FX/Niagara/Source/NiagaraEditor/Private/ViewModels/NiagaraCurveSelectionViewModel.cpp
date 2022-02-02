@@ -27,6 +27,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 
 bool FNiagaraCurveSelectionTreeNodeDataId::operator==(const FNiagaraCurveSelectionTreeNodeDataId& Other) const
 {
@@ -351,7 +352,7 @@ void UNiagaraCurveSelectionViewModel::FocusAndSelectCurveDataInterface(UNiagaraD
 
 		if(IdOfNodeToSelect.IsValid())
 		{
-			SystemViewModel->FocusTab(FNiagaraSystemToolkit::CurveEditorTabID);
+			SystemViewModel->FocusTab(FNiagaraSystemToolkitModeBase::CurveEditorTabID);
 			OnRequestSelectNodeDelegate.Broadcast(IdOfNodeToSelect);
 		}
 	}

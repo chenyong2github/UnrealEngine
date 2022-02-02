@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemDetailsCustomization.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ScopedTransaction.h"
 
@@ -36,6 +37,7 @@ void UNiagaraStackSystemPropertiesItem::RefreshChildrenInternal(const TArray<UNi
 		SystemObject = NewObject<UNiagaraStackObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::System, NAME_None, GetStackEditorData());
 		SystemObject->Initialize(RequiredEntryData, System.Get(), GetStackEditorDataKey());
+		SystemObject->RegisterInstancedCustomPropertyLayout(UNiagaraSystem::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraSystemDetails::MakeInstance));
 	}
 	NewChildren.Add(SystemObject);
 	bCanResetToBase.Reset();

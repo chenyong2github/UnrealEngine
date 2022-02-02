@@ -62,6 +62,9 @@ public:
 	static TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, UNiagaraEmitter* Emitter);
 	static bool AddMissingVariable(UNiagaraEmitter* Emitter, const FNiagaraVariable& Variable);
 
+	bool IsExcludedFromScalability() const;
+	bool IsOwningEmitterExcludedFromScalability() const;
+
 protected:
 	virtual void FinalizeInternal() override;
 

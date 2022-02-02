@@ -170,7 +170,7 @@ struct FNiagaraSystemScalabilitySettings
 
 
 	/** Effects of this type are culled beyond this distance. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance", DisplayInScalabilityValuesBar))
 	float MaxDistance;
 
 	/** 
@@ -178,7 +178,7 @@ struct FNiagaraSystemScalabilitySettings
 	If the effect type has a significance handler, instances are sorted by their significance and only the N most significant will be kept. The rest are culled.
 	If it does not have a significance handler, instance count culling will be applied at spawn time only. New FX that would exceed the counts are not spawned/activated.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Max Effect Type Instances", meta = (EditCondition = "bCullMaxInstanceCount"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", DisplayName = "Max Effect Type Instances", meta = (EditCondition = "bCullMaxInstanceCount", DisplayInScalabilityValuesBar))
 	int32 MaxInstances;
 
 	/**
@@ -186,7 +186,7 @@ struct FNiagaraSystemScalabilitySettings
 	If the effect type has a significance handler, instances are sorted by their significance and only the N most significant will be kept. The rest are culled.
 	If it does not have a significance handler, instance count culling will be applied at spawn time only. New FX that would exceed the counts are not spawned/activated.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullPerSystemMaxInstanceCount"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullPerSystemMaxInstanceCount", DisplayInScalabilityValuesBar))
 	int32 MaxSystemInstances;
 
 	//TODO:
@@ -194,11 +194,11 @@ struct FNiagaraSystemScalabilitySettings
 	//float ScreenFraction;
 
 	/** Effects will be culled if they go more than this length of time without being rendered. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender", DisplayInScalabilityValuesBar))
 	float MaxTimeWithoutRender;
 		
 	/** Controls what, if any, proxy will be used in place of culled systems.  */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (DisplayInScalabilityValuesBar))
 	ENiagaraCullProxyMode CullProxyMode = ENiagaraCullProxyMode::None;
 
 	/** 
@@ -206,7 +206,7 @@ struct FNiagaraSystemScalabilitySettings
 	While much cheaper than full FX instances, proxies still incur some cost so must have a limit.
 	When significance information is available using a significance handler, the most significance proxies will be kept up to this limit.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "CullProxyMode != ENiagaraCullProxyMode::None", DisplayInScalabilityValuesBar))
 	int32 MaxSystemProxies = 32;
 
 	/** Settings related to scaling down FX based on the current budget usage. */
@@ -280,7 +280,7 @@ struct FNiagaraEmitterScalabilitySettings
 	uint32 bScaleSpawnCount : 1;
 
 	/** Scale factor applied to spawn counts for this emitter. */
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bScaleSpawnCount"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bScaleSpawnCount", DisplayInScalabilityValuesBar))
 	float SpawnCountScale;
 
 	FNiagaraEmitterScalabilitySettings();
@@ -379,19 +379,19 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	//UObject Interface END
 
 	/** Controls whether or not culling is allowed for FX that are owned by, attached to or instigated by a locally controlled pawn. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInSystemScalability, ScalabilityBarDisplayName="Local Player Culling"))
 	bool bAllowCullingForLocalPlayers = false;
 
 	/** How regularly effects of this type are checked for scalability. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInSystemScalability, ScalabilityBarDisplayName="Frequency"))
 	ENiagaraScalabilityUpdateFrequency UpdateFrequency;
 
 	/** How effects of this type react when they fail the cull checks. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInSystemScalability, ScalabilityBarDisplayName="Reaction"))
 	ENiagaraCullReaction CullReaction;
 
 	/** Used to determine the relative significance of FX in the scene which is used in other scalability systems such as instance count culling. */
-	UPROPERTY(EditAnywhere, Instanced, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Instanced, Category = "Scalability", meta=(DisplayInSystemScalability, DisplayClassDisplayName, ScalabilityBarDisplayName="Significance"))
 	TObjectPtr<UNiagaraSignificanceHandler> SignificanceHandler;
 
 	/** Cull settings to use at each detail level. */

@@ -17,6 +17,7 @@
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorModule.h"
 #include "GraphEditorActions.h"
+#include "NiagaraEditorWidgetsStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Framework/Application/SlateApplication.h"
@@ -27,6 +28,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "Widgets/SItemSelector.h"
+#include "SNiagaraOverviewGraphTitleBar.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
@@ -62,15 +64,7 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		AppearanceInfo.CornerText = LOCTEXT("NiagaraOverview_AppearanceCornerTextGeneric", "NIAGARA");
 	}
 	
-	TSharedRef<SWidget> TitleBarWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
-	.HAlign(HAlign_Fill)
-	[
-		SNew(STextBlock)
-		.Text(ViewModel.ToSharedRef(), &FNiagaraOverviewGraphViewModel::GetDisplayName)
-		.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
-		.Justification(ETextJustify::Center)
-	];
+	TSharedRef<SWidget> TitleBarWidget = SNew(SNiagaraOverviewGraphTitleBar, ViewModel->GetSystemViewModel()).Visibility(EVisibility::SelfHitTestInvisible);
 
 	TSharedRef<FUICommandList> Commands = ViewModel->GetCommands();
 	Commands->MapAction(
@@ -136,6 +130,8 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		// counter here instead of a simple bool.
 		ZoomToFitFrameDelay = 2;
 	}
+
+	GraphEditor->GetCurrentGraph()->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateSP(this, &SNiagaraOverviewGraph::OnNodesCreated));
 
 	ChildSlot
 	[
@@ -203,7 +199,7 @@ void SNiagaraOverviewGraph::PreClose()
 }
 
 void SNiagaraOverviewGraph::OpenAddEmitterMenu()
-{
+{	
 	FNiagaraAssetPickerListViewOptions ViewOptions;
 	ViewOptions.SetCategorizeUserDefinedCategory(true);
 	ViewOptions.SetCategorizeLibraryAssets(true);
@@ -213,17 +209,15 @@ void SNiagaraOverviewGraph::OpenAddEmitterMenu()
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::None, true);
 	TabOptions.ChangeTabState(ENiagaraScriptTemplateSpecification::Behavior, true);	
 
-	TSharedPtr<SNiagaraAssetPickerList> AssetPickerList;
-	
-	SAssignNew(AssetPickerList, SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
+	TSharedPtr<SNiagaraAssetPickerList> AssetPickerList = SNew(SNiagaraAssetPickerList, UNiagaraEmitter::StaticClass())
 	.ClickActivateMode(EItemSelectorClickActivateMode::SingleClick)
 	.ViewOptions(ViewOptions)
 	.TabOptions(TabOptions)
 	.OnTemplateAssetActivated_Lambda([this](const FAssetData& AssetData) {
+		TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
 		FSlateApplication::Get().DismissAllMenus();
-		ViewModel->GetSystemViewModel()->AddEmitterFromAssetData(AssetData);
 	});
-	
+    
 	TSharedRef<SWidget> EmitterAddSubMenu =
 		SNew(SBorder)
 		.BorderImage(FNiagaraEditorStyle::Get().GetBrush("GraphActionMenu.Background"))
@@ -236,9 +230,11 @@ void SNiagaraOverviewGraph::OpenAddEmitterMenu()
 				AssetPickerList.ToSharedRef()
 			]
 		];
-
+	
 	FSlateApplication::Get().PushMenu(SharedThis(this), FWidgetPath(), EmitterAddSubMenu, FSlateApplication::Get().GetCursorPos(), FPopupTransitionEffect::None);
 
+	// we need to set the keyboard focus for next tick instead of immediately
+	// if we open the menu via shortcut, we'd type the shortcut key into the search box
 	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([AssetPickerList]()
 	{
 		FSlateApplication::Get().SetKeyboardFocus(AssetPickerList->GetSearchBox());
@@ -254,8 +250,8 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 {
 	if (ViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		FMenuBuilder MenuBuilder(true, ViewModel->GetCommands());
-
+		FMenuBuilder MenuBuilder(true, ViewModel->GetCommands(), TSharedPtr<FExtender>(), false, &FAppStyle::Get(), false);
+		
 		MenuBuilder.BeginSection(TEXT("NiagaraOverview_EditGraph"), LOCTEXT("EditGraph", "Edit Graph"));
 		{
 			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().OpenAddEmitterMenu);

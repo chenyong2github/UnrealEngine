@@ -30,6 +30,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackScriptItemGroup"
 
@@ -669,7 +670,7 @@ void UNiagaraStackScriptItemGroup::RefreshIssues(TArray<FStackIssue>& NewIssues)
 						LOCTEXT("ShowLogForErrorsFix", "Show the errors in the Niagara Log"), 
 						FStackIssueFixDelegate::CreateLambda([this]()
 						{
-							GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::MessageLogTabID);
+							GetSystemViewModel()->FocusTab(FNiagaraSystemToolkitModeBase::MessageLogTabID);
 						}),
 						EStackIssueFixStyle::Link));
 
@@ -687,7 +688,7 @@ void UNiagaraStackScriptItemGroup::RefreshIssues(TArray<FStackIssue>& NewIssues)
 						LOCTEXT("ShowLogForWarningsFix", "Show the warnings in the Niagara Log"),
 						FStackIssueFixDelegate::CreateLambda([this]()
 							{
-								GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::MessageLogTabID);
+								GetSystemViewModel()->FocusTab(FNiagaraSystemToolkitModeBase::MessageLogTabID);
 							}),
 						EStackIssueFixStyle::Link));
 				NewIssues.Add(CompileWarning);

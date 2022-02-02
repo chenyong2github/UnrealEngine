@@ -6,6 +6,7 @@
 #include "DetailCategoryBuilder.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorModule.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 
 TSharedRef<IDetailCustomization> FNiagaraEmitterDetails::MakeInstance()
 {
@@ -16,5 +17,9 @@ void FNiagaraEmitterDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayo
 {
 	TSharedPtr<IPropertyHandle> EventHandlersPropertyHandle = InDetailLayout.GetProperty(UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps);
 	EventHandlersPropertyHandle->MarkHiddenByCustomization();
+	if(GNiagaraScalabilityModeEnabled)
+	{
+		InDetailLayout.HideCategory("Scalability");
+	}
 }
 

@@ -15,6 +15,7 @@
 
 #include "TickableEditorObject.h"
 #include "ISequencerModule.h"
+#include "NiagaraSystemScalabilityViewModel.h"
 #include "UObject/ObjectKey.h"
 
 class UNiagaraSystem;
@@ -58,6 +59,8 @@ enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
 	/** Special case where an emitter asset is being edited during a merge. In this mode changes made to the emitter being edited don't have to be applied, but directly affect the source. */
 	EmitterDuringMerge,
 };
+
+DECLARE_DELEGATE_RetVal(FName, FOnGetWorkflowMode);
 
 /** Defines options for the niagara System view model */
 struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
@@ -205,6 +208,12 @@ public:
 	/** Gets the current editing mode for this system view model. */
 	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetEditMode() const;
 
+	/** Gets the current workflow mode for this system view model. */
+	NIAGARAEDITOR_API FName GetWorkflowMode() const;
+
+	/** Gets the delegate which is called any time the array of emitter handle view models changes. */
+	NIAGARAEDITOR_API FOnGetWorkflowMode& OnGetWorkflowMode();
+	
 	/** Adds a new emitter to the System from an emitter asset data. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitterFromAssetData(const FAssetData& AssetData);
 
@@ -349,6 +358,8 @@ public:
 	NIAGARAEDITOR_API UNiagaraScratchPadViewModel* GetScriptScratchPadViewModel();
 
 	NIAGARAEDITOR_API UNiagaraCurveSelectionViewModel* GetCurveSelectionViewModel();
+
+	NIAGARAEDITOR_API UNiagaraSystemScalabilityViewModel* GetScalabilityViewModel();
 
 	TArray<float> OnGetPlaybackSpeeds() const;
 	
@@ -565,6 +576,9 @@ private:
 	/** The current editing mode for this view model. */
 	ENiagaraSystemViewModelEditMode EditMode;
 
+	/** A delegate to retrieve the current workflow mode from the toolkit. */
+	FOnGetWorkflowMode OnGetWorkflowModeDelegate;
+	
 	/** A delegate which is used to generate the content for the add menu in sequencer. */
 	FOnGetAddMenuContent OnGetSequencerAddMenuContent;
 
@@ -648,6 +662,8 @@ private:
 	UNiagaraScratchPadViewModel* ScriptScratchPadViewModel;
 
 	UNiagaraCurveSelectionViewModel* CurveSelectionViewModel;
+
+	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel;
 
 	TSharedPtr<FNiagaraPlaceholderDataInterfaceManager> PlaceholderDataInterfaceManager;
 

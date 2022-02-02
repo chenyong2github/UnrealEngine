@@ -16,7 +16,8 @@ public:
 	void Initialize(UNiagaraSystem* InOwningSystem);
 	void Initialize(UNiagaraSystem* InOwningSystem, FGuid InEmitterHandleGuid);
 	const FGuid GetEmitterHandleGuid() const;
-
+	struct FNiagaraEmitterHandle* TryGetEmitterHandle();
+	
 	//~ Begin UEdGraphNode Interface
 	/** Gets the name of this node, shown in title bar */
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;

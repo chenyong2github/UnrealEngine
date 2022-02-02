@@ -21,9 +21,11 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "AssetThumbnail.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraEditorUtilities.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
+#include "SGraphPanel.h"
 #include "Widgets/SWidget.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
@@ -75,10 +77,25 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 			}
 			UMaterial::OnMaterialCompilationFinished().AddSP(this, &SNiagaraOverviewStackNode::OnMaterialCompiled);
 			OverviewSelectionViewModel = OwningSystemViewModel->GetSelectionViewModel();
+			ScalabilityViewModel = OwningSystemViewModel->GetScalabilityViewModel();
+
+			if(ScalabilityViewModel.IsValid())
+			{
+				bScalabilityModeActive = ScalabilityViewModel->IsActive();
+				ScalabilityViewModel->OnScalabilityModeChanged().AddSP(this, &SNiagaraOverviewStackNode::OnScalabilityModeChanged);
+			}
 		}
 	}
 
 	UpdateGraphNode();
+}
+
+SNiagaraOverviewStackNode::~SNiagaraOverviewStackNode()
+{
+	if(ScalabilityViewModel.IsValid())
+	{
+		ScalabilityViewModel->OnScalabilityModeChanged().RemoveAll(this);
+	}
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
@@ -409,7 +426,21 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		];
 	}
 
-	return NodeWidget;
+	TSharedPtr<SOverlay> ScalabilityWrapper = SNew(SOverlay)
+	+ SOverlay::Slot()
+	[
+		NodeWidget
+	]
+	+ SOverlay::Slot()
+	.Padding(0, 1)
+	[
+		SNew(SBorder)
+		.Visibility(this, &SNiagaraOverviewStackNode::ShowExcludedOverlay)
+		.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.SystemOverview.ExcludedFromScalability.NodeBody"))
+		.BorderBackgroundColor(TAttribute<FSlateColor>(this, &SNiagaraOverviewStackNode::GetScalabilityTintAlpha))
+	];
+	
+	return ScalabilityWrapper.ToSharedRef();
 
 }
 
@@ -437,8 +468,7 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 		TopContentBar->ClearChildren();
 	}
 	if (EmitterHandleViewModelWeak.IsValid())
-	{
-	
+	{		
 		// Isolate toggle button
 		TopContentBar->AddSlot()
 			.AutoWidth()
@@ -581,6 +611,45 @@ FSlateColor SNiagaraOverviewStackNode::GetToggleIsolateImageColor() const
 		EmitterHandleViewModel->GetIsIsolated()
 		? FEditorStyle::GetSlateColor("SelectionColor")
 		: FLinearColor::Gray;
+}
+
+FSlateColor SNiagaraOverviewStackNode::GetScalabilityTintAlpha() const
+{
+	if(EmitterHandleViewModelWeak.IsValid())
+	{
+		float ScalabilityBaseAlpha = FNiagaraEditorUtilities::GetScalabilityTintAlpha(EmitterHandleViewModelWeak.Pin()->GetEmitterHandle());
+		return FLinearColor(1, 1, 1, ScalabilityBaseAlpha * GetGraphZoomDistanceAlphaMultiplier());
+	}
+
+	return FLinearColor(1, 1, 1, 1);
+}
+
+void SNiagaraOverviewStackNode::OnScalabilityModeChanged(bool bActive)
+{
+	bScalabilityModeActive = bActive;
+}
+
+EVisibility SNiagaraOverviewStackNode::GetScalabilityBarVisibility() const
+{
+	return bScalabilityModeActive ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SNiagaraOverviewStackNode::ShowExcludedOverlay() const
+{
+	// we only want actual results in scalability mode and for nodes representing emitters (not system nodes)
+	if(bScalabilityModeActive && EmitterHandleViewModelWeak.IsValid())
+	{		
+		return EmitterHandleViewModelWeak.Pin()->GetEmitterHandle()->GetInstance()->IsAllowedByScalability() ? EVisibility::Hidden : EVisibility::HitTestInvisible;
+	}
+	
+	return EVisibility::Hidden; 
+}
+
+float SNiagaraOverviewStackNode::GetGraphZoomDistanceAlphaMultiplier() const
+{
+	// we lower the alpha if the zoom amount is high
+	float ZoomAmount = OwnerGraphPanelPtr.Pin()->GetZoomAmount();
+	return FMath::Lerp(0.4f, 1.f, 1 - ZoomAmount);
 }
 
 FReply SNiagaraOverviewStackNode::OpenParentEmitter()

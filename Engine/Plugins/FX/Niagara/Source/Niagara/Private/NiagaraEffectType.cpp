@@ -109,7 +109,7 @@ void UNiagaraEffectType::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 		UNiagaraSystem* System = *It;
 		if (System->GetEffectType() == this)
 		{
-			System->OnScalabilityCVarChanged();
+			System->UpdateScalability();
 			UpdateContext.Add(System, true);
 		}
 	}

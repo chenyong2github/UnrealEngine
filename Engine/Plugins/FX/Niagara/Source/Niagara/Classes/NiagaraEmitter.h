@@ -347,10 +347,10 @@ public:
 	UPROPERTY()
 	FNiagaraDetailsLevelScaleOverrides GlobalSpawnCountScaleOverrides_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraPlatformSet Platforms;
 
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraEmitterScalabilityOverrides ScalabilityOverrides;
 
 	/** When enabled, this will spawn using interpolated parameter values and perform a partial update at spawn time. This adds significant additional cost for spawning but will produce much smoother spawning for high spawn rates, erratic frame rates and fast moving emitters. */
@@ -489,6 +489,7 @@ public:
 #endif
 
 	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
+	NIAGARA_API const FNiagaraEmitterScalabilityOverride& GetCurrentOverrideSettings() const;
 
 	/** Returns true if this emitter's platform filter allows it on this platform and quality level. */
 	NIAGARA_API bool IsAllowedByScalability()const;
@@ -516,6 +517,9 @@ public:
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
 
+	template<typename TAction>
+	void ForEachRenderer(TAction Func) const;
+	
 	template<typename TAction>
 	void ForEachEnabledRenderer(TAction Func) const;
 
@@ -579,7 +583,7 @@ public:
 	NIAGARA_API void NotifyScratchPadScriptsChanged();
 #endif
 
-	void OnScalabilityCVarChanged();
+	void UpdateScalability();
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& GetMessages() const { return MessageKeyToMessageMap; };
@@ -725,6 +729,17 @@ private:
 #endif
 };
 
+template<typename TAction>
+void UNiagaraEmitter::ForEachRenderer(TAction Func) const
+{
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer)
+		{
+			Func(Renderer);
+		}
+	}
+}
 
 template<typename TAction>
 void UNiagaraEmitter::ForEachEnabledRenderer(TAction Func) const

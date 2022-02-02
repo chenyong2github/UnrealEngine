@@ -5,6 +5,7 @@
 #include "SGraphNode.h"
 #include "Widgets/SBoxPanel.h"
 #include "SNiagaraOverviewStack.h"
+#include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 
 class UNiagaraOverviewNode;
 class UNiagaraStackViewModel;
@@ -24,6 +25,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual bool ShouldAllowCulling() const override { return false; }
 
+	virtual ~SNiagaraOverviewStackNode();
 protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
@@ -45,6 +47,11 @@ private:
 	FReply OnToggleIsolateButtonClicked();
 	EVisibility GetToggleIsolateVisibility() const;
 	FSlateColor GetToggleIsolateImageColor() const;
+	FSlateColor GetScalabilityTintAlpha() const;
+	void OnScalabilityModeChanged(bool bActive);
+	EVisibility GetScalabilityBarVisibility() const;
+	EVisibility ShowExcludedOverlay() const;
+	float GetGraphZoomDistanceAlphaMultiplier() const;
 	void SetIsHoveringThumbnail(const FGeometry& InGeometry, const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
 	{
 		SetIsHoveringThumbnail(InEvent, bInHoveringThumbnail);
@@ -69,6 +76,7 @@ private:
 	UNiagaraOverviewNode* OverviewStackNode;
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
+	TWeakObjectPtr<UNiagaraSystemScalabilityViewModel> ScalabilityViewModel;
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak;
 	/** The top content bar houses the isolate button and the thumbnails */
 	TSharedPtr<SHorizontalBox> TopContentBar;
@@ -78,4 +86,5 @@ private:
 	bool bIsHoveringThumbnail;
 	bool bTopContentBarRefreshPending;
 	int32 CurrentIssueIndex;
+	bool bScalabilityModeActive;
 };

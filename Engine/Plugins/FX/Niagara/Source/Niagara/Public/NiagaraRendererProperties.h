@@ -162,7 +162,11 @@ UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
 {
 	GENERATED_BODY()
-
+	
+public:
+#if WITH_EDITOR
+	DECLARE_MULTICAST_DELEGATE(FOnPropertiesChanged);
+#endif
 public:
 	UNiagaraRendererProperties()		
 		: bIsEnabled(true)
@@ -177,6 +181,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+
 	//UObject Interface End
 	
 	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
@@ -230,9 +235,11 @@ public:
 
 	// The text to display in the niagara stack widget under the renderer section
 	virtual FText GetWidgetDisplayName() const;
-
 #endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
+	FOnPropertiesChanged& OnPropertiesChanged();
+#endif
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const {	return ENiagaraRendererSourceDataMode::Particles;}
 
 	virtual bool GetIsActive() const;
@@ -251,7 +258,7 @@ public:
 	bool NeedsPreciseMotionVectors() const;
 
 	/** Platforms on which this renderer is enabled. */
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	FNiagaraPlatformSet Platforms;
 
 	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner.
@@ -285,5 +292,9 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** returns the variable associated with the supplied binding if it should be bound given the current settings of the RendererProperties. */
 	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const;
+#endif
+
+#if WITH_EDITOR
+	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
 };

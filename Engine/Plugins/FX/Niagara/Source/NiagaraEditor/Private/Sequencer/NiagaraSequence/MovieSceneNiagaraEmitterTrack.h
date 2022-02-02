@@ -4,6 +4,7 @@
 
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneSection.h"
+#include "TickableEditorObject.h"
 #include "MovieSceneNiagaraEmitterTrack.generated.h"
 
 class UNiagaraSystem;
@@ -51,13 +52,14 @@ private:
 */
 UCLASS(MinimalAPI)
 class UMovieSceneNiagaraEmitterTrack
-	: public UMovieSceneNameableTrack
+	: public UMovieSceneNameableTrack, public FTickableEditorObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	void Initialize(FNiagaraSystemViewModel& SystemViewModel, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, const FFrameRate& InFrameResolution);
-
+	virtual ~UMovieSceneNiagaraEmitterTrack();
+	
 	virtual bool CanRename() const override;
 
 	FNiagaraSystemViewModel& GetSystemViewModel() const;
@@ -72,6 +74,10 @@ public:
 
 	bool GetSectionsWereModified() const;
 
+	// FTickableEditorObject interface
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+
 	//~ UMovieSceneTrack interface
 	virtual void RemoveAllAnimationData() override { }
 	virtual bool HasSection(const UMovieSceneSection& Section) const override;
@@ -84,6 +90,7 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsMultipleRows() const override;
 	virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const override;
+	
 
 	/** Gets the unique id for the emitter handle that was associated with this track; used for copy/paste detection */
 	FGuid GetEmitterHandleId() const;
@@ -95,6 +102,7 @@ public:
 
 private:
 	void CreateSections(const FFrameRate& InFrameResolution);
+	void RestoreDefaultTrackColor(bool bScalabilityModeActivated);
 
 private:
 	FNiagaraSystemViewModel* SystemViewModel;
@@ -116,4 +124,6 @@ private:
 	FString SystemPath;
 
 	TArray<FText> SectionInitializationErrors;
+
+	bool bScalabilityModeActive = false;
 };

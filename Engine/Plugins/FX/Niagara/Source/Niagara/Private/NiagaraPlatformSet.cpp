@@ -43,13 +43,40 @@ static FAutoConsoleVariableRef CVarPruneEmittersOnCook(
 static const int32 DefaultQualityLevel = 3;
 const TCHAR* NiagaraQualityLevelName = TEXT("fx.Niagara.QualityLevel");
 int32 GNiagaraQualityLevel = DefaultQualityLevel;
-static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
-	NiagaraQualityLevelName,
-	GNiagaraQualityLevel,
-	TEXT("The quality level for Niagara Effects. \n"),
-	FConsoleVariableDelegate::CreateStatic(&FNiagaraPlatformSet::OnQualityLevelChanged),
-	ECVF_Scalability | ECVF_Preview
-);
+
+static FAutoConsoleCommand GCmdSetNiagaraQualityLevelOverride(
+	TEXT("fx.Niagara.SetOverrideQualityLevel"),
+	TEXT("Sets which quality level we should override with, no args means reset to default (Epic). Valid levels are 0-4 (Low-Cinematic)"),
+	FConsoleCommandWithArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args)
+		{
+			if(Args.Num() == 0)
+			{
+				SetGNiagaraQualityLevel(DefaultQualityLevel);
+				UE_LOG(LogNiagara, Display, TEXT("Reset the global Niagara quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(GNiagaraQualityLevel).ToString());
+			}
+			else if(Args.Num() == 1)
+			{
+				if(FCString::IsNumeric(*Args[0]))
+				{
+					int32 NewQualityLevel = FCString::Atoi(*Args[0]);
+					if(ensure(NewQualityLevel >= 0 && NewQualityLevel <= 4))
+					{
+						SetGNiagaraQualityLevel(NewQualityLevel);
+						UE_LOG(LogNiagara, Display, TEXT("Set the global Niagara quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(GNiagaraQualityLevel).ToString());
+					}
+				}
+			}
+		}
+	)
+); 
+// static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
+// 	NiagaraQualityLevelName,
+// 	GNiagaraQualityLevel,
+// 	TEXT("The quality level for Niagara Effects. \n"),
+// 	FConsoleVariableDelegate::CreateStatic(&FNiagaraPlatformSet::OnQualityLevelChanged),
+// 	ECVF_Scalability
+// );
 
 // Override platform device profile
 // In editor all profiles will be available
@@ -82,27 +109,14 @@ static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 					{
 						if (Profile->GetName() == Args[0])
 						{
-							GNiagaraPlatformOverride = Profile;
+							SetGNiagaraDeviceProfile(Profile);
 							break;
 						}
 					}
 				}
 
-
 				if (GNiagaraPlatformOverride.IsValid())
 				{
-					//Save the previous QL state the first time we enter a preview.
-					if (GNiagaraBackupQualityLevel == INDEX_NONE)
-					{
-						GNiagaraBackupQualityLevel = GNiagaraQualityLevel;
-					}
-
-					UDeviceProfile* OverrideDP = GNiagaraPlatformOverride.Get();
-					check(OverrideDP);
-					int32 DPQL = FNiagaraPlatformSet::QualityLevelFromMask(FNiagaraPlatformSet::GetEffectQualityMaskForDeviceProfile(OverrideDP));
-					
-					OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(DPQL), ECVF_SetByMask);
-
 					UE_LOG(LogNiagara, Warning, TEXT("Niagara Setting Override DeviceProfile '%s'"), *Args[0]);
 				}
 				else
@@ -148,15 +162,7 @@ void FNiagaraPlatformSet::OnQualityLevelChanged(IConsoleVariable* Variable)
 
 	if (CurrentLevel != NewQualityLevel)
 	{
-		CachedQualityLevel = NewQualityLevel;
-		InvalidateCachedData();
-
-		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
-		{
-			UNiagaraSystem* System = *It;
-			check(System);
-			System->OnScalabilityCVarChanged();
-		}
+		SetGNiagaraQualityLevel(NewQualityLevel);
 	}
 }
 
@@ -221,7 +227,23 @@ bool FNiagaraPlatformSet::IsActive()const
 {
 	if (LastBuiltFrame <= LastDirtiedFrame || LastBuiltFrame == 0)
 	{
-		bEnabledForCurrentProfileAndEffectQuality = IsEnabled(NiagaraGetActiveDeviceProfile(), GetQualityLevel(), true);
+		UDeviceProfile* ActiveProfile = NiagaraGetActiveDeviceProfile();
+		int32 QualityLevel = GetQualityLevel();
+#if WITH_EDITOR
+		if(OnOverrideQualityLevelDelegate.IsBound())
+		{
+			QualityLevel = OnOverrideQualityLevelDelegate.Execute();
+		}
+		if(OnOverrideActiveDeviceProfileDelegate.IsBound())
+		{
+			TOptional<TObjectPtr<UDeviceProfile>> OverrideProfile = OnOverrideActiveDeviceProfileDelegate.Execute();
+			if(OverrideProfile.IsSet())
+			{
+				ActiveProfile = OverrideProfile.GetValue();
+			}
+		}
+#endif
+		bEnabledForCurrentProfileAndEffectQuality = IsEnabled(ActiveProfile, QualityLevel, true);
 		LastBuiltFrame = GFrameNumber;
 	}
 	return bEnabledForCurrentProfileAndEffectQuality;
@@ -403,6 +425,7 @@ void FNiagaraPlatformSet::InvalidateCachedData()
 #if WITH_EDITOR
 	CachedQLMasksPerDeviceProfile.Empty();
 	CachedPlatformIniSettings.Empty();
+	CachedQualityLevel = INDEX_NONE;
 	FDeviceProfileValueCache::Empty();
 #endif
 
@@ -451,6 +474,36 @@ bool FNiagaraPlatformSet::CanChangeScalabilityAtRuntime(const UDeviceProfile* De
 #endif
 	}
 	return true;//Assuming true if we fail to find the platform seems safest.
+}
+
+void SetGNiagaraQualityLevel(int32 QualityLevel)
+{
+	GNiagaraQualityLevel = QualityLevel;
+	FNiagaraPlatformSet::InvalidateCachedData();
+
+	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+	{
+		UNiagaraSystem* System = *It;
+		check(System);
+		System->UpdateScalability();
+	}
+}
+
+void SetGNiagaraDeviceProfile(UDeviceProfile* Profile)
+{
+	GNiagaraPlatformOverride = Profile;
+
+	//Save the previous QL state the first time we enter a preview.
+	if (GNiagaraBackupQualityLevel == INDEX_NONE)
+	{
+		GNiagaraBackupQualityLevel = GNiagaraQualityLevel;
+	}
+
+	UDeviceProfile* OverrideDP = GNiagaraPlatformOverride.Get();
+	check(OverrideDP);
+	int32 DPQL = FNiagaraPlatformSet::QualityLevelFromMask(FNiagaraPlatformSet::GetEffectQualityMaskForDeviceProfile(OverrideDP));
+					
+	OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(DPQL), ECVF_SetByMask);
 }
 
 #if WITH_EDITOR
@@ -786,7 +839,7 @@ void FNiagaraPlatformSetCVarCondition::OnCVarChanged(IConsoleVariable* CVar)
 	{
 		UNiagaraSystem* System = *It;
 		check(System);
-		System->OnScalabilityCVarChanged();
+		System->UpdateScalability();
 	}
 }
 

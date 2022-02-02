@@ -199,6 +199,9 @@ private:
 	static FCriticalSection ChangedDelegateHandlesCritSec;
 };
 
+void NIAGARA_API SetGNiagaraQualityLevel(int32 QualityLevel);
+void NIAGARA_API SetGNiagaraDeviceProfile(UDeviceProfile* Profile);
+
 USTRUCT()
 struct NIAGARA_API FNiagaraPlatformSet
 {
@@ -256,8 +259,7 @@ public:
 	In some cases this is not allowed.
 	*/
 	//bool Conflicts(const FNiagaraPlatformSet& Other, TArray<const UDeviceProfile*>& OutConflictingProfiles, bool bIncludeProfilesWithVariableQualityLevel=false)const;
-
-
+	
 	/** Direct state accessors for the UI. */
 	bool IsEffectQualityEnabled(int32 EffectQuality)const;
 	void SetEnabledForEffectQuality(int32 EffectQuality, bool bEnabled);
@@ -269,6 +271,11 @@ public:
 
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
 	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
+	
+	DECLARE_DELEGATE_RetVal(int32, FOnOverrideQualityLevel);
+	FOnOverrideQualityLevel OnOverrideQualityLevelDelegate;
+	DECLARE_DELEGATE_RetVal(TOptional<TObjectPtr<UDeviceProfile>>, FOnOverrideActiveDeviceProfile);
+	FOnOverrideActiveDeviceProfile OnOverrideActiveDeviceProfileDelegate;
 #endif
 
 	/** Mask defining which effects qualities this set matches. */

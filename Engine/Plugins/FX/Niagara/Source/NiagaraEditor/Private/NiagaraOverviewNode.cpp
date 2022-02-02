@@ -65,6 +65,11 @@ static FNiagaraEmitterHandle* FindEmitterHandleByID(UNiagaraSystem* System, cons
 	return nullptr;
 }
 
+FNiagaraEmitterHandle* UNiagaraOverviewNode::TryGetEmitterHandle()
+{
+	return FindEmitterHandleByID(GetOwningSystem(), GetEmitterHandleGuid());
+}
+
 FText UNiagaraOverviewNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (OwningSystem == nullptr)

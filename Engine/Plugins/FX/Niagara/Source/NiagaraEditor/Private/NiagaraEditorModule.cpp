@@ -1190,7 +1190,7 @@ void FNiagaraEditorModule::ShutdownModule()
 		PropertyModule.UnregisterCustomClassLayout("NiagaraComponent");
 	}
 
-	FNiagaraEditorStyle::Shutdown();
+	FNiagaraEditorStyle::Unregister();
 
 	UnregisterSettings();
 
@@ -1339,7 +1339,7 @@ void FNiagaraEditorModule::OnPreviewPlatformChanged()
 	{
 		UNiagaraSystem* System = *It;
 		check(System);
-		System->OnScalabilityCVarChanged();
+		System->UpdateScalability();
 	}
 }
 

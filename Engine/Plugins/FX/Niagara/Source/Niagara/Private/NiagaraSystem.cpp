@@ -1076,7 +1076,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
 	ResolveScalabilitySettings();
-
+	OnScalabilityChanged().Broadcast();
+	
 	UpdateContext.CommitUpdate();
 
 	static FName SkipReset = TEXT("SkipSystemResetOnChange");
@@ -2332,6 +2333,11 @@ UNiagaraSystem::FOnSystemCompiled& UNiagaraSystem::OnSystemCompiled()
 UNiagaraSystem::FOnSystemPostEditChange& UNiagaraSystem::OnSystemPostEditChange()
 {
 	return OnSystemPostEditChangeDelegate;
+}
+
+UNiagaraSystem::FOnScalabilityChanged& UNiagaraSystem::OnScalabilityChanged()
+{
+	return OnScalabilityChangedDelegate;
 }
 
 void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
@@ -3608,6 +3614,23 @@ UNiagaraEffectType* UNiagaraSystem::GetEffectType()const
 	return EffectType;
 }
 
+const FNiagaraSystemScalabilityOverride& UNiagaraSystem::GetCurrentOverrideSettings() const
+{
+	if(bOverrideScalabilitySettings)
+	{
+		for (const FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
+		{
+			if (Override.Platforms.IsActive())
+			{
+				return Override;
+			}
+		}
+	}
+
+	static FNiagaraSystemScalabilityOverride Dummy;
+	return Dummy;
+}
+
 #if WITH_EDITOR
 void UNiagaraSystem::SetEffectType(UNiagaraEffectType* InEffectType)
 {
@@ -3755,7 +3778,7 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	FNiagaraWorldManager::InvalidateCachedSystemScalabilityDataForAllWorlds();
 }
 
-void UNiagaraSystem::OnScalabilityCVarChanged()
+void UNiagaraSystem::UpdateScalability()
 {
 	CacheFromCompiledData();
 
@@ -3765,9 +3788,13 @@ void UNiagaraSystem::OnScalabilityCVarChanged()
 	{
 		if (Handle.GetInstance())
 		{
-			Handle.GetInstance()->OnScalabilityCVarChanged();
+			Handle.GetInstance()->UpdateScalability();
 		}
 	}
+
+#if WITH_EDITOR
+	OnScalabilityChangedDelegate.Broadcast();
+#endif
 
 	// Update components
 	{

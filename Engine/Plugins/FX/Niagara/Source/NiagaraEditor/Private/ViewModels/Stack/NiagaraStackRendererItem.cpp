@@ -131,6 +131,21 @@ bool UNiagaraStackRendererItem::AddMissingVariable(UNiagaraEmitter* Emitter, con
 	return true;
 }
 
+bool UNiagaraStackRendererItem::IsExcludedFromScalability() const
+{
+	if(RendererProperties.IsValid()) 
+	{
+		return !RendererProperties.Get()->Platforms.IsActive();
+	}
+
+	return false;
+}
+
+bool UNiagaraStackRendererItem::IsOwningEmitterExcludedFromScalability() const
+{
+	return GetEmitterViewModel().IsValid() ? !GetEmitterViewModel()->GetEmitter()->IsAllowedByScalability() : false;
+}
+
 UNiagaraRendererProperties* UNiagaraStackRendererItem::GetRendererProperties()
 {
 	return RendererProperties.Get();

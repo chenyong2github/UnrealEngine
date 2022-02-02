@@ -135,8 +135,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	CurveSelectionViewModel = NewObject<UNiagaraCurveSelectionViewModel>(GetTransientPackage());
 	CurveSelectionViewModel->Initialize(this->AsShared());
 
+	ScalabilityViewModel = NewObject<UNiagaraSystemScalabilityViewModel>(GetTransientPackage());
+	ScalabilityViewModel->Initialize(this->AsShared());
+	
 	PlaceholderDataInterfaceManager = MakeShared<FNiagaraPlaceholderDataInterfaceManager>(this->AsShared());
-
+	
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
 	RefreshAll();
@@ -236,6 +239,11 @@ void FNiagaraSystemViewModel::Cleanup()
 	{
 		CurveSelectionViewModel->Finalize();
 		CurveSelectionViewModel = nullptr;
+	}
+
+	if(ScalabilityViewModel != nullptr)
+	{
+		ScalabilityViewModel = nullptr;
 	}
 
 	if (PlaceholderDataInterfaceManager.IsValid())
@@ -353,6 +361,17 @@ bool FNiagaraSystemViewModel::GetCanModifyEmittersFromTimeline() const
 ENiagaraSystemViewModelEditMode FNiagaraSystemViewModel::GetEditMode() const
 {
 	return EditMode;
+}
+
+FName FNiagaraSystemViewModel::GetWorkflowMode() const
+{
+	check(OnGetWorkflowModeDelegate.IsBound());
+	return OnGetWorkflowModeDelegate.Execute();
+}
+
+FOnGetWorkflowMode& FNiagaraSystemViewModel::OnGetWorkflowMode()
+{
+	return OnGetWorkflowModeDelegate;
 }
 
 TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
@@ -640,6 +659,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	{
 		Collector.AddReferencedObject(CurveSelectionViewModel);
 	}
+	if (ScalabilityViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(ScalabilityViewModel);
+	}
 }
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
@@ -878,6 +901,11 @@ UNiagaraScratchPadViewModel* FNiagaraSystemViewModel::GetScriptScratchPadViewMod
 UNiagaraCurveSelectionViewModel* FNiagaraSystemViewModel::GetCurveSelectionViewModel()
 {
 	return CurveSelectionViewModel;
+}
+
+UNiagaraSystemScalabilityViewModel* FNiagaraSystemViewModel::GetScalabilityViewModel()
+{
+	return ScalabilityViewModel;
 }
 
 TArray<float> FNiagaraSystemViewModel::OnGetPlaybackSpeeds() const

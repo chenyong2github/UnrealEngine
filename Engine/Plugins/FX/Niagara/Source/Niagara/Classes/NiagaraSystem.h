@@ -295,6 +295,7 @@ public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemCompiled, UNiagaraSystem*);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemPostEditChange, UNiagaraSystem*);
+	DECLARE_MULTICAST_DELEGATE(FOnScalabilityChanged)
 #endif
 	//TestChange
 
@@ -471,6 +472,9 @@ public:
 
 	/** Delegate called on PostEditChange.*/
 	FOnSystemPostEditChange& OnSystemPostEditChange();
+
+	/** Delegate called on effect type or effect type value change */
+	FOnScalabilityChanged& OnScalabilityChanged();
 
 	/** Gets editor specific data stored with this system. */
 	UNiagaraEditorDataBase* GetEditorData();
@@ -721,6 +725,7 @@ public:
 #if WITH_EDITOR
 	void SetEffectType(UNiagaraEffectType* EffectType);
 
+	FNiagaraSystemScalabilityOverrides& GetSystemScalabilityOverrides() { return SystemScalabilityOverrides; }
 	FORCEINLINE bool GetOverrideScalabilitySettings()const { return bOverrideScalabilitySettings; }
 	FORCEINLINE void SetOverrideScalabilitySettings(bool bOverride) { bOverrideScalabilitySettings = bOverride; }
 
@@ -729,9 +734,10 @@ public:
 #endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
+	const FNiagaraSystemScalabilityOverride& GetCurrentOverrideSettings() const;
 	FORCEINLINE bool NeedsSortedSignificanceCull()const{ return bNeedsSortedSignificanceCull; }
 	
-	void OnScalabilityCVarChanged();
+	void UpdateScalability();
 
 	FORCEINLINE ENiagaraCullProxyMode GetCullProxyMode()const { return GetScalabilitySettings().CullProxyMode; }
 
@@ -813,7 +819,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "System")
 	TObjectPtr<UNiagaraEffectType> EffectType;
 
-	UPROPERTY(EditAnywhere, Category = "Scalability")
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))
 	bool bOverrideScalabilitySettings;
 
 	/** Controls whether we should override the Effect Type value for bAllowCullingForLocalPlayers. */
@@ -827,7 +833,7 @@ protected:
 	UPROPERTY()
 	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition="bOverrideScalabilitySettings"))
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition="bOverrideScalabilitySettings", DisplayInScalabilityContext))
 	FNiagaraSystemScalabilityOverrides SystemScalabilityOverrides;
 
 	/** Handles to the emitter this System will simulate. */
@@ -883,6 +889,9 @@ protected:
 
 	/** A multicast delegate which is called whenever this system's properties are changed. */
 	FOnSystemPostEditChange OnSystemPostEditChangeDelegate;
+
+	/** A multicast delegate that is called whenever the effect type or the effect type values are changed */
+	FOnScalabilityChanged OnScalabilityChangedDelegate;
 #endif
 
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */

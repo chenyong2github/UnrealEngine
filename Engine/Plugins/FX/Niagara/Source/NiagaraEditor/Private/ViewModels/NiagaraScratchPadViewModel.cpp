@@ -8,6 +8,7 @@
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraNodeOutput.h"
@@ -244,7 +245,7 @@ void UNiagaraScratchPadViewModel::FocusScratchPadScriptViewModel(TSharedRef<FNia
 	if (ensureMsgf(ScriptViewModels.Contains(InScriptViewModel), TEXT("Can only focus a view model from this scratch pad view model.")))
 	{
 		SetActiveScriptViewModel(InScriptViewModel);
-		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkit::ScratchPadTabID);
+		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkitModeBase::ScratchPadTabID);
 	}
 }
 

@@ -1500,6 +1500,20 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 #endif
 }
 
+const FNiagaraEmitterScalabilityOverride& UNiagaraEmitter::GetCurrentOverrideSettings() const
+{
+	for (const FNiagaraEmitterScalabilityOverride& Override : ScalabilityOverrides.Overrides)
+	{
+		if (Override.Platforms.IsActive())
+		{
+			return Override;
+		}
+	}	
+
+	static FNiagaraEmitterScalabilityOverride Dummy;
+	return Dummy;
+}
+
 bool UNiagaraEmitter::IsAllowedByScalability()const
 {
 	return Platforms.IsActive();
@@ -2457,7 +2471,7 @@ void UNiagaraEmitter::ResolveScalabilitySettings()
 	}
 }
 
-void UNiagaraEmitter::OnScalabilityCVarChanged()
+void UNiagaraEmitter::UpdateScalability()
 {
 	ResolveScalabilitySettings();
 }

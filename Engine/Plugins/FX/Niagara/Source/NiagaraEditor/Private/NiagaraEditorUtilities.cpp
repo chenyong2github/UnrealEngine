@@ -3602,6 +3602,11 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 	return TooltipWidget;
 }
 
+float FNiagaraEditorUtilities::GetScalabilityTintAlpha(FNiagaraEmitterHandle* EmitterHandle)
+{
+	return EmitterHandle->GetIsEnabled() ? 1 : 0.5f;
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

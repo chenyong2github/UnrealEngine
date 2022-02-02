@@ -16,6 +16,7 @@
 #include "Sections/MovieSceneNiagaraEmitterSection.h"
 
 #include "ISequencerSection.h"
+#include "NiagaraEditorUtilities.h"
 #include "SequencerSectionPainter.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneNiagaraEmitterTrack"
@@ -85,6 +86,14 @@ void UMovieSceneNiagaraEmitterTrack::Initialize(FNiagaraSystemViewModel& InSyste
 	SystemPath = SystemViewModel->GetSystem().GetPathName();
 	SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.NiagaraSequence.DefaultTrackColor").ToFColor(true));
 	CreateSections(InFrameResolution);
+
+	// since we are updating the color on tick when scalability mode is active, we reset the color when it is deactivated
+	SystemViewModel->GetScalabilityViewModel()->OnScalabilityModeChanged().AddUObject(this, &UMovieSceneNiagaraEmitterTrack::RestoreDefaultTrackColor);
+}
+
+UMovieSceneNiagaraEmitterTrack::~UMovieSceneNiagaraEmitterTrack()
+{
+	//SystemViewModel->GetScalabilityViewModel()->OnScalabilityModeChanged().RemoveAll(this);
 }
 
 bool UMovieSceneNiagaraEmitterTrack::CanRename() const
@@ -164,6 +173,33 @@ void UMovieSceneNiagaraEmitterTrack::UpdateEmitterHandleFromTrackChange(const FF
 bool UMovieSceneNiagaraEmitterTrack::GetSectionsWereModified() const
 {
 	return bSectionsWereModified;
+}
+
+void UMovieSceneNiagaraEmitterTrack::Tick(float DeltaTime)
+{
+	if(!HasAnyFlags(RF_ClassDefaultObject) && bScalabilityModeActive)
+	{
+		UNiagaraEmitter* Emitter = nullptr;
+		// the emitter instance might no longer be valid if we deleted the emitter but the track still lives until garbage collection
+		if(EmitterHandleViewModel.IsValid() && EmitterHandleViewModel.Pin()->GetEmitterHandle() != nullptr)
+		{
+			Emitter = EmitterHandleViewModel.Pin()->GetEmitterHandle()->GetInstance();
+		}
+		
+		if(Emitter && !Emitter->IsAllowedByScalability())
+		{
+			SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.SystemOverview.ExcludedFromScalability").ToFColor(true));
+		}
+		else
+		{
+			SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.NiagaraSequence.DefaultTrackColor").ToFColor(true));
+		}
+	}
+}
+
+TStatId UMovieSceneNiagaraEmitterTrack::GetStatId() const
+{
+	return TStatId();
 }
 
 bool UMovieSceneNiagaraEmitterTrack::HasSection(const UMovieSceneSection& Section) const
@@ -295,6 +331,16 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 
 	UpdateTrackFromEmitterParameterChange(InFrameResolution);
 	bSectionsWereModified = false;
+}
+
+void UMovieSceneNiagaraEmitterTrack::RestoreDefaultTrackColor(bool bScalabilityModeActivated)
+{
+	bScalabilityModeActive = bScalabilityModeActivated;
+	
+	if(bScalabilityModeActive == false)
+	{
+		SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.NiagaraSequence.DefaultTrackColor").ToFColor(true));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -12,6 +12,7 @@
 #include "NiagaraEditorSettings.h"
 #include "UpgradeNiagaraScriptResults.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
@@ -335,6 +336,8 @@ namespace FNiagaraEditorUtilities
 
 	DECLARE_DELEGATE_OneParam(FNodeVisitor, UEdGraphNode* /*VisitedNode*/);
 	void VisitAllNodesConnectedToInputs(UEdGraphNode* StartNode, FNodeVisitor Visitor);
+	
+	NIAGARAEDITOR_API float GetScalabilityTintAlpha(FNiagaraEmitterHandle* EmitterHandle);
 };
 
 namespace FNiagaraParameterUtilities
