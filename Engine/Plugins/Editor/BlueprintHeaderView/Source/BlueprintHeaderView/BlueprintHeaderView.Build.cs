@@ -21,6 +21,7 @@ public class BlueprintHeaderView : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"InputCore",
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
