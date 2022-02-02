@@ -1144,9 +1144,9 @@ public:
 		return true;
 	}
 
-	// Conversion from other type.
+	// Conversion from other type. TODO: explicit!
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-	explicit TVector(const TVector<FArg>& From) : TVector<T>((T)From.X, (T)From.Y, (T)From.Z) {}
+	TVector(const TVector<FArg>& From) : TVector<T>((T)From.X, (T)From.Y, (T)From.Z) {}
 };
 
 /**
