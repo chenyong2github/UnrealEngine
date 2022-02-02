@@ -3749,17 +3749,22 @@ protected:
 
 		auto GetBlueprintObjectNameLambda = [](const UObject* InSerializingObject) -> FString
 		{
-#if WITH_EDITORONLY_DATA
-			// ClassGeneratedBy TODO: This may be wrong in cooked builds
 			if (InSerializingObject)
 			{
-				const UClass* BPGC = InSerializingObject->GetTypedOuter<UClass>();
-				if (BPGC && BPGC->ClassGeneratedBy)
+				if (const UClass* BPGC = InSerializingObject->GetTypedOuter<UClass>())
 				{
-					return BPGC->ClassGeneratedBy->GetFullName();
+#if WITH_EDITORONLY_DATA
+					if (BPGC->ClassGeneratedBy)
+					{
+						return BPGC->ClassGeneratedBy->GetFullName();
+					}
+					else
+#endif
+					{
+						return BPGC->GetFullName();
+					}
 				}
 			}
-#endif
 
 			return TEXT("NULL");
 		};

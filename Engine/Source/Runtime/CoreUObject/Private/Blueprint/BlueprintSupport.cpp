@@ -2379,31 +2379,24 @@ UObject* FLinkerLoad::FindImportFast(UClass* ImportClass, UObject* ImportOuter, 
  */
 bool UObject::IsInBlueprint() const
 {
-	// ClassGeneratedBy TODO: This is wrong in cooked builds
-#if WITH_EDITORONLY_DATA
-
 	// Exclude blueprint classes as they may be regenerated at any time
 	// Need to exclude classes, CDOs, and their subobjects
 	const UObject* TestObject = this;
  	while (TestObject)
  	{
  		const UClass *ClassObject = dynamic_cast<const UClass*>(TestObject);
-		if (ClassObject 
-			&& ClassObject->HasAnyClassFlags(CLASS_CompiledFromBlueprint) 
-			&& ClassObject->ClassGeneratedBy)
+		if (ClassObject && !ClassObject->IsNative())
  		{
  			return true;
  		}
 		else if (TestObject->HasAnyFlags(RF_ClassDefaultObject) 
 			&& TestObject->GetClass() 
-			&& TestObject->GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) 
-			&& TestObject->GetClass()->ClassGeneratedBy)
+			&& !TestObject->GetClass()->IsNative())
  		{
  			return true;
  		}
  		TestObject = TestObject->GetOuter();
  	}
-#endif
 
 	return false;
 }
