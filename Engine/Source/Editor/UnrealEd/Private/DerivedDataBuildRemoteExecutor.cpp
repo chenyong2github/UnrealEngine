@@ -166,7 +166,7 @@ public:
 			if (bEnabled)
 			{
 				RequestPool = MakeUnique<UE::Zen::FZenHttpRequestPool>(ZenServiceInstance.GetURL());
-				IModularFeatures::Get().RegisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
+				IModularFeatures::Get().RegisterModularFeature(IBuildWorkerExecutor::FeatureName, this);
 			}
 			else
 			{
@@ -185,7 +185,7 @@ public:
 	{
 		if (bEnabled)
 		{
-			IModularFeatures::Get().UnregisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
+			IModularFeatures::Get().UnregisterModularFeature(IBuildWorkerExecutor::FeatureName, this);
 			bProcessingThreadRunning = false;
 			ProcessingThreadEvent->Trigger();
 			ProcessingThread->WaitForCompletion();

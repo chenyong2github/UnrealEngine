@@ -13,14 +13,10 @@ namespace UE::DerivedData
 class IBuildFunctionFactory : public IModularFeature
 {
 public:
+	static inline const FLazyName FeatureName{"BuildFunctionFactory"};
+
 	/** Returns the build function associated with this factory. */
 	virtual const IBuildFunction& GetFunction() const = 0;
-
-	/** Returns the name of the build function factory modular feature. */
-	static FName GetFeatureName()
-	{
-		return FName("BuildFunctionFactory");
-	}
 };
 
 /**
@@ -43,12 +39,12 @@ public:
 	explicit TBuildFunctionFactory(ArgTypes&&... Args)
 		: Function(Forward<ArgTypes>(Args)...)
 	{
-		IModularFeatures::Get().RegisterModularFeature(GetFeatureName(), this);
+		IModularFeatures::Get().RegisterModularFeature(FeatureName, this);
 	}
 
 	~TBuildFunctionFactory()
 	{
-		IModularFeatures::Get().UnregisterModularFeature(GetFeatureName(), this);
+		IModularFeatures::Get().UnregisterModularFeature(FeatureName, this);
 	}
 
 	const IBuildFunction& GetFunction() const final

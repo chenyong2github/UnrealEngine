@@ -164,11 +164,11 @@ private:
 FBuildWorkerRegistry::FBuildWorkerRegistry()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	if (ModularFeatures.IsModularFeatureAvailable(IBuildWorkerExecutor::GetFeatureName()))
+	if (ModularFeatures.IsModularFeatureAvailable(IBuildWorkerExecutor::FeatureName))
 	{
-		Executor = &ModularFeatures.GetModularFeature<IBuildWorkerExecutor>(IBuildWorkerExecutor::GetFeatureName());
+		Executor = &ModularFeatures.GetModularFeature<IBuildWorkerExecutor>(IBuildWorkerExecutor::FeatureName);
 	}
-	for (IBuildWorkerFactory* Worker : ModularFeatures.GetModularFeatureImplementations<IBuildWorkerFactory>(IBuildWorkerFactory::GetFeatureName()))
+	for (IBuildWorkerFactory* Worker : ModularFeatures.GetModularFeatureImplementations<IBuildWorkerFactory>(IBuildWorkerFactory::FeatureName))
 	{
 		AddWorker(Worker);
 	}
@@ -185,12 +185,12 @@ FBuildWorkerRegistry::~FBuildWorkerRegistry()
 
 void FBuildWorkerRegistry::OnModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature)
 {
-	if (!Executor && Type == IBuildWorkerExecutor::GetFeatureName())
+	if (!Executor && Type == IBuildWorkerExecutor::FeatureName)
 	{
 		FWriteScopeLock WriteLock(Lock);
 		Executor = static_cast<IBuildWorkerExecutor*>(ModularFeature);
 	}
-	else if (Type == IBuildWorkerFactory::GetFeatureName())
+	else if (Type == IBuildWorkerFactory::FeatureName)
 	{
 		AddWorker(static_cast<IBuildWorkerFactory*>(ModularFeature));
 	}
@@ -198,18 +198,18 @@ void FBuildWorkerRegistry::OnModularFeatureRegistered(const FName& Type, IModula
 
 void FBuildWorkerRegistry::OnModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature)
 {
-	if (Executor == ModularFeature && Type == IBuildWorkerExecutor::GetFeatureName())
+	if (Executor == ModularFeature && Type == IBuildWorkerExecutor::FeatureName)
 	{
 		IModularFeature* NextExecutor = nullptr;
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-		if (ModularFeatures.IsModularFeatureAvailable(IBuildWorkerExecutor::GetFeatureName()))
+		if (ModularFeatures.IsModularFeatureAvailable(IBuildWorkerExecutor::FeatureName))
 		{
-			NextExecutor = &ModularFeatures.GetModularFeature<IBuildWorkerExecutor>(IBuildWorkerExecutor::GetFeatureName());
+			NextExecutor = &ModularFeatures.GetModularFeature<IBuildWorkerExecutor>(IBuildWorkerExecutor::FeatureName);
 		}
 		FWriteScopeLock WriteLock(Lock);
 		Executor = static_cast<IBuildWorkerExecutor*>(NextExecutor);
 	}
-	else if (Type == IBuildWorkerFactory::GetFeatureName())
+	else if (Type == IBuildWorkerFactory::FeatureName)
 	{
 		RemoveWorker(static_cast<IBuildWorkerFactory*>(ModularFeature));
 	}

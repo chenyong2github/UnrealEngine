@@ -42,7 +42,7 @@ private:
 FBuildFunctionRegistry::FBuildFunctionRegistry()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	for (IBuildFunctionFactory* Factory : ModularFeatures.GetModularFeatureImplementations<IBuildFunctionFactory>(IBuildFunctionFactory::GetFeatureName()))
+	for (IBuildFunctionFactory* Factory : ModularFeatures.GetModularFeatureImplementations<IBuildFunctionFactory>(IBuildFunctionFactory::FeatureName))
 	{
 		AddFunctionNoLock(Factory);
 	}
@@ -59,7 +59,7 @@ FBuildFunctionRegistry::~FBuildFunctionRegistry()
 
 void FBuildFunctionRegistry::OnModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature)
 {
-	if (Type == IBuildFunctionFactory::GetFeatureName())
+	if (Type == IBuildFunctionFactory::FeatureName)
 	{
 		FWriteScopeLock WriteLock(Lock);
 		AddFunctionNoLock(static_cast<IBuildFunctionFactory*>(ModularFeature));
@@ -68,7 +68,7 @@ void FBuildFunctionRegistry::OnModularFeatureRegistered(const FName& Type, IModu
 
 void FBuildFunctionRegistry::OnModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature)
 {
-	if (Type == IBuildFunctionFactory::GetFeatureName())
+	if (Type == IBuildFunctionFactory::FeatureName)
 	{
 		RemoveFunction(static_cast<IBuildFunctionFactory*>(ModularFeature));
 	}

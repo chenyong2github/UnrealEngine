@@ -51,7 +51,7 @@ public:
 		constexpr bool Tree = true;
 		IFileManager::Get().DeleteDirectory(*SandboxRootDir, RequireExists, Tree);
 
-		IModularFeatures::Get().RegisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
+		IModularFeatures::Get().RegisterModularFeature(IBuildWorkerExecutor::FeatureName, this);
 	}
 
 	~FLocalBuildWorkerExecutor() final = default;

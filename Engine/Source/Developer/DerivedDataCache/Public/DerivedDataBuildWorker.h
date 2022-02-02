@@ -64,21 +64,19 @@ public:
 class IBuildWorkerFactory : public IModularFeature
 {
 public:
+	static inline const FLazyName FeatureName{"BuildWorkerFactory"};
+
 	virtual ~IBuildWorkerFactory() = default;
 
 	virtual void Build(FBuildWorkerBuilder& Builder) = 0;
 	virtual void FindFileData(TConstArrayView<FIoHash> RawHashes, IRequestOwner& Owner, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
-
-	/** Returns the name of the build worker factory modular feature. */
-	static FName GetFeatureName()
-	{
-		return FName("BuildWorkerFactory");
-	}
 };
 
 class IBuildWorkerExecutor : public IModularFeature
 {
 public:
+	static inline const FLazyName FeatureName{"BuildWorkerExecutor"};
+
 	virtual ~IBuildWorkerExecutor() = default;
 
 	virtual void Build(
@@ -91,12 +89,6 @@ public:
 		FOnBuildWorkerActionComplete&& OnComplete) = 0;
 
 	virtual TConstArrayView<FStringView> GetHostPlatforms() const = 0;
-
-	/** Returns the name of the build worker executor modular feature. */
-	static FName GetFeatureName()
-	{
-		return FName("BuildWorkerExecutor");
-	}
 };
 
 struct FBuildWorkerActionCompleteParams

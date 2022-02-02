@@ -159,7 +159,7 @@ FTargetReceiptBuildWorker::~FTargetReceiptBuildWorker()
 	FTargetReceiptBuildWorkerFactory* WorkerFactory = GetWorkerFactory();
 	if (bEnabled)
 	{
-		IModularFeatures::Get().UnregisterModularFeature(UE::DerivedData::IBuildWorkerFactory::GetFeatureName(), WorkerFactory);
+		IModularFeatures::Get().UnregisterModularFeature(UE::DerivedData::IBuildWorkerFactory::FeatureName, WorkerFactory);
 	}
 	WorkerFactory->~FTargetReceiptBuildWorkerFactory();
 }
@@ -494,6 +494,6 @@ void FTargetReceiptBuildWorker::PopulateWorkerFromReceipt(const FString& TargetR
 		}
 	}
 
-	IModularFeatures::Get().RegisterModularFeature(UE::DerivedData::IBuildWorkerFactory::GetFeatureName(), GetWorkerFactory());
+	IModularFeatures::Get().RegisterModularFeature(UE::DerivedData::IBuildWorkerFactory::FeatureName, GetWorkerFactory());
 	bEnabled = true;
 }
