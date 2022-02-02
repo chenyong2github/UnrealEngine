@@ -527,6 +527,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FPreviewPlatformChanged);
 	FPreviewPlatformChanged PreviewPlatformChanged;
 
+	/** An array of delegates that can force disable throttling cpu usage if any of them return false. */
+	DECLARE_DELEGATE_RetVal(bool, FShouldDisableCPUThrottling);
+	TArray<FShouldDisableCPUThrottling> ShouldDisableCPUThrottlingDelegates;
+
 	/** A delegate that is called when the bugitgo command is used. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FPostBugItGoCalled, const FVector& Loc, const FRotator& Rot);
 	FPostBugItGoCalled PostBugItGoCalled;

@@ -6137,6 +6137,16 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 		return false;
 	}
 
+	// There might be systems where throttling would cause issues (such as data transfer over the network) - give them
+	// an opportunity to force us to not throttle.
+	for (auto It = ShouldDisableCPUThrottlingDelegates.CreateConstIterator(); It; ++It)
+	{
+		if (It->IsBound() && !It->Execute())
+		{
+			return false;
+		}
+	}
+
 	bool bShouldThrottle = false;
 
 	const bool bRunningCommandlet = IsRunningCommandlet();
