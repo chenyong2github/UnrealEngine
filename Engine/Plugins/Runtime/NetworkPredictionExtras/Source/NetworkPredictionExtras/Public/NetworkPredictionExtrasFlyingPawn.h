@@ -15,7 +15,7 @@ class UFlyingMovementComponent;
 //
 //	This provides a minimal pawn class that uses UFlyingMovementCompnent. This isn't really intended to be used in shipping games,
 //	rather just to serve as standalone example of using the system, contained completely in the NetworkPredictionExtras plugin.
-//	Apart from the most basic glue/setup, this class provides an example of turning UE4 input event callbacks into the input commands
+//	Apart from the most basic glue/setup, this class provides an example of turning UE input event callbacks into the input commands
 //	that are used by the flying movement simulation. This includes some basic camera/aiming code.
 //
 //	Highlights:

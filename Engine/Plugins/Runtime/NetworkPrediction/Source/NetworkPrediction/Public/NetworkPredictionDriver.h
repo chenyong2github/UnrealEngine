@@ -19,7 +19,7 @@ namespace Chaos
 	class FRewindData;
 };
 
-// The "driver" represents the UE4 side of the NetworkPrediction System. Typically the driver will be an Unreal Actor or ActorComponent.
+// The "driver" represents the UE side of the NetworkPrediction System. Typically the driver will be an Unreal Actor or ActorComponent.
 // This driver class is defined in the ModelDef (your version of FNetworkPredictionModelDef). For example, AActor or AMyPawn class.
 // While the Simulation class is agnostic to all of this, the driver is responsible for specifying exactly how things should work, 
 // generating input and handling output from the system.

@@ -31,7 +31,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	-Gameplay Cue events (both from within predictive gameplay effect and on their own)
  *		
  *	-Montages
- *	-Movement (built into UE4 UCharacterMovement)
+ *	-Movement (built into UE UCharacterMovement)
  *	
  *	
  *	Some things we don't predict (most of these we potentially could, but currently dont):

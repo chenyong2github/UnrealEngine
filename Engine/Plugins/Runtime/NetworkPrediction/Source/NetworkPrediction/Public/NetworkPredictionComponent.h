@@ -10,7 +10,7 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	UNetworkPredictionComponent
 //	This is the base component for running a TNetworkedSimulationModel through an actor component. This contains the boiler plate hooks into getting the system
-//	initialized and plugged into the UE4 replication system.
+//	initialized and plugged into the UE replication system.
 //
 //	This is an abstract component and cannot function on its own. It must be subclassed and InitializeNetworkPredictionProxy must be implemented.
 //	Ticking and RPC sending will be handled automatically.

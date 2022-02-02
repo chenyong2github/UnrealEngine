@@ -38,7 +38,7 @@ DECLARE_CYCLE_STAT(TEXT("NetworkPrediction_MockSimTick"), STAT_NetworkPrediction
 //
 //	Highlights:
 //		FMockNetworkModel::SimulationTick		The "core update" function of the simulation.
-//		UMockNetworkSimulationComponent			The UE4 Actor Component that anchors the system to an actor.
+//		UMockNetworkSimulationComponent			The UE Actor Component that anchors the system to an actor.
 //
 //	Usage:
 //		You can just add a UMockNetworkSimulationComponent to any ROLE_AutonomousProxy actor yourself (Default Subobject, through blueprints, manually, etc)

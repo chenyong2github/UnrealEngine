@@ -10,7 +10,7 @@
 #include "NetworkPredictionSimulation.h"
 
 // -------------------------------------------------------------------------------------------------------------------------------
-// FlyingMovement: simple flying movement that was based on UE4's FloatingPawnMovement
+// FlyingMovement: simple flying movement that was based on UE's FloatingPawnMovement
 // -------------------------------------------------------------------------------------------------------------------------------
 
 // State the client generates
