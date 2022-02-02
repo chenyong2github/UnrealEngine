@@ -431,14 +431,13 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 	{
 		const FMaterialSection& Section = MaterialSections[SectionIndex];
-		const UMaterialInterface* Material = Section.ShadingMaterial;
-		if (!Material)
+		if (!Section.ShadingMaterial.IsValid())
 		{
 			continue;
 		}
 
 		MeshBatch.SegmentIndex = SectionIndex;
-		MeshBatch.MaterialRenderProxy = Material->GetRenderProxy();
+		MeshBatch.MaterialRenderProxy = Section.ShadingMaterial->GetRenderProxy();
 
 	#if WITH_EDITOR
 		HHitProxy* HitProxy = Section.HitProxy;
@@ -533,7 +532,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
 		MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
 
-		if (bHasSurfaceStaticLighting && MaterialSection.ShadingMaterial && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
+		if (bHasSurfaceStaticLighting && MaterialSection.ShadingMaterial.IsValid() && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
 		{
 			MaterialSection.ShadingMaterial = nullptr;
 		}

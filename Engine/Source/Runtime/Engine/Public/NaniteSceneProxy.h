@@ -85,8 +85,8 @@ public:
 
 	struct FMaterialSection
 	{
-		UMaterialInterface* RasterMaterial = nullptr;
-		UMaterialInterface* ShadingMaterial = nullptr;
+		TWeakObjectPtr<const UMaterialInterface> RasterMaterial = nullptr;
+		TWeakObjectPtr<const UMaterialInterface> ShadingMaterial = nullptr;
 
 	#if WITH_EDITOR
 		HHitProxy* HitProxy = nullptr;
@@ -104,6 +104,7 @@ public:
 	: FPrimitiveSceneProxy(Component)
 	{
 		bIsNaniteMesh  = true;
+		bHasProgrammableRaster = false;
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
@@ -116,6 +117,11 @@ public:
 	{
 		// Disable slow occlusion paths(Nanite does its own occlusion culling)
 		return false;
+	}
+
+	inline bool HasProgrammableRaster() const
+	{
+		return bHasProgrammableRaster;
 	}
 
 	inline const TArray<FMaterialSection>& GetMaterialSections() const
@@ -142,19 +148,16 @@ public:
 
 	void UpdateMaterialDynamicDataUsage()
 	{
-		bHasPerInstanceCustomData = false;
-		bHasPerInstanceRandom = false;
+		bHasPerInstanceCustomData	= false;
+		bHasPerInstanceRandom		= false;
+		bHasProgrammableRaster 		= false;
 
-		// Checks if any material assigned to the mesh uses custom data and/or random ID
+		// Checks if any assigned material uses special features
 		for (const FMaterialSection& MaterialSection : MaterialSections)
 		{
-			bHasPerInstanceCustomData |= MaterialSection.bHasPerInstanceCustomData;
-			bHasPerInstanceRandom |= MaterialSection.bHasPerInstanceRandomID;
-
-			if (bHasPerInstanceCustomData && bHasPerInstanceRandom)
-			{
-				break;
-			}
+			bHasPerInstanceCustomData	|= MaterialSection.bHasPerInstanceCustomData;
+			bHasPerInstanceRandom		|= MaterialSection.bHasPerInstanceRandomID;
+			bHasProgrammableRaster		|= MaterialSection.RasterMaterial.IsValid();
 		}
 	}
 
@@ -171,6 +174,7 @@ protected:
 	EHitProxyMode HitProxyMode = EHitProxyMode::MaterialSection;
 #endif
 	int32 MaterialMaxIndex = INDEX_NONE;
+	uint8 bHasProgrammableRaster : 1;
 };
 
 class FSceneProxy : public FSceneProxyBase

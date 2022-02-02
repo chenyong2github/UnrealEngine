@@ -348,7 +348,6 @@ public:
 #if WITH_DEBUG_VIEW_MODES
 	FRHIShaderResourceView* GetMaterialEditorSRV() const { return MaterialEditorDataBuffer.SRV; }
 #endif
-	//FRHIShaderResourceView* GetMaterialArgumentSRV() const { return MaterialArgumentDataBuffer.SRV; }
 
 	inline const int32 GetHighestMaterialSlot() const
 	{
@@ -364,13 +363,12 @@ private:
 	uint32 NumMaterialSlotUpdates = 0;
 	uint32 NumMaterialDepthUpdates = 0;
 
-	// Old
 	FScatterUploadBuffer MaterialSlotUploadBuffer;
 	FRWByteAddressBuffer MaterialSlotDataBuffer;
+
 	FScatterUploadBuffer HitProxyTableUploadBuffer;
 	FRWByteAddressBuffer HitProxyTableDataBuffer;
 
-	// New
 	FGrowOnlySpanAllocator	MaterialSlotAllocator;
 
 	FScatterUploadBuffer	MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
@@ -380,9 +378,6 @@ private:
 	FScatterUploadBuffer	MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
 	FRWByteAddressBuffer	MaterialEditorDataBuffer;
 #endif
-
-	//FScatterUploadBuffer	MaterialArgumentUploadBuffer; // 4 uints per slot (NANITE_DRAW_INDIRECT_ARG_COUNT)
-	//FRWByteAddressBuffer	MaterialArgumentDataBuffer;
 };
 
 extern bool UseComputeDepthExport();
