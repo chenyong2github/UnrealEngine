@@ -2,6 +2,8 @@
 
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 
+#include "UObject/Stack.h"
+
 TArray<FAssetData> ITypedElementAssetDataInterface::GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle)
 {
 	TArray<FAssetData> AssetDatas;
@@ -18,4 +20,28 @@ TArray<FAssetData> ITypedElementAssetDataInterface::GetAllReferencedAssetDatas(c
 FAssetData ITypedElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
 {
 	return FAssetData();
+}
+
+TArray<FAssetData> ITypedElementAssetDataInterface::GetAllReferencedAssetDatas(const FScriptTypedElementHandle& InElementHandle)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return {};
+	}
+
+	return GetAllReferencedAssetDatas(NativeHandle);
+}
+
+FAssetData ITypedElementAssetDataInterface::GetAssetData(const FScriptTypedElementHandle& InElementHandle)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return FAssetData();
+	}
+
+	return GetAssetData(NativeHandle);
 }

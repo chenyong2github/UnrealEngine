@@ -25,14 +25,31 @@ public:
 	 *
 	 * @returns An array of valid asset datas.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
 	virtual TArray<FAssetData> GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Returns the asset data for the given handle, if it exists.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
 	virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle);
+
+	/**
+	 * Script Api
+	 */
+
+	/**
+	 * Returns any asset datas for content objects referenced by handle.
+	 * If the given handle itself has valid asset data, it should be returned as the last element of the array.
+	 *
+	 * @returns An array of valid asset datas.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
+	virtual TArray<FAssetData> GetAllReferencedAssetDatas(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Returns the asset data for the given handle, if it exists.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
+	virtual FAssetData GetAssetData(const FScriptTypedElementHandle& InElementHandle);
 };
 
 template <>

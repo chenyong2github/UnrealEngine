@@ -19,15 +19,17 @@ namespace TypedElementList_Private
 
 TYPEDELEMENTFRAMEWORK_API void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, FTypedElement& OutElement);
 
-template <typename BaseInterfaceType>
-FORCEINLINE void GetElement(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle, TTypedElement<BaseInterfaceType>& OutElement)
+TYPEDELEMENTFRAMEWORK_API void GetElementImpl(const UTypedElementRegistry* InRegistry, const FScriptTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, FTypedElement& OutElement);
+
+template <typename BaseInterfaceType, class HandleType>
+FORCEINLINE void GetElement(const UTypedElementRegistry* InRegistry, const HandleType& InElementHandle, TTypedElement<BaseInterfaceType>& OutElement)
 {
 	static_assert(sizeof(TTypedElement<BaseInterfaceType>) == sizeof(FTypedElement), "All TTypedElement instances must be the same size for this cast implementation to work!");
 	GetElementImpl(InRegistry, InElementHandle, BaseInterfaceType::UClassType::StaticClass(), reinterpret_cast<FTypedElement&>(OutElement));
 }
 
-template <typename BaseInterfaceType>
-FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle)
+template <typename BaseInterfaceType, class HandleType>
+FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegistry* InRegistry, const HandleType& InElementHandle)
 {
 	TTypedElement<BaseInterfaceType> Element;
 	GetElement(InRegistry, InElementHandle, Element);
@@ -36,119 +38,34 @@ FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegis
 
 } // namespace TypedElementList_Private
 
-/**
- * Interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
- * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
- */
-class TYPEDELEMENTFRAMEWORK_API FTypedElementListLegacySync
-{
-public:
-	enum class ESyncType : uint8
-	{
-		/**
-		 * An element was added to the element list.
-		 * The ElementHandle argument will be set to the element that was added.
-		 */
-		Added,
-
-		/**
-		 * An element was removed from the element list.
-		 * The ElementHandle argument will be set to the element that was removed.
-		 */
-		Removed,
-
-		/**
-		 * The element list was modified in an unknown way.
-		 * The ElementHandle argument will be unset.
-		 */
-		Modified,
-
-		/**
-		 * The element list was cleared.
-		 * The ElementHandle argument will be unset.
-		 */
-		Cleared,
-
-		/**
-		 * The element list was modified as part of a batch or bulk operation.
-		 * The ElementHandle argument will be unset.
-		 * @note A batch operation will emit internal (bIsWithinBatchOperation=true) Added, Removed, Modified and Cleared updates during the batch, 
-		 *       so if you respond to those internal updates you may choose to ignore this one. Otherwise you should treat it the same as Modified.
-		 */
-		BatchComplete,
-	};
-	
-	FTypedElementListLegacySync(const FTypedElementList& InElementList);
-
-	void Private_EmitSyncEvent(const ESyncType InSyncType, const FTypedElementHandle& InElementHandle = FTypedElementHandle());
-
-	DECLARE_EVENT_FourParams(FTypedElementListLegacySync, FOnSyncEvent, const FTypedElementList& /*InElementList*/, ESyncType /*InSyncType*/, const FTypedElementHandle& /*InElementHandle*/, bool /*bIsWithinBatchOperation*/);
-	FOnSyncEvent& OnSyncEvent();
-
-	bool IsRunningBatchOperation() const;
-	void BeginBatchOperation();
-	void EndBatchOperation(const bool InNotify = true);
-	bool IsBatchOperationDirty() const;
-	void ForceBatchOperationDirty();
-
-private:
-	const FTypedElementList& ElementList;
-
-	FOnSyncEvent OnSyncEventDelegate;
-
-	int32 NumOpenBatchOperations = 0;
-	bool bBatchOperationIsDirty = false;
-};
-
-/**
- * Helper to batch immediate sync notifications for legacy code.
- * Does nothing if no legacy sync has been created for the given instance.
- */
-class TYPEDELEMENTFRAMEWORK_API FTypedElementListLegacySyncScopedBatch
-{
-public:
-	explicit FTypedElementListLegacySyncScopedBatch(const FTypedElementList& InElementList, const bool InNotify = true);
-	~FTypedElementListLegacySyncScopedBatch();
-
-	FTypedElementListLegacySyncScopedBatch(const FTypedElementListLegacySyncScopedBatch&) = delete;
-	FTypedElementListLegacySyncScopedBatch& operator=(const FTypedElementListLegacySyncScopedBatch&) = delete;
-
-	FTypedElementListLegacySyncScopedBatch(FTypedElementListLegacySyncScopedBatch&&) = delete;
-	FTypedElementListLegacySyncScopedBatch& operator=(FTypedElementListLegacySyncScopedBatch&&) = delete;
-
-	bool IsDirty() const;
-	void ForceDirty();
-
-private:
-	FTypedElementListLegacySync* ElementListLegacySync = nullptr;
-	bool bNotify = true;
-};
 
 /**
  * A list of element handles.
  * Provides high-level access to groups of elements, including accessing elements that implement specific interfaces.
  */
-class TYPEDELEMENTFRAMEWORK_API FTypedElementList final : public TSharedFromThis<FTypedElementList>
+template<class HandleType>
+class TTypedElementList final : public TSharedFromThis<TTypedElementList<HandleType>>
 {
 public:
-	~FTypedElementList();
 
-	/**
-	 * Internal function used by the element registry to create an element list instance.
-	 */
-	static FTypedElementListRef Private_CreateElementList(UTypedElementRegistry* InRegistry);
+	using FHandleType = HandleType;
+	using TTypedElementListRef = TSharedRef<TTypedElementList>;
+	using TTypedElementListConstRef = TSharedRef<const TTypedElementList>;
+
+
+	~TTypedElementList();
 
 	/**
 	 * Clone this list instance.
 	 * @note Only copies elements; does not copy any bindings!
 	 */
-	FTypedElementListRef Clone() const;
+	TTypedElementListRef Clone() const;
 
 	/**
 	 * Get the element handle at the given index.
 	 * @note Use IsValidIndex to test for validity.
 	 */
-	FORCEINLINE FTypedElementHandle operator[](const int32 InIndex) const
+	FORCEINLINE HandleType operator[](const int32 InIndex) const
 	{
 		return GetElementHandleAt(InIndex);
 	}
@@ -157,7 +74,7 @@ public:
 	 * Get the element handle at the given index.
 	 * @note Use IsValidIndex to test for validity.
 	 */
-	FORCEINLINE FTypedElementHandle GetElementHandleAt(const int32 InIndex) const
+	FORCEINLINE HandleType GetElementHandleAt(const int32 InIndex) const
 	{
 		return ElementHandles[InIndex];
 	}
@@ -186,7 +103,7 @@ public:
 	 * Get the element from the given handle.
 	 */
 	template <typename BaseInterfaceType>
-	FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const FTypedElementHandle& InElementHandle) const
+	FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const HandleType& InElementHandle) const
 	{
 		return TypedElementList_Private::GetElement<BaseInterfaceType>(Registry.Get(), InElementHandle);
 	}
@@ -195,7 +112,7 @@ public:
 	 * Get the element from the given handle.
 	 */
 	template <typename BaseInterfaceType>
-	FORCEINLINE void GetElement(const FTypedElementHandle& InElementHandle, TTypedElement<BaseInterfaceType>& OutElement) const
+	FORCEINLINE void GetElement(const HandleType& InElementHandle, TTypedElement<BaseInterfaceType>& OutElement) const
 	{
 		TypedElementList_Private::GetElement(Registry.Get(), InElementHandle, OutElement);
 	}
@@ -293,7 +210,7 @@ public:
 	/**
 	 * Get the element interface from the given handle.
 	 */
-	UObject* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const;
+	UObject* GetElementInterface(const HandleType& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const;
 
 	/**
 	 * Test whether there are elements in this list, optionally filtering to elements that implement the given interface.
@@ -320,17 +237,17 @@ public:
 	/**
 	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 */
-	TArray<FTypedElementHandle> GetElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const;
+	TArray<HandleType> GetElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const;
 
 	/**
 	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 */
 	template <typename ArrayAllocator>
-	void GetElementHandles(TArray<FTypedElementHandle, ArrayAllocator>& OutArray, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
+	void GetElementHandles(TArray<HandleType, ArrayAllocator>& OutArray, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		OutArray.Reset();
 		OutArray.Reserve(ElementHandles.Num());
-		ForEachElementHandle([&OutArray](const FTypedElementHandle& InElementHandle)
+		ForEachElementHandle([&OutArray](const HandleType& InElementHandle)
 		{
 			OutArray.Add(InElementHandle);
 			return true;
@@ -341,7 +258,7 @@ public:
 	 * Enumerate the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 * @note Return true from the callback to continue enumeration.
 	 */
-	void ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const;
+	void ForEachElementHandle(TFunctionRef<bool(const HandleType&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const;
 
 	/**
 	 * Enumerate the elements in this list that implement the given interface.
@@ -351,7 +268,7 @@ public:
 	void ForEachElement(TFunctionRef<bool(const TTypedElement<BaseInterfaceType>&)> InCallback) const
 	{
 		TTypedElement<BaseInterfaceType> TempElement;
-		for (const FTypedElementHandle& ElementHandle : ElementHandles)
+		for (const HandleType& ElementHandle : ElementHandles)
 		{
 			GetElement(ElementHandle, TempElement);
 			if (TempElement && !InCallback(TempElement))
@@ -445,7 +362,7 @@ public:
 	/**
 	 * Does this element list contain an entry for the given element handle?
 	 */
-	FORCEINLINE bool Contains(const FTypedElementHandle& InElementHandle) const
+	FORCEINLINE bool Contains(const HandleType& InElementHandle) const
 	{
 		return ContainsElementImpl(InElementHandle.GetId());
 	}
@@ -463,7 +380,7 @@ public:
 	 * Add the given element handle to this element list, if it isn't already in the list.
 	 * @return True if the element handle was added, false if it is already in the list.
 	 */
-	FORCEINLINE bool Add(const FTypedElementHandle& InElementHandle)
+	FORCEINLINE bool Add(const HandleType& InElementHandle)
 	{
 		return AddElementImpl(CopyTemp(InElementHandle));
 	}
@@ -472,7 +389,7 @@ public:
 	 * Add the given element handle to this element list, if it isn't already in the list.
 	 * @return True if the element handle was added, false if it is already in the list.
 	 */
-	FORCEINLINE bool Add(FTypedElementHandle&& InElementHandle)
+	FORCEINLINE bool Add(HandleType&& InElementHandle)
 	{
 		return AddElementImpl(MoveTemp(InElementHandle));
 	}
@@ -490,14 +407,14 @@ public:
 	/**
 	 * Append another element list to this element list.
 	 */
-	void Append(FTypedElementListConstRef InElementList)
+	void Append(const TTypedElementListConstRef& InElementList)
 	{
 		if (this != &InElementList.Get())
 		{
-			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*this);
+			FLegacySyncScopedBatch LegacySyncBatch(*this);
 
 			Reserve(Num() + InElementList->Num());
-			InElementList->ForEachElementHandle([this](const FTypedElementHandle& ElementHandle)
+			InElementList->ForEachElementHandle([this](const HandleType& ElementHandle)
 			{
 				AddElementImpl(CopyTemp(ElementHandle));
 				return true;
@@ -508,12 +425,12 @@ public:
 	/**
 	 * Append the given element handles to this element list.
 	 */
-	void Append(TArrayView<const FTypedElementHandle> InElementHandles)
+	void Append(TArrayView<const HandleType> InElementHandles)
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*this);
+		FLegacySyncScopedBatch LegacySyncBatch(*this);
 
 		Reserve(Num() + InElementHandles.Num());
-		for (const FTypedElementHandle& ElementHandle : InElementHandles)
+		for (const HandleType& ElementHandle : InElementHandles)
 		{
 			AddElementImpl(CopyTemp(ElementHandle));
 		}
@@ -534,7 +451,7 @@ public:
 	template <typename ElementDataType>
 	void Append(TArrayView<const TTypedElementOwner<ElementDataType>> InElementOwners)
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*this);
+		FLegacySyncScopedBatch LegacySyncBatch(*this);
 
 		Reserve(Num() + InElementOwners.Num());
 		for (const TTypedElementOwner<ElementDataType>& ElementOwner : InElementOwners)
@@ -556,7 +473,7 @@ public:
 	 * Remove the given element handle from this element list, if it is in the list.
 	 * @return True if the element handle was removed, false if it isn't in the list.
 	 */
-	FORCEINLINE bool Remove(const FTypedElementHandle& InElementHandle)
+	FORCEINLINE bool Remove(const HandleType& InElementHandle)
 	{
 		return RemoveElementImpl(InElementHandle.GetId());
 	}
@@ -575,7 +492,7 @@ public:
 	 * Remove any element handles that match the given predicate from this element list.
 	 * @return The number of element handles removed.
 	 */
-	FORCEINLINE int32 RemoveAll(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate)
+	FORCEINLINE int32 RemoveAll(TFunctionRef<bool(const HandleType&)> InPredicate)
 	{
 		return RemoveAllElementsImpl(InPredicate);
 	}
@@ -588,7 +505,7 @@ public:
 	int32 RemoveAll(TFunctionRef<bool(const TTypedElement<BaseInterfaceType>&)> InPredicate)
 	{
 		TTypedElement<BaseInterfaceType> TempElement;
-		return RemoveAllElementsImpl([this, &TempElement, &InPredicate](const FTypedElementHandle& InElementHandle)
+		return RemoveAllElementsImpl([this, &TempElement, &InPredicate](const HandleType& InElementHandle)
 		{
 			GetElement(InElementHandle, TempElement);
 			return TempElement && InPredicate(TempElement);
@@ -607,7 +524,7 @@ public:
 	 * Access the delegate that is invoked whenever this element list is potentially about to change.
 	 * @note This may be called even if no actual change happens, so may be called multiple times without a corresponding OnChanged notification.
 	 */
-	DECLARE_EVENT_OneParam(FTypedElementList, FOnPreChange, const FTypedElementList& /*InElementList*/);
+	DECLARE_EVENT_OneParam(TTypedElementList, FOnPreChange, const TTypedElementList& /*InElementList*/);
 	FOnPreChange& OnPreChange()
 	{
 		return OnPreChangeDelegate;
@@ -617,7 +534,7 @@ public:
 	 * Access the delegate that is invoked whenever this element list has been changed.
 	 * @note This is called automatically at the end of each frame, but can also be manually invoked by NotifyPendingChanges.
 	 */
-	DECLARE_EVENT_OneParam(FTypedElementList, FOnChanged, const FTypedElementList& /*InElementList*/);
+	DECLARE_EVENT_OneParam(TTypedElementList, FOnChanged, const TTypedElementList& /*InElementList*/);
 	FOnChanged& OnChanged()
 	{
 		return OnChangedDelegate;
@@ -636,7 +553,7 @@ public:
 	struct TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange
 	{
 		FScopedClearNewPendingChange() = default;
-		FScopedClearNewPendingChange(FTypedElementList& InTypeElementList);
+		FScopedClearNewPendingChange(TTypedElementList& InTypeElementList);
 
 		FScopedClearNewPendingChange(const FScopedClearNewPendingChange&) = delete;
 		FScopedClearNewPendingChange& operator=(const FScopedClearNewPendingChange&) = delete;
@@ -647,7 +564,95 @@ public:
 		~FScopedClearNewPendingChange();
 
 	private:
-		FTypedElementList* TypedElementList = nullptr;
+		TTypedElementList* TypedElementList = nullptr;
+	};
+
+	/**
+	 * Interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
+	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
+	 */
+	class TYPEDELEMENTFRAMEWORK_API FLegacySync
+	{
+	public:
+		enum class ESyncType : uint8
+		{
+			/**
+			 * An element was added to the element list.
+			 * The ElementHandle argument will be set to the element that was added.
+			 */
+			Added,
+
+			/**
+			 * An element was removed from the element list.
+			 * The ElementHandle argument will be set to the element that was removed.
+			 */
+			Removed,
+
+			/**
+			 * The element list was modified in an unknown way.
+			 * The ElementHandle argument will be unset.
+			 */
+			Modified,
+
+			/**
+			 * The element list was cleared.
+			 * The ElementHandle argument will be unset.
+			 */
+			Cleared,
+
+			/**
+			 * The element list was modified as part of a batch or bulk operation.
+			 * The ElementHandle argument will be unset.
+			 * @note A batch operation will emit internal (bIsWithinBatchOperation=true) Added, Removed, Modified and Cleared updates during the batch, 
+			 *       so if you respond to those internal updates you may choose to ignore this one. Otherwise you should treat it the same as Modified.
+			 */
+			BatchComplete,
+		};
+	
+		FLegacySync(const TTypedElementList& InElementList);
+
+		void Private_EmitSyncEvent(const ESyncType InSyncType, const HandleType& InElementHandle = HandleType());
+
+		DECLARE_EVENT_FourParams(FLegacySync, FOnSyncEvent, const TTypedElementList& /*InElementList*/, ESyncType /*InSyncType*/, const HandleType& /*InElementHandle*/, bool /*bIsWithinBatchOperation*/);
+		FOnSyncEvent& OnSyncEvent();
+
+		bool IsRunningBatchOperation() const;
+		void BeginBatchOperation();
+		void EndBatchOperation(const bool InNotify = true);
+		bool IsBatchOperationDirty() const;
+		void ForceBatchOperationDirty();
+
+	private:
+		const TTypedElementList& ElementList;
+
+		FOnSyncEvent OnSyncEventDelegate;
+
+		int32 NumOpenBatchOperations = 0;
+		bool bBatchOperationIsDirty = false;
+	};
+
+	/**
+	 * Helper to batch immediate sync notifications for legacy code.
+	 * Does nothing if no legacy sync has been created for the given instance.
+	 */
+	class TYPEDELEMENTFRAMEWORK_API FLegacySyncScopedBatch
+	{
+	public:
+		explicit FLegacySyncScopedBatch(const TTypedElementList& InElementList, const bool InNotify = true);
+		~FLegacySyncScopedBatch();
+
+		FLegacySyncScopedBatch(const FLegacySyncScopedBatch&) = delete;
+		FLegacySyncScopedBatch& operator=(const FLegacySyncScopedBatch&) = delete;
+
+		FLegacySyncScopedBatch(FLegacySyncScopedBatch&&) = delete;
+		FLegacySyncScopedBatch& operator=(FLegacySyncScopedBatch&&) = delete;
+
+		bool IsDirty() const;
+		void ForceDirty();
+
+	private:
+		FLegacySync* ElementListLegacySync = nullptr;
+		bool bNotify = true;
 	};
 
 	/**
@@ -659,13 +664,23 @@ public:
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */
-	FTypedElementListLegacySync& Legacy_GetSync();
+	FLegacySync& Legacy_GetSync();
 
 	/**
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. This will return null if no legacy sync has been created for this instance.
 	 */
-	FTypedElementListLegacySync* Legacy_GetSyncPtr() const;
+	FLegacySync* Legacy_GetSyncPtr() const;
+
+	/**
+	 * Internal function used by the element registry to create an element list instance.
+	 */
+	static TTypedElementListRef Private_CreateElementList(UTypedElementRegistry* InRegistry);
+
+	UTypedElementRegistry* GetRegistry() const
+	{
+		return Registry.Get();
+	}
 
 private:
 	enum class EChangeType : uint8
@@ -689,15 +704,15 @@ private:
 		Cleared,
 	};
 
-	explicit FTypedElementList(UTypedElementRegistry* InRegistry);
+	explicit TTypedElementList(UTypedElementRegistry* InRegistry);
 
-	bool AddElementImpl(FTypedElementHandle&& InElementHandle);
+	bool AddElementImpl(HandleType&& InElementHandle);
 	bool RemoveElementImpl(const FTypedElementId& InElementId);
-	int32 RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate);
+	int32 RemoveAllElementsImpl(TFunctionRef<bool(const HandleType&)> InPredicate);
 	bool ContainsElementImpl(const FTypedElementId& InElementId) const;
 
 	void NoteListMayChange();
-	void NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle = FTypedElementHandle());
+	void NoteListChanged(const EChangeType InChangeType, const HandleType& InElementHandle = HandleType());
 
 	/**
 	 * Element registry this element list is associated with.
@@ -714,7 +729,7 @@ private:
 	 * Array of element handles present in this element list.
 	 * These are stored in the same order that they are added, and the set above can be used to optimize certain queries.
 	 */
-	TArray<FTypedElementHandle> ElementHandles;
+	TArray<HandleType> ElementHandles;
 
 	/**
 	 * Tracks various categories of counters for the elements within the list (eg, the number of elements of a given type).
@@ -740,5 +755,22 @@ private:
 	 * Interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */
-	TUniquePtr<FTypedElementListLegacySync> LegacySync;
+	TUniquePtr<FLegacySync> LegacySync;
 };
+
+
+namespace UE::TypedElementFramework
+{
+	/**
+	 * Functions to convert a script list to a native one
+	 * @note Only copies elements; does not copy any bindings!
+	 */
+	TYPEDELEMENTFRAMEWORK_API FTypedElementListPtr ConvertToNativeTypedElementList(const FScriptTypedElementListConstPtr& ScriptList);
+
+	/**
+	 * Functions to convert a script list to a native one
+	 * @note Only copies elements; does not copy any bindings!
+	 */
+	TYPEDELEMENTFRAMEWORK_API FScriptTypedElementListPtr ConvertToScriptTypedElementList(const FTypedElementListConstPtr& NativeList);
+
+}

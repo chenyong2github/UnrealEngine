@@ -198,7 +198,7 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 	return nullptr;
 }
 
-void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
+void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementList::FLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
 {
 	check(&InElementList == &ElementSelectionSet->GetElementList().Get());
 
@@ -208,8 +208,8 @@ void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, 
 		switch (InSyncType)
 		{
 		// Emit a general object selection changed notification for the following events
-		case FTypedElementListLegacySync::ESyncType::Added:
-		case FTypedElementListLegacySync::ESyncType::Removed:
+		case FTypedElementList::FLegacySync::ESyncType::Added:
+		case FTypedElementList::FLegacySync::ESyncType::Removed:
 			if (UObject* Object = GetObjectForElementHandle(InElementHandle))
 			{
 				USelection::SelectObjectEvent.Broadcast(Object);
@@ -217,9 +217,9 @@ void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, 
 			break;
 
 		// Emit a general selection changed notification for the following events
-		case FTypedElementListLegacySync::ESyncType::Modified:
-		case FTypedElementListLegacySync::ESyncType::Cleared:
-		case FTypedElementListLegacySync::ESyncType::BatchComplete:
+		case FTypedElementList::FLegacySync::ESyncType::Modified:
+		case FTypedElementList::FLegacySync::ESyncType::Cleared:
+		case FTypedElementList::FLegacySync::ESyncType::BatchComplete:
 			USelection::SelectionChangedEvent.Broadcast(this);
 			break;
 

@@ -41,9 +41,8 @@ private:
 	uint64 InstanceId = 0;
 };
 
-bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& SelectionSetPtr, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
 
 	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)
@@ -74,9 +73,8 @@ bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedE
 	return false;
 }
 
-bool USMInstanceElementEditorSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool USMInstanceElementEditorSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementListPtr& SelectionSetPtr, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
 
 	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)
@@ -109,9 +107,8 @@ bool USMInstanceElementEditorSelectionInterface::SelectElement(const FTypedEleme
 	return false;
 }
 
-bool USMInstanceElementEditorSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool USMInstanceElementEditorSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementListPtr& SelectionSetPtr, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
 
 	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)

@@ -18,37 +18,55 @@ void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElement
 	}
 }
 
+void GetElementImpl(const UTypedElementRegistry* InRegistry, const FScriptTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, FTypedElement& OutElement)
+{
+	if (InRegistry && InElementHandle)
+	{
+		InRegistry->Private_GetElementImpl(InElementHandle.GetTypedElementHandle(), InBaseInterfaceType, OutElement);
+	}
+	else
+	{
+		OutElement.Release();
+	}
+}
+
 } // namespace TypedElementList_Private
 
 
-FTypedElementListLegacySync::FTypedElementListLegacySync(const FTypedElementList& InElementList)
+template<class HandleType>
+TTypedElementList<HandleType>::FLegacySync::FLegacySync(const TTypedElementList& InElementList)
 	: ElementList(InElementList)
 {
 }
 
-FTypedElementListLegacySync::FOnSyncEvent& FTypedElementListLegacySync::OnSyncEvent()
+template<class HandleType>
+typename TTypedElementList<HandleType>::FLegacySync::FOnSyncEvent&  TTypedElementList<HandleType>::FLegacySync::OnSyncEvent()
 {
 	return OnSyncEventDelegate;
 }
 
-void FTypedElementListLegacySync::Private_EmitSyncEvent(const ESyncType InSyncType, const FTypedElementHandle& InElementHandle)
+template<class HandleType>
+void TTypedElementList<HandleType>::FLegacySync::Private_EmitSyncEvent(const ESyncType InSyncType, const HandleType& InElementHandle)
 {
 	const bool bIsWithinBatchOperation = IsRunningBatchOperation();
 	bBatchOperationIsDirty |= bIsWithinBatchOperation;
 	OnSyncEventDelegate.Broadcast(ElementList, InSyncType, InElementHandle, bIsWithinBatchOperation);
 }
 
-bool FTypedElementListLegacySync::IsRunningBatchOperation() const
+template<class HandleType>
+bool TTypedElementList<HandleType>::FLegacySync::IsRunningBatchOperation() const
 {
 	return NumOpenBatchOperations > 0;
 }
 
-void FTypedElementListLegacySync::BeginBatchOperation()
+template<class HandleType>
+void TTypedElementList<HandleType>::FLegacySync::BeginBatchOperation()
 {
 	++NumOpenBatchOperations;
 }
 
-void FTypedElementListLegacySync::EndBatchOperation(const bool InNotify)
+template<class HandleType>
+void TTypedElementList<HandleType>::FLegacySync::EndBatchOperation(const bool InNotify)
 {
 	checkf(NumOpenBatchOperations > 0, TEXT("Batch operation underflow!"));
 
@@ -65,12 +83,14 @@ void FTypedElementListLegacySync::EndBatchOperation(const bool InNotify)
 	}
 }
 
-bool FTypedElementListLegacySync::IsBatchOperationDirty() const
+template<class HandleType>
+bool TTypedElementList<HandleType>::FLegacySync::IsBatchOperationDirty() const
 {
 	return bBatchOperationIsDirty;
 }
 
-void FTypedElementListLegacySync::ForceBatchOperationDirty()
+template<class HandleType>
+void TTypedElementList<HandleType>::FLegacySync::ForceBatchOperationDirty()
 {
 	if (NumOpenBatchOperations > 0)
 	{
@@ -79,7 +99,8 @@ void FTypedElementListLegacySync::ForceBatchOperationDirty()
 }
 
 
-FTypedElementListLegacySyncScopedBatch::FTypedElementListLegacySyncScopedBatch(const FTypedElementList& InElementList, const bool InNotify)
+template<class HandleType>
+TTypedElementList<HandleType>::FLegacySyncScopedBatch::FLegacySyncScopedBatch(const TTypedElementList& InElementList, const bool InNotify)
 	: ElementListLegacySync(InElementList.Legacy_GetSyncPtr())
 	, bNotify(InNotify)
 {
@@ -89,7 +110,8 @@ FTypedElementListLegacySyncScopedBatch::FTypedElementListLegacySyncScopedBatch(c
 	}
 }
 
-FTypedElementListLegacySyncScopedBatch::~FTypedElementListLegacySyncScopedBatch()
+template<class HandleType>
+TTypedElementList<HandleType>::FLegacySyncScopedBatch::~FLegacySyncScopedBatch()
 {
 	if (ElementListLegacySync)
 	{
@@ -97,13 +119,15 @@ FTypedElementListLegacySyncScopedBatch::~FTypedElementListLegacySyncScopedBatch(
 	}
 }
 
-bool FTypedElementListLegacySyncScopedBatch::IsDirty() const
+template<class HandleType>
+bool TTypedElementList<HandleType>::FLegacySyncScopedBatch::IsDirty() const
 {
 	return ElementListLegacySync
 		&& ElementListLegacySync->IsBatchOperationDirty();
 }
 
-void FTypedElementListLegacySyncScopedBatch::ForceDirty()
+template<class HandleType>
+void TTypedElementList<HandleType>::FLegacySyncScopedBatch::ForceDirty()
 {
 	if (ElementListLegacySync)
 	{
@@ -111,13 +135,14 @@ void FTypedElementListLegacySyncScopedBatch::ForceDirty()
 	}
 }
 
-
-FTypedElementListRef FTypedElementList::Private_CreateElementList(UTypedElementRegistry* InRegistry)
+template<class HandleType>
+typename TTypedElementList<HandleType>::TTypedElementListRef TTypedElementList<HandleType>::Private_CreateElementList(UTypedElementRegistry* InRegistry)
 {
-	return MakeShareable(new FTypedElementList(InRegistry));
+	return MakeShareable(new TTypedElementList(InRegistry));
 }
 
-FTypedElementList::FTypedElementList(UTypedElementRegistry* InRegistry)
+template<class HandleType>
+TTypedElementList<HandleType>::TTypedElementList(UTypedElementRegistry* InRegistry)
 	: Registry(InRegistry)
 {
 	checkf(InRegistry, TEXT("Registry is null!"));
@@ -127,7 +152,8 @@ FTypedElementList::FTypedElementList(UTypedElementRegistry* InRegistry)
 	InRegistry->Private_OnElementListCreated(this);
 }
 
-FTypedElementList::~FTypedElementList()
+template<class HandleType>
+TTypedElementList<HandleType>::~TTypedElementList()
 {
 	Empty();
 	LegacySync.Reset();
@@ -138,17 +164,19 @@ FTypedElementList::~FTypedElementList()
 	}
 }
 
-FTypedElementListRef FTypedElementList::Clone() const
+template<class HandleType>
+typename TTypedElementList<HandleType>::TTypedElementListRef TTypedElementList<HandleType>::Clone() const
 {
-	FTypedElementListRef ClonedElementList = Private_CreateElementList(Registry.Get());
-	for (const FTypedElementHandle& ElementHandle : ElementHandles)
+	TTypedElementListRef ClonedElementList = Private_CreateElementList(Registry.Get());
+	for (const HandleType& ElementHandle : ElementHandles)
 	{
 		ClonedElementList->Add(ElementHandle);
 	}
 	return ClonedElementList;
 }
 
-UObject* FTypedElementList::GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
+template<class HandleType>
+UObject* TTypedElementList<HandleType>::GetElementInterface(const HandleType& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	UTypedElementRegistry* RegistryPtr = Registry.Get();
 	return RegistryPtr
@@ -156,13 +184,14 @@ UObject* FTypedElementList::GetElementInterface(const FTypedElementHandle& InEle
 		: nullptr;
 }
 
-bool FTypedElementList::HasElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
+template<class HandleType>
+bool TTypedElementList<HandleType>::HasElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	bool bHasFilteredElements = false;
 
 	if (InBaseInterfaceType)
 	{
-		ForEachElementHandle([&bHasFilteredElements](const FTypedElementHandle&)
+		ForEachElementHandle([&bHasFilteredElements](const HandleType&)
 		{
 			bHasFilteredElements = true;
 			return false;
@@ -176,13 +205,14 @@ bool FTypedElementList::HasElements(const TSubclassOf<UInterface>& InBaseInterfa
 	return bHasFilteredElements;
 }
 
-int32 FTypedElementList::CountElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
+template<class HandleType>
+int32 TTypedElementList<HandleType>::CountElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	int32 NumFilteredElements = 0;
 
 	if (InBaseInterfaceType)
 	{
-		ForEachElementHandle([&NumFilteredElements](const FTypedElementHandle&)
+		ForEachElementHandle([&NumFilteredElements](const HandleType&)
 		{
 			++NumFilteredElements;
 			return true;
@@ -196,17 +226,20 @@ int32 FTypedElementList::CountElements(const TSubclassOf<UInterface>& InBaseInte
 	return NumFilteredElements;
 }
 
-bool FTypedElementList::HasElementsOfType(const FName InElementTypeName) const
+template<class HandleType>
+bool TTypedElementList<HandleType>::HasElementsOfType(const FName InElementTypeName) const
 {
 	return CountElementsOfType(InElementTypeName) > 0;
 }
 
-bool FTypedElementList::HasElementsOfType(const FTypedHandleTypeId InElementTypeId) const
+template<class HandleType>
+bool TTypedElementList<HandleType>::HasElementsOfType(const FTypedHandleTypeId InElementTypeId) const
 {
 	return CountElementsOfType(InElementTypeId) > 0;
 }
 
-int32 FTypedElementList::CountElementsOfType(const FName InElementTypeName) const
+template<class HandleType>
+int32 TTypedElementList<HandleType>::CountElementsOfType(const FName InElementTypeName) const
 {
 	if (UTypedElementRegistry* RegistryPtr = Registry.Get())
 	{
@@ -219,17 +252,19 @@ int32 FTypedElementList::CountElementsOfType(const FName InElementTypeName) cons
 	return 0;
 }
 
-int32 FTypedElementList::CountElementsOfType(const FTypedHandleTypeId InElementTypeId) const
+template<class HandleType>
+int32 TTypedElementList<HandleType>::CountElementsOfType(const FTypedHandleTypeId InElementTypeId) const
 {
 	return ElementCounts.GetCounterValue(FTypedElementCounter::GetElementTypeCategoryName(), InElementTypeId);
 }
 
-TArray<FTypedElementHandle> FTypedElementList::GetElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType) const
+template<class HandleType>
+TArray<HandleType> TTypedElementList<HandleType>::GetElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
-	TArray<FTypedElementHandle> FilteredElementHandles;
+	TArray<HandleType> FilteredElementHandles;
 	FilteredElementHandles.Reserve(ElementHandles.Num());
 
-	ForEachElementHandle([&FilteredElementHandles](const FTypedElementHandle& InElementHandle)
+	ForEachElementHandle([&FilteredElementHandles](const HandleType& InElementHandle)
 	{
 		FilteredElementHandles.Add(InElementHandle);
 		return true;
@@ -238,9 +273,10 @@ TArray<FTypedElementHandle> FTypedElementList::GetElementHandles(const TSubclass
 	return FilteredElementHandles;
 }
 
-void FTypedElementList::ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType) const
+template<class HandleType>
+void TTypedElementList<HandleType>::ForEachElementHandle(TFunctionRef<bool(const HandleType&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
-	for (const FTypedElementHandle& ElementHandle : ElementHandles)
+	for (const HandleType& ElementHandle : ElementHandles)
 	{
 		if (ElementHandle && (!InBaseInterfaceType || GetElementInterface(ElementHandle, InBaseInterfaceType)))
 		{
@@ -252,7 +288,8 @@ void FTypedElementList::ForEachElementHandle(TFunctionRef<bool(const FTypedEleme
 	}
 }
 
-bool FTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
+template<class HandleType>
+bool TTypedElementList<HandleType>::AddElementImpl(HandleType&& InElementHandle)
 {
 	if (!InElementHandle)
 	{
@@ -266,15 +303,24 @@ bool FTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 
 	if (!bAlreadyAdded)
 	{
-		const FTypedElementHandle& AddedElementHandle = ElementHandles.Add_GetRef(MoveTemp(InElementHandle));
-		ElementCounts.AddElement(AddedElementHandle);
+		const HandleType& AddedElementHandle = ElementHandles.Add_GetRef(MoveTemp(InElementHandle));
+
+		if constexpr (std::is_same<HandleType, FTypedElementHandle>::value)
+		{
+			ElementCounts.AddElement(AddedElementHandle);
+		}
+		else
+		{
+			ElementCounts.AddElement(AddedElementHandle.GetTypedElementHandle());
+		}
 		NoteListChanged(EChangeType::Added, AddedElementHandle);
 	}
 
 	return !bAlreadyAdded;
 }
 
-bool FTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
+template<class HandleType>
+bool TTypedElementList<HandleType>::RemoveElementImpl(const FTypedElementId& InElementId)
 {
 	if (!InElementId)
 	{
@@ -287,29 +333,38 @@ bool FTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 
 	if (bRemoved)
 	{
-		const int32 ElementHandleIndexToRemove = ElementHandles.IndexOfByPredicate([&InElementId](const FTypedElementHandle& InElementHandle)
+		const int32 ElementHandleIndexToRemove = ElementHandles.IndexOfByPredicate([&InElementId](const HandleType& InElementHandle)
 		{
 			return InElementHandle.GetId() == InElementId;
 		});
 		checkSlow(ElementHandleIndexToRemove != INDEX_NONE);
 
-		FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[ElementHandleIndexToRemove]);
+		HandleType RemovedElementHandle = MoveTemp(ElementHandles[ElementHandleIndexToRemove]);
 		ElementHandles.RemoveAt(ElementHandleIndexToRemove, 1, /*bAllowShrinking*/false);
-		ElementCounts.RemoveElement(RemovedElementHandle);
 
+		if constexpr (std::is_same<HandleType, FTypedElementHandle>::value)
+		{
+			ElementCounts.RemoveElement(RemovedElementHandle);
+		}
+		else
+		{
+			ElementCounts.RemoveElement(RemovedElementHandle.GetTypedElementHandle());
+		}
+	
 		NoteListChanged(EChangeType::Removed, RemovedElementHandle);
 	}
 
 	return bRemoved;
 }
 
-int32 FTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedElementHandle&)> InPredicate)
+template<class HandleType>
+int32 TTypedElementList<HandleType>::RemoveAllElementsImpl(TFunctionRef<bool(const HandleType&)> InPredicate)
 {
 	int32 RemovedCount = 0;
 
 	if (ElementHandles.Num() > 0)
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*this);
+		FLegacySyncScopedBatch LegacySyncBatch(*this);
 
 		NoteListMayChange();
 
@@ -317,10 +372,18 @@ int32 FTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedEle
 		{
 			if (InPredicate(ElementHandles[Index]))
 			{
-				FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[Index]);
+				HandleType RemovedElementHandle = MoveTemp(ElementHandles[Index]);
 				ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
 				ElementHandles.RemoveAt(Index, 1, /*bAllowShrinking*/false);
-				ElementCounts.RemoveElement(RemovedElementHandle);
+
+				if constexpr (std::is_same<HandleType, FTypedElementHandle>::value)
+				{
+					ElementCounts.RemoveElement(RemovedElementHandle);
+				}
+				else
+				{
+					ElementCounts.RemoveElement(RemovedElementHandle.GetTypedElementHandle());
+				}
 
 				NoteListChanged(EChangeType::Removed, RemovedElementHandle);
 
@@ -332,27 +395,31 @@ int32 FTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedEle
 	return RemovedCount;
 }
 
-bool FTypedElementList::ContainsElementImpl(const FTypedElementId& InElementId) const
+template<class HandleType>
+bool TTypedElementList<HandleType>::ContainsElementImpl(const FTypedElementId& InElementId) const
 {
 	return InElementId 
 		&& ElementCombinedIds.Contains(InElementId.GetCombinedId());
 }
 
-FTypedElementListLegacySync& FTypedElementList::Legacy_GetSync()
+template<class HandleType>
+typename TTypedElementList<HandleType>::FLegacySync& TTypedElementList<HandleType>::Legacy_GetSync()
 {
 	if (!LegacySync)
 	{
-		LegacySync = MakeUnique<FTypedElementListLegacySync>(*this);
+		LegacySync = MakeUnique<FLegacySync>(*this);
 	}
 	return *LegacySync;
 }
 
-FTypedElementListLegacySync* FTypedElementList::Legacy_GetSyncPtr() const
+template<class HandleType>
+typename TTypedElementList<HandleType>::FLegacySync* TTypedElementList<HandleType>::Legacy_GetSyncPtr() const
 {
 	return LegacySync.Get();
 }
 
-bool FTypedElementList::NotifyPendingChanges()
+template<class HandleType>
+bool TTypedElementList<HandleType>::NotifyPendingChanges()
 {
 	if (bHasPendingNotify)
 	{
@@ -364,7 +431,8 @@ bool FTypedElementList::NotifyPendingChanges()
 	return false;
 }
 
-FTypedElementList::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FTypedElementList& InTypeElementList)
+template<class HandleType>
+TTypedElementList<HandleType>::FScopedClearNewPendingChange::FScopedClearNewPendingChange(TTypedElementList& InTypeElementList)
 {
 	bool bCanClearNewPendingChange = !InTypeElementList.bHasPendingNotify;
 
@@ -379,14 +447,15 @@ FTypedElementList::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FT
 	}
 }
 
-
-FTypedElementList::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other)
+template<class HandleType>
+TTypedElementList<HandleType>::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other)
 	: TypedElementList(Other.TypedElementList)
 {
 	Other.TypedElementList = nullptr;
 }
 
-FTypedElementList::FScopedClearNewPendingChange& FTypedElementList::FScopedClearNewPendingChange::operator=(FScopedClearNewPendingChange&& Other)
+template<class HandleType>
+typename TTypedElementList<HandleType>::FScopedClearNewPendingChange& TTypedElementList<HandleType>::FScopedClearNewPendingChange::operator=(FScopedClearNewPendingChange&& Other)
 {
 	TypedElementList = Other.TypedElementList;
 	Other.TypedElementList = nullptr;
@@ -394,7 +463,8 @@ FTypedElementList::FScopedClearNewPendingChange& FTypedElementList::FScopedClear
 	return *this;
 }
 
-FTypedElementList::FScopedClearNewPendingChange::~FScopedClearNewPendingChange()
+template<class HandleType>
+TTypedElementList<HandleType>::FScopedClearNewPendingChange::~FScopedClearNewPendingChange()
 {
 	if (TypedElementList)
 	{
@@ -402,35 +472,38 @@ FTypedElementList::FScopedClearNewPendingChange::~FScopedClearNewPendingChange()
 	}
 }
 
-FTypedElementList::FScopedClearNewPendingChange FTypedElementList::GetScopedClearNewPendingChange()
+template<class HandleType>
+typename TTypedElementList<HandleType>::FScopedClearNewPendingChange TTypedElementList<HandleType>::GetScopedClearNewPendingChange()
 {
 	return FScopedClearNewPendingChange(*this);
 }
 
-void FTypedElementList::NoteListMayChange()
+template<class HandleType>
+void TTypedElementList<HandleType>::NoteListMayChange()
 {
 	OnPreChangeDelegate.Broadcast(*this);
 }
 
-void FTypedElementList::NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle)
+template<class HandleType>
+void TTypedElementList<HandleType>::NoteListChanged(const EChangeType InChangeType, const HandleType& InElementHandle)
 {
 	bHasPendingNotify = true;
 
 	if (LegacySync)
 	{
-		FTypedElementListLegacySync::ESyncType SyncType = FTypedElementListLegacySync::ESyncType::Modified;
+		typename FLegacySync::ESyncType SyncType = FLegacySync::ESyncType::Modified;
 		switch (InChangeType)
 		{
 		case EChangeType::Added:
-			SyncType = FTypedElementListLegacySync::ESyncType::Added;
+			SyncType = FLegacySync::ESyncType::Added;
 			break;
 
 		case EChangeType::Removed:
-			SyncType = FTypedElementListLegacySync::ESyncType::Removed;
+			SyncType = FLegacySync::ESyncType::Removed;
 			break;
 
 		case EChangeType::Cleared:
-			SyncType = FTypedElementListLegacySync::ESyncType::Cleared;
+			SyncType = FLegacySync::ESyncType::Cleared;
 			break;
 
 		default:
@@ -438,5 +511,65 @@ void FTypedElementList::NoteListChanged(const EChangeType InChangeType, const FT
 		}
 
 		LegacySync->Private_EmitSyncEvent(SyncType, InElementHandle);
+	}
+}
+
+template class TYPEDELEMENTFRAMEWORK_API TTypedElementList<FTypedElementHandle>;
+template class TYPEDELEMENTFRAMEWORK_API TTypedElementList<FScriptTypedElementHandle>;
+
+
+namespace UE::TypedElementFramework
+{
+	/**
+	 * Functions to convert a script list to a native one
+	 * @note Only copies elements; does not copy any bindings!
+	 */
+	FTypedElementListPtr ConvertToNativeTypedElementList(const FScriptTypedElementListConstPtr& ScriptList)
+	{
+		if (ScriptList)
+		{
+			if (UTypedElementRegistry* RawRegistry = ScriptList->GetRegistry())
+			{
+				FTypedElementListPtr NativeList = FTypedElementList::Private_CreateElementList(RawRegistry);
+				NativeList->Reserve(ScriptList->CountElements());
+				ScriptList->ForEachElementHandle([&NativeList](const FScriptTypedElementHandle& ScriptHandle)
+					{
+						if (FTypedElementHandle NativeHandle = ScriptHandle.GetTypedElementHandle())
+						{
+							NativeList->Add(NativeHandle);
+						}
+						return true;
+					});
+
+				return NativeList;
+			}
+		}
+
+		return {};
+	}
+
+	/**
+	 * Functions to convert a script list to a native one
+	 * @note Only copies elements; does not copy any bindings!
+	 */
+	FScriptTypedElementListPtr ConvertToScriptTypedElementList(const FTypedElementListConstPtr& NativeList)
+	{
+		if (NativeList)
+		{
+			if (UTypedElementRegistry* RawRegistry = NativeList->GetRegistry())
+			{
+				FScriptTypedElementListPtr ScriptList = FScriptTypedElementList::Private_CreateElementList(RawRegistry);
+				ScriptList->Reserve(NativeList->CountElements());
+				NativeList->ForEachElementHandle([&ScriptList, &RawRegistry](const FTypedElementHandle& NativeHandle)
+					{
+						ScriptList->Add(RawRegistry->CreateScriptHandle(NativeHandle.GetId()));
+						return true;
+					});
+
+				return ScriptList;
+			}
+		}
+
+		return {};
 	}
 }

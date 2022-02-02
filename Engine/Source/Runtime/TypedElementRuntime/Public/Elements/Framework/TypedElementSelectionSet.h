@@ -165,33 +165,28 @@ public:
 	/**
 	 * Test to see whether the given element is currently considered selected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
 	bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be selected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
 	bool CanSelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be deselected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
 	bool CanDeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Attempt to select the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
 	bool SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to select the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
 	bool SelectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool SelectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool SelectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
@@ -200,14 +195,12 @@ public:
 	 * Attempt to deselect the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
 	bool DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
 	bool DeselectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool DeselectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool DeselectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
@@ -224,7 +217,6 @@ public:
 	 * @note Equivalent to calling ClearSelection then SelectElements, but happens in a single batch.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
 	bool SetSelection(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 	bool SetSelection(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
@@ -232,13 +224,11 @@ public:
 	/**
 	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
 	bool AllowSelectionModifiers(const FTypedElementHandle& InElementHandle) const;
 
 	/**
 	 * Given an element, return the element that should actually perform a selection operation.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
 	FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
 
 	/**
@@ -285,7 +275,6 @@ public:
 	/**
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
 	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->GetElementHandles(InBaseInterfaceType);
@@ -506,7 +495,7 @@ public:
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as the underlying element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */
-	FTypedElementListLegacySync& Legacy_GetElementListSync()
+	FTypedElementList::FLegacySync& Legacy_GetElementListSync()
 	{
 		return ElementList->Legacy_GetSync();
 	}
@@ -515,7 +504,7 @@ public:
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as the underlying element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. This will return null if no legacy sync has been created for this instance.
 	 */
-	FTypedElementListLegacySync* Legacy_GetElementListSyncPtr()
+	FTypedElementList::FLegacySync* Legacy_GetElementListSyncPtr()
 	{
 		return ElementList->Legacy_GetSyncPtr();
 	}
@@ -543,6 +532,84 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Selection")
 	void RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState);
+
+
+	/*
+	 * Script Api
+	 */
+
+	/**
+	 * Test to see whether the given element is currently considered selected.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	bool IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
+
+	/**
+	 * Test to see whether the given element can be selected.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	bool CanSelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+
+	/**
+	 * Test to see whether the given element can be deselected.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	bool CanDeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+
+	/**
+	 * Attempt to select the given element.
+	 * @return True if the selection was changed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
+	bool SelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+
+	/**
+	 * Attempt to select the given elements.
+	 * @return True if the selection was changed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
+	bool SelectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+
+	/**
+	 * Attempt to deselect the given element.
+	 * @return True if the selection was changed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
+	bool DeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+
+	/**
+	 * Attempt to deselect the given elements.
+	 * @return True if the selection was changed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
+	bool DeselectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+
+	/**
+	 * Attempt to make the selection the given elements.
+	 * @note Equivalent to calling ClearSelection then SelectElements, but happens in a single batch.
+	 * @return True if the selection was changed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
+	bool SetSelection(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+
+	/**
+	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
+	bool AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle) const;
+
+	/**
+	 * Given an element, return the element that should actually perform a selection operation.
+	 */
+	UFUNCTION(BlueprintPure, Category = "TypedElementFramework|Selection")
+	FScriptTypedElementHandle GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
+
+
+	/**
+	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, DisplayName="Get Selected Element Handles", Category="TypedElementFramework|Selection", meta=(ScriptName="GetSelectedElementHandles"))
+	TArray<FScriptTypedElementHandle> K2_GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPreChangeDynamic, const UTypedElementSelectionSet*, SelectionSet);
 

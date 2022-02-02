@@ -21,11 +21,15 @@ class ITestTypedElementInterfaceA
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Testing")
 	virtual FText GetDisplayName(const FTypedElementHandle& InElementHandle) { return FText(); }
-	
-	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Testing")
+
 	virtual bool SetDisplayName(const FTypedElementHandle& InElementHandle, FText InNewName, bool bNotify = true) { return false; }
+
+	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
+	virtual FText GetDisplayName(const FScriptTypedElementHandle& InElementHandle) { return FText(); }
+
+	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
+	virtual bool SetDisplayName(const FScriptTypedElementHandle& InElementHandle, FText InNewName, bool bNotify = true) { return false; }
 };
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -39,8 +43,10 @@ class ITestTypedElementInterfaceB
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
 	virtual bool MarkAsTested(const FTypedElementHandle& InElementHandle) { return false; }
+
+	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
+	virtual bool MarkAsTested(const FScriptTypedElementHandle& InElementHandle) { return false; }
 };
 
 UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -54,8 +60,10 @@ class ITestTypedElementInterfaceC
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
 	virtual bool GetIsTested(const FTypedElementHandle& InElementHandle) const { return false; }
+
+	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Testing")
+	virtual bool GetIsTested(const FScriptTypedElementHandle& InElementHandle) const { return false; }
 };
 
 template <>

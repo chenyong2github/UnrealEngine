@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Actor/ActorElementWorldInterface.h"
-#include "Elements/Actor/ActorElementData.h"
-#include "GameFramework/Actor.h"
 
+#include "Elements/Actor/ActorElementData.h"
 #include "Elements/Component/ComponentElementData.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+
+#include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
 
 bool UActorElementWorldInterface::IsTemplateElement(const FTypedElementHandle& InElementHandle)

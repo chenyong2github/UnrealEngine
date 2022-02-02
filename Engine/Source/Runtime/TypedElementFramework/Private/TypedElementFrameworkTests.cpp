@@ -142,7 +142,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	};
 
 	const FName DummyElementType_Typed = "DummyElementType_Typed";
-	Registry->RegisterElementType<FTestTypedElementData>(DummyElementType_Typed);
+	Registry->RegisterElementType<FTestTypedElementData, true>(DummyElementType_Typed);
 	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
 
 	UObject* TypedElementInterfaceBAndC =  NewObject<UTestTypedElementInterfaceBAndC_Typed>();
@@ -151,7 +151,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 
 
 	const FName DummyElementType_Untyped = "DummyElementType_Untyped";
-	Registry->RegisterElementType(DummyElementType_Untyped);
+	Registry->RegisterElementType(DummyElementType_Untyped, true);
 	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
 
 	TTypedElementOwner<FTestTypedElementData> TypedElement1 = Registry->CreateElement<FTestTypedElementData>(DummyElementType_Typed);
@@ -169,6 +169,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	TestInterfaceAccess(UntypedElement1.AcquireHandle());
 
 	FTypedElementListPtr ElementList = Registry->CreateElementList();
+	ElementList->Reserve(6);
 	ElementList->Add(TypedElement1);
 	ElementList->Add(TypedElement2);
 	ElementList->Add(TypedElement3);
@@ -197,6 +198,14 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 
 	ElementList.Reset();
 
+
+	// Test the weak handles 
+	FScriptTypedElementHandle ScriptHandleTyped = Registry->CreateScriptHandle(TypedElement1.GetId());
+	check(ScriptHandleTyped.IsSet());
+
+	FScriptTypedElementHandle ScriptHandleUntyped = Registry->CreateScriptHandle(UntypedElement1.GetId());
+	check(ScriptHandleUntyped.IsSet());
+
 	Registry->DestroyElement(TypedElement1);
 	Registry->DestroyElement(TypedElement2);
 	Registry->DestroyElement(TypedElement3);
@@ -204,6 +213,9 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	Registry->DestroyElement(UntypedElement1);
 	Registry->DestroyElement(UntypedElement2);
 	Registry->DestroyElement(UntypedElement3);
+
+	check(!ScriptHandleTyped.IsSet());
+	check(!ScriptHandleUntyped.IsSet());
 
 	// Verify that there were no leaks
 	Registry->ProcessDeferredElementsToDestroy();
@@ -219,11 +231,11 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 	UTypedElementRegistry* Registry = NewObject<UTypedElementRegistry>();
 
 	const FName DummyElementType_Typed = "DummyElementType_Typed";
-	Registry->RegisterElementType<FTestTypedElementData>(DummyElementType_Typed);
+	Registry->RegisterElementType<FTestTypedElementData, true>(DummyElementType_Typed);
 	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
 
 	const FName DummyElementType_Untyped = "DummyElementType_Untyped";
-	Registry->RegisterElementType(DummyElementType_Untyped);
+	Registry->RegisterElementType(DummyElementType_Untyped, true);
 	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
 
 	TArray<TTypedElementOwner<FTestTypedElementData>> TypedOwnerHandles;

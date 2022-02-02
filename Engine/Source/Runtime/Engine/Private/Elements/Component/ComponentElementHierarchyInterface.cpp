@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementHierarchyInterface.h"
+
 #include "Elements/Component/ComponentElementData.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Components/ActorComponent.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"

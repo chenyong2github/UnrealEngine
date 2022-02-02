@@ -38,9 +38,8 @@ private:
 	TWeakObjectPtr<AActor> ActorPtr;
 };
 
-bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& SelectionSetPtr, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
 	return SelectionSetPtr && Actor && IsActorSelected(Actor, SelectionSetPtr.ToSharedRef(), InSelectionOptions);
 }

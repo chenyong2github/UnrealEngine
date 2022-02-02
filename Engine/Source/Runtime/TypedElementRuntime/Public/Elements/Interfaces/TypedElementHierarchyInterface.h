@@ -22,7 +22,6 @@ public:
 	 * Get the logical parent of this element, if any.
 	 * eg) A component might return its actor, or a static mesh instance might return its ISM component.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
 	virtual FTypedElementHandle GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate = true) { return FTypedElementHandle(); }
 
 	/**
@@ -31,8 +30,34 @@ public:
 	 *
 	 * @note Appends to OutElementHandles.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
 	virtual void GetChildElements(const FTypedElementHandle& InElementHandle, TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) {}
+
+	/**
+	 * Script Api
+	 */
+
+	/**
+	 * Get the logical parent of this element, if any.
+	 * eg) A component might return its actor, or a static mesh instance might return its ISM component.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
+	virtual FScriptTypedElementHandle GetParentElement(const FScriptTypedElementHandle& InElementHandle, const bool bAllowCreate = true);
+
+	/**
+	 * Get the logical children of this element, if any.
+	 * eg) An actor might return its component, or an ISM component might return its static mesh instances.
+	 *
+	 * @note Appends to OutElementHandles.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
+	virtual void GetChildElements(const FScriptTypedElementHandle& InElementHandle, TArray<FScriptTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true);
+
+private:
+	
+	/**
+	 * Return the registry used when creating new elements.
+	 */
+	virtual class UTypedElementRegistry& GetRegistry() const;
 };
 
 template <>

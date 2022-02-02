@@ -256,7 +256,7 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 	
 	// Deselect and unbind the override delegates for the components on the selected actor
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
+		FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
 
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
@@ -297,7 +297,7 @@ bool FActorElementLevelEditorSelectionCustomization::SelectActorGroup(AGroupActo
 	// Skip if the group is already selected, since this logic will have already run
 	if ((bForce || InGroupActor->IsLocked()) && !GroupSelectionHandle.IsElementSelected(InSelectionSet, FTypedElementIsSelectedOptions()) && CanSelectActorElement(GroupSelectionHandle, GroupSelectionOptions))
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
+		FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
 
 		bSelectionChanged |= SelectActorElement(GroupSelectionHandle, InSelectionSet, GroupSelectionOptions);
 
@@ -329,7 +329,7 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorGroup(AGroupAc
 	// Skip if the group is already deselected, since this logic will have already run
 	if ((bForce || InGroupActor->IsLocked()) && GroupSelectionHandle.IsElementSelected(InSelectionSet, FTypedElementIsSelectedOptions()) && CanDeselectActorElement(GroupSelectionHandle, GroupSelectionOptions))
 	{
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
+		FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
 
 		bSelectionChanged |= DeselectActorElement(GroupSelectionHandle, InSelectionSet, GroupSelectionOptions);
 

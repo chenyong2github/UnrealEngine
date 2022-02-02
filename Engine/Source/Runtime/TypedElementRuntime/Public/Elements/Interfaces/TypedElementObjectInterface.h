@@ -21,13 +21,11 @@ public:
 	/**
 	 * Get the object instance that this handle represents, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Object")
 	virtual UObject* GetObject(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Gets the object instance's class that the handle represents, if any. 
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|Object")
 	virtual UClass* GetObjectClass(const FTypedElementHandle& InElementHandle);
 
 	/**
@@ -63,6 +61,23 @@ public:
 
 		return nullptr;
 	}
+
+
+	/**
+	 * Script api
+	 */
+
+	/**
+	 * Get the object instance that this handle represents, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Object")
+	virtual UObject* GetObject(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Gets the object instance's class that the handle represents, if any. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|Object")
+	virtual UClass* GetObjectClass(const FScriptTypedElementHandle& InElementHandle);
 };
 
 template <>

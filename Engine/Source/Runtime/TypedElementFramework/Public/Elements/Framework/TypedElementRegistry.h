@@ -43,7 +43,7 @@ public:
 	/**
 	 * Get the singleton instance of the registry used in most cases.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
+	UFUNCTION(BlueprintPure, DisplayName="Get Default Typed Element Registry", Category = "TypedElementFramework|Registry", meta=(ScriptName="GetDefaultTypedElementRegistry"))
 	static UTypedElementRegistry* GetInstance();
 
 	/**
@@ -96,19 +96,28 @@ public:
 
 	/**
 	 * Register an element type that doesn't require any additional payload data.
+	 * @param bSupportScriptHandles Does this element type support script handles. If true the elements of this type can only be destroyed from the game thread
 	 */
-	FORCEINLINE void RegisterElementType(const FName InElementTypeName)
+	FORCEINLINE void RegisterElementType(const FName InElementTypeName, bool bSupportScriptHandles)
 	{
-		RegisterElementTypeImpl(InElementTypeName, MakeUnique<TRegisteredElementType<void>>());
+		if (bSupportScriptHandles)
+		{
+			RegisterElementTypeImpl(InElementTypeName, MakeUnique<TRegisteredElementType<void, true>>());
+		}
+		else
+		{
+			RegisterElementTypeImpl(InElementTypeName, MakeUnique<TRegisteredElementType<void, false>>());
+		}
 	}
 
 	/**
 	 * Register an element type that has additional payload data.
+	 * Note if bSupportScriptHandles is true, elements of this type should only be destroyed from the game thread
 	 */
-	template <typename ElementDataType>
+	template <typename ElementDataType, bool bSupportScriptHandles>
 	FORCEINLINE void RegisterElementType(const FName InElementTypeName)
 	{
-		RegisterElementTypeImpl(InElementTypeName, MakeUnique<TRegisteredElementType<ElementDataType>>());
+		RegisterElementTypeImpl(InElementTypeName, MakeUnique<TRegisteredElementType<ElementDataType, bSupportScriptHandles>>());
 	}
 
 	/**
@@ -142,8 +151,16 @@ public:
 	/**
 	 * Get the element interface supported by the given handle, or null if there is no support for this interface.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
 	FORCEINLINE UObject* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface> InBaseInterfaceType) const
+	{
+		return GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), InBaseInterfaceType);
+	}
+
+	/**
+	 * Get the element interface supported by the given handle, or null if there is no support for this interface or if the handle is invalid.
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
+	FORCEINLINE UObject* GetElementInterface(const FScriptTypedElementHandle& InElementHandle, const TSubclassOf<UInterface> InBaseInterfaceType) const
 	{
 		return GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), InBaseInterfaceType);
 	}
@@ -254,6 +271,14 @@ public:
 	}
 
 	/**
+	 * Create an empty list of script elements associated with this registry.
+	 */
+	FORCEINLINE FScriptTypedElementListRef CreateScriptElementList()
+	{
+		return FScriptTypedElementList::Private_CreateElementList(this);
+	}
+
+	/**
 	 * Create an empty list of elements associated with this registry, populated from the given minimal IDs that are valid.
 	 */
 	FTypedElementListRef CreateElementList(TArrayView<const FTypedElementId> InElementIds);
@@ -289,6 +314,28 @@ public:
 	 */
 	FString RegistredElementTypesAndInterfacesToString() const;
 
+	/**
+	 * Create a script handle. This should only be use for the script exposure apis.
+	 */
+	FORCEINLINE FScriptTypedElementHandle CreateScriptHandle(const FTypedElementId& InElementId)
+	{
+		if (InElementId == FTypedElementId::Unset)
+		{
+			return FScriptTypedElementHandle();
+		}
+
+		FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementId.GetTypeId());
+		if (!RegisteredElementType)
+		{
+			FFrame::KismetExecutionMessage(TEXT("Element type ID has not been registered to this registry!"), ELogVerbosity::Error);
+			return FScriptTypedElementHandle();
+		}
+	
+		FScriptTypedElementHandle ScriptTypedElementHandle;
+		ScriptTypedElementHandle.Private_Initialize(RegisteredElementType->GetDataForScriptElement(InElementId.GetElementId()));
+		return ScriptTypedElementHandle;
+	}
+
 	void Private_OnElementListCreated(FTypedElementList* InElementList)
 	{
 		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
@@ -299,6 +346,19 @@ public:
 	{
 		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
 		ActiveElementLists.Remove(InElementList);
+	}
+
+	
+	void Private_OnElementListCreated(FScriptTypedElementList* InElementList)
+	{
+		// Script type element are not thread safe so no need for a critical section
+		ActiveScriptElementLists.Add(InElementList);
+	}
+
+	void Private_OnElementListDestroyed(FScriptTypedElementList* InElementList)
+	{
+		// Script type element are not thread safe so no need for a critical section
+		ActiveScriptElementLists.Remove(InElementList);
 	}
 
 	// Note: Access for FTypedElementList
@@ -341,6 +401,7 @@ private:
 		virtual FTypedElementInternalData& AddDataForElement(FTypedHandleElementId& InOutElementId) = 0;
 		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr, const bool bDefer) = 0;
 		virtual const FTypedElementInternalData& GetDataForElement(const FTypedHandleElementId InElementId) const = 0;
+		virtual FScriptTypedElementInternalDataPtr GetDataForScriptElement(const FTypedHandleElementId InElementId) = 0;
 		virtual void ProcessDeferredElementsToRemove() = 0;
 		virtual void SetDataTypeId(const FTypedHandleTypeId InTypeId) = 0;
 		virtual FTypedHandleTypeId GetDataTypeId() const = 0;
@@ -352,7 +413,7 @@ private:
 		TSortedMap<FName, UObject*, FDefaultAllocator, FNameFastLess> Interfaces;
 	};
 
-	template <typename ElementDataType>
+	template <typename ElementDataType, bool bSupportScriptHandles>
 	struct TRegisteredElementType : public FRegisteredElementType
 	{
 		virtual ~TRegisteredElementType() = default;
@@ -364,6 +425,12 @@ private:
 
 		virtual void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr, const bool bDefer) override
 		{
+			if constexpr (bSupportScriptHandles)
+			{
+				checkSlow(IsInGameThread());
+				HandleDataStore.DisableScriptHandlesForElement(InElementId);
+			}
+
 			if (bDefer)
 			{
 				InExpectedDataPtr->StoreDestructionRequestCallstack();
@@ -374,6 +441,18 @@ private:
 			else
 			{
 				HandleDataStore.RemoveDataForElement(InElementId, InExpectedDataPtr);
+			}
+		}
+
+		virtual FScriptTypedElementInternalDataPtr GetDataForScriptElement(const FTypedHandleElementId InElementId) override
+		{
+			if constexpr (bSupportScriptHandles)
+			{
+				return HandleDataStore.GetInternalDataForScriptHandle(InElementId);
+			}
+			else
+			{
+				return {};
 			}
 		}
 
@@ -554,6 +633,8 @@ private:
 
 	mutable FCriticalSection ActiveElementListsCS;
 	TSet<FTypedElementList*> ActiveElementLists;
+
+	TSet<FScriptTypedElementList*> ActiveScriptElementLists; 
 
 	uint8 DisableElementDestructionOnGCCount = 0;
 	bool bIsWithinFrame = false;

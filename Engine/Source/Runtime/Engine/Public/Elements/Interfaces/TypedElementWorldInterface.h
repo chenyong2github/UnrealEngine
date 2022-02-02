@@ -59,91 +59,76 @@ public:
 	/**
 	 * Is this element considered a template within its world (eg, a CDO or archetype).
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool IsTemplateElement(const FTypedElementHandle& InElementHandle) { return false; }
 
 	/**
 	 * Can this element actually be edited in the world?
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanEditElement(const FTypedElementHandle& InElementHandle) { return true; }
 
 	/**
 	 * Get the owner level associated with this element, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual ULevel* GetOwnerLevel(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
 	 * Get the owner world associated with this element, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual UWorld* GetOwnerWorld(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
 	 * Get the bounds of this element, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) { return false; }
 
 	/**
 	 * Can the given element be moved within the world?
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType) { return false; }
 
 	/**
 	 * Get the transform of this element within its owner world, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) { return false; }
 	
 	/**
 	 * Attempt to set the transform of this element within its owner world.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool SetWorldTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) { return false; }
 
 	/**
 	 * Get the transform of this element relative to its parent, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) { return GetWorldTransform(InElementHandle, OutTransform); }
 	
 	/**
 	 * Attempt to set the transform of this element relative to its parent.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool SetRelativeTransform(const FTypedElementHandle& InElementHandle, const FTransform& InTransform) { return SetWorldTransform(InElementHandle, InTransform); }
 
 	/**
 	 * Get the local space offset of this element that should be added to its pivot location, if any.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetPivotOffset(const FTypedElementHandle& InElementHandle, FVector& OutPivotOffset) { return false; }
 
 	/**
 	 * Attempt to set the local space offset of this element that should be added to its pivot location.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool SetPivotOffset(const FTypedElementHandle& InElementHandle, const FVector& InPivotOffset) { return false; }
 
 	/**
 	 * Notify that this element is about to be moved.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual void NotifyMovementStarted(const FTypedElementHandle& InElementHandle) {}
 
 	/**
 	 * Notify that this element is currently being moved.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual void NotifyMovementOngoing(const FTypedElementHandle& InElementHandle) {}
 
 	/**
 	 * Notify that this element is done being moved.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual void NotifyMovementEnded(const FTypedElementHandle& InElementHandle) {}
 
 	/**
@@ -166,14 +151,12 @@ public:
 	/**
 	 * Can the given element be deleted?
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanDeleteElement(const FTypedElementHandle& InElementHandle) { return false; }
 
 	/**
 	 * Delete the given element.
 	 * @note Default version calls DeleteElements with a single element.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool DeleteElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 	{
 		return DeleteElements(MakeArrayView(&InElementHandle, 1), InWorld, InSelectionSet, InDeletionOptions);
@@ -188,14 +171,12 @@ public:
 	/**
 	 * Can the given element be duplicated?
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanDuplicateElement(const FTypedElementHandle& InElementHandle) { return false; }
 
 	/**
 	 * Duplicate the given element.
 	 * @note Default version calls DuplicateElements with a single element.
 	 */
-	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual FTypedElementHandle DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset)
 	{
 		TArray<FTypedElementHandle> NewElements;
@@ -210,6 +191,133 @@ public:
 	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 	{
 	}
+
+
+	/**
+	 * Script Api
+	 */
+
+	/**
+	 * Is this element considered a template within its world (eg, a CDO or archetype).
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool IsTemplateElement(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Can this element actually be edited in the world?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanEditElement(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Get the owner level associated with this element, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual ULevel* GetOwnerLevel(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Get the owner world associated with this element, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual UWorld* GetOwnerWorld(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Get the bounds of this element, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool GetBounds(const FScriptTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds);
+
+	/**
+	 * Can the given element be moved within the world?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanMoveElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType);
+
+	/**
+	 * Get the transform of this element within its owner world, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool GetWorldTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
+	
+	/**
+	 * Attempt to set the transform of this element within its owner world.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool SetWorldTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
+
+	/**
+	 * Get the transform of this element relative to its parent, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool GetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
+	
+	/**
+	 * Attempt to set the transform of this element relative to its parent.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool SetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
+
+	/**
+	 * Get the local space offset of this element that should be added to its pivot location, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool GetPivotOffset(const FScriptTypedElementHandle& InElementHandle, FVector& OutPivotOffset);
+
+	/**
+	 * Attempt to set the local space offset of this element that should be added to its pivot location.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool SetPivotOffset(const FScriptTypedElementHandle& InElementHandle, const FVector& InPivotOffset);
+
+	/**
+	 * Notify that this element is about to be moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementStarted(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Notify that this element is currently being moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementOngoing(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Notify that this element is done being moved.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual void NotifyMovementEnded(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Can the given element be deleted?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanDeleteElement(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Delete the given element.
+	 * @note Default version calls DeleteElements with a single element.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool DeleteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
+
+	/**
+	 * Can the given element be duplicated?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanDuplicateElement(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Duplicate the given element.
+	 * @note Default version calls DuplicateElements with a single element.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual FScriptTypedElementHandle DuplicateElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset);
+
+private:
+	/**
+	 * Return the registry associated with this interface implementation
+	 */
+	virtual class UTypedElementRegistry& GetRegistry() const;
 };
 
 template <>

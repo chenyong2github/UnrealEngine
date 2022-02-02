@@ -14,11 +14,8 @@
  * C++ code may choose to use TTypedElement instead, which is a combination of an element handle and its associated element interface.
  * @note Handles auto-release on destruction.
  */
-USTRUCT(BlueprintType)
 struct TYPEDELEMENTFRAMEWORK_API FTypedElementHandle
 {
-	GENERATED_BODY()
-
 public:
 	FTypedElementHandle() = default;
 
@@ -614,7 +611,100 @@ private:
 };
 using FTypedElementOwner = TTypedElementOwner<void>;
 
-/** Script exposure for FTypedElementHandle. */
+
+/**
+ * Script exposure for the typed element handle struct type
+ * Act as a weak handle to simplify the scripting use of the typed element framework and making it safer to use by avoiding crash in case of a bad usage.
+ * This type is the standard way that an element is passed through to interfaces for a script (Blueprint or Python), and also the type that is stored in the script element lists.
+ * C++ code may choose to use TTypedElement instead, which is a combination of an element handle and its associated element interface.
+ *
+ * Note: This type shouldn't be used in the engine code as it come with a performance and memory overhead that we want to avoid when compare to the native handles (FTypedElementHandle).
+ */
+USTRUCT(BlueprintType)
+struct TYPEDELEMENTFRAMEWORK_API FScriptTypedElementHandle
+{
+	GENERATED_BODY()
+public:
+
+	FScriptTypedElementHandle() = default;
+
+	FScriptTypedElementHandle(const FScriptTypedElementHandle& InOther)
+		: InternalData(InOther.InternalData)
+	{
+	}
+
+	FScriptTypedElementHandle(FScriptTypedElementHandle&& InOther)
+		: InternalData(MoveTemp(InOther.InternalData))
+	{
+	}
+
+	FScriptTypedElementHandle& operator=(const FScriptTypedElementHandle& InOther)
+	{
+		InternalData = InOther.InternalData;
+		return *this;
+	}
+
+	FScriptTypedElementHandle& operator=(FScriptTypedElementHandle&& InOther)
+	{
+		InternalData = MoveTemp(InOther.InternalData);
+		return *this;
+	}
+
+	FORCEINLINE bool operator==(const FScriptTypedElementHandle& InOther) const
+	{
+		return InternalData == InOther.InternalData;
+	}
+
+	FORCEINLINE bool operator!=(const FScriptTypedElementHandle& InOther) const
+	{
+		return !(*this == InOther);
+	}
+
+	FORCEINLINE explicit operator bool() const
+	{
+		return IsSet();
+	}
+
+	FORCEINLINE bool IsSet() const
+	{
+		return InternalData.IsSet();
+	}
+
+	FORCEINLINE void Release()
+	{
+		InternalData.Release();
+	}
+
+	FORCEINLINE void Private_Initialize(FScriptTypedElementInternalDataPtr&& InInternalData)
+	{
+		InternalData = InInternalData;
+	}
+
+	FORCEINLINE const FTypedElementId& GetId() const
+	{
+		return InternalData.GetId();
+	}
+
+	/**
+	 * Return typed element handle from the script typed element handle
+	 * If this script handle is invalid it will return a invalid TypedElementHandle
+	 */
+	FTypedElementHandle GetTypedElementHandle() const
+	{
+		FTypedElementHandle Handle;
+		if (FTypedElementInternalData* TypedElementInternalData = InternalData.GetInternalData())
+		{
+			Handle.Private_InitializeAddRef(*TypedElementInternalData);
+		}
+
+		return Handle;
+	}
+
+private:
+	FScriptTypedElementInternalDataPtr InternalData;
+};
+
+/** Script exposure for FScriptTypedElementHandle. */
 UCLASS()
 class UTypedElementHandleLibrary : public UObject
 {
@@ -625,7 +715,7 @@ public:
 	 * Has this handle been initialized to a valid element?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(ScriptMethod, ScriptOperator="bool"))
-	static bool IsSet(const FTypedElementHandle& ElementHandle)
+	static bool IsSet(const FScriptTypedElementHandle& ElementHandle)
 	{
 		return ElementHandle.IsSet();
 	}
@@ -634,7 +724,7 @@ public:
 	 * Release this handle and set it back to an empty state.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Handle", meta=(ScriptMethod))
-	static void Release(UPARAM(ref) FTypedElementHandle& ElementHandle)
+	static void Release(UPARAM(ref) FScriptTypedElementHandle& ElementHandle)
 	{
 		ElementHandle.Release();
 	}
@@ -643,7 +733,7 @@ public:
 	 * Are these two handles equal?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(DisplayName="Equal (TypedElementHandle)", CompactNodeTitle="==", Keywords="== equal", ScriptMethod, ScriptOperator="=="))
-	static bool Equal(const FTypedElementHandle& LHS, const FTypedElementHandle& RHS)
+	static bool Equal(const FScriptTypedElementHandle& LHS, const FScriptTypedElementHandle& RHS)
 	{
 		return LHS == RHS;
 	}
@@ -652,7 +742,7 @@ public:
 	 * Are these two handles not equal?
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Handle", meta=(DisplayName="NotEqual (TypedElementHandle)", CompactNodeTitle="!=", Keywords="!= not equal", ScriptMethod, ScriptOperator="!="))
-	static bool NotEqual(const FTypedElementHandle& LHS, const FTypedElementHandle& RHS)
+	static bool NotEqual(const FScriptTypedElementHandle& LHS, const FScriptTypedElementHandle& RHS)
 	{
 		return LHS != RHS;
 	}

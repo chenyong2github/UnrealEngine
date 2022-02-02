@@ -4,6 +4,8 @@
 
 #include "Elements/Framework/TypedElementRegistry.h"
 
+#include "UObject/Stack.h"
+
 UObject* ITypedElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
 	return nullptr;
@@ -14,3 +16,28 @@ UClass* ITypedElementObjectInterface::GetObjectClass(const FTypedElementHandle& 
 	UObject* HandleAsObject = GetObject(InElementHandle);
 	return HandleAsObject ? HandleAsObject->GetClass() : nullptr;
 }
+
+UObject* ITypedElementObjectInterface::GetObject(const FScriptTypedElementHandle& InElementHandle)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return nullptr;
+	}
+
+	return GetObject(NativeHandle);
+}
+
+UClass* ITypedElementObjectInterface::GetObjectClass(const FScriptTypedElementHandle& InElementHandle)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return nullptr;
+	}
+
+	return GetObjectClass(NativeHandle);
+}
+

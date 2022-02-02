@@ -795,7 +795,7 @@ bool UUnrealEdEngine::DeleteComponents(const TArray<UActorComponent*>& InCompone
 		return false;
 	}
 
-	TUniquePtr<FTypedElementListLegacySyncScopedBatch> LegacySyncBatch = MakeUnique<FTypedElementListLegacySyncScopedBatch>(*InSelectionSet->GetElementList());
+	TUniquePtr<FTypedElementList::FLegacySyncScopedBatch> LegacySyncBatch = MakeUnique<FTypedElementList::FLegacySyncScopedBatch>(*InSelectionSet->GetElementList());
 
 	const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 		.SetAllowHidden(true)
@@ -927,7 +927,7 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 	bool bRequestedDeleteAllBySoftReference = false;
 	int32 DeleteCount = 0;
 
-	TUniquePtr<FTypedElementListLegacySyncScopedBatch> LegacySyncBatch = MakeUnique<FTypedElementListLegacySyncScopedBatch>(*InSelectionSet->GetElementList());
+	TUniquePtr<FTypedElementList::FLegacySyncScopedBatch> LegacySyncBatch = MakeUnique<FTypedElementList::FLegacySyncScopedBatch>(*InSelectionSet->GetElementList());
 
 	const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 		.SetAllowHidden(true)

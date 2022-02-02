@@ -334,15 +334,15 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorObjectElementHandle(con
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UObject, FObjectElementData>(Object, GObjectElementOwnerStore, &UEngineElementsLibrary::CreateObjectElement, bAllowCreate);
 }
 
-FTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorObjectElementHandle(const UObject* Object, const bool bAllowCreate)
+FScriptTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorObjectElementHandle(const UObject* Object, const bool bAllowCreate)
 {
 	if (!Object)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot acquire an editor object element handle from a nullptr object."), ELogVerbosity::Error);
-		return FTypedElementHandle();
+		return FScriptTypedElementHandle();
 	}
 
-	return AcquireEditorObjectElementHandle(Object , bAllowCreate);
+	return UTypedElementRegistry::GetInstance()->CreateScriptHandle(AcquireEditorObjectElementHandle(Object , bAllowCreate).GetId());
 }
 
 void UEngineElementsLibrary::ReplaceEditorObjectElementHandles(const TMap<const UObject*, const UObject*>& ReplacementObjects)
@@ -391,15 +391,15 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorActorElementHandle(cons
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<AActor, FActorElementData>(Actor, GActorElementOwnerStore, &UEngineElementsLibrary::CreateActorElement, bAllowCreate);
 }
 
-FTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorActorElementHandle(const AActor* Actor, const bool bAllowCreate)
+FScriptTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorActorElementHandle(const AActor* Actor, const bool bAllowCreate)
 {
 	if (!Actor)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot acquire an editor actor element handle from a nullptr actor."), ELogVerbosity::Error);
-		return FTypedElementHandle();
+		return FScriptTypedElementHandle();
 	}
 
-	return AcquireEditorActorElementHandle(Actor, bAllowCreate);
+	return UTypedElementRegistry::GetInstance()->CreateScriptHandle(AcquireEditorActorElementHandle(Actor, bAllowCreate).GetId());
 }
 
 void UEngineElementsLibrary::ReplaceEditorActorElementHandles(const TMap<const AActor*, const AActor*>& ReplacementActors)
@@ -448,15 +448,15 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorComponentElementHandle(
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UActorComponent, FComponentElementData>(Component, GComponentElementOwnerStore, &UEngineElementsLibrary::CreateComponentElement, bAllowCreate);
 }
 
-FTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorComponentElementHandle(const UActorComponent* Component, const bool bAllowCreate)
+FScriptTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorComponentElementHandle(const UActorComponent* Component, const bool bAllowCreate)
 {
 	if (!Component)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot acquire an editor component element handle from a nullptr component."), ELogVerbosity::Error);
-		return FTypedElementHandle();
+		return FScriptTypedElementHandle();
 	}
 
-	return AcquireEditorComponentElementHandle(Component, bAllowCreate);
+	return UTypedElementRegistry::GetInstance()->CreateScriptHandle(AcquireEditorComponentElementHandle(Component, bAllowCreate).GetId());
 }
 
 void UEngineElementsLibrary::ReplaceEditorComponentElementHandles(const TMap<const UActorComponent*, const UActorComponent*>& ReplacementComponents)
@@ -529,12 +529,12 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle
 	return AcquireEditorSMInstanceElementHandle(FSMInstanceId{ const_cast<UInstancedStaticMeshComponent*>(ISMComponent), InstanceIndex }, bAllowCreate);
 }
 
-FTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorSMInstanceElementHandle(const UInstancedStaticMeshComponent* ISMComponent, const int32 InstanceIndex, const bool bAllowCreate)
+FScriptTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorSMInstanceElementHandle(const UInstancedStaticMeshComponent* ISMComponent, const int32 InstanceIndex, const bool bAllowCreate)
 {
 	if (!ISMComponent)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot acquire an editor SMInstance element handle from a nullptr ISMComponent."), ELogVerbosity::Error);
-		return FTypedElementHandle();
+		return FScriptTypedElementHandle();
 	}
 
 	if (ISMComponent->GetInstanceCount() <= InstanceIndex || InstanceIndex < 0)
@@ -545,10 +545,10 @@ FTypedElementHandle UEngineElementsLibrary::K2_AcquireEditorSMInstanceElementHan
 		FormatOrderedArguments.Add(ISMComponent->GetInstanceCount());
 		const FString Message = FString::Format(TEXT("Cannot acquire an editor SMInstance element handle from a instance that doesn't exist in the ISMComponent. (InstanceIndex: {0}, Instance Count: {1})"), FormatOrderedArguments);
 		FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Error);
-		return FTypedElementHandle();
+		return FScriptTypedElementHandle();
 	}
 
-	return AcquireEditorSMInstanceElementHandle(ISMComponent, InstanceIndex, bAllowCreate);
+	return UTypedElementRegistry::GetInstance()->CreateScriptHandle(AcquireEditorSMInstanceElementHandle(ISMComponent, InstanceIndex, bAllowCreate).GetId());
 }
 
 FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const FSMInstanceId& SMInstanceId, const bool bAllowCreate)

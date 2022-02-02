@@ -2,11 +2,33 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementListProxy.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+
+#include "CoreMinimal.h"
+#include "UObject/Stack.h"
+
 #include "TypedElementSelectionSetLibrary.generated.h"
 
+namespace UE::TypedElementFramework::Private
+{
+	// Return true if the selection set is invalid
+	bool CheckForInvalidSelectionSet(UTypedElementSelectionSet* SelectionSet)
+	{
+		if (!SelectionSet)
+		{
+			FFrame::KismetExecutionMessage(TEXT("SelectionSet is null."), ELogVerbosity::Error);
+		}
+
+		return true;
+	}
+}
+
+/**
+ * Library of functions for the scripting of Typed Elements that use both a selection set and a element list
+ * 
+ * Note: These functions should only be use for scripting proposes only as they come at higher performance cost then their non script implementation
+ */
 UCLASS()
 class UTypedElementSelectionSetLibrary : public UObject
 {
@@ -18,10 +40,21 @@ public:
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection", meta=(ScriptMethod))
-	static bool SelectElementsFromList(UTypedElementSelectionSet* SelectionSet, const FTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
+	static bool SelectElementsFromList(UTypedElementSelectionSet* SelectionSet, const FManagedTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
 	{
-		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
-		return ElementListPtr && SelectionSet->SelectElements(ElementListPtr.ToSharedRef(), SelectionOptions);
+		if (!UE::TypedElementFramework::Private::CheckForInvalidSelectionSet(SelectionSet))
+		{
+			return false;
+		}
+
+		FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+		if (!NativeList)
+		{
+			FFrame::KismetExecutionMessage(TEXT("ElementList is in a invalid state."), ELogVerbosity::Error);
+			return false;
+		}
+
+		return SelectionSet->SelectElements(NativeList.ToSharedRef(), SelectionOptions);
 	}
 
 	/**
@@ -29,10 +62,21 @@ public:
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection", meta=(ScriptMethod))
-	static bool DeselectElementsFromList(UTypedElementSelectionSet* SelectionSet, const FTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
+	static bool DeselectElementsFromList(UTypedElementSelectionSet* SelectionSet, const FManagedTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
 	{
-		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
-		return ElementListPtr && SelectionSet->DeselectElements(ElementListPtr.ToSharedRef(), SelectionOptions);
+		if (!UE::TypedElementFramework::Private::CheckForInvalidSelectionSet(SelectionSet))
+		{
+			return false;
+		}
+
+		FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+		if (!NativeList)
+		{
+			FFrame::KismetExecutionMessage(TEXT("ElementList is in a invalid state."), ELogVerbosity::Error);
+			return false;
+		}
+
+		return SelectionSet->DeselectElements(NativeList.ToSharedRef(), SelectionOptions);
 	}
 
 	/**
@@ -41,11 +85,16 @@ public:
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection", meta=(ScriptMethod))
-	static bool SetSelectionFromList(UTypedElementSelectionSet* SelectionSet, const FTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
+	static bool SetSelectionFromList(UTypedElementSelectionSet* SelectionSet, const FManagedTypedElementListProxy ElementList, const FTypedElementSelectionOptions SelectionOptions)
 	{
-		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
-		return ElementListPtr
-			? SelectionSet->SetSelection(ElementListPtr.ToSharedRef(), SelectionOptions)
+		if (!UE::TypedElementFramework::Private::CheckForInvalidSelectionSet(SelectionSet))
+		{
+			return false;
+		}
+
+		FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+		return NativeList
+			? SelectionSet->SetSelection(NativeList.ToSharedRef(), SelectionOptions)
 			: SelectionSet->ClearSelection(SelectionOptions);
 	}
 
@@ -54,9 +103,15 @@ public:
 	 * This will do things like expand out groups, and resolve any parent<->child elements so that duplication operations aren't performed on both the parent and the child.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection", meta=(ScriptMethod))
-	static FTypedElementListProxy GetNormalizedSelection(UTypedElementSelectionSet* SelectionSet, const FTypedElementSelectionNormalizationOptions NormalizationOptions)
+	static FManagedTypedElementListProxy GetNormalizedSelection(UTypedElementSelectionSet* SelectionSet, const FTypedElementSelectionNormalizationOptions NormalizationOptions)
 	{
-		return SelectionSet->GetNormalizedSelection(NormalizationOptions);
+		if (!UE::TypedElementFramework::Private::CheckForInvalidSelectionSet(SelectionSet))
+		{
+			return FManagedTypedElementListProxy();
+		}
+
+		FScriptTypedElementListPtr NormalizedSelection = UE::TypedElementFramework::ConvertToScriptTypedElementList(SelectionSet->GetNormalizedSelection(NormalizationOptions));
+		return NormalizedSelection ? NormalizedSelection.ToSharedRef() : FManagedTypedElementListProxy();
 	}
 
 	/**
@@ -64,9 +119,14 @@ public:
 	 * This will do things like expand out groups, and resolve any parent<->child elements so that duplication operations aren't performed on both the parent and the child.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection", meta=(ScriptMethod))
-	static FTypedElementListProxy GetNormalizedElementList(UTypedElementSelectionSet* SelectionSet, const FTypedElementListProxy ElementList, const FTypedElementSelectionNormalizationOptions NormalizationOptions)
+	static FManagedTypedElementListProxy GetNormalizedElementList(UTypedElementSelectionSet* SelectionSet, const FManagedTypedElementListProxy ElementList, const FTypedElementSelectionNormalizationOptions NormalizationOptions)
 	{
-		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
-		return ElementListPtr ? SelectionSet->GetNormalizedElementList(ElementListPtr.ToSharedRef(), NormalizationOptions) : FTypedElementListProxy();
+		if (!UE::TypedElementFramework::Private::CheckForInvalidSelectionSet(SelectionSet))
+		{
+			return FManagedTypedElementListProxy();
+		}
+
+		FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+		return NativeList ?  UE::TypedElementFramework::ConvertToScriptTypedElementList(SelectionSet->GetNormalizedElementList(NativeList.ToSharedRef(), NormalizationOptions)).ToSharedRef() : FManagedTypedElementListProxy();
 	}
 };

@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/SMInstance/SMInstanceElementWorldInterface.h"
-#include "Elements/SMInstance/SMInstanceElementData.h"
-#include "Components/InstancedStaticMeshComponent.h"
 
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/SMInstance/SMInstanceElementData.h"
 
 #include "Engine/StaticMesh.h"
 

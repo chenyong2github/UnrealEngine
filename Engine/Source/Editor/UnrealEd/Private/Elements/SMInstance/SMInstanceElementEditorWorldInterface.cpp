@@ -46,7 +46,7 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 
 		bool bDidDelete = false;
 
-		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet->GetElementList());
+		FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet->GetElementList());
 		for (TTuple<ISMInstanceManager*, TArray<FSMInstanceId>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
 		{
 			for (const FSMInstanceId& InstanceId : BatchedInstancesToDeletePair.Value)

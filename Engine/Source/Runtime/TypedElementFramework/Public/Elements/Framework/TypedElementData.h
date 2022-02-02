@@ -347,6 +347,167 @@ class TTypedElementInternalData<void> : public FTypedElementInternalData
 };
 
 /**
+ * Internal data that act as a ptr to a control block for the data represented by a ScriptTypedElementHandle
+ */
+class FScriptTypedElementInternalDataPtr
+{
+public:
+
+	FScriptTypedElementInternalDataPtr() = default;
+
+	~FScriptTypedElementInternalDataPtr()
+	{
+		DecrementCount();
+	}
+
+	FScriptTypedElementInternalDataPtr(const FScriptTypedElementInternalDataPtr& Other)
+		: ControlBlock(Other.ControlBlock)
+	{
+		IncrementCount();
+	}
+
+	FScriptTypedElementInternalDataPtr(FScriptTypedElementInternalDataPtr&& Other)
+		: ControlBlock(Other.ControlBlock)
+	{
+		Other.ControlBlock = nullptr;
+	}
+
+	FScriptTypedElementInternalDataPtr& operator=(const FScriptTypedElementInternalDataPtr& Other)
+	{
+		ControlBlock = Other.ControlBlock;
+		IncrementCount();
+		return *this;
+	}
+
+	FScriptTypedElementInternalDataPtr& operator=(FScriptTypedElementInternalDataPtr&& Other)
+	{
+		ControlBlock = Other.ControlBlock;
+		Other.ControlBlock = nullptr;
+		return *this;
+	}
+
+	bool operator==(const FScriptTypedElementInternalDataPtr& Other) const
+	{
+		return ControlBlock == Other.ControlBlock;
+	}
+
+	bool operator!=(const FScriptTypedElementInternalDataPtr& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool IsSet() const
+	{
+		return ControlBlock && ControlBlock->Data;
+	}
+
+	void Release()
+	{
+		DecrementCount();
+		ControlBlock = nullptr;
+	}
+
+	FORCEINLINE const FTypedElementId& GetId() const
+	{
+		if (ControlBlock)
+		{
+			if (ControlBlock->Data)
+			{
+				return ControlBlock->Data->GetId();
+			}
+		}
+
+		return FTypedElementId::Unset;
+	}
+
+	FORCEINLINE FTypedElementInternalData* GetInternalData() const
+	{
+		if (ControlBlock)
+		{
+			if (ControlBlock->Data)
+			{
+				return ControlBlock->Data;
+			}
+		}
+
+		return nullptr;
+	}
+
+protected:
+	void IncrementCount()
+	{
+		if (ControlBlock)
+		{
+			++ControlBlock->WeakRefCount;
+		}
+	}
+
+	void DecrementCount()
+	{
+		if (ControlBlock)
+		{
+			--ControlBlock->WeakRefCount;
+			if (ControlBlock->WeakRefCount == 0)
+			{
+				delete ControlBlock;
+				ControlBlock = nullptr;
+			}
+		}
+	}
+
+	FScriptTypedElementInternalDataPtr(FTypedElementInternalData& InternalData)
+		: ControlBlock(new FScriptTypedElementInternalDataControlBlock(InternalData))
+	{
+		IncrementCount();
+	}
+
+	/**
+	 * Internal data that act as a weak reference count and a control block for the ScriptTypedElementHandle
+	 */
+	struct FScriptTypedElementInternalDataControlBlock
+	{
+		FScriptTypedElementInternalDataControlBlock(FTypedElementInternalData& InData)
+			: Data(&InData)
+		{
+		}
+
+		FScriptTypedElementInternalDataControlBlock() = delete;
+
+		// The control block should never be copied/Moved
+		FScriptTypedElementInternalDataControlBlock(const FScriptTypedElementInternalDataControlBlock&) = delete;
+		FScriptTypedElementInternalDataControlBlock(FScriptTypedElementInternalDataControlBlock&&) = delete;
+		FScriptTypedElementInternalDataControlBlock& operator=(const FScriptTypedElementInternalDataControlBlock&) = delete;
+		FScriptTypedElementInternalDataControlBlock& operator=(FScriptTypedElementInternalDataControlBlock&&) = delete;
+
+
+		FTypedElementInternalData* Data = nullptr;
+		FTypedElementRefCount WeakRefCount = 0;
+	};
+
+	FScriptTypedElementInternalDataControlBlock* ControlBlock = nullptr;
+};
+
+class FScriptTypedElementInternalDataOwner : public FScriptTypedElementInternalDataPtr
+{
+public:
+
+	FScriptTypedElementInternalDataOwner(FTypedElementInternalData& InInternalData)
+		: FScriptTypedElementInternalDataPtr(InInternalData)
+	{
+		ControlBlock = new FScriptTypedElementInternalDataControlBlock(InInternalData);
+		IncrementCount();
+	}
+
+	// Tell all the weak reference that the data they point to is no longer valid
+	~FScriptTypedElementInternalDataOwner()
+	{
+		ControlBlock->Data = nullptr;
+		DecrementCount();
+		ControlBlock = nullptr;
+	}
+};
+
+/**
  * Data store implementation used by the element registry to manage internal data. 
  * @note This is the generic implementation that uses an array and manages the IDs itself.
  */
@@ -369,6 +530,26 @@ public:
 		TTypedElementInternalData<ElementDataType>& InternalData = InternalDataArray[InOutElementId];
 		InternalData.Initialize(InTypeId, InOutElementId);
 		return InternalData;
+	}
+
+	FScriptTypedElementInternalDataPtr GetInternalDataForScriptHandle(const FTypedHandleElementId InElementId)
+	{
+		// Script handles are not thread safe
+		uint32 Hash = GetTypeHash(InElementId);
+		if (FScriptTypedElementInternalDataOwner* ScriptElementInternalData  = ScriptInternalDataMap.FindByHash(Hash, InElementId))
+		{
+			return *ScriptElementInternalData;
+		}
+
+		FReadScopeLock InternalDataLock(InternalDataRW);
+		checkSlow(InternalDataArray.IsValidIndex(InElementId));
+		return ScriptInternalDataMap.EmplaceByHash(Hash,InElementId, InternalDataArray[InElementId]);
+	}
+
+	void DisableScriptHandlesForElement(const FTypedHandleElementId InElementId)
+	{
+		// Script handles are not thread safe
+		ScriptInternalDataMap.Remove(InElementId);
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
@@ -412,6 +593,7 @@ private:
 	mutable FRWLock InternalDataRW;
 	TChunkedArray<TTypedElementInternalData<ElementDataType>> InternalDataArray;
 	TArray<int32> InternalDataFreeIndices;
+	TMap<FTypedHandleElementId, FScriptTypedElementInternalDataOwner> ScriptInternalDataMap;
 };
 
 /**
@@ -440,6 +622,26 @@ public:
 		TTypedElementInternalData<void>& InternalData = InternalDataArray[InOutElementId];
 		InternalData.Initialize(InTypeId, InOutElementId);
 		return InternalData;
+	}
+
+	FScriptTypedElementInternalDataPtr GetInternalDataForScriptHandle(const FTypedHandleElementId InElementId)
+	{
+		// Script handles are not thread safe
+		uint32 Hash = GetTypeHash(InElementId);
+		if (FScriptTypedElementInternalDataOwner* ScriptElementInternalData = ScriptInternalDataMap.FindByHash(Hash, InElementId))
+		{
+			return *ScriptElementInternalData;
+		}
+
+		FReadScopeLock InternalDataLock(InternalDataRW);
+		const int32 Index = ElementIdToArrayIndex.FindChecked(InElementId);
+		return ScriptInternalDataMap.EmplaceByHash(Hash, InElementId, InternalDataArray[Index]);
+	}
+
+	void DisableScriptHandlesForElement(const FTypedHandleElementId InElementId)
+	{
+		// Script handles are not thread safe
+		ScriptInternalDataMap.Remove(InElementId);
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
@@ -486,4 +688,5 @@ private:
 	TChunkedArray<TTypedElementInternalData<void>> InternalDataArray;
 	TArray<int32> InternalDataFreeIndices;
 	TMap<FTypedHandleElementId, int32> ElementIdToArrayIndex;
+	TMap<FTypedHandleElementId, FScriptTypedElementInternalDataOwner> ScriptInternalDataMap;
 };

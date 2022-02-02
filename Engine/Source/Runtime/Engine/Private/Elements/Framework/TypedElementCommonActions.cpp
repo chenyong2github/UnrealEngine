@@ -6,6 +6,7 @@
 #include "Elements/Framework/TypedElementUtil.h"
 
 #include "UObject/GCObjectScopeGuard.h"
+#include "UObject/Stack.h"
 
 bool FTypedElementCommonActionsCustomization::DeleteElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
@@ -20,15 +21,20 @@ void FTypedElementCommonActionsCustomization::DuplicateElements(ITypedElementWor
 
 bool UTypedElementCommonActions::DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions)
 {
+	if (!SelectionSet)
+	{
+		FFrame::KismetExecutionMessage(TEXT("SelectionSet is null."), ELogVerbosity::Error);
+	}
+
 	FTypedElementListRef NormalizedElements = SelectionSet->GetNormalizedSelection(FTypedElementSelectionNormalizationOptions());
 	return DeleteNormalizedElements(NormalizedElements, World, SelectionSet, DeletionOptions);
 }
 
-bool UTypedElementCommonActions::DeleteNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
+bool UTypedElementCommonActions::DeleteNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
 	bool bSuccess = false;
 
-	if (FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList())
+	if (ElementListPtr)
 	{
 		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDeleteByType;
 		TypedElementUtil::BatchElementsByType(ElementListPtr.ToSharedRef(), ElementsToDeleteByType);
@@ -56,10 +62,10 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateSelectedElement
 	return DuplicateNormalizedElements(NormalizedElements, World, LocationOffset);
 }
 
-TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset)
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, const FVector& LocationOffset)
 {
 	TArray<FTypedElementHandle> NewElements;
-	if (FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList())
+	if (ElementListPtr)
 	{
 		NewElements.Reserve(ElementListPtr->Num());
 
@@ -79,6 +85,40 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedEleme
 	}
 	
 	return NewElements;
+}
+
+bool UTypedElementCommonActions::DeleteNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
+{
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("ElementList is in a invalid state."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return DeleteNormalizedElements(NativeList, World, InSelectionSet, DeletionOptions);
+}
+
+TArray<FScriptTypedElementHandle> UTypedElementCommonActions::K2_DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset)
+{
+	if (!SelectionSet)
+	{
+		FFrame::KismetExecutionMessage(TEXT("SelectionSet is null."), ELogVerbosity::Error);
+	}
+
+	return TypedElementUtil::ConvertToScriptElementArray(DuplicateSelectedElements(SelectionSet, World, LocationOffset), SelectionSet->GetElementList()->GetRegistry());
+}
+
+TArray<FScriptTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FManagedTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset)
+{
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(ElementList.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("ElementList is in a invalid state."), ELogVerbosity::Error);
+		return {};
+	}
+
+	return TypedElementUtil::ConvertToScriptElementArray(DuplicateNormalizedElements(NativeList, World, LocationOffset), NativeList->GetRegistry());
 }
 
 FTypedElementCommonActionsElement UTypedElementCommonActions::ResolveCommonActionsElement(const FTypedElementHandle& InElementHandle) const

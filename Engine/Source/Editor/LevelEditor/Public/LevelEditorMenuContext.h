@@ -42,7 +42,6 @@ class LEVELEDITOR_API ULevelEditorContextMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:
-
 	TWeakPtr<ILevelEditor> LevelEditor;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
@@ -52,7 +51,6 @@ public:
 	TObjectPtr<const UTypedElementSelectionSet> CurrentSelection;
 	
 	/** If the ContextType is Viewport this property can be set to the HitProxy element that triggered the ContextMenu. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	FTypedElementHandle HitProxyElement;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
@@ -64,6 +62,9 @@ public:
 	/** If the ContextType is Viewport this property can be set to the HitProxy actor that triggered the ContextMenu. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	TObjectPtr<AActor> HitProxyActor = nullptr;
+
+	UFUNCTION(BlueprintCallable, Category = "LevelEditor | Menu", DisplayName="Get Hit Proxy Element", meta=(ScriptName="GetHitProxyElement"))
+	FScriptTypedElementHandle GetScriptHitProxyElement();
 };
 
 UCLASS()

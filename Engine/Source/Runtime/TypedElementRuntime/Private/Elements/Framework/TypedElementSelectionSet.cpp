@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
+
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementUtil.h"
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
 #include "UObject/GCObjectScopeGuard.h"
@@ -211,7 +213,7 @@ bool UTypedElementSelectionSet::SelectElements(const TArray<FTypedElementHandle>
 
 bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -225,7 +227,7 @@ bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHan
 
 bool UTypedElementSelectionSet::SelectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -276,7 +278,7 @@ bool UTypedElementSelectionSet::DeselectElements(const TArray<FTypedElementHandl
 
 bool UTypedElementSelectionSet::DeselectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -290,7 +292,7 @@ bool UTypedElementSelectionSet::DeselectElements(TArrayView<const FTypedElementH
 
 bool UTypedElementSelectionSet::DeselectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -305,7 +307,7 @@ bool UTypedElementSelectionSet::DeselectElements(FTypedElementListConstRef InEle
 
 bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -340,7 +342,7 @@ bool UTypedElementSelectionSet::SetSelection(const TArray<FTypedElementHandle>& 
 
 bool UTypedElementSelectionSet::SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -352,7 +354,7 @@ bool UTypedElementSelectionSet::SetSelection(TArrayView<const FTypedElementHandl
 
 bool UTypedElementSelectionSet::SetSelection(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -548,4 +550,114 @@ void UTypedElementSelectionSet::OnElementListChanged(const FTypedElementList& In
 	check(&InElementList == ElementList.Get());
 	OnChangedDelegate.Broadcast(this);
 	OnSelectionChange.Broadcast(this);
+}
+
+bool UTypedElementSelectionSet::IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return IsElementSelected(NativeHandle, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::CanSelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return CanSelectElement(NativeHandle, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::CanDeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return CanDeselectElement(NativeHandle, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::SelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return SelectElement(NativeHandle, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::SelectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	TArray<FTypedElementHandle> NativeHandles = TypedElementUtil::ConvertToNativeElementArray(InElementHandles);
+	return SelectElements(NativeHandles, InSelectionOptions);
+}
+
+
+bool UTypedElementSelectionSet::DeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return DeselectElement(NativeHandle, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::DeselectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	TArray<FTypedElementHandle> NativeHandles = TypedElementUtil::ConvertToNativeElementArray(InElementHandles);
+	return DeselectElements(NativeHandles, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::SetSelection(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	TArray<FTypedElementHandle> NativeHandles = TypedElementUtil::ConvertToNativeElementArray(InElementHandles);
+	return SetSelection(NativeHandles, InSelectionOptions);
+}
+
+bool UTypedElementSelectionSet::AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle) const
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return AllowSelectionModifiers(NativeHandle);
+}
+
+
+FScriptTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return FScriptTypedElementHandle();
+	}
+
+	return ElementList->GetRegistry()->CreateScriptHandle(GetSelectionElement(NativeHandle, InSelectionMethod).GetId());
+}
+
+TArray<FScriptTypedElementHandle> UTypedElementSelectionSet::K2_GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType) const
+{
+	TArray<FTypedElementHandle> NativeHandles = GetSelectedElementHandles(InBaseInterfaceType);
+	return TypedElementUtil::ConvertToScriptElementArray(NativeHandles, ElementList->GetRegistry());
 }

@@ -267,23 +267,47 @@ FString UTypedElementRegistry::RegistredElementTypesAndInterfacesToString() cons
 
 void UTypedElementRegistry::NotifyElementListPendingChanges()
 {
-	/** 
-	 * We use a critical section here since we need the called function to be able to create or delete TypedElementLists.
-	 * Critical sections are recursive. They can be lock multiple times by the same thread without blocking.
-	 */
-	FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
-	TArray<FTypedElementList*> ElementListToNotify = ActiveElementLists.Array();
+	{
+		/** 
+		 * We use a critical section here since we need the called function to be able to create or delete TypedElementLists.
+		 * Critical sections are recursive. They can be lock multiple times by the same thread without blocking.
+		 */
+		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
+		TArray<FTypedElementList*> ElementListToNotify = ActiveElementLists.Array();
 
+		bool bHasListPotentialyChanged = false;
+		for (FTypedElementList* ActiveElementList : ElementListToNotify)
+		{
+			if (bHasListPotentialyChanged)
+			{
+				/**
+				 * One of the callbacks could have modified the ActiveElementLists by deleting a ElementList.
+				 * So we need to validate that the ActiveElementList still exist.
+				 */
+				if (ActiveElementLists.Contains(ActiveElementList))
+				{
+					ActiveElementList->NotifyPendingChanges();
+				}
+			}
+			else
+			{
+				bHasListPotentialyChanged = ActiveElementList->NotifyPendingChanges();
+			}
+		}
+	}
+
+	// Script List (no need for a critical section)
 	bool bHasListPotentialyChanged = false;
-	for (FTypedElementList* ActiveElementList : ElementListToNotify)
+	TArray<FScriptTypedElementList*> ElementListToNotify = ActiveScriptElementLists.Array();
+	for (FScriptTypedElementList* ActiveElementList : ElementListToNotify)
 	{
 		if (bHasListPotentialyChanged)
 		{
 			/**
-			 * One of the callbacks could have modified the ActiveElementLists by deleting a ElementList.
-			 * So we need to validate that the ActiveElementList still exist.
-			 */
-			if (ActiveElementLists.Contains(ActiveElementList))
+				* One of the callbacks could have modified the ActiveElementLists by deleting a ElementList.
+				* So we need to validate that the ActiveElementList still exist.
+				*/
+			if (ActiveScriptElementLists.Contains(ActiveElementList))
 			{
 				ActiveElementList->NotifyPendingChanges();
 			}

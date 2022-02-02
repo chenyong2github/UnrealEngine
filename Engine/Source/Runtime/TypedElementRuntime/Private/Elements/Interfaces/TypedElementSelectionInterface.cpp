@@ -1,22 +1,143 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
+
 #include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementUtil.h"
 
-bool ITypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+#include "UObject/Stack.h"
+
+bool ITypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
-	return SelectionSetPtr && SelectionSetPtr->Contains(InElementHandle);
+	return InSelectionSet && InSelectionSet->Contains(InElementHandle);
 }
 
-bool ITypedElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool ITypedElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementListPtr& InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
-	return SelectionSetPtr && SelectionSetPtr->Add(InElementHandle);
+	return InSelectionSet && InSelectionSet->Add(InElementHandle);
 }
 
-bool ITypedElementSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool ITypedElementSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementListPtr& InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
-	return SelectionSetPtr && SelectionSetPtr->Remove(InElementHandle);
+	return InSelectionSet && InSelectionSet->Remove(InElementHandle);
+}
+
+bool ITypedElementSelectionInterface::IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(InSelectionSet.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InSelectionSet is in a invalid state."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return IsElementSelected(NativeHandle, NativeList, InSelectionOptions);
+}
+
+bool ITypedElementSelectionInterface::CanSelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return CanSelectElement(NativeHandle, InSelectionOptions);
+}
+
+bool ITypedElementSelectionInterface::CanDeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return CanDeselectElement(NativeHandle, InSelectionOptions);
+}
+
+bool ITypedElementSelectionInterface::SelectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(InSelectionSet.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InSelectionSet is in a invalid state."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return SelectElement(NativeHandle, NativeList, InSelectionOptions);
+}
+
+bool ITypedElementSelectionInterface::DeselectElement(const FScriptTypedElementHandle& InElementHandle, FManagedTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(InSelectionSet.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InSelectionSet is in a invalid state."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return DeselectElement(NativeHandle, NativeList, InSelectionOptions);
+}
+
+bool ITypedElementSelectionInterface::AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InSelectionSet)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(InSelectionSet.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InSelectionSet is in a invalid state."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return AllowSelectionModifiers(NativeHandle, NativeList);
+}
+
+FScriptTypedElementHandle ITypedElementSelectionInterface::GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const FManagedTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return {};
+	}
+
+	FTypedElementListPtr NativeList = UE::TypedElementFramework::ConvertToNativeTypedElementList(InCurrentSelection.GetElementList());
+	if (!NativeList)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InCurrentSelection is in a invalid state."), ELogVerbosity::Error);
+		return {};
+	}
+
+	return NativeList->GetRegistry()->CreateScriptHandle(GetSelectionElement(NativeHandle, NativeList, InSelectionMethod).GetId());
 }

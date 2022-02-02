@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementWorldInterface.h"
-#include "Elements/Component/ComponentElementData.h"
-#include "Components/PrimitiveComponent.h"
 
 #include "Elements/Actor/ActorElementWorldInterface.h"
+#include "Elements/Component/ComponentElementData.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+
+#include "Components/PrimitiveComponent.h"
 
 bool UComponentElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
