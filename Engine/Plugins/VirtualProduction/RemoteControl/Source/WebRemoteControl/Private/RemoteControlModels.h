@@ -682,6 +682,7 @@ struct FRCAssetFilter
 	bool RecursivePaths = false;
 
 	/** When dealing with blueprint classes, you might want to filter for a base class which can't be picked by asset registry if you derive from a blueprint class */
+	UPROPERTY()
 	bool EnableBlueprintNativeClassFiltering = false;
 };
 
