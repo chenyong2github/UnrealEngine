@@ -3,10 +3,12 @@
 #include "PCGPoint.h"
 
 FPCGPoint::FPCGPoint(const FTransform& InTransform, float InDensity, int32 InSeed)
-	: Transform(InTransform), Density(InDensity), Seed(InSeed)
+	: Transform(InTransform)
+	, Density(InDensity)
+	, Extents(FVector::One())
+	, Color(FVector4::One())
+	, Seed(InSeed)
 {
-	// TODO: this is a placeholder
-	Extents = FVector::One();
 }
 
 FBoxSphereBounds FPCGPoint::GetBounds() const

@@ -2,13 +2,11 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
-#include "PCGComponent.h"
 #include "PCGHelpers.h"
+#include "Helpers/PCGActorHelpers.h"
 #include "Data/PCGPointData.h"
-#include "Data/PCGSpatialData.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Math/RandomStream.h"
 
@@ -43,6 +41,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		FWeightedMeshAndInstances& WeightedEntry = WeightedEntries.Emplace_GetRef();
 		WeightedEntry.Weight = TotalWeight;
+		// Todo: we could likely pre-load these meshes asynchronously in the settings
 		WeightedEntry.Mesh = Entry.Mesh.LoadSynchronous();
 	}
 
@@ -114,10 +113,11 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 					continue;
 				}
 
-				UInstancedStaticMeshComponent* ISMC = GetOrCreateISMC(TargetActor, Context->SourceComponent, Instances.Mesh);
+				UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Instances.Mesh);
 
 				// TODO: add scaling
 				// TODO: document these arguments
+				ISMC->NumCustomDataFloats = 0;
 				ISMC->AddInstances(Instances.Instances, false, true);
 				ISMC->UpdateBounds();
 			}
@@ -125,43 +125,4 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 	}
 
 	return true;
-}
-
-UInstancedStaticMeshComponent* FPCGStaticMeshSpawnerElement::GetOrCreateISMC(AActor* InTargetActor, const UPCGComponent* InSourceComponent, UStaticMesh* InMesh) const
-{
-	check(InTargetActor != nullptr && InMesh != nullptr);
-
-	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	InTargetActor->GetComponents<UInstancedStaticMeshComponent>(ISMCs);
-
-	for (UInstancedStaticMeshComponent* ISMC : ISMCs)
-	{
-		if (ISMC->GetStaticMesh() == InMesh && (!InSourceComponent || ISMC->ComponentTags.Contains(InSourceComponent->GetFName())))
-		{
-			return ISMC;
-		}
-	}
-
-	InTargetActor->Modify();
-
-	// Otherwise, create a new component
-	// TODO: use static mesh component if there's only one instance
-	// TODO: add hism/ism switch or better yet, use a template component
-	UInstancedStaticMeshComponent* ISMC = NewObject<UHierarchicalInstancedStaticMeshComponent>(InTargetActor);
-	ISMC->SetStaticMesh(InMesh);
-	// TODO: add way to do material overrides, maybe on a finer basis as well
-	ISMC->RegisterComponent();
-	InTargetActor->AddInstanceComponent(ISMC);
-	ISMC->SetMobility(EComponentMobility::Static);
-	// TODO: add option for collision, or use a template
-	ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ISMC->AttachToComponent(InTargetActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
-
-	if (InSourceComponent)
-	{
-		ISMC->ComponentTags.Add(InSourceComponent->GetFName());
-		ISMC->ComponentTags.Add(PCGHelpers::DefaultPCGTag);
-	}
-
-	return ISMC;
 }

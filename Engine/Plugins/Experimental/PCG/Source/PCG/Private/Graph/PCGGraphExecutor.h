@@ -121,6 +121,7 @@ protected:
 	// Important note: generic elements must always be run on the main thread
 	// as most of these will impact the editor in some way (loading, unloading, saving)
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool IsCancellable() const { return false; }
 
 private:
 	TFunction<bool()> Operation;

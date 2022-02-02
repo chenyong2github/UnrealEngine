@@ -61,6 +61,9 @@ struct FPCGDataCollection
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TArray<FPCGTaggedData> TaggedData;
+
+	/** This flag is used to cancel further computation or for the debug/isolate feature */
+	bool bCancelExecution = false;
 };
 
 template<typename SettingsType>

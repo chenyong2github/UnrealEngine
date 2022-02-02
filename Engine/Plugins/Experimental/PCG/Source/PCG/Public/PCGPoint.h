@@ -21,10 +21,13 @@ public:
 	FTransform Transform;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
+	float Density;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	FVector Extents;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
-	float Density;
+	FVector4 Color;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	int32 Seed;

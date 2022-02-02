@@ -339,7 +339,7 @@ void UPCGComponent::CleanupInternal(bool bRemoveComponents)
 	{
 		if (ISMC->ComponentTags.Contains(GetFName()))
 		{
-			if (bRemoveComponents)
+			if (bRemoveComponents || ISMC->ComponentTags.Contains(PCGHelpers::DefaultPCGDebugTag))
 			{
 				ISMC->DestroyComponent();
 			}

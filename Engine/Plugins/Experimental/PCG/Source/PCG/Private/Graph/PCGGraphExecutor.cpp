@@ -241,6 +241,7 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 	{
 		check(OutputData.Contains(Id));
 		TaskInput.TaggedData.Append(OutputData[Id].TaggedData);
+		TaskInput.bCancelExecution |= OutputData[Id].bCancelExecution;
 	}
 }
 

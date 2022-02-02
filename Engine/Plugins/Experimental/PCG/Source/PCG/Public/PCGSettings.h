@@ -4,10 +4,20 @@
 
 #include "PCGData.h"
 #include "PCGElement.h"
+#include "PCGDebug.h"
 
 #include "PCGSettings.generated.h"
 
 class UPCGNode;
+
+UENUM()
+enum class EPCGSettingsExecutionMode : uint8
+{
+	Enabled,
+	Debug,
+	Isolated,
+	Disabled
+};
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGSettingsChanged, UPCGSettings*);
@@ -36,7 +46,12 @@ public:
 	int Seed = 0xC35A9631; // random prime number
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	bool bEnabled = true;
+	EPCGSettingsExecutionMode ExecutionMode = EPCGSettingsExecutionMode::Enabled;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))
+	FPCGDebugVisualizationSettings DebugSettings;
+#endif
 
 #if WITH_EDITOR
 	FOnPCGSettingsChanged OnSettingsChangedDelegate;

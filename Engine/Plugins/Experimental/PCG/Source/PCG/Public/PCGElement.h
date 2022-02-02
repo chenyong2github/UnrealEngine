@@ -24,6 +24,7 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const = 0;
+	virtual bool IsCancellable() const { return true; }
 };
 
 /**

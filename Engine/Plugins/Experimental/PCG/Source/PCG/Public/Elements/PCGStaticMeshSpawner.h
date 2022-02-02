@@ -7,9 +7,6 @@
 
 #include "PCGStaticMeshSpawner.generated.h"
 
-class AActor;
-class UInstancedStaticMeshComponent;
-class UPCGComponent;
 class UStaticMesh;
 
 USTRUCT(BlueprintType)
@@ -48,7 +45,4 @@ class FPCGStaticMeshSpawnerElement : public FSimpleTypedPCGElement<UPCGStaticMes
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
-
-private:
-	UInstancedStaticMeshComponent* GetOrCreateISMC(AActor* InActor, const UPCGComponent* SourceComponent, UStaticMesh* InMesh) const;
 };
