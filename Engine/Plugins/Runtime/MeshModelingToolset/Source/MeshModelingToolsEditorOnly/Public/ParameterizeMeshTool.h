@@ -24,7 +24,7 @@ class UParameterizeMeshToolPatchBuilderProperties;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UParameterizeMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -33,7 +33,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UParameterizeMeshToolPatchBuilderGroupLayerProperties : public UPolygroupLayersProperties
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolPatchBuilderGroupLayerProperties : public UPolygroupLayersProperties
 {
 	GENERATED_BODY()
 public:
@@ -48,7 +48,7 @@ public:
  * and then packs the resulting charts
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UParameterizeMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
