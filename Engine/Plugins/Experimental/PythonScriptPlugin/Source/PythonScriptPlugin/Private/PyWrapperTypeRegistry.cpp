@@ -28,6 +28,7 @@
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/StructOnScope.h"
+#include "Misc/CoreDelegates.h"
 #if WITH_EDITOR
 #include "Kismet2/ReloadUtilities.h"
 #endif
