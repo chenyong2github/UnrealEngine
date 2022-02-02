@@ -5,6 +5,11 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
+FJsonObjectWrapper::FJsonObjectWrapper()
+{
+	JsonObject = MakeShared<FJsonObject>();
+}
+
 bool FJsonObjectWrapper::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
 {
 	// read JSON string from Buffer
@@ -26,11 +31,11 @@ bool FJsonObjectWrapper::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, U
 		Buffer += Json.Len();
 	}
 
-	// empty string yields empty shared pointer
+	// empty string resets/re-initializes shared pointer
 	if (Json.IsEmpty())
 	{
 		JsonString.Empty();
-		JsonObject.Reset();
+		JsonObject = MakeShared<FJsonObject>();
 		return true;
 	}
 
@@ -71,6 +76,11 @@ void FJsonObjectWrapper::PostSerialize(const FArchive& Ar)
 			JsonString.Empty();
 		}
 	}
+}
+
+FJsonObjectWrapper::operator bool() const
+{
+	return JsonObject.IsValid() && !JsonObject->Values.IsEmpty();
 }
 
 bool FJsonObjectWrapper::JsonObjectToString(FString& Str) const
