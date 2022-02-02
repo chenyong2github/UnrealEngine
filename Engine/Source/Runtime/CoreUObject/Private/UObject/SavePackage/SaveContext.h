@@ -841,6 +841,18 @@ public:
 		GetHarvestedRealm().SetLinker(MoveTemp(InLinker));
 	}
 
+	void UpdatePackageLinkerVersions()
+	{
+		Package->SetLinkerPackageVersion(Linker->UEVer());
+		Package->SetLinkerLicenseeVersion(Linker->LicenseeUEVer());
+		Package->SetLinkerCustomVersions(Linker->GetCustomVersions());
+	}
+
+	void UpdatePackageFileSize(int64 InFileSize)
+	{
+		Package->SetFileSize(InFileSize);
+	}
+
 	bool CloseLinkerArchives()
 	{
 		return GetHarvestedRealm().CloseLinkerArchives();
