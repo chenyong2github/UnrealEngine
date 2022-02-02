@@ -126,7 +126,7 @@ int32 SObjectNameEditableTextBox::OnPaint( const FPaintArgs& Args, const FGeomet
 			HighlightTargetColorAndOpacity );							// Color
 	}
 
-	return LayerId + TextLayer;
+	return FMath::Max(StartLayer, LayerId + TextLayer);
 }
 
 FText SObjectNameEditableTextBox::GetNameText() const

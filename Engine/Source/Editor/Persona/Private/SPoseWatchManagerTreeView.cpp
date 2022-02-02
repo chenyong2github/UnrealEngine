@@ -374,7 +374,7 @@ int32 SPoseWatchManagerTreeRow::OnPaint(const FPaintArgs& Args, const FGeometry&
 			HighlightTargetColorAndOpacity);							// Color
 	}
 
-	return LayerId + TextLayer;
+	return FMath::Max(StartLayer, LayerId + TextLayer);
 }
 
 #undef LOCTEXT_NAMESPACE
