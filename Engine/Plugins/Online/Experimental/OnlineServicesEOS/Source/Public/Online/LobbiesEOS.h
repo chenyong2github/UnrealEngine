@@ -323,8 +323,6 @@ protected:
 
 	TOnlineAsyncOpHandle<FProcessLobbyNotificationImpl> ProcessLobbyNotificationImplOp(FProcessLobbyNotificationImpl::Params&& Params);
 
-	FString LobbyBucketId;
-
 	EOSEventRegistrationPtr OnLobbyUpdatedEOSEventRegistration;
 	EOSEventRegistrationPtr OnLobbyMemberUpdatedEOSEventRegistration;
 	EOSEventRegistrationPtr OnLobbyMemberStatusReceivedEOSEventRegistration;

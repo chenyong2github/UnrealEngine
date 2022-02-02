@@ -94,6 +94,14 @@ public:
 };
 
 /**
+ * Retrieve the unique id for the executable build. The build id is used for ensuring that client
+ * and server builds are compatible.
+ *
+ * @return The unique id for the executable build.
+ */
+ONLINESERVICESINTERFACE_API int32 GetBuildUniqueId();
+
+/**
  * Check if an instance of the online service is loaded
  *
  * @param OnlineServices Type of online services to retrieve

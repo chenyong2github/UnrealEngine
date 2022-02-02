@@ -1098,14 +1098,14 @@ TFunction<TFuture<void>(TOnlineAsyncOp<OpType>&)> CaptureOperationStepResult(TOn
 }
 
 // todo: TFuture<void> does not work as expected with "Then".
-TFuture<int> AwaitNextGameTick()
+TFuture<int> AwaitSleepFor(double Seconds)
 {
 	TSharedRef<TPromise<int>> Promise = MakeShared<TPromise<int>>();
 	TFuture<int> Future = Promise->GetFuture();
 
 	FTSTicker::GetCoreTicker().AddTicker(
-	TEXT("LobbiesFunctionalTest::AwaitNextGameTick"),
-	0.f,
+	TEXT("LobbiesFunctionalTest::AwaitSleepFor"),
+	Seconds,
 	[Promise](float)
 	{
 		Promise->EmplaceValue();
@@ -1113,6 +1113,12 @@ TFuture<int> AwaitNextGameTick()
 	});
 
 	return Future;
+}
+
+// todo: TFuture<void> does not work as expected with "Then".
+TFuture<int> AwaitNextGameTick()
+{
+	return AwaitSleepFor(0.f);
 }
 
 TFuture<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> AwaitInvitation(
@@ -1408,6 +1414,7 @@ struct FFunctionalTestConfig
 	FString TestAccount2Token;
 
 	float InvitationWaitSeconds = 10.f;
+	float FindMatchReplicationDelay = 5.f;
 };
 
 namespace Meta {
@@ -1433,6 +1440,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 	static const FString FindLobbyKeyName = TEXT("FindLobby");
 	static const FString LobbyEventCaptureKeyName = TEXT("LobbyEventCapture");
 	static const FString ConfigNameKeyName = TEXT("Config");
+	static const FString SearchKeyName = TEXT("SearchKey");
+
+	struct FSearchParams
+	{
+		int64 LobbyCreateTime = 0;
+	};
 
 	TSharedRef<FFunctionalTestConfig> TestConfig = MakeShared<FFunctionalTestConfig>();
 	LobbiesCommon.LoadConfig(*TestConfig, ConfigName);
@@ -1759,6 +1772,10 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 	//    Step 5: Leave lobby with primary user.
 	//----------------------------------------------------------------------------------------------
 
+	// todo: additional functional tests for search.
+	// find by lobby id, find by user, find by attributes. Search types are mutually exclusive and
+	// should return invalid args if multiple search types are passed for a search.
+
 	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
 		// Prepare for next test check.
@@ -1766,18 +1783,22 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 
 		const Private::FFunctionalTestLoginUser::Result& User1Info = GetOpDataChecked<Private::FFunctionalTestLoginUser::Result>(InAsyncOp, User1KeyName);
 
+		TSharedRef<FSearchParams> SearchParams = MakeShared<FSearchParams>();
+		SearchParams->LobbyCreateTime = static_cast<int64>(FPlatformTime::Seconds());
+		InAsyncOp.Data.Set(SearchKeyName, TSharedRef<FSearchParams>(SearchParams));
+
 		FCreateLobby::Params Params;
 		Params.LocalUserId = User1Info.AccountInfo->UserId;
 		Params.LocalName = TEXT("test");
 		Params.SchemaName = TEXT("test");
 		Params.MaxMembers = 2;
 		Params.JoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
-		//Params.Attributes;
+		Params.Attributes = {{ TEXT("LobbyCreateTime"), SearchParams->LobbyCreateTime }};
 		Params.LocalUsers.Emplace(FJoinLobbyLocalUserData{User1Info.AccountInfo->UserId, {}});
 		return Params;
 	})
 	.Then(Private::CaptureOperationStepResult<FCreateLobby>(*Op, CreateLobbyKeyName, Private::FBindOperation<FCreateLobby>(&LobbiesCommon, &FLobbiesCommon::CreateLobby)))
-	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
+	.Then([TestConfig](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
 		// Check both lobby joined events were received and in the correct order.
 		const TSharedRef<FLobbyEventCapture>& EventCapture = GetOpDataChecked<TSharedRef<FLobbyEventCapture>>(InAsyncOp, LobbyEventCaptureKeyName);
@@ -1787,16 +1808,23 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		{
 			InAsyncOp.SetError(Errors::Cancelled());
 		}
+
+		// Wait some time so lobby creation can propagate before searching for it on another client.
+		return Private::AwaitSleepFor(TestConfig->FindMatchReplicationDelay);
+	})
+	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp, int)
+	{
 	})
 	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp)
 	{
 		const Private::FFunctionalTestLoginUser::Result& User2Info = GetOpDataChecked<Private::FFunctionalTestLoginUser::Result>(InAsyncOp, User2KeyName);
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
+		const TSharedRef<FSearchParams>& SearchParams = GetOpDataChecked<TSharedRef<FSearchParams>>(InAsyncOp, SearchKeyName);
 
-		// Search for lobby from create
+		// Search for lobby from create. Searching by attribute will also limit results by bucket id.
 		FFindLobbies::Params Params;
 		Params.LocalUserId = User2Info.AccountInfo->UserId;
-		Params.LobbyId = CreateLobbyResult.Lobby->LobbyId;
+		Params.Filters = {{TEXT("LobbyCreateTime"), ELobbyComparisonOp::Equals, SearchParams->LobbyCreateTime}};
 		return Params;
 	})
 	.Then(Private::CaptureOperationStepResult<FFindLobbies>(*Op, FindLobbyKeyName, Private::FBindOperation<FFindLobbies>(&LobbiesCommon, &FLobbiesCommon::FindLobbies)))

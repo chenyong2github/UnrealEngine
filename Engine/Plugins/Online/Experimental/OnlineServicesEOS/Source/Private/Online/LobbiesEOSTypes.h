@@ -25,6 +25,112 @@ struct FLobbyEvents;
 class FAuthEOS;
 struct FClientLobbyMemberSnapshot;
 
+//--------------------------------------------------------------------------------------------------
+// Translated types
+//--------------------------------------------------------------------------------------------------
+
+class FLobbyBucketIdEOS
+{
+public:
+	static const FString Separator;
+
+	FLobbyBucketIdEOS() = default;
+	FLobbyBucketIdEOS(const FLobbyBucketIdEOS&) = default;
+	FLobbyBucketIdEOS(FLobbyBucketIdEOS&&) = default;
+	FLobbyBucketIdEOS& operator=(const FLobbyBucketIdEOS&) = default;
+	FLobbyBucketIdEOS& operator=(FLobbyBucketIdEOS&&) = default;
+
+	FLobbyBucketIdEOS(FString ProductName, int32 ProductVersion);
+
+	const FString& GetProductName() const { return ProductName; }
+	int32 GetProductVersion() const { return ProductVersion; }
+	bool IsValid() const { return !ProductName.IsEmpty(); }
+
+private:
+	FString ProductName;
+	int32 ProductVersion;
+};
+
+//--------------------------------------------------------------------------------------------------
+// Translators
+//--------------------------------------------------------------------------------------------------
+enum class ELobbyTranslationType
+{
+	ToService,
+	FromService
+};
+
+//--------------------------------------------------------------------------------------------------
+// Lobby attribute
+
+template <ELobbyTranslationType>
+class FLobbyAttributeTranslator
+{
+public:
+};
+
+template <>
+class FLobbyAttributeTranslator<ELobbyTranslationType::ToService>
+{
+public:
+	FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData);
+	FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData);
+
+	const EOS_Lobby_AttributeData& GetAttributeData() const { return AttributeData; }
+
+private:
+	FTCHARToUTF8 KeyConverterStorage;
+	TOptional<FTCHARToUTF8> ValueConverterStorage;
+	EOS_Lobby_AttributeData AttributeData;
+};
+
+template <>
+class FLobbyAttributeTranslator<ELobbyTranslationType::FromService>
+{
+public:
+	FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData);
+
+	const TPair<FLobbyAttributeId, FLobbyVariant>& GetAttributeData() const { return AttributeData; }
+	TPair<FLobbyAttributeId, FLobbyVariant>& GetMutableAttributeData() { return AttributeData; }
+
+private:
+	TPair<FLobbyAttributeId, FLobbyVariant> AttributeData;
+};
+
+//--------------------------------------------------------------------------------------------------
+// Bucket id
+
+template <ELobbyTranslationType>
+class FLobbyBucketIdTranslator;
+
+template <>
+class FLobbyBucketIdTranslator<ELobbyTranslationType::ToService>
+{
+public:
+	FLobbyBucketIdTranslator(const FLobbyBucketIdEOS& BucketId);
+
+	const char* GetBucketIdEOS() const { return BucketConverterStorage.Get(); }
+
+private:
+	FTCHARToUTF8 BucketConverterStorage;
+};
+
+template <>
+class FLobbyBucketIdTranslator<ELobbyTranslationType::FromService>
+{
+public:
+	FLobbyBucketIdTranslator(const char* BucketIdEOS);
+
+	const FLobbyBucketIdEOS& GetBucketId() const { return BucketId; }
+	FLobbyBucketIdEOS& GetMutableBucketId() { return BucketId; }
+
+private:
+	FLobbyBucketIdEOS BucketId;
+};
+
+//--------------------------------------------------------------------------------------------------
+// Enumerations
+
 inline EOS_ELobbyPermissionLevel TranslateJoinPolicy(ELobbyJoinPolicy JoinPolicy)
 {
 	switch (JoinPolicy)
@@ -47,6 +153,10 @@ inline ELobbyJoinPolicy TranslateJoinPolicy(EOS_ELobbyPermissionLevel JoinPolicy
 	};
 }
 
+//--------------------------------------------------------------------------------------------------
+// Structures.
+//--------------------------------------------------------------------------------------------------
+
 using FLobbySearchParameters = FFindLobbies::Params;
 
 /**
@@ -60,6 +170,7 @@ struct FLobbyPrerequisitesEOS
 	TWeakPtr<FAuthEOS> AuthInterface;
 	TSharedRef<const FLobbySchemaRegistry> SchemaRegistry;
 	TSharedRef<const FLobbySchema> ServiceSchema;
+	FLobbyBucketIdEOS BucketId;
 };
 
 /**
@@ -173,11 +284,16 @@ class FLobbyDetailsInfoEOS final
 {
 public:
 	UE_NONCOPYABLE(FLobbyDetailsInfoEOS);
-	FLobbyDetailsInfoEOS() = default;
+	FLobbyDetailsInfoEOS() = delete;
 
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>> Create(EOS_HLobbyDetails LobbyDetailsHandle);
 
-	const EOS_LobbyDetails_Info& Get() const { check(LobbyDetailsInfo); return *LobbyDetailsInfo; }
+	EOS_LobbyId GetLobbyId() const { return LobbyDetailsInfo->LobbyId; }
+	int32 GetMaxMembers() const { return LobbyDetailsInfo->MaxMembers; }
+	EOS_ELobbyPermissionLevel GetPermissionLevel() const { return LobbyDetailsInfo->PermissionLevel; }
+
+	const FString& GetProductName() const { return BucketId.GetProductName(); }
+	int32 GetProductVersion() const { return BucketId.GetProductVersion(); }
 
 private:
 	struct FEOSLobbyDetailsInfoDeleter
@@ -195,6 +311,7 @@ private:
 	FLobbyDetailsInfoEOS(FLobbyDetailsInfoPtr&& LobbyDetailsInfo);
 
 	TUniquePtr<EOS_LobbyDetails_Info, FEOSLobbyDetailsInfoDeleter> LobbyDetailsInfo;
+	FLobbyBucketIdEOS BucketId;
 };
 
 /** Lobby data is the bookkeeping object for a lobby. It contains the client-side representation of a lobby. */
@@ -214,7 +331,7 @@ public:
 
 	FOnlineLobbyIdHandle GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
 	const TSharedRef<FClientLobbyData>& GetClientLobbyData() const { return ClientLobbyData; }
-	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->Get().LobbyId; }
+	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyId(); }
 	const FString& GetLobbyId() const { return LobbyId; }
 
 	void AddUserLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);

@@ -40,8 +40,6 @@ void FLobbiesEOS::Initialize()
 	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
 	check(SDKManager);
 
-	LobbyBucketId = FString::Printf(TEXT("%s_%s"), *SDKManager->GetProductName(), *SDKManager->GetProductVersion());
-
 	EOS_HLobby LobbyInterfaceHandle = EOS_Platform_GetLobbyInterface(static_cast<FOnlineServicesEOS&>(GetServices()).GetEOSPlatformHandle());
 	check(LobbyInterfaceHandle != nullptr);
 
@@ -49,7 +47,8 @@ void FLobbiesEOS::Initialize()
 		LobbyInterfaceHandle,
 		StaticCastSharedPtr<FAuthEOS>(Services.GetAuthInterface()),
 		LobbySchemaRegistry.ToSharedRef(),
-		ServiceSchema.ToSharedRef()});
+		ServiceSchema.ToSharedRef(),
+		{SDKManager->GetProductName(), GetBuildUniqueId()}});
 
 	LobbyDataRegistry = MakeShared<FLobbyDataRegistryEOS>(LobbyPrerequisites.ToSharedRef());
 
@@ -109,7 +108,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 		// Step 1: Call create lobby.
 
 		const FCreateLobby::Params& Params = InAsyncOp.GetParams();
-		const FTCHARToUTF8 BucketIdUTF8(*LobbyBucketId);
+		const FLobbyBucketIdTranslator<ELobbyTranslationType::ToService> BucketTanslator(LobbyPrerequisites->BucketId);
 
 		// The lobby will be created as invitation only.
 		// Once all local members are joined and the lobby attributes have been set the privacy setting will be moved to the user setting.
@@ -121,7 +120,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 		CreateLobbyOptions.PermissionLevel = TranslateJoinPolicy(ELobbyJoinPolicy::InvitationOnly);
 		CreateLobbyOptions.bPresenceEnabled = false; // todo: handle
 		CreateLobbyOptions.bAllowInvites = true; // todo: handle
-		CreateLobbyOptions.BucketId = BucketIdUTF8.Get();
+		CreateLobbyOptions.BucketId = BucketTanslator.GetBucketIdEOS();
 		CreateLobbyOptions.bDisableHostMigration = false; // todo: handle
 		CreateLobbyOptions.bEnableRTCRoom = false; // todo: handle
 
@@ -1254,6 +1253,12 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 	{
 		// Todo: Check whether another local member can invite the user.
 		Op->SetError(Errors::InvalidParams());
+		return Op->GetHandle();
+	}
+
+	if (LobbyDetails->GetInfo()->GetProductVersion() != LobbyPrerequisites->BucketId.GetProductVersion())
+	{
+		Op->SetError(Errors::IncompatibleVersion());
 		return Op->GetHandle();
 	}
 

@@ -47,53 +47,21 @@ EOS_EComparisonOp TranslateSearchComparison(ELobbyComparisonOp Op)
 
 } // Private
 
+const FString FLobbyBucketIdEOS::Separator = TEXT("|");
+
+FLobbyBucketIdEOS::FLobbyBucketIdEOS(FString ProductName, int32 ProductVersion)
+	: ProductName(ProductName.Replace(*Separator, TEXT("_")))
+	, ProductVersion(ProductVersion)
+{
+}
+
 // Attribute translators.
-enum class EAttributeTranslationType
-{
-	ToService,
-	FromService
-};
-
-template <EAttributeTranslationType>
-class FLobbyAttributeTranslator
-{
-public:
-};
-
-template <>
-class FLobbyAttributeTranslator<EAttributeTranslationType::ToService>
-{
-public:
-	FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData);
-	FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData);
-
-	const EOS_Lobby_AttributeData& GetAttributeData() const { return AttributeData; }
-
-private:
-	FTCHARToUTF8 KeyConverterStorage;
-	TOptional<FTCHARToUTF8> ValueConverterStorage;
-	EOS_Lobby_AttributeData AttributeData;
-};
-
-template <>
-class FLobbyAttributeTranslator<EAttributeTranslationType::FromService>
-{
-public:
-	FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData);
-
-	const TPair<FLobbyAttributeId, FLobbyVariant>& GetAttributeData() const { return AttributeData; }
-	TPair<FLobbyAttributeId, FLobbyVariant>& GetMutableAttributeData() { return AttributeData; }
-
-private:
-	TPair<FLobbyAttributeId, FLobbyVariant> AttributeData;
-};
-
-FLobbyAttributeTranslator<EAttributeTranslationType::ToService>::FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData)
+FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTranslator(const TPair<FLobbyAttributeId, FLobbyVariant>& FromAttributeData)
 	: FLobbyAttributeTranslator(FromAttributeData.Key, FromAttributeData.Value)
 {
 }
 
-FLobbyAttributeTranslator<EAttributeTranslationType::ToService>::FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData)
+FLobbyAttributeTranslator<ELobbyTranslationType::ToService>::FLobbyAttributeTranslator(FLobbyAttributeId FromAttributeId, const FLobbyVariant& FromAttributeData)
 	: KeyConverterStorage(*FromAttributeId.ToString())
 {
 	AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
@@ -122,7 +90,7 @@ FLobbyAttributeTranslator<EAttributeTranslationType::ToService>::FLobbyAttribute
 	}
 }
 
-FLobbyAttributeTranslator<EAttributeTranslationType::FromService>::FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData)
+FLobbyAttributeTranslator<ELobbyTranslationType::FromService>::FLobbyAttributeTranslator(const EOS_Lobby_AttributeData& FromAttributeData)
 {
 	FLobbyAttributeId AttributeId = Private::TranslateLobbyAttributeId(FromAttributeData.Key);
 	FLobbyVariant VariantData;
@@ -151,6 +119,26 @@ FLobbyAttributeTranslator<EAttributeTranslationType::FromService>::FLobbyAttribu
 	}
 
 	AttributeData = TPair<FLobbyAttributeId, FLobbyVariant>(MoveTemp(AttributeId), MoveTemp(VariantData));
+}
+
+FLobbyBucketIdTranslator<ELobbyTranslationType::ToService>::FLobbyBucketIdTranslator(const FLobbyBucketIdEOS& BucketId)
+	: BucketConverterStorage(*FString::Printf(TEXT("%s%s%d"), *BucketId.GetProductName(), *FLobbyBucketIdEOS::Separator, BucketId.GetProductVersion()))
+{
+}
+
+FLobbyBucketIdTranslator<ELobbyTranslationType::FromService>::FLobbyBucketIdTranslator(const char* BucketIdEOS)
+{
+	FUTF8ToTCHAR BucketConverterStorage(BucketIdEOS);
+	FString BucketString(BucketConverterStorage.Get());
+
+	constexpr int32 ExpectedPartsNum = 2;
+	TArray<FString> Parts;
+	if (BucketString.ParseIntoArray(Parts, *FLobbyBucketIdEOS::Separator) == ExpectedPartsNum)
+	{
+		int32 BuildId = 0;
+		::LexFromString(BuildId, *Parts[1]);
+		BucketId = FLobbyBucketIdEOS(Parts[0], BuildId);
+	}
 }
 
 const EOS_HLobbyDetails FLobbyDetailsEOS::InvalidLobbyDetailsHandle = {};
@@ -309,8 +297,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 		}
 
 		TSharedRef<FClientLobbySnapshot> ClientLobbySnapshot = MakeShared<FClientLobbySnapshot>();
-		ClientLobbySnapshot->MaxMembers = StrongThis->GetInfo()->Get().MaxMembers;
-		ClientLobbySnapshot->JoinPolicy = TranslateJoinPolicy(StrongThis->GetInfo()->Get().PermissionLevel);
+		ClientLobbySnapshot->MaxMembers = StrongThis->GetInfo()->GetMaxMembers();
+		ClientLobbySnapshot->JoinPolicy = TranslateJoinPolicy(StrongThis->GetInfo()->GetPermissionLevel());
 
 		// Resolve member info.
 		{
@@ -358,7 +346,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FClientLobbySnapshot>>> FLobbyDet
 					return;
 				}
 
-				FLobbyAttributeTranslator<EAttributeTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
+				FLobbyAttributeTranslator<ELobbyTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
 				ClientLobbySnapshot->Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
 			}
 		}
@@ -405,7 +393,7 @@ TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetail
 				return TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>>(FromEOSError(EOSResult));
 			}
 
-			FLobbyAttributeTranslator<EAttributeTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
+			FLobbyAttributeTranslator<ELobbyTranslationType::FromService> AttributeTranslator(*LobbyAttribute->Data);
 			LobbyMemberSnapshot->Attributes.Add(MoveTemp(AttributeTranslator.GetMutableAttributeData()));
 		}
 	}
@@ -428,7 +416,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	EOS_Lobby_UpdateLobbyModificationOptions ModificationOptions = {};
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
 	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
-	ModificationOptions.LobbyId = GetInfo()->Get().LobbyId;
+	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
 
 	EOS_EResult EOSResultCode = EOS_Lobby_UpdateLobbyModification(Prerequisites->LobbyInterfaceHandle, &ModificationOptions, &LobbyModificationHandle);
 	if (EOSResultCode != EOS_EResult::EOS_Success)
@@ -455,7 +443,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	// Add attributes.
 	for (const TPair<FLobbyAttributeId, FLobbyVariant>& MutatedAttribute : Changes.MutatedAttributes)
 	{
-		const FLobbyAttributeTranslator<EAttributeTranslationType::ToService> AttributeTranslator(MutatedAttribute);
+		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(MutatedAttribute);
 
 		EOS_LobbyModification_AddAttributeOptions AddAttributeOptions = {};
 		AddAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDATTRIBUTE_API_LATEST;
@@ -517,7 +505,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	EOS_Lobby_UpdateLobbyModificationOptions ModificationOptions = {};
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
 	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
-	ModificationOptions.LobbyId = GetInfo()->Get().LobbyId;
+	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
 
 	EOS_EResult EOSResultCode = EOS_Lobby_UpdateLobbyModification(Prerequisites->LobbyInterfaceHandle, &ModificationOptions, &LobbyModificationHandle);
 	if (EOSResultCode != EOS_EResult::EOS_Success)
@@ -529,7 +517,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	// Add member attributes.
 	for (const TPair<FLobbyAttributeId, FLobbyVariant>& MutatedAttribute : Changes.MutatedAttributes)
 	{
-		const FLobbyAttributeTranslator<EAttributeTranslationType::ToService> AttributeTranslator(MutatedAttribute);
+		const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(MutatedAttribute);
 
 		EOS_LobbyModification_AddMemberAttributeOptions AddMemberAttributeOptions = {};
 		AddMemberAttributeOptions.ApiVersion = EOS_LOBBYMODIFICATION_ADDMEMBERATTRIBUTE_API_LATEST;
@@ -605,9 +593,16 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>> FLobbyDetailsInfoE
 	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>>(MakeShared<FLobbyDetailsInfoEOS>(FLobbyDetailsInfoPtr(LobbyDetailsInfo)));
 }
 
-FLobbyDetailsInfoEOS::FLobbyDetailsInfoEOS(FLobbyDetailsInfoPtr&& LobbyDetailsInfo)
-	: LobbyDetailsInfo(MoveTempIfPossible(LobbyDetailsInfo))
+FLobbyDetailsInfoEOS::FLobbyDetailsInfoEOS(FLobbyDetailsInfoPtr&& InLobbyDetailsInfo)
+	: LobbyDetailsInfo(MoveTempIfPossible(InLobbyDetailsInfo))
 {
+	const FLobbyBucketIdTranslator<ELobbyTranslationType::FromService> BucketTranslator(LobbyDetailsInfo->BucketId);
+	BucketId = BucketTranslator.GetBucketId();
+
+	if (!BucketId.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbyDetailsInfoEOS] Failed to parse lobby bucket id. Lobby: %s, Bucket: %s"), UTF8_TO_TCHAR(LobbyDetailsInfo->LobbyId), UTF8_TO_TCHAR(LobbyDetailsInfo->BucketId));
+	}
 }
 
 FLobbyDataEOS::~FLobbyDataEOS()
@@ -660,7 +655,7 @@ FLobbyDataEOS::FLobbyDataEOS(
 	: ClientLobbyData(ClientLobbyData)
 	, LobbyDetailsInfo(LobbyDetailsInfo)
 	, UnregisterFn(MoveTemp(UnregisterFn))
-	, LobbyId(Private::TranslateLobbyId(LobbyDetailsInfo->Get().LobbyId))
+	, LobbyId(Private::TranslateLobbyId(LobbyDetailsInfo->GetLobbyId()))
 {
 }
 
@@ -737,7 +732,7 @@ TSharedPtr<FLobbyDataEOS> FLobbyDataRegistryEOS::Find(FOnlineLobbyIdHandle Lobby
 
 TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegistryEOS::FindOrCreateFromLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails)
 {
-	if (TSharedPtr<FLobbyDataEOS> FindResult = Find(LobbyDetails->GetInfo()->Get().LobbyId))
+	if (TSharedPtr<FLobbyDataEOS> FindResult = Find(LobbyDetails->GetInfo()->GetLobbyId()))
 	{
 		FindResult->AddUserLobbyDetails(LocalUserId, LobbyDetails);
 		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>(FindResult.ToSharedRef()).GetFuture();
@@ -867,7 +862,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
 	}
 
-	if (Params.LobbyId)
+	if (Params.LobbyId) // Search for specific lobby.
 	{
 		TSharedPtr<FLobbyDataEOS> LobbyData = LobbyRegistry->Find(*Params.LobbyId);
 		if (!LobbyData)
@@ -886,8 +881,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
 		}
 	}
-
-	if (Params.TargetUser)
+	else if (Params.TargetUser) // Search for specific user.
 	{
 		EOS_LobbySearch_SetTargetUserIdOptions SetTargetUserIdOptions = {};
 		SetTargetUserIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
@@ -900,25 +894,47 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
 		}
 	}
-
-	for (const FFindLobbySearchFilter& Filter :  Params.Filters)
+	else // Search using parameters.
 	{
-		const FLobbyAttributeTranslator<EAttributeTranslationType::ToService> AttributeTranslator(
-			Filter.AttributeName, Filter.ComparisonValue);
-
-		EOS_Lobby_AttributeData AttributeData;
-		AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
-
-		EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
-		SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
-		SetParameterOptions.Parameter = &AttributeTranslator.GetAttributeData();
-		SetParameterOptions.ComparisonOp = Private::TranslateSearchComparison(Filter.ComparisonOp);
-
-		EOSResult = EOS_LobbySearch_SetParameter(SearchHandle->Get(), &SetParameterOptions);
-		if (EOSResult != EOS_EResult::EOS_Success)
+		// Bucket id.
 		{
-			// todo: errors
-			return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
+			const FLobbyBucketIdTranslator<ELobbyTranslationType::ToService> BucketTranslator(Prerequisites->BucketId);
+
+			EOS_Lobby_AttributeData AttributeData;
+			AttributeData.ApiVersion = EOS_LOBBY_ATTRIBUTEDATA_API_LATEST;
+			AttributeData.Key = EOS_LOBBY_SEARCH_BUCKET_ID;
+			AttributeData.ValueType = EOS_ELobbyAttributeType::EOS_AT_STRING;
+			AttributeData.Value.AsUtf8 = BucketTranslator.GetBucketIdEOS();
+
+			EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
+			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+			SetParameterOptions.Parameter = &AttributeData;
+			SetParameterOptions.ComparisonOp = EOS_EComparisonOp::EOS_CO_EQUAL;
+
+			EOSResult = EOS_LobbySearch_SetParameter(SearchHandle->Get(), &SetParameterOptions);
+			if (EOSResult != EOS_EResult::EOS_Success)
+			{
+				// todo: errors
+				return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
+			}
+		}
+
+		for (const FFindLobbySearchFilter& Filter :  Params.Filters)
+		{
+			const FLobbyAttributeTranslator<ELobbyTranslationType::ToService> AttributeTranslator(
+				Filter.AttributeName, Filter.ComparisonValue);
+
+			EOS_LobbySearch_SetParameterOptions SetParameterOptions = {};
+			SetParameterOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+			SetParameterOptions.Parameter = &AttributeTranslator.GetAttributeData();
+			SetParameterOptions.ComparisonOp = Private::TranslateSearchComparison(Filter.ComparisonOp);
+
+			EOSResult = EOS_LobbySearch_SetParameter(SearchHandle->Get(), &SetParameterOptions);
+			if (EOSResult != EOS_EResult::EOS_Success)
+			{
+				// todo: errors
+				return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>>(FromEOSError(EOSResult)).GetFuture();
+			}
 		}
 	}
 
