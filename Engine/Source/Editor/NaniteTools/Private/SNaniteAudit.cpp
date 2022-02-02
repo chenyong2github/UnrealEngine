@@ -14,6 +14,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Materials/Material.h"
 
 #define LOCTEXT_NAMESPACE "NaniteTools"
 
