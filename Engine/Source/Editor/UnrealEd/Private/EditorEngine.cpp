@@ -6159,11 +6159,7 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 
 	bool bShouldThrottle = false;
 
-	const bool bRunningCommandlet = IsRunningCommandlet();
-
-	const bool bHasFocus = FApp::HasFocus();
-
-	if( !bHasFocus && !bRunningCommandlet )
+	if (!FApp::HasFocus() && !IsRunningCommandlet() && !GIsAutomationTesting && !FApp::IsBenchmarking())
 	{
 		const UEditorPerformanceSettings* Settings = GetDefault<UEditorPerformanceSettings>();
 		bShouldThrottle = Settings->bThrottleCPUWhenNotForeground;
