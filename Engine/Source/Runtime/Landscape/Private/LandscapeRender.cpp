@@ -2763,7 +2763,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			FRayTracingInstance RayTracingInstance;
 			RayTracingInstance.Geometry = &SectionRayTracingStates[SubSectionIdx].Geometry;
-			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 			RayTracingInstance.Materials.Add(MeshBatch);
 			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 			OutRayTracingInstances.Add(RayTracingInstance);
@@ -3315,6 +3315,9 @@ void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
+
+	// Make sure landscape vertices go back to local space so that we have consistency between the transform on normals and geometry
+	OutEnvironment.SetDefine(TEXT("RAY_TRACING_DYNAMIC_MESH_IN_LOCAL_SPACE"), TEXT("1"));
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Vertex, FLandscapeVertexFactoryVertexShaderParameters);

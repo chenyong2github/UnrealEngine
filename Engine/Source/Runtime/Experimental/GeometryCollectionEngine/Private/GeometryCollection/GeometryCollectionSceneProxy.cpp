@@ -1031,11 +1031,7 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			FRayTracingInstance RayTracingInstance;
 			RayTracingInstance.Geometry = &RayTracingGeometry;
-			RayTracingInstance.InstanceTransforms.Reserve(DynamicData->Transforms.Num());
-			for (int32 TransformIndex = 0; TransformIndex < DynamicData->Transforms.Num(); ++TransformIndex)
-			{
-				RayTracingInstance.InstanceTransforms.Emplace(FMatrix44f::Identity);
-			}
+			RayTracingInstance.InstanceTransforms.Append(DynamicData->Transforms);
 
 			// Grab the material proxies we'll be using for each section
 			TArray<FMaterialRenderProxy*, TInlineAllocator<32>> MaterialProxies;

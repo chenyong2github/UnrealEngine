@@ -6621,15 +6621,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				RayTracingInstance.Materials.Add(MeshBatch);
 			}
 
-			if (bAnySegmentUsesWorldPositionOffset)
-			{
-				RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
-			}
-			else
-			{
-				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
-			}
-
+			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 			const uint32 VertexBufferStride = LODData.StaticVertexBuffers.PositionVertexBuffer.GetStride();
 
 			const FVertexFactory* VertexFactory = MeshObject->GetSkinVertexFactory(Context.ReferenceView, LODIndex, 0, ESkinVertexFactoryMode::RayTracing);

@@ -132,6 +132,9 @@ void FNiagaraRibbonVertexFactory::ModifyCompilationEnvironment(const FVertexFact
 	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraRibbonVFLooseParameters"));
 	
 	OutEnvironment.SetDefine(TEXT("NIAGARA_RIBBON_FACTORY"), TEXT("1"));
+
+	// Ribbons are generated in world space and never have a matrix transform in raytracing, so it is safe to leave them in world space.
+	OutEnvironment.SetDefine(TEXT("RAY_TRACING_DYNAMIC_MESH_IN_WORLD_SPACE"), TEXT("1"));
 }
 
 /**

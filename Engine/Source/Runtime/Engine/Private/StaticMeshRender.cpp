@@ -1765,11 +1765,9 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		}
 
 		RayTracingInstance.Geometry = &Geometry;
-
+		RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 		if (bEvaluateWPO && RenderData->LODVertexFactories[LODIndex].VertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
 		{
-			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
-	
 			// Use the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
 			FRWBuffer* VertexBuffer = nullptr;
 			if (DynamicRayTracingGeometryVertexBuffers.Num() > (int32)LODIndex && DynamicRayTracingGeometryVertexBuffers[LODIndex].NumBytes > 0)
@@ -1789,11 +1787,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					VertexBuffer,
 					true
 				}
-		);
-		}
-		else
-		{
-			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
+			);
 		}
 		
 		RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
