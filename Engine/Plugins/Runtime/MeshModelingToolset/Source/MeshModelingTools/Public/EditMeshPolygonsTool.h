@@ -482,6 +482,11 @@ protected:
 	// This is a fundamental mode switch, must be set before ::Setup() is called!
 	bool bTriangleMode;		
 
+	// TODO: This is a hack to allow us to disallow any actions inside the tool after Setup() is called. We
+	// use it if the user tries to run the tool on a mesh that has too many edges for us to render, to avoid
+	// hanging the editor.
+	bool bToolDisabled = false;
+
 	TObjectPtr<UWorld> TargetWorld = nullptr;
 
 	UPROPERTY()
