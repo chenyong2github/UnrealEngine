@@ -19,12 +19,13 @@ namespace UnrealBuildTool.Rules
 	 
 		private void LoadMixedReality(ReadOnlyTargetRules Target)
         {
-            // Set a macro allowing us to switch between debuggame/development configuration
-            if (Target.Configuration == UnrealTargetConfiguration.Debug)
-            {
-                PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=1");
-            }
-            else
+            //// Set a macro allowing us to switch between debuggame/development configuration
+            //HACK: use the release version of the interop because the debug build isn't compatible with UE right now.
+            //if (Target.Configuration == UnrealTargetConfiguration.Debug)
+            //{
+            //    PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=1");
+            //}
+            //else
             {
                 PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=0");
             }

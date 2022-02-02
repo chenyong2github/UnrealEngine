@@ -13,10 +13,11 @@ public class MixedRealityInteropLibrary : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string LibName = "MixedRealityInterop";
-			if (Target.Configuration == UnrealTargetConfiguration.Debug)
-			{
-				LibName += "Debug";
-			}
+			//HACK: use the release version of the interop because the debug build isn't compatible with UE right now.
+			//if (Target.Configuration == UnrealTargetConfiguration.Debug)
+			//{
+			//	LibName += "Debug";
+			//}
 			string DLLName = LibName + ".dll";
 			LibName += ".lib";
 
