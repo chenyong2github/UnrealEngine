@@ -10,8 +10,8 @@
 #if USE_PATH_TRACING_LIGHT_GRID
 // extra shader parameters that must be defined when using the light grid
 uint SceneInfiniteLightCount;
-float3 SceneLightsBoundMin;
-float3 SceneLightsBoundMax;
+float3 SceneLightsTranslatedBoundMin;
+float3 SceneLightsTranslatedBoundMax;
 Texture2D<uint> LightGrid;
 Buffer<uint> LightGridData;
 uint LightGridResolution;
@@ -38,17 +38,17 @@ struct FLightLoopCount {
 
 #if USE_PATH_TRACING_LIGHT_GRID
 
-FLightLoopCount LightGridLookup(float3 WorldPos)
+FLightLoopCount LightGridLookup(float3 TranslatedWorldPos)
 {
 	FLightLoopCount Result;
 	Result.NumLights = SceneInfiniteLightCount;
 	Result.NumMISLights = SceneInfiniteLightCount;
 	Result.LightGridOffset = ~0u;
 
-	if (all(SceneLightsBoundMin <= WorldPos) && all(WorldPos <= SceneLightsBoundMax))
+	if (all(SceneLightsTranslatedBoundMin <= TranslatedWorldPos) && all(TranslatedWorldPos <= SceneLightsTranslatedBoundMax))
 	{
-		float3 P = WorldPos - SceneLightsBoundMin;
-		float3 D = SceneLightsBoundMax - SceneLightsBoundMin;
+		float3 P = TranslatedWorldPos - SceneLightsTranslatedBoundMin;
+		float3 D = SceneLightsTranslatedBoundMax - SceneLightsTranslatedBoundMin;
 		int2 UV = 0;
 		switch (LightGridAxis)
 		{
@@ -132,7 +132,7 @@ uint GetLightId(uint Index, FLightLoopCount LoopCount)
 
 #else
 
-FLightLoopCount LightGridLookup(float3 WorldPos)
+FLightLoopCount LightGridLookup(float3 TranslatedWorldPos)
 {
 	uint NumLights = min(SceneLightCount, RAY_TRACING_LIGHT_COUNT_MAXIMUM);
 	FLightLoopCount Result;

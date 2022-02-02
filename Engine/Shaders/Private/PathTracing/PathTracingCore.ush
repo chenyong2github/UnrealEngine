@@ -741,7 +741,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		return false;
 	}
 
-	FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos);
+	FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation)); // RT_LWC_TODO
 
 	// visualize the # of lights
 	if (VisualizeLightGrid)

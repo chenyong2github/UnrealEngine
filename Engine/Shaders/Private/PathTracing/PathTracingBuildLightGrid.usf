@@ -10,8 +10,9 @@
 #include "Light/PathTracingLightCommon.ush"
 
 uint SceneInfiniteLightCount;
-float3 SceneLightsBoundMin;
-float3 SceneLightsBoundMax;
+float3 SceneLightsTranslatedBoundMin;
+float3 SceneLightsTranslatedBoundMax;
+float3 PreViewTranslation;
 RWTexture2D<uint> RWLightGrid;
 RWBuffer<uint> RWLightGridData;
 uint LightGridResolution;
@@ -35,8 +36,8 @@ void PathTracingBuildLightGridCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		case 2: VoxelId.xy = DispatchThreadId; VoxelRes.xy = LightGridResolution; break;
 	}
 	// get bounding box of current voxel
-	float3 Lo = lerp(SceneLightsBoundMin, SceneLightsBoundMax, float3(VoxelId + 0) / float3(VoxelRes));
-	float3 Hi = lerp(SceneLightsBoundMin, SceneLightsBoundMax, float3(VoxelId + 1) / float3(VoxelRes));
+	float3 Lo = lerp(SceneLightsTranslatedBoundMin, SceneLightsTranslatedBoundMax, float3(VoxelId + 0) / float3(VoxelRes));
+	float3 Hi = lerp(SceneLightsTranslatedBoundMin, SceneLightsTranslatedBoundMax, float3(VoxelId + 1) / float3(VoxelRes));
 
 	uint NumVisible = 0;
 	uint MaxVisible = min(LightGridMaxCount, RAY_TRACING_LIGHT_COUNT_MAXIMUM - SceneInfiniteLightCount);
@@ -45,7 +46,7 @@ void PathTracingBuildLightGridCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	for (uint LightIndex = SceneInfiniteLightCount; LightIndex < SceneLightCount; LightIndex++)
 	{
 		uint LightType = SceneLights[LightIndex].Flags & PATHTRACER_FLAG_TYPE_MASK;
-		float3 Center = GetPosition(LightIndex);
+		float3 Center = GetPosition(LightIndex) + PreViewTranslation; // RT_LWC_TODO
 		float Radius = 1.0 / GetAttenuation(LightIndex);
 
 		float3 E = max(Lo - Center, 0) + max(Center - Hi, 0);
