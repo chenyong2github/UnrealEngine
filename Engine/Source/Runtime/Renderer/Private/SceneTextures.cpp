@@ -622,7 +622,7 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 			Flags |= TexCreate_Memoryless;
 		}
 
-		if (GRHISupportsDepthUAV)
+		if (Config.NumSamples == 1 && GRHISupportsDepthUAV)
 		{
 			Flags |= TexCreate_UAV;
 		}
