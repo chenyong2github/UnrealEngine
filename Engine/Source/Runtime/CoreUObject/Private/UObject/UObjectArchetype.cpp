@@ -48,7 +48,7 @@ struct FArchetypeInfo
 	int32 ArchetypeIndex;
 };
 
-static FUObjectAnnotationChunked<FArchetypeInfo, true> ArchetypeAnnotation;
+static FUObjectAnnotationDense<FArchetypeInfo, true> ArchetypeAnnotation;
 
 #endif // UE_CACHE_ARCHETYPE
 
