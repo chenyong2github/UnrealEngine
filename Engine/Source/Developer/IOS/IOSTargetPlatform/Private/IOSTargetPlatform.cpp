@@ -675,25 +675,21 @@ const UTextureLODSettings& FIOSTargetPlatform::GetTextureLODSettings() const
 	return *TextureLODSettings;
 }
 
-
 FName FIOSTargetPlatform::GetWaveFormat( const USoundWave* Wave ) const
 {
-	if (Wave->bUseBinkAudio)
+	FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
+	if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 	{
-		static FName NAME_BINKA(TEXT("BINKA"));
-		return NAME_BINKA;
+			FormatName = Audio::NAME_ADPCM;
 	}
-	static FName NAME_ADPCM(TEXT("ADPCM"));
-	return NAME_ADPCM;
+	return FormatName;
 }
-
 
 void FIOSTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormat) const
 {
-	static FName NAME_BINKA(TEXT("BINKA"));
-	static FName NAME_ADPCM(TEXT("ADPCM"));
-	OutFormat.Add(NAME_ADPCM);
-	OutFormat.Add(NAME_BINKA);
+	OutFormat.Add(Audio::NAME_ADPCM);
+	OutFormat.Add(Audio::NAME_PCM);
+	OutFormat.Add(Audio::NAME_BINKA);
 }
 
 #endif // WITH_ENGINE

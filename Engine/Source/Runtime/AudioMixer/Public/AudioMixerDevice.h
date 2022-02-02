@@ -82,6 +82,7 @@ namespace Audio
 		FCriticalSection MutationLock;
 	};
 
+
 	class AUDIOMIXER_API FMixerDevice :	public FAudioDevice,
 										public IAudioMixer,
 										public FGCObject
@@ -103,12 +104,12 @@ namespace Audio
 		virtual double GetAudioTime() const override;
 		virtual FAudioEffectsManager* CreateEffectsManager() override;
 		virtual FSoundSource* CreateSoundSource() override;
-		virtual FName GetRuntimeFormat(USoundWave* SoundWave) override;
+		virtual FName GetRuntimeFormat(const USoundWave* SoundWave) const override;
 		virtual bool HasCompressedAudioInfoClass(USoundWave* SoundWave) override;
 		virtual bool SupportsRealtimeDecompression() const override;
 		virtual bool DisablePCMAudioCaching() const override;
-		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) override;
-		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) override;
+		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const USoundWave* SoundWave) const override;
+		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) const override;
 		virtual bool ValidateAPICall(const TCHAR* Function, uint32 ErrorCode) override;
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 		virtual void CountBytes(class FArchive& Ar) override;

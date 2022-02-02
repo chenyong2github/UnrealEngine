@@ -420,45 +420,34 @@ public:
 		TextureLODSettings = InTextureLODSettings;
 	}
 
-	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
+	virtual FName GetWaveFormat(const class USoundWave* Wave) const override
 	{
-		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static const FName NAME_OGG(TEXT("OGG"));
-		static const FName NAME_OPUS(TEXT("OPUS"));
-		static const FName NAME_BINKA(TEXT("BINKA"));
+		FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
 
-		if (Wave->bUseBinkAudio)
+		if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			return NAME_BINKA;
-		}
-
-		// Seekable streams need to pick a codec which allows fixed-sized frames so we can compute stream chunk index to load
-		if (Wave->IsSeekableStreaming())
-		{
-			return NAME_ADPCM;
-		}
-
 #if !USE_VORBIS_FOR_STREAMING
-		if (Wave->IsStreaming())
-		{
-			return NAME_OPUS;
-		}
+			if (Wave->IsStreaming())
+			{
+				return Audio::NAME_OPUS;
+			}
 #endif
 
-		return NAME_OGG;
+			return Audio::NAME_OGG;
+		}
+		else
+		{
+			return FormatName;
+		}
 	}
 
 	virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override
 	{
-		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static const FName NAME_OGG(TEXT("OGG"));
-		static const FName NAME_OPUS(TEXT("OPUS"));
-		static const FName NAME_BINKA(TEXT("BINKA"));
-
-		OutFormats.Add(NAME_BINKA);
-		OutFormats.Add(NAME_ADPCM);
-		OutFormats.Add(NAME_OGG);
-		OutFormats.Add(NAME_OPUS);
+		OutFormats.Add(Audio::NAME_BINKA);
+		OutFormats.Add(Audio::NAME_ADPCM);
+		OutFormats.Add(Audio::NAME_PCM);
+		OutFormats.Add(Audio::NAME_OGG);
+		OutFormats.Add(Audio::NAME_OPUS);
 	}
 
 	virtual void GetWaveFormatModuleHints(TArray<FName>& OutModuleNames) const override

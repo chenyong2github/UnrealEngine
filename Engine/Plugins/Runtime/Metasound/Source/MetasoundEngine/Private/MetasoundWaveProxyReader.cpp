@@ -423,7 +423,7 @@ namespace Metasound
 
 		// For non-seekable streaming waves, use a fallback method to seek
 		// to the start time. 
-		const bool bUseFallbackSeekMethod = (GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable != 0) && (InStartTimeInSeconds != 0.f) && (!WaveProxy->IsSeekableStreaming());
+		const bool bUseFallbackSeekMethod = (GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable != 0) && (InStartTimeInSeconds != 0.f) && (!WaveProxy->IsSeekable());
 		if (bUseFallbackSeekMethod)
 		{
 			if (!bFallbackSeekMethodWarningLogged)

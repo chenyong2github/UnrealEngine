@@ -646,22 +646,35 @@ namespace Audio
 		return new FMixerSource(this);
 	}
 
-	FName FMixerDevice::GetRuntimeFormat(USoundWave* InSoundWave)
+	FName FMixerDevice::GetRuntimeFormat(const USoundWave* InSoundWave) const
 	{
-		check(AudioMixerPlatform);
-		return AudioMixerPlatform->GetRuntimeFormat(InSoundWave);
+		FName RuntimeFormat = Audio::ToName(InSoundWave->GetSoundAssetCompressionType());
+
+		// If not specified, the default platform codec is BINK.
+		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
+		{
+			RuntimeFormat = AudioMixerPlatform->GetRuntimeFormat(InSoundWave);
+			if (RuntimeFormat.IsNone())
+			{
+				// TODO: make this an override per platform for "default" platform-specific codec
+				RuntimeFormat = Audio::NAME_BINKA;
+			}
+		}
+		return RuntimeFormat;
 	}
 
 	bool FMixerDevice::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
 	{
 		check(InSoundWave);
 		check(AudioMixerPlatform);
-		return AudioMixerPlatform->HasCompressedAudioInfoClass(InSoundWave);
+		// Every platform has compressed audio. 
+		return true;
 	}
 
 	bool FMixerDevice::SupportsRealtimeDecompression() const
 	{
-		return AudioMixerPlatform->SupportsRealtimeDecompression();
+		// Every platform supports realtime decompression.
+		return true;
 	}
 
 	bool FMixerDevice::DisablePCMAudioCaching() const
@@ -669,17 +682,14 @@ namespace Audio
 		return AudioMixerPlatform->DisablePCMAudioCaching();
 	}
 
-	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(USoundWave* InSoundWave)
+	ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const USoundWave* InSoundWave) const
 	{
-		check(InSoundWave);
-		check(AudioMixerPlatform);
-		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWave);
+		return AudioMixerPlatform->CreateCompressedAudioInfo(GetRuntimeFormat(InSoundWave));
 	}
 
-	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	class ICompressedAudioInfo* FMixerDevice::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWaveProxy) const
 	{
-		check(AudioMixerPlatform);
-		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWave);
+		return AudioMixerPlatform->CreateCompressedAudioInfo(InSoundWaveProxy->GetRuntimeFormat());
 	}
 
 	bool FMixerDevice::ValidateAPICall(const TCHAR* Function, uint32 ErrorCode)

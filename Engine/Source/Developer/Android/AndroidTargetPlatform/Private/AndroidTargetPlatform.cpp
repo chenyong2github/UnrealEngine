@@ -616,12 +616,9 @@ const UTextureLODSettings& FAndroidTargetPlatform::GetTextureLODSettings() const
 }
 
 
-FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) const
+FName FAndroidTargetPlatform::GetWaveFormat(const class USoundWave* Wave) const
 {
-	static const FName NAME_ADPCM(TEXT("ADPCM"));
-	static const FName NAME_OGG(TEXT("OGG"));
-	static const FName NAME_BINKA(TEXT("BINKA"));
-
+	// Platform specific codec name
 	static bool bFormatRead = false;
 	static FName NAME_FORMAT;
 	if (!bFormatRead)
@@ -638,12 +635,12 @@ FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) cons
 		}
 
 #if WITH_OGGVORBIS
-		if (AudioSetting == NAME_OGG || AudioSetting == NAME_None)
+		if (AudioSetting == Audio::NAME_OGG || AudioSetting == NAME_None)
 		{
-			NAME_FORMAT = NAME_OGG;
+			NAME_FORMAT = Audio::NAME_OGG;
 		}
 #else
-		if (AudioSetting == NAME_OGG)
+		if (AudioSetting == Audio::NAME_OGG)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Attemped to select Ogg Vorbis encoding when the cooker is built without Ogg Vorbis support."));
 		}
@@ -651,33 +648,26 @@ FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) cons
 		else
 		{
 			// Otherwise return ADPCM as it'll either be option '2' or 'default' depending on WITH_OGGVORBIS config
-			NAME_FORMAT = NAME_ADPCM;
+			NAME_FORMAT = Audio::NAME_ADPCM;
 		}
 	}
 
-	if (Wave->bUseBinkAudio)
+	FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
+	if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 	{
-		return NAME_BINKA;
+		FormatName = NAME_FORMAT;
 	}
-
-	if (Wave->IsSeekableStreaming())
-	{
-		return NAME_ADPCM;
-	}
-
-	return NAME_FORMAT;
+	return FormatName;
 }
 
 
 void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 {
-	static const FName NAME_OGG(TEXT("OGG"));
-	static const FName NAME_ADPCM(TEXT("ADPCM"));
-	static const FName NAME_BINKA(TEXT("BINKA"));
 
-	OutFormats.Add(NAME_BINKA);
-	OutFormats.Add(NAME_OGG);
-	OutFormats.Add(NAME_ADPCM);
+	OutFormats.Add(Audio::NAME_BINKA);
+	OutFormats.Add(Audio::NAME_OGG);
+	OutFormats.Add(Audio::NAME_PCM);
+	OutFormats.Add(Audio::NAME_ADPCM);
 }
 
 #endif //WITH_ENGINE

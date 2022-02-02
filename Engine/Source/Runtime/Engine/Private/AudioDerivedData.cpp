@@ -1143,20 +1143,20 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		FSoundQualityInfo QualityInfo = { 0 };
 		if (CompressionOverrides)
 		{
-			float ModifiedCompressionQuality = (float)SoundWave->CompressionQuality * CompressionOverrides->CompressionQualityModifier;
+			float ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality() * CompressionOverrides->CompressionQualityModifier;
 			if (ModifiedCompressionQuality >= 1.0f)
 			{
 				QualityInfo.Quality = FMath::FloorToInt(ModifiedCompressionQuality);
-				UE_LOG(LogAudioDerivedData, Display, TEXT("Compression Quality for %s will be modified from %d to %d."), *SoundWave->GetFullName(), SoundWave->CompressionQuality, QualityInfo.Quality);
+				UE_LOG(LogAudioDerivedData, Display, TEXT("Compression Quality for %s will be modified from %d to %d."), *SoundWave->GetFullName(), SoundWave->GetCompressionQuality(), QualityInfo.Quality);
 			}
 			else
 			{
-				QualityInfo.Quality = SoundWave->CompressionQuality;
+				QualityInfo.Quality = SoundWave->GetCompressionQuality();
 			}
 		}
 		else
 		{
-			QualityInfo.Quality = SoundWave->CompressionQuality;
+			QualityInfo.Quality = SoundWave->GetCompressionQuality();
 		}
 
 		QualityInfo.NumChannels = *WaveInfo.pChannels;
@@ -1366,11 +1366,11 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 				CompressionQualityModifier = CompressionOverrides->CompressionQualityModifier;
 			}
 
-			float ModifiedCompressionQuality = (float)SoundWave->CompressionQuality;
+			float ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality();
 
 			if (!FMath::IsNearlyEqual(CompressionQualityModifier, 1.0f))
 			{
-				ModifiedCompressionQuality = (float)SoundWave->CompressionQuality * CompressionQualityModifier;
+				ModifiedCompressionQuality = (float)SoundWave->GetCompressionQuality() * CompressionQualityModifier;
 			}
 			
 			if (ModifiedCompressionQuality >= 1.0f)
@@ -1379,7 +1379,7 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 			}
 			else
 			{
-				QualityInfo.Quality = SoundWave->CompressionQuality;
+				QualityInfo.Quality = SoundWave->GetCompressionQuality();
 			}
 
 			QualityInfo.NumChannels = ChannelCount;

@@ -8,6 +8,7 @@
 
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
+#include "AudioDevice.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
@@ -23,7 +24,6 @@
 #endif  //#if WITH_XMA2
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
-#include "ADPCMAudioInfo.h"
 #include "AudioPluginUtilities.h"
 #if WITH_BINK_AUDIO
 #include "BinkAudioInfo.h"
@@ -1845,168 +1845,74 @@ namespace Audio
 		}
 	}
 
-	FName FMixerPlatformXAudio2::GetRuntimeFormat(USoundWave* InSoundWave)
+#if WITH_XMA2
+	static FName NAME_XMA(TEXT("XMA"));
+#endif
+
+	FName FMixerPlatformXAudio2::GetRuntimeFormat(const USoundWave* InSoundWave) const
 	{
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_OPUS(TEXT("OPUS"));
-		static FName NAME_XMA(TEXT("XMA"));
-		static FName NAME_ADPCM(TEXT("ADPCM"));
-		static FName NAME_BINKA(TEXT("BINKA"));
+		FName RuntimeFormat = Audio::ToName(InSoundWave->GetSoundAssetCompressionType());
 
-#if WITH_ENGINE
-
-#if WITH_BINK_AUDIO
-		if (InSoundWave->bUseBinkAudio)
+		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			return NAME_BINKA;
-		}
-#endif	// WITH_BINK_AUDIO	
-
-		if (InSoundWave->IsStreaming(nullptr))
-		{
-			if (InSoundWave->IsSeekableStreaming())
-			{
-				return NAME_ADPCM;
-			}
-
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
 			if (InSoundWave->NumChannels <= 2)
 			{
-				return NAME_XMA;
+				RuntimeFormat = Audio::NAME_XMA;
 			}
 #endif // WITH_XMA2 && USE_XMA2_FOR_STREAMING
 
 #if USE_VORBIS_FOR_STREAMING
-			return NAME_OGG;
+			RuntimeFormat = Audio::NAME_OGG;
+#else
+			RuntimeFormat = Audio::NAME_OPUS;
 #endif // USE_VORBIS_FOR_STREAMING
 		}
 
-#if WITH_XMA2
-		if (InSoundWave->NumChannels <= 2)
-		{
-			return NAME_XMA;
-		}
-#endif // WITH_XMA2
-#endif // WITH_ENGINE
-		return NAME_OGG;
+		return RuntimeFormat;
 	}
 
-	bool FMixerPlatformXAudio2::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
+	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FName& InRuntimeFormat) const
 	{
-		return true;
-	}
+		ICompressedAudioInfo* Decoder = nullptr;
 
-	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(USoundWave* InSoundWave)
-	{
-#if WITH_ENGINE
-		check(InSoundWave);
-
-#if WITH_BINK_AUDIO
-		if (InSoundWave->bUseBinkAudio)
-		{
-			return new FBinkAudioInfo();
-		}
-#endif // WITH_BINK_AUDIO
-
-		if (InSoundWave->IsStreaming(nullptr))
-		{
-			if (InSoundWave->IsSeekableStreaming())
-			{
-				return new FADPCMAudioInfo();
-			}
-		}
-
+		// Need to create a platform-specific codec
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2 )
+		if (InRuntimeFormat == Audio::NAME_XMA)
 		{
-			return XMA2_INFO_NEW();
+			Decoder = XMA2_INFO_NEW();
 		}
-#endif
-
-		if (InSoundWave->IsStreaming(nullptr))
+		else
+#endif // WITH_XMA2 && USE_XMA2_FOR_STREAMING			
+		if (InRuntimeFormat == Audio::NAME_OGG)
 		{
 #if USE_VORBIS_FOR_STREAMING
-			return new FVorbisAudioInfo();
-#else
-			return new FOpusAudioInfo();
-#endif // USE_VORBIS_FOR_STREAMING
+			Decoder = new FVorbisAudioInfo();
+#endif // #if USE_VORBIS_FOR_STREAMING
 		}
-
-		static const FName NAME_OGG(TEXT("OGG"));
-		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
+		else if (InRuntimeFormat == Audio::NAME_OPUS)
 		{
-			return new FVorbisAudioInfo();
+#if !USE_VORBIS_FOR_STREAMING
+			Decoder = new FOpusAudioInfo();
+#endif // #if !USE_VORBIS_FOR_STREAMING
 		}
-
-#if WITH_XMA2
-		static const FName NAME_XMA(TEXT("XMA"));
-		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_XMA) : (InSoundWave->GetCompressedData(NAME_XMA) != nullptr))
-		{
-			return XMA2_INFO_NEW();
-		}
-#endif // WITH_XMA2
-#endif // WITH_ENGINE
-		return nullptr;
-	}
-
-
-	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
-	{
-#if WITH_ENGINE
-		check(InSoundWave);
-
 #if WITH_BINK_AUDIO
-		if (InSoundWave->UseBinkAudio())
+		else if (InRuntimeFormat == Audio::NAME_BINKA)
 		{
 			return new FBinkAudioInfo();
 		}
-#endif // WITH_BINK_AUDIO
-
-		// STREAMING:
-		if (InSoundWave->IsStreaming())
+#endif // #if WITH_BINK_AUDIO
+		else
 		{
-			if (InSoundWave->IsSeekableStreaming())
-			{
-				return new FADPCMAudioInfo();
-			}
-	#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-			else if (InSoundWave->GetNumChannels() <= 2)
-			{
-				return XMA2_INFO_NEW();
-			}
-	#endif
-			else
-			{
-#if USE_VORBIS_FOR_STREAMING
-				return new FVorbisAudioInfo();
-#else
-				return new FOpusAudioInfo();
-#endif // USE_VORBIS_FOR_STREAMING
-			}
+			// Fallback to the multiplatform decoder
+			Decoder = Audio::CreateSoundAssetDecoder(InRuntimeFormat);
 		}
-
-		// NOT STREAMING:
-		static const FName NAME_OGG(TEXT("OGG"));
-		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
-		{
-			return new FVorbisAudioInfo();
-		}
-
-#if WITH_XMA2
-		static const FName NAME_XMA(TEXT("XMA"));
-		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_XMA) : (InSoundWave->GetCompressedData(NAME_XMA) != nullptr))
-		{
-			return XMA2_INFO_NEW();
-		}
-#endif // WITH_XMA2
-#endif // WITH_ENGINE
-
-		return nullptr;
+		ensureMsgf(Decoder != nullptr, TEXT("Failed to create a sound asset decoder for compression type: %s"), *InRuntimeFormat.ToString());
+		return Decoder;
 	}
 
 	FString FMixerPlatformXAudio2::GetDefaultDeviceName()
 	{
-		//GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("AudioDevice"), WindowsAudioDeviceName, GEngineIni);
 		return FString();
 	}
 

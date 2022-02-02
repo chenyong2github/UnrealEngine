@@ -3,6 +3,7 @@
 
 #include "ActiveSound.h"
 #include "ActiveSoundUpdateInterface.h"
+#include "ADPCMAudioInfo.h"
 #include "Audio.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
@@ -10,6 +11,7 @@
 #include "AudioEffect.h"
 #include "AudioPluginUtilities.h"
 #include "Audio/AudioDebug.h"
+#include "AudioMixerDevice.h"
 #include "Components/AudioComponent.h"
 #include "ContentStreaming.h"
 #include "DrawDebugHelpers.h"
@@ -43,7 +45,6 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
-#include "AudioMixerDevice.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -175,6 +176,26 @@ FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
 	FlushAudioRenderThreadOnGCCVar,
 	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
 	ECVF_Default);
+
+namespace Audio
+{
+	ICompressedAudioInfo* CreateSoundAssetDecoder(const FName& InRuntimeFormat)
+	{
+		// The decoder will need to be instantiated for the specific platform
+		if (InRuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
+		{
+			return nullptr;
+		}
+		// Multi-platform decoders -- can be instantiated here for all platforms.
+		else if (InRuntimeFormat == Audio::NAME_ADPCM || InRuntimeFormat == Audio::NAME_PCM)
+		{
+			// Our PCM is currently really our "ADPCM" encoder at 100 quality
+			return new FADPCMAudioInfo();
+		}
+		ensureMsgf(false, TEXT("Unknown runtime sound asset format type."));
+		return nullptr;
+	}
+}
 
 namespace AudioDeviceUtils
 {

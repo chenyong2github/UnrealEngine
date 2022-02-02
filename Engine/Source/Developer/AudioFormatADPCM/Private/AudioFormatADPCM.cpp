@@ -20,8 +20,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogAudioFormatADPCM, Log, All);
 	((uint32)(uint8)(ch0) | ((uint32)(uint8)(ch1) << 8) |\
 	((uint32)(uint8)(ch2) << 16) | ((uint32)(uint8)(ch3) << 24 ))
 
-static FName NAME_ADPCM(TEXT("ADPCM"));
-
 namespace
 {
 	struct RiffDataChunk
@@ -452,19 +450,20 @@ public:
 
 	virtual uint16 GetVersion(FName Format) const override
 	{
-		check(Format == NAME_ADPCM);
+		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 		return UE_AUDIO_ADPCM_VER;
 	}
 
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const
 	{
-		OutFormats.Add(NAME_ADPCM);
+		OutFormats.Add(Audio::NAME_ADPCM);
+		OutFormats.Add(Audio::NAME_PCM);
 	}
 
 	virtual bool Cook(FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const
 	{
-		check(Format == NAME_ADPCM);
+		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 
 		if (QualityInfo.Quality == 100)
 		{
@@ -481,7 +480,7 @@ public:
 	virtual bool CookSurround(FName Format, const TArray<TArray<uint8> >& SrcBuffers, FSoundQualityInfo& QualityInfo, TArray<uint8>& CompressedDataStore) const
 	{
 		// Ensure the right format
-		check(Format == NAME_ADPCM);
+		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 		// Ensure at least two channel
 		check(SrcBuffers.Num() > 1);
 		// Ensure one buffer per channel
@@ -506,7 +505,7 @@ public:
 
 	virtual int32 Recompress(FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& OutBuffer) const
 	{
-		check(Format == NAME_ADPCM);
+		check(Format == Audio::NAME_ADPCM || Format == Audio::NAME_PCM);
 
 		// Recompress is only necessary during editor previews
 		return 0;

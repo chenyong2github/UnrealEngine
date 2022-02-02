@@ -4,12 +4,12 @@
 #include "AudioMixerPlatformAudioUnitUtils.h"
 #include "Modules/ModuleManager.h"
 #include "AudioMixer.h"
+#include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
-#include "ADPCMAudioInfo.h"
 #include "BinkAudioInfo.h"
 
 /*
@@ -387,47 +387,44 @@ namespace Audio
 		int32 PushResult = CircularOutputBuffer.Push((const int8*)Buffer, BytesToSubmitToAudioMixer);
 		check(PushResult == BytesToSubmitToAudioMixer);
 	}
-	
-	FName FMixerPlatformAudioUnit::GetRuntimeFormat(USoundWave* InSoundWave)
-	{
-		if (InSoundWave->bUseBinkAudio)
-		{
-			static const FName NAME_BINKA(TEXT("BINKA"));
-			return NAME_BINKA;
-		}
 
-		static FName NAME_ADPCM(TEXT("ADPCM"));
-		return NAME_ADPCM;
-	}
-	
-	bool FMixerPlatformAudioUnit::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
+	FName FMixerPlatformAudioUnit::GetRuntimeFormat(const USoundWave* InSoundWave) const
 	{
-		return true;
-	}
-	
-	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(USoundWave* InSoundWave)
-	{
-		if (InSoundWave->bUseBinkAudio)
-		{
-			return new FBinkAudioInfo();
-		}
-		return new FADPCMAudioInfo();
-	}
+		FName RuntimeFormat = Audio::ToName(InSoundWave->GetSoundAssetCompressionType());
 
-	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
-	{
-		if (!ensure(InSoundWave.IsValid()))
+		// On IOS the default platform specific codec is ADPCM
+		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			return nullptr;
+			RuntimeFormat = Audio::NAME_ADPCM;
 		}
-		else if (InSoundWave->UseBinkAudio())
+		else if (InRuntimeFormat == Audio::NAME_BINKA)
 		{
 			return new FBinkAudioInfo();
 		}
 
-		return new FADPCMAudioInfo();
+		return RuntimeFormat;
 	}
-	
+
+	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FName& InRuntimeFormat) const
+	{
+		ICompressedAudioInfo* Decoder = nullptr;
+
+		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
+		{
+			Decoder = new FADPCMAudioInfo();
+		}	
+		else if (InRuntimeFormat == Audio::NAME_BINKA)
+		{
+			Decoder = new FBinkAudioInfo();
+		}
+		else
+		{
+			Decoder = Audio::CreateSoundAssetDecoder(InRuntimeFormat);
+		}
+		ensureMsgf(Decoder != nullptr, TEXT("Failed to create a sound asset decoder for compression type: %s"), *InRuntimeFormat.ToString());
+		return Decoder;
+	}
+
 	FString FMixerPlatformAudioUnit::GetDefaultDeviceName()
 	{
 		return FString();

@@ -283,6 +283,42 @@ enum class ESoundWaveFFTSize : uint8
 	VeryLarge_2048,
 };
 
+// Sound Asset Compression Type
+UENUM(BlueprintType)
+enum class ESoundAssetCompressionType : uint8
+{
+	// Perceptual-based codec which supports all features across all platforms.
+	BinkAudio,
+
+	// Will encode the asset using ADPCM, a time-domain codec that has fixed-sized quality and about ~4x compression ratio, but is relatively cheap to decode.
+	ADPCM,
+
+	// Uncompressed audio. Large memory usage (streamed chunks contain less audio per chunk) but extremely cheap to decode and supports all features. 
+	PCM,
+
+	// Encodes the asset to a platform specific format and will be different depending on the platform. It does not currently support seeking.
+	PlatformSpecific,
+};
+
+
+namespace Audio
+{
+	static FName ToName(ESoundAssetCompressionType InDecoderType)
+	{
+		switch (InDecoderType)
+		{
+		case ESoundAssetCompressionType::PlatformSpecific:		return NAME_PLATFORM_SPECIFIC;
+
+		case ESoundAssetCompressionType::BinkAudio:				return NAME_BINKA;
+		case ESoundAssetCompressionType::ADPCM:					return NAME_ADPCM;
+		case ESoundAssetCompressionType::PCM:					return NAME_PCM;
+		default:
+			ensure(false);
+			return TEXT("UNKNOWN");
+		}
+	}
+}
+
 // Struct defining a cue point in a sound wave asset
 USTRUCT()
 struct FSoundWaveCuePoint
@@ -316,17 +352,18 @@ struct ISoundWaveClient
 	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
-
-
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
 {
 	GENERATED_UCLASS_BODY()
 
-public:
-	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
-	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta = (DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
+private:
+
+	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. ADPCM and PCM sound asset compression types ignore this parameter. */
+	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta = (DisplayName = "Compression", ClampMin = "1", ClampMax = "100", EditCondition = "SoundAssetCompressionType != ESoundAssetCompressionType::PCM || SoundAssetCompressionType != ESoundAssetCompressionType::ADPCM"), AssetRegistrySearchable)
 	int32 CompressionQuality;
+
+public:
 
 	/** Priority of this sound when streaming (lower priority streams may not always play) */
 	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (ClampMin = 0))
@@ -346,17 +383,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sound, AssetRegistrySearchable)
 	uint8 bLooping : 1;
 
-	/** Whether this sound can be streamed to avoid increased memory usage. If using Stream Caching, use Loading Behavior instead to control memory usage. */
-	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Force Streaming"))
+	/** Here for legacy code. */
+	UPROPERTY()
 	uint8 bStreaming : 1;
 
-	/** Whether this sound supports seeking. This requires recooking with a codec which supports seekability and streaming. */
-	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
+private:
+
+	/** The compression type to use for the sound wave asset. */
+	UPROPERTY(EditAnywhere, Category = "Format")
+	ESoundAssetCompressionType SoundAssetCompressionType = ESoundAssetCompressionType::PlatformSpecific;
+
+	// Deprecated compression type properties
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - Property is deprecated. bSeekableStreaming now means ADPCM codec in SoundAssetCompressionType."))
 	uint8 bSeekableStreaming : 1;
 
-	/** If true, the sound will compress to the Bink Audio format whenever available. */
-	UPROPERTY(EditAnywhere, Category = "Format")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - Property is deprecated. bUseBinkAudio now means Bink codec in SoundAssetCompressionType."))
 	uint8 bUseBinkAudio : 1;
+
+public:
 
 	/** the number of sounds currently playing this sound wave. */
 	FThreadSafeCounter NumSourcesPlaying;
@@ -372,7 +416,8 @@ public:
 		NumSourcesPlaying.Decrement();
 	}
 
-
+	/** Returns the sound's asset compression type. */
+	ESoundAssetCompressionType GetSoundAssetCompressionType() const;
 
 private:
 	// cached proxy
@@ -632,6 +677,9 @@ protected:
 #endif
 
 public:
+
+	// Returns the compression quality of the sound asset.
+	int32 GetCompressionQuality() const;
 
 	/** Resource index to cross reference with buffers */
 	int32 ResourceID;
@@ -952,8 +1000,9 @@ public:
 	bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
 	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
-	/** Checks whether sound has seekable streaming enabled. */
-	bool IsSeekableStreaming() const;
+	/** Returns whether the sound is seekable. */
+	bool IsSeekable() const;
+
 	/**
 	 * Checks whether we should use the load on demand cache.
 	 */
@@ -1106,11 +1155,11 @@ public:
 
 	void ReleaseCompressedAudio();
 
-	bool UseBinkAudio() const { return bUseBinkAudio; }
 	bool IsStreaming() const { return bIsStreaming; }
+	ESoundAssetCompressionType GetSoundCompressionType() const { return SoundAssetCompressionType; }
 	bool IsLooping() const { return bIsLooping; }
 	bool ShouldUseStreamCaching() const { return bShouldUseStreamCaching; }
-	bool IsSeekableStreaming() const {  return bIsStreaming && bSeekableStreaming; }
+	bool IsSeekable() const {  return bIsSeekable; }
 	bool IsRetainingAudio() const {  return FirstChunk.IsValid(); }
 	bool WasLoadingBehaviorOverridden() const { return bLoadingBehaviorOverridden; }
 	ESoundWaveLoadingBehavior GetLoadingBehavior() const { return LoadingBehavior; }
@@ -1168,6 +1217,7 @@ private:
 	FName RuntimeFormat{ "FSoundWaveProxy_InvalidFormat" };
 	FObjectKey SoundWaveKeyCached;
 	TArray<FSoundWaveCuePoint> CuePoints;
+	ESoundAssetCompressionType SoundAssetCompressionType;
 
 	float SampleRate;
 	float Duration;
@@ -1180,8 +1230,7 @@ private:
 	uint8 bIsLooping : 1;
 	uint8 bIsTemplate : 1;
 	uint8 bIsStreaming : 1;
-	uint8 bUseBinkAudio : 1;
-	uint8 bSeekableStreaming : 1;
+	uint8 bIsSeekable : 1;
 	uint8 bShouldUseStreamCaching : 1;
 	uint8 bLoadingBehaviorOverridden : 1;
 
@@ -1234,7 +1283,7 @@ public:
 	bool UseBinkAudio() const;
 	bool IsRetainingAudio() const;
 	bool ShouldUseStreamCaching() const;
-	bool IsSeekableStreaming() const;
+	bool IsSeekable() const;
 	bool IsZerothChunkDataLoaded() const;
 	bool WasLoadingBehaviorOverridden() const;
 	bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;

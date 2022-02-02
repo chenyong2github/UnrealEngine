@@ -10,7 +10,7 @@
 #if WITH_ENGINE
 #include "VorbisAudioInfo.h"
 #include "OpusAudioInfo.h"
-#include "ADPCMAudioInfo.h"
+#include "AudioDevice.h"
 #include "BinkAudioInfo.h"
 #endif
 /**
@@ -360,111 +360,49 @@ namespace Audio
 		RemainingBytesInCurrentSubmittedBuffer = BytesPerSubmittedBuffer;
 	}
 
-	FName FMixerPlatformCoreAudio::GetRuntimeFormat(USoundWave* InSoundWave)
+	FName FMixerPlatformCoreAudio::GetRuntimeFormat(const USoundWave* InSoundWave) const
 	{
-#if WITH_ENGINE
-		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static const FName NAME_OGG(TEXT("OGG"));
-		static const FName NAME_OPUS(TEXT("OPUS"));
-		static const FName NAME_BINKA(TEXT("BINKA"));
+		FName RuntimeFormat = Audio::ToName(InSoundWave->GetSoundAssetCompressionType());
 
-		if (InSoundWave->bUseBinkAudio)
+		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			return NAME_BINKA;
+			if (InSoundWave->IsStreaming(nullptr))
+			{
+				RuntimeFormat = Audio::NAME_OPUS;
+			}
+			else
+			{
+				RuntimeFormat = Audio::NAME_OGG;
+			}
 		}
 
-		if (InSoundWave->IsSeekableStreaming())
-		{
-			return NAME_ADPCM;
-		}
-
-		if (InSoundWave->IsStreaming(nullptr))
-		{
-			return NAME_OPUS;
-		}
-
-		return NAME_OGG;
-#else
-		return FName();
-#endif
+		return RuntimeFormat;
 	}
 
-	bool FMixerPlatformCoreAudio::HasCompressedAudioInfoClass(USoundWave* InSoundWave)
+	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FName& InRuntimeFormat) const
 	{
-		return true;
-	}
+		ICompressedAudioInfo* Decoder = nullptr;
 
-	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(USoundWave* InSoundWave)
-	{
-#if WITH_ENGINE
-		check(InSoundWave);
-
-		if (InSoundWave->bUseBinkAudio)
+		if (InRuntimeFormat == Audio::NAME_OGG)
+		{
+			Decoder = new FVorbisAudioInfo();
+		}
+		else if (InRuntimeFormat == Audio::NAME_OPUS)
+		{
+			Decoder = new FOpusAudioInfo();
+		}
+#if WITH_BINK_AUDIO
+		else if (InRuntimeFormat == Audio::NAME_BINKA)
 		{
 			return new FBinkAudioInfo();
 		}
-
-		if (InSoundWave->IsSeekableStreaming())
+#endif // WITH_BINK_AUDIO	
+		else
 		{
-			return new FADPCMAudioInfo();
+			Decoder = Audio::CreateSoundAssetDecoder(InRuntimeFormat);
 		}
-
-		if (InSoundWave->IsStreaming())
-		{
-			return new FOpusAudioInfo();
-		}
-
-		static const FName NAME_OGG(TEXT("OGG"));
-		if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
-		{
-			ICompressedAudioInfo* CompressedInfo = new FVorbisAudioInfo();
-			if (!CompressedInfo)
-			{
-				UE_LOG(LogAudio, Error, TEXT("Failed to create new FVorbisAudioInfo for SoundWave %s: out of memory."), *InSoundWave->GetName());
-				return nullptr;
-			}
-			return CompressedInfo;
-		}
-
-#endif // WITH_ENGINE
-		return nullptr;
-	}
-
-	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
-	{
-#if WITH_ENGINE
-		static const FName NAME_OGG(TEXT("OGG"));
-
-		if (!ensure(InSoundWave.IsValid()))
-		{
-			return nullptr;
-		}
-		else if (InSoundWave->UseBinkAudio())
-		{
-			return new FBinkAudioInfo();
-		}
-		else if (InSoundWave->IsSeekableStreaming())
-		{
-			return new FADPCMAudioInfo();
-		}
-		else if (InSoundWave->IsStreaming())
-		{
-			return new FOpusAudioInfo();
-		}
-		else if (FPlatformProperties::RequiresCookedData() ? InSoundWave->HasCompressedData(NAME_OGG) : (InSoundWave->GetCompressedData(NAME_OGG) != nullptr))
-		{
-			ICompressedAudioInfo* CompressedInfo = new FVorbisAudioInfo();
-			if (!CompressedInfo)
-			{
-				UE_LOG(LogAudio, Error, TEXT("Failed to create new FVorbisAudioInfo for SoundWave %s: out of memory."), *InSoundWave->GetFName().ToString());
-				return nullptr;
-			}
-			return CompressedInfo;
-		}
-
-#endif // WITH_ENGINE
-
-		return nullptr;
+		ensureMsgf(Decoder != nullptr, TEXT("Failed to create a sound asset decoder for compression type: %s"), *InRuntimeFormat.ToString());
+		return Decoder;
 	}
 
 	FString FMixerPlatformCoreAudio::GetDefaultDeviceName()

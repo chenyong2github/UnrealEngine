@@ -184,8 +184,7 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 	bIsLooping = InWave.IsLooping();
 	bIsTemplate = InWave.IsTemplate();
 	bIsStreaming = InWave.IsStreaming(nullptr);
-	bUseBinkAudio = InWave.bUseBinkAudio;
-	bSeekableStreaming = InWave.bSeekableStreaming;
+	SoundAssetCompressionType = InWave.GetSoundAssetCompressionType();
 	bShouldUseStreamCaching = InWave.ShouldUseStreamCaching();
 }
 
@@ -732,12 +731,36 @@ void USoundWave::Serialize( FArchive& Ar )
 	bool bShouldStreamSound = false;
 
 #if WITH_EDITORONLY_DATA
-		bLoadedFromCookedData = Ar.IsLoading() && bCooked;
-		if (bVirtualizeWhenSilent_DEPRECATED)
+	bLoadedFromCookedData = Ar.IsLoading() && bCooked;
+	if (bVirtualizeWhenSilent_DEPRECATED)
+	{
+		bVirtualizeWhenSilent_DEPRECATED = 0;
+		VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
+	}
+
+	// If we have deprecated properties with data, migrate the data to the new enum
+	if (bUseBinkAudio || bSeekableStreaming)
+	{
+		// Bink audio takes precedence over bSeekableStreaming
+		if (bUseBinkAudio)
 		{
-			bVirtualizeWhenSilent_DEPRECATED = 0;
-			VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
+			SoundAssetCompressionType = ESoundAssetCompressionType::BinkAudio;
 		}
+		else if (bSeekableStreaming)
+		{
+			// PCM was CompressionQuality 100
+			if (CompressionQuality == 100)
+			{
+				SoundAssetCompressionType = ESoundAssetCompressionType::PCM;
+			}
+			else
+			{
+				SoundAssetCompressionType = ESoundAssetCompressionType::ADPCM;
+			}
+		}
+		bUseBinkAudio = 0;
+		bSeekableStreaming = 0;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	if (Ar.IsSaving() || Ar.IsCooking())
@@ -893,6 +916,11 @@ void USoundWave::Serialize( FArchive& Ar )
 			}
 		}
 	}
+}
+
+ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionType() const
+{
+	return SoundAssetCompressionType;
 }
 
 float USoundWave::GetSubtitlePriority() const
@@ -2182,13 +2210,12 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	static const FName CompressionQualityFName = GET_MEMBER_NAME_CHECKED(USoundWave, CompressionQuality);
 	static const FName SampleRateFName = GET_MEMBER_NAME_CHECKED(USoundWave,SampleRateQuality);
 	static const FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
-	static const FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
-	static const FName UseBinkAudioFName = GET_MEMBER_NAME_CHECKED(USoundWave, bUseBinkAudio);
+	static const FName SoundAssetCompressionTypeFName = GET_MEMBER_NAME_CHECKED(USoundWave, SoundAssetCompressionType);
 	static const FName LoadingBehaviorFName = GET_MEMBER_NAME_CHECKED(USoundWave, LoadingBehavior);
 
 	// force proxy flags to be up to date
-	SoundWaveDataPtr->bUseBinkAudio = bUseBinkAudio;
-	SoundWaveDataPtr->bSeekableStreaming = bSeekableStreaming;
+	SoundWaveDataPtr->bIsSeekable = IsSeekable();
+	SoundWaveDataPtr->SoundAssetCompressionType = SoundAssetCompressionType;
 	SoundWaveDataPtr->bIsStreaming = IsStreaming(nullptr);
 	SoundWaveDataPtr->bShouldUseStreamCaching = ShouldUseStreamCaching();
 
@@ -2222,7 +2249,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				}
 			}
 
-			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SeekableStreamingFName || Name == UseBinkAudioFName || Name == LoadingBehaviorFName)
+			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SoundAssetCompressionTypeFName || Name == LoadingBehaviorFName)
 			{
 				InvalidateCompressedData();
 				FreeResources();
@@ -2934,9 +2961,13 @@ TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 	}
 }
 
-bool USoundWave::IsSeekableStreaming() const
+bool USoundWave::IsSeekable() const
 {
-	return bStreaming && bSeekableStreaming;
+	if (bIsSourceBus || bProcedural || SoundAssetCompressionType == ESoundAssetCompressionType::PlatformSpecific)
+	{
+		return false;
+	}
+	return true;
 }
 
 bool USoundWave::GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves)
@@ -2958,6 +2989,20 @@ bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 {
 	return CookedEnvelopeTimeData.Num() > 0;
 }
+
+int32 USoundWave::GetCompressionQuality() const
+{
+	if (SoundAssetCompressionType == ESoundAssetCompressionType::PCM)
+	{
+		// PCM is treated as ADPCM at 100-quality
+		return 100;
+	}
+	else
+	{
+		return CompressionQuality;
+	}
+}
+
 
 FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 {
@@ -3829,12 +3874,6 @@ bool FSoundWaveProxy::IsStreaming() const
 	return SoundWaveDataPtr->IsStreaming();
 }
 
-bool FSoundWaveProxy::UseBinkAudio() const
-{
-	check(SoundWaveDataPtr);
-	return SoundWaveDataPtr->UseBinkAudio();
-}
-
 bool FSoundWaveProxy::IsRetainingAudio() const
 {
 	check(SoundWaveDataPtr);
@@ -3847,11 +3886,12 @@ bool FSoundWaveProxy::ShouldUseStreamCaching() const
 	return SoundWaveDataPtr->ShouldUseStreamCaching();
 }
 
-bool FSoundWaveProxy::IsSeekableStreaming() const
+bool FSoundWaveProxy::IsSeekable() const
 {
 	check(SoundWaveDataPtr);
-	return SoundWaveDataPtr->IsSeekableStreaming();
+	return SoundWaveDataPtr->IsSeekable();
 }
+
 
 bool FSoundWaveProxy::IsZerothChunkDataLoaded() const
 {

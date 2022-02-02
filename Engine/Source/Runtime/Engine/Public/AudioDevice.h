@@ -65,6 +65,9 @@ struct FWaveInstance;
 namespace Audio
 {
 	class FAudioDebugger;
+
+	/** Returns a decoder for the sound assets's given compression type. Will return nullptr if the compression type is platform-dependent. */
+	ENGINE_API ICompressedAudioInfo* CreateSoundAssetDecoder(const FName& InRuntimeFormat);
 }
 
 /**
@@ -1099,7 +1102,7 @@ public:
 	 */
 	void DeactivateReverbEffect(FName TagName);
 
-	virtual FName GetRuntimeFormat(USoundWave* SoundWave) = 0;
+	virtual FName GetRuntimeFormat(const USoundWave* SoundWave) const = 0;
 
 	/** Whether this SoundWave has an associated info class to decompress it */
 	virtual bool HasCompressedAudioInfoClass(USoundWave* SoundWave) { return false; }
@@ -1117,8 +1120,8 @@ public:
 	}
 
 	/** Creates a Compressed audio info class suitable for decompressing this SoundWave */
-	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) { return nullptr; }
-	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) { return nullptr; }
+	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const USoundWave* SoundWave) const { return nullptr; }
+	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) const { return nullptr; }
 
 	/**
 	 * Check for errors and output a human readable string

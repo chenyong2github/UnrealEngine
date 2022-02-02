@@ -122,7 +122,6 @@ using FSoundWavePtr = TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe>;
 
 namespace Audio
 {
-
    	/** Structure to hold platform device information **/
 	struct FAudioPlatformDeviceInfo
 	{
@@ -484,17 +483,8 @@ namespace Audio
 		/** Submit the given buffer to the platform's output audio device. */
 		virtual void SubmitBuffer(const uint8* Buffer) {};
 
-		/** Returns the name of the format of the input sound wave. */
-		virtual FName GetRuntimeFormat(USoundWave* InSoundWave) = 0;
-
 		/** Allows platforms to filter the requested number of frames to render. Some platforms only support specific frame counts. */
 		virtual int32 GetNumFrames(const int32 InNumReqestedFrames) { return InNumReqestedFrames; }
-
-		/** Checks if the platform has a compressed audio format for sound waves. */
-		virtual bool HasCompressedAudioInfoClass(USoundWave* InSoundWave) = 0;
-
-		/** Whether or not the platform supports realtime decompression. */
-		virtual bool SupportsRealtimeDecompression() const { return false; }
 
 		/** Whether or not the platform disables caching of decompressed PCM data (i.e. to save memory on fixed memory platforms) */
 		virtual bool DisablePCMAudioCaching() const { return false; }
@@ -505,9 +495,11 @@ namespace Audio
 		/** Whether this is an interface for a non-realtime renderer. If true, synch events will behave differently to avoid deadlocks. */
 		virtual bool IsNonRealtime() const { return false; }
 
-		/** Creates a Compressed audio info class suitable for decompressing this SoundWave. */
-		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) = 0;
-		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) { return nullptr; }
+		/** Returns the FName version of a given sound wave's format. Override to provide a runtime format (codec) that is platform specific. */
+		virtual FName GetRuntimeFormat(const USoundWave* InSoundWave) const { return FName(); }
+
+		/** Creates a Compressed audio info class suitable for decompressing this SoundWave. OVerride to create platform-specific decoders. */
+		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FName& InRuntimeFormat) const { return nullptr; };
 
 		/** Return any optional device name defined in platform configuratio. */
 		virtual FString GetDefaultDeviceName() = 0;

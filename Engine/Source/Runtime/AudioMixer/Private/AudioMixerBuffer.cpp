@@ -357,7 +357,7 @@ namespace Audio
 		{
 			// When set to seekable streaming, missing the first chunk is possible and
 			// does not signify any issue with the asset itself, so don't mark it as invalid.
-			if (InWave && !InWave->IsSeekableStreaming())
+			if (InWave && !InWave->IsSeekable())
 			{
 				UE_LOG(LogAudioMixer, Warning,
 					TEXT("FMixerBuffer::CreateStreamingBuffer failed to StreamCompressedInfo on SoundWave '%s'.  Invalidating wave resource data (asset now requires re-cook)."),

@@ -323,42 +323,31 @@ public:
 		FTargetPlatformBase::AddDependencySCArrayHelper(OutDependencies, TEXT("Binaries/ThirdParty/ShaderConductor/Mac/libShaderConductor.dylib"));
 	}
 
-	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
+	virtual FName GetWaveFormat(const class USoundWave* Wave) const override
 	{
-		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static const FName NAME_OGG(TEXT("OGG"));
-		static const FName NAME_OPUS(TEXT("OPUS"));
-		static const FName NAME_BINKA(TEXT("BINKA"));
-
-		if (Wave->bUseBinkAudio)
+		FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
+		if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-			return NAME_BINKA;
-		}
+			if (Wave->IsStreaming(*this->IniPlatformName()))
+			{
+				return Audio::NAME_OPUS;
+			}
 
-		if (Wave->IsSeekableStreaming())
+			return Audio::NAME_OGG;
+		}
+		else
 		{
-			return NAME_ADPCM;
+			return FormatName;
 		}
-
-		if (Wave->IsStreaming(*this->IniPlatformName()))
-		{
-			return NAME_OPUS;
-		}
-
-		return NAME_OGG;
 	}
 
 	virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override
 	{
-		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static const FName NAME_OGG(TEXT("OGG"));
-		static const FName NAME_OPUS(TEXT("OPUS"));
-		static const FName NAME_BINKA(TEXT("BINKA"));
-
-		OutFormats.Add(NAME_ADPCM);
-		OutFormats.Add(NAME_OGG);
-		OutFormats.Add(NAME_OPUS);
-		OutFormats.Add(NAME_BINKA);
+		OutFormats.Add(Audio::NAME_ADPCM);
+		OutFormats.Add(Audio::NAME_PCM);
+		OutFormats.Add(Audio::NAME_OGG);
+		OutFormats.Add(Audio::NAME_OPUS);
+		OutFormats.Add(Audio::NAME_BINKA);
 	}
 
 #endif //WITH_ENGINE

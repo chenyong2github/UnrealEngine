@@ -35,19 +35,13 @@ namespace Audio
 		virtual bool MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId) override;
 		virtual FAudioPlatformDeviceInfo GetPlatformDeviceInfo() const override;
 		virtual void SubmitBuffer(const uint8* Buffer) override;
-		virtual FName GetRuntimeFormat(USoundWave* InSoundWave) override;
-		virtual bool HasCompressedAudioInfoClass(USoundWave* InSoundWave) override;
-		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* InSoundWave) override;
-		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave) override;
+		virtual FName GetRuntimeFormat(const USoundWave* InSoundWave) const override;
 		virtual FString GetDefaultDeviceName() override;
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
 		virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
 		virtual void ResumeContext() override;
 		virtual void SuspendContext() override;
-		
-		/** Whether or not the platform supports realtime decompression. */
-		virtual bool SupportsRealtimeDecompression() const override { return true; }
-		
+			
 		/** Whether or not the platform disables caching of decompressed PCM data (i.e. to save memory on fixed memory platforms) */
 		virtual bool DisablePCMAudioCaching() const override { return true; }
 		

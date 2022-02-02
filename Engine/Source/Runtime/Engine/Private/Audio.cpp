@@ -1080,17 +1080,7 @@ bool FWaveInstance::IsSeekable() const
 		return false;
 	}
 
-	if (WaveData->bIsSourceBus || WaveData->bProcedural)
-	{
-		return false;
-	}
-
-	if (IsStreaming() && !WaveData->IsSeekableStreaming())
-	{
-		return false;
-	}
-
-	return true;
+	return WaveData->IsSeekable();
 }
 
 bool FWaveInstance::IsStreaming() const
