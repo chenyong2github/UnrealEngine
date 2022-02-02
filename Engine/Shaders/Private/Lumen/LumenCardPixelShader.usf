@@ -61,7 +61,14 @@ void Main(
 	float  Specular = GetMaterialSpecular(PixelMaterialInputs);
 
 	float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+
+#if MATERIALBLENDING_ANY_TRANSLUCENT
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#elif MATERIALBLENDING_MASKED
+	float Opacity = GetMaterialMask(PixelMaterialInputs) >= 0.0f ? 1.0f : 0.0f;
+#else
+	float Opacity = 1.0f;
+#endif
 
 	float3 DiffuseColor = BaseColor - BaseColor * Metallic;
 	float3 SpecularColor = lerp(0.08f * Specular.xxx, BaseColor, Metallic.xxx);

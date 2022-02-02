@@ -303,6 +303,19 @@ void MainPS(
 			}
 			else
 			{
+				if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+				{
+					float3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+					// Add subsurface energy to diffuse
+					DiffuseColor += SubsurfaceColor;
+				}
+
+				if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)
+				{
+					float3 ClothFuzz = ExtractSubsurfaceColor(GBuffer);
+					DiffuseColor += ClothFuzz * GBuffer.CustomData.a;
+				}
+
 				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * DiffuseIndirectAO;
 				IndirectLighting.Transmission = 0;
 
