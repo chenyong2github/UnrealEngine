@@ -39,14 +39,6 @@ public:
 	static bool ShouldSplit(UObject* SplitData) { return false; }
 	
 	/**
-	 * If true, this Splitter can handle populating generated packages long after the generator package is finalized and cooked.
-	 * The cooker will add requests for the packages returned from GetGenerateList and will populate and save them later.
-	 * If false the cooker will populate each package before calling PreSaveGeneratorPackage, and will save them
-	 * without further reference to the splitter after population.
-	 */
-	virtual bool UseDeferredPopulate() { return false; }
-
-	/**
 	 * If true, this splitter forces the Generator package objects it needs to remain referenced, and the cooker
 	 * should expect them to still be in memory after a garbage collect so long as the splitter is alive.
 	 */
@@ -100,8 +92,7 @@ public:
 		bool bCreatedAsMap = false;
 	};
 	/**
-	 * Called before saving the parent generator package. Depending on the value of UseDeferredPopulate, this may be
-	 * before or after the TryPopulatePackage calls.
+	 * Called before saving the parent generator package, which itself occurs before TryPopulatePackage is called on the generated packages.
 	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
 	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject, const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages) {}

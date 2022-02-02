@@ -610,8 +610,6 @@ public:
 	 */
 	FString GetIntermediateLocalPath(const FGeneratorPackage::FGeneratedStruct& GeneratedStruct) const;
 
-	/** Splitter capability for whether generated packages should populate from owner rather than load from disk. */
-	bool IsDeferredPopulate() const { return CookPackageSplitterInstance->UseDeferredPopulate(); }
 	/** Return the FGeneratedStruct with the given PackageData, or null if not found. */
 	FGeneratedStruct* FindGeneratedStruct(FPackageData* PackageData);
 	/**

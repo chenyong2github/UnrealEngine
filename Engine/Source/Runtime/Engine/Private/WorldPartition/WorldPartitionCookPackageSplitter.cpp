@@ -21,19 +21,6 @@ bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 	return World && World->IsPartitionedWorld();
 }
 
-bool FWorldPartitionCookPackageSplitter::UseDeferredPopulate()
-{
-	static struct FOneTimeRead
-	{
-		FOneTimeRead()
-		{
-			GConfig->GetBool(TEXT("CookSettings"), TEXT("SplitterDeferredPopulate"), Value, GEditorIni);
-		}
-		bool Value = true;
-	} UseDeferredPopulate;
-	return UseDeferredPopulate.Value;
-}
-
 FWorldPartitionCookPackageSplitter::FWorldPartitionCookPackageSplitter()
 {
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FWorldPartitionCookPackageSplitter::PreGarbageCollect);
