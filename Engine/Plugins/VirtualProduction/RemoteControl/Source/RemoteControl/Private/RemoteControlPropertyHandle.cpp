@@ -6,6 +6,7 @@
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlPreset.h"
 
+#include "Algo/AllOf.h"
 #include "Backends/CborStructDeserializerBackend.h"
 #include "CborWriter.h"
 #include "Serialization/MemoryReader.h"
@@ -14,7 +15,7 @@
 
 namespace
 {
-	/** Check if the given propery is Array or Set or Map */
+	/** Check if the given property is Array or Set or Map */
 	bool IsArrayLike(const FProperty* Property)
 	{
 		return (Property->IsA<FArrayProperty>()
@@ -22,7 +23,7 @@ namespace
 			|| Property->IsA<FMapProperty>());
 	}
 
-	/** Get inner propery of Array or Set or Map */
+	/** Get inner property of Array or Set or Map */
 	FProperty* GetContainerInnerProperty(const FProperty* Property)
 	{
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -288,6 +289,14 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlPropertyHandle::GetProper
 	{
 		PropertyHandle = MakeShared<FRemoteControlPropertyHandleRotator>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
 	}
+	else if (FRemoteControlPropertyHandleColor::Supports(InProperty))
+	{
+		PropertyHandle = MakeShared<FRemoteControlPropertyHandleColor>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
+	}
+	else if (FRemoteControlPropertyHandleLinearColor::Supports(InProperty))
+	{
+		PropertyHandle = MakeShared<FRemoteControlPropertyHandleLinearColor>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
+	}
 	else if (FRemoteControlPropertyHandleSet::Supports(InProperty))
 	{
 		PropertyHandle = MakeShared<FRemoteControlPropertyHandleSet>(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex);
@@ -380,6 +389,8 @@ IMPLEMENT_PROPERTY_ACCESSOR(FVector2D)
 IMPLEMENT_PROPERTY_ACCESSOR(FVector4)
 IMPLEMENT_PROPERTY_ACCESSOR(FQuat)
 IMPLEMENT_PROPERTY_ACCESSOR(FRotator)
+IMPLEMENT_PROPERTY_ACCESSOR(FColor)
+IMPLEMENT_PROPERTY_ACCESSOR(FLinearColor)
 #undef IMPLEMENT_PROPERTY_ACCESSOR
 
 
@@ -1101,7 +1112,7 @@ bool FRemoteControlPropertyHandleByte::GetValue(uint8& OutValue) const
 		{
 			return false;
 		}
-		
+
 		const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
 		if (!ensure(EnumProperty))
 		{
@@ -1112,12 +1123,12 @@ bool FRemoteControlPropertyHandleByte::GetValue(uint8& OutValue) const
 
 		return true;
 	}
-	
+
 	return false;
 }
 
 bool FRemoteControlPropertyHandleByte::SetValue(uint8 InValue)
-{	
+{
 	FProperty* Property = GetProperty();
 	if (!ensure(Property))
 	{
@@ -1227,7 +1238,7 @@ bool FRemoteControlPropertyHandleVector::Supports(const FProperty* InProperty)
 
 bool FRemoteControlPropertyHandleVector::GetValue(FVector& OutValue) const
 {
-	if (!ensure(VectorComponents.Num() != 3 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 3 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1250,7 +1261,7 @@ bool FRemoteControlPropertyHandleVector::GetValue(FVector& OutValue) const
 
 bool FRemoteControlPropertyHandleVector::SetValue(FVector InValue)
 {
-	if (!ensure(VectorComponents.Num() != 3 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 3 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1270,7 +1281,7 @@ bool FRemoteControlPropertyHandleVector::SetValue(FVector InValue)
 
 bool FRemoteControlPropertyHandleVector::GetValue(FVector2D& OutValue) const
 {
-	if (!ensure(VectorComponents.Num() != 2 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 2 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1292,7 +1303,7 @@ bool FRemoteControlPropertyHandleVector::GetValue(FVector2D& OutValue) const
 
 bool FRemoteControlPropertyHandleVector::SetValue(FVector2D InValue)
 {
-	if (!ensure(VectorComponents.Num() != 2 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 2 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1311,7 +1322,7 @@ bool FRemoteControlPropertyHandleVector::SetValue(FVector2D InValue)
 
 bool FRemoteControlPropertyHandleVector::GetValue(FVector4& OutValue) const
 {
-	if (!ensure(VectorComponents.Num() != 4 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 4 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1335,7 +1346,7 @@ bool FRemoteControlPropertyHandleVector::GetValue(FVector4& OutValue) const
 
 bool FRemoteControlPropertyHandleVector::SetValue(FVector4 InValue)
 {
-	if (!ensure(VectorComponents.Num() != 4 || IsComponentsValid()))
+	if (!ensure(VectorComponents.Num() != 4 || AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1420,7 +1431,7 @@ bool FRemoteControlPropertyHandleVector::SetW(float InValue)
 	return false;
 }
 
-bool FRemoteControlPropertyHandleVector::IsComponentsValid() const
+bool FRemoteControlPropertyHandleVector::AreComponentsValid() const
 {
 	for (TWeakPtr<IRemoteControlPropertyHandle> VectorComponentPtr : VectorComponents)
 	{
@@ -1456,7 +1467,7 @@ bool FRemoteControlPropertyHandleRotator::Supports(const FProperty* InProperty)
 
 bool FRemoteControlPropertyHandleRotator::GetValue(FRotator& OutValue) const
 {
-	if (!ensure(IsComponentsValid()))
+	if (!ensure(AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1476,7 +1487,7 @@ bool FRemoteControlPropertyHandleRotator::GetValue(FRotator& OutValue) const
 
 bool FRemoteControlPropertyHandleRotator::SetValue(FRotator InValue)
 {
-	if (!ensure(IsComponentsValid()))
+	if (!ensure(AreComponentsValid()))
 	{
 		return false;
 	}
@@ -1524,7 +1535,223 @@ bool FRemoteControlPropertyHandleRotator::SetYaw(float InValue)
 	return false;
 }
 
-bool FRemoteControlPropertyHandleRotator::IsComponentsValid() const
+bool FRemoteControlPropertyHandleRotator::AreComponentsValid() const
 {
 	return RollValue.Pin().IsValid() && PitchValue.Pin().IsValid() && YawValue.Pin().IsValid();
+}
+
+FRemoteControlPropertyHandleColor::FRemoteControlPropertyHandleColor(const TSharedPtr<FRemoteControlProperty>& InRCProperty, FProperty* InProperty, FProperty* InParentProperty, const FString& InParentFieldPath, int32 InArrayIndex)
+	: FRemoteControlPropertyHandle(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex)
+{
+	constexpr bool bRecurse = false;
+
+	ColorComponents.Add(GetChildHandle("R", bRecurse));
+	ColorComponents.Add(GetChildHandle("G", bRecurse));
+	ColorComponents.Add(GetChildHandle("B", bRecurse));
+	ColorComponents.Add(GetChildHandle("A", bRecurse));
+}
+
+bool FRemoteControlPropertyHandleColor::Supports(const FProperty* InProperty)
+{
+	if (!InProperty)
+	{
+		return false;
+	}
+
+	const FStructProperty* StructProp = CastField<FStructProperty>(InProperty);
+
+	bool bSupported = false;
+	if (StructProp && StructProp->Struct)
+	{
+		const FName StructName = StructProp->Struct->GetFName();
+		bSupported = StructName == NAME_Color;
+	}
+
+	return bSupported;
+}
+
+bool FRemoteControlPropertyHandleColor::GetValue(FColor& OutValue) const
+{
+	if (!ensure(ColorComponents.Num() == 4 && AreComponentsValid()))
+	{
+		return false;
+	}
+
+	const bool ResR = ColorComponents[0].Pin()->GetValue(OutValue.R);
+	const bool ResG = ColorComponents[1].Pin()->GetValue(OutValue.G);
+	const bool ResB = ColorComponents[2].Pin()->GetValue(OutValue.B);
+	const bool ResA = ColorComponents[3].Pin()->GetValue(OutValue.A);
+
+	return ResR && ResG && ResB && ResA;
+}
+
+bool FRemoteControlPropertyHandleColor::SetValue(FColor InValue)
+{
+	if (!ensure(ColorComponents.Num() == 4 && AreComponentsValid()))
+	{
+		return false;
+	}
+
+	const bool ResR = ColorComponents[0].Pin()->SetValue(InValue.R);
+	const bool ResG = ColorComponents[1].Pin()->SetValue(InValue.G);
+	const bool ResB = ColorComponents[2].Pin()->SetValue(InValue.B);
+	const bool ResA = ColorComponents[3].Pin()->SetValue(InValue.A);
+
+	return ResR && ResG && ResB && ResA;
+}
+
+bool FRemoteControlPropertyHandleColor::SetR(uint8 InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(0) && ColorComponents[0].Pin().IsValid()))
+	{
+		return ColorComponents[0].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleColor::SetG(uint8 InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(1) && ColorComponents[1].Pin().IsValid()))
+	{
+		return ColorComponents[1].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleColor::SetB(uint8 InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(2) && ColorComponents[2].Pin().IsValid()))
+	{
+		return ColorComponents[2].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleColor::SetA(uint8 InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(3) && ColorComponents[3].Pin().IsValid()))
+	{
+		return ColorComponents[3].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleColor::AreComponentsValid() const
+{
+	return Algo::AllOf(ColorComponents, [](const TWeakPtr<IRemoteControlPropertyHandle> ColorComponentPtr)
+	{
+		return ColorComponentPtr.Pin().IsValid();
+	});
+}
+
+FRemoteControlPropertyHandleLinearColor::FRemoteControlPropertyHandleLinearColor(const TSharedPtr<FRemoteControlProperty>& InRCProperty, FProperty* InProperty, FProperty* InParentProperty, const FString& InParentFieldPath, int32 InArrayIndex)
+	: FRemoteControlPropertyHandle(InRCProperty, InProperty, InParentProperty, InParentFieldPath, InArrayIndex)
+{
+	constexpr bool bRecurse = false;
+
+	ColorComponents.Add(GetChildHandle("R", bRecurse));
+	ColorComponents.Add(GetChildHandle("G", bRecurse));
+	ColorComponents.Add(GetChildHandle("B", bRecurse));
+	ColorComponents.Add(GetChildHandle("A", bRecurse));
+}
+
+bool FRemoteControlPropertyHandleLinearColor::Supports(const FProperty* InProperty)
+{
+	if (!InProperty)
+	{
+		return false;
+	}
+
+	const FStructProperty* StructProp = CastField<FStructProperty>(InProperty);
+
+	bool bSupported = false;
+	if (StructProp && StructProp->Struct)
+	{
+		const FName StructName = StructProp->Struct->GetFName();
+		bSupported = StructName == NAME_LinearColor;
+	}
+
+	return bSupported;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::GetValue(FLinearColor& OutValue) const
+{
+	if (!ensure(ColorComponents.Num() == 4 && AreComponentsValid()))
+	{
+		return false;
+	}
+
+	const bool ResR = ColorComponents[0].Pin()->GetValue(OutValue.R);
+	const bool ResG = ColorComponents[1].Pin()->GetValue(OutValue.G);
+	const bool ResB = ColorComponents[2].Pin()->GetValue(OutValue.B);
+	const bool ResA = ColorComponents[3].Pin()->GetValue(OutValue.A);
+
+	return ResR && ResG && ResB && ResA;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::SetValue(FLinearColor InValue)
+{
+	if (!ensure(ColorComponents.Num() == 4 && AreComponentsValid()))
+	{
+		return false;
+	}
+
+	const bool ResR = ColorComponents[0].Pin()->SetValue(InValue.R);
+	const bool ResG = ColorComponents[1].Pin()->SetValue(InValue.G);
+	const bool ResB = ColorComponents[2].Pin()->SetValue(InValue.B);
+	const bool ResA = ColorComponents[3].Pin()->SetValue(InValue.A);
+
+	return ResR && ResG && ResB && ResA;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::SetR(float InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(0) && ColorComponents[0].Pin().IsValid()))
+	{
+		return ColorComponents[0].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::SetG(float InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(1) && ColorComponents[1].Pin().IsValid()))
+	{
+		return ColorComponents[1].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::SetB(float InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(2) && ColorComponents[2].Pin().IsValid()))
+	{
+		return ColorComponents[2].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::SetA(float InValue)
+{
+	if (ensure(ColorComponents.IsValidIndex(3) && ColorComponents[3].Pin().IsValid()))
+	{
+		return ColorComponents[3].Pin()->SetValue(InValue);
+	}
+
+	return false;
+}
+
+bool FRemoteControlPropertyHandleLinearColor::AreComponentsValid() const
+{
+	return Algo::AllOf(ColorComponents, [](const TWeakPtr<IRemoteControlPropertyHandle> ColorComponentPtr)
+	{
+		return ColorComponentPtr.Pin().IsValid();
+	});
 }

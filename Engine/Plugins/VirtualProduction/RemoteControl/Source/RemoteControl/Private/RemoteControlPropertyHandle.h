@@ -87,6 +87,8 @@ public:
 	DECLARE_PROPERTY_ACCESSOR(FVector4)
 	DECLARE_PROPERTY_ACCESSOR(FQuat)
 	DECLARE_PROPERTY_ACCESSOR(FRotator)
+	DECLARE_PROPERTY_ACCESSOR(FColor)
+	DECLARE_PROPERTY_ACCESSOR(FLinearColor)
 #undef DECLARE_PROPERTY_ACCESSOR
 
 	virtual bool SetValue(const TCHAR* InValue) override { return false; }
@@ -381,7 +383,8 @@ public:
 	bool SetW(float InValue);
 
 	/** Check if all vector components are valid */
-	bool IsComponentsValid() const;
+	bool AreComponentsValid() const;
+	
 private:
 	/** Array of child struct vector components */
 	TArray< TWeakPtr<IRemoteControlPropertyHandle> > VectorComponents;
@@ -417,7 +420,7 @@ public:
 	bool SetYaw(float InValue);
 
 	/** Check if all rotator components are valid */
-	bool IsComponentsValid() const;
+	bool AreComponentsValid() const;
 
 private:
 	/** Roll handle of the rotator */
@@ -504,6 +507,86 @@ public:
 	virtual int32 GetNumElements() override;
 	virtual TSharedPtr<IRemoteControlPropertyHandle> Find(const void* KeyPtr) override;
 	//~ End IRemoteControlPropertyHandleMap Interface
+};
+
+/**
+ * The color implementation of a property handle
+ */
+class FRemoteControlPropertyHandleColor : public FRemoteControlPropertyHandle
+{
+public:
+	DECLARE_PROPERTY_ACCESSOR_CONSTRUCTOR(FRemoteControlPropertyHandleColor)
+
+	/**
+	 * Check if color handle support the given property
+	 * @param InProperty Property to check
+	 * @return true if this handle supports the given property
+	 */
+	static bool Supports(const FProperty* InProperty);
+
+	//~ Begin IRemoteControlPropertyHandle Interface
+	virtual bool GetValue(FColor& OutValue) const override;
+	virtual bool SetValue(FColor InValue) override;
+	//~ End IRemoteControlPropertyHandle Interface
+
+	/** Set R value of the color */
+	bool SetR(uint8 InValue);
+
+	/** Set G value of the color */
+	bool SetG(uint8 InValue);
+
+	/** Set B value of the color */
+	bool SetB(uint8 InValue);
+
+	/** Set A value of the color */
+	bool SetA(uint8 InValue);
+
+	/** Check if all color components are valid */
+	bool AreComponentsValid() const;
+	
+private:
+	/** Array of child struct color components */
+	TArray< TWeakPtr<IRemoteControlPropertyHandle> > ColorComponents;
+};
+
+/**
+* The linear color implementation of a property handle
+*/
+class FRemoteControlPropertyHandleLinearColor : public FRemoteControlPropertyHandle
+{
+public:
+	DECLARE_PROPERTY_ACCESSOR_CONSTRUCTOR(FRemoteControlPropertyHandleLinearColor)
+
+	/**
+	* Check if linear color handle support the given property
+	* @param InProperty Property to check
+	* @return true if this handle supports the given property
+	*/
+	static bool Supports(const FProperty* InProperty);
+
+	//~ Begin IRemoteControlPropertyHandle Interface
+	virtual bool GetValue(FLinearColor& OutValue) const override;
+	virtual bool SetValue(FLinearColor InValue) override;
+	//~ End IRemoteControlPropertyHandle Interface
+
+	/** Set R value of the linear color */
+	bool SetR(float InValue);
+
+	/** Set G value of the linear color */
+	bool SetG(float InValue);
+
+	/** Set B value of the linear color */
+	bool SetB(float InValue);
+
+	/** Set A value of the linear color */
+	bool SetA(float InValue);
+
+	/** Check if all color components are valid */
+	bool AreComponentsValid() const;
+	
+private:
+	/** Array of child struct color components */
+	TArray< TWeakPtr<IRemoteControlPropertyHandle> > ColorComponents;
 };
 
 #undef DECLARE_PROPERTY_ACCESSOR_CONSTRUCTOR

@@ -67,7 +67,9 @@ public:
 	virtual bool GetValue(FVector4& OutValue) const = 0;
 	virtual bool GetValue(FQuat& OutValue) const = 0;
 	virtual bool GetValue(FRotator& OutValue) const = 0;
-
+	virtual bool GetValue(FColor& OutValue) const = 0;
+	virtual bool GetValue(FLinearColor& OutValue) const = 0;
+	
 	/**
 	 * Sets the typed value of a property.
 	 * If the property does not support the value type false is returned
@@ -95,6 +97,8 @@ public:
 	virtual bool SetValue(FVector4 InValue) = 0;
 	virtual bool SetValue(FQuat InValue) = 0;
 	virtual bool SetValue(FRotator InValue) = 0;
+	virtual bool SetValue(FColor InValue) = 0;
+	virtual bool SetValue(FLinearColor InValue) = 0;
 	virtual bool SetValue(const TCHAR* InValue) = 0;
 
 	/**

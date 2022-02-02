@@ -24,7 +24,7 @@ namespace ERemoteControlEnum
 }
 
 USTRUCT()
-struct FRemoteControlTestStructInnerSimle
+struct FRemoteControlTestStructInnerSimple
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct FRemoteControlTestStructInner
 	int8 Int8Value = 36;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	FRemoteControlTestStructInnerSimle InnerSimle;
+	FRemoteControlTestStructInnerSimple InnerSimple;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	int32 Int32Value = -791;
@@ -164,4 +164,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	FRotator RotatorValue = {45.1f, 96.2f, 184.5f};
+
+	UPROPERTY(EditAnywhere, Category = "RC")
+	FColor ColorValue = {40, 150, 200, 50};
+
+	UPROPERTY(EditAnywhere, Category = "RC")
+	FLinearColor LinearColorValue = {0.7f, 0.8f, 0.22f, 0.652f};
 };

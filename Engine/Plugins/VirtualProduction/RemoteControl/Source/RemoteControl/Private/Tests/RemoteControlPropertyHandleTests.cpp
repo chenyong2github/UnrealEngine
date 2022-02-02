@@ -9,6 +9,8 @@
 #include "RemoteControlPropertyHandleTestData.h"
 #include "RemoteControlPreset.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 #define PROP_NAME(Class, Name) GET_MEMBER_NAME_CHECKED(Class, Name)
 #define GET_TEST_PROP(PropName) URemoteControlAPITestObject::StaticClass()->FindPropertyByName(PROP_NAME(URemoteControlAPITestObject, PropName))
 
@@ -676,7 +678,7 @@ namespace RemoteControlAPIIntegrationTest
 		const TSharedPtr<FRemoteControlProperty> RCRotatorProp = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ RotatorProperty->GetName() }).Pin();
 		Test.TestNotNull(TEXT("The exposed property must be valid."), RCRotatorProp.Get());
 
-		// Test FText property
+		// Test FRotator property
 		const FRotator RotatorPropertyTestValue(-1, -2, -3);
 		const FRotator RotatorPropertyDefaultValue(4, 5, 6);
 		TestObject->RotatorValue = RotatorPropertyDefaultValue;
@@ -693,6 +695,62 @@ namespace RemoteControlAPIIntegrationTest
 		Test.TestTrue(TEXT("Value in UObject should be the same as a value from Property Handle."), RotatorPropertyTestValue.Equals(TestObject->RotatorValue));
 	}
 
+	void TestColorProperty(FAutomationTestBase& Test)
+	{
+		// Setup test data
+		TStrongObjectPtr<URemoteControlPreset> Preset{ NewObject<URemoteControlPreset>() };
+		TStrongObjectPtr<URemoteControlAPITestObject> TestObject{ NewObject<URemoteControlAPITestObject>() };
+
+		const FProperty* ColorProperty = GET_TEST_PROP(ColorValue);
+
+		const TSharedPtr<FRemoteControlProperty> RCColorProp = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ ColorProperty->GetName() }).Pin();
+		Test.TestNotNull(TEXT("The exposed property must be valid."), RCColorProp.Get());
+
+		// Test FColor property
+		const FColor ColorPropertyTestValue(8, 140, 20);
+		const FColor ColorPropertyDefaultValue(4, 5, 6);
+		TestObject->ColorValue = ColorPropertyDefaultValue;
+
+		// Get API property Text property handle
+		const TSharedPtr<IRemoteControlPropertyHandle> ColorHandle = RCColorProp->GetPropertyHandle();
+		Test.TestNotNull(TEXT("The exposed property must be valid."), ColorHandle.Get());
+
+		FColor ColorValueFromAPI;
+		ColorHandle->GetValue(ColorValueFromAPI);
+		Test.TestTrue(TEXT("Value in UObject should be the same as a value from Property Handle."), ColorValueFromAPI == TestObject->ColorValue);
+
+		ColorHandle->SetValue(ColorPropertyTestValue);
+		Test.TestTrue(TEXT("Value in UObject should be the same as a value from Property Handle."), ColorPropertyTestValue == TestObject->ColorValue);
+	}
+
+	void TestLinearColorProperty(FAutomationTestBase& Test)
+	{
+		// Setup test data
+		TStrongObjectPtr<URemoteControlPreset> Preset{ NewObject<URemoteControlPreset>() };
+		TStrongObjectPtr<URemoteControlAPITestObject> TestObject{ NewObject<URemoteControlAPITestObject>() };
+
+		const FProperty* LinearColorProperty = GET_TEST_PROP(LinearColorValue);
+
+		const TSharedPtr<FRemoteControlProperty> RCLinearColorProp = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ LinearColorProperty->GetName() }).Pin();
+		Test.TestNotNull(TEXT("The exposed property must be valid."), RCLinearColorProp.Get());
+
+		// Test FLinearColor property
+		const FLinearColor LinearColorPropertyTestValue(0.84f, 0.12f, 0.2f);
+		const FLinearColor LinearColorPropertyDefaultValue(0.42f, 0.5f, 0.6f);
+		TestObject->LinearColorValue = LinearColorPropertyDefaultValue;
+
+		// Get API property Text property handle
+		const TSharedPtr<IRemoteControlPropertyHandle> LinearColorHandle = RCLinearColorProp->GetPropertyHandle();
+		Test.TestNotNull(TEXT("The exposed property must be valid."), LinearColorHandle.Get());
+
+		FLinearColor LinearColorValueFromAPI;
+		LinearColorHandle->GetValue(LinearColorValueFromAPI);
+		Test.TestTrue(TEXT("Value in UObject should be the same as a value from Property Handle."), LinearColorValueFromAPI == TestObject->LinearColorValue);
+
+		LinearColorHandle->SetValue(LinearColorPropertyTestValue);
+		Test.TestTrue(TEXT("Value in UObject should be the same as a value from Property Handle."), LinearColorPropertyTestValue == TestObject->LinearColorValue);
+	}
+
 	void TestComplexPath(FAutomationTestBase& Test)
 	{
 		// Create preset and uobject
@@ -705,7 +763,7 @@ namespace RemoteControlAPIIntegrationTest
 		constexpr int32 StructOuterMapIndex = 468;
 
 		FRemoteControlTestStructInner RemoteControlTestStructInner;
-		RemoteControlTestStructInner.InnerSimle.Int32Value = Int32ValueTest;
+		RemoteControlTestStructInner.InnerSimple.Int32Value = Int32ValueTest;
 
 		FRemoteControlTestStructOuter RemoteControlTestStructOuter;
 		RemoteControlTestStructOuter.StructInnerSet.Add(RemoteControlTestStructInner);
@@ -716,7 +774,7 @@ namespace RemoteControlAPIIntegrationTest
 		const FProperty* StructOuterMapProp = GET_TEST_PROP(StructOuterMap);
 		const FGuid StructOuterMapPropId = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ StructOuterMapProp->GetName() }).Pin()->GetId();
 
-		// Test complex path hanles
+		// Test complex path handles
 		{
 			// 1. Find the Remote Control preset
 			URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(PresetName);
@@ -769,21 +827,21 @@ namespace RemoteControlAPIIntegrationTest
 				return;
 			}
 
-			const TSharedPtr<IRemoteControlPropertyHandle> StructInnerropertyHandle = StructInnerSetPropertyHandleAsSet->FindElement(&RemoteControlTestStructInner);
-			if (!StructInnerropertyHandle.IsValid())
+			const TSharedPtr<IRemoteControlPropertyHandle> StructInnerPropertyHandle = StructInnerSetPropertyHandleAsSet->FindElement(&RemoteControlTestStructInner);
+			if (!StructInnerPropertyHandle.IsValid())
 			{
 				Test.AddError(TEXT("StructInnerropertyHandle not valid"));
 				return;
 			}
 
-			const TSharedPtr<IRemoteControlPropertyHandle> StructInnerSimleHandle = StructInnerropertyHandle->GetChildHandle(1);
-			if (!StructInnerSimleHandle.IsValid())
+			const TSharedPtr<IRemoteControlPropertyHandle> StructInnerSimpleHandle = StructInnerPropertyHandle->GetChildHandle(1);
+			if (!StructInnerSimpleHandle.IsValid())
 			{
-				Test.AddError(TEXT("StructInnerSimleHandle not valid"));
+				Test.AddError(TEXT("StructInnerSimpleHandle not valid"));
 				return;
 			}
 
-			const TSharedPtr<IRemoteControlPropertyHandle> Int32ValueHandle =  StructInnerSimleHandle->GetChildHandle(0);
+			const TSharedPtr<IRemoteControlPropertyHandle> Int32ValueHandle =  StructInnerSimpleHandle->GetChildHandle(0);
 			if (!Int32ValueHandle.IsValid())
 			{
 				Test.AddError(TEXT("Int32ValueHandle not valid"));
@@ -792,7 +850,7 @@ namespace RemoteControlAPIIntegrationTest
 
 			int32 GetInt32Value = 0;
 			Int32ValueHandle->GetValue(GetInt32Value);
-			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), RemoteControlTestStructInner.InnerSimle.Int32Value, GetInt32Value);
+			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), RemoteControlTestStructInner.InnerSimple.Int32Value, GetInt32Value);
 
 			int32 SetInt32Value = 0;
 			Int32ValueHandle->SetValue(SetInt32Value);
@@ -800,7 +858,7 @@ namespace RemoteControlAPIIntegrationTest
 				TestObject
 					->StructOuterMap.Find(StructOuterMapIndex)
 					->StructInnerSet.FindByHash(GetTypeHash(RemoteControlTestStructInner), RemoteControlTestStructInner)
-					->InnerSimle.Int32Value,
+					->InnerSimple.Int32Value,
 				SetInt32Value);
 		}
 	}
@@ -809,14 +867,18 @@ namespace RemoteControlAPIIntegrationTest
 	{
 		// Create preset and uobject
 		const TCHAR* PresetName = TEXT("TestComplexPath");
+
 		TStrongObjectPtr<URemoteControlPreset> Preset{ NewObject<URemoteControlPreset>(GetTransientPackage(), PresetName) };
+		check(Preset);
+		
 		TStrongObjectPtr<URemoteControlAPITestObject> TestObject{ NewObject<URemoteControlAPITestObject>() };
+		check(TestObject);
 
 		// Set a test value
 		constexpr int32 Int32ValueTest = 14923;
 
 		FRemoteControlTestStructInner RemoteControlTestStructInner;
-		RemoteControlTestStructInner.InnerSimle.Int32Value = Int32ValueTest;
+		RemoteControlTestStructInner.InnerSimple.Int32Value = Int32ValueTest;
 
 		FRemoteControlTestStructOuter RemoteControlTestStructOuter;
 		RemoteControlTestStructOuter.StructInnerSet.Add(RemoteControlTestStructInner);
@@ -833,30 +895,32 @@ namespace RemoteControlAPIIntegrationTest
 		const FName IntMapLabel = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ IntMapProp->GetName() }).Pin()->GetLabel();
 
 		const TSharedPtr<IRemoteControlPropertyHandle> StructOuterMapPropertyHandle = IRemoteControlPropertyHandle::GetPropertyHandle(PresetName, StructOuterMapPropId);
-		Test.TestTrue(TEXT("Property handle is valid"), StructOuterMapPropertyHandle.IsValid());
+		if(!Test.TestValid(TEXT("Property handle is valid"), StructOuterMapPropertyHandle))
+		{
+			return;
+		}
 
 		Test.TestFalse(TEXT("Child property handle should nullptr if the path same as a parent path"), StructOuterMapPropertyHandle->GetChildHandleByFieldPath(TEXT("StructOuterMap")).IsValid());
 		Test.TestFalse(TEXT("Child property handle should nullptr if the field path is wrong"), StructOuterMapPropertyHandle->GetChildHandleByFieldPath(TEXT("StructOuterMap_Wrong_Path")).IsValid());
 
 		const TSharedPtr<IRemoteControlPropertyHandleMap> StructOuterMapPropertyHandleAsMap = StructOuterMapPropertyHandle->AsMap();
-		if (!StructOuterMapPropertyHandleAsMap.IsValid())
+		if(!Test.TestValid(TEXT("StructOuterMapPropertyHandleAsMap is valid"), StructOuterMapPropertyHandleAsMap))
 		{
-			Test.AddError(TEXT("StructOuterMapPropertyHandleAsMap not valid"));
 			return;
 		}
 
 		const TSharedPtr<IRemoteControlPropertyHandle> StructOuterPropertyHandle_0 = StructOuterMapPropertyHandle->GetChildHandleByFieldPath(TEXT("StructOuterMap[1]"));
-		Test.TestTrue(TEXT("Property handle is valid"), StructOuterPropertyHandle_0.IsValid());
+		Test.TestValid(TEXT("Property handle is valid"), StructOuterPropertyHandle_0);
 		Test.TestNotNull(TEXT("Property handle should be valid"), CastField<FMapProperty>(StructOuterPropertyHandle_0->GetParentProperty()));
 		Test.TestTrue(TEXT("Index should be 1"), StructOuterPropertyHandle_0->GetIndexInArray() == 1);
 
-		const TSharedPtr<IRemoteControlPropertyHandle> IntPropertyHandle = StructOuterMapPropertyHandle->GetChildHandleByFieldPath(TEXT("StructOuterMap[1].StructInnerSet[0].InnerSimle.Int32Value"));
-		Test.TestTrue(TEXT("Property handle is valid"), IntPropertyHandle.IsValid());
-
+		const TSharedPtr<IRemoteControlPropertyHandle> IntPropertyHandle = StructOuterMapPropertyHandle->GetChildHandleByFieldPath(TEXT("StructOuterMap[1].StructInnerSet[0].InnerSimple.Int32Value"));
+		Test.TestValid(TEXT("Property handle is valid"), IntPropertyHandle);
+		
 		{
 			int32 GetInt32Value = 0;
 			IntPropertyHandle->GetValue(GetInt32Value);
-			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), RemoteControlTestStructInner.InnerSimle.Int32Value, GetInt32Value);
+			Test.TestEqual(TEXT("Value in UObject should be the same as a value from Property Handle."), RemoteControlTestStructInner.InnerSimple.Int32Value, GetInt32Value);
 
 		}
 
@@ -933,6 +997,8 @@ bool FRemoteControlAPIIntegrationTest::RunTest(const FString& Parameters)
 	RemoteControlAPIIntegrationTest::TestTextProperty(*this);
 	RemoteControlAPIIntegrationTest::TestVectorProperty(*this);
 	RemoteControlAPIIntegrationTest::TestRotatorProperty(*this);
+	RemoteControlAPIIntegrationTest::TestColorProperty(*this);
+	RemoteControlAPIIntegrationTest::TestLinearColorProperty(*this);
 	RemoteControlAPIIntegrationTest::TestComplexPath(*this);
 	RemoteControlAPIIntegrationTest::TestGetPropertyHandleByFieldPath(*this);
 
@@ -941,3 +1007,5 @@ bool FRemoteControlAPIIntegrationTest::RunTest(const FString& Parameters)
 
 #undef GET_TEST_PROP
 #undef PROP_NAME
+
+PRAGMA_ENABLE_OPTIMIZATION
