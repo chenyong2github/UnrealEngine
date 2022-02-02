@@ -1200,12 +1200,12 @@ void ConeTraceLumenSceneHeightfields(
 	if (TraceInput.VoxelTraceStartDistance > TraceInput.MinTraceDistance)
 	{
 		FConeTraceInput CardTraceInput = TraceInput;
-		CardTraceInput.MaxTraceDistance = TraceInput.VoxelTraceStartDistance;
+		CardTraceInput.MaxTraceDistance = min(TraceInput.VoxelTraceStartDistance, OutResult.OpaqueHitDistance);
 
 		FConeTraceResult HeightfieldResult = OutResult;
 		ConeTraceHeightfield(CardTraceInput, HeightfieldResult);
 
-		if (HeightfieldResult.OpaqueHitDistance < OutResult.OpaqueHitDistance)
+		if (HeightfieldResult.OpaqueHitDistance < CardTraceInput.MaxTraceDistance)
 		{
 			OutResult = HeightfieldResult;
 		}

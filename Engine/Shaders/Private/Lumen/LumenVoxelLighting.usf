@@ -616,6 +616,7 @@ void VisBufferShadingCS(
 
 				if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_MESH_SDF)
 				{
+#if SHADE_MESH_SDF
 					FTraceMeshSDFResult TraceMeshSDFResult;
 					TraceMeshSDFResult.HitDistance = HitDistance;
 					TraceMeshSDFResult.HitObject = VisBuffer.HitObjectId;
@@ -623,13 +624,15 @@ void VisBufferShadingCS(
 					FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(RayStart, RayDirection, RayLength, false, TraceMeshSDFResult);
 					MeshCardsIndex = TraceSDFData.MeshCardsIndex;
 					SurfaceCacheDepthTestBias = TraceSDFData.SurfaceCacheDepthTestBias;
+#endif // SHADE_MESH_SDF
 				}
-				// TODO: Bucket by hit-object type in compaction step..
 				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD)
 				{
+#if SHADE_HEIGHTFIELD
 					FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(VisBuffer.HitObjectId);
 					MeshCardsIndex = LumenHeightfield.MeshCardsIndex;
 					SurfaceCacheDepthTestBias = 20.0f;
+#endif // SHADE_HEIGHTFIELD
 				}
 
 				if (MeshCardsIndex < LumenCardScene.NumMeshCards)
