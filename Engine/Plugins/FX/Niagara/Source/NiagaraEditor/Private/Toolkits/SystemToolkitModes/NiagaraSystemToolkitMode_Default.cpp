@@ -284,3 +284,5 @@ void FNiagaraSystemToolkitMode_Default::RegisterTabFactories(TSharedPtr<FTabMana
 
 	// add additional tab factories here that are exclusive to this mode
 }
+
+#undef LOCTEXT_NAMESPACE
