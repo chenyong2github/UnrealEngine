@@ -73,12 +73,17 @@ protected:
 	bool GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const;
 
 	void UpdatePreviewRenderTarget();
+	void ReleasePreviewRenderTarget();
+
 	bool UpdatePreviewMesh(bool bRestoreOriginalMaterial = false);
+	void ReleasePreviewMesh();
 
 	bool UpdatePreviewTexture();
-	void RemovePreviewTexture();
+	void ReleasePreviewTexture();
 
-	void InitializeInternals();
+	void InitializePreviewMaterial();
+	void ReleasePreviewMaterial();
+	void UpdatePreviewMaterial();
 
 	void UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial = false);
 
@@ -86,11 +91,6 @@ protected:
 	// Set to true, when RTT surface updated
 	int32 RenderTargetSurfaceChangedCnt = 0;
 	bool bIsEditingProperty = false;
-
-private:
-	// The maximum dimension that the preview render target can be, which helps ensure good performance even if viewports are very large
-	static const uint32 MaxRenderTargetDimension;
-
 #endif /* WITH_EDITOR */
 
 #if WITH_EDITORONLY_DATA
@@ -128,7 +128,7 @@ private:
 	UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
 
 	UPROPERTY(Transient)
-	UTexture2D* PreviewTexture;
+	UTexture2D* PreviewTexture = nullptr;
 
 #endif /*WITH_EDITORONLY_DATA*/
 };
