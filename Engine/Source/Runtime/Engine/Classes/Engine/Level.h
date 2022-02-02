@@ -911,6 +911,11 @@ public:
 	ENGINE_API void CleanupLevel(bool bCleanupResources);
 
 	/**
+	 * Cleans all references from and to this level that may be preventing it from being Garbage Collected
+	 */
+	ENGINE_API void CleanupReferences();
+
+	/**
 	 * Clears all components of actors associated with this level (aka in Actors array) and 
 	 * also the BSP model components.
 	 */

@@ -446,6 +446,15 @@ void ULevel::CleanupLevel(bool bCleanupResources)
 	}
 }
 
+void ULevel::CleanupReferences()
+{
+	// Make sure MetaData is not marked as standalone as this will prevent the level from being GC'd
+	if (GetOutermost()->HasMetaData())
+	{
+		GetOutermost()->GetMetaData()->ClearFlags(RF_Standalone);
+	}
+}
+
 void ULevel::PostInitProperties()
 {
 	Super::PostInitProperties();

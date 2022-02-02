@@ -2043,6 +2043,11 @@ void UWorld::MarkObjectsPendingKill()
 	auto MarkObjectPendingKill = [](UObject* Object)
 	{
 		Object->MarkAsGarbage();
+
+		if (ULevel* Level = Cast<ULevel>(Object))
+		{
+			Level->CleanupReferences();
+		}
 	};
 	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 
@@ -3278,6 +3283,8 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 				}
 			}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
+
+			Level->CleanupReferences();
 		}
 	}
 
@@ -5009,6 +5016,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		if (PersistentLevel)
 		{
 			PersistentLevel->CleanupLevel(bCleanupResources);
+			PersistentLevel->CleanupReferences();
 		}
 
 		if (GetNumLevels() > 1)
@@ -5016,7 +5024,9 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 			check(GetLevel(0) == PersistentLevel);
 			for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
 			{
-				GetLevel(LevelIndex)->CleanupLevel(bCleanupResources);
+				ULevel* Level = GetLevel(LevelIndex);
+				Level->CleanupLevel(bCleanupResources);
+				Level->CleanupReferences();
 			}
 		}
 	}
