@@ -285,10 +285,13 @@ void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("AddNewItem", LOCTEXT("AddOperations", "Add New"));
 
+#if 0
+	// NOTE: Disabled for 5.0
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
 
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
+#endif
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
 
 	MenuBuilder.EndSection();
@@ -388,7 +391,10 @@ void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSec
 	if (IsShowingEmptySections())
 	{
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Graphs));
+#if 0
+		// NOTE: Disabled for 5.0
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Resources));
+#endif
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Variables));
 	}
 }
@@ -415,6 +421,8 @@ FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdG
 
 		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Variable::New(Action, VariableDesc));
 	}
+#if 0
+	// NOTE: Disabled for 5.0
 	else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
 	{
 		FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
@@ -422,6 +430,7 @@ FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdG
 
 		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Resource::New(Action, ResourceDesc));
 	}
+#endif
 
 	return FReply::Unhandled();
 }
@@ -645,35 +654,42 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 	TArray<TSharedPtr<FUICommandInfo>> SubCommands = GetSectionMenuCommands(InSectionID);
 	if (SubCommands.Num() > 1)
 	{
-		TSharedPtr<SWidget> AddMenuWidget;
-
-		if (ensure(ToolKitCommandList))
+		if (CanAddNewElementToSection(InSectionID))
 		{
-			FMenuBuilder MenuBuilder(true, ToolKitCommandList);
+			TSharedPtr<SWidget> AddMenuWidget;
 
-			for (TSharedPtr<FUICommandInfo> CommandIndo : SubCommands)
+			if (ensure(ToolKitCommandList))
 			{
-				MenuBuilder.AddMenuEntry(CommandIndo);
+				FMenuBuilder MenuBuilder(true, ToolKitCommandList);
+
+				for (TSharedPtr<FUICommandInfo> CommandIndo : SubCommands)
+				{
+					MenuBuilder.AddMenuEntry(CommandIndo);
+				}
+
+				AddMenuWidget = MenuBuilder.MakeWidget();
 			}
 
-			AddMenuWidget = MenuBuilder.MakeWidget();
+			return SNew(SComboButton)
+				.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+				.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+			    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+			    .ContentPadding(FMargin(2, 0))
+				.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
+				.HasDownArrow(false)
+			    .HAlign(HAlign_Center)
+			    .VAlign(VAlign_Center)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Plus"))
+					.ToolTipText(AddNewTooltipText)
+				];
 		}
-
-		return SNew(SComboButton)
-			.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
-		    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-		    .ContentPadding(FMargin(2, 0))
-			.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
-			.HasDownArrow(false)
-		    .HAlign(HAlign_Center)
-		    .VAlign(VAlign_Center)
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Plus"))
-				.ToolTipText(AddNewTooltipText)
-			];
+		else
+		{
+			return SNullWidget::NullWidget;
+		}
 	}
 	else
 	{
@@ -722,7 +738,8 @@ FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionI
 
 bool SOptimusEditorGraphExplorer::CanAddNewElementToSection(int32 InSectionID) const
 {
-	return true;
+	// NOTE: Disabled for 5.0
+	return EOptimusSchemaItemGroup(InSectionID) == EOptimusSchemaItemGroup::Variables;
 }
 
 
