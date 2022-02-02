@@ -694,7 +694,12 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 	bool bRender = !Settings->bHideControlShapes;
 
-	FTransform ComponentTransform = GetHostingSceneComponentTransform();
+	FTransform ComponentTransform = FTransform::Identity;
+	if(IsInLevelEditor())
+	{
+		ComponentTransform = GetHostingSceneComponentTransform();
+	}
+	
 	if (bRender)
 	{
 		for (AControlRigShapeActor* Actor : ShapeActors)
@@ -3362,7 +3367,12 @@ void FControlRigEditMode::OnPoseInitialized()
 
 void FControlRigEditMode::PostPoseUpdate()
 {
-	FTransform ComponentTransform = GetHostingSceneComponentTransform();
+	FTransform ComponentTransform = FTransform::Identity;
+	if(IsInLevelEditor())
+	{
+		ComponentTransform = GetHostingSceneComponentTransform();
+	}
+	
 	for(AControlRigShapeActor* ShapeActor : ShapeActors)
 	{
 		TickControlShape(ShapeActor, ComponentTransform);
