@@ -268,7 +268,8 @@ namespace PerfSummaries
 			}
 			catch (System.ArgumentException)
 			{
-				throw new Exception("Summary metadata key " + key + " has already been added");
+				//throw new Exception("Summary metadata key " + key + " has already been added");
+				Console.WriteLine("Warning: Key " + key + " has already been added. Ignoring...");
 			}
 		}
 
@@ -298,7 +299,8 @@ namespace PerfSummaries
 			}
 			catch (System.ArgumentException)
 			{
-				throw new Exception("Summary metadata key " + key + " has already been added");
+				//throw new Exception("Summary metadata key " + key + " has already been added");
+				Console.WriteLine("Warning: Key " + key + " has already been added. Ignoring...");
 			}
 		}
 
