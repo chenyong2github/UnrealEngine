@@ -973,6 +973,7 @@ bool AActor::IsActorLabelEditable() const
 void AActor::ClearActorLabel()
 {
 	ActorLabel.Reset();
+	FCoreDelegates::OnActorLabelChanged.Broadcast(this);
 }
 
 FFolder AActor::GetFolder() const
