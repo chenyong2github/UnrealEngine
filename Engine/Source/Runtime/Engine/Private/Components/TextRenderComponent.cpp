@@ -660,7 +660,7 @@ FTextRenderSceneProxy::FTextRenderSceneProxy( UTextRenderComponent* Component) :
 	{
 		const UMaterial* BaseMaterial = Component->TextMaterial->GetMaterial_Concurrent();
 
-		if(BaseMaterial->MaterialDomain == MD_Surface)
+		if(BaseMaterial->MaterialDomain == MD_Surface || BaseMaterial->MaterialDomain == MD_DeferredDecal)
 		{
 			EffectiveMaterial = Component->TextMaterial;
 		}
