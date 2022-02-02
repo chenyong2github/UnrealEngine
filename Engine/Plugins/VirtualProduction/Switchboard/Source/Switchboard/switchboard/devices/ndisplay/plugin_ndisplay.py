@@ -1178,20 +1178,13 @@ class DevicenDisplay(DeviceUnreal):
         '''
         ext = os.path.splitext(cfg_file)[1].lower()
 
-        try:
-            if ext == '.ndisplay':
-                return cls.parse_config_json(cfg_file)
+        if ext == '.ndisplay':
+            return cls.parse_config_json(cfg_file)
+        elif ext == '.uasset':
+            return cls.parse_config_uasset(cfg_file)
+        
+        raise Exception(f'Unknown config extension "{ext}"')
 
-            if ext == '.uasset':
-                return cls.parse_config_uasset(cfg_file)
-
-        except Exception as e:
-            LOGGER.error(
-                f'Error while parsing nDisplay config file "{cfg_file}": {e}')
-            return DisplayConfig()
-
-        LOGGER.error(f'Unknown nDisplay config file "{cfg_file}"')
-        return DisplayConfig()
 
     def update_settings_controlled_by_config(self, cfg_file):
         '''
