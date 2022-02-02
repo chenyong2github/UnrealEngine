@@ -91,7 +91,7 @@ static uint32 BinarySearch(const TArray<void*, TInlineAllocator<64>>& Hazards, v
 	}
 
 	//small size array optimization
-	int32 ArrayEnd = Index + Size;
+	int32 ArrayEnd = FMath::Min(Index + Size + 1, Hazards.Num());
 	while (Index < ArrayEnd)
 	{
 		if (Hazards[Index] == Pointer)

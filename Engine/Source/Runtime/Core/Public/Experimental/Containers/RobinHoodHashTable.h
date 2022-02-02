@@ -136,7 +136,7 @@ namespace RobinHoodHashTable_Private
 			}
 
 			//small size array optimization
-			int ArrayEnd = Index + Size;
+			int ArrayEnd = FMath::Min(Index + Size + 1, FreeList.Num());
 			while (Index < ArrayEnd)
 			{
 				if (FreeList[Index].Start < NodeIndex)
