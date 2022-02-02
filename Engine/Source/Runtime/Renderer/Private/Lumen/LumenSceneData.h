@@ -104,6 +104,7 @@ public:
 	FLumenCardOBB WorldOBB;
 
 	bool bVisible = false;
+	bool bHeightfield = false;
 	bool bDistantScene = false;
 
 	// First and last allocated mip map
@@ -122,7 +123,14 @@ public:
 	uint8 AxisAlignedDirectionIndex = UINT8_MAX;
 	float ResolutionScale = 1.0f;
 
-	void Initialize(float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex, uint8 InIndexInBuildData);
+	void Initialize(
+		float InResolutionScale,
+		const FMatrix& LocalToWorld,
+		const FLumenMeshCards& InMeshCardsInstance,
+		const FLumenCardBuildData& CardBuildData,
+		int32 InIndexInMeshCards,
+		int32 InMeshCardsIndex,
+		uint8 InIndexInBuildData);
 
 	void SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB);
 
@@ -195,7 +203,7 @@ public:
 
 	bool bValidMeshCards = false;
 	bool bFarField = false;
-	bool bLandscape = false;
+	bool bHeightfield = false;
 	bool bEmissiveLightSource = false;
 
 	bool HasMergedInstances() const;

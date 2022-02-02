@@ -21,7 +21,7 @@ FAutoConsoleVariableRef CVarLumenDirectLighting(
 	TEXT("r.LumenScene.DirectLighting"),
 	GLumenDirectLighting,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenDirectLightingForceForceShadowMaps = 0;
@@ -29,7 +29,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingForceShadowMaps(
 	TEXT("r.LumenScene.DirectLighting.ForceShadowMaps"),
 	GLumenDirectLightingForceForceShadowMaps,
 	TEXT("Use shadow maps for all lights casting shadows."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenDirectLightingReuseShadowMaps = 1;
@@ -45,7 +45,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
 	TEXT("r.LumenScene.DirectLighting.OffscreenShadowing.TraceMeshSDFs"),
 	GLumenDirectLightingOffscreenShadowingTraceMeshSDFs,
 	TEXT("Whether to trace against Mesh Signed Distance Fields for offscreen shadowing, or to trace against the lower resolution Global SDF."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenDirectLightingMaxLightsPerTile = 8;
@@ -53,7 +53,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightinggMaxLightsPerTile(
 	TEXT("r.LumenScene.DirectLighting.MaxLightsPerTile"),
 	GLumenDirectLightingMaxLightsPerTile,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 float GOffscreenShadowingTraceStepFactor = 5;
@@ -61,7 +61,7 @@ FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	TEXT("r.LumenScene.DirectLighting.OffscreenShadowingTraceStepFactor"),
 	GOffscreenShadowingTraceStepFactor,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GOffscreenShadowingSDFSurfaceBiasScale = 6;
@@ -69,7 +69,7 @@ FAutoConsoleVariableRef CVarOffscreenShadowingSDFSurfaceBiasScale(
 	TEXT("r.LumenScene.DirectLighting.OffscreenShadowingSDFSurfaceBiasScale"),
 	GOffscreenShadowingSDFSurfaceBiasScale,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GShadowingSurfaceBias = 2;
@@ -77,7 +77,7 @@ FAutoConsoleVariableRef CVarShadowingSurfaceBias(
 	TEXT("r.LumenScene.DirectLighting.ShadowingSurfaceBias"),
 	GShadowingSurfaceBias,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GShadowingSlopeScaledSurfaceBias = 4.0f;
@@ -85,7 +85,7 @@ FAutoConsoleVariableRef CVarShadowingSlopeScaledSurfaceBias(
 	TEXT("r.LumenScene.DirectLighting.ShadowingSlopeScaledSurfaceBias"),
 	GShadowingSlopeScaledSurfaceBias,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenDirectLightingCloudTransmittance = 1;
@@ -93,7 +93,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingCloudTransmittance(
 	TEXT("r.LumenScene.DirectLighting.CloudTransmittance"),
 	GLumenDirectLightingCloudTransmittance,
 	TEXT("Whether to sample cloud shadows when avaible."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenDirectLightingVirtualShadowMap = 1;
@@ -101,7 +101,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMap(
 	TEXT("r.LumenScene.DirectLighting.VirtualShadowMap"),
 	GLumenDirectLightingVirtualShadowMap,
 	TEXT("Whether to sample virtual shadow when avaible."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 float GLumenDirectLightingVirtualShadowMapBias = 7.0f;
@@ -109,7 +109,14 @@ FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMapBias(
 	TEXT("r.LumenScene.DirectLighting.VirtualShadowMapBias"),
 	GLumenDirectLightingVirtualShadowMapBias,
 	TEXT("Bias for sampling virtual shadow maps."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenDirectLightingHeightfieldBiasScale(
+	TEXT("r.LumenScene.DirectLighting.HeightfieldBiasScale"),
+	10.0f,
+	TEXT("Landscape specific bias scale for shadow maps. Helps to fix mismatching LOD artifacts between fixed LOD in Surface Cache and Landscape CLOD in shadow view."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 bool Lumen::UseVirtualShadowMaps()
@@ -555,6 +562,7 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
 		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
+		SHADER_PARAMETER(float, HeightfieldBiasScale)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, SampleDenseShadowMap)
 		SHADER_PARAMETER(uint32, ForceShadowMaps)
@@ -1000,6 +1008,7 @@ void SampleShadowMap(
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
 		PassParameters->VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
+		PassParameters->HeightfieldBiasScale = FMath::Clamp(CVarLumenDirectLightingHeightfieldBiasScale.GetValueOnRenderThread(), .01f, 100.0f);
 		PassParameters->ForceOffscreenShadowing = (GLumenDirectLightingReuseShadowMaps == 0 || !View.Family->EngineShowFlags.LumenReuseShadowMaps) ? 1 : 0;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}

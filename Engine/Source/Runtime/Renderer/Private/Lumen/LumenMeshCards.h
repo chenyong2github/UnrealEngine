@@ -32,7 +32,7 @@ public:
 		uint32 InFirstCardIndex,
 		uint32 InNumCards,
 		bool InFarField,
-		bool InLandscape,
+		bool InHeightfield,
 		bool InEmissiveLightSource)
 	{
 		PrimitiveGroupIndex = InPrimitiveGroupIndex;
@@ -42,7 +42,7 @@ public:
 		FirstCardIndex = InFirstCardIndex;
 		NumCards = InNumCards;
 		bFarField = InFarField;
-		bLandscape = InLandscape;
+		bHeightfield = InHeightfield;
 		bEmissiveLightSource = InEmissiveLightSource;
 	}
 
@@ -64,7 +64,7 @@ public:
 
 	int32 PrimitiveGroupIndex = -1;
 	bool bFarField = false;
-	bool bLandscape = false;
+	bool bHeightfield = false;
 	bool bEmissiveLightSource = false;
 
 	uint32 FirstCardIndex = 0;

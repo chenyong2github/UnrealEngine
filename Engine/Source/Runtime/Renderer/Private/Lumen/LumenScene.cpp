@@ -771,7 +771,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
-						PrimitiveGroup.bLandscape = false;
+						PrimitiveGroup.bHeightfield = false;
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
@@ -827,7 +827,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.HeightfieldIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
-								PrimitiveGroup.bLandscape = false;
+								PrimitiveGroup.bHeightfield = false;
 								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
@@ -867,7 +867,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.HeightfieldIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
-								PrimitiveGroup.bLandscape = false;
+								PrimitiveGroup.bHeightfield = false;
 								PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
@@ -887,7 +887,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.HeightfieldIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = SceneProxy->IsRayTracingFarField();
-						PrimitiveGroup.bLandscape = SceneProxy->SupportsHeightfieldRepresentation();
+						PrimitiveGroup.bHeightfield = SceneProxy->SupportsHeightfieldRepresentation();
 						PrimitiveGroup.bEmissiveLightSource = SceneProxy->IsEmissiveLightSource();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);

@@ -32,6 +32,8 @@
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
 float VirtualShadowMapSurfaceBias;
+float HeightfieldBiasScale;
+
 int VirtualShadowMapId;
 
 // Debug variables
@@ -124,6 +126,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				bool bVSMValid = false;
 
 				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), LWCHackToFloat(PrimaryView.WorldToClip));
+				const float ReceiverBiasScale = Card.bHeightfield ? HeightfieldBiasScale : 1.0f;
 
 				// Shadow maps are culled so only query points inside the view frustum are valid
 				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
@@ -131,7 +134,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if VIRTUAL_SHADOW_MAP
 					{
 						// Bias only ray start to maximize chances of hitting an allocated page
-						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
+						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias * ReceiverBiasScale, WorldNormal);
 
 						bVSMValid = VirtualShadowMapSample.bValid;
 						ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;
@@ -148,7 +151,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
 						float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
-						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
+						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, SurfaceBias * ReceiverBiasScale, SlopeScaledSurfaceBias * ReceiverBiasScale, 1.0f);
 
 						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 						{

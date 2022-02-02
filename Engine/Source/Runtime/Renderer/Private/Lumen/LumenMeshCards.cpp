@@ -183,6 +183,7 @@ public:
 		Packed3W = uint8(ResLevelBias.X) & 0xFF;
 		Packed3W |= (uint8(ResLevelBias.Y) & 0xFF) << 8;
 		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 16) : 0;
+		Packed3W |= Card.bHeightfield && Card.IsAllocated() ? (1 << 17) : 0;
 
 		OutData[3] = FVector4f(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
 		OutData[3].W = *((float*)&Packed3W);
@@ -240,7 +241,7 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
 	PackedData[1] = MeshCards.NumCards & 0xFFFF;
-	PackedData[1] |= MeshCards.bLandscape ? 0x10000 : 0;
+	PackedData[1] |= MeshCards.bHeightfield ? 0x10000 : 0;
 	PackedData[2] = MeshCards.CardLookup[0];
 	PackedData[3] = MeshCards.CardLookup[1];
 	OutData[6] = *(FVector4f*)&PackedData;
@@ -705,7 +706,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 
 	if (PrimitiveGroup.MeshCardsIndex < 0)
 	{
-		if (PrimitiveGroup.bLandscape)
+		if (PrimitiveGroup.bHeightfield)
 		{
 			// Landscape component handling
 			FMatrix LocalToWorld;
@@ -838,12 +839,12 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				FirstCardIndex,
 				NumCards,
 				PrimitiveGroup.bFarField,
-				PrimitiveGroup.bLandscape,
+				PrimitiveGroup.bHeightfield,
 				PrimitiveGroup.bEmissiveLightSource);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 
-			if (PrimitiveGroup.bLandscape)
+			if (PrimitiveGroup.bHeightfield)
 			{
 				const int32 HeightfieldIndex = Heightfields.AddSpan(1);
 				PrimitiveGroup.HeightfieldIndex = HeightfieldIndex;
@@ -862,7 +863,15 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 				{
 					const int32 CardInsertIndex = FirstCardIndex + LocalCardIndex;
 
-					Cards[CardInsertIndex].Initialize(PrimitiveGroup.CardResolutionScale, LocalToWorld, CardBuildData, LocalCardIndex, MeshCardsIndex, CardIndexInBuildData);
+					Cards[CardInsertIndex].Initialize(
+						PrimitiveGroup.CardResolutionScale,
+						LocalToWorld,
+						MeshCardsInstance,
+						CardBuildData,
+						LocalCardIndex,
+						MeshCardsIndex,
+						CardIndexInBuildData);
+
 					CardIndicesToUpdateInBuffer.Add(CardInsertIndex);
 
 					++LocalCardIndex;

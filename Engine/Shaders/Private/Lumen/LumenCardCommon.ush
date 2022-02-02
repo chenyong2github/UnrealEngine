@@ -27,6 +27,7 @@ struct FLumenCardData
 	uint2 ResLevelToResLevelXYBias;
 
 	bool bVisible;
+	bool bHeightfield;
 };
 
 #if USE_LUMEN_CARD_DATA_BUFFER
@@ -66,6 +67,7 @@ FLumenCardData GetLumenCardData(uint CardId)
 	CardData.ResLevelToResLevelXYBias.x = (asuint(Vector3.w) >> 0) & 0xFF;
 	CardData.ResLevelToResLevelXYBias.y = (asuint(Vector3.w) >> 8) & 0xFF;
 	CardData.bVisible = asuint(Vector3.w) & (1 << 16);
+	CardData.bHeightfield = asuint(Vector3.w) & (1 << 17);
 
 	CardData.SizeInPages.x = (asuint(Vector4.x) >> 0) & 0xFFFF;
 	CardData.SizeInPages.y = (asuint(Vector4.x) >> 16) & 0xFFFF;
@@ -179,7 +181,7 @@ struct FLumenMeshCardsData
 	uint NumCards;
 	uint CardOffset;
 
-	bool bLandscape;
+	bool bHeightfield;
 
 	uint CardLookup[6];
 };
@@ -205,7 +207,7 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	uint4 V4 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 7]);
 	MeshCardsData.CardOffset = V3.x;
 	MeshCardsData.NumCards = V3.y & 0xFFFF;
-	MeshCardsData.bLandscape = V3.y & 0x10000 ? true : false;
+	MeshCardsData.bHeightfield = V3.y & 0x10000 ? true : false;
 	MeshCardsData.CardLookup[0] = V3.z;
 	MeshCardsData.CardLookup[1] = V3.w;
 	MeshCardsData.CardLookup[2] = V4.x;
