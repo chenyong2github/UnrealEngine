@@ -1281,7 +1281,7 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 			}
 			else
 			{
-				checkSlow(Layout.AreSubresourcesSameLayout(ImageBarrier.oldLayout, ImageBarrier.subresourceRange));
+				checkSlow(ExtraData.IsAliasingBarrier || Layout.AreSubresourcesSameLayout(ImageBarrier.oldLayout, ImageBarrier.subresourceRange));
 				SrcLayout = ImageBarrier.oldLayout;
 				SrcAccessFlags = ImageBarrier.srcAccessMask;
 			}
