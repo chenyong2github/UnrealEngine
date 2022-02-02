@@ -264,7 +264,7 @@ void SSequencerEvaluationTemplateDebugVisualizer::OnArrangeChildren( const FGeom
  			{
  				ArrangedChildren.AddWidget( 
  					WidgetVisibility, 
- 					AllottedGeometry.MakeChild(Child, SegmentGeometry.Position, SegmentGeometry.GetLocalSize())
+ 					AllottedGeometry.MakeChild(Child, FVector2D(SegmentGeometry.Position), SegmentGeometry.GetLocalSize())
  					);
  			}
  		}
@@ -627,7 +627,7 @@ void SSequencerEntityComponentSystemDebugVisualizer::OnArrangeChildren( const FG
  			{
  				ArrangedChildren.AddWidget( 
  					WidgetVisibility, 
- 					AllottedGeometry.MakeChild(Child, SegmentGeometry.Position, SegmentGeometry.GetLocalSize())
+ 					AllottedGeometry.MakeChild(Child, FVector2D(SegmentGeometry.Position), SegmentGeometry.GetLocalSize())
  					);
  			}
  		}

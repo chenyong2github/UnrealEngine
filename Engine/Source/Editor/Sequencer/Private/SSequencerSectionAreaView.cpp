@@ -262,7 +262,7 @@ void SSequencerSectionAreaView::OnArrangeChildren( const FGeometry& AllottedGeom
 			
 			ArrangedChildren.AddWidget( 
 				WidgetVisibility, 
-				AllottedGeometry.MakeChild( Widget, SectionGeometry.Position, SectionGeometry.GetLocalSize() )
+				AllottedGeometry.MakeChild( Widget, FVector2D(SectionGeometry.Position), SectionGeometry.GetLocalSize() )
 				);
 		}
 	}

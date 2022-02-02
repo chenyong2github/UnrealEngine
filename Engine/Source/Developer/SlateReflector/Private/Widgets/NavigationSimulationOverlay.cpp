@@ -150,7 +150,7 @@ namespace NavigationSimulationOverlay
 				FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
 				ArrangedWidget.Geometry.AppendTransform(FSlateLayoutTransform(Inverse(CurrentWindowRef->GetPositionInScreen())));
 
-				const FVector2D InflateAmount = FVector2D(1.0f, 1.0f) / ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+				const FVector2D InflateAmount = FVector2D(1, 1) / FVector2D(ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
 				FPaintGeometry PaintGeometry = ArrangedWidget.Geometry.ToInflatedPaintGeometry(InflateAmount);
 
 				Map.Add(WidgetPtr, PaintGeometry);
@@ -169,7 +169,7 @@ namespace NavigationSimulationOverlay
 
 			if (WidgetInfo.bHasGeometry)
 			{
-				const FVector2D InflateAmount = FVector2D(1.0f, 1.0f) / WidgetInfo.WidgetGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+				const FVector2D InflateAmount = FVector2D(1, 1) / FVector2D(WidgetInfo.WidgetGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
 				const FVector2D NewLocalOffset = RootDrawOffset + WidgetInfo.WidgetGeometry.GetAccumulatedLayoutTransform().GetTranslation();
 				const FVector2D NewLocalSize = TransformPoint(WidgetInfo.WidgetGeometry.GetAccumulatedLayoutTransform().GetScale(), WidgetInfo.WidgetGeometry.GetLocalSize());
 

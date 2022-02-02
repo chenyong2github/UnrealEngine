@@ -2584,10 +2584,10 @@ private:
 			if (BuildSettings.bHasColorSpaceDefinition)
 			{
 				Mip->TransformToWorkingColorSpace(
-					BuildSettings.RedChromaticityCoordinate,
-					BuildSettings.GreenChromaticityCoordinate,
-					BuildSettings.BlueChromaticityCoordinate,
-					BuildSettings.WhiteChromaticityCoordinate,
+					FVector2D(BuildSettings.RedChromaticityCoordinate),
+					FVector2D(BuildSettings.GreenChromaticityCoordinate),
+					FVector2D(BuildSettings.BlueChromaticityCoordinate),
+					FVector2D(BuildSettings.WhiteChromaticityCoordinate),
 					static_cast<UE::Color::EChromaticAdaptationMethod>(BuildSettings.ChromaticAdaptationMethod));
 			}
 

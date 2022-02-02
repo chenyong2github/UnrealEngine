@@ -977,7 +977,7 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 					// Vertices
 					VerticesOut[i].Vert = LocalToWorld.TransformPosition(RenderData->VertexBuffers.PositionVertexBuffer.VertexPosition(i));
 					// UVs from channel 0
-					VerticesOut[i].UV = RenderData->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(i, 0);
+					VerticesOut[i].UV = FVector2D(RenderData->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(i, 0));
 					// Normal
 					VerticesOut[i].Normal = LocalToWorldInverseTranspose.TransformVector((FVector4)RenderData->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(i));
 				}
@@ -1856,16 +1856,16 @@ bool UStaticMeshExporterOBJ::ExportText(const FExportObjectInnerContext* Context
 			Verts.Add( Vertex3 );
 
 			// UVs from channel 0
-			UVs.Add( RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, 0) );
-			UVs.Add( RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, 0) );
-			UVs.Add( RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index3, 0) );
+			UVs.Add( FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, 0)) );
+			UVs.Add( FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, 0)) );
+			UVs.Add( FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index3, 0)) );
 
 			// UVs from channel 1 (lightmap coords)
 			if (bHasUVLightMap)
 			{
-				UVLMs.Add(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, 1));
-				UVLMs.Add(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, 1));
-				UVLMs.Add(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index3, 1));
+				UVLMs.Add(FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, 1)));
+				UVLMs.Add(FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, 1)));
+				UVLMs.Add(FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index3, 1)));
 			}
 
 			// Normals

@@ -218,7 +218,7 @@ public:
 					if (!bUseNewUVs)
 					{
 						// compute vertex position from original UV
-						const FVector2D& UV = VertexInstanceUVs.Get(SrcVertexInstanceID, 0);
+						const FVector2f& UV = VertexInstanceUVs.Get(SrcVertexInstanceID, 0);
 						Vert->Position.Set((UV.X - U) * ScaleX, (UV.Y - V) * ScaleY, 0);
 					}
 					else
@@ -341,7 +341,7 @@ public:
 						FDynamicMeshVertex* DstVert = new(OutVerts)FDynamicMeshVertex();
 
 						// compute vertex position from original UV
-						const FVector2D UV = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(SrcVertIndex, 0);
+						const FVector2f UV = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(SrcVertIndex, 0);
 						DstVert->Position.Set((UV.X - U) * ScaleX, (UV.Y - V) * ScaleY, 0);
 
 						DstVert->TangentX = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(SrcVertIndex);
@@ -403,7 +403,7 @@ public:
 							int32 SrcVertIndex = IndexData[CornerIndex];
 							FDynamicMeshVertex* DstVert = new(OutVerts)FDynamicMeshVertex();
 
-							const FVector2D UV = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(SrcVertIndex, 0);
+							const FVector2f UV = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(SrcVertIndex, 0);
 							DstVert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
 
 							DstVert->TangentX = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(SrcVertIndex);

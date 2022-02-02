@@ -435,20 +435,20 @@ void FLevelViewportLayout::MaximizeViewport( FName ViewportToMaximize, const boo
 				{
 					FWidgetPath ViewportsOverlayWidgetPath = ViewportWidgetPath.GetPathDownTo( ViewportsOverlayPtr.Pin().ToSharedRef() );
 					const FArrangedWidget& ViewportsOverlayGeometry = ViewportsOverlayWidgetPath.Widgets.Last();
-					MaximizedViewportStartPosition = ViewportsOverlayGeometry.Geometry.AbsolutePosition - WindowScreenPos;
+					MaximizedViewportStartPosition = FVector2D(ViewportsOverlayGeometry.Geometry.AbsolutePosition) - WindowScreenPos;
 					MaximizedViewportStartSize = ViewportsOverlayPtr.Pin()->GetCachedSize();
 				}
 				else
 				{
 					const FArrangedWidget& ViewportGeometry = ViewportWidgetPath.Widgets.Last();	
-					MaximizedViewportStartPosition = ViewportGeometry.Geometry.AbsolutePosition - WindowScreenPos;
+					MaximizedViewportStartPosition = FVector2D(ViewportGeometry.Geometry.AbsolutePosition) - WindowScreenPos;
 					MaximizedViewportStartSize = ViewportGeometry.Geometry.Size;
 				}
 			}
 			else
 			{
 				const FArrangedWidget& ViewportGeometry = ViewportWidgetPath.Widgets.Last();
-				MaximizedViewportStartPosition = ViewportGeometry.Geometry.Position;
+				MaximizedViewportStartPosition = FVector2D(ViewportGeometry.Geometry.Position);
 				MaximizedViewportStartSize = ViewportGeometry.Geometry.Size;
 			}
 		}

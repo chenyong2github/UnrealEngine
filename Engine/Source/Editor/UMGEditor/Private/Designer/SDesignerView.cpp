@@ -108,7 +108,7 @@ public:
 		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
 			bResizing = true;
-			AbsoluteOffset = MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition;
+			AbsoluteOffset = MouseEvent.GetScreenSpacePosition() - FVector2D(MyGeometry.AbsolutePosition);
 			return FReply::Handled().CaptureMouse(SharedThis(this));
 		}
 
@@ -1324,11 +1324,11 @@ FVector2D SDesignerView::GetWidgetOriginAbsolute() const
 		FGeometry Geometry;
 		if (GetWidgetGeometry(PreviewWidget, Geometry))
 		{
-			return Geometry.AbsolutePosition;
+			return FVector2D(Geometry.AbsolutePosition);
 		}
 	}
 
-	return FVector2D(0, 0);
+	return FVector2D::ZeroVector;
 }
 
 void SDesignerView::MarkDesignModifed(bool bRequiresRecompile)
@@ -1462,7 +1462,7 @@ FVector2D SDesignerView::GetExtensionPosition(TSharedRef<FDesignerSurfaceElement
 
 		if ( GetWidgetGeometry(SelectedWidget, SelectedWidgetGeometry) && GetWidgetParentGeometry(SelectedWidget, SelectedWidgetParentGeometry) )
 		{
-			const FVector2D ParentPostion_DesignerSpace = (SelectedWidgetParentGeometry.AbsolutePosition - GetDesignerGeometry().AbsolutePosition) / GetDesignerGeometry().Scale;
+			const FVector2D ParentPostion_DesignerSpace = FVector2D(SelectedWidgetParentGeometry.AbsolutePosition - GetDesignerGeometry().AbsolutePosition) / GetDesignerGeometry().Scale;
 			const FVector2D ParentSize = SelectedWidgetParentGeometry.Size * GetPreviewScale();
 
 			FVector2D FinalPosition(0, 0);
@@ -1510,7 +1510,7 @@ FVector2D SDesignerView::GetExtensionPosition(TSharedRef<FDesignerSurfaceElement
 					break;
 				}
 
-				FVector2D SelectedWidgetScale = SelectedWidgetGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+				FVector2D SelectedWidgetScale = FVector2D(SelectedWidgetGeometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
 
 				FVector2D ApplicationScaledOffset = ExtensionElement->GetOffset() * GetDesignerGeometry().Scale;
 
@@ -2145,17 +2145,17 @@ void SDesignerView::DrawSelectionAndHoverOutline(const FOnPaintHandlerParams& Pa
 			FDesignTimeUtils::GetArrangedWidgetRelativeToWindow(Widget, ArrangedWidget);
 
 			// Draw selection effect
-			const FVector2D OutlinePixelSize = FVector2D(2.0f, 2.0f) / ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+			const FVector2D OutlinePixelSize = FVector2D(2.0f, 2.0f) / FVector2D(ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
 			FPaintGeometry SelectionGeometry = ArrangedWidget.Geometry.ToInflatedPaintGeometry(OutlinePixelSize);
 
 			FSlateClippingZone SelectionZone(SelectionGeometry);
 
 			TArray<FVector2D> Points;
-			Points.Add(SelectionZone.TopLeft);
-			Points.Add(SelectionZone.TopRight);
-			Points.Add(SelectionZone.BottomRight);
-			Points.Add(SelectionZone.BottomLeft);
-			Points.Add(SelectionZone.TopLeft);
+			Points.Add(FVector2D(SelectionZone.TopLeft));
+			Points.Add(FVector2D(SelectionZone.TopRight));
+			Points.Add(FVector2D(SelectionZone.BottomRight));
+			Points.Add(FVector2D(SelectionZone.BottomLeft));
+			Points.Add(FVector2D(SelectionZone.TopLeft));
 
 			FSlateDrawElement::MakeLines(
 				PaintArgs.OutDrawElements,
@@ -2183,17 +2183,17 @@ void SDesignerView::DrawSelectionAndHoverOutline(const FOnPaintHandlerParams& Pa
 		FDesignTimeUtils::GetArrangedWidgetRelativeToWindow(Widget, ArrangedWidget);
 
 		// Draw hovered effect
-		const FVector2D OutlinePixelSize = FVector2D(2.0f, 2.0f) / ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector();
+		const FVector2D OutlinePixelSize = FVector2D(2.0f, 2.0f) / FVector2D(ArrangedWidget.Geometry.GetAccumulatedRenderTransform().GetMatrix().GetScale().GetVector());
 		FPaintGeometry HoveredGeometry = ArrangedWidget.Geometry.ToInflatedPaintGeometry(OutlinePixelSize);
 
 		FSlateClippingZone HoveredZone(HoveredGeometry);
 
 		TArray<FVector2D> Points;
-		Points.Add(HoveredZone.TopLeft);
-		Points.Add(HoveredZone.TopRight);
-		Points.Add(HoveredZone.BottomRight);
-		Points.Add(HoveredZone.BottomLeft);
-		Points.Add(HoveredZone.TopLeft);
+		Points.Add(FVector2D(HoveredZone.TopLeft));
+		Points.Add(FVector2D(HoveredZone.TopRight));
+		Points.Add(FVector2D(HoveredZone.BottomRight));
+		Points.Add(FVector2D(HoveredZone.BottomLeft));
+		Points.Add(FVector2D(HoveredZone.TopLeft));
 
 		FSlateDrawElement::MakeLines(
 			PaintArgs.OutDrawElements,

@@ -582,7 +582,7 @@ bool FMeshMergeHelpers::CheckWrappingUVs(const FMeshDescription& MeshDescription
 
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
-		const FVector2D& Coordinate = VertexInstanceUVs.Get(VertexInstanceID, UVChannelIndex);
+		const FVector2D& Coordinate = FVector2D(VertexInstanceUVs.Get(VertexInstanceID, UVChannelIndex));
 		if ((FMath::IsNegativeFloat(Coordinate.X) || FMath::IsNegativeFloat(Coordinate.Y)) || (Coordinate.X > (1.0f + KINDA_SMALL_NUMBER) || Coordinate.Y > (1.0f + KINDA_SMALL_NUMBER)))
 		{
 			bResult = true;
@@ -1019,7 +1019,7 @@ void FMeshMergeHelpers::CalculateTextureCoordinateBoundsForMesh(const FMeshDescr
 			{
 				for (int32 UVIndex = 0; UVIndex < VertexInstanceUVs.GetNumChannels(); ++UVIndex)
 				{
-					OutBounds[MaterialIndex] += VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
+					OutBounds[MaterialIndex] += FVector2D(VertexInstanceUVs.Get(VertexInstanceID, UVIndex));
 				}
 			}
 		}
@@ -1181,11 +1181,11 @@ void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*>
 
 				UVOne.X = ActorPosition.X;
 				UVOne.Y = ActorPosition.Y;
-				VertexInstanceUVs.Set(VertexInstanceID, UVOneIndex, UVOne);
+				VertexInstanceUVs.Set(VertexInstanceID, UVOneIndex, FVector2f(UVOne));	// LWC_TODO: Precision loss
 
 				UVTwo.X = ActorPosition.Z;
 				UVTwo.Y = FMath::Abs(ActorToWorld.GetScale3D().X);
-				VertexInstanceUVs.Set(VertexInstanceID, UVTwoIndex, UVTwo);
+				VertexInstanceUVs.Set(VertexInstanceID, UVTwoIndex, FVector2f(UVTwo));	// LWC_TODO: Precision loss
 			}
 		}
 		else if (!InPivot.IsZero())

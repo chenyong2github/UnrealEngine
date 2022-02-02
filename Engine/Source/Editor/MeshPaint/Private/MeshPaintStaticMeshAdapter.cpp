@@ -375,7 +375,7 @@ FMatrix FMeshPaintGeometryAdapterForStaticMeshes::GetComponentToWorldMatrix() co
 
 void FMeshPaintGeometryAdapterForStaticMeshes::GetTextureCoordinate(int32 VertexIndex, int32 ChannelIndex, FVector2D& OutTextureCoordinate) const
 {
-	OutTextureCoordinate = LODModel->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, ChannelIndex);
+	OutTextureCoordinate = FVector2D(LODModel->VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, ChannelIndex));
 }
 
 void FMeshPaintGeometryAdapterForStaticMeshes::PreEdit()

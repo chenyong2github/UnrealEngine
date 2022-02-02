@@ -204,7 +204,7 @@ namespace BuildOptimizationThirdParty
 
 			if (VertexBuffer.GetNumTexCoords())
 			{
-				const FVector2D UV = VertexBuffer.GetVertexUV(Index, 0);
+				const FVector2f UV = VertexBuffer.GetVertexUV(Index, 0);
 				Vertex.uv.x = UV.X;
 				Vertex.uv.y = UV.Y;
 			}

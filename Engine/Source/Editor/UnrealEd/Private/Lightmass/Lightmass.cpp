@@ -265,13 +265,13 @@ FORCEINLINE void Copy( const FSplineMeshParams& In, Lightmass::FSplineMeshParams
 {
 	Out.StartPos = In.StartPos;
 	Out.StartTangent = In.StartTangent;
-	Out.StartScale = In.StartScale;
+	Out.StartScale = FVector2f(In.StartScale);	// LWC_TODO: Precision loss
 	Out.StartRoll = In.StartRoll;
-	Out.StartOffset = In.StartOffset;
+	Out.StartOffset = FVector2f(In.StartOffset);	// LWC_TODO: Precision loss
 	Out.EndPos = In.EndPos;
 	Out.EndTangent = In.EndTangent;
-	Out.EndScale = In.EndScale;
-	Out.EndOffset = In.EndOffset;
+	Out.EndScale = FVector2f(In.EndScale);	// LWC_TODO: Precision loss
+	Out.EndOffset = FVector2f(In.EndOffset);	// LWC_TODO: Precision loss
 	Out.EndRoll = In.EndRoll;
 }
 
@@ -1332,10 +1332,10 @@ void FLightmassExporter::WriteStaticMeshes()
 							{
 								Vertex.UVs[UVIndex] = RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVIndex);
 							}
-							FVector2D ZeroUV(0.0f, 0.0f);
+
 							for (; UVIndex < MAX_TEXCOORDS; UVIndex++)
 							{
-								Vertex.UVs[UVIndex] = ZeroUV;
+								Vertex.UVs[UVIndex] = FVector2f::ZeroVector;
 							}
 						}
 						Swarm.WriteChannel( Channel, (void*)(LMVertices.GetData()), LMVertices.Num() * sizeof(Lightmass::FStaticMeshVertex));
@@ -1965,7 +1965,7 @@ void FLightmassExporter::WriteMappings( int32 Channel )
 				DstVertex.WorldTangentZ = (FVector3f)SrcVertex.WorldTangentZ;
 				for( int32 CoordIdx=0; CoordIdx < Lightmass::MAX_TEXCOORDS; CoordIdx++ )
 				{	
-					DstVertex.TextureCoordinates[CoordIdx] = SrcVertex.TextureCoordinates[CoordIdx];
+					DstVertex.TextureCoordinates[CoordIdx] = FVector2f(SrcVertex.TextureCoordinates[CoordIdx]);	// LWC_TODO: Precision loss
 				}
 			}
 			Swarm.WriteChannel( Channel, VertexData, VertexDataSize );

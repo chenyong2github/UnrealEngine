@@ -11,7 +11,7 @@ namespace CurveEditor
 FVector2D ComputeScreenSpaceTangentOffset(const FCurveEditorScreenSpace& CurveSpace, float Tangent, float Weight)
 {
 	const float Angle = FMath::Atan(-Tangent);
-	FVector2f Offset;
+	FVector2D Offset;
 	FMath::SinCos(&Offset.Y, &Offset.X, Angle);
 	Offset *= Weight;
 

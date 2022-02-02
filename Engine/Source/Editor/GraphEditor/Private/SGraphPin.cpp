@@ -771,18 +771,18 @@ FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dra
 		TSharedPtr<SGraphNode> OwnerNode = OwnerNodePtr.Pin();
 		if (OwnerNode.IsValid())
 		{
-			NodeAddPosition	= OwnerNode->GetPosition() + MyGeometry.Position;
+			NodeAddPosition	= OwnerNode->GetPosition() + FVector2D(MyGeometry.Position);
 
-			//Don't have access to bounding information for node, using fixed offet that should work for most cases.
+			//Don't have access to bounding information for node, using fixed offset that should work for most cases.
 			const float FixedOffset = 200.0f;
 
 			//Line it up vertically with pin
 			NodeAddPosition.Y += MyGeometry.Size.Y;
 
 			// if the pin widget is nested into another compound
-			if (MyGeometry.Position == FVector2D::ZeroVector)
+			if (MyGeometry.Position == FVector2f::ZeroVector)
 			{
-				FVector2D PinOffsetPosition = MyGeometry.AbsolutePosition - NodeWidget->GetTickSpaceGeometry().AbsolutePosition;
+				FVector2D PinOffsetPosition = FVector2D(MyGeometry.AbsolutePosition) - FVector2D(NodeWidget->GetTickSpaceGeometry().AbsolutePosition);
 				NodeAddPosition = OwnerNode->GetPosition() + PinOffsetPosition;
 			}
 
@@ -812,7 +812,7 @@ FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dra
 			TSharedPtr<FAssetDragDropOp> AssetOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 			if (AssetOp->HasAssets())
 			{
-				Node->GetSchema()->DroppedAssetsOnPin(AssetOp->GetAssets(), NodeWidget->GetPosition() + MyGeometry.Position, GraphPinObj);
+				Node->GetSchema()->DroppedAssetsOnPin(AssetOp->GetAssets(), NodeWidget->GetPosition() + FVector2D(MyGeometry.Position), GraphPinObj);
 			}
 		}
 		return FReply::Handled();
@@ -823,7 +823,7 @@ FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dra
 
 void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	CachedNodeOffset = AllottedGeometry.AbsolutePosition/AllottedGeometry.Scale - OwnerNodePtr.Pin()->GetUnscaledPosition();
+	CachedNodeOffset = FVector2D(AllottedGeometry.AbsolutePosition)/AllottedGeometry.Scale - OwnerNodePtr.Pin()->GetUnscaledPosition();
 	CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
 
 	if (!ValueInspectorTooltip.IsValid() && IsHovered() && FKismetDebugUtilities::CanInspectPinValue(GetPinObj()))

@@ -300,8 +300,8 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 
 					glEnable(GL_SCISSOR_TEST);
 					
-					const float ScissorWidth = FVector2D::Distance(ScissorRect.TopLeft, ScissorRect.TopRight);
-					const float ScissorHeight = FVector2D::Distance(ScissorRect.TopLeft, ScissorRect.BottomLeft);
+					const float ScissorWidth = FVector2f::Distance(ScissorRect.TopLeft, ScissorRect.TopRight);
+					const float ScissorHeight = FVector2f::Distance(ScissorRect.TopLeft, ScissorRect.BottomLeft);
 					glScissor(ScissorRect.TopLeft.X, ViewportSize.Y - ScissorRect.BottomLeft.Y, ScissorWidth, ScissorHeight);
 				}
 				else

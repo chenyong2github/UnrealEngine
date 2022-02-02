@@ -232,7 +232,7 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 					VertexPositions[VertexID[CornerIndex]] = Positions[CornerIndex];
 				}
 				VertexInstanceIDs[CornerIndex] = MeshDescription.CreateVertexInstance(VertexID[CornerIndex]);
-				VertexInstanceUVs.Set(VertexInstanceIDs[CornerIndex], 0, FVector2D(
+				VertexInstanceUVs.Set(VertexInstanceIDs[CornerIndex], 0, FVector2f(
 					(Positions[CornerIndex] - TextureBase) | TextureX,
 					(Positions[CornerIndex] - TextureBase) | TextureY));
 			}

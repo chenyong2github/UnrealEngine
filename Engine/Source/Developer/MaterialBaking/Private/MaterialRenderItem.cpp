@@ -238,7 +238,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 				if (!bUseNewUVs)
 				{
 					// compute vertex position from original UV
-					const FVector2D& UV = VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex);
+					const FVector2D& UV = FVector2D(VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex));
 					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
 				}
 				else

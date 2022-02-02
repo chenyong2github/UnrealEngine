@@ -334,7 +334,7 @@ FReply SMultiBlockDragHandle::OnDragDetected( const FGeometry& MyGeometry, const
 			Block->IsPartOfHeading(),
 			NAME_None, 
 			CustomDecorator,
-			MyGeometry.AbsolutePosition-MouseEvent.GetScreenSpacePosition()
+		FVector2D(MyGeometry.AbsolutePosition)-MouseEvent.GetScreenSpacePosition()
 		);
 
 	NewOp->SetOnDropNotification( FSimpleDelegate::CreateSP( BaseWidget.Pin().ToSharedRef(), &SMultiBoxWidget::OnDropExternal ) );

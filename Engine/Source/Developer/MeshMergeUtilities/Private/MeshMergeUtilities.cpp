@@ -1164,7 +1164,7 @@ public:
 			TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
 			for (int32 Idx = 0; Idx < TexCoords.Num(); Idx++)
 			{
-				VertexInstanceUVs.Set(Idx, TexCoords[Idx]);
+				VertexInstanceUVs.Set(Idx, FVector2f(TexCoords[Idx]));	// LWC_TODO: Precision loss
 			}
 		}
 		else
@@ -1408,7 +1408,7 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 			    MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
 			    for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 			    {
-				    MeshSettings.CustomTextureCoordinates.Add(VertexInstanceUVs.Get(VertexInstanceID, LightMapCoordinateIndex));
+				    MeshSettings.CustomTextureCoordinates.Add(FVector2D(VertexInstanceUVs.Get(VertexInstanceID, LightMapCoordinateIndex)));
 			    }
 			    MeshSettings.TextureCoordinateBox = FBox2D(FVector2D::ZeroVector, FVector2D(1, 1));
 			    ScaleTextureCoordinatesToBox(MeshSettings.TextureCoordinateBox, MeshSettings.CustomTextureCoordinates);
@@ -1877,7 +1877,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 					MergeData.NewUVs.Reset(MeshData->MeshDescription->VertexInstances().Num());
 					for (const FVertexInstanceID VertexInstanceID : MeshData->MeshDescription->VertexInstances().GetElementIDs())
 					{
-						MergeData.NewUVs.Add(VertexInstanceUVs.Get(VertexInstanceID, MeshData->TextureCoordinateIndex));
+						MergeData.NewUVs.Add(FVector2D(VertexInstanceUVs.Get(VertexInstanceID, MeshData->TextureCoordinateIndex)));
 					}
 				}
 				MergeData.TexCoordBounds[0] = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
@@ -2668,7 +2668,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 							int32 VertexIndex = 0;
 							for (FVertexInstanceID VertexInstanceID : RawMesh->VertexInstances().GetElementIDs())
 							{
-								FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, UVChannelIdx);
+								FVector2D UV = FVector2D(VertexInstanceUVs.Get(VertexInstanceID, UVChannelIdx));
 								if (UVChannelIdx == 0 && !InSettings.bCreateMergedMaterial)
 								{
 									if (MeshData.CustomTextureCoordinates.Num())
@@ -2678,7 +2678,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 									else if (MeshData.TextureCoordinateIndex != 0)
 									{
 										check(MeshData.TextureCoordinateIndex < NumUVChannel);
-										UV = VertexInstanceUVs.Get(VertexInstanceID, MeshData.TextureCoordinateIndex);
+										UV = FVector2D(VertexInstanceUVs.Get(VertexInstanceID, MeshData.TextureCoordinateIndex));
 									}
 								}
 
@@ -2690,7 +2690,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 									{
 										if (UVTransform.Value != FVector2D::ZeroVector)
 										{
-											VertexInstanceUVs.Set(VertexInstanceID, UVChannelIdx, UV * UVTransform.Value + UVTransform.Key);
+											VertexInstanceUVs.Set(VertexInstanceID, UVChannelIdx, FVector2f(UV * UVTransform.Value + UVTransform.Key));	// LWC_TODO: Precision loss
 											break;
 										}
 									}
@@ -2707,7 +2707,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 							for(FVertexInstanceID VertexInstanceID : RawMesh->VertexInstances().GetElementIDs())
 							{
 								FVector2D UV = MeshData.CustomTextureCoordinates[VertexIndex];
-								VertexInstanceUVs.Set(VertexInstanceID, MergedMatUVChannel, UV * UVTransform.Value + UVTransform.Key);
+								VertexInstanceUVs.Set(VertexInstanceID, MergedMatUVChannel, FVector2f(UV * UVTransform.Value + UVTransform.Key));	// LWC_TODO: Precision loss
 								VertexIndex++;
 							}
 						}

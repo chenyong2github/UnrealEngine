@@ -251,9 +251,9 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 						uint32 Index2 = Indices[ClosestPlaneTriangleIndex + 2];
 
 						// Fetch lightmap UV's
-						FVector2D LightmapUV0 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, StaticMesh->GetLightMapCoordinateIndex());
-						FVector2D LightmapUV1 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, StaticMesh->GetLightMapCoordinateIndex());
-						FVector2D LightmapUV2 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, StaticMesh->GetLightMapCoordinateIndex());
+						FVector2D LightmapUV0 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, StaticMesh->GetLightMapCoordinateIndex()));
+						FVector2D LightmapUV1 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, StaticMesh->GetLightMapCoordinateIndex()));
+						FVector2D LightmapUV2 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, StaticMesh->GetLightMapCoordinateIndex()));
 						// Interpolate lightmap UV's to the click location
 						FVector2D InterpolatedUV = LightmapUV0 * ClosestPlaneBaryCentricWeights.X + LightmapUV1 * ClosestPlaneBaryCentricWeights.Y + LightmapUV2 * ClosestPlaneBaryCentricWeights.Z;
 
@@ -292,9 +292,9 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 					uint32 Index1 = Indices[SelectedTriangle + 1];
 					uint32 Index2 = Indices[SelectedTriangle + 2];
 
-					FVector2D LightmapUV0 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, StaticMesh->GetLightMapCoordinateIndex());
-					FVector2D LightmapUV1 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, StaticMesh->GetLightMapCoordinateIndex());
-					FVector2D LightmapUV2 = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, StaticMesh->GetLightMapCoordinateIndex());
+					FVector2D LightmapUV0 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index0, StaticMesh->GetLightMapCoordinateIndex()));
+					FVector2D LightmapUV1 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index1, StaticMesh->GetLightMapCoordinateIndex()));
+					FVector2D LightmapUV2 = FVector2D(LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Index2, StaticMesh->GetLightMapCoordinateIndex()));
 
 					FVector BaryCentricWeights;
 					BaryCentricWeights.X = FMath::FRandRange(0.f, 1.f);
@@ -409,9 +409,9 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 				uint32 Index2 = (*IndexBufferRef)->Indices[ClosestTriangleIndex + 2];
 
 				// Fetch lightmap UV's
-				FVector2D LightmapUV0 = ModelVertices[Index0].ShadowTexCoord;
-				FVector2D LightmapUV1 = ModelVertices[Index1].ShadowTexCoord;
-				FVector2D LightmapUV2 = ModelVertices[Index2].ShadowTexCoord;
+				FVector2D LightmapUV0 = FVector2D(ModelVertices[Index0].ShadowTexCoord);
+				FVector2D LightmapUV1 = FVector2D(ModelVertices[Index1].ShadowTexCoord);
+				FVector2D LightmapUV2 = FVector2D(ModelVertices[Index2].ShadowTexCoord);
 				// Interpolate lightmap UV's to the click location
 				FVector2D InterpolatedUV = LightmapUV0 * ClosestPlaneBaryCentricWeights.X + LightmapUV1 * ClosestPlaneBaryCentricWeights.Y + LightmapUV2 * ClosestPlaneBaryCentricWeights.Z;
 

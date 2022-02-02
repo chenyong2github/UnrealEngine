@@ -28,13 +28,13 @@ FVector2D FGeometryHelper::VerticalMiddleRightOf(const FGeometry& SomeGeometry)
 FVector2D FGeometryHelper::CenterOf(const FGeometry& SomeGeometry)
 {
 	const FVector2D GeometryDrawSize = SomeGeometry.GetDrawSize();
-	return SomeGeometry.AbsolutePosition + (GeometryDrawSize * 0.5f);
+	return FVector2D(SomeGeometry.AbsolutePosition) + (GeometryDrawSize * 0.5f);
 }
 
 void FGeometryHelper::ConvertToPoints(const FGeometry& Geom, TArray<FVector2D>& Points)
 {
 	const FVector2D Size = Geom.GetDrawSize();
-	const FVector2D Location = Geom.AbsolutePosition;
+	const FVector2D Location = FVector2D(Geom.AbsolutePosition);
 
 	int32 Index = Points.AddUninitialized(4);
 	Points[Index++] = Location;

@@ -455,8 +455,8 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( con
 		NewProxy = new FSlateShaderResourceProxy;
 		NewProxy->Resource = Atlas->GetAtlasTexture();
 		// Compute the sub-uvs for the location of this texture in the atlas, accounting for padding
-		NewProxy->StartUV = FVector2D( (float)(NewSlot->X+Padding) / Atlas->GetWidth(), (float)(NewSlot->Y+Padding) / Atlas->GetHeight() );
-		NewProxy->SizeUV = FVector2D( (float)(NewSlot->Width-Padding*2) / Atlas->GetWidth(), (float)(NewSlot->Height-Padding*2) / Atlas->GetHeight() );
+		NewProxy->StartUV = FVector2f( (float)(NewSlot->X+Padding) / Atlas->GetWidth(), (float)(NewSlot->Y+Padding) / Atlas->GetHeight() );
+		NewProxy->SizeUV = FVector2f( (float)(NewSlot->Width-Padding*2) / Atlas->GetWidth(), (float)(NewSlot->Height-Padding*2) / Atlas->GetHeight() );
 		NewProxy->ActualSize = FIntPoint( Width, Height );
 	}
 	else
@@ -468,8 +468,8 @@ FSlateShaderResourceProxy* FSlateD3DTextureManager::GenerateTextureResource( con
 		TUniquePtr<FSlateD3DTexture> Texture = MakeUnique<FSlateD3DTexture>( Width, Height );
 	
 		NewProxy->Resource = Texture.Get();
-		NewProxy->StartUV = FVector2D(0.0f,0.0f);
-		NewProxy->SizeUV = FVector2D(1.0f, 1.0f);
+		NewProxy->StartUV = FVector2f(0.0f,0.0f);
+		NewProxy->SizeUV = FVector2f(1.0f, 1.0f);
 		NewProxy->ActualSize = FIntPoint( Width, Height );
 
 		D3D11_SUBRESOURCE_DATA InitData;

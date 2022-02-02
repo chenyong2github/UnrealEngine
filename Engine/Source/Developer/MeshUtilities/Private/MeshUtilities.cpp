@@ -1148,7 +1148,7 @@ static void ComputeTriangleTangents(
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 	{
 		FVector3f Positions[3];
-		FVector2D UVs[3];
+		FVector2f UVs[3];
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
 			Positions[Index] = InVertices[InIndices[TriangleIndex * 3 + Index]];
@@ -1433,8 +1433,8 @@ static void ComputeTangents(
 												CommonVertices++;
 
 
-												const FVector2D& UVOne = InUVs[NextFace.FaceIndex * 3 + NextCornerIndex];
-												const FVector2D& UVTwo = InUVs[OtherFace.FaceIndex * 3 + OtherCornerIndex];
+												const FVector2f& UVOne = InUVs[NextFace.FaceIndex * 3 + NextCornerIndex];
+												const FVector2f& UVTwo = InUVs[OtherFace.FaceIndex * 3 + OtherCornerIndex];
 
 												if (UVsEqual(UVOne, UVTwo))
 												{
@@ -1644,7 +1644,7 @@ static void MikkSetTSpaceBasic(const SMikkTSpaceContext* Context, const float Ta
 static void MikkGetTexCoord(const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Mesh *UserData = (MikkTSpace_Mesh*)(Context->m_pUserData);
-	const FVector2D &TexCoord = UserData->UVs[FaceIdx * 3 + VertIdx];
+	const FVector2f &TexCoord = UserData->UVs[FaceIdx * 3 + VertIdx];
 	UV[0] = TexCoord.X;
 	UV[1] = TexCoord.Y;
 }
@@ -1754,7 +1754,7 @@ static void MikkSetTSpaceBasic_Skeletal(const SMikkTSpaceContext* Context, const
 static void MikkGetTexCoord_Skeletal(const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Skeletal_Mesh *UserData = (MikkTSpace_Skeletal_Mesh*)(Context->m_pUserData);
-	const FVector2D &TexCoord = UserData->wedges[UserData->faces[FaceIdx].iWedge[VertIdx]].UVs[0];
+	const FVector2f &TexCoord = UserData->wedges[UserData->faces[FaceIdx].iWedge[VertIdx]].UVs[0];
 	UV[0] = TexCoord.X;
 	UV[1] = TexCoord.Y;
 }
@@ -3199,7 +3199,7 @@ public:
 
 	virtual FVector2D GetVertexUV(uint32 FaceIndex, uint32 TriIndex, uint32 UVIndex) override
 	{
-		return Wedges[Faces[FaceIndex].iWedge[TriIndex]].UVs[UVIndex];
+		return FVector2D(Wedges[Faces[FaceIndex].iWedge[TriIndex]].UVs[UVIndex]);
 	}
 
 	virtual uint32 GetFaceSmoothingGroups(uint32 FaceIndex)
@@ -3343,11 +3343,11 @@ public:
 		{
 			const int32 UVIndex = 0;
 			FVector3f Positions[3];
-			FVector2D UVs[3];
+			FVector2f UVs[3];
 			for (int32 Index = 0; Index < 3; ++Index)
 			{
 				Positions[Index] = BuildData->GetVertexPosition(TriangleIndex, Index);
-				UVs[Index] = BuildData->GetVertexUV(TriangleIndex, Index, UVIndex);
+				UVs[Index] = FVector2f(BuildData->GetVertexUV(TriangleIndex, Index, UVIndex));	// LWC_TODO: Precision loss
 			}
 			
 			CalculateTriangleTangentInternal(Positions[0], UVs[0], Positions[1], UVs[1], Positions[2], UVs[2], TriangleTangents, RealComparisonThreshold);
@@ -5139,7 +5139,7 @@ void FMeshUtilities::CalculateTextureCoordinateBoundsForSkeletalMesh(const FSkel
 			uint32 VertexIndex = LODModel.IndexBuffer[Index];
 			FSoftSkinVertex& Vertex = Vertices[VertexIndex];
 
-			FVector2D TexCoord = Vertex.UVs[0];
+			FVector2D TexCoord = FVector2D(Vertex.UVs[0]);
 			OutBounds[MaterialIndex] += TexCoord;
 		}
 	}

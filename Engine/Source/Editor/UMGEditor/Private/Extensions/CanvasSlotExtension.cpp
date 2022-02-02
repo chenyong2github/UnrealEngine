@@ -307,20 +307,20 @@ void FCanvasSlotExtension::GetCollisionSegmentsFromGeometry(FGeometry ArrangedGe
 	Segments.SetNumUninitialized(8);
 
 	// Left Side
-	Segments[0] = ArrangedGeometry.Position;
-	Segments[1] = ArrangedGeometry.Position + FVector2D(0, ArrangedGeometry.GetLocalSize().Y);
+	Segments[0] = FVector2D(ArrangedGeometry.Position);
+	Segments[1] = FVector2D(ArrangedGeometry.Position) + FVector2D(0, ArrangedGeometry.GetLocalSize().Y);
 
 	// Top Side
-	Segments[2] = ArrangedGeometry.Position;
-	Segments[3] = ArrangedGeometry.Position + FVector2D(ArrangedGeometry.GetLocalSize().X, 0);
+	Segments[2] = FVector2D(ArrangedGeometry.Position);
+	Segments[3] = FVector2D(ArrangedGeometry.Position) + FVector2D(ArrangedGeometry.GetLocalSize().X, 0);
 
 	// Right Side
-	Segments[4] = ArrangedGeometry.Position + FVector2D(ArrangedGeometry.GetLocalSize().X, 0);
-	Segments[5] = ArrangedGeometry.Position + ArrangedGeometry.GetLocalSize();
+	Segments[4] = FVector2D(ArrangedGeometry.Position) + FVector2D(ArrangedGeometry.GetLocalSize().X, 0);
+	Segments[5] = FVector2D(ArrangedGeometry.Position) + ArrangedGeometry.GetLocalSize();
 
 	// Bottom Side
-	Segments[6] = ArrangedGeometry.Position + FVector2D(0, ArrangedGeometry.GetLocalSize().Y);
-	Segments[7] = ArrangedGeometry.Position + ArrangedGeometry.GetLocalSize();
+	Segments[6] = FVector2D(ArrangedGeometry.Position) + FVector2D(0, ArrangedGeometry.GetLocalSize().Y);
+	Segments[7] = FVector2D(ArrangedGeometry.Position) + ArrangedGeometry.GetLocalSize();
 }
 
 void FCanvasSlotExtension::Paint(const TSet< FWidgetReference >& Selection, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const

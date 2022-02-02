@@ -879,7 +879,7 @@ protected:
 	/**  Converts cursor absolute position to the world position */
 	FVector2D CursorToWorldPosition(const FGeometry& InGeometry, FVector2D InAbsoluteCursorPosition)
 	{
-		FVector2D ViewSpacePosition = (InAbsoluteCursorPosition - InGeometry.AbsolutePosition)/InGeometry.Scale;
+		FVector2D ViewSpacePosition = (InAbsoluteCursorPosition - FVector2D(InGeometry.AbsolutePosition))/InGeometry.Scale;
 		return PanelCoordToGraphCoord(ViewSpacePosition);
 	}
 

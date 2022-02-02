@@ -4366,13 +4366,13 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 					const FVector Vertex0 = Poly->Vertices[0];
 					FVector Vertex1 = Poly->Vertices[1];
 
-					MeshBuilder.AddVertex(Vertex0, FVector2D::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
-					MeshBuilder.AddVertex(Vertex1, FVector2D::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+					MeshBuilder.AddVertex(Vertex0, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+					MeshBuilder.AddVertex(Vertex1, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 
 					for (int32 VertexIdx = 2; VertexIdx < Poly->Vertices.Num(); ++VertexIdx)
 					{
 						const FVector Vertex2 = Poly->Vertices[VertexIdx];
-						MeshBuilder.AddVertex(Vertex2, FVector2D::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+						MeshBuilder.AddVertex(Vertex2, FVector2f::ZeroVector, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 						MeshBuilder.AddTriangle(VertexOffset, VertexOffset + VertexIdx, VertexOffset + VertexIdx - 1);
 						Vertex1 = Vertex2;
 					}

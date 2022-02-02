@@ -191,7 +191,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 		// Create the texture coordinate data source.
 		for (int32 TexCoordIndex = 0; TexCoordIndex < VertexCount; ++TexCoordIndex)
 		{
-			const FVector2D& TexCoord = Vertices[TexCoordIndex].UVs[TexCoordSourceIndex];
+			const FVector2D& TexCoord = FVector2D(Vertices[TexCoordIndex].UVs[TexCoordSourceIndex]);
 			UVDiffuseLayer->GetDirectArray().Add(FbxVector2(TexCoord.X, -TexCoord.Y + 1.0));
 		}
 

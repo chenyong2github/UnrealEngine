@@ -449,7 +449,7 @@ void SGraphNode::OnToolTipClosing()
 
 void SGraphNode::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	CachedUnscaledPosition = AllottedGeometry.AbsolutePosition/AllottedGeometry.Scale;
+	CachedUnscaledPosition = FVector2D(AllottedGeometry.AbsolutePosition/AllottedGeometry.Scale);
 
 	SNodePanel::SNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 

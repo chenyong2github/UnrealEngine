@@ -71,12 +71,12 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 
 			const FVector2D BasePosition = PatchExpandOffset + FVector2D(SubsectionX, SubsectionY) * PositionScale;
 			const FVector2D BaseLayerCoords = FVector2D(LandscapeComponent->SectionBaseX, LandscapeComponent->SectionBaseY) + FVector2D(UVSubsection) * LayerScale;
-			const FVector2D BaseWeightmapCoords = WeightmapBias + FVector2D(UVSubsection) * WeightmapSubsection;
+			const FVector2f BaseWeightmapCoords = FVector2f(WeightmapBias) + FVector2f(UVSubsection) * WeightmapSubsection;	// LWC_TODO: Precision loss
 
 			int32 Index = Vertices.Add(FDynamicMeshVertex(FVector(BasePosition /*FVector2D(0, 0) * PositionScale*/, 0), FVector(BaseLayerCoords /*FVector2D(0, 0) * UVScale * LayerScale*/, 0), BaseWeightmapCoords /*FVector2D(0, 0) * UVScale * WeightmapScale*/));
-			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(1, 0) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(1, 0) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2D(1, 0) * UVScale * WeightmapScale  )) == Index + 1);
-			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(0, 1) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(0, 1) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2D(0, 1) * UVScale * WeightmapScale  )) == Index + 2);
-			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(1, 1) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(1, 1) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2D(1, 1) * UVScale * WeightmapScale  )) == Index + 3);
+			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(1, 0) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(1, 0) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2f(1, 0) * FVector2f(UVScale * WeightmapScale))) == Index + 1);	// LWC_TODO: Precision loss
+			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(0, 1) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(0, 1) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2f(0, 1) * FVector2f(UVScale * WeightmapScale))) == Index + 2);	// LWC_TODO: Precision loss
+			verifySlow(   Vertices.Add(FDynamicMeshVertex(FVector(BasePosition + FVector2D(1, 1) * PositionScale,   0), FVector(BaseLayerCoords + FVector2D(1, 1) * UVScale * LayerScale,   0), BaseWeightmapCoords + FVector2f(1, 1) * FVector2f(UVScale * WeightmapScale))) == Index + 3);	// LWC_TODO: Precision loss
 			checkSlow(Index + 3 <= MAX_uint16);
 			Indices.Add(Index);
 			Indices.Add(Index + 3);

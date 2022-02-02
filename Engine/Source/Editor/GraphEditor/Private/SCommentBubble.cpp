@@ -73,7 +73,7 @@ void SCommentBubble::Construct( const FArguments& InArgs )
 FCursorReply SCommentBubble::OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const
 {
 	const FVector2D Size( GetDesiredSize().X, GetDesiredSize().Y - SCommentBubbleDefs::BubbleArrowHeight );
-	const FSlateRect TestRect( MyGeometry.AbsolutePosition, MyGeometry.AbsolutePosition + Size );
+	const FSlateRect TestRect( FVector2D(MyGeometry.AbsolutePosition), FVector2D(MyGeometry.AbsolutePosition) + Size );
 
 	if( TestRect.ContainsPoint( CursorEvent.GetScreenSpacePosition() ))
 	{

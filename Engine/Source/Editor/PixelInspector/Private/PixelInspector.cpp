@@ -515,7 +515,7 @@ namespace PixelInspector
 		if (BufferIndex == -1)
 			return;
 		
-		Requests[BufferIndex].SetRequestData(InspectViewportUV, BufferIndex, viewportUniqueId, GBufferFormat, AllowStaticLighting, InPreExposure);
+		Requests[BufferIndex].SetRequestData(FVector2f(InspectViewportUV), BufferIndex, viewportUniqueId, GBufferFormat, AllowStaticLighting, InPreExposure);	// LWC_TODO: Precision loss
 		SceneInterface->AddPixelInspectorRequest(&(Requests[BufferIndex]));
 	}
 
@@ -706,14 +706,14 @@ namespace PixelInspector
 			{
 				if (Request.FrameCountAfterRenderingCommandSend >= WAIT_FRAMENUMBER_BEFOREREADING)
 				{
-					if (Request.SourceViewportUV == FVector2D(-1, -1))
+					if (Request.SourceViewportUV == FVector2f(-1, -1))
 					{
 						continue;
 					}
 
 
 					PixelInspectorResult PixelResult;
-					PixelResult.ViewportUV = Request.SourceViewportUV;
+					PixelResult.ViewportUV = FVector2D(Request.SourceViewportUV);
 					PixelResult.ViewUniqueId = Request.ViewId;
 					PixelResult.PreExposure = Request.PreExposure;
 					PixelResult.OneOverPreExposure = Request.PreExposure > 0.f ? (1.f / Request.PreExposure) : 1.f;;

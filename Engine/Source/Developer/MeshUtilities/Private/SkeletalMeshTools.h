@@ -80,8 +80,8 @@ namespace SkeletalMeshTools
 {
 	inline bool SkeletalMesh_UVsEqual(const SkeletalMeshImportData::FMeshWedge& V1, const SkeletalMeshImportData::FMeshWedge& V2, const FOverlappingThresholds& OverlappingThresholds, const int32 UVIndex = 0)
 	{
-		const FVector2D& UV1 = V1.UVs[UVIndex];
-		const FVector2D& UV2 = V2.UVs[UVIndex];
+		const FVector2f& UV1 = V1.UVs[UVIndex];
+		const FVector2f& UV2 = V2.UVs[UVIndex];
 
 		if(FMath::Abs(UV1.X - UV2.X) > OverlappingThresholds.ThresholdUV)
 			return 0;

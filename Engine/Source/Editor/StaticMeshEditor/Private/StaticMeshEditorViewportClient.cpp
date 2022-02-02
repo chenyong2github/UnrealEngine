@@ -1269,8 +1269,8 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 								if (RenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > TexCoordIndex)
 								{
 									FVector2D UVIndex1, UVIndex2;
-									UVIndex1 = RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, TexCoordIndex);
-									UVIndex2 = RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex2, TexCoordIndex);
+									UVIndex1 = FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, TexCoordIndex));
+									UVIndex2 = FVector2D(RenderData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex2, TexCoordIndex));
 									SelectedEdgeTexCoords[TexCoordIndex].Add(UVIndex1);
 									SelectedEdgeTexCoords[TexCoordIndex].Add(UVIndex2);
 								}

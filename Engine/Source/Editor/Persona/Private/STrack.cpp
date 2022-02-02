@@ -241,7 +241,7 @@ FReply STrackNode::BeginDrag( const FGeometry& MyGeometry, const FPointerEvent& 
 
 	FVector2D ScreenCursorPos = MouseEvent.GetScreenSpacePosition();
 	FVector2D CursorPos = MyGeometry.AbsoluteToLocal(ScreenCursorPos);
-	FVector2D ScreenNodePosition = MyGeometry.AbsolutePosition;// + GetOffsetRelativeToParent(MyGeometry);
+	FVector2D ScreenNodePosition = FVector2D(MyGeometry.AbsolutePosition);// + GetOffsetRelativeToParent(MyGeometry);
 	
 	bBeingDragged = true;
 	LastSize = MyGeometry.GetLocalSize();

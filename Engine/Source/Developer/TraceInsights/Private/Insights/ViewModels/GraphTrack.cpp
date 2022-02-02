@@ -288,17 +288,17 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 					const float X = PrevLinePoint.X + (LinePoint.X - PrevLinePoint.X) / ((BaselineY - LinePoint.Y) / (PrevLinePoint.Y - BaselineY) + 1.0f);
 
 					// Add an intersection point vertex.
-					FVector2D UV(X / Size.X, BaselineV);
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
+					FVector2f UV(X / Size.X, BaselineV);	// LWC_TODO: Precision loss
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 					// Add a value point vertex.
 					UV.X = LinePoint.X / Size.X;
 					UV.Y = TopV + LinePoint.Y / Size.Y;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 					// Add a baseline vertex.
 					UV.Y = BaselineV;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + FVector2f(UV.X, 0.5f) * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 					int32 Index0 = Verts.Num() - 5;
 					int32 Index1 = Verts.Num() - 4;
@@ -317,12 +317,12 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 				else
 				{
 					// Add a value point vertex.
-					FVector2D UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + UV * AtlasUVSize, FillColor));
+					FVector2f UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);	// LWC_TODO: Precision loss
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + UV * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 					// Add a baseline vertex.
 					UV.Y = BaselineV;
-					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * Size, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
+					Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, UV * FVector2f(Size), AtlasOffset + FVector2f(UV.X, 0.5f) * AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 					if (Verts.Num() >= 4)
 					{

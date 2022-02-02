@@ -613,7 +613,7 @@ bool FindTriangleUVMatch(const FVector2D& TargetUV, const TArray<FTriangleElemen
 	for (uint32 TriangleIndex : QuadTreeTriangleResults)
 	{
 		const FTriangleElement& TriangleElement = Triangles[TriangleIndex];
-		if (PointInTriangle(TriangleElement.Vertices[0].UVs[0], TriangleElement.Vertices[1].UVs[0], TriangleElement.Vertices[2].UVs[0], TargetUV))
+		if (PointInTriangle(FVector2D(TriangleElement.Vertices[0].UVs[0]), FVector2D(TriangleElement.Vertices[1].UVs[0]), FVector2D(TriangleElement.Vertices[2].UVs[0]), TargetUV))
 		{
 			MatchTriangleIndexes.Add(TriangleIndex);
 		}
@@ -684,7 +684,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 				const FSoftSkinVertex& BaseVertex = BaseVertices[CornerIndice];
 				TriangleElement.Indexes.Add(CornerIndice);
 				TriangleElement.Vertices.Add(BaseVertex);
-				TriangleElement.UVsBound += BaseVertex.UVs[0];
+				TriangleElement.UVsBound += FVector2D(BaseVertex.UVs[0]);
 				BaseMeshPositionBound += BaseVertex.Position;
 			}
 			BaseMeshUVBound += TriangleElement.UVsBound;
@@ -714,7 +714,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 		QuadTreeTriangleResults.Reserve(Triangles.Num() / 10); //Reserve 10% to speed up the query
 		for (uint32 TargetVertexIndex = 0; TargetVertexIndex < (uint32)TargetVertices.Num(); ++TargetVertexIndex)
 		{
-			FVector2D TargetUV = TargetVertices[TargetVertexIndex].UVs[0];
+			FVector2D TargetUV = FVector2D(TargetVertices[TargetVertexIndex].UVs[0]);
 			//Reset the last data without flushing the memmery allocation
 			QuadTreeTriangleResults.Reset();
 			const uint32 FullTargetIndex = TargetSections[SectionIndex].BaseVertexIndex + TargetVertexIndex;
@@ -816,7 +816,7 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 				FTriangleElement& BestTriangle = Triangles[FoundIndexMatch];
 				//Found the surface area of the 3 barycentric triangles from the UVs
 				FVector3f BarycentricWeight;
-				BarycentricWeight = GetBaryCentric(FVector3f(TargetUV, 0.0f), FVector3f(BestTriangle.Vertices[0].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[1].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[2].UVs[0], 0.0f));
+				BarycentricWeight = GetBaryCentric(FVector3f(FVector2f(TargetUV), 0.0f), FVector3f(BestTriangle.Vertices[0].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[1].UVs[0], 0.0f), FVector3f(BestTriangle.Vertices[2].UVs[0], 0.0f));	// LWC_TODO: Precision loss
 				//Fill the target match
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
@@ -1578,13 +1578,12 @@ void MatchVertexIndexUsingPosition(
 		{
 			const uint32 WedgeIndexDest = Triangle.WedgeIndex[Corner];
 			const uint32 VertexIndexDest = ImportDataDest.Wedges[WedgeIndexDest].VertexIndex;
-			const FVector2D UVsDest = ImportDataDest.Wedges[WedgeIndexDest].UVs[0];
 			TriangleElement.Indexes.Add(WedgeIndexDest);
 			FSoftSkinVertex SoftSkinVertex;
 			SoftSkinVertex.Position = ImportDataDest.Points[VertexIndexDest];
 			SoftSkinVertex.UVs[0] = ImportDataDest.Wedges[WedgeIndexDest].UVs[0];
 			TriangleElement.Vertices.Add(SoftSkinVertex);
-			TriangleElement.UVsBound += SoftSkinVertex.UVs[0];
+			TriangleElement.UVsBound += FVector2D(SoftSkinVertex.UVs[0]);
 			TrianglePositionBound += SoftSkinVertex.Position;
 			BaseMeshPositionBound += SoftSkinVertex.Position;
 		}
@@ -3360,9 +3359,9 @@ bool FLODUtilities::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LO
 			LODModel.GetSectionFromVertexIndex(VertexIndexC, SectionIndex, SectionVertexIndexC);
 			FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
 			//Get the UV triangle, add the small number that will act like threshold when converting the UV into pixel coordinate.
-			FVector2D UvA = Section.SoftVertices[SectionVertexIndexA].UVs[0] + KINDA_SMALL_NUMBER;
-			FVector2D UvB = Section.SoftVertices[SectionVertexIndexB].UVs[0] + KINDA_SMALL_NUMBER;
-			FVector2D UvC = Section.SoftVertices[SectionVertexIndexC].UVs[0] + KINDA_SMALL_NUMBER;
+			FVector2D UvA = FVector2D(Section.SoftVertices[SectionVertexIndexA].UVs[0]) + KINDA_SMALL_NUMBER;
+			FVector2D UvB = FVector2D(Section.SoftVertices[SectionVertexIndexB].UVs[0]) + KINDA_SMALL_NUMBER;
+			FVector2D UvC = FVector2D(Section.SoftVertices[SectionVertexIndexC].UVs[0]) + KINDA_SMALL_NUMBER;
 
 			if (ShouldStripTriangle(UvA, UvB, UvC))
 			{

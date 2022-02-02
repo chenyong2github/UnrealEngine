@@ -120,7 +120,7 @@ public:
 	virtual void BeginStroke(float LandscapeX, float LandscapeY, FLandscapeTool* CurrentTool) override
 	{
 		FLandscapeBrush::BeginStroke(LandscapeX, LandscapeY, CurrentTool);
-		LastMousePosition = FVector2D(LandscapeX, LandscapeY);
+		LastMousePosition = FVector2f(LandscapeX, LandscapeY);
 	}
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
@@ -248,7 +248,7 @@ public:
 
 	virtual void MouseMove(float LandscapeX, float LandscapeY) override
 	{
-		LastMousePosition = FVector2D(LandscapeX, LandscapeY);
+		LastMousePosition = FVector2f(LandscapeX, LandscapeY);
 	}
 
 	virtual FLandscapeBrushData ApplyBrush(const TArray<FLandscapeToolInteractorPosition>& InInteractorPositions) override

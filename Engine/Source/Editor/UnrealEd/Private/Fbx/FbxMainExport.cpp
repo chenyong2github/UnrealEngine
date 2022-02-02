@@ -1135,7 +1135,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 
 					float U = ((Vertex - TextureBase) | TextureX) / UModel::GetGlobalBSPTexelScale();
 					float V = ((Vertex - TextureBase) | TextureY) / UModel::GetGlobalBSPTexelScale();
-					UVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(U, V));
+					UVs.Set(VertexInstanceIDs[Corner], 0, FVector2f(U, V));
 					//This is not exported when exporting the whole level via ExportModel so leaving out here for now. 
 					//UVs.Set(VertexInstanceIDs[Corner], 1, Vert.ShadowTexCoord);
 					Colors[VertexInstanceIDs[Corner]] = FVector4f(FLinearColor::White);
@@ -3606,7 +3606,7 @@ void DetermineUVsToWeld(TArray<int32>& VertRemap, TArray<int32>& UniqueVerts, co
 	TMap<FVector2D,int32> HashedVerts;
 	for(int32 Vertex=0; Vertex < VertexCount; Vertex++)
 	{
-		const FVector2D& PositionA = VertexBuffer.GetVertexUV(Vertex,TexCoordSourceIndex);
+		const FVector2D& PositionA = FVector2D(VertexBuffer.GetVertexUV(Vertex,TexCoordSourceIndex));
 		const int32* FoundIndex = HashedVerts.Find(PositionA);
 		if ( !FoundIndex )
 		{
@@ -4610,7 +4610,7 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 			for (int32 FbxVertIndex = 0; FbxVertIndex < UniqueUVs.Num(); FbxVertIndex++)
 			{
 				int32 UnrealVertIndex = UniqueUVs[FbxVertIndex];
-				const FVector2D& TexCoord = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(UnrealVertIndex, TexCoordSourceIndex);
+				const FVector2f& TexCoord = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(UnrealVertIndex, TexCoordSourceIndex);
 				UVDiffuseLayer->GetDirectArray().Add(FbxVector2(TexCoord.X, -TexCoord.Y + 1.0));
 			}
 
@@ -4932,7 +4932,7 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 		// Create the texture coordinate data source.
 		for (int32 UnrealVertIndex : UniqueUVs)
 		{
-			const FVector2D& TexCoord = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(UnrealVertIndex, TexCoordSourceIndex);
+			const FVector2f& TexCoord = RenderMesh.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(UnrealVertIndex, TexCoordSourceIndex);
 			UVDiffuseLayer->GetDirectArray().Add(FbxVector2(TexCoord.X, -TexCoord.Y + 1.0));
 		}
 

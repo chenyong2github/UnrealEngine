@@ -62,14 +62,14 @@ FReply SCaptureRegionWidget::OnMouseButtonDown( const FGeometry& MyGeometry, con
 {
 	if (IsEnabled() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition;
+		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - FVector2D(MyGeometry.AbsolutePosition);
 		FIntRect& CurrentCaptureRegion = GetHighResScreenshotConfig().UnscaledCaptureRegion;
 
 		switch (PotentialInteraction)
 		{
 		case PI_DrawNewCaptureRegion:
 			{
-				DragStartPosition = MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition;
+				DragStartPosition = MouseEvent.GetScreenSpacePosition() - FVector2D(MyGeometry.AbsolutePosition);
 				BuildNewCaptureRegion(DragStartPosition, DragStartPosition);
 				CurrentState = State_Dragging;
 				break;
@@ -153,7 +153,7 @@ FReply SCaptureRegionWidget::OnMouseButtonUp( const FGeometry& MyGeometry, const
 {
 	if (IsEnabled() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition;
+		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - FVector2D(MyGeometry.AbsolutePosition);
 		FIntRect& CurrentCaptureRegion = GetHighResScreenshotConfig().UnscaledCaptureRegion;
 
 		switch (CurrentState)
@@ -214,7 +214,7 @@ FReply SCaptureRegionWidget::OnMouseMove( const FGeometry& MyGeometry, const FPo
 {
 	if (IsEnabled())
 	{
-		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - MyGeometry.AbsolutePosition;
+		FVector2D ViewportPosition = MouseEvent.GetScreenSpacePosition() - FVector2D(MyGeometry.AbsolutePosition);
 		FIntRect& CurrentCaptureRegion = GetHighResScreenshotConfig().UnscaledCaptureRegion;
 
 		switch (CurrentState)

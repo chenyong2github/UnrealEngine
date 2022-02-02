@@ -221,7 +221,7 @@ namespace SkeletalMeshTools
 				const FVector& TangentXRef = SoftSkinVertRef.TangentX;
 				const FVector& TangentYRef = SoftSkinVertRef.TangentY;
 				const FVector& TangentZRef = SoftSkinVertRef.TangentZ;
-				const FVector2D& UVRef = SoftSkinVertRef.UVs[0];
+				const FVector2f& UVRef = SoftSkinVertRef.UVs[0];
 				const FColor& ColorRef = SoftSkinVertRef.Color;
 				const TArray<int32>& AdjacentFaces = VertexIndexToAdjacentFaces.FindChecked(VertexIndex);
 				for (int32 AdjacentFaceArrayIndex = 0; AdjacentFaceArrayIndex < AdjacentFaces.Num(); ++AdjacentFaceArrayIndex)

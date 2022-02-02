@@ -440,7 +440,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 		FSlateRenderTransform RenderTransform;
 
-		const FVector2D Pos = RangeGeometry.GetAbsolutePosition();
+		const FVector2f Pos = FVector2f(RangeGeometry.GetAbsolutePosition());	// LWC_TODO: Precision loss
 		const FVector2D Size = RangeGeometry.GetLocalSize();
 
 		FLinearColor EaseSelectionColor = FEditorStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
@@ -477,6 +477,8 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			Indices.Reserve(CurvePoints.Num()*6);
 			Verts.Reserve(CurvePoints.Num()*2);
 
+			const FVector2f SizeAsFloatVec = FVector2f(Size);	// LWC_TODO: Precision loss
+
 			for (const FEasingCurvePoint& Point : CurvePoints)
 			{
 				float SegmentStartTime = UE::MovieScene::DiscreteInclusiveLower(Segment.Range) / TimeToPixelConverter.GetTickResolution();
@@ -484,12 +486,12 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 				// Add verts top->bottom
 				FVector2f UV(U, 0.f);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV*Size*RangeGeometry.Scale), AtlasOffset + UV*AtlasUVSize, FillColor));
+				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV*SizeAsFloatVec*RangeGeometry.Scale), AtlasOffset + UV*AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 				UV.Y = 1.f - Point.Location.Y;
-				BorderPoints.Add(UV*Size);
+				BorderPoints.Add(FVector2D(UV)*Size);
 				BorderPointColors.Add(Point.Color);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV*Size*RangeGeometry.Scale), AtlasOffset + FVector2f(UV.X, 0.5f)*AtlasUVSize, FillColor));
+				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV*SizeAsFloatVec*RangeGeometry.Scale), AtlasOffset + FVector2f(UV.X, 0.5f)*AtlasUVSize, FillColor));	// LWC_TODO: Precision loss
 
 				if (Verts.Num() >= 4)
 				{

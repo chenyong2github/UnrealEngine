@@ -87,7 +87,7 @@ static void PaintTriangle(
 	{
 		Vertices.AddZeroed();
 		FSlateVertex& NewVert = Vertices.Last();
-		NewVert.Position = AllottedGeometry.LocalToAbsolute(*Points[PointIndex]);
+		NewVert.Position = FVector2f(AllottedGeometry.LocalToAbsolute(*Points[PointIndex]));	// LWC_TODO: Precision loss
 		NewVert.Color = Color.ToFColor(false);
 	}
 
@@ -120,7 +120,7 @@ static void PaintPolygon(
 	{
 		Vertices.AddZeroed();
 		FSlateVertex& NewVert = Vertices.Last();
-		NewVert.Position = AllottedGeometry.LocalToAbsolute(Points[PointIndex]);
+		NewVert.Position = FVector2f(AllottedGeometry.LocalToAbsolute(Points[PointIndex]));	// LWC_TODO: Precision loss
 		NewVert.Color = FillColor.ToFColor(false);
 		MidVertex.Position += NewVert.Position;
 	}
@@ -133,8 +133,8 @@ static void PaintPolygon(
 		FComparePoints(const FSlateVertex& Mid) : MidPoint(Mid) {}
 		bool operator()(const FSlateVertex& A, const FSlateVertex& B) const
 		{
-			FVector2D DeltaA = A.Position - MidPoint.Position;
-			FVector2D DeltaB = B.Position - MidPoint.Position;
+			FVector2D DeltaA = FVector2D(A.Position) - FVector2D(MidPoint.Position);
+			FVector2D DeltaB = FVector2D(B.Position) - FVector2D(MidPoint.Position);
 			float AngleA = FMath::Atan2(DeltaA.Y, DeltaA.X);
 			float AngleB = FMath::Atan2(DeltaB.Y, DeltaB.X);
 			return AngleA < AngleB;
@@ -164,7 +164,7 @@ static void PaintPolygon(
 		LinePoints.Reserve(Points.Num() + 1);
 		for (int VertexIndex = 1; VertexIndex <= Vertices.Num(); ++VertexIndex)
 		{
-			LinePoints.Add(VertexIndex < Vertices.Num() ? Vertices[VertexIndex].Position : Vertices[1].Position);
+			LinePoints.Add(FVector2D(VertexIndex < Vertices.Num() ? Vertices[VertexIndex].Position : Vertices[1].Position));
 		}
 		FSlateDrawElement::MakeLines(
 			OutDrawElements, DrawLayerId + 1, FPaintGeometry(), LinePoints, ESlateDrawEffect::None, OutlineColor, true, 1.0f);

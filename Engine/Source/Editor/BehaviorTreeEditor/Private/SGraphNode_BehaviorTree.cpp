@@ -610,7 +610,7 @@ EVisibility SGraphNode_BehaviorTree::GetDebuggerSearchFailedMarkerVisibility() c
 void SGraphNode_BehaviorTree::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	SGraphNode::Tick( AllottedGeometry, InCurrentTime, InDeltaTime );
-	CachedPosition = AllottedGeometry.AbsolutePosition / AllottedGeometry.Scale;
+	CachedPosition = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale;
 
 	UBehaviorTreeGraphNode* MyNode = Cast<UBehaviorTreeGraphNode>(GraphNode);
 	if (MyNode && MyNode->DebuggerUpdateCounter != DebuggerStateCounter)
