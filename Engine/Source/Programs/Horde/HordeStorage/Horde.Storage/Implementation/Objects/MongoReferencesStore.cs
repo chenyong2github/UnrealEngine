@@ -17,7 +17,7 @@ namespace Horde.Storage.Implementation
     {
         private readonly ILogger _logger = Log.ForContext<MongoReferencesStore>();
 
-        public MongoReferencesStore(IOptionsMonitor<MongoSettings> settings) : base(settings)
+        public MongoReferencesStore(IOptionsMonitor<MongoSettings> settings, string? overrideDatabaseName = null) : base(settings, overrideDatabaseName)
         {
             CreateCollectionIfNotExists<MongoReferencesModelV0>().Wait();
             CreateCollectionIfNotExists<MongoNamespacesModelV0>().Wait();
@@ -179,6 +179,16 @@ namespace Horde.Storage.Implementation
 
             // failed to delete
             return 0L;
+        }
+
+        public void SetTTLDuration(TimeSpan duration)
+        {
+            IndexKeysDefinitionBuilder<MongoReferencesModelV0> indexKeysDefinitionBuilder = Builders<MongoReferencesModelV0>.IndexKeys;
+            CreateIndexModel<MongoReferencesModelV0> indexTTL = new CreateIndexModel<MongoReferencesModelV0>(
+                indexKeysDefinitionBuilder.Ascending(m => m.LastAccessTime), new CreateIndexOptions {Name = "LastAccessTTL", ExpireAfter = duration}
+            );
+
+            AddIndexFor<MongoReferencesModelV0>().CreateOne(indexTTL);
         }
     }
 

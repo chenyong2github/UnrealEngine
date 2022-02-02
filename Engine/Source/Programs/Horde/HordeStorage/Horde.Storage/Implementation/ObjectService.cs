@@ -132,7 +132,19 @@ namespace Horde.Storage.Implementation
             
             if (missingReferences.Length == 0 && missingBlobs.Length == 0)
             {
-                await _referencesStore.Finalize(ns, bucket, key);
+                try
+                {
+                    await _referencesStore.Finalize(ns, bucket, key);
+                }
+                catch (PartialReferenceResolveException e)
+                {
+                    missingReferences = e.UnresolvedReferences.ToArray();
+                }
+                catch (ReferenceIsMissingBlobsException e)
+                {
+                    missingBlobs = e.MissingBlobs.ToArray();
+                }
+
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 

@@ -210,6 +210,54 @@ namespace Horde.Storage.Controllers
             }
         }
 
+          /// <summary>
+        /// Returns the metadata about a ref key
+        /// </summary>
+        /// <param name="ns">Namespace. Each namespace is completely separated from each other. Use for different types of data that is never expected to be similar (between two different games for instance). Example: `uc4.ddc`</param>
+        /// <param name="bucket">The category/type of record you are caching. Is a clustered key together with the actual key, but all records in the same bucket can be dropped easily. Example: `terrainTexture` </param>
+        /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
+        /// <param name="fields">The fields to include in the response, omit this to include everything.</param>
+        [HttpGet("{ns}/{bucket}/{key}/metadata", Order = 500)]
+        [Authorize("Object.read")]
+        public async Task<IActionResult> GetMetadata(
+            [FromRoute] [Required] NamespaceId ns,
+            [FromRoute] [Required] BucketId bucket,
+            [FromRoute] [Required] IoHashKey key,
+            [FromQuery] string[] fields)
+        {
+            if (ShouldDoAuth())
+            {
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
+                {
+                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+
+                    if (!authorizationResult.Succeeded)
+                    {
+                        return Forbid();
+                    }
+                }
+            }
+
+            try
+            {
+                (ObjectRecord objectRecord, BlobContents? _) = await _objectService.Get(ns, bucket, key, fields);
+
+                return Ok(new RefMetadataResponse(objectRecord));
+            }
+            catch (NamespaceNotFoundException e)
+            {
+                return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
+            }
+            catch (ObjectNotFoundException e)
+            {
+                return NotFound(new ProblemDetails { Title = $"Object {e.Bucket} {e.Key} did not exist" });
+            }
+            catch (BlobNotFoundException e)
+            {
+                return NotFound(new ProblemDetails { Title = $"Object {e.Blob} in {e.Ns} not found" });
+            }
+        }
+
 
         /// <summary>
         /// Checks if a object exists
@@ -535,6 +583,26 @@ namespace Horde.Storage.Controllers
 
             return true;
         }
+    }
+
+    public class RefMetadataResponse
+    {
+        public RefMetadataResponse(ObjectRecord objectRecord)
+        {
+            Namespace = objectRecord.Namespace;
+            Bucket = objectRecord.Bucket;
+            Name = objectRecord.Name;
+            PayloadIdentifier = objectRecord.BlobIdentifier;
+            LastAccess = objectRecord.LastAccess;
+            IsFinalized = objectRecord.IsFinalized;
+        }
+
+        public NamespaceId Namespace { get; set; }
+        public BucketId Bucket { get; set; }
+        public IoHashKey Name { get; set; }
+        public BlobIdentifier PayloadIdentifier { get; set; }
+        public DateTime LastAccess { get; set; }
+        public bool IsFinalized { get; set; }
     }
 
     public class PutObjectResponse

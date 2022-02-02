@@ -48,6 +48,7 @@ namespace Jupiter
         private static IConfiguration GetConfigurationBuilder()
         {
             string env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            string mode = Environment.GetEnvironmentVariable("HORDESTORAGE_MODE") ?? "DefaultMode";
             string configRoot = "/config";
             // set the config root to config under the current directory for windows
             if (OperatingSystem.IsWindows())
@@ -61,6 +62,10 @@ namespace Jupiter
                     path:
                     $"appsettings.{env}.json",
                     true)
+                .AddYamlFile(
+                    path:
+                    $"appsettings.{mode}.yaml",
+                    false)
                 .AddYamlFile(Path.Combine(configRoot, "appsettings.Local.yaml"), optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables()
                 .Build();

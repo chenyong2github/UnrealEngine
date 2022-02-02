@@ -78,6 +78,7 @@ public class BlobService : IBlobService
             HordeStorageSettings.StorageBackendImplementations.FileSystem => provider.GetService<FileSystemStore>(),
             HordeStorageSettings.StorageBackendImplementations.Memory => provider.GetService<MemoryCacheBlobStore>(),
             HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore => provider.GetService<MemoryBlobStore>(),
+            HordeStorageSettings.StorageBackendImplementations.Relay => provider.GetService<RelayBlobStore>(),
             _ => throw new ArgumentOutOfRangeException()
         };
         if (store == null)

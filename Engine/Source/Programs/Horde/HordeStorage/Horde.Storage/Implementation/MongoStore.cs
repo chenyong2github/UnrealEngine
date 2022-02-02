@@ -13,10 +13,12 @@ namespace Horde.Storage.Implementation;
 
 public class MongoStore
 {
+    private readonly string? _overrideDatabaseName;
     protected readonly MongoClient _client;
 
-    public MongoStore(IOptionsMonitor<MongoSettings> settings)
+    public MongoStore(IOptionsMonitor<MongoSettings> settings, string? overrideDatabaseName = null)
     {
+        _overrideDatabaseName = overrideDatabaseName;
         MongoClientSettings mongoClientSettings = MongoClientSettings.FromUrl(
             new MongoUrl(settings.CurrentValue.ConnectionString)
         );
@@ -77,11 +79,7 @@ public class MongoStore
 
     private string GetDatabaseName()
     {
-        // TODO: Database per namespace seems a bit much?
-        //string cleanedNs = ns.ToString().Replace(".", "_");
-        //string dbName = $"HordeStorage_{cleanedNs}";
-        string dbName = $"HordeStorage";
-        return dbName;
+        return _overrideDatabaseName ?? "HordeStorage";
     }
 }
 

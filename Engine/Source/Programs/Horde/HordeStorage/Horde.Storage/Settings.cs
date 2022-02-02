@@ -50,28 +50,32 @@ namespace Horde.Storage
             Azure,
             FileSystem,
             Memory,
-            MemoryBlobStore
+            MemoryBlobStore,
+            Relay
         }
 
         public enum ReferencesDbImplementations
         {
             Memory,
             Scylla,
-            Mongo
+            Mongo,
+            Cache
         }
 
         public enum ContentIdStoreImplementations
         {
             Memory,
             Scylla,
-            Mongo
+            Mongo,
+            Cache
         }
 
         public enum BlobIndexImplementations
         {
             Memory,
             Scylla,
-            Mongo
+            Mongo,
+            Cache
         }
 
         public enum LeaderElectionImplementations
@@ -257,4 +261,10 @@ namespace Horde.Storage
         public List<string> CleanNamespacesV1 { get; set; } = new List<string>();
         public List<string> CleanNamespaces { get; set; }  = new List<string>();
     }
+
+    public class UpstreamRelaySettings
+    {
+        [Required] public string ConnectionString { get; set; } = null!;
+    }
+
 }

@@ -170,6 +170,8 @@ namespace Horde.Storage
 
             services.AddOptions<ConsistencyCheckSettings>().Bind(Configuration.GetSection("ConsistencyCheck")).ValidateDataAnnotations();
 
+            services.AddOptions<UpstreamRelaySettings>().Configure(o => Configuration.GetSection("Upstream").Bind(o)).ValidateDataAnnotations();
+
             services.AddOptions<GCSettings>().Configure(o => Configuration.GetSection("GC").Bind(o)).ValidateDataAnnotations();
             services.AddOptions<ReplicationSettings>().Configure(o => Configuration.GetSection("Replication").Bind(o)).ValidateDataAnnotations();
             services.AddOptions<ServiceCredentialSettings>().Configure(o => Configuration.GetSection("ServiceCredentials").Bind(o)).ValidateDataAnnotations();
@@ -214,6 +216,7 @@ namespace Horde.Storage
             services.AddSingleton<AzureBlobStore>();
             services.AddSingleton<MemoryCacheBlobStore>();
             services.AddSingleton<MemoryBlobStore>();
+            services.AddSingleton<RelayBlobStore>();
 
             services.AddSingleton<OrphanBlobCleanup>();
             services.AddSingleton<OrphanBlobCleanupRefs>();
@@ -289,6 +292,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<ScyllaBlobIndex>(provider);
                 case HordeStorageSettings.BlobIndexImplementations.Mongo:
                     return ActivatorUtilities.CreateInstance<MongoBlobIndex>(provider);
+                case HordeStorageSettings.BlobIndexImplementations.Cache:
+                    return ActivatorUtilities.CreateInstance<CachedBlobIndex>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -327,6 +332,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<ScyllaContentIdStore>(provider);
                 case HordeStorageSettings.ContentIdStoreImplementations.Mongo:
                     return ActivatorUtilities.CreateInstance<MongoContentIdStore>(provider);
+                case HordeStorageSettings.ContentIdStoreImplementations.Cache:
+                    return ActivatorUtilities.CreateInstance<CacheContentIdStore>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -394,6 +401,8 @@ namespace Horde.Storage
                     return ActivatorUtilities.CreateInstance<ScyllaReferencesStore>(provider);
                 case HordeStorageSettings.ReferencesDbImplementations.Mongo:
                     return ActivatorUtilities.CreateInstance<MongoReferencesStore>(provider);
+                case HordeStorageSettings.ReferencesDbImplementations.Cache:
+                    return ActivatorUtilities.CreateInstance<CacheReferencesStore>(provider);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -620,15 +629,16 @@ namespace Horde.Storage
                         break;
 
                     case HordeStorageSettings.StorageBackendImplementations.FileSystem:
-                        FilesystemSettings filesystemSettings = provider.GetService<IOptionsMonitor<FilesystemSettings>>()!.CurrentValue;
                         healthChecks.AddDiskStorageHealthCheck(options =>
                         {
+                            FilesystemSettings filesystemSettings = provider.GetService<IOptionsMonitor<FilesystemSettings>>()!.CurrentValue;
                             string? driveRoot = Path.GetPathRoot(PathUtil.ResolvePath(filesystemSettings.RootDir));
                             options.AddDrive(driveRoot);
                         });
                         break;
                     case HordeStorageSettings.StorageBackendImplementations.Memory:
                     case HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore:
+                    case HordeStorageSettings.StorageBackendImplementations.Relay:
                         break;
                     default:
                         throw new ArgumentOutOfRangeException("Unhandled storage impl " + impl);
