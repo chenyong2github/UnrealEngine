@@ -257,7 +257,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::ComputePolygroupsFr
 {
 	if (TargetMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputePolygroupsFromAngleThresholde_InvalidInput", "ComputePolygroupsFromAngleThreshold: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputePolygroupsFromAngleThreshold_InvalidInput", "ComputePolygroupsFromAngleThreshold: TargetMesh is Null"));
 		return TargetMesh;
 	}
 
@@ -355,8 +355,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetAllTrianglePolyg
 	FGeometryScriptGroupLayer GroupLayer, 
 	FGeometryScriptIndexList& PolygroupIDsOut)
 {
-	PolygroupIDsOut.Reset();
-	PolygroupIDsOut.IndexType = EGeometryScriptIndexType::PolygroupID;
+	PolygroupIDsOut.Reset(EGeometryScriptIndexType::PolygroupID);
 	TArray<int32>& PolygroupIDs = *PolygroupIDsOut.List;
 
 	bool bIsValidPolygroupLayer = false;
@@ -379,8 +378,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetPolygroupIDsInMe
 	FGeometryScriptGroupLayer GroupLayer, 
 	FGeometryScriptIndexList& PolygroupIDsOut)
 {
-	PolygroupIDsOut.Reset();
-	PolygroupIDsOut.IndexType = EGeometryScriptIndexType::PolygroupID;
+	PolygroupIDsOut.Reset(EGeometryScriptIndexType::PolygroupID);
 	TArray<int32>& PolygroupIDs = *PolygroupIDsOut.List;
 
 	TSet<int32> UniqueGroupIDs;
@@ -410,8 +408,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPolygroupFunctions::GetTrianglesInPolyg
 	int PolygroupID,
 	FGeometryScriptIndexList& TriangleIDsOut)
 {
-	TriangleIDsOut.Reset();
-	TriangleIDsOut.IndexType = EGeometryScriptIndexType::Triangle;
+	TriangleIDsOut.Reset(EGeometryScriptIndexType::Triangle);
 	TArray<int32>& TriangleIDs = *TriangleIDsOut.List;
 
 	bool bIsValidPolygroupLayer = false;

@@ -215,6 +215,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDecompositionFunctions::GetSubMeshFromM
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList", "GetSubMeshFromMesh: TriangleList is empty"));
 		return TargetMesh;
 	}
+	if (TriangleList.IsCompatibleWith(EGeometryScriptIndexType::Triangle) == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshPerVertexColors_InvalidList2", "GetSubMeshFromMesh: TriangleList has incompatible index type"));
+		return TargetMesh;
+	}
 
 	FDynamicMesh3 Submesh;
 	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)

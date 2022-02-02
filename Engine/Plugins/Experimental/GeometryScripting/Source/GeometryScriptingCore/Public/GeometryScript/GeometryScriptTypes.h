@@ -180,7 +180,8 @@ public:
 UENUM(BlueprintType)
 enum class EGeometryScriptIndexType : uint8
 {
-	Unknown,
+	// Index lists of Any type are compatible with any other index list type
+	Any,
 	Triangle,
 	Vertex,
 	MaterialID,
@@ -193,17 +194,23 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptIndexList
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, Category = IndexList)
-	EGeometryScriptIndexType IndexType = EGeometryScriptIndexType::Unknown;
+	EGeometryScriptIndexType IndexType = EGeometryScriptIndexType::Any;
 public:
 	TSharedPtr<TArray<int>> List;
 
-	void Reset()
+	void Reset(EGeometryScriptIndexType TargetIndexType)
 	{
 		if (List.IsValid() == false)
 		{
 			List = MakeShared<TArray<int>>();
 		}
 		List->Reset();
+		IndexType = TargetIndexType;
+	}
+
+	bool IsCompatibleWith(EGeometryScriptIndexType OtherType) const
+	{
+		return IndexType == OtherType || IndexType == EGeometryScriptIndexType::Any;
 	}
 };
 

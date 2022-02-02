@@ -189,8 +189,7 @@ int32 UGeometryScriptLibrary_MeshMaterialFunctions::GetTriangleMaterialID(
 
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetAllTriangleMaterialIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& MaterialIDList, bool& bHasMaterialIDs)
 {
-	MaterialIDList.Reset();
-	MaterialIDList.IndexType = EGeometryScriptIndexType::MaterialID;
+	MaterialIDList.Reset(EGeometryScriptIndexType::MaterialID);
 	TArray<int32>& MaterialIDs = *MaterialIDList.List;
 	bHasMaterialIDs = false;
 	SimpleMeshMaterialQuery<int32>(TargetMesh, bHasMaterialIDs, 0, [&](const FDynamicMesh3& Mesh, const FDynamicMeshMaterialAttribute& MaterialIDAttrib) {
@@ -248,7 +247,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMateri
 	}
 	if (TriangleMaterialIDList.List.IsValid() == false || TriangleMaterialIDList.List->Num() == 0)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList", "SetAllTriangleMaterialIDs: List is empty"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList", "SetAllTriangleMaterialIDs: TriangleMaterialIDList is empty"));
+		return TargetMesh;
+	}
+	if (TriangleMaterialIDList.IsCompatibleWith(EGeometryScriptIndexType::MaterialID) == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList2", "SetAllTriangleMaterialIDs: TriangleMaterialIDList has incompatible index type"));
 		return TargetMesh;
 	}
 

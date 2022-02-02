@@ -36,9 +36,9 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertIndexListToArray(FGeome
 	}
 }
 
-void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToIndexList(const TArray<int>& IndexArray, FGeometryScriptIndexList& IndexList)
+void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToIndexList(const TArray<int>& IndexArray, FGeometryScriptIndexList& IndexList, EGeometryScriptIndexType IndexType)
 {
-	IndexList.Reset();
+	IndexList.Reset(IndexType);
 	IndexList.List->Append(IndexArray);
 }
 

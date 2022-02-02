@@ -70,7 +70,7 @@ public:
 
 
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
-	static UPARAM(DisplayName = "Material ID") int32
+	static UPARAM(DisplayName = "Polygroup ID") int32
 	GetTrianglePolygroupID( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptGroupLayer GroupLayer, 

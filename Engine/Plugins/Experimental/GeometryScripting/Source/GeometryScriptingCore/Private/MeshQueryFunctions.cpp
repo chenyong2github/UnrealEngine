@@ -142,7 +142,7 @@ bool UGeometryScriptLibrary_MeshQueryFunctions::IsValidTriangleID( UDynamicMesh*
 
 UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllTriangleIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& TriangleIDList, bool& bHasTriangleIDGaps)
 {
-	TriangleIDList.Reset();
+	TriangleIDList.Reset(EGeometryScriptIndexType::Triangle);
 	bHasTriangleIDGaps = false;
 	if (TargetMesh)
 	{
@@ -250,7 +250,7 @@ bool UGeometryScriptLibrary_MeshQueryFunctions::IsValidVertexID( UDynamicMesh* T
 
 UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexIDs(UDynamicMesh* TargetMesh, FGeometryScriptIndexList& VertexIDList, bool& bHasVertexIDGaps)
 {
-	VertexIDList.Reset();
+	VertexIDList.Reset(EGeometryScriptIndexType::Vertex);
 	bHasVertexIDGaps = false;
 	if (TargetMesh)
 	{

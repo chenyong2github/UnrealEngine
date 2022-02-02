@@ -79,7 +79,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddVerticesToMesh(
 		return TargetMesh;
 	}
 
-	NewIndicesList.Reset();
+	NewIndicesList.Reset(EGeometryScriptIndexType::Vertex);
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
@@ -122,7 +122,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteVerticesFromM
 	int& NumDeleted,
 	bool bDeferChangeNotifications)
 {
-	if (VertexList.List.IsValid() == false || VertexList.List->Num() == 0)
+	if (VertexList.List.IsValid() == false || VertexList.List->Num() == 0 || VertexList.IsCompatibleWith(EGeometryScriptIndexType::Vertex) == false)
 	{
 		return TargetMesh;
 	}
@@ -207,7 +207,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddTrianglesToMesh(
 		return TargetMesh;
 	}
 
-	NewIndicesList.Reset();
+	NewIndicesList.Reset(EGeometryScriptIndexType::Triangle);
 	if (TargetMesh)
 	{
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
@@ -403,7 +403,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendBuffersToMesh
 	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
-	NewTriangleIndicesList.Reset();
+	NewTriangleIndicesList.Reset(EGeometryScriptIndexType::Triangle);
 	if (TargetMesh == nullptr)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshRepeated_InvalidInput1", "AppendMeshRepeated: TargetMesh is Null"));
