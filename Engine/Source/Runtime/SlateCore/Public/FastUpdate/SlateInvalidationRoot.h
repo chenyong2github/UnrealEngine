@@ -7,6 +7,7 @@
 #include "WidgetProxy.h"
 #include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "FastUpdate/SlateInvalidationWidgetIndex.h"
+#include "FastUpdate/SlateInvalidationWidgetSortOrder.h"
 #include "Rendering/DrawElements.h"
 
 struct FSlateCachedElementData;
@@ -16,6 +17,11 @@ class FSlateInvalidationWidgetPrepassHeap;
 class FSlateInvalidationWidgetPostHeap;
 class FSlateWindowElementList;
 class FWidgetStyle;
+
+namespace UE::Slate::Private
+{
+	struct FSlateInvalidationPaintFastPathContext;
+}
 
 #define UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA 0
 
@@ -152,6 +158,10 @@ private:
 	void HandleInvalidateAllWidgets(bool bClearResourcesImmediately);
 
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
+	bool PaintFastPath_UpdateNextWidget(const FSlateInvalidationContext& Context, UE::Slate::Private::FSlateInvalidationPaintFastPathContext& FastPathContext);
+	void PaintFastPath_FixupLayerId(UE::Slate::Private::FSlateInvalidationPaintFastPathContext& FastPathContext, const FWidgetProxy& InvalidationWidget, const int32 NewOutgoingLayerId);
+	void PaintFastPath_FixupParentLayerId(UE::Slate::Private::FSlateInvalidationPaintFastPathContext& FastPathContext, const FWidgetProxy& InvalidationWidget, const int32 NewOutgoingLayerId);
+	void PaintFastPath_AddUniqueSortedToFinalUpdateList(const FSlateInvalidationWidgetIndex InvalidationWidgetIndex);
 
 	/** Call when an invalidation occurred. */
 	void InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason);
@@ -187,8 +197,8 @@ private:
 	 */
 	TUniquePtr<FSlateInvalidationWidgetPostHeap> WidgetsNeedingPostUpdate;
 
-	/** Index to widgets that will be updated. */
-	TArray<FSlateInvalidationWidgetIndex> FinalUpdateList;
+	/** Widgets that will be updated. */
+	TArray<FSlateInvalidationWidgetHeapElement> FinalUpdateList;
 
 	FSlateCachedElementData* CachedElementData;
 

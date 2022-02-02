@@ -113,7 +113,25 @@ class FWidgetProxy
 public:
 	FWidgetProxy(SWidget& InWidget);
 
-	int32 Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
+	struct FUpdateResult
+	{
+		FUpdateResult() = default;
+		FUpdateResult(int32 InPreviousOutgoingLayerId, int32 InNewOutgoingLayerId)
+			: PreviousOutgoingLayerId(InPreviousOutgoingLayerId)
+			, NewOutgoingLayerId(InNewOutgoingLayerId)
+			, bPainted(true)
+		{
+		}
+		int32 PreviousOutgoingLayerId = INDEX_NONE;
+		int32 NewOutgoingLayerId = INDEX_NONE;
+		bool bPainted = false;
+	};
+
+	/**
+	 * Similar to SWidget::Paint but use the saved PersistenState. Only paint/tick if needed.
+	 * @return the new and previous LayerId is the widget was painted.
+	 */
+	FUpdateResult Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
 
 	void ProcessLayoutInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
 	bool ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastPathWidgetList, FSlateInvalidationRoot& Root);
@@ -146,7 +164,7 @@ public:
 #endif
 
 private:
-	int32 Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements) const;
+	FUpdateResult Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements) const;
 
 private:
 #if UE_SLATE_WITH_WIDGETPROXY_WEAKPTR
@@ -196,6 +214,8 @@ public:
 			uint8 bDebug_LastFrameVisibleSet : 1;
 			/** Use with "Slate.InvalidationRoot.VerifyWidgetAttribute". */
 			uint8 bDebug_AttributeUpdated : 1;
+			/** The widget was updated (paint or ticked/activetimer). */
+			uint8 bDebug_Updated : 1;
 		};
 		uint8 PrivateDebugFlags;
 	};
@@ -268,6 +288,8 @@ public:
 	FSlateInvalidationWidgetSortOrder GetWidgetSortOrder() const { return WidgetSortOrder; }
 
 	SLATECORE_API FSlateInvalidationWidgetVisibility GetWidgetVisibility(const SWidget* Widget) const;
+	SLATECORE_API bool HasAllInvalidationReason(const SWidget* Widget, EInvalidateWidgetReason Reason) const;
+	SLATECORE_API bool HasAnyInvalidationReason(const SWidget* Widget, EInvalidateWidgetReason Reason) const;
 
 	FWidgetProxy& GetProxy();
 	const FWidgetProxy& GetProxy() const;

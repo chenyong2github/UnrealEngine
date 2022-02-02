@@ -44,16 +44,16 @@ TSharedPtr<SWidget> FWidgetProxy::GetWidgetAsShared() const
 #endif
 }
 
-int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements)
+FWidgetProxy::FUpdateResult FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements)
 {
 	TSharedPtr<SWidget> CurrentWidget = GetWidgetAsShared();
 	check(Visibility.IsVisible());
 
 	// If Outgoing layer id remains index none, there was no change
-	int32 OutgoingLayerId = INDEX_NONE;
+	FUpdateResult Result;
 	if (CurrentWidget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
 	{
-		OutgoingLayerId = Repaint(PaintArgs, OutDrawElements);
+		Result = Repaint(PaintArgs, OutDrawElements);
 	}
 	else
 	{
@@ -63,6 +63,10 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
 			CurrentWidget->ExecuteActiveTimers(PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+			bDebug_Updated = true;
+#endif
 		}
 
 		if (CurrentWidget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick))
@@ -73,14 +77,29 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList&
 			SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
 
 			CurrentWidget->Tick(MyState.DesktopGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
+			bDebug_Updated = true;
+#endif
 		}
+
+		// If the widet was invalidated while ticking. In slow mode the widget would be painted right away.
+		//For now postpone for the next frame. Enabling this code would cause more issues with the list management.
+		//if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Paint))
+		//{
+		//	EnumRemoveFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Paint);
+		//	const EWidgetUpdateFlags FlagToAddAfterRepaint = CurrentWidget->UpdateFlags & (EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsTick);
+		//	EnumRemoveFlags(CurrentWidget->UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate | EWidgetUpdateFlags::NeedsTick);
+		//	Result = Repaint(PaintArgs, OutDrawElements);
+		//	EnumAddFlags(CurrentWidget->UpdateFlags, FlagToAddAfterRepaint);
+		//}
 
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::BroadcastWidgetUpdated(CurrentWidget.Get(), PreviousUpdateFlag);
 #endif
 	}
 
-	return OutgoingLayerId;
+	return Result;
 }
 
 void FWidgetProxy::ProcessLayoutInvalidation(FSlateInvalidationWidgetPostHeap& UpdateList, FSlateInvalidationWidgetList& FastWidgetPathList, FSlateInvalidationRoot& Root)
@@ -189,7 +208,7 @@ void FWidgetProxy::MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetPostHeap& P
 	}
 }
 
-int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements) const
+FWidgetProxy::FUpdateResult FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements) const
 {
 	SWidget* WidgetPtr = GetWidget();
 	check(WidgetPtr);
@@ -239,7 +258,7 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 		check(StartingClipIndex == OutDrawElements.GetClippingIndex());
 	}
 
-	return NewLayerId;
+	return FUpdateResult{ PrevLayerId, NewLayerId };
 }
 
 FWidgetProxyHandle::FWidgetProxyHandle(const FSlateInvalidationRootHandle& InInvalidationRoot, FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortIndex)
@@ -277,6 +296,24 @@ FSlateInvalidationWidgetVisibility FWidgetProxyHandle::GetWidgetVisibility(const
 		return GetProxy().Visibility;
 	}
 	return FSlateInvalidationWidgetVisibility();
+}
+
+bool FWidgetProxyHandle::HasAllInvalidationReason(const SWidget* Widget, EInvalidateWidgetReason Reason) const
+{
+	if (IsValid(Widget))
+	{
+		return EnumHasAllFlags(GetProxy().CurrentInvalidateReason, Reason);
+	}
+	return false;
+}
+
+bool FWidgetProxyHandle::HasAnyInvalidationReason(const SWidget* Widget, EInvalidateWidgetReason Reason) const
+{
+	if (IsValid(Widget))
+	{
+		return EnumHasAnyFlags(GetProxy().CurrentInvalidateReason, Reason);
+	}
+	return false;
 }
 
 FWidgetProxy& FWidgetProxyHandle::GetProxy()

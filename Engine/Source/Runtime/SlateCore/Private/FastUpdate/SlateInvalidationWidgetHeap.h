@@ -12,37 +12,12 @@
 	#define UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING DO_CHECK
 #endif
 
-namespace UE
-{
-namespace Slate
-{
-namespace Private
+namespace UE::Slate::Private
 {
 #if UE_SLATE_WITH_INVALIDATIONWIDGETHEAP_DEBUGGING
 	extern bool GSlateInvalidationWidgetHeapVerifyWidgetContains;
 #endif
-
-	/**
-	 * Ordered list of WidgetIndex. The order is based on the WidgetSortIndex.
-	 */
-	struct FSlateInvalidationWidgetHeapElement
-	{
-	public:
-		FSlateInvalidationWidgetHeapElement(FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortOrder)
-			: WidgetIndex(InIndex), WidgetSortOrder(InSortOrder)
-		{}
-		inline FSlateInvalidationWidgetIndex GetWidgetIndex() const { return WidgetIndex; }
-		inline FSlateInvalidationWidgetIndex& GetWidgetIndexRef() { return WidgetIndex; }
-		inline FSlateInvalidationWidgetSortOrder GetWidgetSortOrder() const { return WidgetSortOrder; }
-		inline FSlateInvalidationWidgetSortOrder& GetWidgetSortOrderRef() { return WidgetSortOrder; }
-
-	private:
-		FSlateInvalidationWidgetIndex WidgetIndex;
-		FSlateInvalidationWidgetSortOrder WidgetSortOrder;
-	};
-} // Private
-} // Slate
-} // UE
+} // namespace
 
 /**
  * Heap of widget that is ordered by increasing sort order. The list need to always stay ordered.
@@ -50,7 +25,7 @@ namespace Private
 class FSlateInvalidationWidgetPreHeap
 {
 public:
-	using FElement = UE::Slate::Private::FSlateInvalidationWidgetHeapElement;
+	using FElement = FSlateInvalidationWidgetHeapElement;
 	struct FWidgetOrderLess
 	{
 		FORCEINLINE bool operator()(const FElement& A, const FElement& B) const
@@ -203,7 +178,7 @@ private:
 class FSlateInvalidationWidgetPostHeap
 {
 public:
-	using FElement = UE::Slate::Private::FSlateInvalidationWidgetHeapElement;
+	using FElement = FSlateInvalidationWidgetHeapElement;
 	struct FWidgetOrderGreater
 	{
 		FORCEINLINE bool operator()(const FElement& A, const FElement& B) const
@@ -265,12 +240,12 @@ public:
 	}
 
 	/** Returns and removes the biggest WidgetIndex from the list. */
-	UE_NODISCARD FSlateInvalidationWidgetIndex HeapPop()
+	UE_NODISCARD FElement HeapPop()
 	{
 		check(bIsHeap == true);
-		FSlateInvalidationWidgetIndex Result = Heap.HeapTop().GetWidgetIndex();
+		FElement Result = Heap.HeapTop();
 		Heap.HeapPopDiscard(SortPredicate(), false);
-		OwnerList[Result].bContainedByWidgetPostHeap = false;
+		OwnerList[Result.GetWidgetIndex()].bContainedByWidgetPostHeap = false;
 		return Result;
 	}
 
@@ -408,7 +383,7 @@ private:
 class FSlateInvalidationWidgetPrepassHeap
 {
 public:
-	using FElement = UE::Slate::Private::FSlateInvalidationWidgetHeapElement;
+	using FElement = FSlateInvalidationWidgetHeapElement;
 	struct FWidgetOrderGreater
 	{
 		FORCEINLINE bool operator()(const FElement& A, const FElement& B) const

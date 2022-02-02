@@ -33,3 +33,30 @@ public:
 	bool operator== (const FSlateInvalidationWidgetSortOrder Other) const { return Order == Other.Order; }
 	bool operator!= (const FSlateInvalidationWidgetSortOrder Other) const { return Order != Other.Order; }
 };
+
+
+/**
+ * Pair of WidgetIndex and WidgetSortIndex. Can be used to sort the widget.
+ */
+struct FSlateInvalidationWidgetHeapElement
+{
+public:
+	FSlateInvalidationWidgetHeapElement(FSlateInvalidationWidgetIndex InIndex, FSlateInvalidationWidgetSortOrder InSortOrder)
+		: WidgetIndex(InIndex), WidgetSortOrder(InSortOrder)
+	{
+	}
+
+	inline FSlateInvalidationWidgetIndex GetWidgetIndex() const
+	{
+		return WidgetIndex;
+	}
+
+	inline FSlateInvalidationWidgetSortOrder GetWidgetSortOrder() const
+	{
+		return WidgetSortOrder;
+	}
+
+private:
+	FSlateInvalidationWidgetIndex WidgetIndex;
+	FSlateInvalidationWidgetSortOrder WidgetSortOrder;
+};

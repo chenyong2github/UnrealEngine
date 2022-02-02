@@ -79,15 +79,12 @@ static FAutoConsoleVariableRef CVarSlateVerifyWidgetLayerId(
 	TEXT("Every tick, verify that widgets have a LayerId range that fits with their siblings and their parent.")
 );
 
-namespace UE
-{
-namespace Slate
+namespace UE::Slate::Private
 {
 	void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw);
 	void VerifyWidgetLayerId(const TSharedRef<SWindow>& WindowToDraw);
 }
-}
-#endif
+#endif //WITH_SLATE_DEBUGGING
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1080,7 +1077,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 #if WITH_SLATE_DEBUGGING
 	if (GSlateVerifyParentChildrenRelationship)
 	{
-		UE::Slate::VerifyParentChildrenRelationship(WindowToDraw);
+		UE::Slate::Private::VerifyParentChildrenRelationship(WindowToDraw);
 	}
 #endif
 
@@ -1146,7 +1143,7 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 #if WITH_SLATE_DEBUGGING
 		if (GSlateVerifyWidgetLayerId)
 		{
-			UE::Slate::VerifyWidgetLayerId(WindowToDraw);
+			UE::Slate::Private::VerifyWidgetLayerId(WindowToDraw);
 		}
 #endif
 
@@ -7107,74 +7104,82 @@ bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(ESlateDebuggin
 }
 
 
-namespace UE
-{
-namespace Slate
-{
 #if WITH_SLATE_DEBUGGING
-namespace Private
+namespace UE::Slate::Private
 {
-	bool VerifyParentChildrenRelationship_Recursive(SWidget* Parent, TMap<const SWidget*, const SWidget*>& AllWidgets)
-	{
-		bool bResult = true;
-		Parent->GetAllChildren()->ForEachWidget([&bResult, Parent, &AllWidgets](SWidget& ChildWidget)
+
+bool VerifyParentChildrenRelationship_Recursive(SWidget* Parent, TMap<const SWidget*, const SWidget*>& AllWidgets)
+{
+	bool bResult = true;
+	Parent->GetAllChildren()->ForEachWidget([&bResult, Parent, &AllWidgets](SWidget& ChildWidget)
+		{
+			if (&ChildWidget != &SNullWidget::NullWidget.Get())
 			{
-				if (&ChildWidget != &SNullWidget::NullWidget.Get())
+				if (AllWidgets.Find(&ChildWidget))
 				{
-					if (AllWidgets.Find(&ChildWidget))
-					{
-						bResult = false;
-						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' is owned by more than one parent. 1:'%s' 2:'%s'.")
-							, *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget)
-							, *FReflectionMetaData::GetWidgetDebugInfo(AllWidgets[&ChildWidget])
-							, *FReflectionMetaData::GetWidgetDebugInfo(Parent));
-					}
-					else
-					{
-						AllWidgets.Add(&ChildWidget, Parent);
-					}
-
-					if (ChildWidget.GetParentWidget().Get() != Parent)
-					{
-						bResult = false;
-						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' has the wrong parent."), *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget));
-					}
-
-					bResult = bResult && VerifyParentChildrenRelationship_Recursive(&ChildWidget, AllWidgets);
+					bResult = false;
+					UE_LOG(LogSlate, Warning, TEXT("The widget '%s' is owned by more than one parent. 1:'%s' 2:'%s'.")
+						, *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget)
+						, *FReflectionMetaData::GetWidgetDebugInfo(AllWidgets[&ChildWidget])
+						, *FReflectionMetaData::GetWidgetDebugInfo(Parent));
 				}
-			});
-
-		return bResult;
-	}
-
-	bool VerifyWidgetLayerId_Recursive(SWidget& Widget)
-	{
-		bool bResult = true;
-
-		const uint32 LastPaintFrame = Widget.Debug_GetLastPaintFrame();
-		const bool bIsDeferredPaint = Widget.GetPersistentState().bDeferredPainting;
-		const int32 InLayerId = Widget.GetPersistentState().LayerId;
-		const int32 OutLayerId = Widget.GetPersistentState().OutgoingLayerId;
-
-		int32 PreviousInLayerId = InLayerId;
-		int32 PreviousOutLayerId = InLayerId;
-
-		Widget.GetAllChildren()->ForEachWidget([&bResult, LastPaintFrame, bIsDeferredPaint, InLayerId, OutLayerId](SWidget& ChildWidget)
-			{
-				if (&ChildWidget != &SNullWidget::NullWidget.Get())
+				else
 				{
-					if (ChildWidget.GetVisibility().IsVisible() && ChildWidget.Debug_GetLastPaintFrame() == LastPaintFrame)
+					AllWidgets.Add(&ChildWidget, Parent);
+				}
+
+				if (ChildWidget.GetParentWidget().Get() != Parent)
+				{
+					bResult = false;
+					UE_LOG(LogSlate, Warning, TEXT("The widget '%s' has the wrong parent."), *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget));
+				}
+
+				bResult = bResult && VerifyParentChildrenRelationship_Recursive(&ChildWidget, AllWidgets);
+			}
+		});
+
+	return bResult;
+}
+
+bool VerifyWidgetLayerId_Recursive(SWidget& Widget, bool bInsideInvalidationRoot)
+{
+	bool bResult = true;
+
+	bInsideInvalidationRoot = bInsideInvalidationRoot || Widget.Advanced_IsInvalidationRoot();
+	const uint32 LastPaintFrame = Widget.Debug_GetLastPaintFrame();
+	const bool bIsDeferredPaint = Widget.GetPersistentState().bDeferredPainting;
+	const int32 InLayerId = Widget.GetPersistentState().LayerId;
+	const int32 OutLayerId = Widget.GetPersistentState().OutgoingLayerId;
+
+	int32 PreviousInLayerId = InLayerId;
+	int32 PreviousOutLayerId = InLayerId;
+
+	Widget.GetAllChildren()->ForEachWidget([&bResult, bInsideInvalidationRoot, LastPaintFrame, bIsDeferredPaint, InLayerId, OutLayerId](SWidget& ChildWidget)
+		{
+			if (&ChildWidget != &SNullWidget::NullWidget.Get())
+			{
+
+				if (ChildWidget.GetVisibility().IsVisible() && (bInsideInvalidationRoot || ChildWidget.Debug_GetLastPaintFrame() == LastPaintFrame))
+				{
+					const bool bIsChildDeferredPaint = ChildWidget.GetPersistentState().bDeferredPainting;
+					if (bIsChildDeferredPaint == bIsDeferredPaint)
 					{
-						const bool bIsChildDeferredPaint = ChildWidget.GetPersistentState().bDeferredPainting;
-						if (bIsChildDeferredPaint == bIsDeferredPaint)
+						const int32 ChildInLayerId = ChildWidget.GetPersistentState().LayerId;
+						const int32 ChildOutLayerId = ChildWidget.GetPersistentState().OutgoingLayerId;
+
+						if (ChildInLayerId== 0)
 						{
-							const int32 ChildInLayerId = ChildWidget.GetPersistentState().LayerId;
-							const int32 ChildOutLayerId = ChildWidget.GetPersistentState().OutgoingLayerId;
+							return;
+						}
 
-							const bool bLayerInIsValid = InLayerId <= ChildInLayerId && InLayerId <= ChildOutLayerId;
-							const bool bLayerOutIsValid = OutLayerId >= ChildInLayerId && OutLayerId >= ChildOutLayerId;
-
-							if (!bLayerInIsValid || !bLayerOutIsValid)
+						const bool bLayerInIsValid = InLayerId <= ChildInLayerId && InLayerId <= ChildOutLayerId;
+						const bool bLayerOutIsValid = OutLayerId >= ChildInLayerId && OutLayerId >= ChildOutLayerId;
+						if (!bLayerInIsValid || !bLayerOutIsValid)
+						{
+							SWidget* ParentWidget = ChildWidget.GetParentWidget().Get();
+							check(ParentWidget);
+							// The parent may just have tick and will be painted on the next frame (this is not desired but possible.
+							if (!ParentWidget->GetProxyHandle().HasAnyInvalidationReason(ParentWidget, EInvalidateWidgetReason::Paint))
 							{
 								bResult = false;
 								UE_LOG(LogSlate, Warning, TEXT("The widget '%s' LayerId is invalid. Parent: [%d,%d] Child: [%d,%d].")
@@ -7184,17 +7189,18 @@ namespace Private
 									, ChildInLayerId
 									, ChildOutLayerId);
 							}
+
+							return;
 						}
-
-						bResult = bResult && VerifyWidgetLayerId_Recursive(ChildWidget);
 					}
+
+					bResult = bResult && VerifyWidgetLayerId_Recursive(ChildWidget, bInsideInvalidationRoot);
 				}
-			});
+			}
+		});
 
-		return bResult;
-	}
-}//Private
-
+	return bResult;
+}
 
 void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw)
 {
@@ -7204,8 +7210,8 @@ void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw)
 		AllWidgets.Add(&WindowToDraw.Get(), nullptr);
 		if (!Private::VerifyParentChildrenRelationship_Recursive(&WindowToDraw.Get(), AllWidgets))
 		{
-			CVarSlateVerifyParentChildrenRelationship->Set(false);
-			ensureMsgf(false, TEXT("VerifyParentChildrenRelationship failed. See log for more info."));
+			CVarSlateVerifyParentChildrenRelationship->Set(false, CVarSlateVerifyParentChildrenRelationship->GetFlags());
+			ensureAlwaysMsgf(false, TEXT("VerifyParentChildrenRelationship failed. See log for more info."));
 		}
 	}
 }
@@ -7215,16 +7221,15 @@ void VerifyWidgetLayerId(const TSharedRef<SWindow>& WindowToDraw)
 {
 	if (WindowToDraw != SNullWidget::NullWidget)
 	{
-		if (!Private::VerifyWidgetLayerId_Recursive(WindowToDraw.Get()))
+		if (!Private::VerifyWidgetLayerId_Recursive(WindowToDraw.Get(), false))
 		{
-			CVarSlateVerifyWidgetLayerId->Set(false);
-			ensureMsgf(false, TEXT("VerifyWidgetLayerId failed. See log for more info."));
+			CVarSlateVerifyWidgetLayerId->Set(false, CVarSlateVerifyWidgetLayerId->GetFlags());
+			ensureAlwaysMsgf(false, TEXT("VerifyWidgetLayerId failed. See log for more info."));
 		}
+
+
 	}
 }
 
-
-#endif
-}// Slate
-}//UE
-
+} //namespace
+#endif //WITH_SLATE_DEBUGGING
