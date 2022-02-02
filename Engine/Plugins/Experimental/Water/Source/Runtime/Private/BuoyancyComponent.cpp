@@ -384,7 +384,8 @@ void UBuoyancyComponent::ComputePontoonCoefficients()
 		{
 			const FVector& LocalCOM = BodyInstance->GetMassSpaceLocal().GetLocation();
 			//Distribute a mass of 1 to each pontoon so that we get a scaling factor based on position relative to CoM
-			FSimpleSuspensionHelpers::ComputeSprungMasses(LocalPontoonLocations, LocalCOM, 1.f, PontoonCoefficients);
+			bool ComputeSuccess = FSimpleSuspensionHelpers::ComputeSprungMasses(LocalPontoonLocations, LocalCOM, 1.f, PontoonCoefficients);
+			ensureMsgf(ComputeSuccess, TEXT("Failed to compute sprung masses for: %s"), *GetOwner()->GetName());
 		}
 	}
 

@@ -138,6 +138,9 @@ struct FSimpleSuspensionHelpers
 		of mass. */
 	ENGINE_API static bool ComputeSprungMasses(const TArray<FVector>& LocalSpringPositions, const FVector& LocalCenterOfMass, const float TotalMass, TArray<float>& OutSprungMasses);
 
+	/** Calculates the Lambdas in the single axis case*/
+	static bool ComputeSingleAxisLambda(const Chaos::FReal AxisDot, const Chaos::FReal SumAxis, const uint32 Count, TArray<Chaos::FReal, TFixedAllocator<2>>& Lambdas);
+
 	/** Given a sprung mass and a spring stiffness, compute the natural
 		frequency of the spring */
 	static void ComputeSpringNaturalFrequencyAndDampingRatio(const float SprungMass, const float SpringStiffness, const float SpringDamping, float& OutNaturalFrequency, float& OutDampingRatio);
