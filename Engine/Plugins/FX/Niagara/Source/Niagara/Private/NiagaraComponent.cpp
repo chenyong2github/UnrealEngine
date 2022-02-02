@@ -2636,8 +2636,11 @@ static FNiagaraVariant GetParameterValueFromStore(const FNiagaraVariableBase& Va
 
 	TArray<uint8> DataValue;
 	DataValue.AddUninitialized(Var.GetSizeInBytes());
-	Store.CopyParameterData(Var, DataValue.GetData());
-	return FNiagaraVariant(DataValue);
+	if ( ensureMsgf(Store.CopyParameterData(Var, DataValue.GetData()), TEXT("Failed to copy parameter data for '%s'"), *Var.GetName().ToString()) )
+	{
+		return FNiagaraVariant(DataValue);
+	}
+	return FNiagaraVariant();
 }
 
 #if WITH_EDITOR

@@ -54,6 +54,26 @@ public:
 		}
 	}
 	
+	FORCEINLINE_DEBUGGABLE virtual const FNiagaraVariableWithOffset* FindParameterVariable(const FNiagaraVariable& Parameter, bool IgnoreType = false) const override
+	{
+		if (IgnoreType)
+		{
+			for (auto it = UserParameterRedirects.CreateConstIterator(); it; ++it)
+			{
+				if (it->Key.GetName() == Parameter.GetName())
+				{
+					return FNiagaraParameterStore::FindParameterVariable(it->Value);
+				}
+			}
+			return FNiagaraParameterStore::FindParameterVariable(Parameter, IgnoreType);
+		}
+		else
+		{
+			const FNiagaraVariable* Redirection = UserParameterRedirects.Find(Parameter);
+			return FNiagaraParameterStore::FindParameterVariable(Redirection ? *Redirection : Parameter);
+		}
+	}
+
 	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr) override;
 	virtual bool RemoveParameter(const FNiagaraVariableBase& InVar) override;
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty) override;
