@@ -37,7 +37,7 @@ void FSimpleSuspension::Update(const FTransform& LocalToWorld, const FVector& Li
 	FSimpleSuspensionHelpers::ComputeSuspensionForces(LinearVelocity, AngularVelocityRad, SuspensionState, SuspensionParams.SpringParams, SuspensionState);
 }
 
-bool FSimpleSuspensionHelpers::ComputeSingleAxisLambda(const Chaos::FReal AxisDot, const Chaos::FReal SumAxis, const uint32 Count, TArray<Chaos::FReal, TFixedAllocator<2>>& Lambdas)
+bool FSimpleSuspensionHelpers::ComputeSingleAxisLambda(const FVector::FReal AxisDot, const FVector::FReal SumAxis, const uint32 Count, TArray<FVector::FReal, TFixedAllocator<2>>& Lambdas)
 {
 	using Chaos::FReal;
 
