@@ -470,8 +470,6 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 			InEngineShowFlags.SetHMDDistortion(0);
 			InEngineShowFlags.SetOnScreenDebug(0);
 
-			InEngineShowFlags.SetNaniteMeshes(0);
-
 			InEngineShowFlags.SetLumenReflections(0);
 			InEngineShowFlags.SetLumenGlobalIllumination(0);
 
