@@ -186,7 +186,6 @@ protected:
 
 private:
 	static void UpdateGeometryComponentAttributes(UGeometryCollectionComponent* Component);
-	static void UpdateVolumes(FGeometryCollectionPtr GeometryCollection, const Chaos::TParticles<Chaos::FReal, 3>& MassSpaceParticles, int32 TransformIndex);
 
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void OnHistogramBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
