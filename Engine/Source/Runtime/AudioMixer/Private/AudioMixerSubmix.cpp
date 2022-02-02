@@ -253,13 +253,13 @@ namespace Audio
 
 		if (const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
-			VolumeModBase = FMath::Clamp(SoundSubmix->OutputVolumeModulation.Value, 0.0f, 1.0f);
-			WetModBase = FMath::Clamp(SoundSubmix->WetLevelModulation.Value, 0.0f, 1.0f);
-			DryModBase = FMath::Clamp(SoundSubmix->DryLevelModulation.Value, 0.0f, 1.0f);
+			VolumeModBaseDb = FMath::Clamp(SoundSubmix->OutputVolumeModulation.Value, MIN_VOLUME_DECIBELS, 0.0f);
+			WetModBaseDb = FMath::Clamp(SoundSubmix->WetLevelModulation.Value, MIN_VOLUME_DECIBELS, 0.0f);
+			DryModBaseDb = FMath::Clamp(SoundSubmix->DryLevelModulation.Value, MIN_VOLUME_DECIBELS, 0.0f);
 
-			TargetOutputVolume = VolumeModBase;
-			TargetWetLevel = WetModBase;
-			TargetDryLevel = DryModBase;
+			TargetOutputVolume = Audio::ConvertToLinear(VolumeModBaseDb);
+			TargetWetLevel = Audio::ConvertToLinear(WetModBaseDb);
+			TargetDryLevel = Audio::ConvertToLinear(DryModBaseDb);
 
 			CurrentOutputVolume = TargetOutputVolume;
 			CurrentDryLevel = TargetDryLevel;
@@ -1266,8 +1266,17 @@ namespace Audio
 		DryChannelBuffer.Reset();
 
 		// Update Dry Level using modulator
-		DryLevelMod.ProcessControl(DryModBase);
-		TargetDryLevel = DryLevelMod.GetValue();
+		if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+		{
+			DryLevelMod.ProcessControl(DryModBaseDb);
+			TargetDryLevel = DryLevelMod.GetValue();
+		}
+		else
+		{
+			TargetDryLevel = Audio::ConvertToLinear(DryModBaseDb);
+		}
+
+		TargetDryLevel *= DryLevelModifier;
 
 		// Check if we need to allocate a dry buffer. This is stored here before effects processing. We mix in with wet buffer after effects processing.
 		if (!FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel) || !FMath::IsNearlyZero(CurrentDryLevel))
@@ -1341,8 +1350,17 @@ namespace Audio
 				}
 
 				// Update Wet Level using modulator
-				WetLevelMod.ProcessControl(WetModBase);
-				TargetWetLevel = WetLevelMod.GetValue();
+				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+				{
+					WetLevelMod.ProcessControl(WetModBaseDb);
+					TargetWetLevel = WetLevelMod.GetValue();
+				}
+				else
+				{
+					TargetWetLevel = Audio::ConvertToLinear(WetModBaseDb);
+				}
+
+				TargetWetLevel *= WetLevelModifier;
 
 				// Apply the wet level here after processing effects. 
 				if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
@@ -1437,8 +1455,17 @@ namespace Audio
 		}
 
 		// Update output volume using modulator
-		VolumeMod.ProcessControl(VolumeModBase);
-		TargetOutputVolume = VolumeMod.GetValue();
+		if(MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
+		{
+			VolumeMod.ProcessControl(VolumeModBaseDb);
+			TargetOutputVolume = VolumeMod.GetValue();
+		}
+		else
+		{
+			TargetOutputVolume = Audio::ConvertToLinear(VolumeModBaseDb);
+		}
+
+		TargetOutputVolume *= VolumeModifier;
 
 		// Now apply the output volume
 		if (!FMath::IsNearlyEqual(TargetOutputVolume, CurrentOutputVolume) || !FMath::IsNearlyEqual(CurrentOutputVolume, 1.0f))
@@ -2249,17 +2276,17 @@ namespace Audio
 
 	void FMixerSubmix::SetOutputVolume(float InOutputVolume)
 	{
-		VolumeModBase = FMath::Clamp(InOutputVolume, 0.0f, 1.0f);
+		VolumeModifier = FMath::Clamp(InOutputVolume, 0.0f, 1.0f);
 	}
 
 	void FMixerSubmix::SetDryLevel(float InDryLevel)
 	{
-		DryModBase = FMath::Clamp(InDryLevel, 0.0f, 1.0f);
+		DryLevelModifier = FMath::Clamp(InDryLevel, 0.0f, 1.0f);
 	}
 
 	void FMixerSubmix::SetWetLevel(float InWetLevel)
 	{
-		WetModBase = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
+		WetLevelModifier = FMath::Clamp(InWetLevel, 0.0f, 1.0f);
 	}
 
 	void FMixerSubmix::UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator)
@@ -2269,11 +2296,11 @@ namespace Audio
 		DryLevelMod.UpdateModulator(InDryLevelModulator);
 	}
 
-	void FMixerSubmix::SetModulationBaseLevels(float InVolumeModBase, float InWetModBase, float InDryModBase)
+	void FMixerSubmix::SetModulationBaseLevels(float InVolumeModBaseDb, float InWetModBaseDb, float InDryModBaseDb)
 	{
-		VolumeModBase = InVolumeModBase;
-		WetModBase = InWetModBase;
-		DryModBase = InDryModBase;
+		VolumeModBaseDb = InVolumeModBaseDb;
+		WetModBaseDb = InWetModBaseDb;
+		DryModBaseDb = InDryModBaseDb;
 	}
 
 	void FMixerSubmix::BroadcastDelegates()

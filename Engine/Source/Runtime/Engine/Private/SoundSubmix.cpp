@@ -43,13 +43,13 @@ USoundSubmix::USoundSubmix(const FObjectInitializer& ObjectInitializer)
 	, AmbisonicsPluginSettings(nullptr)
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(500)
-	, OutputVolume(1.0f)
-	, WetLevel(1.0f)
-	, DryLevel(0.0f)
+	, OutputVolume(-1.0f)
+	, WetLevel(-1.0f)
+	, DryLevel(-1.0f)
 {
-	OutputVolumeModulation.Value = 1.f;
-	WetLevelModulation.Value = 1.f;
-	DryLevelModulation.Value = 0.f;
+	OutputVolumeModulation.Value = 0.f;
+	WetLevelModulation.Value = 0.f;
+	DryLevelModulation.Value = -96.f;
 }
 
 void USoundSubmix::Serialize(FArchive& Ar)
@@ -59,22 +59,39 @@ void USoundSubmix::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() || Ar.IsSaving())
 	{
-		if (OutputVolume < 1.0f)
+		// convert any old deprecated values to the new value
+		if (OutputVolume > 0.0f)
 		{
-			OutputVolumeModulation.Value = OutputVolume;
-			OutputVolume = 1.0f;
+			OutputVolumeModulation.Value = Audio::ConvertToDecibels(OutputVolume);
+			OutputVolume = -1.0f;
 		}
 
-		if (WetLevel < 1.0f)
+		if (WetLevel > 0.0f)
 		{
-			OutputVolumeModulation.Value = WetLevel;
-			WetLevel = 1.0f;
+			WetLevelModulation.Value = Audio::ConvertToDecibels(WetLevel);
+			WetLevel = -1.0f;
 		}
 
 		if (DryLevel > 0.0f)
 		{
-			OutputVolumeModulation.Value = DryLevel;
-			DryLevel = 0.0f;
+			DryLevelModulation.Value = Audio::ConvertToDecibels(DryLevel);
+			DryLevel = -1.0f;
+		}
+
+		// fix values previously saved as linear values
+		if (OutputVolumeModulation.Value > 0.0f)
+		{
+			OutputVolumeModulation.Value = Audio::ConvertToDecibels(OutputVolumeModulation.Value);
+		}
+
+		if (WetLevelModulation.Value > 0.0f)
+		{
+			WetLevelModulation.Value = Audio::ConvertToDecibels(WetLevelModulation.Value);
+		}
+
+		if (DryLevelModulation.Value > 0.0f)
+		{
+			DryLevelModulation.Value = Audio::ConvertToDecibels(DryLevelModulation.Value);
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
@@ -378,6 +395,38 @@ void USoundSubmix::SetSubmixOutputVolume(const UObject* WorldContextObject, floa
 		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
 		{
 			AudioDevice->SetSubmixOutputVolume(this, InOutputVolume);
+		}
+	}
+}
+
+void USoundSubmix::SetSubmixWetLevel(const UObject* WorldContextObject, float InWetLevel)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->SetSubmixWetLevel(this, InWetLevel);
+		}
+	}
+}
+
+void USoundSubmix::SetSubmixDryLevel(const UObject* WorldContextObject, float InDryLevel)
+{
+	if (!GEngine)
+	{
+		return;
+	}
+
+	if (UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDevice* AudioDevice = ThisWorld->GetAudioDeviceRaw())
+		{
+			AudioDevice->SetSubmixDryLevel(this, InDryLevel);
 		}
 	}
 }

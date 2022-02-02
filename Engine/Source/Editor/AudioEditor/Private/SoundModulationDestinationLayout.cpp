@@ -123,33 +123,39 @@ namespace ModDestinationLayoutUtils
 		OutParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
 		if (OutParamName != FName())
 		{
-			// If parameter was provided, it overrides ClampMin/Max.  User data however overrides UIMin/Max if its in clamp range.
+			// If parameter was provided, it overrides ClampMin/Max.
 			const Audio::FModulationParameter& Parameter = Audio::GetModulationParameter(OutParamName);
-			UIMinValue = Parameter.MinValue;
-			UIMaxValue = Parameter.MaxValue;
-			ClampMinValue = UIMinValue;
-			ClampMaxValue = UIMaxValue;
-			OutUnitDisplayText = Parameter.UnitDisplayName;
-			if (bClampValuesSet)
-			{
-				UE_LOG(LogAudioEditor, Warning, TEXT("ClampMin/Max overridden by AudioModulation plugin asset with ParamName '%s'."), *OutParamName.ToString());
-			}
 
-			if (StructPropertyHandle->HasMetaData("UIMin"))
+			// if no valid parameter was found & the user has specified their own clamping, don't override it with the default parameter range of [0,1]
+			if (false == (Parameter.ParameterName == FName() && bClampValuesSet))
 			{
-				float NewMin = UIMinValue;
-				FString ParamString = StructPropertyHandle->GetMetaData("UIMin");
-				NewMin = FCString::Atof(*ParamString);
-				UIMinValue = FMath::Clamp(NewMin, ClampMinValue, ClampMaxValue);
+				UIMinValue = Parameter.MinValue;
+				UIMaxValue = Parameter.MaxValue;
+				ClampMinValue = UIMinValue;
+				ClampMaxValue = UIMaxValue;
+				OutUnitDisplayText = Parameter.UnitDisplayName;
+				if (bClampValuesSet)
+				{
+					UE_LOG(LogAudioEditor, Warning, TEXT("ClampMin/Max overridden by AudioModulation plugin asset with ParamName '%s'."), *OutParamName.ToString());
+				}
 			}
+		}
 
-			if (StructPropertyHandle->HasMetaData("UIMax"))
-			{
-				float NewMax = UIMaxValue;
-				FString ParamString = StructPropertyHandle->GetMetaData("UIMax");
-				NewMax = FCString::Atof(*ParamString);
-				UIMaxValue = FMath::Clamp(NewMax, ClampMinValue, ClampMaxValue);
-			}
+		// User data overrides UIMin/Max if its in clamp range.
+		if (StructPropertyHandle->HasMetaData("UIMin"))
+		{
+			float NewMin = UIMinValue;
+			FString ParamString = StructPropertyHandle->GetMetaData("UIMin");
+			NewMin = FCString::Atof(*ParamString);
+			UIMinValue = FMath::Clamp(NewMin, ClampMinValue, ClampMaxValue);
+		}
+
+		if (StructPropertyHandle->HasMetaData("UIMax"))
+		{
+			float NewMax = UIMaxValue;
+			FString ParamString = StructPropertyHandle->GetMetaData("UIMax");
+			NewMax = FCString::Atof(*ParamString);
+			UIMaxValue = FMath::Clamp(NewMax, ClampMinValue, ClampMaxValue);
 		}
 
 		ValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), ClampMinValue));

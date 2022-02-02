@@ -27,6 +27,9 @@
 #define MIN_PITCH						0.4f
 #define MAX_PITCH						2.0f
 
+#define MIN_VOLUME_LINEAR				SMALL_NUMBER
+#define MIN_VOLUME_DECIBELS				-160.f
+
 #define MIN_SOUND_PRIORITY				0.0f
 #define MAX_SOUND_PRIORITY				100.0f
 

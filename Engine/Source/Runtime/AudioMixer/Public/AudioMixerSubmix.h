@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AudioMixer.h"
+#include "AudioDefines.h"
 #include "CoreMinimal.h"
 #include "SampleBuffer.h"
 #include "IAudioEndpoint.h"
@@ -131,20 +132,20 @@ namespace Audio
 		// Removes the given submix from this submix's children
 		void RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr);
 
-		// Sets the output level of the submix
+		// Sets the output level of the submix in linear gain
 		void SetOutputVolume(float InOutputLevel);
 
-		// Sets the static output volume of the submix
+		// Sets the static output volume of the submix in linear gain
 		void SetDryLevel(float InDryLevel);
 
-		// Sets the wet level of the submix
+		// Sets the wet level of the submix in linear gain
 		void SetWetLevel(float InWetLevel);
 
 		// Update modulation settings of the submix
 		void UpdateModulationSettings(USoundModulatorBase* InOutputModulator, USoundModulatorBase* InWetLevelModulator, USoundModulatorBase* InDryLevelModulator);
 
-		// Update modulation settings of the submix
-		void SetModulationBaseLevels(float InVolumeModBase, float InWetModeBase, float InDryModBase);
+		// Update modulation settings of the submix with Decibel values
+		void SetModulationBaseLevels(float InVolumeModBaseDb, float InWetModeBaseDb, float InDryModBaseDb);
 
 		// Gets the submix channels channels
 		int32 GetSubmixChannels() const;
@@ -529,9 +530,14 @@ namespace Audio
 		FModulationDestination DryLevelMod;
 		FModulationDestination WetLevelMod;
 
-		float VolumeModBase = 1.f;
-		float DryModBase = 0.f;
-		float WetModBase = 1.f;
+		float VolumeModBaseDb = 0.f;
+		float DryModBaseDb = MIN_VOLUME_DECIBELS;
+		float WetModBaseDb = 0.f;
+
+		// modifiers set from BP code
+		float VolumeModifier = 1.f;
+		float DryLevelModifier = 1.f;
+		float WetLevelModifier = 1.f;
 
 		// Envelope following data
 		float EnvelopeValues[AUDIO_MIXER_MAX_OUTPUT_CHANNELS];
