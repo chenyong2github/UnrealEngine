@@ -322,10 +322,10 @@ public:
 	virtual void SetLastFrameCameraCachePOV(const FMinimalViewInfo& InPOV);
 
 	/** Gets value of CameraCachePrivate.POV */
-	virtual FMinimalViewInfo GetCameraCachePOV() const;
+	virtual const FMinimalViewInfo& GetCameraCachePOV() const;
 
 	/** Gets value of LastFrameCameraCachePrivate.POV */
-	virtual FMinimalViewInfo GetLastFrameCameraCachePOV() const;
+	virtual const FMinimalViewInfo& GetLastFrameCameraCachePOV() const;
 
 	/** Get value of CameraCachePrivate.Time  */
 	float GetCameraCacheTime() const { return CameraCachePrivate.TimeStamp; }
