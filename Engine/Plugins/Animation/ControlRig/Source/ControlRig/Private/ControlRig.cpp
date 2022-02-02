@@ -431,6 +431,11 @@ TArray<FName> UControlRig::GetSupportedEvents() const
 	return TArray<FName>();
 }
 
+AActor* UControlRig::GetHostingActor() const
+{
+	return ObjectBinding ? ObjectBinding->GetHostingActor() : nullptr;
+}
+
 #if WITH_EDITOR
 FText UControlRig::GetCategory() const
 {
@@ -1714,6 +1719,8 @@ void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotificati
 			{
 				const bool bSelected = InNotification == ERigHierarchyNotification::ElementSelected;
 				ControlSelected().Broadcast(this, ControlElement, bSelected);
+
+				OnControlSelected_BP.Broadcast(this, *ControlElement, bSelected);
 			}
 			break;
 		}

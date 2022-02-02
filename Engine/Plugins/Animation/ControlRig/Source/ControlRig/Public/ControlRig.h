@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/SparseDelegate.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
@@ -36,6 +37,7 @@ class IControlRigObjectBinding;
 class UScriptStruct;
 class USkeletalMesh;
 class USkeletalMeshComponent;
+class AActor;
 
 struct FReferenceSkeleton;
 struct FRigUnit;
@@ -62,6 +64,8 @@ public:
 
 	/** Bindable event for external objects to be notified that a Control is Selected */
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, FRigControlElement*, bool);
+	// To support Blueprints/scripting, we need a different delegate type (a 'Dynamic' delegate) which supports looser style UFunction binding (using names).
+	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FOnControlSelectedBP, UControlRig, OnControlSelected_BP, UControlRig*, Rig, const FRigControlElement&, Control, bool, bSelected);
 
 #if WITH_EDITOR
 	/** Bindable event for external objects to be notified that a control rig is fully end-loaded*/
@@ -220,6 +224,10 @@ public:
 	{
 		return ObjectBinding;
 	}
+
+	/** Find the actor the rig is bound to, if any */
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
+	AActor* GetHostingActor() const;
 
 	virtual FString GetName() const
 	{
@@ -698,6 +706,9 @@ protected:
 	FFilterControlEvent OnFilterControl;
 	FControlModifiedEvent OnControlModified;
 	FControlSelectedEvent OnControlSelected;
+
+	UPROPERTY(BlueprintAssignable, Category = ControlRig, meta=(DisplayName="OnControlSelected"))
+	FOnControlSelectedBP OnControlSelected_BP;
 
 	TArray<FRigElementKey> QueuedModifiedControls;
 
