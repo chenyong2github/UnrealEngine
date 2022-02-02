@@ -909,7 +909,6 @@ void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR*
 	BufferRHI->SetName(Name);
 }
 
-#if D3D12_RHI_RAYTRACING
 void FD3D12CommandContext::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64 DstOffset, FRHIBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {
 	FD3D12Buffer* SourceBuffer = RetrieveObject<FD3D12Buffer>(SourceBufferRHI);
@@ -945,6 +944,7 @@ void FD3D12CommandContext::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64
 	Device->RegisterGPUWork(1);
 }
 
+#if D3D12_RHI_RAYTRACING
 void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
 {
 	// Batched buffer copy finds unique source and destination buffer resources, performs transitions

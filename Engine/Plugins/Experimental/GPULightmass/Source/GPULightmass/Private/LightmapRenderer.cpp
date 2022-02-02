@@ -730,7 +730,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-#ifdef RHI_RAYTRACING
+#if RHI_RAYTRACING
 	// Force build all the open build requests
 	bool bBuildAll = true;
 	GRayTracingGeometryManager.ProcessBuildRequests(RHICmdList, bBuildAll);
