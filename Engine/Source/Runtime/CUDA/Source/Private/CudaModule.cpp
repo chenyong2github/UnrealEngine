@@ -221,7 +221,9 @@ void FCUDAModule::InitCuda()
 		}
 		else 
 		{
-			UE_LOG(LogCUDA, Fatal, TEXT("CUDA API failed to initialise."));
+			UE_LOG(LogCUDA, Error, TEXT("CUDA API failed to initialise."));
+			UnloadCuda();
+			return;
 		}
 	}
 
