@@ -2396,7 +2396,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("F6219E656D7345DAA8585A76F41AD167")
+#define STATICMESH_DERIVEDDATA_VER TEXT("A8F10585DE67499EA913B652DC4A955E")
 
 const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2857,7 +2857,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			{
 				if (NaniteResources.HasStreamingData())
 				{
-					// Compress streaming data, add it to record builder and remove it from BulkData
+					// Compress streaming data and add it to record builder
 					FByteBulkData& BulkData = NaniteResources.StreamablePages;
 					TotalPushedBytes += BulkData.GetBulkDataSize();
 
@@ -2865,8 +2865,6 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 					RecordBuilder.AddValue(NaniteStreamingDataId, Value);
 					EstimatedNaniteStreamingCompressedSize = uint64(Value.GetData().GetCompressedSize() * DDCSizeToEstimateFactor);
 					BulkData.Unlock();
-					BulkData.RemoveBulkData();
-
 					NaniteResources.ResourceFlags |= NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC;
 					NaniteResources.DDCKeyHash = CacheKey.Hash;
 					NaniteResources.DDCRawHash = Value.GetRawHash();
@@ -2907,7 +2905,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 				bSaveDDC = false;
 			}
 #endif
-
+			bool bSavedToDDC = false;
 			if (bSaveDDC)
 			{
 				FValue Value = FValue::Compress(FSharedBuffer::MakeView(Ar.GetData(), Ar.TotalSize()));
@@ -2917,16 +2915,31 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 
 				FRequestOwner RequestOwner(UE::DerivedData::EPriority::Blocking);
 				const FCachePutRequest PutRequest = { FSharedString(TEXT("StaticMesh")), RecordBuilder.Build(), ECachePolicy::Default | ECachePolicy::KeepAlive };
-				GetCache().Put(MakeArrayView(&PutRequest, 1),
-					RequestOwner,
-					[](FCachePutResponse&& Response)
+				GetCache().Put(MakeArrayView(&PutRequest, 1), RequestOwner,
+					[&bSavedToDDC](FCachePutResponse&& Response)
 					{
-						check(Response.Status == EStatus::Ok);
+						if (Response.Status == EStatus::Ok)
+						{
+							bSavedToDDC = true;
+						}
 					});
 
 				RequestOwner.Wait();
+
+				if (bSavedToDDC && NaniteResources.HasStreamingData())
+				{
+					// Drop streaming data from memory when it has been successfully committed to DDC
+					NaniteResources.DropBulkData();
+				}
 			}
-			
+
+			if (NaniteResources.HasStreamingData() && !bSavedToDDC)
+			{
+				// Streaming data was not pushed to DDC. Disable DDC streaming flag.
+				check(NaniteResources.StreamablePages.GetBulkDataSize() > 0);
+				NaniteResources.ResourceFlags &= ~NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC;
+			}
+
 			double T1 = FPlatformTime::Seconds();
 			UE_LOG(LogStaticMesh,Log,TEXT("Built static mesh [%.2fs] %s"),
 				T1-T0,

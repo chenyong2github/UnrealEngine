@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("061F0F41-7BF5-4C60-8C85-4313F9EEDDFC")
+#define NANITE_DERIVEDDATA_VER TEXT("512E182E-8C06-4A85-B522-DF0D3673CBB8")
 
 namespace Nanite
 {
@@ -69,10 +69,9 @@ const FString& FBuilderModule::GetVersionString() const
 
 	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf(TEXT("%s%s%s%s"), NANITE_DERIVEDDATA_VER,
+		VersionString = FString::Printf(TEXT("%s%s%s"), NANITE_DERIVEDDATA_VER,
 										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
-										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
-										TEXT("_LWC"));	// LWC_TODO: This can be removed.
+										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
 	}
 
 	return VersionString;

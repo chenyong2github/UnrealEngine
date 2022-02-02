@@ -247,8 +247,10 @@ void FResources::DropBulkData()
 		return;
 	}
 
-	check((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) != 0);
-	StreamablePages.RemoveBulkData();
+	if(ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
+	{
+		StreamablePages.RemoveBulkData();
+	}
 }
 
 void FResources::RebuildBulkDataFromDDC()
@@ -258,7 +260,10 @@ void FResources::RebuildBulkDataFromDDC()
 		return;
 	}
 
-	check((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) != 0u);
+	if((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
+	{
+		return;
+	}
 
 	using namespace UE::DerivedData;
 	
