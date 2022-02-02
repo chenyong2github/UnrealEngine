@@ -19,12 +19,6 @@
 #include "Culling.ush"
 #include "../GPUMessaging.ush"
 
-#define SANITY_CHECK_STREAMING_REQUESTS		0												// Adds frame counter dependent magic values to streaming requests to help verify their integrity.
-																							// Must match define in NaniteStreamingManager.h
-
-#define STREAMING_REQUEST_MAGIC_BITS		8												// Must match define in NaniteStreamingManager.cpp
-#define STREAMING_REQUEST_MAGIC_MASK		((1 << STREAMING_REQUEST_MAGIC_BITS) - 1)		// Must match define in NaniteStreamingManager.cpp
-
 #ifndef NEAR_CLIP
 #define NEAR_CLIP 1
 #endif
@@ -44,13 +38,13 @@
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 static const bool bIsPostPass = true;
 static const uint QueueStateIndex = 1;
-groupshared uint3 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+groupshared uint3 GroupNodeData[NANITE_MAX_BVH_NODES_PER_GROUP];
 uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0); }
 void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xyz; }
 #else
 static const bool bIsPostPass = false;
 static const uint QueueStateIndex = 0;
-groupshared uint2 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
+groupshared uint2 GroupNodeData[NANITE_MAX_BVH_NODES_PER_GROUP];
 uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0, 0); }
 void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xy; }
 #endif
@@ -76,7 +70,7 @@ RWBuffer< uint >			VisibleClustersArgsSWHW;
 
 groupshared uint			GroupNumCandidateNodes;
 groupshared uint			GroupCandidateNodesOffset;
-groupshared uint			GroupOccludedBitmask[MAX_BVH_NODES_PER_GROUP];
+groupshared uint			GroupOccludedBitmask[NANITE_MAX_BVH_NODES_PER_GROUP];
 
 groupshared int				GroupNodeCount;
 groupshared uint			GroupNodeBatchStartIndex;
@@ -178,7 +172,7 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 	float UniformScale = min3( InstanceData.NonUniformScale.x, InstanceData.NonUniformScale.y, InstanceData.NonUniformScale.z );
 	bool bVisible = ProjectedEdgeScale > UniformScale * LODError * NaniteView.LODScale;
 
-	if (RenderFlags & RENDER_FLAG_FORCE_HW_RASTER)
+	if (RenderFlags & NANITE_RENDER_FLAG_FORCE_HW_RASTER)
 	{
 		bUseHWRaster = true;
 	}
@@ -192,18 +186,18 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 
 void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPages, uint PriorityCategory, float Priority )
 {
-	if ((RenderFlags & RENDER_FLAG_OUTPUT_STREAMING_REQUESTS) && NumPages > 0)
+	if ((RenderFlags & NANITE_RENDER_FLAG_OUTPUT_STREAMING_REQUESTS) && NumPages > 0)
 	{
 		uint Index;
 		WaveInterlockedAddScalar_(OutStreamingRequests[0].RuntimeResourceID_Magic, 1, Index);	// HACK: Store count in RuntimeResourceID_Magic of first request.
-		if( Index < MAX_STREAMING_REQUESTS - 1 )
+		if (Index < NANITE_MAX_STREAMING_REQUESTS - 1)
 		{
 			FStreamingRequest Request;
-			Request.RuntimeResourceID_Magic		= (RuntimeResourceID << STREAMING_REQUEST_MAGIC_BITS);
-			Request.PageIndex_NumPages_Magic	= (((StartPageIndex << MAX_GROUP_PARTS_BITS) | NumPages) << STREAMING_REQUEST_MAGIC_BITS);
+			Request.RuntimeResourceID_Magic		= (RuntimeResourceID << NANITE_STREAMING_REQUEST_MAGIC_BITS);
+			Request.PageIndex_NumPages_Magic	= (((StartPageIndex << NANITE_MAX_GROUP_PARTS_BITS) | NumPages) << NANITE_STREAMING_REQUEST_MAGIC_BITS);
 			const uint UIntPriority				= (PriorityCategory << 30) | (asuint(Priority) >> 2);
-			Request.Priority_Magic				= UIntPriority & ~STREAMING_REQUEST_MAGIC_MASK;		// Mask off low bits to leave space for magic
-#if SANITY_CHECK_STREAMING_REQUESTS
+			Request.Priority_Magic				= UIntPriority & ~NANITE_STREAMING_REQUEST_MAGIC_MASK;		// Mask off low bits to leave space for magic
+#if NANITE_SANITY_CHECK_STREAMING_REQUESTS
 			const uint FrameNibble = StreamingRequestsBufferVersion & 0xF;
 			Request.RuntimeResourceID_Magic		|= 0xA0 | FrameNibble;
 			Request.PageIndex_NumPages_Magic	|= 0xB0 | FrameNibble;
@@ -220,7 +214,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	if (VisibleCluster.Flags & CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
+	if (VisibleCluster.Flags & NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
 		NaniteView.LODScale *= DisocclusionLodScaleFactor;
 #endif
 
@@ -231,11 +225,11 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	// Near depth clipping should only be disabled with orthographic projections
 	// WARNING: This is a macro/permutation because of FXC code gen issues! Be careful if you change this to test thoroughly!
 	const bool bNearClip = (NEAR_CLIP != 0);
-	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB     = false;
@@ -259,7 +253,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bVisible )
 	{
-		bVisible = SmallEnoughToDraw( NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster ) || (Cluster.Flags & CLUSTER_FLAG_LEAF);
+		bVisible = SmallEnoughToDraw( NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster ) || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
 	}
 
 	BRANCH
@@ -330,17 +324,17 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 	BRANCH
-	if( ( VisibleCluster.Flags & CULLING_FLAG_TEST_LOD ) != 0 )
+	if( ( VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD ) != 0 )
 	{
 		BRANCH
 		if( bVisible )
 		{
-			bVisible = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster) || (Cluster.Flags & CLUSTER_FLAG_LEAF);
+			bVisible = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster) || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
 		}
 	}
 	else
 	{
-		bUseHWRaster = ( VisibleCluster.Flags & CULLING_FLAG_USE_HW ) != 0;
+		bUseHWRaster = ( VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW ) != 0;
 	}
 
 	BRANCH
@@ -437,7 +431,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 	if( bVisible )
 	{
-		const uint2 TotalPrevDrawClusters = (RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA) ? InTotalPrevDrawClusters[0] : 0;
+		const uint2 TotalPrevDrawClusters = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) ? InTotalPrevDrawClusters[0] : 0;
 
 		if( !bWasOccluded )
 		{
@@ -522,12 +516,12 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 			{
 				uint OccludedClusterOffset = 0;
 				WaveInterlockedAddScalar_(QueueState[0].PassState[1].ClusterWriteOffset, 1, OccludedClusterOffset);
-				VisibleCluster.Flags = (bUseHWRaster ? CULLING_FLAG_USE_HW : 0u);
+				VisibleCluster.Flags = (bUseHWRaster ? NANITE_CULLING_FLAG_USE_HW : 0u);
 
 				StoreCandidateClusterCoherent(MainAndPostCandididateClusters, (MaxCandidateClusters - 1) - OccludedClusterOffset, VisibleCluster);
 
 				DeviceMemoryBarrier();
-				const uint BatchIndex = OccludedClusterOffset / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+				const uint BatchIndex = OccludedClusterOffset / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 				AddToClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, 1, true);
 			}
 		}
@@ -537,8 +531,8 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 void NodeCull(uint BatchSize, uint GroupIndex)
 {
-	const uint LocalNodeIndex = (GroupIndex >> MAX_BVH_NODE_FANOUT_BITS);
-	const uint ChildIndex = GroupIndex & MAX_BVH_NODE_FANOUT_MASK;
+	const uint LocalNodeIndex = (GroupIndex >> NANITE_MAX_BVH_NODE_FANOUT_BITS);
+	const uint ChildIndex = GroupIndex & NANITE_MAX_BVH_NODE_FANOUT_MASK;
 	const uint FetchIndex = min(LocalNodeIndex, BatchSize - 1);
 
 	uint4 NodeData = GetGroupNodeData(FetchIndex);
@@ -548,7 +542,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 
 	FNaniteView NaniteView = GetNaniteView( CandidateNode.ViewId );
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	if (CandidateNode.Flags & CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
+	if (CandidateNode.Flags & NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
 		NaniteView.LODScale *= DisocclusionLodScaleFactor;
 #endif
 
@@ -561,11 +555,11 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 
 	// Depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = (NEAR_CLIP != 0);
-	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+	const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB = false;
@@ -640,7 +634,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 #endif
 
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		if (bVisible && (CandidateNode.Flags & CULLING_FLAG_TEST_LOD))
+		if (bVisible && (CandidateNode.Flags & NANITE_CULLING_FLAG_TEST_LOD))
 		{
 			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
 		}
@@ -702,11 +696,11 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		if (CandidateNodesOffset < MaxNodes)
 		{
 			FCandidateNode Node;
-			Node.Flags = CandidateNode.Flags | CULLING_FLAG_TEST_LOD;
+			Node.Flags = CandidateNode.Flags | NANITE_CULLING_FLAG_TEST_LOD;
 			Node.ViewId = CandidateNode.ViewId;
 			Node.InstanceId = CandidateNode.InstanceId;
 			Node.NodeIndex = HierarchyNodeSlice.ChildStartReference;
-			Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+			Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
 			StoreCandidateNodeCoherent( MainAndPostNodesAndClusterBatches, CandidateNodesOffset, Node, bIsPostPass );
 		}
 	}
@@ -732,12 +726,12 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		WaveInterlockedAdd_(QueueState[0].PassState[QueueStateIndex].ClusterWriteOffset, NumClusters, CandidateClustersOffset);
 
 		FVisibleCluster CandidateCluster;
-		CandidateCluster.Flags = CandidateNode.Flags | CULLING_FLAG_TEST_LOD;
+		CandidateCluster.Flags = CandidateNode.Flags | NANITE_CULLING_FLAG_TEST_LOD;
 		CandidateCluster.ViewId = CandidateNode.ViewId;
 		CandidateCluster.InstanceId = CandidateNode.InstanceId;
-		CandidateCluster.PageIndex = HierarchyNodeSlice.ChildStartReference >> MAX_CLUSTERS_PER_PAGE_BITS;
+		CandidateCluster.PageIndex = HierarchyNodeSlice.ChildStartReference >> NANITE_MAX_CLUSTERS_PER_PAGE_BITS;
 
-		const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & MAX_CLUSTERS_PER_PAGE_MASK;
+		const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & NANITE_MAX_CLUSTERS_PER_PAGE_MASK;
 		const uint StartIndex = CandidateClustersOffset;
 		const uint EndIndex = min(CandidateClustersOffset + NumClusters, MaxCandidateClusters);
 
@@ -753,8 +747,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		// Once the cluster indices have been committed to memory, we can update the cluster counters of the overlapping cluster batches.
 		for (uint Index = StartIndex; Index < EndIndex;)
 		{
-			const uint BatchIndex = Index / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-			const uint NextIndex = (Index & ~(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE - 1u)) + PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+			const uint BatchIndex = Index / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+			const uint NextIndex = (Index & ~(NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE - 1u)) + NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 			const uint MaxIndex = min(NextIndex, EndIndex);
 			const uint Num = MaxIndex - Index;
 			AddToClusterBatchCoherent(MainAndPostNodesAndClusterBatches, BatchIndex, Num, bIsPostPass);
@@ -784,7 +778,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		if(OccludedNodesOffset < MaxNodes)
 		{
 			FCandidateNode Node;
-			Node.Flags = CandidateNode.Flags & ~CULLING_FLAG_TEST_LOD;
+			Node.Flags = CandidateNode.Flags & ~NANITE_CULLING_FLAG_TEST_LOD;
 			Node.ViewId = CandidateNode.ViewId;
 			Node.InstanceId = CandidateNode.InstanceId;
 			Node.NodeIndex = CandidateNode.NodeIndex;
@@ -797,7 +791,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 
 void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
 {
-	const uint CandidateIndex = BatchStartIndex * PERSISTENT_CLUSTER_CULLING_GROUP_SIZE + GroupIndex;
+	const uint CandidateIndex = BatchStartIndex * NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE + GroupIndex;
 	
 	if (GroupIndex < BatchSize)
 	{
@@ -842,11 +836,11 @@ void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
 // Workers always favor node processing to make progress on the critical path, but when no nodes are available
 // they process clusters while waiting, instead of going idle.
 
-[numthreads( PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1 )]
+[numthreads(NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE, 1, 1)]
 void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)  
 {
 	bool bProcessNodes			= true;						// Should we still try to consume nodes?
-	uint NodeBatchReadyOffset	= MAX_BVH_NODES_PER_GROUP;
+	uint NodeBatchReadyOffset	= NANITE_MAX_BVH_NODES_PER_GROUP;
 	uint NodeBatchStartIndex	= 0;
 	uint ClusterBatchStartIndex = 0xFFFFFFFFu;
 	
@@ -860,7 +854,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 		}
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		if (GroupIndex < MAX_BVH_NODES_PER_GROUP)
+		if (GroupIndex < NANITE_MAX_BVH_NODES_PER_GROUP)
 		{
 			GroupOccludedBitmask[GroupIndex] = 0u;
 		}
@@ -871,12 +865,12 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 		uint NodeReadyMask = 0;
 		if (bProcessNodes)	// Try grabbing and processing nodes if they could be available.
 		{
-			if (NodeBatchReadyOffset == MAX_BVH_NODES_PER_GROUP)
+			if (NodeBatchReadyOffset == NANITE_MAX_BVH_NODES_PER_GROUP)
 			{
 				// No more data in current batch. Grab a new batch.
 				if (GroupIndex == 0)
 				{
-					InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeReadOffset, MAX_BVH_NODES_PER_GROUP, GroupNodeBatchStartIndex);
+					InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeReadOffset, NANITE_MAX_BVH_NODES_PER_GROUP, GroupNodeBatchStartIndex);
 				}
 				GroupMemoryBarrierWithGroupSync();
 
@@ -892,7 +886,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 
 			// Check which nodes in the range have been completely written and are ready for processing.
 			const uint NodeIndex = NodeBatchStartIndex + NodeBatchReadyOffset + GroupIndex;
-			bool bNodeReady = (NodeBatchReadyOffset + GroupIndex < MAX_BVH_NODES_PER_GROUP);
+			bool bNodeReady = (NodeBatchReadyOffset + GroupIndex < NANITE_MAX_BVH_NODES_PER_GROUP);
 			if (bNodeReady)
 			{
 				uint4 NodeData = LoadCandidateNodeDataCoherent(MainAndPostNodesAndClusterBatches, NodeIndex, bIsPostPass);
@@ -952,7 +946,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 		if (!bProcessNodes && ClusterBatchReadySize == 0)	// No more clusters to process and no nodes are available to 
 			break;	// Has to be break instead of return to make FXC happy.
 
-		if ((bProcessNodes && ClusterBatchReadySize == PERSISTENT_CLUSTER_CULLING_GROUP_SIZE) || (!bProcessNodes && ClusterBatchReadySize > 0))
+		if ((bProcessNodes && ClusterBatchReadySize == NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE) || (!bProcessNodes && ClusterBatchReadySize > 0))
 		{
 			ProcessClusterBatch(ClusterBatchStartIndex, ClusterBatchReadySize, GroupIndex);
 			ClusterBatchStartIndex = 0xFFFFFFFFu;
@@ -967,31 +961,31 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 
 void WriteRasterizerArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint NumClustersSW, uint NumClustersHW)
 {
-	RasterizerArgsSWHW[0] = NumClustersSW;					// SW: ThreadGroupCountX
-	RasterizerArgsSWHW[1] = 1;								// SW: ThreadGroupCountY
-	RasterizerArgsSWHW[2] = 1;								// SW: ThreadGroupCountZ
-	RasterizerArgsSWHW[3] = 0;								// padding
+	RasterizerArgsSWHW[0] = NumClustersSW;							// SW: ThreadGroupCountX
+	RasterizerArgsSWHW[1] = 1;										// SW: ThreadGroupCountY
+	RasterizerArgsSWHW[2] = 1;										// SW: ThreadGroupCountZ
+	RasterizerArgsSWHW[3] = 0;										// padding
 
-	if (RenderFlags & RENDER_FLAG_MESH_SHADER)
+	if (RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER)
 	{
-		RasterizerArgsSWHW[4] = NumClustersHW;				// HW: ThreadGroupCountX
-		RasterizerArgsSWHW[5] = 1;							// HW: ThreadGroupCountY
-		RasterizerArgsSWHW[6] = 1;							// HW: ThreadGroupCountZ
+		RasterizerArgsSWHW[4] = NumClustersHW;						// HW: ThreadGroupCountX
+		RasterizerArgsSWHW[5] = 1;									// HW: ThreadGroupCountY
+		RasterizerArgsSWHW[6] = 1;									// HW: ThreadGroupCountZ
 	}
-	else if (RenderFlags & RENDER_FLAG_PRIMITIVE_SHADER)
+	else if (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER)
 	{
-		RasterizerArgsSWHW[4] = NumClustersHW;				// HW: VertexCountPerInstance
-		RasterizerArgsSWHW[5] = 1;							// HW: InstanceCount
-		RasterizerArgsSWHW[6] = 0;							// HW: StartVertexLocation
+		RasterizerArgsSWHW[4] = NumClustersHW;						// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[5] = 1;									// HW: InstanceCount
+		RasterizerArgsSWHW[6] = 0;									// HW: StartVertexLocation
 	}
 	else
 	{
-		RasterizerArgsSWHW[4] = MAX_CLUSTER_TRIANGLES * 3;	// HW: VertexCountPerInstance
-		RasterizerArgsSWHW[5] = NumClustersHW;				// HW: InstanceCount
-		RasterizerArgsSWHW[6] = 0;							// HW: StartVertexLocation
+		RasterizerArgsSWHW[4] = NANITE_MAX_CLUSTER_TRIANGLES * 3;	// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[5] = NumClustersHW;						// HW: InstanceCount
+		RasterizerArgsSWHW[6] = 0;									// HW: StartVertexLocation
 	}
 
-	RasterizerArgsSWHW[7] = 0;								// HW: StartInstanceLocation
+	RasterizerArgsSWHW[7] = 0;										// HW: StartInstanceLocation
 }
 
 // Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.

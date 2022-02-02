@@ -70,8 +70,8 @@ const FString& FBuilderModule::GetVersionString() const
 	if (VersionString.IsEmpty())
 	{
 		VersionString = FString::Printf(TEXT("%s%s%s%s"), NANITE_DERIVEDDATA_VER,
-										USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
-										USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
+										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
+										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""),
 										TEXT("_LWC"));	// LWC_TODO: This can be removed.
 	}
 
@@ -433,9 +433,9 @@ static bool BuildNaniteData(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildData);
 
-	if (NumTexCoords > MAX_NANITE_UVS)
+	if (NumTexCoords > NANITE_MAX_UVS)
 	{
-		NumTexCoords = MAX_NANITE_UVS;
+		NumTexCoords = NANITE_MAX_UVS;
 	}
 
 	FBounds	VertexBounds;

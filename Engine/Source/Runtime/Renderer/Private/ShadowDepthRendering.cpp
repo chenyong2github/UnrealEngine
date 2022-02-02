@@ -1289,7 +1289,7 @@ static void UpdatePackedViewParamsFromPrevShadowState(Nanite::FPackedViewParams&
 	{
 		Params.PrevViewMatrices = PrevShadowState->ViewMatrices;
 		Params.HZBTestViewRect = PrevShadowState->HZBTestViewRect;
-		Params.Flags |= VIEW_FLAG_HZBTEST;
+		Params.Flags |= NANITE_VIEW_FLAG_HZBTEST;
 	}
 }
 

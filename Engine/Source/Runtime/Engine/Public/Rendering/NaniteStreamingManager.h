@@ -8,9 +8,6 @@
 #include "RenderGraphResources.h"
 #include "RHIGPUReadback.h"
 
-#define SANITY_CHECK_STREAMING_REQUESTS		0		// Performs a number of sanity checks of streaming requests to verify their integrity.
-													// Must match define in ClusterCulling.ush
-
 namespace UE
 {
 	namespace DerivedData
@@ -281,7 +278,7 @@ private:
 	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );
 #endif
 
-#if SANITY_CHECK_STREAMING_REQUESTS
+#if NANITE_SANITY_CHECK_STREAMING_REQUESTS
 	void SanityCheckStreamingRequests(const FGPUStreamingRequest* StreamingRequestsPtr, const uint32 NumStreamingRequests);
 #endif
 

@@ -11,7 +11,6 @@
 #include "Misc/Compression.h"
 
 #define CONSTRAINED_CLUSTER_CACHE_SIZE				32
-#define MAX_CLUSTER_MATERIALS						64
 #define MIN_PAGE_DISTANCE_FOR_RELATIVE_ENCODING		4		// Don't use relative encoding near root to avoid small dependent batches for little compression win.
 
 #define INVALID_PART_INDEX				0xFFFFFFFFu
@@ -45,7 +44,7 @@ struct FPageSections
 	uint32 Attribute		= 0;
 
 	uint32 GetMaterialTableSize() const		{ return Align(MaterialTable, 16); }
-	uint32 GetClusterOffset() const			{ return GPU_PAGE_HEADER_SIZE; }
+	uint32 GetClusterOffset() const			{ return NANITE_GPU_PAGE_HEADER_SIZE; }
 	uint32 GetMaterialTableOffset() const	{ return GetClusterOffset() + Cluster; }
 	uint32 GetDecodeInfoOffset() const		{ return GetMaterialTableOffset() + GetMaterialTableSize(); }
 	uint32 GetIndexOffset() const			{ return GetDecodeInfoOffset() + DecodeInfo; }
@@ -130,7 +129,7 @@ struct FEncodingInfo
 
 	FPageSections GpuSizes;
 
-	FUVRange	UVRanges[MAX_NANITE_UVS];
+	FUVRange	UVRanges[NANITE_MAX_UVS];
 };
 
 // Wasteful to store size for every vert but easier this way.
@@ -481,7 +480,7 @@ static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>
 	{
 		check(InCluster.MaterialRanges[RangeIndex].RangeLength <= 128);
 		check(InCluster.MaterialRanges[RangeIndex].RangeLength > 0);
-		check(InCluster.MaterialRanges[RangeIndex].MaterialIndex < MAX_CLUSTER_MATERIALS);
+		check(InCluster.MaterialRanges[RangeIndex].MaterialIndex < NANITE_MAX_CLUSTER_MATERIALS);
 		NumMaterialTriangles += InCluster.MaterialRanges[RangeIndex].RangeLength;
 	}
 
@@ -580,8 +579,8 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
 	
 	// 5
-	check(NumTexCoords <= MAX_NANITE_UVS);
-	static_assert(MAX_NANITE_UVS <= 4, "UV_Prev encoding only supports up to 4 channels");
+	check(NumTexCoords <= NANITE_MAX_UVS);
+	static_assert(NANITE_MAX_UVS <= 4, "UV_Prev encoding only supports up to 4 channels");
 
 	OutCluster.SetBitsPerAttribute(EncodingInfo.BitsPerAttribute);
 	OutCluster.SetNumUVs(NumTexCoords);
@@ -592,19 +591,19 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 
 struct FHierarchyNode
 {
-	FSphere3f		LODBounds[MAX_BVH_NODE_FANOUT];
-	FBounds			Bounds[MAX_BVH_NODE_FANOUT];
-	float			MinLODErrors[MAX_BVH_NODE_FANOUT];
-	float			MaxParentLODErrors[MAX_BVH_NODE_FANOUT];
-	uint32			ChildrenStartIndex[MAX_BVH_NODE_FANOUT];
-	uint32			NumChildren[MAX_BVH_NODE_FANOUT];
-	uint32			ClusterGroupPartIndex[MAX_BVH_NODE_FANOUT];
+	FSphere3f		LODBounds[NANITE_MAX_BVH_NODE_FANOUT];
+	FBounds			Bounds[NANITE_MAX_BVH_NODE_FANOUT];
+	float			MinLODErrors[NANITE_MAX_BVH_NODE_FANOUT];
+	float			MaxParentLODErrors[NANITE_MAX_BVH_NODE_FANOUT];
+	uint32			ChildrenStartIndex[NANITE_MAX_BVH_NODE_FANOUT];
+	uint32			NumChildren[NANITE_MAX_BVH_NODE_FANOUT];
+	uint32			ClusterGroupPartIndex[NANITE_MAX_BVH_NODE_FANOUT];
 };
 
 static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHierarchyNode& InNode, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& GroupParts, const uint32 NumResourceRootPages)
 {
-	static_assert( MAX_RESOURCE_PAGES_BITS + MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS <= 32, "" );
-	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
+	static_assert(NANITE_MAX_RESOURCE_PAGES_BITS + NANITE_MAX_CLUSTERS_PER_GROUP_BITS + NANITE_MAX_GROUP_PARTS_BITS <= 32, "");
+	for (uint32 i = 0; i < NANITE_MAX_BVH_NODE_FANOUT; i++)
 	{
 		OutNode.LODBounds[i] = FVector4f(InNode.LODBounds[i].Center, InNode.LODBounds[i].W);
 
@@ -612,7 +611,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 		OutNode.Misc0[i].BoxBoundsCenter = Bounds.GetCenter();
 		OutNode.Misc1[i].BoxBoundsExtent = Bounds.GetExtent();
 
-		check(InNode.NumChildren[i] <= MAX_CLUSTERS_PER_GROUP);
+		check(InNode.NumChildren[i] <= NANITE_MAX_CLUSTERS_PER_GROUP);
 		OutNode.Misc0[i].MinLODError_MaxParentLODError	= FFloat16( InNode.MinLODErrors[i] ).Encoded | ( FFloat16( InNode.MaxParentLODErrors[i] ).Encoded << 16 );
 		OutNode.Misc1[i].ChildStartReference			= InNode.ChildrenStartIndex[i];
 
@@ -629,7 +628,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 				uint32 PageIndexStart = Group.PageIndexStart;
 				uint32 PageIndexNum = Group.PageIndexNum;
 				RemoveRootPagesFromRange(PageIndexStart, PageIndexNum, NumResourceRootPages);
-				ResourcePageIndex_NumPages_GroupPartSize = (PageIndexStart << (MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS)) | (PageIndexNum << MAX_CLUSTERS_PER_GROUP_BITS) | GroupPartSize;
+				ResourcePageIndex_NumPages_GroupPartSize = (PageIndexStart << (NANITE_MAX_CLUSTERS_PER_GROUP_BITS + NANITE_MAX_GROUP_PARTS_BITS)) | (PageIndexNum << NANITE_MAX_CLUSTERS_PER_GROUP_BITS) | GroupPartSize;
 			}
 			else
 			{
@@ -644,7 +643,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters, const FBounds& MeshBounds, const FMeshNaniteSettings& Settings)
 {	
 	// Simple global quantization for EA
-	const int32 MaxPositionQuantizedValue	= (1 << MAX_POSITION_QUANTIZATION_BITS) - 1;
+	const int32 MaxPositionQuantizedValue	= (1 << NANITE_MAX_POSITION_QUANTIZATION_BITS) - 1;
 	
 	int32 PositionPrecision = Settings.PositionPrecision;
 	if (PositionPrecision == MIN_int32)
@@ -682,7 +681,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 		PositionPrecision = FMath::Max(PositionPrecision, AUTO_MIN_PRECISION);
 	}
 
-	PositionPrecision = FMath::Clamp(PositionPrecision, MIN_POSITION_PRECISION, MAX_POSITION_PRECISION);
+	PositionPrecision = FMath::Clamp(PositionPrecision, NANITE_MIN_POSITION_PRECISION, NANITE_MAX_POSITION_PRECISION);
 
 	float QuantizationScale = FMath::Exp2((float)PositionPrecision);
 
@@ -711,7 +710,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 			
 			QuantizationScale *= 0.5f;
 			PositionPrecision--;
-			check(PositionPrecision >= MIN_POSITION_PRECISION);
+			check(PositionPrecision >= NANITE_MIN_POSITION_PRECISION);
 			check(++Iterations < 100);	// Endless loop?
 		}
 	}
@@ -752,9 +751,9 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 		const uint32 NumBitsX = FMath::CeilLogTwo(IntClusterMax.X - IntClusterMin.X + 1);
 		const uint32 NumBitsY = FMath::CeilLogTwo(IntClusterMax.Y - IntClusterMin.Y + 1);
 		const uint32 NumBitsZ = FMath::CeilLogTwo(IntClusterMax.Z - IntClusterMin.Z + 1);
-		check(NumBitsX <= MAX_POSITION_QUANTIZATION_BITS);
-		check(NumBitsY <= MAX_POSITION_QUANTIZATION_BITS);
-		check(NumBitsZ <= MAX_POSITION_QUANTIZATION_BITS);
+		check(NumBitsX <= NANITE_MAX_POSITION_QUANTIZATION_BITS);
+		check(NumBitsY <= NANITE_MAX_POSITION_QUANTIZATION_BITS);
+		check(NumBitsZ <= NANITE_MAX_POSITION_QUANTIZATION_BITS);
 
 		for (uint32 i = 0; i < NumClusterVerts; i++)
 		{
@@ -802,25 +801,25 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 	GpuSizes.DecodeInfo = NumTexCoords * sizeof(FUVRange);
 	GpuSizes.Index = (NumClusterTris * BitsPerTriangle + 31) / 32 * 4;
 
-#if USE_UNCOMPRESSED_VERTEX_DATA
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
 	const uint32 AttribBytesPerVertex = (3 * sizeof(float) + sizeof(uint32) + NumTexCoords * 2 * sizeof(float));
 
 	Info.BitsPerAttribute = AttribBytesPerVertex * 8;
 	Info.ColorMin = FIntVector4(0, 0, 0, 0);
 	Info.ColorBits = FIntVector4(8, 8, 8, 8);
-	Info.ColorMode = VERTEX_COLOR_MODE_VARIABLE;
+	Info.ColorMode = NANITE_VERTEX_COLOR_MODE_VARIABLE;
 	Info.UVPrec = 0;
 
 	GpuSizes.Position = NumClusterVerts * 3 * sizeof(float);
 	GpuSizes.Attribute = NumClusterVerts * AttribBytesPerVertex;
 #else
-	Info.BitsPerAttribute = 2 * NORMAL_QUANTIZATION_BITS;
+	Info.BitsPerAttribute = 2 * NANITE_NORMAL_QUANTIZATION_BITS;
 
 	check(NumClusterVerts > 0);
 	const bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
 
 	// Vertex colors
-	Info.ColorMode = VERTEX_COLOR_MODE_WHITE;
+	Info.ColorMode = NANITE_VERTEX_COLOR_MODE_WHITE;
 	Info.ColorMin = FIntVector4(255, 255, 255, 255);
 	if (bHasColors)
 	{
@@ -851,14 +850,14 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		Info.ColorBits = FIntVector4(R_Bits, G_Bits, B_Bits, A_Bits);
 		if (NumColorBits > 0)
 		{
-			Info.ColorMode = VERTEX_COLOR_MODE_VARIABLE;
+			Info.ColorMode = NANITE_VERTEX_COLOR_MODE_VARIABLE;
 		}
 		else 
 		{
 			if (ColorMin.X == 255 && ColorMin.Y == 255 && ColorMin.Z == 255 && ColorMin.W == 255)
-				Info.ColorMode = VERTEX_COLOR_MODE_WHITE;
+				Info.ColorMode = NANITE_VERTEX_COLOR_MODE_WHITE;
 			else
-				Info.ColorMode = VERTEX_COLOR_MODE_CONSTANT;
+				Info.ColorMode = NANITE_VERTEX_COLOR_MODE_CONSTANT;
 		}
 	}
 
@@ -904,7 +903,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 
 		const FVector2f UVMin = FVector2f(UValues[0], VValues[0]);
 		const FVector2f UVMax = FVector2f(UValues[NumClusterVerts - 1], VValues[NumClusterVerts - 1]);
-		const int32 MaxTexCoordQuantizedValue = (1 << MAX_TEXCOORD_QUANTIZATION_BITS) - 1;
+		const int32 MaxTexCoordQuantizedValue = (1 << NANITE_MAX_TEXCOORD_QUANTIZATION_BITS) - 1;
 
 		int TexCoordPrecision = 14;
 		
@@ -945,8 +944,8 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 					{
 						uint32 TexCoordBitsU = FMath::CeilLogTwo((int32)MaxDeltaU + 1);
 						uint32 TexCoordBitsV = FMath::CeilLogTwo((int32)MaxDeltaV + 1);
-						check(TexCoordBitsU <= MAX_TEXCOORD_QUANTIZATION_BITS);
-						check(TexCoordBitsV <= MAX_TEXCOORD_QUANTIZATION_BITS);
+						check(TexCoordBitsU <= NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);
+						check(TexCoordBitsV <= NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);
 						Info.UVPrec |= ((TexCoordBitsV << 4) | TexCoordBitsU) << (UVIndex * 8);
 						Info.BitsPerAttribute += TexCoordBitsU + TexCoordBitsV;
 
@@ -998,8 +997,8 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
 
-	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
-#if USE_UNCOMPRESSED_VERTEX_DATA
+	VertexRefBitmask.AddZeroed(NANITE_MAX_CLUSTER_VERTICES / 32);
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
 	// Disable vertex references in uncompressed mode
 	NumCodedVertices = NumClusterVerts;
 #else
@@ -1041,7 +1040,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 			uint32* VertexPtr = UniqueVertices.Find(Vertex);
 			if (VertexPtr)
 			{
-				VertexRef = FVertexRef{ 0, (*VertexPtr >> MAX_CLUSTER_VERTICES_BITS), *VertexPtr & MAX_CLUSTER_VERTICES_MASK };
+				VertexRef = FVertexRef{ 0, (*VertexPtr >> NANITE_MAX_CLUSTER_VERTICES_BITS), *VertexPtr & NANITE_MAX_CLUSTER_VERTICES_MASK };
 				bFound = true;
 			}
 		}
@@ -1049,12 +1048,12 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 		if(bFound)
 		{
 			VertexRefs.Add(VertexRef);
-			const uint32 BitIndex = (LocalClusterIndex << MAX_CLUSTER_VERTICES_BITS) + VertexIndex;
+			const uint32 BitIndex = (LocalClusterIndex << NANITE_MAX_CLUSTER_VERTICES_BITS) + VertexIndex;
 			VertexRefBitmask[BitIndex >> 5] |= 1u << (BitIndex & 31);
 		}
 		else
 		{
-			uint32 Val = (LocalClusterIndex << MAX_CLUSTER_VERTICES_BITS) | (uint32)UniqueToVertexIndex.Num();
+			uint32 Val = (LocalClusterIndex << NANITE_MAX_CLUSTER_VERTICES_BITS) | (uint32)UniqueToVertexIndex.Num();
 			UniqueVertices.Add(Vertex, Val);
 			UniqueToVertexIndex.Add(VertexIndex);
 		}
@@ -1079,7 +1078,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 
 	for (const FClusterRef& Ref : ClusterRefs)
 	{
-		PageClusterMapData.Add((Ref.PageIndex << MAX_CLUSTERS_PER_PAGE_BITS) | Ref.ClusterIndex);
+		PageClusterMapData.Add((Ref.PageIndex << NANITE_MAX_CLUSTERS_PER_PAGE_BITS) | Ref.ClusterIndex);
 	}
 
 	// Write vertex refs using Page-Cluster index + vertex index
@@ -1087,15 +1086,15 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	{
 		uint32 PageClusterIndex = ClusterRefs.Find(FClusterRef{ Ref.PageIndex, Ref.LocalClusterIndex });
 		check(PageClusterIndex < 256);
-		VertexRefData.Add((PageClusterIndex << MAX_CLUSTER_VERTICES_BITS) | Ref.VertexIndex);
+		VertexRefData.Add((PageClusterIndex << NANITE_MAX_CLUSTER_VERTICES_BITS) | Ref.VertexIndex);
 	}
 #endif
 
 	const uint32 BitsPerIndex = EncodingInfo.BitsPerIndex;
 	
 	// Write triangle indices
-#if USE_STRIP_INDICES
-	for (uint32 i = 0; i < MAX_CLUSTER_TRIANGLES / 32; i++)
+#if NANITE_USE_STRIP_INDICES
+	for (uint32 i = 0; i < NANITE_MAX_CLUSTER_TRIANGLES / 32; i++)
 	{
 		StripBitmask.Add(Cluster.StripDesc.Bitmasks[i][0]);
 		StripBitmask.Add(Cluster.StripDesc.Bitmasks[i][1]);
@@ -1115,7 +1114,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	FBitWriter BitWriter_Position(PositionData);
 	FBitWriter BitWriter_Attribute(AttributeData);
 
-#if USE_UNCOMPRESSED_VERTEX_DATA
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
 	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 	{
 		const FVector3f& Position = Cluster.GetPosition(VertexIndex);
@@ -1153,7 +1152,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	TArray<uint32> PackedUVs;
 	PackedUVs.SetNumUninitialized( NumClusterVerts * NumTexCoords );
 	
-	uint32 TexCoordBits[MAX_NANITE_UVS] = {};
+	uint32 TexCoordBits[NANITE_MAX_UVS] = {};
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
 		const int32 TexCoordBitsU = (EncodingInfo.UVPrec >> (UVIndex * 8 + 0)) & 15;
@@ -1203,11 +1202,11 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
 		// Normal
-		uint32 PackedNormal = PackNormal(Cluster.GetNormal( VertexIndex ), NORMAL_QUANTIZATION_BITS);
-		BitWriter_Attribute.PutBits(PackedNormal, 2 * NORMAL_QUANTIZATION_BITS);
+		uint32 PackedNormal = PackNormal(Cluster.GetNormal( VertexIndex ), NANITE_NORMAL_QUANTIZATION_BITS);
+		BitWriter_Attribute.PutBits(PackedNormal, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
 
 		// Color
-		if(EncodingInfo.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
+		if(EncodingInfo.ColorMode == NANITE_VERTEX_COLOR_MODE_VARIABLE)
 		{
 			FColor Color = Cluster.GetColor(VertexIndex).ToFColor(false);
 
@@ -1342,7 +1341,7 @@ static void AssignClustersToPages(
 			// Add to page
 			FPage* Page = &Pages.Top();
 			bool bRootPage =  (Pages.Num() - 1u) < MaxRootPages;
-			if (Page->GpuSizes.GetTotal() + EncodingInfo.GpuSizes.GetTotal() > (bRootPage ? ROOT_PAGE_GPU_SIZE : STREAMING_PAGE_GPU_SIZE) || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
+			if (Page->GpuSizes.GetTotal() + EncodingInfo.GpuSizes.GetTotal() > (bRootPage ? NANITE_ROOT_PAGE_GPU_SIZE : NANITE_STREAMING_PAGE_GPU_SIZE) || Page->NumClusters + 1 > NANITE_MAX_CLUSTERS_PER_PAGE)
 			{
 				// Page is full. Need to start a new one
 				Pages.AddDefaulted();
@@ -1373,7 +1372,7 @@ static void AssignClustersToPages(
 				Part.PageIndex = PageIndex;
 			}
 			Part.Clusters.Add(ClusterIndex);
-			check(Part.Clusters.Num() <= MAX_CLUSTERS_PER_GROUP);
+			check(Part.Clusters.Num() <= NANITE_MAX_CLUSTERS_PER_GROUP);
 
 			Cluster.GroupPartIndex = PartIndex;
 			
@@ -1389,13 +1388,13 @@ static void AssignClustersToPages(
 		Group.PageIndexStart = GroupStartPage;
 		Group.PageIndexNum = Pages.Num() - GroupStartPage;
 		check(Group.PageIndexNum >= 1);
-		check(Group.PageIndexNum <= MAX_GROUP_PARTS_MASK);
+		check(Group.PageIndexNum <= NANITE_MAX_GROUP_PARTS_MASK);
 	}
 
 	// Recalculate bounds for group parts
 	for (FClusterGroupPart& Part : Parts)
 	{
-		check(Part.Clusters.Num() <= MAX_CLUSTERS_PER_GROUP);
+		check(Part.Clusters.Num() <= NANITE_MAX_CLUSTERS_PER_GROUP);
 		check(Part.PageIndex < (uint32)Pages.Num());
 
 		FBounds Bounds;
@@ -1693,7 +1692,7 @@ static void WritePages(	FResources& Resources,
 		NumPageClusterPairsPerCluster.SetNumUninitialized(Page.NumClusters);
 		
 		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedCluster) / sizeof(uint32);
-		const uint32 MaterialTableStartOffsetInDwords = (GPU_PAGE_HEADER_SIZE / 4) + NumPackedClusterDwords;
+		const uint32 MaterialTableStartOffsetInDwords = (NANITE_GPU_PAGE_HEADER_SIZE / 4) + NumPackedClusterDwords;
 
 		FPageSections GpuSectionOffsets = Page.GpuSizes.GetOffsets();
 		TMap<FVariableVertex, uint32> UniqueVertices;
@@ -1776,7 +1775,7 @@ static void WritePages(	FResources& Resources,
 
 		// Begin page
 		TArray<uint8>& PageResult = PageResults[PageIndex];
-		PageResult.SetNum(MAX_PAGE_DISK_SIZE);
+		PageResult.SetNum(NANITE_MAX_PAGE_DISK_SIZE);
 		FBlockPointer PagePointer(PageResult.GetData(), PageResult.Num());
 
 		// Disk header
@@ -1839,7 +1838,7 @@ static void WritePages(	FResources& Resources,
 		// Index data
 		{
 			uint8* IndexData = PagePointer.GetPtr<uint8>();
-#if USE_STRIP_INDICES
+#if NANITE_USE_STRIP_INDICES
 			for (uint32 i = 0; i < Page.PartsNum; i++)
 			{
 				const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + i];
@@ -1894,7 +1893,7 @@ static void WritePages(	FResources& Resources,
 		// Write Vertex Reference Bitmask
 		{
 			PageDiskHeader->VertexRefBitmaskOffset = PagePointer.Offset();
-			const uint32 VertexRefBitmaskSize = Page.NumClusters * (MAX_CLUSTER_VERTICES / 8);
+			const uint32 VertexRefBitmaskSize = Page.NumClusters * (NANITE_MAX_CLUSTER_VERTICES / 8);
 			uint8* VertexRefBitmask = PagePointer.Advance<uint8>(VertexRefBitmaskSize);
 			FMemory::Memcpy(VertexRefBitmask, CombinedVertexRefBitmaskData.GetData(), VertexRefBitmaskSize);
 			check(CombinedVertexRefBitmaskData.Num() * CombinedVertexRefBitmaskData.GetTypeSize() == VertexRefBitmaskSize);
@@ -1973,8 +1972,8 @@ static void WritePages(	FResources& Resources,
 
 		// Write fixup chunk
 		uint32 FixupChunkSize = FixupChunk.GetSize();
-		check(FixupChunk.Header.NumHierachyFixups < MAX_CLUSTERS_PER_PAGE);
-		check(FixupChunk.Header.NumClusterFixups < MAX_CLUSTERS_PER_PAGE);
+		check(FixupChunk.Header.NumHierachyFixups < NANITE_MAX_CLUSTERS_PER_PAGE);
+		check(FixupChunk.Header.NumClusterFixups < NANITE_MAX_CLUSTERS_PER_PAGE);
 		BulkData.Append((uint8*)&FixupChunk, FixupChunkSize);
 		TotalFixupSize += FixupChunkSize;
 
@@ -2002,10 +2001,10 @@ static void WritePages(	FResources& Resources,
 	const uint32 TotalPageGPUSize = TotalRootGPUSize + TotalStreamingGPUSize;
 	const uint32 TotalPageDiskSize = TotalRootDiskSize + TotalStreamingDiskSize;
 	UE_LOG(LogStaticMesh, Log, TEXT("WritePages:"), NumPages);
-	UE_LOG(LogStaticMesh, Log, TEXT("  Root: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalRootGPUSize, NumRootPages, TotalRootGPUSize / (float)NumRootPages, TotalRootGPUSize / (float(NumRootPages) * ROOT_PAGE_GPU_SIZE) * 100.0f);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Root: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalRootGPUSize, NumRootPages, TotalRootGPUSize / (float)NumRootPages, TotalRootGPUSize / (float(NumRootPages) * NANITE_ROOT_PAGE_GPU_SIZE) * 100.0f);
 	if(NumStreamingPages > 0)
 	{
-		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * STREAMING_PAGE_GPU_SIZE) * 100.0f);
+		UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * NANITE_STREAMING_PAGE_GPU_SIZE) * 100.0f);
 	}
 	else
 	{
@@ -2042,7 +2041,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 	HierarchyNodes.AddZeroed();
 
 	uint32 NumChildren = INode.Children.Num();
-	check( NumChildren > 0 && NumChildren <= MAX_BVH_NODE_FANOUT );
+	check( NumChildren > 0 && NumChildren <= NANITE_MAX_BVH_NODE_FANOUT );
 	for( uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++ )
 	{
 		uint32 ChildNodeIndex = INode.Children[ ChildIndex ];
@@ -2063,7 +2062,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			HNode.NumChildren[ChildIndex] = Part.Clusters.Num();
 			HNode.ClusterGroupPartIndex[ChildIndex] = ChildNode.PartIndex;
 
-			check(HNode.NumChildren[ChildIndex] <= MAX_CLUSTERS_PER_GROUP);
+			check(HNode.NumChildren[ChildIndex] <= NANITE_MAX_CLUSTERS_PER_GROUP);
 			Part.HierarchyNodeIndex = HNodeIndex;
 			Part.HierarchyChildIndex = ChildIndex;
 		}
@@ -2076,10 +2075,10 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			const Nanite::FHierarchyNode& ChildHNode = HierarchyNodes[ChildHierarchyNodeIndex];
 
 			FBounds Bounds;
-			TArray< FSphere3f, TInlineAllocator<MAX_BVH_NODE_FANOUT> > LODBoundSpheres;
+			TArray< FSphere3f, TInlineAllocator<NANITE_MAX_BVH_NODE_FANOUT> > LODBoundSpheres;
 			float MinLODError = MAX_flt;
 			float MaxParentLODError = 0.0f;
-			for (uint32 GrandChildIndex = 0; GrandChildIndex < MAX_BVH_NODE_FANOUT && ChildHNode.NumChildren[GrandChildIndex] != 0; GrandChildIndex++)
+			for (uint32 GrandChildIndex = 0; GrandChildIndex < NANITE_MAX_BVH_NODE_FANOUT && ChildHNode.NumChildren[GrandChildIndex] != 0; GrandChildIndex++)
 			{
 				Bounds += ChildHNode.Bounds[GrandChildIndex];
 				LODBoundSpheres.Add(ChildHNode.LODBounds[GrandChildIndex]);
@@ -2095,7 +2094,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			HNode.MinLODErrors[ChildIndex] = MinLODError;
 			HNode.MaxParentLODErrors[ChildIndex] = MaxParentLODError;
 			HNode.ChildrenStartIndex[ChildIndex] = ChildHierarchyNodeIndex;
-			HNode.NumChildren[ChildIndex] = MAX_CLUSTERS_PER_GROUP;
+			HNode.NumChildren[ChildIndex] = NANITE_MAX_CLUSTERS_PER_GROUP;
 			HNode.ClusterGroupPartIndex[ChildIndex] = INVALID_GROUP_INDEX;
 		}
 	}
@@ -2147,11 +2146,11 @@ static float BVH_Cost(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32>
 
 static void BVH_SortNodes(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32> NodeIndices, const TArray<uint32>& ChildSizes)
 {
-	// Perform MAX_BVH_NODE_FANOUT_BITS binary splits
-	for (uint32 Level = 0; Level < MAX_BVH_NODE_FANOUT_BITS; Level++)
+	// Perform NANITE_MAX_BVH_NODE_FANOUT_BITS binary splits
+	for (uint32 Level = 0; Level < NANITE_MAX_BVH_NODE_FANOUT_BITS; Level++)
 	{
 		const uint32 NumBuckets = 1 << Level;
-		const uint32 NumChildrenPerBucket = MAX_BVH_NODE_FANOUT >> Level;
+		const uint32 NumChildrenPerBucket = NANITE_MAX_BVH_NODE_FANOUT >> Level;
 		const uint32 NumChildrenPerBucketHalf = NumChildrenPerBucket >> 1;
 
 		uint32 BucketStartIndex = 0;
@@ -2225,28 +2224,28 @@ static uint32 BuildHierarchyTopDown(TArray<FIntermediateNode>& Nodes, TArrayView
 	const uint32 NewRootIndex = Nodes.Num();
 	Nodes.AddDefaulted_GetRef();
 
-	if (N <= MAX_BVH_NODE_FANOUT)
+	if (N <= NANITE_MAX_BVH_NODE_FANOUT)
 	{
 		Nodes[NewRootIndex].Children = NodeIndices;
 		return NewRootIndex;
 	}
 
 	// Where does the last (incomplete) level start
-	uint32 TopSize = MAX_BVH_NODE_FANOUT;
-	while (TopSize * MAX_BVH_NODE_FANOUT <= N)
+	uint32 TopSize = NANITE_MAX_BVH_NODE_FANOUT;
+	while (TopSize * NANITE_MAX_BVH_NODE_FANOUT <= N)
 	{
-		TopSize *= MAX_BVH_NODE_FANOUT;
+		TopSize *= NANITE_MAX_BVH_NODE_FANOUT;
 	}
 	
 	const uint32 LargeChildSize = TopSize;
-	const uint32 SmallChildSize = TopSize / MAX_BVH_NODE_FANOUT;
+	const uint32 SmallChildSize = TopSize / NANITE_MAX_BVH_NODE_FANOUT;
 	const uint32 MaxExcessPerChild = LargeChildSize - SmallChildSize;
 
 	TArray<uint32> ChildSizes;
-	ChildSizes.SetNum(MAX_BVH_NODE_FANOUT);
+	ChildSizes.SetNum(NANITE_MAX_BVH_NODE_FANOUT);
 	
 	uint32 Excess = N - TopSize;
-	for (int32 i = MAX_BVH_NODE_FANOUT-1; i >= 0; i--)
+	for (int32 i = NANITE_MAX_BVH_NODE_FANOUT-1; i >= 0; i--)
 	{
 		const uint32 ChildExcess = FMath::Min(Excess, MaxExcessPerChild);
 		ChildSizes[i] = SmallChildSize + ChildExcess;
@@ -2260,7 +2259,7 @@ static uint32 BuildHierarchyTopDown(TArray<FIntermediateNode>& Nodes, TArrayView
 	}
 	
 	uint32 Offset = 0;
-	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
+	for (uint32 i = 0; i < NANITE_MAX_BVH_NODE_FANOUT; i++)
 	{
 		uint32 ChildSize = ChildSizes[i];
 		uint32 NodeIndex = BuildHierarchyTopDown(Nodes, NodeIndices.Slice(Offset, ChildSize), bSort);	// Needs to be separated from next statement with sequence point to order access to Nodes array.
@@ -2353,7 +2352,7 @@ static void BuildHierarchies(FResources& Resources, const TArray<FClusterGroup>&
 					// Build a hierarchy for the mip level
 					uint32 NodeIndex = BuildHierarchyTopDown(Nodes, NodesByMip[MipLevel], true);
 
-					if (Nodes[NodeIndex].bLeaf || Nodes[NodeIndex].Children.Num() == MAX_BVH_NODE_FANOUT)
+					if (Nodes[NodeIndex].bLeaf || Nodes[NodeIndex].Children.Num() == NANITE_MAX_BVH_NODE_FANOUT)
 					{
 						// Leaf or filled node. Just add it.
 						LevelRoots.Add(NodeIndex);
@@ -2475,7 +2474,7 @@ void BuildMaterialRanges(
 static void BuildMaterialRanges(FCluster& Cluster)
 {
 	check(Cluster.MaterialRanges.Num() == 0);
-	check(Cluster.NumTris <= MAX_CLUSTER_TRIANGLES);
+	check(Cluster.NumTris <= NANITE_MAX_CLUSTER_TRIANGLES);
 	check(Cluster.NumTris * 3 == Cluster.Indexes.Num());
 
 	TArray<FMaterialTriangle, TInlineAllocator<128>> MaterialTris;
@@ -2511,7 +2510,7 @@ static void BuildMaterialRanges( TArray<FCluster>& Clusters )
 // Prints material range stats. This has to happen separate from BuildMaterialRanges as materials might be recalculated because of cluster splitting.
 static void PrintMaterialRangeStats( TArray<FCluster>& Clusters )
 {
-	TFixedBitVector<MAX_CLUSTER_MATERIALS> UsedMaterialIndices;
+	TFixedBitVector<NANITE_MAX_CLUSTER_MATERIALS> UsedMaterialIndices;
 	UsedMaterialIndices.Clear();
 
 	uint32 NumClusterMaterials[ 4 ] = { 0, 0, 0, 0 }; // 1, 2, 3, >= 4
@@ -2582,9 +2581,9 @@ static void ConstrainClusterFIFO( FCluster& Cluster )
 	uint32 NumOldTriangles = Cluster.NumTris;
 	uint32 NumOldVertices = Cluster.NumVerts;
 
-	const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = ( MAX_CLUSTER_TRIANGLES + 31 ) / 32;
+	const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = (NANITE_MAX_CLUSTER_TRIANGLES + 31 ) / 32;
 
-	uint32 VertexToTriangleMasks[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES_IN_DWORDS ] = { };
+	uint32 VertexToTriangleMasks[NANITE_MAX_CLUSTER_TRIANGLES * 3][MAX_CLUSTER_TRIANGLES_IN_DWORDS] = {};
 
 	// Generate vertex to triangle masks
 	for( uint32 i = 0; i < NumOldTriangles; i++ )
@@ -2602,12 +2601,12 @@ static void ConstrainClusterFIFO( FCluster& Cluster )
 	uint32 TrianglesEnabled[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ] = {};	// Enabled triangles are in the current material range and have not yet been visited.
 	uint32 TrianglesTouched[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ] = {};	// Touched triangles have had at least one of their vertices visited.
 
-	uint16 OptimizedIndices[ MAX_CLUSTER_TRIANGLES * 3 ];
+	uint16 OptimizedIndices[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
 
 	uint32 NumNewVertices = 0;
 	uint32 NumNewTriangles = 0;
-	uint16 OldToNewVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
-	uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ] = {};	// Initialize to make static analysis happy
+	uint16 OldToNewVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3];
+	uint16 NewToOldVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3] = {};	// Initialize to make static analysis happy
 	FMemory::Memset( OldToNewVertex, -1, sizeof( OldToNewVertex ) );
 
 	auto ScoreVertex = [ &OldToNewVertex, &NumNewVertices ] ( uint32 OldVertex )
@@ -2779,12 +2778,12 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 	uint32 NumOldTriangles = Cluster.NumTris;
 	uint32 NumOldVertices = Cluster.NumVerts;
 
-	const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = ( MAX_CLUSTER_TRIANGLES + 31 ) / 32;
+	const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = (NANITE_MAX_CLUSTER_TRIANGLES + 31) / 32;
 	const uint32 MAX_DISTANCE = 0xFF;
 
-	static_assert( MAX_CLUSTER_MATERIALS <= 64, "MAX_CLUSTER_MATERIALS is assumed to fit in uint64" );
-	uint64 VertexRangesMask[ MAX_CLUSTER_TRIANGLES * 3 ] = { };
-	uint8 VertexValences[ MAX_CLUSTER_TRIANGLES * 3 ] = {};
+	static_assert(NANITE_MAX_CLUSTER_MATERIALS <= 64, "NANITE_MAX_CLUSTER_MATERIALS is assumed to fit in uint64 (1 bit per material)" );
+	uint64 VertexRangesMask[NANITE_MAX_CLUSTER_TRIANGLES * 3] = { };
+	uint8 VertexValences[NANITE_MAX_CLUSTER_TRIANGLES * 3] = {};
 
 	// Calculate vertex valence and mark which ranges each vertex is in.
 	const uint32 NumRanges = Cluster.MaterialRanges.Num();
@@ -2809,15 +2808,15 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 		}
 	}
 
-	uint16 OptimizedIndices[ MAX_CLUSTER_TRIANGLES * 3 ];
+	uint16 OptimizedIndices[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
 
 	uint32 NumNewVertices = 0;
 	uint32 NumNewTriangles = 0;
-	uint16 OldToNewVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
-	uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
+	uint16 OldToNewVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
+	uint16 NewToOldVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
 	FMemory::Memset( OldToNewVertex, -1, sizeof( OldToNewVertex ) );
 
-	uint16 ComponentStartScoreAndVertex[ MAX_CLUSTER_TRIANGLES ];	// (score << 9) | vertex
+	uint16 ComponentStartScoreAndVertex[NANITE_MAX_CLUSTER_TRIANGLES ];	// (score << 9) | vertex
 	FMemory::Memset( ComponentStartScoreAndVertex, -1, sizeof( ComponentStartScoreAndVertex ) );
 
 	for( uint32 RangeIndex = 0; RangeIndex < NumRanges; RangeIndex++ )
@@ -2826,7 +2825,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 		uint32 RangeStart = MaterialRange.RangeStart;
 		uint32 RangeLength = MaterialRange.RangeLength;
 
-		uint8 VertexToComponent[ MAX_CLUSTER_TRIANGLES * 3 ];
+		uint8 VertexToComponent[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
 		FMemory::Memset( VertexToComponent, -1, sizeof( VertexToComponent ) );
 
 		// Associate every vertex with component ID by repeated relaxation. The component ID is the lowest triangle ID it is connected to.
@@ -2850,7 +2849,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 			} while (bHasChanged);
 		}
 
-		bool bSeenComponent[ MAX_CLUSTER_TRIANGLES ] = { };
+		bool bSeenComponent[NANITE_MAX_CLUSTER_TRIANGLES ] = { };
 		uint32 NumSeenComponents = 0;
 
 		// Score triangles and determine best scoring vertex for every component
@@ -2887,7 +2886,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 			ComponentStartScoreAndVertex[ Component ] = FMath::Min( ComponentStartScoreAndVertex[ Component ], ScoreAndVertex );
 		}
 
-		uint8 VertexDistances[ MAX_CLUSTER_TRIANGLES * 3 ][ 3 ];		// 0: Distance to previous range, 1: Distance to next range, 2: Distance to start triangle
+		uint8 VertexDistances[NANITE_MAX_CLUSTER_TRIANGLES * 3 ][ 3 ];		// 0: Distance to previous range, 1: Distance to next range, 2: Distance to start triangle
 
 		// Mark material boundary vertices
 		for( uint32 i = 0; i < RangeLength; i++ )
@@ -2903,7 +2902,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 				uint32 Component = VertexToComponent[ OldIndex ];
 				uint32 ComponentStartVertex = ComponentStartScoreAndVertex[ Component ] & 0x1FF;
 				
-				check(OldIndex < MAX_CLUSTER_INDICES);
+				check(OldIndex < NANITE_MAX_CLUSTER_INDICES);
 				VertexDistances[ OldIndex ][ 0 ] = ( RangesMask & MaskLow ) ? 0 : MAX_DISTANCE;
 				VertexDistances[ OldIndex ][ 1 ] = ( RangesMask & MaskHigh ) ? 0 : MAX_DISTANCE;
 				VertexDistances[ OldIndex ][ 2 ] = OldIndex == ComponentStartVertex ? 0 : MAX_DISTANCE;
@@ -2933,7 +2932,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 		} while (bWasUpdated);
 
 		// Generate sort entries
-		uint32 TriangleSortEntries[ MAX_CLUSTER_TRIANGLES ];
+		uint32 TriangleSortEntries[NANITE_MAX_CLUSTER_TRIANGLES ];
 		for( uint32 i = 0; i < RangeLength; i++ )
 		{
 			uint32 TriangleIndex = RangeStart + i;
@@ -2953,7 +2952,7 @@ static void ConstrainClusterGeodesic( FCluster& Cluster )
 			check( bConnectedToPrev == bConnectedToPrev1 && bConnectedToPrev == bConnectedToPrev2 );
 			check( bConnectedToNext == bConnectedToNext1 && bConnectedToNext == bConnectedToNext2 );
 
-			uint32 Component = bConnectedToPrev ? 0 : bConnectedToNext ? ( MAX_CLUSTER_TRIANGLES + 1 ) : VertexToComponent[ OldIndex0 ] + 1;	// prev first, next last and everything else in the middle.
+			uint32 Component = bConnectedToPrev ? 0 : bConnectedToNext ? (NANITE_MAX_CLUSTER_TRIANGLES + 1 ) : VertexToComponent[ OldIndex0 ] + 1;	// prev first, next last and everything else in the middle.
 
 			uint32 Distance = 0x8000;
 			if( bConnectedToPrev || bConnectedToNext )
@@ -3287,15 +3286,15 @@ static void UnpackTriangleIndices( const FStripDesc& StripDesc, const uint8* Str
 // Class to simultaneously constrain and stripify a cluster
 class FStripifier
 {
-	static const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = ( MAX_CLUSTER_TRIANGLES + 31 ) / 32;
+	static const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = (NANITE_MAX_CLUSTER_TRIANGLES + 31 ) / 32;
 	static const uint32 INVALID_INDEX = 0xFFFFu;
 	static const uint32 INVALID_CORNER = 0xFFFFu;
 	static const uint32 INVALID_NODE = 0xFFFFu;
 	static const uint32 INVALID_NODE_MEMSET = 0xFFu;
 
-	uint32 VertexToTriangleMasks[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];
-	uint16 OppositeCorner[ MAX_CLUSTER_TRIANGLES * 3 ];
-	float TrianglePriorities[ MAX_CLUSTER_TRIANGLES ];
+	uint32 VertexToTriangleMasks[NANITE_MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];
+	uint16 OppositeCorner[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
+	float TrianglePriorities[NANITE_MAX_CLUSTER_TRIANGLES ];
 
 	class FContext
 	{
@@ -3305,8 +3304,8 @@ class FStripifier
 			return ( TrianglesEnabled[ TriangleIndex >> 5 ] & ( 1u << ( TriangleIndex & 31u ) ) ) != 0u;
 		}
 
-		uint16 OldToNewVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
-		uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
+		uint16 OldToNewVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
+		uint16 NewToOldVertex[NANITE_MAX_CLUSTER_TRIANGLES * 3 ];
 
 		uint32 TrianglesEnabled[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];	// Enabled triangles are in the current material range and have not yet been visited.
 		uint32 TrianglesTouched[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];	// Touched triangles have had at least one of their vertices visited.
@@ -3325,8 +3324,8 @@ class FStripifier
 			uint16 NextNode;
 		};
 
-		FEdgeNode EdgeNodes[ MAX_CLUSTER_INDICES ];
-		uint16 EdgeNodeHeads[ MAX_CLUSTER_INDICES * MAX_CLUSTER_INDICES ];	// Linked list per edge to support more than 2 triangles per edge.
+		FEdgeNode EdgeNodes[NANITE_MAX_CLUSTER_INDICES ];
+		uint16 EdgeNodeHeads[NANITE_MAX_CLUSTER_INDICES * NANITE_MAX_CLUSTER_INDICES ];	// Linked list per edge to support more than 2 triangles per edge.
 		FMemory::Memset( EdgeNodeHeads, INVALID_NODE_MEMSET );
 
 		FMemory::Memset( VertexToTriangleMasks, 0 );
@@ -3352,18 +3351,18 @@ class FStripifier
 
 			FEdgeNode& Node0 = EdgeNodes[ i * 3 + 0 ];
 			Node0.Corner = SetCorner( i, 0 );
-			Node0.NextNode = EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i2 ];
-			EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i2 ] = i * 3 + 0;
+			Node0.NextNode = EdgeNodeHeads[ i1 * NANITE_MAX_CLUSTER_INDICES + i2 ];
+			EdgeNodeHeads[ i1 * NANITE_MAX_CLUSTER_INDICES + i2 ] = i * 3 + 0;
 
 			FEdgeNode& Node1 = EdgeNodes[ i * 3 + 1 ];
 			Node1.Corner = SetCorner( i, 1 );
-			Node1.NextNode = EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i0 ];
-			EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i0 ] = i * 3 + 1;
+			Node1.NextNode = EdgeNodeHeads[ i2 * NANITE_MAX_CLUSTER_INDICES + i0 ];
+			EdgeNodeHeads[ i2 * NANITE_MAX_CLUSTER_INDICES + i0 ] = i * 3 + 1;
 
 			FEdgeNode& Node2 = EdgeNodes[ i * 3 + 2 ];
 			Node2.Corner = SetCorner( i, 2 );
-			Node2.NextNode = EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i1 ];
-			EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i1 ] = i * 3 + 2;
+			Node2.NextNode = EdgeNodeHeads[ i0 * NANITE_MAX_CLUSTER_INDICES + i1 ];
+			EdgeNodeHeads[ i0 * NANITE_MAX_CLUSTER_INDICES + i1 ] = i * 3 + 2;
 		}
 
 		// Gather adjacency from edge lists	
@@ -3373,9 +3372,9 @@ class FStripifier
 			uint32 i1 = Cluster.Indexes[ i * 3 + 1 ];
 			uint32 i2 = Cluster.Indexes[ i * 3 + 2 ];
 
-			uint16& Node0 = EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i1 ];
-			uint16& Node1 = EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i2 ];
-			uint16& Node2 = EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i0 ];
+			uint16& Node0 = EdgeNodeHeads[ i2 * NANITE_MAX_CLUSTER_INDICES + i1 ];
+			uint16& Node1 = EdgeNodeHeads[ i0 * NANITE_MAX_CLUSTER_INDICES + i2 ];
+			uint16& Node2 = EdgeNodeHeads[ i1 * NANITE_MAX_CLUSTER_INDICES + i0 ];
 			if( Node0 != INVALID_NODE ) { OppositeCorner[ i * 3 + 0 ] = EdgeNodes[ Node0 ].Corner; Node0 = EdgeNodes[ Node0 ].NextNode; }
 			else { OppositeCorner[ i * 3 + 0 ] = INVALID_CORNER; }
 			if( Node1 != INVALID_NODE ) { OppositeCorner[ i * 3 + 1 ] = EdgeNodes[ Node1 ].Corner; Node1 = EdgeNodes[ Node1 ].NextNode; }
@@ -3801,7 +3800,7 @@ static void BuildClusterFromClusterTriangleRange( const FCluster& InCluster, FCl
 
 	// Rebuild material range and reconstrain 
 	BuildMaterialRanges( OutCluster );
-#if USE_STRIP_INDICES
+#if NANITE_USE_STRIP_INDICES
 	FStripifier Stripifier;
 	Stripifier.ConstrainAndStripifyCluster(OutCluster);
 #else
@@ -3849,7 +3848,7 @@ static void DumpClusterNormals(const char* Filename, const FCluster& Cluster)
 	Points.SetNumUninitialized(NumVertices);
 	for (uint32 i = 0; i < NumVertices; i++)
 	{
-		OctahedronEncodePreciseSIMD(Cluster.Verts[i].Normal, Points[i].X, Points[i].Y, NORMAL_QUANTIZATION_BITS);
+		OctahedronEncodePreciseSIMD(Cluster.Verts[i].Normal, Points[i].X, Points[i].Y, NANITE_NORMAL_QUANTIZATION_BITS);
 	}
 
 
@@ -3947,7 +3946,7 @@ static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< F
 	ParallelFor( Clusters.Num(),
 		[&]( uint32 i )
 		{
-#if USE_STRIP_INDICES
+#if NANITE_USE_STRIP_INDICES
 			FStripifier Stripifier;
 			Stripifier.ConstrainAndStripifyCluster(Clusters[i]);
 #else
@@ -4008,7 +4007,7 @@ static void VerifyClusterContraints( const TArray< FCluster >& Clusters )
 static uint32 CalculateMaxRootPages(uint32 TargetResidencyInKB)
 {
 	const uint64 SizeInBytes = uint64(TargetResidencyInKB) << 10;
-	return (uint32)FMath::Clamp((SizeInBytes + ROOT_PAGE_GPU_SIZE - 1u) >> ROOT_PAGE_GPU_SIZE_BITS, 1llu, (uint64)MAX_uint32);
+	return (uint32)FMath::Clamp((SizeInBytes + NANITE_ROOT_PAGE_GPU_SIZE - 1u) >> NANITE_ROOT_PAGE_GPU_SIZE_BITS, 1llu, (uint64)MAX_uint32);
 }
 
 void Encode(
@@ -4033,7 +4032,7 @@ void Encode(
 		BuildMaterialRanges( Clusters );
 	}
 
-#if USE_CONSTRAINED_CLUSTERS
+#if NANITE_USE_CONSTRAINED_CLUSTERS
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::ConstrainClusters);
 		ConstrainClusters( Groups, Clusters );

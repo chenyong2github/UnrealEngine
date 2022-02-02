@@ -349,7 +349,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	}
 }
 
-#if USE_CONSTRAINED_CLUSTERS
+#if NANITE_USE_CONSTRAINED_CLUSTERS
 groupshared float3 GroupVerts[256];
 #else
 groupshared float3 GroupVerts[384];
@@ -556,7 +556,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 	// that an odd number of components are negative, so
 	// we need to reverse the triangle winding order.
 	bool bReverseInstanceCull = (InstanceData.DeterminantSign < 0.0f);
-	bool bRasterStateReverseCull = (RenderFlags & RENDER_FLAG_REVERSE_CULLING);
+	bool bRasterStateReverseCull = (RenderFlags & NANITE_RENDER_FLAG_REVERSE_CULLING);
 	
 	// Logical XOR
 	return (bReverseInstanceCull != bRasterStateReverseCull);

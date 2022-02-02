@@ -29,19 +29,17 @@ class  FCardPageRenderData;
 class FNaniteCommandInfo
 {
 public:
-	static constexpr int32 MAX_STATE_BUCKET_ID = (1 << 14) - 1; // Must match NaniteDataDecode.ush
-
 	explicit FNaniteCommandInfo() = default;
 
 	inline void SetStateBucketId(int32 InStateBucketId)
 	{
-		check(InStateBucketId < MAX_STATE_BUCKET_ID);
+		check(InStateBucketId < NANITE_MAX_STATE_BUCKET_ID);
 		StateBucketId = InStateBucketId;
 	}
 
 	inline int32 GetStateBucketId() const
 	{
-		check(StateBucketId < MAX_STATE_BUCKET_ID);
+		check(StateBucketId < NANITE_MAX_STATE_BUCKET_ID);
 		return StateBucketId;
 	}
 
@@ -73,7 +71,7 @@ public:
 
 	static float GetDepthId(int32 StateBucketId)
 	{
-		return float(StateBucketId + 1) / float(MAX_STATE_BUCKET_ID);
+		return float(StateBucketId + 1) / float(NANITE_MAX_STATE_BUCKET_ID);
 	}
 
 private:

@@ -393,7 +393,7 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 
 		Clusters[ Child ].GroupIndex = GroupIndex;
 		Groups[ GroupIndex ].Children.Add( Child );
-		check( Groups[ GroupIndex ].Children.Num() <= MAX_CLUSTERS_PER_GROUP_TARGET );
+		check( Groups[ GroupIndex ].Children.Num() <= NANITE_MAX_CLUSTERS_PER_GROUP_TARGET );
 	}
 	
 	FSphere3f ParentLODBounds( Children_LODBounds.GetData(), Children_LODBounds.Num() );

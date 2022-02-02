@@ -2417,7 +2417,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
 					View,
 					RasterTextureSize,
-					VIEW_FLAG_HZBTEST,
+					NANITE_VIEW_FLAG_HZBTEST,
 					/* StreamingPriorityCategory = */ 3,
 					/* MinBoundsRadius = */ 0.0f,
 					LODScaleFactor);

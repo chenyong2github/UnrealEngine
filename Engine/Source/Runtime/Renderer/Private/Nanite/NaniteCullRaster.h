@@ -4,10 +4,6 @@
 
 #include "NaniteShared.h"
 
-static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS = 12;														// Must match define in NaniteDataDecode.ush
-static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	= ( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 );	// Must match define in NaniteDataDecode.ush
-static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS		= (   1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );		// Must match define in NaniteDataDecode.ush
-
 class FVirtualShadowMapArray;
 
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster, TEXT("Nanite Raster"));

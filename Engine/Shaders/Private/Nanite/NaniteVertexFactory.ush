@@ -200,7 +200,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		for (uint TexCoordIndex = 0; TexCoordIndex < NUM_TEX_COORD_INTERPOLATORS; TexCoordIndex++)
 		{
 			// Protect against case where Nanite max UV count is lower than what the material may define.
-			if (TexCoordIndex < MAX_NANITE_UVS)
+			if (TexCoordIndex < NANITE_MAX_UVS)
 			{
 				Result.TexCoords[TexCoordIndex] = AttributeData.TexCoords[TexCoordIndex];
 				Result.TexCoords_DDX[TexCoordIndex] = AttributeData.TexCoords_DDX[TexCoordIndex];

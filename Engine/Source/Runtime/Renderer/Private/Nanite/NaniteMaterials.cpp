@@ -390,7 +390,7 @@ void DrawBasePass(
 
 	const FIntPoint TileGridDim = FMath::DivideAndRoundUp(ViewSize, { 64, 64 });
 
-	const uint32 MaxMaterialSlots = FNaniteCommandInfo::MAX_STATE_BUCKET_ID + 1;
+	const uint32 MaxMaterialSlots = NANITE_MAX_STATE_BUCKET_ID + 1;
 
 	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(MaxMaterialSlots), TEXT("Nanite.MaterialIndirectArgs"));
 

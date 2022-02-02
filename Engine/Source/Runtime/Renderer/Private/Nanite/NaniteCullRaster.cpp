@@ -30,33 +30,10 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 #define CULLING_PASS_OCCLUSION_POST		2
 #define CULLING_PASS_EXPLICIT_LIST		3
 
-// Must match NaniteDataDecode.ush
-#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
-#define RENDER_FLAG_FORCE_HW_RASTER					0x2
-#define RENDER_FLAG_PRIMITIVE_SHADER				0x4
-#define RENDER_FLAG_MESH_SHADER						0x8
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
-#define RENDER_FLAG_REVERSE_CULLING					0x20
-#define RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER		0x40
-#define RENDER_FLAG_IS_SCENE_CAPTURE				0x80
-#define RENDER_FLAG_IS_REFLECTION_CAPTURE			0x100
-#define RENDER_FLAG_IS_GAME_VIEW					0x200
-#define RENDER_FLAG_GAME_SHOW_FLAG_ENABLED			0x400
-#define RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED		0x800
-
-// Only available with the DEBUG_FLAGS permutation active.
-#define DEBUG_FLAG_WRITE_STATS						0x1
-#define DEBUG_FLAG_DISABLE_CULL_HZB_BOX				0x2
-#define DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE			0x4
-#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX			0x8
-#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE		0x10
-#define DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING		0x20
-
-static_assert(1 + NUM_CULLING_FLAG_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS + MAX_INSTANCES_BITS + MAX_GPU_PAGES_BITS + MAX_CLUSTERS_PER_PAGE_BITS <= 64, "FVisibleCluster fields don't fit in 64bits");
-
-static_assert(1 + NUM_CULLING_FLAG_BITS + MAX_INSTANCES_BITS <= 32, "FCandidateNode.x fields don't fit in 32bits");
-static_assert(1 + MAX_NODES_PER_PRIMITIVE_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
-static_assert(1 + MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
+static_assert(1 + NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS + NANITE_MAX_INSTANCES_BITS + NANITE_MAX_GPU_PAGES_BITS + NANITE_MAX_CLUSTERS_PER_PAGE_BITS <= 64, "FVisibleCluster fields don't fit in 64bits");
+static_assert(1 + NANITE_NUM_CULLING_FLAG_BITS + NANITE_MAX_INSTANCES_BITS <= 32, "FCandidateNode.x fields don't fit in 32bits");
+static_assert(1 + NANITE_MAX_NODES_PER_PRIMITIVE_BITS + NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
+static_assert(1 + NANITE_MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
 
 int32 GNaniteAsyncRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
@@ -1282,56 +1259,56 @@ FCullingContext InitCullingContext(
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
 
-	CullingContext.RenderFlags |= CullingContext.Configuration.bForceHWRaster			? RENDER_FLAG_FORCE_HW_RASTER : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bIgnoreVisibleInRaster	? RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bUpdateStreaming			? RENDER_FLAG_OUTPUT_STREAMING_REQUESTS : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bIsSceneCapture			? RENDER_FLAG_IS_SCENE_CAPTURE : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bIsReflectionCapture		? RENDER_FLAG_IS_REFLECTION_CAPTURE : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bIsGameView				? RENDER_FLAG_IS_GAME_VIEW : 0u;
-	CullingContext.RenderFlags |= CullingContext.Configuration.bGameShowFlag			? RENDER_FLAG_GAME_SHOW_FLAG_ENABLED : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bForceHWRaster			? NANITE_RENDER_FLAG_FORCE_HW_RASTER : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIgnoreVisibleInRaster	? NANITE_RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bUpdateStreaming			? NANITE_RENDER_FLAG_OUTPUT_STREAMING_REQUESTS : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsSceneCapture			? NANITE_RENDER_FLAG_IS_SCENE_CAPTURE : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsReflectionCapture		? NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsGameView				? NANITE_RENDER_FLAG_IS_GAME_VIEW : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bGameShowFlag			? NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED : 0u;
 #if WITH_EDITOR
-	CullingContext.RenderFlags |= CullingContext.Configuration.bEditorShowFlag			? RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bEditorShowFlag			? NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED : 0u;
 #endif
 
 	if (UseMeshShader(SharedContext.Pipeline))
 	{
-		CullingContext.RenderFlags |= RENDER_FLAG_MESH_SHADER;
+		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_MESH_SHADER;
 	}
 	else if (UsePrimitiveShader())
 	{
-		CullingContext.RenderFlags |= RENDER_FLAG_PRIMITIVE_SHADER;
+		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_PRIMITIVE_SHADER;
 	}
 
 	// TODO: Exclude from shipping builds
 	{
 		if (GNaniteSphereCullingFrustum == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE;
 		}
 
 		if (GNaniteSphereCullingHZB == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE;
 		}
 
 		if (GNaniteBoxCullingFrustum == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX;
 		}
 
 		if (GNaniteBoxCullingHZB == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_HZB_BOX;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX;
 		}
 
 		if (GNaniteShowStats != 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_WRITE_STATS;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_WRITE_STATS;
 		}
 
 		if (Configuration.bDrawOnlyVSMInvalidatingGeometry && Configuration.bPrimaryContext)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING;
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING;
 		}
 	}
 
@@ -1340,7 +1317,7 @@ FCullingContext InitCullingContext(
 	CullingContext.PageConstants.X							= Scene.GPUScene.InstanceSceneDataSOAStride;
 	CullingContext.PageConstants.Y							= Nanite::GStreamingManager.GetMaxStreamingPages();
 	
-	check(NumSceneInstancesPo2 <= MAX_INSTANCES);		// There are too many instances in the scene.
+	check(NumSceneInstancesPo2 <= NANITE_MAX_INSTANCES);		// There are too many instances in the scene.
 
 	CullingContext.QueueState					= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 44, 1 ), TEXT("Nanite.QueueState") );
 
@@ -1663,8 +1640,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
 		
-		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
-		if (CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA)
+		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
+		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA)
 		{
 			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
 		}
@@ -1730,7 +1707,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	{
 		FCalculateSafeRasterizerArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCalculateSafeRasterizerArgs_CS::FParameters >();
 
-		const bool bPrevDrawData	= (CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA) != 0;
+		const bool bPrevDrawData	= (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA) != 0;
 		const bool bPostPass		= (CullingPass == CULLING_PASS_OCCLUSION_POST) != 0;
 
 		if (bPrevDrawData)
@@ -1825,7 +1802,7 @@ void AddPass_Rasterize(
 	CommonPassParameters->RenderFlags = RenderFlags;
 	if (RasterState.CullMode == CM_CCW)
 	{
-		CommonPassParameters->RenderFlags |= RENDER_FLAG_REVERSE_CULLING;
+		CommonPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
 	}
 	CommonPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	
@@ -1840,7 +1817,7 @@ void AddPass_Rasterize(
 	}
 	CommonPassParameters->IndirectArgs = IndirectArgs;
 
-	const bool bHavePrevDrawData = (RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA);
+	const bool bHavePrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA);
 	if (bHavePrevDrawData)
 	{
 		CommonPassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(TotalPrevDrawClustersBuffer);
@@ -2265,7 +2242,7 @@ static void CullRasterizeMultiPass(
 
 			// Can we include the next primary view and its mips?
 			int32 NextRangeNumViews = FMath::Max(RangeMaxMip, NumMips) * (NextPrimaryViewIndex - RangeStartPrimaryView + 1);
-			if (NextRangeNumViews > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+			if (NextRangeNumViews > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 				break;
 
 			RangeNumViews = NextRangeNumViews;
@@ -2325,7 +2302,7 @@ void CullRasterize(
 	LLM_SCOPE_BYTAG(Nanite);
 	
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
-	if (Views.Num() > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+	if (Views.Num() > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 	{
 		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
 		CullRasterizeMultiPass(
@@ -2356,7 +2333,7 @@ void CullRasterize(
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.Configuration.bSupportsMultiplePasses);
 
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
-	ensure(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
+	ensure(Views.Num() > 0 && Views.Num() <= NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
 
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
@@ -2509,8 +2486,8 @@ void CullRasterize(
 			PassParameters->InOutPostPassRasterizeArgsSWHW = GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
 		}
 		
-		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
-		if (CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA)
+		check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA); // sanity check
+		if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA)
 		{
 			PassParameters->InOutTotalPrevDrawClusters = GraphBuilder.CreateUAV(CullingContext.TotalPrevDrawClustersBuffer);
 		}
@@ -2684,7 +2661,7 @@ void CullRasterize(
 	{
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;
-		CullingContext.RenderFlags |= RENDER_FLAG_HAVE_PREV_DRAW_DATA;
+		CullingContext.RenderFlags |= NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA;
 	}
 
 	if (bExtractStats)

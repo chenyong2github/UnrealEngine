@@ -107,11 +107,11 @@ FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 namespace Nanite
 {
 
-static_assert(sizeof(FPackedCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedCluster)");
+static_assert(sizeof(FPackedCluster) == NANITE_NUM_PACKED_CLUSTER_FLOAT4S * 16, "NANITE_NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedCluster)");
 
 FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 {
-	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
+	for (uint32 i = 0; i < NANITE_MAX_BVH_NODE_FANOUT; i++)
 	{
 		Ar << Node.LODBounds[ i ];
 		Ar << Node.Misc0[ i ].BoxBoundsCenter;

@@ -118,8 +118,8 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 			FPlane(Ax, Ay, 0, 1)) * Params.ViewMatrices.GetInvTranslatedViewProjectionMatrix());
 	PackedView.ViewToTranslatedWorld = FMatrix44f(Params.ViewMatrices.GetOverriddenInvTranslatedViewMatrix());	
 
-	check(Params.StreamingPriorityCategory <= STREAMING_PRIORITY_CATEGORY_MASK);
-	PackedView.StreamingPriorityCategory_AndFlags = (Params.Flags << NUM_STREAMING_PRIORITY_CATEGORY_BITS) | Params.StreamingPriorityCategory;
+	check(Params.StreamingPriorityCategory <= NANITE_STREAMING_PRIORITY_CATEGORY_MASK);
+	PackedView.StreamingPriorityCategory_AndFlags = (Params.Flags << NANITE_NUM_STREAMING_PRIORITY_CATEGORY_BITS) | Params.StreamingPriorityCategory;
 	PackedView.MinBoundsRadiusSq = Params.MinBoundsRadius * Params.MinBoundsRadius;
 	PackedView.UpdateLODScales();
 
@@ -207,15 +207,15 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 uint32 FGlobalResources::GetMaxCandidateClusters()
 {
 	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
-	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 	return MaxCandidateClusters;
 }
 
 uint32 FGlobalResources::GetMaxClusterBatches()
 {
 	const uint32 MaxCandidateClusters = GetMaxCandidateClusters();
-	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
-	return MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	check(MaxCandidateClusters % NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
+	return MaxCandidateClusters / NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 }
 
 uint32 FGlobalResources::GetMaxVisibleClusters()
@@ -226,7 +226,7 @@ uint32 FGlobalResources::GetMaxVisibleClusters()
 
 uint32 FGlobalResources::GetMaxNodes()
 {
-	return GNaniteMaxNodes & -MAX_BVH_NODES_PER_GROUP;
+	return GNaniteMaxNodes & -NANITE_MAX_BVH_NODES_PER_GROUP;
 }
 
 TGlobalResource< FGlobalResources > GGlobalResources;

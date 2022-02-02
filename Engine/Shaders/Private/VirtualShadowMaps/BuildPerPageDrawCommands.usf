@@ -213,7 +213,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
 
 #if USE_HZB_OCCLUSION
-		const bool bViewHZB = (NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
+		const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
 #endif
 
 		StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_TOTAL, NaniteView.TargetNumMipLevels);

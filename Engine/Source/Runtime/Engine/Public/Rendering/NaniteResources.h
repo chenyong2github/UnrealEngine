@@ -11,6 +11,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Serialization/BulkData.h"
 #include "Misc/MemoryReadStream.h"
+#include "NaniteDefinitions.h"
 
 /** Whether Nanite::FSceneProxy should store data and enable codepaths needed for debug rendering. */
 #if PLATFORM_WINDOWS
@@ -18,82 +19,6 @@
 #else
 #define NANITE_ENABLE_DEBUG_RENDERING 0
 #endif
-
-#define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTER_TRIANGLES					128
-#define MAX_CLUSTER_VERTICES_BITS				8														// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTER_VERTICES_MASK				( ( 1 << MAX_CLUSTER_VERTICES_BITS ) - 1 )
-#define MAX_CLUSTER_VERTICES					( 1 << MAX_CLUSTER_VERTICES_BITS )						// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
-#define MAX_NANITE_UVS							4														// must match define in NaniteDataDecode.ush
-
-#define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
-
-#define ROOT_PAGE_GPU_SIZE_BITS					15														// must match define in NaniteDataDecode.ush
-#define ROOT_PAGE_GPU_SIZE						( 1u << ROOT_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
-#define STREAMING_PAGE_GPU_SIZE_BITS			17														// must match define in NaniteDataDecode.ush
-#define STREAMING_PAGE_GPU_SIZE					( 1u << STREAMING_PAGE_GPU_SIZE_BITS )					// must match define in NaniteDataDecode.ush
-#define MAX_PAGE_DISK_SIZE						( STREAMING_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
-
-#define MAX_CLUSTERS_PER_PAGE_BITS				8														// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_GROUP_MASK				( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_GROUP					( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteDataDecode.ush
-#define MAX_CLUSTERS_PER_GROUP_TARGET			128														// what we are targeting. MAX_CLUSTERS_PER_GROUP needs to be large 
-																										// enough that it won't overflow after constraint-based splitting
-#define MAX_HIERACHY_CHILDREN_BITS				6														// must match define in NaniteDataDecode.ush
-#define MAX_HIERACHY_CHILDREN					( 1 << MAX_HIERACHY_CHILDREN_BITS )						// must match define in NaniteDataDecode.ush
-#define MAX_GPU_PAGES_BITS						16														// must match define in NaniteDataDecode.ush
-#define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteDataDecode.ush
-#define MAX_INSTANCES_BITS						24														// must match define in NaniteDataDecode.ush
-#define MAX_INSTANCES							( 1 << MAX_INSTANCES_BITS )								// must match define in NaniteDataDecode.ush
-#define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteDataDecode.ush
-#define MAX_RESOURCE_PAGES_BITS					20
-#define MAX_RESOURCE_PAGES_MASK					( ( 1 << MAX_RESOURCE_PAGES_BITS ) - 1 )
-#define MAX_RESOURCE_PAGES						(1 << MAX_RESOURCE_PAGES_BITS)
-#define MAX_GROUP_PARTS_BITS					3
-#define MAX_GROUP_PARTS_MASK					((1 << MAX_GROUP_PARTS_BITS) - 1)
-#define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS_BITS)
-
-#define PERSISTENT_CLUSTER_CULLING_GROUP_SIZE	64														// must match define in Culling.ush
-
-#define MAX_BVH_NODE_FANOUT_BITS				2														// must match define in Culling.ush
-#define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in Culling.ush
-
-#define MAX_BVH_NODES_PER_GROUP					(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE / MAX_BVH_NODE_FANOUT)
-
-#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
-
-#define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteDataDecode.ush
-#define GPU_PAGE_HEADER_SIZE					16														// must match define in NaniteDataDecode.ush
-
-#define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteDataDecode.ush
-#define MIN_POSITION_PRECISION					-8														// must match define in NaniteDataDecode.ush
-#define MAX_POSITION_PRECISION					 23														// must match define in NaniteDataDecode.ush
-
-#define NORMAL_QUANTIZATION_BITS				 9
-
-#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
-#define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteDataDecode.ush
-
-#define NUM_STREAMING_PRIORITY_CATEGORY_BITS	 2														// must match define in NaniteDataDecode.ush
-#define STREAMING_PRIORITY_CATEGORY_MASK		((1u << NUM_STREAMING_PRIORITY_CATEGORY_BITS) - 1u)		// must match define in NaniteDataDecode.ush
-
-#define VIEW_FLAG_HZBTEST						0x1														// must match define in NaniteDataDecode.ush
-
-#define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteDataDecode.ush
-
-#define VERTEX_COLOR_MODE_WHITE					0
-#define VERTEX_COLOR_MODE_CONSTANT				1
-#define VERTEX_COLOR_MODE_VARIABLE				2
-
-#define NANITE_CLUSTER_FLAG_LEAF				0x1
-
-#define NANITE_PAGE_FLAG_RELATIVE_ENCODING		0x1
-
-#define INVALID_PERSISTENT_HASH					0
 
 DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
@@ -115,24 +40,24 @@ namespace Nanite
 
 struct FPackedHierarchyNode
 {
-	FVector4f		LODBounds[MAX_BVH_NODE_FANOUT];
+	FVector4f		LODBounds[NANITE_MAX_BVH_NODE_FANOUT];
 	
 	struct
 	{
 		FVector3f	BoxBoundsCenter;
 		uint32		MinLODError_MaxParentLODError;
-	} Misc0[MAX_BVH_NODE_FANOUT];
+	} Misc0[NANITE_MAX_BVH_NODE_FANOUT];
 
 	struct
 	{
 		FVector3f	BoxBoundsExtent;
 		uint32		ChildStartReference;
-	} Misc1[MAX_BVH_NODE_FANOUT];
+	} Misc1[NANITE_MAX_BVH_NODE_FANOUT];
 	
 	struct
 	{
 		uint32		ResourcePageIndex_NumPages_GroupPartSize;
-	} Misc2[MAX_BVH_NODE_FANOUT];
+	} Misc2[NANITE_MAX_BVH_NODE_FANOUT];
 };
 
 
@@ -185,7 +110,7 @@ struct FPackedCluster
 	uint32		GetIndexOffset() const					{ return GetBits(NumTris_IndexOffset, 24, 8); }
 
 	uint32		GetBitsPerIndex() const					{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 4, 0); }
-	int32		GetPosPrecision() const					{ return (int32)GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 4) + MIN_POSITION_PRECISION; }
+	int32		GetPosPrecision() const					{ return (int32)GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 4) + NANITE_MIN_POSITION_PRECISION; }
 	uint32		GetPosBitsX() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 9); }
 	uint32		GetPosBitsY() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 14); }
 	uint32		GetPosBitsZ() const						{ return GetBits(BitsPerIndex_PosPrecision_PosBits, 5, 19); }
@@ -200,7 +125,7 @@ struct FPackedCluster
 	void		SetIndexOffset(uint32 Offset)			{ SetBits(NumTris_IndexOffset, Offset, 24, 8); }
 
 	void		SetBitsPerIndex(uint32 BitsPerIndex)	{ SetBits(BitsPerIndex_PosPrecision_PosBits, BitsPerIndex, 4, 0); }
-	void		SetPosPrecision(int32 Precision)		{ SetBits(BitsPerIndex_PosPrecision_PosBits, uint32(Precision - MIN_POSITION_PRECISION), 5, 4); }
+	void		SetPosPrecision(int32 Precision)		{ SetBits(BitsPerIndex_PosPrecision_PosBits, uint32(Precision - NANITE_MIN_POSITION_PRECISION), 5, 4); }
 	void		SetPosBitsX(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 9); }
 	void		SetPosBitsY(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 14); }
 	void		SetPosBitsZ(uint32 NumBits)				{ SetBits(BitsPerIndex_PosPrecision_PosBits, NumBits, 5, 19); }
@@ -237,26 +162,26 @@ public:
 
 	FHierarchyFixup( uint32 InPageIndex, uint32 NodeIndex, uint32 ChildIndex, uint32 InClusterGroupPartStartIndex, uint32 PageDependencyStart, uint32 PageDependencyNum )
 	{
-		check(InPageIndex < MAX_RESOURCE_PAGES);
+		check(InPageIndex < NANITE_MAX_RESOURCE_PAGES);
 		PageIndex = InPageIndex;
 
-		check( NodeIndex < ( 1 << ( 32 - MAX_HIERACHY_CHILDREN_BITS ) ) );
-		check( ChildIndex < MAX_HIERACHY_CHILDREN );
-		check( InClusterGroupPartStartIndex < ( 1 << ( 32 - MAX_CLUSTERS_PER_GROUP_BITS ) ) );
-		HierarchyNodeAndChildIndex = ( NodeIndex << MAX_HIERACHY_CHILDREN_BITS ) | ChildIndex;
+		check( NodeIndex < ( 1 << ( 32 - NANITE_MAX_HIERACHY_CHILDREN_BITS ) ) );
+		check( ChildIndex < NANITE_MAX_HIERACHY_CHILDREN );
+		check( InClusterGroupPartStartIndex < ( 1 << ( 32 - NANITE_MAX_CLUSTERS_PER_GROUP_BITS ) ) );
+		HierarchyNodeAndChildIndex = ( NodeIndex << NANITE_MAX_HIERACHY_CHILDREN_BITS ) | ChildIndex;
 		ClusterGroupPartStartIndex = InClusterGroupPartStartIndex;
 
-		check(PageDependencyStart < MAX_RESOURCE_PAGES);
-		check(PageDependencyNum <= MAX_GROUP_PARTS_MASK);
-		PageDependencyStartAndNum = (PageDependencyStart << MAX_GROUP_PARTS_BITS) | PageDependencyNum;
+		check(PageDependencyStart < NANITE_MAX_RESOURCE_PAGES);
+		check(PageDependencyNum <= NANITE_MAX_GROUP_PARTS_MASK);
+		PageDependencyStartAndNum = (PageDependencyStart << NANITE_MAX_GROUP_PARTS_BITS) | PageDependencyNum;
 	}
 
 	uint32 GetPageIndex() const						{ return PageIndex; }
-	uint32 GetNodeIndex() const						{ return HierarchyNodeAndChildIndex >> MAX_HIERACHY_CHILDREN_BITS; }
-	uint32 GetChildIndex() const					{ return HierarchyNodeAndChildIndex & ( MAX_HIERACHY_CHILDREN - 1 ); }
+	uint32 GetNodeIndex() const						{ return HierarchyNodeAndChildIndex >> NANITE_MAX_HIERACHY_CHILDREN_BITS; }
+	uint32 GetChildIndex() const					{ return HierarchyNodeAndChildIndex & (NANITE_MAX_HIERACHY_CHILDREN - 1); }
 	uint32 GetClusterGroupPartStartIndex() const	{ return ClusterGroupPartStartIndex; }
-	uint32 GetPageDependencyStart() const			{ return PageDependencyStartAndNum >> MAX_GROUP_PARTS_BITS; }
-	uint32 GetPageDependencyNum() const				{ return PageDependencyStartAndNum & MAX_GROUP_PARTS_MASK; }
+	uint32 GetPageDependencyStart() const			{ return PageDependencyStartAndNum >> NANITE_MAX_GROUP_PARTS_BITS; }
+	uint32 GetPageDependencyNum() const				{ return PageDependencyStartAndNum & NANITE_MAX_GROUP_PARTS_MASK; }
 
 	uint32 PageIndex;
 	uint32 HierarchyNodeAndChildIndex;
@@ -271,19 +196,19 @@ public:
 
 	FClusterFixup( uint32 PageIndex, uint32 ClusterIndex, uint32 PageDependencyStart, uint32 PageDependencyNum )
 	{
-		check( PageIndex < ( 1 << ( 32 - MAX_CLUSTERS_PER_GROUP_BITS ) ) );
-		check( ClusterIndex < MAX_CLUSTERS_PER_PAGE );
-		PageAndClusterIndex = ( PageIndex << MAX_CLUSTERS_PER_PAGE_BITS ) | ClusterIndex;
+		check( PageIndex < ( 1 << ( 32 - NANITE_MAX_CLUSTERS_PER_GROUP_BITS ) ) );
+		check(ClusterIndex < NANITE_MAX_CLUSTERS_PER_PAGE);
+		PageAndClusterIndex = ( PageIndex << NANITE_MAX_CLUSTERS_PER_PAGE_BITS ) | ClusterIndex;
 
-		check(PageDependencyStart < MAX_RESOURCE_PAGES);
-		check(PageDependencyNum <= MAX_GROUP_PARTS_MASK);
-		PageDependencyStartAndNum = (PageDependencyStart << MAX_GROUP_PARTS_BITS) | PageDependencyNum;
+		check(PageDependencyStart < NANITE_MAX_RESOURCE_PAGES);
+		check(PageDependencyNum <= NANITE_MAX_GROUP_PARTS_MASK);
+		PageDependencyStartAndNum = (PageDependencyStart << NANITE_MAX_GROUP_PARTS_BITS) | PageDependencyNum;
 	}
 	
-	uint32 GetPageIndex() const				{ return PageAndClusterIndex >> MAX_CLUSTERS_PER_PAGE_BITS; }
-	uint32 GetClusterIndex() const			{ return PageAndClusterIndex & (MAX_CLUSTERS_PER_PAGE - 1u); }
-	uint32 GetPageDependencyStart() const	{ return PageDependencyStartAndNum >> MAX_GROUP_PARTS_BITS; }
-	uint32 GetPageDependencyNum() const		{ return PageDependencyStartAndNum & MAX_GROUP_PARTS_MASK; }
+	uint32 GetPageIndex() const				{ return PageAndClusterIndex >> NANITE_MAX_CLUSTERS_PER_PAGE_BITS; }
+	uint32 GetClusterIndex() const			{ return PageAndClusterIndex & (NANITE_MAX_CLUSTERS_PER_PAGE - 1u); }
+	uint32 GetPageDependencyStart() const	{ return PageDependencyStartAndNum >> NANITE_MAX_GROUP_PARTS_BITS; }
+	uint32 GetPageDependencyNum() const		{ return PageDependencyStartAndNum & NANITE_MAX_GROUP_PARTS_MASK; }
 
 	uint32 PageAndClusterIndex;
 	uint32 PageDependencyStartAndNum;
@@ -300,7 +225,7 @@ public:
 		uint16 Pad = 0;
 	} Header;
 	
-	uint8 Data[ sizeof(FHierarchyFixup) * MAX_CLUSTERS_PER_PAGE + sizeof( FClusterFixup ) * MAX_CLUSTERS_PER_PAGE ];	// One hierarchy fixup per cluster and at most one cluster fixup per cluster.
+	uint8 Data[sizeof(FHierarchyFixup) * NANITE_MAX_CLUSTERS_PER_PAGE + sizeof( FClusterFixup ) * NANITE_MAX_CLUSTERS_PER_PAGE];	// One hierarchy fixup per cluster and at most one cluster fixup per cluster.
 
 	FClusterFixup&		GetClusterFixup( uint32 Index ) const { check( Index < Header.NumClusterFixups );  return ( (FClusterFixup*)( Data + Header.NumHierachyFixups * sizeof( FHierarchyFixup ) ) )[ Index ]; }
 	FHierarchyFixup&	GetHierarchyFixup( uint32 Index ) const { check( Index < Header.NumHierachyFixups ); return ((FHierarchyFixup*)Data)[ Index ]; }
@@ -312,10 +237,6 @@ struct FInstanceDraw
 	uint32 InstanceId;
 	uint32 ViewId;
 };
-
-#define NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR		0x1
-#define NANITE_RESOURCE_FLAG_HAS_IMPOSTER			0x2
-#define NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC	0x4
 
 struct FResources
 {
@@ -341,7 +262,7 @@ struct FResources
 	int32	RootPageIndex			= INDEX_NONE;
 	int32	ImposterIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
-	uint32	PersistentHash			= INVALID_PERSISTENT_HASH;
+	uint32	PersistentHash			= NANITE_INVALID_PERSISTENT_HASH;
 
 #if WITH_EDITOR
 	FIoHash							DDCKeyHash;

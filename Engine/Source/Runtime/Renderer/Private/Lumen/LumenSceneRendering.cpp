@@ -2666,7 +2666,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						TArray<Nanite::FPackedView, SceneRenderingAllocator> NaniteViews;
 						TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> NaniteInstanceDraws;
 
-						while(NextCardIndex < NumCardPagesToRender && NaniteViews.Num() < MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
+						while(NextCardIndex < NumCardPagesToRender && NaniteViews.Num() < NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 						{
 							const FCardPageRenderData& CardPageRenderData = CardPagesToRender[NextCardIndex];
 

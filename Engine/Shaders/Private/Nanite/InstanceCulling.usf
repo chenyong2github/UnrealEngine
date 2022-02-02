@@ -89,12 +89,12 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	const bool bVisibleInSceneCaptureOnly		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY) != 0u;
 	const bool bHiddenInSceneCapture			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE) != 0u;
 
-	const bool bIsSceneCapture					= (RenderFlags & RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
-	const bool bIsReflectionCapture				= (RenderFlags & RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
-	const bool bIsGameView						= (RenderFlags & RENDER_FLAG_IS_GAME_VIEW) != 0u;
-	const bool bIgnoreVisibleInRaster			= (RenderFlags & RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER) != 0u;
-	const bool bEditorShowFlag					= (RenderFlags & RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED) != 0u;
-	const bool bGameShowFlag					= (RenderFlags & RENDER_FLAG_GAME_SHOW_FLAG_ENABLED) != 0u;
+	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
+	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
+	const bool bIsGameView						= (RenderFlags & NANITE_RENDER_FLAG_IS_GAME_VIEW) != 0u;
+	const bool bIgnoreVisibleInRaster			= (RenderFlags & NANITE_RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER) != 0u;
+	const bool bEditorShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED) != 0u;
+	const bool bGameShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED) != 0u;
 
 	if (bForceHidden)
 	{
@@ -177,7 +177,7 @@ void InstanceCull(
 	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
 
 #if DEBUG_FLAGS && CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	if (DebugFlags & DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
+	if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
 	{
 		OutStatsBuffer[0].NumPostInstancesPreCull = InOccludedInstancesArgs[3];
 	}
@@ -211,7 +211,7 @@ void InstanceCull(
 #if DEBUG_FLAGS
 		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 		BRANCH
-		if ((DebugFlags & DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING) != 0U && !bHasMoved)
+		if ((DebugFlags & NANITE_DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING) != 0U && !bHasMoved)
 		{
 			return;
 		}
@@ -263,8 +263,8 @@ void InstanceCull(
 			const bool bNearClip = (NEAR_CLIP != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-			const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-			const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+			const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+			const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 			const bool bSkipBoxCullFrustum = false;
 			const bool bSkipBoxCullHZB     = false;
@@ -275,7 +275,7 @@ void InstanceCull(
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
-			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 
 			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -354,7 +354,7 @@ void InstanceCull(
 				WaveInterlockedAddScalar(  OutQueueState[ 0 ].PassState[ QueueStateIndex ].NodeCount, 1 );
 
 #if DEBUG_FLAGS
-				if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
+				if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
 				{
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 					WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
@@ -366,9 +366,9 @@ void InstanceCull(
 
 				if(NodeOffset < MaxNodes)
 				{
-					uint Flags = CULLING_FLAG_TEST_LOD;
+					uint Flags = NANITE_CULLING_FLAG_TEST_LOD;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-					Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
+					Flags |= NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
 #endif
 		
 					FCandidateNode Node;
@@ -376,7 +376,7 @@ void InstanceCull(
 					Node.ViewId = ViewId;
 					Node.InstanceId = InstanceId;
 					Node.NodeIndex = 0;
-					Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+					Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
 					StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, bIsPostPass );
 				}
 			}
@@ -464,7 +464,7 @@ void InstanceCullVSM(
 
 	// View compaction stats
 #if DEBUG_FLAGS
-	if (DebugFlags & DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
+	if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
 	{
 	#if USE_COMPACTED_VIEWS
 		OutStatsBuffer[0].NumPrimaryViews = CompactedViewsAllocation[0];
@@ -480,8 +480,8 @@ void InstanceCullVSM(
 	const bool bNearClip = ( NEAR_CLIP != 0 );
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB     = false;
@@ -558,7 +558,7 @@ void InstanceCullVSM(
 
 			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum );
 
-			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
+			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 			
 #if USE_COMPACTED_VIEWS
 			for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
@@ -623,7 +623,7 @@ void InstanceCullVSM(
 			WaveInterlockedAdd(  OutQueueState[0].PassState[0].NodeCount, NumNodes );
 
 	#if DEBUG_FLAGS
-			if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
+			if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
 			{
 				WaveInterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, NumNodes);
 			}
@@ -645,11 +645,11 @@ void InstanceCullVSM(
 
 
 			FCandidateNode Node;
-			Node.Flags = CULLING_FLAG_TEST_LOD;
+			Node.Flags = NANITE_CULLING_FLAG_TEST_LOD;
 			Node.ViewId = MipViewId;
 			Node.InstanceId = InstanceId;
 			Node.NodeIndex = 0;
-			Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
+			Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
 			StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, false );
 			NodeOffset++;
 		}

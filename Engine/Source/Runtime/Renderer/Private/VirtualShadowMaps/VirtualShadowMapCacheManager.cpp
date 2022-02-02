@@ -749,7 +749,7 @@ void FVirtualShadowMapArrayCacheManager::SetHZBViewParams(int32 HZBKey, Nanite::
 	{
 		OutParams.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
 		OutParams.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
-		OutParams.Flags = VIEW_FLAG_HZBTEST;
+		OutParams.Flags = NANITE_VIEW_FLAG_HZBTEST;
 	}
 }
 

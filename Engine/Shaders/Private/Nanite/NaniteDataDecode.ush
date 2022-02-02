@@ -5,93 +5,8 @@
 #include "../Common.ush"
 #include "../BitPacking.ush"
 #include "../SceneData.ush"
+#include "/Engine/Shared/NaniteDefinitions.h"
 #include "PackedNaniteView.ush"
-
-#define USE_CONSTRAINED_CLUSTERS				1														// must match define in NaniteBuilder.h
-#define USE_UNCOMPRESSED_VERTEX_DATA			0														// must match define in NaniteBuilder.h
-
-#define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
-#define MAX_CLUSTER_TRIANGLES					128														// must match define in NaniteResources.h
-#define MAX_CLUSTER_VERTICES_BITS				8														// must match define in NaniteResources.h
-#define MAX_CLUSTER_VERTICES					(1 << MAX_CLUSTER_VERTICES_BITS)						// must match define in NaniteResources.h
-
-#define USE_STRIP_INDICES						1														// must match define in NaniteResources.h
-
-#define ROOT_PAGE_GPU_SIZE_BITS					15														// must match define in NaniteResources.h
-#define STREAMING_PAGE_GPU_SIZE_BITS			17														// must match define in NaniteResources.h
-
-#define MAX_CLUSTERS_PER_PAGE_BITS				8														// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_GROUP_MASK				( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteResources.h
-#define MAX_CLUSTERS_PER_GROUP					( ( 1 << MAX_CLUSTERS_PER_GROUP_BITS ) - 1 )			// must match define in NaniteResources.h
-#define MAX_HIERACHY_CHILDREN_BITS				6														// must match define in NaniteResources.h
-#define MAX_HIERACHY_CHILDREN					( 1 << MAX_HIERACHY_CHILDREN_BITS )						// must match define in NaniteResources.h
-#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS	12														// must match define in NaniteResources.h
-#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 )	// must match define in NaniteResources.h
-#define MAX_VIEWS_PER_CULL_RASTERIZE_PASS		( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS )			// must match define in NaniteResources.h
-#define MAX_GPU_PAGES_BITS						16														// must match define in NaniteResources.h
-#define	MAX_GPU_PAGES_MASK						( ( 1 << MAX_GPU_PAGES_BITS ) - 1 )						// must match define in NaniteResources.h
-#define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
-#define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h
-#define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteResources.h
-#define MAX_RESOURCE_PAGES_BITS					20														// must match define in NaniteResources.h
-#define MAX_RESOURCE_PAGES						(1 << MAX_FILE_PAGES_BITS)								// must match define in NaniteResources.h
-#define MAX_GROUP_PARTS_BITS					3														// must match define in NaniteResources.h
-#define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS)									// must match define in NaniteResources.h
-
-#define MAX_BVH_NODE_FANOUT_BITS				2														// must match define in NaniteResources.h
-#define MAX_BVH_NODE_FANOUT_MASK				((1 << MAX_BVH_NODE_FANOUT_BITS)-1)						// must match define in NaniteResources.h
-#define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in NaniteResources.h
-#define BVH_NODE_ENABLE_MASK					((1 << MAX_BVH_NODE_FANOUT)-1)
-
-#define NUM_STREAMING_PRIORITY_CATEGORY_BITS	 2														// must match define in NaniteResources.h
-#define STREAMING_PRIORITY_CATEGORY_MASK		((1 << NUM_STREAMING_PRIORITY_CATEGORY_BITS) - 1)		// must match define in NaniteResources.h
-
-#define VIEW_FLAG_HZBTEST						0x1														// must match define in NaniteResources.h
-
-#define MAX_STATE_BUCKET_ID						((1 << 14) - 1)											// must match FNaniteCommandInfo::MAX_STATE_BUCKET_ID
-
-#define CLUSTER_FLAG_LEAF						0x1
-
-#define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteResources.h
-
-#define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteResources.h
-#define GPU_PAGE_HEADER_SIZE					16														// must match define in NaniteResources.h
-
-#define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteResources.h
-#define POSITION_PRECISION_BITS					 5														// must match define in NaniteResources.h
-#define MIN_POSITION_PRECISION					-8														// must match define in NaniteResources.h
-#define MAX_POSITION_PRECISION					 23														// must match define in NaniteResources.h
-
-#define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
-#define CULLING_FLAG_TEST_LOD					0x1
-#define CULLING_FLAG_USE_HW						0x2
-#define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
-
-// Must match NaniteCullRaster.cpp
-#define RENDER_FLAG_HAVE_PREV_DRAW_DATA			0x1
-#define RENDER_FLAG_FORCE_HW_RASTER				0x2
-#define RENDER_FLAG_PRIMITIVE_SHADER			0x4
-#define RENDER_FLAG_MESH_SHADER					0x8
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS	0x10
-#define RENDER_FLAG_REVERSE_CULLING				0x20
-#define RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER	0x40
-#define RENDER_FLAG_IS_SCENE_CAPTURE			0x80
-#define RENDER_FLAG_IS_REFLECTION_CAPTURE		0x100
-#define RENDER_FLAG_IS_GAME_VIEW				0x200
-#define RENDER_FLAG_GAME_SHOW_FLAG_ENABLED		0x400
-#define RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED	0x800
-
-// Only available with the DEBUG_FLAGS permutation active.
-// Default value (no debug) is 0
-#define DEBUG_FLAG_WRITE_STATS					0x1
-#define DEBUG_FLAG_DISABLE_CULL_HZB_BOX			0x2
-#define DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE		0x4
-#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX		0x8
-#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE	0x10
-#define DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING	0x20
 
 #ifndef DEBUG_FLAGS
 #define DEBUG_FLAGS 0
@@ -104,7 +19,7 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 	return NANITE_HW_COUNTER_INDEX;
 #else
 	// Other passes use a uniform branch to minimize permutations.
-	return CondMask(InRenderFlags & (RENDER_FLAG_MESH_SHADER | RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
+	return CondMask(InRenderFlags & (NANITE_RENDER_FLAG_MESH_SHADER | NANITE_RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
 #endif
 }
 
@@ -320,11 +235,11 @@ uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool b
 {
 	uint4 RawData = 0;
 	uint BitPos = 0;
-	WriteBits(RawData, BitPos, VisibleCluster.Flags,		NUM_CULLING_FLAG_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.InstanceId,	MAX_INSTANCES_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.PageIndex,	MAX_GPU_PAGES_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.ClusterIndex, MAX_CLUSTERS_PER_PAGE_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.Flags,		NANITE_NUM_CULLING_FLAG_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.ViewId,		NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.InstanceId,	NANITE_MAX_INSTANCES_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.PageIndex,	NANITE_MAX_GPU_PAGES_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.ClusterIndex, NANITE_MAX_CLUSTERS_PER_PAGE_BITS);
 	if (bHasPageData)
 	{
 		WriteBits(RawData, BitPos, VisibleCluster.vPage.x, 16);
@@ -337,11 +252,11 @@ FVisibleCluster UnpackVisibleCluster(uint4 RawData, bool bHasPageData = false)
 {
 	uint BitPos = 0;
 	FVisibleCluster VisibleCluster;
-	VisibleCluster.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
-	VisibleCluster.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
-	VisibleCluster.InstanceId	= ReadBits( RawData, BitPos, MAX_INSTANCES_BITS );
-	VisibleCluster.PageIndex	= ReadBits( RawData, BitPos, MAX_GPU_PAGES_BITS );
-	VisibleCluster.ClusterIndex	= ReadBits( RawData, BitPos, MAX_CLUSTERS_PER_PAGE_BITS );
+	VisibleCluster.Flags		= ReadBits( RawData, BitPos, NANITE_NUM_CULLING_FLAG_BITS );
+	VisibleCluster.ViewId		= ReadBits( RawData, BitPos, NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );
+	VisibleCluster.InstanceId	= ReadBits( RawData, BitPos, NANITE_MAX_INSTANCES_BITS );
+	VisibleCluster.PageIndex	= ReadBits( RawData, BitPos, NANITE_MAX_GPU_PAGES_BITS );
+	VisibleCluster.ClusterIndex	= ReadBits( RawData, BitPos, NANITE_MAX_CLUSTERS_PER_PAGE_BITS );
 	if( bHasPageData )
 	{
 		VisibleCluster.vPage.x	= ReadBits( RawData, BitPos, 16 );
@@ -379,9 +294,9 @@ FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 	if( bImposter )
 	{
 		// Couldn't have been stored so signals this is an imposter
-		VisibleCluster.Flags = 1 << NUM_CULLING_FLAG_BITS;
+		VisibleCluster.Flags = 1 << NANITE_NUM_CULLING_FLAG_BITS;
 		VisibleCluster.ViewId = 0;	// TODO
-		VisibleCluster.InstanceId = BitFieldExtractU32( ClusterIndex, MAX_INSTANCES_BITS - 1, 1 );
+		VisibleCluster.InstanceId = BitFieldExtractU32( ClusterIndex, NANITE_MAX_INSTANCES_BITS - 1, 1 );
 		VisibleCluster.PageIndex = 0;
 		VisibleCluster.ClusterIndex = ClusterIndex & 1;
 	}
@@ -398,10 +313,10 @@ FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster, b
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, PageConstants.x, bCheckValid );
 
 	// Couldn't have been stored so signals this is an imposter
-	if( VisibleCluster.Flags == (1 << NUM_CULLING_FLAG_BITS) )
+	if( VisibleCluster.Flags == (1 << NANITE_NUM_CULLING_FLAG_BITS) )
 	{
 		const uint MaxStreamingPages = 1 << 12;
-		VisibleCluster.PageIndex = MaxStreamingPages + (InstanceData.NaniteRuntimeResourceID & MAX_GPU_PAGES_MASK);
+		VisibleCluster.PageIndex = MaxStreamingPages + (InstanceData.NaniteRuntimeResourceID & NANITE_MAX_GPU_PAGES_MASK);
 	}
 
 	return InstanceData;
@@ -435,7 +350,7 @@ FInstanceSceneData GetInstanceSceneData( uint InstanceId, bool bCheckValid = tru
 	return GetInstanceSceneData( InstanceId, PageConstants.x, bCheckValid );
 }
 
-FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
+FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 {
 	FCluster Cluster;
 	Cluster.PageBaseAddress		= 0;
@@ -451,7 +366,7 @@ FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
 
 	Cluster.PosStart			= ClusterData[1].xyz;
 	Cluster.BitsPerIndex		= BitFieldExtractU32(ClusterData[1].w, 4, 0);
-	Cluster.PosPrecision		= (int)BitFieldExtractU32(ClusterData[1].w, 5, 4) + MIN_POSITION_PRECISION;
+	Cluster.PosPrecision		= (int)BitFieldExtractU32(ClusterData[1].w, 5, 4) + NANITE_MIN_POSITION_PRECISION;
 	Cluster.PosBits.x			= BitFieldExtractU32(ClusterData[1].w, 5, 9);
 	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[1].w, 5, 14);
 	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[1].w, 5, 19);
@@ -521,7 +436,7 @@ FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
 uint GPUPageIndexToGPUOffset(uint PageIndex)
 {
 	const uint MaxStreamingPages = PageConstants.y;
-	return (min(PageIndex, MaxStreamingPages) << STREAMING_PAGE_GPU_SIZE_BITS) + ((uint)max((int)PageIndex - (int)MaxStreamingPages, 0) << ROOT_PAGE_GPU_SIZE_BITS);
+	return (min(PageIndex, MaxStreamingPages) << NANITE_STREAMING_PAGE_GPU_SIZE_BITS) + ((uint)max((int)PageIndex - (int)MaxStreamingPages, 0) << NANITE_ROOT_PAGE_GPU_SIZE_BITS);
 }
 
 FPageHeader UnpackPageHeader(uint4 Data)
@@ -546,11 +461,11 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	const uint ClusterSOAStride = ( NumPageClusters << 4 );
 	const uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
 	
-	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
+	uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
-	for(int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
+	for(int i = 0; i < NANITE_NUM_PACKED_CLUSTER_FLOAT4S; i++)
 	{
-		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + GPU_PAGE_HEADER_SIZE ); // Adding GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + NANITE_GPU_PAGE_HEADER_SIZE ); // Adding NANITE_GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
 	}
 	
 	return UnpackCluster(ClusterData);
@@ -561,11 +476,11 @@ FCluster GetCluster(RWByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Cl
 	const uint ClusterSOAStride = (NumPageClusters << 4);
 	const uint ClusterBaseAddress = SrcBaseOffset + (ClusterIndex << 4);
 
-	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
+	uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
-	for (int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
+	for (int i = 0; i < NANITE_NUM_PACKED_CLUSTER_FLOAT4S; i++)
 	{
-		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + GPU_PAGE_HEADER_SIZE );  // Adding GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + NANITE_GPU_PAGE_HEADER_SIZE );  // Adding NANITE_GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
 	}
 	return UnpackCluster(ClusterData);
 }
@@ -581,16 +496,16 @@ FCluster GetCluster(uint PageIndex, uint ClusterIndex)
 
 FHierarchyNodeSlice GetHierarchyNodeSlice(uint NodeIndex, uint ChildIndex)
 {
-	const uint NodeSize = (4 + 4 + 4 + 1) * 4 * MAX_BVH_NODE_FANOUT;
+	const uint NodeSize = (4 + 4 + 4 + 1) * 4 * NANITE_MAX_BVH_NODE_FANOUT;
 
 	uint BaseAddress = NodeIndex * NodeSize;
 
 	FHierarchyNodeSlice Node;
 	Node.LODBounds = asfloat(HierarchyBuffer.Load4(BaseAddress + 16 * ChildIndex));
 
-	uint4 Misc0 = HierarchyBuffer.Load4(BaseAddress + (MAX_BVH_NODE_FANOUT * 16) + 16 * ChildIndex);
-	uint4 Misc1 = HierarchyBuffer.Load4(BaseAddress + (MAX_BVH_NODE_FANOUT * 32) + 16 * ChildIndex);
-	uint  Misc2 = HierarchyBuffer.Load(BaseAddress + (MAX_BVH_NODE_FANOUT * 48) + 4 * ChildIndex);
+	uint4 Misc0 = HierarchyBuffer.Load4(BaseAddress + (NANITE_MAX_BVH_NODE_FANOUT * 16) + 16 * ChildIndex);
+	uint4 Misc1 = HierarchyBuffer.Load4(BaseAddress + (NANITE_MAX_BVH_NODE_FANOUT * 32) + 16 * ChildIndex);
+	uint  Misc2 = HierarchyBuffer.Load( BaseAddress + (NANITE_MAX_BVH_NODE_FANOUT * 48) + 4 * ChildIndex);
 	Node.BoxBoundsCenter = asfloat(Misc0.xyz);
 	Node.BoxBoundsExtent = asfloat(Misc1.xyz);
 
@@ -600,9 +515,9 @@ FHierarchyNodeSlice GetHierarchyNodeSlice(uint NodeIndex, uint ChildIndex)
 	Node.bLoaded = Misc1.w != 0xFFFFFFFFu;
 
 	uint ResourcePageIndex_NumPages_GroupPartSize = Misc2;
-	Node.NumChildren = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_CLUSTERS_PER_GROUP_BITS, 0);
-	Node.NumPages = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_GROUP_PARTS_BITS, MAX_CLUSTERS_PER_GROUP_BITS);
-	Node.StartPageIndex = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_RESOURCE_PAGES_BITS, MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS);
+	Node.NumChildren = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, NANITE_MAX_CLUSTERS_PER_GROUP_BITS, 0);
+	Node.NumPages = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, NANITE_MAX_GROUP_PARTS_BITS, NANITE_MAX_CLUSTERS_PER_GROUP_BITS);
+	Node.StartPageIndex = BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, NANITE_MAX_RESOURCE_PAGES_BITS, NANITE_MAX_CLUSTERS_PER_GROUP_BITS + NANITE_MAX_GROUP_PARTS_BITS);
 	Node.bEnabled = ResourcePageIndex_NumPages_GroupPartSize != 0u;
 	Node.bLeaf = ResourcePageIndex_NumPages_GroupPartSize != 0xFFFFFFFFu;
 
@@ -696,7 +611,7 @@ uint2 GetPackedPosition(uint VertIndex, FCluster Cluster)
 
 float3 DecodePosition(uint VertIndex, FCluster Cluster)
 {
-#if USE_UNCOMPRESSED_VERTEX_DATA
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
 	return asfloat(ClusterPageData.Load3(Cluster.PageBaseAddress + Cluster.PositionOffset + VertIndex * 12));
 #else
 	const uint2 PackedPos = GetPackedPosition(VertIndex, Cluster);
@@ -734,8 +649,8 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 	NaniteView.LODScale						= PackedView.LODScales.x;
 	NaniteView.LODScaleHW					= PackedView.LODScales.y;
 	NaniteView.MinBoundsRadiusSq			= PackedView.MinBoundsRadiusSq;
-	NaniteView.StreamingPriorityCategory	= PackedView.StreamingPriorityCategory_AndFlags & STREAMING_PRIORITY_CATEGORY_MASK;
-	NaniteView.Flags						= PackedView.StreamingPriorityCategory_AndFlags >> NUM_STREAMING_PRIORITY_CATEGORY_BITS;
+	NaniteView.StreamingPriorityCategory	= PackedView.StreamingPriorityCategory_AndFlags & NANITE_STREAMING_PRIORITY_CATEGORY_MASK;
+	NaniteView.Flags						= PackedView.StreamingPriorityCategory_AndFlags >> NANITE_NUM_STREAMING_PRIORITY_CATEGORY_BITS;
 	
 	NaniteView.TargetLayerIndex				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.x;
 	NaniteView.TargetMipLevel				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.y;
@@ -780,7 +695,7 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.LODScaleHW					= 1.0f;
 	NaniteView.MinBoundsRadiusSq			= 0;
 	NaniteView.StreamingPriorityCategory	= 3;
-	NaniteView.Flags						= VIEW_FLAG_HZBTEST;
+	NaniteView.Flags						= NANITE_VIEW_FLAG_HZBTEST;
 	
 	NaniteView.TargetLayerIndex = 0;
 	NaniteView.TargetMipLevel = 0;

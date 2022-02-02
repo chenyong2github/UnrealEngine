@@ -7,7 +7,7 @@ public class Engine : ModuleRules
 {
 	public Engine(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.Add("../Shaders/Shared");
+		PublicIncludePaths.Add("../Shaders/Shared");
 		
 		PrivatePCHHeaderFile = "Private/EnginePrivatePCH.h";
 
