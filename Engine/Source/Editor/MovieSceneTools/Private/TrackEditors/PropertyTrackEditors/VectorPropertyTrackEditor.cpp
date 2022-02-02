@@ -30,18 +30,18 @@ void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPr
 	}
 	FName StructName = StructProp->Struct->GetFName();
 
-	bool bIsVector2D = StructName == NAME_Vector2D;
+	bool bIsVector2f = StructName == NAME_Vector2f;
 	bool bIsVector = (StructName == NAME_Vector3f);
 	bool bIsVector4 = (StructName == NAME_Vector4f);
 
 	FVector4f VectorValues;
 	int32 Channels;
 
-	if ( bIsVector2D )
+	if ( bIsVector2f )
 	{
-		FVector2D Vector2DValue = PropertyChangedParams.GetPropertyValue<FVector2D>();
-		VectorValues.X = Vector2DValue.X;
-		VectorValues.Y = Vector2DValue.Y;
+		FVector2f Vector2fValue = PropertyChangedParams.GetPropertyValue<FVector2f>();
+		VectorValues.X = Vector2fValue.X;
+		VectorValues.Y = Vector2fValue.Y;
 		Channels = 2;
 	}
 	else if ( bIsVector )
@@ -84,7 +84,7 @@ void FFloatVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneFloatVector
 	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
 	FName StructName = StructProp->Struct->GetFName();
 
-	if ( StructName == NAME_Vector2D )
+	if ( StructName == NAME_Vector2f )
 	{
 		NewTrack->SetNumChannelsUsed( 2 );
 	}
@@ -132,7 +132,7 @@ bool FFloatVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObj
 		{
 		case 2:
 			{
-				FVector2D Val(InterrogatedValues[0].X, InterrogatedValues[0].Y);
+				FVector2f Val(InterrogatedValues[0].X, InterrogatedValues[0].Y);
 				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
 				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
@@ -187,6 +187,7 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 	}
 	FName StructName = StructProp->Struct->GetFName();
 
+	bool bIsVector2D = StructName == NAME_Vector2D;
 	bool bIsVector = (StructName == NAME_Vector3d
 			|| StructName == NAME_Vector
 			);
@@ -195,12 +196,19 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 		|| StructName == NAME_Vector4
 		);
 
-	ensure(bIsVector || bIsVector4);
+	ensure(bIsVector2D || bIsVector || bIsVector4);
 
 	FVector4d VectorValues;
 	int32 Channels;
 	
-	if (bIsVector)
+	if (bIsVector2D)
+	{
+		FVector2D Vector2DValue = PropertyChangedParams.GetPropertyValue<FVector2D>();
+		VectorValues.X = Vector2DValue.X;
+		VectorValues.Y = Vector2DValue.Y;
+		Channels = 2;
+	}
+	else if (bIsVector)
 	{
 		FVector3d Vector3DValue = PropertyChangedParams.GetPropertyValue<FVector3d>();
 		VectorValues.X = Vector3DValue.X;
@@ -219,11 +227,14 @@ void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FP
 
 	const bool bKeyX = ChannelName == NAME_None || ChannelName == XName;
 	const bool bKeyY = ChannelName == NAME_None || ChannelName == YName;
-	const bool bKeyZ = ChannelName == NAME_None || ChannelName == ZName;
 
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(0, VectorValues.X, bKeyX));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(1, VectorValues.Y, bKeyY));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, VectorValues.Z, bKeyZ));
+
+	if ( Channels >= 3 )
+	{
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, VectorValues.Z, ChannelName == NAME_None || ChannelName == ZName));
+	}
 
 	if ( Channels >= 4)
 	{
@@ -237,6 +248,10 @@ void FDoubleVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneDoubleVect
 	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
 	FName StructName = StructProp->Struct->GetFName();
 
+	if (StructName == NAME_Vector2D)
+	{
+		NewTrack->SetNumChannelsUsed( 2 );
+	}
 	if (StructName == NAME_Vector3d
 			|| StructName == NAME_Vector
 			)
@@ -274,6 +289,14 @@ bool FDoubleVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UOb
 
 		switch (VectorTrack->GetNumChannelsUsed())
 		{
+		case 2:
+			{
+				FVector2D Val(InterrogatedValues[0].X, InterrogatedValues[0].Y);
+				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
+				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
+				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
+			}
+			break;
 		case 3:
 			{
 				FVector3d Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z);

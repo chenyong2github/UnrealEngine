@@ -36,9 +36,9 @@ public:
 	static TArray<FAnimatedPropertyKey, TInlineAllocator<3>> GetAnimatedPropertyTypes()
 	{
 		return TArray<FAnimatedPropertyKey, TInlineAllocator<3>>({
+			FAnimatedPropertyKey::FromStructType(NAME_Vector2f),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector3f),
-			FAnimatedPropertyKey::FromStructType(NAME_Vector4f),
-			FAnimatedPropertyKey::FromStructType(NAME_Vector2D)
+			FAnimatedPropertyKey::FromStructType(NAME_Vector4f)
 		});
 	}
 
@@ -91,6 +91,7 @@ public:
 		return TArray<FAnimatedPropertyKey, TInlineAllocator<1>>({
 			FAnimatedPropertyKey::FromStructType(NAME_Vector),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector4),
+			FAnimatedPropertyKey::FromStructType(NAME_Vector2D),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector3d),
 			FAnimatedPropertyKey::FromStructType(NAME_Vector4d)
 		});

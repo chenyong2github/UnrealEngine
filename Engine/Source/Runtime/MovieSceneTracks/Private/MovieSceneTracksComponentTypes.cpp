@@ -94,9 +94,9 @@ void ConvertOperationalProperty(const FSlateColor& InColor, FIntermediateColor& 
 /* ---------------------------------------------------------------------------
  * Vector conversion functions
  * ---------------------------------------------------------------------------*/
-void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector2D& Out)
+void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector2f& Out)
 {
-	Out = FVector2D(InVector.X, InVector.Y);
+	Out = FVector2f(InVector.X, InVector.Y);
 }
 
 void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector3f& Out)
@@ -109,7 +109,7 @@ void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVecto
 	Out = FVector4(InVector.X, InVector.Y, InVector.Z, InVector.W);
 }
 
-void ConvertOperationalProperty(const FVector2D& In, FFloatIntermediateVector& Out)
+void ConvertOperationalProperty(const FVector2f& In, FFloatIntermediateVector& Out)
 {
 	Out = FFloatIntermediateVector(In.X, In.Y);
 }
@@ -124,6 +124,11 @@ void ConvertOperationalProperty(const FVector4& In, FFloatIntermediateVector& Ou
 	Out = FFloatIntermediateVector(In.X, In.Y, In.Z, In.W);
 }
 
+void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector2D& Out)
+{
+	Out = FVector2D(InVector.X, InVector.Y);
+}
+
 void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector3d& Out)
 {
 	Out = FVector3d(InVector.X, InVector.Y, InVector.Z);
@@ -132,6 +137,11 @@ void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVect
 void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector4d& Out)
 {
 	Out = FVector4d(InVector.X, InVector.Y, InVector.Z, InVector.W);
+}
+
+void ConvertOperationalProperty(const FVector2D& In, FDoubleIntermediateVector& Out)
+{
+	Out = FDoubleIntermediateVector(In.X, In.Y);
 }
 
 void ConvertOperationalProperty(const FVector3d& In, FDoubleIntermediateVector& Out)
@@ -456,7 +466,11 @@ struct FDoubleVectorHandler : TPropertyComponentHandler<FDoubleVectorPropertyTra
 			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
 			if (ensure(BoundProperty && BoundProperty->Struct))
 			{
-				if (BoundProperty->Struct->GetFName() == NAME_Vector3d || BoundProperty->Struct->GetFName() == NAME_Vector)
+				if (BoundProperty->Struct == TBaseStructure<FVector2D>::Get())
+				{
+					OutMetaData.NumChannels = 2;
+				}
+				else if (BoundProperty->Struct->GetFName() == NAME_Vector3d || BoundProperty->Struct->GetFName() == NAME_Vector)
 				{
 					OutMetaData.NumChannels = 3;
 				}
