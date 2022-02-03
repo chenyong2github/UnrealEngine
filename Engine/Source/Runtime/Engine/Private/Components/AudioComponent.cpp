@@ -571,6 +571,14 @@ void UAudioComponent::PlayQueuedQuantizedInternal(const UObject* WorldContextObj
 				bIsValidCommand = false;
 			}
 
+			// was the sound already stopped while we were caching it?
+			if (PendingData.bHasBeenStoppedWhileQueued)
+			{
+				InternalRequestData.QuantizedRequestData.QuantizedCommandPtr->FailedToQueue(InternalRequestData.QuantizedRequestData);
+				UE_LOG(LogAudioQuartz, Verbose, TEXT("Sound (%s) to be played (on Clock: %s) was stopped before being evaluated to play internally"), *InternalRequestData.QuantizedRequestData.ClockName.ToString(), *this->Sound->GetName());
+				bIsValidCommand = false;
+			}
+
 			if (bIsValidCommand)
 			{
 				InternalRequestData.QuantizedRequestData.GameThreadSubscribers.Add(CommandQueuePtr);
@@ -956,6 +964,11 @@ void UAudioComponent::Stop()
 {
 	if (!IsActive())
 	{
+		for (auto& Command : PendingQuartzCommandData)
+		{
+			Command.bHasBeenStoppedWhileQueued = true;
+		}
+
 		return;
 	}
 

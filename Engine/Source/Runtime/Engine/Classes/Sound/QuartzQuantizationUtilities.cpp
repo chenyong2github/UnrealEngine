@@ -445,12 +445,18 @@ namespace Audio
 		OnQueuedCustom(InCommandInitInfo);
 	}
 
-	void IQuartzQuantizedCommand::FailedToQueue()
+	void IQuartzQuantizedCommand::FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzQuantizedCommand::FailedToQueue);
+
+		GameThreadSubscribers.Append(InGameThreadData.GameThreadSubscribers);
+		GameThreadDelegateID = InGameThreadData.GameThreadDelegateID;
+
 		if (GameThreadSubscribers.Num())
 		{
 			FQuartzQuantizedCommandDelegateData Data;
+			Data.CommandType = GetCommandType();
+			Data.DelegateSubType = EQuartzCommandDelegateSubType::CommandOnFailedToQueue;
 			Data.DelegateID = GameThreadDelegateID;
 
 

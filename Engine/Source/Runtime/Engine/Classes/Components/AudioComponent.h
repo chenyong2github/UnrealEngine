@@ -542,6 +542,7 @@ private:
 		EAudioFaderCurve FadeCurve{ EAudioFaderCurve::Linear };
 		uint32 CommandID{ (uint32)INDEX_NONE };
 		TWeakObjectPtr<UQuartzClockHandle> ClockHandle;
+		bool bHasBeenStoppedWhileQueued{ false };
 	};
 
 	TArray<FAudioComponentPendingQuartzCommandData> PendingQuartzCommandData;

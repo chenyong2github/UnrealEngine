@@ -507,7 +507,7 @@ namespace Audio
 		void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
 
 		// Perhaps the associated sound failed concurrency and will not be playing
-		void FailedToQueue();
+		void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
 
 		// Called 2x Assumed thread latency before OnFinalCallback()
 		void AboutToStart();
