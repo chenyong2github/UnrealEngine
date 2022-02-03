@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DynamicMesh/DynamicMesh3.h"
+#include "TransformTypes.h"
 
 
 /**
