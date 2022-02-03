@@ -33,9 +33,6 @@ public:
 	/** Construct a hash from an array of 20 bytes. */
 	inline explicit FIoHash(const ByteArray& Hash);
 
-	/** Construct a hash from a view of 20 bytes. */
-	inline explicit FIoHash(FMemoryView Hash);
-
 	/** Construct a hash from a BLAKE3-256 hash. */
 	inline FIoHash(const FBlake3Hash& Hash);
 
@@ -43,6 +40,9 @@ public:
 	inline explicit FIoHash(FAnsiStringView HexHash);
 	inline explicit FIoHash(FWideStringView HexHash);
 	inline explicit FIoHash(FUtf8StringView HexHash);
+
+	/** Construct a hash from a view of 20 bytes. */
+	inline static FIoHash FromView(FMemoryView Hash);
 
 	/** Reset this to a zero hash. */
 	inline void Reset() { *this = FIoHash(); }
@@ -73,13 +73,6 @@ inline FIoHash::FIoHash(const ByteArray& InHash)
 	FMemory::Memcpy(Hash, InHash, sizeof(ByteArray));
 }
 
-inline FIoHash::FIoHash(const FMemoryView InHash)
-{
-	checkf(InHash.GetSize() == sizeof(ByteArray),
-		TEXT("FIoHash cannot be constructed from a view of %" UINT64_FMT " bytes."), InHash.GetSize());
-	FMemory::Memcpy(Hash, InHash.GetData(), sizeof(ByteArray));
-}
-
 inline FIoHash::FIoHash(const FBlake3Hash& InHash)
 {
 	static_assert(sizeof(ByteArray) <= sizeof(decltype(InHash.GetBytes())), "Reading too many bytes from source.");
@@ -102,6 +95,15 @@ inline FIoHash::FIoHash(const FUtf8StringView HexHash)
 {
 	check(HexHash.Len() == sizeof(ByteArray) * 2);
 	UE::String::HexToBytes(HexHash, Hash);
+}
+
+inline FIoHash FIoHash::FromView(const FMemoryView InHash)
+{
+	checkf(InHash.GetSize() == sizeof(ByteArray),
+		TEXT("FIoHash cannot be constructed from a view of %" UINT64_FMT " bytes."), InHash.GetSize());
+	FIoHash NewHash;
+	FMemory::Memcpy(NewHash.Hash, InHash.GetData(), sizeof(ByteArray));
+	return NewHash;
 }
 
 inline bool FIoHash::IsZero() const

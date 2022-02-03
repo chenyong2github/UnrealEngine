@@ -27,13 +27,13 @@ public:
 	/** Construct a hash from an array of 32 bytes. */
 	inline explicit FBlake3Hash(const ByteArray& Hash);
 
-	/** Construct a hash from a view of 32 bytes. */
-	inline explicit FBlake3Hash(FMemoryView Hash);
-
 	/** Construct a hash from a 64-character hex string. */
 	inline explicit FBlake3Hash(FAnsiStringView HexHash);
 	inline explicit FBlake3Hash(FWideStringView HexHash);
 	inline explicit FBlake3Hash(FUtf8StringView HexHash);
+
+	/** Construct a hash from a view of 32 bytes. */
+	inline static FBlake3Hash FromView(FMemoryView Hash);
 
 	/** Reset this to a zero hash. */
 	inline void Reset() { *this = FBlake3Hash(); }
@@ -96,13 +96,6 @@ inline FBlake3Hash::FBlake3Hash(const ByteArray& InHash)
 	FMemory::Memcpy(Hash, InHash, sizeof(ByteArray));
 }
 
-inline FBlake3Hash::FBlake3Hash(const FMemoryView InHash)
-{
-	checkf(InHash.GetSize() == sizeof(ByteArray),
-		TEXT("FBlake3Hash cannot be constructed from a view of %" UINT64_FMT " bytes."), InHash.GetSize());
-	FMemory::Memcpy(Hash, InHash.GetData(), sizeof(ByteArray));
-}
-
 inline FBlake3Hash::FBlake3Hash(const FAnsiStringView HexHash)
 {
 	check(HexHash.Len() == sizeof(ByteArray) * 2);
@@ -119,6 +112,15 @@ inline FBlake3Hash::FBlake3Hash(const FUtf8StringView HexHash)
 {
 	check(HexHash.Len() == sizeof(ByteArray) * 2);
 	UE::String::HexToBytes(HexHash, Hash);
+}
+
+inline FBlake3Hash FBlake3Hash::FromView(const FMemoryView InHash)
+{
+	checkf(InHash.GetSize() == sizeof(ByteArray),
+		TEXT("FBlake3Hash cannot be constructed from a view of %" UINT64_FMT " bytes."), InHash.GetSize());
+	FBlake3Hash NewHash;
+	FMemory::Memcpy(NewHash.Hash, InHash.GetData(), sizeof(ByteArray));
+	return NewHash;
 }
 
 inline bool FBlake3Hash::IsZero() const
