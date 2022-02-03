@@ -24,6 +24,7 @@ class EOSSHARED_API FCallbackBase
 public:
 	virtual ~FCallbackBase() {}
 	static bool ShouldCancelAllCallbacks() { return FCallbackBase::bShouldCancelAllCallbacks; }
+	static void EnableAllCallbacks() { FCallbackBase::bShouldCancelAllCallbacks = false; }
 	static void CancelAllCallbacks() { FCallbackBase::bShouldCancelAllCallbacks = true; }
 };
 
