@@ -30,7 +30,7 @@ void USunPositionFunctionLibrary::GetSunPosition(float Latitude, float Longitude
 	double LatitudeRad = FMath::DegreesToRadians(Latitude);
 
 	// Get the julian day (number of days since Jan 1st of the year 4713 BC)
-	double JulianDay = CalcTime.GetJulianDay() + (CalcTime.GetTimeOfDay().GetTotalHours() - TimeOffset) / 24.0;
+	double JulianDay = CalcTime.GetJulianDay();
 	double JulianCentury = (JulianDay - 2451545.0) / 36525.0;
 
 	// Get the sun's mean longitude , referred to the mean equinox of julian date

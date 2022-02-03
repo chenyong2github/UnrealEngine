@@ -332,7 +332,7 @@ public:
 	 */
 	double GetJulianDay() const
 	{
-		return (double)(1721425.5 + Ticks / ETimespan::TicksPerDay);
+		return 1721425.5 + double(Ticks / ETimespan::TicksPerDay) + GetTimeOfDay().GetTotalDays();
 	}
 
 	/**
