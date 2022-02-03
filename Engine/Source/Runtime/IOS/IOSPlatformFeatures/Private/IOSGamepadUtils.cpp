@@ -31,14 +31,12 @@ UTexture2D* FIOSGamepadUtils::GetGamepadButtonGlyph(const FGamepadKeyNames::Type
 
     ControllerType ControllerType = InputInterface->GetControllerType(ControllerIndex);
 
-    if (@available(iOS 14, tvOS 14, *))
+    for (int32 Index = 0; Index != GlyphsArray.Num(); ++Index)
     {
-        for (int32 Index = 0; Index != GlyphsArray.Num(); ++Index)
+        if (GlyphsArray[Index].ButtonName == ButtonKey && GlyphsArray[Index].ControllerType == ControllerType)
         {
-            if (GlyphsArray[Index].ButtonName == ButtonKey && GlyphsArray[Index].ControllerType == ControllerType)
-            {
-                return GlyphsArray[Index].ButtonTexture;
-            }
+            return GlyphsArray[Index].ButtonTexture;
+            
         }
 
         NSData* RawData = InputInterface->GetGamepadGlyphRawData(ButtonKey, ControllerIndex);

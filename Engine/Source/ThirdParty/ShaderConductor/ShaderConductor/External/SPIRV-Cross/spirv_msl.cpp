@@ -4967,7 +4967,7 @@ void CompilerMSL::emit_custom_functions()
 		case SPVFuncImplStorageBufferCoords:
 		{
 			statement("// Returns buffer coords clamped to storage buffer size");
-			statement("#define spvStorageBufferCoords(idx, sizes, type, coord) metal::min((coord), (sizes[(idx)*3] / "
+			statement("#define spvStorageBufferCoords(idx, sizes, type, coord) metal::min((type)(coord), (type)(sizes[(type)(idx)*3] / "
 			          "sizeof(type)) - 1)");
 			statement("");
 			break;

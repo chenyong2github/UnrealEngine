@@ -48,12 +48,6 @@
 #define GAME_THREAD_STACK_SIZE 16 * 1024 * 1024
 #endif
 
-#if (defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0) || (defined(__TVOS_14_0) && __TV_OS_VERSION_MAX_ALLOWED >= __TVOS_14_0)
-#define SUPPORTS_GK_DASHBOARD 1
-#else
-#define SUPPORTS_GK_DASHBOARD 0
-#endif
-
 DEFINE_LOG_CATEGORY(LogIOSAudioSession);
 
 int GAudio_ForceAmbientCategory = 1;
@@ -1690,15 +1684,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 {
 	// create the leaderboard display object 
 	GKGameCenterViewController* GameCenterDisplay = [[[GKGameCenterViewController alloc] init] autorelease];
-#if !PLATFORM_TVOS
-	GameCenterDisplay.viewState = GKGameCenterViewControllerStateLeaderboards;
-#endif
-	if ([GameCenterDisplay respondsToSelector : @selector(leaderboardIdentifier)] == YES)
-	{
-#if !PLATFORM_TVOS // @todo tvos: Why not??
-		GameCenterDisplay.leaderboardIdentifier = Category;
-#endif
-	}
+    [GameCenterDisplay initWithState:GKGameCenterViewControllerStateLeaderboards];
 	GameCenterDisplay.gameCenterDelegate = self;
 
 	// show it 
@@ -1713,7 +1699,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #if !PLATFORM_TVOS
 	// create the leaderboard display object 
 	GKGameCenterViewController* GameCenterDisplay = [[[GKGameCenterViewController alloc] init] autorelease];
-	GameCenterDisplay.viewState = GKGameCenterViewControllerStateAchievements;
+    [GameCenterDisplay initWithState : GKGameCenterViewControllerStateAchievements];
 	GameCenterDisplay.gameCenterDelegate = self;
 
 	// show it 
@@ -1726,17 +1712,12 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
  */
 -(void)ShowDashboard
 {
-#if SUPPORTS_GK_DASHBOARD
-	if (@available(iOS 14, tvOS 14, *))
-	{
-		// create the dashboard display object 
-		GKGameCenterViewController* GameCenterDisplay = [[[GKGameCenterViewController alloc] initWithState:GKGameCenterViewControllerStateDashboard] autorelease];
-		GameCenterDisplay.gameCenterDelegate = self;
+	// create the dashboard display object
+	GKGameCenterViewController* GameCenterDisplay = [[[GKGameCenterViewController alloc] initWithState:GKGameCenterViewControllerStateDashboard] autorelease];
+	GameCenterDisplay.gameCenterDelegate = self;
 
-		// show it 
+	// show it
 		[self ShowController : GameCenterDisplay];
-	}
-#endif
 }
 
 /**
@@ -1771,13 +1752,7 @@ CORE_API bool IOSShowDashboardUI()
 	// route the function to iOS thread
 	[[IOSAppDelegate GetDelegate] performSelectorOnMainThread:@selector(ShowDashboard) withObject:nil waitUntilDone : NO];
 
-#if SUPPORTS_GK_DASHBOARD
-	if (@available(iOS 14, tvOS 14, *))
-	{
-		return true;
-	}
-#endif
-	return false;
+	return true;
 }
 
 -(void)batteryChanged:(NSNotification*)notification

@@ -108,14 +108,11 @@ private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
 
-
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
     // handle disconnect and connect events
     void HandleMouseConnection(GCMouse* Mouse);
     void HandleMouseDisconnect(GCMouse* Mouse);
     void HandleKeyboardConnection(GCKeyboard* Keyboard);
     void HandleKeyboardDisconnect(GCKeyboard* Keyboard);
-#endif
 
     /**
 	 * Get the current Movement data from the device

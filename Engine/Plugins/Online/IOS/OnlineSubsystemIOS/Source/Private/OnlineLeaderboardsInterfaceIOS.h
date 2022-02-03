@@ -5,6 +5,9 @@
 #include "Interfaces/OnlineLeaderboardInterface.h"
 #include "OnlineSubsystemIOSTypes.h"
 
+#include <GameKit/GKLeaderboard.h>
+#include <Gamekit/GKPlayer.h>
+
 class FOnlineLeaderboardsIOS : public IOnlineLeaderboards
 {
 private:
@@ -12,8 +15,10 @@ private:
 
 	class FOnlineFriendsIOS* FriendsInterface;
 
-	NSMutableArray* UnreportedScores;
-
+	NSMutableArray *UnreportedScores;
+    GKPlayer *LeaderboardPlayer;
+    GKLeaderboard *CachedLeaderboard;
+    
     bool ReadLeaderboardCompletionDelegate(NSArray* players, FOnlineLeaderboardReadRef& ReadObject);
     
 PACKAGE_SCOPE:

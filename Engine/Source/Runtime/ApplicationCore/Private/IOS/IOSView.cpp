@@ -542,16 +542,11 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TArray<TouchInput> TouchesArray;
 	for (UITouch* Touch in Touches)
 	{
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
-        // ignore mouse-produced touches, these will be handled by FIOSInputInterface
-        if (@available(iOS 14, *))
+		// ignore mouse-produced touches, these will be handled by FIOSInputInterface
+        if ( Touch.type == UITouchTypeIndirectPointer ) // Requires UIApplicationSupportsIndirectInputEvents:true in plist
         {
-            if ( Touch.type == UITouchTypeIndirectPointer ) // Requires UIApplicationSupportsIndirectInputEvents:true in plist
-            {
-                continue;
-            }
+            continue;
         }
-#endif
 		// get info from the touch
 		CGPoint Loc = [Touch locationInView:self];
 		CGPoint PrevLoc = [Touch previousLocationInView:self];

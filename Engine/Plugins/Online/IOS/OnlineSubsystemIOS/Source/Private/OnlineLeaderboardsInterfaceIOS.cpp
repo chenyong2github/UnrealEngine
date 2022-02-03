@@ -30,6 +30,19 @@ FOnlineLeaderboardsIOS::~FOnlineLeaderboardsIOS()
 		[UnreportedScores release];
 		UnreportedScores = nil;
 	}
+    
+    if (CachedLeaderboard)
+    {
+        [CachedLeaderboard release];
+        CachedLeaderboard = nil;
+    }
+    
+    if (LeaderboardPlayer)
+    {
+        [LeaderboardPlayer release];
+        LeaderboardPlayer = nil;
+    }
+    
 }
 
 bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players, FOnlineLeaderboardReadRef& InReadObject)
@@ -37,100 +50,81 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
     auto ReadObject = InReadObject;
     bool bTriggeredReadRequest = false;
 
-    GKLeaderboard* LeaderboardRequest = nil;
+    CachedLeaderboard = [GKLeaderboard alloc];
 	if ([GKLeaderboard instancesRespondToSelector:@selector(initWithPlayers:)] == YES)
 	{
-        LeaderboardRequest = [[GKLeaderboard alloc] initWithPlayers:players];
-    }
-    if (LeaderboardRequest != nil)
-    {
-        const FString LeaderboardName = ReadObject->LeaderboardName.ToString();
-        
-        NSString* Category = [NSString stringWithFString:LeaderboardName];
-        UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Attempting to read leaderboard: %s"), *LeaderboardName);
-        
-        LeaderboardRequest.playerScope = GKLeaderboardPlayerScopeGlobal;
-        LeaderboardRequest.timeScope = GKLeaderboardTimeScopeToday;
-        if ([LeaderboardRequest respondsToSelector:@selector(identifier)] == YES)
-        {
-            LeaderboardRequest.identifier = Category;
-        }
-        LeaderboardRequest.range = NSMakeRange(1,10);
-        
-        bTriggeredReadRequest = true;
-        dispatch_async(dispatch_get_main_queue(), ^
-        {
-            [LeaderboardRequest loadScoresWithCompletionHandler: ^(NSArray *scores, NSError *Error)
-             {
-                bool bWasSuccessful = (Error == nil) && [scores count] > 0;
-                            
-                if (bWasSuccessful)
+        [CachedLeaderboard loadEntriesForPlayers:players timeScope:GKLeaderboardTimeScopeAllTime completionHandler: ^(GKLeaderboardEntry *entries, NSArray<GKLeaderboardEntry *> *scores, NSError *Error)
+         {
+            //GKLeaderboardEntry *entriesCopy = entries;
+            bool bWasSuccessful = (Error == nil) && [scores count] > 0;
+                        
+            if (bWasSuccessful)
+            {
+                bWasSuccessful = [scores count] > 0;
+                UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::loadScoresWithCompletionHandler() - %s"), (bWasSuccessful ? TEXT("Success!") : TEXT("Failed!, no scores retrieved")));
+                for (GKLeaderboardEntry *entry in scores)
                 {
-                    bWasSuccessful = [scores count] > 0;
-                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::loadScoresWithCompletionHandler() - %s"), (bWasSuccessful ? TEXT("Success!") : TEXT("Failed!, no scores retrieved")));
-                    for (GKScore* score in scores)
+                    FString PlayerIDString;
+                        
+                    if ([entry respondsToSelector:@selector(player)] == YES)
                     {
-                        FString PlayerIDString;
-                            
-						if ([score respondsToSelector:@selector(player)] == YES)
-						{
-							PlayerIDString = FString(FOnlineSubsystemIOS::GetPlayerId(score.player));
-                        }
-                            
-                        UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
-                        UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("PlayerId: %s"), *PlayerIDString);
-                        UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Value: %d"), score.value);
-                        UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
-                            
-                        FUniqueNetIdRef UserId = FUniqueNetIdIOS::Create(PlayerIDString);
-                            
-                        FOnlineStatsRow* UserRow = ReadObject.Get().FindPlayerRecord(UserId.Get());
-                        if (UserRow == NULL)
+                        PlayerIDString = FString(FOnlineSubsystemIOS::GetPlayerId(entry.player));
+                        LeaderboardPlayer = entry.player;
+                    }
+                        
+                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
+                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("PlayerId: %s"), *PlayerIDString);
+                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Value: %d"), entry.score);
+                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
+                        
+                    FUniqueNetIdRef UserId = FUniqueNetIdIOS::Create(PlayerIDString);
+                        
+                    FOnlineStatsRow* UserRow = ReadObject.Get().FindPlayerRecord(UserId.Get());
+                    if (UserRow == NULL)
+                    {
+                        UserRow = new (ReadObject->Rows) FOnlineStatsRow(PlayerIDString, UserId);
+                    }
+                        
+                    for (int32 StatIdx = 0; StatIdx < ReadObject->ColumnMetadata.Num(); StatIdx++)
+                    {
+                        const FColumnMetaData& ColumnMeta = ReadObject->ColumnMetadata[StatIdx];
+                        
+                        switch (ColumnMeta.DataType)
                         {
-                            UserRow = new (ReadObject->Rows) FOnlineStatsRow(PlayerIDString, UserId);
-                        }
-                            
-                        for (int32 StatIdx = 0; StatIdx < ReadObject->ColumnMetadata.Num(); StatIdx++)
-                        {
-                            const FColumnMetaData& ColumnMeta = ReadObject->ColumnMetadata[StatIdx];
-                            
-                            switch (ColumnMeta.DataType)
+                            case EOnlineKeyValuePairDataType::Int32:
                             {
-                                case EOnlineKeyValuePairDataType::Int32:
-                                {
-                                    int32 Value = score.value;
-                                    UserRow->Columns.Add(ColumnMeta.ColumnName, FVariantData(Value));
-                                    bWasSuccessful = true;
-                                    break;
-                                }
-                            
-                                default:
-                                {
-                                    UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Unsupported key value pair during retrieval from GameCenter %s"), *ColumnMeta.ColumnName.ToString());
-                                    break;
-                                }
+                                int32 Value = entry.score;
+                                UserRow->Columns.Add(ColumnMeta.ColumnName, FVariantData(Value));
+                                bWasSuccessful = true;
+                                break;
+                            }
+                        
+                            default:
+                            {
+                                UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("Unsupported key value pair during retrieval from GameCenter %s"), *ColumnMeta.ColumnName.ToString());
+                                break;
                             }
                         }
                     }
                 }
-                else if (Error)
-                {
-                    // if we have failed to read the leaderboard then report this
-                    NSDictionary *userInfo = [Error userInfo];
-                    NSString *errstr = [[userInfo objectForKey : NSUnderlyingErrorKey] localizedDescription];
-                    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::loadScoresWithCompletionHandler() - Failed to read leaderboard with error: [%s]"), *FString(errstr));
-                    UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("You should check that the leaderboard name matches that of one in ITunesConnect"));
-                }
-                            
-                // Report back to the game thread whether this succeeded.
-                [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-                 {
-                    ReadObject->ReadState = bWasSuccessful ? EOnlineAsyncTaskState::Done : EOnlineAsyncTaskState::Failed;
-                    TriggerOnLeaderboardReadCompleteDelegates(bWasSuccessful);
-                    return true;
-                 }];
-            }];
-        });
+            }
+            else if (Error)
+            {
+                // if we have failed to read the leaderboard then report this
+                NSDictionary *userInfo = [Error userInfo];
+                NSString *errstr = [[userInfo objectForKey : NSUnderlyingErrorKey] localizedDescription];
+                UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::loadScoresWithCompletionHandler() - Failed to read leaderboard with error: [%s]"), *FString(errstr));
+                UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("You should check that the leaderboard name matches that of one in ITunesConnect"));
+            }
+                        
+            // Report back to the game thread whether this succeeded.
+            [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+             {
+                ReadObject->ReadState = bWasSuccessful ? EOnlineAsyncTaskState::Done : EOnlineAsyncTaskState::Failed;
+                TriggerOnLeaderboardReadCompleteDelegates(bWasSuccessful);
+                return true;
+             }];
+        }];
     }
     
     // If we have failed to kick off a read request, we should still tell whoever is listening.
@@ -256,30 +250,16 @@ bool FOnlineLeaderboardsIOS::WriteLeaderboards(const FName& SessionName, const F
 		FString LeaderboardName(It.Key().ToString());
 		NSString* Category = [NSString stringWithFString:LeaderboardName];
 
-		// Create a leaderboard score object which should be posted to the [Category] leaderboard.
-        GKScore* Score = nil;
-		if ([GKScore instancesRespondToSelector:@selector(initWithLeaderboardIdentifier:)] == YES)
-		{
-            Score = [[GKScore alloc] initWithLeaderboardIdentifier:Category];
-        }
-        else
-        {
-			UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsIOS::WriteLeaderboards(Leaderboard: %s) Could not intiialize score"), *LeaderboardName);
-			return false;
-        }
-        
-		Score.context = 0;
-
 		bool bIsValidScore = false;
+
+        int32 Value;
 
 		// Setup the score with the value we are writing from the variant type
 		switch (Stat.GetType())
 		{
 			case EOnlineKeyValuePairDataType::Int32:
 			{
-				int32 Value;
 				Stat.GetValue(Value);
-				Score.value = Value;
 					
 				bIsValidScore = true;
 				break;
@@ -294,10 +274,9 @@ bool FOnlineLeaderboardsIOS::WriteLeaderboards(const FName& SessionName, const F
 
 		if (bIsValidScore)
 		{
-			int32 Value = Score.value;
 			UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::WriteLeaderboards() Queued score %d on leaderboard %s"), Value, *LeaderboardName);
 
-			[UnreportedScores addObject : Score];
+			[UnreportedScores addObject:[NSNumber numberWithInteger:Value]];
 			bWroteAnyLeaderboard = true;
 		}
 	}
@@ -309,59 +288,62 @@ bool FOnlineLeaderboardsIOS::WriteLeaderboards(const FName& SessionName, const F
 
 bool FOnlineLeaderboardsIOS::FlushLeaderboards(const FName& SessionName)
 {
-	UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::FlushLeaderboards()"));
-	bool bBeganFlushingScores = false;
-
-	if ((IdentityInterface->GetLocalGameCenterUser() != NULL) && IdentityInterface->GetLocalGameCenterUser().isAuthenticated)
-	{
-		const int32 UnreportedScoreCount = UnreportedScores.count;
-		bBeganFlushingScores = UnreportedScoreCount > 0;
-
-		if (bBeganFlushingScores)
-		{
-			NSArray *ArrayCopy = [[NSArray alloc] initWithArray:UnreportedScores];
-			
-			[UnreportedScores release];
-			UnreportedScores = nil;
-			
-			dispatch_async(dispatch_get_main_queue(), ^
-			{
-				[GKScore reportScores : ArrayCopy withCompletionHandler : ^ (NSError *error)
-				{
-					// Tell whoever was listening that we have written (or failed to write) to the leaderboard
-					bool bSucceeded = error == NULL;
-					if (bSucceeded)
-					{
-						UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Flushed %d scores to Game Center"), UnreportedScoreCount);
-					}
-					else
-					{
-						UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Error while flushing scores (code %d)"), [error code]);
-					}
-
-					[ArrayCopy release];
-
-					// Report back to the game thread whether this succeeded.
-					[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-					{
-					TriggerOnLeaderboardFlushCompleteDelegates(SessionName, bSucceeded);
-						return true;
-					}];
-				}
-			];
-			});
-		}
-	}
-
-	// If we didn't begin writing to the leaderboard we should still notify whoever was listening.
-	if (!bBeganFlushingScores)
-	{
-		TriggerOnLeaderboardFlushCompleteDelegates(SessionName, false);
-		UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Failed to flush scores to leaderboard"));
-	}
-
-	
-	return bBeganFlushingScores;
+    UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("FOnlineLeaderboardsIOS::FlushLeaderboards()"));
+    bool bBeganFlushingScores = false;
+    
+    if ((IdentityInterface->GetLocalGameCenterUser() != NULL) && IdentityInterface->GetLocalGameCenterUser().isAuthenticated)
+    {
+        const int32 UnreportedScoreCount = UnreportedScores.count;
+        bBeganFlushingScores = UnreportedScoreCount > 0;
+        
+        if (bBeganFlushingScores)
+        {
+            NSMutableArray *ArrayCopy = [[NSMutableArray alloc] initWithArray:UnreportedScores];
+            
+            [UnreportedScores release];
+            UnreportedScores = nil;
+            
+            dispatch_async(dispatch_get_main_queue(), ^
+                           {
+                for (NSNumber* scoreReport in ArrayCopy)
+                {
+                    NSInteger ScoreReportInt = [scoreReport integerValue];
+                    
+                    [CachedLeaderboard submitScore:ScoreReportInt context:0 player:LeaderboardPlayer completionHandler: ^ (NSError *error)
+                     {
+                        // Tell whoever was listening that we have written (or failed to write) to the leaderboard
+                        bool bSucceeded = error == NULL;
+                        if (bSucceeded)
+                        {
+                            UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Flushed %d scores to Game Center"), UnreportedScoreCount);
+                        }
+                        else
+                        {
+                            UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Error while flushing scores (code %d)"), [error code]);
+                        }
+                        
+                        [ArrayCopy release];
+                        
+                        // Report back to the game thread whether this succeeded.
+                        [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+                         {
+                            TriggerOnLeaderboardFlushCompleteDelegates(SessionName, bSucceeded);
+                            return true;
+                        }];
+                    }];
+                }
+            });
+        }
+        
+        // If we didn't begin writing to the leaderboard we should still notify whoever was listening.
+        if (!bBeganFlushingScores)
+        {
+            TriggerOnLeaderboardFlushCompleteDelegates(SessionName, false);
+            UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Failed to flush scores to leaderboard"));
+        }
+        
+    }
+    return bBeganFlushingScores;
 }
 
 

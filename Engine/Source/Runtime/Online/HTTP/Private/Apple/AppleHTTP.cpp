@@ -712,15 +712,7 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
                 SecTrustCreateWithCertificates(Cert, TrustPolicy, CertTrust.GetForAssignment());
                 SecTrustEvaluateWithError(CertTrust, nil);
                 TCFRef<SecKeyRef> CertPubKey;
-                if (@available(iOS 14, tvOS 14, macOS 11, *))
-                {
-                    CertPubKey = SecTrustCopyKey(CertTrust);
-
-                }
-                else
-                {
-                    CertPubKey = SecTrustCopyPublicKey(CertTrust);
-                }
+                CertPubKey = SecTrustCopyKey(CertTrust);
 				TCFRef<CFDataRef> CertPubKeyData = SecKeyCopyExternalRepresentation(CertPubKey, NULL);
                 if (!CertPubKeyData)
                 {

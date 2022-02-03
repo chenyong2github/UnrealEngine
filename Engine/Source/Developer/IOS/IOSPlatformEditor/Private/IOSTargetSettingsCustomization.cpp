@@ -1882,7 +1882,7 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 
     if (MinOSPropertyHandle.IsValid())
     {
-        uint8 IOSVersion = (uint8)EIOSVersion::IOS_13;
+        uint8 IOSVersion = (uint8)EIOSVersion::IOS_14;
         if (MinOSPropertyHandle.IsValid())
         {
             MinOSPropertyHandle->GetValue(IOSVersion);
@@ -1892,9 +1892,6 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 
         switch (IOSVersion)
         {
-            case (uint8)EIOSVersion::IOS_13:
-                if (Value != 0 && Value < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2){Value = (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2; ShaderVersionWarningTextBox->SetError(TEXT("Metal 2.2 is the minimum for iOS13")); return;}
-                break;;
             case (uint8)EIOSVersion::IOS_14:
                 if (Value != 0 && Value < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3){Value = (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3; ShaderVersionWarningTextBox->SetError(TEXT("Metal 2.3 is the minimum for iOS14")); return;}
                 break;
@@ -1924,9 +1921,9 @@ void FIOSTargetSettingsCustomization::UpdateOSVersionWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_13)
+			if (EnumValue < (uint8)EIOSVersion::IOS_14)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_13);
+				SetMinVersion((int32)EIOSVersion::IOS_14);
 			}
 		}
 		else
@@ -1948,13 +1945,13 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_13)
+			if (EnumValue < (uint8)EIOSVersion::IOS_14)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_13);
+				SetMinVersion((int32)EIOSVersion::IOS_14);
 			}
 			
 			ShaderVersionPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2)
+			if (EnumValue < (int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_3)
 			{
 				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum);
 			}
