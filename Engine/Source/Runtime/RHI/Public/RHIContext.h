@@ -723,13 +723,6 @@ public:
 		checkNoEntry();
 	}
 
-#if RHI_RAYTRACING
-	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-	{
-		checkNoEntry();
-	}
-#endif
-
 	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene)
 	{
 		checkNoEntry();

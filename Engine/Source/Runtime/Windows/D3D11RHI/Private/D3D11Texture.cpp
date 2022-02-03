@@ -2179,107 +2179,6 @@ void FD3D11DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Textur
 {
 }
 
-void FD3D11DynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestinationTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
-{
-	FD3D11Texture2D* SourceTexture = ResourceCast(SourceTextureRHI);
-	FD3D11Texture2D* DestinationTexture = ResourceCast(DestinationTextureRHI);
-
-	//Make sure the source box is fitting on right and top side of the source texture, no need to offset the destination
-	if (SourceBox.Max.X >= (float)SourceTexture->GetSizeX())
-	{
-		float Delta = (SourceBox.Max.X - (float)SourceTexture->GetSizeX());
-		SourceBox.Max.X -= Delta;
-	}
-	if (SourceBox.Max.Y >= (float)SourceTexture->GetSizeY())
-	{
-		float Delta = (SourceBox.Max.Y - (float)SourceTexture->GetSizeY());
-		SourceBox.Max.Y -= Delta;
-	}
-
-	int32 DestinationOffsetX = 0;
-	int32 DestinationOffsetY = 0;
-	int32 SourceStartX = SourceBox.Min.X;
-	int32 SourceEndX = SourceBox.Max.X;
-	int32 SourceStartY = SourceBox.Min.Y;
-	int32 SourceEndY = SourceBox.Max.Y;
-	//If the source box is not fitting on the left bottom side, offset the result so the destination pixel match the expectation
-	if (SourceStartX < 0)
-	{
-		DestinationOffsetX -= SourceStartX;
-		SourceStartX = 0;
-	}
-	if (SourceStartY < 0)
-	{
-		DestinationOffsetY -= SourceStartY;
-		SourceStartY = 0;
-	}
-
-	D3D11_BOX SourceBoxAdjust =
-	{
-		static_cast<UINT>(SourceStartX),
-		static_cast<UINT>(SourceStartY),
-		0,
-		static_cast<UINT>(SourceEndX),
-		static_cast<UINT>(SourceEndY),
-		1
-	};
-
-	bool bValidDest = DestinationBox.Min.X + DestinationOffsetX + (SourceEndX - SourceStartX) <= DestinationTexture->GetSizeX();
-	bValidDest &= DestinationBox.Min.Y + DestinationOffsetY + (SourceEndY - SourceStartY) <= DestinationTexture->GetSizeY();
-	bValidDest &= DestinationBox.Min.X <= DestinationBox.Max.X && DestinationBox.Min.Y <= DestinationBox.Max.Y;
-
-	bool bValidSrc = SourceStartX >= 0 && SourceEndX <= (int32)SourceTexture->GetSizeX();
-	bValidSrc &= SourceStartY >= 0 && SourceEndY <= (int32)SourceTexture->GetSizeY();
-	bValidSrc &= SourceStartX <= SourceEndX && SourceStartY <= SourceEndY;
-
-	if (!ensureMsgf(bValidSrc && bValidDest, TEXT("Invalid copy detected for RHICopySubTextureRegion. Skipping copy.  SrcBox: left:%i, right:%i, top:%i, bottom:%i, DstBox:left:%i, right:%i, top:%i, bottom:%i,  SrcTexSize: %i x %i, DestTexSize: %i x %i "),
-		SourceBox.Min.X,
-		SourceBox.Max.X,
-		SourceBox.Min.Y,
-		SourceBox.Max.Y,
-		DestinationBox.Min.X,
-		DestinationBox.Max.X,
-		DestinationBox.Min.Y,
-		DestinationBox.Max.Y,
-		SourceTexture->GetSizeX(),
-		SourceTexture->GetSizeY(),
-		DestinationTexture->GetSizeX(),
-		DestinationTexture->GetSizeY()))
-	{
-		return;
-	}
-
-	check(SourceBoxAdjust.left % GPixelFormats[SourceTexture->GetFormat()].BlockSizeX == 0);
-	check(SourceBoxAdjust.top % GPixelFormats[SourceTexture->GetFormat()].BlockSizeY == 0);
-	check((SourceBoxAdjust.right - SourceBoxAdjust.left) % GPixelFormats[SourceTexture->GetFormat()].BlockSizeX == 0);
-	check((SourceBoxAdjust.bottom - SourceBoxAdjust.top) % GPixelFormats[SourceTexture->GetFormat()].BlockSizeY == 0);
-	check(uint32(DestinationBox.Min.X + DestinationOffsetX) % GPixelFormats[DestinationTexture->GetFormat()].BlockSizeX == 0);
-	check(uint32(DestinationBox.Min.Y + DestinationOffsetY) % GPixelFormats[DestinationTexture->GetFormat()].BlockSizeY == 0);
-
-	ID3D11Texture2D* DestinationRessource = DestinationTexture->GetResource();
-	Direct3DDeviceIMContext->CopySubresourceRegion(DestinationRessource, 0, DestinationBox.Min.X + DestinationOffsetX, DestinationBox.Min.Y + DestinationOffsetY, 0, SourceTexture->GetResource(), 0, &SourceBoxAdjust);
-}
-
-void FD3D11DynamicRHI::RHICopySubTextureRegion_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHITexture2D* SourceTexture,
-	FRHITexture2D* DestinationTexture,
-	FBox2D SourceBox,
-	FBox2D DestinationBox)
-{
-	if (RHICmdList.Bypass())
-	{
-		RHICopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
-	}
-	else
-	{
-		RunOnRHIThread([this, SourceTexture, DestinationTexture, SourceBox, DestinationBox]()
-		{
-			RHICopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
-		});
-	}
-}
-
 template<typename BaseResourceType>
 TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* TextureResource)
 {
@@ -2529,7 +2428,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 }
 
 template <typename BaseResourceType>
-TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateAliasedD3D11Texture2D(TD3D11Texture2D<BaseResourceType>* SourceTexture)
+FTextureRHIRef FD3D11DynamicRHI::CreateAliasedD3D11Texture2D(TD3D11Texture2D<BaseResourceType>* SourceTexture)
 {
 	D3D11_TEXTURE2D_DESC TextureDesc;
 	SourceTexture->GetResource()->GetDesc(&TextureDesc);
@@ -2605,11 +2504,7 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateAliasedD3D11Texture2D
 	// We'll be the same size, since we're the same thing. Avoid the check in D3D11Resources.h (AliasResources).
 	Texture2D->SetMemorySize(SourceTexture->GetMemorySize());
 
-	// Disable deprecation warning; when the DynamicRHI raw-pointer method is fully deprecated, the D3D11 class will still provide a raw pointer version
-	// since this is required in this path.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RHIAliasTextureResources(Texture2D, SourceTexture);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Texture2D->AliasResources(SourceTexture);
 
 	return Texture2D;
 }
@@ -2630,7 +2525,7 @@ FTextureCubeRHIRef FD3D11DynamicRHI::RHICreateTextureCubeFromResource(EPixelForm
 	return CreateTextureFromResource<FD3D11BaseTextureCube>(false, true, Format, TexCreateFlags, ClearValueBinding, TextureResource);
 }
 
-void FD3D11DynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRHITexture* SrcTextureRHI)
+void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
 {
 	FD3D11TextureBase* DestTexture = GetD3D11TextureFromRHITexture(DestTextureRHI);
 	FD3D11TextureBase* SrcTexture = GetD3D11TextureFromRHITexture(SrcTextureRHI);
@@ -2641,7 +2536,7 @@ void FD3D11DynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRH
 	}
 }
 
-FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTexture)
+FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
 {
 	if (SourceTexture->GetTexture2D() != nullptr)
 	{
@@ -2659,22 +2554,6 @@ FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceText
 	UE_LOG(LogD3D11RHI, Error, TEXT("Currently FD3D11DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
 	return nullptr;
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-void FD3D11DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
-{
-	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
-	RHIAliasTextureResources((FRHITexture*)DestTextureRHI, (FRHITexture*)SrcTextureRHI);
-}
-
-FTextureRHIRef FD3D11DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTexture)
-{
-	// @todo: Move the raw-pointer implementation down here when it's deprecation is completed.
-	return RHICreateAliasedTexture((FRHITexture*)SourceTexture);
-}
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
 {

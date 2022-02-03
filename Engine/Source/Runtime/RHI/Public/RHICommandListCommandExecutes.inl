@@ -537,11 +537,6 @@ void FRHICommandCopyBufferRegion::Execute(FRHICommandListBase& CmdList)
 
 #if RHI_RAYTRACING
 
-void FRHICommandCopyBufferRegions::Execute(FRHICommandListBase& CmdList)
-{
-	INTERNAL_DECORATOR(RHICopyBufferRegions)(Params);
-}
-
 void FRHICommandBindAccelerationStructureMemory::Execute(FRHICommandListBase& CmdList)
 {
 	INTERNAL_DECORATOR_COMPUTE(RHIBindAccelerationStructureMemory)(Scene, Buffer, BufferOffset);

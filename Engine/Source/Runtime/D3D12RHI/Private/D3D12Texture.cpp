@@ -127,39 +127,6 @@ struct FRHICommandUpdateTexture final : public FRHICommand<FRHICommandUpdateText
 	}
 };
 
-struct FRHICommandCopySubTextureRegionString
-{
-	static const TCHAR* TStr() { return TEXT("FRHICommandCopySubTextureRegion"); }
-};
-struct FRHICommandCopySubTextureRegion final : public FRHICommand<FRHICommandCopySubTextureRegion, FRHICommandCopySubTextureRegionString>
-{
-	FD3D12TextureBase* DestTexture;
-	uint32 DestX;
-	uint32 DestY;
-	uint32 DestZ;
-	FD3D12TextureBase* SourceTexture;
-	D3D12_BOX SourceBox;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandCopySubTextureRegion(FD3D12TextureBase* InDestTexture, uint32 InDestX, uint32 InDestY, uint32 InDestZ, FD3D12TextureBase* InSourceTexture, const D3D12_BOX& InSourceBox)
-		: DestTexture(InDestTexture)
-		, DestX(InDestX)
-		, DestY(InDestY)
-		, DestZ(InDestZ)
-		, SourceTexture(InSourceTexture)
-		, SourceBox(InSourceBox)
-	{
-	}
-
-	~FRHICommandCopySubTextureRegion()
-	{
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		DestTexture->CopyTextureRegion(DestX, DestY, DestZ, SourceTexture, SourceBox);
-	}
-};
-
 struct FD3D12RHICommandInitializeTextureString
 {
 	static const TCHAR* TStr() { return TEXT("FD3D12RHICommandInitializeTexture"); }
@@ -3300,24 +3267,6 @@ FTextureCubeRHIRef FD3D12DynamicRHI::RHICreateTextureCubeFromResource(EPixelForm
 	return CreateTextureFromResource<FD3D12BaseTextureCube>(false, true, Format, TexCreateFlags, ClearValueBinding, Resource);
 }
 
-void FD3D12DynamicRHI::RHIAliasTextureResources(FRHITexture* DestTextureRHI, FRHITexture* SrcTextureRHI)
-{
-	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
-	FD3D12TextureBase* SrcTexture = GetD3D12TextureFromRHITexture(SrcTextureRHI);
-
-	// This path will potentially cause crashes, if the source texture is destroyed and we're still being used. This
-	// API path will be deprecated post 4.25. To avoid issues, use the version that takes FTextureRHIRef references instead.
-	check(false);
-
-	for (FD3D12TextureBase::FDualLinkedObjectIterator It(DestTexture, SrcTexture); It; ++It)
-	{
-		DestTexture = It.GetFirst();
-		SrcTexture = It.GetSecond();
-
-		DestTexture->AliasResources(SrcTexture);
-	}
-}
-
 void FD3D12DynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI, FTextureRHIRef& SrcTextureRHI)
 {
 	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
@@ -3423,26 +3372,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D
 	return Texture2D;
 }
 
-FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FRHITexture* SourceTextureRHI)
-{
-	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
-	if (SourceTextureRHI->GetTexture2D() != nullptr)
-	{
-		return CreateAliasedD3D12Texture2D<FD3D12BaseTexture2D>(ResourceCast(SourceTextureRHI->GetTexture2D()));
-	}
-	else if (SourceTextureRHI->GetTexture2DArray() != nullptr)
-	{
-		return CreateAliasedD3D12Texture2D<FD3D12BaseTexture2DArray>(ResourceCast(SourceTextureRHI->GetTexture2DArray()));
-	}
-	else if (SourceTextureRHI->GetTextureCube() != nullptr)
-	{
-		return CreateAliasedD3D12Texture2D<FD3D12BaseTextureCube>(ResourceCast(SourceTextureRHI->GetTextureCube()));
-	}
-
-	UE_LOG(LogD3D12RHI, Error, TEXT("Currently FD3D12DynamicRHI::RHICreateAliasedTexture only supports 2D, 2D Array and Cube textures."));
-	return nullptr;
-}
-
 FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceTextureRHI)
 {
 	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
@@ -3470,33 +3399,6 @@ FTextureRHIRef FD3D12DynamicRHI::RHICreateAliasedTexture(FTextureRHIRef& SourceT
 	DestTexture->SetAliasingSource(SourceTextureRHI);
 
 	return ReturnTexture;
-}
-
-void FD3D12DynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
-{
-	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
-	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
-
-	const uint32 XOffset = (uint32)(DestinationBox.Min.X);
-	const uint32 YOffset = (uint32)(DestinationBox.Min.Y);
-	const uint32 Width = (uint32)(SourceBox.Max.X - SourceBox.Min.X);
-	const uint32 Height = (uint32)(SourceBox.Max.Y - SourceBox.Min.Y);
-
-	const CD3DX12_BOX SourceBoxD3D((LONG)SourceBox.Min.X, (LONG)SourceBox.Min.Y, (LONG)SourceBox.Max.X, (LONG)SourceBox.Max.Y);
-
-	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture->GetResource()->GetResource(), 0);
-	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture->GetResource()->GetResource(), 0);
-
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	if (RHICmdList.Bypass())
-	{
-		FRHICommandCopySubTextureRegion RHICmd(DestTexture, XOffset, YOffset, 0, SourceTexture, SourceBoxD3D);
-		RHICmd.Execute(RHICmdList);
-	}
-	else
-	{
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandCopySubTextureRegion)(DestTexture, XOffset, YOffset, 0, SourceTexture, SourceBoxD3D);
-	}
 }
 
 void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)

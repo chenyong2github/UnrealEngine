@@ -1655,31 +1655,6 @@ public:
 		RHI->VirtualTextureSetFirstMipVisible_RenderThread(RHICmdList, Texture, FirstMip);
 	}
 
-	/* Copy the source box pixels in the destination box texture, return true if implemented for the current platform*/
-	virtual void RHICopySubTextureRegion_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) override final
-	{
-		int32 Width = static_cast<int32>(SourceBox.GetSize().X);
-		int32 Height = static_cast<int32>(SourceBox.GetSize().Y);
-		int32 SrcX = static_cast<int32>(SourceBox.Min.X);
-		int32 SrcY = static_cast<int32>(SourceBox.Min.Y);
-		int32 DestX = static_cast<int32>(DestinationBox.Min.X);
-		int32 DestY = static_cast<int32>(DestinationBox.Min.Y);
-		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestinationTexture, FIntVector(Width, Height, 1), FIntVector(SrcX, SrcY, 0), FIntVector(DestX, DestY, 0));
-		return RHI->RHICopySubTextureRegion_RenderThread(RHICmdList, SourceTexture, DestinationTexture, SourceBox, DestinationBox);
-	}
-
-	virtual void RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) override final
-	{
-		int32 Width = static_cast<int32>(SourceBox.GetSize().X);
-		int32 Height = static_cast<int32>(SourceBox.GetSize().Y);
-		int32 SrcX = static_cast<int32>(SourceBox.Min.X);
-		int32 SrcY = static_cast<int32>(SourceBox.Min.Y);
-		int32 DestX = static_cast<int32>(DestinationBox.Min.X);
-		int32 DestY = static_cast<int32>(DestinationBox.Min.Y);
-		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestinationTexture, FIntVector(Width, Height, 1), FIntVector(SrcX, SrcY, 0), FIntVector(DestX, DestY, 0));
-		RHI->RHICopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
-	}
-
 	virtual FRHIFlipDetails RHIWaitForFlip(double TimeoutInSeconds) override final
 	{
 		return RHI->RHIWaitForFlip(TimeoutInSeconds);

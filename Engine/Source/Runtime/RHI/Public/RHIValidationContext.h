@@ -960,16 +960,6 @@ public:
 		Tracker->Assert(DestBuffer->GetWholeResourceIdentity(), ERHIAccess::CopyDest);
 		RHIContext->RHICopyBufferRegion(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes);
 	}
-
-	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-	{
-		for (const FCopyBufferRegionParams& Args : Params)
-		{
-			Tracker->Assert(Args.SourceBuffer->GetWholeResourceIdentity(), ERHIAccess::CopySrc);
-			Tracker->Assert(Args.DestBuffer->GetWholeResourceIdentity(), ERHIAccess::CopyDest);
-		}
-		RHIContext->RHICopyBufferRegions(Params);
-	}
 #endif
 
 	void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene)

@@ -2148,17 +2148,6 @@ FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 
 #if RHI_RAYTRACING
 
-FRHICOMMAND_MACRO(FRHICommandCopyBufferRegions)
-{
-	const TArrayView<const FCopyBufferRegionParams> Params;
-
-	explicit FRHICommandCopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> InParams)
-		: Params(InParams)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandBindAccelerationStructureMemory final : public FRHICommand<FRHICommandBindAccelerationStructureMemory>
 {
 	FRHIRayTracingScene* Scene;
@@ -3584,13 +3573,6 @@ public:
 		ALLOC_COMMAND(FRHICommandResummarizeHTile)(DepthTexture);
 	}
 
-	UE_DEPRECATED(4.25, "RHIClearTinyUAV is deprecated. Use RHIClearUAVUint or RHIClearUAVFloat instead.")
-	FORCEINLINE_DEBUGGABLE void ClearTinyUAV(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const uint32(&Values)[4])
-	{
-		// Forward to the new uint clear implementation.
-		ClearUAVUint(UnorderedAccessViewRHI, FUintVector4(Values[0], Values[1], Values[2], Values[3]));
-	}
-
 	FORCEINLINE_DEBUGGABLE void BeginRenderQuery(FRHIRenderQuery* RenderQuery)
 	{
 		if (Bypass())
@@ -3769,21 +3751,6 @@ public:
 
 #if RHI_RAYTRACING
 	// Ray tracing API
-	UE_DEPRECATED(4.25, "CopyBufferRegions API is deprecated. Use an explicit compute shader copy dispatch instead.")
-	FORCEINLINE_DEBUGGABLE void CopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-	{
-		// No copy/DMA operation inside render passes
-		check(IsOutsideRenderPass());
-
-		if (Bypass())
-		{
-			GetContext().RHICopyBufferRegions(Params);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandCopyBufferRegions)(AllocArray(Params));
-		}
-	}
 
 	FORCEINLINE_DEBUGGABLE void ClearRayTracingBindings(FRHIRayTracingScene* Scene)
 	{
@@ -4623,19 +4590,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
 		GDynamicRHI->RHIRead3DSurfaceFloatData(Texture,Rect,ZMinMax,OutData,Flags);
 	}
-	
-	UE_DEPRECATED(4.23, "CreateRenderQuery API is deprecated; use RHICreateRenderQueryPool and suballocate queries there")
-	FORCEINLINE FRenderQueryRHIRef CreateRenderQuery(ERenderQueryType QueryType)
-	{
-		FScopedRHIThreadStaller StallRHIThread(*this);
-		return GDynamicRHI->RHICreateRenderQuery(QueryType);
-	}
-
-	UE_DEPRECATED(4.23, "CreateRenderQuery API is deprecated; use RHICreateRenderQueryPool and suballocate queries there")
-	FORCEINLINE FRenderQueryRHIRef CreateRenderQuery_RenderThread(ERenderQueryType QueryType)
-	{
-		return GDynamicRHI->RHICreateRenderQuery_RenderThread(*this, QueryType);
-	}
 
 	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
 	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture) {}
@@ -4772,12 +4726,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GDynamicRHI->VirtualTextureSetFirstMipVisible_RenderThread(*this, Texture, FirstMip);
 	}
 
-	UE_DEPRECATED(4.23, "CopySubTextureRegion API is deprecated; please use CopyTexture instead.")
-	FORCEINLINE void CopySubTextureRegion(FRHITexture2D* SourceTexture, FRHITexture2D* DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
-	{
-		GDynamicRHI->RHICopySubTextureRegion_RenderThread(*this, SourceTexture, DestinationTexture, SourceBox, DestinationBox);
-	}
-	
 	FORCEINLINE void ExecuteCommandList(FRHICommandList* CmdList)
 	{
 		FScopedRHIThreadStaller StallRHIThread(*this);
@@ -5590,14 +5538,6 @@ FORCEINLINE void* RHILockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIn
 FORCEINLINE void RHIUnlockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail);
-}
-
-UE_DEPRECATED(4.23, "CreateRenderQuery API is deprecated; use RHICreateRenderQueryPool and suballocate queries there")
-FORCEINLINE FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType QueryType)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateRenderQuery_RenderThread(QueryType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UE_DEPRECATED(5.0, "RHIAcquireTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
