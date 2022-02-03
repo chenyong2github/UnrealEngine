@@ -527,10 +527,15 @@ void UNiagaraNodeOp::HandleStaticInputPinUpgrade(UEdGraphPin* Pin)
 		{
 			// Handle linkage...
 			bool bHandled = false;
-			if (Pin->LinkedTo.Num() > 0)
+			// this shouldn't specifically check for add pins as there can be other special pins like the wildcard pin
+			// this will generally attempt to set the current input pin to the same type as the other's output pin. Ok for now, but might break in the future
+			if (Pin->LinkedTo.Num() > 0 && !IsAddPin(Pin->LinkedTo[0]))
 			{
 				FNiagaraTypeDefinition LinkedPinType = Schema->PinToTypeDefinition(Pin->LinkedTo[0]);
-				Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
+				if(LinkedPinType.IsStatic())
+				{
+					Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
+				}
 			}
 			else // Handle unlinkage...
 			{

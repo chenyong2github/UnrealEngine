@@ -302,7 +302,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 bool UNiagaraNodeStaticSwitch::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
 {
 	// explicitly allow parameter maps and numeric types
-	return InType.GetScriptStruct() != nullptr;
+	return InType.GetScriptStruct() != nullptr && !InType.IsInternalType();
 }
 
 bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const
