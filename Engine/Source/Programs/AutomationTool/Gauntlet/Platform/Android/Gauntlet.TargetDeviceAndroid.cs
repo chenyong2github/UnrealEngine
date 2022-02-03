@@ -1294,6 +1294,10 @@ namespace Gauntlet
 					Log.Info("Using adb keys at {0}", KeyPath);
 
 					string LocalKeyPath = Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE"), ".android");
+					if(!Directory.Exists(LocalKeyPath))
+					{
+						Directory.CreateDirectory(LocalKeyPath);
+					}
 
 					string RemoteKeyFile = Path.Combine(KeyPath, "adbkey");
 					string RemotePubKeyFile = Path.Combine(KeyPath, "adbkey.pub");
