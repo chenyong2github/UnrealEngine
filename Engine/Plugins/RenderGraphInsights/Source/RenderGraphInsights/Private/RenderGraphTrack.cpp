@@ -2271,19 +2271,18 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 				Tooltip.AddNameValueTextLine(TEXT("Used Buffers:"), FString::Printf(TEXT("%d"), Pass.Buffers.Num()));
 			}
 
-			if (Pass.bParallelExecute)
+			if (Pass.bParallelExecuteAllowed)
 			{
-				Tooltip.AddTextLine(TEXT("Parallel Execute"), FLinearColor::Red);
+				Tooltip.AddNameValueTextLine(TEXT("Parallel Execute:"), Pass.bParallelExecute ? TEXT("Yes") : TEXT("No"));
+			}
+			else
+			{
+				Tooltip.AddNameValueTextLine(TEXT("Parallel Execute:"), TEXT("Not Allowed"));
 			}
 
 			if (Pass.bSkipRenderPassBegin || Pass.bSkipRenderPassEnd)
 			{
 				Tooltip.AddTextLine(TEXT("Merged RenderPass"), FLinearColor::Red);
-			}
-
-			if (Pass.bImmediateCommandList)
-			{
-				Tooltip.AddTextLine(TEXT("Immediate Command List"), FLinearColor::Red);
 			}
 		}
 		else if (InTooltipEvent.Is<FVisibleTextureEvent>())

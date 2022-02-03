@@ -139,7 +139,7 @@ public:
 	bool bParallelExecuteBegin{};
 	bool bParallelExecuteEnd{};
 	bool bParallelExecute{};
-	bool bImmediateCommandList{};
+	bool bParallelExecuteAllowed{};
 
 	FPassPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };

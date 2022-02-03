@@ -194,9 +194,9 @@ public:
 		return Handle;
 	}
 
-	bool IsImmediateCommandList() const
+	bool IsParallelExecuteAllowed() const
 	{
-		return bImmediateCommandList;
+		return bParallelExecuteAllowed;
 	}
 
 	bool IsMergedRenderPassBegin() const
@@ -362,8 +362,8 @@ protected:
 			/** Whether the pass only writes to resources in its render pass. */
 			uint32 bRenderPassOnlyWrites : 1;
 
-			/** Whether the pass uses the immediate command list. */
-			uint32 bImmediateCommandList : 1;
+			/** Whether the pass is allowed to execute in parallel. */
+			uint32 bParallelExecuteAllowed : 1;
 
 			/** Whether this pass has non-RDG UAV outputs. */
 			uint32 bHasExternalOutputs : 1;
@@ -552,7 +552,7 @@ public:
 		checkf(kSupportsAsyncCompute || !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::AsyncCompute),
 			TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
 
-		bImmediateCommandList = TIsSame<TRHICommandList, FRHICommandListImmediate>::Value;
+		bParallelExecuteAllowed = !TIsSame<TRHICommandList, FRHICommandListImmediate>::Value && !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::NeverParallel);
 	}
 
 private:

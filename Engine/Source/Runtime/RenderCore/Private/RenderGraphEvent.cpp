@@ -269,7 +269,7 @@ FRDGGPUStatScopeOpArray FRDGGPUStatScopeStack::CompilePassPrologue(const FRDGPas
 	if (IsEnabled() && Pass->GetPipeline() == ERHIPipeline::Graphics)
 	{
 		FRDGGPUStatScopeOpArray Ops(ScopeStack.CompilePassPrologue(Pass->GetGPUScopes().Stat), GPUMask);
-		if (Pass->IsImmediateCommandList())
+		if (!Pass->IsParallelExecuteAllowed())
 		{
 			OverrideEventIndex = FRealtimeGPUProfiler::Get()->GetCurrentEventIndex();
 			Ops.OverrideEventIndex = OverrideEventIndex;

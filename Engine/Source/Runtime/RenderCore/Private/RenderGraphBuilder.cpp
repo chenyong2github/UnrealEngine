@@ -2194,7 +2194,7 @@ void FRDGBuilder::SetupParallelExecute()
 			continue;
 		}
 
-		if (Pass->bImmediateCommandList)
+		if (!Pass->bParallelExecuteAllowed)
 		{
 			FlushParallelPassCandidates();
 			continue;

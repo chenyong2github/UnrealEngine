@@ -115,6 +115,9 @@ enum class ERDGPassFlags : uint8
 	/** Pass will never have its render pass merged with other passes. */
 	NeverMerge = 1 << 6,
 
+	/** Pass will never run off the render thread. */
+	NeverParallel = 1 << 7,
+
 	/** Pass uses copy commands but writes to a staging resource. */
 	Readback = Copy | NeverCull
 };
