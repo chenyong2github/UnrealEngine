@@ -44,6 +44,13 @@ namespace Chaos
 		{
 		}
 
+		template<typename OtherType> 
+		explicit TAABB(const TAABB<OtherType, d>& Other)
+			: MMin(TVector<T, d>(Other.Min()))
+			, MMax(TVector<T, d>(Other.Max()))
+		{
+		}
+
 		FORCEINLINE TAABB(TAABB<T, d>&& Other)
 			: MMin(MoveTemp(Other.MMin))
 			, MMax(MoveTemp(Other.MMax))
@@ -565,14 +572,15 @@ namespace Chaos
 		TVector<T, d> MMin, MMax;
 	};
 
-
-	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABB<FReal, 3>& AABB)
+	template<class T, int d>
+	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABB<T, d>& AABB)
 	{
 		AABB.Serialize(Ar);
 		return Ar;
 	}
 
-	FORCEINLINE FArchive& operator<<(FArchive& Ar, TAABB<FReal, 3>& AABB)
+	template<class T, int d>
+	FORCEINLINE FArchive& operator<<(FArchive& Ar, TAABB<T, d>& AABB)
 	{
 		AABB.Serialize(Ar);
 		return Ar;

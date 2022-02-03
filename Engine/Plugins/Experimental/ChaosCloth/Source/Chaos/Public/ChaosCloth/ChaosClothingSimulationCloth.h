@@ -49,8 +49,8 @@ namespace Chaos
 			bool bInUseXPBDConstraints,
 			FRealSingle InGravityScale,
 			bool bIsGravityOverridden,
-			const FVec3& InGravityOverride,
-			const FVec3& InLinearVelocityScale,
+			const TVec3<FRealSingle>& InGravityOverride,
+			const TVec3<FRealSingle>& InLinearVelocityScale,
 			FRealSingle InAngularVelocityScale,
 			FRealSingle InFictitiousAngularScale,
 			const TVec2<FRealSingle>& InDrag,
@@ -104,19 +104,19 @@ namespace Chaos
 
 		// ---- Debugging/visualization functions
 		// Return the solver's input positions for this cloth source current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FVec3> GetAnimationPositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverVec3> GetAnimationPositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's input normals for this cloth source current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FVec3> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverVec3> GetAnimationNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FVec3> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverVec3> GetParticlePositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's previous frame positions for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FVec3> GetParticleOldPositions(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverVec3> GetParticleOldPositions(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FVec3> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverVec3> GetParticleNormals(const FClothingSimulationSolver* Solver) const;
 		// Return the solver's normals for this cloth current LOD, not thread safe, call must be done right after the solver update.
-		TConstArrayView<FReal> GetParticleInvMasses(const FClothingSimulationSolver* Solver) const;
+		TConstArrayView<Softs::FSolverReal> GetParticleInvMasses(const FClothingSimulationSolver* Solver) const;
 		// Return the current gravity as applied by the solver using the various overrides, not thread safe, call must be done right after the solver update.
-		FVec3 GetGravity(const FClothingSimulationSolver* Solver) const;
+		TVec3<FRealSingle> GetGravity(const FClothingSimulationSolver* Solver) const;
 		// Return the current bounding box based on a given solver, not thread safe, call must be done right after the solver update.
 		FAABB3 CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected.
@@ -208,8 +208,8 @@ namespace Chaos
 		bool bUseXPBDConstraints;
 		FRealSingle GravityScale;
 		bool bIsGravityOverridden;
-		FVec3 GravityOverride;
-		FVec3 LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
+		TVec3<FRealSingle> GravityOverride;
+		TVec3<FRealSingle> LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
 		FRealSingle AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
 		FRealSingle FictitiousAngularScale;
 		TVec2<FRealSingle> Drag;

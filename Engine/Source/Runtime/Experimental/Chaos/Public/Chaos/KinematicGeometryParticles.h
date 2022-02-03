@@ -91,6 +91,6 @@ using FKinematicGeometryParticles = TKinematicGeometryParticles<FReal, 3>;
 template <typename T, int d>
 using TKinematicGeometryClothParticles = TKinematicGeometryParticlesImp<T, d, EGeometryParticlesSimType::Other>;
 
-using FKinematicGeometryClothParticles = TKinematicGeometryClothParticles<FReal, 3>;
+using FKinematicGeometryClothParticles UE_DEPRECATED(5.0, "FKinematicGeometryClothParticles is deprecated, use Softs::FSolverRigidParticles instead.") = TKinematicGeometryClothParticles<FReal, 3>;
 }
 

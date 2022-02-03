@@ -6,13 +6,13 @@
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Spring Constraint"), STAT_XPBD_Spring, STATGROUP_Chaos);
 
-namespace Chaos
+namespace Chaos::Softs
 {
 
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
 static const double XPBDSpringMaxCompliance = 1e-7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2 -> Max compliance: 1e-7 CM^2/N
 
-class FXPBDSpringConstraints : public FPBDSpringConstraintsBase
+class FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
 {
 	typedef FPBDSpringConstraintsBase Base;
 	using Base::Constraints;
@@ -22,46 +22,46 @@ class FXPBDSpringConstraints : public FPBDSpringConstraintsBase
 public:
 	template<int32 Valence>
 	FXPBDSpringConstraints(
-		const FPBDParticles& Particles,
+		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
 		const TArray<TVector<int32, Valence>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FVec2& InStiffness,
+		const FSolverVec2& InStiffness,
 		bool bTrimKinematicConstraints = false,
 		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
 		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
 	{
-		Lambdas.Init((FReal)0., Constraints.Num());
+		Lambdas.Init((FSolverReal)0., Constraints.Num());
 	}
 
-	virtual ~FXPBDSpringConstraints() {}
+	virtual ~FXPBDSpringConstraints() override {}
 
-	void Init() const { for (FReal& Lambda : Lambdas) { Lambda = (FReal)0.; } }
+	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
 
-	void Apply(FPBDParticles& Particles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 	{
 		const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
 		const int32 i1 = Constraint[0];
 		const int32 i2 = Constraint[1];
-		const FVec3 Delta = GetDelta(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
-		if (Particles.InvM(i1) > (FReal)0.)
+		const FSolverVec3 Delta = GetDelta(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
+		if (Particles.InvM(i1) > (FSolverReal)0.)
 		{
 			Particles.P(i1) -= Particles.InvM(i1) * Delta;
 		}
-		if (Particles.InvM(i2) > (FReal)0.)
+		if (Particles.InvM(i2) > (FSolverReal)0.)
 		{
 			Particles.P(i2) += Particles.InvM(i2) * Delta;
 		}
 	}
 
-	void Apply(FPBDParticles& Particles, const FReal Dt) const
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_Spring);
 
 		if (!Stiffness.HasWeightMap())
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				Apply(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
@@ -71,44 +71,44 @@ public:
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
-				const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 				Apply(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 			}
 		}
 	}
 
 private:
-	FVec3 GetDelta(const FPBDParticles& Particles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const
+	FSolverVec3 GetDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 	{
 		const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
 
 		const int32 i1 = Constraint[0];
 		const int32 i2 = Constraint[1];
 
-		if (Particles.InvM(i2) == (FReal)0. && Particles.InvM(i1) == (FReal)0.)
+		if (Particles.InvM(i2) == (FSolverReal)0. && Particles.InvM(i1) == (FSolverReal)0.)
 		{
-			return FVec3((FReal)0.);
+			return FSolverVec3((FSolverReal)0.);
 		}
-		const FReal CombinedInvMass = Particles.InvM(i2) + Particles.InvM(i1);
+		const FSolverReal CombinedInvMass = Particles.InvM(i2) + Particles.InvM(i1);
 
-		const FVec3& P1 = Particles.P(i1);
-		const FVec3& P2 = Particles.P(i2);
-		FVec3 Direction = P1 - P2;
-		const FReal Distance = Direction.SafeNormalize();
-		const FReal Offset = Distance - Dists[ConstraintIndex];
+		const FSolverVec3& P1 = Particles.P(i1);
+		const FSolverVec3& P2 = Particles.P(i2);
+		FSolverVec3 Direction = P1 - P2;
+		const FSolverReal Distance = Direction.SafeNormalize();
+		const FSolverReal Offset = Distance - Dists[ConstraintIndex];
 
-		FReal& Lambda = Lambdas[ConstraintIndex];
-		const FReal Alpha = (FReal)XPBDSpringMaxCompliance / (ExpStiffnessValue * Dt * Dt);
+		FSolverReal& Lambda = Lambdas[ConstraintIndex];
+		const FSolverReal Alpha = (FSolverReal)XPBDSpringMaxCompliance / (ExpStiffnessValue * Dt * Dt);
 
-		const FReal DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
-		const FVec3 Delta = DLambda * Direction;
+		const FSolverReal DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
+		const FSolverVec3 Delta = DLambda * Direction;
 		Lambda += DLambda;
 
 		return Delta;
 	}
 
 private:
-	mutable TArray<FReal> Lambdas;
+	mutable TArray<FSolverReal> Lambdas;
 };
 
-}
+}  // End namespace Chaos::Softs

@@ -4,6 +4,7 @@
 #include "Containers/Array.h"
 #include "Algo/BinarySearch.h"
 #include "Chaos/Framework/Parallel.h"
+#include "Chaos/Vector.h"
 
 namespace Chaos
 {

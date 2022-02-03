@@ -4,23 +4,23 @@
 
 #include "Math/Vector.isph"
 
-static const FReal OneThird = 1.0/3.0;
+static const float OneThird = 1.0f/3.0f;
 
-static inline FReal SafeNormalize(FVector &Direction)
+static inline float SafeNormalize(FVector3f &Direction)
 {
-	const FReal Size = sqrt(VectorSizeSquared(Direction));
-	Direction = VectorSelect((Size < KINDA_SMALL_NUMBER), ForwardVector, Direction / Size);
-	return (Size < KINDA_SMALL_NUMBER) ? 0 : Size;
+	const float Size = sqrt(VectorSizeSquared(Direction));
+	Direction = VectorSelect((Size < FLOAT_KINDA_SMALL_NUMBER), FloatForwardVector, Direction / Size);
+	return (Size < FLOAT_KINDA_SMALL_NUMBER) ? 0 : Size;
 }
 
-export void UpdateField(uniform FVector Forces[],
+export void UpdateField(uniform FVector3f Forces[],
 								const uniform FIntVector Elements[],
-								const uniform FVector V[],
-								const uniform FVector X[],
-								const uniform FVector& Velocity,
-								const uniform FReal QuarterRho,
-								const uniform FReal Cd,
-								const uniform FReal Cl,
+								const uniform FVector3f V[],
+								const uniform FVector3f X[],
+								const uniform FVector3f& Velocity,
+								const uniform float QuarterRho,
+								const uniform float Cd,
+								const uniform float Cl,
 								const uniform int32 NumElements)
 {
 	varying FIntVector Element;
@@ -39,25 +39,25 @@ export void UpdateField(uniform FVector Forces[],
 		Element = VectorLoad(&Elements[Offset]);
 #endif
 
-		const FVector X0 = VectorGather(&X[Element.V[0]]);
-		const FVector X1 = VectorGather(&X[Element.V[1]]);
-		const FVector X2 = VectorGather(&X[Element.V[2]]);
+		const FVector3f X0 = VectorGather(&X[Element.V[0]]);
+		const FVector3f X1 = VectorGather(&X[Element.V[1]]);
+		const FVector3f X2 = VectorGather(&X[Element.V[2]]);
 
 		// Calculate the normal and the area of the surface exposed to the flow
-		FVector N = VectorCross(X1 - X0, X2 - X0);
-		const FReal DoubleArea = SafeNormalize(N);
+		FVector3f N = VectorCross(X1 - X0, X2 - X0);
+		const float DoubleArea = SafeNormalize(N);
 
-		const FVector V0 = VectorGather(&V[Element.V[0]]);
-		const FVector V1 = VectorGather(&V[Element.V[1]]);
-		const FVector V2 = VectorGather(&V[Element.V[2]]);
+		const FVector3f V0 = VectorGather(&V[Element.V[0]]);
+		const FVector3f V1 = VectorGather(&V[Element.V[1]]);
+		const FVector3f V2 = VectorGather(&V[Element.V[2]]);
 
 		// Calculate the direction and the relative velocity of the triangle to the flow
-		const FVector SurfaceVelocity = OneThird * (V0 + V1 + V2);
-		const FVector RelVelocity = Velocity - SurfaceVelocity;
+		const FVector3f SurfaceVelocity = OneThird * (V0 + V1 + V2);
+		const FVector3f RelVelocity = Velocity - SurfaceVelocity;
 
 		// Set the aerodynamic forces
-		const FReal VDotN = VectorDot(RelVelocity, N);
-		const FReal VSquare = VectorDot(RelVelocity, RelVelocity);
+		const float VDotN = VectorDot(RelVelocity, N);
+		const float VSquare = VectorDot(RelVelocity, RelVelocity);
 
 #if HW_GATHER_SUPPORTED == 1
 		if(ElementIndex + programCount < NumElements)
@@ -66,10 +66,10 @@ export void UpdateField(uniform FVector Forces[],
 		}
 #endif
 
-		const FVector EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
-		const FVector OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
+		const FVector3f EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
+		const FVector3f OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
 
-		const FVector Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
+		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
 
 		VectorStore(&Forces[Offset], Force);
 
@@ -77,17 +77,17 @@ export void UpdateField(uniform FVector Forces[],
 	}
 }
 
-export void UpdateFieldWithWeightMaps(uniform FVector Forces[],
+export void UpdateFieldWithWeightMaps(uniform FVector3f Forces[],
 								const uniform FIntVector Elements[],
-								const uniform FVector V[],
-								const uniform FVector X[],
-								const uniform FVector2 Multipliers[],
-								const uniform FVector& Velocity,
-								const uniform FReal QuarterRho,
-								const uniform FReal DragBase,
-								const uniform FReal DragRange,
-								const uniform FReal LiftBase,
-								const uniform FReal LiftRange,
+								const uniform FVector3f V[],
+								const uniform FVector3f X[],
+								const uniform FVector2f Multipliers[],
+								const uniform FVector3f& Velocity,
+								const uniform float QuarterRho,
+								const uniform float DragBase,
+								const uniform float DragRange,
+								const uniform float LiftBase,
+								const uniform float LiftRange,
 								const uniform int32 NumElements)
 {
 	varying FIntVector Element;
@@ -105,30 +105,30 @@ export void UpdateFieldWithWeightMaps(uniform FVector Forces[],
 #if HW_GATHER_SUPPORTED == 0
 		Element = VectorLoad(&Elements[Offset]);
 #endif
-		const FVector X0 = VectorGather(&X[Element.V[0]]);
-		const FVector X1 = VectorGather(&X[Element.V[1]]);
-		const FVector X2 = VectorGather(&X[Element.V[2]]);
+		const FVector3f X0 = VectorGather(&X[Element.V[0]]);
+		const FVector3f X1 = VectorGather(&X[Element.V[1]]);
+		const FVector3f X2 = VectorGather(&X[Element.V[2]]);
 
-		const FVector2 Multiplier = VectorGather(&Multipliers[ElementIndex]);
+		const FVector2f Multiplier = VectorGather(&Multipliers[ElementIndex]);
 
 		// Calculate the normal and the area of the surface exposed to the flow
-		FVector N = VectorCross(X1 - X0, X2 - X0);
-		const FReal DoubleArea = SafeNormalize(N);
+		FVector3f N = VectorCross(X1 - X0, X2 - X0);
+		const float DoubleArea = SafeNormalize(N);
 
-		const FVector V0 = VectorGather(&V[Element.V[0]]);
-		const FVector V1 = VectorGather(&V[Element.V[1]]);
-		const FVector V2 = VectorGather(&V[Element.V[2]]);
+		const FVector3f V0 = VectorGather(&V[Element.V[0]]);
+		const FVector3f V1 = VectorGather(&V[Element.V[1]]);
+		const FVector3f V2 = VectorGather(&V[Element.V[2]]);
 
 		// Calculate the direction and the relative velocity of the triangle to the flow
-		const FVector SurfaceVelocity = OneThird * (V0 + V1 + V2);
-		const FVector RelVelocity = Velocity - SurfaceVelocity;
+		const FVector3f SurfaceVelocity = OneThird * (V0 + V1 + V2);
+		const FVector3f RelVelocity = Velocity - SurfaceVelocity;
 
 		// Set the aerodynamic forces
-		const FReal VDotN = VectorDot(RelVelocity, N);
-		const FReal VSquare = VectorDot(RelVelocity, RelVelocity);
+		const float VDotN = VectorDot(RelVelocity, N);
+		const float VSquare = VectorDot(RelVelocity, RelVelocity);
 
-		const FReal Cd = DragBase + DragRange * Multiplier.V[0];
-		const FReal Cl = LiftBase + LiftRange * Multiplier.V[1];
+		const float Cd = DragBase + DragRange * Multiplier.V[0];
+		const float Cl = LiftBase + LiftRange * Multiplier.V[1];
 
 #if HW_GATHER_SUPPORTED == 1
 		if(ElementIndex + programCount < NumElements)
@@ -137,10 +137,10 @@ export void UpdateFieldWithWeightMaps(uniform FVector Forces[],
 		}
 #endif
 
-		const FVector EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
-		const FVector OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
+		const FVector3f EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
+		const FVector3f OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
 
-		const FVector Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
+		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
 
 		VectorStore(&Forces[Offset], Force);
 

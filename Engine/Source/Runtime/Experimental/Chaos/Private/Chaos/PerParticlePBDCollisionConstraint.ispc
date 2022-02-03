@@ -481,11 +481,11 @@ static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectP
 	const uniform int32 NumPlanes = Object->Planes.ArrayNum;
 	if (NumPlanes == 0)
 	{
-		Phi = FLT_MAX;
+		Phi = REAL_MAX;
 		return;
 	}
 
-	FReal MaxPhi = -FLT_MAX;
+	FReal MaxPhi = -REAL_MAX;
 	int32 MaxPlane = 0;
 
 	for (uniform int32 Idx = 0; Idx < NumPlanes; ++Idx)
@@ -513,7 +513,7 @@ static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectP
 		return;
 	}
 
-	FReal ClosestDistance = FLT_MAX;
+	FReal ClosestDistance = REAL_MAX;
 	FVector ClosestPoint = ZeroVector;
 	for (uniform int32 Index = 0; Index < PlaneVerticesNum - 2; Index++)
 	{
@@ -544,25 +544,25 @@ static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectP
 	}
 }
 
-extern "C" unmasked void GetPhiWithNormal(const uniform uint8 *uniform CollisionParticles, const uniform FReal *uniform V, uniform FReal *uniform Normal, uniform FReal *uniform Phi, const uniform int i, const uniform int ProgramCount, const uniform int Mask);
+extern "C" unmasked void GetPhiWithNormal(const uniform uint8 *uniform CollisionParticles, const uniform float *uniform V, uniform float *uniform Normal, uniform float *uniform Phi, const uniform int i, const uniform int ProgramCount, const uniform int Mask);
 
-export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
-										const uniform FVector ParticlesX[],
-										const uniform FReal ParticlesInvM[],
-										const uniform FVector CollisionV[],
-										const uniform FVector CollisionX[],
-										const uniform FVector CollisionW[],
-										const uniform FVector4 CollisionR[],
+export void ApplyPerParticleCollision(uniform FVector3f ParticlesP[],
+										const uniform FVector3f ParticlesX[],
+										const uniform float ParticlesInvM[],
+										const uniform FVector3f CollisionV[],
+										const uniform FVector3f CollisionX[],
+										const uniform FVector3f CollisionW[],
+										const uniform FVector4f CollisionR[],
 										const uniform uint32 DynamicGroupIds[],
 										const uniform uint32 KinematicGroupIds[],
-										const uniform FReal PerGroupFriction[],
-										const uniform FReal PerGroupThickness[],
+										const uniform float PerGroupFriction[],
+										const uniform float PerGroupThickness[],
 										const uniform uint8 *uniform CollisionParticles,
 										const uniform uint8 *uniform Geometry,
 										const uniform int SizeofFImplicitObject,
 										const uniform int OffsetofGeometryType,
 										const uniform int OffsetOfMargin,
-										const uniform FReal Dt,
+										const uniform float Dt,
 										const uniform int InnerOffset,
 										const uniform int InnerRange,
 										const uniform int OuterOffset,
@@ -596,23 +596,28 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const FReal IM = ParticlesInvM[Index];
+		const float IM = ParticlesInvM[Index];
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
 
-		FVector P = VectorLoad(&ParticlesP[extract(Index, 0)]);
+		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		const uint32 DynamicGroupId = DynamicGroupIds[Index]; // Particle group Id
 
 		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
 		{
-			const uniform FTransform Frame = SetTransform(CollisionR[i], SetVector4(CollisionX[i], (uniform FReal)(0.0)), Vector1110);
-			const FVector PhiWithNormalInput = InverseTransformPosition(Frame, P);
-			FVector Normal;
-			FReal Phi;
+			// InverseTransformPosition. Can skip Scale calculation because it is 1 for xyz.
+			const FVector3f TranslatedVec = P - CollisionX[i];
+			const FVector4f InverseR = QuatInverse(CollisionR[i]);
+			const FVector3f PhiWithNormalInputFloat = VectorQuaternionRotateVector(InverseR, TranslatedVec);
+			const FVector PhiWithNormalInput = ConvertVector3fTo3Native(PhiWithNormalInputFloat);
+			FVector NormalReal;
+			FReal PhiReal;
+			FVector3f Normal;
+			float Phi;
 
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
@@ -624,28 +629,38 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 			case Sphere:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Capsule:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Union:
 				{
-					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject, OffsetOfMargin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case TaperedCapsule:
 				{
-					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Convex:
 				{
-					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			default:
@@ -656,33 +671,34 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 						IMMask = lanemask();
 					}
 
-					GetPhiWithNormal(CollisionParticles, (const uniform FReal *uniform)&PhiWithNormalInput, (uniform FReal *uniform)&Normal, (uniform FReal *uniform)&Phi, i, programCount, IMMask);
+					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInputFloat, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
 					break;
 				}
 			}
 
 			#pragma ignore warning(perf)
-			const FReal Thickness = PerGroupThickness[DynamicGroupId];
+			const float Thickness = PerGroupThickness[DynamicGroupId];
 
 			if(Phi < Thickness)
 			{
-				const FVector NormalWorld = TransformVector(Frame, Normal);
+				// TransformVector. Scale is 1 so that part can be removed.
+				const FVector3f NormalWorld = VectorQuaternionRotateVector(CollisionR[i], Normal);
 				P = P + ((-Phi + Thickness) * NormalWorld);
 
 				#pragma ignore warning(perf)
-				const FReal CoefficientOfFriction = PerGroupFriction[DynamicGroupId];
+				const float CoefficientOfFriction = PerGroupFriction[DynamicGroupId];
 
-				if(CoefficientOfFriction > (uniform FReal)(0.0))
+				if(CoefficientOfFriction > 0.0f)
 				{
-					const uniform FReal MaximumFrictionCorrectionPerStep = (uniform FReal)(1.0); // 1cm absolute maximum correction the friction force can provide
-					const FReal Penetration = (-Phi + Thickness); // This is related to the Normal impulse
+					const uniform float MaximumFrictionCorrectionPerStep = 1.0f; // 1cm absolute maximum correction the friction force can provide
+					const float Penetration = (-Phi + Thickness); // This is related to the Normal impulse
 
-					FVector VectorToPoint = P - CollisionX[i];
-					const FVector X = VectorLoad(&ParticlesX[extract(Index, 0)]);
-					const FVector RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
-					const FVector RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
-					const FReal RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
-					FReal PositionCorrection = clamp(Penetration * CoefficientOfFriction, (uniform FReal)(0.0), RelativeDisplacementTangentLength);
+					FVector3f VectorToPoint = P - CollisionX[i];
+					const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
+					const FVector3f RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+					const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
+					const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
+					float PositionCorrection = clamp(Penetration * CoefficientOfFriction, 0.0f, RelativeDisplacementTangentLength);
 					if (PositionCorrection > MaximumFrictionCorrectionPerStep)
 					{
 						PositionCorrection = MaximumFrictionCorrectionPerStep;
@@ -702,23 +718,23 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 	}
 }
 
-export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
-													const uniform FVector ParticlesX[],
-													const uniform FReal ParticlesInvM[],
-													const uniform FVector CollisionV[],
-													const uniform FVector CollisionX[],
-													const uniform FVector CollisionW[],
-													const uniform FVector4 CollisionR[],
+export void ApplyPerParticleCollisionFastFriction(uniform FVector3f ParticlesP[],
+													const uniform FVector3f ParticlesX[],
+													const uniform float ParticlesInvM[],
+													const uniform FVector3f CollisionV[],
+													const uniform FVector3f CollisionX[],
+													const uniform FVector3f CollisionW[],
+													const uniform FVector4f CollisionR[],
 													const uniform uint32 DynamicGroupId,
 													const uniform uint32 KinematicGroupIds[],
-													const uniform FReal PerGroupFriction,
-													const uniform FReal PerGroupThickness,
+													const uniform float PerGroupFriction,
+													const uniform float PerGroupThickness,
 													const uniform uint8 *uniform CollisionParticles,
 													const uniform uint8 *uniform Geometry,
 													const uniform int SizeofFImplicitObject,
 													const uniform int OffsetofGeometryType,
 													const uniform int OffsetOfMargin,
-													const uniform FReal Dt,
+													const uniform float Dt,
 													const uniform int InnerOffset,
 													const uniform int InnerRange,
 													const uniform int OuterOffset,
@@ -750,21 +766,26 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const FReal IM = ParticlesInvM[Index];
+		const float IM = ParticlesInvM[Index];
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
 
-		FVector P = VectorLoad(&ParticlesP[extract(Index, 0)]);
+		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
 		{
-			const uniform FTransform Frame = SetTransform(CollisionR[i], SetVector4(CollisionX[i], (uniform FReal)(0.0)), Vector1110);
-			const FVector PhiWithNormalInput = InverseTransformPosition(Frame, P);
-			FVector Normal;
-			FReal Phi;
+			// InverseTransformPosition. Can skip Scale calculation because it is 1 for xyz.
+			const FVector3f TranslatedVec = P - CollisionX[i];
+			const FVector4f InverseR = QuatInverse(CollisionR[i]);
+			const FVector3f PhiWithNormalInputFloat = VectorQuaternionRotateVector(InverseR, TranslatedVec);
+			const FVector PhiWithNormalInput = ConvertVector3fTo3Native(PhiWithNormalInputFloat);
+			FVector NormalReal;
+			FReal PhiReal;
+			FVector3f Normal;
+			float Phi;
 
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
@@ -776,28 +797,38 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 			case Sphere:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Capsule:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Union:
 				{
-					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject, OffsetOfMargin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case TaperedCapsule:
 				{
-					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Convex:
 				{
-					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			default:
@@ -808,25 +839,26 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 						IMMask = lanemask();
 					}
 
-					GetPhiWithNormal(CollisionParticles, (const uniform FReal *uniform)&PhiWithNormalInput, (uniform FReal *uniform)&Normal, (uniform FReal *uniform)&Phi, i, programCount, IMMask);
+					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInputFloat, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
 					break;
 				}
 			}
 
-			const FReal Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
-			if(Penetration > (uniform FReal)(0.0))
+			const float Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
+			if(Penetration > 0.0f)
 			{
-				const FVector NormalWorld = TransformVector(Frame, Normal);
+				// TransformVector. Scale is 1 so that part can be removed.
+				const FVector3f NormalWorld = VectorQuaternionRotateVector(CollisionR[i], Normal);
 				P = P + (Penetration * NormalWorld);
 
-				const FVector VectorToPoint = P - CollisionX[i];
-				const FVector X = VectorLoad(&ParticlesX[extract(Index, 0)]);
-				const FVector RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
-				const FVector RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
-				const FReal RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
+				const FVector3f VectorToPoint = P - CollisionX[i];
+				const FVector3f X = VectorLoad(&ParticlesX[extract(Index, 0)]);
+				const FVector3f RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+				const FVector3f RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
+				const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
 
-				const FReal PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
-				const FReal CorrectionRatio = select(RelativeDisplacementTangentLength < SMALL_NUMBER, (uniform FReal)(0.0), PositionCorrection / RelativeDisplacementTangentLength);
+				const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+				const float CorrectionRatio = select(RelativeDisplacementTangentLength < FLOAT_SMALL_NUMBER, 0.0f, PositionCorrection / RelativeDisplacementTangentLength);
 				P = P - (CorrectionRatio * RelativeDisplacementTangent);
 			}
 		}
@@ -838,22 +870,22 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 	}
 }
 
-export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
-												const uniform FVector ParticlesX[],
-												const uniform FReal ParticlesInvM[],
-												const uniform FVector CollisionV[],
-												const uniform FVector CollisionX[],
-												const uniform FVector CollisionW[],
-												const uniform FVector4 CollisionR[],
+export void ApplyPerParticleCollisionNoFriction(uniform FVector3f ParticlesP[],
+												const uniform FVector3f ParticlesX[],
+												const uniform float ParticlesInvM[],
+												const uniform FVector3f CollisionV[],
+												const uniform FVector3f CollisionX[],
+												const uniform FVector3f CollisionW[],
+												const uniform FVector4f CollisionR[],
 												const uniform uint32 DynamicGroupId,
 												const uniform uint32 KinematicGroupIds[],
-												const uniform FReal PerGroupThickness,
+												const uniform float PerGroupThickness,
 												const uniform uint8 *uniform CollisionParticles,
 												const uniform uint8 *uniform Geometry,
 												const uniform int SizeofFImplicitObject,
 												const uniform int OffsetofGeometryType,
 												const uniform int OffsetOfMargin,
-												const uniform FReal Dt,
+												const uniform float Dt,
 												const uniform int InnerOffset,
 												const uniform int InnerRange,
 												const uniform int OuterOffset,
@@ -885,21 +917,26 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const FReal IM = ParticlesInvM[Index];
+		const float IM = ParticlesInvM[Index];
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
 
-		FVector P = VectorLoad(&ParticlesP[extract(Index, 0)]);
+		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
 		{
-			const uniform FTransform Frame = SetTransform(CollisionR[i], SetVector4(CollisionX[i], (uniform FReal)(0.0)), Vector1110);
-			const FVector PhiWithNormalInput = InverseTransformPosition(Frame, P);
-			FVector Normal;
-			FReal Phi;
+			// InverseTransformPosition. Can skip Scale calculation because it is 1 for xyz.
+			const FVector3f TranslatedVec = P - CollisionX[i];
+			const FVector4f InverseR = QuatInverse(CollisionR[i]);
+			const FVector3f PhiWithNormalInputFloat = VectorQuaternionRotateVector(InverseR, TranslatedVec);
+			const FVector PhiWithNormalInput = ConvertVector3fTo3Native(PhiWithNormalInputFloat);
+			FVector NormalReal;
+			FReal PhiReal;
+			FVector3f Normal;
+			float Phi;
 
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
@@ -911,28 +948,38 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 			case Sphere:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Capsule:
 				{
 					const uniform FReal Margin = *((const uniform FReal *uniform)(Ptr + OffsetOfMargin));
-					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, Margin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Union:
 				{
-					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject, OffsetOfMargin);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case TaperedCapsule:
 				{
-					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			case Convex:
 				{
-					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, NormalReal, PhiReal, SizeofFImplicitObject);
+					Phi = (varying float)PhiReal;
+					Normal = ConvertVector3NativeTo3f(NormalReal);
 					break;
 				}
 			default:
@@ -943,15 +990,16 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 						IMMask = lanemask();
 					}
 
-					GetPhiWithNormal(CollisionParticles, (const uniform FReal *uniform)&PhiWithNormalInput, (uniform FReal *uniform)&Normal, (uniform FReal *uniform)&Phi, i, programCount, IMMask);
+					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInputFloat, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
 					break;
 				}
 			}
 
-			const FReal Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
-			if(Penetration > (uniform FReal)(0.0))
+			const float Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
+			if(Penetration > 0.0f)
 			{
-				const FVector NormalWorld = TransformVector(Frame, Normal);
+				// TransformVector. Scale is 1 so that part can be removed.
+				const FVector3f NormalWorld = VectorQuaternionRotateVector(CollisionR[i], Normal);
 				P = P + (Penetration * NormalWorld);
 			}
 		}

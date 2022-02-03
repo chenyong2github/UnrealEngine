@@ -5,13 +5,13 @@
 #include "Math/Vector.isph"
 #include "Math/Transform.isph"
 
-export void ApplyPreSimulationTransforms(uniform FVector ParticlesP[],
-										uniform FVector ParticlesV[],
-										uniform FVector ParticlesX[],
-										uniform FVector OldAnimationPositions[],
+export void ApplyPreSimulationTransforms(uniform FVector3f ParticlesP[],
+										uniform FVector3f ParticlesV[],
+										uniform FVector3f ParticlesX[],
+										uniform FVector3f OldAnimationPositions[],
 										const uniform uint32 ParticleGroupIds[],
-										const uniform FTransform PreSimulationTransforms[],
-										const uniform FVector &DeltaLocalSpaceLocation,
+										const uniform FTransform3f PreSimulationTransforms[],
+										const uniform FVector3f &DeltaLocalSpaceLocation,
 										const uniform int32 Offset,
 										const uniform int32 Range)
 {
@@ -19,38 +19,38 @@ export void ApplyPreSimulationTransforms(uniform FVector ParticlesP[],
 	{
 		const varying uint32 ParticleGroupId = ParticleGroupIds[i];
 		#pragma ignore warning(perf)
-		const varying FTransform GroupSpaceTransform = PreSimulationTransforms[ParticleGroupId];
+		const varying FTransform3f GroupSpaceTransform = PreSimulationTransforms[ParticleGroupId];
 
 		const uniform int32 Index = extract(i, 0);
 
-		const varying FVector ParticleX = VectorLoad(&ParticlesX[Index]);
-		const varying FVector PX = TransformPosition(GroupSpaceTransform, ParticleX) - DeltaLocalSpaceLocation;
+		const varying FVector3f ParticleX = VectorLoad(&ParticlesX[Index]);
+		const varying FVector3f PX = TransformPosition(GroupSpaceTransform, ParticleX) - DeltaLocalSpaceLocation;
 		VectorStore(&ParticlesP[Index], PX);
 		VectorStore(&ParticlesX[Index], PX);
 
-		const varying FVector ParticleV = VectorLoad(&ParticlesV[Index]);
-		const varying FVector V = TransformVector(GroupSpaceTransform, ParticleV);
+		const varying FVector3f ParticleV = VectorLoad(&ParticlesV[Index]);
+		const varying FVector3f V = TransformVector(GroupSpaceTransform, ParticleV);
 		VectorStore(&ParticlesV[Index], V);
 
-		const varying FVector OldAnimationPosition = VectorLoad(&OldAnimationPositions[Index]);
-		const varying FVector AP = TransformPosition(GroupSpaceTransform, OldAnimationPosition) - DeltaLocalSpaceLocation;
+		const varying FVector3f OldAnimationPosition = VectorLoad(&OldAnimationPositions[Index]);
+		const varying FVector3f AP = TransformPosition(GroupSpaceTransform, OldAnimationPosition) - DeltaLocalSpaceLocation;
 		VectorStore(&OldAnimationPositions[Index], AP);
 	}
 }
 
-export void CalculateBounds(uniform FVector &MMin,
-							uniform FVector &MMax,
-							const uniform FVector ParticlesX[],
+export void CalculateBounds(uniform FVector3f &MMin,
+							uniform FVector3f &MMax,
+							const uniform FVector3f ParticlesX[],
 							const uniform int32 Offset,
 							const uniform int32 Range)
 {
-	varying FVector Min = MMin;
-	varying FVector Max = MMax;
+	varying FVector3f Min = MMin;
+	varying FVector3f Max = MMax;
 
 	foreach(i = Offset ... Range)
 	{
 		const uniform int32 Index = extract(i, 0);
-		const varying FVector X = VectorLoad(&ParticlesX[Index]);
+		const varying FVector3f X = VectorLoad(&ParticlesX[Index]);
 
 		Min = VectorMin(Min, X);
 		Max = VectorMax(Max, X);
@@ -60,18 +60,18 @@ export void CalculateBounds(uniform FVector &MMin,
 	MMax = VectorReduceMax(Max);
 }
 
-export void CalculateSquaredRadius(uniform FReal &SquaredRadius,
-									const uniform FVector &Center,
-									const uniform FVector ParticlesX[],
+export void CalculateSquaredRadius(uniform float &SquaredRadius,
+									const uniform FVector3f &Center,
+									const uniform FVector3f ParticlesX[],
 									const uniform int32 Offset,
 									const uniform int32 Range)
 {
-	varying FReal vSquaredRadius = SquaredRadius;
+	varying float vSquaredRadius = SquaredRadius;
 
 	foreach(i = Offset ... Range)
 	{
 		const uniform int32 Index = extract(i, 0);
-		const varying FVector X = VectorLoad(&ParticlesX[Index]);
+		const varying FVector3f X = VectorLoad(&ParticlesX[Index]);
 
 		vSquaredRadius = max(vSquaredRadius, VectorSizeSquared(X - Center));
 	}

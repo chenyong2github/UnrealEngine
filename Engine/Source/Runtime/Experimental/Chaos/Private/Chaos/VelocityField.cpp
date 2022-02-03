@@ -5,9 +5,9 @@
 #if INTEL_ISPC
 #include "VelocityField.ispc.generated.h"
 
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FIntVector) == sizeof(Chaos::TVec3<int32>), "sizeof(ispc::FIntVector) != sizeof(Chaos::TVec3<int32>)");
-static_assert(sizeof(ispc::FVector2) == sizeof(Chaos::FVec2), "sizeof(ispc::FVector2) != sizeof(Chaos::FVec2)");
+static_assert(sizeof(ispc::FVector2f) == sizeof(Chaos::Softs::FSolverVec2), "sizeof(ispc::FVector2f) != sizeof(Chaos::Softs::FSolverVec2)");
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
@@ -15,7 +15,7 @@ bool bChaos_VelocityField_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosVelocityFieldISPCEnabled(TEXT("p.Chaos.VelocityField.ISPC"), bChaos_VelocityField_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in velocity field calculations"));
 #endif
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
 void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
 {
@@ -47,7 +47,7 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 		}
 		else
 		{
-			static const FReal OneThird = (FReal)1. / (FReal)3.;
+			constexpr FSolverReal OneThird = (FSolverReal)1. / (FSolverReal)3.;
 
 			Multipliers.SetNumUninitialized(Elements.Num());
 
@@ -61,15 +61,15 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 				switch (WeighMaps)
 				{
 				case EWeighMaps::DragMultipliers:
-					Multipliers[ElementIndex] = FVec2((DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird, (FReal)0.); break;
+					Multipliers[ElementIndex] = FSolverVec2((FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird, (FSolverReal)0.); break;
 					break;
 				case EWeighMaps::LiftMultipliers:
-					Multipliers[ElementIndex] = FVec2((FReal)0., (LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird); break;
+					Multipliers[ElementIndex] = FSolverVec2((FSolverReal)0., (FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird); break;
 					break;
 				default:
-					Multipliers[ElementIndex] = FVec2(
-						DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2],
-						LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird;
+					Multipliers[ElementIndex] = FSolverVec2(
+						(FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird,
+						(FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird);
 					break;
 				}
 			}
@@ -83,13 +83,13 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 		NumParticles = 0;
 		Forces.Reset();
 		Multipliers.Reset();
-		SetProperties(FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);
+		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0.);
 	}
 }
 
 
 
-void FVelocityField::UpdateForces(const FPBDParticles& InParticles, const FReal /*Dt*/)
+void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/)
 {
 	if (!Multipliers.Num())
 	{
@@ -97,11 +97,11 @@ void FVelocityField::UpdateForces(const FPBDParticles& InParticles, const FReal 
 		if (bRealTypeCompatibleWithISPC && bChaos_VelocityField_ISPC_Enabled)
 		{
 			ispc::UpdateField(
-				(ispc::FVector*)Forces.GetData(),
+				(ispc::FVector3f*)Forces.GetData(),
 				(const ispc::FIntVector*)Elements.GetData(),
-				(const ispc::FVector*)InParticles.GetV().GetData(),
-				(const ispc::FVector*)InParticles.XArray().GetData(),
-				(const ispc::FVector&)Velocity,
+				(const ispc::FVector3f*)InParticles.GetV().GetData(),
+				(const ispc::FVector3f*)InParticles.XArray().GetData(),
+				(const ispc::FVector3f&)Velocity,
 				QuarterRho,
 				DragBase,
 				LiftBase,
@@ -122,12 +122,12 @@ void FVelocityField::UpdateForces(const FPBDParticles& InParticles, const FReal 
 		if (bRealTypeCompatibleWithISPC && bChaos_VelocityField_ISPC_Enabled)
 		{
 			ispc::UpdateFieldWithWeightMaps(
-				(ispc::FVector*)Forces.GetData(),
+				(ispc::FVector3f*)Forces.GetData(),
 				(const ispc::FIntVector*)Elements.GetData(),
-				(const ispc::FVector*)InParticles.GetV().GetData(),
-				(const ispc::FVector*)InParticles.XArray().GetData(),
-				(const ispc::FVector2*)Multipliers.GetData(),
-				(const ispc::FVector&)Velocity,
+				(const ispc::FVector3f*)InParticles.GetV().GetData(),
+				(const ispc::FVector3f*)InParticles.XArray().GetData(),
+				(const ispc::FVector2f*)Multipliers.GetData(),
+				(const ispc::FVector3f&)Velocity,
 				QuarterRho,
 				DragBase,
 				DragRange,
@@ -140,12 +140,14 @@ void FVelocityField::UpdateForces(const FPBDParticles& InParticles, const FReal 
 		{
 			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 			{
-				const FVec2& Multiplier = Multipliers[ElementIndex];
-				const FReal Cd = DragBase + DragRange * Multiplier[0];
-				const FReal Cl = LiftBase + LiftRange * Multiplier[1];
+				const FSolverVec2& Multiplier = Multipliers[ElementIndex];
+				const FSolverReal Cd = DragBase + DragRange * Multiplier[0];
+				const FSolverReal Cl = LiftBase + LiftRange * Multiplier[1];
 
 				UpdateField(InParticles, ElementIndex, Velocity, Cd, Cl);
 			}
 		}
 	}
 }
+
+}  // End namespace Chaos::Softs

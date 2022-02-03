@@ -6,24 +6,22 @@
 #include "Chaos/PBDActiveView.h"
 #include "Misc/ScopeLock.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
-template<EGeometryParticlesSimType SimType>
-class TPerParticlePBDCCDCollisionConstraint final
+
+class FPerParticlePBDCCDCollisionConstraint final
 {
 public:
-	typedef TKinematicGeometryParticlesImp<FReal, 3, SimType> FCollisionParticles;
-
-	TPerParticlePBDCCDCollisionConstraint(
-		const TPBDActiveView<FCollisionParticles>& InCollisionParticlesActiveView,
-		TArray<FRigidTransform3>& InCollisionTransforms,
+	FPerParticlePBDCCDCollisionConstraint(
+		const TPBDActiveView<FSolverRigidParticles>& InCollisionParticlesActiveView,
+		TArray<FSolverRigidTransform3>& InCollisionTransforms,
 		TArray<bool>& InCollided,
-		TArray<FVec3>& InContacts,
-		TArray<FVec3>& InNormals,
+		TArray<FSolverVec3>& InContacts,
+		TArray<FSolverVec3>& InNormals,
 		TArray<uint32>& InDynamicGroupIds,
 		TArray<uint32>& InKinematicGroupIds,
-		const TArray<FReal>& InPerGroupThicknesses,
-		const TArray<FReal>& InPerGroupFriction,
+		const TArray<FSolverReal>& InPerGroupThicknesses,
+		const TArray<FSolverReal>& InPerGroupFriction,
 		bool bWriteCCDContacts)
 		: CollisionParticlesActiveView(InCollisionParticlesActiveView)
 		, CollisionTransforms(InCollisionTransforms)
@@ -38,12 +36,12 @@ public:
 	{
 	}
 
-	~TPerParticlePBDCCDCollisionConstraint()
+	~FPerParticlePBDCCDCollisionConstraint()
 	{
 		delete Mutex;
 	}
 
-	inline void ApplyRange(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
+	inline void ApplyRange(FSolverParticles& Particles, const FSolverReal Dt, const int32 Offset, const int32 Range) const
 	{
 		if (Mutex)
 		{
@@ -57,22 +55,22 @@ public:
 
 private:
 	template<bool bLockAndWriteContacts>
-	inline void ApplyRangeHelper(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
+	inline void ApplyRangeHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 Offset, const int32 Range) const
 	{
 		const uint32 DynamicGroupId = DynamicGroupIds[Offset];  // Particle group Id, must be the same across the entire range
-		const FReal Friction = PerGroupFriction[DynamicGroupId];
-		const FReal Thickness = PerGroupThicknesses[DynamicGroupId];
+		const FSolverReal Friction = PerGroupFriction[DynamicGroupId];
+		const FSolverReal Thickness = PerGroupThicknesses[DynamicGroupId];
 
 		PhysicsParallelFor(Range - Offset, [this, &Particles, Offset, DynamicGroupId, Thickness, Friction, Dt](int32 i)
 		{
 			const int32 Index = Offset + i;
 
-			if (Particles.InvM(Index) == (FReal)0.)
+			if (Particles.InvM(Index) == (FSolverReal)0.)
 			{
 				return;  // Continue
 			}
 
-			CollisionParticlesActiveView.SequentialFor([this, &Particles, &Index, DynamicGroupId, Thickness, Friction, Dt](FCollisionParticles& CollisionParticles, int32 CollisionIndex)
+			CollisionParticlesActiveView.SequentialFor([this, &Particles, &Index, DynamicGroupId, Thickness, Friction, Dt](FSolverRigidParticles& CollisionParticles, int32 CollisionIndex)
 			{
 				const uint32 KinematicGroupId = KinematicGroupIds[CollisionIndex];  // Collision group Id
 
@@ -81,19 +79,19 @@ private:
 					return; // Bail out if the collision groups doesn't match the particle group id, or use INDEX_NONE (= global collision that affects all particle)
 				}
 
-				const FRigidTransform3 Frame(CollisionParticles.X(CollisionIndex), CollisionParticles.R(CollisionIndex));
+				const FSolverRigidTransform3 Frame(CollisionParticles.X(CollisionIndex), CollisionParticles.R(CollisionIndex));
 
-				const Pair<FVec3, bool> PointPair = CollisionParticles.Geometry(CollisionIndex)->FindClosestIntersection(
-					CollisionTransforms[CollisionIndex].InverseTransformPositionNoScale(Particles.X(Index)),
-					Frame.InverseTransformPositionNoScale(Particles.P(Index)), Thickness);
+				const Pair<FVec3, bool> PointPair = CollisionParticles.Geometry(CollisionIndex)->FindClosestIntersection(  // Geometry operates in FReal
+					FVec3(CollisionTransforms[CollisionIndex].InverseTransformPositionNoScale(Particles.X(Index))),        // hence the back and forth
+					FVec3(Frame.InverseTransformPositionNoScale(Particles.P(Index))), (FReal)Thickness);                   // FVec3/FReal conversions
 
 				if (PointPair.Second)
 				{
 					Collided[CollisionIndex] = true;
 
-					const FVec3 Normal = CollisionParticles.Geometry(CollisionIndex)->Normal(PointPair.First);
-					const FVec3 NormalWorld = Frame.TransformVectorNoScale(Normal);
-					const FVec3 ContactWorld = Frame.TransformPositionNoScale(PointPair.First);
+					const FSolverVec3 Normal = FSolverVec3(CollisionParticles.Geometry(CollisionIndex)->Normal(PointPair.First));
+					const FSolverVec3 NormalWorld = Frame.TransformVectorNoScale(Normal);
+					const FSolverVec3 ContactWorld = Frame.TransformPositionNoScale(PointPair.First);
 
 					if (bLockAndWriteContacts)
 					{
@@ -102,20 +100,20 @@ private:
 						Contacts.Emplace(ContactWorld);
 						Normals.Emplace(NormalWorld);
 					}
-					const FVec3 Direction = ContactWorld - Particles.P(Index);
-					const FReal Penetration = FMath::Max((FReal)0., FVec3::DotProduct(NormalWorld, Direction)) + (FReal)THRESH_POINT_ON_PLANE;
+					const FSolverVec3 Direction = ContactWorld - Particles.P(Index);
+					const FSolverReal Penetration = FMath::Max((FSolverReal)0., FSolverVec3::DotProduct(NormalWorld, Direction)) + (FSolverReal)THRESH_POINT_ON_PLANE;
 
 					Particles.P(Index) += Penetration * NormalWorld;
 
 					// Friction
-					const FVec3 VectorToPoint = Particles.P(Index) - CollisionParticles.X(CollisionIndex);
-					const FVec3 RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(CollisionIndex) + FVec3::CrossProduct(CollisionParticles.W(CollisionIndex), VectorToPoint)) * Dt;  // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
-					const FVec3 RelativeDisplacementTangent = RelativeDisplacement - FVec3::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld;  // Project displacement into the tangential plane
-					const FReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
+					const FSolverVec3 VectorToPoint = Particles.P(Index) - CollisionParticles.X(CollisionIndex);
+					const FSolverVec3 RelativeDisplacement = (Particles.P(Index) - Particles.X(Index)) - (CollisionParticles.V(CollisionIndex) + FSolverVec3::CrossProduct(CollisionParticles.W(CollisionIndex), VectorToPoint)) * Dt;  // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+					const FSolverVec3 RelativeDisplacementTangent = RelativeDisplacement - FSolverVec3::DotProduct(RelativeDisplacement, NormalWorld) * NormalWorld;  // Project displacement into the tangential plane
+					const FSolverReal RelativeDisplacementTangentLength = RelativeDisplacementTangent.Size();
 					if (RelativeDisplacementTangentLength >= SMALL_NUMBER)
 					{
-						const FReal PositionCorrection = FMath::Min<FReal>(Penetration * Friction, RelativeDisplacementTangentLength);
-						const FReal CorrectionRatio = PositionCorrection / RelativeDisplacementTangentLength;
+						const FSolverReal PositionCorrection = FMath::Min<FSolverReal>(Penetration * Friction, RelativeDisplacementTangentLength);
+						const FSolverReal CorrectionRatio = PositionCorrection / RelativeDisplacementTangentLength;
 						Particles.P(Index) -= CorrectionRatio * RelativeDisplacementTangent;
 					}
 				}
@@ -125,15 +123,16 @@ private:
 
 private:
 	// TODO(mlentine): Need a bb hierarchy
-	const TPBDActiveView<FCollisionParticles>& CollisionParticlesActiveView;
-	const TArray<FRigidTransform3>& CollisionTransforms;
+	const TPBDActiveView<FSolverRigidParticles>& CollisionParticlesActiveView;
+	const TArray<FSolverRigidTransform3>& CollisionTransforms;
 	TArray<bool>& Collided;
-	TArray<FVec3>& Contacts;
-	TArray<FVec3>& Normals;
+	TArray<FSolverVec3>& Contacts;
+	TArray<FSolverVec3>& Normals;
 	const TArray<uint32>& DynamicGroupIds;
 	const TArray<uint32>& KinematicGroupIds;
-	const TArray<FReal>& PerGroupThicknesses;
-	const TArray<FReal>& PerGroupFriction;
+	const TArray<FSolverReal>& PerGroupThicknesses;
+	const TArray<FSolverReal>& PerGroupFriction;
 	FCriticalSection* const Mutex;
 };
-}
+
+}  // End namespace Chaos::Softs

@@ -1,32 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDLongRangeConstraintsBase.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Constraint"), STAT_PBD_LongRange, STATGROUP_Chaos);
 
-namespace Chaos
+namespace Chaos::Softs
 {
-class CHAOS_API FPBDLongRangeConstraints final : public FPBDLongRangeConstraintsBase
+
+class CHAOS_API FPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase
 {
 public:
 	typedef FPBDLongRangeConstraintsBase Base;
 	typedef typename Base::FTether FTether;
 
 	FPBDLongRangeConstraints(
-		const FPBDParticles& Particles,
+		const FSolverParticles& Particles,
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
-		const FVec2& InStiffness = FVec2::UnitVector,
-		const FVec2& InScale = FVec2::UnitVector)
+		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
+		const FSolverVec2& InScale = FSolverVec2::UnitVector)
 		: FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, InTethers, StiffnessMultipliers, ScaleMultipliers, InStiffness, InScale) {}
-	virtual ~FPBDLongRangeConstraints() {}
+	virtual ~FPBDLongRangeConstraints() override {}
 
-	void Apply(FPBDParticles& Particles, const FReal Dt) const;
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
 	using Base::Tethers;
@@ -35,7 +37,8 @@ private:
 	using Base::ScaleTable;
 	using Base::ScaleIndices;
 };
-}
+
+}  // End namespace Chaos::Softs
 
 // Support ISPC enable/disable in non-shipping builds
 #if !INTEL_ISPC

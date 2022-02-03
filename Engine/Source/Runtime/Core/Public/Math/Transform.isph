@@ -7,12 +7,21 @@
 #include "Math/Quat.isph"
 #include "Math/Matrix.isph"
 
+struct FTransform3f
+{
+	FVector4f Rotation;
+	FVector4f Translation;
+	FVector4f Scale3D;
+};
+
 struct FTransform
 {
-	FVector4 Rotation;
-	FVector4 Translation;
-	FVector4 Scale3D;
+	FVector4d Rotation;
+	FVector4d Translation;
+	FVector4d Scale3D;
 };
+
+typedef FTransform FTransform3d;
 
 struct FTransform8
 {
@@ -216,30 +225,57 @@ inline void ScaleTranslation(uniform FTransform &Transform, const uniform FReal 
 	Transform.Translation = VectorMultiply(Transform.Translation, VectorScale);
 }
 
-inline uniform FVector4 TransformVector(const uniform FTransform &T, const uniform FVector4& V)
+inline uniform FVector4d TransformVector(const uniform FTransform3d &T, const uniform FVector4d& V)
 {
-	const uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+	const uniform FVector4d InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const uniform FVector4d ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
 	return VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 }
 
-inline uniform FVector TransformVector(const uniform FTransform &T, const uniform FVector& V)
+inline uniform FVector4f TransformVector(const uniform FTransform3f &T, const uniform FVector4f& V)
 {
-	const uniform FVector4 InputVectorW0 = SetVector4(V, 0);
+	const uniform FVector4f InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
-	const uniform FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	const uniform FVector4f ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	return VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+}
+
+inline uniform FVector3d TransformVector(const uniform FTransform3d &T, const uniform FVector3d& V)
+{
+	const uniform FVector4d InputVectorW0 = SetVector4(V, 0);
+
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const uniform FVector4d ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const uniform FVector4d RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 	return SetVector(RotatedVec);
 }
 
-inline FVector TransformVector(const FTransform &T, const FVector& V)
+inline uniform FVector3f TransformVector(const uniform FTransform3f &T, const uniform FVector3f& V)
+{
+	const uniform FVector4f InputVectorW0 = SetVector4(V, 0);
+
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const uniform FVector4f ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const uniform FVector4f RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	return SetVector(RotatedVec);
+}
+
+inline FVector3d TransformVector(const FTransform3d &T, const FVector3d& V)
 {
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const FVector ScaledVec = SetVector(T.Scale3D) * V;
-	const FVector RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	const FVector3d ScaledVec = SetVector(T.Scale3D) * V;
+	const FVector3d RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	return RotatedVec;
+}
+
+inline FVector3f TransformVector(const FTransform3f &T, const FVector3f& V)
+{
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const FVector3f ScaledVec = SetVector(T.Scale3D) * V;
+	const FVector3f RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 	return RotatedVec;
 }
 
@@ -260,18 +296,34 @@ inline uniform FVector TransformVectorNoScale(const uniform FTransform &T, const
 	return SetVector(RotatedVec);
 }
 
-inline FVector TransformPosition(const FTransform &T, const FVector& V)
+inline FVector3d TransformPosition(const FTransform3d &T, const FVector3d& V)
 {
-	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+	FVector4d InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
-	const FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	const FVector4d ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const FVector4d RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 
-	const FVector4 TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+	const FVector4d TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+
+	return SetVector(TranslatedVec);
+}
+
+inline FVector3f TransformPosition(const FTransform3f &T, const FVector3f& V)
+{
+	FVector4f InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+
+	//Transform using QST is following
+	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
+
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const FVector4f ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const FVector4f RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+
+	const FVector4f TranslatedVec = VectorAdd(RotatedVec, T.Translation);
 
 	return SetVector(TranslatedVec);
 }
@@ -292,32 +344,62 @@ inline FVector TransformPosition(const uniform FTransform &T, const FVector& V)
 	return SetVector(TranslatedVec);
 }
 
-inline uniform FVector TransformPosition(const uniform FTransform &T, const uniform FVector& V)
+inline uniform FVector3d TransformPosition(const uniform FTransform3d &T, const uniform FVector3d& V)
 {
-	uniform FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+	uniform FVector4d InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
 
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
-	const uniform FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	const uniform FVector4d ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const uniform FVector4d RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 
-	const uniform FVector4 TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+	const uniform FVector4d TranslatedVec = VectorAdd(RotatedVec, T.Translation);
 
 	return SetVector(TranslatedVec);
 }
 
-inline static uniform FVector4 TransformPosition(const uniform FTransform &T, const uniform FVector4& V)
+inline uniform FVector3f TransformPosition(const uniform FTransform3f &T, const uniform FVector3f& V)
+{
+	uniform FVector4f InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0);
+
+	//Transform using QST is following
+	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
+
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const uniform FVector4f ScaledVec = VectorMultiply(T.Scale3D, InputVectorW0);
+	const uniform FVector4f RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+
+	const uniform FVector4f TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+
+	return SetVector(TranslatedVec);
+}
+
+inline static uniform FVector4d TransformPosition(const uniform FTransform3d &T, const uniform FVector4d& V)
 {
 	//Transform using QST is following
 	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
 
 	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
-	const uniform FVector4 ScaledVec = VectorMultiply(T.Scale3D, V);
-	const uniform FVector4 RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+	const uniform FVector4d ScaledVec = VectorMultiply(T.Scale3D, V);
+	const uniform FVector4d RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
 
-	const uniform FVector4 TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+	const uniform FVector4d TranslatedVec = VectorAdd(RotatedVec, T.Translation);
+
+	return TranslatedVec;
+}
+
+inline static uniform FVector4f TransformPosition(const uniform FTransform3f &T, const uniform FVector4f& V)
+{
+	//Transform using QST is following
+	//QST(P) = Q.Rotate(S*P) + T where Q = quaternion, S = scale, T = translation
+
+	//RotatedVec = Q.Rotate(Scale*V.X, Scale*V.Y, Scale*V.Z, 0.f)
+	const uniform FVector4f ScaledVec = VectorMultiply(T.Scale3D, V);
+	const uniform FVector4f RotatedVec = VectorQuaternionRotateVector(T.Rotation, ScaledVec);
+
+	const uniform FVector4f TranslatedVec = VectorAdd(RotatedVec, T.Translation);
 
 	return TranslatedVec;
 }

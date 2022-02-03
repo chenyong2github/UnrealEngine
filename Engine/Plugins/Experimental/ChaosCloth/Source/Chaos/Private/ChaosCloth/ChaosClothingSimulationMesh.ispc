@@ -39,22 +39,22 @@ static inline void AddInfluence(uniform FVector4f& OutPosition, uniform FVector4
 	OutNormal = OutNormal + Norm * Weight;
 }
 
-static inline uniform FVector GetSafeNormal(const uniform FVector &V)
+static inline uniform FVector3f GetSafeNormal(const uniform FVector3f &V)
 {
 	//We want N / ||N|| and to avoid inf
 	//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
-	const uniform FReal SizeSqr = VectorSizeSquared(V);
-	return VectorSelect(SizeSqr <= REAL_MIN, ForwardVector, V / sqrt(SizeSqr));
+	const uniform float SizeSqr = VectorSizeSquared(V);
+	return VectorSelect(SizeSqr <= FLT_MIN, FloatForwardVector, V / sqrt(SizeSqr));
 }
 
-export void SkinPhysicsMesh(uniform FVector OutPositions[],
-							uniform FVector OutNormals[],
+export void SkinPhysicsMesh(uniform FVector3f OutPositions[],
+							uniform FVector3f OutNormals[],
 							const uniform FVector3f Vertices[],
 							const uniform FVector3f Normals[],
 							const uniform FClothVertBoneData BoneData[],
 							const uniform int32 BoneMap[],
 							const uniform FMatrix44f BoneMatrices[],
-							const uniform FTransform &ComponentToLocalSpace,
+							const uniform FTransform3f &ComponentToLocalSpace,
 							const uniform int32 NumPoints)
 {
 	for(uniform int i = 0; i < NumPoints; ++i)
@@ -76,11 +76,8 @@ export void SkinPhysicsMesh(uniform FVector OutPositions[],
 			AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrix, Weight);
 		}
 
-		const uniform FVector4 ConvertedPosition = ConvertVector4fTo4Native(OutPosition);
-		const uniform FVector4 ConvertedNormal = ConvertVector4fTo4Native(OutNormal);
-
-		const uniform FVector Position = SetVector(ConvertedPosition);
-		const uniform FVector Normal = SetVector(ConvertedNormal);
+		const uniform FVector3f Position = SetVector(OutPosition);
+		const uniform FVector3f Normal = SetVector(OutNormal);
 
 		OutPositions[i] = TransformPosition(ComponentToLocalSpace, Position);
 		OutNormals[i] = GetSafeNormal(TransformVector(ComponentToLocalSpace, Normal));

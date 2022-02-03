@@ -208,7 +208,6 @@ namespace Chaos
 
 	class FPerParticleGravity;
 
-	class FPBDSpringConstraints;
 	class FConvex;
 	class FCapsule;
 

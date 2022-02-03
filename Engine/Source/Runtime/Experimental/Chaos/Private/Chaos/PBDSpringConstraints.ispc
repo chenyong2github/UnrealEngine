@@ -4,20 +4,20 @@
 
 #include "Math/Vector.isph"
 
-static inline FReal SafeNormalize(FVector &Direction)
+static inline float SafeNormalize(FVector3f &Direction)
 {
-	const FReal SizeSquared = VectorSizeSquared(Direction);
-	const FReal Size = sqrt(SizeSquared);
-	Direction = VectorSelect((SizeSquared < KINDA_SMALL_NUMBER), ForwardVector, Direction / Size);
-	return (SizeSquared < KINDA_SMALL_NUMBER) ? ZERO : Size;
+	const float SizeSquared = VectorSizeSquared(Direction);
+	const float Size = sqrt(SizeSquared);
+	Direction = VectorSelect((SizeSquared < FLOAT_KINDA_SMALL_NUMBER), FloatForwardVector, Direction / Size);
+	return (SizeSquared < FLOAT_KINDA_SMALL_NUMBER) ? FLOAT_ZERO : Size;
 }
 
-export void ApplySpringConstraints(uniform FVector P[],
+export void ApplySpringConstraints(uniform FVector3f P[],
 									const uniform FIntVector2 AllConstraints[],
 									const uniform int32 ActiveConstraints[],
-									const uniform FReal InvM[],
-									const uniform FReal Dists[],
-									const uniform FReal Stiffness,
+									const uniform float InvM[],
+									const uniform float Dists[],
+									const uniform float Stiffness,
 									const uniform int32 NumConstraints)
 {
 	varying int32 ActiveConstraint;
@@ -43,14 +43,14 @@ export void ApplySpringConstraints(uniform FVector P[],
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
-		const varying FVector P1 = VectorGather(&P[i1]);
-		const varying FVector P2 = VectorGather(&P[i2]);
+		const varying FVector3f P1 = VectorGather(&P[i1]);
+		const varying FVector3f P2 = VectorGather(&P[i2]);
 
-		FVector Direction = P1 - P2;
-		const FReal Distance = SafeNormalize(Direction);
+		FVector3f Direction = P1 - P2;
+		const float Distance = SafeNormalize(Direction);
 
 		#pragma ignore warning(perf)
-		const varying FReal Dist = Dists[ActiveConstraint];
+		const varying float Dist = Dists[ActiveConstraint];
 
 #if HW_GATHER_SUPPORTED == 1
 		if(i + programCount < NumConstraints)
@@ -61,36 +61,36 @@ export void ApplySpringConstraints(uniform FVector P[],
 		}
 #endif
 
-		const FVector InnerDelta = (Distance - Dist) * Direction;
+		const FVector3f InnerDelta = (Distance - Dist) * Direction;
 
 		#pragma ignore warning(perf)
-		const varying FReal InvM1 = InvM[i1];
+		const varying float InvM1 = InvM[i1];
 		#pragma ignore warning(perf)
-		const varying FReal InvM2 = InvM[i2];
+		const varying float InvM2 = InvM[i2];
 
-		const FReal CombinedInvMass = InvM2 + InvM1;
-		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
+		const float CombinedInvMass = InvM2 + InvM1;
+		const FVector3f ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
-		const FVector Delta = VectorSelect((InvM2 == ZERO && InvM1 == ZERO), ZeroVector, ComputedDelta);
+		const FVector3f Delta = VectorSelect((InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
 
-		if (InvM1 > ZERO)
+		if (InvM1 > FLOAT_ZERO)
 		{
 			VectorScatter(&P[i1], P1 - (InvM1 * Delta));
 		}
-		if (InvM2 > ZERO)
+		if (InvM2 > FLOAT_ZERO)
 		{
 			VectorScatter(&P[i2], P2 + (InvM2 * Delta));
 		}
 	}
 }
 
-export void ApplySpringConstraintsWithWeightMaps(uniform FVector P[],
+export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
 									const uniform FIntVector2 AllConstraints[],
 									const uniform int32 ActiveConstraints[],
-									const uniform FReal InvM[],
-									const uniform FReal Dists[],
+									const uniform float InvM[],
+									const uniform float Dists[],
 									const uniform uint8 StiffnessIndices[],
-									const uniform FReal StiffnessTable[],
+									const uniform float StiffnessTable[],
 									const uniform int32 NumConstraints)
 {
 	varying int32 ActiveConstraint;
@@ -116,14 +116,14 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector P[],
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
-		const varying FVector P1 = VectorGather(&P[i1]);
-		const varying FVector P2 = VectorGather(&P[i2]);
+		const varying FVector3f P1 = VectorGather(&P[i1]);
+		const varying FVector3f P2 = VectorGather(&P[i2]);
 
-		FVector Direction = P1 - P2;
-		const FReal Distance = SafeNormalize(Direction);
+		FVector3f Direction = P1 - P2;
+		const float Distance = SafeNormalize(Direction);
 
 		#pragma ignore warning(perf)
-		const varying FReal Dist = Dists[ActiveConstraint];
+		const varying float Dist = Dists[ActiveConstraint];
 
 		#pragma ignore warning(perf)
 		const varying uint8 StiffnessIndex = StiffnessIndices[ActiveConstraint];
@@ -137,26 +137,26 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector P[],
 		}
 #endif
 
-		const FVector InnerDelta = (Distance - Dist) * Direction;
+		const FVector3f InnerDelta = (Distance - Dist) * Direction;
 
 		#pragma ignore warning(perf)
-		const varying FReal InvM1 = InvM[i1];
+		const varying float InvM1 = InvM[i1];
 		#pragma ignore warning(perf)
-		const varying FReal InvM2 = InvM[i2];
+		const varying float InvM2 = InvM[i2];
 
 		#pragma ignore warning(perf)
-		const varying FReal Stiffness = StiffnessTable[StiffnessIndex];
+		const varying float Stiffness = StiffnessTable[StiffnessIndex];
 
-		const FReal CombinedInvMass = InvM2 + InvM1;
-		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
+		const float CombinedInvMass = InvM2 + InvM1;
+		const FVector3f ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
-		const FVector Delta = VectorSelect((InvM2 == ZERO && InvM1 == ZERO), ZeroVector, ComputedDelta);
+		const FVector3f Delta = VectorSelect((InvM2 == FLOAT_ZERO && InvM1 == FLOAT_ZERO), FloatZeroVector, ComputedDelta);
 
-		if (InvM1 > ZERO)
+		if (InvM1 > FLOAT_ZERO)
 		{
 			VectorScatter(&P[i1], P1 - (InvM1 * Delta));
 		}
-		if (InvM2 > ZERO)
+		if (InvM2 > FLOAT_ZERO)
 		{
 			VectorScatter(&P[i2], P2 + (InvM2 * Delta));
 		}

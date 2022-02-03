@@ -16,54 +16,52 @@
 
 namespace Chaos
 {
-	struct FVisualizationOption
+
+struct FVisualizationOption
+{
+	// Actual option entries
+	static const FVisualizationOption OptionData[];
+	static const uint32 Count;
+
+	// Chaos debug draw function
+	typedef void (Chaos::FClothingSimulation::*FDebugDrawFunction)(FPrimitiveDrawInterface*) const;
+	typedef void (Chaos::FClothingSimulation::*FDebugDrawTextsFunction)(FCanvas*, const FSceneView*) const;
+	FDebugDrawFunction DebugDrawFunction;
+	FDebugDrawTextsFunction DebugDrawTextsFunction;
+
+	FText DisplayName;         // Text for menu entries.
+	FText ToolTip;             // Text for menu tooltips.
+	bool bDisablesSimulation;  // Whether or not this option requires the simulation to be disabled.
+	bool bHidesClothSections;  // Hides the cloth section to avoid zfighting with the debug geometry.
+
+	// Console override
+	IConsoleVariable* const ConsoleVariable;
+
+	FVisualizationOption(FDebugDrawFunction InDebugDrawFunction, const TCHAR* ConsoleName, const FText& InDisplayName, const FText& InToolTip, bool bInDisablesSimulation = false, bool bInHidesClothSections = false)
+		: DebugDrawFunction(InDebugDrawFunction)
+		, DisplayName(InDisplayName)
+		, ToolTip(InToolTip)
+		, bDisablesSimulation(bInDisablesSimulation)
+		, bHidesClothSections(bInHidesClothSections)
+		, ConsoleVariable(IConsoleManager::Get().RegisterConsoleVariable(ConsoleName, false, *InToolTip.ToString(), 0))
+	{}
+
+	FVisualizationOption(FDebugDrawTextsFunction InDebugDrawTextsFunction, const TCHAR* ConsoleName, const FText& InDisplayName, const FText& InToolTip, bool bInDisablesSimulation = false, bool bInHidesClothSections = false)
+		: DebugDrawTextsFunction(InDebugDrawTextsFunction)
+		, DisplayName(InDisplayName)
+		, ToolTip(InToolTip)
+		, bDisablesSimulation(bInDisablesSimulation)
+		, bHidesClothSections(bInHidesClothSections)
+		, ConsoleVariable(IConsoleManager::Get().RegisterConsoleVariable(ConsoleName, false, *InToolTip.ToString(), 0))
+	{}
+
+	~FVisualizationOption()
 	{
-		// Actual option entries
-		static const FVisualizationOption OptionData[];
-		static const uint32 Count;
+		IConsoleManager::Get().UnregisterConsoleObject(ConsoleVariable);
+	}
 
-		// Chaos debug draw function
-		typedef void (Chaos::FClothingSimulation::*FDebugDrawFunction)(FPrimitiveDrawInterface*) const;
-		typedef void (Chaos::FClothingSimulation::*FDebugDrawTextsFunction)(FCanvas*, const FSceneView*) const;
-		FDebugDrawFunction DebugDrawFunction;
-		FDebugDrawTextsFunction DebugDrawTextsFunction;
-
-		FText DisplayName;         // Text for menu entries.
-		FText ToolTip;             // Text for menu tooltips.
-		bool bDisablesSimulation;  // Whether or not this option requires the simulation to be disabled.
-		bool bHidesClothSections;  // Hides the cloth section to avoid zfighting with the debug geometry.
-
-		// Console override
-		IConsoleVariable* const ConsoleVariable;
-
-		FVisualizationOption(FDebugDrawFunction InDebugDrawFunction, const TCHAR* ConsoleName, const FText& InDisplayName, const FText& InToolTip, bool bInDisablesSimulation = false, bool bInHidesClothSections = false)
-			: DebugDrawFunction(InDebugDrawFunction)
-			, DisplayName(InDisplayName)
-			, ToolTip(InToolTip)
-			, bDisablesSimulation(bInDisablesSimulation)
-			, bHidesClothSections(bInHidesClothSections)
-			, ConsoleVariable(IConsoleManager::Get().RegisterConsoleVariable(ConsoleName, false, *InToolTip.ToString(), 0))
-		{}
-
-		FVisualizationOption(FDebugDrawTextsFunction InDebugDrawTextsFunction, const TCHAR* ConsoleName, const FText& InDisplayName, const FText& InToolTip, bool bInDisablesSimulation = false, bool bInHidesClothSections = false)
-			: DebugDrawTextsFunction(InDebugDrawTextsFunction)
-			, DisplayName(InDisplayName)
-			, ToolTip(InToolTip)
-			, bDisablesSimulation(bInDisablesSimulation)
-			, bHidesClothSections(bInHidesClothSections)
-			, ConsoleVariable(IConsoleManager::Get().RegisterConsoleVariable(ConsoleName, false, *InToolTip.ToString(), 0))
-		{}
-
-		~FVisualizationOption()
-		{
-			IConsoleManager::Get().UnregisterConsoleObject(ConsoleVariable);
-		}
-
-		bool IsConsoleVariableEnabled() const { return ConsoleVariable->AsVariableBool()->GetValueOnGameThread(); }
-	};
-}
-
-using namespace Chaos;
+	bool IsConsoleVariableEnabled() const { return ConsoleVariable->AsVariableBool()->GetValueOnGameThread(); }
+};
 
 const FVisualizationOption FVisualizationOption::OptionData[] = 
 {
@@ -210,6 +208,8 @@ void FSimulationEditorExtender::ShowClothSections(USkeletalMeshComponent* MeshCo
 		}
 	}
 }
+
+}  // End namespace Chaos
 
 #undef LOCTEXT_NAMESPACE
 

@@ -17,8 +17,6 @@
 #define FRAMEPRO_ENABLED 0
 #endif
 
-using namespace Chaos;
-
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update"), STAT_ChaosClothSolverUpdate, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Cloths"), STAT_ChaosClothSolverUpdateCloths, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Pre Solver Step"), STAT_ChaosClothSolverUpdatePreSolverStep, STATGROUP_ChaosCloth);
@@ -28,41 +26,45 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Calculate Bounds"), STAT_ChaosClothS
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Particle Pre Simulation Transforms"), STAT_ChaosClothParticlePreSimulationTransforms, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Collision Pre Simulation Transforms"), STAT_ChaosClothCollisionPreSimulationTransforms, STATGROUP_ChaosCloth);
 
-static int32 ChaosClothSolverMinParallelBatchSize = 1000;
-static bool bChaosClothSolverParallelClothPreUpdate = false;  // TODO: Doesn't seem to improve much here. Review this after the ISPC implementation.
-static bool bChaosClothSolverParallelClothUpdate = true;
-static bool bChaosClothSolverParallelClothPostUpdate = true;
-static bool bChaosClothSolverUseImprovedTimeStepSmoothing = true;
-
-#if !UE_BUILD_SHIPPING
-static int32 ChaosClothSolverDebugHitchLength = 0;
-static int32 ChaosClothSolverDebugHitchInterval = 0;
-static bool bChaosClothSolverDisableCollision = false;
-
-FAutoConsoleVariableRef CVarChaosClothSolverMinParallelBatchSize(TEXT("p.ChaosCloth.Solver.MinParallelBatchSize"), ChaosClothSolverMinParallelBatchSize, TEXT("The minimum number of particle to process in parallel batch by the solver."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPreUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPreUpdate"), bChaosClothSolverParallelClothPreUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothUpdate"), bChaosClothSolverParallelClothUpdate, TEXT("Skin the physics mesh and do the other cloth update for each cloth in parallel."));
-FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPostUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPostUpdate"), bChaosClothSolverParallelClothPostUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
-FAutoConsoleVariableRef CVarChaosClothSolverDebugHitchLength(TEXT("p.ChaosCloth.Solver.DebugHitchLength"), ChaosClothSolverDebugHitchLength, TEXT("Hitch length in ms. Create artificial hitches to debug simulation jitter. 0 to disable"));
-FAutoConsoleVariableRef CVarChaosClothSolverDebugHitchInterval(TEXT("p.ChaosCloth.Solver.DebugHitchInterval"), ChaosClothSolverDebugHitchInterval, TEXT("Hitch interval in frames. Create artificial hitches to debug simulation jitter. 0 to disable"));
-FAutoConsoleVariableRef CVarChaosClothSolverDisableCollision(TEXT("p.ChaosCloth.Solver.DisableCollision"), bChaosClothSolverDisableCollision, TEXT("Disable all collision particles. Needs reset of the simulation (p.ChaosCloth.Reset)."));
-#endif
-
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 bool bChaos_PreSimulationTransforms_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosPreSimulationTransformsISPCEnabled(TEXT("p.Chaos.PreSimulationTransforms.ISPC"), bChaos_PreSimulationTransforms_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in ApplySimulationTransforms"));
 bool bChaos_CalculateBounds_ISPC_Enabled = bChaos_CalculateBounds_ISPC_Enable;  // Disabled by default
 FAutoConsoleVariableRef CVarChaosCalculateBoundsISPCEnabled(TEXT("p.Chaos.CalculateBounds.ISPC"), bChaos_CalculateBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in CalculateBounds"));
 
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FTransform3f) == sizeof(Chaos::Softs::FSolverRigidTransform3), "sizeof(ispc::FVector) != sizeof(Chaos::Softs::FSolverRigidTransform3)");
 #endif
 
-FAutoConsoleVariableRef CVarChaosClothSolverUseImprovedTimeStepSmoothing(TEXT("p.ChaosCloth.Solver.UseImprovedTimeStepSmoothing"), bChaosClothSolverUseImprovedTimeStepSmoothing, TEXT("Use the time step smoothing on input forces only rather than on the entire cloth solver, in order to avoid miscalculating velocities."));
-
-namespace ChaosClothingSimulationSolverDefault
+namespace Chaos
 {
-	static const FVec3 Gravity(0.f, 0.f, -980.665f);  // cm/s^2
-	static const FVec3 WindVelocity(0.f);
+
+static int32 ClothSolverMinParallelBatchSize = 1000;
+static bool bClothSolverParallelClothPreUpdate = false;  // TODO: Doesn't seem to improve much here. Review this after the ISPC implementation.
+static bool bClothSolverParallelClothUpdate = true;
+static bool bClothSolverParallelClothPostUpdate = true;
+static bool bClothSolverUseImprovedTimeStepSmoothing = true;
+
+#if !UE_BUILD_SHIPPING
+static int32 ClothSolverDebugHitchLength = 0;
+static int32 ClothSolverDebugHitchInterval = 0;
+static bool bClothSolverDisableCollision = false;
+
+FAutoConsoleVariableRef CVarClothSolverMinParallelBatchSize(TEXT("p.ChaosCloth.Solver.MinParallelBatchSize"), ClothSolverMinParallelBatchSize, TEXT("The minimum number of particle to process in parallel batch by the solver."));
+FAutoConsoleVariableRef CVarClothSolverParallelClothPreUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPreUpdate"), bClothSolverParallelClothPreUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
+FAutoConsoleVariableRef CVarClothSolverParallelClothUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothUpdate"), bClothSolverParallelClothUpdate, TEXT("Skin the physics mesh and do the other cloth update for each cloth in parallel."));
+FAutoConsoleVariableRef CVarClothSolverParallelClothPostUpdate(TEXT("p.ChaosCloth.Solver.ParallelClothPostUpdate"), bClothSolverParallelClothPostUpdate, TEXT("Pre-transform the cloth particles for each cloth in parallel."));
+FAutoConsoleVariableRef CVarClothSolverDebugHitchLength(TEXT("p.ChaosCloth.Solver.DebugHitchLength"), ClothSolverDebugHitchLength, TEXT("Hitch length in ms. Create artificial hitches to debug simulation jitter. 0 to disable"));
+FAutoConsoleVariableRef CVarClothSolverDebugHitchInterval(TEXT("p.ChaosCloth.Solver.DebugHitchInterval"), ClothSolverDebugHitchInterval, TEXT("Hitch interval in frames. Create artificial hitches to debug simulation jitter. 0 to disable"));
+FAutoConsoleVariableRef CVarClothSolverDisableCollision(TEXT("p.ChaosCloth.Solver.DisableCollision"), bClothSolverDisableCollision, TEXT("Disable all collision particles. Needs reset of the simulation (p.ChaosCloth.Reset)."));
+#endif
+
+FAutoConsoleVariableRef CVarClothSolverUseImprovedTimeStepSmoothing(TEXT("p.ChaosCloth.Solver.UseImprovedTimeStepSmoothing"), bClothSolverUseImprovedTimeStepSmoothing, TEXT("Use the time step smoothing on input forces only rather than on the entire cloth solver, in order to avoid miscalculating velocities."));
+
+namespace ClothingSimulationSolverDefault
+{
+	static const Softs::FSolverVec3 Gravity((Softs::FSolverReal)0., (Softs::FSolverReal)0., (Softs::FSolverReal)-980.665);  // cm/s^2
+	static const Softs::FSolverVec3 WindVelocity((Softs::FSolverReal)0.);
 	static const int32 NumIterations = 1;
 	static const int32 NumSubsteps = 1;
 	static const FRealSingle SelfCollisionThickness = 2.f;
@@ -71,42 +73,42 @@ namespace ChaosClothingSimulationSolverDefault
 	static const FRealSingle DampingCoefficient = 0.01f;
 }
 
-namespace ChaosClothingSimulationSolverConstant
+namespace ClothingSimulationSolverConstant
 {
-	static const FReal WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
-	static const FReal StartDeltaTime = 1.f / 30.f;  // Initialize filtered timestep at 30fps
+	static const FRealSingle WorldScale = 100.f;  // World is in cm, but values like wind speed and density are in SI unit and relates to m.
+	static const Softs::FSolverReal StartDeltaTime = (Softs::FSolverReal)(1. / 30.);  // Initialize filtered timestep at 30fps
 }
 
 FClothingSimulationSolver::FClothingSimulationSolver()
-	: OldLocalSpaceLocation(0.f)
-	, LocalSpaceLocation(0.f)
-	, Time(0)
-	, DeltaTime(ChaosClothingSimulationSolverConstant::StartDeltaTime)
-	, NumIterations(ChaosClothingSimulationSolverDefault::NumIterations)
-	, NumSubsteps(ChaosClothingSimulationSolverDefault::NumSubsteps)
+	: OldLocalSpaceLocation(0.)
+	, LocalSpaceLocation(0.)
+	, Time(0.)
+	, DeltaTime(ClothingSimulationSolverConstant::StartDeltaTime)
+	, NumIterations(ClothingSimulationSolverDefault::NumIterations)
+	, NumSubsteps(ClothingSimulationSolverDefault::NumSubsteps)
 	, CollisionParticlesOffset(0)
 	, CollisionParticlesSize(0)
-	, Gravity(ChaosClothingSimulationSolverDefault::Gravity)
-	, WindVelocity(ChaosClothingSimulationSolverDefault::WindVelocity)
-	, LegacyWindAdaption((FReal)0.)
+	, Gravity(ClothingSimulationSolverDefault::Gravity)
+	, WindVelocity(ClothingSimulationSolverDefault::WindVelocity)
+	, LegacyWindAdaption(0.f)
 	, bIsClothGravityOverrideEnabled(false)
 {
-	FPBDParticles LocalParticles;
-	FKinematicGeometryClothParticles TRigidParticles;
+	Softs::FSolverParticles LocalParticles;
+	Softs::FSolverRigidParticles RigidParticles;
 	Evolution.Reset(
-		new FPBDEvolution(
+		new Softs::FPBDEvolution(
 			MoveTemp(LocalParticles),
-			MoveTemp(TRigidParticles),
+			MoveTemp(RigidParticles),
 			{}, // CollisionTriangles
-			ChaosClothingSimulationSolverDefault::NumIterations,
-			ChaosClothingSimulationSolverDefault::CollisionThickness,
-			ChaosClothingSimulationSolverDefault::SelfCollisionThickness,
-			ChaosClothingSimulationSolverDefault::FrictionCoefficient,
-			ChaosClothingSimulationSolverDefault::DampingCoefficient));
+			ClothingSimulationSolverDefault::NumIterations,
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::CollisionThickness,
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::SelfCollisionThickness,
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::FrictionCoefficient,
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::DampingCoefficient));
 
 	// Add simulation groups arrays
 	Evolution->AddArray(&PreSimulationTransforms);
-	Evolution->AddArray(&FictitiousAngularDisplacement);
+	Evolution->AddArray(&FictitiousAngularDisplacements);
 
 	Evolution->Particles().AddArray(&Normals);
 	Evolution->Particles().AddArray(&OldAnimationPositions);
@@ -119,26 +121,26 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	Evolution->CollisionParticles().AddArray(&CollisionTransforms);
 
 	Evolution->SetKinematicUpdateFunction(
-		[this](FPBDParticles& ParticlesInput, const FReal Dt, const FReal LocalTime, const int32 Index)
+		[this](Softs::FSolverParticles& ParticlesInput, const Softs::FSolverReal Dt, const Softs::FSolverReal LocalTime, const int32 Index)
 		{
-			const FReal Alpha = (LocalTime - Time) / DeltaTime;
-			ParticlesInput.P(Index) = Alpha * AnimationPositions[Index] + (1.f - Alpha) * OldAnimationPositions[Index];  // X is the step initial condition, here it's P that needs to be updated so that constraints works with the correct step target
+			const Softs::FSolverReal Alpha = (LocalTime - Time) / DeltaTime;
+			ParticlesInput.P(Index) = Alpha * AnimationPositions[Index] + ((Softs::FSolverReal)1. - Alpha) * OldAnimationPositions[Index];  // X is the step initial condition, here it's P that needs to be updated so that constraints works with the correct step target
 		});
 
 	Evolution->SetCollisionKinematicUpdateFunction(
-		[this](FKinematicGeometryClothParticles& ParticlesInput, const FReal Dt, const FReal LocalTime, const int32 Index)
+		[this](Softs::FSolverRigidParticles& ParticlesInput, const Softs::FSolverReal Dt, const Softs::FSolverReal LocalTime, const int32 Index)
 		{
 			checkSlow(Dt > SMALL_NUMBER && DeltaTime > SMALL_NUMBER);
-			const FReal Alpha = (LocalTime - Time) / DeltaTime;
-			const FVec3 NewX =
-				Alpha * CollisionTransforms[Index].GetTranslation() + (1.f - Alpha) * OldCollisionTransforms[Index].GetTranslation();
+			const Softs::FSolverReal Alpha = (LocalTime - Time) / DeltaTime;
+			const Softs::FSolverVec3 NewX =
+				Alpha * CollisionTransforms[Index].GetTranslation() + ((Softs::FSolverReal)1. - Alpha) * OldCollisionTransforms[Index].GetTranslation();
 			ParticlesInput.V(Index) = (NewX - ParticlesInput.X(Index)) / Dt;
 			ParticlesInput.X(Index) = NewX;
-			FRotation3 NewR = FQuat::Slerp(OldCollisionTransforms[Index].GetRotation(), CollisionTransforms[Index].GetRotation(), Alpha);
-			FRotation3 Delta = NewR * ParticlesInput.R(Index).Inverse();
-			FReal Angle = Delta.GetAngle();
-			FVec3 Axis = Delta.GetRotationAxis();
-			ParticlesInput.W(Index) = (FVec3)Axis * Angle / Dt;
+			const Softs::FSolverRotation3 NewR = Softs::FSolverRotation3::Slerp(OldCollisionTransforms[Index].GetRotation(), CollisionTransforms[Index].GetRotation(), Alpha);
+			const Softs::FSolverRotation3 Delta = NewR * ParticlesInput.R(Index).Inverse();
+			const Softs::FSolverReal Angle = Delta.GetAngle();
+			const Softs::FSolverVec3 Axis = Delta.GetRotationAxis();
+			ParticlesInput.W(Index) = (Softs::FSolverVec3)Axis * Angle / Dt;
 			ParticlesInput.R(Index) = NewR;
 		});
 }
@@ -332,37 +334,52 @@ void FClothingSimulationSolver::EnableParticles(int32 Offset, bool bEnable)
 	GetClothConstraints(Offset).Enable(bEnable);
 }
 
-const FVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset) const
+void FClothingSimulationSolver::ResetStartPose(int32 Offset, int32 NumParticles)
+{
+	Softs::FSolverVec3* const Ps = GetParticlePs(Offset);
+	Softs::FSolverVec3* const Xs = GetParticleXs(Offset);
+	Softs::FSolverVec3* const Vs = GetParticleVs(Offset);
+	const Softs::FSolverVec3* const Positions = GetAnimationPositions(Offset);
+	Softs::FSolverVec3* const OldPositions = GetOldAnimationPositions(Offset);
+
+	for (int32 Index = 0; Index < NumParticles; ++Index)
+	{
+		Ps[Index] = Xs[Index] = OldPositions[Index] = Positions[Index];
+		Vs[Index] = Softs::FSolverVec3(0.);
+	}
+}
+
+const Softs::FSolverVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset) const
 {
 	return &Evolution->Particles().P(Offset);
 }
 
-FVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset)
+Softs::FSolverVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset)
 {
 	return &Evolution->Particles().P(Offset);
 }
 
-const FVec3* FClothingSimulationSolver::GetParticleXs(int32 Offset) const
+const Softs::FSolverVec3* FClothingSimulationSolver::GetParticleXs(int32 Offset) const
 {
 	return &Evolution->Particles().X(Offset);
 }
 
-FVec3* FClothingSimulationSolver::GetParticleXs(int32 Offset)
+Softs::FSolverVec3* FClothingSimulationSolver::GetParticleXs(int32 Offset)
 {
 	return &Evolution->Particles().X(Offset);
 }
 
-const FVec3* FClothingSimulationSolver::GetParticleVs(int32 Offset) const
+const Softs::FSolverVec3* FClothingSimulationSolver::GetParticleVs(int32 Offset) const
 {
 	return &Evolution->Particles().V(Offset);
 }
 
-FVec3* FClothingSimulationSolver::GetParticleVs(int32 Offset)
+Softs::FSolverVec3* FClothingSimulationSolver::GetParticleVs(int32 Offset)
 {
 	return &Evolution->Particles().V(Offset);
 }
 
-const FReal* FClothingSimulationSolver::GetParticleInvMasses(int32 Offset) const
+const Softs::FSolverReal* FClothingSimulationSolver::GetParticleInvMasses(int32 Offset) const
 {
 	return &Evolution->Particles().InvM(Offset);
 }
@@ -402,13 +419,13 @@ int32 FClothingSimulationSolver::AddCollisionParticles(int32 NumCollisionParticl
 	const int32 Offset = Evolution->AddCollisionParticleRange(NumCollisionParticles, GroupId, /*bActivate =*/ false);
 
 	// Always initialize the collision particle's transforms as otherwise setting the geometry will get NaNs detected during the bounding box updates
-	FRotation3* const Rs = GetCollisionParticleRs(Offset);
-	FVec3* const Xs = GetCollisionParticleXs(Offset);
+	Softs::FSolverRotation3* const Rs = GetCollisionParticleRs(Offset);
+	Softs::FSolverVec3* const Xs = GetCollisionParticleXs(Offset);
 
 	for (int32 Index = 0; Index < NumCollisionParticles; ++Index)
 	{
-		Xs[Index] = FVec3(0.f);
-		Rs[Index] = FRotation3::FromIdentity();
+		Xs[Index] = Softs::FSolverVec3(0.);
+		Rs[Index] = Softs::FSolverRotation3::FromIdentity();
 	}
 
 	// Always starts with particles disabled
@@ -420,7 +437,7 @@ int32 FClothingSimulationSolver::AddCollisionParticles(int32 NumCollisionParticl
 void FClothingSimulationSolver::EnableCollisionParticles(int32 Offset, bool bEnable)
 {
 #if !UE_BUILD_SHIPPING
-	if (bChaosClothSolverDisableCollision)
+	if (bClothSolverDisableCollision)
 	{
 		Evolution->ActivateCollisionParticleRange(Offset, false);
 	}
@@ -431,22 +448,37 @@ void FClothingSimulationSolver::EnableCollisionParticles(int32 Offset, bool bEna
 	}
 }
 
-const FVec3* FClothingSimulationSolver::GetCollisionParticleXs(int32 Offset) const
+void FClothingSimulationSolver::ResetCollisionStartPose(int32 Offset, int32 NumCollisionParticles)
+{
+	const Softs::FSolverRigidTransform3* const Transforms = GetCollisionTransforms(Offset);
+	Softs::FSolverRigidTransform3* const OldTransforms = GetOldCollisionTransforms(Offset);
+	Softs::FSolverRotation3* const Rs = GetCollisionParticleRs(Offset);
+	Softs::FSolverVec3* const Xs = GetCollisionParticleXs(Offset);
+
+	for (int32 Index = 0; Index < NumCollisionParticles; ++Index)
+	{
+		OldTransforms[Index] = Transforms[Index];
+		Xs[Index] = Transforms[Index].GetTranslation();
+		Rs[Index] = Transforms[Index].GetRotation();
+	}
+}
+
+const Softs::FSolverVec3* FClothingSimulationSolver::GetCollisionParticleXs(int32 Offset) const
 {
 	return &Evolution->CollisionParticles().X(Offset);
 }
 
-FVec3* FClothingSimulationSolver::GetCollisionParticleXs(int32 Offset)
+Softs::FSolverVec3* FClothingSimulationSolver::GetCollisionParticleXs(int32 Offset)
 {
 	return &Evolution->CollisionParticles().X(Offset);
 }
 
-const FRotation3* FClothingSimulationSolver::GetCollisionParticleRs(int32 Offset) const
+const Softs::FSolverRotation3* FClothingSimulationSolver::GetCollisionParticleRs(int32 Offset) const
 {
 	return &Evolution->CollisionParticles().R(Offset);
 }
 
-FRotation3* FClothingSimulationSolver::GetCollisionParticleRs(int32 Offset)
+Softs::FSolverRotation3* FClothingSimulationSolver::GetCollisionParticleRs(int32 Offset)
 {
 	return &Evolution->CollisionParticles().R(Offset);
 }
@@ -466,76 +498,76 @@ const bool* FClothingSimulationSolver::GetCollisionStatus(int32 Offset) const
 	return Evolution->GetCollisionStatus().GetData() + Offset;
 }
 
-const TArray<FVec3>& FClothingSimulationSolver::GetCollisionContacts() const
+const TArray<Softs::FSolverVec3>& FClothingSimulationSolver::GetCollisionContacts() const
 {
 	return Evolution->GetCollisionContacts();
 }
 
-const TArray<FVec3>& FClothingSimulationSolver::GetCollisionNormals() const
+const TArray<Softs::FSolverVec3>& FClothingSimulationSolver::GetCollisionNormals() const
 {
 	return Evolution->GetCollisionNormals();
 }
 
-void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, FReal UniformMass, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassUniform(int32 Offset, FRealSingle UniformMass, FRealSingle MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
 
 	// Set mass from uniform mass
 	const TSet<int32> Vertices = Mesh.GetVertices();
-	FPBDParticles& Particles = Evolution->Particles();
+	Softs::FSolverParticles& Particles = Evolution->Particles();
 	for (int32 Index = Offset; Index < Offset + Size; ++Index)
 	{
-		Particles.M(Index) = Vertices.Contains(Index) ? UniformMass : 0.f;
+		Particles.M(Index) = Vertices.Contains(Index) ? (Softs::FSolverReal)UniformMass : (Softs::FSolverReal)0.;
 	}
 
 	// Clamp and enslave
-	ParticleMassClampAndEnslave(Offset, Size, MinPerParticleMass, KinematicPredicate);
+	ParticleMassClampAndEnslave(Offset, Size, (Softs::FSolverReal)MinPerParticleMass, KinematicPredicate);
 }
 
-void FClothingSimulationSolver::SetParticleMassFromTotalMass(int32 Offset, FReal TotalMass, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassFromTotalMass(int32 Offset, FRealSingle TotalMass, FRealSingle MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
 
 	// Set mass per area
-	const FReal TotalArea = SetParticleMassPerArea(Offset, Size, Mesh);
+	const Softs::FSolverReal TotalArea = SetParticleMassPerArea(Offset, Size, Mesh);
 
 	// Find density
-	const FReal Density = TotalArea > 0.f ? TotalMass / TotalArea : 1.f;
+	const Softs::FSolverReal Density = TotalArea > (Softs::FSolverReal)0. ? (Softs::FSolverReal)TotalMass / TotalArea : (Softs::FSolverReal)1.;
 
 	// Update mass from mesh and density
 	ParticleMassUpdateDensity(Mesh, Density);
 
 	// Clamp and enslave
-	ParticleMassClampAndEnslave(Offset, Size, MinPerParticleMass, KinematicPredicate);
+	ParticleMassClampAndEnslave(Offset, Size, (Softs::FSolverReal)MinPerParticleMass, KinematicPredicate);
 }
 
-void FClothingSimulationSolver::SetParticleMassFromDensity(int32 Offset, FReal Density, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::SetParticleMassFromDensity(int32 Offset, FRealSingle Density, FRealSingle MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
 	// Retrieve the particle block size
 	const int32 Size = Evolution->GetParticleRangeSize(Offset);
 
 	// Set mass per area
-	const FReal TotalArea = SetParticleMassPerArea(Offset, Size, Mesh);
+	const Softs::FSolverReal TotalArea = SetParticleMassPerArea(Offset, Size, Mesh);
 
 	// Set density from cm2 to m2
-	Density /= FMath::Square(ChaosClothingSimulationSolverConstant::WorldScale);
+	const Softs::FSolverReal DensityScaled = (Softs::FSolverReal)(Density / FMath::Square(ClothingSimulationSolverConstant::WorldScale));
 
 	// Update mass from mesh and density
-	ParticleMassUpdateDensity(Mesh, Density);
+	ParticleMassUpdateDensity(Mesh, DensityScaled);
 
 	// Clamp and enslave
-	ParticleMassClampAndEnslave(Offset, Size, MinPerParticleMass, KinematicPredicate);
+	ParticleMassClampAndEnslave(Offset, Size, (Softs::FSolverReal)MinPerParticleMass, KinematicPredicate);
 }
 
 void FClothingSimulationSolver::SetReferenceVelocityScale(
 	uint32 GroupId,
-	const FRigidTransform3& OldReferenceSpaceTransform,
+	const FRigidTransform3& OldReferenceSpaceTransform,  // Transforms are in world space so have to be FReal based for LWC
 	const FRigidTransform3& ReferenceSpaceTransform,
-	const FVec3& LinearVelocityScale,
-	FReal AngularVelocityScale,
-	FReal FictitiousAngularScale)
+	const TVec3<FRealSingle>& LinearVelocityScale,
+	FRealSingle AngularVelocityScale,
+	FRealSingle FictitiousAngularScale)
 {
 	FRigidTransform3 OldRootBoneLocalTransform = OldReferenceSpaceTransform;
 	OldRootBoneLocalTransform.AddToTranslation(-OldLocalSpaceLocation);
@@ -544,60 +576,64 @@ void FClothingSimulationSolver::SetReferenceVelocityScale(
 	const FRigidTransform3 DeltaTransform = ReferenceSpaceTransform.GetRelativeTransform(OldReferenceSpaceTransform);
 
 	// Apply linear velocity scale
-	const FVec3 LinearRatio = FVec3(1.f) - LinearVelocityScale.BoundToBox(FVec3(0.f), FVec3(1.f));
+	const FVec3 LinearRatio = FVec3(1.) - FVec3(LinearVelocityScale).BoundToBox(FVec3(0.), FVec3(1.));
 	const FVec3 DeltaPosition = LinearRatio * DeltaTransform.GetTranslation();
 
 	// Apply angular velocity scale
 	FRotation3 DeltaRotation = DeltaTransform.GetRotation();
 	FReal DeltaAngle = DeltaRotation.GetAngle();
 	FVec3 Axis = DeltaRotation.GetRotationAxis();
-	if (DeltaAngle > PI)
+	if (DeltaAngle > (FReal)PI)
 	{
-		DeltaAngle -= 2.f * PI;
+		DeltaAngle -= (FReal)2. * (FReal)PI;
 	}
 
-	const FReal PartialDeltaAngle = DeltaAngle * FMath::Clamp(1.f - AngularVelocityScale, 0.f, 1.f);
+	const FReal PartialDeltaAngle = DeltaAngle * FMath::Clamp((FReal)1. - (FReal)AngularVelocityScale, (FReal)0., (FReal)1.);
 	DeltaRotation = UE::Math::TQuat<FReal>(Axis, PartialDeltaAngle);
 
-	// Transform points back into the previous frame of reference before applying the adjusted deltas 
-	PreSimulationTransforms[GroupId] = OldRootBoneLocalTransform.Inverse() * FRigidTransform3(DeltaPosition, DeltaRotation) * OldRootBoneLocalTransform;
+	// Transform points back into the previous frame of reference before applying the adjusted deltas
+	const FRigidTransform3 PreSimulationTransform = OldRootBoneLocalTransform.Inverse() * FRigidTransform3(DeltaPosition, DeltaRotation) * OldRootBoneLocalTransform;
+	PreSimulationTransforms[GroupId] = Softs::FSolverRigidTransform3(  // Store the delta in solver precision, no need for LWC here
+		Softs::FSolverVec3(PreSimulationTransform.GetTranslation()),
+		Softs::FSolverRotation3(PreSimulationTransform.GetRotation()));
 
 	// Save the reference bone relative angular velocity for calculating the fictitious forces
-	FictitiousAngularDisplacement[GroupId] = ReferenceSpaceTransform.TransformVector(Axis * PartialDeltaAngle * FMath::Min(2.f, FictitiousAngularScale));  // Clamp to 2x the delta angle
+	const FVec3 FictitiousAngularDisplacement = ReferenceSpaceTransform.TransformVector(Axis * PartialDeltaAngle * FMath::Min((FReal)2., (FReal)FictitiousAngularScale));  // Clamp to 2x the delta angle
+	FictitiousAngularDisplacements[GroupId] = Softs::FSolverVec3(FictitiousAngularDisplacement);
 }
 
-FReal FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh)
+Softs::FSolverReal FClothingSimulationSolver::SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh)
 {
 	// Zero out masses
-	FPBDParticles& Particles = Evolution->Particles();
+	Softs::FSolverParticles& Particles = Evolution->Particles();
 	for (int32 Index = Offset; Index < Offset + Size; ++Index)
 	{
-		Particles.M(Index) = 0.f;
+		Particles.M(Index) = (Softs::FSolverReal)0.;
 	}
 
 	// Assign per particle mass proportional to connected area.
 	const TArray<TVec3<int32>>& SurfaceElements = Mesh.GetSurfaceElements();
-	FReal TotalArea = (FReal)0.f;
+	Softs::FSolverReal TotalArea = (Softs::FSolverReal)0.;
 	for (const TVec3<int32>& Tri : SurfaceElements)
 	{
-		const FReal TriArea = 0.5f * FVec3::CrossProduct(
+		const Softs::FSolverReal TriArea = (Softs::FSolverReal)0.5 * Softs::FSolverVec3::CrossProduct(
 			Particles.X(Tri[1]) - Particles.X(Tri[0]),
 			Particles.X(Tri[2]) - Particles.X(Tri[0])).Size();
 		TotalArea += TriArea;
-		const FReal ThirdTriArea = TriArea / 3.f;
+		const Softs::FSolverReal ThirdTriArea = TriArea / (Softs::FSolverReal)3.;
 		Particles.M(Tri[0]) += ThirdTriArea;
 		Particles.M(Tri[1]) += ThirdTriArea;
 		Particles.M(Tri[2]) += ThirdTriArea;
 	}
 
-	UE_LOG(LogChaosCloth, Verbose, TEXT("Total area: %f, SI total area: %f"), TotalArea, TotalArea / FMath::Square(ChaosClothingSimulationSolverConstant::WorldScale));
+	UE_LOG(LogChaosCloth, Verbose, TEXT("Total area: %f, SI total area: %f"), TotalArea, TotalArea / FMath::Square(ClothingSimulationSolverConstant::WorldScale));
 	return TotalArea;
 }
 
-void FClothingSimulationSolver::ParticleMassUpdateDensity(const FTriangleMesh& Mesh, FReal Density)
+void FClothingSimulationSolver::ParticleMassUpdateDensity(const FTriangleMesh& Mesh, Softs::FSolverReal Density)
 {
 	const TSet<int32> Vertices = Mesh.GetVertices();
-	FPBDParticles& Particles = Evolution->Particles();
+	Softs::FSolverParticles& Particles = Evolution->Particles();
 	FReal TotalMass = 0.f;
 	for (const int32 Vertex : Vertices)
 	{
@@ -608,13 +644,13 @@ void FClothingSimulationSolver::ParticleMassUpdateDensity(const FTriangleMesh& M
 	UE_LOG(LogChaosCloth, Verbose, TEXT("Total mass: %f, "), TotalMass);
 }
 
-void FClothingSimulationSolver::ParticleMassClampAndEnslave(int32 Offset, int32 Size, FReal MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate)
+void FClothingSimulationSolver::ParticleMassClampAndEnslave(int32 Offset, int32 Size, Softs::FSolverReal MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate)
 {
-	FPBDParticles& Particles = Evolution->Particles();
+	Softs::FSolverParticles& Particles = Evolution->Particles();
 	for (int32 Index = Offset; Index < Offset + Size; ++Index)
 	{
-		Particles.M(Index) = FMath::Max(Particles.M(Index), (FReal)MinPerParticleMass);
-		Particles.InvM(Index) = KinematicPredicate(Index - Offset) ? 0.f : 1.f / Particles.M(Index);
+		Particles.M(Index) = FMath::Max(Particles.M(Index), MinPerParticleMass);
+		Particles.InvM(Index) = KinematicPredicate(Index - Offset) ? (Softs::FSolverReal)0. : (Softs::FSolverReal)1. / Particles.M(Index);
 	}
 }
 
@@ -630,36 +666,36 @@ void FClothingSimulationSolver::SetUseCCD(uint32 GroupId, bool bUseCCD)
 	Evolution->SetUseCCD(bUseCCD, GroupId);
 }
 
-void FClothingSimulationSolver::SetGravity(uint32 GroupId, const FVec3& InGravity)
+void FClothingSimulationSolver::SetGravity(uint32 GroupId, const TVec3<FRealSingle>& InGravity)
 {
-	Evolution->GetGravityForces(GroupId).SetAcceleration(InGravity);
+	Evolution->SetGravity(Softs::FSolverVec3(InGravity), GroupId);
 }
 
-void FClothingSimulationSolver::SetWindVelocity(const FVec3& InWindVelocity, FRealSingle InLegacyWindAdaption)
+void FClothingSimulationSolver::SetWindVelocity(const TVec3<FRealSingle>& InWindVelocity, FRealSingle InLegacyWindAdaption)
 {
-	WindVelocity = InWindVelocity * ChaosClothingSimulationSolverConstant::WorldScale;
-	LegacyWindAdaption = (FReal)InLegacyWindAdaption;
+	WindVelocity = InWindVelocity * ClothingSimulationSolverConstant::WorldScale;
+	LegacyWindAdaption = InLegacyWindAdaption;
 }
 
-void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const FVec3& InWindVelocity)
+void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity)
 {
-	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
-	VelocityField.SetVelocity(InWindVelocity);
+	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	VelocityField.SetVelocity(Softs::FSolverVec3(InWindVelocity));
 }
 
 void FClothingSimulationSolver::SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
 {
-	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
 	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers);
 }
 
-void FClothingSimulationSolver::SetWindProperties(uint32 GroupId, const FVec2& Drag, const FVec2& Lift, FReal AirDensity)
+void FClothingSimulationSolver::SetWindProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity)
 {
-	FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
 	VelocityField.SetProperties(Drag, Lift, AirDensity);
 }
 
-const FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
+const Softs::FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
 {
 	return Evolution->GetVelocityField(GroupId);
 }
@@ -671,14 +707,14 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 		const bool bHasVelocityField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearVelocity).IsEmpty();
 		const bool bHasForceField = !PerSolverField.GetOutputResults(EFieldCommandOutputType::LinearForce).IsEmpty();
 
-		const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
+		const FVec3& AngularDisplacement = FictitiousAngularDisplacements[GroupId];
 		const bool bHasFictitiousForces = !AngularDisplacement.IsNearlyZero();
 
 		static const FReal LegacyWindMultiplier = (FReal)25.;
 		const FVec3 LegacyWindVelocity = WindVelocity * LegacyWindMultiplier;
 
 		Evolution->GetForceFunction(GroupId) =
-			[this, bHasVelocityField, bHasForceField, bHasFictitiousForces, bUseLegacyWind, LegacyWindVelocity, AngularDisplacement](FPBDParticles& Particles, const FReal Dt, const int32 Index)
+			[this, bHasVelocityField, bHasForceField, bHasFictitiousForces, bUseLegacyWind, LegacyWindVelocity, AngularDisplacement](Softs::FSolverParticles& Particles, const FReal Dt, const int32 Index)
 			{
 				FVec3 Forces((FReal)0.);
 
@@ -732,41 +768,41 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_ApplyPreSimulationTransforms);
-	const FVec3 DeltaLocalSpaceLocation = LocalSpaceLocation - OldLocalSpaceLocation;
+	const Softs::FSolverVec3 DeltaLocalSpaceLocation(LocalSpaceLocation - OldLocalSpaceLocation);  // LWC, note that LocalSpaceLocation is FReal based. but the delta can be stored in FSolverReal
 
-	const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
+	const TPBDActiveView<Softs::FSolverParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
 	const TArray<uint32>& ParticleGroupIds = Evolution->ParticleGroupIds();
 
 	ParticlesActiveView.RangeFor(
-		[this, &ParticleGroupIds, &DeltaLocalSpaceLocation](FPBDParticles& Particles, int32 Offset, int32 Range)
+		[this, &ParticleGroupIds, &DeltaLocalSpaceLocation](Softs::FSolverParticles& Particles, int32 Offset, int32 Range)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_ParticlePreSimulationTransforms);
 			SCOPE_CYCLE_COUNTER(STAT_ChaosClothParticlePreSimulationTransforms);
 
 			const int32 RangeSize = Range - Offset;
 
-			if (bChaos_PreSimulationTransforms_ISPC_Enabled)
-			{
 #if INTEL_ISPC
+			if (bRealTypeCompatibleWithISPC && bChaos_PreSimulationTransforms_ISPC_Enabled)  // TODO: Make the ISPC works with both Single and Double depending on the FSolverReal type
+			{
 				ispc::ApplyPreSimulationTransforms(
-					(ispc::FVector*)Particles.GetP().GetData(),
-					(ispc::FVector*)Particles.GetV().GetData(),
-					(ispc::FVector*)Particles.XArray().GetData(),
-					(ispc::FVector*)OldAnimationPositions.GetData(),
+					(ispc::FVector3f*)Particles.GetP().GetData(),
+					(ispc::FVector3f*)Particles.GetV().GetData(),
+					(ispc::FVector3f*)Particles.XArray().GetData(),
+					(ispc::FVector3f*)OldAnimationPositions.GetData(),
 					ParticleGroupIds.GetData(),
-					(ispc::FTransform*)PreSimulationTransforms.GetData(),
-					(ispc::FVector&)DeltaLocalSpaceLocation,
+					(ispc::FTransform3f*)PreSimulationTransforms.GetData(),
+					(ispc::FVector3f&)DeltaLocalSpaceLocation,
 					Offset,
 					Range);
-#endif
 			}
 			else
+#endif
 			{
 				PhysicsParallelFor(RangeSize,
 					[this, &ParticleGroupIds, &DeltaLocalSpaceLocation, &Particles, Offset](int32 i)
 					{
 						const int32 Index = Offset + i;
-						const FRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[ParticleGroupIds[Index]];
+						const Softs::FSolverRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[ParticleGroupIds[Index]];
 
 						// Update initial state for particles
 						Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPositionNoScale(Particles.X(Index)) - DeltaLocalSpaceLocation;
@@ -774,26 +810,26 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 
 						// Update anim initial state (target updated by skinning)
 						OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
-					}, RangeSize < ChaosClothSolverMinParallelBatchSize);
+					}, RangeSize < ClothSolverMinParallelBatchSize);
 			}
-		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPreUpdate);
+		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPreUpdate);
 
 #if FRAMEPRO_ENABLED
-	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverMinParallelBatchSize", ChaosClothSolverMinParallelBatchSize, "ChaosClothSolver", "Particles", FRAMEPRO_COLOUR(128,0,255));
-	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverParallelClothPreUpdate", bChaosClothSolverParallelClothPreUpdate, "ChaosClothSolver", "Enabled", FRAMEPRO_COLOUR(128, 128, 64));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverMinParallelBatchSize", ClothSolverMinParallelBatchSize, "ChaosClothSolver", "Particles", FRAMEPRO_COLOUR(128,0,255));
+	FRAMEPRO_CUSTOM_STAT("ChaosClothSolverParallelClothPreUpdate", bClothSolverParallelClothPreUpdate, "ChaosClothSolver", "Enabled", FRAMEPRO_COLOUR(128, 128, 64));
 #endif
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_CollisionPreSimulationTransforms);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothCollisionPreSimulationTransforms);
 
-		const TPBDActiveView<FKinematicGeometryClothParticles>& CollisionParticlesActiveView = Evolution->CollisionParticlesActiveView();
+		const TPBDActiveView<Softs::FSolverRigidParticles>& CollisionParticlesActiveView = Evolution->CollisionParticlesActiveView();
 		const TArray<uint32>& CollisionParticleGroupIds = Evolution->CollisionParticleGroupIds();
 
 		CollisionParticlesActiveView.SequentialFor(  // There's unlikely to ever have enough collision particles for a parallel for
-			[this, &CollisionParticleGroupIds, &DeltaLocalSpaceLocation](FKinematicGeometryClothParticles& CollisionParticles, int32 Index)
+			[this, &CollisionParticleGroupIds, &DeltaLocalSpaceLocation](Softs::FSolverRigidParticles& CollisionParticles, int32 Index)
 			{
-				const FRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[CollisionParticleGroupIds[Index]];
+				const Softs::FSolverRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[CollisionParticleGroupIds[Index]];
 
 				// Update initial state for collisions
 				OldCollisionTransforms[Index] = OldCollisionTransforms[Index] * GroupSpaceTransform;
@@ -825,17 +861,17 @@ void FClothingSimulationSolver::UpdateSolverField()
 	}
 }
 
-void FClothingSimulationSolver::Update(FReal InDeltaTime)
+void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_Update);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdate);
 
-	if (!bChaosClothSolverUseImprovedTimeStepSmoothing)
+	if (!bClothSolverUseImprovedTimeStepSmoothing)
 	{
 		// Filter delta time to smoothen time variations and prevent unwanted vibrations
 		// Note: This is now deprecated and replaced by in solver input force timestep smoothing
-		static const FReal DeltaTimeDecay = 0.1f;
-		const FReal PrevDeltaTime = DeltaTime;
+		constexpr Softs::FSolverReal DeltaTimeDecay = (Softs::FSolverReal)0.1;
+		const Softs::FSolverReal PrevDeltaTime = DeltaTime;
 		DeltaTime = DeltaTime + (InDeltaTime - DeltaTime) * DeltaTimeDecay;
 	}
 	else
@@ -846,14 +882,14 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 
 #if !UE_BUILD_SHIPPING
 	// Introduce artificial hitches for debugging any simulation jitter
-	if (ChaosClothSolverDebugHitchLength && ChaosClothSolverDebugHitchInterval)
+	if (ClothSolverDebugHitchLength && ClothSolverDebugHitchInterval)
 	{
 		static int32 HitchCounter = 0;
 		if (--HitchCounter < 0)
 		{
-			UE_LOG(LogChaosCloth, Warning, TEXT("Hitching for %dms"), ChaosClothSolverDebugHitchLength);
-			FPlatformProcess::Sleep((float)ChaosClothSolverDebugHitchLength * 0.001f);
-			HitchCounter = ChaosClothSolverDebugHitchInterval;
+			UE_LOG(LogChaosCloth, Warning, TEXT("Hitching for %dms"), ClothSolverDebugHitchLength);
+			FPlatformProcess::Sleep((float)ClothSolverDebugHitchLength * 0.001f);
+			HitchCounter = ClothSolverDebugHitchInterval;
 		}
 	}
 #endif  // #if !UE_BUILD_SHIPPING
@@ -885,11 +921,11 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 			const uint32 GroupId = Cloth->GetGroupId();
 
 			// Pre-update overridable solver properties first
-			Evolution->GetGravityForces(GroupId).SetAcceleration(Gravity);
+			Evolution->SetGravity(Gravity, GroupId);
 			Evolution->GetVelocityField(GroupId).SetVelocity(WindVelocity);
 
 			Cloth->Update(this);
-		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothUpdate);
+		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothUpdate);
 	}
 
 	// Pre solver step, apply group space transforms for teleport and linear/delta ratios, ...etc
@@ -912,7 +948,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 	
 		for (int32 i = 0; i < NumSubsteps; ++i)
 		{
-			Evolution->AdvanceOneTimeStep(SubstepDeltaTime, bChaosClothSolverUseImprovedTimeStepSmoothing);
+			Evolution->AdvanceOneTimeStep(SubstepDeltaTime, bClothSolverUseImprovedTimeStepSmoothing);
 		}
 
 		Time = Evolution->GetTime();
@@ -929,7 +965,7 @@ void FClothingSimulationSolver::Update(FReal InDeltaTime)
 		{
 			FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
 			Cloth->PostUpdate(this);
-		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPostUpdate);
+		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPostUpdate);
 	}
 
 	// Save old space location for next update
@@ -941,66 +977,65 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_CalculateBounds);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverCalculateBounds);
 
-	const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
+	const TPBDActiveView<Softs::FSolverParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
 
 	if (ParticlesActiveView.HasActiveRange())
 	{
 		// Calculate bounding box
-		FAABB3 BoundingBox = FAABB3::EmptyAABB();
+		Softs::FSolverAABB3 BoundingBox = Softs::FSolverAABB3::EmptyAABB();
 
 #if INTEL_ISPC
-		if (bChaos_CalculateBounds_ISPC_Enabled && bRealTypeCompatibleWithISPC)
+		if (bRealTypeCompatibleWithISPC && bChaos_CalculateBounds_ISPC_Enabled)
 		{
 			ParticlesActiveView.RangeFor(
-				[&BoundingBox](FPBDParticles& Particles, int32 Offset, int32 Range)
+				[&BoundingBox](Softs::FSolverParticles& Particles, int32 Offset, int32 Range)
 				{
-					FVec3 NewMin = BoundingBox.Min();
-					FVec3 NewMax = BoundingBox.Max();
+					Softs::FSolverVec3 NewMin = BoundingBox.Min();
+					Softs::FSolverVec3 NewMax = BoundingBox.Max();
 
 					ispc::CalculateBounds(
-						(ispc::FVector&)NewMin,
-						(ispc::FVector&)NewMax,
-						(const ispc::FVector*)Particles.XArray().GetData(),
+						(ispc::FVector3f&)NewMin,
+						(ispc::FVector3f&)NewMax,
+						(const ispc::FVector3f*)Particles.XArray().GetData(),
 						Offset,
 						Range);
 
-					FAABB3 NewAABB(NewMin, NewMax);
-					BoundingBox = NewAABB;
+					BoundingBox.GrowToInclude(Softs::FSolverAABB3(NewMin, NewMax));
 				});
 		}
 		else
 #endif
 		{
 			ParticlesActiveView.SequentialFor(
-				[&BoundingBox](FPBDParticles& Particles, int32 Index)
+				[&BoundingBox](Softs::FSolverParticles& Particles, int32 Index)
 				{
 					BoundingBox.GrowToInclude(Particles.X(Index));
 				});
 		}
 
 		// Calculate (squared) radius
-		const FVec3 Center = BoundingBox.Center();
-		FReal SquaredRadius = 0.f;
+		const Softs::FSolverVec3 Center = BoundingBox.Center();
+		Softs::FSolverReal SquaredRadius = (Softs::FSolverReal)0.;
 
-		if (bChaos_CalculateBounds_ISPC_Enabled)
-		{
 #if INTEL_ISPC
+		if (bRealTypeCompatibleWithISPC && bChaos_CalculateBounds_ISPC_Enabled)
+		{
 			ParticlesActiveView.RangeFor(
-				[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Offset, int32 Range)
+				[&SquaredRadius, &Center](Softs::FSolverParticles& Particles, int32 Offset, int32 Range)
 				{
 					ispc::CalculateSquaredRadius(
 						SquaredRadius,
-						(const ispc::FVector&)Center,
-						(const ispc::FVector*)Particles.XArray().GetData(),
+						(const ispc::FVector3f&)Center,
+						(const ispc::FVector3f*)Particles.XArray().GetData(),
 						Offset,
 						Range);
 				});
-#endif
 		}
 		else
+#endif
 		{
 			ParticlesActiveView.SequentialFor(
-				[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Index)
+				[&SquaredRadius, &Center](Softs::FSolverParticles& Particles, int32 Index)
 				{
 					SquaredRadius = FMath::Max(SquaredRadius, (Particles.X(Index) - Center).SizeSquared());
 				});
@@ -1012,3 +1047,5 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 
 	return FBoxSphereBounds(LocalSpaceLocation, FVector(0.f), 0.f);
 }
+
+} // End namespace Chaos

@@ -144,13 +144,13 @@ namespace Chaos
 	};
 
 	template<>
-	class PMatrix<FReal, 4, 4> : public UE::Math::TMatrix<FReal>
+	class PMatrix<FRealSingle, 4, 4> : public UE::Math::TMatrix<FRealSingle>
 	{
 	public:
 		PMatrix()
-		    : UE::Math::TMatrix<FReal>() {}
-		PMatrix(const FReal x00, const FReal x10, const FReal x20, const FReal x30, const FReal x01, const FReal x11, const FReal x21, const FReal x31, const FReal x02, const FReal x12, const FReal x22, const FReal x32, const FReal x03, const FReal x13, const FReal x23, const FReal x33)
-		    : UE::Math::TMatrix<FReal>()
+		    : UE::Math::TMatrix<FRealSingle>() {}
+		PMatrix(const FRealSingle x00, const FRealSingle x10, const FRealSingle x20, const FRealSingle x30, const FRealSingle x01, const FRealSingle x11, const FRealSingle x21, const FRealSingle x31, const FRealSingle x02, const FRealSingle x12, const FRealSingle x22, const FRealSingle x32, const FRealSingle x03, const FRealSingle x13, const FRealSingle x23, const FRealSingle x33)
+		    : UE::Math::TMatrix<FRealSingle>()
 		{
 			M[0][0] = x00;
 			M[1][0] = x10;
@@ -169,14 +169,14 @@ namespace Chaos
 			M[2][3] = x23;
 			M[3][3] = x33;
 		}
-		PMatrix(const UE::Math::TMatrix<FReal>& Matrix)
-		    : UE::Math::TMatrix<FReal>(Matrix)
+		PMatrix(const UE::Math::TMatrix<FRealSingle>& Matrix)
+		    : UE::Math::TMatrix<FRealSingle>(Matrix)
 		{
 		}
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
-		Vector<FReal, 4> operator*(const Vector<Chaos::FReal, 4>& Other)
+		Vector<FRealSingle, 4> operator*(const Vector<Chaos::FRealSingle, 4>& Other)
 		{
-			return Vector<Chaos::FReal, 4>(
+			return Vector<Chaos::FRealSingle, 4>(
 			    M[0][0] * Other[0] + M[0][1] * Other[1] + M[0][2] * Other[2] + M[0][3] * Other[3],
 			    M[1][0] * Other[0] + M[1][1] * Other[1] + M[1][2] * Other[2] + M[1][3] * Other[3],
 			    M[2][0] * Other[0] + M[2][1] * Other[1] + M[2][2] * Other[2] + M[2][3] * Other[3],
@@ -184,9 +184,56 @@ namespace Chaos
 		}
 #endif
 
-		PMatrix<FReal, 4, 4> operator*(const PMatrix<FReal, 4, 4>& Other) const
+		PMatrix<FRealSingle, 4, 4> operator*(const PMatrix<FRealSingle, 4, 4>& Other) const
 		{
-			return static_cast<const UE::Math::TMatrix<FReal>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FReal>&>(Other));
+			return static_cast<const UE::Math::TMatrix<FRealSingle>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FRealSingle>&>(Other));
+		}
+	};
+
+	template<>
+	class PMatrix<FRealDouble, 4, 4> : public UE::Math::TMatrix<FRealDouble>
+	{
+	public:
+		PMatrix()
+		    : UE::Math::TMatrix<FRealDouble>() {}
+		PMatrix(const FRealDouble x00, const FRealDouble x10, const FRealDouble x20, const FRealDouble x30, const FRealDouble x01, const FRealDouble x11, const FRealDouble x21, const FRealDouble x31, const FRealDouble x02, const FRealDouble x12, const FRealDouble x22, const FRealDouble x32, const FRealDouble x03, const FRealDouble x13, const FRealDouble x23, const FRealDouble x33)
+		    : UE::Math::TMatrix<FRealDouble>()
+		{
+			M[0][0] = x00;
+			M[1][0] = x10;
+			M[2][0] = x20;
+			M[3][0] = x30;
+			M[0][1] = x01;
+			M[1][1] = x11;
+			M[2][1] = x21;
+			M[3][1] = x31;
+			M[0][2] = x02;
+			M[1][2] = x12;
+			M[2][2] = x22;
+			M[3][2] = x32;
+			M[0][3] = x03;
+			M[1][3] = x13;
+			M[2][3] = x23;
+			M[3][3] = x33;
+		}
+		PMatrix(const UE::Math::TMatrix<FRealDouble>& Matrix)
+		    : UE::Math::TMatrix<FRealDouble>(Matrix)
+		{
+		}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
+		Vector<FRealDouble, 4> operator*(const Vector<Chaos::FRealDouble, 4>& Other)
+		{
+			return Vector<Chaos::FRealDouble, 4>(
+			    M[0][0] * Other[0] + M[0][1] * Other[1] + M[0][2] * Other[2] + M[0][3] * Other[3],
+			    M[1][0] * Other[0] + M[1][1] * Other[1] + M[1][2] * Other[2] + M[1][3] * Other[3],
+			    M[2][0] * Other[0] + M[2][1] * Other[1] + M[2][2] * Other[2] + M[2][3] * Other[3],
+			    M[3][0] * Other[0] + M[3][1] * Other[1] + M[3][2] * Other[2] + M[3][3] * Other[3]);
+		}
+#endif
+
+		PMatrix<FRealDouble, 4, 4> operator*(const PMatrix<FRealDouble, 4, 4>& Other) const
+		{
+			return static_cast<const UE::Math::TMatrix<FRealDouble>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FRealDouble>&>(Other));
 		}
 	};
 

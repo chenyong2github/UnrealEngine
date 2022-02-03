@@ -2,8 +2,8 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Containers/ContainersFwd.h"
-#include "Chaos/Transform.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
@@ -45,27 +45,27 @@ namespace Chaos
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,
 			int32 LODIndex,
-			const FVec3* Normals,
-			const FVec3* Positions,
-			FVec3* OutPositions) const;
+			const Softs::FSolverVec3* Normals,
+			const Softs::FSolverVec3* Positions,
+			Softs::FSolverVec3* OutPositions) const;
 
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,
 			int32 LODIndex,
-			const FVec3* Normals,
-			const FVec3* Positions,
-			const FVec3* Velocities,
-			FVec3* OutPositions0,
-			FVec3* OutPositions1,
-			FVec3* OutVelocities) const;
+			const Softs::FSolverVec3* Normals,
+			const Softs::FSolverVec3* Positions,
+			const Softs::FSolverVec3* Velocities,
+			Softs::FSolverVec3* OutPositions0,
+			Softs::FSolverVec3* OutPositions1,
+			Softs::FSolverVec3* OutVelocities) const;
 		// ---- End of the Cloth interface ----
 
 	private:
 		void SkinPhysicsMesh(
 			int32 LODIndex,
 			const FVec3& LocalSpaceLocation,
-			FVec3* OutPositions,
-			FVec3* OutNormals) const;
+			Softs::FSolverVec3* OutPositions,
+			Softs::FSolverVec3* OutNormals) const;
 
 	private:
 		const UClothingAssetCommon* Asset;

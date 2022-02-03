@@ -7,8 +7,9 @@
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Long Range Constraint"), STAT_XPBD_LongRange, STATGROUP_Chaos);
 
-namespace Chaos
+namespace Chaos::Softs
 {
+
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
 static const double XPBDLongRangeMaxCompliance = 1.e-3;
 
@@ -19,14 +20,14 @@ public:
 	typedef typename Base::FTether FTether;
 
 	FXPBDLongRangeConstraints(
-		const FPBDParticles& Particles,
+		const FSolverParticles& Particles,
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
-		const FVec2& InStiffness = FVec2::UnitVector,
-		const FVec2& InScale = FVec2::UnitVector)
+		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
+		const FSolverVec2& InScale = FSolverVec2::UnitVector)
 	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, InTethers, StiffnessMultipliers, ScaleMultipliers, InStiffness, InScale)
 	{
 		int32 NumTethers = 0;
@@ -37,7 +38,7 @@ public:
 		Lambdas.Reserve(NumTethers);
 	}
 
-	virtual ~FXPBDLongRangeConstraints() {}
+	virtual ~FXPBDLongRangeConstraints() override {}
 
 	void Init() const
 	{
@@ -45,7 +46,7 @@ public:
 		Lambdas.AddZeroed(Tethers.Num());
 	}
 
-	void Apply(FPBDParticles& Particles, const FReal Dt) const 
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
 		// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
@@ -62,8 +63,8 @@ public:
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
-							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							const FSolverReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
 							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
 						}, TetherBatch.Num() < MinParallelSize);
 					ConstraintOffset += TetherBatch.Num();
@@ -71,7 +72,7 @@ public:
 			}
 			else
 			{
-				const FReal ScaleValue = ScaleTable[0];
+				const FSolverReal ScaleValue = ScaleTable[0];
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
@@ -79,7 +80,7 @@ public:
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
 							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 					ConstraintOffset += TetherBatch.Num();
@@ -88,7 +89,7 @@ public:
 		}
 		else
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 
 			if (HasScaleWeightMap())
 			{
@@ -99,7 +100,7 @@ public:
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
 							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
 						}, TetherBatch.Num() < MinParallelSize);
 					ConstraintOffset += TetherBatch.Num();
@@ -107,7 +108,7 @@ public:
 			}
 			else
 			{
-				const FReal ScaleValue = ScaleTable[0];
+				const FSolverReal ScaleValue = ScaleTable[0];
 				int32 ConstraintOffset = 0;
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
@@ -123,16 +124,16 @@ public:
 	}
 
 private:
-	void Apply(FPBDParticles& Particles, const FReal Dt, const FTether& Tether, int32 ConstraintIndex, const FReal InStiffness, const FReal InScale) const
+	void Apply(FSolverParticles& Particles, const FSolverReal Dt, const FTether& Tether, int32 ConstraintIndex, const FSolverReal InStiffness, const FSolverReal InScale) const
 	{
-		FVec3 Direction;
-		FReal Offset;
+		FSolverVec3 Direction;
+		FSolverReal Offset;
 		GetDelta(Particles, Tether, InScale, Direction, Offset);
 
-		FReal& Lambda = Lambdas[ConstraintIndex];
-		const FReal Alpha = (FReal)XPBDLongRangeMaxCompliance / (InStiffness * Dt * Dt);
+		FSolverReal& Lambda = Lambdas[ConstraintIndex];
+		const FSolverReal Alpha = (FSolverReal)XPBDLongRangeMaxCompliance / (InStiffness * Dt * Dt);
 
-		const FReal DLambda = (Offset - Alpha * Lambda) / ((FReal)1. + Alpha);
+		const FSolverReal DLambda = (Offset - Alpha * Lambda) / ((FSolverReal)1. + Alpha);
 		Particles.P(GetEndParticle(Tether)) += DLambda * Direction;
 		Lambda += DLambda;
 	}
@@ -144,6 +145,7 @@ private:
 	using Base::ScaleTable;
 	using Base::ScaleIndices;
 
-	mutable TArray<FReal> Lambdas;
+	mutable TArray<FSolverReal> Lambdas;
 };
-}
+
+}  // End namespace Chaos::Softs

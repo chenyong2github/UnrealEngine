@@ -2,13 +2,14 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/PBDParticles.h"
 #include "Chaos/PBDStiffness.h"
 #include "Containers/Array.h"
 #include "Templates/EnableIf.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
 
 class FPBDSpringConstraintsBase
@@ -16,18 +17,18 @@ class FPBDSpringConstraintsBase
 public:
 	template<int32 Valence>
 	FPBDSpringConstraintsBase(
-		const FPBDParticles& Particles,
+		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
 		const TArray<TVector<int32, Valence>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FVec2& InStiffness,
+		const FSolverVec2& InStiffness,
 		bool bTrimKinematicConstraints = false,
 		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
 		: Constraints(TrimConstraints(InConstraints, 
 			[&Particles, bTrimKinematicConstraints](int32 Index0, int32 Index1)
 			{
-				return bTrimKinematicConstraints && Particles.InvM(Index0) == (FReal)0. && Particles.InvM(Index1) == (FReal)0.;
+				return bTrimKinematicConstraints && Particles.InvM(Index0) == (FSolverReal)0. && Particles.InvM(Index1) == (FSolverReal)0.;
 			}))
 		, Stiffness(InStiffness, StiffnessMultipliers, TConstArrayView<TVec2<int32>>(Constraints), ParticleOffset, ParticleCount)
 	{
@@ -35,8 +36,8 @@ public:
 		Dists.Reset(Constraints.Num());
 		for (const TVec2<int32>& Constraint : Constraints)
 		{
-			const FVec3& P0 = Particles.X(Constraint[0]);
-			const FVec3& P1 = Particles.X(Constraint[1]);
+			const FSolverVec3& P0 = Particles.X(Constraint[0]);
+			const FSolverVec3& P1 = Particles.X(Constraint[1]);
 			Dists.Add((P1 - P0).Size());
 		}
 	}
@@ -45,32 +46,32 @@ public:
 	{}
 
 	// Update stiffness values
-	void SetProperties(const FVec2& InStiffness) { Stiffness.SetWeightedValue(InStiffness.ClampAxes((FReal)0., (FReal)1.)); }
+	void SetProperties(const FSolverVec2& InStiffness) { Stiffness.SetWeightedValue(InStiffness.ClampAxes((FSolverReal)0., (FSolverReal)1.)); }
 
 	// Update stiffness table, as well as the simulation stiffness exponent
-	inline void ApplyProperties(const FReal Dt, const int32 NumIterations) { Stiffness.ApplyValues(Dt, NumIterations); }
+	inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyValues(Dt, NumIterations); }
 
 	const TArray<TVec2<int32>>& GetConstraints() const { return Constraints; }
 
 protected:
-	FVec3 GetDelta(const FPBDParticles& Particles, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const
+	FSolverVec3 GetDelta(const FSolverParticles& Particles, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 	{
 		const auto& Constraint = Constraints[ConstraintIndex];
 		const int32 i1 = Constraint[0];
 		const int32 i2 = Constraint[1];
 
-		if (Particles.InvM(i2) == (FReal)0. && Particles.InvM(i1) == (FReal)0.)
+		if (Particles.InvM(i2) == (FSolverReal)0. && Particles.InvM(i1) == (FSolverReal)0.)
 		{
-			return FVec3((FReal)0.);
+			return FSolverVec3((FSolverReal)0.);
 		}
-		const FReal CombinedMass = Particles.InvM(i2) + Particles.InvM(i1);
+		const FSolverReal CombinedMass = Particles.InvM(i2) + Particles.InvM(i1);
 
-		const FVec3& P1 = Particles.P(i1);
-		const FVec3& P2 = Particles.P(i2);
-		FVec3 Direction = P1 - P2;
-		const FReal Distance = Direction.SafeNormalize();
+		const FSolverVec3& P1 = Particles.P(i1);
+		const FSolverVec3& P2 = Particles.P(i2);
+		FSolverVec3 Direction = P1 - P2;
+		const FSolverReal Distance = Direction.SafeNormalize();
 
-		const FVec3 Delta = (Distance - Dists[ConstraintIndex]) * Direction;
+		const FSolverVec3 Delta = (Distance - Dists[ConstraintIndex]) * Direction;
 		return ExpStiffnessValue * Delta / CombinedMass;
 	}
 
@@ -103,8 +104,8 @@ private:
 
 protected:
 	TArray<TVec2<int32>> Constraints;
-	TArray<FReal> Dists;
+	TArray<FSolverReal> Dists;
 	FPBDStiffness Stiffness;
 };
 
-}
+}  // End namespace Chaos::Softs

@@ -3,7 +3,7 @@
 
 #include "Chaos/PBDAxialSpringConstraintsBase.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
 
 class CHAOS_API FPBDAxialSpringConstraints : public FPBDAxialSpringConstraintsBase
@@ -14,31 +14,31 @@ class CHAOS_API FPBDAxialSpringConstraints : public FPBDAxialSpringConstraintsBa
 
 public:
 	FPBDAxialSpringConstraints(
-		const FPBDParticles& Particles,
+		const FSolverParticles& Particles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const FVec2& InStiffness,
+		const FSolverVec2& InStiffness,
 		bool bTrimKinematicConstraints)
 		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
 	{
 		InitColor(Particles);
 	}
 
-	virtual ~FPBDAxialSpringConstraints() {}
+	virtual ~FPBDAxialSpringConstraints() override {}
 
-	void Apply(FPBDParticles& InParticles, const FReal Dt) const;
+	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
 
 private:
-	void InitColor(const FPBDParticles& InParticles);
-	void ApplyHelper(FPBDParticles& InParticles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const;
+	void InitColor(const FSolverParticles& InParticles);
+	void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
 
 private:
 	TArray<TArray<int32>> ConstraintsPerColor;
 };
 
-}
+}  // End namespace Chaos::Softs
 
 // Support ISPC enable/disable in non-shipping builds
 #if !INTEL_ISPC

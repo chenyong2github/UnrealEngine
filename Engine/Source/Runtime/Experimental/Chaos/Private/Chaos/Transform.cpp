@@ -5,9 +5,15 @@
 
 using namespace Chaos;
 
-PMatrix<Chaos::FReal, 4, 4> TRigidTransform<Chaos::FReal, 3>::operator*(const PMatrix<Chaos::FReal, 4, 4>& Matrix) const
+PMatrix<FRealSingle, 4, 4> TRigidTransform<FRealSingle, 3>::operator*(const PMatrix<FRealSingle, 4, 4>& Matrix) const
 {
 	// LWC_TODO: Perf pessimization
-	return ToMatrixNoScale() * static_cast<const UE::Math::TMatrix<FReal>&>(Matrix);
+	return ToMatrixNoScale() * static_cast<const UE::Math::TMatrix<FRealSingle>&>(Matrix);
+}
+
+PMatrix<FRealDouble, 4, 4> TRigidTransform<FRealDouble, 3>::operator*(const PMatrix<FRealDouble, 4, 4>& Matrix) const
+{
+	// LWC_TODO: Perf pessimization
+	return ToMatrixNoScale() * static_cast<const UE::Math::TMatrix<FRealDouble>&>(Matrix);
 }
 

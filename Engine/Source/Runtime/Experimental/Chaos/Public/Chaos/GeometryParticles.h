@@ -556,7 +556,7 @@ namespace Chaos
 			MHasBounds[Index] = (InGeometry && InGeometry->HasBoundingBox());
 			if (MHasBounds[Index])
 			{
-				MLocalBounds[Index] = InGeometry->BoundingBox();
+				MLocalBounds[Index] = TAABB<T, d>(InGeometry->BoundingBox());
 
 				// Update the world-space stat of all the shapes - must be called after UpdateShapesArray
 				// world space inflated bounds needs to take expansion into account - this is done in integrate for dynamics anyway, so
@@ -626,7 +626,7 @@ namespace Chaos
 				WorldBounds.GrowToInclude(Shape->GetWorldSpaceInflatedShapeBounds());
 			}
 
-			MWorldSpaceInflatedBounds[Index] = WorldBounds;
+			MWorldSpaceInflatedBounds[Index] = TAABB<T, d>(WorldBounds);
 		}
 
 		void UpdateWorldSpaceStateSwept(const int32 Index, const FRigidTransform3& EndWorldTransform, const FVec3& BoundsExpansion, const FVec3& DeltaX)
@@ -637,13 +637,13 @@ namespace Chaos
 
 		const TArray<TSerializablePtr<FImplicitObject>>& GetAllGeometry() const { return MGeometry; }
 
-		typedef TGeometryParticleHandle<T, d> THandleType;
+		typedef FGeometryParticleHandle THandleType;
 		FORCEINLINE THandleType* Handle(int32 Index) const { return const_cast<THandleType*>(MGeometryParticleHandle[Index].Get()); }
 
-		CHAOS_API void SetHandle(int32 Index, TGeometryParticleHandle<T, d>* Handle);
+		CHAOS_API void SetHandle(int32 Index, FGeometryParticleHandle* Handle);
 		
-		CHAOS_API TGeometryParticle<T, d>* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
-		CHAOS_API TGeometryParticle<T, d>*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
+		CHAOS_API FGeometryParticle* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
+		CHAOS_API FGeometryParticle*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
 
 		CHAOS_API const IPhysicsProxyBase* PhysicsProxy(const int32 Index) const { return MPhysicsProxy[Index];  }
 		CHAOS_API IPhysicsProxyBase* PhysicsProxy(const int32 Index) { return MPhysicsProxy[Index]; }
@@ -764,9 +764,9 @@ public:
 					MHasBounds[Idx] = MGeometry[Idx] && MGeometry[Idx]->HasBoundingBox();
 					if (MHasBounds[Idx])
 					{
-						MLocalBounds[Idx] = MGeometry[Idx]->BoundingBox();
+						MLocalBounds[Idx] = TAABB<T, d>(MGeometry[Idx]->BoundingBox());
 						//ignore velocity too, really just trying to get something reasonable)
-						UpdateWorldSpaceState(Idx, TRigidTransform<T,d>(X(Idx), R(Idx)), FVec3(0));
+						UpdateWorldSpaceState(Idx, FRigidTransform3(X(Idx), R(Idx)), FVec3(0));
 					}
 				}
 			}
@@ -824,8 +824,8 @@ public:
 		TArrayCollectionArray<TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>> MSharedGeometry;
 		// MDynamicGeometry entries are used for geo which is by the evolution. It is not set from the game side.
 		TArrayCollectionArray<TUniquePtr<FImplicitObject>> MDynamicGeometry;
-		TArrayCollectionArray<TSerializablePtr<TGeometryParticleHandle<T, d>>> MGeometryParticleHandle;
-		TArrayCollectionArray<TGeometryParticle<T, d>*> MGeometryParticle;
+		TArrayCollectionArray<TSerializablePtr<FGeometryParticleHandle>> MGeometryParticleHandle;
+		TArrayCollectionArray<FGeometryParticle*> MGeometryParticle;
 		TArrayCollectionArray<IPhysicsProxyBase*> MPhysicsProxy;
 		TArrayCollectionArray<bool> MHasCollision;
 		TArrayCollectionArray<FShapesArray> MShapesArray;

@@ -1,37 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Matrix.h"
-#include "Chaos/PerParticleRule.h"
-#include "GenericPlatform/GenericPlatformMath.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
+#include "Chaos/Vector.h"
+#include "Chaos/PBDParticles.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
-	class FPerParticleDampVelocity : public FPerParticleRule
+
+class FPerParticleDampVelocity final
+{
+public:
+	FPerParticleDampVelocity(const FSolverReal InCoefficient = (FSolverReal)0.01)
+		: Coefficient(InCoefficient)
 	{
-	public:
-		FPerParticleDampVelocity(const FReal Coefficient = (FReal)0.01)
-		    : MCoefficient(Coefficient)
-		{
-		}
-		virtual ~FPerParticleDampVelocity() {}
+	}
+	~FPerParticleDampVelocity() {}
 
-		void UpdatePositionBasedState(const FPBDParticles& Particles, const int32 Offset, const int32 Range);
+	void UpdatePositionBasedState(const FSolverParticles& Particles, const int32 Offset, const int32 Range);
 
-		// Apply damping without first checking for kinematic particles
-		inline void ApplyFast(FPBDParticles& Particles, const FReal /*Dt*/, const int32 Index) const
-		{
-			const FVec3 R = Particles.X(Index) - MXcm;
-			const FVec3 Dv = MVcm - Particles.V(Index) + FVec3::CrossProduct(R, MOmega);
-			Particles.V(Index) += MCoefficient * Dv;
-		}
+	// Apply damping without first checking for kinematic particles
+	inline void ApplyFast(FSolverParticles& Particles, const FSolverReal /*Dt*/, const int32 Index) const
+	{
+		const FSolverVec3 R = Particles.X(Index) - Xcm;
+		const FSolverVec3 Dv = Vcm - Particles.V(Index) + FSolverVec3::CrossProduct(R, Omega);
+		Particles.V(Index) += Coefficient * Dv;
+	}
 
-	private:
-		FReal MCoefficient;
-		FVec3 MXcm, MVcm, MOmega;
-		TArray<int32> ActiveIndices;
-	};
-}
+private:
+	FSolverReal Coefficient;
+	FSolverVec3 Xcm, Vcm, Omega;
+};
+
+}  // End namespace Chaos::Softs
 
 // Support ISPC enable/disable in non-shipping builds
 #if !INTEL_ISPC

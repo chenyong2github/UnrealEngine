@@ -137,22 +137,25 @@ namespace Chaos
 		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
 			If this is not the case the returned face normals may be inverted
 		*/
-		CHAOS_API TArray<FVec3> GetFaceNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError = true) const;
-		CHAOS_API void GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError = true) const;
+		template <typename T>
+		TArray<TVec3<T>> GetFaceNormals(const TConstArrayView<TVec3<T>>& Points, const bool ReturnEmptyOnError = true) const;
+		template <typename T>
+		void GetFaceNormals(TArray<TVec3<T>>& Normals, const TConstArrayView<TVec3<T>>& Points, const bool ReturnEmptyOnError = true) const;
 		FORCEINLINE TArray<FVec3> GetFaceNormals(const FParticles& InParticles, const bool ReturnEmptyOnError = true) const
-		{ return GetFaceNormals(InParticles.X(), ReturnEmptyOnError); }
+		{ return GetFaceNormals(TConstArrayView<FVec3>(InParticles.X()), ReturnEmptyOnError); }
 
 		CHAOS_API TArray<FVec3> GetPointNormals(const TConstArrayView<FVec3>& points, const bool ReturnEmptyOnError = true);
 		FORCEINLINE TArray<FVec3> GetPointNormals(const FParticles& InParticles, const bool ReturnEmptyOnError = true)
-		{ return GetPointNormals(InParticles.X(), ReturnEmptyOnError); }
-
+		{ return GetPointNormals(TConstArrayView<FVec3>(InParticles.X()), ReturnEmptyOnError); }
+		
 		CHAOS_API void GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray);
 		/** \brief Get per-point normals. 
 		 * This const version of this function requires \c GetPointToTriangleMap() 
 		 * to be called prior to invoking this function. 
 		 * @param bUseGlobalArray When true, fill the array from the StartIdx to StartIdx + NumIndices - 1 positions, otherwise fill the array from the 0 to NumIndices - 1 positions.
 		 */
-		CHAOS_API void GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray) const;
+		template <typename T>
+		void GetPointNormals(TArrayView<TVec3<T>> PointNormals, const TConstArrayView<TVec3<T>>& FaceNormals, const bool bUseGlobalArray) const;
 
 		static CHAOS_API FTriangleMesh GetConvexHullFromParticles(const TConstArrayView<FVec3>& points);
 		/** Deprecated. Use TArrayView version. */

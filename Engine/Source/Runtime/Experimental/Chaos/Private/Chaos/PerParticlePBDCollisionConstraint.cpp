@@ -8,8 +8,8 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
-static_assert(sizeof(ispc::FVector4) == sizeof(Chaos::FRotation3), "sizeof(ispc::FVector4) != sizeof(Chaos::FRotation3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FSolverRotation3), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FSolverRotation3)");
 
 bool bChaos_PerParticleCollision_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCEnabled(TEXT("p.Chaos.PerParticleCollision.ISPC"), bChaos_PerParticleCollision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per particle collisions"));
@@ -22,32 +22,27 @@ FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCParallelBatchSize(TEXT(
 FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCFastFriction(TEXT("p.Chaos.PerParticleCollision.ISPC.FastFriction"), Chaos_PerParticleCollision_ISPC_FastFriction, TEXT("Faster friction ISPC"));
 #endif
 
-using namespace Chaos;
-
-template<EGeometryParticlesSimType SimType>
-void TPerParticlePBDCollisionConstraint<SimType>::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
-{
-	ApplyHelper(Particles, Dt, Offset, Range); // default to non ISPC
-}
+namespace Chaos::Softs {
 
 // Helper function to call PhiWithNormal and return data to ISPC
-extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FReal* InV, FReal* Normal, FReal* Phi, const int32 i, const int32 ProgramCount, const int32 Mask)
+extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FSolverReal* InV, FSolverReal* Normal, FSolverReal* Phi, const int32 i, const int32 ProgramCount, const int32 Mask)
 {
-	const TKinematicGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>& C = *(const TKinematicGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>*)CollisionParticles;
+	const TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>& C = *(const TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>*)CollisionParticles;
 	
 	for (int32 Index = 0; Index < ProgramCount; ++Index)
 	{
 		if (Mask & (1 << Index))
 		{
-			FVec3 V;
+			FSolverVec3 V;
 
 			// aos_to_soa3
 			V.X = InV[Index];
 			V.Y = InV[Index + ProgramCount];
 			V.Z = InV[Index + 2 * ProgramCount];
 
-			FVec3 Norm;
-			Phi[Index] = C.Geometry(i)->PhiWithNormal(V, Norm);
+			FVec3 ImplicitNormal;
+			Phi[Index] = (FSolverReal)C.Geometry(i)->PhiWithNormal(FVec3(V), ImplicitNormal);
+			FSolverVec3 Norm(ImplicitNormal);
 
 			// aos_to_soa3
 			Normal[Index] = Norm.X;
@@ -57,16 +52,15 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FReal* I
 	}
 }
 
-template<>
-void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::ApplyHelperISPC(FPBDParticles& InParticles, const FReal Dt, int32 Offset, int32 Range) const
+void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InParticles, const FSolverReal Dt, const int32 Offset, const int32 Range) const
 {
 	check(bRealTypeCompatibleWithISPC);
 
 	const uint32 DynamicGroupId = MDynamicGroupIds[Offset];
-	const FReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
-	const FReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
+	const FSolverReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
+	const FSolverReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
 
-	const int32 NumBatches = FMath::CeilToInt((FReal)(Range - Offset) / (FReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
+	const int32 NumBatches = FMath::CeilToInt((FSolverReal)(Range - Offset) / (FSolverReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
 	if (Chaos_PerParticleCollision_ISPC_FastFriction)
 	{
@@ -79,16 +73,16 @@ void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::Apply
 
 #if INTEL_ISPC
 				MCollisionParticlesActiveView.RangeFor(
-					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupFriction, PerGroupThickness](FCollisionParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
+					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupFriction, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 					{
 						ispc::ApplyPerParticleCollisionFastFriction(
-							(ispc::FVector*)InParticles.GetP().GetData(),
-							(const ispc::FVector*)InParticles.XArray().GetData(),
+							(ispc::FVector3f*)InParticles.GetP().GetData(),
+							(const ispc::FVector3f*)InParticles.XArray().GetData(),
 							InParticles.GetInvM().GetData(),
-							(const ispc::FVector*)CollisionParticles.AllV().GetData(),
-							(const ispc::FVector*)CollisionParticles.XArray().GetData(),
-							(const ispc::FVector*)CollisionParticles.AllW().GetData(),
-							(const ispc::FVector4*)CollisionParticles.AllR().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
+							(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
 							DynamicGroupId,
 							MKinematicGroupIds.GetData(),
 							PerGroupFriction,
@@ -116,16 +110,16 @@ void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::Apply
 
 #if INTEL_ISPC
 				MCollisionParticlesActiveView.RangeFor(
-					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupThickness](FCollisionParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
+					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 					{
 						ispc::ApplyPerParticleCollisionNoFriction(
-							(ispc::FVector*)InParticles.GetP().GetData(),
-							(const ispc::FVector*)InParticles.XArray().GetData(),
+							(ispc::FVector3f*)InParticles.GetP().GetData(),
+							(const ispc::FVector3f*)InParticles.XArray().GetData(),
 							InParticles.GetInvM().GetData(),
-							(const ispc::FVector*)CollisionParticles.AllV().GetData(),
-							(const ispc::FVector*)CollisionParticles.XArray().GetData(),
-							(const ispc::FVector*)CollisionParticles.AllW().GetData(),
-							(const ispc::FVector4*)CollisionParticles.AllR().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
+							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
+							(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
 							DynamicGroupId,
 							MKinematicGroupIds.GetData(),
 							PerGroupThickness,
@@ -153,16 +147,16 @@ void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::Apply
 
 #if INTEL_ISPC
 			MCollisionParticlesActiveView.RangeFor(
-				[this, &InParticles, Dt, BatchBegin, BatchEnd](FCollisionParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
+				[this, &InParticles, Dt, BatchBegin, BatchEnd](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 				{
 					ispc::ApplyPerParticleCollision(
-						(ispc::FVector*)InParticles.GetP().GetData(),
-						(const ispc::FVector*)InParticles.XArray().GetData(),
+						(ispc::FVector3f*)InParticles.GetP().GetData(),
+						(const ispc::FVector3f*)InParticles.XArray().GetData(),
 						InParticles.GetInvM().GetData(),
-						(const ispc::FVector*)CollisionParticles.AllV().GetData(),
-						(const ispc::FVector*)CollisionParticles.XArray().GetData(),
-						(const ispc::FVector*)CollisionParticles.AllW().GetData(),
-						(const ispc::FVector4*)CollisionParticles.AllR().GetData(),
+						(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
+						(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
+						(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
+						(const ispc::FVector4f*)CollisionParticles.AllR().GetData(),
 						MDynamicGroupIds.GetData(),
 						MKinematicGroupIds.GetData(),
 						MPerGroupFriction.GetData(),
@@ -183,5 +177,4 @@ void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::Apply
 	}
 }
 
-template class Chaos::TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::RigidBodySim>;
-template class Chaos::TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>;
+}  // End namespace Chaos::Softs

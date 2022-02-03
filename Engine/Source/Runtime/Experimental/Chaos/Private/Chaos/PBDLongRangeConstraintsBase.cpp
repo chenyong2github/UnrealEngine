@@ -17,7 +17,7 @@ FAutoConsoleVariableRef CVarChaosPBDLongRangeConstraintsMinParallelBatchSize(
 	TEXT("The minimum number of long range tethers in a batch to process in parallel."),
 	ECVF_Cheat);
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
 int32 FPBDLongRangeConstraintsBase::GetMinParallelBatchSize()
 {
@@ -25,14 +25,14 @@ int32 FPBDLongRangeConstraintsBase::GetMinParallelBatchSize()
 }
 
 FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
-	const FPBDParticles& Particles,
+	const FSolverParticles& Particles,
 	const int32 InParticleOffset,
 	const int32 InParticleCount,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 	const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 	const TConstArrayView<FRealSingle>& ScaleMultipliers,
-	const FVec2& InStiffness,
-	const FVec2& InScale)
+	const FSolverVec2& InStiffness,
+	const FSolverVec2& InScale)
 	: Tethers(InTethers)
 	, Stiffness(InStiffness, StiffnessMultipliers, InParticleCount)
 	, Scale(InScale)
@@ -62,24 +62,25 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	}
 
 	// Apply default properties
-	ApplyProperties((FReal)(1. / FPBDStiffness::ParameterFrequency), 1);
+	ApplyProperties((FSolverReal)(1. / FPBDStiffness::ParameterFrequency), 1);
 }
 
-void FPBDLongRangeConstraintsBase::ApplyProperties(const FReal Dt, const int32 NumIterations)
+void FPBDLongRangeConstraintsBase::ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
 {
 	// Apply stiffness
 	Stiffness.ApplyValues(Dt, NumIterations);
 
 	// Apply scale
-	const FReal Offset = Scale[0];
-	const FReal Range = Scale[1] - Scale[0];
+	const FSolverReal Offset = Scale[0];
+	const FSolverReal Range = Scale[1] - Scale[0];
 	const int32 ScaleTableSize = ScaleTable.Num();
-	const FReal WeightIncrement = (ScaleTableSize > 1) ? (FReal)1. / (FReal)(ScaleTableSize - 1) : (FReal)1.; // Must allow full range from 0 to 1 included
+	const FSolverReal WeightIncrement = (ScaleTableSize > 1) ? (FSolverReal)1. / (FSolverReal)(ScaleTableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
 	for (int32 Index = 0; Index < ScaleTableSize; ++Index)
 	{
-		const FReal Weight = (FReal)Index * WeightIncrement;
+		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
 		ScaleTable[Index] = Offset + Weight * Range;
 	}
 }
 
+}  // End namespace Chaos::Softs
 

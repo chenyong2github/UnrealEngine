@@ -3,9 +3,8 @@
 #include "Chaos/Array.h"
 #include "ChaosLog.h"
 
-using namespace Chaos;
-
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& Graph, const FDynamicParticles& InParticles)
+template<typename T>
+static bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<Chaos::TVec2<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -37,7 +36,8 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec2<int32>>& G
 	return true;
 }
 
-bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& Graph, const FDynamicParticles& InParticles)
+template<typename T>
+static bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<Chaos::TVec3<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles)
 {
 	for (int32 i = 0; i < ColorGraph.Num(); ++i)
 	{
@@ -79,8 +79,8 @@ bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVec3<int32>>& G
 	return true;
 }
 
-
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<int32>>& Graph, const FDynamicParticles& InParticles)
+template<typename T>
+TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring(const TArray<Chaos::TVec2<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles)
 {
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;
@@ -103,7 +103,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<in
 
 	for (uint32 ParticleNodeIndex = 0; ParticleNodeIndex < InParticles.Size(); ++ParticleNodeIndex)
 	{
-		const bool bIsParticleDynamic = InParticles.InvM(ParticleNodeIndex) != 0;
+		const bool bIsParticleDynamic = InParticles.InvM(ParticleNodeIndex) != (T)0.;
 		if (ProcessedNodes.Contains(ParticleNodeIndex) || !bIsParticleDynamic)
 		{
 			continue;
@@ -152,7 +152,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<in
 				{
 					FGraphNode& OtherNode = Nodes[OtherNodeIndex];
 
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						while (OtherNode.UsedColors.Contains(ColorToUse) || GraphNode.UsedColors.Contains(ColorToUse))
@@ -182,7 +182,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<in
 				if (OtherNodeIndex != INDEX_NONE)
 				{
 					FGraphNode& OtherGraphNode = Nodes[OtherNodeIndex];
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						// Mark other node as not allowing use of this color
@@ -206,8 +206,11 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec2<in
 	return ColorGraph;
 }
 
-TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<int32>>& Graph, const FDynamicParticles& InParticles)
+template<typename T>
+TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring(const TArray<TVec3<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles)
 {
+	using namespace Chaos;
+
 	TArray<TArray<int32>> ColorGraph;
 	TArray<FGraphNode> Nodes;
 	TArray<FGraph3dEdge> Edges;
@@ -231,7 +234,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 
 	for (uint32 ParticleNodeIndex = 0; ParticleNodeIndex < InParticles.Size(); ++ParticleNodeIndex)
 	{
-		const bool bIsParticleDynamic = InParticles.InvM(ParticleNodeIndex) != 0;
+		const bool bIsParticleDynamic = InParticles.InvM(ParticleNodeIndex) != (T)0.;
 		if (ProcessedNodes.Contains(ParticleNodeIndex) || !bIsParticleDynamic)
 		{
 			continue;
@@ -288,7 +291,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 				{
 					FGraphNode& OtherNode = Nodes[OtherNodeIndex];
 
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						while (OtherNode.UsedColors.Contains(ColorToUse) || GraphNode.UsedColors.Contains(ColorToUse))
@@ -301,7 +304,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 				{
 					FGraphNode& OtherNode = Nodes[OtherNodeIndex2];
 
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex2) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex2) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						if (OtherNodeIndex == INDEX_NONE)
@@ -342,7 +345,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 				if (OtherNodeIndex != INDEX_NONE)
 				{
 					FGraphNode& OtherGraphNode = Nodes[OtherNodeIndex];
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						// Mark other node as not allowing use of this color
@@ -361,7 +364,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 				if (OtherNodeIndex2 != INDEX_NONE)
 				{
 					FGraphNode& OtherGraphNode = Nodes[OtherNodeIndex2];
-					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex2) != 0;
+					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex2) != (T)0.;
 					if (bIsOtherGraphNodeDynamic)
 					{
 						// Mark other node as not allowing use of this color
@@ -385,3 +388,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVec3<in
 	return ColorGraph;
 }
 
+template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealSingle>(const TArray<Chaos::TVector<int32, 2>>&, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>&);
+template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 2>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&);
+template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealSingle>(const TArray<Chaos::TVector<int32, 3>>&, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>&);
+template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 3>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&);

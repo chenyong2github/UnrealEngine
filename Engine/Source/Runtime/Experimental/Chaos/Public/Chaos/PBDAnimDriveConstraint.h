@@ -2,21 +2,23 @@
 #pragma once
 
 #include "Chaos/Framework/Parallel.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDStiffness.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Anim Drive Constraint"), STAT_PBD_AnimDriveConstraint, STATGROUP_Chaos);
 
-namespace Chaos
+namespace Chaos::Softs
 {
+
 	class FPBDAnimDriveConstraint final
 	{
 	public:
 		FPBDAnimDriveConstraint(
 			const int32 InParticleOffset,
 			const int32 InParticleCount,
-			const TArray<FVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
-			const TArray<FVec3>& InOldAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
+			const TArray<FSolverVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
+			const TArray<FSolverVec3>& InOldAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
 			const TConstArrayView<FRealSingle>& StiffnessMultipliers,  // Use local indexation
 			const TConstArrayView<FRealSingle>& DampingMultipliers  // Use local indexation
 		)
@@ -24,33 +26,33 @@ namespace Chaos
 			, OldAnimationPositions(InOldAnimationPositions)
 			, ParticleOffset(InParticleOffset)
 			, ParticleCount(InParticleCount)
-			, Stiffness(FVec2::UnitVector, StiffnessMultipliers, InParticleCount)
-			, Damping(FVec2::UnitVector, DampingMultipliers, InParticleCount)
+			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
+			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
 		{
 		}
 
 		~FPBDAnimDriveConstraint() {}
 
 		// Return the stiffness input values used by the constraint
-		FVec2 GetStiffness() const { return Stiffness.GetWeightedValue(); }
+		FSolverVec2 GetStiffness() const { return Stiffness.GetWeightedValue(); }
 
 		// Return the damping input values used by the constraint
-		FVec2 GetDamping() const { return Damping.GetWeightedValue(); }
+		FSolverVec2 GetDamping() const { return Damping.GetWeightedValue(); }
 
-		inline void SetProperties(const FVec2& InStiffness, const FVec2& InDamping)
+		inline void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InDamping)
 		{
 			Stiffness.SetWeightedValue(InStiffness);
 			Damping.SetWeightedValue(InDamping);
 		}
 
 		// Set stiffness offset and range, as well as the simulation stiffness exponent
-		inline void ApplyProperties(const FReal Dt, const int32 NumIterations)
+		inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
 		{
 			Stiffness.ApplyValues(Dt, NumIterations);
 			Damping.ApplyValues(Dt, NumIterations);
 		}
 
-		inline void Apply(FPBDParticles& InParticles, const FReal Dt) const
+		inline void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PBD_AnimDriveConstraint);
 
@@ -58,38 +60,38 @@ namespace Chaos
 			{
 				if (Damping.HasWeightMap())
 				{
-					PhysicsParallelFor(ParticleCount, [&](int32 Index)  // TODO: profile needed for these parallel loop based on particle count
+					PhysicsParallelFor(ParticleCount, [this, &InParticles, &Dt](int32 Index)  // TODO: profile needed for these parallel loop based on particle count
 					{
-						const FReal ParticleStiffness = Stiffness[Index];
-						const FReal ParticleDamping = Damping[Index];
+						const FSolverReal ParticleStiffness = Stiffness[Index];
+						const FSolverReal ParticleDamping = Damping[Index];
 						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
 					});
 				}
 				else
 				{
-					const FReal ParticleDamping = (FReal)Damping;
-					PhysicsParallelFor(ParticleCount, [&](int32 Index)
+					const FSolverReal ParticleDamping = (FSolverReal)Damping;
+					PhysicsParallelFor(ParticleCount, [this, &InParticles, ParticleDamping, &Dt](int32 Index)
 					{
-						const FReal ParticleStiffness = Stiffness[Index];
+						const FSolverReal ParticleStiffness = Stiffness[Index];
 						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
 					});
 				}
 			}
 			else
 			{
-				const FReal ParticleStiffness = (FReal)Stiffness;
+				const FSolverReal ParticleStiffness = (FSolverReal)Stiffness;
 				if (Damping.HasWeightMap())
 				{
-					PhysicsParallelFor(ParticleCount, [&](int32 Index)
+					PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &Dt](int32 Index)
 					{
-						const FReal ParticleDamping = Damping[Index];
+						const FSolverReal ParticleDamping = Damping[Index];
 						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
 					});
 				}
 				else
 				{
-					const FReal ParticleDamping = (FReal)Damping;
-					PhysicsParallelFor(ParticleCount, [&](int32 Index)
+					const FSolverReal ParticleDamping = (FSolverReal)Damping;
+					PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &ParticleDamping, &Dt](int32 Index)
 					{
 						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
 					});
@@ -98,28 +100,28 @@ namespace Chaos
 		}
 
 	private:
-		inline void ApplyHelper(FPBDParticles& Particles, const FReal InStiffness, const FReal InDamping, const FReal Dt, const int32 Index) const
+		inline void ApplyHelper(FSolverParticles& Particles, const FSolverReal InStiffness, const FSolverReal InDamping, const FSolverReal Dt, const int32 Index) const
 		{
 			const int32 ParticleIndex = ParticleOffset + Index;
-			if (Particles.InvM(ParticleIndex) == (FReal)0.)
+			if (Particles.InvM(ParticleIndex) == (FSolverReal)0.)
 			{
 				return;
 			}
 
-			FVec3& ParticlePosition = Particles.P(ParticleIndex);
-			const FVec3& AnimationPosition = AnimationPositions[ParticleIndex];
-			const FVec3& OldAnimationPosition = OldAnimationPositions[ParticleIndex];
+			FSolverVec3& ParticlePosition = Particles.P(ParticleIndex);
+			const FSolverVec3& AnimationPosition = AnimationPositions[ParticleIndex];
+			const FSolverVec3& OldAnimationPosition = OldAnimationPositions[ParticleIndex];
 
-			const FVec3 ParticleDisplacement = ParticlePosition - Particles.X(ParticleIndex);
-			const FVec3 AnimationDisplacement = OldAnimationPosition - AnimationPosition;
-			const FVec3 RelativeDisplacement = ParticleDisplacement - AnimationDisplacement;
+			const FSolverVec3 ParticleDisplacement = ParticlePosition - Particles.X(ParticleIndex);
+			const FSolverVec3 AnimationDisplacement = OldAnimationPosition - AnimationPosition;
+			const FSolverVec3 RelativeDisplacement = ParticleDisplacement - AnimationDisplacement;
 
 			ParticlePosition -= InStiffness * (ParticlePosition - AnimationPosition) + InDamping * RelativeDisplacement;
 		}
 
 	private:
-		const TArray<FVec3>& AnimationPositions;  // Use global index (needs adding ParticleOffset)
-		const TArray<FVec3>& OldAnimationPositions;  // Use global index (needs adding ParticleOffset)
+		const TArray<FSolverVec3>& AnimationPositions;  // Use global index (needs adding ParticleOffset)
+		const TArray<FSolverVec3>& OldAnimationPositions;  // Use global index (needs adding ParticleOffset)
 		const int32 ParticleOffset;
 		const int32 ParticleCount;
 
@@ -127,6 +129,4 @@ namespace Chaos
 		FPBDStiffness Damping;
 	};
 
-	template<typename T, int d>
-	using TPBDAnimDriveConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDAnimDriveConstraint instead") = FPBDAnimDriveConstraint;
-}
+}  // End namespace Chaos::Softs

@@ -6,16 +6,16 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
-static_assert(sizeof(ispc::FTether) == sizeof(Chaos::FPBDLongRangeConstraintsBase::FTether), "sizeof(ispc::FTether) != sizeof(Chaos::FPBDLongRangeConstraintsBase::FTether)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FTether) == sizeof(Chaos::Softs::FPBDLongRangeConstraintsBase::FTether), "sizeof(ispc::FTether) != sizeof(Chaos::Softs::FPBDLongRangeConstraintsBase::FTether)");
 
 bool bChaos_LongRange_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosLongRangeISPCEnabled(TEXT("p.Chaos.LongRange.ISPC"), bChaos_LongRange_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in long range constraints"));
 #endif
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
-void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*/) const
+void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverReal /*Dt*/) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
@@ -23,10 +23,10 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 
 	if (!Stiffness.HasWeightMap())
 	{
-		const FReal ExpStiffnessValue = (FReal)Stiffness;
+		const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 		if (!HasScaleWeightMap())
 		{
-			const FReal ScaleValue = ScaleTable[0];
+			const FSolverReal ScaleValue = ScaleTable[0];
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
 			{
@@ -34,7 +34,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraints(
-						(ispc::FVector*)Particles.GetP().GetData(),
+						(ispc::FVector3f*)Particles.GetP().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						ExpStiffnessValue,
 						ScaleValue,
@@ -65,7 +65,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsScaleWeightmap(
-						(ispc::FVector*)Particles.GetP().GetData(),
+						(ispc::FVector3f*)Particles.GetP().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						ExpStiffnessValue,
 						ScaleIndices.GetData(),
@@ -84,7 +84,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
 							Particles.P(ParticleOffset + LocalParticleIndex) += ExpStiffnessValue * GetDelta(Particles, Tether, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 				}
@@ -95,7 +95,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 	{
 		if (!HasScaleWeightMap())
 		{
-			const FReal ScaleValue = ScaleTable[0];
+			const FSolverReal ScaleValue = ScaleTable[0];
 
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
@@ -104,7 +104,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsStiffnessWeightmap(
-						(ispc::FVector*)Particles.GetP().GetData(),
+						(ispc::FVector3f*)Particles.GetP().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						Stiffness.GetIndices().GetData(),
 						Stiffness.GetTable().GetData(),
@@ -123,7 +123,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
 							Particles.P(ParticleOffset + LocalParticleIndex) += ExpStiffnessValue * GetDelta(Particles, Tether, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 				}
@@ -138,7 +138,7 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsStiffnessScaleWeightmaps(
-						(ispc::FVector*)Particles.GetP().GetData(),
+						(ispc::FVector3f*)Particles.GetP().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						Stiffness.GetIndices().GetData(),
 						Stiffness.GetTable().GetData(),
@@ -158,8 +158,8 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 						{
 							const FTether& Tether = TetherBatch[Index];
 							const int32 LocalParticleIndex = GetEndIndex(Tether);
-							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
-							const FReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FSolverReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							const FSolverReal ScaleValue = ScaleTable[ScaleIndices[LocalParticleIndex]];
 							Particles.P(ParticleOffset + LocalParticleIndex) += ExpStiffnessValue * GetDelta(Particles, Tether, ScaleValue);
 						}, TetherBatch.Num() < MinParallelSize);
 				}
@@ -168,3 +168,4 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 	}
 }
 
+}  // End namespace Chaos::Softs

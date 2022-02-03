@@ -153,7 +153,7 @@ namespace Chaos
 		FORCEINLINE const TAABB<FReal, 3> BoundingBox() const
 		{
 			// LWC - necessary if T is different from FReal
-			return TAABB<FReal, 3>(AABB.Min(), AABB.Max());
+			return TAABB<FReal, 3>(AABB);
 		}
 
 		// Apply a limit to the specified margin that prevents the box inverting
@@ -462,22 +462,45 @@ namespace Chaos
 		}
 
 		// See comments on SerializeAsAABB
-		static void SerializeAsAABBs(FArchive& Ar, TArray<TAABB<T, d>>& AABBs)
+		template<typename OtherType>
+		static void SerializeAsAABBs(FArchive& Ar, TArray<TAABB<OtherType, d>>& AABBs)
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TBoxReplacedWithTAABB)
 			{
 				TArray<TBox<T, d>> Tmp;
 				Ar << Tmp;
-				AABBs.Reserve(Tmp.Num());
+				AABBs.Reset(Tmp.Num());
 				for (const TBox<T, d>& Box : Tmp)
 				{
-					AABBs.Add(Box.AABB);
+					AABBs.Emplace(TAABB<OtherType, d>(Box.AABB));
+				}
+			}
+			else if (TAreTypesEqual<T, OtherType>::Value)
+			{
+				Ar << AABBs;
+			}
+			else if (Ar.IsLoading())
+			{
+				// Reload to a different floating point type
+				TArray<TAABB<T, d>> TmpAABBs;
+				Ar << TmpAABBs;
+				AABBs.Reset(TmpAABBs.Num());
+				for (const TAABB<T, d>& TmpAABB : TmpAABBs)
+				{
+					AABBs.Emplace(TAABB<OtherType, d>(TmpAABB));
 				}
 			}
 			else
 			{
-				Ar << AABBs;
+				// Serialize from a different floating point type
+				TArray<TAABB<T, d>> TmpAABBs;
+				TmpAABBs.Reserve(AABBs.Num());
+				for (const TAABB<OtherType, d>& AABB : AABBs)
+				{
+					TmpAABBs.Emplace(TAABB<T, d>(AABB));
+				}
+				Ar << TmpAABBs;
 			}
 		}
 

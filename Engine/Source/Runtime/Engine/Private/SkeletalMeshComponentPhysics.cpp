@@ -66,8 +66,6 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
-
-using namespace Chaos;
 #endif  // #if !PHYSICS_INTERFACE_PHYSX && WITH_CHAOS
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponentPhysics"
@@ -3230,6 +3228,8 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 						}
 					}
 #elif WITH_CHAOS
+					using namespace Chaos;
+
 					const FReal Thickness = (FReal)EnvironmentCollisionConfig.Thickness;
 
 					auto AddSphere = [&NewCollisionData](const FImplicitSphere3& ImplicitSphere, const FTransform& ComponentToClothTransform, const FVec3& Scale = FVec3::OneVector)

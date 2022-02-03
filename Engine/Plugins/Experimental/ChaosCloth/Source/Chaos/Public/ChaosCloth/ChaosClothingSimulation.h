@@ -18,8 +18,6 @@ class UMaterial;
 namespace Chaos
 {
 	class FTriangleMesh;
-	class FPBDLongRangeConstraintsBase;
-	class FPBDEvolution;
 	class FClothingSimulationSolver;
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;

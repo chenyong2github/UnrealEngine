@@ -9,9 +9,10 @@
 #include "HAL/IConsoleManager.h"
 #include "ClothingSimulation.h"
 
-using namespace Chaos;
+namespace Chaos
+{
 
-namespace ChaosClothingSimulationClothConsoleVariables
+namespace ClothingSimulationClothConsoleVariables
 {
 	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
 }
@@ -88,16 +89,16 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	default:
 		check(false);
 	case EMassMode::UniformMass:
-		Solver->SetParticleMassUniform(Offset, (FReal)Cloth->MassValue, (FReal)Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
+		Solver->SetParticleMassUniform(Offset, Cloth->MassValue, Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
 		break;
 	case EMassMode::TotalMass:
-		Solver->SetParticleMassFromTotalMass(Offset, (FReal)Cloth->MassValue, (FReal)Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
+		Solver->SetParticleMassFromTotalMass(Offset, Cloth->MassValue, Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
 		break;
 	case EMassMode::Density:
-		Solver->SetParticleMassFromDensity(Offset, (FReal)Cloth->MassValue, (FReal)Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
+		Solver->SetParticleMassFromDensity(Offset, Cloth->MassValue, Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
 		break;
 	}
-	const TConstArrayView<FReal> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
+	const TConstArrayView<Softs::FSolverReal> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
 
 	// Setup solver constraints
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
@@ -310,17 +311,7 @@ void FClothingSimulationCloth::FLODData::ResetStartPose(FClothingSimulationSolve
 	const int32 Offset = SolverData.FindChecked(Solver).Offset;
 	check(Offset != INDEX_NONE);
 
-	FVec3* const Ps = Solver->GetParticlePs(Offset);
-	FVec3* const Xs = Solver->GetParticleXs(Offset);
-	FVec3* const Vs = Solver->GetParticleVs(Offset);
-	const FVec3* const AnimationPositions = Solver->GetAnimationPositions(Offset);
-	FVec3* const OldAnimationPositions = Solver->GetOldAnimationPositions(Offset);
-
-	for (int32 Index = 0; Index < NumParticles; ++Index)
-	{
-		Ps[Index] = Xs[Index] = OldAnimationPositions[Index] = AnimationPositions[Index];
-		Vs[Index] = FVec3(0.f);
-	}
+	Solver->ResetStartPose(Offset, NumParticles);
 }
 
 void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver* Solver) const
@@ -333,12 +324,12 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 
 	check(Offset != INDEX_NONE);
 
-	TConstArrayView<FVec3> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
-	TArray<FVec3> FaceNormals;
+	TConstArrayView<Softs::FSolverVec3> Points(Solver->GetParticleXs(Offset) - Offset, Offset + NumParticles);  // TODO: TriangleMesh still uses global array
+	TArray<Softs::FSolverVec3> FaceNormals;
 	TriangleMesh.GetFaceNormals(FaceNormals, Points, /*ReturnEmptyOnError =*/ false);
 
-	TArrayView<FVec3> Normals(Solver->GetNormals(Offset), NumParticles);
-	TriangleMesh.GetPointNormals(Normals, FaceNormals, /*bUseGlobalArray =*/ false);
+	TArrayView<Softs::FSolverVec3> Normals(Solver->GetNormals(Offset), NumParticles);
+	TriangleMesh.GetPointNormals(Normals, TConstArrayView<Softs::FSolverVec3>(FaceNormals), /*bUseGlobalArray =*/ false);
 }
 
 FClothingSimulationCloth::FClothingSimulationCloth(
@@ -364,8 +355,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	bool bInUseXPBDConstraints,
 	FRealSingle InGravityScale,
 	bool bInIsGravityOverridden,
-	const FVec3& InGravityOverride,
-	const FVec3& InLinearVelocityScale,
+	const TVec3<FRealSingle>& InGravityOverride,
+	const TVec3<FRealSingle>& InLinearVelocityScale,
 	FRealSingle InAngularVelocityScale,
 	FRealSingle InFictitiousAngularScale,
 	const TVec2<FRealSingle>& InDrag,
@@ -601,7 +592,7 @@ int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solve
 	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].SolverData.FindChecked(Solver).Offset : 0;
 }
 
-FVec3 FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const
+TVec3<FRealSingle> FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	return Solver->IsClothGravityOverrideEnabled() && bIsGravityOverridden ? GravityOverride : Solver->GetGravity() * GravityScale;
@@ -612,16 +603,16 @@ FAABB3 FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationS
 	check(Solver);
 
 	// Calculate local space bounding box
-	FAABB3 BoundingBox = FAABB3::EmptyAABB();
+	Softs::FSolverAABB3 BoundingBox = Softs::FSolverAABB3::EmptyAABB();
 
-	const TConstArrayView<FVec3> ParticlePositions = GetParticlePositions(Solver);
-	for (const FVec3& ParticlePosition : ParticlePositions)
+	const TConstArrayView<Softs::FSolverVec3> ParticlePositions = GetParticlePositions(Solver);
+	for (const Softs::FSolverVec3& ParticlePosition : ParticlePositions)
 	{
 		BoundingBox.GrowToInclude(ParticlePosition);
 	}
 
 	// Return world space bounding box
-	return BoundingBox.TransformedAABB(FRigidTransform3(Solver->GetLocalSpaceLocation(), FRotation3::Identity));
+	return FAABB3(BoundingBox).TransformedAABB(FRigidTransform3(Solver->GetLocalSpaceLocation(), FRotation3::Identity));
 }
 
 int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solver) const
@@ -806,13 +797,13 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// External forces (legacy wind+field)
 		Solver->AddExternalForces(GroupId, bUseLegacyWind);
 
-		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
+		if (bUseLegacyWind && ClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{
-			Solver->SetWindProperties(GroupId, FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);  // Disable the wind velocity field
+			Solver->SetWindProperties(GroupId, TVec2<FRealSingle>(0.), TVec2<FRealSingle>(0.), (FRealSingle)0.);  // Disable the wind velocity field
 		}
 		else
 		{
-			Solver->SetWindProperties(GroupId, FVec2((FReal)Drag[0], (FReal)Drag[1]), FVec2((FReal)Lift[0], (FReal)Lift[1]), (FReal)AirDensity);  // TODO: Pass AirDensity too
+			Solver->SetWindProperties(GroupId, Drag, Lift, AirDensity);
 		}
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
 
@@ -840,50 +831,52 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 	}
 }
 
-TConstArrayView<FVec3> FClothingSimulationCloth::GetAnimationPositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetAnimationPositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FVec3>(Solver->GetAnimationPositions(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverVec3>(Solver->GetAnimationPositions(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<FVec3> FClothingSimulationCloth::GetAnimationNormals(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetAnimationNormals(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FVec3>(Solver->GetAnimationNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverVec3>(Solver->GetAnimationNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<FVec3> FClothingSimulationCloth::GetParticlePositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticlePositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FVec3>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverVec3>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<FVec3> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FVec3>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverVec3>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<FVec3> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FVec3>(Solver->GetNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverVec3>(Solver->GetNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<FReal> FClothingSimulationCloth::GetParticleInvMasses(const FClothingSimulationSolver* Solver) const
+TConstArrayView<Softs::FSolverReal> FClothingSimulationCloth::GetParticleInvMasses(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<FReal>(Solver->GetParticleInvMasses(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<Softs::FSolverReal>(Solver->GetParticleInvMasses(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
+
+}  // End namespace Chaos

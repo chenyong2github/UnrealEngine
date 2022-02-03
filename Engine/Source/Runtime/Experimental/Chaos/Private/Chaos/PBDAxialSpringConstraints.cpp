@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/GraphColoring.h"
+#include "Chaos/Framework/Parallel.h"
 #include "ChaosStats.h"
-#include "ChaosLog.h"
 #if INTEL_ISPC
 #include "PBDAxialSpringConstraints.ispc.generated.h"
 #endif
@@ -12,15 +12,18 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Axial Spring Constraint"), STAT_PBD_AxialSpri
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 bool bChaos_AxialSpring_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosAxialSpringISPCEnabled(TEXT("p.Chaos.AxialSpring.ISPC"), bChaos_AxialSpring_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in AxialSpring constraints"));
+
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3");
+static_assert(sizeof(ispc::FIntVector) == sizeof(Chaos::TVec3<int32>), "sizeof(ispc::FIntVector) != sizeof(Chaos::TVec3<int32>");
 #endif
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
 // @todo(chaos): the parallel threshold (or decision to run parallel) should probably be owned by the solver and passed to the constraint container
 int32 Chaos_AxialSpring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosAxialSpringParallelConstraintCount(TEXT("p.Chaos.AxialSpring.ParallelConstraintCount"), Chaos_AxialSpring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 
-void FPBDAxialSpringConstraints::InitColor(const FPBDParticles& InParticles)
+void FPBDAxialSpringConstraints::InitColor(const FSolverParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -31,29 +34,29 @@ void FPBDAxialSpringConstraints::InitColor(const FPBDParticles& InParticles)
 	}
 }
 
-void FPBDAxialSpringConstraints::ApplyHelper(FPBDParticles& Particles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const
+void FPBDAxialSpringConstraints::ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 {
-		const auto& constraint = Constraints[ConstraintIndex];
-		const int32 i1 = constraint[0];
-		const int32 i2 = constraint[1];
-		const int32 i3 = constraint[2];
-		const FVec3 Delta = Base::GetDelta(Particles, ConstraintIndex, ExpStiffnessValue);
-		const FReal Multiplier = 2 / (FMath::Max(Barys[ConstraintIndex], 1 - Barys[ConstraintIndex]) + 1);
-		if (Particles.InvM(i1) > (FReal)0.)
+		const TVec3<int32>& Constraint = Constraints[ConstraintIndex];
+		const int32 i1 = Constraint[0];
+		const int32 i2 = Constraint[1];
+		const int32 i3 = Constraint[2];
+		const FSolverVec3 Delta = Base::GetDelta(Particles, ConstraintIndex, ExpStiffnessValue);
+		const FSolverReal Multiplier = (FSolverReal)2. / (FMath::Max(Barys[ConstraintIndex], (FSolverReal)1. - Barys[ConstraintIndex]) + (FSolverReal)1.);
+		if (Particles.InvM(i1) > (FSolverReal)0.)
 		{
 			Particles.P(i1) -= Multiplier * Particles.InvM(i1) * Delta;
 		}
-		if (Particles.InvM(i2) > (FReal)0.)
+		if (Particles.InvM(i2) > (FSolverReal)0.)
 		{
 			Particles.P(i2) += Multiplier * Particles.InvM(i2) * Barys[ConstraintIndex] * Delta;
 		}
-		if (Particles.InvM(i3) > (FReal)0.)
+		if (Particles.InvM(i3) > (FSolverReal)0.)
 		{
-			Particles.P(i3) += Multiplier * Particles.InvM(i3) * ((FReal)1. - Barys[ConstraintIndex]) * Delta;
+			Particles.P(i3) += Multiplier * Particles.InvM(i3) * ((FSolverReal)1. - Barys[ConstraintIndex]) * Delta;
 		}
 }
 
-void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) const
+void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolverReal Dt) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDAxialSpringConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_AxialSpring);
@@ -61,7 +64,7 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 	{
 		if (!Stiffness.HasWeightMap())
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_AxialSpring_ISPC_Enabled)
@@ -69,7 +72,7 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
 				{
 					ispc::ApplyAxialSpringConstraints(
-						(ispc::FVector*)&Particles.GetP()[0],
+						(ispc::FVector3f*)&Particles.GetP()[0],
 						(ispc::FIntVector*)&Constraints.GetData()[0],
 						&ConstraintBatch.GetData()[0],
 						&Particles.GetInvM().GetData()[0],
@@ -100,7 +103,7 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
 				{
 					ispc::ApplyAxialSpringConstraintsWithWeightMaps(
-						(ispc::FVector*)&Particles.GetP()[0],
+						(ispc::FVector3f*)&Particles.GetP()[0],
 						(ispc::FIntVector*)&Constraints.GetData()[0],
 						&ConstraintBatch.GetData()[0],
 						&Particles.GetInvM().GetData()[0],
@@ -119,7 +122,7 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 					PhysicsParallelFor(ConstraintBatch.Num(), [&](const int32 Index)
 					{
 						const int32 ConstraintIndex = ConstraintBatch[Index];
-						const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+						const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 					});
 				}
@@ -130,7 +133,7 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 	{
 		if (!Stiffness.HasWeightMap())
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
@@ -140,10 +143,11 @@ void FPBDAxialSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt)
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
-				const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 			}
 		}
 	}
-
 }
+
+}  // End namespace Chaos::Softs

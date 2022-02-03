@@ -1,22 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Array.h"
-#include "Chaos/PBDParticles.h"
 #include "Chaos/PBDSpringConstraintsBase.h"
-#include "Chaos/PerParticleRule.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
-class FPerParticlePBDSpringConstraints : public FPerParticleRule, public FPBDSpringConstraintsBase
+
+class UE_DEPRECATED(5.0, "Per particle constraint rules are no longer used by the cloth solver. Use FPBDSpringConstraints instead.") FPerParticlePBDSpringConstraints : public FPBDSpringConstraintsBase
 {
 	typedef FPBDSpringConstraintsBase Base;
 	using Base::Constraints;
 	using Base::Stiffness;
 
-  public:
-	FPerParticlePBDSpringConstraints(const FPBDParticles& InParticles, const TArray<TVec2<int32>>& InConstraints, const FReal InStiffness = (FReal)1.)
-	    : Base(InParticles, 0, 0, InConstraints, TConstArrayView<FRealSingle>(), FVec2(InStiffness))
+public:
+	FPerParticlePBDSpringConstraints(const FSolverParticles& InParticles, const TArray<TVec2<int32>>& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
+	    : Base(InParticles, 0, 0, InConstraints, TConstArrayView<FRealSingle>(), FSolverVec2(InStiffness))
 	{
 		for (int32 i = 0; i < Constraints.Num(); ++i)
 		{
@@ -35,10 +33,10 @@ class FPerParticlePBDSpringConstraints : public FPerParticleRule, public FPBDSpr
 			ParticleToConstraints[i2].Add(i);
 		}
 	}
-	virtual ~FPerParticlePBDSpringConstraints() {}
+	virtual ~FPerParticlePBDSpringConstraints() override {}
 
 	// TODO(mlentine): We likely need to use time n positions here
-	void Apply(FPBDParticles& InParticles, const FReal Dt, const int32 Index) const override //-V762
+	void Apply(FSolverParticles& InParticles, const FSolverReal Dt, const int32 Index) const
 	{
 		for (int32 i = 0; i < ParticleToConstraints[Index].Num(); ++i)
 		{
@@ -48,17 +46,18 @@ class FPerParticlePBDSpringConstraints : public FPerParticleRule, public FPBDSpr
 			int32 i2 = Constraint[1];
 			if (Index == i1 && InParticles.InvM(i1) > 0)
 			{
-				InParticles.P(i1) -= InParticles.InvM(i1) * Base::GetDelta(InParticles, CIndex, (FReal)Stiffness);
+				InParticles.P(i1) -= InParticles.InvM(i1) * Base::GetDelta(InParticles, CIndex, (FSolverReal)Stiffness);
 			}
 			else if (InParticles.InvM(i2) > 0)
 			{
 				check(Index == i2);
-				InParticles.P(i2) += InParticles.InvM(i2) * Base::GetDelta(InParticles, CIndex, (FReal)Stiffness);
+				InParticles.P(i2) += InParticles.InvM(i2) * Base::GetDelta(InParticles, CIndex, (FSolverReal)Stiffness);
 			}
 		}
 	}
 
-  private:
+private:
 	TArray<TArray<int32>> ParticleToConstraints;
 };
-}
+
+}  // End namespace Chaos::Softs

@@ -145,72 +145,75 @@ namespace Chaos
 	};
 
 	template<>
-	class TRigidTransform<FReal, 3> : public UE::Math::TTransform<FReal>
+	class TRigidTransform<FRealSingle, 3> : public UE::Math::TTransform<FRealSingle>
 	{
-		using BaseTransform = UE::Math::TTransform<FReal>;
+		using BaseTransform = UE::Math::TTransform<FRealSingle>;
 	public:
 		TRigidTransform()
 			: BaseTransform() {}
-		TRigidTransform(const TVector<FReal, 3>& Translation, const TRotation<FReal, 3>& Rotation)
+		TRigidTransform(const TVector<FRealSingle, 3>& Translation, const TRotation<FRealSingle, 3>& Rotation)
 			: BaseTransform(Rotation, Translation) {}
-		TRigidTransform(const TVector<FReal, 3>& Translation, const TRotation<FReal, 3>& Rotation, const TVector<FReal, 3>& Scale)
+		TRigidTransform(const TVector<FRealSingle, 3>& Translation, const TRotation<FRealSingle, 3>& Rotation, const TVector<FRealSingle, 3>& Scale)
 			: BaseTransform(Rotation, Translation, Scale) {}
-		TRigidTransform(const FMatrix44d& Matrix)
-			: BaseTransform(Matrix) {}
 		TRigidTransform(const FMatrix44f& Matrix)
-			: BaseTransform(FMatrix(Matrix)) {}
+			: BaseTransform(Matrix) {}
+		TRigidTransform(const FMatrix44d& Matrix)
+			: BaseTransform(FMatrix44f(Matrix)) {}
 		TRigidTransform(const BaseTransform& Transform)
 			: BaseTransform(Transform) {}
-		TRigidTransform<FReal, 3> Inverse() const
+		template<typename OtherType>
+		explicit TRigidTransform(const OtherType& Other)
+			: BaseTransform(TRotation<FRealSingle, 3>(Other.GetRotation()), TVector<FRealSingle, 3>(Other.GetTranslation())) {}
+
+		TRigidTransform<FRealSingle, 3> Inverse() const
 		{
 			return BaseTransform::Inverse();
 		}
 
-		PMatrix<FReal, 4, 4> ToMatrixWithScale() const
+		PMatrix<FRealSingle, 4, 4> ToMatrixWithScale() const
 		{
 			return BaseTransform::ToMatrixWithScale();
 		}
 
-		PMatrix<FReal, 4, 4> ToMatrixNoScale() const
+		PMatrix<FRealSingle, 4, 4> ToMatrixNoScale() const
 		{
 			return BaseTransform::ToMatrixNoScale();
 		}
 
 		// For low-level VectorRegister programming
-		const TPersistentVectorRegisterType<FReal>& GetTranslationRegister() const { return Translation; }
-		const TPersistentVectorRegisterType<FReal>& GetRotationRegister() const { return Rotation; }
+		const TPersistentVectorRegisterType<FRealSingle>& GetTranslationRegister() const { return Translation; }
+		const TPersistentVectorRegisterType<FRealSingle>& GetRotationRegister() const { return Rotation; }
 		void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
 		void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
 
-
-		CHAOS_API Chaos::PMatrix<Chaos::FReal, 4, 4> operator*(const Chaos::PMatrix<Chaos::FReal, 4, 4>& Matrix) const;
+		CHAOS_API PMatrix<FRealSingle, 4, 4> operator*(const PMatrix<FRealSingle, 4, 4>& Matrix) const;
 		
-		inline TRigidTransform<FReal, 3> operator*(const TRigidTransform<FReal, 3>& Other) const
+		inline TRigidTransform<FRealSingle, 3> operator*(const TRigidTransform<FRealSingle, 3>& Other) const
 		{
 			return BaseTransform::operator*(Other);
 		}
 
 		// Get the transform which maps from Other to This, ignoring the scale on both.
-		TRigidTransform<FReal, 3> GetRelativeTransformNoScale(const TRigidTransform<FReal, 3>& Other) const
+		TRigidTransform<FRealSingle, 3> GetRelativeTransformNoScale(const TRigidTransform<FRealSingle, 3>& Other) const
 		{
 			// @todo(chaos): optimize
-			TRotation<FReal, 3> OtherInverse = Other.GetRotation().Inverse();
-			return TRigidTransform<FReal, 3>(
+			TRotation<FRealSingle, 3> OtherInverse = Other.GetRotation().Inverse();
+			return TRigidTransform<FRealSingle, 3>(
 				(OtherInverse * (GetTranslation() - Other.GetTranslation())),
 				OtherInverse * GetRotation());
 		}
 
-		TVector<FReal, 3> TransformNormalNoScale(const TVector<FReal, 3>& Normal) const
+		TVector<FRealSingle, 3> TransformNormalNoScale(const TVector<FRealSingle, 3>& Normal) const
 		{
 			return TransformVectorNoScale(Normal);
 		}
 
 		// Transform the normal when scale may be non-unitary. Assumes no scale components are zero.
-		TVector<FReal, 3> TransformNormalUnsafe(const TVector<FReal, 3>& Normal) const
+		TVector<FRealSingle, 3> TransformNormalUnsafe(const TVector<FRealSingle, 3>& Normal) const
 		{
-			const TVector<FReal, 3> RotatedNormal = TransformNormalNoScale(Normal);
-			const TVector<FReal, 3> ScaledNormal = RotatedNormal / GetScale3D();
-			const FReal ScaledNormal2 = ScaledNormal.SizeSquared();
+			const TVector<FRealSingle, 3> RotatedNormal = TransformNormalNoScale(Normal);
+			const TVector<FRealSingle, 3> ScaledNormal = RotatedNormal / GetScale3D();
+			const FRealSingle ScaledNormal2 = ScaledNormal.SizeSquared();
 			if (ScaledNormal2 > SMALL_NUMBER)
 			{
 				return ScaledNormal * FMath::InvSqrt(ScaledNormal2);
@@ -224,9 +227,119 @@ namespace Chaos
 		/**
 		 * @brief Equivalent to (A * B) but assuming both have unit scale
 		*/
-		static TRigidTransform<FReal, 3> MultiplyNoScale(const TRigidTransform<FReal, 3>& A, const TRigidTransform<FReal, 3>& B)
+		static TRigidTransform<FRealSingle, 3> MultiplyNoScale(const TRigidTransform<FRealSingle, 3>& A, const TRigidTransform<FRealSingle, 3>& B)
 		{
-			TRigidTransform<FReal, 3> Result;
+			TRigidTransform<FRealSingle, 3> Result;
+
+#if ENABLE_VECTORIZED_TRANSFORM
+			const TransformVectorRegister QuatA = A.Rotation;
+			const TransformVectorRegister QuatB = B.Rotation;
+			const TransformVectorRegister TranslateA = A.Translation;
+			const TransformVectorRegister TranslateB = B.Translation;
+
+			const TransformVectorRegister Rotation = VectorQuaternionMultiply2(QuatB, QuatA);
+			const TransformVectorRegister RotatedTranslate = VectorQuaternionRotateVector(QuatB, TranslateA);
+			const TransformVectorRegister Translation = VectorAdd(RotatedTranslate, TranslateB);
+
+			Result.Rotation = Rotation;
+			Result.Translation = Translation;
+			Result.Scale3D = VectorOne();
+#else
+			Result.Rotation = B.Rotation * A.Rotation;
+			Result.Translation = B.Rotation * A.Translation + B.Translation;
+			Result.Scale3D = FVector::OneVector;
+#endif
+
+			return Result;
+		}
+	};
+
+	template<>
+	class TRigidTransform<FRealDouble, 3> : public UE::Math::TTransform<FRealDouble>
+	{
+		using BaseTransform = UE::Math::TTransform<FRealDouble>;
+	public:
+		TRigidTransform()
+			: BaseTransform() {}
+		TRigidTransform(const TVector<FRealDouble, 3>& Translation, const TRotation<FRealDouble, 3>& Rotation)
+			: BaseTransform(Rotation, Translation) {}
+		TRigidTransform(const TVector<FRealDouble, 3>& Translation, const TRotation<FRealDouble, 3>& Rotation, const TVector<FRealDouble, 3>& Scale)
+			: BaseTransform(Rotation, Translation, Scale) {}
+		TRigidTransform(const FMatrix44d& Matrix)
+			: BaseTransform(Matrix) {}
+		TRigidTransform(const FMatrix44f& Matrix)
+			: BaseTransform(FMatrix44d(Matrix)) {}
+		TRigidTransform(const BaseTransform& Transform)
+			: BaseTransform(Transform) {}
+		template<typename OtherType>
+		explicit TRigidTransform(const OtherType& Other)
+			: BaseTransform(TRotation<FRealDouble, 3>(Other.GetRotation()), TVector<FRealDouble, 3>(Other.GetTranslation())) {}
+
+		TRigidTransform<FRealDouble, 3> Inverse() const
+		{
+			return BaseTransform::Inverse();
+		}
+
+		PMatrix<FRealDouble, 4, 4> ToMatrixWithScale() const
+		{
+			return BaseTransform::ToMatrixWithScale();
+		}
+
+		PMatrix<FRealDouble, 4, 4> ToMatrixNoScale() const
+		{
+			return BaseTransform::ToMatrixNoScale();
+		}
+
+		// For low-level VectorRegister programming
+		const TPersistentVectorRegisterType<FRealDouble>& GetTranslationRegister() const { return Translation; }
+		const TPersistentVectorRegisterType<FRealDouble>& GetRotationRegister() const { return Rotation; }
+		void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
+		void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
+
+		CHAOS_API PMatrix<FRealDouble, 4, 4> operator*(const Chaos::PMatrix<FRealDouble, 4, 4>& Matrix) const;
+		
+		inline TRigidTransform<FRealDouble, 3> operator*(const TRigidTransform<FRealDouble, 3>& Other) const
+		{
+			return BaseTransform::operator*(Other);
+		}
+
+		// Get the transform which maps from Other to This, ignoring the scale on both.
+		TRigidTransform<FRealDouble, 3> GetRelativeTransformNoScale(const TRigidTransform<FRealDouble, 3>& Other) const
+		{
+			// @todo(chaos): optimize
+			TRotation<FRealDouble, 3> OtherInverse = Other.GetRotation().Inverse();
+			return TRigidTransform<FRealDouble, 3>(
+				(OtherInverse * (GetTranslation() - Other.GetTranslation())),
+				OtherInverse * GetRotation());
+		}
+
+		TVector<FRealDouble, 3> TransformNormalNoScale(const TVector<FRealDouble, 3>& Normal) const
+		{
+			return TransformVectorNoScale(Normal);
+		}
+
+		// Transform the normal when scale may be non-unitary. Assumes no scale components are zero.
+		TVector<FRealDouble, 3> TransformNormalUnsafe(const TVector<FRealDouble, 3>& Normal) const
+		{
+			const TVector<FRealDouble, 3> RotatedNormal = TransformNormalNoScale(Normal);
+			const TVector<FRealDouble, 3> ScaledNormal = RotatedNormal / GetScale3D();
+			const FRealDouble ScaledNormal2 = ScaledNormal.SizeSquared();
+			if (ScaledNormal2 > SMALL_NUMBER)
+			{
+				return ScaledNormal * FMath::InvSqrt(ScaledNormal2);
+			}
+			else
+			{
+				return RotatedNormal;
+			}
+		}
+
+		/**
+		 * @brief Equivalent to (A * B) but assuming both have unit scale
+		*/
+		static TRigidTransform<FRealDouble, 3> MultiplyNoScale(const TRigidTransform<FRealDouble, 3>& A, const TRigidTransform<FRealDouble, 3>& B)
+		{
+			TRigidTransform<FRealDouble, 3> Result;
 
 #if ENABLE_VECTORIZED_TRANSFORM
 			const TransformVectorRegister QuatA = A.Rotation;
@@ -252,7 +365,12 @@ namespace Chaos
 	};
 }
 
-inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FReal, 3>& InTransform)
+inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FRealSingle, 3>& InTransform)
+{
+	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
+}
+
+inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FRealDouble, 3>& InTransform)
 {
 	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
 }

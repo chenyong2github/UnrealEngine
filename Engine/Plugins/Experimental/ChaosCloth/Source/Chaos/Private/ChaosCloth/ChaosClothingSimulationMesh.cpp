@@ -16,10 +16,10 @@
 bool bChaos_SkinPhysicsMesh_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSkinPhysicsMeshISPCEnabled(TEXT("p.Chaos.SkinPhysicsMesh.ISPC"), bChaos_SkinPhysicsMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations on skinned physics meshes"));
 
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FVector3f) == sizeof(FVector3f), "sizeof(ispc::FVector3f) != sizeof(FVector3f)");
 static_assert(sizeof(ispc::FMatrix44f) == sizeof(FMatrix44f), "sizeof(ispc::FMatrix44f) != sizeof(FMatrix44f)");
-static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+static_assert(sizeof(ispc::FTransform3f) == sizeof(FTransform3f), "sizeof(ispc::FTransform3f) != sizeof(FTransform3f)");
 static_assert(sizeof(ispc::FClothVertBoneData) == sizeof(FClothVertBoneData), "sizeof(ispc::FClothVertBoneData) != sizeof(Chaos::FClothVertBoneData)");
 #endif
 
@@ -27,7 +27,8 @@ DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhy
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Mesh"), STAT_ChaosClothWrapDeformMesh, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Cloth LOD"), STAT_ChaosClothWrapDeformClothLOD, STATGROUP_ChaosCloth);
 
-using namespace Chaos;
+namespace Chaos
+{
 
 FClothingSimulationMesh::FClothingSimulationMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
 	: Asset(InAsset)
@@ -147,9 +148,9 @@ FRigidTransform3 Chaos::FClothingSimulationMesh::GetReferenceBoneTransform() con
 bool FClothingSimulationMesh::WrapDeformLOD(
 	int32 PrevLODIndex,
 	int32 LODIndex,
-	const FVec3* Normals,
-	const FVec3* Positions,
-	FVec3* OutPositions) const
+	const FSolverVec3* Normals,
+	const FSolverVec3* Positions,
+	FSolverVec3* OutPositions) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_WrapDeformLOD);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformMesh);
@@ -175,9 +176,9 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 		const int32 VertIndex2 = (int32)VertData.SourceMeshVertIndices[2];
 
 		OutPositions[Index] = 
-			Positions[VertIndex0] * VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex1] * VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex2] * VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * VertData.PositionBaryCoordsAndDist.W;
+			Positions[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			Positions[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			Positions[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W;
 	}
 
 	return true;
@@ -186,12 +187,12 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 bool FClothingSimulationMesh::WrapDeformLOD(
 	int32 PrevLODIndex,
 	int32 LODIndex,
-	const FVec3* Normals,
-	const FVec3* Positions,
-	const FVec3* Velocities,
-	FVec3* OutPositions0,
-	FVec3* OutPositions1,
-	FVec3* OutVelocities) const
+	const FSolverVec3* Normals,
+	const FSolverVec3* Positions,
+	const FSolverVec3* Velocities,
+	FSolverVec3* OutPositions0,
+	FSolverVec3* OutPositions1,
+	FSolverVec3* OutVelocities) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_WrapDeformLOD);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformClothLOD);
@@ -217,27 +218,27 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 		const int32 VertIndex2 = (int32)VertData.SourceMeshVertIndices[2];
 
 		OutPositions0[Index] = OutPositions1[Index] =
-			Positions[VertIndex0] * VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex1] * VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex2] * VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * VertData.PositionBaryCoordsAndDist.W;
+			Positions[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			Positions[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			Positions[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W;
 
 		OutVelocities[Index] = 
-			Velocities[VertIndex0] * VertData.PositionBaryCoordsAndDist.X +
-			Velocities[VertIndex1] * VertData.PositionBaryCoordsAndDist.Y +
-			Velocities[VertIndex2] * VertData.PositionBaryCoordsAndDist.Z;
+			Velocities[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.X +
+			Velocities[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Y +
+			Velocities[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Z;
 	}
 
 	return true;
 }
 
-// Inline function used to force the unrolling of the skinning loop
+// Inline function used to force the unrolling of the skinning loop, LWC: note skinning is all done in float to match the asset data type
 FORCEINLINE static void AddInfluence(FVector3f& OutPosition, FVector3f& OutNormal, const FVector3f& RefParticle, const FVector3f& RefNormal, const FMatrix44f& BoneMatrix, const float Weight)
 {
 	OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
 	OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
 }
 
-void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& LocalSpaceLocation, FVec3* OutPositions, FVec3* OutNormals) const
+void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& LocalSpaceLocation, FSolverVec3* OutPositions, FSolverVec3* OutNormals) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_SkinPhysicsMesh);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSkinPhysicsMesh);
@@ -253,23 +254,23 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	const FClothingSimulationContextCommon* const Context = static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext());
 	FTransform ComponentToLocalSpaceReal = Context->ComponentToWorld;
 	ComponentToLocalSpaceReal.AddToTranslation(-LocalSpaceLocation);
-	const FTransform3f ComponentToLocalSpace(ComponentToLocalSpaceReal);
+	const FTransform3f ComponentToLocalSpace(ComponentToLocalSpaceReal);  // LWC: Now in local space, therefore it is safe to use single precision which is the asset data format
 
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
 	const FMatrix44f* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
 		
 #if INTEL_ISPC
-	if (bChaos_SkinPhysicsMesh_ISPC_Enabled && bRealTypeCompatibleWithISPC)
+	if (bChaos_SkinPhysicsMesh_ISPC_Enabled)
 	{
 		ispc::SkinPhysicsMesh(
-			(ispc::FVector*)OutPositions,
-			(ispc::FVector*)OutNormals,
+			(ispc::FVector3f*)OutPositions,
+			(ispc::FVector3f*)OutNormals,
 			(ispc::FVector3f*)PhysicalMeshData.Vertices.GetData(),
 			(ispc::FVector3f*)PhysicalMeshData.Normals.GetData(),
 			(ispc::FClothVertBoneData*)PhysicalMeshData.BoneData.GetData(),
 			BoneMap,
 			(ispc::FMatrix44f*)BoneMatrices,
-			(ispc::FTransform&)ComponentToLocalSpaceReal,
+			(ispc::FTransform3f&)ComponentToLocalSpace,
 			NumPoints);
 	}
 	else
@@ -309,8 +310,8 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 			default: break;
 			}
 
-			OutPositions[VertIndex] = ComponentToLocalSpace.TransformPosition(Position);
-			OutNormals[VertIndex] = ComponentToLocalSpace.TransformVector(Normal).GetSafeNormal();
+			OutPositions[VertIndex] = FSolverVec3(ComponentToLocalSpace.TransformPosition(Position));
+			OutNormals[VertIndex] = FSolverVec3(ComponentToLocalSpace.TransformVector(Normal).GetSafeNormal());
 
 		}, NumPoints > MinParallelVertices ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
@@ -333,8 +334,8 @@ void FClothingSimulationMesh::Update(
 
 	// Skin current LOD positions
 	const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
-	FVec3* const OutPositions = Solver->GetAnimationPositions(Offset);
-	FVec3* const OutNormals = Solver->GetAnimationNormals(Offset);
+	FSolverVec3* const OutPositions = Solver->GetAnimationPositions(Offset);
+	FSolverVec3* const OutNormals = Solver->GetAnimationNormals(Offset);
 	
 	SkinPhysicsMesh(LODIndex, LocalSpaceLocation, OutPositions, OutNormals);
 
@@ -342,9 +343,9 @@ void FClothingSimulationMesh::Update(
 	if (LODIndex != PrevLODIndex)
 	{
 		// TODO: Using the more accurate skinning method here would require double buffering the context at the skeletal mesh level
-		const FVec3* const SrcWrapNormals = Solver->GetAnimationNormals(PrevOffset);  // No need to keep an old normals array around, since the LOD has just changed
-		const FVec3* const SrcWrapPositions = Solver->GetOldAnimationPositions(PrevOffset);
-		FVec3* const OutOldPositions = Solver->GetOldAnimationPositions(Offset);
+		const FSolverVec3* const SrcWrapNormals = Solver->GetAnimationNormals(PrevOffset);  // No need to keep an old normals array around, since the LOD has just changed
+		const FSolverVec3* const SrcWrapPositions = Solver->GetOldAnimationPositions(PrevOffset);
+		FSolverVec3* const OutOldPositions = Solver->GetOldAnimationPositions(Offset);
 
 		const bool bValidWrap = WrapDeformLOD(PrevLODIndex, LODIndex, SrcWrapNormals, SrcWrapPositions, OutOldPositions);
 	
@@ -361,3 +362,5 @@ void FClothingSimulationMesh::Update(
 		}
 	}
 }
+
+}  // End namespace Chaos

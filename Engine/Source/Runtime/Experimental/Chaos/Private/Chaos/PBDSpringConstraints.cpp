@@ -15,14 +15,14 @@
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FIntVector2) == sizeof(Chaos::TVec2<int32>), "sizeof(ispc::FIntVector2) != sizeof(Chaos::TVec2<int32>)");
 
 bool bChaos_Spring_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSpringISPCEnabled(TEXT("p.Chaos.Spring.ISPC"), bChaos_Spring_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in Spring constraints"));
 #endif
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
 // @todo(chaos): the parallel threshold (or decision to run parallel) should probably be owned by the solver and passed to the constraint container
 static int32 Chaos_Spring_ParallelConstraintCount = 100;
@@ -30,7 +30,7 @@ static int32 Chaos_Spring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosSpringParallelConstraintCount(TEXT("p.Chaos.Spring.ParallelConstraintCount"), Chaos_Spring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 #endif
 
-void FPBDSpringConstraints::InitColor(const FPBDParticles& Particles)
+void FPBDSpringConstraints::InitColor(const FSolverParticles& Particles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -41,30 +41,30 @@ void FPBDSpringConstraints::InitColor(const FPBDParticles& Particles)
 	}
 }
 
-void FPBDSpringConstraints::ApplyHelper(FPBDParticles& Particles, const FReal Dt, const int32 ConstraintIndex, const FReal ExpStiffnessValue) const
+void FPBDSpringConstraints::ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 {
 	const TVec2<int32>& Constraint = Constraints[ConstraintIndex];
 	const int32 i1 = Constraint[0];
 	const int32 i2 = Constraint[1];
-	const FVec3 Delta =  Base::GetDelta(Particles, ConstraintIndex, ExpStiffnessValue);
-	if (Particles.InvM(i1) > (FReal)0.)
+	const FSolverVec3 Delta =  Base::GetDelta(Particles, ConstraintIndex, ExpStiffnessValue);
+	if (Particles.InvM(i1) > (FSolverReal)0.)
 	{
 		Particles.P(i1) -= Particles.InvM(i1) * Delta;
 	}
-	if (Particles.InvM(i2) > (FReal)0.)
+	if (Particles.InvM(i2) > (FSolverReal)0.)
 	{
 		Particles.P(i2) += Particles.InvM(i2) * Delta;
 	}
 }
 
-void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) const
+void FPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 	if ((ConstraintsPerColor.Num() > 0) && (Constraints.Num() > Chaos_Spring_ParallelConstraintCount))
 	{
 		if (!Stiffness.HasWeightMap())
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 
 #if INTEL_ISPC
 			if (bRealTypeCompatibleWithISPC && bChaos_Spring_ISPC_Enabled)
@@ -72,7 +72,7 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
 				{
 					ispc::ApplySpringConstraints(
-						(ispc::FVector*) & Particles.GetP()[0],
+						(ispc::FVector3f*) & Particles.GetP()[0],
 						(ispc::FIntVector2*) & Constraints.GetData()[0],
 						&ConstraintBatch.GetData()[0],
 						&Particles.GetInvM().GetData()[0],
@@ -102,7 +102,7 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 				for (const TArray<int32>& ConstraintBatch : ConstraintsPerColor)
 				{
 					ispc::ApplySpringConstraintsWithWeightMaps(
-						(ispc::FVector*) & Particles.GetP()[0],
+						(ispc::FVector3f*) & Particles.GetP()[0],
 						(ispc::FIntVector2*) & Constraints.GetData()[0],
 						&ConstraintBatch.GetData()[0],
 						&Particles.GetInvM().GetData()[0],
@@ -120,7 +120,7 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 					PhysicsParallelFor(ConstraintBatch.Num(), [&](const int32 Index)
 					{
 						const int32 ConstraintIndex = ConstraintBatch[Index];
-						const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+						const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 					});
 				}
@@ -131,7 +131,7 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 	{
 		if (!Stiffness.HasWeightMap())
 		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
@@ -141,9 +141,11 @@ void FPBDSpringConstraints::Apply(FPBDParticles& Particles, const FReal Dt) cons
 		{
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 			{
-				const FReal ExpStiffnessValue = Stiffness[ConstraintIndex];
+				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 			}
 		}
 	}
 }
+
+} // End namespace Chaos::Softs

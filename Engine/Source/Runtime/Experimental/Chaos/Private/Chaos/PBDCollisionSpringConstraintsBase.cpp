@@ -7,7 +7,7 @@
 #include "kDOP.h"
 #endif
 
-using namespace Chaos;
+namespace Chaos::Softs {
 
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
 class FMeshBuildDataProvider
@@ -40,7 +40,7 @@ public:
 		return FMatrix::Identity;
 	}
 
-	FORCEINLINE FReal GetDeterminant() const
+	FORCEINLINE FSolverReal GetDeterminant() const
 	{
 		return 1.0f;
 	}
@@ -55,8 +55,8 @@ FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 	const int32 InNumParticles,
 	const TArray<TVec3<int32>>& InElements,
 	TSet<TVec2<int32>>&& InDisabledCollisionElements,
-	const FReal InThickness,
-	const FReal InStiffness)
+	const FSolverReal InThickness,
+	const FSolverReal InStiffness)
 	: Elements(InElements)
 	, DisabledCollisionElements(InDisabledCollisionElements)
 	, Offset(InOffset)
@@ -66,7 +66,7 @@ FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 {
 }
 
-void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
+void FPBDCollisionSpringConstraintsBase::Init(const FSolverParticles& Particles)
 {
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
 	if (!Elements.Num())
@@ -84,18 +84,18 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 	for (int32 i = 0; i < Elements.Num(); ++i)
 	{
 		const TVector<int32, 3>& Elem = Elements[i];
-		const FVec3& P0 = Particles.X(Elem[0]);
-		const FVec3& P1 = Particles.X(Elem[1]);
-		const FVec3& P2 = Particles.X(Elem[2]);
+		const FSolverVec3& P0 = Particles.X(Elem[0]);
+		const FSolverVec3& P1 = Particles.X(Elem[1]);
+		const FSolverVec3& P2 = Particles.X(Elem[2]);
 
-		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, P0, P1, P2));
+		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, FVec3(P0), FVec3(P1), FVec3(P2)));
 	}
 	DopTree.Build(BuildTriangleArray);
 
 	FMeshBuildDataProvider DopDataProvider(DopTree);
 	FCriticalSection CriticalSection;
 
-	const FReal Height = Thickness + Thickness;
+	const FSolverReal Height = Thickness + Thickness;
 
 	PhysicsParallelFor(NumParticles,
 		[this, &Particles, &CriticalSection, Height, &DopDataProvider, &DopTree](int32 i)
@@ -103,9 +103,9 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 			const int32 Index = i + Offset;
 
 			FkHitResult Result;
-			const FVec3& Start = Particles.X(Index);
-			const FVec3 Direction = Particles.V(Index).GetSafeNormal();
-			const FVec3 End = Particles.P(Index) + Direction * Height;
+			const FSolverVec3& Start = Particles.X(Index);
+			const FSolverVec3 Direction = Particles.V(Index).GetSafeNormal();
+			const FSolverVec3 End = Particles.P(Index) + Direction * Height;
 			using FVec4Real = decltype(FVector4::X);
 			const FVector4 Start4((FVec4Real)Start.X, (FVec4Real)Start.Y, (FVec4Real)Start.Z, 0);
 			const FVector4 End4((FVec4Real)End.X, (FVec4Real)End.Y, (FVec4Real)End.Z, 0);
@@ -120,16 +120,16 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 					return;
 				}
 
-				const FVec3& P = Particles.X(Index);
-				const FVec3& P0 = Particles.X(Elem[0]);
-				const FVec3& P1 = Particles.X(Elem[1]);
-				const FVec3& P2 = Particles.X(Elem[2]);
-				const FVec3 P10 = P1 - P0;
-				const FVec3 P20 = P2 - P0;
-				const FVec3 PP0 = P - P0;
-				const FReal Size10 = P10.SizeSquared();
-				const FReal Size20 = P20.SizeSquared();
-				FVec3 Bary;
+				const FSolverVec3& P = Particles.X(Index);
+				const FSolverVec3& P0 = Particles.X(Elem[0]);
+				const FSolverVec3& P1 = Particles.X(Elem[1]);
+				const FSolverVec3& P2 = Particles.X(Elem[2]);
+				const FSolverVec3 P10 = P1 - P0;
+				const FSolverVec3 P20 = P2 - P0;
+				const FSolverVec3 PP0 = P - P0;
+				const FSolverReal Size10 = P10.SizeSquared();
+				const FSolverReal Size20 = P20.SizeSquared();
+				FSolverVec3 Bary;
 				if (Size10 < SMALL_NUMBER)
 				{
 					if (Size20 < SMALL_NUMBER)
@@ -139,7 +139,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 					}
 					else
 					{
-						const FReal Size = PP0.SizeSquared();
+						const FSolverReal Size = PP0.SizeSquared();
 						if (Size < SMALL_NUMBER)
 						{
 							Bary.Y = Bary.Z = 0.f;
@@ -147,7 +147,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 						}
 						else
 						{
-							const FReal ProjP2 = FVec3::DotProduct(PP0, P20);
+							const FSolverReal ProjP2 = FSolverVec3::DotProduct(PP0, P20);
 							Bary.Y = 0.f;
 							Bary.Z = ProjP2 * FMath::InvSqrt(Size20 * Size);
 							Bary.X = 1.0f - Bary.Z;
@@ -156,7 +156,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 				}
 				else if (Size20 < SMALL_NUMBER)
 				{
-					const FReal Size = PP0.SizeSquared();
+					const FSolverReal Size = PP0.SizeSquared();
 					if (Size < SMALL_NUMBER)
 					{
 						Bary.Y = Bary.Z = 0.f;
@@ -164,7 +164,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 					}
 					else
 					{
-						const FReal ProjP1 = FVec3::DotProduct(PP0, P10);
+						const FSolverReal ProjP1 = FSolverVec3::DotProduct(PP0, P10);
 						Bary.Y = ProjP1 * FMath::InvSqrt(Size10 * PP0.SizeSquared());
 						Bary.Z = 0.f;
 						Bary.X = 1.0f - Bary.Y;
@@ -172,17 +172,17 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 				}
 				else
 				{
-					const FReal ProjSides = FVec3::DotProduct(P10, P20);
-					const FReal ProjP1 = FVec3::DotProduct(PP0, P10);
-					const FReal ProjP2 = FVec3::DotProduct(PP0, P20);
-					const FReal Denom = Size10 * Size20 - ProjSides * ProjSides;
+					const FSolverReal ProjSides = FSolverVec3::DotProduct(P10, P20);
+					const FSolverReal ProjP1 = FSolverVec3::DotProduct(PP0, P10);
+					const FSolverReal ProjP2 = FSolverVec3::DotProduct(PP0, P20);
+					const FSolverReal Denom = Size10 * Size20 - ProjSides * ProjSides;
 					Bary.Y = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
 					Bary.Z = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
 					Bary.X = 1.0f - Bary.Z - Bary.Y;
 				}
 
-				FVec3 Normal = FVec3::CrossProduct(P10, P20).GetSafeNormal();
-				Normal = (FVec3::DotProduct(Normal, PP0) > 0) ? Normal : -Normal;
+				FSolverVec3 Normal = FSolverVec3::CrossProduct(P10, P20).GetSafeNormal();
+				Normal = (FSolverVec3::DotProduct(Normal, PP0) > 0) ? Normal : -Normal;
 
 				CriticalSection.Lock();
 				Constraints.Add({Index, Elem[0], Elem[1], Elem[2]});
@@ -194,7 +194,7 @@ void FPBDCollisionSpringConstraintsBase::Init(const FPBDParticles& Particles)
 #endif  // #if PLATFORM_DESKTOP && PLATFORM_64BITS
 }
 
-FVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FPBDParticles& Particles, const int32 i) const
+FSolverVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FSolverParticles& Particles, const int32 i) const
 {
 	const TVec4<int32>& Constraint = Constraints[i];
 	const int32 i1 = Constraint[0];
@@ -202,31 +202,33 @@ FVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FPBDParticles& Particle
 	const int32 i3 = Constraint[2];
 	const int32 i4 = Constraint[3];
 
-	const FReal CombinedMass = Particles.InvM(i1) +
+	const FSolverReal CombinedMass = Particles.InvM(i1) +
 		Particles.InvM(i2) * Barys[i][0] +
 		Particles.InvM(i3) * Barys[i][1] +
 		Particles.InvM(i4) * Barys[i][2];
-	if (CombinedMass <= (FReal)1e-7)
+	if (CombinedMass <= (FSolverReal)1e-7)
 	{
-		return FVec3(0);
+		return FSolverVec3(0);
 	}
 
-	const FVec3& P1 = Particles.P(i1);
-	const FVec3& P2 = Particles.P(i2);
-	const FVec3& P3 = Particles.P(i3);
-	const FVec3& P4 = Particles.P(i4);
+	const FSolverVec3& P1 = Particles.P(i1);
+	const FSolverVec3& P2 = Particles.P(i2);
+	const FSolverVec3& P3 = Particles.P(i3);
+	const FSolverVec3& P4 = Particles.P(i4);
 
-	const FReal Height = Thickness + Thickness;
-	const FVec3 P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4 + Height * Normals[i];
+	const FSolverReal Height = Thickness + Thickness;
+	const FSolverVec3 P = Barys[i][0] * P2 + Barys[i][1] * P3 + Barys[i][2] * P4 + Height * Normals[i];
 
-	const FVec3 Difference = P1 - P;
-	if (FVec3::DotProduct(Difference, Normals[i]) > 0)
+	const FSolverVec3 Difference = P1 - P;
+	if (FSolverVec3::DotProduct(Difference, Normals[i]) > 0)
 	{
-		return FVec3(0);
+		return FSolverVec3(0);
 	}
-	const FReal Distance = Difference.Size();
-	const FVec3 Delta = Distance * Normals[i];
+	const FSolverReal Distance = Difference.Size();
+	const FSolverVec3 Delta = Distance * Normals[i];
 	return Stiffness * Delta / CombinedMass;
 }
+
+}  // End namespace Chaos::Softs
 
 #endif

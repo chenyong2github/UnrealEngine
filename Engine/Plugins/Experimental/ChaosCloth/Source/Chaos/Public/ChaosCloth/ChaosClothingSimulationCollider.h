@@ -3,8 +3,7 @@
 
 #include "ClothCollisionData.h"
 #include "Containers/ContainersFwd.h"
-#include "Chaos/Rotation.h"
-#include "Chaos/ImplicitObject.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
@@ -12,6 +11,8 @@ class FClothingSimulationContextCommon;
 
 namespace Chaos
 {
+	class FImplicitObject;
+
 	class FClothingSimulationSolver;
 	class FClothingSimulationCloth;
 
@@ -54,13 +55,13 @@ namespace Chaos
 
 		// ---- Debugging and visualization functions ----
 		// Return current active LOD collision particles translations, not thread safe, to use after solver update.
-		TConstArrayView<FVec3> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		TConstArrayView<Softs::FSolverVec3> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD collision particles rotations, not thread safe, to use after solver update.
-		TConstArrayView<FRotation3> GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		TConstArrayView<Softs::FSolverRotation3> GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD previous frame collision particles transforms, not thread safe, to use after solver update.
-		TConstArrayView<FRigidTransform3> GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		TConstArrayView<Softs::FSolverRigidTransform3> GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD collision geometries, not thread safe, to use after solver update.
 		TConstArrayView<TUniquePtr<FImplicitObject>> GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;

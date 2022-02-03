@@ -18,14 +18,15 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector) == sizeof(Chaos::FVec3), "sizeof(ispc::FVector) != sizeof(Chaos::FVec3)");
+static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::TVec3<Chaos::FRealSingle>), "sizeof(ispc::FVector3f) != sizeof(Chaos::TVec3<Chaos::FRealSingle>)");
 static_assert(sizeof(ispc::TArrayInt) == sizeof(TArray<int32>), "sizeof(ispc::TArrayInt) != sizeof(TArray<int32>)");
 
 bool bChaos_TriangleMesh_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosTriangleMeshISPCEnabled(TEXT("p.Chaos.TriangleMesh.ISPC"), bChaos_TriangleMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in triangle mesh calculations"));
 #endif
 
-using namespace Chaos;
+namespace Chaos
+{
 
 FTriangleMesh::FTriangleMesh()
     : MStartIdx(0)
@@ -219,26 +220,20 @@ TArray<TVec4<int32>> FTriangleMesh::GetUniqueAdjacentElements() const
 	return BendingConstraints;
 }
 
-TArray<FVec3> FTriangleMesh::GetFaceNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError) const
-{
-	TArray<FVec3> Normals;
-	GetFaceNormals(Normals, Points, ReturnEmptyOnError);
-	return Normals;
-}
-
 // Note:	This function assumes Counter Clockwise triangle windings in a Left Handed coordinate system
 //			If this is not the case the returned face normals may need to be inverted
-void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError) const
+template <typename T>
+void FTriangleMesh::GetFaceNormals(TArray<TVec3<T>>& Normals, const TConstArrayView<TVec3<T>>& Points, const bool ReturnEmptyOnError) const
 {
 	Normals.Reset(MElements.Num());
 	if (ReturnEmptyOnError)
 	{
 		for (const TVec3<int32>& Tri : MElements)
 		{
-			FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
-			FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
-			FVec3 Cross = FVec3::CrossProduct(p20, p10);
-			const FReal Size2 = Cross.SizeSquared();
+			const TVec3<T> p10 = Points[Tri[1]] - Points[Tri[0]];
+			const TVec3<T> p20 = Points[Tri[2]] - Points[Tri[0]];
+			const TVec3<T> Cross = TVec3<T>::CrossProduct(p20, p10);
+			const T Size2 = Cross.SizeSquared();
 			if (Size2 < SMALL_NUMBER)
 			{
 				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
@@ -254,30 +249,41 @@ void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView
 	}
 	else
 	{
-		if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
+#if INTEL_ISPC
+		if (bChaos_TriangleMesh_ISPC_Enabled && TAreTypesEqual<T, FRealSingle>::Value)
 		{
 			Normals.SetNumUninitialized(MElements.Num());
-
-#if INTEL_ISPC
 			ispc::GetFaceNormals(
-				(ispc::FVector*)Normals.GetData(),
-				(ispc::FVector*)Points.GetData(),
+				(ispc::FVector3f*)Normals.GetData(),
+				(ispc::FVector3f*)Points.GetData(),
 				(ispc::FIntVector*)MElements.GetData(),
 				MElements.Num());
-#endif
 		}
 		else
+#endif
 		{
 			for (const TVec3<int32>& Tri : MElements)
 			{
-				FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
-				FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
-				FVec3 Cross = FVec3::CrossProduct(p20, p10);
+				const TVec3<FRealSingle> p10 = Points[Tri[1]] - Points[Tri[0]];
+				const TVec3<FRealSingle> p20 = Points[Tri[2]] - Points[Tri[0]];
+				const TVec3<FRealSingle> Cross = TVec3<FRealSingle>::CrossProduct(p20, p10);
 				Normals.Add(Cross.GetSafeNormal());
 			}
 		}
 	}
 }
+template CHAOS_API void FTriangleMesh::GetFaceNormals<FRealSingle>(TArray<TVec3<FRealSingle>>&, const TConstArrayView<TVec3<FRealSingle>>&, const bool) const;
+template CHAOS_API void FTriangleMesh::GetFaceNormals<FRealDouble>(TArray<TVec3<FRealDouble>>&, const TConstArrayView<TVec3<FRealDouble>>&, const bool) const;
+
+template <typename T>
+TArray<TVec3<T>> FTriangleMesh::GetFaceNormals(const TConstArrayView<TVec3<T>>& Points, const bool ReturnEmptyOnError) const
+{
+	TArray<TVec3<T>> Normals;
+	GetFaceNormals(Normals, Points, ReturnEmptyOnError);
+	return Normals;
+}
+template CHAOS_API TArray<TVec3<FRealSingle>> FTriangleMesh::GetFaceNormals<FRealSingle>(const TConstArrayView<TVec3<FRealSingle>>&, const bool) const;
+template CHAOS_API TArray<TVec3<FRealDouble>> FTriangleMesh::GetFaceNormals<FRealDouble>(const TConstArrayView<TVec3<FRealDouble>>&, const bool) const;
 
 TArray<FVec3> FTriangleMesh::GetPointNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError)
 {
@@ -298,29 +304,53 @@ void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConst
 	ConstThis->GetPointNormals(PointNormals, FaceNormals, bUseGlobalArray);
 }
 
-void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray) const
+template <typename T>
+void FTriangleMesh::GetPointNormals(TArrayView<TVec3<T>> PointNormals, const TConstArrayView<TVec3<T>>& FaceNormals, const bool bUseGlobalArray) const
 {
 	check(MPointToTriangleMap.Num() != 0);
 
-	if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
+	for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 	{
+		const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
+		TVec3<T>& Normal = PointNormals[NormalIndex];
+		Normal = TVec3<T>(0.);
+		const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
+		for (int32 k = 0; k < TriangleMap.Num(); ++k)
+		{
+			if (FaceNormals.IsValidIndex(TriangleMap[k]))
+			{
+				Normal += FaceNormals[TriangleMap[k]];
+			}
+		}
+		Normal = Normal.GetSafeNormal();
+	}
+}
+template CHAOS_API void FTriangleMesh::GetPointNormals<FRealDouble>(TArrayView<TVec3<FRealDouble>>, const TConstArrayView<TVec3<FRealDouble>>&, const bool) const;
+
+template <>
+CHAOS_API void FTriangleMesh::GetPointNormals<FRealSingle>(TArrayView<TVec3<FRealSingle>> PointNormals, const TConstArrayView<TVec3<FRealSingle>>& FaceNormals, const bool bUseGlobalArray) const
+{
+	check(MPointToTriangleMap.Num() != 0);
+
 #if INTEL_ISPC
+	if (bChaos_TriangleMesh_ISPC_Enabled)
+	{
 		ispc::GetPointNormals(
-			(ispc::FVector*)PointNormals.GetData(),
-			(const ispc::FVector*)FaceNormals.GetData(),
+			(ispc::FVector3f*)PointNormals.GetData(),
+			(const ispc::FVector3f*)FaceNormals.GetData(),
 			(const ispc::TArrayInt*)MPointToTriangleMap.GetData(),
 			bUseGlobalArray ? LocalToGlobal(0) : 0,
 			FaceNormals.Num(),
 			MNumIndices);
-#endif
 	}
 	else
+#endif
 	{
 		for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 		{
 			const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
-			FVec3& Normal = PointNormals[NormalIndex];
-			Normal = FVec3(0);
+			TVec3<FRealSingle>& Normal = PointNormals[NormalIndex];
+			Normal = TVec3<FRealSingle>(0.);
 			const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
 			for (int32 k = 0; k < TriangleMap.Num(); ++k)
 			{
@@ -619,7 +649,7 @@ struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVec2<int32>, TVec2<int32>, false>
 
 	static FORCEINLINE uint32 GetKeyHash(const TVec2<int32>& elem)
 	{
-		const uint32 v = HashCombine(GetTypeHash(elem[0]), GetTypeHash(elem[1]));
+		const uint32 v = HashCombine(::GetTypeHash(elem[0]), ::GetTypeHash(elem[1]));
 		return v;
 	}
 };
@@ -1395,3 +1425,5 @@ void FTriangleMesh::RemoveDegenerateElements()
 		}
 	}
 }
+
+}  // End namespace Chaos

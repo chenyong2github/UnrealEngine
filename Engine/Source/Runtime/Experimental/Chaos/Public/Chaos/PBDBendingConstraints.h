@@ -1,34 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Array.h"
 #include "Chaos/PBDBendingConstraintsBase.h"
-#include "Chaos/PBDParticles.h"
-#include "Chaos/ParticleRule.h"
 
-namespace Chaos
+namespace Chaos::Softs
 {
-class FPBDBendingConstraints : public FParticleRule, public FPBDBendingConstraintsBase
+
+class FPBDBendingConstraints : public FPBDBendingConstraintsBase
 {
 	typedef FPBDBendingConstraintsBase Base;
-	using Base::MConstraints;
+	using Base::Constraints;
 
-  public:
-	FPBDBendingConstraints(const FDynamicParticles& InParticles, TArray<TVec4<int32>>&& Constraints, const FReal stiffness = (FReal)1.)
-	    : Base(InParticles, MoveTemp(Constraints), stiffness) {}
-	virtual ~FPBDBendingConstraints() {}
+public:
+	FPBDBendingConstraints(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
+	    : Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
+	virtual ~FPBDBendingConstraints() override {}
 
-	void Apply(FPBDParticles& InParticles, const FReal Dt) const override //-V762
+	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const
 	{
-		for (int i = 0; i < MConstraints.Num(); ++i)
+		for (int i = 0; i < Constraints.Num(); ++i)
 		{
-			const auto& Constraint = MConstraints[i];
+			const TVec4<int32>& Constraint = Constraints[i];
 			const int32 i1 = Constraint[0];
 			const int32 i2 = Constraint[1];
 			const int32 i3 = Constraint[2];
 			const int32 i4 = Constraint[3];
-			auto Grads = Base::GetGradients(InParticles, i);
-			auto S = Base::GetScalingFactor(InParticles, i, Grads);
+			const TArray<FSolverVec3> Grads = Base::GetGradients(InParticles, i);
+			const FSolverReal S = Base::GetScalingFactor(InParticles, i, Grads);
 			InParticles.P(i1) -= S * InParticles.InvM(i1) * Grads[0];
 			InParticles.P(i2) -= S * InParticles.InvM(i2) * Grads[1];
 			InParticles.P(i3) -= S * InParticles.InvM(i3) * Grads[2];
@@ -37,6 +35,4 @@ class FPBDBendingConstraints : public FParticleRule, public FPBDBendingConstrain
 	}
 };
 
-template<class T>
-using TPBDBendingConstraints UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDBendingConstraints instead") = FPBDBendingConstraints;
-}
+}  // End namespace Chaos::Softs

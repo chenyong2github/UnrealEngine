@@ -791,23 +791,22 @@ namespace Chaos
 		}
 	};
 
-
 	template<>
-	class TVector<FReal, 2> : public FVector2D
+	class TVector<FRealSingle, 2> : public FVector2f
 	{
 	public:
-		using FElement = decltype(FVector2D::X);
-		using FVector2D::X;
-		using FVector2D::Y;
+		using FElement = decltype(FVector2f::X);
+		using FVector2f::X;
+		using FVector2f::Y;
 
 		TVector()
-		    : FVector2D() {}
-		TVector(const FReal x)
-		    : FVector2D((decltype(FVector2D::X))x, (decltype(FVector2D::X))x) {}	// LWC_TODO: Remove casts once FVector2D supports variants
-		TVector(const FReal x, const FReal y)
-		    : FVector2D((decltype(FVector2D::X))x, (decltype(FVector2D::X))y) {}
-		TVector(const FVector2D& vec)
-		    : FVector2D(vec) {}
+		    : FVector2f() {}
+		TVector(const FRealSingle x)
+		    : FVector2f((decltype(FVector2f::X))x, (decltype(FVector2f::X))x) {}	// LWC_TODO: Remove casts once FVector2f supports variants
+		TVector(const FRealSingle x, const FRealSingle y)
+		    : FVector2f((decltype(FVector2f::X))x, (decltype(FVector2f::X))y) {}
+		TVector(const FVector2f& vec)
+		    : FVector2f(vec) {}
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
@@ -816,7 +815,7 @@ namespace Chaos
 		template <typename OtherT>
 		TVector(const TVector<OtherT, 2>& InVector)
 		{
-			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2D supports variants
+			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2f supports variants
 			Y = ((decltype(Y))InVector[1]);
 		}
 		void Write(std::ostream& Stream) const
@@ -825,55 +824,140 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 		}
 
-		static TVector<FReal, 2> AxisVector(const int32 Axis)
+		static TVector<FRealSingle, 2> AxisVector(const int32 Axis)
 		{
 			check(Axis >= 0 && Axis <= 1);
-			return Axis == 0 ? TVector<FReal, 2>(1.f, 0.f) : TVector<FReal, 2>(0.f, 1.f);
+			return Axis == 0 ? TVector<FRealSingle, 2>(1.f, 0.f) : TVector<FRealSingle, 2>(0.f, 1.f);
 		}
-		FReal Product() const
+		FRealSingle Product() const
 		{
 			return X * Y;
 		}
-		FReal Max() const
+		FRealSingle Max() const
 		{
 			return X > Y ? X : Y;
 		}
-		FReal Min() const
+		FRealSingle Min() const
 		{
 			return X < Y ? X : Y;
 		}
-		static TVector<FReal, 2> Max(const TVector<FReal, 2>& V1, const TVector<FReal, 2>& V2)
+		static TVector<FRealSingle, 2> Max(const TVector<FRealSingle, 2>& V1, const TVector<FRealSingle, 2>& V2)
 		{
-			return TVector<FReal, 2>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y);
+			return TVector<FRealSingle, 2>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y);
 		}
-		static Pair<FReal, int32> MaxAndAxis(const TVector<FReal, 2>& V1, const TVector<FReal, 2>& V2)
+		static Pair<FRealSingle, int32> MaxAndAxis(const TVector<FRealSingle, 2>& V1, const TVector<FRealSingle, 2>& V2)
 		{
-			const TVector<FReal, 2> max = Max(V1, V2);
+			const TVector<FRealSingle, 2> max = Max(V1, V2);
 			if (max.X > max.Y)
 			{
-				return MakePair((FReal)max.X, 0);
+				return MakePair((FRealSingle)max.X, 0);
 			}
 			else
 			{
-				return MakePair((FReal)max.Y, 1);
+				return MakePair((FRealSingle)max.Y, 1);
 			}
 		}
 		template<class T2>
-		TVector<FReal, 2> operator/(const TVector<T2, 2>& Other) const
+		TVector<FRealSingle, 2> operator/(const TVector<T2, 2>& Other) const
 		{
-			return TVector<FReal, 2>(X / static_cast<FReal>(Other[0]), Y / static_cast<FReal>(Other[1]));
+			return TVector<FRealSingle, 2>(X / static_cast<FRealSingle>(Other[0]), Y / static_cast<FRealSingle>(Other[1]));
 		}
-		TVector<FReal, 2> operator/(const FReal Other) const
+		TVector<FRealSingle, 2> operator/(const FRealSingle Other) const
 		{
-			return TVector<FReal, 2>(X / Other, Y / Other);
+			return TVector<FRealSingle, 2>(X / Other, Y / Other);
 		}
-		TVector<FReal, 2> operator*(const FReal Other) const
+		TVector<FRealSingle, 2> operator*(const FRealSingle Other) const
 		{
-			return TVector<FReal, 2>(X * Other, Y * Other);
+			return TVector<FRealSingle, 2>(X * Other, Y * Other);
 		}
-		TVector<FReal, 2> operator*(const TVector<FReal, 2>& Other) const
+		TVector<FRealSingle, 2> operator*(const TVector<FRealSingle, 2>& Other) const
 		{
-			return TVector<FReal, 2>(X * Other[0], Y * Other[1]);
+			return TVector<FRealSingle, 2>(X * Other[0], Y * Other[1]);
+		}
+	};
+
+	template<>
+	class TVector<FRealDouble, 2> : public FVector2d
+	{
+	public:
+		using FElement = decltype(FVector2d::X);
+		using FVector2d::X;
+		using FVector2d::Y;
+
+		TVector()
+		    : FVector2d() {}
+		TVector(const FRealDouble x)
+		    : FVector2d((decltype(FVector2d::X))x, (decltype(FVector2d::X))x) {}	// LWC_TODO: Remove casts once FVector2d supports variants
+		TVector(const FRealDouble x, const FRealDouble y)
+		    : FVector2d((decltype(FVector2d::X))x, (decltype(FVector2d::X))y) {}
+		TVector(const FVector2d& vec)
+		    : FVector2d(vec) {}
+		TVector(std::istream& Stream)
+		{
+			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
+			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
+		}
+		template <typename OtherT>
+		TVector(const TVector<OtherT, 2>& InVector)
+		{
+			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2d supports variants
+			Y = ((decltype(Y))InVector[1]);
+		}
+		void Write(std::ostream& Stream) const
+		{
+			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
+			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
+		}
+
+		static TVector<FRealDouble, 2> AxisVector(const int32 Axis)
+		{
+			check(Axis >= 0 && Axis <= 1);
+			return Axis == 0 ? TVector<FRealDouble, 2>(1.f, 0.f) : TVector<FRealDouble, 2>(0.f, 1.f);
+		}
+		FRealDouble Product() const
+		{
+			return X * Y;
+		}
+		FRealDouble Max() const
+		{
+			return X > Y ? X : Y;
+		}
+		FRealDouble Min() const
+		{
+			return X < Y ? X : Y;
+		}
+		static TVector<FRealDouble, 2> Max(const TVector<FRealDouble, 2>& V1, const TVector<FRealDouble, 2>& V2)
+		{
+			return TVector<FRealDouble, 2>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y);
+		}
+		static Pair<FRealDouble, int32> MaxAndAxis(const TVector<FRealDouble, 2>& V1, const TVector<FRealDouble, 2>& V2)
+		{
+			const TVector<FRealDouble, 2> max = Max(V1, V2);
+			if (max.X > max.Y)
+			{
+				return MakePair((FRealDouble)max.X, 0);
+			}
+			else
+			{
+				return MakePair((FRealDouble)max.Y, 1);
+			}
+		}
+		template<class T2>
+		TVector<FRealDouble, 2> operator/(const TVector<T2, 2>& Other) const
+		{
+			return TVector<FRealDouble, 2>(X / static_cast<FRealDouble>(Other[0]), Y / static_cast<FRealDouble>(Other[1]));
+		}
+		TVector<FRealDouble, 2> operator/(const FRealDouble Other) const
+		{
+			return TVector<FRealDouble, 2>(X / Other, Y / Other);
+		}
+		TVector<FRealDouble, 2> operator*(const FRealDouble Other) const
+		{
+			return TVector<FRealDouble, 2>(X * Other, Y * Other);
+		}
+		TVector<FRealDouble, 2> operator*(const TVector<FRealDouble, 2>& Other) const
+		{
+			return TVector<FRealDouble, 2>(X * Other[0], Y * Other[1]);
 		}
 	};
 #endif // !COMPILE_WITHOUT_UNREAL_SUPPORT

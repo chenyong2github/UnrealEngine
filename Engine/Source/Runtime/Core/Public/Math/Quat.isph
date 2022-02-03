@@ -176,7 +176,7 @@ inline uniform FVector4 VectorAccumulateQuaternionShortestPath(const uniform FVe
  * @param VectorW0 Vector to rotate. W component must be zero.
  * @return Vector after rotation by Quat.
  */
-inline FVector4 VectorQuaternionRotateVector(const FVector4& Quat, const FVector4& VectorW0)
+inline FVector4d VectorQuaternionRotateVector(const FVector4d& Quat, const FVector4d& VectorW0)
 {
 	// Q * V * Q.Inverse
 	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
@@ -191,12 +191,36 @@ inline FVector4 VectorQuaternionRotateVector(const FVector4& Quat, const FVector
 	// T = 2(Q x V);
 	// V' = V + w*(T) + (Q x T)
 
-	const FVector4 QW = VectorReplicate(Quat, 3);
-	FVector4 T = VectorCross(Quat, VectorW0);
+	const FVector4d QW = VectorReplicate(Quat, 3);
+	FVector4d T = VectorCross(Quat, VectorW0);
 	T = VectorAdd(T, T);
-	const FVector4 VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
-	const FVector4 VTemp1 = VectorCross(Quat, T);
-	const FVector4 Rotated = VectorAdd(VTemp0, VTemp1);
+	const FVector4d VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const FVector4d VTemp1 = VectorCross(Quat, T);
+	const FVector4d Rotated = VectorAdd(VTemp0, VTemp1);
+	return Rotated;
+}
+
+inline FVector4f VectorQuaternionRotateVector(const FVector4f& Quat, const FVector4f& VectorW0)
+{
+	// Q * V * Q.Inverse
+	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
+	//const VectorRegister Temp = VectorQuaternionMultiply2(Quat, VectorW0);
+	//const VectorRegister Rotated = VectorQuaternionMultiply2(Temp, InverseRotation);
+
+	// Equivalence of above can be shown to be:
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const FVector4f QW = VectorReplicate(Quat, 3);
+	FVector4f T = VectorCross(Quat, VectorW0);
+	T = VectorAdd(T, T);
+	const FVector4f VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const FVector4f VTemp1 = VectorCross(Quat, T);
+	const FVector4f Rotated = VectorAdd(VTemp0, VTemp1);
 	return Rotated;
 }
 
@@ -224,7 +248,7 @@ inline FVector4 VectorQuaternionRotateVector(const uniform FVector4& Quat, const
 	return Rotated;
 }
 
-inline uniform FVector4 VectorQuaternionRotateVector(const uniform FVector4& Quat, const uniform FVector4& VectorW0)
+inline uniform FVector4d VectorQuaternionRotateVector(const uniform FVector4d& Quat, const uniform FVector4d& VectorW0)
 {
 	// Q * V * Q.Inverse
 	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
@@ -239,12 +263,36 @@ inline uniform FVector4 VectorQuaternionRotateVector(const uniform FVector4& Qua
 	// T = 2(Q x V);
 	// V' = V + w*(T) + (Q x T)
 
-	const uniform FVector4 QW = VectorReplicate(Quat, 3);
-	uniform FVector4 T = VectorCross(Quat, VectorW0);
+	const uniform FVector4d QW = VectorReplicate(Quat, 3);
+	uniform FVector4d T = VectorCross(Quat, VectorW0);
 	T = VectorAdd(T, T);
-	const uniform FVector4 VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
-	const uniform FVector4 VTemp1 = VectorCross(Quat, T);
-	const uniform FVector4 Rotated = VectorAdd(VTemp0, VTemp1);
+	const uniform FVector4d VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const uniform FVector4d VTemp1 = VectorCross(Quat, T);
+	const uniform FVector4d Rotated = VectorAdd(VTemp0, VTemp1);
+	return Rotated;
+}
+
+inline uniform FVector4f VectorQuaternionRotateVector(const uniform FVector4f& Quat, const uniform FVector4f& VectorW0)
+{
+	// Q * V * Q.Inverse
+	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
+	//const VectorRegister Temp = VectorQuaternionMultiply2(Quat, VectorW0);
+	//const VectorRegister Rotated = VectorQuaternionMultiply2(Temp, InverseRotation);
+
+	// Equivalence of above can be shown to be:
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const uniform FVector4f QW = VectorReplicate(Quat, 3);
+	uniform FVector4f T = VectorCross(Quat, VectorW0);
+	T = VectorAdd(T, T);
+	const uniform FVector4f VTemp0 = VectorMultiplyAdd(QW, T, VectorW0);
+	const uniform FVector4f VTemp1 = VectorCross(Quat, T);
+	const uniform FVector4f Rotated = VectorAdd(VTemp0, VTemp1);
 	return Rotated;
 }
 
@@ -263,7 +311,7 @@ inline uniform FVector VectorQuaternionRotateVector(const uniform FVector4& Quat
 	return Result;
 }
 
-inline FVector VectorQuaternionRotateVector(const FVector4& Quat, const FVector& V)
+inline FVector3d VectorQuaternionRotateVector(const FVector4d& Quat, const FVector3d& V)
 {
 	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
 	// V' = V + 2w(Q x V) + (2Q x (Q x V))
@@ -272,9 +320,24 @@ inline FVector VectorQuaternionRotateVector(const FVector4& Quat, const FVector&
 	// T = 2(Q x V);
 	// V' = V + w*(T) + (Q x T)
 
-	const FVector Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
-	const FVector T = VectorCross(Q, V) * 2;
-	const FVector Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
+	const FVector3d Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
+	const FVector3d T = VectorCross(Q, V) * 2;
+	const FVector3d Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
+	return Result;
+}
+
+inline FVector3f VectorQuaternionRotateVector(const FVector4f& Quat, const FVector3f& V)
+{
+	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	// V' = V + 2w(Q x V) + (2Q x (Q x V))
+	// refactor:
+	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
+	// T = 2(Q x V);
+	// V' = V + w*(T) + (Q x T)
+
+	const FVector3f Q = SetVector(Quat.V[0], Quat.V[1], Quat.V[2]);
+	const FVector3f T = VectorCross(Q, V) * 2;
+	const FVector3f Result = V + (T * Quat.V[3]) + VectorCross(Q, T);
 	return Result;
 }
 

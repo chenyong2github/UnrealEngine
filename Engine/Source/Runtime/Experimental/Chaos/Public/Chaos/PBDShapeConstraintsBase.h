@@ -2,61 +2,64 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/Array.h"
 #include "Chaos/PBDParticles.h"
 
 #include <functional>
 
-namespace Chaos
+namespace Chaos::Softs
 {
-	class FPBDShapeConstraintsBase
+
+class FPBDShapeConstraintsBase
+{
+public:
+	FPBDShapeConstraintsBase(
+		int32 InParticleOffset,
+		int32 InParticleCount,
+		const TArray<FSolverVec3>& StartPositions,
+		const TArray<FSolverVec3>& InTargetPositions,
+		const FSolverReal InStiffness
+	)
+		: TargetPositions(InTargetPositions)
+		, ParticleOffset(InParticleOffset)
+		, Stiffness(InStiffness)
 	{
-	public:
-		FPBDShapeConstraintsBase(
-			int32 InParticleOffset,
-			int32 InParticleCount,
-			const TArray<FVec3>& StartPositions,
-			const TArray<FVec3>& TargetPositions,
-			const FReal Stiffness
-		)
-			: MTargetPositions(TargetPositions)
-			, MParticleOffset(InParticleOffset)
-			, MStiffness(Stiffness)
+		const int32 NumConstraints = InParticleCount;
+		Dists.SetNumUninitialized(InParticleCount);
+		for (int32 Index = 0; Index < InParticleCount; ++Index)
 		{
-			const int32 NumConstraints = InParticleCount;
-			MDists.SetNumUninitialized(InParticleCount);
-			for (int32 Index = 0; Index < InParticleCount; ++Index)
-			{
-				const int32 ParticleIndex = MParticleOffset + Index;
-				const FVec3& P1 = StartPositions[ParticleIndex];
-				const FVec3& P2 = MTargetPositions[ParticleIndex];
-				MDists[Index] = (P1 - P2).Size();
-			}
+			const int32 ParticleIndex = ParticleOffset + Index;
+			const FSolverVec3& P1 = StartPositions[ParticleIndex];
+			const FSolverVec3& P2 = TargetPositions[ParticleIndex];
+			Dists[Index] = (P1 - P2).Size();
 		}
-		virtual ~FPBDShapeConstraintsBase() {}
+	}
+	virtual ~FPBDShapeConstraintsBase() {}
 
-		FVec3 GetDelta(const FPBDParticles& InParticles, const int32 Index) const
+	FSolverVec3 GetDelta(const FSolverParticles& InParticles, const int32 Index) const
+	{
+		checkSlow(Index >= ParticleOffset && Index < ParticleOffset + Dists.Num())
+		if (InParticles.InvM(Index) == (FSolverReal)0.)
 		{
-			checkSlow(Index >= MParticleOffset && Index < MParticleOffset + MDists.Num())
-			if (InParticles.InvM(Index) == (FReal)0.)
-			{
-				return FVec3(0.);
-			}
-			const FVec3& P1 = InParticles.P(Index);
-			const FVec3& P2 = MTargetPositions[Index];
-			const FVec3 Difference = P1 - P2;
-			const FReal Distance = Difference.Size();
-			const FVec3 Direction = Difference / Distance;
-			const FVec3 Delta = (Distance - MDists[Index - MParticleOffset]) * Direction;
-			return MStiffness * Delta / InParticles.InvM(Index);
+			return FSolverVec3(0.);
 		}
+		const FSolverVec3& P1 = InParticles.P(Index);
+		const FSolverVec3& P2 = TargetPositions[Index];
+		const FSolverVec3 Difference = P1 - P2;
+		const FSolverReal Distance = Difference.Size();
+		const FSolverVec3 Direction = Difference / Distance;
+		const FSolverVec3 Delta = (Distance - Dists[Index - ParticleOffset]) * Direction;
+		return Stiffness * Delta / InParticles.InvM(Index);
+	}
 
-	protected:
-		const TArray<FVec3>& MTargetPositions;
-		const int32 MParticleOffset;
+protected:
+	const TArray<FSolverVec3>& TargetPositions;
+	const int32 ParticleOffset;
 
-	private:
-		TArray<FReal> MDists;
-		FReal MStiffness;
-	};
-}
+private:
+	TArray<FSolverReal> Dists;
+	FSolverReal Stiffness;
+};
+
+}  // End namespace Chaos::Softs
