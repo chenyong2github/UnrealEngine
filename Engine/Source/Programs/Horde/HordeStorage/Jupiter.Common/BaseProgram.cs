@@ -65,7 +65,7 @@ namespace Jupiter
                 .AddYamlFile(
                     path:
                     $"appsettings.{mode}.yaml",
-                    false)
+                    true)
                 .AddYamlFile(Path.Combine(configRoot, "appsettings.Local.yaml"), optional: true, reloadOnChange: true)
                 .AddEnvironmentVariables()
                 .Build();
