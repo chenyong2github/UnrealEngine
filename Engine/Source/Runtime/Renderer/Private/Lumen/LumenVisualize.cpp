@@ -588,7 +588,7 @@ void SetupVisualizeParameters(
 		CommonParameters.PreviewConeAngle = PreviewConeAngle;
 		CommonParameters.TanPreviewConeAngle = FMath::Tan(PreviewConeAngle);
 		CommonParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
-		CommonParameters.Tonemap = VisualizeTileIndex >= 0 ? 1 : 0;
+		CommonParameters.Tonemap = (EyeAdaptationTexture != nullptr && ColorGradingTexture != nullptr) ? 1 : 0;
 		CommonParameters.VisualizeMode = VisualizeMode;
 
 		CommonParameters.InputViewOffset = ViewRect.Min;
@@ -598,8 +598,6 @@ void SetupVisualizeParameters(
 		CommonParameters.ColorGradingLUT = ColorGradingTexture;
 		CommonParameters.ColorGradingLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		CommonParameters.EyeAdaptationTexture = EyeAdaptationTexture;
-
-		check(CommonParameters.Tonemap == 0 || (CommonParameters.EyeAdaptationTexture != nullptr && CommonParameters.ColorGradingLUT != nullptr));
 
 		if (!CommonParameters.EyeAdaptationTexture)
 		{

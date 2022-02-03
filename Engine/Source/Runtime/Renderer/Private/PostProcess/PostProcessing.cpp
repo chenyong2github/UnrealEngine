@@ -252,10 +252,10 @@ void AddPostProcessingPasses(
 	enum class EPass : uint32
 	{
 		MotionBlur,
-		VisualizeLumenScene,
 		Tonemap,
 		FXAA,
 		PostProcessMaterialAfterTonemapping,
+		VisualizeLumenScene,
 		VisualizeDepthOfField,
 		VisualizeStationaryLightOverlap,
 		VisualizeLightCulling,
@@ -298,10 +298,10 @@ void AddPostProcessingPasses(
 	const TCHAR* PassNames[] =
 	{
 		TEXT("MotionBlur"),
-		TEXT("VisualizeLumenScene"),
 		TEXT("Tonemap"),
 		TEXT("FXAA"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
+		TEXT("VisualizeLumenScene"),
 		TEXT("VisualizeDepthOfField"),
 		TEXT("VisualizeStationaryLightOverlap"),
 		TEXT("VisualizeLightCulling"),
@@ -329,7 +329,6 @@ void AddPostProcessingPasses(
 
 	TOverridePassSequence<EPass> PassSequence(ViewFamilyOutput);
 	PassSequence.SetNames(PassNames, UE_ARRAY_COUNT(PassNames));
-	PassSequence.SetEnabled(EPass::VisualizeLumenScene, VisualizeMode != VISUALIZE_MODE_OVERVIEW);
 	PassSequence.SetEnabled(EPass::VisualizeStationaryLightOverlap, EngineShowFlags.StationaryLightOverlap);
 	PassSequence.SetEnabled(EPass::VisualizeLightCulling, EngineShowFlags.VisualizeLightCulling);
 #if DEBUG_POST_PROCESS_VOLUME_ENABLE
@@ -338,6 +337,7 @@ void AddPostProcessingPasses(
 	PassSequence.SetEnabled(EPass::VisualizePostProcessStack, false);
 #endif
 	PassSequence.SetEnabled(EPass::VisualizeStrata, Strata::ShouldRenderStrataDebugPasses(View));
+	PassSequence.SetEnabled(EPass::VisualizeLumenScene, VisualizeMode != VISUALIZE_MODE_OVERVIEW && bPostProcessingEnabled);
 #if WITH_EDITOR
 	PassSequence.SetEnabled(EPass::VisualizeSkyAtmosphere, Scene && View.Family && View.Family->EngineShowFlags.VisualizeSkyAtmosphere&& ShouldRenderSkyAtmosphereDebugPasses(Scene, View.Family->EngineShowFlags));
 	PassSequence.SetEnabled(EPass::VisualizeLevelInstance, GIsEditor && EngineShowFlags.EditingLevelInstance && EngineShowFlags.VisualizeLevelInstanceEditing && !bVisualizeHDR);
@@ -694,17 +694,6 @@ void AddPostProcessingPasses(
 			SceneColor = NewSceneColor;
 		}
 
-		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
-		{
-			FVisualizeLumenSceneInputs PassInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenScene, PassInputs.OverrideOutput);
-			PassInputs.SceneColor = SceneColor;
-			PassInputs.SceneDepth = SceneDepth;
-			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
-
-			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
-		}
-
 		// Generate post motion blur lower res scene color if they have not been generated.
 		{
 			if ((bNeedPostMotionBlurHalfRes && !HalfResSceneColor.IsValid()) ||
@@ -955,6 +944,19 @@ void AddPostProcessingPasses(
 			SceneColor = AddPostProcessMaterialChain(GraphBuilder, View, PassInputs, PostProcessMaterialAfterTonemappingChain);
 		}
 
+		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
+		{
+			FVisualizeLumenSceneInputs PassInputs;
+			PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenScene, PassInputs.OverrideOutput);
+			PassInputs.SceneColor = SceneColor;
+			PassInputs.SceneDepth = SceneDepth;
+			PassInputs.ColorGradingTexture = TryRegisterExternalTexture(GraphBuilder, View.GetTonemappingLUT());
+			PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
+			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
+
+			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
+		}
+
 		if (PassSequence.IsEnabled(EPass::VisualizeDepthOfField))
 		{
 			FVisualizeDOFInputs PassInputs;
@@ -998,17 +1000,6 @@ void AddPostProcessingPasses(
 			}
 
 			SceneColor = TranslucencyComposition.SceneColor;
-		}
-
-		if (PassSequence.IsEnabled(EPass::VisualizeLumenScene))
-		{
-			FVisualizeLumenSceneInputs PassInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLumenScene, PassInputs.OverrideOutput);
-			PassInputs.SceneColor = SceneColor;
-			PassInputs.SceneDepth = SceneDepth;
-			PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
-
-			SceneColor = AddVisualizeLumenScenePass(GraphBuilder, View, bAnyLumenActive, PassInputs, LumenFrameTemporaries);
 		}
 
 		SceneColorBeforeTonemap = SceneColor;
@@ -1099,7 +1090,7 @@ void AddPostProcessingPasses(
 
 		SceneColor = AddVisualizeLevelInstancePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
 	}
-	
+
 	if (PassSequence.IsEnabled(EPass::SelectionOutline))
 	{
 		FSelectionOutlineInputs PassInputs;
