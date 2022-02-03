@@ -9,6 +9,7 @@
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
 namespace
 {
 	UWorld* GetSimpleEngineAutomationTestWorld(const int32 TestFlags)
@@ -145,6 +146,7 @@ bool FVisualLogTest::RunTest(const FString& Parameters)
 
 			const float NewTimestamp = CurrentTimestamp + 0.1f;
 			FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
+			FVisualLogger::Get().FlushThreadsEntries();
 			CurrentEntry = &Context.Device.LastEntry;
 			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
@@ -201,6 +203,7 @@ bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 
 			const float NewTimestamp = CurrentTimestamp + 0.1f;
 			FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
+			FVisualLogger::Get().FlushThreadsEntries();
 			CurrentEntry = &Context.Device.LastEntry;
 			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
@@ -282,6 +285,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 
 		const float NewTimestamp = CurrentTimestamp + 0.1f;
 		FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
+		FVisualLogger::Get().FlushThreadsEntries();
 		CurrentEntry = &Context.Device.LastEntry;
 		CHECK_NOT_NULL(CurrentEntry);
 		CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
@@ -337,3 +341,4 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 #undef CHECK_FAIL
 
 #endif //ENABLE_VISUAL_LOG
+PRAGMA_ENABLE_OPTIMIZATION

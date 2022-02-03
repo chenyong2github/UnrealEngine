@@ -385,10 +385,8 @@ void FVisualLogger::Tick(float DeltaTime)
 	}
 }
 
-void FVisualLogger::Flush()
+void FVisualLogger::FlushThreadsEntries()
 {
-	FWriteScopeLock Lock(EntryRWLock);
-
 	// We are not locking the thread entry map, we do not expect other threads adding new entries while flushing
 	// @todo we should add a thread access detector
 	for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
@@ -406,6 +404,14 @@ void FVisualLogger::Flush()
 			}
 		}
 	}
+}
+
+void FVisualLogger::Flush()
+{
+	FWriteScopeLock Lock(EntryRWLock);
+
+	FlushThreadsEntries();
+
 	for (auto &CurrentEntry : CurrentEntryPerObject)
 	{
 		if (CurrentEntry.Value.bIsInitialized)
