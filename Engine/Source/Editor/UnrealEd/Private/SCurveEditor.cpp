@@ -3804,7 +3804,14 @@ void SCurveEditor::OnObjectPropertyChanged(UObject* Object, FPropertyChangedEven
 {
 	if ( CurveOwner && CurveOwner->GetOwners().Contains(Object) )
 	{
-		ValidateSelection();
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
+		{
+			EmptyAllSelection();
+		}
+		else
+		{
+			ValidateSelection();
+		}
 	}
 }
 
