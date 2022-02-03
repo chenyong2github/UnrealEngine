@@ -134,10 +134,9 @@ void FAssetActionExtender_SoundCueTemplate::ExecuteCreateSoundCueTemplate(const 
 	AssetToolsModule.Get().CreateUniqueAssetName(SoundWave->GetOutermost()->GetName(), TEXT(""), PackagePath, Name);
 
 	USoundCueTemplateFactory* Factory = NewObject<USoundCueTemplateFactory>();
-	Factory->ConfigureProperties();
-
-	Name = Factory->GetDefaultNewAssetName();
 	Factory->SoundWaves = FObjectEditorUtils::GetTypedWeakObjectPtrs<USoundWave>(Context->GetSelectedObjects());
+	Factory->ConfigureProperties();
+	Name = Factory->GetDefaultNewAssetName();
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCueTemplate::StaticClass(), Factory);

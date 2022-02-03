@@ -98,7 +98,18 @@ FString USoundCueTemplateFactory::GetDefaultNewAssetName() const
 {
 	if (SoundCueTemplateClass)
 	{
-		return SoundCueTemplateClass->GetName() + FString(TEXT("_"));
+		FString TemplatePrefix;
+		if (const USoundCueTemplate* TemplateCDO = SoundCueTemplateClass.GetDefaultObject())
+		{
+			TemplatePrefix = TemplateCDO->GenerateDefaultNewAssetName(SoundWaves);
+		}
+
+		if (TemplatePrefix.IsEmpty())
+		{
+			SoundCueTemplateClass->GetName(TemplatePrefix);
+		}
+
+		return TemplatePrefix + FString(TEXT("_"));
 	}
 
 	return Super::GetDefaultNewAssetName();
