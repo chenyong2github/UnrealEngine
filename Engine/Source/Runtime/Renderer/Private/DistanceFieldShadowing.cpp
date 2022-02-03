@@ -498,6 +498,7 @@ void CullDistanceFieldObjectsForLight(
 	const FPlane* PlaneData, 
 	const FVector4& ShadowBoundingSphereValue,
 	float ShadowBoundingRadius,
+	bool bCullingForDirectShadowing,
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
 	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FLightTileIntersectionParameters& LightTileIntersectionParameters)
@@ -529,7 +530,7 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
 		// Disable Nanite meshes for directional lights that use VSM since they draw into the VSM unconditionally (and would get double shadow)
-		PassParameters->bDrawNaniteMeshes = !(LightSceneProxy->UseVirtualShadowMaps() && LightSceneProxy->GetLightType() == LightType_Directional);
+		PassParameters->bDrawNaniteMeshes = !(LightSceneProxy->UseVirtualShadowMaps() && LightSceneProxy->GetLightType() == LightType_Directional) || !bCullingForDirectShadowing;
 
 		check(NumPlanes <= 12);
 
@@ -862,6 +863,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				PlaneData,
 				ShadowBoundingSphereValue,
 				ShadowBounds.W,
+				true,
 				ObjectBufferParameters,
 				CulledObjectBufferParameters,
 				LightTileIntersectionParameters
@@ -909,6 +911,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			PlaneData,
 			ShadowBoundingSphereValue,
 			ShadowBounds.W,
+			true,
 			ObjectBufferParameters,
 			CulledObjectBufferParameters,
 			LightTileIntersectionParameters

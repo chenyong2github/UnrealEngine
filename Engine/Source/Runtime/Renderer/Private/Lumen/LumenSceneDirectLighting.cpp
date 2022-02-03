@@ -820,6 +820,7 @@ void CullMeshObjectsForLightCards(
 		PlaneData,
 		LocalLightShadowBoundingSphereValue,
 		MeshSDFShadowBounds.W,
+		false,
 		ObjectBufferParameters,
 		CulledObjectBufferParameters,
 		LightTileIntersectionParameters);
