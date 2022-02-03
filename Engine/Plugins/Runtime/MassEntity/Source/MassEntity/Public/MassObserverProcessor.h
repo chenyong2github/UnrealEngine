@@ -19,33 +19,16 @@ public:
 protected:
 	virtual void PostInitProperties() override;
 
-	/** Override to register this processor with the observer registry */
-	virtual void Register() PURE_VIRTUAL(UMassObserverProcessor::Register, );
+	/** 
+	 * By default registers this class as Operation observer of ObservedType. Override to register for multiple 
+	 * operations and/or types 
+	 */
+	virtual void Register();
 
 protected:
-	/** Set in class' constructor and determines for which Fragment type this given UMassObserverProcessor will be used 
-	 *  as the default initializer/deinitializer (as returned by the MassInitializersRegistry). If set to null will
-	 *  require the user to manually add this UMassObserverProcessor as initializer/deinitializer */
+	/** Determines which Fragment or Tag type this given UMassObserverProcessor will be observing */
 	UPROPERTY()
-	UScriptStruct* FragmentType;
-};
+	UScriptStruct* ObservedType = nullptr;
 
-UCLASS(abstract)
-class MASSENTITY_API UMassFragmentInitializer : public UMassObserverProcessor
-{
-	GENERATED_BODY()
-
-protected:
-	/** Adds this FragmentInitializer to the MassInitializersRegistry to be used to initialize fragments of FragmentType */
-	virtual void Register() override;
-};
-
-UCLASS(abstract)
-class MASSENTITY_API UMassFragmentDeinitializer : public UMassObserverProcessor
-{
-	GENERATED_BODY()
-
-protected:
-	/** Adds this FragmentDestructor to the MassInitializersRegistry to be used to deinitialize fragments of FragmentType */
-	virtual void Register() override;
+	EMassObservedOperation Operation = EMassObservedOperation::MAX;
 };

@@ -317,3 +317,16 @@ protected:
 	TArray<FConstSharedStruct> ConstSharedFragments;
 	TArray<FSharedStruct> SharedFragments;
 };
+
+UENUM()
+enum class EMassObservedOperation : uint8
+{
+	Add,
+	Remove,
+	// @todo Keeping this here as a indication of design intent. For now we handle entity destruction like removal, but 
+	// there might be computationally expensive cases where we might want to avoid for soon-to-be-dead entities. 
+	// Destroy,
+	// @todo another planned supported operation type
+	// Touch,
+	MAX
+};

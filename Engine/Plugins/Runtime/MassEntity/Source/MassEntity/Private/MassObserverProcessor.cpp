@@ -2,6 +2,7 @@
 
 #include "MassObserverProcessor.h"
 #include "MassObserverRegistry.h"
+#include "MassEntityDebug.h"
 
 //----------------------------------------------------------------------//
 // UMassObserverProcessor
@@ -18,26 +19,26 @@ void UMassObserverProcessor::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	if (HasAnyFlags(RF_ClassDefaultObject) && GetClass()->HasAnyClassFlags(CLASS_Abstract) == false && FragmentType != nullptr)
+	UClass* MyClass = GetClass();
+	CA_ASSUME(MyClass);
+
+	if (HasAnyFlags(RF_ClassDefaultObject) && MyClass->HasAnyClassFlags(CLASS_Abstract) == false)
 	{
-		Register();
+		if (ensure(ObservedType != nullptr && Operation != EMassObservedOperation::MAX))
+		{
+			Register();
+		}
+		else
+		{
+			UE_LOG(LogMass, Error, TEXT("%s attempting to register %s while it\'s misconfigured, Type: %s, Operation: %s")
+				, ANSI_TO_TCHAR(__FUNCTION__), *MyClass->GetName(), *GetNameSafe(ObservedType), *UEnum::GetValueAsString(Operation));
+		}
 	}
 }
 
-//----------------------------------------------------------------------//
-//  UMassFragmentInitializer
-//----------------------------------------------------------------------//
-void UMassFragmentInitializer::Register()
+void UMassObserverProcessor::Register()
 {
-	check(FragmentType);
-	UMassObserverRegistry::GetMutable().RegisterFragmentAddedObserver(*FragmentType, GetClass());
+	check(ObservedType);
+	UMassObserverRegistry::GetMutable().RegisterObserver(*ObservedType, Operation, GetClass());
 }
 
-//----------------------------------------------------------------------//
-//  UMassFragmentDeinitializer
-//----------------------------------------------------------------------//
-void UMassFragmentDeinitializer::Register()
-{
-	check(FragmentType);
-	UMassObserverRegistry::GetMutable().RegisterFragmentRemovedObserver(*FragmentType, GetClass());
-}
