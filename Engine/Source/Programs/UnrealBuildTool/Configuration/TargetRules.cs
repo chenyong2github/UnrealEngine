@@ -633,6 +633,20 @@ namespace UnrealBuildTool
 		public bool bForceBuildShaderFormats = false;
 
 		/// <summary>
+		/// Override for including extra shader formats
+		/// </summary>
+		public bool? bNeedsExtraShaderFormatsOverride;
+
+		/// <summary>
+		/// Whether we should include any extra shader formats. By default this is only enabled for Program and Editor targets.
+		/// </summary>
+		public bool bNeedsExtraShaderFormats
+		{
+			set { bNeedsExtraShaderFormatsOverride = value; }
+			get { return bNeedsExtraShaderFormatsOverride ?? (bForceBuildShaderFormats || bBuildDeveloperTools) && (Type == TargetType.Editor || Type == TargetType.Program); }
+		}
+
+		/// <summary>
 		/// Whether we should compile SQLite using the custom "Unreal" platform (true), or using the native platform (false).
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2313,6 +2327,11 @@ namespace UnrealBuildTool
 		public bool bForceBuildShaderFormats
 		{
 			get { return Inner.bForceBuildShaderFormats; }
+		}
+
+		public bool bNeedsExtraShaderFormats
+		{
+			get { return Inner.bNeedsExtraShaderFormats; }
 		}
 
 		public bool bCompileCustomSQLitePlatform
