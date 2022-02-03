@@ -24,6 +24,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Async/Async.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 #include <limits>
 
