@@ -631,6 +631,52 @@ bool FStorageServerPlatformFile::DeleteDirectory(const TCHAR* Directory)
 	return LowerLevel->DeleteDirectory(Directory);
 }
 
+FString FStorageServerPlatformFile::ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename)
+{
+#if PLATFORM_DESKTOP && (UE_GAME || UE_SERVER)
+	TStringBuilder<1024> Result;
+
+	// New code should not end up in here and should instead be written in such a
+	// way that data can be served from a (remote) server.
+
+	// Some data must exist in files on disk such that it can be accessed by external
+	// APIs. Any such data required by a title should have been written to Saved/Cooked
+	// at cook time. If a file prefix with UE's canonical ../../../ is requested we
+	// look inside Saved/Cooked. A read-only filesystem overlay if you will.
+
+	static FString* CookedDir = nullptr;
+	if (CookedDir == nullptr)
+	{
+		static FString Inner;
+		CookedDir = &Inner;
+
+		Result << *FPaths::ProjectDir();
+		Result << TEXT("Saved/Cooked/");
+		Result << FPlatformProperties::PlatformName();
+		Result << TEXT("/");
+		Inner = Result.ToString();
+	}
+	else
+	{
+		Result << *(*CookedDir);
+	}
+
+	const TCHAR* DotSlashSkip = Filename;
+	for (; *DotSlashSkip == '.' || *DotSlashSkip == '/'; ++DotSlashSkip);
+
+	if (PTRINT(DotSlashSkip - Filename) == 9) // 9 == ../../../
+	{
+		Result << DotSlashSkip;
+		if (LowerLevel->FileExists(Result.ToString()))
+		{
+			return FString(Result.GetData(), Result.Len());
+		}
+	}
+#endif
+
+	return LowerLevel->ConvertToAbsolutePathForExternalAppForRead(Filename);
+}
+
 bool FStorageServerPlatformFile::MakeStorageServerPath(const TCHAR* LocalFilenameOrDirectory, FStringBuilderBase& OutPath) const
 {
 	FStringView LocalEngineDirView(FPlatformMisc::EngineDir());
