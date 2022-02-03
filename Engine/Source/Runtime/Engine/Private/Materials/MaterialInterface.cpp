@@ -28,6 +28,7 @@
 #include "TextureCompiler.h"
 #include "MaterialShaderQualitySettings.h"
 #include "ShaderPlatformQualitySettings.h"
+#include "ObjectCacheContext.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
@@ -442,6 +443,50 @@ void UMaterialInterface::RecacheAllMaterialUniformExpressions(bool bRecreateUnif
 	for( TObjectIterator<UMaterialInterface> MaterialIt; MaterialIt; ++MaterialIt )
 	{
 		MaterialIt->RecacheUniformExpressions(bRecreateUniformBuffer);
+	}
+}
+
+void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World, EMaterialShaderPrecompileMode CompileMode)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterialInterface::SubmitRemainingJobsForWorld);
+
+	TSet<UMaterialInterface*> MaterialsToCache;
+	FObjectCacheContextScope ObjectCacheScope;
+
+	for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
+	{
+		if (World && !World->ContainsActor(PrimitiveComponent->GetOwner()))
+		{
+			continue;
+		}
+
+		if (PrimitiveComponent->IsRenderStateCreated())
+		{
+			TObjectCacheIterator<UMaterialInterface> UsedMaterials = ObjectCacheScope.GetContext().GetUsedMaterials(PrimitiveComponent);
+			for (UMaterialInterface* MaterialInterface : UsedMaterials)
+			{
+				if (MaterialInterface)
+				{
+					MaterialsToCache.Add(MaterialInterface);
+				}
+			}
+		}
+	}
+
+	// Add UI and PP Materials.
+	for (TObjectIterator<UMaterialInterface> It; It; ++It)
+	{
+		UMaterial* Material = It->GetMaterial();
+		if (Material &&
+			(Material->IsUIMaterial() || Material->IsPostProcessMaterial()))
+		{
+			MaterialsToCache.Add(*It);
+		}
+	}
+
+	for (UMaterialInterface* Material : MaterialsToCache)
+	{
+		Material->CacheShaders(CompileMode);
 	}
 }
 

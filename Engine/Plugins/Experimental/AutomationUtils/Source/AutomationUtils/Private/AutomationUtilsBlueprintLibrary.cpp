@@ -23,6 +23,7 @@
 #include "Containers/Ticker.h"
 #include "Engine/GameEngine.h"
 #include "Stats/Stats.h"
+#include "Materials/MaterialInterface.h"
 
 //Private Helper Class Definitions
 class FAutomationUtilsGameplayViewExtension : public FSceneViewExtensionBase
@@ -347,20 +348,23 @@ void UAutomationUtilsBlueprintLibrary::TakeGameplayAutomationScreenshot(const FS
 {
 	FlushAsyncLoading();
 
-	//Finish Loading Before Screenshot
-	if (!FPlatformProperties::RequiresCookedData())
-	{
-		//Finish Compiling all shaders and other async assets
-		FAssetCompilingManager::Get().FinishAllCompilation();
-	}
-
+	UWorld* CurrentWorld{ nullptr };
 	// Make sure we finish all level streaming
 	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 	{
 		if (UWorld* GameWorld = GameEngine->GetGameWorld())
 		{
+			CurrentWorld = GameWorld;
 			GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 		}
+	}
+
+	//Finish Loading Before Screenshot
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		UMaterialInterface::SubmitRemainingJobsForWorld(CurrentWorld);
+		//Finish Compiling all shaders and other async assets
+		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
 
 	//Stream in everything

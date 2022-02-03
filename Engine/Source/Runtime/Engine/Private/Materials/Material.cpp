@@ -2136,6 +2136,8 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 
 	if (FApp::CanEverRender())
 	{
+		bool bCachedShaders{ false };
+
 		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
 
@@ -2150,6 +2152,12 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 			// to register the loaded shadermap
 			FMaterialResource* CurrentResource = FindOrCreateMaterialResource(MaterialResources, this, nullptr, FeatureLevel, ActiveQualityLevel);
 			check(CurrentResource);
+
+			// If this resource is complete there is nothing to do here.
+			if (CurrentResource->IsGameThreadShaderMapComplete())
+			{
+				continue;
+			}
 
 #if STORE_ONLY_ACTIVE_SHADERMAPS
 			if (CurrentResource && !CurrentResource->GetGameThreadShaderMap())
@@ -2171,6 +2179,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 			ResourcesToCache.Reset();
 			ResourcesToCache.Add(CurrentResource);
 			CacheShadersForResources(ShaderPlatform, ResourcesToCache, PrecompileMode);
+			bCachedShaders = true;
 		}
 
 		FString AdditionalFormatToCache = GCompileMaterialsForShaderFormatCVar->GetString();
@@ -2190,7 +2199,10 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 			}
 		}
 
-		RecacheUniformExpressions(true);
+		if (bCachedShaders)
+		{
+			RecacheUniformExpressions(true);
+		}
 	}
 
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
@@ -2287,6 +2299,11 @@ void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const T
 			}
 		}
 	}
+}
+
+void UMaterial::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
+{
+	CacheResourceShadersForRendering(false, CompileMode);
 }
 
 void UMaterial::ReleaseResourcesAndMutateDDCKey(const FGuid& TransformationId)

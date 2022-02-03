@@ -767,6 +767,28 @@ public:
 	ENGINE_API static void RecacheAllMaterialUniformExpressions(bool bRecreateUniformBuffer);
 
 	/**
+	 * @brief Submits shaders to be compiled for all the materials in the world.
+	 *
+	 * This function will submit any remaining shaders to be compiled for all the materials in the passed in world.  By default
+	 * these shader compilation jobs will be compiled in the background so if you need the results immediately you can call
+	 * FinishAllCompilation() to block on the results.
+	 *
+	 * If the world is nullptr this will submit remaining shaders to be compiled for all the loaded materials.
+	 *
+	 * @code
+	 * GShaderCompilingManager->SubmitRemainingJobsForWorld(World);
+	 * GShaderCompilingManager->FinishAllCompilation();
+	 * @endcode
+	 *
+	 * @param World Only compile shaders for materials that are used on primitives in this world.
+	 * @param CompileMode Controls whether or not we block on the shader compile results.
+	 *
+	 * @note This will only submit shader compile jobs for missing shaders on each material.  Calling this multiple times on the same world
+	 * will result in a no-op.
+	 */
+	ENGINE_API static void SubmitRemainingJobsForWorld(UWorld* World, EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default);
+
+	/**
 	 * Re-caches uniform expressions for this material interface                   
 	 * Set bRecreateUniformBuffer to true if uniform buffer layout will change (e.g. FMaterial is being recompiled).
 	 * In that case calling needs to use FMaterialUpdateContext to recreate the rendering state of primitives using this material.
@@ -774,6 +796,15 @@ public:
 	 * @param bRecreateUniformBuffer - true forces uniform buffer recreation.
 	 */
 	virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const {}
+
+	/** @brief Submits remaining shaders for recompilation.
+	*
+	* This function will submit any remaining shaders to be compiled for the given material.  By default
+	* these shader compilation jobs will be compiled in the background.
+	*
+	* @param CompileMode Controls whether or not we block on the shader compile results.
+	*/
+	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default) {}
 
 #if WITH_EDITOR
 	/** Clears the shader cache and recompiles the shader for rendering. */

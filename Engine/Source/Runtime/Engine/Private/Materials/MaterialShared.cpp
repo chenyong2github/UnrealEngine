@@ -2361,8 +2361,19 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	else
 	{
 #if WITH_EDITOR
-		// Clear outdated compile errors as we're not calling Translate on this path
-		CompileErrors.Empty();
+		// We have a shader map, the shader map is incomplete, and we've been asked to compile.
+		if (AllowShaderCompiling() && 
+			!IsGameThreadShaderMapComplete() && 
+			(PrecompileMode != EMaterialShaderPrecompileMode::None))
+		{
+			// Submit the remaining shaders in the map for compilation.
+			SubmitCompileJobs(EShaderCompileJobPriority::High);
+		}
+		else
+		{
+			// Clear outdated compile errors as we're not calling Translate on this path
+			CompileErrors.Empty();
+		}
 #endif // WITH_EDITOR
 	}
 

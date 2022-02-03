@@ -16,6 +16,8 @@
 #include "ShaderCompiler.h"
 #include "IAutomationControllerManager.h"
 #include "IAutomationControllerModule.h"
+#include "Materials/MaterialInterface.h"
+#include "AssetCompilingManager.h"
 
 //----------------------------------------------------------------------//
 // UAsyncCaptureScene
@@ -96,23 +98,26 @@ void UAsyncCaptureScene::NotifyComplete(UTextureRenderTarget2D* InTexture)
 
 void UAsyncCaptureScene::FinishLoadingBeforeScreenshot()
 {
-	// Finish compiling the shaders if the platform doesn't require cooked data.
-	if (!FPlatformProperties::RequiresCookedData())
-	{
-		GShaderCompilingManager->FinishAllCompilation();
-		IAutomationControllerModule& AutomationController = IAutomationControllerModule::Get();
-		AutomationController.GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
-	}
-
 	FlushAsyncLoading();
 
+	UWorld* CurrentWorld{ nullptr };
 	// Make sure we finish all level streaming
 	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 	{
 		if (UWorld* GameWorld = GameEngine->GetGameWorld())
 		{
+			CurrentWorld = GameWorld;
 			GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 		}
+	}
+
+	// Finish compiling the shaders if the platform doesn't require cooked data.
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		UMaterialInterface::SubmitRemainingJobsForWorld(CurrentWorld);
+		FAssetCompilingManager::Get().FinishAllCompilation();
+		IAutomationControllerModule& AutomationController = IAutomationControllerModule::Get();
+		AutomationController.GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
 	}
 
 	// Force all mip maps to load before taking the screenshot.

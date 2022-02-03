@@ -99,6 +99,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/AutomationTest.h"
 #include "ActorFolder.h"
+#include "Materials/MaterialInterface.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -243,6 +244,7 @@
 #include "DerivedDataBuildLocalExecutor.h"
 #include "DerivedDataBuildRemoteExecutor.h"
 #include "DerivedDataBuildWorkers.h"
+#include "AssetCompilingManager.h"
 
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
@@ -3739,9 +3741,10 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 	GWarn->StatusUpdate(0, 1, StatusText);
 
 	// Wait for shader compiling to finish so we don't capture the default material
-	if (GShaderCompilingManager != NULL)
+	if (GShaderCompilingManager != nullptr)
 	{
-		GShaderCompilingManager->FinishAllCompilation();
+		UMaterialInterface::SubmitRemainingJobsForWorld(World);
+		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
 
 	// Process any outstanding captures before we start operating on scenarios
