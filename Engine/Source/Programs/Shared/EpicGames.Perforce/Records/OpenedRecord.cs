@@ -60,7 +60,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// New filetype for the file
 		/// </summary>
-		[PerforceTag("type")]
+		[PerforceTag("type", Optional = true)]
 		public string Type { get; set; } = String.Empty;
 
 		/// <summary>
