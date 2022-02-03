@@ -963,6 +963,8 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	FMeshNaniteSettings NaniteSettings = {};
 	NaniteSettings.bEnabled = true;
 	NaniteSettings.TargetMinimumResidencyInKB = 0;	// Default to smallest possible, which is a single page
+	NaniteSettings.KeepPercentTriangles = 1.0f;
+	NaniteSettings.TrimRelativeError = 0.0f;
 	NaniteSettings.FallbackPercentTriangles = 1.0f; // 100% - no reduction
 	NaniteSettings.FallbackRelativeError = 0.0f;
 

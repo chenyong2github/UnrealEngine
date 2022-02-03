@@ -3113,6 +3113,14 @@ struct FMeshNaniteSettings
 	
 	/** Percentage of triangles to keep from source mesh. 1.0 = no reduction, 0.0 = no triangles. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	float KeepPercentTriangles;
+
+	/** Reduce until at least this amount of error is reached relative to size of the mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	float TrimRelativeError;
+	
+	/** Percentage of triangles to keep from source mesh for fallback. 1.0 = no reduction, 0.0 = no triangles. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	float FallbackPercentTriangles;
 
 	/** Reduce until at least this amount of error is reached relative to size of the mesh */
@@ -3124,6 +3132,8 @@ struct FMeshNaniteSettings
 	: bEnabled(false)
 	, PositionPrecision(MIN_int32)
 	, TargetMinimumResidencyInKB(0)
+	, KeepPercentTriangles(1.0f)
+	, TrimRelativeError(0.0f)
 	, FallbackPercentTriangles(1.0f)
 	, FallbackRelativeError(1.0f)
 	{
@@ -3133,6 +3143,8 @@ struct FMeshNaniteSettings
 	: bEnabled(Other.bEnabled)
 	, PositionPrecision(Other.PositionPrecision)
 	, TargetMinimumResidencyInKB(Other.TargetMinimumResidencyInKB)
+	, KeepPercentTriangles(Other.KeepPercentTriangles)
+	, TrimRelativeError(Other.TrimRelativeError)
 	, FallbackPercentTriangles(Other.FallbackPercentTriangles)
 	, FallbackRelativeError(Other.FallbackRelativeError)
 	{
@@ -3144,6 +3156,8 @@ struct FMeshNaniteSettings
 		return bEnabled == Other.bEnabled
 			&& PositionPrecision == Other.PositionPrecision
 			&& TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB
+			&& KeepPercentTriangles == Other.KeepPercentTriangles
+			&& TrimRelativeError == Other.TrimRelativeError
 			&& FallbackPercentTriangles == Other.FallbackPercentTriangles
 			&& FallbackRelativeError == Other.FallbackRelativeError;
 	}

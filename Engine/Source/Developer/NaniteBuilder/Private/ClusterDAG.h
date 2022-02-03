@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Cluster.h"
+#include "Containers/BinaryHeap.h"
 
 // Log CRCs to test for deterministic building
 #if 0
@@ -22,6 +23,7 @@ struct FClusterGroup
 	float				MaxParentLODError;
 	int32				MipLevel;
 	uint32				MeshIndex;
+	bool				bTrimmed;
 	
 	uint32				PageIndexStart;
 	uint32				PageIndexNum;
@@ -33,7 +35,7 @@ struct FClusterGroup
 // Performs DAG reduction and appends the resulting clusters and groups
 void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds& MeshBounds );
 
-FCluster FindDAGCut(
+FBinaryHeap< float > FindDAGCut(
 	const TArray< FClusterGroup >& Groups,
 	const TArray< FCluster >& Clusters,
 	uint32 TargetNumTris,

@@ -5,7 +5,6 @@
 #include "Async/ParallelFor.h"
 #include "GraphPartitioner.h"
 #include "MeshSimplify.h"
-#include "Containers/BinaryHeap.h"
 
 namespace Nanite
 {
@@ -295,12 +294,13 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 	uint32 RootIndex = LevelOffset;
 	FClusterGroup RootClusterGroup;
 	RootClusterGroup.Children.Add( RootIndex );
-	RootClusterGroup.Bounds = Clusters[ RootIndex ].SphereBounds;
-	RootClusterGroup.LODBounds = FSphere3f( 0 );
-	RootClusterGroup.MaxParentLODError = 1e10f;
-	RootClusterGroup.MinLODError = -1.0f;
-	RootClusterGroup.MipLevel = Clusters[RootIndex].MipLevel + 1;
-	RootClusterGroup.MeshIndex = MeshIndex;
+	RootClusterGroup.Bounds				= Clusters[ RootIndex ].SphereBounds;
+	RootClusterGroup.LODBounds			= FSphere3f( 0 );
+	RootClusterGroup.MaxParentLODError	= 1e10f;
+	RootClusterGroup.MinLODError		= -1.0f;
+	RootClusterGroup.MipLevel			= Clusters[ RootIndex ].MipLevel + 1;
+	RootClusterGroup.MeshIndex			= MeshIndex;
+	RootClusterGroup.bTrimmed			= false;
 	Clusters[ RootIndex ].GroupIndex = Groups.Num();
 	Groups.Add( RootClusterGroup );
 }
@@ -413,9 +413,10 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 	Groups[ GroupIndex ].MaxParentLODError	= ParentMaxLODError;
 	Groups[ GroupIndex ].MipLevel			= Merged.MipLevel - 1;
 	Groups[ GroupIndex ].MeshIndex			= MeshIndex;
+	Groups[ GroupIndex ].bTrimmed			= false;
 }
 
-FCluster FindDAGCut(
+FBinaryHeap< float > FindDAGCut(
 	const TArray< FClusterGroup >& Groups,
 	const TArray< FCluster >& Clusters,
 	uint32 TargetNumTris,
@@ -473,38 +474,7 @@ FCluster FindDAGCut(
 		}
 	}
 
-	// Merge
-	TArray< const FCluster*, TInlineAllocator<32> > MergeList;
-	MergeList.AddUninitialized( Heap.Num() );
-	for( uint32 i = 0; i < Heap.Num(); i++ )
-	{
-		MergeList[i] = &Clusters[ Heap.Peek(i) ];
-	}
-
-	// Force a deterministic order
-	MergeList.Sort(
-		[]( const FCluster& A, const FCluster& B )
-		{
-			return A.GUID < B.GUID;
-		} );
-
-	return FCluster( MergeList );
-}
-
-
-FArchive& operator<<(FArchive& Ar, FClusterGroup& Group)
-{
-	Ar << Group.Bounds;
-	Ar << Group.LODBounds;
-	Ar << Group.MinLODError;
-	Ar << Group.MaxParentLODError;
-	Ar << Group.MipLevel;
-	Ar << Group.MeshIndex;
-
-	Ar << Group.PageIndexStart;
-	Ar << Group.PageIndexNum;
-	Ar << Group.Children;
-	return Ar;
+	return Heap;
 }
 
 } // namespace Nanite

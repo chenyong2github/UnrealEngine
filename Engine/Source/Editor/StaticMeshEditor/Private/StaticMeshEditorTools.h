@@ -711,9 +711,16 @@ private:
 	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 	void OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 
-	float GetPercentTriangles() const;
-	void OnPercentTrianglesChanged(float NewValue);
-	void OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
+	float GetKeepPercentTriangles() const;
+	void OnKeepPercentTrianglesChanged(float NewValue);
+	void OnKeepPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
+
+	float GetTrimRelativeError() const;
+	void OnTrimRelativeErrorChanged(float NewValue);
+
+	float GetFallbackPercentTriangles() const;
+	void OnFallbackPercentTrianglesChanged(float NewValue);
+	void OnFallbackPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
 
 	float GetFallbackRelativeError() const;
 	void OnFallbackRelativeErrorChanged(float NewValue);

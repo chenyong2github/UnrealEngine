@@ -1330,6 +1330,9 @@ static void AssignClustersToPages(
 		// Pick best next group			// TODO
 		uint32 GroupIndex = ClusterGroupPermutation[i];
 		FClusterGroup& Group = ClusterGroups[GroupIndex];
+		if( Group.bTrimmed )
+			continue;
+
 		uint32 GroupStartPage = INVALID_PAGE_INDEX;
 	
 		for (uint32 ClusterIndex : Group.Children)

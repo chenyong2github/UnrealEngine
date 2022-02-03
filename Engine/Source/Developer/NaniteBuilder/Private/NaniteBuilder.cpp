@@ -176,7 +176,24 @@ static void BuildCoarseRepresentation(
 {
 	TargetNumTris = FMath::Max( TargetNumTris, 64u );
 
-	FCluster CoarseRepresentation = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 4096 );
+	FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 4096 );
+
+	// Merge
+	TArray< const FCluster*, TInlineAllocator<32> > MergeList;
+	MergeList.AddUninitialized( Heap.Num() );
+	for( uint32 i = 0; i < Heap.Num(); i++ )
+	{
+		MergeList[i] = &Clusters[ Heap.Peek(i) ];
+	}
+
+	// Force a deterministic order
+	MergeList.Sort(
+		[]( const FCluster& A, const FCluster& B )
+		{
+			return A.GUID < B.GUID;
+		} );
+
+	FCluster CoarseRepresentation( MergeList );
 	CoarseRepresentation.Simplify( TargetNumTris, TargetError, FMath::Min( TargetNumTris, 256u ) );
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
@@ -523,6 +540,34 @@ static bool BuildNaniteData(
 			BuildDAG( Groups, Clusters, ClusterStart, NumClusters, MeshIndex, MeshBounds );
 			ClusterStart += NumClusters;
 		}
+	}
+	
+	if( Settings.KeepPercentTriangles < 1.0f || Settings.TrimRelativeError > 0.0f )
+	{
+		int32 TargetNumTris = Resources.NumInputTriangles * Settings.KeepPercentTriangles;
+		float TargetError = Settings.TrimRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, VertexBounds.GetSurfaceArea() ) );
+
+		FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 0 );
+	
+		float CutError = Clusters[ Heap.Top() ].LODError;
+
+		for( FClusterGroup& Group : Groups )
+			Group.bTrimmed = Group.MaxParentLODError <= CutError;
+
+		uint32 NumVerts = 0;
+		uint32 NumTris = 0;
+		for( uint32 i = 0; i < Heap.Num(); i++ )
+		{
+			FCluster& Cluster = Clusters[ Heap.Peek(i) ];
+
+			Cluster.GeneratingGroupIndex = MAX_uint32;
+			Cluster.EdgeLength = -FMath::Abs( Cluster.EdgeLength );
+			NumVerts += Cluster.NumVerts;
+			NumTris  += Cluster.NumTris;
+		}
+
+		Resources.NumInputVertices	= FMath::Min( NumVerts, Resources.NumInputVertices );
+		Resources.NumInputTriangles	= NumTris;
 	}
 
 	uint32 ReduceTime = FPlatformTime::Cycles();

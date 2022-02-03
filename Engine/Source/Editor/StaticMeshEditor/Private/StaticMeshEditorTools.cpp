@@ -5028,15 +5028,15 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
-		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent") )
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("KeepTrianglePercent", "Keep Triangle Percent") )
 
 		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
 		.NameContent()
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent"))
-			.ToolTipText(LOCTEXT("FallbackTrianglePercentTooltip", "Reduce until less than this percentage of triangles remain when generating a fallback\nmesh that will be used anywhere the full detail Nanite data can't,\nincluding platforms that don't support Nanite rendering."))
+			.Text(LOCTEXT("KeepTrianglePercent", "Keep Triangle Percent"))
+			.ToolTipText(LOCTEXT("KeepTrianglePercentTooltip", "Percentage of triangles to keep. Reduce to optimize for disk size."))
 		]
 		.ValueContent()
 		.VAlign(VAlign_Center)
@@ -5045,9 +5045,55 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.MinValue(0.0f)
 			.MaxValue(100.0f)
-			.Value(this, &FNaniteSettingsLayout::GetPercentTriangles)
-			.OnValueChanged(this, &FNaniteSettingsLayout::OnPercentTrianglesChanged)
-			.OnValueCommitted(this, &FNaniteSettingsLayout::OnPercentTrianglesCommitted)
+			.Value(this, &FNaniteSettingsLayout::GetKeepPercentTriangles)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnKeepPercentTrianglesChanged)
+			.OnValueCommitted(this, &FNaniteSettingsLayout::OnKeepPercentTrianglesCommitted)
+		];
+	}
+
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("TrimRelativeError", "Trim Relative Error") )
+
+		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("TrimRelativeError", "Trim Relative Error"))
+			.ToolTipText(LOCTEXT("TrimRelativeErrorTooltip", "Trim all detail with less than this relative error. Error is calculated relative to the mesh's size.\nIncrease to optimize for disk size."))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSpinBox<float>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0.0f)
+			.Value(this, &FNaniteSettingsLayout::GetTrimRelativeError)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnTrimRelativeErrorChanged)
+		];
+	}
+
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent") )
+
+		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("FallbackTrianglePercent", "Fallback Triangle Percent"))
+			.ToolTipText(LOCTEXT("FallbackTrianglePercentTooltip", "Reduce until no more than this percentage of triangles remain when generating a fallback\nmesh that will be used anywhere the full detail Nanite data can't,\nincluding platforms that don't support Nanite rendering."))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSpinBox<float>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0.0f)
+			.MaxValue(100.0f)
+			.Value(this, &FNaniteSettingsLayout::GetFallbackPercentTriangles)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnFallbackPercentTrianglesChanged)
+			.OnValueCommitted(this, &FNaniteSettingsLayout::OnFallbackPercentTrianglesCommitted)
 		];
 	}
 
@@ -5249,24 +5295,54 @@ void FNaniteSettingsLayout::OnResidencyChanged(TSharedPtr<FString> NewValue, ESe
 	}
 }
 
-float FNaniteSettingsLayout::GetPercentTriangles() const
+float FNaniteSettingsLayout::GetKeepPercentTriangles() const
+{
+	return NaniteSettings.KeepPercentTriangles * 100.0f; // Display fraction as percentage.
+}
+
+void FNaniteSettingsLayout::OnKeepPercentTrianglesChanged(float NewValue)
+{
+	// Percentage -> fraction.
+	NaniteSettings.KeepPercentTriangles = NewValue * 0.01f;
+}
+
+void FNaniteSettingsLayout::OnKeepPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("KeepPercentTriangles"), FString::Printf(TEXT("%.1f"), NewValue));
+	}
+	OnKeepPercentTrianglesChanged(NewValue);
+}
+
+float FNaniteSettingsLayout::GetTrimRelativeError() const
+{
+	return NaniteSettings.TrimRelativeError;
+}
+
+void FNaniteSettingsLayout::OnTrimRelativeErrorChanged(float NewValue)
+{
+	NaniteSettings.TrimRelativeError = NewValue;
+}
+
+float FNaniteSettingsLayout::GetFallbackPercentTriangles() const
 {
 	return NaniteSettings.FallbackPercentTriangles * 100.0f; // Display fraction as percentage.
 }
 
-void FNaniteSettingsLayout::OnPercentTrianglesChanged(float NewValue)
+void FNaniteSettingsLayout::OnFallbackPercentTrianglesChanged(float NewValue)
 {
 	// Percentage -> fraction.
 	NaniteSettings.FallbackPercentTriangles = NewValue * 0.01f;
 }
 
-void FNaniteSettingsLayout::OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType)
+void FNaniteSettingsLayout::OnFallbackPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType)
 {
 	if (FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("PercentTriangles"), FString::Printf(TEXT("%.1f"), NewValue));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("FallbackPercentTriangles"), FString::Printf(TEXT("%.1f"), NewValue));
 	}
-	OnPercentTrianglesChanged(NewValue);
+	OnFallbackPercentTrianglesChanged(NewValue);
 }
 
 float FNaniteSettingsLayout::GetFallbackRelativeError() const
