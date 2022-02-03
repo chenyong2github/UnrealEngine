@@ -29,6 +29,7 @@
 #include "Editor.h"
 #include "EditorModeManager.h"
 #include "MovieSceneToolsProjectSettings.h"
+#include "SBlueprintDiff.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintActions"
 
@@ -51,12 +52,16 @@ void FControlRigBlueprintActions::OpenAssetEditor( const TArray<UObject*>& InObj
 		if (UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(*ObjIt))
 		{
 			const bool bBringToFrontIfOpen = true;
-			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(ControlRigBlueprint, bBringToFrontIfOpen))
+			UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+			if (IAssetEditorInstance* EditorInstance = AssetEditorSubsystem->FindEditorForAsset(ControlRigBlueprint, bBringToFrontIfOpen))
 			{
 				EditorInstance->FocusWindow(ControlRigBlueprint);
 			}
 			else
-			{
+			{				
+				// If any other editors are opened (for example, a BlueprintDiff window), close them 
+				AssetEditorSubsystem->CloseAllEditorsForAsset(ControlRigBlueprint);				
+				
 				IControlRigEditorModule& ControlRigEditorModule = FModuleManager::LoadModuleChecked<IControlRigEditorModule>("ControlRigEditor");
 				ControlRigEditorModule.CreateControlRigEditor(Mode, EditWithinLevelEditor, ControlRigBlueprint);
 			}
@@ -78,6 +83,49 @@ TSharedPtr<SWidget> FControlRigBlueprintActions::GetThumbnailOverlay(const FAsse
 			SNew(SImage)
 			.Image(Icon)
 		];
+}
+
+void FControlRigBlueprintActions::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const
+{
+	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(OldAsset);
+	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(NewAsset);
+
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(OldAsset))
+	{
+		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
+				FText::FromString(FString::Printf(TEXT("Opening a diff window will close the control rig editor. %s.\nAre you sure?"),  *OldBlueprint->GetName() )));
+		if(Answer == EAppReturnType::No)
+		{
+		   return;
+		}
+	}
+	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(NewAsset))
+	{
+		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
+				FText::FromString(FString::Printf(TEXT("Opening a diff window will close the control rig editor. %s.\nAre you sure?"),  *NewBlueprint->GetName() )));
+		if(Answer == EAppReturnType::No)
+		{
+			return;
+		}
+	}
+	
+	AssetEditorSubsystem->CloseAllEditorsForAsset(OldAsset);
+	AssetEditorSubsystem->CloseAllEditorsForAsset(NewAsset);
+
+	// sometimes we're comparing different revisions of one single asset (other 
+	// times we're comparing two completely separate assets altogether)
+	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
+
+	FText WindowTitle = LOCTEXT("ControlRigBlueprintDiff", "Control Rig Blueprint Diff");
+	// if we're diffing one asset against itself 
+	if (bIsSingleAsset)
+	{
+		// identify the assumed single asset in the window's title
+		WindowTitle = FText::Format(LOCTEXT("Control Rig Diff", "{0} - Control Rig Diff"), FText::FromString(NewBlueprint->GetName()));
+	}
+
+	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
 }
 
 void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
