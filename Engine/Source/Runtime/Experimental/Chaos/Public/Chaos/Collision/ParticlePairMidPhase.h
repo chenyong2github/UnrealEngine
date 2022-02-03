@@ -67,7 +67,14 @@ namespace Chaos
 		*/
 		int32 GenerateCollision(
 			const FReal CullDistance,
-			const bool bUseCCD,
+			const FReal Dt);
+
+		/**
+		 * @brief Generate a SweptConstraint as long as AABBs overlap
+		 * @return The number of collisions constraints that were activated
+		*/
+		int32 GenerateCollisionCCD(
+			const FReal CullDistance,
 			const FReal Dt);
 
 		/**
@@ -84,7 +91,8 @@ namespace Chaos
 		void SetCollision(const FPBDCollisionConstraint& Constraint);
 
 	private:
-		int32 GenerateCollisionImpl(const FReal CullDistance, const bool bUseCCD, const FReal Dt);
+		int32 GenerateCollisionImpl(const FReal CullDistance, const FReal Dt);
+		int32 GenerateCollisionCCDImpl(const FReal CullDistance, const FReal Dt);
 
 		/**
 		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
@@ -146,7 +154,6 @@ namespace Chaos
 		*/
 		int32 GenerateCollisions(
 			const FReal CullDistance,
-			const bool bUseCCD,
 			const FReal Dt,
 			FCollisionContext& Context);
 

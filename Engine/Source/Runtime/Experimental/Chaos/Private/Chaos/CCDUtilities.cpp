@@ -262,9 +262,9 @@ namespace Chaos
 		}
 	}
 
-	bool CCDConstraintSortPredicate(const FCCDConstraint &Constraint0, const FCCDConstraint &Constraint1)
+	bool CCDConstraintSortPredicate(const FCCDConstraint* Constraint0, const FCCDConstraint* Constraint1)
 	{
-		return Constraint0.SweptConstraint->TimeOfImpact < Constraint1.SweptConstraint->TimeOfImpact;
+		return Constraint0->SweptConstraint->TimeOfImpact < Constraint1->SweptConstraint->TimeOfImpact;
 	}
 
 	void FCCDManager::ApplyIslandSweptConstraints(const int32 Island, const FReal Dt)
@@ -275,7 +275,7 @@ namespace Chaos
 		check(ConstraintNum > 0);
 
 		// Sort constraints based on TOI
-		::Sort(SortedCCDConstraints.GetData() + ConstraintStart, ConstraintNum, CCDConstraintSortPredicate);
+		std::sort(SortedCCDConstraints.GetData() + ConstraintStart, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
 		FReal IslandTOI = 0.f;
 		ResetIslandParticles(Island);
 		ResetIslandConstraints(Island);
@@ -450,7 +450,7 @@ namespace Chaos
 				if (HasResweptConstraint)
 				{
 					// This could be optimized by using bubble sort if there are only a few updated constraints.
-					::Sort(SortedCCDConstraints.GetData() + ConstraintIndex, ConstraintNum - ConstraintIndex, CCDConstraintSortPredicate);
+					std::sort(SortedCCDConstraints.GetData() + ConstraintIndex, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
 				}
 			}
 		}
