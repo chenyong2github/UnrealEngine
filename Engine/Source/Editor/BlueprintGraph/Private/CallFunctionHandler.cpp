@@ -704,9 +704,13 @@ UFunction* FKCHandler_CallFunction::FindFunction(FKismetFunctionContext& Context
 
 	if (CallingContext)
 	{
+		const UBlueprint* BlueprintContext = UBlueprint::GetBlueprintFromClass(CallingContext);
+
+		// Redirect the calling context to the most up-to-date class (when not up-to-date,
+		// this will redirect to the Blueprint's skeleton class)
 		// It may be advisable to always do this branch in GetMostUpToDateClass, but
 		// being conservative:
-		if (!FBlueprintCompilationManager::IsGeneratedClassLayoutReady())
+		if (!BlueprintContext || (BlueprintContext->bBeingCompiled && !FBlueprintCompilationManager::IsGeneratedClassLayoutReady()) || (!BlueprintContext->bBeingCompiled && !BlueprintContext->IsUpToDate()))
 		{
 			CallingContext = FBlueprintEditorUtils::GetMostUpToDateClass(CallingContext);
 		}
