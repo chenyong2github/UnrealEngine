@@ -907,6 +907,26 @@ void UNiagaraGraph::BeginDestroy()
 	ReleaseCompilationCopy();
 }
 
+void UNiagaraGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	// when duplicating a module script, we need to change the guids of the script variables in the graph
+	// the IsAsset() check makes sure that we don't change anything when opening a graph to be edited, as it's duplicated there as well
+	if (UNiagaraScript* Outer = GetTypedOuter<UNiagaraScript>(); DuplicateMode == EDuplicateMode::Normal && Outer && Outer->IsAsset())
+	{
+		ensure(bIsForCompilationOnly == false);
+		
+		for (auto It : VariableToScriptVariable)
+		{
+			if (TObjectPtr<UNiagaraScriptVariable> ScriptVariable = It.Value)
+			{
+				ScriptVariable->Metadata.CreateNewGuid();
+			}
+		}
+	}
+}
+
 class UNiagaraScriptSource* UNiagaraGraph::GetSource() const
 {
 	return CastChecked<UNiagaraScriptSource>(GetOuter());

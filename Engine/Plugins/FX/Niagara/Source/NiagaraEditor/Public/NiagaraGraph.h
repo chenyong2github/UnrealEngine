@@ -147,6 +147,7 @@ class UNiagaraGraph : public UEdGraph
 	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginDestroy() override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	//~ End UObjet Interface
 	
 	/** Get the source that owns this graph */
