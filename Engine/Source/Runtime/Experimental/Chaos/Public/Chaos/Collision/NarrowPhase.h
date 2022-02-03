@@ -44,6 +44,17 @@ namespace Chaos
 			}
 		}
 
+		FParticlePairMidPhase* GetParticlePairMidPhase(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1)
+		{
+			return CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1);
+		}
+
+		// Use this function if a Mid phase pair is already allocated
+		void GenerateCollisions(FReal Dt, FParticlePairMidPhase* MidPhase, const bool bForceDisableCCD)
+		{
+			Context.bForceDisableCCD = bForceDisableCCD;
+			MidPhase->GenerateCollisions(GetBoundsExpansion(), Dt, GetContext());
+		}
 	private:
 		FCollisionContext Context;
 		FCollisionConstraintAllocator* CollisionAllocator;

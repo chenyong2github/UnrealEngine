@@ -280,6 +280,12 @@ namespace Chaos
 
 		inline bool IsValid() const { return (Particle0 != nullptr) && (Particle1 != nullptr); }
 
+		// Prefetch the memory in this class for later use
+		inline void CachePrefetch()
+		{
+			FPlatformMisc::PrefetchBlock(this, sizeof(*this));
+		}
+
 		/**
 		 * @brief Have we run collision detection since this Epoch (inclusive)
 		*/
@@ -400,14 +406,10 @@ namespace Chaos
 
 		void InitThresholds();
 
-
-		FGeometryParticleHandle* Particle0;
-		FGeometryParticleHandle* Particle1;
-		FCollisionParticlePairKey Key;
-
-		TArray<FSingleShapePairCollisionDetector, TInlineAllocator<1>> ShapePairDetectors;
-		TArray<FMultiShapePairCollisionDetector> MultiShapePairDetectors;
-		FCollisionConstraintAllocator* CollisionAllocator;
+		FGeometryParticleHandle* Particle0; // 8 bytes
+		FGeometryParticleHandle* Particle1; // 8 bytes
+		// A number based on the size of the dynamic objects used to scale cull distance
+		FRealSingle CullDistanceScale; // 4 bytes
 
 		union FFlags
 		{
@@ -419,15 +421,19 @@ namespace Chaos
 				uint32 bIsSleeping : 1;
 			};
 			uint32 Bits;
-		} Flags;
-		int32 LastUsedEpoch;
-		int32 NumActiveConstraints;
+		} Flags; // 4 bytes
+
+		FCollisionParticlePairKey Key; //8 bytes
+		FCollisionConstraintAllocator* CollisionAllocator; // 8 bytes
+
+		int32 LastUsedEpoch;  //4 bytes
+		int32 NumActiveConstraints; // 4 bytes
 
 		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
-		int32 ParticleCollisionsIndex0;
-		int32 ParticleCollisionsIndex1;
+		int32 ParticleCollisionsIndex0; // 4 bytes
+		int32 ParticleCollisionsIndex1; // 4 bytes
 
-		// A number based on the size of the dynamic objects used to scale cull distance
-		FReal CullDistanceScale;
+		TArray<FMultiShapePairCollisionDetector> MultiShapePairDetectors; // 16 bytes
+		TArray<FSingleShapePairCollisionDetector, TInlineAllocator<1>> ShapePairDetectors; //88 bytes
 	};
 }

@@ -633,16 +633,16 @@ namespace Chaos
 	FParticlePairMidPhase::FParticlePairMidPhase()
 		: Particle0(nullptr)
 		, Particle1(nullptr)
-		, Key()
-		, ShapePairDetectors()
-		, MultiShapePairDetectors()
-		, CollisionAllocator(nullptr)
+		, CullDistanceScale(1)
 		, Flags()
+		, Key()
+		, CollisionAllocator(nullptr)
 		, LastUsedEpoch(INDEX_NONE)
 		, NumActiveConstraints(0)
 		, ParticleCollisionsIndex0(INDEX_NONE)
 		, ParticleCollisionsIndex1(INDEX_NONE)
-		, CullDistanceScale(1)
+		, MultiShapePairDetectors()
+		, ShapePairDetectors()
 	{
 	}
 
@@ -792,7 +792,7 @@ namespace Chaos
 		const FReal MaxBoundsSize1 = bIsDynamic1 ? Particle1->LocalBounds().Extents().GetMax() : FReal(0);
 		const FReal CullDistanceScale0 = MaxBoundsSize0 * CullDistanceReferenceSizeInv;
 		const FReal CullDistanceScale1 = MaxBoundsSize1 * CullDistanceReferenceSizeInv;
-		CullDistanceScale = FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);
+		CullDistanceScale = (FRealSingle) FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);
 	}
 
 	void FParticlePairMidPhase::GenerateCollisions(

@@ -237,6 +237,7 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
 				const int32 NumPotentials = PotentialIntersections.Num();
 				int32 NumIntoNarrowPhase = 0;
+				TArray<FParticlePairMidPhase*> MidPhasePairs;
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
@@ -372,8 +373,24 @@ namespace Chaos
 					{
 						Swap(ParticleA, ParticleB);
 					}
-					
-					NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, false);
+
+					FParticlePairMidPhase* MidPhase = NarrowPhase.GetParticlePairMidPhase(ParticleA, ParticleB);
+					if (MidPhase)
+					{
+						MidPhasePairs.Add(MidPhase);
+					}
+				}
+
+				for (int32 Index = 0; Index < MidPhasePairs.Num(); Index++)
+				{
+					// Prefetch next pair
+					if (Index != MidPhasePairs.Num() - 1)
+					{
+						MidPhasePairs[Index + 1]->CachePrefetch();
+					}
+
+					FParticlePairMidPhase* MidPhasePair = MidPhasePairs[Index];
+					NarrowPhase.GenerateCollisions(Dt, MidPhasePair, false);
 				}
 
 				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
