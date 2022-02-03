@@ -165,7 +165,7 @@ static class FCookedAssetRegistryPreloader
 {
 public:
 	FCookedAssetRegistryPreloader()
-		: bLoadOnce(FPlatformProperties::RequiresCookedData())
+		: bLoadOnce(FPlatformProperties::RequiresCookedData() || ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR)
 	{
 		if (bLoadOnce)
 		{
@@ -197,6 +197,8 @@ public:
 
 	bool Consume(FAssetRegistryState& Out)
 	{
+		SCOPED_BOOT_TIMING("FCookedAssetRegistryPreloader::Consume");
+
 		if (StateReady.IsValid())
 		{
 			StateReady.Wait();
@@ -318,6 +320,8 @@ struct FInitializeContext
 UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	SCOPED_BOOT_TIMING("UAssetRegistryImpl::UAssetRegistryImpl");
+
 	UE::AssetRegistry::Impl::FInitializeContext Context;
 
 	{
@@ -404,26 +408,30 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 #if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 	if (GIsEditor && !!LoadPremadeAssetRegistryInEditor)
 	{
-		FAssetRegistryLoadOptions Options;
-		const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
-		const bool bCanLoadAsync = FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
-		int32 MaxWorkers = bCanLoadAsync ? FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction : 0;
-		Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
+		// if the preload failed, load one now
+		if (GCookedAssetRegistryPreloader.Consume(/* Out */ State) == false)
+		{
+			SCOPED_BOOT_TIMING("ConsumeFailed");
+			FAssetRegistryLoadOptions Options;
+			const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
+			const bool bCanLoadAsync = FPlatformProcess::SupportsMultithreading() && FTaskGraphInterface::IsRunning();
+			int32 MaxWorkers = bCanLoadAsync ? FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction : 0;
+			Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
 
-		if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("EditorClientAssetRegistry.bin")), Options, State))
-		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade editor client asset registry"));
-			CachePathsFromState(Context.Events, State);
+			if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("EditorClientAssetRegistry.bin")), Options, State))
+			{
+				UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade editor client asset registry"));
+			}
+			else if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), Options, State))
+			{
+				UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
+			}
+			else
+			{
+				UE_LOG(LogAssetRegistry, Log, TEXT("Failed to load premade asset registry"));
+			}
 		}
-		else if (LoadAssetRegistry(*(FPaths::ProjectDir() / TEXT("AssetRegistry.bin")), Options, State))
-		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("Loaded premade asset registry"));
-			CachePathsFromState(Context.Events, State);
-		}
-		else
-		{
-			UE_LOG(LogAssetRegistry, Log, TEXT("Failed to load premade asset registry"));
-		}
+		CachePathsFromState(Context.Events, State);
 #else
 	else if (FPlatformProperties::RequiresCookedData())
 	{
@@ -3172,6 +3180,8 @@ void FAssetRegistryImpl::AppendState(Impl::FEventContext& EventContext, const FA
 
 void FAssetRegistryImpl::CachePathsFromState(Impl::FEventContext& EventContext, const FAssetRegistryState& InState)
 {
+	SCOPED_BOOT_TIMING("FAssetRegistryImpl::CachePathsFromState");
+
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 
 	// Refreshes ClassGeneratorNames if out of date due to module load

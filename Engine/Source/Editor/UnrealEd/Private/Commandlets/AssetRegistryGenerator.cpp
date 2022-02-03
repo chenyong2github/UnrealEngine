@@ -1054,7 +1054,7 @@ void FAssetRegistryGenerator::UpdateCollectionAssetData()
 	}
 }
 
-void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
+void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages, bool bInitializeFromExisting)
 {
 	StartupPackages.Append(InStartupPackages);
 
@@ -1072,7 +1072,10 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 
 	AssetRegistry.InitializeSerializationOptions(SaveOptions, TargetPlatform->IniPlatformName());
 
-	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions);
+	if (bInitializeFromExisting)
+	{
+		AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions);
+	}
 
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }

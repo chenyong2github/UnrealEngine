@@ -1108,9 +1108,6 @@ static FDelayedAutoRegisterHelper GPreloadARHelper(EDelayedRegisterRunPhase::Ear
 				if (FParse::Value(FCommandLine::Get(), TEXT("BasedOnReleaseVersion="), BasedOnReleaseVersion) &&
 					FParse::Value(FCommandLine::Get(), TEXT("DevelopmentAssetRegistryPlatformOverride="), DevelopmentAssetRegistryPlatformOverride))
 				{
-					const bool bIsCookingAgainstFixedBase = FParse::Param(FCommandLine::Get(), TEXT("CookAgainstFixedBase "));
-					const bool bVerifyPackagesExist = !bIsCookingAgainstFixedBase;
-
 					// get the AR file path and see if it exists
 					GPreloadedARPath = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, DevelopmentAssetRegistryPlatformOverride) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
 
@@ -5699,7 +5696,11 @@ void UCookOnTheFlyServer::RefreshPlatformAssetRegistries(const TArrayView<const 
 			PlatformData->RegistryGenerator = TUniquePtr<FAssetRegistryGenerator>(RegistryGenerator);
 			RegistryGenerator->CleanManifestDirectories();
 		}
-		RegistryGenerator->Initialize(CookByTheBookOptions ? CookByTheBookOptions->StartupPackages : TArray<FName>());
+
+		// if we are cooking DLC, we will just spend a lot of time removing the shipped packages from the AR,
+		// so we don't bother copying them over. can easily save 10 seconds on a large project
+		bool bInitalizeFromExisting = !IsCookingDLC();
+		RegistryGenerator->Initialize(CookByTheBookOptions ? CookByTheBookOptions->StartupPackages : TArray<FName>(), bInitalizeFromExisting);
 	}
 }
 
@@ -6678,6 +6679,12 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		if (!FParse::Param(FCommandLine::Get(), TEXT("SkipSaveAssetRegistry")))
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingAssetRegistry);
+			SCOPED_BOOT_TIMING("SavingAssetRegistry");
+
+			// if we are cooking DLC, the DevelopmentAR isn't needed - it's used when making DLC against shipping, so there's no need to make it
+			// again, as we don't make DLC against DLC (but allow an override just in case)
+			bool bSaveDevelopmentAssetRegistry = !FParse::Param(FCommandLine::Get(), TEXT("NoSaveDevAR"));
+
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 			{
 				FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
@@ -6737,17 +6744,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 
 				TSet<FName> IgnorePackageNames;
-				for (FPackageData* PackageData : IgnorePackageDatas)
+				if (bSaveDevelopmentAssetRegistry)
 				{
-					IgnorePackageNames.Add(PackageData->GetPackageName());
-				}
+					for (FPackageData* PackageData : IgnorePackageDatas)
+					{
+						IgnorePackageNames.Add(PackageData->GetPackageName());
+					}
 
-				// ignore packages that weren't cooked because they were only referenced by editor-only properties
-				TSet<FName> UncookedEditorOnlyPackageNames;
-				PackageTracker->UncookedEditorOnlyPackages.GetValues(UncookedEditorOnlyPackageNames);
-				for (FName UncookedEditorOnlyPackage : UncookedEditorOnlyPackageNames)
-				{
-					IgnorePackageNames.Add(UncookedEditorOnlyPackage);
+					// ignore packages that weren't cooked because they were only referenced by editor-only properties
+					TSet<FName> UncookedEditorOnlyPackageNames;
+					PackageTracker->UncookedEditorOnlyPackages.GetValues(UncookedEditorOnlyPackageNames);
+					for (FName UncookedEditorOnlyPackage : UncookedEditorOnlyPackageNames)
+					{
+						IgnorePackageNames.Add(UncookedEditorOnlyPackage);
+					}
 				}
 				{
 					Generator.PreSave(CookedPackageNames);
@@ -6778,7 +6788,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveRealAssetRegistry);
-					Generator.SaveAssetRegistry(SandboxRegistryFilename, true, bForceNoFilterAssetsFromAssetRegistry);
+					Generator.SaveAssetRegistry(SandboxRegistryFilename, bSaveDevelopmentAssetRegistry, bForceNoFilterAssetsFromAssetRegistry);
 				}
 				{
 					Generator.PostSave();
@@ -7473,7 +7483,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	// if we are going to change the state of dlc, we need to clean out our package filename cache (the generated filename cache is dependent on this key). This has to happen later on, but we want to set the DLC State earlier.
-	const bool bDlcStateChanged = CookByTheBookOptions->DlcName != DLCName;
+	const bool bDlcStateChanged = CookByTheBookOptions->DlcName != TEXT("") && CookByTheBookOptions->DlcName != DLCName;
 	CookByTheBookOptions->DlcName = DLCName;
 	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
 	{

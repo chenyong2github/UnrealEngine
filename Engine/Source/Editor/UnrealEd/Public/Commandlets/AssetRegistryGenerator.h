@@ -37,7 +37,7 @@ public:
 	/**
 	 * Initializes manifest generator - creates manifest lists, hooks up delegates.
 	 */
-	void Initialize(const TArray<FName> &StartupPackages);
+	void Initialize(const TArray<FName> &StartupPackages, bool bInitializeFromExisting);
 
 	const ITargetPlatform* GetTargetPlatform() const { return TargetPlatform; }
 
