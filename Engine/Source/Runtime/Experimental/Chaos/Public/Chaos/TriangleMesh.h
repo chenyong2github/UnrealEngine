@@ -230,14 +230,15 @@ namespace Chaos
 		CHAOS_API void RemoveDuplicateElements();
 		CHAOS_API void RemoveDegenerateElements();
 
-		static FORCEINLINE void InitEquilateralTriangleXY(FTriangleMesh& TriMesh, FParticles& Particles)
+		template <typename T>
+		static FORCEINLINE void InitEquilateralTriangleXY(FTriangleMesh& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
 			// Left handed
-			Particles.X(Idx + 0) = FVec3((FReal)0., (FReal)0.8083, (FReal)0.);
-			Particles.X(Idx + 1) = FVec3((FReal)0.7, (FReal)-0.4041, (FReal)0.);
-			Particles.X(Idx + 2) = FVec3((FReal)-0.7, (FReal)-0.4041, (FReal)0.);
+			Particles.X(Idx + 0) = FVec3((T)0., (T)0.8083, (T)0.);
+			Particles.X(Idx + 1) = FVec3((T)0.7, (T)-0.4041, (T)0.);
+			Particles.X(Idx + 2) = FVec3((T)-0.7, (T)-0.4041, (T)0.);
 
 			TArray<TVec3<int32>> Elements;
 			Elements.SetNum(1);
@@ -245,14 +246,15 @@ namespace Chaos
 
 			TriMesh.Init(MoveTemp(Elements));
 		}
-		static FORCEINLINE void InitEquilateralTriangleYZ(FTriangleMesh& TriMesh, FParticles& Particles)
+		template <typename T>
+		static FORCEINLINE void InitEquilateralTriangleYZ(FTriangleMesh& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
 			Particles.AddParticles(3);
 			// Left handed
-			Particles.X(Idx + 0) = FVec3((FReal)0., (FReal)0., (FReal)0.8083);
-			Particles.X(Idx + 1) = FVec3((FReal)0., (FReal)0.7, (FReal)-0.4041);
-			Particles.X(Idx + 2) = FVec3((FReal)0., (FReal)-0.7, (FReal)-0.4041);
+			Particles.X(Idx + 0) = FVec3((T)0., (T)0., (T)0.8083);
+			Particles.X(Idx + 1) = FVec3((T)0., (T)0.7, (T)-0.4041);
+			Particles.X(Idx + 2) = FVec3((T)0., (T)-0.7, (T)-0.4041);
 
 			TArray<TVec3<int32>> Elements;
 			Elements.SetNum(1);
