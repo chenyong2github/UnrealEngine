@@ -1338,10 +1338,7 @@ void FAnimBlueprintCompilerContext::SpawnNewClass(const FString& NewClassName)
 void FAnimBlueprintCompilerContext::OnPostCDOCompiled()
 {
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
-	for (UAnimBlueprintGeneratedClass* ClassWithInputHandlers = NewAnimBlueprintClass; ClassWithInputHandlers != nullptr; ClassWithInputHandlers = Cast<UAnimBlueprintGeneratedClass>(ClassWithInputHandlers->GetSuperClass()))
-	{
-		ClassWithInputHandlers->OnPostLoadDefaults(NewAnimBlueprintClass->ClassDefaultObject);
-	}
+	NewAnimBlueprintClass->OnPostLoadDefaults(NewAnimBlueprintClass->ClassDefaultObject);
 }
 
 void FAnimBlueprintCompilerContext::OnNewClassSet(UBlueprintGeneratedClass* ClassToUse)
@@ -1351,10 +1348,30 @@ void FAnimBlueprintCompilerContext::OnNewClassSet(UBlueprintGeneratedClass* Clas
 
 void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO)
 {
+	UAnimBlueprintGeneratedClass* AnimBlueprintClassToClean = CastChecked<UAnimBlueprintGeneratedClass>(ClassToClean);
+
+	UScriptStruct* CurrentSparseClassDataStruct = AnimBlueprintClassToClean->GetSparseClassDataStruct();
+	if(CurrentSparseClassDataStruct && CurrentSparseClassDataStruct->GetOuter() == AnimBlueprintClassToClean)
+	{
+		// Stash a reference to patch the linker later in RecreateSparseClassData
+		OldSparseClassDataStruct = CurrentSparseClassDataStruct;
+
+		// Only 'clear' (which renames the struct aside) if we own the sparse class data
+		// We do this because this could be a parent classes struct and we dont want to be 
+		// altering other classes during compilation
+		AnimBlueprintClassToClean->ClearSparseClassDataStruct(Blueprint->bIsRegeneratingOnLoad);
+	}
+	else
+	{
+		AnimBlueprintClassToClean->SetSparseClassDataStruct(nullptr);
+	}
+	
+	// Calling super will set this classes superclass, which will reset its sparse class data to the parent (archetype)
 	Super::CleanAndSanitizeClass(ClassToClean, InOldCDO);
 
-	UAnimBlueprintGeneratedClass* AnimBlueprintClassToClean= CastChecked<UAnimBlueprintGeneratedClass>(ClassToClean);
-
+	// Clear reference to archetype sparse class data (set in the super call above), we will be regenerating it
+	AnimBlueprintClassToClean->SetSparseClassDataStruct(nullptr);
+	
 	AnimBlueprintClassToClean->AnimBlueprintDebugData = FAnimBlueprintDebugData();
 
 	// Reset the baked data
@@ -1380,10 +1397,6 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 
 	UAnimBlueprint* RootAnimBP = UAnimBlueprint::FindRootAnimBlueprint(AnimBlueprint);
 	bIsDerivedAnimBlueprint = RootAnimBP != NULL;
-
-	// Cleanup sparse class data & stash a reference to patch the linker later in RecreateSparseClassData
-	OldSparseClassDataStruct = AnimBlueprintClassToClean->GetSparseClassDataStruct();
-	AnimBlueprintClassToClean->ClearSparseClassDataStruct();
 	
 	FAnimBlueprintGeneratedClassCompiledData CompiledData(AnimBlueprintClassToClean);
 	FAnimBlueprintCompilationBracketContext CompilerContext(this);
