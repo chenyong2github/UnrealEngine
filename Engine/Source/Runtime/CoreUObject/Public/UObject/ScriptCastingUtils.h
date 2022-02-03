@@ -111,12 +111,17 @@ void CopyAndCastArrayFromStack(FFrame& Stack, RESULT_DECL)
 	FArrayProperty* DestinationArrayProperty = ExactCastField<FArrayProperty>(Stack.MostRecentProperty);
 	void* DestinationAddress = RESULT_PARAM;
 
-	Stack.Step(Stack.Object, nullptr);
-	
-	FArrayProperty* SourceArrayProperty = ExactCastField<FArrayProperty>(Stack.MostRecentProperty);
-	void* SourceAddress = Stack.MostRecentPropertyAddress;
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
+	{
+		FArrayProperty* SourceArrayProperty = ExactCastField<FArrayProperty>(Stack.MostRecentProperty);
+		void* SourceAddress = Stack.MostRecentPropertyAddress;
 
-	CopyAndCastArray<SourceType, DestinationType>(SourceArrayProperty, SourceAddress, DestinationArrayProperty, DestinationAddress);
+		CopyAndCastArray<SourceType, DestinationType>(SourceArrayProperty, SourceAddress, DestinationArrayProperty, DestinationAddress);
+	}
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 
 template <typename SourceType, typename DestinationType>
@@ -127,24 +132,29 @@ void CopyAndCastSetFromStack(FFrame& Stack, RESULT_DECL)
 	checkSlow(RESULT_PARAM);
 	FScriptSetHelper DestinationSetHelper(DestinationSetProperty, RESULT_PARAM);
 
-	Stack.Step(Stack.Object, nullptr);
-
-	checkSlow(Stack.MostRecentProperty);
-	checkSlow(Stack.MostRecentPropertyAddress);
-
-	FSetProperty* SourceSetProperty = ExactCastField<FSetProperty>(Stack.MostRecentProperty);
-	FScriptSetHelper SourceSetHelper(SourceSetProperty, Stack.MostRecentPropertyAddress);
-
-	DestinationSetHelper.EmptyElements(SourceSetHelper.Num());
-	for (int32 i = 0; i < SourceSetHelper.Num(); ++i)
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
 	{
-		int32 NewIndex = DestinationSetHelper.AddDefaultValue_Invalid_NeedsRehash();
-		void* DestinationRawData = DestinationSetHelper.GetElementPtr(NewIndex);
-		const void* SourceRawData = SourceSetHelper.GetElementPtr(i);
+		checkSlow(Stack.MostRecentProperty);
+		checkSlow(Stack.MostRecentPropertyAddress);
 
-		FloatingPointCast<SourceType, DestinationType>(nullptr, SourceRawData, DestinationRawData);
+		FSetProperty* SourceSetProperty = ExactCastField<FSetProperty>(Stack.MostRecentProperty);
+		FScriptSetHelper SourceSetHelper(SourceSetProperty, Stack.MostRecentPropertyAddress);
+
+		DestinationSetHelper.EmptyElements(SourceSetHelper.Num());
+		for (int32 i = 0; i < SourceSetHelper.Num(); ++i)
+		{
+			int32 NewIndex = DestinationSetHelper.AddDefaultValue_Invalid_NeedsRehash();
+			void* DestinationRawData = DestinationSetHelper.GetElementPtr(NewIndex);
+			const void* SourceRawData = SourceSetHelper.GetElementPtr(i);
+
+			FloatingPointCast<SourceType, DestinationType>(nullptr, SourceRawData, DestinationRawData);
+		}
+		DestinationSetHelper.Rehash();
 	}
-	DestinationSetHelper.Rehash();
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 
 template <CastFunction KeyCastFunction, CastFunction ValueCastFunction>
@@ -155,33 +165,38 @@ void CopyAndCastMapFromStack(FFrame& Stack, RESULT_DECL)
 
 	FScriptMapHelper DestinationMapHelper(DestinationMapProperty, RESULT_PARAM);
 
-	Stack.Step(Stack.Object, nullptr);
-
-	FMapProperty* SourceMapProperty = ExactCastField<FMapProperty>(Stack.MostRecentProperty);
-	checkSlow(SourceMapProperty);
-
-	FScriptMapHelper SourceMapHelper(SourceMapProperty, Stack.MostRecentPropertyAddress);
-
-	const FProperty* SourceKeyProperty = SourceMapProperty->KeyProp;
-	checkSlow(SourceKeyProperty);
-
-	const FProperty* SourceValueProperty = SourceMapProperty->ValueProp;
-	checkSlow(SourceValueProperty);
-
-	DestinationMapHelper.EmptyValues(SourceMapHelper.Num());
-	for (int32 i = 0; i < SourceMapHelper.Num(); ++i)
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
 	{
-		int32 NewIndex = DestinationMapHelper.AddDefaultValue_Invalid_NeedsRehash();
+		FMapProperty* SourceMapProperty = ExactCastField<FMapProperty>(Stack.MostRecentProperty);
+		checkSlow(SourceMapProperty);
 
-		const void* SourceKeyRawData = SourceMapHelper.GetKeyPtr(i);
-		void* DestinationKeyRawData = DestinationMapHelper.GetKeyPtr(NewIndex);
-		
-		KeyCastFunction(SourceKeyProperty, SourceKeyRawData, DestinationKeyRawData);
+		FScriptMapHelper SourceMapHelper(SourceMapProperty, Stack.MostRecentPropertyAddress);
 
-		const void* SourceValueRawData = SourceMapHelper.GetValuePtr(i);
-		void* DestinationValueRawData = DestinationMapHelper.GetValuePtr(NewIndex);
+		const FProperty* SourceKeyProperty = SourceMapProperty->KeyProp;
+		checkSlow(SourceKeyProperty);
 
-		ValueCastFunction(SourceValueProperty, SourceValueRawData, DestinationValueRawData);
+		const FProperty* SourceValueProperty = SourceMapProperty->ValueProp;
+		checkSlow(SourceValueProperty);
+
+		DestinationMapHelper.EmptyValues(SourceMapHelper.Num());
+		for (int32 i = 0; i < SourceMapHelper.Num(); ++i)
+		{
+			int32 NewIndex = DestinationMapHelper.AddDefaultValue_Invalid_NeedsRehash();
+
+			const void* SourceKeyRawData = SourceMapHelper.GetKeyPtr(i);
+			void* DestinationKeyRawData = DestinationMapHelper.GetKeyPtr(NewIndex);
+
+			KeyCastFunction(SourceKeyProperty, SourceKeyRawData, DestinationKeyRawData);
+
+			const void* SourceValueRawData = SourceMapHelper.GetValuePtr(i);
+			void* DestinationValueRawData = DestinationMapHelper.GetValuePtr(NewIndex);
+
+			ValueCastFunction(SourceValueProperty, SourceValueRawData, DestinationValueRawData);
+		}
+		DestinationMapHelper.Rehash();
 	}
-	DestinationMapHelper.Rehash();
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }

@@ -3665,9 +3665,14 @@ IMPLEMENT_VM_FUNCTION( EX_ObjToInterfaceCast, execInterfaceCast );
 
 DEFINE_FUNCTION(UObject::execDoubleToFloatCast)
 {
-	Stack.Step(Stack.Object, nullptr);
-
-	DoubleToFloatCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
+	{
+		DoubleToFloatCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	}
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloat, execDoubleToFloatCast )
 
@@ -3685,9 +3690,14 @@ IMPLEMENT_CAST_FUNCTION( CST_DoubleToFloatSet, execDoubleToFloatSetCast )
 
 DEFINE_FUNCTION(UObject::execFloatToDoubleCast)
 {
-	Stack.Step(Stack.Object, nullptr);
-
-	FloatToDoubleCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
+	{
+		FloatToDoubleCast(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	}
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 IMPLEMENT_CAST_FUNCTION( CST_FloatToDouble, execFloatToDoubleCast )
 
@@ -3705,17 +3715,27 @@ IMPLEMENT_CAST_FUNCTION( CST_FloatToDoubleSet, execFloatToDoubleSetCast )
 
 DEFINE_FUNCTION(UObject::execVectorToVector3fCast)
 {
-	Stack.Step(Stack.Object, nullptr);
-
-	FloatingPointCast<FVector, FVector3f>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
+	{
+		FloatingPointCast<FVector, FVector3f>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	}
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 IMPLEMENT_CAST_FUNCTION( CST_VectorToVector3f, execVectorToVector3fCast )
 
 DEFINE_FUNCTION(UObject::execVector3fToVectorCast)
 {
-	Stack.Step(Stack.Object, nullptr);
-
-	FloatingPointCast<FVector3f, FVector>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	if (Stack.StepAndCheckMostRecentProperty(Stack.Object, nullptr))
+	{
+		FloatingPointCast<FVector3f, FVector>(nullptr, Stack.MostRecentPropertyAddress, RESULT_PARAM);
+	}
+	else
+	{
+		UE_LOG(LogScript, Verbose, TEXT("Cast failed: recent properties were null!"));
+	}
 }
 IMPLEMENT_CAST_FUNCTION( CST_Vector3fToVector, execVector3fToVectorCast )
 
