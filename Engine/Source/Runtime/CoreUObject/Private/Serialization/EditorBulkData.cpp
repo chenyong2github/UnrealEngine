@@ -1584,7 +1584,7 @@ void FEditorBulkData::UpdatePayload(FSharedBuffer InPayload)
 
 FEditorBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
 	: Payload(MoveTemp(InPayload))
-	, PayloadId(Payload)
+	, PayloadId(HashPayload(Payload))
 {
 }
 
