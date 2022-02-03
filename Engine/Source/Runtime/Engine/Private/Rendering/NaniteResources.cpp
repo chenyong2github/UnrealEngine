@@ -1253,7 +1253,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
 	if (ValidLODIndex == INDEX_NONE)
 	{
-		// If there is a streaming handle (but no valid LOD available(, then give the streaming flag to make sure it's not excluded
+		// If there is a streaming handle (but no valid LOD available), then give the streaming flag to make sure it's not excluded
 		// It's still needs to be processed during TLAS build because this will drive the streaming of these resources.
 		return (CoarseMeshStreamingHandle != INDEX_NONE) ? ERayTracingPrimitiveFlags::Streaming : ERayTracingPrimitiveFlags::Excluded;
 	}
@@ -1280,10 +1280,10 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
 
 	// setup the flags
-	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
+	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
 	if (CoarseMeshStreamingHandle != INDEX_NONE)
 	{
-		ResultFlags = ResultFlags | ERayTracingPrimitiveFlags::Streaming;
+		ResultFlags |= ERayTracingPrimitiveFlags::Streaming;
 	}
 	return ResultFlags;
 }

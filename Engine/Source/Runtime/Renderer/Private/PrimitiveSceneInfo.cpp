@@ -688,11 +688,6 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const T
 
 			// Write flags
 			Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
-			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && !EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
-			{
-				continue;
-			}
-
 			UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
 		}
 	}
@@ -723,7 +718,7 @@ public:
 };
 
 template<bool bDeferLODCommandIndices, class T>
-bool CacheRayTracingPrimitive(
+void CacheRayTracingPrimitive(
 	FScene* Scene, 
 	FPrimitiveSceneInfo* SceneInfo,
 	T& Commands,
@@ -790,23 +785,6 @@ bool CacheRayTracingPrimitive(
 	// Cache the coarse mesh streaming handle
 	SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();
 
-	if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && !EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
-	{
-		// Legacy path for static meshes.
-		// TODO: convert them to this new path
-		if (Flags == ERayTracingPrimitiveFlags::Dynamic)
-		{
-			Flags = ERayTracingPrimitiveFlags::ComputeLOD | ERayTracingPrimitiveFlags::CacheMeshCommands;
-		}
-		// Don't mark excluded if it's streaming - because it could still have no geometry data but TLAS update will
-		// drive the streaming requests then (if it's excluded then the data will never be requested for stream in)
-		else if (!EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::Streaming))
-		{
-			Flags = ERayTracingPrimitiveFlags::Excluded;
-		}
-		return false;
-	}
-
 	if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
 	{
 		// TODO: LOD w/ screen size support. Probably needs another array parallel to OutRayTracingInstances
@@ -842,8 +820,7 @@ bool CacheRayTracingPrimitive(
 
 			CommandContext.CommandIndex = -1;
 		}
-	}	
-	return true;
+	}
 }
 
 void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
@@ -872,10 +849,8 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 					FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];
 					FRayTracingInstance CachedInstance;
 					ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
-					if (CacheRayTracingPrimitive<true>(Scene, SceneInfo, Context.Commands, Context.CommandContext, Context.RayTracingMeshProcessor, &Context.DeferredMeshLODCommandIndices, CachedInstance, Flags))
-					{
-						UpdateCachedRayTracingInstance(SceneInfo, CachedInstance, Flags);
-					}
+					CacheRayTracingPrimitive<true>(Scene, SceneInfo, Context.Commands, Context.CommandContext, Context.RayTracingMeshProcessor, &Context.DeferredMeshLODCommandIndices, CachedInstance, Flags);
+					UpdateCachedRayTracingInstance(SceneInfo, CachedInstance, Flags);
 				}
 			);
 
@@ -906,10 +881,8 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 			{
 				FRayTracingInstance CachedRayTracingInstance;
 				ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
-				if (CacheRayTracingPrimitive<false>(Scene, SceneInfo, CachedRayTracingMeshCommands, CommandContext, RayTracingMeshProcessor, nullptr, CachedRayTracingInstance, Flags))
-				{
-					UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
-				}
+				CacheRayTracingPrimitive<false>(Scene, SceneInfo, CachedRayTracingMeshCommands, CommandContext, RayTracingMeshProcessor, nullptr, CachedRayTracingInstance, Flags);
+				UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
 			}
 		}
 	}
@@ -950,7 +923,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldTransforms()
 	}
 }
 
-void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags)
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, const FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags)
 {
 	if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
 	{

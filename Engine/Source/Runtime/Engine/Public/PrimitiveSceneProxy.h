@@ -152,6 +152,9 @@ enum class ERayTracingPrimitiveFlags : uint8
 
 	// Raytracing data is streamable
 	Streaming = 1 << 6,
+
+	// Mesh is static
+	StaticMesh = 1 << 7,
 };
 ENUM_CLASS_FLAGS(ERayTracingPrimitiveFlags);
 

@@ -1377,7 +1377,6 @@ bool FPrimitiveSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sectio
 #if RHI_RAYTRACING
 ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& OutRayTracingInstance)
 {
-	const bool bIsProxyTypeRayTracingRelevant = IsRayTracingRelevant();
 	if (!IsRayTracingRelevant())
 	{
 		// The entire proxy type will be skipped. Make sure IsRayTracingRelevant() only depends on proxy type (vtable)
@@ -1389,6 +1388,11 @@ ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRay
 	{
 		// Exclude this proxy
 		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	if (IsRayTracingStaticRelevant())
+	{
+		return ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::ComputeLOD;
 	}
 
 	// Visible in ray tracing. Default to fully dynamic (no caching)

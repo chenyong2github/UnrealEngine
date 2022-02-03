@@ -702,9 +702,9 @@ private:
 	/** Updates cached transforms in CachedRayTracingInstance */
 	void UpdateCachedRayTracingInstanceTransforms(const FMatrix& NewPrimitiveLocalToWorld);
 
-	/** Updates cached ray tracing instances. Utility closesly mirrors CacheRayTracingPrimitives(..) */
+	/** Updates cached ray tracing instances. Utility closely mirrors CacheRayTracingPrimitives(..) */
 	static void UpdateCachedRayTracingInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
-	static void UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags);
+	static void UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, const FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags);
 #endif
 
 public:
