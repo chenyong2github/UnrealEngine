@@ -104,6 +104,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Changed shadow defaults for directional light components, version needed to not affect old things
 		UpdatedDirectionalLightShadowDefaults,
 
+		// Refresh geometry collections that had not already generated convex bodies.
+		GeometryCollectionConvexDefaults,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

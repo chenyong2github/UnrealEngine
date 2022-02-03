@@ -637,6 +637,8 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	bool bCreateSimulationData = false;
 	Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	
 	Chaos::FChaosArchive ChaosAr(Ar);
 
 	// The Geometry Collection we will be archiving. This may be replaced with a transient, stripped back Geometry Collection if we are cooking.
@@ -779,6 +781,22 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 			NaniteData->Serialize(ChaosAr, this);
 		}
+	}
+
+
+	// will generate convex bodies when they dont exist. 
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::GeometryCollectionConvexDefaults)
+	{
+#if WITH_EDITOR
+		if (!FGeometryCollectionConvexUtility::HasConvexHullData(GeometryCollection.Get()))
+		{
+			UE_LOG(LogGeometryCollectionInternal, Warning, TEXT("Regenerated GeoemtryCollections convex geometry on asset (%s). Please resave package %s."), *GetName(), *GetOutermost()->GetPathName());
+			FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = GeometryCollection->GetConvexProperties();
+			FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeometryCollection.Get(), ConvexProperties.FractionRemove, ConvexProperties.SimplificationThreshold, ConvexProperties.CanExceedFraction);
+			bCreateSimulationData = true;
+			InvalidateCollection();
+		}
+#endif
 	}
 
 #if WITH_EDITORONLY_DATA
