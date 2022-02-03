@@ -30,6 +30,8 @@
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/InputSettings.h"
+#include "Engine/DemoNetDriver.h"
+#include "Misc/NetworkVersion.h"
 
 DEFINE_LOG_CATEGORY(LogDamage);
 DEFINE_LOG_CATEGORY_STATIC(LogPawn, Warning, All);
@@ -272,8 +274,7 @@ float APawn::GetDefaultHalfHeight() const
 void APawn::SetRemoteViewPitch(float NewRemoteViewPitch)
 {
 	// Compress pitch to 1 byte
-	NewRemoteViewPitch = FRotator::ClampAxis(NewRemoteViewPitch);
-	RemoteViewPitch = (uint8)(NewRemoteViewPitch * 255.f/360.f);
+	RemoteViewPitch = FRotator::CompressAxisToByte(NewRemoteViewPitch);
 }
 
 
@@ -944,8 +945,18 @@ FRotator APawn::GetBaseAimRotation() const
 		else
 		{
 			// Else use the RemoteViewPitch
-			POVRot.Pitch = RemoteViewPitch;
-			POVRot.Pitch = POVRot.Pitch * 360.0f / 255.0f;
+			const UWorld* World = GetWorld();
+			const UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr;
+
+			if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < EEngineNetworkVersionHistory::HISTORY_PAWN_REMOTEVIEWPITCH))
+			{
+				POVRot.Pitch = RemoteViewPitch;
+				POVRot.Pitch = POVRot.Pitch * 360.0f / 255.0f;
+			}
+			else
+			{
+				POVRot.Pitch = FRotator::DecompressAxisFromByte(RemoteViewPitch);
+			}
 		}
 	}
 
