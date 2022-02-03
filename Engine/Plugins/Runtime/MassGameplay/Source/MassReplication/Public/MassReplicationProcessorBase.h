@@ -8,6 +8,7 @@
 #include "MassLODCalculator.h"
 #include "MassSimulationLOD.h"
 #include "MassReplicationTypes.h"
+#include "MassReplicationFragments.h"
 #include "MassSpawnerTypes.h"
 #include "MassLODManager.h"
 #include "MassReplicationManager.h"

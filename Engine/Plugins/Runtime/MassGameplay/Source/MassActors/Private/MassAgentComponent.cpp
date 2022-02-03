@@ -11,6 +11,7 @@
 #include "MassSpawner.h"
 #include "Net/UnrealNetwork.h"
 #include "MassReplicationManager.h"
+#include "MassReplicationFragments.h"
 #include "MassMovementFragments.h"
 #include "GameFramework/CharacterMovementComponent.h"
 

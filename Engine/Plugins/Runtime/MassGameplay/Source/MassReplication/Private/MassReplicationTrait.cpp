@@ -6,6 +6,7 @@
 #include "MassSpawnerTypes.h"
 #include "MassSimulationLOD.h"
 #include "MassReplicationTypes.h"
+#include "MassReplicationFragments.h"
 
 
 void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const

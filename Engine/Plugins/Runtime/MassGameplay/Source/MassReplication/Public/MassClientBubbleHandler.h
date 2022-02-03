@@ -9,6 +9,7 @@
 #include "MassClientBubbleSerializerBase.h"
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
+#include "MassReplicationFragments.h"
 #include "MassReplicationManager.h"
 #include "Engine/World.h"
 #include "MassEntityTemplate.h"
