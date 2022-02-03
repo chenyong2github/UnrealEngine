@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassReplicationFragments.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -23,7 +23,7 @@ void UMassNetworkIDFragmentInitializer::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-	ReplicationManager = UWorld::GetSubsystem<UMassReplicationManager>(Owner.GetWorld());
+	ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(Owner.GetWorld());
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
@@ -37,7 +37,7 @@ void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 	if (NetMode != NM_Client)
 	{
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-		check(ReplicationManager);
+		check(ReplicationSubsystem);
 
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
@@ -46,7 +46,7 @@ void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 
 				for (int32 Idx = 0; Idx < NumEntities; ++Idx)
 				{
-					NetworkIDList[Idx].NetID = ReplicationManager->GetNextAvailableMassNetID();
+					NetworkIDList[Idx].NetID = ReplicationSubsystem->GetNextAvailableMassNetID();
 				}
 			});
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE

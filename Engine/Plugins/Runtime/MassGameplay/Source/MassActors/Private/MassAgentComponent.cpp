@@ -10,7 +10,7 @@
 #include "MassActorSubsystem.h"
 #include "MassSpawner.h"
 #include "Net/UnrealNetwork.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "MassReplicationFragments.h"
 #include "MassMovementFragments.h"
 #include "GameFramework/CharacterMovementComponent.h"

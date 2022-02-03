@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/ChildConnection.h"
 #include "GameFramework/GameModeBase.h"
@@ -10,9 +10,9 @@
 #include "MassClientBubbleInfoBase.h"
 
 
-uint32 UMassReplicationManager::CurrentNetMassCounter = 0;
+uint32 UMassReplicationSubsystem::CurrentNetMassCounter = 0;
 
-void UMassReplicationManager::Initialize(FSubsystemCollectionBase& Collection)
+void UMassReplicationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -27,7 +27,7 @@ void UMassReplicationManager::Initialize(FSubsystemCollectionBase& Collection)
 	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 }
 
-void UMassReplicationManager::Deinitialize()
+void UMassReplicationSubsystem::Deinitialize()
 {
 	// remove all Clients
 	for (const FMassClientHandle& Handle : ClientHandleManager.GetHandles())
@@ -50,7 +50,7 @@ void UMassReplicationManager::Deinitialize()
 	EntitySystem = nullptr;
 }
 
-FMassNetworkID UMassReplicationManager::GetNetIDFromHandle(const FMassEntityHandle Handle) const
+FMassNetworkID UMassReplicationSubsystem::GetNetIDFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
 	const FMassNetworkIDFragment& Data = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(Handle);
@@ -110,7 +110,7 @@ ENetConnectionType HasParentOrChildWithValidParentNetConnection(const APlayerCon
 }
 }}};
 
-bool UMassReplicationManager::SynchronizeClients(const TArray<FViewerInfo>& Viewers)
+bool UMassReplicationSubsystem::SynchronizeClients(const TArray<FViewerInfo>& Viewers)
 {
 	typedef TMap<FMassViewerHandle, FMassClientHandle> FControllerMap;
 	struct FClientAddData
@@ -234,7 +234,7 @@ bool UMassReplicationManager::SynchronizeClients(const TArray<FViewerInfo>& View
 }
 
 // synchronize the ClientViewers
-void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>& Viewers)
+void UMassReplicationSubsystem::SynchronizeClientViewers(const TArray<FViewerInfo>& Viewers)
 {
 	check(MassLODManager);
 
@@ -340,7 +340,7 @@ void UMassReplicationManager::SynchronizeClientViewers(const TArray<FViewerInfo>
 	}
 }
 
-void UMassReplicationManager::SynchronizeClientsAndViewers()
+void UMassReplicationSubsystem::SynchronizeClientsAndViewers()
 {
 	// only execute this code at most once per frame
 	if (LastSynchronizedFrame == GFrameCounter)
@@ -379,7 +379,7 @@ void UMassReplicationManager::SynchronizeClientsAndViewers()
 	}
 }
 
-FMassBubbleInfoClassHandle UMassReplicationManager::RegisterBubbleInfoClass(const TSubclassOf<AMassClientBubbleInfoBase>& BubbleInfoClass)
+FMassBubbleInfoClassHandle UMassReplicationSubsystem::RegisterBubbleInfoClass(const TSubclassOf<AMassClientBubbleInfoBase>& BubbleInfoClass)
 {
 	checkf(BubbleInfoClass.Get() != nullptr, TEXT("BubbleInfoClass must have been set!"));
 
@@ -396,7 +396,7 @@ FMassBubbleInfoClassHandle UMassReplicationManager::RegisterBubbleInfoClass(cons
 
 	if (IdxFound != INDEX_NONE)
 	{
-		UE_LOG(LogMassReplication, Log, TEXT("UMassReplicationManager: Trying to RegisterBubbleInfoClass() twice with the same BubbleInfoClass, Only one BubbleInfoClass will be registered for this type"));
+		UE_LOG(LogMassReplication, Log, TEXT("UMassReplicationSubsystem: Trying to RegisterBubbleInfoClass() twice with the same BubbleInfoClass, Only one BubbleInfoClass will be registered for this type"));
 		return FMassBubbleInfoClassHandle(IdxFound);
 	}
 
@@ -405,7 +405,7 @@ FMassBubbleInfoClassHandle UMassReplicationManager::RegisterBubbleInfoClass(cons
 	return FMassBubbleInfoClassHandle(Idx);
 }
 
-FMassBubbleInfoClassHandle UMassReplicationManager::GetBubbleInfoClassHandle(const TSubclassOf<AMassClientBubbleInfoBase>& BubbleInfoClass) const
+FMassBubbleInfoClassHandle UMassReplicationSubsystem::GetBubbleInfoClassHandle(const TSubclassOf<AMassClientBubbleInfoBase>& BubbleInfoClass) const
 {
 	FMassBubbleInfoClassHandle Handle;
 
@@ -423,7 +423,7 @@ FMassBubbleInfoClassHandle UMassReplicationManager::GetBubbleInfoClassHandle(con
 }
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-void UMassReplicationManager::SetEntity(const FMassNetworkID NetworkID, const FMassEntityHandle Entity)
+void UMassReplicationSubsystem::SetEntity(const FMassNetworkID NetworkID, const FMassEntityHandle Entity)
 {
 	FMassReplicationEntityInfo* EntityInfo = FindMassEntityInfoMutable(NetworkID);
 	check(EntityInfo && !EntityInfo->Entity.IsSet());
@@ -434,7 +434,7 @@ void UMassReplicationManager::SetEntity(const FMassNetworkID NetworkID, const FM
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-FMassEntityHandle UMassReplicationManager::ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID)
+FMassEntityHandle UMassReplicationSubsystem::ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID)
 {
 	FMassEntityHandle EntityReset;
 
@@ -460,7 +460,7 @@ FMassEntityHandle UMassReplicationManager::ResetEntityIfValid(const FMassNetwork
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-void UMassReplicationManager::RemoveFromEntityInfoMap(const FMassNetworkID NetworkID)
+void UMassReplicationSubsystem::RemoveFromEntityInfoMap(const FMassNetworkID NetworkID)
 {
 	check(NetworkID.IsValid());
 	FMassReplicationEntityInfo Info;
@@ -469,7 +469,7 @@ void UMassReplicationManager::RemoveFromEntityInfoMap(const FMassNetworkID Netwo
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-UMassReplicationManager::EFindOrAddMassEntityInfo UMassReplicationManager::FindAndUpdateOrAddMassEntityInfo(const FMassNetworkID NetworkID, int32 ReplicationID, const FMassReplicationEntityInfo*& OutMassEntityInfo)
+UMassReplicationSubsystem::EFindOrAddMassEntityInfo UMassReplicationSubsystem::FindAndUpdateOrAddMassEntityInfo(const FMassNetworkID NetworkID, int32 ReplicationID, const FMassReplicationEntityInfo*& OutMassEntityInfo)
 {
 	FMassReplicationEntityInfo* MassEntityInfo = FindMassEntityInfoMutable(NetworkID);
 	EFindOrAddMassEntityInfo FindOrAddStatus = EFindOrAddMassEntityInfo::FoundOlderReplicationID;
@@ -499,7 +499,7 @@ UMassReplicationManager::EFindOrAddMassEntityInfo UMassReplicationManager::FindA
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-const FMassReplicationEntityInfo* UMassReplicationManager::FindMassEntityInfo(const FMassNetworkID NetworkID) const
+const FMassReplicationEntityInfo* UMassReplicationSubsystem::FindMassEntityInfo(const FMassNetworkID NetworkID) const
 {
 	check(NetworkID.IsValid());
 	return EntityInfoMap.Find(NetworkID);
@@ -507,7 +507,7 @@ const FMassReplicationEntityInfo* UMassReplicationManager::FindMassEntityInfo(co
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-FMassReplicationEntityInfo* UMassReplicationManager::FindMassEntityInfoMutable(const FMassNetworkID NetworkID)
+FMassReplicationEntityInfo* UMassReplicationSubsystem::FindMassEntityInfoMutable(const FMassNetworkID NetworkID)
 {
 	check(NetworkID.IsValid());
 	return EntityInfoMap.Find(NetworkID);
@@ -515,7 +515,7 @@ FMassReplicationEntityInfo* UMassReplicationManager::FindMassEntityInfoMutable(c
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-FMassEntityHandle UMassReplicationManager::FindEntity(const FMassNetworkID NetworkID) const
+FMassEntityHandle UMassReplicationSubsystem::FindEntity(const FMassNetworkID NetworkID) const
 {
 	check(NetworkID.IsValid());
 	const FMassReplicationEntityInfo* Info = EntityInfoMap.Find(NetworkID);
@@ -523,7 +523,7 @@ FMassEntityHandle UMassReplicationManager::FindEntity(const FMassNetworkID Netwo
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
-void UMassReplicationManager::DebugCheckArraysAreInSync()
+void UMassReplicationSubsystem::DebugCheckArraysAreInSync()
 {
 #if UE_DEBUG_REPLICATION
 
@@ -570,7 +570,7 @@ void UMassReplicationManager::DebugCheckArraysAreInSync()
  #endif // UE_DEBUG_REPLICATION
 };
 
-void UMassReplicationManager::AddClient(FMassViewerHandle ViewerHandle, APlayerController& InController)
+void UMassReplicationSubsystem::AddClient(FMassViewerHandle ViewerHandle, APlayerController& InController)
 {
 	check(World);
 	check(MassLODManager);
@@ -580,7 +580,7 @@ void UMassReplicationManager::AddClient(FMassViewerHandle ViewerHandle, APlayerC
 	checkf(UE::Mass::Replication::HasParentNetConnection(&InController), TEXT("InController must have a parent net connection or replication will not occur!"));
 #endif
 
-	if (!ensureMsgf(BubbleInfoArray.Num() > 0, TEXT("BubbleInfoClass has not been set Client will not be added to UMassReplicationManager!")))
+	if (!ensureMsgf(BubbleInfoArray.Num() > 0, TEXT("BubbleInfoClass has not been set Client will not be added to UMassReplicationSubsystem!")))
 	{
 		return;
 	}
@@ -653,7 +653,7 @@ void UMassReplicationManager::AddClient(FMassViewerHandle ViewerHandle, APlayerC
 	DebugCheckArraysAreInSync();
 }
 
-void UMassReplicationManager::RemoveClient(FMassClientHandle ClientHandle)
+void UMassReplicationSubsystem::RemoveClient(FMassClientHandle ClientHandle)
 {
 	check(World);
 

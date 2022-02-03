@@ -10,7 +10,7 @@ void FMassClientBubbleSerializerBase::InitializeForWorld(UWorld& InWorld)
 	SpawnerSubsystem = InWorld.GetSubsystem<UMassSpawnerSubsystem>();
 	check(SpawnerSubsystem);
 
-	ReplicationManager = InWorld.GetSubsystem<UMassReplicationManager>();
+	ReplicationSubsystem = InWorld.GetSubsystem<UMassReplicationSubsystem>();
 
 	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	check(EntitySystem);

@@ -10,7 +10,7 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassReplicationFragments.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "Engine/World.h"
 #include "MassEntityTemplate.h"
 #include "MassEntityView.h"
@@ -354,8 +354,8 @@ void TClientBubbleHandlerBase<AgentArrayItem>::UpdateAgentsToRemove()
 
 	check(Serializer->GetWorld());
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	const float TimeRemove = Serializer->GetWorld()->GetRealTimeSeconds() - UE::Mass::Replication::AgentRemoveInterval;
 
@@ -371,7 +371,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::UpdateAgentsToRemove()
 		{
 			const FMassNetworkID NetID = (*Iter).Key;
 
-			ReplicationManager->RemoveFromEntityInfoMap(NetID);
+			ReplicationSubsystem->RemoveFromEntityInfoMap(NetID);
 			Iter.RemoveCurrent();
 		}
 	}
@@ -390,14 +390,14 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayV
 	UMassSpawnerSubsystem* SpawnerSubsystem = Serializer->GetSpawnerSubsystem();
 	check(SpawnerSubsystem);
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	for (int32 Idx : RemovedIndices)
 	{
 		const AgentArrayItem& RemovedItem = (*Agents)[Idx];
 
-		FMassEntityHandle Entity = ReplicationManager->ResetEntityIfValid(RemovedItem.Agent.GetNetID(), RemovedItem.ReplicationID);
+		FMassEntityHandle Entity = ReplicationSubsystem->ResetEntityIfValid(RemovedItem.Agent.GetNetID(), RemovedItem.ReplicationID);
 
 		// Only remove the item if its currently Set / Valid and its the most recent ReplicationID. Stale removes after more recent adds are ignored
 		// We do need to check the ReplicationID in this case
@@ -431,8 +431,8 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	TMap<FMassNetworkID, int32> AgentsToAddMap; //NetID to index in AgentsToAddArray
 	AgentsToAddMap.Reserve(AddedIndices.Num());
@@ -446,9 +446,9 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 	{
 		const AgentArrayItem& AddedItem = (*Agents)[Idx];
 
-		switch (ReplicationManager->FindAndUpdateOrAddMassEntityInfo(AddedItem.Agent.GetNetID(), AddedItem.ReplicationID, EntityInfo))
+		switch (ReplicationSubsystem->FindAndUpdateOrAddMassEntityInfo(AddedItem.Agent.GetNetID(), AddedItem.ReplicationID, EntityInfo))
 		{
-		case UMassReplicationManager::EFindOrAddMassEntityInfo::FoundOlderReplicationID:
+		case UMassReplicationSubsystem::EFindOrAddMassEntityInfo::FoundOlderReplicationID:
 		{
 			AgentsRemoveDataMap.Remove(AddedItem.Agent.GetNetID());
 
@@ -478,7 +478,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 		}
 		break;
 
-		case UMassReplicationManager::EFindOrAddMassEntityInfo::Added:
+		case UMassReplicationSubsystem::EFindOrAddMassEntityInfo::Added:
 		{
 			check(AgentsToAddMap.Find(AddedItem.Agent.GetNetID()) == nullptr);
 
@@ -487,7 +487,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 		}
 		break;
 
-		case UMassReplicationManager::EFindOrAddMassEntityInfo::FoundNewerReplicationID:
+		case UMassReplicationSubsystem::EFindOrAddMassEntityInfo::FoundNewerReplicationID:
 			break;
 
 		default:
@@ -513,8 +513,8 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 	UMassSpawnerSubsystem* SpawnerSubsystem = Serializer->GetSpawnerSubsystem();
 	check(SpawnerSubsystem);
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	TMap<FMassEntityTemplateID, TArray<typename AgentArrayItem::FReplicatedAgentType*>> AgentsSpawnMap;
 
@@ -552,7 +552,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		int32 AgentsSpawnIdx = 0;
 
 		Query.ForEachEntityChunk(FMassArchetypeSubChunks(ArchetypeHandle, Entities, FMassArchetypeSubChunks::NoDuplicates)
-								, *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
+								, *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationSubsystem, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
 			{
 				CacheFragmentViewsForSpawnQuery(ExecContext);
 
@@ -566,7 +566,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 					FMassNetworkIDFragment& NetIDFragment = NetworkIDList[i];
 
 					NetIDFragment.NetID = AgentSpawn.GetNetID();
-					ReplicationManager->SetEntity(NetIDFragment.NetID, Entity);
+					ReplicationSubsystem->SetEntity(NetIDFragment.NetID, Entity);
 
 					FMassEntityView EntityView(*EntitySystem, Entity);
 					SetSpawnedEntityData(EntityView, AgentSpawn, i);
@@ -585,15 +585,15 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedChangeHelper(const 
 	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	// Go through the changed Entities and update their Mass data
 	for (int32 Idx : ChangedIndices)
 	{
 		const AgentArrayItem& ChangedItem = (*Agents)[Idx];
 
-		const FMassReplicationEntityInfo* EntityInfo = ReplicationManager->FindMassEntityInfo(ChangedItem.Agent.GetNetID());
+		const FMassReplicationEntityInfo* EntityInfo = ReplicationSubsystem->FindMassEntityInfo(ChangedItem.Agent.GetNetID());
 
 		checkf(EntityInfo, TEXT("EntityInfo must be valid if the Agent has already been added (which it must have been to get PostReplicatedChange"));
 		checkf(EntityInfo->ReplicationID >= ChangedItem.ReplicationID, TEXT("ReplicationID out of sync, this should never happen!"));
@@ -653,8 +653,8 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
-	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-	check(ReplicationManager);
+	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+	check(ReplicationSubsystem);
 
 	for (int32 Idx = 0; Idx < (*Agents).Num(); ++Idx)
 	{
@@ -664,7 +664,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 		check(Agent.GetTemplateID().IsValid());
 		check(Agent.GetNetID().IsValid());
 
-		const FMassReplicationEntityInfo* EntityInfo = ReplicationManager->FindMassEntityInfo(Agent.GetNetID());
+		const FMassReplicationEntityInfo* EntityInfo = ReplicationSubsystem->FindMassEntityInfo(Agent.GetNetID());
 		checkf(EntityInfo, TEXT("There should always be an EntityInfoMap entry for Agents that are in the Agents array!"));
 
 		if (EntityInfo)
@@ -685,7 +685,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 	}
 
 #if UE_ALLOW_DEBUG_SLOW_REPLICATION
-	const TMap<FMassNetworkID, FMassReplicationEntityInfo>& EntityInfoMap = ReplicationManager->GetEntityInfoMap();
+	const TMap<FMassNetworkID, FMassReplicationEntityInfo>& EntityInfoMap = ReplicationSubsystem->GetEntityInfoMap();
 
 	for (TMap<FMassNetworkID, FMassReplicationEntityInfo>::TConstIterator Iter = EntityInfoMap.CreateConstIterator(); Iter; ++Iter)
 	{

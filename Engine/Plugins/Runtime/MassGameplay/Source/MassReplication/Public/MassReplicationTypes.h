@@ -60,7 +60,7 @@
 #define UE_ALLOW_DEBUG_REPLICATION 0
 #endif
 
-class UMassReplicationManager;
+class UMassReplicationSubsystem;
 
 namespace UE { namespace Mass { namespace Replication
 {
@@ -166,7 +166,7 @@ struct FMassReplicationEntityInfo
 	/** If this is not IsSet() then the entity has been removed from the client simulation */
 	FMassEntityHandle Entity; 
 
-	/** This is stored between removes and adds, however this item in the UMassReplicationManager::EntityInfoMap will eventually get cleaned up if Entity.IsSet() == false for a fairly substantial length of time. */
+	/** This is stored between removes and adds, however this item in the UMassReplicationSubsystem::EntityInfoMap will eventually get cleaned up if Entity.IsSet() == false for a fairly substantial length of time. */
 	int32 ReplicationID = INDEX_NONE;
 };
 #endif //UE_REPLICATION_COMPILE_CLIENT_CODE

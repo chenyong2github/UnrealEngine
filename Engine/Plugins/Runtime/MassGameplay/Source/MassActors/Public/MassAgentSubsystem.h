@@ -15,7 +15,7 @@ class UMassAgentComponent;
 class UMassSimulationSubsystem;
 class UMassAgentSubsystem;
 class UMassAgentComponent;
-class UMassReplicationManager;
+class UMassReplicationSubsystem;
 
 namespace UE::MassActor
 {
@@ -137,7 +137,7 @@ protected:
 	TMap<FMassEntityTemplateID, FMassAgentInitializationQueue> PendingPuppets;
 
 	UPROPERTY()
-	UMassReplicationManager* ReplicationManager;
+	UMassReplicationSubsystem* ReplicationSubsystem;
 
 	UPROPERTY()
 	TMap<FMassNetworkID, UMassAgentComponent*> ReplicatedAgentComponents;

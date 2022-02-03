@@ -12,7 +12,7 @@
 #include "MassEntityTemplateRegistry.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityView.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "Engine/NetDriver.h"
 
 
@@ -42,7 +42,7 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	Collection.InitializeDependency<UMassSpawnerSubsystem>();
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-	Collection.InitializeDependency<UMassReplicationManager>();
+	Collection.InitializeDependency<UMassReplicationSubsystem>();
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 	
 	UWorld* World = GetWorld();
@@ -53,11 +53,11 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	SimulationSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassAgentSubsystem::OnProcessingPhaseStarted, EMassProcessingPhase::PrePhysics);
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-	ReplicationManager = UWorld::GetSubsystem<UMassReplicationManager>(World);
-	check(ReplicationManager);
+	ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(World);
+	check(ReplicationSubsystem);
 
-	ReplicationManager->GetOnMassAgentAdded().AddUObject(this, &UMassAgentSubsystem::OnMassAgentAddedToReplication);
-	ReplicationManager->GetOnRemovingMassAgent().AddUObject(this, &UMassAgentSubsystem::OnMassAgentRemovedFromReplication);
+	ReplicationSubsystem->GetOnMassAgentAdded().AddUObject(this, &UMassAgentSubsystem::OnMassAgentAddedToReplication);
+	ReplicationSubsystem->GetOnRemovingMassAgent().AddUObject(this, &UMassAgentSubsystem::OnMassAgentRemovedFromReplication);
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 }
 
@@ -379,11 +379,11 @@ void UMassAgentSubsystem::NotifyMassAgentComponentReplicated(UMassAgentComponent
 	UWorld* World = GetWorld();
 	if (World && ensureMsgf(World->IsNetMode(NM_Client), TEXT("%s: Expecting to only be called in network game on the client"), ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		check(ReplicationManager);
+		check(ReplicationSubsystem);
 		check(AgentComp.GetNetID().IsValid());
 		check(!ReplicatedAgentComponents.Find(AgentComp.GetNetID()));
 		ReplicatedAgentComponents.Add(AgentComp.GetNetID(), &AgentComp);
-		const FMassEntityHandle Entity = ReplicationManager->FindEntity(AgentComp.GetNetID());
+		const FMassEntityHandle Entity = ReplicationSubsystem->FindEntity(AgentComp.GetNetID());
 
 		// If not found, the NotifyMassAgentAddedToReplication will link it later once replicated.
 		if (Entity.IsSet())

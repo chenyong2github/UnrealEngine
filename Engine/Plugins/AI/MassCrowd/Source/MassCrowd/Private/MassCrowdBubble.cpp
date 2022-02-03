@@ -100,8 +100,8 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 		UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 		check(EntitySystem);
 
-		UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
-		check(ReplicationManager);
+		UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+		check(ReplicationSubsystem);
 
 		// @todo cap at MaxAgentsDraw for now
 		const int32 MaxAgentsDraw = FMath::Min(UE::Mass::Crowd::MaxAgentsDraw, (*Agents).Num());
@@ -110,7 +110,7 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 		{
 			const FCrowdFastArrayItem& CrowdItem = (*Agents)[Idx];
 
-			const FMassReplicationEntityInfo* EntityInfo = ReplicationManager->FindMassEntityInfo(CrowdItem.Agent.GetNetID());
+			const FMassReplicationEntityInfo* EntityInfo = ReplicationSubsystem->FindMassEntityInfo(CrowdItem.Agent.GetNetID());
 
 			check(EntityInfo->Entity.IsSet());
 

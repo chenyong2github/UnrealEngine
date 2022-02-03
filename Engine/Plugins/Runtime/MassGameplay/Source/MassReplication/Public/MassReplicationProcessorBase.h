@@ -11,10 +11,10 @@
 #include "MassReplicationFragments.h"
 #include "MassSpawnerTypes.h"
 #include "MassLODManager.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "MassReplicationProcessorBase.generated.h"
 
-class UMassReplicationManager;
+class UMassReplicationSubsystem;
 class AMassClientBubbleInfoBase;
 class UWorld;
 
@@ -50,7 +50,7 @@ protected:
 protected:
 
 	UPROPERTY()
-	UMassReplicationManager* ReplicationManager;
+	UMassReplicationSubsystem* ReplicationSubsystem;
 
 	FMassBubbleInfoClassHandle BubbleInfoClassHandle;
 
@@ -95,7 +95,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 
-	check(ReplicationManager);
+	check(ReplicationSubsystem);
 	check(LODManager);
 	check(World);
 
@@ -142,7 +142,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 
 				//now we need to see what our highest viewer LOD is on this client (split screen etc), we can use the unsafe version as we have already checked all the
 				//CachedClientHandles for validity
-				const FClientViewerHandles& ClientViewers = ReplicationManager->GetClientViewersChecked(ClientHandle);
+				const FClientViewerHandles& ClientViewers = ReplicationSubsystem->GetClientViewersChecked(ClientHandle);
 
 				EMassLOD::Type HighestLOD = EMassLOD::Off;
 

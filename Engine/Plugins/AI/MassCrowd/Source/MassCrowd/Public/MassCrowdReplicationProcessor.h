@@ -6,7 +6,7 @@
 
 #include "MassCrowdReplicationProcessor.generated.h"
 
-class UMassReplicationManager;
+class UMassReplicationSubsystem;
 class MassLODManager;
 class AMassCrowdClientBubbleInfo;
 class UWorld;

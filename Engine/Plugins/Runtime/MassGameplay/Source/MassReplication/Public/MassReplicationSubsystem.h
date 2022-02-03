@@ -7,7 +7,7 @@
 #include "MassReplicationTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 
-#include "MassReplicationManager.generated.h"
+#include "MassReplicationSubsystem.generated.h"
 
 class UMassEntitySubsystem;
 class AMassCrowdClientBubbleInfo;
@@ -70,7 +70,7 @@ namespace UE::MassReplication
  *  ClientViewers relate to all the player controllers that have a parent or child UNetConnection to a single Client machine (split screen etc).
  */
 UCLASS()
-class MASSREPLICATION_API UMassReplicationManager : public UWorldSubsystem
+class MASSREPLICATION_API UMassReplicationSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 

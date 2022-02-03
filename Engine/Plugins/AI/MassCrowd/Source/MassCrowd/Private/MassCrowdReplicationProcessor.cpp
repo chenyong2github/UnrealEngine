@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCrowdReplicationProcessor.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "MassReplicationTypes.h"
 #include "MassClientBubbleHandler.h"
 #include "MassCrowdBubble.h"
@@ -45,9 +45,9 @@ void UMassCrowdReplicationProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
-	check(ReplicationManager);
+	check(ReplicationSubsystem);
 
-	BubbleInfoClassHandle = ReplicationManager->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
+	BubbleInfoClassHandle = ReplicationSubsystem->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
 }
 
 void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

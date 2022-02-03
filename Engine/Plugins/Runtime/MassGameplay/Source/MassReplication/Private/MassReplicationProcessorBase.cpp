@@ -55,11 +55,11 @@ void UMassReplicationProcessorBase::Initialize(UObject& Owner)
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 	LODCalculator.Initialize(LODDistance, BufferHysteresisOnDistancePercentage / 100.0f, LODMaxCount, LODMaxCountPerViewer);
 
-	ReplicationManager = UWorld::GetSubsystem<UMassReplicationManager>(World);
+	ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(World);
 
-	check(ReplicationManager);
+	check(ReplicationSubsystem);
 
-	//BubbleInfoClassHandle = ReplicationManager->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
+	//BubbleInfoClassHandle = ReplicationSubsystem->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
@@ -67,10 +67,10 @@ void UMassReplicationProcessorBase::PrepareExecution()
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 
-	check(ReplicationManager);
+	check(ReplicationSubsystem);
 
 	//first synchronize clients and viewers
-	ReplicationManager->SynchronizeClientsAndViewers();
+	ReplicationSubsystem->SynchronizeClientsAndViewers();
 
 	//then call base class
 	check(LODManager);
@@ -78,7 +78,7 @@ void UMassReplicationProcessorBase::PrepareExecution()
 	LODCollector.PrepareExecution(Viewers);
 	LODCalculator.PrepareExecution(Viewers);
 
-	const TArray<FMassClientHandle>& CurrentClientHandles = ReplicationManager->GetClientReplicationHandles();
+	const TArray<FMassClientHandle>& CurrentClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
 	const int32 MinNumHandles = FMath::Min(CachedClientHandles.Num(), CurrentClientHandles.Num());
 
 	//check to see if we don't have enough cached client handles
@@ -95,7 +95,7 @@ void UMassReplicationProcessorBase::PrepareExecution()
 			CachedClientHandles.Add(CurrentClientHandle);
 			bBubbleChanged.Add(true);
 			AMassClientBubbleInfoBase* Info = CurrentClientHandle.IsValid() ?
-				ReplicationManager->GetClientBubbleChecked(BubbleInfoClassHandle, CurrentClientHandle) :
+				ReplicationSubsystem->GetClientBubbleChecked(BubbleInfoClassHandle, CurrentClientHandle) :
 				nullptr;
 
 			check(Info);
@@ -123,7 +123,7 @@ void UMassReplicationProcessorBase::PrepareExecution()
 		if (bChanged)
 		{
 			AMassClientBubbleInfoBase* Info = CurrentClientHandle.IsValid() ?
-				ReplicationManager->GetClientBubbleChecked(BubbleInfoClassHandle, CurrentClientHandle) :
+				ReplicationSubsystem->GetClientBubbleChecked(BubbleInfoClassHandle, CurrentClientHandle) :
 				nullptr;
 
 			check(Info);

@@ -100,7 +100,7 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	UPROPERTY()
-		UMassReplicationManager* ReplicationManager = nullptr;
+	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
 
 	FMassEntityQuery EntityQuery;
 };

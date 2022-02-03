@@ -5,7 +5,7 @@
 #include "ZoneGraphData.h"
 #include "MassSimulationSubsystem.h"
 #include "MassCrowdBubble.h"
-#include "MassReplicationManager.h"
+#include "MassReplicationSubsystem.h"
 #include "MassCrowdFragments.h"
 #include "MassCrowdSettings.h"
 #include "ZoneGraphAnnotationSubsystem.h"
@@ -106,10 +106,10 @@ void UMassCrowdSubsystem::PostInitialize()
 {
 	Super::PostInitialize();
 
-	UMassReplicationManager* ReplicationManager = UWorld::GetSubsystem<UMassReplicationManager>(GetWorld());
+	UMassReplicationSubsystem* ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(GetWorld());
 
-	check(ReplicationManager);
-	ReplicationManager->RegisterBubbleInfoClass(AMassCrowdClientBubbleInfo::StaticClass());
+	check(ReplicationSubsystem);
+	ReplicationSubsystem->RegisterBubbleInfoClass(AMassCrowdClientBubbleInfo::StaticClass());
 }
 
 void UMassCrowdSubsystem::PostZoneGraphDataAdded(const AZoneGraphData* ZoneGraphData)
