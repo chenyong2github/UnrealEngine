@@ -98,6 +98,7 @@ public:
 	 *
 	 * @return Collection of platforms.
 	 */
+	UE_DEPRECATED(5.1, "Use GetActiveTargetPlatforms instead of GetCookingTargetPlatforms")
 	virtual const TArray<ITargetPlatform*>& GetCookingTargetPlatforms() = 0;
 
 	/**
