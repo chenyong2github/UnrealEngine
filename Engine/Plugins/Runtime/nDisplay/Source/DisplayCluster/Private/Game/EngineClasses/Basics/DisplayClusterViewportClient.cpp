@@ -744,6 +744,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 				{
 					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
+					ViewFamily.bIsMultipleViewFamily = true;
 
 					GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
 

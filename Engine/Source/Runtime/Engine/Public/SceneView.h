@@ -1716,6 +1716,9 @@ public:
 	/** Whether this view is rendered in BeginRenderingViewFamily() immediately after another render. */
 	bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
 
+	/** Whether this view is one of multiple view families rendered in a single frame.  Affects occlusion query synchronization logic. */
+	bool bIsMultipleViewFamily = false;
+
 	/** 
 	 * Which component of the scene rendering should be output to the final render target.
 	 * If SCS_FinalColorLDR this indicates do nothing.
