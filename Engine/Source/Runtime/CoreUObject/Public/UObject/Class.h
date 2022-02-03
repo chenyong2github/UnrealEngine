@@ -2856,6 +2856,8 @@ protected:
 
 	void CleanupSparseClassData();
 
+	void AddSparseClassDataReferencedObjects(FReferenceCollector& Collector);
+
 private:
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */

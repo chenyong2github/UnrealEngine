@@ -3710,27 +3710,32 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		This->CallAddReferencedObjects(This->ClassDefaultObject, Collector);
 	}
 
-	Collector.AddReferencedObject( This->SparseClassDataStruct, This );
+	This->AddSparseClassDataReferencedObjects(Collector);
+	
+	Super::AddReferencedObjects( This, Collector );
+}
+
+void UClass::AddSparseClassDataReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(SparseClassDataStruct, this);
 
 	// Add sparse class data
-	if (This->SparseClassDataStruct && This->SparseClassData)
+	if (SparseClassDataStruct && SparseClassData)
 	{
-		if (This->SparseClassDataStruct->StructFlags & STRUCT_AddStructReferencedObjects)
+		if (SparseClassDataStruct->StructFlags & STRUCT_AddStructReferencedObjects)
 		{
-			This->SparseClassDataStruct->GetCppStructOps()->AddStructReferencedObjects()(This->SparseClassData, Collector);
+			SparseClassDataStruct->GetCppStructOps()->AddStructReferencedObjects()(SparseClassData, Collector);
 		}
 		else
 		{
 			// The iterator will recursively loop through all structs in structs too.
-			for (TPropertyValueIterator<FObjectProperty> It(This->SparseClassDataStruct, This->SparseClassData); It; ++It)
+			for (TPropertyValueIterator<FObjectProperty> It(SparseClassDataStruct, SparseClassData); It; ++It)
 			{
 				UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
 				Collector.AddReferencedObject(*ObjectPtr);
 			}
 		}
 	}
-	
-	Super::AddReferencedObjects( This, Collector );
 }
 
 /**

@@ -1708,6 +1708,7 @@ void UBlueprintGeneratedClass::AddReferencedObjectsInUbergraphFrame(UObject* InT
 	{
 		if (UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(CurrentClass))
 		{
+			BPGC->AddSparseClassDataReferencedObjects(Collector);
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
 			if (BPGC->UberGraphFramePointerProperty)
 			{
