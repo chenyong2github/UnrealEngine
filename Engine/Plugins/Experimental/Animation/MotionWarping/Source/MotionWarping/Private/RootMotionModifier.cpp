@@ -218,43 +218,14 @@ void URootMotionModifier_Warp::Update()
 			{
 				if (const ACharacter* CharacterOwner = GetCharacterOwner())
 				{
-					// Inverse of mesh's relative rotation. Used to convert root and warp point in the animation from Y forward to X forward
-					const FTransform MeshCompRelativeRotInverse = FTransform(CharacterOwner->GetBaseRotationOffset().Inverse());
-
-					FTransform RootTransform = FTransform::Identity;
-					FTransform WarpPointTransform = FTransform::Identity;
 					if (WarpPointAnimProvider == EWarpPointAnimProvider::Static)
 					{
-						RootTransform = MeshCompRelativeRotInverse * UMotionWarpingUtilities::ExtractRootTransformFromAnimation(GetAnimation(), EndTime);
-						WarpPointTransform = MeshCompRelativeRotInverse * WarpPointAnimTransform;
+						CachedOffsetFromWarpPoint = UMotionWarpingUtilities::CalculateRootTransformRelativeToWarpPointAtTime(*CharacterOwner, GetAnimation(), EndTime, WarpPointAnimTransform);
 					}
 					else if (WarpPointAnimProvider == EWarpPointAnimProvider::Bone)
 					{
-						if (const USkeletalMeshComponent* Mesh = CharacterOwner->GetMesh())
-						{
-							if (const UAnimInstance* AnimInstance = Mesh->GetAnimInstance())
-							{
-								const FBoneContainer& FullBoneContainer = AnimInstance->GetRequiredBones();
-								const int32 BoneIndex = FullBoneContainer.GetPoseBoneIndexForBoneName(WarpPointAnimBoneName);
-								if (ensure(BoneIndex != INDEX_NONE))
-								{
-									TArray<FBoneIndexType> RequiredBoneIndexArray = { 0, (FBoneIndexType)BoneIndex };
-									FullBoneContainer.GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
-
-									FBoneContainer LimitedBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *FullBoneContainer.GetAsset());
-
-									FCSPose<FCompactPose> Pose;
-									UMotionWarpingUtilities::ExtractComponentSpacePose(GetAnimation(), LimitedBoneContainer, EndTime, false, Pose);
-
-									RootTransform = MeshCompRelativeRotInverse * Pose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0));
-									WarpPointTransform = MeshCompRelativeRotInverse * Pose.GetComponentSpaceTransform(FCompactPoseBoneIndex(1));
-								}
-							}
-						}
+						CachedOffsetFromWarpPoint = UMotionWarpingUtilities::CalculateRootTransformRelativeToWarpPointAtTime(*CharacterOwner, GetAnimation(), EndTime, WarpPointAnimBoneName);
 					}
-
-					// Calculate and cache the offset between the root and the warp point in the animation
-					CachedOffsetFromWarpPoint = RootTransform.GetRelativeTransform(WarpPointTransform);
 				}
 			}
 

@@ -17,6 +17,8 @@ public:
 
 	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
 
+	static FVector WarpTranslation(const FTransform& CurrentTransform, const FVector& DeltaTranslation, const FVector& TotalTranslation, const FVector& TargetLocation);
+
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static URootMotionModifier_SkewWarp* AddRootMotionModifierSkewWarp(
 		UPARAM(DisplayName = "Motion Warping Comp") UMotionWarpingComponent* InMotionWarpingComp,

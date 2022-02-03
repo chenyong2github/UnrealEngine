@@ -13,33 +13,13 @@ URootMotionModifier_SkewWarp::URootMotionModifier_SkewWarp(const FObjectInitiali
 {
 }
 
-FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds)
+FVector URootMotionModifier_SkewWarp::WarpTranslation(const FTransform& CurrentTransform, const FVector& DeltaTranslation, const FVector& TotalTranslation, const FVector& TargetLocation)
 {
-	const ACharacter* CharacterOwner = GetCharacterOwner();
-	if(CharacterOwner == nullptr)
+	if (!DeltaTranslation.IsNearlyZero())
 	{
-		return InRootMotion;
-	}
-
-	FTransform FinalRootMotion = InRootMotion;
-
-	const FTransform RootMotionTotal = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, EndTime);
-	const FTransform RootMotionDelta = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, FMath::Min(CurrentPosition, EndTime));
-
-	if (bWarpTranslation && !RootMotionDelta.GetTranslation().IsNearlyZero())
-	{
-		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-		const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
-		const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - CurrentRotation.GetUpVector() * CapsuleHalfHeight);
-
-		FVector TargetLocation = GetTargetLocation();
-		if (bIgnoreZAxis)
-		{
-			TargetLocation.Z = CurrentLocation.Z;
-		}
-
-		const FVector Translation = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionDelta).GetLocation();
-		const FVector FutureLocation = CurrentLocation + CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionTotal).GetLocation();
+		const FQuat CurrentRotation = CurrentTransform.GetRotation();
+		const FVector CurrentLocation = CurrentTransform.GetLocation();
+		const FVector FutureLocation = CurrentLocation + TotalTranslation;
 		const FVector CurrentToWorldOffset = TargetLocation - CurrentLocation;
 		const FVector CurrentToRootOffset = FutureLocation - CurrentLocation;
 
@@ -63,7 +43,7 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 		}
 
 		// Put everything into RootSyncSpace.
-		const FVector RootMotionInSyncSpace = ToRootSyncSpace.InverseTransformVector(Translation);
+		const FVector RootMotionInSyncSpace = ToRootSyncSpace.InverseTransformVector(DeltaTranslation);
 		const FVector CurrentToWorldSync = ToRootSyncSpace.InverseTransformVector(CurrentToWorldOffset);
 		const FVector CurrentToRootMotionSync = ToRootSyncSpace.InverseTransformVector(CurrentToRootOffset);
 
@@ -133,7 +113,44 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 		}
 
 		// Put our result back in world space.  
-		FinalRootMotion.SetTranslation(ToRootSyncSpace.TransformVector(SkewedRootMotion));
+		return ToRootSyncSpace.TransformVector(SkewedRootMotion);
+	}
+
+	return FVector::ZeroVector;
+}
+
+FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds)
+{
+	const ACharacter* CharacterOwner = GetCharacterOwner();
+	if(CharacterOwner == nullptr)
+	{
+		return InRootMotion;
+	}
+
+	FTransform FinalRootMotion = InRootMotion;
+
+	const FTransform RootMotionTotal = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, EndTime);
+	const FTransform RootMotionDelta = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), PreviousPosition, FMath::Min(CurrentPosition, EndTime));
+
+	if (bWarpTranslation && !RootMotionDelta.GetTranslation().IsNearlyZero())
+	{
+		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+		const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
+		const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - CurrentRotation.GetUpVector() * CapsuleHalfHeight);
+		const FTransform CurrentTransform = FTransform(CurrentRotation, CurrentLocation);
+
+		const FVector DeltaTranslation = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionDelta).GetLocation();
+		const FVector TotalTranslation = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionTotal).GetLocation();
+
+		FVector TargetLocation = GetTargetLocation();
+		if (bIgnoreZAxis)
+		{
+			TargetLocation.Z = CurrentLocation.Z;
+		}
+
+		const FVector WarpedTranslation = WarpTranslation(CurrentTransform, DeltaTranslation, TotalTranslation, TargetLocation);
+
+		FinalRootMotion.SetTranslation(WarpedTranslation);
 	}
 
 	if(bWarpRotation)

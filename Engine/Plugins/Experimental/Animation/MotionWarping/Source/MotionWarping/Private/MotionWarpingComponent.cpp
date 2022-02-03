@@ -56,7 +56,28 @@ FTransform UMotionWarpingUtilities::ExtractRootMotionFromAnimation(const UAnimSe
 {
 	if (const UAnimMontage* Anim = Cast<UAnimMontage>(Animation))
 	{
-		return Anim->ExtractRootMotionFromTrackRange(StartTime, EndTime);
+		// This is identical to UAnimMontage::ExtractRootMotionFromTrackRange and UAnimCompositeBase::ExtractRootMotionFromTrack but ignoring bEnableRootMotion
+		// so we can extract root motion from the montage even if that flag is set to false in the AnimSequence(s)
+
+		FRootMotionMovementParams AccumulatedRootMotionParams;
+
+		if (Anim->SlotAnimTracks.Num() > 0)
+		{
+			const FAnimTrack& RootMotionAnimTrack = Anim->SlotAnimTracks[0].AnimTrack;
+
+			TArray<FRootMotionExtractionStep> RootMotionExtractionSteps;
+			RootMotionAnimTrack.GetRootMotionExtractionStepsForTrackRange(RootMotionExtractionSteps, StartTime, EndTime);
+
+			for (const FRootMotionExtractionStep& CurStep : RootMotionExtractionSteps)
+			{
+				if (CurStep.AnimSequence)
+				{
+					AccumulatedRootMotionParams.Accumulate(CurStep.AnimSequence->ExtractRootMotionFromRange(CurStep.StartPosition, CurStep.EndPosition));
+				}
+			}
+		}
+
+		return AccumulatedRootMotionParams.GetRootMotionTransform();
 	}
 
 	if (const UAnimSequence* Anim = Cast<UAnimSequence>(Animation))
@@ -134,6 +155,45 @@ void UMotionWarpingUtilities::GetMotionWarpingWindowsForWarpTargetFromAnimation(
 			}
 		}
 	}
+}
+
+FTransform UMotionWarpingUtilities::CalculateRootTransformRelativeToWarpPointAtTime(const ACharacter& Character, const UAnimSequenceBase* Animation, float Time, const FName& WarpPointBoneName)
+{
+	if (const USkeletalMeshComponent* Mesh = Character.GetMesh())
+	{
+		if (const UAnimInstance* AnimInstance = Mesh->GetAnimInstance())
+		{
+			const FBoneContainer& FullBoneContainer = AnimInstance->GetRequiredBones();
+			const int32 BoneIndex = FullBoneContainer.GetPoseBoneIndexForBoneName(WarpPointBoneName);
+			if (ensure(BoneIndex != INDEX_NONE))
+			{
+				TArray<FBoneIndexType> RequiredBoneIndexArray = { 0, (FBoneIndexType)BoneIndex };
+				FullBoneContainer.GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBoneIndexArray);
+
+				FBoneContainer LimitedBoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *FullBoneContainer.GetAsset());
+
+				FCSPose<FCompactPose> Pose;
+				UMotionWarpingUtilities::ExtractComponentSpacePose(Animation, LimitedBoneContainer, Time, false, Pose);
+
+				// Inverse of mesh's relative rotation. Used to convert root and warp point in the animation from Y forward to X forward
+				const FTransform MeshCompRelativeRotInverse = FTransform(Character.GetBaseRotationOffset().Inverse());
+
+				const FTransform RootTransform = MeshCompRelativeRotInverse * Pose.GetComponentSpaceTransform(FCompactPoseBoneIndex(0));
+				const FTransform WarpPointTransform = MeshCompRelativeRotInverse * Pose.GetComponentSpaceTransform(FCompactPoseBoneIndex(1));
+				return RootTransform.GetRelativeTransform(WarpPointTransform);
+			}
+		}
+	}
+
+	return FTransform::Identity;
+}
+
+FTransform UMotionWarpingUtilities::CalculateRootTransformRelativeToWarpPointAtTime(const ACharacter& Character, const UAnimSequenceBase* Animation, float Time, const FTransform& WarpPointTransform)
+{
+	// Inverse of mesh's relative rotation. Used to convert root and warp point in the animation from Y forward to X forward
+	const FTransform MeshCompRelativeRotInverse = FTransform(Character.GetBaseRotationOffset().Inverse());
+	const FTransform RootTransform = MeshCompRelativeRotInverse * UMotionWarpingUtilities::ExtractRootTransformFromAnimation(Animation, Time);
+	return RootTransform.GetRelativeTransform((MeshCompRelativeRotInverse * WarpPointTransform));
 }
 
 // UMotionWarpingComponent
