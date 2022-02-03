@@ -19,13 +19,10 @@
 #include "Templates/UniquePtr.h"
 #include <atomic>
 
-namespace UE::DerivedData::CacheStore
+namespace UE::DerivedData
 {
 
-ILegacyCacheStore* CreateAsyncPutCacheStore(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts)
-{
-	return nullptr;
-}
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -129,7 +126,6 @@ private:
 	mutable FRWLock NodesLock;
 	ECacheStoreNodeFlags CombinedNodeFlags{};
 	TArray<FCacheStoreNode, TInlineAllocator<8>> Nodes;
-	FDerivedDataCacheUsageStats UsageStats;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,7 +216,7 @@ void FCacheStoreHierarchy::Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags F
 	FWriteScopeLock Lock(NodesLock);
 	checkf(!Algo::FindBy(Nodes, CacheStore, &FCacheStoreNode::Cache),
 		TEXT("Attempting to add a cache store that was previously registered to the hierarchy."));
-	TUniquePtr<ILegacyCacheStore> AsyncCacheStore(CreateAsyncPutCacheStore(CacheStore, Flags, /*bCacheInFlightPuts*/ false));
+	TUniquePtr<ILegacyCacheStore> AsyncCacheStore(CreateCacheStoreAsync(CacheStore, Flags, /*bCacheInFlightPuts*/ false));
 	Nodes.Add({CacheStore, Flags, {}, MoveTemp(AsyncCacheStore)});
 	UpdateNodeFlags();
 }
@@ -1243,7 +1239,6 @@ void FCacheStoreHierarchy::LegacyDelete(
 void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	FReadScopeLock Lock(NodesLock);
-	OutNode.Stats.Add(TEXT(""), UsageStats);
 	OutNode.Children.Reserve(Nodes.Num());
 	for (const FCacheStoreNode& Node : Nodes)
 	{
@@ -1265,4 +1260,4 @@ ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner)
 	return Hierarchy;
 }
 
-} // UE::DerivedData::CacheStore
+} // UE::DerivedData
