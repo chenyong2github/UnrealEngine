@@ -204,6 +204,22 @@ public:
 	}
 
 	/**
+	 * Get the number of tiles in the X direction.
+	 */
+	int32 GetNumTilesX() const
+	{
+		return NumTilesX;
+	}
+
+	/**
+	 * Get the number of tiles in the Y direction.
+	 */
+	int32 GetNumTilesY() const
+	{
+		return NumTilesY;
+	}
+
+	/**
 	 * Get the next work item.
 	 *
 	 * This method is called by the scheduler.
@@ -218,9 +234,12 @@ public:
 	 * @param SequencePath Path to the image sequence.
 	 * @param FrameRateOverride The frame rate to use (0/0 = do not override).
 	 * @param Loop Whether the cache should loop around.
+	 * @param InNumTilesX Number of tiles in the X direction.
+	 * @param InNumTilesY Number of tiles in the Y direction.
 	 * @see IsInitialized
 	 */
-	void Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop);
+	void Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop,
+		int32 InNumTilesX, int32 InNumTilesY);
 
 	/**
 	 * Whether this loader has been initialized yet.
@@ -421,6 +440,12 @@ private:
 
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
 	bool bFillGapsInSequence;
+
+	/** Number of tiles in the X direction. */
+	int32 NumTilesX;
+
+	/** Number of tiles in the Y direction. */
+	int32 NumTilesY;
 
 	/** The number of frames to load ahead of the play head. */
 	int32 NumLoadAhead;

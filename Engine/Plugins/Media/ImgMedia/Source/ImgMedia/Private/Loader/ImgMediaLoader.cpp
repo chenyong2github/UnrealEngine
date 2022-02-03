@@ -63,6 +63,8 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, bFillGapsInSequence(bInFillGapsInSequence)
+	, NumTilesX(0)
+	, NumTilesY(0)
 	, NumLoadAhead(0)
 	, NumLoadBehind(0)
 	, Scheduler(InScheduler)
@@ -620,7 +622,8 @@ IQueuedWork* FImgMediaLoader::GetWork()
 }
 
 
-void FImgMediaLoader::Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop)
+void FImgMediaLoader::Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride,
+	bool Loop, int32 InNumTilesX, int32 InNumTilesY)
 {
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Initializing with %s (FrameRateOverride = %s, Loop = %i)"),
 		this,
@@ -630,6 +633,15 @@ void FImgMediaLoader::Initialize(const FString& SequencePath, const FFrameRate& 
 	);
 
 	check(!Initialized); // reinitialization not allowed for now
+
+	// Set up tile info.
+	NumTilesX = InNumTilesX;
+	NumTilesY = InNumTilesY;
+	if ((NumTilesX < 1) || (NumTilesY < 1))
+	{
+		NumTilesX = 1;
+		NumTilesY = 1;
+	}
 
 	LoadSequence(SequencePath, FrameRateOverride, Loop);
 	FPlatformMisc::MemoryBarrier();

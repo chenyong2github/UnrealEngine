@@ -48,4 +48,10 @@ namespace ImgMedia
 
 	/** Name of the MipMapInfo media option. */
 	static const FName MipMapInfoOption("ImgMipMapInfo");
+
+	/** Name of the NumTilesX media option. */
+	static const FName NumTilesXOption("ImgNumTilesX");
+
+	/** Name of the NumTilesY media option. */
+	static const FName NumTilesYOption("ImgNumTilesY");
 }

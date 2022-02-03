@@ -214,7 +214,12 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 
 	const FString SequencePath = Url.RightChop(6);
 
-	Async(EAsyncExecution::ThreadPool, [FrameRateOverride, LoaderPtr = TWeakPtr<FImgMediaLoader, ESPMode::ThreadSafe>(Loader), Proxy, SequencePath, Loop = ShouldLoop]()
+	// Get tile info.
+	int32 NumTilesX = Options->GetMediaOption(ImgMedia::NumTilesXOption, (int64)0);
+	int32 NumTilesY = Options->GetMediaOption(ImgMedia::NumTilesYOption, (int64)0);
+
+	Async(EAsyncExecution::ThreadPool, [FrameRateOverride, LoaderPtr = TWeakPtr<FImgMediaLoader,ESPMode::ThreadSafe>(Loader),
+		Proxy, SequencePath, Loop = ShouldLoop, NumTilesX, NumTilesY]()
 	{
 		TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> PinnedLoader = LoaderPtr.Pin();
 
@@ -227,7 +232,7 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 				ProxyPath = SequencePath; // fall back to root folder
 			}
 
-			PinnedLoader->Initialize(ProxyPath, FrameRateOverride, Loop);
+			PinnedLoader->Initialize(ProxyPath, FrameRateOverride, Loop, NumTilesX, NumTilesY);
 		}
 	});
 
