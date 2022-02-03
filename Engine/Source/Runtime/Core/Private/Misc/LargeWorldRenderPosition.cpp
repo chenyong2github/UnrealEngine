@@ -39,7 +39,7 @@ FVector3f FLargeWorldRenderScalar::GetTileFor(FVector InPosition)
 	return LWCTile;
 }
 
-FMatrix44f FLargeWorldRenderScalar::SafeCastMatrix(const FMatrix& Matrix)
+FMatrix CheckMatrixInTileOffsetRange(const FMatrix& Matrix)
 {
 	const double OriginMax = UE_LWC_RENDER_MAX_OFFSET;
 
@@ -51,21 +51,40 @@ FMatrix44f FLargeWorldRenderScalar::SafeCastMatrix(const FMatrix& Matrix)
 	{
 		ensure(false);
 	}
+	return Matrix;
+}
 
-	return FMatrix44f(Matrix);
+FMatrix44f FLargeWorldRenderScalar::SafeCastMatrix(const FMatrix& Matrix)
+{
+	return FMatrix44f(CheckMatrixInTileOffsetRange(Matrix));
 }
 
 FMatrix44f FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
 {
-	return SafeCastMatrix(ToWorld * FTranslationMatrix(-Origin));
+	return FMatrix44f(MakeToRelativeWorldMatrixDouble(Origin, ToWorld));
+}
+
+FMatrix FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
+{
+	return CheckMatrixInTileOffsetRange(ToWorld * FTranslationMatrix(-Origin));
 }
 
 FMatrix44f FLargeWorldRenderScalar::MakeFromRelativeWorldMatrix(const FVector Origin, const FMatrix& FromWorld)
 {
-	return SafeCastMatrix(FTranslationMatrix(Origin) * FromWorld);
+	return FMatrix44f(MakeFromRelativeWorldMatrixDouble(Origin, FromWorld));
+}
+
+FMatrix FLargeWorldRenderScalar::MakeFromRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& FromWorld)
+{
+	return CheckMatrixInTileOffsetRange(FTranslationMatrix(Origin) * FromWorld);
 }
 
 FMatrix44f FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld)
+{
+	return FMatrix44f(MakeClampedToRelativeWorldMatrixDouble(Origin, ToWorld));
+}
+
+FMatrix FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld)
 {
 	const double OriginMax = UE_LWC_RENDER_MAX_OFFSET;
 
@@ -78,7 +97,7 @@ FMatrix44f FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(const FVect
 
 	FMatrix ClampedToRelativeWorld(ToWorld);
 	ClampedToRelativeWorld.SetOrigin(ClampedRelativeOrigin);
-	return FMatrix44f(ClampedToRelativeWorld);
+	return ClampedToRelativeWorld;
 }
 
 void FLargeWorldRenderScalar::Validate(double InAbsolute)

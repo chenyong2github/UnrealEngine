@@ -291,8 +291,10 @@ public:
 		Parameters.TilePosition = AbsoluteWorldPosition.GetTile();
 
 		{
-			Parameters.LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(TilePositionOffset, AbsoluteLocalToWorld);
-			Parameters.RelativeWorldToLocal = Parameters.LocalToRelativeWorld.Inverse();
+			// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+			FMatrix LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(TilePositionOffset, AbsoluteLocalToWorld);
+			Parameters.LocalToRelativeWorld = FMatrix44f(LocalToRelativeWorld);
+			Parameters.RelativeWorldToLocal = FMatrix44f(LocalToRelativeWorld.Inverse());
 		}
 
 		Parameters.ActorRelativeWorldPosition = FVector3f(AbsoluteActorWorldPosition - TilePositionOffset);	//LWC_TODO: Precision loss
@@ -301,8 +303,10 @@ public:
 
 		if (bHasPreviousLocalToWorld)
 		{
-			Parameters.PreviousLocalToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(TilePositionOffset, AbsolutePreviousLocalToWorld);
-			Parameters.PreviousRelativeWorldToLocal = Parameters.PreviousLocalToRelativeWorld.Inverse();
+			// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+			FMatrix PrevLocalToRelativeWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrixDouble(TilePositionOffset, AbsolutePreviousLocalToWorld);
+			Parameters.PreviousLocalToRelativeWorld = FMatrix44f(PrevLocalToRelativeWorld);
+			Parameters.PreviousRelativeWorldToLocal = FMatrix44f(PrevLocalToRelativeWorld.Inverse());
 		}
 		else
 		{

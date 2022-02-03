@@ -34,8 +34,11 @@ public:
 
 	CORE_API static FMatrix44f SafeCastMatrix(const FMatrix& Matrix);
 	CORE_API static FMatrix44f MakeToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld);
+	CORE_API static FMatrix    MakeToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld);
 	CORE_API static FMatrix44f MakeFromRelativeWorldMatrix(const FVector Origin, const FMatrix& FromWorld);
+	CORE_API static FMatrix    MakeFromRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& FromWorld);
 	CORE_API static FMatrix44f MakeClampedToRelativeWorldMatrix(const FVector Origin, const FMatrix& ToWorld);
+	CORE_API static FMatrix    MakeClampedToRelativeWorldMatrixDouble(const FVector Origin, const FMatrix& ToWorld);
 
 	float GetTile() const { return (float)Tile; }
 	float GetOffset() const { return (float)Offset; }
