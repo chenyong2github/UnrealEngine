@@ -923,15 +923,14 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		else
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
-			mtlpp::SizeAndAlign SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
-
-			// Backing buffer resource options must match the texture we are going to create from it
-			FMetalPooledBufferArgs Args(Device, SizeAlign.Size, BUF_Dynamic, mtlpp::StorageMode::Private, Desc.GetCpuCacheMode());
-			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
-
+			
 			const uint32 MinimumByteAlignment = GetMetalDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat(MTLFormat);
 			const NSUInteger BytesPerRow = Align(Desc.GetWidth() * GPixelFormats[Format].BlockBytes, MinimumByteAlignment);
 			
+			// Backing buffer resource options must match the texture we are going to create from it
+			FMetalPooledBufferArgs Args(Device, BytesPerRow * Desc.GetHeight(), BUF_Dynamic, mtlpp::StorageMode::Private, Desc.GetCpuCacheMode());
+			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
+
 			Texture = Buffer.NewTexture(Desc, 0, BytesPerRow);
 		}
 		
