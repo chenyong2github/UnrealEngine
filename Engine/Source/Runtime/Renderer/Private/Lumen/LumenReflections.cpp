@@ -543,7 +543,9 @@ bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCh
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	if (Scene)
 	{
-		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck) 
+		//@todo - support standalone Lumen Reflections
+		return ShouldRenderLumenDiffuseGI(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck)
+			&& Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck) 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
 			&& GAllowLumenReflections
