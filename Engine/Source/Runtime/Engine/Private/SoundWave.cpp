@@ -923,6 +923,15 @@ ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionType() const
 	return SoundAssetCompressionType;
 }
 
+void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType)
+{
+#if WITH_EDITOR
+	SoundAssetCompressionType = InSoundAssetCompressionType;
+	SoundWaveDataPtr->bIsSeekable = IsSeekable();
+	UpdateAsset();
+#endif // #if WITH_EDITOR
+}
+
 float USoundWave::GetSubtitlePriority() const
 {
 	return SubtitlePriority;
@@ -2251,30 +2260,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SoundAssetCompressionTypeFName || Name == LoadingBehaviorFName)
 			{
-				InvalidateCompressedData();
-				FreeResources();
-				UpdatePlatformData();
-				MarkPackageDirty();
-
-				// if we are force inline, we need to make sure the shared data is pulled from the DDC
-				// before we attempt to use a decoder on the proxy (not using stream caching)
-				if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline)
-				{
-					if (GEngine)
-					{
-						FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
-						if (LocalAudioDevice)
-						{
-							FName RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(this);
-
-							if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline && !GetResourceData())
-							{
-								InitAudioResource(RuntimeFormat);
-								check(SoundWaveDataPtr->ResourceSize > 0);
-							}
-						}
-					}
-				}
+				UpdateAsset();
 			}
 
 			if (AnyFFTAnalysisPropertiesChanged(Name))
@@ -3595,6 +3581,36 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 		}
 	}
 }
+
+#if WITH_EDITOR
+void USoundWave::UpdateAsset()
+{
+	InvalidateCompressedData();
+	FreeResources();
+	UpdatePlatformData();
+	MarkPackageDirty();
+
+	// if we are force inline, we need to make sure the shared data is pulled from the DDC
+	// before we attempt to use a decoder on the proxy (not using stream caching)
+	if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline)
+	{
+		if (GEngine)
+		{
+			FAudioDevice* LocalAudioDevice = GEngine->GetMainAudioDeviceRaw();
+			if (LocalAudioDevice)
+			{
+				FName RuntimeFormat = LocalAudioDevice->GetRuntimeFormat(this);
+
+				if (LoadingBehavior == ESoundWaveLoadingBehavior::ForceInline && !GetResourceData())
+				{
+					InitAudioResource(RuntimeFormat);
+					check(SoundWaveDataPtr->ResourceSize > 0);
+				}
+			}
+		}
+	}
+}
+#endif // #if WITH_EDITOR
 
 void USoundWave::CacheInheritedLoadingBehavior() const
 {

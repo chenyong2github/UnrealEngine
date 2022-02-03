@@ -417,7 +417,12 @@ public:
 	}
 
 	/** Returns the sound's asset compression type. */
+	UFUNCTION(BlueprintPure, Category = "Audio")
 	ESoundAssetCompressionType GetSoundAssetCompressionType() const;
+
+	/** Procedurally set the compression type. */
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType);
 
 private:
 	// cached proxy
@@ -547,6 +552,11 @@ private:
 	// We cache a soundwave's loading behavior on the first call to USoundWave::GetLoadingBehaviorForWave(true);
 	// Caches resolved loading behavior from the SoundClass graph. Must be called on the game thread.
 	void CacheInheritedLoadingBehavior() const;
+
+	// Called when we change any properties about the underlying audio asset
+#if WITH_EDITOR
+	void UpdateAsset();
+#endif
 
 public:
 

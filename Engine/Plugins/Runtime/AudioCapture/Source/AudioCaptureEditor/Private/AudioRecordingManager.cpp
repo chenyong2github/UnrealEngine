@@ -427,6 +427,7 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 					NewSoundWave->Duration = (float)(NumRecordedSamples / NumInputChannels) / WAVE_FILE_SAMPLERATE;
 					NewSoundWave->SetSampleRate(WAVE_FILE_SAMPLERATE);
 					NewSoundWave->NumChannels = NumChannelsToSerialize;
+					NewSoundWave->SetSoundAssetCompressionType(ESoundAssetCompressionType::BinkAudio);
 
 					if (bCreatedPackage)
 					{
