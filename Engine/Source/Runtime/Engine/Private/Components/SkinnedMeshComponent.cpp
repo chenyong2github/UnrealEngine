@@ -4228,7 +4228,13 @@ FVector3f GetTypedSkinnedVertexPosition(
 	for (int32 InfluenceIndex = 0; InfluenceIndex < MaxBoneInfluences; InfluenceIndex++)
 #endif
 	{
-		const int32 MeshBoneIndex = Section.BoneMap[SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex)];
+		const int32 BoneMapIndex = SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex);
+		if (!ensureMsgf(Section.BoneMap.IsValidIndex(BoneMapIndex), TEXT("%s has attempted to access a BoneMap of size %i with an invalid index of %i in GetTypedSkinnedVertexPosition()"), *SkinnedComp->SkeletalMesh->GetFullName(), Section.BoneMap.Num(), BoneMapIndex))
+		{
+			continue;
+		}
+
+		const int32 MeshBoneIndex = Section.BoneMap[BoneMapIndex];
 		int32 TransformBoneIndex = MeshBoneIndex;
 
 		if (MasterPoseComponentInst)
@@ -4242,8 +4248,11 @@ FVector3f GetTypedSkinnedVertexPosition(
 		{
 			if (bCachedMatrices)
 			{
-				const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
-				SkinnedPos += RefToLocal.TransformPosition(PositionVertexBuffer.VertexPosition(BufferVertIndex)) * Weight;
+				if (ensureMsgf(RefToLocals.IsValidIndex(MeshBoneIndex), TEXT("%s has attempted to access a RefToLocals of size %i with an invalid index of %i in GetTypedSkinnedVertexPosition()"), *SkinnedComp->SkeletalMesh->GetFullName(), RefToLocals.Num(), MeshBoneIndex))
+				{
+					const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
+					SkinnedPos += RefToLocal.TransformPosition(PositionVertexBuffer.VertexPosition(BufferVertIndex)) * Weight;
+				}
 			}
 			else
 			{
