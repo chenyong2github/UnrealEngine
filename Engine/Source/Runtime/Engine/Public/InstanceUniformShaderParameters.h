@@ -20,6 +20,17 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			0x40
 #define INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			0x80
+#define INSTANCE_SCENE_DATA_FLAG_IS_RAYTRACING_FAR_FIELD	0x100
+
+#define INSTANCE_SCENE_DATA_FLAG_PAYLOAD_MASK ( \
+	INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS \
+	| INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA \
+)
 
 #define INVALID_PRIMITIVE_ID 0x000FFFFFu
 
@@ -101,7 +112,7 @@ struct FInstanceSceneShaderData
 	(
 		uint32 PrimitiveId,
 		uint32 RelativeId,
-		uint32 PayloadDataFlags,
+		uint32 InstanceFlags,
 		uint32 LastUpdateFrame,
 		uint32 CustomDataCount,
 		float RandomID
@@ -111,7 +122,7 @@ struct FInstanceSceneShaderData
 	(
 		uint32 PrimitiveId,
 		uint32 RelativeId,
-		uint32 PayloadDataFlags,
+		uint32 InstanceFlags,
 		uint32 LastUpdateFrame,
 		uint32 CustomDataCount,
 		float RandomID,
@@ -124,7 +135,7 @@ struct FInstanceSceneShaderData
 	(
 		uint32 PrimitiveId,
 		uint32 RelativeId,
-		uint32 PayloadDataFlags,
+		uint32 InstanceFlags,
 		uint32 LastUpdateFrame,
 		uint32 CustomDataCount,
 		float RandomID,

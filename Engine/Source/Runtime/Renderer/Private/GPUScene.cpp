@@ -307,7 +307,7 @@ struct FInstanceUploadInfo
 	FPrimitiveInstance DummyInstance;
 	FRenderBounds DummyLocalBounds;
 
-	uint32 PayloadDataFlags = 0x0;
+	uint32 InstanceFlags = 0x0;
 
 	FRenderTransform PrimitiveToWorld;
 	FRenderTransform PrevPrimitiveToWorld;
@@ -318,14 +318,14 @@ struct FInstanceUploadInfo
 void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, const FGPUSceneBufferState& BufferState)
 {
 #if DO_CHECK
-	const bool bHasRandomID			= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
-	const bool bHasCustomData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
-	const bool bHasDynamicData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
-	const bool bHasLightShadowUVBias = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
-	const bool bHasHierarchyOffset	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
-	const bool bHasLocalBounds		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
+	const bool bHasRandomID			= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
+	const bool bHasCustomData		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
+	const bool bHasDynamicData		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
+	const bool bHasLightShadowUVBias = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
+	const bool bHasHierarchyOffset	= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
+	const bool bHasLocalBounds		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
 #if WITH_EDITOR
-	const bool bHasEditorData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
+	const bool bHasEditorData		= (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
 #endif
 
 	const int32 InstanceCount = UploadInfo.PrimitiveInstances.Num();
@@ -484,7 +484,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.PrevPrimitiveToWorld = FLargeWorldRenderScalar::MakeClampedToRelativeWorldMatrix(AbsoluteOrigin.GetTileOffset(), PreviousLocalToWorld);;
 		}
 
-		InstanceUploadInfo.PayloadDataFlags = PrimitiveSceneProxy->GetPayloadDataFlags();
+		InstanceUploadInfo.InstanceFlags = PrimitiveSceneProxy->GetInstanceSceneDataFlags();
 		InstanceUploadInfo.InstanceLocalBounds = PrimitiveSceneProxy->GetInstanceLocalBounds();
 		if (InstanceUploadInfo.InstanceLocalBounds.Num() == 0)
 		{
@@ -507,7 +507,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 		}
 		else
 		{
-			check(InstanceUploadInfo.PayloadDataFlags == 0x0);
+			checkf((InstanceUploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_PAYLOAD_MASK) == 0x0, TEXT("Proxy must support instance data buffer to use payload data"));
 			check(InstanceUploadInfo.InstancePayloadDataOffset == INDEX_NONE && InstanceUploadInfo.InstancePayloadDataStride == 0);
 
 			// We always create an instance to ensure that we can always use the same code paths in the shader
@@ -1299,13 +1299,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 								const FPrimitiveInstance& SceneData = UploadInfo.PrimitiveInstances[InstanceIndex];
 
 								// Directly embedded in instance scene data
-								const float RandomID = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
+								const float RandomID = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
 
 								FInstanceSceneShaderData InstanceSceneData;
 								InstanceSceneData.Build(
 									UploadInfo.PrimitiveID,
 									InstanceIndex,
-									UploadInfo.PayloadDataFlags,
+									UploadInfo.InstanceFlags,
 									UploadInfo.LastUpdateSceneFrameNumber,
 									UploadInfo.InstanceCustomDataCount,
 									RandomID,
@@ -1334,16 +1334,16 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 									int32 PayloadPosition = 0;
 
-									if (UploadInfo.PayloadDataFlags & (INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET | INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS | INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA))
+									if (UploadInfo.InstanceFlags & (INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET | INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS | INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA))
 									{
-										const uint32 InstanceHierarchyOffset = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
+										const uint32 InstanceHierarchyOffset = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
 										InstancePayloadData[PayloadPosition].X = *(const float*)&InstanceHierarchyOffset;
 
 #if WITH_EDITOR
-										const uint32 InstanceEditorData = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) ? UploadInfo.InstanceEditorData[InstanceIndex] : 0;
+										const uint32 InstanceEditorData = (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) ? UploadInfo.InstanceEditorData[InstanceIndex] : 0;
 										InstancePayloadData[PayloadPosition].Y = *(const float*)&InstanceEditorData;
 #endif
-										if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS)
+										if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS)
 										{
 											check(UploadInfo.InstanceLocalBounds.Num() == UploadInfo.PrimitiveInstances.Num());
 											const FRenderBounds& InstanceLocalBounds = UploadInfo.InstanceLocalBounds[InstanceIndex];
@@ -1359,10 +1359,10 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											InstancePayloadData[PayloadPosition + 1].W = *(const float*)&BoundsExtent.Z;
 										}
 
-										PayloadPosition += (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) ? 2 : 1;
+										PayloadPosition += (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) ? 2 : 1;
 									}
 
-									if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+									if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
 									{
 										check(UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num());
 										const FRenderTransform PrevLocalToWorld = UploadInfo.InstanceDynamicData[InstanceIndex].ComputePrevLocalToWorld(UploadInfo.PrevPrimitiveToWorld);
@@ -1380,14 +1380,14 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 									#endif
 									}
 
-									if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)
+									if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)
 									{
 										check(UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num());
 										InstancePayloadData[PayloadPosition] = UploadInfo.InstanceLightShadowUVBias[InstanceIndex];
 										PayloadPosition += 1;
 									}
 
-									if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
+									if (UploadInfo.InstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
 									{
 										check(PayloadPosition + (UploadInfo.InstanceCustomDataCount >> 2u) <= InstancePayloadData.Num());
 										const float* CustomDataGetPtr = &UploadInfo.InstanceCustomData[(InstanceIndex * UploadInfo.InstanceCustomDataCount)];
@@ -1603,7 +1603,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.InstancePayloadDataOffset	= PrimData.LocalPayloadDataOffset == INDEX_NONE ? INDEX_NONE : PayloadStartOffset + PrimData.LocalPayloadDataOffset;
 			InstanceUploadInfo.InstancePayloadDataStride	= PrimData.SourceData.GetPayloadFloat4Stride();
 			InstanceUploadInfo.InstanceCustomDataCount		= PrimData.SourceData.NumInstanceCustomDataFloats;
-			InstanceUploadInfo.PayloadDataFlags				= PrimData.SourceData.PayloadDataFlags;
+			InstanceUploadInfo.InstanceFlags                = PrimData.SourceData.PayloadDataFlags;
 			InstanceUploadInfo.PrimitiveInstances 			= PrimData.SourceData.InstanceSceneData;
 			InstanceUploadInfo.InstanceDynamicData 			= PrimData.SourceData.InstanceDynamicData;
 			InstanceUploadInfo.InstanceCustomData 			= PrimData.SourceData.InstanceCustomData;

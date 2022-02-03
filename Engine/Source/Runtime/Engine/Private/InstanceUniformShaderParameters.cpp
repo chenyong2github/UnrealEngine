@@ -8,20 +8,20 @@ void FInstanceSceneShaderData::Build
 (
 	uint32 PrimitiveId,
 	uint32 RelativeId,
-	uint32 PayloadDataFlags,
+	uint32 InstanceFlags,
 	uint32 LastUpdateFrame,
 	uint32 CustomDataCount,
 	float RandomID
 )
 {
-	BuildInternal(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity, FRenderTransform::Identity);
+	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity, FRenderTransform::Identity);
 }
 
 void FInstanceSceneShaderData::Build
 (
 	uint32 PrimitiveId,
 	uint32 RelativeId,
-	uint32 PayloadDataFlags,
+	uint32 InstanceFlags,
 	uint32 LastUpdateFrame,
 	uint32 CustomDataCount,
 	float RandomID,
@@ -37,14 +37,14 @@ void FInstanceSceneShaderData::Build
 	LocalToWorld.Orthogonalize();
 	PrevLocalToWorld.Orthogonalize(); // TODO: Temporary PrevVelocityHack
 
-	BuildInternal(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld, PrevLocalToWorld);
+	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld, PrevLocalToWorld);
 }
 
 void FInstanceSceneShaderData::BuildInternal
 (
 	uint32 PrimitiveId,
 	uint32 RelativeId,
-	uint32 PayloadDataFlags,
+	uint32 InstanceFlags,
 	uint32 LastUpdateFrame,
 	uint32 CustomDataCount,
 	float RandomID,
@@ -54,7 +54,6 @@ void FInstanceSceneShaderData::BuildInternal
 {
 	// Note: layout must match GetInstanceData in SceneData.ush and InitializeInstanceSceneData in GPUSceneWriter.ush
 
-	uint32 InstanceFlags = PayloadDataFlags;
 	if (LocalToWorld.RotDeterminant() < 0.0f)
 	{
 		InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;

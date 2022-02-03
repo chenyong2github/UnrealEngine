@@ -663,20 +663,21 @@ public:
 			bHasPerInstanceHierarchyOffset;
 	}
 
-	inline uint32 GetPayloadDataFlags()
+	inline uint32 GetInstanceSceneDataFlags()
 	{
-		uint32 PayloadDataFlags = 0x0;
-		PayloadDataFlags |= HasPerInstanceRandom()          ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM				: 0u;
-		PayloadDataFlags |= HasPerInstanceCustomData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			: 0u;
-		PayloadDataFlags |= HasPerInstanceDynamicData()     ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			: 0u;
-		PayloadDataFlags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	: 0u;
-		PayloadDataFlags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		: 0u;
-		PayloadDataFlags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			: 0u;
+		uint32 Flags = 0x0;
+		Flags |= HasPerInstanceRandom()          ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM              : 0u;
+		Flags |= HasPerInstanceCustomData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA         : 0u;
+		Flags |= HasPerInstanceDynamicData()     ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA        : 0u;
+		Flags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
+		Flags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET    : 0u;
+		Flags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS        : 0u;
 #if WITH_EDITOR
-		PayloadDataFlags |= HasPerInstanceEditorData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			: 0u;
+		Flags |= HasPerInstanceEditorData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA         : 0u;
 #endif
+		Flags |= IsRayTracingFarField()          ? INSTANCE_SCENE_DATA_FLAG_IS_RAYTRACING_FAR_FIELD : 0u;
 
-		return PayloadDataFlags;
+		return Flags;
 	}
 
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }

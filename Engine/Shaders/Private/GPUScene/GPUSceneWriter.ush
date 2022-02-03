@@ -100,12 +100,11 @@ void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool Stor
  	uint InstanceId,
  	uint PrimitiveId,
  	uint InstanceRelativeId,
- 	uint PayloadDataFlags,
+ 	uint InstanceFlags, // combination of INSTANCE_SCENE_DATA_FLAG_
  	uint CustomDataCount,
  	float RandomId,
  	float4x4 LocalToWorld)
  {
- 	uint InstanceFlags = PayloadDataFlags;
  	SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToWorld), InstanceFlags);
  	
  	float4 Element0 =
