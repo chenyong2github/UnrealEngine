@@ -1785,13 +1785,25 @@ FString FSaveGameNetworkReplayStreamer::GetFullPlaybackName() const
 
 FString FSaveGameNetworkReplayStreamer::GetLocalPlaybackName() const
 {
-	return FPaths::Combine(TEXT("Temp/"), PlaybackReplayName);
+	return FPaths::Combine(GetTempDemoRelativeSavePath(), PlaybackReplayName);
+}
+
+TArrayView<const FString> FSaveGameNetworkReplayStreamer::GetAdditionalRelativeDemoPaths() const
+{
+	return MakeArrayView(&GetTempDemoRelativeSavePath(), 1);
 }
 
 const FString& FSaveGameNetworkReplayStreamer::GetDefaultDemoSavePath()
 {
 	static const FString DefaultDemoSavePath = FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("Demos/"));
 	return DefaultDemoSavePath;
+}
+
+const FString& FSaveGameNetworkReplayStreamer::GetTempDemoRelativeSavePath()
+{
+	// Allow for cleanup of the local playback.replay file if needed
+	static const FString TempDemoSavePath(TEXT("Temp/"));
+	return TempDemoSavePath;
 }
 
 const FString& FSaveGameNetworkReplayStreamer::GetDefaultPlaybackName()
@@ -1817,7 +1829,9 @@ IMPLEMENT_MODULE(FSaveGameNetworkReplayStreamingFactory, SaveGameNetworkReplaySt
 
 void FSaveGameNetworkReplayStreamingFactory::StartupModule()
 {
-	FSaveGameNetworkReplayStreamer::CleanUpOldReplays(FSaveGameNetworkReplayStreamer::GetDefaultDemoSavePath());
+	FSaveGameNetworkReplayStreamer::CleanUpOldReplays(
+		FSaveGameNetworkReplayStreamer::GetDefaultDemoSavePath(),
+		MakeArrayView(&FSaveGameNetworkReplayStreamer::GetTempDemoRelativeSavePath(), 1));
 }
 
 TSharedPtr<INetworkReplayStreamer> FSaveGameNetworkReplayStreamingFactory::CreateReplayStreamer()

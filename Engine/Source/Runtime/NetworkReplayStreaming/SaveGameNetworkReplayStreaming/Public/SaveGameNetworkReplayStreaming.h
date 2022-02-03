@@ -123,6 +123,8 @@ protected:
 	FString GetFullPlaybackName() const;
 	FString GetLocalPlaybackName() const;
 
+	virtual TArrayView<const FString> GetAdditionalRelativeDemoPaths() const override;
+
 	struct FSaveGameOptionInfo
 	{
 		EGameDelegates_SaveGame Option;
@@ -151,6 +153,7 @@ protected:
 	const FString PlaybackReplayName;
 
 	static const FString& GetDefaultDemoSavePath();
+	static const FString& GetTempDemoRelativeSavePath();
 	static const FString& GetDefaultPlaybackName();
 
 private:

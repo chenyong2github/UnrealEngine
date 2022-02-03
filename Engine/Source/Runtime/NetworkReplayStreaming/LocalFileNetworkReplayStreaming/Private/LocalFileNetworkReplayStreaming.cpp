@@ -2640,7 +2640,7 @@ bool FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace(uint64& DiskFreeSp
 
 		if (!bActualStorageQueryResult)
 		{
-			UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to determine free space in %s."), *DemoPath);
+			UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace. Unable to determine free space in %s."), *DemoPath);
 			return false;
 		}
 	}
@@ -2649,7 +2649,7 @@ bool FLocalFileNetworkReplayStreamer::GetDemoFreeStorageSpace(uint64& DiskFreeSp
 	return true;
 }
 
-bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath)
+bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath, TArrayView<const FString> AdditionalRelativeDemoPaths)
 {
 	const int32 MaxDemos = FNetworkReplayStreaming::GetMaxNumberOfAutomaticReplays();
 	const bool bUnlimitedDemos = (MaxDemos <= 0);
@@ -2670,34 +2670,35 @@ bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath)
 
 		uint64 MinFreeSpace = LocalFileReplay::CVarReplayRecordingMinSpace.GetValueOnAnyThread();
 
-		const FString WildCardPath = GetDemoFullFilename(DemoPath, AutoPrefix + FString(TEXT("*")));
-
-		TArray<FString> FoundAutoReplays;
-		FileManager.FindFiles(FoundAutoReplays, *WildCardPath, /* bFiles= */ true, /* bDirectories= */ false);
-
 		// build an array of replay info sorted by timestamps
 		struct FAutoReplayInfo
 		{
-			const FString* Path;
-			FDateTime		TimeStamp;
+			FString		Path;
+			FDateTime	TimeStamp;
 
 			// sort by timestamp (reverse order to get newest->oldest)
-			bool operator < (const FAutoReplayInfo& Other) const
+			bool operator<(const FAutoReplayInfo& Other) const
 			{
 				return Other.TimeStamp < TimeStamp;
 			}
 		};
+		
+		// All the replays in the base DemoPath come first
 		TArray<FAutoReplayInfo> SortedAutoReplays;
-		SortedAutoReplays.Reserve(FoundAutoReplays.Num());
-		for (FString& AutoReplay : FoundAutoReplays)
 		{
-			// Convert the replay name to a full path, making sure to remove the file extension
-			// that GetDemoFullFilename will add.
-			AutoReplay = GetDemoFullFilename(DemoPath, AutoReplay); // DL: this makes me sick... we know the full path because we passed it in above..
-			AutoReplay.RemoveFromEnd(FNetworkReplayStreaming::GetReplayFileExtension());
+			const FString WildCardPath = GetDemoFullFilename(DemoPath, AutoPrefix + FString(TEXT("*")));
 
-			FDateTime Timestamp = FileManager.GetTimeStamp(*AutoReplay);
-			SortedAutoReplays.Add({ &AutoReplay, Timestamp });
+			TArray<FString> FoundAutoReplays;
+			FileManager.FindFiles(FoundAutoReplays, *WildCardPath, /* bFiles= */ true, /* bDirectories= */ false);
+
+			SortedAutoReplays.Reserve(SortedAutoReplays.Num() + FoundAutoReplays.Num());
+			for (const FString& AutoReplay : FoundAutoReplays)
+			{
+				// Rebuild full path
+				FString AutoReplayPath = FPaths::Combine(DemoPath, AutoReplay);
+				FDateTime Timestamp = FileManager.GetTimeStamp(*AutoReplayPath);
+				SortedAutoReplays.Add({ MoveTemp(AutoReplayPath), Timestamp });
+			}
 		}
 		SortedAutoReplays.Sort();
 
@@ -2706,24 +2707,69 @@ bool FLocalFileNetworkReplayStreamer::CleanUpOldReplays(const FString& DemoPath)
 			((TotalDiskFreeSpace < MinFreeSpace) || (SortedAutoReplays.Num() >= MaxDemos)))
 		{
 			// find and delete the oldest replay
-			const FString* OldestReplay = SortedAutoReplays[SortedAutoReplays.Num() - 1].Path;
-			SortedAutoReplays.Pop(false);
+			const FAutoReplayInfo OldestReplay = SortedAutoReplays.Pop(false);
 
-			check(OldestReplay != nullptr);
-
-			// Try deleting the replay, return an empty string to indicate failure.
-			if (!ensureMsgf(FileManager.Delete(**OldestReplay, /*bRequireExists=*/ true, /*bEvenIfReadOnly=*/ true), TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName: Failed to delete old replay %s"), **OldestReplay))
+			// Try deleting the replay
+			if (!ensureMsgf(FileManager.Delete(*OldestReplay.Path, /*bRequireExists=*/ true, /*bEvenIfReadOnly=*/ true), TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays: Failed to delete old replay %s"), *OldestReplay.Path))
 			{
-				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to delete old replay %s."), **OldestReplay);
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays. Unable to delete old replay %s."), *OldestReplay.Path);
 				return false;
 			}
 
 			if (!GetDemoFreeStorageSpace(TotalDiskFreeSpace, DemoPath))
 			{
-				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GetAutomaticDemoName. Unable to refresh free space in %s."), *DemoPath);
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays. Unable to refresh free space in %s."), *DemoPath);
 				return false;
 			}
 		}
+
+		if (TotalDiskFreeSpace >= MinFreeSpace)
+		{
+			return true;
+		}
+
+		// Only delete additional replays if there is still not enough space
+		TArray<FAutoReplayInfo> SortedAdditionalAutoReplays;
+		for (const FString& RelPath : AdditionalRelativeDemoPaths)
+		{
+			const FString Path = FPaths::Combine(DemoPath, RelPath);
+			const FString AdditionalWildCardPath = GetDemoFullFilename(Path, TEXT("*"));
+
+			TArray<FString> FoundAdditionalReplays;
+			FileManager.FindFiles(FoundAdditionalReplays, *AdditionalWildCardPath, /* bFiles= */ true, /* bDirectories= */ false);
+
+			SortedAdditionalAutoReplays.Reserve(SortedAdditionalAutoReplays.Num() + FoundAdditionalReplays.Num());
+			for (const FString& AutoReplay : FoundAdditionalReplays)
+			{
+				// Rebuild full path
+				FString AutoReplayPath = FPaths::Combine(Path, AutoReplay);
+				FDateTime Timestamp = FileManager.GetTimeStamp(*AutoReplayPath);
+				SortedAdditionalAutoReplays.Add({ MoveTemp(AutoReplayPath), Timestamp });
+			}
+		}
+		SortedAdditionalAutoReplays.Sort();
+
+		// remove oldest replays until we have enough space to record again
+		while (SortedAdditionalAutoReplays.Num() && (TotalDiskFreeSpace < MinFreeSpace))
+		{
+			// find and delete the oldest replay
+			const FAutoReplayInfo OldestReplay = SortedAdditionalAutoReplays.Pop(false);
+
+			// Try deleting the replay
+			if (!ensureMsgf(FileManager.Delete(*OldestReplay.Path, /*bRequireExists=*/ true, /*bEvenIfReadOnly=*/ true), TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays: Failed to delete old replay %s"), *OldestReplay.Path))
+			{
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays. Unable to delete old replay %s."), *OldestReplay.Path);
+				return false;
+			}
+
+			if (!GetDemoFreeStorageSpace(TotalDiskFreeSpace, DemoPath))
+			{
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::CleanUpOldReplays. Unable to refresh free space in %s."), *DemoPath);
+				return false;
+			}
+		}
+
+		return TotalDiskFreeSpace >= MinFreeSpace;
 	}
 	return true;
 }
@@ -2741,7 +2787,7 @@ FString FLocalFileNetworkReplayStreamer::GetAutomaticDemoName() const
 
 	if (bUseDatePostfix)
 	{
-		if (CleanUpOldReplays(GetDemoPath()) == false)
+		if (CleanUpOldReplays(GetDemoPath(), GetAdditionalRelativeDemoPaths()) == false)
 		{
 			return FString();
 		}

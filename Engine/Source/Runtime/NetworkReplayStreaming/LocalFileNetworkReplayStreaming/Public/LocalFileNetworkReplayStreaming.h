@@ -625,6 +625,8 @@ protected:
 	virtual TSharedPtr<FArchive> CreateLocalFileWriterForOverwrite(const FString& InFilename) const;
 
 	FString GetDemoPath() const;
+	// Must be relative to the base demo path
+	virtual TArrayView<const FString> GetAdditionalRelativeDemoPaths() const { return {}; }
 	FString GetDemoFullFilename(const FString& FileName) const;
 
 	// Returns a name formatted as "demoX", where X is between 1 and MAX_DEMOS, inclusive.
@@ -671,7 +673,7 @@ protected:
 public:
 	static const FString& GetDefaultDemoSavePath();
 	static FString GetDemoFullFilename(const FString& DemoPath, const FString& FileName);
-	static bool CleanUpOldReplays(const FString& DemoPath = GetDefaultDemoSavePath());
+	static bool CleanUpOldReplays(const FString& DemoPath = GetDefaultDemoSavePath(), TArrayView<const FString> AdditionalRelativeDemoPaths = {});
 	static bool GetDemoFreeStorageSpace(uint64& DiskFreeSpace, const FString& DemoPath);
 
 
