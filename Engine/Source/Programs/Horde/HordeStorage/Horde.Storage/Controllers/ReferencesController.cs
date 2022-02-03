@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
@@ -24,6 +23,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using Serilog;
 
 namespace Horde.Storage.Controllers
@@ -589,7 +589,7 @@ namespace Horde.Storage.Controllers
     public class RefMetadataResponse
     {
         [JsonConstructor]
-        public RefMetadataResponse(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier payloadIdentifier, DateTime lastAccess, bool isFinalized)
+        public RefMetadataResponse(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier payloadIdentifier, DateTime lastAccess, bool isFinalized, byte[]? inlinePayload)
         {
             Ns = ns;
             Bucket = bucket;
@@ -597,6 +597,7 @@ namespace Horde.Storage.Controllers
             PayloadIdentifier = payloadIdentifier;
             LastAccess = lastAccess;
             IsFinalized = isFinalized;
+            InlinePayload = inlinePayload;
         }
 
         public RefMetadataResponse(ObjectRecord objectRecord)
@@ -607,6 +608,7 @@ namespace Horde.Storage.Controllers
             PayloadIdentifier = objectRecord.BlobIdentifier;
             LastAccess = objectRecord.LastAccess;
             IsFinalized = objectRecord.IsFinalized;
+            InlinePayload = objectRecord.InlinePayload;
         }
 
         public NamespaceId Ns { get; set; }
@@ -615,6 +617,7 @@ namespace Horde.Storage.Controllers
         public BlobIdentifier PayloadIdentifier { get; set; }
         public DateTime LastAccess { get; set; }
         public bool IsFinalized { get; set; }
+        public byte[]? InlinePayload { get; set; }
     }
 
     public class PutObjectResponse

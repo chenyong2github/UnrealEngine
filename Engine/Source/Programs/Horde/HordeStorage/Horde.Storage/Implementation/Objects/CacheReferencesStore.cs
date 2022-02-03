@@ -11,8 +11,10 @@ using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Jupiter.Implementation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Jupiter;
 
 namespace Horde.Storage.Implementation
 {
@@ -41,7 +43,9 @@ namespace Horde.Storage.Implementation
                 // not cached, we check the upstream for it
             }
  
-            return await _upstreamReferenceStore.Get(ns, bucket, key, flags);
+            ObjectRecord record = await _upstreamReferenceStore.Get(ns, bucket, key, flags);
+            await _mongoReferenceStore.Put(record.Namespace, record.Bucket, record.Name, record.BlobIdentifier, record.InlinePayload, record.IsFinalized);
+            return record;
         }
 
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
@@ -52,10 +56,10 @@ namespace Horde.Storage.Implementation
             await Task.WhenAll(cachePut, upstreamPut);
         }
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier)
         {
-            Task cacheFinalize = _mongoReferenceStore.Finalize(ns, bucket, key);
-            Task upstreamFinalize = _upstreamReferenceStore.Finalize(ns, bucket, key);
+            Task cacheFinalize = _mongoReferenceStore.Finalize(ns, bucket, key, blobIdentifier);
+            Task upstreamFinalize = _upstreamReferenceStore.Finalize(ns, bucket, key, blobIdentifier);
 
             await Task.WhenAll(cacheFinalize, upstreamFinalize);
         }
@@ -112,7 +116,7 @@ namespace Horde.Storage.Implementation
 
             RefMetadataResponse metadataResponse = await response.Content.ReadAsAsync<RefMetadataResponse>();
 
-            return new ObjectRecord(metadataResponse.Ns, metadataResponse.Bucket, metadataResponse.Name, metadataResponse.LastAccess, null, metadataResponse.PayloadIdentifier, metadataResponse.IsFinalized);
+            return new ObjectRecord(metadataResponse.Ns, metadataResponse.Bucket, metadataResponse.Name, metadataResponse.LastAccess, metadataResponse.InlinePayload, metadataResponse.PayloadIdentifier, metadataResponse.IsFinalized);
         }
 
         public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
@@ -121,19 +125,32 @@ namespace Horde.Storage.Implementation
             putObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Json);
             putObjectRequest.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
             putObjectRequest.Content = new ByteArrayContent(blob);
-            putObjectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+            // a blob sent to the reference store is always by definition a compact binary, so we upload it as such to avoid any automatic conversions that we would get with octet-stream
+            putObjectRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
             HttpResponseMessage response = await HttpClient.SendAsync(putObjectRequest);
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                ProblemDetails? problem = await response.Content.ReadAsAsync<ProblemDetails>();
+                throw new Exception("Upstream returned 400 (BadRequest) with error: " + problem.Title);
+            }
             response.EnsureSuccessStatusCode();
 
             // if this put returns needs, we cant really do anything about it. we should be calling put in the upstream blob store as the operation continues and we should be able to catch the missing blobs during the finalize call
         }
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier)
         {
-            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Put, $"api/v1/refs/{ns}/{bucket}/{key}");
+            HttpRequestMessage putObjectRequest = BuildHttpRequest(HttpMethod.Post, $"api/v1/refs/{ns}/{bucket}/{key}/finalize/{blobIdentifier}");
             putObjectRequest.Headers.Add("Accept", MediaTypeNames.Application.Json);
+
             HttpResponseMessage response = await HttpClient.SendAsync(putObjectRequest);
+
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                ProblemDetails? problem = await response.Content.ReadAsAsync<ProblemDetails>();
+                throw new Exception("Upstream returned 400 (BadRequest) with error: " + problem.Title);
+            }
             response.EnsureSuccessStatusCode();
 
             PutObjectResponse putObjectResponse = await response.Content.ReadAsAsync<PutObjectResponse>();

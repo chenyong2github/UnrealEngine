@@ -134,7 +134,7 @@ namespace Horde.Storage.Implementation
             {
                 try
                 {
-                    await _referencesStore.Finalize(ns, bucket, key);
+                    await _referencesStore.Finalize(ns, bucket, key, blobHash);
                 }
                 catch (PartialReferenceResolveException e)
                 {
@@ -186,7 +186,7 @@ namespace Horde.Storage.Implementation
 
             if (missingReferences.Length == 0 && missingBlobs.Length == 0)
             {
-                await _referencesStore.Finalize(ns, bucket, key);
+                await _referencesStore.Finalize(ns, bucket, key, blobHash);
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 

@@ -45,7 +45,7 @@ namespace Horde.Storage.Implementation
             return Task.FromResult(o);
         }
 
-        public Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier)
         {
             if (!_objects.TryGetValue(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {

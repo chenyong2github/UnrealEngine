@@ -54,12 +54,12 @@ namespace Horde.Storage.Implementation
             return model.ToObjectRecord();
         }
 
-        public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
+        public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[]? blob, bool isFinalized)
         {
             IMongoCollection<MongoReferencesModelV0> collection = GetCollection<MongoReferencesModelV0>();
 
             //if (blob.LongLength > _settings.CurrentValue.InlineBlobMaxSize)
-            if (blob.LongLength > 64_000) // TODO: add a setting to control this
+            if (blob != null && blob.LongLength > 64_000) // TODO: add a setting to control this
             {
                 // do not inline large blobs
                 blob = Array.Empty<byte>();
@@ -78,7 +78,7 @@ namespace Horde.Storage.Implementation
             await addNamespaceTask;
         }
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier)
         {
             IMongoCollection<MongoReferencesModelV0> collection = GetCollection<MongoReferencesModelV0>();
 
@@ -211,7 +211,7 @@ namespace Horde.Storage.Implementation
             LastAccessTime = lastAccessTime;
         }
 
-        public MongoReferencesModelV0(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier, byte[] blob, bool isFinalized, DateTime lastAccessTime)
+        public MongoReferencesModelV0(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobIdentifier, byte[]? blob, bool isFinalized, DateTime lastAccessTime)
         {
             Ns = ns.ToString();
             Bucket = bucket.ToString();
@@ -238,7 +238,7 @@ namespace Horde.Storage.Implementation
         [BsonRequired]
         public DateTime LastAccessTime { get; set; }
 
-        public byte[] InlineBlob { get; set; }
+        public byte[]? InlineBlob { get; set; }
 
         public ObjectRecord ToObjectRecord()
         {

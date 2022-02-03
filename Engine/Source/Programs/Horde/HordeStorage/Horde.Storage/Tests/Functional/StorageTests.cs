@@ -16,6 +16,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Azure.Storage.Blobs;
 using Dasync.Collections;
+using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Jupiter;
@@ -32,7 +33,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
-using EpicGames.Horde.Storage;
 
 namespace Horde.Storage.FunctionalTests.Storage
 {

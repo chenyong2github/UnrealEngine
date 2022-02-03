@@ -111,7 +111,7 @@ namespace Horde.Storage.Implementation
         }
 
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobIdentifier)
         {
             using IScope _ = Tracer.Instance.StartActive("scylla.finalize");
 
