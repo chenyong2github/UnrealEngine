@@ -267,12 +267,14 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 			})
 	);
 
+	TSharedRef<SWidget> MenuBarWidget = MenuBarBuilder.MakeWidget();
+
 	NomadTab->SetContent(
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			MenuBarBuilder.MakeWidget()
+			MenuBarWidget
 		]
 		+SVerticalBox::Slot()
 		[
@@ -284,6 +286,9 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 			]
 		]
 	);
+
+	// Tell tab-manager about the multi-box for platforms with a global menu bar
+	DebuggingToolsTabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuBarWidget);
 
 	return NomadTab;
 }
