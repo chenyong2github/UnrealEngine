@@ -1884,7 +1884,7 @@ TTuple<EScriptSource, FText> FNiagaraEditorUtilities::GetScriptSource(const FAss
 	FString PackagePathLocal ="";
 	FPackageName::TryConvertGameRelativePackagePathToLocalPath(ScriptAssetData.PackagePath.ToString(), PackagePathLocal);
 
-	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir() / TEXT("FX/Niagara")))
+	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir() / TEXT("FX")))
 	{
 		int32 ContentFoundIndex = PackagePathLocal.Find(TEXT("/Content"));
 

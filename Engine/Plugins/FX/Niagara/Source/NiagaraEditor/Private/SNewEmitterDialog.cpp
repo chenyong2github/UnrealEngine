@@ -20,6 +20,7 @@ void SNewEmitterDialog::Construct(const FArguments& InArgs)
 	FNiagaraAssetPickerListViewOptions DisplayAllViewOptions;
 	DisplayAllViewOptions.SetExpandTemplateAndLibraryAssets(true);
 	DisplayAllViewOptions.SetCategorizeLibraryAssets(true);
+	DisplayAllViewOptions.SetCategorizeUserDefinedCategory(true);
 	DisplayAllViewOptions.SetAddLibraryOnlyCheckbox(true);
 
 	SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions TabOptions;
