@@ -1716,6 +1716,11 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 		if (SkeletonBoneIndex >= IndexToBodyNum)
 		{
 			bHasInvalidBoneReference = true;
+
+			// DEBUG Temporary message to investigate cook only warning - FORT-444376 - to be removed
+			UE_LOG(LogAnimation, Warning, TEXT("FAnimNode_RigidBody::InitializeBoneReferences: [DEBUG] SkeletonBoneIndex: %i (from RequiredBone: %i) is out of bounds [0, %i] in Skeleton %s"),
+				SkeletonBoneIndex, Index, IndexToBodyNum, *GetNameSafe(RequiredBones.GetSkeletonAsset()));
+
 			break;
 		}
 
@@ -1747,6 +1752,11 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 				if (SkeletonParentBoneIndex >= IndexToBodyNum)
 				{
 					bHasInvalidBoneReference = true;
+
+					// DEBUG Temporary message to investigate cook only warning - FORT-444376 - to be removed
+					UE_LOG(LogAnimation, Warning, TEXT("FAnimNode_RigidBody::InitializeBoneReferences: [DEBUG] SkeletonParentBoneIndex: %i (from RequiredBone: %i) is out of bounds [0, %i] in Skeleton %s"),
+						SkeletonParentBoneIndex, Index, IndexToBodyNum, *GetNameSafe(RequiredBones.GetSkeletonAsset()));
+
 					break;
 				}
 
