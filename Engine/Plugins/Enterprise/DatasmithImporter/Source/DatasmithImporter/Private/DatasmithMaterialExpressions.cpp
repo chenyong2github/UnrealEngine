@@ -3289,11 +3289,12 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 		case EDatasmithShadingModel::ThinTranslucent:
 			UnrealMaterial->SetShadingModel(MSM_ThinTranslucent);
 			break;
-
+		case EDatasmithShadingModel::Unlit:
+			UnrealMaterial->SetShadingModel(MSM_Unlit);
+			break;
 		default:
 			break;
 	}
-
 
 	if ( MaterialElement->GetOpacity().GetExpression() )
 	{

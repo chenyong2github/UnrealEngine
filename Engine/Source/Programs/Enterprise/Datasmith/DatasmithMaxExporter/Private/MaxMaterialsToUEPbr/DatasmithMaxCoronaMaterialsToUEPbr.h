@@ -19,3 +19,10 @@ public:
 	virtual bool IsSupported( Mtl* Material ) override;
 	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) override;
 };
+
+class FDatasmithMaxCoronaLightMaterialToUEPbr : public FDatasmithMaxMaterialsToUEPbrExpressions
+{
+public:
+	virtual bool IsSupported( Mtl* Material ) override;
+	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) override;
+};

@@ -88,3 +88,63 @@ public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const = 0;
 	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) = 0;
 };
+
+
+class IDatasmithMaterialExpression;
+class IDatasmithMaterialExpressionScalar;
+class IDatasmithMaterialExpressionColor;
+class IDatasmithMaterialExpressionGeneric;
+class IDatasmithExpressionInput;
+
+class FDatasmithMaxMaterialsToUEPbrExpressions: public FDatasmithMaxMaterialsToUEPbr
+{
+public:
+	TSharedPtr<IDatasmithUEPbrMaterialElement> GetMaterialElement();
+
+	IDatasmithMaterialExpressionScalar& Scalar(float Value);
+
+	IDatasmithMaterialExpressionColor& Color(const FLinearColor& Value);
+
+	IDatasmithMaterialExpression* WeightTextureOrScalar(const DatasmithMaxTexmapParser::FMapParameter& TextureWeight, float Weight);
+
+	IDatasmithMaterialExpressionGeneric& Add(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+
+	IDatasmithMaterialExpressionGeneric& Subtract(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+
+	IDatasmithMaterialExpressionGeneric& Multiply(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+
+	IDatasmithMaterialExpressionGeneric& Divide(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+
+	IDatasmithMaterialExpressionGeneric& Desaturate(IDatasmithMaterialExpression& A);
+
+	IDatasmithMaterialExpressionGeneric& Power(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+
+	IDatasmithMaterialExpressionGeneric& Lerp(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B, IDatasmithMaterialExpression& Alpha);
+
+	IDatasmithMaterialExpressionGeneric& Fresnel(IDatasmithMaterialExpression* Exponent=nullptr, IDatasmithMaterialExpression* BaseReflectFraction=nullptr); // Any input can be null
+
+
+	IDatasmithMaterialExpression* ApplyWeightExpression(IDatasmithMaterialExpression* ValueExpression, IDatasmithMaterialExpression* WeightExpression);
+
+	IDatasmithMaterialExpression& CalcIORComplex(double IORn, double IORk, IDatasmithMaterialExpression& ToBeConnected90, IDatasmithMaterialExpression& ToBeConnected0);
+
+
+	void Connect(IDatasmithExpressionInput& Input, IDatasmithMaterialExpression& ValueExpression);
+	bool Connect(IDatasmithExpressionInput& Input, IDatasmithMaterialExpression* ValueExpression); // Connect if not null
+
+	IDatasmithMaterialExpression* TextureOrColor(const TCHAR* Name,
+	                                             const DatasmithMaxTexmapParser::FMapParameter& Map, FLinearColor Color);
+
+	IDatasmithMaterialExpression* TextureOrScalar(const TCHAR* Name,
+	                                              const DatasmithMaxTexmapParser::FMapParameter& Map, float Value);
+
+	IDatasmithMaterialExpressionGeneric& OneMinus(IDatasmithMaterialExpression& Expression);
+};
+
+// Create expression from expression parameters when they are all non-null or return default value
+// Pass params by value in order to prevent statement creating expression to be evaluated twice
+// e.g. COMPOSE_OR_DEFAULT1(nullptr, Multiply, &Scalar(1.0), SomeExpression) won't create two expressions of each Scalar
+// Func should be a method of this of free function - so it can be just substituted 
+#define COMPOSE_OR_DEFAULT1(Default, Func, Param0) ([this](IDatasmithMaterialExpression* P0, IDatasmithMaterialExpression* D) {return P0 ? &Func(*P0) : D; } (Param0, Default))
+#define COMPOSE_OR_DEFAULT2(Default, Func, Param0, Param1) ([this](IDatasmithMaterialExpression* P0, IDatasmithMaterialExpression* P1, IDatasmithMaterialExpression* D) { return (P0 && P1) ? &Func(*P0, *P1) : D;} (Param0, Param1, Default))
+

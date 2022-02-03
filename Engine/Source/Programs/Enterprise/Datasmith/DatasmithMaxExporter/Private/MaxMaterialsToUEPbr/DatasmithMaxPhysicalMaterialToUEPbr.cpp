@@ -16,10 +16,6 @@ MAX_INCLUDES_START
 MAX_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 
-// Create expression from expression parameters when they are all non-null or return default value
-#define COMPOSE_OR_DEFAULT1(Default, Func, Param0) (Param0 ? &Func(*Param0) : Default)
-#define COMPOSE_OR_DEFAULT2(Default, Func, Param0, Param1) ((Param0 && Param1) ? &Func(*Param0, *Param1) : Default)
-
 TSharedPtr<IDatasmithUEPbrMaterialElement> FDatasmithMaxMaterialsToUEPbrExpressions::GetMaterialElement()
 {
 	return ConvertState.MaterialElement;

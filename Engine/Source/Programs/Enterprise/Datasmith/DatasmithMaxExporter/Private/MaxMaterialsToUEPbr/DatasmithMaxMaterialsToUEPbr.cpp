@@ -13,7 +13,6 @@
 #include "MaxMaterialsToUEPbr/DatasmithMaxVrayMaterialsToUEPbr.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxPhysicalMaterialToUEPbr.h"
 
-#define PHYSICALMATCLASS_UEPbr
 
 FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( Mtl* Material )
 {
@@ -65,14 +64,16 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxCoronaBlendMaterialToUEPbr CoronaConverter = FDatasmithMaxCoronaBlendMaterialToUEPbr();
 		MaterialConverter = &CoronaConverter;
 	}
-#ifdef PHYSICALMATCLASS_UEPbr
-
+	else if ( MaterialClassID == CORONALIGHTMATCLASS )
+	{
+		static FDatasmithMaxCoronaLightMaterialToUEPbr CoronaConverter = FDatasmithMaxCoronaLightMaterialToUEPbr();
+		MaterialConverter = &CoronaConverter;
+	}
 	else if (MaterialClassID == PHYSICALMATCLASS)
 	{
 		static FDatasmithMaxPhysicalMaterialToUEPbr PhysicalConverter = FDatasmithMaxPhysicalMaterialToUEPbr();
 		MaterialConverter = &PhysicalConverter;
 	}
-#endif
 
 	if ( MaterialConverter && MaterialConverter->IsSupported( Material ) )
 	{

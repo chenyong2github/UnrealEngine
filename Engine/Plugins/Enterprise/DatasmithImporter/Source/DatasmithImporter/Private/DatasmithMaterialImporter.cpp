@@ -121,7 +121,11 @@ namespace DatasmithMaterialImporterUtils
 
 		for ( int32 InputIndex = 0; InputIndex < MaterialExpression->GetInputCount(); ++InputIndex )
 		{
-			Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialExpression->GetInput( InputIndex ), VisitedExpressions ) );
+			IDatasmithExpressionInput* DatasmithExpressionInput = MaterialExpression->GetInput( InputIndex );
+			if(ensure(!DatasmithExpressionInput || (MaterialExpression != DatasmithExpressionInput->GetExpression()))) // Prevent infinite recursion when an expression has itself as input
+			{
+				Hash = HashCombine( Hash, ComputeExpressionInputHash( DatasmithExpressionInput, VisitedExpressions ) );
+			}
 		}
 
 		return Hash;
