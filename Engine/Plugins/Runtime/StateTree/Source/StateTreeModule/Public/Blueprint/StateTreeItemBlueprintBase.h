@@ -34,7 +34,7 @@ struct STATETREEMODULE_API FStateTreeBlueprintPropertyInfo
 	FName PropertyName;
 
 	UPROPERTY()
-	EStateTreeBlueprintPropertyCategory Category;
+	EStateTreeBlueprintPropertyCategory Category = EStateTreeBlueprintPropertyCategory::NotSet;
 };
 
 /** Struct use to copy external data to the Blueprint item instance, resolved during StateTree linking. */

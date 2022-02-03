@@ -75,7 +75,7 @@ struct FMassRepresentationConfig : public FMassSharedFragment
 
 	/** What should be the representation of this entity for each specific LOD */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
-	EMassRepresentationType LODRepresentation[EMassLOD::Max];
+	EMassRepresentationType LODRepresentation[EMassLOD::Max] = {};
 
 	/** If true, LowRes actors will be kept around, disabled, whilst StaticMeshInstance representation is active */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
