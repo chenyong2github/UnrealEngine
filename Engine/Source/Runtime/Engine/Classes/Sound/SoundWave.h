@@ -12,6 +12,7 @@
 #include "Misc/Guid.h"
 #include "Async/AsyncWork.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundWaveTimecodeInfo.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataBuffer.h"
 #include "Sound/SoundGroups.h"
@@ -713,6 +714,14 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITORONLY_DATA
+	
+	/** Information about the time-code from import, if available.  */
+	UPROPERTY()
+	FSoundWaveTimecodeInfo TimecodeInfo;
+
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString SourceFilePath_DEPRECATED;
 	
@@ -844,6 +853,11 @@ public:
 		ImportedSampleRate = InImportedSampleRate;
 #endif
 	}
+
+#if WITH_EDITORONLY_DATA
+	void SetTimecodeInfo(const FSoundWaveTimecodeInfo& InTimecode);
+	TOptional<FSoundWaveTimecodeInfo> GetTimecodeInfo() const;
+#endif //WITH_EDITORONLY_DATA	
 
 	/**
 	* Overwrite sample rate. Used for procedural soundwaves, as well as sound waves that are resampled on compress/decompress.

@@ -92,6 +92,7 @@ class USoundNode;
 struct FWaveInstance;
 struct FReverbSettings;
 struct FSampleLoop;
+struct FSoundWaveTimecodeInfo;
 
 enum ELoopingMode
 {
@@ -874,6 +875,9 @@ public:
 
 	// List of cues parsed from the wave file
 	TArray<FWaveCue> WaveCues;
+
+	// Timecode data if it was found on import.
+	TPimplPtr<FSoundWaveTimecodeInfo, EPimplPtrMode::DeepCopy> TimecodeInfo;
 
 	// Constructor.
 	FWaveModInfo()

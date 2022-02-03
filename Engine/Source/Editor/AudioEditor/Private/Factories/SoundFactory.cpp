@@ -325,13 +325,16 @@ UObject* USoundFactory::CreateObject
 			// Attempt to convert to 16 bit audio
 			if (Audio::ConvertAudioToWav(RawWaveData, ConvertedRawWaveData))
 			{
-				WaveInfo = FWaveModInfo();
+				// Icky, Reencoding with SNDFILE will strip the timecode info, so back it up.
+				auto CachedTimeCodeInfo = MoveTemp(WaveInfo.TimecodeInfo);
+				WaveInfo = FWaveModInfo();				
 				if (!WaveInfo.ReadWaveInfo(ConvertedRawWaveData.GetData(), ConvertedRawWaveData.Num(), &ErrorMessage))
 				{
 					Warn->Logf(ELogVerbosity::Error, TEXT("Failed to convert to 16 bit WAV source on import."));
 					GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 					return nullptr;
 				}
+				WaveInfo.TimecodeInfo = MoveTemp(CachedTimeCodeInfo);
 			}
 
 			// Copy over the data
@@ -554,6 +557,16 @@ UObject* USoundFactory::CreateObject
 			Sound->CuePoints.Add(NewCuePoint);
 		}
 
+		// If we've read some time-code.
+		if (WaveInfo.TimecodeInfo)
+		{
+			Sound->SetTimecodeInfo(*WaveInfo.TimecodeInfo);
+		}
+		else
+		{
+			Sound->SetTimecodeInfo(FSoundWaveTimecodeInfo{});
+		}
+				
 		// Compressed data is now out of date.
 		const bool bRebuildStreamingChunks = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 		Sound->InvalidateCompressedData(true /* bFreeResources */, bRebuildStreamingChunks);

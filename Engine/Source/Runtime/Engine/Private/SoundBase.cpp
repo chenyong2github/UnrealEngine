@@ -490,3 +490,22 @@ bool USoundBase::IsParameterValid(const FAudioParameter& InParameter) const
 
 	return true;
 }
+
+#if WITH_EDITORONLY_DATA
+
+void USoundBase::SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset)
+{
+	TimecodeOffset = InTimecodeOffset;
+}
+
+TOptional<FSoundTimecodeOffset> USoundBase::GetTimecodeOffset() const
+{
+	static const FSoundTimecodeOffset Defaults;
+	if(TimecodeOffset == Defaults)
+	{
+		return {};
+	}
+	return TimecodeOffset;
+}
+
+#endif //WITH_EDITORONLY_DATA

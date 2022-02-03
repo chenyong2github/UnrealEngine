@@ -7,6 +7,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundTimecodeOffset.h"
 #include "SoundConcurrency.h"
 #include "SoundModulationDestination.h"
 #include "SoundSourceBusSend.h"
@@ -196,6 +197,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Advanced)
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
+#if WITH_EDITORONLY_DATA	
+private:
+	UPROPERTY()
+	FSoundTimecodeOffset TimecodeOffset;
+#endif //WITH_EDITORONLY_DATA
+
 public:
 	//~ Begin UObject Interface.
 #if WITH_EDITORONLY_DATA
@@ -312,4 +319,9 @@ public:
 
 	/** Gets all the default parameters for this Asset.  */
 	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const { return false; }
+
+#if WITH_EDITORONLY_DATA
+	void SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset);
+	TOptional<FSoundTimecodeOffset> GetTimecodeOffset() const;
+#endif //WITH_EDITORONLY_DATA
 };

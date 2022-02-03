@@ -650,6 +650,32 @@ void USoundWave::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 
+#if WITH_EDITORONLY_DATA
+
+void USoundWave::SetTimecodeInfo(const FSoundWaveTimecodeInfo& InTimecode)
+{
+	// Keep editor info on the SoundWave.
+	TimecodeInfo = InTimecode;
+
+	// Set SoundBase offset.
+	FSoundTimecodeOffset Offset;
+	Offset.NumOfSecondsSinceMidnight = InTimecode.GetNumSecondsSinceMidnight();
+	SetTimecodeOffset(Offset);
+}
+
+TOptional<FSoundWaveTimecodeInfo> USoundWave::GetTimecodeInfo() const
+{
+	// Do we have any time-code info that's not the defaults?
+	static const FSoundWaveTimecodeInfo Defaults;
+	if(Defaults == TimecodeInfo)
+	{
+		return {};
+	}
+	return TimecodeInfo;
+}
+
+#endif //WITH_EDITORONLY_DATA
+
 int32 USoundWave::GetResourceSizeForFormat(FName Format)
 {
 	return GetCompressedDataSize(Format);
