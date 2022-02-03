@@ -2,6 +2,7 @@
 
 #include "DynamicMesh/ColliderMesh.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Distance/DistPoint3Triangle3.h"
 
 using namespace UE::Geometry;
 
@@ -129,5 +130,60 @@ int32 FColliderMesh::GetSourceTriangleID(int32 TriangleID) const
 	else
 	{
 		return (TriangleID >= 0 && TriangleID < SourceTriangleIDs.Num()) ? SourceTriangleIDs[TriangleID] : IndexConstants::InvalidID;
+	}
+}
+
+
+
+
+FVector3d FColliderMeshProjectionTarget::Project(const FVector3d& Point, int Identifier)
+{
+	double DistSqr;
+	int NearestTriID = ColliderMesh->GetAABBTree().FindNearestTriangle(Point, DistSqr);
+	if (NearestTriID < 0)
+	{
+		return Point;
+	}
+
+	FTriangle3d Triangle;
+	ColliderMesh->GetTriVertices(NearestTriID, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
+
+	FDistPoint3Triangle3d DistanceQuery(Point, Triangle);
+	DistanceQuery.GetSquared();
+	if (VectorUtil::IsFinite(DistanceQuery.ClosestTrianglePoint))
+	{
+		return DistanceQuery.ClosestTrianglePoint;
+	}
+	else
+	{
+		return Point;
+	}
+}
+
+
+
+FVector3d FColliderMeshProjectionTarget::Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier)
+{
+	double DistSqr;
+	int NearestTriID = ColliderMesh->GetAABBTree().FindNearestTriangle(Point, DistSqr);
+	if (NearestTriID < 0)
+	{
+		return Point;
+	}
+
+	FTriangle3d Triangle;
+	ColliderMesh->GetTriVertices(NearestTriID, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
+
+	ProjectNormalOut = Triangle.Normal();
+
+	FDistPoint3Triangle3d DistanceQuery(Point, Triangle);
+	DistanceQuery.GetSquared();
+	if (VectorUtil::IsFinite(DistanceQuery.ClosestTrianglePoint))
+	{
+		return DistanceQuery.ClosestTrianglePoint;
+	}
+	else
+	{
+		return Point;
 	}
 }

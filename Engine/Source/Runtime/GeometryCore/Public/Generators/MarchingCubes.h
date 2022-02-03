@@ -12,6 +12,7 @@
 #include "Misc/AssertionMacros.h"
 
 #include "Spatial/DenseGrid3.h"
+#include "Spatial/BlockedDenseGrid3.h"
 
 #include "CompGeom/PolygonTriangulation.h"
 
@@ -129,9 +130,8 @@ public:
 
 		if (bEnableValueCaching)
 		{
-			corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+			BlockedCornerValuesGrid = FBlockedDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
 		}
-		corner_values.Reset();
 		InitHashTables();
 		ResetMesh();
 
@@ -165,28 +165,27 @@ public:
 
 		InitHashTables();
 		ResetMesh();
-		corner_values.Reset();
 
 		if (LastGridBounds != GridBounds)
 		{
 			if (bEnableValueCaching)
 			{
-				corner_values_grid = FDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
+				BlockedCornerValuesGrid = FBlockedDenseGrid3f(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1, FMathf::MaxReal);
 			}
 			if (bParallelCompute)
 			{
-				done_cells = FDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
+				BlockedDoneCells = FBlockedDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
 			}
 		}
 		else
 		{
 			if (bEnableValueCaching)
 			{
-				corner_values_grid.Assign(FMathf::MaxReal);
+				BlockedCornerValuesGrid.Resize(CellDimensions.X + 1, CellDimensions.Y + 1, CellDimensions.Z + 1);
 			}
 			if (bParallelCompute)
 			{
-				done_cells.Assign(0);
+				BlockedDoneCells.Resize(CellDimensions.X, CellDimensions.Y, CellDimensions.Z);
 			}
 		}
 
@@ -363,51 +362,6 @@ protected:
 
 
 
-	//
-	// Store corner values in hash table. This doesn't make
-	// sense if we are evaluating entire grid, way too slow.
-	//
-
-	TMap<int64, double> corner_values;
-	FCriticalSection corner_values_lock;
-
-	double corner_value(const FVector3i& Idx)
-	{
-		int64 hash = corner_hash(Idx);
-		double value = 0;
-		double* findval = corner_values.Find(hash);
-		if (findval == nullptr)
-		{
-			TVector<double> V = corner_pos(Idx);
-			value = Implicit(V);
-			corner_values.Add(hash, value);
-		} 
-		else
-		{
-			value = *findval;
-		}
-		return value;
-	}
-	void initialize_cell_values(FGridCell& Cell, bool Shift)
-	{
-		FScopeLock Lock(&corner_values_lock);
-
-		if ( Shift )
-		{
-			Cell.f[1] = corner_value(Cell.i[1]);
-			Cell.f[2] = corner_value(Cell.i[2]);
-			Cell.f[5] = corner_value(Cell.i[5]);
-			Cell.f[6] = corner_value(Cell.i[6]);
-		}
-		else
-		{
-			for (int i = 0; i < 8; ++i)
-			{
-				Cell.f[i] = corner_value(Cell.i[i]);
-			}
-		}
-	}
-
 
 
 	//
@@ -416,37 +370,30 @@ protected:
 	// (note this is float grid, not double...)
 	//
 
-	FDenseGrid3f corner_values_grid;
-
-	int64 NumCornerValueSections = 64;
-	TArray<FCriticalSection> CornerValueSectionLocks;
-	int32 GetCornerValueSectionIndex(int64 hash)
-	{
-		return (int32)(hash % (NumCornerValueSections - 1));
-	}
+	FBlockedDenseGrid3f BlockedCornerValuesGrid;
 
 	double corner_value_grid_parallel(const FVector3i& Idx)
 	{
-		int32 SectionIndex = GetCornerValueSectionIndex(corner_hash(Idx));
-		float val = 0.0;
+		// note: it's possible to have a race here, where multiple threads might both
+		// GetValue, see that the value is invalid, and compute and set it. Since Implicit(V)
+		// is (intended to be) determinstic, they will compute the same value, so this doesn't cause an error, 
+		// it just wastes a bit of computation time. Since it is common for multiple corners to be
+		// in the same grid-block, and locking is on the block level, it is (or was in some testing)
+		// better to not lock the entire block while Implicit(V) computed, at the cost of
+		// some wasted evals in some cases.
+
+		float CurrentValue = BlockedCornerValuesGrid.GetValueThreadSafe(Idx.X, Idx.Y, Idx.Z);
+		if (CurrentValue != FMathf::MaxReal)
 		{
-			FScopeLock Lock(&CornerValueSectionLocks[SectionIndex]);
-			val = corner_values_grid[Idx];
-		}
-		if (val != FMathf::MaxReal)
-		{
-			return (double)val;
+			return (double)CurrentValue;
 		}
 
 		TVector<double> V = corner_pos(Idx);
-		val = (float)Implicit(V);
+		CurrentValue = (float)Implicit(V);
 
-		{
-			FScopeLock Lock(&CornerValueSectionLocks[SectionIndex]);
-			corner_values_grid[Idx] = val;
-		}
+		BlockedCornerValuesGrid.SetValueThreadSafe(Idx.X, Idx.Y, Idx.Z, CurrentValue);
 
-		return (double)val;
+		return (double)CurrentValue;
 	}
 	double corner_value_grid(const FVector3i& Idx)
 	{
@@ -455,16 +402,18 @@ protected:
 			return corner_value_grid_parallel(Idx);
 		}
 
-		float val = corner_values_grid[Idx];
-		if (val != FMathf::MaxReal)
+		float CurrentValue = BlockedCornerValuesGrid.GetValue(Idx.X, Idx.Y, Idx.Z);
+		if (CurrentValue != FMathf::MaxReal)
 		{
-			return (double)val;
+			return (double)CurrentValue;
 		}
 
 		TVector<double> V = corner_pos(Idx);
-		val = (float)Implicit(V);
-		corner_values_grid[Idx] = val;
-		return (double)val;
+		CurrentValue = (float)Implicit(V);
+
+		BlockedCornerValuesGrid.SetValue(Idx.X, Idx.Y, Idx.Z, CurrentValue);
+
+		return (double)CurrentValue;
 	}
 
 	void initialize_cell_values_grid(FGridCell& Cell, bool Shift)
@@ -531,7 +480,6 @@ protected:
 		Cell.i[6] = FVector3i(Idx.X + 1, Idx.Y + 1, Idx.Z + 1);
 		Cell.i[7] = FVector3i(Idx.X + 0, Idx.Y + 1, Idx.Z + 1);
 
-		//initialize_cell_values(Cell, false);
 		if (bEnableValueCaching)
 		{
 			initialize_cell_values_grid(Cell, false);
@@ -556,7 +504,6 @@ protected:
 		Cell.i[0].X = XIdx; Cell.i[1].X = XIdx+1; Cell.i[2].X = XIdx+1; Cell.i[3].X = XIdx;
 		Cell.i[4].X = XIdx; Cell.i[5].X = XIdx+1; Cell.i[6].X = XIdx+1; Cell.i[7].X = XIdx;
 
-		//initialize_cell_values(Cell, true);
 		if (bEnableValueCaching)
 		{
 			initialize_cell_values_grid(Cell, true);
@@ -574,12 +521,6 @@ protected:
 		EdgeVertexSections.SetNum(NumEdgeVertexSections);
 		EdgeVertexSectionLocks.Reset();
 		EdgeVertexSectionLocks.SetNum(NumEdgeVertexSections);
-
-		CornerValueSectionLocks.Reset();
-		CornerValueSectionLocks.SetNum(NumCornerValueSections);
-
-		DoneCellSectionLocks.Reset();
-		DoneCellSectionLocks.SetNum(NumDoneCellSections);
 	}
 
 
@@ -664,19 +605,19 @@ protected:
 		FGridCell Cell;
 		int vertTArray[12];
 
-		done_cells = FDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
+		BlockedDoneCells = FBlockedDenseGrid3i(CellDimensions.X, CellDimensions.Y, CellDimensions.Z, 0);
 
 		TArray<FVector3i> stack;
 
 		for (FVector3d seed : Seeds)
 		{
 			FVector3i seed_idx = cell_index(seed);
-			if (!done_cells.IsValidIndex(seed_idx) || done_cells[seed_idx] == 1)
+			if (!BlockedDoneCells.IsValidIndex(seed_idx) || BlockedDoneCells.GetValue(seed_idx.X, seed_idx.Y, seed_idx.Z) == 1)
 			{
 				continue;
 			}
 			stack.Add(seed_idx);
-			done_cells[seed_idx] = 1;
+			BlockedDoneCells.SetValue(seed_idx.X, seed_idx.Y, seed_idx.Z, 1);
 
 			while ( stack.Num() > 0 )
 			{
@@ -693,10 +634,10 @@ protected:
 					for ( FVector3i o : IndexUtil::GridOffsets6 )
 					{
 						FVector3i nbr_idx = Idx + o;
-						if (GridBounds.Contains(nbr_idx) && done_cells[nbr_idx] == 0)
+						if (GridBounds.Contains(nbr_idx) && BlockedDoneCells.GetValue(nbr_idx.X, nbr_idx.Y, nbr_idx.Z) == 0)
 						{
 							stack.Add(nbr_idx);
-							done_cells[nbr_idx] = 1;
+							BlockedDoneCells.SetValue(nbr_idx.X, nbr_idx.Y, nbr_idx.Z, 1);
 						}
 					}
 				}
@@ -718,7 +659,7 @@ protected:
 		{
 			FVector3d Seed = Seeds[Index];
 			FVector3i seed_idx = cell_index(Seed);
-			if (!done_cells.IsValidIndex(seed_idx) || set_cell_if_not_done(seed_idx) == false)
+			if (!BlockedDoneCells.IsValidIndex(seed_idx) || set_cell_if_not_done(seed_idx) == false)
 			{
 				return;
 			}
@@ -760,27 +701,20 @@ protected:
 	}
 
 
-
-	FDenseGrid3i done_cells;
-
-	int64 NumDoneCellSections = 64;
-	TArray<FCriticalSection> DoneCellSectionLocks;
-	int GetDoneCellSectionIndex(int64 hash)
-	{
-		return (int32)(hash % (NumDoneCellSections - 1));
-	}
+	FBlockedDenseGrid3i BlockedDoneCells;
 
 	bool set_cell_if_not_done(const FVector3i& Idx)
 	{
-		int32 SectionIndex = GetDoneCellSectionIndex(corner_hash(Idx));
 		bool was_set = false;
 		{
-			FScopeLock Lock(&DoneCellSectionLocks[SectionIndex]);
-			if (done_cells[Idx] == 0)
+			BlockedDoneCells.ProcessValueThreadSafe(Idx.X, Idx.Y, Idx.Z, [&](int& CellValue) 
 			{
-				done_cells[Idx] = 1;
-				was_set = true;
-			}
+				if (CellValue == 0)
+				{
+					CellValue = 1;
+					was_set = true;
+				}
+			});
 		}
 		return was_set;
 	}

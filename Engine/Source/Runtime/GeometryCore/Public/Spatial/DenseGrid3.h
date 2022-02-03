@@ -132,46 +132,6 @@ public:
 		}
 	}
 
-	// TODO: implement TDenseGrid2<ElemType> and then implement this
-	//TDenseGrid2<ElemType> get_slice(int slice_i, int dimension)
-	//{
-	//	TDenseGrid2<ElemType> slice;
-	//	if (dimension == 0) {
-	//		slice = TDenseGrid2<ElemType>(Dimensions.Y, Dimensions.Z, 0);
-	//		for (int k = 0; k < Dimensions.Z; ++k)
-	//			for (int j = 0; j < Dimensions.Y; ++j)
-	//				slice[j, k] = Buffer[slice_i + Dimensions.X * (j + Dimensions.Y * k)];
-	//	} else if (dimension == 1) {
-	//		slice = TDenseGrid2<ElemType>(Dimensions.X, Dimensions.Z, 0);
-	//		for (int k = 0; k < Dimensions.Z; ++k)
-	//			for (int i = 0; i < Dimensions.X; ++i)
-	//				slice[i, k] = Buffer[i + Dimensions.X * (slice_i + Dimensions.Y * k)];
-	//	} else {
-	//		slice = TDenseGrid2<ElemType>(Dimensions.X, Dimensions.Y, 0);
-	//		for (int j = 0; j < Dimensions.Y; ++j)
-	//			for (int i = 0; i < Dimensions.X; ++i)
-	//				slice[i, j] = Buffer[i + Dimensions.X * (j + Dimensions.Y * slice_i)];
-	//	}
-	//	return slice;
-	//}
-	//void set_slice(TDenseGrid2<ElemType> slice, int slice_i, int dimension)
-	//{
-	//	if (dimension == 0) {
-	//		for (int k = 0; k < Dimensions.Z; ++k)
-	//			for (int j = 0; j < Dimensions.Y; ++j)
-	//				Buffer[slice_i + Dimensions.X * (j + Dimensions.Y * k)] = slice[j, k];
-	//	} else if (dimension == 1) {
-	//		for (int k = 0; k < Dimensions.Z; ++k)
-	//			for (int i = 0; i < Dimensions.X; ++i)
-	//				Buffer[i + Dimensions.X * (slice_i + Dimensions.Y * k)] = slice[i, k];
-	//	} else {
-	//		for (int j = 0; j < Dimensions.Y; ++j)
-	//			for (int i = 0; i < Dimensions.X; ++i)
-	//				Buffer[i + Dimensions.X * (j + Dimensions.Y * slice_i)] = slice[i, j];
-	//	}
-	//}
-
-
 	FAxisAlignedBox3i Bounds() const
 	{
 		return FAxisAlignedBox3i({0, 0, 0},{Dimensions.X, Dimensions.Y, Dimensions.Z});

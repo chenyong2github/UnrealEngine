@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Spatial/MeshAABBTree3.h"
+#include "Spatial/SpatialInterfaces.h"
 
 namespace UE
 {
@@ -108,6 +109,34 @@ protected:
 	TMeshAABBTree3<FColliderMesh> AABBTree;
 
 };
+
+
+/**
+ * Projection target API wrapper for an FColliderMesh
+ */
+class GEOMETRYCORE_API FColliderMeshProjectionTarget : public IOrientedProjectionTarget
+{
+public:
+	FColliderMesh* ColliderMesh = nullptr;
+
+	FColliderMeshProjectionTarget()
+	{
+		ColliderMesh = nullptr;
+	}
+
+	FColliderMeshProjectionTarget(FColliderMesh* ColliderMeshIn)
+	{
+		check(ColliderMeshIn);
+		ColliderMesh = ColliderMeshIn;
+	}
+
+	virtual ~FColliderMeshProjectionTarget() {}
+
+	virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override;
+	virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override;
+};
+
+
 
 } // end namespace UE::Geometry
 } // end namespace UE
