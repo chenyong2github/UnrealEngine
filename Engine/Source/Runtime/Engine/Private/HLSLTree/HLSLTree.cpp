@@ -15,6 +15,22 @@ namespace UE
 namespace HLSLTree
 {
 
+enum ELocalPHIChainType : uint8
+{
+	Ddx,
+	Ddy,
+	PreviousFrame,
+};
+
+struct FLocalPHIChainEntry
+{
+	FLocalPHIChainEntry() = default;
+	FLocalPHIChainEntry(const ELocalPHIChainType& InType, const FRequestedType& InRequestedType) : Type(InType), RequestedType(InRequestedType) {}
+
+	ELocalPHIChainType Type;
+	FRequestedType RequestedType;
+};
+
 /**
  * Represents a phi node (see various topics on single static assignment)
  * A phi node takes on a value based on the previous scope that was executed.
@@ -32,14 +48,15 @@ public:
 		}
 	}
 
-	FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord);
+	FExpressionLocalPHI(const FExpressionLocalPHI* Source, ELocalPHIChainType Type, const FRequestedType& RequestedType = FRequestedType());
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 
-	TArray<EDerivativeCoordinate, TInlineAllocator<8>> DerivativeChain;
+	TArray<FLocalPHIChainEntry, TInlineAllocator<8>> Chain;
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];
 	FExpression* Values[MaxNumPreviousScopes];
@@ -198,12 +215,12 @@ FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
 	return Scope0;
 }
 
-FExpressionLocalPHI::FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord)
-	: DerivativeChain(Source->DerivativeChain)
+FExpressionLocalPHI::FExpressionLocalPHI(const FExpressionLocalPHI* Source, ELocalPHIChainType Type, const FRequestedType& RequestedType)
+	: Chain(Source->Chain)
 	, LocalName(Source->LocalName)
 	, NumValues(Source->NumValues)
 {
-	DerivativeChain.Add(Coord);
+	Chain.Emplace(Type, RequestedType);
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		Scopes[i] = Source->Scopes[i];
@@ -214,8 +231,13 @@ void FExpressionLocalPHI::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 {
 	// We don't have values assigned at the time analytic derivatives are computed
 	// It's possible the derivatives will be end up being invalid, but that case will need to be detected later, during PrepareValue
-	OutResult.ExpressionDdx = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddx);
-	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddy);
+	OutResult.ExpressionDdx = Tree.NewExpression<FExpressionLocalPHI>(this, ELocalPHIChainType::Ddx);
+	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionLocalPHI>(this, ELocalPHIChainType::Ddy);
+}
+
+FExpression* FExpressionLocalPHI::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.NewExpression<FExpressionLocalPHI>(this, ELocalPHIChainType::PreviousFrame, RequestedType);
 }
 
 bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
@@ -633,9 +655,31 @@ EExpressionEvaluation FPreparedComponent::GetEvaluation(const FEmitScope& Scope)
 
 FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
-	const EExpressionEvaluation Evaluation = CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation);
-	FEmitScope* LoopScope = IsLoopEvaluation(Evaluation) ? FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope) : nullptr;
-	return FPreparedComponent(Evaluation, LoopScope);
+	if (Lhs.IsNone())
+	{
+		return Rhs;
+	}
+	else if (Rhs.IsNone())
+	{
+		return Lhs;
+	}
+	else
+	{
+		const EExpressionEvaluation Evaluation = CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation);
+		FEmitScope* LoopScope = nullptr;
+		if (IsLoopEvaluation(Evaluation))
+		{
+			LoopScope = FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope);
+		}
+		FExpression* ForwardValue = nullptr;
+		int32 ForwardComponentIndex = INDEX_NONE;
+		if (Lhs.ForwardValue == Rhs.ForwardValue && Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex)
+		{
+			ForwardValue = Lhs.ForwardValue;
+			ForwardComponentIndex = Lhs.ForwardComponentIndex;
+		}
+		return FPreparedComponent(Evaluation, LoopScope, ForwardValue, ForwardComponentIndex);
+	}
 }
 
 FPreparedType::FPreparedType(const Shader::FType& InType)
@@ -829,6 +873,19 @@ void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& R
 	}
 }
 
+void FPreparedType::SetForwardValue(FExpression* ForwardValue, const FRequestedType& RequestedType)
+{
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		FPreparedComponent& Component = PreparedComponents[Index];
+		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
+		{
+			Component.ForwardValue = ForwardValue;
+			Component.ForwardComponentIndex = Index;
+		}
+	}
+}
+
 void FPreparedType::SetField(const Shader::FStructField* Field, const FPreparedType& FieldType)
 {
 	for (int32 Index = 0; Index < Field->GetNumComponents(); ++Index)
@@ -890,12 +947,11 @@ FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& 
 bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType)
 {
 	// If we previously had a forwarded value set, reset that and start over
-	if (ForwardValue || !PreparedType.IsInitialized())
+	if (!PreparedType.IsInitialized())
 	{
 		PreparedType.PreparedComponents.Reset();
 		PreparedType.ValueComponentType = ComponentType;
 		PreparedType.StructType = StructType;
-		ForwardValue = nullptr;
 		return true;
 	}
 
@@ -924,7 +980,6 @@ bool FPrepareValueResult::SetTypeVoid()
 	PreparedType.PreparedComponents.Reset();
 	PreparedType.ValueComponentType = Shader::EValueComponentType::Void;
 	PreparedType.StructType = nullptr;
-	ForwardValue = nullptr;
 	return false;
 }
 
@@ -967,11 +1022,8 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* InForwardValue)
 {
-	if (InForwardValue != ForwardValue)
-	{
-		PreparedType = Context.PrepareExpression(InForwardValue, Scope, RequestedType);
-		ForwardValue = InForwardValue;
-	}
+	const FPreparedType ForwardPreparedType = Context.PrepareExpression(InForwardValue, Scope, RequestedType);
+	PreparedType = MergePreparedTypes(PreparedType, ForwardPreparedType);
 	return !PreparedType.IsVoid();
 }
 
@@ -985,6 +1037,11 @@ void FExpression::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives
 	// nop
 }
 
+FExpression* FExpression::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return nullptr;
+}
+
 void FExpression::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	check(false);
@@ -995,12 +1052,79 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, c
 	check(false);
 }
 
+FExpression* FExpression::GetForwardValue(const FRequestedType& RequestedType)
+{
+	TArray<FExpression*, TInlineAllocator<16>> VisitedExpressions;
+	FExpression* Expression = this;
+	int32 BaseComponentIndex = 0;
+
+	while (true)
+	{
+		const FPreparedType& PreparedType = Expression->PrepareValueResult.PreparedType;
+
+		VisitedExpressions.Add(Expression);
+
+		FExpression* ForwardValue = nullptr;
+		int32 ForwardComponentIndex = INDEX_NONE;
+		int32 StartComponentIndex = INDEX_NONE;
+		// Scan the required components, and see if they all have the same ForwardValue, in the correct order
+		for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
+		{
+			if (RequestedType.RequestedComponents[Index])
+			{
+				const FPreparedComponent Component = PreparedType.GetComponent(BaseComponentIndex + Index);
+				if (!Component.ForwardValue)
+				{
+					return nullptr;
+				}
+
+				if (StartComponentIndex == INDEX_NONE)
+				{
+					StartComponentIndex = Index;
+					ForwardValue = Component.ForwardValue;
+					ForwardComponentIndex = Component.ForwardComponentIndex;
+				}
+				else if (ForwardValue != Component.ForwardValue ||
+					ForwardComponentIndex + Index - StartComponentIndex != Component.ForwardComponentIndex)
+				{
+					return nullptr;
+				}
+			}
+		}
+
+		check(ForwardValue);
+		if (ForwardValue == this)
+		{
+			// Don't forward to ourselves
+			return nullptr;
+		}
+		if (ForwardComponentIndex == StartComponentIndex)
+		{
+			// Forward to a value with no component offset, can use that directly
+			return ForwardValue;
+		}
+
+		// If there's a component offset, we can't forward directly
+		// Instead, recursively check to see if the ForwardValue itself has a Forward value
+		// This can happen when forwarding across multiple set/get struct field expressions
+		BaseComponentIndex = ForwardComponentIndex - StartComponentIndex;
+		Expression = ForwardValue;
+
+		// Make sure we're not in a loop
+		check(!VisitedExpressions.Contains(Expression));
+	}
+
+	checkNoEntry();
+	return nullptr;
+}
+
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	if (PrepareValueResult.ForwardValue)
+	FExpression* ForwardValue = GetForwardValue(RequestedType);
+	if (ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValueShader(Context, Scope, RequestedType, ResultType);
+		return ForwardValue->GetValueShader(Context, Scope, RequestedType, ResultType);
 	}
 
 	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
@@ -1036,9 +1160,10 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 void FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	if (PrepareValueResult.ForwardValue)
+	FExpression* ForwardValue = GetForwardValue(RequestedType);
+	if (ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValuePreshader(Context, Scope, RequestedType, OutPreshader);
+		return ForwardValue->GetValuePreshader(Context, Scope, RequestedType, OutPreshader);
 	}
 
 	const int32 PrevStackPosition = Context.PreshaderStackPosition;
@@ -1061,9 +1186,10 @@ void FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, co
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	if (PrepareValueResult.ForwardValue)
+	FExpression* ForwardValue = GetForwardValue(RequestedType);
+	if (ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValueConstant(Context, Scope, RequestedType);
+		return ForwardValue->GetValueConstant(Context, Scope, RequestedType);
 	}
 
 	check(!bReentryFlag);
@@ -1187,10 +1313,19 @@ bool FTree::Finalize()
 				return false;
 			}
 
-			for(EDerivativeCoordinate DerivativeCoord : Expression->DerivativeChain)
+			for(const FLocalPHIChainEntry& Entry : Expression->Chain)
 			{
-				const FExpressionDerivatives Derivatives = GetAnalyticDerivatives(LocalValue);
-				LocalValue = Derivatives.Get(DerivativeCoord);
+				const ELocalPHIChainType ChainType = Entry.Type;
+				if (ChainType == ELocalPHIChainType::Ddx || ChainType == ELocalPHIChainType::Ddy)
+				{
+					const FExpressionDerivatives Derivatives = GetAnalyticDerivatives(LocalValue);
+					LocalValue = (ChainType == ELocalPHIChainType::Ddx) ? Derivatives.ExpressionDdx : Derivatives.ExpressionDdy;
+				}
+				else
+				{
+					check(ChainType == ELocalPHIChainType::PreviousFrame);
+					LocalValue = GetPreviousFrame(LocalValue, Entry.RequestedType);
+				}
 			}
 			// May be nullptr if derivatives are not valid
 			Expression->Values[i] = LocalValue;
@@ -1325,6 +1460,23 @@ const FExpressionDerivatives& FTree::GetAnalyticDerivatives(FExpression* InExpre
 		InExpression->bComputedDerivatives = true;
 	}
 	return InExpression->Derivatives;
+}
+
+FExpression* FTree::GetPreviousFrame(FExpression* InExpression, const FRequestedType& RequestedType)
+{
+	FExpression* Result = InExpression;
+	if (Result && !RequestedType.IsVoid())
+	{
+		FExpressionReentryScope ReentryScope(InExpression);
+		FOwnerScope OwnerScope(*this, InExpression->GetOwner()); // Associate any newly created nodes with the same owner as the input expression
+
+		FExpression* PrevFrameExpression = InExpression->ComputePreviousFrame(*this, RequestedType);
+		if (PrevFrameExpression)
+		{
+			Result = PrevFrameExpression;
+		}
+	}
+	return Result;
 }
 
 FScope* FTree::NewScope(FScope& Scope)

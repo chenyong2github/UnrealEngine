@@ -115,56 +115,66 @@ class FHasher
 {
 public:
 	FXxHash64 Finalize() { return Builder.Finalize(); }
-	FHasher& AppendData(const void* Data, uint64 Size) { Builder.Update(Data, Size); return *this; }
-
-	template<typename T>
-	inline FHasher& AppendValue(const T& Value)
-	{
-		return AppendData(&Value, sizeof(Value));
-	}
-
-	template<typename T>
-	inline FHasher& AppendValue(TArrayView<T> Value)
-	{
-		for (const T& Element : Value)
-		{
-			AppendValue(Element);
-		}
-		return *this;
-	}
-
-	inline FHasher& AppendValue(const FName& Value)
-	{
-		return AppendValue(Value.GetComparisonIndex()).AppendValue(Value.GetNumber());
-	}
-
-	inline FHasher& AppendValue(const Shader::FType& Type)
-	{
-		if (Type.IsStruct()) return AppendValue(Type.StructType);
-		else return AppendValue(Type.ValueType);
-	}
-
-	inline FHasher& AppendValue(const Shader::FValue& Value)
-	{
-		AppendValue(Value.Type);
-		for (int32 i = 0; i < Value.Type.GetNumComponents(); ++i)
-		{
-			AppendValue(Value.TryGetComponent(i));
-		}
-		return *this;
-	}
-
-	inline FHasher& AppendValues() { return *this; }
-
-	template<typename T, typename... ArgTypes>
-	inline FHasher& AppendValues(const T& Value, ArgTypes&&... Args)
-	{
-		return AppendValue(Value).AppendValues(Forward<ArgTypes>(Args)...);
-	}
+	void AppendData(const void* Data, uint64 Size) { Builder.Update(Data, Size); }
 
 private:
 	FXxHash64Builder Builder;
 };
+
+template<typename T>
+inline void AppendHash(FHasher& Hasher, const T& Value)
+{
+	Hasher.AppendData(&Value, sizeof(Value));
+}
+
+template<typename T>
+inline void AppendHash(FHasher& Hasher, TArrayView<T> Value)
+{
+	for (const T& Element : Value)
+	{
+		AppendHash(Hasher, Element);
+	}
+}
+
+
+template<typename Allocator>
+inline void AppendHash(FHasher& Hasher, const TBitArray<Allocator>& Value)
+{
+	const uint32 NumWords = FBitSet::CalculateNumWords(Value.Num());
+	const uint32* Data = Value.GetData();
+	Hasher.AppendData(Data, NumWords * sizeof(uint32));
+}
+
+inline void AppendHash(FHasher& Hasher, const FName& Value)
+{
+	AppendHash(Hasher, Value.GetComparisonIndex());
+	AppendHash(Hasher, Value.GetNumber());
+}
+
+inline void AppendHash(FHasher& Hasher, const Shader::FType& Type)
+{
+	if (Type.IsStruct()) AppendHash(Hasher, Type.StructType);
+	else AppendHash(Hasher, Type.ValueType);
+}
+
+inline void AppendHash(FHasher& Hasher, const Shader::FValue& Value)
+{
+	AppendHash(Hasher, Value.Type);
+	for (int32 i = 0; i < Value.Type.GetNumComponents(); ++i)
+	{
+		AppendHash(Hasher, Value.TryGetComponent(i));
+	}
+}
+
+inline void AppendHashes(FHasher& Hasher) {}
+
+template<typename T, typename... ArgTypes>
+inline void AppendHashes(FHasher& Hasher, const T& Value, ArgTypes&&... Args)
+{
+	AppendHash(Hasher, Value);
+	AppendHashes(Hasher, Forward<ArgTypes>(Args)...);
+}
+
 
 /** Root class of the HLSL AST */
 class FNode
@@ -282,13 +292,20 @@ inline bool operator!=(const FRequestedType& Lhs, const FRequestedType& Rhs)
 	return !operator==(Lhs, Rhs);
 }
 
+inline void AppendHash(FHasher& Hasher, const FRequestedType& Value)
+{
+	AppendHash(Hasher, Value.StructType);
+	AppendHash(Hasher, Value.ValueComponentType);
+	AppendHash(Hasher, Value.RequestedComponents);
+}
+
 FRequestedType MakeRequestedType(Shader::EValueComponentType ComponentType, const FRequestedType& RequestedComponents);
 
 struct FPreparedComponent
 {
 	FPreparedComponent() = default;
-	FPreparedComponent(EExpressionEvaluation InEvaluation, FEmitScope* InLoopScope = nullptr)
-		: LoopScope(InLoopScope), Evaluation(InEvaluation)
+	FPreparedComponent(EExpressionEvaluation InEvaluation, FEmitScope* InLoopScope = nullptr, FExpression* InForwardValue = nullptr, int32 InForwardComponentIndex = INDEX_NONE)
+		: LoopScope(InLoopScope), ForwardValue(InForwardValue), ForwardComponentIndex(InForwardComponentIndex), Evaluation(InEvaluation)
 	{
 		check(!IsLoopEvaluation(InEvaluation) || InLoopScope);
 	}
@@ -298,12 +315,16 @@ struct FPreparedComponent
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 
 	FEmitScope* LoopScope = nullptr;
+	FExpression* ForwardValue = nullptr;
+	int32 ForwardComponentIndex = INDEX_NONE;
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
 inline bool operator==(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
 	return Lhs.Evaluation == Rhs.Evaluation &&
-		Lhs.LoopScope == Rhs.LoopScope;
+		Lhs.LoopScope == Rhs.LoopScope &&
+		Lhs.ForwardValue == Rhs.ForwardValue &&
+		Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex;
 }
 inline bool operator!=(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
@@ -326,6 +347,7 @@ public:
 	void SetEvaluation(EExpressionEvaluation Evaluation);
 	void MergeEvaluation(EExpressionEvaluation Evaluation);
 	void SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType);
+	void SetForwardValue(FExpression* ForwardValue, const FRequestedType& RequestedType);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
@@ -353,7 +375,7 @@ public:
 	void EnsureNumComponents(int32 NumComponents);
 
 	/** Evaluation type for each component, may be 'None' for components that are unused */
-	TArray<FPreparedComponent, TInlineAllocator<16>> PreparedComponents;
+	TArray<FPreparedComponent, TInlineAllocator<4>> PreparedComponents;
 };
 inline bool operator==(const FPreparedType& Lhs, const FPreparedType& Rhs)
 {
@@ -383,7 +405,6 @@ public:
 private:
 	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
 
-	FExpression* ForwardValue = nullptr;
 	FPreparedType PreparedType;
 
 	friend class FExpression;
@@ -424,6 +445,7 @@ public:
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType); }
+	FExpression* GetForwardValue(const FRequestedType& RequestedType);
 
 	virtual void Reset() override;
 
@@ -436,6 +458,7 @@ public:
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
+	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
@@ -569,8 +592,8 @@ public:
 	inline FExpression* NewExpression(ArgTypes&&... Args)
 	{
 		FHasher Hasher;
-		Hasher.AppendValue(Private::TTypeHasher<T>::GetHash());
-		Hasher.AppendValues(Forward<ArgTypes>(Args)...);
+		AppendHash(Hasher, Private::TTypeHasher<T>::GetHash());
+		AppendHashes(Hasher, Forward<ArgTypes>(Args)...);
 		const FXxHash64 Hash = Hasher.Finalize();
 		FExpression* Expression = FindExpression(Hash);
 		if (!Expression)
@@ -596,6 +619,7 @@ public:
 	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, int32 OutputIndex);
 
 	const FExpressionDerivatives& GetAnalyticDerivatives(FExpression* InExpression);
+	FExpression* GetPreviousFrame(FExpression* InExpression, const FRequestedType& RequestedType);
 
 	FScope* NewScope(FScope& Scope);
 	FScope* NewOwnedScope(FStatement& Owner);

@@ -8,6 +8,7 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
 #include "Hash/xxhash.h"
+#include "RHIDefinitions.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 
 class FMaterial;

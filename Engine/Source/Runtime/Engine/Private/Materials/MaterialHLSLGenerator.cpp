@@ -96,7 +96,7 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParam
 	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
 	FunctionCallStack.Add(RootFunctionEntry);
 
-	TArray<UE::Shader::FStructFieldInitializer, TInlineAllocator<MP_MAX>> MaterialAttributeFields;
+	TArray<UE::Shader::FStructFieldInitializer, TInlineAllocator<MP_MAX + 16>> MaterialAttributeFields;
 
 	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
 	for (const FGuid& AttributeID : OrderedVisibleAttributes)
@@ -122,6 +122,9 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParam
 			}
 		}
 	}
+
+	MaterialAttributeFields.Emplace(TEXT("PrevWorldPositionOffset"), UE::Shader::EValueType::Float3);
+	MaterialAttributesDefaultValue.Component.Append({ 0.0f, 0.0f, 0.0f });
 
 	UE::Shader::FStructTypeInitializer MaterialAttributesInitializer;
 	MaterialAttributesInitializer.Name = TEXT("FMaterialAttributes");
@@ -254,6 +257,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 {
 	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
 
 	FFunctionCallEntry* FunctionEntry = FunctionCallStack.Last();
 
@@ -289,6 +293,17 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 				{
 					check(InputDescription.Type == UE::Shader::EValueType::Struct);
 					AttributesExpression = InputDescription.Input->AcquireHLSLExpression(*this, Scope);
+
+					const FString& WPOName = FMaterialAttributeDefinitionMap::GetAttributeName(MP_WorldPositionOffset);
+					const FStructField* WPOField = GetMaterialAttributesType()->FindFieldByName(*WPOName);
+					const FStructField* PrevWPOField = GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset"));
+
+					FRequestedType PrevRequestedType(GetMaterialAttributesType(), false);
+					PrevRequestedType.SetFieldRequested(WPOField);
+
+					FExpression* PrevAttributesExpression = HLSLTree->GetPreviousFrame(AttributesExpression, PrevRequestedType);
+					FExpression* PrevWPOExpression = HLSLTree->NewExpression<FExpressionGetStructField>(GetMaterialAttributesType(), WPOField, PrevAttributesExpression);
+					AttributesExpression = HLSLTree->NewExpression<FExpressionSetStructField>(GetMaterialAttributesType(), PrevWPOField, AttributesExpression, PrevWPOExpression);
 				}
 			}
 			else

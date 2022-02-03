@@ -222,7 +222,7 @@ FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitSc
 		FEmitScope* LoopScope = Scope.FindLoop();
 		check(LoopScope);
 		Result.PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
-		return Result.GetPreparedType();
+		return Result.PreparedType;
 	}
 
 	bool bResult = false;
@@ -231,16 +231,15 @@ FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitSc
 		bResult = InExpression->PrepareValue(*this, Scope, RequestedType, Result);
 	}
 
-	if (!bResult)
+	FPreparedType ResultType;
+	if (bResult)
 	{
-		Result.SetTypeVoid();
-	}
-	else
-	{
-		check(!Result.GetPreparedType().IsVoid());
+		ResultType = Result.PreparedType;
+		check(!ResultType.IsVoid());
+		ResultType.SetForwardValue(InExpression, RequestedType);
 	}
 
-	return Result.GetPreparedType();
+	return ResultType;
 }
 
 FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParentScope)
