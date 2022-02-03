@@ -97,7 +97,7 @@ namespace InterchangePrivateNodeBase
 const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));
 
 #if WITH_ENGINE
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, ObjectType, PropertyName)		\
+#define IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(AttributeName, AttributeType, ObjectType, PropertyName)		\
 bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const														\
 {																													\
 	return ApplyAttributeToObject<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), Asset, PropertyName);	\
@@ -105,16 +105,12 @@ bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const														\
 																													\
 bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 {																													\
-	return FillAttributeFromObject<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), Asset, PropertyName);	\
+	return FillAttributeFromObject<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), Asset, PropertyName);\
 }
-
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, ObjectType)						\
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, ObjectType, TEXT(#AttributeName))
 
 #else //#if WITH_ENGINE
 
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType)
-#define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(AttributeName, AttributeType, AssetType, PropertyName)
+#define IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(AttributeName, AttributeType, AssetType, PropertyName)
 
 #endif //#if WITH_ENGINE
 
@@ -140,11 +136,29 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 	}																																				\
 	return false;
 
+#define IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(NodeClassName, AttributeName, AttributeType, AssetType)								\
+	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																			\
+	if(InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue))	\
+	{																																				\
+		if(bAddApplyDelegate)																														\
+		{																																			\
+			TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());			\
+			Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));		\
+			TArray<UE::Interchange::FFillAttributeToAsset>& FillDelegates = FillCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());		\
+			FillDelegates.Add(UE::Interchange::FFillAttributeToAsset::CreateUObject(this, &NodeClassName::FillCustom##AttributeName##FromAsset));	\
+		}																																			\
+		return true;																																\
+	}																																				\
+	return false;
+
 #else //#if WITH_ENGINE
 
 #define IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)															\
 	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																				\
 	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
+
+#define IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(NodeClassName, AttributeName, AttributeType, AssetType)								\
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)
 
 #endif //#if WITH_ENGINE
 

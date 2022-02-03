@@ -26,7 +26,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomFocalLength(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeCineCameraFactoryNode, FocalLength, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, FocalLength, float, UCineCameraComponent);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
@@ -38,7 +38,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomSensorWidth(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeCineCameraFactoryNode, SensorWidth, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, SensorWidth, float, UCineCameraComponent);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
@@ -50,7 +50,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomSensorHeight(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeCineCameraFactoryNode, SensorHeight, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, SensorHeight, float, UCineCameraComponent);
 	}
 
 private:
@@ -59,7 +59,7 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomSensorHeightKey = UE::Interchange::FAttributeKey(TEXT("SensorHeight"));
 
 private:
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(FocalLength, float, UCineCameraComponent, TEXT("CurrentFocalLength"));
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(SensorWidth, float, UCineCameraComponent, TEXT("Filmback.SensorWidth"));
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT_BYNAME(SensorHeight, float, UCineCameraComponent, TEXT("Filmback.SensorHeight"));
+	IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(FocalLength, float, UCineCameraComponent, TEXT("CurrentFocalLength"));
+	IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(SensorWidth, float, UCineCameraComponent, TEXT("Filmback.SensorWidth"));
+	IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(SensorHeight, float, UCineCameraComponent, TEXT("Filmback.SensorHeight"));
 };
