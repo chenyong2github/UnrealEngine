@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/ObjectMacros.h"
 #include "ObjectToolsTests.generated.h"
 
@@ -14,7 +15,7 @@ class UObjectToolsTestObject : public UObject
 
 public:
 	UPROPERTY()
-	UObject* StrongReference;
+	TObjectPtr<UObject> StrongReference;
 
 	UPROPERTY()
 	TWeakObjectPtr<UObject> WeakReference;

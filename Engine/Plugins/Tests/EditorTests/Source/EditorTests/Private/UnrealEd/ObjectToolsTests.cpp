@@ -4,11 +4,13 @@
 
 #include "Misc/Paths.h"
 #include "Misc/AutomationTest.h"
+#include "Editor.h"
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
 #include "Tests/AutomationTestSettings.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "Tests/AutomationCommon.h"
+
 
 class FObjectToolsTests_GatherObjectReferencersForDeletionTestBase : public FAutomationTestBase
 {
