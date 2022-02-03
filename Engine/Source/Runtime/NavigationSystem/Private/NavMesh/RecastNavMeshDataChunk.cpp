@@ -53,7 +53,7 @@ FRecastTileData::FRecastTileData(int32 DataSize, uint8* RawData, int32 CacheData
 }
 
 // Helper to duplicate recast raw data
-static uint8* DuplicateRecastRawData(uint8* Src, int32 SrcSize)
+static uint8* DuplicateRecastRawData(const uint8* Src, int32 SrcSize)
 {
 #if WITH_RECAST	
 	uint8* DupData = (uint8*)dtAlloc(SrcSize, DT_ALLOC_PERM_TILE_DATA);

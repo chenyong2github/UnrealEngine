@@ -442,10 +442,39 @@ struct FNavMeshTileData
 	// helper function so that we release NavData via dtFree not regular delete (for navigation mem stats)
 	struct FNavData
 	{
-		uint8* RawNavData;
-
-		FNavData(uint8* InNavData) : RawNavData(InNavData) {}
+		// Temporary test to help reproduce a crash.
+		void TestPtr() const;
+		
+		FNavData(uint8* InNavData, const int32 InDataSize) : RawNavData(InNavData)
+		{
+			if (RawNavData != nullptr)
+			{
+				// Temporary test to help reproduce a crash.
+				static uint8 Temp = 0;
+				Temp = *RawNavData;
+				
+				AllocatedSize = FMemory::GetAllocSize((void*)RawNavData);
+				check(AllocatedSize == 0 || AllocatedSize >= InDataSize);
+			}
+			else
+			{
+				AllocatedSize = 0;
+			}
+		}
 		~FNavData();
+
+		const uint8* GetRawNavData() const { return RawNavData; }
+		uint8* GetMutableRawNavData() { return RawNavData; }
+
+		void Reset()
+		{
+			RawNavData = nullptr;
+			AllocatedSize = 0;
+		}
+				
+	protected:
+		uint8* RawNavData;
+		SIZE_T AllocatedSize; // != DataSize
 	};
 	
 	// layer index
@@ -464,18 +493,18 @@ struct FNavMeshTileData
 	FORCEINLINE uint8* GetData()
 	{
 		check(NavData.IsValid());
-		return NavData->RawNavData;
+		return NavData->GetMutableRawNavData();
 	}
 
 	FORCEINLINE const uint8* GetData() const
 	{
 		check(NavData.IsValid());
-		return NavData->RawNavData;
+		return NavData->GetRawNavData();
 	}
 
 	FORCEINLINE uint8* GetDataSafe()
 	{
-		return NavData.IsValid() ? NavData->RawNavData : NULL;
+		return NavData.IsValid() ? NavData->GetMutableRawNavData() : NULL;
 	}
 
 	FORCEINLINE bool operator==(const uint8* RawData) const

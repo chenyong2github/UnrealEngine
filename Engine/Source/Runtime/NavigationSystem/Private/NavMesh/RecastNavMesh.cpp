@@ -135,18 +135,31 @@ FNavMeshTileData::FNavData::~FNavData()
 #endif // WITH_RECAST
 }
 
+// Temporary test to narrow a crash.
+void FNavMeshTileData::FNavData::TestPtr() const
+{
+	if (RawNavData != nullptr)
+	{
+		static uint8 Temp = 0;
+		Temp = *RawNavData;
+
+		const SIZE_T Size = FMemory::GetAllocSize((void*)RawNavData);
+		check(Size == 0 || Size == AllocatedSize);
+	}
+}
+
 FNavMeshTileData::FNavMeshTileData(uint8* RawData, int32 RawDataSize, int32 LayerIdx, FBox LayerBounds)
 	: LayerIndex(LayerIdx)
 	, LayerBBox(LayerBounds)
 	, DataSize(RawDataSize)
 {
 	INC_MEMORY_STAT_BY(STAT_Navigation_TileCacheMemory, DataSize);
-	NavData = MakeShareable(new FNavData(RawData));
+	NavData = MakeShareable(new FNavData(RawData, DataSize));
 }
 
 FNavMeshTileData::~FNavMeshTileData()
 {
-	if (NavData.IsUnique() && NavData->RawNavData)
+	if (NavData.IsUnique() && NavData->GetRawNavData())
 	{
 		// @todo this isn't accounting for the fact that NavData is a shared pointer
 		DEC_MEMORY_STAT_BY(STAT_Navigation_TileCacheMemory, DataSize);
@@ -157,10 +170,10 @@ uint8* FNavMeshTileData::Release()
 {
 	uint8* RawData = nullptr;
 
-	if (NavData.IsValid() && NavData->RawNavData) 
+	if (NavData.IsValid() && NavData->GetRawNavData()) 
 	{ 
-		RawData = NavData->RawNavData;
-		NavData->RawNavData = nullptr;
+		RawData = NavData->GetMutableRawNavData();
+		NavData->Reset();
 		DEC_MEMORY_STAT_BY(STAT_Navigation_TileCacheMemory, DataSize);
 	} 
  
@@ -179,8 +192,11 @@ void FNavMeshTileData::MakeUnique()
 #else
 		uint8* UniqueRawData = (uint8*)FMemory::Malloc(sizeof(uint8)*DataSize);
 #endif //WITH_RECAST
-		FMemory::Memcpy(UniqueRawData, NavData->RawNavData, DataSize);
-		NavData = MakeShareable(new FNavData(UniqueRawData));
+
+		NavData->TestPtr();
+		
+		FMemory::Memcpy(UniqueRawData, NavData->GetRawNavData(), DataSize);
+		NavData = MakeShareable(new FNavData(UniqueRawData, DataSize));
 	}
 }
 

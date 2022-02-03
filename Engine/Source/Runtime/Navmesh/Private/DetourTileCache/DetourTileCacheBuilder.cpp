@@ -2659,12 +2659,12 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 void dtFreeTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheLayer* layer)
 {
 	dtAssert(alloc);
-	// The layer is allocated as one conitguous blob of data.
+	// The layer is allocated as one contiguous blob of data.
 	alloc->free(layer);
 }
 
 dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompressor* comp,
-									unsigned char* compressed, const int compressedSize,
+									const unsigned char* compressed, const int compressedSize,
 									dtTileCacheLayer** layerOut)
 {
 	dtAssert(alloc);

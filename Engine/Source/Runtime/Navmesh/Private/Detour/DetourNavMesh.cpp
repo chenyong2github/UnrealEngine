@@ -1785,7 +1785,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	const int clusterPolysSize = dtAlign(sizeof(unsigned short)*header->offMeshBase);
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
-	unsigned char* d = data + headerSize;
+	const unsigned char* d = data + headerSize;
 	tile->verts = (dtReal*)d; d += vertsSize;
 	tile->polys = (dtPoly*)d; d += polysSize;
 	tile->links = (dtLink*)d; d += linksSize;

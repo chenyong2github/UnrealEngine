@@ -196,7 +196,7 @@ NAVMESH_API dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 NAVMESH_API void dtFreeTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheLayer* layer);
 
 NAVMESH_API dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompressor* comp,
-									unsigned char* compressed, const int compressedSize,
+									const unsigned char* compressed, const int compressedSize,
 									dtTileCacheLayer** layerOut);
 
 NAVMESH_API dtTileCacheContourSet* dtAllocTileCacheContourSet(dtTileCacheAlloc* alloc);
