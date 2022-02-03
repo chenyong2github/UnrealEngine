@@ -7,7 +7,7 @@
 #include "StateTreeEditorData.generated.h"
 
 UENUM()
-enum class EStateTreeItemType : uint8
+enum class EStateTreeNodeType : uint8
 {
 	EnterCondition,
 	Evaluator,
@@ -40,9 +40,9 @@ public:
 
 	/**
 	 * Iterates over all structs that are related to binding
-	 * @param InFunc function called at each item, should return true if visiting is continued or false to stop.
+	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeItemType ItemType, const UScriptStruct* ItemStruct, const UStruct* InstanceStruct)> InFunc) const;
+	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	// StateTree Builder API
 

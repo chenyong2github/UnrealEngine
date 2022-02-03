@@ -127,20 +127,10 @@ void UStateTree::Link()
 	
 	for (FInstancedStruct& Item : Items)
 	{
-		if (FStateTreeEvaluatorBase* Eval = Item.GetMutablePtr<FStateTreeEvaluatorBase>())
+		if (FStateTreeNodeBase* Node = Item.GetMutablePtr<FStateTreeNodeBase>())
 		{
-			Linker.SetCurrentInstanceDataType(Eval->GetInstanceDataType(), Eval->DataViewIndex);
-			Eval->Link(Linker);
-		}
-		else if (FStateTreeTaskBase* Task = Item.GetMutablePtr<FStateTreeTaskBase>())
-		{
-			Linker.SetCurrentInstanceDataType(Task->GetInstanceDataType(), Task->DataViewIndex);
-			Task->Link(Linker);
-		}
-		else if (FStateTreeConditionBase* Cond = Item.GetMutablePtr<FStateTreeConditionBase>())
-		{
-			Linker.SetCurrentInstanceDataType(Cond->GetInstanceDataType(), Cond->DataViewIndex);
-			Cond->Link(Linker);
+			Linker.SetCurrentInstanceDataType(Node->GetInstanceDataType(), Node->DataViewIndex);
+			Node->Link(Linker);
 		}
 	}
 

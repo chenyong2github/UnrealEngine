@@ -23,6 +23,9 @@
 
 #include "StateTree.h"
 #include "StateTreeState.h"
+#include "StateTreeConditionBase.h"
+#include "StateTreeEvaluatorBase.h"
+#include "StateTreeTaskBase.h"
 #include "StateTreeViewModel.h"
 #include "Algo/ForEach.h"
 
@@ -419,7 +422,7 @@ EVisibility SStateTreeViewRow::GetEvaluatorsVisibility() const
 		int32 ValidCount = 0;
 		for (int32 i = 0; i < State->Evaluators.Num(); i++)
 		{
-			if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Item.GetPtr<FStateTreeEvaluatorBase>())
+			if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Node.GetPtr<FStateTreeEvaluatorBase>())
 			{
 				ValidCount++;
 			}
@@ -441,7 +444,7 @@ FText SStateTreeViewRow::GetEvaluatorsDesc() const
 
 	for (int32 i = 0; i < State->Evaluators.Num(); i++)
 	{
-		if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Item.GetPtr<FStateTreeEvaluatorBase>())
+		if (const FStateTreeEvaluatorBase* Eval = State->Evaluators[i].Node.GetPtr<FStateTreeEvaluatorBase>())
 		{
 			Names.Add(FText::FromName(Eval->Name));
 		}
@@ -457,7 +460,7 @@ EVisibility SStateTreeViewRow::GetTasksVisibility() const
 		int32 ValidCount = 0;
 		for (int32 i = 0; i < State->Tasks.Num(); i++)
 		{
-			if (const FStateTreeTaskBase* Task = State->Tasks[i].Item.GetPtr<FStateTreeTaskBase>())
+			if (const FStateTreeTaskBase* Task = State->Tasks[i].Node.GetPtr<FStateTreeTaskBase>())
 			{
 				ValidCount++;
 			}
@@ -478,7 +481,7 @@ FText SStateTreeViewRow::GetTasksDesc() const
 	TArray<FText> Names;
 	for (int32 i = 0; i < State->Tasks.Num(); i++)
 	{
-		if (const FStateTreeTaskBase* Task = State->Tasks[i].Item.GetPtr<FStateTreeTaskBase>())
+		if (const FStateTreeTaskBase* Task = State->Tasks[i].Node.GetPtr<FStateTreeTaskBase>())
 		{
 			Names.Add(FText::FromName(Task->Name));
 		}

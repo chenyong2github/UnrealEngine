@@ -3,6 +3,8 @@
 #include "StateTreeState.h"
 #include "StateTree.h"
 #include "StateTreeConditionBase.h"
+#include "StateTreeEvaluatorBase.h"
+#include "StateTreeTaskBase.h"
 #include "StateTreeDelegates.h"
 #include "CoreMinimal.h"
 #include "UObject/Field.h"
@@ -76,7 +78,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Evaluators.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Item.GetMutablePtr<FStateTreeEvaluatorBase>())
+						if (FStateTreeEvaluatorBase* Eval = Evaluators[ArrayIndex].Node.GetMutablePtr<FStateTreeEvaluatorBase>())
 						{
 							Eval->Name = FName(Eval->Name.ToString() + TEXT(" Duplicate"));
 						}
@@ -88,7 +90,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
 					if (Tasks.IsValidIndex(ArrayIndex))
 					{
-						if (FStateTreeTaskBase* Task = Tasks[ArrayIndex].Item.GetMutablePtr<FStateTreeTaskBase>())
+						if (FStateTreeTaskBase* Task = Tasks[ArrayIndex].Node.GetMutablePtr<FStateTreeTaskBase>())
 						{
 							Task->Name = FName(Task->Name.ToString() + TEXT(" Duplicate"));
 						}

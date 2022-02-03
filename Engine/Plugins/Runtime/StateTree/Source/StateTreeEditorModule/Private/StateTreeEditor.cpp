@@ -325,9 +325,9 @@ FText FStateTreeEditor::GetStatisticsText() const
 	if (const UScriptStruct* StorageStruct = StateTree->GetInstanceStorageStruct())
 	{
 		const FText SizeText = FText::AsMemory((uint64)StorageStruct->GetStructureSize());
-		const FText NumItemsText = FText::AsNumber(StateTree->GetNumInstances());
+		const FText NumNodesText = FText::AsNumber(StateTree->GetNumInstances());
 
-		return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} items"), SizeText, NumItemsText);
+		return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes"), SizeText, NumNodesText);
 	}
 	
 	return FText::GetEmpty();
@@ -593,14 +593,14 @@ namespace UE::StateTree::Editor::Internal
 						}
 						
 						// Task name is the same as state name.
-						if (FStateTreeTaskBase* Task = CurState->SingleTask.Item.GetMutablePtr<FStateTreeTaskBase>())
+						if (FStateTreeTaskBase* Task = CurState->SingleTask.Node.GetMutablePtr<FStateTreeTaskBase>())
 						{
 							Task->Name = CurState->Name;
 						}
 					}
 					else
 					{
-						if (CurState->SingleTask.Item.IsValid())
+						if (CurState->SingleTask.Node.IsValid())
 						{
 							CurState->SingleTask.Reset();
 							UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));

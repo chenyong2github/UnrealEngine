@@ -10,10 +10,7 @@
 class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
-struct FStateTreeCondition;
-struct FStateTreeConditionItem;
-struct FStateTreeTaskItem;
-struct FStateTreeEvaluatorItem;
+struct FStateTreeEditorNode;
 struct FStateTreeStateLink;
 
 /**
@@ -39,11 +36,11 @@ private:
 	bool CreateStates();
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent);
 	bool CreateStateTransitions();
-	bool CreateCondition(const FStateTreeConditionItem& CondItem);
+	bool CreateCondition(const FStateTreeEditorNode& CondNode);
+	bool CreateTask(const FStateTreeEditorNode& TaskNode);
+	bool CreateEvaluator(const FStateTreeEditorNode& EvalNode);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
-	bool CreateTask(const FStateTreeTaskItem& TaskItem);
-	bool CreateEvaluator(const FStateTreeEvaluatorItem& EvalItem);
 	
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;

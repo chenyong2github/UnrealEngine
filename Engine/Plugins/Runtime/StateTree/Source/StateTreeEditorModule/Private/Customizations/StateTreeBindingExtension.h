@@ -14,6 +14,7 @@ struct FStateTreeEditorPropertyPath;
 
 namespace UE::StateTree::PropertyBinding
 {
+	extern const FName StateTreeNodeIDName;
 
 	/**
 	 * Get nearest Outer that implements IStateTreeEditorPropertyBindingsOwner.

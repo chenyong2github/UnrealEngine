@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
+#include "StateTreeNodeBase.h"
 #include "StateTreeExecutionContext.h"
 #if WITH_EDITOR
 #include "StateTreePropertyBindings.h"
@@ -19,23 +19,9 @@ struct FStateTreeEditorPropertyPath;
  * Base struct for all conditions.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()
-
-	virtual ~FStateTreeConditionBase() {}
-
-	/** @return Struct that represents the runtime data of the condition. */
-	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
-
-	/**
-	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
-	 * @see TStateTreeExternalDataHandle
-	 * @see TStateTreeInstanceDataPropertyHandle
-	 * @param Linker Reference to the linker
-	 * @return true if linking succeeded. 
-	 */
-	virtual bool Link(FStateTreeLinker& Linker) { return true; }
 
 #if WITH_EDITOR
 	/** @return Rich text description of the condition. */
@@ -50,22 +36,9 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 	 */
 	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) {}
 #endif
+	
 	/** @return True if the condition passes. */
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const { return false; }
-
-	/** Property binding copy batch handle. */
-	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
-
-	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
-	UPROPERTY()
-	uint16 DataViewIndex = 0;
-
-	UPROPERTY()
-	uint16 InstanceIndex = 0;
-
-	UPROPERTY()
-	uint8 bInstanceIsObject : 1;
 };
 
 

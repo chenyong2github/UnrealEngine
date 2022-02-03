@@ -13,15 +13,15 @@ class UStateTreeEditorData;
 struct FStateTreeEditorPropertyPath;
 
 /**
- * Semi-generic type customization for bindable items (Evaluators and Tasks) in StateTreeState.
+ * Type customization for nodes (Conditions, Evaluators and Tasks) in StateTreeState.
  */
-class FStateTreeBindableItemDetails : public IPropertyTypeCustomization
+class FStateTreeEditorNodeDetails : public IPropertyTypeCustomization
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	virtual ~FStateTreeBindableItemDetails();
+	virtual ~FStateTreeEditorNodeDetails();
 	
 	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
@@ -41,7 +41,7 @@ private:
 	void OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	bool IsNameEnabled() const;
 
-	const struct FStateTreeItem* GetCommonItem() const;
+	const struct FStateTreeEditorNode* GetCommonNode() const;
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 
@@ -63,7 +63,7 @@ private:
 
 	class IPropertyUtilities* PropUtils = nullptr;
 	TSharedPtr<IPropertyHandle> StructProperty;
-	TSharedPtr<IPropertyHandle> ItemProperty;
+	TSharedPtr<IPropertyHandle> NodeProperty;
 	TSharedPtr<IPropertyHandle> InstanceProperty;
 	TSharedPtr<IPropertyHandle> InstanceObjectProperty;
 	TSharedPtr<IPropertyHandle> IDProperty;

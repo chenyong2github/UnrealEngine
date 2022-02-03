@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
+#include "StateTreeNodeBase.h"
 #include "StateTreeEvaluatorBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -13,25 +13,9 @@ struct FStateTreeExecutionContext;
  * Evaluators calculate and expose data to be used for decision making in a StateTree.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeEvaluatorBase
+struct STATETREEMODULE_API FStateTreeEvaluatorBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()
-
-	FStateTreeEvaluatorBase() = default;
-
-	virtual ~FStateTreeEvaluatorBase() {}
-
-	/** @return Struct that represents the runtime data of the evaluator. */
-	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
-
-	/**
-	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
-	 * @see TStateTreeExternalDataHandle
-	 * @see TStateTreeInstanceDataPropertyHandle
-	 * @param Linker Reference to the linker
-	 * @return true if linking succeeded. 
-	 */
-	virtual bool Link(FStateTreeLinker& Linker) { return true; }
 
 	/**
 	 * Called when a new state is entered and evaluator is part of active states. The change type parameter describes if the evaluator's state
@@ -73,23 +57,6 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const;
 #endif // WITH_GAMEPLAY_DEBUGGER
-
-	UPROPERTY(EditDefaultsOnly, Category = Evaluator, meta=(EditCondition = "false", EditConditionHides))
-	FName Name;
-
-	/** Property binding copy batch handle. */
-	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;		// Property binding copy batch handle.
-
-	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
-	UPROPERTY()
-	uint16 DataViewIndex = 0;
-
-	UPROPERTY()
-	uint16 InstanceIndex = 0;
-
-	UPROPERTY()
-	uint8 bInstanceIsObject : 1;
 };
 
 /**

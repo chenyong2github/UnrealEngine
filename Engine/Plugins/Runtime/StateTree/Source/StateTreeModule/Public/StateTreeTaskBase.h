@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
+#include "StateTreeNodeBase.h"
 #include "StateTreeTaskBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -13,25 +13,9 @@ struct FStateTreeExecutionContext;
  * Tasks are logic executed in an active state.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeTaskBase
+struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()
-
-	FStateTreeTaskBase() = default;
-
-	virtual ~FStateTreeTaskBase() {}
-
-	/** @return Struct that represents the runtime data of the task. */
-	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
-
-	/**
-	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
-	 * @see TStateTreeExternalDataHandle
-	 * @see TStateTreeInstanceDataPropertyHandle
-	 * @param Linker Reference to the linker
-	 * @return true if linking succeeded. 
-	 */
-	virtual bool Link(FStateTreeLinker& Linker) { return true; }
 
 	/**
 	 * Called when a new state is entered and task is part of active states. The change type parameter describes if the task's state
@@ -72,21 +56,4 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const;
 #endif
-
-	UPROPERTY(EditAnywhere, Category = Task, meta = (EditCondition = "false", EditConditionHides))
-	FName Name;
-
-	/** Property binding copy batch handle. */
-	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
-
-	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
-	UPROPERTY()
-	uint16 DataViewIndex = 0;
-
-	UPROPERTY()
-	uint16 InstanceIndex = 0;
-
-	UPROPERTY()
-	uint8 bInstanceIsObject : 1;
 };

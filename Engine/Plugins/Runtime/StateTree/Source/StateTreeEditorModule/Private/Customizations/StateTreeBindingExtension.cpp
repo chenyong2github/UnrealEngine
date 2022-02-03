@@ -10,7 +10,6 @@
 #include "StateTreeEvaluatorBase.h"
 #include "StateTree.h"
 #include "Algo/Accumulate.h"
-#include "InstancedStruct.h"
 #include "StateTreePropertyHelpers.h"
 #include "StateTreeAnyEnum.h"
 #include "StateTreePropertyBindingCompiler.h"
@@ -20,6 +19,9 @@
 
 namespace UE::StateTree::PropertyBinding
 {
+	
+const FName StateTreeNodeIDName(TEXT("StateTreeNodeID"));
+	
 
 UObject* FindEditorBindingsOwner(UObject* InObject)
 {
@@ -47,7 +49,7 @@ void GetStructPropertyPath(TSharedPtr<IPropertyHandle> InPropertyHandle, FStateT
 		// Keep track of the path.
 		BindingChain.Insert(FBindingChainElement(CurrentProperty, InPropertyHandle->GetIndexInArray()), 0);
 		
-		if (const FString* IDString = InPropertyHandle->GetInstanceMetaData(FName(TEXT("StateTreeItemID"))))
+		if (const FString* IDString = InPropertyHandle->GetInstanceMetaData(StateTreeNodeIDName))
 		{
 			LexFromString(StructID, **IDString);
 		}
@@ -95,9 +97,8 @@ FOnStateTreeBindingChanged STATETREEEDITORMODULE_API OnStateTreeBindingChanged;
 
 bool FStateTreeBindingExtension::IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const
 {
-	// Bindable property must have item ID
-	static const FName StateTreeItemIDName(TEXT("StateTreeItemID"));
-	if (PropertyHandle.GetInstanceMetaData(StateTreeItemIDName) == nullptr)
+	// Bindable property must have node ID
+	if (PropertyHandle.GetInstanceMetaData(UE::StateTree::PropertyBinding::StateTreeNodeIDName) == nullptr)
 	{
 		return false;
 	}
