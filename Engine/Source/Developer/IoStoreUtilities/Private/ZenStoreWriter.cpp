@@ -516,7 +516,8 @@ void FZenStoreWriter::BeginCook()
 
 void FZenStoreWriter::EndCook()
 {
-	Flush();
+	UE_LOG(LogZenStoreWriter, Display, TEXT("Flushing..."));
+	CommitQueue->WaitUntilEmpty();
 	
 	CommitQueue->CompleteAdding();
 	
@@ -812,14 +813,6 @@ void FZenStoreWriter::GetEntries(TFunction<void(TArrayView<const FPackageStoreEn
 {
 	FReadScopeLock _(EntriesLock);
 	Callback(PackageStoreEntries, CookedPackagesInfo);
-}
-
-void FZenStoreWriter::Flush()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::Flush);
-
-	UE_LOG(LogZenStoreWriter, Display, TEXT("Flushing..."));
-	CommitQueue->WaitUntilEmpty();
 }
 
 TUniquePtr<FAssetRegistryState> FZenStoreWriter::LoadPreviousAssetRegistry() 

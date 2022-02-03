@@ -238,11 +238,6 @@ public:
 	  */
 	virtual void EndCook() = 0;
 
-	/**
-	 * Flush any outstanding writes.
-	 */
-	virtual void Flush() = 0;
-
 	struct FCookedPackageInfo
 	{
 		FName PackageName;

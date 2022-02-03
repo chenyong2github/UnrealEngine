@@ -40,7 +40,6 @@ public:
 	virtual void Initialize(const FCookInfo& Info) override;
 	virtual void BeginCook() override;
 	virtual void EndCook() override;
-	virtual void Flush() override;
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override;
 	virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;

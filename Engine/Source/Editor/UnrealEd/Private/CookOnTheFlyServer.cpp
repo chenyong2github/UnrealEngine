@@ -267,14 +267,11 @@ class UCookOnTheFlyServer::FCookOnTheFlyServerInterface final
 public:
 	FCookOnTheFlyServerInterface(UCookOnTheFlyServer& InCooker)
 		: Cooker(InCooker)
-		, FlushCompletedEvent(FPlatformProcess::GetSynchEventFromPool(true))
 	{
-		FlushCompletedEvent->Trigger();
 	}
 
 	virtual ~FCookOnTheFlyServerInterface()
 	{
-		FPlatformProcess::ReturnSynchEventToPool(FlushCompletedEvent);
 	}
 
 	virtual FString GetSandboxDirectory() const override
@@ -395,33 +392,6 @@ public:
 		return Cooker.FindOrCreatePackageWriter(TargetPlatform);
 	}
 
-	virtual double WaitForPendingFlush() override
-	{
-		const double StartTime = bIsFlushing ? FPlatformTime::Seconds() : 0.0;
-
-		FlushCompletedEvent->Wait();
-
-		return StartTime > 0.0 ? FPlatformTime::Seconds() - StartTime : 0.0;
-	}
-
-	void Flush()
-	{
-		bIsFlushing = true;
-		FlushCompletedEvent->Reset();
-
-		UE_LOG(LogCook, Log, TEXT("Flushing..."));
-
-		for (UE::Cook::FCookSavePackageContext* Context : Cooker.SavePackageContexts)
-		{
-			Context->PackageWriter->Flush();
-		}
-
-		UE_LOG(LogCook, Log, TEXT("Flush completed"));
-
-		bIsFlushing = false;
-		FlushCompletedEvent->Trigger();
-	}
-
 private:
 	struct FRequest
 	{
@@ -454,12 +424,9 @@ private:
 	}
 
 	UCookOnTheFlyServer& Cooker;
-	FEvent* FlushCompletedEvent;
-	FCriticalSection FlushCriticalSection;
 	FCriticalSection RequestsCriticalSection;
 	TChunkedArray<FRequest> Requests;
 	FRequest* FirstFree = nullptr;
-	TAtomic<bool> bIsFlushing = {false};
 };
 
 /* UCookOnTheFlyServer functions
@@ -1337,11 +1304,6 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		// if we are out of stuff and we are in cook by the book from the editor mode then we finish up
 		UpdateDisplay(TickFlags, true /* bForceDisplay */);
 		CookByTheBookFinished();
-	}
-
-	if (IsCookOnTheFlyMode() && bCookComplete)
-	{
-		CookOnTheFlyServerInterface->Flush();
 	}
 
 	CookedPackageCount += StackData.CookedPackageCount;

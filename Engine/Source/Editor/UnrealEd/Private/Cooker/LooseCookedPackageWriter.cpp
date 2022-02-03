@@ -397,11 +397,6 @@ void FLooseCookedPackageWriter::EndCook()
 	PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
 }
 
-void FLooseCookedPackageWriter::Flush()
-{
-	UPackage::WaitForAsyncFileWrites();
-}
-
 TUniquePtr<FAssetRegistryState> FLooseCookedPackageWriter::LoadPreviousAssetRegistry()
 {
 	// Report files from the shared build if the option is set

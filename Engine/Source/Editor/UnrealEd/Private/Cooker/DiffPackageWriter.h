@@ -70,10 +70,6 @@ public:
 	{
 		Inner->EndCook();
 	}
-	virtual void Flush() override
-	{
-		Inner->Flush();
-	}
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override
 	{
 		return Inner->LoadPreviousAssetRegistry();
@@ -195,10 +191,6 @@ public:
 	virtual void EndCook() override
 	{
 		Inner->EndCook();
-	}
-	virtual void Flush() override
-	{
-		Inner->Flush();
 	}
 	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override
 	{

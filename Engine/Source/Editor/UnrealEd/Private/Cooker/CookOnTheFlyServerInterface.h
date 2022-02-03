@@ -100,13 +100,6 @@ public:
 	 * Returns the package store writer for the specified platform.
 	 */
 	virtual ICookedPackageWriter& GetPackageWriter(const ITargetPlatform* TargetPlatform) = 0;
-
-	/**
-	 * Wait until any pending flush request is completed.
-	 *
-	 * @return Duration in seconds.
-	 */
-	virtual double WaitForPendingFlush() = 0;
 };
 
 /**

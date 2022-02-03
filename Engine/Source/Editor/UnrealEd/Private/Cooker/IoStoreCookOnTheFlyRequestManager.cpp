@@ -387,10 +387,6 @@ private:
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleCookPackageRequest);
 
-		const double FlushDurationInSeconds = CookOnTheFlyServer.WaitForPendingFlush();
-		UE_CLOG(FlushDurationInSeconds > 0.0, LogCookOnTheFly, Log, TEXT("Waited '%.2llf's for cooker to flush pending package(s), Client='%s (%u)'"),
-			FlushDurationInSeconds, *Client.PlatformName.ToString(), Client.ClientId);
-
 		FPlatformContext& Context = GetContext(Client.PlatformName);
 		FScopeLock _(&Context.CriticalSection);
 
