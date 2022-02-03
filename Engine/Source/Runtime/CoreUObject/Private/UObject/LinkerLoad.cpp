@@ -3259,7 +3259,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 					if (!FLinkerLoad::IsKnownMissingPackage(PackageToLoad))
 					{
 						FLinkerLoad::AddKnownMissingPackage(PackageToLoad);
-						UE_LOG(LogLinker, Warning, TEXT("VerifyImport: Failed to find script package for import object '%s'"), *GetImportFullName(ImportIndex));
+						UE_LOG(LogLinker, Warning, TEXT("VerifyImport for '%s': Failed to find script package for import object '%s'"), *GetDebugName(), *GetImportFullName(ImportIndex));
 					}
 					return nullptr;
 				}
