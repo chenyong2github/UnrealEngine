@@ -9286,7 +9286,7 @@ bool UEngine::HandleConfigMemCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	// Format: GetIni [Platform@]IniFile:Section.SubSection Key
+	// Format: GetIni [Platform@]IniFile:Section Key
 	TCHAR IniPlusSectionName[256];
 	TCHAR KeyName[256];
 
@@ -9326,23 +9326,36 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			else
 			{
 				TArray<FString> ConfigList;
-				FString SearchStr = IniPlusSection.Left(IniDelim) + TEXT(".ini");
-
 				ConfigSystem->GetConfigFilenames(ConfigList);
 
-				for (auto CurConfig : ConfigList)
+				// first try exact match (this helps with known files that have no .ini extension, etc)
+				FString SearchString = IniPlusSection.Left(IniDelim);
+				const FString* Result = Algo::FindByPredicate(ConfigList, [&SearchString](const FString& Test) { return FPaths::GetCleanFilename(Test) == SearchString; });
+				
+				// now try with .ini added if not already a .ini
+				if (!SearchString.EndsWith(TEXT(".ini")))
 				{
-					if (CurConfig.Contains(SearchStr, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+					SearchString += ".ini";
+					if (Result == nullptr)
 					{
-						IniName = CurConfig;
-						break;
+						Result = Algo::FindByPredicate(ConfigList, [&SearchString](const FString& Test) { return FPaths::GetCleanFilename(Test) == SearchString; });
 					}
 				}
 
-				if (IniName.IsEmpty())
+				// finally fallback to old method of substring search with .ini extension
+				if (Result == nullptr)
+				{
+					Result = Algo::FindByPredicate(ConfigList, [&SearchString](const FString& Test) { return Test.Contains(SearchString); });
+				}
+
+				if (Result == nullptr)
 				{
 					UE_SUPPRESS(LogExec, Warning,
-						Ar.Logf(TEXT("Failed to find IniFile '%s' (note: can only search loaded ini files)."), *SearchStr));
+						Ar.Logf(TEXT("Failed to find IniFile '%s' (note: can only search loaded ini files)."), *SearchString));
+				}
+				else
+				{
+					IniName = *Result;
 				}
 			}
 		}
@@ -9375,26 +9388,26 @@ bool UEngine::HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			else
 			{
 				UE_SUPPRESS(LogExec, Warning,
-					Ar.Logf(TEXT("No Key specified. Command format: GetIni IniFile:Section.SubSection Key")));
+					Ar.Logf(TEXT("No Key specified. Command format: GetIni [Platform@]IniFile:Section Key")));
 			}
 		}
 		else if (IniName.IsEmpty())
 		{
 			UE_SUPPRESS(LogExec, Warning,
-				Ar.Logf(TEXT("IniFile parsing failed (%s). Command format: GetIni IniFile:Section.SubSection Key"),
+				Ar.Logf(TEXT("IniFile parsing failed (%s). Command format: GetIni [Platform@]IniFile:Section Key"),
 					IniPlusSectionName));
 		}
 		else // if (SectionName.IsEmpty())
 		{
 			UE_SUPPRESS(LogExec, Warning,
-				Ar.Logf(TEXT("Section parsing failed (%s). Command format: GetIni IniFile:Section.SubSection Key"),
+				Ar.Logf(TEXT("Section parsing failed (%s). Command format: GetIni [Platform@]IniFile:Section Key"),
 					IniPlusSectionName));
 		}
 	}
 	else
 	{
 		UE_SUPPRESS(LogExec, Warning,
-			Ar.Logf(TEXT("No Section specified. Command format: GetIni IniFile:Section.SubSection Key")))
+			Ar.Logf(TEXT("No Section specified. Command format: GetIni [Platform@]IniFile:Section Key")))
 	}
 
 	return true;

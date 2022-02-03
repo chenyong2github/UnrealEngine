@@ -28,6 +28,7 @@
 #include "Misc/ICompressionFormat.h"
 #include "Misc/KeyChainUtilities.h"
 #include "IoStoreUtilities.h"
+#include "Interfaces/IPluginManager.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -35,6 +36,8 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
 #define USE_DDC_FOR_COMPRESSED_FILES 0
 #define PAKCOMPRESS_DERIVEDDATA_VER TEXT("9493D2AB515048658AF7BE1342EC21FC")
+
+DEFINE_LOG_CATEGORY_STATIC(LogMakeBinaryConfig, Log, All);
 
 
 #define SEEK_OPT_VERBOSITY Display
@@ -4815,6 +4818,105 @@ void CheckAndReallocThreadPool()
 	}
 }
 
+bool MakeBinaryConfig(const TCHAR* CmdLine)
+{
+	FString OutputFile;
+	if (!FParse::Value(CmdLine, TEXT("OutputFile="), OutputFile))
+	{
+		UE_LOG(LogMakeBinaryConfig, Error, TEXT("OutputFile= parameter required"));
+		return false;
+	}
+
+	FString StagedPluginsFile;
+	if (!FParse::Value(CmdLine, TEXT("StagedPluginsFile="), StagedPluginsFile))
+	{
+		UE_LOG(LogMakeBinaryConfig, Error, TEXT("StagedPluginsFile= parameter required"));
+		return false;
+	}
+
+	FString ProjectFile;
+	if (!FParse::Value(CmdLine, TEXT("Project="), ProjectFile))
+	{
+		UE_LOG(LogMakeBinaryConfig, Error, TEXT("ProjectFile= parameter required (path to .uproject file)"));
+		return false;
+	}
+
+	FString PlatformName;
+	if (!FParse::Value(CmdLine, TEXT("Platform="), PlatformName))
+	{
+		UE_LOG(LogMakeBinaryConfig, Error, TEXT("Platform= parameter required (Ini platform name, not targetplatform name - Windows, not Win64 or WindowsClient)"));
+		return false;
+	}
+
+	FConfigCacheIni Config(EConfigCacheType::Temporary);
+	FString ProjectDir = FPaths::GetPath(ProjectFile);
+	Config.InitializeKnownConfigFiles(*PlatformName, false, *ProjectDir);
+
+	// removing for now, because this causes issues with some plugins not getting ini files merged in
+	// IPluginManager::Get().IntegratePluginsIntoConfig(Config, *GEngineIni, *PlatformName, *StagedPluginsFile);
+
+	// pull out deny list entries
+
+	TArray<FString> KeyDenyListStrings;
+	TArray<FString> SectionsDenyList;
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
+	GConfig->GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniSectionBlacklist"), SectionsDenyList, GGameIni);
+	TArray<FName> KeysDenyList;
+	for (const FString& Key : KeyDenyListStrings)
+	{
+		KeysDenyList.Add(FName(*Key));
+	}
+
+	for (const FString& Filename : Config.GetFilenames())
+	{
+		FConfigFile* File = Config.FindConfigFile(Filename);
+
+		delete File->SourceConfigFile;
+		File->SourceConfigFile = nullptr;
+
+		for (const FString& Section : SectionsDenyList)
+		{
+			File->Remove(Section);
+		}
+
+		// now go over any remaining sections and remove keys
+		for (TPair<FString, FConfigSection>& SectionPair : *File)
+		{
+			FConfigSection& Section = SectionPair.Value;
+			for (FName Key : KeysDenyList)
+			{
+				Section.Remove(Key);
+			}
+		}
+	}
+
+	// check the deny list removed itself
+	KeyDenyListStrings.Empty();
+	Config.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("IniKeyBlacklist"), KeyDenyListStrings, GGameIni);
+	check(KeyDenyListStrings.Num() == 0);
+
+	// allow delegates to modify the config data with some tagged binary data
+	FCoreDelegates::FExtraBinaryConfigData ExtraData(Config, true);
+	FCoreDelegates::AccessExtraBinaryConfigData.Broadcast(ExtraData);
+
+	// write it all out!
+	TArray<uint8> FileContent;
+	{
+		// Use FMemoryWriter because FileManager::CreateFileWriter doesn't serialize FName as string and is not overridable
+		FMemoryWriter MemoryWriter(FileContent, true);
+
+		Config.Serialize(MemoryWriter);
+		MemoryWriter << ExtraData.Data;
+	}
+
+	if (!FFileHelper::SaveArrayToFile(FileContent, *OutputFile))
+	{
+		UE_LOG(LogMakeBinaryConfig, Error, TEXT("Failed to create binary config file '%s'"), *OutputFile);
+		return false;
+	}
+
+	return true;
+}
 
 
 /**
@@ -4850,6 +4952,11 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	if (NonOptionArguments.Num() && NonOptionArguments[0] == TEXT("IoStore"))
 	{
 		return CreateIoStoreContainerFiles(CmdLine) == 0;
+	}
+
+	if (NonOptionArguments.Num() && NonOptionArguments[0] == TEXT("MakeBinaryConfig"))
+	{
+		return MakeBinaryConfig(CmdLine);
 	}
 
 	FString ProjectArg;

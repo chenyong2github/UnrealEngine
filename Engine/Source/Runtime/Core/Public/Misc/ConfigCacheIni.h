@@ -1203,10 +1203,11 @@ public:
 	 *
 	 * @param PlatformName Ini name of the platform this is loadenig for (or nullptr for current platform)
 	 * @param bDefaultEngineIniRequired True if the engine ini is required
+	 * @param OverrideProjectDir Used to generate configs for another project (like from a program making binary configs)
 	 *
 	 * return True if the engine ini was loaded
 	 */
-	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired);
+	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired, const TCHAR* OverrideProjectDir=nullptr);
 
 	/**
 	 * Returns true if the given name is one of the known configs, where the matching G****Ini property is going to match the 

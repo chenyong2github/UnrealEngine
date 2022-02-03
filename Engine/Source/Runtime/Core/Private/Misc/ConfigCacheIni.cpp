@@ -2999,7 +2999,7 @@ void FConfigCacheIni::Dump(FOutputDevice& Ar, const TCHAR* BaseIniName)
 
 	for (const FConfigCacheIni::FKnownConfigFiles::FKnownConfigFile& File : KnownFiles.Files)
 	{
-		DumpFile(Ar, File.IniPath, File.IniFile);
+		DumpFile(Ar, File.IniName.ToString(), File.IniFile);
 	}
 
 	for ( TIterator It(*this); It; ++It )
@@ -3885,7 +3885,7 @@ static FString PerformExpansionReplacements(const FConfigLayerExpansion& Expansi
 	return OutString;
 }
 
-static FString PerformFinalExpansions(const FString InString, const FString& PlatformName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir)
+static FString PerformFinalExpansions(const FString InString, const FString& PlatformName, const TCHAR* EngineDir, const TCHAR* ProjectDir)
 {
 	static FString LastPlatform;
 	static FString PlatformExtensionEngineDir;
@@ -3899,8 +3899,8 @@ static FString PerformFinalExpansions(const FString InString, const FString& Pla
 	if (LastPlatform != PlatformName)
 	{
 		LastPlatform = PlatformName;
-		PlatformExtensionEngineDir = FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName);
-		PlatformExtensionProjectDir = FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName);
+		PlatformExtensionEngineDir = FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName).Replace(*FPaths::EngineDir(), *(FString(EngineDir) + "/"));
+		PlatformExtensionProjectDir = FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName).Replace(*FPaths::ProjectDir(), *(FString(ProjectDir) + "/"));
 	}
 
 	// cache some slow operations
@@ -3920,9 +3920,9 @@ static FString PerformFinalExpansions(const FString InString, const FString& Pla
 		}
 	}
 
-	FString OutString = InString.Replace(TEXT("{ENGINE}"), EngineConfigDir);
+	FString OutString = InString.Replace(TEXT("{ENGINE}"), EngineDir);
 	OutString = OutString.Replace(TEXT("{EXTENGINE}"), *PlatformExtensionEngineDir);
-	OutString = OutString.Replace(TEXT("{PROJECT}"), SourceConfigDir);
+	OutString = OutString.Replace(TEXT("{PROJECT}"), ProjectDir);
 	OutString = OutString.Replace(TEXT("{EXTPROJECT}"), *PlatformExtensionProjectDir);
 	OutString = OutString.Replace(TEXT("{PLATFORM}"), *PlatformName);
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NFL}"), *ProjectNotForLicenseesDir);
@@ -4145,7 +4145,7 @@ void FConfigCacheIni::SerializeStateForBootstrap_Impl(FArchive& Ar)
 }
 
 
-bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired)
+bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired, const TCHAR* OverrideProjectDir)
 {
 	// check for scalability platform override.
 	const TCHAR* ScalabilityPlatformOverride = nullptr;
@@ -4168,8 +4168,31 @@ bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool
 		// allo for scalability to come from another 
 		const TCHAR* PlatformNameForThisIni = KnownIndex == (uint8)EKnownIniFile::Scalability ? ScalabilityPlatformOverride : PlatformName;
 		// load the hierarchy!
-		bool bConfigCreated = FConfigCacheIni::LoadGlobalIniFile(KnownFiles.Files[KnownIndex].IniPath, *KnownFiles.Files[KnownIndex].IniName.ToString(), PlatformName, 
-			false, bDefaultEngineIniRequired, bAllowGeneratedIniWhenCooked, bAllowRemoteConfig, *FPaths::GeneratedConfigDir(), this);
+		bool bConfigCreated;
+		
+		if (OverrideProjectDir == nullptr)
+		{
+			bConfigCreated = FConfigCacheIni::LoadGlobalIniFile(KnownFiles.Files[KnownIndex].IniPath, *KnownFiles.Files[KnownIndex].IniName.ToString(), PlatformName,
+				false, bDefaultEngineIniRequired, bAllowGeneratedIniWhenCooked, bAllowRemoteConfig, *FPaths::GeneratedConfigDir(), this);
+		}
+		else
+		{
+			FString ProjectGeneratedConfigDir = FPaths::Combine(OverrideProjectDir, TEXT("Saved"), TEXT("Config/"));
+			KnownFiles.Files[KnownIndex].IniPath = GetDestIniFilename(*KnownFiles.Files[KnownIndex].IniName.ToString(), PlatformName, *ProjectGeneratedConfigDir);
+
+			bConfigCreated = LoadExternalIniFile(
+				KnownFiles.Files[KnownIndex].IniFile,
+				*KnownFiles.Files[KnownIndex].IniName.ToString(),
+				*FPaths::EngineConfigDir(),
+				*FPaths::Combine(OverrideProjectDir, TEXT("Config/")),
+				/*bIsBaseIniName*/ true,
+				PlatformName,
+				/*bForceReload*/ false,
+				/*bWriteDestIni*/ false,
+				/*bAllowGeneratedIniWhenCooked*/false,
+				*ProjectGeneratedConfigDir);
+		}
+
 
 		// we want to return if the Engine config was successfully created (to not remove any functionality from old code)
 		if (KnownIndex == (uint8)EKnownIniFile::Engine)
@@ -4288,6 +4311,38 @@ bool FConfigCacheIni::CreateGConfigFromSaved(const TCHAR* Filename)
 
 #endif
 
+static void LoadRemainingConfigFiles()
+{
+	SCOPED_BOOT_TIMING("LoadRemainingConfigFiles");
+
+#if WITH_EDITOR
+	// load some editor specific .ini files
+
+	FConfigCacheIni::LoadGlobalIniFile(GEditorIni, TEXT("Editor"));
+
+	// Upgrade editor user settings before loading the editor per project user settings
+	FConfigManifest::MigrateEditorUserSettings();
+	FConfigCacheIni::LoadGlobalIniFile(GEditorPerProjectIni, TEXT("EditorPerProjectUserSettings"));
+
+	// Project agnostic editor ini files
+	const FString EditorSettingsDir = FPaths::EngineEditorSettingsDir();
+	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, true, *EditorSettingsDir);
+	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, true, *EditorSettingsDir);
+
+#endif
+#if PLATFORM_DESKTOP
+	// load some desktop only .ini files
+	FConfigCacheIni::LoadGlobalIniFile(GCompatIni, TEXT("Compat"));
+	FConfigCacheIni::LoadGlobalIniFile(GLightmassIni, TEXT("Lightmass"));
+#endif
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("dumpconfig")))
+	{
+		GConfig->Dump(*GLog);
+	}
+}
+
 void FConfigCacheIni::InitializeConfigSystem()
 {
 	// assign the G***Ini strings for the known ini's
@@ -4296,17 +4351,24 @@ void FConfigCacheIni::InitializeConfigSystem()
 		ENUMERATE_KNOWN_INI_FILES(ASSIGN_GLOBAL_INI_STRING);
 	#undef ASSIGN_GLOBAL_INI_STRING
 
+#if WITH_EDITOR
+	AsyncInitializeConfigForPlatforms();
+#endif
+
 #if PLATFORM_SUPPORTS_BINARYCONFIG && PRELOAD_BINARY_CONFIG
 	// attempt to load from staged binary config data
-	FString BinaryConfigFile = FPaths::Combine(FPaths::SourceConfigDir(), TEXT("BinaryConfig.ini"));
-
 	if (!FParse::Param(FCommandLine::Get(), TEXT("textconfig")) &&
-		IFileManager::Get().FileExists(*BinaryConfigFile) &&
-		FConfigCacheIni::CreateGConfigFromSaved(*BinaryConfigFile))
+		FConfigCacheIni::CreateGConfigFromSaved(nullptr))
 	{
 		// Force reload GameUserSettings because they may be saved to disk on consoles/similar platforms
 		// So the safest thing to do is to re-read the file after binary configs load.
 		FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"));
+
+#if WITH_EDITOR
+		// a cooked editor (cooked cooker more likely) can be initialized from binary config for speed, 
+		// but we still need the other files as well
+		LoadRemainingConfigFiles();
+#endif
 		return;
 	}
 #endif
@@ -4366,34 +4428,11 @@ void FConfigCacheIni::InitializeConfigSystem()
 		}
 	}
 
-#if WITH_EDITOR
-	// load some editor specific .ini files
-
-	FConfigCacheIni::LoadGlobalIniFile(GEditorIni, TEXT("Editor"));
-
-	// Upgrade editor user settings before loading the editor per project user settings
-	FConfigManifest::MigrateEditorUserSettings();
-	FConfigCacheIni::LoadGlobalIniFile(GEditorPerProjectIni, TEXT("EditorPerProjectUserSettings"));
-
-	// Project agnostic editor ini files
-	const FString EditorSettingsDir = FPaths::EngineEditorSettingsDir();
-	FConfigCacheIni::LoadGlobalIniFile(GEditorSettingsIni, TEXT("EditorSettings"), nullptr, false, false, true, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorKeyBindingsIni, TEXT("EditorKeyBindings"), nullptr, false, false, true, true, *EditorSettingsDir);
-	FConfigCacheIni::LoadGlobalIniFile(GEditorLayoutIni, TEXT("EditorLayout"), nullptr, false, false, true, true, *EditorSettingsDir);
-
-#endif
-#if PLATFORM_DESKTOP
-	// load some desktop only .ini files
-	FConfigCacheIni::LoadGlobalIniFile(GCompatIni, TEXT("Compat"));
-	FConfigCacheIni::LoadGlobalIniFile(GLightmassIni, TEXT("Lightmass"));
-#endif
+	// load editor, etc config files that won't be binaried
+	LoadRemainingConfigFiles();
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
-
-#if WITH_EDITOR
-	AsyncInitializeConfigForPlatforms();
-#endif
 
 	FCoreDelegates::ConfigReadyForUse.Broadcast();
 }
