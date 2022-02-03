@@ -7,6 +7,7 @@
 #include "Tools/UEdMode.h"
 #include "ToolTargets/ToolTarget.h"
 #include "GeometryBase.h"
+#include "InteractiveTool.h"
 
 #include "UVEditorMode.generated.h"
 
@@ -27,7 +28,25 @@ class UUVToolStateObjectStore;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
 class UUVToolViewportButtonsAPI;
+class UUVTool2DViewportAPI;
 
+
+/**
+ * Visualization settings for the UUVEditorMode's Grid
+ */
+UCLASS()
+class UVEDITOR_API UUVEditorGridProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Should the grid be shown?*/
+	UPROPERTY(EditAnywhere, Category = Grid, meta = (DisplayName = "Display Grid"))
+	bool bDrawGrid = true;
+
+	/** Should the grid rulers be shown?*/
+	UPROPERTY(EditAnywhere, Category = Grid, meta = (DisplayName = "Display Rulers"))
+	bool bDrawRulers = true;
+};
 
 /**
  * The UV editor mode is the mode used in the UV asset editor. It holds most of the inter-tool state.
@@ -54,12 +73,12 @@ public:
 	/**
 	 * Gets the factor by which UV layer unwraps get scaled (scaling makes certain things easier, like zooming in, etc).
 	 */
-	static double GetUVMeshScalingFactor() { return 1000; }
+	static double GetUVMeshScalingFactor();
 
 	// Both initialization functions must be called for things to function properly. InitializeContexts should
 	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
 	void InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager,
-		UUVToolViewportButtonsAPI& ViewportButtonsAPI);
+		UUVToolViewportButtonsAPI& ViewportButtonsAPI, UUVTool2DViewportAPI& UVTool2DViewportAPI);
 	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
 
 	// Public for use by undo/redo. Otherwise should use RequestUVChannelChange
@@ -101,6 +120,9 @@ public:
 	/** @return A settings object suitable for display in a details panel to control the background visualization. */
 	UObject* GetBackgroundSettingsObject();
 
+	/** @return A settings object suitable for display in a details panel to control the grid. */
+	UObject* GetGridSettingsObject();
+
 	// UEdMode overrides
 	virtual void Enter() override;
 	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
@@ -122,6 +144,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
 
+	// Hold a settings object to configure the grid
+	UPROPERTY()
+	TObjectPtr<UUVEditorGridProperties> UVEditorGridProperties = nullptr;
 protected:
 
 	// UEdMode overrides
@@ -133,6 +158,7 @@ protected:
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 	void UpdatePreviewMaterialBasedOnBackground();
+	void UpdateViewportUDIMLabels(bool IsVisible);
 
 	/**
 	 * Stores original input objects, for instance UStaticMesh pointers. AssetIDs on tool input 

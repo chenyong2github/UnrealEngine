@@ -13,8 +13,12 @@ public:
 
 	// General Display Properties
 
+	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
+	// further into the display before getting issues with the camera near plane distance.
+	static const float UVMeshScalingFactor;
+
 	// Position to place the 2D camera far plane relative to world z
-	static const float CameraFarPlaneWorldZ;;
+	static const float CameraFarPlaneWorldZ;
 
 	// The near plane gets positioned some proportion to z = 0. We don't use a constant value because our depth offset values are percentage-based
 	// Lower proportion move the plane nearer to world z
@@ -85,14 +89,47 @@ public:
 	static const float GridMajorThickness;
 	static const FColor XAxisColor;
 	static const FColor YAxisColor;
+	static const FColor RulerXColor;
+	static const FColor RulerYColor;
 	static const FColor GridMajorColor;
 	static const FColor GridMinorColor;
 	static const int32 GridSubdivisionsPerLevel;
 	static const int32 GridLevels;
-
+	static const int32 RulerSubdivisionLevel;
 
 	// Background
 	static const float BackgroundQuadDepthOffset;
+
+	//---------------------------
+	//  Common Utility Methods
+	//---------------------------
+
+
+	// When creating UV unwraps or transforming between UV coordinate and positions in the 2D viewport,
+	// these functions will determine the mapping between UV values and the
+	// resulting unwrap mesh vertex positions. 
+	// If we're looking down on the unwrapped mesh, with the Z axis towards us, we want U's to be right, and
+	// V's to be up. In Unreal's left-handed coordinate system, this means that we map U's to world Y
+	// and V's to world X.
+	// Also, Unreal changes the V coordinates of imported meshes to 1-V internally, and we undo this
+	// while displaying the UV's because the users likely expect to see the original UV's (it would
+	// be particularly confusing for users working with UDIM assets, where internally stored V's 
+	// frequently end up negative).
+	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
+	// further into the display before getting issues with the camera near plane distance.
+	static FVector2f ExternalUVToInternalUV(const FVector2f& UV);
+
+	static FVector2f InternalUVToExternalUV(const FVector2f& UV);
+
+	static FVector3d UVToVertPosition(const FVector2f& UV);
+
+	static FVector2f VertPositionToUV(const FVector3d& VertPosition);
+
+	//--------------------------------
+	// CVARs for Experimental Features
+	//--------------------------------
+
+	static TAutoConsoleVariable<int32> CVarEnablePrototypeUDIMSupport;
 
 private:
 

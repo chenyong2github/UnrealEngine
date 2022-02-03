@@ -16,6 +16,7 @@ class SWidget;
 class UInteractiveToolsContext;
 class UInputRouter;
 class UUVToolViewportButtonsAPI;
+class UUVTool2DViewportAPI;
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -89,6 +90,8 @@ protected:
 
 	TWeakPtr<SEditorViewport> UVEditor2DViewport;
 	UUVToolViewportButtonsAPI* ViewportButtonsAPI = nullptr;
+
+	UUVTool2DViewportAPI* UVTool2DViewportAPI = nullptr;
 
 	TSharedPtr<FUVEditorModeUILayer> ModeUILayer;
 	TSharedPtr<FWorkspaceItem> UVEditorMenuCategory;

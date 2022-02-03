@@ -27,6 +27,7 @@
 #include "UVToolContextObjects.h"
 #include "UVEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "UVEditorUXSettings.h"
 
 #include "SLevelViewport.h"
 
@@ -117,6 +118,8 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	// We create it here so that we can pass it both into the 2d viewport and when we initialize 
 	// the mode.
 	ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
+
+	UVTool2DViewportAPI = NewObject<UUVTool2DViewportAPI>();
 }
 
 FUVEditorToolkit::~FUVEditorToolkit()
@@ -341,7 +344,7 @@ TSharedPtr<FEditorViewportClient> FUVEditorToolkit::CreateEditorViewportClient()
 	// Instead, we do viewport client adjustment in PostInitAssetEditor().
 	check(EditorModeManager.IsValid());
 	return MakeShared<FUVEditor2DViewportClient>(EditorModeManager.Get(), UnwrapScene.Get(), 
-		UVEditor2DViewport, ViewportButtonsAPI);
+		UVEditor2DViewport, ViewportButtonsAPI, UVTool2DViewportAPI);
 }
 
 // Called from FBaseAssetToolkit::CreateWidgets. The delegate call path goes through FAssetEditorToolkit::InitAssetEditor
@@ -389,7 +392,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	check(UVMode);
 
 	// The mode will need to be able to get to the live preview world, camera, input router, and viewport buttons.
-	UVMode->InitializeContexts(*LivePreviewViewportClient, *LivePreviewEditorModeManager, *ViewportButtonsAPI);
+	UVMode->InitializeContexts(*LivePreviewViewportClient, *LivePreviewEditorModeManager, *ViewportButtonsAPI, *UVTool2DViewportAPI);
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
@@ -447,7 +450,39 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		FUIAction(),
 		FOnGetContent::CreateLambda([UVModeToolkit]()
 		{
-			return UVModeToolkit->CreateBackgroundSettingsWidget();
+			
+			TSharedRef<SVerticalBox> Container = SNew(SVerticalBox);
+
+			Container->AddSlot()
+				.AutoHeight()
+				.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+				[
+					SNew(SBox)
+					.MinDesiredWidth(500)
+				[
+					UVModeToolkit->CreateGridSettingsWidget()
+				]
+				];
+
+			Container->AddSlot()
+				.AutoHeight()
+				.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+				[
+					SNew(SBox)
+					.MinDesiredWidth(500)
+				[
+					UVModeToolkit->CreateBackgroundSettingsWidget()
+				]
+				];
+
+			TSharedRef<SWidget> Widget = SNew(SBorder)
+				.HAlign(HAlign_Fill)
+				.Padding(4)
+				[
+					Container
+				];
+
+			return Widget;
 		}),
 		LOCTEXT("UVEditorBackgroundSettings_Label", "Display"),
 		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the background display settings"),
@@ -489,7 +524,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 	if (UVSubsystem)
 	{
-		ScaleFactor = UUVEditorMode::GetUVMeshScalingFactor();
+		ScaleFactor = FUVEditorUXSettings::UVMeshScalingFactor;
 	}
 	ViewportClient->SetViewLocation(FVector(ScaleFactor / 2, ScaleFactor / 2, ScaleFactor));
 	ViewportClient->SetViewRotation(FRotator(-90, 0, 0));

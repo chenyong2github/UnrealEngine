@@ -289,7 +289,7 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
 {
 	TSharedRef<SBorder> BackgroundDetailsContainer =
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"));
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"));
 
 	TSharedRef<SWidget> Widget = SNew(SBorder)
 		.HAlign(HAlign_Fill)
@@ -316,6 +316,41 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
 	TSharedRef<IDetailsView> BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
 	BackgroundDetailsView->SetObject(Mode->GetBackgroundSettingsObject());
 	BackgroundDetailsContainer->SetContent(BackgroundDetailsView);
+
+	return Widget;
+}
+
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateGridSettingsWidget()
+{
+	TSharedRef<SBorder> GridDetailsContainer =
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"));
+
+	TSharedRef<SWidget> Widget = SNew(SBorder)
+		.HAlign(HAlign_Fill)
+		.Padding(4)
+		[
+			SNew(SBox)
+			.MinDesiredWidth(500)
+		[
+			GridDetailsContainer
+		]
+		];
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs GridDetailsViewArgs;
+	GridDetailsViewArgs.bAllowSearch = false;
+	GridDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	GridDetailsViewArgs.bHideSelectionTip = true;
+	GridDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+	GridDetailsViewArgs.bShowOptions = false;
+	GridDetailsViewArgs.bAllowMultipleTopLevelObjects = false;
+
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	TSharedRef<IDetailsView> GridDetailsView = PropertyEditorModule.CreateDetailView(GridDetailsViewArgs);
+	GridDetailsView->SetObject(Mode->GetGridSettingsObject());
+	GridDetailsContainer->SetContent(GridDetailsView);
 
 	return Widget;
 }

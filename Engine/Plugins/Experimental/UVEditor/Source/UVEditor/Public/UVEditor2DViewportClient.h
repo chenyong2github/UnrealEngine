@@ -10,6 +10,7 @@
 #include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
 class UUVToolViewportButtonsAPI;
+class UCanvas;
 
 /**
  * Client used to display a 2D view of the UV's, implemented by using a perspective viewport with a locked
@@ -19,14 +20,13 @@ class UVEDITOR_API FUVEditor2DViewportClient : public FEditorViewportClient, pub
 {
 public:
 	FUVEditor2DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene,
-		const TWeakPtr<SEditorViewport>& InEditorViewportWidget, UUVToolViewportButtonsAPI* ViewportButtonsAPI);
+		const TWeakPtr<SEditorViewport>& InEditorViewportWidget, UUVToolViewportButtonsAPI* ViewportButtonsAPI, UUVTool2DViewportAPI* UVTool2DViewportAPI);
 
 	virtual ~FUVEditor2DViewportClient() {}
 
 	bool AreSelectionButtonsEnabled() const;
 	void SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode NewMode);
 	UUVToolViewportButtonsAPI::ESelectionMode GetSelectionMode() const;
-
 	bool AreWidgetButtonsEnabled() const;
 
 	// FEditorViewportClient
@@ -35,7 +35,10 @@ public:
 	virtual bool ShouldOrbitCamera() const override;
 	bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override;
 	void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override;
-	UE::Widget::EWidgetMode GetWidgetMode() const override;
+	UE::Widget::EWidgetMode GetWidgetMode() const override;	
+	void DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas) override;
+
+
 	// Overriding base class visibility
 	using FEditorViewportClient::OverrideNearClipPlane;
 
@@ -46,9 +49,18 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 protected:
+	void DrawGrid(const FSceneView* View, FPrimitiveDrawInterface* PDI);
+	void DrawGridRulers(FViewport& InViewport, FSceneView& View, UCanvas& Canvas);
+	void DrawUDIMLabels(FViewport& InViewport, FSceneView& View, UCanvas& Canvas);
+
 	// These get added in AddReferencedObjects for memory management
 	UInputBehaviorSet* BehaviorSet;
 	UUVToolViewportButtonsAPI* ViewportButtonsAPI;
+	UUVTool2DViewportAPI* UVTool2DViewportAPI;
+
+	bool bDrawGridRulers = true;
+	bool bDrawGrid = true;
+	UCanvas* CanvasObject;
 
 	// Note that it's generally less hassle if the unique ptr types are complete here,
 	// not forward declared, else we get compile errors if their destruction shows up

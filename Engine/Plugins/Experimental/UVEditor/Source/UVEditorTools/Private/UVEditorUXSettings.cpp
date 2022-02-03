@@ -3,6 +3,7 @@
 #include "UVEditorUXSettings.h"
 #include "Math/Color.h"
 
+const float FUVEditorUXSettings::UVMeshScalingFactor(1000.0);
 const float FUVEditorUXSettings::CameraFarPlaneWorldZ(-10.0);
 const float FUVEditorUXSettings::CameraNearPlaneProportionZ(0.8); // Top layer, equivalent to depth bias 80
 
@@ -62,7 +63,8 @@ const FColor FUVEditorUXSettings::XAxisColor(FColor::Red);
 const FColor FUVEditorUXSettings::YAxisColor(FColor::Green);
 const FColor FUVEditorUXSettings::GridMajorColor(FColor::FromHex("#888888"));
 const FColor FUVEditorUXSettings::GridMinorColor(FColor::FromHex("#777777"));
-
+const FColor FUVEditorUXSettings::RulerXColor(FColor::FromHex("#888888"));
+const FColor FUVEditorUXSettings::RulerYColor(FColor::FromHex("#888888"));
 // Thicknesses
 const float FUVEditorUXSettings::LivePreviewHighlightThickness(2.0);
 const float FUVEditorUXSettings::LivePreviewHighlightPointSize(4);
@@ -80,6 +82,14 @@ const float FUVEditorUXSettings::ToolPointSize(6);
 // Grid
 const int32 FUVEditorUXSettings::GridSubdivisionsPerLevel(4);
 const int32 FUVEditorUXSettings::GridLevels(3);
+const int32 FUVEditorUXSettings::RulerSubdivisionLevel(1);
+
+// CVARs
+
+TAutoConsoleVariable<int32> FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport(
+	TEXT("modeling.UVEditor.UDIMSupport"),
+	0,
+	TEXT("Enable experimental UDIM support in the UVEditor"));
 
 
 FLinearColor FUVEditorUXSettings::GetTriangleColorByTargetIndex(int32 TargetIndex)
@@ -106,3 +116,23 @@ FLinearColor FUVEditorUXSettings::GetBoundaryColorByTargetIndex(int32 TargetInde
 	BoundaryColorHSV.B = UnwrapBoundaryValue;
 	return BoundaryColorHSV.HSVToLinearRGB();
 }
+
+FVector2f FUVEditorUXSettings::ExternalUVToInternalUV(const FVector2f& UV)
+{
+	return FVector2f(UV.X, 1-UV.Y);
+}
+
+FVector2f FUVEditorUXSettings::InternalUVToExternalUV(const FVector2f& UV)
+{
+	return FVector2f(UV.X, 1-UV.Y);
+}
+
+FVector3d FUVEditorUXSettings::UVToVertPosition(const FVector2f& UV)
+{
+	return FVector3d((1 - UV.Y) * UVMeshScalingFactor, UV.X * UVMeshScalingFactor, 0);
+}
+
+FVector2f FUVEditorUXSettings::VertPositionToUV(const FVector3d& VertPosition)
+{
+	return FVector2f(VertPosition.Y / UVMeshScalingFactor, 1 - (VertPosition.X / UVMeshScalingFactor));
+};

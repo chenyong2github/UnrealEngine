@@ -29,6 +29,9 @@ public:
 	/** Creates a widget where the background visualization can be changed. */
 	virtual TSharedRef<SWidget> CreateBackgroundSettingsWidget();
 
+	/** Creates a widget where the grid display can be changed. */
+	virtual TSharedRef<SWidget> CreateGridSettingsWidget();
+
 	// FModeToolkit
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }

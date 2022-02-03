@@ -143,6 +143,10 @@ UUVEditorMode::UUVEditorMode()
 		false);
 }
 
+double UUVEditorMode::GetUVMeshScalingFactor() {
+	return FUVEditorUXSettings::UVMeshScalingFactor;
+}
+
 void UUVEditorMode::Enter()
 {
 	Super::Enter();
@@ -151,14 +155,42 @@ void UUVEditorMode::Enter()
 	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
 
 	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
-		[this](bool IsVisible) { UpdateTriangleMaterialBasedOnBackground(IsVisible); });
+		[this](bool IsVisible) {
+			UpdateTriangleMaterialBasedOnBackground(IsVisible);
+			UpdateViewportUDIMLabels(IsVisible);			
+		});
 
 	BackgroundVisualization->OnBackgroundMaterialChange.AddWeakLambda(this,
 		[this](TObjectPtr<UMaterialInstanceDynamic> MaterialInstance) {
 			UpdatePreviewMaterialBasedOnBackground();
+			UpdateViewportUDIMLabels(true);
 		});
 
 	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
+
+	UVEditorGridProperties = NewObject <UUVEditorGridProperties>(this);
+
+	UVEditorGridProperties->WatchProperty(UVEditorGridProperties->bDrawGrid,
+		[this](bool bDrawGrid) {
+			UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+			UUVTool2DViewportAPI* UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
+			if (UVTool2DViewportAPI)
+			{
+				UVTool2DViewportAPI->SetDrawGrid(bDrawGrid, true);
+			}		
+		});
+
+	UVEditorGridProperties->WatchProperty(UVEditorGridProperties->bDrawRulers,
+		[this](bool bDrawRulers) {
+			UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+			UUVTool2DViewportAPI* UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
+			if (UVTool2DViewportAPI)
+			{
+				UVTool2DViewportAPI->SetDrawRulers(bDrawRulers, true);
+			}
+		});
+
+	PropertyObjectsToTick.Add(UVEditorGridProperties);
 
 	RegisterTools();
 
@@ -235,6 +267,16 @@ UObject* UUVEditorMode::GetBackgroundSettingsObject()
 	}
 	return nullptr;
 }
+
+UObject* UUVEditorMode::GetGridSettingsObject()
+{
+	if (UVEditorGridProperties)
+	{
+		return UVEditorGridProperties;
+	}
+	return nullptr;
+}
+
 
 void UUVEditorMode::ActivateDefaultTool()
 {
@@ -376,7 +418,7 @@ void UUVEditorMode::Exit()
 }
 
 void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager, 
-	UUVToolViewportButtonsAPI& ViewportButtonsAPI)
+	UUVToolViewportButtonsAPI& ViewportButtonsAPI, UUVTool2DViewportAPI& UVTool2DViewportAPI)
 {
 	using namespace UVEditorModeLocals;
 
@@ -416,6 +458,8 @@ void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewpor
 	ContextStore->AddContextObject(AssetAndLayerAPI);
 
 	ContextStore->AddContextObject(&ViewportButtonsAPI);
+
+	ContextStore->AddContextObject(&UVTool2DViewportAPI);
 }
 
 void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn,
@@ -467,15 +511,6 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	// frequently end up negative).
 	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
 	// further into the display before getting issues with the camera near plane distance.
-	double ScaleFactor = GetUVMeshScalingFactor();
-	auto UVToVertPosition = [this, ScaleFactor](const FVector2f& UV)
-	{
-		return FVector3d((1 - UV.Y) * ScaleFactor, UV.X * ScaleFactor, 0);
-	};
-	auto VertPositionToUV = [this, ScaleFactor](const FVector3d& VertPosition)
-	{
-		return FVector2f(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
-	};
 
 	// Construct the full input objects that the tools actually operate on.
 	for (int32 AssetID = 0; AssetID < ToolTargets.Num(); ++AssetID)
@@ -485,7 +520,7 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		if (!ToolInputObject->InitializeMeshes(ToolTargets[AssetID], AppliedCanonicalMeshes[AssetID],
 			AppliedPreviews[AssetID], AssetID, DefaultUVLayerIndex,
 			GetWorld(), LivePreviewWorld, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()),
-			UVToVertPosition, VertPositionToUV))
+			FUVEditorUXSettings::UVToVertPosition, FUVEditorUXSettings::VertPositionToUV))
 		{
 			return;
 		}
@@ -580,6 +615,35 @@ void UUVEditorMode::ApplyChanges()
 
 	GetToolManager()->EndUndoTransaction();
 }
+
+void UUVEditorMode::UpdateViewportUDIMLabels(bool IsVisible)
+{
+	bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
+	if (!bEnableUDIMSupport)
+	{
+		return;
+	}
+
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	UUVTool2DViewportAPI* UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
+	if (UVTool2DViewportAPI)
+	{
+		TArray<FUDIMBlock> Blocks;
+		if (IsVisible)
+		{
+			Blocks.SetNum(BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks.Num());
+			for (int32 BlockIndex = 0; BlockIndex < BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks.Num(); ++BlockIndex)
+			{
+				Blocks[BlockIndex].BlockX = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockX;
+				Blocks[BlockIndex].BlockY = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockY;
+				Blocks[BlockIndex].SizeX = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].SizeX;
+				Blocks[BlockIndex].SizeY = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].SizeY;
+			}
+		}
+		UVTool2DViewportAPI->SetUDIMBlocks(Blocks, true);
+	}
+}
+
 
 void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible)
 {

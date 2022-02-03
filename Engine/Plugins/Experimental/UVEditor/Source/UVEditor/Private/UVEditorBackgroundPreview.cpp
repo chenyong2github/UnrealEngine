@@ -29,10 +29,11 @@ void UUVEditorBackgroundPreview::OnCreated()
 void UUVEditorBackgroundPreview::OnTick(float DeltaTime)
 {
 	if (bSettingsModified)
-	{
+	{		
 		UpdateBackground();
 		UpdateVisibility();
 		bSettingsModified = false;
+		OnBackgroundMaterialChange.Broadcast(BackgroundMaterial);
 	}
 }
 
@@ -41,6 +42,7 @@ void UUVEditorBackgroundPreview::UpdateVisibility()
 	if (Settings->bVisible == false)
 	{
 		BackgroundComponent->SetVisibility(false);
+		ActiveUDIMBlocks.UDIMBlocks.SetNum(0);
 		return;
 	}
 
@@ -50,17 +52,15 @@ void UUVEditorBackgroundPreview::UpdateVisibility()
 
 void UUVEditorBackgroundPreview::UpdateBackground()
 {
+	bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 
-	const int32 GridCellCountX = 1;
-	const int32 GridCellCountY = 1;
-	const FVector Origin = { 0,0,0 };
-	const FVector GridDx = { 1000, 1000, 0 };
 	const FVector Normal(0, 0, 1);
 	const FColor BackgroundColor = FColor::Blue;
 
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/UVEditor/Materials/UVEditorBackground"));
 	check(Material);	
 	BackgroundMaterial = UMaterialInstanceDynamic::Create(Material, this);
+	ActiveUDIMBlocks.UDIMBlocks.SetNum(0);
 	switch (Settings->SourceType)
 	{
 		case EUVEditorBackgroundSourceType::Checkerboard:
@@ -86,6 +86,21 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 				{
 					BackgroundMaterial->SetTextureParameterValue(TEXT("BackgroundVTBaseMap"), Settings->SourceTexture);
 					BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundVirtualTextureSwitch"), 1);
+
+					// Check for UDIMs
+					if (bEnableUDIMSupport && Settings->SourceTexture->Source.GetNumBlocks() > 1) {
+						ActiveUDIMBlocks.UDIMBlocks.SetNum(Settings->SourceTexture->Source.GetNumBlocks());						
+					
+						for (int32 Block = 0; Block < Settings->SourceTexture->Source.GetNumBlocks(); ++Block) {
+							FTextureSourceBlock SourceBlock;
+							Settings->SourceTexture->Source.GetBlock(Block, SourceBlock);
+
+							ActiveUDIMBlocks.UDIMBlocks[Block].BlockX = SourceBlock.BlockX;
+							ActiveUDIMBlocks.UDIMBlocks[Block].BlockY = SourceBlock.BlockY;
+							ActiveUDIMBlocks.UDIMBlocks[Block].SizeX = SourceBlock.SizeX;
+							ActiveUDIMBlocks.UDIMBlocks[Block].SizeY = SourceBlock.SizeY;
+						}
+					}
 				}
 				else
 				{
@@ -100,30 +115,43 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 			ensure(false);
 	}
 
-	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), FUVEditorUXSettings::BackgroundQuadDepthOffset);
-	OnBackgroundMaterialChange.Broadcast(BackgroundMaterial);
+	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), FUVEditorUXSettings::BackgroundQuadDepthOffset);	
 	BackgroundComponent->Clear();
 
-	for (int32 GridStepX = 0; GridStepX < GridCellCountX; ++GridStepX)
+	TArray<FVector2f> UDimBlocksToRender;
+	for (int32 BlockIndex = 0; BlockIndex < ActiveUDIMBlocks.UDIMBlocks.Num(); ++BlockIndex)
 	{
-		for (int32 GridStepY = 0; GridStepY < GridCellCountY; ++GridStepY)
-		{
-			FVector CellOrigin = Origin + FVector(GridDx.X * GridStepX, GridDx.X * GridStepY, 0);
-			FVector CellOffsetX = { GridDx.X, 0, 0 };
-			FVector CellOffsetY = { 0, GridDx.Y, 0 };
-			
-			FRenderableTriangleVertex A(CellOrigin, { -1,0 }, Normal, BackgroundColor);
-			FRenderableTriangleVertex B(CellOrigin + CellOffsetX, { -1 , -1 }, Normal, BackgroundColor);
-			FRenderableTriangleVertex C(CellOrigin + CellOffsetY, { 0, 0 }, Normal, BackgroundColor);
-			FRenderableTriangleVertex D(CellOrigin + CellOffsetX + CellOffsetY, { 0,-1 }, Normal, BackgroundColor);
-
-			FRenderableTriangle Lower(BackgroundMaterial, A, D, B);
-			FRenderableTriangle Upper(BackgroundMaterial, A, C, D);
-
-			BackgroundComponent->AddTriangle(Lower);
-			BackgroundComponent->AddTriangle(Upper);		
-		}
+		UDimBlocksToRender.Push(FVector2f(
+			ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockX,
+			ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockY
+			));
+	}
+	if (UDimBlocksToRender.Num() == 0)
+	{
+		UDimBlocksToRender.Push(FVector2f(0, 0));
 	}
 
-	
+	for (const FVector2f& GridStep : UDimBlocksToRender)
+	{
+		FVector2f UV00 = { (GridStep.X + 0.0f) , (GridStep.Y + 0.0f) };
+		FVector2f UV01 = { (GridStep.X + 1.0f) , (GridStep.Y + 0.0f) };		
+		FVector2f UV10 = { (GridStep.X + 0.0f) , (GridStep.Y + 1.0f) };
+		FVector2f UV11 = { (GridStep.X + 1.0f) , (GridStep.Y + 1.0f) };
+
+		UV00 = FUVEditorUXSettings::ExternalUVToInternalUV(UV00);
+		UV01 = FUVEditorUXSettings::ExternalUVToInternalUV(UV01);
+		UV10 = FUVEditorUXSettings::ExternalUVToInternalUV(UV10);
+		UV11 = FUVEditorUXSettings::ExternalUVToInternalUV(UV11);
+
+		FRenderableTriangleVertex A((FVector)FUVEditorUXSettings::UVToVertPosition(UV00), (FVector2D)UV00, Normal, BackgroundColor);
+		FRenderableTriangleVertex B((FVector)FUVEditorUXSettings::UVToVertPosition(UV10), (FVector2D)UV10, Normal, BackgroundColor);
+		FRenderableTriangleVertex C((FVector)FUVEditorUXSettings::UVToVertPosition(UV01), (FVector2D)UV01, Normal, BackgroundColor);
+		FRenderableTriangleVertex D((FVector)FUVEditorUXSettings::UVToVertPosition(UV11), (FVector2D)UV11, Normal, BackgroundColor);
+
+		FRenderableTriangle Lower(BackgroundMaterial, A, D, B);
+		FRenderableTriangle Upper(BackgroundMaterial, A, C, D);
+
+		BackgroundComponent->AddTriangle(Lower);
+		BackgroundComponent->AddTriangle(Upper);
+	}
 }

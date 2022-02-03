@@ -21,6 +21,33 @@ enum class EUVEditorBackgroundSourceType
 	Material
 };
 
+USTRUCT()
+struct UVEDITOR_API FUVEditorBackgroundUDIMBlockInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 BlockX;
+
+	UPROPERTY()
+	int32 BlockY;
+
+	UPROPERTY()
+	int32 SizeX;
+
+	UPROPERTY()
+	int32 SizeY;
+};
+
+USTRUCT()
+struct UVEDITOR_API FUVEditorBackgroundUDIMBlocks
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FUVEditorBackgroundUDIMBlockInfo> UDIMBlocks;
+};
+
 /**
  * Visualization settings for the UUVEditorBackgroundPreview
  */
@@ -67,6 +94,9 @@ public:
 	/** Visualization settings */
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreviewProperties> Settings;
+
+	UPROPERTY()
+	FUVEditorBackgroundUDIMBlocks ActiveUDIMBlocks;
 
 	/** The component containing the quad visualization */
 	UPROPERTY()
