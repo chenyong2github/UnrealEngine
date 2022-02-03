@@ -9,7 +9,6 @@
 #include "Engine/World.h"
 #endif
 
-
 USmartObjectComponent::USmartObjectComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -20,6 +19,11 @@ void USmartObjectComponent::OnRegister()
 {
 	Super::OnRegister();
 
+	RegisterToSubsystem();
+}
+
+void USmartObjectComponent::RegisterToSubsystem()
+{
 	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
@@ -101,4 +105,36 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	}
 
 	return BoundingBox;
+}
+
+TStructOnScope<FActorComponentInstanceData> USmartObjectComponent::GetComponentInstanceData() const
+{
+	return MakeStructOnScope<FActorComponentInstanceData, FSmartObjectComponentInstanceData>(this, DefinitionAsset);
+}
+
+bool FSmartObjectComponentInstanceData::ContainsData() const
+{
+	return true;
+}
+
+void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase)
+{
+	// Apply data first since we might need to register to the subsystem
+	// before the component gets re-registered by the base class.
+	if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript)
+	{
+		USmartObjectComponent* SmartObjectComponent = CastChecked<USmartObjectComponent>(Component);
+		if (SmartObjectComponent->DefinitionAsset != DefinitionAsset)
+		{
+			SmartObjectComponent->DefinitionAsset = DefinitionAsset;
+			// Registering to the subsystem should only be attempted on registered component
+			// otherwise the OnRegister callback will take care of it.
+			if (SmartObjectComponent->IsRegistered())
+			{
+				SmartObjectComponent->RegisterToSubsystem();
+			}
+		}
+	}
+
+	Super::ApplyToComponent(Component, CacheApplyPhase);
 }
