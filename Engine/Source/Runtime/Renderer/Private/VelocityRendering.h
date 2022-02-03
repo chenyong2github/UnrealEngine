@@ -42,7 +42,7 @@ struct FVelocityRendering
 	static bool IsVelocityPassSupported(EShaderPlatform ShaderPlatform);
 
 	/** Returns true if the velocity can be output during depth pass. */
-	static bool DepthPassCanOutputVelocity();
+	static bool DepthPassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel);
 
 	/** Returns true if the velocity can be output in the BasePass. */
 	static bool BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform);

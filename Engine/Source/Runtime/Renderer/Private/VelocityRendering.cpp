@@ -162,7 +162,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 	{
 		return false;
 	}
-	if (FVelocityRendering::DepthPassCanOutputVelocity())
+	if (FVelocityRendering::DepthPassCanOutputVelocity(Scene->GetFeatureLevel()))
 	{
 		// Always render velocity when it is part of the depth pass to avoid dropping things from the depth pass.
 		// This means that we will pay the cost of velocity in the pass even if we don't really need it according to the view logic below.
@@ -372,10 +372,11 @@ bool FVelocityRendering::IsVelocityPassSupported(EShaderPlatform ShaderPlatform)
 	return GPixelFormats[GetFormat(ShaderPlatform)].Supported;
 }
 
-bool FVelocityRendering::DepthPassCanOutputVelocity()
+bool FVelocityRendering::DepthPassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel)
 {
-	static bool bIsMerged = CVarVelocityOutputPass.GetValueOnAnyThread() == 0;
-	return bIsMerged;
+	static bool bRequestedDepthPassVelocity = CVarVelocityOutputPass.GetValueOnAnyThread() == 0;
+	const bool bMSAAEnabled = GetDefaultMSAACount(FeatureLevel) > 1;
+	return !bMSAAEnabled && bRequestedDepthPassVelocity;
 }
 
 bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform)

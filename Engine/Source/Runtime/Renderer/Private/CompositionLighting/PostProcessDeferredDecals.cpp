@@ -165,9 +165,9 @@ void GetDeferredDecalPassParameters(
 
 TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuffer(const FViewInfo& View)
 {
-	bool bIsMotionInDepth = FVelocityRendering::DepthPassCanOutputVelocity();
+	const bool bIsMotionInDepth = FVelocityRendering::DepthPassCanOutputVelocity(View.GetFeatureLevel());
 	// if we have early motion vectors (bIsMotionInDepth) and the cvar is enabled and we actually have a buffer from the previous frame (View.PrevViewInfo.GBufferA.IsValid())
-	bool bIsNormalReprojectionEnabled = (bIsMotionInDepth && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread() && View.PrevViewInfo.GBufferA.IsValid());
+	const bool bIsNormalReprojectionEnabled = (bIsMotionInDepth && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread() && View.PrevViewInfo.GBufferA.IsValid());
 
 	FDeferredDecalUniformParameters UniformParameters;
 	UniformParameters.NormalReprojectionThresholdLow  = CVarDBufferDecalNormalReprojectionThresholdLow .GetValueOnRenderThread();
@@ -562,16 +562,18 @@ void AddDeferredDecalPass(
 void ExtractNormalsForNextFrameReprojection(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const TArray<FViewInfo>& Views)
 {
 	// save the previous frame if early motion vectors are enabled and normal reprojection is enabled, so there should be no cost if these options are off
-	bool bApplyReproject = FVelocityRendering::DepthPassCanOutputVelocity() && CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread();
+	const bool bIsNormalReprojectionEnabled = CVarDBufferDecalNormalReprojectionEnabled.GetValueOnRenderThread();
 
-	if (bApplyReproject)
+	if (bIsNormalReprojectionEnabled)
 	{
-		bool bAnyViewWriteable = false;
 		for (int32 Index = 0; Index < Views.Num(); Index++)
 		{
-			if (Views[Index].bStatePrevViewInfoIsReadOnly == false)
+			if (FVelocityRendering::DepthPassCanOutputVelocity(Views[Index].GetFeatureLevel()))
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, &Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
+				if (Views[Index].bStatePrevViewInfoIsReadOnly == false)
+				{
+					GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferA, &Views[Index].ViewState->PrevFrameViewInfo.GBufferA);
+				}
 			}
 		}
 	}

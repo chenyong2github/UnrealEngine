@@ -3776,8 +3776,9 @@ void FScene::UpdateEarlyZPassMode()
 		if (ShouldForceFullDepthPass(ShaderPlatform))
 		{
 			// DBuffer decals and stencil LOD dithering force a full prepass
-			EarlyZPassMode = FVelocityRendering::DepthPassCanOutputVelocity() ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
-			bEarlyZPassMovable = FVelocityRendering::DepthPassCanOutputVelocity() ? false : true;
+			const bool bDepthPassCanOutputVelocity = FVelocityRendering::DepthPassCanOutputVelocity(FeatureLevel);
+			EarlyZPassMode = bDepthPassCanOutputVelocity ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
+			bEarlyZPassMovable = bDepthPassCanOutputVelocity ? false : true;
 		}
 
 		if ((EarlyZPassMode == DDM_AllOpaque || EarlyZPassMode == DDM_AllOpaqueNoVelocity)
