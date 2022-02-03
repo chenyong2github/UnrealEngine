@@ -11,6 +11,7 @@
 #include "SmartObjectSubsystem.generated.h"
 
 class USmartObjectComponent;
+class UMassEntitySubsystem;
 
 #if WITH_EDITOR
 /** Called when main collection changed. */
@@ -417,6 +418,9 @@ protected:
 protected:
 	UPROPERTY()
 	ASmartObjectCollection* MainCollection;
+
+	UPROPERTY()
+	UMassEntitySubsystem* EntitySubsystem;
 
 	FSmartObjectOctree SmartObjectOctree;
 
