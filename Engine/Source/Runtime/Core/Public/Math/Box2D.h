@@ -200,6 +200,17 @@ public:
 	}
 
 	/**
+     * Returns a box of increased size.
+     *
+     * @param V The size to increase the volume by.
+     * @return A new bounding box.
+     */
+	TBox2<T> ExpandBy(const TVector2<T>& V) const
+	{
+		return TBox2<T>(Min - V, Max + V);
+	}
+
+	/**
 	 * Gets the box area.
 	 *
 	 * @return Box area.
@@ -321,6 +332,18 @@ public:
 	 */
 	TBox2<T> ShiftBy( const TVector2<T>& Offset ) const
 	{
+		return TBox2<T>(Min + Offset, Max + Offset);
+	}
+
+	/**
+	 * Returns a box with its center moved to the new destination.
+	 *
+	 * @param Destination The destination point to move center of box to.
+	 * @return A new bounding box.
+	 */
+	TBox2<T> MoveTo(const TVector2<T>& Destination) const
+	{
+		const TVector2<T> Offset = Destination - GetCenter();
 		return TBox2<T>(Min + Offset, Max + Offset);
 	}
 
