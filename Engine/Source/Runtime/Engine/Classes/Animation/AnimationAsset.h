@@ -201,11 +201,6 @@ struct FBlendFilter
 	{
 	}
 	
-	bool IsValid() const
-	{
-		return FilterPerAxis.Num() > 0;
-	}
-	
 	FVector GetFilterLastOutput() const
 	{
 		return FVector(

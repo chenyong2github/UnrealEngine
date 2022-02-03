@@ -518,8 +518,11 @@ public:
 	*/
 	ENGINE_API bool GetSamplesFromBlendInput(const FVector &BlendInput, TArray<FBlendSampleData> & OutSampleDataList, int32& InOutCachedTriangulationIndex, bool bCombineAnimations) const;
 
-	/** Initialize BlendSpace filtering for runtime. **/
-	ENGINE_API void InitializeFilter(FBlendFilter* Filter) const;
+	/** 
+	 * Initialize BlendSpace filtering for runtime. Filtering supports multiple dimensions, defaulting to
+	 * two (since we don't have 3D BlendSpaces yet) 
+	**/
+	ENGINE_API void InitializeFilter(FBlendFilter* Filter, int NumDimensions = 2) const;
 
 	/** Update BlendSpace filtering parameters - values that don't require a full initialization **/
 	ENGINE_API void UpdateFilterParams(FBlendFilter* Filter) const;

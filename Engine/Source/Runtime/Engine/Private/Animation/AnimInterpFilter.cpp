@@ -184,6 +184,15 @@ void FFIRFilterTimeBased::WrapToValue(float Input, float Range)
 
 float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime)
 {
+	// Early return if there is no smoothing - applies to all smoothing types. Note that if
+	// WindowDuration changes we will have been re-initialized, so we don't need to worry about
+	// updating the filter in this case.
+	if (WindowDuration <= 0.0f)
+	{
+		LastOutput = Input;
+		return Input;
+	}
+
 	if (DeltaTime > KINDA_SMALL_NUMBER)
 	{
 		float Result;

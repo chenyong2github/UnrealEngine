@@ -119,8 +119,7 @@ public:
 	void Initialize(float InWindowDuration, EFilterInterpolationType InInterpolationType, float InDampingRatio,
 	                float InMinValue, float InMaxValue, float InMaxSpeed, bool bInClamp)
 	{
-		FilterWindow.Empty(10);
-		FilterWindow.AddZeroed(10);
+		FilterWindow.Empty();
 		InterpolationType = InInterpolationType;
 		NumValidFilter = 0;
 		CurrentStackIndex = 0;

@@ -1052,44 +1052,29 @@ bool UBlendSpace::GetSamplesFromBlendInput(
 	return (OutSampleDataList.Num() != 0);
 }
 
-void UBlendSpace::InitializeFilter(FBlendFilter* Filter) const
+void UBlendSpace::InitializeFilter(FBlendFilter* Filter, int NumDimensions) const
 {
 	if (Filter)
 	{
-		Filter->FilterPerAxis.Empty();
-
-		int32 NumActiveAxes = 0;
-		for (int32 FilterIndex = 0; FilterIndex != 3; ++FilterIndex)
+		Filter->FilterPerAxis.SetNum(NumDimensions);
+		for (int32 FilterIndex = 0; FilterIndex != NumDimensions; ++FilterIndex)
 		{
-			if(InterpolationParam[FilterIndex].InterpolationTime > 0.0f)
-			{
-				NumActiveAxes = FMath::Max(NumActiveAxes, FilterIndex + 1);
-			}
-		}
-
-		if(NumActiveAxes > 0)
-		{
-			Filter->FilterPerAxis.SetNum(NumActiveAxes);
-			
-			for (int32 FilterIndex = 0; FilterIndex < Filter->FilterPerAxis.Num(); ++FilterIndex)
-			{
-				Filter->FilterPerAxis[FilterIndex].Initialize(InterpolationParam[FilterIndex].InterpolationTime,
-															  InterpolationParam[FilterIndex].InterpolationType,
-															  InterpolationParam[FilterIndex].DampingRatio,
-															  BlendParameters[FilterIndex].Min,
-															  BlendParameters[FilterIndex].Max,
-															  InterpolationParam[FilterIndex].MaxSpeed,
-															  !BlendParameters[FilterIndex].bWrapInput);
-			}
+			Filter->FilterPerAxis[FilterIndex].Initialize(InterpolationParam[FilterIndex].InterpolationTime,
+														  InterpolationParam[FilterIndex].InterpolationType,
+														  InterpolationParam[FilterIndex].DampingRatio,
+														  BlendParameters[FilterIndex].Min,
+														  BlendParameters[FilterIndex].Max,
+														  InterpolationParam[FilterIndex].MaxSpeed,
+														  !BlendParameters[FilterIndex].bWrapInput);
 		}
 	}
 }
 
 void UBlendSpace::UpdateFilterParams(FBlendFilter* Filter) const
 {
-	if (Filter && Filter->IsValid())
+	if (Filter)
 	{
-		for (int32 FilterIndex = 0; FilterIndex < Filter->FilterPerAxis.Num(); ++FilterIndex)
+		for (int32 FilterIndex = 0; FilterIndex != Filter->FilterPerAxis.Num(); ++FilterIndex)
 		{
 			Filter->FilterPerAxis[FilterIndex].SetParams(InterpolationParam[FilterIndex].DampingRatio,
 			                                             BlendParameters[FilterIndex].Min,
@@ -1790,31 +1775,34 @@ FVector UBlendSpace::FilterInput(FBlendFilter* Filter, const FVector& BlendInput
 	if(Filter)
 	{
 #if WITH_EDITOR
-		// Check
-		for (int32 AxisIndex = 0; AxisIndex < Filter->FilterPerAxis.Num(); ++AxisIndex)
+		if (Filter->FilterPerAxis.IsEmpty())
 		{
-			if (Filter->FilterPerAxis[AxisIndex].NeedsUpdate(InterpolationParam[AxisIndex].InterpolationType,
-															 InterpolationParam[AxisIndex].InterpolationTime))
+			InitializeFilter(Filter);
+		}
+		else
+		{
+			for (int32 AxisIndex = 0; AxisIndex < Filter->FilterPerAxis.Num(); ++AxisIndex)
 			{
-				InitializeFilter(Filter);
-				break;
+				if (Filter->FilterPerAxis[AxisIndex].NeedsUpdate(InterpolationParam[AxisIndex].InterpolationType,
+																 InterpolationParam[AxisIndex].InterpolationTime))
+				{
+					InitializeFilter(Filter);
+					break;
+				}
 			}
 		}
 		// Note that if we expose the damping ratio etc as pins, this should be called outside of the editor too.
 		UpdateFilterParams(Filter);
 #endif
-		if(Filter->IsValid())
+		for (int32 AxisIndex = 0; AxisIndex < Filter->FilterPerAxis.Num(); ++AxisIndex)
 		{
-			for (int32 AxisIndex = 0; AxisIndex < Filter->FilterPerAxis.Num(); ++AxisIndex)
+			if (BlendParameters[AxisIndex].bWrapInput)
 			{
-				if (BlendParameters[AxisIndex].bWrapInput)
-				{
-					Filter->FilterPerAxis[AxisIndex].WrapToValue(
-						BlendInput[AxisIndex], BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min);
-				}
-				FilteredBlendInput[AxisIndex] = Filter->FilterPerAxis[AxisIndex].UpdateAndGetFilteredData(
-					BlendInput[AxisIndex], DeltaTime);
+				Filter->FilterPerAxis[AxisIndex].WrapToValue(
+					BlendInput[AxisIndex], BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min);
 			}
+			FilteredBlendInput[AxisIndex] = Filter->FilterPerAxis[AxisIndex].UpdateAndGetFilteredData(
+				BlendInput[AxisIndex], DeltaTime);
 		}
 	}
 	return FilteredBlendInput;
