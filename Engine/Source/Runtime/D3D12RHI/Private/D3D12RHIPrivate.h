@@ -224,6 +224,18 @@ struct FD3D12RayTracingPipelineInfo
 	uint32 ScratchSize = 0;
 };
 
+struct FD3D12WorkaroundFlags
+{
+	/** 
+	* Certain drivers crash when GetShaderIdentifier() is called on a ray tracing pipeline collection.
+	* If we detect such driver, we have to fall back to the path that queries identifiers on full linked RTPSO.
+	* This is less efficient and can also trigger another known issue with D3D12 Agility version <= 4.
+	*/
+	bool bAllowGetShaderIdentifierOnCollectionSubObject = true;
+};
+
+extern FD3D12WorkaroundFlags GD3D12WorkaroundFlags;
+
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 

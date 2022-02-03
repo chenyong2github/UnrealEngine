@@ -1004,22 +1004,28 @@ void FD3D12DynamicRHI::Init()
 				TEXT("Please update to NVIDIA driver version 466.11 or newer."));
 		}
 
-	if (GRHISupportsRayTracing
-		&& IsRayTracingEmulated(AdapterDesc.DeviceId))
+		if (GRHISupportsRayTracing
+			&& IsRayTracingEmulated(AdapterDesc.DeviceId))
 		{
 #if DXR_ALLOW_EMULATED_RAYTRACING
-		if (!GAllowEmulatedRayTracing)
-		{
-			DisableRayTracingSupport();
-			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled for NVIDIA cards with the Pascal architecture. This can be overridden with the following CVar: r.D3D12.DXR.AllowEmulatedRayTracing=1"));
-		}
+			if (!GAllowEmulatedRayTracing)
+			{
+				DisableRayTracingSupport();
+				UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled for NVIDIA cards with the Pascal architecture. This can be overridden with the following CVar: r.D3D12.DXR.AllowEmulatedRayTracing=1"));
+			}
 #else
-		DisableRayTracingSupport();
-		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled for NVIDIA cards with the Pascal architecture."));
+			DisableRayTracingSupport();
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled for NVIDIA cards with the Pascal architecture."));
 #endif // DXR_ALLOW_EMULATED_RAYTRACING
 		}
-	}
-#endif
+
+		if (GRHISupportsRayTracing && DriverVersion < 45700u)
+		{
+			GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject = false;
+			UE_LOG(LogD3D12RHI, Warning, TEXT("GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject is disabled due to a known issue with current driver version."));
+		}
+	} // if NVIDIA
+#endif // NV_API_ENABLE
 
 #if AMD_API_ENABLE
 	if (GRHISupportsRayTracing

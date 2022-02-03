@@ -1081,8 +1081,11 @@ public:
 			}
 
 			// Shader identifier can be queried immediately here per PSO collection, however this does not work on old NVIDIA drivers (430.00).
-			// Therefore shader identifiers need to be queried from the final linked pipeline (JIRA DH-2182).
-			// Entry.Identifier = GetShaderIdentifier(Entry.StateObject, Entry.GetPrimaryExportNameChars());
+			// Therefore shader identifiers need to be queried from the final linked pipeline (JIRA DH-2182) if a known bad driver is detected.
+			if (GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject)
+			{
+				Entry.Identifier = GetShaderIdentifier(Entry.StateObject, Entry.GetPrimaryExportNameChars());
+			}
 
 			CompileTimeCycles += FPlatformTime::Cycles64();
 
@@ -2349,7 +2352,6 @@ static void CreateSpecializedStateObjects(
 		ShaderCollectionDescs.SetNum(ShaderCollectionDescsSize);
 	}
 }
-
 
 class FD3D12RayTracingPipelineState : public FRHIRayTracingPipelineState
 {

@@ -46,6 +46,8 @@ FD3D12DynamicRHI* FD3D12DynamicRHI::SingleD3DRHI = nullptr;
 extern int32 GGapRecorderUseBlockingCall;
 #endif
 
+FD3D12WorkaroundFlags GD3D12WorkaroundFlags;
+
 using namespace D3D12RHI;
 
 FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn, bool bInPixEventEnabled) :
