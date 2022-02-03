@@ -565,7 +565,7 @@ void TraceVoxels(
 			FConeTraceInput TraceInput;
 			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
-			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance);
+			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2);
 
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Lighting = 0;

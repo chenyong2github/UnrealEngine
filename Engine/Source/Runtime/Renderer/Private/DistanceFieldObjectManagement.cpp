@@ -66,7 +66,7 @@ FAutoConsoleVariableRef CVarMeshSDFSurfaceBiasExpand(
 	ECVF_RenderThreadSafe
 );
 
-float GTwoSidedSurfaceBiasExpand = 4.0f;
+float GTwoSidedSurfaceBiasExpand = 1.0f;
 FAutoConsoleVariableRef CVarTwoSidedSurfaceBiasExpand(
 	TEXT("r.DistanceFields.TwoSidedSurfaceBiasExpand"),
 	GTwoSidedSurfaceBiasExpand,
