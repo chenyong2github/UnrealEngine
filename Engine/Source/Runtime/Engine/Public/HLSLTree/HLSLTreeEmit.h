@@ -370,6 +370,7 @@ public:
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
+	EShaderFrequency ShaderFrequency = SF_Pixel;
 
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;
@@ -391,10 +392,10 @@ public:
 	uint32 CurrentBoolUniformOffset = ~0u;
 	uint32 CurrentNumBoolComponents = 32u;
 	bool bReadMaterialNormal = false;
+	uint32 TexCoordMask[SF_NumFrequencies] = { 0u };
 
 	int32 NumExpressionLocals = 0;
 	int32 NumExpressionLocalPHIs = 0;
-	int32 NumTexCoords = 0;
 };
 
 } // namespace HLSLTree

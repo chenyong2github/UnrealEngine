@@ -235,7 +235,7 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 	if (IsTexCoord(InputType))
 	{
 		const int32 TexCoordIndex = TypeIndex - (int32)EExternalInput::TexCoord0;
-		Context.NumTexCoords = FMath::Max(Context.NumTexCoords, TexCoordIndex + 1);
+		Context.TexCoordMask[Context.ShaderFrequency] |= (1u << TexCoordIndex);
 		OutResult.Code = Context.EmitInlineExpression(Scope, Shader::EValueType::Float2, TEXT("Parameters.TexCoords[%].xy"), TexCoordIndex);
 	}
 	else if (IsTexCoord_Ddx(InputType))
@@ -575,12 +575,15 @@ void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, FEmitS
 		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Shader::FType(StructType));
 	}
 
-	FieldExpression->GetValuePreshader(Context, Scope, RequestedFieldType, OutPreshader);
+	if (FieldEvaluation != EExpressionEvaluation::None)
+	{
+		FieldExpression->GetValuePreshader(Context, Scope, RequestedFieldType, OutPreshader);
 
-	check(Context.PreshaderStackPosition > 0);
-	Context.PreshaderStackPosition--;
+		check(Context.PreshaderStackPosition > 0);
+		Context.PreshaderStackPosition--;
 
-	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::SetField).Write(Field->ComponentIndex).Write(Field->GetNumComponents());
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::SetField).Write(Field->ComponentIndex).Write(Field->GetNumComponents());
+	}
 }
 
 bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

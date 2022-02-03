@@ -47,6 +47,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	const FMaterial& Material,
 	const UE::HLSLTree::FEmitContext& EmitContext,
 	const TCHAR* DeclarationsCode,
+	const TCHAR* VertexShaderCode,
 	const TCHAR* PixelShaderCodePhase0,
 	const TCHAR* PixelShaderCodePhase1)
 {
@@ -74,10 +75,14 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	FLazyPrintf LazyPrintf(*MaterialTemplateSource);
 
-	const uint32 NumUserVertexTexCoords = EmitContext.NumTexCoords;
-	const uint32 NumUserTexCoords = EmitContext.NumTexCoords;
+	const uint32 VertexTexCoordMask = EmitContext.TexCoordMask[SF_Vertex];
+	const uint32 PixelTexCoordMask = EmitContext.TexCoordMask[SF_Pixel];
+	const uint32 NumTexCoords = PixelTexCoordMask ? (FMath::FloorLog2(PixelTexCoordMask) + 1u) : 0u;
+
+	const uint32 NumUserVertexTexCoords = NumTexCoords;
+	const uint32 NumUserTexCoords = NumTexCoords;
 	const uint32 NumCustomVectors = 0u;
-	const uint32 NumTexCoordVectors = EmitContext.NumTexCoords;
+	const uint32 NumTexCoordVectors = NumTexCoords;
 
 	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumUserVertexTexCoords));
 	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumUserTexCoords));
@@ -287,21 +292,35 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	//if (bEnableExecutionFlow)
 	{
-		FString EvaluateVertexCode;
+		FString EvaluateMaterialDeclaration;
+
+		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributesInternal(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += VertexShaderCode;
+		EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
+
+		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("    FMaterialAttributes Result = EvaluateVertexMaterialAttributesInternal(Parameters);" LINE_TERMINATOR);
+		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; ++TexCoordIndex)
+		{
+			if ((PixelTexCoordMask & (1u << TexCoordIndex)) && !(VertexTexCoordMask & (1u << TexCoordIndex)))
+			{
+				const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
+				EvaluateMaterialDeclaration += FString::Printf(TEXT("    Result.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
+			}
+		}
+		EvaluateMaterialDeclaration += TEXT("   return Result;" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
 		// Set default texcoords in the VS
-		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumUserVertexTexCoords; ++TexCoordIndex)
+		/*for (uint32 TexCoordIndex = 0; TexCoordIndex < NumUserVertexTexCoords; ++TexCoordIndex)
 		{
 			const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
 
-			EvaluateVertexCode += FString::Printf(TEXT("\tDefaultMaterialAttributes.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
-		}
+			EvaluateMaterialDeclaration += FString::Printf(TEXT("\tDefaultMaterialAttributes.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
+		}*/
 
-		//EvaluateVertexCode += TranslatedAttributesCodeChunks[SF_Vertex];
-
-		LazyPrintf.PushParam(*EvaluateVertexCode);
-
-		FString EvaluateMaterialDeclaration;
 		FString EvaluateMaterialAttributesPhase0 = TEXT("    FMaterialAttributes MaterialAttributesPhase0 = EvaluatePixelMaterialAttributesPhase0(Parameters);" LINE_TERMINATOR);
 		FString EvaluateMaterialAttributesPhase1;
 
@@ -376,6 +395,8 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	FShaderCompilerEnvironment& OutEnvironment)
 {
 	bool bMaterialRequestsDualSourceBlending = false;
+
+	OutEnvironment.SetDefine(TEXT("ENABLE_NEW_HLSL_GENERATOR"), 1);
 
 	if (false)//bNeedsParticlePosition || Material->ShouldGenerateSphericalParticleNormals() || bUsesSphericalParticleOpacity)
 	{
@@ -687,6 +708,56 @@ public:
 	FStringBuilderMemstack(FMemStackBase& Allocator, int32 InSize) : TStringBuilderBase<TCHAR>((TCHAR*)Allocator.Alloc(sizeof(TCHAR)* InSize, alignof(TCHAR)), InSize) {}
 };
 
+static bool IsAttributeUsed(FMaterialHLSLGenerator& Generator,
+	UE::HLSLTree::FEmitContext& Context,
+	UE::HLSLTree::FEmitScope& Scope,
+	const UE::HLSLTree::FPreparedType& ResultType,
+	UE::HLSLTree::FExpression* Expression,
+	EMaterialProperty Property)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	const FStructField* PropertyField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(Property));
+	if (!PropertyField)
+	{
+		return false;
+	}
+
+	const int32 NumComponents = PropertyField->GetNumComponents();
+	const EExpressionEvaluation Evaluation = ResultType.GetFieldEvaluation(Scope, PropertyField->ComponentIndex, NumComponents);
+	if (Evaluation == EExpressionEvaluation::None)
+	{
+		return false;
+	}
+	else if (Evaluation == EExpressionEvaluation::Constant)
+	{
+		FRequestedType RequestedType(Generator.GetMaterialAttributesType(), false);
+		RequestedType.SetFieldRequested(PropertyField);
+
+		const FValue& DefaultValue = Generator.GetMaterialAttributesDefaultValue();
+		const FValue ConstantValue = Expression->GetValueConstant(Context, Scope, RequestedType);
+		if (DefaultValue.GetType() != ConstantValue.GetType())
+		{
+			ensure(false); // expected types to match
+			return true;
+		}
+
+		for (int32 Index = 0; Index < NumComponents; ++Index)
+		{
+			const int32 ComponentIndex = PropertyField->ComponentIndex + Index;
+			if (DefaultValue.Component[ComponentIndex].Packed != ConstantValue.Component[ComponentIndex].Packed)
+			{
+				// Non-default value, flag as used
+				return true;
+			}
+		}
+		return false;
+	}
+
+	return true;
+}
+
 bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FStaticParameterSet& InStaticParameters,
 	FMaterial& InOutMaterial,
@@ -696,6 +767,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	using namespace UE::HLSLTree;
 	using namespace UE::Shader;
 
+	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
 	FMemory::Memzero(SharedPixelProperties);
 	SharedPixelProperties[MP_Normal] = true;
 	SharedPixelProperties[MP_Tangent] = true;
@@ -724,65 +796,124 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		return false;
 	}
 
+	bool bUsesWorldPositionOffset = false;
+	bool bUsesPixelDepthOffset = false;
+
 	FEmitContext EmitContext(Allocator, Generator.GetErrors(), TypeRegistry);
 	EmitContext.Material = &InOutMaterial;
 	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
 
-	const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
-	check(NormalField);
-
-	FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
-
-	// Prepare all fields *except* normal
-	FRequestedType RequestedMaterialAttributesType(Generator.GetMaterialAttributesType());
-	RequestedMaterialAttributesType.ClearFieldRequested(NormalField);
-	if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialAttributesType).IsVoid())
+	// Prepare pixel shader code
+	FStringBuilderMemstack PixelCodePhase0(Allocator, 1024 * 1024);
+	FStringBuilderMemstack PixelCodePhase1(Allocator, 1024 * 1024);
 	{
-		return false;
-	}
+		const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
+		check(NormalField);
 
+		EmitContext.ShaderFrequency = SF_Pixel;
+		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
 
-	const bool bReadMaterialNormal = EmitContext.bReadMaterialNormal;
-	FStringBuilderMemstack CodePhase0(Allocator, 1024 * 1024);
-	FStringBuilderMemstack CodePhase1(Allocator, 1024 * 1024);
-	if (!bReadMaterialNormal)
-	{
-		// No access to material normal, can execute everything in phase0
-		RequestedMaterialAttributesType.SetFieldRequested(NormalField);
-		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialAttributesType).IsVoid())
+		// Prepare all fields *except* normal
+		FRequestedType RequestedPixelAttributesType(Generator.GetMaterialAttributesType(), false);
+		for (const FGuid& AttributeID : OrderedVisibleAttributes)
+		{
+			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Pixel)
+			{
+				const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+				const FStructField* Field = Generator.GetMaterialAttributesType()->FindFieldByName(*FieldName);
+				if (Field && Field != NormalField)
+				{
+					RequestedPixelAttributesType.SetFieldRequested(Field);
+				}
+			}
+		}
+
+		const FPreparedType PixelResultType0 = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedPixelAttributesType);
+		if (PixelResultType0.IsVoid())
 		{
 			return false;
 		}
 
-		HLSLTree->EmitShader(EmitContext, CodePhase0);
-	}
-	else
-	{
-		// Execute everything *except* normal in phase1
-		HLSLTree->EmitShader(EmitContext, CodePhase1);
+		bUsesPixelDepthOffset = IsAttributeUsed(Generator, EmitContext, *EmitResultScope, PixelResultType0, Generator.GetResultExpression(), MP_PixelDepthOffset);
 
-		// Reset state
+		if (!EmitContext.bReadMaterialNormal)
+		{
+			// No access to material normal, can execute everything in phase0
+			RequestedPixelAttributesType.SetFieldRequested(NormalField);
+			const FPreparedType PixelResultType1 = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedPixelAttributesType);
+			if (PixelResultType1.IsVoid())
+			{
+				return false;
+			}
+
+			HLSLTree->EmitShader(EmitContext, PixelCodePhase0);
+		}
+		else
+		{
+			// Execute everything *except* normal in phase1
+			HLSLTree->EmitShader(EmitContext, PixelCodePhase1);
+
+			// Reset state
+			HLSLTree->ResetNodes();
+
+			EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
+
+			// Prepare code for just the normal
+			FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
+			RequestedMaterialNormal.SetFieldRequested(NormalField);
+			const FPreparedType PixelResultType1 = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialNormal);
+			if (PixelResultType1.IsVoid())
+			{
+				return false;
+			}
+
+			// Execute the normal in phase0
+			HLSLTree->EmitShader(EmitContext, PixelCodePhase0);
+		}
+	}
+
+	// Prepare vertex shader code
+	FStringBuilderMemstack VertexCode(Allocator, 1024 * 1024);
+	{
+		FRequestedType RequestedVertexAttributesType(Generator.GetMaterialAttributesType(), false);
+		for (const FGuid& AttributeID : OrderedVisibleAttributes)
+		{
+			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Vertex)
+			{
+				const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+				const FStructField* Field = Generator.GetMaterialAttributesType()->FindFieldByName(*FieldName);
+				if (Field)
+				{
+					RequestedVertexAttributesType.SetFieldRequested(Field);
+				}
+			}
+		}
+
 		HLSLTree->ResetNodes();
 
-		EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
+		EmitContext.ShaderFrequency = SF_Vertex;
+		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
 
-		// Prepare code for just the normal
-		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
-		RequestedMaterialNormal.SetFieldRequested(NormalField);
-		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialNormal).IsVoid())
+		const FPreparedType VertexResultType = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedVertexAttributesType);
+		if (VertexResultType.IsVoid())
 		{
 			return false;
 		}
 
-		// Execute the normal in phase0
-		HLSLTree->EmitShader(EmitContext, CodePhase0);
+		bUsesWorldPositionOffset = IsAttributeUsed(Generator, EmitContext, *EmitResultScope, VertexResultType, Generator.GetResultExpression(), MP_WorldPositionOffset);
+
+		HLSLTree->EmitShader(EmitContext, VertexCode);
 	}
 
 	if (EmitContext.Errors->HasErrors())
 	{
 		return false;
 	}
+
+	OutCompilationOutput.bModifiesMeshPosition = bUsesPixelDepthOffset || bUsesWorldPositionOffset;
+	OutCompilationOutput.bUsesWorldPositionOffset = bUsesWorldPositionOffset;
+	OutCompilationOutput.bUsesPixelDepthOffset = bUsesPixelDepthOffset;
 
 	FStringBuilderMemstack Declarations(Allocator, 64 * 1024);
 	TypeRegistry.EmitDeclarationsCode(Declarations);
@@ -791,8 +922,9 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		InOutMaterial,
 		EmitContext,
 		Declarations.ToString(),
-		CodePhase0.ToString(),
-		bReadMaterialNormal ? CodePhase1.ToString() : nullptr);
+		VertexCode.ToString(),
+		PixelCodePhase0.ToString(),
+		EmitContext.bReadMaterialNormal ? PixelCodePhase1.ToString() : nullptr);
 
 	OutMaterialEnvironment = new FSharedShaderCompilerEnvironment();
 	OutMaterialEnvironment->TargetPlatform = InCompilerTarget.TargetPlatform;

@@ -2215,7 +2215,6 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 		EvaluateVertexCode += TranslatedAttributesCodeChunks[SF_Vertex];
 
-		LazyPrintf.PushParam(*EvaluateVertexCode);
 		LazyPrintf.PushParam(*TranslatedAttributesCodeChunks[SF_Pixel]);
 
 		FString EvaluateMaterialAttributesCode = TEXT("    FMaterialAttributes MaterialAttributes = EvaluatePixelMaterialAttributes(Parameters);" LINE_TERMINATOR);
@@ -2255,7 +2254,6 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 	else
 	{
 		// skip material attributes code
-		LazyPrintf.PushParam(TEXT(""));
 		LazyPrintf.PushParam(TEXT(""));
 
 		for (int32 Iter = 0; Iter < CompiledPDV_MAX; Iter++)

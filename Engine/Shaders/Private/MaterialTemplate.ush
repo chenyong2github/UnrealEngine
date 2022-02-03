@@ -25,6 +25,10 @@
 // Merge conflicts on this line should be resolved by generating a new GUID
 // GUID = 5F290441-5611-4232-B26D-613F5E421262
 
+#ifndef ENABLE_NEW_HLSL_GENERATOR
+#define ENABLE_NEW_HLSL_GENERATOR 0
+#endif
+
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
 #endif
@@ -2828,15 +2832,7 @@ float3 CalculateAnisotropyTangent(in out FMaterialPixelParameters Parameters, FP
 	return Tangent;
 }
 
-FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters Parameters)
-{
-	FMaterialAttributes DefaultMaterialAttributes = (FMaterialAttributes)0;
-%s
-	// Return the default, this may be skipped if the above code returns different attributes
-	return DefaultMaterialAttributes;
-}
-
-// EvaluatePixelMaterialAttributes
+// EvaluateMaterialAttributes
 %s
 
 // Be very, very careful about changing CalcPixelMaterialInputs() or CalcPixelMaterialInputsAnalyticDerivatives(). They apply the same basic calculation,

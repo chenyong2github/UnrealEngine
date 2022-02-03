@@ -268,8 +268,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.Particle.WorldToParticle = GetPrimitiveData(Intermediates).WorldToLocal;
 #endif
 
+#if ENABLE_NEW_HLSL_GENERATOR
 	Result.MaterialVertexAttributes = EvaluateVertexMaterialAttributes(Result);
-
+#endif
 	return Result;
 }
 

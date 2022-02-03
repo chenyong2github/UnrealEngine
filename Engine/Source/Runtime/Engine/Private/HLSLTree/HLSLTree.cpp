@@ -744,7 +744,7 @@ EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope,
 	EExpressionEvaluation Result = EExpressionEvaluation::None;
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
-		const FPreparedComponent Component = GetComponent(Index);
+		const FPreparedComponent Component = GetComponent(ComponentIndex + Index);
 		Result = CombineEvaluations(Result, Component.GetEvaluation(Scope));
 	}
 	return Result;
