@@ -3059,6 +3059,7 @@ int32 GNumReplicateActorCalls = 0;
 
 int64 UActorChannel::ReplicateActor()
 {
+	LLM_SCOPE_BYTAG(NetChannel);
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateActorTime);
 
 	check(Actor);

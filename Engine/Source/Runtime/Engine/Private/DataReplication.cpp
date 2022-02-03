@@ -1729,11 +1729,13 @@ bool FObjectReplicator::CanSkipUpdate(FReplicationFlags RepFlags)
 
 bool FObjectReplicator::ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer)
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
 	return ReplicateProperties_r(Bunch, RepFlags, Writer);
 }
 
 bool FObjectReplicator::ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
+	LLM_SCOPE_BYTAG(NetObjReplicator);
 	FNetBitWriter Writer(Bunch.PackageMap, 8192);
 	return ReplicateProperties_r(Bunch, RepFlags, Writer);
 }

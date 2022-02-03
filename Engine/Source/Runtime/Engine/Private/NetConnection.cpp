@@ -3725,6 +3725,7 @@ int32 UNetConnection::GetFreeChannelIndex(const FName& ChName) const
 
 UChannel* UNetConnection::CreateChannelByName(const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChIndex)
 {
+	LLM_SCOPE_BYTAG(NetConnection);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_CreateChannelByName);
 
 	check(Driver->IsKnownChannelName(ChName));

@@ -4810,6 +4810,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 
 int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestructionInfo* DestructionInfo)
 {
+	LLM_SCOPE_BYTAG(NetDriver);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetSendDestructionInfo);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(SendDestructionInfo);
 
