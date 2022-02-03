@@ -323,7 +323,7 @@ public:
 			BuildCookRunParams += FString::Printf(TEXT(" -target=%s"), *BuildTargetInfo->Name);
 		}
 
-		// let the editor add options (-ue4exe in particular)
+		// let the editor add options (-unrealexe in particular)
 		{
 			BuildCookRunParams += FString::Printf(TEXT(" %s"), *FTurnkeyEditorSupport::GetUATOptions());
 		}
