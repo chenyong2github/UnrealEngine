@@ -23,12 +23,12 @@ namespace ECommandBufferOperationType
 
 struct FMassObservedTypeCollection
 {
-	void Add(const UScriptStruct& TypeType, FMassEntityHandle Entity)
+	void Add(const UScriptStruct& Type, FMassEntityHandle Entity)
 	{
-		if (&TypeType != LastAddedType)
+		if (&Type != LastAddedType)
 		{
-			LastAddedType = &TypeType;
-			LastUsedCollection = &Types.FindOrAdd(&TypeType);
+			LastAddedType = &Type;
+			LastUsedCollection = &Types.FindOrAdd(&Type);
 		}
 		CA_ASSUME(LastUsedCollection);
 		LastUsedCollection->Add(Entity);
@@ -40,6 +40,8 @@ struct FMassObservedTypeCollection
 		LastUsedCollection = nullptr;
 		Types.Reset();
 	}
+
+	void Append(const FMassObservedTypeCollection& Other);
 
 	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetTypes() const 
 	{ 
@@ -55,30 +57,42 @@ private:
 struct FMassCommandsObservedTypes
 {
 	void Reset();
-	void FragmentAdded(const UScriptStruct* TypeType, FMassEntityHandle Entity)
+	void FragmentAdded(const UScriptStruct* Type, FMassEntityHandle Entity)
 	{
-		check(TypeType);
-		FragmentsToAdd.Add(*TypeType, Entity);
+		check(Type);
+		Fragments[(uint8)EMassObservedOperation::Add].Add(*Type, Entity);
 	}
-	void FragmentRemoved(const UScriptStruct* TypeType, FMassEntityHandle Entity)
+	void FragmentRemoved(const UScriptStruct* Type, FMassEntityHandle Entity)
 	{
-		check(TypeType);
-		FragmentsToRemove.Add(*TypeType, Entity);
+		check(Type);
+		Fragments[(uint8)EMassObservedOperation::Remove].Add(*Type, Entity);
+	}
+	void TagAdded(const UScriptStruct* Type, FMassEntityHandle Entity)
+	{
+		check(Type);
+		Tags[(uint8)EMassObservedOperation::Add].Add(*Type, Entity);
+	}
+	void TagRemoved(const UScriptStruct* Type, FMassEntityHandle Entity)
+	{
+		check(Type);
+		Tags[(uint8)EMassObservedOperation::Remove].Add(*Type, Entity);
 	}
 
-	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetFragmentsToAdd() const
+	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetObservedFragments(const EMassObservedOperation Operation) const
 	{
-		return FragmentsToAdd.GetTypes();
+		return Fragments[(uint8)Operation].GetTypes();
 	}
 
-	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetFragmentsToRemove() const
+	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetObservedTags(const EMassObservedOperation Operation) const
 	{
-		return FragmentsToRemove.GetTypes();
+		return Tags[(uint8)Operation].GetTypes();
 	}
+
+	void Append(const FMassCommandsObservedTypes& Other);
 
 protected:
-	FMassObservedTypeCollection FragmentsToAdd;
-	FMassObservedTypeCollection FragmentsToRemove;
+	FMassObservedTypeCollection Fragments[(uint8)EMassObservedOperation::MAX];
+	FMassObservedTypeCollection Tags[(uint8)EMassObservedOperation::MAX];
 };
 
 
@@ -396,7 +410,7 @@ struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
 
 	enum
 	{
-		Type = ECommandBufferOperationType::None
+		Type = ECommandBufferOperationType::Add
 	};
 
 	FCommandAddTag() = default;
@@ -404,6 +418,11 @@ struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
+
+	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
+	{
+		ObservedTypes.TagAdded(StructParam, TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -421,7 +440,7 @@ struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
 
 	enum
 	{
-		Type = ECommandBufferOperationType::None
+		Type = ECommandBufferOperationType::Remove
 	};
 
 	FCommandRemoveTag() = default;
@@ -429,6 +448,11 @@ struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
+
+	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
+	{
+		ObservedTypes.TagRemoved(StructParam, TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -447,7 +471,7 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 
 	enum
 	{
-		Type = ECommandBufferOperationType::None //ECommandBufferOperationType::Add | ECommandBufferOperationType::Remove
+		Type = ECommandBufferOperationType::Add | ECommandBufferOperationType::Remove
 	};
 
 	FCommandSwapTags() = default;
@@ -458,6 +482,12 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 	{
 		checkf((InOldTagType == nullptr) || InOldTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InOldTagType));
 		checkf((InNewTagType == nullptr) || InNewTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InNewTagType));
+	}
+
+	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
+	{
+		ObservedTypes.TagRemoved(OldTagType, TargetEntity);
+		ObservedTypes.TagAdded(NewTagType, TargetEntity);
 	}
 
 protected:
@@ -590,6 +620,7 @@ public:
 	void MoveAppend(FMassCommandBuffer& InOutOther);
 
 	bool HasPendingCommands() const { return PendingCommands.Num() > 0 || EntitiesToDestroy.Num() > 0; }
+	bool IsFlushing() const { return bIsFlushing; }
 
 private:
 	FInstancedStructStream PendingCommands;
@@ -599,4 +630,7 @@ private:
 	TArray<FMassEntityHandle> EntitiesToDestroy;
 
 	FMassCommandsObservedTypes ObservedTypes;
+
+	/** Indicates that this specific MassCommandBuffer is currently flushing its contents */
+	bool bIsFlushing = false;
 };

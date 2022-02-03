@@ -67,15 +67,45 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 #endif
 } // UE::FLWCCommand
 
+
+//////////////////////////////////////////////////////////////////////
+// FMassObservedTypeCollection
+
+void FMassObservedTypeCollection::Append(const FMassObservedTypeCollection& Other)
+{
+	for (auto It : Other.Types)
+	{
+		TArray<FMassEntityHandle> Contents = Types.FindOrAdd(It.Key);
+		Contents.Append(It.Value);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////
 // FMassCommandsObservedTypes
 
 void FMassCommandsObservedTypes::Reset()
 {
-	FragmentsToAdd.Reset();
-	FragmentsToRemove.Reset();
+	for (FMassObservedTypeCollection& Collection : Fragments)
+	{
+		Collection.Reset();
+	};
+	for (FMassObservedTypeCollection& Collection : Tags)
+	{
+		Collection.Reset();
+	};
 }
 
+void FMassCommandsObservedTypes::Append(const FMassCommandsObservedTypes& Other)
+{
+	for (int i = 0; i < (int)EMassObservedOperation::MAX; ++i)
+	{
+		Fragments[i].Append(Other.Fragments[i]);
+	}
+	for (int i = 0; i < (int)EMassObservedOperation::MAX; ++i)
+	{
+		Tags[i].Append(Other.Tags[i]);
+	}
+}
 
 //////////////////////////////////////////////////////////////////////
 // FMassCommandBuffer
@@ -83,6 +113,9 @@ void FMassCommandsObservedTypes::Reset()
 void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntitySystem)
 {
 	check(EntitySystem);
+
+	check(!bIsFlushing);
+	TGuardValue FlushingGuard(bIsFlushing, true);
 
 	// short-circuit exit
 	if (EntitiesToDestroy.Num() == 0 && PendingCommands.IsEmpty())
@@ -92,40 +125,47 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 
 	FMassObserverManager& ObserverManager = EntitySystem->GetObserverManager();
 
-	const FMassFragmentBitSet& ObservedAddFragments = ObserverManager.GetObservedAddFragmentsBitSet();
-	const FMassFragmentBitSet& ObservedRemoveFragments = ObserverManager.GetObservedRemoveFragmentsBitSet();
+	const FMassFragmentBitSet* ObservedFragments = ObserverManager.GetObservedFragmentBitSets();
+	const FMassTagBitSet* ObservedTags = ObserverManager.GetObservedTagBitSets();
 
-	if (ObservedRemoveFragments.IsEmpty() == false)
+	for (auto It : ObservedTypes.GetObservedFragments(EMassObservedOperation::Remove))
 	{
-		for (auto It : ObservedTypes.GetFragmentsToRemove())
+		check(It.Key);
+		if (ObservedFragments[(uint8)EMassObservedOperation::Remove].Contains(*It.Key))
 		{
-			check(It.Key);
-			if (ObservedRemoveFragments.Contains(*It.Key))
+			TArray<FMassArchetypeSubChunks > ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
-				TArray<FMassArchetypeSubChunks > ChunkCollections;
-				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
-				for (FMassArchetypeSubChunks& Collection : ChunkCollections)
-				{
-					check(It.Key);
-					ObserverManager.OnPreItemRemoved(*It.Key, Collection);
-				}
-			}
-		}
-	
-		TArray<FMassArchetypeSubChunks > EntityChunksToDestroy;
-		if (EntitiesToDestroy.Num())
-		{
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
-			for (FMassArchetypeSubChunks& Collection : EntityChunksToDestroy)
-			{
-				EntitySystem->BatchDestroyEntityChunks(Collection);
+				check(It.Key);
+				ObserverManager.OnPreFragmentOrTagRemoved(*It.Key, Collection);
 			}
 		}
 	}
-	else if (EntitiesToDestroy.Num())
+	
+	for (auto It : ObservedTypes.GetObservedTags(EMassObservedOperation::Remove))
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("ECS Deferred Commands Destroy Entities");
-		EntitySystem->BatchDestroyEntities(MakeArrayView(EntitiesToDestroy));
+		check(It.Key);
+		if (ObservedTags[(uint8)EMassObservedOperation::Remove].Contains(*It.Key))
+		{
+			TArray<FMassArchetypeSubChunks > ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
+			{
+				check(It.Key);
+				ObserverManager.OnPreFragmentOrTagRemoved(*It.Key, Collection);
+			}
+		}
+	}
+	
+	TArray<FMassArchetypeSubChunks > EntityChunksToDestroy;
+	if (EntitiesToDestroy.Num())
+	{
+		UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
+		for (FMassArchetypeSubChunks& Collection : EntityChunksToDestroy)
+		{
+			EntitySystem->BatchDestroyEntityChunks(Collection);
+		}
 	}
 	EntitiesToDestroy.Reset();
 
@@ -155,17 +195,32 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 	// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
 	PendingCommands.Clear();
 
-	for (auto It : ObservedTypes.GetFragmentsToAdd())
+	for (auto It : ObservedTypes.GetObservedFragments(EMassObservedOperation::Add))
 	{
 		check(It.Key);
-		if (ObservedAddFragments.Contains(*It.Key))
+		if (ObservedFragments[(uint8)EMassObservedOperation::Add].Contains(*It.Key))
 		{
 			TArray<FMassArchetypeSubChunks > ChunkCollections;
 			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
-				ObserverManager.OnPostItemAdded(*It.Key, Collection);
+				ObserverManager.OnPostFragmentOrTagAdded(*It.Key, Collection);
+			}
+		}
+	}
+
+	for (auto It : ObservedTypes.GetObservedTags(EMassObservedOperation::Add))
+	{
+		check(It.Key);
+		if (ObservedTags[(uint8)EMassObservedOperation::Add].Contains(*It.Key))
+		{
+			TArray<FMassArchetypeSubChunks > ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
+			{
+				check(It.Key);
+				ObserverManager.OnPostFragmentOrTagAdded(*It.Key, Collection);
 			}
 		}
 	}
@@ -183,6 +238,7 @@ void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
 		PendingCommands.Append(MoveTemp(Other.PendingCommands));
 		EntitiesToDestroy.Append(MoveTemp(Other.EntitiesToDestroy));
+		ObservedTypes.Append(Other.ObservedTypes);
 	}
 }
 

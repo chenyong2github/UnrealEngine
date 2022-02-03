@@ -115,8 +115,23 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 		
 		ExecutionContext.SetFlushDeferredCommands(true);
 		// append the commands added from other, non-processor sources (like MassAgentSubsystem)
+		ensure(!ProcessingContext.EntitySubsystem->Defer().IsFlushing());
+		ensure(!ExecutionContext.Defer().IsFlushing());
 		ExecutionContext.Defer().MoveAppend(ProcessingContext.EntitySubsystem->Defer());
 		ExecutionContext.FlushDeferred(*ProcessingContext.EntitySubsystem);
+	}
+	// else make sure we don't just lose the commands. Append to the command buffer requested via
+	// ProcessingContext.CommandBuffer or to the default EntitySubsystem's command buffer.
+	else if (CommandBuffer != ProcessingContext.CommandBuffer)
+	{
+		if (ProcessingContext.CommandBuffer)
+		{
+			ProcessingContext.CommandBuffer->MoveAppend(*CommandBuffer.Get());
+		}
+		else if (CommandBuffer.Get() != &ProcessingContext.EntitySubsystem->Defer())
+		{
+			ProcessingContext.EntitySubsystem->Defer().MoveAppend(*CommandBuffer.Get());
+		}
 	}
 }
 

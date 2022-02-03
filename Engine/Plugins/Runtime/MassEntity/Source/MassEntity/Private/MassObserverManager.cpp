@@ -10,7 +10,7 @@ namespace UE::Mass::ObserverManager::Private
 {
 // a helper function to reduce code duplication in FMassObserverManager::Initialize
 template<typename TBitSet>
-void SetUpObservers(UMassEntitySubsystem& EntitySubsystem, const TMap<const UScriptStruct*, FMassProcessorClassCollection>& RegisteredObserverTypes, TBitSet& ObservedBitSet, FMassItemObserversMap& Observers)
+void SetUpObservers(UMassEntitySubsystem& EntitySubsystem, const TMap<const UScriptStruct*, FMassProcessorClassCollection>& RegisteredObserverTypes, TBitSet& ObservedBitSet, FMassObserversMap& Observers)
 {
 	ObservedBitSet.Reset();
 
@@ -55,10 +55,11 @@ void FMassObserverManager::Initialize()
 	const UMassObserverRegistry& Registry = UMassObserverRegistry::Get();
 
 	using UE::Mass::ObserverManager::Private::SetUpObservers;
-	SetUpObservers(EntitySubsystem, Registry.FragmentInitializersMap, ObservedFragments[(uint8)FMassObservedOperation::Add], FragmentObservers[(uint8)FMassObservedOperation::Add]);
-	SetUpObservers(EntitySubsystem, Registry.FragmentDeinitializersMap, ObservedFragments[(uint8)FMassObservedOperation::Remove], FragmentObservers[(uint8)FMassObservedOperation::Remove]);
-	SetUpObservers(EntitySubsystem, Registry.TagAddedObserversMap, ObservedTags[(uint8)FMassObservedOperation::Add], TagObservers[(uint8)FMassObservedOperation::Add]);
-	SetUpObservers(EntitySubsystem, Registry.TagRemovedObserversMap, ObservedTags[(uint8)FMassObservedOperation::Remove], TagObservers[(uint8)FMassObservedOperation::Remove]);
+	for (int i = 0; i < (int)EMassObservedOperation::MAX; ++i)
+	{
+		SetUpObservers(EntitySubsystem, *Registry.FragmentObservers[i], ObservedFragments[i], FragmentObservers[i]);
+		SetUpObservers(EntitySubsystem, *Registry.TagObservers[i], ObservedTags[i], TagObservers[i]);
+	}
 }
 
 bool FMassObserverManager::OnPostEntitiesCreated(const FMassArchetypeSubChunks& ChunkCollection)
@@ -84,16 +85,14 @@ bool FMassObserverManager::OnPostEntitiesCreated(FMassProcessingContext& Process
 
 	check(ProcessingContext.EntitySubsystem);
 	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = ProcessingContext.EntitySubsystem->GetArchetypeComposition(ChunkCollection.GetArchetype());
-
-
-	const FMassFragmentBitSet Overlap = ObservedFragments[(uint8)FMassObservedOperation::Add].GetOverlap(ArchetypeComposition.Fragments);
+	const FMassFragmentBitSet Overlap = ObservedFragments[(uint8)EMassObservedOperation::Add].GetOverlap(ArchetypeComposition.Fragments);
 
 	if (Overlap.IsEmpty() == false)
 	{
 		TArray<const UScriptStruct*> OverlapTypes;
 		Overlap.ExportTypes(OverlapTypes);
 
-		HandleFragmentsImpl(ProcessingContext, ChunkCollection, MakeArrayView(OverlapTypes), FragmentObservers[(uint8)FMassObservedOperation::Add]);
+		HandleFragmentsImpl(ProcessingContext, ChunkCollection, MakeArrayView(OverlapTypes), FragmentObservers[(uint8)EMassObservedOperation::Add]);
 		return true;
 	}
 
@@ -121,10 +120,10 @@ bool FMassObserverManager::OnPreEntitiesDestroyed(FMassProcessingContext& Proces
 	check(ProcessingContext.EntitySubsystem);
 	const FMassArchetypeCompositionDescriptor& ArchetypeComposition = ProcessingContext.EntitySubsystem->GetArchetypeComposition(ChunkCollection.GetArchetype());
 	
-	return OnCompositionChanged(ChunkCollection, ArchetypeComposition, FMassObservedOperation::Remove, &ProcessingContext);
+	return OnCompositionChanged(ChunkCollection, ArchetypeComposition, EMassObservedOperation::Remove, &ProcessingContext);
 }
 
-bool FMassObserverManager::OnCompositionChanged(const FMassArchetypeSubChunks& ChunkCollection, const FMassArchetypeCompositionDescriptor& CompositionDelta, const FMassObservedOperation Operation, FMassProcessingContext* InProcessingContext)
+bool FMassObserverManager::OnCompositionChanged(const FMassArchetypeSubChunks& ChunkCollection, const FMassArchetypeCompositionDescriptor& CompositionDelta, const EMassObservedOperation Operation, FMassProcessingContext* InProcessingContext)
 {
 	const FMassFragmentBitSet FragmentOverlap = ObservedFragments[(uint8)Operation].GetOverlap(CompositionDelta.Fragments);
 	const bool bHasFragmentsOverlap = !FragmentOverlap.IsEmpty();
@@ -134,6 +133,7 @@ bool FMassObserverManager::OnCompositionChanged(const FMassArchetypeSubChunks& C
 	if (bHasFragmentsOverlap || bHasTagsOverlap)
 	{
 		FMassProcessingContext LocalContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+		LocalContext.bFlushCommandBuffer = false;
 		FMassProcessingContext* ProcessingContext = InProcessingContext ? InProcessingContext : &LocalContext;
 		TArray<const UScriptStruct*> ObservedTypesOverlap;
 
@@ -156,7 +156,7 @@ bool FMassObserverManager::OnCompositionChanged(const FMassArchetypeSubChunks& C
 	return bHasFragmentsOverlap || bHasTagsOverlap;
 }
 
-bool FMassObserverManager::OnCompositionChanged(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& CompositionDelta, const FMassObservedOperation Operation)
+bool FMassObserverManager::OnCompositionChanged(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& CompositionDelta, const EMassObservedOperation Operation)
 {
 	const FMassFragmentBitSet FragmentOverlap = ObservedFragments[(uint8)Operation].GetOverlap(CompositionDelta.Fragments);
 	const bool bHasFragmentsOverlap = !FragmentOverlap.IsEmpty();
@@ -167,6 +167,7 @@ bool FMassObserverManager::OnCompositionChanged(const FMassEntityHandle Entity, 
 	{
 		TArray<const UScriptStruct*> ObservedTypesOverlap;
 		FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+		ProcessingContext.bFlushCommandBuffer = false;
 		const FMassArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
 
 		if (bHasFragmentsOverlap)
@@ -190,26 +191,26 @@ bool FMassObserverManager::OnCompositionChanged(const FMassEntityHandle Entity, 
 	return bHasFragmentsOverlap || bHasTagsOverlap;
 }
 
-void FMassObserverManager::OnSingleItemOperation(const UScriptStruct& ItemType, const FMassArchetypeSubChunks& ChunkCollection, const FMassObservedOperation Operation)
+void FMassObserverManager::OnFragmentOrTagOperation(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection, const EMassObservedOperation Operation)
 {
-	check(ItemType.IsChildOf(FMassFragment::StaticStruct()) || ItemType.IsChildOf(FMassTag::StaticStruct()));
+	check(FragmentOrTagType.IsChildOf(FMassFragment::StaticStruct()) || FragmentOrTagType.IsChildOf(FMassTag::StaticStruct()));
 
-	if (ItemType.IsChildOf(FMassFragment::StaticStruct()))
+	if (FragmentOrTagType.IsChildOf(FMassFragment::StaticStruct()))
 	{
-		if (ObservedFragments[(uint8)Operation].Contains(ItemType))
+		if (ObservedFragments[(uint8)Operation].Contains(FragmentOrTagType))
 		{
-			HandleSingleItemImpl(ItemType, ChunkCollection, FragmentObservers[(uint8)Operation]);
+			HandleSingleEntityImpl(FragmentOrTagType, ChunkCollection, FragmentObservers[(uint8)Operation]);
 		}
 	}
-	else if (ObservedTags[(uint8)Operation].Contains(ItemType))
+	else if (ObservedTags[(uint8)Operation].Contains(FragmentOrTagType))
 	{
-		HandleSingleItemImpl(ItemType, ChunkCollection, TagObservers[(uint8)Operation]);
+		HandleSingleEntityImpl(FragmentOrTagType, ChunkCollection, TagObservers[(uint8)Operation]);
 	}
 }
 
 void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection
 	, TArrayView<const UScriptStruct*> ObservedTypes
-	/*, const FMassFragmentBitSet& FragmentsBitSet*/, FMassItemObserversMap& HandlersContainer)
+	/*, const FMassFragmentBitSet& FragmentsBitSet*/, FMassObserversMap& HandlersContainer)
 {	
 	check(ObservedTypes.Num() > 0);
 
@@ -222,30 +223,31 @@ void FMassObserverManager::HandleFragmentsImpl(FMassProcessingContext& Processin
 	}
 }
 
-void FMassObserverManager::HandleSingleItemImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, FMassItemObserversMap& HandlersContainer)
+void FMassObserverManager::HandleSingleEntityImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, FMassObserversMap& HandlersContainer)
 {
 	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+	ProcessingContext.bFlushCommandBuffer = false;
 	ProcessingContext.AuxData.InitializeAs(&FragmentType);
 	FMassRuntimePipeline& Pipeline = (*HandlersContainer).FindChecked(&FragmentType);
 
 	UE::Mass::Executor::RunProcessorsView(Pipeline.Processors, ProcessingContext, &ChunkCollection);
 }
 
-void FMassObserverManager::AddObserverInstance(const UScriptStruct& ItemType, const FMassObservedOperation Operation, UMassProcessor& ObserverProcessor)
+void FMassObserverManager::AddObserverInstance(const UScriptStruct& FragmentOrTagType, const EMassObservedOperation Operation, UMassProcessor& ObserverProcessor)
 {
-	checkSlow(ItemType.IsChildOf(FMassFragment::StaticStruct()) || ItemType.IsChildOf(FMassTag::StaticStruct()));
+	checkSlow(FragmentOrTagType.IsChildOf(FMassFragment::StaticStruct()) || FragmentOrTagType.IsChildOf(FMassTag::StaticStruct()));
 
 	FMassRuntimePipeline* Pipeline = nullptr;
 
-	if (ItemType.IsChildOf(FMassFragment::StaticStruct()))
+	if (FragmentOrTagType.IsChildOf(FMassFragment::StaticStruct()))
 	{
-		Pipeline = &(*FragmentObservers[(uint8)Operation]).FindOrAdd(&ItemType);
-		ObservedFragments[(uint8)Operation].Add(ItemType);
+		Pipeline = &(*FragmentObservers[(uint8)Operation]).FindOrAdd(&FragmentOrTagType);
+		ObservedFragments[(uint8)Operation].Add(FragmentOrTagType);
 	}
 	else
 	{
-		Pipeline = &(*TagObservers[(uint8)Operation]).FindOrAdd(&ItemType);
-		ObservedTags[(uint8)Operation].Add(ItemType);
+		Pipeline = &(*TagObservers[(uint8)Operation]).FindOrAdd(&FragmentOrTagType);
+		ObservedTags[(uint8)Operation].Add(FragmentOrTagType);
 	}
 	Pipeline->AppendProcessor(ObserverProcessor);
 

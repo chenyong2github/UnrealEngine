@@ -11,21 +11,11 @@ struct FMassArchetypeSubChunks;
 class UMassProcessor;
 struct FMassProcessingContext;
 
-enum class FMassObservedOperation : uint8
-{
-	Add,
-	Remove,
-	// @todo Keeping this here as a indication of design intent. For now we handle entity destruction like removal, but 
-	// there might be coputationaly expensive cases where we might want to avoid for soon-to-be-dead entities. 
-	// Destroy,
-	MAX
-};
-
 /** 
- * A wrapper type for a TMap to support having array-of-maps UPROPERTY members inFMassObserverManager
+ * A wrapper type for a TMap to support having array-of-maps UPROPERTY members in FMassObserverManager
  */
 USTRUCT()
-struct FMassItemObserversMap
+struct FMassObserversMap
 {
 	GENERATED_BODY()
 
@@ -53,27 +43,29 @@ struct MASSENTITY_API FMassObserverManager
 public:
 	FMassObserverManager();	
 
-	const FMassFragmentBitSet& GetObservedAddFragmentsBitSet() const { return ObservedFragments[(uint8)FMassObservedOperation::Add]; }
-	const FMassFragmentBitSet& GetObservedRemoveFragmentsBitSet() const { return ObservedFragments[(uint8)FMassObservedOperation::Remove]; }
-	const FMassTagBitSet& GetObservedAddTagsBitSet() const { return ObservedTags[(uint8)FMassObservedOperation::Add]; }
-	const FMassTagBitSet& GetObservedRemoveTagsBitSet() const { return ObservedTags[(uint8)FMassObservedOperation::Remove]; }
+	const FMassFragmentBitSet* GetObservedFragmentBitSets() const { return ObservedFragments; }
+	const FMassFragmentBitSet& GetObservedFragmentsBitSet(const EMassObservedOperation Operation) const 
+	{ 
+		return ObservedFragments[(uint8)Operation]; 
+	}
 
-	bool HasOnAddedObserversForBitSet(const FMassFragmentBitSet& InQueriedBitSet) const { return ObservedFragments[(uint8)FMassObservedOperation::Add].HasAny(InQueriedBitSet); }
-	bool HasOnAddedObserversForBitSet(const FMassTagBitSet& InQueriedBitSet) const { return ObservedTags[(uint8)FMassObservedOperation::Add].HasAny(InQueriedBitSet); }
-	bool HasOnRemovedObserversForBitSet(const FMassFragmentBitSet& InQueriedBitSet) const { return ObservedFragments[(uint8)FMassObservedOperation::Remove].HasAny(InQueriedBitSet); }
-	bool HasOnRemovedObserversForBitSet(const FMassTagBitSet& InQueriedBitSet) const { return ObservedTags[(uint8)FMassObservedOperation::Remove].HasAny(InQueriedBitSet); }
-
-	bool HasObserversForBitSet(const FMassFragmentBitSet& InQueriedBitSet, const FMassObservedOperation Operation) const
+	const FMassTagBitSet* GetObservedTagBitSets() const { return ObservedTags; }
+	const FMassTagBitSet& GetObservedTagsBitSet(const EMassObservedOperation Operation) const 
+	{ 
+		return ObservedTags[(uint8)Operation]; 
+	}
+	
+	bool HasObserversForBitSet(const FMassFragmentBitSet& InQueriedBitSet, const EMassObservedOperation Operation) const
 	{
 		return ObservedFragments[(uint8)Operation].HasAny(InQueriedBitSet);
 	}
 
-	bool HasObserversForBitSet(const FMassTagBitSet& InQueriedBitSet, const FMassObservedOperation Operation) const
+	bool HasObserversForBitSet(const FMassTagBitSet& InQueriedBitSet, const EMassObservedOperation Operation) const
 	{
 		return ObservedTags[(uint8)Operation].HasAny(InQueriedBitSet);
 	}
 
-	bool HasObserversForComposition(const FMassArchetypeCompositionDescriptor& Composition, const FMassObservedOperation Operation) const
+	bool HasObserversForComposition(const FMassArchetypeCompositionDescriptor& Composition, const EMassObservedOperation Operation) const
 	{
 		return HasObserversForBitSet(Composition.Fragments, Operation) || HasObserversForBitSet(Composition.Tags, Operation);
 	}
@@ -84,33 +76,31 @@ public:
 	bool OnPreEntitiesDestroyed(const FMassArchetypeSubChunks& ChunkCollection);
 	bool OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
 
-	bool OnCompositionChanged(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& CompositionDelta, const FMassObservedOperation Operation);
+	bool OnCompositionChanged(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& CompositionDelta, const EMassObservedOperation Operation);
 	bool OnPostCompositionAdded(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& Composition)
 	{
-		return OnCompositionChanged(Entity, Composition, FMassObservedOperation::Add);
+		return OnCompositionChanged(Entity, Composition, EMassObservedOperation::Add);
 	}
 	bool OnPreCompositionRemoved(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& Composition)
 	{
-		return OnCompositionChanged(Entity, Composition, FMassObservedOperation::Remove);
+		return OnCompositionChanged(Entity, Composition, EMassObservedOperation::Remove);
 	}
 
-	// @todo caller will need to recreate ChunkCollection if this call is done after modifications to entities, so it 
-	// would be beneficial to ask the system "if there's anything observing the change" before actually reconstructing 
-	// the chunk collection. Unless the new ChunkCollection gets created as a side-product of the batched modification 
-	// operation
-	bool OnCompositionChanged(const FMassArchetypeSubChunks& ChunkCollection, const FMassArchetypeCompositionDescriptor& Composition, const FMassObservedOperation Operation, FMassProcessingContext* InProcessingContext = nullptr);
+	bool OnCompositionChanged(const FMassArchetypeSubChunks& ChunkCollection, const FMassArchetypeCompositionDescriptor& Composition, const EMassObservedOperation Operation, FMassProcessingContext* InProcessingContext = nullptr);
 
-	void OnPostItemAdded(const UScriptStruct& ItemType, const FMassArchetypeSubChunks& ChunkCollection)
+	void OnPostFragmentOrTagAdded(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection)
 	{
-		OnSingleItemOperation(ItemType, ChunkCollection, FMassObservedOperation::Add);
+		OnFragmentOrTagOperation(FragmentOrTagType, ChunkCollection, EMassObservedOperation::Add);
 	}
-	void OnPreItemRemoved(const UScriptStruct& ItemType, const FMassArchetypeSubChunks& ChunkCollection)
+	void OnPreFragmentOrTagRemoved(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection)
 	{
-		OnSingleItemOperation(ItemType, ChunkCollection, FMassObservedOperation::Remove);
+		OnFragmentOrTagOperation(FragmentOrTagType, ChunkCollection, EMassObservedOperation::Remove);
 	}
-	void OnSingleItemOperation(const UScriptStruct& ItemType, const FMassArchetypeSubChunks& ChunkCollection, const FMassObservedOperation Operation);
+	// @todo I don't love this name. Alternatively could be OnSingleFragmentOrTagOperation. Long term we'll switch to
+	// OnSingleFragmentOperation and advertise that Tags are a type of Fragment as well (conceptually).
+	void OnFragmentOrTagOperation(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection, const EMassObservedOperation Operation);
 
-	void AddObserverInstance(const UScriptStruct& ItemType, const FMassObservedOperation Operation, UMassProcessor& ObserverProcessor);
+	void AddObserverInstance(const UScriptStruct& FragmentOrTagType, const EMassObservedOperation Operation, UMassProcessor& ObserverProcessor);
 
 protected:
 	friend UMassEntitySubsystem;
@@ -118,17 +108,17 @@ protected:
 
 	void Initialize();
 	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection
-		, TArrayView<const UScriptStruct*> ObservedTypes, FMassItemObserversMap& HandlersContainer);
-	void HandleSingleItemImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, FMassItemObserversMap& HandlersContainer);
+		, TArrayView<const UScriptStruct*> ObservedTypes, FMassObserversMap& HandlersContainer);
+	void HandleSingleEntityImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, FMassObserversMap& HandlersContainer);
 
-	FMassFragmentBitSet ObservedFragments[(uint8)FMassObservedOperation::MAX];
-	FMassTagBitSet ObservedTags[(uint8)FMassObservedOperation::MAX];
-
-	UPROPERTY()
-	FMassItemObserversMap FragmentObservers[(uint8)FMassObservedOperation::MAX];
+	FMassFragmentBitSet ObservedFragments[(uint8)EMassObservedOperation::MAX];
+	FMassTagBitSet ObservedTags[(uint8)EMassObservedOperation::MAX];
 
 	UPROPERTY()
-	FMassItemObserversMap TagObservers[(uint8)FMassObservedOperation::MAX];
+	FMassObserversMap FragmentObservers[(uint8)EMassObservedOperation::MAX];
+
+	UPROPERTY()
+	FMassObserversMap TagObservers[(uint8)EMassObservedOperation::MAX];
 
 	/** 
 	 * The owning EntitySubsystem. No need for it to be a UPROPERTY since by design we don't support creation of 

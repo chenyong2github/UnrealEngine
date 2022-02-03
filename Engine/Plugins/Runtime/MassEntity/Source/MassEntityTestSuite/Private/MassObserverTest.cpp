@@ -26,7 +26,7 @@ struct FTagBaseOperation : FEntityTestBase
 {
 	TArray<FMassEntityHandle> AffectedEntities;
 	UMassTestProcessorBase* TagObserver = nullptr;
-	FMassObservedOperation OperationObserved = FMassObservedOperation::MAX;
+	EMassObservedOperation OperationObserved = EMassObservedOperation::MAX;
 	TArray<FMassEntityHandle> EntitiesInt;
 	TArray<FMassEntityHandle> EntitiesIntsFloat;
 	TArray<FMassEntityHandle> ExpectedEntities;
@@ -85,7 +85,7 @@ struct FTagBaseOperation : FEntityTestBase
 
 struct FTag_SingleEntitySingleArchetypeAdd : FTagBaseOperation
 {
-	FTag_SingleEntitySingleArchetypeAdd() { OperationObserved = FMassObservedOperation::Add; }
+	FTag_SingleEntitySingleArchetypeAdd() { OperationObserved = EMassObservedOperation::Add; }
 	virtual bool PerformOperation() override 
 	{
 		ExpectedEntities = { EntitiesInt[1] };
@@ -97,7 +97,7 @@ IMPLEMENT_AI_INSTANT_TEST(FTag_SingleEntitySingleArchetypeAdd, "System.Mass.Obse
 
 struct FTag_SingleEntitySingleArchetypeRemove : FTagBaseOperation
 {
-	FTag_SingleEntitySingleArchetypeRemove() { OperationObserved = FMassObservedOperation::Remove; }
+	FTag_SingleEntitySingleArchetypeRemove() { OperationObserved = EMassObservedOperation::Remove; }
 	virtual bool PerformOperation() override
 	{
 		ExpectedEntities = { EntitiesInt[1] };
@@ -114,7 +114,7 @@ IMPLEMENT_AI_INSTANT_TEST(FTag_SingleEntitySingleArchetypeRemove, "System.Mass.O
 
 struct FTag_SingleEntitySingleArchetypeDestroy : FTagBaseOperation
 {
-	FTag_SingleEntitySingleArchetypeDestroy() { OperationObserved = FMassObservedOperation::Remove; }
+	FTag_SingleEntitySingleArchetypeDestroy() { OperationObserved = EMassObservedOperation::Remove; }
 	virtual bool PerformOperation() override
 	{
 		ExpectedEntities = { EntitiesInt[1] };
@@ -130,7 +130,7 @@ IMPLEMENT_AI_INSTANT_TEST(FTag_SingleEntitySingleArchetypeDestroy, "System.Mass.
 
 struct FTag_MultipleArchetypeAdd : FTagBaseOperation
 {
-	FTag_MultipleArchetypeAdd() { OperationObserved = FMassObservedOperation::Add; }
+	FTag_MultipleArchetypeAdd() { OperationObserved = EMassObservedOperation::Add; }
 
 	virtual bool PerformOperation() override
 	{
@@ -146,7 +146,7 @@ IMPLEMENT_AI_INSTANT_TEST(FTag_MultipleArchetypeAdd, "System.Mass.Observer.Tag.M
 
 struct FTag_MultipleArchetypeRemove : FTagBaseOperation
 {
-	FTag_MultipleArchetypeRemove() { OperationObserved = FMassObservedOperation::Remove; }
+	FTag_MultipleArchetypeRemove() { OperationObserved = EMassObservedOperation::Remove; }
 
 	virtual bool PerformOperation() override
 	{
@@ -169,7 +169,7 @@ IMPLEMENT_AI_INSTANT_TEST(FTag_MultipleArchetypeRemove, "System.Mass.Observer.Ta
 
 struct FTag_MultipleArchetypeDestroy : FTagBaseOperation
 {
-	FTag_MultipleArchetypeDestroy() { OperationObserved = FMassObservedOperation::Remove; }
+	FTag_MultipleArchetypeDestroy() { OperationObserved = EMassObservedOperation::Remove; }
 
 	virtual bool PerformOperation() override
 	{
@@ -189,6 +189,29 @@ struct FTag_MultipleArchetypeDestroy : FTagBaseOperation
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FTag_MultipleArchetypeDestroy, "System.Mass.Observer.Tag.MultipleArchetypesDestroy");
+
+struct FTag_MultipleArchetypeSwap : FTagBaseOperation
+{
+	FTag_MultipleArchetypeSwap() { OperationObserved = EMassObservedOperation::Remove; }
+
+	virtual bool PerformOperation() override
+	{
+		ExpectedEntities = { EntitiesIntsFloat[1], EntitiesInt[0], EntitiesInt[2] };
+		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
+		{
+			EntitySubsystem->Defer().AddTag<FTestTag_A>(ModifiedEntity);
+		}
+		EntitySubsystem->Defer().ReplayBufferAgainstSystem(EntitySubsystem);
+		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
+		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
+		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
+		{
+			EntitySubsystem->Defer().PushCommand(FCommandSwapTags(ModifiedEntity, FTestTag_A::StaticStruct(), FTestTag_B::StaticStruct()));
+		}
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTag_MultipleArchetypeSwap, "System.Mass.Observer.Tag.MultipleArchetypesSwap");
 
 } // FMassObserverTest
 
