@@ -266,7 +266,13 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 		}
 	}
 
-	LauncherProfile->SetBuildTarget(GetDefault<UProjectPackagingSettings>()->GetLaunchOnTargetInfo()->Name);
+	// content only projects won't have multiple targets to pick from, and pasing -target=UnrealGame will fail if what C++ thinks
+	// is a content only project needs a temporary target.cs file in UBT, 
+	// only set the BuildTarget in code-based projects
+	if (LauncherSessionInfo->bPlayUsingLauncherHasCode)
+	{
+		LauncherProfile->SetBuildTarget(GetDefault<UProjectPackagingSettings>()->GetLaunchOnTargetInfo()->Name);
+	}
 	LauncherProfile->SetCookMode(CurrentLauncherCookMode);
 	LauncherProfile->SetUnversionedCooking(!bIncrimentalCooking);
 	LauncherProfile->SetIncrementalCooking(bIncrimentalCooking);
