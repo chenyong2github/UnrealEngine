@@ -51,7 +51,7 @@ private:
  * Initializes the move target's location to the agents initial position.
  */
 UCLASS()
-class MASSNAVIGATION_API UMassMoveTargetFragmentInitializer : public UMassFragmentInitializer
+class MASSNAVIGATION_API UMassMoveTargetFragmentInitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 public:
@@ -87,7 +87,7 @@ private:
 
 /** Deinitializer processor to remove avoidance obstacles from the avoidance obstacle grid */
 UCLASS()
-class MASSNAVIGATION_API UMassNavigationObstacleRemoverProcessor : public UMassFragmentDeinitializer
+class MASSNAVIGATION_API UMassNavigationObstacleRemoverProcessor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

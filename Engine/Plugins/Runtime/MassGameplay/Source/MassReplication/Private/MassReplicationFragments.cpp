@@ -10,7 +10,8 @@
 UMassNetworkIDFragmentInitializer::UMassNetworkIDFragmentInitializer()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
-	FragmentType = FMassNetworkIDFragment::StaticStruct();
+	ObservedType = FMassNetworkIDFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UMassNetworkIDFragmentInitializer::ConfigureQueries()

@@ -37,7 +37,8 @@ namespace UE::MassNavigation::Debug
 //----------------------------------------------------------------------//
 UMassZoneGraphLocationInitializer::UMassZoneGraphLocationInitializer()
 {
-	FragmentType = FMassZoneGraphLaneLocationFragment::StaticStruct();
+	ObservedType = FMassZoneGraphLaneLocationFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
 }
 

@@ -24,7 +24,8 @@ void UMassVelocityRandomizerTrait::BuildTemplate(FMassEntityTemplateBuildContext
 //----------------------------------------------------------------------//
 UMassRandomVelocityInitializer::UMassRandomVelocityInitializer()
 {
-	FragmentType = FMassVelocityFragment::StaticStruct();
+	ObservedType = FMassVelocityFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UMassRandomVelocityInitializer::ConfigureQueries()

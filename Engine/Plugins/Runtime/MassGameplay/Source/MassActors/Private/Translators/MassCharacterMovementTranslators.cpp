@@ -172,7 +172,8 @@ void UMassCharacterOrientationToActorTranslator::Execute(UMassEntitySubsystem& E
 //----------------------------------------------------------------------//
 UMassFragmentInitializer_NavLocation::UMassFragmentInitializer_NavLocation()
 {
-	FragmentType = FDataFragment_NavLocation::StaticStruct();
+	ObservedType = FDataFragment_NavLocation::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UMassFragmentInitializer_NavLocation::ConfigureQueries() 

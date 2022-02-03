@@ -104,7 +104,7 @@ protected:
 };
 
 UCLASS()
-class MASSACTORS_API UMassFragmentInitializer_NavLocation : public UMassFragmentInitializer
+class MASSACTORS_API UMassFragmentInitializer_NavLocation : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 public:

@@ -10,7 +10,7 @@ class UMassDebugVisualizationComponent;
 struct FSimDebugVisComponent;
 
 UCLASS()
-class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassFragmentInitializer
+class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 public:

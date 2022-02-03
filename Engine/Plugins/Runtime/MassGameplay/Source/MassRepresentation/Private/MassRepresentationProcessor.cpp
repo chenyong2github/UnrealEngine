@@ -365,9 +365,8 @@ void UMassVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 //----------------------------------------------------------------------//
 UMassRepresentationFragmentDestructor::UMassRepresentationFragmentDestructor()
 {
-	// By putting this to null, this Deinitializer needs to be explicitly added via a Entity traits and will no longer be automatically called
-	// This FragmentType should be deprecated and we should always use the traits.
-	FragmentType = FMassRepresentationFragment::StaticStruct();
+	ObservedType = FMassRepresentationFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
 }
 

@@ -15,7 +15,7 @@ class UZoneGraphSubsystem;
  * Processor for initializing nearest location on ZoneGraph.
  */
 UCLASS()
-class MASSZONEGRAPHNAVIGATION_API UMassZoneGraphLocationInitializer : public UMassFragmentInitializer
+class MASSZONEGRAPHNAVIGATION_API UMassZoneGraphLocationInitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 	

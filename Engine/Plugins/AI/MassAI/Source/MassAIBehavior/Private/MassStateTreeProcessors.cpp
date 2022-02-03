@@ -170,7 +170,8 @@ void ForEachEntityInChunk(
 UMassStateTreeFragmentDestructor::UMassStateTreeFragmentDestructor()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
-	FragmentType = FMassStateTreeFragment::StaticStruct();
+	ObservedType = FMassStateTreeFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
 }
 
 void UMassStateTreeFragmentDestructor::Initialize(UObject& Owner)

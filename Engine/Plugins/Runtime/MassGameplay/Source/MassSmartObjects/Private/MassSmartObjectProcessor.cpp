@@ -358,7 +358,8 @@ void UMassSmartObjectTimedBehaviorProcessor::Execute(UMassEntitySubsystem& Entit
 //----------------------------------------------------------------------//
 UMassSmartObjectUserFragmentDeinitializer::UMassSmartObjectUserFragmentDeinitializer()
 {
-	FragmentType = FMassSmartObjectUserFragment::StaticStruct();
+	ObservedType = FMassSmartObjectUserFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
 }
 

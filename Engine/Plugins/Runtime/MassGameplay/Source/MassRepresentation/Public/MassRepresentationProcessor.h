@@ -110,7 +110,7 @@ protected:
 
 
 UCLASS()
-class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassFragmentDeinitializer
+class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

@@ -71,7 +71,8 @@ void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(UMassEntitySubsystem&
 UMassCrowdLaneTrackingDestructor::UMassCrowdLaneTrackingDestructor()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
-	FragmentType = FMassCrowdLaneTrackingFragment::StaticStruct();
+	ObservedType = FMassCrowdLaneTrackingFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
 }
 
 void UMassCrowdLaneTrackingDestructor::Initialize(UObject& Owner)

@@ -16,7 +16,8 @@
 //----------------------------------------------------------------------//
 UMassZoneGraphAnnotationTagsInitializer::UMassZoneGraphAnnotationTagsInitializer()
 {
-	FragmentType = FMassZoneGraphAnnotationTagsFragment::StaticStruct();
+	ObservedType = FMassZoneGraphAnnotationTagsFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UMassZoneGraphAnnotationTagsInitializer::Initialize(UObject& Owner)

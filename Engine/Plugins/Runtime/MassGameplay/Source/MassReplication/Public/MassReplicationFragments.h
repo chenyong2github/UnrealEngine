@@ -88,7 +88,7 @@ struct MASSREPLICATION_API FMassReplicationLODFragment : public FMassFragment
 };
 
 UCLASS()
-class MASSREPLICATION_API UMassNetworkIDFragmentInitializer : public UMassFragmentInitializer
+class MASSREPLICATION_API UMassNetworkIDFragmentInitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 public:

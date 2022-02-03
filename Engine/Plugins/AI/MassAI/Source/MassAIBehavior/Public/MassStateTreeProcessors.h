@@ -14,7 +14,7 @@ struct FMassStateTreeExecutionContext;
  * Processor to stop and uninitialize StateTrees on entities.
  */
 UCLASS()
-class MASSAIBEHAVIOR_API UMassStateTreeFragmentDestructor : public UMassFragmentDeinitializer
+class MASSAIBEHAVIOR_API UMassStateTreeFragmentDestructor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

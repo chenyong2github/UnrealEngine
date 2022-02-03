@@ -31,7 +31,7 @@ protected:
 
 
 UCLASS()
-class MASSMOVEMENT_API UMassRandomVelocityInitializer : public UMassFragmentInitializer
+class MASSMOVEMENT_API UMassRandomVelocityInitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 public:

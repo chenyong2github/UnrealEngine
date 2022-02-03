@@ -12,7 +12,8 @@
 UAssignDebugVisProcessor::UAssignDebugVisProcessor()
 {
 	bAutoRegisterWithProcessingPhases = false;
-	FragmentType = FSimDebugVisComponent::StaticStruct();
+	ObservedType = FSimDebugVisComponent::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UAssignDebugVisProcessor::ConfigureQueries()

@@ -122,7 +122,8 @@ void UMassNavigationSmoothHeightProcessor::Execute(UMassEntitySubsystem& EntityS
 
 UMassMoveTargetFragmentInitializer::UMassMoveTargetFragmentInitializer()
 {
-	FragmentType = FMassMoveTargetFragment::StaticStruct();
+	ObservedType = FMassMoveTargetFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
 }
 
 void UMassMoveTargetFragmentInitializer::ConfigureQueries()
@@ -280,7 +281,8 @@ void UMassNavigationObstacleGridProcessor::Execute(UMassEntitySubsystem& EntityS
 //----------------------------------------------------------------------//
 UMassNavigationObstacleRemoverProcessor::UMassNavigationObstacleRemoverProcessor()
 {
-	FragmentType = FMassNavigationObstacleGridCellLocationFragment::StaticStruct();
+	ObservedType = FMassNavigationObstacleGridCellLocationFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
 }
 

@@ -31,7 +31,7 @@ protected:
 
 /** Processors that cleans up the lane tracking on entity destruction. */
 UCLASS()
-class MASSCROWD_API UMassCrowdLaneTrackingDestructor : public UMassFragmentDeinitializer
+class MASSCROWD_API UMassCrowdLaneTrackingDestructor : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

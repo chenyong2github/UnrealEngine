@@ -72,7 +72,7 @@ protected:
 
 /** Deinitializer processor to unregister slot invalidation callback when SmartObjectUser fragment gets removed */
 UCLASS()
-class MASSSMARTOBJECTS_API UMassSmartObjectUserFragmentDeinitializer : public UMassFragmentDeinitializer
+class MASSSMARTOBJECTS_API UMassSmartObjectUserFragmentDeinitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 

@@ -16,7 +16,7 @@ struct FMassEntityHandle;
  * Processor for initializing ZoneGraph annotation tags.
  */
 UCLASS()
-class MASSAIBEHAVIOR_API UMassZoneGraphAnnotationTagsInitializer : public UMassFragmentInitializer
+class MASSAIBEHAVIOR_API UMassZoneGraphAnnotationTagsInitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 
