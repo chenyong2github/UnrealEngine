@@ -450,32 +450,36 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 				}
 			}
 
-			// Push the transition onto the stack
-			const FAnimationTransitionBetweenStates& ReferenceTransition = GetTransitionInfo(PotentialTransition.TransitionRule->TransitionIndex); //-V595
-			FAnimationActiveTransitionEntry* NewTransition = new (ActiveTransitionArray) FAnimationActiveTransitionEntry(NextState, ExistingWeightOfNextState, PreviousTransitionForNextState, PreviousState, ReferenceTransition, PotentialTransition);
-			if (NewTransition && PotentialTransition.TransitionRule)
+			// Don't add a transition if the previous state is a conduit (likely means we're finding the best entry state)
+			if (!IsAConduitState(PreviousState))
 			{
-				NewTransition->InitializeCustomGraphLinks(Context, *(PotentialTransition.TransitionRule));
-
-				if (ReferenceTransition.LogicType == ETransitionLogicType::TLT_Inertialization)
+				// Push the transition onto the stack
+				const FAnimationTransitionBetweenStates& ReferenceTransition = GetTransitionInfo(PotentialTransition.TransitionRule->TransitionIndex); //-V595
+				FAnimationActiveTransitionEntry* NewTransition = new (ActiveTransitionArray) FAnimationActiveTransitionEntry(NextState, ExistingWeightOfNextState, PreviousTransitionForNextState, PreviousState, ReferenceTransition, PotentialTransition);
+				if (NewTransition && PotentialTransition.TransitionRule)
 				{
-					UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
-					if (InertializationRequester)
-					{
-						InertializationRequester->RequestInertialization(ReferenceTransition.CrossfadeDuration, ReferenceTransition.BlendProfile);
-						InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
-					}
-					else
-					{
-						LogInertializationRequestError(Context, PreviousState, NextState);
-					}
-				}
+					NewTransition->InitializeCustomGraphLinks(Context, *(PotentialTransition.TransitionRule));
 
-				NewTransition->SourceTransitionIndices = PotentialTransition.SourceTransitionIndices;
+					if (ReferenceTransition.LogicType == ETransitionLogicType::TLT_Inertialization)
+					{
+						UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
+						if (InertializationRequester)
+						{
+							InertializationRequester->RequestInertialization(ReferenceTransition.CrossfadeDuration, ReferenceTransition.BlendProfile);
+							InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
+						}
+						else
+						{
+							LogInertializationRequestError(Context, PreviousState, NextState);
+						}
+					}
 
-				if (!bFirstUpdate)
-				{
-					Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(NewTransition->StartNotify);
+					NewTransition->SourceTransitionIndices = PotentialTransition.SourceTransitionIndices;
+
+					if (!bFirstUpdate)
+					{
+						Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(NewTransition->StartNotify);
+					}
 				}
 			}
 
