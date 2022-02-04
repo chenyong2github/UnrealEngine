@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 
 #include "CoreGlobals.h"
-
+#include "HAL/IConsoleManager.h"
 class UVEDITORTOOLS_API FUVEditorUXSettings
 {
 public:
