@@ -22,7 +22,7 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	MotionMatchingState.InitNewDatabaseSearch(Database, Settings.SearchThrottleTime);
+	MotionMatchingState.InitNewDatabaseSearch(Database, Settings.SearchThrottleTime, nullptr /*OutError*/);
 
 	Source.SetLinkNode(&MirrorNode);
 	MirrorNode.SetSourceLinkNode(&SequencePlayerNode);

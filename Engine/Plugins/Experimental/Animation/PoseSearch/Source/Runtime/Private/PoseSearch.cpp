@@ -582,6 +582,14 @@ void UPoseSearchSchema::ResolveBoneReferences()
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchChannelWeightParams
+FPoseSearchWeightParams::FPoseSearchWeightParams()
+{
+	TrajectoryWeight.ChannelWeight = 2.5f;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchChannelWeightParams
 
 FPoseSearchChannelWeightParams::FPoseSearchChannelWeightParams()
 {

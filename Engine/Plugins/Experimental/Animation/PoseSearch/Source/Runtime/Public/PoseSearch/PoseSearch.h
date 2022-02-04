@@ -540,6 +540,8 @@ struct POSESEARCH_API FPoseSearchWeightParams
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	FPoseSearchChannelWeightParams TrajectoryWeight;
+
+	FPoseSearchWeightParams();
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")

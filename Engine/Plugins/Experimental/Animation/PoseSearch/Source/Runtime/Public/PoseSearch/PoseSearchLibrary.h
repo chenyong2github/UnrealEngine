@@ -70,9 +70,8 @@ struct POSESEARCH_API FMotionMatchingSettings
 	float SearchThrottleTime = 0.1f;
 
 	// How much better the search result must be compared to the current pose in order to jump to it
-	// Note: This feature won't work quite as advertised until search data rescaling is implemented
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", ClampMax="100"))
-	float MinPercentImprovement = 100.f;
+	float MinPercentImprovement = 40.0f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
@@ -81,7 +80,7 @@ struct POSESEARCH_API FMotionMatchingState
 	GENERATED_BODY()
 
 	// Initializes the minimum required motion matching state
-	void InitNewDatabaseSearch(const UPoseSearchDatabase* Database, float SearchThrottleTime);
+	bool InitNewDatabaseSearch(const UPoseSearchDatabase* Database, float SearchThrottleTime, FText* OutError);
 
 	// Adds trajectory prediction and history information to ComposedQuery
 	void ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory);
