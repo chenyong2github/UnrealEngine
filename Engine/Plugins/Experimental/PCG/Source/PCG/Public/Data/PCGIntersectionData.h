@@ -38,6 +38,10 @@ public:
 	virtual const UPCGPointData* CreatePointData() const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
+
 protected:
 	UPCGPointData* CreateAndFilterPointData(const UPCGSpatialData* X, const UPCGSpatialData* Y) const;
 
@@ -46,9 +50,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	TObjectPtr<const UPCGSpatialData> B = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
 
 	UPROPERTY()
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
