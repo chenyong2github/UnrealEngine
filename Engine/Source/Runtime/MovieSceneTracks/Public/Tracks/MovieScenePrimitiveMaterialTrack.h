@@ -14,14 +14,21 @@ public:
 
 	GENERATED_BODY()
 
-	UPROPERTY()
-	int32 MaterialIndex;
-
 	UMovieScenePrimitiveMaterialTrack(const FObjectInitializer& ObjInit);
+
+	/* Set the material index that this track is assigned to */
+	MOVIESCENETRACKS_API void SetMaterialIndex(int32 MaterialIndex);
+
+	/* Get the material index that this track is assigned to */
+	MOVIESCENETRACKS_API int32 GetMaterialIndex() const;
 
 	/*~ UMovieSceneTrack interface */
 	virtual UMovieSceneSection* CreateNewSection() override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 	virtual void PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const override;
+
+private:
+	UPROPERTY()
+	int32 MaterialIndex;
 };

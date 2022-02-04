@@ -34,7 +34,7 @@ void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder
 	auto GetMaterialIndexForTrack = [](UMovieSceneTrack* InTrack)
 	{
 		UMovieScenePrimitiveMaterialTrack* MaterialTrack = Cast<UMovieScenePrimitiveMaterialTrack>(InTrack);
-		return MaterialTrack ? MaterialTrack->MaterialIndex : INDEX_NONE;
+		return MaterialTrack ? MaterialTrack->GetMaterialIndex() : INDEX_NONE;
 	};
 
 	int32 MinNumMaterials = TNumericLimits<int32>::Max();
@@ -87,7 +87,7 @@ void FPrimitiveMaterialTrackEditor::CreateTrackForElement(TArray<FGuid> ObjectBi
 	for (FGuid ObjectBindingID : ObjectBindingIDs)
 	{
 		UMovieScenePrimitiveMaterialTrack* NewTrack = MovieScene->AddTrack<UMovieScenePrimitiveMaterialTrack>(ObjectBindingID);
-		NewTrack->MaterialIndex = MaterialIndex;
+		NewTrack->SetMaterialIndex(MaterialIndex);
 		NewTrack->SetDisplayName(FText::Format(LOCTEXT("MaterialTrackName_Format", "Material Element {0}"), FText::AsNumber(MaterialIndex)));
 
 		NewTrack->AddSection(*NewTrack->CreateNewSection());

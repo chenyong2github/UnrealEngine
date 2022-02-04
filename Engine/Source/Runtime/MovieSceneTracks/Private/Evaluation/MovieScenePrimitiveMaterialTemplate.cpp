@@ -83,7 +83,7 @@ struct FPrimitiveMaterialExecToken : IMovieSceneExecutionToken
 
 
 FMovieScenePrimitiveMaterialTemplate::FMovieScenePrimitiveMaterialTemplate(const UMovieScenePrimitiveMaterialSection& Section, const UMovieScenePrimitiveMaterialTrack& Track)
-	: MaterialIndex(Track.MaterialIndex)
+	: MaterialIndex(Track.GetMaterialIndex())
 	, MaterialChannel(Section.MaterialChannel)
 {}
 

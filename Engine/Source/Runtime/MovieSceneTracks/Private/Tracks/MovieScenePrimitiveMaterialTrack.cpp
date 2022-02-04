@@ -36,3 +36,13 @@ void UMovieScenePrimitiveMaterialTrack::PostCompile(FMovieSceneEvaluationTrack& 
 	// Must evaluate before material parameter tracks
 	OutTrack.SetEvaluationPriority(UMovieSceneComponentMaterialTrack::EvaluationPriority + 1);
 }
+
+int32 UMovieScenePrimitiveMaterialTrack::GetMaterialIndex() const
+{
+	return MaterialIndex;
+}
+
+void UMovieScenePrimitiveMaterialTrack::SetMaterialIndex(int32 InMaterialIndex)
+{
+	MaterialIndex = InMaterialIndex;
+}
