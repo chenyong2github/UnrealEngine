@@ -58,7 +58,7 @@ namespace Chaos
 		*/
 		inline void SetNum(const int32 InNum)
 		{
-			check(InNum < NumElements);
+			check(InNum < MaxElements);
 			NumElements = InNum;
 		}
 

@@ -67,6 +67,7 @@ namespace Chaos
 		*/
 		int32 GenerateCollision(
 			const FReal CullDistance,
+			const bool bUseManifold,
 			const FReal Dt);
 
 		/**
@@ -75,6 +76,7 @@ namespace Chaos
 		*/
 		int32 GenerateCollisionCCD(
 			const FReal CullDistance,
+			const bool bUseManifold,
 			const FReal Dt);
 
 		/**
@@ -91,8 +93,15 @@ namespace Chaos
 		void SetCollision(const FPBDCollisionConstraint& Constraint);
 
 	private:
-		int32 GenerateCollisionImpl(const FReal CullDistance, const FReal Dt);
-		int32 GenerateCollisionCCDImpl(const FReal CullDistance, const FReal Dt);
+		int32 GenerateCollisionImpl(
+			const FReal CullDistance, 
+			const bool bUseManifold,
+			const FReal Dt);
+			
+		int32 GenerateCollisionCCDImpl(
+			const FReal CullDistance, 
+			const bool bUseManifold,
+			const FReal Dt);
 
 		/**
 		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
@@ -103,7 +112,7 @@ namespace Chaos
 		/**
 		 * @brief Create a constraint
 		*/
-		void CreateConstraint(const FReal CullDistance);
+		void CreateConstraint(const FReal CullDistance, const bool bUseManifold);
 
 		FParticlePairMidPhase& MidPhase;
 		TUniquePtr<FPBDCollisionConstraint> Constraint;
@@ -154,6 +163,7 @@ namespace Chaos
 		*/
 		int32 GenerateCollisions(
 			const FReal CullDistance,
+			const bool bUseManifold,
 			const FReal Dt,
 			FCollisionContext& Context);
 
