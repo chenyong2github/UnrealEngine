@@ -343,13 +343,20 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Finds a perforce cluster with the given name
+		/// Finds a perforce cluster with the given name or that contains the provided server
 		/// </summary>
 		/// <param name="Name">Name of the cluster</param>
+		/// <param name="ServerAndPort">Find cluster which contains server</param>
 		/// <returns></returns>
-		public PerforceCluster? FindPerforceCluster(string? Name)
+		public PerforceCluster? FindPerforceCluster(string? Name, string? ServerAndPort = null)
 		{
 			List<PerforceCluster> Clusters = PerforceClusters;
+
+			if (ServerAndPort != null)
+			{
+				return Clusters.FirstOrDefault(x => x.Servers.FirstOrDefault( server => string.Equals(server.ServerAndPort, ServerAndPort, StringComparison.OrdinalIgnoreCase)) != null);
+			}
+
 			if (Clusters.Count == 0)
 			{
 				Clusters = DefaultClusters;
