@@ -283,8 +283,6 @@ void FHttpNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters&
 	CheckpointArchive.SetIsLoading(!Params.bRecord);
 	CheckpointArchive.SetIsSaving(Params.bRecord);
 
-	LastChunkTime = FPlatformTime::Seconds();
-
 	TotalDemoTimeInMS = 0;
 
 	StreamTimeRangeStart	= 0;

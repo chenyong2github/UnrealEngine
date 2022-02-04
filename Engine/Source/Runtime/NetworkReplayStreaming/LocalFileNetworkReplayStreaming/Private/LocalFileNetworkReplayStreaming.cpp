@@ -698,8 +698,6 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 	StreamDataOffset = 0;
 	StreamChunkIndex = 0;
 
-	LastChunkTime = FPlatformTime::Seconds();
-
 	if (!Params.bRecord)
 	{
 		// We are playing

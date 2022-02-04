@@ -2529,6 +2529,12 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 		return;
 	}
 
+	// If we don't have data on frame 0 wait until we have it
+	if (!GetReplayStreamer()->IsDataAvailable() && ReplayHelper.DemoFrameNum == 0)
+	{
+		return;
+	}
+
 	// If the ExitAfterReplay option is set, automatically shut down at the end of the replay.
 	// Use AtEnd() of the archive instead of checking DemoCurrentTime/DemoTotalTime, because the DemoCurrentTime may never catch up to DemoTotalTime.
 	if (FArchive* const StreamingArchive = ReplayHelper.ReplayStreamer->GetStreamingArchive())
