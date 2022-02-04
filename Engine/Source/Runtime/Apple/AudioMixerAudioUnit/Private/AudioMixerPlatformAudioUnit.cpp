@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "ADPCMAudioInfo.h"
 #include "BinkAudioInfo.h"
 
 /*
