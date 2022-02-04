@@ -22,7 +22,6 @@ constexpr float FWidget::INNER_AXIS_CIRCLE_RADIUS;
 constexpr float FWidget::OUTER_AXIS_CIRCLE_RADIUS;
 constexpr float FWidget::ROTATION_TEXT_RADIUS;
 constexpr int32 FWidget::AXIS_CIRCLE_SIDES;
-constexpr float FWidget::ARCALL_RELATIVE_INNER_SIZE;
 constexpr float FWidget::AXIS_LENGTH_SCALE_OFFSET;
 
 FWidget::FWidget()
