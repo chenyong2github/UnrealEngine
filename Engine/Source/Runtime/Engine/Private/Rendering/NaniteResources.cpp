@@ -1181,6 +1181,9 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 		MeshBatch.bWireframe = false;
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.LODIndex = 0;
+#if RHI_RAYTRACING
+		MeshBatch.CastRayTracedShadow = CastsDynamicShadow(); // Relying on BuildRayTracingInstanceMaskAndFlags(...) to check Material.CastsRayTracedShadows()
+#endif
 	}
 }
 
@@ -1275,9 +1278,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 
 	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
 
-	RayTracingInstance.Mask = MaskAndFlags.Mask;
-	RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;
-	RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
+	RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 	// setup the flags
 	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;

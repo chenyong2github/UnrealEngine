@@ -10,12 +10,12 @@
 
 #include "RayTracingDefinitions.h"
 
-void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel)
+void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, uint8 ExtraMask)
 {
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
 	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel);
 
-	Mask |= MaskAndFlags.Mask;
+	Mask = MaskAndFlags.Mask | ExtraMask;
 	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
 	bDoubleSided = bDoubleSided || MaskAndFlags.bDoubleSided;
 }

@@ -97,7 +97,7 @@ struct FRayTracingInstance
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
 	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel);
+	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, uint8 ExtraMask = 0);
 };
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */

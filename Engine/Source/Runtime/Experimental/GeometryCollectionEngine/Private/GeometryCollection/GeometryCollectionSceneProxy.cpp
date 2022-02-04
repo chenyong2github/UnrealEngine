@@ -1098,11 +1098,7 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				);
 			}
 
-			FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
-
-			RayTracingInstance.Mask = MaskAndFlags.Mask;
-			RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;
-			RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
+			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 			OutRayTracingInstances.Emplace(RayTracingInstance);
 		}
