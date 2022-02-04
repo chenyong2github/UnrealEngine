@@ -86,6 +86,17 @@ void FD3D12DescriptorManager::Destroy()
 	}
 }
 
+void FD3D12DescriptorManager::UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle)
+{
+	if (InHandle.IsValid())
+	{
+		const D3D12_CPU_DESCRIPTOR_HANDLE DestCpuHandle = Heap->GetCPUSlotHandle(InHandle.GetIndex());
+		const D3D12_DESCRIPTOR_HEAP_TYPE D3DHeapType = Translate(GetType());
+
+		GetParentDevice()->GetDevice()->CopyDescriptorsSimple(1, DestCpuHandle, InSourceCpuHandle, D3DHeapType);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12BindlessDescriptorManager
 
@@ -148,20 +159,25 @@ void FD3D12BindlessDescriptorManager::FreeDescriptor(FRHIDescriptorHandle InHand
 	checkNoEntry();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE FD3D12BindlessDescriptorManager::GetCpuDescriptorHandle(FRHIDescriptorHandle InHandle) const
+void FD3D12BindlessDescriptorManager::UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle)
 {
-	for (const FD3D12DescriptorManager& Manager : Managers)
+	for (FD3D12DescriptorManager& Manager : Managers)
 	{
 		if (Manager.HandlesAllocation(InHandle.GetType()))
 		{
-			return Manager.GetCpuDescriptorHandle(InHandle.GetIndex());
+			Manager.UpdateImmediately(InHandle, InSourceCpuHandle);
+			return;
 		}
 	}
 
+	// Bad configuration?
 	checkNoEntry();
+}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE NullHandle{};
-	return NullHandle;
+void FD3D12BindlessDescriptorManager::UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle)
+{
+	// TODO: implement deferred updates
+	UpdateImmediately(InHandle, InSourceCpuHandle);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

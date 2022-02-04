@@ -97,7 +97,7 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	SRVDesc.Texture2D.MostDetailedMip = 0;
 	SRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	NullSRV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
-	NullSRV->CreateView(SRVDesc, nullptr);
+	NullSRV->CreateView(SRVDesc, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
 
 	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc = {};
 	RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -111,7 +111,7 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	UAVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	UAVDesc.Texture2D.MipSlice = 0;
 	NullUAV = new FD3D12ViewDescriptorHandle(GetParentDevice(), ERHIDescriptorHeapType::Standard);
-	NullUAV->CreateView(UAVDesc, nullptr, nullptr);
+	NullUAV->CreateView(UAVDesc, nullptr, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
 
 #if USE_STATIC_ROOT_SIGNATURE
 	NullCBV = new FD3D12ConstantBufferView(GetParentDevice());

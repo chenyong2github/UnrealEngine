@@ -549,8 +549,7 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 
 	if (BindlessHandle.IsValid())
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE OnlineHandle = BindlessDescriptorManager.GetCpuDescriptorHandle(BindlessHandle);
-		GetParentDevice()->GetDevice()->CopyDescriptorsSimple(1, OnlineHandle, OfflineHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+		GetParentDevice()->GetBindlessDescriptorManager().UpdateImmediately(BindlessHandle, OfflineHandle);
 	}
 }
 

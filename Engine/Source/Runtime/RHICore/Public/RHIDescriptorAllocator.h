@@ -44,7 +44,9 @@ public:
 	void Free(uint32 Slot, uint32 NumDescriptors);
 
 	using FRHIDescriptorAllocator::GetCapacity;
-	inline bool HandlesAllocation(ERHIDescriptorHeapType InType) const { return Type == InType; }
+	inline ERHIDescriptorHeapType GetType() const { return Type; }
+
+	inline bool HandlesAllocation(ERHIDescriptorHeapType InType) const { return GetType() == InType; }
 
 private:
 	ERHIDescriptorHeapType Type;

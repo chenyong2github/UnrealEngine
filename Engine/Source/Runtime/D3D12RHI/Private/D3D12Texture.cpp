@@ -1227,7 +1227,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 					}
 				}
 
-				NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture));
+				NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(NewTexture, SRVDesc));
 			}
 		}
 
@@ -1347,7 +1347,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 		SRVDesc.Texture3D.MipLevels = NumMips;
 		SRVDesc.Texture3D.MostDetailedMip = 0;
 
-		Texture3D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture3D));
+		Texture3D->SetShaderResourceView(new FD3D12ShaderResourceView(Texture3D, SRVDesc));
 
 		return Texture3D;
 	}); 
@@ -1508,7 +1508,7 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 		SRVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 
 		// Create a wrapper for the SRV and set it on the texture
-		NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, NewTexture));
+		NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(NewTexture, SRVDesc));
 
 		return NewTexture;
 	});
@@ -3244,7 +3244,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	// Create a wrapper for the SRV and set it on the texture
 	if (bCreateShaderResource)
 	{
-		Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Device, SRVDesc, Texture2D));
+		Texture2D->SetShaderResourceView(new FD3D12ShaderResourceView(Texture2D, SRVDesc));
 	}
 
 	FD3D12TextureStats::D3D12TextureAllocated(*Texture2D);

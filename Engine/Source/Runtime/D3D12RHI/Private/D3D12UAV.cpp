@@ -3,6 +3,38 @@
 #include "D3D12RHIPrivate.h"
 #include "ClearReplacementShaders.h"
 
+FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent)
+	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+{
+}
+
+FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource)
+	: FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
+	, CounterResource(InCounterResource)
+{
+	SetDesc(InDesc);
+	CreateView(InBaseShaderResource, InBaseShaderResource->ResourceLocation, InCounterResource, ED3D12DescriptorCreateReason::InitialCreate);
+}
+
+void FD3D12UnorderedAccessView::RecreateView()
+{
+	check(CounterResource == nullptr);
+	check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
+	CreateView(BaseShaderResource, *ResourceLocation, nullptr, ED3D12DescriptorCreateReason::UpdateOrRename);
+}
+
+void FD3D12UnorderedAccessView::CreateView(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource, ED3D12DescriptorCreateReason Reason)
+{
+	InitializeInternal(InBaseShaderResource, InResourceLocation);
+
+	if (Resource)
+	{
+		ID3D12Resource* D3DResource = Resource->GetUAVAccessResource() ? Resource->GetUAVAccessResource() : Resource->GetResource();
+		ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
+		Descriptor.CreateView(Desc, D3DResource, D3DCounterResource, Reason);
+	}
+}
+
 template<typename ResourceType>
 inline FD3D12UnorderedAccessView* CreateUAV(D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ResourceType* Resource, bool bNeedsCounterResource)
 {
@@ -231,7 +263,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 
 				// Scoped descriptor handle will free the offline CPU handle once we return
 				FD3D12ViewDescriptorHandle UAVHandle(ParentDevice, ERHIDescriptorHeapType::Standard);
-				UAVHandle.CreateView(R32UAVDesc, Resource, nullptr);
+				UAVHandle.CreateView(R32UAVDesc, Resource, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
 
 				// Check if the view heap is full and needs to rollover.
 				if (!Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->CanReserveSlots(1))

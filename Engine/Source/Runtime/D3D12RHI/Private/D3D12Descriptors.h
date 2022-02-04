@@ -72,8 +72,9 @@ public:
 	void Init(TCHAR* InName, ERHIDescriptorHeapType InType, uint32 InNumDescriptors);
 	void Destroy();
 
+	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
+
 	inline FD3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
-	inline D3D12_CPU_DESCRIPTOR_HANDLE GetCpuDescriptorHandle(uint32 InSlot) const { return Heap->GetCPUSlotHandle(InSlot); }
 
 	inline bool HandlesAllocationWithFlags(ERHIDescriptorHeapType InHeapType, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags) const
 	{
@@ -100,7 +101,8 @@ public:
 	FRHIDescriptorHandle AllocateDescriptor(ERHIDescriptorHeapType InType);
 	void FreeDescriptor(FRHIDescriptorHandle InHandle);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuDescriptorHandle(FRHIDescriptorHandle InHandle) const;
+	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
+	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
 private:
 	TArray<FD3D12DescriptorManager> Managers;
