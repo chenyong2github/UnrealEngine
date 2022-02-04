@@ -380,14 +380,25 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 
 		if (bHasOpacityInput)
 		{
-			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityExpressionFactoryNode =
+			bool bHasSomeTransparency = true;
+
+			float OpacityValue;
+			if (ShaderGraphNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Parameters::Opacity.ToString()), OpacityValue))
+			{
+				bHasSomeTransparency = !FMath::IsNearlyEqual(OpacityValue, 1.f);
+			}
+
+			if (bHasSomeTransparency)
+			{
+				TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityExpressionFactoryNode =
 				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Opacity.ToString(), MaterialFactoryNode->GetUniqueID());
 
-			if (OpacityExpressionFactoryNode.Get<0>())
-			{
-				MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
-				MaterialFactoryNode->SetCustomBlendMode(EBlendMode::BLEND_Translucent);
-				MaterialFactoryNode->SetCustomTranslucencyLightingMode(ETranslucencyLightingMode::TLM_Surface);
+				if (OpacityExpressionFactoryNode.Get<0>())
+				{
+					MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+					MaterialFactoryNode->SetCustomBlendMode(EBlendMode::BLEND_Translucent);
+					MaterialFactoryNode->SetCustomTranslucencyLightingMode(ETranslucencyLightingMode::TLM_Surface);
+				}
 			}
 		}
 	}

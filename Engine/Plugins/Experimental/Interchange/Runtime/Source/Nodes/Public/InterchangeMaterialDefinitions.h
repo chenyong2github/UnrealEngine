@@ -35,6 +35,16 @@ namespace Interchange
 					}
 				}
 
+				namespace OneMinus
+				{
+					const FName Name = TEXT("OneMinus");
+
+					namespace Inputs
+					{
+						const FName Input = TEXT("Input");
+					}
+				}
+
 				namespace TextureSample
 				{
 					const FName Name = TEXT("TextureSample");

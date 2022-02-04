@@ -59,33 +59,40 @@ namespace UE
 				return TextureNode;
 			}
 
-			void FFbxMaterial::ConvertPropertyToShaderNode(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode, FbxProperty& Property, float Factor, FName InputName, TVariant<FLinearColor, float> DefaultValue)
+			void FFbxMaterial::ConvertPropertyToShaderNode(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode, FbxProperty& Property, float Factor, FName InputName,
+				TVariant<FLinearColor, float> DefaultValue, bool bInverse)
 			{
 				using namespace Materials::Standard::Nodes;
 
-				UInterchangeShaderNode* LerpNode = nullptr;
+				UInterchangeShaderNode* NodeToConnectTo = ShaderGraphNode;
+				FString InputToConnectTo = InputName.ToString();
 
 				const int32 TextureCount = Property.GetSrcObjectCount<FbxFileTexture>();
 				const FbxDataType DataType = Property.GetPropertyDataType();
 
+				if (bInverse)
+				{
+					const FString OneMinusNodeName = InputName.ToString() + TEXT("OneMinus");
+					UInterchangeShaderNode* OneMinusNode = CreateShaderNode(NodeContainer, ShaderGraphNode->GetUniqueID(), OneMinusNodeName);
+					OneMinusNode->SetCustomShaderType(OneMinus::Name.ToString());
+
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputName.ToString(), OneMinusNode->GetUniqueID());
+
+					NodeToConnectTo = OneMinusNode;
+					InputToConnectTo = OneMinus::Inputs::Input.ToString();
+				}
+
 				if (!FMath::IsNearlyEqual(Factor, 1.f))
 				{
 					FString LerpNodeName = InputName.ToString() + TEXT("Lerp");
-					LerpNode = CreateShaderNode(NodeContainer, ShaderGraphNode->GetUniqueID(), LerpNodeName);
+					UInterchangeShaderNode* LerpNode = CreateShaderNode(NodeContainer, ShaderGraphNode->GetUniqueID(), LerpNodeName);
 					LerpNode->SetCustomShaderType(Lerp::Name.ToString());
 
-					if (TextureCount == 0)
+					if (DefaultValue.IsType<float>())
 					{
-						if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
-						{
-							LerpNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::B.ToString()), DefaultValue.Get<float>());
-						}
-						else if (DataType.GetType() == eFbxDouble3)
-						{
-							LerpNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::B.ToString()), DefaultValue.Get<FLinearColor>());
-						}
+						LerpNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::B.ToString()), DefaultValue.Get<float>());
 					}
-					else
+					else if (DefaultValue.IsType<FLinearColor>())
 					{
 						LerpNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::B.ToString()), DefaultValue.Get<FLinearColor>());
 					}
@@ -93,7 +100,10 @@ namespace UE
 					const float InverseFactor = 1.f - Factor; // We lerp from A to B and prefer to put the strongest input in A so we need to flip the lerp factor
 					LerpNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::Factor.ToString()), InverseFactor);
 
-					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputName.ToString(), LerpNode->GetUniqueID());
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, LerpNode->GetUniqueID());
+
+					NodeToConnectTo = LerpNode;
+					InputToConnectTo = Lerp::Inputs::A.ToString();
 				}
 
 				// Handles max one texture per property.
@@ -124,37 +134,25 @@ namespace UE
 					TextureSampleShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::UTiling.ToString()), (float)FbxTextureFilePath->GetScaleU());
 					TextureSampleShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::VTiling.ToString()), (float)FbxTextureFilePath->GetScaleV());
 
-					if (LerpNode)
-					{
-						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(LerpNode, Lerp::Inputs::A.ToString(), TextureSampleShaderUid);
-					}
-					else
-					{
-						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputName.ToString(), TextureSampleShaderUid);
-					}
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShaderUid);
+
 				}
 				else if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
 				{
-					if (LerpNode)
-					{
-						LerpNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::A.ToString()), Property.Get<float>());
-					}
-					else
-					{
-						ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName.ToString()), Property.Get<float>());
-					}
+					NodeToConnectTo->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), Property.Get<float>());
 				}
 				else if (DataType.GetType() == eFbxDouble3)
 				{
 					const FLinearColor PropertyValue = FFbxConvert::ConvertColor(Property.Get<FbxDouble3>());
 
-					if (LerpNode)
+					if (DefaultValue.IsType<FLinearColor>())
 					{
-						LerpNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Lerp::Inputs::A.ToString()), PropertyValue);
+						NodeToConnectTo->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue);
 					}
-					else
+					else if (DefaultValue.IsType<float>())
 					{
-						ShaderGraphNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName.ToString()), PropertyValue);
+						// We're connecting a linear color to a float input. Ideally, we'd go through a desaturate, but for now we'll just take the red channel and ignore the rest.
+						NodeToConnectTo->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue.R);
 					}
 				}
 			}
@@ -228,22 +226,26 @@ namespace UE
 								}
 								else if (PropertyName == FbxSurfaceMaterial::sTransparentColor)
 								{
-									const float OpacityFactor = 1.f - (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
+									const float TransparencyFactor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
 									TVariant<FLinearColor, float> DefaultValue;
-									DefaultValue.Set<float>(1.f); // Opaque
-									ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, OpacityFactor, Phong::Parameters::Opacity, DefaultValue);
+									DefaultValue.Set<float>(0.f); // Opaque
+									const bool bInverse = true;
+									ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, TransparencyFactor, Phong::Parameters::Opacity, DefaultValue, bInverse);
 								}
 								else if (PropertyName == FbxSurfaceMaterial::sDiffuseFactor || PropertyName == FbxSurfaceMaterial::sSpecularFactor ||
-										 PropertyName == FbxSurfaceMaterial::sTransparencyFactor)
+										 PropertyName == FbxSurfaceMaterial::sEmissiveFactor || PropertyName == FbxSurfaceMaterial::sTransparencyFactor)
 								{
 									// Skip factors as they were processed with their corresponding inputs
 								}
 								else
 								{
-									const float DummyFactor = 1.f;
-									TVariant<FLinearColor, float> DummyDefaultValue;
-									DummyDefaultValue.Set<float>(1.f); // Will be ignore because we have a factor of 1
-									ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, DummyFactor, PropertyName, DummyDefaultValue);
+									if (!UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, PropertyName))
+									{
+										const float DummyFactor = 1.f;
+										TVariant<FLinearColor, float> DummyDefaultValue;
+										DummyDefaultValue.Set<float>(1.f); // Will be ignored because we have a factor of 1
+										ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, DummyFactor, PropertyName, DummyDefaultValue);
+									}
 								}
 							}
 						}
