@@ -134,9 +134,30 @@ void FMetalRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureR
 			
 			Context->CopyFromTextureToTexture(Source->MSAAResolveTexture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
 		}
+		else if(Source->Texture.GetPixelFormat() == Destination->Texture.GetPixelFormat())
+		{
+			// Blit Copy for matching formats
+			Context->CopyFromTextureToTexture(Source->Texture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+		}
 		else
 		{
-			Context->CopyFromTextureToTexture(Source->Texture, SrcIndex, ResolveParams.MipIndex, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+			const FPixelFormatInfo& SourceFormatInfo = GPixelFormats[Source->PixelFormat];
+			const FPixelFormatInfo& DestFormatInfo = GPixelFormats[Destination->PixelFormat];
+			bool bUsingPixelFormatView = (Source->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView) != 0;
+			
+			// Attempt to Resolve with a texture view - source Texture doesn't have to be created with MTLTextureUsagePixelFormatView for these cases e.g:
+			// If we are resolving to/from sRGB linear color space within the same format OR using same bit length color format
+			if	(	SourceFormatInfo.BlockBytes == DestFormatInfo.BlockBytes &&
+					(bUsingPixelFormatView || SourceFormatInfo.NumComponents == DestFormatInfo.NumComponents)
+				)
+			{
+				FMetalTexture SourceTextureView = Source->Texture.NewTextureView(Destination->Texture.GetPixelFormat(), Source->Texture.GetTextureType(), ns::Range(ResolveParams.MipIndex, 1), ns::Range(SrcIndex, 1));
+				if(SourceTextureView)
+				{
+					Context->CopyFromTextureToTexture(SourceTextureView, 0, 0, Origin, Size, Destination->Texture, DestIndex, ResolveParams.MipIndex, Origin);
+					SafeReleaseMetalTexture(SourceTextureView);
+				}
+			}
 		}
 
 #if PLATFORM_MAC

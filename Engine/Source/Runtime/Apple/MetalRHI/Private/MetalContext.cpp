@@ -1267,14 +1267,10 @@ bool FMetalContext::PrepareToDraw(uint32 PrimitiveType)
 	check(IsValidRef(CurrentPSO));
 	
 	// Enforce calls to SetRenderTarget prior to issuing draw calls.
-#if PLATFORM_MAC
-	check(StateCache.GetHasValidRenderTarget());
-#else
 	if (!StateCache.GetHasValidRenderTarget())
 	{
 		return false;
 	}
-#endif
 	
 	FMetalHashedVertexDescriptor const& VertexDesc = CurrentPSO->VertexDeclaration->Layout;
 	

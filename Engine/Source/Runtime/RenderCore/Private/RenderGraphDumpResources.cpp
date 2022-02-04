@@ -1193,6 +1193,8 @@ struct FRDGResourceDumpContext
 		return bDumpPass;
 	}
 };
+
+// 0 = not dumping, MAX_uint64 dump request for next frame, otherwise dump frame counter
 static uint64 DumpingFrameCounter_GameThread = 0;
 FRDGResourceDumpContext GRDGResourceDumpContext;
 
@@ -1201,6 +1203,14 @@ FRDGResourceDumpContext GRDGResourceDumpContext;
 bool IsDumpingRDGResources()
 {
 	return GRDGResourceDumpContext.IsDumpingFrame();
+}
+
+void FRDGBuilder::InitResourceDump()
+{
+	if(DumpingFrameCounter_GameThread == MAX_uint64)
+	{
+		DumpingFrameCounter_GameThread = GFrameCounter;
+	}
 }
 
 FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
@@ -1319,7 +1329,8 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		#endif
 	});
 
-	DumpingFrameCounter_GameThread = GFrameCounter;
+	// Mark ready for dump on next available frame
+	DumpingFrameCounter_GameThread = MAX_uint64;
 
 	if (NewResourceDumpContext.bEnableDiskWrite)
 	{
@@ -1332,8 +1343,10 @@ void FRDGBuilder::EndResourceDump()
 {
 	check(IsInGameThread());
 
+	 // make sure at least one frame has passed since we start a resource dump and we are not waiting on the dump to begin
 	if (DumpingFrameCounter_GameThread == 0 ||
-		DumpingFrameCounter_GameThread >= GFrameCounter) // make sure at least one frame has passed since we start a resource dump
+		DumpingFrameCounter_GameThread == MAX_uint64 ||
+		DumpingFrameCounter_GameThread >= GFrameCounter)
 	{
 		return;
 	}
