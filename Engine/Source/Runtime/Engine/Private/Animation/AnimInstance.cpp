@@ -2787,11 +2787,13 @@ UAnimInstance* UAnimInstance::GetLinkedAnimGraphInstanceByTag(FName InTag) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const FAnimSubsystem_Tag& TagSubsystem = AnimBlueprintClass->GetSubsystem<FAnimSubsystem_Tag>();
-		const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem.FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
-		if(LinkedAnimGraph)
+		if (const FAnimSubsystem_Tag* TagSubsystem = AnimBlueprintClass->FindSubsystem<FAnimSubsystem_Tag>())
 		{
-			return LinkedAnimGraph->GetTargetInstance<UAnimInstance>();
+			const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem->FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
+			if(LinkedAnimGraph)
+			{
+				return LinkedAnimGraph->GetTargetInstance<UAnimInstance>();
+			}
 		}
 	}
 
@@ -2810,11 +2812,13 @@ void UAnimInstance::LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> I
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const FAnimSubsystem_Tag& TagSubsystem = AnimBlueprintClass->GetSubsystem<FAnimSubsystem_Tag>();
-		FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem.FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
-		if(LinkedAnimGraph)
+		if (const FAnimSubsystem_Tag* TagSubsystem = AnimBlueprintClass->FindSubsystem<FAnimSubsystem_Tag>())
 		{
-			LinkedAnimGraph->SetAnimClass(InClass, this);
+			FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem->FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
+			if (LinkedAnimGraph)
+			{
+				LinkedAnimGraph->SetAnimClass(InClass, this);
+			}
 		}
 	}
 }
