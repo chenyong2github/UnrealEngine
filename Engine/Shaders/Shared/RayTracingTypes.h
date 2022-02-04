@@ -25,10 +25,11 @@ struct FPathTracingLight {
 	float   FalloffExponent; // for non-inverse square decay lights only
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines PATHTRACER_FLAG_*
-	int32   RectLightTextureIndex;
 	FVector3f TranslatedBoundMin;
 	FVector3f TranslatedBoundMax;
-	float Padding; // keep structure aligned
+	uint32 RectLightAtlasUVScale;  // Rect. light atlas UV transformation, encoded as f16x2
+	uint32 RectLightAtlasUVOffset; // Rect. light atlas UV transformation, encoded as f16x2
+	// keep structure aligned
 };
 
 static_assert(sizeof(FPathTracingLight) == 128, "Path tracing light structure should be aligned to 128 bytes for optimal access on the GPU");
@@ -69,10 +70,10 @@ struct FPathTracingLight {
 	float   FalloffExponent;
 	int     IESTextureSlice;
 	uint    Flags;
-	int	    RectLightTextureIndex;
 	float3  TranslatedBoundMin;
 	float3  TranslatedBoundMax;
-	float Padding;
+	uint	RectLightAtlasUVScale;
+	uint	RectLightAtlasUVOffset;
 };
 
 struct FPathTracingPackedPathState {

@@ -120,6 +120,9 @@ FDeferredLightData LoadLightData(uint LightType)
 	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
 	LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
 	LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
+	LightData.RectLightAtlasUVOffset = DeferredLightUniforms.RectLightAtlasUVOffset;
+	LightData.RectLightAtlasUVScale  = DeferredLightUniforms.RectLightAtlasUVScale;
+	LightData.RectLightAtlasMaxLevel = DeferredLightUniforms.RectLightAtlasMaxLevel;
 
 	LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
 	LightData.bRadialLight = LightType != LIGHT_TYPE_DIRECTIONAL;

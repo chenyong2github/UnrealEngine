@@ -57,6 +57,7 @@
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenVisualize.h"
+#include "RectLightTextureManager.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -1325,6 +1326,10 @@ void AddPostProcessingPasses(
 		if (EngineShowFlags.VisualizeVirtualShadowMap && VirtualShadowMapArray != nullptr)
 		{
 			VirtualShadowMapArray->AddVisualizePass(GraphBuilder, View, SceneColor);
+		}
+
+		{
+			RectLightAtlas::AddRectLightAtlasDebugPass(GraphBuilder, View, SceneColor.Texture);
 		}
 
 		if (ShaderDrawDebug::IsEnabled(View))

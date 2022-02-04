@@ -831,6 +831,12 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	ShadingEnergyClothSpecTexture = GBlackTextureWithSRV->TextureRHI;
 	ShadingEnergyDiffuseTexture = GBlackTextureWithSRV->TextureRHI;
 
+	// Rect light atlas
+	RectLightAtlasMaxMipLevel = 1;
+	RectLightAtlasSizeAndInvSize = FVector4f(1, 1, 1, 1);
+	RectLightAtlasTexture = GBlackTextureWithSRV->TextureRHI;
+	RectLightAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	// Subsurface profiles/pre-intregrated
 	SSProfilesTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
 	SSProfilesTexture = GBlackTextureWithSRV->TextureRHI;

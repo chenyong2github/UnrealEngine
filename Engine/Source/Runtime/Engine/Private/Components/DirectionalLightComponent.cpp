@@ -388,7 +388,9 @@ public:
 		LightParameters.SourceRadius = FMath::Sin( 0.5f * FMath::DegreesToRadians( LightSourceAngle ) );
 		LightParameters.SoftSourceRadius = FMath::Sin( 0.5f * FMath::DegreesToRadians( LightSourceSoftAngle ) );
 		LightParameters.SourceLength = 0.0f;
-		LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
+		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+		LightParameters.RectLightAtlasMaxLevel = 99.f;
 	}
 
 	virtual float GetLightSourceAngle() const override

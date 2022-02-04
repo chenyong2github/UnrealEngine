@@ -76,6 +76,7 @@
 #include "RendererOnScreenNotification.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "RectLightTextureManager.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1896,6 +1897,18 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 	ViewUniformShaderParameters.LTCMatTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCMatTexture);
 	ViewUniformShaderParameters.LTCAmpTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCAmpTexture);
+
+	// Rect light. atlas
+	{
+		FRHITexture* AtlasTexture = RectLightAtlas::GetRectLightAtlasTexture();
+		if (!AtlasTexture) AtlasTexture = GSystemTextures.BlackDummy->GetRHI();
+		const FIntVector AtlasSize = AtlasTexture->GetSizeXYZ();
+		ViewUniformShaderParameters.RectLightAtlasTexture = AtlasTexture;
+		ViewUniformShaderParameters.RectLightAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.RectLightAtlasMaxMipLevel = AtlasTexture->GetNumMips()-1;
+		ViewUniformShaderParameters.RectLightAtlasSizeAndInvSize = FVector4f(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
+		ViewUniformShaderParameters.RectLightAtlasTexture = OrBlack2DIfNull(ViewUniformShaderParameters.RectLightAtlasTexture);
+	}
 
 	// Hair global resources 
 	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);

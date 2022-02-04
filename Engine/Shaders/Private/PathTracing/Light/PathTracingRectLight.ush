@@ -11,37 +11,19 @@
 
 #if USE_RECT_LIGHT_TEXTURES
 
-// The number of entries must match PATHTRACER_MAX_RECT_TEXTURES
-Texture2D RectLightTexture_0;
-Texture2D RectLightTexture_1;
-Texture2D RectLightTexture_2;
-Texture2D RectLightTexture_3;
-Texture2D RectLightTexture_4;
-Texture2D RectLightTexture_5;
-Texture2D RectLightTexture_6;
-Texture2D RectLightTexture_7;
-SamplerState RectLightSampler;
-
 float3 EvaluateTexture(int LightId, float2 UV)
 {
 	// TODO: could use path roughness / ray cone to lower the mip level here
 	UV.y = 1 - UV.y; // match orientation with raster path
-	switch (SceneLights[LightId].RectLightTextureIndex)
-	{
-		case 0:  return RectLightTexture_0.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 1:  return RectLightTexture_1.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 2:  return RectLightTexture_2.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 3:  return RectLightTexture_3.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 4:  return RectLightTexture_4.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 5:  return RectLightTexture_5.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 6:  return RectLightTexture_6.SampleLevel(RectLightSampler, UV, 0).xyz;
-		case 7:  return RectLightTexture_7.SampleLevel(RectLightSampler, UV, 0).xyz;
-		default: return 1;
-	}
+
+	// Transform local UV into rect. light atlas UV
+	const float2 UVScale  = GetRectLightAtlasUVScale(LightId);
+	const float2 UVOffset = GetRectLightAtlasUVOffset(LightId);
+	UV = UV * UVScale + UVOffset;
+	return View.RectLightAtlasTexture.SampleLevel(View.RectLightAtlasSampler, UV, 0).xyz;
 }
 
 #endif
-
 
 float3 BilinearQuadWarp(float2 uv, float W00, float W01, float W10, float W11) {
 	// "Practical Product Sampling by Fitting and Composing Warps" - EGSR 2020

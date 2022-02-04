@@ -324,7 +324,9 @@ void FLightRenderParameters::MakeShaderParameters(const FViewMatrices& ViewMatri
 	OutShaderParameters.SourceLength = SourceLength;
 	OutShaderParameters.RectLightBarnCosAngle = RectLightBarnCosAngle;
 	OutShaderParameters.RectLightBarnLength = RectLightBarnLength;
-	OutShaderParameters.SourceTexture = SourceTexture;
+	OutShaderParameters.RectLightAtlasUVOffset = RectLightAtlasUVOffset;
+	OutShaderParameters.RectLightAtlasUVScale = RectLightAtlasUVScale;
+	OutShaderParameters.RectLightAtlasMaxLevel = RectLightAtlasMaxLevel;
 }
 
 FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)

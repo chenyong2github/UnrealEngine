@@ -106,7 +106,7 @@ FAreaLightIntegrateContext CreateCapsuleIntegrateContext(float Roughness, half3 
 	Out.AreaLight.LineCosSubtended = LineCosSubtended;
 	Out.AreaLight.FalloffColor = 1;
 	Out.AreaLight.Rect = (FRect)0;
-	Out.AreaLight.Texture = InitRectTexture(DummyRectLightTextureForCapsuleCompilerWarning);
+	Out.AreaLight.Texture = InitRectTexture();
 	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
 	SetIsRectLight(Out.AreaLight, false);
 	SetAreaLightDiffuseMicroReflWeight(Out.AreaLight, saturate(1.0f - max(Capsule.Length, Capsule.Radius) / SizeFadesOutDiffuseMicroRefl));

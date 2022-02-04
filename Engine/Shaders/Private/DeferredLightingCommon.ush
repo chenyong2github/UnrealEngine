@@ -34,7 +34,7 @@ struct FDeferredLightData
 	float  FalloffExponent;
 	float3 Direction;
 	float3 Tangent;
-    float SoftSourceRadius;
+	float SoftSourceRadius;
 	float2 SpotAngles;
 	float SourceRadius;
 	float SourceLength;
@@ -57,6 +57,10 @@ struct FDeferredLightData
 	uint ShadowedBits;
 	float RectLightBarnCosAngle;
 	float RectLightBarnLength;
+	/** Rect light atlas info. */
+	float2 RectLightAtlasUVOffset;
+	float2 RectLightAtlasUVScale;
+	float  RectLightAtlasMaxLevel;
 	FHairTransmittanceData HairTransmittance;
 };
 
@@ -72,6 +76,15 @@ struct FSimpleDeferredLightData
 };
 
 #define REFERENCE_QUALITY	0
+
+FRectTexture InitRectTexture(FDeferredLightData In)
+{
+	FRectTexture Output;
+	Output.AtlasUVOffset = In.RectLightAtlasUVOffset;
+	Output.AtlasUVScale  = In.RectLightAtlasUVScale;
+	Output.AtlasMaxLevel = In.RectLightAtlasMaxLevel;
+	return Output;
+}
 
 /** Returns 0 for positions closer than the fade near distance from the camera, and 1 for positions further than the fade far distance. */
 float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData)
@@ -342,7 +355,7 @@ FCapsuleLight GetCapsule( float3 ToLight, FDeferredLightData LightData )
 /** Calculates lighting for a given position, normal, etc with a fully featured lighting model designed for quality. */
 FDeferredLightingSplit GetDynamicLightingSplit(
 	float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, 
-	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, FRectTexture SourceTexture,
+	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, 
 	inout float SurfaceShadow)
 {
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
@@ -380,6 +393,8 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 		SurfaceShadow = Shadow.SurfaceShadow;
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms
+
+		const FRectTexture SourceTexture = InitRectTexture(LightData);
 
 		BRANCH
 		if( Shadow.SurfaceShadow + Shadow.TransmissionShadow > 0 )
@@ -444,12 +459,12 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 
 float4 GetDynamicLighting(
 	float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, 
-	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, FRectTexture SourceTexture,
+	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, 
 	inout float SurfaceShadow)
 {
 	FDeferredLightingSplit SplitLighting = GetDynamicLightingSplit(
 		TranslatedWorldPosition, CameraVector, GBuffer, AmbientOcclusion, ShadingModelID, 
-		LightData, LightAttenuation, Dither, SVPos, SourceTexture,
+		LightData, LightAttenuation, Dither, SVPos, 
 		SurfaceShadow);
 
 	return SplitLighting.SpecularLighting + SplitLighting.DiffuseLighting;

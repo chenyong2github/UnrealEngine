@@ -837,7 +837,7 @@ FDirectLighting EvaluateBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, f
 	AreaLight.FalloffColor = 1;
 	AreaLight.Rect = (FRect)0;
 	AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
-    AreaLight.Texture = InitRectTexture(View.LTCAmpTexture); // Dummy
+	AreaLight.Texture = InitRectTexture();
 
 	return IntegrateBxDF( GBuffer, N, V, L, 1, NoL, AreaLight, Shadow );
 }

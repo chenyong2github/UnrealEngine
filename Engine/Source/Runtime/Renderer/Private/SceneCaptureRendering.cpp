@@ -39,6 +39,7 @@
 #include "Rendering/MotionVectorSimulation.h"
 #include "SceneViewExtension.h"
 #include "GenerateMips.h"
+#include "RectLightTextureManager.h"
 
 /** A pixel shader for capturing a component of the rendered scene for a scene capture.*/
 class FSceneCapturePS : public FGlobalShader
@@ -1073,11 +1074,13 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			}
 		}
 
+		UTexture* TexturePtrNotDeferenced = TextureRenderTarget;
+
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, TextureRenderTargetResource, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT, bEnableOrthographicTiling, bOrthographicCamera, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, TextureRenderTargetResource, TexturePtrNotDeferenced, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT, bEnableOrthographicTiling, bOrthographicCamera, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
 			{
 				if (GameViewportRT != nullptr)
-			{
+				{
 					const FRHIGPUMask GPUMask = AFRUtils::GetGPUMaskForGroup(GameViewportRT->GetGPUMask(RHICmdList));
 					TextureRenderTargetResource->SetActiveGPUMask(GPUMask);
 				}
@@ -1102,6 +1105,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					ResolveParams.DestRect.X2 = ResolveParams.DestRect.X1 + RTSizeX;
 					ResolveParams.DestRect.Y2 = ResolveParams.DestRect.Y1 + RTSizeY;
 				}
+
+				RectLightAtlas::FAtlasTextureInvalidationScope Invalidation(TexturePtrNotDeferenced);
 
 				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, ResolveParams, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, !bEnableOrthographicTiling, bOrthographicCamera);
 			}

@@ -21,13 +21,14 @@ float4 StrataDeferredLighting(
 	float3 ToLight,
 	float LightMask,
 	FShadowTerms ShadowTerms,
-	FRectTexture RectTexture,
 	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader)
 {
 	FLightAccumulator Out = (FLightAccumulator)0;
 	const bool bForceFullyRough = false;
+
+	FRectTexture RectTexture = InitRectTexture(LightData);
 
 #if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
 	LOOP

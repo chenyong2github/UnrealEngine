@@ -30,6 +30,7 @@ public:
 	float		BarnDoorLength;
 	FRectLightRayTracingData* RayTracingData; // Render thread data only
 	UTexture*	SourceTexture;
+	uint32		AtlasSlotIndex;
 
 	FRectLightSceneProxy(const URectLightComponent* Component);
 	virtual ~FRectLightSceneProxy();

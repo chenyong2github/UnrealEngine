@@ -10,10 +10,6 @@
 #define USE_SOURCE_TEXTURE 1
 #endif
 
-#ifndef USE_SOURCE_TEXTURE_ARRAY 
-#define USE_SOURCE_TEXTURE_ARRAY 0
-#endif
-
 struct FRect
 {
 	float3		Origin;
@@ -23,85 +19,44 @@ struct FRect
 	float2		Offset;
 };
 
-
 struct FRectTexture
 {
-#if COMPILER_HLSLCC && !COMPILER_METAL
-	uint Dummy;
-#else
-#if USE_SOURCE_TEXTURE_ARRAY
-	Texture2D SourceTexture0;
-	Texture2D SourceTexture1;
-	Texture2D SourceTexture2;
-	Texture2D SourceTexture3;
-	Texture2D SourceTexture4;
-	Texture2D SourceTexture5;
-	Texture2D SourceTexture6;
-	Texture2D SourceTexture7;
-	uint SourceTextureIndex; 
-#elif USE_SOURCE_TEXTURE
-	Texture2D SourceTexture;
-#else
-	uint Dummy;
-#endif
-#endif	// COMPILER_HLSLCC && !COMPILER_METAL
+	half2 AtlasUVOffset;
+	half2 AtlasUVScale;
+	half  AtlasMaxLevel;
 };
 
-FRectTexture InitRectTexture(Texture2D SourceTexture)
+FRectTexture InitRectTexture()
 {
-	FRectTexture Output;
-#if COMPILER_HLSLCC && !COMPILER_METAL
-	uint Dummy;
-#else
-#if USE_SOURCE_TEXTURE_ARRAY
-	Output.SourceTexture0 = SourceTexture;
-	Output.SourceTexture1 = SourceTexture;
-	Output.SourceTexture2 = SourceTexture;
-	Output.SourceTexture3 = SourceTexture;
-	Output.SourceTexture4 = SourceTexture;
-	Output.SourceTexture5 = SourceTexture;
-	Output.SourceTexture6 = SourceTexture;
-	Output.SourceTexture7 = SourceTexture;
-	Output.SourceTextureIndex   = 99;
-#elif USE_SOURCE_TEXTURE
-	Output.SourceTexture = SourceTexture;
-#else
-	Output.Dummy = 0;
-#endif
-#endif	// COMPILER_HLSLCC && !COMPILER_METAL
-	return Output;
+	FRectTexture Out;
+	Out.AtlasUVOffset = 0;
+	Out.AtlasUVScale = 0;
+	Out.AtlasMaxLevel = 99;
+	return Out;
 }
 
-float3 SampleRectTextureInternal(Texture2D RectSourceTexture, float2 RectUV, float Level, bool bIsReference)
+FRectTexture InitRectTexture(half2 InUVOffset, half2 InUVScale, half InMaxLevel)
 {
-	float2 TextureSize;
-	RectSourceTexture.GetDimensions( TextureSize.x, TextureSize.y );	// TODO optimize
-    Level += log2(max(TextureSize.x, TextureSize.y)) - 2;
-	return RectSourceTexture.SampleLevel( View.SharedTrilinearClampedSampler, RectUV, bIsReference ? 0 : Level ).rgb;
+	FRectTexture Out;
+	Out.AtlasUVOffset = InUVOffset;
+	Out.AtlasUVScale  = InUVScale;
+	Out.AtlasMaxLevel = InMaxLevel;
+	return Out;
 }
 
-// Simple workaround while we don't have bindless support
-float3 SampleRectTexture(FRectTexture RectTexture, float2 RectUV, float Level, bool bIsReference=false)
+float3 SampleRectTexture(FRectTexture RectTexture, float2 RectUV, float Level, bool bIsReference = false)
 {
-#if COMPILER_HLSLCC && !COMPILER_METAL
-	return 1;
-#else
-#if USE_SOURCE_TEXTURE_ARRAY
-    if (RectTexture.SourceTextureIndex == 0)    { return SampleRectTextureInternal(RectTexture.SourceTexture0, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 1)    { return SampleRectTextureInternal(RectTexture.SourceTexture1, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 2)    { return SampleRectTextureInternal(RectTexture.SourceTexture2, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 3)    { return SampleRectTextureInternal(RectTexture.SourceTexture3, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 4)    { return SampleRectTextureInternal(RectTexture.SourceTexture4, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 5)    { return SampleRectTextureInternal(RectTexture.SourceTexture5, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 6)    { return SampleRectTextureInternal(RectTexture.SourceTexture6, RectUV, Level, bIsReference); }
-	if (RectTexture.SourceTextureIndex == 7)    { return SampleRectTextureInternal(RectTexture.SourceTexture7, RectUV, Level, bIsReference); }   
-	return 1;
-#elif USE_SOURCE_TEXTURE
-	return SampleRectTextureInternal(RectTexture.SourceTexture, RectUV, Level, bIsReference);
+#if USE_SOURCE_TEXTURE
+	const bool bIsValid = RectTexture.AtlasMaxLevel < 16;
+	const float2 RectTextureSize = RectTexture.AtlasUVScale * View.RectLightAtlasSizeAndInvSize.xy;
+	Level += log2(min(RectTextureSize.x, RectTextureSize.y)) - 2.f;
+	Level  = min(Level, RectTexture.AtlasMaxLevel);
+
+	RectUV = saturate(RectUV) * RectTexture.AtlasUVScale + RectTexture.AtlasUVOffset;
+	return bIsValid ? View.RectLightAtlasTexture.SampleLevel(View.SharedTrilinearClampedSampler, RectUV, bIsReference ? 0 : Level).rgb : 1.f;
 #else
 	return 1;
 #endif
-#endif	// COMPILER_HLSLCC && !COMPILER_METAL
 }
 
 // Optimized Lambert

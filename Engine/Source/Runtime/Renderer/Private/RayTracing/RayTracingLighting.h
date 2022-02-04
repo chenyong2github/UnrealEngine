@@ -17,14 +17,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER(float, IESLightProfileInvCount)
 	SHADER_PARAMETER(uint32, CellCount)
 	SHADER_PARAMETER(float, CellScale)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture0)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture1)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture2)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture3)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture4)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture5)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture6)
-	SHADER_PARAMETER_TEXTURE(Texture2D, RectLightTexture7)
 	SHADER_PARAMETER_SAMPLER(SamplerState, IESLightProfileTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, IESLightProfileTexture)
 	SHADER_PARAMETER_SRV(Texture2D, SSProfilesTexture)
@@ -38,7 +30,7 @@ struct FRTLightingData
 {
 	int32 Type;
 	int32 LightProfileIndex;
-	int32 RectLightTextureIndex;
+	float RectLightAtlasMaxLevel;
 
 	// Force alignment before next vector
 	int32 Pad;
@@ -57,9 +49,9 @@ struct FRTLightingData
 	float DistanceFadeMAD[2];
 	float RectLightBarnCosAngle;
 	float RectLightBarnLength;
-
+	float RectLightAtlasUVOffset[2];
+	float RectLightAtlasUVScale[2];
 	// Align struct to 128 bytes to better match cache lines
-	float Dummy[4];
 };
 
 static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size.");

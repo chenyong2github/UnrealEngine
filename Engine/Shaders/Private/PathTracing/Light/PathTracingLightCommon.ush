@@ -166,6 +166,24 @@ float GetRectLightBarnLength(int LightId)
 	return SceneLights[LightId].Shaping.y;
 }
 
+float2 GetRectLightAtlasUVScale(int LightId)
+{
+	const uint Encoded = SceneLights[LightId].RectLightAtlasUVScale;
+	float2 UVScale;
+	UVScale.x = f16tof32(0xFFFF & Encoded);
+	UVScale.y = f16tof32(0xFFFF & (Encoded>>16));
+	return UVScale;
+}
+
+float2 GetRectLightAtlasUVOffset(int LightId)
+{
+	const uint Encoded = SceneLights[LightId].RectLightAtlasUVOffset;
+	float2 UVOffset;
+	UVOffset.x = f16tof32(0xFFFF & Encoded);
+	UVOffset.y = f16tof32(0xFFFF & (Encoded >> 16));
+	return UVOffset;
+}
+
 #ifndef USE_ATTENUATION_TERM
 	#define USE_ATTENUATION_TERM 1
 #endif

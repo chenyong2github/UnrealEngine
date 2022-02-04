@@ -31,7 +31,7 @@ struct FRTLightingData
 {
 	uint Type;
 	int LightProfileIndex;
-	uint RectLightTextureIndex;
+	float RectLightAtlasMaxLevel;
 	uint Pad;
 	float3 TranslatedLightPosition;
 	float InvRadius;
@@ -47,7 +47,8 @@ struct FRTLightingData
 	float2 DistanceFadeMAD;
 	float RectLightBarnCosAngle;
 	float RectLightBarnLength;
-	float4 Dummy;
+	float2 RectLightAtlasUVOffset;
+	float2 RectLightAtlasUVScale;
 }; // 128 bytes total
 
 // Decode RTLightingData from a StructuredBuffer<uint4>
@@ -68,7 +69,7 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 
 	Data.Type = Element.x;
 	Data.LightProfileIndex = Element.y;
-	Data.RectLightTextureIndex = Element.z;
+	Data.RectLightAtlasMaxLevel = asfloat(Element.z);
 	Data.Pad = Element.w;
 
 	Element = LightDataBuffer[LightIndex++];
@@ -104,14 +105,14 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 	Data.RectLightBarnLength = asfloat(Element.w);
 
 	Element = LightDataBuffer[LightIndex++];
-	Data.Dummy = asfloat(Element);
+	Data.RectLightAtlasUVOffset = asfloat(Element.xy);
+	Data.RectLightAtlasUVScale = asfloat(Element.zw);
 
 	return Data;
 }
 
 FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	inout int OutLightProfileIndex,
-	inout int OutRectLightTextureIndex,
 	inout uint OutLightType)
 {
 	FDeferredLightData LightData = (FDeferredLightData)0;
@@ -154,32 +155,23 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 		LightData.bInverseSquared = LightData.FalloffExponent == 0;
 	}
 
+	LightData.RectLightAtlasUVOffset = RayTracingLightData.RectLightAtlasUVOffset;
+	LightData.RectLightAtlasUVScale  = RayTracingLightData.RectLightAtlasUVScale;
+	LightData.RectLightAtlasMaxLevel = RayTracingLightData.RectLightAtlasMaxLevel;
+
 	OutLightProfileIndex = RayTracingLightData.LightProfileIndex;
-	OutRectLightTextureIndex = RayTracingLightData.RectLightTextureIndex;
 	OutLightType = LightType;
 
 	return LightData;
 }
 
-FRectTexture GetRayTracingRectTextureData()
+FRectTexture GetRayTracingRectTextureData(FDeferredLightData In)
 {
-	FRectTexture RectTexture;
-
-#if USE_SOURCE_TEXTURE_ARRAY 
-	RectTexture.SourceTexture0 = RaytracingLightsDataPacked.RectLightTexture0;
-	RectTexture.SourceTexture1 = RaytracingLightsDataPacked.RectLightTexture1;
-	RectTexture.SourceTexture2 = RaytracingLightsDataPacked.RectLightTexture2;
-	RectTexture.SourceTexture3 = RaytracingLightsDataPacked.RectLightTexture3;
-	RectTexture.SourceTexture4 = RaytracingLightsDataPacked.RectLightTexture4;
-	RectTexture.SourceTexture5 = RaytracingLightsDataPacked.RectLightTexture5;
-	RectTexture.SourceTexture6 = RaytracingLightsDataPacked.RectLightTexture6;
-	RectTexture.SourceTexture7 = RaytracingLightsDataPacked.RectLightTexture7;
-	RectTexture.SourceTextureIndex = 99;
-#else
-	RectTexture = InitRectTexture(RaytracingLightsDataPacked.RectLightTexture0);
-#endif
-
-	return RectTexture;
+	FRectTexture Out;
+	Out.AtlasUVOffset = In.RectLightAtlasUVOffset;
+	Out.AtlasUVScale  = In.RectLightAtlasUVScale;
+	Out.AtlasMaxLevel = In.RectLightAtlasMaxLevel;
+	return Out;
 }
 
 float3 GenerateReflectedRayDirection(
@@ -419,9 +411,8 @@ float3 ComputeDirectLighting(
 		LightIndex = CullData.GetLightIndex(Index, Lit);
 
 		int LightProfileIndex = -1;
-		int RectLightTextureIndex = -1;
 		uint LightType = 0;
-		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, RectLightTextureIndex, LightType);
+		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, LightType);
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 

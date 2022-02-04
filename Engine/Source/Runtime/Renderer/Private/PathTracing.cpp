@@ -537,9 +537,6 @@ class FPathTracingRG : public FGlobalShader
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler) // Shared sampler for all IES profiles
-		// Rect lights
-		SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, RectLightTexture, [PATHTRACER_MAX_RECT_TEXTURES])
-		SHADER_PARAMETER_SAMPLER(SamplerState, RectLightSampler) // Shared sampler for all rectlights
 		// Used by multi-GPU rendering
 		SHADER_PARAMETER(FIntVector, TileOffset)
 
@@ -1010,6 +1007,11 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	}
 }
 
+static uint32 EncodeToF16x2(const FVector2f& In)
+{
+	return FFloat16(In.X).Encoded | (FFloat16(In.Y).Encoded << 16);
+}
+
 void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FScene* Scene, const FViewInfo& View, bool UseMISCompensation)
 {
 	PassParameters->SceneVisibleLightCount = 0;
@@ -1071,7 +1073,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 			DestLight.IESTextureSlice = -1;
-			DestLight.RectLightTextureIndex = -1;
 
 			// these mean roughly the same thing across all light types
 			DestLight.Color = FVector3f(LightParameters.Color);
@@ -1081,6 +1082,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.dPdv = LightParameters.Tangent;
 			DestLight.Attenuation = LightParameters.InvRadius;
 			DestLight.FalloffExponent = 0;
+			DestLight.RectLightAtlasUVOffset = 0;
+			DestLight.RectLightAtlasUVScale = 0;
 
 			DestLight.Normal = LightParameters.Direction;
 			DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, 0.0f);
@@ -1126,7 +1129,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
-		DestLight.RectLightTextureIndex = -1;
 
 		if (View.Family->EngineShowFlags.TexturedLightProfiles)
 		{
@@ -1146,6 +1148,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.dPdv = LightParameters.Tangent;
 		DestLight.Attenuation = LightParameters.InvRadius;
 		DestLight.FalloffExponent = 0;
+		DestLight.RectLightAtlasUVOffset = 0;
+		DestLight.RectLightAtlasUVScale = 0;
 
 		switch (LightComponentType)
 		{
@@ -1156,34 +1160,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_RECT;
-				if (Light.LightSceneInfo->Proxy->HasSourceTexture())
-				{
-					// there is an actual texture associated with this light, go look for it
-					FLightRenderParameters ShaderParameters;
-					Light.LightSceneInfo->Proxy->GetLightShaderParameters(ShaderParameters);
-					FRHITexture* TextureRHI = ShaderParameters.SourceTexture;
-					if (TextureRHI != nullptr)
-					{
-						// have we already given this texture an index?
-						// NOTE: linear search is ok since max texture is small
-						for (int Index = 0; Index < NextRectTextureIndex; Index++)
-						{
-							if (PassParameters->RectLightTexture[Index] == TextureRHI)
-							{
-								DestLight.RectLightTextureIndex = Index;
-								break;
-							}
-						}
-						if (DestLight.RectLightTextureIndex == -1 && NextRectTextureIndex < PATHTRACER_MAX_RECT_TEXTURES)
-						{
-							// first time we see this texture and we still have free slots available
-							// assign texture to next slot and store it in the light
-							DestLight.RectLightTextureIndex = NextRectTextureIndex;
-							PassParameters->RectLightTexture[NextRectTextureIndex] = TextureRHI;
-							NextRectTextureIndex++;
-						}
-					}
-				}
 
 				float Radius = 1.0f / LightParameters.InvRadius;
 				FVector3f Center = DestLight.TranslatedWorldPosition;
@@ -1198,6 +1174,10 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				FVector3f Tip = Center + Normal * Radius;
 				DestLight.TranslatedBoundMin = FVector3f::Min(Tip, Center - Radius * Disc);
 				DestLight.TranslatedBoundMax = FVector3f::Max(Tip, Center + Radius * Disc);
+
+				// Rect light atlas UV transformation
+				DestLight.RectLightAtlasUVOffset = EncodeToF16x2(LightParameters.RectLightAtlasUVOffset);
+				DestLight.RectLightAtlasUVScale  = EncodeToF16x2(LightParameters.RectLightAtlasUVScale);
 				break;
 			}
 			case LightType_Spot:
@@ -1250,15 +1230,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				break;
 			}
 		}
-	}
-
-	{
-		// assign dummy textures to the remaining unused slots
-		for (int32 Index = NextRectTextureIndex; Index < PATHTRACER_MAX_RECT_TEXTURES; Index++)
-		{
-			PassParameters->RectLightTexture[Index] = GWhiteTexture->TextureRHI;
-		}
-		PassParameters->RectLightSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	PassParameters->SceneLightCount = NumLights;
@@ -1563,8 +1534,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 						PassParameters->IESTexture = PreviousPassParameters->IESTexture;
 						PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
 						PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
-						PassParameters->RectLightTexture = PreviousPassParameters->RectLightTexture;
-						PassParameters->RectLightSampler = PreviousPassParameters->RectLightSampler;
 						PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
 						PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
 						PassParameters->SceneLights = PreviousPassParameters->SceneLights;

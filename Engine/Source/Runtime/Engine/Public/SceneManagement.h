@@ -1269,8 +1269,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 	// Barn door length for rect light
 	SHADER_PARAMETER(float, RectLightBarnLength)
 
-	// Texture of the rect light.
-	SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+	// Rect. light atlas transformation
+	SHADER_PARAMETER(FVector2f, RectLightAtlasUVOffset)
+	SHADER_PARAMETER(FVector2f, RectLightAtlasUVScale)
+	SHADER_PARAMETER(float, RectLightAtlasMaxLevel)
+
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -1393,6 +1396,11 @@ struct FLightRenderParameters
 
 	// Barn door length for rect light
 	float RectLightBarnLength;
+
+	// Rect. light atlas transformation
+	FVector2f RectLightAtlasUVOffset;
+	FVector2f RectLightAtlasUVScale;
+	float RectLightAtlasMaxLevel = 99.f;
 };
 
 /** 

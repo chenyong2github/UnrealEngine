@@ -996,7 +996,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				 
 				uint GridIndex = ComputeLightGridCellIndex(PixelPos, SceneDepth, 0);
 				const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
-				FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
+				FRectTexture RectTexture = InitRectTexture();
 
 				// This loop will process all unshadowed lights only.
 				LOOP

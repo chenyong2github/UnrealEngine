@@ -62,7 +62,7 @@ FAreaLightIntegrateContext InitAreaLightIntegrateContext()
 	Out.AreaLight.FalloffColor = 0;
 	Out.AreaLight.Rect = (FRect)0;
 	Out.AreaLight.IsRectAndDiffuseMicroReflWeight = 0;
-//	Out.AreaLight.Texture;
+	Out.AreaLight.Texture = InitRectTexture();
 	Out.L = 0;
 	Out.NoL = 0;
 	Out.Falloff = 0;

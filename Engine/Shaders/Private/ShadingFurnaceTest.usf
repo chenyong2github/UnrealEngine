@@ -44,7 +44,7 @@ void MainPS(
 	const float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 	const float2 PixelPos = SVPos.xy;
 
-	const FRectTexture RectTexture = (FRectTexture)0;
+	const FRectTexture RectTexture = InitRectTexture();
 	const float Dither = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8);
 
 	bool bIsValid = false;
@@ -203,7 +203,11 @@ void MainPS(
 					LightData.bRectLight				= false;
 					LightData.RectLightBarnCosAngle		= 0.f;
 					LightData.RectLightBarnLength		= 0.f;
+					LightData.RectLightAtlasUVOffset	= 0.f;
+					LightData.RectLightAtlasUVScale		= 0.f;
+					LightData.RectLightAtlasMaxLevel	= 0.f;
 					LightData.HairTransmittance			= InitHairTransmittanceData();
+					LightData.ShadowedBits				= 0;
 				}
 
 				float3 SampleRadiance = 0;
@@ -220,7 +224,6 @@ void MainPS(
 						PixelLightAttenuation,
 						Dither, 
 						uint2(PixelPos), 
-						RectTexture, 
 						SurfaceShadow).xyz;
 				}
 			#elif 0

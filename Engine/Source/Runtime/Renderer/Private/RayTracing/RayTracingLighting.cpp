@@ -199,19 +199,6 @@ static void SetupRaytracingLightDataPacked(
 	TMap<FRHITexture*, uint32> RectTextureMap;
 
 	LightData->Count = 0;
-
-	FTextureRHIRef DymmyWhiteTexture = GWhiteTexture->TextureRHI;
-	LightData->RectLightTexture0 = DymmyWhiteTexture;
-	LightData->RectLightTexture1 = DymmyWhiteTexture;
-	LightData->RectLightTexture2 = DymmyWhiteTexture;
-	LightData->RectLightTexture3 = DymmyWhiteTexture;
-	LightData->RectLightTexture4 = DymmyWhiteTexture;
-	LightData->RectLightTexture5 = DymmyWhiteTexture;
-	LightData->RectLightTexture6 = DymmyWhiteTexture;
-	LightData->RectLightTexture7 = DymmyWhiteTexture;
-	static constexpr uint32 MaxRectLightTextureSlos = 8;
-	static constexpr uint32 InvalidTextureIndex = 99; // #dxr_todo: share this definition with ray tracing shaders
-
 	{
 		// IES profiles
 		FRHITexture* IESTextureRHI = nullptr;
@@ -270,7 +257,6 @@ static void SetupRaytracingLightDataPacked(
 
 		LightDataElement.Type = Light.LightType;
 		LightDataElement.LightProfileIndex = IESLightProfileIndex;
-		LightDataElement.RectLightTextureIndex = InvalidTextureIndex;
 
 		LightDataElement.Direction = LightParameters.Direction;
 		LightDataElement.TranslatedLightPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
@@ -295,6 +281,12 @@ static void SetupRaytracingLightDataPacked(
 		LightDataElement.SoftSourceRadius = LightParameters.SoftSourceRadius;
 		LightDataElement.RectLightBarnCosAngle = LightParameters.RectLightBarnCosAngle;
 		LightDataElement.RectLightBarnLength = LightParameters.RectLightBarnLength;
+
+		LightDataElement.RectLightAtlasUVOffset[0] = LightParameters.RectLightAtlasUVOffset.X;
+		LightDataElement.RectLightAtlasUVOffset[1] = LightParameters.RectLightAtlasUVOffset.Y;
+		LightDataElement.RectLightAtlasUVScale[0] = LightParameters.RectLightAtlasUVScale.X;
+		LightDataElement.RectLightAtlasUVScale[1] = LightParameters.RectLightAtlasUVScale.Y;
+		LightDataElement.RectLightAtlasMaxLevel = LightParameters.RectLightAtlasMaxLevel;
 		LightDataElement.Pad = 0;
 
 		// Stuff directional light's shadow angle factor into a RectLight parameter
@@ -304,41 +296,6 @@ static void SetupRaytracingLightDataPacked(
 		}
 
 		LightDataArray.Add(LightDataElement);
-
-		const bool bRequireTexture = Light.LightType == ELightComponentType::LightType_Rect && LightParameters.SourceTexture;
-		uint32 RectLightTextureIndex = InvalidTextureIndex;
-		if (bRequireTexture)
-		{
-			const uint32* IndexFound = RectTextureMap.Find(LightParameters.SourceTexture);
-			if (!IndexFound)
-			{
-				if (RectTextureMap.Num() < MaxRectLightTextureSlos)
-				{
-					RectLightTextureIndex = RectTextureMap.Num();
-					RectTextureMap.Add(LightParameters.SourceTexture, RectLightTextureIndex);
-				}
-			}
-			else
-			{
-				RectLightTextureIndex = *IndexFound;
-			}
-		}
-
-		if (RectLightTextureIndex != InvalidTextureIndex)
-		{
-			LightDataArray[LightData->Count].RectLightTextureIndex = RectLightTextureIndex;
-			switch (RectLightTextureIndex)
-			{
-			case 0: LightData->RectLightTexture0 = LightParameters.SourceTexture; break;
-			case 1: LightData->RectLightTexture1 = LightParameters.SourceTexture; break;
-			case 2: LightData->RectLightTexture2 = LightParameters.SourceTexture; break;
-			case 3: LightData->RectLightTexture3 = LightParameters.SourceTexture; break;
-			case 4: LightData->RectLightTexture4 = LightParameters.SourceTexture; break;
-			case 5: LightData->RectLightTexture5 = LightParameters.SourceTexture; break;
-			case 6: LightData->RectLightTexture6 = LightParameters.SourceTexture; break;
-			case 7: LightData->RectLightTexture7 = LightParameters.SourceTexture; break;
-			}
-		}
 
 		LightData->Count++;
 

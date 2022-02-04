@@ -141,7 +141,6 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 	uint LightingChannelMask = GetPrimitive_LightingChannelMask(PrimitiveId);
 
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
-	FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
 
 	BRANCH
 	if (DirectionalLightData.HasDirectionalLight)
@@ -201,7 +200,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
 
-		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, OutDirectionalLightShadow);
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), OutDirectionalLightShadow);
 
 		FLATTEN
 		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
@@ -240,12 +239,18 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 		LightData.SpotAngles = LocalLight.SpotAnglesAndSourceRadiusPacked.xy;
 		LightData.SourceRadius = LocalLight.SpotAnglesAndSourceRadiusPacked.z;
 		LightData.SourceLength = f16tof32(asuint(LocalLight.SpotAnglesAndSourceRadiusPacked.w));
-        LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
-        LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
+		LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
+		LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
 		LightData.bInverseSquared = LightData.FalloffExponent == 0;
 		LightData.bRadialLight = true;
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.SpecularScale = SpecularScale;
+		// Initialize rect light once parameters are supported onto FLocalLightData
+		// LightData.RectLightAtlasMaxLevel = LocalLight.RectLightAtlasMaxLevel;
+		// LightData.RectLightAtlasUVOffset = LocalLight.RectLightAtlasUVOffset;
+		// LightData.RectLightAtlasUVScale  = LocalLight.RectLightAtlasUVScale;
+		// LightData.RectLightBarnCosAngle	= DeferredLightUniforms.RectLightBarnCosAngle;
+		// LightData.RectLightBarnLength	= DeferredLightUniforms.RectLightBarnLength;
 		LightData.HairTransmittance = InitHairTransmittanceData();
 		#if USE_HAIR_COMPLEX_TRANSMITTANCE
 		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
@@ -268,7 +273,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Tran
 		float DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		float4 LightAttenuation = float4(1, 1, DynamicShadowing.x, DynamicShadowing.x);
 		float SurfaceShadow = 1.0f;
-		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), RectTexture, SurfaceShadow);
+		FDeferredLightingSplit NewLighting = GetDynamicLightingSplit(TranslatedWorldPosition, -CameraVector, GBufferData, 1, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, uint2(0,0), SurfaceShadow);
 
 		FLATTEN
 		if ((LightTypeAndPackedShadowMapChannelMask >> 8) & LightingChannelMask)

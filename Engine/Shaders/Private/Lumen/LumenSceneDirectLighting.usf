@@ -101,8 +101,7 @@ void LumenCardDirectLightingPS(
 		if (LightData.bRectLight)
 		{
 			FRect Rect = GetRect(ToLight, LightData);
-			FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
-			Attenuation = IntegrateLight(Rect, RectTexture);
+			Attenuation = IntegrateLight(Rect, InitRectTexture(LightData));
 		}
 		else
 		{

@@ -294,7 +294,9 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	Out.LightParameters.SourceLength = 0.0f;
 	Out.LightParameters.RectLightBarnCosAngle = 0;
 	Out.LightParameters.RectLightBarnLength = -2.0f;
-	Out.LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
+	Out.LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+	Out.LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+	Out.LightParameters.RectLightAtlasMaxLevel = 99.f;
 	return Out;
 }
 FDeferredLightUniformStruct GetSimpleDeferredLightParameters(

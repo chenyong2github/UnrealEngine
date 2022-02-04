@@ -894,6 +894,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	// Water
 	SHADER_PARAMETER_SRV(Buffer<float4>, WaterIndirection)
 	SHADER_PARAMETER_SRV(Buffer<float4>, WaterData)
+	// Rect light atlas
+	SHADER_PARAMETER(FVector4f, RectLightAtlasSizeAndInvSize)
+	SHADER_PARAMETER(float, RectLightAtlasMaxMipLevel)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, RectLightAtlasTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, RectLightAtlasSampler)
 
 	SHADER_PARAMETER_SRV(Buffer<uint>, LandscapeIndirection)
 	SHADER_PARAMETER_SRV(Buffer<float>, LandscapePerComponentData)

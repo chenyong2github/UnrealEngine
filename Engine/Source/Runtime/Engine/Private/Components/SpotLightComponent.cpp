@@ -65,9 +65,11 @@ public:
 		LightParameters.SourceRadius = SourceRadius;
 		LightParameters.SoftSourceRadius = SoftSourceRadius;
 		LightParameters.SourceLength = SourceLength;
-		LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
 		LightParameters.RectLightBarnCosAngle = 0.0f;
 		LightParameters.RectLightBarnLength = -2.0f;
+		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+		LightParameters.RectLightAtlasMaxLevel = 99.f;
 	}
 
 	// FLightSceneInfo interface.

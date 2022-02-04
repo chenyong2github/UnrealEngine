@@ -19,6 +19,7 @@ class FMaterialShaderMap;
 class FPrimitiveSceneInfo;
 class FRenderResource;
 class FRenderTarget;
+class FRectLightSceneProxy;
 class FSkyLightSceneProxy;
 class FTexture;
 class FVertexFactory;
@@ -35,6 +36,7 @@ class FViewInfo;
 class FSceneRenderer;
 class FInstanceCullingManager;
 struct FHairStrandsInstance;
+struct FLightRenderParameters;
 
 enum EBasePassDrawListType
 {
@@ -308,6 +310,14 @@ public:
 	 * @param Proxy - the hair strands proxy
 	 */
 	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) = 0;
+
+	/**
+	 * Return the rect. light atlas slot information corresponding to the rect light proxy
+	 *
+	 * @param Proxy - the rect light proxy
+	 * @param Out - the light parameters which will be filled with the rect light atlas information
+	 */
+	virtual void GetRectLightAtlasSlot(const FRectLightSceneProxy* Proxy, FLightRenderParameters* Out) = 0;
 
 	/**
 	 * Set the physics field scene proxy to the scene

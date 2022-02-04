@@ -200,7 +200,7 @@ float3 StrataForwardLighting(
 #if FORWARD_PER_PIXEL_SHADING
 	// Create the common directional light data use for all layers
 	const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(EyeIndex);
-	FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);
+	FRectTexture RectTexture = InitRectTexture();
 	
 	FDeferredLightData DirLightData = (FDeferredLightData)0;
 	DirLightData.Color = DirectionalLightData.DirectionalLightColor;
