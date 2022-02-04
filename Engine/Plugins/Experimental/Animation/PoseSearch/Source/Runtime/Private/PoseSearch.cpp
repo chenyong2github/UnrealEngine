@@ -898,17 +898,28 @@ void FPoseSearchWeightsContext::Update(
 
 	if (bRecomputeWeights)
 	{
-		int32 NumGroups = ActiveDatabase ? 1 : 0;
+		ComputedDefaultGroupWeights.Init(Database->DefaultWeights, Database->Schema, ActiveWeights);
+
+		int32 NumGroups = ActiveDatabase ? ActiveDatabase->Groups.Num() : 0;
 		ComputedGroupWeights.SetNum(NumGroups);
-		for (FPoseSearchWeights& GroupWeights: ComputedGroupWeights)
+
+		for (int GroupIdx = 0; GroupIdx < NumGroups; ++GroupIdx)
 		{
-			GroupWeights.Init(Database->Weights, Database->Schema, ActiveWeights);
+			ComputedGroupWeights[GroupIdx].Init(
+				Database->Groups[GroupIdx].Weights, 
+				Database->Schema, 
+				ActiveWeights);
 		}
 	}
 }
 
 const FPoseSearchWeights* FPoseSearchWeightsContext::GetGroupWeights(int32 WeightsGroupIdx) const
 {
+	if (WeightsGroupIdx == INDEX_NONE)
+	{
+		return &ComputedDefaultGroupWeights;
+	}
+
 	if (ComputedGroupWeights.IsValidIndex(WeightsGroupIdx))
 	{
 		return &ComputedGroupWeights[WeightsGroupIdx];
@@ -1259,6 +1270,8 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets()
 	SearchIndex.Assets.Empty();
 	bool bAnyMirrored = false;
 	TArray<FFloatRange> ValidRanges;
+	TArray<int32> GroupIndices;
+	TArray<int32> BadGroupSequenceIndices;
 	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
 	{
 		const FPoseSearchDatabaseSequence& Sequence = Sequences[SequenceIdx];
@@ -1269,27 +1282,58 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets()
 			Sequence.MirrorOption == EPoseSearchMirrorOption::MirroredOnly ||
 			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 
-		ValidRanges.Reset();
-		FindValidSequenceIntervals(Sequence, ValidRanges);
-		for (const FFloatRange& Range : ValidRanges)
+		GroupIndices.Reset();
+		for (const FName& SequenceGroupName : Sequence.Groups)
 		{
-			if (bAddUnmirrored)
+			const int32 SequenceGroupIndex = Groups.IndexOfByPredicate([&](const FPoseSearchDatabaseGroup& DatabaseGroup)
 			{
-				SearchIndex.Assets.Add(
-					FPoseSearchIndexAsset(
-						SequenceIdx,
-						false,
-						FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-			}
+				return DatabaseGroup.Name == SequenceGroupName;
+			});
 
-			if (bAddMirrored)
+			// we don't add INDEX_NONE because index none represents a choice to use the default group by not adding
+			// any group identifiers. If an added identifier doesn't match, that's an error. In the future this
+			// should be made robust enough to prevent these errors from happening
+			if (SequenceGroupIndex == INDEX_NONE)
 			{
-				SearchIndex.Assets.Add(
-					FPoseSearchIndexAsset(
-						SequenceIdx,
-						true,
-						FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-				bAnyMirrored = true;
+				BadGroupSequenceIndices.Add(SequenceIdx);
+			}
+			else
+			{
+				GroupIndices.Add(SequenceGroupIndex);
+			}
+		}
+
+		if (GroupIndices.Num() == 0)
+		{
+			GroupIndices.Add(INDEX_NONE);
+		}
+
+		for (int32 GroupIndex : GroupIndices)
+		{
+			ValidRanges.Reset();
+			FindValidSequenceIntervals(Sequence, ValidRanges);
+			for (const FFloatRange& Range : ValidRanges)
+			{
+				if (bAddUnmirrored)
+				{
+					SearchIndex.Assets.Add(
+						FPoseSearchIndexAsset(
+							GroupIndex,
+							SequenceIdx,
+							false,
+							FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+				}
+
+				if (bAddMirrored)
+				{
+					SearchIndex.Assets.Add(
+						FPoseSearchIndexAsset(
+							GroupIndex,
+							SequenceIdx,
+							true,
+							FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+					bAnyMirrored = true;
+				}
 			}
 		}
 	}
@@ -1304,6 +1348,16 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets()
 			*GetNameSafe(Schema));
 		SearchIndex.Assets.Empty();
 		return false;
+	}
+
+	for (int32 BadGroupSequenceIdx : BadGroupSequenceIndices)
+	{
+		UE_LOG(
+			LogPoseSearch,
+			Warning,
+			TEXT("Database %s, sequence %s is asking for a group that doesn't exist"),
+			*GetNameSafe(this),
+			*GetNameSafe(Sequences[BadGroupSequenceIdx].Sequence));
 	}
 
 	return true;
@@ -3046,8 +3100,8 @@ void FSequenceIndexer::AddMetadata(int32 SampleIdx)
 
 	const bool bBlockTransition =
 		!Input.MainSequence->Input.bLoopable &&
-		(SampleTime < Input.BlockTransitionParameters.SequenceStartInterval || 
-		 SampleTime > SequenceLength - Input.BlockTransitionParameters.SequenceEndInterval);
+		(SampleTime < Input.RequestedSamplingRange.Min + Input.BlockTransitionParameters.SequenceStartInterval ||
+		 SampleTime > Input.RequestedSamplingRange.Max - Input.BlockTransitionParameters.SequenceEndInterval);
 
 	if (bBlockTransition)
 	{
@@ -4004,21 +4058,25 @@ FSearchResult Search(FSearchContext& SearchContext)
 	FPoseCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
 
-	for (int32 PoseIdx = 0; PoseIdx != SearchIndex->NumPoses; ++PoseIdx)
+	for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
 	{
-		const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
-
-		if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
+		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
 		{
-			continue;
-		}
+			const FPoseSearchPoseMetadata& Metadata = SearchIndex->PoseMetadata[PoseIdx];
 
-		FPoseCost PoseCost = ComparePoses(PoseIdx, SearchContext);
+			if (EnumHasAnyFlags(Metadata.Flags, EPoseSearchPoseFlags::BlockTransition))
+			{
+				continue;
+			}
 
-		if (PoseCost < BestPoseCost)
-		{
-			BestPoseCost = PoseCost;
-			BestPoseIdx = PoseIdx;
+			FPoseCost PoseCost = ComparePoses(PoseIdx, SearchContext, Asset.SourceGroupIdx);
+
+			if (PoseCost < BestPoseCost)
+			{
+				BestPoseCost = PoseCost;
+				BestPoseIdx = PoseIdx;
+			}
 		}
 	}
 
@@ -4061,7 +4119,8 @@ void ComputePoseCostAddends(
 	OutNotifyAddend = PoseMetadata.CostAddend;
 }
 
-FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
+
+FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx /* = INDEX_NONE */)
 {
 	FPoseCost Result;
 
@@ -4073,10 +4132,11 @@ FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
 
 	if (SearchContext.WeightsContext)
 	{
-		const FPoseSearchWeights* WeightsSet = SearchContext.WeightsContext->GetGroupWeights(0);
+		const FPoseSearchWeights* WeightsSet =
+			SearchContext.WeightsContext->GetGroupWeights(GroupIdx);
 		Result.Dissimilarity = CompareFeatureVectors(
-			PoseValues.Num(), 
-			PoseValues.GetData(), 
+			PoseValues.Num(),
+			PoseValues.GetData(),
 			SearchContext.QueryValues.GetData(),
 			WeightsSet->Weights.GetData());
 	}
@@ -4090,9 +4150,10 @@ FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext)
 	ComputePoseCostAddends(PoseIdx, SearchContext, NotifyAddend, MirrorMismatchAddend);
 	Result.CostAddend = NotifyAddend + MirrorMismatchAddend;
 	Result.TotalCost = Result.Dissimilarity + Result.CostAddend;
-	
+
 	return Result;
 }
+
 
 FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostDetails& OutPoseCostDetails)
 {
@@ -4117,7 +4178,9 @@ FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostDe
 	// Compute weighted squared difference vector
 	if (SearchContext.WeightsContext)
 	{
-		const FPoseSearchWeights* WeightsSet = SearchContext.WeightsContext->GetGroupWeights(0);
+		const FPoseSearchIndexAsset* SearchIndexAsset = SearchContext.GetSearchIndex()->FindAssetForPose(PoseIdx);
+		const FPoseSearchWeights* WeightsSet = 
+			SearchContext.WeightsContext->GetGroupWeights(SearchIndexAsset->SourceGroupIdx);
 		check(WeightsSet);
 		check(WeightsSet->Weights.Num() == Dims);
 		auto WeightsVector = Map<const ArrayXf>(WeightsSet->Weights.GetData(), Dims);

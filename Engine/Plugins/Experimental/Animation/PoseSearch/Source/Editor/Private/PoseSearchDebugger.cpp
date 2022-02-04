@@ -312,13 +312,18 @@ namespace DebuggerDatabaseColumns
 		virtual TSharedRef<SWidget> GenerateWidget(const FRowDataRef& RowData) const override
 		{
 			return SNew(SHyperlink)
-				.Text(FText::FromString(RowData->AnimSequenceName))
+				.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->AnimSequenceName); })
 				.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
-				.ToolTipText(FText::Format(LOCTEXT("AssetHyperlinkTooltipFormat", "Open asset '{0}'"), FText::FromString(RowData->AnimSequencePath)))
-				.OnNavigate_Lambda([AnimSequencePath = RowData->AnimSequencePath]()
-			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimSequencePath);
-			});
+				.ToolTipText_Lambda([RowData]() -> FText 
+					{ 
+						return FText::Format(
+							LOCTEXT("AssetHyperlinkTooltipFormat", "Open asset '{0}'"), 
+							FText::FromString(RowData->AnimSequencePath)); 
+					})
+				.OnNavigate_Lambda([RowData]()
+					{
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RowData->AnimSequencePath);
+					});
 		}
 	};
 	const FName FAnimSequenceName::Name = "Sequence";
@@ -1865,12 +1870,19 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 			break;
 		}
 	}
-	if (ActiveMotionMatchingState)
-	{
-		Skeletons[ActivePose].SequenceIdx = ActiveMotionMatchingState->DbPoseIdx;
-	}
 
 	const UPoseSearchDatabase* NewDatabase = GetPoseSearchDatabase();
+
+	if (ActiveMotionMatchingState)
+	{
+		//todo: this seems wrong, sequenceidx == poseidx? let's test doing it right
+		//Skeletons[ActivePose].SequenceIdx = ActiveMotionMatchingState->DbPoseIdx;
+
+		const FPoseSearchIndexAsset* Asset = 
+			NewDatabase->SearchIndex.FindAssetForPose(ActiveMotionMatchingState->DbPoseIdx);
+		Skeletons[ActivePose].SequenceIdx = Asset->SourceAssetIdx;
+	}
+
 	if (NewDatabase != CurrentDatabase)
 	{
 		ClearSelectedSkeleton();

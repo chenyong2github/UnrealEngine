@@ -40,7 +40,12 @@ public class PoseSearchEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"BlueprintGraph"
+				"BlueprintGraph",
+				"PropertyEditor",
+				"SlateCore",
+				"Slate",
+				"EditorStyle",
+				"DetailCustomizations"
 			}
 		);
 	}

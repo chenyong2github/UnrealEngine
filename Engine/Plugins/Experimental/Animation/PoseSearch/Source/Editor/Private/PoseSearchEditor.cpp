@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchEditor.h"
+#include "PoseSearchCustomization.h"
 #include "Animation/AnimSequence.h"
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
+#include "PropertyEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "IAnimationEditor.h"
 #include "IPersonaToolkit.h"
@@ -70,6 +72,18 @@ private:
 	TSharedPtr<FDebuggerViewCreator> DebuggerViewCreator;
 	/** Enables dedicated PoseSearch trace module */
 	TSharedPtr<FTraceModule> TraceModule;
+	
+private:
+	void RegisterPropertyTypeCustomizations();
+	void RegisterObjectCustomizations();
+	void UnregisterCustomizations();
+	void RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate);
+	void RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate);
+
+private:
+	/** List of registered class that we must unregister when the module shuts down */
+	TSet<FName> RegisteredClassNames;
+	TSet<FName> RegisteredPropertyTypes;
 };
 
 void FEditorModule::StartupModule()
@@ -90,6 +104,14 @@ void FEditorModule::StartupModule()
 			ECVF_Default
 		));
 	}
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	RegisterPropertyTypeCustomizations();
+	RegisterObjectCustomizations();
+
+	PropertyModule.NotifyCustomizationModuleChanged();
+
 }
 
 void FEditorModule::ShutdownModule()
@@ -100,9 +122,75 @@ void FEditorModule::ShutdownModule()
 	}
 	ConsoleCommands.Empty();
 	
+	UnregisterCustomizations();
+	
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
 	FDebugger::Shutdown();
 }
+
+void FEditorModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
+{
+	check(ClassName != NAME_None);
+
+	RegisteredClassNames.Add(ClassName);
+
+	static FName PropertyEditor("PropertyEditor");
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+	PropertyModule.RegisterCustomClassLayout(ClassName, DetailLayoutDelegate);
+}
+
+
+void FEditorModule::RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate)
+{
+	check(PropertyTypeName != NAME_None);
+
+	RegisteredPropertyTypes.Add(PropertyTypeName);
+
+	static FName PropertyEditor("PropertyEditor");
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+	PropertyModule.RegisterCustomPropertyTypeLayout(PropertyTypeName, PropertyTypeLayoutDelegate);
+}
+
+
+void FEditorModule::RegisterPropertyTypeCustomizations()
+{
+	RegisterCustomPropertyTypeLayout("PoseSearchDatabaseSequence", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPoseSearchDatabaseSequenceCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout("PoseSearchDatabaseGroup", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPoseSearchDatabaseGroupCustomization::MakeInstance));
+}
+
+void FEditorModule::RegisterObjectCustomizations()
+{
+//	RegisterCustomClassLayout("PoseSearchDatabase", FOnGetDetailCustomizationInstance::CreateStatic(&FPoseSearchDatabaseDetails::MakeInstance));
+}
+
+void FEditorModule::UnregisterCustomizations()
+{
+	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		// Unregister all classes customized by name
+		for (auto It = RegisteredClassNames.CreateConstIterator(); It; ++It)
+		{
+			if (It->IsValid())
+			{
+				PropertyModule.UnregisterCustomClassLayout(*It);
+			}
+		}
+
+		// Unregister all structures
+		for (auto It = RegisteredPropertyTypes.CreateConstIterator(); It; ++It)
+		{
+			if (It->IsValid())
+			{
+				PropertyModule.UnregisterCustomPropertyTypeLayout(*It);
+			}
+		}
+
+		PropertyModule.NotifyCustomizationModuleChanged();
+	}
+}
+
 
 }} // namespace UE::PoseSearch
 

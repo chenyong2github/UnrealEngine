@@ -328,11 +328,19 @@ public:
 	FPoseSearchIndexAsset()
 	{}
 
-	FPoseSearchIndexAsset(int32 InSourceAssetIdx, bool bInMirrored, const FFloatInterval& InSamplingInterval)
-		: SourceAssetIdx(InSourceAssetIdx)
+	FPoseSearchIndexAsset(
+		int32 InSourceGroupIdx, 
+		int32 InSourceAssetIdx, 
+		bool bInMirrored, 
+		const FFloatInterval& InSamplingInterval)
+		: SourceGroupIdx(InSourceGroupIdx)
+		, SourceAssetIdx(InSourceAssetIdx)
 		, bMirrored(bInMirrored)
 		, SamplingInterval(InSamplingInterval)
 	{}
+
+	UPROPERTY()
+	int32 SourceGroupIdx = INDEX_NONE;
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
 	UPROPERTY()
@@ -598,6 +606,9 @@ private:
 	FPoseSearchDynamicWeightParams DynamicWeights;
 
 	UPROPERTY(Transient)
+	FPoseSearchWeights ComputedDefaultGroupWeights;
+
+	UPROPERTY(Transient)
 	TArray<FPoseSearchWeights> ComputedGroupWeights;
 };
 
@@ -650,7 +661,22 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopFollowUpAnimation = false;
 
+	UPROPERTY(EditAnywhere, Category = "Group")
+	TArray<FName> Groups;
+
 	FFloatInterval GetEffectiveSamplingRange() const;
+};
+
+USTRUCT()
+struct POSESEARCH_API FPoseSearchDatabaseGroup
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = "Database")
+	FName Name;
+
+	UPROPERTY(EditAnywhere, Category = "Database")
+	FPoseSearchWeightParams Weights;
 };
 
 /** A data asset for indexing a collection of animation sequences. */
@@ -664,7 +690,7 @@ public:
 	const UPoseSearchSchema* Schema;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchWeightParams Weights;
+	FPoseSearchWeightParams DefaultWeights;
 
 	// If there's a mirroring mismatch between the currently playing sequence and a search candidate, this cost will be 
 	// added to the candidate, making it less likely to be selected
@@ -676,6 +702,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchBlockTransitionParameters BlockTransitionParameters;
+
+	UPROPERTY(EditAnywhere, Category = "Database")
+	TArray<FPoseSearchDatabaseGroup> Groups;
 
 	// Drag and drop animations here to add them in bulk to Sequences
 	UPROPERTY(EditAnywhere, Category = "Database", DisplayName="Drag And Drop Anims Here")
@@ -699,7 +728,6 @@ public:
 	const FPoseSearchDatabaseSequence& GetSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 
 public: // UObject
-
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 #if WITH_EDITOR
@@ -983,18 +1011,18 @@ POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
 */
 POSESEARCH_API FSearchResult Search(FSearchContext& SearchContext);
 
+
 /**
 * Evaluate pose comparison metric between a pose in the search index and an input query
-* 
-* @param SearchIndex	The search index containing the pose to compare to the query
-* @param PoseIdx		The index of the pose in the search index to compare to the query
-* @param SearchContext	Structure containing search parameters
-* 
+*
+* @param PoseIdx			The index of the pose in the search index to compare to the query
+* @param SearchContext		Structure containing search parameters
+* @param GroupIdx			Indicated which weight to use when evaluating dissimilarity
+*
 * @return Dissimilarity between the two poses
 */
 
-POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext);
-
+POSESEARCH_API FPoseCost ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, int32 GroupIdx = INDEX_NONE);
 
 /**
  * Cost details for pose analysis in the rewind debugger
