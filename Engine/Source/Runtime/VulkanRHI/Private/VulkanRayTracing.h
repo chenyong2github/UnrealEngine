@@ -102,7 +102,7 @@ private:
 class FVulkanRayTracingScene : public FRHIRayTracingScene
 {
 public:
-	FVulkanRayTracingScene(FRayTracingSceneInitializer2 Initializer, FVulkanDevice* InDevice, FVulkanResourceMultiBuffer* InInstanceBuffer);
+	FVulkanRayTracingScene(FRayTracingSceneInitializer2 Initializer, FVulkanDevice* InDevice);
 	~FVulkanRayTracingScene();
 
 	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
@@ -124,8 +124,6 @@ private:
 	FVulkanDevice* const Device = nullptr;
 
 	const FRayTracingSceneInitializer2 Initializer;
-
-	TRefCountPtr<FVulkanResourceMultiBuffer> InstanceBuffer;
 
 	// Native TLAS handles are owned by SRV objects in Vulkan RHI.
 	// D3D12 and other RHIs allow creating TLAS SRVs from any GPU address at any point

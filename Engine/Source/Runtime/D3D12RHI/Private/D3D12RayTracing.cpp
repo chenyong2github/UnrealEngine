@@ -3237,160 +3237,13 @@ void FD3D12DynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTr
 	}
 }
 
-// This code path is deprecated and will be removed in the next release. Please use FRayTracingSceneInitializer2 instead.
-FRayTracingSceneRHIRef FD3D12DynamicRHI::RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(CreateRayTracingScene);
-
-	const uint32 NumSceneInstances = Initializer.Instances.Num();
-
-	FRayTracingSceneInitializer2 Initializer2;
-	Initializer2.DebugName = Initializer.DebugName;
-	Initializer2.ShaderSlotsPerGeometrySegment = Initializer.ShaderSlotsPerGeometrySegment;
-	Initializer2.NumMissShaderSlots = Initializer.NumMissShaderSlots;
-	Initializer2.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
-	Initializer2.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer2.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer2.NumNativeInstances = 0;
-	Initializer2.NumTotalSegments = 0;
-
-	TArray<uint32> PerInstanceNumTransforms;
-	PerInstanceNumTransforms.SetNumUninitialized(NumSceneInstances);
-
-	Experimental::TSherwoodSet<FRHIRayTracingGeometry*> UniqueGeometries;
-
-	for (uint32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
-	{
-		const FRayTracingGeometryInstance& InstanceDesc = Initializer.Instances[InstanceIndex];
-
-		if (InstanceDesc.GPUTransformsSRV || !InstanceDesc.InstanceSceneDataOffsets.IsEmpty())
-		{
-			static bool bLogged = false; // Only log once
-			if (!bLogged)
-			{
-				bLogged = true;
-				UE_LOG(LogRHI, Warning,
-					TEXT("GPUScene and GPUTransformsSRV instances are not supported in FRayTracingSceneInitializer code path.\n")
-					TEXT("Use FRayTracingSceneInitializer2 and BuildRayTracingInstanceBuffer instead."));
-			}
-		}
-		else
-		{
-			checkf(InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
-				TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
-				InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
-		}
-
-		checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-
-		Initializer2.PerInstanceGeometries[InstanceIndex] = InstanceDesc.GeometryRHI;
-
-		// Compute geometry segment count prefix sum to be later used in GetHitRecordBaseIndex()
-		Initializer2.SegmentPrefixSum[InstanceIndex] = Initializer2.NumTotalSegments;
-		Initializer2.NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
-
-		bool bIsAlreadyInSet = false;
-		UniqueGeometries.Add(InstanceDesc.GeometryRHI, &bIsAlreadyInSet);
-		if (!bIsAlreadyInSet)
-		{
-			Initializer2.ReferencedGeometries.Add(InstanceDesc.GeometryRHI);
-		}
-
-		Initializer2.BaseInstancePrefixSum[InstanceIndex] = Initializer2.NumNativeInstances;
-		Initializer2.NumNativeInstances += InstanceDesc.NumTransforms;
-
-		PerInstanceNumTransforms[InstanceIndex] = InstanceDesc.NumTransforms;
-	}
-
-	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> NativeInstances;
-	NativeInstances.SetAllowCPUAccess(true);
-	NativeInstances.SetNumUninitialized(Initializer2.NumNativeInstances);
-
-	const EParallelForFlags ParallelForFlags = EParallelForFlags::None; // set ForceSingleThread for testing
-	ParallelFor(NumSceneInstances, [&Initializer2, Instances = Initializer.Instances, &NativeInstances](int32 InstanceIndex)
-		{
-			const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
-			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Initializer2.PerInstanceGeometries[InstanceIndex]);
-
-			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
-			check(InstanceDesc.AccelerationStructure == 0);
-
-			InstanceDesc.InstanceMask = Instance.Mask;
-			InstanceDesc.InstanceContributionToHitGroupIndex = Initializer2.SegmentPrefixSum[InstanceIndex] * Initializer2.ShaderSlotsPerGeometrySegment;
-			InstanceDesc.Flags = TranslateRayTracingInstanceFlags(Instance.Flags);
-
-			const uint32 NumTransforms = Instance.NumTransforms;
-
-			checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() >= int32(NumTransforms),
-				TEXT("User data array must be either be empty (Instance.DefaultUserData is used), or contain one entry per entry in Transforms array."));
-
-			const bool bUseUniqueUserData = Instance.UserData.Num() != 0;
-
-			uint32 DescIndex = Initializer2.BaseInstancePrefixSum[InstanceIndex];
-
-			int32 NumInactiveDxrInstancesThisSceneInstance = 0;
-
-			for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
-			{
-				InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : Instance.DefaultUserData;
-
-				// Set flag for deactivated instances
-				if (!Instance.ActivationMask.IsEmpty())
-				{
-					if ((Instance.ActivationMask[TransformIndex / 32] & (1 << (TransformIndex % 32))) == 0)
-					{
-						InstanceDesc.AccelerationStructure = 0xFFFFFFFFFFFFFFFF;
-						NumInactiveDxrInstancesThisSceneInstance++;
-					}
-					else
-					{
-						InstanceDesc.AccelerationStructure = 0;
-					}
-				}
-
-				if (TransformIndex < (uint32)Instance.Transforms.Num())
-				{
-					// DXR uses a 3x4 transform matrix in row major layout
-
-					const FMatrix& Transform = Instance.Transforms[TransformIndex];
-
-					InstanceDesc.Transform[0][0] = Transform.M[0][0];
-					InstanceDesc.Transform[0][1] = Transform.M[1][0];
-					InstanceDesc.Transform[0][2] = Transform.M[2][0];
-					InstanceDesc.Transform[0][3] = Transform.M[3][0];
-
-					InstanceDesc.Transform[1][0] = Transform.M[0][1];
-					InstanceDesc.Transform[1][1] = Transform.M[1][1];
-					InstanceDesc.Transform[1][2] = Transform.M[2][1];
-					InstanceDesc.Transform[1][3] = Transform.M[3][1];
-
-					InstanceDesc.Transform[2][0] = Transform.M[0][2];
-					InstanceDesc.Transform[2][1] = Transform.M[1][2];
-					InstanceDesc.Transform[2][2] = Transform.M[2][2];
-					InstanceDesc.Transform[2][3] = Transform.M[3][2];
-				}
-				else
-				{
-					FMemory::Memset(&InstanceDesc.Transform, 0, sizeof(InstanceDesc.Transform));
-				}
-
-				NativeInstances[DescIndex] = InstanceDesc;
-				++DescIndex;
-			}
-		}, ParallelForFlags);
-
-	FD3D12Adapter& Adapter = GetAdapter();
-
-	return new FD3D12RayTracingScene(&Adapter, MoveTemp(Initializer2), MoveTemp(NativeInstances), MoveTemp(PerInstanceNumTransforms));
-}
-
 FRayTracingSceneRHIRef FD3D12DynamicRHI::RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateRayTracingScene);
 
 	FD3D12Adapter& Adapter = GetAdapter();
 
-	return new FD3D12RayTracingScene(&Adapter, MoveTemp(Initializer), {}, {});
+	return new FD3D12RayTracingScene(&Adapter, MoveTemp(Initializer));
 }
 
 FBufferRHIRef FD3D12RayTracingGeometry::NullTransformBuffer;
@@ -4077,8 +3930,8 @@ void FD3D12RayTracingGeometry::CompactAccelerationStructure(FD3D12CommandContext
 	RegisterD3D12RayTracingGeometry(this);
 }
 
-FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 InInitializer, TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> InInstances, TArray<uint32> InPerInstanceNumTransforms)
-	: FD3D12AdapterChild(Adapter), Initializer(MoveTemp(InInitializer)), Instances(MoveTemp(InInstances)), PerInstanceNumTransforms(MoveTemp(InPerInstanceNumTransforms))
+FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 InInitializer)
+	: FD3D12AdapterChild(Adapter), Initializer(MoveTemp(InInitializer))
 {
 	INC_DWORD_STAT(STAT_D3D12RayTracingAllocatedTLAS);
 
@@ -4152,6 +4005,8 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 	FD3D12Buffer* ScratchBuffer, uint32 ScratchBufferOffset,
 	FD3D12Buffer* InstanceBuffer, uint32 InstanceBufferOffset)
 {
+	check(InstanceBuffer != nullptr);
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAccelerationStructure_TopLevel);
 	SCOPE_CYCLE_COUNTER(STAT_D3D12BuildTLAS);
 
@@ -4195,8 +4050,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 			PrebuildInfo.ScratchDataSizeInBytes,
 			BuildInputs.NumDescs, Initializer.NumNativeInstances, Initializer.PerInstanceGeometries.Num());
 
-	TRefCountPtr<FD3D12Buffer> AutoInstanceBuffer;
-
 	if (BuildInputs.NumDescs)
 	{
 		// - Set up acceleration structure pointers and make them resident.
@@ -4206,8 +4059,6 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		HitGroupSystemParametersCache.Empty(Initializer.NumTotalSegments);
 
 		{
-			int32 NativeInstanceIndex = 0;
-
 			const int32 NumSceneInstances = Initializer.PerInstanceGeometries.Num();
 			for (int32 InstanceIndex = 0; InstanceIndex < NumSceneInstances; ++InstanceIndex)
 			{
@@ -4216,57 +4067,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 				// make a copy of system parameters to they can optimized fetch during SBT building (only done for GPU0)
 				check(Geometry->HitGroupSystemParameters[0].Num() > 0);
 				HitGroupSystemParametersCache.Append(Geometry->HitGroupSystemParameters[0]);
-
-				if (InstanceBuffer == nullptr)
-				{
-					D3D12_GPU_VIRTUAL_ADDRESS BlasAddress = Geometry->AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
-
-					const int32 NumTransforms = PerInstanceNumTransforms[InstanceIndex];
-					for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
-					{
-						// If this instance has been deactivated, set BLAS address to 0
-						if (Instances[NativeInstanceIndex].AccelerationStructure == 0xFFFFFFFFFFFFFFFF)
-						{
-							Instances[NativeInstanceIndex].AccelerationStructure = 0;
-						}
-						else
-						{
-							Instances[NativeInstanceIndex].AccelerationStructure = BlasAddress;
-						}
-
-						NativeInstanceIndex++;
-					}
-				}
 			}
-		}
-
-		if (InstanceBuffer == nullptr)
-		{
-			check(Instances.Num() == BuildInputs.NumDescs);
-
-			D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-				sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * BuildInputs.NumDescs,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-			ED3D12ResourceTransientMode TransientMode = ED3D12ResourceTransientMode::NonTransient;
-			ID3D12ResourceAllocator* ResourceAllocator = nullptr;
-			FRHIGPUMask GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-			bool bHasInitialData = true;
-
-			AutoInstanceBuffer = Adapter->CreateRHIBuffer(
-				InstanceBufferDesc, D3D12_RAYTRACING_INSTANCE_DESCS_BYTE_ALIGNMENT,
-				sizeof(D3D12_RAYTRACING_INSTANCE_DESC), InstanceBufferDesc.Width, BUF_UnorderedAccess, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_COPY_DEST,
-				bHasInitialData, GPUMask, TransientMode, ResourceAllocator, TEXT("InstanceBuffer"));
-
-			// Use copy queue for uploading the data
-			FD3D12SyncPoint CopyQueueSyncPoint = AutoInstanceBuffer->UploadResourceDataViaCopyQueue(&Instances);
-			CommandContext.CopyQueueSyncPoint.Merge(CopyQueueSyncPoint);
-
-			InstanceBuffer = AutoInstanceBuffer.GetReference();
-			InstanceBufferOffset = 0;
-
-			FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, InstanceBuffer->GetResource(),
-				D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 		}
 
 		InstanceBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
@@ -4342,7 +4143,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC BuildDesc = {};
 	BuildDesc.Inputs = BuildInputs;
-	BuildDesc.Inputs.InstanceDescs = InstanceBuffer ? InstanceBuffer->ResourceLocation.GetGPUVirtualAddress() + InstanceBufferOffset : D3D12_GPU_VIRTUAL_ADDRESS(0);
+	BuildDesc.Inputs.InstanceDescs = InstanceBuffer->ResourceLocation.GetGPUVirtualAddress() + InstanceBufferOffset;
 	BuildDesc.DestAccelerationStructureData = AccelerationStructureBuffer->ResourceLocation.GetGPUVirtualAddress() + BufferOffset;
 	BuildDesc.ScratchAccelerationStructureData = ScratchAddress;
 	BuildDesc.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS(0); // Null source TLAS as this is a build command

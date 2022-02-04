@@ -2077,33 +2077,6 @@ enum class ERayTracingAccelerationStructureFlags
 };
 ENUM_CLASS_FLAGS(ERayTracingAccelerationStructureFlags);
 
-struct FRayTracingSceneInitializer
-{
-	TArrayView<FRayTracingGeometryInstance> Instances;
-
-	// This value controls how many elements will be allocated in the shader binding table per geometry segment.
-	// Changing this value allows different hit shaders to be used for different effects.
-	// For example, setting this to 2 allows one hit shader for regular material evaluation and a different one for shadows.
-	// Desired hit shader can be selected by providing appropriate RayContributionToHitGroupIndex to TraceRay() function.
-	// Use ShaderSlot argument in SetRayTracingHitGroup() to assign shaders and resources for specific part of the shder binding table record.
-	uint32 ShaderSlotsPerGeometrySegment = 1;
-
-	// Defines how many different callable shaders with unique resource bindings can be bound to this scene.
-	// Shaders and resources are assigned to slots in the scene using SetRayTracingCallableShader().
-	uint32 NumCallableShaderSlots = 0;
-
-	// At least one miss shader must be present in a ray tracing scene.
-	// Default miss shader is always in slot 0. Default shader must not use local resources.
-	// Custom miss shaders can be bound to other slots using SetRayTracingMissShader().
-	uint32 NumMissShaderSlots = 1;
-
-	// Defines whether data in this scene should persist between frames.
-	// Currently only single-frame lifetime is supported.
-	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
-
-	FName DebugName;
-};
-
 struct FRayTracingSceneInitializer2
 {
 	// Unique list of geometries referenced by all instances in this scene.

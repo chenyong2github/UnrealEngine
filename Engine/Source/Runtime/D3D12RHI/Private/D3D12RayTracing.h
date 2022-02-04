@@ -98,7 +98,7 @@ public:
 	// Scaling beyond 5 total threads does not yield any speedup in practice.
 	static constexpr uint32 MaxBindingWorkers = 5; // RHI thread + 4 parallel workers.
 
-	FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 Initializer, TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances, TArray<uint32> PerInstanceNumTransforms);
+	FD3D12RayTracingScene(FD3D12Adapter* Adapter, FRayTracingSceneInitializer2 Initializer);
 	~FD3D12RayTracingScene();
 
 	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
@@ -121,9 +121,6 @@ public:
 	FRayTracingAccelerationStructureSize SizeInfo = {};
 
 	const FRayTracingSceneInitializer2 Initializer;
-
-	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
-	TArray<uint32> PerInstanceNumTransforms;
 
 	// Scene keeps track of child acceleration structure buffers to ensure
 	// they are resident when any ray tracing work is dispatched.

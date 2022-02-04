@@ -1689,13 +1689,6 @@ public:
 		return Result;
 	}
 
-	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer) override final
-	{
-		FRayTracingSceneRHIRef Result = RHI->RHICreateRayTracingScene(Initializer);
-		Result->InitBarrierTracking(ERHIAccess::BVHWrite, *Initializer.DebugName.ToString()); // BVHs are always created in BVHWrite state
-		return Result;
-	}
-
 	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer) override final
 	{
 		FName DebugName = Initializer.DebugName;

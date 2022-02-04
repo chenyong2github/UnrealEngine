@@ -1289,12 +1289,6 @@ public:
 		checkNoEntry();
 		return nullptr;
 	}
-
-	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
-	{
-		checkNoEntry();
-		return nullptr;
-	}
 	
 	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer)
 	{
@@ -1619,12 +1613,6 @@ FORCEINLINE FRayTracingAccelerationStructureSize RHICalcRayTracingGeometrySize(c
 FORCEINLINE FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 {
 	return GDynamicRHI->RHICreateRayTracingGeometry(Initializer);
-}
-
-UE_DEPRECATED(5.0, "This version of RHICreateRayTracingScene is deprecated. FRayTracingSceneInitializer2 should be used instead.")
-FORCEINLINE FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
-{
-	return GDynamicRHI->RHICreateRayTracingScene(Initializer);
 }
 
 FORCEINLINE FRayTracingSceneRHIRef RHICreateRayTracingScene(FRayTracingSceneInitializer2 Initializer)
