@@ -128,7 +128,7 @@ inline void UpdateSleepState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Par
 				const FRigidTransform3 ParticleWorldTransform = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(IslandParticle));
 				for (const TUniquePtr<FPerShapeData>& Shape : IslandParticle->ShapesArray())
 				{
-					const FRigidTransform3 ShapeWorldTransform = Shape->GetLeafRelativeTransform() * ParticleWorldTransform;
+					const FRigidTransform3 ShapeWorldTransform = (FRigidTransform3)Shape->GetLeafRelativeTransform() * ParticleWorldTransform;
 					Shape->SetLeafWorldTransform(ShapeWorldTransform);
 				}
 

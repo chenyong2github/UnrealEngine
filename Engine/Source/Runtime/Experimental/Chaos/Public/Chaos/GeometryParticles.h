@@ -98,6 +98,7 @@ namespace Chaos
 
 		// The world-space transform of the leaf geometry (from the last call to UpdateWorldSpaceState)
 		const FRigidTransform3& GetLeafWorldTransform() const { return LeafWorldTransform; }
+		void SetLeafWorldTransform(const FRigidTransform3& InTransform) { LeafWorldTransform = InTransform; }
 
 		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
 		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
