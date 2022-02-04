@@ -1233,6 +1233,19 @@ void FFractureEditorModeToolkit::ExecuteAction(UFractureActionTool* InActionTool
 	if (InActionTool)
 	{
 		InActionTool->Execute(StaticCastSharedRef<FFractureEditorModeToolkit>(AsShared()));
+
+		InvalidateHitProxies();
+	}
+}
+
+void FFractureEditorModeToolkit::InvalidateHitProxies()
+{
+	if (GIsEditor)
+	{
+		for (FEditorViewportClient* Viewport : GEditor->GetLevelViewportClients())
+		{
+			Viewport->Invalidate();
+		}
 	}
 }
 

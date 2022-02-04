@@ -184,6 +184,9 @@ protected:
 
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
+	// Invalidate the hit proxies for all level viewports; we need to do this after updating geometry collection(s)
+	void InvalidateHitProxies();
+
 private:
 	static void UpdateGeometryComponentAttributes(UGeometryCollectionComponent* Component);
 
