@@ -258,14 +258,14 @@ namespace Chaos
 				}
 				else
 				{
-					const VectorRegister BodyV0 = VectorLoadFloat3(&Body0->V());
-					const VectorRegister BodyW0 = VectorLoadFloat3(&Body0->W());
-					const VectorRegister BodyV1 = VectorLoadFloat3(&Body1->V());
-					const VectorRegister BodyW1 = VectorLoadFloat3(&Body1->W());
-					const VectorRegister ContactVel0 = VectorAdd(BodyV0, VectorCross(BodyW0, RelativeContactPosition0));
-					const VectorRegister ContactVel1 = VectorAdd(BodyV1, VectorCross(BodyW1, RelativeContactPosition1));
-					const SolverVectorRegister ContactVel = MakeVectorRegisterFloatFromDouble(VectorSubtract(ContactVel0, ContactVel1));
-					WorldFrictionDelta = VectorMultiply(ContactVel, VectorSetFloat1(Dt));
+					//const VectorRegister BodyV0 = VectorLoadFloat3(&Body0->V());
+					//const VectorRegister BodyW0 = VectorLoadFloat3(&Body0->W());
+					//const VectorRegister BodyV1 = VectorLoadFloat3(&Body1->V());
+					//const VectorRegister BodyW1 = VectorLoadFloat3(&Body1->W());
+					//const VectorRegister ContactVel0 = VectorAdd(BodyV0, VectorCross(BodyW0, RelativeContactPosition0));
+					//const VectorRegister ContactVel1 = VectorAdd(BodyV1, VectorCross(BodyW1, RelativeContactPosition1));
+					//const SolverVectorRegister ContactVel = MakeVectorRegisterFloatFromDouble(VectorSubtract(ContactVel0, ContactVel1));
+					//WorldFrictionDelta = VectorMultiply(ContactVel, VectorSetFloat1(Dt));
 
 					ManifoldPoint.ShapeAnchorPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
 					ManifoldPoint.ShapeAnchorPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
