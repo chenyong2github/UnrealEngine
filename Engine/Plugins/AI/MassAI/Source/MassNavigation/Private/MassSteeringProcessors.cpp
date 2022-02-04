@@ -244,15 +244,15 @@ void UMassSteerToMoveTargetProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 					if (StandingSteering.bEnteredFromMoveAction)
 					{
 						// If the current steering target is from approaching a move target, use the same speed logic as movement to ensure smooth transition.
-						const float SpeedFade = FMath::Clamp(Distance / LookAheadDistance, 0.0f, 1.0f);
+						const float Range = FMath::Max(1.0f, LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
+						const float SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0.0f, 1.0f);
 						DesiredSpeed = MoveTarget.DesiredSpeed.Get() * UE::MassNavigation::CalcDirectionalSpeedScale(CurrentForward, SteerDirection) * UE::MassNavigation::ArrivalSpeedEnvelope(SpeedFade);
 					}
 					else
 					{
-						// More aggressive movement when doing adjustments.
-						const float AdjustmentLookAheadDistance = LookAheadDistance * 0.5f;
-						// Intentionally not taking dead zone into account here, so that the speed does not drop to zero.
-						const float SpeedFade = FMath::Clamp(Distance / AdjustmentLookAheadDistance, 0.0f, 1.0f);
+						const float Range = FMath::Max(1.0f, LookAheadDistance - StandingSteeringParams.DeadZoneRadius);
+						const float SpeedFade = FMath::Clamp((Distance - StandingSteeringParams.DeadZoneRadius) / Range, 0.0f, 1.0f);
+						// Not using the directional scaling so that the steps we take to avoid are done quickly, and the behavior is reactive.
 						DesiredSpeed = MoveTarget.DesiredSpeed.Get() * UE::MassNavigation::ArrivalSpeedEnvelope(SpeedFade);
 					}
 					

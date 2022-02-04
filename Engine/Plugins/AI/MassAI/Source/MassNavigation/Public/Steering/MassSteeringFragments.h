@@ -93,5 +93,5 @@ struct FMassStandingSteeringParameters : public FMassSharedFragment
 	float TargetSelectionCooldownVariance = 0.5f;
 
 	UPROPERTY(EditAnywhere, Category = "Standing", meta = (ForceUnits="cm"))
-	float DeadZoneRadius = 5.0f;
+	float DeadZoneRadius = 15.0f;
 };
