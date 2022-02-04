@@ -397,19 +397,15 @@ namespace Audio
 		{
 			RuntimeFormat = Audio::NAME_ADPCM;
 		}
-		else if (InRuntimeFormat == Audio::NAME_BINKA)
-		{
-			return new FBinkAudioInfo();
-		}
 
 		return RuntimeFormat;
 	}
 
-	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FName& InRuntimeFormat) const
+	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(const FName& InRuntimeFormat) const
 	{
 		ICompressedAudioInfo* Decoder = nullptr;
 
-		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
+		if (InRuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
 		{
 			Decoder = new FADPCMAudioInfo();
 		}	

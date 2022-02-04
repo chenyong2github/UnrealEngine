@@ -249,9 +249,7 @@ private:
 	// Used to support adpcm streaming
 	virtual bool HasCompressedAudioInfoClass(USoundWave* SoundWave) override { return true; }
 
-	virtual bool SupportsRealtimeDecompression() const override { return true; }
-	
-	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FName& InRuntimeFormat) const override;
+	virtual bool SupportsRealtimeDecompression() const override { return true; }	
 
 	void HandleError(const TCHAR* InLogOutput, bool bTeardown = false);
 

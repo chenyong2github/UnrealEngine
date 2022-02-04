@@ -31,8 +31,6 @@ FIOSAudioSoundBuffer::FIOSAudioSoundBuffer(FIOSAudioDevice* InAudioDevice, USoun
 {
 	if (!bIsProcedural)
 	{
-		DecompressionState = static_cast<FADPCMAudioInfo*>(InAudioDevice->CreateCompressedAudioInfo(InWave));
-
 		if (!ReadCompressedInfo(InWave))
 		{
 			return;
