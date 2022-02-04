@@ -319,7 +319,7 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 #if WITH_COTF
 				if (CookOnTheFlyServerConnection)
 				{
-					return MakeCookOnTheFlyPackageStore(*CookOnTheFlyServerConnection.Get());
+					return MakeShared<FCookOnTheFlyPackageStore>(*CookOnTheFlyServerConnection.Get());
 				}
 				else
 #endif
