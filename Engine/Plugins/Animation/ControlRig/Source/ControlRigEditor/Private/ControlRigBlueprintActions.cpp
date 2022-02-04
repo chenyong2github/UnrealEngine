@@ -30,6 +30,7 @@
 #include "EditorModeManager.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "SBlueprintDiff.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintActions"
 
