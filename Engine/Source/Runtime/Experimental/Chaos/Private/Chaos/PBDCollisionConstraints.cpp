@@ -580,6 +580,8 @@ namespace Chaos
 		SolverBody1->SetLevel(Particle1Level);
 
 		Constraint.SetSolverBodies(SolverBody0, SolverBody1);
+
+		Constraint.AccumulatedImpulse = FVec3(0);
 	}
 
 	void FPBDCollisionConstraints::LegacyScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
