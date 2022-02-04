@@ -198,13 +198,15 @@ bool FScalableFloat::operator!=(const FScalableFloat& Other) const
 	return ((Other.Curve != Curve) || (Other.RegistryType != RegistryType) || (Other.Value != Value));
 }
 
-void FScalableFloat::operator=(const FScalableFloat& Src)
+FScalableFloat& FScalableFloat::operator=(const FScalableFloat& Src)
 {
 	Value = Src.Value;
 	Curve = Src.Curve;
 	RegistryType = Src.RegistryType;
 	LocalCachedCurveID = Src.LocalCachedCurveID;
 	CachedCurve = Src.CachedCurve;
+
+	return *this;
 }
 
 
