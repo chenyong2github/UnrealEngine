@@ -45,6 +45,7 @@ public class IntelTBB : ModuleRules
 				if (Target.Platform != UnrealTargetPlatform.HoloLens)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
+					RuntimeDependencies.Add(Path.Combine(LibDirTBB, "tbb_debug.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 			else
@@ -54,6 +55,7 @@ public class IntelTBB : ModuleRules
 				if (Target.Platform != UnrealTargetPlatform.HoloLens)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
+					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "tbb.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 		}
