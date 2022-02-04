@@ -395,7 +395,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 							SAssignNew(PathFavoriteSplitterPtr, SSplitter)
 							.Clipping(EWidgetClipping::ClipToBounds)
 							.PhysicalSplitterHandleSize(2.0f)
-							.HitDetectionSplitterHandleSize(5.0f)
+							.HitDetectionSplitterHandleSize(8.0f)
 							.Orientation(EOrientation::Orient_Vertical)
 							.MinimumSlotHeight(26.0f)
 							.Visibility( this, &SContentBrowser::GetSourcesViewVisibility )
