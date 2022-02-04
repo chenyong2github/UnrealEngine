@@ -21,6 +21,9 @@
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
+#include "Materials/MaterialExpressionTime.h"
+#include "Materials/MaterialExpressionDeltaTime.h"
+#include "Materials/MaterialExpressionPanner.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
@@ -140,6 +143,7 @@ bool UMaterialExpressionStaticBoolParameter::GenerateHLSLExpression(FMaterialHLS
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::StaticSwitch, ParameterName, (bool)DefaultValue);
 	return true;
 }
+
 bool UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::EExternalInput InputType = UE::HLSLTree::EExternalInput::None;
@@ -154,6 +158,86 @@ bool UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGener
 	}
 
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(InputType);
+	return true;
+}
+
+bool UMaterialExpressionTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	if (bOverride_Period && Period == 0.0f)
+	{
+		OutExpression = Generator.NewConstant(0.0f);
+		return true;
+	}
+
+	EExternalInput InputType = bIgnorePause ? EExternalInput::RealTime : EExternalInput::GameTime;
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(InputType);
+	if (bOverride_Period)
+	{
+		OutExpression = Generator.GetTree().NewFmod(OutExpression, Generator.NewConstant(Period));
+	}
+	return true;
+}
+
+bool UMaterialExpressionDeltaTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::EExternalInput::DeltaTime);
+	return true;
+}
+
+bool UMaterialExpressionPanner::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+#if 0
+	int32 TimeArg = Time.GetTracedInput().Expression ? Time.Compile(Compiler) : Compiler->GameTime(false, 0.0f);
+	bool bIsSpeedExpressionValid = Speed.GetTracedInput().Expression != nullptr;
+	int32 SpeedVectorArg = bIsSpeedExpressionValid ? Speed.Compile(Compiler) : INDEX_NONE;
+	int32 SpeedXArg = bIsSpeedExpressionValid ? Compiler->ComponentMask(SpeedVectorArg, true, false, false, false) : Compiler->Constant(SpeedX);
+	int32 SpeedYArg = bIsSpeedExpressionValid ? Compiler->ComponentMask(SpeedVectorArg, false, true, false, false) : Compiler->Constant(SpeedY);
+	int32 Arg1;
+	int32 Arg2;
+	if (bFractionalPart)
+	{
+		// Note: this is to avoid (delay) divergent accuracy issues as GameTime increases.
+		// TODO: C++ to calculate its phase via per frame time delta.
+		Arg1 = Compiler->PeriodicHint(Compiler->Frac(Compiler->Mul(TimeArg, SpeedXArg)));
+		Arg2 = Compiler->PeriodicHint(Compiler->Frac(Compiler->Mul(TimeArg, SpeedYArg)));
+	}
+	else
+	{
+		Arg1 = Compiler->PeriodicHint(Compiler->Mul(TimeArg, SpeedXArg));
+		Arg2 = Compiler->PeriodicHint(Compiler->Mul(TimeArg, SpeedYArg));
+	}
+
+	int32 Arg3 = Coordinate.GetTracedInput().Expression ? Coordinate.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
+	return Compiler->Add(
+		Compiler->AppendVector(
+			Arg1,
+			Arg2
+		),
+		Arg3
+	);
+#endif
+	using namespace UE::HLSLTree;
+
+	FExpression* ExpressionTime = Time.TryAcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionTime)
+	{
+		ExpressionTime = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::GameTime);
+	}
+	FExpression* ExpressionSpeed = Speed.AcquireHLSLExpressionOrConstant(Generator, Scope, FVector2f(SpeedX, SpeedY));
+	FExpression* ExpressionOffset = Generator.GetTree().NewMul(ExpressionSpeed, ExpressionTime);
+	if (bFractionalPart)
+	{
+		ExpressionOffset = Generator.GetTree().NewFrac(ExpressionOffset);
+	}
+	FExpression* ExpressionTexCoord = Coordinate.TryAcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionTexCoord)
+	{
+		ExpressionTexCoord = Generator.NewTexCoord(ConstCoordinate);
+	}
+
+	OutExpression = Generator.GetTree().NewAdd(ExpressionTexCoord, ExpressionOffset);
 	return true;
 }
 

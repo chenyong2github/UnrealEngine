@@ -83,6 +83,13 @@ enum class EExternalInput : uint8
 	PrevTranslatedWorldPosition,
 	PrevTranslatedWorldPosition_NoOffsets,
 
+	GameTime,
+	RealTime,
+	DeltaTime,
+
+	PrevGameTime,
+	PrevRealTime,
+
 	WorldPosition_Ddx,
 	WorldPosition_Ddy,
 };

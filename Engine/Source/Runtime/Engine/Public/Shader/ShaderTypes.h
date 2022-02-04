@@ -28,6 +28,8 @@ const TCHAR* GetComponentTypeName(EValueComponentType Type);
 uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
 EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
+inline EValueComponentType MakeNonLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double ? EValueComponentType::Float : Type; }
+
 struct FValueTypeDescription
 {
 	FValueTypeDescription() : Name(nullptr), ComponentType(EValueComponentType::Void), NumComponents(0) {}

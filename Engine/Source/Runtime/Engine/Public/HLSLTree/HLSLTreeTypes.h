@@ -64,6 +64,7 @@ enum class EUnaryOp : uint8
 	None,
 	Neg,
 	Rcp,
+	Frac,
 };
 
 struct FUnaryOpDescription
@@ -85,6 +86,7 @@ enum class EBinaryOp : uint8
 	Sub,
 	Mul,
 	Div,
+	Fmod,
 	Less,
 };
 
