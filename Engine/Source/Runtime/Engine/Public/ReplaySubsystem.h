@@ -8,6 +8,9 @@
 
 class UReplayNetConnection;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReplayRecordingStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReplayRecordingStopped);
+
 UCLASS(DisplayName = "Replay Subsystem")
 class ENGINE_API UReplaySubsystem : public UGameInstanceSubsystem
 {
@@ -120,6 +123,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category=Replay)
 	bool bLoadDefaultMapOnStop = true;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnReplayRecordingStarted OnReplayRecordingStarted;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnReplayRecordingStopped OnReplayRecordingStopped;
 
 private:
 	void StopExistingReplays(UWorld* InWorld);
