@@ -4,6 +4,10 @@
 #include "Chaos/Matrix.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#include "HAL/IConsoleManager.h"
+#endif
+
 #if INTEL_ISPC
 #include "PerParticleDampVelocity.ispc.generated.h"
 #endif
