@@ -89,20 +89,24 @@ public:
 
 	virtual bool PushData(TArrayView<FPushRequest> Requests)
 	{
-		// TODO: Sort return codes
+		// TODO: Improve the error codes in the future
 		for (FPushRequest& Request : Requests)
 		{
 			EPushResult Result = PushData(Request.Identifier, Request.Payload, Request.Context);
 			switch (Result)
 			{
 			case EPushResult::Failed:
+				Request.Status = FPushRequest::EStatus::Failed;
 				return false;
 
 			case EPushResult::PayloadAlreadyExisted:
+				// falls through
 			case EPushResult::Success:
+				Request.Status = FPushRequest::EStatus::Success;
 				break;
 
 			default:
+				Request.Status = FPushRequest::EStatus::Failed;
 				checkNoEntry();
 				break;
 			}
