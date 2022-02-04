@@ -12,7 +12,7 @@
 #include "InterchangeCineCameraFactoryNode.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGENODES_API UInterchangeCineCameraFactoryNode : public UInterchangeActorFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeCineCameraFactoryNode : public UInterchangeActorFactoryNode
 {
 	GENERATED_BODY()
 

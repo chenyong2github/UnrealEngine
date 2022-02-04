@@ -15,7 +15,7 @@
 #include "InterchangeTextureLightProfileFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeTextureLightProfileFactoryNode : public UInterchangeTextureFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTextureLightProfileFactoryNode : public UInterchangeTextureFactoryNode
 {
 	GENERATED_BODY()
 

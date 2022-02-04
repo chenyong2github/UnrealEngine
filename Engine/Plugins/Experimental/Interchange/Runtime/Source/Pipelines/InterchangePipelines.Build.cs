@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"InterchangeCore",
 					"InterchangeEngine",
+					"InterchangeFactoryNodes",
 					"InterchangeNodes"
 				}
 			);

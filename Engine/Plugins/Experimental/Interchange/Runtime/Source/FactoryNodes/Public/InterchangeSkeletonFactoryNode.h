@@ -12,7 +12,7 @@
 #include "InterchangeSkeletonFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeSkeletonFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeSkeletonFactoryNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

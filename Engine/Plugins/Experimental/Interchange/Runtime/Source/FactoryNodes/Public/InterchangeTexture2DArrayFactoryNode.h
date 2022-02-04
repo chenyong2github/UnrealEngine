@@ -15,7 +15,7 @@
 #include "InterchangeTexture2DArrayFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeTexture2DArrayFactoryNode : public UInterchangeTextureFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTexture2DArrayFactoryNode : public UInterchangeTextureFactoryNode
 {
 	GENERATED_BODY()
 

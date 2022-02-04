@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"InterchangeCore",
 					"InterchangeEngine",
+					"InterchangeFactoryNodes",
 					"InterchangeNodes",
 					"Json",
 					"Landscape",

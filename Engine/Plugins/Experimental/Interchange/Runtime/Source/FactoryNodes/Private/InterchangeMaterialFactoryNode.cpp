@@ -167,34 +167,34 @@ bool UInterchangeMaterialFactoryNode::ConnectOutputToRefraction(const FString& E
 	return UInterchangeShaderPortsAPI::ConnectOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::IndexOfRefraction.ToString(), ExpressionNodeUid, OutputName);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomShadingModel(uint8& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::GetCustomShadingModel(TEnumAsByte<EMaterialShadingModel>& AttributeValue) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ShadingModel, uint8);
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ShadingModel, TEnumAsByte<EMaterialShadingModel>);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomShadingModel(const uint8& AttributeValue, bool bAddApplyDelegate)
+bool UInterchangeMaterialFactoryNode::SetCustomShadingModel(const TEnumAsByte<EMaterialShadingModel>& AttributeValue, bool bAddApplyDelegate)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, ShadingModel, uint8, UMaterial);
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, ShadingModel, TEnumAsByte<EMaterialShadingModel>, UMaterial);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomTranslucencyLightingMode(uint8& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::GetCustomTranslucencyLightingMode(TEnumAsByte<ETranslucencyLightingMode>& AttributeValue) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TranslucencyLightingMode, uint8);
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TranslucencyLightingMode, TEnumAsByte<ETranslucencyLightingMode>);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomTranslucencyLightingMode(const uint8& AttributeValue, bool bAddApplyDelegate)
+bool UInterchangeMaterialFactoryNode::SetCustomTranslucencyLightingMode(const TEnumAsByte<ETranslucencyLightingMode>& AttributeValue, bool bAddApplyDelegate)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, TranslucencyLightingMode, uint8, UMaterial);
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, TranslucencyLightingMode, TEnumAsByte<ETranslucencyLightingMode>, UMaterial);
 }
 
-bool UInterchangeMaterialFactoryNode::GetCustomBlendMode(uint8& AttributeValue) const
+bool UInterchangeMaterialFactoryNode::GetCustomBlendMode(TEnumAsByte<EBlendMode>& AttributeValue) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BlendMode, uint8);
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BlendMode, TEnumAsByte<EBlendMode>);
 }
 
-bool UInterchangeMaterialFactoryNode::SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate)
+bool UInterchangeMaterialFactoryNode::SetCustomBlendMode(const TEnumAsByte<EBlendMode>& AttributeValue, bool bAddApplyDelegate)
 {
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, BlendMode, uint8, UMaterial);
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, BlendMode, TEnumAsByte<EBlendMode>, UMaterial);
 }
 
 bool UInterchangeMaterialFactoryNode::GetCustomTwoSided(bool& AttributeValue) const

@@ -22,6 +22,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "InterchangeFactoryNodes",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "InterchangeImport",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

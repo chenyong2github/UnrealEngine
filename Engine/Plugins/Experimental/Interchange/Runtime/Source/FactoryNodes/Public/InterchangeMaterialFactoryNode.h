@@ -14,7 +14,7 @@
 #include "InterchangeMaterialFactoryNode.generated.h"
 
 UCLASS(Abstract, Experimental)
-class INTERCHANGENODES_API UInterchangeBaseMaterialFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeBaseMaterialFactoryNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ public:
 };
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeMaterialFactoryNode : public UInterchangeBaseMaterialFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeMaterialFactoryNode : public UInterchangeBaseMaterialFactoryNode
 {
 	GENERATED_BODY()
 
@@ -120,22 +120,22 @@ public:
 // Material parameters
 public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomShadingModel(uint8& AttributeValue) const;
+	bool GetCustomShadingModel(TEnumAsByte<EMaterialShadingModel>& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomShadingModel(const uint8& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomShadingModel(const TEnumAsByte<EMaterialShadingModel>& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomTranslucencyLightingMode(uint8& AttributeValue) const;
+	bool GetCustomTranslucencyLightingMode(TEnumAsByte<ETranslucencyLightingMode>& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomTranslucencyLightingMode(const uint8& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomTranslucencyLightingMode(const TEnumAsByte<ETranslucencyLightingMode>& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomBlendMode(uint8& AttributeValue) const;
+	bool GetCustomBlendMode(TEnumAsByte<EBlendMode>& AttributeValue) const;
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate = true);
+	bool SetCustomBlendMode(const TEnumAsByte<EBlendMode>& AttributeValue, bool bAddApplyDelegate = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	bool GetCustomTwoSided(bool& AttributeValue) const;
@@ -152,7 +152,7 @@ private:
 };
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeMaterialExpressionFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeMaterialExpressionFactoryNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
@@ -172,7 +172,7 @@ private:
 };
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeMaterialInstanceFactoryNode : public UInterchangeBaseMaterialFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeMaterialInstanceFactoryNode : public UInterchangeBaseMaterialFactoryNode
 {
 	GENERATED_BODY()
 

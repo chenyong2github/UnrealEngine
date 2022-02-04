@@ -14,7 +14,7 @@
 
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeTextureFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTextureFactoryNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

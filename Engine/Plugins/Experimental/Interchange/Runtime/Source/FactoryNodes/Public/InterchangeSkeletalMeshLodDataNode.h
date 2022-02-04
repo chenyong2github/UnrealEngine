@@ -13,7 +13,7 @@ namespace UE
 	namespace Interchange
 	{
 
-		struct INTERCHANGENODES_API FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
+		struct INTERCHANGEFACTORYNODES_API FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
 			static const FString& GetMeshUidsBaseKey();
 		};
@@ -22,7 +22,7 @@ namespace UE
 }//ns UE
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeSkeletalMeshLodDataNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeSkeletalMeshLodDataNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 

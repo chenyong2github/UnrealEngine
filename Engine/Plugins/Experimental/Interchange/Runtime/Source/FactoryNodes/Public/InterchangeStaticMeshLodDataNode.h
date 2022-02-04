@@ -21,7 +21,7 @@ namespace UE
 
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeStaticMeshLodDataNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeStaticMeshLodDataNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
