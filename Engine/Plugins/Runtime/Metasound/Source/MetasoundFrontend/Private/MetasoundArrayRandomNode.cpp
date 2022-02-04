@@ -39,7 +39,9 @@ namespace Metasound
 	{
 		if (InSeed == INDEX_NONE)
 		{
-			RandomStream.Initialize(FPlatformTime::Cycles());
+			static FThreadSafeCounter SeedCounter(FMath::Rand());
+			SeedCounter.Increment();
+			RandomStream.Initialize(SeedCounter.GetValue());
 		}
 		else
 		{
@@ -197,35 +199,35 @@ namespace Metasound
 		RandomGets.Add(InArgs.SharedStateId, MakeUnique<FArrayRandomGet>(InArgs.Seed, InArgs.NumElements, InArgs.Weights, InArgs.NoRepeatOrder));
 	}
 
-	int32 FSharedStateRandomGetManager::NextValue(uint32 InSharedStateId)
+	int32 FSharedStateRandomGetManager::NextValue(const FGuid& InSharedStateId)
 	{
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
 		return (*RG)->NextValue();
 	}
 
-	void FSharedStateRandomGetManager::SetSeed(uint32 InSharedStateId, int32 InSeed)
+	void FSharedStateRandomGetManager::SetSeed(const FGuid& InSharedStateId, int32 InSeed)
 	{
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
 		(*RG)->SetSeed(InSeed);
 	}
 
-	void FSharedStateRandomGetManager::SetNoRepeatOrder(uint32 InSharedStateId, int32 InNoRepeatOrder)
+	void FSharedStateRandomGetManager::SetNoRepeatOrder(const FGuid& InSharedStateId, int32 InNoRepeatOrder)
 	{
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
 		(*RG)->SetNoRepeatOrder(InNoRepeatOrder);
 	}
 
-	void FSharedStateRandomGetManager::SetRandomWeights(uint32 InSharedStateId, const TArray<float>& InRandomWeights)
+	void FSharedStateRandomGetManager::SetRandomWeights(const FGuid& InSharedStateId, const TArray<float>& InRandomWeights)
 	{
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
 		(*RG)->SetRandomWeights(InRandomWeights);
 	}
 
-	void FSharedStateRandomGetManager::ResetSeed(uint32 InSharedStateId)
+	void FSharedStateRandomGetManager::ResetSeed(const FGuid& InSharedStateId)
 	{
 		FScopeLock Lock(&CritSect);
 		TUniquePtr<FArrayRandomGet>* RG = RandomGets.Find(InSharedStateId);
