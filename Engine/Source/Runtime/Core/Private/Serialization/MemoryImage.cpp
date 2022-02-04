@@ -1670,9 +1670,9 @@ FMemoryImageSection* FMemoryImageSection::WritePointer(const FTypeLayoutDesc& St
 		DerivedTypeDesc.Name, StaticTypeDesc.Name);
 
 	FFrozenMemoryImagePtr FrozenPtr;
-	FrozenPtr.OffsetFromThis = 0; // dummy value
+	FrozenPtr.Packed = 0; // dummy value
 	// If derived type matches the static type, store INDEX_NONE to indicate the static type may be used
-	FrozenPtr.TypeIndex = bStaticTypeMatchesDerived ? INDEX_NONE : TypeDependencyIndex;
+	FrozenPtr.SetTypeIndex(bStaticTypeMatchesDerived ? INDEX_NONE : TypeDependencyIndex);
 
 	SectionPointer.Offset = WriteBytes(FrozenPtr);
 	SectionPointer.PointerOffset = OffsetToBase;
@@ -1853,12 +1853,14 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 		const FMemoryImageSection* Section = UniqueSections[SectionIndex];
 		for (const FMemoryImageSection::FSectionPointer& Pointer : Section->Pointers)
 		{
-			const int32 OffsetToPointer = SectionOffset[SectionIndex] + Pointer.Offset;
+			const int64 OffsetToPointer = SectionOffset[SectionIndex] + Pointer.Offset;
 			const int32 RemapSectionIndex = SectionIndexRemap[Pointer.SectionIndex];
 			FFrozenMemoryImagePtr* FrozenPtr = (FFrozenMemoryImagePtr*)(OutResult.Bytes.GetData() + OffsetToPointer);
-			check(FrozenPtr->OffsetFromThis == 0);
-			const int32 OffsetFromPointer = (int32)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
-			FrozenPtr->OffsetFromThis = (OffsetFromPointer << 1) | 1;
+			check(FrozenPtr->GetOffsetFromThis() == 0 && !FrozenPtr->IsFrozen());
+			const int64 OffsetFromPointer = (int64)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
+			FrozenPtr->SetOffsetFromThis(OffsetFromPointer);
+			FrozenPtr->SetIsFrozen(true);
+			check(FrozenPtr->GetOffsetFromThis() == OffsetFromPointer);
 		}
 	}
 
@@ -1940,7 +1942,7 @@ uint32 FMemoryImageWriter::WriteBytes(const void* Data, uint32 Size)
 
 uint32 FMemoryImageWriter::WriteNullPointer()
 {
-	return WriteBytes(FFrozenMemoryImagePtr{ 0, 0u });
+	return WriteBytes(FFrozenMemoryImagePtr{ 0ull });
 }
 
 FMemoryImageWriter FMemoryImageWriter::WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase)

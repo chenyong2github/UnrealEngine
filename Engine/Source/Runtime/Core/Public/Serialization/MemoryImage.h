@@ -289,33 +289,86 @@ public:
 	const class UStruct* CurrentStruct;
 };
 
+/**
+ * Value of this struct should never be a valid unfrozen pointer (i.e. a memory address). We rely on real pointers to have lowest bit(s) 0 this days for the alignment, this is checked later.
+ * Unfortunately, we cannot use bitfields as their layout might be compiler-specific, and the data for the target platform is being prepared with a different compiler during the cook.
+ */
 struct FFrozenMemoryImagePtr
 {
-	int32 OffsetFromThis;
-	int32 TypeIndex; // store 0-based index or INDEX_NONE, don't really need 32bit for this, but nothing else to store here for now
+	static constexpr uint64 bIsFrozenBits = 1;
+	static constexpr uint64 OffsetBits = 40;
+	static constexpr uint64 TypeIndexBits = 64 - OffsetBits - bIsFrozenBits;
+
+	static constexpr uint64 bIsFrozenShift = 0;
+	static constexpr uint64 TypeIndexShift = bIsFrozenBits;
+	static constexpr uint64 OffsetShift = bIsFrozenBits + TypeIndexBits;
+
+	static constexpr uint64 bIsFrozenMask = (1ULL << bIsFrozenShift);
+	static constexpr uint64 TypeIndexMask = (((1ULL << TypeIndexBits) - 1ULL) << TypeIndexShift);
+	static constexpr uint64 OffsetMask = (((1ULL << OffsetBits) - 1ULL) << OffsetShift);
+
+	uint64 Packed;
+
+	/** Whether the value is indeed a frozen pointer, must come first to avoid being set in regular pointers - which are expected to point at padded things so are never even. */
+	bool IsFrozen() const
+	{
+		return (Packed & bIsFrozenMask) != 0;
+	}
+
+	void SetIsFrozen(bool bTrue)
+	{
+		Packed = (Packed & ~bIsFrozenMask) | (bTrue ? 1 : 0);
+	}
+
+	/** Signed offset from the current position in the memory image. */
+	int64 GetOffsetFromThis() const
+	{
+		// Since the offset occupies the highest part of the int64, its sign is preserved.
+		// Not masking as there's nothing to the left of the Offset
+		static_assert(OffsetShift + OffsetBits == 64);
+		return static_cast<int64>(Packed/* & OffsetMask*/) >> OffsetShift;
+	}
+
+	void SetOffsetFromThis(int64 Offset)
+	{
+		Packed = (Packed & ~OffsetMask) | (static_cast<uint64>(Offset << OffsetShift) & OffsetMask);
+	}
+
+	/** The pointer type index in the pointer table. Does not store other negative values except for INDEX_NONE */
+	int32 GetTypeIndex() const
+	{
+		return static_cast<int32>((Packed & TypeIndexMask) >> TypeIndexShift) - 1;
+	}
+
+	void SetTypeIndex(int32 TypeIndex)
+	{
+		static_assert(INDEX_NONE == -1, "TypeIndex cannot store INDEX_NONE when it's not -1");
+		Packed = (Packed & ~TypeIndexMask) | ((static_cast<uint64>(TypeIndex + 1) << TypeIndexShift) & TypeIndexMask);
+	}
 };
 
+static_assert(sizeof(FFrozenMemoryImagePtr) == sizeof(uint64), "FFrozenMemoryImagePtr is larger than a native pointer would be");
 
 template<typename T>
 class TMemoryImagePtr
 {
 public:
-	inline bool IsFrozen() const { return Frozen.OffsetFromThis & IsFrozenMask; }
+	inline bool IsFrozen() const { return Frozen.IsFrozen(); }
 	inline bool IsValid() const { return UnfrozenPtr != nullptr; }
 	inline bool IsNull() const { return UnfrozenPtr == nullptr; }
 
-	inline TMemoryImagePtr(T* InPtr = nullptr) : UnfrozenPtr(InPtr) { check(((uint64)UnfrozenPtr & AllFlags) == 0u); }
-	inline TMemoryImagePtr(const TMemoryImagePtr<T>& InPtr) : UnfrozenPtr(InPtr.Get()) { check(((uint64)UnfrozenPtr & AllFlags) == 0u); }
-	inline TMemoryImagePtr& operator=(T* InPtr) { UnfrozenPtr = InPtr; check(((uint64)UnfrozenPtr & AllFlags) == 0u); return *this; }
-	inline TMemoryImagePtr& operator=(const TMemoryImagePtr<T>& InPtr) { UnfrozenPtr = InPtr.Get(); check(((uint64)UnfrozenPtr & AllFlags) == 0u); return *this; }
+	inline TMemoryImagePtr(T* InPtr = nullptr) : UnfrozenPtr(InPtr) { check(!Frozen.IsFrozen()); }
+	inline TMemoryImagePtr(const TMemoryImagePtr<T>& InPtr) : UnfrozenPtr(InPtr.Get()) { check(!Frozen.IsFrozen()); }
+	inline TMemoryImagePtr& operator=(T* InPtr) { UnfrozenPtr = InPtr; check(!Frozen.IsFrozen()); return *this; }
+	inline TMemoryImagePtr& operator=(const TMemoryImagePtr<T>& InPtr) { UnfrozenPtr = InPtr.Get(); check(!Frozen.IsFrozen()); return *this; }
 
 	inline ~TMemoryImagePtr() 
 	{
 
 	}
 
-	inline int32 GetFrozenOffsetFromThis() const { check(IsFrozen()); return (Frozen.OffsetFromThis >> OffsetShift); }
-	inline uint32 GetFrozenTypeIndex() const { check(IsFrozen()); return Frozen.TypeIndex; }
+	inline int64 GetFrozenOffsetFromThis() const { check(IsFrozen()); return Frozen.GetOffsetFromThis(); }
+	inline int32 GetFrozenTypeIndex() const { check(IsFrozen()); return Frozen.GetTypeIndex(); }
 
 	inline T* Get() const
 	{
@@ -356,15 +409,8 @@ public:
 private:
 	inline T* GetFrozenPtrInternal() const
 	{
-		return (T*)((char*)this + (Frozen.OffsetFromThis >> OffsetShift));
+		return (T*)((char*)this + Frozen.GetOffsetFromThis());
 	}
-
-	enum
-	{
-		IsFrozenMask = (1 << 0),
-		AllFlags = IsFrozenMask,
-		OffsetShift = 1u,
-	};
 
 protected:
 	union
@@ -550,7 +596,7 @@ public:
 	{
 		return Data.IsValid();
 	}
-	FORCEINLINE int32 GetFrozenOffsetFromThis() const { return Data.GetFrozenOffsetFromThis(); }
+	FORCEINLINE int64 GetFrozenOffsetFromThis() const { return Data.GetFrozenOffsetFromThis(); }
 
 	void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, SIZE_T NumBytesPerElement, uint32 Alignment);
 	void WriteMemoryImage(FMemoryImageWriter& Writer, const FTypeLayoutDesc& TypeDesc, int32 NumAllocatedElements, uint32 Alignment) const;
