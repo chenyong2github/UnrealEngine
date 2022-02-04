@@ -11,6 +11,9 @@
 class UMassSchematic;
 struct FStreamableHandle;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMassSpawnerOnSpawningFinishedEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMassSpawnerOnDespawningFinishedEvent);
+
 /** A spawner you can put on a map and configure it to spawn different things */
 UCLASS(hidecategories = (Object, Actor, Input, Rendering, LOD, Cooking, Collision, HLOD, Partition))
 class MASSSPAWNER_API AMassSpawner : public AActor
@@ -75,6 +78,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void ScaleSpawningCount(float Scale) { SpawningCountScale = Scale; }
+
+	/** Called once DoSpawning completes and all entities have been spawned. */
+	UPROPERTY(BlueprintAssignable)
+	FMassSpawnerOnSpawningFinishedEvent OnSpawningFinishedEvent;
+
+	/** Called once DoDespawning completes and all mass agents spawned by this spawner have been despawned. */
+	UPROPERTY(BlueprintAssignable)
+	FMassSpawnerOnDespawningFinishedEvent OnDespawningFinishedEvent; 
 
 protected:
 	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);

@@ -471,6 +471,8 @@ void AMassSpawner::SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGe
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		UE::Mass::Executor::RunProcessorsView(Processors, ProcessingContext);
 	}
+
+	OnSpawningFinishedEvent.Broadcast();
 }
 
 void AMassSpawner::DoDespawning()
@@ -492,6 +494,8 @@ void AMassSpawner::DoDespawning()
 		SpawnerSystem->DestroyEntities(SpawnedEntities.TemplateID, SpawnedEntities.Entities);
 	}
 	AllSpawnedEntities.Reset();
+
+	OnDespawningFinishedEvent.Broadcast();
 }
 
 bool AMassSpawner::DespawnEntity(const FMassEntityHandle Entity)
