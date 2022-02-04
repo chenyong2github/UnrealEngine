@@ -993,7 +993,7 @@ public:
 	UE_DEPRECATED(5.0, "Use GetPlayLength instead")
 	virtual float GetMaxCurrentTime() { return GetPlayLength(); }
 
-	UFUNCTION(BlueprintCallable, Category = "Animation")
+	UFUNCTION(BlueprintPure, Category = "Animation", meta=(BlueprintThreadSafe))
 	virtual float GetPlayLength() const { return 0.f; };
 
 	void SetSkeleton(USkeleton* NewSkeleton);

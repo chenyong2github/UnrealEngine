@@ -114,6 +114,20 @@ FSequencePlayerReference USequencePlayerLibrary::GetSequence(const FSequencePlay
 	return SequencePlayer;
 }
 
+UAnimSequenceBase* USequencePlayerLibrary::GetSequencePure(const FSequencePlayerReference& SequencePlayer)
+{
+	UAnimSequenceBase* SequenceBase = nullptr;
+	
+	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("GetSequence"),
+		[&SequenceBase](FAnimNode_SequencePlayer& InSequencePlayer)
+		{
+			SequenceBase = InSequencePlayer.GetSequence();
+		});
+
+	return SequenceBase;
+}
+
 float USequencePlayerLibrary::GetAccumulatedTime(const FSequencePlayerReference& SequencePlayer)
 {
 	float AccumulatedTime = 0.f;
