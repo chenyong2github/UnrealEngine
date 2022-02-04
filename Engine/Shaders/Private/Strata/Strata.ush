@@ -1677,6 +1677,11 @@ float StrataGetBSDFAnisotropy(in FStrataBSDF BSDF)
 	return 0.f;
 }
 
+float3 StrataGetBSDFEmissive(in FStrataBSDF BSDF)
+{	
+	return BSDF_GETEMISSIVE(BSDF);
+}
+
 float3 StrataGetWorldNormal(in FStrataPixelHeader Header, in FStrataBSDF BSDF, in const FStrataAddressing Addressing)
 {
 	return StrataGetBSDFSharedBasis_DeferredShading(Header, BSDF, Addressing)[2];

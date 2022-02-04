@@ -689,6 +689,7 @@ public:
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("INJECTION_PIXEL_SHADER"), 1);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	/**

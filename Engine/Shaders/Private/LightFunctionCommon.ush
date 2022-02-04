@@ -4,6 +4,10 @@
 	LightFunctionCommon.usf: Utility functions for light functions.
 =============================================================================*/
 
+#if STRATA_ENABLED
+#include "/Engine/Private/Strata/Strata.ush" 
+#endif
+
 /** Tan of spotlight cone outer angle in x, ShadowFadeFraction in y, IsSpotLight in z, IsPointLight in w. */
 float4 LightFunctionParameters;
 float4x4 LightFunctionTranslatedWorldToLight;
@@ -50,9 +54,21 @@ float3 GetLightFunctionColor(float3 LightVector, float3 TranslatedWorldSpace)
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 
-#if COMPUTESHADER
+#if STRATA_ENABLED
+
+  #if COMPUTESHADER
+	return 0.f; // STRATA_TODO: This path doesn't seem to be used
+  #else
+	return StrataGetBSDFEmissive(PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0]);
+  #endif
+
+#else // STRATA_ENABLED
+
+   #if COMPUTESHADER
 	return GetMaterialEmissiveForCS(MaterialParameters);
-#else
+   #else
 	return GetMaterialEmissive(PixelMaterialInputs);
-#endif
+   #endif
+
+#endif // STRATA_ENABLED
 }

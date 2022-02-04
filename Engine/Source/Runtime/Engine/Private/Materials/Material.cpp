@@ -2979,7 +2979,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			FrontMaterial.Connect(0, VolBSDF);
 			bInvalidateShader = true;
 		}
-		else if (MaterialDomain == MD_PostProcess)
+		else if (MaterialDomain == MD_PostProcess || MaterialDomain == MD_LightFunction)
 		{
 			// Some post-process material don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
 			ShadingModel = MSM_Unlit;
@@ -4049,7 +4049,7 @@ void UMaterial::RebuildShadingModelField()
 			// Now derive some properties from the material
 			if (StrataMaterialInfo.HasOnlyShadingModel(SSM_Unlit))
 			{
-				if (MaterialDomain != EMaterialDomain::MD_Surface && MaterialDomain != EMaterialDomain::MD_PostProcess)
+				if (MaterialDomain != EMaterialDomain::MD_Surface && MaterialDomain != EMaterialDomain::MD_PostProcess && MaterialDomain != EMaterialDomain::MD_LightFunction)
 				{
 					MaterialDomain = EMaterialDomain::MD_Surface;
 				}
@@ -5389,7 +5389,14 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	else if (Domain == MD_LightFunction)
 	{
 		// light functions should already use MSM_Unlit but we also we don't want WorldPosOffset
-		return InProperty == MP_EmissiveColor;
+		if (bStrataEnabled)
+		{
+			return InProperty == MP_FrontMaterial;
+		}
+		else
+		{
+			return InProperty == MP_EmissiveColor;
+		}
 	}
 	else if (Domain == MD_DeferredDecal)
 	{

@@ -1710,6 +1710,7 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 	// STRATA_TODO: temporary validation until we have converted all domains
 	const bool bIsStrataSupportedDomain = 
 		Material->MaterialDomain == MD_PostProcess || 
+		Material->MaterialDomain == MD_LightFunction ||
 		Material->MaterialDomain == MD_DeferredDecal || 
 		Material->MaterialDomain == MD_Surface || 
 		Material->MaterialDomain == MD_Volume;
