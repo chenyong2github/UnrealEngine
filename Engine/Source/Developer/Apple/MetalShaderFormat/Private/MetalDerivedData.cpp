@@ -1244,6 +1244,7 @@ bool DoCompileMetalShader(
 	{
 		Output.Target = Input.Target;
 		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntriniscs);
+		return Output.bSucceeded;
 	}
 	else
 	{
