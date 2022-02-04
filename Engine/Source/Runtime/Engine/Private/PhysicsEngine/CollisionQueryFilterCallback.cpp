@@ -109,7 +109,8 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollis
 }
 #endif
 
-ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticle& Actor)
+template <typename TParticle>
+ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterBaseImp(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const TParticle& Actor)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
 
@@ -128,11 +129,25 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollis
 	}
 
 	FBodyInstance* BodyInstance = nullptr;
+
+	if constexpr (std::is_same<TParticle, Chaos::FGeometryParticle>::value)
+	{
 #if ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
-	BodyInstance = ChaosInterface::GetUserData(Actor);
+		BodyInstance = ChaosInterface::GetUserData(Actor);
 #endif // ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
+	}
 
 	return PreFilterImp(FilterData, ShapeFilter, ComponentID, BodyInstance);
+}
+
+ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticle& Actor)
+{
+	return PreFilterBaseImp(FilterData, Shape, Actor);
+}
+
+ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticleHandle& Actor)
+{
+	return PreFilterBaseImp(FilterData, Shape, Actor);
 }
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const FCollisionFilterData& ShapeFilter, uint32 ComponentID, const FBodyInstance* BodyInstance)
@@ -282,11 +297,26 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 		return ECollisionQueryHitType::None;
 	}
 
-	const ChaosInterface::FLocationHit& SweepHit = (const ChaosInterface::FLocationHit&)Hit;
+	const auto& SweepHit = static_cast<const ChaosInterface::FLocationHit&>(Hit);
 	const bool bIsOverlap = ChaosInterface::HadInitialOverlap(SweepHit);
 
 	return PostFilterImp(FilterData, bIsOverlap);
 }
+
+ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const ChaosInterface::FPTQueryHit& Hit)
+{
+	// Unused in non-sweeps
+	if (!bIsSweep)
+	{
+		return ECollisionQueryHitType::None;
+	}
+
+	const auto& SweepHit = static_cast<const ChaosInterface::FPTLocationHit&>(Hit);
+	const bool bIsOverlap = ChaosInterface::HadInitialOverlap(SweepHit);
+
+	return PostFilterImp(FilterData, bIsOverlap);
+}
+
 
 #if PHYSICS_INTERFACE_PHYSX
 

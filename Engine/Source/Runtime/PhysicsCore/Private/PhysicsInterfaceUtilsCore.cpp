@@ -188,7 +188,8 @@ DEFINE_STAT(STAT_PhysSceneWriteLock);
 
 #endif
 
-uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDir)
+template <typename THitLocation>
+uint32 FindFaceIndexImp(const THitLocation& PHit, const FVector& UnitDir)
 {
 #if PHYSICS_INTERFACE_PHYSX
 	PxConvexMeshGeometry convexGeom;
@@ -302,4 +303,14 @@ uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDir)
 	const FVector LocalNormal = WorldTM.InverseTransformVectorNoScale(UnitDir);
 	return PHit.Shape->GetGeometry()->FindMostOpposingFace(LocalPosition, LocalNormal, PHit.FaceIndex, 1);	//todo:this number matches the one above, but is it right?
 #endif
+}
+
+uint32 FindFaceIndex(const FHitLocation& Hit, const FVector& UnitDir)
+{
+	return FindFaceIndexImp(Hit, UnitDir);
+}
+
+uint32 FindFaceIndex(const ChaosInterface::FPTLocationHit& Hit, const FVector& UnitDir)
+{
+	return FindFaceIndexImp(Hit, UnitDir);
 }

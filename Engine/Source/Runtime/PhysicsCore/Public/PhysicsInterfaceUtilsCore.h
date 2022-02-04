@@ -176,4 +176,6 @@ private:
 #endif // WITH_PHYX
 
 //Find the face index for a given hit. This gives us a chance to modify face index based on things like most opposing normal
+
 PHYSICSCORE_API uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDirection);
+PHYSICSCORE_API uint32 FindFaceIndex(const ChaosInterface::FPTLocationHit& PHit, const FVector& UnitDirection);
