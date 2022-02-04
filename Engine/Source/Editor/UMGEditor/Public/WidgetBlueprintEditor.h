@@ -300,6 +300,12 @@ private:
 	bool CanDuplicateSelectedWidgets();
 	void DuplicateSelectedWidgets();
 
+	/** Is creating a native base class for the current widget blueprint allowed */
+	bool CanCreateNativeBaseClass() const;
+
+	/** Whether menu to create a native base class is visible */
+	bool IsCreateNativeBaseClassVisible() const;
+
 private:
 	/** Called whenever the blueprint is structurally changed. */
 	virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled = false ) override;

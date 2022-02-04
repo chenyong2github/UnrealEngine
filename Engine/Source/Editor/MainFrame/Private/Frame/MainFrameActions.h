@@ -184,11 +184,23 @@ public:
 	/** Adds code to the current project if it does not already have any */
 	static void AddCodeToProject();
 
+	/** Whether we can add code to the current project */
+	static bool CanAddCodeToProject();
+
+	/** Whether menu to add code to the current project is visible */
+	static bool IsAddCodeToProjectVisible();
+
 	/** Checks whether a menu action for packaging the project can execute. */
 	static bool PackageProjectCanExecute( const FName PlatformInfoName );
 
 	/** Refresh the project in the current IDE */
 	static void RefreshCodeProject();
+
+	/** Whether we can refresh the project in the current IDE */
+	static bool CanRefreshCodeProject();
+
+	/** Whether menu to refresh the project in the current IDE is visible */
+	static bool IsRefreshCodeProjectVisible();
 
 	/** Determines whether the project is a code project */
 	static bool IsCodeProject();
@@ -196,8 +208,14 @@ public:
 	/** Opens an IDE to edit c++ code */
 	static void OpenIDE();
 
-	/** Determines whether we can open the IDE to edit c++ code */
+	/** Whether we can open the IDE to edit c++ code */
 	static bool CanOpenIDE();
+
+	/** Whether menu to open the IDE to edit c++ code is visible */
+	static bool IsOpenIDEVisible();
+
+	/** Whether C++ edition/creation is allowed from the editor */
+	static bool IsCPPAllowed();
 
 	/** Zips up the project */
 	static void ZipUpProject();

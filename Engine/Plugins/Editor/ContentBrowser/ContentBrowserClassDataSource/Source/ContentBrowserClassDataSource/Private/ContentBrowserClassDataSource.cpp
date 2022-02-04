@@ -17,6 +17,9 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataUtils.h"
 #include "ContentBrowserItemPath.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
@@ -612,6 +615,11 @@ TSharedPtr<const FContentBrowserClassFileItemDataPayload> UContentBrowserClassDa
 
 void UContentBrowserClassDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu)
 {
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		return;
+	}
+
 	const UContentBrowserDataMenuContext_AddNewMenu* ContextObject = InMenu->FindContext<UContentBrowserDataMenuContext_AddNewMenu>();
 	checkf(ContextObject, TEXT("Required context UContentBrowserDataMenuContext_AddNewMenu was missing!"));
 

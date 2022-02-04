@@ -9,6 +9,9 @@
 #include "AddToProjectConfig.h"
 #include "GameProjectGenerationModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -45,9 +48,14 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		);
 	};
 
-	auto CanCreateDerivedCppClass = [bIsValidBaseCppClass]() -> bool
+	auto IsCPPAllowed = []()
 	{
-		return bIsValidBaseCppClass;
+		return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
+	};
+
+	auto CanCreateDerivedCppClass = [bIsValidBaseCppClass, IsCPPAllowed]() -> bool
+	{
+		return bIsValidBaseCppClass && IsCPPAllowed();
 	};
 
 	auto CreateCreateDerivedBlueprintClass = [BaseClass]()
@@ -110,9 +118,11 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToo
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.C++"),
 		FUIAction(
 			FExecuteAction::CreateLambda(CreateCreateDerivedCppClass),
-			FCanExecuteAction::CreateLambda(CanCreateDerivedCppClass)
-			)
-		);
+			FCanExecuteAction::CreateLambda(CanCreateDerivedCppClass),
+			FIsActionChecked(),
+			FIsActionButtonVisible::CreateLambda(IsCPPAllowed)
+		)
+	);
 
 	Section.AddMenuEntry(
 		"NewDerivedBlueprintClass",

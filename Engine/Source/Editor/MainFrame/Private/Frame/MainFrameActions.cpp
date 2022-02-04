@@ -33,6 +33,9 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "CookerSettings.h"
 #include "UnrealEdMisc.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 #include "FileHelpers.h"
 #include "EditorAnalytics.h"
 #include "LevelEditor.h"
@@ -119,14 +122,14 @@ void FMainFrameCommands::RegisterCommands()
 	UI_COMMAND( OpenProject, "Open Project...", "Opens a dialog to choose a game project to open", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( OpenProject, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::NewProject, true, false), DefaultExecuteAction );
 
-	UI_COMMAND( AddCodeToProject, "New C++ Class...", "Adds C++ code to the project. The code can only be compiled if you have an appropriate C++ compiler installed.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( AddCodeToProject, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::AddCodeToProject ));
+	UI_COMMAND(AddCodeToProject, "New C++ Class...", "Adds C++ code to the project. The code can only be compiled if you have an appropriate C++ compiler installed.", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(AddCodeToProject, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::AddCodeToProject), FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanAddCodeToProject), FGetActionCheckState(), FIsActionButtonVisible::CreateStatic(&FMainFrameActionCallbacks::IsAddCodeToProjectVisible));
 
-	UI_COMMAND( RefreshCodeProject, "Refresh code project", "Refreshes your C++ code project.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( RefreshCodeProject, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::RefreshCodeProject ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::IsCodeProject ) );
+	UI_COMMAND(RefreshCodeProject, "Refresh code project", "Refreshes your C++ code project.", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(RefreshCodeProject, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::RefreshCodeProject), FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanRefreshCodeProject), FGetActionCheckState(), FIsActionButtonVisible::CreateStatic(&FMainFrameActionCallbacks::IsRefreshCodeProjectVisible));
 
-	UI_COMMAND( OpenIDE, "Open IDE", "Opens your C++ code in an integrated development environment.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( OpenIDE, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::OpenIDE ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::IsCodeProject ), FGetActionCheckState(), FIsActionButtonVisible::CreateStatic( &FMainFrameActionCallbacks::CanOpenIDE ) );
+	UI_COMMAND(OpenIDE, "Open IDE", "Opens your C++ code in an integrated development environment.", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(OpenIDE, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::OpenIDE), FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CanOpenIDE), FGetActionCheckState(), FIsActionButtonVisible::CreateStatic(&FMainFrameActionCallbacks::IsOpenIDEVisible));
 
 	UI_COMMAND( ZipUpProject, "Zip Project", "Zips the project into a zip file.", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction(ZipUpProject, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ZipUpProject ), DefaultExecuteAction);
@@ -374,6 +377,16 @@ void FMainFrameActionCallbacks::AddCodeToProject()
 	FGameProjectGenerationModule::Get().OpenAddCodeToProjectDialog();
 }
 
+bool FMainFrameActionCallbacks::CanAddCodeToProject()
+{
+	return IsCPPAllowed();
+}
+
+bool FMainFrameActionCallbacks::IsAddCodeToProjectVisible()
+{
+	return IsCPPAllowed();
+}
+
 void FMainFrameActionCallbacks::RefreshCodeProject()
 {
 	if ( !FSourceCodeNavigation::IsCompilerAvailable() )
@@ -387,6 +400,16 @@ void FMainFrameActionCallbacks::RefreshCodeProject()
 	{
 		SOutputLogDialog::Open(LOCTEXT("RefreshProject", "Refresh Project"), FailReason, FailLog, FText::GetEmpty());
 	}
+}
+
+bool FMainFrameActionCallbacks::CanRefreshCodeProject()
+{
+	return IsCPPAllowed() && IsCodeProject();
+}
+
+bool FMainFrameActionCallbacks::IsRefreshCodeProjectVisible()
+{
+	return IsCPPAllowed();
 }
 
 bool FMainFrameActionCallbacks::IsCodeProject()
@@ -414,7 +437,17 @@ void FMainFrameActionCallbacks::OpenIDE()
 
 bool FMainFrameActionCallbacks::CanOpenIDE()
 {
-	return FSourceCodeNavigation::DoesModuleSolutionExist();
+	return IsCPPAllowed() && IsCodeProject();
+}
+
+bool FMainFrameActionCallbacks::IsOpenIDEVisible()
+{
+	return IsCPPAllowed() && FSourceCodeNavigation::DoesModuleSolutionExist();
+}
+
+bool FMainFrameActionCallbacks::IsCPPAllowed()
+{
+	return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
 }
 
 void FMainFrameActionCallbacks::ZipUpProject()

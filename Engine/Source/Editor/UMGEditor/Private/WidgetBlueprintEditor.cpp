@@ -74,6 +74,10 @@
 #include "TabFactory/AnimationTabSummoner.h"
 #include "Kismet/Public/BlueprintEditorTabs.h"
 
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 FWidgetBlueprintEditor::FWidgetBlueprintEditor()
@@ -281,7 +285,9 @@ void FWidgetBlueprintEditor::BindToolkitCommands()
 	GetToolkitCommands()->MapAction(FUMGEditorCommands::Get().CreateNativeBaseClass,
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::OpenCreateNativeBaseClassDialog),
-			FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::IsParentClassNative)
+			FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::CanCreateNativeBaseClass),
+			FGetActionCheckState(),
+			FIsActionButtonVisible::CreateSP(this, &FWidgetBlueprintEditor::IsCreateNativeBaseClassVisible)
 		)
 	);
 
@@ -844,6 +850,17 @@ void FWidgetBlueprintEditor::DuplicateSelectedWidgets()
 		DuplicatedWidgetRefs.Add(GetReferenceFromPreview(Widget));
 	}
 	SelectWidgets(DuplicatedWidgetRefs, false);
+}
+
+bool FWidgetBlueprintEditor::CanCreateNativeBaseClass() const
+{
+	return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed() && IsParentClassNative();
+}
+
+
+bool FWidgetBlueprintEditor::IsCreateNativeBaseClassVisible() const
+{
+	return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
 }
 
 void FWidgetBlueprintEditor::Tick(float DeltaTime)
