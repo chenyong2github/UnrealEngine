@@ -125,7 +125,6 @@ namespace UE::KismetCompiler::Private
 		}
 	}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	// When we change pins back to real/float types, we also expect that the series of pin types matches that of the UFunction.
 	// If there's ever a discrepancy, then there's not much we can do other than log a warning.
 	// It typically means that the BP is in a bad state, which prevents us from deducing the corresponding pin.
@@ -436,7 +435,6 @@ namespace UE::KismetCompiler::Private
 			}
 		}
 	}
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1172,11 +1170,8 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 		FEdGraphPinType DirectionPinType(UEdGraphSchema_K2::PC_Byte, NAME_None, FTimeline::GetTimelineDirectionEnum(), EPinContainerType::None, false, FEdGraphTerminalType());
 		CreateVariable(Timeline->GetDirectionPropertyName(), DirectionPinType);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		FEdGraphPinType FloatPinType(UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Float, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-#else
-		FEdGraphPinType FloatPinType(UEdGraphSchema_K2::PC_Float, NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-#endif
+
 		for (const FTTFloatTrack& FloatTrack : Timeline->FloatTracks)
 		{
 			CreateVariable(FloatTrack.GetPropertyName(), FloatPinType);
@@ -2378,13 +2373,11 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 
 void FKismetCompilerContext::PreCompileUpdateBlueprintOnLoad(UBlueprint* BP)
 {
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	check(BP);
 	if (BP->GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers)
 	{
 		UE::KismetCompiler::Private::MatchNodesToDelegateSignatures(BP);
 	}
-#endif
 }
 
 /** Inserts a new item into an array in a sorted position; using an externally stored sort index map */
@@ -3624,11 +3617,9 @@ void FKismetCompilerContext::CreateLocalsAndRegisterNets(FKismetFunctionContext&
 		}
 	}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	using namespace UE::KismetCompiler;
 
 	CastingUtils::RegisterImplicitCasts(Context);
-#endif
 
 	// Create net variable declarations
 	CreateLocalVariablesForFunction(Context, FunctionPropertyStorageLocation);

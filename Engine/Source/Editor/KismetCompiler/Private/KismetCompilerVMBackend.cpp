@@ -478,7 +478,6 @@ public:
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Text);
 		}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		static bool IsFloat(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
@@ -496,25 +495,6 @@ public:
 			}
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Real) && (Type->PinSubCategory == UEdGraphSchema_K2::PC_Double);
 		}
-#else
-		static bool IsFloat(const FEdGraphPinType* Type, const FProperty* Property)
-		{
-			if (Property)
-			{
-				return Property->IsA<FFloatProperty>();
-			}
-			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Float);
-		}
-
-		static bool IsDouble(const FEdGraphPinType* Type, const FProperty* Property)
-		{
-			if (Property)
-			{
-				return Property->IsA<FDoubleProperty>();
-			}
-			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Double);
-		}
-#endif
 
 		static bool IsInt(const FEdGraphPinType* Type, const FProperty* Property)
 		{

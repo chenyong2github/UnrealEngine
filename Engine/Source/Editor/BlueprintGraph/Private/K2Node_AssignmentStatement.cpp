@@ -43,7 +43,6 @@ public:
 
 		ValidateAndRegisterNetIfLiteral(Context, ValuePin);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		{
 			using namespace UE::KismetCompiler;
 
@@ -80,7 +79,6 @@ public:
 				CompilerContext.MessageLog.Error(*LOCTEXT("NoVariableOrValueNets_Error", "Expected Variable and Value pins to have valid connections in @@").ToString(), Node);
 			}
 		}
-#endif
 	}
 
 

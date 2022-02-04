@@ -430,9 +430,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITORONLY_DATA
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-#endif
 
 	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_BLUEPRINT_VARS_NOT_READ_ONLY)
 	{
@@ -882,10 +880,8 @@ bool UBlueprint::AlwaysCompileOnLoad() const
 {
 	bool bShouldCompile = false;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	bShouldCompile = 
 		GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) <  FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers;
-#endif
 
 	return bShouldCompile;
 }

@@ -847,10 +847,7 @@ FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlEl
 	static const FName PC_Float(TEXT("float"));
 	static const FName PC_Int(TEXT("int"));
 	static const FName PC_Struct(TEXT("struct"));
-
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	static const FName PC_Real(TEXT("real"));
-#endif
 
 	FEdGraphPinType PinType;
 
@@ -861,20 +858,12 @@ FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlEl
 			PinType.PinCategory = PC_Boolean;
 			break;
 		}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		case ERigControlType::Float:
 		{
 			PinType.PinCategory = PC_Real;
 			PinType.PinSubCategory = PC_Float;
 			break;
 		}
-#else
-		case ERigControlType::Float:
-		{
-			PinType.PinCategory = PC_Float;
-			break;
-		}
-#endif
 		case ERigControlType::Integer:
 		{
 			PinType.PinCategory = PC_Int;

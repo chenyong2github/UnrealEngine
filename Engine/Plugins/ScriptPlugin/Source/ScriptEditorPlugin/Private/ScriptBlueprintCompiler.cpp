@@ -56,12 +56,8 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 			}
 			else if (Field.PropertyClass->IsChildOf(FFloatProperty::StaticClass()))
 			{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				PinCategory = UEdGraphSchema_K2::PC_Real;
 				PinSubCategory = UEdGraphSchema_K2::PC_Float;
-#else
-				PinCategory = UEdGraphSchema_K2::PC_Float;
-#endif
 			}
 			else if (Field.PropertyClass->IsChildOf(FIntProperty::StaticClass()))
 			{

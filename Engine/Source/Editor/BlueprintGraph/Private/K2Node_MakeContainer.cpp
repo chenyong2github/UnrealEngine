@@ -48,7 +48,6 @@ void FKCHandler_MakeContainer::Compile(FKismetFunctionContext& Context, UEdGraph
 			{
 				FBPTerminal* RHSTerm = *InputTerm;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				{
 					using namespace UE::KismetCompiler;
 
@@ -60,7 +59,6 @@ void FKCHandler_MakeContainer::Compile(FKismetFunctionContext& Context, UEdGraph
 						RHSTerm = ImplicitCastEntry->Get<0>();
 					}
 				}
-#endif
 				RHSTerms.Add(RHSTerm);
 			}
 		}

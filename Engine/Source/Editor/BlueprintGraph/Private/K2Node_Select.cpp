@@ -148,7 +148,6 @@ public:
 					return;
 				}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				{
 					using namespace UE::KismetCompiler;
 
@@ -160,7 +159,6 @@ public:
 						ValueTerm = ImplicitCastEntry->Get<0>();
 					}
 				}
-#endif
 
 				SelectStatement->RHS.Add(ValueTerm);
 			}

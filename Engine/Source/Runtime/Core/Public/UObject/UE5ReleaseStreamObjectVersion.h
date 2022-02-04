@@ -96,10 +96,8 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Large Worlds - serialize double types as doubles
 		LargeWorldCoordinates,
 		
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		// Deserialize old BP float&double types as real numbers for pins
 		BlueprintPinsUseRealNumbers,
-#endif
 		
 		// Changed shadow defaults for directional light components, version needed to not affect old things
 		UpdatedDirectionalLightShadowDefaults,

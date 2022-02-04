@@ -126,7 +126,6 @@ namespace TypePromoTestUtils
 																				PinArray.Add(InPinName);											\
 																				InPinName->Direction = PinDirection;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 #define MakeRealNumberTestPin(OwningNode, PinArray, InPinName, PinDirection)	UEdGraphPin* InPinName = UEdGraphPin::CreatePin(OwningNode);		\
 																				InPinName->PinType.PinCategory = UEdGraphSchema_K2::PC_Real;		\
 																				InPinName->PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;	\
@@ -137,15 +136,7 @@ namespace TypePromoTestUtils
 	MakeRealNumberTestPin(OwningNode, OutArray, RealPinA, EGPD_Input);									\
 	MakeRealNumberTestPin(OwningNode, OutArray, RealPinB, EGPD_Input);									\
 	MakeRealNumberTestPin(OwningNode, OutArray, RealOutputPin, EGPD_Output);		
-#else
-#define MakeRealNumberTestPins(OwningNode, OutArray)													\
-	MakeTestPin(OwningNode, OutArray, FloatPinA, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
-	MakeTestPin(OwningNode, OutArray, FloatPinB, UEdGraphSchema_K2::PC_Float, EGPD_Input);				\
-	MakeTestPin(OwningNode, OutArray, FloatOutputPin, UEdGraphSchema_K2::PC_Float, EGPD_Output);		\
-	MakeTestPin(OwningNode, OutArray, DoublePinA, UEdGraphSchema_K2::PC_Double, EGPD_Output);			\
-	MakeTestPin(OwningNode, OutArray, DoublePinB, UEdGraphSchema_K2::PC_Double, EGPD_Output);			\
-	MakeTestPin(OwningNode, OutArray, DoubleOutputPin, UEdGraphSchema_K2::PC_Double, EGPD_Output);
-#endif
+
 
 #define MakeTestPins(OwningNode, OutArray)																\
 	MakeRealNumberTestPins(OwningNode, OutArray)														\
@@ -177,7 +168,6 @@ namespace TypePromoTestUtils
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTypePromotionTest, "Blueprints.Compiler.TypePromotion", EAutomationTestFlags::EditorContext | EAutomationTestFlags::SmokeFilter)
 bool FTypePromotionTest::RunTest(const FString& Parameters)
 {
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	FEdGraphPinType RealPin = {};		RealPin.PinCategory = UEdGraphSchema_K2::PC_Real; RealPin.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	FEdGraphPinType IntPin = {};		IntPin.PinCategory = UEdGraphSchema_K2::PC_Int;
 	FEdGraphPinType Int64Pin = {};		Int64Pin.PinCategory = UEdGraphSchema_K2::PC_Int64;
@@ -204,40 +194,6 @@ bool FTypePromotionTest::RunTest(const FString& Parameters)
 	// Test promotions that should not happen
 	TestEqual(TEXT("Testing int64 cannot go to byte"), FTypePromotion::GetHigherType(Int64Pin, BytePin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
 	TestEqual(TEXT("Testing int64 cannot go to int"), FTypePromotion::GetHigherType(Int64Pin, IntPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
-#else
-	FEdGraphPinType DoublePin = {};		DoublePin.PinCategory = UEdGraphSchema_K2::PC_Double;
-	FEdGraphPinType FloatPin = {};		FloatPin.PinCategory = UEdGraphSchema_K2::PC_Float;
-	FEdGraphPinType IntPin = {};		IntPin.PinCategory = UEdGraphSchema_K2::PC_Int;
-	FEdGraphPinType Int64Pin = {};		Int64Pin.PinCategory = UEdGraphSchema_K2::PC_Int64;
-	FEdGraphPinType BytePin = {};		BytePin.PinCategory = UEdGraphSchema_K2::PC_Byte;
-	FEdGraphPinType VecPin = {};		VecPin.PinCategory = UEdGraphSchema_K2::PC_Struct; VecPin.PinSubCategoryObject = TBaseStructure<FVector>::Get();
-
-	// Test promotions that should happen
-	TestEqual(TEXT("Testing float to double"), FTypePromotion::GetHigherType(FloatPin, DoublePin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-	TestEqual(TEXT("Testing float to vector"), FTypePromotion::GetHigherType(FloatPin, VecPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-
-	TestEqual(TEXT("Testing int to float"), FTypePromotion::GetHigherType(IntPin, FloatPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-	TestEqual(TEXT("Testing int to double"), FTypePromotion::GetHigherType(IntPin, DoublePin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-	TestEqual(TEXT("Testing int to int64"), FTypePromotion::GetHigherType(IntPin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-
-	TestEqual(TEXT("Testing Byte to int"), FTypePromotion::GetHigherType(BytePin, IntPin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-	TestEqual(TEXT("Testing Byte to int64"), FTypePromotion::GetHigherType(BytePin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-
-	TestEqual(TEXT("Testing Double to int64"), FTypePromotion::GetHigherType(DoublePin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypeBHigher);
-
-	// Test Equality of pins
-	TestEqual(TEXT("Testing Byte == Byte"), FTypePromotion::GetHigherType(BytePin, BytePin), FTypePromotion::ETypeComparisonResult::TypesEqual);
-	TestEqual(TEXT("Testing float == float"), FTypePromotion::GetHigherType(FloatPin, FloatPin), FTypePromotion::ETypeComparisonResult::TypesEqual);
-	TestEqual(TEXT("Testing double == double"), FTypePromotion::GetHigherType(DoublePin, DoublePin), FTypePromotion::ETypeComparisonResult::TypesEqual);
-	TestEqual(TEXT("Testing int == int"), FTypePromotion::GetHigherType(IntPin, IntPin), FTypePromotion::ETypeComparisonResult::TypesEqual);
-	TestEqual(TEXT("Testing int64 == int64"), FTypePromotion::GetHigherType(Int64Pin, Int64Pin), FTypePromotion::ETypeComparisonResult::TypesEqual);
-
-
-	// Test promotions that should not happen
-	TestEqual(TEXT("Testing int64 cannot go to byte"), FTypePromotion::GetHigherType(Int64Pin, BytePin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
-	TestEqual(TEXT("Testing int64 cannot go to int"), FTypePromotion::GetHigherType(Int64Pin, IntPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
-	TestEqual(TEXT("Testing int64 cannot go to float"), FTypePromotion::GetHigherType(Int64Pin, FloatPin), FTypePromotion::ETypeComparisonResult::TypeAHigher);
-#endif
 
 	return true;
 }
@@ -283,7 +239,6 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_Vector2DVector2D"));
 	}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	// Multiply_VectorVector given A real input, vector input, and a vector output
 	{
 		TArray<UEdGraphPin*> TestPins =
@@ -366,98 +321,6 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 		};
 		TestMatchingFunc(TEXT("Greater"), TestPins, TEXT("Greater_DoubleDouble"));
 	}
-#else
-	// Multiply_VectorVector given A float input, vector input, and a vector output
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA, VecInputPinB, VecOutputPinA,
-		};
-		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
-	}
-
-	// Multiply_VectorVector given a float, vector, float
-	// Order shouldn't matter when passing these pins in, which is what we are testing here
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA, VecOutputPinA, VecInputPinA,
-		};
-		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
-	}
-
-	// Multiply_VectorVector given two vector inputs and a vector output
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			VecInputPinA, VecInputPinB, VecOutputPinA,
-		};
-		TestMatchingFunc(TEXT("Multiply"), TestPins, TEXT("Multiply_VectorVector"));
-	}
-
-	// Add_DoubleDouble
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			DoublePinA, DoublePinB, DoubleOutputPin
-		};
-		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_DoubleDouble"));
-	}
-
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			DoublePinA, FloatPinA, DoubleOutputPin
-		};
-		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_DoubleDouble"));
-	}
-
-	// Subtract_FloatFloat
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA, FloatPinB, FloatOutputPin
-		};
-		TestMatchingFunc(TEXT("Subtract"), TestPins, TEXT("Subtract_FloatFloat"));
-	}
-
-	// Add_FloatFloat given only one float pin. This simulates the first connection being made to a 
-	// promotable operator, in which case we should default to a regular old Float + Float
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA,
-		};
-		TestMatchingFunc(TEXT("Add"), TestPins, TEXT("Add_FloatFloat"));
-	}
-
-	// Less_FloatFloat Given a Float and Double
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA, BoolOutputPin
-		};
-		TestMatchingFunc(TEXT("Less"), TestPins, TEXT("Less_FloatFloat"));
-	}
-
-	// Less_FloatFloat Given just a single float
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA,
-		};
-		TestMatchingFunc(TEXT("Less"), TestPins, TEXT("Less_FloatFloat"));
-	}
-
-	// Greater_DoubleDouble Given a Float and Double
-	{
-		TArray<UEdGraphPin*> TestPins =
-		{
-			FloatPinA, DoublePinA
-		};
-		TestMatchingFunc(TEXT("Greater"), TestPins, TEXT("Greater_DoubleDouble"));
-	}
-#endif
 	
 	TypePromoTestUtils::CleanupTestPins(PinTypes);
 	TestNode->MarkAsGarbage();
@@ -765,7 +628,6 @@ bool FPromotableOpNodeAddPinInterface::RunTest(const FString& Parameters)
 		UEdGraphPin* AdditonalPin = AddNode->GetAdditionalPin(2);
 		TestNotNull(TEXT("Additional Pin is not null"), AdditonalPin);
 		
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		// Connect a real pin to the additional input pin
 		const bool bConnected = TypePromoTestUtils::TestPromotedConnection(AdditonalPin, RealOutputPin);
 		TestTrue(TEXT("Connection to additional pin success"), bConnected);
@@ -774,16 +636,6 @@ bool FPromotableOpNodeAddPinInterface::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Top Pin type propegates to new connection"), TopInputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
 		TestTrue(TEXT("Bottom Pin type propegates to new connection"), BottomInputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
 		TestTrue(TEXT("Out Pin type propegates to new connection"), OutputPin->PinType.PinCategory == RealOutputPin->PinType.PinCategory);
-#else
-		// Connect a float pin to the additional input pin
-		const bool bConnected = TypePromoTestUtils::TestPromotedConnection(AdditonalPin, FloatOutputPin);
-		TestTrue(TEXT("Connection to additional pin success"), bConnected);
-
-		// The other pins have propagated correctly with this new connection 
-		TestTrue(TEXT("Top Pin type propegates to new connection"), TopInputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
-		TestTrue(TEXT("Bottom Pin type propegates to new connection"), BottomInputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
-		TestTrue(TEXT("Out Pin type propegates to new connection"), OutputPin->PinType.PinCategory == FloatOutputPin->PinType.PinCategory);
-#endif
 
 		// Removing the only pin with a connection with reset the node to wildcard
 		AddNode->RemoveInputPin(AdditonalPin);
@@ -843,17 +695,10 @@ bool FPromotableOperatorConnectionChanged::RunTest(const FString& Parameters)
 
 		check(TopInputPin && BottomInputPin && OutputPin);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		const bool bConnected = K2Schema->TryCreateConnection(TopInputPin, RealOutputPin);
 		AddNode->NotifyPinConnectionListChanged(TopInputPin);
 
 		TestTrue(TEXT("Bottom Pin type propagates to real"), bConnected && BottomInputPin->PinType.PinCategory == RealPinB->PinType.PinCategory);
-#else
-		const bool bConnected = K2Schema->TryCreateConnection(TopInputPin, FloatOutputPin);
-		AddNode->NotifyPinConnectionListChanged(TopInputPin);
-
-		TestTrue(TEXT("Bottom Pin type propagates to float"), bConnected && BottomInputPin->PinType.PinCategory == FloatPinB->PinType.PinCategory);
-#endif
 	}
 
 	// Connecting a vector output should make the other input be a vector as well

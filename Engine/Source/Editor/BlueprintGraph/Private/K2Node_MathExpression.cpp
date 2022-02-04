@@ -79,12 +79,8 @@ static bool PromoteIntToFloat(FEdGraphPinType& InOutType)
 {
 	if (InOutType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		InOutType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		InOutType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
-#else
-		InOutType.PinCategory = UEdGraphSchema_K2::PC_Float;
-#endif
 		InOutType.PinSubCategoryObject = nullptr;
 		return true;
 	}
@@ -1653,12 +1649,8 @@ private:
 			// Create an input pin (using the default guessed type)
 			FEdGraphPinType DefaultType;
 			// currently, generated expressions ALWAYS take a float (it is the most versatile type)
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			DefaultType.PinCategory = UEdGraphSchema_K2::PC_Real;
 			DefaultType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
-#else
-			DefaultType.PinCategory = UEdGraphSchema_K2::PC_Float;
-#endif
 			
 			UEdGraphPin* NewInputPin = EntryNode->CreateUserDefinedPin(VariableIdentifier, DefaultType, EGPD_Output);
 			InputPinFragment = MakeShareable(new FCodeGenFragment_InputPin(NewInputPin));
@@ -1741,12 +1733,8 @@ private:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 				break;
 			case CPT_Float:
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Real;
 				LiteralType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
-#else
-				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Float;
-#endif
 				break;
 			case CPT_Int:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Int;

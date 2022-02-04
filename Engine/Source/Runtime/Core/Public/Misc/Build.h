@@ -364,11 +364,6 @@
 /** Enable fast calls for event thunks into an event graph that have no parameters  */
 #define UE_BLUEPRINT_EVENTGRAPH_FASTCALLS 1
 
-/** Toggles the use of real numbers in blueprints. Explicit float and double usage will not be available. */
-#ifndef ENABLE_BLUEPRINT_REAL_NUMBERS
-#define ENABLE_BLUEPRINT_REAL_NUMBERS 1
-#endif
-
 /** Enable perf counters on dedicated servers */
 #define USE_SERVER_PERF_COUNTERS ((UE_SERVER || UE_EDITOR) && WITH_PERFCOUNTERS)
 

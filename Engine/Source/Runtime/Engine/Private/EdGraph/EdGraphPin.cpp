@@ -161,10 +161,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-#endif
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -303,7 +300,6 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 			}
 		}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		bool bFixupPinCategories =
 			(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
 			((PinCategory == TEXT("double")) || (PinCategory == TEXT("float")));
@@ -313,8 +309,6 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 			PinCategory = TEXT("real");
 			PinSubCategory = TEXT("double");
 		}
-#endif
-
 #endif
 
 		bIsUObjectWrapper = bIsUObjectWrapperBool;

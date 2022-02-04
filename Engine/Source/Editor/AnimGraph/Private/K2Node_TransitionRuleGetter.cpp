@@ -26,11 +26,8 @@ UK2Node_TransitionRuleGetter::UK2Node_TransitionRuleGetter(const FObjectInitiali
 
 void UK2Node_TransitionRuleGetter::AllocateDefaultPins()
 {
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	UEdGraphPin* OutputPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Float, TEXT("Output"));
-#else
-	UEdGraphPin* OutputPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Float, TEXT("Output"));
-#endif
+
 	OutputPin->PinFriendlyName = GetFriendlyName(GetterType);
 
 	PreloadObject(AssociatedAnimAssetPlayerNode);

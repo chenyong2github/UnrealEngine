@@ -39,10 +39,7 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-#endif
 
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -94,7 +91,6 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 		Ar << T.bTerminalIsUObjectWrapper;
 	}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	if (Ar.IsLoading())
 	{
 		bool bFixupPinCategories =
@@ -107,7 +103,6 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 			T.TerminalSubCategory = TEXT("double");
 		}
 	}
-#endif
 
 	return Ar;
 }

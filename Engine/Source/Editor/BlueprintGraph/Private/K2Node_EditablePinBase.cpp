@@ -58,7 +58,6 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 		Info.PinType.PinCategory = *PinCategoryStr;
 		Info.PinType.PinSubCategory = *PinSubCategoryStr;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		bool bFixupPinCategories =
 			((Info.PinType.PinCategory == TEXT("double")) || (Info.PinType.PinCategory == TEXT("float")));
 
@@ -67,7 +66,6 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 			Info.PinType.PinCategory = TEXT("real");
 			Info.PinType.PinSubCategory = TEXT("double");
 		}
-#endif
 
 		Ar << Info.PinType.PinSubCategoryObject;
 	}

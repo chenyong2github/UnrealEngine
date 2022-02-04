@@ -325,21 +325,10 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 	{
 		return SNew(SGraphPinNum<int64>, InPin);
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
 	{
 		return SNew(SGraphPinNum<double>, InPin);
 	}
-#else
-	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
-	{
-		return SNew(SGraphPinNum<float>, InPin);
-	}
-	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Double)
-	{
-		return SNew(SGraphPinNum<double>, InPin);
-	}
-#endif
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_String || InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
 		return SNew(SGraphPinString, InPin);

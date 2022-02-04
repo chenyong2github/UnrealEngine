@@ -121,7 +121,6 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 			}
 		}
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (PinCategory == UEdGraphSchema_K2::PC_Real)
 	{
 		if (PinSubCategory == UEdGraphSchema_K2::PC_Float)
@@ -140,18 +139,6 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 			bTypeMismatch = true;
 		}
 	}
-#else
-	else if (PinCategory == UEdGraphSchema_K2::PC_Float)
-	{
-		FFloatProperty* SpecificProperty = CastField<FFloatProperty>(TestProperty);
-		bTypeMismatch = (SpecificProperty == nullptr);
-	}
-	else if (PinCategory == UEdGraphSchema_K2::PC_Double)
-	{
-		FDoubleProperty* SpecificProperty = CastField<FDoubleProperty>(TestProperty);
-		bTypeMismatch = (SpecificProperty == nullptr);
-	}
-#endif
 	else if (PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		FIntProperty* SpecificProperty = CastField<FIntProperty>(TestProperty);
@@ -902,7 +889,6 @@ void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionCo
 	{
 		FBPTerminal* RHSTerm = SrcTerm;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		using namespace UE::KismetCompiler;
 
 		FBPTerminal* ImplicitCastTerm = nullptr;
@@ -924,7 +910,6 @@ void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionCo
 		{
 			RHSTerm = ImplicitCastTerm;
 		}
-#endif
 
 		FBlueprintCompiledStatement& Statement = Context.AppendStatementForNode(Node);
 		Statement.Type = KCST_Assignment;
@@ -1086,7 +1071,6 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 		NewProperty = new FInt64Property(PropertyScope, ValidatedPropertyName, ObjectFlags);
 		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (PinCategory == UEdGraphSchema_K2::PC_Real)
 	{
 		if (PinSubCategory == UEdGraphSchema_K2::PC_Float)
@@ -1104,18 +1088,6 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 			checkf(false, TEXT("Erroneous pin subcategory for PC_Real: %s"), *PinSubCategory.ToString());
 		}
 	}
-#else
-	else if (PinCategory == UEdGraphSchema_K2::PC_Float)
-	{
-		NewProperty = new FFloatProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
-		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
-	}
-	else if (PinCategory == UEdGraphSchema_K2::PC_Double)
-	{
-		NewProperty = new FDoubleProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);
-		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
-	}
-#endif
 	else if (PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		FBoolProperty* BoolProperty = new FBoolProperty(PropertyScope, ValidatedPropertyName, ObjectFlags);

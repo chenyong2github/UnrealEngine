@@ -131,7 +131,6 @@ FBlueprintCompiledStatement* FKCHandler_MathExpression::GenerateFunctionRPN(UEdG
 
 			if (RHSTerm)
 			{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				{
 					const FImplicitCastParams* CastParams =
 						Context.ImplicitCastMap.Find(PinMatch);
@@ -171,7 +170,6 @@ FBlueprintCompiledStatement* FKCHandler_MathExpression::GenerateFunctionRPN(UEdG
 						Context.ImplicitCastMap.Remove(PinMatch);
 					}
 				}
-#endif
 
 				RHSTerms.Add(RHSTerm);
 			}
@@ -287,7 +285,6 @@ void FKCHandler_MathExpression::Compile(FKismetFunctionContext& Context, UEdGrap
 		TArray<FBlueprintCompiledStatement*>& StatementList = Context.StatementsPerNode.FindOrAdd(Node);
 		StatementList.Add(DetachedStatement);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		{
 			using namespace UE::KismetCompiler;
 
@@ -304,7 +301,6 @@ void FKCHandler_MathExpression::Compile(FKismetFunctionContext& Context, UEdGrap
 				}
 			}
 		}
-#endif
 	}
 	else
 	{

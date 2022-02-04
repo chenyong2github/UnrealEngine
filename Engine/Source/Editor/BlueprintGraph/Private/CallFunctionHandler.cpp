@@ -152,7 +152,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 		UScriptStruct* RotatorStruct = TBaseStructure<FRotator>::Get();
 		UScriptStruct* TransformStruct = TBaseStructure<FTransform>::Get();
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		// If a function parameter needs an implicit double<->float cast *and* it's a non-const reference,
 		// then we need to copy the value of the casted temporary *back* to its source.
 		// 
@@ -165,7 +164,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 		//
 		using CastEntry = TTuple<FBPTerminal*, FBPTerminal*, EKismetCompiledStatementType>;
 		TArray<CastEntry> ModifiedCastInputs;
-#endif
 
 		// Check each property
 		bool bMatchedAllParams = true;
@@ -255,7 +253,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 									RHSTerm = *InterfaceTerm;
 								}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 								{
 									using namespace UE::KismetCompiler;
 
@@ -283,7 +280,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 										RHSTerm = CastTerm;
 									}
 								}
-#endif
 
 								int32 ParameterIndex = RHSTerms.Add(RHSTerm);
 
@@ -508,7 +504,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 				}
 			}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			{
 				using namespace UE::KismetCompiler;
 
@@ -527,7 +522,6 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 					CastStatement.RHS.Add(LocalRHSTerm);
 				}
 			}
-#endif
 
 			// Create the exit from this node if there is one
 			if (bIsLatent)

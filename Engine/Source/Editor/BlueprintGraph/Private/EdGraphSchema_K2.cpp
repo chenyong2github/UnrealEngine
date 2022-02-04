@@ -555,11 +555,7 @@ void UEdGraphSchema_K2::FPinTypeTreeInfo::Init(const FText& InFriendlyName, cons
 	FriendlyName = InFriendlyName;
 	Tooltip = InTooltip;
 	PinType.PinCategory = (CategoryName == PC_Enum ? PC_Byte : CategoryName);
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	PinType.PinSubCategory = (CategoryName == PC_Real ? PC_Double : NAME_None);
-#else
-	PinType.PinSubCategory = NAME_None;
-#endif
 	PinType.PinSubCategoryObject = nullptr;
 
 	bReadOnly = bInReadOnly;
@@ -646,9 +642,7 @@ const FName UEdGraphSchema_K2::PC_Int(TEXT("int"));
 const FName UEdGraphSchema_K2::PC_Int64(TEXT("int64"));
 const FName UEdGraphSchema_K2::PC_Float(TEXT("float"));
 const FName UEdGraphSchema_K2::PC_Double(TEXT("double"));
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 const FName UEdGraphSchema_K2::PC_Real(TEXT("real"));
-#endif
 const FName UEdGraphSchema_K2::PC_Name(TEXT("name"));
 const FName UEdGraphSchema_K2::PC_Delegate(TEXT("delegate"));
 const FName UEdGraphSchema_K2::PC_MCDelegate(TEXT("mcdelegate"));
@@ -2892,21 +2886,10 @@ FLinearColor UEdGraphSchema_K2::GetPinTypeColor(const FEdGraphPinType& PinType) 
 	{
 		return Settings->InterfacePinTypeColor;
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (TypeName == PC_Real)
 	{
 		return Settings->RealPinTypeColor;
 	}
-#else
-	else if (TypeName == PC_Float)
-	{
-		return Settings->FloatPinTypeColor;
-	}
-	else if (TypeName == PC_Double)
-	{
-		return Settings->DoublePinTypeColor;
-	}
-#endif
 	else if (TypeName == PC_Boolean)
 	{
 		return Settings->BooleanPinTypeColor;
@@ -3350,7 +3333,6 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, F
 			}
 		}
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (TestProperty->IsA<FFloatProperty>())
 	{
 		OutCategory = PC_Real;
@@ -3361,16 +3343,6 @@ bool UEdGraphSchema_K2::GetPropertyCategoryInfo(const FProperty* TestProperty, F
 		OutCategory = PC_Real;
 		OutSubCategory = PC_Double;
 	}
-#else
-	else if (TestProperty->IsA<FFloatProperty>())
-	{
-		OutCategory = PC_Float;
-	}
-	else if(TestProperty->IsA<FDoubleProperty>())
-	{
-		OutCategory = PC_Double;
-	}
-#endif
 	else if (TestProperty->IsA<FInt64Property>())
 	{
 		OutCategory = PC_Int64;
@@ -3666,12 +3638,7 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 		CategoryDescriptions.Add(PC_Class, LOCTEXT("ClassCategory","Class Reference"));
 		CategoryDescriptions.Add(PC_Int, LOCTEXT("IntCategory", "Integer"));
 		CategoryDescriptions.Add(PC_Int64, LOCTEXT("Int64Category", "Integer64"));
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		CategoryDescriptions.Add(PC_Real, LOCTEXT("RealCategory", "Real"));
-#else
-		CategoryDescriptions.Add(PC_Float, LOCTEXT("FloatCategory", "Float"));
-		CategoryDescriptions.Add(PC_Double, LOCTEXT("DoubleCategory", "Double"));
-#endif
 		CategoryDescriptions.Add(PC_Name, LOCTEXT("NameCategory","Name"));
 		CategoryDescriptions.Add(PC_Delegate, LOCTEXT("DelegateCategory","Delegate"));
 		CategoryDescriptions.Add(PC_MCDelegate, LOCTEXT("MulticastDelegateCategory","Multicast Delegate"));
@@ -3858,12 +3825,7 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 
 	if (!bIndexTypesOnly)
 	{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Real, true), PC_Real, this, LOCTEXT("RealType", "Floating point number"))));
-#else
-		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Float, true), PC_Float, this, LOCTEXT("FloatType", "Floating point number"))));
-		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Double, true), PC_Double, this, LOCTEXT("DoubleType", "64 bit floating point number"))));
-#endif
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Name, true), PC_Name, this, LOCTEXT("NameType", "A text name"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_String, true), PC_String, this, LOCTEXT("StringType", "A text string"))));
 		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Text, true), PC_Text, this, LOCTEXT("TextType", "A localizable text string"))));
@@ -4136,7 +4098,6 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			}
 		}
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (PinCategory == PC_Real)
 	{
 		if (!NewDefaultValue.IsEmpty())
@@ -4147,28 +4108,6 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 			}
 		}
 	}
-#else
-	else if (PinCategory == PC_Float)
-	{
-		if (!NewDefaultValue.IsEmpty())
-		{
-			if (!FDefaultValueHelper::IsStringValidFloat(NewDefaultValue))
-			{
-				DVSV_RETURN_MSG(TEXT("Expected a valid number for an float property"));
-			}
-		}
-	}
-	else if (PinCategory == PC_Double)
-	{
-		if (!NewDefaultValue.IsEmpty())
-		{
-			if (!FDefaultValueHelper::IsStringValidFloat(NewDefaultValue))
-			{
-				DVSV_RETURN_MSG(TEXT("Expected a valid number for an double property"));
-			}
-		}
-	}
-#endif
 	else if (PinCategory == PC_Int)
 	{
 		if (!NewDefaultValue.IsEmpty())
@@ -4350,14 +4289,11 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 				return 
 					Input.PinValueType.TerminalCategory == PC_Wildcard ||
 					Output.PinValueType.TerminalCategory == PC_Wildcard ||
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 					((Input.PinValueType.TerminalCategory == PC_Real) && (Output.PinValueType.TerminalCategory == PC_Real)) ||
-#endif
 					Input.PinValueType == Output.PinValueType;
 			}
 			return true;
 		}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		// Reals, whether they're actually a float or double, are always compatible.
 		// We'll insert an implicit conversion in the bytecode where necessary.
 		else if (Output.PinCategory == PC_Real)
@@ -4368,7 +4304,6 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 		{
 			return true;
 		}
-#endif
 		else if (Output.PinCategory == PC_Interface)
 		{
 			UClass const* OutputClass = Cast<UClass const>(Output.PinSubCategoryObject.Get());
@@ -4843,27 +4778,12 @@ bool UEdGraphSchema_K2::DoesDefaultValueMatchAutogenerated(const UEdGraphPin& In
 	}
 	else if (!InPin.bUseBackwardsCompatForEmptyAutogeneratedValue)
 	{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		if (InPin.PinType.PinCategory == PC_Real)
 		{
 			const double AutogeneratedDouble = FCString::Atod(*InPin.AutogeneratedDefaultValue);
 			const double DefaultDouble = FCString::Atod(*InPin.DefaultValue);
 			return (AutogeneratedDouble == DefaultDouble);
 		}
-#else
-		if (InPin.PinType.PinCategory == PC_Float)
-		{
-			const float AutogeneratedFloat = FCString::Atof(*InPin.AutogeneratedDefaultValue);
-			const float DefaultFloat = FCString::Atof(*InPin.DefaultValue);
-			return (AutogeneratedFloat == DefaultFloat);
-		}
-		else if (InPin.PinType.PinCategory == PC_Double)
-		{
-			const double AutogeneratedDouble = FCString::Atod(*InPin.AutogeneratedDefaultValue);
-			const double DefaultDouble = FCString::Atod(*InPin.DefaultValue);
-			return (AutogeneratedDouble == DefaultDouble);
-		}
-#endif
 		else if (InPin.PinType.PinCategory == PC_Struct)
 		{
 			if ((InPin.PinType.PinSubCategoryObject == VectorStruct) || (InPin.PinType.PinSubCategoryObject == Vector3fStruct))
@@ -5079,22 +4999,10 @@ void UEdGraphSchema_K2::SetPinAutogeneratedDefaultValueBasedOnType(UEdGraphPin* 
 			NewValue = TEXT("0");
 		}
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (Pin->PinType.PinCategory == PC_Real)
 	{
 		NewValue = TEXT("0.0");
 	}
-#else
-	else if (Pin->PinType.PinCategory == PC_Float)
-	{
-		// This is a slightly different format than is produced by PropertyValueToString, but changing it has backward compatibility issues
-		NewValue = TEXT("0.0");
-	}
-	else if (Pin->PinType.PinCategory == PC_Double)
-	{
-		NewValue = TEXT("0.0");
-	}
-#endif
 	else if (Pin->PinType.PinCategory == PC_Boolean)
 	{
 		NewValue = TEXT("false");
@@ -5297,21 +5205,10 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetByteName;
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetDoubleName;
 	}
-#else
-	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Float)
-	{
-		SetFunctionName = FSetVariableByNameFunctionNames::SetFloatName;
-	}
-	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Double)
-	{
-		SetFunctionName = FSetVariableByNameFunctionNames::SetDoubleName;
-	}
-#endif
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		SetFunctionName = FSetVariableByNameFunctionNames::SetBoolName;

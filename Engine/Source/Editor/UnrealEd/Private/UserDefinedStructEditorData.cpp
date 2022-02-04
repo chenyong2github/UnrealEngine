@@ -33,7 +33,6 @@ void FStructVariableDescription::PostSerialize(const FArchive& Ar)
 		}
 	}
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	bool FixupPinCategories =
 		Ar.IsLoading() &&
 		(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
@@ -44,7 +43,6 @@ void FStructVariableDescription::PostSerialize(const FArchive& Ar)
 		Category = TEXT("real");
 		SubCategory = TEXT("double");
 	}
-#endif
 }
 
 bool FStructVariableDescription::SetPinType(const FEdGraphPinType& VarType)
@@ -84,9 +82,7 @@ void UUserDefinedStructEditorData::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-#endif
 }
 
 void UUserDefinedStructEditorData::PostUndo(bool bSuccess)

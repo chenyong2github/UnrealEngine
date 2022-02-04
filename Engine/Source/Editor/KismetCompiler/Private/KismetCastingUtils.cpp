@@ -5,8 +5,6 @@
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
-
 namespace UE::KismetCompiler::CastingUtils::Private
 {
 
@@ -419,6 +417,4 @@ TOptional<StatementNamePair> GetFloatingPointConversionType(const UEdGraphPin& S
 }
 
 } // namespace UE::KismetCompiler::CastingUtils
-
-#endif
 

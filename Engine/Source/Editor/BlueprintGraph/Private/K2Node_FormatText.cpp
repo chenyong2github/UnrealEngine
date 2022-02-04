@@ -381,7 +381,6 @@ void UK2Node_FormatText::ExpandNode(class FKismetCompilerContext& CompilerContex
 				// Connect the int output pin to the argument value
 				CallFloatToDoubleFunction->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue)->MakeLinkTo(MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValueInt)));
 			}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			else if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Real)
 			{
 				if (ArgumentPin->PinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
@@ -399,18 +398,6 @@ void UK2Node_FormatText::ExpandNode(class FKismetCompilerContext& CompilerContex
 					check(false);
 				}
 			}
-#else
-			else if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Float)
-			{
-				MakeFormatArgumentDataStruct->GetSchema()->TrySetDefaultValue(*ArgumentTypePin, TEXT("Float"));
-				CompilerContext.MovePinLinksToIntermediate(*ArgumentPin, *MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValueFloat)));
-			}
-			else if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Double)
-			{
-				MakeFormatArgumentDataStruct->GetSchema()->TrySetDefaultValue(*ArgumentTypePin, TEXT("Double"));
-				CompilerContext.MovePinLinksToIntermediate(*ArgumentPin, *MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValueDouble)));
-			}
-#endif
 			else if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Int64)
 			{
 				MakeFormatArgumentDataStruct->GetSchema()->TrySetDefaultValue(*ArgumentTypePin, TEXT("Int64"));
@@ -566,17 +553,10 @@ bool UK2Node_FormatText::IsConnectionDisallowed(const UEdGraphPin* MyPin, const 
 		const FName& OtherPinCategory = OtherPin->PinType.PinCategory;
 
 		bool bIsValidType = false;
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		if (OtherPinCategory == UEdGraphSchema_K2::PC_Int || OtherPinCategory == UEdGraphSchema_K2::PC_Real || OtherPinCategory == UEdGraphSchema_K2::PC_Text ||
 			(OtherPinCategory == UEdGraphSchema_K2::PC_Byte && !OtherPin->PinType.PinSubCategoryObject.IsValid()) ||
 			OtherPinCategory == UEdGraphSchema_K2::PC_Boolean || OtherPinCategory == UEdGraphSchema_K2::PC_String || OtherPinCategory == UEdGraphSchema_K2::PC_Name || OtherPinCategory == UEdGraphSchema_K2::PC_Object ||
 			OtherPinCategory == UEdGraphSchema_K2::PC_Wildcard || OtherPinCategory == UEdGraphSchema_K2::PC_Int64)
-#else
-		if (OtherPinCategory == UEdGraphSchema_K2::PC_Int || OtherPinCategory == UEdGraphSchema_K2::PC_Float || OtherPinCategory == UEdGraphSchema_K2::PC_Text ||
-			(OtherPinCategory == UEdGraphSchema_K2::PC_Byte && !OtherPin->PinType.PinSubCategoryObject.IsValid()) ||
-            OtherPinCategory == UEdGraphSchema_K2::PC_Boolean || OtherPinCategory == UEdGraphSchema_K2::PC_String || OtherPinCategory == UEdGraphSchema_K2::PC_Name || OtherPinCategory == UEdGraphSchema_K2::PC_Object ||
-			OtherPinCategory == UEdGraphSchema_K2::PC_Wildcard || OtherPinCategory == UEdGraphSchema_K2::PC_Int64 || OtherPinCategory == UEdGraphSchema_K2::PC_Double)
-#endif
         {
 			bIsValidType = true;
 		}

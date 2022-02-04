@@ -331,9 +331,7 @@ class BLUEPRINTGRAPH_API UEdGraphSchema_K2 : public UEdGraphSchema
 	static const FName PC_Int64;
 	static const FName PC_Float;
 	static const FName PC_Double;
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	static const FName PC_Real;
-#endif
 	static const FName PC_Name;
 	static const FName PC_Delegate;    // SubCategoryObject is the UFunction of the delegate signature
 	static const FName PC_MCDelegate;  // SubCategoryObject is the UFunction of the delegate signature

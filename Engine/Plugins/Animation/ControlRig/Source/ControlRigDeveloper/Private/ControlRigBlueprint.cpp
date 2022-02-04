@@ -2585,7 +2585,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 					}
 
 					FName DataType = PinType.PinCategory;
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
+
 					if (PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
 					{
 						if (PinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
@@ -2601,7 +2601,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 							ensure(false);
 						}
 					}
-#endif
+
 					UObject* DataTypeObject = nullptr;
 					if (DataType == NAME_None)
 					{

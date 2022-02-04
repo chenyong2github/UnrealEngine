@@ -48,11 +48,7 @@ struct FValueTypeData
 static TMap<EInputActionValueType, FValueTypeData> ValueLookups =
 {
 	{ EInputActionValueType::Boolean, FValueTypeData(UEdGraphSchema_K2::PC_Boolean) },
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	{ EInputActionValueType::Axis1D, FValueTypeData(UEdGraphSchema_K2::PC_Real, UEdGraphSchema_K2::PC_Float) },
-#else
-	{ EInputActionValueType::Axis1D, FValueTypeData(UEdGraphSchema_K2::PC_Float) },
-#endif
 	{ EInputActionValueType::Axis2D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, NAME_None, TBaseStructure<FVector2D>::Get()) },
 	{ EInputActionValueType::Axis3D, FValueTypeData(UEdGraphSchema_K2::PC_Struct, NAME_None, TBaseStructure<FVector>::Get()) },
 };

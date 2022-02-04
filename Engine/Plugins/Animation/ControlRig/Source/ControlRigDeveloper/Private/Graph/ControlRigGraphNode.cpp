@@ -1164,7 +1164,6 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	else if (ModelPinCPPType == TEXT("float"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
@@ -1175,16 +1174,6 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
-#else
-	else if (ModelPinCPPType == TEXT("float"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
-	}
-	else if (ModelPinCPPType == TEXT("double"))
-	{
-		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
-	}
-#endif
 	else if (ModelPinCPPType == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;

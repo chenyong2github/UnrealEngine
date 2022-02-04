@@ -456,7 +456,6 @@ struct FPropertyAccessEditorSystem
 					return EPropertyAccessCopyType::DemoteDoubleToFloat;
 				}
 			}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			else if (SrcProperty->IsA<FArrayProperty>() && DestProperty->IsA<FArrayProperty>())
 			{
 				const FArrayProperty* SrcArrayProperty = CastField<const FArrayProperty>(SrcProperty);
@@ -477,7 +476,6 @@ struct FPropertyAccessEditorSystem
 					}
 				}
 			}
-#endif
 		}
 
 		OutErrorMessage = FText::Format(LOCTEXT("CopyTypeInvalidFormat", "@@ Cannot copy property ({0} -> {1})"), FText::FromString(SrcProperty->GetCPPType()), FText::FromString(DestProperty->GetCPPType()));
@@ -634,7 +632,6 @@ namespace PropertyAccess
 					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
 				}
 			}
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			else if (InPropertyA->IsA<FArrayProperty>() && InPropertyB->IsA<FArrayProperty>())
 			{
 				const FArrayProperty* ArrayPropertyA = CastField<const FArrayProperty>(InPropertyA);
@@ -655,7 +652,6 @@ namespace PropertyAccess
 					}
 				}
 			}
-#endif
 		}
 
 		return EPropertyAccessCompatibility::Incompatible;
@@ -673,53 +669,25 @@ namespace PropertyAccess
 			// Not directly compatible, check for promotions
 			if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 			{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
-#else
-				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Byte || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
-#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Byte)
 			{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
-#else
-				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
-#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
 			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Int)
 			{
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Real)
-#else
-				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Int64 || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float || InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
-#endif
 				{
 					return EPropertyAccessCompatibility::Promotable;
 				}
 			}
-#if !ENABLE_BLUEPRINT_REAL_NUMBERS
-			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Float)
-			{
-				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Double)
-				{
-					return EPropertyAccessCompatibility::Promotable;
-				}
-			}
-			else if (InPinTypeA.PinCategory == UEdGraphSchema_K2::PC_Double)
-			{
-				if (InPinTypeB.PinCategory == UEdGraphSchema_K2::PC_Float)
-				{
-					return EPropertyAccessCompatibility::Promotable;	// LWC_TODO: Incorrect! Do not ship this!
-				}
-			}
-#endif
 		}
 
 		return EPropertyAccessCompatibility::Incompatible;

@@ -584,7 +584,7 @@ void UWidgetBlueprint::ReplaceDeprecatedNodes()
 		}
 	}
 
-#if WITH_EDITORONLY_DATA && ENABLE_BLUEPRINT_REAL_NUMBERS
+#if WITH_EDITORONLY_DATA
 	if (GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers)
 	{
 		// Revert any overzealous PC_Float to PC_Real/PC_Double conversions.

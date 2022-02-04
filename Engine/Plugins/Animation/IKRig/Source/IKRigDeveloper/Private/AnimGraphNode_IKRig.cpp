@@ -570,12 +570,8 @@ void UAnimGraphNode_IKRig::CreateCustomPinsFromValidAsset()
 	static const FName PC_Float(TEXT("float"));
 	static const FName PC_Double(TEXT("double"));
 	static FEdGraphPinType AlphaPinType;
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 	AlphaPinType.PinCategory = PC_Real;
 	AlphaPinType.PinSubCategory = PC_Double;
-#else
-	AlphaPinType.PinCategory = PC_Float;
-#endif
 
 	// create pins
 	const TArray<UIKRigEffectorGoal*>& AssetGoals = Node.RigDefinitionAsset->GetGoalArray();

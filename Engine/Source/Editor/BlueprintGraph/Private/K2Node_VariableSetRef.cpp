@@ -31,7 +31,6 @@ public:
 		UEdGraphPin* ValuePin = VarRefNode->GetValuePin();
 		ValidateAndRegisterNetIfLiteral(Context, ValuePin);
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 		{
 			// The pins on UK2Node_VariableSetRef don't actually refer to storage, so there's nothing to register in the NetMap.
 			// However, their pins' nets do, so we need to check if a cast is required for assignment to the target net.
@@ -62,7 +61,6 @@ public:
 				}
 			}
 		}
-#endif
 	}
 
 	virtual void Compile(FKismetFunctionContext& Context, UEdGraphNode* Node) override
@@ -101,7 +99,6 @@ private:
 			FBPTerminal* LHSTerm = *VariableTerm;
 			FBPTerminal* RHSTerm = *ValueTerm;
 
-#if ENABLE_BLUEPRINT_REAL_NUMBERS
 			{
 				using namespace UE::KismetCompiler;
 
@@ -125,7 +122,6 @@ private:
 					CastingUtils::RemoveRegisteredImplicitCast(Context, ValuePin);
 				}
 			}
-#endif
 
 			FBlueprintCompiledStatement& Statement = Context.AppendStatementForNode(Node);
 			Statement.Type = KCST_Assignment;
