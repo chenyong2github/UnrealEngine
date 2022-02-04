@@ -131,44 +131,44 @@ FBlueprintCompiledStatement* FKCHandler_MathExpression::GenerateFunctionRPN(UEdG
 
 			if (RHSTerm)
 			{
+				const FImplicitCastParams* CastParams =
+					Context.ImplicitCastMap.Find(PinMatch);
+				if (CastParams)
 				{
-					const FImplicitCastParams* CastParams =
-						Context.ImplicitCastMap.Find(PinMatch);
-					if (CastParams)
+					using namespace UE::KismetCompiler;
+
+					check(CastParams->TargetTerminal);
+
+					UFunction* CastFunction = nullptr;
+
+					switch (CastParams->CastType)
 					{
-						check(CastParams->TargetTerminal);
+					case KCST_DoubleToFloatCast:
+						CastFunction = 
+							UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_DoubleToFloat));
+						break;
 
-						UFunction* CastFunction = nullptr;
+					case KCST_FloatToDoubleCast:
+						CastFunction = 
+							UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_FloatToDouble));
+						break;
 
-						switch (CastParams->CastType)
-						{
-						case KCST_DoubleToFloatCast:
-							CastFunction = 
-								UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_DoubleToFloat));
-							break;
-
-						case KCST_FloatToDoubleCast:
-							CastFunction = 
-								UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, Conv_FloatToDouble));
-							break;
-
-						default:
-							checkf(false, TEXT("Unsupported cast type used in math expression node: %d"), CastParams->CastType);
-						}
-
-						check(CastFunction);
-
-						FBlueprintCompiledStatement* CastStatement = new FBlueprintCompiledStatement();
-						CastStatement->FunctionToCall = CastFunction;
-						CastStatement->Type = KCST_CallFunction;
-						CastStatement->RHS.Add(RHSTerm);
-
-						RHSTerm = CastParams->TargetTerminal;
-						CastParams->TargetTerminal->InlineGeneratedParameter = CastStatement;
-						Context.AllGeneratedStatements.Add(CastStatement);
-
-						Context.ImplicitCastMap.Remove(PinMatch);
+					default:
+						checkf(false, TEXT("Unsupported cast type used in math expression node: %d"), CastParams->CastType);
 					}
+
+					check(CastFunction);
+
+					FBlueprintCompiledStatement* CastStatement = new FBlueprintCompiledStatement();
+					CastStatement->FunctionToCall = CastFunction;
+					CastStatement->Type = KCST_CallFunction;
+					CastStatement->RHS.Add(RHSTerm);
+
+					RHSTerm = CastParams->TargetTerminal;
+					CastParams->TargetTerminal->InlineGeneratedParameter = CastStatement;
+					Context.AllGeneratedStatements.Add(CastStatement);
+
+					CastingUtils::RemoveRegisteredImplicitCast(Context, PinMatch);
 				}
 
 				RHSTerms.Add(RHSTerm);

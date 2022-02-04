@@ -26,6 +26,8 @@ public:
 
 	virtual void RegisterNets(FKismetFunctionContext& Context, UEdGraphNode* Node) override
 	{
+		using namespace UE::KismetCompiler;
+
 		UEdGraphPin* VariablePin = Node->FindPin(TEXT("Variable"));
 		UEdGraphPin* ValuePin = Node->FindPin(TEXT("Value"));
 
@@ -43,47 +45,44 @@ public:
 
 		ValidateAndRegisterNetIfLiteral(Context, ValuePin);
 
+		UEdGraphPin* VariablePinNet = FEdGraphUtilities::GetNetFromPin(VariablePin);
+		UEdGraphPin* ValuePinNet = FEdGraphUtilities::GetNetFromPin(ValuePin);
+
+		if (VariablePinNet && ValuePinNet)
 		{
-			using namespace UE::KismetCompiler;
+			TOptional<CastingUtils::StatementNamePair> ConversionType =
+				CastingUtils::GetFloatingPointConversionType(*ValuePinNet, *VariablePinNet);
 
-			UEdGraphPin* VariablePinNet = FEdGraphUtilities::GetNetFromPin(VariablePin);
-			UEdGraphPin* ValuePinNet = FEdGraphUtilities::GetNetFromPin(ValuePin);
-
-			if (VariablePinNet && ValuePinNet)
+			if (ConversionType)
 			{
-				TOptional<CastingUtils::StatementNamePair> ConversionType =
-					CastingUtils::GetFloatingPointConversionType(*ValuePinNet, *VariablePinNet);
+				FString DescriptiveName = Node->GetName();
 
-				if (ConversionType)
-				{
+				FString TerminalName = FString::Printf(TEXT("%s_%s_%s"),
+					*DescriptiveName,
+					*VariablePinNet->PinName.ToString(),
+					ConversionType->Get<1>());
 
-					FString DescriptiveName = Node->GetName();
+				FBPTerminal* NewTerm = Context.CreateLocalTerminal();
+				NewTerm->Name = TerminalName;
+				NewTerm->Type = VariablePinNet->PinType;
+				NewTerm->Source = Node;
 
-					FString TerminalName = FString::Printf(TEXT("%s_%s_%s"),
-						*DescriptiveName,
-						*VariablePinNet->PinName.ToString(),
-						ConversionType->Get<1>());
+				EKismetCompiledStatementType CastType = ConversionType->Get<0>();
 
-					FBPTerminal* NewTerm = Context.CreateLocalTerminal();
-					NewTerm->Name = TerminalName;
-					NewTerm->Type = VariablePinNet->PinType;
-					NewTerm->Source = Node;
-
-					EKismetCompiledStatementType CastType = ConversionType->Get<0>();
-
-					Context.ImplicitCastMap.Add(VariablePin, FImplicitCastParams{CastType, NewTerm, Node});
-				}
+				Context.ImplicitCastMap.Add(VariablePin, FImplicitCastParams{CastType, NewTerm, Node});
 			}
-			else
-			{
-				CompilerContext.MessageLog.Error(*LOCTEXT("NoVariableOrValueNets_Error", "Expected Variable and Value pins to have valid connections in @@").ToString(), Node);
-			}
+		}
+		else
+		{
+			CompilerContext.MessageLog.Error(*LOCTEXT("NoVariableOrValueNets_Error", "Expected Variable and Value pins to have valid connections in @@").ToString(), Node);
 		}
 	}
 
 
 	virtual void Compile(FKismetFunctionContext& Context, UEdGraphNode* Node) override
 	{
+		using namespace UE::KismetCompiler;
+
 		UEdGraphPin* VariablePin = Node->FindPin(TEXT("Variable"));
 		UEdGraphPin* ValuePin = Node->FindPin(TEXT("Value"));
 
@@ -95,6 +94,12 @@ public:
 
 		// Generate the output impulse from this node
 		GenerateSimpleThenGoto(Context, *Node);
+
+		// The assignment node is very much a non-standard node: its pins don't directly reference any data, but their nets do.
+		// The only cast that could happen is from the value pin's net to the variable's pin net, which we handle in RegisterNets.
+		// Due to how RegisterImplicitCasts works, it can actually register an erroneous entry to the value pin,
+		// which we need to remove ourselves.
+		CastingUtils::RemoveRegisteredImplicitCast(Context, ValuePin);
 	}
 
 protected:
