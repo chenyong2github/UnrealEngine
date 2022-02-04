@@ -396,17 +396,17 @@ namespace UnrealBuildTool
 			List<string> Arguments = new List<string>();
 			if (SourceFile != null)
 			{
-				VCToolChain.AddSourceFile(Arguments, SourceFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddSourceFile(Arguments, SourceFile);
 			}
 
 			foreach (DirectoryReference IncludePath in IncludePaths)
 			{
-				VCToolChain.AddIncludePath(Arguments, IncludePath, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddIncludePath(Arguments, IncludePath, CompilerType);
 			}
 
 			foreach (DirectoryReference SystemIncludePath in SystemIncludePaths)
 			{
-				VCToolChain.AddSystemIncludePath(Arguments, SystemIncludePath, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddSystemIncludePath(Arguments, SystemIncludePath, CompilerType);
 			}
 
 			foreach (string Definition in Definitions)
@@ -418,22 +418,22 @@ namespace UnrealBuildTool
 
 			foreach (FileItem ForceIncludeFile in ForceIncludeFiles)
 			{
-				VCToolChain.AddForceIncludeFile(Arguments, ForceIncludeFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddForceIncludeFile(Arguments, ForceIncludeFile);
 			}
 
 			if (CreatePchFile != null)
 			{
-				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile!, CreatePchFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile!, CreatePchFile);
 			}
 
 			if (UsingPchFile != null && CompilerType.IsMSVC())
 			{
-				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile!, UsingPchFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile!, UsingPchFile);
 			}
 
 			if (PreprocessedFile != null)
 			{
-				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile);
 
 				// this is parsed by external tools wishing to open this file directly.
 				Log.TraceInformation("PreProcessPath: " + PreprocessedFile);
@@ -441,18 +441,18 @@ namespace UnrealBuildTool
 
 			if (ObjectFile != null)
 			{
-				VCToolChain.AddObjectFile(Arguments, ObjectFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddObjectFile(Arguments, ObjectFile);
 			}
 
 			// A better way to express this? .json is used as output for /sourceDependencies), but .md.json is used as output for /sourceDependencies:directives)
 			if (DependencyListFile != null && DependencyListFile.HasExtension(".json") && !DependencyListFile.HasExtension(".md.json"))
 			{
-				VCToolChain.AddSourceDependenciesFile(Arguments, DependencyListFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddSourceDependenciesFile(Arguments, DependencyListFile);
 			}
 
 			if (DependencyListFile != null && DependencyListFile.HasExtension(".d"))
 			{
-				VCToolChain.AddSourceDependsFile(Arguments, DependencyListFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddSourceDependsFile(Arguments, DependencyListFile);
 			}
 
 			Arguments.AddRange(this.Arguments);
@@ -467,7 +467,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				string ResponseFileString = VCToolChain.NormalizeCommandLinePath(ResponseFile, CompilerType, PreprocessedFile != null);
+				string ResponseFileString = VCToolChain.NormalizeCommandLinePath(ResponseFile);
 
 				// cl.exe can't handle response files with a path longer than 260 characters, and relative paths can push it over the limit
 				if (!System.IO.Path.IsPathRooted(ResponseFileString) && System.IO.Path.Combine(WorkingDirectory.FullName, ResponseFileString).Length > 260)
@@ -481,12 +481,12 @@ namespace UnrealBuildTool
 		string GetClFilterArguments()
 		{
 			List<string> Arguments = new List<string>();
-			string DependencyListFileString = VCToolChain.NormalizeCommandLinePath(DependencyListFile!, CompilerType, PreprocessedFile != null);
+			string DependencyListFileString = VCToolChain.NormalizeCommandLinePath(DependencyListFile!);
 			Arguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(DependencyListFileString)));
 
 			if (TimingFile != null)
 			{
-				string TimingFileString = VCToolChain.NormalizeCommandLinePath(TimingFile, CompilerType, PreprocessedFile != null);
+				string TimingFileString = VCToolChain.NormalizeCommandLinePath(TimingFile);
 				Arguments.Add(String.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(TimingFileString)));
 			}
 			if (bShowIncludes)
