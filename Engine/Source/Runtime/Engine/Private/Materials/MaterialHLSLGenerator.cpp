@@ -221,22 +221,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 			else
 			{
 				check(InputDescription.Input);
-				if (InputProperty >= MP_CustomizedUVs0 && InputProperty <= MP_CustomizedUVs7)
-				{
-					const int32 TexCoordIndex = (int32)InputProperty - MP_CustomizedUVs0;
-					if (TexCoordIndex < Material->NumCustomizedUVs)
-					{
-						Expression = InputDescription.Input->TryAcquireHLSLExpression(Generator, Scope);
-					}
-					if (!Expression)
-					{
-						Expression = Generator.NewTexCoord(TexCoordIndex);
-					}
-				}
-				else
-				{
-					Expression = InputDescription.Input->TryAcquireHLSLExpression(Generator, Scope);
-				}
+				Expression = InputDescription.Input->TryAcquireHLSLExpression(Generator, Scope);
 			}
 		}
 	}

@@ -87,7 +87,11 @@ enum class EBinaryOp : uint8
 	Mul,
 	Div,
 	Fmod,
+	Dot,
+	Min,
+	Max,
 	Less,
+	Greater,
 };
 
 struct FBinaryOpDescription

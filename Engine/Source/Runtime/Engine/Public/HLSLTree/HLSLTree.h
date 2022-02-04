@@ -639,7 +639,11 @@ public:
 	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
 	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
 	FExpression* NewFmod(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Fmod, Lhs, Rhs); }
+	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Dot, Lhs, Rhs); }
+	FExpression* NewMin(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Min, Lhs, Rhs); }
+	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Max, Lhs, Rhs); }
 	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Less, Lhs, Rhs); }
+	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Greater, Lhs, Rhs); }
 
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 

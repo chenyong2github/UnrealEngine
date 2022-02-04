@@ -600,6 +600,9 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::Mul: EvaluateBinaryOp(Stack, Mul); break;
 		case EPreshaderOpcode::Div: EvaluateBinaryOp(Stack, Div); break;
 		case EPreshaderOpcode::Less: EvaluateBinaryOp(Stack, Less); break;
+		case EPreshaderOpcode::Greater: EvaluateBinaryOp(Stack, Greater); break;
+		case EPreshaderOpcode::LessEqual: EvaluateBinaryOp(Stack, LessEqual); break;
+		case EPreshaderOpcode::GreaterEqual: EvaluateBinaryOp(Stack, GreaterEqual); break;
 		case EPreshaderOpcode::Fmod: EvaluateBinaryOp(Stack, Fmod); break;
 		case EPreshaderOpcode::Min: EvaluateBinaryOp(Stack, Min); break;
 		case EPreshaderOpcode::Max: EvaluateBinaryOp(Stack, Max); break;

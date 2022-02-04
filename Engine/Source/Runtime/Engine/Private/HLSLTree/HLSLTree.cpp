@@ -118,7 +118,11 @@ FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op)
 	case EBinaryOp::Mul: return FBinaryOpDescription(TEXT("Multiply"), TEXT("*"), Shader::EPreshaderOpcode::Mul); break;
 	case EBinaryOp::Div: return FBinaryOpDescription(TEXT("Divide"), TEXT("/"), Shader::EPreshaderOpcode::Div); break;
 	case EBinaryOp::Fmod: return FBinaryOpDescription(TEXT("Fmod"), TEXT("%"), Shader::EPreshaderOpcode::Fmod); break;
+	case EBinaryOp::Dot: return FBinaryOpDescription(TEXT("Dot"), TEXT("dot"), Shader::EPreshaderOpcode::Dot); break;
+	case EBinaryOp::Min: return FBinaryOpDescription(TEXT("Min"), TEXT("min"), Shader::EPreshaderOpcode::Min); break;
+	case EBinaryOp::Max: return FBinaryOpDescription(TEXT("Max"), TEXT("max"), Shader::EPreshaderOpcode::Max); break;
 	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<"), Shader::EPreshaderOpcode::Less); break;
+	case EBinaryOp::Greater: return FBinaryOpDescription(TEXT("Greater"), TEXT(">"), Shader::EPreshaderOpcode::Greater); break;
 	default: checkNoEntry(); return FBinaryOpDescription();
 	}
 }

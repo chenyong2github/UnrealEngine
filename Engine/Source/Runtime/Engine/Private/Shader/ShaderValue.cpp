@@ -946,6 +946,9 @@ struct FOpMax : public FOpBase { template<typename T> T operator()(T Lhs, T Rhs)
 struct FOpFmod : public FOpBaseNoInt { template<typename T> T operator()(T Lhs, T Rhs) const { return FMath::Fmod(Lhs, Rhs); } };
 struct FOpAtan2 : public FOpBaseNoInt { template<typename T> T operator()(T Lhs, T Rhs) const { return FMath::Atan2(Lhs, Rhs); } };
 struct FOpLess : public FOpBase { template<typename T> bool operator()(T Lhs, T Rhs) const { return Lhs < Rhs; } };
+struct FOpGreater : public FOpBase { template<typename T> bool operator()(T Lhs, T Rhs) const { return Lhs > Rhs; } };
+struct FOpLessEqual : public FOpBase { template<typename T> bool operator()(T Lhs, T Rhs) const { return Lhs <= Rhs; } };
+struct FOpGreaterEqual : public FOpBase { template<typename T> bool operator()(T Lhs, T Rhs) const { return Lhs >= Rhs; } };
 
 template<typename Operation>
 inline FValue UnaryOp(const Operation& Op, const FValue& Value)
@@ -1277,6 +1280,21 @@ FValue Div(const FValue& Lhs, const FValue& Rhs)
 FValue Less(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::CompareOp(Private::FOpLess(), Lhs, Rhs);
+}
+
+FValue Greater(const FValue& Lhs, const FValue& Rhs)
+{
+	return Private::CompareOp(Private::FOpGreater(), Lhs, Rhs);
+}
+
+FValue LessEqual(const FValue& Lhs, const FValue& Rhs)
+{
+	return Private::CompareOp(Private::FOpLessEqual(), Lhs, Rhs);
+}
+
+FValue GreaterEqual(const FValue& Lhs, const FValue& Rhs)
+{
+	return Private::CompareOp(Private::FOpGreaterEqual(), Lhs, Rhs);
 }
 
 FValue Min(const FValue& Lhs, const FValue& Rhs)

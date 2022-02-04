@@ -69,6 +69,9 @@ enum class EPreshaderOpcode : uint8
 	PushValue,
 	Less,
 	Assign,
+	Greater,
+	LessEqual,
+	GreaterEqual,
 };
 
 struct FPreshaderStructType

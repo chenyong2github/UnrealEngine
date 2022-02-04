@@ -59,6 +59,13 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::PrevTranslatedWorldPosition: return FExternalInputDescription(TEXT("PrevTranslatedWorldPosition"), Shader::EValueType::Float3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy);
 	case EExternalInput::PrevTranslatedWorldPosition_NoOffsets: return FExternalInputDescription(TEXT("PrevTranslatedWorldPosition_NoOffsets"), Shader::EValueType::Float3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy);
 
+	case EExternalInput::WorldPosition_Ddx: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
+	case EExternalInput::WorldPosition_Ddy: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
+
+	case EExternalInput::PixelDepth: return FExternalInputDescription(TEXT("PixelDepth"), Shader::EValueType::Float1, EExternalInput::PixelDepth_Ddx, EExternalInput::PixelDepth_Ddy);
+	case EExternalInput::PixelDepth_Ddx: return FExternalInputDescription(TEXT("PixelDepth_Ddx"), Shader::EValueType::Float1);
+	case EExternalInput::PixelDepth_Ddy: return FExternalInputDescription(TEXT("PixelDepth_Ddy"), Shader::EValueType::Float1);
+
 	case EExternalInput::GameTime: return FExternalInputDescription(TEXT("GameTime"), Shader::EValueType::Float1, EExternalInput::None, EExternalInput::None, EExternalInput::PrevGameTime);
 	case EExternalInput::RealTime: return FExternalInputDescription(TEXT("RealTime"), Shader::EValueType::Float1, EExternalInput::None, EExternalInput::None, EExternalInput::PrevRealTime);
 	case EExternalInput::DeltaTime: return FExternalInputDescription(TEXT("DeltaTime"), Shader::EValueType::Float1);
@@ -66,8 +73,7 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::PrevGameTime: return FExternalInputDescription(TEXT("PrevGameTime"), Shader::EValueType::Float1);
 	case EExternalInput::PrevRealTime: return FExternalInputDescription(TEXT("PrevRealTime"), Shader::EValueType::Float1);
 
-	case EExternalInput::WorldPosition_Ddx: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
-	case EExternalInput::WorldPosition_Ddy: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
+	
 	default: checkNoEntry(); return FExternalInputDescription(TEXT("Invalid"), Shader::EValueType::Void);
 	}
 }
@@ -284,13 +290,16 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::PrevWorldPosition_NoOffsets: Code = TEXT("GetPrevWorldPosition_NoMaterialOffsets(Parameters)"); break;
 		case EExternalInput::PrevTranslatedWorldPosition: Code = TEXT("GetPrevTranslatedWorldPosition(Parameters)"); break;
 		case EExternalInput::PrevTranslatedWorldPosition_NoOffsets: Code = TEXT("GetPrevTranslatedWorldPosition_NoMaterialOffsets(Parameters)"); break;
+		case EExternalInput::WorldPosition_Ddx: Code = TEXT("Parameters.WorldPosition_DDX"); break;
+		case EExternalInput::WorldPosition_Ddy: Code = TEXT("Parameters.WorldPosition_DDY"); break;
+		case EExternalInput::PixelDepth: Code = TEXT("GetPixelDepth(Parameters)"); break;
+		case EExternalInput::PixelDepth_Ddx: Code = TEXT("Parameters.ScreenPosition_DDX.w"); break;
+		case EExternalInput::PixelDepth_Ddy: Code = TEXT("Parameters.ScreenPosition_DDY.w"); break;
 		case EExternalInput::GameTime: Code = TEXT("View.GameTime"); break;
 		case EExternalInput::RealTime: Code = TEXT("View.RealTime"); break;
 		case EExternalInput::DeltaTime: Code = TEXT("View.DeltaTime"); break;
 		case EExternalInput::PrevGameTime: Code = TEXT("View.PrevFrameGameTime"); break;
 		case EExternalInput::PrevRealTime: Code = TEXT("View.PrevFrameRealTime"); break;
-		case EExternalInput::WorldPosition_Ddx: Code = TEXT("Parameters.WorldPosition_DDX"); break;
-		case EExternalInput::WorldPosition_Ddy: Code = TEXT("Parameters.WorldPosition_DDY"); break;
 		default:
 			checkNoEntry();
 			break;
@@ -435,16 +444,31 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 	}
 
 	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, Shader::EValueType::Float2);
-	FEmitShaderExpression* TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, Shader::EValueType::Float2);
-	FEmitShaderExpression* TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, Shader::EValueType::Float2);
-	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%Grad(%, %, %, %, %))"),
-		SamplerTypeFunction,
-		SampleFunctionName,
-		*TextureName,
-		*SamplerStateCode,
-		TexCoordValue,
-		TexCoordValueDdx,
-		TexCoordValueDdy);
+	FEmitShaderExpression* TexCoordValueDdx = nullptr;
+	FEmitShaderExpression* TexCoordValueDdy = nullptr;
+	if (TexCoordDerivatives.IsValid())
+	{
+		TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, Shader::EValueType::Float2);
+		TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, Shader::EValueType::Float2);
+		OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%Grad(%, %, %, %, %))"),
+			SamplerTypeFunction,
+			SampleFunctionName,
+			*TextureName,
+			*SamplerStateCode,
+			TexCoordValue,
+			TexCoordValueDdx,
+			TexCoordValueDdy);
+	}
+	else
+	{
+		OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%(%, %, %))"),
+			SamplerTypeFunction,
+			SampleFunctionName,
+			*TextureName,
+			*SamplerStateCode,
+			TexCoordValue);
+	}
+	
 }
 
 void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -783,6 +807,7 @@ void FExpressionBinaryOp::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 	switch (Op)
 	{
 	case EBinaryOp::Less:
+	case EBinaryOp::Greater:
 		OutResult.ExpressionDdx = Tree.NewConstant(0.0f);
 		OutResult.ExpressionDdx = OutResult.ExpressionDdy;
 		break;
@@ -827,6 +852,31 @@ void FExpressionBinaryOp::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 			// We can't really do anything meaningful in the non-zero case.
 			OutResult = LhsDerivatives;
 			break;
+		case EBinaryOp::Dot:
+		{
+			// Dot means multiply the values, then sum the resulting components
+			FExpression* MulDdx = Tree.NewAdd(Tree.NewMul(LhsDerivatives.ExpressionDdx, Rhs), Tree.NewMul(RhsDerivatives.ExpressionDdx, Lhs));
+			FExpression* MulDdy = Tree.NewAdd(Tree.NewMul(LhsDerivatives.ExpressionDdy, Rhs), Tree.NewMul(RhsDerivatives.ExpressionDdy, Lhs));
+			// Dot the products with 1 to sum them
+			FExpression* Const1 = Tree.NewConstant(1.0f);
+			OutResult.ExpressionDdx = Tree.NewDot(MulDdx, Const1);
+			OutResult.ExpressionDdy = Tree.NewDot(MulDdy, Const1);
+			break;
+		}
+		case EBinaryOp::Min:
+		{
+			FExpression* Cond = Tree.NewLess(Lhs, Rhs);
+			OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(Cond, LhsDerivatives.ExpressionDdx, RhsDerivatives.ExpressionDdx);
+			OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(Cond, LhsDerivatives.ExpressionDdy, RhsDerivatives.ExpressionDdy);
+			break;
+		}
+		case EBinaryOp::Max:
+		{
+			FExpression* Cond = Tree.NewGreater(Lhs, Rhs);
+			OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(Cond, LhsDerivatives.ExpressionDdx, RhsDerivatives.ExpressionDdx);
+			OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(Cond, LhsDerivatives.ExpressionDdy, RhsDerivatives.ExpressionDdy);
+			break;
+		}
 		default:
 			checkNoEntry();
 			break;
@@ -859,7 +909,7 @@ bool FExpressionBinaryOp::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 	}
 
 	FPreparedType ResultType = MergePreparedTypes(LhsType, RhsType);
-	if (Op == EBinaryOp::Less)
+	if (Op == EBinaryOp::Less || Op == EBinaryOp::Greater)
 	{
 		ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
 	}
@@ -896,9 +946,12 @@ FBinaryOpTypes GetBinaryOpTypes(const FRequestedType& RequestedType, EBinaryOp O
 	switch (Op)
 	{
 	case EBinaryOp::Less:
+	case EBinaryOp::Greater:
 		return FBinaryOpTypes(InputType, InputType, Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents));
 	case EBinaryOp::Fmod:
 		return FBinaryOpTypes(InputType, NonLWCInputType, NonLWCInputType.GetType());
+	case EBinaryOp::Dot:
+		return FBinaryOpTypes(InputType, InputType, Shader::MakeValueType(InputComponentType, 1));
 	default:
 		return InputType;
 	}
@@ -944,16 +997,6 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% * %)"), LhsValue, RhsValue);
 		}
 		break;
-	case EBinaryOp::Fmod:
-		if (bLWC)
-		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCFmod(%, %)"), LhsValue, RhsValue);
-		}
-		else
-		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("fmod(%, %)"), LhsValue, RhsValue);
-		}
-		break;
 	case EBinaryOp::Div:
 		if (bLWC)
 		{
@@ -964,6 +1007,46 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% / %)"), LhsValue, RhsValue);
 		}
 		break;
+	case EBinaryOp::Fmod:
+		if (bLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCFmod(%, %)"), LhsValue, RhsValue);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("fmod(%, %)"), LhsValue, RhsValue);
+		}
+		break;
+	case EBinaryOp::Dot:
+		if (bLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCDot(%, %)"), LhsValue, RhsValue);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("dot(%, %)"), LhsValue, RhsValue);
+		}
+		break;
+	case EBinaryOp::Min:
+		if (bLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMin(%, %)"), LhsValue, RhsValue);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("min(%, %)"), LhsValue, RhsValue);
+		}
+		break;
+	case EBinaryOp::Max:
+		if (bLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMax(%, %)"), LhsValue, RhsValue);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("max(%, %)"), LhsValue, RhsValue);
+		}
+		break;
 	case EBinaryOp::Less:
 		if (bLWC)
 		{
@@ -972,6 +1055,16 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		else
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% < %)"), LhsValue, RhsValue);
+		}
+		break;
+	case EBinaryOp::Greater:
+		if (bLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCGreater(%, %)"), LhsValue, RhsValue);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% > %)"), LhsValue, RhsValue);
 		}
 		break;
 	default:

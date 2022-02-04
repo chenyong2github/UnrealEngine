@@ -83,15 +83,19 @@ enum class EExternalInput : uint8
 	PrevTranslatedWorldPosition,
 	PrevTranslatedWorldPosition_NoOffsets,
 
+	WorldPosition_Ddx,
+	WorldPosition_Ddy,
+
+	PixelDepth,
+	PixelDepth_Ddx,
+	PixelDepth_Ddy,
+
 	GameTime,
 	RealTime,
 	DeltaTime,
 
 	PrevGameTime,
 	PrevRealTime,
-
-	WorldPosition_Ddx,
-	WorldPosition_Ddy,
 };
 static constexpr int32 NumTexCoords = 8;
 
@@ -318,6 +322,15 @@ class FExpressionReflectionVector : public FExpression
 public:
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+};
+
+class FExpressionCustomHLSL : public FExpression
+{
+public:
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+
+
 };
 
 class FStatementReturn : public FStatement
