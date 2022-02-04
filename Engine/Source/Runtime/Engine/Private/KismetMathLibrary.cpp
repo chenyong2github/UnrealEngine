@@ -315,6 +315,39 @@ void UKismetMathLibrary::MinOfIntArray(const TArray<int32>& IntArray, int32& Ind
 	MinValue = FMath::Min<int32>(IntArray, &IndexOfMinValue);
 }
 
+void UKismetMathLibrary::MedianOfIntArray(TArray<int32> IntArray, float& MedianValue)
+{
+	if (IntArray.IsEmpty())
+	{
+		MedianValue = 0;
+		return;
+	}
+
+	IntArray.Sort();
+	
+	if (IntArray.Num() % 2 == 1)
+	{
+		MedianValue = IntArray[(IntArray.Num() - 1) / 2];
+	}
+	else
+	{
+		MedianValue = IntArray[IntArray.Num() / 2] + IntArray[(IntArray.Num() / 2) - 1];
+		MedianValue /= 2;
+	}
+}
+
+void UKismetMathLibrary::AverageOfIntArray(const TArray<int32>& IntArray, float& AverageValue)
+{
+	AverageValue = 0;
+
+	for (int32 Index = 0; Index < IntArray.Num(); ++Index)
+	{
+		AverageValue += IntArray[Index];
+	}
+
+	AverageValue /= IntArray.Num();
+}
+
 void UKismetMathLibrary::MaxOfFloatArray(const TArray<float>& FloatArray, int32& IndexOfMaxValue, float& MaxValue)
 {
 	MaxValue = FMath::Max(FloatArray, &IndexOfMaxValue);

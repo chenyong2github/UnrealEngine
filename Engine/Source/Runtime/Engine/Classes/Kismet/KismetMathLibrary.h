@@ -795,6 +795,14 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Integer")
 	static void MinOfIntArray(const TArray<int32>& IntArray, int32& IndexOfMinValue, int32& MinValue);
 
+	/** Returns median of all array entries. Returns value of 0 if the supplied array is empty. */
+	UFUNCTION(BlueprintPure, Category = "Math|Integer")
+	static void MedianOfIntArray(TArray<int32> IntArray, float& MedianValue);
+
+	/** Returns average of all array entries. Returns value of 0 if the supplied array is empty. */
+	UFUNCTION(BlueprintPure, Category = "Math|Integer")
+	static void AverageOfIntArray(const TArray<int32>& IntArray, float& AverageValue);
+
 	/** Returns max of all array entries and the index at which it was found. Returns value of 0 and index of -1 if the supplied array is empty. */
 	UFUNCTION(BlueprintPure, Category="Math|Float")
 	static void MaxOfFloatArray(const TArray<float>& FloatArray, int32& IndexOfMaxValue, float& MaxValue);
