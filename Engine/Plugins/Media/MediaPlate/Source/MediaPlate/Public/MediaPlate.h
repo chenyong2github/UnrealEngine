@@ -35,4 +35,6 @@ public:
 private:
 	/** Name for our media component. */
 	static FLazyName MediaComponentName;
+	/** Name for the media texture parameter in the material. */
+	static FLazyName MediaTextureName;
 };

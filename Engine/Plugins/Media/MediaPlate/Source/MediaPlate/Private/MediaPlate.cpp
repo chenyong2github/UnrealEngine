@@ -13,6 +13,7 @@
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
 FLazyName AMediaPlate::MediaComponentName(TEXT("MediaComponent0"));
+FLazyName AMediaPlate::MediaTextureName("MediaTexture");
 
 AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -44,6 +45,16 @@ void AMediaPlate::PostRegisterAllComponents()
 	UStaticMeshComponent* LocalStaticMeshComponent = GetStaticMeshComponent();
 	check(LocalStaticMeshComponent);
 
+	// Add material.
+	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
+	if (Material != nullptr)
+	{
+		UMaterialInstanceDynamic* MaterialInstance = LocalStaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
+		if (MaterialInstance != nullptr)
+		{
+			MaterialInstance->SetTextureParameterValue(MediaTextureName, MediaComponent->GetMediaTexture());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

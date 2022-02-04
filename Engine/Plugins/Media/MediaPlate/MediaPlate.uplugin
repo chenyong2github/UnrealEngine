@@ -10,7 +10,7 @@
 	"DocsURL": "https://docs.unrealengine.com/en-US/Engine/MediaFramework/Overview",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"EnabledByDefault": false,
 	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
