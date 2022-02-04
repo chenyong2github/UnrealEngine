@@ -219,7 +219,7 @@ namespace Audio
 			return;
 		}
 
-		Audio::FModulationParameter OutputParam = InModulator->GetOutputParameter();
+		Audio::FModulationParameter OutputParam = Audio::GetModulationParameter(ParameterName);
 		auto UpdateHandleLambda = [this, ModSettings = InModulator->CreateProxySettings(), Parameter = MoveTemp(OutputParam)]() mutable
 		{
 			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
