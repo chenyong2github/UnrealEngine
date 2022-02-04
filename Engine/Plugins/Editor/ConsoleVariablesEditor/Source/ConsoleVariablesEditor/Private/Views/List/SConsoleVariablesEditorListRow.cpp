@@ -352,14 +352,16 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 		return SNew(SBox)
 				.Visibility(EVisibility::SelfHitTestInvisible)
 				.HAlign(HAlign_Center)
+				.Padding(FMargin(1,0,0,0))
 		[
 			SNew(SCheckBox)
-					.IsChecked_Raw(this, &SConsoleVariablesEditorListRow::GetCheckboxState)
-					.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorListRow::OnCheckboxStateChange)
-					.Visibility(Item.Pin()->GetCommandInfo().Pin()->ObjectType ==
-					            FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable
-						            ? EVisibility::Visible
-						            : EVisibility::Collapsed)
+			.HAlign(HAlign_Center)
+			.IsChecked_Raw(this, &SConsoleVariablesEditorListRow::GetCheckboxState)
+			.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorListRow::OnCheckboxStateChange)
+			.Visibility(Item.Pin()->GetCommandInfo().Pin()->ObjectType ==
+			            FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable
+				            ? EVisibility::Visible
+				            : EVisibility::Collapsed)
 		];
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::VariableNameColumnName))

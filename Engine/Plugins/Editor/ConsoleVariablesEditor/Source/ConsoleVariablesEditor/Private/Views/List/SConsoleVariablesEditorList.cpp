@@ -60,6 +60,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
 			.Padding(0.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew(ListSearchBoxPtr, SSearchBox)
@@ -76,12 +77,13 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.Padding(FMargin(8.f, 0.f, 0.f, 0.f))
 			[
 				SNew(SButton)
-				.ContentPadding(4.f)
+				.ContentPadding(FMargin(4, 1.5f))
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([this]()
 				{
 					const FString SearchString = GetSearchStringFromSearchInputField().ToLower().TrimStartAndEnd();
 					ListSearchBoxPtr->SetText(FText::GetEmpty());
+					VisibleTreeViewObjects.Empty();
 					return TryEnterGlobalSearch(SearchString);
 				})
 				.ToolTipText(LOCTEXT("OpenInGlobalSearchButtonTooltip", "Search All Console Variables"))
@@ -760,7 +762,7 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 			.DefaultLabel(FText::FromString("#"))
 			.ToolTipText(LOCTEXT("ClickToSort","Click to sort"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
-			.FillWidth(0.3f)
+			.FillWidth(0.4f)
 			.ShouldGenerateWidget(true)
 			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortModeForColumn, CustomSortOrderColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)

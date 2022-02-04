@@ -21,7 +21,7 @@ UConsoleVariablesEditorFactory::UConsoleVariablesEditorFactory()
 
 UObject* UConsoleVariablesEditorFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return NewObject<UConsoleVariablesEditorFactory>(InParent, InClass, InName, Flags);
+	return NewObject<UConsoleVariablesAsset>(InParent, InClass, InName, Flags);
 };
 
 
