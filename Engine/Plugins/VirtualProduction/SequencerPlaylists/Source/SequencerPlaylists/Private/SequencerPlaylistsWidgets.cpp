@@ -919,7 +919,7 @@ void SSequencerPlaylistItemWidget::ConstructChildren(ETableViewMode::Type InOwne
 		+ SOverlay::Slot()
 		[
 			SNew(SImage)
-			.Visibility(this, &SSequencerPlaylistItemWidget::GetTriggerModeTransportVisibility)
+			.Visibility(this, &SSequencerPlaylistItemWidget::GetRowDimmingVisibility)
 			.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Item.Dim"))
 		]
 		+ SOverlay::Slot()
@@ -1164,9 +1164,19 @@ FReply SSequencerPlaylistItemWidget::HandleDragDetected(const FGeometry& MyGeome
 }
 
 
-bool SSequencerPlaylistItemWidget::IsRowContentEnabled() const
+EVisibility SSequencerPlaylistItemWidget::GetRowDimmingVisibility() const
 {
-	return GetTriggerModeTransportVisibility() == EVisibility::Hidden;
+	if (GetTriggerModeTransportVisibility() == EVisibility::Visible)
+	{
+		return EVisibility::Visible;
+	}
+
+	if (USequencerPlaylistItem* Item = RowData->WeakItem.Get())
+	{
+		return Item->bMute ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
+	}
+
+	return EVisibility::Hidden;
 }
 
 

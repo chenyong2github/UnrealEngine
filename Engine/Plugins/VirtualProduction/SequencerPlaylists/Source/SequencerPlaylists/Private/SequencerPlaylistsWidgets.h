@@ -165,7 +165,8 @@ private:
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	bool InTriggerMode() const { return TriggerMode.Get(); }
-	bool IsRowContentEnabled() const;
+
+	EVisibility GetRowDimmingVisibility() const;
 	EVisibility GetTriggerModeTransportVisibility() const;
 
 	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();

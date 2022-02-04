@@ -38,4 +38,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SequencerPlaylists", meta=(NoResetToDefault))
 	float PlaybackSpeed = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SequencerPlaylists", meta=(NoResetToDefault))
+	bool bMute;
 };

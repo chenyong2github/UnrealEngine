@@ -238,6 +238,11 @@ bool USequencerPlaylistPlayer::PlayAll()
 	FScopedTransaction Transaction(LOCTEXT("PlayAllTransaction", "Trigger playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
+		if (Item->bMute)
+		{
+			continue;
+		}
+
 		bAnyChange |= GetCheckedItemPlayer(Item)->Play(Item);
 	}
 
