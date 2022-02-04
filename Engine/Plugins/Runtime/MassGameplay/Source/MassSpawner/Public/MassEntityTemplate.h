@@ -229,6 +229,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		return Composition.SharedFragments.Contains<T>();
 	}
 
+	bool HasSharedFragment(const UScriptStruct& ScriptStruct) const
+	{
+		return Composition.SharedFragments.Contains(ScriptStruct);
+	}
+
 	void Sort()
 	{
 		SharedFragmentValues.Sort();

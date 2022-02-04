@@ -101,6 +101,11 @@ struct FMassEntityTemplateBuildContext
 		return Template.HasSharedFragment<T>();
 	}
 
+	bool HasSharedFragment(const UScriptStruct& ScriptStruct) const
+	{
+		return Template.HasSharedFragment(ScriptStruct);
+	}
+
 	//----------------------------------------------------------------------//
 	// Translators
 	//----------------------------------------------------------------------//
