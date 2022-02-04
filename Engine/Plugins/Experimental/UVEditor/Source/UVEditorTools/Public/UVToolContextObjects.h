@@ -121,16 +121,16 @@ struct UVEDITORTOOLS_API FUDIMBlock
 	GENERATED_BODY();
 
 	UPROPERTY()
-	int32 BlockX;
+	int32 BlockX = 1;
 
 	UPROPERTY()
-	int32 BlockY;
+	int32 BlockY = 1;
 
 	UPROPERTY()
-	int32 SizeX;
+	int32 SizeX = 256;
 
 	UPROPERTY()
-	int32 SizeY;
+	int32 SizeY = 256;
 };
 
 /**
