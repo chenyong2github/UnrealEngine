@@ -59,8 +59,8 @@ void FConcertFileVersionInfo::Initialize()
 
 bool FConcertFileVersionInfo::Validate(const FConcertFileVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason) const
 {
-	return ConcertVersionUtil::ValidateVersion(FileVersion, InOther.FileVersion, LOCTEXT("PackageVersionName", "UE4 Package Version"), InValidationMode, OutFailureReason)
-		&& ConcertVersionUtil::ValidateVersion(FileVersionUE5, InOther.FileVersionUE5, LOCTEXT("PackageVersionName", "UE5 Package Version"), InValidationMode, OutFailureReason)
+	return ConcertVersionUtil::ValidateVersion(FileVersion, InOther.FileVersion, LOCTEXT("UE4PackageVersionName", "UE4 Package Version"), InValidationMode, OutFailureReason)
+		&& ConcertVersionUtil::ValidateVersion(FileVersionUE5, InOther.FileVersionUE5, LOCTEXT("UE5PackageVersionName", "UE5 Package Version"), InValidationMode, OutFailureReason)
 		&& ConcertVersionUtil::ValidateVersion(FileVersionLicensee, InOther.FileVersionLicensee, LOCTEXT("LicenseePackageVersionName", "Licensee Package Version"), InValidationMode, OutFailureReason);
 }
 

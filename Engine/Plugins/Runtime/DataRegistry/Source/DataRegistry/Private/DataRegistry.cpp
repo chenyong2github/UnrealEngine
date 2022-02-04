@@ -81,11 +81,11 @@ FText UDataRegistry::GetRegistryDescription() const
 
 	if (TempIdFormat.BaseGameplayTag.IsValid())
 	{
-		FormatDescription = LOCTEXT("SimpleFormat", "using tags");
+		FormatDescription = LOCTEXT("FormatDescription_UsingTags", "using tags");
 	}
 	else
 	{
-		FormatDescription = LOCTEXT("SimpleFormat", "using names");
+		FormatDescription = LOCTEXT("FormatDescription_UsingNames", "using names");
 	}
 
 	return FText::Format(LOCTEXT("RegistryDescription_Format", "{0}: Type {1}, {2}"), FText::AsCultureInvariant(GetName()), FText::AsCultureInvariant(GetRegistryType().ToString()), FormatDescription);

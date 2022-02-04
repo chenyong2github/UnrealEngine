@@ -24,7 +24,7 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
-		const FText NoNameError = FText::Format(LOCTEXT("NullContextError", "'{AssetPath}' does not have a valid ConfigName!"), Args);
+		const FText NoNameError = FText::Format(LOCTEXT("NoNameError", "'{AssetPath}' does not have a valid ConfigName!"), Args);
 		ValidationErrors.Emplace(NoNameError);
 		
 		Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);

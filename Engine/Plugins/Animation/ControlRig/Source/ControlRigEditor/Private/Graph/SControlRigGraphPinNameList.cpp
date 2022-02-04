@@ -80,7 +80,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
 				.OnClicked(this, &SControlRigGraphPinNameList::OnGetSelectedClicked)
 				.ContentPadding(1.f)
-				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Use_Tooltip", "Use item selected"))
+				.ToolTipText(NSLOCTEXT("ControlRigElementDetails", "ObjectGraphPin_Use_Tooltip", "Use item selected"))
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
