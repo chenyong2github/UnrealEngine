@@ -30,14 +30,6 @@ class UInterchangeTextureFactoryNode;
 class UInterchangeTextureNode;
 template<class T> class TSubclassOf;
 
-#define COMMON_CATEGORY "Common"
-#define COMMON_MESHES_CATEGORY "Common Meshes"
-#define STATIC_MESHES_CATEGORY "Static Meshes"
-#define COMMON_SKELETAL_ANIMATIONS_CATEGORY "Common Skeletal Mesh and Animations"
-#define SKELETAL_MESHES_CATEGORY "Skeletal Meshes"
-#define ANIMATIONS_CATEGORY "Animations"
-#define TEXTURES_CATEGORY "Textures"
-
 /** Force mesh type, if user want to import all meshes as one type*/
 UENUM(BlueprintType)
 enum EInterchangeForceMeshType
@@ -86,11 +78,11 @@ public:
 
 
 	/** If enable and there is only one asset and one source data, we will name the asset like the source data name. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
 	bool bUseSourceNameForAsset = true;
 
 	/* Allow user to choose the re-import strategy. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
 	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
 
 
@@ -98,34 +90,34 @@ public:
 
 
 	/** Allow to convert mesh to a particular type */
- 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+ 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
  	TEnumAsByte<enum EInterchangeForceMeshType> ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_None;
 
 	/** If enable, meshes LODs will be imported. Note that it required the advanced bBakeMesh property to be enabled. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY, meta = (editcondition = "bBakeMeshes"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (editcondition = "bBakeMeshes"))
 	bool bImportLods = true;
 
 	/** If enable, meshes will be baked with the scene instance hierarchy transform. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
 	bool bBakeMeshes = true;
 
 	/** Specify how vertex colors should be imported */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
 	TEnumAsByte<enum EInterchangeVertexColorImportOption> VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Replace;
 
 	/** Specify override color in the case that VertexColorImportOption is set to Override */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
 	FColor VertexOverrideColor;
 	
 	//////	STATIC_MESHES_CATEGORY Properties //////
 
 
 	/** If enable, import the animation asset find in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = STATIC_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bImportStaticMeshes = true;
 
 	/** If enable all translated static mesh node will be imported has a one static mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = STATIC_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes")
 	bool bCombineStaticMeshes = false;
 
 	
@@ -133,7 +125,7 @@ public:
 
 
 	/** Skeleton to use for imported asset. When importing a skeletal mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
- 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_SKELETAL_ANIMATIONS_CATEGORY)
+ 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Mesh and Animations")
  	TObjectPtr<class USkeleton> Skeleton;
 
 	
@@ -141,42 +133,42 @@ public:
 
 	
 	/** If enable, import the animation asset find in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bImportSkeletalMeshes = true;
 
 	/** If enable all translated skinned mesh node will be imported has a one skeletal mesh, note that it can still create several skeletal mesh for each different skeleton root joint. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bCombineSkeletalMeshes = true;
 
 	/** If enable any morph target shape will be imported. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bImportMorphTargets = true;
 
 	/** Enable this option to update Skeleton (of the mesh)'s reference pose. Mesh's reference pose is always updated.  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bUpdateSkeletonReferencePose = false;
 
 	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bImportMeshesInBoneHierarchy = true;
 
 	/** Enable this option to use frame 0 as reference pose */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bUseT0AsRefPose = false;
 
 	/** If checked, create new PhysicsAsset if it doesn't have it */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bCreatePhysicsAsset = true;
 
 	/** If this is set, use this specified PhysicsAsset. If its not set and bCreatePhysicsAsset is false, the importer will not generate or set any physic asset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY, meta = (editcondition = "!bCreatePhysicsAsset"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (editcondition = "!bCreatePhysicsAsset"))
 	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 	
 	//////	ANIMATIONS_CATEGORY Properties //////
 
 
 	/** If enable, import the animation asset find in the sources. */
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ANIMATIONS_CATEGORY)
+// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animations")
 // 	bool bImportAnimations = true;
 
 
@@ -191,7 +183,7 @@ public:
 
 
 	/** If enabled, imports the texture assets found in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TEXTURES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	bool bImportTextures = true;
 
 #if WITH_EDITORONLY_DATA
@@ -199,15 +191,15 @@ public:
 	 * If enable, after a new import a test will be run to see if the texture is a normal map
 	 * If the texture is a normal map the SRG, CompressionSettings and LODGroup settings will be adjusted.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TEXTURES_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	bool bDetectNormalMapTexture = true;
 
 	/** If enabled, the texture's green channel will be inverted for normal maps. */
-	UPROPERTY(EditAnywhere, Category = TEXTURES_CATEGORY)
+	UPROPERTY(EditAnywhere, Category = "Textures")
 	bool bFlipNormalMapGreenChannel = false;
 
 	/** Specify the files type that should be imported as long/lat cubemap */
-	UPROPERTY(EditAnywhere, Category = TEXTURES_CATEGORY)
+	UPROPERTY(EditAnywhere, Category = "Textures")
 	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
 #endif
 

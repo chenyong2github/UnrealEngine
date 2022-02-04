@@ -50,6 +50,8 @@ public:
 		: _OnSelectionChangedDelegate()
 	{}
 		SLATE_EVENT(FOnPipelineConfigurationSelectionChanged, OnSelectionChangedDelegate)
+		SLATE_ARGUMENT(bool, bReimport)
+		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
 	SLATE_END_ARGS()
 
 	/** Construct this widget */
@@ -64,6 +66,8 @@ public:
 protected:
 	/** Delegate to invoke when selection changes. */
 	FOnPipelineConfigurationSelectionChanged OnSelectionChangedDelegate;
+	bool bReimport = false;
+	TArray<UInterchangePipelineBase*> PipelineStack;
 
 	/** the elements we show in the tree view */
 	TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>> RootNodeArray;
@@ -91,6 +95,8 @@ public:
 	{}
 
 		SLATE_ARGUMENT(TWeakPtr<SWindow>, OwnerWindow)
+		SLATE_ARGUMENT(bool, bReimport)
+		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
 	SLATE_END_ARGS()
 
 public:
@@ -115,11 +121,14 @@ public:
 	bool IsImportAll() { return bImportAll; }
 private:
 	TWeakPtr< SWindow > OwnerWindow;
+	bool bReimport = false;
+	TArray<UInterchangePipelineBase*> PipelineStack;
 
 	TSharedRef<SBox> SpawnPipelineConfiguration();
 	void OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType);
 
 	void RecursiveSavePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const;
+	void RecursiveLoadPipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const;
 
 	//Graph Inspector UI elements
 	TSharedPtr<SInterchangePipelineStacksTreeView> PipelineConfigurationTreeView;

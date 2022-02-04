@@ -9,6 +9,8 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "IndexTypes.h"
+#include "InterchangeAssetImportData.h"
+#include "InterchangeGenericAssetsPipeline.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintSkeletalMeshAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////
@@ -359,6 +361,23 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 			ImportData->SetFlags(RF_Transactional);
 			ImportData->Modify();
 			ImportData->VertexColorImportOption = EVertexColorImportOption::Ignore;
+		}
+
+		UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(ReferencedSkeletalMesh->GetAssetImportData());
+		if (InterchangeAssetImportData)
+		{
+			for (TObjectPtr<UInterchangePipelineBase> PipelineBase : InterchangeAssetImportData->Pipelines)
+			{
+				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
+				{
+					if (GenericAssetPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
+					{
+						GenericAssetPipeline->SetFlags(RF_Transactional);
+						GenericAssetPipeline->Modify();
+						GenericAssetPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
+					}
+				}
+			}
 		}
 	}
 }

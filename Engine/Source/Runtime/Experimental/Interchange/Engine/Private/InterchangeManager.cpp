@@ -708,18 +708,23 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				}
 			}
 
-			// Simply move the existing pipeline for now. To be revisited for the MVP release.
+			if (RegisteredPipelineConfiguration && bShowPipelineStacksConfigurationDialog && !bIsUnattended)
+			{
+				//Show the dialog, a plugin should have registered this dialog. We use a plugin to be able to use editor code when doing UI
+				EInterchangePipelineConfigurationDialogResult DialogResult = RegisteredPipelineConfiguration->ScriptedShowReimportPipelineConfigurationDialog(PipelineStack);
+				if (DialogResult == EInterchangePipelineConfigurationDialogResult::Cancel)
+				{
+					bImportCancel = true;
+				}
+				if (DialogResult == EInterchangePipelineConfigurationDialogResult::ImportAll)
+				{
+					bImportAllWithDefault = true;
+				}
+			}
+
+			// Simply move the existing pipeline
 			AsyncHelper->Pipelines = MoveTemp(PipelineStack);
 
-			//if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(DefaultPipelineStackName) && !bIsUnattended)))
-			//{
-				//Show the re-import dialog to let the user make change in the pipelines
-				//PipelineStackName = RegisteredPipelineConfiguration->ScriptedShowReimportPipelineConfigurationDialog(PipelineStack);
-			//}
-
-
-			//If the Stack name is empty it mean we want to use the re-import stack (PipelineStack). If there is a name we will
-			//extract the pipeline stack the user want to use.
 		}
 		else
 		{

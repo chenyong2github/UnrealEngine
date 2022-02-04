@@ -146,8 +146,13 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			
 	int32 LodCount = StaticMeshFactoryNode->GetLodDataCount();
 	int32 FinalLodCount = LodCount;
+	TMap<FVector, FColor> ExisitingVertexColorData;
 	if (Arguments.ReimportObject)
 	{
+		if(ExistingAsset)
+		{
+			StaticMesh->GetVertexColorData(ExisitingVertexColorData);
+		}
 		//When we reimport we dont want to reduce the number of existing LODs
 		FinalLodCount = FMath::Max(StaticMesh->GetNumLODs(), LodCount);
 	}
@@ -287,10 +292,29 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 				StaticMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
 				if (bIgnoreVertexColor)
 				{
-					//Flush the vertex color, if we re-import we have to fill it with the old data
 					for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
 					{
-						VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(FColor::White));
+						//If we have old vertex color (reimport), we want to keep it if the option is ignore
+						if (ExisitingVertexColorData.Num() > 0)
+						{
+							FVector3f VertexPosition = LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID));
+							const FColor* PaintedColor = ExisitingVertexColorData.Find(VertexPosition);
+							if (PaintedColor)
+							{
+								// A matching color for this vertex was found
+								VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(*PaintedColor));
+							}
+							else
+							{
+								//Flush the vertex color
+								VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(FColor::White));
+							}
+						}
+						else
+						{
+							//Flush the vertex color
+							VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(FColor::White));
+						}
 					}
 				}
 				else

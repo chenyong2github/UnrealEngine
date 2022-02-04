@@ -34,6 +34,8 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "RHI",
 					"ToolWidgets",
+					"InterchangeEngine",
+					"InterchangePipelines"
                 }
             );
 

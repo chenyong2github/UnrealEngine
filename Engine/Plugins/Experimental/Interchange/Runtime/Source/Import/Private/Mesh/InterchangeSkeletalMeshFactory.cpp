@@ -16,12 +16,14 @@
 #include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
+#include "Math/GenericOctree.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
@@ -849,6 +851,149 @@ namespace UE
 					}
 				}
 			}
+
+			/** Helper struct for the mesh component vert position octree */
+			struct FSkeletalMeshVertPosOctreeSemantics
+			{
+				enum { MaxElementsPerLeaf = 16 };
+				enum { MinInclusiveElementsPerNode = 7 };
+				enum { MaxNodeDepth = 12 };
+
+				typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
+
+				/**
+				 * Get the bounding box of the provided octree element. In this case, the box
+				 * is merely the point specified by the element.
+				 *
+				 * @param	Element	Octree element to get the bounding box for
+				 *
+				 * @return	Bounding box of the provided octree element
+				 */
+				FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const FSoftSkinVertex& Element)
+				{
+					return FBoxCenterAndExtent(Element.Position, FVector::ZeroVector);
+				}
+
+				/**
+				 * Determine if two octree elements are equal
+				 *
+				 * @param	A	First octree element to check
+				 * @param	B	Second octree element to check
+				 *
+				 * @return	true if both octree elements are equal, false if they are not
+				 */
+				FORCEINLINE static bool AreElementsEqual(const FSoftSkinVertex& A, const FSoftSkinVertex& B)
+				{
+					return (A.Position == B.Position && A.UVs[0] == B.UVs[0]);
+				}
+
+				/** Ignored for this implementation */
+				FORCEINLINE static void SetElementId(const FSoftSkinVertex& Element, FOctreeElementId2 Id)
+				{
+				}
+			};
+			typedef TOctree2<FSoftSkinVertex, FSkeletalMeshVertPosOctreeSemantics> TSKCVertPosOctree;
+
+			void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, FSkeletalMeshImportData* SkelMeshImportData)
+			{
+				//Make sure we have all the source data we need to do the remap
+				if (!SkeletalMesh->GetImportedModel() || !SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) || !SkeletalMesh->GetHasVertexColors())
+				{
+					return;
+				}
+
+				// Find the extents formed by the cached vertex positions in order to optimize the octree used later
+				FBox Bounds(ForceInitToZero);
+				SkelMeshImportData->bHasVertexColors = true;
+
+				int32 WedgeNumber = SkelMeshImportData->Wedges.Num();
+				for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
+				{
+					SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
+					const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+					Bounds += Position;
+				}
+
+				TArray<FSoftSkinVertex> Vertices;
+				SkeletalMesh->GetImportedModel()->LODModels[LODIndex].GetVertices(Vertices);
+				for (int32 SkinVertexIndex = 0; SkinVertexIndex < Vertices.Num(); ++SkinVertexIndex)
+				{
+					const FSoftSkinVertex& SkinVertex = Vertices[SkinVertexIndex];
+					Bounds += SkinVertex.Position;
+				}
+
+				TSKCVertPosOctree VertPosOctree(Bounds.GetCenter(), Bounds.GetExtent().GetMax());
+
+				// Add each old vertex to the octree
+				for (int32 SkinVertexIndex = 0; SkinVertexIndex < Vertices.Num(); ++SkinVertexIndex)
+				{
+					const FSoftSkinVertex& SkinVertex = Vertices[SkinVertexIndex];
+					VertPosOctree.AddElement(SkinVertex);
+				}
+
+				TMap<int32, FVector3f> WedgeIndexToNormal;
+				WedgeIndexToNormal.Reserve(WedgeNumber);
+				for (int32 FaceIndex = 0; FaceIndex < SkelMeshImportData->Faces.Num(); ++FaceIndex)
+				{
+					const SkeletalMeshImportData::FTriangle& Triangle = SkelMeshImportData->Faces[FaceIndex];
+					for (int32 Corner = 0; Corner < 3; ++Corner)
+					{
+						WedgeIndexToNormal.Add(Triangle.WedgeIndex[Corner], Triangle.TangentZ[Corner]);
+					}
+				}
+
+				// Iterate over each new vertex position, attempting to find the old vertex it is closest to, applying
+				// the color of the old vertex to the new position if possible.
+				for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
+				{
+					SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
+					const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+					const FVector2f UV = Wedge.UVs[0];
+					const FVector3f& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
+
+					TArray<FSoftSkinVertex> PointsToConsider;
+					VertPosOctree.FindNearbyElements(Position, [&PointsToConsider](const FSoftSkinVertex& Vertex)
+						{
+							PointsToConsider.Add(Vertex);
+						});
+
+					if (PointsToConsider.Num() > 0)
+					{
+						//Get the closest position
+						float MaxNormalDot = -MAX_FLT;
+						float MinUVDistance = MAX_FLT;
+						int32 MatchIndex = INDEX_NONE;
+						for (int32 ConsiderationIndex = 0; ConsiderationIndex < PointsToConsider.Num(); ++ConsiderationIndex)
+						{
+							const FSoftSkinVertex& SkinVertex = PointsToConsider[ConsiderationIndex];
+							const FVector2f& SkinVertexUV = SkinVertex.UVs[0];
+							const float UVDistanceSqr = FVector2f::DistSquared(UV, SkinVertexUV);
+							if (UVDistanceSqr < MinUVDistance)
+							{
+								MinUVDistance = FMath::Min(MinUVDistance, UVDistanceSqr);
+								MatchIndex = ConsiderationIndex;
+								MaxNormalDot = Normal | SkinVertex.TangentZ;
+							}
+							else if (FMath::IsNearlyEqual(UVDistanceSqr, MinUVDistance, KINDA_SMALL_NUMBER))
+							{
+								//This case is useful when we have hard edge that shared vertice, somtime not all the shared wedge have the same paint color
+								//Think about a cube where each face have different vertex color.
+								float NormalDot = Normal | SkinVertex.TangentZ;
+								if (NormalDot > MaxNormalDot)
+								{
+									MaxNormalDot = NormalDot;
+									MatchIndex = ConsiderationIndex;
+								}
+							}
+						}
+						if (PointsToConsider.IsValidIndex(MatchIndex))
+						{
+							Wedge.Color = PointsToConsider[MatchIndex].Color;
+						}
+					}
+				}
+			}
+
 		} //Namespace Private
 	} //namespace Interchange
 } //namespace UE
@@ -1158,11 +1303,19 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 				SkeletalMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
 				if (bIgnoreVertexColor)
 				{
-					//Flush the vertex color, if we re-import we have to fill it with the old data
-					SkeletalMeshImportData.bHasVertexColors = false;
-					for (SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+					if (bIsReImport)
 					{
-						Wedge.Color = FColor::White;
+						//Get the vertex color we have in the current asset, 
+						UE::Interchange::Private::RemapSkeletalMeshVertexColorToImportData(SkeletalMesh, LodIndex, &SkeletalMeshImportData);
+					}
+					else
+					{
+						//Flush the vertex color
+						SkeletalMeshImportData.bHasVertexColors = false;
+						for (SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+						{
+							Wedge.Color = FColor::White;
+						}
 					}
 				}
 				else

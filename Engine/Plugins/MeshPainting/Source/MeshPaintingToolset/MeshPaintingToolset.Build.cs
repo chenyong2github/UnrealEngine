@@ -23,8 +23,10 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"TypedElementFramework",
 					"TypedElementRuntime",
-					"UnrealEd"
-                }
+					"UnrealEd",
+					"InterchangeEngine",
+					"InterchangePipelines"
+				}
                 );
 
                 PublicDependencyModuleNames.AddRange(
