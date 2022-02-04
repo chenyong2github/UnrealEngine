@@ -88,7 +88,7 @@ void SControlRigTweenWidget::OnBeginSliderMovement()
 	{
 		bIsBlending = true;
 		bSliderStartedTransaction = true;
-		GEditor->BeginTransaction(LOCTEXT("TweenTransaction", "Tween It"));
+		GEditor->BeginTransaction(LOCTEXT("TweenTransaction", "Tween"));
 		SetupControls();
 	}
 }

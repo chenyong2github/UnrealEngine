@@ -118,7 +118,7 @@ public:
 			.Padding(10.f)
 			[
 				SNew(SCheckBox)
-				.ToolTipText(LOCTEXT("FilterAnimCameraShakes", "Only show camera shakes with a Matinee camera animation"))
+				.ToolTipText(LOCTEXT("FilterAnimCameraShakesTooltip", "Only show camera shakes with a Matinee camera animation"))
 				.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
 						{
 							bFilterNonAnimCameraShakes = !bFilterNonAnimCameraShakes; 

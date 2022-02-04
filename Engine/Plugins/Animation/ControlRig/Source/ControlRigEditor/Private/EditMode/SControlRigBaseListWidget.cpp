@@ -204,13 +204,13 @@ void FCreateControlAssetRigDialog::GetControlAssetParams(FControlRigAssetType Ty
 	switch (Type)
 	{
 	case FControlRigAssetType::ControlRigPose:
-		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Pose");
+		TitleText = LOCTEXT("CreateControlAssetRigPose", "Create Control Rig Pose");
 		break;
 	case FControlRigAssetType::ControlRigAnimation:
-		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Animation");
+		TitleText = LOCTEXT("CreateControlAssetRigAnimation", "Create Control Rig Animation");
 		break;
 	case FControlRigAssetType::ControlRigSelectionSet:
-		TitleText = LOCTEXT("CreateControlAssetRig", "Create Control Rig Selection Set");
+		TitleText = LOCTEXT("CreateControlAssetRigSelectionSet", "Create Control Rig Selection Set");
 		break;
 	};
 
@@ -1108,7 +1108,7 @@ TSharedPtr<SWidget> SControlRigBaseListWidget::OnGetAssetContextMenu(const TArra
 				FUIAction Action = FUIAction(FExecuteAction::CreateRaw((this), &SControlRigBaseListWidget::ExecutePasteMirrorPose, PoseAsset),
 					FCanExecuteAction::CreateRaw(this, &SControlRigBaseListWidget::CanExecutePasteMirrorPose, PoseAsset));
 				const FText Label = LOCTEXT("PasteMirrorPoseButton", "Paste Mirror Pose");
-				const FText ToolTipText = LOCTEXT("PastePoseButtonTooltip", "Paste the mirror of the pose");
+				const FText ToolTipText = LOCTEXT("PasteMirrorPoseButtonTooltip", "Paste the mirror of the pose");
 				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 			}
 			MenuBuilder.EndSection();
