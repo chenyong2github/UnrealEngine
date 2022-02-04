@@ -8,6 +8,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraSettings.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
@@ -103,6 +104,16 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	MaxFacingCameraBlendDistance = Properties->MaxFacingCameraBlendDistance;
 	RendererVisibility = Properties->RendererVisibility;
 	bAccurateMotionVectors = Properties->NeedsPreciseMotionVectors();
+
+	PixelCoverageMode = Properties->PixelCoverageMode;
+	if (PixelCoverageMode == ENiagaraRendererPixelCoverageMode::Automatic)
+	{
+		if ( GetDefault<UNiagaraSettings>()->DefaultPixelCoverageMode != ENiagaraDefaultRendererPixelCoverageMode::Enabled )
+		{
+			PixelCoverageMode = ENiagaraRendererPixelCoverageMode::Disabled;
+		}
+	}
+	PixelCoverageBlend = FMath::Clamp(Properties->PixelCoverageBlend, 0.0f, 1.0f);
 
 	bEnableDistanceCulling = Properties->bEnableCameraDistanceCulling;
 	if (Properties->bEnableCameraDistanceCulling)
@@ -222,7 +233,8 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 	check(MaterialRenderProxy);
 
 	// Do we have anything to render?
-	EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+	ParticleSpriteRenderData.BlendMode = BlendMode;
 	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
 	ParticleSpriteRenderData.SourceParticleData = ParticleSpriteRenderData.DynamicDataSprites->GetParticleDataToRender(ParticleSpriteRenderData.bHasTranslucentMaterials && bGpuLowLatencyTranslucency && !SceneProxy->CastsVolumetricTranslucentShadow());
 	if ( !ParticleSpriteRenderData.SourceParticleData || (SourceMode == ENiagaraRendererSourceDataMode::Particles && ParticleSpriteRenderData.SourceParticleData->GetNumInstances() == 0) )
@@ -549,6 +561,49 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 	PerViewUniformParameters.PrevAlignmentDataOffset = INDEX_NONE;
 	PerViewUniformParameters.PrevCameraOffsetDataOffset = INDEX_NONE;
 	PerViewUniformParameters.PrevPivotOffsetDataOffset = INDEX_NONE;
+
+	// Determine pixel coverage settings
+	PerViewUniformParameters.PixelCoverageEnabled = PixelCoverageMode != ENiagaraRendererPixelCoverageMode::Disabled;
+	PerViewUniformParameters.PixelCoverageColorBlend = FVector4f::Zero();
+	if (PixelCoverageMode != ENiagaraRendererPixelCoverageMode::Disabled)
+	{
+		if ( PixelCoverageMode == ENiagaraRendererPixelCoverageMode::Automatic )
+		{
+			PerViewUniformParameters.PixelCoverageEnabled = ParticleSpriteRenderData.bHasTranslucentMaterials;
+			if (PerViewUniformParameters.PixelCoverageEnabled)
+			{
+				switch (ParticleSpriteRenderData.BlendMode)
+				{
+					case BLEND_Translucent:
+						ParticleSpriteRenderData.bHasTranslucentMaterials = true;
+						PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, 0.0f);
+						break;
+					case BLEND_Additive:
+						ParticleSpriteRenderData.bHasTranslucentMaterials = true;
+						PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend);
+						break;
+					//-TODO: Support these blend modes
+					//BLEND_Modulate
+					//BLEND_AlphaComposite
+					//BLEND_AlphaHoldout
+					default:
+						ParticleSpriteRenderData.bHasTranslucentMaterials = false;
+						break;
+				}
+			}
+		}
+		else
+		{
+			PerViewUniformParameters.PixelCoverageEnabled = true;
+			switch (PixelCoverageMode)
+			{
+				case ENiagaraRendererPixelCoverageMode::Enabled_RGBA:	PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend); break;
+				case ENiagaraRendererPixelCoverageMode::Enabled_RGB:	PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, 0.0f); break;
+				case ENiagaraRendererPixelCoverageMode::Enabled_A:		PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(0.0f, 0.0f, 0.0f, PixelCoverageBlend); break;
+				default: break;
+			}
+		}
+	}
 
 	if (SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{

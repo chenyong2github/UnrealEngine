@@ -52,6 +52,15 @@ namespace ENDISkelMesh_AdjacencyTriangleIndexFormat
 	};
 }
 
+UENUM()
+enum class ENiagaraDefaultRendererPixelCoverageMode : uint8
+{
+	/** When renderer is set to automatic mode pixel coverage is enabled. */
+	Enabled,
+	/** When renderer is set to automatic mode pixel coverage is disabled. */
+	Disabled,
+};
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 {
@@ -103,6 +112,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** The default setting for motion vectors in Niagara renderers */
 	UPROPERTY(config, EditAnywhere, Category = Renderer)
 	ENiagaraDefaultRendererMotionVectorSetting DefaultRendererMotionVectorSetting = ENiagaraDefaultRendererMotionVectorSetting::Precise;
+
+	/** The default setting for pixel coverage mode when automatic is set on the Niagara Renderer. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	ENiagaraDefaultRendererPixelCoverageMode DefaultPixelCoverageMode = ENiagaraDefaultRendererPixelCoverageMode::Enabled;
 
 	UPROPERTY(config, EditAnywhere, Category=SkeletalMeshDI, meta = ( DisplayName = "Gpu Max Bone Influences", ToolTip = "Controls the maximum number of influences we allow the Skeletal Mesh Data Interface to use on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
 	TEnumAsByte<ENDISkelMesh_GpuMaxInfluences::Type> NDISkelMesh_GpuMaxInfluences;

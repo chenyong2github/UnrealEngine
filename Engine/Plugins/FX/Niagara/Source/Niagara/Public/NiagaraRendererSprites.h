@@ -6,6 +6,7 @@ NiagaraRendererSprites.h: Renderer for rendering Niagara particles as sprites.
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraSpriteVertexFactory.h"
@@ -41,6 +42,7 @@ private:
 		const FNiagaraDynamicDataSprites*	DynamicDataSprites = nullptr;
 		class FNiagaraDataBuffer*			SourceParticleData = nullptr;
 
+		EBlendMode							BlendMode = BLEND_Opaque;
 		bool								bHasTranslucentMaterials = false;
 		bool								bSortCullOnGpu = false;
 		bool								bNeedsSort = false;
@@ -119,6 +121,9 @@ private:
 	uint32 bAccurateMotionVectors : 1;
 	uint32 bSetAnyBoundVars : 1;
 	uint32 bVisTagInParamStore : 1;
+
+	ENiagaraRendererPixelCoverageMode PixelCoverageMode = ENiagaraRendererPixelCoverageMode::Automatic;
+	float PixelCoverageBlend = 0.0f;
 
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;

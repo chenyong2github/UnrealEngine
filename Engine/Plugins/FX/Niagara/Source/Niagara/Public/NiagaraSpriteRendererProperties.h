@@ -38,6 +38,23 @@ enum class ENiagaraSpriteFacingMode : uint8
 	FaceCameraDistanceBlend
 };
 
+UENUM()
+enum class ENiagaraRendererPixelCoverageMode : uint8
+{
+	/** Automatically determine if we want pixel coverage enabled or disabled, based on project setting and the material used on the renderer. */
+	Automatic,
+	/** Disable pixel coverage. */
+	Disabled,
+	/** Enable pixel coverage with no color adjustment based on coverage. */
+	Enabled UMETA(DisplayName = "Enabled (No Color Adjustment)"),
+	/** Enable pixel coverage and adjust the RGBA channels according to coverage. */
+	Enabled_RGBA UMETA(DisplayName = "Enabled (RGBA)"),
+	/** Enable pixel coverage and adjust the RGB channels according to coverage. */
+	Enabled_RGB UMETA(DisplayName = "Enabled (RGB)"),
+	/** Enable pixel coverage and adjust the Alpha channel only according to coverage. */
+	Enabled_A UMETA(DisplayName = "Enabled (A)"),
+};
+
 namespace ENiagaraSpriteVFLayout
 {
 	enum Type
@@ -183,6 +200,24 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
 	uint32 bGpuLowLatencyTranslucency : 1;
+
+	/**
+	This setting controls what happens when a sprite becomes less than a pixel in size.
+	Disabling will apply nothing and can result in flickering issues, especially with Temporal Super Resolution.
+	Automatic will enable the appropriate settings when the material blend mode is some form of translucency, project setting must also be enabled.
+	When coverage is less than a pixel, we also calculate a percentage of coverage, and then darken or reduce opacity
+	to visually compensate.	The different enabled settings allow you to control how the coverage amount is applied to
+	your particle color.  If particle color is not connected to your material the compensation will not be applied.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	ENiagaraRendererPixelCoverageMode PixelCoverageMode = ENiagaraRendererPixelCoverageMode::Automatic;
+
+	/**
+	When pixel coverage is enabled this allows you to control the blend of the pixel coverage color adjustment.
+	i.e. 1.0 = full, 0.5 = 50/50 blend, 0.0 = none
+	*/
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (EditCondition = "PixelCoverageMode != ENiagaraRendererPixelCoverageMode::Disabled", UIMin=0.0f, UIMax=1.0f))
+	float PixelCoverageBlend = 1.0f;
 
 	/** When FacingMode is FacingCameraDistanceBlend, the distance at which the sprite is fully facing the camera plane. */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (UIMin = "0"))

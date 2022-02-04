@@ -84,6 +84,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FNiagaraSpriteUniformParameters, NIAGARAVE
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter1)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter2)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter3)
+	SHADER_PARAMETER(int, PixelCoverageEnabled)
+	SHADER_PARAMETER(FVector4f, PixelCoverageColorBlend)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraSpriteUniformParameters> FNiagaraSpriteUniformBufferRef;

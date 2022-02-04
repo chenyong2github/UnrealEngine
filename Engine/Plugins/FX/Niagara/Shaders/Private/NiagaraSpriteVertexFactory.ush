@@ -858,11 +858,28 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	UVForTexturing.xy = float2(0.5f, 0.5f) + (UVForTexturing.xy - float2(0.5f, 0.5f) ) *  UVScale.xy; 
 	const float2 Size = abs(Intermediates.SizeRotSubImage.xy);
-	
+
+	// When enabled try to main a pixel sized sprite and optionally fade particles based on coverage
+	// In reality this is more like 2x2 coverage to ensure we always hit 1 pixel, the alternative would be to snap
+	// both the size and the location to pixel centers.
+	// This also does not work correctly with sprites that are not camera facing, future work may be to
+	// calculate the size based on Tangents and the camera axis.
+	float PixelSizeRatio = 1.0f;
+	if ( NiagaraSpriteVF.PixelCoverageEnabled != 0 )
+	{
+		const float Depth = dot(ParticlePosition - LWCHackToFloat(ResolvedView.WorldCameraOrigin), ResolvedView.ViewForward);
+		const float HalfSize = max(Size.x, Size.y) * 0.5f;
+		const float PixelSize = max(View.ViewSizeAndInvSize.z * GetTanHalfFieldOfView().x * Depth * 2.0f, HalfSize);
+		PixelSizeRatio = PixelSize / HalfSize;
+
+		float Coverage = saturate(HalfSize * 2.0f / PixelSize);
+		Coverage = Coverage * Coverage;
+		Intermediates.Color = (Intermediates.Color * Coverage * NiagaraSpriteVF.PixelCoverageColorBlend) + (Intermediates.Color * (1 - NiagaraSpriteVF.PixelCoverageColorBlend));
+	}
 
 	// Vertex position
 	const float2x3 Tangents = float2x3(Intermediates.TangentRight, Intermediates.TangentUp);
-	const float3 VertexOffset = CameraOffset + mul(Size * (UVForPosition - PivotOffset), Tangents);
+	const float3 VertexOffset = CameraOffset + mul(Size * PixelSizeRatio * (UVForPosition - PivotOffset), Tangents);
 
 	Intermediates.VertexWorldPosition = ParticlePosition + VertexOffset;
 		
