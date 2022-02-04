@@ -265,6 +265,8 @@ struct PLANARCUT_API FDynamicMeshCollection
 
 private:
 
+	void SetGeometryVisibility(FGeometryCollection* Collection, const TArray<int32>& GeometryIndices, bool bVisible);
+
 	// Update an existing geometry in a collection w/ a new mesh (w/ the same number of faces and vertices!)
 	static bool UpdateCollection(const FTransform& FromCollection, UE::Geometry::FDynamicMesh3& Mesh, int32 GeometryIdx, FGeometryCollection& Output, int32 InternalMaterialID);
 

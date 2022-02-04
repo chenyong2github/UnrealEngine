@@ -274,16 +274,20 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 				{
 					bool bDirty = false;
 
-					// Ensure that clusters do not point to geometry
 					TManagedArray<int32>& TransformToGeometry = GeometryCollection->TransformToGeometryIndex;
-					const int32 ElementCount = TransformToGeometry.Num();
-					for (int32 Idx = 0; Idx < ElementCount; ++Idx)
+					constexpr bool bClustersCanHaveGeometry = true;
+					if (!bClustersCanHaveGeometry)
 					{
-						if (GeometryCollection->IsClustered(Idx) && TransformToGeometry[Idx] != INDEX_NONE)
+						// Optionally ensure that clusters do not point to geometry (currently disabled; keeping the geometry can be useful)
+						const int32 ElementCount = TransformToGeometry.Num();
+						for (int32 Idx = 0; Idx < ElementCount; ++Idx)
 						{
-							TransformToGeometry[Idx] = INDEX_NONE;
-							UE_LOG(LogFractureTool, Warning, TEXT("Removed geometry index from cluster %d."), Idx);
-							bDirty = true;
+							if (GeometryCollection->IsClustered(Idx) && TransformToGeometry[Idx] != INDEX_NONE)
+							{
+								TransformToGeometry[Idx] = INDEX_NONE;
+								UE_LOG(LogFractureTool, Warning, TEXT("Removed geometry index from cluster %d."), Idx);
+								bDirty = true;
+							}
 						}
 					}
 

@@ -2213,6 +2213,21 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 }
 
 
+void FDynamicMeshCollection::SetGeometryVisibility(FGeometryCollection* Collection, const TArray<int32>& GeometryIndices, bool bVisible)
+{
+	TManagedArray<bool>& Visible = Collection->Visible;
+	for (int32 GeoIdx : GeometryIndices)
+	{
+		int32 FaceStart = Collection->FaceStart[GeoIdx];
+		int32 FaceEnd = FaceStart + Collection->FaceCount[GeoIdx];
+		for (int32 FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
+		{
+			Visible[FaceIdx] = bVisible;
+		}
+	}
+}
+
+
 int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	const TArrayView<const FPlane>& Planes,
 	double Grout,
@@ -2566,15 +2581,22 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		}
 	}
 
-	// remove superfluous geometry
+	constexpr bool bRemoveOldGeometry = false; // if false, we just hide the geometry that we've replaced by fractured child geometry, rather than remove it
 	if (GeometryForRemoval.Num() > 0)
 	{
-		GeometryForRemoval.Sort();
-		FManagedArrayCollection::FProcessingParameters ProcessingParams;
+		if (bRemoveOldGeometry)
+		{
+			GeometryForRemoval.Sort();
+			FManagedArrayCollection::FProcessingParameters ProcessingParams;
 #if !UE_BUILD_DEBUG
-		ProcessingParams.bDoValidation = false;
+			ProcessingParams.bDoValidation = false;
 #endif
-		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
+			Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
+		}
+		else
+		{
+			SetGeometryVisibility(Collection, GeometryForRemoval, false);
+		}
 	}
 
 	return FirstCreatedIndex - GeometryForRemoval.Num();
@@ -2757,15 +2779,23 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 		}
 	}
 
-	// remove superfluous geometry
+	// remove or hide superfluous geometry
+	constexpr bool bRemoveOldGeometry = false; // if false, we just hide the geometry that we've replaced by fractured child geometry, rather than remove it
 	if (GeometryForRemoval.Num() > 0)
 	{
-		GeometryForRemoval.Sort();
-		FManagedArrayCollection::FProcessingParameters ProcessingParams;
+		if (bRemoveOldGeometry)
+		{
+			GeometryForRemoval.Sort();
+			FManagedArrayCollection::FProcessingParameters ProcessingParams;
 #if !UE_BUILD_DEBUG
-		ProcessingParams.bDoValidation = false;
+			ProcessingParams.bDoValidation = false;
 #endif
-		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
+			Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
+		}
+		else
+		{
+			SetGeometryVisibility(Collection, GeometryForRemoval, false);
+		}
 	}
 
 	return FirstIdx - GeometryForRemoval.Num();
