@@ -14,6 +14,7 @@ class FUICommandList;
 class SAssetView;
 class SWindow;
 
+enum class ECheckBoxState : uint8;
 enum class EContentBrowserViewContext : uint8;
 
 class FAssetContextMenu : public TSharedFromThis<FAssetContextMenu>
