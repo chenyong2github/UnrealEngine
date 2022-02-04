@@ -172,7 +172,7 @@ namespace Metasound
 					InterfaceComboBox->RefreshOptions();
 					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 					MetaSoundAsset->SetSynchronizationRequired();
-				}), LOCTEXT("RemoveInterfaceTooltip", "Removes all interfaces from the given MetaSound."))
+				}), LOCTEXT("RemoveInterfaceTooltip1", "Removes all interfaces from the given MetaSound."))
 			];
 
 			const FText HeaderName = LOCTEXT("InterfacesGroupDisplayName", "Interfaces");
@@ -217,7 +217,7 @@ namespace Metasound
 					InterfaceComboBox->RefreshOptions();
 					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 					MetaSoundAsset->SetSynchronizationRequired();
-				}), LOCTEXT("RemoveInterfaceTooltip", "Removes the associated interface from the MetaSound."));
+				}), LOCTEXT("RemoveInterfaceTooltip2", "Removes the associated interface from the MetaSound."));
 
 				return SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()

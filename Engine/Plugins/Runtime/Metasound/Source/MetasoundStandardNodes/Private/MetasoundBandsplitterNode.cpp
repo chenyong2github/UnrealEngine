@@ -89,8 +89,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMono = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (Mono, %d)"), NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern", "Mono Band Splitter ({0})"), NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern1", "Mono Band Splitter ({0})"), NumBands);
+				FText NodeDescription = LOCTEXT("BandSplitterDescription1", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -100,8 +100,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (Stereo, %d)"), NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern", "Stereo Band Splitter ({0})"), NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern2", "Stereo Band Splitter ({0})"), NumBands);
+				FText NodeDescription = LOCTEXT("BandSplitterDescription2", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -111,8 +111,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMultiChan = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (%d-Channel, %d)"), NumChannels, NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern", "{0}-channel Band Splitter ({1})"), NumChannels, NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern3", "{0}-channel Band Splitter ({1})"), NumChannels, NumBands);
+				FText NodeDescription = LOCTEXT("BandSplitterDescription3", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

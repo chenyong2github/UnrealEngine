@@ -85,8 +85,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMono = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (Mono, %d)"), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("AudioMixerDisplayNamePattern", "Mono Mixer ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription", "Will scale input channels by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("MonoMixer", "Mono Mixer ({0})"), NumInputs);
+				FText NodeDescription = LOCTEXT("MixerDescription1", "Will scale input channels by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -96,8 +96,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (Stereo, %d)"), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("AudioMixerDisplayNamePattern", "Stereo Mixer ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription", "Will scale input channels by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("StereoMixer", "Stereo Mixer ({0})"), NumInputs);
+				FText NodeDescription = LOCTEXT("MixerDescription2", "Will scale input channels by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -107,8 +107,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMultiChan = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (%d-Channel, %d)"), NumChannels, NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("AudioMixerDisplayNamePattern", "{0}-channel Mixer ({1})"), NumChannels, NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription", "Will scale input audio by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = FText::Format(LOCTEXT("NChannelMixer", "{0}-channel Mixer ({1})"), NumChannels, NumInputs);
+				FText NodeDescription = LOCTEXT("MixerDescription3", "Will scale input audio by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

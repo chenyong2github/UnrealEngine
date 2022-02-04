@@ -134,7 +134,7 @@ namespace Metasound
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), LOCTEXT("TriggerGateOutputTriggerTT", "Triggers output when gate is toggled.")),
-				TOutputDataVertexModel<bool>(GetOutputValueName(), LOCTEXT("TriggerGateOutputTriggerTT", "Current output value of the toggle."))
+				TOutputDataVertexModel<bool>(GetOutputValueName(), LOCTEXT("BoolOutputTT", "Current output value of the toggle."))
 			)
 		);
 

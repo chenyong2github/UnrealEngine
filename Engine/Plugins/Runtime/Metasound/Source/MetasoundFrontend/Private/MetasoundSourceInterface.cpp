@@ -122,7 +122,7 @@ namespace Metasound
 							},
 							{
 								LOCTEXT("GraphNameDisplayName", "Graph Name"),
-								LOCTEXT("AudioDeviceIDDescription", "Name of source graph (for debugging/logging)."),
+								LOCTEXT("GraphNameDescription", "Name of source graph (for debugging/logging)."),
 								GetMetasoundDataTypeName<FString>(),
 								Environment::GraphName
 							},
@@ -139,8 +139,8 @@ namespace Metasound
 								Environment::TransmitterID
 							},
 							{
-								LOCTEXT("AudioDeviceIDDisplayName", "Sound Unique ID"),
-								LOCTEXT("AudioDeviceIDDescription", "ID of unique source instance."),
+								LOCTEXT("SoundUniqueIdDisplayName", "Sound Unique ID"),
+								LOCTEXT("SoundUniqueIdDescription", "ID of unique source instance."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::SoundUniqueID
 							}
@@ -195,7 +195,7 @@ namespace Metasound
 						Environment =
 						{
 							{
-								LOCTEXT("AudioDeviceIDDisplayName", "Audio Device ID"),
+								LOCTEXT("AudioDeviceIDDisplayName1", "Audio Device ID"),
 								LOCTEXT("AudioDeviceIDDescription", "ID of AudioDevice source is played from."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::DeviceID
@@ -219,7 +219,7 @@ namespace Metasound
 								Environment::TransmitterID
 							},
 							{
-								LOCTEXT("AudioDeviceIDDisplayName", "Sound Unique ID"),
+								LOCTEXT("SoundUniqueDisplayName", "Sound Unique ID"),
 								LOCTEXT("AudioDeviceIDDescription", "ID of unique source instance."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::SoundUniqueID

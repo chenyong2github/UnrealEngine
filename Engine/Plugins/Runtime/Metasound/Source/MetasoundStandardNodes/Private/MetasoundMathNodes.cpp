@@ -66,7 +66,7 @@ namespace Metasound
 		template<typename DataType>
 		const FText GetAddDisplayName()
 		{
-			static const FText DisplayName = FText::Format(LOCTEXT("AddNodeDisplayNamePattern", "Add ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
+			static const FText DisplayName = FText::Format(LOCTEXT("AddNodeDisplayNamePattern1", "Add ({0})"), GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
 		}
 
@@ -74,7 +74,7 @@ namespace Metasound
 		const FText GetAddDisplayName()
 		{
 			static const FText DisplayName = FText::Format(
-				LOCTEXT("AddNodeDisplayNamePattern", "Add ({0} to {1})"),
+				LOCTEXT("AddNodeDisplayNamePattern2", "Add ({0} to {1})"),
 				GetMetasoundDataTypeDisplayText<OperandDataType>(),
 				GetMetasoundDataTypeDisplayText<DataType>());
 			return DisplayName;
@@ -671,8 +671,8 @@ namespace Metasound
 		{
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpAddendTooltip", "First attend.")),
-					TInputDataVertexModel<FAudioBuffer>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip", "Additional attends."))
+					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpAddendTooltip1", "First addend.")),
+					TInputDataVertexModel<FAudioBuffer>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip1", "Additional addends."))
 				),
 				FOutputVertexInterface(
 					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("MathOpOutTooltip", "Math operation result"))
@@ -748,8 +748,8 @@ namespace Metasound
 		{
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpAddendTooltip", "First attend."), 0.0f),
-					TInputDataVertexModel<FTime>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip", "Additional attends."), 0.0f)
+					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpAddendTooltip2", "First addend."), 0.0f),
+					TInputDataVertexModel<FTime>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip2", "Additional addends."), 0.0f)
 				),
 				FOutputVertexInterface(
 					TOutputDataVertexModel<FTime>(TEXT("Out"), LOCTEXT("MathOpOutTooltip", "Math operation result"))
@@ -793,7 +793,7 @@ namespace Metasound
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
 					TInputDataVertexModel<FAudioBuffer>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpAddendAudioTooltip", "Audio Buffer to add offset(s) to.")),
-					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip", "Float attends of which to offset buffer samples."), 0.0f)
+					TInputDataVertexModel<float>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpAddendAdditionalTooltip2", "Float addends of which to offset buffer samples."), 0.0f)
 				),
 				FOutputVertexInterface(
 					TOutputDataVertexModel<FAudioBuffer>(TEXT("Out"), LOCTEXT("MathOpAudioFloatAddOutTooltip", "Resulting buffer"))
