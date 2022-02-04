@@ -54,7 +54,7 @@
 	],
 	"ClassTypes": "GameMode, Character, CameraComponent, SpringArmComponent, PlayerController",
 	"Category": "CodeFeature",
-	"FocusAsset": "/Game/TopDownCPP/TopDownOverview.TopDownOverview",
+	"FocusAsset": "/Game/TopDown/Blueprints",
 	"Thumbnail": "TP_TopDown.png",
 	"Screenshots":
 	[
@@ -63,18 +63,16 @@
 	"AdditionalFeaturePacks":
 	[
 		{
-			"MountName": "Geometry",
+			"MountName": "LevelPrototyping",
 			"DetailLevels":
 			[
-				"Standard",
 				"High"
 			]
-		},
+		},				
 		{
 			"MountName": "Mannequin",
 			"DetailLevels":
 			[
-				"Standard",
 				"High"
 			]
 		}
