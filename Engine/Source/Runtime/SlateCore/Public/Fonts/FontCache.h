@@ -23,6 +23,11 @@ class FSlateFontRenderer;
 class FSlateShaderResource;
 class FSlateTextShaper;
 
+namespace UE::Slate::Private
+{
+	struct FShapedGlyphSequenceMaterialReferenceCollector;
+}
+
 enum class EFontCacheAtlasDataType : uint8
 {
 	/** Data was cached for a regular non-outline font */
@@ -331,12 +336,12 @@ public:
 	 */
 	FShapedGlyphSequencePtr GetSubSequence(const int32 InStartIndex, const int32 InEndIndex) const;
 
-	void AddReferencedObjects(FReferenceCollector& Collector);
-
 private:
+	friend UE::Slate::Private::FShapedGlyphSequenceMaterialReferenceCollector;
+
 	/** Non-copyable */
-	FShapedGlyphSequence(const FShapedGlyphSequence&);
-	FShapedGlyphSequence& operator=(const FShapedGlyphSequence&);
+	FShapedGlyphSequence(const FShapedGlyphSequence&) = delete;
+	FShapedGlyphSequence& operator=(const FShapedGlyphSequence&) = delete;
 
 	/** Helper function to share some common logic between the bound and unbound GetGlyphAtOffset functions */
 	bool HasFoundGlyphAtOffset(FSlateFontCache& InFontCache, const int32 InHorizontalOffset, const FShapedGlyphEntry& InCurrentGlyph, const int32 InCurrentGlyphIndex, int32& InOutCurrentOffset, const FShapedGlyphEntry*& OutMatchedGlyph) const;
@@ -435,7 +440,7 @@ private:
 	/** The maximum height of any glyph in the font we're using */
 	uint16 MaxTextHeight;
 	/** The material to use when rendering these glyphs */
-	const UObject* FontMaterial;
+	TObjectPtr<const UObject> FontMaterial;
 	/** Outline settings to use when rendering these glyphs */
 	FFontOutlineSettings OutlineSettings;
 	/** The cached width of the entire sequence */
@@ -444,6 +449,8 @@ private:
 	TArray<TWeakPtr<FFreeTypeFace>> GlyphFontFaces;
 	/** A map of source indices to their shaped glyph data indices - used to perform efficient reverse look-up */
 	FSourceIndicesToGlyphData SourceIndicesToGlyphData;
+	/** This sequence as UObject reference and was added to the reference collector */
+	bool bAddedToGC;
 };
 
 /** Information for rendering one non-shaped character */
