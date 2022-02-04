@@ -94,6 +94,18 @@ bool USequencerPlaylistPlayer::ResetItem(USequencerPlaylistItem* Item)
 	return GetCheckedItemPlayer(Item)->Reset(Item);
 }
 
+
+bool USequencerPlaylistPlayer::IsPlaying(USequencerPlaylistItem* Item)
+{
+	if (!Item)
+	{
+		return false;
+	}
+
+	return GetCheckedItemPlayer(Item)->IsPlaying(Item);
+}
+
+
 namespace UE::Private::PlaylistPlayer
 {
 
@@ -150,8 +162,8 @@ void StopPlaybackAndAdjustTime(TSharedPtr<ISequencer>& Sequencer)
 {
 	check(Sequencer);
 
-	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
-	UMovieSceneSequence* Sequence  = Sequencer->GetRootMovieSceneSequence();
+	Sequencer->Pause();
+	UMovieSceneSequence* Sequence = Sequencer->GetRootMovieSceneSequence();
 	if (Sequence)
 	{
 		UMovieScene* MovieScene = Sequence->GetMovieScene();
@@ -165,11 +177,15 @@ void StopPlaybackAndAdjustTime(TSharedPtr<ISequencer>& Sequencer)
 	}
 }
 
-}
+} // namespace UE::Private::PlaylistPlayer
 
 void USequencerPlaylistPlayer::Tick(float DeltaTime)
 {
-	TSharedPtr<ISequencer> Sequencer = GetSequencer();
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (!Sequencer)
+	{
+		return;
+	}
 
 	if (Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Paused)
 	{
@@ -182,6 +198,7 @@ void USequencerPlaylistPlayer::Tick(float DeltaTime)
 		UE::Private::PlaylistPlayer::StopPlaybackAndAdjustTime(Sequencer);
 		return;
 	}
+
 	// Handle a tick
 	UE::Private::PlaylistPlayer::AdjustMovieSceneRangeForPlay(Sequencer);
 }
@@ -240,21 +257,21 @@ bool USequencerPlaylistPlayer::StopAll()
 		return false;
 	}
 
-	UTakeRecorder* Recorder = UTakeRecorder::GetActiveRecorder();
-
-	TSharedPtr<ISequencer> Sequencer = GetSequencer();
-	const bool bInRecorder = Recorder && Recorder->GetState() != ETakeRecorderState::Stopped;
-	if (!bInRecorder && Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
-	{
-		UE::Private::PlaylistPlayer::StopPlaybackAndAdjustTime(Sequencer);
-	}
-
 	bool bAnyChange = false;
 
 	FScopedTransaction Transaction(LOCTEXT("StopAllTransaction", "Stop playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
 		bAnyChange |= GetCheckedItemPlayer(Item)->Stop(Item);
+	}
+
+	TSharedPtr<ISequencer> Sequencer = GetSequencer();
+
+	UTakeRecorder* Recorder = UTakeRecorder::GetActiveRecorder();
+	const bool bInRecorder = Recorder && Recorder->GetState() != ETakeRecorderState::Stopped;
+	if (!bInRecorder && Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
+	{
+		UE::Private::PlaylistPlayer::StopPlaybackAndAdjustTime(Sequencer);
 	}
 
 	if (bAnyChange)

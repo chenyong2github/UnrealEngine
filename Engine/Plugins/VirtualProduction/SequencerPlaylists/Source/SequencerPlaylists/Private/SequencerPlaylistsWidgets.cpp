@@ -328,6 +328,18 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 			{
 				return SNew(SSequencerPlaylistItemWidget, InData, OwnerTableView)
 					.TriggerMode(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(This, &SSequencerPlaylistPanel::InTriggerMode)))
+					.IsPlaying_Lambda([This, WeakItem = InData->WeakItem]() {
+						USequencerPlaylistItem* Item = WeakItem.Get();
+						USequencerPlaylistPlayer* Player = This->WeakPlayer.Get();
+						if (Item && Player)
+						{
+							return Player->IsPlaying(Item);
+						}
+						else
+						{
+							return false;
+						}
+					})
 					.OnPlayClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Play)
 					.OnStopClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Stop)
 					.OnResetClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Reset)
@@ -869,6 +881,7 @@ void SSequencerPlaylistItemWidget::Construct(const FArguments& InArgs, TSharedPt
 	RowData = InRowData;
 
 	TriggerMode = InArgs._TriggerMode;
+	IsPlaying = InArgs._IsPlaying;
 
 	PlayClickedDelegate = InArgs._OnPlayClicked;
 	StopClickedDelegate = InArgs._OnStopClicked;
@@ -990,7 +1003,6 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 	if (ColumnName == SSequencerPlaylistPanel::ColumnName_HoverTransport)
 	{
 		return SNew(SVerticalBox)
-			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(SharedThis(this), &SSequencerPlaylistItemWidget::GetHoverTransportCellVisibility)))
 			+ SVerticalBox::Slot()
 			[
 				SNew(SButton)
@@ -998,6 +1010,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				.ContentPadding(FMargin(1.0f, 3.0f, 0.0f, 0.0f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.Visibility_Lambda([This]() { return (This->IsHovered() && !This->InTriggerMode()) ? EVisibility::Visible : EVisibility::Hidden; })
 				.OnClicked_Lambda([This]() { return This->PlayClickedDelegate.Execute(This); })
 				.ToolTipText(PlayItemTooltipText)
 				[
@@ -1013,6 +1026,8 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.Visibility_Lambda([This]() { return (This->IsPlaying.Get() || (This->IsHovered() && !This->InTriggerMode())) ? EVisibility::Visible : EVisibility::Hidden; })
+				.ForegroundColor_Lambda([This]() { return This->IsPlaying.Get() ? FStyleColors::AccentRed : FSlateColor::UseStyle(); })
 				.OnClicked_Lambda([This]() { return This->StopClickedDelegate.Execute(This); })
 				.ToolTipText(StopItemTooltipText)
 				[
@@ -1028,6 +1043,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				.ContentPadding(FMargin(1.0f, 0.0f, 0.0f, 3.0f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.Visibility_Lambda([This]() { return (This->IsHovered() && !This->InTriggerMode()) ? EVisibility::Visible : EVisibility::Hidden; })
 				.OnClicked_Lambda([This]() { return This->ResetClickedDelegate.Execute(This); })
 				.ToolTipText(ResetItemTooltipText)
 				[
@@ -1157,17 +1173,6 @@ bool SSequencerPlaylistItemWidget::IsRowContentEnabled() const
 EVisibility SSequencerPlaylistItemWidget::GetTriggerModeTransportVisibility() const
 {
 	if (IsHovered() && InTriggerMode())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Hidden;
-}
-
-
-EVisibility SSequencerPlaylistItemWidget::GetHoverTransportCellVisibility() const
-{
-	if (IsHovered() && !InTriggerMode())
 	{
 		return EVisibility::Visible;
 	}

@@ -131,6 +131,7 @@ class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSeq
 
 	SLATE_BEGIN_ARGS(SSequencerPlaylistItemWidget) {}
 		SLATE_ATTRIBUTE(bool, TriggerMode)
+		SLATE_ATTRIBUTE(bool, IsPlaying)
 
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnPlayClicked)
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnStopClicked)
@@ -166,7 +167,6 @@ private:
 	bool InTriggerMode() const { return TriggerMode.Get(); }
 	bool IsRowContentEnabled() const;
 	EVisibility GetTriggerModeTransportVisibility() const;
-	EVisibility GetHoverTransportCellVisibility() const;
 
 	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();
 	TSharedRef<SWidget> BuildContextMenu(const TArray<UObject*>& SelectedItems);
@@ -176,6 +176,7 @@ private:
 	TSharedPtr<SMenuAnchor> DetailsAnchor;
 
 	TAttribute<bool> TriggerMode;
+	TAttribute<bool> IsPlaying;
 
 	FOnClickedSequencerPlaylistItem PlayClickedDelegate;
 	FOnClickedSequencerPlaylistItem StopClickedDelegate;

@@ -27,6 +27,16 @@ FText USequencerPlaylistItem_Sequence::GetDisplayName()
 FSequencerPlaylistItemPlayer_Sequence::FSequencerPlaylistItemPlayer_Sequence(TSharedRef<ISequencer> Sequencer)
 	: WeakSequencer(Sequencer)
 {
+	Sequencer->OnStopEvent().AddRaw(this, &FSequencerPlaylistItemPlayer_Sequence::ClearItemStates);
+}
+
+
+FSequencerPlaylistItemPlayer_Sequence::~FSequencerPlaylistItemPlayer_Sequence()
+{
+	if (TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin())
+	{
+		Sequencer->OnStopEvent().RemoveAll(this);
+	}
 }
 
 
@@ -57,7 +67,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(USequencerPlaylistItem* Item)
 
 	RootSequence->Modify();
 
-	FItemState& ItemState = GetOrCreateItemState(Item);
+	FItemState& ItemState = ItemStates.FindOrAdd(Item);
 	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 
 	if (UMovieSceneSubSection* HoldSection = ItemState.WeakHoldSection.Get())
@@ -95,6 +105,8 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(USequencerPlaylistItem* Item)
 	const int32 Duration = FMath::Min(MaxDuration,
 		(SingleLoopDuration * FMath::Max(1, SequenceItem->NumLoops + 1)).FloorToFrame().Value);
 
+	ItemState.PlayingUntil_RootTicks = FMath::Max(StartFrame.Value + Duration, ItemState.PlayingUntil_RootTicks);
+
 	UMovieSceneSubSection* WorkingSubSection = WorkingTrack->AddSequence(SequenceItem->Sequence, StartFrame, Duration);
 
 	WorkingSubSection->Parameters.TimeScale = TimeScale;
@@ -128,7 +140,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::Stop(USequencerPlaylistItem* Item)
 		return false;
 	}
 
-	FItemState& ItemState = GetOrCreateItemState(Item);
+	FItemState& ItemState = ItemStates.FindOrAdd(Item);
 	UMovieSceneSubSection* HoldSection = ItemState.WeakHoldSection.Get();
 
 	if (ItemState.WeakPlaySections.Num() == 0 && HoldSection == nullptr)
@@ -152,6 +164,12 @@ bool FSequencerPlaylistItemPlayer_Sequence::Stop(USequencerPlaylistItem* Item)
 
 	ItemState.WeakPlaySections.Empty();
 
+	if (TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin())
+	{
+		const FFrameNumber Now = Sequencer->GetGlobalTime().Time.FloorToFrame();
+		ItemState.PlayingUntil_RootTicks = FMath::Min(Now.Value, ItemState.PlayingUntil_RootTicks);
+	}
+
 	return true;
 }
 
@@ -170,7 +188,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::AddHold(USequencerPlaylistItem* Item
 		return false;
 	}
 
-	FItemState& ItemState = GetOrCreateItemState(Item);
+	FItemState& ItemState = ItemStates.FindOrAdd(Item);
 	UMovieSceneSubSection* HoldSection = ItemState.WeakHoldSection.Get();
 	if (HoldSection)
 	{
@@ -199,6 +217,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::AddHold(USequencerPlaylistItem* Item
 	const FFrameNumber StartFrame = GlobalTime.Time.FloorToFrame();
 	const int32 MaxDuration = TNumericLimits<int32>::Max() - StartFrame.Value - 1;
 	HoldSection = WorkingTrack->AddSequence(HoldSequence, StartFrame, MaxDuration);
+	ItemState.PlayingUntil_RootTicks = TNumericLimits<int32>::Max();
 
 	if (SequenceItem->StartFrameOffset > 0)
 	{
@@ -231,6 +250,36 @@ bool FSequencerPlaylistItemPlayer_Sequence::Reset(USequencerPlaylistItem* Item)
 }
 
 
+bool FSequencerPlaylistItemPlayer_Sequence::IsPlaying(USequencerPlaylistItem* Item) const
+{
+	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
+	if (!SequenceItem || !SequenceItem->Sequence)
+	{
+		return false;
+	}
+
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (!ensure(Sequencer))
+	{
+		return false;
+	}
+
+	const FItemState* ItemState = ItemStates.Find(Item);
+	if (!ItemState)
+	{
+		return false;
+	}
+
+	return ItemState->PlayingUntil_RootTicks > Sequencer->GetGlobalTime().Time.FloorToFrame().Value;
+}
+
+
+void FSequencerPlaylistItemPlayer_Sequence::ClearItemStates()
+{
+	ItemStates.Empty();
+}
+
+
 UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTrack(USequencerPlaylistItem* Item)
 {
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
@@ -245,7 +294,7 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 		return nullptr;
 	}
 
-	FItemState& ItemState = GetOrCreateItemState(Item);
+	FItemState& ItemState = ItemStates.FindOrAdd(Item);
 
 	ULevelSequence* RootSequence = Cast<ULevelSequence>(Sequencer->GetRootMovieSceneSequence());
 	UMovieScene* RootScene = RootSequence->GetMovieScene();
@@ -293,13 +342,6 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 }
 
 
-FSequencerPlaylistItemPlayer_Sequence::FItemState& FSequencerPlaylistItemPlayer_Sequence::GetOrCreateItemState(USequencerPlaylistItem* Item)
-{
-	check(Item);
-	return ItemStates.FindOrAdd(Item);
-}
-
-
 void FSequencerPlaylistItemPlayer_Sequence::EndSection(UMovieSceneSection* Section)
 {
 	if (!ensure(Section))
@@ -325,6 +367,17 @@ void FSequencerPlaylistItemPlayer_Sequence::EndSection(UMovieSceneSection* Secti
 	if (Section->IsTimeWithinSection(SectionNow.FloorToFrame()))
 	{
 		Section->SetEndFrame(TRangeBound<FFrameNumber>::Exclusive(SectionNow.FloorToFrame()));
+
+		// Remove degenerate sections. This can happen if we reset then stop a held item while paused.
+		if (Section->GetRange().IsEmpty())
+		{
+			if (UMovieSceneTrack* SectionTrack = Section->GetTypedOuter<UMovieSceneTrack>())
+			{
+				SectionTrack->Modify();
+				SectionTrack->RemoveSection(*Section);
+				return;
+			}
+		}
 
 		// Workaround for not being able to interrupt first playthrough if bCanLoop == true.
 		if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))

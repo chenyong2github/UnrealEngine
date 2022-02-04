@@ -51,6 +51,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")
 	bool ResetItem(USequencerPlaylistItem* Item);
 
+	UFUNCTION(BlueprintPure, Category="SequencerPlaylists")
+	bool IsPlaying(USequencerPlaylistItem* Item);
+
 	UFUNCTION(BlueprintCallable, Category="SequencerPlaylists")
 	bool PlayAll();
 

@@ -34,21 +34,26 @@ class FSequencerPlaylistItemPlayer_Sequence : public ISequencerPlaylistItemPlaye
 		TWeakObjectPtr<UMovieSceneSubTrack> WeakTrack;
 		TWeakObjectPtr<UMovieSceneSubSection> WeakHoldSection;
 		TArray<TWeakObjectPtr<UMovieSceneSubSection>> WeakPlaySections;
+		int32 PlayingUntil_RootTicks = TNumericLimits<int32>::Min();
 	};
 
 public:
 	FSequencerPlaylistItemPlayer_Sequence(TSharedRef<ISequencer> Sequencer);
+	~FSequencerPlaylistItemPlayer_Sequence() override;
 
 	//~ Begin ISequencerPlaylistItemPlayer
 	bool Play(USequencerPlaylistItem* Item) override;
 	bool Stop(USequencerPlaylistItem* Item) override;
 	bool AddHold(USequencerPlaylistItem* Item) override;
 	bool Reset(USequencerPlaylistItem* Item) override;
+
+	bool IsPlaying(USequencerPlaylistItem* Item) const override;
 	//~ End ISequencerPlaylistItemPlayer
 
 private:
+	void ClearItemStates();
+
 	UMovieSceneSubTrack* GetOrCreateWorkingTrack(USequencerPlaylistItem* Item);
-	FItemState& GetOrCreateItemState(USequencerPlaylistItem* Item);
 	void EndSection(UMovieSceneSection* Section);
 
 private:

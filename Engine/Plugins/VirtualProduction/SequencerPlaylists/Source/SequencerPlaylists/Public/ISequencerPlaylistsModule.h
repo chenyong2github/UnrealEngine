@@ -43,6 +43,9 @@ public:
 	 * @return True if the current sequence was modified, otherwise false.
 	 */
 	virtual bool Reset(USequencerPlaylistItem* Item) = 0;
+
+	/** Returns whether we're currently playing the specified item. */
+	virtual bool IsPlaying(USequencerPlaylistItem* Item) const = 0;
 };
 
 
