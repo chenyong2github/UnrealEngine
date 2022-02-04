@@ -4,13 +4,12 @@
 
 #include "MassCommonTypes.h"
 #include "MassReplicationTypes.h"
-// #include "MassLODManager.h"
-// #include "IndexedHandle.h"
-// #include "MassEntityTemplate.h"
-// #include "MassObserverProcessor.h"
-// #include "MassLODLogic.h"
+#include "MassLODCollector.h"
+#include "MassLODCalculator.h"
 
 #include "MassReplicationFragments.generated.h"
+
+class AMassClientBubbleInfoBase;
 
 /**
  *  Fragment type for the mass network id of a mass entity
@@ -103,4 +102,70 @@ protected:
 	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
 
 	FMassEntityQuery EntityQuery;
+};
+
+USTRUCT()
+struct FMassReplicationParameters : public FMassSharedFragment
+{
+	GENERATED_BODY()
+public:
+	FMassReplicationParameters();
+
+	/** Distance where each LOD becomes relevant */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	float LODDistance[EMassLOD::Max];
+
+	/** Hysteresis percentage on delta between the LOD distances */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float BufferHysteresisOnDistancePercentage = 10.0f;
+
+	/** Maximum limit of entity per LOD */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	int32 LODMaxCount[EMassLOD::Max];
+
+	/** Maximum limit of entity per LOD per viewer */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	int32 LODMaxCountPerViewer[EMassLOD::Max];
+
+	/** Distance where each LOD becomes relevant */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	float UpdateInterval[EMassLOD::Max];
+
+	UPROPERTY(EditAnywhere, Category = "Mass|Replication", config)
+	TSubclassOf<AMassClientBubbleInfoBase> BubbleInfoClass;
+};
+
+USTRUCT()
+struct FMassReplicationSharedFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+public:
+	FMassReplicationSharedFragment() = default;
+	FMassReplicationSharedFragment(UMassReplicationSubsystem& ReplicationSubsystem, const FMassReplicationParameters& Params);
+
+	FMassBubbleInfoClassHandle BubbleInfoClassHandle;
+
+	TArray<FMassClientHandle, TInlineAllocator<UE::Mass::Replication::MaxNumOfClients>> CachedClientHandles;
+	TArray<bool, TInlineAllocator<UE::Mass::Replication::MaxNumOfClients>> bBubbleChanged;
+
+	//TODO review if we need to have this as a UPROPERTY at all and also if we can make this use a TInlineAllocator
+	//Can not use TInlineAllocator with UPROPERTY()
+	UPROPERTY(Transient)
+	TArray<AMassClientBubbleInfoBase*> BubbleInfos;
+
+	TMassLODCollector<FReplicationLODLogic> LODCollector;
+	TMassLODCalculator<FReplicationLODLogic> LODCalculator;
+	bool bHasAdjustedDistancesFromCount = false;
+
+	template<typename T>
+	T& GetTypedClientBubbleInfoChecked(FMassClientHandle Handle)
+	{
+		checkSlow(BubbleInfos.IsValidIndex(Handle.GetIndex()));
+
+		AMassClientBubbleInfoBase* BubbleInfo = BubbleInfos[Handle.GetIndex()];
+
+		checkSlow(BubbleInfo && Cast<T>(BubbleInfo) != nullptr);
+
+		return *static_cast<T*>(BubbleInfo);
+	}
 };

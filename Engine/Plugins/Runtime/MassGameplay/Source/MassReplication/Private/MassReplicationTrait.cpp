@@ -6,7 +6,7 @@
 #include "MassSpawnerTypes.h"
 #include "MassSimulationLOD.h"
 #include "MassReplicationTypes.h"
-#include "MassReplicationFragments.h"
+#include "MassReplicationSubsystem.h"
 
 
 void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -23,4 +23,16 @@ void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Build
 	BuildContext.AddFragment<FMassReplicatedAgentFragment>();
 	BuildContext.AddFragment<FMassReplicationViewerInfoFragment>();
 	BuildContext.AddFragment<FMassReplicationLODFragment>();
+
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	check(EntitySubsystem);
+
+	UMassReplicationSubsystem* ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(&World);
+	check(ReplicationSubsystem);
+
+	uint32 ParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Params));
+	FConstSharedStruct ParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment(ParamsHash, Params);
+	BuildContext.AddConstSharedFragment(ParamsFragment);
+	FSharedStruct SharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassReplicationSharedFragment>(ParamsHash, *ReplicationSubsystem, Params);
+	BuildContext.AddSharedFragment(SharedFragment);
 }

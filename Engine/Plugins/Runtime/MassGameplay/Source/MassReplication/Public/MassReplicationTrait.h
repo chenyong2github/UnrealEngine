@@ -3,6 +3,7 @@
 #pragma once 
 
 #include "MassEntityTraitBase.h"
+#include "MassReplicationFragments.h"
 #include "MassReplicationTrait.generated.h"
 
 
@@ -11,7 +12,10 @@ class MASSREPLICATION_API UMassReplicationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
 
-protected:
+public:
 
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+
+	UPROPERTY(EditAnywhere, Category = "Mass|Replication")
+	FMassReplicationParameters Params;
 };

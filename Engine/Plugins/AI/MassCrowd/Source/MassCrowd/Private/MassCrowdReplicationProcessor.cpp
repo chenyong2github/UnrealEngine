@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCrowdReplicationProcessor.h"
-#include "MassReplicationSubsystem.h"
 #include "MassReplicationTypes.h"
 #include "MassClientBubbleHandler.h"
 #include "MassCrowdBubble.h"
@@ -38,16 +37,8 @@ void UMassCrowdReplicationProcessor::ConfigureQueries()
 
 	CollectViewerInfoQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
 	CalculateLODQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	AdjustLODDistancesQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
 	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
-}
-
-void UMassCrowdReplicationProcessor::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
-	check(ReplicationSubsystem);
-
-	BubbleInfoClassHandle = ReplicationSubsystem->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
 }
 
 void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -64,7 +55,8 @@ void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 			{
 				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
 				const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();
-				LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);
+				FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+				RepSharedFragment.LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);
 			});
 	}
 #endif // WITH_MASSGAMEPLAY_DEBUG
@@ -76,16 +68,19 @@ void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsyst
 
 	FMassReplicationProcessorPathHandler PathHandler;
 	FMassReplicationProcessorPositionYawHandler PositionYawHandler;
+	FMassReplicationSharedFragment* RepSharedFrag = nullptr;
 
-	auto CacheViewsCallback = [&Context, &PathHandler, &PositionYawHandler]()
+	auto CacheViewsCallback = [&RepSharedFrag, &PathHandler, &PositionYawHandler](FMassExecutionContext& Context)
 	{
 		PathHandler.CacheFragmentViews(Context);
 		PositionYawHandler.CacheFragmentViews(Context);
+		RepSharedFrag = &Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+		check(RepSharedFrag);
 	};
 
-	auto AddEntityCallback = [this, &Context, &PathHandler, &PositionYawHandler](const int32 EntityIdx, FReplicatedCrowdAgent& InReplicatedAgent, const FMassClientHandle ClientHandle)->FMassReplicatedAgentHandle
+	auto AddEntityCallback = [&RepSharedFrag, &PathHandler, &PositionYawHandler](FMassExecutionContext& Context,const int32 EntityIdx, FReplicatedCrowdAgent& InReplicatedAgent, const FMassClientHandle ClientHandle)->FMassReplicatedAgentHandle
 	{
-		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
 
 		PathHandler.AddEntity(EntityIdx, InReplicatedAgent.GetReplicatedPathDataMutable());
 		PositionYawHandler.AddEntity(EntityIdx, InReplicatedAgent.GetReplicatedPositionYawDataMutable());
@@ -93,9 +88,9 @@ void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsyst
 		return CrowdBubbleInfo.GetCrowdSerializer().Bubble.AddAgent(Context.GetEntity(EntityIdx), InReplicatedAgent);
 	};
 
-	auto ModifyEntityCallback = [this, &PathHandler](const int32 EntityIdx, const EMassLOD::Type LOD, const float Time, const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
+	auto ModifyEntityCallback = [&RepSharedFrag, &PathHandler](FMassExecutionContext& Context, const int32 EntityIdx, const EMassLOD::Type LOD, const float Time, const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
 	{
-		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
 
 		FMassCrowdClientBubbleHandler& Bubble = CrowdBubbleInfo.GetCrowdSerializer().Bubble;
 
@@ -104,9 +99,9 @@ void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsyst
 		// Don't call the PositionYawHandler here as we currently only replicate the position and yaw when we add an entity to Mass
 	};
 
-	auto RemoveEntityCallback = [this](const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
+	auto RemoveEntityCallback = [&RepSharedFrag](FMassExecutionContext& Context, const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
 	{
-		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
 
 		CrowdBubbleInfo.GetCrowdSerializer().Bubble.RemoveAgentChecked(Handle);
 	};
