@@ -19,7 +19,17 @@ FLazyName AMediaPlate::MediaTextureName("MediaTexture");
 AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// Set up media component.
 	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
+	if (MediaComponent != nullptr)
+	{
+		// Set up media texture.
+		UMediaTexture* MediaTexture = MediaComponent->GetMediaTexture();
+		if (MediaTexture != nullptr)
+		{
+			MediaTexture->NewStyleOutput = true;
+		}
+	}
 
 	// Hook up mesh.
 	UStaticMeshComponent* LocalStaticMeshComponent = GetStaticMeshComponent();
