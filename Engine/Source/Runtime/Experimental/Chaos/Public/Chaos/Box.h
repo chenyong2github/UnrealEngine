@@ -374,6 +374,17 @@ namespace Chaos
 			return AABB.SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 		}
 
+		// Returns a position on the core shape excluding the margin
+		FORCEINLINE_DEBUGGABLE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+		{
+			FVec3 DirectionVec3;
+			VectorStoreFloat3(Direction, &DirectionVec3);
+			int32 VertexIndex = INDEX_NONE;
+			FVec3 SupportVert = AABB.SupportCore(DirectionVec3, InMargin, nullptr, VertexIndex);
+			alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
+			return VectorLoadAligned(SupportVertFloat);
+		}
+
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
 			return AABB.SupportCoreScaled(Direction, InMargin, Scale, OutSupportDelta, VertexIndex);

@@ -6,6 +6,8 @@
 #include "Chaos/ConvexStructureData.h"
 #include "Chaos/MassProperties.h"
 
+#include "Math/UnrealMathVectorCommon.h"
+
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
 #include "ChaosCheck.h"
@@ -635,6 +637,22 @@ namespace Chaos
 			}
 			return FVec3(0);
 		}
+
+		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
+		VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+		{
+			FVec3 DirectionVec3;
+			VectorStoreFloat3(Direction, &DirectionVec3);
+			const int32 SupportVertexIndex = GetSupportVertex(DirectionVec3);
+			if (SupportVertexIndex != INDEX_NONE)
+			{
+				FVec3 SupportVert =  GetMarginAdjustedVertex(SupportVertexIndex, InMargin, nullptr);
+				alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
+				return VectorLoadAligned(SupportVertFloat);
+			}
+			return VectorZeroFloat();
+		}
+
 
 		// SupportCore with non-uniform scale support. This is required for the margin in scaled
 		// space to by uniform. Note in this version all the inputs are in outer container's (scaled shape) space

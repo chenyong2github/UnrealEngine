@@ -48,7 +48,7 @@ struct TEPAEntry
 		const TVec3<T> V0V1 = V1 - V0;
 		const TVec3<T> V0V2 = V2 - V0;
 		const TVec3<T> Norm = TVec3<T>::CrossProduct(V0V1, V0V2);
-		const FReal NormLenSq = Norm.SizeSquared();
+		const T NormLenSq = Norm.SizeSquared();
 		constexpr T Eps = 1e-4f;
 		if (NormLenSq < Eps)
 		{

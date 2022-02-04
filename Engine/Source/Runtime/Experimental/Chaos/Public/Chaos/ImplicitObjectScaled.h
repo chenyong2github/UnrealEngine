@@ -177,6 +177,16 @@ public:
 		return MObject->SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 	}
 
+	FORCEINLINE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+	{
+		FVec3 DirectionVec3;
+		VectorStoreFloat3(Direction, &DirectionVec3);
+		int32 VertexIndex = INDEX_NONE;
+		FVec3 SupportVert = MObject->SupportCore(DirectionVec3, InMargin, nullptr, VertexIndex);
+		alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<float>(SupportVert.X), static_cast<float>(SupportVert.Y), static_cast<float>(SupportVert.Z), 0.0f };
+		return VectorLoadAligned(SupportVertFloat);
+	}
+
 	virtual const FAABB3 BoundingBox() const override 
 	{ 
 		return MObject->BoundingBox();
@@ -873,6 +883,16 @@ public:
 	FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
 		return MObject->SupportCoreScaled(Direction, InMargin, MScale, OutSupportDelta, VertexIndex);
+	}
+
+	FORCEINLINE_DEBUGGABLE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+	{
+		FVec3 DirectionVec3;
+		VectorStoreFloat3(Direction, &DirectionVec3);
+		int32 VertexIndex = INDEX_NONE;
+		FVec3 SupportVert = MObject->SupportCoreScaled(DirectionVec3, InMargin, MScale, nullptr, VertexIndex);
+		TVector<float, 3> SupportVertFloat(static_cast<float>(SupportVert.X), static_cast<float>(SupportVert.Y), static_cast<float>(SupportVert.Z));
+		return VectorLoadFloat3_W0(&SupportVertFloat);
 	}
 
 	void SetScale(const FVec3& Scale)

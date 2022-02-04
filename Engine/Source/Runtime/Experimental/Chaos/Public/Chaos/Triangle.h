@@ -8,6 +8,8 @@
 #include "Plane.h"
 #include "Chaos/Plane.h"
 
+#include "Math/UnrealMathVectorConstants.h"
+
 namespace Chaos
 {
 	class FTriangle
@@ -21,7 +23,11 @@ namespace Chaos
 			: A(InA)
 			, B(InB)
 			, C(InC)
-		{}
+		{
+			VectorA = { static_cast<FRealSingle>(A[0]), static_cast<FRealSingle>(A[1]), static_cast<FRealSingle>(A[2]), static_cast<FRealSingle>(0.0f) };
+			VectorB = { static_cast<FRealSingle>(B[0]), static_cast<FRealSingle>(B[1]), static_cast<FRealSingle>(B[2]), static_cast<FRealSingle>(0.0f) };
+			VectorC = { static_cast<FRealSingle>(C[0]), static_cast<FRealSingle>(C[1]), static_cast<FRealSingle>(C[2]), static_cast<FRealSingle>(0.0f) };
+		}
 
 		FVec3& operator[](uint32 InIndex)
 		{
@@ -225,6 +231,27 @@ namespace Chaos
 			return C;
 		}
 
+		FORCEINLINE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+		{
+			// Note: assumes margin == 0
+			VectorRegister4Float DotA = VectorDot4(VectorA, Direction);
+			VectorRegister4Float DotB = VectorDot4(VectorB, Direction);
+			VectorRegister4Float DotC = VectorDot4(VectorC, Direction);
+
+			VectorRegister4Float DotAGEDotB = VectorCompareGE(DotA, DotB);
+			VectorRegister4Float DotAGEDotC = VectorCompareGE(DotA, DotC);
+			VectorRegister4Float DotAG = VectorBitwiseAnd(DotAGEDotB, DotAGEDotC);
+
+			VectorRegister4Float DotBGEDotA = VectorCompareGE(DotB, DotA);
+			VectorRegister4Float DotBGEDotC = VectorCompareGE(DotB, DotC);
+			VectorRegister4Float DotBG = VectorBitwiseAnd(DotBGEDotA, DotBGEDotC);
+
+			VectorRegister4Float Result = VectorSelect(DotAG, VectorA, VectorC);
+			Result = VectorSelect(DotBG, VectorB, Result);
+
+			return Result;
+		}
+
 		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
@@ -264,6 +291,10 @@ namespace Chaos
 		FVec3 A;
 		FVec3 B;
 		FVec3 C;
+		VectorRegister4Float VectorA;
+		VectorRegister4Float VectorB;
+		VectorRegister4Float VectorC;
+
 	};
 
 	inline FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value)

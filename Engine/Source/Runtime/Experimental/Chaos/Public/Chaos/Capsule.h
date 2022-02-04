@@ -10,6 +10,8 @@
 #include "Chaos/Segment.h"
 #include "ChaosArchive.h"
 
+#include "Math/VectorRegister.h"
+
 #include "UObject/ReleaseObjectVersion.h"
 
 namespace Chaos
@@ -360,6 +362,18 @@ namespace Chaos
 			// NOTE: Ignores InMargin, assumes Radius
 			return MSegment.SupportCore(Direction, VertexIndex);
 		}
+
+		FORCEINLINE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+		{
+			// NOTE: Ignores InMargin, assumes Radius
+			FVec3 DirectionVec3;
+			VectorStoreFloat3(Direction, &DirectionVec3);
+			int32 VertexIndex = INDEX_NONE;
+			FVec3 SupportVert =  MSegment.SupportCore(DirectionVec3, VertexIndex);
+			alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
+			return VectorLoadAligned(SupportVertFloat);
+		}
+
 
 		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, const FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{

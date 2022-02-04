@@ -371,6 +371,16 @@ namespace Chaos
 			return ChosenPt;
 		}
 
+		FORCEINLINE_DEBUGGABLE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
+		{
+			FVec3 DirectionVec3;
+			VectorStoreFloat3(Direction, &DirectionVec3);
+			int32 VertexIndex = INDEX_NONE;
+			FVec3 SupportVert = SupportCore(DirectionVec3, InMargin, nullptr, VertexIndex);
+			alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
+			return VectorLoadAligned(SupportVertFloat);
+		}
+
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
 			const TVector<T, d> ScaledDirection = Direction * Scale;
