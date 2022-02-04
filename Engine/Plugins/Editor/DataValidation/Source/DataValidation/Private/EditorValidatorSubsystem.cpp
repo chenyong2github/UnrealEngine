@@ -454,7 +454,7 @@ void UEditorValidatorSubsystem::ValidateAllSavedPackages()
 
 void UEditorValidatorSubsystem::ValidateChangelistPreSubmit(FSourceControlChangelistPtr InChangelist, EDataValidationResult& OutResult, TArray<FText>& OutValidationErrors, TArray<FText>& OutValidationWarnings) const
 {
-	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingDataTask", "Validating changelist..."));
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingChangelistTask", "Validating changelist..."));
 	SlowTask.Visibility = ESlowTaskVisibility::Invisible;
 	SlowTask.MakeDialogDelayed(.1f);
 
