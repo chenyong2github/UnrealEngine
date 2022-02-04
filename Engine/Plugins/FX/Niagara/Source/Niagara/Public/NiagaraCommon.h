@@ -1187,7 +1187,7 @@ namespace FNiagaraUtilities
 
 	inline bool SupportsNiagaraRendering(ERHIFeatureLevel::Type FeatureLevel)
 	{
-		return FeatureLevel == ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1;
+		return FeatureLevel >= ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1;
 	}
 
 	inline bool SupportsNiagaraRendering(EShaderPlatform ShaderPlatform)
