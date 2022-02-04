@@ -223,4 +223,6 @@ private:
 	const UCommonTextScrollStyle* GetScrollStyleCDO() const;
 
 	TSharedPtr<class STextScroller> TextScroller;
+
+	void ApplyFontSizeMultiplier() const;
 };

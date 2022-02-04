@@ -420,12 +420,9 @@ void UCommonTextBlock::SynchronizeProperties()
 
 	Super::SynchronizeProperties();
 
-	if (CommonUIUtils::ShouldDisplayMobileUISizes() && MyTextBlock)
+	if (CommonUIUtils::ShouldDisplayMobileUISizes())
 	{
-		// Apply the font size multiplier
-		FSlateFontInfo FontInfo = Font;
-		FontInfo.Size *= MobileFontSizeMultiplier;
-		MyTextBlock->SetFont(FontInfo);
+		ApplyFontSizeMultiplier();
 	}
 }
 
@@ -436,6 +433,11 @@ void UCommonTextBlock::SetText(FText InText)
 	if (bAutoCollapseWithEmptyText)
 	{
 		SetVisibility(InText.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	}
+
+	if (CommonUIUtils::ShouldDisplayMobileUISizes())
+	{
+		ApplyFontSizeMultiplier();
 	}
 }
 
@@ -561,4 +563,14 @@ const UCommonTextStyle* UCommonTextBlock::GetStyleCDO() const
 const UCommonTextScrollStyle* UCommonTextBlock::GetScrollStyleCDO() const
 {
 	return ScrollStyle ? Cast<UCommonTextScrollStyle>(ScrollStyle->ClassDefaultObject) : nullptr;
+}
+
+void UCommonTextBlock::ApplyFontSizeMultiplier() const
+{
+	if (MyTextBlock.IsValid())
+	{
+		FSlateFontInfo FontInfo = Font;
+		FontInfo.Size *= MobileFontSizeMultiplier;
+		MyTextBlock->SetFont(FontInfo);
+	}
 }

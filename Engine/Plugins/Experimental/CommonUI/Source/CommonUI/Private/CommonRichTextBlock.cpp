@@ -582,12 +582,9 @@ void UCommonRichTextBlock::SynchronizeProperties()
 
 	if (MyRichTextBlock.IsValid())
 	{
-		if (IsDesignTime())
+		if (CommonUIUtils::ShouldDisplayMobileUISizes() && DefaultTextStyleOverrideClass.GetDefaultObject() == nullptr)
 		{
-			if (CommonUIUtils::ShouldDisplayMobileUISizes() && DefaultTextStyleOverrideClass.GetDefaultObject() == nullptr)
-			{
-				ApplyTextBlockScale();
-			}
+			ApplyTextBlockScale();
 		}
 	}
 }
