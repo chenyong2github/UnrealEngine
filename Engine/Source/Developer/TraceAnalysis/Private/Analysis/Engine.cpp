@@ -689,7 +689,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FAnsiStringView
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Out) const
+bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FWideStringView& Out) const
 {
 	const auto* Info = (const FEventDataInfo*)this;
 	const auto& Dispatch = Info->Dispatch;
@@ -701,18 +701,18 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Ou
 	}
 
 	const auto& Field = Dispatch.Fields[Index];
-	if (Field.Class != UE::Trace::Protocol0::Field_String || Field.SizeAndType != sizeof(TCHAR))
+	if (Field.Class != UE::Trace::Protocol0::Field_String || Field.SizeAndType != sizeof(WIDECHAR))
 	{
 		return false;
 	}
 
 	if (const FAuxData* Data = Info->GetAuxData(Index))
 	{
-		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize / sizeof(TCHAR));
+		Out = FWideStringView((const WIDECHAR*)(Data->Data), Data->DataSize / sizeof(WIDECHAR));
 		return true;
 	}
 
-	Out = FStringView();
+	Out = FWideStringView();
 	return true;
 }
 
@@ -744,9 +744,9 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FString& Out) c
 			return true;
 		}
 
-		if (Field.SizeAndType == sizeof(TCHAR))
+		if (Field.SizeAndType == sizeof(WIDECHAR))
 		{
-			Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize / sizeof(TCHAR));
+			Out = FWideStringView((const WIDECHAR*)(Data->Data), Data->DataSize / sizeof(WIDECHAR));
 			return true;
 		}
 	}

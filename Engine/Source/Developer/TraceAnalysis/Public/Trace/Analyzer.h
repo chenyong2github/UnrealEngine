@@ -153,7 +153,7 @@ public:
 		  * @param Out Destination object for the field's value.
 		  * @return True if the field was found. */
 		bool GetString(const ANSICHAR* FieldName, FAnsiStringView& Out) const;
-		bool GetString(const ANSICHAR* FieldName, FStringView& Out) const;
+		bool GetString(const ANSICHAR* FieldName, FWideStringView& Out) const;
 		bool GetString(const ANSICHAR* FieldName, FString& Out) const;
 
 		/** The size of the event in uncompressed bytes excluding the header */
