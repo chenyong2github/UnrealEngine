@@ -3289,6 +3289,8 @@ namespace OculusHMD
 				{
 					if (FOculusHMDModule::GetPluginWrapper().GetInitialized() && WaitFrameNumber != Frame->FrameNumber)
 					{
+						SCOPED_NAMED_EVENT(WaitFrame, FColor::Red);
+
 						UE_LOG(LogHMD, Verbose, TEXT("FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u"), Frame->FrameNumber);
 
 						ovrpResult Result;
@@ -3489,6 +3491,8 @@ namespace OculusHMD
 					FOculusHMDModule::GetPluginWrapper().GetNativeXrApiType(&NativeXrApi);
 					if ((Frame_RHIThread->ShowFlags.Rendering || NativeXrApi == ovrpXrApi_OpenXR) && !Frame_RHIThread->Flags.bSplashIsShown)
 					{
+						SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
+
 						UE_LOG(LogHMD, Verbose, TEXT("FOculusHMDModule::GetPluginWrapper().BeginFrame4 %u"), Frame_RHIThread->FrameNumber);
 
 						ovrpResult Result;
@@ -3523,6 +3527,8 @@ namespace OculusHMD
 			FOculusHMDModule::GetPluginWrapper().GetNativeXrApiType(&NativeXrApi);
 			if ((Frame_RHIThread->ShowFlags.Rendering || NativeXrApi == ovrpXrApi_OpenXR) && !Frame_RHIThread->Flags.bSplashIsShown)
 			{
+				SCOPED_NAMED_EVENT(EndFrame, FColor::Red);
+
 				TArray<FLayerPtr> Layers = Layers_RHIThread;
 				Layers.Sort(FLayerPtr_CompareTotal());
 				TArray<const ovrpLayerSubmit*> LayerSubmitPtr;

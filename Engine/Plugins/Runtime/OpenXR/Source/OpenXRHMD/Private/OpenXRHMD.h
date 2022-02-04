@@ -279,6 +279,7 @@ public:
 	/** Destructor */
 	virtual ~FOpenXRHMD();
 
+	void OnBeginSimulation_GameThread();
 	void OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain);
 	void OnFinishRendering_RHIThread();
 
@@ -315,6 +316,7 @@ private:
 	TAtomic<bool>			bIsReady;
 	TAtomic<bool>			bIsRendering;
 	TAtomic<bool>			bIsSynchronized;
+	bool					bShouldWait;
 	bool					bIsExitingSessionByxrRequestExitSession;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;

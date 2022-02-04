@@ -873,6 +873,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsReady(false)
 	, bIsRendering(false)
 	, bIsSynchronized(false)
+	, bShouldWait(true)
 	, bIsExitingSessionByxrRequestExitSession(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
@@ -2004,8 +2005,17 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 
 void FOpenXRHMD::OnBeginRendering_GameThread()
 {
+	// We need to make sure we keep the Wait/Begin/End triplet in sync, so here we signal that we
+	// can wait for the next frame in the next tick. Without this signal it's possible that two ticks
+	// happen before the next frame is actually rendered.
+	bShouldWait = true;
+}
+
+void FOpenXRHMD::OnBeginSimulation_GameThread()
+{
 	FReadScopeLock Lock(SessionHandleMutex);
-	if (!bIsReady || !bIsRunning)
+
+	if (!bIsReady || !bIsRunning || !bShouldWait)
 	{
 		// @todo: Sleep here?
 		return;
@@ -2033,6 +2043,8 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	PipelineState.FrameState = FrameState;
 	PipelineState.TrackingSpace = GetTrackingSpace();
 	PipelineState.WorldToMetersScale = WorldToMetersScale;
+
+	bShouldWait = false;
 
 	EnumerateViews(PipelineState);
 }
@@ -2173,9 +2185,10 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 	GetARCompositionComponent()->StartARGameFrame(WorldContext);
 
-	// Add a display period to the simulation frame state so we're predicting poses for the new frame.
-	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
-	PipelineState.FrameState.predictedDisplayTime += PipelineState.FrameState.predictedDisplayPeriod;
+	// TODO: We could do this earlier in the pipeline and allow simulation to run one frame ahead of the render thread.
+	// That would allow us to take more advantage of Late Update and give projects more headroom for simulation.
+	// However currently blocking in earlier callbacks can result in a pipeline stall, so we do it here instead.
+	OnBeginSimulation_GameThread();
 
 	// Snapshot new poses for game simulation.
 	UpdateDeviceLocations(true);
