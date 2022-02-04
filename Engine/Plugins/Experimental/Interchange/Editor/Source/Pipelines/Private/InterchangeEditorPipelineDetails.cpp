@@ -172,15 +172,39 @@ void FInterchangeBaseNodeDetailsCustomization::AddAttributeRow(UE::Interchange::
 		}
 		break;
 
-		case UE::Interchange::EAttributeTypes::Transform:
+		case UE::Interchange::EAttributeTypes::Transform3f:
 		{
-			BuildTransformValueContent(AttributeCategory, AttributeKey);
+			BuildTransformValueContent<FTransform3f, FVector3f, FQuat4f, float>(AttributeCategory, AttributeKey);
 		}
 		break;
 
-		case UE::Interchange::EAttributeTypes::Box:
+		case UE::Interchange::EAttributeTypes::Transform3d:
 		{
-			BuildBoxValueContent(AttributeCategory, AttributeKey);
+			BuildTransformValueContent<FTransform3d, FVector3d, FQuat4d, double>(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::Box3f:
+		{
+			BuildBoxValueContent<FBox3f, FVector3f, float>(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::Box3d:
+		{
+			BuildBoxValueContent<FBox3d, FVector3d, double>(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::Vector3f:
+		{
+			BuildVectorValueContent<FVector3f, float>(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::Vector3d:
+		{
+			BuildVectorValueContent<FVector3d, double>(AttributeCategory, AttributeKey);
 		}
 		break;
 
@@ -390,14 +414,13 @@ void FInterchangeBaseNodeDetailsCustomization::BuildStringValueContent(IDetailCa
         ]
     ];
 }
-
+template<typename TransformnType, typename VectorType, typename QuatType, typename NumericType>
 void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
 {
 	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
-	check(AttributeType == UE::Interchange::EAttributeTypes::Transform);
 
 	{
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FTransform>(AttributeKey);
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<TransformnType>(AttributeKey);
 		if (!AttributeHandle.IsValid())
 		{
 			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
@@ -414,10 +437,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		CreateNameWidget(AttributeKey)
 	];
 
-	auto GetRotationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FQuat
+	auto GetRotationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->QuatType
 	{
-		FTransform TransformValue;
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -425,10 +448,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		return TransformValue.GetRotation();
 	};
 
-	auto SetRotationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FQuat& Value)
+	auto SetRotationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const QuatType& Value)
 	{
-		FTransform TransformValue;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -437,10 +460,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		}
 	};
 
-	auto GetTranslationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	auto GetTranslationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->VectorType
 	{
-		FTransform TransformValue;
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -448,10 +471,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		return TransformValue.GetTranslation();
 	};
 
-	auto SetTranslationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	auto SetTranslationValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const VectorType& Value)
 	{
-		FTransform TransformValue;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -460,10 +483,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		}
 	};
 
-	auto GetScale3DValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	auto GetScale3DValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->VectorType
 	{
-		FTransform TransformValue;
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -471,10 +494,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 		return TransformValue.GetScale3D();
 	};
 
-	auto SetScale3DValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	auto SetScale3DValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const VectorType& Value)
 	{
-		FTransform TransformValue;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = BaseNode->GetAttributeHandle<FTransform>(Key);
+		TransformnType TransformValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<TransformnType> AttributeHandle = BaseNode->GetAttributeHandle<TransformnType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(TransformValue);
@@ -491,7 +514,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
     ]
     .ValueContent()
     [
-        CreateVectorWidget(GetTranslationValue, SetTranslationValue, AttributeKey)
+        CreateVectorWidget<VectorType, NumericType>(GetTranslationValue, SetTranslationValue, AttributeKey)
     ];
 
 	const FString RotationName = TEXT("Rotation");
@@ -502,7 +525,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
 	]
 	.ValueContent()
 	[
-		CreateQuaternionWidget(GetRotationValue, SetRotationValue, AttributeKey)
+		CreateQuaternionWidget<QuatType, NumericType>(GetRotationValue, SetRotationValue, AttributeKey)
 	];
 
 	const FString Scale3DName = TEXT("Scale3D");
@@ -513,7 +536,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
     ]
     .ValueContent()
     [
-        CreateVectorWidget(GetScale3DValue, SetScale3DValue, AttributeKey)
+        CreateVectorWidget<VectorType, NumericType>(GetScale3DValue, SetScale3DValue, AttributeKey)
     ];
 }
 
@@ -747,13 +770,12 @@ void FInterchangeBaseNodeDetailsCustomization::InternalBuildColorValueContent(ID
     ];
 }
 
+template<typename BoxType, typename VectorType, typename NumericType>
 void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
 {
 	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
-	check(AttributeType == UE::Interchange::EAttributeTypes::Box);
-
 	{
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FBox>(AttributeKey);
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<BoxType> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<BoxType>(AttributeKey);
 		if (!AttributeHandle.IsValid())
 		{
 			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
@@ -770,10 +792,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 		CreateNameWidget(AttributeKey)
 	];
 
-	auto GetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	auto GetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->VectorType
 	{
-		FBox BoxValue;
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		BoxType BoxValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<BoxType> AttributeHandle = BaseNode->GetAttributeHandle<BoxType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(BoxValue);
@@ -781,10 +803,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 		return BoxValue.Min;
 	};
 
-	auto SetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	auto SetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const VectorType& Value)
 	{
-		FBox BoxValue;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		BoxType BoxValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<BoxType> AttributeHandle = BaseNode->GetAttributeHandle<BoxType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(BoxValue);
@@ -793,10 +815,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 		}
 	};
 
-	auto GetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	auto GetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->VectorType
 	{
-		FBox BoxValue;
-		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		BoxType BoxValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<BoxType> AttributeHandle = BaseNode->GetAttributeHandle<BoxType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(BoxValue);
@@ -804,10 +826,10 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 		return BoxValue.Max;
 	};
 
-	auto SetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	auto SetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const VectorType& Value)
 	{
-		FBox BoxValue;
-		UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		BoxType BoxValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<BoxType> AttributeHandle = BaseNode->GetAttributeHandle<BoxType>(Key);
 		if (AttributeHandle.IsValid())
 		{
 			AttributeHandle.Get(BoxValue);
@@ -824,7 +846,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 	]
 	.ValueContent()
 	[
-		CreateVectorWidget(GetMinimumValue, SetMinimumValue, AttributeKey)
+		CreateVectorWidget<VectorType, NumericType>(GetMinimumValue, SetMinimumValue, AttributeKey)
 	];
 
 	const FString MaximumVectorName = TEXT("Maximum");
@@ -835,7 +857,53 @@ void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCateg
 	]
 	.ValueContent()
 	[
-		CreateVectorWidget(GetMaximumValue, SetMaximumValue, AttributeKey)
+		CreateVectorWidget<VectorType, NumericType>(GetMaximumValue, SetMaximumValue, AttributeKey)
+	];
+}
+
+template<typename VectorType, typename NumericType>
+void FInterchangeBaseNodeDetailsCustomization::BuildVectorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
+{
+	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
+
+	{
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<VectorType> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<VectorType>(AttributeKey);
+		if (!AttributeHandle.IsValid())
+		{
+			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+			return;
+		}
+	}
+
+	auto GetValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->VectorType
+	{
+		VectorType VectorValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<VectorType> AttributeHandle = BaseNode->GetAttributeHandle<VectorType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(VectorValue);
+		}
+		return VectorValue;
+	};
+
+	auto SetValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const VectorType& Value)
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<VectorType> AttributeHandle = BaseNode->GetAttributeHandle<VectorType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Set(Value);
+		}
+	};
+
+	const bool bAdvancedProperty = false;
+	FDetailWidgetRow& VectorRow = AttributeCategory.AddCustomRow(FText::FromString(AttributeKey.Key), bAdvancedProperty);
+	VectorRow.NameContent()
+	[
+		CreateNameWidget(AttributeKey)
+	]
+	.ValueContent()
+	[
+		CreateVectorWidget<VectorType, NumericType>(GetValue, SetValue, AttributeKey)
 	];
 }
 
@@ -875,18 +943,18 @@ TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateSimpleNameWi
 		.Font(IDetailLayoutBuilder::GetDetailFont());
 }
 
-template<typename FunctorGet, typename FunctorSet>
+template<typename VectorType, typename NumericWidgetType, typename FunctorGet, typename FunctorSet>
 TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateVectorWidget(FunctorGet GetValue, FunctorSet SetValue, UE::Interchange::FAttributeKey& AttributeKey)
 {
-	auto GetComponentValue = [&GetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->float
+	auto GetComponentValue = [&GetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericWidgetType
 	{
-		FVector Value = GetValue(BaseNode, Key);
+		VectorType Value = GetValue(BaseNode, Key);
 		return Value[ComponentIndex];
 	};
 
-	auto SetComponentValue = [&GetValue, &SetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, float ComponentValue, UE::Interchange::FAttributeKey& Key)
+	auto SetComponentValue = [&GetValue, &SetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, NumericWidgetType ComponentValue, UE::Interchange::FAttributeKey& Key)
 	{
-		FVector Value = GetValue(BaseNode, Key);
+		VectorType Value = GetValue(BaseNode, Key);
 		Value[ComponentIndex] = ComponentValue;
 		SetValue(BaseNode, Key, Value);
     };
@@ -896,26 +964,26 @@ TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateVectorWidget
         + SHorizontalBox::Slot()
         .AutoWidth()
         [
-			MakeNumericWidget<float>(0, GetComponentValue, SetComponentValue, AttributeKey)
+			MakeNumericWidget<NumericWidgetType>(0, GetComponentValue, SetComponentValue, AttributeKey)
         ]
 		+ SHorizontalBox::Slot()
 	    .AutoWidth()
 	    [
-	        MakeNumericWidget<float>(1, GetComponentValue, SetComponentValue, AttributeKey)
+	        MakeNumericWidget<NumericWidgetType>(1, GetComponentValue, SetComponentValue, AttributeKey)
 	    ]
 		+ SHorizontalBox::Slot()
 	    .AutoWidth()
 	    [
-	        MakeNumericWidget<float>(2, GetComponentValue, SetComponentValue, AttributeKey)
+	        MakeNumericWidget<NumericWidgetType>(2, GetComponentValue, SetComponentValue, AttributeKey)
 	    ];
 }
 
-template<typename FunctorGet, typename FunctorSet>
+template<typename QuatType, typename NumericWidgetType, typename FunctorGet, typename FunctorSet>
 TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateQuaternionWidget(FunctorGet GetValue, FunctorSet SetValue, UE::Interchange::FAttributeKey& AttributeKey)
 {
-	auto GetComponentValue = [&GetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->float
+	auto GetComponentValue = [&GetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericWidgetType
 	{
-		FQuat Value = GetValue(BaseNode, Key);
+		QuatType Value = GetValue(BaseNode, Key);
 		if(ComponentIndex == 0)
 		{
 			return Value.X;
@@ -938,9 +1006,9 @@ TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateQuaternionWi
 		return 0.0f;	
 	};
 
-	auto SetComponentValue = [&GetValue, &SetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, float ComponentValue, UE::Interchange::FAttributeKey& Key)
+	auto SetComponentValue = [&GetValue, &SetValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, NumericWidgetType ComponentValue, UE::Interchange::FAttributeKey& Key)
 	{
-		FQuat Value = GetValue(BaseNode, Key);
+		QuatType Value = GetValue(BaseNode, Key);
 		if(ComponentIndex == 0)
 		{
 			Value.X = ComponentValue;
@@ -969,22 +1037,22 @@ TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::CreateQuaternionWi
         + SHorizontalBox::Slot()
         .AutoWidth()
         [
-            MakeNumericWidget<float>(0, GetComponentValue, SetComponentValue, AttributeKey)
+            MakeNumericWidget<NumericWidgetType>(0, GetComponentValue, SetComponentValue, AttributeKey)
         ]
         + SHorizontalBox::Slot()
         .AutoWidth()
         [
-            MakeNumericWidget<float>(1, GetComponentValue, SetComponentValue, AttributeKey)
+            MakeNumericWidget<NumericWidgetType>(1, GetComponentValue, SetComponentValue, AttributeKey)
         ]
         + SHorizontalBox::Slot()
         .AutoWidth()
         [
-            MakeNumericWidget<float>(2, GetComponentValue, SetComponentValue, AttributeKey)
+            MakeNumericWidget<NumericWidgetType>(2, GetComponentValue, SetComponentValue, AttributeKey)
         ]
 		+ SHorizontalBox::Slot()
 	    .AutoWidth()
 	    [
-	        MakeNumericWidget<float>(3, GetComponentValue, SetComponentValue, AttributeKey)
+	        MakeNumericWidget<NumericWidgetType>(3, GetComponentValue, SetComponentValue, AttributeKey)
 	    ];
 }
 

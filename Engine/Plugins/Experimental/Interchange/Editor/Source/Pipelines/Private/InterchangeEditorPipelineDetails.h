@@ -56,6 +56,7 @@ private:
 
 	//FTransform: Add a group to the category that contain the Translation(FVector), Rotation(FQuat) and scale3D(FVector)
 	//Any numeric field are read/write
+	template<typename TransformnType, typename VectorType, typename QuatType, typename NumericType>
 	void BuildTransformValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
 
 	//FColor: Add a row to the category that contain the RGBA value
@@ -71,7 +72,13 @@ private:
 
 	//FBox: Add a group to the category that contain the Minimum corner position(FVector), and the maximum corner position(FVector)
 	//Any numeric field are read/write
+	template<typename BoxType, typename VectorType, typename NumericType>
 	void BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
+
+	//FVector: Add a row to the category that display a FVector.
+	//Any numeric field are read/write
+	template<typename VectorType, typename NumericType>
+	void BuildVectorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
 
 	/**
 	 * AttributeType Build functions End
@@ -92,11 +99,11 @@ private:
 	TSharedRef<SWidget> CreateSimpleNameWidget(const FString& SimpleName) const;
 
 	//FVector Create a 3 digit widget (X, Y, Z)
-	template<typename FunctorGet, typename FunctorSet>
+	template<typename VectorType, typename NumericWidgetType, typename FunctorGet, typename FunctorSet>
 	TSharedRef<SWidget> CreateVectorWidget(FunctorGet GetValue, FunctorSet SetValue, UE::Interchange::FAttributeKey& AttributeKey);
 
 	//FQuat Create a 4 digit widget (X, Y, Z, W)
-	template<typename FunctorGet, typename FunctorSet>
+	template<typename QuatType, typename NumericWidgetType, typename FunctorGet, typename FunctorSet>
     TSharedRef<SWidget> CreateQuaternionWidget(FunctorGet GetValue, FunctorSet SetValue, UE::Interchange::FAttributeKey& AttributeKey);
 
 	//Create one numeric widget, support (float, double, signed/unsigned integer)
