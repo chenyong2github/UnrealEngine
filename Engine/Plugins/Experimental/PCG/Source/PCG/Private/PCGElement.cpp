@@ -27,7 +27,52 @@ bool IPCGElement::Execute(FPCGContextPtr Context) const
 	}
 	else
 	{
+		/** TODO - Placeholder feature */
+		TArray<FPCGTaggedData> BypassedTaggedData;
+		if (Settings && !Settings->FilterOnTags.IsEmpty())
+		{
+			// Move any of the inputs that don't have the tags to the outputs as a pass-through
+			// NOTE: this breaks a bit the ordering of inputs, however, there's no obvious way around it
+			TArray<FPCGTaggedData> FilteredTaggedData;
+			for (FPCGTaggedData& TaggedData : Context->InputData.TaggedData)
+			{
+				if (TaggedData.Usage != EPCGDataUsage::Input)
+				{
+					FilteredTaggedData.Add(TaggedData);
+				}
+				else if (TaggedData.Tags.Intersect(Settings->FilterOnTags).IsEmpty())
+				{
+					if (Settings->bPassThroughFilteredOutInputs)
+					{
+						Context->OutputData.TaggedData.Add(TaggedData);
+						BypassedTaggedData.Add(TaggedData);
+					}
+				}
+				else // input has the required tags
+				{
+					FilteredTaggedData.Add(TaggedData);
+				}
+			}
+
+			Context->InputData.TaggedData = FilteredTaggedData;
+		}
+
 		bool bDone = ExecuteInternal(Context);
+
+		/** TODO - Placeholder feature */
+		if (bDone && Settings && !Settings->TagsAppliedOnOutput.IsEmpty())
+		{
+			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
+			{
+				if (TaggedData.Usage == EPCGDataUsage::Input)
+				{
+					if (!BypassedTaggedData.Contains(TaggedData))
+					{
+						TaggedData.Tags.Append(Settings->TagsAppliedOnOutput);
+					}
+				}
+			}
+		}
 
 #if WITH_EDITOR
 		if (bDone && Settings && (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated))

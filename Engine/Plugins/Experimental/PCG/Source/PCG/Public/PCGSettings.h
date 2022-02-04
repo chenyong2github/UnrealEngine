@@ -45,7 +45,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	int Seed = 0xC35A9631; // random prime number
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	TSet<FString> FilterOnTags;
+
+	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	bool bPassThroughFilteredOutInputs = true;
+
+	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Tags")
+	TSet<FString> TagsAppliedOnOutput;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug)
 	EPCGSettingsExecutionMode ExecutionMode = EPCGSettingsExecutionMode::Enabled;
 
 #if WITH_EDITORONLY_DATA

@@ -43,6 +43,8 @@ struct FPCGTaggedData
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TSet<FString> Tags;
+
+	bool operator==(const FPCGTaggedData& Other) const;
 };
 
 USTRUCT(BlueprintType)
@@ -51,6 +53,7 @@ struct FPCGDataCollection
 	GENERATED_BODY()
 
 	TArray<FPCGTaggedData> GetInputs() const;
+	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
 	TArray<FPCGTaggedData> GetExclusions() const;
 	TArray<FPCGTaggedData> GetAllSettings() const;
 
@@ -85,6 +88,9 @@ public:
 	// Blueprint methods to support interaction with FPCGDataCollection
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetInputs(const FPCGDataCollection& InCollection);
+
+	UFUNCTION(BlueprintCallable, Category = Data)
+	static TArray<FPCGTaggedData> GetTaggedInputs(const FPCGDataCollection& InCollection, const FString& InTag);
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetExclusions(const FPCGDataCollection& InCollection);
