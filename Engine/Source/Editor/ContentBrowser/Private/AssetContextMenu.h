@@ -114,6 +114,15 @@ private:
 	/** Get tooltip for delete */
 	FText GetDeleteToolTip() const;
 
+	/** Handler for when "Public Asset" is toggled */
+	void ExecutePublicAssetToggle();
+
+	/** Handler to check to see if a Public Asset toggle is allowed */
+	bool CanExecutePublicAssetToggle();
+
+	/** Handler for getting the Public Asset check state */
+	ECheckBoxState GetPublicAssetCheckState();
+
 	/** Handler for CopyReference */
 	void ExecuteCopyReference();
 

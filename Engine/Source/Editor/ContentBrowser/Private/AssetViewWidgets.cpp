@@ -744,6 +744,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			// The tooltip contains the name, class, path, and asset registry tags
 			const FText NameText = GetNameText();
 			const FText ClassText = FText::Format(LOCTEXT("ClassName", "({0})"), GetAssetClassText());
+			FText PublicStateText = LOCTEXT("PublicAssetState", "Public");
 
 			// Create a box to hold every line of info in the body of the tooltip
 			TSharedRef<SVerticalBox> InfoBox = SNew(SVerticalBox);
@@ -775,6 +776,18 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 				int32 MaxCookPathLen = ContentBrowserUtils::GetMaxCookPathLen();
 				AddToToolTipInfoBox(InfoBox, LOCTEXT("TileViewTooltipPathLengthForCookingKey", "Cooking Filepath Length"), FText::Format(LOCTEXT("TileViewTooltipPathLengthForCookingValue", "{0} / {1}"),
 					FText::AsNumber(PackageNameLengthForCooking), FText::AsNumber(MaxCookPathLen)), PackageNameLengthForCooking > MaxCookPathLen ? true : false);
+
+				UPackage* ItemAssetPackage = ItemAssetData.GetPackage();
+
+				if (ItemAssetPackage && !ItemAssetPackage->IsExternallyReferenceable())
+				{
+					PublicStateText = LOCTEXT("PrivateAssetState", "Private");
+				}
+			}
+
+			if (!AssetItem->GetItem().CanEdit())
+			{
+				PublicStateText = LOCTEXT("ReadOnlyAssetState", "Read Only");
 			}
 
 			// Add tags
@@ -802,6 +815,14 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			}
 
 			TSharedRef<SVerticalBox> OverallTooltipVBox = SNew(SVerticalBox);
+
+			static const auto PublicAssetUIEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ContentBrowser.PublicAsset.EnablePublicAssetFeature"));
+			bool bIsPublicAssetUIEnabled = false;
+
+			if (PublicAssetUIEnabledCVar)
+			{
+				bIsPublicAssetUIEnabled = PublicAssetUIEnabledCVar->GetBool();
+			}		 
 
 			// Top section (asset name, type, is checked out)
 			OverallTooltipVBox->AddSlot()
@@ -836,6 +857,23 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 								SNew(STextBlock)
 								.Text(ClassText)
 								.HighlightText(HighlightText)
+							]
+							+ SHorizontalBox::Slot()
+							.FillWidth(1.0)
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Right) 
+							[
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("ContentBrowser.TileViewTooltip.PillBorder"))
+								.Padding(FMargin(12.0f, 2.0f, 12.0f, 2.0f))
+								.Visibility(bIsPublicAssetUIEnabled ? EVisibility::Visible : EVisibility::Hidden)
+								[
+									SNew(STextBlock)
+									.Text(PublicStateText)
+									.HighlightText(HighlightText)
+								    .Font(FEditorStyle::GetFontStyle("ContentBrowser.TileViewTooltip.NameFont"))
+								]
+								
 							]
 						]
 

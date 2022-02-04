@@ -634,6 +634,31 @@ public:
 		return PackageFlagsPrivate;
 	}
 
+	/**
+	* @return true if the package is marked as ExternallyReferenceable
+	*/
+	FORCEINLINE bool IsExternallyReferenceable() const
+	{
+		return (PackageFlagsPrivate & PKG_NotExternallyReferenceable) == 0;
+	}
+
+	/**
+	* Sets whether or not the package is ExternallyReferenceable
+	* 
+	* @param bValue Sets the package to be ExternallyReferenceable if true or NotExternallyReferenceable if false
+	*/
+	FORCEINLINE void SetIsExternallyReferenceable(bool bValue)
+	{
+		if (bValue)
+		{
+			ClearPackageFlags(PKG_NotExternallyReferenceable);
+		}
+		else
+		{
+			SetPackageFlags(PKG_NotExternallyReferenceable);
+		}
+	}
+
 #if WITH_EDITORONLY_DATA
 	/** Returns true if this package has a thumbnail map */
 	bool HasThumbnailMap() const

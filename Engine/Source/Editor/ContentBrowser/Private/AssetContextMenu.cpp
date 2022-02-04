@@ -23,6 +23,12 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "ContentBrowserCommands.h"
 
+namespace ContentBrowserConsoleVariables
+{
+	static bool ContentBrowser_EnablePublicAssetFeature = false;
+	static FAutoConsoleVariableRef ContentBrowser_EnablePublicAssetFeatureCVar(TEXT("ContentBrowser.PublicAsset.EnablePublicAssetFeature"),
+		ContentBrowser_EnablePublicAssetFeature, TEXT("Enables the Experimental Public Asset Feature (False: disabled, True:enabled"));
+}
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
 FAssetContextMenu::FAssetContextMenu(const TWeakPtr<SAssetView>& InAssetView)
@@ -451,6 +457,22 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
 
+		if (ContentBrowserConsoleVariables::ContentBrowser_EnablePublicAssetFeature)
+		{
+			Section.AddMenuEntry(
+				"PublicAsset",
+				LOCTEXT("PublicAssetToggle", "Public Asset"),
+				LOCTEXT("PublicAssetToggleTooltip", "Sets whether or not an asset is publicly available for reference by other plugins"),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.PublicAssetToggle"),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecutePublicAssetToggle),
+					FCanExecuteAction::CreateSP(this, &FAssetContextMenu::CanExecutePublicAssetToggle),
+					FGetActionCheckState::CreateSP(this, &FAssetContextMenu::GetPublicAssetCheckState)
+				),
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+
 		Section.AddMenuEntry(
 			"CopyReference",
 			LOCTEXT("CopyReference", "Copy Reference"),
@@ -830,6 +852,52 @@ FReply FAssetContextMenu::ExecuteDeleteFolderConfirmed()
 	}
 
 	return FReply::Handled();
+}
+
+void FAssetContextMenu::ExecutePublicAssetToggle()
+{
+	// Toggle selected files public asset flag
+	if (ensure(SelectedFiles.Num() == 1))
+	{
+		FAssetData ItemAssetData;
+		if (SelectedFiles[0].Legacy_TryGetAssetData(ItemAssetData))
+		{
+			UPackage* ItemAssetPackage = ItemAssetData.GetPackage();
+
+			if (!ItemAssetPackage)
+			{
+				return;
+			}
+
+			ItemAssetPackage->SetIsExternallyReferenceable(!ItemAssetPackage->IsExternallyReferenceable());
+
+			ItemAssetPackage->SetDirtyFlag(true);
+		}
+	}
+}
+
+bool FAssetContextMenu::CanExecutePublicAssetToggle()
+{
+	return SelectedFiles.Num() == 1 && SelectedFiles[0].CanEdit();
+}
+
+ECheckBoxState FAssetContextMenu::GetPublicAssetCheckState()
+{
+	if (ensure(SelectedFiles.Num() == 1))
+	{
+		FAssetData ItemAssetData;
+		if (SelectedFiles[0].Legacy_TryGetAssetData(ItemAssetData))
+		{
+			UPackage* ItemAssetPackage = ItemAssetData.GetPackage();
+
+			if (ItemAssetPackage)
+			{
+				return ItemAssetPackage->IsExternallyReferenceable() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			}
+		}
+	}
+
+	return ECheckBoxState::Undetermined;
 }
 
 void FAssetContextMenu::ExecuteCopyReference()
