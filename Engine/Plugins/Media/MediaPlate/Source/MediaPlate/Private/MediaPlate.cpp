@@ -4,6 +4,7 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "MediaComponent.h"
 #include "MediaPlayer.h"
 #include "MediaPlateModule.h"
