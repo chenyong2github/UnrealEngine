@@ -33,10 +33,11 @@ namespace Chaos
 	public:
 
 		static constexpr bool AlwaysSerializable = true;
-		static TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx);
+		static TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
+		static void UpdateGeometry(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
+		static bool RequiresCachedLeafInfo(const FRigidTransformRealSingle3& RelativeTransform, const FImplicitObject* LeafGeometry, const FImplicitObject* Geometry);
 
 		~FPerShapeData();
-		FPerShapeData(const FPerShapeData& Other) = delete;
 		
 		void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
 
@@ -68,35 +69,35 @@ namespace Chaos
 		}
 
 		TSerializablePtr<FImplicitObject> GetGeometry() const { return Geometry; }
-		void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry)
-		{
-			Geometry = InGeometry;
-			UpdateLeafGeometry();
-		}
 
 		const TAABB<FReal,3>& GetWorldSpaceInflatedShapeBounds() const { return WorldSpaceInflatedShapeBounds; }
 
 		void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
-			LeafWorldTransform = FRigidTransform3::MultiplyNoScale(LeafRelativeTransform, WorldTransform);
+			const FImplicitObject* LeafGeometry = GetLeafGeometry();
+			if (bHasCachedLeafInfo)
+			{
+				LeafWorldTransform = FRigidTransform3::MultiplyNoScale(FRigidTransform3(GetLeafRelativeTransform()), WorldTransform);
+			}
+			else
+			{
+				LeafWorldTransform = WorldTransform;
+			}
+			
 			if ((LeafGeometry != nullptr) && LeafGeometry->HasBoundingBox())
 			{
 				WorldSpaceInflatedShapeBounds = LeafGeometry->CalculateTransformedBounds(LeafWorldTransform).ThickenSymmetrically(BoundsExpansion);;
 			}
 		}
 
-		// The leaf shape (with transformed and implicit wrapper removed)
-		const FImplicitObject* GetLeafGeometry() const { return LeafGeometry; }
+		// The leaf shape (with transformed and implicit wrapper removed).
+		const FImplicitObject* GetLeafGeometry() const;
 
-		// The actor-relative transform of the leaf geometry
-		const FRigidTransform3& GetLeafRelativeTransform() const { return LeafRelativeTransform; }
+		// The actor-relative transform of the leaf geometry.
+		FRigidTransformRealSingle3 GetLeafRelativeTransform() const;
 
 		// The world-space transform of the leaf geometry (from the last call to UpdateWorldSpaceState)
 		const FRigidTransform3& GetLeafWorldTransform() const { return LeafWorldTransform; }
-		void SetLeafWorldTransform(const FRigidTransform3& InTransform) { LeafWorldTransform = InTransform; }
-
-		// The margin to use with the leaf shape (which could be from its Instanced wrapper if it had one)
-		const FReal GetLeafMargin() const { return LeafMargin; }
 
 		const TArray<FMaterialHandle>& GetMaterials() const { return Materials.Read().Materials; }
 		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const { return Materials.Read().MaterialMasks; }
@@ -249,7 +250,21 @@ namespace Chaos
 
 	private:
 
-		void UpdateLeafGeometry();
+		void SetLeafRelativeTransform(const FRigidTransformRealSingle3& RelativeTransform);
+		void SetLeafGeometry(const FImplicitObject* LeafGeometry);
+
+	protected:
+		// use CreatePerShapeData
+		FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, bool bInHasCachedLeafInfo = false);
+
+		explicit FPerShapeData(FPerShapeData&& Other);
+
+		// Can we be downcasted to FPerShapeDataCachedLeafInfo?
+		uint8 bHasCachedLeafInfo : 1;
+
+	private:
+		// Should only be used by SerializationFactory.
+		FPerShapeData(int32 InShapeIdx);
 
 		class IPhysicsProxyBase* Proxy;
 		FShapeDirtyFlags DirtyFlags;
@@ -261,13 +276,35 @@ namespace Chaos
 		TSerializablePtr<FImplicitObject> Geometry;
 		TAABB<FReal,3> WorldSpaceInflatedShapeBounds;
 
-		const FImplicitObject* LeafGeometry;
-		FRigidTransform3 LeafRelativeTransform;
 		FRigidTransform3 LeafWorldTransform;
-		FReal LeafMargin;
-		
-		// use CreatePerShapeData
-		FPerShapeData(int32 InShapeIdx);
+	};
+
+	class CHAOS_API FPerShapeDataCachedLeafInfo final : public FPerShapeData 
+	{
+		friend class FPerShapeData;
+
+	private:
+		FPerShapeDataCachedLeafInfo(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, const FImplicitObject* InLeafGeometry, const FRigidTransformRealSingle3& RelativeTransform)
+			: FPerShapeData(InShapeIdx, InGeometry, /*bHasCachedLeafInfo=*/true)
+			, LeafRelativeTransform(RelativeTransform)
+			, LeafGeometry(InLeafGeometry)
+		{}
+
+		// Move old shape into shape with cached leaf info
+		FPerShapeDataCachedLeafInfo(FPerShapeData&& PerShapeData, const FImplicitObject* InLeafGeometry, const FRigidTransformRealSingle3& RelativeTransform)
+			: FPerShapeData(MoveTemp(PerShapeData))
+			, LeafRelativeTransform(RelativeTransform)
+			, LeafGeometry(InLeafGeometry)
+		{
+			bHasCachedLeafInfo = true;
+		}
+
+		// WARNING: //////////////////////////////////////////////////////
+		// We don't have a virtual destructor on FPerShapeData (trying to save memory)
+		// FPerShapeDataCachedLeafInfo destructor will NOT be called, do not add non-PoD members.
+
+		FRigidTransformRealSingle3 LeafRelativeTransform;
+		const FImplicitObject* LeafGeometry;
 	};
 
 	inline FChaosArchive& operator<<(FChaosArchive& Ar, FPerShapeData& Shape)
