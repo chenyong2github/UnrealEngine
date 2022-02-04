@@ -807,6 +807,7 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 	else
 	{
 		TArray<FString> ValidBoundObjectLabels;
+		FName BoundObjectClass;
 		bool bAddEllipsis = false;
 		int32 NumMissing = 0;
 		for (const TWeakObjectPtr<>& Ptr : BoundObjects)
@@ -817,6 +818,11 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 			{
 				++NumMissing;
 				continue;
+			}
+
+			if (Obj->GetClass())
+			{
+				BoundObjectClass = Obj->GetClass()->GetFName();
 			}
 
 			if (AActor* Actor = Cast<AActor>(Obj))
@@ -846,7 +852,7 @@ FText FSequencerObjectBindingNode::GetDisplayNameToolTipText() const
 					return FText::Format(LOCTEXT("SpawnableBoundObjectToolTip", "Spawnable Class: {0} (BindingID: {1})"), FText::FromName(ClassForObjectBinding->GetFName()), FText::FromString(LexToString(ObjectBinding)));
 				}
 			}
-			return FText::Format(LOCTEXT("PossessableBoundObjectToolTip", "(BindingID: {0}"), FText::FromString(LexToString(ObjectBinding)));
+			return FText::Format(LOCTEXT("PossessableBoundObjectToolTip", "Class: {0} (BindingID: {1}"), FText::FromName(BoundObjectClass), FText::FromString(LexToString(ObjectBinding)));
 		}
 		else if (ValidBoundObjectLabels.Num() == 0 && NumMissing == 1)
 		{
