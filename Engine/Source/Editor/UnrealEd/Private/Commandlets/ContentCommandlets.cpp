@@ -1043,6 +1043,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlyLicenseed = Switches.Contains(TEXT("OnlyLicenseed"));
 	/** whether we should only save packages containing virtualized bulkdata payloads */
 	bOnlyVirtualized = Switches.Contains(TEXT("OnlyVirtualized"));
+	/** whether we should only save packages containing FPayloadTrailers */
+	bOnlyPayloadTrailers = Switches.Contains(TEXT("OnlyPayloadTrailers"));
 	/** only process packages containing materials */
 	bOnlyMaterials = Switches.Contains(TEXT("onlymaterials"));
 	/** determine if we are building navigation data for the map packages on the pass. **/
@@ -1436,6 +1438,17 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 	{
 		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
 		if (Trailer == nullptr || Trailer->GetNumPayloads(UE::EPayloadFilter::Virtualized) == 0)
+		{
+			bSavePackage = false;
+			return;
+		}
+	}
+
+	// Check if the package contains a FPackageTrailer or not
+	if (bOnlyPayloadTrailers)
+	{
+		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
+		if (Trailer == nullptr)
 		{
 			bSavePackage = false;
 			return;

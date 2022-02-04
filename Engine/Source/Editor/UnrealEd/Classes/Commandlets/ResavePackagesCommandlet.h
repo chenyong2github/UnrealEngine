@@ -105,6 +105,9 @@ protected:
 	/** Only save packages containing bulkdata payloads that have been virtualized **/
 	bool bOnlyVirtualized;
 
+	/** Only save packages containing FPayloadTrailers **/
+	bool bOnlyPayloadTrailers;
+
 	/** Should we build navigation data for the packages we are saving? **/
 	bool bShouldBuildNavigationData;
 
