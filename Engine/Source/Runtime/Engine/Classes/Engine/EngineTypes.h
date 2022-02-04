@@ -680,6 +680,11 @@ public:
 	void SetShadingModelFromExpression(bool bIn) { bHasShadingModelFromExpression = bIn ? 1u : 0u; }
 	bool HasShadingModelFromExpression() const { return bHasShadingModelFromExpression > 0u; }
 
+	uint32 GetPropertyConnected() const { return ConnectedProperties; }
+	void AddPropertyConnected(uint32 In) { ConnectedProperties |= (1 << In); }
+	bool HasPropertyConnected(uint32 In) const { return !!(ConnectedProperties & (1 << In)); }
+	static bool HasPropertyConnected(uint32 InConnectedProperties, uint32 In) { return !!(InConnectedProperties & (1 << In)); }
+
 	bool IsValid() const { return (ShadingModelField > 0) && (ShadingModelField < (1 << SSM_NUM)); }
 
 	bool operator==(const FStrataMaterialInfo& Other) const { return ShadingModelField == Other.GetShadingModelField(); }
@@ -693,6 +698,10 @@ private:
 	UPROPERTY()
 	uint8 bHasShadingModelFromExpression = 0;
 
+	/* Indicates which (legacy) inputs are connected */
+	UPROPERTY()
+	uint32 ConnectedProperties = 0;
+	
 	UPROPERTY()
 	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
 };

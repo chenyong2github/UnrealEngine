@@ -4,7 +4,28 @@
 	DeferredDecal.usf: Pixel shader for computing a deferred decal.
 =============================================================================*/
 
+#include "Common.ush"
+
+#if SHADING_PATH_MOBILE
+// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer 
+#define MobileSceneTextures MobileBasePass.SceneTextures
+#define EyeAdaptationStruct MobileBasePass
+#else
+#define SceneTexturesStruct DecalPass.SceneTextures
+#define EyeAdaptationStruct DecalPass
+#endif
+
+#if PIXELSHADER
+
+#if STRATA_ENABLED 
+#define STRATA_INLINE_SHADING 1
+#define STRATA_DEFERRED_SHADING 1
+#include "Strata/Strata.ush"
+#endif
+
 #include "DecalCommon.ush"
+
+#endif // PIXELSHADER
 
 // large world coordinate tile position
 float4 DecalTilePosition;
@@ -30,7 +51,7 @@ void MainVS(
 	OutPosition = mul(InPosition, FrustumComponentToClip);
 }
 
-#if IS_DECAL
+#if IS_DECAL && PIXELSHADER
 
 // DECAL_PRIMITIVE informs material templates which functions to expose when rendering decals.
 #define DECAL_PRIMITIVE 1
@@ -118,9 +139,18 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 	
+	const float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
+
+#if STRATA_ENABLED    
+	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
+	StrataHeader.BSDFCount = 1;
+	StrataHeader.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	const float Coverage = DecalCommonOutput(Out, StrataHeader, PixelMaterialInputs.FrontMaterial, DecalFading);
+	const float Opacity = Coverage;
+#else // STRATA_ENABLED
 	float3 Color = GetMaterialEmissive(PixelMaterialInputs);
 	
-	float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs) * DecalFading;
 
 	FGBufferData GBufferData;
@@ -140,6 +170,7 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	GBufferData.Velocity = 0;
 
 	DecalCommonOutput(In, Out, Color, Opacity, GBufferData);
+#endif // STRATA_ENABLED
 
 #if NUM_VIRTUALTEXTURE_SAMPLES
 	FinalizeVirtualTextureFeedback(

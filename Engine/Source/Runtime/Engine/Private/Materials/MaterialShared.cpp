@@ -1703,6 +1703,52 @@ bool FMaterialResource::IsStrataMaterial() const
 	return bStrataEnabled;
 }
 
+bool Engine_IsStrataEnabled();
+
+bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
+{
+	// STRATA_TODO: temporary validation until we have converted all domains
+	const bool bIsStrataSupportedDomain = 
+		Material->MaterialDomain == MD_PostProcess || 
+		Material->MaterialDomain == MD_DeferredDecal || 
+		Material->MaterialDomain == MD_Surface || 
+		Material->MaterialDomain == MD_Volume;
+
+	if (Engine_IsStrataEnabled() && bIsStrataSupportedDomain)
+	{
+		// Strata material traversal is cached as this is an expensive operation
+		#if WITH_EDITOR
+		check(Material->HasStrataFrontMaterialConnected());
+		if (!CachedStrataMaterialInfo.IsValid())
+		{
+			if (Material->FrontMaterial.Expression->IsResultStrataMaterial(Material->FrontMaterial.OutputIndex))
+			{
+				Material->FrontMaterial.Expression->GatherStrataMaterialInfo(CachedStrataMaterialInfo, Material->FrontMaterial.OutputIndex);
+			}
+		}
+		return CachedStrataMaterialInfo.HasPropertyConnected(In);
+		#else
+		return FStrataMaterialInfo::HasPropertyConnected(Material->CachedConnectedInputs, In);
+		#endif
+	}
+	else
+	{
+		switch (In)
+		{
+		case MP_EmissiveColor: 		return Material->HasEmissiveColorConnected();
+		case MP_Opacity: 			return Material->HasEmissiveColorConnected();
+		case MP_BaseColor: 			return Material->HasBaseColorConnected();
+		case MP_Normal: 			return Material->HasNormalConnected();
+		case MP_Roughness: 			return Material->HasRoughnessConnected();
+		case MP_Specular: 			return Material->HasSpecularConnected();
+		case MP_Metallic: 			return HasMaterialAttributesConnected() || Material->HasMetallicConnected();
+		case MP_Anisotropy: 		return Material->HasAnisotropyConnected();
+		case MP_AmbientOcclusion: 	return Material->HasAmbientOcclusionConnected();
+		}
+	}
+	return false;
+}
+
 bool FMaterialResource::RequiresSynchronousCompilation() const
 {
 	return Material->IsDefaultMaterial();
@@ -5231,14 +5277,30 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bShouldCastDynamicShadows = InMaterial->ShouldCastDynamicShadows();
 	bWritesEveryPixel = InMaterial->WritesEveryPixel(false);
 	bWritesEveryPixelShadowPass = InMaterial->WritesEveryPixel(true);
-	bHasBaseColorConnected = InMaterial->HasBaseColorConnected();
-	bHasNormalConnected = InMaterial->HasNormalConnected();
-	bHasRoughnessConnected = InMaterial->HasRoughnessConnected();
-	bHasSpecularConnected = InMaterial->HasSpecularConnected();
-	bHasMetallicConnected = InMaterial->HasMetallicConnected();
-	bHasEmissiveColorConnected = InMaterial->HasEmissiveColorConnected();
-	bHasAmbientOcclusionConnected = InMaterial->HasAmbientOcclusionConnected();
-	bHasAnisotropyConnected = InMaterial->HasAnisotropyConnected();
+	if (Engine_IsStrataEnabled())
+	{
+		bHasDiffuseAlbedoConnected  = InMaterial->HasMaterialPropertyConnected(MP_DiffuseColor);
+		bHasF0Connected = InMaterial->HasMaterialPropertyConnected(MP_SpecularColor);
+		bHasBaseColorConnected = InMaterial->HasMaterialPropertyConnected(MP_BaseColor);
+		bHasNormalConnected = InMaterial->HasMaterialPropertyConnected(MP_Normal);
+		bHasRoughnessConnected = InMaterial->HasMaterialPropertyConnected(MP_Roughness);
+		bHasSpecularConnected = InMaterial->HasMaterialPropertyConnected(MP_Specular);
+		bHasMetallicConnected = InMaterial->HasMaterialPropertyConnected(MP_Metallic);
+		bHasEmissiveColorConnected = InMaterial->HasMaterialPropertyConnected(MP_EmissiveColor);
+		bHasAmbientOcclusionConnected = InMaterial->HasMaterialPropertyConnected(MP_AmbientOcclusion);
+		bHasAnisotropyConnected = InMaterial->HasMaterialPropertyConnected(MP_Anisotropy);
+	}
+	else
+	{
+		bHasBaseColorConnected = InMaterial->HasBaseColorConnected();
+		bHasNormalConnected = InMaterial->HasNormalConnected();
+		bHasRoughnessConnected = InMaterial->HasRoughnessConnected();
+		bHasSpecularConnected = InMaterial->HasSpecularConnected();
+		bHasMetallicConnected = InMaterial->HasMetallicConnected();
+		bHasEmissiveColorConnected = InMaterial->HasEmissiveColorConnected();
+		bHasAmbientOcclusionConnected = InMaterial->HasAmbientOcclusionConnected();
+		bHasAnisotropyConnected = InMaterial->HasAnisotropyConnected();
+	}
 	bHasVertexPositionOffsetConnected = InMaterial->HasVertexPositionOffsetConnected();
 	bHasPixelDepthOffsetConnected = InMaterial->HasPixelDepthOffsetConnected();
 	bMaterialMayModifyMeshPosition = InMaterial->MaterialMayModifyMeshPosition();

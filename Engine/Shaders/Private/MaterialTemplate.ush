@@ -19,7 +19,6 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
-#include "/Engine/Private/DBufferDecalShared.ush"
 
 // Update this GUID to force all material shaders to recompile
 // Merge conflicts on this line should be resolved by generating a new GUID
@@ -158,6 +157,8 @@ struct FStrataData
 };
 FStrataData GetInitialisedStrataData() { return (FStrataData)0; }
 #endif
+
+#include "/Engine/Private/DBufferDecalShared.ush"
 
 /**
  * Parameters used by vertex and pixel shaders to access particle properties.
@@ -2386,6 +2387,16 @@ float4 MaterialExpressionDBufferTextureLookup(float2 BufferUV, int DBufferTextur
 	uint2 PixelPos = uint2(BufferUV * View.BufferSizeAndInvSize.xy);
 	uint ValidDBufferTargetMask = GetDBufferTargetMask(PixelPos) & (1u << DBufferTextureIndex);
 
+#if STRATA_ENABLED
+	const FStrataDBuffer DBufferData = GetDBufferData(BufferUV, DBufferTextureIndex);
+	switch (DBufferTextureIndex)
+	{
+	// All data (BaseColor, WorldNormal, Roughness) are pre-multiplied by their coverage
+	case 0:	return float4(DBufferData.BaseColor,	DBufferData.OneMinusCoverage_BaseColor);
+	case 1:	return float4(DBufferData.WorldNormal,	DBufferData.OneMinusCoverage_WorldNormal);
+	case 2:	return float4(DBufferData.Roughness,	DBufferData.Metallic, DBufferData.Specular, DBufferData.OneMinusCoverage_Roughness);
+	}
+#else
 	FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
 	switch (DBufferTextureIndex)
 	{
@@ -2393,6 +2404,7 @@ float4 MaterialExpressionDBufferTextureLookup(float2 BufferUV, int DBufferTextur
 	case 1:	return float4(DBufferData.PreMulWorldNormal, DBufferData.NormalOpacity);
 	case 2:	return float4(DBufferData.PreMulRoughness, DBufferData.PreMulMetallic, DBufferData.PreMulSpecular, DBufferData.RoughnessOpacity);
 	}
+#endif
 
 	return float4(0, 0, 0, 1);
 }

@@ -9,19 +9,67 @@
 // DECAL_RENDERTARGET_COUNT is set by C++
 
 #include "Common.ush"
-
-#if SHADING_PATH_MOBILE
-	// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer 
-	#define MobileSceneTextures MobileBasePass.SceneTextures
-	#define EyeAdaptationStruct MobileBasePass
-#else
-	#define SceneTexturesStruct DecalPass.SceneTextures
-	#define EyeAdaptationStruct DecalPass
-#endif
-
 #include "DeferredShadingCommon.ush"
 #include "DBufferDecalShared.ush"
 
+#if STRATA_ENABLED  
+float DecalCommonOutput(
+	inout FPixelShaderOut Out, 
+	in FStrataPixelHeader InHeader,
+	in FStrataData InData,
+	in float CoverageWeight)
+{
+	FStrataDBuffer DBuffer = StrataConvertToDBuffer(InHeader, InData);
+	DBuffer.Coverage *= CoverageWeight;
+
+	float3 Color = DBuffer.Emissive;
+
+#if DECAL_RENDERSTAGE == DECAL_RENDERSTAGE_MOBILE
+	// Cheap mobile forward approximation uses both emissive and color.
+	Color += DBuffer.BaseColor;
+#if MATERIALBLENDING_MODULATE
+	Color *= DBuffer.Coverage;
+#endif
+#elif DECAL_RENDERSTAGE == DECAL_RENDERSTAGE_AO
+	// Replace color with AO for AO decals.
+	Color = lerp(1, InHeader.MaterialAO, DBuffer.Coverage);
+#endif
+
+#if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_SCENECOLOR
+	Color *= View.PreExposure;
+#endif
+
+	Out.MRT[0] = float4(Color, DBuffer.Coverage);
+
+#if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_DBUFFER
+
+	//StrataPackDBuffer(DBuffer, Out.MRT[0], Out.MRT[1], Out.MRT[2], Out.MRT[3]);
+	float4 PreMulEmissive_Coverage = 0;
+	StrataPackDBuffer(DBuffer, PreMulEmissive_Coverage, Out.MRT[0], Out.MRT[1], Out.MRT[2]);
+
+	#if DECAL_RENDERTARGET_COUNT == 4
+		Out.MRT[3] = 1.0f; // DBufferMask
+	#endif
+
+#endif
+	// Allow shader compiler to cull outputs that we won't use.
+	// Blend state also prevents writing unused outputs, but we want to be sure that we also avoid shader cost.
+#if !DECAL_OUT_MRT0
+	Out.MRT[0] = 0;
+#endif
+#if !DECAL_OUT_MRT1
+	Out.MRT[1] = 0;
+#endif
+#if !DECAL_OUT_MRT2
+	Out.MRT[2] = 0;
+#endif
+#if !DECAL_OUT_MRT3
+	Out.MRT[3] = 0;
+#endif
+
+	return DBuffer.Coverage;
+}
+#else // STRATA_ENABLED
 void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float3 Color, float Opacity, FGBufferData Data)
 {
 #if DECAL_RENDERSTAGE == DECAL_RENDERSTAGE_MOBILE
@@ -53,6 +101,7 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	}
 #endif
 
+// This is not support by Strata
 #if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_GBUFFER || DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_GBUFFER_NONORMAL
 	
 	// Dummy outputs from EncodeGBuffer()
@@ -101,3 +150,4 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	Out.MRT[3] = 0;
 #endif
 }
+#endif // STRATA_ENABLED

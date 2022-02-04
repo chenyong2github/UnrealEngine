@@ -4,6 +4,23 @@
 	MeshDecals.usf: Vertex/Hull/Domain/Pixel shader for computing a mesh decal.
 =============================================================================*/
 
+#include "Common.ush"
+
+#if SHADING_PATH_MOBILE
+	// Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer 
+	#define MobileSceneTextures MobileBasePass.SceneTextures
+	#define EyeAdaptationStruct MobileBasePass
+#else
+	#define SceneTexturesStruct DecalPass.SceneTextures
+	#define EyeAdaptationStruct DecalPass
+#endif
+
+#if STRATA_ENABLED 
+#define STRATA_INLINE_SHADING 1
+#define STRATA_DEFERRED_SHADING 1
+#include "Strata/Strata.ush"
+#endif
+
 #include "DecalCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
@@ -120,6 +137,14 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
+#if STRATA_ENABLED
+	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
+	StrataHeader.BSDFCount = 1;
+	StrataHeader.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	const float Coverage = DecalCommonOutput(Out, StrataHeader, PixelMaterialInputs.FrontMaterial, 1.f);
+	const float Opacity = Coverage;
+#else // STRATA_ENABLED
 	float3 Color = GetMaterialEmissive(PixelMaterialInputs);
 
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
@@ -141,6 +166,7 @@ void FPixelShaderInOut_MainPS(
 	GBufferData.Velocity = 0;
 
 	DecalCommonOutput(In, Out, Color, Opacity, GBufferData);
+#endif // STRATA_ENABLED
 
 #if NUM_VIRTUALTEXTURE_SAMPLES
 	FinalizeVirtualTextureFeedback(

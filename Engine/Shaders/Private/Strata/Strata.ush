@@ -1320,12 +1320,9 @@ float VerticalLayeringParameterBlendingBSDFCoverageToNormalMix(FStrataData TopSt
 }
 
 // ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoVerticalLayeringParamBlend
-FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData Base, uint NewNormalIndex, float NoV)
+FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in FStrataBSDF BaseBSDF, uint NewNormalIndex, float NoV)
 {
-	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
-#define ResultBSDF		Result.Layers[0].BSDFs[0]
-#define TopBSDF			Top.Layers[0].BSDFs[0]
-#define BaseBSDF		Base.Layers[0].BSDFs[0]
+	FStrataBSDF ResultBSDF = (FStrataBSDF)0;
 
 #if STRATA_INLINE_SHADING
 	const float SafeTopCoverage = saturate(TopBSDF.Coverage);
@@ -1397,13 +1394,15 @@ FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData
 
 	ResultBSDF.Coverage =				1.0f - (1.0f - SafeTopCoverage) * (1.0f - SafeBaseCoverage);
 #endif
-
-#undef ResultBSDF
-#undef TopBSDF
-#undef BaseBSDF
-	return Result;
+	return ResultBSDF;
 }
 
+FStrataData StrataVerticalLayeringParameterBlending(FStrataData Top, FStrataData Base, uint NewNormalIndex, float NoV)
+{
+	FStrataData Result = GetInitialisedStrataDataWithReservedFirstSlot();
+	Result.Layers[0].BSDFs[0] = StrataVerticalLayeringParameterBlending(Top.Layers[0].BSDFs[0], Base.Layers[0].BSDFs[0], NewNormalIndex, NoV);
+	return Result;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Functions used to sanitize BSDF before they are used for lighting (when forward) or stored to memory (base pass).
@@ -1994,6 +1993,147 @@ void StrataLoad_ColorGamma2ToLinearAlphaLinear(FStrataMaterialContainer StrataBu
 	A = Data.a;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Strata decal
+
+// Dbuffer support only a single layer, with minimal set of feature (i.e., no anisotropy, no thinfilm, ...);
+// This special structure is for easing data processing
+struct FStrataDBuffer
+{
+	float3 WorldNormal;
+	float  Roughness;
+	float3 BaseColor;
+	float  Specular;
+	float3 Emissive;
+	float  Metallic;
+	float  Coverage;
+
+	// Per-component coverage 
+	// Since DBuffer properties are blended independely, they can end-up with varying coverage per-property. 
+	// These values are only valid when *reading* DBuffer Value
+	float  OneMinusCoverage;
+	float  OneMinusCoverage_BaseColor;
+	float  OneMinusCoverage_WorldNormal;
+	float  OneMinusCoverage_Roughness;
+};
+
+void StrataPackDBuffer(
+	in FStrataDBuffer In,
+	out float4 Out0,
+	out float4 Out1,
+	out float4 Out2,
+	out float4 Out3)
+{
+	// DBuffer packing needs to be blendable
+	Out0 = float4(In.Emissive,  In.Coverage);
+	Out1 = float4(In.BaseColor, In.Coverage);
+	Out2 = float4(In.WorldNormal * 0.5f + 128.0f / 255.0f, In.Coverage);
+	Out3 = float4(In.Metallic, In.Specular, In.Roughness, In.Coverage);
+}
+
+FStrataDBuffer StrataUnpackDBuffer(
+	in float4 In1,
+	in float4 In2,
+	in float4 In3)
+{
+	FStrataDBuffer Out = (FStrataDBuffer)0;
+
+	// Per-component coverage
+	Out.OneMinusCoverage			 = (In1.w + In2.w + In3.w) / 3.0f;
+	Out.OneMinusCoverage_BaseColor   = In1.w;
+	Out.OneMinusCoverage_WorldNormal = In2.w;
+	Out.OneMinusCoverage_Roughness   = In3.w;
+
+	// Unpack data
+	Out.BaseColor   = In1.xyz;
+	Out.Coverage    = 1.f - Out.OneMinusCoverage;
+	Out.WorldNormal = In2.rgb * 2 - (256.0 / 255.0);
+	Out.Metallic    = In3.x;
+	Out.Specular    = In3.y;
+	Out.Roughness   = In3.z;
+	Out.Emissive    = 0.f;
+
+
+	return Out;
+}
+
+FStrataDBuffer StrataConvertToDBuffer(
+	in FStrataPixelHeader InHeader,
+	in FStrataData InData)
+{
+	FStrataDBuffer Out = (FStrataDBuffer)0;
+	const float3 DiffuseColor = SLAB_DIFFUSEALBEDO(InData.Layers[0].BSDFs[0]);
+	const float3 F0 = SLAB_F0(InData.Layers[0].BSDFs[0]);
+
+	// STRATA_TODO : Can we avoid this by having a lerpable packing?
+	Out.Roughness = SLAB_ROUGHNESS(InData.Layers[0].BSDFs[0]);
+	Out.Metallic = F0RGBToMetallic(F0);
+	Out.Specular = F0ToDielectricSpecular(F0.x);
+	Out.BaseColor = lerp(DiffuseColor, F0, Out.Metallic);
+	Out.Emissive = BSDF_GETEMISSIVE(InData.Layers[0].BSDFs[0]);
+#if STRATA_INLINE_SHADING
+	Out.WorldNormal = InHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(InData.Layers[0].BSDFs[0])];
+	Out.Coverage = InData.Layers[0].BSDFs[0].Coverage;
+#else
+	Out.WorldNormal = float3(0,0,1);
+	Out.Coverage = 1.f;
+#endif
+	return Out;
+}
+
+void StrataConvertFromDBuffer(
+	in FStrataDBuffer In,
+	inout FStrataPixelHeader OutHeader,
+	inout FStrataData OutData)
+{
+	// Header
+	const uint SharedLocalBasisIndex = 0;
+	uint SharedLocalBasisTypes = 0;
+	OutHeader.BSDFCount = 1;
+#if STRATA_INLINE_SHADING
+	OutHeader.SharedLocalBases = StrataInitialiseSharedLocalBases();
+	OutHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = In.WorldNormal;
+	OutHeader.SharedLocalBases.Tangents[SharedLocalBasisIndex] = 0.f;
+#endif
+	OutHeader.MaterialAO = 1.0f;
+	OutHeader.State = 0;
+	AddShadingModels(OutHeader, StrataShadingModelBit(STRATA_BSDF_TYPE_SLAB));
+
+	// Data
+	// Decal only support a single Slab BSDF with no-anisotropy
+	const float DefaultThickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
+	OutData = GetStrataSlabBSDF(
+		true,				// UseMetalness
+		In.BaseColor,		// BaseColor		-  Metalness workflow
+		1.f,				// EdgeColor		-  Metalness workflow
+		In.Specular,		// Specular			-  Metalness workflow
+		In.Metallic,		// Metallic			-  Metalness workflow
+		0.f,				// DiffuseAlbedo	- !Metalness workflow
+		0.f,				// F0				- !Metalness workflow
+		0.f,				// F90				- !Metalness workflow
+		In.Roughness,		// Roughness
+		0.f,				// Anisotropy
+		0.f,				// SSSProfileID
+		0.f,				// SSSDMFP
+		0.f,				// SSSDMFPScale
+		0.f,				// Emissive
+		0.f,				// Haziness
+		0.f,				// ThinFilmThickness
+		0.f,				// FuzzAmount
+		0.f,				// FuzzColor
+		DefaultThickness,
+		SharedLocalBasisIndex,
+		SharedLocalBasisTypes);
+#if STRATA_INLINE_SHADING
+	OutData.Layers[0].BSDFs[0].Emissive = In.Emissive;
+	OutData.Layers[0].BSDFs[0].Coverage = In.Coverage;
+
+	// DBuffer data are alreay pre-multiplied when read from the DBuffers
+	OutData.Layers[0].BSDFs[0].bPremultipliedCoverage = true;
+#endif
+}
+
+ 
 ///////////////////////////////////////////////////////////////////////////////
 // Strata deferred base-pass output
 

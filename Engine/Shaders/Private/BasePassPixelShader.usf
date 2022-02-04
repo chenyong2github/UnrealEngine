@@ -38,6 +38,12 @@
 	#endif
 #endif
 
+// Enable Strata. This define & include need to be defined before certains includes (i.e., DBufferDecalShared which uses them internally)
+#define STRATA_ENABLED (PROJECT_STRATA && MATERIAL_IS_STRATA)
+#if STRATA_ENABLED
+#include "/Engine/Private/Strata/Strata.ush"
+#endif
+
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "BasePassCommon.ush"
@@ -86,7 +92,6 @@
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
 
-#define STRATA_ENABLED					(PROJECT_STRATA && MATERIAL_IS_STRATA)
 
 // We detect the isolated unlit BSDF node case to make sure lots of code is optimised out, when used, there can only be one.
 // When unlit is selected as part of dynamic shading model, the SLAB model is used instead.
@@ -157,7 +162,6 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #endif
 
 #if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
-#define STRATA_USE_ENV_BRDF_APPROX (MATERIAL_USE_PREINTEGRATED_GF == 0)
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataForwardLighting.ush"
 #endif
@@ -1085,10 +1089,17 @@ void FPixelShaderInOut_MainPS(
 			if (ValidDBufferTargetMask)
 			{
 				float2 BufferUV = SvPositionToBufferUV(In.SvPosition);
+			#if STRATA_ENABLED 
+			   #if STRATA_INLINE_SHADING && !STRATA_OPTIMIZED_UNLIT
+				const FStrataDBuffer StrataBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
+				ApplyDBufferData(StrataBufferData, StrataPixelHeader, StrataData);
+				DBufferOpacity = StrataBufferData.Coverage;
+			   #endif
+			#else
 				FDBufferData DBufferData = GetDBufferData(BufferUV, ValidDBufferTargetMask);
-
 				ApplyDBufferData(DBufferData, MaterialParameters.WorldNormal, SubsurfaceColor, Roughness, BaseColor, Metallic, Specular);
 				DBufferOpacity = (DBufferData.ColorOpacity + DBufferData.NormalOpacity + DBufferData.RoughnessOpacity) * (1.0f / 3.0f);
+			#endif // STRATA_ENABLED
 			}
 		}
 #endif
