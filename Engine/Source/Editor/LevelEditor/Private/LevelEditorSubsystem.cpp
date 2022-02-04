@@ -135,6 +135,22 @@ void ULevelEditorSubsystem::EjectPilotLevelActor(FName ViewportConfigKey)
 	}
 }
 
+AActor* ULevelEditorSubsystem::GetPilotLevelActor(FName ViewportConfigKey)
+{
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (!LevelViewport.IsValid())
+	{
+		return nullptr;
+	}
+	
+	FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
+	if (AActor* CinematicActorLock = LevelViewportClient.GetCinematicActorLock().GetLockedActor())
+	{
+		return CinematicActorLock;
+	}
+	return LevelViewportClient.GetActiveActorLock().Get();
+}
+
 void ULevelEditorSubsystem::EditorPlaySimulate()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");

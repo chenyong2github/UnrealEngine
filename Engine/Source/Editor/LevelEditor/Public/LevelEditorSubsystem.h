@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	void EjectPilotLevelActor(FName ViewportConfigKey = NAME_None);
 
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	AActor* GetPilotLevelActor(FName ViewportConfigKey = NAME_None);
+
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	void EditorPlaySimulate();
 
