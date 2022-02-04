@@ -28,6 +28,7 @@
 #include "IRewindDebuggerViewCreator.h"
 #include "RewindDebuggerViewCreators.h"
 #include "IRewindDebuggerDoubleClickHandler.h"
+#include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -183,8 +184,26 @@ TSharedRef<SWidget> SRewindDebugger::MakeSelectActorMenu()
 	return MenuBuilder.MakeWidget();
 }
 
+void SRewindDebugger::CloseAllTabs()
+{
+	 for(FName& TabName : TabNames)
+	 {
+		CloseTab(TabName);
+	 }
+}
+
+void SRewindDebugger::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
+{
+	IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
+	
+	 // close all tabs that may be open from restoring the saved layout config
+	CloseAllTabs();
+}
+
 void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> CommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
+	bInitializing = true;
+	
 	OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
 	OnComponentSelectionChanged = InArgs._OnComponentSelectionChanged;
 	BuildComponentContextMenu = InArgs._BuildComponentContextMenu;
@@ -403,11 +422,18 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 		]
 	];
 
-	// close all tabs that may be open from restoring the saved layout config
-	for(FName& TabName : TabNames)
+	if (IMainFrameModule::Get().IsWindowInitialized())
 	{
-		CloseTab(TabName);
+		// close all tabs that may be open from restoring the saved layout config
+		CloseAllTabs();
 	}
+	else
+	{
+		// close them later if we are initalizing the layout, to avoid issues with empty windows and crashes
+		IMainFrameModule::Get().OnMainFrameCreationFinished().AddRaw(this, &SRewindDebugger::MainFrameCreationFinished);
+	}
+	
+	bInitializing = false;
 }
 
 void SRewindDebugger::RefreshDebugComponents()
@@ -454,8 +480,13 @@ TSharedRef<SDockTab> SRewindDebugger::SpawnTab(const FSpawnTabArgs& Args, FName 
 // returns true if DebugViews contains a view for the ViewName, but there is no matching Pinned view already open
 bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 {
+	if (bInitializing)
+	{
+		return true;
+	}
+	
 	TSharedPtr<IRewindDebuggerView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName; } );
-
+	
 	if (View!=nullptr)
 	{
 		bool bPinned = nullptr != PinnedDebugViews.FindByPredicate(
@@ -464,7 +495,7 @@ bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 				return PinnedView->GetName() == (*View)->GetName() && PinnedView->GetObjectId() == (*View)->GetObjectId();
 			}
 		);
-
+	
 		return !bPinned;
 	}
 	return false;

@@ -31,7 +31,13 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 	}
 	
 	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab);
+		.TabRole(ETabRole::NomadTab)
+		.OnTabClosed_Lambda([this](TSharedRef<SDockTab>)
+		{
+			// clear reference to widget so it will be destroyed
+			RewindDebuggerWidget->CloseAllTabs();
+			RewindDebuggerWidget = nullptr;
+		});
 
 	TSharedPtr<SWidget> TabContent;
 

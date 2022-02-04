@@ -57,7 +57,10 @@ public:
 
 	void TrackCursor(bool bReverse);
 	void RefreshDebugComponents();
+	void CloseAllTabs();
 private:
+	void MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+	
 	// Time Slider
 	TAttribute<double> ScrubTimeAttribute;
 	TAttribute<bool> TrackScrubbingAttribute;
@@ -104,6 +107,7 @@ private:
 	TArray<FName> TabNames;
 	TArray<FName> HiddenTabs;  // keep track of tabs that have been closed so we don't automatically reopen them when switching components
 	bool bInternalClosingTab = false;
+	bool bInitializing = false;
 
 	TSharedPtr<FTabManager> TabManager;
 };
