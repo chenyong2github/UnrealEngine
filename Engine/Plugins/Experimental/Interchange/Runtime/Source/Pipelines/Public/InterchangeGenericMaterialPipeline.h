@@ -16,6 +16,7 @@ class UInterchangeShaderGraphNode;
 class UInterchangeShaderNode;
 class UInterchangeMaterialFactoryNode;
 class UInterchangeMaterialExpressionFactoryNode;
+class UInterchangeMaterialInstanceFactoryNode;
 class UInterchangeResult;
 
 UENUM(BlueprintType)
@@ -23,7 +24,7 @@ enum class EInterchangeMaterialImportOption : uint8
 {
 	DoNotImport,
 	ImportAsMaterials,
-	//ImportAsMaterialInstances,
+	ImportAsMaterialInstances,
 };
 
 UCLASS(BlueprintType, Experimental)
@@ -32,9 +33,12 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericMaterialPipeline : public UInt
 	GENERATED_BODY()
 
 public:
-	/** If enabled, imports the material assets found in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MATERIALS_CATEGORY)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
 	EInterchangeMaterialImportOption MaterialImport = EInterchangeMaterialImportOption::ImportAsMaterials;
+
+	/** Optional material used as the parent when importing materials as instances. If no parent material is specified, one will be automatically selected during the import process. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", Meta= (EditCondition="MaterialImport==EInterchangeMaterialImportOption::ImportAsMaterialInstances", AllowedClasses="MaterialInterface"))
+	FSoftObjectPath ParentMaterial;
 
 public:
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
@@ -54,6 +58,16 @@ private:
 
 	UInterchangeBaseMaterialFactoryNode* CreateBaseMaterialFactoryNode(const UInterchangeBaseNode* MaterialNode, TSubclassOf<UInterchangeBaseMaterialFactoryNode> NodeType);
 	UInterchangeMaterialFactoryNode* CreateMaterialFactoryNode(const UInterchangeShaderGraphNode* ShaderGraphNode);
+	UInterchangeMaterialInstanceFactoryNode* CreateMaterialInstanceFactoryNode(const UInterchangeShaderGraphNode* ShaderGraphNode);
+
+	/** True if the shader graph has a base color input. */
+	bool IsPBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+
+	/** True if the shader graph has diffuse color and specular color inputs. */
+	bool IsPhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+
+	/** True if the shader graph has a diffuse color input. */
+	bool IsLambertModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
 
 	bool HandlePhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleLambertModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
@@ -69,6 +83,14 @@ private:
 	UInterchangeMaterialExpressionFactoryNode* CreateExpressionNode(const FString& ExpressionName, const FString& ParentUid, UClass* MaterialExpressionClass);
 	UInterchangeMaterialExpressionFactoryNode* CreateScalarParameterExpression(const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid);
 	UInterchangeMaterialExpressionFactoryNode* CreateVectorParameterExpression(const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid);
+
+	/**
+	 * Visits a given shader node and its connections to find its strongest value.
+	 * Only its first input is visited as it's assumed that it's the most impactful.
+	 * The goal is to simplify a branch of a node graph to a single value, to be used for material instancing.
+	 */
+	TVariant<FString, FLinearColor, float> VisitShaderNode(const UInterchangeShaderNode* ShaderNode);
+	TVariant<FString, FLinearColor, float> VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode);
 
 private:
 	bool bParsingForNormalInput;

@@ -15,6 +15,8 @@
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
@@ -153,7 +155,6 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 {
 	UObject* Material = nullptr;
 
-#if WITH_EDITOR
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
@@ -177,7 +178,22 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 	// create a new material or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
-		Material = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		if (MaterialClass->IsChildOf<UMaterialInstanceDynamic>())
+		{
+			if (const UInterchangeMaterialInstanceFactoryNode* MaterialInstanceFactoryNode = Cast<UInterchangeMaterialInstanceFactoryNode>(MaterialFactoryNode))
+			{
+				FString ParentPath;
+				if (MaterialInstanceFactoryNode->GetCustomParent(ParentPath))
+				{
+					FSoftObjectPath ParentMaterial(ParentPath);
+					Material = UMaterialInstanceDynamic::Create(Cast<UMaterialInterface>(ParentMaterial.TryLoad()), Arguments.Parent);
+				}
+			}
+		}
+		else
+		{
+			Material = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
+		}
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(MaterialClass))
 	{
@@ -190,8 +206,22 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+
+#if WITH_EDITOR
 	Material->PreEditChange(nullptr);
 
+	if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(Material))
+	{
+		if (const UInterchangeMaterialInstanceFactoryNode* MaterialInstanceFactoryNode = Cast<UInterchangeMaterialInstanceFactoryNode>(MaterialFactoryNode))
+		{
+			FString ParentPath;
+			if (MaterialInstanceFactoryNode->GetCustomParent(ParentPath))
+			{
+				FSoftObjectPath ParentMaterial(ParentPath);
+				MaterialInstanceConstant->SetParentEditorOnly(Cast<UMaterialInterface>(ParentMaterial.TryLoad()));
+			}
+		}
+	}
 #endif //WITH_EDITOR
 
 	return Material;
@@ -199,18 +229,11 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 
 UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
-#if !WITH_EDITOR
-
-	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import Material asset in runtime, this is an editor only feature."));
-	return nullptr;
-
-#else
-
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
-	
+
 	const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.AssetNode);
 	if (MaterialFactoryNode == nullptr)
 	{
@@ -252,10 +275,12 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 		{
 			if (UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialObject))
 			{
+#if WITH_EDITOR
 				if (UMaterial* Material = Cast<UMaterial>(MaterialObject))
 				{
 					SetupMaterial(Material, Arguments, MaterialFactoryNode);
 				}
+#endif // #if WITH_EDITOR
 
 				MaterialFactoryNode->ApplyAllCustomAttributeToObject(MaterialObject);
 			}
@@ -268,7 +293,6 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 	}
 
 	return MaterialObject;
-#endif // WITH_EDITOR
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
@@ -285,7 +309,7 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 		UMaterialInterface* ImportedMaterialInterface = CastChecked<UMaterialInterface>(Arguments.ImportedObject);
 
 		//Update the samplers type in case the textures were changed during their PreImportPreCompletedCallback
-		if (UMaterial* ImportedMaterial = CastChecked<UMaterial>(ImportedMaterialInterface))
+		if (UMaterial* ImportedMaterial = Cast<UMaterial>(ImportedMaterialInterface))
 		{
 			for (UMaterialExpression* Expression : ImportedMaterial->Expressions)
 			{
@@ -294,6 +318,11 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 					TextureSample->AutoSetSampleType();
 				}
 			}
+		}
+		else if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(ImportedMaterialInterface))
+		{
+			// Material instances expect their parameters to only be updated from the game thread
+			SetupMaterialInstance(MaterialInstance, Arguments.NodeContainer, Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.FactoryNode));
 		}
 
 		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedMaterialInterface
@@ -628,5 +657,108 @@ UMaterialExpression* UInterchangeMaterialFactory::CreateExpressionsForNode(UMate
 	return MaterialExpression;
 }
 #endif // #if WITH_EDITOR
+
+void UInterchangeMaterialFactory::SetupMaterialInstance(UMaterialInstance* MaterialInstance, const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode)
+{
+	if (!MaterialFactoryNode || !NodeContainer)
+	{
+		return;
+	}
+
+	TArray<FString> Inputs;
+	UInterchangeShaderPortsAPI::GatherInputs(MaterialFactoryNode, Inputs);
+
+	for (const FString& InputName : Inputs)
+	{
+		const FName ParameterName = *InputName;
+
+		switch(UInterchangeShaderPortsAPI::GetInputType(MaterialFactoryNode, InputName))
+		{
+		case UE::Interchange::EAttributeTypes::Float:
+			{
+				float InstanceValue;
+				if (MaterialInstance->GetScalarParameterValue(ParameterName, InstanceValue))
+				{
+					float InputValue = 0.f;
+					MaterialFactoryNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue);
+
+					if ( !FMath::IsNearlyEqual(InputValue, InstanceValue) )
+					{
+#if WITH_EDITOR
+						if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(MaterialInstance))
+						{
+							MaterialInstanceConstant->SetScalarParameterValueEditorOnly(ParameterName, InputValue);
+						}
+						else
+#endif // #if WITH_EDITOR
+						if (UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInstance))
+						{
+							MaterialInstanceDynamic->SetScalarParameterValue(ParameterName, InputValue);
+						}
+					}
+				}
+			}
+			break;
+		case UE::Interchange::EAttributeTypes::LinearColor:
+			{
+				FLinearColor InstanceValue;
+				if (MaterialInstance->GetVectorParameterValue(ParameterName, InstanceValue))
+				{
+					FLinearColor InputValue;
+					if (MaterialFactoryNode->GetLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue))
+					{
+						if ( !InputValue.Equals(InstanceValue) )
+						{
+#if WITH_EDITOR
+							if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(MaterialInstance))
+							{
+								MaterialInstanceConstant->SetVectorParameterValueEditorOnly(ParameterName, InputValue);
+							}
+							else
+#endif // #if WITH_EDITOR
+							if (UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInstance))
+							{
+								MaterialInstanceDynamic->SetVectorParameterValue(ParameterName, InputValue);
+							}
+						}
+					}
+				}
+			}
+			break;
+		case UE::Interchange::EAttributeTypes::String:
+			{
+				UTexture* InstanceValue;
+				if (MaterialInstance->GetTextureParameterValue(ParameterName, InstanceValue))
+				{
+					FString InputValue;
+					if (MaterialFactoryNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue))
+					{
+						if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(NodeContainer->GetNode(InputValue)))
+						{
+							if (UTexture* InputTexture = Cast<UTexture>(TextureFactoryNode->ReferenceObject.TryLoad()))
+							{
+								if ( InputTexture != InstanceValue )
+								{
+#if WITH_EDITOR
+									if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(MaterialInstance))
+									{
+										MaterialInstanceConstant->SetTextureParameterValueEditorOnly(ParameterName, InputTexture);
+									}
+									else
+#endif // #if WITH_EDITOR
+									if (UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInstance))
+									{
+										MaterialInstanceDynamic->SetTextureParameterValue(ParameterName, InputTexture);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			break;
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -13,6 +13,7 @@ class UInterchangeBaseMaterialFactoryNode;
 class UInterchangeMaterialExpressionFactoryNode;
 class UMaterial;
 class UMaterialExpression;
+class UMaterialInstance;
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEIMPORT_API UInterchangeMaterialFactory : public UInterchangeFactoryBase
@@ -39,6 +40,8 @@ private:
 
 	UMaterialExpression* CreateExpression(UMaterial* Material, const UInterchangeFactoryBase::FCreateAssetParams& Arguments, const UInterchangeMaterialExpressionFactoryNode& ExpressionNode);
 #endif // #if WITH_EDITOR
+
+	void SetupMaterialInstance(UMaterialInstance* MaterialInstance, const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode);
 };
 
 

@@ -95,6 +95,17 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 				}
 			}
 		}
+		else if (FObjectProperty* SubObject = CastField<FObjectProperty>(Property))
+		{
+			if (UInterchangePipelineBase* SubPipeline = Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)))
+			{
+				// Load the settings if the referenced pipeline is a subobject of ours
+				if (SubPipeline->IsInOuter(this))
+				{
+					SubPipeline->LoadSettings(PipelineStackName);
+				}
+			}
+		}
 		else
 		{
 			for (int32 i = 0; i < Property->ArrayDim; i++)
@@ -153,6 +164,17 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 				FString	Buffer;
 				Array->Inner->ExportTextItem(Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags);
 				Sec->Add(*Key, *Buffer);
+			}
+		}
+		else if (FObjectProperty* SubObject = CastField<FObjectProperty>(Property))
+		{
+			if (UInterchangePipelineBase* SubPipeline = Cast<UInterchangePipelineBase>(SubObject->GetObjectPropertyValue_InContainer(this)))
+			{
+				// Save the settings if the referenced pipeline is a subobject of ours
+				if (SubPipeline->IsInOuter(this))
+				{
+					SubPipeline->SaveSettings(PipelineStackName);
+				}
 			}
 		}
 		else

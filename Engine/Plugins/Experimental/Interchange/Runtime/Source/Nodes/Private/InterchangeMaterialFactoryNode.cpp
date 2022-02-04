@@ -6,6 +6,7 @@
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInterface.h"
 
 #endif
@@ -220,4 +221,49 @@ bool UInterchangeMaterialExpressionFactoryNode::GetCustomExpressionClassName(FSt
 bool UInterchangeMaterialExpressionFactoryNode::SetCustomExpressionClassName(const FString& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ExpressionClassName, FString);
+}
+
+FString UInterchangeMaterialInstanceFactoryNode::GetTypeName() const
+{
+	const FString TypeName = TEXT("MaterialInstanceFactoryNode");
+	return TypeName;
+}
+
+UClass* UInterchangeMaterialInstanceFactoryNode::GetObjectClass() const
+{
+#if WITH_ENGINE
+	FString InstanceClassName;
+	if (GetCustomInstanceClassName(InstanceClassName))
+	{
+		UClass* InstanceClass = FindObject<UClass>(nullptr, *InstanceClassName);
+		if (InstanceClass->IsChildOf<UMaterialInstance>())
+		{
+			return InstanceClass;
+		}
+	}
+
+	return UMaterialInstanceConstant::StaticClass();
+#else
+	return nullptr;
+#endif
+}
+
+bool UInterchangeMaterialInstanceFactoryNode::GetCustomInstanceClassName(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(InstanceClassName, FString);
+}
+
+bool UInterchangeMaterialInstanceFactoryNode::SetCustomInstanceClassName(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(InstanceClassName, FString);
+}
+
+bool UInterchangeMaterialInstanceFactoryNode::GetCustomParent(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(Parent, FString);
+}
+
+bool UInterchangeMaterialInstanceFactoryNode::SetCustomParent(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(Parent, FString);
 }
