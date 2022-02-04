@@ -44,11 +44,11 @@ public:
 		return FCompressedBuffer();
 	}
 
-	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override
+	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override
 	{
 		OutStatuses.Reset();
 
-		return false;
+		return EQueryResult::Failure_NotImplemented;
 	}
 
 	virtual void GetPayloadActivityInfo(GetPayloadActivityInfoFuncRef) const override

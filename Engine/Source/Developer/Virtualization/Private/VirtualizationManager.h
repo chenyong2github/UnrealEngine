@@ -98,7 +98,7 @@ private:
 
 	virtual FCompressedBuffer PullData(const FIoHash& Id) override;
 
-	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
+	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
 
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 

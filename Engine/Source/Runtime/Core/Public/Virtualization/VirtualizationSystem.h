@@ -40,6 +40,21 @@ enum class EStorageType : int8
 	Persistent
 };
 
+/** 
+ * The result of a query.
+ * Success indicates that the query worked and that the results are valid and can be used.
+ * Any other value indicates that the query failed in some manner and that the results cannot be trusted and should be discarded.
+ */
+enum class EQueryResult : int8
+{
+	/** The query succeeded and the results are valid */
+	Success = 0,
+	/** The query failed with an unspecified error */
+	Failure_Unknown,
+	/** The query failed because the current virtualization system has not implemented it */
+	Failure_NotImplemented
+};
+
 /** Describes the status of a payload in regards to a backend storage system */
 enum class FPayloadStatus : int8
 {
@@ -48,7 +63,7 @@ enum class FPayloadStatus : int8
 	/** The payload was not found in any backend for the given storage type */
 	NotFound = 0,
 	/** The payload was found in at least one backend but was not found in all backends available for the given storage type */
-	Partial,
+	FoundPartial,
 	/** The payload was found in all of the backends available for the given storage type */
 	FoundAll
 };
@@ -172,8 +187,6 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FIoHash& Id) = 0;
 
-	
-
 	/**
 	 * Query if a number of payloads exist or not in the given storage type. 
 	 * 
@@ -185,7 +198,13 @@ public:
 	 * @return	True if the operation succeeded and the contents of OutStatuses is valid. False if errors were 
 	 * 			encountered in which case the contents of OutStatuses should be ignored.
 	 */
-	virtual bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
+	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
+
+	UE_DEPRECATED(5.1, "Call ::QueryPayloadStatuses instead")
+	bool DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+	{
+		return QueryPayloadStatuses(Ids, StorageType, OutStatuses) != EQueryResult::Success;
+	}
 
 	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PayloadInfo)>;
 

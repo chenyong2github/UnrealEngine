@@ -484,7 +484,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
 	return FCompressedBuffer();
 }
 
-bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::DoPayloadsExist);
 
@@ -492,7 +492,7 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FIoHash> Ids, ESto
 
 	if (Ids.IsEmpty())
 	{
-		return true;
+		return EQueryResult::Success;
 	}
 
 	for (int32 Index = 0; Index < Ids.Num(); ++Index)
@@ -517,7 +517,7 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FIoHash> Ids, ESto
 			{
 				// If a backend entirely failed we should early out and report the problem
 				OutStatuses.Reset();
-				return false;
+				return EQueryResult::Failure_Unknown;
 			}
 
 			for (int32 Index = 0; Index < Ids.Num(); ++Index)
@@ -545,12 +545,12 @@ bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FIoHash> Ids, ESto
 			}
 			else
 			{
-				OutStatuses[Index] = FPayloadStatus::Partial;;
+				OutStatuses[Index] = FPayloadStatus::FoundPartial;
 			}
 		}
 	}
 
-	return true;
+	return EQueryResult::Success;
 }
 
 FPayloadActivityInfo FVirtualizationManager::GetAccumualtedPayloadActivityInfo() const
