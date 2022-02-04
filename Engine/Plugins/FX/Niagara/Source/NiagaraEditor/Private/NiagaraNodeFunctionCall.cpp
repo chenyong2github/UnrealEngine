@@ -87,6 +87,11 @@ void UNiagaraNodeFunctionCall::PostLoad()
 				}
 			}
 		}
+
+		if (NiagaraCustomVersion < FNiagaraCustomVersion::StaticSwitchFunctionPinsUsePersistentGuids)
+		{
+			UpdateStaticSwitchPinsWithPersistentGuids();
+		}
 	}
 
 	// Allow data interfaces an opportunity to intercept changes
@@ -304,6 +309,8 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 				{
 					NewPin->DefaultValue = PinDefaultValue;
 				}
+
+				NewPin->PersistentGuid = ScriptVar->Metadata.GetVariableGuid();
 			}
 			else
 			{
@@ -1124,6 +1131,29 @@ void UNiagaraNodeFunctionCall::UpdatePinTooltips()
 		{
 			FNiagaraVariable& Output = Signature.Outputs[i];
 			OutputPins[i]->PinToolTip = Signature.OutputDescriptions.Contains(Output) ? Signature.OutputDescriptions[Output].ToString() : FString();
+		}
+	}
+}
+
+void UNiagaraNodeFunctionCall::UpdateStaticSwitchPinsWithPersistentGuids()
+{
+	UNiagaraGraph* CalledGraph = GetCalledGraph();
+	if (CalledGraph != nullptr)
+	{
+		TArray<UEdGraphPin*> InputPins;
+		GetInputPins(InputPins);
+		TArray<FNiagaraVariable> StaticSwitchVariables = CalledGraph->FindStaticSwitchInputs();
+		for (UEdGraphPin* InputPin : InputPins)
+		{
+			FNiagaraVariable InputVariable = GetDefault<UEdGraphSchema_Niagara>()->PinToNiagaraVariable(InputPin);
+			if (StaticSwitchVariables.Contains(InputVariable))
+			{
+				UNiagaraScriptVariable* InputScriptVariable = CalledGraph->GetScriptVariable(InputPin->PinName);
+				if (InputScriptVariable != nullptr)
+				{
+					InputPin->PersistentGuid = InputScriptVariable->Metadata.GetVariableGuid();
+				}
+			}
 		}
 	}
 }
