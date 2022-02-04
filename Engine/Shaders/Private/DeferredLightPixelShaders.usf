@@ -272,7 +272,6 @@ void DeferredLightPixelMain(
 				ToLight,
 				LightMask,
 				ShadowTerms,
-				RectTexture,
 				Strata.MaterialTextureArray,
 				StrataAddressing,
 				StrataPixelHeader);
