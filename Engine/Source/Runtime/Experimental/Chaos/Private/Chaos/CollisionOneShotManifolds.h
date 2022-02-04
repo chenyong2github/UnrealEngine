@@ -10,12 +10,12 @@
 
 namespace Chaos
 {
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 	namespace Collisions
 	{
 		uint32 BoxBoxClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, int32 ClippingAxis, FReal Distance);
 		uint32 ReduceManifoldContactPoints(FVec3* Points, uint32 PointCount);
-		void PruneEdgeContactPoints(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance);
+		void PruneEdgeContactPointsOrdered(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance);
+		void PruneEdgeContactPointsUnordered(TArray<FContactPoint>& ContactPoints, const FReal MaxPlaneDistance);
 		void ReduceManifoldContactPointsTriangeMesh(TArray<FContactPoint>& ContactPoints);
 
 		void ConstructBoxBoxOneShotManifold(
@@ -34,6 +34,13 @@ namespace Chaos
 			const FRigidTransform3& Convex2Transform, //world
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
+
+		template <typename ConvexType>
+		void ConstructPlanarConvexTriangleOneShotManifold(
+			const ConvexType& Convex, 
+			const FTriangle& Triangle, 
+			const FReal CullDistance, 
+			TCArray<FContactPoint, 4>& OutContactPoints);
 	}
 }
 

@@ -60,8 +60,6 @@ namespace Chaos
 	}
 	using namespace CVars;
 
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
-
 	namespace Collisions
 	{
 		inline FReal GetConstraintStiffness(const FReal InStiffness, const FContactIterationParameters& IterationParameters)
@@ -304,16 +302,7 @@ namespace Chaos
 			// Calculate the position error we need to correct, including static friction and restitution
 			// Position correction uses the deepest point on each body (see velocity correction which uses average contact)
 
-			FVec3 ContactNormal;
-			if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
-			{
-				ContactNormal = ManifoldPoint.ManifoldContactNormal;
-			}
-			else
-			{
-				const FRotation3 PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Body0.Q() : Body1.Q();
-				ContactNormal = PlaneQ * ManifoldPoint.ManifoldContactNormal;
-			}
+			const FVec3 ContactNormal = ManifoldPoint.ManifoldContactNormal;
 
 			const bool bApplyStaticFriction = (ManifoldPoint.bActive && ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction);
 			FVec3 LocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];

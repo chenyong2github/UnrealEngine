@@ -221,6 +221,18 @@ public:
 		return MObject->OverlapGeom(B,BToATM,Thickness, OutMTD);
 	}
 
+	template <typename QueryGeomType>
+	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+	{
+		return MObject->GJKContactPoint(A, AToBTM, Thickness, Location, Normal, Penetration);
+	}
+
+	template <typename QueryGeomType>
+	bool ContactManifold(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
+	{
+		return MObject->ContactManifold(A, AToBTM, Thickness, ContactPoints);
+	}
+
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
 	{
 		return MObject->GetMaterialIndex(HintIndex);
@@ -992,5 +1004,38 @@ using TImplicitObjectScaledNonSerializable = TImplicitObjectScaled<TConcrete, fa
 
 template <typename T, int d>
 using TImplicitObjectScaledGeneric = TImplicitObjectScaled<FImplicitObject>;
+
+
+/**
+ * @brief Remove the Instanced or Scaled wrapper from an ImplicitObject of a known inner type and extract the instance properties
+ * @return the inner implicit object or null if the wrong type
+*/
+template<typename T>
+const T* UnwrapImplicit(const FImplicitObject& Implicit, FVec3& OutScale, FReal &OutMargin)
+{
+	OutScale = FVec3(1);
+	OutMargin = FReal(0);
+
+	if (const TImplicitObjectScaled<T>* ScaledImplicit = Implicit.template GetObject<TImplicitObjectScaled<T>>())
+	{
+		OutScale = ScaledImplicit->GetScale();
+		OutMargin = ScaledImplicit->GetMargin();
+		return ScaledImplicit->GetUnscaledObject();
+	}
+	else if (const TImplicitObjectInstanced<T>* InstancedImplicit = Implicit.template GetObject<TImplicitObjectInstanced<T>>())
+	{
+		OutMargin = InstancedImplicit->GetMargin();
+		return InstancedImplicit->GetInstancedObject();
+	}
+	else if (const T* RawImplicit = Implicit.template GetObject<T>())
+	{
+		OutMargin = RawImplicit->GetMargin();
+		return RawImplicit;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
 
 }

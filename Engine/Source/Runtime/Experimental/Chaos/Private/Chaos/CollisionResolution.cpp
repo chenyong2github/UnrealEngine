@@ -668,7 +668,7 @@ namespace Chaos
 		{
 			if(Constraint.GetUseManifold())
 			{
-				ConstructConvexTriMeshOneShotManifold<FImplicitBox3, TriMeshType>(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
+				ConstructPlanarConvexTriMeshOneShotManifold(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, Constraint);
 			}
 			else
 			{
@@ -1440,14 +1440,12 @@ namespace Chaos
 		// Convex-TriangleMesh
 		//
 
-		template <typename TriMeshType>
-		void UpdateConvexTriangleMeshConstraint(const FImplicitObject& Convex0, const FRigidTransform3& WorldTransform0, const TriMeshType& TriangleMesh1, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint)
+		void UpdateConvexTriangleMeshConstraint(const FImplicitObject& Convex0, const FRigidTransform3& WorldTransform0, const FImplicitObject& TriangleMesh1, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
-			// @todo(chaos): restitutionpadding
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateConvexTriangleMeshConstraint, ConstraintsDetailedStats);
 			if (Constraint.GetUseManifold())
 			{
-				ConstructConvexTriMeshOneShotManifold(Convex0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
+				ConstructPlanarConvexTriMeshOneShotManifold(Convex0, WorldTransform0, TriangleMesh1, WorldTransform1, Constraint);
 			}
 			else
 			{
@@ -1471,29 +1469,12 @@ namespace Chaos
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructConvexTriangleMeshConstraints, ConstraintsDetailedStats);
 			if (ensure(Implicit0->IsConvex()))
 			{
-				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
+				FPBDCollisionConstraint* Constraint = Context.CollisionAllocator->FindOrCreateConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, CullDistance, EContactShapesType::ConvexTriMesh, Context.bAllowManifolds);
+				if (T_TRAITS::bImmediateUpdate && (Constraint != nullptr))
 				{
-					FPBDCollisionConstraint* Constraint = Context.CollisionAllocator->FindOrCreateConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, CullDistance, EContactShapesType::ConvexTriMesh, Context.bAllowManifolds);
-					if (T_TRAITS::bImmediateUpdate && (Constraint != nullptr))
-					{
-						FRigidTransform3 WorldTransform0 = LocalTransform0 * ParticleWorldTransform0;
-						FRigidTransform3 WorldTransform1 = LocalTransform1 * ParticleWorldTransform1;
-						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *ScaledTriangleMesh, WorldTransform1, Dt, *Constraint);
-					}
-				}
-				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
-				{
-					FPBDCollisionConstraint* Constraint = Context.CollisionAllocator->FindOrCreateConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, CullDistance, EContactShapesType::ConvexTriMesh, Context.bAllowManifolds);
-					if (T_TRAITS::bImmediateUpdate && (Constraint != nullptr))
-					{
-						FRigidTransform3 WorldTransform0 = LocalTransform0 * ParticleWorldTransform0;
-						FRigidTransform3 WorldTransform1 = LocalTransform1 * ParticleWorldTransform1;
-						UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *TriangleMesh, WorldTransform1, Dt, *Constraint);
-					}
-				}
-				else
-				{
-					ensure(false);
+					FRigidTransform3 WorldTransform0 = LocalTransform0 * ParticleWorldTransform0;
+					FRigidTransform3 WorldTransform1 = LocalTransform1 * ParticleWorldTransform1;
+					UpdateConvexTriangleMeshConstraint(*Implicit0, WorldTransform0, *Implicit1, WorldTransform1, Dt, *Constraint);
 				}
 			}
 		}
@@ -1733,17 +1714,7 @@ namespace Chaos
 				UpdateGenericConvexConvexConstraint(Implicit0, WorldTransform0, Implicit1, WorldTransform1, Dt, Constraint);
 				break;
 			case EContactShapesType::ConvexTriMesh:
-				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriMesh = Implicit1.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject> >())
-				{
-					UpdateConvexTriangleMeshConstraint(Implicit0, WorldTransform0, *ScaledTriMesh, WorldTransform1, Dt, Constraint);
-					break;
-				}
-				else if (const FTriangleMeshImplicitObject* TriangleMeshImplicit = Implicit1.template GetObject<const FTriangleMeshImplicitObject>())
-				{
-					UpdateConvexTriangleMeshConstraint(Implicit0, WorldTransform0, *TriangleMeshImplicit, WorldTransform1, Dt, Constraint);
-					break;
-				}
-				ensure(false);
+				UpdateConvexTriangleMeshConstraint(Implicit0, WorldTransform0, Implicit1, WorldTransform1, Dt, Constraint);
 				break;
 			case EContactShapesType::ConvexHeightField:
 				UpdateConvexHeightFieldConstraint(Implicit0, WorldTransform0, *Implicit1.template GetObject< FHeightField >(), WorldTransform1, Dt, Constraint);

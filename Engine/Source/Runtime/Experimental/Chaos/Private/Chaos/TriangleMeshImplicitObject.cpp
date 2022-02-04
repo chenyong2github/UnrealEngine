@@ -44,14 +44,6 @@ void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& Que
 	OutScaledQueryTM = TRigidTransform<FReal, 3>(QueryTM.GetLocation() * TriMeshScale, QueryTM.GetRotation());
 }
 
-template <typename IdxType>
-void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const FTriangleMeshImplicitObject::ParticlesType& Particles,
-	const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
-{
-	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
-	OutB = Particles.X(Elements[TriIdx][1]) * TriMeshScale;
-	OutC = Particles.X(Elements[TriIdx][2]) * TriMeshScale;
-}
 
 template <typename QueryGeomType>
 const QueryGeomType& ScaleGeomIntoWorldHelper(const QueryGeomType& QueryGeom, const FVec3& TriMeshScale)
@@ -428,7 +420,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 		for (int32 TriIdx : PotentialIntersections)
 		{
 			FVec3 A, B, C;
-			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
+			TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 			OverlapTriangle(A, B, C, Constraint);
 			for(FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 			{
@@ -441,7 +433,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 		// Remove edge contacts that are "hidden" by face contacts
 		// EdgePruneDistance should be some fraction of the convex margin...
 		const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
-		Collisions::PruneEdgeContactPoints(ContactPoints, EdgePruneDistance);
+		Collisions::PruneEdgeContactPointsOrdered(ContactPoints, EdgePruneDistance);
 
 		// Remove all points (except for the deepest one, and ones with phis similar to it)
 		const FReal CullMargin = 0.1f;
@@ -524,7 +516,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 		for (int32 TriIdx : PotentialIntersections)
 		{
 			FVec3 A, B, C;
-			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
+			TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 			if (CalculateTriangleContact(A, B, C, LocalContactLocation, LocalContactNormal, LocalContactPhi))
 			{
@@ -704,7 +696,7 @@ void FTriangleMeshImplicitObject::VisitTriangles(const FAABB3& QueryBounds, cons
 		for (int32 TriIdx : PotentialIntersections)
 		{
 			TVec3<FReal> A, B, C;
-			TransformVertsHelper(FVec3(1), TriIdx, MParticles, Elements, A, B, C);
+			TriangleMeshTransformVertsHelper(FVec3(1), TriIdx, MParticles, Elements, A, B, C);
 
 			Visitor(FTriangle(A, B, C));
 		}
@@ -720,12 +712,12 @@ void FTriangleMeshImplicitObject::VisitTriangles(const FAABB3& QueryBounds, cons
 	}
 }
 
-void FTriangleMeshImplicitObject::VisitTriangle(int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
+void FTriangleMeshImplicitObject::VisitTriangle(const int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
 {
 	const auto TriangleProducer = [&](int32 TriIdx, const auto& Elements)
 	{
 		TVec3<FReal> A, B, C;
-		TransformVertsHelper(FVec3(1), TriIdx, MParticles, Elements, A, B, C);
+		TriangleMeshTransformVertsHelper(FVec3(1), TriIdx, MParticles, Elements, A, B, C);
 
 		Visitor(FTriangle(A, B, C));
 	};
@@ -777,7 +769,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			for (int32 TriIdx : PotentialIntersections)
 			{
 				FVec3 A, B, C;
-				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
+				TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				FVec3 TriangleNormal(0.0);
 				FReal Penetration = 0.0;
@@ -804,7 +796,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 			for (int32 TriIdx : PotentialIntersections)
 			{
 				FVec3 A, B, C;
-				TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
+				TriangleMeshTransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 
 				const FVec3 AB = B - A;
 				const FVec3 AC = C - A;
@@ -924,7 +916,7 @@ struct FTriangleMeshSweepVisitor
 		FVec3 HitNormal;
 
 		FVec3 A, B, C;
-		TransformVertsHelper(TriMeshScale,TriIdx,TriMesh.MParticles,Elements,A,B,C);
+		TriangleMeshTransformVertsHelper(TriMeshScale,TriIdx,TriMesh.MParticles,Elements,A,B,C);
 		FTriangle Tri(A, B, C);
 
 		if(CullsBackFaceSweepsCode != 0)

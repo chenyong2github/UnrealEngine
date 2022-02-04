@@ -235,6 +235,31 @@ namespace Chaos
 			return nullptr;
 		}
 
+		/**
+		 * @brief Given an ImplicitObject known to be of type T or a wrapper around T, call the Lambda with the concrete type
+		 * which will be const T*, const TImplicitObjectInstanced<T>*, or const TImplicitObjectScaled<T>*
+		*/
+		template <typename T, typename Lambda>
+		FORCEINLINE_DEBUGGABLE auto CastWrapped(const FImplicitObject& A, const Lambda& Func)
+		{
+			if (const TImplicitObjectScaled<T>* ScaledImplicit = A.template GetObject<TImplicitObjectScaled<T>>())
+			{
+				return Func(ScaledImplicit);
+			}
+			else if (const TImplicitObjectInstanced<T>* InstancedImplicit = A.template GetObject<TImplicitObjectInstanced<T>>())
+			{
+				return Func(InstancedImplicit);
+			}
+			else if(const T* RawImplicit = A.template GetObject<T>())
+			{
+				return Func(RawImplicit);
+			}
+			else
+			{
+				return Func((T*)nullptr);
+			}
+		}
+
 	} // namespace Utilities
 
 } // namespace Chaos

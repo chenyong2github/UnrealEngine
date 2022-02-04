@@ -11,11 +11,6 @@
 #include "Chaos/Utilities.h"
 #include "Modules/ModuleManager.h"
 
-namespace Chaos
-{
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
-}
-
 namespace ChaosTest 
 {
 	using namespace Chaos;

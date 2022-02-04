@@ -553,10 +553,6 @@ namespace Chaos
 		const FPBDCollisionConstraintContainerCookie& GetContainerCookie() const { return ContainerCookie; }
 		FPBDCollisionConstraintContainerCookie& GetContainerCookie() { return ContainerCookie; }
 
-		// Whether we can use manifolds for the given partices. Manifolds do not work well with Joints and PBD
-		// because the bodies may be moved (and especially rotated) a lot in the solver and this can make the manifold extremely inaccurate
-		bool CanUseManifold(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1) const;
-
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
 

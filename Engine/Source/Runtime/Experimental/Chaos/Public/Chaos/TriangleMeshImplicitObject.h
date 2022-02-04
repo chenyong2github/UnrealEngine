@@ -5,6 +5,7 @@
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/SegmentMesh.h"
+#include "Chaos/Triangle.h"
 
 #include "AABBTree.h"
 #include "BoundingVolume.h"
@@ -100,6 +101,26 @@ namespace Chaos
 		Buffer.Serialize(Ar);
 		return Ar;
 	}
+
+	template <typename IdxType, typename ParticlesType>
+	inline void TriangleMeshTransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const ParticlesType& Particles,
+		const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
+	{
+		OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
+		OutB = Particles.X(Elements[TriIdx][1]) * TriMeshScale;
+		OutC = Particles.X(Elements[TriIdx][2]) * TriMeshScale;
+	}
+
+	template <typename IdxType, typename ParticlesType>
+	inline void TriangleMeshTransformVertsHelper(const FRigidTransform3& Transform, int32 TriIdx, const ParticlesType& Particles,
+		const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
+	{
+		// Note: deliberately using scaled transform
+		OutA = Transform.TransformPosition(Particles.X(Elements[TriIdx][0]));
+		OutB = Transform.TransformPosition(Particles.X(Elements[TriIdx][1]));
+		OutC = Transform.TransformPosition(Particles.X(Elements[TriIdx][2]));
+	}
+
 
 	class CHAOS_API FTriangleMeshImplicitObject final : public FImplicitObject
 	{
@@ -305,9 +326,34 @@ namespace Chaos
 
 		void VisitTriangles(const FAABB3& InQueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
 
-		void VisitTriangle(int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
+		void VisitTriangle(const int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
+
+		/**
+		 * @brief Generate the triangle at the specified index with the specified transform (including scale)
+		*/
+		void GetTransformedTriangle(const int32 TriangleIndex, const FRigidTransform3& Transform, FTriangle& OutTriangle) const
+		{
+			if (MElements.RequiresLargeIndices())
+			{
+				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetLargeIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2]);
+			}
+			else
+			{
+				TriangleMeshTransformVertsHelper(Transform, TriangleIndex, MParticles, MElements.GetSmallIndexBuffer(), OutTriangle[0], OutTriangle[1], OutTriangle[2]);
+			}
+		}
+
+		/**
+		 * @brief Get a list of triangle indices that overlap the query bounds
+		 * @param QueryBounds query bounds in trimesh space
+		*/
+		void FindOverlappingTriangles(const FAABB3& QueryBounds, TArray<int32>& OutTriangleIndices) const
+		{
+			OutTriangleIndices = BVH.FindAllIntersections(QueryBounds);
+		}
 
 	private:
+
 		void RebuildBV();
 
 		ParticlesType MParticles;
@@ -422,4 +468,61 @@ namespace Chaos
 		template <typename IdxType>
 		TUniquePtr<FTriangleMeshImplicitObject> CopySlowImpl(const TArray < TVector<IdxType, 3>>& InElements) const;
 	};
+
+
+	/**
+	 * @brief A helper for iterating over FTriangleMeshImplicitObject triangles in a bounding box
+	*/
+	class FTriangleMeshTriangleProducer
+	{
+	public:
+		FTriangleMeshTriangleProducer()
+			: NextIndex(0)
+			, TriangleIndices()
+		{
+		}
+
+		/**
+		 * @brief Find the set of triangle indices that overlap the query bounds
+		 * @param InQueryBounds The query bounds in triangle mesh space
+		*/
+		inline void Reset(const FTriangleMeshImplicitObject& InTriMesh, const FAABB3& InQueryBounds)
+		{
+			InTriMesh.FindOverlappingTriangles(InQueryBounds, TriangleIndices);
+			NextIndex = 0;
+		}
+
+		/**
+		 * @brief Whether we are done producing triangles
+		 * @return
+		*/
+		inline const bool IsDone() const
+		{
+			return (NextIndex >= TriangleIndices.Num());
+		}
+
+		/**
+		 * @brief Get the next triangle with its index and transform the vertices
+		 * @return true if we produced a triangle, false if we are done with the triangle list
+		*/
+		inline bool NextTriangle(const FTriangleMeshImplicitObject& InTriMesh, const FRigidTransform3& Transform, FTriangle& OutTriangle, int32& OutTriangleIndex)
+		{
+			if (IsDone())
+			{
+				return false;
+			}
+
+			const int32 TriIndex = TriangleIndices[NextIndex++];
+
+			InTriMesh.GetTransformedTriangle(TriIndex, Transform, OutTriangle);
+			OutTriangleIndex = TriIndex;
+
+			return true;
+		}
+
+	private:
+		int32 NextIndex;
+		TArray<int32> TriangleIndices;
+	};
+
 }

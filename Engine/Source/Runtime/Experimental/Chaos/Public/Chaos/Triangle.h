@@ -13,6 +13,10 @@ namespace Chaos
 	class FTriangle
 	{
 	public:
+		FTriangle()
+		{
+		}
+
 		FTriangle(const FVec3& InA, const FVec3& InB, const FVec3& InC)
 			: A(InA)
 			, B(InB)

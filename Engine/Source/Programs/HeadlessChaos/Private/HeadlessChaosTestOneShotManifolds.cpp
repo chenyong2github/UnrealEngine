@@ -31,7 +31,6 @@ namespace Chaos
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
 	}
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 }
 
 

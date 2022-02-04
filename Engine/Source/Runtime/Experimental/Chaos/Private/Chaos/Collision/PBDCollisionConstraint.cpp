@@ -32,9 +32,6 @@ namespace Chaos
 	FRealSingle Chaos_GBFCharacteristicTimeRatio = 1.0f;
 	FAutoConsoleVariableRef CVarChaos_GBFCharacteristicTimeRatio(TEXT("p.Chaos.Collision.GBFCharacteristicTimeRatio"), Chaos_GBFCharacteristicTimeRatio, TEXT("The ratio between characteristic time and Dt"));
 
-	bool bChaos_Manifold_EnabledWithJoints = true;
-	FAutoConsoleVariableRef CVarChaos_Manifold_EnabledWithJoints(TEXT("p.Chaos.Collision.Manifold.EnabledWithJoints"), bChaos_Manifold_EnabledWithJoints, TEXT(""));
-
 	bool bChaos_Manifold_EnableGjkWarmStart = true;
 	FAutoConsoleVariableRef CVarChaos_Manifold_EnableGjkWarmStart(TEXT("p.Chaos.Collision.Manifold.EnableGjkWarmStart"), bChaos_Manifold_EnableGjkWarmStart, TEXT(""));
 
@@ -69,8 +66,6 @@ namespace Chaos
 	// @todo(chaos): tune the tolerances used in FPBDCollisionConstraint::UpdateAndTryRestoreManifold
 	FCollisionTolerances Chaos_Manifold_Tolerances;
 
-
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 
 	FString FPBDCollisionConstraint::ToString() const
 	{
@@ -250,7 +245,7 @@ namespace Chaos
 
 		CullDistance = InCullDistance;
 
-		Flags.bUseManifold = bInUseManifold && CanUseManifold(Particle[0], Particle[1]);
+		Flags.bUseManifold = bInUseManifold;
 		Flags.bUseIncrementalManifold = true;	// This will get changed later if we call AddOneShotManifoldContact
 
 		const FReal Margin0 = GetImplicit0()->GetMargin();
@@ -551,13 +546,6 @@ namespace Chaos
 		}
 
 		Flags.bUseIncrementalManifold = true;
-	}
-
-	bool FPBDCollisionConstraint::CanUseManifold(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1) const
-	{
-		// Do not use manifolds when a body is connected by a joint to another. Manifolds do not work when the bodies may be moved
-		// and rotated by significant amounts and joints can do that.
-		return bChaos_Manifold_EnabledWithJoints || ((Particle0->ParticleConstraints().Num() == 0) && (Particle1->ParticleConstraints().Num() == 0));
 	}
 
 	void FPBDCollisionConstraint::ResetManifold()

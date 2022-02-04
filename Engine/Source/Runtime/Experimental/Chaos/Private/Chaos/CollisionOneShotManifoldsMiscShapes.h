@@ -9,7 +9,6 @@
 
 namespace Chaos
 {
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 	class FHeightField;
 	namespace Collisions
 	{
@@ -103,13 +102,17 @@ namespace Chaos
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
 
-		template <typename ConvexType = FConvex, typename TriMeshType>
-		void ConstructConvexTriMeshOneShotManifold(
+		/**
+		 * @brief Build the contact manifold between a Planar Convex shape and a TriMesh
+		 * @param Convex an ImplicitObject that must be a box, convex, or a wrapper around it. Asserts if not
+		 * @param TriMesh an ImplicitObject that must be FTriangleMeshImplicitObject or a wrapper around it. Asserts if not
+		*/
+		void ConstructPlanarConvexTriMeshOneShotManifold(
 			const FImplicitObject& Convex, 
 			const FRigidTransform3& ConvexTransform, 
-			const TriMeshType& TriangleMesh, 
-			const FRigidTransform3& TriMeshTransform, 
-			const FReal Dt, 
+			const FImplicitObject& TriangleMesh, 
+			const FRigidTransform3& TriangleMeshTransform, 
 			FPBDCollisionConstraint& Constraint);
+
 	}
 }

@@ -1494,7 +1494,7 @@ namespace Chaos
 		// Remove edge contacts that are "hidden" by face contacts
 		// EdgePruneDistance should be some fraction of the convex margin...
 		const FReal EdgePruneDistance = Chaos_Collision_EdgePrunePlaneDistance;
-		Collisions::PruneEdgeContactPoints(ContactPoints, EdgePruneDistance);
+		Collisions::PruneEdgeContactPointsOrdered(ContactPoints, EdgePruneDistance);
 
 		// Remove all points (except for the deepest one, and ones with phis similar to it)
 		const FReal CullMargin = 0.1f;
@@ -1719,7 +1719,7 @@ namespace Chaos
 	bool FHeightField::ContactManifold(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
 	{
 		return ContactManifoldImp(QueryGeom, QueryTM, Thickness, ContactPoints);
-	}	
+	}
 
 	bool FHeightField::ContactManifold(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
 	{

@@ -446,6 +446,178 @@ namespace Chaos
 		}
 	}
 
+	/**
+	 * @brief Calculate the penetration data for two shapes using GJK, assuming both shapes are already in the same space.
+	 * This is intended for use with triangles which have been transformed into the space of the convex shape.
+	 * 
+	 * @tparam T
+	 * @tparam TGeometryA First geometry type
+	 * @tparam TGeometryB Second geometry type. Usually FTriangle
+	 * @param A First geometry
+	 * @param B Second geometry (usually triangle)
+	 * @param OutPenetration penetration depth (negative for separation)
+	 * @param OutClosestA Closest point on A
+	 * @param OutClosestB Closest point on B
+	 * @param OutNormal Contact normal (points from A to B)
+	 * @param OutVertexA The closest vertex on A
+	 * @param OutVertexB The closest vertex on B
+	 * @param OutMaxSupportDelta When the convex has a margin, an upper bounds on the distance from the contact point to the vertex on the outer hull
+	 * @param Epsilon GJK tolerance
+	 * @param EPAEpsilon EPA tolerance
+	 * @return true always
+	*/
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetrationSameSpace(const TGeometryA& A, const TGeometryB& B, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutVertexA, int32& OutVertexB, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3), const T EPAEpsilon = T(1.e-2))
+	{
+		TGJKSimplexData<T> SimplexData;
+		T SupportDeltaA = 0;
+		T SupportDeltaB = 0;
+		T MaxSupportDelta = 0;
+
+		int32& VertexIndexA = OutVertexA;
+		int32& VertexIndexB = OutVertexB;
+
+		// Return the support vertex in A-local space for a vector V in A-local space
+		auto SupportAFunc = [&A, &SupportDeltaA, &VertexIndexA](const TVec3<T>& V)
+		{
+			return A.SupportCore(V, A.GetMargin(), &SupportDeltaA, VertexIndexA);
+		};
+
+		// Return the support point on B, in B-local space, for a vector V in A-local space
+		auto SupportBFunc = [&B, &SupportDeltaB, &VertexIndexB](const TVec3<T>& V)
+		{
+			return B.SupportCore(V, B.GetMargin(), &SupportDeltaB, VertexIndexB);
+		};
+
+		// V and Simplex are in A-local space
+		TVec3<T> V = TVec3<T>(-1, 0, 0);
+		TVec3<T> Simplex[4];
+		FSimplex SimplexIDs;
+		T Distance = FLT_MAX;
+
+		TVec3<T> Normal = -V;					// Remember the last good normal (i.e. don't update it if separation goes less than Epsilon and we can no longer normalize)
+		bool bIsDegenerate = false;				// True if GJK cannot make any more progress
+		bool bIsContact = false;				// True if shapes are within Epsilon or overlapping - GJK cannot provide a solution
+		int32 NumIterations = 0;
+		const T ThicknessA = A.GetMargin();
+		const T ThicknessB = B.GetMargin();
+		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
+		while (!bIsContact && !bIsDegenerate)
+		{
+			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			{
+				break;	//if taking too long just stop. This should never happen
+			}
+
+			const TVec3<T> NegV = -V;
+			const TVec3<T> SupportA = SupportAFunc(NegV);
+			const TVec3<T> SupportB = SupportBFunc(V);
+			const TVec3<T> W = SupportA - SupportB;
+			MaxSupportDelta = FMath::Max(SupportDeltaA, SupportDeltaB);
+
+			// If we didn't move to at least ConvergedDistance or closer, assume we have reached a minimum
+			const T ConvergenceTolerance = 1.e-4f;
+			const T ConvergedDistance = (1.0f - ConvergenceTolerance) * Distance;
+			const T VW = TVec3<T>::DotProduct(V, W);
+
+			SimplexData.As[SimplexIDs.NumVerts] = SupportA;
+			SimplexData.Bs[SimplexIDs.NumVerts] = SupportB;
+			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;
+			Simplex[SimplexIDs.NumVerts++] = W;
+
+			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, SimplexData.Barycentric, SimplexData.As, SimplexData.Bs);
+			T NewDistance = V.Size();
+
+			// Are we overlapping or too close for GJK to get a good result?
+			bIsContact = (NewDistance < Epsilon);
+
+			// If we did not get closer in this iteration, we are in a degenerate situation
+			bIsDegenerate = (NewDistance >= Distance);
+
+			// If we are not too close, update the separating vector and keep iterating
+			// If we are too close we drop through to EPA, but if EPA determines the shapes are actually separated 
+			// after all, we will wend up using the normal from the previous loop
+			if (!bIsContact)
+			{
+				V /= NewDistance;
+				Normal = -V;
+			}
+			Distance = NewDistance;
+		}
+
+		// Save the warm-start data (not much to store since we updated most of it in the loop above)
+		SimplexData.Save(SimplexIDs);
+
+		if (bIsContact)
+		{
+			// We did not converge or we detected an overlap situation, so run EPA to get contact data
+			// Rebuild the simplex into a variable sized array - EPA can generate any mumber of vertices
+			TArray<TVec3<T>> VertsA;
+			TArray<TVec3<T>> VertsB;
+			VertsA.Reserve(8);
+			VertsB.Reserve(8);
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				VertsA.Add(SimplexData.As[i]);
+				VertsB.Add(SimplexData.Bs[i]);
+			}
+
+			T Penetration;
+			TVec3<T> MTD, ClosestA, ClosestB;
+			const EEPAResult EPAResult = EPA(VertsA, VertsB, SupportAFunc, SupportBFunc, Penetration, MTD, ClosestA, ClosestB, EPAEpsilon);
+
+			switch (EPAResult)
+			{
+			case EEPAResult::MaxIterations:
+				// Possibly a solution but with unknown error. Just return the last EPA state. 
+				// Fall through...
+			case EEPAResult::Ok:
+				// EPA has a solution - return it now
+				OutNormal = MTD;
+				OutPenetration = Penetration + ThicknessA + ThicknessB;
+				OutClosestA = ClosestA + MTD * ThicknessA;
+				OutClosestB = ClosestB - MTD * ThicknessB;
+				OutMaxSupportDelta = MaxSupportDelta;
+				return true;
+			case EEPAResult::BadInitialSimplex:
+				// The origin is outside the simplex. Must be a touching contact and EPA setup will have calculated the normal
+				// and penetration but we keep the position generated by GJK.
+				Normal = MTD;
+				Distance = -Penetration;
+				//UE_LOG(LogChaos, Warning, TEXT("EPA Touching Case"));
+				break;
+			case EEPAResult::Degenerate:
+				// We hit a degenerate simplex condition and could not reach a solution so use whatever near touching point GJK came up with.
+				// The result from EPA under these circumstances is not usable.
+				//UE_LOG(LogChaos, Warning, TEXT("EPA Degenerate Case"));
+				break;
+			}
+		}
+
+		// @todo(chaos): handle the case where EPA hits a degenerate triangle in the simplex.
+		// Currently we return a touching contact with the last position and normal from GJK. We could run SAT instead.
+
+		// GJK converged or we have a touching contact
+		{
+			TVec3<T> ClosestA(0);
+			TVec3<T> ClosestB(0);
+			for (int i = 0; i < SimplexIDs.NumVerts; ++i)
+			{
+				ClosestA += SimplexData.As[i] * SimplexData.Barycentric[i];
+				ClosestB += SimplexData.Bs[i] * SimplexData.Barycentric[i];
+			}
+
+			OutPenetration = ThicknessA + ThicknessB - Distance;
+			OutClosestA = ClosestA + Normal * ThicknessA;
+			OutClosestB = ClosestB - Normal * ThicknessB;
+			OutNormal = Normal;
+			OutMaxSupportDelta = MaxSupportDelta;
+
+			// @todo(chaos): we should pass back failure for the degenerate case so we can decide how to handle it externally.
+			return true;
+		}
+	}
+
 
 	template <typename TGeometryA, typename TGeometryB, bool bNegativePenetrationAllowed = false, typename T>
 	bool GJKPenetrationImpl(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3f)

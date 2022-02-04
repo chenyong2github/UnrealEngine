@@ -31,8 +31,6 @@
 namespace Chaos
 {
 
-	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
-
 	namespace DebugDraw
 	{
 #if CHAOS_DEBUG_DRAW
