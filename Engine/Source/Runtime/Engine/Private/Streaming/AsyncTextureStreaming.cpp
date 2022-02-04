@@ -331,7 +331,7 @@ void FRenderAssetStreamingMipCalcTask::ApplyPakStateChanges_Async()
 
 	if (bRecacheAllFiles || MountedStateDirtyFiles.Num())
 	{
-		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingManager.StreamingRenderAssets)
+		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingManager.AsyncUnsafeStreamingRenderAssets)
 		{
 			if (IsAborted()) break;
 
@@ -349,7 +349,7 @@ void FRenderAssetStreamingMipCalcTask::ApplyPakStateChanges_Async()
 
 void FRenderAssetStreamingMipCalcTask::TryDropMaxResolutions(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget)
 {
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
 
 	// When using mip bias per texture/mesh, we first reduce the maximum resolutions (if used) in order to fit.
@@ -409,7 +409,7 @@ void FRenderAssetStreamingMipCalcTask::TryDropMaxResolutions(TArray<int32>& Prio
 
 void FRenderAssetStreamingMipCalcTask::TryDropMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget)
 {
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
 
 	while (MemoryBudgeted > InMemoryBudget && !IsAborted())
@@ -470,7 +470,7 @@ void FRenderAssetStreamingMipCalcTask::TryDropMips(TArray<int32>& PrioritizedRen
 
 void FRenderAssetStreamingMipCalcTask::TryKeepMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget)
 {
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	bool bBudgetIsChanging = true;
 	
 	while (MemoryBudgeted < InMemoryBudget && bBudgetIsChanging && !IsAborted())
@@ -513,7 +513,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 	// Update Budget
 	//*************************************
 
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
 
 	TArray<int32> PrioritizedRenderAssets;
@@ -777,7 +777,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 
 void FRenderAssetStreamingMipCalcTask::UpdateLoadAndCancelationRequests_Async()
 {
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
 
 	LoadRequests.Empty();
@@ -861,7 +861,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateLoadAndCancelationRequests_Async()
 
 void FRenderAssetStreamingMipCalcTask::UpdatePendingStreamingStatus_Async()
 {
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const bool bIsStreamingPaused = StreamingManager.bPauseRenderAssetStreaming;
 
 	PendingUpdateDirties.Empty();
@@ -885,7 +885,7 @@ void FRenderAssetStreamingMipCalcTask::DoWork()
 	// While the async task is runnning, the StreamingRenderAssets are guarantied not to be reallocated.
 	// 2 things can happen : a texture can be removed, in which case the texture will be set to null
 	// or some members can be updated following calls to UpdateDynamicData().
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 	const FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
 
 	StreamingData.ComputeViewInfoExtras(Settings);
@@ -928,7 +928,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 #if STATS
 	FRenderAssetStreamingStats& Stats = StreamingManager.GatheredStats;
 	FRenderAssetStreamingSettings& Settings = StreamingManager.Settings;
-	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 
 	Stats.RenderAssetPool = PoolSize;
 	// Stats.StreamingPool = MemoryBudget;
@@ -1064,7 +1064,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 
 void FRenderAssetStreamingMipCalcTask::UpdateCSVOnlyStats_Async()
 {
-	const TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.StreamingRenderAssets;
+	const TArray<FStreamingRenderAsset>& StreamingRenderAssets = StreamingManager.AsyncUnsafeStreamingRenderAssets;
 
 	FRenderAssetStreamingStats& Stats = StreamingManager.GatheredStats;
 
