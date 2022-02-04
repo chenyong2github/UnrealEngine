@@ -131,7 +131,7 @@ public:
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexSkinWeightsAttribute<ParentType>& ToCopy)
 	{
 		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
-		check(CompactMaps.NumVertexMappings() <= VertexBoneWeights.Num());
+		check(CompactMaps.NumVertexMappings() >= VertexBoneWeights.Num());
 		FBoneWeights Data;
 		for (int32 VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
 		{
