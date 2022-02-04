@@ -573,18 +573,8 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 						{
 							OutputLoadAction = ERenderTargetLoadAction::EClear;
 
-							const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SeparateTranslucencyDimensions.Extent,
-								PF_FloatRGBA,
-								FClearValueBinding::Black,
-								TexCreate_RenderTargetable | TexCreate_ShaderResource,
-								1,
-								SeparateTranslucencyDimensions.NumSamples);
-
-							OutputTexture = CreateTextureMSAA(
-								GraphBuilder, Desc,
-								TEXT("Translucency.LightShaftBloom"),
-								GFastVRamConfig.SeparateTranslucency);
+							const bool bIsModulate = false;
+							OutputTexture = CreatePostDOFTranslucentTexture(GraphBuilder, ETranslucencyPass::TPT_TranslucencyAfterDOF, SeparateTranslucencyDimensions, bIsModulate);
 
 							// We will need to update views separate transluceny buffers if we have just created them.
 							bUpdateViewsSeparateTranslucency = true;
