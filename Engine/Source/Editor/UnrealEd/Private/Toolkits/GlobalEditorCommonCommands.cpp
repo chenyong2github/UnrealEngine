@@ -190,9 +190,12 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 	{
 		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
 		{
-			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+			if (TSharedPtr<FTabManager> ActiveTabManager = ActiveTab->GetTabManagerPtr())
 			{
-				ParentWindow = ActiveMajorTab->GetParentWindow();
+				if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTabManager.ToSharedRef()))
+				{
+					ParentWindow = ActiveMajorTab->GetParentWindow();
+				}
 			}
 		}
 	}

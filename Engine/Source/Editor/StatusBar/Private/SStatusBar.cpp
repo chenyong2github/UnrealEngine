@@ -815,7 +815,7 @@ void SStatusBar::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TShar
 		// Remove the content browser if a newly activated tab is a major tab
 		bShouldRemoveDrawer = true;
 	}
-	else if (PreviouslyActive->GetTabManager() != NewlyActivated->GetTabManager())
+	else if (PreviouslyActive->GetTabManagerPtr() != NewlyActivated->GetTabManagerPtr())
 	{
 		// Remove the content browser if we're switching tab managers (indicates a new status bar is becoming active)
 		bShouldRemoveDrawer = true;

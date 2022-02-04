@@ -1386,12 +1386,12 @@ bool SContentBrowser::CanSetAsPrimaryContentBrowser() const
 
 TSharedPtr<FTabManager> SContentBrowser::GetTabManager() const
 {
-	if ( ContainingTab.IsValid() )
+	if (TSharedPtr<SDockTab> Tab = ContainingTab.Pin())
 	{
-		return ContainingTab.Pin()->GetTabManager();
+		return Tab->GetTabManagerPtr();
 	}
 
-	return NULL;
+	return TSharedPtr<FTabManager>();
 }
 
 void SContentBrowser::LoadSelectedObjectsIfNeeded()

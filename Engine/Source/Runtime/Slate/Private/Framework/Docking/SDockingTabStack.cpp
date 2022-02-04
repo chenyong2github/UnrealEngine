@@ -1112,7 +1112,14 @@ bool SDockingTabStack::CanMoveTabToSideBar(TSharedRef<SDockTab> Tab) const
 bool SDockingTabStack::IsTabAllowedInSidebar(TSharedPtr<SDockTab> Tab) const
 {
 	// Major tabs are not allowed to be sidebared
-	return Tab.IsValid() && Tab->GetVisualTabRole() != ETabRole::MajorTab && Tab->GetTabManager()->IsTabAllowedInSidebar(Tab->GetLayoutIdentifier());
+	if (Tab.IsValid())
+	{
+		if (TSharedPtr<FTabManager> TabManager = Tab->GetTabManagerPtr())
+		{
+			return Tab->GetVisualTabRole() != ETabRole::MajorTab && TabManager->IsTabAllowedInSidebar(Tab->GetLayoutIdentifier());
+		}
+	}
+	return false;
 }
 
 SSplitter::ESizeRule SDockingTabStack::GetSizeRule() const

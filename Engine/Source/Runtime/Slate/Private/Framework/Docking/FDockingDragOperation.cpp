@@ -273,7 +273,7 @@ FDockingDragOperation::FDockingDragOperation( const TSharedRef<SDockTab>& InTabT
 		SNew(SBorder)
 		. BorderImage(FCoreStyle::Get().GetBrush("Docking.Background"))
 		[
-			SNew(SDockingArea, TabBeingDragged->GetTabManager(), FTabManager::NewPrimaryArea())
+			SNew(SDockingArea, TabBeingDragged->GetTabManagerPtr().ToSharedRef(), FTabManager::NewPrimaryArea())
 			//. OriginalDockArea(OriginalDockArea)
 			. InitialContent
 			( 
@@ -314,15 +314,17 @@ void FDockingDragOperation::DroppedOntoNothing()
 {
 	// If we dropped the tab into an existing DockNode then it would have handled the DropEvent.
 	// We are here because that didn't happen, so make a new window with a new DockNode and drop the tab into that.
+	TSharedPtr<FTabManager> MyTabManager = TabBeingDragged->GetTabManagerPtr();
+	if (!MyTabManager.IsValid())
+	{
+		return;
+	}
 
 	const FVector2D PositionToDrop = CursorDecoratorWindow->GetPositionInScreen();
 
 	const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(PositionToDrop.X, PositionToDrop.Y);
 
-	TSharedRef<FTabManager> MyTabManager = TabBeingDragged->GetTabManager();
-
 	TSharedPtr<SWindow> NewWindowParent = MyTabManager->GetPrivateApi().GetParentWindow();
-
 
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
 		.Title(FGlobalTabmanager::Get()->GetApplicationTitle())
@@ -342,7 +344,7 @@ void FDockingDragOperation::DroppedOntoNothing()
 
 	// Create a new dockarea
 	TSharedRef<SDockingArea> NewDockArea =
-		SNew(SDockingArea, TabBeingDragged->GetTabManager(), FTabManager::NewPrimaryArea())
+		SNew(SDockingArea, MyTabManager.ToSharedRef(), FTabManager::NewPrimaryArea())
 		.ParentWindow(NewWindow)
 		.InitialContent
 		(

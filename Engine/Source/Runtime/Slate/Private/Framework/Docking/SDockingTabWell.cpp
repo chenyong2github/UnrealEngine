@@ -303,7 +303,13 @@ int32 SDockingTabWell::ComputeChildDropIndex(const FGeometry& MyGeometry, const 
 
 FReply SDockingTabWell::StartDraggingTab( TSharedRef<SDockTab> TabToStartDragging, FVector2D InTabGrabOffsetFraction, const FPointerEvent& MouseEvent )
 {
-	const bool bCanLeaveTabWell = TabToStartDragging->GetTabManager()->GetPrivateApi().CanTabLeaveTabWell( TabToStartDragging );
+	TSharedPtr<FTabManager> TabManager = TabToStartDragging->GetTabManagerPtr();
+	if (!TabManager.IsValid())
+	{
+		return FReply::Handled();
+	}
+
+	const bool bCanLeaveTabWell = TabManager->GetPrivateApi().CanTabLeaveTabWell( TabToStartDragging );
 
 	// We are about to start dragging a tab, so make sure its offset is correct
 	this->ChildBeingDraggedOffset = ComputeDraggedTabOffset( MouseEvent.FindGeometry(SharedThis(this)), MouseEvent, InTabGrabOffsetFraction );
@@ -550,14 +556,18 @@ void SDockingTabWell::BringTabToFront( int32 TabIndexToActivate )
 	// Update the native, global menu bar if a tab is in the foreground.
 	if( ForegroundTabIndex != INDEX_NONE )
 	{
-		TSharedPtr<FTabManager> TabManager = Tabs[ForegroundTabIndex]->GetTabManager();
-		if(TabManager == FGlobalTabmanager::Get())
+		const TSharedRef<SDockTab>& ForegroundTab = Tabs[ForegroundTabIndex];
+		TSharedPtr<FTabManager> TabManager = ForegroundTab->GetTabManagerPtr();
+		if (TabManager.IsValid())
 		{
-			FGlobalTabmanager::Get()->UpdateMainMenu(Tabs[ForegroundTabIndex], false);
-		}
-		else
-		{
-			TabManager->UpdateMainMenu(Tabs[ForegroundTabIndex], false);
+			if (TabManager == FGlobalTabmanager::Get())
+			{
+				FGlobalTabmanager::Get()->UpdateMainMenu(ForegroundTab, false);
+			}
+			else
+			{
+				TabManager->UpdateMainMenu(ForegroundTab, false);
+			}
 		}
 	}
 }

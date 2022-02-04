@@ -1808,7 +1808,10 @@ FReply SOutputLog::OnDockInLayoutClicked()
 	static const FName OutputLogTabName = FName("OutputLog");
 	if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
 	{
-		DockedTab = ActiveTab->GetTabManager()->TryInvokeTab(OutputLogTabName);
+		if (TSharedPtr<FTabManager> TabManager = ActiveTab->GetTabManagerPtr())
+		{
+			DockedTab = TabManager->TryInvokeTab(OutputLogTabName);
+		}
 	}
 	
 	if (!DockedTab)

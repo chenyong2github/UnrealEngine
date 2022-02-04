@@ -1359,7 +1359,11 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal(const FTabId& TabId, bool b
 
 		if (ExistingTab.IsValid())
 		{
-			TSharedPtr<SDockTab> MajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ExistingTab->GetTabManager());
+			TSharedPtr<SDockTab> MajorTab;
+			if (TSharedPtr<FTabManager> ExistingTabManager = ExistingTab->GetTabManagerPtr())
+			{
+				MajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ExistingTabManager.ToSharedRef());
+			}
 
 			// Rules for drawing attention to a tab:
 			// 1. Tab is not active
@@ -2587,16 +2591,16 @@ TSharedRef<FTabManager> FGlobalTabmanager::NewTabManager( const TSharedRef<SDock
 
 void FGlobalTabmanager::UpdateMainMenu(const TSharedRef<SDockTab>& ForTab, bool const bForce)
 {
-	TSharedPtr<FTabManager> Tabmanager = ForTab->GetTabManager();
-	if(Tabmanager == AsShared())
+	TSharedPtr<FTabManager> TabManager = ForTab->GetTabManagerPtr();
+	if(TabManager == AsShared())
 	{
 		const int32 TabIndex = SubTabManagers.IndexOfByPredicate(FindByTab(ForTab));
 		if (TabIndex != INDEX_NONE)
 		{
-			Tabmanager = SubTabManagers[TabIndex].TabManager.Pin();
+			TabManager = SubTabManagers[TabIndex].TabManager.Pin();
 		}
 	}
-	Tabmanager->UpdateMainMenu(ForTab, bForce);
+	TabManager->UpdateMainMenu(ForTab, bForce);
 }
 
 void FGlobalTabmanager::SaveAllVisualState()

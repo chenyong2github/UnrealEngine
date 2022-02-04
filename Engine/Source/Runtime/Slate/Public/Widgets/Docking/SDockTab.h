@@ -291,7 +291,11 @@ public:
 	void SetOnExtendContextMenu( const FExtendContextMenu& Handler );
 
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
+	UE_DEPRECATED(5.0, "The tab manager is not guaranteed to exist, which will cause GetTabManager() to crash. Use GetTabManagerPtr() instead.")
 	TSharedRef<FTabManager> GetTabManager() const;
+
+	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
+	TSharedPtr<FTabManager> GetTabManagerPtr() const;
 
 	/** Draws attention to the tab. */
 	void DrawAttention();

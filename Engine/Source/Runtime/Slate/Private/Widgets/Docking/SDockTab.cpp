@@ -81,11 +81,11 @@ FReply SDockTab::OnDragDetected( const FGeometry& MyGeometry, const FPointerEven
 		FMath::Clamp(TabGrabOffset.X / TabSize.X, 0.0f, 1.0f),
 		FMath::Clamp(TabGrabOffset.Y / TabSize.Y, 0.0f, 1.0f) );
 	
-	auto PinnedParent = ParentPtr.Pin();
-	if (PinnedParent.IsValid())
+	if (TSharedPtr<SDockingTabWell> PinnedParent = ParentPtr.Pin())
 	{
 		//See if we can drag tabs contain in this manager
-		if (GetTabManager()->GetCanDoDragOperation())
+		TSharedPtr<FTabManager> TabManager = GetTabManagerPtr();
+		if (TabManager.IsValid() && TabManager->GetCanDoDragOperation())
 		{
 			return PinnedParent->StartDraggingTab(SharedThis(this), TabGrabOffsetFraction, MouseEvent);
 		}
@@ -466,9 +466,18 @@ TSharedRef<FTabManager> SDockTab::GetTabManager() const
 	return MyTabManager.Pin().ToSharedRef();
 }
 
+TSharedPtr<FTabManager> SDockTab::GetTabManagerPtr() const
+{
+	return MyTabManager.Pin();
+}
+
 void SDockTab::DrawAttention()
 {
-	GetTabManager()->DrawAttention(SharedThis(this));
+	TSharedPtr<FTabManager> TabManager = GetTabManagerPtr();
+	if (TabManager.IsValid())
+	{
+		TabManager->DrawAttention(SharedThis(this));
+	}
 }
 
 void SDockTab::ProvideDefaultLabel( const FText& InDefaultLabel )
