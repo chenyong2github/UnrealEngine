@@ -6,6 +6,7 @@
 AMassVisualizer::AMassVisualizer()
 {
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComp"));
+	RootComponent->SetMobility(EComponentMobility::Static);
 	VisComponent = CreateDefaultSubobject<UMassVisualizationComponent>(TEXT("VisualizerComponent"));
 }
 
