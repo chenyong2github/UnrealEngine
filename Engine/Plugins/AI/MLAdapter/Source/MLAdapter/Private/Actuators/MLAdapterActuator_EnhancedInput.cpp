@@ -35,6 +35,11 @@ void UMLAdapterActuator_EnhancedInput::Act(const float DeltaTime)
 
 	FScopeLock Lock(&ActionCS);
 
+	if (InputData.IsEmpty())
+	{
+		return;
+	}
+
 	checkf(InputData.Num() % SpaceDef->Num() == 0, TEXT("InputData contains an unexpected number of elements"));
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
