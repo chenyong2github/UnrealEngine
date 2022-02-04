@@ -102,6 +102,7 @@ public:
 
 	FLumenCardOBB LocalOBB;
 	FLumenCardOBB WorldOBB;
+	FLumenCardOBB MeshCardsOBB;
 
 	bool bVisible = false;
 	bool bHeightfield = false;
@@ -132,7 +133,7 @@ public:
 		int32 InMeshCardsIndex,
 		uint8 InIndexInBuildData);
 
-	void SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB);
+	void SetTransform(const FMatrix44f& LocalToWorld, const FLumenMeshCards& MeshCards);
 
 	void UpdateMinMaxAllocatedLevel();
 

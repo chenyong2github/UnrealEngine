@@ -103,6 +103,7 @@ public:
 		const float YAxisLength = ScaledYAxis.Size();
 		const float ZAxisLength = ScaledZAxis.Size();
 
+		// #lumen_todo: fix axisX flip cascading into entire card code
 		WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
 		WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
 		WorldOBB.AxisX = FVector3f::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);

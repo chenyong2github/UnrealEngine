@@ -861,7 +861,7 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 				// Hit-point is approximated as the intersection between the ray and a line connecting the previous two evaluation points
 				// (1 - t) * PrevPosition.z + t * LocalSamplePosition.z = (1 - t) * PrevHeightfieldDepth + t * LocalHeightfieldDepth
 				float DeltaT = (PrevPosition.z - PrevHeightfieldDepth) / (PrevPosition.z - LocalSamplePosition.z - PrevHeightfieldDepth + LocalHeightfieldDepth);
-				Result.HitDistance = PrevT + DeltaT * StepSize;
+				Result.HitDistance = clamp(PrevT + DeltaT * StepSize, tMinValue, tMaxValue);
 				Result.bIsHit = true;
 				break;
 			}

@@ -48,10 +48,7 @@ public:
 
 	void UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards);
 
-	void SetTransform(const FMatrix& InLocalToWorld)
-	{
-		LocalToWorld = InLocalToWorld;
-	}
+	void SetTransform(const FMatrix& InLocalToWorld);
 
 	FBox GetWorldSpaceBounds() const
 	{
@@ -60,6 +57,8 @@ public:
 	}
 
 	FMatrix LocalToWorld;
+	FVector3f LocalToWorldScale;
+	FMatrix WorldToLocalRotation;
 	FBox LocalBounds;
 
 	int32 PrimitiveGroupIndex = -1;

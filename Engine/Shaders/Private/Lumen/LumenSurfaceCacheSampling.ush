@@ -326,10 +326,10 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 }
 
 void SampleLumenCard(
-	float3 SamplePosition,
+	float3 MeshCardsSpacePosition,
+	float3 MeshCardsSpaceNormal,
 	float SampleRadius,
 	float SurfaceCacheDepthTestBias,
-	float CardWeight,
 	uint CardIndex,
 	bool bHiResSurface,
 	bool bHeightfield,
@@ -341,12 +341,12 @@ void SampleLumenCard(
 		FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
 		if (LumenCardData.bVisible)
 		{
-			float3 LocalSamplePosition = mul(SamplePosition - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
-			if (all(abs(LocalSamplePosition) < LumenCardData.LocalExtent))
+			float3 CardSpacePosition = mul(MeshCardsSpacePosition - LumenCardData.MeshCardsOrigin, LumenCardData.MeshCardsToLocalRotation);
+			if (all(abs(CardSpacePosition) <= LumenCardData.LocalExtent))
 			{
-				LocalSamplePosition.xy = clamp(LocalSamplePosition.xy, -LumenCardData.LocalExtent.xy, LumenCardData.LocalExtent.xy);
+				CardSpacePosition.xy = clamp(CardSpacePosition.xy, -LumenCardData.LocalExtent.xy, LumenCardData.LocalExtent.xy);
 
-				FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, CardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
+				FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, CardIndex, CardSpacePosition.xy, SampleRadius, bHiResSurface);
 				if (CardSample.bValid)
 				{
 					// Shadow map visibility
@@ -357,7 +357,7 @@ void SampleLumenCard(
 
 						// Bias a bit as traces may not be accurate (due to SDF or proxy geometry)
 						const float RayBias = SurfaceCacheDepthTestBias;
-						float NormalizedDistanceToHit = (-(LocalSamplePosition.z + RayBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
+						float NormalizedDistanceToHit = (-(CardSpacePosition.z + RayBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 
 						VisibilityWeight = 1.0f;
 						if (NormalizedDistanceToHit > DepthMoments.x)
@@ -370,7 +370,16 @@ void SampleLumenCard(
 						}
 					}
 
-					float SampleWeight = CardWeight * VisibilityWeight;
+					// Card projection angle
+					float NormalWeight = 1.0f;
+					if (!bHeightfield)
+					{
+						const float3x3 LocalToMeshCards = transpose(LumenCardData.MeshCardsToLocalRotation);
+						NormalWeight = saturate(dot(MeshCardsSpaceNormal, LocalToMeshCards[2].xyz));
+						NormalWeight = (NormalWeight - CARD_NORMAL_WEIGHT_CUTOFF) / (1.0f - CARD_NORMAL_WEIGHT_CUTOFF);
+					}
+
+					float SampleWeight = NormalWeight * VisibilityWeight;
 					if (SampleWeight > 0.0f)
 					{
 						#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE
@@ -408,7 +417,7 @@ void SampleLumenCard(
 	}
 }
 
-FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex, float3 WorldSpacePosition, float3 WorldSpaceNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
@@ -427,24 +436,27 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 	{
 		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
-		float3 LocalSamplePosition = mul(float4(SamplePosition, 1.0f), MeshCardsData.WorldToLocal).xyz;
-		float3 LocalSampleNormal = normalize(mul(float4(SampleNormal, 0.0f), transpose(MeshCardsData.LocalToWorld)).xyz);
+		float3 MeshCardsSpacePosition = mul(WorldSpacePosition - MeshCardsData.WorldOrigin, MeshCardsData.WorldToLocalRotation);
+		float3 MeshCardsSpaceNormal = mul(WorldSpaceNormal, MeshCardsData.WorldToLocalRotation);
+
+		// Make sure we don't sample out of bounds
+		MeshCardsSpacePosition = clamp(MeshCardsSpacePosition, MeshCardsData.MinMeshCardsPosition, MeshCardsData.MaxMeshCardsPosition);
 
 		uint CardMask = 0;
-		float3 AxisWeights = LocalSampleNormal * LocalSampleNormal;
+		float3 AxisWeights = MeshCardsSpaceNormal * MeshCardsSpaceNormal;
 
 		// Pick cards by angle
 		if (AxisWeights.x > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
 		{
-			CardMask |= MeshCardsData.CardLookup[LocalSampleNormal.x < 0.0f ? 0 : 1];
+			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.x < 0.0f ? 0 : 1];
 		}
 		if (AxisWeights.y > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
 		{
-			CardMask |= MeshCardsData.CardLookup[LocalSampleNormal.y < 0.0f ? 2 : 3];
+			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.y < 0.0f ? 2 : 3];
 		}
 		if (AxisWeights.z > CARD_NORMAL_WEIGHT_CUTOFF * CARD_NORMAL_WEIGHT_CUTOFF)
 		{
-			CardMask |= MeshCardsData.CardLookup[LocalSampleNormal.z < 0.0f ? 4 : 5];
+			CardMask |= MeshCardsData.CardLookup[MeshCardsSpaceNormal.z < 0.0f ? 4 : 5];
 		}
 
 		// Cull cards by AABB
@@ -459,12 +471,17 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 				uint CardIndex = MeshCardsData.CardOffset + NextBitIndex;
 				FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
 
-				if (all(abs(LocalSamplePosition - LumenCardData.MeshCardsBoundsCenter) < LumenCardData.MeshCardsBoundsExtent))
+				if (all(abs(MeshCardsSpacePosition - LumenCardData.MeshCardsOrigin) <= LumenCardData.MeshCardsExtent))
 				{
 					CulledCardMask |= NextBitMask;
 				}
 			}
 			CardMask = CulledCardMask;
+		}
+
+		if (MeshCardsData.bHeightfield)
+		{
+			CardMask = (1 << LUMEN_HEIGHTFIELD_LOCAL_CARD_INDEX);
 		}
 
 		FCardSampleAccumulator CardSampleAccumulator;
@@ -480,15 +497,11 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 			FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
 			if (LumenCardData.bVisible)
 			{
-				const float3x3 LocalToWorld = transpose(LumenCardData.WorldToLocalRotation);
-				float NormalWeight = saturate(dot(SampleNormal, LocalToWorld[2].xyz));
-				NormalWeight = (NormalWeight - CARD_NORMAL_WEIGHT_CUTOFF) / (1.0f - CARD_NORMAL_WEIGHT_CUTOFF);
-
 				SampleLumenCard(
-					SamplePosition,
+					MeshCardsSpacePosition,
+					MeshCardsSpaceNormal,
 					SampleRadius,
 					SurfaceCacheDepthTestBias,
-					NormalWeight,
 					CardIndex,
 					bHiResSurface,
 					MeshCardsData.bHeightfield,
@@ -545,7 +558,7 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 		{
 			if (VisualizeMode == VISUALIZE_MODE_GEOMETRY_NORMALS)
 			{
-				SurfaceCacheSample.Lighting = (SampleNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
+				SurfaceCacheSample.Lighting = (WorldSpaceNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
 				SurfaceCacheSample.Opacity = 1.0f;
 			}
 			else if (VisualizeMode == VISUALIZE_MODE_OPACITY)
