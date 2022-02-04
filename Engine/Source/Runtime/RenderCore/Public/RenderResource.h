@@ -16,6 +16,9 @@
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
 
+/** Experimental: whether we free helper structures after submitting to RHI. */
+extern RENDERCORE_API bool GFreeStructuresOnRHIBufferCreation;
+
 /**
  * A rendering resource which is owned by the rendering thread.
  * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
@@ -157,6 +160,39 @@ protected:
 	void SetFeatureLevel(const FStaticFeatureLevel InFeatureLevel) { FeatureLevel = (ERHIFeatureLevel::Type)InFeatureLevel; }
 	const FStaticFeatureLevel GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? FStaticFeatureLevel(GMaxRHIFeatureLevel) : FeatureLevel; }
 	FORCEINLINE bool HasValidFeatureLevel() const { return FeatureLevel < ERHIFeatureLevel::Num; }
+
+	// Helper for submitting a resource array to RHI and freeing eligible CPU memory
+	template<bool bRenderThread, typename T>
+	FBufferRHIRef CreateRHIBuffer(T& InOutResourceObject, const uint32 ResourceCount, EBufferUsageFlags InBufferUsageFlags, const TCHAR* InDebugName)
+	{
+		FBufferRHIRef Buffer;
+		FResourceArrayInterface* RESTRICT ResourceArray = InOutResourceObject ? InOutResourceObject->GetResourceArray() : nullptr;
+		if (ResourceCount != 0)
+		{
+			const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+			FRHIResourceCreateInfo CreateInfo(InDebugName, ResourceArray);
+			CreateInfo.bWithoutNativeResource = !InOutResourceObject;
+
+			if (bRenderThread)
+			{
+				Buffer = RHICreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+			}
+			else
+			{
+				Buffer = RHIAsyncCreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+			}
+		}
+
+		if (GFreeStructuresOnRHIBufferCreation && InOutResourceObject && (!ResourceArray || !ResourceArray->GetAllowCPUAccess()))
+		{
+			// The resource should have been freed as part of the buffer creation
+			check(!ResourceArray || !ResourceArray->GetResourceDataSize());
+			delete InOutResourceObject;
+			InOutResourceObject = nullptr;
+		}
+
+		return Buffer;
+	}
 
 private:
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
@@ -520,6 +556,7 @@ public:
 	{
 		VertexBufferRHI.SafeRelease();
 	}
+
 	virtual FString GetFriendlyName() const override { return TEXT("FVertexBuffer"); }
 };
 
