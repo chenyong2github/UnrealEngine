@@ -509,6 +509,18 @@ private:
 					const TCHAR* Ptr = *RoHardware;
 					FParse::Line(&Ptr, NewDeviceInfo.Hardware);
 				}
+				{
+					HardwareCommand = FString::Printf(TEXT("-s %s %s ro.soc.model"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+					FString RoSOCModelIn;
+					FString RoSOCModelOut;
+					ExecuteAdbCommand(*HardwareCommand, &RoSOCModelIn, nullptr);
+					const TCHAR* Ptr = *RoSOCModelIn;
+					FParse::Line(&Ptr, RoSOCModelOut);
+					if (!RoSOCModelOut.IsEmpty())
+					{
+						NewDeviceInfo.Hardware = RoSOCModelOut;
+					}
+				}
 
 				// Read hardware from cpuinfo:
 				FString CPUInfoString;

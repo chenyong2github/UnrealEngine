@@ -1670,6 +1670,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			hardware = cpuInfo.get("Hardware");
 		}
 		Log.debug("Hardware: " + hardware);
+		String roSOCModel = getProp("ro.soc.model");
+		if (!roSOCModel.equals(""))
+		{
+			Log.debug("ro.soc.model: " + roSOCModel);
+			hardware = roSOCModel;
+		}
 
 		// register variables for the program to access
 		Map<String, String> variables = new HashMap<String, String>();
@@ -1687,6 +1693,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		variables.put("OverrideProfile", "true");
 		variables.put("hardware", hardware);
 		variables.put("ro.hardware", roHardware);
+		variables.put("ro.soc.model", roSOCModel);
 		variables.put("processor", processor);
 		variables.put("processorCount", Integer.toString(processorCount));
 		variables.put("useAffinity", "false");
