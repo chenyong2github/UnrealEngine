@@ -69,6 +69,7 @@ namespace HordeServerTests
 	        object Obj = (await JobsController.FindJobTimingsAsync(Fixture.Stream!.Id.ToString(), Templates)).Value!;
 	        FindJobTimingsResponse Res = (Obj as FindJobTimingsResponse)!;
 	        Assert.AreEqual(1, Res.Timings.Count);
+	        Assert.AreEqual(Job.Name, Res.Timings[Job.Id.ToString()].Job.Name);
         }
     }
 }

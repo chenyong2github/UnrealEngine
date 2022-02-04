@@ -588,7 +588,7 @@ namespace HordeServer.Controllers
 				Labels.Add(new GetLabelTimingInfoResponse(Label, TimingInfo));
 			}
 
-			return new GetJobTimingResponse(Steps, Labels);
+			return new GetJobTimingResponse(Job, Steps, Labels);
 		}
 		
 		/// <summary>

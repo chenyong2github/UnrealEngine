@@ -384,6 +384,11 @@ namespace HordeServer.Api
 	public class GetJobTimingResponse
 	{
 		/// <summary>
+		/// The job object
+		/// </summary>
+		public IJob Job { get; set; }
+		
+		/// <summary>
 		/// Timing info for each step
 		/// </summary>
 		public Dictionary<string, GetStepTimingInfoResponse> Steps { get; set; }
@@ -396,10 +401,12 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Job">The job object</param>
 		/// <param name="Steps">Timing info for each steps</param>
 		/// <param name="Labels">Timing info for each label</param>
-		public GetJobTimingResponse(Dictionary<string, GetStepTimingInfoResponse> Steps, List<GetLabelTimingInfoResponse> Labels)
+		public GetJobTimingResponse(IJob Job, Dictionary<string, GetStepTimingInfoResponse> Steps, List<GetLabelTimingInfoResponse> Labels)
 		{
+			this.Job = Job;
 			this.Steps = Steps;
 			this.Labels = Labels;
 		}
