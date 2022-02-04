@@ -73,6 +73,7 @@ protected:
 	static void OnExportLayer(const TSharedRef<FLandscapeTargetListInfo> Target);
 	static void OnImportLayer(const TSharedRef<FLandscapeTargetListInfo> Target);
 	static void OnReimportLayer(const TSharedRef<FLandscapeTargetListInfo> Target);
+	static void OnHeightmapLayerContextMenu(const TSharedRef<FLandscapeTargetListInfo> Target);
 	static void OnFillLayer(const TSharedRef<FLandscapeTargetListInfo> Target);
 	static void FillEmptyLayers(ULandscapeInfo* LandscapeInfo, ULandscapeLayerInfoObject* LandscapeInfoObject);
 	static void OnClearLayer(const TSharedRef<FLandscapeTargetListInfo> Target);

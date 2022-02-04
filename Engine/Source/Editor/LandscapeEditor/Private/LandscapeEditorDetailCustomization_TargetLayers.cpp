@@ -907,26 +907,12 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLaye
 		
 		MenuBuilder.BeginSection("LandscapeEditorLayerActions", LOCTEXT("LayerContextMenu.Heading", "Layer Actions"));
 		{
-			// In Grid Based Landscape Import/Export/Reimport is done through the Import Tool
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-			if (LandscapeEdMode && !LandscapeEdMode->IsGridBased())
+			if (LandscapeEdMode)
 			{
-				// Export
-				FUIAction ExportAction = FUIAction(FExecuteAction::CreateStatic(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnExportLayer, Target));
-				MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Export", "Export to file"), FText(), FSlateIcon(), ExportAction);
-
-				// Import
-				FUIAction ImportAction = FUIAction(FExecuteAction::CreateStatic(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnImportLayer, Target));
-				MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Import", "Import from file"), FText(), FSlateIcon(), ImportAction);
-
-				// Reimport
-				const FString& ReimportPath = Target->GetReimportFilePath();
-
-				if (!ReimportPath.IsEmpty())
-				{
-					FUIAction ReImportAction = FUIAction(FExecuteAction::CreateStatic(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnReimportLayer, Target));
-					MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("LayerContextMenu.ReImport", "Reimport from {0}"), FText::FromString(ReimportPath)), FText(), FSlateIcon(), ReImportAction);
-				}
+				FUIAction LandscapeHeightmapChangeToolsAction = FUIAction(FExecuteAction::CreateStatic(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnHeightmapLayerContextMenu, Target));
+				MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Heightmap", "Import From/Export To File..."),
+										LOCTEXT("LayerContextMenu.HeightmapToolTip", "Opens the Landscape Import tool in order to import / export heightmaps from / to external files."), FSlateIcon(), LandscapeHeightmapChangeToolsAction);
 			}
 
 			if (Target->TargetType == ELandscapeToolTargetType::Weightmap)
@@ -1088,6 +1074,15 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnReimportLayer(const TShar
 	{
 		check(!LandscapeEdMode->IsGridBased());
 		LandscapeEdMode->ReimportData(*Target);
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnHeightmapLayerContextMenu(const TSharedRef<FLandscapeTargetListInfo> Target)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		LandscapeEdMode->SetCurrentTool("ImportExport");
 	}
 }
 
