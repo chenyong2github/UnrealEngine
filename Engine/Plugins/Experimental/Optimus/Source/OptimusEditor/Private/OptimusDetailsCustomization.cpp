@@ -248,7 +248,7 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 	.ValueContent()
 	[
 		SNew(SComboBox<TSharedRef<TArray<FName>>>)
-			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a nested resource context from the list of available contexts."))
+			.ToolTipText(LOCTEXT("NestedContextListerToolTip", "Select a nested resource context from the list of available contexts."))
 			.OptionsSource(&NestedContextNames)
 			.IsEnabled_Lambda([InPropertyHandle]() -> bool
 			{
