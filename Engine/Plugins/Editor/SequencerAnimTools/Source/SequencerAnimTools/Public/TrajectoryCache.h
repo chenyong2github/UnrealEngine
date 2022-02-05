@@ -95,6 +95,11 @@ public:
 
 	{
 		TrajectoryCache.SetNumUninitialized(int32(InTrackRange.Size<double>() / InSpacing) + 1);
+
+		for (FTransform& Transform : TrajectoryCache)
+		{
+			Transform = InDefault;
+		}
 	}
 
 	virtual const FTransform& Get(const double InTime) const override 
