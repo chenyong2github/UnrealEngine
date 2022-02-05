@@ -26,14 +26,8 @@ FAutoConsoleVariableRef CVarMaxVertexBytesAllocatedPerFrame(
 int32 GGlobalBufferNumFramesUnusedThresold = 30;
 FAutoConsoleVariableRef CVarReadBufferNumFramesUnusedThresold(
 	TEXT("r.NumFramesUnusedBeforeReleasingGlobalResourceBuffers"),
-	GGlobalBufferNumFramesUnusedThresold,
+	GGlobalBufferNumFramesUnusedThresold ,
 	TEXT("Number of frames after which unused global resource allocations will be discarded. Set 0 to ignore. (default=30)"));
-
-bool GFreeStructuresOnRHIBufferCreation = true;
-FAutoConsoleVariableRef CVarFreeStructuresOnRHIBufferCreation(
-	TEXT("r.FreeStructuresOnRHIBufferCreation"),
-	GFreeStructuresOnRHIBufferCreation,
-	TEXT("Toggles experimental method for freeing helper structures that own the resource arrays after submitting to RHI instead of in the callback sink."));
 
 int32 GVarDebugForceRuntimeBLAS = 0;
 FAutoConsoleVariableRef CVarDebugForceRuntimeBLAS(

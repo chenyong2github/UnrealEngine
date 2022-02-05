@@ -179,7 +179,25 @@ void FSkinWeightLookupVertexBuffer::SetWeightOffsetAndInfluenceCount(uint32 Vert
 template <bool bRenderThread>
 FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
 {
-	return CreateRHIBuffer<bRenderThread>(LookupData, NumVertices, BUF_Static | BUF_ShaderResource | BUF_SourceCopy, TEXT("FSkinWeightLookupVertexBuffer"));
+	if (NumVertices)
+	{
+		// Create the vertex buffer.
+		FResourceArrayInterface* ResourceArray = LookupData ? LookupData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSkinWeightLookupVertexBuffer"), ResourceArray);
+		CreateInfo.bWithoutNativeResource = !LookupData;
+
+		if (bRenderThread)
+		{
+			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
+		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
+		}
+	}
+	return nullptr;
 }
 
 /*-----------------------------------------------------------------------------
@@ -371,8 +389,26 @@ void FSkinWeightDataVertexBuffer::CopyMetaData(const FSkinWeightDataVertexBuffer
 template <bool bRenderThread>
 FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 {
-	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
-	return CreateRHIBuffer<bRenderThread>(WeightData, NumBones, BUF_Static | BUF_ShaderResource | BUF_SourceCopy, TEXT("FSkinWeightDataVertexBuffer"));
+	if (NumBones)
+	{
+		// Create the vertex buffer.
+		FResourceArrayInterface* ResourceArray = WeightData ? WeightData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSkinWeightDataVertexBuffer"), ResourceArray);
+		CreateInfo.bWithoutNativeResource = !WeightData;
+
+		// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
+		if (bRenderThread)
+		{
+			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
+		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
+		}
+	}
+	return nullptr;
 }
 
 FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_RenderThread()
