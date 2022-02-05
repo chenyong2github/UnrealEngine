@@ -68,7 +68,7 @@ private:
 	TObjectPtr<class USceneComponent> ActorRootComponent;
 
 	UPROPERTY(transient)
-	TObjectPtr<UControlRig>  ControlRig;
+	TSoftObjectPtr<UControlRig>  ControlRig;
 
 	UPROPERTY(transient)
 	TArray<FName> ControlNames;
