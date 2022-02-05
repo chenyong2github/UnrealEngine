@@ -25,6 +25,7 @@
 #include "DetailCategoryBuilder.h"
 #include "IDetailsView.h"
 #include "ObjectEditorUtils.h"
+#include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchCustomization"
 
