@@ -20,7 +20,6 @@ namespace Chaos
 	using FMatrix33 = PMatrix<FReal, 3, 3>;
 	using FMatrix44 = PMatrix<FReal, 4, 4>;
 	using FRigidTransform3 = TRigidTransform<FReal, 3>;
-	using FRigidTransformRealSingle3 = TRigidTransform<FRealSingle, 3>;
 
 	using FAABB3 = TAABB<FReal, 3>;
 

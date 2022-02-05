@@ -60,10 +60,10 @@ namespace Chaos
 	{
 		const FImplicitObject* Implicit0 = InShape0->GetLeafGeometry();
 		const FBVHParticles* BVHParticles0 = FConstGenericParticleHandle(Particle0)->CollisionParticles().Get();
-		const FRigidTransform3& ShapeRelativeTransform0 = (FRigidTransform3)InShape0->GetLeafRelativeTransform();
+		const FRigidTransform3& ShapeRelativeTransform0 = InShape0->GetLeafRelativeTransform();
 		const FImplicitObject* Implicit1 = InShape1->GetLeafGeometry();
 		const FBVHParticles* BVHParticles1 = FConstGenericParticleHandle(Particle1)->CollisionParticles().Get();
-		const FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)InShape1->GetLeafRelativeTransform();
+		const FRigidTransform3& ShapeRelativeTransform1 = InShape1->GetLeafRelativeTransform();
 
 		return FPBDCollisionConstraint::Make(Particle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
@@ -462,11 +462,11 @@ namespace Chaos
 
 		const FImplicitObject* Implicit0 = Shape0->GetLeafGeometry();
 		const FBVHParticles* BVHParticles0 = P0->CollisionParticles().Get();
-		const FRigidTransform3& ShapeRelativeTransform0 = (FRigidTransform3)Shape0->GetLeafRelativeTransform();
+		const FRigidTransform3& ShapeRelativeTransform0 = Shape0->GetLeafRelativeTransform();
 		const FRigidTransform3 ParticleWorldTransform0 = FParticleUtilities::GetActorWorldTransform(P0);
 		const FImplicitObject* Implicit1 = Shape1->GetLeafGeometry();
 		const FBVHParticles* BVHParticles1 = P1->CollisionParticles().Get();
-		const FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)Shape1->GetLeafRelativeTransform();
+		const FRigidTransform3& ShapeRelativeTransform1 = Shape1->GetLeafRelativeTransform();
 		const FRigidTransform3 ParticleWorldTransform1 = FParticleUtilities::GetActorWorldTransform(P1);
 
 		FCollisionContext LocalContext = Context;

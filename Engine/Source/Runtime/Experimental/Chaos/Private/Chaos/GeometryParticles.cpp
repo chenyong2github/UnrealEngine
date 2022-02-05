@@ -21,18 +21,13 @@ namespace Chaos
 
 				for (int32 ShapeIndex = 0; ShapeIndex < ShapesArray.Num(); ++ShapeIndex)
 				{
-					TSerializablePtr<FImplicitObject> ShapeGeometry = MakeSerializable(Union->GetObjects()[ShapeIndex]);
-
 					if (ShapeIndex >= OldShapeNum)
 					{
 						// If newly allocated shape, initialize it.
-						ShapesArray[ShapeIndex] = FPerShapeData::CreatePerShapeData(ShapeIndex, ShapeGeometry);
+						ShapesArray[ShapeIndex] = FPerShapeData::CreatePerShapeData(ShapeIndex);
 					}
-					else if (ShapeGeometry != ShapesArray[ShapeIndex]->GetGeometry())
-					{
-						// Update geometry pointer if it changed
-						FPerShapeData::UpdateGeometry(ShapesArray[ShapeIndex], ShapeGeometry);
-					}
+
+					ShapesArray[ShapeIndex]->SetGeometry(MakeSerializable(Union->GetObjects()[ShapeIndex]));
 				}
 			}
 			else
@@ -40,12 +35,9 @@ namespace Chaos
 				ShapesArray.SetNum(1);
 				if (OldShapeNum == 0)
 				{
-					ShapesArray[0] = FPerShapeData::CreatePerShapeData(0, Geometry);
+					ShapesArray[0] = FPerShapeData::CreatePerShapeData(0);
 				}
-				else
-				{
-					FPerShapeData::UpdateGeometry(ShapesArray[0], Geometry);
-				}
+				ShapesArray[0]->SetGeometry(Geometry);
 			}
 
 			if (Geometry->HasBoundingBox())
@@ -75,7 +67,7 @@ namespace Chaos
 	// Scaled so the Scale and Margin is stored on the wrapper (the convex itself is shared).
 	// - support for Margin as per-shape data passed through the collision functions
 	// - support for Scale as per-shape data passed through the collision functions (or ideally in the Transforms)
-	const FImplicitObject* GetInnerGeometryInstanceData(const FImplicitObject* Implicit, FRigidTransformRealSingle3& OutTransform, FReal& OutMargin)
+	const FImplicitObject* GetInnerGeometryInstanceData(const FImplicitObject* Implicit, FRigidTransform3& OutTransform, FReal& OutMargin)
 	{
 		if (Implicit != nullptr)
 		{
@@ -84,7 +76,7 @@ namespace Chaos
 			{
 				// Transformed Implicit
 				const TImplicitObjectTransformed<FReal, 3>* TransformedImplicit = Implicit->template GetObject<const TImplicitObjectTransformed<FReal, 3>>();
-				OutTransform = (FRigidTransformRealSingle3)TransformedImplicit->GetTransform() * OutTransform;
+				OutTransform = TransformedImplicit->GetTransform() * OutTransform;
 				//OutMargin += TransformedImplicit->GetMargin();
 				return GetInnerGeometryInstanceData(TransformedImplicit->GetTransformedObject(), OutTransform, OutMargin);
 			}
@@ -115,32 +107,10 @@ namespace Chaos
 
 
 	FPerShapeData::FPerShapeData(int32 InShapeIdx)
-		: bHasCachedLeafInfo(false)
-		, Proxy(nullptr)
+		: Proxy(nullptr)
 		, ShapeIdx(InShapeIdx)
 		, Geometry()
 		, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
-	{
-	}
-
-	FPerShapeData::FPerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry, bool bInHasCachedLeafInfo)
-		: bHasCachedLeafInfo(bInHasCachedLeafInfo)
-		, Proxy(nullptr)
-		, ShapeIdx(InShapeIdx)
-		, Geometry(InGeometry)
-		, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
-	{
-	}
-
-	FPerShapeData::FPerShapeData(FPerShapeData&& Other)
-		: bHasCachedLeafInfo(Other.bHasCachedLeafInfo)
-		, Proxy(MoveTemp(Other.Proxy))
-		, DirtyFlags(MoveTemp(Other.DirtyFlags))
-		, ShapeIdx(MoveTemp(Other.ShapeIdx))
-		, CollisionData(MoveTemp(Other.CollisionData))
-		, Materials(MoveTemp(Other.Materials))
-		, Geometry(MoveTemp(Other.Geometry))
-		, WorldSpaceInflatedShapeBounds(MoveTemp(Other.WorldSpaceInflatedShapeBounds))
 	{
 	}
 
@@ -148,48 +118,9 @@ namespace Chaos
 	{
 	}
 
-	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeData(int32 ShapeIdx, TSerializablePtr<FImplicitObject> InGeometry)
+	TUniquePtr<FPerShapeData> FPerShapeData::CreatePerShapeData(int32 ShapeIdx)
 	{
-		FReal LeafMargin = 0.0f;
-		FRigidTransformRealSingle3 LeafRelativeTransform = FRigidTransformRealSingle3::Identity;
-		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(InGeometry.Get(), LeafRelativeTransform, LeafMargin);
-
-		if (RequiresCachedLeafInfo(LeafRelativeTransform, LeafGeometry, InGeometry.Get()))
-		{
-			return TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(ShapeIdx, InGeometry, LeafGeometry, LeafRelativeTransform));
-		}
-		else
-		{
-			return TUniquePtr<FPerShapeData>(new FPerShapeData(ShapeIdx, InGeometry));
-		}
-	}
-
-	void FPerShapeData::UpdateGeometry(TUniquePtr<FPerShapeData>& ShapePtr, TSerializablePtr<FImplicitObject> InGeometry)
-	{
-		ShapePtr->Geometry = InGeometry;
-
-		FReal LeafMargin = 0.0f;
-		FRigidTransformRealSingle3 LeafRelativeTransform = FRigidTransformRealSingle3::Identity;
-		const FImplicitObject* LeafGeometry = GetInnerGeometryInstanceData(InGeometry.Get(), LeafRelativeTransform, LeafMargin);
-
-		if (ShapePtr->bHasCachedLeafInfo)
-		{
-			// set relative info
-			ShapePtr->SetLeafRelativeTransform(LeafRelativeTransform);
-			ShapePtr->SetLeafGeometry(LeafGeometry);
-			return;
-		}
-
-		if (RequiresCachedLeafInfo(LeafRelativeTransform, LeafGeometry, InGeometry.Get()))
-		{
-			// We need to move to FPerShapeDataCachedLeafInfo to cache this info.
-			ShapePtr = TUniquePtr<FPerShapeData>(new FPerShapeDataCachedLeafInfo(MoveTemp(*ShapePtr.Get()), LeafGeometry, LeafRelativeTransform));
-		}
-	}
-
-	bool FPerShapeData::RequiresCachedLeafInfo(const FRigidTransformRealSingle3& RelativeTransform, const FImplicitObject* LeafGeometry, const FImplicitObject* Geometry)
-	{
-		return (LeafGeometry != Geometry || !RelativeTransform.Equals(FRigidTransformRealSingle3::Identity));
+		return TUniquePtr<FPerShapeData>(new FPerShapeData(ShapeIdx));
 	}
 
 	void FPerShapeData::UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion)
@@ -200,44 +131,11 @@ namespace Chaos
 		}
 	}
 
-	const FImplicitObject* FPerShapeData::GetLeafGeometry() const
+	void FPerShapeData::UpdateLeafGeometry()
 	{
-		if (bHasCachedLeafInfo)
-		{
-			const FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<const FPerShapeDataCachedLeafInfo*>(this);
-			return LeafInfo.LeafGeometry;
-		}
-
-		return Geometry.Get();
-	}
-
-	void FPerShapeData::SetLeafGeometry(const FImplicitObject* LeafGeometry)
-	{
-		if (ensure(bHasCachedLeafInfo))
-		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			LeafInfo.LeafGeometry = LeafGeometry;
-		}
-	}
-
-	FRigidTransformRealSingle3 FPerShapeData::GetLeafRelativeTransform() const
-	{
-		if (bHasCachedLeafInfo)
-		{
-			const FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<const FPerShapeDataCachedLeafInfo*>(this);
-			return LeafInfo.LeafRelativeTransform;
-		}
-
-		return FRigidTransformRealSingle3::Identity;
-	}
-
-	void FPerShapeData::SetLeafRelativeTransform(const FRigidTransformRealSingle3& RelativeTransform)
-	{
-		if (ensure(bHasCachedLeafInfo))
-		{
-			FPerShapeDataCachedLeafInfo& LeafInfo = *static_cast<FPerShapeDataCachedLeafInfo*>(this);
-			LeafInfo.LeafRelativeTransform = RelativeTransform;
-		}
+		LeafRelativeTransform = FRigidTransform3::Identity;
+		LeafMargin = 0.0f;
+		LeafGeometry = GetInnerGeometryInstanceData(Geometry.Get(), LeafRelativeTransform, LeafMargin);
 	}
 
 	FPerShapeData* FPerShapeData::SerializationFactory(FChaosArchive& Ar, FPerShapeData*)

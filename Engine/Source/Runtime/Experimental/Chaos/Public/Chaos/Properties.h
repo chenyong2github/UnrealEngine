@@ -105,9 +105,6 @@ public:
 		: Property(Val)
 	{
 	}
-	explicit TShapeProperty(TShapeProperty<T, PropName>&& Other)
-		: Property(MoveTemp(Other.Property))
-	{}
 
 	//we don't support this because it could lead to bugs with values not being properly written to remote
 	TShapeProperty(const TShapeProperty<T,PropName>& Rhs) = delete;
