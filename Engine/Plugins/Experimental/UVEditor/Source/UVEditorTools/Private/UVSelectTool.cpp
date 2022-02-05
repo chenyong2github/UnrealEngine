@@ -1031,7 +1031,7 @@ void UUVSelectTool::ApplySplit()
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UVs. Selection must be edges or vertices."),
+			LOCTEXT("SplitErrorNotEdgeOrVert", "Cannot split UVs. Selection must be edges or vertices."),
 			EToolMessageLevel::UserWarning);
 	}
 }
