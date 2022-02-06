@@ -52,8 +52,8 @@ FDelayedAutoRegisterHelper GAutoSDKInit(EDelayedRegisterRunPhase::FileSystemRead
 			int32 UBTReturnCode = -1;
 			FString UBTOutput;
 
-			void* ReadPipe;
-			void* WritePipe;
+			void* ReadPipe = nullptr;
+			void* WritePipe = nullptr;
 			AutoSDKSetupUBTProc = FDesktopPlatformModule::Get()->InvokeUnrealBuildToolAsync(UBTParams, *GLog, ReadPipe, WritePipe, true);
 			if (!AutoSDKSetupUBTProc.IsValid())
 			{
