@@ -130,6 +130,8 @@ private:
 		//Discovered string table data from all files
 		TMap<FName, FParsedStringTable> ParsedStringTables;
 
+		TArray<FString> TextLines;
+
 		FSourceFileParseContext(UGatherTextFromSourceCommandlet* InOwnerCommandlet)
 			: FileTypes(EGatherTextSourceFileTypes::None)
 			, Filename()
@@ -254,36 +256,50 @@ private:
 	public:
 		static const FString TextMacroString;
 
-		FMacroDescriptor(FString InName)
+		FMacroDescriptor(FString InName, int32 InMinArgumentNumber)
 			: Name(MoveTemp(InName))
+			, MinArgumentNumber(InMinArgumentNumber)
 		{
 			ApplicableFileTypes = EGatherTextSourceFileTypes::Cpp;
 		}
 
-		virtual const FString& GetToken() const override { return Name; }
+		virtual const FString& GetToken() const override
+		{
+			return Name;
+		}
+
+		int32 GetMinNumberOfArgument() const
+		{
+			return MinArgumentNumber;
+		}
 
 	protected:
 		bool ParseArgsFromMacro(const FString& Text, TArray<FString>& Args, FSourceFileParseContext& Context) const;
+		bool ParseArgsFromNextLines(TArray<FString>& Args, int32& BracketStack, FSourceFileParseContext& Context) const;
+		bool ParseArgumentString(const FString& Text, const int32 OpenBracketIdx, int32& BracketStack, const FSourceFileParseContext& Context, TArray<FString>& Args) const;
 
 		static bool PrepareArgument(FString& Argument, bool IsAutoText, const FString& IdentForLogging, bool& OutHasQuotes);
 
 	private:
-		FString Name;
+		const FString Name;
+
+		// Minimum number argument for that Macro.
+		const int32 MinArgumentNumber;
 	};
 
 	class FUICommandMacroDescriptor : public FMacroDescriptor
 	{
 	public:
 		FUICommandMacroDescriptor()
-			: FMacroDescriptor(TEXT("UI_COMMAND"))
+			: FMacroDescriptor(TEXT("UI_COMMAND"), 5)
 		{
 		}
 
 		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
 
 	protected:
-		FUICommandMacroDescriptor(FString InName)
-			: FMacroDescriptor(MoveTemp(InName))
+		FUICommandMacroDescriptor(FString InName, int32 InMinNumberOfArgument)
+			: FMacroDescriptor(MoveTemp(InName), InMinNumberOfArgument)
 		{
 		}
 
@@ -294,7 +310,7 @@ private:
 	{
 	public:
 		FUICommandExtMacroDescriptor()
-			: FUICommandMacroDescriptor(TEXT("UI_COMMAND_EXT"))
+			: FUICommandMacroDescriptor(TEXT("UI_COMMAND_EXT"), 5)
 		{
 		}
 
@@ -319,7 +335,7 @@ private:
 			FMacroArg(EMacroArgSemantic InSema, bool InIsAutoText) : Semantic(InSema), IsAutoText(InIsAutoText) {}
 		};
 
-		FStringMacroDescriptor(FString InName, FMacroArg Arg0, FMacroArg Arg1, FMacroArg Arg2) : FMacroDescriptor(InName)
+		FStringMacroDescriptor(FString InName, FMacroArg Arg0, FMacroArg Arg1, FMacroArg Arg2) : FMacroDescriptor(InName, 3)
 		{
 			ApplicableFileTypes = EGatherTextSourceFileTypes::Cpp | EGatherTextSourceFileTypes::Ini;
 			Arguments.Add(Arg0);
@@ -327,14 +343,14 @@ private:
 			Arguments.Add(Arg2);
 		}
 
-		FStringMacroDescriptor(FString InName, FMacroArg Arg0, FMacroArg Arg1) : FMacroDescriptor(InName)
+		FStringMacroDescriptor(FString InName, FMacroArg Arg0, FMacroArg Arg1) : FMacroDescriptor(InName, 2)
 		{
 			ApplicableFileTypes = EGatherTextSourceFileTypes::Cpp | EGatherTextSourceFileTypes::Ini;
 			Arguments.Add(Arg0);
 			Arguments.Add(Arg1);
 		}
 
-		FStringMacroDescriptor(FString InName, FMacroArg Arg0) : FMacroDescriptor(InName)
+		FStringMacroDescriptor(FString InName, FMacroArg Arg0) : FMacroDescriptor(InName, 1)
 		{
 			ApplicableFileTypes = EGatherTextSourceFileTypes::Cpp | EGatherTextSourceFileTypes::Ini;
 			Arguments.Add(Arg0);
@@ -350,7 +366,7 @@ private:
 	{
 	public:
 		FStringTableMacroDescriptor()
-			: FMacroDescriptor(TEXT("LOCTABLE_NEW"))
+			: FMacroDescriptor(TEXT("LOCTABLE_NEW"), 2)
 		{
 		}
 
@@ -360,7 +376,7 @@ private:
 	class FStringTableFromFileMacroDescriptor : public FMacroDescriptor
 	{
 	public:
-		FStringTableFromFileMacroDescriptor(FString InName, FString InRootPath) : FMacroDescriptor(MoveTemp(InName)), RootPath(MoveTemp(InRootPath)) {}
+		FStringTableFromFileMacroDescriptor(FString InName, FString InRootPath) : FMacroDescriptor(MoveTemp(InName), 2), RootPath(MoveTemp(InRootPath)) {}
 
 		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
 
@@ -372,7 +388,7 @@ private:
 	{
 	public:
 		FStringTableEntryMacroDescriptor()
-			: FMacroDescriptor(TEXT("LOCTABLE_SETSTRING"))
+			: FMacroDescriptor(TEXT("LOCTABLE_SETSTRING"), 3)
 		{
 		}
 
@@ -383,7 +399,7 @@ private:
 	{
 	public:
 		FStringTableEntryMetaDataMacroDescriptor()
-			: FMacroDescriptor(TEXT("LOCTABLE_SETMETA"))
+			: FMacroDescriptor(TEXT("LOCTABLE_SETMETA"), 4)
 		{
 		}
 
