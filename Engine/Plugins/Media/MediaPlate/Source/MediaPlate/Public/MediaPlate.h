@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/StaticMeshActor.h"
+#include "GameFramework/Actor.h"
 #include "MediaPlate.generated.h"
 
 class UMediaComponent;
@@ -15,7 +15,7 @@ class UMediaTexture;
  * MediaPlate is an actor that can play and show media in the world.
  */
 UCLASS()
-class MEDIAPLATE_API AMediaPlate : public AStaticMeshActor
+class MEDIAPLATE_API AMediaPlate : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -45,6 +45,11 @@ public:
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMediaComponent> MediaComponent;
+
+
+	/** Holds the mesh. */
+	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 
 	/** What media to play. */
 	UPROPERTY(EditAnywhere, Category = MediaPlate)

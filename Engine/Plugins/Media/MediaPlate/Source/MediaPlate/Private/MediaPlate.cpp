@@ -19,6 +19,8 @@ FLazyName AMediaPlate::MediaTextureName("MediaTexture");
 AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+
 	// Set up media component.
 	MediaComponent = CreateDefaultSubobject<UMediaComponent>(MediaComponentName);
 	if (MediaComponent != nullptr)
@@ -31,9 +33,12 @@ AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 
+	// Set up static mesh component.
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	StaticMeshComponent->SetupAttachment(RootComponent);
+	StaticMeshComponent->SetRelativeRotation(FRotator(0.0f, 90.0f, 90.0f));
+
 	// Hook up mesh.
-	UStaticMeshComponent* LocalStaticMeshComponent = GetStaticMeshComponent();
-	check(LocalStaticMeshComponent);
 	struct FConstructorStatics
 	{
 		ConstructorHelpers::FObjectFinder<UStaticMesh> Plane;
@@ -45,7 +50,7 @@ AMediaPlate::AMediaPlate(const FObjectInitializer& ObjectInitializer)
 	static FConstructorStatics ConstructorStatics;
 	if (ConstructorStatics.Plane.Object != nullptr)
 	{
-		LocalStaticMeshComponent->SetStaticMesh(ConstructorStatics.Plane.Object);
+		StaticMeshComponent->SetStaticMesh(ConstructorStatics.Plane.Object);
 	}
 }
 
@@ -53,17 +58,17 @@ void AMediaPlate::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	UStaticMeshComponent* LocalStaticMeshComponent = GetStaticMeshComponent();
-	check(LocalStaticMeshComponent);
-
-	// Add material.
-	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
-	if (Material != nullptr)
+	if (StaticMeshComponent != nullptr)
 	{
-		UMaterialInstanceDynamic* MaterialInstance = LocalStaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
-		if (MaterialInstance != nullptr)
+		// Add material.
+		UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MediaPlate/M_MediaPlate"));
+		if (Material != nullptr)
 		{
-			MaterialInstance->SetTextureParameterValue(MediaTextureName, MediaComponent->GetMediaTexture());
+			UMaterialInstanceDynamic* MaterialInstance = StaticMeshComponent->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Material);
+			if (MaterialInstance != nullptr)
+			{
+				MaterialInstance->SetTextureParameterValue(MediaTextureName, MediaComponent->GetMediaTexture());
+			}
 		}
 	}
 }
