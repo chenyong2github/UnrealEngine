@@ -476,12 +476,13 @@ void FClothConstraints::SetShapeTargetConstraints(Softs::FSolverReal ShapeTarget
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetSelfCollisionConstraints(const TArray<TVec3<int32>>& SurfaceElements, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness)
+void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& TriangleMesh, TSet<TVec2<int32>>&& DisabledCollisionElements, Softs::FSolverReal SelfCollisionThickness)
 {
 	SelfCollisionConstraints = MakeShared<Softs::FPBDCollisionSpringConstraints>(
 		ParticleOffset,
 		NumParticles,
-		SurfaceElements,
+		TriangleMesh,
+		AnimationPositions,
 		MoveTemp(DisabledCollisionElements),
 		SelfCollisionThickness,
 		/*Stiffness =*/ (Softs::FSolverReal)1.);

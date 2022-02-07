@@ -7,8 +7,12 @@
 #include "Chaos/SegmentMesh.h"
 #include "Containers/ContainersFwd.h"
 
+#include "AABBTree.h"
+
 namespace Chaos
 {
+	template<typename T> struct TTriangleCollisionPoint;
+
 	class FTriangleMesh
 	{
 	public:
@@ -262,6 +266,17 @@ namespace Chaos
 
 			TriMesh.Init(MoveTemp(Elements));
 		}
+
+		template<typename T>
+		using TBVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false, T>, /*bMutable=*/true, T>;
+
+		template<typename T>
+		CHAOS_API void BuildBVH(const TConstArrayView<TVec3<T>>& Points, TBVHType<T>& BVH) const;
+
+		// NOTE: This method assumes the BVH has already been built/fitted to Points.
+		template<typename T>
+		CHAOS_API bool PointProximityQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness, 
+			TFunctionRef<bool (const int32 PointIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<T>>& Result) const;
 		
 	private:
 		CHAOS_API void InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements=true);

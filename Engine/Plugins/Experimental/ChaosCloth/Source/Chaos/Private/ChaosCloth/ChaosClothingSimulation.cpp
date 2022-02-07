@@ -1976,7 +1976,6 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 			const TConstArrayView<Softs::FSolverVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 			const TArray<TVec4<int32>>& Constraints = SelfCollisionConstraints->GetConstraints();
 			const TArray<Softs::FSolverVec3>& Barys = SelfCollisionConstraints->GetBarys();
-			const TArray<Softs::FSolverVec3>& Normals = SelfCollisionConstraints->GetNormals();
 			const FReal Thickness = (FReal)SelfCollisionConstraints->GetThickness();
 			const FReal Height = Thickness + Thickness;
 
@@ -1984,37 +1983,25 @@ void FClothingSimulation::DebugDrawSelfCollision(FPrimitiveDrawInterface* PDI) c
 			{
 				const TVec4<int32>& Constraint = Constraints[Index];
 				const FVec3 Bary(Barys[Index]);
-				const FVec3 Normal(Normals[Index]);
 
-				const FVector P = LocalSpaceLocation + FVector(Positions[Constraint[0]]);
-				const FVector P0 = LocalSpaceLocation + FVector(Positions[Constraint[1]]);
-				const FVector P1 = LocalSpaceLocation + FVector(Positions[Constraint[2]]);
-				const FVector P2 = LocalSpaceLocation + FVector(Positions[Constraint[3]]);
+				// Constraint index includes Offset, but so does Positions.
+				const FVector P = LocalSpaceLocation + FVector(Positions[Constraint[0] - Offset]);
+				const FVector P0 = LocalSpaceLocation + FVector(Positions[Constraint[1] - Offset]);
+				const FVector P1 = LocalSpaceLocation + FVector(Positions[Constraint[2] - Offset]);
+				const FVector P2 = LocalSpaceLocation + FVector(Positions[Constraint[3] - Offset]);
 
 				const FVector Pos0 = P0 * Bary[0] + P1 * Bary[1] + P2 * Bary[2];
-				const FVector Pos1 = Pos0 + Height * Normal;
 
-				// Draw point to surface line (=normal)
 				static const FLinearColor Brown(0.1f, 0.05f, 0.f);
-				DrawLine(PDI, Pos0, Pos1, Brown);
 
 				// Draw barycentric coordinate
 				DrawLine(PDI, Pos0, P0, Brown);
 				DrawLine(PDI, Pos0, P1, Brown);
 				DrawLine(PDI, Pos0, P2, Brown);
 
-				// Draw pushup to point
+				// Draw connection to point
 				static const FLinearColor Orange(0.3f, 0.15f, 0.f);
-				DrawLine(PDI, Pos1, P, Orange);
-
-				// Draw contact
-				FVec3 TangentU, TangentV;
-				Normal.FindBestAxisVectors(TangentU, TangentV);
-
-				DrawLine(PDI, Pos0 + TangentU, Pos0 + TangentV, Brown);
-				DrawLine(PDI, Pos0 + TangentU, Pos0 - TangentV, Brown);
-				DrawLine(PDI, Pos0 - TangentU, Pos0 - TangentV, Brown);
-				DrawLine(PDI, Pos0 - TangentU, Pos0 + TangentV, Brown);
+				DrawLine(PDI, Pos0, P, Orange);
 
 				// Draw hit triangle (with thickness and added colliding particle's thickness)
 				static const FLinearColor Red(0.3f, 0.f, 0.f);

@@ -17,11 +17,12 @@ public:
 	FPBDCollisionSpringConstraints(
 		const int32 InOffset,
 		const int32 InNumParticles,
-		const TArray<TVec3<int32>>& InElements,
+		const FTriangleMesh& InTriangleMesh,
+		const TArray<FSolverVec3>* InRestPositions,
 		TSet<TVec2<int32>>&& InDisabledCollisionElements,
 		const FSolverReal InThickness = (FSolverReal)1.,
 		const FSolverReal InStiffness = (FSolverReal)1.)
-	    : Base(InOffset, InNumParticles, InElements, MoveTemp(InDisabledCollisionElements), InThickness, InStiffness)
+		: Base(InOffset, InNumParticles, InTriangleMesh, InRestPositions, MoveTemp(InDisabledCollisionElements), InThickness, InStiffness)
 	{}
 
 	virtual ~FPBDCollisionSpringConstraints() override {}
@@ -37,8 +38,8 @@ public:
 		const int32 i3 = Constraint[2];
 		const int32 i4 = Constraint[3];
 		const FSolverVec3 Delta = Base::GetDelta(Particles, i);
-		static const FSolverReal Multiplier = (FSolverReal)1.;  // TODO(mlentine): Figure out what the best multiplier here is
-		if (Particles.InvM(i1) > (FSolverReal)0.)
+		static const FSolverReal Multiplier = (FSolverReal)0.5;  // TODO(mlentine): Figure out what the best multiplier here is
+		if (Particles.InvM(i1) > 0)
 		{
 			Particles.P(i1) += Multiplier * Particles.InvM(i1) * Delta;
 		}

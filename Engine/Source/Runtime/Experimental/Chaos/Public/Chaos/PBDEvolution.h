@@ -93,10 +93,6 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	FVelocityField& GetVelocityField(const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
 	const FVelocityField& GetVelocityField(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupVelocityFields[GroupId]; }
 
-	void ResetSelfCollision() { MCollisionTriangles.Reset(); MDisabledCollisionElements.Reset(); };
-	TArray<TVector<int32, 3>>& CollisionTriangles() { return MCollisionTriangles; }
-	TSet<TVector<int32, 2>>& DisabledCollisionElements() { return MDisabledCollisionElements; }
-
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
 
@@ -138,9 +134,6 @@ private:
 	TPBDActiveView<FSolverParticles> MParticlesActiveView;
 	FSolverRigidParticles MCollisionParticles;
 	TPBDActiveView<FSolverRigidParticles> MCollisionParticlesActiveView;
-
-	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
-	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 
 	TArrayCollectionArray<FSolverRigidTransform3> MCollisionTransforms;  // Used for CCD to store the initial state before the kinematic update
 	TArrayCollectionArray<bool> MCollided;

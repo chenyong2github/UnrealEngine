@@ -304,7 +304,6 @@ void FClothingSimulationSolver::ResetParticles()
 {
 	Evolution->ResetParticles();
 	Evolution->ResetConstraintRules();
-	Evolution->ResetSelfCollision();
 	ClothsConstraints.Reset();
 }
 

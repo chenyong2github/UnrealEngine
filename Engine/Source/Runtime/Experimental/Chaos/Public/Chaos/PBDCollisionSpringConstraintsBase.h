@@ -7,6 +7,12 @@
 #include "Chaos/PBDParticles.h"
 #include "Containers/Set.h"
 
+
+namespace Chaos
+{
+	class FTriangleMesh;
+}
+
 namespace Chaos::Softs
 {
 
@@ -14,10 +20,12 @@ namespace Chaos::Softs
 class CHAOS_API FPBDCollisionSpringConstraintsBase
 {
 public:
+
 	FPBDCollisionSpringConstraintsBase(
 		const int32 InOffset,
 		const int32 InNumParticles,
-		const TArray<TVec3<int32>>& InElements,
+		const FTriangleMesh& InTriangleMesh,
+		const TArray<FSolverVec3>* InReferencePositions,
 		TSet<TVec2<int32>>&& InDisabledCollisionElements,
 		const FSolverReal InThickness = (FSolverReal)1.,
 		const FSolverReal InStiffness = (FSolverReal)1.);
@@ -30,7 +38,6 @@ public:
 
 	const TArray<TVec4<int32>>& GetConstraints() const { return Constraints;  }
 	const TArray<FSolverVec3>& GetBarys() const { return Barys; }
-	const TArray<FSolverVec3>& GetNormals() const { return Normals; }
 	FSolverReal GetThickness() const { return Thickness; }
 
 	void SetThickness(FSolverReal InThickness) { Thickness = FMath::Max(InThickness, (FSolverReal)0.);  }
@@ -38,11 +45,13 @@ public:
 protected:
 	TArray<TVec4<int32>> Constraints;
 	TArray<FSolverVec3> Barys;
-	TArray<FSolverVec3> Normals;
 
 private:
+	const FTriangleMesh& TriangleMesh;
 	const TArray<TVec3<int32>>& Elements;
+	const TArray<FSolverVec3>* ReferencePositions;
 	const TSet<TVec2<int32>> DisabledCollisionElements;  // TODO: Make this a bitarray
+
 	int32 Offset;
 	int32 NumParticles;
 	FSolverReal Thickness;

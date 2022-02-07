@@ -75,7 +75,6 @@ FPBDEvolution::FPBDEvolution(FSolverParticles&& InParticles, FSolverRigidParticl
 	, MParticlesActiveView(MParticles)
 	, MCollisionParticles(MoveTemp(InGeometryParticles))
 	, MCollisionParticlesActiveView(MCollisionParticles)
-	, MCollisionTriangles(MoveTemp(CollisionTriangles))
 	, MConstraintInitsActiveView(MConstraintInits)
 	, MConstraintRulesActiveView(MConstraintRules)
 	, MNumIterations(NumIterations)

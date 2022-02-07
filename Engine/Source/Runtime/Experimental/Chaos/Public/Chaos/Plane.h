@@ -440,6 +440,176 @@ TVector<T, d> FindClosestPointOnTriangle(const TPlane<T, d>& TrianglePlane, cons
 	return FindClosestPointOnTriangle(PointOnPlane, P0, P1, P2, P);
 }
 
+// This method follows FindClosestPointOnTriangle but does less duplicate work and can handle degenerate triangles. It also returns the barycentric coordinates for the returned point.
+template<typename T, int d>
+TVector<T, d> FindClosestPointAndBaryOnTriangle(const TVector<T, d>& P0, const TVector<T, d>& P1, const TVector<T, d>& P2, const TVector<T, d>& P, TVector<T, 3>& Bary)
+{
+	const TVector<T, d> P10 = P1 - P0;
+	const TVector<T, d> P20 = P2 - P0;
+	const TVector<T, d> P21 = P2 - P1;
+	const TVector<T, d> PP0 = P - P0;
+	
+	const T Size10 = P10.SizeSquared();
+	const T Size20 = P20.SizeSquared();
+	const T Size21 = P21.SizeSquared();
+
+	const T ProjP1 = PP0.Dot(P10);
+	const T ProjP2 = PP0.Dot(P20);
+
+
+	auto ProjectToP01 = [&Bary, &P0, &P1, Size10, ProjP1]() -> TVector<T,d>
+	{
+		Bary.Z = 0.f;
+		Bary.Y = FMath::Clamp(ProjP1 / Size10, (T)0., (T)1.);
+		Bary.X = 1.f - Bary.Y;
+		const TVector<T,d> Result = Bary.X * P0 + Bary.Y * P1;
+		return Result;
+	};
+
+	auto ProjectToP02 = [&Bary, &P0, &P2, Size20, ProjP2]() -> TVector<T, d>
+	{
+		Bary.Y = 0.f;
+		Bary.Z = FMath::Clamp(ProjP2 / Size20, (T)0., (T)1.);
+		Bary.X = 1.f - Bary.Z;
+		const TVector<T, d> Result = Bary.X * P0 + Bary.Z * P2;
+		return Result;
+	};
+
+	auto ProjectToP12 = [&Bary, &P1, &P2, &P]() -> TVector<T, d>
+	{
+		const TVector<T,d> P2P1 = P2 - P1;
+
+		Bary.X = 0.f;
+		Bary.Z = FMath::Clamp(P2P1.Dot(P - P1) / P2P1.SizeSquared(), (T)0., (T)1.);
+		Bary.Y = 1.f - Bary.Z;
+		const TVector<T, d> Result = Bary.Y * P1 + Bary.Z * P2;
+		return Result;
+	};
+
+
+	// Degenerate triangles
+	if (Size10 < (T)DOUBLE_SMALL_NUMBER)
+	{
+		if (Size20 < (T)DOUBLE_SMALL_NUMBER)
+		{
+			// Triangle is (nearly) a single point.
+			Bary.X = (T)1.;
+			Bary.Y = Bary.Z = (T)0.;
+			return P0;
+		}
+
+		// Triangle is a line segment from P0(=P1) to P2. Project to that line segment.
+		return ProjectToP02();
+	}
+	if (Size20 < (T)DOUBLE_SMALL_NUMBER)
+	{
+		// Triangle is a line segment from P0(=P2) to P1. Project to that line segment.
+		return ProjectToP01();
+	}
+
+
+	const T ProjSides = P10.Dot(P20);
+	const T Denom = Size10 * Size20 - ProjSides * ProjSides;
+
+	if (Denom < (T)DOUBLE_SMALL_NUMBER)
+	{
+		// Triangle is a line segment from P0 to P1(=P2), or otherwise the 3 points are (nearly) colinear. Project to the longest edge.
+		if (Size21 > Size20)
+		{
+			return ProjectToP12();
+		}
+		else if (Size20 > Size10)
+		{
+			return ProjectToP02();
+		}
+		else
+		{
+			return ProjectToP01();
+		}
+	}
+
+	// Non-degenerate triangle
+
+	// Numerators of barycentric coordinates if P is inside triangle
+	const T BaryYNum = (Size20 * ProjP1 - ProjSides * ProjP2);
+	const T BaryZNum = (Size10 * ProjP2 - ProjSides * ProjP1);
+
+	// Using this specific epsilon to have parity with FindClosestPointOnTriangle
+	constexpr T Epsilon = (T)1e-4;
+	const T EpsilonScaledByDenom = Epsilon * Denom;
+
+	if (BaryYNum + BaryZNum > Denom * (1 + Epsilon)) // i.e., Bary.X < -Epsilon.
+	{
+		if (BaryYNum < -EpsilonScaledByDenom)
+		{
+			// Bary.X < 0, Bary.Y < 0, (Bary.Z > 1)
+
+			// We're outside the triangle in the region opposite angle P2. (if angle at P2 is > 90 degrees, closest point could be on one of these segments)
+			// Should project onto line segment P02 or P12
+			if (ProjP2 < Size20)
+			{
+				// Closer to P02 
+				// Project to line segment from P02
+				return ProjectToP02();
+			}
+		} 
+		else if (BaryZNum < -EpsilonScaledByDenom)
+		{
+			// Bary.X < 0, Bary.Y > 1, Bary.Z < 0
+			
+			// We're outside the triangle in the region opposite the angle P1.
+			// Should project onto line segment P01 or P12
+			if (ProjP1 < Size10)
+			{
+				// Closer to P01.
+				// Project to line segment from P01
+				return ProjectToP01();
+			}
+		}
+
+		// Bary.X < 0, Bary.Y >=0, Bary.Z >= 0
+
+		// We're outside the triangle in the region closest to P12
+		// Project to line segment from P12
+		return ProjectToP12();
+	}
+	else if (BaryYNum < -EpsilonScaledByDenom)
+	{
+		if (BaryZNum < -EpsilonScaledByDenom)
+		{
+			// Bary.X > 1, Bary.Y < 0, Bary.Z < 0
+
+			// We're outside the triangle in the region opposite P0.
+			// Should project onto line segment P01 or P02 
+			if (ProjP1 > 0.f)
+			{
+				// Closer to P01.
+				// Project to line segment from P01
+				return ProjectToP01();
+			}
+		}
+
+		// Bary.X >= 0, Bary.Y < 0, Bary.Z >= 0
+		// We're outside the triangle in region closest to P02.
+		// Project to line segment from P02
+		return ProjectToP02();
+	}
+	else if (BaryZNum < -EpsilonScaledByDenom)
+	{
+		// Bary.X >=0, Bary.Y >=0, Bary.Z < 0
+		// We're outside the triangle in the region closest to P01
+		// Project to line segment from P0 to P1
+		return ProjectToP01();
+	}
+	
+	// Bary.X >= 0, Bary.Y >= 0, Bary.Z >= 0
+	// Interior of triangle!
+	Bary.Y = BaryYNum / Denom;
+	Bary.Z = BaryZNum / Denom;
+	Bary.X = (T)1. - Bary.Y - Bary.Z;
+	const TVector<T,d> Result = Bary.X * P0 + Bary.Y * P1 + Bary.Z * P2;
+	return Result;
+}
 
 template<typename T, int d>
 bool IntersectPlanes2(TVector<T,d>& I, TVector<T,d>& D, const TPlane<T,d>& P1, const TPlane<T,d>& P2)
