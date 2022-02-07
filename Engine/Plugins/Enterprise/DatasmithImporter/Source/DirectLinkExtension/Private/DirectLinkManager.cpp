@@ -11,6 +11,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
 #include "EditorReimportHandler.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR
@@ -32,6 +33,18 @@ namespace UE::DatasmithImporter
 		{
 			bAutoReconnectEnabled = DefaultSettings->bAutoReconnect;
 			ReconnectionDelayInSeconds = DefaultSettings->ReconnectionDelayInSeconds;
+		}
+
+		FCoreDelegates::OnPreExit.AddRaw(this, &FDirectLinkAutoReconnectManager::Stop);
+	}
+
+	FDirectLinkAutoReconnectManager::~FDirectLinkAutoReconnectManager()
+	{
+		FCoreDelegates::OnPreExit.RemoveAll(this);
+		if (CompletedFuture.IsValid())
+		{
+			Stop();
+			CompletedFuture.Wait();
 		}
 	}
 

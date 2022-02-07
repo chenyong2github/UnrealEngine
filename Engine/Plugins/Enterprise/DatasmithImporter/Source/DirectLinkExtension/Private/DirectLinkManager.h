@@ -31,14 +31,7 @@ namespace UE::DatasmithImporter
 	public:
 		FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager);
 
-		~FDirectLinkAutoReconnectManager()
-		{
-			if (CompletedFuture.IsValid())
-			{
-				Stop();
-				CompletedFuture.Wait();
-			}
-		}
+		~FDirectLinkAutoReconnectManager();
 
 		bool Start();
 
