@@ -58,6 +58,7 @@ FSceneView* ULevelThumbnailRenderer::CreateView(ULevel* Level, FSceneViewFamily*
 		return nullptr;
 	}
 
+
 	FSceneViewInitOptions ViewInitOptions;
 
 	ViewInitOptions.SetViewRectangle(ViewRect);
@@ -78,7 +79,6 @@ FSceneView* ULevelThumbnailRenderer::CreateView(ULevel* Level, FSceneViewFamily*
 		0.5f / ZOffset,
 		ZOffset
 		);
-
 	FSceneView* NewView = new FSceneView(ViewInitOptions);
 	ViewFamily->Views.Add(NewView);
 	return NewView;
