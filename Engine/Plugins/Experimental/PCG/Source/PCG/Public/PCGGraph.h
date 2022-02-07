@@ -66,6 +66,9 @@ public:
 #endif // WITH_EDITOR
 
 protected:
+	void OnNodeAdded(UPCGNode* InNode);
+	void OnNodeRemoved(UPCGNode* InNode);
+
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Graph)
 	TArray<TObjectPtr<UPCGNode>> Nodes;
 
@@ -80,6 +83,7 @@ protected:
 private:
 	void NotifyGraphChanged(bool bIsStructural);
 	void OnSettingsChanged(UPCGNode* InNode);
+	void OnStructuralSettingsChanged(UPCGNode* InNode);
 
 	bool bEnableGraphChangeNotifications = true;
 #endif // WITH_EDITOR

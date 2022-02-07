@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGGraph.h"
+#include "PCGSubgraph.h"
 #include "PCGSubsystem.h"
 
 #if WITH_EDITOR
@@ -27,10 +28,7 @@ void UPCGGraph::PostLoad()
 #if WITH_EDITOR
 	for (UPCGNode* Node : Nodes)
 	{
-		if (Node)
-		{
-			Node->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-		}
+		OnNodeAdded(Node);
 	}
 #endif
 }
@@ -40,10 +38,7 @@ void UPCGGraph::BeginDestroy()
 #if WITH_EDITOR
 	for (UPCGNode* Node : Nodes)
 	{
-		if (Node)
-		{
-			Node->OnNodeSettingsChangedDelegate.RemoveAll(this);
-		}
+		OnNodeRemoved(Node);
 	}
 
 	// Notify the compiler to remove this graph from its cache
@@ -63,15 +58,27 @@ void UPCGGraph::InitializeFromTemplate()
 {
 	Modify();
 
-	InputNode->OutboundNodes.Reset();
-	OutputNode->InboundNodes.Reset();
+	auto ResetDefaultNode = [](UPCGNode* InNode, bool bIsInput) {
+		check(InNode);
+		if (bIsInput)
+		{
+			InNode->OutboundNodes.Reset();
+		}
+		else
+		{
+			InNode->InboundNodes.Reset();
+		}
+
+		// Reset settings as well
+		InNode->DefaultSettings = NewObject<UPCGTrivialSettings>(InNode);
+	};
+
+	ResetDefaultNode(InputNode, true);
+	ResetDefaultNode(OutputNode, false);
 
 	for (UPCGNode* Node : Nodes)
 	{
-		if (Node)
-		{
-			Node->OnNodeSettingsChangedDelegate.RemoveAll(this);
-		}
+		OnNodeRemoved(Node);
 	}
 
 	Nodes.Reset();
@@ -120,11 +127,7 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 #endif
 
 		Nodes.Add(Node);
-
-#if WITH_EDITOR
-		Node->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-		NotifyGraphChanged(/*bIsStructural=*/true);
-#endif
+		OnNodeAdded(Node);
 	}
 
 	return Node;
@@ -159,14 +162,39 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 #endif
 
 		Nodes.Add(Node);
-
-#if WITH_EDITOR
-		Node->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
-		NotifyGraphChanged(/*bIsStructural=*/true);
-#endif
+		OnNodeAdded(Node);
 	}
 
 	return Node;
+}
+
+void UPCGGraph::OnNodeAdded(UPCGNode* InNode)
+{
+#if WITH_EDITOR
+	InNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
+
+	if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InNode))
+	{
+		SubgraphNode->OnNodeStructuralSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnStructuralSettingsChanged);
+	}
+
+	NotifyGraphChanged(/*bIsStructural=*/true);
+#endif
+}
+
+void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
+{
+#if WITH_EDITOR
+	if (InNode)
+	{
+		InNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
+		
+		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InNode))
+		{
+			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.RemoveAll(this);
+		}
+	}
+#endif
 }
 
 UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, UPCGNode* To)
@@ -234,5 +262,10 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 void UPCGGraph::OnSettingsChanged(UPCGNode* InNode)
 {
 	NotifyGraphChanged(/*bIsStructural=*/false);
+}
+
+void UPCGGraph::OnStructuralSettingsChanged(UPCGNode* InNode)
+{
+	NotifyGraphChanged(/*bIsStructural=*/true);
 }
 #endif // WITH_EDITOR

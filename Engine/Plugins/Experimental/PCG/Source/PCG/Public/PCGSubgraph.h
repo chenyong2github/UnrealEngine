@@ -8,6 +8,11 @@ class UPCGGraph;
 
 #include "PCGSubgraph.generated.h"
 
+#if WITH_EDITOR
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGStructuralSettingsChanged, UPCGSettings*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGNodeStructuralSettingsChanged, UPCGNode*);
+#endif
+
 UCLASS(BlueprintType, ClassGroup=(Procedural))
 class UPCGSubgraphSettings : public UPCGSettings
 {
@@ -41,6 +46,10 @@ protected:
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TObjectPtr<UPCGGraph> Subgraph;
+
+#if WITH_EDITOR
+	FOnPCGStructuralSettingsChanged OnStructuralSettingsChangedDelegate;
+#endif
 };
 
 UCLASS(ClassGroup = (Procedural))
@@ -52,5 +61,21 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAllowDynamicGraph = false;
 
+#if WITH_EDITOR
+	FOnPCGNodeStructuralSettingsChanged OnNodeStructuralSettingsChangedDelegate;
+#endif
+
 	TObjectPtr<UPCGGraph> GetGraph() const;
+
+protected:	
+	/** ~Begin UObject interface */
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+	/** ~End UObject interface */
+
+#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void OnStructuralSettingsChanged(UPCGSettings* InSettings);
+#endif
 };

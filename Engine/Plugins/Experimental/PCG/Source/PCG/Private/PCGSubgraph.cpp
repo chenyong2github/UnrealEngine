@@ -44,12 +44,6 @@ FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
 	return MakeShared<FPCGTrivialElement>();
 }
 
-TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetGraph() const
-{
-	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(DefaultSettings);
-	return Settings ? Settings->Subgraph : nullptr;
-}
-
 #if WITH_EDITOR
 
 void UPCGSubgraphSettings::PreEditChange(FProperty* PropertyAboutToChange)
@@ -82,8 +76,87 @@ void UPCGSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructu
 {
 	if (InGraph == Subgraph)
 	{
-		OnSettingsChangedDelegate.Broadcast(this);
+		if (bIsStructural)
+		{
+			OnStructuralSettingsChangedDelegate.Broadcast(this);
+		}
+		else
+		{
+			OnSettingsChangedDelegate.Broadcast(this);
+		}
 	}
 }
 
+#endif // WITH_EDITOR
+
+TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetGraph() const
+{
+	TObjectPtr<UPCGSubgraphSettings> Settings = Cast<UPCGSubgraphSettings>(DefaultSettings);
+	return Settings ? Settings->Subgraph : nullptr;
+}
+
+void UPCGSubgraphNode::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
+	{
+		SubgraphSettings->OnStructuralSettingsChangedDelegate.AddUObject(this, &UPCGSubgraphNode::OnStructuralSettingsChanged);
+	}
+#endif
+}
+
+void UPCGSubgraphNode::BeginDestroy()
+{
+#if WITH_EDITOR
+	if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
+	{
+		SubgraphSettings->OnStructuralSettingsChangedDelegate.RemoveAll(this);
+	}
+#endif
+
+	Super::BeginDestroy();
+}
+
+#if WITH_EDITOR
+void UPCGSubgraphNode::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
+	{
+		if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
+		{
+			SubgraphSettings->OnStructuralSettingsChangedDelegate.RemoveAll(this);
+		}
+	}
+
+	Super::PreEditChange(PropertyAboutToChange);
+}
+
+void UPCGSubgraphNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Implementation note:
+	// We must process structural changes before the parent class' otherwise the graph might be rescheduled with its tasks
+	// before it is appropriately dirtied (which will trigger a recompilation)
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
+	{
+		if (UPCGSubgraphSettings* SubgraphSettings = Cast<UPCGSubgraphSettings>(DefaultSettings))
+		{
+			SubgraphSettings->OnStructuralSettingsChangedDelegate.AddUObject(this, &UPCGSubgraphNode::OnStructuralSettingsChanged);
+
+			// Changing the default settings should trigger immediately a structural change
+			OnStructuralSettingsChanged(DefaultSettings);
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UPCGSubgraphNode::OnStructuralSettingsChanged(UPCGSettings* InSettings)
+{
+	if (InSettings == DefaultSettings)
+	{
+		OnNodeStructuralSettingsChangedDelegate.Broadcast(this);
+	}
+}
 #endif // WITH_EDITOR
