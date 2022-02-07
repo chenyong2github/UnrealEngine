@@ -445,9 +445,11 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 
 void SDataprepDetailsView::ForceRefresh()
 {
-	// ueent_hotfix Hotfix for 4.24 (Remove the ui flickering)
-	Invalidate(EInvalidateWidgetReason::Prepass);
-	bRefreshObjectToDisplay = true;
+	if (Generator.IsValid())
+	{
+		Generator->SetObjects({ DetailedObject });
+	}
+	Construct();
 }
 
 void SDataprepDetailsView::OnDataprepParameterizationStatusForObjectsChanged(const TSet<UObject*>* Objects)
@@ -631,7 +633,6 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
-	bRefreshObjectToDisplay = false;
 	DetailedObject = InArgs._Object;
 	Spacing = InArgs._Spacing;
 	bColumnPadding = InArgs._ColumnPadding;
@@ -672,7 +673,6 @@ void SDataprepDetailsView::Construct()
 {
 	TrackedProperties.Reset();
 	DataprepAssetForParameterization.Reset();
-	bHasCustomPrepass = true;
 
 	if ( DetailedObject )
 	{
@@ -772,20 +772,6 @@ void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
 			Property->AddReferencedObjects(Collector);
 		}
 	}
-}
-
-bool SDataprepDetailsView::CustomPrepass(float LayoutScaleMultiplier)
-{
-	if ( bRefreshObjectToDisplay )
-	{
-		TArray< UObject* > Objects;
-		Objects.Add( DetailedObject );
-		Generator->SetObjects( Objects );
-		Construct();
-		bRefreshObjectToDisplay = false;
-	}
-
-	return true;
 }
 
 void SDataprepContextMenuOverride::Construct(const FArguments& InArgs)

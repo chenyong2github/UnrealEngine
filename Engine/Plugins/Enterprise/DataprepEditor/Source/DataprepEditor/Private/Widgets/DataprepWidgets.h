@@ -124,9 +124,6 @@ public:
 	static void SetDesiredWidth(int32 InDesiredWidth) { DesiredWidth = InDesiredWidth; }
 
 protected:
-	// ueent_hotfix Hack for 4.24 allow to refresh the ui in between two frame without any flickering
-	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
-
 	// Begin SWidget overrides.
 	// #ueent_todo: This is temporary until we find a better solution to the splitter issue
 	//				See SConstrainedBox's trick in cpp file
@@ -190,9 +187,6 @@ private:
 
 	/** Points to the currently used column size data. Can be provided via argument as well. */
 	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
-
-	/** If there is a new object to display on the next tick */
-	uint8 bRefreshObjectToDisplay : 1;
 
 	/**
 	 * Pointer to a Dataprep asset used by the parameterization system.
