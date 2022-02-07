@@ -190,10 +190,18 @@ FName UFXConverterUtilitiesLibrary::GetCascadeEmitterName(UParticleEmitter* Emit
 	return Emitter->GetEmitterName();
 }
 
-UNiagaraScriptConversionContext* UFXConverterUtilitiesLibrary::CreateScriptContext(FAssetData NiagaraScriptAssetData)
+UNiagaraScriptConversionContext* UFXConverterUtilitiesLibrary::CreateScriptContext(const FCreateScriptContextArgs& Args)
 {
 	UNiagaraScriptConversionContext* ScriptContext = NewObject<UNiagaraScriptConversionContext>();
-	ScriptContext->Init(NiagaraScriptAssetData);
+	if (Args.bScriptVersionSet)
+	{
+		ScriptContext->Init(Args.ScriptAsset, Args.ScriptVersion);
+	}
+	else
+	{
+		ScriptContext->Init(Args.ScriptAsset);
+	}
+	
 	return ScriptContext;
 }
 
@@ -1619,17 +1627,17 @@ void UNiagaraEmitterConversionContext::Cleanup()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraEmitterConversionContext																		  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddModuleScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData, EScriptExecutionCategory ModuleScriptExecutionCategory)
+UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddModuleScript(FString ScriptNameString, FCreateScriptContextArgs CreateScriptContextArgs, EScriptExecutionCategory ModuleScriptExecutionCategory)
 {
-	return PrivateFindOrAddModuleScript(ScriptNameString, NiagaraScriptAssetData, FStackEntryID(ModuleScriptExecutionCategory));
+	return PrivateFindOrAddModuleScript(ScriptNameString, CreateScriptContextArgs, FStackEntryID(ModuleScriptExecutionCategory));
 }
 
-UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddModuleEventScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData, FNiagaraEventHandlerAddAction EventHandlerAddAction)
+UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::FindOrAddModuleEventScript(FString ScriptNameString, FCreateScriptContextArgs CreateScriptContextArgs, FNiagaraEventHandlerAddAction EventHandlerAddAction)
 {
-	return PrivateFindOrAddModuleScript(ScriptNameString, NiagaraScriptAssetData, FStackEntryID(EventHandlerAddAction));
+	return PrivateFindOrAddModuleScript(ScriptNameString, CreateScriptContextArgs, FStackEntryID(EventHandlerAddAction));
 }
 
-UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::PrivateFindOrAddModuleScript(const FString& ScriptNameString, const FAssetData& NiagaraScriptAssetData, const FStackEntryID& StackEntryID)
+UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::PrivateFindOrAddModuleScript(const FString& ScriptNameString, const FCreateScriptContextArgs& CreateScriptContextArgs, const FStackEntryID& StackEntryID)
 {
 	const FName ScriptName = FName(ScriptNameString);
 	FStackEntryAddAction* StackEntryAddAction = StackEntryAddActions.FindByPredicate([&ScriptName](const FStackEntryAddAction& AddAction) {return AddAction.Mode == EStackEntryAddActionMode::Module && AddAction.ModuleName == ScriptName; });
@@ -1638,8 +1646,7 @@ UNiagaraScriptConversionContext* UNiagaraEmitterConversionContext::PrivateFindOr
 		return StackEntryAddAction->ScriptConversionContext;
 	}
 
-	UNiagaraScriptConversionContext* ScriptContext = NewObject<UNiagaraScriptConversionContext>();
-	ScriptContext->Init(NiagaraScriptAssetData);
+	UNiagaraScriptConversionContext* ScriptContext = UFXConverterUtilitiesLibrary::CreateScriptContext(CreateScriptContextArgs);
 	StackEntryAddActions.Emplace(ScriptContext, StackEntryID, ScriptName);
 	return ScriptContext;
 }
@@ -1899,8 +1906,9 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
 		ClipboardContent->bFixupPasteIndexForScriptDependenciesInStack = true;
 		UNiagaraScript* NiagaraScript = ScriptConversionContext->GetScript();
+		const FGuid& ScriptVersionGuid = ScriptConversionContext->GetScriptVersionGuid();
 
-		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript);
+		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript, ScriptVersionGuid);
 		ClipboardFunction->Inputs = ScriptConversionContext->GetClipboardFunctionInputs();
 		ClipboardContent->Functions.Add(ClipboardFunction);
 
@@ -2055,7 +2063,7 @@ void UNiagaraEmitterConversionContext::SetRendererBinding(UNiagaraRendererProper
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraScriptConversionContext																			  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAssetData)
+void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAssetData, TOptional<FNiagaraScriptVersion> InNiagaraScriptVersion /*= TOptional<FNiagaraScriptVersion>()*/)
 {
 	Script = static_cast<UNiagaraScript*>(InNiagaraScriptAssetData.GetAsset());
 	if (Script == nullptr)
@@ -2063,12 +2071,42 @@ void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAsse
 		Log("Failed to create script! AssetData path was invalid!: " + InNiagaraScriptAssetData.PackagePath.ToString(), ENiagaraMessageSeverity::Error);
 		return;
 	}
-	bModuleEnabled = true;
+	
+	if (InNiagaraScriptVersion.IsSet())
+	{
+		bool bFoundVersion = false;
+		const int32 InMajorVersion = InNiagaraScriptVersion->MajorVersion;
+		const int32 InMinorVersion = InNiagaraScriptVersion->MinorVersion;
+		for (const FNiagaraAssetVersion& Version : Script->GetAllAvailableVersions())
+		{
+			if (Version.MajorVersion == InMajorVersion && Version.MinorVersion == InMinorVersion)
+			{
+				ScriptVersionGuid = Version.VersionGuid;
+				bFoundVersion = true;
+				break;
+			}
+		}
+		
+		if (bFoundVersion == false)
+		{
+			Log(FString::Printf(TEXT("Failed to get script version! Supplied major version (%d) and minor version (%d) did not map to an available version!"), InMajorVersion, InMinorVersion), ENiagaraMessageSeverity::Error);
+			return;
+		}
+	}
 
 	// Gather the inputs to this script and add them to the lookup table for validating UNiagaraScriptConversionContextInputs that are set.
 	TArray<UNiagaraNodeInput*> InputNodes;
 
-	const UNiagaraGraph* ScriptSourceGraph = static_cast<UNiagaraScriptSource*>(Script->GetLatestSource())->NodeGraph;
+	UNiagaraGraph* ScriptSourceGraph = nullptr;
+	if (ScriptVersionGuid.IsValid())
+	{
+		ScriptSourceGraph = static_cast<UNiagaraScriptSource*>(Script->GetSource(ScriptVersionGuid))->NodeGraph;
+	}
+	else
+	{
+		ScriptSourceGraph = static_cast<UNiagaraScriptSource*>(Script->GetLatestSource())->NodeGraph;
+	}
+
 	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> VarToPinsMap = ScriptSourceGraph->CollectVarsToInOutPinsMap();
 	for (auto It = VarToPinsMap.CreateConstIterator(); It; ++It)
 	{

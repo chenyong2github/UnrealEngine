@@ -453,6 +453,56 @@ struct FStackEntryAddAction
 	FName ModuleName;
 };
 
+USTRUCT(BlueprintInternalUseOnly)
+struct FNiagaraScriptVersion
+{
+	GENERATED_BODY()
+
+public:
+	FNiagaraScriptVersion() = default;
+
+	FNiagaraScriptVersion(const int32 InMajorVersion, const int32 InMinorVersion)
+		: MajorVersion(InMajorVersion)
+		, MinorVersion(InMinorVersion)
+	{};
+
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	int32 MajorVersion = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	int32 MinorVersion = 0;
+};
+
+USTRUCT(BlueprintInternalUseOnly)
+struct FCreateScriptContextArgs
+{
+	GENERATED_BODY()
+
+public:
+	FCreateScriptContextArgs() = default;
+
+	FCreateScriptContextArgs(FAssetData InScriptAsset)
+		: ScriptAsset(InScriptAsset)
+		, bScriptVersionSet(false)
+		, ScriptVersion()
+	{};
+
+	FCreateScriptContextArgs(FAssetData InScriptAsset, FNiagaraScriptVersion InScriptVersion)
+		: ScriptAsset(InScriptAsset)
+		, bScriptVersionSet(true)
+		, ScriptVersion(InScriptVersion)
+	{};
+
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	FAssetData ScriptAsset;
+
+	UPROPERTY()
+	bool bScriptVersionSet;
+
+	UPROPERTY(BlueprintReadOnly, Category = AssetData, transient)
+	FNiagaraScriptVersion ScriptVersion;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	Logging Framework																						  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,7 +601,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraScriptConversionContext* FindOrAddModuleScript(
 		FString ScriptNameString
-		, FAssetData NiagaraScriptAssetData
+		, FCreateScriptContextArgs CreateScriptContextArgs
 		, EScriptExecutionCategory ModuleScriptExecutionCategory
 	);
 
@@ -562,7 +612,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraScriptConversionContext* FindOrAddModuleEventScript(
 		FString ScriptNameString
-		, FAssetData NiagaraScriptAssetData
+		, FCreateScriptContextArgs CreateScriptContextArgs
 		, FNiagaraEventHandlerAddAction EventScriptProps
 	);
 
@@ -680,7 +730,7 @@ private:
 
 	UNiagaraScriptConversionContext* PrivateFindOrAddModuleScript(
 		const FString& ScriptNameString
-		, const FAssetData& NiagaraScriptAssetData
+		, const FCreateScriptContextArgs& CreateScriptContextArgs
 		, const FStackEntryID& StackEntryID
 	);
 };
@@ -692,10 +742,18 @@ class UNiagaraScriptConversionContext : public UObject
 	GENERATED_BODY()
 
 public:
-	UNiagaraScriptConversionContext() {};
+	UNiagaraScriptConversionContext() 
+		: TargetExecutionCategory(EScriptExecutionCategory::NONE)
+		, FunctionInputs()
+		, Script(nullptr)
+		, ScriptVersionGuid()
+		, StackMessages()
+		, InputNameToTypeDefMap()
+		, bModuleEnabled(true)
+	{};
 
 	/** Init the Niagara Script Conversion Context with the assetdata to a UNiagaraScript. */
-	void Init(const FAssetData& InNiagaraScriptAssetData);
+	void Init(const FAssetData& InNiagaraScriptAssetData, TOptional<FNiagaraScriptVersion> InNiagaraScriptVersion = TOptional<FNiagaraScriptVersion>());
 
 	/** 
 	 * Set a parameter on the Script this Script Conversion Context holds. 
@@ -725,6 +783,8 @@ public:
 
 	UNiagaraScript* GetScript() { return Script; };
 
+	const FGuid& GetScriptVersionGuid() { return ScriptVersionGuid; };
+
 	const TArray<FGenericConverterMessage>& GetStackMessages() const {return StackMessages;};
 
 private:
@@ -734,6 +794,8 @@ private:
 	TArray<const UNiagaraClipboardFunctionInput*> FunctionInputs;
 
 	UNiagaraScript* Script;
+
+	FGuid ScriptVersionGuid;
 
 	TArray<FGenericConverterMessage> StackMessages;
 
@@ -812,7 +874,7 @@ public:
 
 	// Niagara Script and Script Input Helpers
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static UNiagaraScriptConversionContext* CreateScriptContext(FAssetData NiagaraScriptAssetData);
+	static UNiagaraScriptConversionContext* CreateScriptContext(const FCreateScriptContextArgs& Args);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputLinkedParameter(FString ParameterNameString, ENiagaraScriptInputType InputType);
