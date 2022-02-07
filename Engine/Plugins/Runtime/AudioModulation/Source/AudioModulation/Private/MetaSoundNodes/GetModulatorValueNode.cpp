@@ -77,6 +77,7 @@ namespace AudioModulation
 			, Normalized(InNormalized)
 			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 		{
+			Execute();
 		}
 
 		virtual ~FGetModulatorValueNodeOperator() = default;

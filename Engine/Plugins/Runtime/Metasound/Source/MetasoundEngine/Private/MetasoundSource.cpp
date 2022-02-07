@@ -42,38 +42,6 @@ namespace Metasound
 	{
 		using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexName>>;
 
-		// Creates a base Metasound Environment that contains basic
-		// data associated with the AudioEngine (non-source/instance specific data).
-		FMetasoundEnvironment CreateEnvironment(UWorld* World)
-		{
-			using namespace Frontend;
-
-			FMetasoundEnvironment Environment;
-			// Add audio device ID to environment.
-			Audio::FDeviceId AudioDeviceID = INDEX_NONE;
-
-			if (World)
-			{
-				FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
-				if (DeviceHandle.IsValid())
-				{
-					AudioDeviceID = DeviceHandle.GetDeviceID();
-				}
-			}
-
-			if (INDEX_NONE == AudioDeviceID)
-			{
-				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-				{
-					AudioDeviceID = DeviceManager->GetMainAudioDeviceID();
-				}
-			}
-
-			Environment.SetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID, AudioDeviceID);
-
-			return Environment;
-		}
-
 		const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
 		{
 			auto CreateVertexKeyMap = []()
@@ -767,7 +735,7 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	FMetasoundEnvironment Environment = SourcePrivate::CreateEnvironment(GetWorld());
+	FMetasoundEnvironment Environment;
 	Environment.SetValue<uint32>(SourceInterface::Environment::SoundUniqueID, GetUniqueID());
 
 	return Environment;
@@ -782,6 +750,7 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const FSoun
 	FMetasoundEnvironment Environment = CreateEnvironment();
 	Environment.SetValue<bool>(SourceInterface::Environment::IsPreview, InParams.bIsPreviewSound);
 	Environment.SetValue<uint64>(SourceInterface::Environment::TransmitterID, InParams.InstanceID);
+	Environment.SetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID, InParams.AudioDeviceID);
 
 #if WITH_METASOUND_DEBUG_ENVIRONMENT
 	Environment.SetValue<FString>(SourceInterface::Environment::GraphName, GetFullName());

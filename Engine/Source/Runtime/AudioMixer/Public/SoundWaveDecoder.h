@@ -93,6 +93,8 @@ namespace Audio
 		// Handle to the decoding source
 		FDecodingSoundSourceHandle Handle;
 
+		FDeviceId AudioDeviceID;
+
 		// The sound wave object with which this sound is generating
 		USoundWave* SoundWave;
 

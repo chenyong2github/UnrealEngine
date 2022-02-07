@@ -88,6 +88,7 @@ namespace AudioModulation
 			, Parameter(InParameter)
 			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 		{
+			Execute();
 		}
 
 		virtual ~FMixModulatorsNodeOperator() = default;

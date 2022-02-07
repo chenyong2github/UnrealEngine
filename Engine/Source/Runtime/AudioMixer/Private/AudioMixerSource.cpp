@@ -865,6 +865,7 @@ namespace Audio
 		}
 
 		FMixerSourceBufferInitArgs BufferInitArgs;
+		BufferInitArgs.AudioDeviceID = AudioDevice->DeviceID;
 		BufferInitArgs.InstanceID = InstanceID;
 		BufferInitArgs.SampleRate = AudioDevice->GetSampleRate();
 		BufferInitArgs.Buffer = MixerBuffer;

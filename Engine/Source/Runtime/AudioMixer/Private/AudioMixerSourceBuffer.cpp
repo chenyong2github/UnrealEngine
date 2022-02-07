@@ -92,6 +92,7 @@ namespace Audio
 		if (bProcedural)
 		{
 			FSoundGeneratorInitParams InitParams;
+			InitParams.AudioDeviceID = InArgs.AudioDeviceID;
 			InitParams.SampleRate = InArgs.SampleRate;
 			InitParams.NumChannels = NumChannels;
 			InitParams.NumFramesPerCallback = MONO_PCM_BUFFER_SAMPLES;

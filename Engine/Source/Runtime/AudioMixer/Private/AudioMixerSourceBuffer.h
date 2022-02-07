@@ -48,6 +48,7 @@ namespace Audio
 
 	struct FMixerSourceBufferInitArgs
 	{
+		FDeviceId AudioDeviceID = 0;
 		uint32 InstanceID = 0;
 		int32 SampleRate = 0;
 		FMixerBuffer* Buffer = nullptr;

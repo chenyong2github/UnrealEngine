@@ -13,6 +13,7 @@ namespace Audio
 {
 	FDecodingSoundSource::FDecodingSoundSource(FAudioDevice* AudioDevice, const FSourceDecodeInit& InitData)
 		: Handle(InitData.Handle)
+		, AudioDeviceID(0)
 		, SoundWave(InitData.SoundWave)
 		, MixerBuffer(nullptr)
 		, SampleRate(INDEX_NONE)
@@ -22,6 +23,11 @@ namespace Audio
 		SourceInfo.VolumeParam.Init();
 		SourceInfo.VolumeParam.SetValue(InitData.VolumeScale);
 		SourceInfo.PitchScale = InitData.PitchScale;
+
+		if (nullptr != AudioDevice)
+		{
+			AudioDeviceID = AudioDevice->DeviceID;
+		}
 
 		MixerBuffer = FMixerBuffer::Init(AudioDevice, InitData.SoundWave, true);
 	}
@@ -59,6 +65,7 @@ namespace Audio
 			FScopeLock Lock(&MixerSourceBufferCritSec);
 
 			FMixerSourceBufferInitArgs Args;
+			Args.AudioDeviceID = AudioDeviceID;
 			Args.SampleRate = InSampleRate;
 			Args.Buffer = MixerBuffer;
 			Args.SoundWave = SoundWave;

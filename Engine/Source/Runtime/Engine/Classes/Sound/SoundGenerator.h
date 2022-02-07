@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioDeviceManager.h"
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "Templates/Function.h"
@@ -10,6 +11,7 @@
 // Parameters used for constructing a new ISoundGenerator.
 struct FSoundGeneratorInitParams
 {
+	Audio::FDeviceId AudioDeviceID;
 	float SampleRate = 0.0f;
 	int32 NumChannels = 0;
 	int32 NumFramesPerCallback = 0;
