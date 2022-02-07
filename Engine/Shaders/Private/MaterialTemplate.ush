@@ -1895,6 +1895,11 @@ float2 RotateScaleOffsetTexCoords(float2 InTexCoords, float4 InRotationScale, fl
 	return float2(dot(InTexCoords, InRotationScale.xy), dot(InTexCoords, InRotationScale.zw)) + InOffset;
 }
 
+FLWCVector2 RotateScaleOffsetTexCoords(FLWCVector2 InTexCoords, float4 InRotationScale, float2 InOffset)
+{
+	return LWCAdd(MakeLWCVector(LWCDot(InTexCoords, InRotationScale.xy), LWCDot(InTexCoords, InRotationScale.zw)), InOffset);
+}
+
 #if USES_SPEEDTREE
 
 /** Vertex offset for SpeedTree wind and LOD */

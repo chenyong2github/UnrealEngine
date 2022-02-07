@@ -1116,13 +1116,13 @@ int32 FMaterialDerivativeAutogen::GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMa
 	const FDerivInfo RotationScaleDerivInfo	= Translator.GetDerivInfo(RotationScale);
 	const FDerivInfo OffsetDerivInfo		= Translator.GetDerivInfo(Offset);
 
-	const EMaterialValueType ResultType = MCT_Float2;
+	const EMaterialValueType ResultType = IsLWCType(TexCoordDerivInfo.Type) ? MCT_LWCVector2 : MCT_Float2;
 	const uint32 NumResultComponents = 2;
 
 	const bool bAllZeroDeriv = (TexCoordDerivInfo.DerivativeStatus == EDerivativeStatus::Zero && RotationScaleDerivInfo.DerivativeStatus == EDerivativeStatus::Zero && OffsetDerivInfo.DerivativeStatus == EDerivativeStatus::Zero);
-	FString FiniteString = FString::Printf(TEXT("RotateScaleOffsetTexCoords(%s, %s, %s.xy)"),	*Translator.GetParameterCode(TexCoord), 
-																								*Translator.GetParameterCode(RotationScale),
-																								*Translator.GetParameterCode(Offset));
+	FString FiniteString = FString::Printf(TEXT("RotateScaleOffsetTexCoords(%s, %s, %s.xy)"),	*Translator.CoerceParameter(TexCoord, ResultType),
+																								*Translator.CoerceParameter(RotationScale, MCT_Float4),
+																								*Translator.CoerceParameter(Offset, MCT_Float2));
 
 	if (!bAllZeroDeriv && IsDerivativeValid(TexCoordDerivInfo.DerivativeStatus) && IsDerivativeValid(RotationScaleDerivInfo.DerivativeStatus) && IsDerivativeValid(OffsetDerivInfo.DerivativeStatus))
 	{
