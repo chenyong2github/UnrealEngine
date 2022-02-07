@@ -632,6 +632,14 @@ public:
 	TUniquePtr<TMeshAABBTree3<TriangleMeshType>> AABBTree;
 	TUniquePtr<TFastWindingTree<TriangleMeshType>> FWNTree;
 
+	virtual ~TStaticMeshSpatialWrapper()
+	{
+#if WITH_EDITOR
+		// Release any MeshDescriptions that were loaded. This is potentially not ideal and should probably be controlled by the build options...
+		StaticMesh->ClearMeshDescriptions();
+#endif
+	}
+
 	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) override
 	{
 		check(StaticMesh);
