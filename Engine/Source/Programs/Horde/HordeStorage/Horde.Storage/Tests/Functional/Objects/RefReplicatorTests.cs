@@ -207,7 +207,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             // after processing a snapshot it will attempt to incrementally replicate from there, which should be empty
             handler.SetupRequest($"http://localhost/api/v1/replication-log/incremental/{TestNamespace}?lastBucket={replicationEvents.Last().TimeBucket}&lastEvent={replicationEvents.Last().EventId}").ReturnsResponse(JsonConvert.SerializeObject(new ReplicationLogEvents(new List<ReplicationLogEvent>())), "application/json");
 
-            handler.SetupRequest($"http://localhost/api/v1/blobs/{TestNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
+            handler.SetupRequest($"http://localhost/api/v1/blobs/{SnapshotNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
 
             foreach (BlobIdentifier blob in blobs.Keys)
             {
@@ -295,7 +295,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             // after processing the incremental events there is nothing more to find
             handler.SetupRequest($"http://localhost/api/v1/replication-log/incremental/{TestNamespace}?lastBucket={incrementalEvents.Last().TimeBucket}&lastEvent={incrementalEvents.Last().EventId}").ReturnsResponse(JsonConvert.SerializeObject(new ReplicationLogEvents(new List<ReplicationLogEvent>())), "application/json");
 
-            handler.SetupRequest($"http://localhost/api/v1/blobs/{TestNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
+            handler.SetupRequest($"http://localhost/api/v1/blobs/{SnapshotNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
 
             foreach (BlobIdentifier blob in blobs.Keys)
             {
@@ -384,7 +384,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             // after processing the snapshot we do not replicate anything more
             handler.SetupRequest($"http://localhost/api/v1/replication-log/incremental/{TestNamespace}?lastBucket={snapshotEvents.Last().TimeBucket}&lastEvent={snapshotEvents.Last().EventId}").ReturnsResponse(JsonConvert.SerializeObject(new ReplicationLogEvents(new List<ReplicationLogEvent>())), "application/json");
 
-            handler.SetupRequest($"http://localhost/api/v1/blobs/{TestNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
+            handler.SetupRequest($"http://localhost/api/v1/blobs/{SnapshotNamespace}/{snapshotBlob}").ReturnsResponse(snapshotContent, "application/octet-stream").Verifiable();
 
             foreach (BlobIdentifier blob in blobs.Keys)
             {

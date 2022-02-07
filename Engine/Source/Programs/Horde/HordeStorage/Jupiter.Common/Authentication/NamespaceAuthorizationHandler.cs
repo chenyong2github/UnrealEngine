@@ -39,8 +39,20 @@ namespace Jupiter
                 if (expectedClaim == "*")
                 {
                     context.Succeed(requirement);
+                    continue;
                 }
 
+                if (expectedClaim.Contains('='))
+                {
+                    int separatorIndex = expectedClaim.IndexOf('=');
+                    string claimName = expectedClaim.Substring(0, separatorIndex);
+                    string claimValue = expectedClaim.Substring(separatorIndex + 1);
+                    if (context.User.HasClaim(claim => claim.Type == claimName && claim.Value == claimValue))
+                    {
+                        context.Succeed(requirement);
+                        continue;
+                    }
+                }
                 if (context.User.HasClaim(claim => claim.Type == expectedClaim))
                 {
                     context.Succeed(requirement);

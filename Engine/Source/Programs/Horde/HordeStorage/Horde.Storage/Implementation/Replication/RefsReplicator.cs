@@ -16,6 +16,7 @@ using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.TransactionLog;
+using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Mvc;
@@ -198,7 +199,7 @@ namespace Horde.Storage.Implementation
 
                         // if we fail to replicate incrementally we revert to using a snapshot
                         haveAttemptedSnapshot = true;
-                        (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken, useSnapshotException.SnapshotBlob);
+                        (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken, useSnapshotException.SnapshotBlob, INamespacePolicyResolver.JupiterInternalNamespace);
                         countOfReplicationsDone += countOfEventsReplicated;
 
                         // resume from these new events instead
@@ -223,7 +224,7 @@ namespace Horde.Storage.Implementation
             return hasRun;
         }
 
-        private async Task<(string, Guid, int)> ReplicateFromSnapshot(NamespaceId ns, CancellationToken cancellationToken, BlobIdentifier? snapshotBlob = null)
+        private async Task<(string, Guid, int)> ReplicateFromSnapshot(NamespaceId ns, CancellationToken cancellationToken, BlobIdentifier? snapshotBlob = null, NamespaceId? blobNamespace = null)
         {
             // determine latest snapshot if no specific blob was specified
             if (snapshotBlob == null)
@@ -244,14 +245,15 @@ namespace Horde.Storage.Implementation
                 }
 
                 snapshotBlob = snapshotInfo.SnapshotBlob;
+                blobNamespace = snapshotInfo.BlobNamespace;
             }
 
             // process snapshot
             // fetch the snapshot from the remote blob store
-            HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{ns}/{snapshotBlob}");
+            HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{blobNamespace}/{snapshotBlob}");
             HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
             Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
             ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobStream);
 
             if (!snapshot.LastEvent.HasValue)

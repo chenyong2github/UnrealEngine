@@ -31,8 +31,8 @@ namespace Jupiter.Common
             {
                 return new NamespaceSettings.PerNamespaceSettings()
                 {
-                    // the internal jupiter namespace is sensitive so only admins should have access, but we can still use the default storage pool
-                    Claims = new string[] { "Admin", "admin" },
+                    // we grant the full storage access claim access to the internal namespace, this is typically set of admins and service accounts that can access everything
+                    Claims = new string[] {"Storage=full" },
                     StoragePool = ""
                 };
             }
