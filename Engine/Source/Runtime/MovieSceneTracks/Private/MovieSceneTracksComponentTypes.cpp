@@ -104,9 +104,9 @@ void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVecto
 	Out = FVector3f(InVector.X, InVector.Y, InVector.Z);
 }
 
-void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector4& Out)
+void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector4f& Out)
 {
-	Out = FVector4(InVector.X, InVector.Y, InVector.Z, InVector.W);
+	Out = FVector4f(InVector.X, InVector.Y, InVector.Z, InVector.W);
 }
 
 void ConvertOperationalProperty(const FVector2f& In, FFloatIntermediateVector& Out)
@@ -119,14 +119,14 @@ void ConvertOperationalProperty(const FVector3f& In, FFloatIntermediateVector& O
 	Out = FFloatIntermediateVector(In.X, In.Y, In.Z);
 }
 
-void ConvertOperationalProperty(const FVector4& In, FFloatIntermediateVector& Out)
+void ConvertOperationalProperty(const FVector4f& In, FFloatIntermediateVector& Out)
 {
 	Out = FFloatIntermediateVector(In.X, In.Y, In.Z, In.W);
 }
 
-void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector2D& Out)
+void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector2d& Out)
 {
-	Out = FVector2D(InVector.X, InVector.Y);
+	Out = FVector2d(InVector.X, InVector.Y);
 }
 
 void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector3d& Out)
@@ -139,7 +139,7 @@ void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVect
 	Out = FVector4d(InVector.X, InVector.Y, InVector.Z, InVector.W);
 }
 
-void ConvertOperationalProperty(const FVector2D& In, FDoubleIntermediateVector& Out)
+void ConvertOperationalProperty(const FVector2d& In, FDoubleIntermediateVector& Out)
 {
 	Out = FDoubleIntermediateVector(In.X, In.Y);
 }
@@ -421,23 +421,21 @@ struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTrait
 			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
 			if (ensure(BoundProperty && BoundProperty->Struct))
 			{
-				if (BoundProperty->Struct == TBaseStructure<FVector2D>::Get())
+				if (BoundProperty->Struct == TBaseStructure<FVector2D>::Get() || BoundProperty->Struct == TVariantStructure<FVector2f>::Get() || BoundProperty->Struct == TVariantStructure<FVector2d>::Get())
 				{
 					OutMetaData.NumChannels = 2;
+					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector2D>::Get() || BoundProperty->Struct == TVariantStructure<FVector2d>::Get());
 				}
-				else if (BoundProperty->Struct->GetFName() == NAME_Vector3f || BoundProperty->Struct->GetFName() == NAME_Vector)
+				else if (BoundProperty->Struct == TBaseStructure<FVector>::Get() || BoundProperty->Struct == TVariantStructure<FVector3f>::Get() || BoundProperty->Struct == TVariantStructure<FVector3d>::Get())
 				{
 					OutMetaData.NumChannels = 3;
-
-					if (BoundProperty->Struct->GetFName() == NAME_Vector)
-					{
-						OutMetaData.bIsDouble = true;
-					}
+					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector>::Get() || BoundProperty->Struct == TVariantStructure<FVector3d>::Get());
 				}
 				else
 				{
-					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || (BoundProperty->Struct->GetFName() == NAME_Vector4f) || (BoundProperty->Struct->GetFName() == NAME_Vector4));
+					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || BoundProperty->Struct == TVariantStructure<FVector4f>::Get() || BoundProperty->Struct == TVariantStructure<FVector4d>::Get());
 					OutMetaData.NumChannels = 4;
+					OutMetaData.bIsDouble = (BoundProperty->Struct == TBaseStructure<FVector4>::Get() || BoundProperty->Struct == TVariantStructure<FVector4d>::Get());
 				}
 			}
 			else
