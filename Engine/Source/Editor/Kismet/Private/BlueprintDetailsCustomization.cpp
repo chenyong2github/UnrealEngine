@@ -245,19 +245,6 @@ FBlueprintVarActionDetails::~FBlueprintVarActionDetails()
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
-	// update the property being edited
-	PropertyBeingEdited = nullptr;
-	TArray<TWeakObjectPtr<UObject>> ObjectsBeingEdited;
-	DetailLayout.GetObjectsBeingCustomized(ObjectsBeingEdited);
-	for(TWeakObjectPtr<UObject> Object : ObjectsBeingEdited)
-	{
-		if(UPropertyWrapper* Wrapper = Cast<UPropertyWrapper>(Object.Get()))
-		{
-			PropertyBeingEdited = Wrapper->GetProperty();
-			break;
-		}
-	}
-
 	CachedVariableProperty = SelectionAsProperty();
 
 	if(!CachedVariableProperty.IsValid())
@@ -1670,12 +1657,17 @@ FProperty* FBlueprintVarActionDetails::SelectionAsProperty() const
 	{
 		return LocalVarAction->GetProperty();
 	}
+	FEdGraphSchemaAction_K2Delegate* DelegateVar = MyBlueprintSelectionAsDelegate();
+	if (DelegateVar)
+	{
+		return DelegateVar->GetDelegateProperty();
+	}
 	UK2Node_Variable* GraphVar = EdGraphSelectionAsVar();
 	if(GraphVar)
 	{
 		return GraphVar->GetPropertyForVariable();
 	}
-	return PropertyBeingEdited;
+	return nullptr;
 }
 
 FName FBlueprintVarActionDetails::GetVariableName() const
@@ -1690,14 +1682,15 @@ FName FBlueprintVarActionDetails::GetVariableName() const
 	{
 		return LocalVarAction->GetVariableName();
 	}
+	FEdGraphSchemaAction_K2Delegate* DelegateVar = MyBlueprintSelectionAsDelegate();
+	if (DelegateVar)
+	{
+		return DelegateVar->GetDelegateName();
+	}
 	UK2Node_Variable* GraphVar = EdGraphSelectionAsVar();
 	if(GraphVar)
 	{
 		return GraphVar->GetVarName();
-	}
-	if(PropertyBeingEdited)
-	{
-		return PropertyBeingEdited->GetFName();
 	}
 	return NAME_None;
 }

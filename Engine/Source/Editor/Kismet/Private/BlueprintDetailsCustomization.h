@@ -122,8 +122,9 @@ public:
 
 private:
 	/** Accessors passed to parent */
-	FEdGraphSchemaAction_K2Var* MyBlueprintSelectionAsVar() const {return MyBlueprint.Pin()->SelectionAsVar();}
-	FEdGraphSchemaAction_K2LocalVar* MyBlueprintSelectionAsLocalVar() const {return MyBlueprint.Pin()->SelectionAsLocalVar();}
+	FEdGraphSchemaAction_K2Var* MyBlueprintSelectionAsVar() const { return MyBlueprint.Pin()->SelectionAsVar(); }
+	FEdGraphSchemaAction_K2LocalVar* MyBlueprintSelectionAsLocalVar() const { return MyBlueprint.Pin()->SelectionAsLocalVar(); }
+	FEdGraphSchemaAction_K2Delegate* MyBlueprintSelectionAsDelegate() const { return MyBlueprint.Pin()->SelectionAsDelegate(); }
 	UK2Node_Variable* EdGraphSelectionAsVar() const;
 	FProperty* SelectionAsProperty() const;
 	FName GetVariableName() const;
@@ -321,9 +322,6 @@ private:
 
 	/** External detail customizations */
 	TArray<TSharedPtr<IDetailCustomization>> ExternalDetailCustomizations;
-
-	/** If a property is being edited right now, this will cache it */
-	FProperty* PropertyBeingEdited;
 };
 
 class FBaseBlueprintGraphActionDetails : public IDetailCustomization
