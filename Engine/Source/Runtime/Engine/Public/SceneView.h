@@ -1796,7 +1796,7 @@ public:
 
 	/** Initialization constructor. */
 	FSceneViewFamily( const ConstructionValues& CVS );
-	~FSceneViewFamily();
+	virtual ~FSceneViewFamily();
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const;
 
@@ -1952,5 +1952,5 @@ public:
 	{}
 
 	/** Destructor. */
-	ENGINE_API ~FSceneViewFamilyContext();
+	ENGINE_API virtual ~FSceneViewFamilyContext();
 };

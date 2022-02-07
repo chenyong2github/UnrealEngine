@@ -2230,7 +2230,7 @@ void FEditorViewportClient::UpdateMouseDelta()
 				if (DragStartView == nullptr)
 				{
 					// Compute a view.
-					DragStartViewFamily = new FSceneViewFamily(FSceneViewFamily::ConstructionValues(
+					DragStartViewFamily = new FSceneViewFamilyContext(FSceneViewFamily::ConstructionValues(
 						Viewport,
 						GetScene(),
 						EngineShowFlags)
