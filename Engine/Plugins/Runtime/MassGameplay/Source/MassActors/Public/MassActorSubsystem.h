@@ -18,7 +18,7 @@ class UMassEntitySubsystem;
  * Fragment to save the actor pointer of a mass entity if it exist
  */
 USTRUCT()
-struct MASSACTORS_API FDataFragment_Actor : public FDataFragment_ObjectWrapper
+struct MASSACTORS_API FMassActorFragment : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 

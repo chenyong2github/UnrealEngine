@@ -13,7 +13,7 @@ float UMassRepresentationActorManagement::GetSpawnPriority(const FMassRepresenta
 	return Representation.LODSignificance - (Representation.Visibility == EMassVisibility::CanBeSeen ? 1.0f : 0.0f);
 }
 
-AActor* UMassRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const
+AActor* UMassRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const
 {
 	return RepresentationSubsystem.GetOrSpawnActorFromTemplate(MassAgent, Transform, TemplateActorIndex, SpawnRequestHandle, Priority,
 		FMassActorPreSpawnDelegate::CreateUObject(this, &UMassRepresentationActorManagement::OnPreActorSpawn, &EntitySubsystem),
@@ -55,9 +55,9 @@ void UMassRepresentationActorManagement::OnPreActorSpawn(const FMassActorSpawnRe
 
 	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
 	const FMassEntityView EntityView(*EntitySubsystem, MassActorSpawnRequest.MassAgent);
-	FDataFragment_Actor& ActorInfo = EntityView.GetFragmentData<FDataFragment_Actor>();
+	FMassActorFragment& ActorInfo = EntityView.GetFragmentData<FMassActorFragment>();
 	FMassRepresentationFragment& Representation = EntityView.GetFragmentData<FMassRepresentationFragment>();
-	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
 	check(RepresentationSubsystem);
 
 	// Release any existing actor
@@ -88,7 +88,7 @@ EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpaw
 	checkf(MassActorSpawnRequest.SpawnedActor, TEXT("Expecting valid spawned actor"));
 
 	// Might be already done if the actor has a MassAgentComponent via the callback OnMassAgentComponentEntityAssociated on the MassRepresentationSubsystem
-	FDataFragment_Actor& ActorInfo = EntitySubsystem->GetFragmentDataChecked<FDataFragment_Actor>(MassActorSpawnRequest.MassAgent);
+	FMassActorFragment& ActorInfo = EntitySubsystem->GetFragmentDataChecked<FMassActorFragment>(MassActorSpawnRequest.MassAgent);
 	if (ActorInfo.IsValid())
 	{
 		// If already set, make sure it is pointing to the same actor.
@@ -105,14 +105,14 @@ EMassActorSpawnRequestAction UMassRepresentationActorManagement::OnPostActorSpaw
 void UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent)
 {
 	FMassEntityView EntityView(EntitySubsystem, MassAgent);
-	FDataFragment_Actor& ActorInfo = EntityView.GetFragmentData<FDataFragment_Actor>();
+	FMassActorFragment& ActorInfo = EntityView.GetFragmentData<FMassActorFragment>();
 	FMassRepresentationFragment& Representation = EntityView.GetFragmentData<FMassRepresentationFragment>();
-	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+	UMassRepresentationSubsystem* RepresentationSubsystem = EntityView.GetSharedFragmentData<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
 	check(RepresentationSubsystem);
 	ReleaseAnyActorOrCancelAnySpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation);
 }
 
-void UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, FMassRepresentationFragment& Representation)
+void UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, FMassRepresentationFragment& Representation)
 {
 	// This method can only release owned by mass actors
 	AActor* Actor = ActorInfo.GetOwnedByMassMutable();

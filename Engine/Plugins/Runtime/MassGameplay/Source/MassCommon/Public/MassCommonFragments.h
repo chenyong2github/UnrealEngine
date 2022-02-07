@@ -8,7 +8,7 @@
 
 
 USTRUCT()
-struct MASSCOMMON_API FDataFragment_Transform : public FMassFragment
+struct MASSCOMMON_API FTransformFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -22,25 +22,7 @@ protected:
 };
 
 USTRUCT()
-struct MASSCOMMON_API FDataFragment_NavLocation : public FMassFragment
-{
-	GENERATED_BODY()
-	NavNodeRef NodeRef = INVALID_NAVNODEREF;
-};
-
-/** this fragment is a kind of an experiment. I've made FMassVelocityFragment and FMassAvoidanceFragment extend it and 
- *  use URandomizeVectorProcessor to initialize it to random variables at spawn time.
- */
-USTRUCT()
-struct MASSCOMMON_API FVectorFragment : public FMassFragment
-{
-	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, Category = "")
-	FVector Value = FVector::ZeroVector;
-};
-
-USTRUCT()
-struct MASSCOMMON_API FDataFragment_AgentRadius : public FMassFragment
+struct MASSCOMMON_API FAgentRadiusFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, Category = "")
@@ -51,7 +33,7 @@ struct MASSCOMMON_API FDataFragment_AgentRadius : public FMassFragment
  *	Mass simulation..
  */
 USTRUCT()
-struct FDataFragment_ObjectWrapper : public FMassFragment
+struct FObjectWrapperFragment : public FMassFragment
 {
 	GENERATED_BODY()
 };

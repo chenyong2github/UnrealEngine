@@ -7,7 +7,7 @@
 
 
 class UMassDebugVisualizationComponent;
-struct FSimDebugVisComponent;
+struct FSimDebugVisFragment;
 
 UCLASS()
 class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassObserverProcessor

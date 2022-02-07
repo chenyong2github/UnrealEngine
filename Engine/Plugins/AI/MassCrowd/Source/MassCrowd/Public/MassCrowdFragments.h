@@ -12,7 +12,7 @@
  * Should not contain any data, this is purely a tag
  */
 USTRUCT()
-struct MASSCROWD_API FTagFragment_MassCrowd : public FMassTag
+struct MASSCROWD_API FMassCrowdTag : public FMassTag
 {
 	GENERATED_BODY()
 };

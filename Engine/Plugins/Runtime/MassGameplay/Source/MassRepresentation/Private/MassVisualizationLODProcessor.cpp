@@ -35,7 +35,7 @@ void UMassVisualizationLODProcessor::ConfigureQueries()
 {
 	CloseEntityQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
 	CloseEntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
-	CloseEntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	CloseEntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 
 	FarEntityQuery = CloseEntityQuery;
 

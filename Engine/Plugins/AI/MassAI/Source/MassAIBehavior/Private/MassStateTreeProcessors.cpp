@@ -231,7 +231,7 @@ void UMassStateTreeActivationProcessor::Initialize(UObject& Owner)
 void UMassStateTreeActivationProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddTagRequirement<FMassStateTreeActivated>(EMassFragmentPresence::None);
+	EntityQuery.AddTagRequirement<FMassStateTreeActivatedTag>(EMassFragmentPresence::None);
 	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 }
 
@@ -278,7 +278,7 @@ void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 		// Adding a tag on each entities to remember we have sent the state tree initialization signal
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
-			Context.Defer().AddTag<FMassStateTreeActivated>(Context.GetEntity(i));
+			Context.Defer().AddTag<FMassStateTreeActivatedTag>(Context.GetEntity(i));
 		}
 	});
 	// Signal all entities inside the consolidated list

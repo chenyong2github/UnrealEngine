@@ -59,7 +59,7 @@ UMassSteerToMoveTargetProcessor::UMassSteerToMoveTargetProcessor()
 
 void UMassSteerToMoveTargetProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassStandingSteeringFragment>(EMassFragmentAccess::ReadWrite);
@@ -79,7 +79,7 @@ void UMassSteerToMoveTargetProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableFragmentView<FMassMoveTargetFragment>();
 		const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableFragmentView<FMassVelocityFragment>();
 		const TArrayView<FMassForceFragment> ForceList = Context.GetMutableFragmentView<FMassForceFragment>();
@@ -95,7 +95,7 @@ void UMassSteerToMoveTargetProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
-			const FDataFragment_Transform& TransformFragment = TransformList[EntityIndex];
+			const FTransformFragment& TransformFragment = TransformList[EntityIndex];
 			FMassSteeringFragment& Steering = SteeringList[EntityIndex];
 			FMassStandingSteeringFragment& StandingSteering = StandingSteeringList[EntityIndex];
 			FMassGhostLocationFragment& Ghost = GhostList[EntityIndex];

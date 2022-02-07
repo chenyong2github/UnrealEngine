@@ -40,8 +40,8 @@ void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 			VisualList[i].HarvestIconIndex = HarvestIconISMC->AddInstance(IconTransform);
 
 			FMassEntityHandle ThisEntity = Context.GetEntity(i);
-			Context.Defer().RemoveTag<FFarmJustBecameReadyToHarvest>(ThisEntity);
-			Context.Defer().AddTag<FFarmReadyToHarvest>(ThisEntity);
+			Context.Defer().RemoveTag<FFarmJustBecameReadyToHarvestTag>(ThisEntity);
+			Context.Defer().AddTag<FFarmReadyToHarvestTag>(ThisEntity);
 		}
 	});
 }

@@ -22,8 +22,8 @@ UMassCharacterMovementToMassTranslator::UMassCharacterMovementToMassTranslator()
 void UMassCharacterMovementToMassTranslator::ConfigureQueries()
 {
 	AddRequiredTagsToQuery(EntityQuery);
-	EntityQuery.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FCharacterMovementComponentWrapperFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
 }
 
@@ -31,8 +31,8 @@ void UMassCharacterMovementToMassTranslator::Execute(UMassEntitySubsystem& Entit
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetFragmentView<FDataFragment_CharacterMovementComponentWrapper>();
-		const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FCharacterMovementComponentWrapperFragment> ComponentList = Context.GetFragmentView<FCharacterMovementComponentWrapperFragment>();
+		const TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
 		const TArrayView<FMassVelocityFragment> VelocityList = Context.GetMutableFragmentView<FMassVelocityFragment>();
 
 		const int32 NumEntities = Context.GetNumEntities();
@@ -63,7 +63,7 @@ UMassCharacterMovementToActorTranslator::UMassCharacterMovementToActorTranslator
 void UMassCharacterMovementToActorTranslator::ConfigureQueries()
 {
 	AddRequiredTagsToQuery(EntityQuery);
-	EntityQuery.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FCharacterMovementComponentWrapperFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -71,7 +71,7 @@ void UMassCharacterMovementToActorTranslator::Execute(UMassEntitySubsystem& Enti
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetMutableFragmentView<FDataFragment_CharacterMovementComponentWrapper>();
+		const TArrayView<FCharacterMovementComponentWrapperFragment> ComponentList = Context.GetMutableFragmentView<FCharacterMovementComponentWrapperFragment>();
 		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
 		
 		const int32 NumEntities = Context.GetNumEntities();
@@ -99,16 +99,16 @@ UMassCharacterOrientationToMassTranslator::UMassCharacterOrientationToMassTransl
 void UMassCharacterOrientationToMassTranslator::ConfigureQueries()
 {
 	AddRequiredTagsToQuery(EntityQuery);
-	EntityQuery.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FCharacterMovementComponentWrapperFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassCharacterOrientationToMassTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetFragmentView<FDataFragment_CharacterMovementComponentWrapper>();
-		const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FCharacterMovementComponentWrapperFragment> ComponentList = Context.GetFragmentView<FCharacterMovementComponentWrapperFragment>();
+		const TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
 
 		const int32 NumEntities = Context.GetNumEntities();
 		
@@ -139,16 +139,16 @@ UMassCharacterOrientationToActorTranslator::UMassCharacterOrientationToActorTran
 void UMassCharacterOrientationToActorTranslator::ConfigureQueries()
 {
 	AddRequiredTagsToQuery(EntityQuery);
-	EntityQuery.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FCharacterMovementComponentWrapperFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
 void UMassCharacterOrientationToActorTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TArrayView<FDataFragment_CharacterMovementComponentWrapper> ComponentList = Context.GetMutableFragmentView<FDataFragment_CharacterMovementComponentWrapper>();
-		const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TArrayView<FCharacterMovementComponentWrapperFragment> ComponentList = Context.GetMutableFragmentView<FCharacterMovementComponentWrapperFragment>();
+		const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 		
 		const int32 NumEntities = Context.GetNumEntities();
 
@@ -158,38 +158,11 @@ void UMassCharacterOrientationToActorTranslator::Execute(UMassEntitySubsystem& E
 			{
 				if (AsMovementComponent->UpdatedComponent != nullptr)
 				{
-					const FDataFragment_Transform& Transform = TransformList[i];
+					const FTransformFragment& Transform = TransformList[i];
 					AsMovementComponent->bOrientRotationToMovement = false;
 					AsMovementComponent->UpdatedComponent->SetWorldRotation(Transform.GetTransform().GetRotation());
 				}
 			}
 		}
 	});
-}
-
-//----------------------------------------------------------------------//
-// UMassFragmentInitializer_NavLocation 
-//----------------------------------------------------------------------//
-UMassFragmentInitializer_NavLocation::UMassFragmentInitializer_NavLocation()
-{
-	ObservedType = FDataFragment_NavLocation::StaticStruct();
-	Operation = EMassObservedOperation::Add;
-}
-
-void UMassFragmentInitializer_NavLocation::ConfigureQueries() 
-{
-	EntityQuery.AddRequirement<FDataFragment_NavLocation>(EMassFragmentAccess::ReadWrite);
-}
-
-void UMassFragmentInitializer_NavLocation::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-		{
-			const TArrayView<FDataFragment_NavLocation> NavLocationList = Context.GetMutableFragmentView<FDataFragment_NavLocation>();
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 i = 0; i < NumEntities; ++i)
-			{
-				NavLocationList[i].NodeRef = INVALID_NAVNODEREF;
-			}
-		});
 }

@@ -17,7 +17,7 @@ UMassSpawnLocationProcessor::UMassSpawnLocationProcessor()
 
 void UMassSpawnLocationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassSpawnLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -68,7 +68,7 @@ void UMassSpawnLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&Transforms, this](FMassExecutionContext& Context)
 			{
-				const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+				const TArrayView<FTransformFragment> LocationList = Context.GetMutableFragmentView<FTransformFragment>();
 				const int32 NumEntities = Context.GetNumEntities();
 				for (int32 i = 0; i < NumEntities; ++i)
 				{

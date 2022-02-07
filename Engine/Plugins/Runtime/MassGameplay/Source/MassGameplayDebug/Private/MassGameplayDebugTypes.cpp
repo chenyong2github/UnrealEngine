@@ -27,7 +27,7 @@ void GetDebugEntitiesAndLocations(const UMassEntitySubsystem& EntitySystem, TArr
 		const FMassEntityHandle EntityHandle = ConvertEntityIndexToHandle(EntitySystem, i);
 		if (EntityHandle.IsSet())
 		{
-			if (const FDataFragment_Transform* TransformFragment = EntitySystem.GetFragmentDataPtr<FDataFragment_Transform>(EntityHandle))
+			if (const FTransformFragment* TransformFragment = EntitySystem.GetFragmentDataPtr<FTransformFragment>(EntityHandle))
 			{
 				OutEntities.Add(EntityHandle);
 				OutLocations.Add(TransformFragment->GetTransform().GetLocation());

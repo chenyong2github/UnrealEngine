@@ -10,7 +10,7 @@
 class UBehaviorTreeComponent;
 
 USTRUCT()
-struct FDataFragment_BehaviorTreeComponentWrapper : public FDataFragment_ObjectWrapper
+struct FDataFragment_BehaviorTreeComponentWrapper : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 	TWeakObjectPtr<UBehaviorTreeComponent> Component;

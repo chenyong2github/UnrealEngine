@@ -603,7 +603,7 @@ public:
 		return TConstArrayView<TFragment>((const TFragment*)View->FragmentView.GetData(), View->FragmentView.Num());
 	}
 
-	TConstArrayView<FMassFragment> GetFragmentFragmentView(const UScriptStruct* FragmentType) const
+	TConstArrayView<FMassFragment> GetFragmentView(const UScriptStruct* FragmentType) const
 	{
 		const FFragmentView* View = FragmentViews.FindByPredicate([FragmentType](const FFragmentView& Element) { return Element.Requirement.StructType == FragmentType; });
 		checkSlow(View);

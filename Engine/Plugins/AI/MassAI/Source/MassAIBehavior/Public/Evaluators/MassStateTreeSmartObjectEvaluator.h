@@ -9,7 +9,7 @@
 #include "MassStateTreeSmartObjectEvaluator.generated.h"
 
 struct FStateTreeExecutionContext;
-struct FDataFragment_Transform;
+struct FTransformFragment;
 struct FMassZoneGraphLaneLocationFragment;
 struct FMassSmartObjectUserFragment;
 
@@ -60,7 +60,7 @@ protected:
 
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-	TStateTreeExternalDataHandle<FDataFragment_Transform> EntityTransformHandle;
+	TStateTreeExternalDataHandle<FTransformFragment> EntityTransformHandle;
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment, EStateTreeExternalDataRequirement::Optional> LocationHandle;
 

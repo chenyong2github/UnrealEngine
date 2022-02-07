@@ -16,7 +16,7 @@
 //----------------------------------------------------------------------//
 UMassZoneGraphAnnotationTagsInitializer::UMassZoneGraphAnnotationTagsInitializer()
 {
-	ObservedType = FMassZoneGraphAnnotationTagsFragment::StaticStruct();
+	ObservedType = FMassZoneGraphAnnotationFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;
 }
 
@@ -28,7 +28,7 @@ void UMassZoneGraphAnnotationTagsInitializer::Initialize(UObject& Owner)
 
 void UMassZoneGraphAnnotationTagsInitializer::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassZoneGraphAnnotationTagsFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassZoneGraphAnnotationFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -37,12 +37,12 @@ void UMassZoneGraphAnnotationTagsInitializer::Execute(UMassEntitySubsystem& Enti
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FMassZoneGraphAnnotationTagsFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationTagsFragment>();
+		const TArrayView<FMassZoneGraphAnnotationFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationFragment>();
 		const TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
-			FMassZoneGraphAnnotationTagsFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
+			FMassZoneGraphAnnotationFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
 			const FMassZoneGraphLaneLocationFragment& LaneLocation = LaneLocationList[EntityIndex];
 
 			if (!LaneLocation.LaneHandle.IsValid())
@@ -78,7 +78,7 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::Initialize(UObject& Owner)
 void UMassZoneGraphAnnotationTagUpdateProcessor::ConfigureQueries()
 {
 	Super::ConfigureQueries();
-	EntityQuery.AddRequirement<FMassZoneGraphAnnotationTagsFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassZoneGraphAnnotationFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddChunkRequirement<FMassZoneGraphAnnotationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
@@ -100,12 +100,12 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::Execute(UMassEntitySubsystem& E
 		}
 
 		const int32 NumEntities = Context.GetNumEntities();
-		const TArrayView<FMassZoneGraphAnnotationTagsFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationTagsFragment>();
+		const TArrayView<FMassZoneGraphAnnotationFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationFragment>();
 		const TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
-			FMassZoneGraphAnnotationTagsFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
+			FMassZoneGraphAnnotationFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
 			const FMassZoneGraphLaneLocationFragment& LaneLocation = LaneLocationList[EntityIndex];
 
 			UpdateAnnotationTags(AnnotationTags, LaneLocation, Context.GetEntity(EntityIndex));
@@ -118,7 +118,7 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::Execute(UMassEntitySubsystem& E
 	}
 }
 
-void UMassZoneGraphAnnotationTagUpdateProcessor::UpdateAnnotationTags(FMassZoneGraphAnnotationTagsFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassEntityHandle Entity)
+void UMassZoneGraphAnnotationTagUpdateProcessor::UpdateAnnotationTags(FMassZoneGraphAnnotationFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassEntityHandle Entity)
 {
 	const FZoneGraphTagMask OldTags = AnnotationTags.Tags;
 
@@ -148,11 +148,11 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::SignalEntities(UMassEntitySubsy
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 		const TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
-		const TArrayView<FMassZoneGraphAnnotationTagsFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationTagsFragment>();
+		const TArrayView<FMassZoneGraphAnnotationFragment> AnnotationTagsList = Context.GetMutableFragmentView<FMassZoneGraphAnnotationFragment>();
 
 		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 		{
-			FMassZoneGraphAnnotationTagsFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
+			FMassZoneGraphAnnotationFragment& AnnotationTags = AnnotationTagsList[EntityIndex];
 			const FMassZoneGraphLaneLocationFragment& LaneLocation = LaneLocationList[EntityIndex];
 
 			UpdateAnnotationTags(AnnotationTags, LaneLocation, Context.GetEntity(EntityIndex));

@@ -41,26 +41,26 @@ namespace FMassAgentTraitsHelper
 //----------------------------------------------------------------------//
 void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragment<FDataFragment_CapsuleComponentWrapper>();
-	BuildContext.AddFragment<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FCapsuleComponentWrapperFragment>();
+	BuildContext.AddFragment<FAgentRadiusFragment>();
 	if (bSyncTransform)
 	{
-		BuildContext.AddFragment<FDataFragment_Transform>();
+		BuildContext.AddFragment<FTransformFragment>();
 	}
 	
 	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
 			if (UCapsuleComponent* CapsuleComponent = FMassAgentTraitsHelper::AsComponent<UCapsuleComponent>(Owner))
 			{
-				FDataFragment_CapsuleComponentWrapper& CapsuleFragment = EntityView.GetFragmentData<FDataFragment_CapsuleComponentWrapper>();
+				FCapsuleComponentWrapperFragment& CapsuleFragment = EntityView.GetFragmentData<FCapsuleComponentWrapperFragment>();
 				CapsuleFragment.Component = CapsuleComponent;
 
-				FDataFragment_AgentRadius& RadiusFragment = EntityView.GetFragmentData<FDataFragment_AgentRadius>();
+				FAgentRadiusFragment& RadiusFragment = EntityView.GetFragmentData<FAgentRadiusFragment>();
 				RadiusFragment.Radius = CapsuleComponent->GetScaledCapsuleRadius();
 
 				if (bSyncTransform)
 				{
-					FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
+					FTransformFragment& TransformFragment = EntityView.GetFragmentData<FTransformFragment>();
 					TransformFragment.GetMutableTransform() = CapsuleComponent->GetComponentTransform();
 				}
 			}
@@ -85,14 +85,14 @@ void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuild
 //----------------------------------------------------------------------//
 void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragment<FDataFragment_CharacterMovementComponentWrapper>();
+	BuildContext.AddFragment<FCharacterMovementComponentWrapperFragment>();
 	BuildContext.AddFragment<FMassVelocityFragment>();
 	
 	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
 			if (UCharacterMovementComponent* MovementComp = FMassAgentTraitsHelper::AsComponent<UCharacterMovementComponent>(Owner))
 			{
-				FDataFragment_CharacterMovementComponentWrapper& ComponentFragment = EntityView.GetFragmentData<FDataFragment_CharacterMovementComponentWrapper>();
+				FCharacterMovementComponentWrapperFragment& ComponentFragment = EntityView.GetFragmentData<FCharacterMovementComponentWrapperFragment>();
 				ComponentFragment.Component = MovementComp;
 
 				FMassVelocityFragment& VelocityFragment = EntityView.GetFragmentData<FMassVelocityFragment>();
@@ -128,7 +128,7 @@ void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 //----------------------------------------------------------------------//
 void UMassAgentOrientationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragment<FDataFragment_CharacterMovementComponentWrapper>();
+	BuildContext.AddFragment<FCharacterMovementComponentWrapperFragment>();
 	// @todo: Figure out how we can share init with UMassAgentMovementSyncTrait, or make this this trait to depend on UMassAgentMovementSyncTrait.
 
 	if (EnumHasAnyFlags(SyncDirection, EMassTranslationDirection::ActorToMass))
@@ -148,7 +148,7 @@ void UMassAgentOrientationSyncTrait::BuildTemplate(FMassEntityTemplateBuildConte
 void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	BuildContext.AddFragment<FMassSceneComponentWrapperFragment>();
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 
 	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
@@ -159,7 +159,7 @@ void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildCont
 				FMassSceneComponentWrapperFragment& ComponentFragment = EntityView.GetFragmentData<FMassSceneComponentWrapperFragment>();
 				ComponentFragment.Component = Component;
 
-				FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
+				FTransformFragment& TransformFragment = EntityView.GetFragmentData<FTransformFragment>();
 
 				REDIRECT_OBJECT_TO_VLOG(Component, &Owner);
 				UE_VLOG_LOCATION(&Owner, LogMass, Log, Component->GetComponentLocation(), 30, FColor::Yellow, TEXT("Initial component location"));

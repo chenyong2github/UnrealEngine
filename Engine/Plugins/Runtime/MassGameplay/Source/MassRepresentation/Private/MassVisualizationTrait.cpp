@@ -32,7 +32,7 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	// adding Config.AdditionalDataFragments to let user configure the fragments first. Calling BuildContext.Add() 
 	// won't override any fragments that are already there
 	BuildContext.AddTag<FMassCollectLODViewerInfoTag>(); // Depends on FMassViewerInfoFragment
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
@@ -45,10 +45,10 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 		check(RepresentationSubsystem);
 	}
 
-	FMassRepresentationSubsystemFragment Subsystem;
+	FMassRepresentationSubsystemSharedFragment Subsystem;
 	Subsystem.RepresentationSubsystem = RepresentationSubsystem;
 	uint32 SubsystemHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Subsystem));
-	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemFragment>(SubsystemHash, Subsystem);
+	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemSharedFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
 
 	if (!Config.RepresentationActorManagementClass)
@@ -56,8 +56,8 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 		UE_LOG(LogMassRepresentation, Error, TEXT("Expecting a valid class for the representation actor management"));
 	}
 	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
-	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationConfig>(ConfigHash, Config);
-	ConfigFragment.Get<FMassRepresentationConfig>().ComputeCachedValues();
+	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationParameters>(ConfigHash, Config);
+	ConfigFragment.Get<FMassRepresentationParameters>().ComputeCachedValues();
 	BuildContext.AddConstSharedFragment(ConfigFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();

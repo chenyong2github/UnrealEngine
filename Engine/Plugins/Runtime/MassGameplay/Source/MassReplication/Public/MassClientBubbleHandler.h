@@ -744,7 +744,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnServer()
 		checkf(FragmentNetID.NetID == OuterItem.Agent.GetNetID(), TEXT("Fragment and Agent NetID do not match!"));
 		checkf(LookupData.NetID == OuterItem.Agent.GetNetID(), TEXT("LookupData and Agent NetID do not match!"));
 
-		const FDataFragment_ReplicationTemplateID& FragmentTemplateID = EntitySystem->GetFragmentDataChecked<FDataFragment_ReplicationTemplateID>(LookupData.Entity);
+		const FReplicationTemplateIDFragment& FragmentTemplateID = EntitySystem->GetFragmentDataChecked<FReplicationTemplateIDFragment>(LookupData.Entity);
 		checkf(FragmentTemplateID.ID == OuterItem.Agent.GetTemplateID(), TEXT("Agent TemplateID different to Fragment!"));
 	}
 

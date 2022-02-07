@@ -70,7 +70,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 	TConstArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetFragmentView<FMassNetworkIDFragment>();
 	TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
 	TArrayView<FMassReplicatedAgentFragment> ReplicatedAgentList = Context.GetMutableFragmentView<FMassReplicatedAgentFragment>();
-	TConstArrayView<FDataFragment_ReplicationTemplateID> TemplateIDList = Context.GetFragmentView<FDataFragment_ReplicationTemplateID>();
+	TConstArrayView<FReplicationTemplateIDFragment> TemplateIDList = Context.GetFragmentView<FReplicationTemplateIDFragment>();
 	FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
 
 	CacheViews(Context);
@@ -139,7 +139,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 						typename AgentArrayItem::FReplicatedAgentType ReplicatedAgent;
 
 						const FMassNetworkIDFragment& NetIDFragment = NetworkIDList[EntityIdx];
-						const FDataFragment_ReplicationTemplateID& TemplateIDFragment = TemplateIDList[EntityIdx];
+						const FReplicationTemplateIDFragment& TemplateIDFragment = TemplateIDList[EntityIdx];
 
 						ReplicatedAgent.SetNetID(NetIDFragment.NetID);
 						ReplicatedAgent.SetTemplateID(TemplateIDFragment.ID);

@@ -8,10 +8,10 @@
 
 
 class UCapsuleComponent;
-struct FDataFragment_AgentRadius;
+struct FAgentRadiusFragment;
 
 USTRUCT()
-struct FDataFragment_CapsuleComponentWrapper : public FDataFragment_ObjectWrapper
+struct FCapsuleComponentWrapperFragment : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 	TWeakObjectPtr<UCapsuleComponent> Component;

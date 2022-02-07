@@ -357,9 +357,9 @@ void UMassMovingAvoidanceProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassForceFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddTagRequirement<FMassMediumLODTag>(EMassFragmentPresence::None);
 	EntityQuery.AddTagRequirement<FMassLowLODTag>(EMassFragmentPresence::None);
 	EntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
@@ -392,9 +392,9 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 		
 		const TArrayView<FMassForceFragment> ForceList = Context.GetMutableFragmentView<FMassForceFragment>();
 		const TConstArrayView<FMassNavigationEdgesFragment> NavEdgesList = Context.GetFragmentView<FMassNavigationEdgesFragment>();
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
-		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+		const TConstArrayView<FAgentRadiusFragment> RadiusList = Context.GetFragmentView<FAgentRadiusFragment>();
 		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 		const FMassMovingAvoidanceParameters& MovingAvoidanceParams = Context.GetConstSharedFragment<FMassMovingAvoidanceParameters>();
 		const FMassMovementParameters& MovementParams = Context.GetConstSharedFragment<FMassMovementParameters>();
@@ -445,9 +445,9 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 
 			FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 			const FMassNavigationEdgesFragment& NavEdges = NavEdgesList[EntityIndex];
-			const FDataFragment_Transform& Location = LocationList[EntityIndex];
+			const FTransformFragment& Location = LocationList[EntityIndex];
 			const FMassVelocityFragment& Velocity = VelocityList[EntityIndex];
-			const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
+			const FAgentRadiusFragment& Radius = RadiusList[EntityIndex];
 			FMassForceFragment& Force = ForceList[EntityIndex];
 
 			// Smaller steering max accel makes the steering more "calm" but less opportunistic, may not find solution, or gets stuck.
@@ -745,7 +745,7 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 				}
 				
 				// Skip too far
-				const FTransform& Transform = EntitySubsystem.GetFragmentDataChecked<FDataFragment_Transform>(OtherEntity.Entity).GetTransform();
+				const FTransform& Transform = EntitySubsystem.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity).GetTransform();
 				const FVector OtherLocation = Transform.GetLocation();
 				
 				const float SqDist = FVector::DistSquared(AgentLocation, OtherLocation);
@@ -832,7 +832,7 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 					FCollider& Collider = Colliders.AddDefaulted_GetRef();
 					Collider.Location = Obstacle.LocationCached;
 					Collider.Velocity = OtherVelocity;
-					Collider.Radius = OtherEntityView.GetFragmentData<FDataFragment_AgentRadius>().Radius;
+					Collider.Radius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
 					Collider.bCanAvoid = bCanAvoid;
 					Collider.bIsMoving = bOtherIsMoving;
 				}
@@ -1020,8 +1020,8 @@ void UMassStandingAvoidanceProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassGhostLocationFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddTagRequirement<FMassMediumLODTag>(EMassFragmentPresence::None);
 	EntityQuery.AddTagRequirement<FMassLowLODTag>(EMassFragmentPresence::None);
 	EntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
@@ -1052,8 +1052,8 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
 
 		const TArrayView<FMassGhostLocationFragment> GhostList = Context.GetMutableFragmentView<FMassGhostLocationFragment>();
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+		const TConstArrayView<FAgentRadiusFragment> RadiusList = Context.GetFragmentView<FAgentRadiusFragment>();
 		const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 		const FMassStandingAvoidanceParameters& StandingParams = Context.GetConstSharedFragment<FMassStandingAvoidanceParameters>();
 
@@ -1094,8 +1094,8 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				continue;
 			}
 
-			const FDataFragment_Transform& Location = LocationList[EntityIndex];
-			const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
+			const FTransformFragment& Location = LocationList[EntityIndex];
+			const FAgentRadiusFragment& Radius = RadiusList[EntityIndex];
 
 			FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 			const FVector AgentLocation = Location.GetTransform().GetTranslation();
@@ -1143,7 +1143,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				}
 
 				// Skip too far
-				const FDataFragment_Transform& OtherTransform = EntitySubsystem.GetFragmentDataChecked<FDataFragment_Transform>(OtherEntity.Entity);
+				const FTransformFragment& OtherTransform = EntitySubsystem.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity);
 				const FVector OtherLocation = OtherTransform.GetTransform().GetLocation();
 				const float DistSq = FVector::DistSquared(AgentLocation, OtherLocation);
 				if (DistSq > DistanceCutOffSqr)
@@ -1165,7 +1165,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				FSortedObstacle& OtherAgent = ClosestObstacles[Index];
 				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.Entity);
 
-				const float OtherRadius = OtherEntityView.GetFragmentData<FDataFragment_AgentRadius>().Radius;
+				const float OtherRadius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
 				const float TotalRadius = GhostRadius + OtherRadius;
 
 				// @todo: this is heavy fragment to access, see if we could handle this differently.

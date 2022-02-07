@@ -12,7 +12,7 @@ struct FStateTreeExecutionContext;
 struct FMassSmartObjectUserFragment;
 class USmartObjectSubsystem;
 class UMassSignalSubsystem;
-struct FDataFragment_Transform;
+struct FTransformFragment;
 struct FMassMoveTargetFragment;
 
 /**
@@ -75,7 +75,7 @@ protected:
 
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-	TStateTreeExternalDataHandle<FDataFragment_Transform> EntityTransformHandle;
+	TStateTreeExternalDataHandle<FTransformFragment> EntityTransformHandle;
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
 

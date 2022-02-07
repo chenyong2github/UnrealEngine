@@ -143,7 +143,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 		auto DebugDisplayLOD = [this](FMassExecutionContext& Context)
 		{
 			TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
-			TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+			TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 			LODCalculator.DebugDisplayLOD(Context, RepresentationLODList, TransformList, World);
 		};
 

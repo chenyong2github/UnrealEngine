@@ -117,7 +117,7 @@ void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FMassE
 	FMassZoneGraphShortPathFragment& ShortPath = InEntityView.GetFragmentData<FMassZoneGraphShortPathFragment>();
 	FMassZoneGraphCachedLaneFragment& CachedLane = InEntityView.GetFragmentData<FMassZoneGraphCachedLaneFragment>();
 	FMassZoneGraphLaneLocationFragment& LaneLocation = InEntityView.GetFragmentData<FMassZoneGraphLaneLocationFragment>();
-	const FDataFragment_AgentRadius& AgentRadius = InEntityView.GetFragmentData<FDataFragment_AgentRadius>();
+	const FAgentRadiusFragment& AgentRadius = InEntityView.GetFragmentData<FAgentRadiusFragment>();
 
 	MoveTarget.CreateReplicatedAction(Action, ActionID, InWorld.GetTimeSeconds(), ActionServerStartTime);
 	MoveTarget.DesiredSpeed = DesiredSpeed;

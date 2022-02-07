@@ -10,7 +10,7 @@
 class UMassEntitySubsystem;
 class USmartObjectSubsystem;
 struct FMassExecutionContext;
-struct FDataFragment_Transform;
+struct FTransformFragment;
 struct FMassSmartObjectUserFragment;
 
 /**

@@ -7,17 +7,17 @@
 
 void FMassReplicationProcessorTransformHandlerBase::AddRequirements(FMassEntityQuery& InQuery)
 {
-	InQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	InQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void FMassReplicationProcessorTransformHandlerBase::CacheFragmentViews(FMassExecutionContext& ExecContext)
 {
-	TransformList = ExecContext.GetMutableFragmentView<FDataFragment_Transform>();
+	TransformList = ExecContext.GetMutableFragmentView<FTransformFragment>();
 }
 
 void FMassReplicationProcessorPositionYawHandler::AddEntity(const int32 EntityIdx, FReplicatedAgentPositionYawData& InOutReplicatedPositionYawData) const
 {
-	const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
+	const FTransformFragment& TransformFragment = TransformList[EntityIdx];
 	InOutReplicatedPositionYawData.SetPosition(TransformFragment.GetTransform().GetLocation());
 
 	if (const TOptional<float> Yaw = UE::AI::GetYawFromQuaternion(TransformFragment.GetTransform().GetRotation()))

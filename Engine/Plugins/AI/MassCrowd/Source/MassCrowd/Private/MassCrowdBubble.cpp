@@ -24,7 +24,7 @@ namespace UE::Mass::Crowd
 
 		const FMassEntityView EntityView(EntitySystem, Entity);
 
-		const FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
+		const FTransformFragment& TransformFragment = EntityView.GetFragmentData<FTransformFragment>();
 		const FMassNetworkIDFragment& NetworkIDFragment = EntityView.GetFragmentData<FMassNetworkIDFragment>();
 
 		const FVector& Pos = TransformFragment.GetTransform().GetLocation();

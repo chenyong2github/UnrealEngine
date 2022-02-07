@@ -7,7 +7,7 @@
 #include "MassZoneGraphAnnotationEvaluator.generated.h"
 
 struct FStateTreeExecutionContext;
-struct FMassZoneGraphAnnotationTagsFragment;
+struct FMassZoneGraphAnnotationFragment;
 /**
  * Evaluator to expose ZoneGraph Annotation Tags for decision making.
  */
@@ -32,7 +32,7 @@ protected:
 	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphAnnotationEvaluatorInstanceData::StaticStruct(); }
 	virtual void Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const override;
 
-	TStateTreeExternalDataHandle<FMassZoneGraphAnnotationTagsFragment> AnnotationTagsFragmentHandle;
+	TStateTreeExternalDataHandle<FMassZoneGraphAnnotationFragment> AnnotationTagsFragmentHandle;
 
 	TStateTreeInstanceDataPropertyHandle<FZoneGraphTagMask> AnnotationTagsHandle;
 };

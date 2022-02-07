@@ -9,7 +9,7 @@
 struct FMassExecutionContext;
 
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationTagsFragment : public FMassFragment
+struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

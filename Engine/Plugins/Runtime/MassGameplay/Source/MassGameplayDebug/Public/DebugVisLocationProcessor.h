@@ -6,7 +6,7 @@
 #include "DebugVisLocationProcessor.generated.h"
 
 class UMassDebugVisualizationComponent;
-struct FSimDebugVisComponent;
+struct FSimDebugVisFragment;
 
 UCLASS()
 class MASSGAMEPLAYDEBUG_API UDebugVisLocationProcessor : public UMassProcessor

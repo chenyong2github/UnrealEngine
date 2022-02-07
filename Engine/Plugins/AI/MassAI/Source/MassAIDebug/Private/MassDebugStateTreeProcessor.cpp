@@ -21,7 +21,7 @@ UMassDebugStateTreeProcessor::UMassDebugStateTreeProcessor()
 void UMassDebugStateTreeProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
 void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -62,7 +62,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 			const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
 			const int32 NumEntities = Context.GetNumEntities();
 			const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
-			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 			const UStateTree* StateTree = MassStateTreeSubsystem->GetRegisteredStateTreeAsset(StateTreeList[0].StateTreeHandle);
 
 			// Not reporting error since this processor is a debug tool 
@@ -90,7 +90,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 				const bool bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
 				if (bDisplayDebug)
 				{
-					const FDataFragment_Transform& Transform = TransformList[i];
+					const FTransformFragment& Transform = TransformList[i];
 					
 					const FVector ZOffset(0,0,50);
 					const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;

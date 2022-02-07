@@ -11,7 +11,7 @@ class USmartObjectSubsystem;
 struct FMassExecutionContext;
 struct FMassEntityHandle;
 struct FMassSmartObjectUserFragment;
-struct FDataFragment_Transform;
+struct FTransformFragment;
 struct FSmartObjectClaimHandle;
 struct FSmartObjectHandle;
 struct FZoneGraphCompactLaneLocation;
@@ -110,7 +110,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param Transform Fragment holding the transform of the user claiming
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool UseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FDataFragment_Transform& Transform) const;
+	bool UseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FTransformFragment& Transform) const;
 
 	/**
 	 * Releases a claimed/in-use smart object and update user fragment.

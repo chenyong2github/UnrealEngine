@@ -222,7 +222,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 		if (CachedEntity.IsSet() && bMarkEntityBeingDebugged)
 		{
-			if (const FDataFragment_Transform* TransformFragment = EntitySystem->GetFragmentDataPtr<FDataFragment_Transform>(CachedEntity))
+			if (const FTransformFragment* TransformFragment = EntitySystem->GetFragmentDataPtr<FTransformFragment>(CachedEntity))
 			{
 				const FVector Location = TransformFragment->GetTransform().GetLocation();
 				AddShape(FGameplayDebuggerShape::MakeBox(Location, FVector(3,3,250), FColor::Purple));
@@ -323,7 +323,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 				}
 
-				const FDataFragment_Transform& TransformFragment = EntitySystem->GetFragmentDataChecked<FDataFragment_Transform>(CachedEntity);
+				const FTransformFragment& TransformFragment = EntitySystem->GetFragmentDataChecked<FTransformFragment>(CachedEntity);
 				constexpr float CapsuleRadius = 50.f;
 				AddShape(FGameplayDebuggerShape::MakeCapsule(TransformFragment.GetTransform().GetLocation() + 2.f * CapsuleRadius * FVector::UpVector, CapsuleRadius, CapsuleRadius * 2.f, FColor::Orange));
 			}
@@ -347,8 +347,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassStandingSteeringFragment>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FMassGhostLocationFragment>(EMassFragmentAccess::ReadOnly);
@@ -372,8 +372,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			{
 				const int32 NumEntities = Context.GetNumEntities();
 				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
-				const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+				const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
+				const TConstArrayView<FAgentRadiusFragment> RadiusList = Context.GetFragmentView<FAgentRadiusFragment>();
 				const TConstArrayView<FMassSteeringFragment> SteeringList = Context.GetFragmentView<FMassSteeringFragment>();
 				const TConstArrayView<FMassStandingSteeringFragment> StandingSteeringList = Context.GetFragmentView<FMassStandingSteeringFragment>();
 				const TConstArrayView<FMassGhostLocationFragment> GhostList = Context.GetFragmentView<FMassGhostLocationFragment>();
@@ -394,7 +394,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 				for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 				{
-					const FDataFragment_Transform& Transform = TransformList[EntityIndex];
+					const FTransformFragment& Transform = TransformList[EntityIndex];
 					const FVector EntityLocation = Transform.GetTransform().GetLocation();
 					
 					// Cull entities
@@ -410,7 +410,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						continue;
 					}
 
-					const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
+					const FAgentRadiusFragment& Radius = RadiusList[EntityIndex];
 					const FMassSteeringFragment& Steering = SteeringList[EntityIndex];
 					const FMassStandingSteeringFragment& StandingSteering = StandingSteeringList[EntityIndex];
 					const FMassGhostLocationFragment& Ghost = GhostList[EntityIndex];
@@ -451,7 +451,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						bool bLookArrowDrawn = false;
 						if (LookAt.LookAtMode == EMassLookAtMode::LookAtEntity && EntitySystem->IsEntityValid(LookAt.TrackedEntity))
 						{
-							if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetFragmentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
+							if (const FTransformFragment* TargetTransform = EntitySystem->GetFragmentDataPtr<FTransformFragment>(LookAt.TrackedEntity))
 							{
 								FVector TargetPosition = TargetTransform->GetTransform().GetLocation();
 								TargetPosition.Z = BasePos.Z;
@@ -465,7 +465,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 						if (LookAt.bRandomGazeEntities && EntitySystem->IsEntityValid(LookAt.GazeTrackedEntity))
 						{
-							if (const FDataFragment_Transform* TargetTransform = EntitySystem->GetFragmentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
+							if (const FTransformFragment* TargetTransform = EntitySystem->GetFragmentDataPtr<FTransformFragment>(LookAt.GazeTrackedEntity))
 							{
 								FVector TargetPosition = TargetTransform->GetTransform().GetLocation();
 								TargetPosition.Z = BasePos.Z;
@@ -587,17 +587,17 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		{
 			FMassEntityQuery EntityColliderQuery;
 			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly);
-			EntityColliderQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+			EntityColliderQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 			FMassExecutionContext Context(0.f);
 			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, ViewLocation, ViewDirection](const FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 				const TConstArrayView<FMassAvoidanceColliderFragment> CollidersList = Context.GetFragmentView<FMassAvoidanceColliderFragment>();
 
 				for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 				{
-					const FDataFragment_Transform& Transform = TransformList[EntityIndex];
+					const FTransformFragment& Transform = TransformList[EntityIndex];
 					const FVector EntityLocation = Transform.GetTransform().GetLocation();
 					const FVector EntityForward = Transform.GetTransform().GetRotation().GetForwardVector();
 					

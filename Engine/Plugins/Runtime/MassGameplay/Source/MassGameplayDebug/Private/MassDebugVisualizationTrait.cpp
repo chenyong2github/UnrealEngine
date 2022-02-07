@@ -18,7 +18,7 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 	if (DebugMesh)
 	{
 #if WITH_EDITORONLY_DATA
-		FSimDebugVisComponent& DebugVisFragment = BuildContext.AddFragment_GetRef<FSimDebugVisComponent>();
+		FSimDebugVisFragment& DebugVisFragment = BuildContext.AddFragment_GetRef<FSimDebugVisFragment>();
 		UMassDebuggerSubsystem* Debugger = World.GetSubsystem<UMassDebuggerSubsystem>();
 		if (ensure(Debugger))
 		{
@@ -40,9 +40,9 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 	// DebugShape unavailable, will used default instead
 	BuildContext.AddFragment<FDataFragment_DebugVis>();
 #endif // WITH_EDITORONLY_DATA
-	BuildContext.AddFragment<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FAgentRadiusFragment>();
 
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 #endif // if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 }

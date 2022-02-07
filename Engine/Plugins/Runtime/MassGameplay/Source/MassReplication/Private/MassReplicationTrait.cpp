@@ -16,7 +16,7 @@ void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Build
 		return;
 	}
 
-	FDataFragment_ReplicationTemplateID& TemplateIDFragment = BuildContext.AddFragment_GetRef<FDataFragment_ReplicationTemplateID>();
+	FReplicationTemplateIDFragment& TemplateIDFragment = BuildContext.AddFragment_GetRef<FReplicationTemplateIDFragment>();
 	TemplateIDFragment.ID = BuildContext.GetTemplateID();
 
 	BuildContext.AddFragment<FMassNetworkIDFragment>();

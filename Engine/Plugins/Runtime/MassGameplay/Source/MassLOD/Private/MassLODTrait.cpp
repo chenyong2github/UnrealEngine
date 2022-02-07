@@ -16,7 +16,7 @@ void UMassLODCollectorTrait::BuildTemplate(FMassEntityTemplateBuildContext& Buil
 void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	BuildContext.AddTag<FMassCollectLODViewerInfoTag>(); // Depends on FMassViewerInfoFragment
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 
 	FMassSimulationLODFragment& LODFragment = BuildContext.AddFragment_GetRef<FMassSimulationLODFragment>();
 

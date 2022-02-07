@@ -38,7 +38,7 @@ UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
 void UMassCrowdVisualizationProcessor::ConfigureQueries()
 {
 	Super::ConfigureQueries();
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 }
 
 //----------------------------------------------------------------------//
@@ -56,11 +56,11 @@ UMassDebugCrowdVisualizationProcessor::UMassDebugCrowdVisualizationProcessor()
 
 void UMassDebugCrowdVisualizationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassDebugCrowdVisualizationProcessor::Initialize(UObject& Owner)
@@ -82,15 +82,15 @@ void UMassDebugCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& Entity
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](const FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetFragmentView<FMassRepresentationFragment>();
-			const TConstArrayView<FDataFragment_Actor> ActorList = Context.GetFragmentView<FDataFragment_Actor>();
-			const TConstArrayView<FDataFragment_Transform> EntityLocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassActorFragment> ActorList = Context.GetFragmentView<FMassActorFragment>();
+			const TConstArrayView<FTransformFragment> EntityLocationList = Context.GetFragmentView<FTransformFragment>();
 
 			const int32 NumEntities = Context.GetNumEntities();
 			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 			{
-				const FDataFragment_Transform& EntityLocation = EntityLocationList[EntityIdx];
+				const FTransformFragment& EntityLocation = EntityLocationList[EntityIdx];
 				const FMassRepresentationFragment& Visualization = VisualizationList[EntityIdx];
-				const FDataFragment_Actor& ActorInfo = ActorList[EntityIdx];
+				const FMassActorFragment& ActorInfo = ActorList[EntityIdx];
 				const int32 RepresentationTypeIdx = (int32)Visualization.CurrentRepresentation;
 				// Show replicated actors
 				if (ActorInfo.IsValid() && !ActorInfo.IsOwnedByMass())

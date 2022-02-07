@@ -13,9 +13,9 @@ void UMassObstacleAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	BuildContext.AddFragment<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FAgentRadiusFragment>();
 	BuildContext.AddFragment<FMassNavigationEdgesFragment>();
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 	BuildContext.AddFragment<FMassVelocityFragment>();
 	BuildContext.AddFragment<FMassForceFragment>();
 	BuildContext.AddFragment<FMassMoveTargetFragment>();

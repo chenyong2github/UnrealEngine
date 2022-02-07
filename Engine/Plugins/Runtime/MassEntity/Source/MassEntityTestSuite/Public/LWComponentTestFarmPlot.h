@@ -29,13 +29,13 @@ struct FFarmVisualDataRow : public FTableRowBase
 };
 
 USTRUCT()
-struct FFarmJustBecameReadyToHarvest : public FMassTag
+struct FFarmJustBecameReadyToHarvestTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FFarmReadyToHarvest : public FMassTag
+struct FFarmReadyToHarvestTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -223,8 +223,8 @@ public:
 	virtual void ConfigureQueries() override
 	{
 		EntityQuery.AddRequirement<FHarvestTimerFragment>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(EMassFragmentPresence::None);
-		EntityQuery.AddTagRequirement<FFarmReadyToHarvest>(EMassFragmentPresence::None);
+		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvestTag>(EMassFragmentPresence::None);
+		EntityQuery.AddTagRequirement<FFarmReadyToHarvestTag>(EMassFragmentPresence::None);
 	}
 
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override
@@ -239,7 +239,7 @@ public:
 			{
 				if (TimerList[i].NumSecondsLeft == 0)
 				{
-					Context.Defer().AddTag<FFarmJustBecameReadyToHarvest>(Context.GetEntity(i));
+					Context.Defer().AddTag<FFarmJustBecameReadyToHarvestTag>(Context.GetEntity(i));
 				}
 			}
 		});
@@ -266,7 +266,7 @@ public:
 	{
 		EntityQuery.AddRequirement<FFarmGridCellData>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddRequirement<FFarmVisualFragment>(EMassFragmentAccess::ReadWrite);
-		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(EMassFragmentPresence::All);
+		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvestTag>(EMassFragmentPresence::All);
 	}
 
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;

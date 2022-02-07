@@ -55,7 +55,7 @@ struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 };
 
 USTRUCT()
-struct FMassRepresentationSubsystemFragment : public FMassSharedFragment
+struct FMassRepresentationSubsystemSharedFragment : public FMassSharedFragment
 {
 	GENERATED_BODY()
 
@@ -64,7 +64,7 @@ struct FMassRepresentationSubsystemFragment : public FMassSharedFragment
 };
 
 USTRUCT()
-struct FMassRepresentationConfig : public FMassSharedFragment
+struct FMassRepresentationParameters : public FMassSharedFragment
 {
 	GENERATED_BODY()
 
@@ -107,7 +107,7 @@ struct FMassRepresentationConfig : public FMassSharedFragment
 	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement = nullptr;
 };
 
-inline void FMassRepresentationConfig::ComputeCachedValues() const
+inline void FMassRepresentationParameters::ComputeCachedValues() const
 {
 	// Calculate the default representation when actor isn't spawned yet.
 	for (int32 LOD = EMassLOD::High; LOD < EMassLOD::Max; LOD++)

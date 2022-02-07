@@ -61,11 +61,11 @@ struct MASSLOD_API FMassSimulationVariableTickChunkFragment : public FMassVariab
 };
 
 USTRUCT()
-struct MASSLOD_API FMassSimulationLODConfig : public FMassSharedFragment
+struct MASSLOD_API FMassSimulationLODParameters : public FMassSharedFragment
 {
 	GENERATED_BODY()
 
-	FMassSimulationLODConfig();
+	FMassSimulationLODParameters();
 
 	/** Distance where each LOD becomes relevant */
 	UPROPERTY(EditAnywhere, Category = "LOD", config)
@@ -85,11 +85,11 @@ struct MASSLOD_API FMassSimulationLODConfig : public FMassSharedFragment
 };
 
 USTRUCT()
-struct MASSLOD_API FMassSimulationVariableTickConfig : public FMassSharedFragment
+struct MASSLOD_API FMassSimulationVariableTickParameters : public FMassSharedFragment
 {
 	GENERATED_BODY()
 
-	FMassSimulationVariableTickConfig();
+	FMassSimulationVariableTickParameters();
 
 	/** Rate in seconds at which entities should update when in this LOD */
 	UPROPERTY(EditAnywhere, Category = "VariableTick", config)
@@ -106,7 +106,7 @@ struct MASSLOD_API FMassSimulationLODSharedFragment : public FMassSharedFragment
 	GENERATED_BODY()
 
 	FMassSimulationLODSharedFragment() = default;
-	FMassSimulationLODSharedFragment(const FMassSimulationLODConfig& Config);
+	FMassSimulationLODSharedFragment(const FMassSimulationLODParameters& Config);
 
 	/** Runtime data for matching the simulation LOD config */
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
@@ -119,7 +119,7 @@ struct MASSLOD_API FMassSimulationVariableTickSharedFragment : public FMassShare
 	GENERATED_BODY()
 
 	FMassSimulationVariableTickSharedFragment() = default;
-	FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickConfig& Config);
+	FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickParameters& Config);
 
 	/** Runtime data for matching the simulation tick rate config */
 	TMassLODTickRateController<FMassSimulationVariableTickChunkFragment, FMassSimulationLODLogic> LODTickRateController;
@@ -156,7 +156,7 @@ protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODConfig& LODConfig);
+	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODParameters& LODConfig);
 
 	FMassEntityQuery EntityQuery;
 	FMassEntityQuery EntityQueryCalculateLOD;

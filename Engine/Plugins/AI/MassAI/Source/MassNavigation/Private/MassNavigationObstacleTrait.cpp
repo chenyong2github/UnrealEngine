@@ -6,7 +6,7 @@
 
 void UMassNavigationObstacleTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragment<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FAgentRadiusFragment>();
 
 	BuildContext.AddFragment<FMassNavigationObstacleGridCellLocationFragment>();
 }

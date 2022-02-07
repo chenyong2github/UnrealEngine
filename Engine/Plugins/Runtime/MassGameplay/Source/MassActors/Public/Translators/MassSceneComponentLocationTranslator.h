@@ -8,7 +8,7 @@
 
 
 USTRUCT()
-struct FMassSceneComponentWrapperFragment : public FDataFragment_ObjectWrapper
+struct FMassSceneComponentWrapperFragment : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 	TWeakObjectPtr<USceneComponent> Component;

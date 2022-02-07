@@ -18,8 +18,8 @@ UDebugVisLocationProcessor::UDebugVisLocationProcessor()
 
 void UDebugVisLocationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FSimDebugVisComponent>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FSimDebugVisFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddTagRequirement<FMassDebuggableTag>(EMassFragmentPresence::All);
 }
 
@@ -40,12 +40,12 @@ void UDebugVisLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &VisualDataISMCs](const FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-			const TConstArrayView<FSimDebugVisComponent> DebugVisList = Context.GetFragmentView<FSimDebugVisComponent>();
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+			const TConstArrayView<FSimDebugVisFragment> DebugVisList = Context.GetFragmentView<FSimDebugVisFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{
-				const FSimDebugVisComponent& VisualComp = DebugVisList[i];
+				const FSimDebugVisFragment& VisualComp = DebugVisList[i];
 
 				// @todo: remove this code once the asset is exported with correct alignment SM_Mannequin.uasset
 				FTransform SMTransform = LocationList[i].GetTransform();
@@ -90,9 +90,9 @@ UMassProcessor_UpdateDebugVis::UMassProcessor_UpdateDebugVis()
 void UMassProcessor_UpdateDebugVis::ConfigureQueries() 
 {
 	// @todo only FDataFragment_DebugVis should be mandatory, rest optional 
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FDataFragment_DebugVis>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddTagRequirement<FMassDebuggableTag>(EMassFragmentPresence::All);
 }
 
@@ -109,9 +109,9 @@ void UMassProcessor_UpdateDebugVis::Execute(UMassEntitySubsystem& EntitySubsyste
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 			const TArrayView<FDataFragment_DebugVis> DebugVisList = Context.GetMutableFragmentView<FDataFragment_DebugVis>();
-			const TArrayView<FDataFragment_AgentRadius> RadiiList = Context.GetMutableFragmentView<FDataFragment_AgentRadius>();
+			const TArrayView<FAgentRadiusFragment> RadiiList = Context.GetMutableFragmentView<FAgentRadiusFragment>();
 
 			for (int32 i = 0; i < NumEntities; ++i)
 			{

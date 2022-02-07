@@ -109,7 +109,7 @@ void UMassLookAtProcessor::Initialize(UObject& Owner)
 void UMassLookAtProcessor::ConfigureQueries()
 {
 	EntityQuery_Conditional.AddRequirement<FMassLookAtFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	EntityQuery_Conditional.AddRequirement<FMassLookAtTrajectoryFragment>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
@@ -131,7 +131,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 			const TArrayView<FMassLookAtFragment> LookAtList = Context.GetMutableFragmentView<FMassLookAtFragment>();
-			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetFragmentView<FMassMoveTargetFragment>();
 			const TConstArrayView<FMassZoneGraphLaneLocationFragment> ZoneGraphLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
 			const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetFragmentView<FMassZoneGraphShortPathFragment>();
@@ -141,7 +141,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 			{
 				FMassLookAtFragment& LookAt = LookAtList[i];
 				const FMassMoveTargetFragment& MoveTarget = MoveTargetList[i];
-				const FDataFragment_Transform& TransformFragment = TransformList[i];
+				const FTransformFragment& TransformFragment = TransformList[i];
 
 				const bool bHasLookAtTrajectory = ZoneGraphLocationList.Num() > 0 && LookAtTrajectoryList.Num() > 0 && ShortPathList.Num() > 0;
 
@@ -284,7 +284,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 			}
 
 			// TargetTag is added through the LookAtTargetTrait and Transform was added with it
-			const FDataFragment_Transform& TargetTransform = EntityView.GetFragmentData<FDataFragment_Transform>();
+			const FTransformFragment& TargetTransform = EntityView.GetFragmentData<FTransformFragment>();
 			const FVector TargetLocation = TargetTransform.GetTransform().GetLocation();
 			FVector Direction = (TargetLocation - Location).GetSafeNormal();
 			Direction = Transform.InverseTransformVector(Direction);
@@ -358,7 +358,7 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem&
 	// Update direction toward target
 	if (EntitySubsystem.IsEntityValid(LookAt.TrackedEntity))
 	{
-		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FDataFragment_Transform>(LookAt.TrackedEntity))
+		if (const FTransformFragment* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FTransformFragment>(LookAt.TrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();
@@ -382,7 +382,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 	// Update direction toward gaze target
 	if (LookAt.GazeTrackedEntity.IsSet() && EntitySubsystem.IsEntityValid(LookAt.GazeTrackedEntity))
 	{
-		if (const FDataFragment_Transform* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FDataFragment_Transform>(LookAt.GazeTrackedEntity))
+		if (const FTransformFragment* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FTransformFragment>(LookAt.GazeTrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();

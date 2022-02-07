@@ -33,7 +33,7 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 {
 	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
-	const FDataFragment_AgentRadius& AgentRadius = Context.GetExternalData(AgentRadiusHandle);
+	const FAgentRadiusFragment& AgentRadius = Context.GetExternalData(AgentRadiusHandle);
 	FMassZoneGraphShortPathFragment& ShortPath = Context.GetExternalData(ShortPathHandle);
 	FMassZoneGraphCachedLaneFragment& CachedLane = Context.GetExternalData(CachedLaneHandle);
 	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);

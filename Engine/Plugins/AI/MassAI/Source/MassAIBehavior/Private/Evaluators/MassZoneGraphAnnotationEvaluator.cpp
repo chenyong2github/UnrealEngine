@@ -20,7 +20,7 @@ bool FMassZoneGraphAnnotationEvaluator::Link(FStateTreeLinker& Linker)
 
 void FMassZoneGraphAnnotationEvaluator::Evaluate(FStateTreeExecutionContext& Context, const EStateTreeEvaluationType EvalType, const float DeltaTime) const
 {
-	const FMassZoneGraphAnnotationTagsFragment& AnnotationTagsFragment = Context.GetExternalData(AnnotationTagsFragmentHandle);
+	const FMassZoneGraphAnnotationFragment& AnnotationTagsFragment = Context.GetExternalData(AnnotationTagsFragmentHandle);
 	FZoneGraphTagMask& AnnotationTags = Context.GetInstanceData(AnnotationTagsHandle);
 	AnnotationTags = AnnotationTagsFragment.Tags;
 }

@@ -75,7 +75,7 @@ struct FMassSpawnDataGenerator
 };
 
 USTRUCT()
-struct MASSSPAWNER_API FDataFragment_ReplicationTemplateID : public FMassFragment
+struct MASSSPAWNER_API FReplicationTemplateIDFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

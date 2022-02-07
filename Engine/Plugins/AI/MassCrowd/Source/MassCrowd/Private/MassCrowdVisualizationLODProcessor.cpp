@@ -58,11 +58,11 @@ void UMassCrowdVisualizationLODProcessor::ConfigureQueries()
 	// @todo remove, no need for this anymore since we have the common LOD collector
 	// Do not call super as we do have our own LODInfo fragment, so need to duplicate
 
-	CloseEntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	CloseEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 	CloseEntityQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
 	CloseEntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
 	CloseEntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
-	CloseEntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	CloseEntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 
 	FarEntityQuery = CloseEntityQuery;
 	CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
@@ -84,7 +84,7 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 
 		auto DebugDisplayLOD = [this](FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassRepresentationLODFragment> VisualizationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 			LODCalculator.DebugDisplayLOD(Context, VisualizationLODList, LocationList, World);
 		};
@@ -99,7 +99,7 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 
 		auto ShowISMUnderSpecifiedRange = [this](const FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassRepresentationFragment> RepresentationFragmentList = Context.GetFragmentView<FMassRepresentationFragment>();
 			const TConstArrayView<FMassViewerInfoFragment> LODInfoFragmentList = Context.GetFragmentView<FMassViewerInfoFragment>();
 			const int32 NumEntities = Context.GetNumEntities();
@@ -110,7 +110,7 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 				const FMassViewerInfoFragment& LODInfoFragment = LODInfoFragmentList[EntityIdx];
 				if (RepresentationFragment.CurrentRepresentation == EMassRepresentationType::StaticMeshInstance && SpecifiedRangeSquaredCentimeters > LODInfoFragment.ClosestViewerDistanceSq)
 				{
-					const FDataFragment_Transform& EntityLocation = LocationList[EntityIdx];
+					const FTransformFragment& EntityLocation = LocationList[EntityIdx];
 					DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 150.0f), FVector(50.0f), FColor::Red);
 				}
 			}

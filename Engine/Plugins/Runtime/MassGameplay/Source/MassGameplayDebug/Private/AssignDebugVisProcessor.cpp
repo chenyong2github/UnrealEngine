@@ -12,13 +12,13 @@
 UAssignDebugVisProcessor::UAssignDebugVisProcessor()
 {
 	bAutoRegisterWithProcessingPhases = false;
-	ObservedType = FSimDebugVisComponent::StaticStruct();
+	ObservedType = FSimDebugVisFragment::StaticStruct();
 	Operation = EMassObservedOperation::Add;
 }
 
 void UAssignDebugVisProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FSimDebugVisComponent>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FSimDebugVisFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -37,8 +37,8 @@ void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Visualizer](FMassExecutionContext& Context)
 	{
-		const TArrayView<FSimDebugVisComponent> DebugVisList = Context.GetMutableFragmentView<FSimDebugVisComponent>();
-		for (FSimDebugVisComponent& VisualComp : DebugVisList)
+		const TArrayView<FSimDebugVisFragment> DebugVisList = Context.GetMutableFragmentView<FSimDebugVisFragment>();
+		for (FSimDebugVisFragment& VisualComp : DebugVisList)
 		{
 			// VisualComp.VisualType needs to be assigned by now. Should be performed as part of spawning, copied from the AgentTemplate
 			if (ensure(VisualComp.VisualType != INDEX_NONE))

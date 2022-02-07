@@ -18,7 +18,7 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 {
 	FMassEntityQuery BaseQuery;
 	BaseQuery.AddTagRequirement<FMassCollectLODViewerInfoTag>(EMassFragmentPresence::All);
-	BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	BaseQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
 	BaseQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
@@ -48,10 +48,10 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 template <bool bLocalViewersOnly>
 void UMassLODCollectorProcessor::CollectLODForChunk(FMassExecutionContext& Context)
 {
-	TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+	TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 	TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
 
-	Collector.CollectLODInfo<FDataFragment_Transform, FMassViewerInfoFragment, bLocalViewersOnly, true/*bCollectDistanceToViewer*/>(Context, LocationList, ViewerInfoList);
+	Collector.CollectLODInfo<FTransformFragment, FMassViewerInfoFragment, bLocalViewersOnly, true/*bCollectDistanceToViewer*/>(Context, LocationList, ViewerInfoList);
 }
 
 template <bool bLocalViewersOnly>

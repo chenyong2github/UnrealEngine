@@ -11,8 +11,8 @@ void UMassMovementTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCon
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	BuildContext.AddFragment<FDataFragment_AgentRadius>();
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FAgentRadiusFragment>();
+	BuildContext.AddFragment<FTransformFragment>();
 
 	BuildContext.AddFragment<FMassVelocityFragment>();
 	BuildContext.AddFragment<FMassForceFragment>();

@@ -47,7 +47,7 @@ struct FSimDebugDataRow : public FTableRowBase
 };
 
 USTRUCT()
-struct FSimDebugVisComponent : public FMassFragment
+struct FSimDebugVisFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	int32 InstanceIndex = INDEX_NONE;

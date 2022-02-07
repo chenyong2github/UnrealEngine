@@ -19,7 +19,7 @@ void UMassRepresentationLODCollectorProcessor::ConfigureQueries()
 		{
 			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
 		}
-		BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+		BaseQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 		BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
 		BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 
@@ -38,7 +38,7 @@ void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext
 
 	auto InternalCollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
-		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+		TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 		TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
 
 		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);

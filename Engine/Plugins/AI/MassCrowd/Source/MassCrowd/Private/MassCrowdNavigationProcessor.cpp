@@ -24,7 +24,7 @@ UMassCrowdLaneTrackingSignalProcessor::UMassCrowdLaneTrackingSignalProcessor()
 
 void UMassCrowdLaneTrackingSignalProcessor::ConfigureQueries()
 {
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 	EntityQuery.AddRequirement<FMassCrowdLaneTrackingFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
 }
@@ -84,7 +84,7 @@ void UMassCrowdLaneTrackingDestructor::Initialize(UObject& Owner)
 
 void UMassCrowdLaneTrackingDestructor::ConfigureQueries()
 {
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 	EntityQuery.AddRequirement<FMassCrowdLaneTrackingFragment>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -131,8 +131,8 @@ void UMassCrowdDynamicObstacleProcessor::Initialize(UObject& Owner)
 
 void UMassCrowdDynamicObstacleProcessor::ConfigureQueries()
 {
-	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-	EntityQuery_Conditional.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.AddRequirement<FMassCrowdObstacleFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
@@ -146,8 +146,8 @@ void UMassCrowdDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySub
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		const TConstArrayView<FDataFragment_AgentRadius> RadiusList = Context.GetFragmentView<FDataFragment_AgentRadius>();
+		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+		const TConstArrayView<FAgentRadiusFragment> RadiusList = Context.GetFragmentView<FAgentRadiusFragment>();
 		const TArrayView<FMassCrowdObstacleFragment> ObstacleDataList = Context.GetMutableFragmentView<FMassCrowdObstacleFragment>();
 
 		const float CurrentTime = World->GetTimeSeconds();

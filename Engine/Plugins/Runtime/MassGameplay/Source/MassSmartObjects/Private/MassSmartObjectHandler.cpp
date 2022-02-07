@@ -221,7 +221,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 bool FMassSmartObjectHandler::UseSmartObject(
 	const FMassEntityHandle Entity,
 	FMassSmartObjectUserFragment& User,
-	const FDataFragment_Transform& Transform) const
+	const FTransformFragment& Transform) const
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),

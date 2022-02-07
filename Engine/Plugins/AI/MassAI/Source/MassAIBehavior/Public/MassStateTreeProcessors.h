@@ -36,7 +36,7 @@ protected:
  * Special tag to know if the state tree has been activated
  */
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassStateTreeActivated : public FMassTag
+struct MASSAIBEHAVIOR_API FMassStateTreeActivatedTag : public FMassTag
 {
 	GENERATED_BODY()
 };

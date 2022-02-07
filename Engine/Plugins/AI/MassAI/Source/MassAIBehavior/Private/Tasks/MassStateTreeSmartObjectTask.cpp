@@ -144,7 +144,7 @@ EStateTreeRunStatus FMassUseSmartObjectTask::EnterState(FStateTreeExecutionConte
 	USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 	FMassSmartObjectUserFragment& SOUser = Context.GetExternalData(SmartObjectUserHandle);
-	const FDataFragment_Transform& TransformFragment = Context.GetExternalData(EntityTransformHandle);
+	const FTransformFragment& TransformFragment = Context.GetExternalData(EntityTransformHandle);
 	FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
 
 	// Setup MassSmartObject handler and start interaction

@@ -8,7 +8,7 @@
 
 class UMassSignalSubsystem;
 class UZoneGraphAnnotationSubsystem;
-struct FMassZoneGraphAnnotationTagsFragment;
+struct FMassZoneGraphAnnotationFragment;
 struct FMassZoneGraphLaneLocationFragment;
 struct FMassEntityHandle;
 
@@ -50,7 +50,7 @@ protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	void UpdateAnnotationTags(FMassZoneGraphAnnotationTagsFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, FMassEntityHandle Entity);
+	void UpdateAnnotationTags(FMassZoneGraphAnnotationFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, FMassEntityHandle Entity);
 
 	virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals) override;
 

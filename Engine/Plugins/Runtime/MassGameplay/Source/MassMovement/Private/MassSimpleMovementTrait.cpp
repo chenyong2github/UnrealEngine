@@ -13,7 +13,7 @@
 //----------------------------------------------------------------------//
 void UMassSimpleMovementTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FTransformFragment>();
 	BuildContext.AddFragment<FMassVelocityFragment>();
 	BuildContext.AddTag<FMassSimpleMovementTag>();	
 }
@@ -31,7 +31,7 @@ UMassSimpleMovementProcessor::UMassSimpleMovementProcessor()
 void UMassSimpleMovementProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddTagRequirement<FMassSimpleMovementTag>(EMassFragmentPresence::All);
 
 	EntityQuery.AddRequirement<FMassSimulationVariableTickFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
@@ -44,7 +44,7 @@ void UMassSimpleMovementProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, ([this](FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FMassVelocityFragment> VelocitiesList = Context.GetFragmentView<FMassVelocityFragment>();
-			const TArrayView<FDataFragment_Transform> TransformsList = Context.GetMutableFragmentView<FDataFragment_Transform>();
+			const TArrayView<FTransformFragment> TransformsList = Context.GetMutableFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassSimulationVariableTickFragment> SimVariableTickList = Context.GetFragmentView<FMassSimulationVariableTickFragment>();
 			const bool bHasVariableTick = (SimVariableTickList.Num() > 0);
 			const float WorldDeltaTime = Context.GetDeltaTimeSeconds();

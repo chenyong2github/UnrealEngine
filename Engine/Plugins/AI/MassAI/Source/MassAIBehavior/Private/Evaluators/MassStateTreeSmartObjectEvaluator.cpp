@@ -132,7 +132,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 		}
 		else
 		{
-			const FDataFragment_Transform& TransformFragment = Context.GetExternalData(EntityTransformHandle);
+			const FTransformFragment& TransformFragment = Context.GetExternalData(EntityTransformHandle);
 			SearchRequestID = MassSmartObjectHandler.FindCandidatesAsync(RequestingEntity, TransformFragment.GetTransform().GetLocation());
 		}
 	}

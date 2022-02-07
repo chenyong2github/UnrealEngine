@@ -89,11 +89,11 @@ public:
 
 protected:
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-	static void SetEntityData(FDataFragment_Transform& TransformFragment, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData);
+	static void SetEntityData(FTransformFragment& TransformFragment, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData);
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 protected:
-	TArrayView<FDataFragment_Transform> TransformList;
+	TArrayView<FTransformFragment> TransformList;
 
 	TClientBubbleHandlerBase<AgentArrayItem>& OwnerHandler;
 };
@@ -144,7 +144,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::SetBubblePositionYawFrom
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::AddRequirementsForSpawnQuery(FMassEntityQuery& InQuery)
 {
-	InQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	InQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadWrite);
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
@@ -152,7 +152,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::AddRequirementsForSpawnQ
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::CacheFragmentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
 {
-	TransformList = InExecContext.GetMutableFragmentView<FDataFragment_Transform>();
+	TransformList = InExecContext.GetMutableFragmentView<FTransformFragment>();
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
@@ -160,7 +160,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::CacheFragmentViewsForSpa
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::ClearFragmentViewsForSpawnQuery()
 {
-	TransformList = TArrayView<FDataFragment_Transform>();
+	TransformList = TArrayView<FTransformFragment>();
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
@@ -168,7 +168,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::ClearFragmentViewsForSpa
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::SetSpawnedEntityData(const int32 EntityIdx, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData) const
 {
-	FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
+	FTransformFragment& TransformFragment = TransformList[EntityIdx];
 
 	SetEntityData(TransformFragment, ReplicatedPositionYawData);
 }
@@ -178,7 +178,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::SetSpawnedEntityData(con
 template<typename AgentArrayItem>
 void TMassClientBubbleTransformHandler<AgentArrayItem>::SetModifiedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData)
 {
-	FDataFragment_Transform& TransformFragment = EntityView.GetFragmentData<FDataFragment_Transform>();
+	FTransformFragment& TransformFragment = EntityView.GetFragmentData<FTransformFragment>();
 
 	SetEntityData(TransformFragment, ReplicatedPositionYawData);
 }
@@ -186,7 +186,7 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::SetModifiedEntityData(co
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubbleTransformHandler<AgentArrayItem>::SetEntityData(FDataFragment_Transform& TransformFragment, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData)
+void TMassClientBubbleTransformHandler<AgentArrayItem>::SetEntityData(FTransformFragment& TransformFragment, const FReplicatedAgentPositionYawData& ReplicatedPositionYawData)
 {
 	TransformFragment.GetMutableTransform().SetLocation(ReplicatedPositionYawData.GetPosition());
 	TransformFragment.GetMutableTransform().SetRotation(FQuat(FVector::UpVector, ReplicatedPositionYawData.GetYaw()));
@@ -202,7 +202,7 @@ public:
 	void CacheFragmentViews(FMassExecutionContext& ExecContext);
 
 protected:
-	TArrayView<FDataFragment_Transform> TransformList;
+	TArrayView<FTransformFragment> TransformList;
 };
 
 //////////////////////////////////////////////////////////////////////////// FMassReplicationProcessorPositionYawHandler ////////////////////////////////////////////////////////////////////////////
@@ -222,7 +222,7 @@ public:
 template<typename AgentArrayItem>
 void FMassReplicationProcessorPositionYawHandler::ModifyEntity(const FMassReplicatedAgentHandle Handle, const int32 EntityIdx, TMassClientBubbleTransformHandler<AgentArrayItem>& BubbleTransformHandler)
 {
-	const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
+	const FTransformFragment& TransformFragment = TransformList[EntityIdx];
 
 	BubbleTransformHandler.SetBubblePositionYawFromTransform(Handle, TransformFragment.GetTransform());
 }

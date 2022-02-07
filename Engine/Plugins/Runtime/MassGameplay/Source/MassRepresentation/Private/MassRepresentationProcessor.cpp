@@ -29,12 +29,12 @@ UMassRepresentationProcessor::UMassRepresentationProcessor()
 
 void UMassRepresentationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddConstSharedRequirement<FMassRepresentationConfig>();
-	EntityQuery.AddSharedRequirement<FMassRepresentationSubsystemFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddConstSharedRequirement<FMassRepresentationParameters>();
+	EntityQuery.AddSharedRequirement<FMassRepresentationSubsystemSharedFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassRepresentationProcessor::Initialize(UObject& Owner)
@@ -47,16 +47,16 @@ void UMassRepresentationProcessor::Initialize(UObject& Owner)
 
 void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& Context)
 {
-	UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+	UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
 	check(RepresentationSubsystem);
-	const FMassRepresentationConfig& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationConfig>();
+	const FMassRepresentationParameters& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationParameters>();
 	UMassRepresentationActorManagement* RepresentationActorManagement = RepresentationConfig.CachedRepresentationActorManagement;
 	check(RepresentationActorManagement);
 
-	const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+	const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
 	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
-	const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableFragmentView<FDataFragment_Actor>();
+	const TArrayView<FMassActorFragment> ActorList = Context.GetMutableFragmentView<FMassActorFragment>();
 
 	const bool bDoKeepActorExtraFrame = UE::MassRepresentation::bAllowKeepActorExtraFrame ? RepresentationConfig.bKeepLowResActors : false;
 
@@ -64,10 +64,10 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		const FMassEntityHandle MassAgent = Context.GetEntity(EntityIdx);
-		const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
+		const FTransformFragment& TransformFragment = TransformList[EntityIdx];
 		const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
 		FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
-		FDataFragment_Actor& ActorInfo = ActorList[EntityIdx];
+		FMassActorFragment& ActorInfo = ActorList[EntityIdx];
 
 		// Keeping a copy of the that last calculated previous representation
 		const EMassRepresentationType PrevRepresentationCopy = Representation.PrevRepresentation;
@@ -227,7 +227,7 @@ void UMassRepresentationProcessor::Execute(UMassEntitySubsystem& InEntitySubsyst
 	});
 }
 
-bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, bool bCancelSpawningOnly /*= false*/)
+bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, bool bCancelSpawningOnly /*= false*/)
 {
 	if (TemplateActorIndex == INDEX_NONE)
 	{
@@ -297,7 +297,7 @@ void UMassVisualizationProcessor::ConfigureQueries()
 
 FMassVisualizationChunkFragment& UMassVisualizationProcessor::UpdateChunkVisibility(FMassExecutionContext& Context) const
 {
-	const FMassRepresentationConfig& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationConfig>();
+	const FMassRepresentationParameters& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationParameters>();
 	bool bFirstUpdate = false;
 
 	// Setup chunk fragment data about visibility
@@ -373,26 +373,26 @@ UMassRepresentationFragmentDestructor::UMassRepresentationFragmentDestructor()
 void UMassRepresentationFragmentDestructor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddConstSharedRequirement<FMassRepresentationConfig>();
-	EntityQuery.AddSharedRequirement<FMassRepresentationSubsystemFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddConstSharedRequirement<FMassRepresentationParameters>();
+	EntityQuery.AddSharedRequirement<FMassRepresentationSubsystemSharedFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemFragment>().RepresentationSubsystem;
+		UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
 		check(RepresentationSubsystem);
 
 		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
-		const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableFragmentView<FDataFragment_Actor>();
+		const TArrayView<FMassActorFragment> ActorList = Context.GetMutableFragmentView<FMassActorFragment>();
 
 		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
 			FMassRepresentationFragment& Representation = RepresentationList[i];
-			FDataFragment_Actor& ActorInfo = ActorList[i];
+			FMassActorFragment& ActorInfo = ActorList[i];
 
 			const FMassEntityHandle MassAgent = Context.GetEntity(i);
 

@@ -8,10 +8,10 @@
 #include "VisualLogger/VisualLogger.h"
 
 //----------------------------------------------------------------------//
-//  FDataFragment_Actor 
+//  FMassActorFragment 
 //----------------------------------------------------------------------//
 
-void FDataFragment_Actor::SetAndUpdateHandleMap(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
+void FMassActorFragment::SetAndUpdateHandleMap(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
 {
 	SetNoHandleMapUpdate(MassAgent, InActor, bInIsOwnedByMass);
 
@@ -23,7 +23,7 @@ void FDataFragment_Actor::SetAndUpdateHandleMap(const FMassEntityHandle MassAgen
 	}
 }
 
-void FDataFragment_Actor::ResetAndUpdateHandleMap()
+void FMassActorFragment::ResetAndUpdateHandleMap()
 {
 	if (AActor* ActorPtr = Cast<AActor>(Actor.Get()))
 	{
@@ -38,7 +38,7 @@ void FDataFragment_Actor::ResetAndUpdateHandleMap()
 	ResetNoHandleMapUpdate();
 }
 
-void FDataFragment_Actor::SetNoHandleMapUpdate(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
+void FMassActorFragment::SetNoHandleMapUpdate(const FMassEntityHandle MassAgent, AActor* InActor, const bool bInIsOwnedByMass)
 {
 	check(InActor);
 	check(!Actor.IsValid());
@@ -47,7 +47,7 @@ void FDataFragment_Actor::SetNoHandleMapUpdate(const FMassEntityHandle MassAgent
 	bIsOwnedByMass = bInIsOwnedByMass;
 }
 
-void FDataFragment_Actor::ResetNoHandleMapUpdate()
+void FMassActorFragment::ResetNoHandleMapUpdate()
 {
 	Actor.Reset();
 	bIsOwnedByMass = false;
@@ -81,7 +81,7 @@ FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey
 AActor* UMassActorSubsystem::GetActorFromHandle(const FMassEntityHandle Handle) const
 {
 	check(EntitySystem);
-	FDataFragment_Actor* Data = EntitySystem->GetFragmentDataPtr<FDataFragment_Actor>(Handle);
+	FMassActorFragment* Data = EntitySystem->GetFragmentDataPtr<FMassActorFragment>(Handle);
 	return Data != nullptr ? Data->GetMutable() : nullptr;
 }
 
@@ -119,7 +119,7 @@ void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, 
 	if (FoundEntity == Handle)
 	{
 		check(EntitySystem);
-		if (FDataFragment_Actor* Data = EntitySystem->GetFragmentDataPtr<FDataFragment_Actor>(Handle))
+		if (FMassActorFragment* Data = EntitySystem->GetFragmentDataPtr<FMassActorFragment>(Handle))
 		{
 			Data->ResetAndUpdateHandleMap();
 		}

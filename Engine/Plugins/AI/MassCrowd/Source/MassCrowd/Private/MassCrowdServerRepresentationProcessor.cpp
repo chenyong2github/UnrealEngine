@@ -16,5 +16,5 @@ UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor
 void UMassCrowdServerRepresentationProcessor::ConfigureQueries()
 {
 	Super::ConfigureQueries();
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 }

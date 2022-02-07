@@ -35,10 +35,10 @@ void UMassCrowdReplicationProcessor::ConfigureQueries()
 	FMassReplicationProcessorPositionYawHandler::AddRequirements(EntityQuery);
 	FMassReplicationProcessorPathHandler::AddRequirements(EntityQuery);
 
-	CollectViewerInfoQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
-	CalculateLODQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
-	AdjustLODDistancesQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
+	CollectViewerInfoQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	CalculateLODQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	AdjustLODDistancesQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 }
 
 void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -53,7 +53,7 @@ void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 	{
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
-				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
+				const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 				const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();
 				FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
 				RepSharedFragment.LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);

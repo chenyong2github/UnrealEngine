@@ -10,7 +10,7 @@
 class UCharacterMovementComponent;
 
 USTRUCT()
-struct FDataFragment_CharacterMovementComponentWrapper : public FDataFragment_ObjectWrapper
+struct FCharacterMovementComponentWrapperFragment : public FObjectWrapperFragment
 {
 	GENERATED_BODY()
 	TWeakObjectPtr<UCharacterMovementComponent> Component;
@@ -95,20 +95,6 @@ class MASSACTORS_API UMassCharacterOrientationToActorTranslator : public UMassTr
 
 public:
 	UMassCharacterOrientationToActorTranslator();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	FMassEntityQuery EntityQuery;
-};
-
-UCLASS()
-class MASSACTORS_API UMassFragmentInitializer_NavLocation : public UMassObserverProcessor
-{
-	GENERATED_BODY()
-public:
-	UMassFragmentInitializer_NavLocation();
 
 protected:
 	virtual void ConfigureQueries() override;

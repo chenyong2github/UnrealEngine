@@ -15,7 +15,7 @@ struct FMassMoveTargetFragment;
 struct FMassZoneGraphPathRequestFragment;
 struct FMassZoneGraphShortPathFragment;
 struct FMassZoneGraphCachedLaneFragment;
-struct FDataFragment_AgentRadius;
+struct FAgentRadiusFragment;
 struct FMassMovementParameters;
 class UZoneGraphSubsystem;
 
@@ -100,7 +100,7 @@ protected:
 	TStateTreeExternalDataHandle<FMassZoneGraphPathRequestFragment> PathRequestHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphShortPathFragment> ShortPathHandle;
 	TStateTreeExternalDataHandle<FMassZoneGraphCachedLaneFragment> CachedLaneHandle;
-	TStateTreeExternalDataHandle<FDataFragment_AgentRadius> AgentRadiusHandle;
+	TStateTreeExternalDataHandle<FAgentRadiusFragment> AgentRadiusHandle;
 	TStateTreeExternalDataHandle<FMassMovementParameters> MovementParamsHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
 
