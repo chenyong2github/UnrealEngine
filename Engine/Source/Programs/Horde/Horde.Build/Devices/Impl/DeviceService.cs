@@ -117,6 +117,11 @@ namespace HordeServer.Services
 		ProjectService ProjectService;
 
 		/// <summary>
+		/// The user collection instance
+		/// </summary>
+		IUserCollection UserCollection { get; set; }
+
+		/// <summary>
 		/// Log output writer
 		/// </summary>
 		ILogger<DeviceService> Logger;
@@ -136,8 +141,9 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, ProjectService ProjectService, StreamService StreamService, AclService AclService, INotificationService NotificationService, IClock Clock, ILogger<DeviceService> Logger)
+		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, IUserCollection UserCollection, JobService JobService, ProjectService ProjectService, StreamService StreamService, AclService AclService, INotificationService NotificationService, IClock Clock, ILogger<DeviceService> Logger)
 		{
+			this.UserCollection = UserCollection;
 			this.Devices = Devices;
             this.JobService = JobService;
 			this.ProjectService = ProjectService;
@@ -169,6 +175,14 @@ namespace HordeServer.Services
 			if (!StoppingToken.IsCancellationRequested)
 			{
 				await Devices.ExpireReservationsAsync();
+				List<(UserId, IDevice)>? ExpireCheckouts = await Devices.ExpireCheckedOutAsync();
+				if (ExpireCheckouts != null && ExpireCheckouts.Count > 0)
+				{
+					foreach ((UserId, IDevice) ExpiredDevice in ExpireCheckouts)
+					{
+						await NotifyDeviceServiceAsync($"Device {ExpiredDevice.Item2.Name}:{ExpiredDevice.Item2.PlatformId} checkout has automatically expired and it has been returned to the shared pool.", null, null, null, ExpiredDevice.Item1);
+					}
+				}
 			}
 
 		}
@@ -358,7 +372,8 @@ namespace HordeServer.Services
 		/// <param name="DeviceId"></param>
 		/// <param name="JobId"></param>
 		/// <param name="StepId"></param>
-		public async Task NotifyDeviceServiceAsync(string Message, DeviceId? DeviceId = null, string? JobId = null, string? StepId = null)
+		/// <param name="UserId"></param>
+		public async Task NotifyDeviceServiceAsync(string Message, DeviceId? DeviceId = null, string? JobId = null, string? StepId = null, UserId? UserId = null)
 		{
 			try 
 			{
@@ -368,6 +383,17 @@ namespace HordeServer.Services
 				IJobStep? Step = null;
 				INode? Node = null;
 				IStream? Stream = null;
+				IUser? User = null;
+
+				if (UserId.HasValue)
+				{
+					User = await UserCollection.GetUserAsync(UserId.Value);
+					if (User == null)
+					{
+						Logger.LogError("Unable to send device notification, can't find User {UserId}", UserId.Value);
+						return;
+					}
+				}
 
 				if (DeviceId.HasValue)
 				{
@@ -399,7 +425,7 @@ namespace HordeServer.Services
 					}
 				}
 
-				NotificationService.NotifyDeviceService(Message, Device, Pool, Stream, Job, Step, Node);
+				NotificationService.NotifyDeviceService(Message, Device, Pool, Stream, Job, Step, Node, User);
 
 			}
 			catch (Exception Ex)

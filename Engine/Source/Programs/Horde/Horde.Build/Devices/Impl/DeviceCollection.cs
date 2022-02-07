@@ -696,6 +696,45 @@ namespace HordeServer.Collections.Impl
 
 		}
 
+		/// <summary>
+		/// Deletes expired user checkouts
+		/// </summary>
+		public async Task<List<(UserId, IDevice)>?> ExpireCheckedOutAsync()
+		{
+			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Empty;
+			Filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckOutTime != null);
+
+			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
+
+			DateTime UtcNow = DateTime.UtcNow;
+			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalMinutes > 5).ToList();
+
+
+			if (ExpiredDevices.Count > 0)
+			{
+
+				FilterDefinition<DeviceDocument> UpdateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id));
+
+				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckedOutByUser, null));
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckOutTime, null));
+
+				UpdateResult Result = await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id)), DeviceBuilder.Combine(DeviceUpdates));
+
+				if (Result.ModifiedCount > 0)
+				{
+					return ExpiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice) x)).ToList();
+				}
+
+			}
+
+			return null;
+
+		}
+
+
 		/// <inheritdoc/>
 		public async Task<List<IDeviceReservation>> FindAllReservationsAsync()
 		{

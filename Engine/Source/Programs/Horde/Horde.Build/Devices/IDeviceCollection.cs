@@ -217,6 +217,11 @@ namespace HordeServer.Collections
 		/// </summary>
 		public Task<bool> ExpireReservationsAsync();
 
+		/// <summary>
+		/// Deletes user device checkouts
+		/// </summary>
+		public Task<List<(UserId, IDevice)>?> ExpireCheckedOutAsync();
+
 	}
 
 }
