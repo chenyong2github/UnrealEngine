@@ -34,7 +34,6 @@ public:
 private:
 	void Run();
 	void QueryLiveAllocs(TArray<const FAllocationItem*>& OutAllocs) const;
-	void QueryCallstacks(FAllocationsImpl* Result) const;
 
 private:
 	const FAllocationsProvider& AllocationsProvider;

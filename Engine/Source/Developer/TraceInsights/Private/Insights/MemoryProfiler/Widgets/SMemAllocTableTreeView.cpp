@@ -298,6 +298,8 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 	}
 	const TraceServices::IAllocationsProvider& Provider = *AllocationsProvider;
 
+	const TraceServices::ICallstacksProvider* CallstacksProvider = TraceServices::ReadCallstacksProvider(*Session.Get());
+
 	constexpr double MaxPollTime = 0.03; // Stop getting results after 30 ms so we don't tank the frame rate too much.
 	FStopwatch TotalStopwatch;
 	TotalStopwatch.Start();
@@ -361,7 +363,11 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Address = Allocation->GetAddress();
 					Alloc.Size = int64(Allocation->GetSize());
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
-					Alloc.Callstack = Allocation->GetCallstack();
+					if (CallstacksProvider)
+					{
+						Alloc.Callstack = CallstacksProvider->GetCallstack(Allocation->GetCallstackId());
+						Alloc.FreeCallstack = CallstacksProvider->GetCallstack(Allocation->GetFreeCallstackId());
+					}
 					Alloc.RootHeap = Allocation->GetRootHeap();
 					Alloc.bIsBlock = Allocation->IsHeap();
 					check(Alloc.Callstack != nullptr);

@@ -36,7 +36,7 @@ bool FCallstacksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCo
 			// Backward compatibility with legacy memory trace format (5.0-EA).
 			else if (const uint64 Hash = Context.EventData.GetValue<uint64>("Id"))
 			{
-				Provider->AddCallstack(Hash, Frames.GetData(), uint8(Frames.Num()));
+				Provider->AddCallstackWithHash(Hash, Frames.GetData(), uint8(Frames.Num()));
 			}
 			break;
 	}

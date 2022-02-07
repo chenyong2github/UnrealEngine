@@ -19,14 +19,19 @@ struct TRACESERVICES_API FStackFrame
 /////////////////////////////////////////////////////////////////////
 struct TRACESERVICES_API FCallstack
 {
+	/** Creates an empty callstack. */
+	FCallstack();
+	/** Creates an callstack initialised with a certain number of stack frames. */
 	FCallstack(const FStackFrame* FirstEntry, uint8 FrameCount);
-	/** Get the number of stack frames in callstack. */
+	/** Initialises the callstack with a certain number of stack frames. */
+	void Init(const FStackFrame* FirstEntry, uint8 FrameCount);
+	/** Gets the number of stack frames in callstack. */
 	uint32 Num() const;
 	/** Gets the address at a given stack depth. */
 	uint64 Addr(uint8 Depth) const;
 	/** Gets the cached symbol name at a given stack depth. */
 	const TCHAR* Name(uint8 Depth) const;
-	/** Gets the entire frame at given depth */
+	/** Gets the entire frame at given depth. */
 	const FStackFrame* Frame(uint8 Depth) const;
 
 private:
@@ -50,7 +55,7 @@ public:
 
 	/**
 	  * Queries a callstack id.
-	  * @param CallstackId Callstack id to query
+	  * @param CallstackId Callstack id to query.
 	  * @return Callstack information. If id is not found a callstack with zero stack depth is returned.
 	  */
 	virtual const FCallstack* GetCallstack(uint64 CallstackId) const = 0;
@@ -61,6 +66,13 @@ public:
 	  * @param OutCallstacks Output list of callstacks. Caller is responsible for allocating space according to CallstackIds length.
 	  */
 	virtual void GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
+
+	/**
+	  * Gets a callstack id for a registerd callstack hash.
+	  * @param CallstackHash The callstack hash.
+	  * @returns The callstack id.
+	  */
+	virtual uint32 GetCallstackIdForHash(uint64 CallstackHash) const = 0;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -69,7 +81,19 @@ TRACESERVICES_API FName GetCallstacksProviderName();
 TRACESERVICES_API const ICallstacksProvider* ReadCallstacksProvider(const IAnalysisSession& Session);
 
 /////////////////////////////////////////////////////////////////////
+inline FCallstack::FCallstack()
+: CallstackLenIndex(0)
+{
+}
+
+/////////////////////////////////////////////////////////////////////
 inline FCallstack::FCallstack(const FStackFrame* InFirstFrame, uint8 InFrameCount)
+{
+	Init(InFirstFrame, InFrameCount);
+}
+
+/////////////////////////////////////////////////////////////////////
+inline void FCallstack::Init(const FStackFrame* InFirstFrame, uint8 InFrameCount)
 {
 	check((uint64(InFirstFrame) & EntryLenMask) == 0);
 	CallstackLenIndex = (uint64(InFrameCount) << EntryLenShift) | (~EntryLenMask & uint64(InFirstFrame));

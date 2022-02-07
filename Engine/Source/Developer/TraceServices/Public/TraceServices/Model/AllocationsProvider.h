@@ -99,7 +99,9 @@ public:
 		uint64 GetAddress() const;
 		uint64 GetSize() const;
 		uint32 GetAlignment() const;
-		const struct FCallstack* GetCallstack() const;
+		uint32 GetCallstackId() const;
+		uint32 GetFreeCallstackId() const;
+		uint32 GetMetadataId() const;
 		TagIdType GetTag() const;
 		HeapId GetRootHeap() const;
 		bool IsHeap() const;

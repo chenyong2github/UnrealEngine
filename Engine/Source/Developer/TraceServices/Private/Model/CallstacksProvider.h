@@ -20,10 +20,13 @@ public:
 	explicit FCallstacksProvider(IAnalysisSession& Session);
 	virtual ~FCallstacksProvider() {}
 
-	const FCallstack*	GetCallstack(uint64 CallstackId) const override;
-	void				GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const override;
-	void				AddCallstack(uint64 CallstackId, const uint64* Frames, uint8 FrameCount);
-	void				AddCallstack(uint32 CallstackId, const uint64* Frames, uint8 FrameCount);
+	const FCallstack* GetCallstack(uint64 CallstackId) const override;
+	void GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const override;
+	void AddCallstack(uint32 CallstackId, const uint64* Frames, uint8 FrameCount);
+
+	// Backward compatibility with legacy memory trace format (5.0-EA).
+	uint32 AddCallstackWithHash(uint64 CallstackHash, const uint64* Frames, uint8 FrameCount);
+	uint32 GetCallstackIdForHash(uint64 CallstackHash) const override;
 
 private:
 	enum
@@ -35,9 +38,9 @@ private:
 	mutable FRWLock					EntriesLock;
 	IAnalysisSession&				Session;
 	mutable IModuleProvider*		ModuleProvider;
-	TMap<uint64,const FCallstack*>	CallstackEntries;
-	TPagedArray<FCallstack>			Callstacks;
+	TPagedArray<FCallstack>			Callstacks; // CallstackId is an index in this array; Callstacks[0] is an empty callstack
 	TPagedArray<FStackFrame>		Frames;
+	TMap<uint64, uint32>			CallstackMap; // (CallstackHash --> CallstackId) map, used for backward compatibility with legacy trace format
 };
 
 } // namespace TraceServices

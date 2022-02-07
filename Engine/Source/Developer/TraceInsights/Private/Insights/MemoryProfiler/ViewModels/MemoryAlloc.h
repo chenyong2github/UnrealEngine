@@ -43,6 +43,7 @@ private:
 	int64 Size;
 	const TCHAR* Tag;
 	const TraceServices::FCallstack* Callstack;
+	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;
 	bool bIsBlock;
 	bool bIsDecline;

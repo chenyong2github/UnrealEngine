@@ -18,6 +18,10 @@
 #define INSIGHTS_SLOW_CHECK(expr) //check(expr)
 
 #define INSIGHTS_DEBUG_WATCH 0
+// Action to be executed when a match is found.
+#define INSIGHTS_DEBUG_WATCH_FOUND break // just log
+//#define INSIGHTS_DEBUG_WATCH_FOUND return // log and ignore events
+//#define INSIGHTS_DEBUG_WATCH_FOUND UE_DEBUG_BREAK(); break
 
 // Use optimized path for the short living allocations.
 // If enabled, caches the short living allocations, as there is a very high chance to be freed in the next few "free" events.
@@ -43,7 +47,7 @@ constexpr uint32 MaxLogMessagesPerErrorType = 100;
 static uint64 GWatchAddresses[] =
 {
 	// add here addresses to watch
-	0x0,
+	0x0ull,
 };
 #endif // INSIGHTS_DEBUG_WATCH
 
@@ -118,6 +122,10 @@ void FTagTracker::AddTagSpec(TagIdType InTag, TagIdType InParentTag, const TCHAR
 	if (ensure(!TagMap.Contains(InTag)))
 	{
 		TagMap.Emplace(InTag, TagEntry{ InDisplay, InParentTag });
+		if (!InDisplay || *InDisplay == TEXT('\0'))
+		{
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Tag with id %u has invalid display name (ParentTag=%u)!"), InTag, InParentTag);
+		}
 	}
 	else
 	{
@@ -216,7 +224,7 @@ bool FTagTracker::HasTagFromPtrScope(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
-	return State && State->TagStack.Num() > 0 && ((State->TagStack.Top() & PtrTagMask) != 0);
+	return State && (State->TagStack.Num() > 0) && ((State->TagStack.Top() & PtrTagMask) != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,10 +286,24 @@ uint32 IAllocationsProvider::FAllocation::GetAlignment() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-const FCallstack* IAllocationsProvider::FAllocation::GetCallstack() const
+uint32 IAllocationsProvider::FAllocation::GetCallstackId() const
 {
 	const auto* Inner = (const FAllocationItem*)this;
-	return Inner->Callstack;
+	return Inner->CallstackId;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+uint32 IAllocationsProvider::FAllocation::GetFreeCallstackId() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->FreeCallstackId;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+uint32 IAllocationsProvider::FAllocation::GetMetadataId() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->MetadataId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1081,7 +1103,7 @@ void FAllocationsProvider::EditHeapSpec(HeapId Id, HeapId ParentId, const FStrin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint64 InSize, uint32 InAlignment, uint32 ThreadId, uint8 Tracker, HeapId RootHeap)
+void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Address, uint64 InSize, uint32 InAlignment, HeapId RootHeap)
 {
 	Lock.WriteAccessCheck();
 
@@ -1092,7 +1114,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 	if (Address == 0)
 	{
-		UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Alloc at address 0 : Size=%llu, RootHeap=%u, Time=%f"), InSize, RootHeap, Time);
+		UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Alloc at address 0 : Size=%llu, RootHeap=%u, Time=%f, CallstackId=%u"), InSize, RootHeap, Time, CallstackId);
 		return;
 	}
 
@@ -1107,18 +1129,18 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 	AdvanceTimelines(Time);
 
-	const TagIdType Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
+	const TagIdType Tag = TagTracker.GetCurrentTag(CurrentSystemThreadId, CurrentTracker);
 
 #if INSIGHTS_DEBUG_WATCH
 	for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
 	{
 		if (GWatchAddresses[AddrIndex] == Address)
 		{
-			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Alloc 0x%llX : Size=%llu, Tag=%u, RootHeap=%u, Time=%f"), Address, InSize, Tag, RootHeap, Time);
-			break;
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc][%u] Alloc 0x%llX : Size=%llu, Tag=%u, RootHeap=%u, Time=%f, CallstackId=%u"), CurrentTraceThreadId, Address, InSize, Tag, RootHeap, Time, CallstackId);
+			INSIGHTS_DEBUG_WATCH_FOUND;
 		}
 	}
-#endif
+#endif // INSIGHTS_DEBUG_WATCH
 
 #if INSIGHTS_VALIDATE_ALLOC_EVENTS
 	FAllocationItem* AllocationPtr = LiveAllocs[RootHeap]->FindRef(Address);
@@ -1129,20 +1151,21 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 	if (!AllocationPtr)
 	{
 		AllocationPtr = LiveAllocs[RootHeap]->AddNew(Address);
-		INSIGHTS_SLOW_CHECK(AllocationPtr->Address == Address)
-
 		FAllocationItem& Allocation = *AllocationPtr;
+
+		INSIGHTS_SLOW_CHECK(Allocation.Address == Address);
+		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, InAlignment);
 		Allocation.StartEventIndex = EventIndex[RootHeap];
 		Allocation.EndEventIndex = (uint32)-1;
 		Allocation.StartTime = Time;
 		Allocation.EndTime = std::numeric_limits<double>::infinity();
-		Allocation.Owner = Owner;
-		//Allocation.Address = Address;
-		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, InAlignment);
-		Allocation.Callstack = nullptr;
+		Allocation.CallstackId = CallstackId;
+		Allocation.FreeCallstackId = 0; // no callstack yet
+		Allocation.MetadataId = 0; //TODO: MetadataProvider.PinAndGetId() // pins the metadata stack and returns an id for it
+		Allocation.Reserved = 0;
 		Allocation.Tag = Tag;
-		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;
 		Allocation.RootHeap = RootHeap;
+		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;
 
 		UpdateHistogramByAllocSize(InSize);
 
@@ -1170,7 +1193,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditFree(double Time, uint64 Address, HeapId RootHeap)
+void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Address, HeapId RootHeap)
 {
 	Lock.WriteAccessCheck();
 
@@ -1181,7 +1204,7 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address, HeapId RootHeap
 
 	if (Address == 0)
 	{
-		UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Free for address 0 : RootHeap=%u, Time=%f"), RootHeap, Time);
+		UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Free for address 0 : RootHeap=%u, Time=%f, CallstackId=%u"), RootHeap, Time, CallstackId);
 		return;
 	}
 
@@ -1201,8 +1224,8 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address, HeapId RootHeap
 	{
 		if (GWatchAddresses[AddrIndex] == Address)
 		{
-			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Free 0x%llX : RootHeap=%u, Time=%f"), Address, RootHeap, Time);
-			break;
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc][%u] Free 0x%llX : RootHeap=%u, Time=%f, CallstackId=%u"), CurrentTraceThreadId, Address, RootHeap, Time, CallstackId);
+			INSIGHTS_DEBUG_WATCH_FOUND;
 		}
 	}
 #endif // INSIGHTS_DEBUG_WATCH
@@ -1223,6 +1246,8 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address, HeapId RootHeap
 		check(EventIndex[RootHeap] > AllocationPtr->StartEventIndex);
 		AllocationPtr->EndEventIndex = EventIndex[RootHeap];
 		AllocationPtr->EndTime = Time;
+
+		AllocationPtr->FreeCallstackId = CallstackId;
 
 		const uint64 OldSize = AllocationPtr->GetSize();
 
@@ -1265,11 +1290,11 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint64 Addres
 	{
 		if (GWatchAddresses[AddrIndex] == Address)
 		{
-			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] HeapUnmarkAlloc 0x%llX : Heap=%u, Time=%f"), Address, Heap, Time);
-			break;
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc][%u] HeapUnmarkAlloc 0x%llX : Heap=%u, Time=%f"), CurrentTraceThreadId, Address, Heap, Time);
+			INSIGHTS_DEBUG_WATCH_FOUND;
 		}
 	}
-#endif
+#endif // INSIGHTS_DEBUG_WATCH
 
 	HeapId RootHeap = FindRootHeap(Heap);
 
@@ -1279,19 +1304,20 @@ void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint64 Addres
 	{
 		const uint64 Size = Alloc->GetSize();
 		const uint32 Alignment = Alloc->GetAlignment();
-		const uint32 Owner = Alloc->Owner;
-		const uint32 ThreadId = 0;
-		const uint8 Tracker = 1;
+		const uint32 CallstackId = Alloc->CallstackId;
+		const uint32 FreeCallstackId = 0; // unknown
 
 		// Re-add this allocation to the Live allocs.
 		LiveAllocs[RootHeap]->Add(Alloc); // the Live allocs takes ownership of Alloc
 
-		// We cannot just unmark the allocation as heap, there is no timestamp support, instead fake a free
-		// and allocation. Make sure the new allocation retains the tag from the original.
-		EditPushTagFromPtr(ThreadId, Tracker, Address);
-		EditFree(Time, Address, RootHeap);
-		EditAlloc(Time, Address, Owner, Size, Alignment, 0, 1, RootHeap);
-		EditPopTagFromPtr(ThreadId, Tracker);
+		// We cannot just unmark the allocation as heap, there is no timestamp support, instead fake a "free"
+		// event and an "alloc" event. Make sure the new allocation retains the tag from the original.
+		CurrentTracker = 1;
+		EditPushTagFromPtr(CurrentSystemThreadId, CurrentTracker, Address);
+		EditFree(Time, FreeCallstackId, Address, RootHeap);
+		EditAlloc(Time, CallstackId, Address, Size, Alignment, RootHeap);
+		EditPopTagFromPtr(CurrentSystemThreadId, CurrentTracker);
+		CurrentTracker = 0;
 	}
 	else
 	{
@@ -1314,11 +1340,11 @@ void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint64 Address,
 	{
 		if (GWatchAddresses[AddrIndex] == Address)
 		{
-			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] HeapMarkAlloc 0x%llX : Heap=%u, Flags=%u, Time=%f"), Address, Heap, uint32(Flags), Time);
-			break;
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc][%u] HeapMarkAlloc 0x%llX : Heap=%u, Flags=%u, Time=%f"), CurrentTraceThreadId, Address, Heap, uint32(Flags), Time);
+			INSIGHTS_DEBUG_WATCH_FOUND;
 		}
 	}
-#endif
+#endif // INSIGHTS_DEBUG_WATCH
 
 	HeapId RootHeap = FindRootHeap(Heap);
 
@@ -1561,14 +1587,42 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 			Tree->Validate();
 		}
 	}
+
+	if (AllocErrors > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] ALLOC event errors: %u"), AllocErrors);
+	}
+	if (FreeErrors > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] FREE event errors: %u"), FreeErrors);
+	}
+	if (HeapErrors > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] HEAP event errors: %u"), HeapErrors);
+	}
+	if (MiscErrors > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Other errors: %u"), MiscErrors);
+	}
+	if (TagTracker.GetNumErrors() > 0)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] TagTracker errors: %u"), TagTracker.GetNumErrors());
+	}
+
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Analysis Completed"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FAllocationsProvider::EnumerateRootHeaps(TFunctionRef<void(HeapId Id, const FHeapSpec&)> Callback) const
 {
-	Algo::ForEachIf(HeapSpecs, [](const FHeapSpec& Spec) { return Spec.Parent == nullptr && Spec.Name != nullptr; },
-	                [&](const FHeapSpec& Spec) { Callback(Spec.Id, Spec); });
+	for (const FHeapSpec& Spec : HeapSpecs)
+	{
+		if (Spec.Parent == nullptr && Spec.Name != nullptr)
+		{
+			Callback(Spec.Id, Spec);
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1904,6 +1958,7 @@ const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Sess
 
 #undef INSIGHTS_SLOW_CHECK
 #undef INSIGHTS_DEBUG_WATCH
+#undef INSIGHTS_DEBUG_WATCH_FOUND
 #undef INSIGHTS_USE_SHORT_LIVING_ALLOCS
 #undef INSIGHTS_USE_LAST_ALLOC
 #undef INSIGHTS_VALIDATE_ALLOC_EVENTS

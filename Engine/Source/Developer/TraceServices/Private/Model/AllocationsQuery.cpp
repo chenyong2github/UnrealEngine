@@ -118,7 +118,6 @@ void FAllocationsQuery::Run()
 		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u live allocs..."), NumLiveAllocs);
 		TotalAllocationCount += NumLiveAllocs;
 
-		QueryCallstacks(LiveAllocsResult);
 		Results.Enqueue(LiveAllocsResult);
 	}
 	else
@@ -170,7 +169,6 @@ void FAllocationsQuery::Run()
 			UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u allocs..."), NumAllocs);
 			TotalAllocationCount += NumAllocs;
 
-			QueryCallstacks(CellResult);
 			Results.Enqueue(CellResult);
 		}
 		else
@@ -397,22 +395,6 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		});
 	}
 	break;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FAllocationsQuery::QueryCallstacks(FAllocationsImpl* Result) const
-{
-	for (auto Item : Result->Items)
-	{
-		// Callstacks could have been resolved in previous queries,
-		// check before querying again
-		if (!Item->Callstack)
-		{
-			Item->Callstack = CallstacksProvider.GetCallstack(Item->Owner);
-			check(Item->Callstack != nullptr);
-		}
 	}
 }
 

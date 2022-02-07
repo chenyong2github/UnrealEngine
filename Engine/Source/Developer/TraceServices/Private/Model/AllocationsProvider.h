@@ -42,7 +42,7 @@ private:
 	static constexpr uint32 TrackerIdShift = 24;
 	static constexpr uint32 TrackerIdMask = 0xFF000000;
 	static constexpr uint32 PtrTagMask = 0x80000000;
-	
+
 	struct ThreadState
 	{
 		TArray<TagIdType> TagStack;
@@ -64,6 +64,8 @@ public:
 	void PushTagFromPtr(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void PopTagFromPtr(uint32 ThreadId, uint8 Tracker);
 	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const;
+
+	uint32 GetNumErrors() const { return NumErrors; }
 
 private:
 	inline uint32 GetTrackerThreadId(uint32 ThreadId, uint8 Tracker) const
@@ -93,14 +95,16 @@ struct FAllocationItem
 	uint32 GetAlignment() const { return UnpackAlignment(SizeAndAlignment); }
 	bool IsHeap() const { return EnumHasAnyFlags(Flags, EMemoryTraceHeapAllocationFlags::Heap); }
 
+	uint64 Address;
+	uint64 SizeAndAlignment; // (Alignment << AlignmentShift) | Size
 	uint32 StartEventIndex;
 	uint32 EndEventIndex;
 	double StartTime;
 	double EndTime;
-	uint64 Owner;
-	uint64 Address;
-	uint64 SizeAndAlignment; // (Alignment << AlignmentShift) | Size
-	mutable const FCallstack* Callstack;
+	uint32 CallstackId;
+	uint32 FreeCallstackId;
+	uint32 MetadataId;
+	uint32 Reserved;
 	TagIdType Tag;
 	uint8 RootHeap;
 	EMemoryTraceHeapAllocationFlags Flags;
@@ -211,7 +215,7 @@ public:
 
 	uint32 Num() const { return TotalAllocCount; }
 	uint32 PeakCount() const { return MaxAllocCount; }
-	
+
 	// Finds the allocation with specified address.
 	// Returns the found allocation or nullptr if not found.
 	FORCEINLINE FAllocationItem* FindRef(uint64 Address);
@@ -324,11 +328,11 @@ public:
 
 	void EditHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags);
 
-	void EditAlloc(double Time, uint64 Owner, uint64 Address, uint64 Size, uint32 Alignment, uint32 ThreadId, uint8 Tracker, HeapId RootHeap);
-	void EditFree(double Time, uint64 Address, HeapId RootHeap);
+	void EditAlloc(double Time, uint32 CallstackId, uint64 Address, uint64 Size, uint32 Alignment, HeapId RootHeap);
+	void EditFree(double Time, uint32 CallstackId, uint64 Address, HeapId RootHeap);
 	void EditMarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags);
 	void EditUnmarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap);
-	
+
 	void EditAddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
 	void EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void EditPopTag(uint32 ThreadId, uint8 Tracker);
@@ -336,6 +340,12 @@ public:
 	void EditPopTagFromPtr(uint32 ThreadId, uint8 Tracker);
 
 	void EditOnAnalysisCompleted(double Time);
+
+	void SetCurrentThreadId(uint32 InThreadId, uint32 InSystemThreadId)
+	{
+		CurrentTraceThreadId = InThreadId;
+		CurrentSystemThreadId = InSystemThreadId;
+	}
 
 	//////////////////////////////////////////////////
 
@@ -351,16 +361,20 @@ private:
 
 	mutable FAllocationsProviderLock Lock;
 
-	//Number of supported root heaps
+	// Number of supported root heaps
 	constexpr static uint8 MaxRootHeaps = 16;
-	
+
 	double InitTime = 0;
 	uint8 MinAlignment = 0;
 	uint8 SizeShift = 0;
 	uint8 SummarySizeShift = 0;
 	bool bInitialized = false;
 
+	uint32 CurrentTraceThreadId = 0;
+	uint32 CurrentSystemThreadId = 0;
+
 	FTagTracker TagTracker;
+	uint8 CurrentTracker = 0;
 
 	uint32 EventIndex[MaxRootHeaps];
 
@@ -401,7 +415,7 @@ private:
 	TPagedArray<uint32> MaxLiveAllocationsTimeline;
 	TPagedArray<uint32> AllocEventsTimeline;
 	TPagedArray<uint32> FreeEventsTimeline;
-	
+
 	TArray<FHeapSpec> HeapSpecs;
 };
 

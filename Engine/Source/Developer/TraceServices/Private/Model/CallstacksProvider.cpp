@@ -15,10 +15,9 @@ namespace TraceServices
 static const FResolvedSymbol GNeverResolveSymbol(ESymbolQueryResult::NotLoaded, nullptr, nullptr, nullptr, 0);
 static const FResolvedSymbol GNotFoundSymbol(ESymbolQueryResult::NotFound, TEXT("Unknown"), nullptr, nullptr, 0);
 static const FResolvedSymbol GNoSymbol(ESymbolQueryResult::NotFound, TEXT("No callstack recorded"), nullptr, nullptr, 0);
-static constexpr FStackFrame GNotFoundStackFrame = { 0, &GNotFoundSymbol};
-static constexpr FStackFrame GNoStackFrame = {0, &GNoSymbol};	
+static constexpr FStackFrame GNotFoundStackFrame = { 0, &GNotFoundSymbol };
+static constexpr FStackFrame GNoStackFrame = { 0, &GNoSymbol };
 static const FCallstack GNotFoundCallstack(&GNotFoundStackFrame, 1);
-static const FCallstack GNoCallstack(&GNoStackFrame, 1);
 
 /////////////////////////////////////////////////////////////////////
 #ifdef TRACE_CALLSTACK_STATS
@@ -37,12 +36,15 @@ FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
 	, Callstacks(InSession.GetLinearAllocator(), CallstacksPerPage)
 	, Frames(InSession.GetLinearAllocator(), FramesPerPage)
 {
+	// Let the first callstack to be an empty/undefined callstack.
+	FCallstack& FirstCallstack = Callstacks.PushBack();
+	FirstCallstack.Init(&GNoStackFrame, 1);
 }
 
 /////////////////////////////////////////////////////////////////////
-void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFrames, uint8 InFrameCount)
+void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFrames, uint8 InFrameCount)
 {
-	if (InFrameCount == 0)
+	if (InCallstackId == 0)
 	{
 		return;
 	}
@@ -53,7 +55,7 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 	GCallstackStats.FrameCountHistogram[InFrameCount]++;
 #endif
 
-	// The module provider is created on the fly so we want to cache it 
+	// The module provider is created on the fly so we want to cache it
 	// once it's available. Note that the module provider is conditionally
 	// created so EditProvider() may return a null pointer.
 	if (!ModuleProvider)
@@ -61,25 +63,28 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 		ModuleProvider = Session.EditProvider<IModuleProvider>(GetModuleProviderName());
 	}
 
-	// Make sure all the frames fit on one page by appending dummy entries.
-	const uint64 PageHeadroom = Frames.GetPageSize() - (Frames.Num() % Frames.GetPageSize());
-	if (PageHeadroom < InFrameCount)
+	if (InFrameCount > 0)
 	{
-		FRWScopeLock WriteLock(EntriesLock, SLT_Write);
-		uint64 EntriesToAdd = PageHeadroom + 1; // Fill page and allocate one on next
-		do { Frames.PushBack(); } while (--EntriesToAdd);
+		// Make sure all the frames fit on one page by appending dummy entries.
+		const uint64 PageHeadroom = Frames.GetPageSize() - (Frames.Num() % Frames.GetPageSize());
+		if (PageHeadroom < InFrameCount)
+		{
+			FRWScopeLock WriteLock(EntriesLock, SLT_Write);
+			uint64 EntriesToAdd = PageHeadroom + 1; // Fill page and allocate one on next
+			do { Frames.PushBack(); } while (--EntriesToAdd);
+		}
 	}
 
-	// Append the incoming frames
+	// Append the incoming frames.
 	const uint64 FirstFrame = Frames.Num();
 	for (uint32 FrameIdx = 0; FrameIdx < InFrameCount; ++FrameIdx)
 	{
 		FStackFrame& F = Frames.PushBack();
 		F.Addr = InFrames[FrameIdx];
-		
+
 		if (ModuleProvider)
 		{
-			// This will return immediately. The result will be empty if the symbol 
+			// This will return immediately. The result will be empty if the symbol
 			// has not been encountered before, and resolution has been queued up.
 			F.Symbol = ModuleProvider->GetSymbol(InFrames[FrameIdx]);
 		}
@@ -91,29 +96,73 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 
 	{
 		FRWScopeLock WriteLock(EntriesLock, SLT_Write);
-		FCallstack* Callstack = &Callstacks.EmplaceBack(&Frames[FirstFrame], InFrameCount);
-		CallstackEntries.Add(InCallstackId, Callstack);
+		FCallstack* Callstack = nullptr;
+		if (InCallstackId < Callstacks.Num())
+		{
+			Callstack = &Callstacks[InCallstackId];
+		}
+		else
+		{
+			while (InCallstackId >= Callstacks.Num())
+			{
+				Callstack = &Callstacks.PushBack();
+			}
+		}
+		check(Callstack->Num() == 0); // adding same callstack id twice?
+		Callstack->Init(&Frames[FirstFrame], InFrameCount);
 	}
 }
 
 /////////////////////////////////////////////////////////////////////
-void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFrames, uint8 InFrameCount)
+uint32 FCallstacksProvider::AddCallstackWithHash(uint64 InCallstackHash, const uint64* InFrames, uint8 InFrameCount)
 {
-	// In order to maintain backward compatibility to older format where we sent the runtime hash value
-	// we keep the callstack entry key as uint64.
-	AddCallstack(uint64(InCallstackId), InFrames, InFrameCount);
+	if (InCallstackHash == 0)
+	{
+		return 0;
+	}
+
+	uint32 CallstackId;
+	{
+		FRWScopeLock WriteLock(EntriesLock, SLT_Write);
+		CallstackId = Callstacks.Num();
+		CallstackMap.Add(InCallstackHash, CallstackId);
+	}
+
+	AddCallstack(CallstackId, InFrames, InFrameCount);
+	return CallstackId;
+}
+
+/////////////////////////////////////////////////////////////////////
+uint32 FCallstacksProvider::GetCallstackIdForHash(uint64 InCallstackHash) const
+{
+	if (InCallstackHash == 0)
+	{
+		return 0;
+	}
+	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
+	const uint32* CallstackIdPtr = CallstackMap.Find(InCallstackHash);
+	if (CallstackIdPtr)
+	{
+		return *CallstackIdPtr;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 /////////////////////////////////////////////////////////////////////
 const FCallstack* FCallstacksProvider::GetCallstack(uint64 CallstackId) const
 {
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
-	if (CallstackId == 0)
+	if (CallstackId < Callstacks.Num())
 	{
-		return &GNoCallstack;
+		return &Callstacks[CallstackId];
 	}
-	const FCallstack* const* FindResult = CallstackEntries.Find(CallstackId);
-	return FindResult ? *FindResult : &GNotFoundCallstack;
+	else
+	{
+		return &GNotFoundCallstack;
+	}
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -125,8 +174,14 @@ void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, 
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
 	for (uint64 CallstackId : CallstackIds)
 	{
-		const FCallstack* const* FindResult = CallstackEntries.Find(CallstackId);
-		OutCallstacks[OutIdx] = FindResult ? *FindResult : &GNotFoundCallstack;
+		if (CallstackId < Callstacks.Num())
+		{
+			OutCallstacks[OutIdx] = &Callstacks[CallstackId];
+		}
+		else
+		{
+			OutCallstacks[OutIdx] = &GNotFoundCallstack;
+		}
 		OutIdx++;
 	}
 }
