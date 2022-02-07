@@ -26,20 +26,20 @@ public:
         TSharedRef<FRetargetChainMapElement> InStackElement,
         TSharedPtr<SIKRetargetChainMapList> InChainList);
 
-	static TSharedRef<FRetargetChainMapElement> Make(FName InTargetChain)
+	static TSharedRef<FRetargetChainMapElement> Make(TObjectPtr<URetargetChainSettings> InChainMap)
 	{
-		return MakeShareable(new FRetargetChainMapElement(InTargetChain));
+		return MakeShareable(new FRetargetChainMapElement(InChainMap));
 	}
 
-	FName TargetChainName;
+	TWeakObjectPtr<URetargetChainSettings> ChainMap;
 
 private:
 	
 	/** Hidden constructor, always use Make above */
-	FRetargetChainMapElement(FName InTargetChain) : TargetChainName(InTargetChain) {}
+	FRetargetChainMapElement(TObjectPtr<URetargetChainSettings> InChainMap) : ChainMap(InChainMap) {}
 
 	/** Hidden constructor, always use Make above */
-	FRetargetChainMapElement() {}
+	FRetargetChainMapElement() = default;
 };
 
 typedef TSharedPtr< FRetargetChainMapElement > FRetargetChainMapElementPtr;
@@ -102,6 +102,10 @@ private:
 	bool IsChainMapEnabled() const;
 	/** when a chain is clicked on in the table view */
 	void OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem);
+
+	/** update selection / details view */
+	void OnSelectionChanged();
+	TArray<UObject*> SelectedChainSettings;
 
 	/** auto-map chain button*/
 	EVisibility IsAutoMapButtonVisible() const;

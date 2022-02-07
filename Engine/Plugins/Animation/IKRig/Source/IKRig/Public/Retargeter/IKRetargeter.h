@@ -8,38 +8,98 @@
 
 struct FIKRetargetPose;
 
-USTRUCT(Blueprintable)
+struct UE_DEPRECATED(5.1, "Use URetargetChainSettings instead.") FRetargetChainMap;
+USTRUCT()
 struct IKRIG_API FRetargetChainMap
 {
 	GENERATED_BODY()
 
-	FRetargetChainMap(){}
-	
+	FRetargetChainMap() = default;
 	FRetargetChainMap(const FName& TargetChain) : TargetChain(TargetChain){}
 	
-	/** The name of the chain on the Source IK Rig asset to copy animation from. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets)
+	UPROPERTY(EditAnywhere, Category = Offsets)
+	FName SourceChain = NAME_None;
+	
+	UPROPERTY(EditAnywhere, Category = Offsets)
+	FName TargetChain = NAME_None;
+};
+
+UCLASS()
+class IKRIG_API URetargetChainSettings: public UObject
+{
+	GENERATED_BODY()
+
+	public:
+	
+	URetargetChainSettings() = default;
+	
+	URetargetChainSettings(const FName& TargetChain) : TargetChain(TargetChain){}
+	
+	/** The chain on the Source IK Rig asset to copy animation FROM. */
+	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
 	FName SourceChain = NAME_None;
 
-	/** The name of the chain on the Target IK Rig asset to copy animation from. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets)
+	/** The chain on the Target IK Rig asset to copy animation TO. */
+	UPROPERTY(VisibleAnywhere, Category = "Chain Mapping")
 	FName TargetChain = NAME_None;
 
-	/** Range -1 to 2. Default 0. Brings IK effector closer (-) or further (+) from origin of chain.
-	*  At -1 the end is on top of the origin. At +2 the end is fully extended twice the length of the chain. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "2.0", UIMin = "-1.0", UIMax = "2.0"))
-	float Extension = 0.0f;
+	/** Whether to copy the shape of the chain from the source skeleton (using retarget pose offsets). Default is true.
+	 * NOTE: This runs before the IK pass to copy the shape of the FK chain from the source skeleton. */
+	UPROPERTY(EditAnywhere, Category = "Retarget Passes")
+	bool CopyPoseUsingFK = true;
+
+	/** Whether to run IK on this chain (IK runs AFTER the FK pass). Default is true.
+	 * NOTE: This only has an effect if the chain has an IK Goal assigned to it in the Target IK Rig asset.
+	 * NOTE: If off, and this chain has an IK Goal, the IK will still be evaluated, but the Goal is set to the input bone location.*/
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments")
+	bool DriveIKGoal = true;
+
+	/** Range 0 to 1. Default 0. Blends IK goal position from retargeted location (0) to source bone location (1).
+	*  At 0 the goal is placed at the retargeted location.
+	*  At 1 the goal is placed at the location of the source chain's end bone. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float BlendToSource = 0.0f;
+	
+	/** Range 0 to 1. Default 1. Weight each axis separately when using Blend To Source.
+	*  At 0 the goal is placed at the retargeted location.
+	*  At 1 the goal is placed at the location of the source chain's end bone. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	FVector BlendToSourceWeights = FVector::OneVector;
+
+	/** Default 0, 0, 0. Apply static global-space offset to IK goal position. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments")
+	FVector StaticOffset;
+	
+	/** Range 0 to 5. Default 1. Brings IK goal closer (-) or further (+) from origin of chain.
+	*  At 0 the effector is placed at the origin of the chain.
+	*  Values greater than 1 will stretch the chain beyond the retargeted length. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.1", UIMax = "2.0"))
+	float Extension = 1.0f;
+
+	/** Range 0 to 1. Default 0. Blends IK goal from retargeted velocity (0) to source bone velocity (1).
+	*  At 0 the goal is placed at the retargeted location.
+	*  At 1 the goal is placed at the retargeted location but clamped by the velocity of the source chain's end bone.
+	*  Values between 0 and 1 will blend the applied velocity between the retargeted amount and the source bone amount.*/
+	UPROPERTY(EditAnywhere, Category = "Experimental (May Change)", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float MatchSourceVelocity = 0.0f;
+
+	/** Range 0 to 1000. Default 5. The maximum speed a source goal can be moving before being considered statically planted.
+	*  At 0 the goal is placed at the retargeted location.
+	*  At 1 the goal is placed at the retargeted location but clamped by the velocity of the source chain's end bone.
+	*  Values between 0 and 1 will blend the applied velocity between the retargeted amount and the source bone amount.*/
+	UPROPERTY(EditAnywhere, Category = "Experimental (May Change)", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
+	float VelocityThreshold = 5.0f;
+
+	/** Range 0 to 1. Default is 1.0. Blend IK effector at the end of this chain towards the original position
+	*  on the source skeleton (0.0) or the position on the retargeted target skeleton (1.0). */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	//float IkToSourceOrTarget = 1.0f;
 
 	/** Range 0 to 1. Default 0. Allow the chain to stretch by translating to reach the IK goal locations.
 	*  At 0 the chain will not stretch at all. At 1 the chain will be allowed to stretch double it's full length to reach IK. */
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Stretch, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	//float StretchTolerance = 0.0f;
 
-	/** Range 0 to 1. Default is 1.0. Blend IK effector at the end of this chain towards the original position
-	 *  on the source skeleton (0.0) or the position on the retargeted target skeleton (1.0). */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	//float IkToSourceOrTarget = 1.0f;
-	
 	/** When true, the source IK position is calculated relative to a source bone and applied relative to a target bone. */
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode)
 	//bool bIkRelativeToSourceBone = false;
@@ -51,7 +111,7 @@ struct IKRIG_API FRetargetChainMap
 	/** A bone in the TARGET skeleton that the IK location is relative to.
 	 * This is usually the same bone as the source skeleton, but may have a different name in the target skeleton. */
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
-	//FName IkRelativeTargetBone;	
+	//FName IkRelativeTargetBone;
 };
 
 USTRUCT()
@@ -95,7 +155,7 @@ public:
 	 * WARNING: do not use for editing the data model. Use Controller class instead. */
 	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset.Get(); };
 	/** Get read-only access to the chain mapping */
-	const TArray<FRetargetChainMap>& GetChainMapping() const { return ChainMapping; };
+	const TArray<TObjectPtr<URetargetChainSettings>> GetAllChainSettings() const { return ChainSettings; };
 	/** Get read-only access to a retarget pose */
 	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
 
@@ -111,8 +171,10 @@ public:
 	static const FName GetDefaultPoseName();
 
 #if WITH_EDITOR
-	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; };
+	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; }
 #endif
+	
+	virtual void PostLoad() override;
 
 private:
 
@@ -173,9 +235,15 @@ private:
 	UPROPERTY()
 	TMap<FName, FIKRetargetPose> RetargetPoses;
 
-	/** Mapping of chains to copy animation between source and target rigs.*/
+	/** (OLD VERSION) Mapping of chains to copy animation between source and target rigs.*/
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
-	TArray<FRetargetChainMap> ChainMapping;
+	TArray<FRetargetChainMap> ChainMapping_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	/** Settings for how to map source chains to target chains.*/
+	UPROPERTY()
+	TArray<TObjectPtr<URetargetChainSettings>> ChainSettings;
 	
 	/** The set of retarget poses available as options for retargeting.*/
 	UPROPERTY()

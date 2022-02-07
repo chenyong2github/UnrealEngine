@@ -105,7 +105,7 @@ void UIKRetargeterController::CleanChainMapping()
 	if (!IsValid(Asset->TargetIKRigAsset))
 	{
 		// empty the chain mapping
-		Asset->ChainMapping.Empty();
+		Asset->ChainSettings.Empty();
 		return;
 	}
 	
@@ -114,32 +114,34 @@ void UIKRetargeterController::CleanChainMapping()
 
 	// remove all target chains that are no longer in the target IK rig asset
 	TArray<FName> TargetChainsToRemove;
-	for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+	for (const URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		if (!TargetChainNames.Contains(ChainMap.TargetChain))
+		if (!TargetChainNames.Contains(ChainMap->TargetChain))
 		{
-			TargetChainsToRemove.Add(ChainMap.TargetChain);
+			TargetChainsToRemove.Add(ChainMap->TargetChain);
 		}
 	}
 	for (FName TargetChainToRemove : TargetChainsToRemove)
 	{
-		Asset->ChainMapping.RemoveAll([&TargetChainToRemove](FRetargetChainMap& Element)
+		Asset->ChainSettings.RemoveAll([&TargetChainToRemove](const URetargetChainSettings* Element)
 		{
-			return Element.TargetChain == TargetChainToRemove;
+			return Element->TargetChain == TargetChainToRemove;
 		});
 	}
 
 	// add a mapping for each chain that is in the target IK rig (if it doesn't have one already)
 	for (FName TargetChainName : TargetChainNames)
 	{
-		const bool HasChain = Asset->ChainMapping.ContainsByPredicate([&TargetChainName](FRetargetChainMap& Element)
+		const bool HasChain = Asset->ChainSettings.ContainsByPredicate([&TargetChainName](const URetargetChainSettings* Element)
 		{
-			return Element.TargetChain == TargetChainName;
+			return Element->TargetChain == TargetChainName;
 		});
 		
 		if (!HasChain)
 		{
-			Asset->ChainMapping.Add(FRetargetChainMap(TargetChainName));
+			TObjectPtr<URetargetChainSettings> ChainMap = NewObject<URetargetChainSettings>();
+			ChainMap->TargetChain = TargetChainName;
+			Asset->ChainSettings.Add(ChainMap);
 		}
 	}
 
@@ -147,11 +149,11 @@ void UIKRetargeterController::CleanChainMapping()
 	GetSourceChainNames(SourceChainNames);
 	
 	// reset any sources that are no longer present to "None"
-	for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+	for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		if (!SourceChainNames.Contains(ChainMap.SourceChain))
+		if (!SourceChainNames.Contains(ChainMap->SourceChain))
 		{
-			ChainMap.SourceChain = NAME_None;
+			ChainMap->SourceChain = NAME_None;
 		}
 	}
 
@@ -212,15 +214,15 @@ void UIKRetargeterController::AutoMapChains() const
 	GetSourceChainNames(SourceChainNames);
 	
 	// auto-map any chains that have no value using a fuzzy string search
-	for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+	for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		if (ChainMap.SourceChain != NAME_None)
+		if (ChainMap->SourceChain != NAME_None)
 		{
 			continue; // already set by user
 		}
 
 		// find "best match" automatically as a convenience for the user
-		FString TargetNameLowerCase = ChainMap.TargetChain.ToString().ToLower();
+		FString TargetNameLowerCase = ChainMap->TargetChain.ToString().ToLower();
 		float HighestScore = 0.2f;
 		int32 HighestScoreIndex = -1;
 		for (int32 ChainIndex=0; ChainIndex<SourceChainNames.Num(); ++ChainIndex)
@@ -239,7 +241,7 @@ void UIKRetargeterController::AutoMapChains() const
 		// apply source if any decent matches were found
 		if (SourceChainNames.IsValidIndex(HighestScoreIndex))
 		{
-			ChainMap.SourceChain = SourceChainNames[HighestScoreIndex];
+			ChainMap->SourceChain = SourceChainNames[HighestScoreIndex];
 		}
 	}
 
@@ -254,9 +256,9 @@ void UIKRetargeterController::OnRetargetChainRenamed(UIKRigDefinition* IKRig, FN
 {
 	const bool bIsSourceRig = IKRig == Asset->SourceIKRigAsset;
 	check(bIsSourceRig || IKRig == Asset->TargetIKRigAsset)
-	for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+	for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		FName& ChainNameToUpdate = bIsSourceRig ? ChainMap.SourceChain : ChainMap.TargetChain;
+		FName& ChainNameToUpdate = bIsSourceRig ? ChainMap->SourceChain : ChainMap->TargetChain;
 		if (ChainNameToUpdate == OldChainName)
 		{
 			ChainNameToUpdate = NewChainName;
@@ -274,12 +276,11 @@ void UIKRetargeterController::OnRetargetChainRemoved(UIKRigDefinition* IKRig, co
 	// set source chain name to NONE if it has been deleted 
 	if (bIsSourceRig)
 	{
-		for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+		for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 		{
-			FName& SourceChainToUpdate = ChainMap.SourceChain;
-			if (SourceChainToUpdate == InChainRemoved)
+			if (ChainMap->SourceChain == InChainRemoved)
 			{
-				SourceChainToUpdate = NAME_None;
+				ChainMap->SourceChain = NAME_None;
 				BroadcastNeedsReinitialized();
 				return;
 			}
@@ -288,39 +289,31 @@ void UIKRetargeterController::OnRetargetChainRemoved(UIKRigDefinition* IKRig, co
 	}
 	
 	// remove target mapping if the target chain has been removed
-	const int32 ChainIndex = Asset->ChainMapping.IndexOfByPredicate([&InChainRemoved](const FRetargetChainMap& ChainMap)
+	const int32 ChainIndex = Asset->ChainSettings.IndexOfByPredicate([&InChainRemoved](const URetargetChainSettings* ChainMap)
 	{
-		return ChainMap.TargetChain == InChainRemoved;
+		return ChainMap->TargetChain == InChainRemoved;
 	});
 	
 	if (ChainIndex != INDEX_NONE)
 	{
-		Asset->ChainMapping.RemoveAt(ChainIndex);
+		Asset->ChainSettings.RemoveAt(ChainIndex);
 		BroadcastNeedsReinitialized();
 	}
 }
 
-void UIKRetargeterController::SetSourceChainForTargetChain(FName TargetChain, FName SourceChainToMapTo)
+void UIKRetargeterController::SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const
 {
 	FScopedTransaction Transaction(LOCTEXT("SetRetargetChainSource", "Set Retarget Chain Source"));
 	Asset->Modify();
 	
-	FRetargetChainMap* ChainMap = GetChainMap(TargetChain);
 	check(ChainMap)
 	ChainMap->SourceChain = SourceChainToMapTo;
 	BroadcastNeedsReinitialized();
 }
 
-FName UIKRetargeterController::GetSourceChainForTargetChain(FName TargetChain)
+const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetChainMappings() const
 {
-	FRetargetChainMap* ChainMap = GetChainMap(TargetChain);
-	check(ChainMap)
-	return ChainMap->SourceChain;
-}
-
-const TArray<FRetargetChainMap>& UIKRetargeterController::GetChainMappings()
-{
-	return Asset->ChainMapping;
+	return Asset->ChainSettings;
 }
 
 USkeleton* UIKRetargeterController::GetSourceSkeletonAsset() const
@@ -462,13 +455,13 @@ FName UIKRetargeterController::MakePoseNameUnique(FName PoseName) const
 	return UniqueName;
 }
 
-FRetargetChainMap* UIKRetargeterController::GetChainMap(const FName& TargetChainName) const
+URetargetChainSettings* UIKRetargeterController::GetChainMap(const FName& TargetChainName) const
 {
-	for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+	for (URetargetChainSettings* ChainMap : Asset->ChainSettings)
 	{
-		if (ChainMap.TargetChain == TargetChainName)
+		if (ChainMap->TargetChain == TargetChainName)
 		{
-			return &ChainMap;
+			return ChainMap;
 		}
 	}
 
@@ -477,7 +470,7 @@ FRetargetChainMap* UIKRetargeterController::GetChainMap(const FName& TargetChain
 
 void UIKRetargeterController::SortChainMapping() const
 {
-	Asset->ChainMapping.Sort([this](const FRetargetChainMap& A, const FRetargetChainMap& B)
+	Asset->ChainSettings.Sort([this](const URetargetChainSettings& A, const URetargetChainSettings& B)
 	{
 		const TArray<FBoneChain>& BoneChains = Asset->TargetIKRigAsset->GetRetargetChains();
 		const FIKRigSkeleton& TargetSkeleton = Asset->TargetIKRigAsset->Skeleton;

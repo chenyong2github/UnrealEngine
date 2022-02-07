@@ -220,6 +220,13 @@ bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 			// clicking in empty space clears selection
 			const bool bReplaceSelection = true;
 			HandleBoneSelectedInViewport(NAME_None, bReplaceSelection);
+
+			// show asset in details view
+			const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+			if (Controller.IsValid())
+			{
+				Controller->DetailsView->SetObject(Controller->AssetController->GetAsset());
+			}
 		}
 	}
 	

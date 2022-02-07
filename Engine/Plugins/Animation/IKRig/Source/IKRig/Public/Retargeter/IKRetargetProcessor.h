@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IKRetargeter.h"
 #include "IKRetargetProcessor.generated.h"
 
+class URetargetChainSettings;
 class UIKRigDefinition;
 class UIKRigProcessor;
 struct FReferenceSkeleton;
@@ -141,6 +143,39 @@ struct FRootRetargeter
 	void DecodePose( TArray<FTransform> &OutTargetGlobalPose, const float StrideScale) const;
 };
 
+struct FRetargetChainSettings
+{
+	FName TargetChainName;
+	
+	bool CopyPoseUsingFK = true;
+
+	bool DriveIKGoal = true;
+	FVector StaticOffset;
+	float Extension = 1.0f;
+	float BlendToSource = 0.0f;
+	FVector BlendToSourceWeights = FVector::OneVector;
+	float MatchSourceVelocity = 0.0f;
+	float TeleportVelocityThreshold = 0.0f;
+
+public:
+	
+	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings)
+	{
+		TargetChainName = AssetChainSettings->TargetChain;
+		
+		CopyPoseUsingFK = AssetChainSettings->CopyPoseUsingFK;
+		
+		DriveIKGoal = AssetChainSettings->DriveIKGoal;
+		Extension = AssetChainSettings->Extension;
+		StaticOffset = AssetChainSettings->StaticOffset;
+		BlendToSource = AssetChainSettings->BlendToSource;
+		BlendToSourceWeights = AssetChainSettings->BlendToSourceWeights;
+		MatchSourceVelocity = AssetChainSettings->MatchSourceVelocity;
+		TeleportVelocityThreshold = AssetChainSettings->VelocityThreshold;
+	};
+};
+
+
 struct FChainFK
 {
 	TArray<FTransform> InitialBoneTransforms;
@@ -173,6 +208,7 @@ struct FChainDecoderFK : public FChainFK
 		const FTargetSkeleton& TargetSkeleton);
 	
 	void DecodePose(
+		const FRetargetChainSettings& Settings,
 		const TArray<int32>& TargetBoneIndices,
 		const FChainEncoderFK& SourceChain,
 		const FTargetSkeleton& TargetSkeleton,
@@ -216,6 +252,8 @@ struct FSourceChainIK
 	float InvInitialLength;
 
 	// results after encoding...
+	FVector PreviousEndPosition;
+	FVector CurrentEndPosition;
 	
 	FVector CurrentEndDirectionNormalized;
 	
@@ -229,12 +267,16 @@ struct FSourceChainIK
 struct FTargetChainIK
 {
 	int32 BoneIndexA;
+
+	int32 BoneIndexC;
 	
 	float InitialLength;
 	
 	FVector InitialEndPosition;
 	
 	FQuat InitialEndRotation;
+
+	FVector PrevEndPosition;
 };
 
 struct FChainRetargeterIK
@@ -249,11 +291,16 @@ struct FChainRetargeterIK
 
 	void EncodePose(const TArray<FTransform> &SourceInputGlobalPose);
 	
-	void DecodePose(const TArray<FTransform>& OutGlobalPose, FDecodedIKChain& OutResults) const;
+	void DecodePose(
+		const FRetargetChainSettings& Settings,
+		const TArray<FTransform>& OutGlobalPose,
+		FDecodedIKChain& OutResults);
 };
 
 struct FRetargetChainPair
 {
+	FRetargetChainSettings Settings;
+	
 	TArray<int32> SourceBoneIndices;
 	
 	TArray<int32> TargetBoneIndices;
@@ -262,9 +309,10 @@ struct FRetargetChainPair
 	
 	FName TargetBoneChainName;
 
-	virtual ~FRetargetChainPair(){};
+	virtual ~FRetargetChainPair() = default;
 	
 	virtual bool Initialize(
+		URetargetChainSettings* InSettings,
 		const FBoneChain& SourceBoneChain,
 		const FBoneChain& TargetBoneChain,
 		const FRetargetSkeleton& SourceSkeleton,
@@ -285,6 +333,7 @@ struct FRetargetChainPairFK : FRetargetChainPair
 	FChainDecoderFK FKDecoder;
 	
 	virtual bool Initialize(
+		URetargetChainSettings* InSettings,
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
@@ -292,7 +341,7 @@ struct FRetargetChainPairFK : FRetargetChainPair
 };
 
 struct FRetargetChainPairIK : FRetargetChainPair
-{	
+{
 	FChainRetargeterIK IKChainRetargeter;
 	
 	FName IKGoalName;
@@ -300,6 +349,7 @@ struct FRetargetChainPairIK : FRetargetChainPair
 	FName PoleVectorGoalName;
 
 	virtual bool Initialize(
+		URetargetChainSettings* Settings,
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
@@ -366,8 +416,8 @@ public:
 #if WITH_EDITOR
 	/** Set that this processor needs to be reinitialized. */
 	void SetNeedsInitialized();
-	/** During editor preview, drive the target IK Rig with the setting from it's source asset */
-	void CopyTargetIKRigSettingsFromAsset();
+	/** During editor preview, drive the target IK Rig with the settings from it's source asset */
+	void CopyAllSettingsFromAsset();
 #endif
 
 private:
@@ -422,5 +472,5 @@ private:
 	void RunFKRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
 
 	/** Internal retarget phase for the IK chains. */
-	void RunIKRetarget(const TArray<FTransform>& InGlobalPose, TArray<FTransform>& OutGlobalPose);
+	void RunIKRetarget(const TArray<FTransform>& InSourceGlobalPose, TArray<FTransform>& OutTargeGlobalPose);
 };

@@ -9,7 +9,7 @@
 
 #include "IKRetargeterController.generated.h"
 
-struct FRetargetChainMap;
+class URetargetChainSettings;
 class UIKRigDefinition;
 class UIKRetargeter;
 
@@ -62,11 +62,9 @@ public:
 	/** Callback when IK Rig chain is removed. */
 	void OnRetargetChainRemoved(UIKRigDefinition* IKRig, const FName& InChainRemoved) const;
 	/** Set the source chain to map to a given target chain */
-	void SetSourceChainForTargetChain(FName TargetChain, FName SourceChainToMapTo);
-	/** Get the source chain mapped to a given target chain */
-	FName GetSourceChainForTargetChain(FName TargetChain);
+	void SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const;
 	/** Get read-only access to the list of chain mappings */
-	const TArray<FRetargetChainMap>& GetChainMappings();
+	const TArray<TObjectPtr<URetargetChainSettings>>& GetChainMappings() const;
 	/** END RETARGET CHAIN MAPPING */
 
 	/** RETARGET POSE EDITING
@@ -117,7 +115,7 @@ public:
 	
 private:
 
-	FRetargetChainMap* GetChainMap(const FName& TargetChainName) const;
+	URetargetChainSettings* GetChainMap(const FName& TargetChainName) const;
 
 	/** Sort the Asset ChainMapping based on the StartBone of the target chains. */
 	void SortChainMapping() const;

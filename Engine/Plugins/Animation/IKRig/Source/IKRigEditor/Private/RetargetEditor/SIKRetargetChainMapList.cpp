@@ -67,7 +67,7 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FNa
 		.Padding(3.0f, 1.0f)
 		[
 			SNew(STextBlock)
-			.Text(FText::FromName(ChainMapElement.Pin()->TargetChainName))
+			.Text(FText::FromName(ChainMapElement.Pin()->ChainMap->TargetChain))
 			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
 		];
 		return NewWidget;
@@ -105,10 +105,9 @@ void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FStri
 	{
 		return; 
 	}
-	
-	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
+
 	const FName SourceChainName = FName(*InName.Get());
-	RetargeterController->SetSourceChainForTargetChain(TargetChainName, SourceChainName);
+	RetargeterController->SetSourceChainForTargetChain(ChainMapElement.Pin()->ChainMap.Get(), SourceChainName);
 }
 
 FText SIKRetargetChainMapRow::GetSourceChainName() const
@@ -118,10 +117,8 @@ FText SIKRetargetChainMapRow::GetSourceChainName() const
 	{
 		return FText::FromName(NAME_None); 
 	}
-	
-	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
-	const FName SourceChainName = RetargeterController->GetSourceChainForTargetChain(TargetChainName);
-	return FText::FromName(SourceChainName);
+
+	return FText::FromName(ChainMapElement.Pin()->ChainMap->SourceChain);
 }
 
 void SIKRetargetChainMapList::Construct(
@@ -203,6 +200,11 @@ void SIKRetargetChainMapList::Construct(
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRetargetChainMapList::MakeListRowWidget )
 			.OnMouseButtonClick(this, &SIKRetargetChainMapList::OnItemClicked)
+			.OnSelectionChanged_Lambda([this] (TSharedPtr<FRetargetChainMapElement> NewValue, ESelectInfo::Type SelectInfo)
+			{
+				OnSelectionChanged();
+			})
+
 			.ItemHeight( 22.0f )
 			.HeaderRow
 			(
@@ -279,10 +281,10 @@ void SIKRetargetChainMapList::RefreshView()
 	
 	// refresh list of chains
 	ListViewItems.Reset();
-	const TArray<FRetargetChainMap>& ChainMappings = RetargeterController->GetChainMappings();
-	for (const FRetargetChainMap& ChainMap : ChainMappings)
+	const TArray<TObjectPtr<URetargetChainSettings>>& ChainMappings = RetargeterController->GetChainMappings();
+	for (const TObjectPtr<URetargetChainSettings> ChainMap : ChainMappings)
 	{
-		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap.TargetChain);
+		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap);
 		ListViewItems.Add(ChainItem);
 	}
 
@@ -301,7 +303,36 @@ TSharedRef<ITableRow> SIKRetargetChainMapList::MakeListRowWidget(
 
 void SIKRetargetChainMapList::OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem)
 {
-	// TODO highlight chain in skeleton view
+	OnSelectionChanged();
+}
+
+void SIKRetargetChainMapList::OnSelectionChanged()
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	// update selected settings
+	SelectedChainSettings.Empty();
+	TArray<TSharedPtr<FRetargetChainMapElement>> SelectedItems = ListView.Get()->GetSelectedItems();
+	for (const TSharedPtr<FRetargetChainMapElement>& Item : SelectedItems)
+	{
+		SelectedChainSettings.Add(Item->ChainMap.Get());
+	}
+
+	// selection cleared
+	if (SelectedChainSettings.IsEmpty())
+	{
+		// show asset settings in the details view
+		Controller->DetailsView->SetObject(Controller->AssetController->GetAsset());
+	}
+	else
+	{
+		// show chain settings in the details view
+		Controller->DetailsView->SetObjects(SelectedChainSettings);
+	}
 }
 
 EVisibility SIKRetargetChainMapList::IsAutoMapButtonVisible() const

@@ -85,7 +85,7 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	// NOTE: this copies goal targets as well, but these are overwritten by IK chain goals
 	if (bDriveTargetIKRigWithAsset)
 	{
-		Processor->CopyTargetIKRigSettingsFromAsset();
+		Processor->CopyAllSettingsFromAsset();
 	}
 #endif
 

@@ -351,7 +351,7 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 			}
 
 			// update goals 
-			Processor->CopyTargetIKRigSettingsFromAsset();
+			Processor->CopyAllSettingsFromAsset();
 			
 			// run the retarget
 			const TArray<FTransform>& TargetComponentPose = Processor->RunRetargeter(SourceComponentPose);

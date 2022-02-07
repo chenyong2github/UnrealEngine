@@ -10,6 +10,45 @@ const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBE
 #endif
 const FName UIKRetargeter::GetDefaultPoseName() { return DefaultPoseName; }
 
+void UIKRetargeter::PostLoad()
+{
+	Super::PostLoad();
+
+	// load deprecated chain mapping (pre UStruct to UObject refactor)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!ChainMapping_DEPRECATED.IsEmpty())
+	{
+		for (const FRetargetChainMap& OldChainMap : ChainMapping_DEPRECATED)
+		{
+			if (OldChainMap.TargetChain == NAME_None)
+			{
+				continue;
+			}
+			
+			TObjectPtr<URetargetChainSettings>* MatchingChain = ChainSettings.FindByPredicate([&](const URetargetChainSettings* Chain)
+			{
+				return Chain ? Chain->TargetChain == OldChainMap.TargetChain : false;
+			});
+			
+			if (MatchingChain)
+			{
+				(*MatchingChain)->SourceChain = OldChainMap.SourceChain;
+			}
+			else
+			{
+				TObjectPtr<URetargetChainSettings> NewChainMap = NewObject<URetargetChainSettings>();
+				NewChainMap->TargetChain = OldChainMap.TargetChain;
+				NewChainMap->SourceChain = OldChainMap.SourceChain;
+				ChainSettings.Add(NewChainMap);
+			}
+		}
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// remove null settings
+	ChainSettings.Remove(nullptr);
+}
+
 void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta, const FIKRigSkeleton& Skeleton)
 {
 	FQuat* RotOffset = BoneRotationOffsets.Find(BoneName);
