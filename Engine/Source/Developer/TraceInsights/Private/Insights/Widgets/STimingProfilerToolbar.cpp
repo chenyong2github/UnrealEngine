@@ -33,7 +33,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 {
 	struct Local
 	{
-		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder)
+		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder, const FArguments &InArgs)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
@@ -58,6 +58,12 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleLogViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.LogView.ToolBar"));
+
+				if (InArgs._ToolbarExtender.IsValid())
+				{
+					InArgs._ToolbarExtender->Apply("MainToolbar", EExtensionHook::First, ToolbarBuilder);
+				}
+
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -78,7 +84,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillViewToolbar(ToolbarBuilder);
+	Local::FillViewToolbar(ToolbarBuilder, InArgs);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");

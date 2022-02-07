@@ -370,10 +370,6 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	// Create & initialize tab manager.
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
 
-#if WITH_EDITOR
-	TabManager->SetAllowWindowMenuBar(true);
-#endif
-
 	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
 	{
 		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
@@ -570,20 +566,12 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SVerticalBox)
-
-#if WITH_EDITOR
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MenuWidget
-			]
-#endif
-
+			
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 5.0f))
 			[
-				SNew(STimingProfilerToolbar)
+				SNew(STimingProfilerToolbar).ToolbarExtender(Extension->GetMenuExtender())
 			]
 
 			+ SVerticalBox::Slot()

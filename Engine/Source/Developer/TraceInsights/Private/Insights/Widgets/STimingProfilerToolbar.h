@@ -4,6 +4,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 
 /** Ribbon based toolbar used as a main menu in the Profiler window. */
 class STimingProfilerToolbar : public SCompoundWidget
@@ -16,6 +17,7 @@ public:
 	virtual ~STimingProfilerToolbar();
 
 	SLATE_BEGIN_ARGS(STimingProfilerToolbar) {}
+	SLATE_ARGUMENT(TSharedPtr<FExtender>, ToolbarExtender);
 	SLATE_END_ARGS()
 
 	/**

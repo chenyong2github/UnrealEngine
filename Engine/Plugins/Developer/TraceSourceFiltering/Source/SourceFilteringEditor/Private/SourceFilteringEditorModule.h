@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Framework/Docking/TabManager.h"
 
 #include "Templates/SharedPointer.h"
 
@@ -19,6 +20,12 @@ public:
 
 protected:
 	void RegisterLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
+	
+	void ToggleSourceFilteringVisibility();
+	bool IsSourceFilteringVisibile();
+
+	TSharedPtr<FTabManager> InsightsTabManager;
+	bool bIsSourceFilterTabOpen = false;
 
 #if WITH_EDITOR
 	/** Keeps track of any source filters due to be removed because their class (blueprint) is due to be deleted */

@@ -149,7 +149,8 @@ void FSourceFilterStyle::Initialize()
 		.SetMenuBorderPadding(FMargin(0.0f));
 	StyleSet->Set("SourceFilter.ComboButton", ToolbarComboButton);
 
-	StyleSet->Set("SourceFilter.TabIcon", new IMAGE_BRUSH("Icons/AssetIcons/Character_16x", Icon16x16));
+	StyleSet->Set("SourceFilter.ToolBarIcon", new IMAGE_BRUSH_SVG("Starship/AssetIcons/Character_64", Icon32x32));
+	StyleSet->Set("SourceFilter.TabIcon", new IMAGE_BRUSH_SVG("Starship/AssetIcons/Character_16", Icon16x16));
 
 	StyleSet->Set("SourceFilter.NewPreset", new IMAGE_BRUSH("Icons/icon_file_saveas_16px", Icon16x16));
 	StyleSet->Set("SourceFilter.LoadPreset", new IMAGE_BRUSH("Icons/icon_file_open_16px", Icon16x16));

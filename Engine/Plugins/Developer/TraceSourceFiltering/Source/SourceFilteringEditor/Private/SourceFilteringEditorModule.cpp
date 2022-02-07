@@ -6,6 +6,7 @@
 #include "TraceServices/ITraceServicesModule.h"
 #include "HAL/IConsoleManager.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "Framework/Commands/Commands.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -32,9 +33,31 @@ IMPLEMENT_MODULE(FSourceFilteringEditorModule, SourceFilteringEditor);
 FString FSourceFilteringEditorModule::SourceFiltersIni;
 FName InsightsSourceFilteringTabName(TEXT("InsightsSourceFiltering"));
 
+#define LOCTEXT_NAMESPACE "FSourceFilteringEditorModule"
+
+class FSourceFilteringCommands : public TCommands<FSourceFilteringCommands>
+{
+public:
+	FSourceFilteringCommands()
+		: TCommands<FSourceFilteringCommands>("TraceSourceFiltering", LOCTEXT("TraceSourceFiltering", "Trace Source Filtering"), NAME_None, "SourceFilter")
+	{ }
+
+	virtual void RegisterCommands() override
+	{
+		UI_COMMAND( ToggleSourceFilteringVisibility,
+			"Source Filters",
+			"Opens the Trace Source Filtering tab, allows for filtering UWorld and AActor instances to not output Trace data",
+			EUserInterfaceActionType::ToggleButton, FInputChord());
+	}
+	
+	TSharedPtr<FUICommandInfo> ToggleSourceFilteringVisibility;
+};
+
+
 void FSourceFilteringEditorModule::StartupModule()
 {
 	FSourceFilterStyle::Initialize();
+	FSourceFilteringCommands::Register();
 
 	// Populate static ini path
 	FConfigCacheIni::LoadGlobalIniFile(SourceFiltersIni, TEXT("TraceSourceFilters"));
@@ -55,6 +78,26 @@ void FSourceFilteringEditorModule::ShutdownModule()
 	FSourceFilterStyle::Shutdown();
 }
 
+
+
+void FSourceFilteringEditorModule::ToggleSourceFilteringVisibility()
+{
+	TSharedPtr<SDockTab> SourceFilterTab = InsightsTabManager->FindExistingLiveTab(InsightsSourceFilteringTabName);
+	if (SourceFilterTab.IsValid())
+	{
+		SourceFilterTab->RequestCloseTab();
+	}
+	else
+	{
+		InsightsTabManager->TryInvokeTab(InsightsSourceFilteringTabName);
+	}
+}
+
+bool FSourceFilteringEditorModule::IsSourceFilteringVisibile()
+{
+	return bIsSourceFilterTabOpen;
+}
+
 void FSourceFilteringEditorModule::RegisterLayoutExtensions(FInsightsMajorTabExtender& InOutExtender)
 {
 #if WITH_EDITOR
@@ -63,25 +106,45 @@ void FSourceFilteringEditorModule::RegisterLayoutExtensions(FInsightsMajorTabExt
 	FTabId ExtendedTabId(FTimingProfilerTabs::TimersID);
 #endif
 
+	InsightsTabManager = InOutExtender.GetTabManager();
+	TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
+	const FSourceFilteringCommands& Commands = FSourceFilteringCommands::Get();
+
+	CommandList->MapAction(Commands.ToggleSourceFilteringVisibility, 
+							FExecuteAction::CreateRaw(this, &FSourceFilteringEditorModule::ToggleSourceFilteringVisibility), 
+							FCanExecuteAction(),
+							FIsActionChecked::CreateRaw(this, &FSourceFilteringEditorModule::IsSourceFilteringVisibile));
+	
+	InOutExtender.GetMenuExtender()->AddToolBarExtension( "MainToolbar", EExtensionHook::First, CommandList,
+		FToolBarExtensionDelegate::CreateLambda([](FToolBarBuilder& ToolBarBuilder)
+		{
+			ToolBarBuilder.AddToolBarButton(FSourceFilteringCommands::Get().ToggleSourceFilteringVisibility,
+				NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+				FSlateIcon(FSourceFilterStyle::GetStyleSetName(), "SourceFilter.ToolBarIcon"));
+		}));
+	
 	InOutExtender.GetLayoutExtender().ExtendLayout(ExtendedTabId, ELayoutExtensionPosition::Before, FTabManager::FTab(InsightsSourceFilteringTabName, ETabState::ClosedTab));
 
 	TSharedRef<FWorkspaceItem> Category = InOutExtender.GetTabManager()->AddLocalWorkspaceMenuCategory(NSLOCTEXT("FInsightsSourceFilteringModule", "SourceFilteringGroupName", "Filtering"));
 
 	FMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
 	MinorTabConfig.TabId = InsightsSourceFilteringTabName;
-	MinorTabConfig.TabLabel = NSLOCTEXT("SourceFilteringEditorModule", "SourceFilteringTab", "Trace Source Filtering");
-	MinorTabConfig.TabTooltip = NSLOCTEXT("SourceFilteringEditorModule", "SourceFilteringTabTooltip", "Opens the Trace Source Filtering tab, allows for filtering UWorld and AActor instances to not output Trace data");
+	MinorTabConfig.TabLabel = LOCTEXT("SourceFilteringTab", "Trace Source Filtering");
+	MinorTabConfig.TabTooltip = LOCTEXT("SourceFilteringTabTooltip", "Opens the Trace Source Filtering tab, allows for filtering UWorld and AActor instances to not output Trace data");
 	MinorTabConfig.TabIcon = FSlateIcon(FSourceFilterStyle::GetStyleSetName(), "SourceFilter.TabIcon");
 	MinorTabConfig.WorkspaceGroup = Category;
-	MinorTabConfig.OnSpawnTab = FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& Args)
+	MinorTabConfig.OnSpawnTab = FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs& Args)
 	{
-		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-			.TabRole(ETabRole::PanelTab);
+		bIsSourceFilterTabOpen = true;
+		
+		const TSharedRef<SDockTab> SourceFilterTab = SNew(SDockTab)
+			.TabRole(ETabRole::PanelTab)
+			.OnTabClosed_Lambda([this](TSharedRef<SDockTab>){ bIsSourceFilterTabOpen = false; });
 
 		TSharedRef<STraceSourceFilteringWidget> Window = SNew(STraceSourceFilteringWidget);
-		DockTab->SetContent(Window);
+		SourceFilterTab->SetContent(Window);
 
-		return DockTab;
+		return SourceFilterTab;
 	});
 }
 
@@ -145,3 +208,5 @@ void FSourceFilteringEditorModule::OnAssetsPendingDelete(TArray<UObject*> const&
 
 }
 #endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
