@@ -133,6 +133,15 @@ TArray<FNiagaraVariable> UNiagaraRendererProperties::GetBoundAttributes() const
 	return BoundAttributes;
 }
 
+void UNiagaraRendererProperties::ChangeToPositionBinding(FNiagaraVariableAttributeBinding& Binding)
+{
+	if (Binding.GetType() == FNiagaraTypeDefinition::GetVec3Def())
+	{
+		FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), Binding.GetParamMapBindableVariable().GetName());
+		Binding = FNiagaraConstants::GetAttributeDefaultBinding(NewVarType);
+	}
+}
+
 FNiagaraVariable UNiagaraRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
 {
 	if (Binding->GetParamMapBindableVariable().IsValid())

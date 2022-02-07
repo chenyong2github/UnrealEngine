@@ -143,6 +143,8 @@ void UNiagaraSpriteRendererProperties::PostLoad()
 		}
 		CacheDerivedData();
 	}
+	ChangeToPositionBinding(PositionBinding);
+	ChangeToPositionBinding(PrevPositionBinding);
 	PostLoadBindings(SourceMode);
 
 	// Fix up these bindings from their loaded source bindings

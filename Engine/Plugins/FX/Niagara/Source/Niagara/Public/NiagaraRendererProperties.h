@@ -292,6 +292,9 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** returns the variable associated with the supplied binding if it should be bound given the current settings of the RendererProperties. */
 	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const;
+
+	/** utility function that can be used to fix up old vec3 bindings into position bindings. */
+	static void ChangeToPositionBinding(FNiagaraVariableAttributeBinding& Binding);
 #endif
 
 #if WITH_EDITOR

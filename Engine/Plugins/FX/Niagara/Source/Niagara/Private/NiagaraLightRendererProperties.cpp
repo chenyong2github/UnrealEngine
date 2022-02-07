@@ -40,6 +40,10 @@ UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 void UNiagaraLightRendererProperties::PostLoad()
 {
 	Super::PostLoad();
+	
+#if WITH_EDITORONLY_DATA
+	ChangeToPositionBinding(PositionBinding);
+#endif
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 }
 

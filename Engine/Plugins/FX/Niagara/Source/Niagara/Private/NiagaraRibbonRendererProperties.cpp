@@ -132,8 +132,9 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 		UpgradeUVSettings(UV1Settings, UV1TilingDistance_DEPRECATED, UV1Offset_DEPRECATED, UV1Scale_DEPRECATED);
 	}
 
+	ChangeToPositionBinding(PositionBinding);
 #endif
-
+	
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 
 	if ( Material )

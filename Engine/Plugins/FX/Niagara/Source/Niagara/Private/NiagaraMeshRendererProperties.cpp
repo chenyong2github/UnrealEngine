@@ -528,7 +528,11 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		}
 	}
 
-
+#if WITH_EDITORONLY_DATA
+	ChangeToPositionBinding(PositionBinding);
+	ChangeToPositionBinding(PrevPositionBinding);
+#endif
+	
 	PostLoadBindings(SourceMode);
 	
 	// Fix up these bindings from their loaded source bindings
