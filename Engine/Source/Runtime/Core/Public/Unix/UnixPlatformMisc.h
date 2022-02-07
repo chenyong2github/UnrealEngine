@@ -114,6 +114,8 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 	 */
 	static uint32 GetCPUInfo();
 
+	static FString GetPrimaryGPUBrand();
+
 	static bool HasNonoptionalCPUFeatures();
 	static bool NeedsNonoptionalCPUFeaturesCheck();
 

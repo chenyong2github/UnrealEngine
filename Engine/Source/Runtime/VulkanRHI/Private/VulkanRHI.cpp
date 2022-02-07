@@ -739,6 +739,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 		GRHIAdapterInternalDriverVersion = FString::Printf(TEXT("%d.%d.%d (0x%X)"), VK_VERSION_MAJOR(Props.apiVersion), VK_VERSION_MINOR(Props.apiVersion), VK_VERSION_PATCH(Props.apiVersion), Props.apiVersion);
 		GRHIAdapterUserDriverVersion = FString::Printf(TEXT("%d.%d.%d (0x%X)"), VK_VERSION_MAJOR(Props.driverVersion), VK_VERSION_MINOR(Props.driverVersion), VK_VERSION_PATCH(Props.driverVersion), Props.driverVersion);
 		GRHIDeviceId = Props.deviceID;
+
+		UE_LOG(LogVulkanRHI, Display, TEXT("'%s' User Driver Version = %s"), *GRHIAdapterName, *GRHIAdapterUserDriverVersion);
 	}
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
