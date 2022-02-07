@@ -1015,7 +1015,7 @@ void UNiagaraMeshRendererProperties::RebuildMeshList()
 
 	if (bAnyError)
 	{
-		ShowFlipbookWarningToast(LOCTEXT("FlipbookSuffixWarningToastMessage", "Failed to load one or more meshes for Mesh Flipbook. See the Output Log for details."));
+		ShowFlipbookWarningToast(LOCTEXT("FlipbookWarningToastMessage", "Failed to load one or more meshes for Mesh Flipbook. See the Output Log for details."));
 	}
 }
 

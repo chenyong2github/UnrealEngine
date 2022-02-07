@@ -446,7 +446,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 			{
 				if (Translator)
 				{
-					Translator->Error(FText::Format(LOCTEXT("InvalidSwitchEnumDefinition", "Number of valid enum entries: {0}. Expected. {1}. Please refresh the node."), FText::FromString(FString::FromInt(OptionValues.Num())), FText::FromString(FString::FromInt(NumOptionsPerVariable))), this, nullptr);
+					Translator->Error(FText::Format(LOCTEXT("NumEnumEntriesDifferent", "Number of valid enum entries: {0}. Expected. {1}. Please refresh the node."), FText::FromString(FString::FromInt(OptionValues.Num())), FText::FromString(FString::FromInt(NumOptionsPerVariable))), this, nullptr);
 				}
 			}
 			// if we have at least one output pin, check if input pin count and output pin count match up
@@ -454,7 +454,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 			{
 				if (Translator)
 				{
-					Translator->Error(FText::Format(LOCTEXT("InvalidSwitchEnumDefinition", "The number of pins on the static switch does not match the number of values defined in the enum."), FText::FromString(FString::FromInt(SwitchValue))), this, nullptr);
+					Translator->Error(FText::Format(LOCTEXT("NumPinsNumEnumEntriesDifferent", "The number of pins on the static switch does not match the number of values defined in the enum."), FText::FromString(FString::FromInt(SwitchValue))), this, nullptr);
 				}
 			}
 			if (Value <= MaxValue && Value >= 0)

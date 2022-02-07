@@ -1645,7 +1645,7 @@ void SNiagaraStackFunctionInputValue::FilteredVisibleCheckStateChanged(ECheckBox
 		}
 		if (bNewValue != SummaryViewMetaData->bVisible)
 		{
-			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputSortIndex", "Changed summary view visibility for {0}"), FunctionInput->GetDisplayName()));
+			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedVisibilityForInput", "Changed summary view visibility for {0}"), FunctionInput->GetDisplayName()));
 			EditorData->Modify();
 
 			SummaryViewMetaData->bVisible = bNewValue;

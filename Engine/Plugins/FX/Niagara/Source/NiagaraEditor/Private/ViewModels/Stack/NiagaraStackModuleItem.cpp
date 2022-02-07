@@ -1107,7 +1107,7 @@ bool UNiagaraStackModuleItem::IsDebugDrawEnabled() const
 
 void UNiagaraStackModuleItem::SetDebugDrawEnabled(bool bInEnabled)
 {
-	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableModule", "Enable/Disable Debug for Module"));
+	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableDebugModule", "Enable/Disable Debug for Module"));
 	FunctionCallNode->DebugState = bInEnabled ? ENiagaraFunctionDebugState::Basic : ENiagaraFunctionDebugState::NoDebug;
 	FunctionCallNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
 	OnRequestFullRefreshDeferred().Broadcast();

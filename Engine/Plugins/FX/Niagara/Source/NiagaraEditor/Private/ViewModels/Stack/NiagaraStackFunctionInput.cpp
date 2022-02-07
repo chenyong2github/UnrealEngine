@@ -52,6 +52,8 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
+static FText TooManyConversionScripts = LOCTEXT("TooManyConversionScripts", "There is more than one dynamic input script available auto-convert the dragged parameter. Please fix this by disabling conversion for all but one of them:\n{0}");
+
 UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
 	: OwningModuleNode(nullptr)
 	, OwningFunctionCallNode(nullptr)
@@ -319,12 +321,12 @@ bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboard
 			}
 			if (ClipboardFunctionInput->InputType == InputType)
 			{
-				OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here.");
+				OutMessage = LOCTEXT("PasteMessage", "Paste the input from the clipboard here.");
 				return true;
 			}
 			if (GetPossibleConversionScripts(ClipboardFunctionInput->InputType).Num() > 0)
 			{
-				OutMessage = LOCTEXT("PastMessage", "Paste the input from the clipboard here and auto-convert it with a dynamic input.");
+				OutMessage = LOCTEXT("PasteWithConversionMessage", "Paste the input from the clipboard here and auto-convert it with a dynamic input.");
 				return true;
 			}
 			
@@ -2336,7 +2338,7 @@ void UNiagaraStackFunctionInput::SetLinkedInputViaConversionScript(const FName& 
 		{
 			ScriptNames += NiagaraScript->GetPathName() + "\n";
 		}
-		FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(LOCTEXT("TooManyConversionScripts", "There is more than one dynamic input script available auto-convert the dragged parameter. Please fix this by disabling conversion for all but one of them:\n{0}"), FText::FromString(ScriptNames)));
+		FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(TooManyConversionScripts, FText::FromString(ScriptNames)));
 	}
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetConversionInput", "Make auto-convert dynamic input"));
 	SetDynamicInput(NiagaraScripts[0]);
@@ -2383,7 +2385,7 @@ void UNiagaraStackFunctionInput::SetClipboardContentViaConversionScript(const UN
 		{
 			ScriptNames += NiagaraScript->GetPathName() + "\n";
 		}
-		FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(LOCTEXT("TooManyConversionScripts", "There is more than one dynamic input script available auto-convert the pasted parameter. Please fix this by disabling conversion for all but one of them:\n{0}"), FText::FromString(ScriptNames)));
+		FNiagaraEditorUtilities::WarnWithToastAndLog(FText::Format(TooManyConversionScripts, FText::FromString(ScriptNames)));
 	}
 	FScopedTransaction ScopedTransaction(LOCTEXT("SetConversionInput", "Make auto-convert dynamic input"));
 	SetDynamicInput(NiagaraScripts[0]);

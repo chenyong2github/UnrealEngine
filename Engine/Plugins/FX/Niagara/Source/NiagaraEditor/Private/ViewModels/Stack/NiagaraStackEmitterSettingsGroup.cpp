@@ -296,7 +296,7 @@ void UNiagaraStackSummaryViewCollapseButton::Initialize(FRequiredEntryData InReq
 
 FText UNiagaraStackSummaryViewCollapseButton::GetDisplayName() const
 {
-	return LOCTEXT("SummaryCollapseButtonTooltip", "Show Advanced");
+	return LOCTEXT("SummaryCollapseButtonDisplayName", "Show Advanced");
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackSummaryViewCollapseButton::GetStackRowStyle() const

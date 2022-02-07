@@ -6543,7 +6543,7 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 	if (DataSetWriteForInput)
 	{
 		//TODO: improve error report.
-		Error(LOCTEXT("WritingToSameDataSetError", "Writing to the same dataset with the same condition/index."), NULL, NULL);
+		Error(LOCTEXT("WritingToSameDataSetForInputError", "Writing to the same dataset with the same condition/index."), NULL, NULL);
 		return;
 	}
 
@@ -8628,7 +8628,7 @@ void FHlslNiagaraTranslator::If(UNiagaraNodeIf* IfNode, TArray<FNiagaraVariable>
 		FNiagaraTypeDefinition Type = Schema->PinToTypeDefinition(IfNode->GetInputPin(PinIdx++), ENiagaraStructConversion::Simulation);
 		if (!AddStructToDefinitionSet(Type))
 		{
-			FText OutErrorMessage = FText::Format(LOCTEXT("UnknownNumeric", "Variable in If node uses invalid type. Var: {0} Type: {1}"),
+			FText OutErrorMessage = FText::Format(LOCTEXT("If_UnknownNumeric", "Variable in If node uses invalid type. Var: {0} Type: {1}"),
 				FText::FromName(Var.GetName()), Type.GetNameText());
 
 			Error(OutErrorMessage, IfNode, nullptr);
@@ -8670,7 +8670,7 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 	{
 		if (!AddStructToDefinitionSet(Variable.GetType()))
 		{
-			FText OutErrorMessage = FText::Format(LOCTEXT("UnknownNumeric", "Output type in Select node uses invalid type. Type: {0}"),
+			FText OutErrorMessage = FText::Format(LOCTEXT("Select_UnknownNumeric", "Output type in Select node uses invalid type. Type: {0}"),
 				Variable.GetType().GetNameText());
 
 			Error(OutErrorMessage, SelectNode, SelectNode->GetOutputPin(Variable));

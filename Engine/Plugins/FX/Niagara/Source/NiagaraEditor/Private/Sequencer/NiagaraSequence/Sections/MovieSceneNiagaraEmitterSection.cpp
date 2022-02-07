@@ -170,7 +170,7 @@ bool UMovieSceneNiagaraEmitterSection::TryAddTimeRangeModule(UNiagaraNodeFunctio
 	if (UseStartTimeBinder.TryBind(EmitterUpdateScript, BinderDependentScripts, EmitterUpdateConstantResolver, GetEmitterHandleViewModel()->GetEmitterHandle()->GetUniqueInstanceName(), SectionTimingModule.Get(),
 		InputUsageKey, UseStartTimeInputUsageValue, FNiagaraTypeDefinition::GetBoolDef(), bUseStartTimeIsRequired, UseStartTimeErrorText) == false)
 	{
-		OutErrorMessage = FText::Format(LOCTEXT("StartTimeErrorFormat", "Failed to bind 'use start time' for module.  Message: {0}"), UseStartTimeErrorText);
+		OutErrorMessage = FText::Format(LOCTEXT("UseStartTimeErrorFormat", "Failed to bind 'use start time' for module.  Message: {0}"), UseStartTimeErrorText);
 		return false;
 	}
 	else

@@ -108,7 +108,7 @@ void UNiagaraNodeParameterMapForWithContinue::AllocateDefaultPins()
 
 FText UNiagaraNodeParameterMapForWithContinue::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("UNiagaraNodeParameterMapForName", "Map For With Continue");
+	return LOCTEXT("UNiagaraNodeParameterMapForWithContinueName", "Map For With Continue");
 }
 
 UNiagaraNodeParameterMapForIndex::UNiagaraNodeParameterMapForIndex() : UNiagaraNode()

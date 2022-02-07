@@ -223,7 +223,7 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemDismiss::GetStackRowSty
 
 FText UNiagaraStackErrorItemDismiss::GetFixButtonText() const
 {
-	return StackIssue.GetSeverity() == EStackIssueSeverity::Info || StackIssue.GetSeverity() == EStackIssueSeverity::CustomNote ? LOCTEXT("DismissNote", "Dismiss") : LOCTEXT("DismissIssue", "Dismiss issue");
+	return StackIssue.GetSeverity() == EStackIssueSeverity::Info || StackIssue.GetSeverity() == EStackIssueSeverity::CustomNote ? LOCTEXT("DismissNoteButtonText", "Dismiss") : LOCTEXT("DismissIssueButtonText", "Dismiss issue");
 }
 
 #undef LOCTEXT_NAMESPACE

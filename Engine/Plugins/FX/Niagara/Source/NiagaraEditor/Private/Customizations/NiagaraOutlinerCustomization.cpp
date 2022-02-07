@@ -1093,7 +1093,7 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeSystemItem::GetHeaderWidget()
 				[
 					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
 					//.LabelText(LOCTEXT("SystemMaxPerFrameTime", "Frame Max"))
-					.ToolTipText(LOCTEXT("SystemMaxPerFrameTimeToolTip", "Max frame time for all instances of this System."))
+					.ToolTipText(LOCTEXT("AllInstancesMaxFrameTimeToolTip", "Max frame time for all instances of this System."))
 					.Data(Data->MaxPerFrameTime)
 					.MinDesiredWidth(50)
 				];
