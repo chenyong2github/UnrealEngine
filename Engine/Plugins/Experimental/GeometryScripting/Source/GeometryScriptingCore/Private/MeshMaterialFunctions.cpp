@@ -159,6 +159,67 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::RemapMaterialIDs(
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetMaterialIDsOfTriangles( 
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptIndexList TriangleIDList,
+	FGeometryScriptIndexList& MaterialIDList,
+    UGeometryScriptDebug* Debug)
+{
+	MaterialIDList.Reset(EGeometryScriptIndexType::MaterialID);
+	MaterialIDList.List->SetNumZeroed(TriangleIDList.List->Num());
+	
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_InvalidMesh", "GetMaterialIDsOfTriangles: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.List.IsValid() == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_InvalidList", "GetMaterialIDsOfTriangles: TriangleIDList is Null"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.IsCompatibleWith(EGeometryScriptIndexType::Triangle) == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_InvalidList2", "GetMaterialIDsOfTriangles: TriangleIDList has incompatible index type"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.List->Num() == 0 && TargetMesh->IsEmpty() == false)
+	{
+		AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_EmptyList", "GetMaterialIDsOfTriangles: TriangleIDList is empty"));
+	}
+	
+	bool bHasMaterials = false;
+	bool bAllValidTriangles = true;
+	SimpleMeshMaterialQuery<int32>(TargetMesh, bHasMaterials, 0, [&](const FDynamicMesh3& EditMesh, const FDynamicMeshMaterialAttribute& MaterialIDs) {
+		TArray<int>& MaterialIDArray = *MaterialIDList.List;
+		for (int32 i = 0; i < TriangleIDList.List->Num(); i++)
+		{
+			int32 TriangleID = (*TriangleIDList.List)[i];
+			if (EditMesh.IsTriangle(TriangleID) == false)
+			{
+				bAllValidTriangles = false;
+				return 0;
+			}
+			MaterialIDArray[i] = MaterialIDs.GetValue(TriangleID);
+		}
+		return 0;
+	});
+	
+	if (bHasMaterials == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_MissingMaterials", "GetMaterialIDsOfTriangles: MaterialID Attribute is not enabled"));
+		return TargetMesh;
+	}
+	
+	if (bAllValidTriangles == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMaterialIDsOfTriangles_InvalidTriangles", "GetMaterialIDsOfTriangles: TriangleIDList has invalid triangles"));
+		return TargetMesh;
+	}
+	
+	return TargetMesh;
+}
+
 
 int UGeometryScriptLibrary_MeshMaterialFunctions::GetMaxMaterialID( UDynamicMesh* TargetMesh, bool& bHasMaterialIDs )
 {
@@ -205,6 +266,54 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetAllTriangleMateri
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::GetTrianglesByMaterialID( 
+		UDynamicMesh* TargetMesh, 
+		int MaterialID,
+		FGeometryScriptIndexList& TriangleIDList,
+		UGeometryScriptDebug* Debug)
+{
+	TriangleIDList.Reset(EGeometryScriptIndexType::Triangle);
+
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetTrianglesByMaterialID_InvalidInput", "GetTrianglesByMaterialID: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bHasMaterialIDs = false;
+	bool bAllValidTriangles = true;
+	SimpleMeshMaterialQuery<int32>(TargetMesh, bHasMaterialIDs, 0, [&](const FDynamicMesh3& Mesh, const FDynamicMeshMaterialAttribute& MaterialIDAttrib) {
+		for (int32 TriangleID = 0; TriangleID < Mesh.MaxTriangleID(); ++TriangleID)
+		{
+			if (Mesh.IsTriangle(TriangleID) == false)
+			{
+				bAllValidTriangles = false;
+				continue;
+			}
+
+			if (MaterialIDAttrib.GetValue(TriangleID) == MaterialID)
+			{
+				TriangleIDList.List->Add(TriangleID);
+			}
+		}
+		return 0;
+	});
+
+	if (bHasMaterialIDs == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetTrianglesByMaterialID_MissingMaterialID", "GetTrianglesByMaterialID: MaterialID Attribute is not enabled"));
+		return TargetMesh;
+	}
+
+	if (bAllValidTriangles == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetTrianglesByMaterialID_InvalidTriangles", "GetTrianglesByMaterialID: TriangleIDList has invalid triangles"));
+		return TargetMesh;
+	}
+
+	return TargetMesh;
+}
+
 
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetTriangleMaterialID( 
 	UDynamicMesh* TargetMesh, 
@@ -236,7 +345,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetTriangleMaterialI
 
 UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMaterialIDs(
 	UDynamicMesh* TargetMesh,
-	FGeometryScriptIndexList& TriangleMaterialIDList,
+	FGeometryScriptIndexList TriangleMaterialIDList,
 	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
@@ -245,15 +354,19 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMateri
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidMesh", "SetAllTriangleMaterialIDs: TargetMesh is Null"));
 		return TargetMesh;
 	}
-	if (TriangleMaterialIDList.List.IsValid() == false || TriangleMaterialIDList.List->Num() == 0)
+	if (TriangleMaterialIDList.List.IsValid() == false)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList", "SetAllTriangleMaterialIDs: TriangleMaterialIDList is empty"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList", "SetAllTriangleMaterialIDs: TriangleMaterialIDList is Null"));
 		return TargetMesh;
 	}
 	if (TriangleMaterialIDList.IsCompatibleWith(EGeometryScriptIndexType::MaterialID) == false)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_InvalidList2", "SetAllTriangleMaterialIDs: TriangleMaterialIDList has incompatible index type"));
 		return TargetMesh;
+	}
+	if (TriangleMaterialIDList.List->Num() == 0 && TargetMesh->IsEmpty() == false)
+	{
+		UE::Geometry::AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllTriangleMaterialIDs_EmptyList", "SetAllTriangleMaterialIDs: TriangleMaterialIDList is empty"));
 	}
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
@@ -286,6 +399,65 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetAllTriangleMateri
 }
 
 
+
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetMaterialIDOnTriangles( 
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptIndexList TriangleIDList,
+	int MaterialID,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{	
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDOnTriangles_InvalidMesh", "SetMaterialIDOnTriangles: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.List.IsValid() == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDOnTriangles_InvalidList", "SetMaterialIDOnTriangles: TriangleIDList is Null"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.IsCompatibleWith(EGeometryScriptIndexType::Triangle) == false)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDOnTriangles_InvalidList2", "SetMaterialIDOnTriangles: TriangleIDList has incompatible index type"));
+		return TargetMesh;
+	}
+	if (TriangleIDList.List->Num() == 0 && TargetMesh->IsEmpty() == false)
+	{
+		UE::Geometry::AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDOnTriangles_EmptyList", "SetMaterialIDOnTriangles: TriangleIDList is empty"));
+	}
+
+	bool bHasInvalidTriangles = false;
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+		{
+			if (EditMesh.HasAttributes() == false)
+			{
+				EditMesh.EnableAttributes();
+			}
+			if (EditMesh.Attributes()->HasMaterialID() == false)
+			{
+				EditMesh.Attributes()->EnableMaterialID();
+			}
+			FDynamicMeshMaterialAttribute* MaterialIDs = EditMesh.Attributes()->GetMaterialID();
+			for (int32 TriangleID : *TriangleIDList.List)
+			{
+				if (EditMesh.IsTriangle(TriangleID) == false)
+				{
+					bHasInvalidTriangles = true;
+					return;
+				}
+				MaterialIDs->SetValue(TriangleID, MaterialID);
+			}
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+	if (bHasInvalidTriangles == true)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMaterialIDOnTriangles_InvalidTriangles", "SetMaterialIDOnTriangles: TriangleIDList has invalid triangles"));
+		return TargetMesh;
+	}
+	
+	return TargetMesh;
+}
 
 
 

@@ -12,10 +12,30 @@ FGeometryScriptDebugMessage UE::Geometry::MakeScriptError(EGeometryScriptErrorTy
 	return FGeometryScriptDebugMessage{ EGeometryScriptDebugMessageType::ErrorMessage, ErrorTypeIn, MessageIn };
 }
 
+FGeometryScriptDebugMessage UE::Geometry::MakeScriptWarning(EGeometryScriptErrorType WarningTypeIn, const FText& MessageIn)
+{
+	UE_LOG(LogGeometry, Warning, TEXT("GeometryScriptWarning: %s"), *MessageIn.ToString() );
+
+	return FGeometryScriptDebugMessage{ EGeometryScriptDebugMessageType::WarningMessage, WarningTypeIn, MessageIn };
+}
+
+
+
+
+
 
 void UE::Geometry::AppendError(UGeometryScriptDebug* Debug, EGeometryScriptErrorType ErrorTypeIn, const FText& MessageIn)
 {
 	FGeometryScriptDebugMessage Result = MakeScriptError(ErrorTypeIn, MessageIn);
+	if (Debug != nullptr)
+	{
+		Debug->Append(Result);
+	}
+}
+
+void UE::Geometry::AppendWarning(UGeometryScriptDebug* Debug, EGeometryScriptErrorType WarningTypeIn, const FText& MessageIn)
+{
+	FGeometryScriptDebugMessage Result = MakeScriptWarning(WarningTypeIn, MessageIn);
 	if (Debug != nullptr)
 	{
 		Debug->Append(Result);
