@@ -158,7 +158,15 @@ namespace Metasound
 
 		for (const FSendInfo& SendInfo : SendInfos)
 		{
-			bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
+			if (InputSends.Remove(SendInfo.ParameterName))
+			{
+				// Only unregister the data channel if we had a sender using that 
+				// data channel. This protects against removing the data channel 
+				// multiple times. Multiple removals of data channels has caused
+				// race conditions between newly created transmitters and transmitters
+				// being cleaned up.
+				bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
+			}
 		}
 
 		return bSuccess;
