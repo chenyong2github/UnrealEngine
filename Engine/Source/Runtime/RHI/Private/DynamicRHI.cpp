@@ -372,6 +372,7 @@ void RHIExit()
 	{
 		// If we are using NullRHI flush the command list here in case somethings has been added to the command list during exit calls
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 }
 
