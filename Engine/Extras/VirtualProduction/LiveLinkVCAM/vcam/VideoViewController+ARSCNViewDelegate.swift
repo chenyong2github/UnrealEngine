@@ -16,6 +16,9 @@ extension VideoViewController : ARSCNViewDelegate {
             self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, transform: pov.simdTransform, time: Timecode.create().toTimeInterval())
         }
         
+        // update controller
+        self.sendControllerUpdate()
+        
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didRenderScene scene: SCNScene, atTime time: TimeInterval) {
