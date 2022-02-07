@@ -1157,7 +1157,7 @@ namespace UE
 					{
 						UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 						Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
-						Message->Text = LOCTEXT("MeshDescriptionError", "Cannot fetch skinned mesh payload because there was an error when creating the MeshDescription.");
+						Message->Text = LOCTEXT("SkinnedMeshDescriptionError", "Cannot fetch skinned mesh payload because there was an error when creating the MeshDescription.");
 						return false;
 					}
 				}
@@ -1170,7 +1170,7 @@ namespace UE
 					{
 						UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 						Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
-						Message->Text = LOCTEXT("MeshDescriptionError", "Cannot fetch static mesh payload because there was an error when creating the MeshDescription.");
+						Message->Text = LOCTEXT("StaticMeshDescriptionError", "Cannot fetch static mesh payload because there was an error when creating the MeshDescription.");
 						return false;
 					}
 				}
