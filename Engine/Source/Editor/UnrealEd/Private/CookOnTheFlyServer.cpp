@@ -3533,7 +3533,7 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCookerFromSchedulerThread(const FNa
 	{
 		check(IsInGameThread()); // We're editing scheduler data, which is only allowable from the scheduler thread
 		bool bHadCookedPlatforms = PackageData->HasAnyCookedPlatform();
-		PackageData->SetPlatformsNotCooked();
+		PackageData->ClearCookProgress();
 		if (PackageData->IsInProgress())
 		{
 			PackageData->SendToState(UE::Cook::EPackageState::Request, UE::Cook::ESendFlags::QueueAddAndRemove);

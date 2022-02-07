@@ -67,7 +67,7 @@ FPackageData::~FPackageData()
 	// ClearReferences should have been called earlier, but call it here in case it was missed
 	ClearReferences();
 	// We need to send OnLastCookedPlatformRemoved message to the monitor, so call SetPlatformsNotCooked
-	SetPlatformsNotCooked();
+	ClearCookProgress();
 	// Update the monitor's counters and call exit functions
 	SendToState(EPackageState::Idle, ESendFlags::QueueNone);
 }
@@ -307,47 +307,49 @@ void FPackageData::SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool
 	}
 }
 
-void FPackageData::SetPlatformsNotCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+void FPackageData::ClearCookProgress(const TConstArrayView<const ITargetPlatform*> TargetPlatforms)
 {
 	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
-		SetPlatformNotCooked(TargetPlatform);
+		ClearCookProgress(TargetPlatform);
 	}
 }
 
-void FPackageData::SetPlatformsNotCooked()
+void FPackageData::ClearCookProgress()
 {
-	bool bModified = false;
+	bool bModifiedCookAttempted = false;
 	for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 	{
-		bModified = bModified | (Pair.Value.bCookAttempted != false);
+		bModifiedCookAttempted = bModifiedCookAttempted | (Pair.Value.bCookAttempted != false);
 		Pair.Value.bCookAttempted = false;
 		Pair.Value.bCookSucceeded = false;
+		Pair.Value.bExplored = false;
 	}
-	if (bModified)
+	if (bModifiedCookAttempted)
 	{
 		PackageDatas.GetMonitor().OnLastCookedPlatformRemoved(*this);
 	}
 }
 
-void FPackageData::SetPlatformNotCooked(const ITargetPlatform* TargetPlatform)
+void FPackageData::ClearCookProgress(const ITargetPlatform* TargetPlatform)
 {
 	bool bHasAnyOthers = false;
-	bool bModified = false;
+	bool bModifiedCookAttempted = false;
 	for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 	{
 		if (Pair.Key == TargetPlatform)
 		{
-			bModified = bModified | (Pair.Value.bCookAttempted != false);
+			bModifiedCookAttempted = bModifiedCookAttempted | (Pair.Value.bCookAttempted != false);
 			Pair.Value.bCookAttempted = false;
 			Pair.Value.bCookSucceeded = false;
+			Pair.Value.bExplored = false;
 		}
 		else
 		{
 			bHasAnyOthers = bHasAnyOthers | (Pair.Value.bCookAttempted != false);
 		}
 	}
-	if (bModified && !bHasAnyOthers)
+	if (bModifiedCookAttempted && !bHasAnyOthers)
 	{
 		PackageDatas.GetMonitor().OnLastCookedPlatformRemoved(*this);
 	}
@@ -2091,7 +2093,7 @@ void FPackageDatas::ClearCookedPlatforms()
 {
 	for (FPackageData* PackageData : PackageDatas)
 	{
-		PackageData->SetPlatformsNotCooked();
+		PackageData->ClearCookProgress();
 	}
 }
 

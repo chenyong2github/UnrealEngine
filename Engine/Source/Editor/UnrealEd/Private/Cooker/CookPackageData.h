@@ -229,9 +229,9 @@ public:
 	 * FindOrAdd each TargetPlatform and set its flags: CookAttempted=false.
 	 * In Version that takes no TargetPlatform, CookAttempted is cleared from all existing platforms.
 	 */
-	void SetPlatformsNotCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms);
-	void SetPlatformsNotCooked();
-	void SetPlatformNotCooked(const ITargetPlatform* TargetPlatform);
+	void ClearCookProgress(const TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+	void ClearCookProgress();
+	void ClearCookProgress(const ITargetPlatform* TargetPlatform);
 
 	/** Access the information about platforms interacted with by *this. */
 	const TSortedMap<const ITargetPlatform*, FPlatformData>& GetPlatformDatas() const;
