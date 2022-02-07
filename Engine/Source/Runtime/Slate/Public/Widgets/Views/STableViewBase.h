@@ -357,6 +357,11 @@ protected:
 	 */
 	virtual void NotifyItemScrolledIntoView() = 0;
 
+	/**
+	 * Called when CurrentScrollOffset == TargetScrollOffset at the end of a ::Tick
+	 */
+	virtual void NotifyFinishedScrolling() = 0;
+
 	/** Util Function so templates classes don't need to include SlateApplication */
 	void NavigateToWidget(const uint32 UserIndex, const TSharedPtr<SWidget>& NavigationDestination, ENavigationSource NavigationSource = ENavigationSource::FocusedWidget) const;
 

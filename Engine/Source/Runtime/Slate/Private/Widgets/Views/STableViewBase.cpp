@@ -345,6 +345,10 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 				// We call this rather than just leave bItemsNeedRefresh as true to ensure that EnsureTickToRefresh is registered
 				RequestLayoutRefresh();
 			}
+			else if (CurrentScrollOffset == TargetScrollOffset)
+			{
+				NotifyFinishedScrolling();
+			}
 		}
 	}
 }

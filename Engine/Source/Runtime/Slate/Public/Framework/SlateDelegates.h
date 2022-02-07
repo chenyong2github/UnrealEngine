@@ -121,6 +121,9 @@ DECLARE_DELEGATE_OneParam( FOnLinearColorValueChanged, FLinearColor )
 /** Notification for FVector4 value change */
 DECLARE_DELEGATE_OneParam(FOnVector4ValueChanged, FVector4&)
 
+/** Invoked when a list view has reached its target offset.  */
+DECLARE_DELEGATE(FOnFinishedScrolling);
+
 DECLARE_DELEGATE(FOnTableViewBadState);
 
 template< typename ArgumentType >

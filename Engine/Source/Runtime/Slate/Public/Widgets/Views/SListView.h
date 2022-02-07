@@ -123,6 +123,8 @@ public:
 		SLATE_EVENT( FOnTableViewScrolled, OnListViewScrolled )
 
 		SLATE_EVENT( FOnItemScrolledIntoView, OnItemScrolledIntoView )
+		
+		SLATE_EVENT( FOnFinishedScrolling, OnFinishedScrolling )
 
 		SLATE_ARGUMENT( const TArray<ItemType>* , ListItemsSource )
 
@@ -199,6 +201,7 @@ public:
 		this->OnEntryInitialized = InArgs._OnEntryInitialized;
 		this->OnRowReleased = InArgs._OnRowReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
+		this->OnFinishedScrolling = InArgs._OnFinishedScrolling;
 
 		this->ItemsSource = InArgs._ListItemsSource;
 		this->OnContextMenuOpening = InArgs._OnContextMenuOpening;
@@ -1887,6 +1890,11 @@ protected:
 		}
 	}
 
+	virtual void NotifyFinishedScrolling() override
+	{
+		OnFinishedScrolling.ExecuteIfBound();
+	}
+
 	virtual float ScrollBy( const FGeometry& MyGeometry, float ScrollByAmountInSlateUnits, EAllowOverscroll InAllowOverscroll ) override
 	{
 		auto DoubleFractional = [](double Value) -> double
@@ -2152,6 +2160,9 @@ protected:
 
 	/** Delegate to be invoked when an item has come into view after it was requested to come into view. */
 	FOnItemScrolledIntoView OnItemScrolledIntoView;
+
+	/** Delegate to be invoked when TargetScrollOffset is reached at the end of a ::Tick. */
+	FOnFinishedScrolling OnFinishedScrolling;
 
 	/** A set of selected data items */
 	TItemSet SelectedItems;

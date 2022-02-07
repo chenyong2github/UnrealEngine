@@ -53,6 +53,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnListViewScrolled, float, float);
 	virtual FOnListViewScrolled& OnListViewScrolled() const = 0;
 
+	DECLARE_MULTICAST_DELEGATE(FOnFinishedScrolling);
+	virtual FOnFinishedScrolling& OnFinishedScrolling() const = 0;
+
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnItemScrolledIntoView, ItemType, UUserWidget&);
 	virtual FOnItemScrolledIntoView& OnItemScrolledIntoView() const = 0;
 
@@ -258,6 +261,7 @@ protected:
 			.OnRowReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnItemScrolledIntoView_UObject(Implementer, &UListViewBaseT::HandleItemScrolledIntoView)
 			.OnListViewScrolled_UObject(Implementer, &UListViewBaseT::HandleListViewScrolled)
+			.OnFinishedScrolling_UObject(Implementer, &UListViewBaseT::HandleFinishedScrolling)
 			.OnMouseButtonClick_UObject(Implementer, &UListViewBaseT::HandleItemClicked)
 			.OnMouseButtonDoubleClick_UObject(Implementer, &UListViewBaseT::HandleItemDoubleClicked);
 	}
@@ -486,6 +490,11 @@ private:
 			OnListViewScrolledInternal(OffsetInItems, DistanceRemaining.Y);
 			OnListViewScrolled().Broadcast(OffsetInItems, DistanceRemaining.Y);
 		}
+	}
+
+	void HandleFinishedScrolling()
+	{
+		OnFinishedScrolling().Broadcast();
 	}
 
 	void HandleItemScrolledIntoView(ItemType Item, const TSharedPtr<ITableRow>& InWidget)
@@ -783,6 +792,7 @@ private:	\
 	mutable FOnItemIsHoveredChanged OnItemIsHoveredChangedEvent;	\
 	mutable FOnItemScrolledIntoView OnItemScrolledIntoViewEvent;	\
 	mutable FOnListViewScrolled OnListViewScrolledEvent;	\
+	mutable FOnFinishedScrolling OnFinishedScrollingEvent;	\
 	mutable FOnItemExpansionChanged OnItemExpansionChangedEvent;	\
 	mutable FOnGetEntryClassForItem OnGetEntryClassForItemDelegate;	\
 public:	\
@@ -793,5 +803,6 @@ public:	\
 	virtual FOnItemSelectionChanged& OnItemSelectionChanged() const override { return OnItemSelectionChangedEvent; }	\
 	virtual FOnItemScrolledIntoView& OnItemScrolledIntoView() const override { return OnItemScrolledIntoViewEvent; }	\
 	virtual FOnListViewScrolled& OnListViewScrolled() const override { return OnListViewScrolledEvent; }	\
+	virtual FOnFinishedScrolling& OnFinishedScrolling() const override { return OnFinishedScrollingEvent; }	\
 	virtual FOnItemExpansionChanged& OnItemExpansionChanged() const override { return OnItemExpansionChangedEvent; }	\
 	virtual FOnGetEntryClassForItem& OnGetEntryClassForItem() const override { return OnGetEntryClassForItemDelegate; }
