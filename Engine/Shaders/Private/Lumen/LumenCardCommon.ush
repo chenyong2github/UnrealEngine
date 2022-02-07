@@ -31,6 +31,9 @@ struct FLumenCardData
 
 	bool bVisible;
 	bool bHeightfield;
+
+	// Average world space texel size of always resident pages
+	float TexelSize;
 };
 
 #if USE_LUMEN_CARD_DATA_BUFFER
@@ -86,6 +89,7 @@ FLumenCardData GetLumenCardData(uint CardId)
 	CardData.MeshCardsToLocalRotation[2] = Vector7.xyz;
 	CardData.MeshCardsOrigin = float3(Vector5.w, Vector6.w, Vector7.w);
 	CardData.MeshCardsExtent = abs(Vector8.xyz);
+	CardData.TexelSize = Vector8.w;
 
 	return CardData;
 }

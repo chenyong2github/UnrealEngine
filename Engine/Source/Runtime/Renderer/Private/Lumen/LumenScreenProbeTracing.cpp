@@ -586,7 +586,7 @@ void TraceScreenProbes(
 			/* out */ MeshSDFGridParameters);
 
 		const bool bTraceMeshSDFs = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0;
-		const bool bTraceHeightfields = Lumen::UseHeightfields(*Scene->LumenSceneData);
+		const bool bTraceHeightfields = Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData);
 
 		if (bTraceMeshSDFs || bTraceHeightfields)
 		{

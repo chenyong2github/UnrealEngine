@@ -267,6 +267,9 @@ struct FConeTraceInput
 	// Used for dithering
 	uint2 ScreenCoord;
 
+	// Whether to use epsilon trace (skip back face hits over initial short distance) for heightfield tracing
+	bool bUseEpsilonTraceForHeightfields;
+
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 
@@ -309,6 +312,8 @@ struct FConeTraceInput
 		ScreenCoord = uint2(0, 0);
 		bHiResSurface = false;
 		bCalculateHitVelocity = false;
+
+		bUseEpsilonTraceForHeightfields = true;
 	}
 };
 
@@ -796,6 +801,35 @@ float EvaluateLocalHeightfieldDepth(
 	return LocalHeightfieldDepth;
 }
 
+struct FHeightfieldRayStep
+{
+	float tValue;
+	float3 LocalSamplePosition;
+	float LocalHeightfieldDepth;
+	bool bRayUnderHeightfield;
+};
+
+FHeightfieldRayStep HeightfieldRayStep(FLumenCardData LumenCardData, uint LocalCardIndex, FConeTraceInput TraceInput, float3 LocalConeOrigin, float3 LocalConeDirection, float tValue)
+{
+	const float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tValue, TraceInput.MinSampleRadius);
+
+	FHeightfieldRayStep RayStep;
+	RayStep.tValue = tValue;
+	RayStep.LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
+	RayStep.LocalHeightfieldDepth = EvaluateLocalHeightfieldDepth(LumenCardData, LocalCardIndex, RayStep.LocalSamplePosition, SampleRadius);
+	RayStep.bRayUnderHeightfield = RayStep.LocalSamplePosition.z < RayStep.LocalHeightfieldDepth;
+
+	return RayStep;
+}
+
+float InterpolateHeightfieldHit(FHeightfieldRayStep PrevStep, FHeightfieldRayStep Step, float StepSize, float tMinValue, float tMaxValue)
+{
+	// Hit-point is approximated as the intersection between the ray and a line connecting the previous two evaluation points
+	// (1 - t) * PrevPosition.z + t * LocalSamplePosition.z = (1 - t) * PrevHeightfieldDepth + t * LocalHeightfieldDepth
+	float DeltaT = (PrevStep.LocalSamplePosition.z - PrevStep.LocalHeightfieldDepth) / (PrevStep.LocalSamplePosition.z - Step.LocalSamplePosition.z - PrevStep.LocalHeightfieldDepth + Step.LocalHeightfieldDepth);
+	return clamp(PrevStep.tValue + DeltaT * StepSize, tMinValue, tMaxValue);
+}
+
 FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	FConeTraceInput TraceInput,
 	uint HeightfieldIndex
@@ -815,8 +849,8 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 
 	// Convert ray to local space
 	float3 LocalConeOrigin = mul(TraceInput.ConeOrigin - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
-	float3 LocalConeEndPoint = mul(TraceInput.ConeOrigin + TraceInput.ConeDirection * TraceInput.MaxTraceDistance - LumenCardData.Origin, LumenCardData.WorldToLocalRotation);
 	float3 LocalConeDirection = mul(TraceInput.ConeDirection, LumenCardData.WorldToLocalRotation);
+	float3 LocalConeEndPoint = LocalConeOrigin + LocalConeDirection * TraceInput.MaxTraceDistance;
 
 	// Intersect ray and clip to heightfield bounds
 	float2 HitT = LineBoxIntersect(LocalConeOrigin, LocalConeEndPoint, -LumenCardData.LocalExtent, LumenCardData.LocalExtent);
@@ -827,58 +861,64 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	float tMaxValue = min(HitT.y, TraceInput.MaxTraceDistance);
 
 	// Ray-march at some nominal step size, evaluating heightfield data along the way
-	if (tMinValue < tMaxValue
-		&& LumenCardData.bVisible)
+	if (tMinValue < tMaxValue && LumenCardData.bVisible)
 	{
+		// Calculate initial entry depth
+		FHeightfieldRayStep EntryStep = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tMinValue);
+		Result.bRayStartInsideGeometry = EntryStep.LocalSamplePosition.z < EntryStep.LocalHeightfieldDepth;
+
+		FHeightfieldRayStep PrevStep = EntryStep;
+
+		// Skip back face hits between [0; EpsilonTraceLength]
+		float EpsilonTraceLength = LumenCardData.TexelSize;
+		if (TraceInput.bUseEpsilonTraceForHeightfields && tMinValue < EpsilonTraceLength)
+		{
+			FHeightfieldRayStep EpsilonStep = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, EpsilonTraceLength);
+
+			if (Result.bRayStartInsideGeometry && !EpsilonStep.bRayUnderHeightfield)
+			{
+				// Skip back face hit
+				PrevStep = EpsilonStep;
+				Result.bRayStartInsideGeometry = false;
+			}
+			else if (!Result.bRayStartInsideGeometry && EpsilonStep.bRayUnderHeightfield)
+			{
+				// Hit front face
+				Result.HitDistance = InterpolateHeightfieldHit(PrevStep, EpsilonStep, EpsilonTraceLength, tMinValue, tMaxValue);
+				Result.bIsHit = true;
+				return Result;
+			}
+
+			tMinValue = EpsilonTraceLength;
+		}
+
 		const uint MaxSteps = 32;
 		float MinStepSize = (tMaxValue - tMinValue) / MaxSteps;
-
-		float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tMinValue, TraceInput.MinSampleRadius);
-		float StepSize = max(SampleRadius * TraceInput.StepFactor, MinStepSize);
-
-		// Calculate initial entry depth
-		float3 EntryLocalSamplePosition = LocalConeOrigin + LocalConeDirection * tMinValue;
-		float EntryLocalHeightfieldDepth = EvaluateLocalHeightfieldDepth(LumenCardData, LocalCardIndex, EntryLocalSamplePosition, SampleRadius);
-		Result.bRayStartInsideGeometry = EntryLocalSamplePosition.z < EntryLocalHeightfieldDepth;
-
-		float PrevT = tMinValue;
-		float3 PrevPosition = EntryLocalSamplePosition;
-		float PrevHeightfieldDepth = EntryLocalHeightfieldDepth;
+		float StepSize = max(LumenCardData.TexelSize * TraceInput.StepFactor, MinStepSize);
 
 		float tValue = tMinValue;
-		LOOP
 		for (uint StepIndex = 0; StepIndex < MaxSteps; ++StepIndex)
 		{
-			tValue += StepSize;
+			tValue = min(tValue + StepSize, tMaxValue);
 
-			float3 LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
-			float LocalHeightfieldDepth = EvaluateLocalHeightfieldDepth(LumenCardData, LocalCardIndex, LocalSamplePosition, SampleRadius);
+			FHeightfieldRayStep Step = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tValue);
 
 			// Encountered zero-crossing
-			bool bIsZeroCrossing = Result.bRayStartInsideGeometry ? LocalSamplePosition.z > LocalHeightfieldDepth : LocalSamplePosition.z < LocalHeightfieldDepth;
+			bool bIsZeroCrossing = Result.bRayStartInsideGeometry != Step.bRayUnderHeightfield;
 			if (bIsZeroCrossing)
 			{
-				// Hit-point is approximated as the intersection between the ray and a line connecting the previous two evaluation points
-				// (1 - t) * PrevPosition.z + t * LocalSamplePosition.z = (1 - t) * PrevHeightfieldDepth + t * LocalHeightfieldDepth
-				float DeltaT = (PrevPosition.z - PrevHeightfieldDepth) / (PrevPosition.z - LocalSamplePosition.z - PrevHeightfieldDepth + LocalHeightfieldDepth);
-				Result.HitDistance = clamp(PrevT + DeltaT * StepSize, tMinValue, tMaxValue);
+				Result.HitDistance = InterpolateHeightfieldHit(PrevStep, Step, StepSize, tMinValue, tMaxValue);
 				Result.bIsHit = true;
 				break;
 			}
 
 			// Make sure we do one extra step in order to guarantee a hit
-			if (tValue > tMaxValue)
+			if (tValue >= tMaxValue)
 			{
 				break;
 			}
 
-			// Update step size
-			float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tValue, TraceInput.MinSampleRadius);
-			StepSize = max(SampleRadius * TraceInput.StepFactor, MinStepSize);
-
-			PrevT = tValue;
-			PrevPosition = LocalSamplePosition;
-			PrevHeightfieldDepth = LocalHeightfieldDepth;
+			PrevStep = Step;
 		}
 	}
 

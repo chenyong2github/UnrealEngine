@@ -210,10 +210,18 @@ public:
 		OutData[4].Z = *((float*)&PackedHiResSizeInPages);
 		OutData[4].W = *((float*)&PackedHiResPageTableOffset);
 
+		float AverageTexelSize = 100.0f;
+		if (Card.MinAllocatedResLevel > 0)
+		{
+			FLumenMipMapDesc MipMapDesc;
+			Card.GetMipMapDesc(Card.MinAllocatedResLevel, MipMapDesc);
+			AverageTexelSize = 0.5f * (Card.MeshCardsOBB.Extent.X / MipMapDesc.Resolution.X + Card.MeshCardsOBB.Extent.Y / MipMapDesc.Resolution.Y);
+		}
+
 		OutData[5] = FVector4f(Card.MeshCardsOBB.AxisX[0], Card.MeshCardsOBB.AxisY[0], Card.MeshCardsOBB.AxisZ[0], Card.MeshCardsOBB.Origin.X);
 		OutData[6] = FVector4f(Card.MeshCardsOBB.AxisX[1], Card.MeshCardsOBB.AxisY[1], Card.MeshCardsOBB.AxisZ[1], Card.MeshCardsOBB.Origin.Y);
 		OutData[7] = FVector4f(Card.MeshCardsOBB.AxisX[2], Card.MeshCardsOBB.AxisY[2], Card.MeshCardsOBB.AxisZ[2], Card.MeshCardsOBB.Origin.Z);
-		OutData[8] = FVector4f(Card.MeshCardsOBB.Extent, 0.0f);
+		OutData[8] = FVector4f(Card.MeshCardsOBB.Extent, AverageTexelSize);
 
 		static_assert(DataStrideInFloat4s == 9, "Data stride doesn't match");
 	}

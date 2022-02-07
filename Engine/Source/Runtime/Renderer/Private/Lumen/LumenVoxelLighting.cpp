@@ -79,6 +79,14 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingMaskDownsampleShift(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneVoxelLightingReset = 0;
+FAutoConsoleVariableRef CVarLumenSceneVoxelLightingReset(
+	TEXT("r.LumenScene.VoxelLighting.Reset"),
+	GLumenSceneVoxelLightingReset,
+	TEXT("Reset all voxel lighting.\n"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneVoxelLightingForceFullUpdate = 0;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceFullUpdate(
 	TEXT("r.LumenScene.VoxelLighting.ForceFullUpdate"),
@@ -105,6 +113,11 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
 
 constexpr uint32 GNumVoxelDirections = 6;
 constexpr uint32 GVisBufferTileSize = 4;
+
+void Lumen::DebugResetVoxelLighting()
+{
+	GLumenSceneVoxelLightingReset = 1;
+}
 
 bool Lumen::UseVoxelLighting(const FSceneViewFamily& ViewFamily)
 {
@@ -764,7 +777,7 @@ void VoxelizeVisBuffer(
 			FVisBufferShadingCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FVisBufferShadingCS::FDistantScene>(bDistantScene);
 			PermutationVector.Set<FVisBufferShadingCS::FShadeMeshSDFDim>(NumDistanceFieldObjects > 0);
-			PermutationVector.Set<FVisBufferShadingCS::FShadeHeightfieldDim>(Lumen::UseHeightfields(*Scene->LumenSceneData));
+			PermutationVector.Set<FVisBufferShadingCS::FShadeHeightfieldDim>(Lumen::UseHeightfieldTracingForVoxelLighting(LumenSceneData));
 			auto ComputeShader = View.ShaderMap->GetShader<FVisBufferShadingCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -1172,7 +1185,7 @@ void UpdateVoxelVisBuffer(
 
 			// Height-field voxelization
 			const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-			if (Lumen::UseHeightfields(LumenSceneData))
+			if (Lumen::UseHeightfieldTracingForVoxelLighting(LumenSceneData))
 			{
 				// Clear indirect args
 				FRDGBufferRef DummyClearVisBufferIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.UpdateIndirectArgBuffer"));
@@ -1304,7 +1317,8 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 
 	const int32 ClampedNumClipmapLevels = GetNumLumenVoxelClipmaps(View.FinalPostProcessSettings.LumenSceneViewDistance);
 	const FIntVector ClipmapResolution = GetClipmapResolution();
-	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0;
+	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0 || GLumenSceneVoxelLightingReset != 0;
+	GLumenSceneVoxelLightingReset = 0;
 
 	FRDGTextureRef VoxelLighting = TracingInputs.VoxelLighting;
 	{

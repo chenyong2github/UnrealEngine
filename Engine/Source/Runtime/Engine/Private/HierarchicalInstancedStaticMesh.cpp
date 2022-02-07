@@ -895,6 +895,7 @@ public:
 #endif
 	{
 		SetupOcclusion(InComponent);
+		bSupportsMeshCardRepresentation = false;
 	}
 
 	void SetupOcclusion(UHierarchicalInstancedStaticMeshComponent* InComponent)

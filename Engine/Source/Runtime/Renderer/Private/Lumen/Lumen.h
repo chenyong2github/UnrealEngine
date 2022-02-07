@@ -38,9 +38,13 @@ namespace Lumen
 	};
 
 	void DebugResetSurfaceCache();
+	void DebugResetVoxelLighting();
+
 	float GetDistanceSceneNaniteLODScaleFactor();
 	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
 	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
+	bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
+	bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);
 	float GetMaxTraceDistance(const FViewInfo& View);
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
@@ -104,8 +108,6 @@ namespace Lumen
 	float GetFarFieldMaxTraceDistance();
 	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();
-
-	bool UseHeightfields(const FLumenSceneData& LumenSceneData);
 
 	void Shutdown();
 };

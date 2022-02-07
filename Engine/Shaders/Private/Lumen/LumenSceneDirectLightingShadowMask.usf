@@ -29,10 +29,12 @@
 #include "LumenSceneDirectLighting.ush"
 
 // Bias
-float SurfaceBias;
-float SlopeScaledSurfaceBias;
-float VirtualShadowMapSurfaceBias;
-float HeightfieldBiasScale;
+float ShadowMapSamplingBias;
+float VirtualShadowMapSamplingBias;
+float HeightfieldShadowRayBias;
+float MeshSDFShadowRayBias;
+float GlobalSDFShadowRayBias;
+float HeightfieldShadowReceiverBias;
 
 int VirtualShadowMapId;
 
@@ -125,7 +127,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				bool bVSMValid = false;
 
 				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), LWCHackToFloat(PrimaryView.WorldToClip));
-				const float ReceiverBiasScale = Card.bHeightfield ? HeightfieldBiasScale : 1.0f;
+				const float ReceiverBias = Card.bHeightfield ? HeightfieldShadowReceiverBias : 0.0f;
 
 				// Shadow maps are culled so only query points inside the view frustum are valid
 				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
@@ -133,7 +135,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if VIRTUAL_SHADOW_MAP
 					{
 						// Bias only ray start to maximize chances of hitting an allocated page
-						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias * ReceiverBiasScale, WorldNormal);
+						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSamplingBias + ReceiverBias, WorldNormal);
 
 						bVSMValid = VirtualShadowMapSample.bValid;
 						ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;
@@ -150,7 +152,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
 						float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
-						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, SurfaceBias * ReceiverBiasScale, SlopeScaledSurfaceBias * ReceiverBiasScale, 1.0f);
+						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, ShadowMapSamplingBias + ReceiverBias);
 
 						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 						{
@@ -248,7 +250,7 @@ float ShadowTraceHeightfield(
 	return 1.0f;
 }
 
-float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
+float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
 {
 	float ShadowFactor = 1.0f;
 
@@ -261,10 +263,10 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 
 	#if (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL) && (OFFSCREEN_SHADOWING_TRACE_MESH_SDF || OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS)
 	{
-		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
-
 		#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF
 		{
+			float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, MeshSDFShadowRayBias);
+
 			uint NumIntersectingObjects = GetCulledNumObjects();
 			uint CulledDataParameter = 0;
 			GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
@@ -291,8 +293,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 
 		#if OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS
 		{
-			// #lumen_todo: figure out why it's needed and remove
-			WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
+			float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HeightfieldShadowRayBias * CardData.TexelSize);
 
 			ShadowFactor *= ShadowTraceHeightfield(
 				WorldPositionForShadowing,
@@ -303,7 +304,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 	}
 	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 	{
-		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
+		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, GlobalSDFShadowRayBias);
 
 		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
 		FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
@@ -348,9 +349,9 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
 		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-		float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
+		FLumenCardData CardData = GetLumenCardData(CardPage.CardIndex);
+		float3 WorldPosition = GetCardWorldPosition(CardData, CardUV, Depth);
+		float3 WorldNormal = DecodeSurfaceCacheNormal(CardData, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
 
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
@@ -365,7 +366,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 #endif
 
 		ShadowMaskRay.bShadowFactorComplete = true;
-		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(WorldPosition, L, ToLight, WorldNormal);
+		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(CardData, WorldPosition, L, ToLight, WorldNormal);
 
 		WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy);
 	}

@@ -371,6 +371,7 @@ void VoxelTraceCS(
 
 		FConeTraceInput TraceInput;
 		TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
+		TraceInput.bUseEpsilonTraceForHeightfields = false;
 		TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
 
 		FTraceMeshSDFResult TraceMeshSDFResult;
@@ -459,6 +460,7 @@ void HeightfieldVoxelTraceCS(
 		float MaxTraceDistance = length(RayEnd - RayStart);
 		float StepFactor = 0.25f; // 0.25 of a voxel
 		TraceInput.Setup(RayStart, AxisDirection, ConeAngle, MinSampleRadius, MinTraceDistance, MaxTraceDistance, StepFactor);
+		TraceInput.bUseEpsilonTraceForHeightfields = false;
 
 		// Trace Heightfield object
 		FConeTraceHeightfieldSimpleResult Result = ConeTraceHeightfieldSimple(TraceInput, HeightfieldObjectIndex);

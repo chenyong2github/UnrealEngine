@@ -809,7 +809,8 @@ void VisualizeLumenScene(
 		}
 
 		const bool bTraceGlobalSDF = Lumen::UseGlobalSDFTracing(*View.Family);
-		const bool bTraceMeshSDF = MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0
+		const bool bTraceMeshSDF = Lumen::UseMeshSDFTracing(*View.Family)
+			&& MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0
 			&& VisualizeParameters.MaxMeshSDFTraceDistance > VisualizeParameters.MinTraceDistance;
 
 		FVisualizeLumenSceneCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneCS::FParameters>();
@@ -823,7 +824,7 @@ void VisualizeLumenScene(
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDF>(bTraceMeshSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceGlobalSDF>(bTraceGlobalSDF);
 		PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
-		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceHeightfields>(Lumen::UseHeightfields(*Scene->LumenSceneData));
+		PermutationVector.Set<FVisualizeLumenSceneCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
 		PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);

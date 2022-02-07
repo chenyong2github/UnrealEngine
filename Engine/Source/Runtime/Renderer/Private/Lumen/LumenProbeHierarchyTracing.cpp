@@ -305,7 +305,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			FLumenCardTraceProbeCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<LumenProbeHierarchy::FProbeTracingPermutationDim>(
 				LumenProbeHierarchy::GetProbeTracingPermutation(PassParameters->LevelParameters));
-			PermutationVector.Set<FLumenCardTraceProbeCS::FTraceHeightfields>(Lumen::UseHeightfields(*Scene->LumenSceneData));
+			PermutationVector.Set<FLumenCardTraceProbeCS::FTraceHeightfields>(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
 			PermutationVector = FLumenCardTraceProbeCS::RemapPermutation(PermutationVector);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FLumenCardTraceProbeCS>(PermutationVector);

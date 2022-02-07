@@ -64,30 +64,6 @@ FAutoConsoleVariableRef CVarOffscreenShadowingTraceStepFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GOffscreenShadowingSDFSurfaceBiasScale = 6;
-FAutoConsoleVariableRef CVarOffscreenShadowingSDFSurfaceBiasScale(
-	TEXT("r.LumenScene.DirectLighting.OffscreenShadowingSDFSurfaceBiasScale"),
-	GOffscreenShadowingSDFSurfaceBiasScale,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-float GShadowingSurfaceBias = 2;
-FAutoConsoleVariableRef CVarShadowingSurfaceBias(
-	TEXT("r.LumenScene.DirectLighting.ShadowingSurfaceBias"),
-	GShadowingSurfaceBias,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-float GShadowingSlopeScaledSurfaceBias = 4.0f;
-FAutoConsoleVariableRef CVarShadowingSlopeScaledSurfaceBias(
-	TEXT("r.LumenScene.DirectLighting.ShadowingSlopeScaledSurfaceBias"),
-	GShadowingSlopeScaledSurfaceBias,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
 int32 GLumenDirectLightingCloudTransmittance = 1;
 FAutoConsoleVariableRef CVarLumenDirectLightingCloudTransmittance(
 	TEXT("r.LumenScene.DirectLighting.CloudTransmittance"),
@@ -104,24 +80,88 @@ FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMap(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenDirectLightingVirtualShadowMapBias = 7.0f;
-FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMapBias(
-	TEXT("r.LumenScene.DirectLighting.VirtualShadowMapBias"),
-	GLumenDirectLightingVirtualShadowMapBias,
+static TAutoConsoleVariable<float> CVarLumenDirectLightingShadowMapSamplingBias(
+	TEXT("r.LumenScene.DirectLighting.ShadowMap.SamplingBias"),
+	2.0f,
+	TEXT("Bias for sampling shadow maps."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarLumenDirectLightingVirtualShadowMapSamplingBias(
+	TEXT("r.LumenScene.DirectLighting.VirtualShadowMap.SamplingBias"),
+	7.0f,
 	TEXT("Bias for sampling virtual shadow maps."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenDirectLightingHeightfieldBiasScale(
-	TEXT("r.LumenScene.DirectLighting.HeightfieldBiasScale"),
-	10.0f,
-	TEXT("Landscape specific bias scale for shadow maps. Helps to fix mismatching LOD artifacts between fixed LOD in Surface Cache and Landscape CLOD in shadow view."),
+static TAutoConsoleVariable<float> CVarLumenDirectLightingMeshSDFShadowRayBias(
+	TEXT("r.LumenScene.DirectLighting.MeshSDF.ShadowRayBias"),
+	2.0f,
+	TEXT("Bias for tracing mesh SDF shadow rays."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float LumenSceneDirectLighting::GetHeightfieldBiasScale()
+static TAutoConsoleVariable<float> CVarLumenDirectLightingHeightfieldShadowRayBias(
+	TEXT("r.LumenScene.DirectLighting.Heightfield.ShadowRayBias"),
+	2.0f,
+	TEXT("Bias for tracing heightfield shadow rays."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarLumenDirectLightingHeightfieldShadowReceiverBias(
+	TEXT("r.LumenScene.DirectLighting.Heightfield.ShadowReceiverBias"),
+	50.0f,
+	TEXT("Extra bias for Landscape surface points. Helps to fix mismatching LOD artifacts between fixed LOD in Surface Cache and Landscape CLOD."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarLumenDirectLightingGlobalSDFShadowRayBias(
+	TEXT("r.LumenScene.DirectLighting.GlobalSDF.ShadowRayBias"),
+	15.0f,
+	TEXT("Bias for tracing global SDF shadow rays."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarLumenDirectLightingHardwareRayTracingShadowRayBias(
+	TEXT("r.LumenScene.DirectLighting.HardwareRayTracing.ShadowRayBias"),
+	1.0f,
+	TEXT("Bias for hardware ray tracing shadow rays."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float LumenSceneDirectLighting::GetShadowMapSamplingBias()
 {
-	return FMath::Clamp(CVarLumenDirectLightingHeightfieldBiasScale.GetValueOnRenderThread(), .01f, 100.0f);
+	return FMath::Max(CVarLumenDirectLightingShadowMapSamplingBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetVirtualShadowMapSamplingBias()
+{
+	return FMath::Max(CVarLumenDirectLightingVirtualShadowMapSamplingBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetMeshSDFShadowRayBias()
+{
+	return FMath::Max(CVarLumenDirectLightingMeshSDFShadowRayBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetHeightfieldShadowRayBias()
+{
+	return FMath::Max(CVarLumenDirectLightingHeightfieldShadowRayBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetGlobalSDFShadowRayBias()
+{
+	return FMath::Max(CVarLumenDirectLightingGlobalSDFShadowRayBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetHardwareRayTracingShadowRayBias()
+{
+	return FMath::Max(CVarLumenDirectLightingHardwareRayTracingShadowRayBias.GetValueOnRenderThread(), 0.0f);
+}
+
+float LumenSceneDirectLighting::GetHeightfieldShadowReceiverBias()
+{
+	return FMath::Max(CVarLumenDirectLightingHeightfieldShadowReceiverBias.GetValueOnRenderThread(), 0.0f);
 }
 
 bool LumenSceneDirectLighting::UseVirtualShadowMaps()
@@ -561,13 +601,12 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
+		SHADER_PARAMETER(float, ShadowMapSamplingBias)
+		SHADER_PARAMETER(float, VirtualShadowMapSamplingBias)
+		SHADER_PARAMETER(float, HeightfieldShadowReceiverBias)
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)
 		SHADER_PARAMETER(float, MaxTraceDistance)
-		SHADER_PARAMETER(float, SurfaceBias)
-		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
-		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
-		SHADER_PARAMETER(float, HeightfieldBiasScale)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, SampleDenseShadowMap)
 		SHADER_PARAMETER(uint32, ForceShadowMaps)
@@ -622,9 +661,9 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)
 		SHADER_PARAMETER(float, MaxTraceDistance)
-		SHADER_PARAMETER(float, SurfaceBias)
-		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
-		SHADER_PARAMETER(float, SDFSurfaceBiasScale)
+		SHADER_PARAMETER(float, MeshSDFShadowRayBias)
+		SHADER_PARAMETER(float, HeightfieldShadowRayBias)
+		SHADER_PARAMETER(float, GlobalSDFShadowRayBias)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
@@ -1011,10 +1050,9 @@ void SampleShadowMap(
 		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(View.FinalPostProcessSettings.LumenMaxTraceDistance);
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
-		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
-		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
-		PassParameters->VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
-		PassParameters->HeightfieldBiasScale = LumenSceneDirectLighting::GetHeightfieldBiasScale();
+		PassParameters->ShadowMapSamplingBias = LumenSceneDirectLighting::GetShadowMapSamplingBias();
+		PassParameters->VirtualShadowMapSamplingBias = LumenSceneDirectLighting::GetVirtualShadowMapSamplingBias();
+		PassParameters->HeightfieldShadowReceiverBias = LumenSceneDirectLighting::GetHeightfieldShadowReceiverBias();
 		PassParameters->ForceOffscreenShadowing = (GLumenDirectLightingReuseShadowMaps == 0 || !View.Family->EngineShowFlags.LumenReuseShadowMaps) ? 1 : 0;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}
@@ -1068,7 +1106,7 @@ void TraceDistanceFieldShadows(
 		&& ObjectBufferParameters.NumSceneObjects > 0;
 
 	const bool bTraceHeighfieldObjects = bTraceMeshObjects 
-		&& Lumen::UseHeightfields(LumenSceneData);
+		&& Lumen::UseHeightfieldTracing(*View.Family, LumenSceneData);
 
 	if (bTraceMeshSDFs)
 	{
@@ -1132,9 +1170,9 @@ void TraceDistanceFieldShadows(
 		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance(View.FinalPostProcessSettings.LumenMaxTraceDistance);
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
-		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
-		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
-		PassParameters->SDFSurfaceBiasScale = FMath::Clamp(GOffscreenShadowingSDFSurfaceBiasScale, .01f, 100.0f);
+		PassParameters->MeshSDFShadowRayBias = LumenSceneDirectLighting::GetMeshSDFShadowRayBias();
+		PassParameters->HeightfieldShadowRayBias = LumenSceneDirectLighting::GetHeightfieldShadowRayBias();
+		PassParameters->GlobalSDFShadowRayBias = LumenSceneDirectLighting::GetGlobalSDFShadowRayBias();
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;

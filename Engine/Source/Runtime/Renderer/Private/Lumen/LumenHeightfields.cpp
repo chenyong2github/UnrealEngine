@@ -2,19 +2,29 @@
 
 #include "LumenHeightfields.h"
 #include "RendererPrivate.h"
+#include "ComponentRecreateRenderStateContext.h"
 
-static TAutoConsoleVariable<int32> CVarLumenSceneHeightfield(
-	TEXT("r.LumenScene.Heightfield"),
+static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
+	TEXT("r.LumenScene.Heightfield.Tracing"),
 	1,
 	TEXT("Enables heightfield (Landscape) software ray tracing (default = 1)"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		Lumen::DebugResetVoxelLighting();
+	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-bool Lumen::UseHeightfields(const FLumenSceneData& LumenSceneData)
+bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData)
 {
-	bool bHeightfieldEnabled = CVarLumenSceneHeightfield.GetValueOnRenderThread() != 0;
+	bool bHeightfieldEnabled = CVarLumenSceneHeightfieldTracing.GetValueOnRenderThread() != 0;
 	bool bHasHeightfields = LumenSceneData.Heightfields.Num() > 0;
 	return bHeightfieldEnabled && bHasHeightfields;
+}
+
+bool Lumen::UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData)
+{
+	return UseHeightfieldTracingForVoxelLighting(LumenSceneData) && ViewFamily.EngineShowFlags.LumenDetailTraces;
 }
 
 void FLumenHeightfieldGPUData::FillData(const FLumenHeightfield& RESTRICT Heightfield, const TSparseSpanArray<FLumenMeshCards>& MeshCards, FVector4f* RESTRICT OutData)

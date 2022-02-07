@@ -225,8 +225,9 @@ FLumenLight LoadLumenLight(uint LightIndex)
 	return LumenLight;
 }
 
-float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float SurfaceBias, float SlopeScaledSurfaceBias, float BiasScale)
+float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasValue)
 {
-	//@todo DynamicGI - derive from card texel size
-	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * BiasScale;
+	float SurfaceBias = BiasValue;
+	float SlopeScaledSurfaceBias = 2.0f * BiasValue;
+	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
 }

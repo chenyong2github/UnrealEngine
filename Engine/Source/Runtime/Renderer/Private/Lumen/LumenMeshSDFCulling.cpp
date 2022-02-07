@@ -374,7 +374,7 @@ void CullHeightfieldObjectsForView(
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 	// We don't want any heightfield overhead if there are no heightfields in the scene
-	check(Lumen::UseHeightfields(LumenSceneData));
+	check(Lumen::UseHeightfieldTracing(*View.Family, LumenSceneData));
 
 	uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
 	uint32 MaxNumHeightfields = FMath::RoundUpToPowerOfTwo(LumenSceneData.Heightfields.Num());
@@ -553,7 +553,7 @@ void CullMeshSDFObjectsToProbes(
 		CardTraceEndDistanceFromCamera,
 		Context);
 
-	if (Lumen::UseHeightfields(*Scene->LumenSceneData))
+	if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
 	{
 		FRDGBufferRef NumCulledHeightfieldObjects;
 		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;
@@ -818,7 +818,7 @@ void CullMeshSDFObjectsToViewGrid(
 			OutGridParameters);
 	}
 
-	if (Lumen::UseHeightfields(*Scene->LumenSceneData))
+	if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
 	{
 		FRDGBufferRef NumCulledHeightfieldObjects;
 		FRDGBufferRef CulledHeightfieldObjectIndexBuffer;

@@ -203,6 +203,12 @@ namespace Lumen
 
 namespace LumenSceneDirectLighting
 {
-	float GetHeightfieldBiasScale();
+	float GetShadowMapSamplingBias();
+	float GetVirtualShadowMapSamplingBias();
+	float GetMeshSDFShadowRayBias();
+	float GetHeightfieldShadowRayBias();
+	float GetGlobalSDFShadowRayBias();
+	float GetHardwareRayTracingShadowRayBias();
+	float GetHeightfieldShadowReceiverBias();
 	bool UseVirtualShadowMaps();
 }

@@ -1435,6 +1435,19 @@ public:
 	 */
 	TAutoConsoleVariable(const TCHAR* Name, const T& DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default);
 
+	/**
+	 * Create a float, int or string console variable
+	 * @param Name must not be 0
+	 * @param Help must not be 0
+	 * @param Callback Delegate called when the variable changes. @see IConsoleVariable::SetOnChangedCallback
+	 * @param Flags bitmask combined from EConsoleVariableFlags
+	 */
+	TAutoConsoleVariable(const TCHAR* Name, const T& DefaultValue, const TCHAR* Help, const FConsoleVariableDelegate& Callback, uint32 Flags = ECVF_Default)
+		: TAutoConsoleVariable(Name, DefaultValue, Help, Flags)
+	{
+		AsVariable()->SetOnChangedCallback(Callback);
+	}
+
 	T GetValueOnGameThread() const
 	{
 		return Ref->GetValueOnGameThread();
