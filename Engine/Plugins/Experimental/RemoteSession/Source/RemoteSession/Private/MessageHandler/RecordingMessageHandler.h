@@ -131,8 +131,8 @@ public:
 
 protected:
 
-	bool ConvertToNormalizedScreenLocation(const FVector2D& InLocation, FVector2D& OutLocation);
-	FVector2D ConvertFromNormalizedScreenLocation(const FVector2D& ScreenLocation);
+	bool ConvertToNormalizedScreenLocation(const FVector2D& InLocation, FVector2f& OutLocation);
+	FVector2D ConvertFromNormalizedScreenLocation(const FVector2f& ScreenLocation);
 
 	void RecordMessage(const TCHAR* MsgName, const TArray<uint8>& Data);
 
