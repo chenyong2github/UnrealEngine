@@ -506,6 +506,8 @@ EConvertQueryResult ConvertTraceResults(bool& OutHasValidBlockingHit, const UWor
 
 template EConvertQueryResult ConvertTraceResults<FHitSweep>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitSweep* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, TArray<FHitResult>& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 template EConvertQueryResult ConvertTraceResults<FHitSweep>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitSweep* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHit, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
+template EConvertQueryResult ConvertTraceResults<FPTSweepHit>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FPTSweepHit* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, TArray<FHitResult>& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
+template EConvertQueryResult ConvertTraceResults<FPTSweepHit>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FPTSweepHit* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHit, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 template EConvertQueryResult ConvertTraceResults<FHitRaycast>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitRaycast* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, TArray<FHitResult>& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 template EConvertQueryResult ConvertTraceResults<FHitRaycast>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FHitRaycast* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, FHitResult& OutHit, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
 template EConvertQueryResult ConvertTraceResults<FPTRaycastHit>(bool& OutHasValidBlockingHit, const UWorld* World, int32 NumHits, FPTRaycastHit* Hits, float CheckLength, const FCollisionFilterData& QueryFilter, TArray<FHitResult>& OutHits, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry& Geom, const FTransform& QueryTM, float MaxDistance, bool bReturnFaceIndex, bool bReturnPhysMat);
@@ -629,8 +631,6 @@ static bool ConvertOverlappedShapeToImpactHit(const UWorld* World, const THitLoc
 
 void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor, FOverlapResult& OutOverlap, const FCollisionFilterData& QueryFilter)
 {
-	const bool bBlock = IsBlocking(Shape, QueryFilter);
-
 	// Grab actor/component
 	
 	// Try body instance
@@ -676,9 +676,6 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 			ensureMsgf(false, TEXT("ConvertQueryOverlap called with bad payload type"));
 		}
 	}
-
-	// Other info
-	OutOverlap.bBlockingHit = bBlock;
 }
 
 /** Util to add NewOverlap to OutOverlaps if it is not already there */
@@ -726,13 +723,15 @@ static FAutoConsoleVariableRef GTestOverlapSpeed(
 	TEXT("Min number of overlaps required before using a TMap for deduplication")
 	);
 
-bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* OverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps)
+template <typename THitOverlap>
+bool ConvertOverlapResultsImp(int32 NumOverlaps, THitOverlap* OverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConvertOverlap);
 
 	const int32 ExpectedSize = OutOverlaps.Num() + NumOverlaps;
 	OutOverlaps.Reserve(ExpectedSize);
 	bool bBlockingFound = false;
+	constexpr bool bIsGTQuery = std::is_same<THitOverlap, FHitOverlap>::value;
 
 	if (ExpectedSize >= GNumOverlapsRequiredForTMap)
 	{
@@ -750,14 +749,24 @@ bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* OverlapResults, const
 		for (int32 PResultIndex = 0; PResultIndex < NumOverlaps; ++PResultIndex)
 		{
 			FOverlapResult NewOverlap;
-			ConvertQueryOverlap(*GetShape(OverlapResults[PResultIndex]), *GetActor(OverlapResults[PResultIndex]), NewOverlap, QueryFilter);
+			const auto Actor = GetActor(OverlapResults[PResultIndex]);
+			const FPhysicsShape* Shape = GetShape(OverlapResults[PResultIndex]);
 
-			if (NewOverlap.bBlockingHit)
+			const bool bBlock = IsBlocking(*Shape, QueryFilter);
+			NewOverlap.bBlockingHit = bBlock;
+			bBlockingFound |= bBlock;
+
+			const FPhysicsActor* GTActor = GetGTActor(Actor);
+			const FPhysicsShape* GTShape = GetGTShape<bIsGTQuery>(Shape, GTActor);
+			if(GTActor && GTShape)
 			{
-				bBlockingFound = true;
+				ConvertQueryOverlap(*GTShape, *GTActor, NewOverlap, QueryFilter);
 			}
 
 			// Look for it in the map, newly added elements will start with 0, so we know we need to add it to the results array then (the index is stored as +1)
+			//TODO: this doesn't de-duplicate if FOverlapResult has no component - like in PT for example. If we care about de-duplication we should use the PT handle if needed
+			//Question: why do we de-duplicate? This seems expensive and is not consistent with traces. The user could handle this at their level anyway (at the cost of a bit of transient memory here)
+			//TODO: make sure it doesn't de-duplicate null results
 			int32& DestinationIndex = OverlapMap.FindOrAdd(FOverlapKey(NewOverlap.Component.Get(), NewOverlap.ItemIndex));
 			if (DestinationIndex == 0)
 			{
@@ -781,11 +790,18 @@ bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* OverlapResults, const
 		for (int32 i = 0; i < NumOverlaps; i++)
 		{
 			FOverlapResult NewOverlap;
-			ConvertQueryOverlap(*GetShape(OverlapResults[i]), *GetActor(OverlapResults[i]), NewOverlap, QueryFilter);
+			const auto Actor = GetActor(OverlapResults[i]);
+			const FPhysicsShape* Shape = GetShape(OverlapResults[i]);
 
-			if (NewOverlap.bBlockingHit)
+			const bool bBlock = IsBlocking(*Shape, QueryFilter);
+			NewOverlap.bBlockingHit = bBlock;
+			bBlockingFound |= bBlock;
+
+			const FPhysicsActor* GTActor = GetGTActor(Actor);
+			const FPhysicsShape* GTShape = GetGTShape<bIsGTQuery>(Shape, GTActor);
+			if (GTActor && GTShape)
 			{
-				bBlockingFound = true;
+				ConvertQueryOverlap(*GTShape, *GTActor, NewOverlap, QueryFilter);
 			}
 
 			AddUniqueOverlap(OutOverlaps, NewOverlap);
@@ -793,4 +809,14 @@ bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* OverlapResults, const
 	}
 
 	return bBlockingFound;
+}
+
+bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* OverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps)
+{
+	return ConvertOverlapResultsImp(NumOverlaps, OverlapResults, QueryFilter, OutOverlaps);
+}
+
+bool ConvertOverlapResults(int32 NumOverlaps, FPTOverlapHit* OverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps)
+{
+	return ConvertOverlapResultsImp(NumOverlaps, OverlapResults, QueryFilter, OutOverlaps);
 }
