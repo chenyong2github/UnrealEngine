@@ -255,6 +255,12 @@ public:
 	}
 
 	// Get the nearest point on an edge of the specified face
+	FVec3 GetClosestEdge(int32 PlaneIndex, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
+	{
+		return MObject->GetClosestEdge(PlaneIndex, Position, OutEdgePos0, OutEdgePos1);
+	}
+
+	// Get the nearest point on an edge of the specified face
 	FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
 	{
 		return MObject->GetClosestEdgePosition(PlaneIndex, Position);
@@ -709,6 +715,15 @@ public:
 	int32 GetMostOpposingPlane(const FVec3& Normal) const
 	{
 		return MObject->GetMostOpposingPlaneScaled(Normal, MScale);
+	}
+
+	// Get the nearest point on an edge of the specified face
+	FVec3 GetClosestEdge(int32 PlaneIndex, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
+	{
+		FVec3 EdgePos = MObject->GetClosestEdge(PlaneIndex, MInvScale * Position, OutEdgePos0, OutEdgePos1);
+		OutEdgePos0 = OutEdgePos0 * MScale;
+		OutEdgePos1 = OutEdgePos1 * MScale;
+		return EdgePos * MScale;
 	}
 
 	// Get the nearest point on an edge of the specified face

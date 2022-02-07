@@ -29,15 +29,21 @@ namespace Chaos
 			VectorC = MakeVectorRegisterFloat(static_cast<FRealSingle>(C[0]), static_cast<FRealSingle>(C[1]), static_cast<FRealSingle>(C[2]), static_cast<FRealSingle>(0.0f));
 		}
 
-		FVec3& operator[](uint32 InIndex)
+		FORCEINLINE FVec3& operator[](uint32 InIndex)
 		{
-			check(InIndex < 3);
+			checkSlow(InIndex < 3);
 			return (&A)[InIndex];
 		}
 
-		const FVec3& operator[](uint32 InIndex) const
+		FORCEINLINE const FVec3& operator[](uint32 InIndex) const
 		{
-			check(InIndex < 3);
+			checkSlow(InIndex < 3);
+			return (&A)[InIndex];
+		}
+
+		FORCEINLINE const FVec3& GetVertex(const int32 InIndex) const
+		{
+			checkSlow(InIndex < 3);
 			return (&A)[InIndex];
 		}
 
@@ -64,29 +70,20 @@ namespace Chaos
 			OutX = A;
 		}
 
-		// Get the nearest point on an edge
+		// Get the nearest point on an edge and the edge vertices
 		// Used for manifold generation
-		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const
+		FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
 		{
 			FVec3 ClosestEdgePosition = FVec3(0);
-			FReal ClosestDistanceSq = FLT_MAX;
+			FReal ClosestDistanceSq = TNumericLimits<FReal>::Max();
 
 			int32 PlaneVerticesNum = 3;
-			
+
 			FVec3 P0 = C;
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 			{
-				TVector<FReal, 3> P1;
-				switch (PlaneVertexIndex)
-				{
-				case 0:
-					P1 = A; break;
-				case 1:
-					P1 = B; break;
-				case 2:
-					P1 = C; break;
-				}
-				
+				const TVector<FReal, 3>& P1 = GetVertex(PlaneVertexIndex);
+
 				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
 				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
 
@@ -94,6 +91,8 @@ namespace Chaos
 				{
 					ClosestDistanceSq = EdgeDistanceSq;
 					ClosestEdgePosition = EdgePosition;
+					OutEdgePos0 = P0;
+					OutEdgePos1 = P1;
 				}
 
 				P0 = P1;
@@ -101,6 +100,15 @@ namespace Chaos
 
 			return ClosestEdgePosition;
 		}
+
+		// Get the nearest point on an edge
+		// Used for manifold generation
+		FVec3 GetClosestEdgePosition(int32 PlaneIndexHint, const FVec3& Position) const
+		{
+			FVec3 Unused0, Unused1;
+			return GetClosestEdge(PlaneIndexHint, Position, Unused0, Unused1);
+		}
+
 
 		// The number of vertices that make up the corners of the specified face
 		// Used for manifold generation
@@ -116,28 +124,9 @@ namespace Chaos
 			return 1.0f;
 		}
 
-		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
-		// Used for manifold generation
-		const FVec3 GetVertex(int32 VertexIndex) const
-		{
-			FVec3 Result;
-
-			switch (VertexIndex)
-			{
-			case 0:
-				Result = A; break;
-			case 1:
-				Result = B; break;
-			case 2:
-				Result = C; break;
-			}
-
-			return Result;
-		}
-
 		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
 		// Returns the number of planes found.
-		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
+		FORCEINLINE int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 		{
 			if(MaxVertexPlanes > 0)
 			{

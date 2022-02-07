@@ -220,8 +220,9 @@ namespace Chaos
 			return GetMostOpposingPlane(Normal);
 		}
 
-		// Get the nearest point on an edge
-		TVector<T, d> GetClosestEdgePosition(int32 PlaneIndexHint, const TVector<T, d>& Position) const
+		// Get the nearest point on an edge and the edge vertices
+		// Used for manifold generation
+		FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
 		{
 			TVector<T, d> ClosestEdgePosition = FVec3(0);
 			if (PlaneIndexHint >= 0)
@@ -244,6 +245,8 @@ namespace Chaos
 						{
 							ClosestDistanceSq = EdgeDistanceSq;
 							ClosestEdgePosition = EdgePosition;
+							OutEdgePos0 = P0;
+							OutEdgePos1 = P1;
 						}
 
 						P0 = P1;
@@ -256,6 +259,13 @@ namespace Chaos
 				check(false);
 			}
 			return ClosestEdgePosition;
+		}
+
+		// Get the nearest point on an edge
+		TVector<T, d> GetClosestEdgePosition(int32 PlaneIndexHint, const TVector<T, d>& Position) const
+		{
+			TVector<T, d> Unused0, Unused1;
+			return GetClosestEdge(PlaneIndexHint, Position, Unused0, Unused1);
 		}
 
 		bool GetClosestEdgeVertices(int32 PlaneIndexHint, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const

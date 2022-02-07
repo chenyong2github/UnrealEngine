@@ -381,8 +381,16 @@ namespace Chaos
 		// Get the index of the plane that most opposes the normal
 		int32 GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const;
 
+		// Get the nearest point on an edge and the edge vertices
+		// Used for manifold generation
+		FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const;
+
 		// Get the nearest point on an edge of the specified face
-		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const;
+		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
+		{
+			FVec3 Unused0, Unused1;
+			return GetClosestEdge(PlaneIndex, Position, Unused0, Unused1);
+		}
 
 		bool GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const;
 

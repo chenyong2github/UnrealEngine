@@ -962,7 +962,7 @@ namespace Chaos
 	FORCEINLINE_DEBUGGABLE bool FPBDCollisionSolverManifoldPoint::ShouldSolveVelocity() const
 	{
 		// We ensure positive separating velocity for close contacts even if they didn't receive a pushout
-		return (NetImpulseNormal > FSolverReal(0)) || (WorldContactDeltaNormal < FSolverReal(0));
+		return (NetPushOutNormal > FSolverReal(0)) || (WorldContactDeltaNormal < FSolverReal(0));
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////

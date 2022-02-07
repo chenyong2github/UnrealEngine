@@ -691,10 +691,13 @@ namespace Chaos
 				if (EdgeCollision.IsEnabled())
 				{
 					const int32 EdgeOtherShapeIndex = (EdgeCollision.GetParticle0() == Particle) ? 1 : 0;
+					const EContactPointType VertexContactType = (EdgeOtherShapeIndex == 0) ? EContactPointType::VertexPlane : EContactPointType::PlaneVertex;
 
 					for (const FManifoldPoint& EdgeManifoldPoint : EdgeCollision.GetManifoldPoints())
 					{
-						if (EdgeManifoldPoint.ContactPoint.ContactType == EContactPointType::EdgeEdge)
+						const bool bIsEdgeContact = (EdgeManifoldPoint.ContactPoint.ContactType == EContactPointType::EdgeEdge);
+
+						if (bIsEdgeContact)
 						{
 							const FRigidTransform3& EdgeTransform = (EdgeOtherShapeIndex == 0) ? EdgeCollision.GetShapeWorldTransform0() : EdgeCollision.GetShapeWorldTransform1();
 							const FVec3 EdgePos = EdgeTransform.TransformPositionNoScale(EdgeManifoldPoint.ContactPoint.ShapeContactPoints[EdgeOtherShapeIndex]);
@@ -706,27 +709,17 @@ namespace Chaos
 									if ((&PlaneCollision != &EdgeCollision) && PlaneCollision.IsEnabled())
 									{
 										const int32 PlaneOtherShapeIndex = (PlaneCollision.GetParticle0() == Particle) ? 1 : 0;
+										const EContactPointType PlaneContactType = (PlaneOtherShapeIndex == 0) ? EContactPointType::PlaneVertex : EContactPointType::VertexPlane;
+										const FRigidTransform3& PlaneTransform = (PlaneOtherShapeIndex == 0) ? PlaneCollision.GetShapeWorldTransform0() : PlaneCollision.GetShapeWorldTransform1();
 
 										for (const FManifoldPoint& PlaneManifoldPoint : PlaneCollision.GetManifoldPoints())
 										{
-											// If the edge position is in the plane, disable it
-											FVec3 PlanePos;
-											FVec3 PlaneNormal;
-											bool bHavePlane = false;
-											if ((PlaneOtherShapeIndex == 0) && (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::PlaneVertex))
+											if (PlaneManifoldPoint.ContactPoint.ContactType == PlaneContactType)
 											{
-												PlanePos = PlaneCollision.GetShapeWorldTransform0().TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[0]);
-												bHavePlane = true;
-											}
-											else if ((PlaneOtherShapeIndex == 1) && (PlaneManifoldPoint.ContactPoint.ContactType == EContactPointType::VertexPlane))
-											{
-												PlanePos = PlaneCollision.GetShapeWorldTransform1().TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[1]);
-												bHavePlane = true;
-											}
-											PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
+												// If the edge position is in the plane, disable it
+												const FVec3 PlanePos = PlaneTransform.TransformPositionNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactPoints[PlaneOtherShapeIndex]);
+												const FVec3 PlaneNormal = PlaneCollision.GetShapeWorldTransform1().TransformVectorNoScale(PlaneManifoldPoint.ContactPoint.ShapeContactNormal);
 
-											if (bHavePlane)
-											{
 												const FVec3 EdgePlaneDelta = EdgePos - PlanePos;
 												const FReal EdgePlaneDistance = FVec3::DotProduct(EdgePlaneDelta, PlaneNormal);
 												if (FMath::Abs(EdgePlaneDistance) < EdgePlaneTolerance)

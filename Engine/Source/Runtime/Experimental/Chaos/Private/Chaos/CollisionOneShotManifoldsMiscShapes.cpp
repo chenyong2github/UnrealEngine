@@ -409,7 +409,10 @@ namespace Chaos
 					}
 				}
 				ContactPoints.SetNum(NewContactPointCount, false);
+			}
 
+			if (ContactPoints.Num() > 4)
+			{
 				// Reduce to only 4 contact points from here
 				// NOTE: relies on the sort above
 				Collisions::ReduceManifoldContactPointsTriangeMesh(ContactPoints);

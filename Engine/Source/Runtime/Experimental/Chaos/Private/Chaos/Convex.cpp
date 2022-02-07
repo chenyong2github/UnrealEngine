@@ -209,7 +209,7 @@ namespace Chaos
 		return MostOpposingIdx;
 	}
 
-	FVec3 FConvex::GetClosestEdgePosition(int32 PlaneIndex, const FVec3& InPosition) const
+	FVec3 FConvex::GetClosestEdge(int32 PlaneIndex, const FVec3& InPosition, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const
 	{
 		FVec3Type ClosestEdgePosition = FVec3Type(0);
 		FRealType ClosestDistanceSq = FLT_MAX;
@@ -238,6 +238,8 @@ namespace Chaos
 				{
 					ClosestDistanceSq = EdgeDistanceSq;
 					ClosestEdgePosition = EdgePosition;
+					OutEdgePos0 = P0;
+					OutEdgePos1 = P1;
 				}
 
 				P0 = P1;
