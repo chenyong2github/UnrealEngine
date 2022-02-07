@@ -1430,7 +1430,7 @@ FAtlasSlotDesc GetRectLightAtlasSlot(uint32 InSlotIndex)
 	FAtlasSlotDesc Out;
 	Out.UVOffset = FVector2f(0,0);
 	Out.UVScale = FVector2f(0, 0);
-	Out.MaxMipLevel = 99.f;
+	Out.MaxMipLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 
 	if (InSlotIndex < uint32(GRectLightTextureManager.AtlasSlots.Num()) && GRectLightTextureManager.AtlasTexture)
 	{

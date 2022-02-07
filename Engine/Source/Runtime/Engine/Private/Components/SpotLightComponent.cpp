@@ -69,7 +69,7 @@ public:
 		LightParameters.RectLightBarnLength = -2.0f;
 		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
-		LightParameters.RectLightAtlasMaxLevel = 99.f;
+		LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 	}
 
 	// FLightSceneInfo interface.

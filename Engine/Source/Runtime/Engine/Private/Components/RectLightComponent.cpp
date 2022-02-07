@@ -240,7 +240,7 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Ligh
 	LightParameters.RectLightBarnLength = BarnDoorLength;
 	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
-	LightParameters.RectLightAtlasMaxLevel = 99;
+	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 	if (AtlasSlotIndex != ~0u)
 	{
 		GetSceneInterface()->GetRectLightAtlasSlot(this, &LightParameters);

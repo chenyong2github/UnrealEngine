@@ -10,6 +10,8 @@
 #define USE_SOURCE_TEXTURE 1
 #endif
 
+#define MAX_RECT_ATLAS_MIP 32
+
 struct FRect
 {
 	float3		Origin;
@@ -31,7 +33,7 @@ FRectTexture InitRectTexture()
 	FRectTexture Out;
 	Out.AtlasUVOffset = 0;
 	Out.AtlasUVScale = 0;
-	Out.AtlasMaxLevel = 99;
+	Out.AtlasMaxLevel = MAX_RECT_ATLAS_MIP;
 	return Out;
 }
 
@@ -47,7 +49,7 @@ FRectTexture InitRectTexture(half2 InUVOffset, half2 InUVScale, half InMaxLevel)
 float3 SampleRectTexture(FRectTexture RectTexture, float2 RectUV, float Level, bool bIsReference = false)
 {
 #if USE_SOURCE_TEXTURE
-	const bool bIsValid = RectTexture.AtlasMaxLevel < 16;
+	const bool bIsValid = RectTexture.AtlasMaxLevel < MAX_RECT_ATLAS_MIP;
 	const float2 RectTextureSize = RectTexture.AtlasUVScale * View.RectLightAtlasSizeAndInvSize.xy;
 	Level += log2(min(RectTextureSize.x, RectTextureSize.y)) - 2.f;
 	Level  = min(Level, RectTexture.AtlasMaxLevel);

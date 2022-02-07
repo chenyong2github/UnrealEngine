@@ -234,7 +234,9 @@ FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() 
 	LightParameters.SourceRadius = FMath::Sin(0.5f * FMath::DegreesToRadians(LightSourceAngle));
 	LightParameters.SoftSourceRadius = 0; // Irrelevant when tracing shadow rays. FMath::Sin(0.5f * FMath::DegreesToRadians(LightSourceSoftAngle));
 	LightParameters.SourceLength = 0.0f;
-	LightParameters.SourceTexture = GWhiteTexture->TextureRHI; // Irrelevant when tracing shadow rays
+	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 
 	return LightParameters;
 }
@@ -249,7 +251,9 @@ FLightRenderParameters FPointLightRenderState::GetLightShaderParameters() const
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;
-
+	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 	return LightParameters;
 }
 
@@ -264,6 +268,9 @@ FLightRenderParameters FSpotLightRenderState::GetLightShaderParameters() const
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = Color;
 	LightParameters.SourceRadius = SourceRadius;
+	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 
 	return LightParameters;
 }
@@ -283,9 +290,11 @@ FLightRenderParameters FRectLightRenderState::GetLightShaderParameters() const
 
 	LightParameters.SourceRadius = SourceWidth * 0.5f;
 	LightParameters.SourceLength = SourceHeight * 0.5f;
-	LightParameters.SourceTexture =  GWhiteTexture->TextureRHI;
 	LightParameters.RectLightBarnCosAngle = FMath::Cos(FMath::DegreesToRadians(BarnDoorAngle));
 	LightParameters.RectLightBarnLength = BarnDoorLength;
+	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
+	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 
 	return LightParameters;
 }

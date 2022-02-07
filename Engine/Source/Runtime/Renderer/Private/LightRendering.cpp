@@ -296,7 +296,7 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	Out.LightParameters.RectLightBarnLength = -2.0f;
 	Out.LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	Out.LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
-	Out.LightParameters.RectLightAtlasMaxLevel = 99.f;
+	Out.LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 	return Out;
 }
 FDeferredLightUniformStruct GetSimpleDeferredLightParameters(

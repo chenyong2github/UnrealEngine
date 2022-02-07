@@ -390,7 +390,7 @@ public:
 		LightParameters.SourceLength = 0.0f;
 		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
-		LightParameters.RectLightAtlasMaxLevel = 99.f;
+		LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
 	}
 
 	virtual float GetLightSourceAngle() const override

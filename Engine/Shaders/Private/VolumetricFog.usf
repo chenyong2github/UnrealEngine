@@ -722,7 +722,7 @@ void LightScatteringCS(
 				LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapId.y;
 				LightData.RectLightAtlasUVOffset = 0;
 				LightData.RectLightAtlasUVScale  = 0;
-				LightData.RectLightAtlasMaxLevel = 99;
+				LightData.RectLightAtlasMaxLevel = MAX_RECT_ATLAS_MIP;
 
 				LightData.bRadialLight = true;
 				LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;

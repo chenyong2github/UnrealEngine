@@ -1354,9 +1354,6 @@ struct FLightRenderParameters
 {
 	ENGINE_API void MakeShaderParameters(const FViewMatrices& ViewMatrices, FLightShaderParameters& OutShaderParameters) const;
 
-	// Texture of the rect light.
-	FRHITexture* SourceTexture = nullptr;
-
 	// Position of the light in world space.
 	FVector WorldPosition;
 
@@ -1400,7 +1397,10 @@ struct FLightRenderParameters
 	// Rect. light atlas transformation
 	FVector2f RectLightAtlasUVOffset;
 	FVector2f RectLightAtlasUVScale;
-	float RectLightAtlasMaxLevel = 99.f;
+	float RectLightAtlasMaxLevel;
+
+	// Return Invalid rect light atlas MIP level
+	static float GetRectLightAtlasInvalidMIPLevel() { return 32.f;  }
 };
 
 /** 
