@@ -349,6 +349,7 @@ protected:
 	//~ Begin UActorComponent Interface
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
+	virtual void SendRenderTransform_Concurrent() override;
 	//~ Begin UActorComponent Interface
 
 	void UpdateLimitedRenderingStateFast();

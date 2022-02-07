@@ -518,6 +518,23 @@ void USkyLightComponent::DestroyRenderState_Concurrent()
 	}
 }
 
+void USkyLightComponent::SendRenderTransform_Concurrent()
+{
+	if (SceneProxy)
+	{
+		FSkyLightSceneProxy* InLightSceneProxy = SceneProxy;
+		FVector Position = GetComponentTransform().GetLocation();
+
+		ENQUEUE_RENDER_COMMAND(UpdateSkyLightCapturePosition)(
+			[InLightSceneProxy, Position](FRHICommandListImmediate& RHICmdList)
+			{
+				InLightSceneProxy->CapturePosition = Position;
+			});
+	}
+
+	Super::SendRenderTransform_Concurrent();
+}
+
 #if WITH_EDITOR
 void USkyLightComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
