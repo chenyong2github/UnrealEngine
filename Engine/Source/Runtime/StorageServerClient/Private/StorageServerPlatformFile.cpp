@@ -282,6 +282,29 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 	Connection.Reset(new FStorageServerConnection());
 	const TCHAR* ProjectOverride = ServerProject.IsEmpty() ? nullptr : *ServerProject;
 	const TCHAR* PlatformOverride = ServerPlatform.IsEmpty() ? nullptr : *ServerPlatform;
+#if WITH_COTF
+	if (FParse::Param(FCommandLine::Get(), TEXT("CookOnTheFly")))
+	{
+		UE::Cook::FCookOnTheFlyHostOptions CookOnTheFlyHostOptions;
+		// Cook-on-the-fly expects the same host as the Zen storage server
+		CookOnTheFlyHostOptions.Hosts = HostAddrs;
+		double ServerWaitTimeInSeconds;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyServerWaitTime="), ServerWaitTimeInSeconds))
+		{
+			CookOnTheFlyHostOptions.ServerStartupWaitTime = FTimespan::FromSeconds(ServerWaitTimeInSeconds);
+		}
+		UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+		CookOnTheFlyServerConnection = CookOnTheFlyModule.ConnectToServer(CookOnTheFlyHostOptions);
+		if (CookOnTheFlyServerConnection)
+		{
+			CookOnTheFlyServerConnection->OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
+		}
+		else
+		{
+			UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to connect to cook on the fly server"));
+		}
+	}
+#endif
 	if (Connection->Initialize(HostAddrs, 1337, ProjectOverride, PlatformOverride))
 	{
 		if (SendGetFileListMessage())
@@ -289,30 +312,6 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 			TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
 			IoDispatcher.Mount(IoDispatcherBackend);
-
-#if WITH_COTF
-			if (FParse::Param(FCommandLine::Get(), TEXT("CookOnTheFly")))
-			{
-				UE::Cook::FCookOnTheFlyHostOptions CookOnTheFlyHostOptions;
-				// Cook-on-the-fly expects the same host as the Zen storage server
-				CookOnTheFlyHostOptions.Hosts = HostAddrs;
-				double ServerWaitTimeInSeconds;
-				if (FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyServerWaitTime="), ServerWaitTimeInSeconds))
-				{
-					CookOnTheFlyHostOptions.ServerStartupWaitTime = FTimespan::FromSeconds(ServerWaitTimeInSeconds);
-				}
-				UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-				CookOnTheFlyServerConnection = CookOnTheFlyModule.ConnectToServer(CookOnTheFlyHostOptions);
-				if (CookOnTheFlyServerConnection)
-				{
-					CookOnTheFlyServerConnection->OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
-				}
-				else
-				{
-					UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to connect to cook on the fly server"));
-				}
-			}
-#endif
 
 			FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
 			{
