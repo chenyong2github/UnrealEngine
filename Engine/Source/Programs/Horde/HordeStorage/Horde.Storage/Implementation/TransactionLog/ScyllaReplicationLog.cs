@@ -52,6 +52,15 @@ namespace Horde.Storage.Implementation
                 PRIMARY KEY ((namespace))
             );"  
             ));
+
+            _session.Execute(new SimpleStatement(@"CREATE TABLE IF NOT EXISTS replication_state (
+                namespace varchar,
+                name varchar,
+                last_bucket varchar,
+                last_event uuid,
+                PRIMARY KEY ((namespace), name)
+            );"  
+            ));
         }
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
@@ -263,6 +272,23 @@ namespace Horde.Storage.Implementation
                 yield return new SnapshotInfo(ns, new NamespaceId(snapshot.BlobNamespace), snapshot.BlobSnapshot.AsBlobIdentifier(), snapshot.Id.GetDate().DateTime);
             }
         }
+
+        public async Task UpdateReplicatorState(NamespaceId ns, string replicatorName, ReplicatorState newState)
+        {
+            if (newState.LastBucket == null || newState.LastEvent == null)
+            {
+                // no point in saving a invalid state
+                return;
+            }
+            await _mapper.UpdateAsync<ScyllaReplicationState>(new ScyllaReplicationState(ns, replicatorName, newState.LastBucket, newState.LastEvent.Value));
+        }
+
+        public async Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string name)
+        {
+            ScyllaReplicationState? replicationState = await _mapper.FirstOrDefaultAsync<ScyllaReplicationState>("WHERE namespace = ? AND name = ?", ns.ToString(), name);
+
+            return replicationState?.ToReplicatorState();
+        }
     }
 
     
@@ -378,5 +404,47 @@ namespace Horde.Storage.Implementation
 
         [Cassandra.Mapping.Attributes.PartitionKey]
         public string Namespace { get;set; }
+    }
+
+    [Cassandra.Mapping.Attributes.Table("replication_state")]
+    class ScyllaReplicationState
+    {
+        public ScyllaReplicationState()
+        {
+            Namespace = null!;
+            Name = null!;
+            LastBucket = null!;
+        }
+
+        public ScyllaReplicationState(NamespaceId ns, string name, string lastBucket, Guid lastEvent)
+        {
+            Namespace = ns.ToString();
+            Name = name;
+            LastBucket = lastBucket;
+            LastEvent = lastEvent;
+        }
+
+
+        [Cassandra.Mapping.Attributes.PartitionKey]
+        public string Namespace { get; set; }
+
+
+        [Cassandra.Mapping.Attributes.ClusteringKey]
+        public string Name { get; set; }
+
+        [Cassandra.Mapping.Attributes.Column("last_bucket")]
+        public string LastBucket { get; set; }
+
+        [Cassandra.Mapping.Attributes.Column("last_event")]
+        public Guid LastEvent { get; set; }
+
+        public ReplicatorState ToReplicatorState()
+        {
+            return new ReplicatorState
+            {
+                LastBucket = LastBucket,
+                LastEvent = LastEvent
+            };
+        }
     }
 }

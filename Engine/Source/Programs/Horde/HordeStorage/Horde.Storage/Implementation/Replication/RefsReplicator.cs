@@ -8,7 +8,6 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
@@ -58,13 +57,25 @@ namespace Horde.Storage.Implementation
             DirectoryInfo stateRoot = new DirectoryInfo(replicationSettings.CurrentValue.GetStateRoot());
             _stateFile = new FileInfo(Path.Combine(stateRoot.FullName, stateFileName));
 
-            if (_stateFile.Exists)
+            ReplicatorState? replicatorState = replicationLog.GetReplicatorState(replicatorSettings.NamespaceToReplicate, _name).Result;
+            if (replicatorState == null)
             {
-                _refsState = ReadState(_stateFile)!;
+                if (_stateFile.Exists)
+                {
+                    _refsState = ReadState(_stateFile)!;
+                }
+                else
+                {
+                    _refsState = new RefsState();
+                }
             }
             else
             {
-                _refsState = new RefsState();
+                _refsState = new RefsState()
+                {
+                    LastBucket = replicatorState.LastBucket,
+                    LastEvent = replicatorState.LastEvent,
+                };
             }
 
             Info = new IReplicator.ReplicatorInfo(replicatorSettings.ReplicatorName, replicatorSettings.NamespaceToReplicate, _refsState);
@@ -89,11 +100,17 @@ namespace Horde.Storage.Implementation
             return state;
         }
 
-        private static void SaveState(FileInfo stateFile, RefsState newState)
+        private void SaveState(FileInfo stateFile, RefsState newState)
         {
             using StreamWriter writer = stateFile.CreateText();
             JsonSerializer serializer = new JsonSerializer();
             serializer.Serialize(writer, newState);
+
+            _replicationLog.UpdateReplicatorState(Info.NamespaceToReplicate, _name, new ReplicatorState
+            {
+                LastBucket = newState.LastBucket,
+                LastEvent = newState.LastEvent
+            }).Wait();
         }
 
         public async Task<bool> TriggerNewReplications()
@@ -251,7 +268,7 @@ namespace Horde.Storage.Implementation
             // process snapshot
             // fetch the snapshot from the remote blob store
             HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{blobNamespace}/{snapshotBlob}");
-            HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+            HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
             Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
             ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobStream);
@@ -268,22 +285,29 @@ namespace Horde.Storage.Implementation
             int maxParallelism = _replicatorSettings.MaxParallelReplications != -1 ? _replicatorSettings.MaxParallelReplications : 0;
             await snapshot.LiveObjects.ParallelForEachAsync(async snapshotLiveObject =>
             {
-                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_snapshot");
-                scope.Span.ResourceName = $"{ns}.{snapshotLiveObject.Blob}";
-                Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
-                LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
+                try
+                {
+                    using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_snapshot");
+                    scope.Span.ResourceName = $"{ns}.{snapshotLiveObject.Blob}";
+                    Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
+                    LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
 
-                Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
-                Info.LastRun = DateTime.Now;
+                    Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
+                    Info.LastRun = DateTime.Now;
 
-                await ReplicateOp(ns, snapshotLiveObject.Blob, cancellationToken);
-                // TODO: Avoid adding to the replication log as we will get into infinite recursion if we do with the remote site
-                // we could add to the replication log only if the op was missing, but that could cause issue for a 3rd site replicating from us
-                // and the 3rd site is the whole reason we even add this to replication log in the first place
-                //await AddToReplicationLog(ns, snapshotLiveObject.Bucket, snapshotLiveObject.Key, snapshotLiveObject.Blob);
-                
-                Interlocked.Increment(ref countOfObjectsReplicated);
-                Interlocked.Decrement(ref countOfObjectsCurrentlyReplicating);
+                    await ReplicateOp(ns, snapshotLiveObject.Blob, cancellationToken);
+                    // TODO: Avoid adding to the replication log as we will get into infinite recursion if we do with the remote site
+                    // we could add to the replication log only if the op was missing, but that could cause issue for a 3rd site replicating from us
+                    // and the 3rd site is the whole reason we even add this to replication log in the first place
+                    //await AddToReplicationLog(ns, snapshotLiveObject.Bucket, snapshotLiveObject.Key, snapshotLiveObject.Blob);
+
+                }
+                finally
+                {
+                    Interlocked.Increment(ref countOfObjectsReplicated);
+                    Interlocked.Decrement(ref countOfObjectsCurrentlyReplicating);
+                }
+
             }, maxParallelism, cancellationToken);
 
             // snapshot processed, we proceed to reading the incremental state
@@ -428,8 +452,13 @@ namespace Horde.Storage.Implementation
                 blobReplicationTasks[i] = Task.Run(async () =>
                 {
                     HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{ns}/{blobToReplicate}");
-                    HttpResponseMessage blobResponse = await _httpClient.SendAsync(blobRequest, cancellationToken);
-                    
+                    HttpResponseMessage blobResponse = await _httpClient.SendAsync(blobRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+                    if (blobResponse.StatusCode != HttpStatusCode.OK)
+                    {
+                        _logger.Error("Bad http response when replicating {Blob} in {Namespace} . Status code: {StatusCode}", blobToReplicate, ns, blobResponse.StatusCode);
+                        return;
+                    }
                     using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(await blobResponse.Content.ReadAsStreamAsync(cancellationToken));
                     await _blobService.PutObject(ns, payload, blobToReplicate);
                 });

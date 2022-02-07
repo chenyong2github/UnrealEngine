@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Horde.Storage.Implementation.TransactionLog;
 using Jupiter.Implementation;
 using Newtonsoft.Json;
 
@@ -22,6 +20,16 @@ namespace Horde.Storage.Implementation
         Task AddSnapshot(SnapshotInfo snapshotHeader);
         Task<SnapshotInfo?> GetLatestSnapshot(NamespaceId ns);
         IAsyncEnumerable<SnapshotInfo> GetSnapshots(NamespaceId ns);
+
+
+        Task UpdateReplicatorState(NamespaceId ns, string replicatorName, ReplicatorState newState);
+        Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string replicatorName);
+    }
+
+    public class ReplicatorState
+    {
+        public string? LastBucket { get; set; }
+        public Guid? LastEvent { get; set; }
     }
 
     public class SnapshotInfo

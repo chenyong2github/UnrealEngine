@@ -17,6 +17,8 @@ namespace Horde.Storage.Implementation
         private readonly ConcurrentDictionary<NamespaceId, SortedList<string, SortedList<TimeUuid, ReplicationLogEvent>>> _replicationEvents = new();
         private readonly ConcurrentDictionary<NamespaceId, List<SnapshotInfo>>  _snapshots = new();
 
+        private readonly ConcurrentDictionary<NamespaceId, ConcurrentDictionary<string, ReplicatorState>>  _replicatorState = new();
+
         public IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
             return _replicationEvents.Keys.ToAsyncEnumerable();
@@ -171,6 +173,35 @@ namespace Horde.Storage.Implementation
                 yield return snapshot;
             }
 
+        }
+
+        public Task UpdateReplicatorState(NamespaceId ns, string replicatorName,
+            ReplicatorState newState)
+        {
+            _replicatorState.AddOrUpdate(ns,
+                _ =>
+                new ConcurrentDictionary<string, ReplicatorState>
+                {
+                    [replicatorName] = newState
+                },
+                (_, states) =>
+                {
+                    states[replicatorName] = newState;
+                    return states;
+                });
+
+            return Task.CompletedTask;
+        }
+
+        public Task<ReplicatorState?> GetReplicatorState(NamespaceId ns, string replicatorName)
+        {
+            if (_replicatorState.TryGetValue(ns, out ConcurrentDictionary<string, ReplicatorState>? replicationState))
+            {
+                replicationState.TryGetValue(replicatorName, out ReplicatorState? state);
+                return Task.FromResult(state);
+            }
+
+            return Task.FromResult<ReplicatorState?>(null);
         }
     }
 
