@@ -638,6 +638,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 	
 	Chaos::FChaosArchive ChaosAr(Ar);
 
@@ -785,7 +786,8 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 
 
 	// will generate convex bodies when they dont exist. 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::GeometryCollectionConvexDefaults)
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::GeometryCollectionConvexDefaults
+		&& Ar.CustomVer(FPhysicsObjectVersion::GUID) < FPhysicsObjectVersion::GeometryCollectionConvexDefaults)
 	{
 #if WITH_EDITOR
 		if (!FGeometryCollectionConvexUtility::HasConvexHullData(GeometryCollection.Get()))

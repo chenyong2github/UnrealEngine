@@ -66,6 +66,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Added max linear and angular speed to Chaos bodies
 		AddChaosMaxLinearAngularSpeed,
 
+		// add convex geometry to older collections that did not have any
+		GeometryCollectionConvexDefaults,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
