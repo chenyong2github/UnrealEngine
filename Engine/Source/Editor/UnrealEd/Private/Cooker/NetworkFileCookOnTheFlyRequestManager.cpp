@@ -43,6 +43,10 @@ public:
 		}
 	}
 
+	virtual void OnPackageGenerated(const FName& PackageName) override
+	{
+	}
+
 private:
 	bool OnNewConnection(const FString& VersionInfo, const FString& PlatformName)
 	{

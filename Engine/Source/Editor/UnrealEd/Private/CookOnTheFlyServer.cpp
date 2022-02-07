@@ -2075,6 +2075,11 @@ void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& Pac
 		return;
 	}
 
+	if (CookOnTheFlyRequestManager && PackageData.IsGenerated())
+	{
+		CookOnTheFlyRequestManager->OnPackageGenerated(PackageData.GetPackageName());
+	}
+	
 	if (!PackageData.IsInProgress() &&
 		(PackageData.IsGenerated() || !IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
 	{

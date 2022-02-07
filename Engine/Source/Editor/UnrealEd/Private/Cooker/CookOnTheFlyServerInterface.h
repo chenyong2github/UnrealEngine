@@ -117,6 +117,9 @@ public:
 
 	/** Shutdown the reques tmanager. */
 	virtual void Shutdown() = 0;
+
+	/** Called when a new package is generated */
+	virtual void OnPackageGenerated(const FName& PackageName) = 0;
 };
 
 }} // namespace UE::Cook
