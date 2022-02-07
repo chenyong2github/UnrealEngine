@@ -8,7 +8,7 @@
  * @param V	vector
  * @return		VectorRegister4Float( B.x, A.y, A.z, A.w)
  */
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER)|| PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 FORCEINLINE VectorRegister4Float VectorCast4IntTo4Float(const VectorRegister4Int& V)
 {
 	return VectorRegister4Float(V);
@@ -27,7 +27,7 @@ FORCEINLINE VectorRegister4Float VectorCast4IntTo4Float(const VectorRegister4Int
  * @param V	vector
  * @return		VectorCast4FloatTo4Int( B.x, A.y, A.z, A.w)
  */
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 FORCEINLINE VectorRegister4Int VectorCast4FloatTo4Int(const VectorRegister4Float& V)
 {
 	return VectorRegister4Int(V);

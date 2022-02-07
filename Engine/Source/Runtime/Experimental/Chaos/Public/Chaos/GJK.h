@@ -1291,8 +1291,8 @@ namespace Chaos
 
 		const VectorRegister4Float RayLengthSimd = MakeVectorRegisterFloat(RayLength, RayLength, RayLength, RayLength);
 
-		NumVertsUnion NumVerts;
-		NumVerts.NumVerts = GlobalVectorConstants::IntZero;
+		VectorRegister4Int NumVerts = GlobalVectorConstants::IntZero;
+
 		VectorRegister4Float AToBRotation = VectorQuaternionInverse(BToARotation);
 
 		auto SupportAFunc = [&A, MarginA](const VectorRegister4Float& V)
@@ -1318,7 +1318,7 @@ namespace Chaos
 		VectorRegister4Float Lambda = VectorZeroFloat();
 		VectorRegister4Float X = StartPoint;
 		VectorRegister4Float V = VectorSubtract(X, VectorSubtract(SupportA, SupportB));
-		VectorRegister4Float Normal = { 0.f, 0.f, 1.f, 0.f };
+		VectorRegister4Float Normal = MakeVectorRegisterFloat(0.f, 0.f, 1.f, 0.f);
 
 		const VectorRegister4Float InitialPreDist2Simd = VectorDot3(V, V);
 
@@ -1354,7 +1354,9 @@ namespace Chaos
 			const VectorRegister4Float W = VectorSubtract(X, P);
 
 			// NumVerts store here at the beginning of the loop, it should be safe to reuse it further in the loop 
-			const int32 NumVertsInt = NumVerts.NumVertsInts[0];
+			alignas(16) int32 NumVertsInts[4];
+			VectorIntStoreAligned(NumVerts, NumVertsInts);
+			const int32 NumVertsInt = NumVertsInts[0];
 
 			As[NumVertsInt] = SupportA;
 			Bs[NumVertsInt] = SupportB;
@@ -1395,7 +1397,7 @@ namespace Chaos
 					Simplex[1] = VectorAdd(Simplex[1], XMinusOldX);
 					Simplex[2] = VectorAdd(Simplex[2], XMinusOldX);
 					Simplex[NumVertsInt] = VectorSubtract(X, P);
-					NumVerts.NumVerts = VectorIntAdd(NumVerts.NumVerts, GlobalVectorConstants::IntOne);
+					NumVerts = VectorIntAdd(NumVerts, GlobalVectorConstants::IntOne);
 
 					GJKPreDist2 = LimitMax; //translated origin so restart gjk search
 					bInflatedCloseEnough = false;
@@ -1404,7 +1406,7 @@ namespace Chaos
 			else
 			{
 				Simplex[NumVertsInt] = W;	//this is really X - P which is what we need for simplex computation
-				NumVerts.NumVerts = VectorIntAdd(NumVerts.NumVerts, GlobalVectorConstants::IntOne);
+				NumVerts = VectorIntAdd(NumVerts, GlobalVectorConstants::IntOne);
 			}
 
 			if (bInflatedCloseEnough && VectorMaskBits(VectorCompareGE(VDotW, VectorZeroFloat())))
@@ -1429,7 +1431,7 @@ namespace Chaos
 					const VectorRegister4Float InGJKPreDist2GTEps2 = VectorCompareGT(GJKPreDist2, Eps2Simd);
 					const VectorRegister4Float Inflation22GTEps2 = VectorCompareGT(Inflation2Simd, Eps2Simd);
 					constexpr VectorRegister4Int fourInt = MakeVectorRegisterIntConstant(4, 4, 4, 4);
-					const VectorRegister4Int Is4GTNumVerts = VectorIntCompareGT(fourInt, NumVerts.NumVerts);
+					const VectorRegister4Int Is4GTNumVerts = VectorIntCompareGT(fourInt, NumVerts);
 
 					const VectorRegister4Float IsInflatCloseEnough = VectorBitwiseAnd(LambdaEqZero, VectorBitwiseAnd(InGJKPreDist2GTEps2, VectorBitwiseAnd(Inflation22GTEps2, VectorCast4IntTo4Float(Is4GTNumVerts))));
 
@@ -1472,10 +1474,10 @@ namespace Chaos
 			constexpr VectorRegister4Int TwoInt = MakeVectorRegisterIntConstant(2, 2, 2, 2);
 			constexpr VectorRegister4Int ThreeInt = MakeVectorRegisterIntConstant(3, 3, 3, 3);
 
-			const VectorRegister4Float IsB0 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts.NumVerts, GlobalVectorConstants::IntZero));
-			const VectorRegister4Float IsB1 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts.NumVerts, GlobalVectorConstants::IntOne));
-			const VectorRegister4Float IsB2 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts.NumVerts, TwoInt));
-			const VectorRegister4Float IsB3 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts.NumVerts, ThreeInt));
+			const VectorRegister4Float IsB0 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts, GlobalVectorConstants::IntZero));
+			const VectorRegister4Float IsB1 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts, GlobalVectorConstants::IntOne));
+			const VectorRegister4Float IsB2 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts, TwoInt));
+			const VectorRegister4Float IsB3 = VectorCast4IntTo4Float(VectorIntCompareEQ(NumVerts, ThreeInt));
 
 			ClosestB = VectorSelect(IsB0, ClosestB, ClosestB4);
 			ClosestB = VectorSelect(IsB1, ClosestB1, ClosestB);
@@ -1510,7 +1512,9 @@ namespace Chaos
 					Barycentrics[2] = VectorSwizzle(Barycentric, 2, 2, 2, 2);
 					Barycentrics[3] = VectorSwizzle(Barycentric, 3, 3, 3, 3);
 
-					const int NumVertsInt = NumVerts.NumVertsInts[0];
+					alignas(16) int32 NumVertsInts[4];
+					VectorIntStoreAligned(NumVerts, NumVertsInts);
+					const int NumVertsInt = NumVertsInts[0];
 					for (int i = 0; i < NumVertsInt; ++i)
 					{
 						ClosestA = VectorMultiplyAdd(As[i], Barycentrics[i], ClosestA);
@@ -1550,7 +1554,9 @@ namespace Chaos
 					VertsA.Reserve(8);
 					VertsB.Reserve(8);
 
-					const int32 NumVertsInt = NumVerts.NumVertsInts[0];
+					alignas(16) int32 NumVertsInts[4];
+					VectorIntStoreAligned(NumVerts, NumVertsInts);
+					const int32 NumVertsInt = NumVertsInts[0];
 
 					alignas(16) FRealSingle XFloat[4];
 					VectorStoreAligned(X, XFloat);
@@ -1613,7 +1619,7 @@ namespace Chaos
 				{
 					//didn't even go into gjk loop, touching hit
 					OutTime = -(MarginA + MarginB);
-					OutNormal = { 0,0,1,0 };
+					OutNormal = MakeVectorRegisterFloat(0.0f, 0.0f, 1.0f, 0.0f);
 					OutPosition = VectorMultiplyAdd(OutNormal, MarginASimd, As[0]);
 				}
 			}
@@ -1621,8 +1627,8 @@ namespace Chaos
 		else
 		{
 			// Initial overlap without MTD. These properties are not valid, but assigning them anyway so they don't contain NaNs and cause issues in invoking code.
-			OutNormal = { 0,0,1,0 };
-			OutPosition = { 0,0,0,0 };
+			OutNormal = MakeVectorRegisterFloat(0.0f, 0.0f, 1.0f, 0.0f);
+			OutPosition = MakeVectorRegisterFloat(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 
 		return true;

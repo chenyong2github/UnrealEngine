@@ -24,9 +24,9 @@ namespace Chaos
 			, B(InB)
 			, C(InC)
 		{
-			VectorA = { static_cast<FRealSingle>(A[0]), static_cast<FRealSingle>(A[1]), static_cast<FRealSingle>(A[2]), static_cast<FRealSingle>(0.0f) };
-			VectorB = { static_cast<FRealSingle>(B[0]), static_cast<FRealSingle>(B[1]), static_cast<FRealSingle>(B[2]), static_cast<FRealSingle>(0.0f) };
-			VectorC = { static_cast<FRealSingle>(C[0]), static_cast<FRealSingle>(C[1]), static_cast<FRealSingle>(C[2]), static_cast<FRealSingle>(0.0f) };
+			VectorA = MakeVectorRegisterFloat(static_cast<FRealSingle>(A[0]), static_cast<FRealSingle>(A[1]), static_cast<FRealSingle>(A[2]), static_cast<FRealSingle>(0.0f));
+			VectorB = MakeVectorRegisterFloat(static_cast<FRealSingle>(B[0]), static_cast<FRealSingle>(B[1]), static_cast<FRealSingle>(B[2]), static_cast<FRealSingle>(0.0f));
+			VectorC = MakeVectorRegisterFloat(static_cast<FRealSingle>(C[0]), static_cast<FRealSingle>(C[1]), static_cast<FRealSingle>(C[2]), static_cast<FRealSingle>(0.0f));
 		}
 
 		FVec3& operator[](uint32 InIndex)

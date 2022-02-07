@@ -25,7 +25,7 @@ namespace Chaos
 		const VectorRegister4Float X0ToX1Squared = VectorDot3(X0ToX1, X0ToX1);
 		const VectorRegister4Float DotBigger = VectorCompareGE(Dot, X0ToX1Squared);
 
-		const VectorRegister4Float MinLimt = { std::numeric_limits<FRealSingle>::min() , std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min() };
+		const VectorRegister4Float MinLimt = MakeVectorRegisterFloat(std::numeric_limits<FRealSingle>::min() , std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min(), std::numeric_limits<FRealSingle>::min());
 		const VectorRegister4Float X0ToX1SquaredSmall = VectorCompareGE(MinLimt, X0ToX1Squared);
 		const VectorRegister4Float IsX1 = VectorBitwiseOr(DotBigger, X0ToX1SquaredSmall);
 
@@ -53,12 +53,6 @@ namespace Chaos
 
 		return Closest;
 	}
-
-	union alignas(16) NumVertsUnion 
-	{ 
-		VectorRegister4Int NumVerts;
-		int32 NumVertsInts[4]; 
-	};
 
 	// Based on an algorithm in Real Time Collision Detection - Ericson (very close to that)
 	// Using the same variable name conventions for easy reference
@@ -341,10 +335,12 @@ namespace Chaos
 	}
 
 
-	FORCEINLINE VectorRegister4Float VectorSimplexFindClosestToOrigin(VectorRegister4Float* Simplex, NumVertsUnion& NumVerts, VectorRegister4Float& OutBarycentric, VectorRegister4Float* A, VectorRegister4Float* B)
+	FORCEINLINE VectorRegister4Float VectorSimplexFindClosestToOrigin(VectorRegister4Float* Simplex, VectorRegister4Int& NumVerts, VectorRegister4Float& OutBarycentric, VectorRegister4Float* A, VectorRegister4Float* B)
 	{
 		VectorRegister4Float ClosestPoint;
-		switch (NumVerts.NumVertsInts[0])
+		alignas(16) int32 NumVertsInt[4];
+		VectorIntStoreAligned(NumVerts, NumVertsInt);
+		switch (NumVertsInt[0])
 		{
 		case 1:
 			OutBarycentric = GlobalVectorConstants::Float1000;
@@ -352,17 +348,17 @@ namespace Chaos
 			break;
 		case 2:
 		{
-			ClosestPoint = VectorLineSimplexFindOrigin(Simplex, NumVerts.NumVerts, OutBarycentric, A, B);
+			ClosestPoint = VectorLineSimplexFindOrigin(Simplex, NumVerts, OutBarycentric, A, B);
 			break;
 		}
 		case 3:
 		{
-			ClosestPoint = TriangleSimplexFindOriginFast(Simplex, NumVerts.NumVerts, OutBarycentric, A, B);
+			ClosestPoint = TriangleSimplexFindOriginFast(Simplex, NumVerts, OutBarycentric, A, B);
 			break;
 		}
 		case 4:
 		{
-			ClosestPoint = VectorTetrahedronSimplexFindOrigin(Simplex, NumVerts.NumVerts, OutBarycentric, A, B);
+			ClosestPoint = VectorTetrahedronSimplexFindOrigin(Simplex, NumVerts, OutBarycentric, A, B);
 			break;
 		}
 		default:
