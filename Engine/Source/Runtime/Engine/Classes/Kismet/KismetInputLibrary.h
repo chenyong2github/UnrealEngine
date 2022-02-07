@@ -10,6 +10,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "KismetInputLibrary.generated.h"
 
+class FModifierKeysState;
+
 UENUM(BlueprintType)
 enum class ESlateGesture : uint8
 {
@@ -19,6 +21,19 @@ enum class ESlateGesture : uint8
 	Swipe,
 	Rotate,
 	LongPress
+};
+
+/** A structure which captures the application's modifier key states (shift, alt, ctrl, etc.) */
+USTRUCT(BlueprintType, DisplayName="Modifier Keys State")
+struct FSlateModifierKeysState
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	uint8 ModifierKeysStateMask = 0;
+
+	FSlateModifierKeysState() {}
+	FSlateModifierKeysState(const FModifierKeysState& InModifierKeysState);	
 };
 
 UCLASS(meta=(ScriptName="InputLibrary"))
@@ -219,6 +234,34 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Right Command Down" ), Category="Input|InputEvent")
 	static bool InputEvent_IsRightCommandDown(const FInputEvent& Input);
+
+	/**
+	 * Returns true if either shift key was down when the key state was captured 
+	 */
+	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Shift Down" ), Category="Input|ModifierKeys")
+	static bool ModifierKeysState_IsShiftDown(const FSlateModifierKeysState& KeysState);
+
+	/**
+	 * Returns true if either control key was down when the key state was captured 
+	 */
+	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Control Down" ), Category="Input|ModifierKeys")
+	static bool ModifierKeysState_IsControlDown(const FSlateModifierKeysState& KeysState);
+
+	/**
+	 * Returns true if either alt key was down when the key state was captured 
+	 */
+	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Alt Down" ), Category="Input|ModifierKeys")
+	static bool ModifierKeysState_IsAltDown(const FSlateModifierKeysState& KeysState);
+
+	/**
+	 * Returns true if either command key was down when the key state was captured 
+	 */
+	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Command Down" ), Category="Input|ModifierKeys")
+	static bool ModifierKeysState_IsCommandDown(const FSlateModifierKeysState& KeysState);
+
+	/** Returns a snapshot of the cached modifier-keys state for the application. */
+	UFUNCTION(BlueprintPure, Category = "Input|ModifierKeys")
+	static FSlateModifierKeysState GetModifierKeysState();
 
 	/** @return The display name of the input chord */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Input Chord Display Name"), Category = "Input|Key")

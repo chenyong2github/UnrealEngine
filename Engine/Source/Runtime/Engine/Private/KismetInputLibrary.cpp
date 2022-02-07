@@ -4,7 +4,17 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GenericPlatform/GenericApplication.h" // for EModifierKey, FModifierKeysState
 
+FSlateModifierKeysState::FSlateModifierKeysState(const FModifierKeysState& InModifierKeysState)
+	: ModifierKeysStateMask(EModifierKey::FromBools(
+		InModifierKeysState.IsControlDown(),
+		InModifierKeysState.IsAltDown(),
+		InModifierKeysState.IsShiftDown(),
+		InModifierKeysState.IsCommandDown()
+	))
+{
+}
 
 //////////////////////////////////////////////////////////////////////////
 // UKismetInputLibrary
@@ -204,6 +214,35 @@ bool UKismetInputLibrary::InputEvent_IsLeftCommandDown(const FInputEvent& Input)
 bool UKismetInputLibrary::InputEvent_IsRightCommandDown(const FInputEvent& Input)
 {
 	return Input.IsRightCommandDown();
+}
+
+bool UKismetInputLibrary::ModifierKeysState_IsShiftDown(const FSlateModifierKeysState& KeysState)
+{
+	return (KeysState.ModifierKeysStateMask & EModifierKey::Shift) != 0;
+}
+
+bool UKismetInputLibrary::ModifierKeysState_IsControlDown(const FSlateModifierKeysState& KeysState)
+{
+	return (KeysState.ModifierKeysStateMask & EModifierKey::Control) != 0;
+}
+
+bool UKismetInputLibrary::ModifierKeysState_IsAltDown(const FSlateModifierKeysState& KeysState)
+{
+	return (KeysState.ModifierKeysStateMask & EModifierKey::Alt) != 0;
+}
+
+bool UKismetInputLibrary::ModifierKeysState_IsCommandDown(const FSlateModifierKeysState& KeysState)
+{
+	return (KeysState.ModifierKeysStateMask & EModifierKey::Command) != 0;
+}
+
+FSlateModifierKeysState UKismetInputLibrary::GetModifierKeysState()
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		return FSlateApplication::Get().GetModifierKeys();
+	}
+	return FSlateModifierKeysState();
 }
 
 FText UKismetInputLibrary::InputChord_GetDisplayName(const FInputChord& Key)
