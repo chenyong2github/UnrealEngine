@@ -101,7 +101,11 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			}
 			
 			UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Destroy actor %s in package %s."), *Actor->GetName(), *Actor->GetPackage()->GetName());
-			World->DestroyActor(Actor);
+			const bool bDestroyed = World->DestroyActor(Actor);
+			if (!bDestroyed)
+			{
+				UE_LOG(LogWorldPartitionNavigationDataBuilder, Warning, TEXT("      Could not be destroy %s."), *Actor->GetName());
+			}
 		}
 	}
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Number of ANavigationDataChunkActor: %i"), Count);
@@ -121,6 +125,13 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 		{
 			return true;
 		}
+
+		// If we had packages to delete we need to notify the delete after the save. Else WP might try to load the deleted descriptors on the next iteration.
+		// Note: this notification is expected to be done by the SavePackages()
+		for (UPackage* Package : PackagesToClean)
+		{
+			WorldPartition->OnPackageDeleted(Package);
+		}		
 
 		return true;
 	}
@@ -220,6 +231,13 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 		if (!SavePackages(PackagesToSave))
 		{
 			return true;
+		}
+
+		// If we had packages to delete we need to notify the delete after the save. Else WP might try to load the deleted descriptors on the next iteration.
+		// Note: this notification is expected to be done by the SavePackages()
+		for (UPackage* Package : PackagesToDelete)
+		{
+			WorldPartition->OnPackageDeleted(Package);
 		}
 		
 		{
