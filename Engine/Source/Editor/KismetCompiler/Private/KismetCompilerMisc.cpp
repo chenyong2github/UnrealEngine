@@ -1713,6 +1713,21 @@ void FKismetCompilerUtilities::UpdateDependentBlueprints(UBlueprint* ForBP)
 			}
 		}
 	}
+
+	// Clear out any stale references to invalid/deleted objects.
+	TSet<TWeakObjectPtr<UBlueprint>> InvalidReferences;
+	for (const TWeakObjectPtr<UBlueprint>& Reference : ForBP->CachedDependents)
+	{
+		if (!Reference.IsValid() || Reference.IsStale())
+		{
+			InvalidReferences.Add(Reference);
+		}
+	}
+
+	for (const TWeakObjectPtr<UBlueprint>& InvalidReference : InvalidReferences)
+	{
+		ForBP->CachedDependents.Remove(InvalidReference);
+	}
 }
 
 bool FKismetCompilerUtilities::CheckFunctionThreadSafety(const FKismetFunctionContext& InContext, FCompilerResultsLog& InMessageLog, bool InbEmitErrors)

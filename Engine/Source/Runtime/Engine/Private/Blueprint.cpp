@@ -1388,6 +1388,15 @@ void UBlueprint::BeginDestroy()
 	Super::BeginDestroy();
 
 	FBlueprintEditorUtils::RemoveAllLocalBookmarks(this);
+
+	// For each cached dependency, remove ourselves from its cached dependent set.
+	for (const TWeakObjectPtr<UBlueprint>& DependencyReference : CachedDependencies)
+	{
+		if (UBlueprint* Dependency = DependencyReference.Get())
+		{
+			Dependency->CachedDependents.Remove(MakeWeakObjectPtr(this));
+		}
+	}
 }
 
 #endif // WITH_EDITOR
