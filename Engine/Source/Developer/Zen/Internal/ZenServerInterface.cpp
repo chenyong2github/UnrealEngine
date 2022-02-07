@@ -829,7 +829,7 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 			void* PipeWriteChild = nullptr;
 			void* PipeReadChild = nullptr;
 			Proc = FPlatformProcess::CreateProc(
-				*MainFilePath,
+				*ExecutablePath,
 				*Parms,
 				bLaunchDetached,
 				bLaunchHidden,
