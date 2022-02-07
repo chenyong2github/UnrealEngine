@@ -141,7 +141,7 @@ namespace LowLevelTasks
 			uintptr_t bAllowBusyWaiting : 1;
 			
 		public:
-			FPackedData() : FPackedData(nullptr,  ETaskPriority::Default, ETaskState::Completed, true)
+			FPackedData() : FPackedData(nullptr,  ETaskPriority::Count, ETaskState::Completed, true)
 			{
 				static_assert(!PLATFORM_32BITS, "32bit Platforms are not supported");
 				static_assert(uintptr_t(ETaskPriority::Count) <= (1ull << 3), "Not enough bits to store ETaskPriority");
