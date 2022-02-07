@@ -74,8 +74,16 @@ namespace Horde.Storage.Implementation
                     }
                 }
                 ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
-                BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
-                _logger.Information("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
+                try
+                {
+                    BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
+                    _logger.Information("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
+
+                }
+                catch (IncrementalLogNotAvailableException)
+                {
+                    _logger.Error("Unable to generate a snapshot for {Namespace} as there was no incremental state available", ns);
+                }
 
                 ran = true;
             }, _settings.CurrentValue.MaxCountOfNamespacesToSnapshotInParallel, _cancellationTokenSource.Token);
