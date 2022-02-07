@@ -16,4 +16,9 @@ public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+private:
+
+	/** Customization name to avoid reusing staticstruct during shutdown. */
+	FName MediaPlateName;
 };

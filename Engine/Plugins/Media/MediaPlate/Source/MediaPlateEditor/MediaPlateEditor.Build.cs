@@ -19,10 +19,13 @@ public class MediaPlateEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"EditorStyle",
 				"Engine",
 				"MediaAssets",
-				"UnrealEd",
 				"MediaPlate",
+				"Slate",
+				"SlateCore",
+				"UnrealEd",
 			}
 			);
 	}
