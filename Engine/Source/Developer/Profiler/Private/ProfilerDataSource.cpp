@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerDataSource.h"
+
+#if STATS
+
 #include "Containers/MapBuilder.h"
 #include "ProfilerStream.h"
 #include "ProfilerDataProvider.h"
@@ -566,3 +569,5 @@ FString EEventGraphTypes::ToDescription( const EEventGraphTypes::Type EventGraph
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

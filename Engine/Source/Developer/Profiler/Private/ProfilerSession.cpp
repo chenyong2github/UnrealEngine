@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerSession.h"
+
+#if STATS
+
 #include "ProfilerFPSAnalyzer.h"
 #include "ProfilerDataProvider.h"
 
@@ -985,3 +988,5 @@ void FProfilerAggregatedStat::Aggregate(const FProfilerSample& Sample, const TSh
 
 	_ValueOneFrame += TypedValue;
 }
+
+#endif // STATS

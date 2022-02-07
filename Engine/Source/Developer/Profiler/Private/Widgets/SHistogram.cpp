@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SHistogram.h"
+
+#if STATS
+
 #include "Fonts/SlateFontInfo.h"
 #include "Styling/CoreStyle.h"
 #include "Misc/Paths.h"
@@ -172,4 +175,4 @@ void SHistogram::SetFPSAnalyzer(const TSharedPtr<FFPSAnalyzer>& InAnalyzer)
 
 #undef LOCTEXT_NAMESPACE
 
-
+#endif // STATS

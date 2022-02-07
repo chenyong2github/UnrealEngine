@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Stats/StatsFile.h"
 
 
@@ -383,3 +386,4 @@ protected:
 	int32 LastSequenceTagForNamedMarker;
 };
 
+#endif // STATS

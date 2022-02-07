@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerFPSChartPanel.h"
+
+#if STATS
+
 #include "Widgets/SBoxPanel.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SBorder.h"
@@ -240,3 +243,5 @@ void SProfilerFPSChartPanel::ProfilerManager_OnViewModeChanged(EProfilerViewMode
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

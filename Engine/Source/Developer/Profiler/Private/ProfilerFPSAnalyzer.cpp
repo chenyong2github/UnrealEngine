@@ -2,6 +2,8 @@
 
 #include "ProfilerFPSAnalyzer.h"
 
+#if STATS
+
 
 void FFPSAnalyzer::Reset()
 {
@@ -89,3 +91,5 @@ int32 FFPSAnalyzer::GetCount(float InMinVal, float InMaxVal)
 
 	return Histogram[Index].Count;
 }
+
+#endif // STATS

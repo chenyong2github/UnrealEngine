@@ -2,6 +2,7 @@
 
 #include "ProfilerSample.h"
 
+#if STATS
 
 #define LOCTEXT_NAMESPACE "ProfilerSample"
 
@@ -58,3 +59,5 @@ void FProfilerSample::FixupChildrenOrdering(const TMap<uint32,uint32>& ChildrenO
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDataGraph.h"
+
+#if STATS
+
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
 #include "Rendering/DrawElements.h"
@@ -1342,3 +1345,5 @@ void SDataGraph::EventGraph_OnRestoredFromHistory( uint32 FrameStartIndex, uint3
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "ProfilerCommon.h"
 #include "ProfilerSample.h"
 
@@ -267,3 +270,5 @@ protected:
 
 	uint64 ChildrenIndicesMemoryUsage;
 };
+
+#endif // STATS

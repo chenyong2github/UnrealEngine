@@ -2,6 +2,7 @@
 
 #include "ProfilerStream.h"
 
+#if STATS
 
 /*-----------------------------------------------------------------------------
 	FProfilerUIStream
@@ -169,3 +170,5 @@ void FProfilerUIStream::CombineOrSet( FProfilerUIStackNode* ParentUIStackNode, c
 		}
 	}
 }
+
+#endif // STATS

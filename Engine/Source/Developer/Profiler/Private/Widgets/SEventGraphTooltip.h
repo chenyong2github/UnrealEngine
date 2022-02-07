@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Layout/Visibility.h"
 #include "ProfilerDataSource.h"
 
@@ -21,3 +24,5 @@ protected:
 
 	static EVisibility GetHotPathIconVisibility(const TSharedPtr<FEventGraphSample> EventSample);
 };
+
+#endif // STATS

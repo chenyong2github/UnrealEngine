@@ -2,6 +2,7 @@
 
 #include "ProfilerDataProvider.h"
 
+#if STATS
 
 /*-----------------------------------------------------------------------------
 	IDataProvider
@@ -167,3 +168,5 @@ const SIZE_T FArrayDataProvider::GetMemoryUsage() const
 	MemoryUsage += ChildrenIndicesMemoryUsage;
 	return MemoryUsage;
 }
+
+#endif // STATS

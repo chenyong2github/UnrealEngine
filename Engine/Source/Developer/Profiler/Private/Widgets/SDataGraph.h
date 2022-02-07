@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Layout/Geometry.h"
 #include "Input/CursorReply.h"
@@ -427,3 +430,5 @@ protected:
 
 	float FrameTimesMS[2];
 };
+
+#endif // STATS

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerManager.h"
+
+#if STATS
+
 #include "Modules/ModuleManager.h"
 #include "IProfilerClientModule.h"
 #include "Stats/StatsFile.h"
@@ -690,3 +693,5 @@ void FProfilerManager::SetViewMode( EProfilerViewMode NewViewMode )
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

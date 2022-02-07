@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SEventGraphTooltip.h"
+
+#if STATS
+
 #include "Misc/Paths.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Styling/CoreStyle.h"
@@ -514,3 +517,6 @@ EVisibility SEventGraphTooltip::GetHotPathIconVisibility(const TSharedPtr<FEvent
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS
+

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerRawStatsForThreadView.h"
+
+#if STATS
+
 #include "HAL/FileManager.h"
 #include "Serialization/MemoryReader.h"
 #include "ProfilerDataProvider.h"
@@ -547,3 +550,5 @@ void FRawProfilerSession::ProcessStatPacketArray( const FStatPacketArray& StatPa
 
 	out_ProfilerFrame.SortChildren();
 }
+
+#endif // STATS

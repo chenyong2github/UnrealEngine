@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
@@ -57,3 +60,5 @@ private:
 	/** Pointer to the profiler settings. */
 	FProfilerSettings* SettingPtr;
 };
+
+#endif // STATS

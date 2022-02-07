@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Stats/StatsFile.h"
 #include "ProfilerStream.h"
 #include "ProfilerSession.h"
@@ -50,3 +53,5 @@ public:
 	 */
 	void ProcessStatPacketArray(const FStatPacketArray& PacketArray, FProfilerFrame& out_ProfilerFrame, int32 FrameIndex);
 };
+
+#endif // STATS

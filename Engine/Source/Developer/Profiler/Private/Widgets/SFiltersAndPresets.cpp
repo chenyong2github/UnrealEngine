@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SFiltersAndPresets.h"
+
+#if STATS
+
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
@@ -1216,3 +1219,5 @@ FText SFiltersAndPresets::SortBy_GetSelectedText() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

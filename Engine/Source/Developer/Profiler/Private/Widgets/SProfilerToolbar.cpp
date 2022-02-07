@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerToolbar.h"
+
+#if STATS
+
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
@@ -185,3 +188,5 @@ void SProfilerToolbar::CreateCommands()
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

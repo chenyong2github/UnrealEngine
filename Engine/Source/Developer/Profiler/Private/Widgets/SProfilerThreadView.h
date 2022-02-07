@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Misc/Paths.h"
 #include "Layout/SlateRect.h"
 #include "Layout/Geometry.h"
@@ -316,3 +319,5 @@ protected:
 	/** Cursor type. */
 	EThreadViewCursor::Type CursorType;
 };
+
+#endif // STATS

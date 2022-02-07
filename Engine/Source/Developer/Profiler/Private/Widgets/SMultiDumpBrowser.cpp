@@ -2,6 +2,7 @@
 
 #include "Widgets/SMultiDumpBrowser.h"
 
+#if STATS
 
 #define LOCTEXT_NAMESPACE "SMultiDumpBrowser"
 
@@ -196,3 +197,5 @@ void SMultiDumpBrowser::PrefilterTextCommitted(const FText& InText, const ETextC
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

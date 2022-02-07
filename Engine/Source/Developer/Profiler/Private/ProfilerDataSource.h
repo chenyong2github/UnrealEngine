@@ -3,13 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "HAL/ThreadSingleton.h"
 #include "Containers/ChunkedArray.h"
 #include "Misc/Guid.h"
 #include "ProfilerCommon.h"
 #include "ProfilerSample.h"
-
-#if STATS
 
 class FEventGraphData;
 class FEventGraphSample;

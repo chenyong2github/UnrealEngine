@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ProfilerCommon.h"
 #include "Layout/Geometry.h"
@@ -414,3 +417,5 @@ private:
 	/** True if the active timer is currently registered */
 	bool bIsActiveTimerRegistered;
 };
+
+#endif // STATS

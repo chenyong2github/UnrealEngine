@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "ProfilerManager.h"
@@ -48,3 +51,5 @@ protected:
 	/** The descriptions panel of the chart */
 	TSharedPtr<SProfilerFPSStatisticsPanel> StatisticsPanel;
 };
+
+#endif // STATS

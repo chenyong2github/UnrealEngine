@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerMiniView.h"
+
+#if STATS
+
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
 #include "Rendering/DrawElements.h"
@@ -711,3 +714,5 @@ void SProfilerMiniView::ProcessData()
 
 	MaxFrameTime = FMath::Clamp( MaxFrameTime, 0.0f, (float)MAX_VISIBLE_THREADTIME );
 }
+
+#endif // STATS

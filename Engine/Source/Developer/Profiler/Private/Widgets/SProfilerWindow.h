@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "SlateFwd.h"
 #include "Misc/Guid.h"
 #include "Layout/Visibility.h"
@@ -168,3 +171,5 @@ public:
 	/** The number of seconds the profiler has been active */
 	float	DurationActive;
 };
+
+#endif // STATS

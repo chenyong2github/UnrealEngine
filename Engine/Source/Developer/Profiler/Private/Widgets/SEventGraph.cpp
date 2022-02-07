@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SEventGraph.h"
+
+#if STATS
+
 #include "Widgets/Layout/SSplitter.h"
 #include "Containers/MapBuilder.h"
 #include "Widgets/SOverlay.h"
@@ -3521,3 +3524,5 @@ void SEventGraph::FEventGraphState::CreateOneToOneMapping()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

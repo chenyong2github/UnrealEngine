@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Containers/ChunkedArray.h"
 #include "Stats/Stats.h"
 
-#if STATS
 
 /*-----------------------------------------------------------------------------
 	Type definitions

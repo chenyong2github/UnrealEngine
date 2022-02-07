@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Containers/LockFreeList.h"
 #include "Misc/Guid.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -15,7 +18,6 @@
 #include "Stats/StatsData.h"
 #include "ProfilerStream.h"
 
-#if STATS
 
 class FFPSAnalyzer;
 class FProfilerGroup;

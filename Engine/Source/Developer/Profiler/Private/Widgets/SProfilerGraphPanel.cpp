@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerGraphPanel.h"
+
+#if STATS
+
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -285,3 +288,5 @@ void SProfilerGraphPanel::SetScrollBarState()
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

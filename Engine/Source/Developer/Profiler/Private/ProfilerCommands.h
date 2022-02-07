@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Misc/Guid.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/Commands.h"
@@ -222,3 +225,5 @@ protected:
 	/** Reference to the global instance of the profiler manager. */
 	class FProfilerManager* This;
 };
+
+#endif // STATS

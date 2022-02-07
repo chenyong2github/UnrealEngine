@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "ProfilerSample.h"
 
 
@@ -77,3 +80,5 @@ public:
 	int32 MaxVal;
 	int32 MinVal;
 };
+
+#endif // STATS

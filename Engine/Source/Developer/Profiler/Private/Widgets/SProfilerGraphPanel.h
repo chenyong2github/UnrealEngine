@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ProfilerManager.h"
 #include "Widgets/SCompoundWidget.h"
@@ -112,3 +115,5 @@ public:
 	/** Current view mode. */
 	EProfilerViewMode ViewMode;
 };
+
+#endif // STATS

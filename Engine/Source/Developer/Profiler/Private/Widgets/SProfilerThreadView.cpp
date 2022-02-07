@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerThreadView.h"
+
+#if STATS
+
 #include "Brushes/SlateColorBrush.h"
 #include "EditorStyleSet.h"
 
@@ -740,3 +743,5 @@ void SProfilerThreadView::UpdateInternalConstants()
 	NumPixelsPerMillisecond = (double)ThisGeometry.GetLocalSize().X / NumMillisecondsPerWindow;
 	NumMillisecondsPerSample = NumMillisecondsPerWindow / (double)ThisGeometry.GetLocalSize().X * (double)MIN_NUM_PIXELS_PER_SAMPLE;
 }
+
+#endif // STATS

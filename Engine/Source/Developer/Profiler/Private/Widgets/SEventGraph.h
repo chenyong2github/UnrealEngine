@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "SlateFwd.h"
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -1278,3 +1281,5 @@ protected:
 	TSharedPtr<SComboBox<TSharedPtr<FName>>> ThreadFilterComboBox;
 	TArray<TSharedPtr<FName>> ThreadNamesForCombo;
 };
+
+#endif // STATS

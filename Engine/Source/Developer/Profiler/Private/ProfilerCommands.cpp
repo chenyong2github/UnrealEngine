@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilerCommands.h"
+
+#if STATS
+
 #include "Misc/Paths.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
@@ -354,3 +357,5 @@ bool FProfilerActionManager::OpenSettings_CanExecute() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ProfilerCommon.h"
@@ -424,3 +427,5 @@ protected:
 	/** Holds the visibility of each stat type. */
 	bool bStatTypeIsVisible[EProfilerSampleTypes::InvalidOrMax];
 };
+
+#endif // STATS

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "ProfilerSample.h"
@@ -120,3 +123,5 @@ public:
 protected:
 	FHistogramDescription Description;
 };
+
+#endif // STATS

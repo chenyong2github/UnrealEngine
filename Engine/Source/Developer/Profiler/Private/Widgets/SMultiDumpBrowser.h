@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ProfilerManager.h"
 #include "Widgets/SCompoundWidget.h"
@@ -136,3 +139,5 @@ protected:
 
 	FString TotalsFilteringText;
 };
+
+#endif // STATS

@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if STATS
+
 #include "HAL/ThreadSafeCounter.h"
 #include "Containers/IndirectArray.h"
 #include "Containers/ChunkedArray.h"
@@ -563,3 +566,4 @@ protected:
 	}
 };
 
+#endif // STATS

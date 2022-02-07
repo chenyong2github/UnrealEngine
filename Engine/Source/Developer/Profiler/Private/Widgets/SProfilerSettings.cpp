@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerSettings.h"
+
+#if STATS
+
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
 #include "Widgets/SBoxPanel.h"
@@ -251,3 +254,6 @@ FReply SProfilerSettings::OptionDefault_OnClicked( bool* ValuePtr, const bool* D
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS
+

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProfilerWindow.h"
+
+#if STATS
+
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -672,3 +675,5 @@ void SProfilerWindow::ProfilerManager_OnViewModeChanged( EProfilerViewMode NewVi
 
 
 #undef LOCTEXT_NAMESPACE
+
+#endif // STATS
