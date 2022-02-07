@@ -707,8 +707,7 @@ namespace HordeServer.Collections.Impl
 			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
 
 			DateTime UtcNow = DateTime.UtcNow;
-			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalMinutes > 5).ToList();
-
+			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= 5).ToList();
 
 			if (ExpiredDevices.Count > 0)
 			{
