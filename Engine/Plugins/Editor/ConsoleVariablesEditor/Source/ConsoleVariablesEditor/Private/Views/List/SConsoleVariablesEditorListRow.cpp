@@ -558,8 +558,7 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 
 	Item = InRow;
 
-	const FText ButtonTooltip = LOCTEXT("RemoveCvarTooltip",
-								  "Remove cvar from this list and reset its value to the startup value.");
+	const FText ButtonTooltip = LOCTEXT("RemoveCvarTooltip", "Remove cvar from this list and reset its value to the startup value.");
 	const FSlateBrush* ButtonImage = FAppStyle::Get().GetBrush("Icons.Delete");
 
 	ChildSlot

@@ -161,8 +161,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				SAssignNew(RemoveGlobalSearchesButtonPtr, SCheckBox)
 				.Padding(0)
 				.ToolTipText(
-					LOCTEXT("RemoveGlobalSearchesButtonTooltip",
-					"Remove all global searches from the console variables editor."))
+					LOCTEXT("RemoveGlobalSearchesButtonTooltip", "Remove all global searches from the console variables editor."))
 				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsChecked(false)
@@ -235,14 +234,12 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 					if (VisibleTreeViewObjects.Num() == TreeViewRootObjects.Num())
 					{
 						// Global Search Empty List (without filter)
-                    	return LOCTEXT("ConsoleVariablesEditorList_EmptyListGlobalSearch",
-                    		"No matching console variables found in Unreal Engine.\n\nCheck your search criteria.");
+                    	return LOCTEXT("ConsoleVariablesEditorList_EmptyListGlobalSearch", "No matching console variables found in Unreal Engine.\n\nCheck your search criteria.");
 						
 					}
 
 					// Empty List (with filter)
-                    return LOCTEXT("ConsoleVariablesEditorList_EmptyListWithFilter",
-                    	"No matching console variables in your list.\n\nCheck your filter or <RichTextBlock.Bold>Search All</> console variables instead.");
+                    return LOCTEXT("ConsoleVariablesEditorList_EmptyListWithFilter", "No matching console variables in your list.\n\nCheck your filter or <RichTextBlock.Bold>Search All</> console variables instead.");
 				})
 			]
 		]
@@ -932,8 +929,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 	{
 		ShowOptionsMenuBuilder.AddMenuEntry(
 			LOCTEXT("TrackAllVariableChanges", "Track All Variable Changes"),
-			LOCTEXT("ConsoleVariablesEditorList_TrackAllVariableChanges_Tooltip",
-				"When variables are changed outside the Console Variables Editor, this option will add the variables to the current preset. Does not apply to console commands like 'r.SetNearClipPlane' or 'stat fps'."),
+			LOCTEXT("ConsoleVariablesEditorList_TrackAllVariableChanges_Tooltip", "When variables are changed outside the Console Variables Editor, this option will add the variables to the current preset. Does not apply to console commands like 'r.SetNearClipPlane' or 'stat fps'."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([]()

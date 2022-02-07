@@ -29,7 +29,7 @@ public:
 
 	virtual FText GetFilterButtonToolTip() override
 	{
-		return LOCTEXT("ShowSourceTextFilterTooltipFormat", "Show only rows that have a current value that differs from the preset value.");
+		return LOCTEXT("ShowOnlyModifiedVariablesFilterTooltipFormat", "Show only rows that have a current value that differs from the preset value.");
 	}
 
 	virtual bool DoesItemPassFilter(const FConsoleVariablesEditorListRowPtr& InItem) override

@@ -326,9 +326,8 @@ void FConsoleVariablesEditorModule::RegisterProjectSettings() const
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule.RegisterSettings(
 			"Project", "Plugins", "Console Variables Editor",
-			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsCategoryDisplayName", "Console Variables Editor"),
-			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsDescription",
-			          "Configure the Console Variables Editor user settings"),
+			LOCTEXT("ConsoleVariablesSettingsCategoryDisplayName", "Console Variables Editor"),
+			LOCTEXT("ConsoleVariablesSettingsDescription", "Configure the Console Variables Editor user settings"),
 			GetMutableDefault<UConsoleVariablesEditorProjectSettings>());
 	}
 }
