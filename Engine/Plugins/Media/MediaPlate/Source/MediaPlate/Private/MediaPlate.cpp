@@ -68,4 +68,34 @@ void AMediaPlate::PostRegisterAllComponents()
 	}
 }
 
+UMediaPlayer* AMediaPlate::GetMediaPlayer()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
+	if (MediaComponent != nullptr)
+	{
+		MediaPlayer = MediaComponent->GetMediaPlayer();
+	}
+
+	return MediaPlayer;
+}
+
+void AMediaPlate::Play()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->PlayOnOpen = true;
+		MediaPlayer->OpenSource(MediaSource);
+	}
+}
+
+void AMediaPlate::Stop()
+{
+	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->Close();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

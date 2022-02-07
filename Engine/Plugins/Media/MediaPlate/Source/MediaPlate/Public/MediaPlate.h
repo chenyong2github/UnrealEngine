@@ -24,6 +24,24 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface
 
+	/**
+	 * Call this get our media player.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	UMediaPlayer* GetMediaPlayer();
+
+	/**
+	 * Call this to start playing.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	void Play();
+
+	/**
+	 * Call this to stop playing.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	void Stop();
+
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMediaComponent> MediaComponent;
