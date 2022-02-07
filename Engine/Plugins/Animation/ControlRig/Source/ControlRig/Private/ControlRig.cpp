@@ -2827,7 +2827,13 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 	{
 		// for default objects we need to check if the CDO is rooted. specialized Control Rigs
 		// such as the FK control rig may not have a root since they are part of a C++ package.
-		if(!IsRooted() && GetClass()->IsNative())
+
+		// since the sub objects are created after the constructor
+		// GC won't consider them part of the CDO, even if they have the sub object flags
+		// so even if CDO is rooted and references these sub objects, 
+		// it is not enough to keep them alive.
+		// Hence, we have to add them to root here.
+		if(GetClass()->IsNative())
 		{
 			VM->AddToRoot();
 			DynamicHierarchy->AddToRoot();
