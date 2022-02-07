@@ -730,25 +730,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 #endif // SHADER_HAIRTRANSFER_PREV_POSITION
 
-#if SHADER_COPY_POSITION
-
-uint ElementCount;
-Buffer<uint4> InBuffer;
-RWBuffer<uint4> OutBuffer;
-
-[numthreads(256, 1, 1)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	const uint Index = DispatchThreadId.x;
-	if (Index >= ElementCount)
-	{
-		return;
-	}
-	OutBuffer[Index] = InBuffer[Index];
-}
-
-#endif // SHADER_COPY_POSITION
-
 #if SHADER_GROOMCACHE_UPDATE
 
 uint ElementCount;

@@ -143,62 +143,6 @@ enum class EDeformationType : uint8
 	OffsetGuide		// Offset the guides
 };
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-class FHairStrandsCopyPositionCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHairStrandsCopyPositionCS);
-	SHADER_USE_PARAMETER_STRUCT(FHairStrandsCopyPositionCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, ElementCount)
-		SHADER_PARAMETER(uint32, DispatchCountX)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutBuffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		// Used for copying guides data, which are used both for cards or strands
-		return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform) || IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); 
-	}
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_COPY_POSITION"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FHairStrandsCopyPositionCS, "/Engine/Private/HairStrands/HairStrandsInterpolation.usf", "MainCS", SF_Compute);
-
-void AddHairStrandsCopyPositionPass(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	FRDGBufferUAVRef& Out,
-	FRDGBufferSRVRef& In)
-{
-	FHairStrandsCopyPositionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsCopyPositionCS::FParameters>();
-	PassParameters->InBuffer = In;
-	PassParameters->OutBuffer = Out;
-	FHairStrandsCopyPositionCS::FPermutationDomain PermutationVector;
-	TShaderMapRef<FHairStrandsCopyPositionCS> ComputeShader(ShaderMap, PermutationVector);
-
-	const uint32 GroupSize = 256;
-	const uint32 ElementCount = Out->GetParent()->Desc.NumElements;
-	const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ElementCount, GroupSize);
-	check(GroupCount.X < GRHIMaxDispatchThreadGroupsPerDimension.X);
-
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("HairStrands::CopyPosition"),
-		ComputeShader,
-		PassParameters,
-		GroupCount);
-
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class FTransferVelocityPassCS : public FGlobalShader
 {

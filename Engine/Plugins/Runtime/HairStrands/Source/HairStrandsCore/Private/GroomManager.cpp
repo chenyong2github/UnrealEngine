@@ -553,28 +553,17 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 	}
 }
 
-void AddHairStrandsCopyPositionPass(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef& Out, FRDGBufferSRVRef& In);
-
 static void AddCopyHairStrandsPositionPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	FHairStrandsRestResource& RestResources,
 	FHairStrandsDeformedResource& DeformedResources)
 {
-	// Copy using an explicit copy instead of AddCopyBufferPass as some RHI didn't support it. This is now fix & should be fixed (TODO)
-#if 0
 	FRDGBufferRef RestBuffer = Register(GraphBuilder, RestResources.PositionBuffer, ERDGImportedBufferFlags::None).Buffer;
 	FRDGBufferRef Deformed0Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[0], ERDGImportedBufferFlags::None).Buffer;
 	FRDGBufferRef Deformed1Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[1], ERDGImportedBufferFlags::None).Buffer;
 	AddCopyBufferPass(GraphBuilder, Deformed0Buffer, RestBuffer);
 	AddCopyBufferPass(GraphBuilder, Deformed1Buffer, RestBuffer);
-#else
-	FRDGBufferSRVRef RestBuffer = Register(GraphBuilder, RestResources.PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-	FRDGBufferUAVRef Deformed0Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[0], ERDGImportedBufferFlags::CreateUAV).UAV;
-	FRDGBufferUAVRef Deformed1Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[1], ERDGImportedBufferFlags::CreateUAV).UAV;
-	AddHairStrandsCopyPositionPass(GraphBuilder, ShaderMap, Deformed0Buffer, RestBuffer);
-	AddHairStrandsCopyPositionPass(GraphBuilder, ShaderMap, Deformed1Buffer, RestBuffer);
-#endif
 }
 
 #if RHI_RAYTRACING
