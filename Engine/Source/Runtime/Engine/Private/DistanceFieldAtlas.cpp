@@ -603,7 +603,7 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 					}
 #endif
 
-					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
+					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Blocking);
 				}
 			}
 		}
@@ -656,7 +656,7 @@ void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 			FScopeLock Lock(&CriticalSection);
 			for (FAsyncDistanceFieldTask* Task : ReferencedTasks)
 			{
-				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
+				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Blocking);
 			}
 		}
 

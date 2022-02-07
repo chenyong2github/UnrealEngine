@@ -221,8 +221,8 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 
 		// All asset priorities will resolve to a Low priority once being scheduled.
 		// Any asset supporting being built async should be scheduled lower than Normal to let non-async stuff go first
-		// However, we let Highest priority pass-through as it to benefit from going to foreground threads when required (i.e. Game-thread is waiting on some assets)
-		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(LimitedThreadPool, -1, [](EQueuedWorkPriority Priority) { return Priority == EQueuedWorkPriority::Highest ? Priority : EQueuedWorkPriority::Low; });
+		// However, we let Highest and Blocking priority pass-through as it to benefit from going to foreground threads when required (i.e. Game-thread is waiting on some assets)
+		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(LimitedThreadPool, -1, [](EQueuedWorkPriority Priority) { return Priority <= EQueuedWorkPriority::Highest ? Priority : EQueuedWorkPriority::Low; });
 
 		AsyncCompilationHelpers::BindThreadPoolToCVar(
 			GAssetThreadPool,

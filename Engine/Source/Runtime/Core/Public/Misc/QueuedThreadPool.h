@@ -10,11 +10,12 @@ class IQueuedWork;
 /** Higher priority are picked up first by the task thread pool. */
 enum class EQueuedWorkPriority : uint8
 {
-	Highest = 0,
-	High = 1,
-	Normal = 2,
-	Low = 3,
-	Lowest = 4,
+	Blocking = 0,
+	Highest = 1,
+	High = 2,
+	Normal = 3,
+	Low = 4,
+	Lowest = 5,
 	Count
 };
 
@@ -22,6 +23,8 @@ inline const TCHAR* LexToString(EQueuedWorkPriority Priority)
 {
 	switch (Priority)
 	{
+	case EQueuedWorkPriority::Blocking:
+		return TEXT("Blocking");
 	case EQueuedWorkPriority::Highest:
 		return TEXT("Highest");
 	case EQueuedWorkPriority::High:

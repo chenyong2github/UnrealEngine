@@ -218,7 +218,7 @@ private:
 	{
 		switch (Priority)
 		{
-		case EPriority::Blocking: return EQueuedWorkPriority::Highest;
+		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
 		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
 		case EPriority::High:     return EQueuedWorkPriority::High;
 		case EPriority::Normal:   return EQueuedWorkPriority::Normal;

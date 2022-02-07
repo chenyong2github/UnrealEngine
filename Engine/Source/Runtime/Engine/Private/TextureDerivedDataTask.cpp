@@ -1521,7 +1521,7 @@ private:
 		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
 		case EPriority::High:     return EQueuedWorkPriority::High;
 		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
-		case EPriority::Blocking: return EQueuedWorkPriority::Highest;
+		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
 		default:                  return EQueuedWorkPriority::Normal;
 		}
 	}

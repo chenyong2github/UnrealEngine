@@ -121,12 +121,12 @@ namespace AsyncCompilationHelpers
 			SlowTask->MakeDialogDelayed(1.0f, false /*bShowCancelButton*/, true /*bAllowInPIE*/);
 		}
 
-		// Reschedule everything to be executed at highest priority
+		// Reschedule everything to be executed at blocking priority, it bypasses the pause mechanism to ensure forward progress since we're waiting.
 		// Important to keep using the asset compiling manager's thread pool to benefit from it's memory management and avoid OOM.
 		FQueuedThreadPool* AssetThreadPool = FAssetCompilingManager::Get().GetThreadPool();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			Getter(Index).Reschedule(AssetThreadPool, EQueuedWorkPriority::Highest);
+			Getter(Index).Reschedule(AssetThreadPool, EQueuedWorkPriority::Blocking);
 		}
 
 		auto FormatProgress =

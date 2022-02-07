@@ -16,6 +16,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/Material.h"
 #include "TextureDerivedDataTask.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "Misc/IQueuedWork.h"
 #include "Components/PrimitiveComponent.h"
 #include "AsyncCompilationHelpers.h"
@@ -56,7 +57,7 @@ namespace TextureCompilingManagerImpl
 
 	static EQueuedWorkPriority GetBoostPriority(UTexture* InTexture)
 	{
-		return (EQueuedWorkPriority)(FMath::Max((uint8)1, (uint8)GetBasePriority(InTexture)) - 1);
+		return (EQueuedWorkPriority)(FMath::Max((uint8)EQueuedWorkPriority::Highest, (uint8)GetBasePriority(InTexture)) - 1);
 	}
 
 	static void EnsureInitializedCVars()
@@ -192,8 +193,10 @@ bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 	return CVarAsyncTextureStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }
 
+TRACE_DECLARE_INT_COUNTER(QueuedTextureCompilation, TEXT("AsyncCompilation/QueuedTexture"));
 void FTextureCompilingManager::UpdateCompilationNotification()
 {
+	TRACE_COUNTER_SET(QueuedTextureCompilation, GetNumRemainingTextures());
 	Notification.Update(GetNumRemainingTextures());
 }
 
@@ -270,6 +273,8 @@ void FTextureCompilingManager::AddTextures(TArrayView<UTexture* const> InTexture
 		}
 		RegisteredTextureBuckets[TexturePriority].Emplace(Texture);
 	}
+
+	TRACE_COUNTER_SET(QueuedTextureCompilation, GetNumRemainingTextures());
 }
 
 void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InTextures)

@@ -201,9 +201,9 @@ void FQueuedThreadPoolWrapper::ReleaseWorkNoLock(FScheduledWork* Work)
 	WorkPool.Push(Work);
 }
 
-bool FQueuedThreadPoolWrapper::CanSchedule() const
+bool FQueuedThreadPoolWrapper::CanSchedule(EQueuedWorkPriority Priority) const
 {
-	return (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0) && CurrentConcurrency < GetMaxConcurrency();
+	return (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0 || Priority == EQueuedWorkPriority::Blocking) && CurrentConcurrency < GetMaxConcurrency();
 }
 
 FQueuedThreadPoolWrapper::FScheduledWork* FQueuedThreadPoolWrapper::AllocateWork(IQueuedWork* InnerWork, EQueuedWorkPriority Priority)
@@ -263,13 +263,13 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 	if (NextWork)
 	{
 		// Continue retracting more work until nothing can be retracted anymore or we can finally squeeze the higher priority task in
-		while (!CanSchedule() && TryRetractWorkNoLock(NextWorkPriority))
+		while (!CanSchedule(NextWorkPriority) && TryRetractWorkNoLock(NextWorkPriority))
 		{
 		}
 	}
 
 	// Schedule as many tasks we can fit
-	while (CanSchedule())
+	while (CanSchedule(NextWorkPriority))
 	{
 		EQueuedWorkPriority WorkPriority;
 		IQueuedWork* InnerWork = QueuedWork.Dequeue(&WorkPriority);
@@ -281,7 +281,7 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 			Work = AllocateWork(InnerWork, WorkPriority);
 			ScheduledWork.Add(InnerWork, Work);
 			OnScheduled(Work);
-			WrappedQueuedThreadPool->AddQueuedWork(Work, PriorityMapper(WorkPriority));
+			WrappedQueuedThreadPool->AddQueuedWork(Work, WorkPriority == EQueuedWorkPriority::Blocking ? WorkPriority : PriorityMapper(WorkPriority));
 
 			if (MaxTaskToSchedule > 0)
 			{

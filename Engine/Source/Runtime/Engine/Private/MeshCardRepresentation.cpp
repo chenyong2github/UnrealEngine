@@ -569,7 +569,7 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 					}
 #endif
 
-					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
+					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Blocking);
 				}
 			}
 		}
@@ -622,7 +622,7 @@ void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 			FScopeLock Lock(&CriticalSection);
 			for (FAsyncCardRepresentationTask* Task : ReferencedTasks)
 			{
-				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
+				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Blocking);
 			}
 		}
 
