@@ -280,6 +280,7 @@ class AGeometryCollectionActor* UFractureToolGenerateAsset::CreateNewGeometryAct
 
 	// Set the Geometry Collection asset in the new actor
 	NewActor->GetGeometryCollectionComponent()->SetRestCollection(InGeometryCollection);
+	NewActor->GetGeometryCollectionComponent()->SetPhysMaterialOverride(GEngine->DefaultDestructiblePhysMaterial);
 
 	// copy transform of original static mesh actor to this new actor
 	NewActor->SetActorLabel(UniqueAssetName);

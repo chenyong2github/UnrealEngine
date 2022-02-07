@@ -844,7 +844,7 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
 {
 	// Pull material from first mesh element to grab physical material. Prefer an override if one exists
-	UPhysicalMaterial* PhysMatToUse = PhysicalMaterialOverride;
+	UPhysicalMaterial* PhysMatToUse = BodyInstance.GetSimplePhysicalMaterial();
 
 	if(!PhysMatToUse)
 	{
@@ -1090,7 +1090,7 @@ void UGeometryCollectionComponent::PostEditChangeChainProperty(FPropertyChangedC
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, bShowBoneColors))
 	{
 		FScopedColorEdit EditBoneColor(this, true /*bForceUpdate*/); // the property has already changed; this will trigger the color update + render state updates
-	}
+	}					
 }
 #endif
 
@@ -3248,5 +3248,22 @@ bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FS
 	{
 		// Likely an embedded geometry, which doesn't count towards volume.
 		return false;
+	}
+}
+
+
+void UGeometryCollectionComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	//
+	// The UGeometryCollectionComponent::PhysicalMaterial_DEPRECATED needs
+	// to be transferred to the BodyInstance simple material. Going forward
+	// the deprecated value will not be saved.
+	//
+	if (PhysicalMaterialOverride_DEPRECATED)
+	{
+		BodyInstance.SetPhysMaterialOverride(PhysicalMaterialOverride_DEPRECATED.Get());
+		PhysicalMaterialOverride_DEPRECATED = nullptr;
 	}
 }

@@ -1186,6 +1186,14 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DefaultPhysMaterialName;
 
+	/** PhysicalMaterial to use if none is defined for a Destructible object. */
+	UPROPERTY()
+	TObjectPtr<class UPhysicalMaterial> DefaultDestructiblePhysMaterial;
+
+	/** Path of the PhysicalMaterial to use if none is defined for a particular object. */
+	UPROPERTY(globalconfig, EditAnywhere, Category = DefaultMaterials, meta = (AllowedClasses = "Physics", DisplayName = "Destructible Physics Material"))
+	FSoftObjectPath DefaultDestructiblePhysMaterialName;
+
 	/** Deprecated rules for redirecting renamed objects, replaced by the CoreRedirects system*/
 	UPROPERTY(config)
 	TArray<FGameNameRedirect> ActiveGameNameRedirects;

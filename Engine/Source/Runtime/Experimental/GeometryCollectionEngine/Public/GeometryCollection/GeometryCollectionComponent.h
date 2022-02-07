@@ -375,6 +375,7 @@ public:
 	virtual void SetNotifyRigidBodyCollision(bool bNewNotifyRigidBodyCollision) override;
 	virtual bool CanEditSimulatePhysics() override;
 	virtual void SetSimulatePhysics(bool bEnabled) override;
+	virtual void PostLoad() override;
 	//~ End UPrimitiveComponent Interface.
 
 
@@ -518,8 +519,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialAngularVelocity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="ChaosPhysics|Collisions")
-	TObjectPtr<UPhysicalMaterial> PhysicalMaterialOverride;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Physical material now derived from render materials, for instance overrides use Colliisons PhysicalMaterialOverride."))
+	TObjectPtr<UPhysicalMaterial> PhysicalMaterialOverride_DEPRECATED;
 
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;

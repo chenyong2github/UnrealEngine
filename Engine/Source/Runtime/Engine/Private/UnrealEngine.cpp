@@ -3025,8 +3025,27 @@ void UEngine::InitializeObjectReferences()
 			DefaultPhysMaterial = NewObject<UPhysicalMaterial>();
 		}
 	}
-
+	
 	UPhysicalMaterial::SetEngineDefaultPhysMaterial(DefaultPhysMaterial);
+
+	if (DefaultDestructiblePhysMaterial == NULL)
+	{
+		FString ValidDefaultDestructiblePhysMaterialName = DefaultDestructiblePhysMaterialName.ToString();
+		if (ValidDefaultDestructiblePhysMaterialName.IsEmpty())
+		{
+			UE_LOG(LogEngine, Warning, TEXT("The default destructible physics material was not found. Using default destructible physics material instead. Please make sure to have the default destructible physics material is set up correctly."));
+			ValidDefaultDestructiblePhysMaterialName = TEXT("/Engine/EngineMaterials/DefaultDestructiblePhysicalMaterial.DefaultDestructiblePhysicalMaterial");
+		}
+
+		DefaultDestructiblePhysMaterial = LoadObject<UPhysicalMaterial>(NULL, *ValidDefaultDestructiblePhysMaterialName, NULL, LOAD_None, NULL);
+		if (!DefaultDestructiblePhysMaterial)
+		{
+			UE_LOG(LogEngine, Error, TEXT("The default physical material for destruction (%s) was not found. Please make sure you have a default physical material fo destruction set up correctly."), *ValidDefaultDestructiblePhysMaterialName);
+			DefaultDestructiblePhysMaterial = NewObject<UPhysicalMaterial>();
+		}
+	}
+
+	UPhysicalMaterial::SetEngineDefaultDestructiblePhysMaterial(DefaultPhysMaterial);
 
 	LoadEngineClass<UConsole>(ConsoleClassName, ConsoleClass);
 	LoadEngineClass<UGameViewportClient>(GameViewportClientClassName, GameViewportClientClass);

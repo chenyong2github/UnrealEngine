@@ -121,6 +121,8 @@ public:
 
 	static void SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material);
 
+	static void SetEngineDefaultDestructiblePhysMaterial(UPhysicalMaterial* Material);
+
 	/** Determine Material Type from input PhysicalMaterial **/
 	static EPhysicalSurface DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial);
 };

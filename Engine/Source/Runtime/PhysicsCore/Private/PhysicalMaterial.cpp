@@ -128,6 +128,13 @@ void UPhysicalMaterial::SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material
 	GEngineDefaultPhysMaterial = Material;
 }
 
+static UPhysicalMaterial* GEngineDefaultDestructiblePhysMaterial = nullptr;
+
+void UPhysicalMaterial::SetEngineDefaultDestructiblePhysMaterial(UPhysicalMaterial* Material)
+{
+	GEngineDefaultDestructiblePhysMaterial = Material;
+}
+
 EPhysicalSurface UPhysicalMaterial::DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial)
 {
 	if (PhysicalMaterial == NULL)
