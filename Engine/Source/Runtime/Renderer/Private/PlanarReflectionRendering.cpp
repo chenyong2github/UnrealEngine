@@ -32,6 +32,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "SceneTextureParameters.h"
+#include "SceneViewExtension.h"
 
 void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, FPlanarReflectionUniformParameters& OutParameters)
 {
@@ -281,6 +282,9 @@ static void UpdatePlanarReflectionContents_RenderThread(
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
 
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// Make sure we render to the same set of GPUs as the main scene renderer.
@@ -428,6 +432,10 @@ static void UpdatePlanarReflectionContentsWithoutRendering_RenderThread(
 	const FName OwnerName)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
+
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	FBox PlanarReflectionBounds = SceneProxy->WorldBounds;
@@ -512,13 +520,13 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 
 		const bool bIsMobilePixelProjectedReflectionEnabled = IsMobilePixelProjectedReflectionEnabled(GetShaderPlatform());
 
-		const bool bIsRenderTargetValid = CaptureComponent->RenderTarget != NULL
+		const bool bIsRenderTargetValid = CaptureComponent->RenderTarget != nullptr
 									&& CaptureComponent->RenderTarget->GetSizeXY() == DesiredPlanarReflectionTextureSize
 									// The RenderTarget's TextureRHI could be nullptr if it is used for mobile pixel projected reflection.
 									&& (bIsMobilePixelProjectedReflectionEnabled || CaptureComponent->RenderTarget->TextureRHI.IsValid());
 		
 
-		if (CaptureComponent->RenderTarget != NULL && !bIsRenderTargetValid)
+		if (CaptureComponent->RenderTarget != nullptr && !bIsRenderTargetValid)
 		{
 			FPlanarReflectionRenderTarget* RenderTarget = CaptureComponent->RenderTarget;
 			ENQUEUE_RENDER_COMMAND(ReleaseRenderTargetCommand)(
@@ -528,10 +536,10 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 					delete RenderTarget;
 				});
 
-			CaptureComponent->RenderTarget = NULL;
+			CaptureComponent->RenderTarget = nullptr;
 		}
 
-		if (CaptureComponent->RenderTarget == NULL)
+		if (CaptureComponent->RenderTarget == nullptr)
 		{
 			CaptureComponent->RenderTarget = new FPlanarReflectionRenderTarget(DesiredPlanarReflectionTextureSize);
 
@@ -618,6 +626,8 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		// Uses the exact same secondary view fraction on the planar reflection as the main viewport.
 		ViewFamily.SecondaryViewFraction = MainSceneRenderer.ViewFamily.SecondaryViewFraction;
 
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(this));
+
 		SetupViewFamilyForSceneCapture(
 			ViewFamily,
 			CaptureComponent,
@@ -636,13 +646,24 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		// Disable screen percentage on planar reflection renderer if main one has screen percentage disabled.
 		SceneRenderer->ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ViewFamily.EngineShowFlags.ScreenPercentage;
 
+		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+		{
+			Extension->SetupViewFamily(ViewFamily);
+		}
+
 		for (int32 ViewIndex = 0; ViewIndex < SceneCaptureViewInfo.Num(); ++ViewIndex)
 		{
-			SceneRenderer->Views[ViewIndex].GlobalClippingPlane = MirrorPlane;
+			FViewInfo& ViewInfo = SceneRenderer->Views[ViewIndex];
+			ViewInfo.GlobalClippingPlane = MirrorPlane;
 			// Jitter can't be removed completely due to the clipping plane
 			// Also, this prevents the prefilter pass, which reads from jittered depth, from having to do special handling of it's depth-dependent input
-			SceneRenderer->Views[ViewIndex].bAllowTemporalJitter = false;
-			SceneRenderer->Views[ViewIndex].bRenderSceneTwoSided = CaptureComponent->bRenderSceneTwoSided;
+			ViewInfo.bAllowTemporalJitter = false;
+			ViewInfo.bRenderSceneTwoSided = CaptureComponent->bRenderSceneTwoSided;
+
+			for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+			{
+				Extension->SetupView(ViewFamily, ViewInfo);
+			}
 
 			CaptureComponent->ProjectionWithExtraFOV[ViewIndex] = SceneCaptureViewInfo[ViewIndex].ProjectionMatrix;
 

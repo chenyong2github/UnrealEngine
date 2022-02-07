@@ -1694,7 +1694,16 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	// Draw the player views.
 	if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 	{
-		GetRendererModule().BeginRenderingViewFamily(SceneCanvas,&ViewFamily);
+		// Views 
+		for (auto ViewExt : ViewFamily.ViewExtensions)
+		{
+			for (FSceneView* View : Views)
+			{
+				ViewExt->SetupView(ViewFamily, *View);
+			}
+		}
+
+		GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
 	}
 	else
 	{

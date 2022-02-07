@@ -4066,6 +4066,9 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
 
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
@@ -4333,14 +4336,6 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 		{
 			USceneCaptureComponent::UpdateDeferredCaptures(Scene);
 		}
-
-		// We need to execute the pre-render view extensions before we do any view dependent work.
-		// Anything between here and FDrawSceneCommand will add to HMD view latency
-		ENQUEUE_RENDER_COMMAND(FViewExtensionPreDrawCommand)(
-			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
-			{
-				FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
-			});
 
 		if (!SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
 		{

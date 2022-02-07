@@ -14,7 +14,7 @@ public:
 	/** Constructor */
 	FGeometryCollectionThumbnailScene();
 
-	/** Sets the geometry collection to use in the next GetView() */
+	/** Sets the geometry collection to use in the next CreateView() */
 	void SetGeometryCollection(UGeometryCollection* GeometryCollection);
 
 protected:

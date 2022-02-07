@@ -278,6 +278,9 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 	bool bOrthographicCamera
 	)
 {
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
@@ -360,6 +363,9 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	const FGenerateMipsParams& GenerateMipsParams,
 	bool bDisableFlipCopyGLES)
 {
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
+
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 
 	// update any resources that needed a deferred update
@@ -1089,9 +1095,6 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 					TextureRenderTargetResource->SetActiveGPUMask(FRHIGPUMask::All());
 				}
 
-				// We need to execute the pre-render view extensions before we do any view dependent work.
-				FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
-
 				FResolveParams ResolveParams;
 
 				if (bEnableOrthographicTiling)
@@ -1215,9 +1218,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 
 				bool bCaptureSceneColor = CaptureNeedsSceneColor(CaptureComponent->CaptureSource);
 
-				FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent, 
-				    TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix, 
-					Location, ProjectionMatrix, false, CaptureComponent->MaxViewDistanceOverride, 
+				FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent,
+					TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix,
+					Location, ProjectionMatrix, false, CaptureComponent->MaxViewDistanceOverride,
 					bCaptureSceneColor, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
 
 				SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
@@ -1234,9 +1237,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				}
 				ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 					[SceneRenderer, TextureRenderTarget, EventName, TargetFace](FRHICommandListImmediate& RHICmdList)
-				{
+					{
 						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, FResolveParams(FResolveRect(), TargetFace), false, FGenerateMipsParams(), false, true, false);
-				}
+					}
 				);
 			}
 		}

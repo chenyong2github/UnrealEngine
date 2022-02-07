@@ -34,8 +34,7 @@ void UGeometryCollectionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 
 		ViewFamily.EngineShowFlags.MotionBlur = 0;
 		ViewFamily.EngineShowFlags.LOD = 0;
 
-		ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
-		RenderViewFamily(Canvas, &ViewFamily);
+		RenderViewFamily(Canvas, &ViewFamily, ThumbnailScene->CreateView(&ViewFamily, X, Y, Width, Height));
 		ThumbnailScene->SetGeometryCollection(nullptr);
 	}
 }

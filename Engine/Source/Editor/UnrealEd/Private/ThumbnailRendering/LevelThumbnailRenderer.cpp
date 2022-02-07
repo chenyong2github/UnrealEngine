@@ -28,23 +28,11 @@ void ULevelThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Wid
 		ViewFamily.EngineShowFlags.SetDistanceCulledPrimitives(true); // show distance culled objects
 		ViewFamily.EngineShowFlags.SetPostProcessing(false);
 
-		FSceneView* NewView = GetView(Level, &ViewFamily, X, Y, Width, Height);
-
-		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Level->OwningWorld->Scene));
-		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
-		{
-			Extension->SetupViewFamily(ViewFamily);
-			Extension->SetupView(ViewFamily, *NewView);
-		}
-
-		if (NewView)
-		{
-			RenderViewFamily(Canvas, &ViewFamily);
-		}
+		RenderViewFamily(Canvas, &ViewFamily, CreateView(Level, &ViewFamily, X, Y, Width, Height));
 	}
 }
 
-FSceneView* ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const
+FSceneView* ULevelThumbnailRenderer::CreateView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const 
 {
 	check(ViewFamily);
 
@@ -55,7 +43,6 @@ FSceneView* ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* Vi
 		FMath::Max<int32>(Y+SizeY,0));
 
 	FBox LevelBox(ForceInit);
-	FSceneView* NewView = nullptr;
 
 	if (Level->LevelBoundsActor.IsValid())
 	{
@@ -66,33 +53,33 @@ FSceneView* ULevelThumbnailRenderer::GetView(ULevel* Level, FSceneViewFamily* Vi
 		LevelBox = ALevelBounds::CalculateLevelBounds(Level);
 	}
 
-	if (ViewRect.Width() > 0 && ViewRect.Height() > 0)
+	if (ViewRect.Area() <= 0)
 	{
-		FSceneViewInitOptions ViewInitOptions;
-
-		ViewInitOptions.SetViewRectangle(ViewRect);
-		ViewInitOptions.ViewFamily = ViewFamily;
-
-		const FVector ViewPoint = LevelBox.GetCenter();
-		ViewInitOptions.ViewOrigin = FVector(ViewPoint.X, ViewPoint.Y, 0);
-		ViewInitOptions.ViewRotationMatrix = FMatrix(
-			FPlane(1,				0,				0,		0),
-			FPlane(0,				-1,				0,		0),
-			FPlane(0,				0,				-1,		0),
-			FPlane(0,				0,				0,		1));
-
-		const float ZOffset = WORLD_MAX;
-		ViewInitOptions.ProjectionMatrix =  FReversedZOrthoMatrix(
-			LevelBox.GetSize().X/2.f,
-			LevelBox.GetSize().Y/2.f,
-			0.5f / ZOffset,
-			ZOffset
-			);
-
-		NewView = new FSceneView(ViewInitOptions);
-
-		ViewFamily->Views.Add(NewView);
+		return nullptr;
 	}
 
+	FSceneViewInitOptions ViewInitOptions;
+
+	ViewInitOptions.SetViewRectangle(ViewRect);
+	ViewInitOptions.ViewFamily = ViewFamily;
+
+	const FVector ViewPoint = LevelBox.GetCenter();
+	ViewInitOptions.ViewOrigin = FVector(ViewPoint.X, ViewPoint.Y, 0);
+	ViewInitOptions.ViewRotationMatrix = FMatrix(
+		FPlane(1,				0,				0,		0),
+		FPlane(0,				-1,				0,		0),
+		FPlane(0,				0,				-1,		0),
+		FPlane(0,				0,				0,		1));
+
+	const float ZOffset = WORLD_MAX;
+	ViewInitOptions.ProjectionMatrix =  FReversedZOrthoMatrix(
+		LevelBox.GetSize().X/2.f,
+		LevelBox.GetSize().Y/2.f,
+		0.5f / ZOffset,
+		ZOffset
+		);
+
+	FSceneView* NewView = new FSceneView(ViewInitOptions);
+	ViewFamily->Views.Add(NewView);
 	return NewView;
 }

@@ -21,8 +21,11 @@ public:
 	/** Constructor */
 	FThumbnailPreviewScene();
 
-	/** Allocates then adds an FSceneView to the ViewFamily. */
+	UE_DEPRECATED(5.0, "Use CreateView")
 	void GetView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
+
+	/** Allocates then adds an FSceneView to the ViewFamily. */
+	FSceneView* CreateView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
 
 	/* Begin FTickableEditorObject */
 	virtual void Tick(float DeltaTime) override;
@@ -35,7 +38,7 @@ protected:
 	float GetBoundsZOffset(const FBoxSphereBounds& Bounds) const;
 
 	/**
-	  * Gets parameters to create a view matrix to be used by GetView(). Implemented in children classes.
+	  * Gets parameters to create a view matrix to be used by CreateView(). Implemented in children classes.
 	  * @param InFOVDegrees  The FOV used to display the thumbnail. Often used to calculate the output parameters.
 	  * @param OutOrigin	 The origin of the orbit view. Typically the center of the bounds of the target object.
 	  * @param OutOrbitPitch The pitch of the orbit cam around the object.
@@ -52,7 +55,7 @@ public:
 	FParticleSystemThumbnailScene();
 	virtual ~FParticleSystemThumbnailScene();
 
-	/** Sets the particle system to use in the next GetView() */
+	/** Sets the particle system to use in the next CreateView() */
 	void SetParticleSystem(class UParticleSystem* ParticleSystem);
 
 protected:
@@ -73,7 +76,7 @@ public:
 	/** Constructor */
 	FMaterialThumbnailScene();
 
-	/** Sets the material to use in the next GetView() */
+	/** Sets the material to use in the next CreateView() */
 	void SetMaterialInterface(class UMaterialInterface* InMaterial);
 
 	bool ShouldSetSeparateTranslucency(class UMaterialInterface* InMaterial) const;
@@ -95,7 +98,7 @@ public:
 	/** Constructor */
 	FSkeletalMeshThumbnailScene();
 
-	/** Sets the skeletal mesh to use in the next GetView() */
+	/** Sets the skeletal mesh to use in the next CreateView() */
 	void SetSkeletalMesh(class USkeletalMesh* InSkeletalMesh);
 
 	/** Set whether to draw debug skeleton */
@@ -125,7 +128,7 @@ public:
 	/** Constructor */
 	FStaticMeshThumbnailScene();
 
-	/** Sets the static mesh to use in the next GetView() */
+	/** Sets the static mesh to use in the next CreateView() */
 	void SetStaticMesh(class UStaticMesh* StaticMesh);
 
 	/** Sets override materials for the static mesh  */
@@ -152,7 +155,7 @@ public:
 	/** Constructor */
 	FAnimationSequenceThumbnailScene();
 
-	/** Sets the animation to use in the next GetView() */
+	/** Sets the animation to use in the next CreateView() */
 	bool SetAnimation(class UAnimSequenceBase* InAnimation);
 
 protected:
@@ -176,7 +179,7 @@ public:
 	/** Constructor */
 	FBlendSpaceThumbnailScene();
 
-	/** Sets the animation to use in the next GetView() */
+	/** Sets the animation to use in the next CreateView() */
 	bool SetBlendSpace(class UBlendSpace* InBlendSpace);
 
 protected:
@@ -200,7 +203,7 @@ public:
 	/** Constructor */
 	FAnimBlueprintThumbnailScene();
 
-	/** Sets the animation blueprint to use in the next GetView() */
+	/** Sets the animation blueprint to use in the next CreateView() */
 	bool SetAnimBlueprint(class UAnimBlueprint* InBlueprint);
 
 protected:
@@ -224,7 +227,7 @@ public:
 	/** Constructor */
 	FPhysicsAssetThumbnailScene();
 
-	/** Sets the skeletal mesh to use in the next GetView() */
+	/** Sets the skeletal mesh to use in the next CreateView() */
 	void SetPhysicsAsset(class UPhysicsAsset* InPhysicsAsset);
 
 protected:
@@ -251,7 +254,7 @@ protected:
 	// FThumbnailPreviewScene implementation
 	virtual void GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const override;
 
-	/** Sets the object (class or blueprint) used in the next GetView() */
+	/** Sets the object (class or blueprint) used in the next CreateView() */
 	void SpawnPreviewActor(class UClass* Obj);
 
 	/** Get the scene thumbnail info to use for the object currently being rendered */
@@ -274,7 +277,7 @@ public:
 	/** Constructor/Destructor */
 	FBlueprintThumbnailScene();
 
-	/** Sets the static mesh to use in the next GetView() */
+	/** Sets the static mesh to use in the next CreateView() */
 	void SetBlueprint(class UBlueprint* Blueprint);
 
 	/** Refreshes components for the specified blueprint */
@@ -296,7 +299,7 @@ public:
 	/** Constructor/Destructor */
 	FClassThumbnailScene();
 
-	/** Sets the class use in the next GetView() */
+	/** Sets the class use in the next CreateView() */
 	void SetClass(class UClass* Class);
 
 protected:

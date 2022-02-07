@@ -57,12 +57,7 @@ void UMaterialFunctionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
 			ViewFamily.EngineShowFlags.MotionBlur = 0;
 
-			ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
-
-			if (ViewFamily.Views.Num() > 0)
-			{
-				RenderViewFamily(Canvas,&ViewFamily);
-			}
+			RenderViewFamily(Canvas, &ViewFamily, ThumbnailScene->CreateView(&ViewFamily, X, Y, Width, Height));
 
 			ThumbnailScene->SetMaterialInterface(nullptr);
 		}

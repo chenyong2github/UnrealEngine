@@ -90,17 +90,12 @@ void UMaterialInstanceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 				.SetTime(UThumbnailRenderer::GetTime())
 				.SetAdditionalViewFamily(bAdditionalViewFamily));
 
-
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
 			ViewFamily.EngineShowFlags.SetSeparateTranslucency(ThumbnailScene->ShouldSetSeparateTranslucency(MatInst));
 			ViewFamily.EngineShowFlags.MotionBlur = 0;
 			ViewFamily.EngineShowFlags.AntiAliasing = 0;
-			ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
 
-			if (ViewFamily.Views.Num() > 0)
-			{
-				RenderViewFamily(Canvas, &ViewFamily);
-			}
+			RenderViewFamily(Canvas, &ViewFamily, ThumbnailScene->CreateView(&ViewFamily, X, Y, Width, Height));
 
 			ThumbnailScene->SetMaterialInterface(nullptr);
 		}

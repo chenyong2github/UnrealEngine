@@ -29,6 +29,6 @@ class ULevelThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	// End UThumbnailRenderer Object
 
 private:
-	FSceneView* GetView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
+	FSceneView* CreateView(ULevel* Level, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const; 
 };
 

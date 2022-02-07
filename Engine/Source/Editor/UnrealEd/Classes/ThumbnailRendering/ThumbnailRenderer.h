@@ -83,6 +83,9 @@ public:
 
 protected:
 	/** Renders the thumbnail's view family. */
+	UNREALED_API static void RenderViewFamily(FCanvas* Canvas, class FSceneViewFamily* ViewFamily, class FSceneView* View);
+
+	UE_DEPRECATED(5.0, "Please use the prototype of RenderViewFamily which takes a non-const view in parameter : like the view family the view is still not quite final until SetupView is called.")
 	UNREALED_API static void RenderViewFamily(FCanvas* Canvas, class FSceneViewFamily* ViewFamily);
 
 	UNREALED_API static struct FGameTime GetTime();

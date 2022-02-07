@@ -14,7 +14,7 @@ public:
 	/** Constructor */
 	FGeometryCacheThumbnailScene();
 
-	/** Sets the static mesh to use in the next GetView() */
+	/** Sets the static mesh to use in the next CreateView() */
 	void SetGeometryCache(UGeometryCache* GeometryCache);
 
 protected:

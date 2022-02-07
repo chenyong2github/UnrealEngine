@@ -31,7 +31,7 @@ public:
 	/** Constructor */
 	FVolumeTextureThumbnailScene();
 
-	/** Sets the material to use in the next GetView() */
+	/** Sets the material to use in the next CreateView() */
 	void SetMaterialInterface(UMaterialInstance* InMaterial);
 
 protected:
@@ -169,12 +169,7 @@ void UVolumeTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, ui
 			ViewFamily.EngineShowFlags.MotionBlur = 0;
 			ViewFamily.EngineShowFlags.AntiAliasing = 0;
 
-			ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
-
-			if (ViewFamily.Views.Num() > 0)
-			{
-				RenderViewFamily(Canvas, &ViewFamily);
-			}
+			RenderViewFamily(Canvas, &ViewFamily, ThumbnailScene->CreateView(&ViewFamily, X, Y, Width, Height));
 		}
 
 		ThumbnailScene->SetMaterialInterface(nullptr);

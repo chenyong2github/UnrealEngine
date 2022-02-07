@@ -36,8 +36,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ViewFamily.EngineShowFlags.MotionBlur = 0;
 		ViewFamily.EngineShowFlags.LOD = 0;
 
-		ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
-		RenderViewFamily(Canvas,&ViewFamily);
+		RenderViewFamily(Canvas, &ViewFamily, ThumbnailScene->CreateView(&ViewFamily, X, Y, Width, Height));
 		ThumbnailScene->SetDestructibleMesh(nullptr);
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
