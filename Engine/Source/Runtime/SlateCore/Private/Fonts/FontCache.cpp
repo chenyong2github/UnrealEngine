@@ -11,7 +11,6 @@
 #include "Fonts/SlateTextShaper.h"
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Fonts/FontCacheUtils.h"
-#include "UObject/GCObject.h"
 
 #include <limits>
 
@@ -110,41 +109,6 @@ FShapedGlyphEntryKey::FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFac
 	KeyHash = HashCombine(KeyHash, GetTypeHash(GlyphIndex));
 }
 
-
-namespace UE::Slate::Private
-{
-	/** Garbage collection */
-	struct FShapedGlyphSequenceMaterialReferenceCollector : public FGCObject
-	{
-	private:
-		FShapedGlyphSequenceMaterialReferenceCollector() = default;
-
-	public:
-		static FShapedGlyphSequenceMaterialReferenceCollector& Get()
-		{
-			static FShapedGlyphSequenceMaterialReferenceCollector Instance;
-			return Instance;
-		}
-
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override
-		{
-			for(FShapedGlyphSequence* Element : AllSequences)
-			{
-				Collector.AddReferencedObject(Element->FontMaterial);
-				Collector.AddReferencedObject(Element->OutlineSettings.OutlineMaterial);
-			}
-		}
-
-		virtual FString GetReferencerName() const override
-		{
-			return TEXT("FShapedGlyphSequence");
-		}
-
-		TSet<FShapedGlyphSequence*> AllSequences;
-	};
-}
-
-
 FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToRender, const int16 InTextBaseline, const uint16 InMaxTextHeight, const UObject* InFontMaterial, const FFontOutlineSettings& InOutlineSettings, const FSourceTextRange& InSourceTextRange)
 	: GlyphsToRender(MoveTemp(InGlyphsToRender))
 	, TextBaseline(InTextBaseline)
@@ -154,7 +118,6 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 	, SequenceWidth(0)
 	, GlyphFontFaces()
 	, SourceIndicesToGlyphData(InSourceTextRange)
-	, bAddedToGC(false)
 {
 	const int32 NumGlyphsToRender = GlyphsToRender.Num();
 	for (int32 CurrentGlyphIndex = 0; CurrentGlyphIndex < NumGlyphsToRender; ++CurrentGlyphIndex)
@@ -218,23 +181,12 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 		}
 	}
 
-	if (FontMaterial || OutlineSettings.OutlineMaterial)
-	{
-		UE::Slate::Private::FShapedGlyphSequenceMaterialReferenceCollector::Get().AllSequences.Add(this);
-		bAddedToGC = true;
-	}
-
 	// Track memory usage
 	INC_MEMORY_STAT_BY(STAT_SlateShapedGlyphSequenceMemory, GetAllocatedSize());
 }
 
 FShapedGlyphSequence::~FShapedGlyphSequence()
 {
-	if (bAddedToGC)
-	{
-		UE::Slate::Private::FShapedGlyphSequenceMaterialReferenceCollector::Get().AllSequences.Remove(this);
-	}
-
 	// Untrack memory usage
 	DEC_MEMORY_STAT_BY(STAT_SlateShapedGlyphSequenceMemory, GetAllocatedSize());
 }
@@ -468,6 +420,12 @@ FShapedGlyphSequencePtr FShapedGlyphSequence::GetSubSequence(const int32 InStart
 	}
 
 	return nullptr;
+}
+
+void FShapedGlyphSequence::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(FontMaterial);
+	Collector.AddReferencedObject(OutlineSettings.OutlineMaterial);
 }
 
 FShapedGlyphSequence::EEnumerateGlyphsResult FShapedGlyphSequence::EnumerateLogicalGlyphsInSourceRange(const int32 InStartIndex, const int32 InEndIndex, const FForEachShapedGlyphEntryCallback& InGlyphCallback) const

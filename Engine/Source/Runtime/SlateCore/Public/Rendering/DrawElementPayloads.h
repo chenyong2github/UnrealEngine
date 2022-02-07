@@ -187,6 +187,19 @@ struct FSlateShapedTextPayload : public FSlateDataPayload, public FSlateTintable
 		OverflowArgs = InArgs;
 		check(InArgs.OverflowDirection == ETextOverflowDirection::NoOverflow || InArgs.OverflowTextPtr.IsValid());
 	}
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		if (ShapedGlyphSequence.IsValid())
+		{
+			const_cast<FShapedGlyphSequence*>(ShapedGlyphSequence.Get())->AddReferencedObjects(Collector);
+		}
+
+		if (OverflowArgs.OverflowTextPtr.IsValid())
+		{
+			const_cast<FShapedGlyphSequence*>(OverflowArgs.OverflowTextPtr.Get())->AddReferencedObjects(Collector);
+		}
+	}
 };
 
 struct FSlateGradientPayload : public FSlateDataPayload
