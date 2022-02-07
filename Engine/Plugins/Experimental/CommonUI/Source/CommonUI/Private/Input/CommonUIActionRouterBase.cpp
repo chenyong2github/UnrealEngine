@@ -644,7 +644,10 @@ void UCommonUIActionRouterBase::HandlePostGarbageCollect()
 	{
 		if (!Iter->Get().IsWidgetValid())
 		{
-			RemoveFromActionDomain(*Iter);
+			if (bEnableActionDomainRouting)
+			{
+				RemoveFromActionDomain(*Iter);
+			}
 			Iter.RemoveCurrent();
 		}
 	}
