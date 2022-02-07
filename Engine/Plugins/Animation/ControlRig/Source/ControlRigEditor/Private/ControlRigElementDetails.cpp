@@ -2798,7 +2798,7 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("ShapeProperties", "Shape Properties"))
-		.ToolTipText(LOCTEXT("ShapeProperties", "Customize the properties of the shape"))
+		.ToolTipText(LOCTEXT("ShapePropertiesTooltip", "Customize the properties of the shape"))
 	]
 	.CopyAction(FUIAction(
 		FExecuteAction::CreateSP(this, &FRigControlElementDetails::OnCopyShapeProperties)))

@@ -1813,7 +1813,7 @@ void SRigHierarchy::HandlePasteItems()
 		FString Content;
 		FPlatformApplicationMisc::ClipboardPaste(Content);
 
-		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePaste", "Pasted rig elements."));
+		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePastedRigElements", "Pasted rig elements."));
 
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
@@ -1866,7 +1866,7 @@ void SRigHierarchy::HandlePasteTransforms(ERigTransformType::Type InTransformTyp
 		FString Content;
 		FPlatformApplicationMisc::ClipboardPaste(Content);
 
-		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePaste", "Pasted transforms."));
+		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePastedTransform", "Pasted transforms."));
 
 		SRigHierarchyPasteTransformsErrorPipe ErrorPipe;
 		FRigHierarchyCopyPasteContent Data;

@@ -3285,11 +3285,11 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("HotKey"), HotKeyText);
-				return FText::Format(LOCTEXT("ControlRigBPViewportShapeTransformEditNotification", "Currently Manipulating Shape Transform - Press {HotKey} to Exit"), Args);
+				return FText::Format(LOCTEXT("ControlRigBPViewportShapeTransformEditNotificationPress", "Currently Manipulating Shape Transform - Press {HotKey} to Exit"), Args);
 			}
 		}
 		
-		return LOCTEXT("ControlRigBPViewportShapeTransformEditNotification", "Currently Manipulating Shape Transform - Assign a Hotkey and Use It to Exit");
+		return LOCTEXT("ControlRigBPViewportShapeTransformEditNotificationAssign", "Currently Manipulating Shape Transform - Assign a Hotkey and Use It to Exit");
 	};
 
 	auto GetChangingShapeTransformTextVisibility = [this]()

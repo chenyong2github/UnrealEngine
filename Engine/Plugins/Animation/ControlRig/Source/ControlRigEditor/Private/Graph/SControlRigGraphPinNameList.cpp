@@ -99,7 +99,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 				.ButtonColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetBackground )
 				.OnClicked(this, &SControlRigGraphPinNameList::OnBrowseClicked)
 				.ContentPadding(0)
-				.ToolTipText(NSLOCTEXT("GraphEditor", "ObjectGraphPin_Browse_Tooltip", "Browse"))
+				.ToolTipText(NSLOCTEXT("SControlRigGraphPinNameList", "ObjectGraphPin_Browse_Tooltip", "Browse"))
 				[
 					SNew(SImage)
 					.ColorAndOpacity( this, &SControlRigGraphPinNameList::OnGetWidgetForeground )
