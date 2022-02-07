@@ -8,10 +8,11 @@ public class RenderDoc : ModuleRules
 	{
 		Type = ModuleType.External;
 
-        if (Target.Platform == UnrealTargetPlatform.Win64)
-        {
-            string ApiPath = Target.UEThirdPartySourceDirectory + "RenderDoc/";
-            PublicSystemIncludePaths.Add(ApiPath);
-        }
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			string ApiPath = Target.UEThirdPartySourceDirectory + "RenderDoc/";
+			PublicSystemIncludePaths.Add(ApiPath);
+		}
     }
 }
