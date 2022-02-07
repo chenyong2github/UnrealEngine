@@ -134,7 +134,7 @@ void UMeshDescriptionBaseBulkData::RemoveMeshDescription()
 {
 	if (MeshDescription != nullptr)
 	{
-		MeshDescription->Empty();
+		MeshDescription->Reset();
 		MeshDescription = nullptr;
 	}
 }
