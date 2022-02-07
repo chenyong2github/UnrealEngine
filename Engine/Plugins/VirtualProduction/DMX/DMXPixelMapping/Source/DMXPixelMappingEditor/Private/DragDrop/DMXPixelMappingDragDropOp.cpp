@@ -68,7 +68,7 @@ TSharedRef<FDMXPixelMappingDragDropOp> FDMXPixelMappingDragDropOp::New(const FVe
 	Operation->SetDecoratorVisibility(false);
 
 	// Create a transaction for dragged templates
-	Operation->TransactionIndex = GEditor->BeginTransaction(FText::Format(LOCTEXT("DragDropTransaction", "PixelMapping: Add {0}|plural(one=Component, other=Components)"), InTemplates.Num()));
+	Operation->TransactionIndex = GEditor->BeginTransaction(FText::Format(LOCTEXT("DragDropTemplateTransaction", "PixelMapping: Add {0}|plural(one=Component, other=Components)"), InTemplates.Num()));
 
 	return Operation;
 }
@@ -86,7 +86,7 @@ TSharedRef<FDMXPixelMappingDragDropOp> FDMXPixelMappingDragDropOp::New(const FVe
 	Operation->SetDecoratorVisibility(false);
 
 	// Create a transaction for dragged components
-	Operation->TransactionIndex = GEditor->BeginTransaction(FText::Format(LOCTEXT("DragDropTransaction", "PixelMapping: Drag {0}|plural(one=Component, other=Components)"), InDraggedComponents.Num()));
+	Operation->TransactionIndex = GEditor->BeginTransaction(FText::Format(LOCTEXT("DragDropComponentTransaction", "PixelMapping: Drag {0}|plural(one=Component, other=Components)"), InDraggedComponents.Num()));
 
 	return Operation;
 }

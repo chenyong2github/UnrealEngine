@@ -365,7 +365,7 @@ TSharedRef<SWidget> SCameraCalibrationSteps::BuildOverlayWidget()
 					return FText::FromName(*OverlayComboBox->GetSelectedItem());
 				}
 
-				return LOCTEXT("InvalidComboOption", "None");
+				return LOCTEXT("NoneComboOption", "None");
 			})
 		];
 

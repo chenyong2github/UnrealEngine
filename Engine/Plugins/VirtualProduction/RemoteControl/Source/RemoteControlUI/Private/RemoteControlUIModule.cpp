@@ -825,11 +825,11 @@ FText FRemoteControlUIModule::GetExposePropertyButtonText(const FRCExposesProper
 {
 	if (GetPropertyExposeStatus(InPropertyArgs) == EPropertyExposeStatus::Exposed)
 	{
-		return LOCTEXT("ExposePropertyToolTip", "Unexpose property");
+		return LOCTEXT("ExposePropertyText", "Unexpose property");
 	}
 	else
 	{
-		return LOCTEXT("UnexposePropertyToolTip", "Expose property");
+		return LOCTEXT("UnexposePropertyText", "Expose property");
 	}
 }
 

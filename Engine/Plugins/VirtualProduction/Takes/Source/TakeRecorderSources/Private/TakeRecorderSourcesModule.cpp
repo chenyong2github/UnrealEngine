@@ -455,7 +455,7 @@ public:
 				FText RecordText;
 				if (SelectedActors.Num() == 1)
 				{
-					RecordText = FText::Format(LOCTEXT("RecordSelectedActorsText", "Record {0} with Take Recorder"), FText::FromString(SelectedActors[0]->GetActorLabel()));
+					RecordText = FText::Format(LOCTEXT("RecordSingleSelectedActorText", "Record {0} with Take Recorder"), FText::FromString(SelectedActors[0]->GetActorLabel()));
 				}
 				else
 				{

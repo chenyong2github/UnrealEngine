@@ -244,7 +244,7 @@ void FDMXInputPortConfigCustomization::OnIPAddressSelected()
 {
 	FString SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
-	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected IP Address"));
+	const FScopedTransaction Transaction(LOCTEXT("IPAddressSelected", "DMX: Selected IP Address"));
 	
 	DeviceAddressHandle->NotifyPreChange();
 	ensure(DeviceAddressHandle->SetValue(SelectedIP) == FPropertyAccess::Success);	

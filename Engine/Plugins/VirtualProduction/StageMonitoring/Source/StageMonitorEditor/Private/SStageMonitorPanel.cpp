@@ -202,7 +202,7 @@ void SStageMonitorPanel::Construct(const FArguments& InArgs)
 					[
 						SNew(SCheckBox)
 						.Style(FStageMonitorEditorStyle::Get(), "ViewMode")
-						.ToolTipText(LOCTEXT("ViewModeTooltip", "Start / stop monitor"))
+						.ToolTipText(LOCTEXT("ActivateMonitorTooltip", "Start / stop monitor"))
 						.IsChecked(this, &SStageMonitorPanel::IsMonitorActive)
 						.OnCheckStateChanged(this, &SStageMonitorPanel::OnMonitorStateChanged)
 						[

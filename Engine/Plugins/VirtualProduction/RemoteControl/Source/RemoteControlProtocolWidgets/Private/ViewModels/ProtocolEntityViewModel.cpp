@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProtocolEntityViewModel.h"
 
@@ -146,7 +146,7 @@ bool FProtocolEntityViewModel::CanAddBinding(const FName& InProtocolName, FText&
 	}
 
 	// Remaining should be strings, enums
-	OutMessage = FText::Format(LOCTEXT("UnsupportedType", "Unsupported Type \"{0}\" for Protocol Binding"), GetProperty()->GetClass()->GetDisplayNameText());
+	OutMessage = FText::Format(LOCTEXT("UnsupportedTypeForBinding", "Unsupported Type \"{0}\" for Protocol Binding"), GetProperty()->GetClass()->GetDisplayNameText());
 	return false;
 }
 

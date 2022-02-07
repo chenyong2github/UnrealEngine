@@ -159,9 +159,9 @@ FText FLensFocalLengthCurveModel::GetValueLabel() const
 {
 	if (ParameterIndex == INDEX_NONE)
 	{
-		return LOCTEXT("ZoomValueLabel", "(mm)");
+		return LOCTEXT("ZoomValueLabelMM", "(mm)");
 	}
-	return LOCTEXT("ZoomValueLabel", "(normalized)");
+	return LOCTEXT("ZoomValueLabelNormalized", "(normalized)");
 }
 
 FText FLensFocalLengthCurveModel::GetValueUnitSuffixLabel() const

@@ -7,7 +7,7 @@
 #include "PropertyHandle.h"
 #include "Misc/DefaultValueHelper.h"
 
-#define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
+#define LOCTEXT_NAMESPACE "ProtocolRangeViewModel"
 
 TMap<FProtocolRangeViewModel::EValidity, FText> FProtocolRangeViewModel::ValidityMessages =
 {

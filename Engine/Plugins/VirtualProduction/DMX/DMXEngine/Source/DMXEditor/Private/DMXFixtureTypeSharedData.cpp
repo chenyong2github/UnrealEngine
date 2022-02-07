@@ -757,7 +757,7 @@ void FDMXFixtureTypeSharedData::PasteClipboardToFunctions(const TArray<int32>& F
 				{
 					if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 					{
-						const FScopedTransaction ModeNameTransaction = FScopedTransaction(LOCTEXT("PasteModeTransaction", "Pasted Fixture Type Mode"));
+						const FScopedTransaction ModeNameTransaction = FScopedTransaction(LOCTEXT("PasteModeTransaction", "Paste Fixture Type Mode"));
 
 						FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
 						FixtureType->Modify();

@@ -634,7 +634,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 		
 		CreatePickerSubMenu(
 			LOCTEXT("ActorFunctionSubMenu", "Actor Function"),
-			LOCTEXT("SubsystemFunctionSubMenuToolTip", "Expose an actor's function."),
+			LOCTEXT("ActorFunctionSubMenuToolTip", "Expose an actor's function."),
 			ActorFunctionPicker.ToSharedRef()
 		);
 		

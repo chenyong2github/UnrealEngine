@@ -518,7 +518,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeEvaluatedFIZWidget() const
 					{
 						const float FOV = FMath::RadiansToDegrees(2.f * FMath::Atan(LensFile->LensInfo.SensorDimensions.X / (2.f * CachedLiveLinkData.EvaluatedZoom.GetValue())));
 						const FText ValueText = FText::AsNumber(FOV, &FloatOptions);
-						return FText::Format(LOCTEXT("PhysicalUnitsZoomValue", "{0} deg"), ValueText);
+						return FText::Format(LOCTEXT("PhysicalUnitsFOVValue", "{0} deg"), ValueText);
 					}
 					return LOCTEXT("UndefinedValue", "N/A");
 				}))
@@ -656,7 +656,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 					{
 						const FText CxText = FText::AsNumber(CachedImageCenter.PrincipalPoint.X, &FloatOptions);
 						const FText CyText = FText::AsNumber(CachedImageCenter.PrincipalPoint.Y, &FloatOptions);
-						return FText::Format(LOCTEXT("LocationOffsetValue", "({0}, {1})"), CxText, CyText);
+						return FText::Format(LOCTEXT("PrincipalPointValue", "({0}, {1})"), CxText, CyText);
 					}
 					return LOCTEXT("UndefinedValue", "N/A");
 				}))
@@ -678,7 +678,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 					{
 						const FText FxText = FText::AsNumber(CachedFocalLengthInfo.FxFy.X, &FloatOptions);
 						const FText FyText = FText::AsNumber(CachedFocalLengthInfo.FxFy.Y, &FloatOptions);
-						return FText::Format(LOCTEXT("LocationOffsetValue", "({0}, {1})"), FxText, FyText);
+						return FText::Format(LOCTEXT("FxFyValue", "({0}, {1})"), FxText, FyText);
 					}
 					return LOCTEXT("UndefinedValue", "N/A");
 				}))
@@ -755,7 +755,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 						const FText RotXText = FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::X), &FloatOptions);
 						const FText RotYText = FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Y), &FloatOptions);
 						const FText RotZText = FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Z), &FloatOptions);
-						return FText::Format(LOCTEXT("LocationOffsetValue", "({0}, {1}, {2})"), RotXText, RotYText, RotZText);
+						return FText::Format(LOCTEXT("RotationOffsetValue", "({0}, {1}, {2})"), RotXText, RotYText, RotZText);
 					}
 					return LOCTEXT("UndefinedValue", "N/A");
 				}))

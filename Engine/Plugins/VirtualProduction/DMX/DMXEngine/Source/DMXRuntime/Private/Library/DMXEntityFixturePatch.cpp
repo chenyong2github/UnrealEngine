@@ -341,7 +341,7 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 	else if (!ParentFixtureTypeTemplate->Modes.IsValidIndex(ActiveMode))
 	{
 		OutReason = FText::Format(
-			LOCTEXT("InvalidReason_NoModesDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does no longer contain Active Mode."),
+			LOCTEXT("InvalidReason_NoActiveModes", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does no longer contain Active Mode."),
 			FText::FromString(GetDisplayName()),
 			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName())
 		);

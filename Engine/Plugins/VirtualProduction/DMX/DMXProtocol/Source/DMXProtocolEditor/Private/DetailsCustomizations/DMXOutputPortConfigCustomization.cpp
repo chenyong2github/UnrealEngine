@@ -285,7 +285,7 @@ void FDMXOutputPortConfigCustomization::OnIPAddressSelected()
 {
 	FString SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
-	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "Selected DMX Output Port IP Address"));
+	const FScopedTransaction Transaction(LOCTEXT("IPAddressSelected", "Selected DMX Output Port IP Address"));
 
 	DeviceAddressHandle->NotifyPreChange();
 	ensure(DeviceAddressHandle->SetValue(SelectedIP) == FPropertyAccess::Success);

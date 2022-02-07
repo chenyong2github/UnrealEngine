@@ -942,7 +942,7 @@ bool UCameraNodalOffsetAlgoPoints::BasicCalibrationChecksPass(const TArray<TShar
 	// Enough points
 	if (Rows.Num() < 4)
 	{
-		OutErrorMessage = LOCTEXT("NotEnoughSamples", "At least 4 correspondence points are required");
+		OutErrorMessage = LOCTEXT("LessThanFourSamples", "At least 4 correspondence points are required");
 		return false;
 	}
 
@@ -1963,7 +1963,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibratorParent()
 
 		if (Row->CameraData.CalibratorParentUniqueId != ParentActor->GetUniqueID())
 		{
-			ErrorMessage = LOCTEXT("WrongCalibrator", "All rows must belong to the same calibrator parent");
+			ErrorMessage = LOCTEXT("WrongCalibratorParent", "All rows must belong to the same calibrator parent");
 			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 
 			return false;

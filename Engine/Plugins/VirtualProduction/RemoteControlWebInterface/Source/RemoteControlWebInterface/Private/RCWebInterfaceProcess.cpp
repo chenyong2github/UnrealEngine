@@ -264,7 +264,7 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 	{
 		TaskNotification->SetComplete(
 			ErrorTitle,
-			LOCTEXT("RemoteControlWebInterface_LaunchFailed", "WebApp exited"),
+			LOCTEXT("RemoteControlWebInterface_AppExited", "WebApp exited"),
 			false
 		);
 	}
