@@ -109,11 +109,9 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 #if PLATFORM_WINDOWS
-	const FString StartScript = Root / TEXT("Start.bat");
-#elif PLATFORM_MAC
-	const FString StartScript = Root / TEXT("Start.command");
+	FString StartScript = Root / TEXT("Start.bat");
 #else
-	const FString StartScript = Root / TEXT("Start.sh");
+	FString StartScript = Root / TEXT("Start.sh");
 #endif
 
 	FText ErrorTitle = LOCTEXT("RemoteControlWebInterface_ErrorTitle", "Failed to Launch the Remote Control Web Interface");
@@ -162,6 +160,11 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 
 	check(ReadPipe);
 	check(WritePipe);
+	
+#if PLATFORM_MAC
+	Args = FString::Printf(TEXT("-l %s %s"), *StartScript, *Args);
+	StartScript = TEXT("/bin/sh");
+#endif // PLATFORM_MAC
 
 	Process = FPlatformProcess::CreateProc(
 		*StartScript,	/* Path to start script */
