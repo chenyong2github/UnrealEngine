@@ -333,34 +333,10 @@ public:
 		if (const ITargetPlatform* TargetPlatform = Cooker.AddCookOnTheFlyPlatform(CookPackageRequest.PlatformName))
 		{
 			Cooker.CookOnTheFlyDeferredInitialize();
-			Cooker.PlatformManager->AddRefCookOnTheFlyPlatform(CookPackageRequest.PlatformName, Cooker);
 			FName StandardFileName(*FPaths::CreateStandardFilename(CookPackageRequest.Filename));
-			FRequest* Request = AllocRequest();
-			Request->CookPackageRequest = MoveTemp(CookPackageRequest);
-
-			FCompletionCallback CookCompleted = [this, Request](FPackageData* PackageData)
-			{
-				const FPlatformData* PlatformData = Cooker.PlatformManager->GetPlatformDataByName(Request->CookPackageRequest.PlatformName);
-				check(PlatformData);
-				const ECookResult CookResult = PackageData
-					? PackageData->GetCookResults(PlatformData->TargetPlatform)
-					: ECookResult::Failed;
-				
-				UE_LOG(LogCook, Verbose, TEXT("Cook request completed, Filename='%s', Platform='%s', CookResult='%d'"),
-					*Request->CookPackageRequest.Filename, *Request->CookPackageRequest.PlatformName.ToString(), uint32(CookResult));
-				
-				if (Request->CookPackageRequest.CompletionCallback)
-				{
-					Request->CookPackageRequest.CompletionCallback(CookResult);
-				}
-				
-				Cooker.PlatformManager->ReleaseCookOnTheFlyPlatform(Request->CookPackageRequest.PlatformName);
-				FreeRequest(Request);
-			};
-
-			UE_LOG(LogCook, Verbose, TEXT("Enqueing cook request, Filename='%s', Platform='%s'"), *Request->CookPackageRequest.Filename, *Request->CookPackageRequest.PlatformName.ToString());
+			UE_LOG(LogCook, Verbose, TEXT("Enqueing cook request, Filename='%s', Platform='%s'"), *CookPackageRequest.Filename, *CookPackageRequest.PlatformName.ToString());
 			Cooker.ExternalRequests->EnqueueUnique(
-				FFilePlatformRequest(StandardFileName, EInstigator::CookOnTheFly, TargetPlatform, MoveTemp(CookCompleted)),
+				FFilePlatformRequest(StandardFileName, EInstigator::CookOnTheFly, TargetPlatform, MoveTemp(CookPackageRequest.CompletionCallback)),
 				true);
 			if (Cooker.ExternalRequests->CookRequestEvent)
 			{
@@ -393,40 +369,7 @@ public:
 	}
 
 private:
-	struct FRequest
-	{
-		FRequest* NextFree = nullptr;
-		UE::Cook::FCookPackageRequest CookPackageRequest;
-	};
-
-	FRequest* AllocRequest()
-	{
-		FScopeLock _(&RequestsCriticalSection);
-		if (FRequest* Request = FirstFree)
-		{
-			FirstFree = Request->NextFree;
-			Request->NextFree = nullptr;
-			return Request;
-		}
-		else
-		{
-			const int32 RequestIndex = Requests.Add();
-			return &Requests[RequestIndex];
-		}
-	}
-
-	void FreeRequest(FRequest* Request)
-	{
-		FScopeLock _(&RequestsCriticalSection);
-		check(Request->NextFree == nullptr);
-		Request->NextFree = FirstFree;
-		FirstFree = Request;
-	}
-
 	UCookOnTheFlyServer& Cooker;
-	FCriticalSection RequestsCriticalSection;
-	TChunkedArray<FRequest> Requests;
-	FRequest* FirstFree = nullptr;
 };
 
 /* UCookOnTheFlyServer functions

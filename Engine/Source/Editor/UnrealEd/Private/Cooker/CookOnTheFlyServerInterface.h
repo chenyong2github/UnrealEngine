@@ -13,8 +13,6 @@ class ITargetPlatform;
 namespace UE { namespace Cook
 {
 
-using FCookRequestCompletedCallback = TFunction<void(const ECookResult)>;
-
 using FRecompileShaderCompletedCallback = TFunction<void()>;
 
 using FPrecookedFileList = TMap<FString, FDateTime>;
@@ -29,7 +27,7 @@ struct FCookPackageRequest
 	/* Asset filename to cook. */
 	FString Filename;
 	/** Completion callback. */
-	FCookRequestCompletedCallback CompletionCallback;
+	FCompletionCallback CompletionCallback;
 };
 
 /**
