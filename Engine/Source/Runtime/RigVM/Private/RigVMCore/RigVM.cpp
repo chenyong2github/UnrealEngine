@@ -206,7 +206,8 @@ void URigVM::Load(FArchive& Ar)
 
 	// requesting the memory types will create them
 	// Cooked platforms will just load the objects and do no need to clear the referenes
-	if (!FPlatformProperties::RequiresCookedData())
+	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)
+	if (!FPlatformProperties::RequiresCookedData() && !GetClass()->RootPackageHasAnyFlags(PKG_FilterEditorOnly))
 	{
 		ClearMemory();
 	}

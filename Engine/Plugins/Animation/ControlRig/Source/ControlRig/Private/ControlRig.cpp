@@ -2798,8 +2798,9 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
 
-	// Cooked platforms will load these pointers from disk
-	if (!FPlatformProperties::RequiresCookedData())
+	// Cooked platforms will load these pointers from disk.
+	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)
+	if (!FPlatformProperties::RequiresCookedData() && !GetClass()->RootPackageHasAnyFlags(PKG_FilterEditorOnly))
 	{
 		VM->GetMemoryByType(ERigVMMemoryType::Work, true);
 		VM->GetMemoryByType(ERigVMMemoryType::Literal, true);
