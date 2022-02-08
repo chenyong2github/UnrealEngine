@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StreamReader.h"
-#include "HAL/UnrealMemory.h"
 #include "Math/UnrealMath.h"
 
 namespace UE {
