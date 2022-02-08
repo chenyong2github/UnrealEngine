@@ -56,16 +56,16 @@ public:
 	/**
 	  * Queries a callstack id.
 	  * @param CallstackId Callstack id to query.
-	  * @return Callstack information. If id is not found a callstack with zero stack depth is returned.
+	  * @return Callstack information. If id is not found a special "Unknown" callstack is returned.
 	  */
-	virtual const FCallstack* GetCallstack(uint64 CallstackId) const = 0;
+	virtual const FCallstack* GetCallstack(uint32 CallstackId) const = 0;
 
 	/**
 	  * Queries a set of callstack ids.
 	  * @param CallstackIds List of callstack ids to query
 	  * @param OutCallstacks Output list of callstacks. Caller is responsible for allocating space according to CallstackIds length.
 	  */
-	virtual void GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
+	virtual void GetCallstacks(const TArrayView<uint32>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
 
 	/**
 	  * Gets a callstack id for a registerd callstack hash.

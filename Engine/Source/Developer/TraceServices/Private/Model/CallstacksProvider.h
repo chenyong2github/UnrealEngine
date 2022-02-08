@@ -20,8 +20,8 @@ public:
 	explicit FCallstacksProvider(IAnalysisSession& Session);
 	virtual ~FCallstacksProvider() {}
 
-	const FCallstack* GetCallstack(uint64 CallstackId) const override;
-	void GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const override;
+	const FCallstack* GetCallstack(uint32 CallstackId) const override;
+	void GetCallstacks(const TArrayView<uint32>& CallstackIds, FCallstack const** OutCallstacks) const override;
 	void AddCallstack(uint32 CallstackId, const uint64* Frames, uint8 FrameCount);
 
 	// Backward compatibility with legacy memory trace format (5.0-EA).

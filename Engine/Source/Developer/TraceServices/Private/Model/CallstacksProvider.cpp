@@ -108,7 +108,7 @@ void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFra
 				Callstack = &Callstacks.PushBack();
 			}
 		}
-		check(Callstack->Num() == 0); // adding same callstack id twice?
+		check(Callstack && Callstack->Num() == 0); // adding same callstack id twice?
 		Callstack->Init(&Frames[FirstFrame], InFrameCount);
 	}
 }
@@ -152,7 +152,7 @@ uint32 FCallstacksProvider::GetCallstackIdForHash(uint64 InCallstackHash) const
 }
 
 /////////////////////////////////////////////////////////////////////
-const FCallstack* FCallstacksProvider::GetCallstack(uint64 CallstackId) const
+const FCallstack* FCallstacksProvider::GetCallstack(uint32 CallstackId) const
 {
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
 	if (CallstackId < Callstacks.Num())
@@ -166,7 +166,7 @@ const FCallstack* FCallstacksProvider::GetCallstack(uint64 CallstackId) const
 }
 
 /////////////////////////////////////////////////////////////////////
-void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const
+void FCallstacksProvider::GetCallstacks(const TArrayView<uint32>& CallstackIds, FCallstack const** OutCallstacks) const
 {
 	uint64 OutIdx(0);
 	check(OutCallstacks != nullptr);
