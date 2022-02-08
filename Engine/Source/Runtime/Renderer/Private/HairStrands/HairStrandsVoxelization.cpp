@@ -14,9 +14,6 @@
 #include "PostProcessing.h"
 #include "ScenePrivate.h"
 
-static float GStrandHairVoxelizationRasterizationScale = 1.0f;
-static FAutoConsoleVariableRef CVarStrandHairVoxelizationRasterizationScale(TEXT("r.HairStrands.VoxelizationRasterizationScale"), GStrandHairVoxelizationRasterizationScale, TEXT("Rasterization scale to snap strand to pixel for voxelization"));
-
 static int32 GHairVoxelizationEnable = 1;
 static FAutoConsoleVariableRef CVarGHairVoxelizationEnable(TEXT("r.HairStrands.Voxelization"), GHairVoxelizationEnable, TEXT("Enable hair voxelization for transmittance evaluation"));
 
@@ -149,7 +146,6 @@ class FVirtualVoxelInjectOpaqueCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxelParams)
-		SHADER_PARAMETER(FIntVector, DispatchedPageIndexResolution)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(FVector2f, SceneDepthResolution)
 		SHADER_PARAMETER(uint32, VoxelBiasCount)
@@ -194,7 +190,6 @@ static void AddVirtualVoxelInjectOpaquePass(
 	Parameters->SceneTextures = SceneTextures;
 	Parameters->MacroGroupId = MacroGroup.MacroGroupId;
 	Parameters->OutPageTexture = GraphBuilder.CreateUAV(VoxelResources.PageTexture);
-	Parameters->DispatchedPageIndexResolution = MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution;
 	Parameters->IndirectDispatchArgs = VoxelResources.IndirectArgsBuffer;
 	TShaderMapRef<FVirtualVoxelInjectOpaqueCS> ComputeShader(View.ShaderMap);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
@@ -557,10 +552,6 @@ static void AddAllocateVoxelPagesPass(
 		Out.PageIndexOffset = OutTotalPageIndexCount;
 
 		OutTotalPageIndexCount += Out.PageIndexCount;
-
-		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB = (FVector3f)Out.TranslatedMinAABB;
-		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB = (FVector3f)Out.TranslatedMaxAABB;
-		MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution = Out.PageIndexResolution;
 	}
 
 	// Over-allocation (upper bound)
@@ -722,9 +713,9 @@ static void AddAllocateVoxelPagesPass(
 				FIntVector DispatchCount = bUseClusterAABB ?
 					FIntVector((Parameters->MaxClusterCount + GroupSize - 1) / GroupSize, 1, 1) :
 					FIntVector(
-						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.X, 8),
-						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.Y, 8),
-						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.Z, 8));
+						FMath::DivideAndRoundUp(CPUAllocationDesc.PageIndexResolution.X, 8),
+						FMath::DivideAndRoundUp(CPUAllocationDesc.PageIndexResolution.Y, 8),
+						FMath::DivideAndRoundUp(CPUAllocationDesc.PageIndexResolution.Z, 8));
 
 				check(DispatchCount.X < 65535);
 				FVoxelMarkValidPageIndex_PrepareCS::FPermutationDomain PermutationVector;
@@ -1147,10 +1138,6 @@ static FHairStrandsVoxelResources AllocateDummyVirtualVoxelResources(
 	Out.Parameters.Common.TranslatedWorldOffset = FVector3f(View.ViewMatrices.GetPreViewTranslation());
 	Out.Parameters.Common.HairCoveragePixelRadiusAtDepth1	= ComputeMinStrandRadiusAtDepth1(FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), View.FOV, 1/*SampleCount*/, 1/*RasterizationScale*/).Primary;
 	Out.Parameters.Common.PageIndexCount = 0;
-	for (FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
-	{
-		MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution = FIntVector(0,0,0);
-	}
 
 	FRDGBufferRef Dummy4BytesBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u);
 	FRDGBufferRef Dummy8BytesBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, 8, 0u);
@@ -1278,8 +1265,8 @@ IMPLEMENT_GLOBAL_SHADER(FVoxelRasterComputeCS, "/Engine/Private/HairStrands/Hair
 static void AddVirtualVoxelizationComputeRasterPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* ViewInfo,
-	FHairStrandsVoxelResources& VoxelResources,
-	FHairStrandsMacroGroupData& MacroGroup)
+	const FHairStrandsVoxelResources& VoxelResources,
+	const FHairStrandsMacroGroupData& MacroGroup)
 {
 	const bool bIsGPUDriven = GHairVirtualVoxelGPUDriven > 0;
 	if (!bIsGPUDriven)
@@ -1374,84 +1361,11 @@ static void AddVirtualVoxelizationRasterPass(
 	const FViewInfo* ViewInfo,
 	FHairStrandsVoxelResources& VoxelResources,
 	FInstanceCullingManager& InstanceCullingManager,
-	FHairStrandsMacroGroupData& MacroGroup)
+	const FHairStrandsMacroGroupData& MacroGroup)
 {
-	const bool bIsGPUDriven = GHairVirtualVoxelGPUDriven > 0;
-	const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfo = MacroGroup.PrimitivesInfos;
 	DECLARE_GPU_STAT(HairStrandsVoxelize);
 	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsVoxelize);
 	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsVoxelize);
-
-	// Find the largest resolution and its dominant axis
-	FIntPoint RasterResolution(0, 0);
-	FVector	RasterProjectionSize = FVector::ZeroVector;
-	FVector RasterDirection = FVector::ZeroVector;
-	FVector RasterUp = FVector::ZeroVector;
-	const FIntVector TotalVoxelResolution = MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution * VoxelResources.Parameters.Common.PageResolution;
-	{
-		FIntVector ReorderIndex(0, 0, 0);
-
-		const uint32 ResolutionXY = TotalVoxelResolution.X * TotalVoxelResolution.Y;
-		const uint32 ResolutionXZ = TotalVoxelResolution.X * TotalVoxelResolution.Z;
-		const uint32 ResolutionYZ = TotalVoxelResolution.Y * TotalVoxelResolution.Y;
-		if (ResolutionXY >= ResolutionXZ && ResolutionXY >= ResolutionYZ)
-		{
-			RasterResolution	= FIntPoint(TotalVoxelResolution.X, TotalVoxelResolution.Y);
-			RasterDirection		= FVector(0, 0, 1);			
-			ReorderIndex		= FIntVector(0, 1, 2);
-			RasterUp			= FVector(0, 1, 0);
-		}
-		else if (ResolutionXZ >= ResolutionXY && ResolutionXZ >= ResolutionYZ)
-		{
-			RasterResolution	= FIntPoint(TotalVoxelResolution.X, TotalVoxelResolution.Z);
-			RasterDirection		= FVector(0, -1, 0);
-			ReorderIndex		= FIntVector(0, 2, 1);
-			RasterUp			= FVector(0, 0, 1);
-		}
-		else
-		{
-			RasterResolution	= FIntPoint(TotalVoxelResolution.Y, TotalVoxelResolution.Z);
-			RasterDirection		= FVector(1, 0, 0);
-			ReorderIndex		= FIntVector(1, 2, 0);
-			RasterUp			= FVector(0, 0, 1);
-		}
-
-		FBox ProjRasterAABB;
-		ProjRasterAABB.Min.X = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[0]];
-		ProjRasterAABB.Min.Y = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[1]];
-		ProjRasterAABB.Min.Z = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB[ReorderIndex[2]];
-
-		ProjRasterAABB.Max.X = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[0]];
-		ProjRasterAABB.Max.Y = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[1]];
-		ProjRasterAABB.Max.Z = MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB[ReorderIndex[2]];
-
-		RasterProjectionSize = ProjRasterAABB.GetSize();
-	}
-
-	if (bIsGPUDriven)
-	{
-		RasterResolution = GPUDrivenViewportResolution;
-	}
-
-	// RasterAABB is in translated world space
-	const FBox RasterAABB(MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMinAABB, MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldMaxAABB);
-	const FVector RasterAABBSize = RasterAABB.GetSize();
-	const FVector RasterAABBCenter = RasterAABB.GetCenter();
-	const FIntRect ViewportRect = FIntRect(0, 0, RasterResolution.X, RasterResolution.Y);
-
-	const float RadiusAtDepth1 = GStrandHairVoxelizationRasterizationScale * VoxelResources.Parameters.Common.MinVoxelWorldSize * 0.5f;
-	const bool bIsOrtho = true;
-	const FVector4f HairRenderInfo = PackHairRenderInfo(RadiusAtDepth1, RadiusAtDepth1, RadiusAtDepth1, 1);
-	const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, bIsGPUDriven);
-
-	// TODO REMOVE THIS
-	FMatrix TranslatedWorldToClip;
-	{
-		FReversedZOrthoMatrix OrthoMatrix(0.5f * RasterProjectionSize.X, 0.5f * RasterProjectionSize.Y, 1.0f / RasterProjectionSize.Z, 0);
-		FLookAtMatrix LookAt(RasterAABBCenter - RasterDirection * RasterProjectionSize.Z * 0.5f, RasterAABBCenter, RasterUp);
-		TranslatedWorldToClip = LookAt * OrthoMatrix;
-		MacroGroup.VirtualVoxelNodeDesc.TranslatedWorldToClip = TranslatedWorldToClip;
-	}
 
 	AddVirtualVoxelizationComputeRasterPass(GraphBuilder, ViewInfo, VoxelResources, MacroGroup);
 }

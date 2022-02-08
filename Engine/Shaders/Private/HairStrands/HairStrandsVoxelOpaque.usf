@@ -6,7 +6,6 @@
 #include "HairStrandsVoxelPageCommon.ush"
 
 #if SHADER_INJECTOPAQUE_VIRTUALVOXEL
-uint3 DispatchedPageIndexResolution;
 uint MacroGroupId;
 float2 SceneDepthResolution;
 uint VoxelBiasCount;

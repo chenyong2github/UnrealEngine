@@ -122,14 +122,6 @@ struct FHairStrandsVisibilityData
 ////////////////////////////////////////////////////////////////////////////////////
 // Voxel data
 
-struct FHairStrandsVoxelNodeDesc
-{
-	FVector3f TranslatedWorldMinAABB = FVector3f::ZeroVector;
-	FVector3f TranslatedWorldMaxAABB = FVector3f::ZeroVector;
-	FIntVector PageIndexResolution = FIntVector::ZeroValue;
-	FMatrix TranslatedWorldToClip;
-};
-
 struct FPackedVirtualVoxelNodeDesc
 {
 	// This is just a placeholder having the correct size. The actual definition is in HairStradsNVoxelPageCommon.ush
@@ -300,7 +292,6 @@ struct FHairStrandsMacroGroupData
 	};
 	typedef TArray<PrimitiveInfo, SceneRenderingAllocator> TPrimitiveInfos;
 
-	FHairStrandsVoxelNodeDesc VirtualVoxelNodeDesc;
 	FHairStrandsDeepShadowDatas DeepShadowDatas;
 	TPrimitiveInfos PrimitivesInfos;
 	FBoxSphereBounds Bounds;
