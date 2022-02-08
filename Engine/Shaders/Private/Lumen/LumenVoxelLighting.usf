@@ -470,7 +470,7 @@ void HeightfieldVoxelTraceCS(
 			FVoxelVisBuffer VisBuffer;
 			VisBuffer.NormalizedHitDistance = saturate(Result.HitDistance / TraceInput.MaxTraceDistance);
 			VisBuffer.HitObjectType = HIT_OBJECT_TYPE_HEIGHTFIELD;
-			VisBuffer.HitObjectId = HeightfieldObjectIndex;
+			VisBuffer.HitObjectId = Result.bHitFrontFace ? HeightfieldObjectIndex : LUMEN_INVALID_HEIGHTFIELD_OBJECT_INDEX;
 			uint VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
 
 			uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
@@ -628,7 +628,7 @@ void VisBufferShadingCS(
 					SurfaceCacheDepthTestBias = TraceSDFData.SurfaceCacheDepthTestBias;
 #endif // SHADE_MESH_SDF
 				}
-				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD)
+				else if (VisBuffer.HitObjectType == HIT_OBJECT_TYPE_HEIGHTFIELD && VisBuffer.HitObjectId < LumenCardScene.NumHeightfields)
 				{
 #if SHADE_HEIGHTFIELD
 					FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(VisBuffer.HitObjectId);

@@ -7,6 +7,7 @@
 #include "VertexFactoryCommon.ush"
 
 #define VERTEX_FACTORY_MODIFIES_INTERPOLATION 1
+#define VERTEX_FACTORY_HEIGHTFIELD 1
 
 // Set by FLightMapTexturePolicy
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"

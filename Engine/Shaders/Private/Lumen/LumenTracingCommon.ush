@@ -351,7 +351,7 @@ void ConeTraceSingleLumenCard(
 	if (IntersectionRange.y > IntersectionRange.x
 		&& LumenCardData.bVisible)
 	{
-		// #lumen_todo: restore after a distance scene rewrite
+		// #lumen_todo: restore after a distant scene rewrite
 /*
 		{
 			FCardTraceBlendState ConeStepBlendState;
@@ -782,52 +782,74 @@ Buffer<uint> CulledHeightfieldObjectIndexBuffer;
 struct FConeTraceHeightfieldSimpleResult
 {
 	bool bIsHit;
-	bool bRayStartInsideGeometry;
+	bool bHitFrontFace;
 	float HitDistance;
 };
-
-float EvaluateLocalHeightfieldDepth(
-	FLumenCardData LumenCardData,
-	int LocalCardIndex,
-	float3 LocalSamplePosition,
-	float SampleRadius
-)
-{
-	bool bHiResSurface = false;
-	FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, LocalCardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
-
-	float NormalizedDepth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
-	float LocalHeightfieldDepth = -LumenCardData.LocalExtent.z + NormalizedDepth * 2.0f * LumenCardData.LocalExtent.z;
-	return LocalHeightfieldDepth;
-}
 
 struct FHeightfieldRayStep
 {
 	float tValue;
 	float3 LocalSamplePosition;
 	float LocalHeightfieldDepth;
-	bool bRayUnderHeightfield;
+	bool bAboveHeightfield;
 };
 
 FHeightfieldRayStep HeightfieldRayStep(FLumenCardData LumenCardData, uint LocalCardIndex, FConeTraceInput TraceInput, float3 LocalConeOrigin, float3 LocalConeDirection, float tValue)
 {
-	const float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tValue, TraceInput.MinSampleRadius);
+	float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tValue, TraceInput.MinSampleRadius);
+	float3 LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
+	bool bHiResSurface = false;
+
+	FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, LocalCardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
+
+	float NormalizedDepth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
 
 	FHeightfieldRayStep RayStep;
 	RayStep.tValue = tValue;
-	RayStep.LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
-	RayStep.LocalHeightfieldDepth = EvaluateLocalHeightfieldDepth(LumenCardData, LocalCardIndex, RayStep.LocalSamplePosition, SampleRadius);
-	RayStep.bRayUnderHeightfield = RayStep.LocalSamplePosition.z < RayStep.LocalHeightfieldDepth;
-
+	RayStep.LocalSamplePosition = LocalSamplePosition;
+	RayStep.LocalHeightfieldDepth = -LumenCardData.LocalExtent.z + NormalizedDepth * 2.0f * LumenCardData.LocalExtent.z;
+	RayStep.bAboveHeightfield = RayStep.LocalSamplePosition.z > RayStep.LocalHeightfieldDepth;
 	return RayStep;
 }
 
-float InterpolateHeightfieldHit(FHeightfieldRayStep PrevStep, FHeightfieldRayStep Step, float StepSize, float tMinValue, float tMaxValue)
+float GetHeightfieldAlpha(FLumenCardData LumenCardData, uint LocalCardIndex, FConeTraceInput TraceInput, float3 LocalConeOrigin, float3 LocalConeDirection, float tValue)
+{
+	float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * tValue, TraceInput.MinSampleRadius);
+	float3 LocalSamplePosition = LocalConeOrigin + LocalConeDirection * tValue;
+	bool bHiResSurface = false;
+
+	FLumenCardSample CardSample = ComputeSurfaceCacheSample(LumenCardData, LocalCardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
+
+	return Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0).x;
+}
+
+bool EvaluateHeightfieldHit(
+	FLumenCardData LumenCardData, 
+	uint LocalCardIndex, 
+	FConeTraceInput TraceInput,
+	float3 LocalConeOrigin,
+	float3 LocalConeDirection,
+	FHeightfieldRayStep PrevStep,
+	FHeightfieldRayStep Step,
+	float StepSize, 
+	float tMinValue,
+	float tMaxValue,
+	inout FConeTraceHeightfieldSimpleResult Result)
 {
 	// Hit-point is approximated as the intersection between the ray and a line connecting the previous two evaluation points
 	// (1 - t) * PrevPosition.z + t * LocalSamplePosition.z = (1 - t) * PrevHeightfieldDepth + t * LocalHeightfieldDepth
 	float DeltaT = (PrevStep.LocalSamplePosition.z - PrevStep.LocalHeightfieldDepth) / (PrevStep.LocalSamplePosition.z - Step.LocalSamplePosition.z - PrevStep.LocalHeightfieldDepth + Step.LocalHeightfieldDepth);
-	return clamp(PrevStep.tValue + DeltaT * StepSize, tMinValue, tMaxValue);
+	float HitDistance = clamp(PrevStep.tValue + DeltaT * StepSize, tMinValue, tMaxValue);
+
+	float HeightfieldAlpha = GetHeightfieldAlpha(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, HitDistance);
+	if (HeightfieldAlpha > 0.5f)
+	{
+		Result.HitDistance = HitDistance;
+		Result.bIsHit = true;
+		Result.bHitFrontFace = !Step.bAboveHeightfield;
+	}
+
+	return Result.bIsHit;
 }
 
 FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
@@ -837,7 +859,7 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 {
 	FConeTraceHeightfieldSimpleResult Result;
 	Result.bIsHit = false;
-	Result.bRayStartInsideGeometry = false;
+	Result.bHitFrontFace = false;
 	Result.HitDistance = TraceInput.MaxTraceDistance;
 
 	FLumenHeightfieldData LumenHeightfield = GetLumenHeightfieldData(HeightfieldIndex);
@@ -864,61 +886,73 @@ FConeTraceHeightfieldSimpleResult ConeTraceHeightfieldSimple(
 	if (tMinValue < tMaxValue && LumenCardData.bVisible)
 	{
 		// Calculate initial entry depth
-		FHeightfieldRayStep EntryStep = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tMinValue);
-		Result.bRayStartInsideGeometry = EntryStep.LocalSamplePosition.z < EntryStep.LocalHeightfieldDepth;
-
-		FHeightfieldRayStep PrevStep = EntryStep;
+		FHeightfieldRayStep PrevStep = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tMinValue);
 
 		// Skip back face hits between [0; EpsilonTraceLength]
 		float EpsilonTraceLength = LumenCardData.TexelSize;
 		if (TraceInput.bUseEpsilonTraceForHeightfields && tMinValue < EpsilonTraceLength)
 		{
-			FHeightfieldRayStep EpsilonStep = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, EpsilonTraceLength);
+			FHeightfieldRayStep Step = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, EpsilonTraceLength);
 
-			if (Result.bRayStartInsideGeometry && !EpsilonStep.bRayUnderHeightfield)
+			// Hit only front faces
+			if (PrevStep.bAboveHeightfield && !Step.bAboveHeightfield)
 			{
-				// Skip back face hit
-				PrevStep = EpsilonStep;
-				Result.bRayStartInsideGeometry = false;
-			}
-			else if (!Result.bRayStartInsideGeometry && EpsilonStep.bRayUnderHeightfield)
-			{
-				// Hit front face
-				Result.HitDistance = InterpolateHeightfieldHit(PrevStep, EpsilonStep, EpsilonTraceLength, tMinValue, tMaxValue);
-				Result.bIsHit = true;
-				return Result;
-			}
-
-			tMinValue = EpsilonTraceLength;
-		}
-
-		const uint MaxSteps = 32;
-		float MinStepSize = (tMaxValue - tMinValue) / MaxSteps;
-		float StepSize = max(LumenCardData.TexelSize * TraceInput.StepFactor, MinStepSize);
-
-		float tValue = tMinValue;
-		for (uint StepIndex = 0; StepIndex < MaxSteps; ++StepIndex)
-		{
-			tValue = min(tValue + StepSize, tMaxValue);
-
-			FHeightfieldRayStep Step = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tValue);
-
-			// Encountered zero-crossing
-			bool bIsZeroCrossing = Result.bRayStartInsideGeometry != Step.bRayUnderHeightfield;
-			if (bIsZeroCrossing)
-			{
-				Result.HitDistance = InterpolateHeightfieldHit(PrevStep, Step, StepSize, tMinValue, tMaxValue);
-				Result.bIsHit = true;
-				break;
-			}
-
-			// Make sure we do one extra step in order to guarantee a hit
-			if (tValue >= tMaxValue)
-			{
-				break;
+				EvaluateHeightfieldHit(
+					LumenCardData,
+					LocalCardIndex,
+					TraceInput,
+					LocalConeOrigin,
+					LocalConeDirection,
+					PrevStep,
+					Step,
+					/*StepSize*/ EpsilonTraceLength,
+					tMinValue,
+					tMaxValue,
+					Result);
 			}
 
 			PrevStep = Step;
+			tMinValue = EpsilonTraceLength;
+		}
+
+		if (!Result.bIsHit)
+		{
+			const uint MaxSteps = 32;
+			float MinStepSize = (tMaxValue - tMinValue) / MaxSteps;
+			float StepSize = max(LumenCardData.TexelSize * TraceInput.StepFactor, MinStepSize);
+
+			float tValue = tMinValue;
+			for (uint StepIndex = 0; StepIndex < MaxSteps; ++StepIndex)
+			{
+				tValue = min(tValue + StepSize, tMaxValue);
+
+				FHeightfieldRayStep Step = HeightfieldRayStep(LumenCardData, LocalCardIndex, TraceInput, LocalConeOrigin, LocalConeDirection, tValue);
+
+				// Encountered zero-crossing
+				if (PrevStep.bAboveHeightfield != Step.bAboveHeightfield)
+				{
+					EvaluateHeightfieldHit(
+						LumenCardData,
+						LocalCardIndex,
+						TraceInput,
+						LocalConeOrigin,
+						LocalConeDirection,
+						PrevStep,
+						Step,
+						/*StepSize*/ StepSize,
+						tMinValue,
+						tMaxValue,
+						Result);
+				}
+
+				PrevStep = Step;
+
+				// Make sure we do one step at tMaxValue order to guarantee a hit
+				if (Result.bIsHit || tValue >= tMaxValue)
+				{
+					break;
+				}
+			}
 		}
 	}
 
@@ -949,6 +983,8 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 	FTraceMeshHeightfieldResult TraceMeshHeightfieldResult = (FTraceMeshHeightfieldResult)0;
 	TraceMeshHeightfieldResult.HitDistance = TraceInput.MaxTraceDistance;
 
+	bool bHitFrontFace = false;
+
 #if SCENE_TRACE_HEIGHTFIELDS
 	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
 	{
@@ -958,6 +994,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 		{
 			TraceMeshHeightfieldResult.HitDistance = SimpleResult.HitDistance;
 			TraceMeshHeightfieldResult.HeightfieldObjectIndex = HeightfieldObjectIndex;
+			bHitFrontFace = SimpleResult.bHitFrontFace;
 		}
 	}
 
@@ -970,16 +1007,23 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 		float SurfaceCacheDepthTestBias = 20.0f;
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 
-		OutResult.Lighting = SampleLumenMeshCards(
-			TraceInput.ScreenCoord,
-			LumenHeightfield.MeshCardsIndex,
-			SamplePosition,
-			SampleNormal,
-			SampleRadius,
-			SurfaceCacheDepthTestBias,
-			TraceInput.CardInterpolateDepthVisibilityRadius,
-			TraceInput.bHiResSurface,
-			AtlasId).Lighting;
+		if (bHitFrontFace)
+		{
+			OutResult.Lighting = SampleLumenMeshCards(
+				TraceInput.ScreenCoord,
+				LumenHeightfield.MeshCardsIndex,
+				SamplePosition,
+				SampleNormal,
+				SampleRadius,
+				SurfaceCacheDepthTestBias,
+				TraceInput.CardInterpolateDepthVisibilityRadius,
+				TraceInput.bHiResSurface,
+				AtlasId).Lighting;
+		}
+		else
+		{
+			OutResult.Lighting = 0;
+		}
 		OutResult.Transparency = 0;
 	}
 #endif
