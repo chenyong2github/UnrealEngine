@@ -320,6 +320,7 @@ public:
 
 	//~ Begin UPrimitiveComponent Interface
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	virtual FMatrix GetRenderMatrix() const override;
 	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const override;
 protected:
 	virtual void OnCreatePhysicsState() override;
@@ -408,6 +409,13 @@ protected:
 
 	/** Terminate all body instances owned by this component. */
 	void ClearAllInstanceBodies();
+
+	/**
+	 * Get the translated space for instance transforms to be passed to the renderer.
+	 * In the renderer data structures we only have floating point precision for instance transforms relative to their owning primitive. The primitive transform itself has double precision.
+	 * Some ISM that are authored in world space need to adjust the local space to keep instance transforms within precision limits.
+	 */
+	virtual FVector GetTranslatedInstanceSpaceOrigin() const { return FVector::Zero(); }
 
 	/** Request to navigation system to update only part of navmesh occupied by specified instance. */
 	virtual void PartialNavigationUpdate(int32 InstanceIdx);

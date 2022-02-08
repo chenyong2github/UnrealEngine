@@ -2297,6 +2297,13 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 	}
 }
 
+FMatrix UInstancedStaticMeshComponent::GetRenderMatrix() const
+{
+	// Apply the translated space to the render matrix.
+	const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
+	return GetComponentTransform().ToMatrixWithScale().ConcatTranslation(TranslatedInstanceSpaceOrigin);
+}
+
 void UInstancedStaticMeshComponent::CreateHitProxyData(TArray<TRefCountPtr<HHitProxy>>& HitProxies)
 {
 	if (GIsEditor && bHasPerInstanceHitProxies)
@@ -2349,6 +2356,8 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	auto AdditionalRandomSeedsIt = AdditionalRandomSeeds.CreateIterator();
 	int32 SeedResetIndex = AdditionalRandomSeedsIt ? AdditionalRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
 	
+	const FVector TranslatedInstanceSpaceOffset = -GetTranslatedInstanceSpaceOrigin();
+
 	for (int32 Index = 0; Index < NumInstances; ++Index)
 	{
 		const int32 RenderIndex = GetRenderIndex(Index);
@@ -2376,7 +2385,8 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 			ShadowmapUVBias = FVector2D(MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias);
 		}
 	
-		OutData.SetInstance(RenderIndex, FMatrix44f(InstanceData.Transform), RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);		// LWC_TODO: Precision loss
+		// LWC_TODO: Precision loss here is compensated for by use of TranslatedInstanceSpaceOffset.
+		OutData.SetInstance(RenderIndex, FMatrix44f(InstanceData.Transform.ConcatTranslation(TranslatedInstanceSpaceOffset)), RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
 
 		for (int32 CustomDataIndex = 0; CustomDataIndex < NumCustomDataFloats; ++CustomDataIndex)
 		{

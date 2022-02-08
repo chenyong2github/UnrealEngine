@@ -273,7 +273,7 @@ protected:
 	void ApplyEmpty();
 	void SetPerInstanceLightMapAndEditorData(FStaticMeshInstanceData& PerInstanceData, const TArray<TRefCountPtr<HHitProxy>>& HitProxies);
 
-	void GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms) const;
+	void GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms, FVector const& Offset) const;
 	void InitializeInstancingRandomSeed();
 
 	/** Removes specified instances */ 

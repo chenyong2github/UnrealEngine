@@ -5630,6 +5630,18 @@ UFoliageInstancedStaticMeshComponent::UFoliageInstancedStaticMeshComponent(const
 #endif
 }
 
+FVector UFoliageInstancedStaticMeshComponent::GetTranslatedInstanceSpaceOrigin() const
+{
+	// Foliage is often built in world space which can cause problems with large world coordinates because
+	// the instance transforms in the renderer are single precision, and the HISM culling is also single precision.
+	// We should fix the HISM culling to be double precision.
+	// But the instance transforms (relative to the owner primitive) will probably stay single precision to not bloat memory.
+	// A fix for that is to have authoring tools set sensible primitive transforms (instead of identity).
+	// But until that happens we set a translated instance space here.
+	// For simplicity we use the first instance as the origin of the translated space.
+	return PerInstanceSMData.Num() ? PerInstanceSMData[0].Transform.GetOrigin() : FVector::Zero();
+}
+
 void UFoliageInstancedStaticMeshComponent::ReceiveComponentDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);

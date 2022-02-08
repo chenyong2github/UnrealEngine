@@ -345,7 +345,8 @@ protected:
 				float RandomID = RandomStream.GetFraction();
 				if (RenderIndex >= 0)
 				{
-					BuiltInstanceData->SetInstance(RenderIndex, FMatrix44f(Transforms[i]), RandomID, LightmapUVBias, ShadowmapUVBias);		// LWC_TODO: Precision loss
+					// LWC_TODO: Precision loss here has been compensated for by use of TranslatedInstanceSpaceOrigin.
+					BuiltInstanceData->SetInstance(RenderIndex, FMatrix44f(Transforms[i]), RandomID, LightmapUVBias, ShadowmapUVBias);
 					for (int32 DataIndex = 0; DataIndex < NumCustomDataFloats; ++DataIndex)
 					{
 						BuiltInstanceData->SetInstanceCustomData(RenderIndex, DataIndex, CustomDataFloats[NumCustomDataFloats * i + DataIndex]);
@@ -2005,6 +2006,12 @@ FBoxSphereBounds UHierarchicalInstancedStaticMeshComponent::CalcBounds(const FTr
 	}
 }
 
+static FBox GetClusterTreeBounds(TArray<FClusterNode> const& InClusterTree, FVector InOffset)
+{
+	// Return top node of cluster tree. Apply offset on node bounds.
+	return (InClusterTree.Num() > 0 ? FBox(InOffset + InClusterTree[0].BoundMin, InOffset + InClusterTree[0].BoundMax) : FBox(ForceInit));
+}
+
 UHierarchicalInstancedStaticMeshComponent::UHierarchicalInstancedStaticMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ClusterTreePtr(MakeShareable(new TArray<FClusterNode>))
@@ -2117,8 +2124,7 @@ void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && !BuiltInstanceBounds.IsValid)
 	{
 		TArray<FClusterNode>& ClusterTree = *ClusterTreePtr.Get();
-
-		BuiltInstanceBounds = (ClusterTree.Num() > 0 ? FBox(ClusterTree[0].BoundMin, ClusterTree[0].BoundMax) : FBox(ForceInit));
+		BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin());
 	}
 }
 
@@ -2572,7 +2578,7 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 	SortedInstances.Empty();
 	UnbuiltInstanceBounds.Init();
 	UnbuiltInstanceBoundsList.Empty();
-	
+
 	if (ProxySize)
 	{
 		DEC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
@@ -2712,9 +2718,12 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 	// The tree will be fully rebuilt once the static mesh compilation is finished, no need for incremental update in that case.
 	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
+		// Build the tree in translated space to maintain precision.
+		const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
+
 		InitializeInstancingRandomSeed();
 		TArray<FMatrix> InstanceTransforms;
-		GetInstanceTransforms(InstanceTransforms);
+		GetInstanceTransforms(InstanceTransforms, -TranslatedInstanceSpaceOrigin);
 
 		FClusterBuilder Builder(InstanceTransforms, PerInstanceSMCustomData, NumCustomDataFloats, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0);
 		Builder.BuildTreeAndBuffer();
@@ -2763,7 +2772,8 @@ void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FClust
 	// this is only for prebuild data, already in the correct order
 	check(!PerInstanceSMData.Num());
 	NumBuiltInstances = 0;
-	check(PerInstanceRenderData.IsValid());	
+	check(GetTranslatedInstanceSpaceOrigin() == FVector::Zero());
+	check(PerInstanceRenderData.IsValid());
 	NumBuiltRenderInstances = InNumBuiltRenderInstances;
 	check(NumBuiltRenderInstances);
 	UnbuiltInstanceBounds.Init();
@@ -2772,7 +2782,7 @@ void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FClust
 	InstanceReorderTable.Empty();
 	SortedInstances.Empty();
 	OcclusionLayerNumNodes = InOcclusionLayerNumNodes;
-	BuiltInstanceBounds = (InClusterTree.Num() > 0 ? FBox(InClusterTree[0].BoundMin, InClusterTree[0].BoundMax) : FBox(ForceInit));
+	BuiltInstanceBounds = GetClusterTreeBounds(InClusterTree, FVector::Zero());
 	InstanceCountToRender = InNumBuiltRenderInstances;
 
 	// Verify that the mesh is valid before using it.
@@ -2865,8 +2875,10 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& 
 	TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData = MoveTemp(Builder.BuiltInstanceData);
 
 	OcclusionLayerNumNodes = Builder.Result->OutOcclusionLayerNum;
+
+	// Get the new bounds taking into account the translated space used when building the tree.
 	const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
-	BuiltInstanceBounds = (ClusterTree.Num() > 0 ? FBox(ClusterTree[0].BoundMin, ClusterTree[0].BoundMax) : FBox(ForceInit));
+	BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin());
 
 	UnbuiltInstanceBounds.Init();
 	UnbuiltInstanceBoundsList.Empty();
@@ -2957,7 +2969,7 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 	return false;
 }
 
-void UHierarchicalInstancedStaticMeshComponent::GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms) const
+void UHierarchicalInstancedStaticMeshComponent::GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms, FVector const& Offset) const
 {
 	double StartTime = FPlatformTime::Seconds();
 	int32 Num = PerInstanceSMData.Num();
@@ -2965,7 +2977,7 @@ void UHierarchicalInstancedStaticMeshComponent::GetInstanceTransforms(TArray<FMa
 	InstanceTransforms.SetNumUninitialized(Num);
 	for (int32 Index = 0; Index < Num; Index++)
 	{
-		InstanceTransforms[Index] = PerInstanceSMData[Index].Transform;
+		InstanceTransforms[Index] = PerInstanceSMData[Index].Transform.ConcatTranslation(Offset);
 	}
 
 	UE_LOG(LogStaticMesh, Verbose, TEXT("Copied %d transforms in %.3fs."), Num, float(FPlatformTime::Seconds() - StartTime));
@@ -3006,9 +3018,12 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 	{
 		double StartTime = FPlatformTime::Seconds();
 		
+		// Build the tree in translated space to maintain precision.
+		const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
+
 		InitializeInstancingRandomSeed();
 		TArray<FMatrix> InstanceTransforms;
-		GetInstanceTransforms(InstanceTransforms);
+		GetInstanceTransforms(InstanceTransforms, -TranslatedInstanceSpaceOrigin);
 		
 		TSharedRef<FClusterBuilder, ESPMode::ThreadSafe> Builder(new FClusterBuilder(InstanceTransforms, PerInstanceSMCustomData, NumCustomDataFloats, GetStaticMesh()->GetBounds().GetBox(), DesiredInstancesPerLeaf(), CurrentDensityScaling, InstancingRandomSeed, PerInstanceSMData.Num() > 0));
 
@@ -3442,7 +3457,7 @@ void UHierarchicalInstancedStaticMeshComponent::FlushAccumulatedNavigationUpdate
 		const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
 		if (ClusterTree.Num())
 		{
-			FBox NewBounds = FBox(ClusterTree[0].BoundMin, ClusterTree[0].BoundMax).TransformBy(GetComponentTransform());
+			const FBox NewBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin()).TransformBy(GetComponentTransform());
 			FNavigationSystem::OnComponentBoundsChanged(*this, NewBounds, AccumulatedNavigationDirtyArea);
 		}
 			
