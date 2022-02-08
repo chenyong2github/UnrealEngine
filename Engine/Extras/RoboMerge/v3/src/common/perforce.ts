@@ -225,10 +225,6 @@ export interface Change {
 	isUserRequest?: boolean;
 	ignoreExcludedAuthors?: boolean
 	forceCreateAShelf?: boolean
-	edgeServerToHostShelf?: {
-		id: string
-		address: string
-	}
 	sendNoShelfEmail?: boolean // Used for requesting stomps for internal RM usage, such as stomp changes
 	commandOverride?: string
 
@@ -586,13 +582,14 @@ export class PerforceContext {
 	}
 
 	async getWorkspaceEdgeServer(workspaceName: string): Promise<{id: string, address: string} | null> {
-		const serverId = await this._execP4(null, ['-ztag', '-F', '%ServerID%', 'client', '-o', workspaceName]) 
-		if (serverId) {
+		const serverIdLine = await this._execP4(null, ['-ztag', '-F', '%ServerID%', 'client', '-o', workspaceName]) 
+		if (serverIdLine) {
+			const serverId = serverIdLine.trim()
 			const address = await this.getEdgeServerAddress(serverId)
 			if (!address) {
 				throw new Error(`Couldn't find address for edge server '${serverId}'`)
 			}
-			return {id: serverId, address}
+			return {id: serverId, address: address.trim()}
 		}
 		return null
 	}
@@ -655,7 +652,7 @@ export class PerforceContext {
 		return change.change;
 	}
 
-	async newWorkspace(workspaceName: string, params: any, edgeServerAddress?: string) {
+	async newWorkspace(workspaceName: string, params: any, edgeServer?: {id: string, address: string}) {
 		params.Client = workspaceName
 		if (!('Root' in params)) {
 			params.Root = 'd:/ROBO/' + workspaceName // default windows path
@@ -677,6 +674,11 @@ export class PerforceContext {
 			params.LineEnd = 'local'
 		}
 
+		let args = ['client', '-i']
+		if (edgeServer) {
+			args = ['-p', edgeServer.address, ...args, `--serverid=${edgeServer.id}`]
+		}
+
 		let workspaceForm = ''
 		for (let key in params) {
 			let val = params[key];
@@ -693,12 +695,12 @@ export class PerforceContext {
 
 		// run the p4 client command
 		this.logger.info(`Executing: 'p4 client -i' to create workspace ${workspaceName}`);
-		return this._execP4(null, ['client', '-i'], { stdin: workspaceForm, quiet: true, edgeServerAddress });
+		return this._execP4(null, args, { stdin: workspaceForm, quiet: true });
 	}
 
 	// Create a new workspace for Robomerge GraphBot
-	async newGraphBotWorkspace(name: string, extraParams: any, edgeServerAddress?: string) {
-		return this.newWorkspace(name, {Root: '/src/' + name, ...extraParams}, edgeServerAddress);
+	async newGraphBotWorkspace(name: string, extraParams: any, edgeServer?: {id: string, address: string}) {
+		return this.newWorkspace(name, {Root: '/src/' + name, ...extraParams}, edgeServer);
 	}
 
 	// Create a new workspace for Robomerge to read branchspecs from

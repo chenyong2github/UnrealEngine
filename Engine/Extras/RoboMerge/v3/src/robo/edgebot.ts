@@ -498,7 +498,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				if (!target.branch.stream) {
 					throw new Error('only stream workspaces supported on edge servers')
 				}
-				await this.p4.newGraphBotWorkspace(targetWorkspace, {Stream: target.branch.stream})
+				await this.p4.newGraphBotWorkspace(targetWorkspace, {Stream: target.branch.stream}, edgeServer)
 
 				// _initWorkspacesForGraphBot does clean-up stuff here, but I don't think it's necessary
 			}
@@ -507,7 +507,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		const edgeServerAddress: string | undefined = edgeServer && edgeServer.address
 
 		// create a new CL
-		const changenum = await this.p4.new_cl(this.targetBranch.workspace, desc, undefined, edgeServerAddress)
+		const changenum = await this.p4.new_cl(targetWorkspace, desc, undefined, edgeServerAddress)
 
 		// try to integrate
 		const branchSpecToTarget = this.sourceBranch.branchspec.get(this.targetBranch.upperName)
@@ -525,7 +525,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 
 		this.currentIntegrationStartTimestamp = Date.now()
-		const [mode, results] = await this.p4.integrate(this.targetBranch.workspace, source, changenum, integTarget, edgeServerAddress)
+		const [mode, results] = await this.p4.integrate(targetWorkspace, source, changenum, integTarget, edgeServerAddress)
 
 		const pending: PendingChange = {change: info, action: target, newCl: changenum}
 
@@ -543,7 +543,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 				// integration not necessary
 				this.edgeBotLogger.info(msg)
-				await this.p4.deleteCl(this.targetBranch.workspace, changenum)
+				await this.p4.deleteCl(targetWorkspace, changenum, edgeServerAddress)
 				return new EdgeIntegrationDetails('nothing to do', msg)
 			}
 		}

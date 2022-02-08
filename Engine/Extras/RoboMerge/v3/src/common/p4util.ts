@@ -204,14 +204,14 @@ export async function cleanWorkspaces(p4: PerforceContext, workspaces: [string, 
 		}
 		p4utilsLogger.info(`Attempting to revert ${changeStr}`)
 		try {
-			await p4.revert(workspace, change.change)
+			await p4.revert(workspace, change.change, [], edgeServerAddress)
 		}
 		catch (err) {
 			// ignore revert errors on startup (As long as delete works, we're good)
 			p4utilsLogger.error(`Revert failed. Will try delete anyway: ${err}`)
 		}
 
-		await p4.deleteCl(workspace, change.change)
+		await p4.deleteCl(workspace, change.change, edgeServerAddress)
 	}
 
 	p4utilsLogger.info('Resetting all workspaces to revision 0')

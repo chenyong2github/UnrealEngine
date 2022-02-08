@@ -1344,7 +1344,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			const edgeServer = await this.p4.getWorkspaceEdgeServer(
 				coercePerforceWorkspace(optWorkspaceOverride)!.name)
 			if (edgeServer) {
-				change.edgeServerToHostShelf = edgeServer
+				result.info.edgeServerToHostShelf = edgeServer
 			}
 		}
 
@@ -1593,7 +1593,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// By default, we should perform any submit that comes from a change.
 		// If the change is setup to be forcibly shelved, honor it
 		let forceCreateAShelf = !!change.forceCreateAShelf
-		let edgeServerToHostShelf = change.edgeServerToHostShelf
 		let sendNoShelfEmail = !!change.sendNoShelfEmail
 
 		let forceStompChanges = !!change.forceStompChanges
@@ -1607,7 +1606,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			source: parsedLines.source,
 			description,
 			propagatingNullMerge: parsedLines.propagatingNullMerge,
-			forceCreateAShelf, edgeServerToHostShelf, sendNoShelfEmail,
+			forceCreateAShelf, sendNoShelfEmail,
 
 			forceStompChanges, additionalDescriptionText,
 			hasOkForGithubTag: parsedLines.hasOkForGithubTag,
