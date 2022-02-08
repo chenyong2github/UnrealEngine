@@ -83,6 +83,16 @@ void AMediaPlate::PostRegisterAllComponents()
 	}
 }
 
+void AMediaPlate::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (bAutoPlay)
+	{
+		Play();
+	}
+}
+
 UMediaPlayer* AMediaPlate::GetMediaPlayer()
 {
 	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;

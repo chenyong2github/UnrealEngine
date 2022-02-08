@@ -22,6 +22,7 @@ class MEDIAPLATE_API AMediaPlate : public AActor
 public:
 	//~ Begin AActor Interface
 	virtual void PostRegisterAllComponents() override;
+	virtual void BeginPlay() override;
 	//~ End AActor Interface
 
 	/**
@@ -41,6 +42,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
 	void Stop();
+
+	/** If set then start playing right away. */
+	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	bool bAutoPlay;
 
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
