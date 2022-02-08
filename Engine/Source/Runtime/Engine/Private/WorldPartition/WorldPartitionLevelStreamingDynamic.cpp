@@ -372,6 +372,11 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	check(RuntimeLevel);
 	check(!bLoadRequestInProgress);
 
+	if (IsEngineExitRequested())
+	{
+		return;
+	}
+
 	// For RuntimeLevel's world NetGUID to be valid, make sure to flag bIsNameStableForNetworking so that IsNameStableForNetworking() returns true. (see FNetGUIDCache::SupportsObject)
 	UWorld* OuterWorld = RuntimeLevel->GetTypedOuter<UWorld>();
 	OuterWorld->bIsNameStableForNetworking = true;
