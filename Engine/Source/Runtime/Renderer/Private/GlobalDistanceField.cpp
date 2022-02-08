@@ -2258,7 +2258,7 @@ void UpdateGlobalDistanceFieldVolume(
 								uint32 PrevClipmapOffsetZ = 0;
 								uint32 NextClipmapOffsetZ = ClipmapIndex * ClipmapMipResolution;
 
-								if (StepIndex % 2 == 0)
+								if (StepIndex % 2 == NumPropagationSteps % 2)
 								{
 									Swap(PrevTexture, NextTexture);
 									Swap(PrevClipmapOffsetZ, NextClipmapOffsetZ);
