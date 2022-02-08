@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Texture/InterchangeJPGTranslator.h"
 
+#include "Algo/Find.h"
+#include "Containers/StaticArray.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
@@ -18,8 +20,19 @@
 bool UInterchangeJPGTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
 	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString JPGExtension = (TEXT("jpg;Texture"));
-	return JPGExtension.StartsWith(Extension);
+
+	TStaticArray<FString, 2> JPGExtensions;
+	JPGExtensions[0] = TEXT("jpg;Texture");
+	JPGExtensions[1] = TEXT("jpeg;Texture");
+
+	const bool bExtensionMatches =
+		Algo::FindByPredicate(JPGExtensions,
+		[&Extension](const FString& JPGExtension)
+		{
+			return JPGExtension.StartsWith(Extension);
+		}) != nullptr;
+
+	return bExtensionMatches;
 }
 
 bool UInterchangeJPGTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

@@ -24,7 +24,7 @@ namespace GLTF
 			{
 				OutMap.TextureIndex = TexIndex;
 				uint32 TexCoord     = GetUnsignedInt(TexObj, TEXT("texCoord"), 0);
-				check(TexCoord < 2);
+
 				OutMap.TexCoord = TexCoord;
 				if (InScaleName && TexObj.HasTypedField<EJson::Number>(InScaleName))
 				{

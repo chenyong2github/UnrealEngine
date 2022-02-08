@@ -62,6 +62,12 @@
 			]
 		}
 	],
+	"Plugins": [
+		{
+			"Name": "GLTFImporter",
+			"Enabled": true
+		}
+	],
 	"IsExperimentalVersion": false,
 	"SupportedPrograms": [ "InterchangeWorker" ]
 }

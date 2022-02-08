@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"AssetRegistry",
 					"CinematicCamera",
+					"GLTFCore",
 					"IESFile",
 					"ImageWrapper",
 					"InterchangeDispatcher",

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Fbx/InterchangeFbxTranslator.h"
+#include "Gltf/InterchangeGltfTranslator.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeManager.h"
 #include "Material/InterchangeMaterialFactory.h"
@@ -50,7 +51,8 @@ void FInterchangeImportModule::StartupModule()
 
 		//Register the translators
 		//Scenes
-		InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass()); //Do not submit uncommented until we replace completly fbx importer (staticmesh + skeletalMesh + animation)
+		InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeGltfTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeOBJTranslator::StaticClass());
 
 		//Textures
