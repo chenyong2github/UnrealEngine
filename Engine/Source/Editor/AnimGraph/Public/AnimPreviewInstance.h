@@ -258,6 +258,11 @@ public:
 	 */
 	void ResetModifiedBone(bool bCurveController=false);
 
+	/**
+	 * Returns all currently active bone controllers on this instance's proxy
+	 */
+	const TArray<FAnimNode_ModifyBone>& GetBoneControllers();
+
 	void SetForceRetargetBasePose(bool ForceRetargetBasePose);
 
 	bool GetForceRetargetBasePose() const;

@@ -3023,6 +3023,19 @@ void FControlRigEditor::Tick(float DeltaTime)
 				// reset transforms here to prevent additive transforms from accumulating to INF
 				ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 			}
+
+			if (PreviewInstance)
+			{
+				// since we don't have a preview mesh the anim instance cannot deal with the modify bone
+				// functionality. we need to perform this manually to ensure the pose is kept.
+				const TArray<FAnimNode_ModifyBone>& BoneControllers = PreviewInstance->GetBoneControllers();
+				for(const FAnimNode_ModifyBone& ModifyBone : BoneControllers)
+				{
+					const FRigElementKey BoneKey(ModifyBone.BoneToModify.BoneName, ERigElementType::Bone);
+					const FTransform BoneTransform(ModifyBone.Rotation, ModifyBone.Translation, ModifyBone.Scale);
+					ControlRig->GetHierarchy()->SetLocalTransform(BoneKey, BoneTransform);
+				}
+			}
 			
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();

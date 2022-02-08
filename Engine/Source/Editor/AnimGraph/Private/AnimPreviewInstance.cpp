@@ -523,6 +523,11 @@ void UAnimPreviewInstance::ResetModifiedBone(bool bCurveController/*=false*/)
 	GetProxyOnGameThread<FAnimPreviewInstanceProxy>().ResetModifiedBone(bCurveController);
 }
 
+const TArray<FAnimNode_ModifyBone>& UAnimPreviewInstance::GetBoneControllers()
+{
+	return GetProxyOnGameThread<FAnimPreviewInstanceProxy>().GetBoneControllers();
+}
+
 #if WITH_EDITOR	
 
 void UAnimPreviewInstance::SetKey()
