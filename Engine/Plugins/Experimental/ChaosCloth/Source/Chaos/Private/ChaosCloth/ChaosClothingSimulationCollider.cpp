@@ -313,14 +313,14 @@ void FClothingSimulationCollider::FLODData::Update(FClothingSimulationSolver* So
 
 		FTransform ComponentToLocalSpaceReal = Context ? Context->ComponentToWorld : FTransform::Identity;
 		ComponentToLocalSpaceReal.AddToTranslation(-Solver->GetLocalSpaceLocation());
-		const Softs::FSolverRigidTransform3 ComponentToLocalSpace(ComponentToLocalSpaceReal);  // LWC, now in local space, therefore it is safe to use the solver transform type
+		const Softs::FSolverTransform3 ComponentToLocalSpace(ComponentToLocalSpaceReal);  // LWC, now in local space, therefore it is safe to use the solver transform type
 	
 		// Update the collision transforms
 		for (int32 Index = 0; Index < NumGeometries; ++Index)
 		{
 			const int32 BoneIndex = BoneIndices[Index];
 			CollisionTransforms[Index] = BoneTransforms.IsValidIndex(BoneIndex) ?
-				BaseTransforms[Index] * Softs::FSolverRigidTransform3(BoneTransforms[BoneIndex]) * ComponentToLocalSpace :  // LWC requires the BoneTransform cast to the solver underlying type
+				BaseTransforms[Index] * Softs::FSolverTransform3(BoneTransforms[BoneIndex]) * ComponentToLocalSpace :  // LWC requires the BoneTransform cast to the solver underlying type
 				BaseTransforms[Index] * ComponentToLocalSpace;  // External collisions don't map to a bone
 		}
 	}

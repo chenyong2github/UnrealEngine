@@ -3,6 +3,11 @@
 
 #include "Chaos/GeometryParticlesfwd.h"  // for EGeometryParticlesSimType
 
+namespace UE::Math
+{
+	template<typename T> struct TTransform;
+}
+
 namespace Chaos
 {
 	// Chaos types
@@ -30,6 +35,7 @@ namespace Chaos
 		using FSolverRigidParticles = TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>;
 		using FSolverRotation3 = TRotation<FSolverReal, 3>;
 		using FSolverRigidTransform3 = TRigidTransform<FSolverReal, 3>;
+		using FSolverTransform3 = UE::Math::TTransform<FSolverReal>;
 		using FSolverAABB3 = TAABB<FSolverReal, 3>;
 
 		// Softs solver class
