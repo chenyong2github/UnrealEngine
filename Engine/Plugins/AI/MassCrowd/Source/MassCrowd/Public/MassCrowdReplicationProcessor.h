@@ -6,22 +6,22 @@
 
 #include "MassCrowdReplicationProcessor.generated.h"
 
-class UMassReplicationSubsystem;
-class MassLODManager;
-class AMassCrowdClientBubbleInfo;
-class UWorld;
-
-/** Processor that handles replication and only runs on the server. It queries Mass entity fragments and sets those values when appropriate using the MassClientBubbleHandler. */
+/** Class that handles replication and only runs on the server. It queries Mass entity fragments and sets those values when appropriate using the MassClientBubbleHandler. */
 UCLASS()
-class MASSCROWD_API UMassCrowdReplicationProcessor : public UMassReplicationProcessorBase
+class MASSCROWD_API UMassCrowdReplicator : public UMassReplicatorBase
 {
 	GENERATED_BODY()
+
 public:
-	UMassCrowdReplicationProcessor();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	void ProcessClientReplication(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
+	/**
+	 * Overridden to add specific entity query requirements for replication.
+	 * Usually we add replication processor handler requirements.
+	 */
+	void AddRequirements(FMassEntityQuery& EntityQuery) override;
+	
+	/**
+	 * Overridden to process the client replication.
+	 * This methods should call CalculateClientReplication with the appropriate callback implementation.
+	 */
+	void ProcessClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext) override;
 };

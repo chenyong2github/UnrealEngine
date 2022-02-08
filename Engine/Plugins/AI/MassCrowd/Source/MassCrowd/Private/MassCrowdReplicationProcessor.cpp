@@ -10,59 +10,16 @@
 #include "MassReplicationPathHandlers.h"
 #include "MassReplicationTransformHandlers.h"
 
-namespace UE { namespace Mass { namespace Crowd
-{
-	int32 bDebugReplicationViewerLOD = 0;
-	FAutoConsoleVariableRef CVarDebugReplicationViewerLOD(TEXT("ai.debug.CrowdReplicationViewerLOD"), bDebugReplicationViewerLOD, TEXT("Crowd Debug Replication Viewer LOD"), ECVF_Cheat);
-}}}
-
 //----------------------------------------------------------------------//
-//  UMassProcessor_Replication
+//  UMassCrowdReplicator
 //----------------------------------------------------------------------//
-UMassCrowdReplicationProcessor::UMassCrowdReplicationProcessor()
+void UMassCrowdReplicator::AddRequirements(FMassEntityQuery& EntityQuery)
 {
-#if !UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
-	ExecutionFlags = int32(EProcessorExecutionFlags::Server);
-#else
-	ExecutionFlags = int32(EProcessorExecutionFlags::All);
-#endif // UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
-}
-
-void UMassCrowdReplicationProcessor::ConfigureQueries()
-{
-	Super::ConfigureQueries();
-
 	FMassReplicationProcessorPositionYawHandler::AddRequirements(EntityQuery);
 	FMassReplicationProcessorPathHandler::AddRequirements(EntityQuery);
-
-	CollectViewerInfoQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
-	CalculateLODQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
-	AdjustLODDistancesQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
-	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 }
 
-void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	Super::Execute(EntitySubsystem, Context);
-
-	ProcessClientReplication(EntitySubsystem, Context);
-
-#if WITH_MASSGAMEPLAY_DEBUG
-	// Optional debug display
-	if (UE::Mass::Crowd::bDebugReplicationViewerLOD)
-	{
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-			{
-				const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
-				const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();
-				FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
-				RepSharedFragment.LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);
-			});
-	}
-#endif // WITH_MASSGAMEPLAY_DEBUG
-}
-
-void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassCrowdReplicator::ProcessClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 
@@ -106,11 +63,6 @@ void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsyst
 		CrowdBubbleInfo.GetCrowdSerializer().Bubble.RemoveAgentChecked(Handle);
 	};
 
-	QUICK_SCOPE_CYCLE_COUNTER(UMassCrowdReplicationProcessor_ProcessClientReplication);
-
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &CacheViewsCallback, &AddEntityCallback, &ModifyEntityCallback, &RemoveEntityCallback](FMassExecutionContext& Context)
-	{
-		CalculateClientReplication<FCrowdFastArrayItem>(Context, CacheViewsCallback, AddEntityCallback, ModifyEntityCallback, RemoveEntityCallback);
-	});
+	CalculateClientReplication<FCrowdFastArrayItem>(Context, ReplicationContext, CacheViewsCallback, AddEntityCallback, ModifyEntityCallback, RemoveEntityCallback);
 #endif // UE_REPLICATION_COMPILE_SERVER_CODE
 }

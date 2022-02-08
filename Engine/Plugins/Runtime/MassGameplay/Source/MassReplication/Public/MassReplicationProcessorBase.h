@@ -22,12 +22,12 @@ class UWorld;
  *  query Mass entity fragments and set those values for replication when appropriate, using the MassClientBubbleHandler.
  */
 UCLASS()
-class MASSREPLICATION_API UMassReplicationProcessorBase : public UMassProcessor_LODBase
+class MASSREPLICATION_API UMassReplicationProcessor : public UMassProcessor_LODBase
 {
 	GENERATED_BODY()
 
 public:
-	UMassReplicationProcessorBase();
+	UMassReplicationProcessor();
 
 protected:
 	virtual void ConfigureQueries() override;
@@ -36,19 +36,10 @@ protected:
 
 	void PrepareExecution(UMassEntitySubsystem& EntitySubsystem);
 
-	/** 
-	 *  Implemented as straight template callbacks as when profiled this was faster than TFunctionRef. Its probably easier to pass Lamdas in to these
-	 *  but Functors can also be used as well as TFunctionRefs etc. Its also fairly straight forward to call member functions via some Lamda glue code
-	 */
-	template<typename AgentArrayItem, typename CacheViewsCallback, typename AddEntityCallback, typename ModifyEntityCallback, typename RemoveEntityCallback>
-	void CalculateClientReplication(FMassExecutionContext& Context, CacheViewsCallback&& CacheViews, AddEntityCallback&& AddEntity, ModifyEntityCallback&& ModifyEntity, RemoveEntityCallback&& RemoveEntity);
-
-
-
 protected:
 
-	UPROPERTY()
-	UMassReplicationSubsystem* ReplicationSubsystem;
+	UPROPERTY(Transient)
+	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
 
 	FMassEntityQuery CollectViewerInfoQuery;
 	FMassEntityQuery CalculateLODQuery;
@@ -56,14 +47,51 @@ protected:
 	FMassEntityQuery EntityQuery;
 };
 
+
+struct FMassReplicationContext
+{
+	FMassReplicationContext(UWorld& InWorld, UMassLODManager& InLODManager, UMassReplicationSubsystem& InReplicationSubsystem)
+		: World(InWorld)
+		, LODManager(InLODManager)
+		, ReplicationSubsystem(InReplicationSubsystem)
+	{}
+
+	UWorld& World;
+	UMassLODManager& LODManager;
+	UMassReplicationSubsystem& ReplicationSubsystem;
+};
+
+UCLASS(Abstract)
+class MASSREPLICATION_API UMassReplicatorBase : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Must override to add specific entity query requirements for replication
+	 * Usually we add replication processor handler requirements
+	 */
+	virtual void AddRequirements(FMassEntityQuery& EntityQuery) PURE_VIRTUAL(UMassReplicatorBase::ConfigureQueries, );
+
+	/**
+	 * Must override to process the client replication
+	 * This methods should call CalculateClientReplication with the appropriate callback implementation
+	 */
+	virtual void ProcessClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext) PURE_VIRTUAL(UMassReplicatorBase::ProcessClientReplication, );
+
+protected:
+	/**
+	 *  Implemented as straight template callbacks as when profiled this was faster than TFunctionRef. Its probably easier to pass Lamdas in to these
+	 *  but Functors can also be used as well as TFunctionRefs etc. Its also fairly straight forward to call member functions via some Lamda glue code
+	 */
+	template<typename AgentArrayItem, typename CacheViewsCallback, typename AddEntityCallback, typename ModifyEntityCallback, typename RemoveEntityCallback>
+	static void CalculateClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext, CacheViewsCallback&& CacheViews, AddEntityCallback&& AddEntity, ModifyEntityCallback&& ModifyEntity, RemoveEntityCallback&& RemoveEntity);
+};
+
 template<typename AgentArrayItem, typename CacheViewsCallback, typename AddEntityCallback, typename ModifyEntityCallback, typename RemoveEntityCallback>
-void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionContext& Context, CacheViewsCallback&& CacheViews, AddEntityCallback&& AddEntity, ModifyEntityCallback&& ModifyEntity, RemoveEntityCallback&& RemoveEntity)
+void UMassReplicatorBase::CalculateClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext, CacheViewsCallback&& CacheViews, AddEntityCallback&& AddEntity, ModifyEntityCallback&& ModifyEntity, RemoveEntityCallback&& RemoveEntity)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-
-	check(ReplicationSubsystem);
-	check(LODManager);
-	check(World);
 
 	const int32 NumEntities = Context.GetNumEntities();
 
@@ -75,7 +103,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 
 	CacheViews(Context);
 
-	const float Time = World->GetRealTimeSeconds();
+	const float Time = ReplicationContext.World.GetRealTimeSeconds();
 
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
@@ -109,14 +137,14 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 
 				//now we need to see what our highest viewer LOD is on this client (split screen etc), we can use the unsafe version as we have already checked all the
 				//CachedClientHandles for validity
-				const FClientViewerHandles& ClientViewers = ReplicationSubsystem->GetClientViewersChecked(ClientHandle);
+				const FClientViewerHandles& ClientViewers = ReplicationContext.ReplicationSubsystem.GetClientViewersChecked(ClientHandle);
 
 				EMassLOD::Type HighestLOD = EMassLOD::Off;
 
 				for (const FMassViewerHandle& ViewerHandle : ClientViewers.Handles)
 				{
 					//this should always we valid as we synchronized the viewers just previously
-					check(LODManager->IsValidViewer(ViewerHandle));
+					check(ReplicationContext.LODManager.IsValidViewer(ViewerHandle));
 
 					const EMassLOD::Type MassLOD = ViewerLODList[EntityIdx].LODPerViewer[ViewerHandle.GetIndex()];
 					check(MassLOD <= EMassLOD::Off);

@@ -10,6 +10,7 @@
 #include "MassReplicationFragments.generated.h"
 
 class AMassClientBubbleInfoBase;
+class UMassReplicatorBase;
 
 /**
  *  Fragment type for the mass network id of a mass entity
@@ -133,6 +134,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Mass|Replication", config)
 	TSubclassOf<AMassClientBubbleInfoBase> BubbleInfoClass;
+
+	UPROPERTY(EditAnywhere, Category = "Mass|Replication", config)
+	TSubclassOf<UMassReplicatorBase> ReplicatorClass;
+
 };
 
 USTRUCT()
@@ -156,6 +161,12 @@ public:
 	TMassLODCollector<FReplicationLODLogic> LODCollector;
 	TMassLODCalculator<FReplicationLODLogic> LODCalculator;
 	bool bHasAdjustedDistancesFromCount = false;
+
+	bool bEntityQueryInitialized = false;
+	FMassEntityQuery EntityQuery;
+
+	UPROPERTY(Transient)
+	mutable UMassReplicatorBase* CachedReplicator = nullptr;
 
 	template<typename T>
 	T& GetTypedClientBubbleInfoChecked(FMassClientHandle Handle)

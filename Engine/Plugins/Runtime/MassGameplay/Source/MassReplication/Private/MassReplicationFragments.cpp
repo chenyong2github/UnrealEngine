@@ -2,6 +2,7 @@
 
 #include "MassReplicationFragments.h"
 #include "MassReplicationSubsystem.h"
+#include "MassReplicationProcessorBase.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
@@ -87,4 +88,7 @@ FMassReplicationSharedFragment::FMassReplicationSharedFragment(UMassReplicationS
 {
 	LODCalculator.Initialize(Params.LODDistance, Params.BufferHysteresisOnDistancePercentage / 100.0f, Params.LODMaxCount, Params.LODMaxCountPerViewer);
 	BubbleInfoClassHandle = ReplicationSubsystem.GetBubbleInfoClassHandle(Params.BubbleInfoClass);
+
+	CachedReplicator = Params.ReplicatorClass.GetDefaultObject();
+	checkf(CachedReplicator, TEXT("Expecting a valid replicator class"))
 }

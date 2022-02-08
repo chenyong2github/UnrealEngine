@@ -5,16 +5,27 @@
 #include "MassLODManager.h"
 #include "MassCommonFragments.h"
 
-//----------------------------------------------------------------------//
-//  UMassReplicationProcessorBase
-//----------------------------------------------------------------------//
-UMassReplicationProcessorBase::UMassReplicationProcessorBase()
+namespace UE::Mass::Replication
 {
-	ExecutionFlags = int32(EProcessorExecutionFlags::None);
+	int32 bDebugReplicationLOD = 0;
+	FAutoConsoleVariableRef CVarDebugReplicationViewerLOD(TEXT("ai.debug.ReplicationLOD"), bDebugReplicationLOD, TEXT("Debug Replication LOD"), ECVF_Cheat);
+} // UE::Mass::Crowd
+
+//----------------------------------------------------------------------//
+//  UMassReplicationProcessor
+//----------------------------------------------------------------------//
+UMassReplicationProcessor::UMassReplicationProcessor()
+{
+#if !UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
+	ExecutionFlags = int32(EProcessorExecutionFlags::Server);
+#else
+	ExecutionFlags = int32(EProcessorExecutionFlags::All);
+#endif // UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
+
 	ProcessingPhase = EMassProcessingPhase::PostPhysics;
 }
 
-void UMassReplicationProcessorBase::ConfigureQueries()
+void UMassReplicationProcessor::ConfigureQueries()
 {
 	CollectViewerInfoQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	CollectViewerInfoQuery.AddRequirement<FMassReplicationViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
@@ -42,7 +53,7 @@ void UMassReplicationProcessorBase::ConfigureQueries()
 	EntityQuery.AddSharedRequirement<FMassReplicationSharedFragment>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassReplicationProcessorBase::Initialize(UObject& Owner)
+void UMassReplicationProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
@@ -53,7 +64,7 @@ void UMassReplicationProcessorBase::Initialize(UObject& Owner)
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassReplicationProcessorBase::PrepareExecution(UMassEntitySubsystem& EntitySubsystem)
+void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySubsystem)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 
@@ -66,6 +77,18 @@ void UMassReplicationProcessorBase::PrepareExecution(UMassEntitySubsystem& Entit
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
 	EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this, &Viewers](FMassReplicationSharedFragment& RepSharedFragment)
 	{
+		if (!RepSharedFragment.bEntityQueryInitialized)
+		{
+			RepSharedFragment.EntityQuery = EntityQuery;
+			RepSharedFragment.EntityQuery.SetArchetypeFilter([&RepSharedFragment](const FMassExecutionContext& Context)
+			{
+				const FMassReplicationSharedFragment& CurRepSharedFragment = Context.GetSharedFragment<FMassReplicationSharedFragment>();
+				return &CurRepSharedFragment == &RepSharedFragment;
+			});
+			RepSharedFragment.CachedReplicator->AddRequirements(RepSharedFragment.EntityQuery);
+			RepSharedFragment.bEntityQueryInitialized = true;
+		}
+
 		RepSharedFragment.LODCollector.PrepareExecution(Viewers);
 		RepSharedFragment.LODCalculator.PrepareExecution(Viewers);
 
@@ -128,41 +151,72 @@ void UMassReplicationProcessorBase::PrepareExecution(UMassEntitySubsystem& Entit
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 	check(World);
+	check(LODManager);
+	check(ReplicationSubsystem);
 
-	PrepareExecution(EntitySubsystem);
-
-	CollectViewerInfoQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
-		const TArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetMutableFragmentView<FMassReplicationViewerInfoFragment>();
-		FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
-		RepSharedFragment.LODCollector.CollectLODInfo(Context, LocationList, ViewersInfoList, ViewersInfoList);
-	});
+		QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_Preperation);
+		PrepareExecution(EntitySubsystem);
+	}
 
-	CalculateLODQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
-		const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
-		const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
-		FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
-		RepSharedFragment.LODCalculator.CalculateLOD(Context, ViewersInfoList, ViewerLODList, ViewersInfoList);
-	});
+		QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_LODCaculation);
+		CollectViewerInfoQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+			const TArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetMutableFragmentView<FMassReplicationViewerInfoFragment>();
+			FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+			RepSharedFragment.LODCollector.CollectLODInfo(Context, LocationList, ViewersInfoList, ViewersInfoList);
+		});
 
-	EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([](FMassReplicationSharedFragment& RepSharedFragment)
+		CalculateLODQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
+			const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
+			FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+			RepSharedFragment.LODCalculator.CalculateLOD(Context, ViewersInfoList, ViewerLODList, ViewersInfoList);
+		});
+
+		EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([](FMassReplicationSharedFragment& RepSharedFragment)
+		{
+			RepSharedFragment.bHasAdjustedDistancesFromCount = RepSharedFragment.LODCalculator.AdjustDistancesFromCount();
+		});
+
+		AdjustLODDistancesQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
+			const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
+			FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+			RepSharedFragment.LODCalculator.AdjustLODFromCount(Context, ViewersInfoList, ViewerLODList, ViewersInfoList);
+		});
+	}
+
 	{
-		RepSharedFragment.bHasAdjustedDistancesFromCount = RepSharedFragment.LODCalculator.AdjustDistancesFromCount();
-	});
+		QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_ProcessClientReplication);
+		FMassReplicationContext ReplicationContext(*World, *LODManager, *ReplicationSubsystem);
+		EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this, &EntitySubsystem, &Context, &ReplicationContext](FMassReplicationSharedFragment& RepSharedFragment)
+		{
+			RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ReplicationContext, &RepSharedFragment](FMassExecutionContext& Context)
+			{
+				RepSharedFragment.CachedReplicator->ProcessClientReplication(Context, ReplicationContext);
+			});
+		});
+	}
 
-	AdjustLODDistancesQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+	// Optional debug display
+	if (UE::Mass::Replication::bDebugReplicationLOD)
 	{
-		const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
-		const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
-		FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
-		RepSharedFragment.LODCalculator.AdjustLODFromCount(Context, ViewersInfoList, ViewerLODList, ViewersInfoList);
-	});
-
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
+			const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();
+			FMassReplicationSharedFragment& RepSharedFragment = Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+			RepSharedFragment.LODCalculator.DebugDisplayLOD(Context, ViewerLODList, TransformList, World);
+		});
+	}
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
