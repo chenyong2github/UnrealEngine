@@ -177,9 +177,9 @@ class FUsdLayerEditColumn : public FUsdTreeViewColumn, public TSharedFromThis< F
 public:
 	const FSlateBrush* GetCheckedImage( const FUsdLayerViewModelRef InTreeItem ) const
 	{
-		return InTreeItem->LayerModel->bIsEditTarget ?
-			&FEditorStyle::Get().GetWidgetStyle< FCheckBoxStyle >( "Checkbox" ).CheckedImage :
-			nullptr;
+		return InTreeItem->LayerModel->bIsEditTarget
+			? FUsdStageEditorStyle::Get()->GetBrush( "UsdStageEditor.CheckBoxImage" )
+			: nullptr;
 	}
 
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
@@ -188,8 +188,7 @@ public:
 
 		TSharedRef< SWidget > Item =
 			SNew(SImage)
-				.Image( this, &FUsdLayerEditColumn::GetCheckedImage, TreeItem )
-				.ColorAndOpacity( FSlateColor::UseForeground() );
+				.Image( this, &FUsdLayerEditColumn::GetCheckedImage, TreeItem );
 
 		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 

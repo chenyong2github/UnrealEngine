@@ -36,6 +36,7 @@ void FUsdStageEditorStyle::Initialize()
 {
 	// Const icon sizes
 	const FVector2D Icon8x8(8.0f, 8.0f);
+	const FVector2D Icon14x14(14.0f, 14.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
 	const FVector2D Icon40x40(40.0f, 40.0f);
@@ -59,6 +60,12 @@ void FUsdStageEditorStyle::Initialize()
 
 		/** Highlighted color of Prim labels that have composition arcs */
 		StyleSet->Set( "UsdStageEditor.HighlightPrimCompositionArcColor", FLinearColor( 0.2f, 0.08f, 0.0f, 1.0f ) );
+
+		/**
+		 * Checkmark that is always white. We can't use the editor style one in some places (which by default is styled blue)
+		 * because the highlight color is also the same blue, so the checkbox would be invisible
+		 */
+		StyleSet->Set( "UsdStageEditor.CheckBoxImage", new IMAGE_BRUSH( "Common/Check", Icon14x14, FLinearColor::White ) );
 
 		/**
 		 * Button without a background, border or foreground color that doesn't move when pressed.
