@@ -181,7 +181,7 @@ int32 GenerateParticleSortKeys(
 
 	// Grab the shader, set output.
 	TShaderMapRef<FParticleSortKeyGenCS> KeyGenCS(GetGlobalShaderMap(FeatureLevel));
-	RHICmdList.SetComputeShader(KeyGenCS.GetComputeShader());
+	SetComputePipelineState(RHICmdList, KeyGenCS.GetComputeShader());
 	KeyGenCS->SetOutput(RHICmdList, KeyBufferUAV, SortedVertexBufferUAV);
 	KeyGenCS->SetPositionTextures(RHICmdList, PositionTextureRHI);
 

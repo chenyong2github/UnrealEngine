@@ -569,7 +569,7 @@ void DispatchComputeShader(
 		[PassParameters, &View, ComputeShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+			SetComputePipelineState(RHICmdList, ShaderRHI);
 			SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *PassParameters);
 
 			if (IsHardwareRayTracingRadianceCacheIndirectDispatch())

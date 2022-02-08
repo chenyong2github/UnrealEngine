@@ -208,7 +208,7 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 	// No that resource transition must be made outside this call as we don't know how the content of those have been generated, and will be used.
 
 	TShaderMapRef<FCopyUIntBufferCS> CopyBufferCS(GetGlobalShaderMap(FeatureLevel));
-	RHICmdList.SetComputeShader(CopyBufferCS.GetComputeShader());
+	SetComputePipelineState(RHICmdList, CopyBufferCS.GetComputeShader());
 	
 	CopyBufferCS->Begin(RHICmdList);
 

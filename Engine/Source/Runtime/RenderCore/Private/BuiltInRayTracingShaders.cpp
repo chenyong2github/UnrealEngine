@@ -2,6 +2,7 @@
 
 #include "BuiltInRayTracingShaders.h"
 #include "ShaderParameterUtils.h"
+#include "PipelineStateCache.h"
 
 #if RHI_RAYTRACING
 
@@ -30,7 +31,7 @@ void FRayTracingDispatchDescCS::Dispatch(FRHICommandList& RHICmdList,
 
 	TShaderMapRef<FRayTracingDispatchDescCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-	RHICmdList.SetComputeShader(ShaderRHI);
+	SetComputePipelineState(RHICmdList, ShaderRHI);
 
 	static_assert(DispatchDescMaxSizeDwords % 4 == 0, "DispatchDescMaxSizeDwords must be a multiple of 4");
 	static constexpr uint32 DispatchDescMaxSizeUint4s = DispatchDescMaxSizeDwords / 4;

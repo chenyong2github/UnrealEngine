@@ -8,6 +8,7 @@
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
 #include "RHIGPUReadback.h"
+#include "PipelineStateCache.h"
 
 class FGlobalShaderMap;
 
@@ -365,7 +366,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	{
 		ValidateGroupCount(GroupCount);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-		RHICmdList.SetComputeShader(ShaderRHI);
+		SetComputePipelineState(RHICmdList, ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, ParametersMetadata, Parameters);
 		RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
@@ -393,7 +394,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	{
 		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-		RHICmdList.SetComputeShader(ShaderRHI);
+		SetComputePipelineState(RHICmdList, ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
 		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer, IndirectArgOffset);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
@@ -410,7 +411,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	{
 		ValidateIndirectArgsBuffer(IndirectArgsBuffer, IndirectArgOffset);
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-		RHICmdList.SetComputeShader(ShaderRHI);
+		SetComputePipelineState(RHICmdList, ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Parameters);
 		RHICmdList.DispatchIndirectComputeShader(IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgOffset);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);

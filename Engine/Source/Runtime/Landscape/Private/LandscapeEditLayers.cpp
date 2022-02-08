@@ -901,7 +901,7 @@ public:
 		SCOPED_DRAW_EVENTF(InRHICmdList, LandscapeLayers, TEXT("LandscapeLayers_ExtractLayers"));
 
 		TShaderMapRef<FLandscapeLayerWeightmapExtractMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		InRHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		SetComputePipelineState(InRHICmdList, ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(InRHICmdList, ShaderParams);
 
 		uint32 ThreadGroupCountX = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeX);
@@ -1089,7 +1089,7 @@ public:
 		SCOPED_DRAW_EVENTF(InRHICmdList, LandscapeLayers, TEXT("LandscapeLayers_PackLayers"));
 
 		TShaderMapRef<FLandscapeLayerWeightmapPackMaterialLayersCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		InRHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		SetComputePipelineState(InRHICmdList, ComputeShader.GetComputeShader());
 		ComputeShader->SetParameters(InRHICmdList, ShaderParams);
 
 		uint32 ThreadGroupCountX = FMath::CeilToInt((float)ShaderParams.ComponentSize / (float)GLandscapeLayerWeightmapThreadGroupSizeX);

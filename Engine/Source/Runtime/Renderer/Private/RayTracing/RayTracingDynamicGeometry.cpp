@@ -479,7 +479,7 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					FRHIComputeShader* ComputeShader = Shader.GetComputeShader();
 					if (CurrentShader != ComputeShader)
 					{
-						RHICmdList.SetComputeShader(ComputeShader);
+						SetComputePipelineState(RHICmdList, ComputeShader);
 						CurrentBuffer = nullptr;
 						CurrentShader = ComputeShader;
 

@@ -594,7 +594,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_ClearClipmap);
 
 			TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
-			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+			SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FResetPhysicsFieldClipmapCS::ThreadGroupSize);
@@ -618,7 +618,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);
 			SCOPED_GPU_STAT(RHICmdList, PhysicsFields_BuildClipmap);
 			TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
-			RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+			SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 			const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
 			const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(NumCells, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);

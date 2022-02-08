@@ -2142,7 +2142,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 				ShaderBindings.Finalize(&PassShaders);
 
 				FRHIComputeShader* ComputeShaderRHI = ComputeShader.GetComputeShader();
-				RHICmdList.SetComputeShader(ComputeShaderRHI);
+				SetComputePipelineState(RHICmdList, ComputeShaderRHI);
 				ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
 				SetShaderParameters(RHICmdList, ComputeShader, ComputeShaderRHI, *PassParameters);
 				RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);

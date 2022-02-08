@@ -2278,7 +2278,7 @@ static FBox ComputeParticleBounds(
 
 		// Grab the shader.
 		TShaderMapRef<FParticleBoundsCS> ParticleBoundsCS(GetGlobalShaderMap(FeatureLevel));
-		RHICmdList.SetComputeShader(ParticleBoundsCS.GetComputeShader());
+		SetComputePipelineState(RHICmdList, ParticleBoundsCS.GetComputeShader());
 
 		// Dispatch shader to compute bounds.
 		ParticleBoundsCS->SetOutput(RHICmdList, BoundsVertexBufferUAV);

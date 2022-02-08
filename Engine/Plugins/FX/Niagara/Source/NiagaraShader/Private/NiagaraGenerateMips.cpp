@@ -86,7 +86,7 @@ void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2
 
 		RHICmdList.Transition(FRHITransitionInfo(MipOutUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
 
-		RHICmdList.SetComputeShader(ShaderRHI);
+		SetComputePipelineState(RHICmdList, ShaderRHI);
 		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, PassParameters);
 		RHICmdList.DispatchComputeShader(NumThreadGroups.X, NumThreadGroups.Y, NumThreadGroups.Z);
 		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);

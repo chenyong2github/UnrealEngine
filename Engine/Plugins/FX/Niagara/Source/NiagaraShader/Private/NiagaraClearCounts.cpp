@@ -64,7 +64,7 @@ void NiagaraClearCounts::ClearCountsInt(FRHICommandList& RHICmdList, FRHIUnorder
 	const uint32 NumThreadGroups = FMath::DivideAndRoundUp<uint32>(IndexAndValueArray.Num(), FNiagaraClearCountsIntCS::ThreadGroupSize);
 
 	RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	RHICmdList.SetComputeShader(ShaderRHI);
+	SetComputePipelineState(RHICmdList, ShaderRHI);
 	SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, ShaderParameters);
 	RHICmdList.DispatchComputeShader(NumThreadGroups, 1, 1);
 	UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);

@@ -746,8 +746,8 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 			});
 			
-			// Clear the offsets buffer.			
-			RHICmdList.SetComputeShader(ClearOffsetsCS.GetComputeShader());			
+			// Clear the offsets buffer.
+			SetComputePipelineState(RHICmdList, ClearOffsetsCS.GetComputeShader());
 			ClearOffsetsCS->SetOutput(RHICmdList, GSortOffsetBuffers.BufferUAVs[0]);
 			DispatchComputeShader(RHICmdList, ClearOffsetsCS.GetShader(), 1, 1 ,1 );
 			ClearOffsetsCS->UnbindBuffers(RHICmdList);
@@ -759,7 +759,7 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			});
 
 			// Phase 1: Scan upsweep to compute per-digit totals.
-			RHICmdList.SetComputeShader(UpsweepCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, UpsweepCS.GetComputeShader());
 			UpsweepCS->SetOutput(RHICmdList, GSortOffsetBuffers.BufferUAVs[0]);
 			UpsweepCS->SetParameters(RHICmdList, SortBuffers.RemoteKeySRVs[BufferIndex], SortUniformBufferRef, GRadixSortParametersBuffer.SortParametersBufferSRV );
 			DispatchComputeShader(RHICmdList, UpsweepCS.GetShader(), GroupCount, 1, 1 );
@@ -778,7 +778,7 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			}
 
 			// Phase 2: Parallel prefix scan on the offsets buffer.
-			RHICmdList.SetComputeShader(SpineCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, SpineCS.GetComputeShader());
 			SpineCS->SetOutput(RHICmdList, GSortOffsetBuffers.BufferUAVs[1]);
 			SpineCS->SetParameters(RHICmdList, GSortOffsetBuffers.BufferSRVs[0] );
 			DispatchComputeShader(RHICmdList, SpineCS.GetShader(), 1, 1, 1 );
@@ -798,7 +798,7 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 
 			const bool bIsLastPass = ((PassBits << RADIX_BITS) & KeyMask) == 0;
 			// Phase 3: Downsweep to compute final offsets and scatter keys.
-			RHICmdList.SetComputeShader(DownsweepCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, DownsweepCS.GetComputeShader());
 			{
 				FRHIUnorderedAccessView* ValuesUAV = nullptr;
 				if (bIsLastPass && SortBuffers.FinalValuesUAV)

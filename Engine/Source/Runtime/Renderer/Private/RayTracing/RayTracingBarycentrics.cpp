@@ -101,7 +101,7 @@ void RenderRayTracingBarycentricsCS(FRDGBuilder& GraphBuilder, const FViewInfo& 
 		[PassParameters, ComputeShader, &View, ViewRect](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-			RHICmdList.SetComputeShader(ShaderRHI);
+			SetComputePipelineState(RHICmdList, ShaderRHI);
 			SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *PassParameters);
 
 			const FIntPoint GroupSize(FRayTracingBarycentricsCS::ThreadGroupSizeX, FRayTracingBarycentricsCS::ThreadGroupSizeY);

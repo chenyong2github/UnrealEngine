@@ -699,7 +699,7 @@ inline void ClearTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* De
 	if (DestinationGridBufferUAV != nullptr)
 	{
 		TShaderMapRef<FClearVelocityGridCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
 			FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)

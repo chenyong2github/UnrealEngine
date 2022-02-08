@@ -1136,7 +1136,8 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 						Weights[i] = 0.0f;
 					}
 
-					RHICmdList.SetComputeShader(GPUMorphUpdateCS.GetComputeShader());
+					SetComputePipelineState(RHICmdList, GPUMorphUpdateCS.GetComputeShader());
+
 					GPUMorphUpdateCS->SetParameters(RHICmdList, MorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 					GPUMorphUpdateCS->SetMorphOffsetsAndWeights(RHICmdList, BatchOffsets, GroupOffsets, Weights);
 					GPUMorphUpdateCS->Dispatch(RHICmdList, NumBatches);
@@ -1157,7 +1158,9 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				//multiple permutations can be batched by a single shader where the shader will rely on
 				//binary search to find the correct target weight within the batch.
 				TShaderMapRef<FGPUMorphNormalizeCS> GPUMorphNormalizeCS(GetGlobalShaderMap(FeatureLevel));
-				RHICmdList.SetComputeShader(GPUMorphNormalizeCS.GetComputeShader());
+
+				SetComputePipelineState(RHICmdList, GPUMorphNormalizeCS.GetComputeShader());
+
 				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 				GPUMorphNormalizeCS->Dispatch(RHICmdList, MorphVertexBuffer.GetNumVerticies());
 				GPUMorphNormalizeCS->EndAllDispatches(RHICmdList);

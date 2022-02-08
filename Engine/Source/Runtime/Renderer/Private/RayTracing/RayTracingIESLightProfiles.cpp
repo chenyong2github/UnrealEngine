@@ -64,7 +64,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 	FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
 
 	RHICmdList.Transition(FRHITransitionInfo(AtlasUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-	RHICmdList.SetComputeShader(ShaderRHI);
+	SetComputePipelineState(RHICmdList, ShaderRHI);
 	RHICmdList.SetUAVParameter(ShaderRHI, Shader->GetDstResourceParam().GetBaseIndex(), AtlasUAV);
 	RHICmdList.BeginUAVOverlap(AtlasUAV);
 	for (uint32 ProfileIndex = 0; ProfileIndex < NewArraySize; ++ProfileIndex)

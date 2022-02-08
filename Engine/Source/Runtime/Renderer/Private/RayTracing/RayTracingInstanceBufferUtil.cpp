@@ -298,7 +298,7 @@ void BuildRayTracingInstanceBuffer(
 
 	//ClearUnusedGraphResources(ComputeShader, PassParams);
 
-	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
+	SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
 
 	SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), PassParams);
 

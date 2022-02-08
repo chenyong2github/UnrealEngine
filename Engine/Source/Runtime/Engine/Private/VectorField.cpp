@@ -1181,7 +1181,7 @@ public:
 			}
 
 			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			RHICmdList.SetComputeShader(CompositeCS.GetComputeShader());
+			SetComputePipelineState(RHICmdList, CompositeCS.GetComputeShader());
 			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
 			/// ?
 			CompositeCS->SetParameters(
