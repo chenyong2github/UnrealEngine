@@ -282,6 +282,11 @@ namespace UnrealBuildTool
 
 		private uint GetRevisionValue(string VersionString)
 		{
+			if (VersionString == null)
+			{
+				return 0;
+			}
+
 			// read up to 4 sections (ie. 20.0.3.5), first section most significant
 			// each section assumed to be 0 to 255 range
 			uint Value = 0;
@@ -309,57 +314,73 @@ namespace UnrealBuildTool
 				return CachedBuildToolsVersion;
 			}
 
-			// get a list of the directories in build-tools.. may be more than one set installed (or none which is bad)
-			string[] Subdirs = Directory.GetDirectories(Path.Combine(HomePath, "build-tools"));
-			if (Subdirs.Length == 0)
-			{
-				throw new BuildException("Failed to find %ANDROID_HOME%/build-tools subdirectory. Run SDK manager and install build-tools.");
-			}
-
-			// valid directories will have a source.properties with the Pkg.Revision (there is no guarantee we can use the directory name as revision)
 			string? BestVersionString = null;
 			uint BestVersion = 0;
-			foreach (string CandidateDir in Subdirs)
-			{
-				string AaptFilename = Path.Combine(CandidateDir, RuntimePlatform.IsWindows ? "aapt.exe" : "aapt");
-				string RevisionString = "";
-				uint RevisionValue = 0;
 
-				if (File.Exists(AaptFilename))
+			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
+			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "BuildToolsOverride", out BestVersionString);
+
+			if (BestVersionString == null || BestVersionString == "" || BestVersionString == "latest")
+			{
+				// get a list of the directories in build-tools.. may be more than one set installed (or none which is bad)
+				string[] Subdirs = Directory.GetDirectories(Path.Combine(HomePath, "build-tools"));
+				if (Subdirs.Length == 0)
 				{
-					string SourcePropFilename = Path.Combine(CandidateDir, "source.properties");
-					if (File.Exists(SourcePropFilename))
+					throw new BuildException("Failed to find %ANDROID_HOME%/build-tools subdirectory. Run SDK manager and install build-tools.");
+				}
+
+				// valid directories will have a source.properties with the Pkg.Revision (there is no guarantee we can use the directory name as revision)
+				foreach (string CandidateDir in Subdirs)
+				{
+					string AaptFilename = Path.Combine(CandidateDir, RuntimePlatform.IsWindows ? "aapt.exe" : "aapt");
+					string RevisionString = "";
+					uint RevisionValue = 0;
+
+					if (File.Exists(AaptFilename))
 					{
-						string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
-						foreach (string PropertyLine in PropertyContents)
+						string SourcePropFilename = Path.Combine(CandidateDir, "source.properties");
+						if (File.Exists(SourcePropFilename))
 						{
-							if (PropertyLine.StartsWith("Pkg.Revision="))
+							string[] PropertyContents = File.ReadAllLines(SourcePropFilename);
+							foreach (string PropertyLine in PropertyContents)
 							{
-								RevisionString = PropertyLine.Substring(13);
-								RevisionValue = GetRevisionValue(RevisionString);
-								break;
+								if (PropertyLine.StartsWith("Pkg.Revision="))
+								{
+									RevisionString = PropertyLine.Substring(13);
+									RevisionValue = GetRevisionValue(RevisionString);
+									break;
+								}
 							}
 						}
 					}
-				}
 
-				// remember it if newer version or haven't found one yet
-				if (RevisionValue > BestVersion || BestVersionString == null)
-				{
-					BestVersion = RevisionValue;
-					BestVersionString = RevisionString;
+					// remember it if newer version or haven't found one yet
+					if (RevisionValue > BestVersion || BestVersionString == null)
+					{
+						BestVersion = RevisionValue;
+						BestVersionString = RevisionString;
+					}
 				}
 			}
 
 			if (BestVersionString == null)
 			{
-				throw new BuildException("Failed to find %ANDROID_HOME%/build-tools subdirectory with aapt. Run SDK manager and install build-tools.");
+				BestVersionString = "30.0.3";
+				Log.TraceWarning("Failed to find %ANDROID_HOME%/build-tools subdirectory. Will attempt to use {0}.", BestVersionString);
 			}
 
-			// with Gradle enabled use at least 24.0.2 (will be installed by Gradle if missing)
-			if (BestVersion < ((24 << 24) | (0 << 16) | (2 << 8)))
+			BestVersion = GetRevisionValue(BestVersionString);
+
+			// with Gradle enabled use at least 28.0.3 (will be installed by Gradle if missing)
+			if (BestVersion < ((28 << 24) | (0 << 16) | (3 << 8)))
 			{
-				BestVersionString = "24.0.2";
+				BestVersionString = "28.0.3";
+			}
+
+			// don't allow higher than 30.0.3 for now (will be installed by Gradle if missing)
+			if (BestVersion > ((30 << 24) | (0 << 16) | (3 << 8)))
+			{
+				BestVersionString = "30.0.3";
 			}
 
 			CachedBuildToolsVersion = BestVersionString;

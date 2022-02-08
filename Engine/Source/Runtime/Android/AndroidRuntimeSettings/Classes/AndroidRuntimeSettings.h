@@ -607,6 +607,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Project SDK Override", Meta = (DisplayName = "NDK API Level (specific version or 'latest' - see tooltip)"))
 	FString NDKAPILevelOverride;
 
+	// Which build-tools to package with (a specific version or (without quotes) 'latest' for latest version on disk).
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Project SDK Override", Meta = (DisplayName = "Build-Tools Version (specific version or 'latest')"))
+	FString BuildToolsOverride;
+
 	/** Whether to enable LOD streaming for landscape visual meshes. Only supported on feature level ES3.1 or above. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Misc", Meta = (DisplayName = "Stream landscape visual mesh LODs"))
 	bool bStreamLandscapeMeshLODs;
