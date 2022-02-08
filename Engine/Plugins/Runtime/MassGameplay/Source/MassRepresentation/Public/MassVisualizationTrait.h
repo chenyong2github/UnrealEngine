@@ -40,5 +40,5 @@ public:
 
 	/** Configuration parameters for the representaion processor */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	FMassRepresentationParameters Config;
+	FMassRepresentationParameters Params;
 };

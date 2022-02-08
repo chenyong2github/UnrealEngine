@@ -21,7 +21,7 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	FMassSimulationLODFragment& LODFragment = BuildContext.AddFragment_GetRef<FMassSimulationLODFragment>();
 
 	// Start all simulation LOD in the Off 
-	if(Config.bSetLODTags || bEnableVariableTicking)
+	if(Params.bSetLODTags || bEnableVariableTicking)
 	{
 		LODFragment.LOD = EMassLOD::Off;
 		BuildContext.AddTag<FMassOffLODTag>();
@@ -30,10 +30,10 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 	check(EntitySubsystem);
 
-	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
-	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment(ConfigHash, Config);
-	BuildContext.AddConstSharedFragment(ConfigFragment);
-	FSharedStruct SharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationLODSharedFragment>(ConfigHash, Config);
+	uint32 ParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Params));
+	FConstSharedStruct ParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment(ParamsHash, Params);
+	BuildContext.AddConstSharedFragment(ParamsFragment);
+	FSharedStruct SharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationLODSharedFragment>(ParamsHash, Params);
 	BuildContext.AddSharedFragment(SharedFragment);
 
 	// Variable ticking from simulation LOD
@@ -42,10 +42,10 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 		BuildContext.AddFragment<FMassSimulationVariableTickFragment>();
 		BuildContext.AddChunkFragment<FMassSimulationVariableTickChunkFragment>();
 
-		uint32 VariableTickConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(VariableTickConfig));
-		FConstSharedStruct VariableTickConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment(VariableTickConfigHash, VariableTickConfig);
-		BuildContext.AddConstSharedFragment(VariableTickConfigFragment);
-		FSharedStruct VariableTickSharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationVariableTickSharedFragment>(VariableTickConfigHash, VariableTickConfig);
+		uint32 VariableTickParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(VariableTickParams));
+		FConstSharedStruct VariableTickParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment(VariableTickParamsHash, VariableTickParams);
+		BuildContext.AddConstSharedFragment(VariableTickParamsFragment);
+		FSharedStruct VariableTickSharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationVariableTickSharedFragment>(VariableTickParamsHash, VariableTickParams);
 		BuildContext.AddSharedFragment(VariableTickSharedFragment);
 	}
 }

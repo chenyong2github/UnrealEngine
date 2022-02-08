@@ -22,13 +22,13 @@ class MASSLOD_API UMassSimulationLODTrait : public UMassEntityTraitBase
 	GENERATED_BODY()
 
 	UPROPERTY(Category = "Config", EditAnywhere)
-	FMassSimulationLODParameters Config;
+	FMassSimulationLODParameters Params;
 
 	UPROPERTY(Category = "Config", EditAnywhere)
 	bool bEnableVariableTicking = false;
 
 	UPROPERTY(Category = "Config", EditAnywhere, meta = (EditCondition = "bEnableVariableTicking", EditConditionHides))
-	FMassSimulationVariableTickParameters VariableTickConfig;
+	FMassSimulationVariableTickParameters VariableTickParams;
 
 protected:
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;

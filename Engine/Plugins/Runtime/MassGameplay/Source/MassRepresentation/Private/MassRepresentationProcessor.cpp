@@ -49,8 +49,8 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 {
 	UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
 	check(RepresentationSubsystem);
-	const FMassRepresentationParameters& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationParameters>();
-	UMassRepresentationActorManagement* RepresentationActorManagement = RepresentationConfig.CachedRepresentationActorManagement;
+	const FMassRepresentationParameters& RepresentationParams = Context.GetConstSharedFragment<FMassRepresentationParameters>();
+	UMassRepresentationActorManagement* RepresentationActorManagement = RepresentationParams.CachedRepresentationActorManagement;
 	check(RepresentationActorManagement);
 
 	const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
@@ -58,7 +58,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
 	const TArrayView<FMassActorFragment> ActorList = Context.GetMutableFragmentView<FMassActorFragment>();
 
-	const bool bDoKeepActorExtraFrame = UE::MassRepresentation::bAllowKeepActorExtraFrame ? RepresentationConfig.bKeepLowResActors : false;
+	const bool bDoKeepActorExtraFrame = UE::MassRepresentation::bAllowKeepActorExtraFrame ? RepresentationParams.bKeepLowResActors : false;
 
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
@@ -73,13 +73,13 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 		const EMassRepresentationType PrevRepresentationCopy = Representation.PrevRepresentation;
 		Representation.PrevRepresentation = Representation.CurrentRepresentation;
 		
-		EMassRepresentationType WantedRepresentationType = RepresentationConfig.LODRepresentation[FMath::Min((int32)RepresentationLOD.LOD, (int32)EMassLOD::Off)];
+		EMassRepresentationType WantedRepresentationType = RepresentationParams.LODRepresentation[FMath::Min((int32)RepresentationLOD.LOD, (int32)EMassLOD::Off)];
 
 		// Make sure we do not have actor spawned in areas not fully loaded
 		if ((WantedRepresentationType == EMassRepresentationType::HighResSpawnedActor || WantedRepresentationType == EMassRepresentationType::LowResSpawnedActor) &&
-			!RepresentationSubsystem->IsCollisionLoaded(RepresentationConfig.WorldPartitionGridNameContainingCollision, TransformFragment.GetTransform()))
+			!RepresentationSubsystem->IsCollisionLoaded(RepresentationParams.WorldPartitionGridNameContainingCollision, TransformFragment.GetTransform()))
 		{
-			WantedRepresentationType = RepresentationConfig.CachedDefaultRepresentationType;
+			WantedRepresentationType = RepresentationParams.CachedDefaultRepresentationType;
 		}
 		
 		auto DisableActorForISM = [&](AActor*& Actor)
@@ -88,7 +88,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 			{
 				// Execute only if the high res is different than the low res Actor 
 				// Or if we do not wish to keep the low res actor while in ISM
-				if (Representation.HighResTemplateActorIndex != Representation.LowResTemplateActorIndex || !RepresentationConfig.bKeepLowResActors)
+				if (Representation.HighResTemplateActorIndex != Representation.LowResTemplateActorIndex || !RepresentationParams.bKeepLowResActors)
 				{
 					// Try releasing the high actor or any high res spawning request
 					if (ReleaseActorOrCancelSpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation.HighResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context.Defer()))
@@ -96,7 +96,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 						Actor = ActorInfo.GetOwnedByMassMutable();
 					}
 					// Do not do the same with low res if indicated so
-					if (!RepresentationConfig.bKeepLowResActors && ReleaseActorOrCancelSpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context.Defer()))
+					if (!RepresentationParams.bKeepLowResActors && ReleaseActorOrCancelSpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation.LowResTemplateActorIndex, Representation.ActorSpawnRequestHandle, Context.Defer()))
 					{
 						Actor = ActorInfo.GetOwnedByMassMutable();
 					}
@@ -177,7 +177,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 					}
 					else if (!Actor)
 					{
-						Representation.CurrentRepresentation = RepresentationConfig.CachedDefaultRepresentationType;
+						Representation.CurrentRepresentation = RepresentationParams.CachedDefaultRepresentationType;
 					}
 					break;
 				}
@@ -297,7 +297,7 @@ void UMassVisualizationProcessor::ConfigureQueries()
 
 FMassVisualizationChunkFragment& UMassVisualizationProcessor::UpdateChunkVisibility(FMassExecutionContext& Context) const
 {
-	const FMassRepresentationParameters& RepresentationConfig = Context.GetConstSharedFragment<FMassRepresentationParameters>();
+	const FMassRepresentationParameters& RepresentationParams = Context.GetConstSharedFragment<FMassRepresentationParameters>();
 	bool bFirstUpdate = false;
 
 	// Setup chunk fragment data about visibility
@@ -308,7 +308,7 @@ FMassVisualizationChunkFragment& UMassVisualizationProcessor::UpdateChunkVisibil
 		// The visibility on the chunk fragment data isn't set yet, let see if the Archetype has an visibility tag and set it on the ChunkData
 		ChunkVisibility = UE::MassRepresentation::GetVisibilityFromArchetype(Context);
 		ChunkData.SetVisibility(ChunkVisibility);
-		bFirstUpdate = RepresentationConfig.bSpreadFirstVisualizationUpdate;
+		bFirstUpdate = RepresentationParams.bSpreadFirstVisualizationUpdate;
 	}
 	else
 	{
@@ -321,13 +321,13 @@ FMassVisualizationChunkFragment& UMassVisualizationProcessor::UpdateChunkVisibil
 		if (bFirstUpdate)
 		{
 			// A DeltaTime of 0.0f means it will tick this frame.
-			DeltaTime = FMath::RandRange(0.0f, RepresentationConfig.NotVisibleUpdateRate);
+			DeltaTime = FMath::RandRange(0.0f, RepresentationParams.NotVisibleUpdateRate);
 		}
 		else 
 		{
 			if (DeltaTime < 0.0f)
 			{
-				DeltaTime += RepresentationConfig.NotVisibleUpdateRate * (1.0f + FMath::RandRange(-0.1f, 0.1f));
+				DeltaTime += RepresentationParams.NotVisibleUpdateRate * (1.0f + FMath::RandRange(-0.1f, 0.1f));
 			}
 			DeltaTime -= Context.GetDeltaTimeSeconds();
 		}

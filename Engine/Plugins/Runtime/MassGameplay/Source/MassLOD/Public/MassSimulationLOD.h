@@ -106,9 +106,9 @@ struct MASSLOD_API FMassSimulationLODSharedFragment : public FMassSharedFragment
 	GENERATED_BODY()
 
 	FMassSimulationLODSharedFragment() = default;
-	FMassSimulationLODSharedFragment(const FMassSimulationLODParameters& Config);
+	FMassSimulationLODSharedFragment(const FMassSimulationLODParameters& LODParams);
 
-	/** Runtime data for matching the simulation LOD config */
+	/** Runtime data for matching the simulation LOD parameters */
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
 	bool bHasAdjustedDistancesFromCount = false;
 };
@@ -119,9 +119,9 @@ struct MASSLOD_API FMassSimulationVariableTickSharedFragment : public FMassShare
 	GENERATED_BODY()
 
 	FMassSimulationVariableTickSharedFragment() = default;
-	FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickParameters& Config);
+	FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickParameters& TickRateParams);
 
-	/** Runtime data for matching the simulation tick rate config */
+	/** Runtime data for matching the simulation tick rate parameters */
 	TMassLODTickRateController<FMassSimulationVariableTickChunkFragment, FMassSimulationLODLogic> LODTickRateController;
 
 	static bool ShouldCalculateLODForChunk(const FMassExecutionContext& Context)
@@ -156,7 +156,7 @@ protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODParameters& LODConfig);
+	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODParameters& LODParams);
 
 	FMassEntityQuery EntityQuery;
 	FMassEntityQuery EntityQueryCalculateLOD;

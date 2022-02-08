@@ -27,5 +27,5 @@ protected:
 
 	/** Configuration parameters for the representation processor */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	FMassRepresentationParameters Config;
+	FMassRepresentationParameters Params;
 };

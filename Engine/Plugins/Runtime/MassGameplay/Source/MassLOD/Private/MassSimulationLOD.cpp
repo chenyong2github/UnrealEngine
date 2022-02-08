@@ -38,17 +38,17 @@ FMassSimulationVariableTickParameters::FMassSimulationVariableTickParameters()
 //-----------------------------------------------------------------------------
 // FMassSimulationLODSharedFragment
 //-----------------------------------------------------------------------------
-FMassSimulationLODSharedFragment::FMassSimulationLODSharedFragment(const FMassSimulationLODParameters& LODConfig)
+FMassSimulationLODSharedFragment::FMassSimulationLODSharedFragment(const FMassSimulationLODParameters& LODParams)
 {
-	LODCalculator.Initialize(LODConfig.LODDistance, LODConfig.BufferHysteresisOnDistancePercentage / 100.0f, LODConfig.LODMaxCount);
+	LODCalculator.Initialize(LODParams.LODDistance, LODParams.BufferHysteresisOnDistancePercentage / 100.0f, LODParams.LODMaxCount);
 }
 
 //-----------------------------------------------------------------------------
 // FMassSimulationLODSharedFragment
 //-----------------------------------------------------------------------------
-FMassSimulationVariableTickSharedFragment::FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickParameters& TickRateConfig)
+FMassSimulationVariableTickSharedFragment::FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickParameters& TickRateParams)
 {
-	LODTickRateController.Initialize(TickRateConfig.TickRates, TickRateConfig.bSpreadFirstSimulationUpdate);
+	LODTickRateController.Initialize(TickRateParams.TickRates, TickRateParams.bSpreadFirstSimulationUpdate);
 }
 
 //-----------------------------------------------------------------------------
@@ -101,8 +101,8 @@ void UMassSimulationLODProcessor::ConfigureQueries()
 	EntityQuerySetLODTag.AddConstSharedRequirement<FMassSimulationLODParameters>();
 	EntityQuerySetLODTag.SetArchetypeFilter([](const FMassExecutionContext& Context)
 	{
-		const FMassSimulationLODParameters& LODConfig = Context.GetConstSharedFragment<FMassSimulationLODParameters>();
-		return LODConfig.bSetLODTags;
+		const FMassSimulationLODParameters& LODParams = Context.GetConstSharedFragment<FMassSimulationLODParameters>();
+		return LODParams.bSetLODTags;
 	});
 }
 

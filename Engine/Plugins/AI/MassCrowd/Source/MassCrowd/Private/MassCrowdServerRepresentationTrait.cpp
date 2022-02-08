@@ -11,16 +11,16 @@
 
 UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
 {
-	Config.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
-	Config.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::None;
-	Config.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::None;
-	Config.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
-	Config.bKeepLowResActors = false;
-	Config.bKeepActorExtraFrame = false;
-	Config.bSpreadFirstVisualizationUpdate = false;
-	Config.WorldPartitionGridNameContainingCollision = NAME_None;
-	Config.NotVisibleUpdateRate = 0.5f;
+	Params.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Params.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::None;
+	Params.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::None;
+	Params.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
+	Params.bKeepLowResActors = false;
+	Params.bKeepActorExtraFrame = false;
+	Params.bSpreadFirstVisualizationUpdate = false;
+	Params.WorldPartitionGridNameContainingCollision = NAME_None;
+	Params.NotVisibleUpdateRate = 0.5f;
 }
 
 void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -48,10 +48,10 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemSharedFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
 
-	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
-	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationParameters>(ConfigHash, Config);
-	ConfigFragment.Get<FMassRepresentationParameters>().ComputeCachedValues();
-	BuildContext.AddConstSharedFragment(ConfigFragment);
+	uint32 ParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Params));
+	FConstSharedStruct ParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationParameters>(ParamsHash, Params);
+	ParamsFragment.Get<FMassRepresentationParameters>().ComputeCachedValues();
+	BuildContext.AddConstSharedFragment(ParamsFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
 	RepresentationFragment.StaticMeshDescIndex = INDEX_NONE;

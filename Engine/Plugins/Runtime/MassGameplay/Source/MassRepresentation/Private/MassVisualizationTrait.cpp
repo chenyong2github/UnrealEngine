@@ -13,11 +13,11 @@ UMassVisualizationTrait::UMassVisualizationTrait()
 {
 	RepresentationSubsystemClass = UMassRepresentationSubsystem::StaticClass();
 
-	Config.RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
-	Config.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
-	Config.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
-	Config.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
+	Params.RepresentationActorManagementClass = UMassRepresentationActorManagement::StaticClass();
+	Params.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
+	Params.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -51,14 +51,14 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	FSharedStruct SubsystemFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassRepresentationSubsystemSharedFragment>(SubsystemHash, Subsystem);
 	BuildContext.AddSharedFragment(SubsystemFragment);
 
-	if (!Config.RepresentationActorManagementClass)
+	if (!Params.RepresentationActorManagementClass)
 	{
 		UE_LOG(LogMassRepresentation, Error, TEXT("Expecting a valid class for the representation actor management"));
 	}
-	uint32 ConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Config));
-	FConstSharedStruct ConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationParameters>(ConfigHash, Config);
-	ConfigFragment.Get<FMassRepresentationParameters>().ComputeCachedValues();
-	BuildContext.AddConstSharedFragment(ConfigFragment);
+	uint32 ParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Params));
+	FConstSharedStruct ParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassRepresentationParameters>(ParamsHash, Params);
+	ParamsFragment.Get<FMassRepresentationParameters>().ComputeCachedValues();
+	BuildContext.AddConstSharedFragment(ParamsFragment);
 
 	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
 	RepresentationFragment.StaticMeshDescIndex = RepresentationSubsystem->FindOrAddStaticMeshDesc(StaticMeshInstanceDesc);
