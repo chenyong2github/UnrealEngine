@@ -243,7 +243,7 @@ namespace Callisto.Implementation
                 {
                     string headerMd5 = StringUtils.FormatAsHexString(opHeader.Md5hash);
                     string calculatedMd5 = StringUtils.FormatAsHexString(md5Hash);
-                    _logger.Warning("Reading header {@Header}, mismatching hash found {CalculatedHash} expected {ExpectedHash}", opHeader, calculatedMd5, headerMd5);
+                    _logger.Warning("Reading header {@Header}, mismatching hash found {CalculatedHash} expected {ExpectedHash} . Was read at offset {Offset}", opHeader, calculatedMd5, headerMd5, offset);
                     throw new EventHashMismatchException(opHeader.Offset, headerMd5, calculatedMd5);
                 }
 
