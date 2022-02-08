@@ -292,6 +292,9 @@ namespace Horde.Storage.Implementation
                     Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
                     LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
 
+                    if (countOfObjectsReplicated % 100 == 0)
+                        _logger.Information("Snapshot replication still running, replicated {CountOfObjects} of {TotalCountOfObjects}", countOfObjectsReplicated, snapshot.LiveObjectsCount);
+
                     Info.CountOfRunningReplications = countOfObjectsCurrentlyReplicating;
                     Info.LastRun = DateTime.Now;
 

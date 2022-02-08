@@ -72,6 +72,11 @@ namespace Horde.Storage.Implementation.TransactionLog
             get { return _liveObjects.Values; }
         }
 
+        public int LiveObjectsCount
+        {
+            get { return _liveObjects.Values.Count; }
+        }
+
         public static async Task<ReplicationLogSnapshot> DeserializeSnapshot(Stream stream)
         {
             await using GZipStream gzipStream = new GZipStream(stream, CompressionMode.Decompress);
