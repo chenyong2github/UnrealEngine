@@ -256,6 +256,9 @@ public:
 	bool bUseLobbiesIfAvailable;
 	/** Whether to create (and auto join) a voice chat room for the lobby, if the platform supports it */
 	bool bUseLobbiesVoiceChatIfAvailable;
+	/** Manual override for the Session Id instead of having one assigned by the backend. Its size may be restricted depending on the platform */
+	FString SessionIdOverride;
+
 	/** Used to keep different builds from seeing each other during searches */
 	int32 BuildUniqueId;
 	/** Array of custom session settings */
