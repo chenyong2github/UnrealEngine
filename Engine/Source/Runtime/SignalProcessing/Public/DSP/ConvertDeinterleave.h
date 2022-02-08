@@ -2,12 +2,26 @@
 
 #pragma once
 
+#include "DSP/ChannelMap.h"
 #include "DSP/MultichannelBuffer.h"
 #include "Containers/ArrayView.h"
 #include "Templates/UniquePtr.h"
 
 namespace Audio
 {
+	/** Parameters for creating a IConvertDeinterleave object. */
+	struct FConvertDeinterleaveParams
+	{
+		// Number of channels in the input audio.
+		int32 NumInputChannels = 0;
+
+		// Number of channels in the output audio.
+		int32 NumOutputChannels = 0;
+
+		// Method for upmixing mono audio (only used if NumInputChannels == 1)
+		EChannelMapMonoUpmixMethod MonoUpmixMethod = EChannelMapMonoUpmixMethod::EqualPower;
+	};
+
 	/** IConvertDeinterleave is an interface for transforming multichannel interleaved
 	 * audio samples into multichannel deinterleaved samples. The channel count of 
 	 * the input and output audio may differ. 
@@ -40,6 +54,6 @@ namespace Audio
 		 *
 		 * @return A valid TUniquePtr<> on success, an invalid TUniquePtr<> on failure. 
 		 */
-		SIGNALPROCESSING_API static TUniquePtr<IConvertDeinterleave> Create(int32 InNumInputChannels, int32 InNumOutputChannels);
+		SIGNALPROCESSING_API static TUniquePtr<IConvertDeinterleave> Create(const FConvertDeinterleaveParams& InParams);
 	};
 }

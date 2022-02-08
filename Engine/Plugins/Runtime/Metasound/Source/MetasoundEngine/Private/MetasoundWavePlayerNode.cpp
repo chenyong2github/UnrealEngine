@@ -688,7 +688,15 @@ namespace Metasound
 						NumDeinterleaveChannels = NumOutputChannels;
 
 						// Create algorithm for channel conversion and deinterleave 
-						ConvertDeinterleave = Audio::IConvertDeinterleave::Create(WaveProxyReader->GetNumChannels(), NumDeinterleaveChannels);
+						Audio::FConvertDeinterleaveParams ConvertDeinterleaveParams;
+						ConvertDeinterleaveParams.NumInputChannels = WaveProxyReader->GetNumChannels();
+						ConvertDeinterleaveParams.NumOutputChannels = NumDeinterleaveChannels;
+						// Original implementation of MetaSound WavePlayer upmixed 
+						// mono using FullVolume. In the future, the mono upmix 
+						// method may be exposed as a node input to facilitate 
+						// better control.
+						ConvertDeinterleaveParams.MonoUpmixMethod = Audio::EChannelMapMonoUpmixMethod::FullVolume;
+						ConvertDeinterleave = Audio::IConvertDeinterleave::Create(ConvertDeinterleaveParams);
 						Audio::SetMultichannelBufferSize(NumDeinterleaveChannels, DeinterleaveBlockSizeInFrames, DeinterleavedBuffer);
 
 						// Initialize source buffer
