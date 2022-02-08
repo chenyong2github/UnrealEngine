@@ -348,7 +348,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (fromQueue.timestamp) {
 			logMessage += ` (delay: ${Math.round((Date.now() - fromQueue.timestamp) / 1000)})`
 		}
-		
+	
 		let specifiedTargetBranch : Branch | null = null
 		if (fromQueue.targetBranchName) {
 			specifiedTargetBranch = this._getBranch(fromQueue.targetBranchName)
@@ -1409,18 +1409,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 						// remove action from targets
 						info.targets.splice(info.targets.indexOf(action), 1)
-					}
-				}
-			}
-		}
-
-		if (info.targets) {
-			for (const target of info.targets) {
-				if (this.getImmediateEdge(target.branch)!.incognitoMode) {
-
-					if (target.flags.has('review')) {
-						info.errors = info.errors || []
-						info.errors.push(`Target ${target.branch.name} flagged for review - not allowed in incognito mode`)
 					}
 				}
 			}

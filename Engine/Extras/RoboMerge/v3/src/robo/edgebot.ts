@@ -423,15 +423,11 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			description += `#ROBOMERGE-CONFLICT from-shelf\n`
 		}
 
-
 		if (target.flags.has('disregardexcludedauthors')) {
 			description += '#ROBOMERGE[ALL]: #DISREGARDEXCLUDEDAUTHORS\n'
 		}
 
 		let flags = '' // not all flags propagate, build them piecemeal
-		if (target.flags.has('review')) {
-			flags += ' #REVIEW'
-		}
 
 		const thisBotMergeCommands = target.furtherMerges
 			.filter(target => !target.otherBot)
@@ -484,11 +480,6 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		// if required, add author review here so they're not in target.description, which is used for shelf description in case of conflict
 		let desc = target.description! // target.description always ends in newline
-
-		if (target.flags.has('review')) {
-			const owner = getIntegrationOwner(this.targetBranch, info.owner) || info.author
-			desc += `#CodeReview: ${owner}\n`
-		}
 
 		// create a new CL
 		const changenum = await this.p4.new_cl(this.targetBranch.workspace, desc)

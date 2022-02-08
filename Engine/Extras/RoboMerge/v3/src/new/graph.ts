@@ -588,7 +588,7 @@ export function runTests(parentLogger: ContextualLogger) {
 	return fail
 }
 
-type ChangeFlag = 'review' | 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors' | 'roboshelf'
+type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors' | 'roboshelf'
 const ALLOWED_RAW_FLAGS = new Set(['null','ignore','deadend'])
 
 const FLAGMAP: {[name: string]: ChangeFlag} = {

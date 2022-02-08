@@ -75,16 +75,11 @@ const ROBO_TAGS = [
 	'ROBOMERGE-SOURCE',
 ]
 
-type ChangeFlag = 'review' | 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors'
+type ChangeFlag = 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors'
 
 // mapping of #ROBOMERGE: flags to canonical names
 // use these with a pound like #ROBOMERGE: #stage
 const FLAGMAP: {[name: string]: ChangeFlag} = {
-	// force a codereview to be sent to the owner as commits flow down the automerge chain
-	review: 'review',
-	forcereview: 'review',
-	cr: 'review',
-
 	// don't merge, only shelf this change and review the owner
 	manual: 'manual',
 	nosubmit: 'manual',
