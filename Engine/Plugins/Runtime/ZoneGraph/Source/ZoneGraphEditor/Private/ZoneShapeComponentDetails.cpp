@@ -542,7 +542,7 @@ void FZoneShapePointDetails::OnSetInControlPoint(float NewValue, ETextCommit::Ty
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("SetControlPoint", "Set Zone control point position"));
+	const FScopedTransaction Transaction(LOCTEXT("SetControlPoint", "Set Zone Shape control point position"));
 	ShapeComp->Modify();
 
 	TArray<FZoneShapePoint>& ShapePoints = ShapeComp->GetMutablePoints();

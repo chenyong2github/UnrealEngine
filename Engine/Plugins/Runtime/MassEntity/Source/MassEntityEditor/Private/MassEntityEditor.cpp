@@ -106,7 +106,7 @@ TSharedRef<SDockTab> FMassEntityEditor::SpawnTab_AssetDetails(const FSpawnTabArg
 	AssetDetailsView->OnFinishedChangingProperties().AddSP(this, &FMassEntityEditor::OnAssetFinishedChangingProperties);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(NSLOCTEXT("MassEntityEditor", "AssetDetailsTab", "Mass"))
+		.Label(NSLOCTEXT("MassEntityEditor", "AssetDetailsTabLabel", "Mass"))
 		[
 			AssetDetailsView.ToSharedRef()
 		];

@@ -136,7 +136,7 @@ FText FStateTreeTransitionDetails::GetDescription() const
 		}
 		else
 		{
-			return LOCTEXT("MultipleSelected", "Multiple selected");
+			return LOCTEXT("MultipleSelected", "Multiple Selected");
 		}
 	}
 	return FText::GetEmpty();

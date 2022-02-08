@@ -172,7 +172,7 @@ FText FGameplayTagContainerMatchCondition::GetDescription(const FGuid& ID, FStat
 		OtherContainerText = UE::StateTree::Conditions::GetContainerAsText(Instance.TagContainer);
 	}
 
-	return FText::Format(LOCTEXT("GameplayTagMatchDesc", "{0} <Details.Bold>{1}</> {2} <Details.Bold>{3}</>"),
+	return FText::Format(LOCTEXT("GameplayTagContainerMatchDesc", "{0} <Details.Bold>{1}</> {2} <Details.Bold>{3}</>"),
 		InvertText, TagContainerText, MatchTypeText, OtherContainerText);
 }
 #endif// WITH_EDITOR
@@ -216,7 +216,7 @@ FText FGameplayTagQueryCondition::GetDescription(const FGuid& ID, FStateTreeData
 		TagContainerText = LOCTEXT("NotBound", "Not Bound");
 	}
 
-	return FText::Format(LOCTEXT("GameplayTagMatchDesc", "{0} <Details.Bold>{1}</> matches query</>"),
+	return FText::Format(LOCTEXT("GameplayTagQueryMatchDesc", "{0} <Details.Bold>{1}</> matches query</>"),
 		InvertText, TagContainerText);
 }
 #endif// WITH_EDITOR

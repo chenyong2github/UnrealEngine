@@ -122,19 +122,19 @@ FText FZoneGraphTagFilterCondition::GetDescription(const FGuid& ID, FStateTreeDa
 	int32 PartIndex = 0;
 	if (Filter.AnyTags != FZoneGraphTagMask::None)
 	{
-		FilterParts[PartIndex++] = LOCTEXT("ContainsAny", "any");
+		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::Any);
 		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.AnyTags);
 	}
 
 	if (Filter.AllTags != FZoneGraphTagMask::None)
 	{
-		FilterParts[PartIndex++] = LOCTEXT("ContainsAll", "all");
+		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::All);
 		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.AllTags);
 	}
 
 	if (Filter.NotTags != FZoneGraphTagMask::None)
 	{
-		FilterParts[PartIndex++] = LOCTEXT("ContainsNot", "not");
+		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetMaskOperatorText(EZoneLaneTagMaskComparison::Not);
 		FilterParts[PartIndex++] = UE::MassBehavior::ZoneGraph::GetTagMaskName(Filter.NotTags);
 	}
 

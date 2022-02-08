@@ -174,7 +174,7 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 
 	if (TransitionType == EStateTreeTransitionType::NotSet)
 	{
-		return LOCTEXT("TransitionNotSet", "Not Set");
+		return LOCTEXT("TransitionNotSet", "None");
 	}
 	else if (TransitionType == EStateTreeTransitionType::NextState)
 	{

@@ -450,7 +450,7 @@ FText FStateTreeEditorNodeDetails::GetDescription() const
 	// Multiple descriptions do not make sense, just if only one node is selected.
 	if (RawNodeData.Num() != 1)
 	{
-		return LOCTEXT("MultipleSelected", "<Details.Subdued>Multiple selected</>");
+		return LOCTEXT("MultipleSelectedFormatted", "<Details.Subdued>Multiple Selected</>");
 	}
 
 	FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(RawNodeData[0]);
@@ -517,7 +517,7 @@ FText FStateTreeEditorNodeDetails::GetName() const
 		return LOCTEXT("Empty", "Empty");
 	}
 
-	return LOCTEXT("MultipleSelected", "Multiple selected");
+	return LOCTEXT("MultipleSelected", "Multiple Selected");
 }
 
 EVisibility FStateTreeEditorNodeDetails::IsNameVisible() const
