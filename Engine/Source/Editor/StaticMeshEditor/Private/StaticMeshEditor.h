@@ -423,7 +423,7 @@ private:
 	void OnSaveGeneratedLODs();
 
 	/** Rebuilds the UV Channel combo list and attempts to set it to the same channel. */
-	TSharedRef<SWidget> GenerateUVChannelComboList();
+	void GenerateUVChannelComboList(UToolMenu* InMenu);
 
 	/** Delete whats currently selected */
 	void DeleteSelected();
