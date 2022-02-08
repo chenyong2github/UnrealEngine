@@ -1210,6 +1210,9 @@ public:
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
 
+    /** Get all stencil values written into the custom depth pass */
+	TSet<uint32> CustomDepthStencilValues;
+
 	/** Mesh batches with for mesh decal rendering. */
 	TArray<FMeshDecalBatch, SceneRenderingAllocator> MeshDecalBatches;
 

@@ -2247,6 +2247,7 @@ struct FRelevancePacket
 	TArray<FSkyMeshBatch> SkyMeshBatches;
 	TArray<FSortedTrianglesMeshBatch> SortedTrianglesMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
+	TSet<uint32> CustumDepthStencilValues;
 
 	struct FPrimitiveLODMask
 	{
@@ -2457,6 +2458,7 @@ struct FRelevancePacket
 			if (ViewRelevance.bRenderCustomDepth)
 			{
 				bHasCustomDepthPrimitives = true;
+				CustumDepthStencilValues.Add(PrimitiveSceneInfo->Proxy->GetCustomDepthStencilValue());
 			}
 
 			extern bool GUseTranslucencyShadowDepths;
@@ -2880,6 +2882,7 @@ struct FRelevancePacket
 		WriteView.TranslucentPrimCount.Append(TranslucentPrimCount);
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
+		WriteView.CustomDepthStencilValues.Append(CustumDepthStencilValues);
 		WriteView.bUsesCustomDepthStencilInTranslucentMaterials |= bUsesCustomDepthStencil;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
