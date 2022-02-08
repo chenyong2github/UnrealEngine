@@ -196,22 +196,7 @@ void FPositionVertexBuffer::operator=(const FPositionVertexBuffer &Other)
 template <bool bRenderThread>
 FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices)
-	{
-		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
-		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		FRHIResourceCreateInfo CreateInfo(TEXT("FPositionVertexBuffer"), ResourceArray);
-		CreateInfo.bWithoutNativeResource = !VertexData;
-		if (bRenderThread)
-		{
-			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
-		}
-		else
-		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
-		}
-	}
-	return nullptr;
+	return CreateRHIBuffer<bRenderThread>(VertexData, NumVertices, BUF_Static | BUF_ShaderResource, TEXT("FPositionVertexBuffer"));
 }
 
 FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_RenderThread()
@@ -251,6 +236,7 @@ void FPositionVertexBuffer::InitRHI()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPositionVertexBuffer::InitRHI);
 
+	const bool bHadVertexData = VertexData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
 	// Also check to see whether cpu access has been activated on the vertex data
@@ -267,7 +253,7 @@ void FPositionVertexBuffer::InitRHI()
 		{
 			// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 			// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-			PositionComponentSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexData ? VertexBufferRHI : nullptr, PF_R32_FLOAT));
+			PositionComponentSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadVertexData ? VertexBufferRHI : nullptr, PF_R32_FLOAT));
 		}
 	}
 }

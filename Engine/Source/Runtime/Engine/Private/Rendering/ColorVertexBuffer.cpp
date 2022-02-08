@@ -394,22 +394,7 @@ uint32 FColorVertexBuffer::GetAllocatedSize() const
 template <bool bRenderThread>
 FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices)
-	{
-		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
-		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		FRHIResourceCreateInfo CreateInfo(TEXT("FColorVertexBuffer"), ResourceArray);
-		CreateInfo.bWithoutNativeResource = !VertexData;
-		if (bRenderThread)
-		{
-			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
-		}
-		else
-		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
-		}
-	}
-	return nullptr;
+	return CreateRHIBuffer<bRenderThread>(VertexData, NumVertices, BUF_Static | BUF_ShaderResource, TEXT("FColorVertexBuffer"));
 }
 
 FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_RenderThread()
@@ -449,13 +434,13 @@ void FColorVertexBuffer::InitRHI()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FColorVertexBuffer::InitRHI);
 	SCOPED_LOADTIMER(FColorVertexBuffer_InitRHI);
 
+	const bool bHadVertexData = VertexData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
-
 	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-		ColorComponentsSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexData ? VertexBufferRHI : nullptr, PF_R8G8B8A8));
+		ColorComponentsSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadVertexData ? VertexBufferRHI : nullptr, PF_R8G8B8A8));
 	}
 }
 

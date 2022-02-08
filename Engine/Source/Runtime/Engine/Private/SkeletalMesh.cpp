@@ -282,29 +282,28 @@ FArchive& operator<<(FArchive& Ar, FClothBufferIndexMapping& ClothBufferIndexMap
 		<< ClothBufferIndexMapping.LODBiasStride;
 }
 
-/*-----------------------------------------------------------------------------
-FreeSkeletalMeshBuffersSinkCallback
------------------------------------------------------------------------------*/
-
 void FreeSkeletalMeshBuffersSinkCallback()
 {
-	// If r.FreeSkeletalMeshBuffers==1 then CPU buffer copies are to be released.
-	static TOptional<bool> bLastFreeSkeletalMeshBuffers;
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FreeSkeletalMeshBuffers"));	
-	bool bFreeSkeletalMeshBuffers = CVar->GetValueOnGameThread() == 1;
-	if(!bLastFreeSkeletalMeshBuffers.IsSet() || (bFreeSkeletalMeshBuffers != bLastFreeSkeletalMeshBuffers.GetValue()))
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FreeSkeletalMeshBuffersSinkCallback);
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FreeSkeletalMeshBuffers"));
+	static bool bPreviousFreeSkeletalMeshBuffers = false;
+	const bool bFreeSkeletalMeshBuffers = CVar->GetValueOnGameThread() == 1;
 
-		FlushRenderingCommands();
-		for (TObjectIterator<USkeletalMesh> It;It;++It)
+	// We previously relied on this sink occurring periodically to free helper structures, so run it if we're not using the new logic that frees on submit.
+	if (!GFreeStructuresOnRHIBufferCreation || (bPreviousFreeSkeletalMeshBuffers != bFreeSkeletalMeshBuffers))
+	{
+		bPreviousFreeSkeletalMeshBuffers = bFreeSkeletalMeshBuffers;
+		if (bFreeSkeletalMeshBuffers)
 		{
-			if (!It->HasPendingInitOrStreaming() && !It->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+			FlushRenderingCommands();
+			for (TObjectIterator<USkeletalMesh> It; It; ++It)
 			{
-				It->ReleaseCPUResources();
+				USkeletalMesh* SkeletalMesh = *It;
+				if (!SkeletalMesh->HasPendingInitOrStreaming() && !SkeletalMesh->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel))
+				{
+					SkeletalMesh->ReleaseCPUResources();
+				}
 			}
 		}
-		bLastFreeSkeletalMeshBuffers = bFreeSkeletalMeshBuffers;
 	}
 }
 
