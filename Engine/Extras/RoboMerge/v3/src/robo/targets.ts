@@ -241,7 +241,7 @@ export class DescriptionParser {
 		if (token.tag.match(/REVIEW-(\d+)/)) {
 							// remove swarm review numbers entirely (they can't be neutered and generate emails)
 			if (token.rest) {
-				this.descFinal.push(token.rest)
+				this.descFinal.push(`${token.initialWhitespace}[REVIEW] ${token.rest}`)
 			}
 			return false
 		}
