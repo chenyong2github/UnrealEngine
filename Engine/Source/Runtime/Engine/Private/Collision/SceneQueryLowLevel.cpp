@@ -187,7 +187,9 @@ template <typename THitRaycast>
 void LowLevelRaycastImp(FPhysScene& Scene, const FVector& Start, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetSpacialAcceleration())
+	constexpr bool bGTData = std::is_same<THitRaycast, FHitRaycast>::value;
+	const auto SolverAccelerationStructure = bGTData ? Scene.GetSpacialAcceleration() : Scene.GetSolver()->GetInternalAccelerationStructure_Internal();
+	if (SolverAccelerationStructure)
 	{
 		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
 		double Time = 0.0;
@@ -196,7 +198,7 @@ void LowLevelRaycastImp(FPhysScene& Scene, const FVector& Start, const FVector& 
 			SQAccelerator.Raycast(Start, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback, DebugParams);
 		}
 
-		if constexpr(std::is_same<THitRaycast, FHitRaycast>::value)
+		if constexpr(bGTData)
 		{
 			if (!!SerializeSQs && !!EnableRaycastSQCapture)
 			{
@@ -237,7 +239,9 @@ template <typename THitSweep>
 void LowLevelSweepImp(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, float DeltaMag, FPhysicsHitCallback<THitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetSpacialAcceleration())
+	constexpr bool bGTData = std::is_same<THitSweep, FHitSweep>::value;
+	const auto SolverAccelerationStructure = bGTData ? Scene.GetSpacialAcceleration() : Scene.GetSolver()->GetInternalAccelerationStructure_Internal();
+	if (SolverAccelerationStructure)
 	{
 		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
 		{
@@ -248,7 +252,7 @@ void LowLevelSweepImp(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, cons
 				SQAccelerator.Sweep(QueryGeom, StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFilterData, *QueryCallback, DebugParams);
 			}
 
-			if constexpr (std::is_same<THitSweep, FHitSweep>::value)
+			if constexpr (bGTData)
 			{
 				if (!!SerializeSQs && !!EnableSweepSQCapture)
 				{
@@ -290,7 +294,9 @@ template <typename THitOverlap>
 void LowLevelOverlapImp(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<THitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& Filter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase* QueryCallback, const FQueryDebugParams& DebugParams)
 {
 #if !defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX
-	if (const auto& SolverAccelerationStructure = Scene.GetSpacialAcceleration())
+	constexpr bool bGTData = std::is_same<THitOverlap, FHitOverlap>::value;
+	const auto SolverAccelerationStructure = bGTData ? Scene.GetSpacialAcceleration() : Scene.GetSolver()->GetInternalAccelerationStructure_Internal();
+	if (SolverAccelerationStructure)
 	{
 		FChaosSQAccelerator SQAccelerator(*SolverAccelerationStructure);
 		double Time = 0.0;
@@ -299,7 +305,7 @@ void LowLevelOverlapImp(FPhysScene& Scene, const FPhysicsGeometry& QueryGeom, co
 			SQAccelerator.Overlap(QueryGeom, GeomPose, HitBuffer, QueryFilterData, *QueryCallback, DebugParams);
 		}
 
-		if constexpr (std::is_same<THitOverlap, FHitOverlap>::value)
+		if constexpr (bGTData)
 		{
 			if (!!SerializeSQs && !!EnableOverlapSQCapture)
 			{

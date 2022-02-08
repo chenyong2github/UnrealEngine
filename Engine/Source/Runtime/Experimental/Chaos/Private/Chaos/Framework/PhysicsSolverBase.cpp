@@ -110,9 +110,9 @@ namespace Chaos
 		FFrozenGameThreadContextScope FrozenScope;	//Make sure we fire ensures if any physics GT data is used
 #endif
 
-		Solver.SetOnFrozenGameThread(true);
+		Solver.SetGameThreadFrozen(true);
 		Solver.ApplyCallbacks_Internal();
-		Solver.SetOnFrozenGameThread(false);
+		Solver.SetGameThreadFrozen(false);
 		
 	}
 

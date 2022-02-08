@@ -375,11 +375,11 @@ namespace Chaos
 
 		//Tells us if we're on the frozen game thread. This is needed for knowing which data to read/write to
 		//The IsInGameThread check is so that other threads (e.g audio thread) which might be running queries in parallel will continue to use the correct interpolated GT data
-		bool IsOnFrozenGameThread() const { return bOnFrozenGameThread && (IsInGameThread() || IsInParallelGameThread()); }
+		bool IsGameThreadFrozen() const { return bGameThreadFrozen; }
 
-		void SetOnFrozenGameThread(bool InOnFrozenGameThread)
+		void SetGameThreadFrozen(bool InGameThreadFrozen)
 		{
-			bOnFrozenGameThread = InOnFrozenGameThread;
+			bGameThreadFrozen = InGameThreadFrozen;
 		}
 
 		void ApplyCallbacks_Internal()
@@ -392,7 +392,7 @@ namespace Chaos
 				const FReal SimTime = GetSolverTime();
 				for (ISimCallbackObject* Callback : SimCallbackObjects)
 				{
-					if (Callback->RunOnFrozenGameThread() == bOnFrozenGameThread)
+					if (Callback->RunOnFrozenGameThread() == bGameThreadFrozen)
 					{
 						Callback->SetSimAndDeltaTime_Internal(SimTime, MLastDt);
 						Callback->PreSimulate_Internal();
@@ -547,7 +547,7 @@ namespace Chaos
 	FGraphEventRef PendingTasks;
 
 	bool bSolverHasFrozenGameThreadCallbacks = false;
-	bool bOnFrozenGameThread = false;
+	bool bGameThreadFrozen = false;
 	FReal MLastDt = FReal(0);
 	FReal MTime = FReal(0);
 

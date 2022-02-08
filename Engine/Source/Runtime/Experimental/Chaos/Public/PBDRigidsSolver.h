@@ -280,6 +280,10 @@ namespace Chaos
 		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
 
 		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure);
+		const ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* GetInternalAccelerationStructure_Internal() const
+		{
+			return MEvolution->GetSpatialAcceleration();
+		}
 
 		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
 		void ApplyConfig(const FChaosSolverConfiguration& InConfig);

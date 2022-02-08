@@ -83,6 +83,7 @@ bool IsBlocking(const FPhysicsShape& PShape, const FCollisionFilterData& QueryFi
  * @return	OutOverlaps	Converted data
  */
 bool ConvertOverlapResults(int32 NumOverlaps, FHitOverlap* POverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps);
+bool ConvertOverlapResults(int32 NumOverlaps, FPTOverlapHit* POverlapResults, const FCollisionFilterData& QueryFilter, TArray<FOverlapResult>& OutOverlaps);
 
 
 struct FCompareFHitResultTime
