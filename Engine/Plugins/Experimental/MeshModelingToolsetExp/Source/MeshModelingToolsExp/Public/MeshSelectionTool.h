@@ -55,6 +55,7 @@ enum class EMeshSelectionToolActions
 	DuplicateSelected,
 	FlipSelected,
 	CreateGroup,
+	SmoothBoundary,
 
 	CycleSelectionMode,
 	CycleViewMode
@@ -146,7 +147,6 @@ public:
 	{
 		PostAction(EMeshSelectionToolActions::OptimizeSelection);
 	}
-
 };
 
 
@@ -198,6 +198,13 @@ public:
 	void Duplicate() 
 	{
 		PostAction(EMeshSelectionToolActions::DuplicateSelected);
+	}
+
+	/** Smooth the selection border */
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayPriority = 12))
+	void SmoothBorder()
+	{
+		PostAction(EMeshSelectionToolActions::SmoothBoundary);
 	}
 
 };
@@ -429,6 +436,8 @@ protected:
 	void SeparateSelectedTriangles(bool bDeleteSelected); // separates out selected triangles to a new mesh, optionally removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
+
+	void SmoothSelectionBoundary();
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
