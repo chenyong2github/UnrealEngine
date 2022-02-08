@@ -176,6 +176,26 @@ FLWCScalar LWCGetComponent(FLWCVector4 V, int C) { return MakeLWCScalar(LWCGetTi
 #define LWCGetZ(V) LWCGetComponent(V, 2)
 #define LWCGetW(V) LWCGetComponent(V, 3)
 
+FLWCScalar LWCSwizzle(FLWCScalar V, int C0) { return V; }
+FLWCScalar LWCSwizzle(FLWCVector2 V, int C0) { return LWCGetComponent(V, C0); }
+FLWCScalar LWCSwizzle(FLWCVector3 V, int C0) { return LWCGetComponent(V, C0); }
+FLWCScalar LWCSwizzle(FLWCVector4 V, int C0) { return LWCGetComponent(V, C0); }
+
+FLWCVector2 LWCSwizzle(FLWCScalar V, int C0, int C1) { return MakeLWCVector(V, V); }
+FLWCVector2 LWCSwizzle(FLWCVector2 V, int C0, int C1) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1)); }
+FLWCVector2 LWCSwizzle(FLWCVector3 V, int C0, int C1) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1)); }
+FLWCVector2 LWCSwizzle(FLWCVector4 V, int C0, int C1) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1)); }
+
+FLWCVector3 LWCSwizzle(FLWCScalar V, int C0, int C1, int C2) { return MakeLWCVector(V, V, V); }
+FLWCVector3 LWCSwizzle(FLWCVector2 V, int C0, int C1, int C2) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2)); }
+FLWCVector3 LWCSwizzle(FLWCVector3 V, int C0, int C1, int C2) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2)); }
+FLWCVector3 LWCSwizzle(FLWCVector4 V, int C0, int C1, int C2) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2)); }
+
+FLWCVector4 LWCSwizzle(FLWCScalar V, int C0, int C1, int C2, int C3) { return MakeLWCVector(V, V, V, V); }
+FLWCVector4 LWCSwizzle(FLWCVector2 V, int C0, int C1, int C2, int C3) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2), LWCGetComponent(V, C3)); }
+FLWCVector4 LWCSwizzle(FLWCVector3 V, int C0, int C1, int C2, int C3) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2), LWCGetComponent(V, C3)); }
+FLWCVector4 LWCSwizzle(FLWCVector4 V, int C0, int C1, int C2, int C3) { return MakeLWCVector(LWCGetComponent(V, C0), LWCGetComponent(V, C1), LWCGetComponent(V, C2), LWCGetComponent(V, C3)); }
+
 float LWCToFloat(FLWCScalar Value)   { return LWCGetTileOffset(Value) + Value.Offset; }
 float2 LWCToFloat(FLWCVector2 Value) { return LWCGetTileOffset(Value) + Value.Offset; }
 float3 LWCToFloat(FLWCVector3 Value) { return LWCGetTileOffset(Value) + Value.Offset; }

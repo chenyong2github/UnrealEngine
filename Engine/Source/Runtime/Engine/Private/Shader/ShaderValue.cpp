@@ -207,11 +207,12 @@ void AsType(const Operation& Op, const FValue& Value, ResultType& OutResult)
 	}
 	else
 	{
-		for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
+		const int32 NumComponents = FMath::Min<int32>(TypeDesc.NumComponents, 4);
+		for (int32 i = 0; i < NumComponents; ++i)
 		{
 			OutResult[i] = Op(TypeDesc.ComponentType, Value.Component[i]);
 		}
-		for (int32 i = TypeDesc.NumComponents; i < 4; ++i)
+		for (int32 i = NumComponents; i < 4; ++i)
 		{
 			OutResult[i] = (FComponentType)0;
 		}
@@ -585,6 +586,9 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	case EValueType::Bool2: return FValueTypeDescription(TEXT("bool2"), EValueComponentType::Bool, 2);
 	case EValueType::Bool3: return FValueTypeDescription(TEXT("bool3"), EValueComponentType::Bool, 3);
 	case EValueType::Bool4: return FValueTypeDescription(TEXT("bool4"), EValueComponentType::Bool, 4);
+	case EValueType::Float4x4: return FValueTypeDescription(TEXT("float4x4"), EValueComponentType::Float, 16);
+	case EValueType::Double4x4: return FValueTypeDescription(TEXT("FLWCMatrix"), EValueComponentType::Double, 16);
+	case EValueType::DoubleInverse4x4: return FValueTypeDescription(TEXT("FLWCInverseMatrix"), EValueComponentType::Double, 16);
 	case EValueType::Struct: return FValueTypeDescription(TEXT("struct"), EValueComponentType::Void, 0);
 	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
@@ -606,6 +610,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 2: return EValueType::Float2;
 		case 3: return EValueType::Float3;
 		case 4: return EValueType::Float4;
+		case 16: return EValueType::Float4x4;
 		default: break;
 		}
 	case EValueComponentType::Double:
@@ -615,6 +620,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 2: return EValueType::Double2;
 		case 3: return EValueType::Double3;
 		case 4: return EValueType::Double4;
+		case 16: return EValueType::Double4x4;
 		default: break;
 		}
 	case EValueComponentType::Int:

@@ -1090,6 +1090,25 @@ MaterialFloat3 TransformTangentVectorToView(FMaterialPixelParameters Parameters,
 	return mul(mul(InTangentVector, Parameters.TangentToWorld), (MaterialFloat3x3)ResolvedView.TranslatedWorldToView);
 }
 
+FLWCMatrix GetLocalToWorld(FMaterialVertexParameters Parameters)
+{
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+	return Parameters.InstanceLocalToWorld;
+#else
+	return GetPrimitiveData(Parameters).LocalToWorld;
+#endif
+}
+
+FLWCMatrix GetLocalToWorld(FMaterialPixelParameters Parameters)
+{
+	return GetPrimitiveData(Parameters).LocalToWorld;
+}
+
+FLWCMatrix GetPrevLocalToWorld(FMaterialVertexParameters Parameters)
+{
+	return Parameters.PrevFrameLocalToWorld;
+}
+
 /** Transforms a vector from local space to world space (VS version) */
 MaterialFloat3 TransformLocalVectorToWorld(FMaterialVertexParameters Parameters,MaterialFloat3 InLocalVector)
 {

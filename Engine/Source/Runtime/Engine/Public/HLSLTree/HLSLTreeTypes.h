@@ -65,6 +65,8 @@ enum class EUnaryOp : uint8
 	Neg,
 	Rcp,
 	Frac,
+	Length,
+	Normalize,
 };
 
 struct FUnaryOpDescription
@@ -92,6 +94,11 @@ enum class EBinaryOp : uint8
 	Max,
 	Less,
 	Greater,
+
+	VecMulMatrix3,
+	VecMulMatrix4,
+	Matrix3MulVec,
+	Matrix4MulVec,
 };
 
 struct FBinaryOpDescription

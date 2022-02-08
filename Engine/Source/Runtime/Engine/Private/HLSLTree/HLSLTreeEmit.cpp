@@ -236,9 +236,7 @@ FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitSc
 	{
 		ResultType = Result.PreparedType;
 		check(!ResultType.IsVoid());
-		ResultType.SetForwardValue(InExpression, RequestedType);
 	}
-
 	return ResultType;
 }
 
@@ -661,9 +659,12 @@ void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint3
 FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* Expression)
 {
 	Shader::FPreshaderData LocalPreshader;
-	Expression->EmitValuePreshader(*this, Scope, RequestedType, LocalPreshader);
-
-	const Shader::FType Type = RequestedType.GetType();
+	Shader::FType Type;
+	{
+		FEmitValuePreshaderResult PreshaderResult(LocalPreshader);
+		Expression->EmitValuePreshader(*this, Scope, RequestedType, PreshaderResult);
+		Type = PreshaderResult.Type;
+	}
 
 	FXxHash64Builder Hasher;
 	Hasher.Update(&Type, sizeof(Type));
@@ -714,7 +715,8 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 				PreshaderHeader->FieldIndex = UniformExpressionSet.UniformPreshaderFields.Num();
 				PreshaderHeader->NumFields = 0u;
 				PreshaderHeader->OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
-				Expression->EmitValuePreshader(*this, Scope, RequestedType, UniformExpressionSet.UniformPreshaderData);
+				FEmitValuePreshaderResult PreshaderResult(UniformExpressionSet.UniformPreshaderData);
+				Expression->EmitValuePreshader(*this, Scope, RequestedType, PreshaderResult);
 				PreshaderHeader->OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader->OpcodeOffset;
 			}
 

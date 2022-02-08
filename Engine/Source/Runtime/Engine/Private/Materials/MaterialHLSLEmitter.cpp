@@ -732,7 +732,7 @@ static bool IsAttributeUsed(FMaterialHLSLGenerator& Generator,
 	}
 	else if (Evaluation == EExpressionEvaluation::Constant)
 	{
-		FRequestedType RequestedType(Generator.GetMaterialAttributesType(), false);
+		FRequestedType RequestedType;
 		RequestedType.SetFieldRequested(PropertyField);
 
 		const FValue& DefaultValue = Generator.GetMaterialAttributesDefaultValue();
@@ -815,7 +815,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
 
 		// Prepare all fields *except* normal
-		FRequestedType RequestedPixelAttributesType(Generator.GetMaterialAttributesType(), false);
+		FRequestedType RequestedPixelAttributesType;
 		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Pixel)
@@ -860,7 +860,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 			EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
 
 			// Prepare code for just the normal
-			FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
+			FRequestedType RequestedMaterialNormal;
 			RequestedMaterialNormal.SetFieldRequested(NormalField);
 			const FPreparedType PixelResultType1 = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedMaterialNormal);
 			if (PixelResultType1.IsVoid())
@@ -876,7 +876,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	// Prepare vertex shader code
 	FStringBuilderMemstack VertexCode(Allocator, 1024 * 1024);
 	{
-		FRequestedType RequestedVertexAttributesType(Generator.GetMaterialAttributesType(), false);
+		FRequestedType RequestedVertexAttributesType;
 		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Vertex)

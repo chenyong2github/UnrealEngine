@@ -22,6 +22,7 @@
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
+#include "Materials/MaterialExpressionCameraPositionWS.h"
 #include "Materials/MaterialExpressionTime.h"
 #include "Materials/MaterialExpressionDeltaTime.h"
 #include "Materials/MaterialExpressionPanner.h"
@@ -45,12 +46,16 @@
 #include "Materials/MaterialExpressionMax.h"
 #include "Materials/MaterialExpressionClamp.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
+#include "Materials/MaterialExpressionDistance.h"
+#include "Materials/MaterialExpressionNormalize.h"
 #include "Materials/MaterialExpressionBinaryOp.h"
 #include "Materials/MaterialExpressionAppendVector.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionReflectionVectorWS.h"
+#include "Materials/MaterialExpressionTransform.h"
+#include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
@@ -174,6 +179,13 @@ bool UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGener
 	}
 
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(InputType);
+	return true;
+}
+
+bool UMaterialExpressionCameraPositionWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::CameraWorldPosition);
 	return true;
 }
 
@@ -456,6 +468,31 @@ bool UMaterialExpressionLinearInterpolate::GenerateHLSLExpression(FMaterialHLSLG
 	return true;
 }
 
+bool UMaterialExpressionDistance::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::FExpression* ExpressionA = A.AcquireHLSLExpression(Generator, Scope);
+	UE::HLSLTree::FExpression* ExpressionB = B.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionA || !ExpressionB)
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GetTree().NewLength(Generator.GetTree().NewSub(ExpressionA, ExpressionB));
+	return true;
+}
+
+bool UMaterialExpressionNormalize::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::FExpression* ExpressionInput = VectorInput.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionInput)
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GetTree().NewNormalize(ExpressionInput);
+	return true;
+}
+
 bool UMaterialExpressionAppendVector::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::FExpression* Lhs = A.AcquireHLSLExpression(Generator, Scope);
@@ -561,6 +598,245 @@ bool UMaterialExpressionFunctionInput::GenerateHLSLExpression(FMaterialHLSLGener
 bool UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.GenerateFunctionCall(Scope, MaterialFunction, FunctionInputs, OutputIndex);
+	return true;
+}
+
+static UE::HLSLTree::FExpression* TransformBase(UE::HLSLTree::FTree& Tree,
+	EMaterialCommonBasis SourceCoordBasis,
+	EMaterialCommonBasis DestCoordBasis,
+	UE::HLSLTree::FExpression* Input,
+	bool bWComponent)
+{
+	using namespace UE::HLSLTree;
+	if (!Input)
+	{
+		// unable to compile
+		return nullptr;
+	}
+
+	if (SourceCoordBasis == DestCoordBasis)
+	{
+		// no transformation needed
+		return Input;
+	}
+
+	FExpression* Result = nullptr;
+	EMaterialCommonBasis IntermediaryBasis = MCB_World;
+	EBinaryOp Op = bWComponent ? EBinaryOp::VecMulMatrix4 : EBinaryOp::VecMulMatrix3;
+	switch (SourceCoordBasis)
+	{
+	case MCB_Tangent:
+	{
+		check(!bWComponent);
+		if (DestCoordBasis == MCB_World)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::TangentToWorld));
+			//CodeStr = TEXT("mul(<A>, Parameters.TangentToWorld)");
+		}
+		// else use MCB_World as intermediary basis
+		break;
+	}
+	case MCB_Local:
+	{
+		if (DestCoordBasis == MCB_World)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::LocalToWorld));
+			//CodeStr = TEXT("TransformLocal<TO><PREV>World(Parameters, <A>)");
+		}
+		// else use MCB_World as intermediary basis
+		break;
+	}
+	case MCB_TranslatedWorld:
+	{
+		if (DestCoordBasis == MCB_World)
+		{
+			if (bWComponent)
+			{
+				Result = Tree.NewSub(Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::PreViewTranslation));
+				//CodeStr = TEXT("LWCSubtract(<A>, ResolvedView.<PREV>PreViewTranslation)");
+			}
+			else
+			{
+				Result = Input;
+				//CodeStr = TEXT("<A>");
+			}
+		}
+		else if (DestCoordBasis == MCB_Camera)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::TranslatedWorldToCameraView));
+			//CodeStr = MultiplyMatrix(TEXT("<A>"), TEXT("ResolvedView.<PREV>TranslatedWorldToCameraView"), AWComponent);
+		}
+		else if (DestCoordBasis == MCB_View)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::TranslatedWorldToView));
+			//CodeStr = MultiplyMatrix(TEXT("<A>"), TEXT("ResolvedView.<PREV>TranslatedWorldToView"), AWComponent);
+		}
+		// else use MCB_World as intermediary basis
+		break;
+	}
+	case MCB_World:
+	{
+		if (DestCoordBasis == MCB_Tangent)
+		{
+			Result = Tree.NewBinaryOp(Op, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::TangentToWorld), Input);
+			//CodeStr = MultiplyTransposeMatrix(TEXT("Parameters.TangentToWorld"), TEXT("<A>"), AWComponent);
+		}
+		else if (DestCoordBasis == MCB_Local)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::WorldToLocal));
+			/*const EMaterialDomain Domain = (const EMaterialDomain)Material->GetMaterialDomain();
+
+			if (Domain != MD_Surface && Domain != MD_Volume)
+			{
+				// TODO: for decals we could support it
+				Errorf(TEXT("This transformation is only supported in the 'Surface' material domain."));
+				return INDEX_NONE;
+			}
+
+			// TODO: inconsistent with TransformLocal<TO>World with instancing
+			CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetPrimitiveData(Parameters).<PREVIOUS>WorldToLocal"), AWComponent);*/
+		}
+		else if (DestCoordBasis == MCB_TranslatedWorld)
+		{
+			if (bWComponent)
+			{
+				// TODO - explicit cast to float
+				Result = Tree.NewAdd(Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::PreViewTranslation));
+				//CodeStr = TEXT("LWCToFloat(LWCAdd(<A>, ResolvedView.<PREV>PreViewTranslation))");
+			}
+			else
+			{
+				Result = Input;
+				//CodeStr = TEXT("<A>");
+			}
+		}
+		else if (DestCoordBasis == MCB_MeshParticle)
+		{
+			//CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("Parameters.Particle.WorldToParticle"), AWComponent);
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::WorldToParticle));
+			//bUsesParticleWorldToLocal = true;
+		}
+		else if (DestCoordBasis == MCB_Instance)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::WorldToInstance));
+			//CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetWorldToInstance(Parameters)"), AWComponent);
+			//bUsesInstanceWorldToLocalPS = ShaderFrequency == SF_Pixel;
+		}
+
+		// else use MCB_TranslatedWorld as intermediary basis
+		IntermediaryBasis = MCB_TranslatedWorld;
+		break;
+	}
+	case MCB_Camera:
+	{
+		if (DestCoordBasis == MCB_TranslatedWorld)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::CameraViewToTranslatedWorld));
+			//CodeStr = MultiplyMatrix(TEXT("<A>"), TEXT("ResolvedView.<PREV>CameraViewToTranslatedWorld"), AWComponent);
+		}
+		// else use MCB_TranslatedWorld as intermediary basis
+		IntermediaryBasis = MCB_TranslatedWorld;
+		break;
+	}
+	case MCB_View:
+	{
+		if (DestCoordBasis == MCB_TranslatedWorld)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::ViewToTranslatedWorld));
+			//CodeStr = MultiplyMatrix(TEXT("<A>"), TEXT("ResolvedView.<PREV>ViewToTranslatedWorld"), AWComponent);
+		}
+		// else use MCB_TranslatedWorld as intermediary basis
+		IntermediaryBasis = MCB_TranslatedWorld;
+		break;
+	}
+	case MCB_MeshParticle:
+	{
+		if (DestCoordBasis == MCB_World)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::ParticleToWorld));
+			//CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("Parameters.Particle.ParticleToWorld"), AWComponent);
+			//bUsesParticleLocalToWorld = true;
+		}
+		// use World as an intermediary base
+		break;
+	}
+	case MCB_Instance:
+	{
+		if (DestCoordBasis == MCB_World)
+		{
+			Result = Tree.NewBinaryOp(Op, Input, Tree.NewExpression<FExpressionExternalInput>(EExternalInput::InstanceToWorld));
+			//CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetInstanceToWorld(Parameters)"), AWComponent);
+			//bUsesInstanceLocalToWorldPS = ShaderFrequency == SF_Pixel;
+		}
+		// use World as an intermediary base
+		break;
+	}
+
+	default:
+		check(0);
+		break;
+	}
+
+	if (!Result)
+	{
+		// check intermediary basis so we don't have infinite recursion
+		check(IntermediaryBasis != SourceCoordBasis);
+		check(IntermediaryBasis != DestCoordBasis);
+
+		// use intermediary basis
+		FExpression* IntermediaryExpression = TransformBase(Tree, SourceCoordBasis, IntermediaryBasis, Input, bWComponent);
+		return TransformBase(Tree, IntermediaryBasis, DestCoordBasis, IntermediaryExpression, bWComponent);
+	}
+
+	return Result;
+}
+
+bool UMaterialExpressionTransform::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	static const EMaterialCommonBasis kTable[TRANSFORM_MAX] = {
+		MCB_Tangent,					// TRANSFORM_Tangent
+		MCB_Local,						// TRANSFORM_Local
+		MCB_World,						// TRANSFORM_World
+		MCB_View,						// TRANSFORM_View
+		MCB_Camera,						// TRANSFORM_Camera
+		MCB_MeshParticle,				// TRANSFORM_Particle
+		MCB_Instance,					// TRANSFORM_Instance
+	};
+
+	FExpression* ExpressionInput = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionInput)
+	{
+		return false;
+	}
+
+	OutExpression = TransformBase(Generator.GetTree(), kTable[TransformSourceType], kTable[TransformType], ExpressionInput, false);
+	return true;
+}
+
+
+bool UMaterialExpressionTransformPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	static const EMaterialCommonBasis kTable[TRANSFORMPOSSOURCE_MAX] = {
+		MCB_Local,						// TRANSFORMPOSSOURCE_Local
+		MCB_World,						// TRANSFORMPOSSOURCE_World
+		MCB_TranslatedWorld,			// TRANSFORMPOSSOURCE_TranslatedWorld
+		MCB_View,						// TRANSFORMPOSSOURCE_View
+		MCB_Camera,						// TRANSFORMPOSSOURCE_Camera
+		MCB_MeshParticle,				// TRANSFORMPOSSOURCE_Particle
+		MCB_Instance,					// TRANSFORMPOSSOURCE_Instance
+	};
+
+	FExpression* ExpressionInput = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionInput)
+	{
+		return false;
+	}
+
+	OutExpression = TransformBase(Generator.GetTree(), kTable[TransformSourceType], kTable[TransformType], ExpressionInput, true);
 	return true;
 }
 

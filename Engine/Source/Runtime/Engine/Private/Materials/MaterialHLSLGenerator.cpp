@@ -283,7 +283,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 					const FStructField* WPOField = GetMaterialAttributesType()->FindFieldByName(*WPOName);
 					const FStructField* PrevWPOField = GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset"));
 
-					FRequestedType PrevRequestedType(GetMaterialAttributesType(), false);
+					FRequestedType PrevRequestedType;
 					PrevRequestedType.SetFieldRequested(WPOField);
 
 					FExpression* PrevAttributesExpression = HLSLTree->GetPreviousFrame(AttributesExpression, PrevRequestedType);
@@ -439,7 +439,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExpressio
 		InputExpression = MaterialExpression->Preview.TryAcquireHLSLExpression(*this, Scope);
 		if (!InputExpression)
 		{
-			const FVector4& PreviewValue = MaterialExpression->PreviewValue;
+			const FVector4f PreviewValue(MaterialExpression->PreviewValue);
 			UE::Shader::FValue DefaultValue;
 			switch (MaterialExpression->InputType)
 			{

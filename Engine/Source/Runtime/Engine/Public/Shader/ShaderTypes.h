@@ -64,6 +64,14 @@ enum class EValueType : uint8
 	Bool3,
 	Bool4,
 
+	// float4x4
+	Float4x4,
+
+	// Both of these are double4x4 on CPU
+	// On GPU, they map to FLWCMatrix and FLWCInverseMatrix
+	Double4x4,
+	DoubleInverse4x4,
+
 	Struct,
 };
 
@@ -156,6 +164,8 @@ struct FStructType
 	 */
 	TArrayView<const EValueType> FlatFieldTypes;
 
+	int32 GetNumComponents() const { return ComponentTypes.Num(); }
+
 	const FStructField* FindFieldByName(const TCHAR* InName) const;
 };
 
@@ -211,7 +221,7 @@ enum class EValueStringFormat
 
 struct FMemoryImageValue
 {
-	static const uint32 MaxSize = sizeof(double) * 4;
+	static const uint32 MaxSize = sizeof(double) * 16;
 	uint8 Bytes[MaxSize];
 	uint32 Size;
 };
@@ -394,7 +404,7 @@ struct FValue
 	const TCHAR* ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const;
 
 	FType Type;
-	TArray<FValueComponent, TInlineAllocator<8>> Component;
+	TArray<FValueComponent, TInlineAllocator<16>> Component;
 };
 
 ENGINE_API bool operator==(const FValue& Lhs, const FValue& Rhs);
