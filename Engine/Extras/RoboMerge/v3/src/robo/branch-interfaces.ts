@@ -74,7 +74,7 @@ export interface BranchGraphInterface {
 	getBranchNames(): string[]
 }
 
-export interface EditableBranch extends BranchBase {
+export type EditableBranch = BranchBase & {
 	bot?: NodeBotInterface
 	parent: BranchGraphInterface
 	workspace: RoboWorkspace
