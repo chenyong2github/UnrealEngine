@@ -243,7 +243,7 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 				{
 					FirstIndex = Index;
 				}
-				if (Index != -1)
+				if (Index > -1)
 				{
 					int32 TransformIdx = FractureContext.GetGeometryCollection()->TransformIndex[Index];
 					// after a successful cut, also consider any new bones added by the cut
