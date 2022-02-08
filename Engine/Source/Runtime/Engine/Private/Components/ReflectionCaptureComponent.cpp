@@ -686,6 +686,8 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 
 	if (TextureCube)
 	{
+		TextureCube->PreEditChange(nullptr);
+
 		TArray<uint8> TemporaryEncodedHDRCapturedData;
 
 		GenerateEncodedHDRData(ReflectionCaptureData.FullHDRCapturedData, ReflectionCaptureData.CubemapSize, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
@@ -719,6 +721,8 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 
 		TextureCube->UpdateResource();
 		TextureCube->MarkPackageDirty();
+
+		TextureCube->PostEditChange();
 	}
 	ReflectionCaptureData.EncodedCaptureData = TextureCube;
 	ReflectionCaptureData.bBrightnessBakedInEncodedHDRCubemap = false;

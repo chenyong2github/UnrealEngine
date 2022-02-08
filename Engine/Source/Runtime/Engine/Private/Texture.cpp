@@ -303,6 +303,11 @@ bool UTexture::Modify(bool bAlwaysMarkDirty)
 {
 	// Before applying any modification to the texture
 	// make sure no compilation is still ongoing.
+	if (!IsAsyncCacheComplete())
+	{
+		FinishCachePlatformData();
+	}	
+	
 	if (IsDefaultTexture())
 	{
 		FTextureCompilingManager::Get().FinishCompilation({this});
