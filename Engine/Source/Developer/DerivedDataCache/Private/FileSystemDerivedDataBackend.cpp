@@ -2213,11 +2213,7 @@ bool FFileSystemCacheStore::GetCacheValueOnly(
 		return false;
 	}
 
-	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
-	{
-		OutValue = FValue(RawHash, RawSize);
-	}
-	else if (const FCbAttachment* const Attachment = Package.FindAttachment(RawHash))
+	if (const FCbAttachment* const Attachment = Package.FindAttachment(RawHash))
 	{
 		const FCompressedBuffer& Data = Attachment->AsCompressedBinary();
 		if (Data.GetRawHash() != RawHash || Data.GetRawSize() != RawSize)
