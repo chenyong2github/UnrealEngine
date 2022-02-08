@@ -11,14 +11,12 @@
 namespace UE { namespace ZenCookOnTheFly { namespace Messaging
 {
 
-struct FPackageStoreData
+struct FCompletedPackages
 {
 	TArray<FPackageStoreEntryResource> CookedPackages;
 	TArray<FPackageId> FailedPackages;
-	int32 TotalCookedPackages = 0;
-	int32 TotalFailedPackages = 0;
 
-	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreData& PackageStoreData);
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCompletedPackages& CompletedPackages);
 };
 
 struct FCookPackageRequest
@@ -30,29 +28,10 @@ struct FCookPackageRequest
 
 struct FCookPackageResponse
 {
-	EPackageStoreEntryStatus Status = EPackageStoreEntryStatus::None;
+	EPackageStoreEntryStatus Status;
+	FPackageStoreEntryResource CookedEntry;
 
 	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response);
-};
-
-struct FPackagesCookedMessage
-{
-	FPackageStoreData PackageStoreData;
-
-	friend FArchive& operator<<(FArchive& Ar, FPackagesCookedMessage& PackagesCookedMessage)
-	{
-		return Ar << PackagesCookedMessage.PackageStoreData;
-	}
-};
-
-struct FGetCookedPackagesResponse
-{
-	FPackageStoreData PackageStoreData;
-	
-	friend FArchive& operator<<(FArchive& Ar, FGetCookedPackagesResponse& GetCookedPackagesResponse)
-	{
-		return Ar << GetCookedPackagesResponse.PackageStoreData;
-	}
 };
 
 }}} // namesapce UE::ZenCookOnTheFly::Messaging

@@ -7,13 +7,11 @@
 namespace UE { namespace ZenCookOnTheFly { namespace Messaging
 {
 
-FArchive& operator<<(FArchive& Ar, FPackageStoreData& PackageStoreData)
+FArchive& operator<<(FArchive& Ar, FCompletedPackages& CompletedPackages)
 {
-	Ar << PackageStoreData.CookedPackages;
-	Ar << PackageStoreData.FailedPackages;
-	Ar << PackageStoreData.TotalCookedPackages;
-	Ar << PackageStoreData.TotalFailedPackages;
-
+	Ar << CompletedPackages.CookedPackages;
+	Ar << CompletedPackages.FailedPackages;
+	
 	return Ar;
 }
 
@@ -26,12 +24,10 @@ FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request)
 
 FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response)
 {
-	uint32 Status = static_cast<uint32>(Response.Status);
-	Ar << Status;
-
-	if (Ar.IsLoading())
+	Ar << Response.Status;
+	if (Response.Status == EPackageStoreEntryStatus::Ok)
 	{
-		Response.Status = static_cast<EPackageStoreEntryStatus>(Status);
+		Ar << Response.CookedEntry;
 	}
 
 	return Ar;
