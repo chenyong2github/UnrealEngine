@@ -1058,6 +1058,9 @@ protected:
 
 public:
 
+	/** Returns if the character rotation should be corrected on clients when sending a server move response correction. */
+	virtual bool ShouldCorrectRotation() const { return false; }
+
 	UPROPERTY(Category="Character Movement: Avoidance", EditAnywhere, BlueprintReadOnly, meta=(ForceUnits=cm))
 	float AvoidanceConsiderationRadius;
 
@@ -2364,7 +2367,7 @@ public:
 	virtual void ClientAckGoodMove_Implementation(float TimeStamp);
 
 	/* Replicate position correction to client, associated with a timestamped servermove.  Client will replay subsequent moves after applying adjustment. */
-	virtual void ClientAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	virtual void ClientAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, TOptional<FRotator> OptionalRotation = TOptional<FRotator>());
 
 	/* Bandwidth saving version, when velocity is zeroed */
 	virtual void ClientVeryShortAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
