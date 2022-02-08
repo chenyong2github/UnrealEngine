@@ -50,7 +50,7 @@ struct FCollectionCollisionTypeData
 		, LevelSetData()
 		, CollisionParticleData()
 		, CollisionObjectReductionPercentage(0.f)
-		, CollisionMarginFraction(0.1f)
+		, CollisionMarginFraction(0.f)
 	{
 	}
 
@@ -90,7 +90,7 @@ enum ESimulationInitializationState { Unintialized = 0, Activated, Created, Init
 struct FSharedSimulationParameters
 {
 	FSharedSimulationParameters()
-	: bMassAsDensity(false)
+	: bMassAsDensity(true)
 	, Mass(1.0f)
 	, MinimumMassClamp(0.1f)							// todo : Expose to users with better initial values
 	, MaximumMassClamp(1e5f)							// todo : Expose to users with better initial values
