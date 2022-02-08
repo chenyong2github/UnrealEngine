@@ -4291,6 +4291,14 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 		Geometry->TransitionBuffers(*this);
 	}
 
+	{
+		FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(ScratchBufferRange.Buffer, GetGPUIndex());
+		if (ScratchBuffer->GetResource()->RequiresResourceStateTracking())
+		{
+			FD3D12DynamicRHI::TransitionResource(CommandListHandle, ScratchBuffer->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
+		}
+	}
+
 	CommandListHandle.FlushResourceBarriers();
 		
 	const uint32 GPUIndex = GetGPUIndex();
