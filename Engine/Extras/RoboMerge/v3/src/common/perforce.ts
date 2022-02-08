@@ -549,7 +549,8 @@ export class PerforceContext {
 	// find a workspace for the given user
 	// output format is an array of workspace names
 	async find_workspaces(user?: string) {
-		let parsedClients = await this._execP4Ztag(null, ['clients', '-u', user || this.username], { multiline: true });
+		// -a to include workspaces on edge servers
+		let parsedClients = await this._execP4Ztag(null, ['clients', '-u', user || this.username, '-a'], { multiline: true });
 		let workspaces = [];
 		for (let clientDef of parsedClients) {
 			if (clientDef.client) {

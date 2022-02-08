@@ -36,7 +36,7 @@ VersionReader.init(roboStartupLogger)
 
 
 const USER_WORKSPACE_EXCLUDE_PATTERNS: (RegExp | string)[] = [
-	'horde-p4bridge-hordeserver-'
+	'horde-p4bridge-'
 ]
 
 // I seem to have broken this
