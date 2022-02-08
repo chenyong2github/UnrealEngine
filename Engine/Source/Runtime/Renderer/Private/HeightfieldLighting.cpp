@@ -18,12 +18,9 @@ HeightfieldLighting.cpp
 #include "PipelineStateCache.h"
 
 // In float4's, must match usf
-static const int32 HEIGHTFIELD_DATA_STRIDE = 12;
+static const int32 HEIGHTFIELD_DATA_STRIDE = 10;
 
-void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, 
-	FVector2D InvLightingAtlasSize, 
-	float InvDownsampleFactor,
-	TArray<FVector4f, SceneRenderingAllocator>& HeightfieldDescriptionData)
+void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, TArray<FVector4f, SceneRenderingAllocator>& HeightfieldDescriptionData)
 {
 	HeightfieldDescriptionData.Empty(HeightfieldDescriptions.Num() * HEIGHTFIELD_DATA_STRIDE);
 
@@ -43,16 +40,7 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 		HeightfieldDescriptionData.Add(HeightfieldScaleBias);
 		HeightfieldDescriptionData.Add(Description.MinMaxUV);
 
-		const FVector4f LightingUVScaleBias(
-			InvLightingAtlasSize.X * InvDownsampleFactor,
-			InvLightingAtlasSize.Y * InvDownsampleFactor,
-			Description.LightingAtlasLocation.X * InvLightingAtlasSize.X,
-			Description.LightingAtlasLocation.Y * InvLightingAtlasSize.Y);
-
-		HeightfieldDescriptionData.Add(LightingUVScaleBias);
-
 		HeightfieldDescriptionData.Add(FVector4f(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
-		HeightfieldDescriptionData.Add(FVector4f(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
 
 		const FMatrix44f LocalToWorldT = FMatrix44f(Description.LocalToWorld.GetTransposed());
 		const FMatrix44f WorldToLocalT = FMatrix44f(Description.LocalToWorld.Inverse().GetTransposed());
@@ -76,14 +64,11 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 	check(HeightfieldDescriptionData.Num() % HEIGHTFIELD_DATA_STRIDE == 0);
 }
 
-FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
+FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions)
 {
 	TArray<FVector4f, SceneRenderingAllocator> HeightfieldDescriptionData;
 
-	FillHeightfieldDescriptionData(HeightfieldDescriptions,
-		InvLightingAtlasSize,
-		InvDownsampleFactor,
-		/*out*/ HeightfieldDescriptionData);
+	FillHeightfieldDescriptionData(HeightfieldDescriptions, /*out*/ HeightfieldDescriptionData);
 
 	FRDGBufferRef HeightfieldDescriptionsBuffer = CreateUploadBuffer(
 		GraphBuilder,

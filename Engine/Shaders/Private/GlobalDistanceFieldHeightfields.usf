@@ -18,7 +18,6 @@ StructuredBuffer<uint> MarkedHeightfieldPageBuffer;
 StructuredBuffer<uint> PageUpdateTileBuffer;
 StructuredBuffer<uint> ComposeTileBuffer;
 Texture3D<uint> PageTableLayerTexture;
-Texture3D<uint> ParentPageTableLayerTexture;
 
 float3 PageCoordToPageWorldCenterScale;
 float3 PageCoordToPageWorldCenterBias;

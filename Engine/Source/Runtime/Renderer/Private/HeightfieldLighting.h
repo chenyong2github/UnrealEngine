@@ -43,15 +43,5 @@ public:
 class FHeightfieldDescription
 {
 public:
-	FIntRect Rect;
-	int32 DownsampleFactor;
-	FIntRect DownsampledRect;
-
 	TMap<FHeightfieldComponentTextures, TArray<FHeightfieldComponentDescription>> ComponentDescriptions;
-
-	FHeightfieldDescription() :
-		Rect(FIntRect(0, 0, 0, 0)),
-		DownsampleFactor(1),
-		DownsampledRect(FIntRect(0, 0, 0, 0))
-	{}
 };

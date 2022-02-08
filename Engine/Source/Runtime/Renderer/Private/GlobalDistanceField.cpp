@@ -1784,17 +1784,6 @@ void UpdateGlobalDistanceFieldVolume(
 
 									if (HeightfieldTexture && HeightfieldTexture->GetResource() && HeightfieldTexture->GetResource()->TextureRHI)
 									{
-										const FIntPoint HeightfieldSize = NewComponentDescription.HeightfieldRect.Size();
-
-										if (UpdateRegionHeightfield.Rect.Area() == 0)
-										{
-											UpdateRegionHeightfield.Rect = NewComponentDescription.HeightfieldRect;
-										}
-										else
-										{
-											UpdateRegionHeightfield.Rect.Union(NewComponentDescription.HeightfieldRect);
-										}
-
 										TArray<FHeightfieldComponentDescription>& ComponentDescriptions = UpdateRegionHeightfield.ComponentDescriptions.FindOrAdd(FHeightfieldComponentTextures(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture));
 										ComponentDescriptions.Add(NewComponentDescription);
 									}
@@ -1925,11 +1914,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 								if (HeightfieldDescriptions.Num() > 0)
 								{
-									FRDGBufferRef HeightfieldDescriptionBuffer = UploadHeightfieldDescriptions(
-										GraphBuilder,
-										HeightfieldDescriptions,
-										FVector2D(1, 1),
-										1.0f / UpdateRegionHeightfield.DownsampleFactor);
+									FRDGBufferRef HeightfieldDescriptionBuffer = UploadHeightfieldDescriptions(GraphBuilder, HeightfieldDescriptions);
 
 									UTexture2D* HeightfieldTexture = It.Key().HeightAndNormal;
 									UTexture2D* VisibilityTexture = It.Key().Visibility;
@@ -2215,11 +2200,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 								if (HeightfieldDescriptions.Num() > 0)
 								{
-									FRDGBufferRef HeightfieldDescriptionBuffer = UploadHeightfieldDescriptions(
-										GraphBuilder,
-										HeightfieldDescriptions,
-										FVector2D(1, 1),
-										1.0f / UpdateRegionHeightfield.DownsampleFactor);
+									FRDGBufferRef HeightfieldDescriptionBuffer = UploadHeightfieldDescriptions(GraphBuilder, HeightfieldDescriptions);
 
 									UTexture2D* HeightfieldTexture = It.Key().HeightAndNormal;
 									UTexture2D* VisibilityTexture = It.Key().Visibility;
@@ -2230,7 +2211,6 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->ComposeIndirectArgBuffer = PageComposeHeightfieldIndirectArgBuffer;
 									PassParameters->ComposeTileBuffer = GraphBuilder.CreateSRV(PageComposeHeightfieldTileBuffer, PF_R32_UINT);
 									PassParameters->PageTableLayerTexture = PageTableLayerTexture;
-									PassParameters->ParentPageTableLayerTexture = ParentPageTableLayerTexture;
 									PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 									PassParameters->PageCoordToVoxelCenterScale = (FVector3f)PageCoordToVoxelCenterScale;
 									PassParameters->PageCoordToVoxelCenterBias = (FVector3f)PageCoordToVoxelCenterBias;

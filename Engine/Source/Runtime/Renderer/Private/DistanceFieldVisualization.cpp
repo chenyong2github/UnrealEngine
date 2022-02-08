@@ -111,7 +111,7 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 	FRDGTextureRef VisualizeResultTexture = nullptr;
 	{
 		const FIntPoint BufferSize = GetBufferSizeForAO();
-		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_UAV));
+		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_UAV));
 		VisualizeResultTexture = GraphBuilder.CreateTexture(Desc, TEXT("VisualizeDistanceField"));
 	}
 
