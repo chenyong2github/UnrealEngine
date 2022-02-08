@@ -74,6 +74,9 @@ private:
 	/** Called when a Fixture Patch changed */
 	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
 
+	/** Called when a Fixture Type changed */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
+
 	/** Called when Fixture Patches were selected in Fixture Patch Shared Data */
 	void OnFixturePatchesSelected();
 

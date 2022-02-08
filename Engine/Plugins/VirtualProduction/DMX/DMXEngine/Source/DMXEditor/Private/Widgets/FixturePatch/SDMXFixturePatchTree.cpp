@@ -56,6 +56,9 @@ void SDMXFixturePatchTree::Construct(const FArguments& InArgs)
 		// Bind to fixture patch changes
 		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatchTree::OnFixturePatchChanged);
 
+		// Bind to fixture type changes
+		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixturePatchTree::OnFixtureTypeChanged);
+
 		// Make an initial selection
 		const TArray<UDMXEntityFixturePatch*> FixturePatches = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 		if (FixturePatches.Num() > 0)
@@ -735,6 +738,17 @@ void SDMXFixturePatchTree::OnFixturePatchChanged(const UDMXEntityFixturePatch* F
 	if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
 	{
 		if (PinnedDMXEditor->GetDMXLibrary() == FixturePatch->GetParentLibrary())
+		{
+			UpdateTree();
+		}
+	}
+}
+
+void SDMXFixturePatchTree::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
+{
+	if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
+	{
+		if (PinnedDMXEditor->GetDMXLibrary() == FixtureType->GetParentLibrary())
 		{
 			UpdateTree();
 		}
