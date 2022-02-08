@@ -108,6 +108,9 @@ void UCommonGameViewportClient::HandleRerouteInput(int32 ControllerId, FKey Key,
 			ERouteUIInputResult InputResult = ActionRouter->ProcessInput(Key, EventType);
 			if (InputResult == ERouteUIInputResult::BlockGameInput)
 			{
+				// We need to set the reply as handled otherwise the input won't actually be blocked from reaching the viewport.
+				Reply = FReply::Handled();
+				// Notify interested parties that we blocked the input.
 				OnRerouteBlockedInput().ExecuteIfBound(ControllerId, Key, EventType, Reply);
 			}
 			else if (InputResult == ERouteUIInputResult::Handled)
