@@ -55,6 +55,7 @@ Level.cpp: Level-related functions
 #if WITH_EDITOR
 #include "AssetCompilingManager.h"
 #include "StaticMeshCompiler.h"
+#include "ActorDeferredScriptManager.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -73,6 +74,7 @@ Level.cpp: Level-related functions
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "EditorActorFolders.h"
+#include "UObject/MetaData.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -944,10 +946,6 @@ void ULevel::PostLoad()
 			}
 		}
 	}
-
-	// Register to the asset async compilation delegate to manage the deferring of non trivial construction scripts on actors
-	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddUObject(this, &ULevel::OnAssetPostCompile);
-
 #endif
 
 	// Ensure that the level is pointed to the owning world.  For streamed levels, this will be the world of the P map
@@ -1608,31 +1606,10 @@ bool ULevel::DeferRunningConstructionScripts(AActor* InActor)
 	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() &&
 		InActor->HasNonTrivialUserConstructionScript())
 	{
-		PendingConstructionScriptActors.Add(InActor);
+		FActorDeferredScriptManager::Get().AddActor(InActor);
 		return true;
 	}
 	return false;
-}
-
-void ULevel::OnAssetPostCompile(const TArray<FAssetCompileData>&)
-{
-	// Once there are no more outstanding asset (static meshes), run actors non trivial construction scripts
-	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() == 0)
-	{
-		// since this deferred run of construction script was supposed to be done during level load
-		// temporarily set the global flag to prevent dirtying the level package.
-		// @note: it would quite preferable if we would have a scoped context than touching a global variable... 
-		GIsEditorLoadingPackage = true;
-		for (TWeakObjectPtr<AActor> WeakActor : PendingConstructionScriptActors)
-		{
-			if (AActor* Actor = WeakActor.Get())
-			{
-				Actor->RerunConstructionScripts();
-			}
-		}
-		GIsEditorLoadingPackage = false;
-		PendingConstructionScriptActors.Empty();
-	}
 }
 
 void ULevel::CreateModelComponents()
