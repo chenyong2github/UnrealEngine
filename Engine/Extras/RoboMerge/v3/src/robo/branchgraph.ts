@@ -187,6 +187,10 @@ if (botname === '__TEST__') {
 					throw new Error(`No edge matching property ${edge.from} -> ${edge.to}`)
 				}
 
+				if (edge.approval) {
+					edge.additionalSlackChannel = edge.approval.channelId
+				}
+
 				source!.edgeProperties.set(targetName, edge)
 			}
 		}

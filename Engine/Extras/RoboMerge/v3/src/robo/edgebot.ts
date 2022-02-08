@@ -646,7 +646,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			this.sourceNode.findOrCreateBlockage(failure, pending,
 				`Integration of CL#${pending.change.cl} to ${pending.action.branch.name} needs approval: ${approval.description}`,
 				{
-					group: approval.group,
+					settings: approval,
 					shelfCl: pending.newCl
 				});
 		}

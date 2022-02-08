@@ -4,7 +4,7 @@ import { BranchSpec, ConflictedResolveNFile, RoboWorkspace } from '../common/per
 // TODO: Remove Circular Dependency on bot-interfaces
 import { NodeBotInterface } from './bot-interfaces';
 import { FailureKind } from './status-types';
-import { BotConfig, BranchBase, EdgeOptions, NodeOptions, IntegrationWindowPane } from './branchdefs';
+import { BotConfig, BranchBase, ApprovalOptions, EdgeOptions, NodeOptions, IntegrationWindowPane } from './branchdefs';
 import { BlockageNodeOpUrls } from './roboserver';
 
 export type BranchArg = Branch | string
@@ -168,7 +168,7 @@ export interface Blockage {
 	owner: string
 	ownerEmail: Promise<string | null>
 	approval?: {
-		group: string
+		settings: ApprovalOptions
 		shelfCl: number
 	}
 	time: Date

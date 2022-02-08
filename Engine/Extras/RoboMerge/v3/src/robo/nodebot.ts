@@ -6,6 +6,7 @@ import { ContextualLogger } from '../common/logger';
 import { Mailer, MailParams, Recipients } from '../common/mailer';
 import { Change, ConflictedResolveNFile, PerforceContext, RoboWorkspace } from '../common/perforce';
 import { IPCControls, NodeBotInterface, QueuedChange, ReconsiderArgs } from './bot-interfaces';
+import { ApprovalOptions } from './branchdefs'
 import { BlockagePauseInfo, BranchStatus } from './status-types';
 import { AlreadyIntegrated, Blockage, Branch, BranchArg, BranchGraphInterface, ChangeInfo, EndIntegratingToGateEvent, Failure } from './branch-interfaces';
 import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedRevision, StompVerification, StompVerificationFile }  from './branch-interfaces';
@@ -1838,7 +1839,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		return this.findOrCreateBlockage(failure, pending, shortMessage)
 	}
 
-	findOrCreateBlockage(failure: Failure, pending: PendingChange, shortMessage: string, approval?: {group: string, shelfCl: number}) {
+	findOrCreateBlockage(failure: Failure, pending: PendingChange, shortMessage: string, approval?: {settings: ApprovalOptions, shelfCl: number}) {
 		const owner = getIntegrationOwner(pending) || pending.change.author
 
 		// see if we've already created a notification for this one

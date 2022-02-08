@@ -139,13 +139,15 @@ const edgeOptionFieldsPrototype = {
 
 	approval: {
 		description: '',
-		group: ''
+		channelName: '',
+		channelId: ''
 	}
 }
 
 const edgeOptionFieldNames: ReadonlySet<string> = new Set(Object.keys(edgeOptionFieldsPrototype));
 
 type EdgeOptionFields = typeof edgeOptionFieldsPrototype
+export type ApprovalOptions = typeof edgeOptionFieldsPrototype.approval
 
 export type NodeOptions = Partial<NodeOptionFields>
 export type EdgeOptions = Partial<EdgeOptionFields>
@@ -422,6 +424,13 @@ export class BranchDefs {
 
 						&& !edgeOptionFieldNames.has(keyName)) {
 						throw new Error(`Unknown property '${keyName}' specified for edge ${edge.from}->${edge.to}`)
+					}
+				}
+
+				if (edge.approval) {
+					// should be replaced by generic handling of objects in the prototype
+					if (!edge.approval.description || !edge.approval.channelName || !edge.approval.channelId) {
+						throw new Error(`Invalid approval settings for edge ${edge.from}->${edge.to}`)
 					}
 				}
 
