@@ -138,7 +138,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& No
 			FGraphNode& GraphNode = GraphNodes[NodeIndex];
 			
 			// If only one node and zero edges, we invalidate the node island
-			if(GraphNode.NodeEdges.Num() == 0  && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
+			if(GraphNode.bValidNode  && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
 			{
 				if(!GraphNode.bStationaryNode)
 				{
@@ -647,23 +647,30 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIslands()
 		if(GraphNodes.IsValidIndex(RootIndex))
 		{
 			FGraphNode& RootNode = GraphNodes[RootIndex];
-			if(RootNode.NodeCounter != GraphCounter && RootNode.bValidNode)
+			if(RootNode.NodeCounter != GraphCounter)
 			{
-				int32 CurrentIsland = RootNode.IslandIndex;
-				
-				if (GraphIslands.IsValidIndex(CurrentIsland) && GraphIslands[CurrentIsland].bIsPersistent && !GraphIslands[CurrentIsland].bIsSleeping)
+				if(RootNode.bValidNode)
 				{
-					// We don't want to rebuild a new island if this one can't be splitted
-					// It is why by default the first one is the main one
-					if(GraphIslands[CurrentIsland].IslandCounter == GraphCounter)
-					{
-						FGraphIsland GraphIsland = { 0, 1, 0, false, false };
-						CurrentIsland = GraphIslands.Emplace(GraphIsland);
-					}
+					int32 CurrentIsland = RootNode.IslandIndex;
 					
-					GraphIslands[CurrentIsland].IslandCounter = GraphCounter;
+					if (GraphIslands.IsValidIndex(CurrentIsland) && GraphIslands[CurrentIsland].bIsPersistent && !GraphIslands[CurrentIsland].bIsSleeping)
+					{
+						// We don't want to rebuild a new island if this one can't be splitted
+						// It is why by default the first one is the main one
+						if(GraphIslands[CurrentIsland].IslandCounter == GraphCounter)
+						{
+							FGraphIsland GraphIsland = { 0, 1, 0, false, false };
+							CurrentIsland = GraphIslands.Emplace(GraphIsland);
+						}
+						
+						GraphIslands[CurrentIsland].IslandCounter = GraphCounter;
 
-					SplitIsland(NodeQueue, RootIndex, CurrentIsland);
+						SplitIsland(NodeQueue, RootIndex, CurrentIsland);
+					}
+				}
+				else
+				{
+					RootNode.IslandIndex = INDEX_NONE;
 				}
 			}
 		}
@@ -735,7 +742,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 			// Update of the sleeping flag on the island
 			if(GraphIslands.IsValidIndex(GraphNode.IslandIndex) && !GraphNode.bStationaryNode)
 			{
-				if(GraphNode.NodeEdges.Num() == 0)
+				if(GraphNode.bValidNode)
 				{
 					GraphIslands[GraphNode.IslandIndex].bIsSleeping = false;
 				}
