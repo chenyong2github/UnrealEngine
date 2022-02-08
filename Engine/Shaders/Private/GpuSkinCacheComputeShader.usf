@@ -431,7 +431,7 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
 #if GPUSKIN_APEX_CLOTH
 	// Transform simulated position from cloth space into local space and blend with skinned position
     float4 TransformedSimulatedPos = mul(float4(Intermediates.SimulatedPosition.xyz, 1), ClothToLocal);
-    SPos = lerp(SPos.xyz, TransformedSimulatedPos, ClothWeight);
+    SPos = lerp(SPos.xyz, TransformedSimulatedPos.xyz, ClothWeight);
 #endif
 
 	float3 TangentX = normalize(mul((float3x3)Intermediates.BlendMatrix, LocalTangentX));
