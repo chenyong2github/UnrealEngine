@@ -791,6 +791,15 @@ public:
 	 * data from GetEditorPreviewInfo().
 	 */
 	virtual TSharedPtr<SWidget> GetCustomEditorPreviewWidget() { return TSharedPtr<SWidget>(); }
+
+	/**
+	 * Return the custom HLODBuilder class that should be used to generate HLODs for components of this type.
+	 * Allows the HLOD system to include whatever is needed to represent a component at a distance.
+	 * For example, this is currently used to build custom HLODs for landscape streaming proxies. 
+	 * This could be used to generate fake lights, represent custom FX at a distance, or even to insert
+	 * externally generated HLODs.
+	 */
+	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const { return nullptr; }
 #endif // WITH_EDITOR
 
 	/**

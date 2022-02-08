@@ -36,6 +36,6 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshApproximate : public UHLOD
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual UHLODBuilderSettings* CreateSettings(UHLODLayer* InHLODLayer) const override;
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const override;
+	virtual TSubclassOf<UHLODBuilderSettings> GetSettingsClass() const override;
+	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const override;
 };

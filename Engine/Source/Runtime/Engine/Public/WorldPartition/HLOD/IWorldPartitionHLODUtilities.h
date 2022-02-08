@@ -35,6 +35,8 @@ struct ENGINE_API FHLODCreationParams
 	FName CellName;
 	FBox  CellBounds;
 	uint32 HLODLevel;
+
+	double MinVisibleDistance;
 };
 
 /**

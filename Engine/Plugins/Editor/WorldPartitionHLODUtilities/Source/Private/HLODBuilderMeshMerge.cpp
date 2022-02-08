@@ -60,46 +60,39 @@ uint32 UHLODBuilderMeshMergeSettings::GetCRC() const
 	return Hash;
 }
 
-UHLODBuilderSettings* UHLODBuilderMeshMerge::CreateSettings(UHLODLayer* InHLODLayer) const
+TSubclassOf<UHLODBuilderSettings> UHLODBuilderMeshMerge::GetSettingsClass() const
 {
-	UHLODBuilderMeshMergeSettings* HLODBuilderSettings = NewObject<UHLODBuilderMeshMergeSettings>(InHLODLayer);
-
-	// If previous settings object is null, this means we have an older version of the object. Populate with the deprecated settings.
-	if (InHLODLayer->GetHLODBuilderSettings() == nullptr)
-	{
-		HLODBuilderSettings->MeshMergeSettings = InHLODLayer->MeshMergeSettings_DEPRECATED;
-		HLODBuilderSettings->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
-	}
-
-	return HLODBuilderSettings;
+	return UHLODBuilderMeshMergeSettings::StaticClass();
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilderMeshMerge::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+TArray<UActorComponent*> UHLODBuilderMeshMerge::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshMerge::CreateComponents);
+
+	TArray<UPrimitiveComponent*> SourcePrimitiveComponents = FilterComponents<UPrimitiveComponent>(InSourceComponents);
 
 	TArray<UObject*> Assets;
 	FVector MergedActorLocation;
 
-	const UHLODBuilderMeshMergeSettings* MeshMergeSettings = CastChecked<UHLODBuilderMeshMergeSettings>(InHLODLayer->GetHLODBuilderSettings());
+	const UHLODBuilderMeshMergeSettings* MeshMergeSettings = CastChecked<UHLODBuilderMeshMergeSettings>(HLODBuilderSettings);
 	const FMeshMergingSettings& UseSettings = MeshMergeSettings->MeshMergeSettings;
 	UMaterial* HLODMaterial = MeshMergeSettings->HLODMaterial.LoadSynchronous();
 
 	const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, InHLODActor->GetWorld(), UseSettings, HLODMaterial, InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), Assets, MergedActorLocation, 0.25f, false);
+	MeshMergeUtilities.MergeComponentsToStaticMesh(SourcePrimitiveComponents, InHLODBuildContext.World, UseSettings, HLODMaterial, InHLODBuildContext.AssetsOuter->GetPackage(), InHLODBuildContext.AssetsBaseName, Assets, MergedActorLocation, 0.25f, false);
 
 	UStaticMeshComponent* Component = nullptr;
-	Algo::ForEach(Assets, [this, InHLODActor, &Component, &MergedActorLocation](UObject* Asset)
+	Algo::ForEach(Assets, [this, &Component, &MergedActorLocation](UObject* Asset)
 	{
 		Asset->ClearFlags(RF_Public | RF_Standalone);
 
 		if (Cast<UStaticMesh>(Asset))
 		{
-			Component = NewObject<UStaticMeshComponent>(InHLODActor);
+			Component = NewObject<UStaticMeshComponent>();
 			Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
 			Component->SetWorldLocation(MergedActorLocation);
 		}
 	});
 
-	return TArray<UPrimitiveComponent*>({ Component });
+	return TArray<UActorComponent*>({ Component });
 }

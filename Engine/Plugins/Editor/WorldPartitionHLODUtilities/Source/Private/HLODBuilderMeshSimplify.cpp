@@ -63,84 +63,67 @@ uint32 UHLODBuilderMeshSimplifySettings::GetCRC() const
 	return Hash;
 }
 
-UHLODBuilderSettings* UHLODBuilderMeshSimplify::CreateSettings(UHLODLayer* InHLODLayer) const
+TSubclassOf<UHLODBuilderSettings> UHLODBuilderMeshSimplify::GetSettingsClass() const
 {
-	UHLODBuilderMeshSimplifySettings* HLODBuilderSettings = NewObject<UHLODBuilderMeshSimplifySettings>(InHLODLayer);
-
-	// If previous settings object is null, this means we have an older version of the object. Populate with the deprecated settings.
-	if (InHLODLayer->GetHLODBuilderSettings() == nullptr)
-	{
-		HLODBuilderSettings->MeshSimplifySettings = InHLODLayer->MeshSimplifySettings_DEPRECATED;
-		HLODBuilderSettings->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
-	}
-
-	return HLODBuilderSettings;
+	return UHLODBuilderMeshSimplifySettings::StaticClass();
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilderMeshSimplify::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+TArray<UActorComponent*> UHLODBuilderMeshSimplify::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshSimplifySettings::CreateComponents);
-
-	TArray<UObject*> Assets;
-	FCreateProxyDelegate ProxyDelegate;
-	ProxyDelegate.BindLambda([&Assets](const FGuid Guid, TArray<UObject*>& InAssetsCreated) { Assets = InAssetsCreated; });
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshSimplifySettings::Build);
 
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	TArray<UPrimitiveComponent*> InstancedComponents;
+	TArray<UActorComponent*> InstancedComponents;
 
 	// Filter the input components
-	for (UPrimitiveComponent* SubComponent : InSubComponents)
+	for (UStaticMeshComponent* SubComponent : FilterComponents<UStaticMeshComponent>(InSourceComponents))
 	{
-		if (!SubComponent)
-		{
-			continue;
-		}
-
 		switch (SubComponent->HLODBatchingPolicy)
 		{
 		case EHLODBatchingPolicy::None:
-			if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(SubComponent))
-			{
-				StaticMeshComponents.Add(SMC);
-			}
+			StaticMeshComponents.Add(SubComponent);
 			break;
 		case EHLODBatchingPolicy::Instancing:
 			InstancedComponents.Add(SubComponent);
 			break;
 		case EHLODBatchingPolicy::MeshSection:
 			InstancedComponents.Add(SubComponent);
-			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the MeshApproximate builder."));
+			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the UHLODBuilderMeshSimplify builder."));
 			break;
 		}
 	}
 
-	const UHLODBuilderMeshSimplifySettings* MeshSimplifySettings = CastChecked<UHLODBuilderMeshSimplifySettings>(InHLODLayer->GetHLODBuilderSettings());
+	const UHLODBuilderMeshSimplifySettings* MeshSimplifySettings = CastChecked<UHLODBuilderMeshSimplifySettings>(HLODBuilderSettings);
 	const FMeshProxySettings& UseSettings = MeshSimplifySettings->MeshSimplifySettings;
 	UMaterial* HLODMaterial = MeshSimplifySettings->HLODMaterial.LoadSynchronous();
 
+	TArray<UObject*> Assets;
+	FCreateProxyDelegate ProxyDelegate;
+	ProxyDelegate.BindLambda([&Assets](const FGuid Guid, TArray<UObject*>& InAssetsCreated) { Assets = InAssetsCreated; });
+
 	const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-	MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, UseSettings, HLODMaterial, InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), FGuid::NewGuid(), ProxyDelegate, true);
+	MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, UseSettings, HLODMaterial, InHLODBuildContext.AssetsOuter->GetPackage(), InHLODBuildContext.AssetsBaseName, FGuid::NewGuid(), ProxyDelegate, true);
 
 	UStaticMeshComponent* Component = nullptr;
-	Algo::ForEach(Assets, [this, InHLODActor, &Component](UObject* Asset)
+	Algo::ForEach(Assets, [this, &Component](UObject* Asset)
 	{
 		Asset->ClearFlags(RF_Public | RF_Standalone);
 
 		if (Cast<UStaticMesh>(Asset))
 		{
-			Component = NewObject<UStaticMeshComponent>(InHLODActor);
+			Component = NewObject<UStaticMeshComponent>();
 			Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
 		}
 	});
 
-	TArray<UPrimitiveComponent*> Components;
+	TArray<UActorComponent*> Components;
 	Components.Add(Component);
 
 	// Batch instances
 	if (InstancedComponents.Num())
 	{
 		UHLODBuilderInstancing* InstancingHLODBuilder = NewObject<UHLODBuilderInstancing>();
-		Components.Append(InstancingHLODBuilder->CreateComponents(InHLODActor, nullptr, InstancedComponents));
+		Components.Append(InstancingHLODBuilder->Build(InHLODBuildContext, InstancedComponents));
 	}
 
 	return Components;

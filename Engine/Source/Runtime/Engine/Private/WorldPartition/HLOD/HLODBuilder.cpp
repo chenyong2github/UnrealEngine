@@ -2,14 +2,7 @@
 
 #include "WorldPartition/HLOD/HLODBuilder.h"
 
-#include "Engine/StaticMesh.h"
-#include "Components/InstancedStaticMeshComponent.h"
-#include "PhysicsEngine/BodySetup.h"
-
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODLayer.h"
-
-#include "AssetCompilingManager.h"
+#include "Engine/HLODProxy.h"
 
 DEFINE_LOG_CATEGORY(LogHLODBuilder);
 
@@ -26,9 +19,15 @@ UHLODBuilderSettings::UHLODBuilderSettings(const FObjectInitializer& ObjectIniti
 
 #if WITH_EDITOR
 
-UHLODBuilderSettings* UHLODBuilder::CreateSettings(UHLODLayer* InHLODLayer) const
+TSubclassOf<UHLODBuilderSettings> UHLODBuilder::GetSettingsClass() const
 {
-	return NewObject<UHLODBuilderSettings>(InHLODLayer);
+	return UHLODBuilderSettings::StaticClass();
+}
+
+void UHLODBuilder::SetHLODBuilderSettings(const UHLODBuilderSettings* InHLODBuilderSettings)
+{
+	check(InHLODBuilderSettings->IsA(GetSettingsClass()));
+	HLODBuilderSettings = InHLODBuilderSettings;
 }
 
 bool UHLODBuilder::RequiresCompiledAssets() const
@@ -41,116 +40,99 @@ bool UHLODBuilder::RequiresWarmup() const
 	return true;
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilder::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+static TArray<UActorComponent*> GatherHLODRelevantComponents(const TArray<AActor*>& InSourceActors)
 {
-	return TArray<UPrimitiveComponent*>();
-}
+	TArray<UActorComponent*> HLODRelevantComponents;
 
-void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
-{
-	TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(InSubActors);
-	if (SubComponents.IsEmpty())
-	{
-		return;
-	}
-
-	TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(InHLODActor, InHLODLayer, SubComponents);
-	HLODPrimitives.RemoveSwap(nullptr);
-
-	for (UPrimitiveComponent* HLODPrimitive : HLODPrimitives)
-	{
-		// Disable collisions
-		HLODPrimitive->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-		HLODPrimitive->SetGenerateOverlapEvents(false);
-		HLODPrimitive->SetCanEverAffectNavigation(false);
-		HLODPrimitive->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-		HLODPrimitive->SetCanEverAffectNavigation(false);
-		HLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-		// Enable optimizations
-		HLODPrimitive->bComputeFastLocalBounds = true;
-		HLODPrimitive->bComputeBoundsOnceForGame = true;
-
-		if (InHLODLayer->GetLayerType() != EHLODLayerType::Instancing)
-		{
-			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(HLODPrimitive))
-			{
-				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
-				{
-					// Set up ray tracing far fields
-					StaticMeshComponent->bRayTracingFarField = StaticMesh->bSupportRayTracing;
-
-					if (HLODPrimitive->GetPackage() == StaticMesh->GetPackage())
-					{
-						// Disable collisions on owned static mesh
-						if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
-						{							
-							BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-							BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
-						}
-						
-						// Rename owned static mesh
-						StaticMesh->Rename(*MakeUniqueObjectName(StaticMesh->GetOuter(), StaticMesh->GetClass(), *FString::Printf(TEXT("StaticMesh_%s"), *InHLODLayer->GetName())).ToString());
-					}
-				}
-			}
-		}
-	}
-
-	if (!HLODPrimitives.IsEmpty())
-	{
-		InHLODActor->Modify();
-		InHLODActor->SetHLODPrimitives(HLODPrimitives);
-	}
-}
-
-TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArray<AActor*>& InActors)
-{
-	TArray<UPrimitiveComponent*> PrimitiveComponents;
-
-	auto GatherPrimitivesFromActor = [&PrimitiveComponents](const AActor* Actor, const AActor* ParentActor = nullptr)
-	{
-		const TCHAR* Padding = ParentActor ? TEXT("    ") : TEXT("");
-		UE_LOG(LogHLODBuilder, Verbose, TEXT("%s* Adding components from actor %s"), Padding, *Actor->GetName());
-		for (UActorComponent* SubComponent : Actor->GetComponents())
-		{
-			if (SubComponent && SubComponent->IsHLODRelevant())
-			{
-				if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SubComponent))
-				{
-					PrimitiveComponents.Add(PrimitiveComponent);
-
-					if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(PrimitiveComponent))
-					{
-						UE_LOG(LogHLODBuilder, Verbose, TEXT("%s    * %s [%d instances]"), Padding, *ISMC->GetStaticMesh()->GetName(), ISMC->GetInstanceCount());
-					}
-					else if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(PrimitiveComponent))
-					{
-						UE_LOG(LogHLODBuilder, Verbose, TEXT("%s    * %s"), Padding, *SMC->GetStaticMesh()->GetName());
-					}
-				}
-				else
-				{
-					UE_LOG(LogHLODBuilder, Warning, TEXT("Component \"%s\" is marked as HLOD-relevant but this type of component currently unsupported."), *SubComponent->GetFullName());
-				}
-			}
-		}
-	};
-
-	TSet<AActor*> UnderlyingActors;
-
-	for (AActor* Actor : InActors)
+	for (AActor* Actor : InSourceActors)
 	{
 		if (!Actor->IsHLODRelevant())
 		{
 			continue;
 		}
 
-		// Gather primitives from the Actor
-		GatherPrimitivesFromActor(Actor);
+		for (UActorComponent* SubComponent : Actor->GetComponents())
+		{
+			if (SubComponent && SubComponent->IsHLODRelevant())
+			{
+				HLODRelevantComponents.Add(SubComponent);
+			}
+		}
 	}
 
-	return PrimitiveComponents;
+	return HLODRelevantComponents;
+}
+
+uint32 UHLODBuilder::ComputeHLODHash(const UActorComponent* InSourceComponent) const
+{
+	uint32 ComponentCRC = 0;
+
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(const_cast<UActorComponent*>(InSourceComponent)))
+	{
+		UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - Component \'%s\' from actor \'%s\'"), *StaticMeshComponent->GetName(), *StaticMeshComponent->GetOwner()->GetName());
+
+		ComponentCRC = UHLODProxy::GetCRC(StaticMeshComponent);
+		UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMeshComponent (%s) = %x"), *StaticMeshComponent->GetName(), ComponentCRC);
+	}
+	else
+	{
+		ComponentCRC = FMath::Rand();
+		UE_LOG(LogHLODBuilder, Warning, TEXT("Can't compute HLOD hash for component of type %s, assuming it is dirty."), *InSourceComponent->GetClass()->GetName());
+		
+	}
+
+	return ComponentCRC;
+}
+
+uint32 UHLODBuilder::ComputeHLODHash(const TArray<AActor*>& InSourceActors)
+{
+	// We get the CRC of each component
+	TArray<uint32> ComponentsCRCs;
+
+	for (UActorComponent* SourceComponent : GatherHLODRelevantComponents(InSourceActors))
+	{
+		TSubclassOf<UHLODBuilder> HLODBuilderClass = SourceComponent->GetCustomHLODBuilderClass();
+		if (!HLODBuilderClass)
+		{
+			HLODBuilderClass = UHLODBuilder::StaticClass();
+		}
+
+		uint32 ComponentHash = HLODBuilderClass->GetDefaultObject<UHLODBuilder>()->ComputeHLODHash(SourceComponent);
+		ComponentsCRCs.Add(ComponentHash);
+	}
+
+	// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
+	ComponentsCRCs.Sort();
+
+	return FCrc::MemCrc32(ComponentsCRCs.GetData(), ComponentsCRCs.Num() * ComponentsCRCs.GetTypeSize());
+}
+
+TArray<UActorComponent*> UHLODBuilder::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<AActor*>& InSourceActors) const
+{
+	TMap<TSubclassOf<UHLODBuilder>, TArray<UActorComponent*>> HLODBuildersForComponents;
+
+	// Gather custom HLOD builders, and regroup all components by builders
+	for (UActorComponent* SourceComponent : GatherHLODRelevantComponents(InSourceActors))
+	{
+		TSubclassOf<UHLODBuilder> HLODBuilderClass = SourceComponent->GetCustomHLODBuilderClass();
+		HLODBuildersForComponents.FindOrAdd(HLODBuilderClass).Add(SourceComponent);
+	}
+	
+	TArray<UActorComponent*> HLODComponents;
+	for (const auto& HLODBuilderPair : HLODBuildersForComponents)
+	{
+		// If no custom HLOD builder is provided, use this current builder.
+		const UHLODBuilder* HLODBuilder = HLODBuilderPair.Key ? HLODBuilderPair.Key->GetDefaultObject<UHLODBuilder>() : this;
+		const TArray<UActorComponent*>& SourceComponents = HLODBuilderPair.Value;
+
+		TArray<UActorComponent*> NewComponents = HLODBuilder->Build(InHLODBuildContext, SourceComponents);
+		HLODComponents.Append(NewComponents);
+	}
+
+	// In case a builder returned null entries, clean the array.
+	HLODComponents.RemoveSwap(nullptr);
+
+	return HLODComponents;
 }
 
 #endif // WITH_EDITOR

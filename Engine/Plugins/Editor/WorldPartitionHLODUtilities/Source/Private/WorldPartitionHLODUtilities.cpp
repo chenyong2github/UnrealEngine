@@ -18,10 +18,6 @@
 #include "Serialization/ArchiveCrc32.h"
 #include "Templates/UniquePtr.h"
 
-#include "Engine/StaticMesh.h"
-#include "Engine/HLODProxy.h"
-#include "Serialization/ArchiveCrc32.h"
-#include "Materials/Material.h"
 #include "AssetCompilingManager.h"
 
 #include "HLODBuilderInstancing.h"
@@ -83,63 +79,18 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<AAc
 
 	// HLOD Layer
 	uint32 HLODLayerHash = GetCRC(InHLODActor->GetSubActorsHLODLayer());
-	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLODLayer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Layer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
 	Ar << HLODLayerHash;
 
-	// We get the CRC of each component
-	TArray<uint32> ComponentsCRCs;
-	for (UPrimitiveComponent* Component : UHLODBuilder::GatherPrimitiveComponents(InActors))
-	{
-		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
-		{
-			uint32 ComponentCRC = 0;
-
-			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - Component \'%s\' from actor \'%s\'"), *Component->GetName(), *Component->GetOwner()->GetName());
-
-			// CRC component
-			uint32 StaticMeshComponentCRC = UHLODProxy::GetCRC(StaticMeshComponent);
-			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMeshComponent (%s) = %x"), *StaticMeshComponent->GetName(), StaticMeshComponentCRC);
-			ComponentCRC = HashCombine(ComponentCRC, StaticMeshComponentCRC);
-
-			if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
-			{
-				// CRC static mesh
-				int32 StaticMeshCRC = UHLODProxy::GetCRC(StaticMesh);
-				UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - StaticMesh (%s) = %x"), *StaticMesh->GetName(), StaticMeshCRC);
-				ComponentCRC = HashCombine(ComponentCRC, StaticMeshCRC);
-
-				// CRC materials
-				const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
-				for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
-				{
-					UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(MaterialIndex);
-					if (MaterialInterface)
-					{
-						uint32 MaterialInterfaceCRC = UHLODProxy::GetCRC(MaterialInterface);
-						UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - MaterialInterface (%s) = %x"), *MaterialInterface->GetName(), MaterialInterfaceCRC);
-						ComponentCRC = HashCombine(ComponentCRC, MaterialInterfaceCRC);
-
-						TArray<UTexture*> Textures;
-						MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
-						for (UTexture* Texture : Textures)
-						{
-							uint32 TextureCRC = UHLODProxy::GetCRC(Texture);
-							UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - Texture (%s) = %x"), *Texture->GetName(), TextureCRC);
-							ComponentCRC = HashCombine(ComponentCRC, TextureCRC);
-						}
-					}
-				}
-			}
-
-			ComponentsCRCs.Add(ComponentCRC);
-		}
-	}
-
-	// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
-	ComponentsCRCs.Sort();
+	// Min Visible Distance
+	uint32 HLODMinVisibleDistanceHash = GetTypeHash(InHLODActor->GetMinVisibleDistance());
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Min Visible Distance (%.02f) = %x"), InHLODActor->GetMinVisibleDistance(), HLODMinVisibleDistanceHash);
+	Ar << HLODMinVisibleDistanceHash;
 
 	// Append all components CRCs
-	Ar << ComponentsCRCs;
+	uint32 HLODComponentsHash = UHLODBuilder::ComputeHLODHash(InActors);
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLOD Source Components = %x"), HLODComponentsHash);
+	Ar << HLODComponentsHash;
 
 	return Ar.GetCrc();
 }
@@ -290,6 +241,13 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			bIsDirty = true;
 		}
 
+		// Minimum visible distance
+		if (!FMath::IsNearlyEqual(HLODActor->GetMinVisibleDistance(), InCreationParams.MinVisibleDistance))
+		{
+			HLODActor->SetMinVisibleDistance(InCreationParams.MinVisibleDistance);
+			bIsDirty = true;
+		}
+
 		// If any change was performed, mark HLOD package as dirty
 		if (bIsDirty)
 		{
@@ -335,16 +293,43 @@ TSubclassOf<UHLODBuilder> FWorldPartitionHLODUtilities::GetHLODBuilderClass(cons
 
 UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UHLODLayer* InHLODLayer)
 {
+	// Retrieve the HLOD builder class
 	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClass(InHLODLayer);
 	if (!HLODBuilderClass)
 	{
 		return NewObject<UHLODBuilderSettings>(InHLODLayer, UHLODBuilderSettings::StaticClass());
 	}
 
-	UHLODBuilderSettings* HLODBuilderSettings = HLODBuilderClass->GetDefaultObject<UHLODBuilder>()->CreateSettings(InHLODLayer);
-	if (!ensure(HLODBuilderSettings))
+	// Retrieve the HLOD builder settings class
+	TSubclassOf<UHLODBuilderSettings> HLODBuilderSettingsClass = HLODBuilderClass->GetDefaultObject<UHLODBuilder>()->GetSettingsClass();
+	if (!ensure(HLODBuilderSettingsClass))
 	{
 		return NewObject<UHLODBuilderSettings>(InHLODLayer, UHLODBuilderSettings::StaticClass());
+	}
+
+	UHLODBuilderSettings* HLODBuilderSettings = NewObject<UHLODBuilderSettings>(InHLODLayer, HLODBuilderSettingsClass);
+
+	// Deprecated properties handling
+	if (InHLODLayer->GetHLODBuilderSettings() == nullptr)
+	{
+		EHLODLayerType HLODLayerType = InHLODLayer->GetLayerType();
+		switch (HLODLayerType)
+		{
+		case EHLODLayerType::MeshMerge:
+			CastChecked<UHLODBuilderMeshMergeSettings>(HLODBuilderSettings)->MeshMergeSettings = InHLODLayer->MeshMergeSettings_DEPRECATED;
+			CastChecked<UHLODBuilderMeshMergeSettings>(HLODBuilderSettings)->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
+			break;
+
+		case EHLODLayerType::MeshSimplify:
+			CastChecked<UHLODBuilderMeshSimplifySettings>(HLODBuilderSettings)->MeshSimplifySettings = InHLODLayer->MeshSimplifySettings_DEPRECATED;
+			CastChecked<UHLODBuilderMeshSimplifySettings>(HLODBuilderSettings)->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
+			break;
+
+		case EHLODLayerType::MeshApproximate:
+			CastChecked<UHLODBuilderMeshApproximateSettings>(HLODBuilderSettings)->MeshApproximationSettings = InHLODLayer->MeshApproximationSettings_DEPRECATED;
+			CastChecked<UHLODBuilderMeshApproximateSettings>(HLODBuilderSettings)->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
+			break;
+		};
 	}
 
 	return HLODBuilderSettings;
@@ -377,13 +362,73 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		if (ensure(HLODBuilder))
 		{
 			HLODBuilder->AddToRoot();
+
+			HLODBuilder->SetHLODBuilderSettings(HLODLayer->GetHLODBuilderSettings());
+
 			if (HLODBuilder->RequiresCompiledAssets())
 			{
 				// Wait for compilation to finish
 				FAssetCompilingManager::Get().FinishAllCompilation();
 			}
 
-			HLODBuilder->Build(InHLODActor, HLODLayer, LevelStreaming->GetLoadedLevel()->Actors);
+			FHLODBuildContext HLODBuildContext;
+			HLODBuildContext.World = InHLODActor->GetWorld();
+			HLODBuildContext.AssetsOuter = InHLODActor->GetPackage();
+			HLODBuildContext.AssetsBaseName = InHLODActor->GetActorLabel();
+			HLODBuildContext.MinVisibleDistance = InHLODActor->GetMinVisibleDistance();
+
+			TArray<UActorComponent*> HLODComponents = HLODBuilder->Build(HLODBuildContext, LevelStreaming->GetLoadedLevel()->Actors);
+			if (HLODComponents.IsEmpty())
+			{
+				UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD generation created no component for %s"), *InHLODActor->GetActorLabel());
+			}
+
+			// Ideally, this should be performed elsewhere, to allow more flexibility in the HLOD generation
+			for (UActorComponent* HLODComponent : HLODComponents)
+			{
+				if (UPrimitiveComponent* HLODPrimitive = Cast<UPrimitiveComponent>(HLODComponent))
+				{
+					// Disable collisions
+					HLODPrimitive->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+					HLODPrimitive->SetGenerateOverlapEvents(false);
+					HLODPrimitive->SetCanEverAffectNavigation(false);
+					HLODPrimitive->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+					HLODPrimitive->SetCanEverAffectNavigation(false);
+					HLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					HLODPrimitive->SetMobility(EComponentMobility::Static);
+
+					// Enable optimizations
+					HLODPrimitive->bComputeFastLocalBounds = true;
+					HLODPrimitive->bComputeBoundsOnceForGame = true;
+				}
+
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(HLODComponent))
+				{
+					if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+					{
+						// If the HLOD process did create this static mesh
+						if (StaticMeshComponent->GetPackage() == StaticMesh->GetPackage())
+						{
+							// Set up ray tracing far fields for always loaded HLODs
+							StaticMeshComponent->bRayTracingFarField = !HLODLayer->IsSpatiallyLoaded() && StaticMesh->bSupportRayTracing;
+
+							// Disable collisions
+							if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+							{
+								BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+								BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+							}
+
+							// Rename owned static mesh
+							StaticMesh->Rename(*MakeUniqueObjectName(StaticMesh->GetOuter(), StaticMesh->GetClass(), *FString::Printf(TEXT("StaticMesh_%s"), *HLODLayer->GetName())).ToString());
+						}
+					}
+				}
+			}
+
+			InHLODActor->Modify();
+			InHLODActor->SetHLODComponents(HLODComponents);
+
 			HLODBuilder->RemoveFromRoot();
 		}
 			

@@ -106,37 +106,36 @@ TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc()
 	return TUniquePtr<FWorldPartitionActorDesc>(new FHLODActorDesc());
 }
 
-void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives)
+void AWorldPartitionHLOD::SetHLODComponents(const TArray<UActorComponent*>& InHLODComponents)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODPrimitive);
-	check(!InHLODPrimitives.IsEmpty());
+	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODComponents);
+	check(!InHLODComponents.IsEmpty());
 
-	TArray<USceneComponent*> ComponentsToRemove;
-	GetComponents<USceneComponent>(ComponentsToRemove);
-
-	SetRootComponent(InHLODPrimitives[0]);
-
-	for(UPrimitiveComponent* InHLODPrimitive : InHLODPrimitives)
-	{
-		ComponentsToRemove.Remove(InHLODPrimitive);
-
-		AddInstanceComponent(InHLODPrimitive);
-
-		if (InHLODPrimitive != RootComponent)
-		{
-			InHLODPrimitive->SetupAttachment(RootComponent);
-		}
-	
-		InHLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		InHLODPrimitive->SetMobility(EComponentMobility::Static);
-
-		InHLODPrimitive->RegisterComponent();
-		InHLODPrimitive->MarkRenderStateDirty();
-	}
-
-	for (USceneComponent* ComponentToRemove : ComponentsToRemove)
+	TArray<UActorComponent*> ComponentsToRemove;
+	GetComponents(ComponentsToRemove);
+	for (UActorComponent* ComponentToRemove : ComponentsToRemove)
 	{
 		ComponentToRemove->DestroyComponent();
+	}
+
+	for(UActorComponent* HLODComponent : InHLODComponents)
+	{
+		HLODComponent->Rename(nullptr, this);
+		AddInstanceComponent(HLODComponent);
+
+		if (USceneComponent* HLODSceneComponent = Cast<USceneComponent>(HLODComponent))
+		{
+			if (RootComponent == nullptr)
+			{
+				SetRootComponent(HLODSceneComponent);
+			}
+			else
+			{
+				HLODSceneComponent->SetupAttachment(RootComponent);
+			}
+		}
+	
+		HLODComponent->RegisterComponent();
 	}
 }
 

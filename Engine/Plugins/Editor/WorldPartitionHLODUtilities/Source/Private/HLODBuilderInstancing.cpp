@@ -45,31 +45,28 @@ UHLODBuilderInstancing::UHLODBuilderInstancing(const FObjectInitializer& ObjectI
 {
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+TArray<UActorComponent*> UHLODBuilderInstancing::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderInstancing::CreateComponents);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderInstancing::Build);
 
-	TArray<UPrimitiveComponent*> Components;
-
+	TArray<UStaticMeshComponent*> SourceStaticMeshComponents = FilterComponents<UStaticMeshComponent>(InSourceComponents);
+	
 	// Prepare instance batches
 	TMap<FISMComponentDescriptor, FInstancingData> InstancesData;
-	for (UPrimitiveComponent* Primitive : InSubComponents)
+	for (UStaticMeshComponent* SMC : SourceStaticMeshComponents)
 	{
-		if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive))
-		{
-			FCustomISMComponentDescriptor ISMComponentDescriptor(SMC);
-			FInstancingData& InstancingData = InstancesData.FindOrAdd(ISMComponentDescriptor);
+		FCustomISMComponentDescriptor ISMComponentDescriptor(SMC);
+		FInstancingData& InstancingData = InstancesData.FindOrAdd(ISMComponentDescriptor);
 
-			if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(SMC))
-			{
-				InstancingData.NumCustomDataFloats = FMath::Max(InstancingData.NumCustomDataFloats, ISMC->NumCustomDataFloats);
-				InstancingData.RandomSeeds.Add( { InstancingData.NumInstances, ISMC->InstancingRandomSeed } );
-				InstancingData.NumInstances += ISMC->GetInstanceCount();
-			}
-			else
-			{
-				InstancingData.NumInstances++;
-			}
+		if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(SMC))
+		{
+			InstancingData.NumCustomDataFloats = FMath::Max(InstancingData.NumCustomDataFloats, ISMC->NumCustomDataFloats);
+			InstancingData.RandomSeeds.Add( { InstancingData.NumInstances, ISMC->InstancingRandomSeed } );
+			InstancingData.NumInstances += ISMC->GetInstanceCount();
+		}
+		else
+		{
+			InstancingData.NumInstances++;
 		}
 	}
 
@@ -84,36 +81,34 @@ TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPart
 	}
 	
 	// Append all transforms & per instance custom data
-	for (UPrimitiveComponent* Primitive : InSubComponents)
+	for (UStaticMeshComponent* SMC : SourceStaticMeshComponents)
 	{
-		if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Primitive))
+		FCustomISMComponentDescriptor ISMComponentDescriptor(SMC);
+		FInstancingData& InstancingData = InstancesData.FindChecked(ISMComponentDescriptor);
+
+		if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(SMC))
 		{
-			FCustomISMComponentDescriptor ISMComponentDescriptor(SMC);
-			FInstancingData& InstancingData = InstancesData.FindChecked(ISMComponentDescriptor);
-
-			if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(SMC))
+			// Add transforms
+			for (int32 InstanceIdx = 0; InstanceIdx < ISMC->GetInstanceCount(); InstanceIdx++)
 			{
-				// Add transforms
-				for (int32 InstanceIdx = 0; InstanceIdx < ISMC->GetInstanceCount(); InstanceIdx++)
-				{
-					FTransform& InstanceTransform = InstancingData.InstancesTransforms.AddDefaulted_GetRef();
-					ISMC->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
-				}
+				FTransform& InstanceTransform = InstancingData.InstancesTransforms.AddDefaulted_GetRef();
+				ISMC->GetInstanceTransform(InstanceIdx, InstanceTransform, true);
+			}
 
-				// Add per instance custom data
-				int32 NumCustomDataFloatToAdd = ISMC->GetInstanceCount() * InstancingData.NumCustomDataFloats;
-				InstancingData.InstancesCustomData.Append(ISMC->PerInstanceSMCustomData);
-				InstancingData.InstancesCustomData.AddDefaulted(NumCustomDataFloatToAdd - ISMC->PerInstanceSMCustomData.Num());
-			}
-			else
-			{
-				InstancingData.InstancesTransforms.Add(SMC->GetComponentTransform());
-				InstancingData.InstancesCustomData.AddDefaulted(InstancingData.NumCustomDataFloats);
-			}
+			// Add per instance custom data
+			int32 NumCustomDataFloatToAdd = ISMC->GetInstanceCount() * InstancingData.NumCustomDataFloats;
+			InstancingData.InstancesCustomData.Append(ISMC->PerInstanceSMCustomData);
+			InstancingData.InstancesCustomData.AddDefaulted(NumCustomDataFloatToAdd - ISMC->PerInstanceSMCustomData.Num());
+		}
+		else
+		{
+			InstancingData.InstancesTransforms.Add(SMC->GetComponentTransform());
+			InstancingData.InstancesCustomData.AddDefaulted(InstancingData.NumCustomDataFloats);
 		}
 	}
 
 	// Create an ISMC for each SM asset we found
+	TArray<UActorComponent*> HLODComponents;
 	for (auto& Entry : InstancesData)
 	{
 		const FISMComponentDescriptor& ISMComponentDescriptor = Entry.Key;
@@ -121,7 +116,7 @@ TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPart
 
 		check(EntryInstancingData.InstancesTransforms.Num() * EntryInstancingData.NumCustomDataFloats == EntryInstancingData.InstancesCustomData.Num());
 
-		UInstancedStaticMeshComponent* Component = ISMComponentDescriptor.CreateComponent(InHLODActor);
+		UInstancedStaticMeshComponent* Component = ISMComponentDescriptor.CreateComponent(GetTransientPackage());
 		Component->SetForcedLodModel(Component->GetStaticMesh()->GetNumLODs());
 		Component->NumCustomDataFloats = EntryInstancingData.NumCustomDataFloats;
 		Component->AddInstances(EntryInstancingData.InstancesTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
@@ -137,8 +132,8 @@ TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPart
 			Component->AdditionalRandomSeeds = TArrayView<FInstancedStaticMeshRandomSeed>(&EntryInstancingData.RandomSeeds[1], EntryInstancingData.RandomSeeds.Num() - 1);
 		}
 
-		Components.Add(Component);
+		HLODComponents.Add(Component);
 	};
 
-	return Components;
+	return HLODComponents;
 }

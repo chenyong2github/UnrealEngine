@@ -64,49 +64,38 @@ uint32 UHLODBuilderMeshApproximateSettings::GetCRC() const
 	return Hash;
 }
 
-UHLODBuilderSettings* UHLODBuilderMeshApproximate::CreateSettings(UHLODLayer* InHLODLayer) const 
+TSubclassOf<UHLODBuilderSettings> UHLODBuilderMeshApproximate::GetSettingsClass() const
 {
-	UHLODBuilderMeshApproximateSettings* HLODBuilderSettings = NewObject<UHLODBuilderMeshApproximateSettings>(InHLODLayer);
-
-	// If previous settings object is null, this means we have an older version of the object. Populate with the deprecated settings.
-	if (InHLODLayer->GetHLODBuilderSettings() == nullptr)
-	{
-		HLODBuilderSettings->MeshApproximationSettings = InHLODLayer->MeshApproximationSettings_DEPRECATED;
-		HLODBuilderSettings->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
-	}
-
-	return HLODBuilderSettings;
+	return UHLODBuilderMeshApproximateSettings::StaticClass();
 }
 
-TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshApproximate::CreateComponents);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshApproximate::Build);
 
-	TSet<AActor*> Actors;
-	TArray<UPrimitiveComponent*> InstancedComponents;
+	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	TArray<UActorComponent*> InstancedComponents;
 
 	// Filter the input components
-	for (UPrimitiveComponent* SubComponent : InSubComponents)
+	for (UStaticMeshComponent* SubComponent : FilterComponents<UStaticMeshComponent>(InSourceComponents))
 	{
-		if (!SubComponent)
-		{
-			continue;
-		}
-
 		switch (SubComponent->HLODBatchingPolicy)
 		{
 		case EHLODBatchingPolicy::None:
-			Actors.Add(SubComponent->GetOwner());
+			StaticMeshComponents.Add(SubComponent);
 			break;
 		case EHLODBatchingPolicy::Instancing:
 			InstancedComponents.Add(SubComponent);
 			break;
 		case EHLODBatchingPolicy::MeshSection:
 			InstancedComponents.Add(SubComponent);
-			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the MeshApproximate builder."));
+			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the UHLODBuilderMeshSimplify builder."));
 			break;
 		}
 	}
+
+	TSet<AActor*> Actors;
+	Algo::Transform(StaticMeshComponents, Actors, [](UPrimitiveComponent* PrimitiveComponent) { return PrimitiveComponent->GetOwner(); });
 	
 	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
 	IGeometryProcessing_ApproximateActors* ApproxActorsAPI = GeomProcInterfaces.GetApproximateActorsImplementation();
@@ -115,12 +104,12 @@ TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorl
 	// Construct options for ApproximateActors operation
 	//
 
-	const UHLODBuilderMeshApproximateSettings* MeshApproximateSettings = CastChecked<UHLODBuilderMeshApproximateSettings>(InHLODLayer->GetHLODBuilderSettings());
+	const UHLODBuilderMeshApproximateSettings* MeshApproximateSettings = CastChecked<UHLODBuilderMeshApproximateSettings>(HLODBuilderSettings);
 	const FMeshApproximationSettings& UseSettings = MeshApproximateSettings->MeshApproximationSettings;
 	UMaterial* HLODMaterial = MeshApproximateSettings->HLODMaterial.LoadSynchronous();
 
 	IGeometryProcessing_ApproximateActors::FOptions Options = ApproxActorsAPI->ConstructOptions(UseSettings);
-	Options.BasePackagePath = InHLODActor->GetPackage()->GetName();
+	Options.BasePackagePath = InHLODBuildContext.AssetsOuter->GetPackage()->GetName();
 	Options.bGenerateLightmapUVs = false;
 	Options.bCreatePhysicsBody = false;
 
@@ -141,7 +130,7 @@ TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorl
 		FBoxSphereBounds Bounds;
 		bool bFirst = true;
 
-		for (UPrimitiveComponent* Component : InSubComponents)
+		for (UPrimitiveComponent* Component : StaticMeshComponents)
 		{
 			FBoxSphereBounds ComponentBounds = Component->Bounds;
 			Bounds = bFirst ? ComponentBounds : Bounds + ComponentBounds;
@@ -179,13 +168,13 @@ TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorl
 	IGeometryProcessing_ApproximateActors::FResults Results;
 	ApproxActorsAPI->ApproximateActors(Actors.Array(), Options, Results);
 
-	TArray<UPrimitiveComponent*> Components;
+	TArray<UActorComponent*> Components;
 	if (Results.ResultCode == IGeometryProcessing_ApproximateActors::EResultCode::Success)
 	{
-		auto FixupAsset = [&InHLODActor](UObject* Asset)
+		auto FixupAsset = [InHLODBuildContext](UObject* Asset)
 		{
 			Asset->ClearFlags(RF_Public | RF_Standalone);
-			Asset->Rename(nullptr, InHLODActor->GetPackage(), REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			Asset->Rename(nullptr, InHLODBuildContext.AssetsOuter, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		};
 	
 		Algo::ForEach(Results.NewMeshAssets, FixupAsset);
@@ -194,7 +183,7 @@ TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorl
 
 		for (UStaticMesh* StaticMesh : Results.NewMeshAssets)
 		{
-			UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(InHLODActor);
+			UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>();
 			Component->SetStaticMesh(StaticMesh);
 
 			Components.Add(Component);
@@ -240,7 +229,7 @@ TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorl
 	if (InstancedComponents.Num())
 	{
 		UHLODBuilderInstancing* InstancingHLODBuilder = NewObject<UHLODBuilderInstancing>();
-		Components.Append(InstancingHLODBuilder->CreateComponents(InHLODActor, nullptr, InstancedComponents));
+		Components.Append(InstancingHLODBuilder->Build(InHLODBuildContext, InstancedComponents));
 	}
 
 	return Components;

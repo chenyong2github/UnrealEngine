@@ -28,7 +28,7 @@ public:
 	bool DoesRequireWarmup() const { return bRequireWarmup; }
 
 #if WITH_EDITOR
-	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
+	void SetHLODComponents(const TArray<UActorComponent*>& InHLODComponents);
 
 	void SetSubActors(const TArray<FHLODSubActor>& InSubActorMappings);
 	const TArray<FHLODSubActor>& GetSubActors() const;
@@ -57,6 +57,9 @@ public:
 
 	const FBox& GetHLODBounds() const;
 	void SetHLODBounds(const FBox& InBounds);
+
+	double GetMinVisibleDistance() const { return MinVisibleDistance; }
+	void SetMinVisibleDistance(double InMinVisibleDistance) { MinVisibleDistance = InMinVisibleDistance; }
 
 	void BuildHLOD(bool bForceBuild = false);
 	uint32 GetHLODHash() const;
@@ -108,6 +111,9 @@ private:
 
 	UPROPERTY()
 	FBox HLODBounds;
+
+	UPROPERTY()
+	double MinVisibleDistance;
 
 	UPROPERTY()
 	uint32 HLODHash;
