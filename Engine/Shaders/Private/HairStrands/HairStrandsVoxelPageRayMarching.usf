@@ -58,8 +58,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float2 PixelCoord = DispatchThreadId.xy + 0.5f;
 	const float2 UV = PixelCoord / float2(OutputResolution);
 
-	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[MacroGroupId], VirtualVoxel.PageResolution);
 	const bool bIsNodeValid = all(NodeDesc.PageIndexResolution != 0);
 
 	// Draw macro group AABB & debug infos
@@ -119,8 +118,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			// Actual voxel/pages size & resolution
-			Pos = ShaderPrintText(Pos, TEXT("Voxel World Size "), FontOrange);
-			Pos = ShaderPrint(Pos, VirtualVoxel.VoxelWorldSize, FontEmerald);
+			Pos = ShaderPrintText(Pos, TEXT("Min. Voxel Size  "), FontOrange);
+			Pos = ShaderPrint(Pos, VirtualVoxel.MinVoxelWorldSize, FontEmerald);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 			
 			Pos = ShaderPrintText(Pos, TEXT("Page Res         "));
@@ -208,6 +207,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 			Pos = ShaderPrintText(Pos, TEXT(" Page Index Offset "));
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintText(Pos, TEXT(" Voxel World Size  "));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 		}
 
 		{
@@ -236,6 +238,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			Pos = ShaderPrint(Pos, NodeDesc.PageIndexOffset, FontSilver);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrint(Pos, NodeDesc.VoxelWorldSize, FontSilver);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 		}
 	}
@@ -312,7 +317,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
-		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
 		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
 		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
 		CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Engine/Public/Platform.ush"
+#include "../Common.ush"
 #include "HairStrandsAABBCommon.ush"
 
 #if SHADER_AABBUPDATE 
@@ -8,6 +8,10 @@
 uint bClearBuffer;
 uint MacroGroupId;
 uint MacroGroupValid;
+
+float PixelSizeAtDepth1;
+float MinVoxelWorldSize;
+float NumPixelPerVoxel;
 
 // Group data packed as {uint3 AABBMin, uint3 AABBMax}
 Buffer<int> InGroupAABBBuffer0;
@@ -19,6 +23,7 @@ Buffer<int> InGroupAABBBuffer5;
 Buffer<int> InGroupAABBBuffer6;
 Buffer<int> InGroupAABBBuffer7;
 RWBuffer<int> OutMacroGroupAABBBuffer;
+RWBuffer<float> OutMacroGroupVoxelSizeBuffer;
 
 void UpdateValue(inout FHairAABB B, in uint Index, in Buffer<int> InBuffer)
 {
@@ -46,7 +51,14 @@ void Main(uint2 DispatchThreadId : SV_DispatchThreadID)
 		if (MacroGroupValid & 64)  { UpdateValue(Bound, 0, InGroupAABBBuffer6); }
 		if (MacroGroupValid & 128) { UpdateValue(Bound, 0, InGroupAABBBuffer7); }
 
+		// Transform positions in camera space
+		const FHairAABB ViewBound = Transform(Bound, View.TranslatedWorldToCameraView);
+
+		// Compute voxel size to have 1px = 1 voxels
+		const float PixelWorldSize = PixelSizeAtDepth1 * ViewBound.Min.z;
+		const float VoxelWorldSize = PixelWorldSize * NumPixelPerVoxel;
 		WriteHairAABB(MacroGroupId, Bound, OutMacroGroupAABBBuffer);
+		OutMacroGroupVoxelSizeBuffer[MacroGroupId] = max(MinVoxelWorldSize, VoxelWorldSize);
 	}
 }
 

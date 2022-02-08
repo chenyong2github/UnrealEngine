@@ -239,7 +239,7 @@ uint  MultipleScatterSampleCount;
 float TransmissionDensityScaleFactor;
 
 FHairTraversalResult InternalComputeHairCountVoxel(
-	uint MacroGroupId,
+	const FVirtualVoxelNodeDesc NodeDesc,
 	float3 TranslatedWorldPosition, 
 	float3 TranslatedLightPosition, 
 	float ExtraDensityScale, 
@@ -251,13 +251,9 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 {
 	FVirtualVoxelCommonDesc CommonDesc;
 	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
-	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 	CommonDesc.PageResolutionLog2 = VirtualVoxel.PageResolutionLog2;
-
-	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 	TraversalSettings.DensityScale = VirtualVoxel.DensityScale_Environment * ExtraDensityScale;
@@ -309,6 +305,8 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 	const float3 T = GBuffer.WorldNormal;
 	const bool bDebugEnabled = all(PixelPosition == uint2(GetCursorPos()));
 
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[MacroGroupId], VirtualVoxel.PageResolution);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,13 +350,13 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount, View.StateFrameIndexMod8);
 
 			const float3 SampleL = UniformSampleSphere(frac(Random4.xy)).xyz;
-			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
+			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, NodeDesc.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleTranslateWorldPosition = TranslatedWorldPosition + SampleBias;
 			const float3 SampleTranslateLightPosition = SampleTranslateWorldPosition + SampleL* MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslateWorldPosition, SampleTranslateLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(NodeDesc, SampleTranslateWorldPosition, SampleTranslateLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 
 			const uint ScatteringComponent = (View.HairComponents & HAIR_COMPONENT_R) | (View.HairComponents & HAIR_COMPONENT_TRT) | HAIR_COMPONENT_LS | HAIR_COMPONENT_GS;// | HAIR_MULTISCATTER;
 			const FHairTransmittanceData TransmittanceData = GetHairTransmittance(V, SampleL, GBuffer, InitHairTransmittanceMask(Result.HairCount, Result.Visibility), View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, ScatteringComponent);
@@ -479,12 +477,12 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		float3 Transmittance = 1;
 		float Visibility = 1;
 		{
-			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, NodeDesc.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
 			const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(NodeDesc, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 			Transmittance = GetHairTransmittanceOnly(InitHairTransmittanceMask(Result.HairCount, Result.Visibility), GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
 		}
@@ -535,7 +533,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		float3 Transmittance = 1;
 		float Visibility = 1;
 		{
-			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, NodeDesc.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
 			const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + L * MaxSearchDistance;
 
@@ -550,7 +548,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			}
 			else
 			{
-				Result = InternalComputeHairCountVoxel(MacroGroupId, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
+				Result = InternalComputeHairCountVoxel(NodeDesc, SampleTranslatedWorldPosition, SampleTranslatedLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
 			}
 			Transmittance = GetHairTransmittanceOnly(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, View.HairScatteringLUTTexture, View.HairScatteringLUTSampler);
 			Visibility = Result.Visibility;
@@ -634,6 +632,8 @@ float3 ReflectionEnvironmentUniformSampling(
 	}
 	#endif
 
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[MacroGroupId], VirtualVoxel.PageResolution);
+
 	float3 AccLighting = 0;
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
@@ -641,7 +641,7 @@ float3 ReflectionEnvironmentUniformSampling(
 
 		// Depth bias
 		const float3 SampleL    = UniformSampleSphere(frac(Random4.xy)).xyz;
-		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
+		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL, NodeDesc.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 
 		const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;
 		const float3 SampleTranslatedLightPosition = SampleTranslatedWorldPosition + SampleL * MaxSearchDistance;
@@ -655,7 +655,7 @@ float3 ReflectionEnvironmentUniformSampling(
 
 		const float SinLightAngle = dot(SampleL, T);
 		const FHairTraversalResult Result = InternalComputeHairCountVoxel(
-			MacroGroupId,
+			NodeDesc,
 			SampleTranslatedWorldPosition, 
 			SampleTranslatedLightPosition, 
 			1,

@@ -69,7 +69,6 @@ bool IsInVoxelBounds(float3 P, float3 MinP, float3 MaxP)
 struct FVirtualVoxelCommonDesc
 {
 	uint3  PageCountResolution;
-	float  VoxelWorldSize;
 	uint3  PageTextureResolution;
 	uint   PageResolution;
 	uint   PageResolutionLog2;
@@ -82,6 +81,7 @@ struct FVirtualVoxelNodeDesc
 	uint3	PageIndexResolution;
 	uint3   VirtualResolution;
 	uint    PageIndexOffset;
+	float   VoxelWorldSize;
 	bool    bIsValid;
 };
 
@@ -92,13 +92,17 @@ FVirtualVoxelNodeDesc UnpackVoxelNode(FPackedVirtualVoxelNodeDesc In, uint InPag
 	Out.TranslatedWorldMinAABB = In.TranslatedWorldMinAABB;
 	Out.PageIndexResolution = uint3(In.PackedPageIndexResolution & 0xFF, (In.PackedPageIndexResolution >> 8) & 0xFF, (In.PackedPageIndexResolution >> 16) & 0xFF);
 	Out.VirtualResolution = Out.PageIndexResolution * InPageResolution;
-	Out.PageIndexOffset = In.PageIndexOffset;
+	Out.PageIndexOffset = (In.PageIndexOffset_VoxelWorldSize & 0x3FFFFFu);
+	Out.VoxelWorldSize = ((In.PageIndexOffset_VoxelWorldSize >> 22u) & 0x3FFu) * 0.00977517106f; // Encode voxel world size [0..10] onto 10bits, i.e.: 10.f / 1023u
 	Out.bIsValid = all(Out.PageIndexResolution != 0);
 	return Out;
 }
 
 FPackedVirtualVoxelNodeDesc PackVoxelNode(FVirtualVoxelNodeDesc In)
 {
+	// Encode voxel world size [0..10] onto 10bits, i.e.: 10.f / 1023u
+	const float NormalizedVoxelWorldSize = min(In.VoxelWorldSize, 10.f) * 0.1f;
+
 	FPackedVirtualVoxelNodeDesc Out;
 	Out.TranslatedWorldMinAABB = In.TranslatedWorldMinAABB;
 	Out.TranslatedWorldMaxAABB = In.TranslatedWorldMaxAABB;
@@ -106,7 +110,9 @@ FPackedVirtualVoxelNodeDesc PackVoxelNode(FVirtualVoxelNodeDesc In)
 		 (In.PageIndexResolution.x & 0xFF) | 
 		((In.PageIndexResolution.y & 0xFF)<<8) | 
 		((In.PageIndexResolution.z & 0xFF)<<16);
-	Out.PageIndexOffset = In.PageIndexOffset;
+	Out.PageIndexOffset_VoxelWorldSize =
+		(In.PageIndexOffset & 0x3FFFFFu) |
+		(uint(NormalizedVoxelWorldSize * 1023.f) << 22u);
 	return Out;
 }
 

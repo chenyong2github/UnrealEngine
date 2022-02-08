@@ -30,8 +30,6 @@ float2 Output_InvResolution;
 
 float TraceAO(float3 TranslatedWorldPosition, float3 WorldNormal, float2 SvPosition, float PixelRadius)
 {
-	const float3 VoxelOffset = VirtualVoxel.VoxelWorldSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
-
 	const bool bDebugEnabled = all(uint2(SvPosition) == uint2(GetCursorPos()));
 	
 	float3 UnoccludedN = 0;
@@ -64,13 +62,11 @@ float TraceAO(float3 TranslatedWorldPosition, float3 WorldNormal, float2 SvPosit
 
 	FVirtualVoxelCommonDesc CommonDesc;
 	CommonDesc.PageCountResolution = VirtualVoxel.PageCountResolution;
-	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 	CommonDesc.PageResolutionLog2 = VirtualVoxel.PageResolutionLog2;
 
-	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId], VirtualVoxel.PageResolution);
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 	TraversalSettings.DensityScale = VirtualVoxel.DensityScale_AO;
@@ -88,7 +84,7 @@ float TraceAO(float3 TranslatedWorldPosition, float3 WorldNormal, float2 SvPosit
 
 		const float3 LocalL = CosineSampleHemisphere(frac(Random4.xy)).xyz;
 		const float3 SampleL = TangentToWorld(LocalL.xyz, WorldNormal);
-		const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
+		const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, NodeDesc.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 
 		// Depth bias
 		const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + SampleBias;

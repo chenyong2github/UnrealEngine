@@ -15,7 +15,6 @@ RWTexture3D<uint> OutPageTexture;
 
 uint		 VirtualVoxelParams_PageIndexCount;
 uint		 VirtualVoxelParams_PageResolution;
-float		 VirtualVoxelParams_VoxelWorldSize;
 uint3		 VirtualVoxelParams_PageCountResolution;
 Buffer<uint> VirtualVoxelParams_PageIndexBuffer;
 Buffer<uint4>VirtualVoxelParams_PageIndexCoordBuffer;
@@ -30,8 +29,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint  LinearVoxelCoord = DispatchThreadId.z;
 	const uint3 VoxelCoordOffset = IndexToCoord(LinearVoxelCoord, VirtualVoxelParams_PageResolution.xxx);
 
-	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxelParams_NodeDescBuffer[MacroGroupId];
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxelParams_PageResolution);
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
 
 	const uint4 PageIndexCoord = VirtualVoxelParams_PageIndexCoordBuffer[NodeDesc.PageIndexOffset + AllocatedPageIndex];
 	const uint  LinearPageIndexCoord = CoordToIndex(PageIndexCoord.xyz, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
@@ -49,7 +47,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 			float4 ClipPos = mul(float4(TranslatedWorldPosition, 1), PrimaryView.TranslatedWorldToClip);
 			ClipPos /= ClipPos.w;
-			const float DepthBias = VoxelBiasCount * VirtualVoxelParams_VoxelWorldSize;
+			const float DepthBias = VoxelBiasCount * NodeDesc.VoxelWorldSize;
 			const float VoxelDepth = ConvertFromDeviceZ(ClipPos.z) - DepthBias;
 			float2 SceneUV = float2(0.5f*(ClipPos.x + 1), 1 - 0.5f*(ClipPos.y + 1));
 			SceneUV = ViewportUVToBufferUV(SceneUV);
@@ -71,7 +69,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				return;
 
 			// Inject opaque depth on a thin layer (Dist < DistThreshold) for avoiding weird projection
-			if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < VoxelMarkCount * VirtualVoxelParams_VoxelWorldSize)
+			if (ClosestDepth < VoxelDepth && abs(ClosestDepth - VoxelDepth) < VoxelMarkCount * NodeDesc.VoxelWorldSize)
 			{
 				const uint3 VoxelPageIndexCoord = VoxelCoord / VirtualVoxelParams_PageResolution;
 				const uint3 VoxelIndexCoordBase = VoxelPageIndexCoord * VirtualVoxelParams_PageResolution;

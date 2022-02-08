@@ -148,7 +148,7 @@ struct FPackedVirtualVoxelNodeDesc
 // at the moment
 BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, )
 	SHADER_PARAMETER(FIntVector, PageCountResolution)
-	SHADER_PARAMETER(float, VoxelWorldSize)
+	SHADER_PARAMETER(float, MinVoxelWorldSize)
 	SHADER_PARAMETER(FIntVector, PageTextureResolution)
 	SHADER_PARAMETER(uint32, PageCount)
 	SHADER_PARAMETER(uint32, PageResolution)
@@ -277,6 +277,7 @@ struct FHairStrandsMacroGroupResources
 {
 	uint32 MacroGroupCount = 0;
 	FRDGBufferRef MacroGroupAABBsBuffer = nullptr;
+	FRDGBufferRef MacroGroupVoxelSizeBuffer = nullptr;
 };
 
 class FHairGroupPublicData;
@@ -413,7 +414,7 @@ struct FHairStrandsViewStateData
 	void Init();
 	void Release();
 
-	float VoxelWorldSize = 0; // Voxel size used during the last frame allocation
+	float MinVoxelWorldSize = 0; // Min voxel size used during the last frame allocation
 	uint32 VoxelAllocatedPageCount = 0; // Number of voxels allocated last frame
 
 	// Buffer used for reading back the number of voxels allocated on the GPU

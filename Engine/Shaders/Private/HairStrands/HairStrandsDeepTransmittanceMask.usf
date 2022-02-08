@@ -281,6 +281,14 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	// Cone opening - Area light transmission is disabled as it is too noisy for now
 	const float TanLightAngle = 0; // Settings.bIsDirectional ? 0 : LightRadius / length(Settings.TranslatedLightPosition - TranslatedWorldPosition);
 
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxel.NodeDescBuffer[MacroGroupId], VirtualVoxel.PageResolution);
+
+	FVirtualVoxelCommonDesc CommonDesc;
+	CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
+	CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
+	CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
+	CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;
+
 	// Compute the number of hair count between light & shading point
 	const float DistanceThreshold = 100000;
 	float AvgHairCount = 0;
@@ -297,20 +305,10 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		#else
 		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 		#endif
-		
+	
 		const float PositionBiasScale = 0.5f;
-		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Transmittance * Settings.LightDirection + PositionBiasScale*(SampleRandom*2-1));
+		const float3 DepthBias = NodeDesc.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Transmittance * Settings.LightDirection + PositionBiasScale*(SampleRandom*2-1));
 		const float3 SampleTranslatedWorldPosition = TranslatedWorldPosition + DepthBias;
-
-		FVirtualVoxelCommonDesc CommonDesc;
-		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
-		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
-		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
-		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
-		CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;
-
-		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 		TraversalSettings.DensityScale = VirtualVoxel.DensityScale_Transmittance;

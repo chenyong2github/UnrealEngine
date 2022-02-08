@@ -8,7 +8,8 @@
 
 #if SHADER_ALLOCATEPAGEINDEX 
 
-float				PageWorldSize;
+float				CPUPageWorldSize;
+float				CPUVoxelWorldSize;
 uint				TotalPageIndexCount; 	// This is the max page index count;
 uint				PageResolution; 		// Resolution of a page
 uint				MacroGroupCount;
@@ -21,6 +22,7 @@ float3				CPU_TranslatedWorldMaxAABB;
 int3				CPU_PageIndexResolution;
 uint				CPU_bUseCPUData;
 
+Buffer<float>								MacroGroupVoxelSizeBuffer;
 RWBuffer<int>								MacroGroupAABBBuffer;
 RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>								OutPageIndexAllocationIndirectBufferArgs;
@@ -41,11 +43,15 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint MacroGroupId = DispatchThreadId.x;
 
 	FHairAABB Bound = InitHairAABB();
+	float PageWorldSize = CPUPageWorldSize;
 	bool bIsValid = MacroGroupId < MacroGroupCount;
 	if (bIsValid)
 	{
 		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+		const float VoxelWorldSize = max(CPUVoxelWorldSize, MacroGroupVoxelSizeBuffer[MacroGroupId]);
+		PageWorldSize = VoxelWorldSize * PageResolution;
+
 		if (any(Bound.Min > Bound.Max) || !bSupportVoxelization)
 		{
 			Bound.Min = 0;
@@ -630,8 +636,10 @@ uint MacroGroupId;
 float3 CPU_TranslatedWorldMaxAABB;
 uint CPU_PageIndexOffset;
 int3 CPU_PageIndexResolution;
+float CPU_VoxelWorldSize;
 
 Buffer<int> MacroGroupAABBBuffer;
+Buffer<float> MacroGroupVoxelSizeBuffer;
 Buffer<uint4> PageIndexResolutionAndOffsetBuffer;
 RWStructuredBuffer<FPackedVirtualVoxelNodeDesc> OutNodeDescBuffer;
 
@@ -643,16 +651,19 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 #if PERMUTATION_GPU_DRIVEN == 1
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
 	const FHairAABB TranslatedWorldBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	const float VoxelWorldSize = MacroGroupVoxelSizeBuffer[MacroGroupId];
 
 	Node.TranslatedWorldMinAABB = TranslatedWorldBound.Min;
 	Node.TranslatedWorldMaxAABB = TranslatedWorldBound.Max;
 	Node.PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	Node.PageIndexOffset = PageIndexResolutionAndOffset.w;
+	Node.VoxelWorldSize = max(CPU_VoxelWorldSize, VoxelWorldSize);
 #else
 	Node.TranslatedWorldMinAABB = CPU_TranslatedWorldMinAABB;
 	Node.TranslatedWorldMaxAABB = CPU_TranslatedWorldMaxAABB;
 	Node.PageIndexResolution = CPU_PageIndexResolution;
 	Node.PageIndexOffset = CPU_PageIndexOffset;
+	Node.VoxelWorldSize = CPU_VoxelWorldSize;
 #endif
 
 	FPackedVirtualVoxelNodeDesc PackedNode = PackVoxelNode(Node);

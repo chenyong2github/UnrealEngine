@@ -176,7 +176,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 #endif
 #if VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR || VOXEL_TRAVERSAL_TYPE == VOXEL_TRAVERSAL_LINEAR_MIPMAP
 {
-	const float MipLevelDistanceScale = 1.0f / InCommonDesc.VoxelWorldSize;
+	const float MipLevelDistanceScale = 1.0f / InNodeDesc.VoxelWorldSize;
 
 	FHairTraversalResult Out = InitHairTraversalResult();
 	if (!InNodeDesc.bIsValid)
@@ -206,8 +206,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		#endif
 
 		// Step according to voxel size
-		const float3 D = normalize(E - O) * InCommonDesc.VoxelWorldSize;
-		const float MaxStep = float(min(ceil(OELength / InCommonDesc.VoxelWorldSize), 1024.f));
+		const float3 D = normalize(E - O) * InNodeDesc.VoxelWorldSize;
+		const float MaxStep = float(min(ceil(OELength / InNodeDesc.VoxelWorldSize), 1024.f));
 		const float DeltaWorld = OELength / float(MaxStep);
 		float StepScale = 1.0f;
 		float3 PreviousP = O;
@@ -217,7 +217,7 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		const float3 RandomStepJitter = InSettings.Random.xyz * 2 - 1; // [-1..1]
 		for (float StepIt = 0.0f; StepIt < MaxStep; StepIt += StepScale)
 		{
-			const float SteppingWorldSize = max(DeltaWorld * StepScale, InSettings.TanConeAngle * StepIt * InCommonDesc.VoxelWorldSize);
+			const float SteppingWorldSize = max(DeltaWorld * StepScale, InSettings.TanConeAngle * StepIt * InNodeDesc.VoxelWorldSize);
 			const float3 HitP = O + StepIt * D + InSettings.JitterScale * RandomStepJitter * SteppingWorldSize * 0.5f;
 
 			#if VOXEL_TRAVERSAL_DEBUG
@@ -282,8 +282,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 					#if VOXEL_TRAVERSAL_DEBUG
 					if (InSettings.bDebugEnabled)
 					{
-						const float3 WorldOffset = PageIndexCoord * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize;
-						const float MipVoxelWorldSize = InCommonDesc.VoxelWorldSize * InCommonDesc.PageResolution / (InCommonDesc.PageResolution >> uint(MipLevel));
+						const float3 WorldOffset = PageIndexCoord * InCommonDesc.PageResolution * InNodeDesc.VoxelWorldSize;
+						const float MipVoxelWorldSize = InNodeDesc.VoxelWorldSize * InCommonDesc.PageResolution / (InCommonDesc.PageResolution >> uint(MipLevel));
 
 						const uint3 MinCoord = VoxelPageOffset >> uint(MipLevel);
 						const uint3 MaxCoord = MinCoord+1;
@@ -355,12 +355,12 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		const int3 Step = sign(UNormD);
 
 		// Step according to voxel size
-		const float3 D = normalize(UNormD) * InCommonDesc.VoxelWorldSize;
+		const float3 D = normalize(UNormD) * InNodeDesc.VoxelWorldSize;
 
 		float t = HitT.x;
 
 		// this is slop coeff for each axis: how far we need to move in units of t for each axis
-		const float PageWorldSize = InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize;
+		const float PageWorldSize = InCommonDesc.PageResolution * InNodeDesc.VoxelWorldSize;
 		const float3 tDelta = Step * PageWorldSize / UNormD;
 
 		// Init to the starting voxel
@@ -405,8 +405,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 			const bool bIsPageValid = PageIndex != INVALID_VOXEL_PAGE_INDEX;
 			#if VOXEL_TRAVERSAL_DEBUG
 			{
-				const float3 PageMinAABB = PageIndexCoord * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
-				const float3 PageMaxAABB = (PageIndexCoord+float3(1,1,1)) * InCommonDesc.PageResolution * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
+				const float3 PageMinAABB = PageIndexCoord * InCommonDesc.PageResolution * InNodeDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
+				const float3 PageMaxAABB = (PageIndexCoord+float3(1,1,1)) * InCommonDesc.PageResolution * InNodeDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
 				AddPageAABB(InSettings.bDebugEnabled, PageMinAABB, PageMaxAABB, bIsPageValid);
 			}
 			#endif
@@ -463,8 +463,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 					#if VOXEL_TRAVERSAL_DEBUG
 					{
-						const float VoxelExtent = InCommonDesc.VoxelWorldSize * (1 << MipLevel) * 0.5f;
-						const float3 P = (PageIndexCoord*InCommonDesc.PageResolution + VoxelPageOffset) * InCommonDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
+						const float VoxelExtent = InNodeDesc.VoxelWorldSize * (1 << MipLevel) * 0.5f;
+						const float3 P = (PageIndexCoord*InCommonDesc.PageResolution + VoxelPageOffset) * InNodeDesc.VoxelWorldSize + InNodeDesc.TranslatedWorldMinAABB;
 						AddStepAABB(InSettings.bDebugEnabled, P - VoxelExtent, P + VoxelExtent, float3(0, 0.5f, 1));
 					}
 					#endif

@@ -303,10 +303,10 @@ FVirtualShadowMapSampleResult ProjectLight(
 			if (bCastHairRay)
 			{
 				// Jitter start position to mask/compensate coarse voxel resolution
+				float3 NormalizedDepthBias = 0;
 				{
 					const float PositionBiasScale = 0.5f;
-					const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * L + PositionBiasScale * (Random.xyz * 2 - 1));
-					RayStart += DepthBias;
+					NormalizedDepthBias = (VirtualVoxel.DepthBiasScale_Shadow * L + PositionBiasScale * (Random.xyz * 2 - 1));
 				}
 
 				const float DistanceThreshold = 100000.0f;
@@ -314,7 +314,6 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 				FVirtualVoxelCommonDesc CommonDesc;
 				CommonDesc.PageCountResolution		= VirtualVoxel.PageCountResolution;
-				CommonDesc.VoxelWorldSize			= VirtualVoxel.VoxelWorldSize;
 				CommonDesc.PageTextureResolution	= VirtualVoxel.PageTextureResolution;
 				CommonDesc.PageResolution			= VirtualVoxel.PageResolution;
 				CommonDesc.PageResolutionLog2		= VirtualVoxel.PageResolutionLog2;
@@ -338,7 +337,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 					FHairTraversalResult HairResult = InitHairTraversalResult();
 					HairResult = ComputeHairCountVirtualVoxel(
-						RayStart,
+						RayStart + NodeDesc.VoxelWorldSize * NormalizedDepthBias,
 						RayEnd,
 						CommonDesc,
 						NodeDesc,

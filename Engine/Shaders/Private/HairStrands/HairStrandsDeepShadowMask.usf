@@ -455,17 +455,16 @@ void MainPS(
 		// Depth bias
 		// Origin is shifted 2 voxels away towards the light + a constant bias of the size of the voxel
 		const float3 Random = GetShadowMaskRandom(PixelCoord.xy);
+		float3 NormalizedDepthBias = 0.f;
 		{
 			const float PositionBiasScale = 0.5f;
-			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * LightDirection + PositionBiasScale * (Random * 2 - 1));
-			TranslatedWorldPosition += DepthBias;
+			NormalizedDepthBias = (VirtualVoxel.DepthBiasScale_Shadow * LightDirection + PositionBiasScale * (Random * 2 - 1));
 		}
 
 		FHairTraversalResult Result = InitHairTraversalResult();
 
 		FVirtualVoxelCommonDesc CommonDesc;
 		CommonDesc.PageCountResolution	= VirtualVoxel.PageCountResolution;
-		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
 		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
 		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
 		CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;
@@ -502,7 +501,7 @@ void MainPS(
 					TraversalSettings.bCastShadow = true;
 
 					Result = ComputeHairCountVirtualVoxel(
-						TranslatedWorldPosition,
+						TranslatedWorldPosition + NormalizedDepthBias * NodeDesc.VoxelWorldSize,
 						TranslatedLightPosition,
 						CommonDesc,
 						NodeDesc,

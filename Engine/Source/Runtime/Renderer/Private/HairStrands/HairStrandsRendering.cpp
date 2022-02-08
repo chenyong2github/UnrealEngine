@@ -199,7 +199,7 @@ void RenderHairBasePass(
 void FHairStrandsViewStateData::Init()
 {
 	// Voxel adaptive sizing
-	VoxelWorldSize = 0;
+	MinVoxelWorldSize = 0;
 	VoxelAllocatedPageCount = 0;
 	if (VoxelPageAllocationCountReadback == nullptr)
 	{
@@ -218,7 +218,7 @@ void FHairStrandsViewStateData::Init()
 void FHairStrandsViewStateData::Release()
 {
 	// Voxel adaptive sizing
-	VoxelWorldSize = 0;
+	MinVoxelWorldSize = 0;
 	VoxelAllocatedPageCount = 0;
 	if (VoxelPageAllocationCountReadback)
 	{

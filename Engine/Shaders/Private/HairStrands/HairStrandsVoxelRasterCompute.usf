@@ -33,7 +33,6 @@ Buffer<uint>	IndirectBufferArgs;
 
 uint			VirtualVoxelParams_PageIndexCount;
 uint			VirtualVoxelParams_PageResolution;
-float			VirtualVoxelParams_VoxelWorldSize;
 uint3			VirtualVoxelParams_PageCountResolution;
 uint3			VirtualVoxelParams_PageTextureResolution;
 
@@ -126,21 +125,23 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 		HairStrandsVF_RootScale,
 		HairStrandsVF_TipScale);
 
+	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
+
 	const float DiameterToRadius = 0.5f;
 	const float3 TranslatedWP0 = mul(float4(CP0.Position, 1), HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform).xyz;
-	const float HairCoverage0 = CP0.WorldRadius / max(CP0.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
+	const float HairCoverage0 = CP0.WorldRadius / max(CP0.WorldRadius, DiameterToRadius * NodeDesc.VoxelWorldSize);
 
 	const float3 TranslatedWP1 = mul(float4(CP1.Position, 1), HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform).xyz;
-	const float HairCoverage1 = CP1.WorldRadius / max(CP1.WorldRadius, DiameterToRadius * VirtualVoxelParams_VoxelWorldSize);
+	const float HairCoverage1 = CP1.WorldRadius / max(CP1.WorldRadius, DiameterToRadius * NodeDesc.VoxelWorldSize);
 
-	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(VirtualVoxelParams_NodeDescBuffer[MacroGroupId], VirtualVoxelParams_PageResolution);
 
 	// In order to reduce aliasing, we increase the number of steps. This makes the result more comparable to the raster pass.
 	const float LineStepMultiplier = 1.5f;
 
+	const float ScaledVoxelWorldSize = NodeDesc.VoxelWorldSize / LineStepMultiplier;
+
 	FVirtualVoxelCommonDesc CommonDesc;
 	CommonDesc.PageCountResolution		= VirtualVoxelParams_PageCountResolution;
-	CommonDesc.VoxelWorldSize			= VirtualVoxelParams_VoxelWorldSize / LineStepMultiplier;
 	CommonDesc.PageTextureResolution	= VirtualVoxelParams_PageTextureResolution;
 	CommonDesc.PageResolution			= VirtualVoxelParams_PageResolution;
 	CommonDesc.PageResolutionLog2		= VirtualVoxel.PageResolutionLog2;
@@ -150,7 +151,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	// This assumes that the voxel volume is cubic (i.e. equal dimensions on all sides)
 	const float3 LineSegment = TranslatedWP1 - TranslatedWP0;
 	const float LineLength = length(LineSegment);
-	const float3 StepD = normalize(LineSegment) * CommonDesc.VoxelWorldSize;
+	const float3 StepD = normalize(LineSegment) * ScaledVoxelWorldSize;
 
 	// Step according to voxel size
 	int3 CurrentPageIndexCoord = -1;
@@ -166,7 +167,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	const float3 Jitter = 0;
 	#endif
 
-	const float fMaxStep = LineLength / CommonDesc.VoxelWorldSize;
+	const float fMaxStep = LineLength / ScaledVoxelWorldSize;
 	const float MaxStep = float(min(ceil(fMaxStep), MaxRasterCount));
 
 	int3 PreviousCoord = -1;
@@ -180,9 +181,8 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 		const int3 PageIndexCoord = VolumeCoord / CommonDesc.PageResolution;
 
 		// Update page index only when needed
-		if (PageIndexCoord.x != CurrentPageIndexCoord.x ||
-			PageIndexCoord.y != CurrentPageIndexCoord.y ||
-			PageIndexCoord.z != CurrentPageIndexCoord.z)
+		const bool bHasPageIndexChanged = any(PageIndexCoord != CurrentPageIndexCoord);
+		if (bHasPageIndexChanged)
 		{
 			CurrentPageIndexCoord = PageIndexCoord;
 			const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
