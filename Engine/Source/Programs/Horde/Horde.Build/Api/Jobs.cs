@@ -386,7 +386,12 @@ namespace HordeServer.Api
 		/// <summary>
 		/// The job object
 		/// </summary>
-		public IJob Job { get; set; }
+		public IJob? Job { get; set; }
+		
+		/// <summary>
+		/// A full job response
+		/// </summary>
+		public GetJobResponse? JobResponse { get; set; }
 		
 		/// <summary>
 		/// Timing info for each step
@@ -402,11 +407,13 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Job">The job object</param>
+		/// <param name="JobResponse">The job response</param>
 		/// <param name="Steps">Timing info for each steps</param>
 		/// <param name="Labels">Timing info for each label</param>
-		public GetJobTimingResponse(IJob Job, Dictionary<string, GetStepTimingInfoResponse> Steps, List<GetLabelTimingInfoResponse> Labels)
+		public GetJobTimingResponse(IJob? Job, GetJobResponse? JobResponse, Dictionary<string, GetStepTimingInfoResponse> Steps, List<GetLabelTimingInfoResponse> Labels)
 		{
 			this.Job = Job;
+			this.JobResponse = JobResponse;
 			this.Steps = Steps;
 			this.Labels = Labels;
 		}
