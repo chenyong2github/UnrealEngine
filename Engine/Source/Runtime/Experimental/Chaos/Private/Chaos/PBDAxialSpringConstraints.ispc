@@ -5,38 +5,20 @@
 #include "Math/Vector.isph"
 
 export void ApplyAxialSpringConstraints(uniform FVector3f P[],
-										const uniform FIntVector AllConstraints[],
-										const uniform int32 ActiveConstraints[],
+										const uniform FIntVector Constraints[],
 										const uniform float InvM[],
 										const uniform float Barys[],
 										const uniform float Dists[],
 										const uniform float Stiffness,
 										const uniform int32 NumConstraints)
 {
-	varying int32 ActiveConstraint;
-	varying FIntVector Constraint;
-
-#if HW_GATHER_SUPPORTED == 1
-	if(programIndex < NumConstraints)
-	{
-		ActiveConstraint = ActiveConstraints[programIndex];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-	}
-#endif
 
 	foreach(i = 0 ... NumConstraints)
 	{
-#if HW_GATHER_SUPPORTED == 0
-		ActiveConstraint = ActiveConstraints[i];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-#endif
+		const varying FIntVector Constraint = VectorLoad(&Constraints[extract(i,0)]);
 
-		#pragma ignore warning(perf)
-		const varying float Bary = Barys[ActiveConstraint];
-		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
+		const varying float Bary = Barys[i];
+		const varying float Dist = Dists[i];
 
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
@@ -44,15 +26,6 @@ export void ApplyAxialSpringConstraints(uniform FVector3f P[],
 
 		const varying FVector3f P2 = VectorGather(&P[i2]);
 		const varying FVector3f P3 = VectorGather(&P[i3]);
-
-#if HW_GATHER_SUPPORTED == 1
-		if(i + programCount < NumConstraints)
-		{
-			ActiveConstraint = ActiveConstraints[i+programCount];
-			#pragma ignore warning(perf)
-			Constraint = AllConstraints[ActiveConstraint];
-		}
-#endif
 
 		const varying FVector3f P1 = VectorGather(&P[i1]);
 
@@ -94,8 +67,7 @@ export void ApplyAxialSpringConstraints(uniform FVector3f P[],
 }
 
 export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
-										const uniform FIntVector AllConstraints[],
-										const uniform int32 ActiveConstraints[],
+										const uniform FIntVector Constraints[],
 										const uniform float InvM[],
 										const uniform float Barys[],
 										const uniform float Dists[],
@@ -103,32 +75,14 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
 										const uniform float StiffnessTable[],
 										const uniform int32 NumConstraints)
 {
-	varying int32 ActiveConstraint;
-	varying FIntVector Constraint;
-
-#if HW_GATHER_SUPPORTED == 1
-	if(programIndex < NumConstraints)
-	{
-		ActiveConstraint = ActiveConstraints[programIndex];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-	}
-#endif
 
 	foreach(i = 0 ... NumConstraints)
 	{
-#if HW_GATHER_SUPPORTED == 0
-		ActiveConstraint = ActiveConstraints[i];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-#endif
+		const varying FIntVector Constraint = VectorLoad(&Constraints[extract(i,0)]);
 
-		#pragma ignore warning(perf)
-		const varying float Bary = Barys[ActiveConstraint];
-		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
-		#pragma ignore warning(perf)
-		const varying uint8 StiffnessIndex = StiffnessIndices[ActiveConstraint];
+		const varying float Bary = Barys[i];
+		const varying float Dist = Dists[i];
+		const varying uint8 StiffnessIndex = StiffnessIndices[i];
 
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
@@ -136,15 +90,6 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
 
 		const varying FVector3f P2 = VectorGather(&P[i2]);
 		const varying FVector3f P3 = VectorGather(&P[i3]);
-
-#if HW_GATHER_SUPPORTED == 1
-		if(i + programCount < NumConstraints)
-		{
-			ActiveConstraint = ActiveConstraints[i+programCount];
-			#pragma ignore warning(perf)
-			Constraint = AllConstraints[ActiveConstraint];
-		}
-#endif
 
 		const varying FVector3f P1 = VectorGather(&P[i1]);
 

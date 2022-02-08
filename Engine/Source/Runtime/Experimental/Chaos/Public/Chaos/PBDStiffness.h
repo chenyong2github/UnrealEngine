@@ -89,6 +89,9 @@ public:
 	/** Return the table of stiffnesses as a read only array. */
 	TConstArrayView<FSolverReal> GetTable() const { return TConstArrayView<FSolverReal>(Table); }
 
+	/** Reorder Indices based on Constraint reordering. */
+	inline void ReorderIndices(const TArray<int32>& OrigToReorderedIndices);
+
 private:
 	TArray<uint8> Indices; // Per particle/constraints array of index to the stiffness table
 	TArray<FSolverReal> Table;  // Fixed lookup table of stiffness values, use uint8 indexation
@@ -210,6 +213,25 @@ void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 	{
 		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
 		Table[Index] = SimulationValue(Offset + Weight * Range);
+	}
+}
+
+void FPBDStiffness::ReorderIndices(const TArray<int32>& OrigToReorderedConstraintIndices)
+{
+	if (Indices.Num() == OrigToReorderedConstraintIndices.Num())
+	{
+		TArray<uint8> ReorderedIndices;
+		ReorderedIndices.SetNumUninitialized(Indices.Num());
+		for (int32 OrigConstraintIndex = 0; OrigConstraintIndex < OrigToReorderedConstraintIndices.Num(); ++OrigConstraintIndex)
+		{
+			const int32 ReorderedConstraintIndex = OrigToReorderedConstraintIndices[OrigConstraintIndex];
+			ReorderedIndices[ReorderedConstraintIndex] = Indices[OrigConstraintIndex];
+		}
+		Indices = MoveTemp(ReorderedIndices);
+	}
+	else
+	{
+		check(Indices.Num() == 1);
 	}
 }
 

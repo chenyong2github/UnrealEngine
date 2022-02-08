@@ -13,33 +13,15 @@ static inline float SafeNormalize(FVector3f &Direction)
 }
 
 export void ApplySpringConstraints(uniform FVector3f P[],
-									const uniform FIntVector2 AllConstraints[],
-									const uniform int32 ActiveConstraints[],
+									const uniform FIntVector2 Constraints[],
 									const uniform float InvM[],
 									const uniform float Dists[],
 									const uniform float Stiffness,
 									const uniform int32 NumConstraints)
 {
-	varying int32 ActiveConstraint;
-	varying FIntVector2 Constraint;
-
-#if HW_GATHER_SUPPORTED == 1
-	if(programIndex < NumConstraints)
-	{
-		ActiveConstraint = ActiveConstraints[programIndex];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-	}
-#endif
-
 	foreach(i = 0 ... NumConstraints)
 	{
-#if HW_GATHER_SUPPORTED == 0
-		ActiveConstraint = ActiveConstraints[i];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-#endif
-
+		const varying FIntVector2 Constraint = VectorLoad(&Constraints[extract(i,0)]);
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
@@ -49,17 +31,7 @@ export void ApplySpringConstraints(uniform FVector3f P[],
 		FVector3f Direction = P1 - P2;
 		const float Distance = SafeNormalize(Direction);
 
-		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
-
-#if HW_GATHER_SUPPORTED == 1
-		if(i + programCount < NumConstraints)
-		{
-			ActiveConstraint = ActiveConstraints[i+programCount];
-			#pragma ignore warning(perf)
-			Constraint = AllConstraints[ActiveConstraint];
-		}
-#endif
+		const varying float Dist = Dists[i];
 
 		const FVector3f InnerDelta = (Distance - Dist) * Direction;
 
@@ -85,34 +57,17 @@ export void ApplySpringConstraints(uniform FVector3f P[],
 }
 
 export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
-									const uniform FIntVector2 AllConstraints[],
-									const uniform int32 ActiveConstraints[],
+									const uniform FIntVector2 Constraints[],
 									const uniform float InvM[],
 									const uniform float Dists[],
 									const uniform uint8 StiffnessIndices[],
 									const uniform float StiffnessTable[],
 									const uniform int32 NumConstraints)
 {
-	varying int32 ActiveConstraint;
-	varying FIntVector2 Constraint;
-
-#if HW_GATHER_SUPPORTED == 1
-	if(programIndex < NumConstraints)
-	{
-		ActiveConstraint = ActiveConstraints[programIndex];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-	}
-#endif
 
 	foreach(i = 0 ... NumConstraints)
 	{
-#if HW_GATHER_SUPPORTED == 0
-		ActiveConstraint = ActiveConstraints[i];
-		#pragma ignore warning(perf)
-		Constraint = AllConstraints[ActiveConstraint];
-#endif
-
+		const varying FIntVector2 Constraint = VectorLoad(&Constraints[extract(i,0)]);
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
@@ -122,20 +77,8 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
 		FVector3f Direction = P1 - P2;
 		const float Distance = SafeNormalize(Direction);
 
-		#pragma ignore warning(perf)
-		const varying float Dist = Dists[ActiveConstraint];
-
-		#pragma ignore warning(perf)
-		const varying uint8 StiffnessIndex = StiffnessIndices[ActiveConstraint];
-
-#if HW_GATHER_SUPPORTED == 1
-		if(i + programCount < NumConstraints)
-		{
-			ActiveConstraint = ActiveConstraints[i+programCount];
-			#pragma ignore warning(perf)
-			Constraint = AllConstraints[ActiveConstraint];
-		}
-#endif
+		const varying float Dist = Dists[i];
+		const varying uint8 StiffnessIndex = StiffnessIndices[i];
 
 		const FVector3f InnerDelta = (Distance - Dist) * Direction;
 
