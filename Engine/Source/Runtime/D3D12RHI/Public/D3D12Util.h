@@ -375,8 +375,8 @@ public:
 		return false;
 	}
 
-	template <typename CompareFunc>
-	bool BatchDequeue(TQueue<Type>* Result, const CompareFunc& Func, uint32 MaxItems)
+	template <typename ResultType, typename CompareFunc>
+	bool BatchDequeue(TArray<ResultType>& Result, const CompareFunc& Func, uint32 MaxItems)
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
 
@@ -388,7 +388,7 @@ public:
 			{
 				Items.Dequeue(Item);
 				Size--;
-				Result->Enqueue(Item);
+				Result.Emplace(Item);
 
 				i++;
 			}

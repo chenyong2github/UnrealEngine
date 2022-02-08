@@ -31,12 +31,106 @@ static FAutoConsoleVariableRef CVarAsyncDeferredDeletion(
 	ECVF_ReadOnly
 );
 
-/////////////////////////////////////////////////////////////////////
-//	FD3D12 Deferred Deletion Queue
-/////////////////////////////////////////////////////////////////////
+enum class ED3D12DeferredDeleteObjectType
+{
+	RHIObject,
+	D3DObject,
+	BindlessDescriptor,
+};
 
-FD3D12DeferredDeletionQueue::FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent) :
-	FD3D12AdapterChild(InParent) {}
+// We can't store the complex FRHIDescriptorHandle type in the union. We also need to store the device index.
+struct FD3D12SimpleBindlessDescriptor
+{
+	uint32 Index;
+	uint16 Type;
+	uint16 DeviceIndex;
+};
+
+struct FD3D12DeferredDeleteObject
+{
+	union
+	{
+		FD3D12Resource*                RHIObject;
+		ID3D12Object*                  D3DObject;
+		FD3D12SimpleBindlessDescriptor BindlessDescriptor;
+	};
+	ED3D12DeferredDeleteObjectType Type;
+};
+
+struct FD3D12FencedDeleteObject : FD3D12DeferredDeleteObject
+{
+	using FFencePair = TPair<FD3D12Fence*, uint64>;
+	using FFenceList = TArray<FFencePair, TInlineAllocator<1>>;
+
+	FFenceList FenceList;
+};
+
+static bool IsFencedObjectComplete(const FD3D12FencedDeleteObject& FencedObject)
+{
+	for (const auto& FencePair : FencedObject.FenceList)
+	{
+		if (!FencePair.Key->IsFenceComplete(FencePair.Value))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12AsyncDeletionWorker
+
+class FD3D12AsyncDeletionWorker : public FD3D12AdapterChild, public FNonAbandonableTask
+{
+public:
+	FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FD3D12FencedDeleteObject>& DeletionQueue)
+		: FD3D12AdapterChild(Adapter)
+	{
+		DeletionQueue.BatchDequeue(ObjectsToDelete, &IsFencedObjectComplete, 4096);
+	}
+
+	void DoWork()
+	{
+		for (const FD3D12DeferredDeleteObject& ObjectToDelete : ObjectsToDelete)
+		{
+			switch (ObjectToDelete.Type)
+			{
+			case ED3D12DeferredDeleteObjectType::RHIObject:
+				// This should be a final release.
+				check(ObjectToDelete.RHIObject->GetRefCount() == 1);
+				ObjectToDelete.RHIObject->Release();
+				break;
+			case ED3D12DeferredDeleteObjectType::D3DObject:
+				ObjectToDelete.D3DObject->Release();
+				break;
+			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
+				{
+					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(ObjectToDelete.BindlessDescriptor.Type), ObjectToDelete.BindlessDescriptor.Index);
+					GetParentAdapter()->GetDevice(ObjectToDelete.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
+				}
+				break;
+			default:
+				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
+				break;
+			}
+		}
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FD3D12AsyncDeletionWorker, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	TArray<FD3D12DeferredDeleteObject> ObjectsToDelete;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FD3D12DeferredDeletionQueue::FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent)
+	: FD3D12AdapterChild(InParent)
+{
+}
 
 FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
 {
@@ -49,17 +143,24 @@ FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
 	}
 }
 
-void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FFenceList&& FenceList)
+void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FRHIGPUMask GpuMask)
 {
 	check(pResource->ShouldDeferDelete());
 
 	// Useful message for identifying when resources are released on the rendering thread.
 	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
 
-	FencedObjectType FencedObject;
-	FencedObject.RHIObject  = pResource;
-	FencedObject.FenceList  = MoveTemp(FenceList);
-	FencedObject.Type       = EObjectType::RHI;
+	FD3D12Adapter* Adapter = GetParentAdapter();
+
+	FD3D12FencedDeleteObject FencedObject;
+	for (uint32 GPUIndex : GpuMask)
+	{
+		FD3D12Fence* Fence = &Adapter->GetDevice(GPUIndex)->GetCommandListManager().GetFence();
+		FencedObject.FenceList.Emplace(Fence, Fence->GetCurrentFence());
+	}
+
+	FencedObject.RHIObject = pResource;
+	FencedObject.Type = ED3D12DeferredDeleteObjectType::RHIObject;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
@@ -68,10 +169,21 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D1
 	// Useful message for identifying when resources are released on the rendering thread.
 	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, Fence->GetCurrentFence());
 
-	FencedObjectType FencedObject;
-	FencedObject.D3DObject  = pResource;
+	FD3D12FencedDeleteObject FencedObject;
+	FencedObject.D3DObject = pResource;
 	FencedObject.FenceList.Emplace(Fence, Fence->GetCurrentFence());
-	FencedObject.Type       = EObjectType::D3D;
+	FencedObject.Type = ED3D12DeferredDeleteObjectType::D3DObject;
+	DeferredReleaseQueue.Enqueue(FencedObject);
+}
+
+void FD3D12DeferredDeletionQueue::EnqueueBindlessDescriptor(FRHIDescriptorHandle InDescriptor, FD3D12Fence* InFence, uint32 InDeviceIndex)
+{
+	FD3D12FencedDeleteObject FencedObject;
+	FencedObject.BindlessDescriptor.Index = InDescriptor.GetIndex();
+	FencedObject.BindlessDescriptor.Type = static_cast<uint32>(InDescriptor.GetType());
+	FencedObject.BindlessDescriptor.DeviceIndex = InDeviceIndex;
+	FencedObject.FenceList.Emplace(InFence, InFence->GetCurrentFence());
+	FencedObject.Type = ED3D12DeferredDeleteObjectType::BindlessDescriptor;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
@@ -107,7 +219,7 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 			}
 
 			// Create new delete task, which will only collect resources in the constructor for which the fence is complete, not the whole list!
-			DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, &DeferredReleaseQueue);
+			DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, DeferredReleaseQueue);
 
 			DeleteTask->StartBackgroundTask();
 			DeleteTasks.Enqueue(DeleteTask);
@@ -117,7 +229,7 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 		}
 	}
 
-	FencedObjectType FenceObject;
+	FD3D12FencedDeleteObject FenceObject;
 
 	if (bIsShutDown)
 	{
@@ -126,103 +238,70 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 
 		while (DeferredReleaseQueue.Dequeue(FenceObject))
 		{
-			if (FenceObject.Type == EObjectType::RHI)
+			switch (FenceObject.Type)
 			{
-				D3D12_RESOURCE_DESC Desc = FenceObject.RHIObject->GetDesc();
-				FString Name = FenceObject.RHIObject->GetName().ToString();
-				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: \"%s\", %llu x %u x %u, Mips: %u, Format: 0x%X, Flags: 0x%X"), *Name, Desc.Width, Desc.Height, Desc.DepthOrArraySize, Desc.MipLevels, Desc.Format, Desc.Flags);
-
-				uint32 RefCount = FenceObject.RHIObject->Release();
-				if (RefCount)
+			case ED3D12DeferredDeleteObjectType::RHIObject:
 				{
-					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
-				}
-			}
-			else
-			{
-				UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: 0x%llX"), FenceObject.D3DObject);
+					const D3D12_RESOURCE_DESC& Desc = FenceObject.RHIObject->GetDesc();
+					const FString Name = FenceObject.RHIObject->GetName().ToString();
+					UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: \"%s\", %llu x %u x %u, Mips: %u, Format: 0x%X, Flags: 0x%X"), *Name, Desc.Width, Desc.Height, Desc.DepthOrArraySize, Desc.MipLevels, Desc.Format, Desc.Flags);
 
-				uint32 RefCount = FenceObject.D3DObject->Release();
-				if (RefCount)
-				{
-					UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+					if (uint32 RefCount = FenceObject.RHIObject->Release())
+					{
+						UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+					}
 				}
+				break;
+			case ED3D12DeferredDeleteObjectType::D3DObject:
+				{
+					UE_LOG(LogD3D12RHI, Display, TEXT("D3D12 ReleaseResources: 0x%llX"), FenceObject.D3DObject);
+
+					if (uint32 RefCount = FenceObject.D3DObject->Release())
+					{
+						UE_LOG(LogD3D12RHI, Display, TEXT("RefCount was %u"), RefCount);
+					}
+				}
+				break;
+			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
+				{
+					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(FenceObject.BindlessDescriptor.Type), FenceObject.BindlessDescriptor.Index);
+					GetParentAdapter()->GetDevice(FenceObject.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
+				}
+				break;
+			default:
+				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
+				break;
 			}
 		}
 	}
 	else
 	{
-		struct FDequeueFenceObject
+		while (DeferredReleaseQueue.Dequeue(FenceObject, &IsFencedObjectComplete))
 		{
-			bool operator() (FencedObjectType FenceObject) const
-			{
-				for (auto& FencePair : FenceObject.FenceList)
-				{
-					if (!FencePair.Key->IsFenceComplete(FencePair.Value))
-					{
-						return false;
-					}
-				}
-				return true;
-			}
-		};
 
-		while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
-		{
-			if (FenceObject.Type == EObjectType::RHI)
+			switch (FenceObject.Type)
 			{
+			case ED3D12DeferredDeleteObjectType::RHIObject:
 				FenceObject.RHIObject->Release();
-			}
-			else
-			{
+				break;
+			case ED3D12DeferredDeleteObjectType::D3DObject:
 				FenceObject.D3DObject->Release();
+				break;
+			case ED3D12DeferredDeleteObjectType::BindlessDescriptor:
+				{
+					const FRHIDescriptorHandle BindlessDescriptor(static_cast<ERHIDescriptorHeapType>(FenceObject.BindlessDescriptor.Type), FenceObject.BindlessDescriptor.Index);
+					GetParentAdapter()->GetDevice(FenceObject.BindlessDescriptor.DeviceIndex)->GetBindlessDescriptorManager().ImmediateFree(BindlessDescriptor);
+				}
+				break;
+			default:
+				checkf(false, TEXT("Unknown ED3D12DeferredDeleteObjectType"));
+				break;
 			}
 		}
 	}
 
 	return DeferredReleaseQueue.IsEmpty();
 }
-
-FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FencedObjectType>* DeletionQueue)
-	: FD3D12AdapterChild(Adapter)
-{
-	struct FDequeueFenceObject
-	{
-		bool operator() (FencedObjectType FenceObject) const
-		{
-			for (auto& FencePair : FenceObject.FenceList)
-			{
-				if (!FencePair.Key->IsFenceComplete(FencePair.Value))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-	};
-
-	DeletionQueue->BatchDequeue(&Queue, FDequeueFenceObject(), 4096);
-}
-
-void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
-{
-	FencedObjectType ResourceToDelete;
-
-	while (Queue.Dequeue(ResourceToDelete))
-	{
-		if (ResourceToDelete.Type == EObjectType::RHI)
-		{
-			// This should be a final release.
-			check(ResourceToDelete.RHIObject->GetRefCount() == 1);
-			ResourceToDelete.RHIObject->Release();
-		}
-		else
-		{
-			ResourceToDelete.D3DObject->Release();
-		}
-	}
-}
-
 
 /////////////////////////////////////////////////////////////////////
 //	ID3D12ResourceAllocator
@@ -377,22 +456,10 @@ void FD3D12Resource::DeferDelete()
 
 	// Upload heaps such as texture lock data can be referenced by multiple GPUs so we
 	// must wait for all of them to finish before releasing.
-	FD3D12DeferredDeletionQueue::FFenceList FenceList;
-	if (HeapType == D3D12_HEAP_TYPE_UPLOAD)
-	{
-		for (uint32 GPUIndex : FRHIGPUMask::All())
-		{
-			FD3D12Fence* Fence = &Adapter->GetDevice(GPUIndex)->GetCommandListManager().GetFence();
-			FenceList.Emplace(Fence, Fence->GetCurrentFence());
-		}
-	}
-	else
-	{
-		FD3D12Fence* Fence = &GetParentDevice()->GetCommandListManager().GetFence();
-		FenceList.Emplace(Fence, Fence->GetCurrentFence());
-	}
 
-	Adapter->GetDeferredDeletionQueue().EnqueueResource(this, MoveTemp(FenceList));
+	const FRHIGPUMask GpuMask = (HeapType == D3D12_HEAP_TYPE_UPLOAD) ? FRHIGPUMask::All() : GetParentDevice()->GetGPUMask();
+
+	Adapter->GetDeferredDeletionQueue().EnqueueResource(this, GpuMask);
 }
 
 /////////////////////////////////////////////////////////////////////

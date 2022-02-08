@@ -723,64 +723,28 @@ struct ID3D12ResourceAllocator
 		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) = 0;
 };
 
+struct FD3D12FencedDeleteObject;
+class FD3D12AsyncDeletionWorker;
+
 class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
 {
 public:
-	using FFencePair = TPair<FD3D12Fence*, uint64>;
-	using FFenceList = TArray<FFencePair, TInlineAllocator<1>>;
-
-private:
-	enum class EObjectType
-	{
-		RHI,
-		D3D,
-	};
-
-	struct FencedObjectType
-	{
-		union
-		{
-			FD3D12Resource* RHIObject;
-			ID3D12Object*   D3DObject;
-		};
-		FFenceList FenceList;
-		EObjectType Type;
-	};
-	FThreadsafeQueue<FencedObjectType> DeferredReleaseQueue;
-
-public:
-
-	inline const uint32 QueueSize() const { return DeferredReleaseQueue.GetSize(); }
-
-	void EnqueueResource(FD3D12Resource* pResource, FFenceList&& FenceList);
-	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
-
-	bool ReleaseResources(bool bDeleteImmediately, bool bIsShutDown);
-
 	FD3D12DeferredDeletionQueue(FD3D12Adapter* InParent);
 	~FD3D12DeferredDeletionQueue();
 
-	class FD3D12AsyncDeletionWorker : public FD3D12AdapterChild, public FNonAbandonableTask
-	{
-	public:
-		FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FencedObjectType>* DeletionQueue);
+	void EnqueueResource(FD3D12Resource* pResource, FRHIGPUMask GpuMask);
+	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
+	void EnqueueBindlessDescriptor(FRHIDescriptorHandle InDescriptor, FD3D12Fence* InFence, uint32 InDeviceIndex);
 
-		void DoWork();
+	bool ReleaseResources(bool bDeleteImmediately, bool bIsShutDown);
 
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FD3D12AsyncDeletionWorker, STATGROUP_ThreadPoolAsyncTasks);
-		}
-
-	private:
-		TQueue<FencedObjectType> Queue;
-	};
+	inline const uint32 QueueSize() const { return DeferredReleaseQueue.GetSize(); }
 
 private:
+	FThreadsafeQueue<FD3D12FencedDeleteObject> DeferredReleaseQueue;
 
 	FCriticalSection DeleteTaskCS;
 	TQueue<FAsyncTask<FD3D12AsyncDeletionWorker>*> DeleteTasks;
-
 };
 
 struct FD3D12LockedResource : public FD3D12DeviceChild

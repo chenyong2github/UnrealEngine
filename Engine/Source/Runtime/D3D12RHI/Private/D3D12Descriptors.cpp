@@ -132,7 +132,7 @@ void FD3D12BindlessDescriptorManager::Init(uint32 InNumResourceDescriptors, uint
 	}
 }
 
-FRHIDescriptorHandle FD3D12BindlessDescriptorManager::AllocateDescriptor(ERHIDescriptorHeapType InType)
+FRHIDescriptorHandle FD3D12BindlessDescriptorManager::Allocate(ERHIDescriptorHeapType InType)
 {
 	for (FD3D12DescriptorManager& Manager : Managers)
 	{
@@ -144,7 +144,7 @@ FRHIDescriptorHandle FD3D12BindlessDescriptorManager::AllocateDescriptor(ERHIDes
 	return FRHIDescriptorHandle();
 }
 
-void FD3D12BindlessDescriptorManager::FreeDescriptor(FRHIDescriptorHandle InHandle)
+void FD3D12BindlessDescriptorManager::ImmediateFree(FRHIDescriptorHandle InHandle)
 {
 	for (FD3D12DescriptorManager& Manager : Managers)
 	{
@@ -157,6 +157,15 @@ void FD3D12BindlessDescriptorManager::FreeDescriptor(FRHIDescriptorHandle InHand
 
 	// Bad configuration?
 	checkNoEntry();
+}
+
+void FD3D12BindlessDescriptorManager::DeferredFreeFromDestructor(FRHIDescriptorHandle InHandle)
+{
+	if (InHandle.IsValid())
+	{
+		FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+		GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueBindlessDescriptor(InHandle, &Fence, GetParentDevice()->GetGPUIndex());
+	}
 }
 
 void FD3D12BindlessDescriptorManager::UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle)

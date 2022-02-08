@@ -84,7 +84,7 @@ void FD3D12ViewDescriptorHandle::AllocateDescriptorSlot()
 
 		if (HeapType == ERHIDescriptorHeapType::Standard)
 		{
-			BindlessHandle = Device->GetBindlessDescriptorManager().AllocateDescriptor(ERHIDescriptorHeapType::Standard);
+			BindlessHandle = Device->GetBindlessDescriptorManager().Allocate(ERHIDescriptorHeapType::Standard);
 		}
 	}
 }
@@ -99,7 +99,7 @@ void FD3D12ViewDescriptorHandle::FreeDescriptorSlot()
 
 		if (BindlessHandle.IsValid())
 		{
-			Device->GetBindlessDescriptorManager().FreeDescriptor(BindlessHandle);
+			Device->GetBindlessDescriptorManager().DeferredFreeFromDestructor(BindlessHandle);
 			BindlessHandle = FRHIDescriptorHandle();
 		}
 	}

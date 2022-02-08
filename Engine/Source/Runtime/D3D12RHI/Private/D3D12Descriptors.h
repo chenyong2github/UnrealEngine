@@ -98,8 +98,9 @@ public:
 
 	void Init(uint32 InNumResourceDescriptors, uint32 InNumSamplerDescriptors);
 
-	FRHIDescriptorHandle AllocateDescriptor(ERHIDescriptorHeapType InType);
-	void FreeDescriptor(FRHIDescriptorHandle InHandle);
+	FRHIDescriptorHandle Allocate(ERHIDescriptorHeapType InType);
+	void ImmediateFree(FRHIDescriptorHandle InHandle);
+	void DeferredFreeFromDestructor(FRHIDescriptorHandle InHandle);
 
 	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
