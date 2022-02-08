@@ -7145,7 +7145,14 @@ bool VerifyWidgetLayerId_Recursive(SWidget& Widget, bool bInsideInvalidationRoot
 {
 	bool bResult = true;
 
-	bInsideInvalidationRoot = bInsideInvalidationRoot || Widget.Advanced_IsInvalidationRoot();
+	if (!bInsideInvalidationRoot)
+	{
+		if (const FSlateInvalidationRoot* AsInvalidationRoot = Widget.Advanced_AsInvalidationRoot())
+		{
+			bInsideInvalidationRoot = AsInvalidationRoot->GetLastPaintType() == ESlateInvalidationPaintType::Fast;
+		}
+	}
+
 	const uint32 LastPaintFrame = Widget.Debug_GetLastPaintFrame();
 	const bool bIsDeferredPaint = Widget.GetPersistentState().bDeferredPainting;
 	const int32 InLayerId = Widget.GetPersistentState().LayerId;

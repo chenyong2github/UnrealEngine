@@ -99,6 +99,7 @@ void SSlateOptions::Construct( const FArguments& InArgs )
 #if WITH_SLATE_DEBUGGING
 			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("VerifyParentChildrenRelationship", "Verify Parent/Children Relationship"), TEXT("Slate.VerifyParentChildrenRelationship"));
 			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("VerifyLayerId", "Verify LayerId"), TEXT("Slate.VerifyWidgetLayerId"));
+			AddMenuEntry(MenuBuilder, Icon, LOCTEXT("VerifyOutgoingLayerId", "Verify Outgoing LayerId"), TEXT("Slate.EnsureOutgoingLayerId"));
 #endif // WITH_SLATE_DEBUGGING
 
 			{
