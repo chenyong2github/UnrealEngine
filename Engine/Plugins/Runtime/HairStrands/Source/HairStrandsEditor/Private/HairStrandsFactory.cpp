@@ -82,6 +82,10 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 	{
 		// Load the alembic file upfront to preview & report any potential issue
 		FHairDescriptionGroups OutDescription;
+		bool bHasRootUV = false;
+		bool bHasPrecomputedWeights = false;
+		bool bHasColorAttributes = false;
+		bool bHasRoughnessAttributes = false;
 		{
 			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAssetForPreview", "Importing hair asset for preview..."), true);
 			Progress.MakeDialog(true);
@@ -93,7 +97,11 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			}
 
 			FGroomBuilder::BuildHairDescriptionGroups(HairDescription, OutDescription);
-		
+			bHasRootUV = HairDescription.HasRootUV();
+			bHasPrecomputedWeights = HairDescription.HasGuideWeights();
+			bHasColorAttributes = HairDescription.HasColorAttributes();
+			bHasRoughnessAttributes = HairDescription.HasRoughnessAttributes();
+
 			// Populate the interpolation settings based on the group count, as this is used later during the ImportHair() to define 
 			// the exact number of group to create
 			const uint32 GroupCount = OutDescription.HairGroups.Num();
@@ -113,7 +121,10 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 				OutGroup.GroupID	= Group.Info.GroupID;
 				OutGroup.CurveCount = Group.Info.NumCurves;
 				OutGroup.GuideCount = Group.Info.NumGuides;
-				OutGroup.bHasPrecomputedWeights = Group.Strands.StrandsCurves.HasPrecomputedWeights();
+				OutGroup.bHasRootUV = bHasRootUV;
+				OutGroup.bHasPrecomputedWeights = bHasPrecomputedWeights;
+				OutGroup.bHasColorAttributes = bHasColorAttributes;
+				OutGroup.bHasRoughnessAttributes = bHasRoughnessAttributes;
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{				

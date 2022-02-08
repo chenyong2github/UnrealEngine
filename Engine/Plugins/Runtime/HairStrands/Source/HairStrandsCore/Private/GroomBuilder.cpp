@@ -1394,6 +1394,40 @@ FORCEINLINE FIntVector VectorToIntVector(const FVector& Index)
 	return FIntVector(Index.X, Index.Y, Index.Z);
 }
 
+// These accessors are defined here to ease mirror logic with BuildHairDescriptionGroups, if any type/attributes changes
+bool FHairDescription::HasRootUV() const
+{
+	return StrandAttributes().GetAttributesRef<FVector2f>(HairAttribute::Strand::RootUV).IsValid();
+}
+
+bool FHairDescription::HasGuideWeights() const
+{
+	return
+		// Single
+		(StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClosestGuides).IsValid() && 
+		 StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::GuideWeights).IsValid())
+		||
+		// Triplet
+		(StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides).IsValid() &&
+		 StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights).IsValid());
+}
+
+bool FHairDescription::HasColorAttributes() const
+{
+	return
+		VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Color).IsValid() ||
+		StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::Color).IsValid() ||
+		GroomAttributes().GetAttributesRef<FVector3f>(HairAttribute::Groom::Color).IsValid();
+}
+
+bool FHairDescription::HasRoughnessAttributes() const
+{
+	return
+		VertexAttributes().GetAttributesRef<FVector3f>(HairAttribute::Vertex::Roughness).IsValid() ||
+		StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::Roughness).IsValid() ||
+		GroomAttributes().GetAttributesRef<FVector3f>(HairAttribute::Groom::Roughness).IsValid();
+}
+
 bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescription, FHairDescriptionGroups& Out)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildHairDescriptionGroups);

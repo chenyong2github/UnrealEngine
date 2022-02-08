@@ -31,6 +31,9 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 	: GroupID(0)
 	, CurveCount(0)
 	, GuideCount(0)
+	, bHasRootUV(false)
+	, bHasColorAttributes(false)
+	, bHasRoughnessAttributes(false)
 	, bHasPrecomputedWeights(false)
 	, InterpolationSettings()
 	{}
@@ -46,6 +49,15 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	int32 GuideCount;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	bool bHasRootUV;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	bool bHasColorAttributes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	bool bHasRoughnessAttributes;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	bool bHasPrecomputedWeights;

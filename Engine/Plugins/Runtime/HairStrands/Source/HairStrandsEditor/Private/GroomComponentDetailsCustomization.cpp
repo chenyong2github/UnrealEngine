@@ -203,38 +203,40 @@ static TSharedRef<SUniformGridPanel> MakeHairInfoGrid(const FSlateFontInfo& Deta
 }
 
 // Hair group custom display
+TSharedRef<SWidget> GetGroupNameWidget(const UGroomAsset* GroomAsset, int32 GroupIndex, const FLinearColor& GroupColor);
 void FGroomComponentDetailsCustomization::OnGenerateElementForHairGroup(TSharedRef<IPropertyHandle> StructProperty, int32 GroupIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
 {
 	const FSlateFontInfo DetailFontInfo = IDetailLayoutBuilder::GetDetailFont();
 
+	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
+	float OtherMargin = 2.0f;
+	float RightMargin = 10.0f;
+
+	const FLinearColor GroupColorBlock = GetHairGroupDebugColor(GroupIndex) * 0.75f;
+
 	ChildrenBuilder.AddCustomRow(LOCTEXT("HairInfo_Separator", "Separator"))
-	.NameContent()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SSeparator)
-			.Thickness(2)
-		]
-	]
-	.ValueContent()
+	.WholeRowContent()
+	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Fill)
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			SNew(SImage)
+			.Image(GenericBrush)
+			.ColorAndOpacity(GroupColorBlock)
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SSeparator)
-			.Thickness(2)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Right)
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(FText::Format(LOCTEXT("Group", "Group ID {0}"), FText::AsNumber(GroupIndex)))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(OtherMargin, OtherMargin, RightMargin, OtherMargin)
+			[
+				GetGroupNameWidget(GroomComponentPtr.IsValid() ? GroomComponentPtr->GroomAsset : nullptr, GroupIndex, FLinearColor::White)
+			]			
 		]
 	];
 

@@ -50,7 +50,6 @@ private:
 	FName& GetMaterialSlotName(int32 GroupIndex);
 	const FName& GetMaterialSlotName(int32 GroupIndex) const;
 	int32 GetGroupCount() const;
-	FName GetGroupName(int32 GroupIndex) const;
 
 	void AddNewGroupButton(IDetailCategoryBuilder& StrandsGroupFilesCategory, FProperty* Property, const FText& HeaderText);
 

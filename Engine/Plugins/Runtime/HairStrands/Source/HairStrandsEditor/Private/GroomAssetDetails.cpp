@@ -1250,7 +1250,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int
 	return SNullWidget::NullWidget;
 }
 
-FName FGroomRenderingDetails::GetGroupName(int32 GroupIndex) const
+static FName GetGroupName(const UGroomAsset* GroomAsset, int32 GroupIndex)
 {
 	if (GroomAsset && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsInfo.Num())
 	{
@@ -1259,7 +1259,26 @@ FName FGroomRenderingDetails::GetGroupName(int32 GroupIndex) const
 	return NAME_None;
 }
 
-TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 GroupIndex, const FLinearColor& GroupColor)
+TSharedRef<SWidget> GetGroupNameWidget(const UGroomAsset* GroomAsset, int32 GroupIndex, const FLinearColor& GroupColor)
+{
+	FName GroupName = GetGroupName(GroomAsset, GroupIndex);
+	if (GroupName != NAME_None)
+	{
+		return SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.ColorAndOpacity(GroupColor)
+			.Text(FText::Format(LOCTEXT("GroupWithName", "Group ID {0} - {1}"), FText::AsNumber(GroupIndex), FText::FromName(GroupName)));
+	}
+	else
+	{
+		return SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.ColorAndOpacity(GroupColor)
+			.Text(FText::Format(LOCTEXT("GroupWithoutName", "Group ID {0}"), FText::AsNumber(GroupIndex)));
+	}
+}
+
+TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 GroupIndex, const FLinearColor& GroupTextColor)
 {
 	switch (PanelType)
 	{
@@ -1267,7 +1286,7 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 	{
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(GroupColor)
+			.ColorAndOpacity(GroupTextColor)
 			.Text(FText::Format(LOCTEXT("Cards", "Cards {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
@@ -1275,27 +1294,13 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 	{
 		return SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(GroupColor)
+			.ColorAndOpacity(GroupTextColor)
 			.Text(FText::Format(LOCTEXT("Meshes", "Meshes {0} "), FText::AsNumber(GroupIndex)));
 	}
 	break;
 	default:
 	{
-		FName GroupName = GetGroupName(GroupIndex);
-		if (GroupName != NAME_None)
-		{
-			return SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ColorAndOpacity(GroupColor)
-				.Text(FText::Format(LOCTEXT("GroupWithName", "Group ID {0} - {1}"), FText::AsNumber(GroupIndex), FText::FromName(GroupName)));
-		}
-		else
-		{
-			return SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ColorAndOpacity(GroupColor)
-				.Text(FText::Format(LOCTEXT("GroupWithoutName", "Group ID {0}"), FText::AsNumber(GroupIndex)));
-		}
+		return GetGroupNameWidget(GroomAsset, GroupIndex, GroupTextColor);
 	}
 	break;
 	}
