@@ -453,6 +453,8 @@ void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World, EMaterialSha
 	TSet<UMaterialInterface*> MaterialsToCache;
 	FObjectCacheContextScope ObjectCacheScope;
 
+	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
+
 	for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
 	{
 		if (World && !World->ContainsActor(PrimitiveComponent->GetOwner()))
@@ -486,6 +488,9 @@ void UMaterialInterface::SubmitRemainingJobsForWorld(UWorld* World, EMaterialSha
 
 	for (UMaterialInterface* Material : MaterialsToCache)
 	{
+		// This is needed because CacheShaders blindly recreates uniform buffers
+		// which can only be done if the draw command is going to be re-cached.
+		UpdateContext.AddMaterialInterface(Material);
 		Material->CacheShaders(CompileMode);
 	}
 }

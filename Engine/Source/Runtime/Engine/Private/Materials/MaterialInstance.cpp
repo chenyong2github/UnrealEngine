@@ -1985,8 +1985,6 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 		check(IsA(UMaterialInstanceConstant::StaticClass()));
 		UMaterial* BaseMaterial = GetMaterial();
 
-		bool bCachedShaders{ false };
-
 		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
 		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 
@@ -2001,12 +1999,6 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 			// register the loaded shadermap
 			FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, this, FeatureLevel, ActiveQualityLevel);
 			check(CurrentResource);
-
-			// If this resource is complete there is nothing to do here.
-			if (CurrentResource->IsGameThreadShaderMapComplete())
-			{
-				continue;
-			}
 
 #if STORE_ONLY_ACTIVE_SHADERMAPS
 			if (!CurrentResource->GetGameThreadShaderMap())
@@ -2028,11 +2020,6 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 			ResourcesToCache.Reset();
 			ResourcesToCache.Add(CurrentResource);
 			CacheShadersForResources(ShaderPlatform, ResourcesToCache, PrecompileMode);
-			bCachedShaders = true;
-		}
-
-		if (bCachedShaders)
-		{
 			RecacheUniformExpressions(true);
 		}
 	}
