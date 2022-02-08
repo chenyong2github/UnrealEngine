@@ -4352,6 +4352,7 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 		FBox RecastBox = Unreal2RecastBox(WorldBox);
 		FVector RecastPos;
 		FVector RecastExtent;
+		RecastBox.GetCenterAndExtents(RecastPos, RecastExtent);
 		check(OutMaskArray.Num() == SolidHF->width*SolidHF->height);
 		MarkBoxMask(&(RecastPos.X), &(RecastExtent.X), Mask, *SolidHF, OutMaskArray.GetData());
 	}
