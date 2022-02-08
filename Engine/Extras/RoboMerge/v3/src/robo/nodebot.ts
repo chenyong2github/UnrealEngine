@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/node';
 import { _nextTick } from '../common/helper';
 import { ContextualLogger } from '../common/logger';
 import { Mailer, MailParams, Recipients } from '../common/mailer';
-import { Change, ConflictedResolveNFile, PerforceContext, RoboWorkspace } from '../common/perforce';
+import { Change, ConflictedResolveNFile, PerforceContext, RoboWorkspace, coercePerforceWorkspace } from '../common/perforce';
 import { IPCControls, NodeBotInterface, QueuedChange, ReconsiderArgs } from './bot-interfaces';
 import { ApprovalOptions } from './branchdefs'
 import { BlockagePauseInfo, BranchStatus } from './status-types';
@@ -1332,12 +1332,23 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		optOwnerOverride?: string, optWorkspaceOverride?: RoboWorkspace, optTargetBranch?: Branch | null
 	) : Promise<EdgeMergeResults> {
 		const result = await this._createChangeInfo(change, availableEdges, optOwnerOverride, optWorkspaceOverride, optTargetBranch)
-		if (result.info) {
-			return await this._mergeClViaEdges(availableEdges, result.info, ignoreEdgePauseState)
+		if (!result.info) {
+			const emResult = new EdgeMergeResults()
+			emResult.errors = result.errors
+			return emResult
 		}
-		const emResult = new EdgeMergeResults()
-		emResult.errors = result.errors
-		return emResult
+
+		// should also do this for #manual changes (set up some testing around those first)
+		if (change.forceCreateAShelf && optWorkspaceOverride) {
+			// see if we need to talk to an edge server to create the shelf
+			const edgeServer = await this.p4.getWorkspaceEdgeServer(
+				coercePerforceWorkspace(optWorkspaceOverride)!.name)
+			if (edgeServer) {
+				change.edgeServerToHostShelf = edgeServer
+			}
+		}
+
+		return await this._mergeClViaEdges(availableEdges, result.info, ignoreEdgePauseState)
 	}
 
 	private async _createChangeInfo(
@@ -1582,6 +1593,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// By default, we should perform any submit that comes from a change.
 		// If the change is setup to be forcibly shelved, honor it
 		let forceCreateAShelf = !!change.forceCreateAShelf
+		let edgeServerToHostShelf = change.edgeServerToHostShelf
 		let sendNoShelfEmail = !!change.sendNoShelfEmail
 
 		let forceStompChanges = !!change.forceStompChanges
@@ -1595,8 +1607,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			source: parsedLines.source,
 			description,
 			propagatingNullMerge: parsedLines.propagatingNullMerge,
-			forceCreateAShelf,
-			sendNoShelfEmail,
+			forceCreateAShelf, edgeServerToHostShelf, sendNoShelfEmail,
 
 			forceStompChanges, additionalDescriptionText,
 			hasOkForGithubTag: parsedLines.hasOkForGithubTag,

@@ -144,6 +144,10 @@ export interface ChangeInfo extends TargetInfo {
 
 	propagatingNullMerge: boolean
 	forceCreateAShelf: boolean
+	edgeServerToHostShelf?: {
+		id: string
+		address: string
+	}
 	overriddenCommand: string
 	macros: string[]
 	hasOkForGithubTag: boolean

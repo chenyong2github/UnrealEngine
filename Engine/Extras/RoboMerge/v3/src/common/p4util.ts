@@ -169,7 +169,7 @@ export async function convertIntegrateToEdit(p4: PerforceContext, roboWorkspace:
 	}
 }
 
-export async function cleanWorkspaces(p4: PerforceContext, workspaces: [string, string][]) {
+export async function cleanWorkspaces(p4: PerforceContext, workspaces: [string, string][], edgeServerAddress?: string) {
 	const changes = await p4.get_pending_changes() as Change[]
 
 	const nameSet = new Set(workspaces.map(([name, _]) => name))
@@ -215,5 +215,5 @@ export async function cleanWorkspaces(p4: PerforceContext, workspaces: [string, 
 	}
 
 	p4utilsLogger.info('Resetting all workspaces to revision 0')
-	await Promise.all(workspaces.map(([name, root]) => p4.sync(name, root + '#0')))
+	await Promise.all(workspaces.map(([name, root]) => p4.sync(name, root + '#0', undefined, edgeServerAddress)))
 }
