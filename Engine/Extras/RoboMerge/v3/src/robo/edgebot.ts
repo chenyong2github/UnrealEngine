@@ -292,18 +292,6 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return results
 	}
 
-	private async handleIntegrationError(failure: Failure, pending: PendingChange) {
-		// Revert on Integration Error
-		if (pending.newCl > 0) {
-			await this.revertAndDelete(pending.newCl)
-			pending.newCl = -1
-		}
-		
-		// Pause Edge
-		const pauseInfo = this.createEdgeBlockageInfo(failure, pending)
-		this.block(pauseInfo, FAILED_CHANGELIST_PAUSE_TIMEOUT_SECONDS)
-	}
-
 	/** Handle any failures after a successful integration, e.g. conflicts or submit errors */
 	private async handlePostIntegrationFailure(failure: Failure, pending: PendingChange) {
 		const logMessage = `Post-integration failure while integrating CL ${pending.change.cl} to ${this.branch.name}`
@@ -540,8 +528,19 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		else {
 			failure  = { kind: 'Integration error', description }
 		}
+
+		// Revert attempt
+		if (pending.newCl > 0) {
+			await this.revertAndDelete(pending.newCl)
+			pending.newCl = -1
+		}
 		
-		await this.handleIntegrationError(failure, pending)
+		if (!pending.change.userRequest) {
+			// Pause Edge
+			const pauseInfo = this.createEdgeBlockageInfo(failure, pending)
+			this.block(pauseInfo, FAILED_CHANGELIST_PAUSE_TIMEOUT_SECONDS)
+		}
+
 		// Send to source node to facilitate notification handling
 		if (this.sourceNode.handleMergeFailure(failure, pending)) {
 			this.gate.onBlockage()
@@ -612,18 +611,45 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				}
 			}
 		}
-
-		if (!failure) {
+		else
+		{
+			// no conflicts, try to submit
 			const result = await this.submitChangelist(pending, submitRetries)
 			if (result.result !== 'error') {
 				return result
 			}
 
-			failure = { kind: 'Commit failure', description: result.message }
+			// todo: lock a target stream in the tests, print error message
+			// or lock a test stream and try to commit
+			// then look for error message in result.message
+			if (!this.options.approval) {
+				failure = { kind: 'Commit failure', description: result.message }
+			}
 		}
 
-		await this.handlePostIntegrationFailure(failure, pending)
-		await this.sourceNode.handleMergeFailure(failure, pending, true)
+		// no failure set means the change needs approval
+		if (failure) {
+			await this.handlePostIntegrationFailure(failure, pending)
+			this.sourceNode.handleMergeFailure(failure, pending, true)
+		}
+		else {
+			const approval = this.options.approval!
+
+			// shelve
+			await this.shelveChangelist(pending)
+
+			// still notify as a 'failure' to trigger normal blockage mechanism
+			failure = { kind: 'Approval required', description: approval.description }
+
+			// pause this bot
+			this.block(this.createEdgeBlockageInfo(failure, pending))
+			this.sourceNode.findOrCreateBlockage(failure, pending,
+				`Integration of CL#${pending.change.cl} to ${pending.action.branch.name} needs approval: ${approval.description}`,
+				{
+					group: approval.group,
+					shelfCl: pending.newCl
+				});
+		}
 
 		return new EdgeIntegrationDetails('error', `${failure.kind}: ${failure.description}`)
 	}

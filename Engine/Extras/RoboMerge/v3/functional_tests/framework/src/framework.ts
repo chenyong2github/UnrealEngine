@@ -193,6 +193,11 @@ type EdgeOptionFields = {
 	invertIntegrationWindow: boolean
 
 	implicitCommands: string[]
+
+	approval: {
+		description: string,
+		group: string
+	}
 }
 
 export type EdgeProperties = Partial<EdgeOptionFields> & {
@@ -646,6 +651,15 @@ export abstract class FunctionalTest {
 	wasMessagePostedToSlack(channel: string, cl: number) {
 		return getJson(DUMMY_SLACK_DOMAIN + '/posted/' + channel)
 			.then((cls: number[]) => cls.indexOf(cl) >= 0)
+	}
+
+	async ensureConflictMessagePostedToSlack(sourceStream: string, targetStream: string) {
+		const edgeDisplayName = `${sourceStream} -> ${targetStream}`
+		this.info(`Ensuring conflict message sent for ${edgeDisplayName}`)
+		const edgeState = await this.getEdgeState('Release', 'Main')
+		if (!this.wasMessagePostedToSlack(this.botName.toLowerCase(), edgeState.conflictCl)) {
+			throw new Error(`no message sent for CL#${edgeState.conflictCl}`)
+		}
 	}
 
 	async verifyAndPerformStomp(source: string, target: string, additionalSlackChannel?: string) {

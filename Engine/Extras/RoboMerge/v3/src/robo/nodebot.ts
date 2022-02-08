@@ -1832,30 +1832,34 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			message += '\n' + failure.summary 
 			this._sendError(new Recipients(owner), shortMessage, message)
+			return false
 		}
-		else {
-			// see if we've already sent an email for this one
-			const existingBlockage = this.conflicts.find(targetBranch, pending.change.source_cl)
-			const blockageOccurred = existingBlockage ? existingBlockage.time : new Date
 
-			const ownerEmail = this.p4.getEmail(owner)
-			const blockage: Blockage = {change: pending.change, action: pending.action, failure, owner, ownerEmail, time: blockageOccurred}
+		return this.findOrCreateBlockage(failure, pending, shortMessage)
+	}
 
-			if (existingBlockage) {
-				this.nodeBotLogger.info(shortMessage + ' (already notified)')
+	findOrCreateBlockage(failure: Failure, pending: PendingChange, shortMessage: string, approval?: {group: string, shelfCl: number}) {
+		const owner = getIntegrationOwner(pending) || pending.change.author
 
-				this.conflicts.updateBlockage(blockage)
-			}
-			else {
-				if (this.tickJournal && (failure.kind === 'Merge conflict' || failure.kind === 'Exclusive check-out')) {
-					++this.tickJournal.conflicts;
-				}
+		// see if we've already created a notification for this one
+		const existingBlockage = this.conflicts.find(pending.action.branch, pending.change.source_cl)
+		const blockageOccurred = existingBlockage ? existingBlockage.time : new Date
 
-				this.conflicts.onBlockage(blockage)
-				return true
-			}
+		const ownerEmail = this.p4.getEmail(owner)
+		const blockage: Blockage = {change: pending.change, action: pending.action, failure, owner, ownerEmail, time: blockageOccurred, approval}
+
+		if (existingBlockage) {
+			this.nodeBotLogger.info(shortMessage + ' (already notified)')
+
+			this.conflicts.updateBlockage(blockage)
+			return false
 		}
-		return false
+		if (this.tickJournal && (failure.kind === 'Merge conflict' || failure.kind === 'Exclusive check-out')) {
+			++this.tickJournal.conflicts;
+		}
+
+		this.conflicts.onBlockage(blockage)
+		return true
 	}
 
 	private sendNagEmails() {

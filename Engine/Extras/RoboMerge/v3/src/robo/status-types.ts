@@ -24,6 +24,7 @@ export type FailureKind =
 	'Syntax error' |
 	'Disallowed files' |
 	'Too many files' |
+	'Approval required' |
 	'Conversion to edits failure' |
 	'Unit Test error'
 

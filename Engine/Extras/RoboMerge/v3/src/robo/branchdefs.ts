@@ -135,7 +135,12 @@ const edgeOptionFieldsPrototype = {
 	terminal: false, // changes go along terminal edges but no further
 	doHackyOkForGithubThing: false,
 
-	implicitCommands: ['']
+	implicitCommands: [''],
+
+	approval: {
+		description: '',
+		group: ''
+	}
 }
 
 const edgeOptionFieldNames: ReadonlySet<string> = new Set(Object.keys(edgeOptionFieldsPrototype));

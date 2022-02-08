@@ -397,7 +397,7 @@ export class BotNotifications implements BotEventHandler {
 			return
 		}
 
-		const cl = changeInfo.cl
+		const cl = blockage.approval ? blockage.approval.shelfCl : changeInfo.cl
 
 		// TODO: Support DMs if we don't have a channel configured
 		if (!this.slackMessages) {
@@ -420,9 +420,11 @@ export class BotNotifications implements BotEventHandler {
 		const channelPing = userEmail ? blockage.owner : `@${blockage.owner}`
 
 		const isBotUser = isUserAKnownBot(blockage.owner)
-		const text = isBotUser ? `Blockage caused by \`${blockage.owner}\` commit!` :
-			blockage.failure.kind === 'Too many files' ? `${channelPing}, please request a shelf for this large changelist` :
-			`${channelPing}, please resolve the following ${issue}:`
+		const text =
+			blockage.approval ?								`${channelPing}'s change needs to be approved by @${blockage.approval.group}` :
+			isBotUser ? 									`Blockage caused by \`${blockage.owner}\` commit!` :
+			blockage.failure.kind === 'Too many files' ?	`${channelPing}, please request a shelf for this large changelist` :
+															`${channelPing}, please resolve the following ${issue}:`
 
 		const message = this.makeSlackChannelMessage(
 			`${sourceBranch.name} blocked! (${issue})`,

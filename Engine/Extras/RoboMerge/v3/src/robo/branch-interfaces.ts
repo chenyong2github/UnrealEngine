@@ -167,7 +167,10 @@ export interface Blockage {
 	failure: Failure
 	owner: string
 	ownerEmail: Promise<string | null>
-
+	approval?: {
+		group: string
+		shelfCl: number
+	}
 	time: Date
 }
 export type NodeOpUrlGenerator = (blockage: Blockage | null) => BlockageNodeOpUrls | null
