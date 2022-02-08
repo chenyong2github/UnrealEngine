@@ -366,11 +366,11 @@ FText UCSGMeshesTool::GetActionName() const
 {
 	if (bTrimMode)
 	{
-		return LOCTEXT("CSGMeshes", "Trim Meshes");
+		return LOCTEXT("TrimActionName", "Trim Meshes");
 	}
 	else
 	{
-		return LOCTEXT("CSGMeshes", "Boolean Meshes");
+		return LOCTEXT("BooleanActionName", "Boolean Meshes");
 	}
 }
 

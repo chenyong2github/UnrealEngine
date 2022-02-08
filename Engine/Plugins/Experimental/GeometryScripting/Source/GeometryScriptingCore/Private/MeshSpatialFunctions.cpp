@@ -264,7 +264,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::IsPointInsideMesh(
 
 	if (!bHaveValidBVH)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("FindNearestRayIntersectionWithMesh_InvalidBVH", "FindNearestRayIntersectionWithMesh: QueryBVH is Invalid for this TargetMesh."));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("IsPointInsideMesh_InvalidBVH", "IsPointInsideMesh: QueryBVH is Invalid for this TargetMesh"));
 	}
 
 	return TargetMesh;
