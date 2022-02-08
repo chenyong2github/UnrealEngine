@@ -1283,11 +1283,11 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets()
 			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 
 		GroupIndices.Reset();
-		for (const FName& SequenceGroupName : Sequence.Groups)
+		for (const FGameplayTag& SequenceGroupTag : Sequence.GroupTags)
 		{
 			const int32 SequenceGroupIndex = Groups.IndexOfByPredicate([&](const FPoseSearchDatabaseGroup& DatabaseGroup)
 			{
-				return DatabaseGroup.Name == SequenceGroupName;
+				return DatabaseGroup.Tag == SequenceGroupTag;
 			});
 
 			// we don't add INDEX_NONE because index none represents a choice to use the default group by not adding
@@ -1297,7 +1297,7 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets()
 			{
 				BadGroupSequenceIndices.Add(SequenceIdx);
 			}
-			else
+			else if (Groups[SequenceGroupIndex].bUseGroupWeights)
 			{
 				GroupIndices.Add(SequenceGroupIndex);
 			}
@@ -3125,7 +3125,6 @@ void FSequenceIndexer::AddMetadata(int32 SampleIdx)
 	}
 }
 
-
 //////////////////////////////////////////////////////////////////////////
 // PoseSearch API
 
@@ -4058,8 +4057,19 @@ FSearchResult Search(FSearchContext& SearchContext)
 	FPoseCost BestPoseCost;
 	int32 BestPoseIdx = INDEX_NONE;
 
+	const UPoseSearchDatabase* Database = SearchContext.GetSourceDatabase();
+
 	for (const FPoseSearchIndexAsset& Asset : SearchIndex->Assets)
 	{
+		if (Database && SearchContext.DatabaseTagQuery)
+		{
+			const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[Asset.SourceAssetIdx];
+			if (!SearchContext.DatabaseTagQuery->Matches(DbSequence.GroupTags))
+			{
+				continue;
+			}
+		}
+
 		const int32 EndIndex = Asset.FirstPoseIdx + Asset.NumPoses;
 		for (int32 PoseIdx = Asset.FirstPoseIdx; PoseIdx < EndIndex; ++PoseIdx)
 		{

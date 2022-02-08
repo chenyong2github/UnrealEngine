@@ -48,6 +48,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// Execute core motion matching algorithm and retain across frame state
 	UpdateMotionMatchingState(Context
 		, Database
+		, bUseDatabaseTagQuery ? &DatabaseTagQuery : nullptr
 		, Trajectory
 		, Settings
 		, MotionMatchingState

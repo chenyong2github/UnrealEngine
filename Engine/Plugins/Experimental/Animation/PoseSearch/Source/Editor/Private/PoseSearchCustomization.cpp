@@ -37,15 +37,26 @@
 
 void FPoseSearchDatabaseGroupCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	TSharedPtr<IPropertyHandle> NamePropertyHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FPoseSearchDatabaseGroup, Name));
 	FText NamePropertyText;
-	NamePropertyHandle->GetValueAsFormattedText(NamePropertyText);
+
+	TArray<UObject*> Objects;
+	InStructPropertyHandle->GetOuterObjects(Objects);
+	if (Objects.Num() == 1)
+	{
+		FPoseSearchDatabaseGroup* PoseSearchDatabaseGroup = (FPoseSearchDatabaseGroup*)InStructPropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
+		NamePropertyText = FText::FromString(PoseSearchDatabaseGroup->Tag.ToString());
+	}
+	else
+	{
+		TSharedPtr<IPropertyHandle> NamePropertyHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FPoseSearchDatabaseGroup, Tag));
+		NamePropertyHandle->GetValueAsFormattedText(NamePropertyText);
+	}
 
 	HeaderRow
 	.NameContent()
 	[
 		SNew(STextBlock)
-		.Text(NamePropertyText)
+		.Text(NamePropertyText) 
 	]
 	.ValueContent()
 	[
@@ -64,10 +75,10 @@ void FPoseSearchDatabaseGroupCustomization::CustomizeChildren(TSharedRef<IProper
 {
 	uint32 NumChildren;
 	InStructPropertyHandle->GetNumChildren(NumChildren);
-
 	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 	{
-		StructBuilder.AddProperty(InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef());
+		TSharedPtr<IPropertyHandle> ChildPropertyHandle = InStructPropertyHandle->GetChildHandle(ChildIndex);
+		StructBuilder.AddProperty(ChildPropertyHandle.ToSharedRef());
 	}
 }
 
@@ -89,7 +100,7 @@ void FPoseSearchDatabaseSequenceCustomization::CustomizeHeader(TSharedRef<IPrope
 		
 		SequenceNameString = PoseSearchDatabaseSequence->Sequence->GetName();
 		
-		const int32 NumGroups = PoseSearchDatabaseSequence->Groups.Num();
+		const int32 NumGroups = PoseSearchDatabaseSequence->GroupTags.Num();
 		if (NumGroups == 0)
 		{
 			GroupsString.Append(TEXT("Default"));
@@ -98,7 +109,7 @@ void FPoseSearchDatabaseSequenceCustomization::CustomizeHeader(TSharedRef<IPrope
 		{
 			for (int i = 0; i < NumGroups; ++i)
 			{
-				GroupsString.Append(PoseSearchDatabaseSequence->Groups[i].ToString());
+				GroupsString.Append(PoseSearchDatabaseSequence->GroupTags.GetByIndex(i).ToString());
 				if (i < NumGroups - 1)
 				{
 					GroupsString.Append(TEXT(" | "));

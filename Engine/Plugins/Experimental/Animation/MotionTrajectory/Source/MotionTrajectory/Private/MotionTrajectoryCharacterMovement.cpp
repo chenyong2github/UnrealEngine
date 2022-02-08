@@ -185,12 +185,12 @@ void UCharacterMovementTrajectoryComponent::PredictTrajectory(
 			AccumulatedSeconds += IntegrationDelta;
 			Sample.AccumulatedSeconds = AccumulatedSeconds;
 
+			OutTrajectoryRange.Samples.Add(Sample);
+
 			if (FMath::IsNearlyEqual(FMath::Abs(Sample.AccumulatedDistance - PreviousSample.AccumulatedDistance), SMALL_NUMBER))
 			{
 				break;
 			}
-
-			OutTrajectoryRange.Samples.Add(Sample);
 
 			if (((Settings.Domain & DistanceDomainMask) == DistanceDomainMask)
 				&& (Settings.Distance > 0.f)

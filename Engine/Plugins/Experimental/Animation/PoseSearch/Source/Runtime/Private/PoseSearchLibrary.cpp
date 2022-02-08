@@ -224,6 +224,7 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 void UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const UPoseSearchDatabase* Database,
+	const FGameplayTagQuery* DatabaseTagQuery,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
 	FMotionMatchingState& InOutMotionMatchingState
@@ -280,6 +281,7 @@ void UpdateMotionMatchingState(
 	SearchContext.SetSource(InOutMotionMatchingState.CurrentDatabase.Get());
 	SearchContext.QueryValues = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
 	SearchContext.WeightsContext = &InOutMotionMatchingState.WeightsContext;
+	SearchContext.DatabaseTagQuery = DatabaseTagQuery;
 	if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset())
 	{
 		SearchContext.QueryMirrorRequest =
@@ -412,7 +414,13 @@ void UPoseSearchLibrary::UpdateMotionMatchingForSequencePlayer(
 			InOutMotionMatchingState.AssetPlayerTime = SequencePlayerNode->GetAccumulatedTime();
 
 			// Execute core motion matching algorithm and retain across frame state
-			UpdateMotionMatchingState(*AnimationUpdateContext, Database, Trajectory, Settings, InOutMotionMatchingState);
+			UpdateMotionMatchingState(
+				*AnimationUpdateContext, 
+				Database, 
+				nullptr, // DatabaseTagQuery
+				Trajectory, 
+				Settings, 
+				InOutMotionMatchingState);
 
 			// If a new pose is requested, jump to the pose by updating the embedded sequence player node
 			if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)

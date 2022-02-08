@@ -15,6 +15,7 @@
 #include "Animation/MotionTrajectoryTypes.h"
 #include "AlphaBlend.h"
 #include "BoneIndices.h"
+#include "GameplayTagContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
 #include "PoseSearch.generated.h"
@@ -662,7 +663,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	bool bLoopFollowUpAnimation = false;
 
 	UPROPERTY(EditAnywhere, Category = "Group")
-	TArray<FName> Groups;
+	FGameplayTagContainer GroupTags;
 
 	FFloatInterval GetEffectiveSamplingRange() const;
 };
@@ -671,11 +672,15 @@ USTRUCT()
 struct POSESEARCH_API FPoseSearchDatabaseGroup
 {
 	GENERATED_BODY()
-public:
-	UPROPERTY(EditAnywhere, Category = "Database")
-	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = "Database")
+public:
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FGameplayTag Tag;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bUseGroupWeights = false;
+
+	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditCondition="bUseGroupWeights", EditConditionHides))
 	FPoseSearchWeightParams Weights;
 };
 
@@ -741,7 +746,6 @@ public:
 	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
 	bool TryInitSearchIndexAssets();
 };
-
 
 /** 
 * Helper object for writing features into a float buffer according to a feature vector layout.
@@ -958,12 +962,14 @@ struct POSESEARCH_API FSearchContext
 	TArrayView<const float> QueryValues;
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
 	const FPoseSearchWeightsContext* WeightsContext = nullptr;
+	const FGameplayTagQuery* DatabaseTagQuery = nullptr;
 	FDebugDrawParams DebugDrawParams;
 
 	void SetSource(const UPoseSearchDatabase* InSourceDatabase);
 	void SetSource(const UAnimSequenceBase* InSourceSequence);
 	const FPoseSearchIndex* GetSearchIndex() const;
 	float GetMirrorMismatchCost() const;
+	const UPoseSearchDatabase* GetSourceDatabase() { return SourceDatabase; }
 
 private:
 	const UPoseSearchDatabase* SourceDatabase = nullptr;
@@ -971,7 +977,6 @@ private:
 	const FPoseSearchIndex* SearchIndex = nullptr;
 	float MirrorMismatchCost = 0.0f;
 };
-
 
 /**
 * Visualize pose search debug information

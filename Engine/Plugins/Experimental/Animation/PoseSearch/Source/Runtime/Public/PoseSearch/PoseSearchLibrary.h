@@ -136,6 +136,7 @@ struct POSESEARCH_API FMotionMatchingState
 */
 POSESEARCH_API void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 	, const UPoseSearchDatabase* Database
+	, const FGameplayTagQuery* DatabaseTagQuery
 	, const FTrajectorySampleRange& Trajectory
 	, const FMotionMatchingSettings& Settings
 	, FMotionMatchingState& InOutMotionMatchingState
