@@ -769,9 +769,9 @@ bool URigVMMemoryStorage::CopyProperty(
 				FScriptArrayHelper TargetArray(TargetArrayProperty, InTargetPtr);
 				FScriptArrayHelper SourceArray(SourceArrayProperty, InSourcePtr);
 				
-				if(TargetArrayProperty->IsA<FFloatProperty>())
+				if(TargetArrayProperty->Inner->IsA<FFloatProperty>())
 				{
-					if(SourceArrayProperty->IsA<FDoubleProperty>())
+					if(SourceArrayProperty->Inner->IsA<FDoubleProperty>())
 					{
 						TargetArray.Resize(SourceArray.Num());
 						for(int32 Index=0;Index<TargetArray.Num();Index++)
@@ -783,9 +783,9 @@ bool URigVMMemoryStorage::CopyProperty(
 						return true;
 					}
 				}
-				else if(TargetArrayProperty->IsA<FDoubleProperty>())
+				else if(TargetArrayProperty->Inner->IsA<FDoubleProperty>())
 				{
-					if(SourceArrayProperty->IsA<FFloatProperty>())
+					if(SourceArrayProperty->Inner->IsA<FFloatProperty>())
 					{
 						TargetArray.Resize(SourceArray.Num());
 						for(int32 Index=0;Index<TargetArray.Num();Index++)
@@ -804,9 +804,20 @@ bool URigVMMemoryStorage::CopyProperty(
 		// between two properties which are not compatible
 		if(!InTargetProperty->SameType(InSourceProperty))
 		{
+			FString TargetType, SourceType, TargetExtendedType, SourceExtendedType;
+			TargetType = InTargetProperty->GetCPPType(&TargetExtendedType);
+			SourceType = InSourceProperty->GetCPPType(&SourceExtendedType);
+			TargetType += TargetExtendedType;
+			SourceType += SourceExtendedType;
+
 			UPackage* Package = InTargetProperty->GetOutermost();
 			check(Package);
-			UE_LOG(LogRigVM, Warning, TEXT("Failed to copy %s to %s (%s)"), *InTargetProperty->GetName(), *InSourceProperty->GetName(), *Package->GetName());
+			UE_LOG(LogRigVM, Warning, TEXT("Failed to copy %s (%s) to %s (%s) in package %s"),
+				*InSourceProperty->GetName(),
+				*SourceType,
+				*InTargetProperty->GetName(), 
+				*TargetType,
+				*Package->GetName());
 			return false;
 		}
 	}

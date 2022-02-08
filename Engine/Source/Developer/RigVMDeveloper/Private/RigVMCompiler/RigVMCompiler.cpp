@@ -1077,15 +1077,36 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						return;
 					}
 
+					FString SegmentPath = Pin->GetSegmentPath(false);
+
+					// for select nodes we create a register for each case (since the cases are fixed in size)
+					// thus we do not need to setup a registeroffset for the array element.
 					if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(RootPin->GetNode()))
 					{
-						if (Pin->GetParentPin() == RootPin && RootPin->GetName() == URigVMSelectNode::ValueName)
+						if(RootPin->GetName() == URigVMSelectNode::ValueName)
 						{
-							return;
+							if (Pin->GetParentPin() == RootPin)
+							{
+								return;
+							}
+
+							// if the pin is a sub pin of a case of the select (for example: Values.0.Translation)
+							// we'll need to re-adjust the root pin to the case pin (for example: Values.0)
+							TArray<FString> SegmentPathPaths;
+							if(ensure(URigVMPin::SplitPinPath(SegmentPath, SegmentPathPaths)))
+							{
+								RootPin = RootPin->FindSubPin(SegmentPathPaths[0]);
+
+								SegmentPathPaths.RemoveAt(0);
+								ensure(SegmentPathPaths.Num() > 0);
+								SegmentPath = URigVMPin::JoinPinPath(SegmentPathPaths);
+							}
+							else
+							{
+								return;
+							}
 						}
 					}
-
-					FString SegmentPath = Pin->GetSegmentPath();
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
