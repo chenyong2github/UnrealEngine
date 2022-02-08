@@ -42,6 +42,7 @@ float InternalTraverseHair(uint2 PixelCoord, float3 RayOrigin, float3 RayDirecti
 	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
+	CommonDesc.PageResolutionLog2 = VirtualVoxel.PageResolutionLog2;
 
 	const float3 P0 = RayOrigin;
 	const float3 P1 = RayOrigin + RayDirection * (HitT>=0 ? min(HitT, DistanceThreshold) : DistanceThreshold);

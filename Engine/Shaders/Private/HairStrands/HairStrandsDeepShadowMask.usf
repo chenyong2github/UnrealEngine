@@ -468,6 +468,7 @@ void MainPS(
 		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
 		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
 		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
+		CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;
 
 		#if VOXEL_TRAVERSAL_DEBUG
 		const bool bDebugEnabled = PixelCoord.x == GetCursorPos().x && PixelCoord.y == GetCursorPos().y;

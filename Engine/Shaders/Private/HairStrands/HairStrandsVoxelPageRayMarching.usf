@@ -315,6 +315,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		CommonDesc.VoxelWorldSize		= VirtualVoxel.VoxelWorldSize;
 		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
 		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
+		CommonDesc.PageResolutionLog2	= VirtualVoxel.PageResolutionLog2;
 
 		if (bIsNodeValid)
 		{

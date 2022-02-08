@@ -90,6 +90,7 @@ void TraceHairVoxels(
 	CommonDesc.VoxelWorldSize = VirtualVoxel.VoxelWorldSize;
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
+	CommonDesc.PageResolutionLog2 = VirtualVoxel.PageResolutionLog2;
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 	TraversalSettings.DensityScale = bIsReflectionTracing ? VirtualVoxel.DensityScale_Shadow : VirtualVoxel.DensityScale_Environment;

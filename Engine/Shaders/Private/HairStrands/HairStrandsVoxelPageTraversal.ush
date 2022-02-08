@@ -219,18 +219,17 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 		{
 			const float SteppingWorldSize = max(DeltaWorld * StepScale, InSettings.TanConeAngle * StepIt * InCommonDesc.VoxelWorldSize);
 			const float3 HitP = O + StepIt * D + InSettings.JitterScale * RandomStepJitter * SteppingWorldSize * 0.5f;
-			
-			const float3 NormalizedPos  = saturate((HitP - InNodeDesc.TranslatedWorldMinAABB) / (InNodeDesc.TranslatedWorldMaxAABB - InNodeDesc.TranslatedWorldMinAABB));
-			const uint3  VolumeCoord    = min(NormalizedPos * InNodeDesc.VirtualResolution, InNodeDesc.VirtualResolution-1u);
-			const uint3  PageIndexCoord = min(NormalizedPos * InNodeDesc.PageIndexResolution, InNodeDesc.PageIndexResolution-1u);
-			
+
 			#if VOXEL_TRAVERSAL_DEBUG
 			AddStepAABB(InSettings.bDebugEnabled, PreviousP, HitP, float3(0, 1, 0));
 			#endif
 
+			const uint3 VolumeCoord    = PositionToCoord(HitP, InNodeDesc.TranslatedWorldMinAABB, InNodeDesc.TranslatedWorldMaxAABB, InNodeDesc.VirtualResolution);
+			const uint3 PageIndexCoord = (VolumeCoord >> InCommonDesc.PageResolutionLog2);
+
 			// Update page index only when needed
-			const bool bIsNewPage = any(PageIndexCoord != CurrentPageIndexCoord);
-			if (bIsNewPage)
+			const bool bHasPageIndexChanged = any(PageIndexCoord != CurrentPageIndexCoord);
+			if (bHasPageIndexChanged)
 			{
 				CurrentPageIndexCoord = PageIndexCoord;
 				const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, InNodeDesc.PageIndexResolution, InNodeDesc.PageIndexOffset);
@@ -253,8 +252,8 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 
 			if (bIsPageValid)
 			{
-				const uint3 VoxelPageBase   = PageCoord * InCommonDesc.PageResolution;
-				const uint3 VoxelPageOffset = VolumeCoord - PageIndexCoord * InCommonDesc.PageResolution;
+				const uint3 VoxelPageBase   = (PageCoord << InCommonDesc.PageResolutionLog2);
+				const uint3 VoxelPageOffset = VolumeCoord - (PageIndexCoord << InCommonDesc.PageResolutionLog2);
 				const uint3 VoxelPageCoord  = VoxelPageBase + VoxelPageOffset;
 
 				#if VOXEL_TRAVERSAL_PAGEOCCUPANCY

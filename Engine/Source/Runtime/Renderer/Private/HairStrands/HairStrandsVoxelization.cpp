@@ -1009,7 +1009,8 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.PageCountResolution		= PageCountResolution;
 	Out.Parameters.Common.PageCount					= PageCount;
 	Out.Parameters.Common.VoxelWorldSize			= VoxelWorldSize;
-	Out.Parameters.Common.PageResolution			= FMath::RoundUpToPowerOfTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
+	Out.Parameters.Common.PageResolutionLog2		= FMath::CeilLogTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
+	Out.Parameters.Common.PageResolution			= (1u << Out.Parameters.Common.PageResolutionLog2);
 	Out.Parameters.Common.PageTextureResolution		= Out.Parameters.Common.PageCountResolution * Out.Parameters.Common.PageResolution;
 	Out.Parameters.Common.JitterMode				= FMath::Clamp(GHairVirtualVoxel_JitterMode, 0, 2);
 

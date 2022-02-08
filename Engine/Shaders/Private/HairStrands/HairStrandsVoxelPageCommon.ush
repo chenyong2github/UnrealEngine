@@ -72,6 +72,7 @@ struct FVirtualVoxelCommonDesc
 	float  VoxelWorldSize;
 	uint3  PageTextureResolution;
 	uint   PageResolution;
+	uint   PageResolutionLog2;
 };
 
 struct FVirtualVoxelNodeDesc

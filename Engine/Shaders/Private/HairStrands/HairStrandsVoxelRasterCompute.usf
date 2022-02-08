@@ -143,6 +143,7 @@ void MainCS(uint2 DispatchThreadID : SV_DispatchThreadID)
 	CommonDesc.VoxelWorldSize			= VirtualVoxelParams_VoxelWorldSize / LineStepMultiplier;
 	CommonDesc.PageTextureResolution	= VirtualVoxelParams_PageTextureResolution;
 	CommonDesc.PageResolution			= VirtualVoxelParams_PageResolution;
+	CommonDesc.PageResolutionLog2		= VirtualVoxel.PageResolutionLog2;
 
 	// Count the number of fibers which are within a cylinder defined by the voxel size, 
 	// and the distance between the origin and the extent of the volume

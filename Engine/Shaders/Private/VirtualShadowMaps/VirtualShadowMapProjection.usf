@@ -317,6 +317,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				CommonDesc.VoxelWorldSize			= VirtualVoxel.VoxelWorldSize;
 				CommonDesc.PageTextureResolution	= VirtualVoxel.PageTextureResolution;
 				CommonDesc.PageResolution			= VirtualVoxel.PageResolution;
+				CommonDesc.PageResolutionLog2		= VirtualVoxel.PageResolutionLog2;
 
 				FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
 				TraversalSettings.DensityScale		= VirtualVoxel.DensityScale_Shadow;
