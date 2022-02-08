@@ -9,6 +9,8 @@
 #include "DatasmithMaxWriter.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxTexmapToUEPbr.h"
 
+#include "DatasmithMaterialsUtils.h"
+
 #include "Misc/Paths.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -107,7 +109,7 @@ IDatasmithMaterialExpression* FDatasmithMaxCoronaColorToUEPbr::Convert( FDatasmi
 		CoronaColor.B = ColorParameters.ColorHdr.Z;
 		break;
 	case 2:
-		CoronaColor = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( FDatasmithMaxMatHelper::TemperatureToColor( ColorParameters.Temperature ) );
+		CoronaColor = DatasmithMaterialsUtils::TemperatureToColor( ColorParameters.Temperature );
 		ColorParameters.bInputIsLinear = true;
 		break;
 	case 3:

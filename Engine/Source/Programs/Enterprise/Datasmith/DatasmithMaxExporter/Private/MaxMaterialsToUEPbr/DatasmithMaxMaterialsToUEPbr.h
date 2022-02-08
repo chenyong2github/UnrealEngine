@@ -141,10 +141,23 @@ public:
 	IDatasmithMaterialExpressionGeneric& OneMinus(IDatasmithMaterialExpression& Expression);
 };
 
+// Utility macros to simplify material expression composition:
+
 // Create expression from expression parameters when they are all non-null or return default value
-// Pass params by value in order to prevent statement creating expression to be evaluated twice
+// E.g. instead of:
+// IDatasmithMaterialExpression* SomeExpression = MakeExpressionCanReturnNull(...)
+// IDatasmithMaterialExpression* ResultExpression = SomeExpression ? Desaturate(SomeExpression) : nullptr;
+// Can do this:
+// IDatasmithMaterialExpression* ResultExpression = COMPOSE_OR_NULL(Desaturate, MakeExpressionCanReturnNull(...));
+// Which allows chaining expressions: COMPOSE_OR_DEFAULT2(&Scalar(1), Multiply, COMPOSE_OR_NULL(Desaturate, MakeExpressionCanReturnNull(...)), AnotherExpression)
+// Implementation details: Pass params by value in order to prevent statement creating expression to be evaluated twice
 // e.g. COMPOSE_OR_DEFAULT1(nullptr, Multiply, &Scalar(1.0), SomeExpression) won't create two expressions of each Scalar
 // Func should be a method of this of free function - so it can be just substituted 
 #define COMPOSE_OR_DEFAULT1(Default, Func, Param0) ([this](IDatasmithMaterialExpression* P0, IDatasmithMaterialExpression* D) {return P0 ? &Func(*P0) : D; } (Param0, Default))
 #define COMPOSE_OR_DEFAULT2(Default, Func, Param0, Param1) ([this](IDatasmithMaterialExpression* P0, IDatasmithMaterialExpression* P1, IDatasmithMaterialExpression* D) { return (P0 && P1) ? &Func(*P0, *P1) : D;} (Param0, Param1, Default))
+// Calls Func when param is not NULL, returns NULL otherwise
+#define COMPOSE_OR_NULL(Func, Param0) ([this](IDatasmithMaterialExpression* P0) {return P0 ? &Func(*P0) : nullptr; } (Param0 ))
+#define COMPOSE_OR_NULL2(Func, Param0, Param1) ([this](IDatasmithMaterialExpression* P0, IDatasmithMaterialExpression* P1) { return (P0 && P1) ? &Func(*P0, *P1) : nullptr;} (Param0, Param1))
+
+
 

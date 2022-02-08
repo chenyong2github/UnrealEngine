@@ -666,12 +666,12 @@ void FDatasmithMaxPhysicalMaterialToUEPbr::Convert( TSharedRef< IDatasmithScene 
 			TextureOrColor(TEXT("Specular"), PhysicalMaterialProperties.ReflectionColorMap, FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor(PhysicalMaterialProperties.ReflectionColor)),
 			WeightTextureOrScalar(PhysicalMaterialProperties.ReflectivityMap, PhysicalMaterialProperties.Reflectivity));
 
-		Connect(PbrMaterialElement->GetSpecular(), COMPOSE_OR_DEFAULT1(nullptr, Desaturate, ReflectivityExpression));
+		Connect(PbrMaterialElement->GetSpecular(), COMPOSE_OR_NULL(Desaturate, ReflectivityExpression));
 	}
 
 	if (IDatasmithMaterialExpression* RoughnessTextureExpression = ConvertTexmap(PhysicalMaterialProperties.RoughnessMap))
 	{
-		Connect(PbrMaterialElement->GetRoughness(), PhysicalMaterialProperties.bRoughnessInverted ? COMPOSE_OR_DEFAULT1(nullptr, OneMinus, RoughnessTextureExpression) : RoughnessTextureExpression);
+		Connect(PbrMaterialElement->GetRoughness(), PhysicalMaterialProperties.bRoughnessInverted ? COMPOSE_OR_NULL(OneMinus, RoughnessTextureExpression) : RoughnessTextureExpression);
 	}
 	else
 	{

@@ -367,43 +367,6 @@ Mtl* FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Mtl* Material)
 	return RenderedMaterial;
 }
 
-BMM_Color_fl FDatasmithMaxMatHelper::TemperatureToColor(float Kelvin)
-{
-	float Temp = Kelvin / 100.0f;
-	float Red;
-	float Green;
-	float Blue;
-
-	if (Temp <= 66.0f)
-	{
-		Red = 255.0f;
-		Green = Temp;
-		Green = 99.4708025861f * log(Green) - 161.1195681661f;
-		if (Temp <= 19.0f)
-		{
-			Blue = 0.0f;
-		}
-		else
-		{
-			Blue = Temp - 10.0f;
-			Blue = 138.5177312231f * log(Blue) - 305.0447927307f;
-		}
-	}
-	else
-	{
-		Red = Temp - 60.0f;
-		Red = 329.698727446f * FMath::Pow(Red, -0.1332047592f);
-		Green = Temp - 60;
-		Green = 288.1221695283f * FMath::Pow(Green, -0.0755148492f);
-		Blue = 255.0f;
-	}
-	BMM_Color_fl Color;
-	Color.r = Red / 255.0f;
-	Color.g = Green / 255.0f;
-	Color.b = Blue / 255.0f;
-	return Color;
-}
-
 FLinearColor FDatasmithMaxMatHelper::MaxColorToFLinearColor(BMM_Color_fl Color, float Multiplier /*= 1.0f*/)
 {
 	Color.r = FMath::Pow(Color.r, 1.0f / FDatasmithExportOptions::ColorGamma);

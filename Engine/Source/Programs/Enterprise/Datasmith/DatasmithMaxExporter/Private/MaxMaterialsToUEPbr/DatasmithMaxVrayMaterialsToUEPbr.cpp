@@ -435,6 +435,70 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 
 		return VRayBlendMaterialProperties;
 	}
+
+	struct FVRayLightMaterial
+	{
+		DatasmithMaxTexmapParser::FMapParameter EmitTexture;
+		DatasmithMaxTexmapParser::FMapParameter ClipTexture;
+		BMM_Color_fl EmitColor;
+
+		float Multiplier = 1.0f;
+
+		void Parse(Mtl& Material)
+		{
+			int NumParamBlocks = Material.NumParamBlocks();
+
+			for (int j = 0; j < NumParamBlocks; j++)
+			{
+				IParamBlock2* ParamBlock2 = Material.GetParamBlockByID((short)j);
+				// The the descriptor to 'decode'
+				ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
+				// Loop through all the defined parameters therein
+				for (int i = 0; i < ParamBlockDesc->count; i++)
+				{
+					const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
+					if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap")) == 0)
+					{
+						EmitTexture.Map = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("opacity_texmap")) == 0)
+					{
+						ClipTexture.Map = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap_on")) == 0)
+					{
+						if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
+						{
+							EmitTexture.bEnabled = false;
+						}
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("opacity_texmap_on")) == 0)
+					{
+						if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
+						{
+							ClipTexture.bEnabled = false;
+						}
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Color")) == 0)
+					{
+						EmitColor = (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, GetCOREInterface()->GetTime());
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("twoSided")) == 0)
+					{
+						// int twoSided = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
+					}
+					else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Multiplier")) == 0)
+					{
+						Multiplier = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
+					}
+				}
+				ParamBlock2->ReleaseDesc();
+			}
+		}
+
+	};
+
 }
 
 FDatasmithMaxVRayMaterialsToUEPbr::FDatasmithMaxVRayMaterialsToUEPbr()
@@ -1027,5 +1091,44 @@ void FDatasmithMaxVRayBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScene>
 
 	PbrMaterialElement->SetUseMaterialAttributes(true);
 	PreviousExpression->ConnectExpression(PbrMaterialElement->GetMaterialAttributes());
+	MaterialElement = PbrMaterialElement;
+}
+
+bool FDatasmithMaxVRayLightMaterialToUEPbr::IsSupported(Mtl* Material)
+{
+	return true;
+}
+
+void FDatasmithMaxVRayLightMaterialToUEPbr::Convert(TSharedRef<IDatasmithScene> DatasmithScene,
+	TSharedPtr<IDatasmithBaseMaterialElement>& MaterialElement, Mtl* Material, const TCHAR* AssetsPath)
+{
+	if ( !Material )
+	{
+		return;
+	}
+
+	TSharedRef<IDatasmithUEPbrMaterialElement> PbrMaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(Material->GetName().data());
+	FScopedConvertState ScopedConvertState(ConvertState);
+	ConvertState.DatasmithScene = DatasmithScene;
+	ConvertState.MaterialElement = PbrMaterialElement;
+	ConvertState.AssetsPath = AssetsPath;
+
+	DatasmithMaxVRayMaterialsToUEPbrImpl::FVRayLightMaterial MaterialProperties;
+	MaterialProperties.Parse(*Material);
+
+	Connect(PbrMaterialElement->GetEmissiveColor(),
+		COMPOSE_OR_DEFAULT2(nullptr, Multiply,
+			TextureOrColor(TEXT("Emissive Color"), MaterialProperties.EmitTexture, FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor(MaterialProperties.EmitColor)),
+			&Scalar(MaterialProperties.Multiplier))
+	);
+
+	if (IDatasmithMaterialExpression* OpacictyExpression = ConvertTexmap(MaterialProperties.ClipTexture))
+	{
+		PbrMaterialElement->SetBlendMode(/*EBlendMode::BLEND_Masked*/1); // Set blend mode when there's opacity mask
+		Connect(PbrMaterialElement->GetOpacity(), OpacictyExpression);
+	}
+
+	PbrMaterialElement->SetShadingModel(EDatasmithShadingModel::Unlit);
+
 	MaterialElement = PbrMaterialElement;
 }

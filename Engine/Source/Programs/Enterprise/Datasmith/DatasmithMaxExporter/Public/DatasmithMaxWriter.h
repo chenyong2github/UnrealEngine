@@ -80,7 +80,6 @@ public:
 	// CLASS RELATED FUNCTIONS
 	static EDSBitmapType GetTextureClass(Texmap* mTexMap);
 	static EDSMaterialType GetMaterialClass(Mtl* Material);
-	static BMM_Color_fl TemperatureToColor(float Kelvin);
 	/**
 	 * Gets a XRefMaterial and returns the rendered material which is either the SubMaterial or SourceMaterial depending on if the source material is overridden.
 	 * @param XRefMaterial	The XRefMaterial we want the rendered material of.

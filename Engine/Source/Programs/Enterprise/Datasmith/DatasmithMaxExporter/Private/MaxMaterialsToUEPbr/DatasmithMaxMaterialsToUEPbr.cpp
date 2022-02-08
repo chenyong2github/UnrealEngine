@@ -12,6 +12,7 @@
 #include "MaxMaterialsToUEPbr/DatasmithMaxScanlineMaterialsToUEPbr.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxVrayMaterialsToUEPbr.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxPhysicalMaterialToUEPbr.h"
+#include "MaxMaterialsToUEPbr/DatasmithMaxMentalMaterialToUEPbr.h"
 
 
 FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( Mtl* Material )
@@ -44,6 +45,12 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxVRayBlendMaterialToUEPbr VrayBlendConverter = FDatasmithMaxVRayBlendMaterialToUEPbr();
 		MaterialConverter = &VrayBlendConverter;
 	}
+	else if ( MaterialClassID == VRAYLIGHTMATCLASS )
+	{
+		static FDatasmithMaxVRayLightMaterialToUEPbr CoronaConverter = FDatasmithMaxVRayLightMaterialToUEPbr();
+		MaterialConverter = &CoronaConverter;
+	}
+	
 	else if ( MaterialClassID == STANDARDMATCLASS )
 	{
 		static FDatasmithMaxScanlineMaterialsToUEPbr ScanlineConverter = FDatasmithMaxScanlineMaterialsToUEPbr();
@@ -72,6 +79,11 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 	else if (MaterialClassID == PHYSICALMATCLASS)
 	{
 		static FDatasmithMaxPhysicalMaterialToUEPbr PhysicalConverter = FDatasmithMaxPhysicalMaterialToUEPbr();
+		MaterialConverter = &PhysicalConverter;
+	}
+	else if (MaterialClassID == ARCHDESIGNMATCLASS)
+	{
+		static FDatasmithMaxMentalMaterialToUEPbr PhysicalConverter = FDatasmithMaxMentalMaterialToUEPbr();
 		MaterialConverter = &PhysicalConverter;
 	}
 

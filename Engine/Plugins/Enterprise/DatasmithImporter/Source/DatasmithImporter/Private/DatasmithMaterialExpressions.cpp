@@ -5,6 +5,7 @@
 #include "DatasmithAssetUserData.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithMaterialElements.h"
+#include "DatasmithMaterialsUtils.h"
 #include "DatasmithScene.h"
 #include "DatasmithTypes.h"
 #include "IDatasmithSceneElements.h"
@@ -232,43 +233,6 @@ namespace
 		ensure( false );
 		return false;
 	}
-}
-
-FLinearColor FDatasmithMaterialExpressions::TemperatureToColor(float Kelvin)
-{
-	float Temp = Kelvin / 100.0f;
-	float Red, Green, Blue;
-
-	if (Temp <= 66.0f)
-	{
-		Red = 255.0f;
-		Green = Temp;
-		Green = 99.4708025861f * FMath::Loge(Green) - 161.1195681661f;
-		if (Temp <= 19.0f)
-		{
-			Blue = 0.0f;
-		}
-		else
-		{
-			Blue = Temp - 10.0f;
-			Blue = 138.5177312231f * FMath::Loge(Blue) - 305.0447927307f;
-		}
-	}
-	else
-	{
-		Red = Temp - 60.0f;
-		Red = 329.698727446f * FMath::Pow(Red, -0.1332047592f);
-		Green = Temp - 60.f;
-		Green = 288.1221695283f * FMath::Pow(Green, -0.0755148492f);
-		Blue = 255.0f;
-	}
-
-	FLinearColor Color;
-	Color.R = Red / 255.0f;
-	Color.G = Green / 255.0f;
-	Color.B = Blue / 255.0f;
-
-	return Color;
 }
 
 UMaterialExpressionMakeMaterialAttributes* FDatasmithMaterialExpressions::FindOrAddAttributesFromMatFunc(UMaterialFunction* Func)
@@ -2169,7 +2133,7 @@ void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Pack
 			}
 			else if (ShaderElement->GetEmitTemperature() > 0)
 			{
-				EmissiveExpression = AddRGBExpression(TemperatureToColor(ShaderElement->GetEmitTemperature()), 0, 0, UnrealMaterial, EDatasmithTextureSlot::NOSLOT);
+				EmissiveExpression = AddRGBExpression(DatasmithMaterialsUtils::TemperatureToColor(ShaderElement->GetEmitTemperature()), 0, 0, UnrealMaterial, EDatasmithTextureSlot::NOSLOT);
 			}
 		}
 	}

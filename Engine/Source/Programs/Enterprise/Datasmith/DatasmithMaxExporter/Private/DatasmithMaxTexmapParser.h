@@ -21,6 +21,11 @@ namespace DatasmithMaxTexmapParser
 		{
 		}
 
+		bool IsMapPresentAndEnabled()
+		{
+			return Map && bEnabled;
+		}
+
 		Texmap* Map;
 		bool bEnabled;
 		float Weight;

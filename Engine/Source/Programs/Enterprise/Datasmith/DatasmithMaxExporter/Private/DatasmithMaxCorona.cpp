@@ -7,6 +7,8 @@
 #include "DatasmithMaxSceneParser.h"
 #include "DatasmithMaxSceneExporter.h"
 
+#include "DatasmithMaterialsUtils.h"
+
 #include "Misc/Paths.h"
 
 float GetCoronaTexmapGamma(BitmapTex* InBitmapTex)
@@ -691,7 +693,7 @@ FString FDatasmithMaxMatWriter::DumpCoronaColor(TSharedPtr<IDatasmithCompositeTe
 		CoronaColor.B = ColorParameters.ColorHdr.Z;
 		break;
 	case 2:
-		CoronaColor = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( FDatasmithMaxMatHelper::TemperatureToColor( ColorParameters.Temperature ) );
+		CoronaColor = DatasmithMaterialsUtils::TemperatureToColor( ColorParameters.Temperature );
 		ColorParameters.bInputIsLinear = true;
 		break;
 	case 3:
