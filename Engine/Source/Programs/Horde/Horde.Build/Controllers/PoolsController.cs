@@ -139,7 +139,7 @@ namespace HordeServer.Controllers
 				return NotFound(PoolIdValue);
 			}
 
-			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties);
+			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties, Update.SizeStrategy);
 			return new OkResult();
 		}
 
