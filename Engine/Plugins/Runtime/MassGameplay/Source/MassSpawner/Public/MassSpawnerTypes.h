@@ -50,7 +50,7 @@ struct FMassSpawnedEntityType
 	UMassEntityConfigAsset* GetEntityConfig();
 
 private:
-	UPROPERTY()
+	UPROPERTY(Transient)
 	mutable UMassEntityConfigAsset* EntityConfigPtr = nullptr;
 };
 
