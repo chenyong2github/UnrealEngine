@@ -9,7 +9,7 @@
 #include "MassVisualizationLODProcessor.generated.h"
 
 UCLASS()
-class MASSREPRESENTATION_API UMassVisualizationLODProcessor : public UMassProcessor_LODBase
+class MASSREPRESENTATION_API UMassVisualizationLODProcessor : public UMassLODProcessorBase
 {
 	GENERATED_BODY()
 

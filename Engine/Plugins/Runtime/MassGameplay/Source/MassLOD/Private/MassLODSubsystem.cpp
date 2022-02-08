@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
@@ -21,15 +21,15 @@ namespace MassLOD
 }
 }
 
-void UMassProcessor_LODBase::Initialize(UObject& Owner)
+void UMassLODProcessorBase::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
 	World = Owner.GetWorld();
-	LODManager = UWorld::GetSubsystem<UMassLODManager>(World);
+	LODSubsystem = UWorld::GetSubsystem<UMassLODSubsystem>(World);
 }
 
-void UMassLODManager::Initialize(FSubsystemCollectionBase& Collection)
+void UMassLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Collection.InitializeDependency(UMassSimulationSubsystem::StaticClass());
 
@@ -40,21 +40,21 @@ void UMassLODManager::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>();
 		check(SimSystem);
-		SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassLODManager::OnPrePhysicsPhaseStarted);
+		SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassLODSubsystem::OnPrePhysicsPhaseStarted);
 	}
 }
 
-void UMassLODManager::OnPrePhysicsPhaseStarted(float DeltaTime)
+void UMassLODSubsystem::OnPrePhysicsPhaseStarted(float DeltaTime)
 {
 	SynchronizeViewers();
 }
 
-TStatId UMassLODManager::GetStatId() const
+TStatId UMassLODSubsystem::GetStatId() const
 {
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UMassLODManager, STATGROUP_Tickables);
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UMassLODSubsystem, STATGROUP_Tickables);
 }
 
-void UMassLODManager::Deinitialize()
+void UMassLODSubsystem::Deinitialize()
 {
 	// Remove all viewers from the viewer info list
 	for (FViewerInfo& ViewerInfo : Viewers)
@@ -75,7 +75,7 @@ void UMassLODManager::Deinitialize()
 	}
 }
 
-int32 UMassLODManager::GetValidViewerIdx(const FMassViewerHandle& ViewerHandle) const
+int32 UMassLODSubsystem::GetValidViewerIdx(const FMassViewerHandle& ViewerHandle) const
 {
 	// Check against invalid handle
 	if (!ViewerHandle.IsValid())
@@ -93,33 +93,33 @@ int32 UMassLODManager::GetValidViewerIdx(const FMassViewerHandle& ViewerHandle) 
 	return ViewerIdx;
 }
 
-const TArray<FViewerInfo>& UMassLODManager::GetSynchronizedViewers()
+const TArray<FViewerInfo>& UMassLODSubsystem::GetSynchronizedViewers()
 {
 	SynchronizeViewers();
 
 	return Viewers;
 }
 
-FMassViewerHandle UMassLODManager::GetViewerHandleFromPlayerController(const APlayerController* PlayerController) const
+FMassViewerHandle UMassLODSubsystem::GetViewerHandleFromPlayerController(const APlayerController* PlayerController) const
 {
 	const FMassViewerHandle* Handle = ViewerMap.Find(GetTypeHash(PlayerController->GetFName()));
 	return Handle ? *Handle : FMassViewerHandle();
 }
 
 
-FMassViewerHandle UMassLODManager::GetViewerHandleFromStreamingSource(const FName StreamingSourceName) const
+FMassViewerHandle UMassLODSubsystem::GetViewerHandleFromStreamingSource(const FName StreamingSourceName) const
 {
 	const FMassViewerHandle* Handle = ViewerMap.Find(GetTypeHash(StreamingSourceName));
 	return Handle ? *Handle : FMassViewerHandle();
 }
 
-APlayerController* UMassLODManager::GetPlayerControllerFromViewerHandle(const FMassViewerHandle& ViewerHandle) const
+APlayerController* UMassLODSubsystem::GetPlayerControllerFromViewerHandle(const FMassViewerHandle& ViewerHandle) const
 {
 	const int32 ViewerIdx = GetValidViewerIdx(ViewerHandle);
 	return ViewerIdx != INDEX_NONE ? Viewers[ViewerIdx].PlayerController : nullptr;
 }
 
-void UMassLODManager::SynchronizeViewers()
+void UMassLODSubsystem::SynchronizeViewers()
 {
 	if (LastSynchronizedFrame == GFrameCounter)
 	{
@@ -245,7 +245,7 @@ void UMassLODManager::SynchronizeViewers()
 	}
 }
 
-void UMassLODManager::AddViewer(APlayerController* PlayerController, FName StreamingSourceName /* = NAME_None*/)
+void UMassLODSubsystem::AddViewer(APlayerController* PlayerController, FName StreamingSourceName /* = NAME_None*/)
 {
 	const int32 HashValue = PlayerController ? GetTypeHash(PlayerController->GetFName()) : GetTypeHash(StreamingSourceName);
 
@@ -261,7 +261,7 @@ void UMassLODManager::AddViewer(APlayerController* PlayerController, FName Strea
 			FViewerInfo& ViewerInfo = Viewers[ViewerHandleIdx];
 			check(ViewerInfo.PlayerController == nullptr);
 			ViewerInfo.PlayerController = PlayerController;
-			PlayerController->OnEndPlay.AddUniqueDynamic(this, &UMassLODManager::OnPlayerControllerEndPlay);
+			PlayerController->OnEndPlay.AddUniqueDynamic(this, &UMassLODSubsystem::OnPlayerControllerEndPlay);
 		}
 
 		return;
@@ -290,11 +290,11 @@ void UMassLODManager::AddViewer(APlayerController* PlayerController, FName Strea
 
 	if(PlayerController)
 	{
-		PlayerController->OnEndPlay.AddUniqueDynamic(this, &UMassLODManager::OnPlayerControllerEndPlay);
+		PlayerController->OnEndPlay.AddUniqueDynamic(this, &UMassLODSubsystem::OnPlayerControllerEndPlay);
 	}
 }
 
-void UMassLODManager::RemoveViewer(const FMassViewerHandle& ViewerHandle)
+void UMassLODSubsystem::RemoveViewer(const FMassViewerHandle& ViewerHandle)
 {
 #if UE_ALLOW_DEBUG_REPLICATION_DUPLICATE_VIEWERS_PER_CONTROLLER
 
@@ -319,7 +319,7 @@ void UMassLODManager::RemoveViewer(const FMassViewerHandle& ViewerHandle)
 #endif //UE_ALLOW_DEBUG_REPLICATION_DUPLICATE_VIEWERS_PER_CONTROLLER
 }
 
-void UMassLODManager::RemoveViewerInternal(const FMassViewerHandle& ViewerHandle)
+void UMassLODSubsystem::RemoveViewerInternal(const FMassViewerHandle& ViewerHandle)
 {
 	const int32 ViewerIdx = GetValidViewerIdx(ViewerHandle);
 	check(ViewerIdx != INDEX_NONE);
@@ -329,7 +329,7 @@ void UMassLODManager::RemoveViewerInternal(const FMassViewerHandle& ViewerHandle
 
 	if (ViewerInfo.PlayerController)
 	{
-		ViewerInfo.PlayerController->OnEndPlay.RemoveDynamic(this, &UMassLODManager::OnPlayerControllerEndPlay);
+		ViewerInfo.PlayerController->OnEndPlay.RemoveDynamic(this, &UMassLODSubsystem::OnPlayerControllerEndPlay);
 	}
 
 	ViewerMap.Remove(ViewerInfo.HashValue);
@@ -338,7 +338,7 @@ void UMassLODManager::RemoveViewerInternal(const FMassViewerHandle& ViewerHandle
 	ViewerFreeIndices.Push(ViewerIdx);
 }
 
-void UMassLODManager::OnPlayerControllerEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason)
+void UMassLODSubsystem::OnPlayerControllerEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason)
 {
 	APlayerController* PlayerController = Cast<APlayerController>(Actor);
 	if (ensure(PlayerController))

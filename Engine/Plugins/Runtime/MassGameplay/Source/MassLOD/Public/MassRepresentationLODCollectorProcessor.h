@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "MassLODCollector.h"
 #include "MassLODCalculator.h"
 #include "MassEntityTypes.h"
@@ -29,7 +29,7 @@ struct FMassRepresentationLODCollectorConfig
 * LOD collector which collects LOD information for Viewer LODing when possible.
 */
 UCLASS(meta = (DisplayName = "LOD Collector"))
-class MASSLOD_API UMassRepresentationLODCollectorProcessor : public UMassProcessor_LODBase
+class MASSLOD_API UMassRepresentationLODCollectorProcessor : public UMassLODProcessorBase
 {
 	GENERATED_BODY()
 

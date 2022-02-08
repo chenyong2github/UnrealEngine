@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassCommonTypes.h"
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "IndexedHandle.h"
 #include "MassEntityTemplate.h"
 #include "MassObserverProcessor.h"

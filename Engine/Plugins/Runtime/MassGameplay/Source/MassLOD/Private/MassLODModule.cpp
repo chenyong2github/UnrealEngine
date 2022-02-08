@@ -25,7 +25,8 @@ void FMassLODModule::StartupModule()
 	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("/Script/MassCommon.DataFragment_MassSimulationLOD"), TEXT("/Script/MassLOD.DataFragment_MassSimulationLOD"));
 	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("/Script/MassCommon.DataFragment_MassViewerLOD"), TEXT("/Script/MassLOD.DataFragment_MassViewerLOD"));
 
-	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassCommon.MassProcessor_LODBase"), TEXT("/Script/MassLOD.MassProcessor_LODBase"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassCommon.MassProcessor_LODBase"), TEXT("/Script/MassLOD.MassLODProcessorBase"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassLOD.MassProcessor_LODBase"), TEXT("/Script/MassLOD.MassLODProcessorBase"));
 
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassCommon.MassProcessor_MassSimulationLODViewersInfo"), TEXT("/Script/MassLOD.MassProcessor_MassSimulationLODViewersInfo"));
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/MassCommon.MassProcessor_MassSimulationLOD"), TEXT("/Script/MassLOD.MassProcessor_MassSimulationLOD"));

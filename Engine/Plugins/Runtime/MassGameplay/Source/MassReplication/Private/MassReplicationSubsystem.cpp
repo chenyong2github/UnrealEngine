@@ -20,9 +20,9 @@ void UMassReplicationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	check(World);
 
-	MassLODManager = Collection.InitializeDependency<UMassLODManager>();
+	MassLODSubsystem = Collection.InitializeDependency<UMassLODSubsystem>();
 
-	check(MassLODManager);
+	check(MassLODSubsystem);
 
 	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 }
@@ -46,7 +46,7 @@ void UMassReplicationSubsystem::Deinitialize()
 	ViewerToClientHandleArray.Reset();
 
 	World = nullptr;
-	MassLODManager = nullptr;
+	MassLODSubsystem = nullptr;
 	EntitySystem = nullptr;
 }
 
@@ -136,7 +136,7 @@ bool UMassReplicationSubsystem::SynchronizeClients(const TArray<FViewerInfo>& Vi
 	// will have the same player controller owner.
 	const FMassClientBubbleInfoData& InfoData = BubbleInfoArray[0];
 
-	check(MassLODManager);
+	check(MassLODSubsystem);
 
 	FControllerMap ClientConnectionMap;
 
@@ -236,7 +236,7 @@ bool UMassReplicationSubsystem::SynchronizeClients(const TArray<FViewerInfo>& Vi
 // synchronize the ClientViewers
 void UMassReplicationSubsystem::SynchronizeClientViewers(const TArray<FViewerInfo>& Viewers)
 {
-	check(MassLODManager);
+	check(MassLODSubsystem);
 
 	struct FMassClientViewerHandle
 	{
@@ -269,7 +269,7 @@ void UMassReplicationSubsystem::SynchronizeClientViewers(const TArray<FViewerInf
 				{
 					const FMassViewerHandle& ClientViewer = ClientViewers.Handles[ViewerIdx];
 
-					APlayerController* Controller = MassLODManager->GetPlayerControllerFromViewerHandle(ClientViewer);
+					APlayerController* Controller = MassLODSubsystem->GetPlayerControllerFromViewerHandle(ClientViewer);
 
 					const UE::Mass::Replication::ENetConnectionType ConnectionType = UE::Mass::Replication::HasParentOrChildWithValidParentNetConnection(Controller);
 
@@ -303,16 +303,16 @@ void UMassReplicationSubsystem::SynchronizeClientViewers(const TArray<FViewerInf
 				// check if the parent controller is valid and already exists
 				if (ParentController && (ClientViewerMap.Find(Viewer.PlayerController) == nullptr))
 				{
-					FMassViewerHandle ParentViewerHandle = MassLODManager->GetViewerHandleFromPlayerController(ParentController);
+					FMassViewerHandle ParentViewerHandle = MassLODSubsystem->GetViewerHandleFromPlayerController(ParentController);
 
-					if (ensureMsgf(ParentViewerHandle.IsValid(), TEXT("MassLODManager handles are out of sync with PlayerController NetConnections!")))
+					if (ensureMsgf(ParentViewerHandle.IsValid(), TEXT("MassLODSubsystem handles are out of sync with PlayerController NetConnections!")))
 					{
 						// note all clients (parent NetConnections) should already be set up so we would expect valid handles here
 						check(ViewerToClientHandleArray.IsValidIndex(ParentViewerHandle.GetIndex()));
 
 						const FViewerClientPair& ParentViewerClientPair = ViewerToClientHandleArray[ParentViewerHandle.GetIndex()];
 
-						check(MassLODManager->IsValidViewer(ParentViewerClientPair.ViewerHandle));
+						check(MassLODSubsystem->IsValidViewer(ParentViewerClientPair.ViewerHandle));
 						check(ClientHandleManager.IsValidHandle(ParentViewerClientPair.ClientHandle));
 
 						// remove APlayerController from the ClientViewerMap and Add the viewer to the ClientsViewerHandles
@@ -349,14 +349,14 @@ void UMassReplicationSubsystem::SynchronizeClientsAndViewers()
 	}
 	LastSynchronizedFrame = GFrameCounter;
 
-	if (MassLODManager == nullptr)
+	if (MassLODSubsystem == nullptr)
 	{
 		checkNoEntry();
 		return;
 	}
 
 	// makes sure the LOD manager Viewers are synced before we process them
-	const TArray<FViewerInfo>& Viewers = MassLODManager->GetSynchronizedViewers();
+	const TArray<FViewerInfo>& Viewers = MassLODSubsystem->GetSynchronizedViewers();
 
 	const bool bNeedShrinking = SynchronizeClients(Viewers);
 
@@ -573,8 +573,8 @@ void UMassReplicationSubsystem::DebugCheckArraysAreInSync()
 void UMassReplicationSubsystem::AddClient(FMassViewerHandle ViewerHandle, APlayerController& InController)
 {
 	check(World);
-	check(MassLODManager);
-	checkf(MassLODManager->IsValidViewer(ViewerHandle), TEXT("ViewerHandle must be valid"));
+	check(MassLODSubsystem);
+	checkf(MassLODSubsystem->IsValidViewer(ViewerHandle), TEXT("ViewerHandle must be valid"));
 
 #if !UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
 	checkf(UE::Mass::Replication::HasParentNetConnection(&InController), TEXT("InController must have a parent net connection or replication will not occur!"));

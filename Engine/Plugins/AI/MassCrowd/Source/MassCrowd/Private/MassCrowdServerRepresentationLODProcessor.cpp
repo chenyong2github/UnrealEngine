@@ -47,8 +47,8 @@ void UMassCrowdServerRepresentationLODProcessor::Execute(UMassEntitySubsystem& E
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CrowdServerRepresentationLOD"))
 
-	check(LODManager);
-	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
+	check(LODSubsystem);
+	const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
 	LODCalculator.PrepareExecution(Viewers);
 	
 	{

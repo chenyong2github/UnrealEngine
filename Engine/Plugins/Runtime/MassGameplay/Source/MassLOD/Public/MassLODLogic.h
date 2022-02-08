@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "Containers/StaticArray.h"
 #include "ConvexVolume.h"
 

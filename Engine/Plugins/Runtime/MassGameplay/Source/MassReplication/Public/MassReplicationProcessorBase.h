@@ -9,7 +9,7 @@
 #include "MassReplicationTypes.h"
 #include "MassReplicationFragments.h"
 #include "MassSpawnerTypes.h"
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "MassReplicationSubsystem.h"
 #include "MassReplicationProcessorBase.generated.h"
 
@@ -22,7 +22,7 @@ class UWorld;
  *  query Mass entity fragments and set those values for replication when appropriate, using the MassClientBubbleHandler.
  */
 UCLASS()
-class MASSREPLICATION_API UMassReplicationProcessor : public UMassProcessor_LODBase
+class MASSREPLICATION_API UMassReplicationProcessor : public UMassLODProcessorBase
 {
 	GENERATED_BODY()
 
@@ -50,14 +50,14 @@ protected:
 
 struct FMassReplicationContext
 {
-	FMassReplicationContext(UWorld& InWorld, UMassLODManager& InLODManager, UMassReplicationSubsystem& InReplicationSubsystem)
+	FMassReplicationContext(UWorld& InWorld, UMassLODSubsystem& InLODSubsystem, UMassReplicationSubsystem& InReplicationSubsystem)
 		: World(InWorld)
-		, LODManager(InLODManager)
+		, LODSubsystem(InLODSubsystem)
 		, ReplicationSubsystem(InReplicationSubsystem)
 	{}
 
 	UWorld& World;
-	UMassLODManager& LODManager;
+	UMassLODSubsystem& LODSubsystem;
 	UMassReplicationSubsystem& ReplicationSubsystem;
 };
 
@@ -144,7 +144,7 @@ void UMassReplicatorBase::CalculateClientReplication(FMassExecutionContext& Cont
 				for (const FMassViewerHandle& ViewerHandle : ClientViewers.Handles)
 				{
 					//this should always we valid as we synchronized the viewers just previously
-					check(ReplicationContext.LODManager.IsValidViewer(ViewerHandle));
+					check(ReplicationContext.LODSubsystem.IsValidViewer(ViewerHandle));
 
 					const EMassLOD::Type MassLOD = ViewerLODList[EntityIdx].LODPerViewer[ViewerHandle.GetIndex()];
 					check(MassLOD <= EMassLOD::Off);

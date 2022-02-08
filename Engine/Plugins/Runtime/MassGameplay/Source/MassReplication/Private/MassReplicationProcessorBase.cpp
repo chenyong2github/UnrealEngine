@@ -2,7 +2,7 @@
 
 #include "MassReplicationProcessorBase.h"
 #include "MassClientBubbleHandler.h"
-#include "MassLODManager.h"
+#include "MassLODSubsystem.h"
 #include "MassCommonFragments.h"
 
 namespace UE::Mass::Replication
@@ -73,8 +73,8 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 	//first synchronize clients and viewers
 	ReplicationSubsystem->SynchronizeClientsAndViewers();
 
-	check(LODManager);
-	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
+	check(LODSubsystem);
+	const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
 	EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this, &Viewers](FMassReplicationSharedFragment& RepSharedFragment)
 	{
 		if (!RepSharedFragment.bEntityQueryInitialized)
@@ -155,7 +155,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 	check(World);
-	check(LODManager);
+	check(LODSubsystem);
 	check(ReplicationSubsystem);
 
 	{
@@ -197,7 +197,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_ProcessClientReplication);
-		FMassReplicationContext ReplicationContext(*World, *LODManager, *ReplicationSubsystem);
+		FMassReplicationContext ReplicationContext(*World, *LODSubsystem, *ReplicationSubsystem);
 		EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this, &EntitySubsystem, &Context, &ReplicationContext](FMassReplicationSharedFragment& RepSharedFragment)
 		{
 			RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ReplicationContext, &RepSharedFragment](FMassExecutionContext& Context)

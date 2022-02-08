@@ -56,8 +56,8 @@ void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext
 
 void UMassRepresentationLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	check(LODManager);
-	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
+	check(LODSubsystem);
+	const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
 
 	check(World);
 

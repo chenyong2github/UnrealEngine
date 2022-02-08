@@ -11,7 +11,7 @@
 
 class UMassEntitySubsystem;
 class AMassCrowdClientBubbleInfo;
-class UMassLODManager;
+class UMassLODSubsystem;
 class AMassClientBubbleInfoBase;
 
 struct FClientViewerHandles
@@ -225,7 +225,7 @@ protected:
 
 	/** Adds a Client and sets up all the data relevant to the bubble. Where there are multiple viewers for
 	 *  one NetConnection only the parent net connection should be added here
-	 *  @param ViewerHandle handle to viewer to add as a client. This must be UMassLODManager->IsValidViewer()
+	 *  @param ViewerHandle handle to viewer to add as a client. This must be UMassLODSubsystem->IsValidViewer()
 	 *  @param InController associated with the viewer
 	 */
 	void AddClient(FMassViewerHandle ViewerHandle, APlayerController& InController);
@@ -273,7 +273,7 @@ protected:
 	UWorld* World;
 
 	UPROPERTY()
-	UMassLODManager* MassLODManager;
+	UMassLODSubsystem* MassLODSubsystem;
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	TMap<FMassNetworkID, FMassReplicationEntityInfo> EntityInfoMap;

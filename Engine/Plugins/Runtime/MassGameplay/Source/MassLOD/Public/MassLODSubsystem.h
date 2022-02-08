@@ -8,15 +8,15 @@
 #include "MassLODTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 
-#include "MassLODManager.generated.h"
+#include "MassLODSubsystem.generated.h"
 
-class UMassLODManager;
+class UMassLODSubsystem;
 
 /*
  * Base mass LOD processor to store common information for all LOD processors
  */
 UCLASS(abstract)
-class MASSLOD_API UMassProcessor_LODBase : public UMassProcessor
+class MASSLOD_API UMassLODProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ protected:
 	UWorld* World = nullptr;
 
 	UPROPERTY()
-	UMassLODManager* LODManager = nullptr;
+	UMassLODSubsystem* LODSubsystem = nullptr;
 };
 
 /*
@@ -39,7 +39,7 @@ struct MASSLOD_API FMassViewerHandle : public FIndexedHandleBase
 {
 	GENERATED_BODY()
 
-	friend class UMassLODManager;
+	friend class UMassLODSubsystem;
 };
 
 USTRUCT()
@@ -74,7 +74,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnViewerRemoved, FMassViewerHandle Viewe
  * Manager responsible to manage and synchronized available viewers
  */
 UCLASS()
-class MASSLOD_API UMassLODManager : public UTickableWorldSubsystem
+class MASSLOD_API UMassLODSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
