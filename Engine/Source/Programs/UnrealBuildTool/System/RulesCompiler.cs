@@ -325,7 +325,11 @@ namespace UnrealBuildTool
 				List<PluginInfo> ForeignPlugins = new List<PluginInfo>();
 				if (!Parent.EnumeratePlugins().Any(x => x.File == PluginFileName && x.Type == PluginType.Engine))
 				{
-					ForeignPlugins.Add(new PluginInfo(PluginFileName, PluginType.External));
+					PluginInfo ForeignPluginInfo = new PluginInfo(PluginFileName, PluginType.External)
+					{
+						bExplicitPluginTarget = true
+					};
+					ForeignPlugins.Add(ForeignPluginInfo);
 				}
 
 				// Create a new scope for the plugin. It should not reference anything else.

@@ -89,6 +89,11 @@ namespace UnrealBuildTool
 		public PluginType Type;
 
 		/// <summary>
+		/// Used to indicate whether a plugin is being explicitly packaged via the -plugin command line
+		/// </summary>
+		public bool bExplicitPluginTarget = false;
+
+		/// <summary>
 		/// Constructs a PluginInfo object
 		/// </summary>
 		/// <param name="InFile">Path to the plugin descriptor</param>
