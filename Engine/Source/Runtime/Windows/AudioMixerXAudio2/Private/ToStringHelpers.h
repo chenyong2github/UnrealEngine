@@ -4,19 +4,23 @@
 
 #include "AudioMixer.h"
 
-#if PLATFORM_WINDOWS
-
 #include "Windows/AllowWindowsPlatformTypes.h"
+
+#if PLATFORM_WINDOWS
 #include "Windows/MinWindows.h"
+#endif //PLATFORM_WINDOWS
 
 THIRD_PARTY_INCLUDES_START
+#include <winerror.h>
+
+#if PLATFORM_WINDOWS
 #include <mmdeviceapi.h>			// IMMNotificationClient
 #include <audiopolicy.h>			// IAudioSessionEvents
+#endif //PLATFORM_WINDOWS
+
 THIRD_PARTY_INCLUDES_END
 
 #include "Windows/HideWindowsPlatformTypes.h"
-
-#endif //PLATFORM_WINDOWS
 
 namespace Audio
 {
