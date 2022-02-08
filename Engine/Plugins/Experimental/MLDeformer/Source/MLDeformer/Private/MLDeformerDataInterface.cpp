@@ -75,25 +75,28 @@ void UMLDeformerDataInterface::GetHLSL(FString& OutHLSL) const
 void UMLDeformerDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
-	OutSourceTypes.Add(UMLDeformerComponent::StaticClass());
 }
 
 UComputeDataProvider* UMLDeformerDataInterface::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UMLDeformerDataProvider* Provider = NewObject<UMLDeformerDataProvider>();
-	if (InSourceObjects.Num() == 2)
+	if (InSourceObjects.Num() == 1)
 	{
 		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
-		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]);
 	}
 	return Provider;
 }
 
 bool UMLDeformerDataProvider::IsValid() const
 {
+	if (SkeletalMeshComponent == nullptr || SkeletalMeshComponent->MeshObject == nullptr)
+	{
+		return false;
+	}
+	
+	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+
 	return
-		SkeletalMeshComponent != nullptr &&
-		SkeletalMeshComponent->MeshObject != nullptr &&
 		DeformerComponent != nullptr &&
 		DeformerComponent->GetDeformerAsset() != nullptr &&
 		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
@@ -104,6 +107,8 @@ bool UMLDeformerDataProvider::IsValid() const
 
 FComputeDataProviderRenderProxy* UMLDeformerDataProvider::GetRenderProxy()
 {
+	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+
 	return new FMLDeformerDataProviderProxy(SkeletalMeshComponent, DeformerComponent);
 }
 

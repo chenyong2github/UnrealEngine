@@ -47,8 +47,6 @@ class MLDEFORMER_API UMLDeformerDataProvider : public UComputeDataProvider
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;

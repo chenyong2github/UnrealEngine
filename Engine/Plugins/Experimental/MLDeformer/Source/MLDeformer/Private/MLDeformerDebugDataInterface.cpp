@@ -143,15 +143,16 @@ UComputeDataProvider* UMLDeformerDebugDataInterface::CreateDataProvider(TArrayVi
 	if (InSourceObjects.Num() == 2)
 	{
 		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
-		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]);
+		
+		UMLDeformerComponent* DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]);
+		Provider->DeformerAsset = DeformerComponent != nullptr ? DeformerComponent->GetDeformerAsset() : nullptr;
 	}
 #if WITH_EDITORONLY_DATA
-	UMLDeformerAsset* DeformerAsset = (Provider->DeformerComponent != nullptr) ? Provider->DeformerComponent->GetDeformerAsset() : nullptr;
-	if (DeformerAsset != nullptr)
+	if (Provider->DeformerAsset != nullptr)
 	{
 		TArray<FString> FailedImportedMeshNames;
 		USkeletalMesh* SkelMesh = Provider->SkeletalMeshComponent->SkeletalMesh;
-		UGeometryCache* GeomCache = GetActiveGeometryCache(DeformerAsset);
+		UGeometryCache* GeomCache = GetActiveGeometryCache(Provider->DeformerAsset);
 		UMLDeformerAsset::GenerateMeshMappings(SkelMesh, GeomCache, Provider->MeshMappings, FailedImportedMeshNames);
 	}
 #endif
@@ -164,9 +165,8 @@ bool UMLDeformerDebugDataProvider::IsValid() const
 	return
 		SkeletalMeshComponent != nullptr &&
 		SkeletalMeshComponent->MeshObject != nullptr &&
-		DeformerComponent != nullptr &&
-		DeformerComponent->GetDeformerAsset() != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr;
+		DeformerAsset != nullptr &&
+		DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr;
 #else
 	return false; // This data interface is only valid in editor.
 #endif
@@ -175,7 +175,7 @@ bool UMLDeformerDebugDataProvider::IsValid() const
 FComputeDataProviderRenderProxy* UMLDeformerDebugDataProvider::GetRenderProxy()
 {
 #if WITH_EDITORONLY_DATA
-	return new FMLDeformerDebugDataProviderProxy(SkeletalMeshComponent, DeformerComponent, MeshMappings);
+	return new FMLDeformerDebugDataProviderProxy(SkeletalMeshComponent, DeformerAsset, MeshMappings);
 #else
 	return nullptr;
 #endif
@@ -242,11 +242,10 @@ void GetGroundTruthPositions(
 	}
 }
 
-FMLDeformerDebugDataProviderProxy::FMLDeformerDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent, TArray<FMLDeformerMeshMapping> const& MeshMappings)
+FMLDeformerDebugDataProviderProxy::FMLDeformerDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping> const& MeshMappings)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
-	
-	UMLDeformerAsset const* DeformerAsset = DeformerComponent->GetDeformerAsset();
+
 	VertexMapBufferSRV = DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI;
 	HeatMapMode = (int32)DeformerAsset->GetVizSettings()->GetHeatMapMode();
 	HeatMapScale = 1.f / FMath::Max(DeformerAsset->GetVizSettings()->GetHeatMapScale(), 0.00001f);

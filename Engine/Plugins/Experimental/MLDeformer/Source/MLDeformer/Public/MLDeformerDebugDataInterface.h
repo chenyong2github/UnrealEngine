@@ -13,7 +13,7 @@ class FRDGBufferSRV;
 struct FMLDeformerMeshMapping;
 class FRHIShaderResourceView;
 class FSkeletalMeshObject;
-class UMLDeformerComponent;
+class UMLDeformerAsset;
 class USkeletalMeshComponent;
 
 /** 
@@ -51,7 +51,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
+	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	/* 
@@ -73,7 +73,7 @@ class FMLDeformerDebugDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
 #if WITH_EDITORONLY_DATA
-	FMLDeformerDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent, TArray<FMLDeformerMeshMapping> const& MeshMappings);
+	FMLDeformerDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerAsset* DeformerAsset, TArray<FMLDeformerMeshMapping> const& MeshMappings);
 #endif
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
