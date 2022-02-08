@@ -663,7 +663,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 			{
 				if (const ECachePolicy Policy = GetCombinedPolicy(Request.Policy); CanQuery(Policy, Node.CacheFlags))
 				{
-					if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData) && CanStoreIfOk(Policy, Node.NodeFlags))
+					if (CanStoreIfOk(Policy, Node.NodeFlags))
 					{
 						NodeRequests.Add({Request.Name, Request.Key, RemovePolicy(Request.Policy, ECachePolicy::SkipData | ECachePolicy::SkipMeta), StateIndex});
 					}
@@ -727,7 +727,8 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 	if (bLastQuery && CanStoreIfOk(GetCombinedPolicy(State.Request.Policy), Node.NodeFlags) && HasResponseData(Response))
 	{
 		// Store any retrieved values to previous writable nodes if Ok or there are no remaining nodes to query.
-		const FPutRequest PutRequest = MakePutRequest(Response, State.Request);
+		FPutRequest PutRequest = MakePutRequest(Response, State.Request);
+		PutRequest.Policy = RemovePolicy(PutRequest.Policy, ECachePolicy::Query);
 		for (int32 PutNodeIndex = 0; PutNodeIndex < NodeIndex; ++PutNodeIndex)
 		{
 			const FCacheStoreNode& PutNode = Hierarchy.Nodes[PutNodeIndex];
@@ -737,6 +738,13 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 				Invoke(Put(), PutNode.AsyncCache, MakeArrayView(&PutRequest, 1), AsyncOwner, [](auto&&){});
 			}
 		}
+	}
+
+	if (bFirstOk)
+	{
+		// Values may be fetched to fill previous nodes. Remove values if requested.
+		FilterResponseByRequest(Response, State.Request);
+		OnComplete(MoveTemp(Response));
 	}
 
 	if (State.Response.Status == EStatus::Ok)
@@ -749,16 +757,9 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 		else
 		{
 			// Never store to later remote nodes.
-			// This is a necessary optimization until speculative stores can be optimized.
+			// This is a necessary optimization until speculative stores have been optimized.
 			State.Request.Policy = RemovePolicy(State.Request.Policy, ECachePolicy::Remote);
 		}
-	}
-
-	if (bFirstOk)
-	{
-		// Values may be fetched to fill previous nodes. Remove values if requested.
-		FilterResponseByRequest(Response, State.Request);
-		OnComplete(MoveTemp(Response));
 	}
 
 	if (RemainingRequestCount.Signal())
