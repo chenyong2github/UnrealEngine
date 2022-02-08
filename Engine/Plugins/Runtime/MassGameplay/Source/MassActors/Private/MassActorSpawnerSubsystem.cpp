@@ -95,7 +95,7 @@ bool UMassActorSpawnerSubsystem::ReleaseActorToPool(AActor* Actor)
 			Actor->SetActorHiddenInGame(true);
 			if (AgentComp)
 			{
-				AgentComp->UnregisterWithAgentManager();
+				AgentComp->UnregisterWithAgentSubsystem();
 			}
 
 			TArray<AActor*>& Pool = PooledActors.FindOrAdd(Actor->GetClass());
@@ -193,7 +193,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView Spa
 
 			if (UMassAgentComponent* AgentComp = PooledActor->FindComponentByClass<UMassAgentComponent>())
 			{
-				AgentComp->RegisterWithAgentManager();
+				AgentComp->RegisterWithAgentSubsystem();
 				AgentComp->SetPuppetHandle(SpawnRequest.MassAgent);
 			}
 

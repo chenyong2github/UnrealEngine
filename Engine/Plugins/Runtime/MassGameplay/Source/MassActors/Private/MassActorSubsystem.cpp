@@ -59,7 +59,7 @@ void FMassActorFragment::ResetNoHandleMapUpdate()
 void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	// making sure UMassSimulationSubsystem gets created before the MassActorManager
+	// making sure UMassSimulationSubsystem gets created before the MassActorSubsystem
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	
 	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());

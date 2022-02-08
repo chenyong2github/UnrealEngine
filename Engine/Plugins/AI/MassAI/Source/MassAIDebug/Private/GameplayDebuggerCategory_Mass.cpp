@@ -34,9 +34,9 @@ namespace UE::Mass::Debug
 			EntityHandle = AgentComp->GetEntityHandle();
 			OutMassAgentComponent = AgentComp;
 		}
-		else if (UMassActorSubsystem* ActorManager = UWorld::GetSubsystem<UMassActorSubsystem>(Actor.GetWorld()))
+		else if (UMassActorSubsystem* ActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(Actor.GetWorld()))
 		{
-			EntityHandle = ActorManager->GetEntityHandleFromActor(&Actor);
+			EntityHandle = ActorSubsystem->GetEntityHandleFromActor(&Actor);
 		}
 		return EntityHandle;
 	};
@@ -140,9 +140,9 @@ void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC
 	AActor* BestActor = nullptr;
 	if (BestEntity.IsSet())
 	{
-		if (const UMassActorSubsystem* ActorManager = World.GetSubsystem<UMassActorSubsystem>())
+		if (const UMassActorSubsystem* ActorSubsystem = World.GetSubsystem<UMassActorSubsystem>())
 		{
-			BestActor = ActorManager->GetActorFromHandle(FMassEntityHandle(BestEntity));
+			BestActor = ActorSubsystem->GetActorFromHandle(FMassEntityHandle(BestEntity));
 		}
 	}
 

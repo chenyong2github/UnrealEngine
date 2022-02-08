@@ -91,7 +91,7 @@ void UMassAgentComponent::OnRegister()
 	}
 
 	// @todo hook up to pawn possessing stuff, maybe?
-	RegisterWithAgentManager();
+	RegisterWithAgentSubsystem();
 }
 
 bool UMassAgentComponent::IsReadyForPooling() const
@@ -105,17 +105,17 @@ bool UMassAgentComponent::IsReadyForPooling() const
 	return true;
 }
 
-void UMassAgentComponent::RegisterWithAgentManager()
+void UMassAgentComponent::RegisterWithAgentSubsystem()
 {
-	UMassAgentSubsystem* AgentManager = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld());
-	UE_CVLOG_UELOG(AgentManager == nullptr, GetOwner(), LogMass, Error, TEXT("Unable to find UMassAgentSubsystem instance. Make sure the world is initialized"));
-	if (ensureMsgf(AgentManager, TEXT("Unable to find UMassAgentSubsystem instance. Make sure the world is initialized")))
+	UMassAgentSubsystem* AgentSubsystem = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld());
+	UE_CVLOG_UELOG(AgentSubsystem == nullptr, GetOwner(), LogMass, Error, TEXT("Unable to find UMassAgentSubsystem instance. Make sure the world is initialized"));
+	if (ensureMsgf(AgentSubsystem, TEXT("Unable to find UMassAgentSubsystem instance. Make sure the world is initialized")))
 	{
-		TemplateID = AgentManager->RegisterAgentComponent(*this);
+		TemplateID = AgentSubsystem->RegisterAgentComponent(*this);
 	}
 }
 
-void UMassAgentComponent::UnregisterWithAgentManager()
+void UMassAgentComponent::UnregisterWithAgentSubsystem()
 {
 	if (State != EAgentComponentState::None)
 	{
@@ -142,7 +142,7 @@ void UMassAgentComponent::UnregisterWithAgentManager()
 void UMassAgentComponent::OnUnregister()
 {
 	UE_VLOG(GetOwner(), LogMass, Verbose, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
-	UnregisterWithAgentManager();
+	UnregisterWithAgentSubsystem();
 
 	Super::OnUnregister();
 }
@@ -462,7 +462,7 @@ void UMassAgentComponent::PausePuppet(const bool bPause)
 	MASSAGENT_CHECK(IsPuppet(), TEXT("%s can only be called when the the mass agent component acts as a puppet. Current state is %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
 	if (IsPuppetPaused() != bPause)
 	{
-		if (UMassAgentSubsystem* AgentManager = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld()))
+		if (UMassAgentSubsystem* AgentSubsystem = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld()))
 		{
 			if (bPause)
 			{
@@ -470,14 +470,14 @@ void UMassAgentComponent::PausePuppet(const bool bPause)
 					State == EAgentComponentState::PuppetInitialized,
 					TEXT("%s(true) is expecting to be in state[PuppetPendingInitialization|PuppetInitialized] but is in %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
 
-				AgentManager->UnregisterAgentComponent(*this);
+				AgentSubsystem->UnregisterAgentComponent(*this);
 			}
 			else
 			{
 				MASSAGENT_CHECK(State == EAgentComponentState::PuppetPaused,
 					TEXT("%s(false) is expecting to be in state[PuppetPaused] but is in %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
 
-				AgentManager->RegisterAgentComponent(*this);
+				AgentSubsystem->RegisterAgentComponent(*this);
 			}
 		}
 	}
@@ -509,10 +509,10 @@ void UMassAgentComponent::ClearReplicatedPuppetHandle()
 	MASSAGENT_CHECK(State == EAgentComponentState::PuppetPaused,
 		TEXT("%s is expecting to be in state [PuppetPaused] but is in %s"), ANSI_TO_TCHAR(__FUNCTION__), *UEnum::GetValueAsString(State));
 
-	if (UMassAgentSubsystem* AgentManager = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld()))
+	if (UMassAgentSubsystem* AgentSubsystem = UWorld::GetSubsystem<UMassAgentSubsystem>(GetWorld()))
 	{
 		UE_VLOG(GetOwner(), LogMass, Verbose, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
-		AgentManager->UnregisterAgentComponent(*this);
+		AgentSubsystem->UnregisterAgentComponent(*this);
 	}
 	ClearEntityHandleInternal();
 	SwitchToState(EAgentComponentState::PuppetReplicatedOrphan);

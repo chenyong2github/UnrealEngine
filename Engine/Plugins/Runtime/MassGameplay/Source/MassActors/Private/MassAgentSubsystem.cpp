@@ -38,7 +38,7 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	// making sure UMassSimulationSubsystem gets created before the MassAgentManager
+	// making sure UMassSimulationSubsystem gets created before the MassAgentSubsystem
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	Collection.InitializeDependency<UMassSpawnerSubsystem>();
 #if UE_REPLICATION_COMPILE_CLIENT_CODE

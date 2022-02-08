@@ -23,7 +23,7 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {	
 	Super::Initialize(Collection);
 
-	// making sure UMassSimulationSubsystem gets created before the MassActorManager
+	// making sure UMassSimulationSubsystem gets created before the MassSpawnerSubsystem
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 
 	UWorld* World = GetWorld();

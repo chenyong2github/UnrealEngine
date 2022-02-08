@@ -57,8 +57,8 @@ protected:
 
 public:
 	// Support poolable mass agents going into stasis
-	void RegisterWithAgentManager();
-	void UnregisterWithAgentManager();
+	void RegisterWithAgentSubsystem();
+	void UnregisterWithAgentSubsystem();
 	bool IsReadyForPooling() const;
 
 	/** @todo to enforce encapsulation we could make this protected and have a UMassAgentSubsystem friend. I'm not sure I like it though. */
