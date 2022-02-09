@@ -18,7 +18,6 @@
 
 #include "EditorTutorial.h"
 #include "EditorTutorialSettings.h"
-#include "EditorTutorialStyleSet.h"
 #include "TutorialStateSettings.h"
 #include "TutorialSettings.h"
 #include "ISettingsModule.h"
