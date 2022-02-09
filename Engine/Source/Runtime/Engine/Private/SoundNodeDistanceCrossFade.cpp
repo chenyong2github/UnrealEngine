@@ -147,9 +147,12 @@ void USoundNodeDistanceCrossFade::CreateStartingConnectors()
 void USoundNodeDistanceCrossFade::InsertChildNode( int32 Index )
 {
 	Super::InsertChildNode( Index );
-	CrossFadeInput.InsertZeroed( Index );
 
-	CrossFadeInput[ Index ].Volume = 1.0f;
+	if (Index >= CrossFadeInput.Num())
+	{
+		CrossFadeInput.InsertZeroed(Index);
+		CrossFadeInput[Index].Volume = 1.0f;
+	}
 }
 
 
