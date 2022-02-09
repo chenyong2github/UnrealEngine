@@ -649,31 +649,41 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 
 void UGameEngine::SwitchGameWindowToUseGameViewport()
 {
-	if (GameViewportWindow.IsValid() && GameViewportWindow.Pin()->GetContent() != GameViewportWidget)
+	if (TSharedPtr<SWindow> GameViewportWindowPtr = GameViewportWindow.Pin())
 	{
-		if( !GameViewportWidget.IsValid() )
+		if (GameViewportWindowPtr->GetContent() != GameViewportWidget)
 		{
-			CreateGameViewport( GameViewport );
-		}
-		
-		TSharedRef<SViewport> GameViewportWidgetRef = GameViewportWidget.ToSharedRef();
-		TSharedPtr<SWindow> GameViewportWindowPtr = GameViewportWindow.Pin();
-		
-		GameViewportWindowPtr->SetContent(GameViewportWidgetRef);
-		GameViewportWindowPtr->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * GameViewportWindowPtr->GetNativeWindow()->GetDPIScaleFactor());
-		
-		if ( SceneViewport.IsValid() )
-		{
-			SceneViewport->ResizeFrame((uint32)GSystemResolution.ResX, (uint32)GSystemResolution.ResY, GSystemResolution.WindowMode);
-		}
+			if (!GameViewportWidget.IsValid())
+			{
+				CreateGameViewport(GameViewport);
+			}
 
-		// Registration of the game viewport to that messages are correctly received.
-		// Could be a re-register, however it's necessary after the window is set.
-		FSlateApplication::Get().RegisterGameViewport(GameViewportWidgetRef);
+			if (GameViewportWidget.IsValid())
+			{
+				GameViewportWindowPtr->SetContent(GameViewportWidget.ToSharedRef());
+				GameViewportWindowPtr->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * GameViewportWindowPtr->GetNativeWindow()->GetDPIScaleFactor());
+			}
+			else
+			{
+				UE_LOG(LogEngine, Error, TEXT("The Game Viewport Widget is invalid."));
+			}
 
-		if (FSlateApplication::IsInitialized())
-		{
-			FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
+			if (SceneViewport.IsValid())
+			{
+				SceneViewport->ResizeFrame((uint32)GSystemResolution.ResX, (uint32)GSystemResolution.ResY, GSystemResolution.WindowMode);
+			}
+
+			// Registration of the game viewport to that messages are correctly received.
+			// Could be a re-register, however it's necessary after the window is set.
+			if (GameViewportWidget.IsValid())
+			{
+				FSlateApplication::Get().RegisterGameViewport(GameViewportWidget.ToSharedRef());
+			}
+
+			if (FSlateApplication::IsInitialized())
+			{
+				FSlateApplication::Get().SetAllUserFocusToGameViewport(EFocusCause::SetDirectly);
+			}
 		}
 	}
 }

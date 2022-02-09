@@ -1718,50 +1718,53 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChildren)
 {
 	int32 ChildIndex = 0;
-	MyChildren->ForEachWidget([this, &ChildIndex, InLayoutScaleMultiplier](SWidget& Child)
+	SWidget* Self = this;
+	auto ForEachPred = [Self, &ChildIndex, InLayoutScaleMultiplier](SWidget& Child)
+	{
+		const bool bUpdateAttributes = Child.HasRegisteredSlateAttribute() && Child.IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
+		if (bUpdateAttributes)
 		{
-			const bool bUpdateAttributes = Child.HasRegisteredSlateAttribute() && Child.IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
+			FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+		}
+
+		if (Child.GetVisibility() != EVisibility::Collapsed)
+		{
 			if (bUpdateAttributes)
 			{
-				FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
-			}
-
-			if (Child.GetVisibility() != EVisibility::Collapsed)
-			{
-				if (bUpdateAttributes)
-				{
 #if WITH_SLATE_DEBUGGING
-					EVisibility PreviousVisibility = GetVisibility();
-					int32 PreviousAllChildrenNum = Child.GetAllChildren()->Num();
+				EVisibility PreviousVisibility = Self->GetVisibility();
+				int32 PreviousAllChildrenNum = Child.GetAllChildren()->Num();
 #endif
 
-					FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+				FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 
 #if WITH_SLATE_DEBUGGING
-					ensureMsgf(PreviousVisibility == GetVisibility(), TEXT("The visibility of widget '%s' doens't match the previous visibility after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(this));
-					ensureMsgf(PreviousAllChildrenNum == Child.GetAllChildren()->Num(), TEXT("The number of child of widget '%s' doens't match the previous count after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(this));
+				ensureMsgf(PreviousVisibility == Self->GetVisibility(), TEXT("The visibility of widget '%s' doesn't match the previous visibility after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(Self));
+				ensureMsgf(PreviousAllChildrenNum == Child.GetAllChildren()->Num(), TEXT("The number of child of widget '%s' doesn't match the previous count after the attribute update."), *FReflectionMetaData::GetWidgetDebugInfo(Self));
 #endif
-				}
-
-				const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
-					? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-					: InLayoutScaleMultiplier;
-
-				// Recur: Descend down the widget tree.
-				Child.Prepass_Internal(ChildLayoutScaleMultiplier);
 			}
-			else
-			{
-				// If the child widget is collapsed, we need to store the new layout scale it will have when 
-				// it is finally visible and invalidate it's prepass so that it gets that when its visibility
-				// is finally invalidated.
-				Child.MarkPrepassAsDirty();
-				Child.PrepassLayoutScaleMultiplier = bHasRelativeLayoutScale
-					? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-					: InLayoutScaleMultiplier;
-			}
-			++ChildIndex;
-		});
+
+			const float ChildLayoutScaleMultiplier = Self->bHasRelativeLayoutScale
+				? InLayoutScaleMultiplier * Self->GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+				: InLayoutScaleMultiplier;
+
+			// Recur: Descend down the widget tree.
+			Child.Prepass_Internal(ChildLayoutScaleMultiplier);
+		}
+		else
+		{
+			// If the child widget is collapsed, we need to store the new layout scale it will have when 
+			// it is finally visible and invalidate it's prepass so that it gets that when its visibility
+			// is finally invalidated.
+			Child.MarkPrepassAsDirty();
+			Child.PrepassLayoutScaleMultiplier = Self->bHasRelativeLayoutScale
+				? InLayoutScaleMultiplier * Self->GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+				: InLayoutScaleMultiplier;
+		}
+		++ChildIndex;
+	};
+
+	MyChildren->ForEachWidget(ForEachPred);
 }
 
 TSharedRef<FActiveTimerHandle> SWidget::RegisterActiveTimer(float TickPeriod, FWidgetActiveTimerDelegate TickFunction)
