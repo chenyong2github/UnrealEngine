@@ -247,49 +247,6 @@ using FCookOnTheFlyRequest = FCookOnTheFlyMessage;
 using FCookOnTheFlyResponse = FCookOnTheFlyMessage;
 
 /**
- * Connection status
- */
-enum class ECookOnTheFlyConnectionStatus
-{
-	Disconnected,
-	Connected
-};
-
-/**
- * A connected cook-on-the-fly client.
- */
-struct FCookOnTheFlyClient
-{
-	/** A client ID set by the server. */
-	uint32 ClientId = 0;
-	/** The platform. */
-	FName PlatformName;
-};
-
-using FCookOnTheFlyRequestHandler = TFunction<bool(FCookOnTheFlyClient, const FCookOnTheFlyRequest&, FCookOnTheFlyResponse&)>;
-
-using FCookOnTheFlyClientConnectionHandler = TFunction<bool(FCookOnTheFlyClient, ECookOnTheFlyConnectionStatus)>;
-
-using FFillRequest = TFunction<void(FArchive&)>;
-
-using FProcessResponse = TFunction<bool(FArchive&)>;
-
-/**
- * Cook-on-the-fly connection server options.
- */
-struct FCookOnTheFlyServerOptions
-{
-	/** The port to listen for new connections. */
-	int32 Port = DefaultCookOnTheFlyServingPort;
-
-	/** Callback invoked when a client has connected or disconnected. */
-	FCookOnTheFlyClientConnectionHandler HandleClientConnection;
-
-	/** Callback invoked when the server receives a new request. */
-	FCookOnTheFlyRequestHandler HandleRequest;
-};
-
-/**
  * Cook-on-the-fly host address.
  */
 struct FCookOnTheFlyHostOptions
@@ -300,24 +257,6 @@ struct FCookOnTheFlyHostOptions
 	int32 Port = DefaultCookOnTheFlyServingPort;
 	/** How long to wait for the server to start. */
 	FTimespan ServerStartupWaitTime;
-};
-
-/**
- * A connection server used to communicate with cook-on-the-fly clients.
- */
-class ICookOnTheFlyConnectionServer
-{
-public:
-	virtual ~ICookOnTheFlyConnectionServer() { }
-
-	/** Start the cook-on-the-fly server. */
-	virtual bool StartServer() = 0;
-
-	/** Stop the cook-on-the-fly server. */
-	virtual void StopServer() = 0;
-
-	/** Broadcast message to all connected clients for the specified platform. */
-	virtual bool BroadcastMessage(const FCookOnTheFlyMessage& Message, const FName& PlatformName = NAME_None) = 0;
 };
 
 /**
@@ -363,13 +302,6 @@ class ICookOnTheFlyModule
 {
 public:
 	virtual ~ICookOnTheFlyModule() { }
-
-	/**
-	 * Creates a new instance of a cook-on-the-fly connection server.
-	 *
-	 * @param Options The cook-on-the-fly connection server options.
-	 */
-	virtual TUniquePtr<ICookOnTheFlyConnectionServer> CreateConnectionServer(FCookOnTheFlyServerOptions Options) = 0;
 
 	/**
 	 * Connect to the cook-on-the-fly server.

@@ -8,8 +8,6 @@ DEFINE_LOG_CATEGORY(LogCookOnTheFly);
 namespace UE { namespace Cook
 {
 
-TUniquePtr<ICookOnTheFlyConnectionServer> MakeCookOnTheFlyConnectionServer(FCookOnTheFlyServerOptions Options);
-	
 TUniquePtr<ICookOnTheFlyServerConnection> MakeServerConnection(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions);
 
 }}
@@ -32,11 +30,6 @@ public:
 	//
 	// ICookOnTheFlyModule interface
 	//
-
-	virtual TUniquePtr<UE::Cook::ICookOnTheFlyConnectionServer> CreateConnectionServer(UE::Cook::FCookOnTheFlyServerOptions Options) override
-	{
-		return UE::Cook::MakeCookOnTheFlyConnectionServer(Options);
-	}
 
 	virtual TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> ConnectToServer(const UE::Cook::FCookOnTheFlyHostOptions& HostOptions) override
 	{
