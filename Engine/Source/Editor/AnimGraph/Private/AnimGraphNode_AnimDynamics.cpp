@@ -3,20 +3,42 @@
 #include "AnimGraphNode_AnimDynamics.h"
 #include "AnimNodeEditModes.h"
 #include "EngineGlobals.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Widgets/Input/SButton.h"
 
 // Details includes
+#include "IDetailCustomization.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 #include "AnimationCustomVersion.h"
 #include "Animation/AnimInstance.h"
+#include "IDetailChildrenBuilder.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimDynamicsNode"
+
+////////////////////////////////////////
+// class FAnimGraphNode_AnimDynamics_DetailCustomization
+//
+// Required to customise the chain body array rendered in the details panel.
+//
+class FAnimGraphNode_AnimDynamics_DetailCustomization : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeInstance();
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	void OnPhysicsBodyDefCustomizeDetails(TSharedRef<class IPropertyHandle> ElementProperty, int32 ElementIndex, class IDetailChildrenBuilder& ChildrenBuilder, class IDetailLayoutBuilder* DetailLayout);
+
+	UClass* OwningClass;
+};
+
+////////////////////////////////////////
+// class UAnimGraphNode_AnimDynamics
 
 FText UAnimGraphNode_AnimDynamics::GetTooltipText() const
 {
@@ -68,32 +90,20 @@ void UAnimGraphNode_AnimDynamics::CustomizeDetails(IDetailLayoutBuilder& DetailB
 			.OnClicked(FOnClicked::CreateStatic(&UAnimGraphNode_AnimDynamics::ResetButtonClicked, &DetailBuilder))
 		];
 
-	// Add warning message about physics body array not being updated untill after the first BP compile.
-	if (LastPreviewComponent == nullptr)
+	if (!DetailCustomization)
 	{
-		IDetailCategoryBuilder& SetupCategory = DetailBuilder.EditCategory(TEXT("Setup"));
-		const FText WarningText(LOCTEXT("AnimDynamicsWarningText", "WARNING - Physics Bodies Will Not Be Valid Untill This Node Has Been Connected And Compiled"));
-		FDetailWidgetRow& WarningMessageTextWidgetRow = SetupCategory.AddCustomRow(WarningText);
-
-		WarningMessageTextWidgetRow
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(WarningText)
-					.Justification(ETextJustify::Center)
-					.ColorAndOpacity(FLinearColor::Red)
-				]
-			];
+		DetailCustomization = MakeShared<FAnimGraphNode_AnimDynamics_DetailCustomization>();
 	}
+
+	DetailCustomization->OwningClass = GetClass();
+	DetailCustomization->CustomizeDetails(DetailBuilder);
 
 	// Force order of details panel catagories - Must set order for all of them as any that are edited automatically move to the top.
 	{
 		uint32 SortOrder = 0;
 		DetailBuilder.EditCategory("Preview").SetSortOrder(SortOrder++);
 		DetailBuilder.EditCategory("Setup").SetSortOrder(SortOrder++);
+		DetailBuilder.EditCategory("PhysicsParameters").SetSortOrder(SortOrder++);
 		DetailBuilder.EditCategory("Settings").SetSortOrder(SortOrder++);
 		DetailBuilder.EditCategory("SphericalLimit").SetSortOrder(SortOrder++);
 		DetailBuilder.EditCategory("PlanarLimit").SetSortOrder(SortOrder++);
@@ -158,8 +168,23 @@ FText UAnimGraphNode_AnimDynamics::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return CachedNodeTitles[TitleType];
 }
 
+
+USkeleton* UAnimGraphNode_AnimDynamics::GetSkeleton() const
+{
+	USkeleton* Skeleton = nullptr;
+
+	if (UAnimBlueprint* const AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(this)))
+	{
+		Skeleton = AnimBlueprint->TargetSkeleton;
+	}
+
+	return Skeleton;
+}
+
 void UAnimGraphNode_AnimDynamics::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	bool bShouldRebuildChain = false;
+
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimNode_AnimDynamics, ChainEnd))
 	{
 		// bChain has been modified.
@@ -172,13 +197,23 @@ void UAnimGraphNode_AnimDynamics::PostEditChangeProperty(struct FPropertyChanged
 			Node.ChainEnd.BoneName = NAME_None;
 		}
 
-		Node.UpdateChainPhysicsBodyDefinitions(LastPreviewComponent);
+		bShouldRebuildChain = true;
 	}
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName))
+	bShouldRebuildChain |= (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName)); // Either BoundBone or ChainEnd have been modified. 
+	
+	if (USkeleton* const Skeleton = GetSkeleton())
 	{
-		// Either BoundBone or ChainEnd have been modified.
-		Node.UpdateChainPhysicsBodyDefinitions(LastPreviewComponent);
+		if (bShouldRebuildChain)
+		{
+			// Rebuild Chain if begin or end bones have changed.
+			Node.UpdateChainPhysicsBodyDefinitions(Skeleton->GetReferenceSkeleton());
+		}
+		else
+		{
+			// Write chain bones names to each body in chain and check chain length in case either have been changed by a copy and paste operation.
+			Node.ValidateChainPhysicsBodyDefinitions(Skeleton->GetReferenceSkeleton());
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -200,18 +235,7 @@ void UAnimGraphNode_AnimDynamics::ResetSim()
 
 FAnimNode_AnimDynamics* UAnimGraphNode_AnimDynamics::GetPreviewDynamicsNode() const
 {
-	FAnimNode_AnimDynamics* ActivePreviewNode = nullptr;
-
-	if(LastPreviewComponent && LastPreviewComponent->GetAnimInstance())
-	{
-		UAnimInstance* Instance = LastPreviewComponent->GetAnimInstance();
-		if(UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>(Instance->GetClass()))
-		{
-			ActivePreviewNode = Class->GetPropertyInstance<FAnimNode_AnimDynamics>(Instance, NodeGuid);
-		}
-	}
-
-	return ActivePreviewNode;
+	return GetDebuggedAnimNode<FAnimNode_AnimDynamics>();
 }
 
 FReply UAnimGraphNode_AnimDynamics::ResetButtonClicked(IDetailLayoutBuilder* DetailLayoutBuilder)
@@ -262,6 +286,52 @@ void UAnimGraphNode_AnimDynamics::Serialize(FArchive& Ar)
 		PhysBodyDef.CollisionType = Node.CollisionType_DEPRECATED;
 		PhysBodyDef.SphereCollisionRadius = Node.SphereCollisionRadius_DEPRECATED;
 		Node.PhysicsBodyDefinitions.Add(PhysBodyDef);
+	}
+}
+
+TSharedRef< IDetailCustomization > FAnimGraphNode_AnimDynamics_DetailCustomization::MakeInstance()
+{
+	return MakeShareable(new FAnimGraphNode_AnimDynamics_DetailCustomization);
+}
+
+void FAnimGraphNode_AnimDynamics_DetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+{
+	IDetailCategoryBuilder& SetupCategory = DetailLayout.EditCategory(TEXT("PhysicsParameters"));
+	TSharedRef< IPropertyHandle > PhysicsBodyDefinitionsProperty = DetailLayout.GetProperty("Node.PhysicsBodyDefinitions", OwningClass);
+	if (PhysicsBodyDefinitionsProperty->AsArray().IsValid())
+	{
+		TSharedRef<FDetailArrayBuilder> PropertyBuilder = MakeShareable(new FDetailArrayBuilder(PhysicsBodyDefinitionsProperty, /*InGenerateHeader*/ true, /*InDisplayResetToDefault*/ true, /*InDisplayElementNum*/ true));
+		PropertyBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FAnimGraphNode_AnimDynamics_DetailCustomization::OnPhysicsBodyDefCustomizeDetails, &DetailLayout));
+		SetupCategory.AddCustomBuilder(PropertyBuilder, false);
+	}
+}
+
+void FAnimGraphNode_AnimDynamics_DetailCustomization::OnPhysicsBodyDefCustomizeDetails(TSharedRef<IPropertyHandle> ElementProperty, int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
+{
+	TSharedPtr<IPropertyHandle> BoundBoneProperty = ElementProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimPhysBodyDefinition, BoundBone));
+
+	// Get Bone Name
+	FName BoneName;
+
+	if (BoundBoneProperty)
+	{
+		TSharedPtr<IPropertyHandle> BoundBoneNameProperty = BoundBoneProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName));
+		if (BoundBoneNameProperty)
+		{
+			BoundBoneNameProperty->GetValue(BoneName);
+		}
+
+		DetailLayout->HideProperty(BoundBoneProperty);
+		IDetailPropertyRow& Row = ChildrenBuilder.AddProperty(ElementProperty);
+		
+		// Set a custom widget show a more useful item name and remove the 'n items' text that would otherwise appear on the body def group header.
+		const FString BodyDefNameString = "[" + FString::FromInt(ElementIndex) + "] " + BoneName.ToString();
+		Row.CustomWidget(true) 
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(BodyDefNameString))
+			];
 	}
 }
 

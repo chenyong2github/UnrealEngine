@@ -63,9 +63,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Preview)
 	bool bShowCollisionSpheres;
 
-	UPROPERTY(Transient)
-	mutable TObjectPtr<USkeletalMeshComponent> LastPreviewComponent;
-
 	virtual void PostLoad() override;
 
 	static FReply ResetButtonClicked(IDetailLayoutBuilder* DetailLayoutBuilder);
@@ -102,6 +99,10 @@ protected:
 	virtual const FAnimNode_SkeletalControlBase* GetNode() const override { return &Node; }
 	// End of UAnimGraphNode_SkeletalControlBase protected interface
 
+	USkeleton* GetSkeleton() const;
+
 private:
+	TSharedPtr<class FAnimGraphNode_AnimDynamics_DetailCustomization> DetailCustomization;
+
 	FNodeTitleTextTable CachedNodeTitles;
 };

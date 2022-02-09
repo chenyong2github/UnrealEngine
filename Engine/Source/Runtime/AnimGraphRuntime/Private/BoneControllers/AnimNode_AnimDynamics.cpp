@@ -460,17 +460,7 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	}
 }
 
-void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const USkeletalMeshComponent* const PreviewSkelMeshComp)
-{
-	if (PreviewSkelMeshComp)
-	{
-		TArray<FName> ChainBoneNames;
-		FindChainBones(BoundBone.BoneName, ChainEnd.BoneName, [PreviewSkelMeshComp](const FName BoneName) { return PreviewSkelMeshComp->GetParentBone(BoneName); }, ChainBoneNames);
-		UpdateChainPhysicsBodyDefinitions(ChainBoneNames);
-	}
-}
-
-void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton)
+void FAnimNode_AnimDynamics::FindChainBoneNames(const FReferenceSkeleton& ReferenceSkeleton, TArray<FName>& ChainBoneNames)
 {
 	auto GetParentBoneNameFn = [&ReferenceSkeleton](const FName BoneName)
 	{
@@ -489,14 +479,37 @@ void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const FReferenceS
 		return FName(NAME_None);
 	};
 
-	TArray<FName> ChainBoneNames;
 	FindChainBones(BoundBone.BoneName, ChainEnd.BoneName, GetParentBoneNameFn, ChainBoneNames);
-	UpdateChainPhysicsBodyDefinitions(ChainBoneNames);
 }
 
-void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const TArray<FName>& ChainBoneNames)
+void FAnimNode_AnimDynamics::ValidateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton)
 {
+	TArray<FName> ChainBoneNames;
+	FindChainBoneNames(ReferenceSkeleton, ChainBoneNames);
+
+	// If another array of physics bodies has been pasted over this one we may have too many entries (in which case SetNum will truncate the array) or we may have too few (in which case SetNum will padd with default constucted body defs).
+	PhysicsBodyDefinitions.SetNum(ChainBoneNames.Num());
+
+	for (uint32 BodyIndex = 0, BodyIndexMax = FMath::Min(ChainBoneNames.Num(), PhysicsBodyDefinitions.Num()); BodyIndex < BodyIndexMax; ++BodyIndex)
+	{
+		PhysicsBodyDefinitions[BodyIndex].BoundBone.BoneName = ChainBoneNames[BodyIndex];
+	}
+}
+
+void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton)
+{
+	TArray<FName> ChainBoneNames;
+	FindChainBoneNames(ReferenceSkeleton, ChainBoneNames);
 	check(ChainBoneNames.Num() > 0);
+
+	// If there was only one physics body then copy its values to all new chain bodies (emulating legacy behaviour), otherwise use values from default construction.
+	FAnimPhysBodyDefinition PrototypePhysBodyDef;
+
+	if (PhysicsBodyDefinitions.Num() == 1)
+	{
+		PrototypePhysBodyDef = PhysicsBodyDefinitions[0];
+	}
+
 
 	// Remove any bodies for bones that are not in the chain.
 	PhysicsBodyDefinitions.RemoveAll([&ChainBoneNames](const FAnimPhysBodyDefinition& Value) { return ChainBoneNames.Find(Value.BoundBone.BoneName) == INDEX_NONE;});
@@ -504,14 +517,6 @@ void FAnimNode_AnimDynamics::UpdateChainPhysicsBodyDefinitions(const TArray<FNam
 
 	// Create a new Physics Body Def for any new bones in the chain and add them before or after the existing bodies as appropriate to maintain the order of the chain bones.
 	{
-		// If there was only one physics body then copy its values to all new chain bodies (emulating legacy behaviour), otherwise use values from default construction.
-		FAnimPhysBodyDefinition PrototypePhysBodyDef;
-		
-		if (PhysicsBodyDefinitions.Num() == 1)
-		{
-			PrototypePhysBodyDef = PhysicsBodyDefinitions[0];
-		}
-
 		uint32 PhysicsBodyDefIndex = 0;
 
 		for (FName BoneName : ChainBoneNames)

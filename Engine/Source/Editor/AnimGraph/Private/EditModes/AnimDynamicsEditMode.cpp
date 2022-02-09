@@ -117,21 +117,6 @@ FAnimDynamicsEditMode::FAnimDynamicsEditMode()
 	, bIsInteractingWithWidget(false)
 {}
 
-void FAnimDynamicsEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
-{
-	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
-
-	// Cache pointer to PreviewSkelMesh in the Editor node as there's no good way to access it directly from the Editor Node and its required for some parts of the UI.
-	{
-		USkeletalMeshComponent* const PreviewSkelMeshComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-
-		if (UAnimGraphNode_AnimDynamics* const EditorAnimDynamicsNode = CastChecked<UAnimGraphNode_AnimDynamics>(InEditorNode))
-		{
-			EditorAnimDynamicsNode->LastPreviewComponent = PreviewSkelMeshComp;
-		}
-	}
-}
-
 void FAnimDynamicsEditMode::ExitMode()
 {
 	SelectedViewportObjects.Empty();
@@ -165,11 +150,6 @@ void FAnimDynamicsEditMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 		if (EditorAnimDynamicsNode)
 		{
-			if (EditorAnimDynamicsNode->LastPreviewComponent != PreviewSkelMeshComp)
-			{
-				EditorAnimDynamicsNode->LastPreviewComponent = PreviewSkelMeshComp;
-			}
-
 			const FAnimNode_AnimDynamics* const ActivePreviewNode = EditorAnimDynamicsNode->GetPreviewDynamicsNode();
 
 			if (!ActivePreviewNode)
@@ -830,8 +810,6 @@ void FAnimDynamicsEditMode::Tick(FEditorViewportClient* ViewportClient, float De
 					ActivePreviewNode->bDoPhysicsUpdateInEditor = true;
 				}
 			}
-
-			EditorAnimDynamicsNode->LastPreviewComponent = PreviewSkelMeshComp;
 		}
 	}
 }

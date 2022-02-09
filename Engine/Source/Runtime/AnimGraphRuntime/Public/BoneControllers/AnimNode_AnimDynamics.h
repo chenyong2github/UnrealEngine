@@ -292,13 +292,13 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	/**
 	* Overridden linear damping value. The default is 0.7. Values below 0.7 won't have an effect.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "NumSolverIterationsPostUpdate", EditCondition = bOverrideLinearDamping))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "NumSolverIterationsPostUpdate", EditCondition = bOverrideLinearDamping))
 	float LinearDampingOverride;
 
 	/**
 	 * Overridden angular damping value. The default is 0.7. Values below 0.7 won't have an effect.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "LinearDampingOverride", EditCondition = bOverrideAngularDamping))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "LinearDampingOverride", EditCondition = bOverrideAngularDamping))
 	float AngularDampingOverride;
 
 	// Previous component & actor transforms, used to account for teleports
@@ -317,22 +317,22 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (EditCondition = bChain, DisplayAfter = "BoundBone"))
 	FBoneReference ChainEnd;
 
-	UPROPERTY(EditAnywhere, EditFixedSize, Category = Setup, meta = (DisplayName = "Physics Bodies", EditFixedOrder, DisplayAfter = "ChainEnd"))
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = PhysicsParameters, meta = (DisplayName = "Body Definitions", EditFixedOrder, DisplayAfter = "ChainEnd"))
 	TArray< FAnimPhysBodyDefinition > PhysicsBodyDefinitions;
 
 	/** Scale for gravity, higher values increase forces due to gravity */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "bGravityOverrideInSimSpace", EditCondition = "!bUseGravityOverride"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "bGravityOverrideInSimSpace", EditCondition = "!bUseGravityOverride"))
 	float GravityScale;
 
 	/** Gravity Override Value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "bUseGravityOverride", EditCondition = "bUseGravityOverride"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "bUseGravityOverride", EditCondition = "bUseGravityOverride"))
 	FVector GravityOverride;
 
 	/** 
 	 * Spring constant to use when calculating linear springs, higher values mean a stronger spring.
 	 * You need to enable the Linear Spring checkbox for this to have an effect.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup, meta = (EditCondition = bLinearSpring, PinHiddenByDefault, DisplayAfter = "AngularSpringConstant"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsParameters, meta = (EditCondition = bLinearSpring, PinHiddenByDefault, DisplayAfter = "AngularSpringConstant"))
 	float LinearSpringConstant;
 
 	/** 
@@ -340,7 +340,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	 * You need to enable the Angular Spring checkbox for this to have an effect.
 	 * Note: Make sure to also set the Angular Target Axis and Angular Target in the Constraint Setup for this to have an effect.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup, meta = (DisplayAfter = "PhysicsBodyDefinitions", EditCondition = bAngularSpring, PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsParameters, meta = (DisplayAfter = "PhysicsBodyDefinitions", EditCondition = bAngularSpring, PinHiddenByDefault))
 	float AngularSpringConstant;
 
 	/** Scale to apply to calculated wind velocities in the solver */
@@ -364,15 +364,15 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	*  in check. When using single-body systems sometimes angular forces will look like they are "catching-up" with
 	*  the mesh, if that's the case override this and push it towards 1.0f until it settles correctly
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "AngularDampingOverride", EditCondition = bOverrideAngularBias))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "AngularDampingOverride", EditCondition = bOverrideAngularBias))
 	float AngularBiasOverride;
 
 	/** Number of update passes on the linear and angular limits before we solve the position of the bodies recommended to be four times the value of NumSolverIterationsPostUpdate */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters)
 	int32 NumSolverIterationsPreUpdate;
 
 	/** Number of update passes on the linear and angular limits after we solve the position of the bodies, recommended to be around a quarter of NumSolverIterationsPreUpdate */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (PinHiddenByDefault, DisplayAfter = "NumSolverIterationsPreUpdate"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta = (PinHiddenByDefault, DisplayAfter = "NumSolverIterationsPreUpdate"))
 	int32 NumSolverIterationsPostUpdate;
 
 	/** List of available spherical limits for this node */
@@ -407,15 +407,15 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	uint8 bUsePlanarLimit:1;
 
 	/** If true we will perform physics update, otherwise skip - allows visualization of the initial state of the bodies */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (DisplayAfter = "bDoEval"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta = (DisplayAfter = "bDoEval"))
 	uint8 bDoUpdate : 1;
 
 	/** If true we will perform bone transform evaluation, otherwise skip - allows visualization of the initial anim state compared to the physics sim */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (DisplayAfter = "AngularBiasOverride"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta = (DisplayAfter = "AngularBiasOverride"))
 	uint8 bDoEval : 1;
 
 	/** If true, the override value will be used for linear damping */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta=(InlineEditConditionToggle, DisplayAfter="AngularSpringConstraint"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta=(InlineEditConditionToggle, DisplayAfter="AngularSpringConstraint"))
 	uint8 bOverrideLinearDamping:1;
 
 	/** If true, the override value will be used for the angular bias for bodies in this node. 
@@ -423,11 +423,11 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	 *  in check. When using single-body systems sometimes angular forces will look like they are "catching-up" with
 	 *  the mesh, if that's the case override this and push it towards 1.0f until it settles correctly
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta=(InlineEditConditionToggle, DisplayAfter="AngularDampingOverride"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta=(InlineEditConditionToggle, DisplayAfter="AngularDampingOverride"))
 	uint8 bOverrideAngularBias:1;
 
 	/** If true, the override value will be used for angular damping */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta=(InlineEditConditionToggle, DisplayAfter="LinearDampingOverride"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PhysicsParameters, meta=(InlineEditConditionToggle, DisplayAfter="LinearDampingOverride"))
 	uint8 bOverrideAngularDamping:1;
 
 	/** Whether or not wind is enabled for the bodies in this simulation */
@@ -437,19 +437,19 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	uint8 bWindWasEnabled:1;
 
 	/** Use gravity override value vs gravity scale */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Setup, meta = (DisplayAfter = "LinearSpringConstant"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsParameters, meta = (DisplayAfter = "LinearSpringConstant"))
 	uint8 bUseGravityOverride:1;
 
 	/** If true the gravity override value is defined in simulation space, by default it is in world space */
-	UPROPERTY(EditAnywhere, Category = Setup, meta=(DisplayAfter = "GravityOverride", DisplayName = "Gravity Override In Sim Space", EditCondition = "bUseGravityOverride"))
+	UPROPERTY(EditAnywhere, Category = PhysicsParameters, meta=(DisplayAfter = "GravityOverride", DisplayName = "Gravity Override In Sim Space", EditCondition = "bUseGravityOverride"))
 	uint8 bGravityOverrideInSimSpace : 1;
 
 	/** If true the body will attempt to spring back to its initial position */
-	UPROPERTY(EditAnywhere, Category = Setup, meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = PhysicsParameters, meta = (InlineEditConditionToggle))
 	uint8 bLinearSpring:1;
 
 	/** If true the body will attempt to align itself with the specified angular target */
-	UPROPERTY(EditAnywhere, Category = Setup, meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = PhysicsParameters, meta = (InlineEditConditionToggle))
 	uint8 bAngularSpring:1;
 
 	/** Set to true to use the solver to simulate a connected chain */
@@ -489,9 +489,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	void InitPhysics(FComponentSpacePoseContext& Output);
 	void TermPhysics();
 
-	void UpdateChainPhysicsBodyDefinitions(const USkeletalMeshComponent* const PreviewSkelMeshComp);
 	void UpdateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
-	void UpdateChainPhysicsBodyDefinitions(const TArray<FName>& ChainBoneNames);
+	void ValidateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
+	void FindChainBoneNames(const FReferenceSkeleton& ReferenceSkeleton, TArray<FName>& ChainBoneNames);
 	void UpdateLimits(FComponentSpacePoseContext& Output);
 
 	int32 GetNumBodies() const;

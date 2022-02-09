@@ -1795,22 +1795,6 @@ bool UAnimGraphNode_Base::ReferencesFunction(const FName& InFunctionName,const U
 	return InitialUpdateFunction.GetMemberName() == InFunctionName || BecomeRelevantFunction.GetMemberName() == InFunctionName || UpdateFunction.GetMemberName() == InFunctionName;
 }
 
-FAnimNode_Base* UAnimGraphNode_Base::GetDebuggedAnimNode() const
-{
-	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this))
-	{
-		if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
-		{
-			if (UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>((UObject*)ActiveObject->GetClass()))
-			{
-				return Class->GetPropertyInstance<FAnimNode_Base>(ActiveObject, this);
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 void UAnimGraphNode_Base::PostEditRefreshDebuggedComponent()
 {
 	if(FAnimNode_Base* DebuggedAnimNode = GetDebuggedAnimNode())
@@ -1832,6 +1816,16 @@ void UAnimGraphNode_Base::PostEditRefreshDebuggedComponent()
 			}
 		}
 	}
+}
+
+UObject* UAnimGraphNode_Base::GetObjectBeingDebugged() const
+{
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this))
+	{
+		return Blueprint->GetObjectBeingDebugged();
+	}
+
+	return nullptr;
 }
 
 bool UAnimGraphNode_Base::IsPotentiallyBoundFunction(const FMemberReference& FunctionReference)

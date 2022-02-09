@@ -500,8 +500,12 @@ public:
 
 	// Get the currently-debugged runtime anim node (in the anim BP debugger that this node is currently being edited in)
 	// @return nullptr if the node cannot be found
-	FAnimNode_Base* GetDebuggedAnimNode() const;
-	
+	FAnimNode_Base* GetDebuggedAnimNode() const { return GetDebuggedAnimNode<FAnimNode_Base>(); }
+
+	// Get the currently-debugged runtime anim node of a specified type (in the anim BP debugger that this node is currently being edited in)
+	// @return nullptr if the node cannot be found
+	template< typename TNodeType > TNodeType* GetDebuggedAnimNode() const;
+
 	// Refreshes the debugged component post-edit.
 	// This is required to see changes as the component may be either an editor-only component that is not ticking,
 	// or in a paused PIE world
@@ -592,6 +596,9 @@ protected:
 	// Helper function used to refresh the type of a binding
 	void RecalculateBindingType(FAnimGraphNodePropertyBinding& InBinding);
 	
+	/** @return the current object being debugged from the blueprint for this node. Can be nullptr. */
+	UObject* GetObjectBeingDebugged() const;
+
 protected:
 	// Old shown pins. Needs to be a member variable to track pin visibility changes between Pre and PostEditChange 
 	TArray<FName> OldShownPins;
@@ -613,4 +620,17 @@ template<class AssetType>
 void UAnimGraphNode_Base::HandleAnimReferenceReplacement(TObjectPtr<AssetType>& OriginalAsset, const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap)
 {
 	HandleAnimReferenceReplacement(static_cast<AssetType*&>(OriginalAsset), AnimAssetReplacementMap);
+}
+
+template<class TNodeType> TNodeType* UAnimGraphNode_Base::GetDebuggedAnimNode() const
+{
+	if (UObject* ActiveObject = GetObjectBeingDebugged())
+	{
+		if (UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>((UObject*)ActiveObject->GetClass()))
+		{
+			return Class->GetPropertyInstance<TNodeType>(ActiveObject, this);
+		}
+	}
+
+	return nullptr;
 }
