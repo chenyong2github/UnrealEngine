@@ -316,18 +316,18 @@ private:
 template <EMipGenAddressMode AddressMode>
 static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector4f& Scales, const FImageView2D& SourceImageData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage);
+
 	FVector4f Coverage(0, 0, 0, 0);
 
-	int32 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
-	int32 NumRowsEachJob = SourceImageData.SizeY / NumJobs;
-	if (NumRowsEachJob * NumJobs < SourceImageData.SizeY)
-	{
-		++NumRowsEachJob;
-	}
+	int32 NumRowsEachJob;
+	int32 NumJobs = ImageParallelForComputeNumJobsForRows(NumRowsEachJob,SourceImageData.SizeX,SourceImageData.SizeY);
 
 	int32 CommonResults[4] = { 0, 0, 0, 0 };
 	ParallelFor(NumJobs, [&](int32 Index)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage.PF);
+
 		int32 StartIndex = Index * NumRowsEachJob;
 		int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, SourceImageData.SizeY);
 		int32 LocalCoverage[4] = { 0, 0, 0, 0 };
@@ -372,6 +372,8 @@ static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector
 template <EMipGenAddressMode AddressMode>
 static FVector4f ComputeAlphaScale(const FVector4f& Coverages, const FVector4f& AlphaThresholds, const FImageView2D& SourceImageData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaScale);
+
 	FVector4f MinAlphaScales (0, 0, 0, 0);
 	FVector4f MaxAlphaScales (4, 4, 4, 4);
 	FVector4f AlphaScales (1, 1, 1, 1);
@@ -446,8 +448,17 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 		AlphaScale = ComputeAlphaScale<AddressMode>(AlphaCoverages, AlphaThresholds, SourceImageData);
 	}
 	
-	ParallelFor(DestImageData.SizeY, [&](int32 DestY)
+	int32 NumRowsEachJob;
+	int32 NumJobs = ImageParallelForComputeNumJobsForRows(NumRowsEachJob,DestImageData.SizeX,DestImageData.SizeY);
+
+	ParallelFor(NumJobs, [&](int32 Index)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSharpenedMip.PF);
+
+		int32 StartIndex = Index * NumRowsEachJob;
+		int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, DestImageData.SizeY);
+		for (int32 DestY = StartIndex; DestY < EndIndex; ++DestY)
+		{
 		for ( int32 DestX = 0;DestX < DestImageData.SizeX; DestX++ )
 		{
 			const int32 SourceX = DestX * ScaleFactor;
@@ -533,6 +544,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 			FLinearColor& DestColor = DestImageData.Access(DestX, DestY);
 			DestColor = FilteredColor;
 		}
+		}
 	});
 }
 
@@ -552,6 +564,8 @@ static void GenerateSharpenedMipB8G8R8A8(
 	bool bUnfiltered
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSharpenedMip);
+
 	switch(AddressMode)
 	{
 	case MGTAM_Wrap:
@@ -734,6 +748,8 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 		return;
 	}
 	
+	TRACE_CPUPROFILER_EVENT_SCOPE(DownscaleImage);
+		
 	float Downscale = FMath::Clamp(Settings.Downscale, 1.f, 8.f);
 	int32 FinalSizeX = FMath::CeilToInt(SrcImage.SizeX / Downscale);
 	int32 FinalSizeY = FMath::CeilToInt(SrcImage.SizeY / Downscale);
@@ -891,6 +907,8 @@ void ITextureCompressorModule::GenerateMipChain(
 	uint32 MipChainDepth 
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateMipChain);
+
 	check(BaseImage.Format == ERawImageFormat::RGBA32F);
 
 	const FImage& BaseMip = BaseImage;
@@ -1208,6 +1226,8 @@ static uint32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const uint32 
 
 void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateBaseCubeMipFromLongitudeLatitude2D);
+
 	FImage LongLatImage;
 	SrcImage.Linearize(SourceEncodingOverride, LongLatImage);
 
@@ -1418,6 +1438,8 @@ static inline float ComputeTexelArea(uint32 x, uint32 y, float InvSideExtentMul2
  */
 static void GenerateAngularFilteredMip(FImage* DestMip, FImage& SrcMip, float ConeAngle)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateAngularFilteredMip);
+
 	int32 MipExtent = DestMip->SizeX;
 	float MipInvSideExtent = 1.0f / MipExtent;
 
@@ -1510,6 +1532,8 @@ static void GenerateAngularFilteredMip(FImage* DestMip, FImage& SrcMip, float Co
 
 void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateAngularFilteredMips);
+
 	TArray<FImage> SrcMipChain;
 	Exchange(SrcMipChain, InOutMipChain);
 	InOutMipChain.Empty(NumMips);
@@ -1601,30 +1625,28 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		!FMath::IsNearlyEqual( InParams.AdjustMaxAlpha, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
 		InBuildSettings.bChromaKeyTexture )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustImageColors);
+
 		const FLinearColor ChromaKeyTarget = InBuildSettings.ChromaKeyColor;
 		const float ChromaKeyThreshold = InBuildSettings.ChromaKeyThreshold + SMALL_NUMBER;
-		const int32 NumPixels = Image.SizeX * Image.SizeY * Image.NumSlices;
+		const int64 NumPixels = (int64)Image.SizeX * Image.SizeY * Image.NumSlices;
 		TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
 
-		int32 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
-		int32 NumPixelsEachJob = NumPixels / NumJobs;
-		if (NumPixelsEachJob * NumJobs < NumPixels)
-		{
-			++NumPixelsEachJob;
-		}
+		int64 NumPixelsEachJob;
+		int32 NumJobs = ImageParallelForComputeNumJobsForPixels(NumPixelsEachJob,NumPixels);
 
 		// bForceSingleThread is set to true when: 
-		// (a) editor or cooker is loading as this is when the derived data cache is rebuilt as it will already be limited to a single thread 
+		// editor or cooker is loading as this is when the derived data cache is rebuilt as it will already be limited to a single thread 
 		//     and thus overhead of multithreading will simply make it slower
-		// (b) texture is smaller than 256x256 as it will cost more to multithread than to run on single thread.	
-		const static int MinPixelsToMultithread = 16384;
-		bool bForceSingleThread = (NumPixels < MinPixelsToMultithread) || GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
+		bool bForceSingleThread = GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
 
 		TFunction<void (int32)> AdjustImageColorsFunc = [&](int32 Index)
 		{
-			int32 StartIndex = Index * NumPixelsEachJob;
-			int32 EndIndex = FMath::Min(StartIndex + NumPixelsEachJob, NumPixels);
-			for (int32 CurPixelIndex = StartIndex; CurPixelIndex < EndIndex; ++CurPixelIndex)
+			TRACE_CPUPROFILER_EVENT_SCOPE(AdjustImageColors.PF);
+
+			int64 StartIndex = Index * NumPixelsEachJob;
+			int64 EndIndex = FMath::Min(StartIndex + NumPixelsEachJob, NumPixels);
+			for (int64 CurPixelIndex = StartIndex; CurPixelIndex < EndIndex; ++CurPixelIndex)
 			{
 				const FLinearColor OriginalColorRaw = ImageColors[CurPixelIndex];
 
@@ -1895,7 +1917,7 @@ static void ApplyYCoCgBlockScale(TArray<FImage>& InOutMipChain)
 	}
 }
 
-float RoughnessToSpecularPower(float Roughness)
+static float RoughnessToSpecularPower(float Roughness)
 {
 	float Div = FMath::Pow(Roughness, 4);
 
@@ -1906,7 +1928,7 @@ float RoughnessToSpecularPower(float Roughness)
 	return 2.0f / Div - 2.0f;
 }
 
-float SpecularPowerToRoughness(float SpecularPower)
+static float SpecularPowerToRoughness(float SpecularPower)
 {
 	float Out = FMath::Pow( SpecularPower * 0.5f + 1.0f, -0.25f );
 
@@ -2335,6 +2357,8 @@ private:
 		const FTextureFormatCompressorCaps& CompressorCaps,
 		TArray<FImage>& OutMipChain)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BuildTextureMips);
+
 		check(InSourceMips.Num());
 		check(InSourceMips[0].SizeX > 0 && InSourceMips[0].SizeY > 0 && InSourceMips[0].NumSlices > 0);
 

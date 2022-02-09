@@ -1323,6 +1323,9 @@ public:
 					InSurf.pixels, InBytesPerSlice);
 			}
 
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN);
+
 			// if RDOLambda == 0, does non-RDO encode :
 			OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
 					&InSurf, 1, OodlePF, NULL, RDOLambda, 
@@ -1334,6 +1337,7 @@ public:
 				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture encode failed!? %s"), OodleErrStr );
 				bCompressionSucceeded = false;
 				break;
+			}
 			}
 			
 			if (bImageDump)

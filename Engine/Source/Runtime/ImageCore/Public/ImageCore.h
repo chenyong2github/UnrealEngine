@@ -268,3 +268,8 @@ public:
 		return GammaSpace != EGammaSpace::Linear;
 	}
 };
+
+
+IMAGECORE_API int32 ImageParallelForComputeNumJobsForPixels(int64 & OutNumPixelsPerJob,int64 NumPixels);
+
+IMAGECORE_API int32 ImageParallelForComputeNumJobsForRows(int32 & OutNumItemsPerJob,int32 SizeX,int32 SizeY);
