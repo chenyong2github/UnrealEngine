@@ -13,6 +13,11 @@ void UAnimationStateMachineLibrary::ConvertToAnimationStateResult(const FAnimNod
 	AnimationState = FAnimNodeReference::ConvertToType<FAnimationStateResultReference>(Node, Result);
 }
 
+void UAnimationStateMachineLibrary::ConvertToAnimationStateMachine(const FAnimNodeReference& Node, FAnimationStateMachineReference& AnimationStateMachine, EAnimNodeReferenceConversionResult& Result)
+{
+	AnimationStateMachine = FAnimNodeReference::ConvertToType<FAnimationStateMachineReference>(Node, Result);
+}
+
 bool UAnimationStateMachineLibrary::IsStateBlendingIn(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node)
 {
 	bool bResult = false;
@@ -77,4 +82,50 @@ bool UAnimationStateMachineLibrary::IsStateBlendingOut(const FAnimUpdateContext&
 		});
 
 	return bResult;
+}
+
+void UAnimationStateMachineLibrary::SetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node, FName TargetState, float Duration
+		, TEnumAsByte<ETransitionLogicType::Type> BlendType, UBlendProfile* BlendProfile, EAlphaBlendOption AlphaBlendOption, UCurveFloat* CustomBlendCurve)
+{
+	Node.CallAnimNodeFunction<FAnimNode_StateMachine>(
+		TEXT("SetState"),
+		[&UpdateContext, TargetState, Duration, BlendType, BlendProfile, AlphaBlendOption, CustomBlendCurve](FAnimNode_StateMachine& StateMachineNode)
+		{
+			if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
+			{
+				const int32 CurrentStateIndex = StateMachineNode.GetCurrentState();
+				const int32 TargetStateIndex = StateMachineNode.GetStateIndex(TargetState);
+					
+				if(CurrentStateIndex != INDEX_NONE && TargetStateIndex != INDEX_NONE)
+				{
+					FAnimationTransitionBetweenStates TransitionInfo;
+					TransitionInfo.PreviousState = CurrentStateIndex;
+					TransitionInfo.NextState = TargetStateIndex;
+					TransitionInfo.CrossfadeDuration = Duration;
+					TransitionInfo.BlendMode = AlphaBlendOption;
+					TransitionInfo.CustomCurve = CustomBlendCurve;
+					TransitionInfo.BlendProfile = BlendProfile;
+					TransitionInfo.LogicType = BlendType;
+
+					StateMachineNode.TransitionToState(*AnimationUpdateContext, TransitionInfo);
+				}
+			}
+		});
+}
+
+FName UAnimationStateMachineLibrary::GetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node)
+{
+	FName OutName = NAME_None;
+	Node.CallAnimNodeFunction<FAnimNode_StateMachine>(
+		TEXT("GetState"),
+		[&UpdateContext, &OutName](FAnimNode_StateMachine& StateMachineNode)
+		{
+			if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
+			{
+				const int32 CurrentStateIndex = StateMachineNode.GetCurrentState();
+				OutName = StateMachineNode.GetStateInfo(CurrentStateIndex).StateName;
+			}
+		});
+
+	return OutName;
 }

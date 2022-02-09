@@ -77,6 +77,9 @@ public:
 
 public:
 	FAnimationActiveTransitionEntry();
+	FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo, float CrossfadeTimeAdjustment);
+	
+	UE_DEPRECATED(5.1, "Please use FAnimationActiveTransitionEntry constructor with different signature")
 	FAnimationActiveTransitionEntry(int32 NextStateID, float ExistingWeightOfNextState, FAnimationActiveTransitionEntry* ExistingTransitionForNextState, int32 PreviousStateID, const FAnimationTransitionBetweenStates& ReferenceTransitionInfo, const FAnimationPotentialTransition& PotentialTransition);
 
 	void InitializeCustomGraphLinks(const FAnimationUpdateContext& Context, const FBakedStateExitTransition& TransitionRule);
@@ -241,11 +244,14 @@ public:
 	/** Cache the internal machine description */
 	void CacheMachineDescription(IAnimClassInterface* AnimBlueprintClass);
 
+	void SetState(const FAnimationBaseContext& Context, int32 NewStateIndex);
+	void TransitionToState(const FAnimationUpdateContext& Context, const FAnimationTransitionBetweenStates& TransitionInfo, const FAnimationPotentialTransition* BakedTransitionInfo = nullptr);
+	const int32 GetStateIndex(FName StateName) const;
+
 protected:
 	// Tries to get the instance information for the state machine
 	const FBakedAnimationStateMachine* GetMachineDescription() const;
 
-	void SetState(const FAnimationBaseContext& Context, int32 NewStateIndex);
 	void SetStateInternal(int32 NewStateIndex);
 
 	const FBakedAnimationState& GetStateInfo() const;

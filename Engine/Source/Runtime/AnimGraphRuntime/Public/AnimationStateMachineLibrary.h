@@ -9,7 +9,7 @@
 #include "Animation/AnimNodeReference.h"
 #include "AnimationStateMachineLibrary.generated.h"
 
-struct FAnimNode_AnimationStateMachine;
+struct FAnimNode_StateMachine;
 struct FAnimNode_StateResult;
 
 USTRUCT(BlueprintType, DisplayName = "Animation State Reference")
@@ -18,6 +18,14 @@ struct FAnimationStateResultReference : public FAnimNodeReference
 	GENERATED_BODY()
 
 	typedef FAnimNode_StateResult FInternalNodeType;
+};
+
+USTRUCT(BlueprintType, DisplayName = "Animation State Machine")
+struct FAnimationStateMachineReference : public FAnimNodeReference
+{
+	GENERATED_BODY()
+
+	typedef FAnimNode_StateMachine FInternalNodeType;
 };
 
 // Exposes operations to be performed on anim state machine node contexts
@@ -36,8 +44,22 @@ public:
 	static void ConvertToAnimationStateResultPure(const FAnimNodeReference& Node, FAnimationStateResultReference& AnimationState, bool& Result)
 	{
 		EAnimNodeReferenceConversionResult ConversionResult;
-		 ConvertToAnimationStateResult(Node, AnimationState, ConversionResult);
+		ConvertToAnimationStateResult(Node, AnimationState, ConversionResult);
 		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);	
+	}
+
+	/** Get an anim state machine from an anim node reference */
+	UFUNCTION(BlueprintCallable, Category = "State Machine", meta=(BlueprintThreadSafe, DisplayName = "Convert to Animation State Machine", ExpandEnumAsExecs = "Result"))
+	static void ConvertToAnimationStateMachine(const FAnimNodeReference& Node, FAnimationStateMachineReference& AnimationState, EAnimNodeReferenceConversionResult& Result);
+
+
+	/** Get an anim state machine from an anim node reference (pure) */
+	UFUNCTION(BlueprintPure, Category = "State Machine", meta = (BlueprintThreadSafe, DisplayName = "Convert to Animation State Machine"))
+	static void ConvertToAnimationStateMachinePure(const FAnimNodeReference& Node, FAnimationStateMachineReference& AnimationState, bool& Result)
+	{
+		EAnimNodeReferenceConversionResult ConversionResult;
+		ConvertToAnimationStateMachine(Node, AnimationState, ConversionResult);
+		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);
 	}
 	
 	/** Returns whether the state the node belongs to is blending in */
@@ -47,4 +69,14 @@ public:
 	/** Returns whether the state the node belongs to is blending out */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
 	static bool IsStateBlendingOut(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+
+	/** Manually set the current state of the state machine
+		NOTE: Custom blend type is not supported */
+	UFUNCTION(BlueprintCallable, Category = "State Machine", meta=(BlueprintThreadSafe, AdvancedDisplay = "4"))
+	static void SetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node, FName TargetState, float Duration
+		, TEnumAsByte<ETransitionLogicType::Type> BlendType, UBlendProfile* BlendProfile, EAlphaBlendOption AlphaBlendOption, UCurveFloat* CustomBlendCurve);
+
+	/** Returns the name of the current state of this state machine */
+	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
+	static FName GetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node);
 };
