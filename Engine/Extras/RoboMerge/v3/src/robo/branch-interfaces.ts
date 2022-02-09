@@ -148,6 +148,7 @@ export interface ChangeInfo extends TargetInfo {
 		id: string
 		address: string
 	}
+	targetWorkspaceOverride?: string
 	overriddenCommand: string
 	macros: string[]
 	hasOkForGithubTag: boolean
