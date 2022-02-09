@@ -3051,10 +3051,12 @@ void UNiagaraComponent::FixInvalidUserParameterOverrideData()
 					if (Params.RemoveAndCopyValue(ExistingVar, VariantData))
 					{
 						// Convert the old float data to doubles.
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
 						check(VariantData.GetNumBytes() == sizeof(FVector3f));
 						FVector3f ExistingData = *((FVector3f*)(VariantData.GetBytes()));						
 						FVector NewData(ExistingData);
 						VariantData.SetBytes((uint8*)&NewData, sizeof(NewData));
+#endif
 						Params.Add(PositionVar, VariantData);
 					}
 				};
