@@ -13,8 +13,6 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
-#include "ISMPartition/ISMComponentDescriptor.h"
-
 #include "Serialization/ArchiveCrc32.h"
 #include "Templates/UniquePtr.h"
 
@@ -26,6 +24,10 @@
 #include "HLODBuilderMeshApproximate.h"
 
 #include "Algo/Transform.h"
+
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "PhysicsEngine/BodySetup.h"
 
 static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(AWorldPartitionHLOD* InHLODActor, bool& bOutDirty)
 {
