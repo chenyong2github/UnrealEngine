@@ -67,7 +67,7 @@ struct FImgMediaTileSelection
 
 	FImgMediaTileSelection()
 	{
-		SetAllNotVisible();
+		SetAllVisible();
 	}
 
 	/**
