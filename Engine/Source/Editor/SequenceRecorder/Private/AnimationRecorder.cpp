@@ -397,8 +397,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 							if (FloatCurveData)
 							{
-								TimesToRecord[KeyIndex] = TimeToRecord;
-								ValuesToRecord[KeyIndex] = CurCurveValue;
+								TimesToRecord[WriteIndex] = TimeToRecord;
+								ValuesToRecord[WriteIndex] = CurCurveValue;
 
 								++WriteIndex;
 							}
