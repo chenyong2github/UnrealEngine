@@ -876,16 +876,6 @@ void UBlueprint::GetReparentingRules(TSet< const UClass* >& AllowedChildrenOfCla
 
 }
 
-bool UBlueprint::AlwaysCompileOnLoad() const
-{
-	bool bShouldCompile = false;
-
-	bShouldCompile = 
-		GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) <  FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers;
-
-	return bShouldCompile;
-}
-
 bool UBlueprint::CanAlwaysRecompileWhilePlayingInEditor() const
 {
 	return false;
