@@ -48,7 +48,9 @@ DEFINE_LOG_CATEGORY(OodleNetworkHandlerComponentLog);
 
 
 #if STATS
+#if !UE_BUILD_SHIPPING
 DEFINE_STAT(STAT_PacketReservedOodle);
+#endif
 
 DEFINE_STAT(STAT_Oodle_OutRaw);
 DEFINE_STAT(STAT_Oodle_OutCompressed);
