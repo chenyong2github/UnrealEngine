@@ -541,7 +541,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// REINST classes cannot be used in any class viewer. 
 	const bool bPassesReinstFilter = !IsReinstClass(InClass);
-	ensureMsgf(bPassesReinstFilter, TEXT("[UE-129601] A 'REINST' class has been given the the Class Viewer! '%s'"), *InClass->GetFName().ToString());
 
 	bool bPassesFilter = bPassesAllowedClasses && bPassesPlaceableFilter && bPassesBlueprintBaseFilter
 		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter 
