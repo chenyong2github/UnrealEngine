@@ -89,6 +89,11 @@ static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObjec
 {
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Actor->GetRootComponent()))
+		{
+			return SkeletalMeshComponent;
+		}
+
 		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
 		Actor->GetComponents(SkeletalMeshComponents);
 
@@ -127,6 +132,11 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 	*Object = BoundObject;
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Actor->GetRootComponent()))
+		{
+			return GetSkeletonFromComponent(SkeletalMeshComponent);
+		}
+
 		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
 		Actor->GetComponents(SkeletalMeshComponents);
 		if (SkeletalMeshComponents.Num() == 1)
@@ -138,6 +148,11 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 		AActor* ActorCDO = Cast<AActor>(Actor->GetClass()->GetDefaultObject());
 		if (ActorCDO)
 		{
+			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ActorCDO->GetRootComponent()))
+			{
+				return GetSkeletonFromComponent(SkeletalMeshComponent);
+			}
+
 			ActorCDO->GetComponents(SkeletalMeshComponents);
 			if (SkeletalMeshComponents.Num() == 1)
 			{
