@@ -43,6 +43,12 @@ FAutoConsoleVariableRef CVarGeometryCollectionBypassPhysicsAttributes(
 	GeometryCollectionAssetForceStripOnCook,
 	TEXT("Bypass the construction of simulation properties when all bodies are simply cached. for playback."));
 
+bool bGeometryCollectionEnableForcedConvexGenerationInSerialize = true;
+FAutoConsoleVariableRef CVarGeometryCollectionEnableForcedConvexGenerationInSerialize(
+	TEXT("p.GeometryCollectionEnableForcedConvexGenerationInSerialize"),
+	bGeometryCollectionEnableForcedConvexGenerationInSerialize,
+	TEXT("Enable generation of convex geometry on older destruction files.[def:true]"));
+
 
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
@@ -790,13 +796,16 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		&& Ar.CustomVer(FPhysicsObjectVersion::GUID) < FPhysicsObjectVersion::GeometryCollectionConvexDefaults)
 	{
 #if WITH_EDITOR
-		if (!FGeometryCollectionConvexUtility::HasConvexHullData(GeometryCollection.Get()))
+		if (bGeometryCollectionEnableForcedConvexGenerationInSerialize)
 		{
-			UE_LOG(LogGeometryCollectionInternal, Warning, TEXT("Regenerated GeoemtryCollections convex geometry on asset (%s). Please resave package %s."), *GetName(), *GetOutermost()->GetPathName());
-			FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = GeometryCollection->GetConvexProperties();
-			FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeometryCollection.Get(), ConvexProperties.FractionRemove, ConvexProperties.SimplificationThreshold, ConvexProperties.CanExceedFraction);
-			bCreateSimulationData = true;
-			InvalidateCollection();
+			if (!FGeometryCollectionConvexUtility::HasConvexHullData(GeometryCollection.Get()))
+			{
+				UE_LOG(LogGeometryCollectionInternal, Warning, TEXT("Regenerated GeoemtryCollections convex geometry on asset (%s). Please resave package %s."), *GetName(), *GetOutermost()->GetPathName());
+				FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = GeometryCollection->GetConvexProperties();
+				FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeometryCollection.Get(), ConvexProperties.FractionRemove, ConvexProperties.SimplificationThreshold, ConvexProperties.CanExceedFraction);
+				bCreateSimulationData = true;
+				InvalidateCollection();
+			}
 		}
 #endif
 	}

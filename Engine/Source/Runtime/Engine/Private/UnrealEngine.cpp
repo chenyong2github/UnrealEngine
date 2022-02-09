@@ -3033,7 +3033,6 @@ void UEngine::InitializeObjectReferences()
 		FString ValidDefaultDestructiblePhysMaterialName = DefaultDestructiblePhysMaterialName.ToString();
 		if (ValidDefaultDestructiblePhysMaterialName.IsEmpty())
 		{
-			UE_LOG(LogEngine, Warning, TEXT("The default destructible physics material was not found. Using default destructible physics material instead. Please make sure to have the default destructible physics material is set up correctly."));
 			ValidDefaultDestructiblePhysMaterialName = TEXT("/Engine/EngineMaterials/DefaultDestructiblePhysicalMaterial.DefaultDestructiblePhysicalMaterial");
 		}
 
