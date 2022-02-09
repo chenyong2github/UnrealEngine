@@ -99,7 +99,7 @@ public:
 	/** Returns true if the given Goal is connected to the given Solver. False otherwise. */
 	bool IsGoalConnectedToSolver(const FName& GoalName, int32 SolverIndex) const;
 	/** Get the index of the given Goal in the list of Goals. */
-	int32 GetGoalIndex(const FName& GoalName) const;
+	int32 GetGoalIndex(const FName& InGoalName, const ENameCase CompareMethod = ENameCase::IgnoreCase) const;
 	/** Get the name of Goal at the given index. */
 	FName GetGoalName(const int32& GoalIndex) const;
 	/** Get read-only access to the list of Goals. */
