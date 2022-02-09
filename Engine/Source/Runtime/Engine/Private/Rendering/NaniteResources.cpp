@@ -623,12 +623,15 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		bHasPerInstanceCustomData = false;
 	}
 
+	FVector TranslatedSpaceOffset = -Component->GetTranslatedInstanceSpaceOrigin();
+
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
 		FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
 
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
+		InstanceTransform.AddToTranslation(TranslatedSpaceOffset);
 		SceneData.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 
 		if (bHasPerInstanceDynamicData)
@@ -636,6 +639,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 			FTransform InstancePrevTransform;
 			const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 			ensure(bHasPrevTransform); // Should always be true here
+			InstancePrevTransform.AddToTranslation(TranslatedSpaceOffset);
 			InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 		}
 	}

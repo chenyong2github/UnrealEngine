@@ -355,6 +355,13 @@ public:
 #endif
 	//~ End UObject Interface
 
+	/**
+	 * Get the translated space for instance transforms to be passed to the renderer.
+	 * In the renderer data structures we only have floating point precision for instance transforms relative to their owning primitive. The primitive transform itself has double precision.
+	 * Some ISM that are authored in world space need to adjust the local space to keep instance transforms within precision limits.
+	 */
+	virtual FVector GetTranslatedInstanceSpaceOrigin() const { return FVector::Zero(); }
+
 	/** Applies the cached component instance data to a newly blueprint constructed component. */
 	virtual void ApplyComponentInstanceData(struct FInstancedStaticMeshComponentInstanceData* ComponentInstanceData);
 
@@ -409,13 +416,6 @@ protected:
 
 	/** Terminate all body instances owned by this component. */
 	void ClearAllInstanceBodies();
-
-	/**
-	 * Get the translated space for instance transforms to be passed to the renderer.
-	 * In the renderer data structures we only have floating point precision for instance transforms relative to their owning primitive. The primitive transform itself has double precision.
-	 * Some ISM that are authored in world space need to adjust the local space to keep instance transforms within precision limits.
-	 */
-	virtual FVector GetTranslatedInstanceSpaceOrigin() const { return FVector::Zero(); }
 
 	/** Request to navigation system to update only part of navmesh occupied by specified instance. */
 	virtual void PartialNavigationUpdate(int32 InstanceIdx);
