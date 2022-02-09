@@ -1037,8 +1037,12 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			FRWBufferStructured InstanceBuffer;
 			InstanceBuffer.Initialize(TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, SceneInitializer.NumNativeInstances);
 
+			// Need to pass "BUF_MultiGPUAllocate", as acceleration structure virtual addresses are different per GPU
 			FByteAddressBuffer AccelerationStructureAddressesBuffer;
-			AccelerationStructureAddressesBuffer.Initialize(TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"), SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
+			AccelerationStructureAddressesBuffer.Initialize(
+				TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"),
+				SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress),
+				BUF_Volatile | BUF_MultiGPUAllocate);
 
 			const uint32 InstanceUploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
 			FBufferRHIRef InstanceUploadBuffer;
@@ -1074,20 +1078,27 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 			}
 
-			RHICmdList.EnqueueLambda([BufferRHIRef = AccelerationStructureAddressesBuffer.Buffer, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
+			// Pull this out here, because command list playback (where the lambda is executed) doesn't update the GPU mask
+			FRHIGPUMask IterateGPUMasks = RHICmdList.GetGPUMask();
+
+			RHICmdList.EnqueueLambda([BufferRHIRef = AccelerationStructureAddressesBuffer.Buffer, &SceneInitializer, IterateGPUMasks](FRHICommandListImmediate& RHICmdList)
 				{
-					FRayTracingAccelerationStructureAddress* AddressesPtr = (FRayTracingAccelerationStructureAddress*)RHICmdList.LockBuffer(
-						BufferRHIRef,
-						0,
-						SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), RLM_WriteOnly);
-
-					const uint32 NumGeometries = SceneInitializer.ReferencedGeometries.Num();
-					for (uint32 GeometryIndex = 0; GeometryIndex < NumGeometries; ++GeometryIndex)
+					for (uint32 GPUIndex : IterateGPUMasks)
 					{
-						AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(RHICmdList.GetGPUMask().ToIndex());
-					}
+						FRayTracingAccelerationStructureAddress* AddressesPtr = (FRayTracingAccelerationStructureAddress*)RHICmdList.LockBufferMGPU(
+							BufferRHIRef,
+							GPUIndex,
+							0,
+							SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), RLM_WriteOnly);
 
-					RHICmdList.UnlockBuffer(BufferRHIRef);
+						const uint32 NumGeometries = SceneInitializer.ReferencedGeometries.Num();
+						for (uint32 GeometryIndex = 0; GeometryIndex < NumGeometries; ++GeometryIndex)
+						{
+							AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(GPUIndex);
+						}
+
+						RHICmdList.UnlockBufferMGPU(BufferRHIRef, GPUIndex);
+					}
 				});
 
 			BuildRayTracingInstanceBuffer(
