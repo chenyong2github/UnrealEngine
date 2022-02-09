@@ -177,6 +177,7 @@ public:
 	static const FName MD_HidePin;
 
 	static const FName MD_BlueprintInternalUseOnly;
+	static const FName MD_BlueprintInternalUseOnlyHierarchical;
 	static const FName MD_NeedsLatentFixup;
 
 	static const FName MD_LatentInfo;

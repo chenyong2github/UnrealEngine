@@ -96,6 +96,11 @@ namespace
 			BlueprintInternalUseOnly.InsertAddAction(TEXT("BlueprintInternalUseOnly"), TEXT("true"));
 			BlueprintInternalUseOnly.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
 
+			FMetadataKeyword& BlueprintInternalUseOnlyHierarchical = MetadataDictionary.Add(TEXT("BlueprintInternalUseOnlyHierarchical"), EMetadataValueArgument::None);
+			BlueprintInternalUseOnlyHierarchical.InsertAddAction(TEXT("BlueprintInternalUseOnlyHierarchical"), TEXT("true"));
+			BlueprintInternalUseOnlyHierarchical.InsertAddAction(TEXT("BlueprintInternalUseOnly"), TEXT("true"));
+			BlueprintInternalUseOnlyHierarchical.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
+			
 			FMetadataKeyword& BlueprintType = MetadataDictionary.Add(TEXT("BlueprintType"), EMetadataValueArgument::None);
 			BlueprintType.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
 

@@ -155,6 +155,10 @@ bool UK2Node_StructOperation::IsActionFilteredOut(const FBlueprintActionFilter& 
 		{
 			bIsFiltered = true;
 		}
+		else if (StructType->GetBoolMetaDataHierarchical(FBlueprintMetadata::MD_BlueprintInternalUseOnlyHierarchical))
+		{
+			bIsFiltered = true;
+		}
 		else if (!StructType->GetBoolMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType))
 		{
 			bIsFiltered = true;

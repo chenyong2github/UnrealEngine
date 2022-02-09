@@ -1071,7 +1071,10 @@ namespace US
 		BlueprintType,
 
 		/// Indicates that a BlueprintType struct should not be exposed to the end user
-		BlueprintInternalUseOnly
+		BlueprintInternalUseOnly,
+
+		/// Indicates that a BlueprintType struct and its derived structs should not be exposed to the end user
+		BlueprintInternalUseOnlyHierarchical,
 	};
 }
 
