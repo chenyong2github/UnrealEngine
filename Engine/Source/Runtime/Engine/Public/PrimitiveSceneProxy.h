@@ -771,6 +771,15 @@ public:
 	}
 
 	/**
+	 * Returns true if this proxy has any deformable mesh, meaning the mesh is animated e.g., by deforming the vertices through skinning, morphing or some procedural update.
+	 * WPO and PDO are not considered here (as they are material effects).
+	 */
+	inline bool HasDeformableMesh() const
+	{
+		return bHasDeformableMesh;
+	}
+
+	/**
 	 *	Returns whether the proxy utilizes custom occlusion bounds or not
 	 *
 	 *	@return	bool		true if custom occlusion bounds are used, false if not;
@@ -1199,6 +1208,9 @@ protected:
 
 	/** True if all meshes (AKA all vertex factories) drawn by this proxy support GPU scene (default is false). */
 	uint8 bSupportsGPUScene : 1;
+
+	/** True if the mesh representation is deformable (see HasDeformableMesh() above for more details). Defaults to true to be conservative. */
+	uint8 bHasDeformableMesh : 1;
 
 	/** Whether the primitive supports the GPUScene instance data buffer. */
 	uint8 bSupportsInstanceDataBuffer : 1;

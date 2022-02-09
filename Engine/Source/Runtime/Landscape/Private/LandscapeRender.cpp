@@ -1196,6 +1196,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
+	// Landscape meshes do not deform internally (save by material effects such as WPO and PDO, which is allowed).
+	// They do however have continuous LOD which is problematic, considered static as the LODs (are intended to) represent the same static surface.
+	bHasDeformableMesh = false;
+
 	VisibilityHelper.Init(InComponent, this);
 
 	if (!VisibilityHelper.ShouldBeVisible())

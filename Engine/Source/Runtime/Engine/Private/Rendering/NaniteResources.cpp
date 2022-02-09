@@ -568,6 +568,9 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
+	// Nanite meshes do not deform internally
+	bHasDeformableMesh = false;
+
 	PerInstanceRenderData = Component->PerInstanceRenderData;
 	check(PerInstanceRenderData.IsValid());
 

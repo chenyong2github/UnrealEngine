@@ -53,6 +53,14 @@ FAutoConsoleVariableRef CVarEnableClipmapPanning(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GVSMCacheDeformableMeshesInvalidate = 1;
+FAutoConsoleVariableRef CVarCacheInvalidateOftenMoving(
+	TEXT("r.Shadow.Virtual.Cache.DeformableMeshesInvalidate"),
+	GVSMCacheDeformableMeshesInvalidate,
+	TEXT("If enabled, Primitive Proxies that are marked as having deformable meshes (HasDeformableMesh() == true) causes invalidations regardless of whether their transforms are updated."),
+	ECVF_RenderThreadSafe);
+
+
 void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
@@ -158,7 +166,31 @@ FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::FInvalidati
 	}
 
 	GPUScene.DynamicPrimitiveInstancesToInvalidate.Reset();
+
+	for (auto& CacheEntry : Manager.PrevCacheEntries)
+	{
+		for (const FVirtualShadowMapPerLightCacheEntry::FInstanceRange& Range : CacheEntry.Value->PrimitiveInstancesToInvalidate)
+		{
+			// Add item for each shadow map explicitly, inflates host data but improves load balancing,
+			// TODO: maybe add permutation so we can strip the loop completely.
+			for (const auto& SmCacheEntry : CacheEntry.Value->ShadowMapEntries)
+			{
+				if (SmCacheEntry.IsValid())
+				{
+					// Lowest bit indicates whether to run the clipmap loop, add 1 to ID so != 0 <==> single level processing
+					LoadBalancer.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries, (uint32(SmCacheEntry->CurrentVirtualShadowMapId + 1) << 1U) | 0U);
+				}
+			}
+
+#if VSM_LOG_INVALIDATIONS
+			RangesStr.Appendf(TEXT("[%6d, %6d), "), Range.InstanceSceneDataOffset, Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries);
+#endif
+			TotalInstanceCount += Range.NumInstanceSceneDataEntries;
+		}
+		CacheEntry.Value->PrimitiveInstancesToInvalidate.Reset();
+	}
 }
+
 void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(const FPrimitiveSceneInfo * PrimitiveSceneInfo)
 {
 	int32 PrimitiveID = PrimitiveSceneInfo->GetIndex();
@@ -181,13 +213,13 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 		// Process directional lights, where we explicitly filter out primitives that were not rendered (and mark this fact)
 		for (auto& CacheEntry : Manager.PrevCacheEntries)
 		{
-			TBitArray<>& RenderedPrimitives = CacheEntry.Value->RenderedPrimitives;
-			if (bIsNaniteMesh || (PersistentPrimitiveIndex < RenderedPrimitives.Num() && RenderedPrimitives[PersistentPrimitiveIndex]))
+			TBitArray<>& CachedPrimitives = CacheEntry.Value->CachedPrimitives;
+			if (bIsNaniteMesh || (PersistentPrimitiveIndex < CachedPrimitives.Num() && CachedPrimitives[PersistentPrimitiveIndex]))
 			{
 				if (!bIsNaniteMesh)
 				{
 					// Clear the record as we're wiping it out.
-					RenderedPrimitives[PersistentPrimitiveIndex] = false;
+					CachedPrimitives[PersistentPrimitiveIndex] = false;
 				}
 
 				// Add item for each shadow map explicitly, inflates host data but improves load balancing,
@@ -196,7 +228,7 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 				{
 					if (SmCacheEntry.IsValid())
 					{
-						// Lowest bit indicates whether to skip the clipmap loop, add 1 to ID so != 0 <==> single level processing
+						// Lowest bit indicates whether to run the clipmap loop, add 1 to ID so != 0 <==> single level processing
 						LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, (uint32(SmCacheEntry->CurrentVirtualShadowMapId + 1) << 1U) | 0U);
 					}
 				}
@@ -369,6 +401,21 @@ TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::Find
 }
 
 
+void FVirtualShadowMapPerLightCacheEntry::OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo)
+{
+	// Mark as (potentially present in a cached page somehwere, so we'd need to invalidate if it is removed/moved)
+	CachedPrimitives[PrimitiveSceneInfo->GetPersistentIndex().Index] = true;
+
+	if (GVSMCacheDeformableMeshesInvalidate != 0)
+	{
+		// Deformable mesh primitives need to trigger invalidation (even if they did not move) or we get artifacts, for example skinned meshes that are animating but not currently moving.
+		if (PrimitiveSceneInfo->Proxy->HasDeformableMesh())
+		{
+			PrimitiveInstancesToInvalidate.Add(FInstanceRange{ PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() });
+		}
+	}
+}
+
 class FVirtualSmCopyStatsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVirtualSmCopyStatsCS);
@@ -398,6 +445,7 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMap
 void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 	FRDGBuilder& GraphBuilder,	
 	FVirtualShadowMapArray &VirtualShadowMapArray,
+	const FSceneRenderer& SceneRenderer,
 	bool bEnableCaching)
 {
 	// Drop all refs.
@@ -437,6 +485,16 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		if (bExtractPageTable)
 		{
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
+		}
+
+		// propagate current-frame primitive state to cache entry
+		for (const auto& LightInfo : SceneRenderer.VisibleLightInfos)
+		{
+			for (const TSharedPtr<FVirtualShadowMapClipmap> &Clipmap : LightInfo.VirtualShadowMapClipmaps)
+			{
+				// Push data to cache entry
+				Clipmap->UpdateCachedFrameData();
+			}
 		}
 
 		CacheEntries.Reset();
@@ -652,10 +710,12 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 	{
 		for (auto& CacheEntry : PrevCacheEntries)
 		{
+			ResizeFlagArray(CacheEntry.Value->CachedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 		}
 		for (auto& CacheEntry : CacheEntries)
 		{
+			ResizeFlagArray(CacheEntry.Value->CachedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 			ResizeFlagArray(CacheEntry.Value->RenderedPrimitives, Scene->GetMaxPersistentPrimitiveIndex());
 		}
 	}

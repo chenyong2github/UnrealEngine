@@ -80,7 +80,12 @@ public:
 	/**
 	 * Called when a primitive passes CPU-culling, note that this applies to non-nanite primitives only. Not thread safe in general.
 	 */ 
-	void OnPrimitiveRendered(FPersistentPrimitiveIndex PersistentPrimitiveId);
+	void OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo);
+
+	/**
+	 * Called to push any cache data to cache entry at the end of the frame.
+	 */
+	void UpdateCachedFrameData();
 
 	/**
 	 * Return array with one bit per primitive, a set bit indicates that the primitive transitioned from not rendered to rendered this frame (see OnPrimitiveRendered above).
@@ -126,6 +131,8 @@ private:
 
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> PerLightCacheEntry;
 
-	// Set to 1 for each primitives that went from not being rendered to being rendered this frame, may be empty if no primitives were revealed - lazily initialized
+	// Rendered primitives are marked during culling (through OnPrimitiveRendered being called).
+	TBitArray<> RenderedPrimitives;
+	// Set to 1 for each primitives that went from not being rendered to being rendered this frame
 	TBitArray<> RevealedPrimitivesMask;
 };

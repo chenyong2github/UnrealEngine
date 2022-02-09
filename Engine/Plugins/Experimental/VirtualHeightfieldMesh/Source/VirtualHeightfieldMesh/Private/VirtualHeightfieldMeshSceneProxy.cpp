@@ -378,6 +378,9 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 {
 	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
 
+	// They have some LOD, but considered static as the LODs (are intended to) represent the same static surface.
+	bHasDeformableMesh = false;
+
 	UMaterialInterface* ComponentMaterial = InComponent->GetMaterial();
 	const bool bValidMaterial = ComponentMaterial != nullptr && ComponentMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
 	Material = bValidMaterial ? ComponentMaterial->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();

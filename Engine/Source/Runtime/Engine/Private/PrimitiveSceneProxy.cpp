@@ -183,6 +183,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bVFRequiresPrimitiveUniformBuffer(true)
 ,	bIsNaniteMesh(false)
 ,	bSupportsGPUScene(false)
+,	bHasDeformableMesh(true)
 ,	bSupportsInstanceDataBuffer(false)
 ,	bShouldUpdateGPUSceneTransforms(true)
 ,	bAlwaysHasVelocity(false)

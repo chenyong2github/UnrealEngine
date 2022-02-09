@@ -227,6 +227,9 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 		, StaticMesh->HasAnyFlags(RF_ClassDefaultObject)
 	);
 
+	// Static meshes do not deform internally (save by material effects such as WPO and PDO, which is allowed).
+	bHasDeformableMesh = false;
+
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
 	const int32 SMCurrentMinLOD = InComponent->GetStaticMesh()->GetMinLODIdx();

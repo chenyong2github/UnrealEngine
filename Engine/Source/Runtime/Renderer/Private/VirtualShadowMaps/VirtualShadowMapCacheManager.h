@@ -63,17 +63,32 @@ class FVirtualShadowMapPerLightCacheEntry
 public:
 	FVirtualShadowMapPerLightCacheEntry(int32 MaxPersistentScenePrimitiveIndex)
 		: RenderedPrimitives(false, MaxPersistentScenePrimitiveIndex)
+		, CachedPrimitives(false, MaxPersistentScenePrimitiveIndex)
 	{
 	}
 
 	TSharedPtr<FVirtualShadowMapCacheEntry> FindCreateShadowMapEntry(int32 Index);
 
+	void OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo);
+
 	// Primitives that have been rendered (not culled) the previous frame, when a primitive transitions from being culled to not it must be rendered into the VSM
 	// Key culling reasons are small size or distance cutoff.
 	TBitArray<> RenderedPrimitives;
 
+	// Primitives that have been rendered (not culled) _some_ previous frame, tracked so we can invalidate when they move/are removed (and not otherwise).
+	TBitArray<> CachedPrimitives;
+
 	// One entry represents the cached state of a given shadow map in the set of either a clipmap(N), one cube map(6) or a regular VSM (1)
 	TArray< TSharedPtr<FVirtualShadowMapCacheEntry> > ShadowMapEntries;
+
+	// TODO: refactor this to not ne stored in the cache entry when we move (some) invalidaitons to the end of frame rather than in the scene primitive updates.
+	struct FInstanceRange
+	{
+		int32 InstanceSceneDataOffset;
+		int32 NumInstanceSceneDataEntries;
+	};
+
+	TArray<FInstanceRange> PrimitiveInstancesToInvalidate;
 };
 
 // Persistent buffers that we ping pong frame by frame
@@ -120,6 +135,7 @@ public:
 	 */ 
 	void ExtractFrameData(FRDGBuilder& GraphBuilder,
 		FVirtualShadowMapArray &VirtualShadowMapArray,
+		const FSceneRenderer& SceneRenderer,
 		bool bEnableCaching);
 
 	/**

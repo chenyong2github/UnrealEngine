@@ -283,25 +283,43 @@ uint32 FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask()
 	return BitMask;
 }
 
-void FVirtualShadowMapClipmap::OnPrimitiveRendered(FPersistentPrimitiveIndex PersistentPrimitiveId)
-{
-	check(PersistentPrimitiveId.Index >= 0);
 
+static inline void LazyInitAndSetBitArray(TBitArray<>& BitArray, int32 Index, bool Value, int32 MaxNum)
+{
+	if (BitArray.IsEmpty())
+	{
+		BitArray.Init(false, MaxNum);
+	}
+	BitArray[Index] = Value;
+
+}
+
+void FVirtualShadowMapClipmap::OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo)
+{
 	if (PerLightCacheEntry.IsValid())
 	{
+		FPersistentPrimitiveIndex PersistentPrimitiveId = PrimitiveSceneInfo->GetPersistentIndex();
+		check(PersistentPrimitiveId.Index >= 0);
 		check(PersistentPrimitiveId.Index < PerLightCacheEntry->RenderedPrimitives.Num());
-		// Check previous frame(s) state to detect transition from hidden->visible
+
+		// Check previous-frame state to detect transition from hidden->visible
 		if (!PerLightCacheEntry->RenderedPrimitives[PersistentPrimitiveId.Index])
 		{
-			if (RevealedPrimitivesMask.IsEmpty())
-			{
-				RevealedPrimitivesMask.Init(false, PerLightCacheEntry->RenderedPrimitives.Num());
-			}
-			RevealedPrimitivesMask[PersistentPrimitiveId.Index] = true;
+			LazyInitAndSetBitArray(RevealedPrimitivesMask, PersistentPrimitiveId.Index, true, PerLightCacheEntry->RenderedPrimitives.Num());
 		}
 
-		// update rendered state (this is cleared whenever a primitive is invalidating the VSM).
-		PerLightCacheEntry->RenderedPrimitives[PersistentPrimitiveId.Index] = true;
+		// update current frame-state.
+		LazyInitAndSetBitArray(RenderedPrimitives, PersistentPrimitiveId.Index, true, PerLightCacheEntry->RenderedPrimitives.Num());
+
+		// update cached state (this is checked & cleared whenever a primitive is invalidating the VSM).
+		PerLightCacheEntry->OnPrimitiveRendered(PrimitiveSceneInfo);
 	}
 }
 
+void FVirtualShadowMapClipmap::UpdateCachedFrameData()
+{
+	if (PerLightCacheEntry.IsValid())
+	{
+		PerLightCacheEntry->RenderedPrimitives = MoveTemp(RenderedPrimitives);
+	}
+}
