@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ConcertSyncSessionTypes.h"
+#include "Templates/SharedPointerInternals.h"
 
 class FConcertFileCache;
 class FConcertSyncSessionDatabaseStatements;
@@ -933,7 +934,7 @@ private:
 	/** Internal SQLite database */
 	TUniquePtr<FSQLiteDatabase> Database;
 
-	TMap<FString,TSharedPtr<struct FConcertPackageAsyncDataStream>> DeferredLargePackageIO;
+	TUniquePtr<struct FDeferredLargePackageIOImpl> DeferredLargePackageIOPtr;
 };
 
 namespace ConcertSyncSessionDatabaseFilterUtil
