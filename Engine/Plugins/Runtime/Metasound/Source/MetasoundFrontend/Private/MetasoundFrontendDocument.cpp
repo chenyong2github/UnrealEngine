@@ -289,12 +289,6 @@ void FMetasoundFrontendClassMetadata::SetAuthor(const FText& InAuthor)
 	SetWithChangeID(InAuthor, TextToSet, ChangeID);
 }
 
-void FMetasoundFrontendClassMetadata::SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface)
-{
-	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(bInAutoUpdateManagesInterface, bAutoUpdateManagesInterface, ChangeID);
-}
-
 void FMetasoundFrontendClassMetadata::SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
 {
 	using namespace Metasound::DocumentPrivate;

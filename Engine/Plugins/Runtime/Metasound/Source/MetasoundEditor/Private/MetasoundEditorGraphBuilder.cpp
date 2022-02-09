@@ -1178,9 +1178,13 @@ namespace Metasound
 			Style.bIsGraphEditable = false;
 			PresetGraphHandle->SetGraphStyle(Style);
 
-			FMetasoundFrontendClassMetadata Metadata = PresetGraphHandle->GetGraphMetadata();
-			Metadata.SetAutoUpdateManagesInterface(true);
-			PresetGraphHandle->SetGraphMetadata(Metadata);
+			// Mark all inputs as inherited by default
+			TSet<FName> InputsInheritingDefault;
+			Algo::Transform(PresetGraphHandle->GetInputNodes(), InputsInheritingDefault, [](FConstNodeHandle NodeHandle)
+			{
+				return NodeHandle->GetNodeName();
+			});
+			PresetGraphHandle->SetInputsInheritingDefault(MoveTemp(InputsInheritingDefault));
 
 			FGraphBuilder::RegisterGraphWithFrontend(InMetaSoundReferenced);
 
@@ -2086,7 +2090,7 @@ namespace Metasound
 
 			UMetasoundEditorGraphMember* Member = nullptr;
 
-			auto SynchronizeMember = [](UMetasoundEditorGraphVertex& InVertex)
+			auto SynchronizeMemberDataType = [&](UMetasoundEditorGraphVertex& InVertex)
 			{
 				FConstNodeHandle NodeHandle = InVertex.GetConstNodeHandle();
 				TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
@@ -2120,12 +2124,28 @@ namespace Metasound
 				}
 			};
 
-			// Synchronize data types of input nodes.
+			// Synchronize data types & default values for input nodes.
 			GraphHandle->IterateNodes([&](FNodeHandle NodeHandle)
 			{
 				if (UMetasoundEditorGraphInput* Input = Graph->FindInput(NodeHandle->GetID()))
 				{
-					SynchronizeMember(*CastChecked<UMetasoundEditorGraphVertex>(Input));
+					SynchronizeMemberDataType(*Input);
+
+					if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Input->GetLiteral())
+					{
+						const FName NodeName = NodeHandle->GetNodeName();
+						const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
+						FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
+						if (!DefaultLiteral.IsEquivalent(Literal->GetDefault()))
+						{
+							if (DefaultLiteral.GetType() != EMetasoundFrontendLiteralType::None)
+							{
+								UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing default value to '%s' for input '%s'"), *DefaultLiteral.ToString(), *NodeName.ToString());
+								Literal->SetFromLiteral(DefaultLiteral);
+								bEditorGraphModified = true;
+							}
+						}
+					}
 				}
 			}, EMetasoundFrontendClassType::Input);
 
@@ -2134,7 +2154,7 @@ namespace Metasound
 			{
 				if (UMetasoundEditorGraphOutput* Output = Graph->FindOutput(NodeHandle->GetID()))
 				{
-					SynchronizeMember(*CastChecked<UMetasoundEditorGraphVertex>(Output));
+					SynchronizeMemberDataType(*Output);
 				}
 			}, EMetasoundFrontendClassType::Output);
 

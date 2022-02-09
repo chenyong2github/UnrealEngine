@@ -105,8 +105,9 @@ namespace Metasound
 		private:
 
 			// Get the class inputs needed for this preset. Input literals set on 
-			// the parent graph will be used if they exist. 
-			TArray<FMetasoundFrontendClassInput> GenerateRequiredClassInputs(const FConstGraphHandle& InParentGraph) const;
+			// the preset graph will be used if they are set and are marked as inheriting
+			// the default from the referenced graph.
+			TArray<FMetasoundFrontendClassInput> GenerateRequiredClassInputs(const FConstGraphHandle& InParentGraph, TSet<FName>& OutInputsInheritingDefault) const;
 
 			// Get the class Outputs needed for this preset.
 			TArray<FMetasoundFrontendClassOutput> GenerateRequiredClassOutputs(const FConstGraphHandle& InParentGraph) const;
@@ -156,7 +157,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 9 };
+				return FMetasoundFrontendVersionNumber { 1, 10 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

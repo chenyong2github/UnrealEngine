@@ -1080,11 +1080,6 @@ public:
 		return ClassName;
 	}
 
-	bool GetAutoUpdateManagesInterface() const
-	{
-		return bAutoUpdateManagesInterface;
-	}
-
 	void SetClassName(const FMetasoundFrontendClassName& InClassName);
 
 	EMetasoundFrontendClassType GetType() const
@@ -1138,7 +1133,6 @@ public:
 	}
 
 	void SetAuthor(const FText& InAuthor);
-	void SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface);
 	void SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy);
 	void SetDescription(const FText& InDescription);
 	void SetDisplayName(const FText& InDisplayName);
@@ -1156,6 +1150,14 @@ public:
 		// to be external, so don't modify the ChangeID in this case.
 		// External/Internal should probably be a separate field.
 		// ChangeID = FGuid::NewGuid();
+	}
+
+	// Deprecated field in favor of GraphClass PresetOptions
+	bool GetAndClearAutoUpdateManagesInterface_Deprecated()
+	{
+		bool bToReturn = bAutoUpdateManagesInterface;
+		bAutoUpdateManagesInterface = false;
+		return bToReturn;
 	}
 };
 
@@ -1219,6 +1221,26 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 #endif // WITH_EDITORONLY_DATA
 };
 
+// Preset options related to a parent graph class.  A graph class with bIsPreset set to true
+// auto-updates to mirror the interface members (inputs & outputs) of the single, referenced
+// node. It also connects all of these nodes' interface members on update to corresponding inputs
+// & outputs, and inherits input defaults from the referenced node unless otherwise specified.
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendGraphClassPresetOptions
+{
+	GENERATED_BODY()
+
+	// Whether or not graph class is a preset or not.
+	UPROPERTY()
+	bool bIsPreset = false;
+
+	// Names of all inputs inheriting default values from the referenced node. All input names
+	// in this set have their default value set on update when registered with the Frontend Class
+	// Registry.  Omitted inputs remain using the pre-existing, serialized default values.
+	UPROPERTY()
+	TSet<FName> InputsInheritingDefault;
+};
+
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendGraphClass : public FMetasoundFrontendClass
 {
@@ -1230,6 +1252,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendGraphClass : public FMetasoundFro
 
 	UPROPERTY()
 	FMetasoundFrontendGraph Graph;
+
+	UPROPERTY()
+	FMetasoundFrontendGraphClassPresetOptions PresetOptions;
 };
 
 USTRUCT()

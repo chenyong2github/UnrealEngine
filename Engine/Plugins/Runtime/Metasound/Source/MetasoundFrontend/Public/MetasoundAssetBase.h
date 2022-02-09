@@ -124,7 +124,6 @@ public:
 
 	void AddDefaultInterfaces();
 
-
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA

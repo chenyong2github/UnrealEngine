@@ -57,6 +57,12 @@ namespace Metasound
 				return Invalid;
 			}
 
+			const FMetasoundFrontendGraphClassPresetOptions& GetInvalidGraphClassPresetOptions()
+			{
+				static const FMetasoundFrontendGraphClassPresetOptions Invalid;
+				return Invalid;
+			}
+
 			const FMetasoundFrontendInterfaceStyle& GetInvalidInterfaceStyle()
 			{
 				static const FMetasoundFrontendInterfaceStyle Invalid;
@@ -90,6 +96,12 @@ namespace Metasound
 			const TArray<FMetasoundFrontendGraphClass>& GetInvalidGraphClassArray() 
 			{ 
 				static const TArray<FMetasoundFrontendGraphClass> Invalid;
+				return Invalid;
+			}
+
+			const TSet<FName>& GetInvalidNameSet()
+			{
+				static TSet<FName> Invalid;
 				return Invalid;
 			}
 

@@ -28,12 +28,14 @@ namespace Metasound
 			const FMetasoundFrontendLiteral& GetInvalidLiteral();
 			const FMetasoundFrontendClassInterface& GetInvalidClassInterface();
 			const FMetasoundFrontendClassMetadata& GetInvalidClassMetadata();
+			const FMetasoundFrontendGraphClassPresetOptions& GetInvalidGraphClassPresetOptions();
 			const FMetasoundFrontendInterfaceStyle& GetInvalidInterfaceStyle();
 			const FMetasoundFrontendClassStyle& GetInvalidClassStyle();
 			const FMetasoundFrontendGraphStyle& GetInvalidGraphStyle();
 			const FMetasoundFrontendGraphClass& GetInvalidGraphClass();
 			const TArray<FMetasoundFrontendClass>& GetInvalidClassArray();
 			const TArray<FMetasoundFrontendGraphClass>& GetInvalidGraphClassArray();
+			const TSet<FName>& GetInvalidNameSet();
 			const FMetasoundFrontendDocumentMetadata& GetInvalidDocumentMetadata();
 		}
 
@@ -286,6 +288,10 @@ namespace Metasound
 			virtual TArray<FConstNodeHandle> GetConstOutputNodes() const override { return TArray<FConstNodeHandle>(); }
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const override { return TArray<FConstNodeHandle>(); }
 
+			virtual const TSet<FName>& GetInputsInheritingDefault() const { return Invalid::GetInvalidNameSet(); }
+			virtual bool SetInputInheritsDefault(FName InName, bool bDefaultIsInherited) { return false; }
+			virtual void SetInputsInheritingDefault(TSet<FName>&& InNames) { }
+
 			virtual FVariableHandle AddVariable(const FName& InDataTypeName) override { return IVariableController::GetInvalidHandle(); }
 			virtual FVariableHandle FindVariable(const FGuid& InVariableID) override { return IVariableController::GetInvalidHandle(); }
 			virtual FConstVariableHandle FindVariable(const FGuid& InVariableID) const { return IVariableController::GetInvalidHandle(); }
@@ -363,6 +369,11 @@ namespace Metasound
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.
 			virtual bool RemoveNode(INodeController& InNode) override { return false; }
+
+			// Returns the metadata for the current graph, including the name, description and author.
+			virtual const FMetasoundFrontendGraphClassPresetOptions& GetGraphPresetOptions() const override { return Invalid::GetInvalidGraphClassPresetOptions(); }
+
+			virtual void SetGraphPresetOptions(const FMetasoundFrontendGraphClassPresetOptions& InMetadata) override { }
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override { return Invalid::GetInvalidClassMetadata(); }

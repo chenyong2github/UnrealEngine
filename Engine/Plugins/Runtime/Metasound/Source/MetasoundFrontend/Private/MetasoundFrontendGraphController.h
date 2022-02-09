@@ -69,6 +69,10 @@ namespace Metasound
 			TArray<FNodeHandle> GetInputNodes() override;
 			TArray<FConstNodeHandle> GetConstInputNodes() const override;
 
+			virtual const TSet<FName>& GetInputsInheritingDefault() const override;
+			virtual bool SetInputInheritsDefault(FName InName, bool bInputInheritsDefault) override;
+			virtual void SetInputsInheritingDefault(TSet<FName>&& InNames) override;
+
 			virtual FVariableHandle AddVariable(const FName& InDataType) override;
 			virtual FVariableHandle FindVariable(const FGuid& InVariableID) override;
 			virtual FConstVariableHandle FindVariable(const FGuid& InVariableID) const override;
@@ -157,9 +161,10 @@ namespace Metasound
 			// On success, invalidates the received node handle.
 			bool RemoveNode(INodeController& InNode) override;
 
-			// Returns the metadata for the current graph, including the name, description and author.
-			const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override;
+			const FMetasoundFrontendGraphClassPresetOptions& GetGraphPresetOptions() const override;
+			void SetGraphPresetOptions(const FMetasoundFrontendGraphClassPresetOptions& InPresetOptions) override;
 
+			const FMetasoundFrontendClassMetadata& GetGraphMetadata() const override;
 			void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InClassMetadata) override;
 
 			FNodeHandle CreateEmptySubgraph(const FMetasoundFrontendClassMetadata& InInfo) override;

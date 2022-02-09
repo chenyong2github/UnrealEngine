@@ -3,33 +3,21 @@
 
 #include "Components/AudioComponent.h"
 #include "Containers/Set.h"
-#include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
-#include "DetailCategoryBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "Internationalization/Text.h"
-#include "MetasoundAssetBase.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceMacro.h"
-#include "MetasoundEditorGraphBuilder.h"
-#include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNode.h"
-#include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphSchema.h"
-#include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
-#include "MetasoundUObjectRegistry.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorDelegates.h"
-#include "PropertyHandle.h"
-#include "PropertyRestriction.h"
 #include "SAssetDropTarget.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
 #include "SMetasoundActionMenu.h"
@@ -41,9 +29,6 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/SWidget.h"
@@ -65,6 +50,11 @@ namespace Metasound
 				"Audio:Mono",
 				"Audio:Stereo"
 			};
+
+			static const FText OverrideInputDefaultText = LOCTEXT("OverridePresetInputDefault", "Override Inherited Default");
+			static const FText OverrideInputDefaultTooltip = LOCTEXT("OverridePresetInputTooltip",
+				"Enables overriding the input's inherited default value otherwise provided by the referenced graph."
+				"Setting to true disables auto-updating the input's default value if modified on the referenced asset.");
 
 			void GetDataTypeFromElementPropertyHandle(TSharedPtr<IPropertyHandle> ElementPropertyHandle, Frontend::FDataTypeRegistryInfo& OutDataTypeInfo)
 			{
@@ -100,25 +90,26 @@ namespace Metasound
 			if (FloatLiteral.IsValid())
 			{
 				FloatLiteral->OnClampChanged.Remove(OnClampChangedDelegateHandle);
-				FloatLiteral->OnRangeChanged.Remove(OnRangeChangedDelegateHandle);
 			}
 		}
 
-		void FMetasoundFloatLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
+		TArray<IDetailPropertyRow*> FMetasoundFloatLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
 		{
 			check(DefaultCategoryBuilder);
 
 			UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(&InLiteral);
 			if (!ensure(DefaultFloat))
 			{
-				return;
+				return { };
 			}
 			FloatLiteral = DefaultFloat;
 
+			TArray<IDetailPropertyRow*> DefaultRows;
 			TSharedPtr<IPropertyHandle> DefaultValueHandle;
 			IDetailPropertyRow* Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), UMetasoundEditorGraphMemberDefaultFloat::GetDefaultPropertyName());
 			if (ensure(Row))
 			{
+				DefaultRows.Add(Row);
 				DefaultValueHandle = Row->GetPropertyHandle();
 			}
 
@@ -129,23 +120,28 @@ namespace Metasound
 			const bool bUsingWidget = DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None;
 			const bool bShouldClampDefaultValue = (!bUsingWidget && DefaultFloat->ClampDefault) || (bUsingWidget && !bVolumeWidgetWithLinearOutput);
 
-			Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault));
-			if (ensure(Row))
+			IDetailPropertyRow* ClampRow = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault));
+			if (ensure(ClampRow))
 			{
+				DefaultRows.Add(ClampRow);
 				if (bVolumeWidgetWithLinearOutput)
 				{
 					DefaultFloat->SetRange(FVector2D(0.0f, 1.0f));
 				}
-				if (bShouldClampDefaultValue)
+
+				if (DefaultValueHandle.IsValid())
 				{
-					FVector2D Range = DefaultFloat->GetRange();
-					DefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
-					DefaultValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), Range.Y));
-				}
-				else // Stop clamping
-				{
-					DefaultValueHandle->SetInstanceMetaData("ClampMin", "");
-					DefaultValueHandle->SetInstanceMetaData("ClampMax", "");
+					if (bShouldClampDefaultValue)
+					{
+						FVector2D Range = DefaultFloat->GetRange();
+						DefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
+						DefaultValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), Range.Y));
+					}
+					else // Stop clamping
+					{
+						DefaultValueHandle->SetInstanceMetaData("ClampMin", "");
+						DefaultValueHandle->SetInstanceMetaData("ClampMax", "");
+					}
 				}
 
 				DefaultFloat->OnClampChanged.Remove(OnClampChangedDelegateHandle);
@@ -163,7 +159,11 @@ namespace Metasound
 
 				if (bShouldClampDefaultValue)
 				{
-					DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+					IDetailPropertyRow* RangeRow = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+					if (ensure(RangeRow))
+					{
+						DefaultRows.Add(RangeRow);
+					}
 				}
 			}
 
@@ -180,18 +180,20 @@ namespace Metasound
 			if (bIsGraphEditable)
 			{
 				IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("EditorOptions");
-				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType));
-				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation));
-				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType));
+				DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType)));
+				DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation)));
+				DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType)));
 				if (DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
 				{
-					WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetUseLinearOutput));
+					DefaultRows.Add(WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetUseLinearOutput)));
 
 				}
 			}
+
+			return DefaultRows;
 		}
 
-		void FMetasoundObjectArrayLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
+		TArray<IDetailPropertyRow*> FMetasoundObjectArrayLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
 		{
 			check(DefaultCategoryBuilder);
 
@@ -262,6 +264,8 @@ namespace Metasound
 					DefaultValueHandle->CreatePropertyValueWidget()
 				]
 			];
+
+			return { Row };
 		}
 
 		FText FMetasoundMemberDefaultBoolDetailCustomization::GetPropertyNameOverride() const
@@ -825,6 +829,179 @@ namespace Metasound
 		}
 
 		const FText FMetasoundInputDetailCustomization::MemberNameText = LOCTEXT("InputGraphMemberLabel", "Input");
+
+		Frontend::FDocumentHandle FMetasoundInputDetailCustomization::GetDocumentHandle() const
+		{
+			if (MemberDefaultLiteral.IsValid())
+			{
+				if (UMetasoundEditorGraphMember* Parent = MemberDefaultLiteral->GetParentMember())
+				{
+					if (UMetasoundEditorGraph* Graph = Parent->GetOwningGraph())
+					{
+						return Graph->GetDocumentHandle();
+					}
+				}
+			}
+
+			return Frontend::IDocumentController::GetInvalidHandle();
+		}
+
+		bool FMetasoundInputDetailCustomization::GetInputInheritsDefault() const
+		{
+			if (!MemberDefaultLiteral.IsValid())
+			{
+				return false;
+			}
+
+			if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
+			{
+				const TSet<FName>& InputsInheritingDefault = GetDocumentHandle()->GetRootGraph()->GetInputsInheritingDefault();
+				FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
+				return InputsInheritingDefault.Contains(NodeName);
+			}
+
+			return false;
+		}
+
+		void FMetasoundInputDetailCustomization::SetInputInheritsDefault()
+		{
+			if (!MemberDefaultLiteral.IsValid())
+			{
+				return;
+			}
+
+			if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
+			{
+				FScopedTransaction(LOCTEXT("SetPresetInputOverrideTransaction", "Set MetaSound Preset Input Overridden"));
+
+				Vertex->GetOutermost()->Modify();
+				Vertex->Modify();
+				MemberDefaultLiteral->Modify();
+
+				constexpr bool bDefaultIsInherited = true;
+				const FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
+				GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
+
+				if (UObject* Metasound = Vertex->GetOutermostObject())
+				{
+					FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+				}
+			}
+		}
+
+		void FMetasoundInputDetailCustomization::ClearInputInheritsDefault()
+		{
+			if (!MemberDefaultLiteral.IsValid())
+			{
+				return;
+			}
+
+			if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
+			{
+				FScopedTransaction(LOCTEXT("ClearPresetInputOverrideTransaction", "Clear MetaSound Preset Input Overridden"));
+
+				Vertex->GetOutermost()->Modify();
+				Vertex->Modify();
+				MemberDefaultLiteral->Modify();
+
+				constexpr bool bDefaultIsInherited = false;
+				const FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
+				GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
+
+				Vertex->UpdateFrontendDefaultLiteral(false /* bPostTransaction */);
+
+				if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Vertex->GetLiteral())
+				{
+					Literal->ForceRefresh();
+				}
+
+				if (UObject* Metasound = Vertex->GetOutermostObject())
+				{
+					FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+				}
+			}
+		}
+
+		void FMetasoundInputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
+		{
+			CacheMemberData(InDetailLayout);
+			if (!GraphMember.IsValid())
+			{
+				return;
+			}
+
+			CustomizeGeneralCategory(InDetailLayout);
+
+			if (!MemberDefaultLiteral.IsValid())
+			{
+				return;
+			}
+
+			// Build preset row first if graph has managed interface, not default constructed, & not a trigger
+			const bool bIsPreset = GetDocumentHandle()->GetRootGraphClass().PresetOptions.bIsPreset;
+			const bool bIsDefaultConstructed = MemberDefaultLiteral->GetLiteralType() == EMetasoundFrontendLiteralType::None;
+			const bool bIsTriggerDataType = GraphMember->GetDataType() == GetMetasoundDataTypeName<FTrigger>();
+
+			if (bIsPreset && !bIsDefaultConstructed && !bIsTriggerDataType)
+			{
+				GetDefaultCategoryBuilder(InDetailLayout)
+				.AddCustomRow(MemberCustomizationPrivate::OverrideInputDefaultText)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(MemberCustomizationPrivate::OverrideInputDefaultText)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.ToolTipText(MemberCustomizationPrivate::OverrideInputDefaultTooltip)
+				]
+				.ValueContent()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+					{
+						switch(State)
+						{
+							case ECheckBoxState::Checked:
+							{
+								ClearInputInheritsDefault();
+								break;
+							}
+							case ECheckBoxState::Unchecked:
+							case ECheckBoxState::Undetermined:
+							default:
+							{
+								SetInputInheritsDefault();
+							}
+						}
+					})
+					.IsChecked_Lambda([this]() { return GetInputInheritsDefault() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; })
+					.ToolTipText(MemberCustomizationPrivate::OverrideInputDefaultTooltip)
+				];
+			}
+
+			TArray<IDetailPropertyRow*> DefaultPropertyRows = CustomizeDefaultCategory(InDetailLayout);
+
+			if (bIsPreset && !bIsDefaultConstructed && !bIsTriggerDataType)
+			{
+				const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberDefaultLiteral->GetParentMember());
+				if (ensure(Input))
+				{
+					auto PropertyEnabled = TAttribute<bool>::CreateLambda([this] { return !GetInputInheritsDefault(); });
+					for (IDetailPropertyRow* DefaultPropertyRow : DefaultPropertyRows)
+					{
+						DefaultPropertyRow->EditCondition(PropertyEnabled, { });
+						FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(
+							FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> /* PropertyHandle */) { return !GetInputInheritsDefault(); }),
+							FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> /* PropertyHandle */) { SetInputInheritsDefault(); }));
+						DefaultPropertyRow->OverrideResetToDefault(ResetOverride);
+					}
+				}
+			}
+		}
+
+		bool FMetasoundInputDetailCustomization::IsDefaultEditable() const
+		{
+			return !GetInputInheritsDefault();
+		}
 
 		bool FMetasoundInputDetailCustomization::IsInterfaceMember() const
 		{

@@ -663,6 +663,7 @@ namespace Metasound
 				GraphClass->Graph.Edges.Reset();
 				GraphClass->Interface.Inputs.Reset();
 				GraphClass->Interface.Outputs.Reset();
+				GraphClass->PresetOptions.InputsInheritingDefault.Reset();
 				OwningDocument->ClearInterfaceVersions();
 				OwningDocument->RemoveUnreferencedDependencies();
 			}
@@ -732,6 +733,54 @@ namespace Metasound
 				return NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Input;
 			};
 			return GetNodesByPredicate(IsInputNode);
+		}
+
+		const TSet<FName>& FGraphController::GetInputsInheritingDefault() const
+		{
+			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				if (GraphClass->PresetOptions.bIsPreset)
+				{
+					return GraphClass->PresetOptions.InputsInheritingDefault;
+				}
+			}
+
+			return Invalid::GetInvalidNameSet();
+		}
+
+		bool FGraphController::SetInputInheritsDefault(FName InName, bool bInputInheritsDefault)
+		{
+			if (bInputInheritsDefault)
+			{
+				if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+				{
+					if (GraphClass->PresetOptions.bIsPreset)
+					{
+						return GraphClass->PresetOptions.InputsInheritingDefault.Add(InName).IsValidId();
+					}
+				}
+			}
+			else
+			{
+				if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+				{
+					if (GraphClass->PresetOptions.bIsPreset)
+					{
+						return GraphClass->PresetOptions.InputsInheritingDefault.Remove(InName) > 0;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		void FGraphController::SetInputsInheritingDefault(TSet<FName>&& InNames)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				GraphClass->PresetOptions.bIsPreset = true;
+				GraphClass->PresetOptions.InputsInheritingDefault = MoveTemp(InNames);
+			}
 		}
 
 		bool FGraphController::ContainsOutputVertex(const FVertexName& InName, const FName& InTypeName) const
@@ -1278,7 +1327,23 @@ namespace Metasound
 			return false;
 		}
 
-		// Returns the metadata for the current graph, including the name, description and author.
+		const FMetasoundFrontendGraphClassPresetOptions& FGraphController::GetGraphPresetOptions() const
+		{
+			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				return GraphClass->PresetOptions;
+			}
+			return Invalid::GetInvalidGraphClassPresetOptions();
+		}
+
+		void FGraphController::SetGraphPresetOptions(const FMetasoundFrontendGraphClassPresetOptions& InPresetOptions)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				GraphClass->PresetOptions = InPresetOptions;
+			}
+		}
+
 		const FMetasoundFrontendClassMetadata& FGraphController::GetGraphMetadata() const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())

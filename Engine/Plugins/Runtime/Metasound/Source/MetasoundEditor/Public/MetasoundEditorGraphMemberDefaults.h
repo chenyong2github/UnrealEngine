@@ -175,6 +175,7 @@ public:
 	FOnMetasoundRangeChangedEvent OnRangeChanged;
 	FOnMetasoundInputClampDefaultChangedEvent OnClampChanged;
 
+	virtual void ForceRefresh() override;
 	virtual FMetasoundFrontendLiteral GetDefault() const override;
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const override;
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override;

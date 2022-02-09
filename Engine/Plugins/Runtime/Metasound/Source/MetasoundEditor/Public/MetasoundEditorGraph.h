@@ -60,6 +60,10 @@ public:
 	{
 	}
 
+	virtual void ForceRefresh()
+	{
+	}
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;

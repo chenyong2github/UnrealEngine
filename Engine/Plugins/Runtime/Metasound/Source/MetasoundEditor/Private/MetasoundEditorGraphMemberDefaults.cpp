@@ -38,6 +38,7 @@ namespace Metasound
 			template <typename TPODType, typename TLiteralType = TPODType>
 			void ConvertLiteralToArray(const FMetasoundFrontendLiteral& InLiteral, TArray<TLiteralType>& OutArray)
 			{
+				OutArray.Reset();
 				const FName TypeName = CreateArrayTypeNameFromElementTypeName(GetMetasoundDataTypeName<TPODType>());
 				TArray<TPODType> NewValue = InLiteral.ToLiteral(TypeName).Value.Get<TArray<TPODType>>();
 				Algo::Transform(NewValue, OutArray, [](const TPODType& InValue) { return TLiteralType { InValue }; });
@@ -157,6 +158,12 @@ EMetasoundFrontendLiteralType UMetasoundEditorGraphMemberDefaultFloat::GetLitera
 	return EMetasoundFrontendLiteralType::Float;
 }
 
+void UMetasoundEditorGraphMemberDefaultFloat::ForceRefresh()
+{
+	OnRangeChanged.Broadcast(Range);
+	SetDefault(FMath::Clamp(Default, Range.X, Range.Y));
+}
+
 void UMetasoundEditorGraphMemberDefaultFloat::SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
 {
 	Metasound::Editor::MemberDefaultsPrivate::ConvertLiteral<float>(InLiteral, Default);
@@ -197,7 +204,7 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 		{
 			// if Range.Y < Range.X, set Range.X to Range.Y
 			Range.X = FMath::Min(Range.X, Range.Y);
-			SetRange(Range);
+			ForceRefresh();
 		}
 	}
 	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault)))
@@ -228,8 +235,11 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 
 void UMetasoundEditorGraphMemberDefaultFloat::SetDefault(const float InDefault)
 {
-	Default = InDefault;
-	OnDefaultValueChanged.Broadcast(InDefault);
+	if (!FMath::IsNearlyEqual(Default, InDefault))
+	{
+		Default = InDefault;
+		OnDefaultValueChanged.Broadcast(InDefault);
+	}
 }
 
 float UMetasoundEditorGraphMemberDefaultFloat::GetDefault()
@@ -244,9 +254,12 @@ FVector2D UMetasoundEditorGraphMemberDefaultFloat::GetRange()
 
 void UMetasoundEditorGraphMemberDefaultFloat::SetRange(const FVector2D InRange)
 {
-	Range = InRange;
-	OnRangeChanged.Broadcast(InRange);
-	SetDefault(FMath::Clamp(Default, Range.X, Range.Y));
+	if (!(Range - InRange).IsNearlyZero())
+	{
+		Range = InRange;
+		OnRangeChanged.Broadcast(InRange);
+		SetDefault(FMath::Clamp(Default, Range.X, Range.Y));
+	}
 }
 
 FMetasoundFrontendLiteral UMetasoundEditorGraphMemberDefaultFloatArray::GetDefault() const
@@ -357,6 +370,7 @@ void UMetasoundEditorGraphMemberDefaultObjectArray::SetFromLiteral(const FMetaso
 	TArray<UObject*> ObjectArray;
 	ensure(InLiteral.TryGet(ObjectArray));
 
+	Default.Reset();
 	Algo::Transform(ObjectArray, Default, [](UObject* InValue) { return FMetasoundEditorGraphMemberDefaultObjectRef { InValue }; });
 }
 

@@ -623,9 +623,9 @@ void FMetasoundAssetBase::ConvertFromPreset()
 	Style.bIsGraphEditable = true;
 	GraphHandle->SetGraphStyle(Style);
 
-	FMetasoundFrontendClassMetadata Metadata = GraphHandle->GetGraphMetadata();
-	Metadata.SetAutoUpdateManagesInterface(false);
-	GraphHandle->SetGraphMetadata(Metadata);
+	FMetasoundFrontendGraphClassPresetOptions PresetOptions = GraphHandle->GetGraphPresetOptions();
+	PresetOptions.bIsPreset = false;
+	GraphHandle->SetGraphPresetOptions(PresetOptions);
 }
 
 TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSendInfos(uint64 InInstanceID) const

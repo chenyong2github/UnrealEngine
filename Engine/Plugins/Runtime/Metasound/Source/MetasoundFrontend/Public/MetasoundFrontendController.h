@@ -587,6 +587,12 @@ namespace Metasound
 			/** Returns the ClassID associated with this graph. */
 			virtual FGuid GetClassID() const = 0;
 
+			/** Return the preset options for the current graph. */
+			virtual const FMetasoundFrontendGraphClassPresetOptions& GetGraphPresetOptions() const = 0;
+
+			/** Sets the preset options for the current graph. */
+			virtual void SetGraphPresetOptions(const FMetasoundFrontendGraphClassPresetOptions& InPresetOptions) = 0;
+
 			/** Return the metadata for the current graph. */
 			virtual const FMetasoundFrontendClassMetadata& GetGraphMetadata() const = 0;
 
@@ -628,6 +634,18 @@ namespace Metasound
 
 			/** Returns all input nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const = 0;
+
+			/** Returns a set of all input names that are managed */
+			virtual const TSet<FName>& GetInputsInheritingDefault() const = 0;
+
+			/** If true, adds an item to the set of all input names
+			  * that are managed.
+			  * Returns true if successfully added/removed, false if not.
+			  */
+			virtual bool SetInputInheritsDefault(FName InName, bool bDefaultIsInherited) = 0;
+
+			/** Sets managed input names */
+			virtual void SetInputsInheritingDefault(TSet<FName>&& InNames) = 0;
 
 			/** Adds a new variable to the graph */
 			virtual FVariableHandle AddVariable(const FName& InDataTypeName) = 0;

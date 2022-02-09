@@ -13,6 +13,7 @@
 
 // Forward Declarations
 class IDetailLayoutBuilder;
+class IDetailPropertyRow;
 class UMetasoundEditorGraph;
 class UMetasoundEditorGraphMemberDefaultLiteral;
 
@@ -50,7 +51,9 @@ namespace Metasound
 
 			virtual ~FMetasoundDefaultLiteralCustomizationBase() = default;
 
-			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout) { }
+			// Customizes the given literal for the provided DetailLayoutBuilder.
+			// @return the DetailPropertyRow created for the default parameter set by this customization.
+			virtual TArray<IDetailPropertyRow*> CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout) { return { }; };
 		};
 
 		class METASOUNDEDITOR_API IMemberDefaultLiteralCustomizationFactory
