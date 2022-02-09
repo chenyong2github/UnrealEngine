@@ -225,6 +225,8 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRDGBuilder& GraphBuilder)
 	FSkinnedGeometryBLASUpdateParams* BLASUpdateParams = GraphBuilder.AllocParameters<FSkinnedGeometryBLASUpdateParams>();
 	BLASUpdateParams->SharedScratchBuffer = SharedScratchBuffer;
 
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
 	GraphBuilder.AddPass(RDG_EVENT_NAME("CommitRayTracingSkinnedGeometryUpdates"), BLASUpdateParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, SharedScratchBuffer](FRHICommandListImmediate& RHICmdList)
 		{

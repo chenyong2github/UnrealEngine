@@ -177,11 +177,12 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 				RHICmdList.UnlockBuffer(TransformUploadBuffer);
 
-				RHICmdList.EnqueueLambda([this, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
+				// Pull this out here, because command list playback (where the lambda is executed) doesn't update the GPU mask
+				FRHIGPUMask IterateGPUMasks = RHICmdList.GetGPUMask();
+
+				RHICmdList.EnqueueLambda([this, &SceneInitializer, IterateGPUMasks](FRHICommandListImmediate& RHICmdList)
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(GetAccelerationStructuresAddresses);
-
-						FRHIGPUMask IterateGPUMasks = RHICmdList.GetGPUMask();
 
 						for (uint32 GPUIndex : IterateGPUMasks)
 						{
