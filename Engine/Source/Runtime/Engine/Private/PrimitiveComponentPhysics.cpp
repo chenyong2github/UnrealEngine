@@ -824,15 +824,15 @@ FBodyInstance* UPrimitiveComponent::GetBodyInstance(FName BoneName, bool bGetWel
 	return const_cast<FBodyInstance*>((bGetWelded && BodyInstance.WeldParent) ? BodyInstance.WeldParent : &BodyInstance);
 }
 
-FBodyInstanceFixedTickHandle UPrimitiveComponent::GetBodyInstanceFixedTickHandle(FName BoneName, bool bGetWelded, int32 Index) const
+FBodyInstanceAsyncPhysicsTickHandle UPrimitiveComponent::GetBodyInstanceAsyncPhysicsTickHandle(FName BoneName, bool bGetWelded, int32 Index) const
 {
 	if(FBodyInstance* BI = GetBodyInstance(BoneName, bGetWelded, Index))
 	{
-		return BI->GetBodyInstancePhysicsThreadHandle();
+		return BI->GetBodyInstanceAsyncPhysicsTickHandle();
 	}
 	else
 	{
-		return FBodyInstanceFixedTickHandle();
+		return FBodyInstanceAsyncPhysicsTickHandle();
 	}
 	
 }

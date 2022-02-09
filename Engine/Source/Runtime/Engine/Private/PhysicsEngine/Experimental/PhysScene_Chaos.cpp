@@ -71,31 +71,31 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 #include "Editor.h"
 #endif
 
-class FFixedTickCallback : public Chaos::TSimCallbackObject<>
+class FAsyncPhysicsTickCallback : public Chaos::TSimCallbackObject<>
 {
 public:
-	FFixedTickCallback()
+	FAsyncPhysicsTickCallback()
 		: TSimCallbackObject<>(/*InRunOnFrozenGameThread=*/ true)
 	{
 
 	}
 
-	TSet<UActorComponent*> FixedTickComponents;
-	TSet<AActor*> FixedTickActors;
+	TSet<UActorComponent*> AsyncPhysicsTickComponents;
+	TSet<AActor*> AsyncPhysicsTickActors;
 	virtual void OnPreSimulate_Internal() override
 	{
 		using namespace Chaos;
 		const FReal DeltaTime = GetDeltaTime_Internal();
 		const FReal SimTime = GetSimTime_Internal();
-		//TODO: handle case where callbacks modify FixedTickComponents or FixedTickActors
-		for (UActorComponent* Component : FixedTickComponents)
+		//TODO: handle case where callbacks modify AsyncPhysicsTickComponents or AsyncPhysicsTickActors
+		for (UActorComponent* Component : AsyncPhysicsTickComponents)
 		{
-			Component->FixedTickComponent(DeltaTime, SimTime);
+			Component->AsyncPhysicsTickComponent(DeltaTime, SimTime);
 		}
 
-		for(AActor* Actor : FixedTickActors)
+		for(AActor* Actor : AsyncPhysicsTickActors)
 		{
-			Actor->FixedTickActor(DeltaTime, SimTime);
+			Actor->AsyncPhysicsTickActor(DeltaTime, SimTime);
 		}
 	}
 };
@@ -448,9 +448,9 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 {
 #if WITH_CHAOS
 
-	if (FixedTickCallback)
+	if (AsyncPhysicsTickCallback)
 	{
-		SceneSolver->UnregisterAndFreeSimCallbackObject_External(FixedTickCallback);
+		SceneSolver->UnregisterAndFreeSimCallbackObject_External(AsyncPhysicsTickCallback);
 	}
 
 	// Must ensure deferred components do not hold onto scene pointer.
@@ -1847,39 +1847,39 @@ void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
 #endif
 }
 
-void FPhysScene_Chaos::EnableFixedTickCallback()
+void FPhysScene_Chaos::EnableAsyncPhysicsTickCallback()
 {
-	if (FixedTickCallback == nullptr)
+	if (AsyncPhysicsTickCallback == nullptr)
 	{
-		FixedTickCallback = SceneSolver->CreateAndRegisterSimCallbackObject_External<FFixedTickCallback>();
+		AsyncPhysicsTickCallback = SceneSolver->CreateAndRegisterSimCallbackObject_External<FAsyncPhysicsTickCallback>();
 	}
 }
 
-void FPhysScene_Chaos::RegisterFixedTickComponent(UActorComponent* Component)
+void FPhysScene_Chaos::RegisterAsyncPhysicsTickComponent(UActorComponent* Component)
 {
-	EnableFixedTickCallback();
-	FixedTickCallback->FixedTickComponents.Add(Component);
+	EnableAsyncPhysicsTickCallback();
+	AsyncPhysicsTickCallback->AsyncPhysicsTickComponents.Add(Component);
 }
 
-void FPhysScene_Chaos::UnregisterFixedTickComponent(UActorComponent* Component)
+void FPhysScene_Chaos::UnregisterAsyncPhysicsTickComponent(UActorComponent* Component)
 {
-	if (FixedTickCallback)
+	if (AsyncPhysicsTickCallback)
 	{
-		FixedTickCallback->FixedTickComponents.Remove(Component);
+		AsyncPhysicsTickCallback->AsyncPhysicsTickComponents.Remove(Component);
 	}
 }
 
-void FPhysScene_Chaos::RegisterFixedTickActor(AActor* Actor)
+void FPhysScene_Chaos::RegisterAsyncPhysicsTickActor(AActor* Actor)
 {
-	EnableFixedTickCallback();
-	FixedTickCallback->FixedTickActors.Add(Actor);
+	EnableAsyncPhysicsTickCallback();
+	AsyncPhysicsTickCallback->AsyncPhysicsTickActors.Add(Actor);
 }
 
-void FPhysScene_Chaos::UnregisterFixedTickActor(AActor* Actor)
+void FPhysScene_Chaos::UnregisterAsyncPhysicsTickActor(AActor* Actor)
 {
-	if (FixedTickCallback)
+	if (AsyncPhysicsTickCallback)
 	{
-		FixedTickCallback->FixedTickActors.Remove(Actor);
+		AsyncPhysicsTickCallback->AsyncPhysicsTickActors.Remove(Actor);
 	}
 }
 

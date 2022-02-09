@@ -108,7 +108,7 @@ void AActor::InitializeDefaults()
 	PrimaryActorTick.bCanEverTick = false;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.SetTickFunctionEnable(false); 
-	bFixedTickEnabled = false;
+	bAsyncPhysicsTickEnabled = false;
 
 	CustomTimeDilation = 1.0f;
 
@@ -1145,17 +1145,17 @@ void AActor::RegisterAllActorTickFunctions(bool bRegister, bool bDoComponents)
 		}
 
 #if WITH_CHAOS
-		if (bFixedTickEnabled)
+		if (bAsyncPhysicsTickEnabled)
 		{
 			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(GetWorld()->GetPhysicsScene()))
 			{
 				if (bRegister)
 				{
-					Scene->RegisterFixedTickActor(this);
+					Scene->RegisterAsyncPhysicsTickActor(this);
 				}
 				else
 				{
-					Scene->UnregisterFixedTickActor(this);
+					Scene->UnregisterAsyncPhysicsTickActor(this);
 				}
 			}
 		}

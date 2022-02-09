@@ -254,7 +254,7 @@ namespace Chaos
 }
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FBodyInstanceFixedTickHandle
+struct ENGINE_API FBodyInstanceAsyncPhysicsTickHandle
 {
 	GENERATED_BODY()
 	FPhysicsActorHandle Proxy = nullptr;
@@ -569,7 +569,7 @@ public:
 	// Internal physics representation of our body instance
 	FPhysicsActorHandle ActorHandle;
 
-	FBodyInstanceFixedTickHandle GetBodyInstancePhysicsThreadHandle() const { return FBodyInstanceFixedTickHandle{ ActorHandle }; }
+	FBodyInstanceAsyncPhysicsTickHandle GetBodyInstanceAsyncPhysicsTickHandle() const { return FBodyInstanceAsyncPhysicsTickHandle{ ActorHandle }; }
 
 #if USE_BODYINSTANCE_DEBUG_NAMES
 	TSharedPtr<TArray<ANSICHAR>> CharDebugName;

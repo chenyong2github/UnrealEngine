@@ -29,7 +29,7 @@ class ENGINE_API UPhysicsThreadLibrary : public UBlueprintFunctionLibrary
 	 *  @param  bAccelChange If true, Force is taken as a change in acceleration instead of a physical force (i.e. mass will have no effect).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Utilities")
-	static void AddForce(FBodyInstanceFixedTickHandle Handle, FVector Force, bool bAccelChange = false)
+	static void AddForce(FBodyInstanceAsyncPhysicsTickHandle Handle, FVector Force, bool bAccelChange = false)
 	{
 		if (Handle)
 		{

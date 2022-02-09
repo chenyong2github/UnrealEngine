@@ -4534,7 +4534,7 @@ FRecalculatedMassProperties& FBodyInstance::OnRecalculatedMassProperties()
 }
 
 
-bool FBodyInstanceFixedTickHandle::IsValid() const
+bool FBodyInstanceAsyncPhysicsTickHandle::IsValid() const
 {
 #if WITH_CHAOS
 	return Proxy && Proxy->GetPhysicsThreadAPI() != nullptr;
@@ -4543,7 +4543,7 @@ bool FBodyInstanceFixedTickHandle::IsValid() const
 #endif
 }
 
-Chaos::FRigidBodyHandle_Internal* FBodyInstanceFixedTickHandle::operator->()
+Chaos::FRigidBodyHandle_Internal* FBodyInstanceAsyncPhysicsTickHandle::operator->()
 {
 #if WITH_CHAOS
 	return Proxy->GetPhysicsThreadAPI();
