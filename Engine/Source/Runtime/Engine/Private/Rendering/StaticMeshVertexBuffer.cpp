@@ -269,7 +269,22 @@ void FStaticMeshVertexBuffer::operator=(const FStaticMeshVertexBuffer &Other)
 template <bool bRenderThread>
 FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Internal()
 {
-	return CreateRHIBuffer<bRenderThread>(TangentsData, GetNumVertices(), BUF_Static | BUF_ShaderResource, TEXT("TangentsRHIBuffer"));
+	if (GetNumVertices())
+	{
+ 		FResourceArrayInterface* RESTRICT ResourceArray = TangentsData ? TangentsData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		FRHIResourceCreateInfo CreateInfo(TEXT("TangentsRHIBuffer"), ResourceArray);
+		CreateInfo.bWithoutNativeResource = !TangentsData;
+		if (bRenderThread)
+		{
+			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		}
+	}
+	return nullptr;
 }
 
 FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_RenderThread()
@@ -285,7 +300,22 @@ FBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Async()
 template <bool bRenderThread>
 FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Internal()
 {
-	return CreateRHIBuffer<bRenderThread>(TexcoordData, GetNumTexCoords(), BUF_Static | BUF_ShaderResource, TEXT("TexCoordRHIBuffer"));
+	if (GetNumTexCoords())
+	{
+		FResourceArrayInterface* RESTRICT ResourceArray = TexcoordData ? TexcoordData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		FRHIResourceCreateInfo CreateInfo(TEXT("TexCoordRHIBuffer"), ResourceArray);
+		CreateInfo.bWithoutNativeResource = !TexcoordData;
+		if (bRenderThread)
+		{
+			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		}
+	}
+	return nullptr;
 }
 
 FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_RenderThread()
@@ -331,25 +361,22 @@ void FStaticMeshVertexBuffer::InitRHI()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshVertexBuffer::InitRHI);
 	SCOPED_LOADTIMER(FStaticMeshVertexBuffer_InitRHI);
 
-	const bool bHadTangentsData = TangentsData != nullptr;
 	TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
+	TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
 	if (TangentsVertexBuffer.VertexBufferRHI && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform)))
 	{
 		// When TangentsData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
 		TangentsSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(
-			bHadTangentsData ? TangentsVertexBuffer.VertexBufferRHI : nullptr,
+			TangentsData ? TangentsVertexBuffer.VertexBufferRHI : nullptr,
 			GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM));
 	}
-
-	const bool bHadTexCoordData = TexcoordData != nullptr;
-	TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
 	if (TexCoordVertexBuffer.VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		// When TexcoordData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
 		TextureCoordinatesSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(
-			bHadTexCoordData ? TexCoordVertexBuffer.VertexBufferRHI : nullptr,
+			TexcoordData ? TexCoordVertexBuffer.VertexBufferRHI : nullptr,
 			GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F));
 	}
 }
