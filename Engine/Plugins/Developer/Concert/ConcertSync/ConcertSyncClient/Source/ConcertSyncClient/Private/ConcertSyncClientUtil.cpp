@@ -348,7 +348,7 @@ void FlushPackageLoading(const FName InPackageName)
 	FlushPackageLoading(InPackageName.ToString());
 }
 
-void FlushPackageLoading(const FString& InPackageName)
+void FlushPackageLoading(const FString& InPackageName, bool bForceBulkDataLoad)
 {
 	UPackage* ExistingPackage = FindPackage(nullptr, *InPackageName);
 	if (ExistingPackage)
@@ -358,7 +358,15 @@ void FlushPackageLoading(const FString& InPackageName)
 			FlushAsyncLoading();
 			ExistingPackage->FullyLoad();
 		}
-		ResetLoaders(ExistingPackage);
+
+		if (bForceBulkDataLoad)
+		{
+			ResetLoaders(ExistingPackage);
+		}
+		else if (ExistingPackage->GetLinker())
+		{
+			ExistingPackage->GetLinker()->Detach();
+		}
 	}
 }
 

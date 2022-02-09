@@ -41,12 +41,12 @@ FString GetContentFolderName(const FString& InContentPath)
 	return ContentFolderName;
 }
 
-bool FlushPackageFile(const FString& InFilename, FName* OutPackageName = nullptr)
+bool FlushPackageFile(const FString& InFilename, FName* OutPackageName = nullptr, bool bForceLoad = true)
 {
 	FString PackageName;
 	if (FPackageName::TryConvertFilenameToLongPackageName(InFilename, PackageName))
 	{
-		ConcertSyncClientUtil::FlushPackageLoading(PackageName);
+		ConcertSyncClientUtil::FlushPackageLoading(PackageName, bForceLoad);
 		if (OutPackageName)
 		{
 			*OutPackageName = *PackageName;
@@ -954,7 +954,7 @@ void FConcertSandboxPlatformFile::DiscardSandbox(TArray<FName>& OutPackagesPendi
 
 					// If this file maps to a package then we need to flush its linker so that we can remove the file from the sandbox
 					FName PackageName;
-					ConcertSandboxPlatformFileUtil::FlushPackageFile(RemappedFilePath.GetNonSandboxPath(), &PackageName);
+					ConcertSandboxPlatformFileUtil::FlushPackageFile(RemappedFilePath.GetNonSandboxPath(), &PackageName, false);
 
 					if (LowerLevel->FileExists(*RemappedFilePath.GetNonSandboxPath()))
 					{
