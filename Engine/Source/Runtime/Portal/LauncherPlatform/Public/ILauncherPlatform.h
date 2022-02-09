@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
 
 class FOpenLauncherOptions
 {
