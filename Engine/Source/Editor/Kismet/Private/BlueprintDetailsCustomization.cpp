@@ -1642,56 +1642,34 @@ UK2Node_Variable* FBlueprintVarActionDetails::EdGraphSelectionAsVar() const
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 FProperty* FBlueprintVarActionDetails::SelectionAsProperty() const
 {
-	FEdGraphSchemaAction_K2Var* VarAction = MyBlueprintSelectionAsVar();
-	if(VarAction)
+	if (FEdGraphSchemaAction_BlueprintVariableBase* BPVar = MyBlueprint.Pin()->SelectionAsBlueprintVariable())
 	{
-		return VarAction->GetProperty();
+		return BPVar->GetProperty();
 	}
-	FEdGraphSchemaAction_K2LocalVar* LocalVarAction = MyBlueprintSelectionAsLocalVar();
-	if(LocalVarAction)
-	{
-		return LocalVarAction->GetProperty();
-	}
-	FEdGraphSchemaAction_K2Delegate* DelegateVar = MyBlueprintSelectionAsDelegate();
-	if (DelegateVar)
-	{
-		return DelegateVar->GetDelegateProperty();
-	}
-	UK2Node_Variable* GraphVar = EdGraphSelectionAsVar();
-	if(GraphVar)
+	else if (UK2Node_Variable* GraphVar = EdGraphSelectionAsVar())
 	{
 		return GraphVar->GetPropertyForVariable();
 	}
+
 	return nullptr;
 }
 
 FName FBlueprintVarActionDetails::GetVariableName() const
 {
-	FEdGraphSchemaAction_K2Var* VarAction = MyBlueprintSelectionAsVar();
-	if(VarAction)
+	if (FEdGraphSchemaAction_BlueprintVariableBase* BPVar = MyBlueprint.Pin()->SelectionAsBlueprintVariable())
 	{
-		return VarAction->GetVariableName();
+		return BPVar->GetVariableName();
 	}
-	FEdGraphSchemaAction_K2LocalVar* LocalVarAction = MyBlueprintSelectionAsLocalVar();
-	if(LocalVarAction)
-	{
-		return LocalVarAction->GetVariableName();
-	}
-	FEdGraphSchemaAction_K2Delegate* DelegateVar = MyBlueprintSelectionAsDelegate();
-	if (DelegateVar)
-	{
-		return DelegateVar->GetDelegateName();
-	}
-	UK2Node_Variable* GraphVar = EdGraphSelectionAsVar();
-	if(GraphVar)
+	else if (UK2Node_Variable* GraphVar = EdGraphSelectionAsVar())
 	{
 		return GraphVar->GetVarName();
 	}
+
 	return NAME_None;
 }
 
