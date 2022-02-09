@@ -10,7 +10,6 @@ uint MacroGroupId;
 uint MacroGroupValid;
 
 float PixelSizeAtDepth1;
-float MinVoxelWorldSize;
 float NumPixelPerVoxel;
 
 // Group data packed as {uint3 AABBMin, uint3 AABBMax}
@@ -58,6 +57,8 @@ void Main(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const float PixelWorldSize = PixelSizeAtDepth1 * ViewBound.Min.z;
 		const float VoxelWorldSize = PixelWorldSize * NumPixelPerVoxel;
 		WriteHairAABB(MacroGroupId, Bound, OutMacroGroupAABBBuffer);
+
+		const float MinVoxelWorldSize = 0.01f; // 0.01mm
 		OutMacroGroupVoxelSizeBuffer[MacroGroupId] = max(MinVoxelWorldSize, VoxelWorldSize);
 	}
 }

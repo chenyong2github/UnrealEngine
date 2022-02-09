@@ -28,7 +28,6 @@ class FHairMacroGroupAABBCS : public FGlobalShader
 
 		SHADER_PARAMETER(float, PixelSizeAtDepth1)
 		SHADER_PARAMETER(float, NumPixelPerVoxel)
-		SHADER_PARAMETER(float, MinVoxelWorldSize)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer0)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer1)
@@ -71,7 +70,6 @@ static void AddHairMacroGroupAABBPass(
 	const float PixelSizeAtDepth1 = FMath::Tan(vFOV * 0.5f) / (0.5f * Resolution.Y);
 	
 	const float NumPixelPerVoxel = FMath::Clamp(GHairVirtualVoxel_NumPixelPerVoxel, 1.f, 50.f);
-	const float MinVoxelWorldSize = 0.01f;
 
 	const uint32 GroupPerPass = 8;
 	bool bNeedClear = true;
@@ -83,7 +81,6 @@ static void AddHairMacroGroupAABBPass(
 		Parameters->MacroGroupId = MacroGroupId;
 		Parameters->OutMacroGroupAABBBuffer = OutHairMacroGroupAABBBufferUAV;
 		Parameters->OutMacroGroupVoxelSizeBuffer = OutMacroGroupVoxelSizeBufferUAV;
-		Parameters->MinVoxelWorldSize = MinVoxelWorldSize;
 		Parameters->PixelSizeAtDepth1 = PixelSizeAtDepth1;
 		Parameters->NumPixelPerVoxel  = NumPixelPerVoxel;
 		Parameters->View			  = View.ViewUniformBuffer;
@@ -130,7 +127,7 @@ static void AddHairMacroGroupAABBPass(
 		TShaderMapRef<FHairMacroGroupAABBCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsMacroGroupAABBUpdate"),
+			RDG_EVENT_NAME("HairStrands::MacroGroupAABBUpdate"),
 			ComputeShader,
 			Parameters,
 			FIntVector(1,1,1));

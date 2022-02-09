@@ -6,6 +6,8 @@
 #include "HairStrandsAABBCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 #if SHADER_ALLOCATEPAGEINDEX 
 
 float				CPUPageWorldSize;
@@ -22,6 +24,7 @@ float3				CPU_TranslatedWorldMaxAABB;
 int3				CPU_PageIndexResolution;
 uint				CPU_bUseCPUData;
 
+Buffer<float>								GPUVoxelWorldSize;
 Buffer<float>								MacroGroupVoxelSizeBuffer;
 RWBuffer<int>								MacroGroupAABBBuffer;
 RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
@@ -49,7 +52,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
-		const float VoxelWorldSize = max(CPUVoxelWorldSize, MacroGroupVoxelSizeBuffer[MacroGroupId]);
+		const float VoxelWorldSize = max(GPUVoxelWorldSize[0], MacroGroupVoxelSizeBuffer[MacroGroupId]);
 		PageWorldSize = VoxelWorldSize * PageResolution;
 
 		if (any(Bound.Min > Bound.Max) || !bSupportVoxelization)
@@ -208,6 +211,8 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 #if SHADER_MARKVALID_PREPARE || SHADER_MARKVALID_INDIRECTARG || SHADER_MARKVALID_SCATTER
 struct FScatterCoord
 {
@@ -263,6 +268,8 @@ void UpdatePackScatterCoord(inout uint2 Out, uint PartIndex)
 #define SCATTER_GROUP_LINE 4
 
 #endif // SHADER_MARKVALID_PREPARE || SHADER_MARKVALID_INDIRECTARG || SHADER_MARKVALID_SCATTER
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_MARKVALID_PREPARE
 uint			MaxClusterCount;
@@ -433,6 +440,8 @@ void MarkValid_BuildIndirectArgCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 #if SHADER_MARKVALID_SCATTER
 Buffer<int>		IndirectBufferArgs;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
@@ -467,6 +476,8 @@ void MarkValid_ScatterCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_MARKVALID
 uint			MaxClusterCount;
@@ -540,6 +551,8 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_ALLOCATE
 uint MacroGroupId;
@@ -629,6 +642,8 @@ void AllocateCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dis
 }
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 #if SHADER_ADDDESC
 
 float3 CPU_TranslatedWorldMinAABB;
@@ -638,6 +653,7 @@ uint CPU_PageIndexOffset;
 int3 CPU_PageIndexResolution;
 float CPU_VoxelWorldSize;
 
+Buffer<float> GPU_VoxelWorldSize;
 Buffer<int> MacroGroupAABBBuffer;
 Buffer<float> MacroGroupVoxelSizeBuffer;
 Buffer<uint4> PageIndexResolutionAndOffsetBuffer;
@@ -657,7 +673,7 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 	Node.TranslatedWorldMaxAABB = TranslatedWorldBound.Max;
 	Node.PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	Node.PageIndexOffset = PageIndexResolutionAndOffset.w;
-	Node.VoxelWorldSize = max(CPU_VoxelWorldSize, VoxelWorldSize);
+	Node.VoxelWorldSize = max(GPU_VoxelWorldSize[0], VoxelWorldSize);
 #else
 	Node.TranslatedWorldMinAABB = CPU_TranslatedWorldMinAABB;
 	Node.TranslatedWorldMaxAABB = CPU_TranslatedWorldMaxAABB;
@@ -671,6 +687,7 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 }
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_ADDINDIRECTBUFFER
 
@@ -708,6 +725,7 @@ void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId
 
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define IND_CLEAR_GROUP_SIZE_Z 64
 
@@ -734,6 +752,7 @@ void VoxelIndPageClearBufferGenCS(uint GroupIndex : SV_GroupIndex, uint3 Dispatc
 
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_INDPAGECLEAR
 
@@ -768,3 +787,128 @@ void VoxelIndPageClearCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 Gro
 
 #endif
 
+#if SHADER_ADAPTIVE_FEEDBACK
+
+#define DEBUG_ENABLE 0
+
+#if DEBUG_ENABLE
+#include "../ShaderPrintCommon.ush"
+void AddNewLine(float2 OriginalPos, inout float2 Pos)
+{
+	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
+}
+#endif
+
+uint  CPUAllocatedPageCount;
+float CPUMinVoxelWorldSize;
+float AdaptiveCorrectionThreshold;
+float AdaptiveCorrectionSpeed;
+
+Buffer<uint> TotalRequestedPageAllocationBuffer;
+Buffer<float> CurrGPUMinVoxelWorldSize;
+RWBuffer<float> NextGPUMinVoxelWorldSize;
+
+float RoundHairVoxelSize(float In)
+{
+	// Round voxel size to 0.01f to avoid oscillation issue
+	return floor(In * 1000.f + 0.5f) * 0.001f;
+}
+
+[numthreads(1, 1, 1)]
+void FeedbackCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const float CurrVoxelWorldSize = RoundHairVoxelSize(CurrGPUMinVoxelWorldSize[0]);
+	
+	// Voxel pages are represent a volume. To derive a better estimate of the ratio by which voxel size needs to be scale, 
+	// compute the cubic root of this ratio.
+	//
+	// AllocatedPage   AllocatedRes^3
+	// ------------- = --------------  = VolumeRatio = LinearRatio^3
+	//    MaxPage          MaxRes^3
+
+	// Ratio used for predicting voxel size increase
+	const uint GPUAllocatedPageCount = TotalRequestedPageAllocationBuffer[0];
+	const float VolumeRatio = float(GPUAllocatedPageCount) / float(CPUAllocatedPageCount);
+	const float LinearRatio = pow(VolumeRatio, 1.f / 3.f);
+
+	// Ratio used for predicting voxel size decrease (i.e. when requested allocation fit, 
+	// but the voxel size does not match the (more precise) target).
+	// In this case, we add a threshold/margin to to the target, so that there is no oscillation.
+	const float VolumeRatio_Thres = float(GPUAllocatedPageCount) / float(CPUAllocatedPageCount * AdaptiveCorrectionThreshold);
+	const float LinearRatio_Thres = pow(VolumeRatio_Thres, 1.f / 3.f);
+
+	// If the page pool is not large enough increase voxel size
+	float NextVoxelWorldSize = CPUMinVoxelWorldSize;
+	if (GPUAllocatedPageCount > CPUAllocatedPageCount)
+	{
+		//NextVoxelWorldSize = CurrVoxelWorldSize * LinearRatio;
+		NextVoxelWorldSize = CurrVoxelWorldSize * LinearRatio_Thres;
+	}
+	// If the page pool is large enough but the voxel are larger than the requested size decrease voxel size
+	else if (GPUAllocatedPageCount < CPUAllocatedPageCount && CurrVoxelWorldSize > CPUMinVoxelWorldSize)
+	{
+		const float TargetVoxelWorldSize = CurrVoxelWorldSize * LinearRatio_Thres;
+		NextVoxelWorldSize = max(CPUMinVoxelWorldSize, lerp(CurrVoxelWorldSize, TargetVoxelWorldSize, AdaptiveCorrectionSpeed));
+	}
+	//else if (GPUAllocatedPageCount > CPUAllocatedPageCount * AdaptiveCorrectionThreshold)
+	//{
+	//	const float TargetVoxelWorldSize = CurrVoxelWorldSize * LinearRatio_Thres;
+	//	NextVoxelWorldSize = max(CPUMinVoxelWorldSize, lerp(CurrVoxelWorldSize, TargetVoxelWorldSize, AdaptiveCorrectionSpeed));
+	//}
+	else
+	{
+		NextVoxelWorldSize = CPUMinVoxelWorldSize;
+	}
+
+	// Clamp voxel size into a reasonable amount (e.g. 0.1mm - 100mm)
+	const float ClampMinVoxelWorldSize = 0.01f;
+	const float ClampMaxVoxelWorldSize = 10.0f;
+	NextVoxelWorldSize = clamp(RoundHairVoxelSize(NextVoxelWorldSize), ClampMinVoxelWorldSize, ClampMaxVoxelWorldSize);
+
+	// Debug
+#if DEBUG_ENABLE
+	FFontColor CPUColor = FontEmerald;
+	FFontColor GPUColor = FontOrange;
+	FFontColor CstColor = FontSilver;
+
+	const float2 OriginalPos = ShaderPrintGetPos(uint2(700, 50));
+	float2 Pos = OriginalPos;
+
+	Pos = ShaderPrintText(Pos, TEXT(" ------------------------------- "), FontSilver); AddNewLine(OriginalPos, Pos);	
+	Pos = ShaderPrintText(Pos, TEXT("|          Allocations          |"), FontSilver); AddNewLine(OriginalPos, Pos);
+	Pos = ShaderPrintText(Pos, TEXT(" ------------------------------- "), FontSilver); AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("GPU Allocated      "), GPUColor);
+	Pos = ShaderPrint(Pos, GPUAllocatedPageCount, GPUColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("CPU Allocated      "), CPUColor);
+	Pos = ShaderPrint(Pos, CPUAllocatedPageCount, CPUColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("GPU Curr Min. Size "), GPUColor);
+	Pos = ShaderPrint(Pos, CurrVoxelWorldSize, GPUColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("GPU Next Min. Size "), GPUColor);
+	Pos = ShaderPrint(Pos, NextVoxelWorldSize, GPUColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("CPU Min. Size      "), CPUColor);
+	Pos = ShaderPrint(Pos, CPUMinVoxelWorldSize, CPUColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("Correction Thres.  "), CstColor);
+	Pos = ShaderPrint(Pos, AdaptiveCorrectionThreshold, CstColor);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("Correction Speed   "), CstColor);
+	Pos = ShaderPrint(Pos, AdaptiveCorrectionSpeed, CstColor);
+	AddNewLine(OriginalPos, Pos);
+#endif
+
+	// Update state data
+	NextGPUMinVoxelWorldSize[0] = RoundHairVoxelSize(NextVoxelWorldSize);
+}
+
+#endif // SHADER_ADAPTIVE_FEEDBACK
