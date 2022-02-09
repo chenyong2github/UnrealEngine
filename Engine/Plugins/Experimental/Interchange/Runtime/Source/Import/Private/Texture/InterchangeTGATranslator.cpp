@@ -72,11 +72,11 @@ namespace TGATranslatorImpl
 	}
 }
 
-bool UInterchangeTGATranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeTGATranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString TGAExtension = (TEXT("tga;Texture"));
-	return TGAExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("tga;Targa image")};
+
+	return Formats;
 }
 
 bool UInterchangeTGATranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

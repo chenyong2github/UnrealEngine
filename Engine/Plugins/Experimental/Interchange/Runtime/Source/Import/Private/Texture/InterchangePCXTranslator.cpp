@@ -66,11 +66,11 @@ namespace UE
 	}//ns Interchange
 }//ns UE
 
-bool UInterchangePCXTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangePCXTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString PCXExtension = (TEXT("pcx;Texture"));
-	return PCXExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("pcx;Picture Exchange")};
+
+	return Formats;
 }
 
 bool UInterchangePCXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

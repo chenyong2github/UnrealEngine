@@ -11,11 +11,10 @@
 #include "Misc/Paths.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-bool UInterchangeIESTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeIESTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString IESExtension = (TEXT("ies"));
-	return IESExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("ies;IES light profile")};
+	return Formats;
 }
 
 bool UInterchangeIESTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

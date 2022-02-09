@@ -23,17 +23,20 @@
 #include "UObject/GCObjectScopeGuard.h"
 
 
-UInterchangeFbxTranslator::UInterchangeFbxTranslator(const class FObjectInitializer& ObjectInitializer)
+UInterchangeFbxTranslator::UInterchangeFbxTranslator()
 {
 	Dispatcher = nullptr;
 }
 
-bool UInterchangeFbxTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+EInterchangeTranslatorType UInterchangeFbxTranslator::GetTranslatorType() const
 {
-	const bool bIncludeDot = false;
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename(), bIncludeDot);
-	FString FbxExtension = (TEXT("fbx"));
-	return FbxExtension.StartsWith(Extension,ESearchCase::IgnoreCase);
+	return EInterchangeTranslatorType::Scenes;
+}
+
+TArray<FString> UInterchangeFbxTranslator::GetSupportedFormats() const
+{
+	TArray<FString> Formats {TEXT("fbx;Filmbox")};
+	return Formats;
 }
 
 bool UInterchangeFbxTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

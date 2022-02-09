@@ -810,14 +810,11 @@ UInterchangeOBJTranslator::~UInterchangeOBJTranslator()
 {
 }
 
-
-bool UInterchangeOBJTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeOBJTranslator::GetSupportedFormats() const
 {
-	const bool bIncludeDot = false;
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename(), bIncludeDot);
-	return Extension == FString(TEXT("obj"));
+	TArray<FString> Formats {TEXT("obj;OBJ File Format")};
+	return Formats;
 }
-
 
 bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {

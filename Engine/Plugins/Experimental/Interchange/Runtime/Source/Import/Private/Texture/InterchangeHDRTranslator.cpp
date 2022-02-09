@@ -15,12 +15,10 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-
-bool UInterchangeHDRTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeHDRTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString HDRExtension = (TEXT("hdr"));
-	return HDRExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("hdr;High Dynamic Range image")};
+	return Formats;
 }
 
 bool UInterchangeHDRTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

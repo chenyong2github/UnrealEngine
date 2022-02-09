@@ -25,10 +25,11 @@ class INTERCHANGEIMPORT_API UInterchangeFbxTranslator : public UInterchangeTrans
 {
 	GENERATED_BODY()
 public:
-	UInterchangeFbxTranslator(const class FObjectInitializer& ObjectInitializer);
+	UInterchangeFbxTranslator();
 
 	/** Begin UInterchangeTranslatorBase API*/
-	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
+	EInterchangeTranslatorType GetTranslatorType() const override;
+	virtual TArray<FString> GetSupportedFormats() const override;
 	virtual bool Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
 	virtual void ReleaseSource() override;
 	virtual void ImportFinish() override;

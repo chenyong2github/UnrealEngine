@@ -24,7 +24,8 @@ class UInterchangeGltfTranslator : public UInterchangeTranslatorBase,
 
 public:
 	/** Begin UInterchangeTranslatorBase API*/
-	virtual bool CanImportSourceData( const UInterchangeSourceData* InSourceData ) const override;
+	virtual EInterchangeTranslatorType GetTranslatorType() const override;
+	virtual TArray<FString> GetSupportedFormats() const override;
 	virtual bool Translate( UInterchangeBaseNodeContainer& BaseNodeContainer ) const override;
 	/** End UInterchangeTranslatorBase API*/
 

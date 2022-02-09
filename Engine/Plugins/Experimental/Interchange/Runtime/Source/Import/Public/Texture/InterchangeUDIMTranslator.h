@@ -24,6 +24,8 @@ public:
 
 	UInterchangeUDIMTranslator();
 
+	virtual TArray<FString> GetSupportedFormats() const override {return TArray<FString>();}
+
 	/*
 	 * return true if the translator can translate the specified source data.
 	 */

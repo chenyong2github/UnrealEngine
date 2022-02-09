@@ -15,11 +15,10 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-bool UInterchangeEXRTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeEXRTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString EXRExtension = (TEXT("exr;Texture"));
-	return EXRExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("exr;OpenEXR image")};
+	return Formats;
 }
 
 bool UInterchangeEXRTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

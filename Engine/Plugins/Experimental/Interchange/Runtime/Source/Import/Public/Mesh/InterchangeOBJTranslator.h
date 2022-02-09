@@ -30,10 +30,7 @@ public:
 	virtual ~UInterchangeOBJTranslator();
 
 
-	/*
-	 * return true if the translator can translate the specified source data.
-	 */
-	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
+	virtual TArray<FString> GetSupportedFormats() const override;
 
 	/**
 	 * Translate the associated source data into a node hold by the specified nodes container.

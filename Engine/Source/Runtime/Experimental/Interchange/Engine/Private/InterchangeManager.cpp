@@ -457,14 +457,26 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 	return true;
 }
 
+TArray<FString> UInterchangeManager::GetSupportedFormats(const EInterchangeTranslatorType ForTranslatorType) const
+{
+	TArray<FString> FileExtensions;
+
+	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
+	{
+		const UInterchangeTranslatorBase* TranslatorBaseCDO = TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>();
+
+		if (TranslatorBaseCDO->GetTranslatorType() == ForTranslatorType)
+		{
+			FileExtensions.Append(TranslatorBaseCDO->GetSupportedFormats());
+		}
+	}
+
+	return FileExtensions;
+}
+
 bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* SourceData) const
 {
-	// Can we find a translator
-	if (GetTranslatorForSourceData(SourceData))
-	{
-		return true;
-	}
-	return false;
+	return GetTranslatorForSourceData(SourceData) != nullptr;
 }
 
 void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)

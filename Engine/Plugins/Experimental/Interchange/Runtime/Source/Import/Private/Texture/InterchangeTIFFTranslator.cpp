@@ -15,12 +15,15 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-
-bool UInterchangeTIFFTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeTIFFTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString TIFFExtension = (TEXT("tiff"));
-	return TIFFExtension.StartsWith(Extension);
+	TArray<FString> Formats;
+	Formats.Reserve(2);
+
+	Formats.Add(TEXT("tif;Tag Image File Format"));
+	Formats.Add(TEXT("tiff;Tag Image File Format"));
+
+	return Formats;
 }
 
 bool UInterchangeTIFFTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

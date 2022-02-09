@@ -17,11 +17,8 @@ class INTERCHANGEIMPORT_API UInterchangePNGTranslator : public UInterchangeTrans
 {
 	GENERATED_BODY()
 public:
-	
-	/*
-	 * return true if the translator can translate the specified source data.
-	 */
-	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
+
+	TArray<FString> GetSupportedFormats() const override;
 
 	/**
 	 * Translate the associated source data into a node hold by the specified nodes container.

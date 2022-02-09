@@ -50,11 +50,15 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 	}
 }
 
+TArray<FString> UInterchangeDDSTranslator::GetSupportedFormats() const
+{
+	TArray<FString> Formats {TEXT("dds;DirectDraw Surface")};
+	return Formats;
+}
+
 bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString DDSExtension = (TEXT("dds;Texture"));
-	if (!DDSExtension.StartsWith(Extension))
+	if (!UInterchangeTranslatorBase::CanImportSourceData(InSourceData))
 	{
 		return false;
 	}

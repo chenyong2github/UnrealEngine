@@ -16,12 +16,10 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-
-bool UInterchangeBMPTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeBMPTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString BMPExtension = (TEXT("bmp;Texture"));
-	return BMPExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("bmp;Bitmap image")};
+	return Formats;
 }
 
 bool UInterchangeBMPTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

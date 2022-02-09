@@ -291,23 +291,19 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 	}
 }
 
-bool UInterchangeGltfTranslator::CanImportSourceData( const UInterchangeSourceData* InSourceData ) const
+EInterchangeTranslatorType UInterchangeGltfTranslator::GetTranslatorType() const
 {
-	const bool bIncludeDot = false;
-	const FString Extension = FPaths::GetExtension( InSourceData->GetFilename(), bIncludeDot );
+	return EInterchangeTranslatorType::Scenes;
+}
 
-	TStaticArray<FString, 2> GltfExtensions;
-	GltfExtensions[0] = TEXT("gltf;GL Transmission Format");
-	GltfExtensions[1] = TEXT("glb;GL Transmission Format (Binary)");
+TArray<FString> UInterchangeGltfTranslator::GetSupportedFormats() const
+{
+	TArray<FString> GltfExtensions;
+	GltfExtensions.Reserve(2);
+	GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));
+	GltfExtensions.Add(TEXT("glb;GL Transmission Format (Binary)"));
 
-	const bool bExtensionMatches =
-		Algo::FindByPredicate( GltfExtensions,
-		[ &Extension ]( const FString& GltfExtension )
-		{
-			return GltfExtension.StartsWith( Extension );
-		}) != nullptr;
-
-	return bExtensionMatches;
+	return GltfExtensions;
 }
 
 bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeContainer ) const

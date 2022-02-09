@@ -19,6 +19,8 @@ class INTERCHANGEIMPORT_API UInterchangeDDSTranslator : public UInterchangeTrans
 {
 	GENERATED_BODY()
 public:
+
+	TArray<FString> GetSupportedFormats() const override;
 	
 	/*
 	 * return true if the translator can translate the specified source data.

@@ -187,11 +187,11 @@ namespace UE
 	}//ns Interchange
 }//ns UE
 
-bool UInterchangePNGTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangePNGTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString PNGExtension = (TEXT("png;Texture"));
-	return PNGExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("png;Portable Network Graphic")};
+
+	return Formats;
 }
 
 bool UInterchangePNGTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

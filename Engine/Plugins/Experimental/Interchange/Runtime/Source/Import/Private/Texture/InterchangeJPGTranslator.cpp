@@ -17,22 +17,15 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/TextureTranslatorUtilities.h"
 
-bool UInterchangeJPGTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangeJPGTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
+	TArray<FString> Formats;
+	Formats.Reserve(2);
 
-	TStaticArray<FString, 2> JPGExtensions;
-	JPGExtensions[0] = TEXT("jpg;Texture");
-	JPGExtensions[1] = TEXT("jpeg;Texture");
+	Formats.Add(TEXT("jpg;JPEG image"));
+	Formats.Add(TEXT("jpeg;JPEG image"));
 
-	const bool bExtensionMatches =
-		Algo::FindByPredicate(JPGExtensions,
-		[&Extension](const FString& JPGExtension)
-		{
-			return JPGExtension.StartsWith(Extension);
-		}) != nullptr;
-
-	return bExtensionMatches;
+	return Formats;
 }
 
 bool UInterchangeJPGTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

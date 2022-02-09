@@ -11,6 +11,15 @@
 
 #include "InterchangeTranslatorBase.generated.h"
 
+UENUM(BlueprintType)
+enum class EInterchangeTranslatorType : uint8
+{
+	Invalid = 0,
+	Assets = 1 << 1,
+	Actors = 1 << 2,
+	Scenes = Assets | Actors
+};
+
 UCLASS(BlueprintType, Blueprintable, Abstract, Experimental)
 class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
 {
@@ -18,10 +27,13 @@ class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
 public:
 
 	/** return true if the translator can translate the given source data. */
-	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const
-	{
-		return false;
-	}
+	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const;
+
+	/** Specifies the capabilities of a translator. */
+	virtual EInterchangeTranslatorType GetTranslatorType() const { return EInterchangeTranslatorType::Assets; }
+
+	/** List of formats supported by the translator. Each entry is of the form "ext;Description" where ext is the file extension. */
+	virtual TArray<FString> GetSupportedFormats() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedExtensions, return TArray<FString>(););
 
 	/**
 	 * Translate the associated source data into node(s) that are hold in the specified nodes container.

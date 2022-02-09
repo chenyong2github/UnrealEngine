@@ -367,12 +367,11 @@ namespace UE
 	}//ns Interchange
 }//ns UE
 
-
-bool UInterchangePSDTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
+TArray<FString> UInterchangePSDTranslator::GetSupportedFormats() const
 {
-	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());
-	FString PNGExtension = (TEXT("psd;Texture"));
-	return PNGExtension.StartsWith(Extension);
+	TArray<FString> Formats {TEXT("psd;Photoshop Document")};
+
+	return Formats;
 }
 
 bool UInterchangePSDTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const

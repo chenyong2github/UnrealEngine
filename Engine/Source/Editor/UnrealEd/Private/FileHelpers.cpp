@@ -27,6 +27,7 @@
 #include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Settings/EditorExperimentalSettings.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Factories/Factory.h"
 #include "Factories/FbxSceneImportFactory.h"
@@ -78,6 +79,7 @@
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "PackageSourceControlHelper.h"
 #include "ActorFolder.h"
+#include "InterchangeManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -484,8 +486,14 @@ FString FEditorFileUtils::GetFilterString(EFileInteraction Interaction)
 
 				ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
 
-				FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
+				const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+				if (EditorExperimentalSettings->bEnableInterchangeFramework)
+				{
+					TArray<FString> InterchangeFileExtensions = UInterchangeManager::GetInterchangeManager().GetSupportedFormats(EInterchangeTranslatorType::Scenes);
+					ObjectTools::AppendFormatsFileExtensions(InterchangeFileExtensions, FileTypes, AllExtensions);
+				}
 
+				FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
 
 				Result = FileTypes;
 			}
@@ -1417,28 +1425,38 @@ void FEditorFileUtils::Import(const FString& InFilename)
 {
 	const FScopedBusyCursor BusyCursor;
 
-	USceneImportFactory *SceneFactory = nullptr;
-	for (UClass* Class : TObjectRange<UClass>())
+	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+
+	UE::Interchange::FScopedSourceData ScopedSourceData(InFilename);
+	const bool bImportThroughInterchange = EditorExperimentalSettings->bEnableInterchangeFramework && UInterchangeManager::GetInterchangeManager().CanTranslateSourceData(ScopedSourceData.GetSourceData());
+
+	USceneImportFactory* SceneFactory = nullptr;
+
+	if (!bImportThroughInterchange)
 	{
-		if (Class->IsChildOf<USceneImportFactory>() && !Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+		for (UClass* Class : TObjectRange<UClass>())
 		{
-			USceneImportFactory* TestFactory = Class->GetDefaultObject<USceneImportFactory>();
-			if (TestFactory->FactoryCanImport(InFilename))
+			if (Class->IsChildOf<USceneImportFactory>() && !Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 			{
-				/// Pick the first one for now 
-				SceneFactory = TestFactory;
-				break;
+				USceneImportFactory* TestFactory = Class->GetDefaultObject<USceneImportFactory>();
+				if (TestFactory->FactoryCanImport(InFilename))
+				{
+					/// Pick the first one for now 
+					SceneFactory = TestFactory;
+					break;
+				}
 			}
 		}
-
 	}
 
-	if (SceneFactory)
+	if (SceneFactory || bImportThroughInterchange)
 	{
 		FString Path = "/Game";
 
+		const bool bImportsAssets = bImportThroughInterchange || SceneFactory->ImportsAssets();
+
 		//Ask the user for the root path where they want to any content to be placed
-		if(SceneFactory->ImportsAssets())
+		if(bImportsAssets)
 		{
 			TSharedRef<SDlgPickPath> PickContentPathDlg =
 				SNew(SDlgPickPath)
@@ -1458,7 +1476,7 @@ void FEditorFileUtils::Import(const FString& InFilename)
 		TArray<FString> Files;
 		Files.Add(InFilename);
 
-		const bool bSyncToBrowser = SceneFactory->ImportsAssets();
+		const bool bSyncToBrowser = bImportsAssets;
 		AssetToolsModule.Get().ImportAssets(Files, Path, SceneFactory, bSyncToBrowser, nullptr, true);
 	}
 	else
