@@ -122,3 +122,9 @@ void FQosInterface::RegisterQoSSettingsChangedDelegate(const FSimpleDelegate& On
 	check(RegionManager);
 	RegionManager->RegisterQoSSettingsChangedDelegate(OnQoSSettingsChanged);
 }
+
+FQosInterface::FOnQosRegionIdChanged& FQosInterface::OnQosRegionIdChanged()
+{
+	check(RegionManager);
+	return RegionManager->OnQosRegionIdChanged();
+}

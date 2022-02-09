@@ -124,6 +124,12 @@ public:
 	*/
 	void RegisterQoSSettingsChangedDelegate(const FSimpleDelegate& OnQoSSettingsChanged);
 
+	/**
+	 * Delegate that fires whenever the current QoS region ID changes.
+	 */
+	 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnQosRegionIdChanged, const FString& /* OldRegionId */, const FString& /* NewRegionId */);
+	 FOnQosRegionIdChanged& OnQosRegionIdChanged();
+
 protected:
 
 	friend class FQosModule;

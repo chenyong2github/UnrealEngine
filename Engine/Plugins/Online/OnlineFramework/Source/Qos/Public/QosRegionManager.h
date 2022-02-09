@@ -523,6 +523,12 @@ public:
 	void ForceSelectRegion(const FString& RegionId);
 
 	/**
+	 * Delegate that fires whenever the current QoS region ID changes.
+	 */
+	 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnQosRegionIdChanged, const FString& /* OldRegionId */, const FString& /* NewRegionId */);
+	 FOnQosRegionIdChanged& OnQosRegionIdChanged() { return OnQosRegionIdChangedDelegate; }
+
+	/**
 	 * Get the datacenter id for this instance, checking ini and commandline overrides
 	 * This is only relevant for dedicated servers (so they can advertise). 
 	 * Client does not search on this in any way
@@ -688,6 +694,8 @@ private:
 	FOnQosEvalCompleteDelegate OnQosEvalCompleteDelegate;
 
 	FSimpleDelegate OnQoSSettingsChangedDelegate;
+
+	FOnQosRegionIdChanged OnQosRegionIdChangedDelegate;
 
 	static const TCHAR* SubspaceDelimiterDefault;
 };

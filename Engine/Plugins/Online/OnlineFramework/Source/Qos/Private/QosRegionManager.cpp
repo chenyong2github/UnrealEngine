@@ -712,9 +712,13 @@ bool UQosRegionManager::SetSelectedRegion(const FString& InRegionId, bool bForce
 			{
 				if (RegionInfo.IsUsable())
 				{
-					UE_LOG(LogQos, Verbose, TEXT("[UQosRegionManager::SetSelectedRegion] Old: \"%s\"  New: \"%s\"  (force? %s)"),
-						*SelectedRegionId, *RegionId, *LexToString(bForce));
+					FString OldRegionId(SelectedRegionId);
 					SelectedRegionId = MoveTemp(RegionId);
+
+					UE_LOG(LogQos, Verbose, TEXT("[UQosRegionManager::SetSelectedRegion] Old: \"%s\"  New: \"%s\"  (force? %s)"),
+						*OldRegionId, *SelectedRegionId, *LexToString(bForce));
+
+					OnQosRegionIdChanged().Broadcast(OldRegionId, SelectedRegionId);
 					return true;
 				}
 				else
