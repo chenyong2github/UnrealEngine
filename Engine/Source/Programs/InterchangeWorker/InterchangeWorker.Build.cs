@@ -7,6 +7,12 @@ public class InterchangeWorker : ModuleRules
 {
 	public InterchangeWorker(ReadOnlyTargetRules Target) : base(Target)
 	{
+		if (Target.Platform != UnrealTargetPlatform.Win64 &&
+			Target.Platform != UnrealTargetPlatform.Linux &&
+			Target.Platform != UnrealTargetPlatform.Mac)
+		{
+			throw new BuildException("InterchangeWorker program do not support target platform {0}.", Target.Platform.ToString());
+		}
 
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 		PrivateIncludePaths.Add("Runtime/Launch/Private");
@@ -17,32 +23,21 @@ public class InterchangeWorker : ModuleRules
 				"ApplicationCore",
 				"Core",
 				"CoreUObject",
+				"InterchangeCore",
 				"InterchangeDispatcher",
+				"InterchangeFbxParser",
+				"InterchangeNodes",
 				"Json",
 				"Projects",
 				"Sockets",
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"InterchangeCore",
-					"InterchangeFbxParser",
-					"InterchangeNodes"
-				}
-			);
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				new string[]
-				{
-					"FBX"
-				}
-			);
-		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target,
+			new string[]
+			{
+				"FBX"
+			}
+		);
 	}
 }

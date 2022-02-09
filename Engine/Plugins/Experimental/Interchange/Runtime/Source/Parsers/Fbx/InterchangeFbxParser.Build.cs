@@ -8,7 +8,17 @@ namespace UnrealBuildTool.Rules
 	{
 		public InterchangeFbxParser(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bEnableExceptions = true;
+			if (Target.Type != TargetType.Editor && Target.Type != TargetType.Program)
+			{
+				throw new BuildException("InterchangeFbxParser module can be build only on editor or program target.");
+			}
+
+			if (Target.Platform != UnrealTargetPlatform.Win64 &&
+				Target.Platform != UnrealTargetPlatform.Linux &&
+				Target.Platform != UnrealTargetPlatform.Mac)
+			{
+				throw new BuildException("InterchangeFbxParser module do not support target platform {0}.", Target.Platform.ToString());
+			}
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]

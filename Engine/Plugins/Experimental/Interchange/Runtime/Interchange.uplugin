@@ -53,12 +53,16 @@
 		},
 		{
 			"Name": "InterchangeFbxParser",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
 				"Win64",
 				"Linux",
 				"Mac"
+			],
+			"TargetAllowList": [
+				"Editor",
+				"Program"
 			]
 		}
 	],
