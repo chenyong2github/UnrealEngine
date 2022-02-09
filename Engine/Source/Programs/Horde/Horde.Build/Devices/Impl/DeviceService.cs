@@ -175,12 +175,22 @@ namespace HordeServer.Services
 			if (!StoppingToken.IsCancellationRequested)
 			{
 				await Devices.ExpireReservationsAsync();
+
+				List<(UserId, IDevice)>? ExpireNotifications = await Devices.ExpireNotificatonsAsync();
+				if (ExpireNotifications != null && ExpireNotifications.Count > 0)
+				{
+					foreach ((UserId, IDevice) ExpiredDevice in ExpireNotifications)
+					{
+						await NotifyDeviceServiceAsync($"Device {ExpiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {ExpiredDevice.Item2.Name} checkout will expire in 24 hours.  Please visit https://horde.devtools.epicgames.com/devices to renew the checkout if needed.", null, null, null, ExpiredDevice.Item1);
+					}
+				}
+
 				List<(UserId, IDevice)>? ExpireCheckouts = await Devices.ExpireCheckedOutAsync();
 				if (ExpireCheckouts != null && ExpireCheckouts.Count > 0)
 				{
 					foreach ((UserId, IDevice) ExpiredDevice in ExpireCheckouts)
 					{
-						await NotifyDeviceServiceAsync($"Device {ExpiredDevice.Item2.Name}:{ExpiredDevice.Item2.PlatformId} checkout has automatically expired and it has been returned to the shared pool.", null, null, null, ExpiredDevice.Item1);
+						await NotifyDeviceServiceAsync($"Device {ExpiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {ExpiredDevice.Item2.Name} checkout has expired.  The device has been returned to the shared pool and should no longer be accessed.  Please visit https://horde.devtools.epicgames.com/devices to checkout devices as needed.", null, null, null, ExpiredDevice.Item1);
 					}
 				}
 			}

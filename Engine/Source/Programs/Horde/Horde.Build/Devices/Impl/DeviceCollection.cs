@@ -198,6 +198,9 @@ namespace HordeServer.Collections.Impl
 			public DateTime? CheckOutTime { get; set; }
 
 			[BsonIgnoreIfNull]
+			public bool? CheckoutExpiringNotificationSent { get; set; }
+
+			[BsonIgnoreIfNull]
 			public DateTime? ProblemTimeUtc { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -248,6 +251,8 @@ namespace HordeServer.Collections.Impl
 		readonly IMongoCollection<DevicePoolDocument> Pools;
 
 		readonly IMongoCollection<DeviceReservationDocument> Reservations;
+
+		readonly int CheckoutDays = 7;
 
 		/// <summary>
 		/// Constructor
@@ -421,11 +426,16 @@ namespace HordeServer.Collections.Impl
 
             string? UserId = CheckedOutByUserId?.ToString();
 
-            Updates.Add(UpdateBuilder.Set(x => x.CheckedOutByUser, string.IsNullOrEmpty(UserId) ? null : UserId));
+            Updates.Add(UpdateBuilder.Set(x => x.CheckedOutByUser, string.IsNullOrEmpty(UserId) ? null : UserId));			
 
 			if (CheckedOutByUserId != null)
 			{
 				Updates.Add(UpdateBuilder.Set(x => x.CheckOutTime, DateTime.UtcNow));
+				Updates.Add(UpdateBuilder.Set(x => x.CheckoutExpiringNotificationSent, false));
+			}
+			else
+			{
+				Updates.Add(UpdateBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
 			}
 
 			await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == DeviceId, UpdateBuilder.Combine(Updates));
@@ -707,7 +717,7 @@ namespace HordeServer.Collections.Impl
 			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
 
 			DateTime UtcNow = DateTime.UtcNow;
-			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= 5).ToList();
+			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= CheckoutDays).ToList();
 
 			if (ExpiredDevices.Count > 0)
 			{
@@ -719,12 +729,48 @@ namespace HordeServer.Collections.Impl
 
 				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckedOutByUser, null));
 				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckOutTime, null));
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
 
 				UpdateResult Result = await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id)), DeviceBuilder.Combine(DeviceUpdates));
 
 				if (Result.ModifiedCount > 0)
 				{
 					return ExpiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice) x)).ToList();
+				}
+
+			}
+
+			return null;
+
+		}
+
+		/// <summary>
+		/// Gets a list of users to notify  that their device is about to expire in the next 24 hours
+		/// </summary>
+		public async Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync()
+		{
+			FilterDefinition<DeviceDocument> Filter = Builders<DeviceDocument>.Filter.Empty;
+			Filter &= Builders<DeviceDocument>.Filter.Where(x => x.CheckedOutByUser != null && x.CheckoutExpiringNotificationSent != true);
+
+			List<DeviceDocument> CheckedOutDevices = await Devices.Find(Filter).ToListAsync();
+
+			DateTime UtcNow = DateTime.UtcNow;
+			List<DeviceDocument> ExpiredDevices = CheckedOutDevices.FindAll(x => (UtcNow - x.CheckOutTime!.Value).TotalDays >= (CheckoutDays - 1)).ToList();
+
+			if (ExpiredDevices.Count > 0)
+			{
+				FilterDefinition<DeviceDocument> UpdateFilter = Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id));
+
+				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.CheckoutExpiringNotificationSent, true));
+
+				UpdateResult Result = await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, ExpiredDevices.Select(y => y.Id)), DeviceBuilder.Combine(DeviceUpdates));
+
+				if (Result.ModifiedCount > 0)
+				{
+					return ExpiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice)x)).ToList();
 				}
 
 			}

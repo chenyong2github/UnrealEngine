@@ -1053,17 +1053,17 @@ namespace HordeServer.Notifications.Impl
 		private Task SendDeviceServiceMessage(string Recipient, string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null, IUser? User = null)
 		{
 
+			if (User != null)
+			{
+				return SendMessageAsync(Recipient, Message);
+			}
+
 			// truncate message to avoid slack error on message length
 			if (Message.Length > 150)
 			{
 				Message = Message.Substring(0, 146) + "...";
 			}
 
-			if (User != null)
-			{
-				return SendMessageAsync(Recipient, Message);
-			}
-			
 			BlockKitAttachment Attachment = new BlockKitAttachment();
 							
 			Attachment.FallbackText = $"{Message}";
