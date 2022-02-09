@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Misc/FrameRate.h"
+
 #include "SoundWaveTimecodeInfo.generated.h"
 
 USTRUCT()
@@ -29,11 +31,19 @@ struct FSoundWaveTimecodeInfo
 	UPROPERTY(Category = Timecode, VisibleAnywhere)
 	FString OriginatorReference;
 
+	UPROPERTY(Category = Timecode, VisibleAnywhere)
+	FFrameRate TimecodeRate;
+
+	UPROPERTY(Category = Timecode, VisibleAnywhere)
+	bool bTimecodeIsDropFrame = false;
+
 	inline bool operator==(const FSoundWaveTimecodeInfo& InRhs) const
 	{
 		// Note, we don't compare the strings.
 		return NumSamplesSinceMidnight == InRhs.NumSamplesSinceMidnight &&
-			NumSamplesPerSecond == InRhs.NumSamplesPerSecond;
+			NumSamplesPerSecond == InRhs.NumSamplesPerSecond &&
+			TimecodeRate == InRhs.TimecodeRate &&
+			bTimecodeIsDropFrame == InRhs.bTimecodeIsDropFrame;
 	}
 
 	inline double GetNumSecondsSinceMidnight() const

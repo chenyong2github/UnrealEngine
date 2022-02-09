@@ -17,6 +17,7 @@
 #include "DrawDebugHelpers.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Misc/FrameRate.h"
 #include "Misc/Paths.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundCue.h"
@@ -27,6 +28,8 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "XmlFile.h"
+#include "XmlNode.h"
 
 DEFINE_LOG_CATEGORY(LogAudio);
 
@@ -1691,17 +1694,64 @@ bool FWaveModInfo::ReadWaveInfo( const uint8* WaveData, int32 WaveDataSize, FStr
 			TimecodeInfo->OriginatorDate			= StringCast<TCHAR>((ANSICHAR*)BextChunk->OriginationDate).Get();
 			TimecodeInfo->OriginatorReference		= StringCast<TCHAR>((ANSICHAR*)BextChunk->OriginatorReference).Get();
 			TimecodeInfo->OriginatorTime			= StringCast<TCHAR>((ANSICHAR*)BextChunk->OriginationTime).Get();
+
+			// Use the sample rate as the timecode rate for now. We'll replace
+			// it with a more accurate rate if possible below.
+			TimecodeInfo->TimecodeRate = FFrameRate(TimecodeInfo->NumSamplesPerSecond, 1u);
 		}
 	}
 
 	// Look for the cue chunks
 	RiffChunk = FindRiffChunk(RiffChunkStart, WaveDataEnd, UE_mmioFOURCC('i', 'X', 'M', 'L'));
 
-	if (RiffChunk != nullptr)
+	// If we got timecode info above, extend it with the timecode rate and drop
+	// frame flag if they are present in the XML.
+	if (TimecodeInfo.IsValid() && RiffChunk != nullptr)
 	{
 		const FRiffIXmlChunk* IXmlChunk = (const FRiffIXmlChunk*)((uint8*)RiffChunk);
-		FString XmlString = StringCast<TCHAR>((ANSICHAR*)IXmlChunk->XmlText).Get();
-		// TODO.
+		const FString XmlString = StringCast<TCHAR>((ANSICHAR*)IXmlChunk->XmlText).Get();
+
+		// Detail on the iXML specification here: http://www.gallery.co.uk/ixml/
+		const FXmlFile RiffXml(XmlString, EConstructMethod::ConstructFromBuffer);
+		if (RiffXml.IsValid())
+		{
+			const FString SpeedTag(TEXT("SPEED"));
+			const FString TimecodeRateTag(TEXT("TIMECODE_RATE"));
+			const FString TimecodeRateDelimiter(TEXT("/"));
+			const FString TimecodeFlagTag(TEXT("TIMECODE_FLAG"));
+			const FString DropFrameFlag(TEXT("DF"));
+
+			const FXmlNode* RootNode = RiffXml.GetRootNode();
+			const FXmlNode* SpeedNode = RootNode->FindChildNode(SpeedTag);
+			const FXmlNode* TimecodeRateNode = SpeedNode ? SpeedNode->FindChildNode(TimecodeRateTag) : nullptr;
+			if (TimecodeRateNode)
+			{
+				const FString TimecodeRateContent = TimecodeRateNode->GetContent();
+				TArray<FString> TimecodeRateParts;
+				TimecodeRateContent.ParseIntoArray(TimecodeRateParts, *TimecodeRateDelimiter);
+				if (TimecodeRateParts.Num() == 2)
+				{
+					uint32 TimecodeRateNumerator = 0u;
+					uint32 TimecodeRateDenominator = 0u;
+					LexFromString(TimecodeRateNumerator, *TimecodeRateParts[0]);
+					LexFromString(TimecodeRateDenominator, *TimecodeRateParts[1]);
+					if (TimecodeRateNumerator != 0u && TimecodeRateDenominator != 0u)
+					{
+						TimecodeInfo->TimecodeRate = FFrameRate(TimecodeRateNumerator, TimecodeRateDenominator);
+					}
+				}
+			}
+
+			const FXmlNode* TimecodeFlagNode = SpeedNode ? SpeedNode->FindChildNode(TimecodeFlagTag) : nullptr;
+			if (TimecodeFlagNode)
+			{
+				const FString TimecodeFlagContent = TimecodeFlagNode->GetContent();
+				if (TimecodeFlagContent == DropFrameFlag)
+				{
+					TimecodeInfo->bTimecodeIsDropFrame = true;
+				}
+			}
+		}
 	}
 
 	return true;

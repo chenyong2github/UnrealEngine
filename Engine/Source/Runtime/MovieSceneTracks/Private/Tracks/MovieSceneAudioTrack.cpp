@@ -100,9 +100,43 @@ UMovieSceneSection* UMovieSceneAudioTrack::AddNewSoundOnRow(USoundBase* Sound, F
 	}
 
 	// add the section
-	UMovieSceneAudioSection* NewSection = NewObject<UMovieSceneAudioSection>(this, NAME_None, RF_Transactional);
+	UMovieSceneAudioSection* NewSection = Cast<UMovieSceneAudioSection>(CreateNewSection());
 	NewSection->InitialPlacementOnRow( AudioSections, Time, DurationToUse.FrameNumber.Value, RowIndex );
 	NewSection->SetSound(Sound);
+
+#if WITH_EDITORONLY_DATA
+	// Use the timecode info from the sound wave if it's available to populate
+	// the section's TimecodeSource property. Otherwise try the base sound's
+	// timecode offset.
+	TOptional<FSoundWaveTimecodeInfo> TimecodeInfo;
+	if (const USoundWave* SoundWave = Cast<USoundWave>(Sound))
+	{
+		TimecodeInfo = SoundWave->GetTimecodeInfo();
+	}
+
+	if (TimecodeInfo.IsSet())
+	{
+		const double NumSecondsSinceMidnight = TimecodeInfo->GetNumSecondsSinceMidnight();
+		const FTimecode Timecode(NumSecondsSinceMidnight, TimecodeInfo->TimecodeRate, TimecodeInfo->bTimecodeIsDropFrame, /* InbRollover = */ true);
+
+		NewSection->TimecodeSource = FMovieSceneTimecodeSource(Timecode);
+	}
+	else
+	{
+		const TOptional<FSoundTimecodeOffset> TimecodeOffset = Sound->GetTimecodeOffset();
+		if (TimecodeOffset.IsSet())
+		{
+			const double NumSecondsSinceMidnight = TimecodeOffset->NumOfSecondsSinceMidnight;
+
+			// The timecode offset does not carry a rate with it, so just use the
+			// display rate for this movie scene.
+			const FFrameRate DisplayRate = GetTypedOuter<UMovieScene>()->GetDisplayRate();
+			const FTimecode Timecode(NumSecondsSinceMidnight, DisplayRate, /* InbRollover = */ true);
+
+			NewSection->TimecodeSource = FMovieSceneTimecodeSource(Timecode);
+		}
+	}
+#endif
 
 	AudioSections.Add(NewSection);
 

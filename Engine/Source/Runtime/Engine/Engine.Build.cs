@@ -130,7 +130,8 @@ public class Engine : ModuleRules
 				"CrunchCompression",
 				"IntelISPC",
 				"TraceLog",
-				"ColorManagement"
+				"ColorManagement",
+				"XmlParser"
 			}
 		);
 
