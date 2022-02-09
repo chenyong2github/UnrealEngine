@@ -40,13 +40,15 @@ void ConvertOperationalProperty(const FWidgetTransform& In, FIntermediateWidgetT
 	Out.ShearY = In.Shear.Y;
 }
 
-static float GetRenderOpacity(const UObject* Object)
+static float GetRenderOpacity(const UObject* Object, bool bIsDouble)
 {
+	check(!bIsDouble);
 	return CastChecked<const UWidget>(Object)->GetRenderOpacity();
 }
 
-static void SetRenderOpacity(UObject* Object, float InRenderOpacity)
+static void SetRenderOpacity(UObject* Object, bool bIsDouble, float InRenderOpacity)
 {
+	check(!bIsDouble);
 	CastChecked<UWidget>(Object)->SetRenderOpacity(InRenderOpacity);
 }
 

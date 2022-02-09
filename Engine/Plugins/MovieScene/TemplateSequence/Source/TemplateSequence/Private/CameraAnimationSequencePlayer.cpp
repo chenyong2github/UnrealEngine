@@ -33,22 +33,36 @@ void SetCameraStandInTransform(UObject* Object, const FIntermediate3DTransform& 
 	CameraStandIn->SetTransform(Result);
 }
 
+template<typename PropertyTraits, typename MetaDataIndices>
+struct TUpdateInitialPropertyValuesImpl;
+
+template<typename PropertyTraits, int ...MetaDataIndices>
+struct TUpdateInitialPropertyValuesImpl<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>>
+{
+	void Update(UMovieSceneEntitySystemLinker* Linker, const TPropertyComponents<PropertyTraits>& PropertyComponents)
+	{
+		const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
+
+		const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(PropertyComponents.CompositeID);
+
+		TGetPropertyValues<PropertyTraits> GetProperties(PropertyDefinition.CustomPropertyRegistration);
+
+		FEntityTaskBuilder()
+			.Read(BuiltInComponents->BoundObject)
+			.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
+			.ReadAllOf(PropertyComponents.MetaDataComponents.template GetType<MetaDataIndices>()...)
+			.Write(PropertyComponents.InitialValue)
+			.FilterAll({ PropertyComponents.PropertyTag })
+			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
+			.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
+	}
+};
+
 template<typename PropertyTraits>
 void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker, const TPropertyComponents<PropertyTraits>& PropertyComponents)
 {
-	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
-
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(PropertyComponents.CompositeID);
-
-	TGetPropertyValues<PropertyTraits> GetProperties(PropertyDefinition.CustomPropertyRegistration);
-
-	FEntityTaskBuilder()
-	.Read(BuiltInComponents->BoundObject)
-	.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-	.Write(PropertyComponents.InitialValue)
-	.FilterAll({ PropertyComponents.PropertyTag })
-	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-	.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
+	TUpdateInitialPropertyValuesImpl<PropertyTraits, TMakeIntegerSequence<int, PropertyTraits::MetaDataType::Num>>()
+		.Update(Linker, PropertyComponents);
 }
 
 }

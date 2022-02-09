@@ -111,6 +111,95 @@ struct FAttachmentComponent
 	FComponentDetachParams DetachParams;
 };
 
+struct FFloatPropertyTraits
+{
+	using StorageType  = float;
+	using MetaDataType = TPropertyMetaData<bool>;
+
+	using FloatTraitsImpl = TDirectPropertyTraits<float>;
+	using DoubleTraitsImpl = TDirectPropertyTraits<double>;
+
+	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, const FCustomPropertyAccessor& BaseCustomAccessor, float& OutValue)
+	{
+		checkf(!bIsDouble, TEXT("Type mismatch between float and double. Please check for any custom accessors defined on the wrong property type."));
+		FloatTraitsImpl::GetObjectPropertyValue(InObject, BaseCustomAccessor, OutValue);
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, uint16 PropertyOffset, float& OutValue)
+	{
+		if (bIsDouble)
+		{
+			double TempValue;
+			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyOffset, TempValue);
+			OutValue = TempValue;
+		}
+		else
+		{
+			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyOffset, OutValue);
+		}
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, FTrackInstancePropertyBindings* PropertyBindings, float& OutValue)
+	{
+		if (bIsDouble)
+		{
+			double TempValue;
+			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyBindings, TempValue);
+			OutValue = TempValue;
+		}
+		else
+		{
+			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyBindings, OutValue);
+		}
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, bool bIsDouble, const FName& PropertyPath, float& OutValue)
+	{
+		if (bIsDouble)
+		{
+			double TempValue;
+			DoubleTraitsImpl::GetObjectPropertyValue(InObject, PropertyPath, TempValue);
+			OutValue = TempValue;
+		}
+		else
+		{
+			FloatTraitsImpl::GetObjectPropertyValue(InObject, PropertyPath, OutValue);
+		}
+	}
+
+	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, const FCustomPropertyAccessor& BaseCustomAccessor, float InValue)
+	{
+		checkf(!bIsDouble, TEXT("Type mismatch between float and double. Please check for any custom accessors defined on the wrong vector property type."));
+		FloatTraitsImpl::SetObjectPropertyValue(InObject, BaseCustomAccessor, InValue);
+	}
+	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, uint16 PropertyOffset, float InValue)
+	{
+		if (bIsDouble)
+		{
+			double TempValue = (float)InValue;
+			DoubleTraitsImpl::SetObjectPropertyValue(InObject, PropertyOffset, TempValue);
+		}
+		else
+		{
+			FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyOffset, InValue);
+		}
+	}
+	static void SetObjectPropertyValue(UObject* InObject, bool bIsDouble, FTrackInstancePropertyBindings* PropertyBindings, float InValue)
+	{
+		if (bIsDouble)
+		{
+			double TempValue = (float)InValue;
+			DoubleTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, TempValue);
+		}
+		else
+		{
+			FloatTraitsImpl::SetObjectPropertyValue(InObject, PropertyBindings, InValue);
+		}
+	}
+
+	static float CombineComposites(bool bIsDouble, float InValue)
+	{
+		return InValue;
+	}
+};
+
 struct FColorPropertyTraits
 {
 	using StorageType  = FIntermediateColor;
@@ -367,7 +456,6 @@ using FBoolPropertyTraits               = TDirectPropertyTraits<bool>;
 using FBytePropertyTraits               = TDirectPropertyTraits<uint8>;
 using FEnumPropertyTraits               = TDirectPropertyTraits<uint8>;
 using FIntPropertyTraits                = TDirectPropertyTraits<int32>;
-using FFloatPropertyTraits              = TDirectPropertyTraits<float>;
 using FDoublePropertyTraits             = TDirectPropertyTraits<double>;
 using FTransformPropertyTraits          = TIndirectPropertyTraits<FTransform, FIntermediate3DTransform>;
 using FEulerTransformPropertyTraits     = TIndirectPropertyTraits<FEulerTransform, FIntermediate3DTransform>;
