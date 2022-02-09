@@ -100,6 +100,252 @@ static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt,
     return false;
 }
 
+// UE Change Begin: Improved support for PLS and FBF
+struct Remap
+{
+	std::string src_name;
+	std::string dst_name;
+	unsigned components;
+};
+
+static bool remap_generic(spirv_cross::Compiler& compiler, const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
+	const Remap& remap)
+{
+	auto itr = std::find_if(std::begin(resources), std::end(resources),
+		[&remap](const spirv_cross::Resource& res) { return res.name == remap.src_name; });
+
+	if (itr != std::end(resources))
+	{
+		compiler.set_remapped_variable_state(itr->id, true);
+		compiler.set_name(itr->id, remap.dst_name);
+		compiler.set_subpass_input_remapped_components(itr->id, remap.components);
+		return true;
+	}
+	else
+		return false;
+}
+
+static void remap(spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources& res, const std::vector<Remap>& remaps)
+{
+	for (auto& remap : remaps)
+	{
+		if (remap_generic(compiler, res.stage_inputs, remap))
+			return;
+		if (remap_generic(compiler, res.stage_outputs, remap))
+			return;
+		if (remap_generic(compiler, res.subpass_inputs, remap))
+			return;
+	}
+}
+// UE Change End: Allow remapping of variables in glsl
+
+struct PLSInOutArg
+{
+	spirv_cross::PlsFormat format;
+	std::string input_name;
+	std::string output_name;
+};
+
+struct PLSArg
+{
+	spirv_cross::PlsFormat format;
+	std::string name;
+};
+
+static spirv_cross::PlsFormat pls_format(const char* str)
+{
+	if (!strcmp(str, "r11f_g11f_b10f"))
+		return spirv_cross::PlsR11FG11FB10F;
+	else if (!strcmp(str, "r32f"))
+		return spirv_cross::PlsR32F;
+	else if (!strcmp(str, "rg16f"))
+		return spirv_cross::PlsRG16F;
+	else if (!strcmp(str, "rg16"))
+		return spirv_cross::PlsRG16;
+	else if (!strcmp(str, "rgb10_a2"))
+		return spirv_cross::PlsRGB10A2;
+	else if (!strcmp(str, "rgba8"))
+		return spirv_cross::PlsRGBA8;
+	else if (!strcmp(str, "rgba8i"))
+		return spirv_cross::PlsRGBA8I;
+	else if (!strcmp(str, "rgba8ui"))
+		return spirv_cross::PlsRGBA8UI;
+	else if (!strcmp(str, "rg16i"))
+		return spirv_cross::PlsRG16I;
+	else if (!strcmp(str, "rgb10_a2ui"))
+		return spirv_cross::PlsRGB10A2UI;
+	else if (!strcmp(str, "rg16ui"))
+		return spirv_cross::PlsRG16UI;
+	else if (!strcmp(str, "r32ui"))
+		return spirv_cross::PlsR32UI;
+	else
+		return spirv_cross::PlsNone;
+}
+
+bool FindVariableID(const std::string& name, spirv_cross::ID& id, spirv_cross::SmallVector<spirv_cross::Resource>& resources, const spirv_cross::SmallVector<spirv_cross::Resource>* secondary_resources)
+{
+	bool found = false;
+	for (auto& res : resources)
+	{
+		if (res.name == name)
+		{
+			id = res.id;
+			found = true;
+			break;
+		}
+	}
+
+	if (!found && secondary_resources)
+	{
+		for (auto& res : *secondary_resources)
+		{
+			if (res.name == name)
+			{
+				id = res.id;
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (!found)
+	{
+		id = UINT32_MAX;
+	}
+
+	return found;
+}
+
+static std::vector<spirv_cross::PlsRemap> remap_pls(const std::vector<PLSArg>& pls_variables, spirv_cross::SmallVector<spirv_cross::Resource>& resources,
+									const spirv_cross::SmallVector<spirv_cross::Resource>* secondary_resources)
+{
+	std::vector<spirv_cross::PlsRemap> ret;
+
+	for (auto& pls : pls_variables)
+	{
+		spirv_cross::ID id;
+		FindVariableID(pls.name, id, resources, secondary_resources);
+		ret.push_back({ id, pls.name, pls.format });
+	}
+
+	return ret;
+}
+
+static std::vector<spirv_cross::PlsInOutRemap> remap_pls_inout(spirv_cross::Compiler& compiler, const std::vector<PLSInOutArg>& pls_variables, spirv_cross::SmallVector<spirv_cross::Resource>& resources, spirv_cross::SmallVector<spirv_cross::Resource>& secondary_resources)
+{
+	std::vector<spirv_cross::PlsInOutRemap> ret;
+
+	for (auto& pls : pls_variables)
+	{
+		std::vector<Remap> Remaps;
+		Remap remap = { pls.output_name, pls.input_name, spirv_cross::CompilerGLSL::pls_format_to_components(pls.format) };
+		remap_generic(compiler, resources, remap);
+		remap_generic(compiler, secondary_resources, remap);
+
+		//find input id
+		spirv_cross::ID input_id;
+		FindVariableID(pls.input_name, input_id, resources, &secondary_resources);
+
+		//find output id
+		spirv_cross::ID output_id;
+		FindVariableID(pls.output_name, output_id, resources, &secondary_resources);
+
+		ret.push_back({ input_id, pls.input_name, output_id, pls.output_name, pls.format });
+	}
+
+	return ret;
+}
+
+static bool GatherPLSRemaps(std::vector<PLSArg>& PLSInputs, std::vector<PLSArg>& PLSOutputs, std::vector<PLSInOutArg>& PLSInOuts, const ShaderConductor::MacroDefine& define)
+{
+	static const char* PLSDelim = " ";
+
+	static const char* PLSInIdent = "pls_in";
+	static const size_t PLSInIdentLen = std::strlen(PLSInIdent);
+
+	if (!strncmp(define.name, PLSInIdent, PLSInIdentLen))
+	{
+		std::string Value = define.value;
+
+		size_t Offset = Value.find(PLSDelim, 0);
+
+		if (Offset != std::string::npos)
+		{
+			PLSInputs.push_back({ pls_format(Value.substr(0, Offset).c_str()), Value.substr(Offset + 1) });
+		}
+
+		return true;
+	}
+
+	static const char* PLSOutIdent = "pls_out";
+	static const size_t PLSOuIdentLen = std::strlen(PLSOutIdent);
+
+	if (!strncmp(define.name, PLSOutIdent, PLSOuIdentLen))
+	{
+		std::string Value = define.value;
+
+		size_t Offset = Value.find(PLSDelim, 0);
+
+		if (Offset != std::string::npos)
+		{
+			PLSOutputs.push_back({ pls_format(Value.substr(0, Offset).c_str()), Value.substr(Offset + 1) });
+		}
+
+		return true;
+	}
+
+	static const char* PLSInOutIdent = "pls_io";
+	static const size_t PLSInOutIdentLen = std::strlen(PLSInOutIdent);
+
+	if (!strncmp(define.name, PLSInOutIdent, PLSInOutIdentLen))
+	{
+		std::string Value = define.value;
+
+		size_t OffsetFirst = Value.find_first_of(PLSDelim, 0);
+		size_t OffsetLast = Value.find_last_of(PLSDelim);
+
+		if (OffsetFirst != std::string::npos && OffsetLast != std::string::npos && OffsetLast != OffsetFirst)
+		{
+			PLSInOuts.push_back({ pls_format(Value.substr(0, OffsetFirst).c_str()), Value.substr(OffsetFirst + 1, OffsetLast - (OffsetFirst + 1)), Value.substr(OffsetLast + 1) });
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+struct FBFArg
+{
+	int32_t input_index;
+	int32_t color_attachment;
+};
+
+static bool GatherFBFRemaps(std::vector<FBFArg>& FBFArgs, const ShaderConductor::MacroDefine& define)
+{
+	static const char* FBFDelim = " ";
+
+	static const char* FBFIdent = "remap_ext_framebuffer_fetch";
+	static const size_t FBFIdentLen = std::strlen(FBFIdent);
+
+	if (!strncmp(define.name, FBFIdent, FBFIdentLen))
+	{
+		std::string Value = define.value;
+
+		size_t Offset = Value.find(FBFDelim, 0);
+
+		if (Offset != std::string::npos)
+		{
+			FBFArgs.push_back({ std::atoi(Value.substr(0, Offset).c_str()), std::atoi(Value.substr(Offset + 1).c_str()) });
+		}
+
+		return true;
+	}
+
+	return false;
+}
+// UE Change End: Improved support for PLS and FBF
+
 static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
     PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
@@ -734,45 +980,6 @@ namespace
         return shaderProfile;
     }
 
-    // UE Change Begin: Allow remapping of variables in glsl
-    struct Remap
-    {
-        std::string src_name;
-        std::string dst_name;
-        unsigned components;
-    };
-
-    static bool remap_generic(spirv_cross::Compiler& compiler, const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
-                              const Remap& remap)
-    {
-        auto itr = std::find_if(std::begin(resources), std::end(resources),
-                                [&remap](const spirv_cross::Resource& res) { return res.name == remap.src_name; });
-
-        if (itr != std::end(resources))
-        {
-            compiler.set_remapped_variable_state(itr->id, true);
-            compiler.set_name(itr->id, remap.dst_name);
-            compiler.set_subpass_input_remapped_components(itr->id, remap.components);
-            return true;
-        }
-        else
-            return false;
-    }
-
-    static void remap(spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources& res, const std::vector<Remap>& remaps)
-    {
-        for (auto& remap : remaps)
-        {
-            if (remap_generic(compiler, res.stage_inputs, remap))
-                return;
-            if (remap_generic(compiler, res.stage_outputs, remap))
-                return;
-            if (remap_generic(compiler, res.subpass_inputs, remap))
-                return;
-        }
-    }
-    // UE Change End: Allow remapping of variables in glsl
-
     void ConvertDxcResult(Compiler::ResultDesc& result, IDxcOperationResult* dxcResult, ShadingLanguage targetLanguage, bool asModule)
     {
         HRESULT status;
@@ -1209,35 +1416,60 @@ namespace
             auto* glslCompiler = static_cast<spirv_cross::CompilerGLSL*>(compiler.get());
             auto glslOpts = glslCompiler->get_common_options();
 
+			// UE Change Begin: Improved support for PLS and FBF
+			std::vector<PLSArg> PLSInputs;
+			std::vector<PLSArg> PLSOutputs;
+			std::vector<PLSInOutArg> PLSInOuts;
+
+			std::vector<FBFArg> FBFArgs;
+			// UE Change End: Improved support for PLS and FBF
+
             for (unsigned i = 0; i < target.numOptions; i++)
             {
                 auto& Define = target.options[i];
                 if (!ParseSpirvCrossOptionGlsl(glslOpts, Define))
                 {
-                    // UE Change Begin: Allow remapping of variables in glsl
-                    if (!strcmp(Define.name, "remap_glsl"))
-                    {
-                        std::vector<std::string> Args;
-                        std::stringstream ss(Define.value);
-                        std::string Arg;
+					// UE Change Begin: Improved support for PLS and FBF
+					if (!GatherPLSRemaps(PLSInputs, PLSOutputs, PLSInOuts, Define) &&
+						!GatherFBFRemaps(FBFArgs, Define))
+					{
+						if (!strcmp(Define.name, "remap_glsl"))
+						{
+							std::vector<std::string> Args;
+								std::stringstream ss(Define.value);
+								std::string Arg;
 
-                        while (std::getline(ss, Arg, ' '))
-                        {
-                            Args.push_back(Arg);
-                        }
+								while (std::getline(ss, Arg, ' '))
+								{
+									Args.push_back(Arg);
+								}
 
-                        if (Args.size() < 3)
-                            continue;
+							if (Args.size() < 3)
+								continue;
 
-                        remaps.push_back({Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str())});
-                    }
-                    // UE Change End: Allow remapping of variables in glsl
+							remaps.push_back({ Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str()) });
+						}
+					}
+					// UE Change End: Improved support for PLS and FBF
                 }
             }
 
             // UE Change Begin: Allow remapping of variables in glsl
             remap(*glslCompiler, glslCompiler->get_shader_resources(), remaps);
             // UE Change End: Allow remapping of variables in glsl
+
+			// UE Change Begin: Improved support for PLS and FBF
+			spirv_cross::ShaderResources res = compiler->get_shader_resources();
+			auto pls_inputs = remap_pls(PLSInputs, res.stage_inputs, &res.subpass_inputs);
+			auto pls_outputs = remap_pls(PLSOutputs, res.stage_outputs, nullptr);
+			auto pls_inouts = remap_pls_inout(*glslCompiler, PLSInOuts, res.stage_outputs, res.subpass_inputs);
+
+			compiler->remap_pixel_local_storage(move(pls_inputs), move(pls_outputs), move(pls_inouts));
+			for (FBFArg & fetch : FBFArgs)
+			{
+				compiler->remap_ext_framebuffer_fetch(fetch.input_index, fetch.color_attachment, true);
+			}
+			// UE Change End: Improved support for PLS and FBF
 
             glslCompiler->set_common_options(glslOpts);
 

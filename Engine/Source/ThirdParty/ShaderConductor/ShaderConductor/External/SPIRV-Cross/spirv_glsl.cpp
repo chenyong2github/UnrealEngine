@@ -247,7 +247,8 @@ static SPIRType::BaseType pls_format_to_basetype(PlsFormat format)
 	}
 }
 
-static uint32_t pls_format_to_components(PlsFormat format)
+// UE Change Begin: Improved support for PLS and FBF
+uint32_t CompilerGLSL::pls_format_to_components(PlsFormat format)
 {
 	switch (format)
 	{
@@ -273,6 +274,7 @@ static uint32_t pls_format_to_components(PlsFormat format)
 		return 4;
 	}
 }
+// UE Change End: Improved support for PLS and FBF
 
 const char *CompilerGLSL::vector_swizzle(int vecsize, int index)
 {
@@ -332,32 +334,67 @@ void CompilerGLSL::reset()
 	current_loop_level = 0;
 }
 
+// UE Change Begin: Improved support for PLS and FBF
 void CompilerGLSL::remap_pls_variables()
 {
 	for (auto &input : pls_inputs)
 	{
-		auto &var = get<SPIRVariable>(input.id);
-
-		bool input_is_target = false;
-		if (var.storage == StorageClassUniformConstant)
+		if (input.id != UINT_MAX)
 		{
-			auto &type = get<SPIRType>(var.basetype);
-			input_is_target = type.image.dim == DimSubpassData;
-		}
+			auto &var = get<SPIRVariable>(input.id);
 
-		if (var.storage != StorageClassInput && !input_is_target)
-			SPIRV_CROSS_THROW("Can only use in and target variables for PLS inputs.");
-		var.remapped_variable = true;
+			bool input_is_target = false;
+			if (var.storage == StorageClassUniformConstant)
+			{
+				auto &type = get<SPIRType>(var.basetype);
+				input_is_target = type.image.dim == DimSubpassData;
+			}
+
+			if (var.storage != StorageClassInput && !input_is_target)
+				SPIRV_CROSS_THROW("Can only use in and target variables for PLS inputs.");
+			var.remapped_variable = true;
+		}
 	}
 
 	for (auto &output : pls_outputs)
 	{
-		auto &var = get<SPIRVariable>(output.id);
-		if (var.storage != StorageClassOutput)
-			SPIRV_CROSS_THROW("Can only use out variables for PLS outputs.");
-		var.remapped_variable = true;
+		if (output.id != UINT_MAX)
+		{
+			auto &var = get<SPIRVariable>(output.id);
+			if (var.storage != StorageClassOutput)
+				SPIRV_CROSS_THROW("Can only use out variables for PLS outputs.");
+			var.remapped_variable = true;
+		}
+	}
+
+	for (auto &inout : pls_inouts)
+	{
+		if (inout.input_id != UINT_MAX)
+		{
+			auto &var = get<SPIRVariable>(inout.input_id);
+
+			bool input_is_target = false;
+			if (var.storage == StorageClassUniformConstant)
+			{
+				auto &type = get<SPIRType>(var.basetype);
+				input_is_target = type.image.dim == DimSubpassData;
+			}
+
+			if (var.storage != StorageClassInput && !input_is_target)
+				SPIRV_CROSS_THROW("Can only use in and target variables for PLS inputs.");
+			var.remapped_variable = true;
+		}
+
+		if (inout.output_id != UINT_MAX)
+		{
+			auto &var = get<SPIRVariable>(inout.output_id);
+			if (var.storage != StorageClassOutput)
+				SPIRV_CROSS_THROW("Can only use out variables for PLS outputs.");
+			var.remapped_variable = true;
+		}
 	}
 }
+// UE Change End: Improved support for PLS and FBF
 
 void CompilerGLSL::remap_ext_framebuffer_fetch(uint32_t input_attachment_index, uint32_t color_location, bool coherent)
 {
@@ -488,12 +525,14 @@ void CompilerGLSL::find_static_extensions()
 		break;
 	}
 
-	if (!pls_inputs.empty() || !pls_outputs.empty())
+	// UE Change Begin: Improved support for PLS and FBF
+	if (!pls_inputs.empty() || !pls_outputs.empty() || !pls_inouts.empty())
 	{
 		if (execution.model != ExecutionModelFragment)
 			SPIRV_CROSS_THROW("Can only use GL_EXT_shader_pixel_local_storage in fragment shaders.");
 		require_extension_internal("GL_EXT_shader_pixel_local_storage");
 	}
+	// UE Change End: Improved support for PLS and FBF
 
 	if (!inout_color_attachments.empty())
 	{
@@ -3007,6 +3046,18 @@ void CompilerGLSL::emit_pls()
 		end_scope_decl();
 		statement("");
 	}
+
+	// UE Change Begin: Improved support for PLS and FBF
+	if (!pls_inouts.empty())
+	{
+		statement("__pixel_localEXT _PLSOut");
+		begin_scope();
+		for (auto &inout : pls_inouts)
+			statement(pls_decl(inout), ";");
+		end_scope_decl();
+		statement("");
+	}
+	// UE Change End: Improved support for PLS and FBF
 }
 
 void CompilerGLSL::fixup_image_load_store_access()
@@ -3383,8 +3434,10 @@ void CompilerGLSL::emit_resources()
 		replace_fragment_outputs();
 
 	// Emit PLS blocks if we have such variables.
-	if (!pls_inputs.empty() || !pls_outputs.empty())
+	// UE Change Begin: Improved support for PLS and FBF
+	if (!pls_inputs.empty() || !pls_outputs.empty() || !pls_inouts.empty())
 		emit_pls();
+	// UE Change End: Improved support for PLS and FBF
 
 	switch (execution.model)
 	{
@@ -11919,7 +11972,11 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 			auto itr =
 			    find_if(begin(pls_inputs), end(pls_inputs), [var](const PlsRemap &pls) { return pls.id == var->self; });
 
-			if (itr == end(pls_inputs))
+			// UE Change Begin: Improved support for PLS and FBF
+			auto pls_io_itr = find_if(begin(pls_inouts), end(pls_inouts),
+			                          [var](const PlsInOutRemap &pls) { return pls.input_id == var->self; });
+
+			if (itr == end(pls_inputs) && pls_io_itr == end(pls_inouts))
 			{
 				// For non-PLS inputs, we rely on subpass type remapping information to get it right
 				// since ImageRead always returns 4-component vectors and the backing type is opaque.
@@ -11927,13 +11984,21 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 					SPIRV_CROSS_THROW("subpassInput was remapped, but remap_components is not set correctly.");
 				imgexpr = remap_swizzle(get<SPIRType>(result_type), var->remapped_components, to_expression(ops[2]));
 			}
-			else
+			else if (itr != end(pls_inputs))
 			{
 				// PLS input could have different number of components than what the SPIR expects, swizzle to
 				// the appropriate vector size.
 				uint32_t components = pls_format_to_components(itr->format);
 				imgexpr = remap_swizzle(get<SPIRType>(result_type), components, to_expression(ops[2]));
 			}
+			else
+			{
+				// PLS input could have different number of components than what the SPIR expects, swizzle to
+				// the appropriate vector size.
+				uint32_t components = pls_format_to_components(pls_io_itr->format);
+				imgexpr = remap_swizzle(get<SPIRType>(result_type), components, to_expression(ops[2]));
+			}
+			// UE Change End: Improved support for PLS and FBF
 			pure = true;
 		}
 		else if (type.image.dim == DimSubpassData)
@@ -13302,17 +13367,45 @@ const char *CompilerGLSL::to_pls_qualifiers_glsl(const SPIRVariable &variable)
 		return "highp ";
 }
 
+// UE Change Begin: Improved support for PLS and FBF
 string CompilerGLSL::pls_decl(const PlsRemap &var)
 {
-	auto &variable = get<SPIRVariable>(var.id);
+	std::string variable_name = var.name;
+	std::string qualifier = "highp ";
+
+	if (var.id != UINT_MAX)
+	{
+		auto &variable = get<SPIRVariable>(var.id);
+		variable_name = to_name(variable.self);
+		qualifier = to_pls_qualifiers_glsl(variable);
+	}
 
 	SPIRType type;
 	type.vecsize = pls_format_to_components(var.format);
 	type.basetype = pls_format_to_basetype(var.format);
 
-	return join(to_pls_layout(var.format), to_pls_qualifiers_glsl(variable), type_to_glsl(type), " ",
-	            to_name(variable.self));
+	return join(to_pls_layout(var.format), qualifier, type_to_glsl(type), " ", variable_name);
 }
+
+string CompilerGLSL::pls_decl(const PlsInOutRemap &var)
+{
+	std::string variable_name = var.input_name;
+	std::string qualifier = "highp ";
+
+	if (var.input_id != UINT_MAX)
+	{
+		auto &variable = get<SPIRVariable>(var.input_id);
+		variable_name = to_name(variable.self);
+		qualifier = to_pls_qualifiers_glsl(variable);
+	}
+
+	SPIRType type;
+	type.vecsize = pls_format_to_components(var.format);
+	type.basetype = pls_format_to_basetype(var.format);
+
+	return join(to_pls_layout(var.format), qualifier, type_to_glsl(type), " ", variable_name);
+}
+// UE Change End: Improved support for PLS and FBF
 
 uint32_t CompilerGLSL::to_array_size_literal(const SPIRType &type) const
 {
