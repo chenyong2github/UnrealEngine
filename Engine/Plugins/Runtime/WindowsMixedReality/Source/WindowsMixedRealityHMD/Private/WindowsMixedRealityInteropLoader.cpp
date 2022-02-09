@@ -46,6 +46,13 @@ namespace WindowsMixedReality
 				OSSubVersionLabel = OSSubVersionLabel.Mid(Begin, End - Begin);
 				bHasSupportedWindowsBuild = FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR;
 			}
+			else
+			{
+				// Hack: Later versions of windows change the format of this sub version label string, so if we hit this case, we should be on a supported version.
+				// This isn't an ideal method, but ran this by Microsoft and for now I think this is a reasonable fix. The WMR path is deprecated in the UE 5.0
+				// release and will be removed completely in a later release.
+				bHasSupportedWindowsBuild = true;
+			}
 		}
 
 		if (bHasSupportedWindowsBuild && bHasSupportedWindowsVersion)
