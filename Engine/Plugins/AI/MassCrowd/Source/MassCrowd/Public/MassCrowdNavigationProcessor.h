@@ -7,8 +7,6 @@
 #include "MassCrowdFragments.h"
 #include "MassCrowdNavigationProcessor.generated.h"
 
-class UZoneGraphSubsystem;
-class UMassCrowdSettings;
 class UZoneGraphAnnotationSubsystem;
 class UMassCrowdSubsystem;
 
@@ -49,6 +47,7 @@ protected:
 	FMassEntityQuery EntityQuery;
 };
 
+
 UCLASS()
 class MASSCROWD_API UMassCrowdDynamicObstacleProcessor : public UMassProcessor
 {
@@ -65,22 +64,44 @@ protected:
 	void OnStop(FMassCrowdObstacleFragment& OutObstacle, const float Radius);
 	void OnMove(FMassCrowdObstacleFragment& OutObstacle);
 
-	/** Delay before sending the stop notification once the entity has stop moving. */
-	UPROPERTY(Category = Settings, EditAnywhere, meta = (ClampMin = "0"))
-	float DelayBeforeStopNotification = 0.3f;
-
-	/** Distance within which the obstacle is considered not moving. */
-	UPROPERTY(Category = Settings, EditAnywhere, meta = (ClampMin = "0"))
-	float DistanceBuffer = 10.f;
-
 	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraphSubsystem;
-	
+	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem;
+};
+
+
+UCLASS()
+class MASSCROWD_API UMassCrowdDynamicObstacleInitializer : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdDynamicObstacleInitializer();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
+	FMassEntityQuery EntityQuery;
+};
+
+
+UCLASS()
+class MASSCROWD_API UMassCrowdDynamicObstacleDeinitializer : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdDynamicObstacleDeinitializer();
+
+protected:
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+
 	UPROPERTY(Transient)
 	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem;
 
-	UPROPERTY(Transient)
-	const UMassCrowdSettings* CrowdSettings;
+	FMassEntityQuery EntityQuery;
 };

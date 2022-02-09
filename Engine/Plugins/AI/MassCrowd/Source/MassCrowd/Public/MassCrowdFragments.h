@@ -36,12 +36,12 @@ struct MASSCROWD_API FMassCrowdObstacleFragment : public FMassFragment
 	/** Obstacle ID reported to the obstruction annotation. */
 	FMassLaneObstacleID LaneObstacleID;
 
-	/** Position of the dynamic obstacle when it last moved. */
+	/** Position of the obstacle when it last moved. */
 	FVector LastPosition = FVector::ZeroVector;
 
-	/** Time stamp when that obstacle stopped moving. */
-	float LastMovedTimeStamp = 0.0f;
+	/** Time since the obstacle has not moved based on speed tolerance. */
+	float TimeSinceStopped = 0.0f;
 
-	/** Has this dynamic obstacle stopped moving. */
-	bool bHasStopped = true;
+	/** True of the current obstacle state is moving. */
+	bool bIsMoving = true;
 };

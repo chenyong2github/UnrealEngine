@@ -115,6 +115,22 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Options)
 	bool bDisplayDensities = true;
 
+	/** An obstacle is considered being stopped when it's speed is less than the tolerance. */
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm/s"))
+	float ObstacleStoppingSpeedTolerance = 5.0f;
+
+	/** An obstacle is considered moving when it has moved this much after being stationary. */
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm"))
+	float ObstacleMovingDistanceTolerance = 10.0f;
+
+	/** The time an obstacle needs to be not moving before it is reported as stopped.*/
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "s"))
+	float ObstacleTimeToStop = 0.3f;
+
+	/** The radius an obstacle has effects on navigation.*/
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm"))
+	float ObstacleEffectRadius = 1000.f;
+
 protected:
 
 #if WITH_EDITOR
