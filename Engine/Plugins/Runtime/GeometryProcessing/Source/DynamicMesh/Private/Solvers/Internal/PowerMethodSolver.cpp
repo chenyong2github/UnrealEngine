@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PowerMethodSolver.h"
 
 using namespace UE::Geometry;
