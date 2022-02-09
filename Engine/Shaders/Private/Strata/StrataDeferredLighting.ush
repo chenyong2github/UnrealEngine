@@ -12,6 +12,20 @@
 #define STRATA_SINGLEPATH 0
 #endif
 
+float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos, Texture2D PrecomputedShadowTexture)
+{
+	if (HasPrecShadowMask(StrataPixelHeader))
+	{
+	#if ALLOW_STATIC_LIGHTING
+		float4 GBufferE = PrecomputedShadowTexture.Load(int3(PixelPos, 0));
+	#else
+		float4 GBufferE = 1;
+	#endif
+		return GBufferE;
+	}
+	return HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
+}
+
 // Analytical lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 float4 StrataDeferredLighting(
