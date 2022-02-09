@@ -629,7 +629,11 @@ void SGraphNodeK2Base::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGrap
 
 								for (const FName& PathName : WatchedPin.GetPathToProperty())
 								{
-									WatchName += TEXT("/");
+									if (!PathName.ToString().StartsWith("["))
+									{
+										WatchName += TEXT("/");
+									}
+
 									WatchName += PathName.ToString();
 								}
 							}
