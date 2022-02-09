@@ -62,7 +62,6 @@ public class ContentBrowser : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
             new string[] {
 				"ContentBrowserData",
-				"IntroTutorials"
             }
         );
 	}

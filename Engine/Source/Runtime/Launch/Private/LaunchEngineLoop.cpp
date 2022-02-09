@@ -4080,7 +4080,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 
 	if (IsRunningCommandlet())
 	{
-		FModuleManager::Get().LoadModule(TEXT("IntroTutorials"));
 		FModuleManager::Get().LoadModule(TEXT("Blutility"));
 	}
 

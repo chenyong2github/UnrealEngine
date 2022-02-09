@@ -18,7 +18,6 @@ public class PropertyEditor : ModuleRules
 		
         PublicIncludePathModuleNames.AddRange(
             new string[] {                
-                "IntroTutorials"
             }
         );
 

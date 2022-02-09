@@ -13,7 +13,6 @@ public class LevelEditor : ModuleRules
 				"MainFrame",
                 "PlacementMode",
 				"SlateReflector",
-                "IntroTutorials",
                 "AppFramework",
                 "PortalServices",
                 "Persona",
@@ -25,7 +24,6 @@ public class LevelEditor : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
-				"IntroTutorials",
 				"HeadMountedDisplay",
 				"UnrealEd",
 				"VREditor",
@@ -106,7 +104,6 @@ public class LevelEditor : ModuleRules
 				"NewLevelDialog",
 				"DeviceProfileEditor",
                 "PlacementMode",
-                "IntroTutorials",
 				"HeadMountedDisplay",
 				"VREditor",
                 "Persona",

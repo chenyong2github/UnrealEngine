@@ -18,7 +18,6 @@ public class GraphEditor : ModuleRules
 
         PublicIncludePathModuleNames.AddRange(
             new string[] {                
-                "IntroTutorials",
 				"ClassViewer",
 				"StructViewer",
 			}

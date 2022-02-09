@@ -29,7 +29,6 @@ public class AnalyticsMulticastEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
-				"IntroTutorials",
                 "AssetTools"
 			}
 		);

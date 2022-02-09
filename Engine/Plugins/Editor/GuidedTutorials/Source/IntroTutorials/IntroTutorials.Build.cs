@@ -13,7 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Engine", // @todo Mac: for some reason CoreUObject and Engine are needed to link in debug on Mac
                     "InputCore",
                     "Slate",
-                    "EditorStyle",
+					"EditorStyle",
                     "Documentation",
 					"GraphEditor",
 					"BlueprintGraph",
@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
-					"Editor/IntroTutorials/Private",
+					"IntroTutorials/Private",
 				}
 			);
 
