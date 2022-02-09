@@ -95,6 +95,8 @@ public:
 
 	static bool DefaultsAreEquivalent(const UNiagaraScriptVariable* ScriptVarA, const UNiagaraScriptVariable* ScriptVarB);
 
+	static FGuid GenerateStableGuid(const UNiagaraScriptVariable* ScriptVariable);
+
 private:
 	void AllocateData()
 	{

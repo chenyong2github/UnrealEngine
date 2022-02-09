@@ -401,6 +401,32 @@ void UNiagaraGraph::PostLoad()
 		}
 	}
 
+	if (NiagaraVer < FNiagaraCustomVersion::StaticSwitchFunctionPinsUsePersistentGuids)
+	{
+		// Make sure that the variable persistent ids are unique, otherwise pin allocation for static switches will be inconsistent.
+		TArray<TObjectPtr<UNiagaraScriptVariable>> ScriptVariables;
+		VariableToScriptVariable.GenerateValueArray(ScriptVariables);
+		TSet<FGuid> SeenGuids;
+		for (TObjectPtr<UNiagaraScriptVariable>& ScriptVariable : ScriptVariables)
+		{
+			if (ScriptVariable != nullptr)
+			{
+				bool bAlreadySeen = false;
+				SeenGuids.Add(ScriptVariable->Metadata.GetVariableGuid(), &bAlreadySeen);
+				if (bAlreadySeen)
+				{
+					if (ensureMsgf(ScriptVariable->GetIsSubscribedToParameterDefinitions() == false, TEXT("Duplicate id found for script variable %s controlled by parameter definitions."), *ScriptVariable->GetPathName()))
+					{
+						ScriptVariable->Metadata.SetVariableGuid(UNiagaraScriptVariable::GenerateStableGuid(ScriptVariable));
+						bAlreadySeen = false;
+						SeenGuids.Add(ScriptVariable->Metadata.GetVariableGuid(), &bAlreadySeen);
+						ensureMsgf(bAlreadySeen == false, TEXT("Failed to generate a unique stable guid for script variable %s."), *ScriptVariable->GetPathName());
+					}
+				}
+			}
+		}
+	}
+
 	InvalidateCachedParameterData();
 }
 
