@@ -285,13 +285,10 @@ void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("AddNewItem", LOCTEXT("AddOperations", "Add New"));
 
-#if 0
-	// NOTE: Disabled for 5.0
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
 
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
-#endif
 	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
 
 	MenuBuilder.EndSection();
@@ -303,7 +300,7 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnCreateWidgetForAction(FCreate
 	return SNew(SOptimusEditorGraphEplorerItem, InCreateData, OptimusEditor.Pin());
 }
 
-static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
+static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)	
 {
 	if (InGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger)
 	{
@@ -391,10 +388,7 @@ void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSec
 	if (IsShowingEmptySections())
 	{
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Graphs));
-#if 0
-		// NOTE: Disabled for 5.0
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Resources));
-#endif
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Variables));
 	}
 }
@@ -421,8 +415,6 @@ FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdG
 
 		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Variable::New(Action, VariableDesc));
 	}
-#if 0
-	// NOTE: Disabled for 5.0
 	else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
 	{
 		FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
@@ -430,7 +422,6 @@ FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdG
 
 		return FReply::Handled().BeginDragDrop(FOptimusEditorGraphDragAction_Resource::New(Action, ResourceDesc));
 	}
-#endif
 
 	return FReply::Unhandled();
 }
@@ -738,8 +729,7 @@ FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionI
 
 bool SOptimusEditorGraphExplorer::CanAddNewElementToSection(int32 InSectionID) const
 {
-	// NOTE: Disabled for 5.0
-	return EOptimusSchemaItemGroup(InSectionID) == EOptimusSchemaItemGroup::Variables;
+	return true;
 }
 
 
