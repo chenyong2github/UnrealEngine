@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreGlobals.h"
+
 class FOpenLauncherOptions
 {
 public:
