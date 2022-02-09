@@ -1,21 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using Datadog.Trace.DuckTyping;
 using Horde.Storage.Implementation;
 using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using StatsdClient;
+using Newtonsoft.Json;
 
 namespace Horde.Storage.Controllers
 {
@@ -25,18 +18,20 @@ namespace Horde.Storage.Controllers
     {
         private readonly VersionFile _versionFile;
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
+        private readonly IOptionsMonitor<ClusterSettings> _clusterSettings;
 
-        public StatusController(VersionFile versionFile, IOptionsMonitor<JupiterSettings> jupiterSettings)
+        public StatusController(VersionFile versionFile, IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings)
         {
             _versionFile = versionFile;
             _jupiterSettings = jupiterSettings;
+            _clusterSettings = clusterSettings;
         }
 
         /// <summary>
-        /// Fetch information about Jupiter
+        /// Fetch information about Horde Storage
         /// </summary>
         /// <remarks>
-        /// General information about the Jupiter service, which version it is running and more.
+        /// General information about the service, which version it is running and more.
         /// </remarks>
         /// <returns></returns>
         [HttpGet("")]
@@ -62,10 +57,70 @@ namespace Horde.Storage.Controllers
             return new string[]
             {
                 "transactionlog",
-                "ddc",
-                "tree"
+                "ddc"
             };
         }
+
+        /// <summary>
+        /// Fetch information about other deployments
+        /// </summary>
+        /// <remarks>
+        /// General information about the Jupiter service, which version it is running and more.
+        /// </remarks>
+        /// <returns></returns>
+        [HttpGet("peers")]
+        [Authorize("Any")]
+        [ProducesResponseType(type: typeof(PeersResponse), 200)]
+        public IActionResult Peers([FromQuery] bool includeInternalEndpoints = false)
+        {
+            return Ok(new PeersResponse(_jupiterSettings, _clusterSettings, includeInternalEndpoints));
+        }
+    }
+
+    public class PeersResponse
+    {
+        [JsonConstructor]
+        public PeersResponse(string currentSite, List<KnownPeer> peers)
+        {
+            CurrentSite = currentSite;
+            Peers = peers;
+        }
+
+        public PeersResponse(IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings, bool includeInternalEndpoints)
+        {
+            CurrentSite = jupiterSettings.CurrentValue.CurrentSite;
+            Peers = clusterSettings.CurrentValue.Peers.Select(settings => new KnownPeer(settings, includeInternalEndpoints)).ToList();
+        }
+
+        public string CurrentSite { get; set; }
+
+        public List<KnownPeer> Peers { get; set; } = new List<KnownPeer>();
+    }
+
+    public class KnownPeer
+    {
+        [JsonConstructor]
+        public KnownPeer(string site, string fullName, List<string> endpoints)
+        {
+            Site = site;
+            FullName = fullName;
+            Endpoints = endpoints;
+        }
+
+        public KnownPeer(PeerSettings peerSettings, bool includeInternalEndpoints)
+        {
+            Site = peerSettings.Name;
+            FullName = peerSettings.FullName;
+            IEnumerable<PeerEndpoints> endpoints = peerSettings.Endpoints;
+            if (!includeInternalEndpoints)
+                endpoints = endpoints.Where(s => !s.IsInternal);
+            Endpoints = endpoints.Select(e => e.Url).ToList();
+        }
+
+        public string Site { get; set; }
+        public string FullName { get; set; }
+
+        public List<string> Endpoints { get; set; }
     }
 
     public class StatusResponse

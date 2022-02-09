@@ -267,4 +267,24 @@ namespace Horde.Storage
         [Required] public string ConnectionString { get; set; } = null!;
     }
 
+    public class ClusterSettings
+    {
+        public List<PeerSettings> Peers { get; set; } = new List<PeerSettings>();
+    }
+
+    public class PeerSettings
+    {
+        [Required] public string Name { get; set; } = null!;
+
+        [Required] public string FullName { get; set; } = null!;
+
+        public List<PeerEndpoints> Endpoints { get; set; } = new List<PeerEndpoints>();
+    }
+
+    public class PeerEndpoints
+    { 
+        [Required] public string Url { get; set; } = null!;
+
+        public bool IsInternal { get; set; } = false;
+    }
 }
