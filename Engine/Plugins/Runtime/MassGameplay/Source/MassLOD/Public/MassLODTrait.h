@@ -12,7 +12,7 @@ class MASSLOD_API UMassLODCollectorTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
 
-protected:
+public:
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
 };
 
