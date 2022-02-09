@@ -2528,6 +2528,12 @@ void USkinnedMeshComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMa
 			UMaterialInterface* MaterialInterface = GetMaterial( MatIdx );
 			OutMaterials.Add( MaterialInterface );
 		}
+
+		for (int32 MatIdx = 0; MatIdx < SecondaryMaterials.Num(); ++MatIdx)
+		{
+			UMaterialInterface* MaterialInterface = GetSecondaryMaterial(MatIdx);
+			OutMaterials.Add(MaterialInterface);
+		}
 	}
 
 	if (bGetDebugMaterials)

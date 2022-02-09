@@ -4780,13 +4780,18 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 				MaterialRelevance |= Material->GetRelevance(FeatureLevel);
 			}
 
+			UMaterialInterface* SecondaryMaterial = Component->GetSecondaryMaterial(UseMaterialIndex);
+
 			// if this is a clothing section, then enabled and will be drawn but the corresponding original section should be disabled
 			bool bClothSection = Section.HasClothingData();
 
 			bool bValidUsage = Material && Material->CheckMaterialUsage_Concurrent(MATUSAGE_SkeletalMesh);
+			bValidUsage &= SecondaryMaterial ? SecondaryMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_SkeletalMesh) : true;
+
 			if (bClothSection)
 			{
 				bValidUsage &= Material && Material->CheckMaterialUsage_Concurrent(MATUSAGE_Clothing);
+				bValidUsage &= SecondaryMaterial ? SecondaryMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_Clothing) : true;
 			}
 
 			if(!Material || !bValidUsage)
@@ -4797,9 +4802,15 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 				Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				MaterialRelevance |= Material->GetRelevance(FeatureLevel);
+
+				if (SecondaryMaterial != NULL)
+				{
+					SecondaryMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+				}
 			}
 
-			const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( Material, &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType, FeatureLevel );
+			bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( Material, &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType, FeatureLevel );
+			bRequiresAdjacencyInformation &= SecondaryMaterial ? RequiresAdjacencyInformation(SecondaryMaterial, &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType, FeatureLevel) : true;
 			if ( bRequiresAdjacencyInformation && LODData.AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() == false )
 			{
 				UE_LOG(LogSkeletalMesh, Warning, 
@@ -4822,6 +4833,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 			LODSection.SectionElements.Add(
 				FSectionElementInfo(
 					Material,
+					SecondaryMaterial,
 					bSectionCastsShadow,
 					UseMaterialIndex
 					));
@@ -5174,6 +5186,12 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 			}
 
 			GetDynamicElementsSection(Views, ViewFamily, VisibilityMap, LODData, LODIndex, SectionIndex, bSectionSelected, SectionElementInfo, bInSelectable, Collector);
+
+			// Check whether to generate a mesh batch for secondary drawing.
+			if (SectionElementInfo.SecondaryMaterial != NULL)
+			{
+				GetDynamicElementsSection(Views, ViewFamily, VisibilityMap, LODData, LODIndex, SectionIndex, bSectionSelected, SectionElementInfo, bInSelectable, Collector, true);
+			}
 		}
 	}
 
@@ -5219,10 +5237,12 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 #endif
 }
 
-void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const
+void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, bool bSecondaryMeshBatch) const
 {
+	check(!bSecondaryMeshBatch || SectionElementInfo.SecondaryMaterial != NULL);
+
 	Mesh.VertexFactory = MeshObject->GetSkinVertexFactory(View, LODIndex, SectionIndex);
-	Mesh.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
+	Mesh.MaterialRenderProxy = bSecondaryMeshBatch ? SectionElementInfo.SecondaryMaterial->GetRenderProxy() : SectionElementInfo.Material->GetRenderProxy();
 #if RHI_RAYTRACING
 	Mesh.SegmentIndex = SectionIndex;
 	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting && bCastDynamicShadow;
@@ -5245,7 +5265,7 @@ uint8 FSkeletalMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const
 
 void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, 
 	const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, bool bSectionSelected,
-	const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector ) const
+	const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector, bool bSecondaryMeshBatch) const
 {
 	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
 
@@ -5277,7 +5297,7 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 
-			CreateBaseMeshBatch(View, LODData, LODIndex, SectionIndex, SectionElementInfo, Mesh);
+			CreateBaseMeshBatch(View, LODData, LODIndex, SectionIndex, SectionElementInfo, Mesh, bSecondaryMeshBatch);
 			
 			if(!Mesh.VertexFactory)
 			{

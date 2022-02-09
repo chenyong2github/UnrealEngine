@@ -1100,6 +1100,14 @@ public:
 	virtual class UMaterialInterface* GetMaterial(int32 ElementIndex) const;
 
 	/**
+	 * Returns the secondary material used by the element at the specified index
+	 * @param ElementIndex - The element to access the material of.
+	 * @return the secondary material used by the indexed element of this mesh for secondary rendering.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rendering|Material")
+	virtual class UMaterialInterface* GetSecondaryMaterial(int32 ElementIndex) const;
+
+	/**
 	 * Changes the material applied to an element of the mesh.
 	 * @param ElementIndex - The element to access the material of.
 	 * @return the material used by the indexed element of this mesh.

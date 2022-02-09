@@ -1640,6 +1640,11 @@ UMaterialInterface* UPrimitiveComponent::GetMaterial(int32 Index) const
 	return NULL;
 }
 
+UMaterialInterface* UPrimitiveComponent::GetSecondaryMaterial(int32 Index) const
+{
+	return NULL;
+}
+
 void UPrimitiveComponent::SetMaterial(int32 Index, UMaterialInterface* InMaterial)
 {
 }

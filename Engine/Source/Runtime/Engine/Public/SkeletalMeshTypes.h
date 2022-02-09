@@ -339,16 +339,18 @@ protected:
 	/** info for section element in an LOD */
 	struct FSectionElementInfo
 	{
-		FSectionElementInfo(UMaterialInterface* InMaterial, bool bInEnableShadowCasting, int32 InUseMaterialIndex)
-		: Material( InMaterial )
-		, bEnableShadowCasting( bInEnableShadowCasting )
-		, UseMaterialIndex( InUseMaterialIndex )
+		FSectionElementInfo(UMaterialInterface* InMaterial, UMaterialInterface* InSecondaryMaterial, bool bInEnableShadowCasting, int32 InUseMaterialIndex)
+		: Material(InMaterial)
+		, SecondaryMaterial(InSecondaryMaterial)
+		, bEnableShadowCasting(bInEnableShadowCasting)
+		, UseMaterialIndex(InUseMaterialIndex)
 #if WITH_EDITOR
 		, HitProxy(NULL)
 #endif
 		{}
 		
 		UMaterialInterface* Material;
+		UMaterialInterface* SecondaryMaterial;
 		
 		/** Whether shadow casting is enabled for this section. */
 		bool bEnableShadowCasting;
@@ -396,14 +398,14 @@ protected:
 
 	void GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap,
 									const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, bool bSectionSelected,
-								   const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector) const;
+								   const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector, bool bSecondaryMeshBatch = false) const;
 
 	void GetMeshElementsConditionallySelectable(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, bool bInSelectable, uint32 VisibilityMap, FMeshElementCollector& Collector) const;
 
 	/** Only call on render thread timeline */
 	uint8 GetCurrentFirstLODIdx_Internal() const;
 private:
-	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const;
+	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, bool bSecondaryMeshBatch = false) const;
 };
 
 /** Used to recreate all skinned mesh components for a given skeletal mesh */

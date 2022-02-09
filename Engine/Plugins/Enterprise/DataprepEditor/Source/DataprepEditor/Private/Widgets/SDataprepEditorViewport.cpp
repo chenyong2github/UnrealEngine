@@ -135,7 +135,8 @@ public:
 		uint8 InDepthPriorityGroup,
 		bool bUseSelectionOutline,
 		bool bAllowPreCulledIndices,
-		FMeshBatch& OutMeshBatch) const override
+		FMeshBatch& OutMeshBatch,
+		bool bSecondaryMeshBatch = false) const override
 	{
 		if(FStaticMeshSceneProxy::GetMeshElement(LODIndex, BatchIndex, ElementIndex, InDepthPriorityGroup, bUseSelectionOutline, bAllowPreCulledIndices, OutMeshBatch))
 		{
