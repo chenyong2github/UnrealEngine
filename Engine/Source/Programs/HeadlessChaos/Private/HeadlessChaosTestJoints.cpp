@@ -207,16 +207,16 @@ namespace ChaosTest {
 			Test.Evolution.EndFrame(Dt);
 
 			// Kinematic particle should have moved to animated position
-			EXPECT_LT((Test.GetParticle(Box1Id)->X() - RootPosition).Size(), (FReal)0.01 * BoxSize) << "Post-move instability on frame " << i;
+			EXPECT_LT((Test.GetParticle(Box1Id)->X() - RootPosition).Size(), (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
 
 			// Particles should remain fixed distance apart (joint point is at Box1 location)
 			const FVec3 Delta = Test.GetParticle(Box2Id)->CastToRigidParticle()->P() - Test.GetParticle(Box1Id)->X();
 			const FReal Distance = Delta.Size();
-			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)0.01 * BoxSize) << "Post-move instability on frame " << i;
+			EXPECT_NEAR(Distance, ExpectedDistance, (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
 
 			// Joint position calculted from pose and local-space joint pos
 			const FVec3 Box2WorldSpaceJointPosition = Test.GetParticle(Box2Id)->R().RotateVector(Box2LocalSpaceJointPosition) + Test.GetParticle(Box2Id)->X();
-			EXPECT_LT((Box2WorldSpaceJointPosition - RootPosition).Size(), (FReal)0.01 * BoxSize) << "Post-move instability on frame " << i;
+			EXPECT_LT((Box2WorldSpaceJointPosition - RootPosition).Size(), (FReal)0.1 * BoxSize) << "Post-move instability on frame " << i;
 		}
 	}
 
@@ -233,7 +233,7 @@ namespace ChaosTest {
 		const FReal BoxMass = 1000;
 		const FReal Dt = (FReal)1 / 20;
 		const FReal AnimPeriod = (FReal)2;
-		const FVec3 AnimDelta = FVec3(10 * BoxSize, 0, 0);
+		const FVec3 AnimDelta = FVec3(BoxSize, 0, 0);
 
 		FJointConstraintsTest<TEvolution> Test(NumIterations, Gravity);
 

@@ -2103,7 +2103,7 @@ namespace Chaos
 		}
 
 		const FReal RadialLimitPadding = GetLinearConstraintPadding(1);
-		const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - AxialLimitPadding, (FReal)0.);
+		const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - RadialLimitPadding, (FReal)0.);
 		FReal RadialError = RadialDelta - RadialLimit;
 
 		if (RadialError > PositionTolerance)

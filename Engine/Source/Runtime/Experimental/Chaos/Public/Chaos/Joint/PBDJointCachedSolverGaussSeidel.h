@@ -12,7 +12,78 @@
 
 namespace Chaos
 {
-	class FPBDJointCachedSolver;
+
+/** Cached axis joint datas that will be used during the apply */
+struct FAxisConstraintDatas
+{
+	/** Init the axis joint datas with stiffness / damping */
+	void InitDatas(
+		const int32 ConstraintIndex,
+		const bool bHasSoftLimits,
+		const FReal SoftStiffness,
+		const FReal SoftDamping,
+		const FReal HardStiffness);
+
+	/** Update the axis joint datas with axis, limits, arms... */
+	void UpdateDatas(
+		const int32 ConstraintIndex,
+		const FVec3& DatasAxis,
+		const FReal DatasCX,
+		const FVec3& DatasIA0,
+		const FVec3& DatasIA1,
+		const FReal DatasIM,
+		const FReal DatasRestitution,
+		const FReal Dt,
+		const bool bCheckLimit = true,
+		const FVec3& DatasArm0 = FVec3::Zero(),
+		const FVec3& DatasArm1 = FVec3::Zero(),
+		const FReal DatasVX = 0.0);
+	
+	FVec3 ConstraintSoftStiffness;
+	FVec3 ConstraintHardStiffness;
+	FVec3 ConstraintDamping;
+	FVec3 ConstraintArms[3][2];
+	FVec3 ConstraintAxis[3];
+	FVec3 ConstraintLimits;
+	
+	FVec3 ConstraintCX;
+	FVec3 ConstraintVX;
+	FVec3 ConstraintSoftIM;
+	FVec3 ConstraintHardIM;
+	FVec3 ConstraintDRAxis[3][2];
+	FVec3 ConstraintRestitution;
+	FVec3 ConstraintLambda;
+	
+	bool bValidDatas[3];
+	bool bLimitsCheck[3];
+	bool bAccelerationMode;
+	bool bSoftLimit[3];
+	EJointMotionType MotionType[3];
+};
+
+/** Cached point joint datas that will be used during the apply */
+struct FPointConstraintDatas
+{
+	/** Init the point joint datas with stiffness / damping */
+	void InitDatas(
+		const FReal PointStiffness);
+
+	/** Update the point joint datas with axis, limits, arms... */
+	void UpdateDatas(
+		const FVec3& DatasCX,
+		const FMatrix33& DatasIM,
+		const FVec3& DatasArm0,
+		const FVec3& DatasArm1);
+	
+	bool bValidDatas;
+	
+	FReal ConstraintStiffness;
+	FVec3 ConstraintArms[2];
+	
+	FVec3 ConstraintCX;
+	FMatrix33 ConstraintIM;
+	FVec3 ConstraintLambda;
+};
 
 	/**
 	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
@@ -129,11 +200,10 @@ namespace Chaos
 		{
 			return bIsActive;
 		}
-
-
+		
 		FPBDJointCachedSolver();
 
-		// Called once per frame to initialze the joint solver from the joint settings
+		// Called once per frame to initialize the joint solver from the joint settings
 		void Init(
 			const FReal Dt,
 			const FSolverBodyPtrPair& SolverBodyPair,
@@ -141,42 +211,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings,
 			const FRigidTransform3& XL0,
 			const FRigidTransform3& XL1);
-
-		void InitPositionConstraints(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void InitPointPositionConstraintKD(
-			const int32 KIndex,
-			const int32 DIndex);
-
-		void InitPointPositionConstraintDD();
-
-		void InitSphericalPositionConstraint(
-			const FPBDJointSettings& JointSettings);
-
-		void InitCylindricalPositionConstraint(
-		    const int32 AxisIndex,
-		    const EJointMotionType AxialMotion,
-		    const EJointMotionType RadialMotion,
-		    const FPBDJointSettings& JointSettings);
-
-		void InitPlanarPositionConstraint(
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const FPBDJointSettings& JointSettings);
-
-		void InitPositionConstraint(
-			const FVec3& Axis,
-			const FVec3& ConstraintArm0,
-			const FVec3& ConstraintArm1,
-			const int32 ConstraintIndex);
-
-		void UpdatePositionConstraintIM(
-			const FVec3& Axis,
-			const FVec3& ConstraintArm0,
-			const FVec3& ConstraintArm1,
-			const int32 ConstraintIndex);
 
 		void Deinit();
 
@@ -206,7 +240,7 @@ namespace Chaos
 			const FReal Dt,
 			const FReal InSolverStiffness,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings){}
 
 		void EnableProjection();
 
@@ -222,442 +256,248 @@ namespace Chaos
 		// Check to see if this constraint still needs further solved
 		// @todo(chaos): the term "active" is used inconsistently with the meaning elsewhere. Active should
 		// mean "contributed impusles". Should use "solved" rather than "active"
-		bool UpdateIsActive(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+		bool UpdateIsActive();
 
-		void ApplyPositionConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyRotationConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPositionDrives(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyRotationDrives(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyLinearVelocityConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyAngularVelocityConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
+		/** Common function to apply the lagrange multiplier update */
+		
 		void ApplyPositionDelta(
 			const int32 BodyIndex,
 			const FVec3& DP);
-
-		void ApplyPositionDelta(
-			const FVec3& DP0,
-			const FVec3& DP1);
 
 		void ApplyRotationDelta(
 			const int32 BodyIndex,
 			const FVec3& DR);
 
-		void ApplyRotationDelta(
-			const FVec3& DR0,
-			const FVec3& DR1);
-
-		void ApplyDelta(
-			const int32 BodyIndex,
-			const FVec3& DP,
-			const FVec3& DR1);
-
-		void ApplyVelocityDelta(
-			const int32 BodyIndex,
-			const FVec3& DV,
-			const FVec3& DW);
-
-		void ApplyVelocityDelta(
-			const FVec3& DV0,
-			const FVec3& DW0,
-			const FVec3& DV1,
-			const FVec3& DW1);
-
-		void ApplyAngularVelocityDelta(
-			const FVec3& DW0,
-			const FVec3& DW1);
-
-		void ApplyPositionConstraint(
-			const FReal Stiffness,
-			const FVec3& Axis,
-			const FReal Delta,
-			const FReal IM,
-			const FVec3& Arm0,
-			const FVec3& Arm1,
-			const FVec3& DRAxis0,
-			const FVec3& DRAxis1,
-			const int32 LinearHardLambdaIndex = -1);
-
-		void ApplyPositionConstraintSoft(
-			const FReal Dt,
-			const FReal JointStiffness,
-			const FReal JointDamping,
-			const bool bAccelerationMode,
-			const FVec3& Axis,
-			const FReal Delta,
-			const FReal TargetVel,
-			FReal& Lambda);
-
-		void ApplyRotationConstraint(
-			const FReal JointStiffness,
-			const FVec3& Axis,
-			const FReal Angle,
-			const int32 AngularHardLambdaIndex = -1);
-
-		void ApplyRotationConstraintKD(
-			const int32 KIndex,
-			const int32 DIndex,
-			const FReal JointStiffness,
-			const FVec3& Axis,
-			const FReal Angle,
-			const int32 AngularHardLambdaIndex = -1);
-
-		void ApplyRotationConstraintDD(
-			const FReal JointStiffness,
-			const FVec3& Axis,
-			const FReal Angle,
-			const int32 AngularHardLambdaIndex = -1);
-
-		void ApplyRotationConstraintSoft(
-			const FReal Dt,
-			const FReal JointStiffness,
-			const FReal JointDamping,
-			const bool bAccelerationMode,
-			const FVec3& Axis,
-			const FReal Angle,
-			const FReal AngVelTarget,
-			FReal& Lambda);
-
-		void ApplyRotationConstraintSoftKD(
-			const int32 KIndex,
-			const int32 DIndex,
-			const FReal Dt,
-			const FReal JointStiffness,
-			const FReal JointDamping,
-			const bool bAccelerationMode,
-			const FVec3& Axis,
-			const FReal Angle,
-			const FReal AngVelTarget,
-			FReal& Lambda);
-
-		void ApplyRotationConstraintSoftDD(
-			const FReal Dt,
-			const FReal JointStiffness,
-			const FReal JointDamping,
-			const bool bAccelerationMode,
-			const FVec3& Axis,
-			const FReal Angle,
-			const FReal AngVelTarget,
-			FReal& Lambda);
-
-		void ApplyLockedRotationConstraints(
+		/** Init Position constraints */
+		
+		void InitPositionConstraints(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+		
+		void InitPointPositionConstraint();
+		
+		void InitPositionConstraintDatas(
+			const int32 ConstraintIndex,
+			const FVec3& ConstraintAxis,
+			const FReal& ConstraintDelta,
+			const FReal ConstraintRestitution,
+			const FReal Dt,
+			const FReal ConstraintLimit,
+			const EJointMotionType JointType);
+
+		void InitSphericalPositionConstraint(
 			const FPBDJointSettings& JointSettings,
+			const FReal Dt);
+
+		void InitCylindricalPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const int32 AxisIndex,
+			const EJointMotionType AxialMotion,
+			const EJointMotionType RadialMotion);
+
+		void InitPlanarPositionConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const int32 AxisIndex,
+			const EJointMotionType AxialMotion);
+		
+		/** Apply Position constraints */
+
+		void ApplyPositionConstraints(
+			const FReal Dt);
+		
+		void ApplyPointPositionConstraint();
+		
+		void ApplyAxisPositionConstraint(
+			const int32 ConstraintIndex,
+			const FReal Dt);
+		
+		void SolvePositionConstraintDelta(
+			const int32 ConstraintIndex, 
+			const FReal DeltaLambda);
+
+		void SolvePositionConstraintHard(
+			const int32 ConstraintIndex,
+			const FReal DeltaConstraint);
+
+		void SolvePositionConstraintSoft(
+			const int32 ConstraintIndex,
+			const FReal DeltaConstraint,
+			const FReal Dt,
+			const FReal TargetVel);
+		
+		/** Apply Linear Velocity constraints */
+		
+		void ApplyLinearVelocityConstraints();
+
+		void ApplyPointVelocityConstraint();
+
+		void ApplyAxisVelocityConstraint(
+			const int32 ConstraintIndex);
+
+		void SolveLinearVelocityConstraint(
+			const int32 ConstraintIndex,
+			const FReal TargetVel);
+		
+		/** Init Rotation constraints */
+		
+		void InitRotationConstraints(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+		
+		void CorrectAxisAngleConstraint(
+			const FPBDJointSettings& JointSettings,
+			const int32 ConstraintIndex,
+			FVec3& ConstraintAxis,
+			FReal& ConstraintAngle) const;
+
+		void InitRotationConstraintDatas(
+			const FPBDJointSettings& JointSettings,
+			const int32 ConstraintIndex,
+			const FVec3& ConstraintAxis,
+			const FReal ConstraintAngle,
+			const FReal ConstraintRestitution,
+			const FReal Dt,
+			const bool bCheckLimit);
+		
+		void InitTwistConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt);
+		
+		void InitConeConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt);
+
+		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
+		void InitSingleLockedSwingConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const EJointAngularConstraintIndex SwingConstraintIndex);
+
+		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
+		void InitDualConeSwingConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
+			const EJointAngularConstraintIndex SwingConstraintIndex);
+
+		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
+		void InitSwingConstraint(
+			const FPBDJointSettings& JointSettings,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FReal Dt,
+			const EJointAngularConstraintIndex SwingConstraintIndex);
+
+		void InitLockedRotationConstraints(
+			const FPBDJointSettings& JointSettings,
+			const FReal Dt,
 			const bool bApplyTwist,
 			const bool bApplySwing);
 
-		void ApplyTwistConstraint(
+		/** Apply Rotation constraints */
+
+		void ApplyRotationConstraints(
+			const FReal Dt);
+		
+		void ApplyRotationConstraint(
+			const int32 ConstraintIndex,
+			const FReal Dt);
+
+		void SolveRotationConstraintDelta(
+			const int32 ConstraintIndex, 
+			const FReal DeltaLambda);
+
+		void SolveRotationConstraintHard(
+			const int32 ConstraintIndex,
+			const FReal DeltaConstraint);
+
+		void SolveRotationConstraintSoft(
+			const int32 ConstraintIndex,
+			const FReal DeltaConstraint,
+			const FReal Dt,
+			const FReal TargetVel);
+
+		/** Apply Angular velocity  constraint */
+
+		void ApplyAngularVelocityConstraints();
+
+		void SolveAngularVelocityConstraint(
+			const int32 ConstraintIndex,
+			const FReal TargetVel);
+
+		void ApplyAngularVelocityConstraint(const int32 ConstraintIndex);
+
+		/** Init Position Drives */
+		
+		void InitPositionDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const bool bUseSoftLimit);
+			const FPBDJointSettings& JointSettings);
 
-		void ApplyConeConstraint(
+		void InitAxisPositionDrive(
+            const int32 ConstraintIndex,
+            const FVec3& ConstraintAxis,
+            const FVec3& DeltaPosition,
+            const FVec3& DeltaVelocity,
+            const FReal Dt);
+
+		/** Apply Position Drives */
+		
+		void ApplyPositionDrives(
+			const FReal Dt);
+		
+		void ApplyAxisPositionDrive(
+			const int32 ConstraintIndex,
+			const FReal Dt);
+
+		/** Init Rotation Drives */
+
+		void InitRotationDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const bool bUseSoftLimit);
+			const FPBDJointSettings& JointSettings);
 
-		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
-		void ApplySingleLockedSwingConstraint(
+		void InitRotationConstraintDrive(
+			const int32 ConstraintIndex,
+			const FVec3& ConstraintAxis,
 			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
-		void ApplyDualConeSwingConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
-		void ApplySwingConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		void ApplySwingTwistDrives(
+			const FReal DeltaAngle);
+		
+		void InitSwingTwistDrives(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const bool bTwistDriveEnabled,
 			const bool bSwing1DriveEnabled,
 			const bool bSwing2DriveEnabled);
-
-		void ApplySLerpDrive(
+		
+		void InitSLerpDrive(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-		void ApplyPointPositionConstraintKD(
-			const int32 KIndex,
-			const int32 DIndex,
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPointPositionConstraintDD(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplySphericalPositionConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyCylindricalPositionConstraint(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const EJointMotionType RadialMotion,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPlanarPositionConstraint(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPositionDrive(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FVec3& Axis,
-			const FReal DeltaPos,
-			const FReal DeltaVel);
-
-
-		void ApplyPointProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplySphereProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyTranslateProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyConeProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplySwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplySingleLockedSwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyDoubleLockedSwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyDualConeSwingProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyTwistProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			const bool bPositionLocked,
-			FVec3& NetDP1,
-			FVec3& NetDR1);
-
-		void ApplyVelocityProjection(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const FReal Alpha,
-			const FVec3& DP1,
-			const FVec3& DR1);
-
-		void ApplyLinearVelocityConstraint(
-			const FReal Stiffness,
-			const FVec3& Axis,
-			const FReal IM,
-			const FVec3& Arm0,
-			const FVec3& Arm1,
-			const FVec3& DRAxis0,
-			const FVec3& DRAxis1,
-			const FReal TargetVel = 0);
-
-		void ApplyPointVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPointVelocityConstraint(
-		    const FReal Stiffness,
-		    const FMatrix33& ConstraintIM,
-		    const FVec3& ConstraintArm0,
-		    const FVec3& ConstraintArm1);
-
-		void ApplySphericalVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyCylindricalVelocityConstraint(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const EJointMotionType RadialMotion,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyPlanarVelocityConstraint(
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
-
-		void ApplyTwistVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const bool bUseSoftLimit);
-
-		void ApplyConeVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const bool bUseSoftLimit);
-
-		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
-		void ApplySingleLockedSwingVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
-		void ApplyDualConeSwingVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
-		void ApplySwingVelocityConstraint(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			const bool bUseSoftLimit);
-
-		void ApplyAngularVelocityConstraint(
-			const FReal Stiffness,
-			const FVec3& Axis,
-			const FReal TargetVel = 0.0f);
-
-		void ApplyLockedRotationVelocityConstraints(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const bool bApplyTwist,
-			const bool bApplySwing);
-
+		/** Apply Rotation Drives */
+		
+		void ApplyRotationDrives(
+			const FReal Dt);
+		
+		void ApplyAxisRotationDrive(
+    		const int32 ConstraintIndex,
+    		const FReal Dt);
+		
+		/** Linear / Angular padding */
+		
 		void CalculateLinearConstraintPadding(
+			const int32 ConstraintIndex,
 			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
 			const FReal Restitution,
-			const int32 AxisIndex,
-			const FVec3 Axis,
 			FReal& InOutPos);
 
 		void CalculateAngularConstraintPadding(
-			const FReal Dt,
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
+			const int32 ConstraintIndex,
 			const FReal Restitution,
-			const EJointAngularConstraintIndex ConstraintIndex,
-			const FVec3 Axis,
 			FReal& InOutAngle);
 
 		inline bool HasLinearConstraintPadding(const int32 AxisIndex) const
@@ -674,72 +514,22 @@ namespace Chaos
 		{
 			LinearConstraintPadding[AxisIndex] = Padding;
 		}
-
-
-		inline bool HasAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex) const
+		
+		inline bool HasAngularConstraintPadding(const int32 ConstraintIndex) const
 		{
-			return AngularConstraintPadding[(int32)ConstraintIndex] >= 0.0f;
+			return AngularConstraintPadding[ConstraintIndex] >= 0.0f;
 		}
 
-		inline FReal GetAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex) const
+		inline FReal GetAngularConstraintPadding(const int32 ConstraintIndex) const
 		{
-			return FMath::Max(AngularConstraintPadding[(int32)ConstraintIndex], 0.0f);
+			return FMath::Max(AngularConstraintPadding[ConstraintIndex], 0.0f);
 		}
 
-		inline void SetAngularConstraintPadding(const EJointAngularConstraintIndex ConstraintIndex, FReal Padding)
+		inline void SetAngularConstraintPadding(const int32 ConstraintIndex, FReal Padding)
 		{
-			AngularConstraintPadding[(int32)ConstraintIndex] = Padding;
+			AngularConstraintPadding[ConstraintIndex] = Padding;
 		}
-
-		// Calculate linear velocities along constraint axes based on the constraint type in JointSettings. CV is the relative linear velocity of joint connectors.
-		void CalculateConstraintAxisLinearVelocities(
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisLinearVelocities) const;
-
-		void CalculateSphericalConstraintAxisLinearVelocities(
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisLinearVelocities
-			) const;
-
-		void CalculateCylindricalConstraintAxisLinearVelocities(
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const EJointMotionType RadialMotion,
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisLinearVelocities) const;
-
-		void CalculatePlanarConstraintAxisLinearVelocities(
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisLinearVelocities) const;
-
-		// Calculate angular velocities along constraint axes based on the constraint type in JointSettings. CW is the relative angular velocity of joint connectors.
-		void CalculateConstraintAxisAngularVelocities(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisAngularVelocities
-			) const;
-
-		void CalculateTwistConstraintAxisAngularVelocities(
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisAngularVelocities) const;
-
-		void CalculateConeConstraintAxisAngularVelocities(
-			const FPBDJointSettings& JointSettings,
-			FVec3& ConstraintAxisAngularVelocities) const;
-
-		void CalculateDualConeSwingConstraintAxisAngularVelocities(
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			FVec3& ConstraintAxisAngularVelocities) const;
-
-		void CalculateSwingConstraintAxisAngularVelocities(
-			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings,
-			const EJointAngularConstraintIndex SwingConstraintIndex,
-			FVec3& ConstraintAxisAngularVelocities) const;
-
+		
 		// The cached body state on which the joint operates
 		FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
 
@@ -761,21 +551,7 @@ namespace Chaos
 		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
 		FVec3 NetLinearImpulse;
 		FVec3 NetAngularImpulse;
-
-		// Lagrange multipliers of the position constraints.
-		// Currently these are only used in ApplyCylindricalVelocityConstraints
-		FVec3 LinearHardLambda;
-		// Lagrange multipliers of the rotation constraints
-		// Currently these are used in ApplyAngularVelocityConstraints
-		FVec3 AngularHardLambda;
-
-		// XPBD Accumulators (net impulse for each soft constraint/drive)
-		FReal LinearSoftLambda;
-		FReal TwistSoftLambda;
-		FReal SwingSoftLambda;
-		FVec3 LinearDriveLambdas;
-		FVec3 RotationDriveLambdas;
-
+		
 		// Solver stiffness - increased over iterations for stability
 		// \todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
 		FReal SolverStiffness;
@@ -789,27 +565,33 @@ namespace Chaos
 		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
 
 		// Tracking whether the solver is resolved
-		FVec3 LastPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
-		FRotation3 LastQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
+		FVec3 LastDPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
+		FVec3 LastDQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
+		FVec3 CurrentPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
+		FRotation3 CurrentQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
 		FVec3 InitConstraintAxisLinearVelocities; // Linear velocities along the constraint axes at the begining of the frame, used by restitution
 		FVec3 InitConstraintAxisAngularVelocities; // Angular velocities along the constraint axes at the begining of the frame, used by restitution
 		int32 NumActiveConstraints;					// The number of active constraints and drives in the last iteration (-1 initial value)
 		bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
+		
+		FPointConstraintDatas PointConstraints;
+		
+		FAxisConstraintDatas PositionConstraints;
+		FAxisConstraintDatas RotationConstraints;
 
-		// Caching data
-		FReal LinearStiffness, LinearDamping;
-		FReal AngularStiffness, AngularDamping;
-		FVec3 ConstraintArms[3][2];
-		FMatrix33 PointPositionConstraintIM;
-		FReal PositionConstraintIM[2];
-		FVec3 PositionConstraintAxis[2];
-		FVec3 PositionConstraintDRAxis[2][2]; // Cache for InvI * cross(Arm, Axis)
-		bool bLinearAccelerationMode;
+		FAxisConstraintDatas PositionDrives;
+		FAxisConstraintDatas RotationDrives;
 
 		// dummy indices
 		static constexpr int32 PointPositionConstraintIndex = 0;
 		static constexpr int32 SphericalPositionConstraintIndex = 0;
 		static constexpr int32 PlanarPositionConstraintIndex = 0;
+
+	private :
+		/** Compute the body and connector state
+		 * @param BodyIndex Index of the body (0,1) on which the state will be updated
+		 */
+		void ComputeBodyState(const int32 BodyIndex);
 	};
 
 }
