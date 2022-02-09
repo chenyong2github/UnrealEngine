@@ -31,6 +31,15 @@
 #include "VirtualShadowMaps/TransmissionCommon.ush"
 
 #if STRATA_ENABLED
+  #if STRATA_TILETYPE == 0
+	#define STRATA_FASTPATH 1
+  #elif STRATA_TILETYPE == 1
+	#define STRATA_SINGLEPATH 1
+  #elif STRATA_TILETYPE == 2
+  // COMPLEX PATH
+  #else
+	#error Strata tile type non-implemented
+  #endif
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataDeferredLighting.ush"
 #endif
@@ -412,12 +421,12 @@ float4 GetLightGridLocalLighting(
 
 #if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
 void ClusteredShadingPixelShader(
-	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	float2 ScreenUV : TEXCOORD0,
+	float3 ScreenVector : TEXCOORD1,
 	in float4 SvPosition : SV_Position,
 	out float4 OutColor : SV_Target0)
 {
 	uint2 PixelPos = SvPosition.xy;
-	float2 ScreenUV = UVAndScreenPos.xy;
 
 	const float Dither = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 	const uint EyeIndex = 0;
@@ -440,7 +449,7 @@ void ClusteredShadingPixelShader(
 	BRANCH
 	if (StrataPixelHeader.BSDFCount > 0 || CulledLightGridData.NumLocalLights == 0)
 	{
-		const float2 ScreenPosition = UVAndScreenPos.zw;
+		const float2 ScreenPosition = ViewportUVToScreenPos(ScreenUV);
 		const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 		const float3 CameraVector = normalize(TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 		uint FirstNonSimpleLightIndex = 0;
