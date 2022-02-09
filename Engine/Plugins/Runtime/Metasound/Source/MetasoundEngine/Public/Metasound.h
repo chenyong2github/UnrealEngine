@@ -65,7 +65,6 @@ namespace Metasound
 		// it to register.
 		FMetaSoundAssetRegistrationOptions NonEditorRegistrationOptions;
 		NonEditorRegistrationOptions.bForceReregister = false;
-		NonEditorRegistrationOptions.bRegisterDependencies = true;
 
 #if WITH_EDITORONLY_DATA
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))

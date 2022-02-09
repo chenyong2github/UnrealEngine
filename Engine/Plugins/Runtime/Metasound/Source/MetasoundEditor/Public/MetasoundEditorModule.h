@@ -26,6 +26,25 @@ namespace Metasound
 	{
 		using FDataTypeRegistryInfo = Frontend::FDataTypeRegistryInfo;
 
+		// Status of initial asset scan when editor loads up.
+		enum class EAssetScanStatus : uint8
+		{
+			NotRequested = 0,
+			InProgress = 2,
+			Complete = 3
+		};
+
+		// Primes status of MetaSound assets.  Priming an asset
+		// effectively loading the asset asynchronously (if not already loaded)
+		// & registers it with the MetaSound Class Registry.
+		enum class EAssetPrimeStatus : uint8
+		{
+			NotRequested = 0,
+			Requested = 1,
+			InProgress = 2,
+			Complete = 3
+		};
+
 		struct FEditorDataType
 		{
 			FEdGraphPinType PinType;
@@ -81,6 +100,11 @@ namespace Metasound
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const = 0;
 
 			virtual bool IsRegisteredDataType(FName InDataTypeName) const = 0;
+
+			// Primes MetaSound assets, effectively loading the asset asynchronously (if not already
+			// loaded) & registers them if not already registered with the MetaSound Class Registry.
+			virtual void PrimeAssetRegistryAsync() = 0;
+			virtual EAssetPrimeStatus GetAssetRegistryPrimeStatus() const = 0;
 
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 

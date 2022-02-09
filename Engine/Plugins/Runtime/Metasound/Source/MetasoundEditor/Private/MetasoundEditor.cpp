@@ -432,7 +432,14 @@ namespace Metasound
 
 			check(ObjectToEdit);
 			checkf(IMetasoundUObjectRegistry::Get().IsRegisteredClass(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound interface!"));
-			
+
+			IMetasoundEditorModule& MetaSoundEditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+			bPrimingRegistry = MetaSoundEditorModule.GetAssetRegistryPrimeStatus() <= EAssetPrimeStatus::InProgress;
+			if (MetaSoundEditorModule.GetAssetRegistryPrimeStatus() < EAssetPrimeStatus::InProgress)
+			{
+				MetaSoundEditorModule.PrimeAssetRegistryAsync();
+			}
+
 			// Support undo/redo
 			Metasound = ObjectToEdit;
 			Metasound->SetFlags(RF_Transactional);
@@ -449,6 +456,12 @@ namespace Metasound
 			BindGraphCommands();
 			CreateInternalWidgets();
 			CreateAnalyzers();
+
+			// Has to be run after widgets are initialized to properly display
+			if (bPrimingRegistry)
+			{
+				NotifyAssetPrimeInProgress();
+			}
 
 			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v9")
 				->AddArea
@@ -567,6 +580,36 @@ namespace Metasound
 			MetasoundAsset->SetSynchronizationRequired();
 
 			FSlateApplication::Get().DismissAllMenus();
+		}
+
+		void FEditor::NotifyAssetPrimeInProgress()
+		{
+			if (MetasoundGraphEditor.IsValid())
+			{
+				FNotificationInfo Info(LOCTEXT("MetaSoundScanInProgressNotificationText", "Registering MetaSound Assets..."));
+				Info.SubText = LOCTEXT("MetaSoundScanInProgressNotificationSubText", "Class selector results may be incomplete");
+				Info.bUseThrobber = true;
+				Info.bFireAndForget = true;
+				Info.bUseSuccessFailIcons = false;
+				Info.ExpireDuration = 3.0f;
+				Info.FadeOutDuration = 1.0f;
+
+				MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
+			}
+		}
+
+		void FEditor::NotifyAssetPrimeComplete()
+		{
+			if (MetasoundGraphEditor.IsValid())
+			{
+				FNotificationInfo Info(LOCTEXT("MetaSoundScanInProgressNotification", "MetaSound Asset Registration Complete"));
+				Info.bFireAndForget = true;
+				Info.bUseSuccessFailIcons = true;
+				Info.ExpireDuration = 3.0f;
+				Info.FadeOutDuration = 1.0f;
+
+				MetasoundGraphEditor->AddNotification(Info, true /* bSuccess */);
+			}
 		}
 
 		void FEditor::NotifyDocumentVersioned()
@@ -2360,6 +2403,16 @@ namespace Metasound
 
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
+
+			if (bPrimingRegistry)
+			{
+				IMetasoundEditorModule& MetaSoundEditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+				if (MetaSoundEditorModule.GetAssetRegistryPrimeStatus() == EAssetPrimeStatus::Complete)
+				{
+					bPrimingRegistry = false;
+					NotifyAssetPrimeComplete();
+				}
+			}
 
 			if (MetasoundAsset->GetSynchronizationRequired())
 			{

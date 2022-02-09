@@ -415,7 +415,6 @@ void UMetaSoundSource::InitResources()
 
 	FMetaSoundAssetRegistrationOptions RegOptions;
 	RegOptions.bForceReregister = false;
-	RegOptions.bRegisterDependencies = true;
 	RegisterGraphWithFrontend(RegOptions);
 }
 

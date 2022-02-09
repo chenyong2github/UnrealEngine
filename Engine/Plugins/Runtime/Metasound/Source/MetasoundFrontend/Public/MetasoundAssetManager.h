@@ -39,8 +39,10 @@ namespace Metasound
 			// If true, forces flag to resync all view (editor) data pertaining to the given asset(s) being registered.
 			bool bForceViewSynchronization = true;
 
-			// If true, recursively attempts to register dependencies.
-			bool bRegisterDependencies = false;
+			// If true, recursively attempts to register dependencies. (TODO: Determine if this option should be removed.
+			// Must validate that failed dependency updates due to auto-update for ex. being disabled is handled gracefully
+			// at runtime.)
+			bool bRegisterDependencies = true;
 
 			// Attempt to auto-update (Only runs if class not registered or set to force re-register.
 			// Will not respect being set to true if project-level MetaSoundSettings specify to not run auto-update.)
@@ -83,7 +85,7 @@ namespace Metasound
 			virtual void AddAssetReferences(FMetasoundAssetBase& InAssetBase) = 0;
 
 			// Add or Update a MetaSound Asset's entry data
-			virtual void AddOrUpdateAsset(UObject& InObject) = 0;
+			virtual Metasound::Frontend::FNodeRegistryKey AddOrUpdateAsset(const UObject& InObject) = 0;
 
 			// Whether or not the class is eligible for auto-update
 			virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;

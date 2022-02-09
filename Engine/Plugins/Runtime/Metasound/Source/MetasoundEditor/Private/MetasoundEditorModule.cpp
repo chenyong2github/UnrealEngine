@@ -162,42 +162,101 @@ namespace Metasound
 
 		class FModule : public IMetasoundEditorModule
 		{
-			void AddOrUpdateClassRegistryAsset(const FAssetData& InAssetData)
+			void LoadAndRegisterAsset(const FAssetData& InAssetData)
 			{
-				using namespace Metasound::Frontend;
-
-				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				if (InAssetData.IsAssetLoaded())
 				{
-					// in case they need to be 
-					check(GEngine);
-					UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
-					check(AssetSubsystem);
+					if (UObject* AssetObject = InAssetData.GetAsset())
+					{
+						FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(AssetObject);
+						check(MetaSoundAsset);
+						Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
+						RegOptions.bForceReregister = false;
+						MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
+					}
+				}
+				else
+				{
+					if (!MetaSoundEditorAsyncRegistrationEnabledCVar)
+					{
+						return;
+					}
 
-					// Use the editor version of `RegisterGraphWithFrontend` so it re-registers any open MetaSound editors
-					AssetSubsystem->AddOrUpdateAsset(InAssetData);
-					
-					// Loading all assets necessary only in editor to register &
-					// populate potential graphs to reference in MetaSound editor.
-					if (InAssetData.IsAssetLoaded())
+					if (AssetPrimeStatus == EAssetPrimeStatus::NotRequested)
 					{
-						if (UObject* AssetObject = InAssetData.GetAsset())
+						return;
+					}
+
+					ActiveAsyncAssetLoadRequests++;
+
+					FSoftObjectPath AssetPath = InAssetData.ToSoftObjectPath();
+					auto LoadAndRegister = [this, ObjectPath = AssetPath](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+					{
+						if (Result == EAsyncLoadingResult::Succeeded)
 						{
-							FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
-						}
-					}
-					else if (MetaSoundEditorAsyncRegistrationEnabledCVar)
-					{
-						FSoftObjectPath Path = InAssetData.ToSoftObjectPath();
-						LoadPackageAsync(Path.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateLambda(
-							[this, ObjectPath = MoveTemp(Path)](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+							FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(ObjectPath.ResolveObject());
+							check(MetaSoundAsset);
+							if (!MetaSoundAsset->IsRegistered())
 							{
-								if (Result == EAsyncLoadingResult::Succeeded)
-								{
-									FGraphBuilder::RegisterGraphWithFrontend(*ObjectPath.ResolveObject());
-								}
+								Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
+								RegOptions.bForceReregister = false;
+								MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 							}
-						));
-					}
+						}
+
+						ActiveAsyncAssetLoadRequests--;
+						if (AssetPrimeStatus == EAssetPrimeStatus::InProgress && ActiveAsyncAssetLoadRequests == 0)
+						{
+							AssetPrimeStatus = EAssetPrimeStatus::Complete;
+						}
+					};
+					LoadPackageAsync(AssetPath.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateLambda(LoadAndRegister));
+				}
+			}
+
+			void AddClassRegistryAsset(const FAssetData& InAssetData)
+			{
+				using namespace Frontend;
+
+				if (!IsMetaSoundAssetClass(InAssetData.AssetClass))
+				{
+					return;
+				}
+
+				check(GEngine);
+				UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
+				check(AssetSubsystem);
+
+				const FNodeRegistryKey RegistryKey = AssetSubsystem->AddOrUpdateAsset(InAssetData);
+				const bool bPrimeRequested = AssetPrimeStatus > EAssetPrimeStatus::NotRequested;
+				const bool bIsRegistered = FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey);
+				if (bPrimeRequested && !bIsRegistered)
+				{
+					LoadAndRegisterAsset(InAssetData);
+				}
+			}
+
+			void UpdateClassRegistryAsset(const FAssetData& InAssetData)
+			{
+				using namespace Frontend;
+
+				if (!IsMetaSoundAssetClass(InAssetData.AssetClass))
+				{
+					return;
+				}
+
+				check(GEngine);
+				UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
+				check(AssetSubsystem);
+
+				const FNodeRegistryKey RegistryKey = AssetSubsystem->AddOrUpdateAsset(InAssetData);
+				const bool bPrimeRequested = AssetPrimeStatus > EAssetPrimeStatus::NotRequested;
+				const bool bIsRegistered = FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey);
+
+				// Have to re-register even if prime was not requested to avoid registry desync.
+				if (bPrimeRequested || bIsRegistered)
+				{
+					LoadAndRegisterAsset(InAssetData);
 				}
 			}
 
@@ -250,13 +309,16 @@ namespace Metasound
 
 			void OnAssetScanFinished()
 			{
-				FARFilter Filter;
-				Filter.ClassNames = MetaSoundClassNames;
+				AssetScanStatus = EAssetScanStatus::Complete;
+
+				if (AssetPrimeStatus == EAssetPrimeStatus::Requested)
+				{
+					PrimeAssetRegistryAsync();
+				}
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData) { AddOrUpdateClassRegistryAsset(AssetData); return true; });
-				AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
-				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
+				AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddClassRegistryAsset);
+				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::UpdateClassRegistryAsset);
 				AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FModule::RemoveAssetFromClassRegistry);
 				AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FModule::RenameAssetInClassRegistry);
 
@@ -466,6 +528,36 @@ namespace Metasound
 				}
 			}
 
+			virtual void PrimeAssetRegistryAsync() override
+			{
+				// Ignore step if still loading assets from initial scan but set prime status as requested.
+				if (AssetScanStatus <= EAssetScanStatus::InProgress)
+				{
+					AssetPrimeStatus = EAssetPrimeStatus::Requested;
+					return;
+				}
+
+				if (AssetPrimeStatus != EAssetPrimeStatus::InProgress)
+				{
+					AssetPrimeStatus = EAssetPrimeStatus::InProgress;
+
+					FARFilter Filter;
+					Filter.ClassNames = MetaSoundClassNames;
+
+					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+					AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData)
+					{
+						AddClassRegistryAsset(AssetData);
+						return true;
+					});
+				}
+			}
+
+			virtual EAssetPrimeStatus GetAssetRegistryPrimeStatus() const override
+			{
+				return AssetPrimeStatus;
+			}
+
 			virtual void RegisterExplicitProxyClass(const UClass& InClass) override
 			{
 				using namespace Metasound::Frontend;
@@ -602,7 +694,15 @@ namespace Metasound
 				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FModule::OnAssetScanFinished);
+				if (AssetRegistryModule.Get().IsLoadingAssets())
+				{
+					AssetScanStatus = EAssetScanStatus::InProgress;
+					AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FModule::OnAssetScanFinished);
+				}
+				else
+				{
+					AssetScanStatus = EAssetScanStatus::Complete;
+				}
 
 				RegisterExplicitProxyClass(*USoundWave::StaticClass());
 			}
@@ -661,6 +761,10 @@ namespace Metasound
 			TSharedPtr<FSlateStyleSet> StyleSet;
 
 			TSet<const UClass*> ExplicitProxyClasses;
+
+			EAssetPrimeStatus AssetPrimeStatus = EAssetPrimeStatus::NotRequested;
+			EAssetScanStatus AssetScanStatus = EAssetScanStatus::NotRequested;
+			int32 ActiveAsyncAssetLoadRequests = 0;
 		};
 	} // namespace Editor
 } // namespace Metasound

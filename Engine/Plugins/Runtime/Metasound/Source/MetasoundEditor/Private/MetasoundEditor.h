@@ -301,6 +301,8 @@ namespace Metasound
 
 			void EditObjectSettings();
 
+			void NotifyAssetPrimeComplete();
+			void NotifyAssetPrimeInProgress();
 			void NotifyDocumentVersioned();
 			void NotifyNodePasteFailure_MultipleVariableSetters();
 			void NotifyNodePasteFailure_ReferenceLoop();
@@ -346,6 +348,9 @@ namespace Metasound
 			/** Boolean state for when selection change handle should not respond due to selection state
 			  * being manually applied in code */
 			bool bManuallyClearingGraphSelection = false;
+
+			/** Whether or not registry is currently being primed due to assets still loading */
+			bool bPrimingRegistry = false;
 		};
 	} // namespace Editor
 } // namespace Metasound

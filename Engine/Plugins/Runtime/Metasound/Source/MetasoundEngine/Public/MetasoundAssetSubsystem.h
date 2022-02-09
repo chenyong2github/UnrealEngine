@@ -34,13 +34,13 @@ class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem, pu
 public:
 	virtual void Initialize(FSubsystemCollectionBase& InCollection) override;
 
-	void AddOrUpdateAsset(const FAssetData& InAssetData);
-	void RemoveAsset(UObject& InObject);
+	Metasound::Frontend::FNodeRegistryKey AddOrUpdateAsset(const FAssetData& InAssetData);
+	void RemoveAsset(const UObject& InObject);
 	void RemoveAsset(const FAssetData& InAssetData);
 	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
 
 	virtual void AddAssetReferences(FMetasoundAssetBase& InAssetBase) override;
-	virtual void AddOrUpdateAsset(UObject& InObject) override;
+	virtual Metasound::Frontend::FNodeRegistryKey  AddOrUpdateAsset(const UObject& InObject) override;
 	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const override;
 	virtual bool ContainsKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const override;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
