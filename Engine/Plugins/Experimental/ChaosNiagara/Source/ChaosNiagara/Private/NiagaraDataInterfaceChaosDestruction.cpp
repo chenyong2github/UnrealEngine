@@ -750,10 +750,80 @@ void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::F
 			AllCollisionsArray[Idx].SurfaceType);
 		*/
 
+		UPhysicalMaterial* PhysicalMaterial = nullptr;
+		int32 MaterialID = 0;
+
+		UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
+		UMaterialInterface* Material = nullptr;
+#if INCLUDE_CHAOS
+		for (auto& Solver : Solvers)
+		{
+			if (Solver.PhysScene)
+			{
+				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy1);
+				if (GeometryCollectionComponent)
+					break;
+			}
+		}
+
+		if (GeometryCollectionComponent)
+		{
+			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
+		}
+#endif
+		if (Material)
+		{
+			PhysicalMaterial = Material->GetPhysicalMaterial();
+			ensure(PhysicalMaterial);
+			if (PhysicalMaterial)
+			{
+				CopyData.SurfaceType1 = PhysicalMaterial->SurfaceType;
+			}
+		}
+
+		if (PhysicalMaterial)
+		{
+			CopyData.PhysicalMaterialName1 = PhysicalMaterial->GetFName();
+		}
+		else
+		{
+			CopyData.PhysicalMaterialName1 = FName();
+		}
+
+#if INCLUDE_CHAOS
+		for (auto& Solver : Solvers)
+		{
+			GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy2);
+			if (GeometryCollectionComponent)
+				break;
+		}
+		if (GeometryCollectionComponent)
+		{
+			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
+		}
+#endif
+		if (Material)
+		{
+			PhysicalMaterial = Material->GetPhysicalMaterial();
+			ensure(PhysicalMaterial);
+			if (PhysicalMaterial)
+			{
+				CopyData.SurfaceType2 = PhysicalMaterial->SurfaceType;
+			}
+		}
+
+		if (PhysicalMaterial)
+		{
+			CopyData.PhysicalMaterialName2 = PhysicalMaterial->GetFName();
+		}
+		else
+		{
+			CopyData.PhysicalMaterialName2 = FName();
+		}
+		
 		CopyData.BoundingboxVolume = 1000000.f;
 		CopyData.BoundingboxExtentMin = 100.f;
 		CopyData.BoundingboxExtentMax = 100.f;
-		CopyData.SurfaceType = 0;
 
 		Idx++;
 	}
@@ -765,6 +835,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllCollisions(TArray<Chaos::FC
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FilterAllCollisions);
 
 	if (/*ParticleToProcess != nullptr ||*/
+		bApplyMaterialsFilter ||
 		ImpulseToSpawnMinMax.X > 0.f ||
 		ImpulseToSpawnMinMax.Y > 0.f ||
 		SpeedToSpawnMinMax.X > 0.f ||
@@ -794,12 +865,36 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllCollisions(TArray<Chaos::FC
 		float MinSpeedToSpawnSquared = SpeedToSpawnMinMax.X * SpeedToSpawnMinMax.X;
 		float MaxSpeedToSpawnSquared = SpeedToSpawnMinMax.Y * SpeedToSpawnMinMax.Y;
 
+		auto IsMaterialInFilter = [&](const FName& InMaterialName)
+		{
+			if (!InMaterialName.IsValid())
+			{
+				return false;
+			}
+
+			for (const UPhysicalMaterial* Material : ChaosBreakingMaterialSet)
+			{
+				if (!Material)
+				{
+					continue;
+				}
+
+				if (Material->GetFName() == InMaterialName)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		};
+
 		for (int32 IdxCollision = 0; IdxCollision < AllCollisionsArray.Num(); ++IdxCollision)
 		{
 			float CollisionAccumulatedImpulseSquared = AllCollisionsArray[IdxCollision].AccumulatedImpulse.SizeSquared();
 			float CollisionSpeedSquared = AllCollisionsArray[IdxCollision].Velocity1.SizeSquared();
 
 			if (/*(ParticleToProcess != nullptr && AllCollisionsArrayInOut[IdxCollision].Particle != ParticleToProcess) ||*/
+				!(bApplyMaterialsFilter && (IsMaterialInFilter(AllCollisionsArray[IdxCollision].PhysicalMaterialName1) || IsMaterialInFilter(AllCollisionsArray[IdxCollision].PhysicalMaterialName2))) ||
 				(ImpulseToSpawnMinMax.X > 0.f && ImpulseToSpawnMinMax.Y < 0.f && CollisionAccumulatedImpulseSquared < MinImpulseToSpawnSquared) ||
 				(ImpulseToSpawnMinMax.X < 0.f && ImpulseToSpawnMinMax.Y > 0.f && CollisionAccumulatedImpulseSquared > MaxImpulseToSpawnSquared) ||
 				(ImpulseToSpawnMinMax.X > 0.f && ImpulseToSpawnMinMax.Y > 0.f && (CollisionAccumulatedImpulseSquared < MinImpulseToSpawnSquared || CollisionAccumulatedImpulseSquared > MaxImpulseToSpawnSquared)) ||
@@ -821,7 +916,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllCollisions(TArray<Chaos::FC
 				(SolverTimeToSpawnMinMax.X > 0.f && SolverTimeToSpawnMinMax.Y < 0.f && SolverTime < SolverTimeToSpawnMinMax.X) ||
 				(SolverTimeToSpawnMinMax.X < 0.f && SolverTimeToSpawnMinMax.Y > 0.f && SolverTime > SolverTimeToSpawnMinMax.Y) ||
 				(SolverTimeToSpawnMinMax.X > 0.f && SolverTimeToSpawnMinMax.Y > 0.f && (SolverTime < SolverTimeToSpawnMinMax.X || SolverTime > SolverTimeToSpawnMinMax.Y)) ||
-				(SurfaceTypeToSpawn != -1 && AllCollisionsArray[IdxCollision].SurfaceType != SurfaceTypeToSpawn) ||
+				(SurfaceTypeToSpawn != -1 && AllCollisionsArray[IdxCollision].SurfaceType1 != SurfaceTypeToSpawn && AllCollisionsArray[IdxCollision].SurfaceType2 != SurfaceTypeToSpawn) ||
 				(LocationFilteringMode == ELocationFilteringModeEnum::ChaosNiagara_LocationFilteringMode_Inclusive && LocationXToSpawn == ELocationXToSpawnEnum::ChaosNiagara_LocationXToSpawn_Min && AllCollisionsArray[IdxCollision].Location.X <= LocationXToSpawnMinMax.X) ||
 				(LocationFilteringMode == ELocationFilteringModeEnum::ChaosNiagara_LocationFilteringMode_Inclusive && LocationXToSpawn == ELocationXToSpawnEnum::ChaosNiagara_LocationXToSpawn_Max && AllCollisionsArray[IdxCollision].Location.X >= LocationXToSpawnMinMax.Y) ||
 				(LocationFilteringMode == ELocationFilteringModeEnum::ChaosNiagara_LocationFilteringMode_Inclusive && LocationXToSpawn == ELocationXToSpawnEnum::ChaosNiagara_LocationXToSpawn_MinMax && (AllCollisionsArray[IdxCollision].Location.X <= LocationXToSpawnMinMax.X || AllCollisionsArray[IdxCollision].Location.X >= LocationXToSpawnMinMax.Y)) ||
@@ -1203,7 +1298,7 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 						// jf: optimization: presize these arrays?
 						for (int32 Idx = 0; Idx < NumParticlesSpawned; ++Idx)
 						{
-							InstData->SurfaceTypeArray.Add(CollisionsToSpawnArray[IdxCollision].SurfaceType);
+							InstData->SurfaceTypeArray.Add(CollisionsToSpawnArray[IdxCollision].SurfaceType1);
 							InstData->ColorArray.Add(Color);
 							InstData->FrictionArray.Add(Friction);
 							InstData->RestitutionArray.Add(Restitution);
@@ -1265,9 +1360,12 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 #if INCLUDE_CHAOS
 			for (auto& Solver : Solvers)
 			{
-				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy);
-				if (GeometryCollectionComponent)
-					break;
+				if (Solver.PhysScene)
+				{
+					GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy);
+					if (GeometryCollectionComponent)
+						break;
+				}
 			}
 			if (GeometryCollectionComponent)
 			{
@@ -1284,9 +1382,9 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 				}
 			}
 
-			if (Material)
+			if (PhysicalMaterial)
 			{
-				CopyData.PhysicalMaterialName = Material->GetFName();
+				CopyData.PhysicalMaterialName = PhysicalMaterial->GetFName();
 			}
 			else
 			{

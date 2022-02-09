@@ -95,13 +95,14 @@ namespace Chaos
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
-			, SurfaceType(-1)
+			, SurfaceType1(-1)
+			, SurfaceType2(-1)
 		{}
 
 		FCollidingDataExt(
 		    FVec3 InLocation, FVec3 InAccumulatedImpulse, FVec3 InNormal, FVec3 InVelocity1, FVec3 InVelocity2
 			, FVec3 InAngularVelocity1, FVec3 InAngularVelocity2, FReal InMass1, FReal InMass2 //, FGeometryParticleHandle* InParticle, FGeometryParticleHandle* InLevelset
-			, FReal InBoundingboxVolume, FReal InBoundingboxExtentMin, FReal InBoundingboxExtentMax, int32 InSurfaceType)
+			, FReal InBoundingboxVolume, FReal InBoundingboxExtentMin, FReal InBoundingboxExtentMax, int32 InSurfaceType1, int32 InSurfaceType2)
 			: Location(InLocation)
 			, AccumulatedImpulse(InAccumulatedImpulse)
 			, Normal(InNormal)
@@ -114,7 +115,8 @@ namespace Chaos
 			, BoundingboxVolume(InBoundingboxVolume)
 			, BoundingboxExtentMin(InBoundingboxExtentMin)
 			, BoundingboxExtentMax(InBoundingboxExtentMax)
-			, SurfaceType(InSurfaceType)
+			, SurfaceType1(InSurfaceType1)
+			, SurfaceType2(InSurfaceType2)
 		{}
 
 		FCollidingDataExt(const FCollidingData& InCollisionData)
@@ -130,7 +132,8 @@ namespace Chaos
 			, BoundingboxVolume((FReal)-1.0)
 			, BoundingboxExtentMin((FReal)-1.0)
 			, BoundingboxExtentMax((FReal)-1.0)
-			, SurfaceType(-1)
+			, SurfaceType1(-1)
+			, SurfaceType2(-1)
 		{
 		}
 
@@ -142,7 +145,8 @@ namespace Chaos
 		FReal Mass1, Mass2;
 		FReal BoundingboxVolume;
 		FReal BoundingboxExtentMin, BoundingboxExtentMax;
-		int32 SurfaceType;
+		int32 SurfaceType1, SurfaceType2;
+		FName PhysicalMaterialName1, PhysicalMaterialName2;
 	};
 
 	/*

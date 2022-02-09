@@ -478,7 +478,7 @@ public:
 	bool bApplyMaterialsFilter;
 
 	/* TODO: Explanatory comment */
-	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Breaking Filtered Materials", EditCondition = bApplyMaterialsFilter))
+	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Collision/Breaking Filtered Materials", EditCondition = bApplyMaterialsFilter))
 	TSet<TObjectPtr<UPhysicalMaterial>> ChaosBreakingMaterialSet;
 
 	/* TODO: Explanatory comment */
