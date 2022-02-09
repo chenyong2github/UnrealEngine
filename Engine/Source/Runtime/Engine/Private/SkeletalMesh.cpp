@@ -79,6 +79,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
 #include "Engine/RendererSettings.h"
+#include "UnrealEngine.h"
 
 #endif // #if WITH_EDITOR
 
