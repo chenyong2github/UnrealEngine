@@ -127,11 +127,9 @@ inline void UpdateSleepState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Par
 					//	  which doesn't match what the velocity is telling us
 					// This causes problems for the solver - essentially we have an "initial overlap" situation.
 					// @todo(chaos): We could just run (partial) integrate here for this particle, but we don't know about the Evolution - fix this
-					const FRigidTransform3 ParticleWorldTransform = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(IslandParticle));
 					for (const TUniquePtr<FPerShapeData>& Shape : IslandParticle->ShapesArray())
 					{
-						const FRigidTransform3 ShapeWorldTransform = (FRigidTransform3)Shape->GetLeafRelativeTransform() * ParticleWorldTransform;
-						Shape->SetLeafWorldTransform(ShapeWorldTransform);
+						Shape->UpdateLeafWorldTransform(IslandParticle);
 					}
 
 					bNeedRebuild = true;

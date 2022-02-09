@@ -26,6 +26,7 @@ public:
 	void Reset() { Ptr = nullptr; }
 	bool operator!() const { return Ptr == nullptr; }
 	bool operator==(const TSerializablePtr<T>& Serializable) const { return Ptr == Serializable.Ptr; }
+	bool operator!=(const TSerializablePtr<T>& Serializable) const { return Ptr != Serializable.Ptr; }
 	operator bool() const { return Ptr != nullptr; }
 
 	template <typename R>
