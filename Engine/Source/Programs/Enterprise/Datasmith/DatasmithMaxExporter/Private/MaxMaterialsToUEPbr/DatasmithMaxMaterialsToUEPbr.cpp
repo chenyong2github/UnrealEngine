@@ -86,15 +86,16 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxMentalMaterialToUEPbr PhysicalConverter = FDatasmithMaxMentalMaterialToUEPbr();
 		MaterialConverter = &PhysicalConverter;
 	}
+	else if (MaterialClassID == XREFMATCLASS)
+	{
+		MaterialConverter = GetMaterialConverter(FDatasmithMaxMatHelper::GetRenderedXRefMaterial(Material));
+	}
 
 	if ( MaterialConverter && MaterialConverter->IsSupported( Material ) )
 	{
 		return MaterialConverter;
 	}
-	else
-	{
-		return nullptr;
-	}
+	return nullptr;
 }
 
 FDatasmithMaxMaterialsToUEPbr::FDatasmithMaxMaterialsToUEPbr()

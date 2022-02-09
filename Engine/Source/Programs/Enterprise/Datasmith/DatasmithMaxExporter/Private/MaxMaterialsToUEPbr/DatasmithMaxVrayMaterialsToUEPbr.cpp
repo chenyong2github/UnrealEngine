@@ -920,12 +920,7 @@ bool FDatasmithMaxVRay2SidedMaterialsToUEPbr::IsSupported( Mtl* Material )
 
 	DatasmithMaxVRayMaterialsToUEPbrImpl::FMaxVRay2SidedMaterial VRay2SidedMaterialProperties = DatasmithMaxVRayMaterialsToUEPbrImpl::ParseVRay2SidedMaterialProperties( *Material );
 
-	if ( FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( VRay2SidedMaterialProperties.FrontMaterial ) )
-	{
-		return MaterialConverter->IsSupported( VRay2SidedMaterialProperties.FrontMaterial );
-	}
-
-	return false;
+	return FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( VRay2SidedMaterialProperties.FrontMaterial ) != nullptr;
 }
 
 void FDatasmithMaxVRay2SidedMaterialsToUEPbr::Convert( TSharedRef<IDatasmithScene> DatasmithScene, TSharedPtr<IDatasmithBaseMaterialElement>& MaterialElement, Mtl* Material, const TCHAR* AssetsPath )
@@ -965,13 +960,7 @@ bool FDatasmithMaxVRayWrapperMaterialsToUEPbr::IsSupported( Mtl* Material )
 	}
 
 	DatasmithMaxVRayMaterialsToUEPbrImpl::FMaxVRayWrapperMaterial VRayWrapperMaterialProperties = DatasmithMaxVRayMaterialsToUEPbrImpl::ParseVRayWrapperMaterialProperties( *Material );
-
-	if ( FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( VRayWrapperMaterialProperties.BaseMaterial ) )
-	{
-		return MaterialConverter->IsSupported( VRayWrapperMaterialProperties.BaseMaterial );
-	}
-
-	return false;
+	return FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( VRayWrapperMaterialProperties.BaseMaterial ) != nullptr;
 }
 
 void FDatasmithMaxVRayWrapperMaterialsToUEPbr::Convert( TSharedRef<IDatasmithScene> DatasmithScene, TSharedPtr<IDatasmithBaseMaterialElement>& MaterialElement, Mtl* Material, const TCHAR* AssetsPath )
@@ -1012,11 +1001,7 @@ bool FDatasmithMaxVRayBlendMaterialToUEPbr::IsSupported( Mtl* Material )
 	if (VRayBlendMaterialProperties.BaseMaterial)
 	{
 		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(VRayBlendMaterialProperties.BaseMaterial);
-		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported(VRayBlendMaterialProperties.BaseMaterial);
-	}
-	else
-	{
-		return false;
+		bAllMaterialsSupported &= MaterialConverter != nullptr;
 	}
 
 	for (int CoatIndex = 0; bAllMaterialsSupported && CoatIndex < FMaxVRayBlendMaterial::MaximumNumberOfCoat; ++CoatIndex)
@@ -1027,7 +1012,7 @@ bool FDatasmithMaxVRayBlendMaterialToUEPbr::IsSupported( Mtl* Material )
 		{
 			//Only support if all the blended materials are UEPbr materials.
 			FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(CoatedMaterial.Material);
-			bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported(CoatedMaterial.Material);
+			bAllMaterialsSupported &= MaterialConverter != nullptr;
 		}
 	}
 
@@ -1046,51 +1031,72 @@ void FDatasmithMaxVRayBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScene>
 
 	FMaxVRayBlendMaterial VRayBlendMaterialProperties = ParseVRayBlendMaterialProperties( *Material );
 
+	IDatasmithMaterialExpression* PreviousExpression = nullptr;
+
 	//Exporting the base material.
-	IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
-	if (TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, VRayBlendMaterialProperties.BaseMaterial, AssetsPath))
+	if (VRayBlendMaterialProperties.BaseMaterial) 
 	{
-		BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
+		IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+		if (TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, VRayBlendMaterialProperties.BaseMaterial, AssetsPath))
+		{
+			BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
+		}
+		PreviousExpression = BaseMaterialFunctionCall;
 	}
 
 	//Exporting the blended materials.
-	IDatasmithMaterialExpression* PreviousExpression = BaseMaterialFunctionCall;
 	for (int CoatIndex = 0; CoatIndex < FMaxVRayBlendMaterial::MaximumNumberOfCoat; ++CoatIndex)
 	{
 		const FMaxVRayBlendMaterial::FVRayCoatMaterialProperties& CoatedMaterial = VRayBlendMaterialProperties.CoatedMaterials[CoatIndex];
 
 		if (CoatedMaterial.Material != nullptr && CoatedMaterial.MaterialBlendParameter.bEnabled)
 		{
-			IDatasmithMaterialExpressionFunctionCall* BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
-			BlendFunctionCall->SetFunctionPathName(TEXT("/Engine/Functions/MaterialLayerFunctions/MatLayerBlend_Standard.MatLayerBlend_Standard"));
-			PreviousExpression->ConnectExpression(*BlendFunctionCall->GetInput(0));
-			PreviousExpression = BlendFunctionCall;
-
-			IDatasmithMaterialExpressionFunctionCall* CoatedMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
-			if (TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoatedMaterial.Material, AssetsPath))
+			TSharedPtr<IDatasmithBaseMaterialElement> ExportedCoatedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoatedMaterial.Material, AssetsPath);
+			if (PreviousExpression)
 			{
-				CoatedMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
+				IDatasmithMaterialExpressionFunctionCall* BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+				BlendFunctionCall->SetFunctionPathName(TEXT("/Engine/Functions/MaterialLayerFunctions/MatLayerBlend_Standard.MatLayerBlend_Standard"));
+				PreviousExpression->ConnectExpression(*BlendFunctionCall->GetInput(0));
+				PreviousExpression = BlendFunctionCall;
+
+				IDatasmithMaterialExpressionFunctionCall* CoatedMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+				if (ExportedCoatedMaterial)
+				{
+					CoatedMaterialFunctionCall->SetFunctionPathName(ExportedCoatedMaterial->GetName());
+				}
+				CoatedMaterialFunctionCall->ConnectExpression(*BlendFunctionCall->GetInput(1));
+
+				IDatasmithMaterialExpression* AlphaExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, CoatedMaterial.MaterialBlendParameter, TEXT("MixAmount"),
+					CoatedMaterial.MixColor, TOptional< float >());
+
+				//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
+				if(!AlphaExpression)
+				{
+					IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+					WeightExpression->SetName(TEXT("MixAmount"));
+					WeightExpression->GetScalar() = 0.f;
+					AlphaExpression = WeightExpression;
+				}
+
+				AlphaExpression->ConnectExpression(*BlendFunctionCall->GetInput(2));
 			}
-			CoatedMaterialFunctionCall->ConnectExpression(*BlendFunctionCall->GetInput(1));
-
-			IDatasmithMaterialExpression* AlphaExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, CoatedMaterial.MaterialBlendParameter, TEXT("MixAmount"),
-				CoatedMaterial.MixColor, TOptional< float >());
-
-			//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
-			if(!AlphaExpression)
+			else
 			{
-				IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-				WeightExpression->SetName(TEXT("MixAmount"));
-				WeightExpression->GetScalar() = 0.f;
-				AlphaExpression = WeightExpression;
+				IDatasmithMaterialExpressionFunctionCall* CoatedMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+				if (ExportedCoatedMaterial)
+				{
+					CoatedMaterialFunctionCall->SetFunctionPathName(ExportedCoatedMaterial->GetName());
+				}
+				PreviousExpression = CoatedMaterialFunctionCall;
 			}
-
-			AlphaExpression->ConnectExpression(*BlendFunctionCall->GetInput(2));
 		}
 	}
 
 	PbrMaterialElement->SetUseMaterialAttributes(true);
-	PreviousExpression->ConnectExpression(PbrMaterialElement->GetMaterialAttributes());
+	if (PreviousExpression)
+	{
+		PreviousExpression->ConnectExpression(PbrMaterialElement->GetMaterialAttributes());
+	}
 	MaterialElement = PbrMaterialElement;
 }
 

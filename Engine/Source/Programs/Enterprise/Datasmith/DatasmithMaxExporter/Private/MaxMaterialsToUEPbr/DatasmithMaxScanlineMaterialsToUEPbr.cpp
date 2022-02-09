@@ -295,13 +295,13 @@ bool FDatasmithMaxBlendMaterialsToUEPbr::IsSupported( Mtl* Material )
 	if ( Mtl* BaseMaterial = Material->GetSubMtl(0) )
 	{
 		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( BaseMaterial );
-		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported( BaseMaterial );
+		bAllMaterialsSupported &= MaterialConverter != nullptr;
 	}
 
 	if ( Mtl* CoatMaterial = Material->GetSubMtl(1) )
 	{
 		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter( CoatMaterial );
-		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported( CoatMaterial );
+		bAllMaterialsSupported &= MaterialConverter != nullptr;
 	}
 
 	return bAllMaterialsSupported;

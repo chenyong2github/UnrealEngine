@@ -35,9 +35,9 @@ public:
 	FDatasmithMaxMaterialsToUEPbr();
 	virtual ~FDatasmithMaxMaterialsToUEPbr() = default;
 
-	virtual bool IsSupported( Mtl* Material ) = 0;
 	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) = 0;
 
+	virtual bool IsSupported( Mtl* Material ) = 0; // Called by FDatasmithMaxMaterialsToUEPbrManager to see if instantiated converter can actually convert a material instance
 	virtual bool IsTexmapSupported( Texmap* InTexmap ) const;
 
 	/**

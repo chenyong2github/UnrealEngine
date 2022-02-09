@@ -687,7 +687,7 @@ bool FDatasmithMaxCoronaBlendMaterialToUEPbr::IsSupported( Mtl* Material )
 	if (CoronaBlendMaterialProperties.BaseMaterial)
 	{
 		FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(CoronaBlendMaterialProperties.BaseMaterial);
-		bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported(CoronaBlendMaterialProperties.BaseMaterial);
+		bAllMaterialsSupported &= MaterialConverter != nullptr;
 	}
 	else
 	{
@@ -702,7 +702,7 @@ bool FDatasmithMaxCoronaBlendMaterialToUEPbr::IsSupported( Mtl* Material )
 		{
 			//Only support if all the blended materials are UEPbr materials.
 			FDatasmithMaxMaterialsToUEPbr* MaterialConverter = FDatasmithMaxMaterialsToUEPbrManager::GetMaterialConverter(CoatedMaterial.Material);
-			bAllMaterialsSupported &= MaterialConverter && MaterialConverter->IsSupported(CoatedMaterial.Material);
+			bAllMaterialsSupported &= MaterialConverter != nullptr;
 		}
 	}
 
