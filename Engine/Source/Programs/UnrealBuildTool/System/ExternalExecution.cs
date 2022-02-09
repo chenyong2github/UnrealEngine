@@ -690,7 +690,8 @@ namespace UnrealBuildTool
 				else
 				{
 					// Remove any stale generated code directory
-					if(Module.GeneratedCodeDirectory != null && !Module.Rules.bUsePrecompiled)
+					// Don't destroy the directory if we have Verse
+					if(!Module.bHasVerse && Module.GeneratedCodeDirectory != null && !Module.Rules.bUsePrecompiled)
 					{
 						if (DirectoryReference.Exists(Module.GeneratedCodeDirectory))
 						{
