@@ -555,6 +555,14 @@ namespace UnrealBuildTool
 				// Add the source file path to the command-line.
 				FileArguments += string.Format(" \"{0}\"", SourceFile.AbsolutePath);
 
+				// Generate the timing info
+				if (CompileEnvironment.bPrintTimingInfo)
+				{
+					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
+					FileArguments += " -ftime-trace";
+					CompileAction.ProducedItems.Add(TraceFile);
+				}
+
 				// Generate the included header dependency list
 				if(CompileEnvironment.bGenerateDependenciesFile)
 				{
