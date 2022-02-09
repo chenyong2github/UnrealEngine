@@ -32,6 +32,11 @@ namespace UE
 				static FString GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix);
 
 				/**
+				 * Return the name of an FbxProperty, return empty string if the property is null.
+				 */
+				static FString GetFbxPropertyName(const FbxProperty& Property);
+
+				/**
 				 * Return the name of an FbxObject, return empty string if the object is null.
 				 */
 				static FString GetFbxObjectName(const FbxObject* Object);
