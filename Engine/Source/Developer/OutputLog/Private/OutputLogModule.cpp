@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OutputLogModule.h"
-#include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Docking/TabManager.h"
 #include "EditorStyleSet.h"
+#include "OutputLogCreationParams.h"
 #include "SDebugConsole.h"
 #include "SOutputLog.h"
 #include "SDeviceOutputLog.h"
@@ -164,6 +164,16 @@ TSharedRef<SWidget> FOutputLogModule::MakeOutputLogDrawerWidget(const FSimpleDel
 	}
 
 	return OutputLogDrawerPinned.ToSharedRef();
+}
+
+TSharedRef<SWidget> FOutputLogModule::MakeOutputLogWidget(const FOutputLogCreationParams& Params)
+{
+	return SNew(SOutputLog, Params.bCreateDockInLayoutButton)
+			.OnCloseConsole(Params.OnCloseConsole)
+			.Messages(OutputLogHistory->GetMessages())
+			.SettingsMenuFlags(Params.SettingsMenuCreationFlags)
+			.DefaultCategorySelection(Params.DefaultCategorySelection)
+			.AllowInitialLogCategory(Params.AllowAsInitialLogCategory);
 }
 
 void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates)

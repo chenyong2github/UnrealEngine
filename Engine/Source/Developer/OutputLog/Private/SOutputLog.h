@@ -6,6 +6,7 @@
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
+#include "OutputLogCreationParams.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -271,7 +272,7 @@ struct FOutputLogFilter
 	const TArray<FName>& GetAvailableLogCategories() { return AvailableLogCategories; }
 
 	/** Adds a Log Category to the list of available categories, if it isn't already present */
-	void AddAvailableLogCategory(FName& LogCategory);
+	void AddAvailableLogCategory(const FName& LogCategory);
 
 	/** Enables or disables a Log Category in the filter */
 	void ToggleLogCategory(const FName& LogCategory);
@@ -312,6 +313,14 @@ public:
 		/** All messages captured before this log window has been created */
 		SLATE_ARGUMENT( TArray< TSharedPtr<FOutputLogMessage> >, Messages )
 
+		/**  */
+		SLATE_ARGUMENT( EOutputLogSettingsMenuFlags, SettingsMenuFlags)
+
+		SLATE_ARGUMENT( FDefaultCategorySelectionMap, DefaultCategorySelection )
+
+		/** Used to determine the set of initially discovered log categories that should be selected */
+		SLATE_EVENT( FAllowLogCategoryCallback, AllowInitialLogCategory )
+
 	SLATE_END_ARGS()
 
 	/** Destructor for output log, so we can unregister from notifications */
@@ -322,7 +331,7 @@ public:
 	 *
 	 * @param	InArgs	Declaration used by the SNew() macro to construct this widget
 	 */
-	void Construct( const FArguments& InArgs, bool bIsDrawerOutputLog );
+	void Construct( const FArguments& InArgs, bool bCreateDrawerDockButton );
 
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -397,6 +406,9 @@ protected:
 	bool bIsUserScrolled;
 
 private:
+
+	void BuildInitialLogCategoryFilter(const FArguments& InArgs);
+	
 	/** Called by Slate when the filter box changes text. */
 	void OnFilterTextChanged(const FText& InFilterText);
 
@@ -452,7 +464,7 @@ private:
 
 	FSlateColor GetViewButtonForegroundColor() const;
 
-	TSharedRef<SWidget> GetViewButtonContent();
+	TSharedRef<SWidget> GetViewButtonContent(EOutputLogSettingsMenuFlags Flags);
 
 	TSharedRef<SWidget> CreateDrawerDockButton();
 
@@ -469,7 +481,7 @@ protected:
 
 	FDelegateHandle SettingsWatchHandle;
 
-	bool bIsInDrawer = false;
+	bool bShouldCreateDrawerDockButton = false;
 };
 
 /** Output log text marshaller to convert an array of FOutputLogMessages into styled lines to be consumed by an FTextLayout */

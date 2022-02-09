@@ -6,14 +6,13 @@
 #include "Widgets/SWidget.h"
 #include "Modules/ModuleInterface.h"
 #include "Widgets/SWindow.h"
-#include "Features/IModularFeatures.h"
-#include "HAL/IConsoleManager.h"
 
 class SMultiLineEditableTextBox;
 class FOutputLogHistory;
 class SOutputLog;
 class SDockTab;
 class FSpawnTabArgs;
+struct FOutputLogCreationParams;
 
 /** Style of the debug console */
 namespace EDebugConsoleStyle
@@ -46,9 +45,11 @@ public:
 	/** Generates a console input box widget.  Remember, this widget will become invalid if the
 		output log DLL is unloaded on the fly. */
 	virtual TSharedRef<SWidget> MakeConsoleInputBox(TSharedPtr<SMultiLineEditableTextBox>& OutExposedEditableTextBox, const FSimpleDelegate& OnCloseConsole, const FSimpleDelegate& OnConsoleCommandExecuted) const;
-
+	
 	virtual TSharedRef<SWidget> MakeOutputLogDrawerWidget(const FSimpleDelegate& OnCloseConsole);
 
+	virtual TSharedRef<SWidget> MakeOutputLogWidget(const FOutputLogCreationParams& Params);
+	
 	/** Opens a debug console in the specified window, if not already open */
 	virtual void ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Window, const EDebugConsoleStyle::Type InStyle, const FDebugConsoleDelegates& DebugConsoleDelegates);
 

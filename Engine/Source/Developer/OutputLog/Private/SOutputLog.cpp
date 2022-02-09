@@ -1040,15 +1040,10 @@ FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPt
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SOutputLog::Construct( const FArguments& InArgs, bool bIsDrawerOutputLog)
+void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButton)
 {
-	bIsInDrawer = bIsDrawerOutputLog;
-
-	// Build list of available log categories from historical logs
-	for (const auto& Message : InArgs._Messages)
-	{
-		Filter.AddAvailableLogCategory(Message->Category);
-	}
+	bShouldCreateDrawerDockButton = bCreateDrawerDockButton;
+	BuildInitialLogCategoryFilter(InArgs);
 
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(InArgs._Messages, &Filter);
 
@@ -1124,7 +1119,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bIsDrawerOutputLog)
 			[
 				SNew(SComboButton)
 				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
-				.OnGetMenuContent(this, &SOutputLog::GetViewButtonContent)
+				.OnGetMenuContent(this, &SOutputLog::GetViewButtonContent, InArgs._SettingsMenuFlags)
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)
@@ -1481,6 +1476,31 @@ void SOutputLog::SetClearOnPIE(ECheckBoxState InValue)
 	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), ClearOnPIEEnabled, GEditorPerProjectIni);
 }
 
+void SOutputLog::BuildInitialLogCategoryFilter(const FArguments& InArgs)
+{
+	for (const auto& Message : InArgs._Messages)
+	{
+		Filter.AddAvailableLogCategory(Message->Category);
+		const bool bIsDeselectedByDefault = InArgs._AllowInitialLogCategory.IsBound() && !InArgs._AllowInitialLogCategory.Execute(Message->Category);
+		if (bIsDeselectedByDefault)
+		{
+			Filter.bShowAllCategories = false;
+			Filter.ToggleLogCategory(Message->Category);
+		}
+	}
+
+	for (auto DefaultCategorySelectionIt = InArgs._DefaultCategorySelection.CreateConstIterator(); DefaultCategorySelectionIt; ++DefaultCategorySelectionIt)
+	{
+		Filter.AddAvailableLogCategory(DefaultCategorySelectionIt->Key);
+
+		if (!DefaultCategorySelectionIt->Value)
+		{
+			Filter.bShowAllCategories = false;
+			Filter.ToggleLogCategory(DefaultCategorySelectionIt->Key);
+		}
+	}
+}
+
 void SOutputLog::OnFilterTextChanged(const FText& InFilterText)
 {
 	if (Filter.GetFilterText().ToString().Equals(InFilterText.ToString(), ESearchCase::CaseSensitive))
@@ -1679,7 +1699,7 @@ void SOutputLog::CategoriesSingle_Execute(FName InName)
 	Refresh();
 }
 
-TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
+TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags Flags)
 {
 	TSharedPtr<FExtender> Extender;
 	FMenuBuilder MenuBuilder(true, nullptr, Extender, true);
@@ -1698,21 +1718,25 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ClearOnPIE", "Clear on PIE"),
-		LOCTEXT("ClearOnPIEToolTip", "Enable clearing of the Output Log on PIE startup."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this] {
-				// This is a toggle, hence that it is inverted
-				SetClearOnPIE(IsClearOnPIEEnabled() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked);
-			}),
-			FCanExecuteAction::CreateLambda([] { return true; }),
-			FIsActionChecked::CreateSP(this, &SOutputLog::IsClearOnPIEEnabled)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
+
+	if ((Flags & EOutputLogSettingsMenuFlags::SkipClearOnPie) == EOutputLogSettingsMenuFlags::None)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearOnPIE", "Clear on PIE"),
+			LOCTEXT("ClearOnPIEToolTip", "Enable clearing of the Output Log on PIE startup."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] {
+					// This is a toggle, hence that it is inverted
+					SetClearOnPIE(IsClearOnPIEEnabled() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked);
+				}),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &SOutputLog::IsClearOnPIEEnabled)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
 	MenuBuilder.AddMenuSeparator();
 
 	//Show Source In Explorer
@@ -1741,7 +1765,7 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
 
 TSharedRef<SWidget> SOutputLog::CreateDrawerDockButton()
 {
-	if (bIsInDrawer)
+	if (bShouldCreateDrawerDockButton)
 	{
 		return
 			SNew(SButton)
@@ -1862,7 +1886,7 @@ bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Mes
 	return true;
 }
 
-void FOutputLogFilter::AddAvailableLogCategory(FName& LogCategory)
+void FOutputLogFilter::AddAvailableLogCategory(const FName& LogCategory)
 {
 	// Use an insert-sort to keep AvailableLogCategories alphabetically sorted
 	int32 InsertIndex = 0;
