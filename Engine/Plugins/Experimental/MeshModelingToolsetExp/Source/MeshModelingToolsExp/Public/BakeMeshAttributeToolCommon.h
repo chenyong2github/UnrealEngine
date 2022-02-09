@@ -154,7 +154,7 @@ UENUM()
 enum class EBakeCurvatureTypeMode
 {
 	/** Average of the minimum and maximum principal curvatures */
-	MeanAverage,
+	MeanAverage UMETA(DisplayName = "Mean"),
 	/** Maximum principal curvature */
 	Max,
 	/** Minimum principal curvature */

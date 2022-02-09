@@ -105,6 +105,11 @@ public:
 	/** @return the triangle count of a given mesh. */
 	virtual int32 GetTriangleCount(const void* Mesh) const = 0;
 
+	/** Set the tangents for a given mesh */
+	virtual void SetTangents(const void* Mesh, FMeshTangentsd* Tangents)
+	{		
+	}
+
 	/** Associate a texture map and UV layer index for a given mesh in the detail set */
 	virtual void SetTextureMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
@@ -335,6 +340,11 @@ public:
 	{
 		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
 		return DynamicMesh->TriangleCount();
+	}
+
+	virtual void SetTangents(const void* Mesh, FMeshTangentsd* Tangents) override
+	{
+		DetailTangents = Tangents;
 	}
 
 	virtual void SetTextureMap(const void* Mesh, const FBakeDetailTexture& Map) override
