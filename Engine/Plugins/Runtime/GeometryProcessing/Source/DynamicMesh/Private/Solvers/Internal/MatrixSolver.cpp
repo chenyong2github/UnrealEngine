@@ -32,6 +32,13 @@ TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& Matr
 		ResultPtr.Reset(new FLDLTMatrixSolver());
 		break;
 #endif
+	case EMatrixSolverType::FastestPSD:
+		#ifndef EIGEN_MPL2_ONLY
+			ResultPtr.Reset(new FLDLTMatrixSolver());
+		#else
+			ResultPtr.Reset(new FLUMatrixSolver());
+		#endif
+		break;
 	}
 
 	return ResultPtr;

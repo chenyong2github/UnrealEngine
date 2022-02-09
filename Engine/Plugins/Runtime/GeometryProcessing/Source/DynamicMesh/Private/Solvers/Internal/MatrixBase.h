@@ -12,8 +12,9 @@ enum class EMatrixSolverType
 	BICGSTAB /* Iterative Bi-conjugate gradient */,
 	PCG /* Pre-conditioned conjugate gradient  - requires symmetric positive def.*/,
 #ifndef EIGEN_MPL2_ONLY
-	LDLT /**Not included due to MPL2 */
+	LDLT /**Not included due to MPL2 */,
 #endif
+	FastestPSD /* Get the best available solver for the positive semidefinite matrix.*/,
 };
 
 static FString MatrixSolverName(const EMatrixSolverType SolverType)
@@ -34,10 +35,13 @@ static FString MatrixSolverName(const EMatrixSolverType SolverType)
 		String = FString(TEXT(" Iterative Preconditioned Conjugate Gradient "));
 		break;
 #ifndef EIGEN_MPL2_ONLY
-	case EMatrixSolverType::PCG:
+	case EMatrixSolverType::LDLT:
 		String = FString(TEXT(" Direct Cholesky "));
 		break;
 #endif
+	case EMatrixSolverType::FastestPSD:
+		String = FString(TEXT(" Fastest positive semidefinite "));
+		break; 
 	default:
 		check(0);
 	}
