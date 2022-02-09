@@ -58,6 +58,8 @@ TSharedRef<IDetailCustomization> FAnimGraphNodeDetails::MakeInstance()
 
 void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder)
 {
+	DetailLayoutBuilder = &DetailBuilder;
+	
 	TArray< TWeakObjectPtr<UObject> > SelectedObjectsList;
 	DetailBuilder.GetObjectsBeingCustomized(SelectedObjectsList);
 
@@ -75,6 +77,8 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 		return;
 	}
 
+	AnimGraphNode->OnPinVisibilityChanged().AddSP(this, &FAnimGraphNodeDetails::OnPinVisibilityChanged);
+
 	// make sure type matches with all the nodes. 
 	const UAnimGraphNode_Base* FirstNodeType = AnimGraphNode;
 	for (int32 Index = 1; Index < SelectedObjectsList.Num(); ++Index)
@@ -84,6 +88,10 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 		{
 			// if type mismatches, multi selection doesn't work, just return
 			return;
+		}
+		else
+		{
+			CurrentNode->OnPinVisibilityChanged().AddSP(this, &FAnimGraphNodeDetails::OnPinVisibilityChanged);
 		}
 	}
 
@@ -195,8 +203,9 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 						}
 
 						NameWidget = PropertyNameWidget;
-						
-						PropertyRow.CustomWidget()
+
+						const bool bShowChildren = GetVisibilityOfProperty(ShowHidePropertyHandle) == EVisibility::Visible;
+						PropertyRow.CustomWidget(bShowChildren)
 						.NameContent()
 						.MinDesiredWidth(Row.NameWidget.MinWidth)
 						.MaxDesiredWidth(Row.NameWidget.MaxWidth)
@@ -209,28 +218,6 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 						[
 							ValueWidget.ToSharedRef()
 						];
-
-						// Set visibility of children based on parent if this is an array property
-						if(TargetPropertyHandle->AsArray().IsValid())
-						{
-							uint32 NumChildren = 0;
-							TargetPropertyHandle->GetNumChildren(NumChildren);
-							for(uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-							{
-								TSharedPtr<IPropertyHandle> ChildHandle = TargetPropertyHandle->GetChildHandle(ChildIndex);
-								IDetailPropertyRow& ChildRow = DetailBuilder.AddPropertyToCategory(ChildHandle);
-
-								ChildRow.Visibility(MakeAttributeLambda([this, WeakShowHidePropertyHandle = TWeakPtr<IPropertyHandle>(ShowHidePropertyHandle)]()
-								{
-									if(TSharedPtr<IPropertyHandle> PinnedShowHidePropertyHandle = WeakShowHidePropertyHandle.Pin())
-									{
-										return GetVisibilityOfProperty(PinnedShowHidePropertyHandle.ToSharedRef());
-									}
-
-									return EVisibility::Visible;
-								}));
-							}
-						}
 					}
 					else if (InternalCustomWidget != SNullWidget::NullWidget)
 					{
@@ -313,6 +300,10 @@ void FAnimGraphNodeDetails::OnBlendProfileChanged(UBlendProfile* NewProfile, TSh
 	}
 }
 
+void FAnimGraphNodeDetails::OnPinVisibilityChanged(bool bInIsVisible, int32 InOptionalPinIndex)
+{
+	DetailLayoutBuilder->ForceRefreshDetails();
+}
 
 TSharedRef<IPropertyTypeCustomization> FInputScaleBiasCustomization::MakeInstance() 
 {

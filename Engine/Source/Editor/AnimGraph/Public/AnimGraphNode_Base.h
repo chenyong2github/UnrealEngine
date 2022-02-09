@@ -395,6 +395,10 @@ public:
 	DECLARE_EVENT_OneParam(UAnimGraphNode_Base, FOnNodePropertyChangedEvent, FPropertyChangedEvent&);
 	FOnNodePropertyChangedEvent& OnNodePropertyChanged() { return PropertyChangeEvent;	}
 
+	// Event that observers can bind to so that they are notified about changes to pin visibility
+	DECLARE_EVENT_TwoParams(UAnimGraphNode_Base, FPinVisibilityChangedEvent, bool /*bInVisible*/, int32 /*InOptionalPinIndex*/);
+	FPinVisibilityChangedEvent& OnPinVisibilityChanged() { return PinVisibilityChangedEvent; }
+	
 	/**
 	 * Helper function to check whether a pin is valid and linked to something else in the graph
 	 * @param	InPinName		The name of the pin @see UEdGraphNode::FindPin
@@ -592,6 +596,8 @@ protected:
 	FOnNodePropertyChangedEvent PropertyChangeEvent;
 
 	FOnNodeTitleChangedEvent NodeTitleChangedEvent;
+
+	FPinVisibilityChangedEvent PinVisibilityChangedEvent;
 
 	// Helper function used to refresh the type of a binding
 	void RecalculateBindingType(FAnimGraphNodePropertyBinding& InBinding);

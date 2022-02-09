@@ -126,6 +126,8 @@ void UAnimGraphNode_Base::SetPinVisibility(bool bInVisible, int32 InOptionalPinI
 		
 		FOptionalPinManager::EvaluateOldShownPins(ShowPinForProperties, OldShownPins, this);
 		ReconstructNode();
+
+		PinVisibilityChangedEvent.Broadcast(bInVisible, InOptionalPinIndex);
 	}
 }
 

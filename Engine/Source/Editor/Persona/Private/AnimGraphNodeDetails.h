@@ -63,11 +63,17 @@ protected:
 	/** Called when a blend profile is selected */
 	void OnBlendProfileChanged(UBlendProfile* NewProfile, TSharedPtr<IPropertyHandle> PropertyHandle);
 
+	/** Called when pin visibility changes */
+	void OnPinVisibilityChanged(bool bInIsVisible, int32 InOptionalPinIndex);
+	
 	/** The skeleton we're operating on */
-	USkeleton* TargetSkeleton;
+	USkeleton* TargetSkeleton = nullptr;
 
 	/** Path to the current blueprints skeleton to allow us to filter asset pickers */
 	FString TargetSkeletonName;
+
+	/** Builder that built this customization (used for refresh) */
+	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
 };
 
 /////////////////////////////////////////////////////
