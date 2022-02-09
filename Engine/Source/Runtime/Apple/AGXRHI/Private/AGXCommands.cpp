@@ -510,18 +510,20 @@ void FAGXRHICommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumP
 void FAGXRHICommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	@autoreleasepool {
-#if PLATFORM_IOS
-	NOT_SUPPORTED("RHIDrawPrimitiveIndirect");
-#else
-	SCOPE_CYCLE_COUNTER(STAT_AGXDrawCallTime);
-	uint32 PrimitiveType = Context->GetCurrentState().GetPrimitiveType();
-	
-	
-	RHI_DRAW_CALL_STATS(PrimitiveType,1);
-	FAGXResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
-	
-	Context->DrawPrimitiveIndirect(PrimitiveType, ArgumentBuffer, ArgumentOffset);
-#endif
+        if (GetAGXDeviceContext().SupportsFeature(EAGXFeaturesIndirectBuffer))
+        {
+            SCOPE_CYCLE_COUNTER(STAT_AGXDrawCallTime);
+            uint32 PrimitiveType = Context->GetCurrentState().GetPrimitiveType();
+            
+            RHI_DRAW_CALL_STATS(PrimitiveType,1);
+            FAGXResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+            
+            Context->DrawPrimitiveIndirect(PrimitiveType, ArgumentBuffer, ArgumentOffset);
+        }
+        else
+        {
+            NOT_SUPPORTED("RHIDrawPrimitiveIndirect");
+        }
 	}
 }
 

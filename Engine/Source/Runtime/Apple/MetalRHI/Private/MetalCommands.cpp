@@ -511,18 +511,21 @@ void FMetalRHICommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 Nu
 void FMetalRHICommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	@autoreleasepool {
-#if PLATFORM_IOS
-	NOT_SUPPORTED("RHIDrawPrimitiveIndirect");
-#else
-	SCOPE_CYCLE_COUNTER(STAT_MetalDrawCallTime);
-	uint32 PrimitiveType = Context->GetCurrentState().GetPrimitiveType();
-	
-	
-	RHI_DRAW_CALL_STATS(PrimitiveType,1);
-	FMetalResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
-	
-	Context->DrawPrimitiveIndirect(PrimitiveType, ArgumentBuffer, ArgumentOffset);
-#endif
+        if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesIndirectBuffer))
+        {
+            SCOPE_CYCLE_COUNTER(STAT_MetalDrawCallTime);
+            uint32 PrimitiveType = Context->GetCurrentState().GetPrimitiveType();
+            
+            
+            RHI_DRAW_CALL_STATS(PrimitiveType,1);
+            FMetalResourceMultiBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+            
+            Context->DrawPrimitiveIndirect(PrimitiveType, ArgumentBuffer, ArgumentOffset);
+        }
+        else
+        {
+            NOT_SUPPORTED("RHIDrawPrimitiveIndirect");
+        }
 	}
 }
 
