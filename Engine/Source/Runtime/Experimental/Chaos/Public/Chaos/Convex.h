@@ -656,8 +656,7 @@ namespace Chaos
 			if (SupportVertexIndex != INDEX_NONE)
 			{
 				FVec3 SupportVert =  GetMarginAdjustedVertex(SupportVertexIndex, InMargin, nullptr);
-				alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
-				return VectorLoadAligned(SupportVertFloat);
+				return MakeVectorRegisterFloatFromDouble(MakeVectorRegister(SupportVert.X, SupportVert.Y, SupportVert.Z, 0.0));
 			}
 			return VectorZeroFloat();
 		}

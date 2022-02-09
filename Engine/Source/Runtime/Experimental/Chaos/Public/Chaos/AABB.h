@@ -377,8 +377,7 @@ namespace Chaos
 			VectorStoreFloat3(Direction, &DirectionVec3);
 			int32 VertexIndex = INDEX_NONE;
 			FVec3 SupportVert = SupportCore(DirectionVec3, InMargin, nullptr, VertexIndex);
-			alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<FRealSingle>(SupportVert.X), static_cast<FRealSingle>(SupportVert.Y), static_cast<FRealSingle>(SupportVert.Z), 0.0f };
-			return VectorLoadAligned(SupportVertFloat);
+			return MakeVectorRegisterFloatFromDouble(MakeVectorRegister(SupportVert.X, SupportVert.Y, SupportVert.Z, 0.0));
 		}
 
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const

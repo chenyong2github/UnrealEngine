@@ -13,21 +13,12 @@
 #include "ChaosLog.h"
 
 
-
 // Platform specific vector intrinsics include.
-#if WITH_DIRECTXMATH
-#define GJK_VECTORIZED 0
-#elif PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON || PLATFORM_ENABLE_VECTORINTRINSICS
 #include "Math/VectorRegister.h"
 #include "Chaos/VectorUtility.h"
 #include "Chaos/SimplexVectorized.h"
-#define GJK_VECTORIZED 1
-#elif defined(__cplusplus_cli) && !PLATFORM_HOLOLENS
-#define GJK_VECTORIZED 0
-#elif PLATFORM_ENABLE_VECTORINTRINSICS
-#include "Math/VectorRegister.h"
-#include "Chaos/VectorUtility.h"
-#include "Chaos/SimplexVectorized.h"
+#include "Chaos/EPAVectorized.h"
 #define GJK_VECTORIZED 1
 #else
 #define GJK_VECTORIZED 0
@@ -1546,10 +1537,8 @@ namespace Chaos
 			{
 				if (NumIterations)
 				{
-
-					//use EPA
-					TArray<TVec3<T>> VertsA;
-					TArray<TVec3<T>> VertsB;
+					TArray<VectorRegister4Float> VertsA;
+					TArray<VectorRegister4Float> VertsB;
 
 					VertsA.Reserve(8);
 					VertsB.Reserve(8);
@@ -1558,63 +1547,41 @@ namespace Chaos
 					VectorIntStoreAligned(NumVerts, NumVertsInts);
 					const int32 NumVertsInt = NumVertsInts[0];
 
-					alignas(16) FRealSingle XFloat[4];
-					VectorStoreAligned(X, XFloat);
-					TVec3<T> XVec3 = { XFloat[0], XFloat[1], XFloat[2] };
-
 					for (int i = 0; i < NumVertsInt; ++i)
 					{
-						alignas(16) FRealSingle AsFloat[4];
-						VectorStoreAligned(As[i], AsFloat);
-						TVec3<T> AsVec3 = { AsFloat[0], AsFloat[1], AsFloat[2] };
-						VertsA.Add(AsVec3);
-
-						alignas(16) FRealSingle BsFloat[4];
-						VectorStoreAligned(Bs[i], BsFloat);
-						TVec3<T> BsVec3 = { BsFloat[0], BsFloat[1], BsFloat[2] };
-
-						const TVec3<T> BAtOrigin = BsVec3 + XVec3;
-						VertsB.Add(BAtOrigin);
+						VertsA.Add(As[i]);
+						VertsB.Add(VectorAdd(Bs[i], X));
 					}
 
-
-					auto SupportAFuncFloat = [&A, MarginA](const TVec3<T>& V)
+					auto SupportBAtOriginFunc = [&B, MarginB, &BToARotation, &StartPoint, &AToBRotation](const VectorRegister4Float& Dir)
 					{
 						int32 VertexIndex = INDEX_NONE;
-						return A.SupportCore(V, MarginA, nullptr, VertexIndex);
+						const VectorRegister4Float DirInB = VectorQuaternionRotateVector(AToBRotation, Dir);
+						const VectorRegister4Float SupportBLocal = B.SupportCoreSimd(DirInB, MarginB);
+
+						const VectorRegister4Float RotatedVec = VectorQuaternionRotateVector(BToARotation, SupportBLocal);
+						return VectorAdd(RotatedVec, StartPoint);
 					};
 
-					const TRotation<double, 3> BToARotationEPA = StartTM.GetRotation();
-					const TRotation<double, 3> AToBRotationEPA = BToARotationEPA.Inverse();
-
-					auto SupportBAtOriginFunc = [&B, MarginB, &StartTM, &AToBRotationEPA](const TVec3<T>& Dir)
-					{
-						int32 VertexIndex = INDEX_NONE;
-						const TVector<T, 3> DirInB = AToBRotationEPA * Dir;
-						const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, MarginB, nullptr, VertexIndex);
-						return StartTM.TransformPositionNoScale(SupportBLocal);
-					};
-
-
-					T Penetration;
-					TVec3<T> MTD, ClosestA, ClosestBInA, OutNormalVec3, OutPositionVec3;
-					const EEPAResult EPAResult = EPA(VertsA, VertsB, SupportAFuncFloat, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA);
+					VectorRegister4Float Penetration;
+					VectorRegister4Float MTD, ClosestA, ClosestBInA;
+					const EEPAResult EPAResult = VectorEPA(VertsA, VertsB, SupportAFunc, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA);
 					if (IsEPASuccess(EPAResult))
 					{
-						OutNormalVec3 = MTD;
-						OutTime = -Penetration - (MarginA + MarginB);
-						OutPositionVec3 = ClosestA;
-						OutPosition = VectorLoadFloat3_W0(&OutPositionVec3);
-						OutNormal = VectorLoadFloat3_W0(&OutNormalVec3);
+						OutNormal = MTD;
+						VectorStoreFloat1(Penetration, &OutTime);
+						OutTime = -OutTime - (MarginA + MarginB);
+						OutPosition = ClosestA;
 					}
 					else
 					{
 						//assume touching hit
 						OutTime = -(MarginA + MarginB);
-						OutNormal = VectorLoadFloat3_W0(&MTD);
+						OutNormal = MTD;
 						OutPosition = VectorMultiplyAdd(OutNormal, MarginASimd, As[0]);
 					}
 				}
+
 				else
 				{
 					//didn't even go into gjk loop, touching hit
@@ -1639,27 +1606,20 @@ namespace Chaos
 	bool GJKRaycast2(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
 		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
 	{
-		UE::Math::TQuat<T> InRotationDouble = StartTM.GetRotation();
-		alignas(16) FRealSingle InRotationFloat[4] = { static_cast<FRealSingle>(InRotationDouble.X), static_cast<FRealSingle>(InRotationDouble.Y), static_cast<FRealSingle>(InRotationDouble.Z), static_cast<FRealSingle>(InRotationDouble.W) };
+		const UE::Math::TQuat<T>& RotationDouble = StartTM.GetRotation();
+		VectorRegister4Float Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
 
-		VectorRegister4Float Rotation = VectorLoadAligned(InRotationFloat);
-
-		UE::Math::TVector<T> InTranslationDouble = StartTM.GetTranslation();
-		alignas(16) FRealSingle InTranslationFloat[4] = { static_cast<FRealSingle>(InTranslationDouble.X), static_cast<FRealSingle>(InTranslationDouble.Y), static_cast<FRealSingle>(InTranslationDouble.Z) };
-
-		VectorRegister4Float Translation = VectorLoadAligned(InTranslationFloat);
+		const UE::Math::TVector<T>& TranslationDouble = StartTM.GetTranslation();
+		const VectorRegister4Float Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
 
 		// Normalize rotation
 		Rotation = VectorNormalizeSafe(Rotation, GlobalVectorConstants::Float0001);
-		VectorRegister4Float OutPositionSimd, OutNormalSimd, InitialDirSimd, RayDirSimd;
-
-		alignas(16) FRealSingle InitialDirFloat[4] = {static_cast<FRealSingle>(InitialDir[0]), static_cast<FRealSingle>(InitialDir[1]), static_cast<FRealSingle>(InitialDir[2]), 0.0f};
-		alignas(16) FRealSingle RayDirFloat[4] = {static_cast<FRealSingle>(RayDir[0]), static_cast<FRealSingle>(RayDir[1]), static_cast<FRealSingle>(RayDir[2]), 0.0f };
-
-		InitialDirSimd = VectorLoadAligned(InitialDirFloat);
-		RayDirSimd = VectorLoadAligned(RayDirFloat);
+		
+		const VectorRegister4Float InitialDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InitialDir[0], InitialDir[1], InitialDir[2], 0.0));
+		const VectorRegister4Float RayDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RayDir[0], RayDir[1], RayDir[2], 0.0));
 
 		FRealSingle OutTimeFloat;
+		VectorRegister4Float OutPositionSimd, OutNormalSimd;
 		bool result = GJKRaycast2ImplSimd(A, B, Rotation, Translation, RayDirSimd, static_cast<FRealSingle>(RayLength), OutTimeFloat, OutPositionSimd, OutNormalSimd, bComputeMTD, InitialDirSimd, StartTM);
 
 		OutTime = static_cast<double>(OutTimeFloat);

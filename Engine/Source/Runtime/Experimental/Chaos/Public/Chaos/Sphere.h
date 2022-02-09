@@ -213,8 +213,7 @@ namespace Chaos
 
 		FORCEINLINE VectorRegister4Float SupportCoreSimd(const VectorRegister4Float& Direction, const FReal InMargin) const
 		{
-			alignas(16) FRealSingle CenterFloat[4] = { static_cast<FRealSingle>(Center[0]), static_cast<FRealSingle>(Center[1]), static_cast<FRealSingle>(Center[2]), 0.0f };
-			return VectorLoadAligned(CenterFloat);
+			return MakeVectorRegisterFloatFromDouble(MakeVectorRegister(Center[0], Center[1], Center[2], 0.0));
 		}
 		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{

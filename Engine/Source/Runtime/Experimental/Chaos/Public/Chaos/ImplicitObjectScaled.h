@@ -183,8 +183,7 @@ public:
 		VectorStoreFloat3(Direction, &DirectionVec3);
 		int32 VertexIndex = INDEX_NONE;
 		FVec3 SupportVert = MObject->SupportCore(DirectionVec3, InMargin, nullptr, VertexIndex);
-		alignas(16) FRealSingle SupportVertFloat[4] = { static_cast<float>(SupportVert.X), static_cast<float>(SupportVert.Y), static_cast<float>(SupportVert.Z), 0.0f };
-		return VectorLoadAligned(SupportVertFloat);
+		return MakeVectorRegisterFloatFromDouble(MakeVectorRegister(SupportVert.X, SupportVert.Y, SupportVert.Z, 0.0));
 	}
 
 	virtual const FAABB3 BoundingBox() const override 
@@ -906,8 +905,7 @@ public:
 		VectorStoreFloat3(Direction, &DirectionVec3);
 		int32 VertexIndex = INDEX_NONE;
 		FVec3 SupportVert = MObject->SupportCoreScaled(DirectionVec3, InMargin, MScale, nullptr, VertexIndex);
-		TVector<float, 3> SupportVertFloat(static_cast<float>(SupportVert.X), static_cast<float>(SupportVert.Y), static_cast<float>(SupportVert.Z));
-		return VectorLoadFloat3_W0(&SupportVertFloat);
+		return MakeVectorRegisterFloatFromDouble(MakeVectorRegister(SupportVert.X, SupportVert.Y, SupportVert.Z, 0.0));
 	}
 
 	void SetScale(const FVec3& Scale)
