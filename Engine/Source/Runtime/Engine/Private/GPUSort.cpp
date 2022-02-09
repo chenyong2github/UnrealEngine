@@ -15,6 +15,7 @@
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUSort, Log, All);
 
