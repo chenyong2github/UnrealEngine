@@ -1608,7 +1608,11 @@ void SMaterialLayersFunctionsInstanceTree::CreateGroupsWidget()
 
 bool SMaterialLayersFunctionsInstanceTree::IsLayerVisible(int32 Index) const
 {
-	return FunctionInstance->GetLayerVisibility(Index);
+	if (FunctionParameter.IsValid())
+	{
+		return FunctionInstance->GetLayerVisibility(Index);
+	}
+	return false;
 }
 
 TSharedRef<SWidget> SMaterialLayersFunctionsInstanceTree::CreateThumbnailWidget(EMaterialParameterAssociation InAssociation, int32 InIndex, float InThumbnailSize)
@@ -1768,7 +1772,7 @@ void SMaterialLayersFunctionsInstanceTree::ShowSubParameters(TSharedPtr<FSortedP
 
 void SMaterialLayersFunctionsInstanceWrapper::Refresh()
 {
-	LayerParameter = nullptr;
+	LayerParameter.Reset();
 	TSharedPtr<SHorizontalBox> HeaderBox;
 	NestedTree->CreateGroupsWidget();
 	LayerParameter = NestedTree->FunctionParameter;
@@ -1803,7 +1807,7 @@ void SMaterialLayersFunctionsInstanceWrapper::Refresh()
 					NestedTree.ToSharedRef()
 				]
 		];
-		if (NestedTree->FunctionParameter != nullptr && FMaterialPropertyHelpers::IsOverriddenExpression(NestedTree->FunctionParameter))
+		if (FMaterialPropertyHelpers::IsOverriddenExpression(NestedTree->FunctionParameter))
 		{
 			HeaderBox->AddSlot()
 				.HAlign(HAlign_Left)
@@ -1935,7 +1939,11 @@ void SMaterialLayersFunctionsMaterialTreeItem::RefreshOnRowChange(const FAssetDa
 
 FText SMaterialLayersFunctionsMaterialTreeItem::GetLayerName(SMaterialLayersFunctionsMaterialTree* InTree, int32 Counter) const
 {
-	return InTree->FunctionInstance->GetLayerName(Counter);
+	if (InTree->FunctionParameter.IsValid())
+	{
+		return InTree->FunctionInstance->GetLayerName(Counter);
+	}
+	return FText();
 }
 
 void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)

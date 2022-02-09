@@ -13,6 +13,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
@@ -112,7 +113,7 @@ public:
 	void SetEditorInstance(UMaterialEditorInstanceConstant* InMaterialEditorInstance);
 
 	TAttribute<ECheckBoxState> IsParamChecked;
-	class UDEditorParameterValue* LayerParameter;
+	TWeakObjectPtr<class UDEditorParameterValue> LayerParameter;
 	class UMaterialEditorInstanceConstant* MaterialEditorInstance;
 	TSharedPtr<class SMaterialLayersFunctionsInstanceTree> NestedTree;
 	FSimpleDelegate OnLayerPropertyChanged;
@@ -139,7 +140,7 @@ public:
 	void SetParentsExpansionState();
 
 	void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
-	class UDEditorParameterValue* FunctionParameter;
+	TWeakObjectPtr<class UDEditorParameterValue> FunctionParameter;
 	struct FMaterialLayersFunctions* FunctionInstance;
 	TSharedPtr<IPropertyHandle> FunctionInstanceHandle;
 	void RefreshOnAssetChange(const struct FAssetData& InAssetData, int32 Index, EMaterialParameterAssociation MaterialType);
@@ -259,7 +260,7 @@ public:
 	void Construct(const FArguments& InArgs);
 	void SetEditorInstance(UMaterialEditorPreviewParameters* InMaterialEditorInstance);
 	TSharedPtr<class IPropertyRowGenerator> GetGenerator();
-	class UDEditorParameterValue* LayerParameter;
+	TWeakObjectPtr<class UDEditorParameterValue> LayerParameter;
 	class UMaterialEditorPreviewParameters* MaterialEditorInstance;
 	TSharedPtr<class SMaterialLayersFunctionsMaterialTree> NestedTree;
 
@@ -286,7 +287,7 @@ public:
 		void OnExpansionChanged(TSharedPtr<FSortedParamData> Item, bool bIsExpanded);
 		void SetParentsExpansionState();
 		void ShowHiddenValues(bool& bShowHiddenParameters) { bShowHiddenParameters = true; }
-		class UDEditorParameterValue* FunctionParameter;
+		TWeakObjectPtr<class UDEditorParameterValue> FunctionParameter;
 		struct FMaterialLayersFunctions* FunctionInstance;
 		TSharedPtr<IPropertyHandle> FunctionInstanceHandle;
 		TSharedPtr<class FAssetThumbnailPool> GetTreeThumbnailPool();

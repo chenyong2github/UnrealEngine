@@ -530,7 +530,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewLayerInstance(class UMaterialFu
 
 bool FMaterialPropertyHelpers::IsOverriddenExpression(UDEditorParameterValue* Parameter)
 {
-	return Parameter->bOverride != 0;
+	return Parameter && Parameter->bOverride != 0;
 }
 
 ECheckBoxState FMaterialPropertyHelpers::IsOverriddenExpressionCheckbox(UDEditorParameterValue* Parameter)

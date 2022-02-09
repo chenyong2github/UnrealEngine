@@ -142,6 +142,7 @@ public:
 	/** Returns true if the parameter is being overridden */
 	static bool IsOverriddenExpression(UDEditorParameterValue* Parameter);
 	static bool IsOverriddenExpression(TObjectPtr<UDEditorParameterValue> Parameter) { return IsOverriddenExpression(Parameter.Get()); }
+	static bool IsOverriddenExpression(TWeakObjectPtr<UDEditorParameterValue> Parameter) { return IsOverriddenExpression(Parameter.Get()); }
 	static ECheckBoxState IsOverriddenExpressionCheckbox(UDEditorParameterValue* Parameter);
 
 	/** Gets the expression description of this parameter from the base material */
