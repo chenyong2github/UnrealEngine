@@ -526,7 +526,7 @@ namespace Gauntlet
 		protected bool Windowed { get; set; }
 
 		/// <summary>
-		/// Which window mode to use for the PC or Mac client. Only Windowed and Fullscreen are fully supported.
+		/// Which window mode to use for the PC or Mac or Linux client. Only Windowed and Fullscreen are fully supported.
 		/// </summary>
 		/// 
 		[AutoParam(EWindowMode.Windowed)]
@@ -822,7 +822,7 @@ namespace Gauntlet
 			}
 			else if (AppConfig.ProcessType.IsClient())
 			{
-				if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
+				if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac || AppConfig.Platform == UnrealTargetPlatform.Linux)
 				{
 					if (!IgnoreDefaultResolutionAndWindowMode)
 					{
@@ -855,6 +855,13 @@ namespace Gauntlet
 				}
 			}
 
+			// due to an issue with dotnet being extremely pedantic we have to drop our locks on files so we can read from the log file
+			// https://github.com/dotnet/runtime/issues/34126
+			if (AppConfig.Platform == UnrealTargetPlatform.Linux)
+			{
+				AppConfig.CommandLine += " -noexclusivelockonwrite";
+			}
+
 			// use -log on servers so we get a window..
 			if (AppConfig.ProcessType.IsServer())
 			{
@@ -864,6 +871,13 @@ namespace Gauntlet
 			if (Attended == false)
 			{
 				AppConfig.CommandLine += " -unattended";
+
+				// if we are unattended but still may need access to Vulkan passing renderoffscreen to allow not depending on
+				// the X11/Wayland display server to be around and use a dummy/offscreen rendering mode
+				if (AppConfig.Platform == UnrealTargetPlatform.Linux)
+				{
+					AppConfig.CommandLine += " -renderoffscreen";
+				}
 			}
 
 			AppConfig.CommandLine += " -stdout -AllowStdOutLogVerbosity";
