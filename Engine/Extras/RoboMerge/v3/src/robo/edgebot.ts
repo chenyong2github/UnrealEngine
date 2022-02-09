@@ -805,7 +805,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 		else {
 			// edit the CL description
-			await this.p4.editDescription(destRoboWorkspace, changenum, final_desc)
+			await this.p4.editDescription(destRoboWorkspace, changenum, final_desc, edgeServerAddress)
 
 			// shelve the files as we see them (should trigger a codereview email)
 			if (!await this.p4.shelve(destRoboWorkspace, changenum, edgeServerAddress)) {
