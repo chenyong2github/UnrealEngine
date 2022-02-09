@@ -181,7 +181,11 @@ TSharedPtr<SWidget> FTypeInfoColumn::ConstructClassHyperlink( ISceneOutlinerTree
 
 				if (bIsBlueprintClass || bIsGameClass)
 				{
-					return FEditorClassUtils::GetSourceLink(ActorClass, Actor);
+					FEditorClassUtils::FSourceLinkParams SourceLinkParams;
+					SourceLinkParams.Object = Actor;
+					SourceLinkParams.bUseDefaultFormat = true;
+
+					return FEditorClassUtils::GetSourceLink(ActorClass, SourceLinkParams);
 				}
 			}
 		}

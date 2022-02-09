@@ -106,6 +106,9 @@
 #include "Misc/ScopeExit.h"
 #include "Dialogs/DlgPickPath.h"
 #include "AssetToolsModule.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #include "Internationalization/Culture.h"
 
@@ -1194,6 +1197,11 @@ bool FLevelEditorActionCallbacks::GoToCodeForActor_CanExecute()
 {
 	const FSelectedActorInfo SelectedActorInfo = AssetSelectionUtils::GetSelectedActorInfo();
 	return FSourceCodeNavigation::CanNavigateToClass(SelectedActorInfo.SelectionClass);
+}
+
+bool FLevelEditorActionCallbacks::GoToCodeForActor_IsVisible()
+{
+	return ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
 }
 
 void FLevelEditorActionCallbacks::GoToDocsForActor_Clicked()

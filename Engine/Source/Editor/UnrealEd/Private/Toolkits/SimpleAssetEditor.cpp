@@ -6,9 +6,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
+#include "EditorClassUtils.h"
 #include "Editor.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "SourceCodeNavigation.h"
 
 
 #define LOCTEXT_NAMESPACE "GenericEditor"
@@ -314,18 +313,6 @@ void FSimpleAssetEditor::PostRegenerateMenusAndToolbars()
 	// Provide a hyperlink to view that native class
 	if (CommonDenominatorClass)
 	{
-		TWeakObjectPtr<UClass> WeakClassPtr(CommonDenominatorClass);
-		auto OnNavigateToClassCode = [WeakClassPtr]()
-		{
-			if (UClass* StrongClassPtr = WeakClassPtr.Get())
-			{
-				if (FSourceCodeNavigation::CanNavigateToClass(StrongClassPtr))
-				{
-					FSourceCodeNavigation::NavigateToClass(StrongClassPtr);
-				}
-			}
-		};
-
 		// build and attach the menu overlay
 		TSharedRef<SHorizontalBox> MenuOverlayBox = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -342,11 +329,7 @@ void FSimpleAssetEditor::PostRegenerateMenusAndToolbars()
 			.VAlign(VAlign_Center)
 			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
 			[
-				SNew(SHyperlink)
-				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.OnNavigate_Lambda(OnNavigateToClassCode)
-				.Text(FText::FromName(CommonDenominatorClass->GetFName()))
-				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
+				FEditorClassUtils::GetSourceLink(CommonDenominatorClass)
 			];
 	
 		SetMenuOverlay(MenuOverlayBox);

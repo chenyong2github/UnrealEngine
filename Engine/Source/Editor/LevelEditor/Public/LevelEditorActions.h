@@ -917,6 +917,7 @@ public:
 	/** Called when 'Go to Code for Actor' is clicked */
 	static void GoToCodeForActor_Clicked();
 	static bool GoToCodeForActor_CanExecute();
+	static bool GoToCodeForActor_IsVisible();
 
 	/** Called when 'Go to Documentation for Actor' is clicked */
 	static void GoToDocsForActor_Clicked();

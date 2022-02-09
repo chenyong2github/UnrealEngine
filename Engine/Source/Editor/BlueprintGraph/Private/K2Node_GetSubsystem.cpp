@@ -22,6 +22,9 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "SourceCodeNavigation.h"
 #include "BlueprintEditorSettings.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 // ************************************************************************************
 //    UK2Node_GetSubsystem
@@ -737,20 +740,27 @@ FText UK2Node_GetEditorSubsystem::GetTooltipText() const
 
 bool UK2Node_GetSubsystem::CanJumpToDefinition() const
 {
-	return CustomClass != nullptr;
+	if (CustomClass && ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		return true;
+	}
+	return Super::CanJumpToDefinition();
 }
 
 void UK2Node_GetSubsystem::JumpToDefinition() const
 {
 	bool bSucceeded = false;
 	
-	// Attempt to navigate to the header file where the class is defined if the 
-	// blueprint preferences allow for it
-	if (GetDefault<UBlueprintEditorSettings>()->bNavigateToNativeFunctionsFromCallNodes)
+	if (CustomClass && ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 	{
-		if (FSourceCodeNavigation::CanNavigateToClass(CustomClass))
+		// Attempt to navigate to the header file where the class is defined if the 
+		// blueprint preferences allow for it
+		if (GetDefault<UBlueprintEditorSettings>()->bNavigateToNativeFunctionsFromCallNodes)
 		{
-			bSucceeded = FSourceCodeNavigation::NavigateToClass(CustomClass);
+			if (FSourceCodeNavigation::CanNavigateToClass(CustomClass))
+			{
+				bSucceeded = FSourceCodeNavigation::NavigateToClass(CustomClass);
+			}
 		}
 	}
 

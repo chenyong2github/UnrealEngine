@@ -257,7 +257,10 @@ void SWidgetDetailsView::OnEditorSelectionChanged()
 	// If only 1 valid selected object exists, update the class link to point to the right class.
 	if ( SelectedObjects.Num() == 1 && SelectedObjects[0].IsValid() )
 	{
-		ClassLinkArea->SetContent(FEditorClassUtils::GetSourceLink(SelectedObjects[0]->GetClass(), TWeakObjectPtr<UObject>()));
+		FEditorClassUtils::FSourceLinkParams SourceLinkParams;
+		SourceLinkParams.bUseDefaultFormat = true;
+
+		ClassLinkArea->SetContent(FEditorClassUtils::GetSourceLink(SelectedObjects[0]->GetClass(), SourceLinkParams));
 	}
 	else
 	{

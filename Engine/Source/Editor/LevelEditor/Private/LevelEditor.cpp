@@ -754,7 +754,9 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction(
 		Commands.GoToCodeForActor, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_Clicked ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_CanExecute )
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::GoToCodeForActor_CanExecute ),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateStatic(&FLevelEditorActionCallbacks::GoToCodeForActor_IsVisible)
 		);
 
 	ActionList.MapAction( 

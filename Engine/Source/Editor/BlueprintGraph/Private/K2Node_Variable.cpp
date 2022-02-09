@@ -17,6 +17,9 @@
 #include "Logging/MessageLog.h"
 #include "SourceCodeNavigation.h"
 #include "Engine/SimpleConstructionScript.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -1103,11 +1106,14 @@ bool UK2Node_Variable::CanJumpToDefinition() const
 {
 	const FProperty* VariableProperty = GetPropertyForVariable();
 	const bool bNativeVariable = (VariableProperty != nullptr) && (VariableProperty->IsNative());
-	return bNativeVariable || (GetJumpTargetForDoubleClick() != nullptr);
+	const bool bCanJumpToNativeVariable = bNativeVariable && ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
+	return bCanJumpToNativeVariable || (GetJumpTargetForDoubleClick() != nullptr);
 }
 
 void UK2Node_Variable::JumpToDefinition() const
 {
+	if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
 	// For native variables, try going to the variable definition in C++ if available
 	if (FProperty* VariableProperty = GetPropertyForVariable())
 	{
@@ -1116,6 +1122,7 @@ void UK2Node_Variable::JumpToDefinition() const
 			FSourceCodeNavigation::NavigateToProperty(VariableProperty);
 			return;
 		}
+	}
 	}
 
 	// Otherwise, fall back to the inherited behavior

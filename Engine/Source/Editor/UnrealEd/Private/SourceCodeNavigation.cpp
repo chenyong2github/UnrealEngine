@@ -27,6 +27,9 @@
 #include "Interfaces/IHttpResponse.h"
 #include "Interfaces/IHttpRequest.h"
 #include "HttpModule.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -1487,6 +1490,11 @@ bool FSourceCodeNavigation::CanNavigateToClass(const UClass* InClass)
 		return false;
 	}
 
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		return false;
+	}
+
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
 		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
@@ -1532,6 +1540,11 @@ bool FSourceCodeNavigation::CanNavigateToStruct(const UScriptStruct* InStruct)
 		return false;
 	}
 
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		return false;
+	}
+
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
 		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
@@ -1573,6 +1586,11 @@ bool FSourceCodeNavigation::NavigateToStruct(const UScriptStruct* InStruct)
 bool FSourceCodeNavigation::CanNavigateToFunction(const UFunction* InFunction)
 {
 	if (!InFunction)
+	{
+		return false;
+	}
+
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 	{
 		return false;
 	}
@@ -1631,6 +1649,11 @@ bool FSourceCodeNavigation::CanNavigateToProperty(const FProperty* InProperty)
 		return false;
 	}
 
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		return false;
+	}
+
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
 		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
@@ -1677,6 +1700,11 @@ bool FSourceCodeNavigation::NavigateToProperty(const FProperty* InProperty)
 bool FSourceCodeNavigation::CanNavigateToStruct(const UStruct* InStruct)
 {
 	if (!InStruct)
+	{
+		return false;
+	}
+
+	if (ensure(GUnrealEd) && !GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 	{
 		return false;
 	}

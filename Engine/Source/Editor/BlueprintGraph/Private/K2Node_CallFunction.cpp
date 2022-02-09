@@ -24,6 +24,9 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Classes/EditorStyleSettings.h"
 #include "Editor.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "UnrealEdGlobals.h"
 #include "EdGraphUtilities.h"
 
 #include "KismetCompiler.h"
@@ -3283,64 +3286,68 @@ bool UK2Node_CallFunction::CanJumpToDefinition() const
 {
 	const UFunction* TargetFunction = GetTargetFunction();
 	const bool bNativeFunction = (TargetFunction != nullptr) && (TargetFunction->IsNative());
-	return bNativeFunction || (GetJumpTargetForDoubleClick() != nullptr);
+	const bool bCanJumpToNativeFunction = bNativeFunction && ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed();
+	return bCanJumpToNativeFunction || (GetJumpTargetForDoubleClick() != nullptr);
 }
 
 void UK2Node_CallFunction::JumpToDefinition() const
 {
-	// For native functions, try going to the function definition in C++ if available
-	if (UFunction* TargetFunction = GetTargetFunction())
+	if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
 	{
-		if (TargetFunction->IsNative())
+		// For native functions, try going to the function definition in C++ if available
+		if (UFunction* TargetFunction = GetTargetFunction())
 		{
-			// First try the nice way that will get to the right line number
-			bool bSucceeded = false;
-			const bool bNavigateToNativeFunctions = GetDefault<UBlueprintEditorSettings>()->bNavigateToNativeFunctionsFromCallNodes;
-			
-			if(bNavigateToNativeFunctions) 
+			if (TargetFunction->IsNative())
 			{
-				if(FSourceCodeNavigation::CanNavigateToFunction(TargetFunction))
-				{
-					bSucceeded = FSourceCodeNavigation::NavigateToFunction(TargetFunction);
-				}
+				// First try the nice way that will get to the right line number
+				bool bSucceeded = false;
+				const bool bNavigateToNativeFunctions = GetDefault<UBlueprintEditorSettings>()->bNavigateToNativeFunctionsFromCallNodes;
 
-				// Failing that, fall back to the older method which will still get the file open assuming it exists
-				if (!bSucceeded)
+				if (bNavigateToNativeFunctions)
 				{
-					FString NativeParentClassHeaderPath;
-					const bool bFileFound = FSourceCodeNavigation::FindClassHeaderPath(TargetFunction, NativeParentClassHeaderPath) && (IFileManager::Get().FileSize(*NativeParentClassHeaderPath) != INDEX_NONE);
-					if (bFileFound)
+					if (FSourceCodeNavigation::CanNavigateToFunction(TargetFunction))
 					{
-						const FString AbsNativeParentClassHeaderPath = FPaths::ConvertRelativePathToFull(NativeParentClassHeaderPath);
-						bSucceeded = FSourceCodeNavigation::OpenSourceFile(AbsNativeParentClassHeaderPath);
+						bSucceeded = FSourceCodeNavigation::NavigateToFunction(TargetFunction);
+					}
+
+					// Failing that, fall back to the older method which will still get the file open assuming it exists
+					if (!bSucceeded)
+					{
+						FString NativeParentClassHeaderPath;
+						const bool bFileFound = FSourceCodeNavigation::FindClassHeaderPath(TargetFunction, NativeParentClassHeaderPath) && (IFileManager::Get().FileSize(*NativeParentClassHeaderPath) != INDEX_NONE);
+						if (bFileFound)
+						{
+							const FString AbsNativeParentClassHeaderPath = FPaths::ConvertRelativePathToFull(NativeParentClassHeaderPath);
+							bSucceeded = FSourceCodeNavigation::OpenSourceFile(AbsNativeParentClassHeaderPath);
+						}
 					}
 				}
-			}
-			else
-			{	
-				// Inform user that the function is native, give them opportunity to enable navigation to native
-				// functions:
-				FNotificationInfo Info(LOCTEXT("NavigateToNativeDisabled", "Navigation to Native (c++) Functions Disabled"));
-				Info.ExpireDuration = 10.0f;
-				Info.CheckBoxState = bNavigateToNativeFunctions ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-			
-				Info.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic(
-					[](ECheckBoxState NewState)
-					{
-						const FScopedTransaction Transaction(LOCTEXT("ChangeNavigateToNativeFunctionsFromCallNodes", "Change Navigate to Native Functions from Call Nodes Setting"));
-	
-						UBlueprintEditorSettings* MutableEditorSetings = GetMutableDefault<UBlueprintEditorSettings>();
-						MutableEditorSetings->Modify();
-						MutableEditorSetings->bNavigateToNativeFunctionsFromCallNodes = (NewState == ECheckBoxState::Checked) ? true : false;
-						MutableEditorSetings->SaveConfig();
-					}
-				);
-				Info.CheckBoxText = LOCTEXT("EnableNavigationToNative", "Navigate to Native Functions from Blueprint Call Nodes?");
-			
-				FSlateNotificationManager::Get().AddNotification(Info);
-			}
+				else
+				{
+					// Inform user that the function is native, give them opportunity to enable navigation to native
+					// functions:
+					FNotificationInfo Info(LOCTEXT("NavigateToNativeDisabled", "Navigation to Native (c++) Functions Disabled"));
+					Info.ExpireDuration = 10.0f;
+					Info.CheckBoxState = bNavigateToNativeFunctions ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 
-			return;
+					Info.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic(
+						[](ECheckBoxState NewState)
+						{
+							const FScopedTransaction Transaction(LOCTEXT("ChangeNavigateToNativeFunctionsFromCallNodes", "Change Navigate to Native Functions from Call Nodes Setting"));
+
+							UBlueprintEditorSettings* MutableEditorSetings = GetMutableDefault<UBlueprintEditorSettings>();
+							MutableEditorSetings->Modify();
+							MutableEditorSetings->bNavigateToNativeFunctionsFromCallNodes = (NewState == ECheckBoxState::Checked) ? true : false;
+							MutableEditorSetings->SaveConfig();
+						}
+					);
+					Info.CheckBoxText = LOCTEXT("EnableNavigationToNative", "Navigate to Native Functions from Blueprint Call Nodes?");
+
+					FSlateNotificationManager::Get().AddNotification(Info);
+				}
+
+				return;
+			}
 		}
 	}
 

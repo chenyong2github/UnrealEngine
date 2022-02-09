@@ -73,23 +73,60 @@ namespace FEditorClassUtils
 	 */
 	UNREALED_API TSharedRef<SWidget> GetDynamicDocumentationLinkWidget(const TAttribute<const UClass*>& ClassAttribute);
 
+	/** Optional GetSourceLink parameters */
+	struct FSourceLinkParams
+	{
+		/* Object to set blueprint debugging to in the case we have a blueprint generated class */
+		TWeakObjectPtr<UObject> Object;
+
+		/* Text format for blueprint links */
+		const FText* BlueprintFormat = nullptr;
+		
+		/* Text format for C++ code file links */
+		const FText* CodeFormat = nullptr;
+
+		/** 
+		 * If true, use default values for BlueprintFormat (Edit ...) and CodeFormat (Open ...) when unspecified
+		 * If false, use only the class name when BlueprintFormat and CodeFormat are unspecified 
+		 */
+		bool bUseDefaultFormat = false;
+
+		/** If true, use specified text format if the link is unavailable for some reason, otherwise use only the class name */
+		bool bUseFormatIfNoLink = false;
+
+		/** Whether a spacer widget is used if the link is unavailable for some reason */
+		bool bEmptyIfNoLink = false;
+	};
+
 	/**
-	 * Creates a link to the source code or blueprint for a given class
+	 * Creates an hyperlink to the source code or blueprint for a given class
+	 * (or a text block/spacer if the link is unavailable for some reason)
+	 *
+	 * @param	Class	Class we want to build a link for
+	 * @param	Params	See FSourceLinkOptionalParams
+	 * @return			Shared pointer to the constructed widget
+	 */
+	UNREALED_API TSharedRef<SWidget> GetSourceLink(const UClass* Class, const FSourceLinkParams& Params = FSourceLinkParams());
+
+	/**
+	 * Creates an hyperlink to the source code or blueprint for a given class
+	 * (or a spacer if the link is unavailable for some reason)
 	 *
 	 * @param	Class			Class we want to build a link for
 	 * @param	ObjectWeakPtr	Optional object to set blueprint debugging to in the case we are choosing a blueprint
-	 * @return					Shared pointer to the constructed tooltip
+	 * @return					Shared pointer to the constructed widget
 	 */
 	UNREALED_API TSharedRef<SWidget> GetSourceLink(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr);
 
 	/**
-	 * Creates a link to the source code or blueprint for a given class formatted however you need. Example "Edit {0}"
+	 * Creates an hyperlink to the source code or blueprint for a given class formatted however you need. Example "Edit {0}"
+	 * (or a spacer if the link is unavailable for some reason)
 	 *
 	 * @param	Class			Class we want to build a link for
 	 * @param	ObjectWeakPtr	Optional object to set blueprint debugging to in the case we are choosing a blueprint
-	 * @param	BlueprintFormat	The text format for blueprint links.
-	 * @param	CodeFormat		The text format for C++ code file links.
-	 * @return					Shared pointer to the constructed tooltip
+	 * @param	BlueprintFormat	The text format for blueprint links
+	 * @param	CodeFormat		The text format for C++ code file links
+	 * @return					Shared pointer to the constructed widget
 	 */
 	UNREALED_API TSharedRef<SWidget> GetSourceLinkFormatted(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr, const FText& BlueprintFormat, const FText& CodeFormat);
 

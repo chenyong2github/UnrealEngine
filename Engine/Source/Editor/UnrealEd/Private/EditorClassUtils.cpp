@@ -88,24 +88,16 @@ TSharedRef<SWidget> FEditorClassUtils::GetDynamicDocumentationLinkWidget(const T
 	return IDocumentation::Get()->CreateAnchor(TAttribute<FString>::CreateLambda(GetLink));
 }
 
-TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr)
+TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const FSourceLinkParams& Params)
 {
-	const FText BlueprintFormat = NSLOCTEXT("SourceHyperlink", "EditBlueprint", "Edit {0}");
-	const FText CodeFormat = NSLOCTEXT("SourceHyperlink", "GoToCode", "Open {0}");
+	TSharedRef<SWidget> Link = SNew(SSpacer);
 
-	return GetSourceLinkFormatted(Class, ObjectWeakPtr, BlueprintFormat, CodeFormat);
-}
-
-TSharedRef<SWidget> FEditorClassUtils::GetSourceLinkFormatted(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr, const FText& BlueprintFormat, const FText& CodeFormat)
-{
-	TSharedRef<SWidget> SourceHyperlink = SNew( SSpacer );
 	UBlueprint* Blueprint = (Class ? Cast<UBlueprint>(Class->ClassGeneratedBy) : nullptr);
-
 	if (Blueprint)
 	{
 		struct Local
 		{
-			static void OnEditBlueprintClicked( TWeakObjectPtr<UBlueprint> InBlueprint, TWeakObjectPtr<UObject> InAsset )
+			static void OnEditBlueprintClicked(TWeakObjectPtr<UBlueprint> InBlueprint, TWeakObjectPtr<UObject> InAsset)
 			{
 				if (UBlueprint* BlueprintToEdit = InBlueprint.Get())
 				{
@@ -116,37 +108,124 @@ TSharedRef<SWidget> FEditorClassUtils::GetSourceLinkFormatted(const UClass* Clas
 						BlueprintToEdit->SetObjectBeingDebugged(Asset);
 					}
 					// Open the blueprint
-					GEditor->EditObject( BlueprintToEdit );
+					GEditor->EditObject(BlueprintToEdit);
 				}
 			}
 		};
 
 		TWeakObjectPtr<UBlueprint> BlueprintPtr = Blueprint;
 
-		SourceHyperlink = SNew(SHyperlink)
+		FText Text = FText::FromName(Blueprint->GetFName());
+		if (Params.BlueprintFormat)
+		{
+			Text = FText::Format(*Params.BlueprintFormat, Text);
+		}
+		else if (Params.bUseDefaultFormat)
+		{
+			const FText DefaultBlueprintFormat = NSLOCTEXT("SourceHyperlink", "EditBlueprint", "Edit {0}");
+			Text = FText::Format(DefaultBlueprintFormat, Text);
+		}
+
+		Link = SNew(SHyperlink)
 			.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
-			.OnNavigate_Static(&Local::OnEditBlueprintClicked, BlueprintPtr, ObjectWeakPtr)
-			.Text(FText::Format(BlueprintFormat, FText::FromString(Blueprint->GetName())))
+			.OnNavigate_Static(&Local::OnEditBlueprintClicked, BlueprintPtr, Params.Object)
+			.Text(Text)
 			.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"));
 	}
-	else if (Class && FSourceCodeNavigation::CanNavigateToClass(Class))
+	else if (Class)
 	{
-		struct Local
+		TWeakObjectPtr<const UClass> WeakClassPtr(Class);
+
+		auto OnNavigateToClassCode = [WeakClassPtr]()
 		{
-			static void OnEditCodeClicked(const UClass* TargetClass)
+			if (const UClass* Class = WeakClassPtr.Get())
 			{
-				FSourceCodeNavigation::NavigateToClass(TargetClass);
+				FSourceCodeNavigation::NavigateToClass(Class);
 			}
 		};
 
-		SourceHyperlink = SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-			.OnNavigate_Static(&Local::OnEditCodeClicked, Class)
-			.Text(FText::Format(CodeFormat, FText::FromString((Class->GetName()))))
-			.ToolTipText(FText::Format(NSLOCTEXT("SourceHyperlink", "GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()));
+		auto CanNavigateToClassCode = [WeakClassPtr]()
+		{
+			if (const UClass* Class = WeakClassPtr.Get())
+			{
+				return FSourceCodeNavigation::CanNavigateToClass(Class);
+			}
+			return false;
+		};
+
+		FText ClassNameText = FText::FromName(Class->GetFName());
+
+		FText FormattedText;
+		if (Params.CodeFormat)
+		{
+			FormattedText = FText::Format(*Params.CodeFormat, ClassNameText);
+		}
+		else if (Params.bUseDefaultFormat)
+		{
+			const FText DefaultCodeFormat = NSLOCTEXT("SourceHyperlink", "GoToCode", "Open {0}");
+			FormattedText = FText::Format(DefaultCodeFormat, ClassNameText);
+		}
+		else
+		{
+			FormattedText = ClassNameText;
+		}
+
+		TSharedRef<SWidget> NoLinkWidget = SNullWidget::NullWidget;
+		if (Params.bEmptyIfNoLink)
+		{
+			NoLinkWidget = SNew(SSpacer)
+				.Visibility_Lambda([CanNavigateToClassCode]() { return CanNavigateToClassCode() ? EVisibility::Collapsed : EVisibility::Visible; });
+		}
+		else
+		{
+			NoLinkWidget = SNew(STextBlock)
+				.Text(Params.bUseFormatIfNoLink ? FormattedText : ClassNameText)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Visibility_Lambda([CanNavigateToClassCode]() { return CanNavigateToClassCode() ? EVisibility::Collapsed : EVisibility::Visible; });
+		}
+
+		Link = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SHyperlink)
+				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.OnNavigate_Lambda(OnNavigateToClassCode)
+				.Text(FormattedText)
+				.ToolTipText(FText::Format(NSLOCTEXT("SourceHyperlink", "GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
+				.Visibility_Lambda([CanNavigateToClassCode]() { return CanNavigateToClassCode() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				NoLinkWidget
+			];
 	}
 
-	return SourceHyperlink;
+	return Link;
+}
+
+TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr)
+{
+	FSourceLinkParams Params;
+	Params.Object = ObjectWeakPtr;
+	Params.bUseDefaultFormat = true;
+	Params.bEmptyIfNoLink = true;
+
+	return GetSourceLink(Class, Params);
+}
+
+TSharedRef<SWidget> FEditorClassUtils::GetSourceLinkFormatted(const UClass* Class, const TWeakObjectPtr<UObject> ObjectWeakPtr, const FText& BlueprintFormat, const FText& CodeFormat)
+{
+	FSourceLinkParams Params;
+	Params.Object = ObjectWeakPtr;
+	Params.BlueprintFormat = &BlueprintFormat;
+	Params.CodeFormat = &CodeFormat;
+	Params.bEmptyIfNoLink = true;
+
+	return GetSourceLink(Class, Params);
 }
 
 UClass* FEditorClassUtils::GetClassFromString(const FString& ClassName)
