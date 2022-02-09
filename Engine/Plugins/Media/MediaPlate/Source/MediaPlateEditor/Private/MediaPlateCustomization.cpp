@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
 #include "MediaPlate.h"
+#include "MediaPlateEditorModule.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 
@@ -59,6 +60,14 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 								AMediaPlate* MediaPlate = ActorPtr.Get();
 								if (MediaPlate != nullptr)
 								{
+									// Tell the editor module that this media plate is playing.
+									FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
+									if (EditorModule != nullptr)
+									{
+										EditorModule->MediaPlateStartedPlayback(MediaPlate);
+									}
+
+									// Play the media.
 									MediaPlate->Play();
 								}
 							}
