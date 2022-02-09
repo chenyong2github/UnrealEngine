@@ -339,7 +339,7 @@ struct FAuthCredentials :
 		Id = IdAnsi;
 		Token = TokenAnsi;
 
-		uint32_t InOutBufferLength = EOS_OSS_STRING_BUFFER_LENGTH;
+		uint32_t InOutBufferLength = EOS_MAX_TOKEN_SIZE;
 		EOS_ByteArray_ToString(InToken.GetData(), InToken.Num(), TokenAnsi, &InOutBufferLength);
 	}
 
