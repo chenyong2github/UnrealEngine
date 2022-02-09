@@ -292,11 +292,14 @@ void UFractureToolClusterMerge::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 			}
 			
 			int32 MergeNode = FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(Context.GetGeometryCollection().Get(), Context.GetSelection());
-			FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), MergeNode, ChildBones);
-			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
-			
-			Context.SetSelection({MergeNode});
-			Refresh(Context, Toolkit);
+			if (MergeNode >= 0)
+			{
+				FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), MergeNode, ChildBones);
+				FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+
+				Context.SetSelection({ MergeNode });
+				Refresh(Context, Toolkit);
+			}
 		}
 
 		SetOutlinerComponents(Contexts, Toolkit);

@@ -22,7 +22,7 @@ FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeome
 }
 
 
-void FFractureToolContext::Sanitize()
+void FFractureToolContext::Sanitize(bool bFavorParents)
 {
 	// Ensure that selected indices are valid
 	int NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
@@ -31,9 +31,12 @@ void FFractureToolContext::Sanitize()
 		});
 	
 	// Ensure that children of a selected node are not also selected.
-	SelectedBones.RemoveAll([this](int32 Index) {
-		return !IsValidBone(Index) || HasSelectedAncestor(Index);
-		});
+	if (bFavorParents)
+	{
+		SelectedBones.RemoveAll([this](int32 Index) {
+			return !IsValidBone(Index) || HasSelectedAncestor(Index);
+			});
+	}
 
 	SelectedBones.Sort();
 }
