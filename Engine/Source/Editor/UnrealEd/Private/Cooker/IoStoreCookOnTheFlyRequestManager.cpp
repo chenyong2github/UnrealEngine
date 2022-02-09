@@ -402,14 +402,9 @@ private:
 		if (PlatformName.Len())
 		{
 			Client.PlatformName = FName(*PlatformName);
-
-			Response.SetBodyTo(Client.ClientId);
-			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
 		}
-		else
-		{
-			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
-		}
+		Response.SetBodyTo(Client.ClientId);
+		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
 	}
 
 	FClient* GetClientById(uint32 ClientId)
@@ -643,6 +638,11 @@ private:
 	{
 		FScopeLock _(&ContextsCriticalSection);
 
+		if (PlatformName.IsNone())
+		{
+			return true;
+		}
+
 		if (ConnectionStatus == FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus::Connected)
 		{
 			const ITargetPlatform* TargetPlatform = CookOnTheFlyServer.AddPlatform(PlatformName);
@@ -716,6 +716,13 @@ private:
 		using namespace UE::Cook;
 		using namespace UE::ZenCookOnTheFly::Messaging;
 
+		if (PlatformName.IsNone())
+		{
+			UE_LOG(LogCookOnTheFly, Warning, TEXT("GetCookedPackagesRequest from editor client"));
+			Response.SetStatus(ECookOnTheFlyMessageStatus::Error);
+			return true;
+		}
+		
 		FCompletedPackages CompletedPackages;
 		{
 			FPlatformContext& Context = GetContext(PlatformName);
@@ -732,6 +739,13 @@ private:
 	bool HandleCookPackageRequest(const FName& PlatformName, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
 		using namespace UE::ZenCookOnTheFly::Messaging;
+
+		if (PlatformName.IsNone())
+		{
+			UE_LOG(LogCookOnTheFly, Warning, TEXT("CookPackageRequest from editor client"));
+			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
+			return true;
+		}
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleCookPackageRequest);
 
@@ -845,6 +859,13 @@ private:
 	bool HandleRecompileShadersRequest(const FName& PlatformName, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleRecompileShadersRequest);
+
+		if (PlatformName.IsNone())
+		{
+			UE_LOG(LogCookOnTheFly, Warning, TEXT("RecompileShadersRequest from editor client"));
+			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
+			return true;
+		}
 
 		TArray<FString> RecompileModifiedFiles;
 		TArray<uint8> MeshMaterialMaps;

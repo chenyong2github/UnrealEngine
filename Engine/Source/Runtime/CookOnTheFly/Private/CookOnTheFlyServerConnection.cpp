@@ -212,10 +212,14 @@ public:
 
 		FCookOnTheFlyMessage HandshakeRequest(ECookOnTheFlyMessage::Handshake | ECookOnTheFlyMessage::Request);
 		{
-			TArray<FString> TargetPlatformNames;
-			FPlatformMisc::GetValidTargetPlatforms(TargetPlatformNames);
-			check(TargetPlatformNames.Num() > 0);
-			FString PlatformName(MoveTemp(TargetPlatformNames[0]));
+			FString PlatformName;
+			if (FPlatformProperties::RequiresCookedData())
+			{
+				TArray<FString> TargetPlatformNames;
+				FPlatformMisc::GetValidTargetPlatforms(TargetPlatformNames);
+				check(TargetPlatformNames.Num() > 0);
+				PlatformName = MoveTemp(TargetPlatformNames[0]);
+			}
 			FString ProjectName(FApp::GetProjectName());
 
 			TUniquePtr<FArchive> Ar = HandshakeRequest.WriteBody();
