@@ -409,7 +409,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 {
 	if (!ClaimHandle.IsValid())
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must proviced with a valid claim handle"));
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Must provide a valid claim handle"));
 		return nullptr;
 	}
 

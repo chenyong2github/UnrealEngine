@@ -41,6 +41,9 @@ public:
 	/** Recreate gizmos (e.g. slots being added/removed) */
 	void RebuildGizmos();
 
+	/** Refresh gizmos (e.g. slots offset/rotation modified) */
+	void RefreshGizmos();
+
 private:
 	/** Creates Gizmos for each slot definition. */
 	void CreateGizmos();

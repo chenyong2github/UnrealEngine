@@ -84,6 +84,18 @@ void USmartObjectAssetEditorTool::RebuildGizmos()
 	CreateGizmos();
 }
 
+void USmartObjectAssetEditorTool::RefreshGizmos()
+{
+	check(Definition != nullptr);
+	check(ActiveGizmos.Num() == Definition->GetSlots().Num());
+
+	for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
+	{
+		const FTransform NewTransform = Definition->GetSlotTransform(FTransform::Identity, FSmartObjectSlotIndex(Index)).GetValue();
+		ActiveGizmos[Index].TransformGizmo->ReinitializeGizmoTransform(NewTransform);
+	}
+}
+
 //----------------------------------------------------------------------//
 // FSmartObjectAssetToolkit
 //----------------------------------------------------------------------//
@@ -347,9 +359,15 @@ void FSmartObjectAssetToolkit::OnPropertyChanged(UObject* ObjectBeingModified, F
 	// Only monitor changes to Slots since we need to recreate the proper amount of Gizmos
 	// Note that we can't use GET_MEMBER_NAME_CHECKED(USmartObjectDefinition, Slots)) since
 	// the property is not public
-	if (PropertyChangedEvent.GetPropertyName() == FName(TEXT("Slots")))
+	const FName SlotsMemberName(TEXT("Slots"));
+	if (PropertyChangedEvent.GetPropertyName() == SlotsMemberName)
 	{
 		Tool->RebuildGizmos();
+	}
+	else if (PropertyChangedEvent.MemberProperty == nullptr // Provided event is invalid for undo, force refresh in that case
+		|| PropertyChangedEvent.MemberProperty->GetFName() == SlotsMemberName)
+	{
+		Tool->RefreshGizmos();
 	}
 }
 
