@@ -399,7 +399,9 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	bCollectNetStats(false)
 ,	LastCleanupTime(0.0)
 ,	NetTag(0)
+#if NET_DEBUG_RELEVANT_ACTORS
 ,	DebugRelevantActors(false)
+#endif // NET_DEBUG_RELEVANT_ACTORS
 #if !UE_BUILD_SHIPPING
 ,	SendRPCDel()
 #endif
@@ -2644,10 +2646,12 @@ void UNetDriver::Serialize( FArchive& Ar )
 			}
 		);
 
+#if NET_DEBUG_RELEVANT_ACTORS
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastPrioritizedActors", LastPrioritizedActors.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastRelevantActors", LastRelevantActors.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastSentActors", LastSentActors.CountBytes(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastNonRelevantActors", LastNonRelevantActors.CountBytes(Ar));
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedStartupOrDormantActors",
 			DestroyedStartupOrDormantActors.CountBytes(Ar);
@@ -4577,10 +4581,12 @@ int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connec
 
 				FinalSortedCount++;
 
+#if NET_DEBUG_RELEVANT_ACTORS
 				if ( DebugRelevantActors )
 				{
 					LastPrioritizedActors.Add( Actor );
 				}
+#endif // NET_DEBUG_RELEVANT_ACTORS
 			}
 		}
 
@@ -4676,10 +4682,12 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 					{
 						bIsRelevant = true;
 					}
+#if NET_DEBUG_RELEVANT_ACTORS
 					else if ( DebugRelevantActors )
 					{
 						LastNonRelevantActors.Add( Actor );
 					}
+#endif // NET_DEBUG_RELEVANT_ACTORS
 				}
 			}
 			else
@@ -4737,10 +4745,13 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 					{
 						// replicate the actor
 						UE_LOG( LogNetTraffic, Log, TEXT( "- Replicate %s. %d" ), *Actor->GetName(), PriorityActors[j]->Priority );
+
+#if NET_DEBUG_RELEVANT_ACTORS
 						if ( DebugRelevantActors )
 						{
 							LastRelevantActors.Add( Actor );
 						}
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 						double ChannelLastNetUpdateTime = Channel->LastUpdateTime;
 
@@ -4755,10 +4766,13 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 #endif
 
 							ActorUpdatesThisConnectionSent++;
+
+#if NET_DEBUG_RELEVANT_ACTORS
 							if ( DebugRelevantActors )
 							{
 								LastSentActors.Add( Actor );
 							}
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 							// Calculate min delta (max rate actor will upate), and max delta (slowest rate actor will update)
 							const float MinOptimalDelta				= 1.0f / Actor->NetUpdateFrequency;
@@ -5253,6 +5267,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 	}
 	Mark.Pop();
 
+#if NET_DEBUG_RELEVANT_ACTORS
 	if (DebugRelevantActors)
 	{
 		PrintDebugRelevantActors();
@@ -5263,6 +5278,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 
 		DebugRelevantActors  = false;
 	}
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 	for (UNetConnection* ConnectionToClose : ConnectionsToClose)
 	{
@@ -5330,6 +5346,7 @@ void UNetDriver::SetNetDriverName(FName NewNetDriverNamed)
 	InitPacketSimulationSettings();
 }
 
+#if NET_DEBUG_RELEVANT_ACTORS
 void UNetDriver::PrintDebugRelevantActors()
 {
 	struct SLocal
@@ -5397,8 +5414,8 @@ void UNetDriver::PrintDebugRelevantActors()
 	UE_LOG(LogNet, Warning, TEXT(" Num Connections: %d"), ClientConnections.Num() );
 
 	UE_LOG(LogNet, Warning, TEXT("---------------------------------") );
-
 }
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 void UNetDriver::DrawNetDriverDebug()
 {
@@ -5951,6 +5968,7 @@ UNetConnection* UNetDriver::GetConnectionById(uint32 ConnectionId) const
 	return nullptr;
 }
 
+#if NET_DEBUG_RELEVANT_ACTORS
 static void	DumpRelevantActors( UWorld* InWorld )
 {
 	UNetDriver *NetDriver = InWorld->NetDriver;
@@ -5961,6 +5979,7 @@ static void	DumpRelevantActors( UWorld* InWorld )
 
 	NetDriver->DebugRelevantActors = true;
 }
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropertyTracker(UObject* Obj)
 {
@@ -6460,12 +6479,13 @@ void UNetDriver::MoveMappedObjectToUnmapped(const UObject* Object)
 	}
 }
 
+#if NET_DEBUG_RELEVANT_ACTORS
 FAutoConsoleCommandWithWorld	DumpRelevantActorsCommand(
 	TEXT("net.DumpRelevantActors"), 
 	TEXT( "Dumps information on relevant actors during next network update" ), 
 	FConsoleCommandWithWorldDelegate::CreateStatic(DumpRelevantActors)
 	);
-
+#endif // NET_DEBUG_RELEVANT_ACTORS
 
 #if DO_ENABLE_NET_TEST
 

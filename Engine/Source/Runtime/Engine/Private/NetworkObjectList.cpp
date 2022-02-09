@@ -5,6 +5,7 @@
 #include "Engine/Level.h"
 #include "EngineUtils.h"
 #include "Serialization/Archive.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 void FNetworkObjectList::AddInitialObjects(UWorld* const World, UNetDriver* NetDriver)
 {
@@ -303,26 +304,32 @@ void FNetworkObjectList::Reset()
 
 void FNetworkObjectInfo::CountBytes(FArchive& Ar) const
 {
-	DormantConnections.CountBytes(Ar);
-	RecentlyDormantConnections.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FNetworkObjectInfo::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantConnections", DormantConnections.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentlyDormantConnections", RecentlyDormantConnections.CountBytes(Ar));
 }
 
 void FNetworkObjectList::CountBytes(FArchive& Ar) const
 {
-	AllNetworkObjects.CountBytes(Ar);
-	ActiveNetworkObjects.CountBytes(Ar);
-	ObjectsDormantOnAllConnections.CountBytes(Ar);
-	NumDormantObjectsPerConnection.CountBytes(Ar);
- 
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FNetworkObjectList::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActiveNetworkObjects", ActiveNetworkObjects.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectsDormantOnAllConnections", ObjectsDormantOnAllConnections.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NumDormantObjectsPerConnection", NumDormantObjectsPerConnection.CountBytes(Ar));
+
 	// ObjectsDormantOnAllConnections and ActiveNetworkObjects are both sub sets of AllNetworkObjects
 	// and only have pointers back to the data there.
 	// So, to avoid double (or triple) counting, only explicit count the elements from AllNetworkObjects.
-	for (const TSharedPtr<FNetworkObjectInfo>& SharedInfo : AllNetworkObjects)
-	{
-		if (FNetworkObjectInfo const * const Info = SharedInfo.Get())
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AllNetworkObjects",
+		AllNetworkObjects.CountBytes(Ar);
+		for (const TSharedPtr<FNetworkObjectInfo>& SharedInfo : AllNetworkObjects)
 		{
-			Ar.CountBytes(sizeof(FNetworkObjectInfo), sizeof(FNetworkObjectInfo));
-			Info->CountBytes(Ar);
+			if (FNetworkObjectInfo const* const Info = SharedInfo.Get())
+			{
+				Ar.CountBytes(sizeof(FNetworkObjectInfo), sizeof(FNetworkObjectInfo));
+				Info->CountBytes(Ar);
+			}
 		}
-	}
+	);
 }

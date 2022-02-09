@@ -375,8 +375,10 @@ public:
 
 	void CountBytes(FArchive& Ar) const
 	{
-		LifetimeCustomDeltaProperties.CountBytes(Ar);
-		LifetimeCustomDeltaIndexLookup.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FLifetimeCustomDeltaState::CountBytes");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeCustomDeltaProperties", LifetimeCustomDeltaProperties.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeCustomDeltaIndexLookup", LifetimeCustomDeltaIndexLookup.CountBytes(Ar));
 	}
 
 	const uint16 GetNumCustomDeltaProperties() const
@@ -458,12 +460,15 @@ struct FDeltaArrayHistoryItem
 
 	void CountBytes(FArchive& Ar) const
 	{
-		ChangelistByID.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FDeltaArrayHistoryItem::CountBytes");
 
-		for (const auto& KVP : ChangelistByID)
-		{
-			KVP.Value.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChangelistByID",
+			ChangelistByID.CountBytes(Ar);
+			for (const auto& KVP : ChangelistByID)
+			{
+				KVP.Value.CountBytes(Ar);
+			}
+		);
 	}
 };
 
@@ -496,12 +501,16 @@ struct FDeltaArrayHistoryState
 
 	void CountBytes(FArchive& Ar) const
 	{
-		IDToIndexMap.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FDeltaArrayHistoryState::CountBytes");
 
-		for (const FDeltaArrayHistoryItem& HistoryItem : ChangeHistory)
-		{
-			HistoryItem.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("IDToIndexMap", IDToIndexMap.CountBytes(Ar));
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChangeHistory",
+			for (const FDeltaArrayHistoryItem& HistoryItem : ChangeHistory)
+			{
+				HistoryItem.CountBytes(Ar);
+			}
+		);
 	}
 };
 
@@ -1185,6 +1194,14 @@ bool FRepChangelistState::HasAnyDirtyProperties() const
 void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepChangelistState::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChangeHistory",
+		for (const FRepChangedHistory& HistoryItem : ChangeHistory)
+		{
+			HistoryItem.CountBytes(Ar);
+		}
+	);
+
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StaticBuffer", StaticBuffer.CountBytes(Ar));
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedSerialization", SharedSerialization.CountBytes(Ar));
 
@@ -1215,7 +1232,8 @@ FReplicationChangelistMgr::~FReplicationChangelistMgr()
 
 void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
 {
-	RepChangelistState.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FReplicationChangelistMgr::CountBytes");
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepChangelistState", RepChangelistState.CountBytes(Ar));
 }
 
 FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) 

@@ -197,9 +197,14 @@ struct FStreamingLevelActorListCollection
 	static const int32 NumInlineAllocations = 4;
 	TArray<FStreamingLevelActors, TInlineAllocator<NumInlineAllocations>> StreamingLevelLists;
 
-	void CountBytes(FArchive& Ar)
+	void CountBytes(FArchive& Ar) const
 	{
 		StreamingLevelLists.CountBytes(Ar);
+
+		for (const FStreamingLevelActors& List : StreamingLevelLists)
+		{
+			List.ReplicationActorList.CountBytes(Ar);
+		}
 	}
 };
 
@@ -212,6 +217,7 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_ActorList : public UReplication
 	GENERATED_BODY()
 
 public:
+	virtual void Serialize(FArchive& Ar) override;
 
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo) override;
 	

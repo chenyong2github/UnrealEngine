@@ -370,6 +370,11 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 		return RepList.Contains(Value);
 	}
 
+	void CountBytes(FArchive& Ar) const
+	{
+		RepList.CountBytes(Ar);
+	}
+
 private:
 
 	friend struct FActorRepListStatCollector;
@@ -572,7 +577,7 @@ struct FGlobalActorReplicationInfo
 
 	void LogDebugString(FOutputDevice& Ar) const;
 
-	void CountBytes(FArchive& Ar)
+	void CountBytes(FArchive& Ar) const
 	{
 		// Note, we don't count DependentActorList because it's memory will be cached by the allocator / pooling stuff.
 		if (FastSharedReplicationInfo.IsValid())
@@ -580,6 +585,9 @@ struct FGlobalActorReplicationInfo
 			Ar.CountBytes(sizeof(FFastSharedReplicationInfo), sizeof(FFastSharedReplicationInfo));
 			FastSharedReplicationInfo->CountBytes(Ar);
 		}
+
+		DependentActorList.CountBytes(Ar);
+		ParentActorList.CountBytes(Ar);
 	}
 
 	typedef TArray<FActorRepListType> FDependantListType;
@@ -774,9 +782,9 @@ struct FGlobalActorReplicationInfoMap
 
 
 	/** Finds data associated with the actor but does not create if its not there yet. */
-	FORCEINLINE FGlobalActorReplicationInfo* Find(const FActorRepListType& Actor)
+	FORCEINLINE FGlobalActorReplicationInfo* Find(const FActorRepListType& Actor) const 
 	{
-		if (TUniquePtr<FGlobalActorReplicationInfo>* Ptr = ActorMap.Find(Actor))
+		if (const TUniquePtr<FGlobalActorReplicationInfo>* Ptr = ActorMap.Find(Actor))
 		{
 			return Ptr->Get();
 		}

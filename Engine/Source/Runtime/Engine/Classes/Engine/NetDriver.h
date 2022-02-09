@@ -381,6 +381,9 @@ DECLARE_DELEGATE_RetVal(bool, FShouldSkipRepNotifies);
 //
 #define DO_ENABLE_NET_TEST !(UE_BUILD_SHIPPING)
 
+#ifndef NET_DEBUG_RELEVANT_ACTORS
+#define NET_DEBUG_RELEVANT_ACTORS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif 
 
 /** Holds the packet simulation settings in one place */
 USTRUCT()
@@ -1007,6 +1010,8 @@ public:
 	float						JoinInProgressStandbyWaitTime;
 	/** Used to track whether a given actor was replicated by the net driver recently */
 	int32						NetTag;
+
+#if NET_DEBUG_RELEVANT_ACTORS
 	/** Dumps next net update's relevant actors when true*/
 	bool						DebugRelevantActors;
 
@@ -1017,6 +1022,7 @@ public:
 	TArray< TWeakObjectPtr<AActor> >	LastNonRelevantActors;
 
 	void						PrintDebugRelevantActors();
+#endif // NET_DEBUG_RELEVANT_ACTORS
 	
 	/** The server adds an entry into this map for every actor that is destroyed that join-in-progress
 	 *  clients need to know about, that is, startup actors. Also, individual UNetConnections

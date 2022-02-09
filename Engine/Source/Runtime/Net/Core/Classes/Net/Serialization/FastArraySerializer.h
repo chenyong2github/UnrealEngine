@@ -234,6 +234,11 @@ public:
 		return true;
 	}
 
+	virtual void CountBytes(FArchive& Ar) const override
+	{
+		IDToCLMap.CountBytes(Ar);
+	}
+
 	/** Maps an element's Replication ID to Index. */
 	TMap<int32, int32> IDToCLMap;
 
