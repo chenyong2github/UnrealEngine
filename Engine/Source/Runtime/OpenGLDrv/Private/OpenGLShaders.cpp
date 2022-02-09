@@ -878,13 +878,13 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	// This is the place to insert such engine preprocessor defines, immediately after the glsl version declaration.
 	if (TypeEnum == GL_FRAGMENT_SHADER)
 	{
-		if(FOpenGL::SupportsShaderMRTFramebufferFetch())
-		{
-			AppendCString(GlslCode, "#define UE_MRT_FRAMEBUFFER_FETCH 1\n");
-		}
-		else if (FOpenGL::SupportsPixelLocalStorage())
+		if (FOpenGL::SupportsPixelLocalStorage())
 		{
 			AppendCString(GlslCode, "#define UE_MRT_PLS 1\n");
+		}
+		else if(FOpenGL::SupportsShaderMRTFramebufferFetch())
+		{
+			AppendCString(GlslCode, "#define UE_MRT_FRAMEBUFFER_FETCH 1\n");
 		}
 	}
 

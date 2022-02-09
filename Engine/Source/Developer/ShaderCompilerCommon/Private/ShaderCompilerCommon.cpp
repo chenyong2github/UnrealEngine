@@ -1921,11 +1921,29 @@ void DumpDebugShaderText(const FShaderCompilerInput& Input, ANSICHAR* InSource, 
 	DumpDebugShaderBinary(Input, InSource, InSourceLength * sizeof(ANSICHAR), FileExtension);
 }
 
+void DumpDebugShaderText(const FShaderCompilerInput& Input, ANSICHAR* InSource, int32 InSourceLength, const FString& FileName, const FString& FileExtension)
+{
+	DumpDebugShaderBinary(Input, InSource, InSourceLength * sizeof(ANSICHAR), FileName, FileExtension);
+}
+
 void DumpDebugShaderBinary(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileExtension)
 {
 	if (InData != nullptr && InDataByteSize > 0 && !FileExtension.IsEmpty())
 	{
 		const FString Filename = Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".") + FileExtension;
+		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
+		{
+			FileWriter->Serialize(InData, InDataByteSize);
+			FileWriter->Close();
+		}
+	}
+}
+
+void DumpDebugShaderBinary(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileName, const FString& FileExtension)
+{
+	if (InData != nullptr && InDataByteSize > 0 && !FileExtension.IsEmpty())
+	{
+		const FString Filename = Input.DumpDebugInfoPath / FileName + TEXT(".") + FileExtension;
 		if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
 		{
 			FileWriter->Serialize(InData, InDataByteSize);

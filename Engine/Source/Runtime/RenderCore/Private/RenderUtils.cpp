@@ -1123,6 +1123,10 @@ RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Plat
 	{
 		return true;
 	}
+	else if (IsMobileDeferredShadingEnabled(Platform) && IsAndroidOpenGLESPlatform(Platform))
+	{
+		return true;
+	}
 	else if (!IsMobileDeferredShadingEnabled(Platform) && bMobileHDR)
 	{
 		// SceneDepthAux disabled when MobileHDR=false for non-IOS

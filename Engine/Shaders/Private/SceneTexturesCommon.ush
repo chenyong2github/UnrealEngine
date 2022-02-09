@@ -8,8 +8,12 @@
 
 #include "Common.ush"
 
-#if VULKAN_PROFILE && COMPILER_DXC && PIXELSHADER
-#	include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
+#if COMPILER_DXC && PIXELSHADER
+#if VULKAN_PROFILE
+	#include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
+#elif OPENGL_PROFILE
+	#include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
+#endif
 #endif
 
 // Return far plane when scene textures are disabled in order not to break depthfade

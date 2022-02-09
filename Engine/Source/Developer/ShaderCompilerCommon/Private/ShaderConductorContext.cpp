@@ -348,6 +348,9 @@ namespace CrossCompiler
 		// Convert FString to ANSI string and store them as intermediates
 		FMemory::Memzero(OutTargetDesc);
 
+		Intermediates.Flags.Empty();
+		Intermediates.FlagRefs.Empty();
+
 		switch (InTarget.Language)
 		{
 		case EShaderConductorLanguage::Hlsl:

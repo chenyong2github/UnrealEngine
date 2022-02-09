@@ -1160,7 +1160,6 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 
 #if PLATFORM_ANDROID
 	if (RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass &&
-		!FOpenGL::SupportsShaderMRTFramebufferFetch() &&
 		FOpenGL::SupportsPixelLocalStorage())
 	{
 		glEnable(GL_SHADER_PIXEL_LOCAL_STORAGE_EXT);
@@ -1219,7 +1218,6 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 
 #if PLATFORM_ANDROID
 	if (RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass &&
-		!FOpenGL::SupportsShaderMRTFramebufferFetch() &&
 		FOpenGL::SupportsPixelLocalStorage())
 	{
 		glDisable(GL_SHADER_PIXEL_LOCAL_STORAGE_EXT);

@@ -31,6 +31,8 @@
 #include "/Engine/Public/Platform/Metal/MetalSubpassSupport.ush"
 #elif VULKAN_PROFILE
 #include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
+#elif OPENGL_PROFILE
+#include "/Engine/Public/Platform/GL/GLSubpassSupport.ush"
 #endif
 
 #ifndef IS_SPOT_LIGHT 
@@ -71,11 +73,11 @@ void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out fl
 	GBufferD = 0; 
 	SceneDepth = ConvertFromDeviceZ(SubpassFetchR_4());
 #elif USE_GLES_FBF_DEFERRED
-	GBufferA = GLFramebufferFetch1(); 
-	GBufferB = GLFramebufferFetch2(); 
-	GBufferC = GLFramebufferFetch3();  
+	GBufferA = GLSubpassFetch1(); 
+	GBufferB = GLSubpassFetch2(); 
+	GBufferC = GLSubpassFetch3();  
 	GBufferD = 0;   
-	SceneDepth = ConvertFromDeviceZ(GLFramebufferFetchDepth());
+	SceneDepth = ConvertFromDeviceZ(DepthbufferFetchES2());
 #else
 	GBufferA = Texture2DSampleLevel(MobileSceneTextures.GBufferATexture, MobileSceneTextures.GBufferATextureSampler, UV, 0); 
 	GBufferB = Texture2DSampleLevel(MobileSceneTextures.GBufferBTexture, MobileSceneTextures.GBufferBTextureSampler, UV, 0);
@@ -234,11 +236,19 @@ void GetLightGridLocalLighting(
 		GetDirectLighting(LightData, ShadingModelContext, GBuffer, TranslatedWorldPosition, CameraVector, MobileLightAccumulator);
 	}
 }
-
+  
 void MobileDirectLightPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0, 
 	float4 SvPosition : SV_POSITION, 
-	out HALF4_TYPE OutColor : SV_Target0)
+#if USE_GLES_FBF_DEFERRED
+	out HALF4_TYPE OutProxyAdditive : SV_Target0,
+	out HALF4_TYPE OutGBufferA : SV_Target1,
+	out HALF4_TYPE OutGBufferB : SV_Target2,
+	out HALF4_TYPE OutGBufferC : SV_Target3
+#else
+	out HALF4_TYPE OutColor : SV_Target0
+#endif
+)
 {
 	ResolvedView = ResolveView();
 
@@ -326,7 +336,7 @@ void MobileDirectLightPS(
 		// Planar reflections win over reflection environment
 		SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
 	}
-
+	  
 	MobileLightAccumulator_Add(MobileLightAccumulator, 0.0f, SpecularIBL * ShadingModelContext.EnvBrdf, 1.0f);
 #elif APPLY_SKY_REFLECTION
 	float SkyAverageBrightness = 1.0f;
@@ -354,15 +364,26 @@ void MobileDirectLightPS(
 
 	// MobileHDR applies PreExposure in tonemapper
 	LightAttenuation *= View.PreExposure;
-					
+
+#if defined(MOBILE_DEFERRED_SHADING) && USE_GLES_FBF_DEFERRED == 1
+	OutProxyAdditive.rgb = Color.rgb * LightAttenuation;
+#else
 	OutColor.rgb = Color.rgb * LightAttenuation;
 	OutColor.a = 1;
+#endif
 }
 
 void MobileRadialLightPS(
 	float4 InScreenPosition : TEXCOORD0,
 	float4 SVPos			: SV_POSITION,
-	out float4 OutColor		: SV_Target0
+#if USE_GLES_FBF_DEFERRED
+	out HALF4_TYPE OutProxyAdditive : SV_Target0,
+	out HALF4_TYPE OutGBufferA : SV_Target1,
+	out HALF4_TYPE OutGBufferB : SV_Target2,
+	out HALF4_TYPE OutGBufferC : SV_Target3
+#else
+	out HALF4_TYPE OutColor : SV_Target0
+#endif
 )
 {
 	FGBufferData GBuffer = (FGBufferData)0;
@@ -410,6 +431,10 @@ void MobileRadialLightPS(
 	// MobileHDR applies PreExposure in tonemapper
 	LightAttenuation*= View.PreExposure;
 
-	OutColor.rgb = Color * LightAttenuation;
+#if defined(MOBILE_DEFERRED_SHADING) && USE_GLES_FBF_DEFERRED == 1
+	OutProxyAdditive.rgb = Color.rgb * LightAttenuation;
+#else
+	OutColor.rgb = Color.rgb * LightAttenuation;
 	OutColor.a = 1;
+#endif
 }

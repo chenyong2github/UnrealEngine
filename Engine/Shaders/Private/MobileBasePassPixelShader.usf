@@ -587,12 +587,14 @@ void Main(
 	, in float4 SvPosition : SV_Position
 	OPTIONAL_IsFrontFace
 #if DEFERRED_SHADING_PATH
-#if !USE_GLES_FBF_DEFERRED
+#if USE_GLES_FBF_DEFERRED
+	, out HALF4_TYPE OutProxy : SV_Target0
+#else
 	, out HALF4_TYPE OutColor : SV_Target0
+#endif
 	, out HALF4_TYPE OutGBufferA : SV_Target1
 	, out HALF4_TYPE OutGBufferB : SV_Target2
-	, out HALF4_TYPE OutGBufferC	: SV_Target3  
-#endif
+	, out HALF4_TYPE OutGBufferC : SV_Target3  
 #else
 	, out HALF4_TYPE OutColor : SV_Target0
 #endif
@@ -603,16 +605,11 @@ void Main(
 	, out float OutDepth : SV_Depth
 #endif
 	)
-{
-
+{  
 #if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED
 	half4 OutColor;	
-	half4 OutGBufferA;
-	half4 OutGBufferB;
-	half4 OutGBufferC;
-	float OutSceneDepthAux;
 #endif
-  
+
 #if MOBILE_MULTI_VIEW
 	ResolvedView = ResolveView(uint(BasePassInterpolants.MultiViewId));
 #else
@@ -804,13 +801,6 @@ void Main(
 	GBuffer.PrecomputedShadowFactors.r = Shadow;
 
 	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
-
-#if USE_GLES_FBF_DEFERRED
-	GLFramebufferFetchWrite1(OutGBufferA);  
-	GLFramebufferFetchWrite2(OutGBufferB);  
-	GLFramebufferFetchWrite3(OutGBufferC);
-	GLFramebufferFetchDepthWrite(SvPosition.z);   
-#endif
 #else
 
 #if ENABLE_SKY_LIGHT
@@ -1121,6 +1111,6 @@ void Main(
 #endif
 
 #if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED 
-	GLFramebufferFetchWrite0(half4(OutColor.rgb, 1.0f));
+	OutProxy.rgb = OutColor.rgb;
 #endif
 }
