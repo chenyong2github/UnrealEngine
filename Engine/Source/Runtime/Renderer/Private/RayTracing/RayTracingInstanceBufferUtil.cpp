@@ -2,6 +2,8 @@
 
 #include "RayTracingInstanceBufferUtil.h"
 
+#include "Lumen/Lumen.h"
+
 #include "RayTracingDefinitions.h"
 #include "GPUScene.h"
 
@@ -236,6 +238,8 @@ struct FRayTracingBuildInstanceBufferCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, AccelerationStructureAddresses)
 		SHADER_PARAMETER_SRV(StructuredBuffer, InstanceTransforms)
 
+		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
+
 		SHADER_PARAMETER(uint32, NumInstances)
 		SHADER_PARAMETER(uint32, InputDescOffset)
 
@@ -279,6 +283,7 @@ void BuildRayTracingInstanceBuffer(
 	PassParams.InputInstanceDescriptors = InstanceUploadSRV;
 	PassParams.AccelerationStructureAddresses = AccelerationStructureAddressesSRV;
 	PassParams.InstanceTransforms = InstanceTransformSRV;
+	PassParams.FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();	// LWC_TODO: Precision Loss
 	PassParams.NumInstances = NumInstances;
 	PassParams.InputDescOffset = InputDescOffset;
 

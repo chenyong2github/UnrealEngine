@@ -10,23 +10,23 @@
 
 #include "RayTracingDefinitions.h"
 
-void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, uint8 ExtraMask)
+void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)
 {
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
-	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel);
+	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel, InstanceLayer, ExtraMask);
 
-	Mask = MaskAndFlags.Mask | ExtraMask;
+	Mask = MaskAndFlags.Mask;
 	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
 	bDoubleSided = bDoubleSided || MaskAndFlags.bDoubleSided;
 }
 
-FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel)
+FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)
 {
 	FRayTracingMaskAndFlags Result;
 
 	ensureMsgf(MeshBatches.Num() > 0, TEXT("You need to add MeshBatches first for instance mask and flags to build upon."));
 
-	Result.Mask = 0;
+	Result.Mask = ExtraMask;
 
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
@@ -53,7 +53,14 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 
 	Result.bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
 	Result.bDoubleSided = bDoubleSided;
+
 	Result.Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
+
+	if (InstanceLayer == ERayTracingInstanceLayer::FarField)
+	{
+		// if far field, set that flag exclusively
+		Result.Mask = RAY_TRACING_MASK_FAR_FIELD;
+	}
 
 	return Result;
 }

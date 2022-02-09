@@ -1384,19 +1384,27 @@ ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRay
 		return ERayTracingPrimitiveFlags::UnsupportedProxyType;
 	}
 
-	const bool bShouldBeVisibleInRayTracing = IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame();
+	const bool bShouldBeVisibleInRayTracing = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()) || IsRayTracingFarField();
 	if (!bShouldBeVisibleInRayTracing)
 	{
 		// Exclude this proxy
 		return ERayTracingPrimitiveFlags::Excluded;
 	}
 
+	// Visible in ray tracing. Default to fully dynamic (no caching)
+	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::Dynamic;
+
 	if (IsRayTracingStaticRelevant())
 	{
-		return ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::ComputeLOD;
+		// overwrite flag if static
+		ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::ComputeLOD;
 	}
 
-	// Visible in ray tracing. Default to fully dynamic (no caching)
-	return ERayTracingPrimitiveFlags::Dynamic;
+	if (IsRayTracingFarField())
+	{
+		ResultFlags |= ERayTracingPrimitiveFlags::FarField;
+	}
+
+	return ResultFlags;
 }
 #endif

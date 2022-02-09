@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DistanceFieldLightingShared.h"
 #include "HAL/LowLevelMemTracker.h"
 
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);

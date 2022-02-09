@@ -1283,16 +1283,23 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.Materials.SetNum(MaterialSections.Num());
 	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials);
 
-	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
+	const bool bIsRayTracingFarField = IsRayTracingFarField();
 
-	RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
+	RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), bIsRayTracingFarField ? ERayTracingInstanceLayer::FarField : ERayTracingInstanceLayer::NearField);
 
 	// setup the flags
 	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
+
 	if (CoarseMeshStreamingHandle != INDEX_NONE)
 	{
 		ResultFlags |= ERayTracingPrimitiveFlags::Streaming;
 	}
+
+	if (bIsRayTracingFarField)
+	{
+		ResultFlags |= ERayTracingPrimitiveFlags::FarField;
+	}
+
 	return ResultFlags;
 }
 

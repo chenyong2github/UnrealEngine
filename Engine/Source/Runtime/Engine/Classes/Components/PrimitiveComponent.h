@@ -603,7 +603,7 @@ public:
 	uint8 bHiddenInSceneCapture : 1;
 
 	/** If true, this component will be available to ray trace as a far field primitive even if hidden. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
+	UPROPERTY()
 	uint8 bRayTracingFarField : 1;
 
 protected:

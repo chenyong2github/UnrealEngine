@@ -777,6 +777,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 							}
 
 							RelevantPrimitive.InstanceMask |= RelevantPrimitive.bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
+
+							if (EnumHasAllFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField))
+							{
+								RelevantPrimitive.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
+							}
 						}
 					}
 				}

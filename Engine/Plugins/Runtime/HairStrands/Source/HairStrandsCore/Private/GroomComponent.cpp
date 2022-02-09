@@ -575,7 +575,7 @@ public:
 					RayTracingInstance.Geometry = &RTGeometry->RayTracingGeometry;
 					RayTracingInstance.Materials.Add(*MeshBatch);
 					RayTracingInstance.InstanceTransforms.Add(OverrideLocalToWorld);
-					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), RayTracingMask);
+					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), ERayTracingInstanceLayer::NearField, RayTracingMask);
 
 					// If thin shadow is requested, we ensure that regular shadow mask is not added.
 					if (RayTracingMask == RAY_TRACING_MASK_THIN_SHADOW)

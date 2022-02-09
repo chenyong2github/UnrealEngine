@@ -19,6 +19,12 @@ struct FRayTracingMaskAndFlags
 	bool bDoubleSided = false;
 };
 
+enum class ERayTracingInstanceLayer : uint8
+{
+	NearField,
+	FarField,
+};
+
 struct FRayTracingInstance
 {
 	/** The underlying geometry of this instance specification. */
@@ -97,10 +103,10 @@ struct FRayTracingInstance
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
 	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, uint8 ExtraMask = 0);
+	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
 };
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel);
+ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
 ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 #endif
