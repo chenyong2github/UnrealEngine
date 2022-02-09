@@ -260,7 +260,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 			{
-				FConstClassAccessPtr ClassPtr = FindClass(InKey);
+				FClassAccessPtr ClassPtr = DocumentPtr.GetClassWithRegistryKey(InKey);
 
 				auto AddClass = [=](FMetasoundFrontendClass&& NewClassDescription, const FGuid& NewClassID)
 				{
@@ -277,7 +277,7 @@ namespace Metasound
 					return NewClassPtr;
 				};
 
-				if (const FMetasoundFrontendClass* MetasoundClass = ClassPtr.Get())
+				if (FMetasoundFrontendClass* MetasoundClass = ClassPtr.Get())
 				{
 					// External node classes must match version to return shared definition.
 					if (MetasoundClass->Metadata.GetType() == EMetasoundFrontendClassType::External)
@@ -295,8 +295,9 @@ namespace Metasound
 					if (bInRefreshFromRegistry)
 					{
 						FGuid ClassID = MetasoundClass->ID;
-						FMetasoundFrontendClass NewClass = GenerateClass(InKey);
-						return AddClass(MoveTemp(NewClass), ClassID);
+						*MetasoundClass = GenerateClass(InKey);
+						MetasoundClass->ID = ClassID;
+						return FindClass(InKey);
 					}
 
 					return ClassPtr;
