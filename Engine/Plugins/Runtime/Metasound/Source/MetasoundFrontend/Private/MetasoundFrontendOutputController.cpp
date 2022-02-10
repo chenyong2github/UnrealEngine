@@ -167,6 +167,7 @@ namespace Metasound
 			return TArray<FMetasoundFrontendEdge>();
 		}
 
+#if WITH_EDITOR
 		FText FBaseOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* Output = ClassOutputPtr.Get())
@@ -196,6 +197,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		FDocumentAccess FBaseOutputController::ShareAccess()
 		{
@@ -234,6 +236,7 @@ namespace Metasound
 			return FBaseOutputController::IsValid() && (nullptr != OwningGraphClassInputPtr.Get());
 		}
 
+#if WITH_EDITOR
 		FText FInputNodeOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
@@ -272,6 +275,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		void FInputNodeOutputController::SetName(const FVertexName& InName)
 		{
@@ -313,6 +317,7 @@ namespace Metasound
 			return FBaseOutputController::IsValid() && (nullptr != OwningGraphClassOutputPtr.Get());
 		}
 
+#if WITH_EDITOR
 		FText FOutputNodeOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
@@ -342,6 +347,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		void FOutputNodeOutputController::SetName(const FVertexName& InName)
 		{

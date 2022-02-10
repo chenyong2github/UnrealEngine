@@ -59,6 +59,7 @@ namespace Metasound
 			}
 		}
 		
+#if WITH_EDITOR
 		/** Returns the human readable name associated with this output. */
 		FText FVariableController::GetDisplayName() const
 		{
@@ -94,6 +95,7 @@ namespace Metasound
 				Variable->Description = InDescription;
 			}
 		}
+#endif // WITH_EDITOR
 
 		FNodeHandle FVariableController::FindMutatorNode()
 		{

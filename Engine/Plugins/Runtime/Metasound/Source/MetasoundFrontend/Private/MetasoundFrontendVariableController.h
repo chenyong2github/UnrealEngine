@@ -38,6 +38,7 @@ namespace Metasound
 			/** Sets the name associated with this variable. */
 			virtual void SetName(const FName& InName) override;
 			
+#if WITH_EDITOR
 			/** Returns the human readable name associated with this variable. */
 			virtual FText GetDisplayName() const override;
 
@@ -49,6 +50,7 @@ namespace Metasound
 
 			/** Sets the human readable description associated with this variable. */
 			virtual void SetDescription(const FText& InDescription) override;
+#endif // WITH_EDITOR
 
 			/** Returns the mutator node associated with this variable. */
 			virtual FNodeHandle FindMutatorNode() override;

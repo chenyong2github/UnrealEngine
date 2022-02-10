@@ -417,7 +417,10 @@ void UMetaSoundAssetSubsystem::ResetAssetClassDisplayName(const FAssetData& InAs
 	FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
 	check(MetaSoundAsset);
 	FMetasoundFrontendGraphClass& Class = MetaSoundAsset->GetDocumentChecked().RootGraph;
+
+#if WITH_EDITOR
 	Class.Metadata.SetDisplayName(FText());
+#endif // WITH_EDITOR
 }
 
 void UMetaSoundAssetSubsystem::SearchAndIterateDirectoryAssets(const TArray<FDirectoryPath>& InDirectories, TFunctionRef<void(const FAssetData&)> InFunction)

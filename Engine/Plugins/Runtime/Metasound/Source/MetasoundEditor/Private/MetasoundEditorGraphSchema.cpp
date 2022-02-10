@@ -1547,7 +1547,7 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 		FMetasoundFrontendClassMetadata Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.GetAuthor().IsEmpty()
 			? Metadata.GetDescription()
-			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat1", "{0}\nAuthor: {1}"), Metadata.GetDescription(), Metadata.GetAuthor());
+			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat1", "{0}\nAuthor: {1}"), Metadata.GetDescription(), FText::FromString(Metadata.GetAuthor()));
 		if (!Metadata.GetCategoryHierarchy().IsEmpty() && !Metadata.GetCategoryHierarchy()[0].CompareTo(NodeCategories::Conversions))
 		{
 			FText KeywordsText = FText::Join(SchemaPrivate::KeywordDelim, Metadata.GetKeywords());
@@ -1678,7 +1678,7 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 		FMetasoundFrontendClassMetadata Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.GetAuthor().IsEmpty()
 			? Metadata.GetDescription()
-			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat2", "{0}\nAuthor: {1}"), Metadata.GetDescription(), Metadata.GetAuthor());
+			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat2", "{0}\nAuthor: {1}"), Metadata.GetDescription(), FText::FromString(Metadata.GetAuthor()));
 
 		if (Metadata.GetCategoryHierarchy().IsEmpty() || Metadata.GetCategoryHierarchy()[0].CompareTo(Metasound::NodeCategories::Conversions))
 		{

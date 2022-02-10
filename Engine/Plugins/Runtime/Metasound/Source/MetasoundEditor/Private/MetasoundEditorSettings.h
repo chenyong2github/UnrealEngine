@@ -22,6 +22,12 @@ class METASOUNDEDITOR_API UMetasoundEditorSettings : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** Default author title to use when authoring a new
+	  * MetaSound.  If empty, uses machine name by default.
+	  */
+	UPROPERTY(EditAnywhere, config, Category=General)
+	FString DefaultAuthor;
+
 	/** Default pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor DefaultPinTypeColor;

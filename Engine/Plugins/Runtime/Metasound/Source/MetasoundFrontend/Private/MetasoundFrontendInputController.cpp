@@ -57,6 +57,7 @@ namespace Metasound
 			return Invalid::GetInvalidName();
 		}
 
+#if WITH_EDITOR
 		FText FBaseInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
@@ -66,6 +67,7 @@ namespace Metasound
 			
 			return Invalid::GetInvalidText();
 		}
+#endif // WITH_EDITOR
 
 		bool FBaseInputController::ClearLiteral()
 		{
@@ -104,6 +106,7 @@ namespace Metasound
 			return nullptr;
 		}
 
+#if WITH_EDITOR
 		const FText& FBaseInputController::GetTooltip() const
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
@@ -123,6 +126,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		bool FBaseInputController::IsConnected() const 
 		{
@@ -399,6 +403,7 @@ namespace Metasound
 			return FBaseInputController::IsValid() && (nullptr != OwningGraphClassOutputPtr.Get());
 		}
 
+#if WITH_EDITOR
 		FText FOutputNodeInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
@@ -438,6 +443,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		void FOutputNodeInputController::SetName(const FVertexName& InName)
 		{
@@ -480,6 +486,7 @@ namespace Metasound
 			return FBaseInputController::IsValid() && (nullptr != OwningGraphClassInputPtr.Get());
 		}
 
+#if WITH_EDITOR
 		FText FInputNodeInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
@@ -509,6 +516,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidVertexMetadata();
 		}
+#endif // WITH_EDITOR
 
 		void FInputNodeInputController::SetName(const FVertexName& InName)
 		{

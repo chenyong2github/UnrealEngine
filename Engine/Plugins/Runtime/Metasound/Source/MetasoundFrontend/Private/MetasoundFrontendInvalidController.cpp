@@ -25,13 +25,6 @@ namespace Metasound
 				return Invalid;
 			}
 
-			const FMetasoundFrontendVertexMetadata& GetInvalidVertexMetadata()
-			{
-				static const FMetasoundFrontendVertexMetadata Invalid;
-				return Invalid;
-			}
-
-
 			const FMetasoundFrontendLiteral& GetInvalidLiteral()
 			{
 				auto CreateInvalidLiteral = []() ->FMetasoundFrontendLiteral
@@ -63,6 +56,13 @@ namespace Metasound
 				return Invalid;
 			}
 
+#if WITH_EDITOR
+			const FMetasoundFrontendVertexMetadata& GetInvalidVertexMetadata()
+			{
+				static const FMetasoundFrontendVertexMetadata Invalid;
+				return Invalid;
+			}
+
 			const FMetasoundFrontendInterfaceStyle& GetInvalidInterfaceStyle()
 			{
 				static const FMetasoundFrontendInterfaceStyle Invalid;
@@ -80,6 +80,7 @@ namespace Metasound
 				static const FMetasoundFrontendGraphStyle Invalid;
 				return Invalid;
 			}
+#endif // WITH_EDITOR
 
 			const FMetasoundFrontendGraphClass& GetInvalidGraphClass() 
 			{ 

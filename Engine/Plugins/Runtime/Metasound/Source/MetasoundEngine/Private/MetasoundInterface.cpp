@@ -138,12 +138,14 @@ namespace Metasound
 				ClassInput.Name = Input.InitValue.ParamName;
 				ClassInput.DefaultLiteral = FMetasoundFrontendLiteral(Input.InitValue);
 				ClassInput.TypeName = ResolveMemberDataType(Input.DataType, Input.InitValue.ParamType);
-				ClassInput.Metadata.SetDisplayName(Input.DisplayName);
-				ClassInput.Metadata.SetDescription(Input.Description);
 
+#if WITH_EDITOR
 				// Interfaces should never serialize text to avoid desync between
 				// copied versions serialized in assets and those defined in code.
 				ClassInput.Metadata.SetSerializeText(false);
+				ClassInput.Metadata.SetDisplayName(Input.DisplayName);
+				ClassInput.Metadata.SetDescription(Input.Description);
+#endif // WITH_EDITOR
 
 				ClassInput.VertexID = FGuid::NewGuid();
 
@@ -155,13 +157,16 @@ namespace Metasound
 				FMetasoundFrontendClassOutput ClassOutput;
 				ClassOutput.Name = Output.ParamName;
 				ClassOutput.TypeName = ResolveMemberDataType(Output.DataType, Output.ParamType);
-				ClassOutput.Metadata.SetDisplayName(Output.DisplayName);
-				ClassOutput.Metadata.SetDescription(Output.Description);
-				ClassOutput.VertexID = FGuid::NewGuid();
 
+#if WITH_EDITOR
 				// Interfaces should never serialize text to avoid desync between
 				// copied versions serialized in assets and those defined in code.
 				ClassOutput.Metadata.SetSerializeText(false);
+				ClassOutput.Metadata.SetDisplayName(Output.DisplayName);
+				ClassOutput.Metadata.SetDescription(Output.Description);
+#endif // WITH_EDITOR
+
+				ClassOutput.VertexID = FGuid::NewGuid();
 
 				return ClassOutput;
 			});

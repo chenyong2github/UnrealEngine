@@ -177,6 +177,7 @@ namespace Metasound
 			/** Returns the name associated with this output. */
 			virtual const FVertexName& GetName() const = 0;
 			
+#if WITH_EDITOR
 			/** Returns the human readable name associated with this output. */
 			virtual FText GetDisplayName() const = 0;
 			
@@ -185,6 +186,7 @@ namespace Metasound
 
 			/** Returns all metadata associated with this output. */
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const = 0;
+#endif // WITH_EDITOR
 
 			/** Returns the ID of the node which owns this output. */
 			virtual FGuid GetOwningNodeID() const = 0;
@@ -258,6 +260,7 @@ namespace Metasound
 			/** Sets the name associated with this variable. */
 			virtual void SetName(const FName& InName) = 0;
 			
+#if WITH_EDITOR
 			/** Returns the human readable name associated with this variable. */
 			virtual FText GetDisplayName() const = 0;
 
@@ -269,6 +272,7 @@ namespace Metasound
 
 			/** Sets the human readable description associated with this variable. */
 			virtual void SetDescription(const FText& InDescription) = 0;
+#endif // WITH_EDITOR
 
 			/** Returns the mutator node associated with this variable. */
 			virtual FNodeHandle FindMutatorNode() = 0;
@@ -324,8 +328,10 @@ namespace Metasound
 			/** Returns the data type name associated with this input. */
 			virtual const FVertexName& GetName() const = 0;
 
+#if WITH_EDITOR
 			/** Returns the data type name associated with this input. */
 			virtual FText GetDisplayName() const = 0;
+#endif // WITH_EDITOR
 
 			/** Clears the value for the given input instance if set. */
 			virtual bool ClearLiteral() = 0;
@@ -339,11 +345,13 @@ namespace Metasound
 			/** Returns the class default value of the given input. */
 			virtual const FMetasoundFrontendLiteral* GetClassDefaultLiteral() const = 0;
 
+#if WITH_EDITOR
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetTooltip() const = 0;
 
 			/** Returns all metadata associated with this input. */
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const = 0;
+#endif // WITH_EDITOR
 
 			/** Returns the ID of the node which owns this output. */
 			virtual FGuid GetOwningNodeID() const = 0;
@@ -413,19 +421,21 @@ namespace Metasound
 			/** Returns all node inputs. */
 			virtual TArray<FConstInputHandle> GetConstInputs() const = 0;
 
+#if WITH_EDITOR
 			/** Returns the display name of the given node (what to distinguish and label in visual arrays, such as context menus). */
 			virtual FText GetDisplayName() const = 0;
 
 			/** Sets the description of the node. */
 			virtual void SetDescription(const FText& InDescription) = 0;
 
-			virtual void SetNodeName(const FVertexName& InName) = 0;
-
 			/** Sets the display name of the node. */
 			virtual void SetDisplayName(const FText& InDisplayName) = 0;
 
 			/** Returns the title of the given node (what to label when displayed as visual node). */
 			virtual const FText& GetDisplayTitle() const = 0;
+#endif // WITH_EDITOR
+
+			virtual void SetNodeName(const FVertexName& InName) = 0;
 
 			/** Iterate over inputs */
 			virtual void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) = 0;
@@ -513,12 +523,15 @@ namespace Metasound
 			// Clears an input's default literal
 			virtual bool ClearInputLiteral(FGuid InVertexID) = 0;
 
-			/** Returns associated node class data */
-			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const = 0;
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const = 0;
+			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const = 0;
+
+#if WITH_EDITOR
+			/** Returns associated node class data */
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
+#endif // WITH_EDITOR
 
 			/**
 			  * Fills out the provided ClassInterfaceUpdate struct with the differences between
@@ -537,8 +550,10 @@ namespace Metasound
 			  */
 			virtual bool CanAutoUpdate(FClassInterfaceUpdates& OutInterfaceUpdates) const = 0;
 
+#if WITH_EDITOR
 			/** Description of the given node. */
 			virtual const FText& GetDescription() const = 0;
+#endif // WITH_EDITOR
 
 			/** If the node is also a graph, this returns a graph handle.
 			 * If the node is not also a graph, it will return an invalid handle.
@@ -553,8 +568,10 @@ namespace Metasound
 			/** Returns the name of this node. */
 			virtual const FVertexName& GetNodeName() const = 0;
 
+#if WITH_EDITOR
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const = 0;
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) = 0;
+#endif // WITH_EDITOR
 
 			/** Returns the ID associated with this node. */
 			virtual FGuid GetID() const = 0;
@@ -599,6 +616,7 @@ namespace Metasound
 			/** Sets the metadata for the current graph. */
 			virtual void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
 
+#if WITH_EDITOR
 			// Returns graph style.
 			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const = 0;
 
@@ -607,6 +625,7 @@ namespace Metasound
 
 			/** Return the display name of the graph. */
 			virtual FText GetDisplayName() const = 0;
+#endif // WITH_EDITOR
 
 			virtual TArray<FVertexName> GetInputVertexNames() const = 0;
 			virtual TArray<FVertexName> GetOutputVertexNames() const = 0;
@@ -837,6 +856,7 @@ namespace Metasound
 			 */
 			virtual bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) = 0;
 
+#if WITH_EDITOR
 			/** Set the display name for the input with the given name. */
 			virtual void SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName) = 0;
 
@@ -854,6 +874,7 @@ namespace Metasound
 
 			/** Set the description for the output with the given name. */
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) = 0;
+#endif // WITH_EDITOR
 
 			/**
 			  * Updates the ChangeID for the class interface, which signals AutoUpdate to

@@ -1121,7 +1121,7 @@ namespace Metasound
 			Metadata.SetVersion({ 1, 0 });
 			Metadata.SetDisplayName(FText::FromString(InMetaSound.GetName()));
 			Metadata.SetType(EMetasoundFrontendClassType::Graph);
-			Metadata.SetAuthor(FText::FromString(InAuthor));
+			Metadata.SetAuthor(InAuthor);
 
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);

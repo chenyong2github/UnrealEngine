@@ -44,10 +44,13 @@ namespace Metasound
 			virtual const FName& GetDataType() const override;
 			virtual const FVertexName& GetName() const override;
 
-			// Output metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Output metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
 
 			// Return info on containing node.
 			virtual FGuid GetOwningNodeID() const override;
@@ -114,10 +117,13 @@ namespace Metasound
 
 			virtual bool IsValid() const override;
 
-			// Input metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Input metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
 
@@ -161,10 +167,13 @@ namespace Metasound
 
 			virtual bool IsValid() const override;
 
-			// Output metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Output metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
 

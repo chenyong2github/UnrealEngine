@@ -192,7 +192,11 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 	// Copy over inputs
 	{
 		const FInputVertexInterface& InputInterface = InVertexInterface.GetInputInterface();
+
+#if WITH_EDITOR
 		FMetasoundFrontendInterfaceStyle InputStyle;
+#endif // WITH_EDITOR
+
 		for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
 		{
 			FMetasoundFrontendClassInput ClassInput;
@@ -204,16 +208,10 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 			const FDataVertexMetadata& VertexMetadata = InputVertex.GetMetadata();
 
+#if WITH_EDITOR
 			ClassInput.Metadata.SetSerializeText(false);
 			ClassInput.Metadata.SetDescription(VertexMetadata.Description);
-
 			ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
-
-			FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
-			if (DefaultLiteral.GetType() != ELiteralType::Invalid)
-			{
-				ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
-			}
 
 			// Advanced display items are pushed to bottom of sort order
 			int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
@@ -222,21 +220,35 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 				OrderIndex += InputInterface.Num();
 			}
 			InputStyle.DefaultSortOrder.Add(OrderIndex);
+#endif // WITH_EDITOR
+
+			FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
+			if (DefaultLiteral.GetType() != ELiteralType::Invalid)
+			{
+				ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
+			}
+
 
 			ClassInterface.Inputs.Add(MoveTemp(ClassInput));
 		}
 
+#if WITH_EDITOR
 		// Must set via direct accessor to avoid updating the change GUID
 		// (All instances of this generation call should be done for code
 		// defined classes only, which do not currently create a persistent
 		// change hash between builds and leave the guid 0'ed).
 		ClassInterface.InputStyle = InputStyle;
+#endif // WITH_EDITOR
 	}
 
 	// Copy over outputs
 	{
 		const FOutputVertexInterface& OutputInterface = InVertexInterface.GetOutputInterface();
+
+#if WITH_EDITOR
 		FMetasoundFrontendInterfaceStyle OutputStyle;
+#endif // WITH_EDITOR
+
 		for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
 		{
 			FMetasoundFrontendClassOutput ClassOutput;
@@ -246,6 +258,8 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassOutput.VertexID = FGuid::NewGuid();
 
 			const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
+
+#if WITH_EDITOR
 			ClassOutput.Metadata.SetSerializeText(false);
 			ClassOutput.Metadata.SetDescription(VertexMetadata.Description);
 			ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
@@ -257,15 +271,18 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 				OrderIndex += OutputInterface.Num();
 			}
 			OutputStyle.DefaultSortOrder.Add(OrderIndex);
+#endif // WITH_EDITOR
 
 			ClassInterface.Outputs.Add(MoveTemp(ClassOutput));
 		}
 
+#if WITH_EDITOR
 		// Must set via direct accessor to avoid updating the change GUID
 		// (All instances of this generation call should be done for code
 		// defined classes only, which do not currently create a persistent
 		// change hash between builds and leave the guid 0'ed).
 		ClassInterface.OutputStyle = MoveTemp(OutputStyle);
+#endif // WITH_EDITOR
 	}
 
 	for (auto& EnvTuple : InVertexInterface.GetEnvironmentInterface())
@@ -281,12 +298,12 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 	return ClassInterface;
 }
 
-void FMetasoundFrontendClassMetadata::SetAuthor(const FText& InAuthor)
+#if WITH_EDITOR
+void FMetasoundFrontendClassMetadata::SetAuthor(const FString& InAuthor)
 {
 	using namespace Metasound::DocumentPrivate;
 
-	FText& TextToSet = bSerializeText ? Author : AuthorTransient;
-	SetWithChangeID(InAuthor, TextToSet, ChangeID);
+	SetWithChangeID(InAuthor, Author, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
@@ -302,12 +319,6 @@ void FMetasoundFrontendClassMetadata::SetKeywords(const TArray<FText>& InKeyword
 	using namespace Metasound::DocumentPrivate;
 	TArray<FText>& TextToSet = bSerializeText ? Keywords : KeywordsTransient;
 	SetWithChangeID(InKeywords, TextToSet, ChangeID);
-}
-
-void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClassName& InClassName)
-{
-	using namespace Metasound::DocumentPrivate;
-	SetWithChangeID(InClassName, ClassName, ChangeID);
 }
 
 void FMetasoundFrontendClassMetadata::SetDescription(const FText& InDescription)
@@ -344,11 +355,9 @@ void FMetasoundFrontendClassMetadata::SetSerializeText(bool bInSerializeText)
 	{
 		if (!bInSerializeText)
 		{
-			AuthorTransient = Author;
 			DescriptionTransient = Description;
 			DisplayNameTransient = DisplayName;
 
-			Author = { };
 			Description = { };
 			DisplayName = { };
 
@@ -360,11 +369,9 @@ void FMetasoundFrontendClassMetadata::SetSerializeText(bool bInSerializeText)
 	{
 		if (bInSerializeText)
 		{
-			Author = AuthorTransient;
 			Description = DescriptionTransient;
 			DisplayName = DisplayNameTransient;
 
-			AuthorTransient = { };
 			DescriptionTransient = { };
 			DisplayNameTransient = { };
 
@@ -381,19 +388,15 @@ void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersion
 	using namespace Metasound::DocumentPrivate;
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
+#endif // WITH_EDITOR
 
-FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassStyle(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
+void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClassName& InClassName)
 {
-	FMetasoundFrontendClassStyle Style;
-	Style.Display.bShowName = InNodeDisplayStyle.bShowName;
-	Style.Display.bShowInputNames = InNodeDisplayStyle.bShowInputNames;
-	Style.Display.bShowOutputNames = InNodeDisplayStyle.bShowOutputNames;
-	Style.Display.ImageName = InNodeDisplayStyle.ImageName;
-
-	return Style;
+	using namespace Metasound::DocumentPrivate;
+	SetWithChangeID(InClassName, ClassName, ChangeID);
 }
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoundFrontendClass& InOutDependency)
 {
 	using namespace Metasound::Frontend;
@@ -445,7 +448,18 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 
 	return false;
 }
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
+
+FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassStyle(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
+{
+	FMetasoundFrontendClassStyle Style;
+	Style.Display.bShowName = InNodeDisplayStyle.bShowName;
+	Style.Display.bShowInputNames = InNodeDisplayStyle.bShowInputNames;
+	Style.Display.bShowOutputNames = InNodeDisplayStyle.bShowOutputNames;
+	Style.Display.ImageName = InNodeDisplayStyle.ImageName;
+
+	return Style;
+}
 
 FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
 {
@@ -462,6 +476,7 @@ FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassMe
 	NewMetadata.ClassName = InNodeClassMetadata.ClassName;
 	NewMetadata.Version = { InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion };
 
+#if WITH_EDITOR
 	NewMetadata.SetSerializeText(false);
 	NewMetadata.SetDisplayName(InNodeClassMetadata.DisplayName);
 	NewMetadata.SetDescription(InNodeClassMetadata.Description);
@@ -471,6 +486,7 @@ FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassMe
 	NewMetadata.SetCategoryHierarchy(InNodeClassMetadata.CategoryHierarchy);
 
 	NewMetadata.bIsDeprecated = InNodeClassMetadata.bDeprecated;
+#endif // WITH_EDITOR
 
 	return NewMetadata;
 }

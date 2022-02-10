@@ -24,14 +24,18 @@ namespace Metasound
 			const FText& GetInvalidText();
 			const FName& GetInvalidName();
 			const FString& GetInvalidString();
+
+#if WITH_EDITOR
 			const FMetasoundFrontendVertexMetadata& GetInvalidVertexMetadata();
+			const FMetasoundFrontendInterfaceStyle& GetInvalidInterfaceStyle();
+			const FMetasoundFrontendClassStyle& GetInvalidClassStyle();
+			const FMetasoundFrontendGraphStyle& GetInvalidGraphStyle();
+#endif // WITH_EDITOR
+
 			const FMetasoundFrontendLiteral& GetInvalidLiteral();
 			const FMetasoundFrontendClassInterface& GetInvalidClassInterface();
 			const FMetasoundFrontendClassMetadata& GetInvalidClassMetadata();
 			const FMetasoundFrontendGraphClassPresetOptions& GetInvalidGraphClassPresetOptions();
-			const FMetasoundFrontendInterfaceStyle& GetInvalidInterfaceStyle();
-			const FMetasoundFrontendClassStyle& GetInvalidClassStyle();
-			const FMetasoundFrontendGraphStyle& GetInvalidGraphStyle();
 			const FMetasoundFrontendGraphClass& GetInvalidGraphClass();
 			const TArray<FMetasoundFrontendClass>& GetInvalidClassArray();
 			const TArray<FMetasoundFrontendGraphClass>& GetInvalidGraphClassArray();
@@ -55,9 +59,13 @@ namespace Metasound
 			virtual FGuid GetID() const override { return Metasound::FrontendInvalidID; }
 			virtual const FName& GetDataType() const override { return Invalid::GetInvalidName(); }
 			virtual const FVertexName& GetName() const override { return Invalid::GetInvalidName(); }
+
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override { return FText::GetEmpty(); }
 			virtual const FText& GetTooltip() const override { return FText::GetEmpty(); }
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override { return Invalid::GetInvalidVertexMetadata(); }
+#endif // WITH_EDITOR
+
 			virtual FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			virtual FNodeHandle GetOwningNode() override;
 			virtual FConstNodeHandle GetOwningNode() const override;
@@ -94,10 +102,14 @@ namespace Metasound
 			virtual bool IsConnected() const override { return false; }
 			virtual const FName& GetDataType() const override { return Invalid::GetInvalidName(); }
 			virtual const FVertexName& GetName() const override { return Invalid::GetInvalidName(); }
+
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
 			virtual const FText& GetTooltip() const override { return Invalid::GetInvalidText(); }
-			virtual bool ClearLiteral() override { return false; }
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override { return Invalid::GetInvalidVertexMetadata(); }
+#endif // WITH_EDITOR
+
+			virtual bool ClearLiteral() override { return false; }
 			virtual const FMetasoundFrontendLiteral* GetLiteral() const override { return nullptr; }
 			virtual void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) { };
 			virtual const FMetasoundFrontendLiteral* GetClassDefaultLiteral() const override { return nullptr; }
@@ -139,11 +151,13 @@ namespace Metasound
 			virtual const FName& GetName() const override { return Invalid::GetInvalidName(); }
 			virtual void SetName(const FName&) override { }
 
+#if WITH_EDITOR
 			/** Returns the human readable name associated with this output. */
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
 			virtual void SetDisplayName(const FText&) override { }
 			virtual FText GetDescription() const override { return Invalid::GetInvalidText(); }
 			virtual void SetDescription(const FText&) override { }
+#endif // WITH_EDITOR
 
 			virtual FNodeHandle FindMutatorNode() override { return INodeController::GetInvalidHandle(); }
 			virtual FConstNodeHandle FindMutatorNode() const override { return INodeController::GetInvalidHandle(); }
@@ -196,8 +210,11 @@ namespace Metasound
 			virtual FConstInputHandle GetInputWithID(FGuid InVertexID) const override { return IInputController::GetInvalidHandle(); }
 			virtual FConstOutputHandle GetOutputWithID(FGuid InVertexID) const override { return IOutputController::GetInvalidHandle(); }
 
+#if WITH_EDITOR
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const override { static const FMetasoundFrontendNodeStyle Invalid; return Invalid; }
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InNodeStyle) override { }
+#endif // WITH_EDITOR
+
 			virtual void SetNodeName(const FVertexName& InName) override { }
 
 			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override { return INodeController::GetInvalidHandle(); }
@@ -216,11 +233,14 @@ namespace Metasound
 
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const override { return Invalid::GetInvalidClassInterface(); }
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const override { return Invalid::GetInvalidClassMetadata(); }
+
+#if WITH_EDITOR
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const override { return Invalid::GetInvalidClassStyle(); }
 
 			virtual const FText& GetDescription() const override { return Invalid::GetInvalidText(); }
+#endif // WITH_EDITOR
 
 			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const { return FMetasoundFrontendVersion::GetInvalid(); }
 			virtual bool IsInterfaceMember() const override { return false; }
@@ -250,10 +270,13 @@ namespace Metasound
 			virtual int32 GetNumOutputs() const override { return 0; }
 
 			virtual const FVertexName& GetNodeName() const override { return Invalid::GetInvalidName(); }
+
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
 			virtual const FText& GetDisplayTitle() const override { return Invalid::GetInvalidText(); }
 			virtual void SetDescription(const FText& InDescription) override { }
 			virtual void SetDisplayName(const FText& InText) override { }
+#endif // WITH_EDITOR
 
 		protected:
 			virtual FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
@@ -272,7 +295,10 @@ namespace Metasound
 
 			virtual bool IsValid() const override { return false; }
 			virtual FGuid GetClassID() const override { return Metasound::FrontendInvalidID; }
+
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
+#endif // WITH_EDITOR
 
 			virtual TArray<FVertexName> GetInputVertexNames() const override { return TArray<FVertexName>(); }
 			virtual TArray<FVertexName> GetOutputVertexNames() const override { return TArray<FVertexName>(); }
@@ -304,9 +330,10 @@ namespace Metasound
 			virtual FNodeHandle AddVariableAccessorNode(const FGuid& InVariableID) override { return INodeController::GetInvalidHandle(); }
 			virtual FNodeHandle AddVariableDeferredAccessorNode(const FGuid& InVariableID) override{ return INodeController::GetInvalidHandle(); }
 
-
+#if WITH_EDITOR
 			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const override { return Invalid::GetInvalidGraphStyle(); }
 			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override { }
+#endif // WITH_EDITOR
 
 			virtual void ClearGraph() override { };
 
@@ -350,6 +377,7 @@ namespace Metasound
 			virtual bool SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral) override { return false; }
 			virtual bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) override { return false; }
 
+#if WITH_EDITOR
 			virtual const FText& GetInputDescription(const FVertexName& InName) const override { return FText::GetEmpty(); }
 			virtual const FText& GetOutputDescription(const FVertexName& InName) const override { return FText::GetEmpty(); }
 
@@ -357,6 +385,7 @@ namespace Metasound
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) override { }
 			virtual void SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
 			virtual void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
+#endif // WITH_EDITOR
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.

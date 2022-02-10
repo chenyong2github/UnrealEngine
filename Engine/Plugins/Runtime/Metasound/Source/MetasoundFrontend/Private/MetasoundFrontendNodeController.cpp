@@ -165,6 +165,7 @@ namespace Metasound
 			return Invalid::GetInvalidClassMetadata();
 		}
 
+#if WITH_EDITOR
 		const FMetasoundFrontendInterfaceStyle& FBaseNodeController::GetInputStyle() const
 		{
 			if (const FMetasoundFrontendClass* Class = ClassPtr.Get())
@@ -223,6 +224,7 @@ namespace Metasound
 			}
 			return Invalid::GetInvalidText();
 		}
+#endif // WITH_EDITOR
 
 		const FVertexName& FBaseNodeController::GetNodeName() const
 		{
@@ -379,6 +381,7 @@ namespace Metasound
 			}
 		}
 
+#if WITH_EDITOR
 		const FText& FBaseNodeController::GetDisplayTitle() const
 		{
 			if (const FMetasoundFrontendClass* Class = ClassPtr.Get())
@@ -398,6 +401,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidText();
 		}
+#endif // WITH_EDITOR
 
 		void FBaseNodeController::IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const
 		{
@@ -738,7 +742,9 @@ namespace Metasound
 				return this->AsShared();
 			}
 
+#if WITH_EDITOR
 			FMetasoundFrontendNodeStyle Style = GetNodeStyle();
+#endif // WITH_EDITOR
 
 			using FConnectionKey = TPair<FVertexName, FName>;
 
@@ -821,8 +827,10 @@ namespace Metasound
 				return this->AsShared();
 			}
 
+#if WITH_EDITOR
 			Style.bMessageNodeUpdated = ReplacementNode->GetClassMetadata().GetVersion() > Metadata.GetVersion();
 			ReplacementNode->SetNodeStyle(Style);
+#endif // WITH_EDITOR
 
 			ReplacementNode->IterateInputs([Connections = &InputConnections](FInputHandle InputHandle)
 			{
@@ -1156,6 +1164,7 @@ namespace Metasound
 			return INodeController::GetInvalidHandle();
 		}
 
+#if WITH_EDITOR
 		const FText& FOutputNodeController::GetDescription() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
@@ -1186,6 +1195,17 @@ namespace Metasound
 			}
 		}
 
+		void FOutputNodeController::SetDisplayName(const FText& InDisplayName)
+		{
+			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
+			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
+			{
+				ClassOutput->Metadata.SetDisplayName(InDisplayName);
+				OwningGraph->UpdateInterfaceChangeID();
+			}
+		}
+#endif // WITH_EDITOR
+
 		void FOutputNodeController::SetNodeName(const FVertexName& InName)
 		{
 			if (FMetasoundFrontendNode* Node = NodePtr.Get())
@@ -1207,16 +1227,6 @@ namespace Metasound
 			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
 			{
 				ClassOutput->Name = InName;
-				OwningGraph->UpdateInterfaceChangeID();
-			}
-		}
-
-		void FOutputNodeController::SetDisplayName(const FText& InDisplayName)
-		{
-			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
-			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
-			{
-				ClassOutput->Metadata.SetDisplayName(InDisplayName);
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
@@ -1248,11 +1258,13 @@ namespace Metasound
 			return INodeController::GetInvalidHandle();
 		}
 
+#if WITH_EDITOR
 		const FText& FOutputNodeController::GetDisplayTitle() const
 		{
 			static FText OutputDisplayTitle = LOCTEXT("OutputNode_Title", "Output");
 			return OutputDisplayTitle;
 		}
+#endif // WITH_EDITOR
 
 		const FMetasoundFrontendVersion& FOutputNodeController::GetInterfaceVersion() const
 		{
@@ -1327,10 +1339,6 @@ namespace Metasound
 			return Access;
 		}
 
-
-		//
-		// FInputNodeController
-		//
 		FInputNodeController::FInputNodeController(EPrivateToken InToken, const FInputNodeController::FInitParams& InParams)
 		: FBaseNodeController({InParams.NodePtr, InParams.ClassPtr, InParams.OwningGraph})
 		, OwningGraphClassInputPtr(InParams.OwningGraphClassInputPtr)
@@ -1407,6 +1415,7 @@ namespace Metasound
 			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
 		}
 
+#if WITH_EDITOR
 		const FText& FInputNodeController::GetDescription() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
@@ -1432,6 +1441,7 @@ namespace Metasound
 			static FText InputDisplayTitle = LOCTEXT("InputNode_Title", "Input");
 			return InputDisplayTitle;
 		}
+#endif // WITH_EDITOR
 
 		const FMetasoundFrontendVersion& FInputNodeController::GetInterfaceVersion() const
 		{
@@ -1473,6 +1483,7 @@ namespace Metasound
 			return FMetasoundFrontendVersion::GetInvalid();
 		}
 
+#if WITH_EDITOR
 		void FInputNodeController::SetDescription(const FText& InDescription)
 		{
 			// TODO: can we remove these const casts by constructing FINputNodeController with non-const access to the class input?
@@ -1482,6 +1493,7 @@ namespace Metasound
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
+#endif // WITH_EDITOR
 
 		void FInputNodeController::SetNodeName(const FVertexName& InName)
 		{
@@ -1506,6 +1518,7 @@ namespace Metasound
 			}
 		}
 
+#if WITH_EDITOR
 		void FInputNodeController::SetDisplayName(const FText& InDisplayName)
 		{
 			// TODO: can we remove these const casts by constructing FINputNodeController with non-const access to the class input?
@@ -1515,6 +1528,7 @@ namespace Metasound
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
+#endif // WITH_EDITOR
 
 		FDocumentAccess FInputNodeController::ShareAccess()
 		{

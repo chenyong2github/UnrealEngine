@@ -46,15 +46,15 @@ namespace Metasound
 
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const override;
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
+
+#if WITH_EDITOR
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const override;
 
-			/** Description of the given node. */
-			virtual const FText& GetDescription() const override;
-
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
+#endif // WITH_EDITOR
 
 			virtual bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override;
 
@@ -68,6 +68,10 @@ namespace Metasound
 			// This only exists to allow for transform fix-ups to easily cleanup input/output node names.
 			virtual void SetNodeName(const FVertexName& InName) override { checkNoEntry(); }
 
+#if WITH_EDITOR
+			/** Description of the given node. */
+			virtual const FText& GetDescription() const override;
+
 			/** Returns the readable display name of the given node (Used only within MetaSound
 			  * Editor context, and not guaranteed to be a unique identifier). */
 			virtual FText GetDisplayName() const override;
@@ -80,6 +84,7 @@ namespace Metasound
 
 			/** Returns the title of the given node (what to label in visual node). */
 			virtual const FText& GetDisplayTitle() const override;
+#endif // WITH_EDITOR
 
 			virtual bool CanAddInput(const FVertexName& InVertexName) const override;
 			virtual FInputHandle AddInput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override;
@@ -274,11 +279,15 @@ namespace Metasound
 			virtual ~FOutputNodeController() = default;
 
 			virtual bool IsValid() const override;
+
+#if WITH_EDITOR
 			virtual const FText& GetDescription() const override;
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetDisplayTitle() const override;
 			virtual void SetDescription(const FText& InDescription) override;
 			virtual void SetDisplayName(const FText& InText) override;
+#endif // WITH_EDITOR
+
 			virtual void SetNodeName(const FVertexName& InName) override;
 			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
 
@@ -335,13 +344,16 @@ namespace Metasound
 
 			virtual ~FInputNodeController() = default;
 
+#if WITH_EDITOR
 			virtual const FText& GetDescription() const override;
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetDisplayTitle() const override;
-			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
-			virtual bool IsValid() const override;
 			virtual void SetDescription(const FText& InDescription) override;
 			virtual void SetDisplayName(const FText& InText) override;
+#endif // WITH_EDITOR
+
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
+			virtual bool IsValid() const override;
 			virtual void SetNodeName(const FVertexName& InName) override;
 
 			// No-ops as inputs do not handle literals the same way as other nodes

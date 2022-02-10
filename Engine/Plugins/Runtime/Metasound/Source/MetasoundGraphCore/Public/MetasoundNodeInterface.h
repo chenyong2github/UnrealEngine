@@ -13,7 +13,7 @@
 
 namespace Metasound
 {
-	extern const FText METASOUNDGRAPHCORE_API PluginAuthor;
+	extern const FString METASOUNDGRAPHCORE_API PluginAuthor;
 	extern const FText METASOUNDGRAPHCORE_API PluginNodeMissingPrompt;
 
 	/**
@@ -98,7 +98,7 @@ namespace Metasound
 		FText Description;
 
 		/** Author information. */
-		FText Author;
+		FString Author;
 
 		/** Human readable prompt for acquiring plugin in case node is not loaded. */
 		FText PromptIfMissing;

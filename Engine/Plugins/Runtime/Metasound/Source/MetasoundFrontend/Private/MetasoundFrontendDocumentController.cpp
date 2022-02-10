@@ -357,13 +357,21 @@ namespace Metasound
 							}
 							else
 							{
+#if WITH_EDITOR
 								UE_LOG(LogMetaSound, Error,
 									TEXT("Cannot add external dependency. No Metasound class found with matching registry key [Key:%s, Name:%s, Version:%s]. Suggested solution \"%s\" by %s."),
 									*Key,
 									*InMetadata.GetClassName().GetFullName().ToString(),
 									*InMetadata.GetVersion().ToString(),
 									*InMetadata.GetPromptIfMissing().ToString(),
-									*InMetadata.GetAuthor().ToString());
+									*InMetadata.GetAuthor());
+#else
+								UE_LOG(LogMetaSound, Error,
+									TEXT("Cannot add external dependency. No Metasound class found with matching registry key [Key:%s, Name:%s, Version:%s]."),
+									*Key,
+									*InMetadata.GetClassName().GetFullName().ToString(),
+									*InMetadata.GetVersion().ToString());
+#endif // !WITH_EDITOR
 							}
 						}
 						break;

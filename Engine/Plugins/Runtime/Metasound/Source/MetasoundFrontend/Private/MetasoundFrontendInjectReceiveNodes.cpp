@@ -97,7 +97,7 @@ namespace Metasound
 						0, // MinorVersion
 						FText::GetEmpty(), // DisplayName
 						FText::GetEmpty(), // Description
-						FText::GetEmpty(), // Author
+						FString(), // Author
 						FText::GetEmpty(), // Prompt If Missing
 						CreateVertexInterface(), // DefaultInterface
 						TArray<FText>(), // CategoryHierachy

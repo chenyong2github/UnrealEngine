@@ -78,6 +78,7 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
+#if WITH_EDITOR
 		FText FGraphController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
@@ -87,6 +88,7 @@ namespace Metasound
 
 			return Invalid::GetInvalidText();
 		}
+#endif // WITH_EDITOR
 
 		TArray<FVertexName> FGraphController::GetInputVertexNames() const
 		{
@@ -174,6 +176,7 @@ namespace Metasound
 			return GetNodeByPredicate(IsNodeWithSameID);
 		}
 
+#if WITH_EDITOR
 		const FMetasoundFrontendGraphStyle& FGraphController::GetGraphStyle() const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
@@ -191,6 +194,7 @@ namespace Metasound
 				GraphClass->Graph.Style = InStyle;
 			}
 		}
+#endif // WITH_EDITOR
 
 		TArray<FNodeHandle> FGraphController::GetOutputNodes()
 		{
@@ -1149,6 +1153,7 @@ namespace Metasound
 			return false;
 		}
 
+#if WITH_EDITOR
 		const FText& FGraphController::GetInputDescription(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
@@ -1200,6 +1205,7 @@ namespace Metasound
 				Desc->Metadata.SetDescription(InDescription);
 			}
 		}
+#endif // WITH_EDITOR
 
 		// This can be used to clear the current literal for a given input.
 		// @returns false if the input name couldn't be found.
@@ -1509,7 +1515,6 @@ namespace Metasound
 
 			return false;
 		}
-
 
 		void FGraphController::UpdateInterfaceChangeID()
 		{
@@ -2082,4 +2087,3 @@ namespace Metasound
 	}
 }
 #undef LOCTEXT_NAMESPACE
-

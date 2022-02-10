@@ -497,7 +497,7 @@ struct FMetasoundFrontendStyleEdgeClass
 };
 
 // Styling for a class
-USTRUCT() 
+USTRUCT()
 struct FMetasoundFrontendGraphStyle 
 {
 	GENERATED_BODY()
@@ -534,11 +534,12 @@ struct FMetasoundFrontendGraph
 };
 
 // Metadata associated with a vertex.
-USTRUCT() 
+USTRUCT()
 struct FMetasoundFrontendVertexMetadata
 {
 	GENERATED_BODY()
 
+#if WITH_EDITORONLY_DATA
 private:
 	// Display name for a vertex
 	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
@@ -643,10 +644,10 @@ public:
 		
 		bSerializeText = bInSerializeText;
 	}
+#endif // WITH_EDITORONLY_DATA
 };
 
-
-USTRUCT() 
+USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFrontendVertex
 {
 	GENERATED_BODY()
@@ -656,9 +657,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	UPROPERTY()
 	FGuid NodeID = Metasound::FrontendInvalidID;
 
+#if WITH_EDITORONLY_DATA
 	// Metadata associated with input.
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVertexMetadata Metadata;
+#endif // WITH_EDITORONLY_DATA
 
 	// Splits name into namespace & parameter name
 	void SplitName(FName& OutNamespace, FName& OutParameterName) const;
@@ -974,6 +977,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Metasound)
 	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	FText DisplayName;
 
@@ -994,10 +998,7 @@ private:
 	FText PromptIfMissingTransient;
 
 	UPROPERTY(EditAnywhere, Category = Metasound)
-	FText Author;
-
-	UPROPERTY(Transient)
-	FText AuthorTransient;
+	FString Author;
 
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	TArray<FText> Keywords;
@@ -1011,6 +1012,8 @@ private:
 	UPROPERTY(Transient)
 	TArray<FText> CategoryHierarchyTransient;
 
+#endif // WITH_EDITORONLY_DATA
+
 	// If true, this node is deprecated and should not be used in new MetaSounds.
 	UPROPERTY(EditAnywhere, Category = Metasound)
 	bool bIsDeprecated = false;
@@ -1021,6 +1024,7 @@ private:
 	UPROPERTY()
 	bool bAutoUpdateManagesInterface = false;
 
+#if WITH_EDITORONLY_DATA
 	// Whether or not the given metadata text should be serialized
 	// or is procedurally maintained via auto-update & the referenced
 	// registry class (to avoid localization text desync).  Should be
@@ -1028,6 +1032,7 @@ private:
 	// or interfaces.
 	UPROPERTY()
 	bool bSerializeText = true;
+#endif // WITH_EDITORONLY_DATA
 
 	// ID used to identify if any of the above have been modified,
 	// to determine if the parent class should be auto-updated.
@@ -1035,6 +1040,7 @@ private:
 	FGuid ChangeID;
 
 public:
+#if WITH_EDITOR
 	static FName GetAuthorPropertyName()
 	{
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author);
@@ -1074,6 +1080,7 @@ public:
 	{
 		return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version);
 	}
+#endif // WITH_EDITOR
 
 	const FMetasoundFrontendClassName& GetClassName() const
 	{
@@ -1092,6 +1099,7 @@ public:
 		return Version;
 	}
 
+#if WITH_EDITOR
 	const FText& GetDisplayName() const
 	{
 		return bSerializeText ? DisplayName : DisplayNameTransient;
@@ -1107,9 +1115,9 @@ public:
 		return PromptIfMissingTransient;
 	}
 
-	const FText& GetAuthor() const
+	const FString& GetAuthor() const
 	{
-		return bSerializeText ? Author : AuthorTransient;
+		return Author;
 	}
 
 	const TArray<FText>& GetKeywords() const
@@ -1122,17 +1130,7 @@ public:
 		return bSerializeText ? CategoryHierarchy : CategoryHierarchyTransient;
 	}
 
-	const FGuid& GetChangeID() const
-	{
-		return ChangeID;
-	}
-
-	bool GetIsDeprecated() const
-	{
-		return bIsDeprecated;
-	}
-
-	void SetAuthor(const FText& InAuthor);
+	void SetAuthor(const FString& InAuthor);
 	void SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy);
 	void SetDescription(const FText& InDescription);
 	void SetDisplayName(const FText& InDisplayName);
@@ -1142,6 +1140,17 @@ public:
 	void SetVersion(const FMetasoundFrontendVersionNumber& InVersion);
 
 	void SetSerializeText(bool bInSerializeText);
+#endif // WITH_EDITOR
+
+	const FGuid& GetChangeID() const
+	{
+		return ChangeID;
+	}
+
+	bool GetIsDeprecated() const
+	{
+		return bIsDeprecated;
+	}
 
 	void SetType(const EMetasoundFrontendClassType InType)
 	{
@@ -1209,7 +1218,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	UPROPERTY()
 	FMetasoundFrontendClassStyle Style;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	/*
 	 * Caches transient style, class & vertex Metadata found in the registry
 	 * on a passed (presumed) dependency.  Only modifies properties that are
@@ -1218,7 +1227,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClass
 	 * @return - Whether class was found in the registry & data was cached successfully.
 	 */
 	static bool CacheGraphDependencyMetadataFromRegistry(FMetasoundFrontendClass& InOutDependency);
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 };
 
 // Preset options related to a parent graph class.  A graph class with bIsPreset set to true

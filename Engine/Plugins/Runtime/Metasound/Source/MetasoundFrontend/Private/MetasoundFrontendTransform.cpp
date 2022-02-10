@@ -50,10 +50,12 @@ namespace Metasound
 			Init();
 		}
 
+#if WITH_EDITOR
 		void FModifyRootGraphInterfaces::SetDefaultNodeLocations(bool bInSetDefaultNodeLocations)
 		{
 			bSetDefaultNodeLocations = bInSetDefaultNodeLocations;
 		}
+#endif // WITH_EDITOR
 
 		void FModifyRootGraphInterfaces::SetNamePairingFunction(const TFunction<bool(FName, FName)>& InNamePairingFunction)
 		{
@@ -224,6 +226,7 @@ namespace Metasound
 				return bMatchesDataType;
 			};
 
+#if WITH_EDITOR
 			auto FindLowestNodeLocationOfClassType = [](EMetasoundFrontendClassType ClassType, FGraphHandle Graph, FName DataType, TFunctionRef<bool(FConstNodeHandle, FName)> NodeDataTypeFilter)
 			{
 				FVector2D LowestLocation;
@@ -243,6 +246,7 @@ namespace Metasound
 
 				return LowestLocation;
 			};
+#endif // WITH_EDITOR
 
 			// Add missing inputs
 			for (const FMetasoundFrontendClassInput& InputToAdd : InputsToAdd)
@@ -250,6 +254,7 @@ namespace Metasound
 				bDidEdit = true;
 				FNodeHandle NewInputNode = GraphHandle->AddInputVertex(InputToAdd);
 
+#if WITH_EDITOR
 				if (bSetDefaultNodeLocations)
 				{
 					FMetasoundFrontendNodeStyle Style = NewInputNode->GetNodeStyle();
@@ -257,6 +262,7 @@ namespace Metasound
 					Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
 					NewInputNode->SetNodeStyle(Style);
 				}
+#endif // WITH_EDITOR
 			}
 
 			// Add missing outputs
@@ -265,6 +271,7 @@ namespace Metasound
 				bDidEdit = true;
 				FNodeHandle NewOutputNode = GraphHandle->AddOutputVertex(OutputToAdd);
 
+#if WITH_EDITOR
 				if (bSetDefaultNodeLocations)
 				{
 					FMetasoundFrontendNodeStyle Style = NewOutputNode->GetNodeStyle();
@@ -272,6 +279,7 @@ namespace Metasound
 					Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
 					NewOutputNode->SetNodeStyle(Style);
 				}
+#endif // WITH_EDITOR
 			}
 
 			// Swap paired inputs.
@@ -292,7 +300,10 @@ namespace Metasound
 						NewVertex.DefaultLiteral = ClassInput->DefaultLiteral;
 						NewVertex.NodeID = ClassInput->NodeID;
 						FNodeHandle OriginalInputNode = GraphHandle->GetInputNodeWithName(OriginalVertex.Name);
+
+#if WITH_EDITOR
 						Locations = OriginalInputNode->GetNodeStyle().Display.Locations;
+#endif // WITH_EDITOR
 
 						FOutputHandle OriginalInputNodeOutput = OriginalInputNode->GetOutputWithVertexName(OriginalVertex.Name);
 						ConnectedInputs = OriginalInputNodeOutput->GetConnectedInputs();
@@ -301,6 +312,8 @@ namespace Metasound
 				}
 
 				FNodeHandle NewInputNode = GraphHandle->AddInputVertex(NewVertex);
+
+#if WITH_EDITOR
 				// Copy prior node locations
 				if (!Locations.IsEmpty())
 				{
@@ -309,6 +322,7 @@ namespace Metasound
 					Style.Display.Locations = Locations;
 					NewInputNode->SetNodeStyle(Style);
 				}
+#endif // WITH_EDITOR
 
 				// Copy prior node connections
 				FOutputHandle OutputHandle = NewInputNode->GetOutputWithVertexName(NewVertex.Name);
@@ -326,24 +340,32 @@ namespace Metasound
 				const FMetasoundFrontendClassVertex& OriginalVertex = OutputPair.Get<0>();
 				FMetasoundFrontendClassVertex NewVertex = OutputPair.Get<1>();
 
+#if WITH_EDITOR
 				// Cache off node locations to push to new node
-				TMap<FGuid, FVector2D> Locations;
-				FOutputHandle ConnectedOutput = IOutputController::GetInvalidHandle();
-
 				// Default add output node to origin.
+				TMap<FGuid, FVector2D> Locations;
 				Locations.Add(FGuid(), FVector2D{0.f, 0.f});
+#endif // WITH_EDITOR
+
+				FOutputHandle ConnectedOutput = IOutputController::GetInvalidHandle();
 				if (const FMetasoundFrontendClassOutput* ClassOutput = GraphHandle->FindClassOutputWithName(OriginalVertex.Name).Get())
 				{
 					if (FMetasoundFrontendVertex::IsFunctionalEquivalent(*ClassOutput, OriginalVertex))
 					{
 						NewVertex.NodeID = ClassOutput->NodeID;
 
+#if WITH_EDITOR
 						// Interface members do not serialize text to avoid localization
 						// mismatches between assets and interfaces defined in code.
 						NewVertex.Metadata.SetSerializeText(false);
+#endif // WITH_EDITOR
 
 						FNodeHandle OriginalOutputNode = GraphHandle->GetOutputNodeWithName(OriginalVertex.Name);
+
+#if WITH_EDITOR
 						Locations = OriginalOutputNode->GetNodeStyle().Display.Locations;
+#endif // WITH_EDITOR
+
 						FInputHandle Input = OriginalOutputNode->GetInputWithVertexName(OriginalVertex.Name);
 						ConnectedOutput = Input->GetConnectedOutput();
 						GraphHandle->RemoveOutputVertex(OriginalVertex.Name);
@@ -352,12 +374,14 @@ namespace Metasound
 
 				FNodeHandle NewOutputNode = GraphHandle->AddOutputVertex(NewVertex);
 
+#if WITH_EDITOR
 				if (Locations.Num() > 0)
 				{
 					FMetasoundFrontendNodeStyle Style = NewOutputNode->GetNodeStyle();
 					Style.Display.Locations = Locations;
 					NewOutputNode->SetNodeStyle(Style);
 				}
+#endif // WITH_EDITOR
 
 				// Copy prior node connections
 				FInputHandle InputHandle = NewOutputNode->GetInputWithVertexName(NewVertex.Name);
@@ -442,8 +466,13 @@ namespace Metasound
 
 			if (LastVersionUpdated)
 			{
+#if WITH_EDITOR
+				const FString AssetName = *InDocument->GetRootGraphClass().Metadata.GetDisplayName().ToString();
+#else
+				const FString AssetName = *InDocument->GetRootGraphClass().Metadata.GetClassName().ToString();
+#endif // !WITH_EDITOR
 				UE_LOG(LogMetaSound, Display, TEXT("Asset '%s' interface '%s' updated: '%s' --> '%s'"),
-					*InDocument->GetRootGraphClass().Metadata.GetDisplayName().ToString(),
+					*AssetName,
 					*InterfaceVersion.Name.ToString(),
 					*InterfaceVersion.Number.ToString(),
 					*LastVersionUpdated->ToString());
@@ -602,13 +631,16 @@ namespace Metasound
 			// Swap type on look-up as it will be referenced as an externally defined class relative to the new Preset asset
 			ReferencedClassMetadata.SetType(EMetasoundFrontendClassType::External);
 
-			// Set node location.
 			FNodeHandle ReferencedNodeHandle = PresetGraphHandle->AddNode(ReferencedClassMetadata, PresetNodeID);
+#if WITH_EDITOR
+
+			// Set node location.
 			FMetasoundFrontendNodeStyle RefNodeStyle;
 
 			// Offset to be to the right of input nodes
 			RefNodeStyle.Display.Locations.Add(FGuid::NewGuid(), DisplayStyle::NodeLayout::DefaultOffsetX);
 			ReferencedNodeHandle->SetNodeStyle(RefNodeStyle);
+#endif // WITH_EDITOR
 
 			// Connect parent graph to referenced graph
 			PresetGraphHandle->SetInputsInheritingDefault(MoveTemp(InputsInheritingDefault));
@@ -630,11 +662,13 @@ namespace Metasound
 
 				if (ensure(InputNode->IsValid()))
 				{
+#if WITH_EDITOR
 					// Set input node location
 					FMetasoundFrontendNodeStyle NodeStyle;
 					NodeStyle.Display.Locations.Add(FGuid::NewGuid(), InputNodeLocation);
 					InputNode->SetNodeStyle(NodeStyle);
 					InputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
+#endif // WITH_EDITOR
 
 					// Connect input node to corresponding referencing node.
 					FOutputHandle OutputToConnect = InputNode->GetOutputWithVertexName(ClassInput.Name);
@@ -656,11 +690,13 @@ namespace Metasound
 				
 				if (ensure(OutputNode->IsValid()))
 				{
+#if WITH_EDITOR
 					// Set input node location
 					FMetasoundFrontendNodeStyle NodeStyle;
 					NodeStyle.Display.Locations.Add(FGuid::NewGuid(), OutputNodeLocation);
 					OutputNode->SetNodeStyle(NodeStyle);
 					OutputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
+#endif // WITH_EDITOR
 
 					// Connect input node to corresponding referenced node. 
 					FInputHandle InputToConnect = OutputNode->GetInputWithVertexName(ClassOutput.Name);
@@ -689,8 +725,10 @@ namespace Metasound
 					ClassInput.Name = NodeName;
 					ClassInput.TypeName = Input->GetDataType();
 
+#if WITH_EDITOR
 					ClassInput.Metadata.SetDescription(InputNode->GetDescription());
 					ClassInput.Metadata.SetDisplayName(Input->GetMetadata().GetDisplayName());
+#endif // WITH_EDITOR
 
 					ClassInput.VertexID = FGuid::NewGuid();
 
@@ -762,8 +800,10 @@ namespace Metasound
 					ClassOutput.Name = NodeName;
 					ClassOutput.TypeName = Output->GetDataType();
 
+#if WITH_EDITOR
 					ClassOutput.Metadata.SetDescription(OutputNode->GetDescription());
 					ClassOutput.Metadata.SetDisplayName(Output->GetMetadata().GetDisplayName());
+#endif // WITH_EDITOR
 
 					ClassOutput.VertexID = FGuid::NewGuid();
 
@@ -818,7 +858,16 @@ namespace Metasound
 		/** Versions document from 1.0 to 1.1. */
 		class FVersionDocument_1_1 : public FVersionDocumentTransform
 		{
+			FName Name;
+			const FString& Path;
+
 		public:
+			FVersionDocument_1_1(FName InName, const FString& InPath)
+			: Name(InName)
+			, Path(InPath)
+			{
+			}
+
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
 				return { 1, 1 };
@@ -826,6 +875,7 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				FGraphHandle GraphHandle = InDocument->GetRootGraph();
 				TArray<FNodeHandle> FrontendNodes = GraphHandle->GetNodes();
 
@@ -871,6 +921,9 @@ namespace Metasound
 						GraphHandle->RemoveNode(*NodeHandle);
 					}
 				}
+#else
+				UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
 		};
 
@@ -895,12 +948,16 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				const FMetasoundFrontendGraphClass& GraphClass = InDocument->GetRootGraphClass();
 				FMetasoundFrontendClassMetadata Metadata = GraphClass.Metadata;
 
 				Metadata.SetClassName({ "GraphAsset", Name, *Path });
 				Metadata.SetDisplayName(FText::FromString(Name.ToString()));
 				InDocument->GetRootGraph()->SetGraphMetadata(Metadata);
+#else
+				UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
 		};
 
@@ -978,9 +1035,13 @@ namespace Metasound
 		/** Versions document from 1.4 to 1.5. */
 		class FVersionDocument_1_5 : public FVersionDocumentTransform
 		{
+			FName Name;
+			const FString& Path;
+
 		public:
-			FVersionDocument_1_5(FName InAssetName)
-				: AssetName(InAssetName)
+			FVersionDocument_1_5(FName InName, const FString& InPath)
+				: Name(InName)
+				, Path(InPath)
 			{
 			}
 
@@ -991,18 +1052,19 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				const FMetasoundFrontendClassMetadata& Metadata = InDocument->GetRootGraphClass().Metadata;
-				const FText NewAssetName = FText::FromString(AssetName.ToString());
+				const FText NewAssetName = FText::FromString(Name.ToString());
 				if (Metadata.GetDisplayName().CompareTo(NewAssetName) != 0)
 				{
 					FMetasoundFrontendClassMetadata NewMetadata = Metadata;
 					NewMetadata.SetDisplayName(NewAssetName);
 					InDocument->GetRootGraph()->SetGraphMetadata(NewMetadata);
 				}
+#else
+				UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
-
-		private:
-			FName AssetName;
 		};
 
 		/** Versions document from 1.5 to 1.6. */
@@ -1027,8 +1089,16 @@ namespace Metasound
 		/** Versions document from 1.6 to 1.7. */
 		class FVersionDocument_1_7 : public FVersionDocumentTransform
 		{
+			FName Name;
+			const FString& Path;
+
 		public:
-			FVersionDocument_1_7() = default;
+			FVersionDocument_1_7(FName InName, const FString& InPath)
+				: Name(InName)
+				, Path(InPath)
+			{
+			}
+
 
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
@@ -1037,6 +1107,7 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				auto RenameTransform = [](FNodeHandle NodeHandle)
 				{
 					// Required nodes are all (at the point of this transform) providing
@@ -1063,14 +1134,24 @@ namespace Metasound
 
 				InDocument->GetRootGraph()->IterateNodes(RenameTransform, EMetasoundFrontendClassType::Input);
 				InDocument->GetRootGraph()->IterateNodes(RenameTransform, EMetasoundFrontendClassType::Output);
+#else
+				UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
 		};
 
 		/** Versions document from 1.7 to 1.8. */
 		class FVersionDocument_1_8 : public FVersionDocumentTransform
 		{
+			FName Name;
+			const FString& Path;
+
 		public:
-			FVersionDocument_1_8() = default;
+			FVersionDocument_1_8(FName InName, const FString& InPath)
+				: Name(InName)
+				, Path(InPath)
+			{
+			}
 
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
@@ -1079,6 +1160,7 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				// Do not serialize MetaData text for dependencies as
 				// CacheRegistryData dynamically provides this.
 				InDocument->IterateDependencies([](FMetasoundFrontendClass& Dependency)
@@ -1138,14 +1220,24 @@ namespace Metasound
 				}
 
 				InDocument->SetRootGraphClass(MoveTemp(RootGraphClass));
+#else
+			UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
 		};
 
 		/** Versions document from 1.8 to 1.9. */
 		class FVersionDocument_1_9 : public FVersionDocumentTransform
 		{
+			FName Name;
+			const FString& Path;
+
 		public:
-			FVersionDocument_1_9() = default;
+			FVersionDocument_1_9(FName InName, const FString& InPath)
+				: Name(InName)
+				, Path(InPath)
+			{
+			}
 
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
@@ -1154,12 +1246,16 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
+#if WITH_EDITOR
 				// Display name text is no longer copied at this versioning point for assets
 				// from the asset's FName to avoid FText warnings regarding generation from
 				// an FString.  It also avoids desync if asset gets moved.
 				FMetasoundFrontendGraphClass RootGraphClass = InDocument->GetRootGraphClass();
 				RootGraphClass.Metadata.SetDisplayName(FText());
 				InDocument->SetRootGraphClass(MoveTemp(RootGraphClass));
+#else
+				UE_LOG(LogMetaSound, Error, TEXT("Asset '%s' at '%s' must be saved with editor enabled in order to version document to target version '%s'."), *Name.ToString(), *Path, *GetTargetVersion().ToString());
+#endif // !WITH_EDITOR
 			}
 		};
 
@@ -1201,20 +1297,19 @@ namespace Metasound
 			const FMetasoundFrontendVersionNumber InitVersionNumber = InDocument->GetMetadata().Version.Number;
 
 			// Add additional transforms here after defining them above, example below.
-			bWasUpdated |= FVersionDocument_1_1().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_1(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_2(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_3().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_4().Transform(InDocument);
-			bWasUpdated |= FVersionDocument_1_5(Name).Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_5(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_6().Transform(InDocument);
-			bWasUpdated |= FVersionDocument_1_7().Transform(InDocument);
-			bWasUpdated |= FVersionDocument_1_8().Transform(InDocument);
-			bWasUpdated |= FVersionDocument_1_9().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_7(Name, Path).Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_8(Name, Path).Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_9(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_10().Transform(InDocument);
 
 			if (bWasUpdated)
 			{
-				const FText& DisplayName = InDocument->GetRootGraph()->GetGraphMetadata().GetDisplayName();
 				const FMetasoundFrontendVersionNumber NewVersionNumber = InDocument->GetMetadata().Version.Number;
 				UE_LOG(LogMetaSound, Display, TEXT("MetaSound at '%s' Document Versioned: '%s' --> '%s'"), *Path, *InitVersionNumber.ToString(), *NewVersionNumber.ToString());
 			}

@@ -38,9 +38,11 @@ namespace Metasound
 			FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd);
 			FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToRemove, const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToAdd);
 
+#if WITH_EDITOR
 			// Whether or not to propagate node locations to new members. Setting to false
 			// results in members not having a default physical location in the editor graph.
 			void SetDefaultNodeLocations(bool bInSetDefaultNodeLocations);
+#endif // WITH_EDITOR
 
 			// Override function used to match removed members with added members, allowing
 			// transform to preserve connections made between removed interface members & new interface members
@@ -52,7 +54,9 @@ namespace Metasound
 		private:
 			void Init(const TFunction<bool(FName, FName)>* InNamePairingFunction = nullptr);
 
+#if WITH_EDITOR
 			bool bSetDefaultNodeLocations = true;
+#endif // WITH_EDITOR
 
 			TArray<FMetasoundFrontendInterface> InterfacesToRemove;
 			TArray<FMetasoundFrontendInterface> InterfacesToAdd;

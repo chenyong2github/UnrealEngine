@@ -49,10 +49,13 @@ namespace Metasound
 			// vertex names & should not be used for typical edit or runtime callsites.
 			virtual void SetName(const FVertexName& InName) override { checkNoEntry(); }
 
-			// Input metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Input metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
 
 			// Owning node info
 			virtual FGuid GetOwningNodeID() const override;
@@ -114,10 +117,14 @@ namespace Metasound
 
 			virtual bool IsValid() const override;
 
-			// Input metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Input metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
+
 			virtual void SetName(const FVertexName& InName) override;
 
 		protected:
@@ -157,10 +164,13 @@ namespace Metasound
 
 			virtual bool IsValid() const override;
 
-			// Input metadata
+#if WITH_EDITOR
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetTooltip() const override;
+
+			// Input metadata
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override;
+#endif // WITH_EDITOR
 
 			virtual void SetName(const FVertexName& InName) override;
 

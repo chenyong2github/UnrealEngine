@@ -6,6 +6,7 @@
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
 
@@ -23,7 +24,16 @@ namespace Metasound
 			T* MetaSoundObject = NewObject<T>(InParent, InName, InFlags);
 			check(MetaSoundObject);
 
-			FGraphBuilder::InitMetaSound(*MetaSoundObject, UKismetSystemLibrary::GetPlatformUserName());
+			FString Author = UKismetSystemLibrary::GetPlatformUserName();
+			if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+			{
+				if (!EditorSettings->DefaultAuthor.IsEmpty())
+				{
+					Author = EditorSettings->DefaultAuthor;
+				}
+			}
+
+			FGraphBuilder::InitMetaSound(*MetaSoundObject, Author);
 
 			if (InReferencedMetaSoundObject)
 			{

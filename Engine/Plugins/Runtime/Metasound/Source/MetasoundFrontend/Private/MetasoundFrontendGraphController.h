@@ -51,7 +51,10 @@ namespace Metasound
 			bool IsValid() const override;
 
 			FGuid GetClassID() const override;
+
+#if WITH_EDITOR
 			FText GetDisplayName() const override;
+#endif // WITH_EDITOR
 
 			TArray<FVertexName> GetInputVertexNames() const override;
 			TArray<FVertexName> GetOutputVertexNames() const override;
@@ -93,8 +96,10 @@ namespace Metasound
 			TArray<FNodeHandle> GetOutputNodes() override;
 			TArray<FConstNodeHandle> GetConstOutputNodes() const override;
 
+#if WITH_EDITOR
 			const FMetasoundFrontendGraphStyle& GetGraphStyle() const override;
 			void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override;
+#endif // WITH_EDITOR
 
 			bool ContainsInputVertex(const FVertexName& InName, const FName& InTypeName) const override;
 			bool ContainsInputVertexWithName(const FVertexName& InName) const override;
@@ -131,6 +136,7 @@ namespace Metasound
 			bool SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral) override;
 			bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) override;
 
+#if WITH_EDITOR
 			// Get the description for the input with the given name.
 			const FText& GetInputDescription(const FVertexName& InName) const override;
 
@@ -148,6 +154,7 @@ namespace Metasound
 
 			// Set the display name for the output with the given name
 			void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override;
+#endif // WITH_EDITOR
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.

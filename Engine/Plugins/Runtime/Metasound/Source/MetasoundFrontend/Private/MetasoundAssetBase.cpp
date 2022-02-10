@@ -619,9 +619,12 @@ void FMetasoundAssetBase::ConvertFromPreset()
 {
 	using namespace Metasound::Frontend;
 	FGraphHandle GraphHandle = GetRootGraphHandle();
+
+#if WITH_EDITOR
 	FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
 	Style.bIsGraphEditable = true;
 	GraphHandle->SetGraphStyle(Style);
+#endif // WITH_EDITOR
 
 	FMetasoundFrontendGraphClassPresetOptions PresetOptions = GraphHandle->GetGraphPresetOptions();
 	PresetOptions.bIsPreset = false;
@@ -663,9 +666,12 @@ Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(
 
 	Description.Name = InSendInfo.Address.GetChannelName();
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
-	Description.Metadata.SetDescription(FText::GetEmpty());
 	Description.VertexID = VertexID;
 	Description.DefaultLiteral.Set(InSendInfo.Address.GetChannelName().ToString());
+
+#if WITH_EDITOR
+	Description.Metadata.SetDescription(FText::GetEmpty());
+#endif // WITH_EDITOR
 
 	return InGraph->AddInputVertex(Description);
 }

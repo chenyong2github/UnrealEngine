@@ -99,31 +99,38 @@ namespace Metasound
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
-
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnPlayTrigger.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
 				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
-				OnPlayTrigger.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs 
 				FMetasoundFrontendClassVertex OnFinished;
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
-
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnFinished.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
 				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
-				OnFinished.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FMonoAudioFormat>();
+				GeneratedAudio.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedMono", "Audio"));
 				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
-				GeneratedAudio.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Outputs.Add(GeneratedAudio);
 
@@ -159,31 +166,38 @@ namespace Metasound
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
-
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnPlayTrigger.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
 				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
-				OnPlayTrigger.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs
 				FMetasoundFrontendClassVertex OnFinished;
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
-
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnFinished.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
 				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
-				OnFinished.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FStereoAudioFormat>();
+				GeneratedAudio.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereo", "Audio"));
 				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
-				GeneratedAudio.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Outputs.Add(GeneratedAudio);
 
@@ -216,9 +230,12 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
 				GeneratedAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
+				GeneratedAudio.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				GeneratedAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedMono", "Audio"));
 				GeneratedAudio.Metadata.SetDescription(LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source."));
-				GeneratedAudio.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				return GeneratedAudio;
 			}
@@ -231,22 +248,26 @@ namespace Metasound
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
-
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnPlayTrigger.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
 				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
-				OnPlayTrigger.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs
 				FMetasoundFrontendClassVertex OnFinished;
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
-
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
+				OnFinished.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
 				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
-				OnFinished.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				Interface.Outputs.Add(OnFinished);
 
@@ -282,11 +303,13 @@ namespace Metasound
 					FOutputHandle OutputToReconnect = IOutputController::GetInvalidHandle();
 					if (MonoFormatOutput->IsValid())
 					{
+#if WITH_EDITOR
 						// Get the first location.
 						for (auto Location : MonoFormatOutput->GetNodeStyle().Display.Locations)
 						{
 							MonoFormatLocation = Location.Value;
 						}
+#endif // WITH_EDITOR
 
 						// Get connections
 						TArray<FInputHandle> Inputs = MonoFormatOutput->GetInputs();
@@ -302,9 +325,11 @@ namespace Metasound
 					FNodeHandle BufferOutput = Graph->AddOutputVertex(GetClassAudioOutput());
 					if (ensure(BufferOutput->IsValid()))
 					{
+#if WITH_EDITOR
 						FMetasoundFrontendNodeStyle Style = BufferOutput->GetNodeStyle();
 						Style.Display.Locations.Add(FGuid(), MonoFormatLocation);
 						BufferOutput->SetNodeStyle(Style);
+#endif // WITH_EDITOR
 
 						if (OutputToReconnect->IsValid())
 						{
@@ -352,9 +377,12 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedLeftAudio;
 				GeneratedLeftAudio.Name = GetLeftAudioOutputName();
 				GeneratedLeftAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
+				GeneratedLeftAudio.VertexID = FGuid::NewGuid();
+
+#if WITH_EDITOR
 				GeneratedLeftAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereoLeft", "Left Audio"));
 				GeneratedLeftAudio.Metadata.SetDescription(LOCTEXT("GeneratedLeftAudioToolTip", "The resulting output audio from this source."));
-				GeneratedLeftAudio.VertexID = FGuid::NewGuid();
+#endif // WITH_EDITOR
 
 				return GeneratedLeftAudio;
 			}
@@ -364,8 +392,12 @@ namespace Metasound
 				FMetasoundFrontendClassVertex GeneratedRightAudio;
 				GeneratedRightAudio.Name = GetRightAudioOutputName();
 				GeneratedRightAudio.TypeName = GetMetasoundDataTypeName<FAudioBuffer>();
+
+#if WITH_EDITOR
 				GeneratedRightAudio.Metadata.SetDisplayName(LOCTEXT("GeneratedStereoRight", "Right Audio"));
 				GeneratedRightAudio.Metadata.SetDescription(LOCTEXT("GeneratedRightAudioToolTip", "The resulting output audio from this source."));
+#endif // WITH_EDITOR
+
 				GeneratedRightAudio.VertexID = FGuid::NewGuid();
 
 				return GeneratedRightAudio;
@@ -379,10 +411,13 @@ namespace Metasound
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
 				OnPlayTrigger.Name = ArchetypesPrivate::GetOnPlayInputName();
-
 				OnPlayTrigger.TypeName = GetMetasoundDataTypeName<FTrigger>();
+
+#if WITH_EDITOR
 				OnPlayTrigger.Metadata.SetDisplayName(LOCTEXT("OnPlay", "On Play"));
 				OnPlayTrigger.Metadata.SetDescription(LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played."));
+#endif // WITH_EDITOR
+
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 				Interface.Inputs.Add(OnPlayTrigger);
@@ -392,8 +427,12 @@ namespace Metasound
 				OnFinished.Name = ArchetypesPrivate::GetIsFinishedOutputName();
 
 				OnFinished.TypeName = GetMetasoundDataTypeName<FTrigger>();
+
+#if WITH_EDITOR
 				OnFinished.Metadata.SetDisplayName(LOCTEXT("OnFinished", "On Finished"));
 				OnFinished.Metadata.SetDescription(LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source."));
+#endif // WITH_EDITOR
+
 				OnFinished.VertexID = FGuid::NewGuid();
 
 				Interface.Outputs.Add(OnFinished);
@@ -434,11 +473,13 @@ namespace Metasound
 
 					if (StereoFormatOutput->IsValid())
 					{
+#if WITH_EDITOR
 						// Get the first location.
 						for (auto Location : StereoFormatOutput->GetNodeStyle().Display.Locations)
 						{
 							StereoFormatLocation = Location.Value;
 						}
+#endif // WITH_EDITOR
 
 						FInputHandle LeftInput = StereoFormatOutput->GetInputWithVertexName("Left");
 						LeftOutputToReconnect = LeftInput->GetConnectedOutput();
@@ -452,9 +493,11 @@ namespace Metasound
 					FNodeHandle LeftBufferOutput = Graph->AddOutputVertex(GetClassLeftAudioOutput());
 					if (ensure(LeftBufferOutput->IsValid()))
 					{
+#if WITH_EDITOR
 						FMetasoundFrontendNodeStyle Style = LeftBufferOutput->GetNodeStyle();
 						Style.Display.Locations.Add(FGuid(), StereoFormatLocation);
 						LeftBufferOutput->SetNodeStyle(Style);
+#endif // WITH_EDITOR
 
 						if (LeftOutputToReconnect->IsValid())
 						{
@@ -471,9 +514,11 @@ namespace Metasound
 					{
 						if (RightOutputToReconnect->IsValid())
 						{
+#if WITH_EDITOR
 							FMetasoundFrontendNodeStyle Style = RightBufferOutput->GetNodeStyle();
 							Style.Display.Locations.Add(FGuid(), StereoFormatLocation + FVector2D{0, 100.f}); // TODO: How should this new output be placed?
 							RightBufferOutput->SetNodeStyle(Style);
+#endif // WITH_EDITOR
 
 							TArray<FInputHandle> Inputs = RightBufferOutput->GetInputs();
 							if (ensure(Inputs.Num() == 1))

@@ -9,7 +9,7 @@
 
 namespace AudioModulation
 {
-	extern const FText AUDIOMODULATION_API PluginAuthor;
+	extern const FString AUDIOMODULATION_API PluginAuthor;
 	extern const FText AUDIOMODULATION_API PluginNodeMissingPrompt;
 
 	class AUDIOMODULATION_API FSoundModulatorAsset
