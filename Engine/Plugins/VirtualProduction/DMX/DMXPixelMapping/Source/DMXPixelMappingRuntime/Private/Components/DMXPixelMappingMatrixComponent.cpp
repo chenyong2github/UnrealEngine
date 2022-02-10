@@ -89,6 +89,8 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 
 void UDMXPixelMappingMatrixComponent::PostInitProperties()
 {
+	Super::PostInitProperties();
+
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		// Listen to Fixture Type and Fixture Patch changes
