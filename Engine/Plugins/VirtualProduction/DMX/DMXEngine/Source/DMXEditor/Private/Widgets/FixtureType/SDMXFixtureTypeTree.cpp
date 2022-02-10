@@ -313,6 +313,10 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 			// Make sure the Entity's name won't collide with existing ones
 			NewEntity->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
 
+			// Update the library and ID
+			NewEntity->SetParentLibrary(Library);
+			NewEntity->RefreshID();
+
 			NewFixtureTypes.Add(CastChecked<UDMXEntityFixtureType>(NewEntity));
 		}
 
@@ -385,6 +389,11 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 		}
 	}
 
+	if (FixtureTypesToDelete.Num() == 0)
+	{
+		return;
+	}
+
 	// Find Fixture Types that are used by Fixture Patches
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	TArray<UDMXEntity*> EntitiesInUse;
@@ -419,6 +428,38 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 
 	if (bConfirmDelete)
 	{
+		// Find a new selection
+		const TSharedPtr<FDMXEntityTreeEntityNode> EntityNodeToSelect = [&FixtureTypesToDelete, this]() -> TSharedPtr<FDMXEntityTreeEntityNode>
+		{
+			const TArray<TSharedPtr<FDMXEntityTreeEntityNode>> EntityNodes = GetEntityNodes();
+
+			for (const TSharedPtr<FDMXEntityTreeEntityNode>& EntityNode : EntityNodes)
+			{
+				if (EntityNode.IsValid() && !FixtureTypesToDelete.Contains(EntityNode->GetEntity()))
+				{
+					return EntityNode;
+				}
+			}
+			return nullptr;
+		}();
+
+		// Apply the new selection
+		if (EntityNodeToSelect.IsValid())
+		{
+			if (UDMXEntityFixtureType* FixtureTypeToSelect = Cast<UDMXEntityFixtureType>(EntityNodeToSelect->GetEntity()))
+			{
+				SelectItemByNode(EntityNodeToSelect.ToSharedRef());
+
+				const TArray<TWeakObjectPtr<UDMXEntityFixtureType>> FixtureTypesToSelect = { FixtureTypeToSelect };
+				FixtureTypeSharedData->SelectFixtureTypes(FixtureTypesToSelect);
+			}
+		}
+		else
+		{		
+			// Clear selection if no fixture types remain
+			FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>());
+		}
+
 		// Remove the Fixture Types from the DMX Library
 		const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
 
@@ -431,11 +472,6 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 		}
 		DMXLibrary->PostEditChange();
 
-		// Clear selection if no fixture types remain
-		if (DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>().Num() == 0)
-		{
-			FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>());
-		}
 
 		UpdateTree();
 	}

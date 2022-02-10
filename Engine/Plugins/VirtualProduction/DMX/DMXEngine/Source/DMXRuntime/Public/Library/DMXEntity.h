@@ -60,7 +60,7 @@ public:
 		return IsValidEntity(OutReason);
 	}
 
-	UE_DEPRECATED(5.0, "The library should not be set explicitly anymore. Enties register themselves with the DMXLibrary on creation.")
+	/** Sets the DMX Library of the entity */
 	void SetParentLibrary(UDMXLibrary* InParent);
 
 	/** Gets the library the Entity resides in */

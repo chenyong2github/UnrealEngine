@@ -523,16 +523,14 @@ void SDMXFixturePatchTree::OnPasteNodes()
 
 				// Move the Fixture Type template from the transient package into the Library package
 				FixturePatch->Rename(*MakeUniqueObjectName(Library, UDMXEntityFixtureType::StaticClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
-				FixturePatch->RefreshID();
-
-				// Add to the Library
-				AutoAssignCopiedPatch(FixturePatch);
-
-				// Move the Entity from the transient package into the Library package
-				FixturePatch->Rename(*MakeUniqueObjectName(Library, FixturePatch->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
 
 				// Make sure the Entity's name won't collide with existing ones
 				FixturePatch->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, FixturePatch->GetClass(), FixturePatch->GetDisplayName()));
+
+				// Update the library and ID
+				FixturePatch->RefreshID();
+				FixturePatch->SetParentLibrary(Library);
+				AutoAssignCopiedPatch(FixturePatch);
 			}
 		}
 
@@ -617,6 +615,36 @@ void SDMXFixturePatchTree::OnDeleteNodes()
 		}
 	}
 
+	// Find a new selection
+	const TSharedPtr<FDMXEntityTreeEntityNode> EntityNodeToSelect = [&FixturePatchesToDelete, this]() -> TSharedPtr<FDMXEntityTreeEntityNode>
+	{
+		const TArray<TSharedPtr<FDMXEntityTreeEntityNode>> EntityNodes = GetEntityNodes();
+
+		for (const TSharedPtr<FDMXEntityTreeEntityNode>& EntityNode : EntityNodes)
+		{
+			if (EntityNode.IsValid() && !FixturePatchesToDelete.Contains(EntityNode->GetEntity()))
+			{
+				return EntityNode;
+			}
+		}
+		return nullptr;
+	}();
+
+	// Apply the new selectio
+	if (EntityNodeToSelect.IsValid())
+	{
+		if (UDMXEntityFixturePatch* FixturePatchToSelect = Cast<UDMXEntityFixturePatch>(EntityNodeToSelect->GetEntity()))
+		{
+			const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatchsToSelect = { FixturePatchToSelect };
+			FixturePatchSharedData->SelectFixturePatches(FixturePatchsToSelect);
+		}
+	}
+	else
+	{
+		// Clear selection if no patches remain
+		FixturePatchSharedData->SelectFixturePatches(TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>());
+	}
+
 	// Remove the Fixture Patches from the DMX Library
 	const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
 
@@ -629,12 +657,6 @@ void SDMXFixturePatchTree::OnDeleteNodes()
 		UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary(FixturePatchRef);
 	}
 	DMXLibrary->PostEditChange();
-
-	// Clear selection if no patches remain
-	if (GetSelectedEntities().Num() == 0)
-	{
-		FixturePatchSharedData->SelectFixturePatches(TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>());
-	}
 
 	UpdateTree();
 }

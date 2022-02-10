@@ -96,6 +96,9 @@ public:
 		return NewNode;
 	}
 
+	/** Returns the Entity Nodes in the Tree */
+	TArray<TSharedPtr<FDMXEntityTreeEntityNode>> GetEntityNodes(TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = nullptr) const;
+
 	/** Returns the category node of the entity, or null if is not in the list */
 	TSharedPtr<FDMXEntityTreeCategoryNode> FindCategoryNodeOfEntity(UDMXEntity* Entity) const;
 

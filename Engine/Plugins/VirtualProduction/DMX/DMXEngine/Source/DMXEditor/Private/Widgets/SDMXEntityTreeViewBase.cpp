@@ -213,6 +213,28 @@ void SDMXEntityTreeViewBase::UpdateTree(bool bRegenerateTreeNodes)
 	}
 }
 
+TArray<TSharedPtr<FDMXEntityTreeEntityNode>> SDMXEntityTreeViewBase::GetEntityNodes(TSharedPtr<FDMXEntityTreeNodeBase> ParentNode) const
+{
+	TArray<TSharedPtr<FDMXEntityTreeEntityNode>> Result;
+
+	ParentNode = ParentNode.IsValid() ? ParentNode : GetRootNode();
+	for (const TSharedPtr<FDMXEntityTreeNodeBase>& Child : ParentNode->GetChildren())
+	{
+		if (Child.IsValid())
+		{
+			if (Child->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::EntityNode)
+			{
+				Result.Add(StaticCastSharedPtr<FDMXEntityTreeEntityNode>(Child));
+			}
+
+			// Recursive for all childs
+			Result.Append(GetEntityNodes(Child));
+		}
+	}
+
+	return Result;
+}
+
 TSharedPtr<FDMXEntityTreeCategoryNode> SDMXEntityTreeViewBase::FindCategoryNodeOfEntity(UDMXEntity* Entity) const
 {
 	TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = FindNodeByEntity(Entity);
