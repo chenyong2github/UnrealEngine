@@ -11837,7 +11837,11 @@ void FSequencer::NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid)
 
 	MovieSceneToolHelpers::LockCameraActorToViewport(SharedThis(this), NewCamera);
 
-	MovieSceneToolHelpers::CreateCameraCutSectionForCamera(GetFocusedMovieSceneSequence()->GetMovieScene(), CameraGuid, GetLocalTime().Time.FloorToFrame());
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	if (Sequence->IsTrackSupported(UMovieSceneCameraCutTrack::StaticClass()) == ETrackSupport::Supported)
+	{
+		MovieSceneToolHelpers::CreateCameraCutSectionForCamera(Sequence->GetMovieScene(), CameraGuid, GetLocalTime().Time.FloorToFrame());
+	}
 }
 
 

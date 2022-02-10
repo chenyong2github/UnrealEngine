@@ -140,12 +140,15 @@ FGuid UTemplateSequence::FindOrAddBinding(UObject* InObject)
 	}
 
 	// Perform a potentially slow lookup of every possessable binding in the sequence to see if we already have this
-	UWorld* World = GetWorld();
+	UWorld* World = InObject->GetWorld();
 	ensure(World);
 	{
 		ATemplateSequenceActor* OutActor = nullptr;
 		UTemplateSequencePlayer* Player = UTemplateSequencePlayer::CreateTemplateSequencePlayer(World, this, FMovieSceneSequencePlaybackSettings(), OutActor);
 		ensure(Player);
+		
+		// Don't override the default, the default assignment should remain bound so that objects will spawn
+		OutActor->BindingOverride.bOverridesDefault = false;
 
 		Player->Initialize(this, World, FMovieSceneSequencePlaybackSettings());
 		Player->State.AssignSequence(MovieSceneSequenceID::Root, *this, *Player);
