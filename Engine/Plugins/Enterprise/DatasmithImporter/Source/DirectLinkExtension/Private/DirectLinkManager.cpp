@@ -573,6 +573,12 @@ namespace UE::DatasmithImporter
 
 		Async(EAsyncExecution::TaskGraphMainThread, [this]() {
 
+			if (UE::IsSavingPackage(nullptr) || IsGarbageCollecting())
+			{
+				// Can't trigger a reimport while we are saving or garbage collecting.
+				return;
+			}
+
 			TSet<TSharedRef<FExternalSource>> PendingReimportSet;
 			TSharedPtr<FExternalSource> EnqueuedSourceToReimport;
 			while (PendingReimportQueue.Dequeue(EnqueuedSourceToReimport))
