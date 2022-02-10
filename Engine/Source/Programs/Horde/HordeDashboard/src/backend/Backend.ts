@@ -1462,13 +1462,6 @@ export class Backend {
                 return;
             }
 
-            try {
-                this.serverInfo = await this.getServerInfo();
-                this.agentSoftwareInfo = await this.getAgentSoftwareChannel();
-            } catch (reason) {
-                console.error(`Error getting server/agent info from server, defaults used: ${reason}`);
-            }
-
             await dashboard.update();
 
             if (dashboard.localCache) {
@@ -1492,10 +1485,6 @@ export class Backend {
 
     updateID?: any;
     logout: boolean = false;
-
-    agentSoftwareInfo: GetAgentSoftwareChannelResponse = { modifiedTime: "" };
-    serverInfo: GetServerInfoResponse = { serverVersion: "0", osDescription: "Unknown", singleInstance: false };
-
 
     private backend: Fetch;
 
