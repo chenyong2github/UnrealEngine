@@ -275,7 +275,7 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 	// Can't enter global search if there are no active global searches or a search string from which to parse new searches
 	if (SearchString.IsEmpty() && CurrentGlobalSearches.Num() == 0)
 	{
-		UE_LOG(LogConsoleVariablesEditor, Log,
+		UE_LOG(LogConsoleVariablesEditor, Verbose,
 			TEXT("%hs: Global search request is empty. Exiting Global Search."),
 			__FUNCTION__, *SearchString);
 

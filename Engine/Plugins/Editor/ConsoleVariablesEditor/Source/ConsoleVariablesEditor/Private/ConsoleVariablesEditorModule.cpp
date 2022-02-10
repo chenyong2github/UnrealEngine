@@ -162,6 +162,7 @@ TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FConsoleVariablesEditorModu
 	
 	for (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo : ConsoleObjectsMasterReference)
 	{
+		FString CommandSearchableText = CommandInfo->Command + " " + CommandInfo->GetHelpText() + " " + CommandInfo->GetSourceAsText().ToString();
 		// Match any
 		for (const FString& Token : InTokens)
 		{
@@ -172,14 +173,14 @@ TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FConsoleVariablesEditorModu
 			TArray<FString> OutSpacedArray;
 			if (Token.Contains(SpaceDelimiter) && Token.ParseIntoArray(OutSpacedArray, *SpaceDelimiter, true) > 1)
 			{
-				bMatchFound = Algo::AllOf(OutSpacedArray, [&CommandInfo, InSearchCase](const FString& Comparator)
+				bMatchFound = Algo::AllOf(OutSpacedArray, [&CommandSearchableText, InSearchCase](const FString& Comparator)
 				{
-					return CommandInfo->Command.Contains(Comparator, InSearchCase);
+					return CommandSearchableText.Contains(Comparator, InSearchCase);
 				});
 			}
 			else
 			{
-				bMatchFound = CommandInfo->Command.Contains(Token, InSearchCase);
+				bMatchFound = CommandSearchableText.Contains(Token, InSearchCase);
 			}
 
 			if (bMatchFound)
@@ -263,7 +264,9 @@ void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FSt
 
 void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
 {
-	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+	UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+
+	CommandsRecentlyReceivedFromMultiUser.Add(InName, InValue);
 
 	if (GetDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
 	{
@@ -343,7 +346,7 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 		const FString& Key = PinnedCommand->Command;
 		
 		FConsoleVariablesEditorAssetSaveData FoundData;
-		const bool bIsVariableCurrentlyTracked = EditingPresetAsset->FindSavedDataByCommandString(Key, FoundData);
+		bool bIsVariableCurrentlyTracked = EditingPresetAsset->FindSavedDataByCommandString(Key, FoundData);
 
 		const UConsoleVariablesEditorProjectSettings* Settings = GetDefault<UConsoleVariablesEditorProjectSettings>();
 		check(Settings);
@@ -367,18 +370,35 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 						ChangedVariable->GetString() : "",
 						true
 					);
-				}
 
-				SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
+					bIsVariableCurrentlyTracked = true;
+				}
 			}
 		}
-		else // If it's already being tracked, refreshed the list to update show filters and other possibly stale elements
+
+		// If the variable is already tracked or was just added to tracking, run the following code
+		if (bIsVariableCurrentlyTracked)
 		{
 			if (MainPanel.IsValid())
 			{
 				MainPanel->RefreshList();
 			}
 			
+			/**
+			 * Here we check the map of recently received variables from other nodes
+			 * If the command is in the map and the value is similar, we won't send the value to other nodes
+			 * because we can assume that this value came from another node.
+			 * This prevents a feedback loop.
+			 */
+			if (const FString* MatchedValue = CommandsRecentlyReceivedFromMultiUser.Find(Key))
+			{
+				if (MatchedValue->Equals(ChangedVariable->GetString()))
+				{
+					CommandsRecentlyReceivedFromMultiUser.Remove(Key);
+					return;
+				}
+			}
+				
 			SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
 		}
 	}

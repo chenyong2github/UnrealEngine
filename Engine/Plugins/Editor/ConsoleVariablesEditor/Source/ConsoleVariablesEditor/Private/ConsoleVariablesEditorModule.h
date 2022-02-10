@@ -110,7 +110,7 @@ private:
 	
 	static const FName ConsoleVariablesToolkitPanelTabId;
 
-	/* Lives for as long as the module is loaded. */
+	/** Lives for as long as the module is loaded. */
 	TSharedPtr<FConsoleVariablesEditorMainPanel> MainPanel;
 
 	/** Transient preset that's being edited so we don't affect the reference asset unless we save it */
@@ -120,4 +120,12 @@ private:
 
 	/** All tracked variables and their default, startup, and current values */
 	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMasterReference;
+
+	/**
+	 * A list of CommandName/ValueAsString pairs of commands received from MU.
+	 * When this node receives a command and value from another node, it will be added to this list.
+	 * This list will be checked against detected local cvar changes and,
+	 * if the command and value match an item in this map, the change will not be propagated to other nodes.
+	 */
+	TMap<FString, FString> CommandsRecentlyReceivedFromMultiUser;
 };

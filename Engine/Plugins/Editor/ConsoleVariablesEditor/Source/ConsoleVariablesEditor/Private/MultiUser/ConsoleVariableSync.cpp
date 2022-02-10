@@ -124,7 +124,7 @@ struct FManagerImpl
 
 	void ConnectToSession(IConcertClientSession& InSession)
 	{
-		UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user Console Variable Editor listening to session: %s"), *InSession.GetSessionInfo().SessionName);
+		UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Multi-user Console Variable Editor listening to session: %s"), *InSession.GetSessionInfo().SessionName);
 
 		ClientChangeDelegate = InSession.OnSessionClientChanged().AddRaw(this, &FManagerImpl::OnSessionClientChanged);
 
@@ -229,7 +229,7 @@ struct FManagerImpl
 		check(WeakSession.IsValid());
 		{
 			TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
-			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user Console Variable Editor disconnecting from Session: %s"), *Session->GetSessionInfo().SessionName);
+			UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Multi-user Console Variable Editor disconnecting from Session: %s"), *Session->GetSessionInfo().SessionName);
 			Session->OnSessionClientChanged().Remove(ClientChangeDelegate);
 		}
 	}

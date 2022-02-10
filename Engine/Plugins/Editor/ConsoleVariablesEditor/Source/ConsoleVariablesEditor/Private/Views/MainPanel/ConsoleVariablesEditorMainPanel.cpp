@@ -280,10 +280,10 @@ void FConsoleVariablesEditorMainPanel::OnConnectionChanged(EConcertConnectionSta
 	switch (Status)
 	{
 		case EConcertConnectionStatus::Connected:
-			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has connected to a session."));
+			UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Multi-user has connected to a session."));
 			break;
 		case EConcertConnectionStatus::Disconnected:
-			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has disconnected from session."));
+			UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("Multi-user has disconnected from session."));
 			break;
 		default:
 			break;

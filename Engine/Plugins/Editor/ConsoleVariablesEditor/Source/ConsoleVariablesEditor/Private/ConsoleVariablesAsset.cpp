@@ -41,7 +41,7 @@ void UConsoleVariablesAsset::AddOrSetConsoleObjectSavedData(const FConsoleVariab
 		
 		if (AsVariable && AsVariable->TestFlags(ECVF_RenderThreadSafe))
 		{
-			UE_LOG(LogConsoleVariablesEditor, Warning,
+			UE_LOG(LogConsoleVariablesEditor, Verbose,
 				TEXT("The console variable named %s is flagged as ECVF_RenderThreadSafe. The value on the render thread will lag behind the value on the main thread by one frame if r.OneFrameThreadLag is 1."),
 				*InData.CommandName
 			);
