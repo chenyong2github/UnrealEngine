@@ -3,39 +3,33 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
-#include "WidgetBlueprint.h"
 
 #include "AudioEditorSettings.generated.h"
 
-
-UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "Submix Editor"))
-class AUDIOEDITOR_API UAudioSubmixEditorSettings : public UDeveloperSettings
+UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Audio"))
+class AUDIOEDITOR_API UAudioEditorSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	// Which UMG widget to use to draw the submix graph node
-	UPROPERTY(config, EditAnywhere, Category = "Submix Graph", meta = (AllowedClasses = "WidgetBlueprint"))
-	FSoftObjectPath SubmixNodeWidget;
+	/** Whether to pin the Sound Cue asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
+	bool bPinSoundCueInAssetMenu = false;
+
+	/** Whether to pin the Sound Cue Template asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
+	bool bPinSoundCueTemplateInAssetMenu = false;
+
+	/** Whether to pin the Sound Attenuation asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
+	bool bPinSoundAttenuationInAssetMenu = true;
+
+	/** Whether to pin the Sound Concurrency asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
+	bool bPinSoundConcurrencyInAssetMenu = true;
 
 	//~ Begin UDeveloperSettings
-	virtual FName GetCategoryName() const override { return TEXT("Audio"); }
-	//~ End UDeveloperSettings
-
-	//~ Begin UObject
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~ End UObject
-};
-
-
-UCLASS(config = EditorSettings, defaultconfig, meta = (DisplayName = "SoundClass Editor"))
-class AUDIOEDITOR_API UAudioSoundClassEditorSettings : public UDeveloperSettings
-{
-	GENERATED_BODY()
-
-public:
-	//~ Begin UDeveloperSettings
-	virtual FName GetCategoryName() const override { return TEXT("Audio"); }
+	virtual FName GetCategoryName() const override { return TEXT("General"); }
 	//~ End UDeveloperSettings
 
 	//~ Begin UObject

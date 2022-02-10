@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_SoundCue.h"
+#include "AudioEditorSettings.h"
 #include "Sound/SoundAttenuation.h"
 #include "Misc/PackageName.h"
 #include "Sound/SoundCue.h"
@@ -123,19 +124,16 @@ void FAssetTypeActions_SoundCue::ExecuteConsolidateAttenuation(TArray<TWeakObjec
 
 const TArray<FText>& FAssetTypeActions_SoundCue::GetSubMenus() const
 {
-	if (FModuleManager::Get().IsModuleLoaded(TEXT("MetasoundEditor")))
-	{
-		static const TArray<FText> AssetTypeActionSubMenu
-		{
-			LOCTEXT("AssetSoudnCueSubMenu", "Legacy")
-		};
-		return AssetTypeActionSubMenu;
-	}
-	else
+	if (GetDefault<UAudioEditorSettings>()->bPinSoundCueInAssetMenu)
 	{
 		static const TArray<FText> AssetTypeActionSubMenu;
 		return AssetTypeActionSubMenu;
 	}
+	static const TArray<FText> AssetTypeActionSubMenu
+	{
+		LOCTEXT("AssetSoundCueSubMenu", "Source")
+	};
+	return AssetTypeActionSubMenu;
 }
 
 #undef LOCTEXT_NAMESPACE

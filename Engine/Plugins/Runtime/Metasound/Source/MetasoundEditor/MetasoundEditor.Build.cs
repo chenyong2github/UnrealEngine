@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"AudioEditor",
 					"AudioExtensions",
 					"AudioMixer",
 					"KismetWidgets",

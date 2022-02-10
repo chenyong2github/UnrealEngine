@@ -22,6 +22,14 @@ class METASOUNDEDITOR_API UMetasoundEditorSettings : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** Whether to pin the MetaSound asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, DisplayName = "Pin MetaSound in Asset Menu", Category = AssetMenu)
+	bool bPinMetaSoundInAssetMenu = false;
+
+	/** Whether to pin the MetaSound Source asset type when creating new assets. */
+	UPROPERTY(EditAnywhere, config, DisplayName = "Pin MetaSound Source in Asset Menu", Category = AssetMenu)
+	bool bPinMetaSoundSourceInAssetMenu = true;
+
 	/** Default author title to use when authoring a new
 	  * MetaSound.  If empty, uses machine name by default.
 	  */

@@ -3,7 +3,6 @@
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
 
 #include "AudioDeviceManager.h"
-#include "AudioEditorSettings.h"
 #include "Audio/AudioWidgetSubsystem.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixDefaultColorPalette.h"
@@ -227,9 +226,6 @@ TSharedPtr<SGraphNode> USoundSubmixGraphNode::CreateVisualWidget()
 					SubmixNodeUserWidget = UserWidgets[0];
 				}
 			}
-
-			const UAudioSubmixEditorSettings* Settings = GetDefault<UAudioSubmixEditorSettings>();
-			check(Settings);
 
 			// Pass the owning submix and the user widgets to the graph node
 			return SNew(SSubmixGraphNode, this)

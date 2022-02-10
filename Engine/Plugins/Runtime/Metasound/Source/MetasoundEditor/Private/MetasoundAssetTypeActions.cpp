@@ -4,6 +4,7 @@
 
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 #include "IContentBrowserSingleton.h"
 #include "ObjectEditorUtils.h"
 #include "Metasound.h"
@@ -11,6 +12,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorSettings.h"
 #include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ToolMenus.h"
@@ -133,6 +135,12 @@ namespace Metasound
 
 		const TArray<FText>& FAssetTypeActions_MetaSound::GetSubMenus() const
 		{
+			if (GetDefault<UMetasoundEditorSettings>()->bPinMetaSoundInAssetMenu)
+			{
+				static const TArray<FText> SubMenus;
+				return SubMenus;
+			}
+			
 			static const TArray<FText> SubMenus
 			{
 				LOCTEXT("AssetSoundMetaSoundsSubMenu", "MetaSounds"),
@@ -171,6 +179,22 @@ namespace Metasound
 			// or contains all of the necessary inputs/outputs of another), so that the preset can "implement" the
 			// referenced graphs "interface."
 // 			RegisterPresetAction<UMetaSound, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);
+		}
+
+		const TArray<FText>& FAssetTypeActions_MetaSoundSource::GetSubMenus() const
+		{
+			if (GetDefault<UMetasoundEditorSettings>()->bPinMetaSoundSourceInAssetMenu)
+			{
+				static const TArray<FText> SubMenus;
+				return SubMenus;
+			}
+
+			static const TArray<FText> SubMenus
+			{
+				LOCTEXT("AssetSoundMetaSoundSourceSubMenu", "MetaSounds"),
+			};
+
+			return SubMenus;
 		}
 	} // namespace Editor
 } // namespace Metasound

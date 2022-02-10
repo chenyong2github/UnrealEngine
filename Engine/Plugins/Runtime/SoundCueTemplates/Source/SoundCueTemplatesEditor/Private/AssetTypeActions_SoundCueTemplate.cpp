@@ -5,6 +5,7 @@
 #include "SoundCueTemplate.h"
 #include "SoundCueTemplateFactory.h"
 
+#include "AudioEditorSettings.h"
 #include "Components/AudioComponent.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
@@ -62,19 +63,17 @@ void FAssetTypeActions_SoundCueTemplate::ExecuteCopyToSoundCue(TArray<TWeakObjec
 
 const TArray<FText>& FAssetTypeActions_SoundCueTemplate::GetSubMenus() const
 {
-	if (FModuleManager::Get().IsModuleLoaded(TEXT("MetasoundEditor")))
-	{
-		static const TArray<FText> AssetTypeActionSubMenu
-		{
-			LOCTEXT("AssetSoundCueSubMenu", "Legacy")
-		};
-		return AssetTypeActionSubMenu;
-	}
-	else
+	if (GetDefault<UAudioEditorSettings>()->bPinSoundCueTemplateInAssetMenu)
 	{
 		static const TArray<FText> AssetTypeActionSubMenu;
 		return AssetTypeActionSubMenu;
 	}
+
+	static const TArray<FText> AssetTypeActionSubMenu
+	{
+		LOCTEXT("AssetSoundCueSubMenu", "Source")
+	};
+	return AssetTypeActionSubMenu;
 }
 
 void FAssetActionExtender_SoundCueTemplate::RegisterMenus()

@@ -13,4 +13,5 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(77, 120, 239); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
+	virtual const TArray<FText>& GetSubMenus() const override;
 };

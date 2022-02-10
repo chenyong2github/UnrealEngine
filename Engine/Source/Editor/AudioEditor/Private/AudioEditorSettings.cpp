@@ -2,12 +2,7 @@
 
 #include "AudioEditorSettings.h"
 
-void UAudioSubmixEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-void UAudioSoundClassEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UAudioEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

@@ -681,7 +681,7 @@ namespace Metasound
 
 				ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 
-				SettingsModule.RegisterSettings("Editor", "Audio", "MetaSound Editor",
+				SettingsModule.RegisterSettings("Editor", "ContentEditors", "MetaSound Editor",
 					NSLOCTEXT("MetaSoundsEditor", "MetaSoundEditorSettingsName", "MetaSound Editor"),
 					NSLOCTEXT("MetaSoundsEditor", "MetaSoundEditorSettingsDescription", "Customize MetaSound Editor."),
 					GetMutableDefault<UMetasoundEditorSettings>()
