@@ -26,13 +26,13 @@ public:
 	{
 		if ( WindowLen > 0 )
 		{
-			FilterWindow.AddZeroed(WindowLen);
+			FilterData.AddZeroed(WindowLen);
 			Coefficients.AddZeroed(WindowLen);
 			CurrentStack = 0;
 		}
 		else
 		{
-			FilterWindow.Reset();
+			FilterData.Reset();
 			Coefficients.Reset();
 			CurrentStack = 0;		
 		}
@@ -40,13 +40,13 @@ public:
 
 	void CalculateCoefficient(EFilterInterpolationType InterpolationType);
 	float GetFilteredData(float Input);
-	bool IsValid() const { return FilterWindow.Num() > 0; }
+	bool IsValid() const { return FilterData.Num() > 0; }
 	float				LastOutput;
 private:
 
 	// CurrentStack is latest till CurrentStack + 1 is oldest
 	// note that this works in reverse order with Coefficient
-	TArray<float>		FilterWindow;
+	TArray<float>		FilterData;
 	// n-1 is latest till 0 is oldest
 	TArray<float>		Coefficients;
 	int32					CurrentStack;
@@ -77,7 +77,7 @@ struct FFilterData
 	{
 	}
 
-	void CheckValidation(const float CurrentTime, const float ValidationWindow)
+	void EnsureTimeIsValid(const float CurrentTime, const float ValidationWindow)
 	{
 		if (Diff(CurrentTime) > ValidationWindow)
 		{
@@ -119,9 +119,8 @@ public:
 	void Initialize(float InWindowDuration, EFilterInterpolationType InInterpolationType, float InDampingRatio,
 	                float InMinValue, float InMaxValue, float InMaxSpeed, bool bInClamp)
 	{
-		FilterWindow.Empty();
 		InterpolationType = InInterpolationType;
-		NumValidFilter = 0;
+		FilterData.Empty();
 		CurrentStackIndex = 0;
 		WindowDuration = InWindowDuration;
 		DampingRatio = InDampingRatio;
@@ -149,8 +148,8 @@ public:
 	// Wraps the internal state by steps of Range so that it is as close as possible to Input
 	void WrapToValue(float Input, float Range);
 
+	// Filter is considered valid if the WindowDuration is > 0
 	bool IsValid() const { return WindowDuration > 0.f; }
-	float LastOutput;
 
 	void SetWindowDuration(float InWindowDuration)
 	{
@@ -164,6 +163,8 @@ public:
 	}
 #endif // WITH_EDITOR
 
+	float LastOutput;
+
 private:
 	EFilterInterpolationType InterpolationType;
 	int32 CurrentStackIndex;
@@ -173,9 +174,8 @@ private:
 	float MaxValue;
 	float MaxSpeed;
 	bool  bClamp;
-	int32 NumValidFilter;
 	float CurrentTime;
-	TArray<FFilterData> FilterWindow;
+	TArray<FFilterData> FilterData;
 
 	float GetInterpolationCoefficient(const FFilterData& Data) const;
 	float CalculateFilteredOutput();
