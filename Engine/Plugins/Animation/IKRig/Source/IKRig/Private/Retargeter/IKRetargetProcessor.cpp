@@ -364,6 +364,7 @@ void FChainEncoderFK::EncodePose(
 }
 
 void FChainDecoderFK::DecodePose(
+	const FRootRetargeter& RootRetargeter,
 	const FRetargetChainSettings& Settings,
 	const TArray<int32>& TargetBoneIndices,
     const FChainEncoderFK& SourceChain,
@@ -426,8 +427,28 @@ void FChainDecoderFK::DecodePose(
 		{
 			ParentGlobalTransform = InOutGlobalPose[ParentIndex];
 		}
-		const FVector InitialLocalOffset = TargetSkeleton.RetargetLocalPose[BoneIndex].GetTranslation();
-		const FVector OutPosition = ParentGlobalTransform.TransformPosition(InitialLocalOffset);
+		FVector OutPosition;
+		switch (Settings.TranslationMode)
+		{
+			case ERetargetTranslationMode::None:
+				{
+					const FVector InitialLocalOffset = TargetSkeleton.RetargetLocalPose[BoneIndex].GetTranslation();
+					OutPosition = ParentGlobalTransform.TransformPosition(InitialLocalOffset);
+				}
+				break;
+			case ERetargetTranslationMode::GloballyScaled:
+				{
+					const FVector ScaledTranslation = SourceCurrentTransform.GetTranslation() * RootRetargeter.GlobalScale;
+					OutPosition = ScaledTranslation * Settings.TranslationMultiplier;
+				}
+				break;
+			case ERetargetTranslationMode::Absolute:
+				OutPosition = SourceCurrentTransform.GetTranslation() * Settings.TranslationMultiplier;
+				break;
+			default:
+				checkNoEntry();
+				break;
+		}
 
 		// calculate output SCALE
 		const FVector SourceCurrentScale = SourceCurrentTransform.GetScale3D();
@@ -1016,7 +1037,19 @@ bool UIKRetargetProcessor::InitializeRoots()
             *TargetRootBoneName.ToString(), *TargetSkeleton.SkeletalMesh->GetName());
 	}
 
-	return bRootEncoderInit && bRootDecoderInit;
+	const bool bWasInitialized = bRootEncoderInit && bRootDecoderInit;
+
+	// store global scale value
+	if (bWasInitialized)
+	{
+		RootRetargeter.GlobalScale = RootRetargeter.Source.InitialHeightInverse * RootRetargeter.Target.InitialHeight;
+	}
+	else
+	{
+		RootRetargeter.GlobalScale = 1.0f;
+	}
+	
+	return bWasInitialized;
 }
 
 bool UIKRetargetProcessor::InitializeBoneChainPairs()
@@ -1200,7 +1233,13 @@ void UIKRetargetProcessor::RunFKRetarget(
     for (FRetargetChainPairFK& ChainPair : ChainPairsFK)
     {
     	ChainPair.FKEncoder.EncodePose(ChainPair.SourceBoneIndices, InGlobalTransforms);
-    	ChainPair.FKDecoder.DecodePose(ChainPair.Settings, ChainPair.TargetBoneIndices, ChainPair.FKEncoder, TargetSkeleton,OutGlobalTransforms);
+    	ChainPair.FKDecoder.DecodePose(
+    		RootRetargeter,
+    		ChainPair.Settings,
+    		ChainPair.TargetBoneIndices,
+    		ChainPair.FKEncoder,
+    		TargetSkeleton,
+    		OutGlobalTransforms);
     }
 }
 

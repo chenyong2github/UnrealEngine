@@ -24,6 +24,14 @@ struct IKRIG_API FRetargetChainMap
 	FName TargetChain = NAME_None;
 };
 
+UENUM(BlueprintType)
+enum class ERetargetTranslationMode : uint8
+{
+	None			UMETA(DisplayName = "None"),
+	GloballyScaled	UMETA(DisplayName = "Globally Scaled"),
+	Absolute		UMETA(DisplayName = "Absolute"),
+};
+
 UCLASS()
 class IKRIG_API URetargetChainSettings: public UObject
 {
@@ -45,8 +53,21 @@ class IKRIG_API URetargetChainSettings: public UObject
 
 	/** Whether to copy the shape of the chain from the source skeleton (using retarget pose offsets). Default is true.
 	 * NOTE: This runs before the IK pass to copy the shape of the FK chain from the source skeleton. */
-	UPROPERTY(EditAnywhere, Category = "Retarget Passes")
+	UPROPERTY(EditAnywhere, Category = "FK Adjustments")
 	bool CopyPoseUsingFK = true;
+
+	/** Determines how translation is copied from the source chain to the target chain. Default is None.
+	* None: Translation of target bones are left unmodified from the retarget pose.
+	* Globally Scaled: Translation of target bone is set to the source bone offset multiplied by the global scale of the skeleton (determined by the relative height difference between retarget root bones).
+	* Absolute: Translation of target bone is set to the absolute position of the source bone. */
+	UPROPERTY(EditAnywhere, Category = "FK Adjustments")
+	ERetargetTranslationMode TranslationMode;
+
+	/** Range +/- inf. Default 1. Scales the amount of translation that is applied. Exact behavior depends on the Translation Mode.
+	*  In None Mode, this parameter has no effect.
+	*  In Globally Scaled and Absolute modes, the translation offset is scaled by this parameter.*/
+	UPROPERTY(EditAnywhere, Category = "FK Adjustments", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float TranslationMultiplier = 1.0f;
 
 	/** Whether to run IK on this chain (IK runs AFTER the FK pass). Default is true.
 	 * NOTE: This only has an effect if the chain has an IK Goal assigned to it in the Target IK Rig asset.

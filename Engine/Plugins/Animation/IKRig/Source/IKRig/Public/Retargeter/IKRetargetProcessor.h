@@ -131,6 +131,8 @@ struct FRootRetargeter
 	FRootSource Source;
 	
 	FRootTarget Target;
+	
+	float GlobalScale = 1.0f;
 
 	void Reset();
 	
@@ -148,6 +150,8 @@ struct FRetargetChainSettings
 	FName TargetChainName;
 	
 	bool CopyPoseUsingFK = true;
+	ERetargetTranslationMode TranslationMode;
+	float TranslationMultiplier = 1.0f;
 
 	bool DriveIKGoal = true;
 	FVector StaticOffset;
@@ -164,6 +168,8 @@ public:
 		TargetChainName = AssetChainSettings->TargetChain;
 		
 		CopyPoseUsingFK = AssetChainSettings->CopyPoseUsingFK;
+		TranslationMode = AssetChainSettings->TranslationMode;
+		TranslationMultiplier = AssetChainSettings->TranslationMultiplier;
 		
 		DriveIKGoal = AssetChainSettings->DriveIKGoal;
 		Extension = AssetChainSettings->Extension;
@@ -208,6 +214,7 @@ struct FChainDecoderFK : public FChainFK
 		const FTargetSkeleton& TargetSkeleton);
 	
 	void DecodePose(
+		const FRootRetargeter& RootRetargeter,
 		const FRetargetChainSettings& Settings,
 		const TArray<int32>& TargetBoneIndices,
 		const FChainEncoderFK& SourceChain,
