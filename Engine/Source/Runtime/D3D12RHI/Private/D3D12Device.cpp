@@ -256,17 +256,10 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	bool bUnderGPUCapture = false;
 
 	// RenderDoc
+	if (D3D12RHI_IsRenderDocPresent(Direct3DDevice))
 	{
-		IID RenderDocID;
-		if (SUCCEEDED(IIDFromString(L"{A7AA6116-9C8D-4BBA-9083-B4D816B71B78}", &RenderDocID)))
-		{
-			TRefCountPtr<IUnknown> RenderDoc;
-			if (SUCCEEDED(Direct3DDevice->QueryInterface(RenderDocID, (void**)RenderDoc.GetInitReference())))
-			{
-				// Running under RenderDoc, so enable capturing mode
-				bUnderGPUCapture = true;
-			}
-		}
+		// Running under RenderDoc, so enable capturing mode
+		bUnderGPUCapture = true;
 	}
 
 	// Intel GPA

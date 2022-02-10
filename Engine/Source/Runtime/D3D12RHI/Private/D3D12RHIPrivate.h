@@ -200,6 +200,21 @@ static bool D3D12RHI_ShouldForceCompatibility()
 	return bForceCompatibility;
 }
 
+static bool D3D12RHI_IsRenderDocPresent(ID3D12Device* Device)
+{
+	IID RenderDocID;
+	if (SUCCEEDED(IIDFromString(L"{A7AA6116-9C8D-4BBA-9083-B4D816B71B78}", &RenderDocID)))
+	{
+		TRefCountPtr<IUnknown> RenderDoc;
+		if (SUCCEEDED(Device->QueryInterface(RenderDocID, (void**)RenderDoc.GetInitReference())))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 struct FD3D12UpdateTexture3DData
 {
 	FD3D12ResourceLocation* UploadHeapResourceLocation;
