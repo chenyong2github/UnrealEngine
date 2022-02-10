@@ -101,7 +101,7 @@ public:
 	/**
 	 * Returns the widget's ActionDomain, respecting any inheritance requirements.
 	 */
-	UCommonInputActionDomain* GetCalculatedActionDomain();
+	TObjectPtr<UCommonInputActionDomain> GetCalculatedActionDomain();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -191,8 +191,8 @@ protected:
 	/**
 	 * Disable to inherit from owning CommonActivatableWidget.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "!bInheritActionDomain"))
-	TObjectPtr<UCommonInputActionDomain> ActionDomain;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "!bInheritActionDomain", DisplayName = "Override ActionDomain"))
+	TSoftObjectPtr<UCommonInputActionDomain> ActionDomain;
 
 private:
 	/** See BindVisibilityToMultipleActivations */

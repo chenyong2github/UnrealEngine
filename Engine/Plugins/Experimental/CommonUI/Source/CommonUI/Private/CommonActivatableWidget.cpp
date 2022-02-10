@@ -147,13 +147,11 @@ void UCommonActivatableWidget::ClearActiveHoldInputs()
 	}
 }
 
-UCommonInputActionDomain* UCommonActivatableWidget::GetCalculatedActionDomain()
+TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActionDomain()
 {
-	UCommonInputActionDomain* CalculatedActionDomain = ActionDomain;
-
 	if (!bInheritActionDomain)
 	{
-		return CalculatedActionDomain;
+		return ActionDomain.Get();
 	}
 
 	const UCommonActivatableWidget* CurrentWidget = this;
@@ -164,7 +162,7 @@ UCommonInputActionDomain* UCommonActivatableWidget::GetCalculatedActionDomain()
 
 	if (CurrentWidget && !CurrentWidget->bInheritActionDomain)
 	{
-		return CurrentWidget->ActionDomain;
+		return CurrentWidget->ActionDomain.Get();
 	}
 
 	return nullptr;
