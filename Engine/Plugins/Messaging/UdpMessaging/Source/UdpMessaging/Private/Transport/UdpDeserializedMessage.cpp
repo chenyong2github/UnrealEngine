@@ -43,7 +43,7 @@ class FUdpDeserializedMessageDetails
 {
 public:
 	static bool DeserializeV10(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
-	static bool DeserializeV11_14(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader);
+	static bool DeserializeV11_15(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader, bool bIsLWCBackwardCompatibilityMode);
 	static bool Deserialize(FUdpDeserializedMessage& DeserializedMessage, const FUdpReassembledMessage& ReassembledMessage);
 };
 
@@ -233,7 +233,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV10(FUdpDeserializedMessage& Des
 	return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
 }
 
-bool FUdpDeserializedMessageDetails::DeserializeV11_14(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader)
+bool FUdpDeserializedMessageDetails::DeserializeV11_15(FUdpDeserializedMessage& DeserializedMessage, FMemoryReader& MessageReader, bool bIsLWCBackwardCompatibilityMode)
 {
 	// message type info
 	{
@@ -337,14 +337,14 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_14(FUdpDeserializedMessage& 
 	case EUdpMessageFormat::CborPlatformEndianness:
 	{
 		// deserialize cbor (using this platform endianness).
-		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::Platform);
+		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::Platform, bIsLWCBackwardCompatibilityMode);
 		return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
 	}
 	break;
 	case EUdpMessageFormat::CborStandardEndianness:
 	{
 		// deserialize cbor (using the CBOR standard endianness - big endian).
-		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::StandardCompliant);
+		FCborStructDeserializerBackend Backend(MessageReader, ECborEndianness::StandardCompliant, bIsLWCBackwardCompatibilityMode);
 		return FStructDeserializer::Deserialize(DeserializedMessage.MessageData, *DeserializedMessage.TypeInfo, Backend);
 	}
 	break;
@@ -383,8 +383,18 @@ bool FUdpDeserializedMessageDetails::Deserialize(FUdpDeserializedMessage& Deseri
 	case 13:
 		// fallthrough
 	case 14:
-		return DeserializeV11_14(DeserializedMessage, MessageReader);
+	{
+		// Protocol version 11-14 requires LWC backward compat mode
+		constexpr bool bIsLWCBackwardCompatibilityMode = true;
+		return DeserializeV11_15(DeserializedMessage, MessageReader, bIsLWCBackwardCompatibilityMode);
 		break;
+	}
+	case 15:
+	{
+		constexpr bool bIsLWCBackwardCompatibilityMode = false;
+		return DeserializeV11_15(DeserializedMessage, MessageReader, bIsLWCBackwardCompatibilityMode);
+		break;
+	}
 
 	default:
 		UE_LOG(LogUdpMessaging, Error, TEXT("Unsupported Protocol Version message tasked for deserialization, discarding..."));

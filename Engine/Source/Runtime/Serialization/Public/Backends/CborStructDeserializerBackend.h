@@ -20,7 +20,7 @@ public:
 	 * @param CborDataEndianness The CBOR data endianness stored in the archive.
 	 * @note For backward compatibility and performance, the implementation default to the the platform endianness rather than the CBOR standard one (big endian).
 	 */
-	FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness = ECborEndianness::Platform);
+	FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness = ECborEndianness::Platform, bool bInIsLWCCompatibilityMode = false);
 	virtual ~FCborStructDeserializerBackend();
 
 public:
@@ -50,4 +50,7 @@ private:
 
 	/** Whether a TArray<uint8>/TArray<int8> property is being deserialized. */
 	bool bDeserializingByteArray = false;
+
+	/** Whether we are deserializing for LWC backward compability mode. Incoming FloatProperties of LWC types deserialized into Double */
+	bool bIsLWCCompatibilityMode = false;
 };
