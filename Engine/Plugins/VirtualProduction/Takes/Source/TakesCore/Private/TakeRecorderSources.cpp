@@ -500,14 +500,13 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, const
 	TArray<UObject*> AssetsToCleanUp;
 	for (auto SourceSubSequence : SourceSubSequenceMap)
 	{
-		if (SourceSubSequence.Value)
+		// Only save subsequences but not the master sequence, it is already saved in UTakeRecorder::StopInternal
+		const bool bIsValidSubSequence = SourceSubSequence.Value && SourceSubSequence.Value.Get() != InSequence;
+		if (bIsValidSubSequence)
 		{
 			if (bCancelled)
 			{
-				if (SourceSubSequence.Value.Get() != InSequence)
-				{
-					AssetsToCleanUp.Add(SourceSubSequence.Value.Get());
-				}
+				AssetsToCleanUp.Add(SourceSubSequence.Value.Get());
 			}
 			else if (Settings.bSaveRecordedAssets)
 			{
