@@ -273,6 +273,7 @@ private:
 	void OnDeviceProfileManagerUpdated();
 	void OnPreviewPlatformChanged();
 	void OnPreExit();
+	void PostGarbageCollect();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;

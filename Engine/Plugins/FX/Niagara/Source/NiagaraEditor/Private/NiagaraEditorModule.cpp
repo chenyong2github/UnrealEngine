@@ -775,6 +775,12 @@ void FNiagaraEditorModule::OnPreExit()
 	ClearObjectPool();
 }
 
+void FNiagaraEditorModule::PostGarbageCollect()
+{
+	// could be that some of the asset data was garbage collected, so we reset the cache
+	InvalidateCachedScriptAssetData();
+}
+
 void FNiagaraEditorModule::StartupModule()
 {
 	bThumbnailRenderersRegistered = false;
@@ -812,6 +818,7 @@ void FNiagaraEditorModule::StartupModule()
 
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FNiagaraEditorModule::OnPreGarbageCollection);
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FNiagaraEditorModule::PostGarbageCollect);
 	
 	// Any attempt to use GEditor right now will fail as it hasn't been initialized yet. Waiting for post engine init resolves that.
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
@@ -1176,6 +1183,7 @@ void FNiagaraEditorModule::ShutdownModule()
 	UNiagaraSettings::OnSettingsChanged().RemoveAll(this);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
 	

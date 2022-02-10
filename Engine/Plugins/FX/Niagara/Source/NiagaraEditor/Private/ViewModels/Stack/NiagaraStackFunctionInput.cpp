@@ -1329,8 +1329,12 @@ FName GetNamespaceForUsage(ENiagaraScriptUsage Usage)
 	}
 }
 
-UNiagaraScript* UNiagaraStackFunctionInput::FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache) const
+UNiagaraScript* UNiagaraStackFunctionInput::FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache, bool bIncludeConversionScripts) const
 {
+	if (bIncludeConversionScripts == false)
+	{
+		return nullptr;
+	}
 	if (UNiagaraScript** CacheEntry = ConversionScriptCache.Find(FromType))
 	{
 		return *CacheEntry;
@@ -1340,7 +1344,7 @@ UNiagaraScript* UNiagaraStackFunctionInput::FindConversionScript(const FNiagaraT
 	return ConversionScriptCache[FromType];
 }
 
-void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles) const
+void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles, bool bIncludeConversionScripts) const
 {
 	TMap<FNiagaraTypeDefinition, UNiagaraScript*> ConversionScriptCache;
 	
@@ -1351,7 +1355,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 		{
 			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(SystemVariable));
 		}
-		else if (UNiagaraScript* ConversionScript = FindConversionScript(SystemVariable.GetType(), ConversionScriptCache))
+		else if (UNiagaraScript* ConversionScript = FindConversionScript(SystemVariable.GetType(), ConversionScriptCache, bIncludeConversionScripts))
 		{
 			AvailableConversionHandles.Add(SystemVariable, ConversionScript);
 		}
@@ -1366,7 +1370,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 		{
 			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(ExposedVar));
 		}
-		else if (UNiagaraScript* ConversionScript = FindConversionScript(ExposedVar.GetType(), ConversionScriptCache))
+		else if (UNiagaraScript* ConversionScript = FindConversionScript(ExposedVar.GetType(), ConversionScriptCache, bIncludeConversionScripts))
 		{
 			AvailableConversionHandles.Add(ExposedVar, ConversionScript);
 		}
@@ -1460,7 +1464,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 									}
 								}
 							}
-							else if (UNiagaraScript* ConversionScript = FindConversionScript(HistoryVariable.GetType(), ConversionScriptCache))
+							else if (UNiagaraScript* ConversionScript = FindConversionScript(HistoryVariable.GetType(), ConversionScriptCache, bIncludeConversionScripts))
 							{
 								AvailableConversionHandles.Add(HistoryVariable, ConversionScript);
 							}
@@ -1501,7 +1505,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 				{
 					AvailableParameterHandles.AddUnique(FNiagaraParameterHandle(CollectionParam.GetName()));
 				}
-				else if (UNiagaraScript* ConversionScript = FindConversionScript(CollectionParam.GetType(), ConversionScriptCache))
+				else if (UNiagaraScript* ConversionScript = FindConversionScript(CollectionParam.GetType(), ConversionScriptCache, bIncludeConversionScripts))
 				{
 					AvailableConversionHandles.Add(CollectionParam, ConversionScript);
 				}
@@ -2800,7 +2804,7 @@ void UNiagaraStackFunctionInput::GetDefaultLinkedHandleOrLinkedFunctionFromDefau
 		// If there are a chain of linked values use the first one that's available, otherwise just use the last one.
 		TArray<FNiagaraParameterHandle> AvailableHandles;
 		TMap<FNiagaraVariable, UNiagaraScript*> ConversionHandles;
-		GetAvailableParameterHandles(AvailableHandles, ConversionHandles);
+		GetAvailableParameterHandles(AvailableHandles, ConversionHandles, false);
 		for (FLinkedHandleOrFunctionNode& LinkedValue : LinkedValues)
 		{
 			if (LinkedValue.LinkedFunctionCallNode.IsValid() ||

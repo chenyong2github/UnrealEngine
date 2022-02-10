@@ -130,8 +130,8 @@ public:
 	/** Sets the value of this input to a linked parameter handle. */
 	void SetLinkedValueHandle(const FNiagaraParameterHandle& InParameterHandle);
 
-	/** Gets the current set of available parameter handles which can be assigned to this input. */
-	void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles) const;
+	/** Gets the current set of available parameter handles which can be assigned to this input. Optionally returns possible conversion scripts. */
+	void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles, bool bIncludeConversionScripts = true) const;
 
 	/** Gets the function node form the script graph if the current value mode is DefaultFunction. */
 	UNiagaraNodeFunctionCall* GetDefaultFunctionNode() const;
@@ -368,7 +368,7 @@ private:
 
 	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
 
-	UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache) const;
+	UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache, bool bIncludeConversionScripts) const;
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
