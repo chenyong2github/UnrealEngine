@@ -789,6 +789,12 @@ namespace Chaos
 			else
 			{
 				FlushInternalAccelerationQueue();
+
+				if (GAccelerationStructureCacheOverlappingLeaves)
+				{
+					// Caching of the overlapping leaves
+					InternalAcceleration->CacheOverlappingLeaves();
+				}
 			}
 			
 			if (bCanStartAsyncTasks)
