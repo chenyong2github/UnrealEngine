@@ -16,25 +16,25 @@ namespace PCGTextureSampling
 
 		// TODO: this isn't super robust, if that becomes an issue
 		int32 X0 = FMath::FloorToInt(Pos.X);
-		if (X0 >= Width)
+		if (X0 < 0 || X0 >= Width)
 		{
 			X0 = 0;
 		}
 
 		int32 X1 = FMath::CeilToInt(Pos.X);
-		if (X1 >= Width)
+		if (X1 < 0 || X1 >= Width)
 		{
 			X1 = 0;
 		}
 
 		int32 Y0 = FMath::FloorToInt(Pos.Y);
-		if (Y0 >= Height)
+		if (Y0 < 0 || Y0 >= Height)
 		{
 			Y0 = 0;
 		}
 
 		int32 Y1 = FMath::CeilToInt(Pos.Y);
-		if (Y1 >= Height)
+		if (Y1 < 0 || Y1 >= Height)
 		{
 			Y1 = 0;
 		}
@@ -109,7 +109,11 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData() const
 		{
 			const float Density = PCGTextureSampling::SampleFloatChannel(ColorData[X + Y * Width], ColorChannel);
 
+#if WITH_EDITORONLY_DATA
+			if(Density > 0 || bKeepZeroDensityPoints)
+#else
 			if (Density > 0)
+#endif
 			{
 				FVector LocalPosition(X * XScale + Bias.X, Y * YScale + Bias.Y, 0);
 				Points.Emplace(FTransform(Transform.TransformPosition(LocalPosition)),

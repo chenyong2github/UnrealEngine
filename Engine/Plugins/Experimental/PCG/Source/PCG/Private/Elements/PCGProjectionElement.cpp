@@ -44,6 +44,10 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		// Create a new projection
 		ProjectionData = (ProjectionData ? ProjectionData : FirstSpatialData)->ProjectOn(SpatialData);
+
+#if WITH_EDITORONLY_DATA
+		ProjectionData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+#endif
 		
 		// Update the tagged data
 		FPCGTaggedData& ProjectionTaggedData = Outputs[ProjectionTaggedDataIndex];

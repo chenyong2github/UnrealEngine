@@ -102,7 +102,11 @@ const UPCGPointData* UPCGProjectionData::CreatePointData() const
 	for (const FPCGPoint& SourcePoint : SourcePoints)
 	{
 		FPCGPoint ProjectedPoint = TransformPoint(SourcePoint);
+#if WITH_EDITORONLY_DATA
+		if(ProjectedPoint.Density > 0 || bKeepZeroDensityPoints)
+#else
 		if (ProjectedPoint.Density > 0)
+#endif
 		{
 			Points.Add(MoveTemp(ProjectedPoint));
 		}

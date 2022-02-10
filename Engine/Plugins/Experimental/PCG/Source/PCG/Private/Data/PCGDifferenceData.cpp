@@ -135,7 +135,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 	// This is similar to what we are doing in UPCGUnionData::CreatePointData
 	const UPCGPointData* SourcePointData = Source->ToPointData();
 
-	if (!Difference)
+	if (!Difference || !SourcePointData)
 	{
 		return SourcePointData;
 	}
@@ -148,11 +148,19 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 	for (const FPCGPoint& Point : SourcePointData->GetPoints())
 	{
 		const float DensityInDifference = Difference->GetDensityAtPosition(Point.Transform.GetLocation());
+
 		if (DensityInDifference < Point.Density)
 		{
 			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
 			TargetPoint.Density -= DensityInDifference;
 		}
+#if WITH_EDITORONLY_DATA
+		else if (bKeepZeroDensityPoints)
+		{
+			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
+			TargetPoint.Density = 0;
+		}
+#endif
 	}
 
 	return Data;

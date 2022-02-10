@@ -27,6 +27,11 @@ protected:
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
+	bool bKeepZeroDensityPoints = false;
+#endif
 };
 
 class FPCGIntersectionElement : public FSimpleTypedPCGElement<UPCGIntersectionSettings>

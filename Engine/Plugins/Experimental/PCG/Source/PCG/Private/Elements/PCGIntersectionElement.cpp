@@ -44,6 +44,10 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContextPtr Context) const
 		IntersectionData = (IntersectionData ? IntersectionData : FirstSpatialData)->IntersectWith(SpatialData);
 		// Propagate settings
 		IntersectionData->DensityFunction = Settings->DensityFunction;
+#if WITH_EDITORONLY_DATA
+		IntersectionData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+#endif
+
 
 		// Update tagged data
 		FPCGTaggedData& IntersectionTaggedData = Outputs[IntersectionTaggedDataIndex];

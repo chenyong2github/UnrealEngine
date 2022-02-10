@@ -82,6 +82,11 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
+	bool bKeepZeroDensityPoints = false;
+#endif
 };
 
 UCLASS(Abstract, ClassGroup = (Procedural))

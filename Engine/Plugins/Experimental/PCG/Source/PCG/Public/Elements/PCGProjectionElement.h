@@ -19,6 +19,11 @@ public:
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("ProjectionNode")); }
 #endif
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
+	bool bKeepZeroDensityPoints = false;
+#endif
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface

@@ -27,6 +27,9 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContextPtr Context) const
 		{
 			DifferenceData = FirstSpatialData->Subtract(SpatialData);
 			DifferenceData->SetDensityFunction(Settings->DensityFunction);
+#if WITH_EDITORONLY_DATA
+			DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+#endif
 
 			FPCGTaggedData& DifferenceTaggedData = Outputs[DifferenceTaggedDataIndex];
 			DifferenceTaggedData.Data = DifferenceData;

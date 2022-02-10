@@ -137,7 +137,11 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialD
 	for (const FPCGPoint& Point : SourcePoints)
 	{
 		const float YDensity = Y->GetDensityAtPosition(Point.Transform.GetLocation());
+#if WITH_EDITORONLY_DATA
+		if (YDensity > 0 || bKeepZeroDensityPoints)
+#else
 		if (YDensity > 0)
+#endif
 		{
 			FPCGPoint& NewPoint = TargetPoints.Add_GetRef(Point);
 			NewPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
