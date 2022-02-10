@@ -74,22 +74,22 @@ void FWinHttpWebSocket::Connect()
 
 	State = EWebSocketConnectionState::Connecting;
 
-	// Check Domain whitelist if enabled
-	bool bDisableDomainWhitelist = false;
-	GConfig->GetBool(TEXT("WinHttpWebSocket"), TEXT("bDisableDomainWhitelist"), bDisableDomainWhitelist, GEngineIni);
-	if (!bDisableDomainWhitelist)
+	// Check Domain allowedlist if enabled
+	bool bDisableDomainAllowlist = false;
+	GConfig->GetBool(TEXT("WinHttpWebSocket"), TEXT("bDisableDomainWhitelist"), bDisableDomainAllowlist, GEngineIni);
+	if (!bDisableDomainAllowlist)
 	{
 		FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
 		if (!HttpManager.IsDomainAllowed(Url))
 		{
-			UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: %s is not whitelisted, refusing to connect."), this, *Url);
+			UE_LOG(LogWebSockets, Warning, TEXT("WinHttp WebSocket[%p]: %s is not in the allowed list, refusing to connect."), this, *Url);
 			HandleCloseComplete(EWebSocketConnectionState::FailedToConnect, UE_WEBSOCKET_CLOSE_APP_FAILURE, FString(TEXT("Invalid Domain")));
 			return;
 		}
 	}
 	else
 	{
-		UE_LOG(LogWebSockets, Log, TEXT("WinHttp WebSocket[%p]: Domain whitelisting has been disabled by config."), this);
+		UE_LOG(LogWebSockets, Log, TEXT("WinHttp WebSocket[%p]: Domain allowed list has been disabled by config."), this);
 	}
 
 	FWinHttpHttpManager* Manager = FWinHttpHttpManager::GetManager();

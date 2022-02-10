@@ -109,7 +109,7 @@ private:
 	/** Minimum time to sleep in our thread's tick, even if the sleep makes us exceed our target frame time */
 	double ThreadMinimumSleepTimeInSeconds;
 
-	bool bDisableDomainWhitelist = false;
+	bool bDisableDomainAllowlist = false;
 	bool bDisableCertValidation = false;
 
 	friend class FLwsWebSocket;
