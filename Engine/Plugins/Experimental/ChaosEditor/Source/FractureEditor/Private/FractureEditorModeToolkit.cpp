@@ -1098,8 +1098,9 @@ void FFractureEditorModeToolkit::OnLevelViewValueChanged()
 		if(EditBoneColor.GetViewLevel() != FractureLevel)
 		{
 			EditBoneColor.SetLevelViewMode(FractureLevel);
-			EditBoneColor.ResetBoneSelection();
-			EditBoneColor.ResetHighlightedBones();
+			// Clear selection below currently-selected view level and update highlights,
+			// so the selection is compatible with the current 3D view and outliner (e.g., doesn't hide selection of children)
+			EditBoneColor.FilterSelectionToLevel();
 			UpdateExplodedVectors(Comp);
 			Comp->MarkRenderStateDirty();
 			Comp->MarkRenderDynamicDataDirty();
@@ -1693,8 +1694,8 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 	{
 		if (SelectedBones.Num())
 		{
-
-			FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true, false);
+			// don't need to snap the bones to the current level because they are directly selected from the outliner
+			FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true, false, false /*bSnapToLevel*/);
 			OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
 			HistogramView->SetBoneSelection(RootComponent, SelectedBones, true);
 		}

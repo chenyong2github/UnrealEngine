@@ -73,7 +73,7 @@ public:
 private:
 	void OnUndoRedo();
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
-	void GetComponentGlobalBounds(UGeometryCollectionComponent* GeometryCollectionComponent, TMap<int32, FBox> &BoundsToBone) const;
+	void GetComponentGlobalBounds(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<FBox>& BoundsPerBone) const;
 	void SelectionStateChanged();
 	
 	/** Handle package reloading (might be our geometry collection) */

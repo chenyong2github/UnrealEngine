@@ -5,7 +5,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "EditorSupportDelegates.h"
 
-void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<int32>& BoneIndices, bool bClearCurrentSelection, bool bAdd)
+void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<int32>& BoneIndices, bool bClearCurrentSelection, bool bAdd, bool bSnapToLevel)
 {
 	if (GeometryCollectionComponent)
 	{
@@ -24,26 +24,8 @@ void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* 
 					EditBoneColor.ResetBoneSelection();
 				}
 		
-				EditBoneColor.ToggleSelectedBones(BoneIndices, bAdd);
-
-				// The actual selection made is based on the hierarchy and the view mode
-				if (GeometryCollection)
-				{
-					const TArray<int32>& Selected = EditBoneColor.GetSelectedBones();
-					TArray<int32> RevisedSelected;
-					TArray<int32> Highlighted;
-					FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(GeometryCollection, EditBoneColor.GetViewLevel(), Selected, RevisedSelected, Highlighted);
-					EditBoneColor.SetSelectedBones(RevisedSelected);
-					
-					const TArray<int32>& SelectedBones = EditBoneColor.GetSelectedBones();
-					TArray<int32> HighlightBones;
-					for (int32 SelectedBone : SelectedBones)
-					{
-						FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(GeometryCollectionPtr->Children, SelectedBone, HighlightBones);
-					}
-					
-					EditBoneColor.SetHighlightedBones(HighlightBones);
-				}
+				EditBoneColor.ToggleSelectedBones(BoneIndices, bAdd, bSnapToLevel);
+				EditBoneColor.SetHighlightedBones(EditBoneColor.GetSelectedBones(), true);
 			}
 
 			FEditorSupportDelegates::RedrawAllViewports.Broadcast();

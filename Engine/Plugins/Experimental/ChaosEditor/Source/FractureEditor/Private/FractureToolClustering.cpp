@@ -50,11 +50,19 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 
 			Context.ConvertSelectionToClusterNodes();
 
+			int32 MaxClusterLevel = -1;
 			for (int32 ClusterIndex : Context.GetSelection())
 			{
 				TArray<int32> LeafBones;
+				MaxClusterLevel = FMath::Max(MaxClusterLevel, Levels[ClusterIndex]);
 				FGeometryCollectionClusteringUtility::GetLeafBones(Context.GetGeometryCollection().Get(), ClusterIndex, true, LeafBones);
 				FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
+			}
+
+			// if not viewing all levels, switch the view level to show make sure we can see the cluster levels
+			if (Toolkit->GetLevelViewValue() != -1 && MaxClusterLevel != -1)
+			{
+				Toolkit->OnSetLevelViewValue(MaxClusterLevel + 1);
 			}
 
 			// Cleanup: Remove any clusters remaining in the flattened branch.

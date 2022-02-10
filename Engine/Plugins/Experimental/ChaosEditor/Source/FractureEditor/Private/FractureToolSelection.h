@@ -18,7 +18,7 @@ UENUM()
 enum class EVolumeSelectionMethod
 {
 	// Select by cube root of volume
-	CubeRoot,
+	CubeRootOfVolume,
 	// Select by cube root of volume relative to the overall shape's cube root of volume
 	RelativeToWhole,
 	// Select by cube root of volume relative to the largest single geometry
@@ -58,9 +58,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = MouseInteraction)
 	EMouseSelectionMethod MouseSelectionMethod = EMouseSelectionMethod::RectSelect;
 
-
-
-	/** What values to use when filtering by volume */
+	/** What values to use when filtering by volume.  Note all values are presented as cube roots to give more intuitive scales (e.g., to select bones with volume less than a 10x10x10 cube, choose CubeRootOfVolume and MaxVolume=10, rather than needing to multiply out to 1000) */
 	UPROPERTY(EditAnywhere, Category = FilterSettings)
 	EVolumeSelectionMethod VolumeSelectionMethod = EVolumeSelectionMethod::RelativeToLargest;
 
@@ -267,7 +265,7 @@ private:
 	TArray<FBox> SelectionBounds; // Bounds in global space but without exploded vectors applied
 	FVisualizationMappings SelectionMappings;
 
-	TInterval<float> GetVolumeRange(const TManagedArray<float>& Volumes, const TManagedArray<int32>& TransformToGeometryIndex);
+	TInterval<float> GetVolumeRange(const TManagedArray<float>& Volumes, const TManagedArray<int32>& SimulationType) const;
 	bool GetBonesByVolume(const FGeometryCollection& Collection, TArray<int32>& FilterIndices);
 	const double VolDimScale = .01; // compute volumes in meters instead of cm, for saner units at typical scales
 

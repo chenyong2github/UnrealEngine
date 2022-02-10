@@ -193,8 +193,6 @@ void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditor
 		EditBoneColor.SetSelectedBones(Context.GetSelection());
 		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true, false);
 	}
-	
-	Toolkit->UpdateExplodedVectors(GeometryCollectionComponent);
 
 	GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 	GeometryCollectionComponent->MarkRenderStateDirty();

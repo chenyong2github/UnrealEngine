@@ -210,15 +210,18 @@ public:
 	bool IsBoneSelected(int BoneIndex) const;
 	void SetSelectedBones(const TArray<int32>& SelectedBonesIn);
 	void AppendSelectedBones(const TArray<int32>& SelectedBonesIn);
-	void ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd);
+	void ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd, bool bSnapToLevel = true);
 	void AddSelectedBone(int32 BoneIndex);
 	void ClearSelectedBone(int32 BoneIndex);
 	const TArray<int32>& GetSelectedBones() const;
 	void ResetBoneSelection();
 	void SelectBones(GeometryCollection::ESelectionMode SelectionMode);
+	void FilterSelectionToLevel(bool bPreferLowestOnly = false);
+	int32 GetMaxSelectedLevel(bool bOnlyRigid) const;
+	bool IsSelectionValidAtLevel(int32 TargetLevel) const;
 
 	bool IsBoneHighlighted(int BoneIndex) const;
-	void SetHighlightedBones(const TArray<int32>& HighlightedBonesIn);
+	void SetHighlightedBones(const TArray<int32>& HighlightedBonesIn, bool bHighlightChildren = false);
 	void AddHighlightedBone(int32 BoneIndex);
 	const TArray<int32>& GetHighlightedBones() const;
 	void ResetHighlightedBones();

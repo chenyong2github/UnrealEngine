@@ -537,18 +537,21 @@ void FGeometryCollectionTreeItemComponent::SetHistogramSelection(TArray<int32>& 
 
 bool FGeometryCollectionTreeItemComponent::FilterBoneIndex(int32 BoneIndex) const
 {
-	FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
-	TManagedArray<TSet<int32>>& Children = Collection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+	const FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
+	const TManagedArray<int32>& SimTypes = Collection->SimulationType;
+	bool bHasChildren = Collection->Children[BoneIndex].Num() > 0;
 
-	if (Children[BoneIndex].Num() == 0)
+	if (SimTypes[BoneIndex] != FGeometryCollection::ESimulationTypes::FST_Clustered)
 	{
-		// We don't display leaf nodes deeper than the view level.
+		// We only display cluster nodes deeper than the view level.
 		UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
 
 		if (FractureSettings->FractureLevel >= 0)
 		{
-			TManagedArray<int32>& Level = Collection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-			if (Level[BoneIndex] != FractureSettings->FractureLevel)
+			const TManagedArray<int32>& Level = Collection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
+			int32 BoneLevel = Level[BoneIndex];
+			// bone is not at the right level itself and doesn't have child(ren) at the right level
+			if (BoneLevel != FractureSettings->FractureLevel && (!bHasChildren || BoneLevel + 1 != FractureSettings->FractureLevel))
 			{
 				return false;
 			}

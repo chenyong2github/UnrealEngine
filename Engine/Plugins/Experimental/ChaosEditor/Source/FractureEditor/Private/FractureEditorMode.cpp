@@ -293,27 +293,31 @@ bool UFractureEditorMode::UpdateSelectionInFrustum(const FConvexVolume& InFrustu
 
 	FConvexVolume SelectionFrustum(TranformFrustum(InFrustum, InvActorMatrix));
 
-	TMap<int32, FBox> BoundsToBone;
+	TArray<FBox> BoundsPerBone;
 	TArray<int32> SelectedBonesArray;
 	bool bSelectionWasUpdated = false;
 
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryComponents)
 	{
-		BoundsToBone.Reset();
+		BoundsPerBone.Reset();
 		SelectedBonesArray.Reset();
 
-		GetComponentGlobalBounds(GeometryCollectionComponent, BoundsToBone);
+		GetComponentGlobalBounds(GeometryCollectionComponent, BoundsPerBone);
 
-		for (const TPair<int32, FBox>& Bone : BoundsToBone)
+		for (int32 Idx = 0; Idx < BoundsPerBone.Num(); Idx++)
 		{
-			const FBox& TransformedBoneBox = Bone.Value;
+			const FBox& TransformedBoneBox = BoundsPerBone[Idx];
+			if (!TransformedBoneBox.IsValid)
+			{
+				continue;
+			}
 			bool bFullyContained = false;
 			bool bIntersected = SelectionFrustum.IntersectBox(TransformedBoneBox.GetCenter(), TransformedBoneBox.GetExtent(), bFullyContained);
 			if (bIntersected)
 			{
 				if (!bStrictDragSelection || (bFullyContained && bStrictDragSelection))
 				{
-					SelectedBonesArray.Add(Bone.Key);
+					SelectedBonesArray.Add(Idx);
 				}
 			}
 		}
@@ -324,7 +328,8 @@ bool UFractureEditorMode::UpdateSelectionInFrustum(const FConvexVolume& InFrustu
 			FScopedColorEdit ColorEdit = GeometryCollectionComponent->EditBoneSelection();
 			ColorEdit.SelectBones(GeometryCollection::ESelectionMode::None);
 			ColorEdit.SetSelectedBones(SelectedBonesArray);
-			ColorEdit.SetHighlightedBones(SelectedBonesArray);
+			ColorEdit.FilterSelectionToLevel(/*bPreferLowestOnly*/true);
+			ColorEdit.SetHighlightedBones(ColorEdit.GetSelectedBones(), true);
 
 			FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
 
@@ -397,16 +402,13 @@ bool UFractureEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPri
 	UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
 	if (GeometryCollectionComponent && GeometryCollectionComponent->GetSelectedBones().Num() > 0 && SelectedGeometryComponents.Contains(GeometryCollectionComponent))
 	{
-		TMap<int32, FBox> BoundsToBoneMap;
-		GetComponentGlobalBounds(GeometryCollectionComponent, BoundsToBoneMap);
+		TArray<FBox> BoundsPerBone;
+		GetComponentGlobalBounds(GeometryCollectionComponent, BoundsPerBone);
 
 		FBox TotalBoneBox(ForceInit);
 		for (int32 BoneIndex : GeometryCollectionComponent->GetSelectedBones())
 		{
-			if (FBox* LocalBoneBox = BoundsToBoneMap.Find(BoneIndex))
-			{
-				TotalBoneBox += *LocalBoneBox;
-			}
+			TotalBoneBox += BoundsPerBone[BoneIndex];
 		}
 
 		InOutBox += TotalBoneBox.TransformBy(GeometryCollectionComponent->GetComponentToWorld());;
@@ -523,7 +525,7 @@ void UFractureEditorMode::RefreshOutlinerWithCurrentSelection()
 	}
 }
 
-void UFractureEditorMode::GetComponentGlobalBounds(UGeometryCollectionComponent* GeometryCollectionComponent, TMap<int32, FBox> &BoundsToBone) const
+void UFractureEditorMode::GetComponentGlobalBounds(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<FBox>& BoundsPerBone) const
 {
 	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 	UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
@@ -531,38 +533,33 @@ void UFractureEditorMode::GetComponentGlobalBounds(UGeometryCollectionComponent*
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
 	FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
 
-	const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-	const TManagedArray<FBox>& BoundingBox = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-	const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+	const TManagedArray<FTransform>& Transform = OutGeometryCollection->Transform;
+	const TManagedArray<FBox>& BoundingBox = OutGeometryCollection->BoundingBox;
+	const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->TransformToGeometryIndex;
+	const TManagedArray<int32>& Parent = OutGeometryCollection->Parent;
 
 	TManagedArray<FVector3f>* ExplodedVectorsPtr = OutGeometryCollection->FindAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
 
 	TArray<FTransform> Transforms;
 	GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
 
-	BoundsToBone.Reset();
-
-	if (ExplodedVectorsPtr)
+	FBox EmptyBounds(EForceInit::ForceInit);
+	int32 NumBones = OutGeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	BoundsPerBone.Init(EmptyBounds, NumBones);
+	TArray<int32> BoneIndices = GeometryCollectionAlgo::ComputeRecursiveOrder(*OutGeometryCollection);
+	for (int32 BoneIdx : BoneIndices)
 	{
-		TManagedArray<FVector3f>& ExplodedVectors = *ExplodedVectorsPtr;
-		for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
+		int32 GeoIdx = TransformToGeometryIndex[BoneIdx];
+		if (GeoIdx != INDEX_NONE)
 		{
-			if (TransformToGeometryIndex[Idx] > -1)
-			{
-				const FVector3f& Offset = ExplodedVectors[Idx];
-				const FBox& Bounds = BoundingBox[TransformToGeometryIndex[Idx]];
-				BoundsToBone.Add(Idx, Bounds.ShiftBy((FVector)Offset).TransformBy(Transforms[Idx]));
-			}
+			const FVector3f& Offset = ExplodedVectorsPtr ? (*ExplodedVectorsPtr)[BoneIdx] : FVector3f::ZeroVector;
+			const FBox& Bounds = BoundingBox[TransformToGeometryIndex[BoneIdx]];
+			BoundsPerBone[BoneIdx] += Bounds.ShiftBy((FVector)Offset).TransformBy(Transforms[BoneIdx]);
 		}
-	}
-	else
-	{
-		for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
+		int32 ParentIdx = Parent[BoneIdx];
+		if (ParentIdx != INDEX_NONE)
 		{
-			if (TransformToGeometryIndex[Idx] > -1)
-			{
-				BoundsToBone.Add(Idx, BoundingBox[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
-			}
+			BoundsPerBone[ParentIdx] += BoundsPerBone[BoneIdx];
 		}
 	}
 }

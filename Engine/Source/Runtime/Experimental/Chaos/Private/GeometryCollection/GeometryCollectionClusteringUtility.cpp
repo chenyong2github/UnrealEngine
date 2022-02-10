@@ -483,6 +483,36 @@ void FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(const FGeometr
 
 }
 
+void FGeometryCollectionClusteringUtility::GetBonesToLevel(const FGeometryCollection* GeometryCollection, int32 Level, TArray<int32>& BonesOut, bool bOnlyClusteredOrRigid, bool bSkipFiltered)
+{
+	check(GeometryCollection);
+
+	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
+
+	bool bAllLevels = Level == -1;
+
+	int32 NumBones = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	for (int32 BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
+	{
+		bool bIsRigid = SimType[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Rigid;
+		bool bIsClustered = SimType[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+		if (
+			// (if skipping embedded) sim type is clustered or rigid 
+			(!bOnlyClusteredOrRigid || bIsClustered || bIsRigid)
+			&&
+			// (if skipping nodes the outliner has filtered) sim type is clustered or level is an exact match or level has an exact-match child
+			(bAllLevels || !bSkipFiltered || bIsClustered || Levels[BoneIdx] == Level || (GeometryCollection->Children[BoneIdx].Num() > 0 && Levels[BoneIdx] + 1 == Level))
+			&&
+			// level is at or before the target
+			(bAllLevels || Levels[BoneIdx] <= Level)
+			)
+		{
+			BonesOut.Add(BoneIdx);
+		}
+	}
+}
+
 void FGeometryCollectionClusteringUtility::GetChildBonesAtLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level, TArray<int32>& BonesOut)
 {
 	check(GeometryCollection);
@@ -519,19 +549,28 @@ void FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(const TManage
 
 }
 
-int32 FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level)
+int32 FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level, bool bSkipFiltered)
 {
 	check(GeometryCollection);
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>& SimTypes = GeometryCollection->SimulationType;
 
 	if (SourceBone >= 0)
 	{
 		int32 SourceParent = SourceBone;
-		while (Levels[SourceParent] > Level)
+		while (Levels[SourceParent] > Level || 
+			// go to parents of bones that will be filtered by the outliner (i.e., rigid/embedded at the wrong level)
+			(bSkipFiltered && 
+				Levels[SourceParent] != Level && 
+				GeometryCollection->SimulationType[SourceParent] != FGeometryCollection::ESimulationTypes::FST_Clustered &&
+				(GeometryCollection->Children[SourceParent].Num() == 0 || Levels[SourceParent] + 1 != Level)
+			))
 		{
 			if (Parents[SourceParent] == -1)
+			{
 				break;
+			}
 
 			SourceParent = Parents[SourceParent];
 		}
@@ -716,48 +755,6 @@ void FGeometryCollectionClusteringUtility::ValidateResults(FGeometryCollection* 
 
 	ensure(GeometryCollection->HasContiguousFaces());
 	ensure(GeometryCollection->HasContiguousVertices());
-}
-
-void FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(
-	FGeometryCollection* GeometryCollection,
-	int ViewLevel,
-	const TArray<int32>& SelectedComponentBonesIn,
-	TArray<int32>& SelectedComponentBonesOut,
-	TArray<int32>& HighlightedComponentBonesOut)
-{
-	HighlightedComponentBonesOut.Empty();
-	SelectedComponentBonesOut.Empty();
-
-	for (int32 BoneIndex : SelectedComponentBonesIn)
-	{
-		TArray <int32> SelectionHighlightedBones;
-		if (ViewLevel == -1)
-		{
-			SelectionHighlightedBones.AddUnique(BoneIndex);
-			SelectedComponentBonesOut.AddUnique(BoneIndex);
-		}
-		else
-		{
-			// select all children under bone as selected hierarchy level
-			int32 ParentBoneIndex = GetParentOfBoneAtSpecifiedLevel(GeometryCollection, BoneIndex, ViewLevel);
-			if (ParentBoneIndex != FGeometryCollection::Invalid)
-			{
-				SelectedComponentBonesOut.AddUnique(ParentBoneIndex);
-			}
-			else
-			{
-				SelectedComponentBonesOut.AddUnique(BoneIndex);
-			}
-
-			for (int32 Bone : SelectedComponentBonesOut)
-			{
-				GetChildBonesFromLevel(GeometryCollection, Bone, ViewLevel, SelectionHighlightedBones);
-			}
-		}
-
-		HighlightedComponentBonesOut.Append(SelectionHighlightedBones);
-	}
-
 }
 
 void FGeometryCollectionClusteringUtility::GetLeafBones(const FGeometryCollection* GeometryCollection, int BoneIndex, bool bOnlyRigids, TArray<int32>& LeafBonesOut)

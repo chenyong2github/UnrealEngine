@@ -59,6 +59,30 @@ void UFractureToolSelectAll::SelectByMode(FFractureEditorModeToolkit* InToolkit,
 		{
 			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 			EditBoneColor.SelectBones(SelectionMode);
+
+			// Increase level so that we can see newly selected pieces
+			int32 LevelView = InToolkit->GetLevelViewValue();
+			if (LevelView >= 0)
+			{
+				int32 TargetLevel = LevelView;
+				// if we've selected bones beyond the current level, try to increase the level
+				int32 MaxLevel = EditBoneColor.GetMaxSelectedLevel(false);
+				if (MaxLevel > LevelView)
+				{
+					TargetLevel = MaxLevel;
+				}
+				// if the selected bones would not show up in the outliner at the target level, instead choose "All" level
+				if (!EditBoneColor.IsSelectionValidAtLevel(TargetLevel))
+				{
+					TargetLevel = -1;
+				}
+				if (TargetLevel != LevelView)
+				{
+					EditBoneColor.SetLevelViewMode(TargetLevel);
+					InToolkit->OnSetLevelViewValue(TargetLevel);
+				}
+			}
+
 			InToolkit->SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
 		}
 	}

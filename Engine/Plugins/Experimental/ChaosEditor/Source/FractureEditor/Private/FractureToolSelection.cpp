@@ -2,6 +2,7 @@
 
 #include "FractureToolSelection.h"
 #include "FractureEditorStyle.h"
+#include "FractureSettings.h"
 #include "PlanarCut.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
@@ -278,6 +279,10 @@ void UFractureToolSelection::Shutdown()
 {
 	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
 	Context->InputRouter->DeregisterSource(SelectionBehaviorSource);
+
+	SelectionBehaviorSet = nullptr;
+	SelectionBehaviorSource = nullptr;
+	RectangleMarqueeManager = nullptr;
 }
 
 void UFractureToolSelection::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
@@ -386,12 +391,12 @@ void UFractureToolSelection::FractureContextChanged()
 	}
 }
 
-TInterval<float> UFractureToolSelection::GetVolumeRange(const TManagedArray<float>& Volumes, const TManagedArray<int32>& TransformToGeometryIndex)
+TInterval<float> UFractureToolSelection::GetVolumeRange(const TManagedArray<float>& Volumes, const TManagedArray<int32>& SimulationType) const
 {
-	check(Volumes.Num() == TransformToGeometryIndex.Num());
+	check(Volumes.Num() == SimulationType.Num());
 
 	TInterval<float> Range;
-	if (SelectionSettings->VolumeSelectionMethod == EVolumeSelectionMethod::CubeRoot)
+	if (SelectionSettings->VolumeSelectionMethod == EVolumeSelectionMethod::CubeRootOfVolume)
 	{
 		Range.Min = SelectionSettings->MinVolume * VolDimScale;
 		Range.Max = SelectionSettings->MaxVolume * VolDimScale;
@@ -403,7 +408,7 @@ TInterval<float> UFractureToolSelection::GetVolumeRange(const TManagedArray<floa
 		double LargestVolume = KINDA_SMALL_NUMBER;
 		for (int32 Idx = 0; Idx < Volumes.Num(); Idx++)
 		{
-			if (TransformToGeometryIndex[Idx] >= 0)
+			if (SimulationType[Idx] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 			{
 				float Volume = Volumes[Idx];
 				LargestVolume = FMath::Max(LargestVolume, Volume);
@@ -417,7 +422,7 @@ TInterval<float> UFractureToolSelection::GetVolumeRange(const TManagedArray<floa
 		double VolumeSum = 0;
 		for (int32 Idx = 0; Idx < Volumes.Num(); Idx++)
 		{
-			if (TransformToGeometryIndex[Idx] >= 0)
+			if (SimulationType[Idx] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 			{
 				float Volume = Volumes[Idx];
 				VolumeSum += Volume;
@@ -438,10 +443,25 @@ bool UFractureToolSelection::GetBonesByVolume(const FGeometryCollection& Collect
 		return false;
 	}
 
-	TInterval<float> VolumeRange = GetVolumeRange(*Volumes, Collection.TransformToGeometryIndex);
+	const UFractureSettings* FractureSettings = GetDefault<UFractureSettings>();
+
+	TInterval<float> VolumeRange = GetVolumeRange(*Volumes, Collection.SimulationType);
+
+	const TManagedArray<int32>* Levels = Collection.FindAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>& SimTypes = Collection.SimulationType;
 
 	for (int32 BoneIdx = 0; BoneIdx < Volumes->Num(); BoneIdx++)
 	{
+		// Skip embedded geometry (volumes aren't computed for embedded geo)
+		if (SimTypes[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			continue;
+		}
+		// only consider bones at the filtered level (if any)
+		if (FractureSettings->FractureLevel > -1 && Levels && (*Levels)[BoneIdx] != FractureSettings->FractureLevel)
+		{
+			continue;
+		}
 		if (VolumeRange.Contains((*Volumes)[BoneIdx]))
 		{
 			FilterIndices.Add(BoneIdx);

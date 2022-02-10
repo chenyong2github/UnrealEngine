@@ -875,9 +875,12 @@ UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
 
 void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 {
-	
 	const TManagedArray<int32>& ExemplarIndexArray = GetExemplarIndexArray();
 	const int32 TransformCount = GlobalMatrices.Num();
+	if (!ensureMsgf(TransformCount == ExemplarIndexArray.Num(), TEXT("GlobalMatrices (Num=%d) cached on GeometryCollectionComponent are not in sync with ExemplarIndexArray (Num=%d) on underlying GeometryCollection; likely missed a dynamic data update"), TransformCount, ExemplarIndexArray.Num()))
+	{
+		return;
+	}
 	
 	const TManagedArray<bool>* HideArray = nullptr;
 	if (RestCollection->GetGeometryCollection()->HasAttribute("Hide", FGeometryCollection::TransformGroup))
@@ -2352,7 +2355,7 @@ void FScopedColorEdit::AppendSelectedBones(const TArray<int32>& SelectedBonesIn)
 	Component->SelectedBones.Append(SelectedBonesIn);
 }
 
-void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd)
+void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd, bool bSnapToLevel)
 {
 	bUpdated = true;
 	
@@ -2363,7 +2366,13 @@ void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn,
 		for (int32 BoneIndex : SelectedBonesIn)
 		{
 		
-			int32 ContextBoneIndex = (GetViewLevel() > -1) ? FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(GeometryCollectionPtr.Get(), BoneIndex, GetViewLevel()) : BoneIndex;
+			int32 ContextBoneIndex = (bSnapToLevel && GetViewLevel() > -1) ? 
+				FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(GeometryCollectionPtr.Get(), BoneIndex, GetViewLevel(), true /*bSkipFiltered*/) 
+				: BoneIndex;
+			if (ContextBoneIndex == FGeometryCollection::Invalid)
+			{
+				continue;
+			}
 		
 			if (bAdd) // shift select
 			{
@@ -2407,6 +2416,52 @@ const TArray<int32>& FScopedColorEdit::GetSelectedBones() const
 	return Component->GetSelectedBones();
 }
 
+int32 FScopedColorEdit::GetMaxSelectedLevel(bool bOnlyRigid) const
+{
+	int32 MaxSelectedLevel = -1;
+	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+	if (GeometryCollection)
+	{
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& SimTypes = GeometryCollectionPtr->SimulationType;
+		for (int32 BoneIndex : Component->SelectedBones)
+		{
+			if (!bOnlyRigid || SimTypes[BoneIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+			{
+				MaxSelectedLevel = FMath::Max(MaxSelectedLevel, Levels[BoneIndex]);
+			}
+		}
+	}
+	return MaxSelectedLevel;
+}
+
+bool FScopedColorEdit::IsSelectionValidAtLevel(int32 TargetLevel) const
+{
+	if (TargetLevel == -1)
+	{
+		return true;
+	}
+	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+	if (GeometryCollection)
+	{
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& SimTypes = GeometryCollectionPtr->SimulationType;
+		for (int32 BoneIndex : Component->SelectedBones)
+		{
+			if (SimTypes[BoneIndex] != FGeometryCollection::ESimulationTypes::FST_Clustered && // clusters are always shown in outliner
+				Levels[BoneIndex] != TargetLevel && // nodes at the target level are shown in outliner
+				// non-cluster parents are shown if they have children that are exact matches (i.e., a rigid parent w/ embedded at the target level)
+				(GeometryCollectionPtr->Children[BoneIndex].Num() == 0 || Levels[BoneIndex] + 1 != TargetLevel))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void FScopedColorEdit::ResetBoneSelection()
 {
 	if (Component->SelectedBones.Num() > 0)
@@ -2415,6 +2470,56 @@ void FScopedColorEdit::ResetBoneSelection()
 	}
 
 	Component->SelectedBones.Empty();
+}
+
+void FScopedColorEdit::FilterSelectionToLevel(bool bPreferLowestOnly)
+{
+	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+	int32 ViewLevel = GetViewLevel();
+	bool bNeedsFiltering = ViewLevel >= 0 || bPreferLowestOnly;
+	if (GeometryCollection && Component->SelectedBones.Num() > 0 && bNeedsFiltering)
+	{
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+
+		const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& SimTypes = GeometryCollectionPtr->SimulationType;
+
+		TArray<int32> NewSelection;
+		NewSelection.Reserve(Component->SelectedBones.Num());
+		if (ViewLevel >= 0)
+		{
+			for (int32 BoneIdx : Component->SelectedBones)
+			{
+				bool bIsCluster = SimTypes[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+				if (bPreferLowestOnly && bIsCluster && Levels[BoneIdx] < ViewLevel)
+				{
+					continue;
+				}
+				if (Levels[BoneIdx] == ViewLevel || (bIsCluster && Levels[BoneIdx] <= ViewLevel))
+				{
+					NewSelection.Add(BoneIdx);
+				}
+			}
+		}
+		else // bPreferLowestOnly && ViewLevel == -1
+		{
+			// If view level is "all" and we prefer lowest selection, just select any non-cluster nodes
+			for (int32 BoneIdx : Component->SelectedBones)
+			{
+				bool bIsCluster = SimTypes[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+				if (!bIsCluster)
+				{
+					NewSelection.Add(BoneIdx);
+				}
+			}
+		}
+
+		if (NewSelection.Num() != Component->SelectedBones.Num())
+		{
+			SetSelectedBones(NewSelection);
+			SetHighlightedBones(NewSelection, true);
+		}
+	}
 }
 
 void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionMode)
@@ -2434,15 +2539,10 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 		case GeometryCollection::ESelectionMode::AllGeometry:
 		{
-			TArray<int32> Roots;
-			FGeometryCollectionClusteringUtility::GetRootBones(GeometryCollectionPtr.Get(), Roots);
 			ResetBoneSelection();
-			for (int32 RootElement : Roots)
-			{
-				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, true, LeafBones);
-				AppendSelectedBones(LeafBones);
-			}
+			TArray<int32> BonesToSelect;
+			FGeometryCollectionClusteringUtility::GetBonesToLevel(GeometryCollectionPtr.Get(), GetViewLevel(), BonesToSelect, true, true);
+			AppendSelectedBones(BonesToSelect);
 		}
 		break;
 
@@ -2476,9 +2576,6 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 						if (!IsBoneSelected(ViewLevelBone))
 						{
 							NewSelection.Push(ViewLevelBone);
-							TArray<int32> ChildBones;
-							FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(GeometryCollectionPtr.Get(), ViewLevelBone, GetViewLevel(), ChildBones);
-							NewSelection.Append(ChildBones);
 						}
 					}
 				}
@@ -2635,12 +2732,25 @@ bool FScopedColorEdit::IsBoneHighlighted(int BoneIndex) const
 	return Component->HighlightedBones.Contains(BoneIndex);
 }
 
-void FScopedColorEdit::SetHighlightedBones(const TArray<int32>& HighlightedBonesIn)
+void FScopedColorEdit::SetHighlightedBones(const TArray<int32>& HighlightedBonesIn, bool bHighlightChildren)
 {
 	if (Component->HighlightedBones != HighlightedBonesIn)
 	{
+		const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+		if (bHighlightChildren && GeometryCollection)
+		{
+			Component->HighlightedBones.Reset();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+			for (int32 SelectedBone : HighlightedBonesIn)
+			{
+				FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(GeometryCollectionPtr->Children, SelectedBone, Component->HighlightedBones);
+			}
+		}
+		else
+		{
+			Component->HighlightedBones = HighlightedBonesIn;
+		}
 		bUpdated = true;
-		Component->HighlightedBones = HighlightedBonesIn;
 	}
 }
 
