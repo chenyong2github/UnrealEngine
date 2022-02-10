@@ -135,7 +135,7 @@ void SAudioTextBox::UpdateValueTextWidth(const FVector2D InOutputRange)
 	else
 	{
 		const float UnitsTextWidth = FontMeasureService->Measure(UnitsText->GetText(), Font).X;
-		MaxValueLabelWidth = FMath::Min(MaxValueLabelWidth, Style->BackgroundImage.ImageSize.X - UnitsTextWidth);
+		MaxValueLabelWidth = FMath::Max(MaxValueLabelWidth, Style->BackgroundImage.ImageSize.X - UnitsTextWidth);
 	}
 	ValueText->SetMinDesiredWidth(MaxValueLabelWidth);
 	if (ValueTextSlot)
