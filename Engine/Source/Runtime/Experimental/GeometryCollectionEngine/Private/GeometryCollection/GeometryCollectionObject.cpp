@@ -69,7 +69,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, EnableClustering(true)
 	, ClusterGroupIndex(0)
 	, MaxClusterLevel(100)
-	, DamageThreshold_DEPRECATED({ 500000.f, 50000.f, 5000.f })
+	, DamageThreshold({ 500000.f, 50000.f, 5000.f })
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
 	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
