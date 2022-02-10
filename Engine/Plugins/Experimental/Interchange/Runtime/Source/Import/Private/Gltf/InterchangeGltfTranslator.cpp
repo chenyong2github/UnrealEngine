@@ -101,9 +101,29 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 }
 
 void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, UInterchangeShaderGraphNode& ShaderGraphNode,
-		const FString& MapName, const TVariant< FLinearColor, float >& MapFactor, const FString& OutputChannel ) const
+		const FString& MapName, const TVariant< FLinearColor, float >& MapFactor, const FString& OutputChannel, const bool bInverse ) const
 {
 	using namespace UE::Interchange::Materials;
+
+	UInterchangeShaderNode* NodeToConnectTo = &ShaderGraphNode;
+	FString InputToConnectTo = MapName;
+
+	if (bInverse)
+	{
+		const FString OneMinusNodeName = MapName + TEXT("OneMinus");
+		const FString OneMinusNodeUid = ShaderGraphNode.GetUniqueID() + TEXT("_") + OneMinusNodeName;
+		UInterchangeShaderNode* OneMinusNode = NewObject< UInterchangeShaderNode >( &NodeContainer );
+		OneMinusNode->InitializeNode( OneMinusNodeUid, OneMinusNodeName, EInterchangeNodeContainerType::TranslatedAsset );
+		NodeContainer.AddNode( OneMinusNode );
+		NodeContainer.SetNodeParentUid( OneMinusNodeUid, ShaderGraphNode.GetUniqueID() );
+
+		OneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
+
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, OneMinusNode->GetUniqueID());
+
+		NodeToConnectTo = OneMinusNode;
+		InputToConnectTo = Standard::Nodes::OneMinus::Inputs::Input.ToString();
+	}
 
 	if ( GltfAsset.Textures.IsValidIndex( TextureMap.TextureIndex ) )
 	{
@@ -150,22 +170,22 @@ void UInterchangeGltfTranslator::HandleGltfMaterialParameter( UInterchangeBaseNo
 			}
 
 			UInterchangeShaderPortsAPI::ConnectOuputToInput( FactorNode, Standard::Nodes::Multiply::Inputs::A.ToString(), NodeUid, OutputChannel );
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( &ShaderGraphNode, MapName, FactorNodeUid );
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( NodeToConnectTo, InputToConnectTo, FactorNodeUid );
 		}
 		else
 		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInput( &ShaderGraphNode, MapName, NodeUid, OutputChannel );
+			UInterchangeShaderPortsAPI::ConnectOuputToInput( NodeToConnectTo, InputToConnectTo, NodeUid, OutputChannel );
 		}
 	}
 	else
 	{
 		if ( MapFactor.IsType< FLinearColor >() )
 		{
-			ShaderGraphNode.AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( MapName ), MapFactor.Get< FLinearColor >() );
+			NodeToConnectTo->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( InputToConnectTo ), MapFactor.Get< FLinearColor >() );
 		}
 		else if ( MapFactor.IsType< float >() )
 		{
-			ShaderGraphNode.AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( MapName ), MapFactor.Get< float >() );
+			NodeToConnectTo->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( InputToConnectTo ), MapFactor.Get< float >() );
 		}
 	}
 }
@@ -240,8 +260,9 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > GlossinessFactor;
 			GlossinessFactor.Set< float >( GltfMaterial.SpecularGlossiness.GlossinessFactor );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, Phong::Parameters::Shininess.ToString(),
-				GlossinessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
+			const bool bInverse = true;
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBR::Parameters::Roughness.ToString(),
+				GlossinessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString(), bInverse );
 		}
 	}
 

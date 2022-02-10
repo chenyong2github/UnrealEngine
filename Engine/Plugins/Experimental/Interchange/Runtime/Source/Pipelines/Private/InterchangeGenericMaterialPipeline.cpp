@@ -15,6 +15,7 @@
 #include "InterchangePipelineLog.h"
 #include "InterchangeSourceData.h"
 
+#include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionOneMinus.h"
@@ -87,8 +88,6 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 			}
 		}
 	}
-
-	return;
 }
 
 UInterchangeBaseMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateBaseMaterialFactoryNode(const UInterchangeBaseNode* MaterialNode, TSubclassOf<UInterchangeBaseMaterialFactoryNode> NodeType)
@@ -184,7 +183,7 @@ bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeSha
 
 			if (DiffuseExpressionFactoryNode.Get<0>())
 			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, TEXT("DiffuseColor"),
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, Parameters::DiffuseColor.ToString(),
 					DiffuseExpressionFactoryNode.Get<0>()->GetUniqueID(), DiffuseExpressionFactoryNode.Get<1>());
 			}
 		}
@@ -196,7 +195,7 @@ bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeSha
 
 			if (SpecularExpressionFactoryNode.Get<0>())
 			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, TEXT("SpecularColor"),
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, Parameters::SpecularColor.ToString(),
 					SpecularExpressionFactoryNode.Get<0>()->GetUniqueID(), SpecularExpressionFactoryNode.Get<1>());
 			}
 		}
@@ -211,11 +210,24 @@ bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeSha
 
 				if (ShininessExpressionFactoryNode.Get<0>())
 				{
+					UInterchangeMaterialExpressionFactoryNode* DivideShininessNode =
+						CreateExpressionNode(TEXT("DivideShininess"), ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), UMaterialExpressionDivide::StaticClass());
+
+					const float ShininessScale = 100.f; // Divide shininess by 100 to bring it into a 0-1 range for roughness.
+					const FString ShininessScaleParameterName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB).ToString();
+					DivideShininessNode->AddFloatAttribute(ShininessScaleParameterName, ShininessScale);
+					DivideShininessNode->AddApplyAndFillDelegates<float>(ShininessScaleParameterName, UMaterialExpressionDivide::StaticClass(),  GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB));
+
+					// Connect Shininess to Divide
+					UInterchangeShaderPortsAPI::ConnectOuputToInput(DivideShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, A).ToString(),
+						ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), ShininessExpressionFactoryNode.Get<1>());
+
 					UInterchangeMaterialExpressionFactoryNode* InverseShininessNode =
 						CreateExpressionNode(TEXT("InverseShininess"), ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), UMaterialExpressionOneMinus::StaticClass());
 
-					UInterchangeShaderPortsAPI::ConnectOuputToInput(InverseShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionOneMinus, Input).ToString(),
-						ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), ShininessExpressionFactoryNode.Get<1>());
+					// Connect Divide to Inverse
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(InverseShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionOneMinus, Input).ToString(),
+						DivideShininessNode->GetUniqueID());
 
 					MaterialFactoryNode->ConnectToRoughness(InverseShininessNode->GetUniqueID());
 				}
@@ -685,6 +697,12 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 
 TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForInput(UInterchangeMaterialFactoryNode* MaterialFactoryNode, const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid)
 {
+	// Make sure we don't create an expression for an input if it already has one
+	if (UInterchangeShaderPortsAPI::HasInput(MaterialFactoryNode, *InputName))
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString>{};
+	}
+
 	// If we have a connection
 	// - Create material expression for the connected shader node
 	//
@@ -724,12 +742,10 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 
 	if (!HandlePhongModel(ShaderGraphNode, MaterialFactoryNode))
 	{
-		if (!HandleLambertModel(ShaderGraphNode, MaterialFactoryNode))
-		{
-			HandlePBRModel(ShaderGraphNode, MaterialFactoryNode);
-		}
+		HandleLambertModel(ShaderGraphNode, MaterialFactoryNode);
 	}
 
+	HandlePBRModel(ShaderGraphNode, MaterialFactoryNode); // Always process the PBR parameters. If they were already assigned from Phong or Lambert, they will be ignored.
 	HandleCommonParameters(ShaderGraphNode, MaterialFactoryNode);
 
 	return MaterialFactoryNode;
@@ -826,7 +842,7 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	return MaterialInstanceFactoryNode;
 }
 
-TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitShaderNode(const UInterchangeShaderNode* ShaderNode)
+TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitShaderNode(const UInterchangeShaderNode* ShaderNode) const
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes;
 
@@ -839,6 +855,14 @@ TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::Visi
 		{
 			return VisitTextureSampleNode(ShaderNode);
 		}
+		else if (*ShaderType == Lerp::Name)
+		{
+			return VisitLerpNode(ShaderNode);
+		}
+		else if (*ShaderType == Multiply::Name)
+		{
+			return VisitMultiplyNode(ShaderNode);
+		}
 	}
 
 	{
@@ -848,42 +872,152 @@ TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::Visi
 		if (Inputs.Num() > 0)
 		{
 			const FString& InputName = Inputs[0];
-			FString ConnectedShaderNodeUid;
-			FString OutputName;
-			if (UInterchangeShaderPortsAPI::GetInputConnection(ShaderNode, InputName, ConnectedShaderNodeUid, OutputName))
-			{
-				if (UInterchangeShaderNode* ConnectedShaderNode = Cast<UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
-				{
-					Result = VisitShaderNode(ConnectedShaderNode);
-				}
-			}
-			else
-			{
-				switch(UInterchangeShaderPortsAPI::GetInputType(ShaderNode, InputName))
-				{
-				case UE::Interchange::EAttributeTypes::Float:
-					{
-						float InputValue = 0.f;
-						ShaderNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue);
-						Result.Set<float>(InputValue);
-					}
-					break;
-				case UE::Interchange::EAttributeTypes::LinearColor:
-					{
-						FLinearColor InputValue = FLinearColor::White;
-						ShaderNode->GetLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue);
-						Result.Set<FLinearColor>(InputValue);
-					}
-					break;
-				}
-			}
+			Result = VisitShaderInput(ShaderNode, InputName);
 		}
 	}
 
 	return Result;
 }
 
-TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode)
+TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitShaderInput(const UInterchangeShaderNode* ShaderNode, const FString& InputName) const
+{
+	TVariant<FString, FLinearColor, float> Result;
+
+	FString ConnectedShaderNodeUid;
+	FString OutputName;
+	if (UInterchangeShaderPortsAPI::GetInputConnection(ShaderNode, InputName, ConnectedShaderNodeUid, OutputName))
+	{
+		if (UInterchangeShaderNode* ConnectedShaderNode = Cast<UInterchangeShaderNode>(BaseNodeContainer->GetNode(ConnectedShaderNodeUid)))
+		{
+			Result = VisitShaderNode(ConnectedShaderNode);
+		}
+	}
+	else
+	{
+		switch(UInterchangeShaderPortsAPI::GetInputType(ShaderNode, InputName))
+		{
+		case UE::Interchange::EAttributeTypes::Float:
+			{
+				float InputValue = 0.f;
+				ShaderNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue);
+				Result.Set<float>(InputValue);
+			}
+			break;
+		case UE::Interchange::EAttributeTypes::LinearColor:
+			{
+				FLinearColor InputValue = FLinearColor::White;
+				ShaderNode->GetLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue);
+				Result.Set<FLinearColor>(InputValue);
+			}
+			break;
+		}
+	}
+
+	return Result;
+}
+
+TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitLerpNode(const UInterchangeShaderNode* ShaderNode) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	TVariant<FString, FLinearColor, float> ResultA = VisitShaderInput(ShaderNode, Lerp::Inputs::A.ToString());
+	TVariant<FString, FLinearColor, float> ResultB = VisitShaderInput(ShaderNode, Lerp::Inputs::B.ToString());
+
+	TVariant<FString, FLinearColor, float> ResultFactor = VisitShaderInput(ShaderNode, Lerp::Inputs::Factor.ToString());
+
+	bool bResultAIsStrongest = true;
+
+	if (ResultFactor.IsType<float>())
+	{
+		const float Factor = ResultFactor.Get<float>();
+		bResultAIsStrongest = (Factor <= 0.5f);
+
+		// Bake the lerp into a single value
+		if (!ResultA.IsType<FString>() && !ResultB.IsType<FString>())
+		{
+			if (ResultA.IsType<float>() && ResultB.IsType<float>())
+			{
+				const float ValueA = ResultA.Get<float>();
+				const float ValueB = ResultB.Get<float>();
+
+				TVariant<FString, FLinearColor, float> Result;
+				Result.Set<float>(FMath::Lerp(ValueA, ValueB, Factor));
+				return Result;
+			}
+			else if (ResultA.IsType<FLinearColor>() && ResultB.IsType<FLinearColor>())
+			{
+				const FLinearColor ValueA = ResultA.Get<FLinearColor>();
+				const FLinearColor ValueB = ResultB.Get<FLinearColor>();
+
+				TVariant<FString, FLinearColor, float> Result;
+				Result.Set<FLinearColor>(FMath::Lerp(ValueA, ValueB, Factor));
+				return Result;
+			}
+		}
+	}
+
+	if (bResultAIsStrongest)
+	{
+		return ResultA;
+	}
+	else
+	{
+		return ResultB;
+	}
+}
+
+TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitMultiplyNode(const UInterchangeShaderNode* ShaderNode) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	TVariant<FString, FLinearColor, float> ResultA = VisitShaderInput(ShaderNode, Lerp::Inputs::A.ToString());
+	TVariant<FString, FLinearColor, float> ResultB = VisitShaderInput(ShaderNode, Lerp::Inputs::B.ToString());
+
+	// Bake the multiply into a single value if possible
+	if (!ResultA.IsType<FString>() && !ResultB.IsType<FString>())
+	{
+		if (ResultA.IsType<float>() && ResultB.IsType<float>())
+		{
+			const float ValueA = ResultA.Get<float>();
+			const float ValueB = ResultB.Get<float>();
+
+			TVariant<FString, FLinearColor, float> Result;
+			Result.Set<float>(ValueA * ValueB);
+			return Result;
+		}
+		else if (ResultA.IsType<FLinearColor>() && ResultB.IsType<FLinearColor>())
+		{
+			const FLinearColor ValueA = ResultA.Get<FLinearColor>();
+			const FLinearColor ValueB = ResultB.Get<FLinearColor>();
+
+			TVariant<FString, FLinearColor, float> Result;
+			Result.Set<FLinearColor>(ValueA * ValueB);
+			return Result;
+		}
+		else if (ResultA.IsType<FLinearColor>() && ResultB.IsType<float>())
+		{
+			const FLinearColor ValueA = ResultA.Get<FLinearColor>();
+			const float ValueB = ResultB.Get<float>();
+
+			TVariant<FString, FLinearColor, float> Result;
+			Result.Set<FLinearColor>(ValueA * ValueB);
+			return Result;
+		}
+		else if (ResultA.IsType<float>() && ResultB.IsType<FLinearColor>())
+		{
+			const float ValueA = ResultA.Get<float>();
+			const FLinearColor ValueB = ResultB.Get<FLinearColor>();
+
+			TVariant<FString, FLinearColor, float> Result;
+			Result.Set<FLinearColor>(ValueA * ValueB);
+			return Result;
+		}
+	}
+
+	return ResultA;
+}
+
+TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode) const
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes;
 

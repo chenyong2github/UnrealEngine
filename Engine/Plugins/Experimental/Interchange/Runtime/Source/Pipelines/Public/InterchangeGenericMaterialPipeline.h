@@ -89,8 +89,17 @@ private:
 	 * Only its first input is visited as it's assumed that it's the most impactful.
 	 * The goal is to simplify a branch of a node graph to a single value, to be used for material instancing.
 	 */
-	TVariant<FString, FLinearColor, float> VisitShaderNode(const UInterchangeShaderNode* ShaderNode);
-	TVariant<FString, FLinearColor, float> VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode);
+	TVariant<FString, FLinearColor, float> VisitShaderNode(const UInterchangeShaderNode* ShaderNode) const;
+	TVariant<FString, FLinearColor, float> VisitShaderInput(const UInterchangeShaderNode* ShaderNode, const FString& InputName) const;
+
+	/** 
+	 * Returns the strongest value in a lerp.
+	 * If we're lerping between scalars or colors, the lerp result will get computed and returned.
+	 * If we're lerping between textures, the strongest one is returned based on the lerp factor.
+	 */
+	TVariant<FString, FLinearColor, float> VisitLerpNode(const UInterchangeShaderNode* ShaderNode) const;
+	TVariant<FString, FLinearColor, float> VisitMultiplyNode(const UInterchangeShaderNode* ShaderNode) const;
+	TVariant<FString, FLinearColor, float> VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode) const;
 
 private:
 	bool bParsingForNormalInput;

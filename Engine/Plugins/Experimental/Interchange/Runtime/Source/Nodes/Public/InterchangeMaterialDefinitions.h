@@ -98,7 +98,7 @@ namespace Interchange
 				using namespace Lambert::Parameters;
 
 				const FName SpecularColor = TEXT("SpecularColor"); // Type: linear color
-				const FName Shininess = TEXT("Shininess"); // Type: float
+				const FName Shininess = TEXT("Shininess"); // Type: float, this is the specular exponent, expected range: 2-100
 			}
 		}
 
