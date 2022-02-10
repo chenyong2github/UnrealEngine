@@ -357,6 +357,10 @@ protected:
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<FControlRigPublicFunctionData> PublicFunctions;
 
+	/** Asset searchable information function references in this rig */
+	UPROPERTY(AssetRegistrySearchable)
+	TArray<FRigVMReferenceNodeData> FunctionReferenceNodeData;
+
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
 	TMap<TObjectPtr<URigVMGraph>, TObjectPtr<URigVMController>> Controllers;
 
@@ -688,6 +692,8 @@ public:
 
 	/** Shape libraries to load during package load completed */ 
 	TArray<FString> ShapeLibrariesToLoadOnPackageLoaded;
+
+	TArray<FRigVMReferenceNodeData> GetReferenceNodeData() const;
 
 #endif
 

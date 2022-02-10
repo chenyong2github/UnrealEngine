@@ -368,6 +368,8 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			}
 		}
 	}
+
+	FunctionReferenceNodeData = GetReferenceNodeData();
 }
 
 void UControlRigBlueprint::PostLoad()
@@ -518,7 +520,10 @@ void UControlRigBlueprint::PostLoad()
 							{
 								if(DependencyBlueprint != this)
 								{
-									DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
+									if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
+									{
+										BuildData->UpdateReferencesForFunctionReferenceNode(FunctionReferenceNode);
+									}
 								}
 							}
 						}
@@ -532,11 +537,6 @@ void UControlRigBlueprint::PostLoad()
 #endif
 	}
 
-	if (FunctionLibrary)
-	{
-		FunctionLibrary->ClearInvalidReferences();
-	}
-	
 	// upgrade the gizmo libraries to shape libraries
 	if(GizmoLibrary_DEPRECATED.IsValid() || GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
 	{
@@ -623,6 +623,60 @@ void UControlRigBlueprint::HandlePackageDone(TConstArrayView<UPackage*> InPackag
 		}
 
 		ShapeLibrariesToLoadOnPackageLoaded.Reset();
+	}
+
+	if(URigVMBuildData* BuildData = URigVMController::GetBuildData())
+	{
+		if(FunctionLibrary != nullptr)
+		{
+			// for backwards compatibility load the function references from the
+			// model's storage over to the centralized build data
+			if(!FunctionLibrary->FunctionReferences_DEPRECATED.IsEmpty())
+			{
+				// let's also update the asset data of the dependents
+				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				
+				for(const TTuple< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray >& Pair :
+					FunctionLibrary->FunctionReferences_DEPRECATED)
+				{
+					TSoftObjectPtr<URigVMLibraryNode> FunctionKey(Pair.Key);
+						
+					for(int32 ReferenceIndex = 0; ReferenceIndex < Pair.Value.Num(); ReferenceIndex++)
+					{
+						// update the build data
+						BuildData->RegisterFunctionReference(FunctionKey, Pair.Value[ReferenceIndex]);
+
+						// find all control rigs matching the reference node
+						FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(
+							Pair.Value[ReferenceIndex].ToSoftObjectPath().GetAssetPathName());
+
+						// if the asset has never been loaded - make sure to load it once and mark as dirty
+						if(AssetData.IsValid() && !AssetData.IsAssetLoaded())
+						{
+							if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(AssetData.GetAsset()))
+							{
+								if(Dependent != this)
+								{
+									Dependent->MarkPackageDirty();
+								}
+							}
+						}
+					}
+				}
+				
+				FunctionLibrary->FunctionReferences_DEPRECATED.Reset();
+				MarkPackageDirty();
+			}
+		}
+
+		// update the build data from the current function references
+		const TArray<FRigVMReferenceNodeData> ReferenceNodeDatas = GetReferenceNodeData();
+		for(const FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
+		{
+			BuildData->RegisterFunctionReference(ReferenceNodeData);
+		}
+
+		BuildData->ClearInvalidReferences();
 	}
 	
 	PropagateHierarchyFromBPToInstances();
@@ -1149,6 +1203,24 @@ void UControlRigBlueprint::RefreshControlRigBreakpoints()
 	}
 }
 
+TArray<FRigVMReferenceNodeData> UControlRigBlueprint::GetReferenceNodeData() const
+{
+	TArray<FRigVMReferenceNodeData> Data;
+	
+	TArray<URigVMGraph*> AllModels = GetAllModels();
+	for (URigVMGraph* ModelToVisit : AllModels)
+	{
+		for(URigVMNode* Node : ModelToVisit->GetNodes())
+		{
+			if(URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+			{
+				Data.Add(FRigVMReferenceNodeData(ReferenceNode));
+			}
+		}
+	}
+	return Data;
+}
+
 #endif
 
 void UControlRigBlueprint::RequestControlRigInit()
@@ -1500,7 +1572,7 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 		
 		return FName();
 	});
-	
+
 #endif
 
 	Controller->RemoveStaleNodes();
@@ -3488,6 +3560,8 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 			}
 		}
 	}
+
+	FunctionReferenceNodeData = GetReferenceNodeData();
 }
 
 #endif

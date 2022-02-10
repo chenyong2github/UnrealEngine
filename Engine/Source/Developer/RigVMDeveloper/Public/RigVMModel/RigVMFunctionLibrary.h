@@ -3,30 +3,10 @@
 #pragma once
 
 #include "RigVMGraph.h"
+#include "RigVMBuildData.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMFunctionLibrary.generated.h"
-
-USTRUCT(BlueprintType)
-struct RIGVMDEVELOPER_API FRigVMFunctionReferenceArray
-{
-	GENERATED_BODY()
-
-	// Resets the data structure and maintains all storage.
-	void Reset() { FunctionReferences.Reset();  }
-
-	// Returns true if a given function reference index is valid.
-	bool IsValidIndex(int32 InIndex) const { return FunctionReferences.IsValidIndex(InIndex); }
-
-	// Returns the number of reference functions
-	FORCEINLINE int32 Num() const { return FunctionReferences.Num(); }
-
-	// const accessor for an function reference given its index
-	FORCEINLINE const TSoftObjectPtr<URigVMFunctionReferenceNode>& operator[](int32 InIndex) const { return FunctionReferences[InIndex]; }
-
-	UPROPERTY()
-	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > FunctionReferences;
-};
 
 /**
  * The Function Library is a graph used only to store
@@ -59,6 +39,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
     URigVMLibraryNode* FindFunctionForNode(URigVMNode* InNode) const;
 
+	// returns the build data for for this library
+	UFUNCTION()
+	URigVMBuildData* GetBuildData() const;
+
 	// Returns all references for a given function name
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > GetReferencesForFunction(const FName& InFunctionName);
@@ -66,9 +50,6 @@ public:
 	// Returns all references for a given function name
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< FString > GetReferencePathsForFunction(const FName& InFunctionName);
-
-	// Update the references list for a given reference node
-	void UpdateReferencesForReferenceNode(URigVMFunctionReferenceNode* InReferenceNode);
 
 	/**
 	* Iterator function to invoke a lambda / TFunction for each reference of a function
@@ -88,14 +69,11 @@ public:
 	// We maintain meta data on what functions have been created locally based on which other ones,
 	// and use this method to avoid redundant localizations.
 	URigVMLibraryNode* FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize);
-
-	// Clear references to temp assets
-	void ClearInvalidReferences();
 	
 private:
 
 	UPROPERTY()
-	TMap< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences;
+	TMap< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences_DEPRECATED;
 
 	// A map which stores a library node per original pathname.
 	// The source pathname is the full path of the source function that was localized
@@ -105,5 +83,6 @@ private:
 
 	friend class URigVMController;
 	friend class URigVMCompiler;
+	friend class UControlRigBlueprint;
 };
 
