@@ -35,7 +35,7 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR 
 	if (EditorButtonStyle == nullptr)
 	{
-		EditorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
+		EditorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("EditorUtilityButton"));
 
 		// Unlink UMG Editor colors from the editor settings colors.
 		EditorButtonStyle->UnlinkColors();

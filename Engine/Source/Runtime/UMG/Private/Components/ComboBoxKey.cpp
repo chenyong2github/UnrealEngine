@@ -20,7 +20,7 @@ UComboBoxKey::UComboBoxKey()
 	{
 #if WITH_EDITOR 
 		const ISlateStyle& SlateStyle = IsEditorWidget() ? FCoreStyle::Get() : FUMGCoreStyle::Get();
-		WidgetStyle = SlateStyle.GetWidgetStyle<FComboBoxStyle>("ComboBox");
+		WidgetStyle = SlateStyle.GetWidgetStyle<FComboBoxStyle>(IsEditorWidget() ? "EditorUtilityComboBox" : "ComboBox");
 		ItemStyle = SlateStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
 		if (IsEditorWidget())

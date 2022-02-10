@@ -45,7 +45,7 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR 
 	if (EditorComboBoxStyle == nullptr)
 	{
-		EditorComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"));
+		EditorComboBoxStyle = new FComboBoxStyle(FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("EditorUtilityComboBox"));
 
 		// Unlink UMG Editor colors from the editor settings colors.
 		EditorComboBoxStyle->UnlinkColors();

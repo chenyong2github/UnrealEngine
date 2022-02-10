@@ -1157,6 +1157,10 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		.SetNormalPadding(ButtonMargins)
 		.SetPressedPadding(PressedButtonMargins);
 
+	const FButtonStyle EditorUtilityButton = FButtonStyle(Button)
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Input, InputFocusThickness, Icon32x32))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, InputFocusThickness, Icon32x32))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, InputFocusThickness, Icon32x32));
 
 	const FButtonStyle SimpleButton = FButtonStyle()
 		.SetNormal(FSlateNoResource())
@@ -1186,6 +1190,7 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		Style->Set("PrimaryButton", PrimaryButton);
 		Style->Set("PrimaryButtonLabelAndIcon", PrimaryButtonLabelAndIcon);
 		Style->Set("Button", Button);
+		Style->Set("EditorUtilityButton", EditorUtilityButton);
 		Style->Set("SimpleButton", SimpleButtonIconOnly);
 		Style->Set("SimpleButtonLabelAndIcon", SimpleButtonLabelAndIcon);
 
@@ -1243,6 +1248,10 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetNormalPadding(ComboButtonMargin)
 		.SetPressedPadding(PressedComboButtonMargin);
 
+	const FButtonStyle EditorUtilityComboButtonButton = FButtonStyle(ComboButtonButton)
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness, Icon32x32))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness, Icon32x32))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness, Icon32x32));
 
 	// SComboBox 
 	FComboButtonStyle ComboButton = FComboButtonStyle()
@@ -1253,12 +1262,20 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetMenuBorderPadding(0.f);
 	Style->Set("ComboButton", ComboButton);
 
+	// Note: This style is currently not referenced by name in UMG, just used for EditorUtilityComboBox
+	FComboButtonStyle EditorUtilityComboButton = FComboButtonStyle(ComboButton)
+		.SetButtonStyle(EditorUtilityComboButtonButton);
+	Style->Set("EditorUtilityComboButton", ComboButton); 
 
 	FComboBoxStyle ComboBox = FComboBoxStyle()
 		.SetContentPadding(0.f)
 		.SetMenuRowPadding(FMargin(8.0f, 3.f))
 		.SetComboButtonStyle(ComboButton);
 	Style->Set("ComboBox", ComboBox);
+
+	FComboBoxStyle EditorUtilityComboBox = FComboBoxStyle(ComboBox)
+		.SetComboButtonStyle(EditorUtilityComboButton);
+	Style->Set("EditorUtilityComboBox", ComboBox);
 
 	const FButtonStyle& SimpleButton = Style->GetWidgetStyle<FButtonStyle>("SimpleButtonLabelAndIcon");
 
