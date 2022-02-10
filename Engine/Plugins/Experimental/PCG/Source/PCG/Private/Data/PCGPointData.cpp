@@ -7,10 +7,41 @@
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeLock.h"
 
+namespace PCGPointHelpers
+{
+	float ManhattanDensity(const FPCGPoint& InPoint, const FVector& InPosition)
+	{
+		FVector LocalPosition = InPoint.Transform.InverseTransformPosition(InPosition);
+		LocalPosition /= InPoint.Extents;
+
+		// ]-2+s, 2-s] is the valid range of values
+		const FVector::FReal LowerBound = InPoint.Steepness - 2;
+		const FVector::FReal HigherBound = 2 - InPoint.Steepness;
+		
+		if (LocalPosition.X <= LowerBound || LocalPosition.X > HigherBound ||
+			LocalPosition.Y <= LowerBound || LocalPosition.Y > HigherBound ||
+			LocalPosition.Z <= LowerBound || LocalPosition.Z > HigherBound)
+		{
+			return 0;
+		}
+
+		// [-s, +s] is the range where the density is 1 on that axis
+		const FVector::FReal XDist = FMath::Max(0, FMath::Abs(LocalPosition.X) - InPoint.Steepness);
+		const FVector::FReal YDist = FMath::Max(0, FMath::Abs(LocalPosition.Y) - InPoint.Steepness);
+		const FVector::FReal ZDist = FMath::Max(0, FMath::Abs(LocalPosition.Z) - InPoint.Steepness);
+
+		const FVector::FReal DistanceScale = FMath::Max(2 - 2 * InPoint.Steepness, KINDA_SMALL_NUMBER);
+
+		//Note: for euclidean, we could do 1 - (dist / scale)^2
+		//Note: for maximum norm, we could do density * max(x factor, y factor, z factor)
+		return InPoint.Density * (1 - XDist/DistanceScale) * (1 - YDist/DistanceScale) * (1 - ZDist/DistanceScale);
+	}
+}
+
 FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
 {
 	Point = &InPoint;
-	Bounds = InPoint.GetBounds();
+	Bounds = InPoint.GetDensityBounds();
 }
 
 FPCGPointRef::FPCGPointRef(const FPCGPointRef& InPointRef)
@@ -58,7 +89,7 @@ void UPCGPointData::RecomputeBounds() const
 	FBox NewBounds(EForceInit::ForceInit);
 	for (const FPCGPoint& Point : Points)
 	{
-		FBoxSphereBounds PointBounds = Point.GetBounds();
+		FBoxSphereBounds PointBounds = Point.GetDensityBounds();
 		NewBounds += FBox::BuildAABB(PointBounds.Origin, PointBounds.BoxExtent);
 	}
 
@@ -121,15 +152,18 @@ const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) co
 
 float UPCGPointData::GetDensityAtPosition(const FVector& InPosition) const
 {
-	if (const FPCGPoint* BestPoint = GetPointAtPosition(InPosition))
+	if (bOctreeIsDirty)
 	{
-		// It is going to be hard to do a linear fall-off here and maybe not really required.
-		return BestPoint->Density;
+		RebuildOctree();
 	}
-	else
-	{
-		return 0;
-	}
+
+	float Density = 0;
+
+	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(InPosition, FVector::Zero()), [&InPosition, &Density](const FPCGPointRef& InPointRef) {
+		Density += PCGPointHelpers::ManhattanDensity(*InPointRef.Point, InPosition);
+	});
+
+	return FMath::Min(Density, 1.0f);
 }
 
 void UPCGPointData::RebuildOctree() const

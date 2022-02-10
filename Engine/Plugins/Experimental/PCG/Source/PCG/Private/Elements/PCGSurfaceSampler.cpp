@@ -48,6 +48,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 		}
 
 		// Conceptually, we will break down the surface bounds in a N x M grid
+		const float PointSteepness = Settings->PointSteepness;
 		const bool bApplyDensity = Settings->bApplyDensityToPoints;
 		const FVector::FReal PointRadius = Settings->PointRadius;
 		const FVector::FReal InterstitialDistance = 2 * PointRadius;
@@ -71,7 +72,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 		check(CellCount > 0);
 
 		const FVector::FReal InvSquaredMeterUnits = 1.0 / (100.0 * 100.0);
-		int32 TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * Settings->PointsPerSquaredMeter * InvSquaredMeterUnits;
+		int64 TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * Settings->PointsPerSquaredMeter * InvSquaredMeterUnits;
 
 		if (TargetPointCount == 0)
 		{
@@ -98,7 +99,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 		const FVector::FReal CellStartY = CellMinY * CellSize;
 
 		FVector::FReal CurrentX = CellStartX;
-		
+
 		for(int32 CellX = CellMinX; CellX <= CellMaxX; ++CellX)
 		{
 			FVector::FReal CurrentY = CellStartY;
@@ -117,11 +118,16 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 					Point.Transform = FTransform(FVector(CurrentX + RandX * InnerCellSize, CurrentY + RandY * InnerCellSize, 0));
 					Point.Extents = FVector(PointRadius);
 					Point.Density = bApplyDensity ? ((Ratio - Chance) / Ratio) : 1.0f;
+					Point.Steepness = PointSteepness;
 					Point.Seed = RandomSource.GetCurrentSeed();
 
 					Point = SpatialInput->TransformPoint(Point);
 
+#if WITH_EDITORONLY_DATA
+					if(Point.Density > 0 || Settings->bKeepZeroDensityPoints)
+#else
 					if (Point.Density > 0)
+#endif
 					{
 						SampledPoints.Add(Point);
 					}

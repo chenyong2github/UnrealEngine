@@ -27,7 +27,7 @@ FPCGPoint UPCGSpatialData::TransformPoint(const FPCGPoint& InPoint) const
 {
 	FPCGPoint TransformedPoint = InPoint;
 	TransformedPoint.Transform.SetTranslation(TransformPosition(InPoint.Transform.GetLocation()));
-	TransformedPoint.Density = GetDensityAtPosition(InPoint.Transform.GetLocation());
+	TransformedPoint.Density *= GetDensityAtPosition(InPoint.Transform.GetLocation());
 	return TransformedPoint;
 }
 
