@@ -46,10 +46,6 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 	AttributeBExpose = true;
 
 	bMonochromeExpose = true;
-
-	// Listen to Fixture Type changes
-	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged);
-	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixturePatchChanged);
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
@@ -88,6 +84,16 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 				break;
 			}
 		}
+	}
+}
+
+void UDMXPixelMappingMatrixComponent::PostInitProperties()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		// Listen to Fixture Type and Fixture Patch changes
+		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged);
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixturePatchChanged);
 	}
 }
 
