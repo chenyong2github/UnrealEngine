@@ -1,4 +1,4 @@
-﻿using Dia2Lib;
+using Dia2Lib;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -207,7 +207,10 @@ namespace CruncherSharp
         {
             foreach (var function in Functions)
             {
-                if (function.Virtual && function.Category == SymbolFunctionInfo.FunctionCategory.Function && DerivedClasses != null)
+                if (function.Virtual && 
+					function.IsOverloaded == false && 
+					function.Category == SymbolFunctionInfo.FunctionCategory.Function && 
+					DerivedClasses != null)
                 {
                     foreach(var derivedClass in DerivedClasses)
                     {
@@ -276,7 +279,7 @@ namespace CruncherSharp
         {
             foreach (var member in Members)
             {
-                if (member.Category != SymbolMemberInfo.MemberCategory.VTable)
+                if (member.Category == SymbolMemberInfo.MemberCategory.UDT || member.Category == SymbolMemberInfo.MemberCategory.Base)
                 {
                     var referencedInfo = symbolAnalyzer.FindSymbolInfo(member.TypeName);
                     if (referencedInfo != null)

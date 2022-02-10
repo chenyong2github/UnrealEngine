@@ -16,6 +16,12 @@ namespace CruncherSharp
         public bool UseProgressBar { get; set; }
     }
 
+	public class LoadCSVTask
+	{
+		public string ClassName { get; set; }
+		public ulong Count { get; set; }
+	}
+
     public class SymbolAnalyzer
     {
         public Dictionary<string, SymbolInfo> Symbols { get; }
@@ -23,6 +29,24 @@ namespace CruncherSharp
         public SortedSet<string> Namespaces { get; }
         public string LastError { get; private set; }
         public string FileName { get; set; }
+
+		private bool _FunctionAnalysis = false;
+		public bool FunctionAnalysis 
+		{
+			get => _FunctionAnalysis;
+			set
+			{
+				_FunctionAnalysis = value;
+				if (value)
+				{
+					foreach (var symbol in Symbols.Values)
+					{
+						symbol.CheckOverride();
+						symbol.CheckMasking();
+					}
+				}
+			}
+		}
 
         public SymbolAnalyzer()
         {
@@ -163,6 +187,9 @@ namespace CruncherSharp
                 symbol.UpdateBaseClass(this);
             }
 
+			if (!FunctionAnalysis)
+				return;
+
             foreach (var symbol in Symbols.Values)
             {
                 symbol.CheckOverride();
@@ -175,6 +202,107 @@ namespace CruncherSharp
         {
             return Symbols.ContainsKey(name);
         }
+
+		public void LoadSymbolsRecursive(IDiaSession session, string name)
+		{
+			if (Symbols.ContainsKey(name))
+				return;
+
+			IDiaEnumSymbols allSymbols;
+			session.findChildren(session.globalScope, SymTagEnum.SymTagUDT, name, 0x2, out allSymbols);
+			if (allSymbols == null)
+				return;
+
+			foreach (IDiaSymbol sym in allSymbols)
+			{
+				if (sym.length > 0 && !Symbols.ContainsKey(sym.name))
+				{
+					var symbolInfo = new SymbolInfo(sym.name, sym.GetType().Name, sym.length);
+					symbolInfo.ProcessChildren(sym);
+					Symbols.Add(symbolInfo.Name, symbolInfo);
+
+					if (symbolInfo.Name.Contains("::") && !symbolInfo.Name.Contains("<"))
+					{
+						RootNamespaces.Add(symbolInfo.Name.Substring(0, symbolInfo.Name.IndexOf("::")));
+						Namespaces.Add(symbolInfo.Name.Substring(0, symbolInfo.Name.LastIndexOf("::")));
+					}
+
+					foreach (var member in symbolInfo.Members)
+					{
+						if (member.Category == SymbolMemberInfo.MemberCategory.UDT || member.Category == SymbolMemberInfo.MemberCategory.Base)
+						{
+							LoadSymbolsRecursive(session, member.TypeName);
+						}
+					}
+				}
+			}
+		}
+
+		public bool LoadCSV(object sender, DoWorkEventArgs e)
+		{
+			try
+			{
+				var task = e.Argument as List<LoadCSVTask>;
+				if (!LoadCSV(sender, task))
+				{
+					e.Cancel = true;
+					return false;
+				}
+				return true;
+			}
+			catch (System.Runtime.InteropServices.COMException exception)
+			{
+				LastError = exception.ToString();
+				return false;
+			}
+		}
+
+		private bool LoadCSV(object sender, List<LoadCSVTask> tasks)
+		{
+			IDiaDataSource source = new DiaSourceClass();
+			source.loadDataFromPdb(FileName);
+			source.openSession(out IDiaSession session);
+
+			var worker = sender as BackgroundWorker;
+
+			var allSymbolsCount = (worker != null) ? tasks.Count : 0;
+			var i = 0;
+
+			worker?.ReportProgress(0, "Adding symbols");
+
+			foreach (LoadCSVTask task in tasks)
+			{
+				if (worker != null && worker.CancellationPending)
+				{
+					return false;
+				}
+
+				IDiaEnumSymbols allSymbols;
+				session.findChildren(session.globalScope, SymTagEnum.SymTagUDT, task.ClassName, 0x2, out allSymbols);
+				if (allSymbols == null)
+					continue;
+
+				foreach (IDiaSymbol sym in allSymbols)
+				{
+					if (sym.length > 0)
+					{
+						LoadSymbolsRecursive(session, sym.name);
+						Symbols.TryGetValue(sym.name, out var symbolInfo);
+						if (symbolInfo != null)
+							symbolInfo.TotalCount = symbolInfo.NumInstances = task.Count;
+					}
+				}
+
+				var percentProgress = (int)Math.Round((double)(100 * i++) / allSymbolsCount);
+				percentProgress = Math.Max(Math.Min(percentProgress, 99), 1);
+				worker?.ReportProgress(percentProgress, String.Format("Adding symbol {0} on {1}", i, allSymbolsCount));
+			}
+
+			worker?.ReportProgress(100, String.Format("{0} symbols added", allSymbolsCount));
+
+			RunAnalysis();
+			return true;
+		}
 
         public SymbolInfo FindSymbolInfo(string name, bool loadMissingSymbol = false)
         {

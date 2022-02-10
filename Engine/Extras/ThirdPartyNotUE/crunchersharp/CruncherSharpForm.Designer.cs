@@ -65,13 +65,14 @@
             this.contextMenuStripMembers = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.copyTypeLayoutToClipboardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.setPrefetchStartOffsetToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.backgroundWorker = new System.ComponentModel.BackgroundWorker();
+            this.loadPDBBackgroundWorker = new System.ComponentModel.BackgroundWorker();
+            this.loadCSVBackgroundWorker = new System.ComponentModel.BackgroundWorker();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.checkBoxShowOverlap = new System.Windows.Forms.CheckBox();
             this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxCacheLines = new System.Windows.Forms.CheckBox();
-            this.checkBoxEnableProgressBar = new System.Windows.Forms.CheckBox();
             this.checkBoxRegularExpressions = new System.Windows.Forms.CheckBox();
             this.checkBoxMatchWholeExpression = new System.Windows.Forms.CheckBox();
             this.checkBoxMatchCase = new System.Windows.Forms.CheckBox();
@@ -107,7 +108,7 @@
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
-            this.checkBoxShowOverlap = new System.Windows.Forms.CheckBox();
+            this.checkBoxFunctionAnalysis = new System.Windows.Forms.CheckBox();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -382,13 +383,21 @@
             this.setPrefetchStartOffsetToolStripMenuItem.Text = "Set Prefetch Start Offset";
             this.setPrefetchStartOffsetToolStripMenuItem.Click += new System.EventHandler(this.setPrefetchStartOffsetToolStripMenuItem_Click);
             // 
-            // backgroundWorker
+            // loadPDBBackgroundWorker
             // 
-            this.backgroundWorker.WorkerReportsProgress = true;
-            this.backgroundWorker.WorkerSupportsCancellation = true;
-            this.backgroundWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker_DoWork);
-            this.backgroundWorker.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.backgroundWorker_ProgressChanged);
-            this.backgroundWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker_RunWorkerCompleted);
+            this.loadPDBBackgroundWorker.WorkerReportsProgress = true;
+            this.loadPDBBackgroundWorker.WorkerSupportsCancellation = true;
+            this.loadPDBBackgroundWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.loadPDBBackgroundWorker_DoWork);
+            this.loadPDBBackgroundWorker.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.loadPDBBackgroundWorker_ProgressChanged);
+            this.loadPDBBackgroundWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.loadPDBBackgroundWorker_RunWorkerCompleted);
+            // 
+            // loadCSVBackgroundWorker
+            // 
+            this.loadCSVBackgroundWorker.WorkerReportsProgress = true;
+            this.loadCSVBackgroundWorker.WorkerSupportsCancellation = true;
+            this.loadCSVBackgroundWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.loadCSVBackgroundWorker_DoWork);
+            this.loadCSVBackgroundWorker.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.loadCSVBackgroundWorker_ProgressChanged);
+            this.loadCSVBackgroundWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.loadCSVBackgroundWorker_RunWorkerCompleted);
             // 
             // tableLayoutPanel1
             // 
@@ -415,11 +424,11 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.panel1.AutoSize = true;
+            this.panel1.Controls.Add(this.checkBoxFunctionAnalysis);
             this.panel1.Controls.Add(this.checkBoxShowOverlap);
             this.panel1.Controls.Add(this.checkBoxBitPadding);
             this.panel1.Controls.Add(this.checkBoxPadding);
             this.panel1.Controls.Add(this.checkBoxCacheLines);
-            this.panel1.Controls.Add(this.checkBoxEnableProgressBar);
             this.panel1.Controls.Add(this.checkBoxRegularExpressions);
             this.panel1.Controls.Add(this.checkBoxMatchWholeExpression);
             this.panel1.Controls.Add(this.checkBoxMatchCase);
@@ -436,6 +445,18 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(1791, 104);
             this.panel1.TabIndex = 4;
+            // 
+            // checkBoxShowOverlap
+            // 
+            this.checkBoxShowOverlap.AutoSize = true;
+            this.checkBoxShowOverlap.Checked = true;
+            this.checkBoxShowOverlap.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxShowOverlap.Location = new System.Drawing.Point(435, 62);
+            this.checkBoxShowOverlap.Name = "checkBoxShowOverlap";
+            this.checkBoxShowOverlap.Size = new System.Drawing.Size(148, 17);
+            this.checkBoxShowOverlap.TabIndex = 16;
+            this.checkBoxShowOverlap.Text = "Show cache lines overlap";
+            this.checkBoxShowOverlap.UseVisualStyleBackColor = true;
             // 
             // checkBoxBitPadding
             // 
@@ -471,19 +492,6 @@
             this.checkBoxCacheLines.Text = "Show cache lines";
             this.checkBoxCacheLines.UseVisualStyleBackColor = true;
             this.checkBoxCacheLines.CheckedChanged += new System.EventHandler(this.checkBoxCacheLines_CheckedChanged);
-            // 
-            // checkBoxEnableProgressBar
-            // 
-            this.checkBoxEnableProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.checkBoxEnableProgressBar.AutoSize = true;
-            this.checkBoxEnableProgressBar.Checked = true;
-            this.checkBoxEnableProgressBar.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxEnableProgressBar.Location = new System.Drawing.Point(367, 83);
-            this.checkBoxEnableProgressBar.Name = "checkBoxEnableProgressBar";
-            this.checkBoxEnableProgressBar.Size = new System.Drawing.Size(120, 17);
-            this.checkBoxEnableProgressBar.TabIndex = 15;
-            this.checkBoxEnableProgressBar.Text = "Enable progress bar";
-            this.checkBoxEnableProgressBar.UseVisualStyleBackColor = true;
             // 
             // checkBoxRegularExpressions
             // 
@@ -879,17 +887,16 @@
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
             // 
-            // checkBoxShowOverlap
+            // checkBoxFunctionAnalysis
             // 
-            this.checkBoxShowOverlap.AutoSize = true;
-            this.checkBoxShowOverlap.Checked = true;
-            this.checkBoxShowOverlap.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxShowOverlap.Location = new System.Drawing.Point(435, 62);
-            this.checkBoxShowOverlap.Name = "checkBoxShowOverlap";
-            this.checkBoxShowOverlap.Size = new System.Drawing.Size(148, 17);
-            this.checkBoxShowOverlap.TabIndex = 16;
-            this.checkBoxShowOverlap.Text = "Show cache lines overlap";
-            this.checkBoxShowOverlap.UseVisualStyleBackColor = true;
+            this.checkBoxFunctionAnalysis.AutoSize = true;
+            this.checkBoxFunctionAnalysis.Location = new System.Drawing.Point(335, 83);
+            this.checkBoxFunctionAnalysis.Name = "checkBoxFunctionAnalysis";
+            this.checkBoxFunctionAnalysis.Size = new System.Drawing.Size(107, 17);
+            this.checkBoxFunctionAnalysis.TabIndex = 17;
+            this.checkBoxFunctionAnalysis.Text = "Function analysis";
+            this.checkBoxFunctionAnalysis.UseVisualStyleBackColor = true;
+            this.checkBoxFunctionAnalysis.CheckedChanged += new System.EventHandler(this.checkBoxFunctionAnalysis_CheckedChanged);
             // 
             // CruncherSharpForm
             // 
@@ -956,8 +963,9 @@
         private System.Windows.Forms.ToolStripMenuItem setPrefetchStartOffsetToolStripMenuItem;
         private System.Windows.Forms.CheckBox chkShowTemplates;
         private System.Windows.Forms.CheckedListBox checkedListBoxNamespaces;
-        private System.ComponentModel.BackgroundWorker backgroundWorker;
-        private System.Windows.Forms.ToolStripMenuItem loadInstanceCountToolStripMenuItem;
+        private System.ComponentModel.BackgroundWorker loadPDBBackgroundWorker;
+		private System.ComponentModel.BackgroundWorker loadCSVBackgroundWorker;
+		private System.Windows.Forms.ToolStripMenuItem loadInstanceCountToolStripMenuItem;
         private System.Windows.Forms.StatusStrip statusStripBar;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
@@ -1011,8 +1019,8 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn colFieldPadding;
         private System.Windows.Forms.CheckBox checkBoxPadding;
         private System.Windows.Forms.CheckBox checkBoxBitPadding;
-		private System.Windows.Forms.CheckBox checkBoxEnableProgressBar;
 		private System.Windows.Forms.CheckBox checkBoxShowOverlap;
+		private System.Windows.Forms.CheckBox checkBoxFunctionAnalysis;
 	}
 }
 
