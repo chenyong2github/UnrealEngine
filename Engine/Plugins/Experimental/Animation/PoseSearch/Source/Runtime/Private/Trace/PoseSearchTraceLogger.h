@@ -47,6 +47,9 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** Runtime weights */
 	FPoseSearchDynamicWeightParams Weights;
 
+	/** If true, groups are being filtered by DatabaseGroupQuery */
+	TArrayView<const bool> DatabaseSequenceFilter;
+
 	/** Index of the pose in our database */
 	int32 DbPoseIdx = 0;
 

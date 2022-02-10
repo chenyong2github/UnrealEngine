@@ -306,6 +306,12 @@ private:
 	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
 
+	/** Informs the widget if sequence filtering is enabled */
+	ECheckBoxState IsSequenceFilterEnabled() const;
+
+	/** Updates the state of sequence filtering */
+	void OnSequenceFilterEnabledChanged(ECheckBoxState NewState);
+
 	/** Generates a database row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 	
@@ -354,6 +360,7 @@ private:
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
 
 	TWeakObjectPtr<const UPoseSearchDatabase> RowsSourceDatabase = nullptr;
+	TArrayView<const bool> DatabaseSequenceFilter;
 
 	/** Database listing for filtered poses */
 	FTable FilteredDatabaseView;
@@ -363,6 +370,9 @@ private:
 
 	/** Text used to filter DatabaseView */
 	FText FilterText;
+
+	/** True if only sequences that pass the sequence group query are being displayed */
+	bool bSequenceFilterEnabled = true;
 };
 
 /**

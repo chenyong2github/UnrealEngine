@@ -24,18 +24,19 @@ struct FTraceMessage
 struct FTraceMotionMatchingStateMessage : FTraceMessage
 {
 	FTraceMotionMatchingState::EFlags Flags;
-	float ElapsedPoseJumpTime;
+	float ElapsedPoseJumpTime = -1.0f;
 	TArray<float> QueryVector;
 	TArray<float> QueryVectorNormalized;
 	FPoseSearchDynamicWeightParams Weights;
-	int32 DbPoseIdx;
-	uint64 DatabaseId;
+	int32 DbPoseIdx = INDEX_NONE;
+	uint64 DatabaseId = INDEX_NONE;
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;
 	float SimLinearVelocity = 0.0f;
 	float SimAngularVelocity = 0.0f;
 	float AnimLinearVelocity = 0.0f;
 	float AnimAngularVelocity = 0.0f;
+	TArray<bool> DatabaseSequenceFilter;
 };
 
 

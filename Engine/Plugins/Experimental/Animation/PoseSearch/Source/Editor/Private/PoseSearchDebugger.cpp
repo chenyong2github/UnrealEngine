@@ -660,6 +660,17 @@ void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(
 	}
 }
 
+ECheckBoxState SDebuggerDatabaseView::IsSequenceFilterEnabled() const
+{
+	return bSequenceFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SDebuggerDatabaseView::OnSequenceFilterEnabledChanged(ECheckBoxState NewState)
+{
+	bSequenceFilterEnabled = NewState == ECheckBoxState::Checked;
+	FilterDatabaseRows();
+}
+
 void SDebuggerDatabaseView::SortDatabaseRows()
 {
 	if (SortMode == EColumnSortMode::Ascending)
@@ -689,23 +700,29 @@ void SDebuggerDatabaseView::FilterDatabaseRows()
 	{
 		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			FilteredDatabaseView.Rows.Add(UnfilteredRow);
+			if (!bSequenceFilterEnabled || DatabaseSequenceFilter[UnfilteredRow->DbSequenceIdx])
+			{
+				FilteredDatabaseView.Rows.Add(UnfilteredRow);
+			}
 		}
 	}
 	else
 	{
 		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			bool bMatchesAllTokens = Algo::AllOf(
-				Tokens,
-				[&](FString Token)
+			if (!bSequenceFilterEnabled || DatabaseSequenceFilter[UnfilteredRow->DbSequenceIdx])
 			{
-				return UnfilteredRow->AnimSequenceName.Contains(Token);
-			});
+				bool bMatchesAllTokens = Algo::AllOf(
+					Tokens,
+					[&](FString Token)
+				{
+					return UnfilteredRow->AnimSequenceName.Contains(Token);
+				});
 
-			if (bMatchesAllTokens)
-			{
-				FilteredDatabaseView.Rows.Add(UnfilteredRow);
+				if (bMatchesAllTokens)
+				{
+					FilteredDatabaseView.Rows.Add(UnfilteredRow);
+				}
 			}
 		}
 	}
@@ -733,6 +750,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 			Row->PoseIdx = PoseIdx;
 			Row->AnimSequenceName = DbSequence.Sequence->GetName();
 			Row->AnimSequencePath = DbSequence.Sequence->GetPathName();
+			Row->DbSequenceIdx = SearchIndexAsset.SourceAssetIdx;
 			Row->Time = Time;
 			Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
 			Row->bMirrored = SearchIndexAsset.bMirrored;
@@ -778,6 +796,8 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 			*ActiveView.Rows[0] = Row.Get();
 		}
 	}
+
+	DatabaseSequenceFilter = State.DatabaseSequenceFilter;
 
 	SortDatabaseRows();
 	FilterDatabaseRows();
@@ -980,8 +1000,24 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 			.Padding(0.0f, 0.0f, 0.0f, 5.0f)
 			.AutoHeight()
 			[
-				SAssignNew(FilterBox, SSearchBox)
-				.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(10, 5, 10, 5)
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &SDebuggerDatabaseView::IsSequenceFilterEnabled)
+					.OnCheckStateChanged(this, &SDebuggerDatabaseView::OnSequenceFilterEnabledChanged)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("PoseSearchDebuggerGroupFiltering", "Apply Group Filtering"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SAssignNew(FilterBox, SSearchBox)
+					.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+				]
 			]
 		
 			+ SVerticalBox::Slot()

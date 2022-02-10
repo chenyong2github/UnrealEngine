@@ -54,6 +54,7 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				Message.SimAngularVelocity = EventData.GetValue<float>("SimAngularVelocity");
 				Message.AnimLinearVelocity = EventData.GetValue<float>("AnimLinearVelocity");
 				Message.AnimAngularVelocity = EventData.GetValue<float>("AnimAngularVelocity");
+				Message.DatabaseSequenceFilter = EventData.GetArrayView<bool>("DatabaseSequenceFilter");
 
 				TArrayView<const float> ChannelWeightScales = EventData.GetArrayView<float>("ChannelWeightScales");
 				TArrayView<const float> HistoryWeightScales = EventData.GetArrayView<float>("HistoryWeightScales");

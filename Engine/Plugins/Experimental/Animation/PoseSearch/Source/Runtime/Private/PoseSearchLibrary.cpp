@@ -60,6 +60,29 @@ void ComputeCurrentVelocityMagnitudes(
 	}
 }
 
+void ComputeDatabaseSequenceFilter(
+	const UPoseSearchDatabase* Database, 
+	const FGameplayTagQuery* Query, 
+	TArray<bool>& OutDbSequenceFilter)
+{
+	OutDbSequenceFilter.SetNum(Database->Sequences.Num());
+
+	if (Query)
+	{
+		for (int SeqIdx = 0; SeqIdx < Database->Sequences.Num(); ++SeqIdx)
+		{
+			OutDbSequenceFilter[SeqIdx] = Query->Matches(Database->Sequences[SeqIdx].GroupTags);
+		}
+	}
+	else
+	{
+		for (int SeqIdx = 0; SeqIdx < Database->Sequences.Num(); ++SeqIdx)
+		{
+			OutDbSequenceFilter[SeqIdx] = true;
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FMotionMatchingPoseStepper
 
@@ -372,6 +395,9 @@ void UpdateMotionMatchingState(
 			SimLinearVelocity, SimAngularVelocity, 
 			AnimLinearVelocity, AnimAngularVelocity);
 
+		TArray<bool> DatabaseSequenceFilter;
+		ComputeDatabaseSequenceFilter(Database, DatabaseTagQuery, DatabaseSequenceFilter);
+
 		FTraceMotionMatchingState TraceState;
 		if (EnumHasAnyFlags(InOutMotionMatchingState.Flags, EMotionMatchingFlags::JumpedToFollowUp))
 		{
@@ -392,6 +418,7 @@ void UpdateMotionMatchingState(
 		TraceState.SimAngularVelocity = SimAngularVelocity;
 		TraceState.AnimLinearVelocity = AnimLinearVelocity;
 		TraceState.AnimAngularVelocity = AnimAngularVelocity;
+		TraceState.DatabaseSequenceFilter = DatabaseSequenceFilter;
 		UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, TraceState)
 	}
 #endif
