@@ -115,7 +115,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 class LIVELINKINTERFACE_API ILiveLinkClient : public ILiveLinkClient_Base_DEPRECATED
 {
 public:
-	static const int32 LIVELINK_VERSION = 3;
+	static const int32 LIVELINK_VERSION = 2;
 
 	virtual ~ILiveLinkClient() {}
 

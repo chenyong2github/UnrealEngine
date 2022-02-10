@@ -14,7 +14,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkMessageBus, Warning, All);
 
-static const int32 LIVELINK_SupportedVersion = 3;
+static const int32 LIVELINK_SupportedVersion = 2;
 
 
 FName FLiveLinkMessageAnnotation::SubjectAnnotation = TEXT("SubjectName");
@@ -463,7 +463,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FLiveLinkProvider::HandlePingMessage(const FLiveLinkPingMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	if (Message.LiveLinkVersion != LIVELINK_SupportedVersion)
+	if (Message.LiveLinkVersion < LIVELINK_SupportedVersion)
 	{
 		UE_LOG(LogLiveLinkMessageBus, Warning, TEXT("A unsupported version of LiveLink is trying to communicate. Requested version: '%d'. Supported version: '%d'."), Message.LiveLinkVersion, LIVELINK_SupportedVersion)
 		return;
@@ -476,7 +476,7 @@ void FLiveLinkProvider::HandleConnectMessage(const FLiveLinkConnectMessage& Mess
 {
 	FScopeLock Lock(&CriticalSection);
 
-	if (Message.LiveLinkVersion != LIVELINK_SupportedVersion)
+	if (Message.LiveLinkVersion < LIVELINK_SupportedVersion)
 	{
 		UE_LOG(LogLiveLinkMessageBus, Error, TEXT("A unsupported version of LiveLink is trying to connect. Requested version: '%d'. Supported version: '%d'."), Message.LiveLinkVersion, LIVELINK_SupportedVersion)
 		return;
