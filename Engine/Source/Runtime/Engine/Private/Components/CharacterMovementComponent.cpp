@@ -6716,13 +6716,14 @@ bool UCharacterMovementComponent::ComputePerchResult(const float TestRadius, con
 	// Sweep further than actual requested distance, because a reduced capsule radius means we could miss some hits that the normal radius would contact.
 	float PawnRadius, PawnHalfHeight;
 	CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleSize(PawnRadius, PawnHalfHeight);
+	const FVector CapsuleLocation = InHit.TraceStart;
 
-	const float InHitAboveBase = FMath::Max<float>(0.f, InHit.ImpactPoint.Z - (InHit.Location.Z - PawnHalfHeight));
+	const float InHitAboveBase = FMath::Max<float>(0.f, InHit.ImpactPoint.Z - (CapsuleLocation.Z - PawnHalfHeight));
 	const float PerchLineDist = FMath::Max(0.f, InMaxFloorDist - InHitAboveBase);
 	const float PerchSweepDist = FMath::Max(0.f, InMaxFloorDist);
 
 	const float ActualSweepDist = PerchSweepDist + PawnRadius;
-	ComputeFloorDist(InHit.Location, PerchLineDist, ActualSweepDist, OutPerchFloorResult, TestRadius);
+	ComputeFloorDist(CapsuleLocation, PerchLineDist, ActualSweepDist, OutPerchFloorResult, TestRadius);
 
 	if (!OutPerchFloorResult.IsWalkableFloor())
 	{
