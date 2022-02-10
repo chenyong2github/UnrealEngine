@@ -16,6 +16,7 @@
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/PhysicsObjectVersion.h"
 
+#include <type_traits>
 
 namespace Chaos
 {
@@ -78,16 +79,45 @@ namespace Chaos
 			return bRequiresLargeIndices;
 		}
 
-		const auto& GetLargeIndexBuffer() const
+		const TArray<TVec3<LargeIdxType>>& GetLargeIndexBuffer() const
 		{
 			check(bRequiresLargeIndices);
 			return LargeIdxBuffer;
 		}
 
-		const auto& GetSmallIndexBuffer() const
+		const TArray<TVec3<SmallIdxType>>& GetSmallIndexBuffer() const
 		{
 			check(!bRequiresLargeIndices);
 			return SmallIdxBuffer;
+		}
+
+		int32 GetNumTriangles() const
+		{
+			if(bRequiresLargeIndices)
+			{
+				return LargeIdxBuffer.Num();
+			}
+
+			return SmallIdxBuffer.Num();
+		}
+
+		template<typename ExpectedType>
+		const TArray<TVec3<ExpectedType>>& GetIndexBuffer() const
+		{
+			if constexpr(std::is_same_v<ExpectedType, LargeIdxType>)
+			{
+				check(bRequiresLargeIndices);
+				return LargeIdxBuffer;
+			}
+			else if constexpr(std::is_same_v<ExpectedType, SmallIdxType>)
+			{
+				check(!bRequiresLargeIndices);
+				return SmallIdxBuffer;
+			}
+			else
+			{
+				static_assert(sizeof(ExpectedType) == 0, "Unsupported index buffer type");
+			}
 		}
 
 	private:
@@ -141,10 +171,26 @@ namespace Chaos
 		, ExternalVertexIndexMap(MoveTemp(InExternalVertexIndexMap))
 		, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
 		{
-			for (uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
+			const int32 NumTriangles = MElements.GetNumTriangles();
+			if(NumTriangles > 0)
 			{
-				MLocalBoundingBox.GrowToInclude(MParticles.X(Idx));
+
+				const TArray<TVec3<IdxType>>& Tris = MElements.GetIndexBuffer<IdxType>();
+				const TVec3<IdxType>& FirstTri = Tris[0];
+
+				MLocalBoundingBox = FAABB3(MParticles.X(FirstTri[0]), MParticles.X(FirstTri[0]));
+				MLocalBoundingBox.GrowToInclude(MParticles.X(FirstTri[1]));
+				MLocalBoundingBox.GrowToInclude(MParticles.X(FirstTri[2]));
+
+				for(int32 TriangleIndex = 1; TriangleIndex < NumTriangles; ++TriangleIndex)
+				{
+					const TVec3<IdxType>& Tri = Tris[TriangleIndex];
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[0]));
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[1]));
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[2]));
+				}
 			}
+			
 			RebuildBV();
 		}
 
@@ -378,10 +424,25 @@ namespace Chaos
 			, ExternalVertexIndexMap(MoveTemp(InExternalVertexIndexMap))
 			, bCullsBackFaceRaycast(bInCullsBackFaceRaycast)
 		{
-			for(uint32 Idx = 1; Idx < MParticles.Size(); ++Idx)
+			const int32 NumTriangles = MElements.GetNumTriangles();
+			if(NumTriangles > 0)
 			{
-				MLocalBoundingBox.GrowToInclude(MParticles.X(Idx));
+				const TArray<TVec3<IdxType>>& Tris = MElements.GetIndexBuffer<IdxType>();
+				const TVec3<IdxType>& FirstTri = Tris[0];
+
+				MLocalBoundingBox = FAABB3(MParticles.X(FirstTri[0]), MParticles.X(FirstTri[0]));
+				MLocalBoundingBox.GrowToInclude(MParticles.X(FirstTri[1]));
+				MLocalBoundingBox.GrowToInclude(MParticles.X(FirstTri[2]));
+
+				for(int32 TriangleIndex = 1; TriangleIndex < NumTriangles; ++TriangleIndex)
+				{
+					const TVec3<IdxType>& Tri = Tris[TriangleIndex];
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[0]));
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[1]));
+					MLocalBoundingBox.GrowToInclude(MParticles.X(Tri[2]));
+				}
 			}
+			
 			BVH.CopyFrom(InBvhToCopy);
 		}
 
