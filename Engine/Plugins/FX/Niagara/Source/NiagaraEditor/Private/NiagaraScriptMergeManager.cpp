@@ -2820,7 +2820,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 
 					UNiagaraNodeFunctionCall* DynamicInputFunctionCall;
 					FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(InputOverridePin, FunctionScript, 
-						DynamicInputFunctionCall, OverrideToAdd->GetOverrideNodeId(), OverrideToAdd->GetDynamicValueFunction()->GetFunctionCallNode()->GetFunctionName());
+						DynamicInputFunctionCall, OverrideToAdd->GetOverrideNodeId(), OverrideToAdd->GetDynamicValueFunction()->GetFunctionCallNode()->GetFunctionName(), OverrideToAdd->GetDynamicValueFunction()->GetFunctionCallNode()->SelectedScriptVersion);
 					for (TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> DynamicInputInputOverride : OverrideToAdd->GetDynamicValueFunction()->GetInputOverrides())
 					{
 						FApplyDiffResults AddResults = AddInputOverride(BaseEmitterAdapter, ScratchPadAdapter, OwningScript, *DynamicInputFunctionCall, DynamicInputInputOverride);
