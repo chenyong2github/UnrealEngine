@@ -123,8 +123,8 @@ struct FNDIChaosDestruction_InstanceData
 
 struct FNiagaraDIChaosDestruction_GPUData
 {
-	TArray<FVector> PositionArray;
-	TArray<FVector> VelocityArray;
+	TArray<FVector3f> PositionArray;
+	TArray<FVector3f> VelocityArray;
 	TArray<float> ExtentMinArray;
 	TArray<float> ExtentMaxArray;
 	TArray<float> VolumeArray;
@@ -216,8 +216,8 @@ struct FNiagaraDIChaosDestruction_GPUData
 
 struct FNiagaraDIChaosDestruction_InstanceDataToPassToRT
 {
-	TArray<FVector>* PositionArray;
-	TArray<FVector>* VelocityArray;
+	TArray<FVector3f>* PositionArray;
+	TArray<FVector3f>* VelocityArray;
 	TArray<float>* ExtentMinArray;
 	TArray<float>* ExtentMaxArray;
 	TArray<float>* VolumeArray;
