@@ -711,7 +711,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 	const int64 PaddedEncryptedFileSize = Align(FileSize,FAES::AESBlockSize);
 	check(PaddedEncryptedFileSize >= FileSize);
 
-	TArray<uint8, TInlineAllocator<4096>> UncompressedBuffer;
+	TArray<uint8, TInlineAllocator64<4096>> UncompressedBuffer;
 	UncompressedBuffer.SetNumUninitialized(PaddedEncryptedFileSize);
 
 	// Load to buffer

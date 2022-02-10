@@ -639,11 +639,13 @@ struct TCanMoveBetweenAllocators<TSizedHeapAllocator<FromIndexSize>, TSizedHeapA
  * Any allocation needed beyond that causes all data to be moved into an indirect allocation.
  * It always uses DEFAULT_ALIGNMENT.
  */
-template <uint32 NumInlineElements, typename SecondaryAllocator = FDefaultAllocator>
-class TInlineAllocator
+template <uint32 NumInlineElements, int IndexSize, typename SecondaryAllocator = FDefaultAllocator>
+class TSizedInlineAllocator
 {
 public:
-	using SizeType = int32;
+	using SizeType = typename TBitsToSizeType<IndexSize>::Type;
+
+	static_assert(std::is_same_v<SizeType, typename SecondaryAllocator::SizeType>, "Secondary allocator SizeType mismatch");
 
 	enum { NeedsElementType = true };
 	enum { RequireRangeCheck = true };
@@ -780,11 +782,17 @@ public:
 	typedef void ForAnyElementType;
 };
 
-template <uint32 NumInlineElements, typename SecondaryAllocator>
-struct TAllocatorTraits<TInlineAllocator<NumInlineElements, SecondaryAllocator>> : TAllocatorTraitsBase<TInlineAllocator<NumInlineElements, SecondaryAllocator>>
+template <uint32 NumInlineElements, int IndexSize, typename SecondaryAllocator>
+struct TAllocatorTraits<TSizedInlineAllocator<NumInlineElements, IndexSize, SecondaryAllocator>> : TAllocatorTraitsBase<TSizedInlineAllocator<NumInlineElements, IndexSize, SecondaryAllocator>>
 {
 	enum { SupportsMove = TAllocatorTraits<SecondaryAllocator>::SupportsMove };
 };
+
+template <uint32 NumInlineElements, typename SecondaryAllocator = FDefaultAllocator>
+using TInlineAllocator = TSizedInlineAllocator<NumInlineElements, 32, SecondaryAllocator>;
+
+template <uint32 NumInlineElements, typename SecondaryAllocator = FDefaultAllocator64>
+using TInlineAllocator64 = TSizedInlineAllocator<NumInlineElements, 64, SecondaryAllocator>;
 
 /**
  * Implements a variant of TInlineAllocator with a secondary heap allocator that is allowed to store a pointer to its inline elements.
