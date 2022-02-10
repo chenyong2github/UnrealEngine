@@ -13,7 +13,7 @@ public class VulkanRHI : ModuleRules
 		bLegalToDistributeObjectCode = true;
 
 		PrivateIncludePaths.Add("Runtime/VulkanRHI/Private");
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Windows");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
@@ -46,12 +46,12 @@ public class VulkanRHI : ModuleRules
             }
         );
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Android)
 		{
             AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
         }

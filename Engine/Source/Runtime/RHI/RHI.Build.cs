@@ -15,7 +15,7 @@ public class RHI : ModuleRules
 		&& Target.Type != TargetRules.TargetType.Program
 		&& Target.Configuration != UnrealTargetConfiguration.Unknown
 		&& Target.Configuration != UnrealTargetConfiguration.Debug
-		&& Target.Platform == UnrealTargetPlatform.Win64)
+		&& Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
 		}
@@ -37,7 +37,7 @@ public class RHI : ModuleRules
                 }
 
 				// UEBuildAndroid.cs adds VulkanRHI for Android builds if it is enabled
-				if (Target.Platform == UnrealTargetPlatform.Win64)
+				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					DynamicallyLoadedModuleNames.Add("D3D11RHI");
 				}
@@ -54,13 +54,13 @@ public class RHI : ModuleRules
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
 				}
 
-				if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+				if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 					(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && (Target.Architecture.StartsWith("x86_64") || Target.Architecture.StartsWith("aarch64"))))	// temporary, not all archs can support Vulkan atm
 				{
 					DynamicallyLoadedModuleNames.Add("VulkanRHI");
 				}
 
-				if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+				if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 					(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetRules.TargetType.Server))  // @todo should servers on all platforms skip this?
 				{
 					DynamicallyLoadedModuleNames.Add("OpenGLDrv");
