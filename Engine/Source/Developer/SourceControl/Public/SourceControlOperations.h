@@ -188,8 +188,16 @@ public:
 		return USourceControlPreferences::ShouldDeleteNewFilesOnRevert();
 	}
 
+	const TArray<FString>& GetDeletedFiles() const { return DeletedFiles; }
+
+	void AddDeletedFile(const FString& InDeletedFile)
+	{
+		DeletedFiles.Add(InDeletedFile);
+	}
+
 protected:
-	bool	bIsSoftRevert = false;
+	bool				bIsSoftRevert = false;
+	TArray<FString>		DeletedFiles;
 };
 
 /**

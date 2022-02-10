@@ -71,6 +71,8 @@
 #include "ProfilingDebugging/StallDetector.h"
 #include "GameMapsSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "AssetRegistryModule.h"
+#include "ObjectTools.h"
 #include "Cooker/ExternalCookOnTheFlyServer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
@@ -246,6 +248,12 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 			}
 		});
 #endif
+
+	// Delay this until after the source control module has loaded
+	FDelayedAutoRegisterHelper(EDelayedRegisterRunPhase::EarliestPossiblePluginsLoaded, [this]()
+	{
+		SourceControlFilesDeletedHandle = ISourceControlModule::Get().RegisterFilesDeleted(FSourceControlFilesDeletedDelegate::FDelegate::CreateUObject(this, &UUnrealEdEngine::OnSourceControlFilesDeleted));
+	});
 }
 
 bool CanCookForPlatformInThisProcess( const FString& PlatformName )
@@ -449,6 +457,11 @@ void UUnrealEdEngine::FinishDestroy()
 	if( PerformanceMonitor )
 	{
 		delete PerformanceMonitor;
+	}
+
+	if (ISourceControlModule* SourceControlModule = FModuleManager::GetModulePtr<ISourceControlModule>(FName("SourceControl")))
+	{
+		SourceControlModule->UnregisterFilesDeleted(SourceControlFilesDeletedHandle);
 	}
 
 	FPackageName::OnContentPathMounted().RemoveAll(this);
@@ -914,6 +927,43 @@ const TArray<FTemplateMapInfo>& UUnrealEdEngine::GetTemplateMapInfos() const
 const TArray<FTemplateMapInfo>& UUnrealEdEngine::GetProjectDefaultMapTemplates() const
 {
 	return TemplateMapInfoCache;
+}
+
+void UUnrealEdEngine::OnSourceControlFilesDeleted(const TArray<FString>& InDeletedFiles)
+{
+	TArray<UObject*> ObjectsToDelete;
+
+	if (InDeletedFiles.IsEmpty())
+	{
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	for (const FString& File : InDeletedFiles)
+	{
+		TArray<FAssetData> Assets;
+		FString PackageName;
+
+		if (!FPackageName::TryConvertFilenameToLongPackageName(File, PackageName))
+		{
+			continue;
+		}
+
+		AssetRegistryModule.Get().GetAssetsByPackageName(*PackageName, Assets);
+
+		for (const FAssetData& Asset : Assets)
+		{
+			UObject* ObjectToDelete = Asset.GetAsset();
+
+			if (ObjectToDelete != nullptr)
+			{
+				ObjectsToDelete.Add(ObjectToDelete);
+			}
+		}
+	}
+
+	ObjectTools::DeleteObjectsUnchecked(ObjectsToDelete);
 }
 
 void UUnrealEdEngine::OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild)

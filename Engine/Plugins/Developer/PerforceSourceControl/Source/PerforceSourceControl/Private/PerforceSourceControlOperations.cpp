@@ -3,6 +3,7 @@
 #include "PerforceSourceControlOperations.h"
 #include "PerforceSourceControlPrivate.h"
 #include "HAL/FileManager.h"
+#include "ISourceControlModule.h"
 #include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
 #include "Modules/ModuleManager.h"
@@ -76,7 +77,7 @@ static bool IsAddAction(const FString& Action)
 /** Checks if the name of an action corresponds to EPerforceState::MarkedForDelete */
 static bool IsDeleteAction(const FString& Action)
 {
-	return Action == TEXT("delete") || Action == TEXT("move/delete");
+	return Action == TEXT("delete") || Action == TEXT("move/delete") || Action == TEXT("deleted");
 }
 
 /**
@@ -734,6 +735,15 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FP4RecordSet Records;
 		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("revert"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 		ParseRecordSetForState(Records, OutResults);
+
+		for (TMap<FString, EPerforceState::Type>::TConstIterator It(OutResults); It; ++It)
+		{
+			if (It->Value == EPerforceState::MarkedForDelete)
+			{
+				RevertOperation->AddDeletedFile(It->Key);
+			}
+		}
+
 		ChangelistToUpdate = InCommand.Changelist;
 	}
 	return InCommand.bCommandSuccessful;
@@ -754,7 +764,7 @@ bool FPerforceRevertWorker::UpdateStates() const
 
 		bUpdatedChangelists |= State->Changelist.IsInitialized() && RemoveFilesFromChangelist(OutResults, State->Changelist);
 	}
-	
+
 	return bUpdatedCachedStates || bUpdatedChangelists;
 }
 

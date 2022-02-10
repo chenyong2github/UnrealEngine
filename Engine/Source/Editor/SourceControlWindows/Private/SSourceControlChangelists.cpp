@@ -754,7 +754,14 @@ void SSourceControlChangelistsWidget::OnRevert()
 	if (SelectedChangelist.IsValid() || (!SelectedControlledFiles.IsEmpty()))
 	{
 		auto RevertOperation = ISourceControlOperation::Create<FRevert>();
-		SourceControlProvider.Execute(RevertOperation, SelectedChangelist, SelectedControlledFiles);
+		SourceControlProvider.Execute(RevertOperation, SelectedChangelist, SelectedControlledFiles, EConcurrency::Synchronous, FSourceControlOperationComplete::CreateLambda([](const FSourceControlOperationRef& Operation, ECommandResult::Type InResult)
+		{
+			if (Operation->GetName() == TEXT("Revert"))
+			{
+				TSharedRef<FRevert> RevertOperation = StaticCastSharedRef<FRevert>(Operation);
+				ISourceControlModule::Get().GetOnFilesDeleted().Broadcast(RevertOperation->GetDeletedFiles());
+			}
+		}));
 	}
 
 	FUncontrolledChangelistStatePtr SelectedUncontrolledChangelist = GetCurrentUncontrolledChangelistState();

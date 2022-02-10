@@ -49,6 +49,10 @@ public:
 	virtual void UnregisterPreSubmitFinalize(FDelegateHandle Handle) override;
 	virtual const FSourceControlPreSubmitFinalizeDelegate& GetOnPreSubmitFinalize() const override;
 
+	virtual FDelegateHandle RegisterFilesDeleted(const FSourceControlFilesDeletedDelegate::FDelegate& InDelegate) override;
+	virtual void UnregisterFilesDeleted(FDelegateHandle InHandle) override;
+	virtual const FSourceControlFilesDeletedDelegate& GetOnFilesDeleted() const override;
+
 	/** Save the settings to the ini file */
 	void SaveSettings();
 
@@ -134,6 +138,9 @@ private:
 	
 	/** To be called right before files are submitted, allowing for additional last minute validation. @see FSourceControlPreSubmitFinalizeDelegate */
 	FSourceControlPreSubmitFinalizeDelegate OnPresubmitFinalize;
+
+	/** To be called after a source control operations deleted files */
+	FSourceControlFilesDeletedDelegate OnFilesDeleted;
 
 	/** Used to cache source controlled AssetData information */
 	FSourceControlAssetDataCache AssetDataCache;

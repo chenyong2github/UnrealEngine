@@ -491,6 +491,21 @@ const FSourceControlPreSubmitFinalizeDelegate& FSourceControlModule::GetOnPreSub
 	return OnPresubmitFinalize;
 }
 
+FDelegateHandle FSourceControlModule::RegisterFilesDeleted(const FSourceControlFilesDeletedDelegate::FDelegate& InDelegate)
+{
+	return OnFilesDeleted.Add(InDelegate);
+}
+
+void FSourceControlModule::UnregisterFilesDeleted(FDelegateHandle InHandle)
+{
+	OnFilesDeleted.Remove(InHandle);
+}
+
+const FSourceControlFilesDeletedDelegate& FSourceControlModule::GetOnFilesDeleted() const
+{
+	return OnFilesDeleted;
+}
+
 IMPLEMENT_MODULE( FSourceControlModule, SourceControl );
 
 #undef LOCTEXT_NAMESPACE

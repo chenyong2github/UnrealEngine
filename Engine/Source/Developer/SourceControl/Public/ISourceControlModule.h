@@ -35,6 +35,13 @@ DECLARE_DELEGATE_FourParams(FSourceControlPreSubmitDataValidationDelegate, FSour
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FSourceControlPreSubmitFinalizeDelegate, const TArray<FString>& /*FilesToSubmit*/, TArray<FText>& /*OutDescriptionTags*/, TArray<FText>& /*OutErrors*/);
 
 /**
+ * Delegate called after source control operations deleted files.
+ *
+ * @param DeletedFiles			The absolute file paths of the deleted files
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FSourceControlFilesDeletedDelegate, const TArray<FString>& /*InDeletedFiles*/);
+
+/**
  * The modality of the login window.
  */
 namespace ELoginWindowMode
@@ -183,6 +190,21 @@ public:
 	 * Returns access to the delegate so that it can be broadcast as needed. @see FSourceControlPreSubmitFinalizeDelegate
 	 */
 	virtual const FSourceControlPreSubmitFinalizeDelegate& GetOnPreSubmitFinalize() const = 0;
+
+	/**
+	 * Registers a delegate that is invoked after source control operation deleted files.  @see FSourceControlFilesDeletedDelegate
+	 */
+	virtual FDelegateHandle RegisterFilesDeleted(const FSourceControlFilesDeletedDelegate::FDelegate& InDelegate) = 0;
+	
+	/**
+	 * Unregister a previously registered delegate. @see FSourceControlFilesDeletedDelegate
+	 */
+	virtual void UnregisterFilesDeleted(FDelegateHandle InHandle) = 0;
+
+	/**
+	 * Returns access to the delegate so that it can be broadcast as needed. @see FSourceControlFilesDeletedDelegate
+	 */
+	virtual const FSourceControlFilesDeletedDelegate& GetOnFilesDeleted() const = 0;
 
 	/**
 	 * Gets a reference to the source control module instance.

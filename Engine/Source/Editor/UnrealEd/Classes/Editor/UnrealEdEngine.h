@@ -891,6 +891,10 @@ public:
 
 	/** Gets the project default map templates without any runtime overrides */
 	const TArray<FTemplateMapInfo>& GetProjectDefaultMapTemplates() const;
+
+	/** Called after files are deleted to perform necessary cleanups. */
+	void OnSourceControlFilesDeleted(const TArray<FString>& InDeletedFiles);
+
 protected:
 
 	/** Called when global editor selection changes */
@@ -969,4 +973,7 @@ private:
 
 	/** Internal function to filter and add visualizers to a specific list */
 	void AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition);
+
+	/** Delegate Called after files have been deleted to perform necessary cleanups. */
+	FDelegateHandle SourceControlFilesDeletedHandle;
 };
