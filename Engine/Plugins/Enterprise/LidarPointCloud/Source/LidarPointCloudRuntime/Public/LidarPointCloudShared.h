@@ -345,8 +345,7 @@ struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudPoint
 	GENERATED_BODY()
 
 public:
-	// LWC_TODO: Uncomment when FVector3f supports BP
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
 	FVector3f Location;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
