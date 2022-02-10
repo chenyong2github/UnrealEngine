@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeGenericMaterialPipeline.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -13,6 +12,8 @@
 
 #include "InterchangeGenericAssetsPipeline.generated.h"
 
+class UInterchangeGenericMaterialPipeline;
+class UInterchangeGenericTexturePipeline;
 class UInterchangeMeshNode;
 class UInterchangePipelineMeshesUtilities;
 class UInterchangeResult;
@@ -22,12 +23,6 @@ class UInterchangeSkeletalMeshLodDataNode;
 class UInterchangeSkeletonFactoryNode;
 class UInterchangeStaticMeshFactoryNode;
 class UInterchangeStaticMeshLodDataNode;
-class UInterchangeTexture2DArrayFactoryNode;
-class UInterchangeTexture2DArrayNode;
-class UInterchangeTextureCubeFactoryNode;
-class UInterchangeTextureCubeNode;
-class UInterchangeTextureFactoryNode;
-class UInterchangeTextureNode;
 template<class T> class TSubclassOf;
 
 /** Force mesh type, if user want to import all meshes as one type*/
@@ -182,26 +177,8 @@ public:
 	//////	TEXTURES_CATEGORY Properties //////
 
 
-	/** If enabled, imports the texture assets found in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
-	bool bImportTextures = true;
-
-#if WITH_EDITORONLY_DATA
-	/** 
-	 * If enable, after a new import a test will be run to see if the texture is a normal map
-	 * If the texture is a normal map the SRG, CompressionSettings and LODGroup settings will be adjusted.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
-	bool bDetectNormalMapTexture = true;
-
-	/** If enabled, the texture's green channel will be inverted for normal maps. */
-	UPROPERTY(EditAnywhere, Category = "Textures")
-	bool bFlipNormalMapGreenChannel = false;
-
-	/** Specify the files type that should be imported as long/lat cubemap */
-	UPROPERTY(EditAnywhere, Category = "Textures")
-	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
-#endif
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Textures")
+	TObjectPtr<UInterchangeGenericTexturePipeline> TexturePipeline;
 
 	// END Pre import pipeline properties
 	//////////////////////////////////////////////////////////////////////////
@@ -225,13 +202,6 @@ private:
 
 	UInterchangeBaseNodeContainer* BaseNodeContainer;
 	TArray<const UInterchangeSourceData*> SourceDatas;
-
-	
-	/** Texture translated assets nodes */
-	TArray<UInterchangeTextureNode*> TextureNodes;
-
-	/** Texture factory assets nodes */
-	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
 	
 	/************************************************************************/
 	/* Skeletal mesh API BEGIN                                              */
@@ -314,17 +284,6 @@ private:
 	/** Specialize for skeletalmesh */
 	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount);
 
-	/************************************************************************/
-	/* Texture API BEGIN                                              */
-
-	UInterchangeTextureFactoryNode* HandleCreationOfTextureFactoryNode(const UInterchangeTextureNode* TextureNode);
-
-	UInterchangeTextureFactoryNode* CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass);
-
-	void PostImportTextureAssetImport(UObject* CreatedAsset, bool bIsAReimport);
-
-	/* Texture API END                                                */
-	/************************************************************************/
 };
 
 

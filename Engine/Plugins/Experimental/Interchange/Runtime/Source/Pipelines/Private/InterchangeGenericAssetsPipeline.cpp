@@ -4,6 +4,8 @@
 
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
+#include "InterchangeGenericMaterialPipeline.h"
+#include "InterchangeGenericTexturePipeline.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
@@ -15,8 +17,6 @@
 #include "InterchangeSourceData.h"
 #include "InterchangeStaticMeshFactoryNode.h"
 #include "InterchangeStaticMeshLodDataNode.h"
-#include "InterchangeTextureFactoryNode.h"
-#include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -27,6 +27,7 @@
 UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
 {
 	MaterialPipeline = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialPipeline");
+	TexturePipeline = CreateDefaultSubobject<UInterchangeGenericTexturePipeline>("TexturePipeline");
 }
 
 void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineStackName)
@@ -52,30 +53,10 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	}
 
 	PipelineMeshesUtilities = UInterchangePipelineMeshesUtilities::CreateInterchangePipelineMeshesUtilities(BaseNodeContainer);
-	
-	//Find all translated node we need for this pipeline
-	BaseNodeContainer->IterateNodes([this](const FString& NodeUid, UInterchangeBaseNode* Node)
+
+	if (TexturePipeline)
 	{
-		switch(Node->GetNodeContainerType())
-		{
-			case EInterchangeNodeContainerType::TranslatedAsset:
-			{
-				if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Node))
-				{
-					TextureNodes.Add(TextureNode);
-				}
-			}
-			break;
-		}
-	});
-	
-	if (bImportTextures)
-	{
-		//import textures
-		for (const UInterchangeTextureNode* TextureNode : TextureNodes)
-		{
-			HandleCreationOfTextureFactoryNode(TextureNode);
-		}
+		TexturePipeline->ExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
 	}
 
 	if (MaterialPipeline)
@@ -244,7 +225,10 @@ void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 	//Finish the physics asset import, it need the skeletal mesh render data to create the physics collision geometry
 	PostImportPhysicsAssetImport(CreatedAsset, Node);
 
-	PostImportTextureAssetImport(CreatedAsset, bIsAReimport);
+	if (TexturePipeline)
+	{
+		TexturePipeline->ExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
+	}
 }
 
 void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()

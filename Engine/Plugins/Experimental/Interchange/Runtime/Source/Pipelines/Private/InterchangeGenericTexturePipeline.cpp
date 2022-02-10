@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "InterchangeGenericAssetsPipeline.h"
+#include "InterchangeGenericTexturePipeline.h"
 
-#include "CoreMinimal.h"
 #include "Engine/Texture.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureLightProfile.h"
+#include "InterchangePipelineLog.h"
 #include "InterchangeTexture2DArrayFactoryNode.h"
 #include "InterchangeTexture2DArrayFactoryNode.h"
 #include "InterchangeTexture2DArrayNode.h"
@@ -16,7 +16,6 @@
 #include "InterchangeTextureCubeFactoryNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureCubeNode.h"
-#include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureLightProfileFactoryNode.h"
 #include "InterchangeTextureLightProfileFactoryNode.h"
@@ -101,7 +100,65 @@ namespace UE::Interchange::Private
 #endif
 }
 
-UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::HandleCreationOfTextureFactoryNode(const UInterchangeTextureNode* TextureNode)
+void UInterchangeGenericTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+{
+	if (!InBaseNodeContainer)
+	{
+		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericTexturePipeline: Cannot execute pre-import pipeline because InBaseNodeContrainer is null"));
+		return;
+	}
+
+	BaseNodeContainer = InBaseNodeContainer;
+	SourceDatas.Empty(InSourceDatas.Num());
+	for (const UInterchangeSourceData* SourceData : InSourceDatas)
+	{
+		SourceDatas.Add(SourceData);
+	}
+	
+	//Find all translated node we need for this pipeline
+	BaseNodeContainer->IterateNodes([this](const FString& NodeUid, UInterchangeBaseNode* Node)
+	{
+		switch(Node->GetNodeContainerType())
+		{
+			case EInterchangeNodeContainerType::TranslatedAsset:
+			{
+				if (UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Node))
+				{
+					TextureNodes.Add(TextureNode);
+				}
+			}
+			break;
+		}
+	});
+
+	if (bImportTextures)
+	{
+		for (const UInterchangeTextureNode* TextureNode : TextureNodes)
+		{
+			HandleCreationOfTextureFactoryNode(TextureNode);
+		}
+	}
+}
+
+void UInterchangeGenericTexturePipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+{
+	//We do not use the provided base container since ExecutePreImportPipeline cache it
+	//We just make sure the same one is pass in parameter
+	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	{
+		return;
+	}
+
+	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
+	if (!Node)
+	{
+		return;
+	}
+
+	PostImportTextureAssetImport(CreatedAsset, bIsAReimport);
+}
+
+UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::HandleCreationOfTextureFactoryNode(const UInterchangeTextureNode* TextureNode)
 {
 	UClass* FactoryClass = UE::Interchange::Private::GetDefaultFactoryClassFromTextureNodeClass(TextureNode->GetClass());
 
@@ -122,7 +179,7 @@ UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::HandleCreatio
 	return CreateTextureFactoryNode(TextureNode, FactoryClass);
 }
 
-UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass)
+UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass)
 {
 	FString DisplayLabel = TextureNode->GetDisplayLabel();
 	FString NodeUid = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(TextureNode->GetUniqueID());
@@ -168,7 +225,7 @@ UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTexture
 	return TextureFactoryNode;
 }
 
-void UInterchangeGenericAssetsPipeline::PostImportTextureAssetImport(UObject* CreatedAsset, bool bIsAReimport)
+void UInterchangeGenericTexturePipeline::PostImportTextureAssetImport(UObject* CreatedAsset, bool bIsAReimport)
 {
 #if WITH_EDITOR
 	if (!bIsAReimport && bDetectNormalMapTexture)
