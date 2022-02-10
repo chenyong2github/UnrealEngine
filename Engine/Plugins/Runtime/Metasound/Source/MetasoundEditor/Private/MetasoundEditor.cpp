@@ -901,6 +901,10 @@ namespace Metasound
 			ToolkitCommands->MapAction(
 				FGenericCommands::Get().Rename,
 				FExecuteAction::CreateSP(this, &FEditor::RenameSelected));
+
+			ToolkitCommands->MapAction(
+				FEditorCommands::Get().UpdateNodeClass,
+				FExecuteAction::CreateSP(this, &FEditor::UpdateSelectedNodeClasses));
 		}
 
 		void FEditor::Import()
@@ -1357,31 +1361,8 @@ namespace Metasound
 				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
 					FExecuteAction::CreateSP(this, &FEditor::OnCreateComment));
 
-				GraphEditorCommands->MapAction(FEditorCommands::Get().UpdateNodes,
-					FExecuteAction::CreateLambda([this]()
-					{
-						const FScopedTransaction Transaction(LOCTEXT("NodeVersionUpgrade", "Upgrade MetaSound Node(s)"));
-						check(Metasound);
-						Metasound->Modify();
-
-						UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
-						Graph.Modify();
-
-						const FGraphPanelSelectionSet Selection = MetasoundGraphEditor->GetSelectedNodes();
-						for (UObject* Object : Selection)
-						{
-							if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Object))
-							{
-								FMetasoundFrontendVersionNumber MajorUpdateVersion = ExternalNode->FindHighestVersionInRegistry();
-								Metasound::Frontend::FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
-								if (MajorUpdateVersion.IsValid() && MajorUpdateVersion > NodeHandle->GetClassMetadata().GetVersion())
-								{
-									ExternalNode->UpdateToVersion(MajorUpdateVersion, false /* bInPropagateErrorMessages */);
-									Graph.SetSynchronizationRequired();
-								}
-							}
-						}
-					}));
+				GraphEditorCommands->MapAction(FEditorCommands::Get().UpdateNodeClass,
+					FExecuteAction::CreateSP(this, &FEditor::UpdateSelectedNodeClasses));
 			}
 
 			SGraphEditor::FGraphEditorEvents GraphEvents;
@@ -1914,7 +1895,19 @@ namespace Metasound
 						FMetasoundFrontendLiteral LiteralValue;
 						if (FGraphBuilder::GetPinLiteral(*Pin, LiteralValue))
 						{
-							InputHandle->SetLiteral(LiteralValue);
+							if (const FMetasoundFrontendLiteral* ClassDefault = InputHandle->GetClassDefaultLiteral())
+							{
+								// Check equivalence with class default and don't set if they are equal. Copied node
+								// pin has no information to indicate whether or not the literal was already set.
+								if (!LiteralValue.IsEqual(*ClassDefault))
+								{
+									InputHandle->SetLiteral(LiteralValue);
+								}
+							}
+							else
+							{
+								InputHandle->SetLiteral(LiteralValue);
+							}
 						}
 					}
 
@@ -2074,6 +2067,49 @@ namespace Metasound
 			if (MetasoundInterfaceMenu.IsValid())
 			{
 				MetasoundInterfaceMenu->RefreshAllActions(true /* bPreserveExpansion */);
+			}
+		}
+
+		void FEditor::UpdateSelectedNodeClasses()
+		{
+			using namespace Metasound::Frontend;
+
+			const FScopedTransaction Transaction(LOCTEXT("NodeVersionUpdate", "Update MetaSound Node(s) Class(es)"));
+			check(Metasound);
+			Metasound->Modify();
+
+			UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
+			Graph.Modify();
+
+			bool bReplacedNodes = false;
+			const FGraphPanelSelectionSet Selection = MetasoundGraphEditor->GetSelectedNodes();
+			for (UObject* Object : Selection)
+			{
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Object))
+				{
+					FMetasoundFrontendVersionNumber HighestVersion = ExternalNode->FindHighestVersionInRegistry();
+					Metasound::Frontend::FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
+					const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+					const bool bHasNewVersion = HighestVersion.IsValid() && HighestVersion > Metadata.GetVersion();
+
+					const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
+					const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+
+					if (bHasNewVersion || !bIsClassNative)
+					{
+						FNodeHandle ExistingNode = ExternalNode->GetNodeHandle();
+						FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(HighestVersion);
+						bReplacedNodes = true;
+					}
+				}
+			}
+
+			if (bReplacedNodes)
+			{
+				FDocumentHandle DocumentHandle = Graph.GetDocumentHandle();
+				DocumentHandle->RemoveUnreferencedDependencies();
+				DocumentHandle->SynchronizeDependencyMetadata();
+				Graph.SetSynchronizationRequired();
 			}
 		}
 

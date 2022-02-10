@@ -144,7 +144,9 @@ namespace Metasound
 								FConstInputHandle InputHandle = GetConstInputHandle();
 								if (const FMetasoundFrontendLiteral* Literal = InputHandle->GetLiteral())
 								{
-									if (Literal->GetType() != EMetasoundFrontendLiteralType::None)
+									const bool bIsDefaultConstructed = Literal->GetType() == EMetasoundFrontendLiteralType::None;
+									const bool bIsTriggerDataType = InputHandle->GetDataType() == GetMetasoundDataTypeName<FTrigger>();
+									if (!bIsDefaultConstructed && !bIsTriggerDataType)
 									{
 										return EVisibility::Visible;
 									}

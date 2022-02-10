@@ -670,7 +670,11 @@ namespace Metasound
 			{
 				case ELiteralType::Boolean:
 				{
-					OutDefaultLiteral.Set(FCString::ToBool(*InStringValue));
+					// Currently don't support triggers being initialized to boolean in-graph
+					if (GetMetasoundDataTypeName<FTrigger>() != TypeName)
+					{
+						OutDefaultLiteral.Set(FCString::ToBool(*InStringValue));
+					}
 				}
 				break;
 
@@ -2135,7 +2139,7 @@ namespace Metasound
 						const FName NodeName = NodeHandle->GetNodeName();
 						const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
 						FMetasoundFrontendLiteral DefaultLiteral = GraphHandle->GetDefaultInput(VertexID);
-						if (!DefaultLiteral.IsEquivalent(Literal->GetDefault()))
+						if (!DefaultLiteral.IsEqual(Literal->GetDefault()))
 						{
 							if (DefaultLiteral.GetType() != EMetasoundFrontendLiteralType::None)
 							{

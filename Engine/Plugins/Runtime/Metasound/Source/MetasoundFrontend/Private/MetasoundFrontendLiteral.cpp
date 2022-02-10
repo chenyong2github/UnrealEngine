@@ -192,7 +192,7 @@ bool FMetasoundFrontendLiteral::IsArray() const
 	}
 }
 
-bool FMetasoundFrontendLiteral::IsEquivalent(const FMetasoundFrontendLiteral& InOther) const
+bool FMetasoundFrontendLiteral::IsEqual(const FMetasoundFrontendLiteral& InOther) const
 {
 	if (InOther.GetType() != GetType())
 	{

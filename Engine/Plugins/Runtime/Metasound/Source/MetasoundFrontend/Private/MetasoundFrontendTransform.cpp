@@ -540,9 +540,6 @@ namespace Metasound
 					FNodeHandle ExistingNode = Pair.Key;
 					FMetasoundFrontendVersionNumber InitialVersion = ExistingNode->GetClassMetadata().GetVersion();
 					FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(Pair.Value);
-					FMetasoundFrontendNodeStyle Style = NewNode->GetNodeStyle();
-					Style.bMessageNodeUpdated = NewNode->GetClassMetadata().GetVersion() > InitialVersion;
-					NewNode->SetNodeStyle(Style);
 				}
 
 				InDocument->RemoveUnreferencedDependencies();
@@ -860,7 +857,7 @@ namespace Metasound
 							{
 								if (const FMetasoundFrontendLiteral* Literal = Input->GetClassDefaultLiteral())
 								{
-									if (!Literal->IsEquivalent(DefaultLiteral))
+									if (!Literal->IsEqual(DefaultLiteral))
 									{
 										Input->SetLiteral(DefaultLiteral);
 									}

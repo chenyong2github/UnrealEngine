@@ -724,7 +724,7 @@ namespace Metasound
 
 		FNodeHandle FBaseNodeController::ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion)
 		{
-			const FMetasoundFrontendClassMetadata& Metadata = GetClassMetadata();
+			const FMetasoundFrontendClassMetadata Metadata = GetClassMetadata();
 			const TArray<FMetasoundFrontendClass> Versions = ISearchEngine::Get().FindClassesWithName(Metadata.GetClassName().ToNodeClassName(), false /* bInSortByVersion */);
 
 			auto IsClassOfNewVersion = [InNewVersion](const FMetasoundFrontendClass& RegisteredClass)
@@ -821,6 +821,7 @@ namespace Metasound
 				return this->AsShared();
 			}
 
+			Style.bMessageNodeUpdated = ReplacementNode->GetClassMetadata().GetVersion() > Metadata.GetVersion();
 			ReplacementNode->SetNodeStyle(Style);
 
 			ReplacementNode->IterateInputs([Connections = &InputConnections](FInputHandle InputHandle)
@@ -899,12 +900,17 @@ namespace Metasound
 			Algo::Transform(OutInterfaceUpdates.RegistryClass.Interface.Inputs, OutInterfaceUpdates.AddedInputs, [&](const FMetasoundFrontendClassInput& Input) { return &Input; });
 			for (const FMetasoundFrontendClassInput& Input : NodeClassInterface.Inputs)
 			{
-				auto IsFunctionalEquivalent = [NodeClassInput = &Input](const FMetasoundFrontendClassInput* Iter)
+				auto IsEquivalent = [NodeClassInput = &Input](const FMetasoundFrontendClassInput* Iter)
 				{
-					return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(*NodeClassInput, *Iter);
+					const bool bDefaultEquivalent = Iter->DefaultLiteral.IsEqual(NodeClassInput->DefaultLiteral);
+					if (bDefaultEquivalent)
+					{
+						return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(*NodeClassInput, *Iter);
+					}
+					return false;
 				};
 
-				const int32 Index = OutInterfaceUpdates.AddedInputs.FindLastByPredicate(IsFunctionalEquivalent);
+				const int32 Index = OutInterfaceUpdates.AddedInputs.FindLastByPredicate(IsEquivalent);
 				if (Index == INDEX_NONE)
 				{
 					OutInterfaceUpdates.RemovedInputs.Add(&Input);

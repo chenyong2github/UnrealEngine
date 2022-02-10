@@ -720,55 +720,6 @@ void UMetasoundEditorGraphExternalNode::CacheTitle()
 	CachedTitle = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
 }
 
-UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
-{
-	using namespace Metasound::Editor;
-	using namespace Metasound::Frontend;
-
-	FNodeHandle InitNodeHandle = GetNodeHandle();
-	const FGuid InitNodeID = GetNodeID();
-	const FMetasoundFrontendVersionNumber InitVersion = InitNodeHandle->GetClassMetadata().GetVersion();
-
-	FNodeHandle ReplacementNode = InitNodeHandle->ReplaceWithVersion(InNewVersion);
-	const FGuid ReplacementNodeID = ReplacementNode->GetID();
-
-	if (!ensure(InitNodeID != ReplacementNodeID))
-	{
-		return this;
-	}
-
-	const FMetasoundFrontendNodeStyle& Style = ReplacementNode->GetNodeStyle();
-	FVector2D NodeLocation = FVector2D::ZeroVector;
-	const FVector2D* StyleLocation = Style.Display.Locations.Find(NodeGuid);
-	if (ensure(StyleLocation))
-	{
-		NodeLocation = *StyleLocation;
-	}
-
-	UObject& MetaSound = GetMetasoundChecked();
-	UMetasoundEditorGraphExternalNode* ReplacementEdNode = FGraphBuilder::AddExternalNode(MetaSound, ReplacementNode, NodeLocation, false /* bInSelectNewNode */);
-
-	if (!ensure(ReplacementEdNode))
-	{
-		return this;
-	}
-
-	GetGraph()->RemoveNode(this);
-	MetaSound.Modify();
-
-	if (InitNodeID != ReplacementNodeID)
-	{
-		if (bInPropagateErrorMessages)
-		{
-			ReplacementEdNode->bHasCompilerMessage = bHasCompilerMessage;
-			ReplacementEdNode->ErrorMsg = ErrorMsg;
-			ReplacementEdNode->ErrorType = ErrorType;
-		}
-	}
-
-	return ReplacementEdNode;
-}
-
 bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult)
 {
 	using namespace Metasound::Editor;

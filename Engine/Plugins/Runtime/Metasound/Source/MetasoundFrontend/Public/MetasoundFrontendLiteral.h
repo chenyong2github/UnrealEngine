@@ -95,7 +95,7 @@ public:
 	bool IsArray() const;
 
 	// Returns whether the other literal is value equivalent
-	bool IsEquivalent(const FMetasoundFrontendLiteral& InOther) const;
+	bool IsEqual(const FMetasoundFrontendLiteral& InOther) const;
 
 	// Returns true if the literal is in a valid state (Type != EMetasoundFrontendLiteralType::Invalid)
 	bool IsValid() const;

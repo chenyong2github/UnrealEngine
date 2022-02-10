@@ -136,6 +136,9 @@ namespace Metasound
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
 			void RefreshInterface();
 
+			/** Updates selected node classes to highest class found in the MetaSound Class Registry. */
+			void UpdateSelectedNodeClasses();
+
 			/* Whether the displayed graph is marked as editable */
 			bool IsGraphEditable() const;
 

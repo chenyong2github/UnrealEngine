@@ -208,10 +208,6 @@ public:
 	FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const;
 	bool CanAutoUpdate() const;
 
-	// Attempts to replace this node with a new one of the same class and given version number.
-	// If this node is already of the given version, returns itself. If update fails, returns this node.
-	UMetasoundEditorGraphExternalNode* UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages);
-
 	// Validates node and returns whether or not the node is valid.
 	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
 

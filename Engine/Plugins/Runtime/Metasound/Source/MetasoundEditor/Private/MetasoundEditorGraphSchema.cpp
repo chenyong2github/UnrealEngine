@@ -1046,6 +1046,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
 
 	if (!Context->Pin && Context->Node && Context->Node->IsA<UMetasoundEditorGraphNode>())
 	{
@@ -1061,11 +1062,17 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 		// and node registry is reporting a major update is available.
 		if (const UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Context->Node))
 		{
-			FMetasoundFrontendVersionNumber MajorUpdateVersion = ExternalNode->FindHighestVersionInRegistry();
+			FMetasoundFrontendVersionNumber HighestVersion = ExternalNode->FindHighestVersionInRegistry();
 			Metasound::Frontend::FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
-			if (MajorUpdateVersion.IsValid() && MajorUpdateVersion > NodeHandle->GetClassMetadata().GetVersion())
+			const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+			const bool bHasNewVersion = HighestVersion.IsValid() && HighestVersion > Metadata.GetVersion();
+
+			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
+			const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+
+			if (bHasNewVersion || !bIsClassNative)
 			{
-				Section.AddMenuEntry(FEditorCommands::Get().UpdateNodes);
+				Section.AddMenuEntry(FEditorCommands::Get().UpdateNodeClass);
 			}
 		}
 	}

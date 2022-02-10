@@ -52,8 +52,8 @@ namespace Metasound
 			/** Shows the Metasound's top-level general object settings in the Inspector */
 			TSharedPtr<FUICommandInfo> EditMetasoundSettings;
 
-			// Run updates on selected nodes if required by any subset of selected nodes
-			TSharedPtr<FUICommandInfo> UpdateNodes;
+			// Run updates on selected node(s) class(es) if required by any subset of selected nodes
+			TSharedPtr<FUICommandInfo> UpdateNodeClass;
 
 			// Converts a MetaSound from a restricted, preset edit state to a fully accessible MetaSound.
 			TSharedPtr<FUICommandInfo> ConvertFromPreset;
