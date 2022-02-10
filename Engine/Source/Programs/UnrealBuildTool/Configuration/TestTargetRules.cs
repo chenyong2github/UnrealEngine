@@ -74,8 +74,6 @@ namespace UnrealBuildTool
 				bDebugBuildsActuallyUseDebugCRT = true;
 			}
 
-			GlobalDefinitions.AddRange(TestedTarget.GlobalDefinitions);
-
 			GlobalDefinitions.Add("STATS=0");
 
 			// Platform specific setup

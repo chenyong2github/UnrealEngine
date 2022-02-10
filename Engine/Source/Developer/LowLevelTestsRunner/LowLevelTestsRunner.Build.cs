@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
-public class LowLevelTestsRunner: ModuleRules
+public class LowLevelTestsRunner : ModuleRules
 {
 	public LowLevelTestsRunner(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -14,21 +14,32 @@ public class LowLevelTestsRunner: ModuleRules
 		PublicIncludePaths.AddRange(
 			new string[]
 			{
-				Path.Combine(ModuleDirectory, "Public"),
+				"Runtime/Launch/Public",
 				Path.Combine(Target.UEThirdPartySourceDirectory, "Catch2")
 			}
 		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				Path.Combine(ModuleDirectory, "Private")
+				"Runtime/Launch/Private"
 			}
 		);
 
-		PublicIncludePathModuleNames.AddRange(
-				new string[] {
-					"Core"
-				}
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"Projects"
+			}
 		);
+
+		if (Target.bCompileAgainstApplicationCore)
+		{
+			PrivateDependencyModuleNames.Add("ApplicationCore");
+		}
+
+		if (Target.bCompileAgainstCoreUObject)
+		{
+			PrivateDependencyModuleNames.Add("CoreUObject");
+		}
 	}
 }

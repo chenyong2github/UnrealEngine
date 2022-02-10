@@ -53,13 +53,8 @@ namespace UnrealBuildTool
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"Core",
-					"Projects",
 					"LowLevelTestsRunner"
 				});
-
-			PrivateIncludePaths.Add("Runtime/Launch/Private");
-			PrivateIncludePathModuleNames.Add("Launch");
 
 			// Tests can refer to tested module's Public and Private paths
 			string ModulePublicDir = Path.Combine(TestedModule.ModuleDirectory, "Public");

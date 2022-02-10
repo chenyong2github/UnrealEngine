@@ -4,7 +4,48 @@
 
 #include "TestRunner.h"
 #include "TestHarness.h"
+#include "Modules/ModuleManager.h"
 #include "HAL/PlatformTLS.h"
+
+#include "CommonEngineInit.inl"
+
+// TODO: Implement global initialization via flags
+#if WITH_ENGINE || WITH_EDITOR || WITH_APPLICATION_CORE || WITH_COREUOBJECT
+#define USE_GLOBAL_ENGINE_SETUP
+#endif
+
+
+void GlobalSetup()
+{
+	if (bGAllowLogging)
+	{
+		FCommandLine::Set(TEXT(""));
+	}
+	else
+	{
+		FCommandLine::Set(TEXT(R"(-LogCmds="global off")"));
+		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
+	}
+	InitThreadPool();
+	InitAsyncQueues();
+	InitTaskGraph();
+	InitOutputDevices();
+	InitRendering();
+	InitDerivedDataCache();
+	InitSlate();
+	InitForWithEditorOnlyData();
+	InitEditor();
+	InitCoreUObject();
+}
+
+void GlobalTeardown()
+{
+	CleanupCoreUObject();
+	CleanupThreadPool();
+	CleanupTaskGraph();
+	CleanupPlatform();
+}
+
 
 int RunTests(int argc, const char* argv[])
 {
@@ -17,7 +58,17 @@ int RunTests(int argc, const char* argv[])
 	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 #endif
 
-	Setup();
+// Global initialization
+#ifdef USE_GLOBAL_ENGINE_SETUP
+	GlobalSetup();
+#endif
+
+	TArray<FName> ModuleNames;
+	FModuleManager::Get().FindModules(TEXT("*LowLevelTests"), ModuleNames);
+	for (FName ModuleName : ModuleNames)
+	{
+		FModuleManager::Get().LoadModule(ModuleName);
+	}
 
 	//Read command-line from file (if any). Some platforms do this earlier.
 #ifndef PLATFORM_SKIP_ADDITIONAL_ARGS
@@ -66,17 +117,6 @@ int RunTests(int argc, const char* argv[])
 		}
 	}
 
-	// Clear after init so that in windows it is actually clear during the test.
-	if (bGAllowLogging)
-	{
-		FCommandLine::Set(TEXT(""));
-	}
-	else
-	{
-		FCommandLine::Set(TEXT(R"(-LogCmds="global off")"));
-		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
-	}
-
 	int SessionResult = 0;
 	{
 		TGuardValue<bool> CatchRunning(bCatchIsRunning, true);
@@ -84,7 +124,15 @@ int RunTests(int argc, const char* argv[])
 		CatchArgv.Reset();
 	}
 
-	Teardown();
+	for (FName ModuleName : ModuleNames)
+	{
+		FModuleManager::Get().UnloadModule(ModuleName);
+	}
+
+// Global cleanup
+#if defined(USE_GLOBAL_ENGINE_SETUP)
+	GlobalTeardown();
+#endif
 
 #if PLATFORM_DESKTOP
 	if (bWaitForInputToTerminate)

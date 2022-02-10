@@ -2,18 +2,36 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
+#include "Async/TaskGraphInterfaces.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformOutputDevices.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/QueuedThreadPool.h"
+
+#if WITH_APPLICATION_CORE
 #include "HAL/PlatformApplicationMisc.h"
+#endif // WITH_APPLICATION_CORE
 
-#include "RenderUtils.h"
-#include "ShaderParameterMetadata.h"
-
-#if WITH_EDITORONLY_DATA
-#include "DerivedDataBuild.h"
-#include "DerivedDataCache.h"
-#endif // WITH_EDITORONLY_DATA
-
+#if WITH_ENGINE
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
+#include "RenderUtils.h"
+#include "ShaderParameterMetadata.h"
+#endif // WITH_ENGINE
+
+#if WITH_EDITORONLY_DATA && defined(DERIVEDDATACACHE_API)
+#include "DerivedDataBuild.h"
+#include "DerivedDataCache.h"
+#endif // WITH_EDITORONLY_DATA && defined(DERIVEDDATACACHE_API)
+
+#if WITH_COREUOBJECT
+#include "UObject/Package.h"
+#include "UObject/PackageResourceManager.h"
+#endif // WITH_COREUOBJECT
 
 /**
  * A lot of what's in this file was taken from LaunchEngineLoop.cpp.
@@ -22,6 +40,7 @@
 
 void InitThreadPool()
 {
+#if WITH_EDITOR
 	{
 		int32 NumThreadsInLargeThreadPool = FMath::Max( FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2 );
 		int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
@@ -40,12 +59,12 @@ void InitThreadPool()
 		constexpr int32 StackSize = 128 * 1024;
 
 		// TaskGraph has it's HP threads slightly below normal, we want to be below the taskgraph HP threads to avoid interfering with the game-thread.
-		verify( GLargeThreadPool->Create( NumThreadsInLargeThreadPool, StackSize, TPri_BelowNormal, TEXT("LargeThreadPool") ) );
+		verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize, TPri_BelowNormal, TEXT("LargeThreadPool")));
 
 		// GThreadPool will schedule on the LargeThreadPool but limit max concurrency to the given number.
 		GThreadPool = new FQueuedThreadPoolWrapper( GLargeThreadPool, NumThreadsInThreadPool );
 	}
-
+#endif // WITH_EDITOR
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		GIOThreadPool = FQueuedThreadPool::Allocate();
@@ -54,10 +73,56 @@ void InitThreadPool()
 	}
 }
 
+void CleanupThreadPool()
+{
+	if (GThreadPool != nullptr)
+	{
+		GThreadPool->Destroy();
+	}
+	if (GBackgroundPriorityThreadPool != nullptr)
+	{
+		GBackgroundPriorityThreadPool->Destroy();
+	}
+	if (GIOThreadPool != nullptr)
+	{
+		GIOThreadPool->Destroy();
+	}
+}
+
 void InitTaskGraph()
 {
-	FTaskGraphInterface::Startup( FPlatformMisc::NumberOfWorkerThreadsToSpawn() );
-	FTaskGraphInterface::Get().AttachToThread( ENamedThreads::GameThread );
+	FTaskGraphInterface::Startup(bMultithreaded ? FPlatformMisc::NumberOfWorkerThreadsToSpawn() : 1);
+	FTaskGraphInterface::Get().AttachToThread(ENamedThreads::GameThread);
+}
+
+void CleanupTaskGraph()
+{
+	FTaskGraphInterface::Shutdown();
+}
+
+void InitCoreUObject()
+{
+#if WITH_COREUOBJECT
+	if (!GetTransientPackage())
+	{
+		FModuleManager::Get().AddExtraBinarySearchPaths();
+		FConfigCacheIni::InitializeConfigSystem();
+		FPlatformFileManager::Get().InitializeNewAsyncIO();
+
+		FModuleManager::Get().LoadModule(TEXT("CoreUObject"));
+		FCoreDelegates::OnInit.Broadcast();
+		ProcessNewlyLoadedUObjects();
+	}
+#endif // WITH_COREUOBJECT
+}
+
+void CleanupCoreUObject()
+{
+#if WITH_COREUOBJECT
+	FCoreDelegates::OnPreExit.Broadcast();
+	MALLOC_PROFILER(GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog); );
+	FCoreDelegates::OnExit.Broadcast();
+#endif // WITH_COREUOBJECT
 }
 
 void InitOutputDevices()
@@ -80,6 +145,7 @@ void InitStats()
 
 void InitRendering()
 {
+#if WITH_ENGINE
 	FShaderParametersMetadata::InitializeAllUniformBufferStructs();
 
 	{
@@ -92,11 +158,12 @@ void InitRendering()
 		// One-time initialization of global variables based on engine configuration.
 		RenderUtilsInit();
 	}
+#endif // WITH_ENGINE
 }
 
-#if WITH_EDITORONLY_DATA
 void InitDerivedDataCache()
 {
+#if WITH_EDITORONLY_DATA && defined(DERIVEDDATACACHE_API)
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Ensure that DDC is initialized from the game thread.
@@ -104,20 +171,24 @@ void InitDerivedDataCache()
 		UE::DerivedData::GetCache();
 		GetDerivedDataCacheRef();
 	}
+#endif // WITH_EDITORONLY_DATA && defined(DERIVEDDATACACHE_API)
 }
-#endif // WITH_EDITORONLY_DATA
+
 
 void InitAsyncQueues()
 {
+#if WITH_ENGINE
 	check(!GDistanceFieldAsyncQueue);
 	GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
 	check(!GCardRepresentationAsyncQueue);
 	GCardRepresentationAsyncQueue = new FCardRepresentationAsyncQueue();
+#endif // WITH_ENGINE
 }
 
 void InitSlate()
 {
+#if WITH_EDITOR
 	FSlateApplication::Create();
 
 	TSharedPtr<FSlateRenderer> SlateRenderer = FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer();
@@ -126,6 +197,7 @@ void InitSlate()
 	// If Slate is being used, initialize the renderer after RHIInit
 	FSlateApplication& CurrentSlateApp = FSlateApplication::Get();
 	CurrentSlateApp.InitializeRenderer(SlateRendererSharedRef);
+#endif // WITH_EDITOR
 }
 
 void InitForWithEditorOnlyData()
@@ -134,16 +206,16 @@ void InitForWithEditorOnlyData()
 	//Initialize the PackageResourceManager, which is needed to load any (non-script) Packages. It is first used in ProcessNewlyLoadedObjects (due to the loading of asset references in Class Default Objects)
 	// It has to be intialized after the AssetRegistryModule; the editor implementations of PackageResourceManager relies on it
 	IPackageResourceManager::Initialize();
-#endif
+#endif // WITH_COREUOBJECT
 #if WITH_EDITOR
 	// Initialize the BulkDataRegistry, which registers BulkData structs loaded from Packages for later building. It uses the same lifetime as IPackageResourceManager
 	IBulkDataRegistry::Initialize();
-#endif
+#endif // WITH_EDITOR
 }
 
-#if WITH_EDITOR
 void InitEditor()
 {
+#if WITH_EDITOR
 	FModuleManager::Get().LoadModuleChecked("UnrealEd");
 
 	GIsEditor = true;
@@ -151,5 +223,12 @@ void InitEditor()
 
 	GEngine->ParseCommandline();
 	GEditor->InitEditor(&GEngineLoop);
-}
 #endif // #if WITH_EDITOR
+}
+
+void CleanupPlatform()
+{
+	FPlatformMisc::PlatformTearDown();
+	FGenericPlatformMisc::RequestExit(false);
+}
+
