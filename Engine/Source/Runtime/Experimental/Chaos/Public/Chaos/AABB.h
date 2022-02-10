@@ -475,6 +475,12 @@ namespace Chaos
 			}
 		}
 
+		FORCEINLINE TAABB<T, d>& ScaleWithNegative(const TVector<T, d>& InScale)
+		{
+			*this = FromPoints(MMin * InScale, MMax * InScale);
+			return *this;
+		}
+
 		/**
 		* Scale the AABB relative to the origin
 		* IMPORTANT : this does not support negative scale

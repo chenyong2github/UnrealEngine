@@ -21,6 +21,11 @@ namespace Chaos
 	bool TriMeshPerPolySupport = 1;
 	FAutoConsoleVariableRef CVarPerPolySupport(TEXT("p.Chaos.TriMeshPerPolySupport"), TriMeshPerPolySupport, TEXT("Disabling removes memory cost of vertex map on triangle mesh. Note: Changing at runtime will not work."));
 
+	FReal GetWindingOrder(const FVec3& Scale)
+	{
+		const FVec3 SignVector = Scale.GetSignVector();
+		return SignVector.X * SignVector.Y * SignVector.Z;
+	}
 
 template <typename QueryGeomType>
 static auto MakeScaledHelper(const QueryGeomType& B, const FVec3& InvScale)
@@ -360,7 +365,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 	FAABB3 QueryBounds = WorldScaleGeom.BoundingBox();
 	QueryBounds = QueryBounds.TransformedAABB(TriMeshToGeomNoScale);
 	QueryBounds.ThickenSymmetrically(FVec3(WorldThickness));
-	QueryBounds.Scale(InvTriMeshScale);
+	QueryBounds.ScaleWithNegative(InvTriMeshScale);
 
 	TRigidTransform<FReal, 3> WorldScaleQueryTM;
 	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
@@ -480,7 +485,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	FAABB3 QueryBounds = WorldScaleGeom.BoundingBox();
 	QueryBounds = QueryBounds.TransformedAABB(TriMeshToGeomNoScale);
 	QueryBounds.ThickenSymmetrically(FVec3(WorldThickness));
-	QueryBounds.Scale(InvTriMeshScale);
+	QueryBounds.ScaleWithNegative(InvTriMeshScale);
 
 	TRigidTransform<FReal, 3> WorldScaleQueryTM;
 	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
@@ -748,7 +753,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 	FAABB3 QueryBounds = WorldScaleQueryGeom.BoundingBox();
 	QueryBounds = QueryBounds.TransformedAABB(TriMeshToGeomNoScale);
 	QueryBounds.ThickenSymmetrically(FVec3(Thickness));
-	QueryBounds.Scale(InvTriMeshScale);
+	QueryBounds.ScaleWithNegative(InvTriMeshScale);
 
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
@@ -991,12 +996,6 @@ void ComputeScaledSweepInputs(FVec3 TriMeshScale, const FRigidTransform3& StartT
 
 	OutLengthScale = LengthScale;
 	OutScaledStartTM = FRigidTransform3(StartTM.GetLocation() * TriMeshScale, StartTM.GetRotation());
-}
-
-FReal GetWindingOrder(const FVec3& Scale)
-{
-	const FVec3 SignVector = Scale.GetSignVector();
-	return SignVector.X * SignVector.Y * SignVector.Z;
 }
 
 template <typename QueryGeomType>
