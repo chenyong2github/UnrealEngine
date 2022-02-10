@@ -146,7 +146,7 @@ namespace FXConsoleVariables
 		TEXT("FX.AllowGPUSorting"),
 		bAllowGPUSorting,
 		TEXT("Allow particles to be sorted on the GPU."),
-		ECVF_ReadOnly
+		ECVF_ReadOnly | ECVF_Preview
 		);
 	FAutoConsoleVariableRef CVarFreezeGPUSimulation(
 		TEXT("FX.FreezeGPUSimulation"),
