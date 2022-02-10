@@ -128,7 +128,7 @@ public:
 	UE_API bool IsServiceReady();
 	UE_API bool IsServiceRunningLocally() const { return bIsRunningLocally; }
 
-	static UE_API uint16 GetAutoLaunchedPort() { return AutoLaunchedPort; }
+	static UE_API uint16 GetAutoLaunchedPort();
 
 private:
 

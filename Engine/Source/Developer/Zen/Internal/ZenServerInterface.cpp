@@ -636,6 +636,12 @@ FZenServiceInstance::IsServiceReady()
 	return false;
 }
 
+uint16
+FZenServiceInstance::GetAutoLaunchedPort()
+{
+	return AutoLaunchedPort;
+}
+
 void
 FZenServiceInstance::Initialize()
 {
