@@ -7,6 +7,7 @@
 #include "UsdWrappers/ForwardDeclarations.h"
 
 class AUsdStageActor;
+class FScopedBlockMonitoringChangesForTransaction;
 class FUsdLevelSequenceHelperImpl;
 class ULevelSequence;
 class UUsdAssetCache;
@@ -68,6 +69,7 @@ public:
 	TArray< ULevelSequence* > GetSubSequences() const;
 
 private:
+	friend class FScopedBlockMonitoringChangesForTransaction;
 	TUniquePtr<FUsdLevelSequenceHelperImpl> UsdSequencerImpl;
 };
 
@@ -75,6 +77,7 @@ class USDSTAGE_API FScopedBlockMonitoringChangesForTransaction final
 {
 public:
 	explicit FScopedBlockMonitoringChangesForTransaction( FUsdLevelSequenceHelper& InHelper );
+	explicit FScopedBlockMonitoringChangesForTransaction( FUsdLevelSequenceHelperImpl& InHelperImpl );
 	~FScopedBlockMonitoringChangesForTransaction();
 
 	FScopedBlockMonitoringChangesForTransaction() = delete;
@@ -84,6 +87,6 @@ public:
 	FScopedBlockMonitoringChangesForTransaction& operator=( FScopedBlockMonitoringChangesForTransaction&& ) = delete;
 
 private:
-	FUsdLevelSequenceHelper& Helper;
+	FUsdLevelSequenceHelperImpl& HelperImpl;
 	bool bStoppedMonitoringChanges = false;
 };
