@@ -122,8 +122,13 @@ void TraceRay(
 		uint NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
 		uint MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
 
+		uint NumHeightfields = NumGridCulledHeightfieldObjects[CardGridCellIndex];
+		uint HeightfieldStartOffset = GridCulledHeightfieldObjectStartOffsetArray[CardGridCellIndex];
+
 		TraceInput.NumMeshSDFs = NumMeshSDFs;
 		TraceInput.MeshSDFStartOffset = MeshSDFStartOffset;
+		TraceInput.NumHeightfields = NumHeightfields;
+		TraceInput.HeightfieldStartOffset = HeightfieldStartOffset;
 		TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
 		//@todo - derive from card texel size
 		TraceInput.CardInterpolateDepthVisibilityRadius = 10;

@@ -294,7 +294,7 @@ void CullForCardTracing(
 	const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, CardGridSizeZ);
 	MeshSDFGridParameters.CullGridSize = CullGridSize;
 
-	CullMeshSDFObjectsToViewGrid(
+	CullMeshObjectsToViewGrid(
 		View,
 		Scene,
 		IndirectTracingParameters.MaxMeshSDFTraceDistance,

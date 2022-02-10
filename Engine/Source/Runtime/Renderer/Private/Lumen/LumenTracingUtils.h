@@ -135,8 +135,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridParameters, )
 	SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
 	SHADER_PARAMETER(FVector3f, CardGridZParams)
 	SHADER_PARAMETER(FIntVector, CullGridSize)
+	// Heightfield data
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledHeightfieldObjects)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledHeightfieldObjectIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumGridCulledHeightfieldObjects)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledHeightfieldObjectStartOffsetArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledHeightfieldObjectIndicesArray)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenIndirectTracingParameters, )
@@ -186,7 +190,7 @@ extern void CullHeightfieldObjectsForView(
 	FRDGBufferRef& NumCulledObjects,
 	FRDGBufferRef& CulledObjectIndexBuffer);
 
-extern void CullMeshSDFObjectsToViewGrid(
+extern void CullMeshObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
 	float MaxMeshSDFInfluenceRadius,

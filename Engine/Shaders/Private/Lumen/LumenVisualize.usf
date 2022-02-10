@@ -120,6 +120,8 @@ void VisualizeQuadsCS(
 #endif
 
 #if SCENE_TRACE_HEIGHTFIELDS
+	TraceInput.NumHeightfields = NumGridCulledHeightfieldObjects[CardGridCellIndex];
+	TraceInput.HeightfieldStartOffset = GridCulledHeightfieldObjectStartOffsetArray[CardGridCellIndex];
 	ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 #endif
 

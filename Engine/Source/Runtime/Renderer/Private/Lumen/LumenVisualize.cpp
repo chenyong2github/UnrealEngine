@@ -796,7 +796,7 @@ void VisualizeLumenScene(
 		{
 			const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxMeshSDFTraceDistance;
 
-			CullMeshSDFObjectsToViewGrid(
+			CullMeshObjectsToViewGrid(
 				View,
 				Scene,
 				0,

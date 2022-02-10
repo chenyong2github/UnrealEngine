@@ -411,6 +411,9 @@ void TraceMeshSDFs(
 
 	FConeTraceResult TraceResult;
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
+
+	TraceInput.NumHeightfields = NumGridCulledHeightfieldObjects[CardGridCellIndex];
+	TraceInput.HeightfieldStartOffset = GridCulledHeightfieldObjectStartOffsetArray[CardGridCellIndex];
 	ConeTraceLumenSceneHeightfields(TraceInput, TraceResult);
 
 	// Trace against hair voxel structure, if enabled and not already done by other tracing method

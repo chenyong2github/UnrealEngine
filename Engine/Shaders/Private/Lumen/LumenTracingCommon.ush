@@ -282,6 +282,10 @@ struct FConeTraceInput
 	float CardInterpolateInfluenceRadius;
 	float CardInterpolateDepthVisibilityRadius;
 
+	// Heightfield traces
+	uint NumHeightfields;
+	uint HeightfieldStartOffset;
+
 	void Setup(
 		float3 InConeOrigin,
 		float3 InConeDirection,
@@ -779,6 +783,10 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 Buffer<uint> NumCulledHeightfieldObjects;
 Buffer<uint> CulledHeightfieldObjectIndexBuffer;
 
+Buffer<uint> NumGridCulledHeightfieldObjects;
+Buffer<uint> GridCulledHeightfieldObjectStartOffsetArray;
+Buffer<uint> GridCulledHeightfieldObjectIndicesArray;
+
 struct FConeTraceHeightfieldSimpleResult
 {
 	bool bIsHit;
@@ -984,10 +992,20 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 	TraceMeshHeightfieldResult.HitDistance = TraceInput.MaxTraceDistance;
 
 	bool bHitFrontFace = false;
+#if USE_HEIGHTFIELD_VIEW_CULLING_ONLY
+	uint NumHeightfields = NumCulledHeightfieldObjects[0];
+#else // Use froxel-based culling
+	uint NumHeightfields = TraceInput.NumHeightfields;
+#endif
 
 #if SCENE_TRACE_HEIGHTFIELDS
-	for (uint HeightfieldObjectIndex = 0; HeightfieldObjectIndex < LumenCardScene.NumHeightfields; HeightfieldObjectIndex++)
+	for (uint Index = 0; Index < NumHeightfields; Index++)
 	{
+#if USE_HEIGHTFIELD_VIEW_CULLING_ONLY
+		uint HeightfieldObjectIndex = CulledHeightfieldObjectIndexBuffer[Index];
+#else // Use froxel-based culling
+		uint HeightfieldObjectIndex = GridCulledHeightfieldObjectIndicesArray[TraceInput.HeightfieldStartOffset + Index];
+#endif
 		FConeTraceHeightfieldSimpleResult SimpleResult = ConeTraceHeightfieldSimple(TraceInput, HeightfieldObjectIndex);
 
 		if (SimpleResult.bIsHit && (SimpleResult.HitDistance < TraceMeshHeightfieldResult.HitDistance))
@@ -1027,7 +1045,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 		OutResult.Transparency = 0;
 	}
 #endif
-
+	OutResult.NumOverlaps = NumHeightfields;
 	OutResult.OpaqueHitDistance = TraceMeshHeightfieldResult.HitDistance;
 	return TraceMeshHeightfieldResult;
 }
