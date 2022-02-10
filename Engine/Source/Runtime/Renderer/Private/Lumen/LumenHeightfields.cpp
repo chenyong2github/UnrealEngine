@@ -4,7 +4,7 @@
 #include "RendererPrivate.h"
 #include "ComponentRecreateRenderStateContext.h"
 
-static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
+TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
 	TEXT("r.LumenScene.Heightfield.Tracing"),
 	1,
 	TEXT("Enables heightfield (Landscape) software ray tracing (default = 1)"),
@@ -12,7 +12,7 @@ static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
 	{
 		Lumen::DebugResetVoxelLighting();
 	}),
-	ECVF_Scalability | ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe
 );
 
 bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData)

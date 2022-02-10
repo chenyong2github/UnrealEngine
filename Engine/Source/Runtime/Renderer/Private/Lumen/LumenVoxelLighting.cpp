@@ -214,6 +214,28 @@ FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
 		CameraOrigin += CameraVelocityOffset;
 	}
 
+	// Frozen camera
+	if (View.ViewState)
+	{
+		if (Lumen::ShouldUpdateLumenSceneViewOrigin())
+		{
+			View.ViewState->bGlobalDistanceFieldUpdateViewOrigin = true;
+		}
+		else
+		{
+			if (View.ViewState->bGlobalDistanceFieldUpdateViewOrigin)
+			{
+				View.ViewState->GlobalDistanceFieldLastViewOrigin = View.ViewMatrices.GetViewOrigin();
+				View.ViewState->bGlobalDistanceFieldUpdateViewOrigin = false;
+			}
+		}
+
+		if (!View.ViewState->bGlobalDistanceFieldUpdateViewOrigin)
+		{
+			CameraOrigin = View.ViewState->GlobalDistanceFieldLastViewOrigin;
+		}
+	}
+
 	return CameraOrigin;
 }
 

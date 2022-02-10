@@ -1076,6 +1076,8 @@ public:
 	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GMaxGlobalDistanceFieldClipmaps];
 	int32 GlobalDistanceFieldUpdateIndex;
 	FVector GlobalDistanceFieldCameraVelocityOffset;
+	bool bGlobalDistanceFieldUpdateViewOrigin = true;
+	FVector GlobalDistanceFieldLastViewOrigin = FVector(0);
 
 	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListAllocatorBuffer;
 	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListBuffer;

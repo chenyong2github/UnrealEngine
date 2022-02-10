@@ -111,7 +111,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 				float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, ClipmapIndex);
 				float3 MipUV = ComputeGlobalMipUV(SampleWorldPosition, ClipmapIndex);
 
-				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearWrappedSampler, MipUV, 0).x;
+				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearClampedSampler, MipUV, 0).x;
 				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);
 				uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 				if (PageIndex < 0xFFFF && DistanceFieldMipValue < GlobalDistanceFieldMipTransition)

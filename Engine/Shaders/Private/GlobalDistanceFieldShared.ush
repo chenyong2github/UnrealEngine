@@ -31,6 +31,8 @@
 	#define GlobalVolumeWorldToUVAddAndMul				View.GlobalVolumeWorldToUVAddAndMul
 	#define GlobalDistanceFieldMipWorldToUVScale		View.GlobalDistanceFieldMipWorldToUVScale
 	#define GlobalDistanceFieldMipWorldToUVBias			View.GlobalDistanceFieldMipWorldToUVBias
+	#define GlobalDistanceFieldMipUVMinZ				View.GlobalDistanceFieldMipUVMinZ
+	#define GlobalDistanceFieldMipUVMaxZ				View.GlobalDistanceFieldMipUVMaxZ
 	#define GlobalDistanceFieldMipFactor				View.GlobalDistanceFieldMipFactor
 	#define GlobalDistanceFieldMipTransition			View.GlobalDistanceFieldMipTransition
 	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
@@ -118,7 +120,14 @@ float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
 
 float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
 {
-	return saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].xyz);
+	float3 MipUV = saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].xyz);
+
+	// Clamp MipUV.z to a valid bilinear region to prevent filtering across clipmaps
+	float MinUVMinZ = GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].w;
+	float MinUVMaxZ = GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].w;
+	MipUV.z = clamp(MipUV.z, MinUVMinZ, MinUVMaxZ);
+
+	return MipUV;
 }
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)

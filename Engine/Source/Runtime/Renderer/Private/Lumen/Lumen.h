@@ -56,6 +56,7 @@ namespace Lumen
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 
+	bool ShouldUpdateLumenSceneViewOrigin();
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
 	float GetFirstClipmapWorldExtent();

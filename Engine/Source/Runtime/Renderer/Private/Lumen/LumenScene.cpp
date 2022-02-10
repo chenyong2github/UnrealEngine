@@ -18,6 +18,18 @@ FAutoConsoleVariableRef CVarLumenSceneUploadEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarLumenSceneUpdateViewOrigin(
+	TEXT("r.LumenScene.UpdateViewOrigin"),
+	1,
+	TEXT("Whether to update view origin for voxel lighting and global distance field. Useful for debugging."),
+	ECVF_RenderThreadSafe
+);
+
+bool Lumen::ShouldUpdateLumenSceneViewOrigin()
+{
+	return CVarLumenSceneUpdateViewOrigin.GetValueOnRenderThread() != 0;
+}
+
 class FLumenCardPageGPUData
 {
 public:
