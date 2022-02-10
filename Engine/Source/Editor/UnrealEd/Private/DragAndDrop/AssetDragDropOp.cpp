@@ -210,6 +210,7 @@ void FAssetDragDropOp::Init(TArray<FAssetData> InAssetData, TArray<FString> InAs
 	// Can cause unsafe frame reentry 
 	for (FAssetData& Data : AssetData)
 	{
+		FScopedLoadAllExternalObjects Scope(Data.PackageName);
 		Data.GetAsset();
 	}
 
