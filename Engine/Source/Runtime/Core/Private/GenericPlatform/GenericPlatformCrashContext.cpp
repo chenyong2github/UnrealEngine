@@ -84,6 +84,10 @@ int32 FGenericCrashContext::StaticCrashContextIndex = 0;
 
 const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+FAdditionalCrashContextDelegate FGenericCrashContext::AdditionalCrashContextDelegate;
+#endif //WITH_ADDITIONAL_CRASH_CONTEXTS
+
 namespace NCached
 {
 	static FSessionContext Session;
@@ -1403,6 +1407,7 @@ void FGenericCrashContext::DumpAdditionalContext(const TCHAR* CrashFolderAbsolut
 {
 #if WITH_ADDITIONAL_CRASH_CONTEXTS 
 	FCrashContextExtendedWriterImpl Writer(CrashFolderAbsolute);
+	AdditionalCrashContextDelegate.Broadcast(Writer);
 	FAdditionalCrashContextStack::ExecuteProviders(Writer);
 #endif
 }

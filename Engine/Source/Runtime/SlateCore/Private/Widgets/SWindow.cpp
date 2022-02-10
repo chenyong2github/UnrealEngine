@@ -3,6 +3,7 @@
 #include "Widgets/SWindow.h"
 #include "Application/SlateWindowHelper.h"
 #include "Application/SlateApplicationBase.h"
+#include "Debugging/SlateCrashReporterHandler.h"
 #include "Layout/WidgetPath.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -2066,6 +2067,8 @@ int32 SWindow::PaintSlowPath(const FSlateInvalidationContext& Context)
 
 int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowElementList& OutDrawElements, const FWidgetStyle& InWidgetStyle, bool bParentEnabled )
 {
+	UE_SLATE_CRASH_REPORTER_PAINT_SCOPE(*this);
+
 	OutDrawElements.BeginDeferredGroup();
 
 	const bool HittestCleared = HittestGrid->SetHittestArea(GetPositionInScreen(), GetViewportSize());

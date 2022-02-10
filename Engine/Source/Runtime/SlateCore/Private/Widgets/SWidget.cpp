@@ -15,6 +15,7 @@
 #include "Application/ActiveTimerHandle.h"
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
+#include "Debugging/SlateCrashReporterHandler.h"
 #include "Debugging/WidgetList.h"
 #include "Widgets/SWindow.h"
 #include "Trace/SlateTrace.h"
@@ -679,6 +680,7 @@ void SWidget::SlatePrepass()
 
 void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 {
+	UE_SLATE_CRASH_REPORTER_PREPASS_SCOPE(*this);
 	SCOPE_CYCLE_COUNTER(STAT_SlatePrepass);
 
 	if (!GSlateIsOnFastUpdatePath || bNeedsPrepass)

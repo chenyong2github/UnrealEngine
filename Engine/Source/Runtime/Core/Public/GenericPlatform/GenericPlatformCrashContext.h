@@ -225,6 +225,25 @@ struct FSharedCrashContext
 	void*					ExceptionProgramCounter;
 };
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+
+/**
+ * Interface for callbacks to add context to the crash report.
+ */
+struct FCrashContextExtendedWriter
+{
+	/** Adds a named buffer to the report. Intended for larger payloads. */
+	CORE_API virtual void AddBuffer(const TCHAR* Identifier, const uint8* Data, uint32 DataSize) = 0;
+
+	/** Add a named buffer containing a string to the report. */
+	CORE_API virtual void AddString(const TCHAR* Identifier, const TCHAR* DataStr) = 0;
+};
+
+/** Simple Delegate for additional crash context. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FAdditionalCrashContextDelegate, FCrashContextExtendedWriter&);
+
+#endif //WITH_ADDITIONAL_CRASH_CONTEXTS
+
 /**
  *	Contains a runtime crash's properties that are common for all platforms.
  *	This may change in the future.
@@ -428,11 +447,25 @@ public:
 	/** Notify the crash context exit has been requested. */
 	static void SetEngineExit(bool bIsRequestExit);
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+	/** Delegate for additional crash context. */
+	static FAdditionalCrashContextDelegate& OnAdditionalCrashContextDelegate()
+	{
+		return AdditionalCrashContextDelegate;
+	}
+#endif //WITH_ADDITIONAL_CRASH_CONTEXTS
+
 	/** Sets the process id to that has crashed. On supported platforms this will analyze the given process rather than current. Default is current process. */
-	void SetCrashedProcess(const FProcHandle& Process) { ProcessHandle = Process; }
+	void SetCrashedProcess(const FProcHandle& Process)
+	{
+		ProcessHandle = Process;
+	}
 
 	/** Stores crashing thread id. */
-	void SetCrashedThreadId(uint32 InId) { CrashedThreadId = InId; }
+	void SetCrashedThreadId(uint32 InId)
+	{
+		CrashedThreadId = InId;
+	}
 
 	/** Sets the number of stack frames to ignore when symbolicating from a minidump */
 	void SetNumMinidumpFramesToIgnore(int32 InNumMinidumpFramesToIgnore);
@@ -571,6 +604,11 @@ private:
 	/**	Static counter records how many crash contexts have been constructed */
 	static int32 StaticCrashContextIndex;
 
+#if WITH_ADDITIONAL_CRASH_CONTEXTS
+	/** Delegate for additional crash context. */
+	static FAdditionalCrashContextDelegate AdditionalCrashContextDelegate;
+#endif //WITH_ADDITIONAL_CRASH_CONTEXTS
+
 	/** The buffer used to store the crash's properties. */
 	mutable FString CommonBuffer;
 
@@ -598,18 +636,6 @@ namespace RecoveryService
 }
 
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
-
-/**
- * Interface for callbacks to add context to the crash report.
- */
-struct FCrashContextExtendedWriter
-{
-	/** Adds a named buffer to the report. Intended for larger payloads. */
-	CORE_API virtual void AddBuffer(const TCHAR* Identifier, const uint8* Data, uint32 DataSize) = 0;
-		
-	/** Add a named buffer containing a string to the report. */
-	CORE_API virtual void AddString(const TCHAR* Identifier, const TCHAR* DataStr) = 0;
-};
 
 /**
  * A thread local stack of callbacks that can be issued at time of the crash.
