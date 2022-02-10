@@ -1890,7 +1890,7 @@ namespace Metasound
 					}
 
 					FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
-					if (InputHandle->IsValid())
+					if (InputHandle->IsValid() && InputHandle->GetDataType() != GetMetasoundDataTypeName<FTrigger>())
 					{
 						FMetasoundFrontendLiteral LiteralValue;
 						if (FGraphBuilder::GetPinLiteral(*Pin, LiteralValue))

@@ -540,9 +540,9 @@ namespace Metasound
 			{
 				if (UMetasoundEditorGraphMemberNode* Node = Cast<UMetasoundEditorGraphMemberNode>(&GetMetaSoundNode()))
 				{
-					if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(Node->GetMember()))
+					if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(Node->GetMember()))
 					{
-						if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Vertex->GetLiteral())
+						if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Input->GetLiteral())
 						{
 							TAttribute<EVisibility> SimVisibility = GetSimulationVisibilityAttribute();
 							TAttribute<bool> SimEnablement = true;
