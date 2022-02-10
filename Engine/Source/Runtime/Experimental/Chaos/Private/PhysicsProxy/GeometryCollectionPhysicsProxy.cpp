@@ -24,6 +24,7 @@
 #include "Chaos/PBDRigidClustering.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
+#include "GeometryCollection/GeometryCollectionSizeSpecificUtility.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Modules/ModuleManager.h"
@@ -921,27 +922,7 @@ FAutoConsoleVariableRef CVarReportNoLevelsetCluster(TEXT("p.gc.ReportNoLevelsetC
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters"), STAT_BuildClusters, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters:GlobalMatrices"), STAT_BuildClustersGlobalMatrices, STATGROUP_Chaos);
 
-int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, Chaos::FReal Volume)
-{
-	check(SizeSpecificData.Num());
-	int32 UseIdx = 0;
-	float PreSize = FLT_MAX;
-	for (int32 Idx = SizeSpecificData.Num() - 1; Idx >= 0; --Idx)
-	{
-		ensureMsgf(PreSize >= SizeSpecificData[Idx].MaxSize, TEXT("SizeSpecificData is not sorted"));
-		PreSize = SizeSpecificData[Idx].MaxSize;
-		if (Volume < SizeSpecificData[Idx].MaxSize)
-			UseIdx = Idx;
-		else
-			break;
-	}
-	return UseIdx;
-}
 
-int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, const FBox& Bounds)
-{
-	return FindSizeSpecificIdx(SizeSpecificData, Bounds.GetVolume());
-}
 
 Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*
 FGeometryCollectionPhysicsProxy::BuildClusters(
@@ -1058,7 +1039,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 		if (Parameters.RestCollection->HasAttribute("Size", FTransformCollection::TransformGroup))
 		{
 			const TManagedArray<float>& RelativeSize = Parameters.RestCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
-			SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, RelativeSize[CollectionClusterIndex]);
+			SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(Parameters.Shared.SizeSpecificData, RelativeSize[CollectionClusterIndex]);
 		}
 		else
 		{
@@ -1066,7 +1047,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 			if (Implicit[CollectionClusterIndex] && Implicit[CollectionClusterIndex]->HasBoundingBox())
 			{
 				FBox LocalBoundingBox(Implicit[CollectionClusterIndex]->BoundingBox().Min(), Implicit[CollectionClusterIndex]->BoundingBox().Max());
-				SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, LocalBoundingBox);
+				SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(Parameters.Shared.SizeSpecificData, LocalBoundingBox);
 			}
 		}
 
@@ -2160,11 +2141,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			if (bUseRelativeSize)
 			{
 				const TManagedArray<float>& RelativeSize = RestCollection.GetAttribute<float>(TEXT("Size"), FTransformCollection::TransformGroup);
-				SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, RelativeSize[TransformGroupIndex]);
+				SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(SharedParams.SizeSpecificData, RelativeSize[TransformGroupIndex]);
 			}
 			else
 			{
-				SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
+				SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(SharedParams.SizeSpecificData, InstanceBoundingBox);
 			}
 			
 			const FSharedSimulationSizeSpecificData& SizeSpecificData = SharedParams.SizeSpecificData[SizeSpecificIdx];
@@ -2427,7 +2408,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				CollectionInertiaTensor[ClusterTransformIdx] = (FVector3f)InertiaDiagonal;	// LWC_TODO: Precision loss
 				CollectionMass[ClusterTransformIdx] = (FRealSingle)CollectionSpaceParticles->M(ClusterTransformIdx);
 
-				const int32 SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
+				const int32 SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(SharedParams.SizeSpecificData, InstanceBoundingBox);
 				const FSharedSimulationSizeSpecificData& SizeSpecificData = SharedParams.SizeSpecificData[SizeSpecificIdx];
 
 				if (SizeSpecificData.CollisionShapesData.Num())
