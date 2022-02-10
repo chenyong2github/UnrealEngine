@@ -302,9 +302,12 @@ bool UPackage::IsFullyLoaded() const
 	return false;
 }
 
-void UPackage::BeginDestroy()
+void UPackage::FinishDestroy()
 {
-	// Detach linker if still attached
+	// Detach linker if still attached, we do this in ::FinishDestroy rather than ::BeginDestroy so that the linker remains attached
+	// and valid for all UObjects in the package until they have all returned ::IsReadyForFinishDestroy as true. This means that 
+	// UObjects with ongoing asynchronous compilation work can safely cancel that work in ::BeginDestroy and wait for it to finish
+	// in ::IsReadyForFinishDestroy without worrying that the package file will be yanked out from under it.
 	if (FLinkerLoad* Linker = GetLinker())
 	{
 		// Detach() below will most likely null the LinkerLoad so keep a temp copy so that we can still call RemoveLinker on it
@@ -313,7 +316,7 @@ void UPackage::BeginDestroy()
 		SetLinker(nullptr);
 	}
 
-	Super::BeginDestroy();
+	Super::FinishDestroy();
 }
 
 bool UPackage::IsPostLoadThreadSafe() const

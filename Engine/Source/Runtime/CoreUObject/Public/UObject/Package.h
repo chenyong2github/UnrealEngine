@@ -309,7 +309,7 @@ public:
 	*/
 	virtual void PostInitProperties() override;
 
-	virtual void BeginDestroy() override;	
+	virtual void FinishDestroy() override;
 
 	/** Serializer */
 	virtual void Serialize( FArchive& Ar ) override;
