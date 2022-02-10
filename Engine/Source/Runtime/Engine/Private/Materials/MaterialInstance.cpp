@@ -345,7 +345,16 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 {
 	if (FApp::CanEverRender())
 	{
-		GetRendererModule().InvalidatePathTracedOutput();
+		const UMaterial* Material = Instance->GetMaterial();
+		if (Material != nullptr)
+		{
+			EMaterialDomain Domain = Material->MaterialDomain;
+			// check if this material has any relevance to path tracing
+			if (Domain != MD_PostProcess && Domain != MD_UI)
+			{
+				GetRendererModule().InvalidatePathTracedOutput();
+			}
+		}
 		FMaterialInstanceResource* Resource = Instance->Resource;
 		const FMaterialParameterInfo& ParameterInfo = Parameter.ParameterInfo;
 		typename ParameterType::ValueType Value = ParameterType::GetValue(Parameter);
