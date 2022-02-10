@@ -10,6 +10,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Async/ParallelFor.h"
 #include "Misc/CommandLine.h"
+#include "SourceControlPreferences.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 
@@ -1984,7 +1985,27 @@ void FCollectionManager::ReplaceObjectInCollections(const FName& OldObjectPath, 
 bool FCollectionManager::InternalSaveCollection(const TSharedRef<FCollection>& CollectionRef, FText& OutError)
 {
 	TArray<FText> AdditionalChangelistText;
+
+	// Give game specific editors a chance to add lines
 	AddToCollectionCheckinDescriptionEvent.Broadcast(CollectionRef->GetCollectionName(), AdditionalChangelistText);
+
+	// Give settings a chance to add lines
+	TArray<FString> SettingsLines;
+
+	const USourceControlPreferences* Settings = GetDefault<USourceControlPreferences>();
+	if (const FString* SpecificMatch = Settings->SpecificCollectionChangelistTags.Find(CollectionRef->GetCollectionName()))
+	{
+		// Parse input buffer into an array of lines
+		SpecificMatch->ParseIntoArrayLines(SettingsLines, /*bCullEmpty=*/ false);
+	}
+	SettingsLines.Append(Settings->CollectionChangelistTags);
+
+	for (const FString& OneSettingLine : SettingsLines)
+	{
+		AdditionalChangelistText.Add(FText::FromString(*OneSettingLine));
+	}
+
+	// Save the collection
 	return CollectionRef->Save(AdditionalChangelistText, OutError);
 }
 

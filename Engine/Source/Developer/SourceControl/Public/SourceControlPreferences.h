@@ -29,4 +29,12 @@ public:
 	/** If enabled, deletes new files when reverted. */
 	UPROPERTY(config, EditAnywhere, Category = SourceControl, meta = (ToolTip = "Deletes new files when reverted."))
 	bool bShouldDeleteNewFilesOnRevert = true;
+
+	/** List of lines to add to any collection on checkin */
+	UPROPERTY(config, EditAnywhere, Category = SourceControl)
+	TArray<FString> CollectionChangelistTags;
+
+	/** Map of collection names and additional text to apply to changelist descriptions when checking them in */
+	UPROPERTY(config, EditAnywhere, Category = SourceControl, meta=(MultiLine=true))
+	TMap<FName, FString> SpecificCollectionChangelistTags;
 };
