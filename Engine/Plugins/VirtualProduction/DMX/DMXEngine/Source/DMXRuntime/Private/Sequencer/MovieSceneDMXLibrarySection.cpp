@@ -96,15 +96,15 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		}
 	}
 
-	if (Mode.FixtureMatrixConfig.GetLastChannel() <= Patch->GetChannelSpan())
+	if (Mode.bFixtureMatrixEnabled)
 	{
 		int32 NumXCells = Mode.FixtureMatrixConfig.XCells;
 		int32 NumYCells = Mode.FixtureMatrixConfig.YCells;
 
 		for (int32 IdxCellY = 0; IdxCellY < NumYCells; IdxCellY++)
 		{
-		for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
-		{
+			for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
+			{
 				FIntPoint CellCoordinates = FIntPoint(IdxCellX, IdxCellY);
 
 				for (const FDMXFixtureCellAttribute& CellAttribute : Mode.FixtureMatrixConfig.CellAttributes)

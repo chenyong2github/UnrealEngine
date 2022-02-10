@@ -268,6 +268,7 @@ uint32 FDMXAsyncDMXRecorder::Run()
 	while (!bThreadStopping)
 	{
 		Update();
+		FPlatformProcess::Sleep(0.01f);
 	}
 
 	return 0;
