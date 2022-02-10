@@ -139,7 +139,7 @@ void UIKRetargeterController::CleanChainMapping()
 		
 		if (!HasChain)
 		{
-			TObjectPtr<URetargetChainSettings> ChainMap = NewObject<URetargetChainSettings>();
+			TObjectPtr<URetargetChainSettings> ChainMap = NewObject<URetargetChainSettings>(Asset, URetargetChainSettings::StaticClass(), NAME_None, RF_Transactional);
 			ChainMap->TargetChain = TargetChainName;
 			Asset->ChainSettings.Add(ChainMap);
 		}

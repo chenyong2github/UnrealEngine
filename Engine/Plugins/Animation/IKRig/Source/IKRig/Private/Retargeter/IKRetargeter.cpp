@@ -36,7 +36,7 @@ void UIKRetargeter::PostLoad()
 			}
 			else
 			{
-				TObjectPtr<URetargetChainSettings> NewChainMap = NewObject<URetargetChainSettings>();
+				TObjectPtr<URetargetChainSettings> NewChainMap = NewObject<URetargetChainSettings>(this, URetargetChainSettings::StaticClass(), NAME_None, RF_Transactional);
 				NewChainMap->TargetChain = OldChainMap.TargetChain;
 				NewChainMap->SourceChain = OldChainMap.SourceChain;
 				ChainSettings.Add(NewChainMap);
