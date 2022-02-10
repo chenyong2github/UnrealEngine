@@ -17,6 +17,7 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
+#include "RigVMModel/RigVMBuildData.h"
 #include "RigVMController.generated.h"
 
 class URigVMActionStack;
