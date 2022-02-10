@@ -84,7 +84,7 @@ struct FAudioThreadInteractor
 	}
 };
 
-UE::Tasks::ETaskPriority GAudioTaskPriority = UE::Tasks::ETaskPriority::BackgroundLow;
+UE::Tasks::ETaskPriority GAudioTaskPriority = UE::Tasks::ETaskPriority::Normal;
 
 static void SetAudioTaskPriority(const TArray<FString>& Args)
 {
@@ -377,7 +377,8 @@ struct FAudioAsyncBatcher
 				{
 					Work();
 				}
-			}
+			},
+			GAudioTaskPriority
 		);
 		WorkItems.Reset();
 	}
