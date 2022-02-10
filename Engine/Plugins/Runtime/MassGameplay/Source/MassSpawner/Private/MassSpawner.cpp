@@ -233,7 +233,11 @@ void AMassSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		if (PropName == EntityTypesName)
 		{
 			// TODO: Should optimize this, i.e. set a dirty flag and update only when needed.
-			RegisterEntityTemplates();
+			UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(GetWorld());
+			if (SpawnerSystem)
+			{
+				RegisterEntityTemplates();
+			}
 		}
 	}
 }
