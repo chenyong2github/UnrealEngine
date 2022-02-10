@@ -302,7 +302,15 @@ bool USequencerPlaylistPlayer::ResetAll()
 	FScopedTransaction Transaction(LOCTEXT("ResetAllTransaction", "Reset playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bAnyChange |= GetCheckedItemPlayer(Item)->Reset(Item);
+		if (Item->bMute)
+		{
+			// Stop muted items, but don't add holds for them.
+			bAnyChange |= GetCheckedItemPlayer(Item)->Stop(Item);
+		}
+		else
+		{
+			bAnyChange |= GetCheckedItemPlayer(Item)->Reset(Item);
+		}
 	}
 
 	if (bAnyChange)
@@ -412,7 +420,7 @@ void USequencerPlaylistPlayer::OnTakeRecorderStarted(UTakeRecorder* InRecorder)
 
 		for (USequencerPlaylistItem* Item : Playlist->Items)
 		{
-			if (Item->bHoldAtFirstFrame)
+			if (Item->bHoldAtFirstFrame && !Item->bMute)
 			{
 				GetCheckedItemPlayer(Item)->AddHold(Item);
 			}

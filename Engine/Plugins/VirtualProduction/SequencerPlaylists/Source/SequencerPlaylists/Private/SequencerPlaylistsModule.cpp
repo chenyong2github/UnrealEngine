@@ -52,8 +52,8 @@ void FSequencerPlaylistsModule::StartupModule()
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSequencerPlaylistsModule::RegisterMenus));
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequencerPlaylistsTabName, FOnSpawnTab::CreateRaw(this, &FSequencerPlaylistsModule::OnSpawnPluginTab))
-		.SetDisplayName(LOCTEXT("SequencerPlaylistsTabTitle", "Playlists"))
-		.SetTooltipText(LOCTEXT("SequencerPlaylistsTabTooltipText", "Open the Sequencer Playlists tab."))
+		.SetDisplayName(LOCTEXT("TabSpawnerDisplayName", "Playlists"))
+		.SetTooltipText(LOCTEXT("TabSpawnerTooltipText", "Open the Sequencer Playlists tab."))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
 		.SetIcon(FSlateIcon(FSequencerPlaylistsStyle::GetStyleSetName(), "SequencerPlaylists.TabIcon"));
 }
@@ -103,6 +103,7 @@ TSharedRef<SDockTab> FSequencerPlaylistsModule::OnSpawnPluginTab(const FSpawnTab
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
+		.Label(LOCTEXT("TabLabel", "Playlist"))
 		[
 			SNew(SSequencerPlaylistPanel, DefaultPlayer.Get())
 		];

@@ -50,7 +50,7 @@ public:
 
 	void Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer);
 
-	bool InTriggerMode() const { return bTriggerMode; }
+	bool InPlayMode() const { return bPlayMode; }
 
 private:
 	TSharedRef<SWidget> Construct_LeftToolbar();
@@ -63,7 +63,9 @@ private:
 	void RegenerateRows();
 
 	TSharedRef<SWidget> BuildOpenPlaylistMenu();
+	void OnSavePlaylist();
 	void OnSavePlaylistAs();
+	void SavePlaylist(const FString& PackageName);
 	void OnLoadPlaylist(const FAssetData& InPreset);
 	void OnNewPlaylist();
 
@@ -75,10 +77,10 @@ private:
 	FReply HandleClicked_ResetAll();
 	FReply HandleClicked_AddSequence();
 
-	FReply HandleClicked_Item_Play(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply HandleClicked_Item_Stop(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply HandleClicked_Item_Reset(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply HandleClicked_Item_Remove(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+	FReply HandleClicked_Item_Play(SSequencerPlaylistItemWidget& ItemWidget);
+	FReply HandleClicked_Item_Stop(SSequencerPlaylistItemWidget& ItemWidget);
+	FReply HandleClicked_Item_Reset(SSequencerPlaylistItemWidget& ItemWidget);
+	FReply HandleClicked_Item_Remove(SSequencerPlaylistItemWidget& ItemWidget);
 
 	bool HandleItemDetailsIsPropertyVisible(const FPropertyAndParent& PropertyAndParent);
 
@@ -88,8 +90,9 @@ private:
 
 private:
 	TWeakObjectPtr<USequencerPlaylistPlayer> WeakPlayer;
+	TWeakObjectPtr<USequencerPlaylist> WeakLoadedPlaylist;
 
-	bool bTriggerMode = false;
+	bool bPlayMode = false;
 
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<TTextFilter<const FSequencerPlaylistRowData&>> SearchTextFilter;
@@ -120,7 +123,7 @@ private:
 };
 
 
-DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnClickedSequencerPlaylistItem, TSharedPtr<SSequencerPlaylistItemWidget> /*ItemWidget*/);
+DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnClickedSequencerPlaylistItem, SSequencerPlaylistItemWidget& /*ItemWidget*/);
 
 
 class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSequencerPlaylistRowData>>
@@ -130,7 +133,7 @@ class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSeq
 	static const FText ResetItemTooltipText;
 
 	SLATE_BEGIN_ARGS(SSequencerPlaylistItemWidget) {}
-		SLATE_ATTRIBUTE(bool, TriggerMode)
+		SLATE_ATTRIBUTE(bool, PlayMode)
 		SLATE_ATTRIBUTE(bool, IsPlaying)
 
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnPlayClicked)
@@ -142,6 +145,13 @@ class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSeq
 		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
 		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
 	SLATE_END_ARGS()
+
+	enum class ELoopMode
+	{
+		None,
+		Finite,
+		//Infinite,
+	};
 
 public:
 	void Construct(const FArguments& InArgs, TSharedPtr<FSequencerPlaylistRowData> InRowData, const TSharedRef<STableViewBase>& OwnerTableView);
@@ -164,10 +174,11 @@ public:
 private:
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	bool InTriggerMode() const { return TriggerMode.Get(); }
+	bool InPlayMode() const { return PlayMode.Get(); }
+	void SetLoopMode(ELoopMode InLoopMode);
 
 	EVisibility GetRowDimmingVisibility() const;
-	EVisibility GetTriggerModeTransportVisibility() const;
+	EVisibility GetPlayModeTransportVisibility() const;
 
 	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();
 	TSharedRef<SWidget> BuildContextMenu(const TArray<UObject*>& SelectedItems);
@@ -176,7 +187,9 @@ private:
 	TSharedPtr<FSequencerPlaylistRowData> RowData;
 	TSharedPtr<SMenuAnchor> DetailsAnchor;
 
-	TAttribute<bool> TriggerMode;
+	ELoopMode LoopMode;
+
+	TAttribute<bool> PlayMode;
 	TAttribute<bool> IsPlaying;
 
 	FOnClickedSequencerPlaylistItem PlayClickedDelegate;
