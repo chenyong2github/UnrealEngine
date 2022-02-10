@@ -253,36 +253,15 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
-class FExpressionUnaryOp : public FExpression
+class FExpressionOperation : public FExpression
 {
 public:
-	FExpressionUnaryOp(EUnaryOp InOp, FExpression* InInput)
-		: Op(InOp)
-		, Input(InInput)
-	{}
+	FExpressionOperation(EOperation InOp, TConstArrayView<FExpression*> InInputs);
 
-	EUnaryOp Op;
-	FExpression* Input;
+	static constexpr int8 MaxInputs = 2;
 
-	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
-	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
-	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
-};
-
-class FExpressionBinaryOp : public FExpression
-{
-public:
-	FExpressionBinaryOp(EBinaryOp InOp, FExpression* InLhs, FExpression* InRhs)
-		: Op(InOp)
-		, Lhs(InLhs)
-		, Rhs(InRhs)
-	{}
-
-	EBinaryOp Op;
-	FExpression* Lhs;
-	FExpression* Rhs;
+	EOperation Op;
+	FExpression* Inputs[MaxInputs];
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;

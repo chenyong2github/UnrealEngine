@@ -637,25 +637,25 @@ public:
 
 	/** Shortcuts to create various common expression types */
 	FExpression* NewConstant(const Shader::FValue& Value);
-	FExpression* NewUnaryOp(EUnaryOp Op, FExpression* Input);
-	FExpression* NewBinaryOp(EBinaryOp Op, FExpression* Lhs, FExpression* Rhs);
+	FExpression* NewUnaryOp(EOperation Op, FExpression* Input);
+	FExpression* NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rhs);
 
-	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EUnaryOp::Neg, Input); }
-	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EUnaryOp::Rcp, Input); }
-	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EUnaryOp::Frac, Input); }
-	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EUnaryOp::Length, Input); }
-	FExpression* NewNormalize(FExpression* Input) { return NewUnaryOp(EUnaryOp::Normalize, Input); }
+	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
+	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
+	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
+	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
+	FExpression* NewNormalize(FExpression* Input) { return NewUnaryOp(EOperation::Normalize, Input); }
 
-	FExpression* NewAdd(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Add, Lhs, Rhs); }
-	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Sub, Lhs, Rhs); }
-	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
-	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
-	FExpression* NewFmod(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Fmod, Lhs, Rhs); }
-	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Dot, Lhs, Rhs); }
-	FExpression* NewMin(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Min, Lhs, Rhs); }
-	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Max, Lhs, Rhs); }
-	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Less, Lhs, Rhs); }
-	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Greater, Lhs, Rhs); }
+	FExpression* NewAdd(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Add, Lhs, Rhs); }
+	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Sub, Lhs, Rhs); }
+	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Mul, Lhs, Rhs); }
+	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Div, Lhs, Rhs); }
+	FExpression* NewFmod(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Fmod, Lhs, Rhs); }
+	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Dot, Lhs, Rhs); }
+	FExpression* NewMin(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Min, Lhs, Rhs); }
+	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
+	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Less, Lhs, Rhs); }
+	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
 
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 

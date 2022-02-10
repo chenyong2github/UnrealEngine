@@ -22370,13 +22370,13 @@ UMaterialExpressionLess::UMaterialExpressionLess(const FObjectInitializer& Objec
 #if WITH_EDITOR
 FText UMaterialExpressionBinaryOp::GetKeywords() const
 {
-	const UE::HLSLTree::FBinaryOpDescription Description = UE::HLSLTree::GetBinaryOpDesription(GetBinaryOp());
+	const UE::HLSLTree::FOperationDescription Description = UE::HLSLTree::GetOperationDescription(GetBinaryOp());
 	return FText::FromString(Description.Operator);
 }
 
 void UMaterialExpressionBinaryOp::GetCaption(TArray<FString>& OutCaptions) const
 {
-	const UE::HLSLTree::FBinaryOpDescription Description = UE::HLSLTree::GetBinaryOpDesription(GetBinaryOp());
+	const UE::HLSLTree::FOperationDescription Description = UE::HLSLTree::GetOperationDescription(GetBinaryOp());
 	FString ret = Description.Name;
 	FExpressionInput ATraced = A.GetTracedInput();
 	FExpressionInput BTraced = B.GetTracedInput();

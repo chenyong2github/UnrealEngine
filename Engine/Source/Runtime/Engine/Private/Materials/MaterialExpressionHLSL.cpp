@@ -354,7 +354,7 @@ bool UMaterialExpressionAdd::GenerateHLSLExpression(FMaterialHLSLGenerator& Gene
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Add, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewAdd(Lhs, Rhs);
 	return true;
 }
 
@@ -366,7 +366,7 @@ bool UMaterialExpressionSubtract::GenerateHLSLExpression(FMaterialHLSLGenerator&
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Sub, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewSub(Lhs, Rhs);
 	return true;
 }
 
@@ -378,7 +378,7 @@ bool UMaterialExpressionMultiply::GenerateHLSLExpression(FMaterialHLSLGenerator&
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Mul, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewMul(Lhs, Rhs);
 	return true;
 }
 
@@ -390,7 +390,7 @@ bool UMaterialExpressionDivide::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Div, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewDiv(Lhs, Rhs);
 	return true;
 }
 
@@ -402,7 +402,7 @@ bool UMaterialExpressionDotProduct::GenerateHLSLExpression(FMaterialHLSLGenerato
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Dot, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewDot(Lhs, Rhs);
 	return true;
 }
 
@@ -414,7 +414,7 @@ bool UMaterialExpressionMin::GenerateHLSLExpression(FMaterialHLSLGenerator& Gene
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Min, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewMin(Lhs, Rhs);
 	return true;
 }
 
@@ -426,7 +426,7 @@ bool UMaterialExpressionMax::GenerateHLSLExpression(FMaterialHLSLGenerator& Gene
 	{
 		return false;
 	}
-	OutExpression = Generator.GetTree().NewBinaryOp(UE::HLSLTree::EBinaryOp::Max, Lhs, Rhs);
+	OutExpression = Generator.GetTree().NewMax(Lhs, Rhs);
 	return true;
 }
 
@@ -622,7 +622,7 @@ static UE::HLSLTree::FExpression* TransformBase(UE::HLSLTree::FTree& Tree,
 
 	FExpression* Result = nullptr;
 	EMaterialCommonBasis IntermediaryBasis = MCB_World;
-	EBinaryOp Op = bWComponent ? EBinaryOp::VecMulMatrix4 : EBinaryOp::VecMulMatrix3;
+	EOperation Op = bWComponent ? EOperation::VecMulMatrix4 : EOperation::VecMulMatrix3;
 	switch (SourceCoordBasis)
 	{
 	case MCB_Tangent:

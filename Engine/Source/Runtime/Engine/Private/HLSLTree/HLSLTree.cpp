@@ -80,56 +80,42 @@ public:
 	int32 OutputIndex;
 };
 
-FUnaryOpDescription::FUnaryOpDescription()
+FOperationDescription::FOperationDescription(const TCHAR* InName, const TCHAR* InOperator, int8 InNumInputs, Shader::EPreshaderOpcode InOpcode)
+	: Name(InName), Operator(InOperator), NumInputs(InNumInputs), PreshaderOpcode(InOpcode)
+{}
+
+FOperationDescription::FOperationDescription()
 	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
 {}
 
-FUnaryOpDescription::FUnaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
-	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
-{}
 
-FBinaryOpDescription::FBinaryOpDescription()
-	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
-{}
-
-FBinaryOpDescription::FBinaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
-	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
-{}
-
-FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op)
+FOperationDescription GetOperationDescription(EOperation Op)
 {
 	switch (Op)
 	{
-	case EUnaryOp::None: return FUnaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
-	case EUnaryOp::Neg: return FUnaryOpDescription(TEXT("Neg"), TEXT("-"), Shader::EPreshaderOpcode::Neg); break;
-	case EUnaryOp::Rcp: return FUnaryOpDescription(TEXT("Rcp"), TEXT("/"), Shader::EPreshaderOpcode::Rcp); break;
-	case EUnaryOp::Frac: return FUnaryOpDescription(TEXT("Frac"), TEXT("frac"), Shader::EPreshaderOpcode::Frac); break;
-	case EUnaryOp::Length: return FUnaryOpDescription(TEXT("Length"), TEXT("length"), Shader::EPreshaderOpcode::Length); break;
-	case EUnaryOp::Normalize: return FUnaryOpDescription(TEXT("Normalize"), TEXT("normalize"), Shader::EPreshaderOpcode::Normalize); break;
-	default: checkNoEntry(); return FUnaryOpDescription();
-	}
-}
-
-FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op)
-{
-	switch (Op)
-	{
-	case EBinaryOp::None: return FBinaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
-	case EBinaryOp::Add: return FBinaryOpDescription(TEXT("Add"), TEXT("+"), Shader::EPreshaderOpcode::Add); break;
-	case EBinaryOp::Sub: return FBinaryOpDescription(TEXT("Subtract"), TEXT("-"), Shader::EPreshaderOpcode::Sub); break;
-	case EBinaryOp::Mul: return FBinaryOpDescription(TEXT("Multiply"), TEXT("*"), Shader::EPreshaderOpcode::Mul); break;
-	case EBinaryOp::Div: return FBinaryOpDescription(TEXT("Divide"), TEXT("/"), Shader::EPreshaderOpcode::Div); break;
-	case EBinaryOp::Fmod: return FBinaryOpDescription(TEXT("Fmod"), TEXT("%"), Shader::EPreshaderOpcode::Fmod); break;
-	case EBinaryOp::Dot: return FBinaryOpDescription(TEXT("Dot"), TEXT("dot"), Shader::EPreshaderOpcode::Dot); break;
-	case EBinaryOp::Min: return FBinaryOpDescription(TEXT("Min"), TEXT("min"), Shader::EPreshaderOpcode::Min); break;
-	case EBinaryOp::Max: return FBinaryOpDescription(TEXT("Max"), TEXT("max"), Shader::EPreshaderOpcode::Max); break;
-	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<"), Shader::EPreshaderOpcode::Less); break;
-	case EBinaryOp::Greater: return FBinaryOpDescription(TEXT("Greater"), TEXT(">"), Shader::EPreshaderOpcode::Greater); break;
-	case EBinaryOp::VecMulMatrix3: return FBinaryOpDescription(TEXT("VecMulMatrix3"), TEXT("mul"), Shader::EPreshaderOpcode::Nop); break;
-	case EBinaryOp::VecMulMatrix4: return FBinaryOpDescription(TEXT("VecMulMatrix4"), TEXT("mul"), Shader::EPreshaderOpcode::Nop); break;
-	case EBinaryOp::Matrix3MulVec: return FBinaryOpDescription(TEXT("Matrix3MulVec"), TEXT("mul"), Shader::EPreshaderOpcode::Nop); break;
-	case EBinaryOp::Matrix4MulVec: return FBinaryOpDescription(TEXT("Matrix4MulVec"), TEXT("mul"), Shader::EPreshaderOpcode::Nop); break;
-	default: checkNoEntry(); return FBinaryOpDescription();
+	// Unary
+	case EOperation::None: return FOperationDescription(TEXT("None"), TEXT(""), 0, Shader::EPreshaderOpcode::Nop); break;
+	case EOperation::Neg: return FOperationDescription(TEXT("Neg"), TEXT("-"), 1, Shader::EPreshaderOpcode::Neg); break;
+	case EOperation::Rcp: return FOperationDescription(TEXT("Rcp"), TEXT("/"), 1, Shader::EPreshaderOpcode::Rcp); break;
+	case EOperation::Frac: return FOperationDescription(TEXT("Frac"), TEXT("frac"), 1, Shader::EPreshaderOpcode::Frac); break;
+	case EOperation::Length: return FOperationDescription(TEXT("Length"), TEXT("length"), 1, Shader::EPreshaderOpcode::Length); break;
+	case EOperation::Normalize: return FOperationDescription(TEXT("Normalize"), TEXT("normalize"), 1, Shader::EPreshaderOpcode::Normalize); break;
+	// Binary
+	case EOperation::Add: return FOperationDescription(TEXT("Add"), TEXT("+"), 2, Shader::EPreshaderOpcode::Add); break;
+	case EOperation::Sub: return FOperationDescription(TEXT("Subtract"), TEXT("-"), 2, Shader::EPreshaderOpcode::Sub); break;
+	case EOperation::Mul: return FOperationDescription(TEXT("Multiply"), TEXT("*"), 2, Shader::EPreshaderOpcode::Mul); break;
+	case EOperation::Div: return FOperationDescription(TEXT("Divide"), TEXT("/"), 2, Shader::EPreshaderOpcode::Div); break;
+	case EOperation::Fmod: return FOperationDescription(TEXT("Fmod"), TEXT("%"), 2, Shader::EPreshaderOpcode::Fmod); break;
+	case EOperation::Dot: return FOperationDescription(TEXT("Dot"), TEXT("dot"), 2, Shader::EPreshaderOpcode::Dot); break;
+	case EOperation::Min: return FOperationDescription(TEXT("Min"), TEXT("min"), 2, Shader::EPreshaderOpcode::Min); break;
+	case EOperation::Max: return FOperationDescription(TEXT("Max"), TEXT("max"), 2, Shader::EPreshaderOpcode::Max); break;
+	case EOperation::Less: return FOperationDescription(TEXT("Less"), TEXT("<"), 2, Shader::EPreshaderOpcode::Less); break;
+	case EOperation::Greater: return FOperationDescription(TEXT("Greater"), TEXT(">"), 2, Shader::EPreshaderOpcode::Greater); break;
+	case EOperation::VecMulMatrix3: return FOperationDescription(TEXT("VecMulMatrix3"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
+	case EOperation::VecMulMatrix4: return FOperationDescription(TEXT("VecMulMatrix4"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
+	case EOperation::Matrix3MulVec: return FOperationDescription(TEXT("Matrix3MulVec"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
+	case EOperation::Matrix4MulVec: return FOperationDescription(TEXT("Matrix4MulVec"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
+	default: checkNoEntry(); return FOperationDescription();
 	}
 }
 

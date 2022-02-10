@@ -29,7 +29,7 @@ class UMaterialExpressionBinaryOp : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionAdd, meta = (OverridingInputProperty = "B"))
 	float ConstB;
 
-	virtual UE::HLSLTree::EBinaryOp GetBinaryOp() const PURE_VIRTUAL(UMaterialExpressionBinaryOp::GetBinaryOp, return UE::HLSLTree::EBinaryOp::None;);
+	virtual UE::HLSLTree::EOperation GetBinaryOp() const PURE_VIRTUAL(UMaterialExpressionBinaryOp::GetBinaryOp, return UE::HLSLTree::EOperation::None;);
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -46,5 +46,5 @@ UCLASS(MinimalAPI, meta = (MaterialNewHLSLGenerator))
 class UMaterialExpressionLess : public UMaterialExpressionBinaryOp
 {
 	GENERATED_UCLASS_BODY()
-	virtual UE::HLSLTree::EBinaryOp GetBinaryOp() const override { return UE::HLSLTree::EBinaryOp::Less; }
+	virtual UE::HLSLTree::EOperation GetBinaryOp() const override { return UE::HLSLTree::EOperation::Less; }
 };

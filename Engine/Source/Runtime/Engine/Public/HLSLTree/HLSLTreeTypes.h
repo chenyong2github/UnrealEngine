@@ -59,31 +59,18 @@ inline bool IsLoopEvaluation(EExpressionEvaluation Evaluation)
 	return Evaluation == EExpressionEvaluation::PreshaderLoop || Evaluation == EExpressionEvaluation::ConstantLoop;
 }
 
-enum class EUnaryOp : uint8
+enum class EOperation : uint8
 {
 	None,
+
+	// Unary Ops
 	Neg,
 	Rcp,
 	Frac,
 	Length,
 	Normalize,
-};
 
-struct FUnaryOpDescription
-{
-	FUnaryOpDescription();
-	FUnaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode);
-
-	const TCHAR* Name;
-	const TCHAR* Operator;
-	Shader::EPreshaderOpcode PreshaderOpcode;
-};
-
-FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op);
-
-enum class EBinaryOp : uint8
-{
-	None,
+	// Binary Ops
 	Add,
 	Sub,
 	Mul,
@@ -101,17 +88,18 @@ enum class EBinaryOp : uint8
 	Matrix4MulVec,
 };
 
-struct FBinaryOpDescription
+struct FOperationDescription
 {
-	FBinaryOpDescription();
-	FBinaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode);
+	FOperationDescription();
+	FOperationDescription(const TCHAR* InName, const TCHAR* InOperator, int8 InNumInputs, Shader::EPreshaderOpcode InOpcode);
 
 	const TCHAR* Name;
 	const TCHAR* Operator;
+	int8 NumInputs;
 	Shader::EPreshaderOpcode PreshaderOpcode;
 };
 
-FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op);
+FOperationDescription GetOperationDescription(EOperation Op);
 
 struct FTextureDescription
 {
