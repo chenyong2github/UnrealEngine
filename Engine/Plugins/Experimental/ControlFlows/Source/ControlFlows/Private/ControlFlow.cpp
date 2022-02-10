@@ -227,6 +227,21 @@ FString FControlFlow::FormatOrGetNewNodeDebugName(const FString& FlowNodeDebugNa
 	return FlowNodeDebugName;
 }
 
+TOptional<FString> FControlFlow::GetCurrentStepDebugName() const
+{
+	if (CurrentNode.IsValid())
+	{
+		if (CurrentlyRunningTask.IsValid())
+		{
+			return CurrentlyRunningTask->GetNodeName();
+		}
+		
+		return CurrentNode->GetNodeName();
+	}
+
+	return TOptional<FString>();
+}
+
 FSimpleDelegate& FControlFlow::QueueFunction(const FString& FlowNodeDebugName)
 {
 	TSharedRef<FControlFlowNode_SelfCompleting> NewNode = MakeShared<FControlFlowNode_SelfCompleting>(SharedThis(this), FormatOrGetNewNodeDebugName(FlowNodeDebugName));

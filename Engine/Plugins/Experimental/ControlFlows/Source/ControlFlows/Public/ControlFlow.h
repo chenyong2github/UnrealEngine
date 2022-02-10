@@ -65,6 +65,8 @@ public:
 
 	FControlFlow& SetCancelledNodeAsComplete(bool bCancelledNodeIsComplete);
 
+	TOptional<FString> GetCurrentStepDebugName() const;
+
 public:
 
 	template<typename...ArgsT>
