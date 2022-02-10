@@ -783,7 +783,7 @@ bool FExpressionUnaryOp::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 	case EUnaryOp::Length:
 	case EUnaryOp::Normalize:
 		// Each component of result is influenced by all components of input
-		InputRequestedType = FRequestedType(4);
+		InputRequestedType = ERequestedType::Vector4;
 		break;
 	default:
 		InputRequestedType = RequestedType;
@@ -830,46 +830,44 @@ namespace Private
 {
 struct FUnaryOpTypes
 {
-	FUnaryOpTypes(const FRequestedValueType& InType) : InputType(InType), ResultType(InType.GetType()) {}
-	FUnaryOpTypes(const FRequestedValueType& InInputType, const Shader::FType& InResultType) : InputType(InInputType), ResultType(InResultType) {}
-
-	FRequestedValueType InputType;
-	Shader::FType ResultType;
+	Shader::EValueType InputType;
+	Shader::EValueType ResultType;
+	bool bIsLWC;
 };
-FUnaryOpTypes GetUnaryyOpTypes(const FRequestedType& RequestedType, EUnaryOp Op, const FPreparedType& InputPreparedType)
+FUnaryOpTypes GetUnaryyOpTypes(EUnaryOp Op, Shader::EValueType InputType)
 {
-	const Shader::EValueComponentType InputComponentType = InputPreparedType.ValueComponentType;
-	const Shader::EValueComponentType NonLWCInputComponentType = Shader::MakeNonLWCType(InputComponentType);
-	const FRequestedValueType InputType(InputComponentType, RequestedType);
-	const FRequestedValueType NonLWCInputType(NonLWCInputComponentType, RequestedType);
-	const int32 NumInputComponents = InputPreparedType.GetNumComponents();
-	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputType);
 
+	FUnaryOpTypes Types;
+	Types.InputType = InputType;
+	Types.ResultType = InputType;
+	Types.bIsLWC = InputTypeDesc.ComponentType == Shader::EValueComponentType::Double;
 	switch (Op)
 	{
 	case EUnaryOp::Length:
-		return FUnaryOpTypes(InputPreparedType, Shader::MakeValueType(InputComponentType, 1));
+		Types.ResultType = Shader::MakeValueType(InputTypeDesc.ComponentType, 1);
+		break;
 	case EUnaryOp::Normalize:
-		return FUnaryOpTypes(InputPreparedType, Shader::MakeValueType(NonLWCInputComponentType, NumInputComponents));
 	case EUnaryOp::Frac:
 	case EUnaryOp::Rcp:
-		return FUnaryOpTypes(InputType, Shader::MakeValueType(NonLWCInputComponentType, NumRequestedComponents));
+		Types.ResultType = Shader::MakeNonLWCType(InputType);
+		break;
 	default:
-		return InputType;
+		break;
 	}
+	return Types;
 }
 } // namespace Private
 
 void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Private::FUnaryOpTypes Types = Private::GetUnaryyOpTypes(RequestedType, Op, Input->GetPreparedType());
-	const bool bLWC = Types.InputType.ComponentType == Shader::EValueComponentType::Double;
+	const Private::FUnaryOpTypes Types = Private::GetUnaryyOpTypes(Op, Input->GetType());
 	FEmitShaderExpression* InputValue = Input->GetValueShader(Context, Scope, Types.InputType);
 
 	switch (Op)
 	{
 	case EUnaryOp::Neg:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCNegate(%)"), InputValue);
 		}
@@ -879,7 +877,7 @@ void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 		}
 		break;
 	case EUnaryOp::Rcp:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCRcp(%)"), InputValue);
 		}
@@ -889,7 +887,7 @@ void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 		}
 		break;
 	case EUnaryOp::Frac:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCFrac(%)"), InputValue);
 		}
@@ -899,7 +897,7 @@ void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 		}
 		break;
 	case EUnaryOp::Length:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCLength(%)"), InputValue);
 		}
@@ -909,7 +907,7 @@ void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 		}
 		break;
 	case EUnaryOp::Normalize:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCNormalize(%)"), InputValue);
 		}
@@ -926,11 +924,11 @@ void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 
 void FExpressionUnaryOp::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const Private::FUnaryOpTypes Types = Private::GetUnaryyOpTypes(RequestedType, Op, Input->GetPreparedType());
+	const Private::FUnaryOpTypes Types = Private::GetUnaryyOpTypes(Op, Input->GetType());
 	const FUnaryOpDescription OpDesc = GetUnaryOpDesription(Op);
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
-	Input->GetValuePreshader(Context, Scope, Types.InputType.RequestedType, OutResult.Preshader);
+	Input->GetValuePreshader(Context, Scope, Types.InputType, OutResult.Preshader);
 	OutResult.Preshader.WriteOpcode(OpDesc.PreshaderOpcode);
 	OutResult.Type = Types.ResultType;
 }
@@ -1043,19 +1041,19 @@ bool FExpressionBinaryOp::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 	{
 	case EBinaryOp::VecMulMatrix3:
 	case EBinaryOp::VecMulMatrix4:
-		LhsRequestedType = FRequestedType(3);
-		RhsRequestedType = FRequestedType(16);
+		LhsRequestedType = ERequestedType::Vector3;
+		RhsRequestedType = ERequestedType::Matrix4x4;
 		bIsMatrixOperation = true;
 		break;
 	case EBinaryOp::Matrix3MulVec:
 	case EBinaryOp::Matrix4MulVec:
-		LhsRequestedType = FRequestedType(16);
-		RhsRequestedType = FRequestedType(3);
+		LhsRequestedType = ERequestedType::Matrix4x4;
+		RhsRequestedType = ERequestedType::Vector3;
 		bIsMatrixOperation = true;
 		break;
 	case EBinaryOp::Dot:
-		LhsRequestedType = FRequestedType(4);
-		RhsRequestedType = FRequestedType(4);
+		LhsRequestedType = ERequestedType::Vector4;
+		RhsRequestedType = ERequestedType::Vector4;
 		break;
 	default:
 		LhsRequestedType = RequestedType;
@@ -1094,6 +1092,13 @@ bool FExpressionBinaryOp::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 		{
 			ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
 		}
+		if (Op == EBinaryOp::Min || Op == EBinaryOp::Max)
+		{
+			const Shader::FComponentBounds LhsBounds = LhsType.GetBounds(RequestedType);
+			const Shader::FComponentBounds RhsBounds = RhsType.GetBounds(RequestedType);
+			const Shader::FComponentBounds Bounds = (Op == EBinaryOp::Min) ? Shader::MinBound(LhsBounds, RhsBounds) : Shader::MaxBound(LhsBounds, RhsBounds);
+			ResultType.UpdateBounds(RequestedType, Bounds);
+		}
 	}
 
 	if (OpDesc.PreshaderOpcode == Shader::EPreshaderOpcode::Nop)
@@ -1109,56 +1114,72 @@ namespace Private
 {
 struct FBinaryOpTypes
 {
-	FBinaryOpTypes(const FRequestedValueType& InType) : LhsType(InType), RhsType(LhsType), ResultType(InType.GetType()) {}
-	FBinaryOpTypes(const FRequestedValueType& InLhsType, const FRequestedValueType& InRhsType, const Shader::FType& InResultType) : LhsType(InLhsType), RhsType(InRhsType), ResultType(InResultType) {}
-
-	FRequestedValueType LhsType;
-	FRequestedValueType RhsType;
-	Shader::FType ResultType;
+	Shader::EValueType LhsType;
+	Shader::EValueType RhsType;
+	Shader::EValueType ResultType;
+	bool bIsLWC;
 };
-FBinaryOpTypes GetBinaryOpTypes(const FRequestedType& RequestedType, EBinaryOp Op, const FPreparedType& LhsType, const FPreparedType& RhsType)
+FBinaryOpTypes GetBinaryOpTypes(EBinaryOp Op, Shader::EValueType LhsType, Shader::EValueType RhsType)
 {
-	const Shader::EValueComponentType InputComponentType = Shader::CombineComponentTypes(LhsType.ValueComponentType, RhsType.ValueComponentType);
-	const Shader::EValueComponentType NonLWCInputComponentType = Shader::MakeNonLWCType(InputComponentType);
-	const FRequestedValueType InputType(InputComponentType, RequestedType);
-	const FRequestedValueType NonLWCInputType(NonLWCInputComponentType, RequestedType);
-	const int32 NumComponents = RequestedType.GetNumComponents();
+	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
+	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
 
+	Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsTypeDesc.ComponentType, RhsTypeDesc.ComponentType);
+	int32 NumComponents = FMath::Max(LhsTypeDesc.NumComponents, RhsTypeDesc.NumComponents);
+	Shader::EValueType IntermediateType = Shader::MakeValueType(ComponentType, NumComponents);
+
+	FBinaryOpTypes Types;
+	Types.LhsType = IntermediateType;
+	Types.RhsType = IntermediateType;
+	Types.ResultType = IntermediateType;
+	Types.bIsLWC = (ComponentType == Shader::EValueComponentType::Double);
 	switch (Op)
 	{
 	case EBinaryOp::Less:
 	case EBinaryOp::Greater:
-		return FBinaryOpTypes(InputType, InputType, Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents));
+		Types.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents);
+		break;
 	case EBinaryOp::Fmod:
-		return FBinaryOpTypes(InputType, NonLWCInputType, NonLWCInputType.GetType());
+		Types.RhsType = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
 	case EBinaryOp::Dot:
-		return FBinaryOpTypes(InputType, InputType, Shader::MakeValueType(InputComponentType, 1));
+		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
+		break;
 	case EBinaryOp::VecMulMatrix3:
 		// No LWC for matrix3
-		return FBinaryOpTypes(Shader::EValueType::Float3, Shader::EValueType::Float4x4, Shader::EValueType::Float3);
+		Types.LhsType = Shader::EValueType::Float3;
+		Types.RhsType = Shader::EValueType::Float4x4;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
 	case EBinaryOp::VecMulMatrix4:
-		return FBinaryOpTypes(Shader::EValueType::Float3, Shader::EValueType::Float4x4, Shader::EValueType::Float3);
+		Types.LhsType = Shader::EValueType::Float3;
+		Types.RhsType = Shader::EValueType::Float4x4;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
 	case EBinaryOp::Matrix3MulVec:
 	case EBinaryOp::Matrix4MulVec:
 		// No LWC for transpose matrices
-		return FBinaryOpTypes(Shader::EValueType::Float4x4, Shader::EValueType::Float3, Shader::EValueType::Float3);
+		Types.LhsType = Shader::EValueType::Float4x4;
+		Types.RhsType = Shader::EValueType::Float3;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
 	default:
-		return InputType;
+		break;
 	}
+	return Types;
 }
 } // namespace Private
 
 void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(RequestedType, Op, Lhs->GetPreparedType(), Rhs->GetPreparedType());
-	const bool bLWC = Types.LhsType.ComponentType == Shader::EValueComponentType::Double;
+	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(Op, Lhs->GetType(), Rhs->GetType());
 	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsType);
 	FEmitShaderExpression* RhsValue = Rhs->GetValueShader(Context, Scope, Types.RhsType);
 
 	switch (Op)
 	{
 	case EBinaryOp::Add:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCAdd(%, %)"), LhsValue, RhsValue);
 		}
@@ -1168,7 +1189,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Sub:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCSubtract(%, %)"), LhsValue, RhsValue);
 		}
@@ -1178,7 +1199,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Mul:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMultiply(%, %)"), LhsValue, RhsValue);
 		}
@@ -1188,7 +1209,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Div:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCDivide(%, %)"), LhsValue, RhsValue);
 		}
@@ -1198,7 +1219,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Fmod:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCFmod(%, %)"), LhsValue, RhsValue);
 		}
@@ -1208,7 +1229,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Dot:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCDot(%, %)"), LhsValue, RhsValue);
 		}
@@ -1218,7 +1239,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Min:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMin(%, %)"), LhsValue, RhsValue);
 		}
@@ -1228,7 +1249,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Max:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMax(%, %)"), LhsValue, RhsValue);
 		}
@@ -1238,7 +1259,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Less:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCLess(%, %)"), LhsValue, RhsValue);
 		}
@@ -1248,7 +1269,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::Greater:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCGreater(%, %)"), LhsValue, RhsValue);
 		}
@@ -1258,7 +1279,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::VecMulMatrix3:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMlutiplyVector(%, %)"), LhsValue, RhsValue);
 		}
@@ -1268,7 +1289,7 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 		}
 		break;
 	case EBinaryOp::VecMulMatrix4:
-		if (bLWC)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMlutiply(%, %)"), LhsValue, RhsValue);
 		}
@@ -1291,12 +1312,12 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 
 void FExpressionBinaryOp::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(RequestedType, Op, Lhs->GetPreparedType(), Rhs->GetPreparedType());
+	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(Op, Lhs->GetType(), Rhs->GetType());
 	const FBinaryOpDescription OpDesc = GetBinaryOpDesription(Op);
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
-	Lhs->GetValuePreshader(Context, Scope, Types.LhsType.RequestedType, OutResult.Preshader);
-	Rhs->GetValuePreshader(Context, Scope, Types.RhsType.RequestedType, OutResult.Preshader);
+	Lhs->GetValuePreshader(Context, Scope, Types.LhsType, OutResult.Preshader);
+	Rhs->GetValuePreshader(Context, Scope, Types.RhsType, OutResult.Preshader);
 
 	check(Context.PreshaderStackPosition > 0);
 	Context.PreshaderStackPosition--;
@@ -1452,48 +1473,40 @@ namespace Private
 {
 struct FAppendTypes
 {
-	Shader::FType ResultType;
-	Shader::EValueComponentType ResultComponentType;
-	FRequestedValueType LhsType;
-	FRequestedValueType RhsType;
+	Shader::EValueType ResultType;
+	Shader::EValueType LhsType;
+	Shader::EValueType RhsType;
+	bool bIsLWC;
 };
-FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, const FPreparedType& LhsType, const FPreparedType& RhsType)
+FAppendTypes GetAppendTypes(Shader::EValueType LhsType, Shader::EValueType RhsType)
 {
-	const int32 NumResultComponents = RequestedType.GetNumComponents();
-	const int32 NumLhsComponents = FMath::Min<int32>(NumResultComponents, LhsType.GetNumComponents());
-	const int32 NumRhsComponents = FMath::Min<int32>(NumResultComponents - NumLhsComponents, RhsType.GetNumComponents());
-	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsType.ValueComponentType, RhsType.ValueComponentType);
+	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
+	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
+	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsTypeDesc.ComponentType, RhsTypeDesc.ComponentType);
+	const int32 NumComponents = FMath::Min(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, 4);
 
 	FAppendTypes Types;
-	Types.ResultComponentType = ComponentType;
-	Types.ResultType = Shader::MakeValueType(ComponentType, NumLhsComponents + NumRhsComponents);
-	Types.LhsType.ComponentType = ComponentType;
-	Types.RhsType.ComponentType = ComponentType;
-	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
-	{
-		Types.LhsType.RequestedType.SetComponentRequest(Index, RequestedType.IsComponentRequested(Index));
-	}
-	for (int32 Index = 0; Index < NumRhsComponents; ++Index)
-	{
-		Types.RhsType.RequestedType.SetComponentRequest(Index, RequestedType.IsComponentRequested(NumLhsComponents + Index));
-	}
+	Types.ResultType = Shader::MakeValueType(ComponentType, NumComponents);
+	Types.LhsType = Shader::MakeValueType(ComponentType, LhsTypeDesc.NumComponents);
+	Types.RhsType = Shader::MakeValueType(ComponentType, FMath::Min<int32>(RhsTypeDesc.NumComponents, 4 - LhsTypeDesc.NumComponents));
+	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
 	return Types;
 }
 } // namespace Private
 
 void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetPreparedType(), Rhs->GetPreparedType());
+	const Private::FAppendTypes Types = Private::GetAppendTypes(Lhs->GetType(), Rhs->GetType());
 	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsType);
 
-	if (Types.RhsType.IsVoid())
+	if (Types.RhsType == Shader::EValueType::Void)
 	{
 		OutResult.Code = LhsValue;
 	}
 	else
 	{
 		FEmitShaderExpression* RhsValue = Rhs->GetValueShader(Context, Scope, Types.RhsType);
-		if (Types.ResultComponentType == Shader::EValueComponentType::Double)
+		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("MakeLWCVector(%, %)"),
 				LhsValue,
@@ -1502,7 +1515,7 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 		else
 		{
 			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("%(%, %)"),
-				Types.ResultType.GetName(),
+				Shader::GetValueTypeDescription(Types.ResultType).Name,
 				LhsValue,
 				RhsValue);
 		}
@@ -1511,11 +1524,11 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 
 void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetPreparedType(), Rhs->GetPreparedType());
-	Lhs->GetValuePreshader(Context, Scope, Types.LhsType.RequestedType, OutResult.Preshader);
-	if (Types.RhsType.IsVoid())
+	const Private::FAppendTypes Types = Private::GetAppendTypes(Lhs->GetType(), Rhs->GetType());
+	Lhs->GetValuePreshader(Context, Scope, Types.LhsType, OutResult.Preshader);
+	if (Types.RhsType != Shader::EValueType::Void)
 	{
-		Rhs->GetValuePreshader(Context, Scope, Types.RhsType.RequestedType, OutResult.Preshader);
+		Rhs->GetValuePreshader(Context, Scope, Types.RhsType, OutResult.Preshader);
 
 		check(Context.PreshaderStackPosition > 0);
 		Context.PreshaderStackPosition--;
@@ -1624,7 +1637,7 @@ void FStatementIf::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 
 void FStatementIf::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> Scopes, Shader::FPreshaderData& OutPreshader) const
 {
-	ConditionExpression->GetValuePreshader(Context, Scope, FRequestedType(1), OutPreshader);
+	ConditionExpression->GetValuePreshader(Context, Scope, ERequestedType::Scalar, OutPreshader);
 
 	check(Context.PreshaderStackPosition > 0);
 	Context.PreshaderStackPosition--;

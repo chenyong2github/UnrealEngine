@@ -251,7 +251,8 @@ class FRequestedType
 public:
 	FRequestedType() = default;
 	FRequestedType(ERequestedType InType);
-	explicit FRequestedType(int32 NumComponents);
+	FRequestedType(Shader::EValueType InType);
+	FRequestedType(const Shader::FType& InType);
 
 	int32 GetNumComponents() const;
 	bool IsComponentRequested(int32 Index) const { return RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false; }
@@ -297,11 +298,7 @@ inline void AppendHash(FHasher& Hasher, const FRequestedType& Value)
 struct FPreparedComponent
 {
 	FPreparedComponent() = default;
-	FPreparedComponent(EExpressionEvaluation InEvaluation, FEmitScope* InLoopScope = nullptr, FExpression* InForwardValue = nullptr, int32 InForwardComponentIndex = INDEX_NONE)
-		: LoopScope(InLoopScope), ForwardValue(InForwardValue), ForwardComponentIndex(InForwardComponentIndex), Evaluation(InEvaluation)
-	{
-		check(!IsLoopEvaluation(InEvaluation) || InLoopScope);
-	}
+	FPreparedComponent(EExpressionEvaluation InEvaluation) : Evaluation(InEvaluation) {}
 
 	inline bool IsNone() const { return Evaluation == EExpressionEvaluation::None; }
 
@@ -310,11 +307,13 @@ struct FPreparedComponent
 	FEmitScope* LoopScope = nullptr;
 	FExpression* ForwardValue = nullptr;
 	int32 ForwardComponentIndex = INDEX_NONE;
+	Shader::FComponentBounds Bounds;
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
 inline bool operator==(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
 	return Lhs.Evaluation == Rhs.Evaluation &&
+		Lhs.Bounds == Rhs.Bounds &&
 		Lhs.LoopScope == Rhs.LoopScope &&
 		Lhs.ForwardValue == Rhs.ForwardValue &&
 		Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex;
@@ -341,6 +340,7 @@ public:
 	void MergeEvaluation(EExpressionEvaluation Evaluation);
 	void SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType);
 	void SetForwardValue(const FRequestedType& RequestedType, FExpression* ForwardValue);
+	void UpdateBounds(const FRequestedType& RequestedType, Shader::FComponentBounds Bounds);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
@@ -358,6 +358,7 @@ public:
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, int32 ComponentIndex, int32 NumComponents) const;
+	Shader::FComponentBounds GetBounds(const FRequestedType& RequestedType) const;
 	FPreparedComponent GetComponent(int32 Index) const;
 
 	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
@@ -384,21 +385,6 @@ inline bool operator!=(const FPreparedType& Lhs, const FPreparedType& Rhs)
 }
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
-
-struct FRequestedValueType
-{
-	FRequestedValueType() = default;
-	FRequestedValueType(Shader::EValueComponentType InComponentType, const FRequestedType& InRequestedType) : ComponentType(InComponentType), RequestedType(InRequestedType) {}
-	FRequestedValueType(Shader::EValueType InType);
-	FRequestedValueType(const FPreparedType& InType);
-
-	int32 GetNumComponents() const { return RequestedType.GetNumComponents(); }
-	Shader::EValueType GetType() const;
-	inline bool IsVoid() const { return ComponentType == Shader::EValueComponentType::Void || GetNumComponents() == 0; }
-
-	Shader::EValueComponentType ComponentType = Shader::EValueComponentType::Void;
-	FRequestedType RequestedType;
-};
 
 class FPrepareValueResult
 {
@@ -472,12 +458,13 @@ public:
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
 
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedValueType& ResultType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& ResultType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType);
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope);
 
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType);
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType);
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;

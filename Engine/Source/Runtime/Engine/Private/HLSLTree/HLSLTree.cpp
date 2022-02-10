@@ -397,12 +397,12 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 	if (!EmitExpression)
 	{
 		const int32 LocalPHIIndex = Context.NumExpressionLocalPHIs++;
-		const FPreparedType& LocalType = GetPreparedType();
+		const Shader::FType LocalType = GetType();
 
 		// This is the first time we've emitted shader code for this PHI
 		// Create an expression and add it to the map first, so if this is called recursively this path will only be taken the first time
 		EmitExpression = OutResult.Code = Context.EmitInlineExpression(Scope,
-			LocalType.GetType(),
+			LocalType,
 			TEXT("LocalPHI%"), LocalPHIIndex);
 		Context.EmitLocalPHIMap.Add(this, EmitExpression);
 
@@ -556,9 +556,15 @@ FRequestedType::FRequestedType(ERequestedType InType)
 	RequestedComponents.Init(true, NumComponents);
 }
 
-FRequestedType::FRequestedType(int32 NumComponents)
+FRequestedType::FRequestedType(Shader::EValueType InType)
 {
-	RequestedComponents.Init(true, NumComponents);
+	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(InType);
+	RequestedComponents.Init(true, TypeDesc.NumComponents);
+}
+
+FRequestedType::FRequestedType(const Shader::FType& InType)
+{
+	RequestedComponents.Init(true, InType.GetNumComponents());
 }
 
 int32 FRequestedType::GetNumComponents() const
@@ -643,20 +649,26 @@ FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPrepa
 	}
 	else
 	{
-		const EExpressionEvaluation Evaluation = CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation);
-		FEmitScope* LoopScope = nullptr;
-		if (IsLoopEvaluation(Evaluation))
+		FPreparedComponent Result;
+		Result.Evaluation = CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation);
+		if (IsLoopEvaluation(Result.Evaluation))
 		{
-			LoopScope = FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope);
+			Result.LoopScope = FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope);
 		}
-		FExpression* ForwardValue = nullptr;
-		int32 ForwardComponentIndex = INDEX_NONE;
 		if (Lhs.ForwardValue == Rhs.ForwardValue && Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex)
 		{
-			ForwardValue = Lhs.ForwardValue;
-			ForwardComponentIndex = Lhs.ForwardComponentIndex;
+			Result.ForwardValue = Lhs.ForwardValue;
+			Result.ForwardComponentIndex = Lhs.ForwardComponentIndex;
 		}
-		return FPreparedComponent(Evaluation, LoopScope, ForwardValue, ForwardComponentIndex);
+		if (Lhs.Bounds.Min == Rhs.Bounds.Min)
+		{
+			Result.Bounds.Min = Lhs.Bounds.Min;
+		}
+		if (Lhs.Bounds.Max == Rhs.Bounds.Max)
+		{
+			Result.Bounds.Max = Lhs.Bounds.Max;
+		}
+		return Result;
 	}
 }
 
@@ -875,6 +887,42 @@ void FPreparedType::SetForwardValue(const FRequestedType& RequestedType, FExpres
 	}
 }
 
+void FPreparedType::UpdateBounds(const FRequestedType& RequestedType, Shader::FComponentBounds Bounds)
+{
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		FPreparedComponent& Component = PreparedComponents[Index];
+		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
+		{
+			Component.Bounds.Min = Shader::MaxBound(Component.Bounds.Min, Bounds.Min);
+			Component.Bounds.Max = Shader::MinBound(Component.Bounds.Max, Bounds.Max);
+		}
+	}
+}
+
+Shader::FComponentBounds FPreparedType::GetBounds(const FRequestedType& RequestedType) const
+{
+	Shader::FComponentBounds Result(Shader::EComponentBound::DoubleMax, Shader::EComponentBound::NegDoubleMax);
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		const FPreparedComponent& Component = PreparedComponents[Index];
+		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
+		{
+			// Constrain the component bounds we've stored by the range of the component's type
+			const Shader::EValueComponentType ComponentType = StructType ? StructType->ComponentTypes[Index] : ValueComponentType;
+			check(ComponentType != Shader::EValueComponentType::Void);
+
+			const Shader::FValueComponentTypeDescription ComponentTypeDesc = Shader::GetValueComponentTypeDescription(ComponentType);
+			const Shader::EComponentBound MinBound = Shader::MaxBound(Component.Bounds.Min, ComponentTypeDesc.Bounds.Min);
+			const Shader::EComponentBound MaxBound = Shader::MinBound(Component.Bounds.Max, ComponentTypeDesc.Bounds.Max);
+	
+			Result.Min = Shader::MinBound(Result.Min, MinBound);
+			Result.Max = Shader::MaxBound(Result.Max, MaxBound);
+		}
+	}
+	return Result;
+}
+
 void FPreparedType::SetField(const Shader::FStructField* Field, const FPreparedType& FieldType)
 {
 	for (int32 Index = 0; Index < Field->GetNumComponents(); ++Index)
@@ -932,31 +980,6 @@ FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& 
 	}
 
 	return Result;
-}
-
-FRequestedValueType::FRequestedValueType(Shader::EValueType InType)
-{
-	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(InType);
-	ComponentType = TypeDesc.ComponentType;
-	RequestedType.RequestedComponents.Init(true, TypeDesc.NumComponents);
-}
-
-FRequestedValueType::FRequestedValueType(const FPreparedType& InType)
-{
-	ComponentType = InType.ValueComponentType;
-	if (ComponentType != Shader::EValueComponentType::Void)
-	{
-		RequestedType = InType.GetRequestedType();
-	}
-}
-
-Shader::EValueType FRequestedValueType::GetType() const
-{
-	if (ComponentType != Shader::EValueComponentType::Void)
-	{
-		return Shader::MakeValueType(ComponentType, GetNumComponents());
-	}
-	return Shader::EValueType::Void;
 }
 
 bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType)
@@ -1020,7 +1043,17 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type)
 {
-	if (TryMergePreparedType(Context, Type.StructType, Type.ValueComponentType))
+	Shader::EValueComponentType ComponentType = Type.ValueComponentType;
+	if (ComponentType == Shader::EValueComponentType::Double)
+	{
+		const Shader::FComponentBounds Bounds = Type.GetBounds(RequestedType);
+		if (Shader::IsWithinBounds(Bounds, Shader::GetValueComponentTypeDescription(Shader::EValueComponentType::Float).Bounds))
+		{
+			ComponentType = Shader::EValueComponentType::Float;
+		}
+	}
+
+	if (TryMergePreparedType(Context, Type.StructType, ComponentType))
 	{
 		const int32 NumComponents = RequestedType.GetNumComponents();
 		for (int32 Index = 0; Index < NumComponents; ++Index)
@@ -1088,21 +1121,24 @@ FExpression* FExpression::GetForwardValue(const FRequestedType& RequestedType)
 			if (RequestedType.RequestedComponents[Index])
 			{
 				const FPreparedComponent Component = PreparedType.GetComponent(BaseComponentIndex + Index);
-				if (!Component.ForwardValue)
+				if (!Component.IsNone())
 				{
-					return nullptr;
-				}
+					if (!Component.ForwardValue)
+					{
+						return nullptr;
+					}
 
-				if (StartComponentIndex == INDEX_NONE)
-				{
-					StartComponentIndex = Index;
-					ForwardValue = Component.ForwardValue;
-					ForwardComponentIndex = Component.ForwardComponentIndex;
-				}
-				else if (ForwardValue != Component.ForwardValue ||
-					ForwardComponentIndex + Index - StartComponentIndex != Component.ForwardComponentIndex)
-				{
-					return nullptr;
+					if (StartComponentIndex == INDEX_NONE)
+					{
+						StartComponentIndex = Index;
+						ForwardValue = Component.ForwardValue;
+						ForwardComponentIndex = Component.ForwardComponentIndex;
+					}
+					else if (ForwardValue != Component.ForwardValue ||
+						ForwardComponentIndex + Index - StartComponentIndex != Component.ForwardComponentIndex)
+					{
+						return nullptr;
+					}
 				}
 			}
 		}
@@ -1158,6 +1194,16 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 		Value = Result.Code;
 	}
 
+	if (Value->Type.IsNumeric() && GetPreparedType().IsNumeric())
+	{
+		const Shader::FValueTypeDescription TypeDest = Shader::GetValueTypeDescription(Value->Type);
+		if (TypeDest.ComponentType == Shader::EValueComponentType::Double && GetPreparedType().ValueComponentType == Shader::EValueComponentType::Float)
+		{
+			const Shader::EValueType CastType = Shader::MakeValueType(Shader::EValueComponentType::Float, TypeDest.NumComponents);
+			Value = Context.EmitCast(Scope, Value, CastType);
+		}
+	}
+
 	return Value;
 }
 
@@ -1167,14 +1213,14 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 	return Context.EmitCast(Scope, Value, ResultType);
 }
 
-FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedValueType& ResultType)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType)
 {
-	return GetValueShader(Context, Scope, ResultType.RequestedType, ResultType.GetType());
+	return GetValueShader(Context, Scope, ResultType, ResultType);
 }
 
-FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& ResultType)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType)
 {
-	return GetValueShader(Context, Scope, ResultType.GetRequestedType(), ResultType.GetType());
+	return GetValueShader(Context, Scope, ResultType, ResultType);
 }
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope)
@@ -1255,7 +1301,12 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType)
 {
-	return GetValueConstant(Context, Scope, FRequestedType(ResultType.GetNumComponents()), ResultType);
+	return GetValueConstant(Context, Scope, FRequestedType(ResultType), ResultType);
+}
+
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType)
+{
+	return GetValueConstant(Context, Scope, FRequestedType(ResultType), ResultType);
 }
 
 bool FScope::HasParentScope(const FScope& InParentScope) const

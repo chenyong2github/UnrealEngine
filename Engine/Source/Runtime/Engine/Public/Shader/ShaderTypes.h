@@ -15,6 +15,43 @@ namespace Shader
 
 struct FStructType;
 
+enum class EComponentBound : uint8
+{
+	NegDoubleMax,
+	NegFloatMax,
+	IntMin,
+	NegOne,
+	Zero,
+	One,
+	IntMax,
+	FloatMax,
+	DoubleMax,
+};
+
+inline EComponentBound MinBound(EComponentBound Lhs, EComponentBound Rhs) { return (EComponentBound)FMath::Min((uint8)Lhs, (uint8)Rhs); }
+inline EComponentBound MaxBound(EComponentBound Lhs, EComponentBound Rhs) { return (EComponentBound)FMath::Max((uint8)Lhs, (uint8)Rhs); }
+
+struct FComponentBounds
+{
+	FComponentBounds() = default;
+	FComponentBounds(EComponentBound InMin, EComponentBound InMax) : Min(InMin), Max(InMax) {}
+
+	EComponentBound Min = EComponentBound::NegDoubleMax;
+	EComponentBound Max = EComponentBound::DoubleMax;
+};
+inline bool operator==(const FComponentBounds& Lhs, const FComponentBounds& Rhs)
+{
+	return Lhs.Min == Rhs.Min && Lhs.Max == Rhs.Max;
+}
+inline bool operator!=(const FComponentBounds& Lhs, const FComponentBounds& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+inline FComponentBounds MinBound(FComponentBounds Lhs, FComponentBounds Rhs) { return FComponentBounds(MinBound(Lhs.Min, Rhs.Min), MinBound(Lhs.Max, Rhs.Max)); }
+inline FComponentBounds MaxBound(FComponentBounds Lhs, FComponentBounds Rhs) { return FComponentBounds(MaxBound(Lhs.Min, Rhs.Min), MaxBound(Lhs.Max, Rhs.Max)); }
+inline bool IsWithinBounds(FComponentBounds Lhs, FComponentBounds Rhs) { return (uint8)Lhs.Min >= (uint8)Rhs.Min && (uint8)Lhs.Max <= (uint8)Rhs.Max; }
+
 enum class EValueComponentType : uint8
 {
 	Void,
@@ -24,21 +61,24 @@ enum class EValueComponentType : uint8
 	Bool,
 };
 
-const TCHAR* GetComponentTypeName(EValueComponentType Type);
-uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
+struct FValueComponentTypeDescription
+{
+	FValueComponentTypeDescription() = default;
+	FValueComponentTypeDescription(const TCHAR* InName, uint32_t InSizeInBytes, EComponentBound InMin, EComponentBound InMax) : Name(InName), SizeInBytes(InSizeInBytes), Bounds(InMin, InMax) {}
+
+	const TCHAR* Name = nullptr;
+	uint32_t SizeInBytes = 0u;
+	FComponentBounds Bounds;
+};
+
+FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type);
+inline const TCHAR* GetComponentTypeName(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).Name; }
+inline uint32 GetComponentTypeSizeInBytes(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).SizeInBytes; }
+inline bool IsComponentTypeWithinBounds(EValueComponentType Type, FComponentBounds Bounds) { return IsWithinBounds(GetValueComponentTypeDescription(Type).Bounds, Bounds); }
+
 EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
 inline EValueComponentType MakeNonLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double ? EValueComponentType::Float : Type; }
-
-struct FValueTypeDescription
-{
-	FValueTypeDescription() : Name(nullptr), ComponentType(EValueComponentType::Void), NumComponents(0) {}
-	FValueTypeDescription(const TCHAR* InName, EValueComponentType InComponentType, int8 InNumComponents) : Name(InName), ComponentType(InComponentType), NumComponents(InNumComponents) {}
-
-	const TCHAR* Name;
-	EValueComponentType ComponentType;
-	int8 NumComponents;
-};
 
 enum class EValueType : uint8
 {
@@ -75,10 +115,21 @@ enum class EValueType : uint8
 	Struct,
 };
 
+struct FValueTypeDescription
+{
+	FValueTypeDescription() : Name(nullptr), ComponentType(EValueComponentType::Void), NumComponents(0) {}
+	FValueTypeDescription(const TCHAR* InName, EValueComponentType InComponentType, int8 InNumComponents) : Name(InName), ComponentType(InComponentType), NumComponents(InNumComponents) {}
+
+	const TCHAR* Name;
+	EValueComponentType ComponentType;
+	int8 NumComponents;
+};
+
 FValueTypeDescription GetValueTypeDescription(EValueType Type);
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
 EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
+EValueType MakeNonLWCType(EValueType Type);
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 

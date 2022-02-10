@@ -375,29 +375,16 @@ bool FValue::AsBoolScalar() const
 	return false;
 }
 
-const TCHAR* GetComponentTypeName(EValueComponentType Type)
+FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type)
 {
 	switch (Type)
 	{
-	case EValueComponentType::Void: return TEXT("void");
-	case EValueComponentType::Float: return TEXT("float");
-	case EValueComponentType::Double: return TEXT("double");
-	case EValueComponentType::Int: return TEXT("int");
-	case EValueComponentType::Bool: return TEXT("bool");
-	default: checkNoEntry() return TEXT("void");
-	}
-}
-
-uint32 GetComponentTypeSizeInBytes(EValueComponentType Type)
-{
-	switch (Type)
-	{
-	case EValueComponentType::Void: return 0u;
-	case EValueComponentType::Float: return sizeof(float);
-	case EValueComponentType::Double: return sizeof(double);
-	case EValueComponentType::Int: return sizeof(int32);
-	case EValueComponentType::Bool: return 1u;
-	default: checkNoEntry(); return 0u;
+	case EValueComponentType::Void: return FValueComponentTypeDescription(TEXT("void"), 0u, EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::Float: return FValueComponentTypeDescription(TEXT("float"), 4u, EComponentBound::NegFloatMax, EComponentBound::FloatMax);
+	case EValueComponentType::Double: return FValueComponentTypeDescription(TEXT("double"), 8u, EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
+	case EValueComponentType::Int: return FValueComponentTypeDescription(TEXT("int"), 4u, EComponentBound::IntMin, EComponentBound::IntMax);
+	case EValueComponentType::Bool: return FValueComponentTypeDescription(TEXT("bool"), 1u, EComponentBound::Zero, EComponentBound::One);
+	default: checkNoEntry() return FValueComponentTypeDescription();
 	}
 }
 
@@ -658,6 +645,12 @@ EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 Req
 {
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(BaseType);
 	return MakeValueType(TypeDesc.ComponentType, FMath::Min(TypeDesc.NumComponents, RequestedNumComponents));
+}
+
+EValueType MakeNonLWCType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	return MakeValueType(MakeNonLWCType(TypeDesc.ComponentType), TypeDesc.NumComponents);
 }
 
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)

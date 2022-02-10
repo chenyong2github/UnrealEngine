@@ -245,6 +245,12 @@ public:
 	}
 
 	template<typename FormatType, typename... Types>
+	FEmitShaderExpression* EmitExpressionWithDependency(FEmitScope& Scope, FEmitShaderNode* Dependency, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	{
+		return EmitExpressionWithDependencies(Scope, MakeDependencies(Dependency), Type, Format, Forward<Types>(Args)...);
+	}
+
+	template<typename FormatType, typename... Types>
 	FEmitShaderExpression* EmitInlineExpressionWithDependencies(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		TStringBuilder<2048> String;

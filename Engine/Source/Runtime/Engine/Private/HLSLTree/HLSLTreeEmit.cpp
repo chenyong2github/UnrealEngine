@@ -885,6 +885,7 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 
 	TStringBuilder<1024> FormattedCode;
 	Shader::FType IntermediateType = DestType;
+	bool bInline = true;
 
 	if (SourceTypeDesc.NumComponents > 0 && DestTypeDesc.NumComponents > 0)
 	{
@@ -904,6 +905,7 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 				//LWC->float
 				FormattedCode.Appendf(TEXT("LWCToFloat(%s)"), ShaderValue->Reference);
 				IntermediateType = Shader::MakeValueType(Shader::EValueComponentType::Float, SourceTypeDesc.NumComponents);
+				bInline = false; // LWCToFloat has non-zero cost
 			}
 		}
 		else
@@ -989,7 +991,15 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 	}
 
 	check(IntermediateType != ShaderValue->Type);
-	ShaderValue = EmitInlineExpressionWithDependency(Scope, ShaderValue, IntermediateType, FormattedCode.ToView());
+	if (bInline)
+	{
+		ShaderValue = EmitInlineExpressionWithDependency(Scope, ShaderValue, IntermediateType, FormattedCode.ToView());
+	}
+	else
+	{
+		ShaderValue = EmitExpressionWithDependency(Scope, ShaderValue, IntermediateType, FormattedCode.ToView());
+	}
+
 	if (ShaderValue->Type != DestType)
 	{
 		// May need to cast through multiple intermediate types to reach our destination type
