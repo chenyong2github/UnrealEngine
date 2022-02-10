@@ -157,6 +157,10 @@ private:
 	virtual void Exit() override;
 
 private:
+
+	/** Split the send data into chunks until all data is sent. */
+	bool ChunkedBlockingSend(const TArray<uint8>& Payload);
+
 	/** Try to send data, but if all data is not sent in one go, block on send until data is sent or an error occurs */
 	bool BlockingSend(const uint8* Data, int32 BytesToSend);
 
