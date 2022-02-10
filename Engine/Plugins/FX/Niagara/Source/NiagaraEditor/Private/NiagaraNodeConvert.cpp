@@ -430,7 +430,7 @@ bool UNiagaraNodeConvert::RefreshFromExternalChanges()
 			FNiagaraTypeDefinition SourcePropTypeDef = SourceProperty ? Schema->GetTypeDefForProperty(SourceProperty) : SourcePinTypeDef;
 			FNiagaraTypeDefinition DestinationPropTypeDef = DestinationProperty ? Schema->GetTypeDefForProperty(DestinationProperty) : DestinationPinTypeDef;
 
-			bTypesAreAssignable = FNiagaraTypeDefinition::TypesAreAssignable(SourcePropTypeDef, DestinationPropTypeDef);
+			bTypesAreAssignable = FNiagaraTypeDefinition::TypesAreAssignable(SourcePropTypeDef, DestinationPropTypeDef) || FNiagaraTypeDefinition::IsLossyConversion(SourcePropTypeDef, DestinationPropTypeDef);
 		}
 
 
@@ -792,7 +792,7 @@ bool UNiagaraNodeConvert::InitConversion(UEdGraphPin* FromPin, UEdGraphPin* ToPi
 		FNiagaraTypeDefinition ToPropType = Schema->GetTypeDefForProperty(ToProp);
 		SrcPath.Empty();
 		DestPath.Empty();
-		if (FromPropType == ToPropType)
+		if (FNiagaraTypeDefinition::TypesAreAssignable(FromPropType, ToPropType) || FNiagaraTypeDefinition::IsLossyConversion(FromPropType, ToPropType))
 		{
 			SrcPath.Add(*FromProp->GetName());
 			DestPath.Add(*ToProp->GetName());

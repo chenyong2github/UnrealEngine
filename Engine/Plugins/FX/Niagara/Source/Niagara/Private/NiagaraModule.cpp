@@ -1178,7 +1178,10 @@ bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& Ty
 
 bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
 {
-	return (TypeA == IntDef && TypeB == FloatDef) || (TypeB == IntDef && TypeA == FloatDef);
+	return (TypeA.IsSameBaseDefinition(IntDef) && TypeB.IsSameBaseDefinition(FloatDef))
+		|| (TypeB.IsSameBaseDefinition(IntDef) && TypeA.IsSameBaseDefinition(FloatDef))
+		|| (TypeA.IsSameBaseDefinition(BoolDef) && TypeB.IsSameBaseDefinition(FloatDef))
+		|| (TypeB.IsSameBaseDefinition(BoolDef) && TypeA.IsSameBaseDefinition(FloatDef));
 }
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode)
