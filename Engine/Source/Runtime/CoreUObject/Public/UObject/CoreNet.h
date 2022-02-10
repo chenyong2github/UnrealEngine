@@ -228,23 +228,14 @@ struct FPacketIdRange
 /** Information for tracking retirement and retransmission of a property. */
 struct FPropertyRetirement
 {
-#if !UE_BUILD_SHIPPING
-	static const uint32 ExpectedSanityTag = 0xDF41C9A3;
-
-	uint32 SanityTag;
-#endif
-
 	FPropertyRetirement* Next;
 
 	TSharedPtr<class INetDeltaBaseState> DynamicState;
 
 	FPacketIdRange OutPacketIdRange;
-	uint32 FastArrayChangelistHistory;
+	uint16 FastArrayChangelistHistory;
 
 	FPropertyRetirement() :
-#if !UE_BUILD_SHIPPING
-		SanityTag( ExpectedSanityTag ),
-#endif
 		 Next(nullptr)
 		, DynamicState(nullptr)
 		, FastArrayChangelistHistory(0)
@@ -435,15 +426,15 @@ public:
 	 */
 	virtual void CountBytes(FArchive& Ar) const {}
 
-	uint32 GetLastAckedHistory() const { return LastAckedHistory; }
-	void SetLastAckedHistory(uint32 InAckedHistory) { LastAckedHistory = InAckedHistory; }
+	uint16 GetLastAckedHistory() const { return LastAckedHistory; }
+	void SetLastAckedHistory(uint16 InAckedHistory) { LastAckedHistory = InAckedHistory; }
 
-	uint32 GetChangelistHistory() const { return ChangelistHistory; }
-	void SetChangelistHistory(uint32 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
+	uint16 GetChangelistHistory() const { return ChangelistHistory; }
+	void SetChangelistHistory(uint16 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
 
 private:
-	uint32 LastAckedHistory;
-	uint32 ChangelistHistory;
+	uint16 LastAckedHistory;
+	uint16 ChangelistHistory;
 };
 
 struct FNetDeltaSerializeInfo;

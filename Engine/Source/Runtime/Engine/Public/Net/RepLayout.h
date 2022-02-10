@@ -501,7 +501,7 @@ public:
 	~FRepChangelistState();
 
 	/** The maximum number of individual changelists allowed.*/
-	static const int32 MAX_CHANGE_HISTORY = 64;
+	static const uint16 MAX_CHANGE_HISTORY = 64;
 
 	/** Circular buffer of changelists. */
 	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];
@@ -510,13 +510,13 @@ public:
 	TUniquePtr<struct FCustomDeltaChangelistState> CustomDeltaChangelistState;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
-	int32 HistoryStart;
+	uint16 HistoryStart;
 
 	/** Index in the buffer where changelist history ends (i.e., the Newest changelist). */
-	int32 HistoryEnd;
+	uint16 HistoryEnd;
 
 	/** Number of times that properties have been compared */
-	int32 CompareIndex;
+	uint16 CompareIndex;
 
 	/** Latest state of all property data. Not used on Clients, only used on Servers if Shadow State is enabled. */
 	FRepStateStaticBuffer StaticBuffer;
@@ -647,19 +647,19 @@ public:
 	TEnumAsByte<ENetRole> SavedRole = ROLE_MAX;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
-	int32 HistoryStart;
+	uint16 HistoryStart;
 
 	/** Index in the buffer where changelist history ends (i.e., the Newest changelist). */
-	int32 HistoryEnd;
+	uint16 HistoryEnd;
 
 	/** Number of Changelist history entries that have outstanding Naks. */
-	int32 NumNaks;
+	uint16 NumNaks;
 
 	/**
 	 * The last change list history item we replicated from FRepChangelistState.
 	 * (If we are caught up to FRepChangelistState::HistoryEnd, there are no new changelists to replicate).
 	 */
-	int32 LastChangelistIndex;
+	uint16 LastChangelistIndex;
 
 	/**
 	 * Tracks the last time this RepState actually replicated data.
@@ -670,14 +670,14 @@ public:
 	 *
 	 * Note, we can't solely rely on on LastChangelistIndex, since changelists are stored in circular buffers.
 	 */
-	int32 LastCompareIndex;
+	uint16 LastCompareIndex;
 
 	FReplicationFlags RepFlags;
 
 	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker;
 
 	/** The maximum number of individual changelists allowed.*/
-	static constexpr int32 MAX_CHANGE_HISTORY = 32;
+	static constexpr uint16 MAX_CHANGE_HISTORY = 32;
 
 	/** Circular buffer of changelists. */
 	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];

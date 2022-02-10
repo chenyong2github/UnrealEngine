@@ -1601,8 +1601,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 
 		// We set ChangelistHistory and LastAckedHistory to 0, as that's the default RepLayout expects.
 		// Setting them to anything else may cause issues with initial sends.
-		uint32 OldChangelistHistory = 0;
-		uint32 OldLastAckedHistory = 0;
+		uint16 OldChangelistHistory = 0;
+		uint16 OldLastAckedHistory = 0;
 
 		// See if the array changed at all. If the ArrayReplicationKey matches we can skip checking individual items
 		if (Parms.OldState)

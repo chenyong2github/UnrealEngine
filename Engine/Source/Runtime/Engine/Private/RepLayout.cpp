@@ -475,7 +475,7 @@ struct FDeltaArrayHistoryItem
 struct FDeltaArrayHistoryState
 {
 	/** The maximum number of individual changelists allowed.*/
-	static const uint32 MAX_CHANGE_HISTORY = FRepChangelistState::MAX_CHANGE_HISTORY;
+	static const uint16 MAX_CHANGE_HISTORY = FRepChangelistState::MAX_CHANGE_HISTORY;
 
 	//~ TODO: Investigate either making this a Dynamically sized container,
 	//~			or potentially changing ArrayStates to unique pointers / 
@@ -494,10 +494,10 @@ struct FDeltaArrayHistoryState
 	TMap<int32, int32> IDToIndexMap;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
-	uint32 HistoryStart = 0;
+	uint16 HistoryStart = 0;
 
 	/** Index in the buffer where changelist history ends (i.e., the Newest changelist). */
-	uint32 HistoryEnd = 0;
+	uint16 HistoryEnd = 0;
 
 	void CountBytes(FArchive& Ar) const
 	{
@@ -1689,10 +1689,20 @@ ERepLayoutResult FRepLayout::CompareProperties(
 		return ERepLayoutResult::Empty;
 	}
 
-	RepChangelistState->CompareIndex++;
+	static_assert(sizeof(RepChangelistState->CompareIndex) == sizeof(uint16), "CompareIndex should be a uint16");
+
+	if (RepChangelistState->CompareIndex == MAX_uint16)
+	{
+		// other systems test for index > 1 to indicate that we've ever done a comparison
+		RepChangelistState->CompareIndex = 2;
+	}
+	else
+	{
+		RepChangelistState->CompareIndex++;
+	}
 
 	check((RepChangelistState->HistoryEnd - RepChangelistState->HistoryStart) < FRepChangelistState::MAX_CHANGE_HISTORY);
-	const int32 HistoryIndex = RepChangelistState->HistoryEnd % FRepChangelistState::MAX_CHANGE_HISTORY;
+	const uint16 HistoryIndex = RepChangelistState->HistoryEnd % FRepChangelistState::MAX_CHANGE_HISTORY;
 
 	FRepChangedHistory& NewHistoryItem = RepChangelistState->ChangeHistory[HistoryIndex];
 
@@ -1799,11 +1809,11 @@ ERepLayoutResult FRepLayout::CompareProperties(
 	// If we're full, merge the oldest up, so we always have room for a new entry
 	if ((RepChangelistState->HistoryEnd - RepChangelistState->HistoryStart) == FRepChangelistState::MAX_CHANGE_HISTORY)
 	{
-		const int32 FirstHistoryIndex = RepChangelistState->HistoryStart % FRepChangelistState::MAX_CHANGE_HISTORY;
+		const uint16 FirstHistoryIndex = RepChangelistState->HistoryStart % FRepChangelistState::MAX_CHANGE_HISTORY;
 
 		RepChangelistState->HistoryStart++;
 
-		const int32 SecondHistoryIndex = RepChangelistState->HistoryStart % FRepChangelistState::MAX_CHANGE_HISTORY;
+		const uint16 SecondHistoryIndex = RepChangelistState->HistoryStart % FRepChangelistState::MAX_CHANGE_HISTORY;
 
 		TArray<uint16>& FirstChangelistRef = RepChangelistState->ChangeHistory[FirstHistoryIndex].Changed;
 		TArray<uint16> SecondChangelistCopy = MoveTemp(RepChangelistState->ChangeHistory[SecondHistoryIndex].Changed);
@@ -1918,9 +1928,9 @@ bool FRepLayout::ReplicateProperties(
 		if (RepState->LifetimeChangelist.Num() == 0)
 		{
 			// If this object was dormant, the lifetime list will be empty if the replicator was discarded, so rebuild it from the changelist state.
-			for (int32 i = RepChangelistState->HistoryStart; i < RepChangelistState->HistoryEnd; ++i)
+			for (uint16 i = RepChangelistState->HistoryStart; i < RepChangelistState->HistoryEnd; ++i)
 			{
-				const int32 HistoryIndex = i % FRepChangelistState::MAX_CHANGE_HISTORY;
+				const uint16 HistoryIndex = i % FRepChangelistState::MAX_CHANGE_HISTORY;
 
 				FRepChangedHistory& HistoryItem = RepChangelistState->ChangeHistory[HistoryIndex];
 
@@ -1982,7 +1992,7 @@ bool FRepLayout::ReplicateProperties(
 		RepState->LastChangelistIndex = RepChangelistState->HistoryStart;
 	}
 
-	const int32 PossibleNewHistoryIndex = RepState->HistoryEnd % FSendingRepState::MAX_CHANGE_HISTORY;
+	const uint16 PossibleNewHistoryIndex = RepState->HistoryEnd % FSendingRepState::MAX_CHANGE_HISTORY;
 
 	FRepChangedHistory& PossibleNewHistoryItem = RepState->ChangeHistory[PossibleNewHistoryIndex];
 
@@ -1992,9 +2002,9 @@ bool FRepLayout::ReplicateProperties(
 	check(Changed.Num() == 0);
 
 	// Gather all change lists that are new since we last looked, and merge them all together into a single CL
-	for (int32 i = RepState->LastChangelistIndex; i < RepChangelistState->HistoryEnd; ++i)
+	for (uint16 i = RepState->LastChangelistIndex; i < RepChangelistState->HistoryEnd; ++i)
 	{
-		const int32 HistoryIndex = i % FRepChangelistState::MAX_CHANGE_HISTORY;
+		const uint16 HistoryIndex = i % FRepChangelistState::MAX_CHANGE_HISTORY;
 
 		FRepChangedHistory& HistoryItem = RepChangelistState->ChangeHistory[HistoryIndex];
 
@@ -2103,12 +2113,12 @@ void FRepLayout::UpdateChangelistHistory(
 {
 	check(RepState->HistoryEnd >= RepState->HistoryStart);
 
-	const int32 HistoryCount = RepState->HistoryEnd - RepState->HistoryStart;
-	const bool DumpHistory = HistoryCount == FSendingRepState::MAX_CHANGE_HISTORY;
+	const uint16 HistoryCount = RepState->HistoryEnd - RepState->HistoryStart;
+	const bool bDumpHistory = HistoryCount == FSendingRepState::MAX_CHANGE_HISTORY;
 	const int32 AckPacketId = Connection->OutAckPacketId;
 
 	// If our buffer is currently full, forcibly send the entire history
-	if (DumpHistory)
+	if (bDumpHistory)
 	{
 		UE_LOG(LogRep, Verbose, TEXT("FRepLayout::UpdateChangelistHistory: History overflow, forcing history dump %s, %s"), *ObjectClass->GetName(), *Connection->Describe());
 	}
@@ -2117,9 +2127,9 @@ void FRepLayout::UpdateChangelistHistory(
 
 	if (bDeltaCheckpoint)
 	{
-		for (int32 i = RepState->HistoryStart; i < RepState->HistoryEnd - 1; i++)
+		for (uint16 i = RepState->HistoryStart; i < RepState->HistoryEnd - 1; i++)
 		{
-			const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
+			const uint16 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
 
 			FRepChangedHistory& HistoryItem = RepState->ChangeHistory[HistoryIndex];
 
@@ -2132,9 +2142,9 @@ void FRepLayout::UpdateChangelistHistory(
 	}
 	else
 	{
-		for (int32 i = RepState->HistoryStart; i < RepState->HistoryEnd; i++)
+		for (uint16 i = RepState->HistoryStart; i < RepState->HistoryEnd; i++)
 		{
-			const int32 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
+			const uint16 HistoryIndex = i % FSendingRepState::MAX_CHANGE_HISTORY;
 
 			FRepChangedHistory& HistoryItem = RepState->ChangeHistory[HistoryIndex];
 
@@ -2148,9 +2158,9 @@ void FRepLayout::UpdateChangelistHistory(
 			// All active history items should contain a change list
 			check(HistoryItem.Changed.Num() > 0);
 
-			if (AckPacketId >= HistoryItem.OutPacketIdRange.Last || HistoryItem.Resend || DumpHistory)
+			if (AckPacketId >= HistoryItem.OutPacketIdRange.Last || HistoryItem.Resend || bDumpHistory)
 			{
-				if (HistoryItem.Resend || DumpHistory)
+				if (HistoryItem.Resend || bDumpHistory)
 				{
 					// Merge in nak'd change lists
 					check(OutMerged != NULL);
@@ -2174,7 +2184,7 @@ void FRepLayout::UpdateChangelistHistory(
 	}
 
 	// Remove any tiling in the history markers to keep them from wrapping over time
-	const int32 NewHistoryCount	= RepState->HistoryEnd - RepState->HistoryStart;
+	const uint16 NewHistoryCount = RepState->HistoryEnd - RepState->HistoryStart;
 
 	check(NewHistoryCount < FSendingRepState::MAX_CHANGE_HISTORY);
 
@@ -7313,8 +7323,8 @@ void FRepLayout::PreSendCustomDeltaProperties(
 							const int32 FastArrayReplicationKey = CustomDeltaProperty.GetFastArrayArrayReplicationKey(FastArraySerializer);
 							if (FastArrayHistoryState.ArrayReplicationKey != FastArrayReplicationKey)
 							{
-								const uint32 HistoryDelta = FastArrayHistoryState.HistoryEnd - FastArrayHistoryState.HistoryStart;
-								const uint32 CurrentHistoryIndex = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+								const uint16 HistoryDelta = FastArrayHistoryState.HistoryEnd - FastArrayHistoryState.HistoryStart;
+								const uint16 CurrentHistoryIndex = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
 								const FDeltaArrayHistoryItem& CurrentHistory = FastArrayHistoryState.ChangeHistory[CurrentHistoryIndex];
 
 								// If we don't have any history items, go ahead and create one.
@@ -7331,7 +7341,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 									}
 
 									++FastArrayHistoryState.HistoryEnd;
-									const uint32 NewHistory = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+									const uint16 NewHistory = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
 									FastArrayHistoryState.ChangeHistory[NewHistory].Reset();
 								}
 							}
@@ -7450,7 +7460,6 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 				const int32 FastArrayNumber = CustomDeltaProperty.FastArrayNumber;
 				FDeltaArrayHistoryState& FastArrayState = DeltaChangelistState.ArrayStates[FastArrayNumber];
 
-
 				// Params.WriteBaseState should be valid, and have the most up to date IDToChangelist map for the Fast Array.
 				// However, it's ChangelistHistory will be to the last History Number sent to the Fast TArray on the specific
 				// connection we're replicating from.
@@ -7458,9 +7467,9 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 
 				// Cache off the newest history, the last history sent to this connection, and then update the state
 				// to notify that we're going to send it the newest history.
-				const uint32 NewChangelistHistory = FastArrayState.HistoryEnd;
-				const uint32 LastAckedHistory = NewArrayDeltaState->GetLastAckedHistory();
-				const uint32 LastAckedChangelistDelta = NewChangelistHistory - LastAckedHistory;
+				const uint16 NewChangelistHistory = FastArrayState.HistoryEnd;
+				const uint16 LastAckedHistory = NewArrayDeltaState->GetLastAckedHistory();
+				const uint16 LastAckedChangelistDelta = NewChangelistHistory - LastAckedHistory;
 
 				NewArrayDeltaState->SetChangelistHistory(NewChangelistHistory);
 
@@ -7475,8 +7484,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 
 				// Check to see whether or not we need to update the global changelist shared between connections.
 				{
-					const uint32 RelativeNewHistory = NewChangelistHistory % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
-					const uint32 CompareChangelistDelta = NewChangelistHistory - FastArrayState.HistoryStart;
+					const uint16 RelativeNewHistory = NewChangelistHistory % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+					const uint16 CompareChangelistDelta = NewChangelistHistory - FastArrayState.HistoryStart;
 					FDeltaArrayHistoryItem& HistoryItem = FastArrayState.ChangeHistory[RelativeNewHistory];
 
 					if (!HistoryItem.bWasUpdated)
