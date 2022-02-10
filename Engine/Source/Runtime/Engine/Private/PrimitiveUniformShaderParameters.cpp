@@ -152,7 +152,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
 		.ReceivesDecals(Proxy->ReceivesDecals())
 		.DrawsVelocity(Proxy->DrawsVelocity())
-		.OutputVelocity(bOutputVelocity)
+		.OutputVelocity(bOutputVelocity || Proxy->AlwaysHasVelocity())
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())
 		.CastHiddenShadow(Proxy->CastsHiddenShadow())
