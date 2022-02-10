@@ -3,6 +3,7 @@
 #include "USDStageModule.h"
 
 #include "USDStageActor.h"
+#include "USDStageActorCustomization.h"
 
 #include "Modules/ModuleManager.h"
 #include "EngineUtils.h"
@@ -50,6 +51,9 @@ public:
 				}
 			}
 		}
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT( "PropertyEditor" ) );
+		PropertyModule.RegisterCustomClassLayout( TEXT( "UsdStageActor" ), FOnGetDetailCustomizationInstance::CreateStatic( &FUsdStageActorCustomization::MakeInstance ) );
 #endif // WITH_EDITOR
 	}
 
@@ -74,6 +78,9 @@ public:
 				}
 			}
 		}
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT( "PropertyEditor" ) );
+		PropertyModule.UnregisterCustomClassLayout( TEXT( "UsdStageActor" ) );
 #endif // WITH_EDITOR
 	}
 

@@ -20,9 +20,9 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",
+					"Projects", // So that we can use the plugin manager to find out our content dir and cook the master materials
 					"Slate",
 					"SlateCore",
-					"Projects", // So that we can use the plugin manager to find out our content dir and cook the master materials
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
 					"USDClasses",
@@ -37,7 +37,10 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DeveloperToolSettings",
+						"EditorStyle", // For the font style on the stage actor customization
+						"InputCore", // For keyboard control on the widget in the stage actor customization
 						"LevelSequenceEditor",
+						"PropertyEditor", // For the stage actor's details customization
 						"Sequencer",
 						"UnrealEd",
 					}

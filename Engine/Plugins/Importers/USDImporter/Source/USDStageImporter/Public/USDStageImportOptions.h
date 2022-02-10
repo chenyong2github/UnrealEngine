@@ -73,7 +73,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = ( NoSpinbox = "true", UIMin = "0", ClampMin = "0" ) )
 	int32 NaniteTriangleThreshold;
 
-	/** Specifies which set of shaders to use, defaults to universal. */
+	/** Specifies which set of shaders to use when parsing USD materials, in addition to the universal render context. */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options")
 	FName RenderContextToImport;
 

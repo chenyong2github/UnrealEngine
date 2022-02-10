@@ -4,9 +4,11 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDStageImporter.h"
+#include "USDStageImportOptionsCustomization.h"
 
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "Templates/UniquePtr.h"
 
 #define LOCTEXT_NAMESPACE "UsdStageImporterModule"
@@ -19,12 +21,18 @@ public:
 #if USE_USD_SDK
 		IUnrealUSDWrapperModule& UnrealUSDWrapperModule = FModuleManager::Get().LoadModuleChecked< IUnrealUSDWrapperModule >(TEXT("UnrealUSDWrapper"));
 
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT( "PropertyEditor" ) );
+		PropertyModule.RegisterCustomClassLayout( TEXT( "UsdStageImportOptions" ), FOnGetDetailCustomizationInstance::CreateStatic( &FUsdStageImportOptionsCustomization::MakeInstance ) );
+
 		USDStageImporter = MakeUnique<UUsdStageImporter>();
 #endif // #if USE_USD_SDK
 	}
 
 	virtual void ShutdownModule() override
 	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT( "PropertyEditor" ) );
+		PropertyModule.UnregisterCustomClassLayout( TEXT( "UsdStageImportOptions" ) );
+
 		USDStageImporter.Reset();
 	}
 
