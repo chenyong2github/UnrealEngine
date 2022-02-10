@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STutorialContent.h"
+#include "EditorTutorialStyle.h"
 #include "Rendering/DrawElements.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SBoxPanel.h"
@@ -108,9 +109,9 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 				// Add more padding if the content is to be displayed centrally (i.e. not on a widget)
 				.Padding(bIsStandalone ? TutorialConstants::BorderSizeStandalone : TutorialConstants::BorderSize)
 				.Visibility(EVisibility::SelfHitTestInvisible)
-				.BorderImage(FEditorStyle::GetBrush("Tutorials.Border"))
+				.BorderImage(FEditorTutorialStyle::Get().GetBrush("Tutorials.Border"))
 				.BorderBackgroundColor(this, &STutorialContent::GetBackgroundColor)
-				.ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+				.ForegroundColor(FAppStyle::Get().GetSlateColor("InvertedForeground"))
 				[
 					SNew(SFxWidget)
 					.RenderScale(this, &STutorialContent::GetInverseAnimatedZoom)
@@ -146,7 +147,7 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 					SNew(SComboButton)
 					.ToolTipText(LOCTEXT("MoreOptionsTooltip", "More Options"))
 					.Visibility(this, &STutorialContent::GetMenuButtonVisibility)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
 					.ContentPadding(0.0f)
 					.OnGetMenuContent(FOnGetContent::CreateSP(this, &STutorialContent::HandleGetMenuContent))
 				]
@@ -159,11 +160,11 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 					.ToolTipText(LOCTEXT("QuitStandaloneTooltip", "Close this Message"))
 					.OnClicked(this, &STutorialContent::OnCloseButtonClicked)
 					.Visibility(this, &STutorialContent::GetCloseButtonVisibility)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
 					.ContentPadding(0.0f)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Symbols.X"))
+						.Image(FAppStyle::Get().GetBrush("Symbols.X"))
 						.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f))
 					]
 				]
@@ -177,7 +178,7 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 				.ToolTipText(this, &STutorialContent::GetBackButtonTooltip)
 				.OnClicked(this, &STutorialContent::HandleBackButtonClicked)
 				.Visibility(this, &STutorialContent::GetBackButtonVisibility)
-				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButtonWrapper"))
+				.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButtonWrapper"))
 				.ContentPadding(0.0f)
 				[
 					SNew(SBox)
@@ -207,7 +208,7 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 				.ToolTipText(this, &STutorialContent::GetNextButtonTooltip)
 				.OnClicked(this, &STutorialContent::HandleNextClicked)
 				.Visibility(this, &STutorialContent::GetMenuButtonVisibility)
-				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButtonWrapper"))
+				.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButtonWrapper"))
 				.ContentPadding(0.0f)
 				[
 					SNew(SBox)
@@ -224,7 +225,7 @@ void STutorialContent::Construct(const FArguments& InArgs, UEditorTutorial* InTu
 							[
 								SNew(STextBlock)
 								.Text(this, &STutorialContent::GetNextButtonLabel)
-								.TextStyle(FEditorStyle::Get(), "Tutorials.Content.NavigationText")
+								.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.Content.NavigationText")
 								.ColorAndOpacity(FLinearColor::White)
 							]
 							+SHorizontalBox::Slot()
@@ -292,8 +293,8 @@ int32 STutorialContent::OnPaint(const FPaintArgs& Args, const FGeometry& Allotte
 		FLinearColor BorderTint;
 		GetAnimationValues(AlphaFactor, PulseFactor, ShadowTint, BorderTint);
 
-		const FSlateBrush* ShadowBrush = FEditorStyle::Get().GetBrush(TEXT("Tutorials.Shadow"));
-		const FSlateBrush* BorderBrush = FEditorStyle::Get().GetBrush(TEXT("Tutorials.Border"));
+		const FSlateBrush* ShadowBrush = FEditorTutorialStyle::Get().GetBrush(TEXT("Tutorials.Shadow"));
+		const FSlateBrush* BorderBrush = FEditorTutorialStyle::Get().GetBrush(TEXT("Tutorials.Border"));
 					
 		const FGeometry& WidgetGeometry = CachedGeometry;
 		const FVector2D WindowSize = OutDrawElements.GetPaintWindow()->GetSizeInScreen();
@@ -344,7 +345,7 @@ static TSharedRef<SWidget> GetStageTitle(const FExcerpt& InExcerpt, int32 InCurr
 	{
 		return SNew(STextBlock)
 			.Text(FText::FromString(*VariableValue))
-			.TextStyle(FEditorStyle::Get(), "Tutorials.CurrentExcerpt");
+			.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.CurrentExcerpt");
 	}
 
 	// Then try 'StageTitle<StageNum>'
@@ -354,7 +355,7 @@ static TSharedRef<SWidget> GetStageTitle(const FExcerpt& InExcerpt, int32 InCurr
 	{
 		return SNew(STextBlock)
 			.Text(FText::FromString(*VariableValue))
-			.TextStyle(FEditorStyle::Get(), "Tutorials.CurrentExcerpt");
+			.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.CurrentExcerpt");
 	}
 
 	return SNullWidget::NullWidget;
@@ -384,9 +385,9 @@ TSharedRef<SWidget> STutorialContent::GenerateContentWidget(const FTutorialConte
 				.Visibility(EVisibility::SelfHitTestInvisible)
 				.AutoWrapText(bAutoWrapText)
 				.Text(InContent.Text)
-				.TextStyle(FEditorStyle::Get(), "Tutorials.Content")
+				.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.Content")
 				.HighlightText(InHighlightText)
-				.HighlightColor(FEditorStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"));
+				.HighlightColor(FEditorTutorialStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"));
 
 			if(!bAutoWrapText)
 			{
@@ -429,8 +430,8 @@ TSharedRef<SWidget> STutorialContent::GenerateContentWidget(const FTutorialConte
 
 			TSharedRef<SRichTextBlock> TextBlock = SNew(SRichTextBlock)
 					.Visibility(EVisibility::SelfHitTestInvisible)
-					.TextStyle(FEditorStyle::Get(), "Tutorials.Content.Text")
-					.DecoratorStyleSet(&FEditorStyle::Get())
+					.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.Content.Text")
+					.DecoratorStyleSet(&FAppStyle::Get())
 					.Decorators(Decorators)
 					.Text(InContent.Text)
 					.AutoWrapText(bAutoWrapText)
@@ -589,7 +590,7 @@ FSlateColor STutorialContent::GetBackgroundColor() const
 {
 	// note cant use IsHovered() here because our widget is SelfHitTestInvisible
 	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
-	return CachedContentGeometry.IsUnderLocation(CursorPos) ? FEditorStyle::Get().GetColor("Tutorials.Content.Color.Hovered") : FEditorStyle::Get().GetColor("Tutorials.Content.Color");
+	return CachedContentGeometry.IsUnderLocation(CursorPos) ? FEditorTutorialStyle::Get().GetColor("Tutorials.Content.Color.Hovered") : FEditorTutorialStyle::Get().GetColor("Tutorials.Content.Color");
 }
 
 float STutorialContent::GetAnimatedZoom() const
@@ -754,11 +755,11 @@ const FSlateBrush* STutorialContent::GetNextButtonBrush() const
 {
 	if(IsNextEnabled.Get())
 	{
-		return FEditorStyle::GetBrush("Tutorials.Navigation.NextButton");
+		return FEditorTutorialStyle::Get().GetBrush("Tutorials.Navigation.NextButton");
 	}
 	else
 	{
-		return FEditorStyle::GetBrush("Tutorials.Navigation.HomeButton");
+		return FEditorTutorialStyle::Get().GetBrush("Tutorials.Navigation.HomeButton");
 	}
 }
 
@@ -795,16 +796,16 @@ FText STutorialContent::GetNextButtonLabel() const
 
 const FSlateBrush* STutorialContent::GetNextButtonBorder() const
 {
-	return NextButton->IsHovered() ? &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButton").Hovered : &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButton").Normal;
+	return NextButton->IsHovered() ? &FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButton").Hovered : &FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationButton").Normal;
 }
 
 const FSlateBrush* STutorialContent::GetBackButtonBrush() const
 {
 	if (IsBackEnabled.Get())
 	{
-		return FEditorStyle::GetBrush("Tutorials.Navigation.BackButton");
+		return FEditorTutorialStyle::Get().GetBrush("Tutorials.Navigation.BackButton");
 	}
-	return FEditorStyle::GetDefaultBrush();
+	return FAppStyle::Get().GetDefaultBrush();
 }
 
 EVisibility STutorialContent::GetBackButtonVisibility() const
@@ -840,7 +841,7 @@ FText STutorialContent::GetBackButtonLabel() const
 
 const FSlateBrush* STutorialContent::GetBackButtonBorder() const
 {
-	return BackButton->IsHovered() ? &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationBackButton").Hovered : &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationBackButton").Normal;
+	return BackButton->IsHovered() ? &FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationBackButton").Hovered : &FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.NavigationBackButton").Normal;
 }
 
 FReply STutorialContent::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )

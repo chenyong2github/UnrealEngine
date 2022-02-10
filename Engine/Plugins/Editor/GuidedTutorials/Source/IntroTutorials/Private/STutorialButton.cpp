@@ -16,6 +16,7 @@
 #include "IIntroTutorials.h"
 #include "IntroTutorials.h"
 #include "EditorTutorialSettings.h"
+#include "EditorTutorialStyle.h"
 #include "TutorialStateSettings.h"
 #include "Misc/EngineBuildSettings.h"
 #include "AssetRegistryModule.h"
@@ -54,7 +55,7 @@ void STutorialButton::Construct(const FArguments& InArgs)
 	[
 		SNew(SButton)
 		.AddMetaData<FTagMetaData>(*FString::Printf(TEXT("%s.TutorialLaunchButton"), *Context.ToString()))
-		.ButtonStyle(FEditorStyle::Get(), "TutorialLaunch.Button")
+		.ButtonStyle(FEditorTutorialStyle::Get(), "TutorialLaunch.Button")
 		.ToolTipText(this, &STutorialButton::GetButtonToolTip)
 		.OnClicked(this, &STutorialButton::HandleButtonClicked)
 		.ContentPadding(0.0f)
@@ -118,8 +119,8 @@ int32 STutorialButton::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		float PulseFactor1 = 0.0f;
 		GetAnimationValues(PulseAnimation.GetLerp(), AlphaFactor0, PulseFactor0, AlphaFactor1, PulseFactor1);
 
-		const FSlateBrush* PulseBrush = FEditorStyle::Get().GetBrush(TEXT("TutorialLaunch.Circle"));
-		const FLinearColor PulseColor = FEditorStyle::Get().GetColor(TEXT("TutorialLaunch.Circle.Color"));
+		const FSlateBrush* PulseBrush = FEditorTutorialStyle::Get().GetBrush(TEXT("TutorialLaunch.Circle"));
+		const FLinearColor PulseColor = FEditorTutorialStyle::Get().GetColor(TEXT("TutorialLaunch.Circle.Color"));
 
 		// We should be clipped by the window size, not our containing widget, as we want to draw outside the widget
 		const FVector2D WindowSize = OutDrawElements.GetPaintWindow()->GetSizeInScreen();

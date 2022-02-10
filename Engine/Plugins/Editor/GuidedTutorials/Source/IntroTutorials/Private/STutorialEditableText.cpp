@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STutorialEditableText.h"
+#include "EditorTutorialStyle.h"
 #include "Misc/PackageName.h"
 #include "SlateOptMacros.h"
 #include "Framework/Text/SlateImageRun.h"
@@ -40,7 +41,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 
 	TSharedRef<FRichTextLayoutMarshaller> RichTextMarshaller = FRichTextLayoutMarshaller::Create(
 		TArray<TSharedRef<ITextDecorator>>(), 
-		&FEditorStyle::Get()
+		&FAppStyle::Get()
 		);
 
 
@@ -64,7 +65,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
 		[
 			SAssignNew(RichEditableTextBox, SMultiLineEditableTextBox)
-			.Font(FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Content.Text").Font)
+			.Font(FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Content.Text").Font)
 			.Text(InArgs._Text)
 			.OnTextChanged(this, &STutorialEditableText::HandleRichEditableTextChanged)
 			.OnTextCommitted(this, &STutorialEditableText::HandleRichEditableTextCommitted)
@@ -82,7 +83,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.Visibility(this, &STutorialEditableText::GetToolbarVisibility)
-			.BorderImage(FEditorStyle::Get().GetBrush("TutorialEditableText.RoundedBackground"))
+			.BorderImage(FEditorTutorialStyle::Get().GetBrush("TutorialEditableText.RoundedBackground"))
 			.Padding(FMargin(4))
 			[
 				SNew(SHorizontalBox)
@@ -91,7 +92,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				[
 					SAssignNew(FontComboBox, SComboBox<TSharedPtr<FTextStyleAndName>>)
-					.ComboBoxStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.ComboBox")
+					.ComboBoxStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.ComboBox")
 					.OptionsSource(&StylesAndNames)
 					.OnSelectionChanged(this, &STutorialEditableText::OnActiveStyleChanged)
 					.OnGenerateWidget(this, &STutorialEditableText::GenerateStyleComboEntry)
@@ -114,14 +115,14 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(HyperlinkComboButton, SComboButton)
 					.ToolTipText(LOCTEXT("HyperlinkButtonTooltip", "Insert or Edit Hyperlink"))
-					.ComboButtonStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.ComboButton")
+					.ComboButtonStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.ComboButton")
 					.OnComboBoxOpened(this, &STutorialEditableText::HandleHyperlinkComboOpened)
 					.IsEnabled(this, &STutorialEditableText::IsHyperlinkComboEnabled)
 					.ContentPadding(1.0f)
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("TutorialEditableText.Toolbar.HyperlinkImage"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("TutorialEditableText.Toolbar.HyperlinkImage"))
 					]
 					.MenuContent()
 					[
@@ -134,7 +135,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 						.Padding(FMargin(2.0f))
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+							.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 							.Text(LOCTEXT("HyperlinkNameLabel", "Name:"))
 						]
 						+SGridPanel::Slot(1, 0)
@@ -144,7 +145,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 							.WidthOverride(300)
 							[
 								SAssignNew(HyperlinkNameTextBlock, STextBlock)
-								.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+								.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 							]
 						]
 
@@ -154,7 +155,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 						.Padding(FMargin(2.0f))
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+							.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 							.Text(LOCTEXT("HyperlinkURLLabel", "URL:"))
 						]
 						+SGridPanel::Slot(1, 1)
@@ -173,7 +174,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 						.Padding(FMargin(2.0f))
 						[
 							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+							.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 							.Text(LOCTEXT("HyperlinkTypeLabel", "Type:"))
 						]
 
@@ -189,7 +190,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 							[
 								SNew(SComboBox<TSharedPtr<FHyperlinkTypeDesc>>)
 								.OptionsSource(&FTutorialText::GetHyperLinkDescs())
-								.ComboBoxStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.ComboBox")
+								.ComboBoxStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.ComboBox")
 								.OnSelectionChanged(this, &STutorialEditableText::OnActiveHyperlinkChanged)
 								.OnGenerateWidget(this, &STutorialEditableText::GenerateHyperlinkComboEntry)
 								.ContentPadding(0.0f)
@@ -201,7 +202,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 									.MinDesiredWidth(100.0f)
 									[
 										SNew(STextBlock)
-										.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+										.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 										.Text(this, &STutorialEditableText::GetActiveHyperlinkName)
 										.ToolTipText(this, &STutorialEditableText::GetActiveHyperlinkTooltip)
 									]
@@ -219,7 +220,7 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 								.OnCheckStateChanged(this, &STutorialEditableText::HandleOpenAssetCheckStateChanged)
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+									.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 									.Text(LOCTEXT("OpenAssetLabel", "Open Asset"))
 								]
 							]
@@ -239,11 +240,11 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 							.HAlign(HAlign_Right)
 							[
 								SNew(SButton)
-								.ButtonStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Button")
+								.ButtonStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Button")
 								.OnClicked(this, &STutorialEditableText::HandleInsertHyperLinkClicked)
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Text")
+									.TextStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Text")
 									.Text(this, &STutorialEditableText::GetHyperlinkButtonText)
 								]
 							]
@@ -257,13 +258,13 @@ void STutorialEditableText::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.ToolTipText(LOCTEXT("ImageButtonTooltip", "Insert Image"))
-					.ButtonStyle(FEditorStyle::Get(), "TutorialEditableText.Toolbar.Button")
+					.ButtonStyle(FEditorTutorialStyle::Get(), "TutorialEditableText.Toolbar.Button")
 					.OnClicked(this, &STutorialEditableText::HandleImageButtonClicked)
 					.ContentPadding(1.0f)
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::Get().GetBrush("TutorialEditableText.Toolbar.ImageImage"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("TutorialEditableText.Toolbar.ImageImage"))
 					]
 				]
 			]
@@ -390,12 +391,12 @@ void STutorialEditableText::OnActiveStyleChanged(TSharedPtr<FTextStyleAndName> N
 TSharedRef<SWidget> STutorialEditableText::GenerateStyleComboEntry(TSharedPtr<FTextStyleAndName> SourceEntry)
 {
 	return SNew(SBorder)
-		.BorderImage( FCoreStyle::Get().GetBrush( "NoBorder" ) )
-		.ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		.BorderImage( FAppStyle::Get().GetBrush( "NoBorder" ) )
+		.ForegroundColor(FAppStyle::Get().GetSlateColor("InvertedForeground"))
 		[
 			SNew(STextBlock)
 			.Text(SourceEntry->DisplayName)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(SourceEntry->Style))
+			.TextStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>(SourceEntry->Style))
 		];
 }
 
@@ -494,7 +495,7 @@ FReply STutorialEditableText::HandleInsertHyperLinkClicked()
 		TSharedRef<FSlateHyperlinkRun> HyperlinkRun = FSlateHyperlinkRun::Create(
 			RunInfo, 
 			MakeShareable(new FString(Name.ToString())), 
-			FEditorStyle::Get().GetWidgetStyle<FHyperlinkStyle>(FName(TEXT("Tutorials.Content.Hyperlink"))), 
+			FEditorTutorialStyle::Get().GetWidgetStyle<FHyperlinkStyle>(FName(TEXT("Tutorials.Content.Hyperlink"))),
 			CurrentHyperlinkType->OnClickedDelegate,
 			CurrentHyperlinkType->TooltipDelegate,
 			CurrentHyperlinkType->TooltipTextDelegate
@@ -527,13 +528,13 @@ void STutorialEditableText::OnActiveHyperlinkChanged(TSharedPtr<FHyperlinkTypeDe
 TSharedRef<SWidget> STutorialEditableText::GenerateHyperlinkComboEntry(TSharedPtr<FHyperlinkTypeDesc> SourceEntry)
 {
 	return SNew(SBorder)
-		.BorderImage( FCoreStyle::Get().GetBrush( "NoBorder" ) )
-		.ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		.BorderImage( FAppStyle::Get().GetBrush( "NoBorder" ) )
+		.ForegroundColor(FAppStyle::Get().GetSlateColor("InvertedForeground"))
 		[
 			SNew(STextBlock)
 			.Text(SourceEntry->Text)
 			.ToolTipText(SourceEntry->TooltipText)
-			.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TutorialEditableText.Toolbar.Text"))
+			.TextStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>("TutorialEditableText.Toolbar.Text"))
 		];
 }
 

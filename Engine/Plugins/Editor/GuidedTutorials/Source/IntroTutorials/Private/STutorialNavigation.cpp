@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STutorialNavigation.h"
+#include "EditorTutorialStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/Layout/SBorder.h"
@@ -23,7 +24,7 @@ void STutorialNavigation::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(24.0f)
-		.BorderImage(FEditorStyle::GetBrush("Tutorials.Border"))
+		.BorderImage(FEditorTutorialStyle::Get().GetBrush("Tutorials.Border"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -37,11 +38,11 @@ void STutorialNavigation::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.OnClicked(this, &STutorialNavigation::OnBackButtonClicked)
 					.IsEnabled(InArgs._IsBackEnabled)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Tutorials.Back"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Back"))
 						.ColorAndOpacity(this, &STutorialNavigation::GetBackButtonColor)
 					]
 				]
@@ -52,11 +53,11 @@ void STutorialNavigation::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.OnClicked(this, &STutorialNavigation::OnHomeButtonClicked)
 					.IsEnabled(InArgs._IsHomeEnabled)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Tutorials.Home"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Home"))
 						.ColorAndOpacity(this, &STutorialNavigation::GetHomeButtonColor)
 					]
 				]
@@ -67,11 +68,11 @@ void STutorialNavigation::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.OnClicked(this, &STutorialNavigation::OnNextButtonClicked)
 					.IsEnabled(InArgs._IsNextEnabled)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Content.Button"))
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Tutorials.Next"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Next"))
 						.ColorAndOpacity(this, &STutorialNavigation::GetNextButtonColor)
 					]
 				]

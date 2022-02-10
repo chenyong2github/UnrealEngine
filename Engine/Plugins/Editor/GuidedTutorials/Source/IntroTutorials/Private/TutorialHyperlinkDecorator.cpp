@@ -3,6 +3,7 @@
 #include "TutorialHyperlinkDecorator.h"
 #include "Styling/CoreStyle.h"
 #include "TutorialHyperlinkRun.h"
+#include "EditorTutorialStyle.h"
 
 TSharedRef< FTutorialHyperlinkDecorator > FTutorialHyperlinkDecorator::Create( FString Id, const FSlateHyperlinkRun::FOnClick& NavigateDelegate, const FSlateHyperlinkRun::FOnGetTooltipText& InToolTipTextDelegate, const FSlateHyperlinkRun::FOnGenerateTooltip& InToolTipDelegate )
 {
@@ -32,7 +33,7 @@ TSharedRef< ISlateRun > FTutorialHyperlinkDecorator::Create(const TSharedRef<cla
 
 	if ( !Style->HasWidgetStyle<FHyperlinkStyle>( FName( *StyleName ) ) )
 	{
-		Style = &FCoreStyle::Get();
+		Style = &FEditorTutorialStyle::Get();
 	}
 
 	FRunInfo RunInfo( RunParseResult.Name );

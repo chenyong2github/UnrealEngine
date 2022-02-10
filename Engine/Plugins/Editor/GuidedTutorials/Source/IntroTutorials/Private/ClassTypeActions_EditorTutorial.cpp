@@ -9,6 +9,7 @@
 #include "EditorStyleSet.h"
 #include "IIntroTutorials.h"
 #include "EditorTutorial.h"
+#include "EditorTutorialStyle.h"
 #include "AssetData.h"
 
 #define LOCTEXT_NAMESPACE "IntroTutorials"
@@ -37,7 +38,7 @@ TSharedPtr<SWidget> FClassTypeActions_EditorTutorial::GetThumbnailOverlay(const 
 		.Padding(FMargin(2))
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("Blueprint_LaunchTutorialToolTip", "Launch this tutorial."))
 			.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so we need to override that here
 			.ForegroundColor(FSlateColor::UseForeground())
@@ -48,7 +49,7 @@ TSharedPtr<SWidget> FClassTypeActions_EditorTutorial::GetThumbnailOverlay(const 
 				.MinDesiredHeight(16)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Tutorials.Browser.PlayButton.Image"))
+					.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.PlayButton.Image"))
 				]
 			]
 		];

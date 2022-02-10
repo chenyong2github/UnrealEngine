@@ -17,6 +17,7 @@
 #include "STutorialContent.h"
 #include "TutorialSettings.h"
 #include "EditorTutorialSettings.h"
+#include "EditorTutorialStyle.h"
 #include "TutorialStateSettings.h"
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
@@ -85,13 +86,13 @@ public:
 		{
 			if(Category.Icon.Len() > 0)
 			{
-				SlateBrush = FEditorStyle::Get().GetBrush(FName(*Category.Icon));
+				SlateBrush = FAppStyle::Get().GetBrush(FName(*Category.Icon));
 			}
 		}
 
 		if(SlateBrush == nullptr)
 		{
-			SlateBrush = FEditorStyle::Get().GetBrush("Tutorials.Browser.DefaultTutorialIcon");
+			SlateBrush = FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.DefaultTutorialIcon");
 		}
 	}
 
@@ -108,7 +109,7 @@ public:
 			[
 				SNew(SButton)
 				.OnClicked(this, &FTutorialListEntry_Category::OnClicked)
-				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
+				.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.Content()
 				[
@@ -139,7 +140,7 @@ public:
 							SNew(SImage)
 							.ToolTipText(LOCTEXT("CompletedCategoryCheckToolTip", "This category has been completed"))
 							.Visibility(this, &FTutorialListEntry_Category::GetCompletedVisibility)
-							.Image(FEditorStyle::Get().GetBrush("Tutorials.Browser.Completed"))
+							.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.Completed"))
 						]
 					]
 					+ SHorizontalBox::Slot()
@@ -152,10 +153,10 @@ public:
 						[
 							SNew(STextBlock)
 							.Text(GetTitleText())
-							.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryHeader"))
+							.TextStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryHeader"))
 							.HighlightText(HighlightText)
-							.HighlightColor(FEditorStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
-							.HighlightShape(FEditorStyle::Get().GetBrush("TextBlock.HighlightShape"))
+							.HighlightColor(FEditorTutorialStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
+							.HighlightShape(FAppStyle::Get().GetBrush("TextBlock.HighlightShape"))
 						]
 						+SVerticalBox::Slot()
 						.FillHeight(1.0f)
@@ -163,10 +164,10 @@ public:
 							SNew(STextBlock)
 							.AutoWrapText(true)
 							.Text(Category.Description)
-							.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryText"))
+							.TextStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryText"))
 							.HighlightText(HighlightText)
-							.HighlightColor(FEditorStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
-							.HighlightShape(FEditorStyle::Get().GetBrush("TextBlock.HighlightShape"))
+							.HighlightColor(FEditorTutorialStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
+							.HighlightShape(FAppStyle::Get().GetBrush("TextBlock.HighlightShape"))
 						]
 					]
 					+SHorizontalBox::Slot()
@@ -176,7 +177,7 @@ public:
 					[
 						SNew(SImage)
 						.Visibility(this, &FTutorialListEntry_Category::OnGetArrowVisibility)
-						.Image(FEditorStyle::Get().GetBrush("Tutorials.Browser.CategoryArrow"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.CategoryArrow"))
 					]
 				]
 			]
@@ -295,12 +296,12 @@ public:
 		}	
 		else if(Tutorial->Icon.Len() > 0)
 		{
-			SlateBrush = FEditorStyle::Get().GetBrush(FName(*Tutorial->Icon));
+			SlateBrush = FAppStyle::Get().GetBrush(FName(*Tutorial->Icon));
 		}
 		
 		if(SlateBrush == nullptr)
 		{
-			SlateBrush = FEditorStyle::Get().GetBrush("Tutorials.Browser.DefaultTutorialIcon");
+			SlateBrush = FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.DefaultTutorialIcon");
 		}
 	}
 
@@ -319,7 +320,7 @@ public:
 			[
 				SAssignNew(LaunchButton, SButton)
 				.OnClicked(this, &FTutorialListEntry_Tutorial::OnClicked, false)
-				.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
+				.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
 				.ForegroundColor(FSlateColor::UseForeground())
 				.Content()
 				[
@@ -354,7 +355,7 @@ public:
 								SNew(SImage)
 								.ToolTipText(LOCTEXT("CompletedTutorialCheckToolTip", "This tutorial has been completed"))
 								.Visibility(this, &FTutorialListEntry_Tutorial::GetCompletedVisibility)
-								.Image(FEditorStyle::Get().GetBrush("Tutorials.Browser.Completed"))
+								.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.Completed"))
 							]
 						]
 						+SHorizontalBox::Slot()
@@ -372,10 +373,10 @@ public:
 								[
 									SNew(STextBlock)
 									.Text(GetTitleText())
-									.TextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryHeader"))
+									.TextStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>("Tutorials.Browser.SummaryHeader"))
 									.HighlightText(HighlightText)
-									.HighlightColor(FEditorStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
-									.HighlightShape(FEditorStyle::Get().GetBrush("TextBlock.HighlightShape"))
+									.HighlightColor(FEditorTutorialStyle::Get().GetColor("Tutorials.Browser.HighlightTextColor"))
+									.HighlightShape(FAppStyle::Get().GetBrush("TextBlock.HighlightShape"))
 								]
 								+SHorizontalBox::Slot()
 								.AutoWidth()
@@ -385,11 +386,11 @@ public:
 									.ToolTipText(LOCTEXT("RestartButtonToolTip", "Start this tutorial from the beginning"))
 									.Visibility(this, &FTutorialListEntry_Tutorial::GetRestartVisibility)
 									.OnClicked(this, &FTutorialListEntry_Tutorial::OnClicked, true)
-									.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
+									.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.Button"))
 									.Content()
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::GetBrush("Tutorials.Browser.RestartButton"))
+										.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.RestartButton"))
 									]
 								]
 							]
@@ -563,7 +564,7 @@ void STutorialsBrowser::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.Padding(5.0f)
 			[
 				SNew(SHorizontalBox)
@@ -574,12 +575,12 @@ void STutorialsBrowser::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.OnClicked(this, &STutorialsBrowser::OnBackButtonClicked)
 					.IsEnabled(this, &STutorialsBrowser::IsBackButtonEnabled)
-					.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.BackButton"))
+					.ButtonStyle(&FEditorTutorialStyle::Get().GetWidgetStyle<FButtonStyle>("Tutorials.Browser.BackButton"))
 					.ForegroundColor(FSlateColor::UseForeground())
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("Tutorials.Browser.BackButton.Image"))
+						.Image(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.BackButton.Image"))
 					]
 				]
 				+SHorizontalBox::Slot()
@@ -594,8 +595,8 @@ void STutorialsBrowser::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<ITutorialListEntry>>)
 						.ButtonContentPadding(FMargin(1.0f, 1.0f))
-						.DelimiterImage(FEditorStyle::GetBrush("Tutorials.Browser.Breadcrumb"))
-						.TextStyle(FEditorStyle::Get(), "Tutorials.Browser.PathText")
+						.DelimiterImage(FEditorTutorialStyle::Get().GetBrush("Tutorials.Browser.Breadcrumb"))
+						.TextStyle(FEditorTutorialStyle::Get(), "Tutorials.Browser.PathText")
 						.ShowLeadingDelimiter( true )
 						.OnCrumbClicked(this, &STutorialsBrowser::OnBreadcrumbClicked)
 					]

@@ -7,6 +7,7 @@
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Input/SRichTextHyperlink.h"
+#include "EditorTutorialStyle.h"
 
 TSharedRef< FTutorialHyperlinkRun > FTutorialHyperlinkRun::Create( const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FHyperlinkStyle& InStyle, FOnClick NavigateDelegate, FOnGenerateTooltip InTooltipDelegate, FOnGetTooltipText InTooltipTextDelegate )
 {
@@ -90,7 +91,7 @@ TSharedRef< ILayoutBlock > FTutorialHyperlinkRun::CreateBlock( int32 StartIndex,
 FTutorialHyperlinkRun::FTutorialHyperlinkRun( const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FHyperlinkStyle& InStyle, FOnClick InNavigateDelegate, FOnGenerateTooltip InTooltipDelegate, FOnGetTooltipText InTooltipTextDelegate ) 
 	: FSlateHyperlinkRun(InRunInfo, InText, InStyle, InNavigateDelegate, InTooltipDelegate, InTooltipTextDelegate)
 	, bIsBrowserLink(CheckIsBrowserLink())
-	, LinkBrush(FEditorStyle::Get().GetBrush("Tutorials.Content.ExternalLink"))
+	, LinkBrush(FEditorTutorialStyle::Get().GetBrush("Tutorials.Content.ExternalLink"))
 {
 
 }
@@ -98,7 +99,7 @@ FTutorialHyperlinkRun::FTutorialHyperlinkRun( const FRunInfo& InRunInfo, const T
 FTutorialHyperlinkRun::FTutorialHyperlinkRun( const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FHyperlinkStyle& InStyle, FOnClick InNavigateDelegate, FOnGenerateTooltip InTooltipDelegate, FOnGetTooltipText InTooltipTextDelegate, const FTextRange& InRange ) 
 	: FSlateHyperlinkRun(InRunInfo, InText, InStyle, InNavigateDelegate, InTooltipDelegate, InTooltipTextDelegate,InRange)
 	, bIsBrowserLink(CheckIsBrowserLink())
-	, LinkBrush(FEditorStyle::Get().GetBrush("Tutorials.Content.ExternalLink"))
+	, LinkBrush(FEditorTutorialStyle::Get().GetBrush("Tutorials.Content.ExternalLink"))
 {
 
 }

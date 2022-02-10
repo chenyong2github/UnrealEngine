@@ -7,6 +7,7 @@
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/SlateHyperlinkRun.h"
 #include "EditorStyleSet.h"
+#include "EditorTutorialStyle.h"
 
 namespace EHyperlinkType
 {
@@ -153,12 +154,12 @@ struct FTextStyleAndName
 
 	FTextBlockStyle CreateTextBlockStyle() const
 	{
-		return FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(Style);
+		return FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>(Style);
 	}
 
 	static FTextBlockStyle CreateTextBlockStyle(const FRunInfo& InRunInfo)
 	{
-		return FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>(GetStyleFromRunInfo(InRunInfo));
+		return FEditorTutorialStyle::Get().GetWidgetStyle<FTextBlockStyle>(GetStyleFromRunInfo(InRunInfo));
 	}
 
 	/** The style identifier */

@@ -18,6 +18,7 @@
 
 #include "EditorTutorial.h"
 #include "EditorTutorialSettings.h"
+#include "EditorTutorialStyle.h"
 #include "TutorialStateSettings.h"
 #include "TutorialSettings.h"
 #include "ISettingsModule.h"
@@ -85,6 +86,8 @@ TSharedRef<FExtender> FIntroTutorials::AddSummonBlueprintTutorialsMenuExtender(c
 
 void FIntroTutorials::StartupModule()
 {
+	FEditorTutorialStyle::Get();
+
 	// This code can run with content commandlets. Slate is not initialized with commandlets and the below code will fail.
 	const bool bCommandlet = IsRunningCommandlet();
 	const bool bUnattended = FApp::IsUnattended();
@@ -219,6 +222,8 @@ void FIntroTutorials::ShutdownModule()
 	}
 
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TEXT("TutorialsBrowser"));
+
+	FEditorTutorialStyle::Shutdown();
 }
 
 void FIntroTutorials::RegisterSummonTutorialsMenuEntries()
@@ -230,7 +235,7 @@ void FIntroTutorials::RegisterSummonTutorialsMenuEntries()
 		"Tutorials",
 		LOCTEXT("TutorialsMenuEntryTitle", "Tutorials"),
 		LOCTEXT("TutorialsMenuEntryToolTip", "Opens up introductory tutorials covering the basics of using the Unreal Engine 4 Editor."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tutorials"),
+		FSlateIcon(FEditorTutorialStyle::Get().GetStyleSetName(), "Tutorials.MenuIcon"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FIntroTutorials::SummonTutorialHome))
 	));
 }
@@ -241,7 +246,7 @@ void FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension(FMenuBuilder& Men
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("BlueprintMenuEntryTitle", "Blueprint Overview"),
 		LOCTEXT("BlueprintMenuEntryToolTip", "Opens up an introductory overview of Blueprints."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tutorials"),
+		FSlateIcon(FEditorTutorialStyle::Get().GetStyleSetName(), "Tutorials.MenuIcon"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FIntroTutorials::SummonBlueprintTutorialHome, PrimaryObject, true)));
 
 	if(PrimaryObject != nullptr)
@@ -254,7 +259,7 @@ void FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension(FMenuBuilder& Men
 			MenuBuilder.AddMenuEntry(
 				FText::Format(LOCTEXT("BlueprintTutorialsMenuEntryTitle", "{0} Tutorial"), Enum->GetDisplayNameTextByValue(BP->BlueprintType)),
 				LOCTEXT("BlueprintTutorialsMenuEntryToolTip", "Opens up an introductory tutorial covering this particular part of the Blueprint editor."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tutorials"),
+				FSlateIcon(FEditorTutorialStyle::Get().GetStyleSetName(), "Tutorials.MenuIcon"),
 				FUIAction(FExecuteAction::CreateRaw(this, &FIntroTutorials::SummonBlueprintTutorialHome, PrimaryObject, false)));
 		}
 	}

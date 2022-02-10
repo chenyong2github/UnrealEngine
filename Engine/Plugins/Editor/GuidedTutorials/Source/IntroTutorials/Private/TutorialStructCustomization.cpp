@@ -455,14 +455,14 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+				.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 				.OnClicked( this, &SWidgetPicker::OnClicked )
 				.ContentPadding(4.0f)
 				.ForegroundColor( FSlateColor::UseForeground() )
 				.IsFocusable(false)
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush("Icons.EyeDropper") )
+					.Image(FAppStyle::Get().GetBrush("Icons.EyeDropper") )
 					.ColorAndOpacity( FSlateColor::UseForeground() )
 				]
 			]
