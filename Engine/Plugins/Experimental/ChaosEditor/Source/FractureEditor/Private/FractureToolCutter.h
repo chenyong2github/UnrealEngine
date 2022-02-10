@@ -256,7 +256,7 @@ public:
 
 	bool IsGizmoEnabled()
 	{
-		return bUseGizmo && TransformGizmo->IsVisible();
+		return bUseGizmo && TransformGizmo && TransformGizmo->IsVisible();
 	}
 
 	FTransform GetTransform()

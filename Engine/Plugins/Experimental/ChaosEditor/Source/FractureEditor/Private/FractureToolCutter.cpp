@@ -26,8 +26,9 @@ UFractureTransformGizmoSettings::UFractureTransformGizmoSettings(const FObjectIn
 
 void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
 {
-	if (!TransformGizmo || !TransformProxy)
+	if (!TransformGizmo || !TransformProxy || !TransformGizmo->GetGizmoActor())
 	{
+		// doesn't have a valid gizmo to reset
 		return;
 	}
 	if (!bUseGizmo || !AttachedCutter)
@@ -106,6 +107,8 @@ void UFractureTransformGizmoSettings::Shutdown()
 	{
 		Context->GizmoManager->DestroyAllGizmosByOwner(this);
 	}
+	TransformGizmo = nullptr;
+	TransformProxy = nullptr;
 }
 
 void UFractureCutterSettings::TransferNoiseSettings(FNoiseSettings& NoiseSettingsOut)
