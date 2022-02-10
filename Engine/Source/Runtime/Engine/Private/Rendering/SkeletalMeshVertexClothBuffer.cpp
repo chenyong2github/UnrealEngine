@@ -74,24 +74,7 @@ void FSkeletalMeshVertexClothBuffer::ClearMetaData()
 template <bool bRenderThread>
 FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Internal()
 {
-	if (NumVertices)
-	{
-		FResourceArrayInterface* ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
-		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource;
-		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshVertexClothBuffer"), ResourceArray);
-		CreateInfo.bWithoutNativeResource = !VertexData;
-
-		if (bRenderThread)
-		{
-			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
-		}
-		else
-		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
-		}
-	}
-	return nullptr;
+	return CreateRHIBuffer<bRenderThread>(VertexData, NumVertices, BUF_Static | BUF_ShaderResource, TEXT("FSkeletalMeshVertexClothBuffer"));
 }
 
 FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_RenderThread()
@@ -111,13 +94,13 @@ void FSkeletalMeshVertexClothBuffer::InitRHI()
 {
 	SCOPED_LOADTIMER(FSkeletalMeshVertexClothBuffer_InitRHI);
 
+	const bool bHadVertexData = VertexData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
-
 	if (VertexBufferRHI)
 	{
 		// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-		VertexBufferSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(VertexData ? VertexBufferRHI : nullptr, PF_A32B32G32R32F));
+		VertexBufferSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadVertexData ? VertexBufferRHI : nullptr, PF_A32B32G32R32F));
 	}
 }
 
