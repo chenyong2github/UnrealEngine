@@ -164,6 +164,13 @@ protected:
 	UPROPERTY()
 	uint8 bNetAddressable:1;
 
+	/**
+	* When true the replication system will only replicate the registered subobjects list
+	* When false the replication system will instead call the virtual ReplicateSubObjects() function where the subobjects need to be manually replicated.
+	*/
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category=Replication, AdvancedDisplay)
+	uint8 bReplicateUsingRegisteredSubObjectList : 1;
+
 private:
 	/** Is this component currently replicating? Should the network code consider it for replication? Owning Actor must be replicating first! */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Replicated, Category=ComponentReplication,meta=(DisplayName = "Component Replicates", AllowPrivateAccess = "true"))
@@ -467,14 +474,38 @@ public:
 		return bReplicates;
 	}
 
-	/** Allows a component to replicate other subobject on the actor  */
+	/** 
+	* Allows a component to replicate other subobject on the actor
+	* This method is used only when bReplicateUsingRegisteredSubObjectList is false.
+	* Otherwise this function is not called and only the ReplicatedSubObjects list is used.
+	*/
 	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
+
+	/** 
+	* Returns if this component is replicating subobjects via the registration list or via the virtual ReplicateSubObjects method.
+	* Note: the owning actor of this component must also have it's bReplicateUsingRegisteredSubObjectList flag set to true.
+	*/
+	bool IsUsingRegisteredSubObjectList() const { return bReplicateUsingRegisteredSubObjectList; }
 
 	/** Called on the component right before replication occurs */
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker);
 
 	/** Returns true if this type of component can ever replicate, override to disable the default behavior */
 	virtual bool GetComponentClassCanReplicate() const;
+
+	/**
+	* Register a SubObject that will get replicated along with the actor component.
+	* The subobject needs to be manually removed from the list before it gets deleted.
+	* @param SubObject The subobject to replicate
+	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
+	*/
+	void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+
+	/**
+	* Unregister a SubObject so it stops being replicated.
+	* @param SubObject The subobject to remove
+	*/
+	void RemoveReplicatedSubObject(UObject* SubObject);
 
 #if WITH_EDITORONLY_DATA
 	/** Returns whether this component is an editor-only object or not */

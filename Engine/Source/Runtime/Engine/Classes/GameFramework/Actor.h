@@ -17,6 +17,7 @@
 #include "RenderCommandFence.h"
 #include "Misc/ITransaction.h"
 #include "Engine/Level.h"
+#include "Net/Core/Misc/NetSubObjectRegistry.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
@@ -416,6 +417,13 @@ protected:
 	/** Flag indicating we have checked initial simulating physics state to sync networked proxies to the server. */
 	uint8 bNetCheckedInitialPhysicsState : 1;
 
+	/**
+	* When true the replication system will only replicate the registered subobjects and the replicated actor components list
+	* When false the replication system will instead call the virtual ReplicateSubobjects() function where the subobjects and actor components need to be manually replicated.
+	*/
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category=Replication, AdvancedDisplay)
+	uint8 bReplicateUsingRegisteredSubObjectList : 1;
+
 private:
 	/** Whether FinishSpawning has been called for this Actor.  If it has not, the Actor is in a malformed state */
 	uint8 bHasFinishedSpawning:1;
@@ -703,6 +711,12 @@ public:
 
 	/** Returns name of the net driver associated with this actor (all RPCs will go out via this connection) */
 	FName GetNetDriverName() const { return NetDriverName; }
+
+	/** 
+    * Returns true if this actor is replicating SubObjects & ActorComponents via the registration list.
+    * Returns false when he replicates them via the virtual ReplicateSubobjects method 
+    */
+	bool IsUsingRegisteredSubObjectList() const { return bReplicateUsingRegisteredSubObjectList; }
 
 	/** Method that allows an actor to replicate subobjects on its actor channel */
 	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
@@ -3549,6 +3563,54 @@ public:
 	{ 
 		return ReplicatedComponents; 
 	}
+
+	/**
+	* Register a SubObject that will get replicated along with the actor.
+	* The subobject needs to be manually removed from the list before it gets deleted.
+	* @param SubObject The SubObject to replicate
+	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
+	*/
+	void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+
+	/**
+	* Unregister a SubObject so it stops being replicated.
+	* @param SubObject The SubObject to remove
+	*/
+	void RemoveReplicatedSubObject(UObject* SubObject);
+
+	/**
+	* Register a SubObject that will get replicated along with the actor component owning it.
+	* The subobject needs to be manually removed from the list before it gets deleted.
+	* @param SubObject The SubObject to replicate
+	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
+	*/
+	void AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+
+	/**
+	* Unregister a SubObject owned by an ActorComponent so it stops being replicated.
+	* @param SubObject The SubObject to remove
+	*/
+	void RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject);
+
+private:
+	/** Collection of SubObjects that get replicated when this actor gets replicated. */
+	UE::Net::FSubObjectRegistry ReplicatedSubObjects;
+	friend class FSubObjectGetter;
+
+	/** Keep track of replicated components and their subobject list */
+	struct FReplicatedComponentInfo
+	{
+		// Component that will be replicated
+		UActorComponent* Component = nullptr;
+
+		// Collection of subobjects replicated with this component
+		UE::Net::FSubObjectRegistry SubObjects;
+
+		bool operator==(const FReplicatedComponentInfo& rhs) const { return Component == rhs.Component; }
+		bool operator==(const UActorComponent* rhs) const { return Component == rhs; }
+	};
+	/** Array of replicated components and the list of replicated subobjects they own. Replaces the deprecated ReplicatedCompoments array. */
+	TArray<FReplicatedComponentInfo> ReplicatedComponentsInfo;
 
 protected:
 	/** Set of replicated components, stored as an array to save space as this is generally not very large */

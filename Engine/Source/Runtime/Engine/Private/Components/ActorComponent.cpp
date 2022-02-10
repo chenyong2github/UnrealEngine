@@ -2079,7 +2079,23 @@ void UActorComponent::SetIsReplicated(bool bShouldReplicate)
 	}
 }
 
-bool UActorComponent::ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags)
+void UActorComponent::AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition)
+{
+	if (AActor* MyOwner=GetOwner())
+	{
+		MyOwner->AddActorComponentReplicatedSubObject(this, SubObject, NetCondition);
+	}
+}
+
+void UActorComponent::RemoveReplicatedSubObject(UObject* SubObject)
+{
+	if (AActor* MyOwner=GetOwner())
+	{
+		MyOwner->RemoveActorComponentReplicatedSubObject(this, SubObject);
+	}
+}
+
+bool UActorComponent::ReplicateSubobjects(class UActorChannel* Channel, class FOutBunch* Bunch, FReplicationFlags* RepFlags)
 {
 	return false;
 }

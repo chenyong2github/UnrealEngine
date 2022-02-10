@@ -23,11 +23,13 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Misc/NetworkVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "HAL/LowLevelMemStats.h"
 
 DEFINE_LOG_CATEGORY(LogNet);
+DEFINE_LOG_CATEGORY(LogNetSubObject);
 DEFINE_LOG_CATEGORY(LogRep);
 DEFINE_LOG_CATEGORY(LogNetPlayerMovement);
 DEFINE_LOG_CATEGORY(LogNetTraffic);
@@ -121,6 +123,25 @@ static const bool IsBunchTooLarge(UNetConnection* Connection, T* Bunch)
 {
 	return !Connection->IsInternalAck() && Bunch != nullptr && Bunch->GetNumBytes() > NetMaxConstructedPartialBunchSizeBytes;
 }
+
+/** Helper class to restrict access to the subobject list of actors and actor components */
+class FSubObjectGetter final
+{
+public:
+	FSubObjectGetter() = delete;
+	~FSubObjectGetter() = delete;
+
+	static const TArray<UE::Net::FSubObjectRegistry::FEntry>& GetSubObjects(AActor* InActor)
+	{
+		return InActor->ReplicatedSubObjects.GetRegistryList();
+	}
+
+	static const TArray<UE::Net::FSubObjectRegistry::FEntry>* GetSubObjectsOfActorCompoment(AActor* InActor, UActorComponent* InActorComp)
+	{
+		AActor::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		return ComponentInfo ? &(ComponentInfo->SubObjects.GetRegistryList()) : nullptr;
+	}
+};
 
 /*-----------------------------------------------------------------------------
 	UChannel implementation.
@@ -3248,7 +3269,6 @@ int64 UActorChannel::ReplicateActor()
 	RepFlags.bNetSimulated	= (Actor->GetRemoteRole() == ROLE_SimulatedProxy);
 	RepFlags.bRepPhysics	= Actor->GetReplicatedMovement().bRepPhysics;
 	RepFlags.bReplay		= bReplay;
-	//RepFlags.bNetInitial	= RepFlags.bNetInitial;
 	RepFlags.bForceInitialDirty = Connection->IsForceInitialDirty();
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
@@ -3275,8 +3295,7 @@ int64 UActorChannel::ReplicateActor()
 			}
 		}
 
-		// The SubObjects
-		bWroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
+		bWroteSomethingImportant |= DoSubObjectReplication(Bunch, RepFlags);
 
 		if (Connection->ResendAllDataState != EResendAllDataState::None)
 		{
@@ -3398,6 +3417,77 @@ int64 UActorChannel::ReplicateActor()
 	return NumBitsWrote;
 }
 
+bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, const FReplicationFlags& RepFlags)
+{
+	bool bWroteSomethingImportant = false;
+
+	if (Actor->IsUsingRegisteredSubObjectList())
+	{
+		// If the actor replicates it's subobjects and those of it's components via the list.
+		bWroteSomethingImportant |= ReplicateRegisteredSubObjects(Bunch, RepFlags);
+	}
+	else
+	{
+		// Replicate the subobjects using the virtual method.
+		bWroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
+	}
+
+	return bWroteSomethingImportant;
+}
+
+bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FReplicationFlags& RepFlags)
+{
+	check(Actor->IsUsingRegisteredSubObjectList());
+
+	const TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
+
+	bool bWroteSomethingImportant = false;
+
+	// Start with the Actor's subobjects
+	{
+		const TArray<UE::Net::FSubObjectRegistry::FEntry>& ActorSubObjects = FSubObjectGetter::GetSubObjects(Actor);
+		for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : ActorSubObjects)
+		{
+			if (ConditionMap[SubObjectInfo.NetCondition])
+			{
+				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
+			}
+		}
+	}
+
+	// Now the replicated actor components
+	for (UActorComponent* ReplicatedComponent : Actor->GetReplicatedComponents())
+	{
+		check(ReplicatedComponent);
+
+		if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
+		{
+			if (const TArray<UE::Net::FSubObjectRegistry::FEntry>* ComponentSubObjects = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
+			{
+				for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : *ComponentSubObjects)
+				{
+					checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *GetNameSafe(ReplicatedComponent));
+
+					if (ConditionMap[SubObjectInfo.NetCondition])
+					{
+						bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
+					}
+				}
+			}
+		}
+		// If a component is not using the registered list, collect the subobjects to replicate via the virtual function.
+		else
+		{
+			// Replicate the subobjects using the virtual method
+			ReplicatedComponent->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
+		}
+
+		// Finally replicate the component itself after it's subobjects. They need to be created before the component on the receiving end.
+		bWroteSomethingImportant |= WriteSubObjectInBunch(ReplicatedComponent, Bunch, RepFlags);
+	}
+
+	return bWroteSomethingImportant;
+}
 
 FString UActorChannel::Describe()
 {
@@ -4381,16 +4471,28 @@ void UActorChannel::AddedToChannelPool()
 	PendingObjKeys.Empty();
 }
 
-bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FReplicationFlags &RepFlags)
+bool UActorChannel::ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags)
 {
-	SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
-
 	if (!IsValid(Obj))
 	{
 		return false;
 	}
 
-	if (RepFlags.bUseCustomSubobjectReplication)
+	const bool bWroteSomethingImportant = WriteSubObjectInBunch(Obj, Bunch, RepFlags);
+
+	return bWroteSomethingImportant;
+}
+
+bool UActorChannel::WriteSubObjectInBunch(UObject * Obj, FOutBunch & Bunch, const FReplicationFlags & RepFlags)
+{
+	if (!IsValid(Obj))
+	{
+		return false;
+	}
+
+    SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
+
+    if (RepFlags.bUseCustomSubobjectReplication)
 	{
 		return ReplicateSubobjectCustom(Obj, Bunch, RepFlags);
 	}

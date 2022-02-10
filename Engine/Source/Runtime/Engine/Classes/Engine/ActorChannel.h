@@ -273,6 +273,7 @@ public:
 
 	/** utility template for replicating list of replicated subobjects */
 	template<typename Type>
+	UE_DEPRECATED(5.1, "This function will be deleted. Register your subobjects using AddReplicatedSubObject instead.")
 	bool ReplicateSubobjectList(TArray<Type*> &ObjectList, FOutBunch &Bunch, const FReplicationFlags &RepFlags)
 	{
 		bool WroteSomething = false;
@@ -361,6 +362,17 @@ protected:
 
 	/** Closes the actor channel but with a 'dormant' flag set so it can be reopened */
 	virtual void BecomeDormant() override;
+
+private:
+
+	/** Handle the replication of subobjects for this actor. Returns true if data was written into the Bunch. */
+	bool DoSubObjectReplication(FOutBunch& Bunch, const FReplicationFlags& RepFlags);
+
+	/** Replicate Subobjects using the actor's registered list and its replicated actor component list */
+	bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FReplicationFlags& RepFlags);
+
+    /** Write the replicated bits into the bunch data */
+	bool WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags);
 
 private:
 
