@@ -20,7 +20,7 @@ class ONLINESERVICESEOS_API FAuthEOS : public FAuthCommon
 public:
 	using Super = FAuthCommon;
 
-	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem);
+	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem, bool bInUseEAS);
 	virtual void Initialize() override;
 	virtual void PreShutdown() override;
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
@@ -42,6 +42,9 @@ public:
 	TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> ResolveProductIdsFn();
 
 protected:
+	TOnlineChainableAsyncOp<FAuthLogin, TSharedPtr<class FEOSConnectLoginCredentials>> LoginEAS(TOnlineAsyncOp<FAuthLogin>& InAsyncOp);
+	TSharedPtr<class FEOSConnectLoginCredentials> MakeConnectLoginCredentials(TOnlineAsyncOp<FAuthLogin>& InAsyncOp);
+
 	void OnEOSLoginStatusChanged(FOnlineAccountIdHandle LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus);
 	TResult<FOnlineAccountIdHandle, FOnlineError> GetAccountIdByPlatformUserId(FPlatformUserId PlatformUserId) const;
 
@@ -58,6 +61,9 @@ protected:
 	EOS_HAuth AuthHandle;
 	EOS_HConnect ConnectHandle;
 	EOS_NotificationId NotifyLoginStatusChangedNotificationId = 0;
+
+	/** Are we configured to use EAS? */
+	bool bUseEAS = false;
 };
 
 /* UE::Online */ }

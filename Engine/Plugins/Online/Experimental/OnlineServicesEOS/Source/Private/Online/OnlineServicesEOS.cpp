@@ -29,6 +29,7 @@ struct FEOSPlatformConfig
 	FString DeploymentId;
 	FString ClientId;
 	FString ClientSecret;
+	bool bUseEAS = false;
 };
 
 namespace Meta {
@@ -38,7 +39,8 @@ BEGIN_ONLINE_STRUCT_META(FEOSPlatformConfig)
 	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, SandboxId),
 	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, DeploymentId),
 	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientId),
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientSecret)
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientSecret),
+	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, bUseEAS)
 END_ONLINE_STRUCT_META()
 
 /* Meta */ }
@@ -50,10 +52,16 @@ FOnlineServicesEOS::FOnlineServicesEOS()
 
 void FOnlineServicesEOS::RegisterComponents()
 {
-	Components.Register<FAuthEOS>(*this);
-	Components.Register<FFriendsEOS>(*this);
+	FEOSPlatformConfig EOSPlatformConfig;
+	LoadConfig(EOSPlatformConfig);
+
+	Components.Register<FAuthEOS>(*this, EOSPlatformConfig.bUseEAS);
+	if (EOSPlatformConfig.bUseEAS)
+	{
+		Components.Register<FFriendsEOS>(*this);
+		Components.Register<FPresenceEOS>(*this);
+	}
 	Components.Register<FLobbiesEOS>(*this);
-	Components.Register<FPresenceEOS>(*this);
 	Components.Register<FExternalUIEOS>(*this);
 	FOnlineServicesCommon::RegisterComponents();
 }
