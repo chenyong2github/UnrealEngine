@@ -26,7 +26,12 @@
 /**
  * Template for Windows target platforms
  */
+#if PLATFORM_WINDOWS
+template<typename TProperties, typename TTargetDevice = TLocalPcTargetDevice<PLATFORM_64BITS>>
+#else
 template<typename TProperties>
+#endif
+
 class TGenericWindowsTargetPlatform : public TTargetPlatformBase<TProperties>
 {
 public:
@@ -39,7 +44,7 @@ public:
 	{
 #if PLATFORM_WINDOWS
 		// only add local device if actually running on Windows
-		LocalDevice = MakeShareable(new TLocalPcTargetDevice<PLATFORM_64BITS>(*this));
+		LocalDevice = MakeShareable(new TTargetDevice(*this));
 #endif
 
 	#if WITH_ENGINE

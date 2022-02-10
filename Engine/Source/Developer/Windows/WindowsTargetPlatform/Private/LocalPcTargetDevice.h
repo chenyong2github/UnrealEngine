@@ -6,6 +6,8 @@
 #include "Misc/Guid.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "Interfaces/ITargetDevice.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -319,7 +321,7 @@ protected:
 		return (GetLastError() == ERROR_SUCCESS);
 	}
 
-private:
+protected:
 
 	// Holds the collection of processes that were started using the Run() method.
 	TMap<FGuid, void*> Processes;
