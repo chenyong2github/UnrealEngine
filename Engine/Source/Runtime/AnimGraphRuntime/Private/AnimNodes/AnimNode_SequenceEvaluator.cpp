@@ -19,6 +19,7 @@ void FAnimNode_SequenceEvaluatorBase::Initialize_AnyThread(const FAnimationIniti
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
+	GetEvaluateGraphExposedInputs().Execute(Context);
 	bReinitialized = true;
 }
 
