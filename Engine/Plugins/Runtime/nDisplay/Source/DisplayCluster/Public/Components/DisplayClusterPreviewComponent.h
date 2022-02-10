@@ -6,6 +6,8 @@
 
 #include "DisplayClusterConfigurationTypes_Base.h"
 
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+
 #include "DisplayClusterPreviewComponent.generated.h"
 
 class IDisplayClusterProjectionPolicy;
@@ -38,13 +40,18 @@ public:
 	virtual void DestroyComponent(bool bPromoteChildren = false) override;
 
 public:
-	bool InitializePreviewComponent(ADisplayClusterRootActor* RootActor, const FString& ViewportId, UDisplayClusterConfigurationViewport* ViewportConfig);
+	bool InitializePreviewComponent(ADisplayClusterRootActor* RootActor, const FString& ClusterNodeId, const FString& ViewportId, UDisplayClusterConfigurationViewport* ViewportConfig);
 
 	bool IsPreviewAvailable() const;
 
 	const FString& GetViewportId() const
 	{ 
 		return ViewportId; 
+	}
+
+	const FString& GetClusterNodeId() const
+	{
+		return ClusterNodeId;
 	}
 
 	UDisplayClusterConfigurationViewport* GetViewportConfig() const
@@ -58,7 +65,7 @@ public:
 	}
 
 	void UpdatePreviewResources();
-	void HandleRenderTargetTextureDeferredUpdate();
+	void HandleRenderTargetTextureDeferredUpdate(const EDisplayClusterRenderFrameMode InRenderFrameMode);
 
 	UMeshComponent* GetPreviewMesh() const
 	{
@@ -66,7 +73,7 @@ public:
 	}
 
 	/** Create and retrieve a render texture 2d from the render target. */
-	UTexture2D* GetOrCreateRenderTexture2D();
+	UTexture2D* GetOrCreateViewportPreviewTexture2D();
 
 protected:
 	class IDisplayClusterViewport* GetCurrentViewport() const;
@@ -77,6 +84,7 @@ protected:
 
 	bool UpdatePreviewMesh(bool bRestoreOriginalMaterial = false);
 	void ReleasePreviewMesh();
+	void UpdatePreviewMeshReference();
 
 	bool UpdatePreviewTexture();
 	void ReleasePreviewTexture();
@@ -85,7 +93,10 @@ protected:
 	void ReleasePreviewMaterial();
 	void UpdatePreviewMaterial();
 
-	void UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial = false);
+	void RestorePreviewMeshMaterial();
+	void SetPreviewMeshMaterial();
+
+	bool IsPreviewEnabled() const;
 
 protected:
 	// Set to true, when RTT surface updated
@@ -95,6 +106,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 protected:
+	// Texture for preview material
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview", meta = (DisplayName = "Render Target"))
 	UTextureRenderTarget2D* RenderTarget;
 
@@ -108,6 +120,9 @@ private:
 
 	UPROPERTY()
 	FString ViewportId;
+
+	UPROPERTY()
+	FString ClusterNodeId;
 
 	UPROPERTY()
 	UDisplayClusterConfigurationViewport* ViewportConfig = nullptr;

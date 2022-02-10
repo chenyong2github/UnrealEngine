@@ -228,7 +228,7 @@ UTexture* UDisplayClusterConfiguratorViewportNode::GetPreviewTexture() const
 		UDisplayClusterConfiguratorWindowNode* ParentWindow = GetParentChecked<UDisplayClusterConfiguratorWindowNode>();
 		if (UDisplayClusterPreviewComponent* PreviewComp = RootActor->GetPreviewComponent(ParentWindow->GetNodeName(), GetNodeName()))
 		{
-			if (UTexture2D* Texture = PreviewComp->GetOrCreateRenderTexture2D())
+			if (UTexture2D* Texture = PreviewComp->GetOrCreateViewportPreviewTexture2D())
 			{
 				return Texture;
 			}

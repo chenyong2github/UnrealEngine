@@ -34,17 +34,21 @@ bool FDisplayClusterProjectionLinkPolicy::CalculateView(IDisplayClusterViewport*
 	IDisplayClusterViewport* ParentViewport = InViewport->GetOwner().FindViewport(InViewport->GetRenderSettings().GetParentViewportId());
 	if (ParentViewport != nullptr)
 	{
-		if (ParentViewport->GetContexts()[InContextNum].bDisableRender && ParentViewport->GetProjectionPolicy().IsValid())
+		const TArray<FDisplayClusterViewport_Context>& ParentContexts = ParentViewport->GetContexts();
+		if (InContextNum < (uint32)ParentContexts.Num())
 		{
-			return ParentViewport->GetProjectionPolicy()->CalculateView(ParentViewport, InContextNum, InOutViewLocation, InOutViewRotation, ViewOffset, WorldToMeters, NCP, FCP);
-		}
-		else
-		{
-			const FDisplayClusterViewport_Context& ParentContext = ParentViewport->GetContexts()[InContextNum];
-			InOutViewLocation = ParentContext.ViewLocation;
-			InOutViewRotation = ParentContext.ViewRotation;
+			if (ParentContexts[InContextNum].bDisableRender && ParentViewport->GetProjectionPolicy().IsValid())
+			{
+				return ParentViewport->GetProjectionPolicy()->CalculateView(ParentViewport, InContextNum, InOutViewLocation, InOutViewRotation, ViewOffset, WorldToMeters, NCP, FCP);
+			}
+			else
+			{
+				const FDisplayClusterViewport_Context& ParentContext = ParentContexts[InContextNum];
+				InOutViewLocation = ParentContext.ViewLocation;
+				InOutViewRotation = ParentContext.ViewRotation;
 
-			return true;
+				return true;
+			}
 		}
 	}
 
@@ -59,16 +63,20 @@ bool FDisplayClusterProjectionLinkPolicy::GetProjectionMatrix(class IDisplayClus
 	IDisplayClusterViewport* ParentViewport = InViewport->GetOwner().FindViewport(InViewport->GetRenderSettings().GetParentViewportId());
 	if (ParentViewport != nullptr)
 	{
-		if (ParentViewport->GetContexts()[InContextNum].bDisableRender && ParentViewport->GetProjectionPolicy().IsValid())
+		const TArray<FDisplayClusterViewport_Context>& ParentContexts = ParentViewport->GetContexts();
+		if (InContextNum < (uint32)ParentContexts.Num())
 		{
-			return ParentViewport->GetProjectionPolicy()->GetProjectionMatrix(ParentViewport, InContextNum, OutPrjMatrix);
-		}
-		else
-		{
-			const FDisplayClusterViewport_Context& ParentContext = ParentViewport->GetContexts()[InContextNum];
-			OutPrjMatrix = ParentContext.ProjectionMatrix;
+			if (ParentContexts[InContextNum].bDisableRender && ParentViewport->GetProjectionPolicy().IsValid())
+			{
+				return ParentViewport->GetProjectionPolicy()->GetProjectionMatrix(ParentViewport, InContextNum, OutPrjMatrix);
+			}
+			else
+			{
+				const FDisplayClusterViewport_Context& ParentContext = ParentContexts[InContextNum];
+				OutPrjMatrix = ParentContext.ProjectionMatrix;
 
-			return true;
+				return true;
+			}
 		}
 	}
 

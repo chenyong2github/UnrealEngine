@@ -7,14 +7,12 @@
 #include "Misc/DisplayClusterObjectRef.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
-
-struct FDisplayClusterRenderFrameSettings;
+#include "Render/Viewport/Containers/DisplayClusterPreviewSettings.h"
 
 class FDisplayClusterViewportManager;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationData;
 struct FDisplayClusterConfigurationRenderFrame;
-struct FDisplayClusterConfigurationViewportPreview;
 
 class FDisplayClusterViewportConfiguration
 {
@@ -41,10 +39,12 @@ public:
 	bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
 
 #if WITH_EDITOR
-	bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration);
+	bool UpdatePreviewConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& ClusterNodeId, const FDisplayClusterPreviewSettings& InPreviewSettings);
 #endif
 
 private:
+	bool ImplUpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, const FDisplayClusterPreviewSettings* InPreviewSettings);
+
 	void ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
 	void ImplPostUpdateRenderFrameConfiguration();
 	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);

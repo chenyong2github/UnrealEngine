@@ -743,6 +743,11 @@ void ADisplayClusterRootActor::PostLoad()
 void ADisplayClusterRootActor::PostActorCreated()
 {
 	Super::PostActorCreated();
+
+#if WITH_EDITOR
+	PostActorCreated_Editor();
+#endif
+
 	InitializeRootActor();
 }
 

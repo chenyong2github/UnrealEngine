@@ -66,10 +66,14 @@ void FDisplayClusterViewportRemap::Update(const FDisplayClusterViewport& InViewp
 {
 #if WITH_EDITOR
 	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = InViewport.Owner.GetRenderFrameSettings();
-	if (RenderFrameSettings.RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
+
+	switch(RenderFrameSettings.RenderMode)
 	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		// Preview in editor not support this feature
 		return;
+	default:
+		break;
 	}
 #endif
 

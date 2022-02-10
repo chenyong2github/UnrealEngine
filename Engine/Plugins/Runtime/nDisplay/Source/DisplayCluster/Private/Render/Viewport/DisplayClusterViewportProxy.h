@@ -32,6 +32,12 @@ public:
 		return ViewportId;
 	}
 
+	virtual FString GetClusterNodeId() const override
+	{
+		check(IsInRenderingThread());
+		return ClusterNodeId;
+	}
+
 	virtual const FDisplayClusterViewport_RenderSettings& GetRenderSettings_RenderThread() const override
 	{
 		check(IsInRenderingThread());
@@ -111,6 +117,8 @@ protected:
 
 	// Unique viewport name
 	const FString ViewportId;
+
+	const FString ClusterNodeId;
 
 	// Viewport render params
 	FDisplayClusterViewport_RenderSettings       RenderSettings;

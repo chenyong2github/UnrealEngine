@@ -20,41 +20,54 @@
 // FDisplayClusterViewportConfigurationBase
 ///////////////////////////////////////////////////////////////////
 
-void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InClusterNodeIds)
+void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNodeId)
 {
 	TMap<FString, UDisplayClusterConfigurationViewport*> DesiredViewports;
 
-	// Get render viewports
-	for (const FString& NodeIt : InClusterNodeIds)
+	// Get render viewports for cluster node
+	const UDisplayClusterConfigurationClusterNode* ClusterNodeConfiguration = ConfigurationData.Cluster->GetNode(ClusterNodeId);
+	if (ClusterNodeConfiguration)
 	{
-		const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.Cluster->GetNode(NodeIt);
-		if (ClusterNode)
+		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNodeConfiguration->Viewports)
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNode->Viewports)
+			if (ViewportIt.Key.Len() && ViewportIt.Value)
 			{
-				if (ViewportIt.Key.Len() && ViewportIt.Value)
-				{
-					DesiredViewports.Add(ViewportIt.Key, ViewportIt.Value);
-				}
+				DesiredViewports.Add(ViewportIt.Key, ViewportIt.Value);
 			}
 		}
 	}
 
 	// Collect unused viewports and delete
 	{
+		TArray<FString> ExistClusterNodesIDs;
+		ConfigurationData.Cluster->GetNodeIds(ExistClusterNodesIDs);
+
 		TArray<FDisplayClusterViewport*> UnusedViewports;
 		for (FDisplayClusterViewport* It : ViewportManager.ImplGetViewports())
 		{
 			// ignore ICVFX internal resources
 			if ((It->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
 			{
-				if (!DesiredViewports.Contains(It->GetId()))
+				// Only viewports from cluster node in render
+				if (It->GetClusterNodeId() == ClusterNodeId)
 				{
-					UnusedViewports.Add(It);
+					if (!DesiredViewports.Contains(It->GetId()))
+					{
+						UnusedViewports.Add(It);
+					}
+				}
+				else
+				{
+					if(ExistClusterNodesIDs.Find(It->GetClusterNodeId()) == INDEX_NONE)
+					{
+						// also remove viewports for deleted cluster nodes
+						UnusedViewports.Add(It);
+					}
 				}
 			}
 		}
 
+		// Delete unused viewports
 		for (FDisplayClusterViewport* DeleteIt : UnusedViewports)
 		{
 			ViewportManager.ImplDeleteViewport(DeleteIt);

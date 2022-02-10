@@ -40,7 +40,7 @@ public:
 
 	virtual const TArrayView<IDisplayClusterViewportProxy*> GetViewports_RenderThread() const override
 	{
-		return TArrayView<IDisplayClusterViewportProxy*>((IDisplayClusterViewportProxy**)(ViewportProxies.GetData()), ViewportProxies.Num());
+		return TArrayView<IDisplayClusterViewportProxy*>((IDisplayClusterViewportProxy**)(ClusterNodeViewportProxies.GetData()), ClusterNodeViewportProxies.Num());
 	}
 
 	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources = nullptr) const override;
@@ -58,7 +58,7 @@ public:
 	{
 		check(IsInRenderingThread());
 
-		return ViewportProxies;
+		return ClusterNodeViewportProxies;
 	}
 
 	FDisplayClusterViewportProxy* ImplFindViewport_RenderThread(const FString& InViewportId) const;
@@ -73,10 +73,14 @@ public:
 	void ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 private:
+	void ImplUpdateClusterNodeViewportProxies();
+
+private:
 	TSharedPtr<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>        RenderTargetManager;
 	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PostProcessManager;
 
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 
 	TArray<FDisplayClusterViewportProxy*> ViewportProxies;
+	TArray<FDisplayClusterViewportProxy*> ClusterNodeViewportProxies;
 };

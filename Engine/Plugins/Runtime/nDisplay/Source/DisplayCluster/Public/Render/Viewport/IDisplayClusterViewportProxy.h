@@ -22,6 +22,7 @@ public:
 
 public:
 	virtual FString GetId() const = 0;
+	virtual FString GetClusterNodeId() const = 0;
 
 	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy_RenderThread() const = 0;
 

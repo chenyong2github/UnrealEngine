@@ -73,6 +73,20 @@ FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 	}
 
 	ViewportProxies.Empty();
+	ImplUpdateClusterNodeViewportProxies();
+}
+
+void FDisplayClusterViewportManagerProxy::ImplUpdateClusterNodeViewportProxies()
+{
+	ClusterNodeViewportProxies.Empty();
+	// Collect viewport proxies for rendered cluster node
+	for (FDisplayClusterViewportProxy* ViewportProxyIt : ViewportProxies)
+	{
+		if (ViewportProxyIt && ViewportProxyIt->GetClusterNodeId() == RenderFrameSettings.ClusterNodeId)
+		{
+			ClusterNodeViewportProxies.Add(ViewportProxyIt);
+		}
+	}
 }
 
 void FDisplayClusterViewportManagerProxy::ImplSafeRelease()
@@ -97,6 +111,7 @@ void FDisplayClusterViewportManagerProxy::ImplCreateViewport(FDisplayClusterView
 			[ViewportManagerProxy = this, ViewportProxy = InViewportProxy](FRHICommandListImmediate& RHICmdList)
 		{
 			ViewportManagerProxy->ViewportProxies.Add(ViewportProxy);
+			ViewportManagerProxy->ImplUpdateClusterNodeViewportProxies();
 		});
 	}
 }
@@ -115,6 +130,7 @@ void FDisplayClusterViewportManagerProxy::ImplDeleteViewport(FDisplayClusterView
 		{
 			ViewportManagerProxy->ViewportProxies[ViewportProxyIndex] = nullptr;
 			ViewportManagerProxy->ViewportProxies.RemoveAt(ViewportProxyIndex);
+			ViewportManagerProxy->ImplUpdateClusterNodeViewportProxies();
 		}
 
 		delete ViewportProxy;
@@ -132,6 +148,9 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FD
 	{
 		ViewportManagerProxy->RenderFrameSettings = *Settings;
 		delete Settings;
+
+		// After updated settings we need update cluster node viewports
+		ViewportManagerProxy->ImplUpdateClusterNodeViewportProxies();
 	});
 }
 
@@ -171,7 +190,7 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 		bool bWarpBlendEnabled = ViewportManagerProxy->RenderFrameSettings.bAllowWarpBlend && CVarWarpBlendEnabled.GetValueOnRenderThread() != 0;
 
 		// mGPU not used for in-editor rendering
-		if(ViewportManagerProxy->RenderFrameSettings.bIsRenderingInEditor == false)
+		if(ViewportManagerProxy->RenderFrameSettings.bIsRenderingInEditor == false || ViewportManagerProxy->RenderFrameSettings.bAllowMultiGPURenderingInEditor)
 		{
 			// Move all render target cross gpu
 			ViewportManagerProxy->DoCrossGPUTransfers_RenderThread(RHICmdList);
@@ -212,9 +231,9 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 	check(IsInRenderingThread());
 
 	TArray<FDisplayClusterViewportProxy*> OverridedViewports;
-	OverridedViewports.Reserve(ViewportProxies.Num());
+	OverridedViewports.Reserve(ClusterNodeViewportProxies.Num());
 
-	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
+	for (FDisplayClusterViewportProxy* ViewportProxy : ClusterNodeViewportProxies)
 	{
 		if (ViewportProxy->RenderSettings.OverrideViewportId.IsEmpty())
 		{
@@ -277,7 +296,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	PostProcessManager->PerformPostProcessBeforeWarpBlend_RenderThread(RHICmdList, this);
 
 	// Support viewport overlap order sorting:
-	TArray<FDisplayClusterViewportProxy*> SortedViewportProxy = ImplGetViewportProxies_RenderThread();
+	TArray<FDisplayClusterViewportProxy*> SortedViewportProxy = ClusterNodeViewportProxies;
 	SortedViewportProxy.Sort(
 		[](const FDisplayClusterViewportProxy& VP1, const FDisplayClusterViewportProxy& VP2)
 		{
@@ -383,7 +402,7 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 	// Copy the view render results to all GPUs that are native to the viewport.
 	TArray<FTransferResourceParams> TransferResources;
 
-	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
+	for (FDisplayClusterViewportProxy* ViewportProxy : ClusterNodeViewportProxies)
 	{
 		for (FDisplayClusterViewport_Context& ViewportContext : ViewportProxy->Contexts)
 		{
@@ -439,7 +458,7 @@ bool FDisplayClusterViewportManagerProxy::GetFrameTargets_RenderThread(TArray<FR
 	check(IsInRenderingThread());
 
 	// Get any defined frame targets from first visible viewport
-	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
+	for (FDisplayClusterViewportProxy* ViewportProxy : ClusterNodeViewportProxies)
 	{
 		if (ViewportProxy)
 		{

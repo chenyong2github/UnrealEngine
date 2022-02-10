@@ -27,9 +27,9 @@
 class FDisplayClusterViewportConfigurationCameraViewport
 {
 public:
-	bool Initialize(UDisplayClusterICVFXCameraComponent& InCameraComponent)
+	bool Initialize(ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 	{
-		return FDisplayClusterViewportConfigurationHelpers_ICVFX::GetCameraContext(InCameraComponent, CameraContext);
+		return FDisplayClusterViewportConfigurationHelpers_ICVFX::GetCameraContext(InRootActor, InCameraComponent, CameraContext);
 	}
 
 	bool CreateCameraViewport(ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
@@ -173,7 +173,7 @@ public:
 
 	bool Initialize()
 	{
-		return CameraConfiguration.Initialize(CameraComponent);
+		return CameraConfiguration.Initialize(RootActor, CameraComponent);
 	}
 
 	bool IsCameraProjectionVisibleOnViewport(FDisplayClusterViewport* TargetViewport)

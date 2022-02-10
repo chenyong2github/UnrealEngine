@@ -166,7 +166,7 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 	//Re-allocate frame targets
 	switch (InRenderFrameSettings.RenderMode)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewMono:
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		// Preview model: render to external RTT resource
 		return true;
 

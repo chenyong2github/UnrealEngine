@@ -18,11 +18,8 @@ enum class EDisplayClusterRenderFrameMode: uint8
 	// Special render: render to two separated backbuffer textures, with half size Y
 	TopBottom,
 
-	// Special preview render:
-	// 1. Render in mono
-	// 2. For each viewport created separated frametarget
-	// 3. Applied preview settings from FDisplayClusterRenderFrameSettings::FPreviewSttings
-	PreviewMono
+	// Special render for preview in scene
+	PreviewInScene,
 };
 
 // (experimental, not implemented, reserved)

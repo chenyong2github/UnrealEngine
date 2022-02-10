@@ -266,27 +266,3 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	bool bAllowWarpBlend = true;
 };
-
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewportPreview
-{
-	GENERATED_BODY()
-
-public:
-	// Allow preview render
-	UPROPERTY()
-	bool bEnable = true;
-
-	// Render single node preview or whole cluster
-	UPROPERTY()
-	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
-
-	// Update preview texture period in tick
-	UPROPERTY()
-	int TickPerFrame = 1;
-
-	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY()
-	float PreviewRenderTargetRatioMult = 0.25;
-};
-

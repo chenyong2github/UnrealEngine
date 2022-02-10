@@ -45,6 +45,7 @@ static TAutoConsoleVariable<int32> CVarDisplayClusterRenderOverscanResolve(
 
 FDisplayClusterViewportProxy::FDisplayClusterViewportProxy(const FDisplayClusterViewportManagerProxy& InOwner, const FDisplayClusterViewport& RenderViewport)
 	: ViewportId(RenderViewport.ViewportId)
+	, ClusterNodeId(RenderViewport.ClusterNodeId)
 	, RenderSettings(RenderViewport.RenderSettings)
 	, ProjectionPolicy(RenderViewport.UninitializedProjectionPolicy)
 	, Owner(InOwner)
@@ -193,10 +194,13 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 	check(IsInRenderingThread());
 
 #if WITH_EDITOR
-	if (Owner.GetRenderFrameSettings_RenderThread().RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
+	switch(Owner.GetRenderFrameSettings_RenderThread().RenderMode)
 	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		// Preview in editor not support this feature
 		return;
+	default:
+		break;
 	}
 #endif
 
@@ -233,9 +237,13 @@ EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResou
 	check(IsInRenderingThread());
 
 #if WITH_EDITOR
-	if (Owner.GetRenderFrameSettings_RenderThread().RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
+	switch(Owner.GetRenderFrameSettings_RenderThread().RenderMode)
 	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		return EDisplayClusterViewportResourceType::OutputPreviewTargetableResource;
+
+	default:
+		break;
 	}
 #endif
 

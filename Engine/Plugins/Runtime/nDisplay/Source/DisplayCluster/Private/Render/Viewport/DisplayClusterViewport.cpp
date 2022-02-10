@@ -25,9 +25,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewport
 ///////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager& InOwner, const FString& InViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy)
+FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager& InOwner, const FString& InClusterNodeId, const FString& InViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy)
 	: UninitializedProjectionPolicy(InProjectionPolicy)
 	, ViewportId(InViewportId)
+	, ClusterNodeId(InClusterNodeId)
 	, Owner(InOwner)
 {
 	check(UninitializedProjectionPolicy.IsValid());
@@ -311,7 +312,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 		case EDisplayClusterRenderFrameMode::TopBottom:
 			AdjustRect(DesiredFrameTargetRect, 1.f, 0.5f);
 			break;
-		case EDisplayClusterRenderFrameMode::PreviewMono:
+		case EDisplayClusterRenderFrameMode::PreviewInScene:
 		{
 			// Preview downscale in range 0..1
 			float MultXY = FMath::Clamp(InFrameSettings.PreviewRenderTargetRatioMult, 0.f, 1.f);
@@ -366,6 +367,29 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 	DesiredContextSize.X *= ViewportContextSizeMult;
 	DesiredContextSize.Y *= ViewportContextSizeMult;
 
+#if WITH_EDITOR
+	switch (InFrameSettings.RenderMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		{
+			int32 MaxSize = FMath::Max(DesiredContextSize.X, DesiredContextSize.Y);
+			if (MaxSize > InFrameSettings.PreviewMaxTextureSize)
+			{
+				float RectScale = float(InFrameSettings.PreviewMaxTextureSize) / float(MaxSize);
+
+				const int32 MaxX = FMath::RoundHalfToEven(DesiredContextSize.X * RectScale);
+				const int32 MaxY = FMath::RoundHalfToEven(DesiredContextSize.Y * RectScale);
+
+				// Use limited texture size for preview
+				DesiredContextSize = FIntPoint(MaxX, MaxY);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+#endif
+
 	FIntRect RenderTargetRect = GetValidRect(FIntRect(FIntPoint(0, 0), DesiredContextSize), TEXT("Context RenderTarget"));
 
 	// Exclude zero-size viewports from render
@@ -403,6 +427,29 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 		{
 			// Disable MultiGPU feature
 			Context.GPUIndex = INDEX_NONE;
+
+			if (InFrameSettings.bAllowMultiGPURenderingInEditor)
+			{
+				// Experimental: allow mGPU for preview rendering:
+				if (GNumExplicitGPUsForRendering > 1 && bDisableRender == false)
+				{
+					int32 MaxExplicitGPUIndex = GNumExplicitGPUsForRendering - 1;
+
+					int32 MinGPUIndex = FMath::Min(InFrameSettings.PreviewMinGPUIndex, MaxExplicitGPUIndex);
+					int32 MaxGPUIndex = FMath::Min(InFrameSettings.PreviewMaxGPUIndex, MaxExplicitGPUIndex);
+
+					static int32 PreviewGPUIndex = MinGPUIndex;
+					Context.GPUIndex = PreviewGPUIndex++;
+
+					if (PreviewGPUIndex > MaxGPUIndex)
+					{
+						PreviewGPUIndex = MinGPUIndex;
+					}
+
+					Context.bAllowGPUTransferOptimization = true;
+					Context.bEnabledGPUTransferLockSteps = false;
+				}
+			}
 		}
 		else
 		{

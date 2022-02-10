@@ -51,6 +51,14 @@ struct FDisplayClusterRenderFrameSettings
 	// Render in Editor mode
 	bool bIsRenderingInEditor = false;
 
+	// Allow mGPU in editor mode
+	bool bAllowMultiGPURenderingInEditor = false;
+	int32 PreviewMinGPUIndex = 0;
+	int32 PreviewMaxGPUIndex = 0;
+
+	// The maximum dimension of any texture for preview
+	int32 PreviewMaxTextureSize = 2048;
+
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
 	bool bAllowRenderTargetAtlasing = false;
 

@@ -16,7 +16,7 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 
 	switch (InRenderFrameSettings.RenderMode)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewMono:
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		// Dont use render frame for preview
 		break;
 	default:

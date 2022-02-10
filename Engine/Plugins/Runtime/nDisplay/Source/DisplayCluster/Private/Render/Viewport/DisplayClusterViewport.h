@@ -43,7 +43,7 @@ class FDisplayClusterViewport
 	: public IDisplayClusterViewport
 {
 public:
-	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
+	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ClusterNodeId, const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
 	
 	virtual ~FDisplayClusterViewport();
 
@@ -57,6 +57,11 @@ public:
 		return ViewportId; 
 	}
 
+	virtual FString GetClusterNodeId() const override
+	{
+		check(IsInGameThread());
+		return ClusterNodeId;
+	}
 	virtual const FDisplayClusterViewport_RenderSettings& GetRenderSettings() const override
 	{
 		check(IsInGameThread());
@@ -227,6 +232,9 @@ protected:
 
 	// Unique viewport name
 	const FString ViewportId;
+
+	// Owner cluster node name
+	const FString ClusterNodeId;
 
 	// Viewport render params
 	FDisplayClusterViewport_RenderSettings       RenderSettings;

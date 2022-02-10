@@ -74,55 +74,71 @@ IDisplayClusterViewport* UDisplayClusterPreviewComponent::GetCurrentViewport() c
 	return nullptr;
 }
 
-bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayClusterRootActor* InRootActor, const FString& InViewportId, UDisplayClusterConfigurationViewport* InViewportConfig)
+bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayClusterRootActor* InRootActor, const FString& InClusterNodeId, const FString& InViewportId, UDisplayClusterConfigurationViewport* InViewportConfig)
 {
 	RootActor = InRootActor;
 	ViewportId = InViewportId;
+	ClusterNodeId = InClusterNodeId;
 	ViewportConfig = InViewportConfig;
 
 	return true;
 }
 
-void UDisplayClusterPreviewComponent::UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial)
+bool UDisplayClusterPreviewComponent::IsPreviewEnabled() const
 {
-	if (bRestoreOriginalMaterial && !bIsRootActorPreviewMesh)
+	return (ViewportConfig && RootActor && RootActor->bPreviewEnable);
+}
+
+void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
+{
+	UpdatePreviewMeshReference();
+
+	if (!bIsRootActorPreviewMesh)
 	{
 		// Forged created meshes, dont restore
 		ReleasePreviewMesh();
 	}
 
+	if (PreviewMesh && OriginalMaterial)
+	{
+		// Restore
+		PreviewMesh->SetMaterial(0, OriginalMaterial);
+		OriginalMaterial = nullptr;
+	}
+}
+
+void UDisplayClusterPreviewComponent::SetPreviewMeshMaterial()
+{
+	UpdatePreviewMeshReference();
+
 	if (PreviewMesh)
 	{
-		bool bViewportPreviewEnabled = (ViewportConfig && RootActor && RootActor->bPreviewEnable);
-
-		if (bRestoreOriginalMaterial || !bViewportPreviewEnabled)
+		// Save original material
+		if (OriginalMaterial == nullptr)
 		{
-			// Restore
-			if (OriginalMaterial)
+			UMaterialInterface* MatInterface = PreviewMesh->GetMaterial(0);
+			if (MatInterface)
 			{
-				PreviewMesh->SetMaterial(0, OriginalMaterial);
-				OriginalMaterial = nullptr;
+				OriginalMaterial = MatInterface->GetMaterial();
 			}
 		}
-		else
-		{
-			// Save original material
-			if (OriginalMaterial == nullptr)
-			{
-				// Save original mesh material
-				UMaterialInterface* MatInterface = PreviewMesh->GetMaterial(0);
-				if (MatInterface)
-				{
-					OriginalMaterial = MatInterface->GetMaterial();
-				}
-			}
 
-			// Set preview material
-			if (PreviewMaterialInstance)
-			{
-				PreviewMesh->SetMaterial(0, PreviewMaterialInstance);
-			}
+		// Set preview material
+		if (PreviewMaterialInstance)
+		{
+			PreviewMesh->SetMaterial(0, PreviewMaterialInstance);
 		}
+	}
+}
+
+void UDisplayClusterPreviewComponent::UpdatePreviewMeshReference()
+{
+	if (PreviewMesh && PreviewMesh->GetName().Find(TEXT("TRASH_")) != INDEX_NONE)
+	{
+		// Screen components are regenerated from construction scripts, but preview components are added in dynamically. This preview component may end up
+		// pointing to invalid data on reconstruction.
+		// TODO: See if we can remove this hack
+		ReleasePreviewMesh();
 	}
 }
 
@@ -132,50 +148,49 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh(bool bRestoreOriginalMat
 	
 	check(IsInGameThread());
 
-	if (PreviewMesh && PreviewMesh->GetName().Find(TEXT("TRASH_")) != INDEX_NONE)
-	{
-		// Screen components are regenerated from construction scripts, but preview components are added in dynamically. This preview component may end up
-		// pointing to invalid data on reconstruction.
-		// TODO: See if we can remove this hack
-		ReleasePreviewMesh();
-	}
+	UpdatePreviewMeshReference();
 
 	// And search for new mesh reference
 	IDisplayClusterViewport* Viewport = GetCurrentViewport();
-	if (Viewport != nullptr && Viewport->GetProjectionPolicy().IsValid())
+	if (Viewport != nullptr && Viewport->GetProjectionPolicy().IsValid() && Viewport->GetProjectionPolicy()->HasPreviewMesh())
 	{
-		if (Viewport->GetProjectionPolicy()->HasPreviewMesh())
+		// create warp mesh or update changes
+		if (Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
 		{
-			// create warp mesh or update changes
-			if (Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
+			if (bRestoreOriginalMaterial)
 			{
-				UpdatePreviewMeshMaterial(true);
-				ReleasePreviewMesh();
+				RestorePreviewMeshMaterial();
 			}
-
-			if (PreviewMesh == nullptr)
-			{
-				// Get new mesh ptr
-				PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport, bIsRootActorPreviewMesh);
-
-				UpdatePreviewMeshMaterial(bRestoreOriginalMaterial);
-					
-					if (!ensure(ViewportConfig))
-					{
-						// Can be null during a reimport.
-						// @TODO reimport: See if we can avoid this during reimport.
-						return false;
-					}
-
-					// Update saved proj policy parameters
-					WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;
-					return true;
-				}
-			}
+			ReleasePreviewMesh();
 		}
+
+		if (PreviewMesh == nullptr)
+		{
+			// Get new mesh ptr
+			PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport, bIsRootActorPreviewMesh);
+
+			// Assign preview material to mesh
+			SetPreviewMeshMaterial();
+
+			if (!ensure(ViewportConfig))
+			{
+				// Can be null during a reimport.
+				// @TODO reimport: See if we can avoid this during reimport.
+				return false;
+			}
+
+			// Update saved proj policy parameters
+			WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;
+			return true;
+		}
+	}
 	else
 	{
-		UpdatePreviewMeshMaterial(true);
+		if (bRestoreOriginalMaterial)
+		{
+			RestorePreviewMeshMaterial();
+		}
+		ReleasePreviewMesh();
 	}
 
 	return false;
@@ -197,8 +212,6 @@ void UDisplayClusterPreviewComponent::UpdatePreviewResources()
 		UpdatePreviewRenderTarget();
 		UpdatePreviewMesh();
 	}
-
-	UpdatePreviewMeshMaterial();
 }
 
 void UDisplayClusterPreviewComponent::UpdatePreviewMaterial()
@@ -243,16 +256,16 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 
 	if (GetPreviewTextureSettings(TextureSize, TextureGamma))
 	{
-		// Create new RTT
+		// Create new RTT for preview Material in scene
 		if (RenderTarget == nullptr)
 		{
-			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-			RenderTarget->ClearColor = FLinearColor::Black;
-			RenderTarget->TargetGamma = TextureGamma;
-
 			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
 			static const EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
 
+			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
+			RenderTarget->ClearColor = FLinearColor::Black;
+			// Always use linear color gamma in scene material
+			RenderTarget->TargetGamma = TextureGamma;
 			RenderTarget->InitCustomFormat(TextureSize.X, TextureSize.Y, SceneTargetFormat, false);
 
 			InitializePreviewMaterial();
@@ -370,6 +383,12 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 		PreviewTexture->SRGB = RenderTarget->SRGB;
 	}
 
+	// Alpha channel must non-opaque for preview in OutputMapping
+	for (FColor& PixelIt : SurfData)
+	{
+		PixelIt.A = 255;
+	}
+
 	// Transfer data
 	{
 		void* TextureData = PreviewTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
@@ -387,29 +406,39 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 	return true;
 }
 
-void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate()
+void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate(const EDisplayClusterRenderFrameMode InRenderFrameMode)
 {
 	check(IsInGameThread());
 
-	RenderTargetSurfaceChangedCnt = 2;
+	switch (InRenderFrameMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		if (RenderTargetSurfaceChangedCnt < 1)
+		{
+			RenderTargetSurfaceChangedCnt = 2;
+		}
+		break;
+	default:
+		break;
+	}
 }
 
-UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateRenderTexture2D()
+UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateViewportPreviewTexture2D()
 {
-	if (!IsPreviewAvailable())
+	if (IsPreviewAvailable())
 	{
-		ReleasePreviewTexture();
-	}
-	else
-	if (RenderTarget && RenderTargetSurfaceChangedCnt)
-	{
-		if (--RenderTargetSurfaceChangedCnt == 0)
+		if (RenderTarget && RenderTargetSurfaceChangedCnt)
 		{
-			UpdatePreviewTexture();
+			if (--RenderTargetSurfaceChangedCnt == 0)
+			{
+				UpdatePreviewTexture();
+			}
 		}
+
+		return PreviewTexture;
 	}
 
-	return PreviewTexture;
+	return nullptr;
 }
 
 #endif

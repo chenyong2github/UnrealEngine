@@ -61,6 +61,14 @@ namespace DisplayClusterRenderTargetResourcesPool
 
 		// default gamma for preview in editor
 		float Gamma = 2.2f;
+		switch (InRenderFrameSettings.RenderMode)
+		{
+		case EDisplayClusterRenderFrameMode::PreviewInScene:
+			Gamma = 1.f;
+			break;
+		default:
+			break;
+		}
 
 		// By default sRGB disabled (Preview rendering)
 		bool bShouldUseSRGB = false;

@@ -65,10 +65,9 @@ ADisplayClusterRootActor* FDisplayClusterViewportConfiguration::GetRootActor() c
 	return nullptr;
 }
 
-bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId)
+bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, const FDisplayClusterPreviewSettings* InPreviewSettings)
 {
 	check(IsInGameThread());
-	check(InRenderMode != EDisplayClusterRenderFrameMode::PreviewMono)
 
 	ADisplayClusterRootActor* RootActor = GetRootActor();
 	if (RootActor)
@@ -76,9 +75,6 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 		const UDisplayClusterConfigurationData* ConfigurationData = RootActor->GetConfigData();
 		if (ConfigurationData)
 		{
-			TArray<FString> RenderNodes;
-			RenderNodes.Add(InClusterNodeId);
-
 			FDisplayClusterViewportConfigurationBase ConfigurationBase(ViewportManager, *RootActor, *ConfigurationData);
 			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
 			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
@@ -89,7 +85,24 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			RenderFrameSettings.RenderMode = InRenderMode;
 			RenderFrameSettings.ClusterNodeId = InClusterNodeId;
 
-			ConfigurationBase.Update(RenderNodes);
+			if (InPreviewSettings != nullptr)
+			{
+				// Downscale resources with PreviewDownscaleRatio
+				RenderFrameSettings.PreviewRenderTargetRatioMult = InPreviewSettings->PreviewRenderTargetRatioMult;
+
+				// Limit preview textures max size
+				RenderFrameSettings.PreviewMaxTextureSize = InPreviewSettings->PreviewMaxTextureSize;
+
+				// Support mGPU for preview rendering
+				RenderFrameSettings.bAllowMultiGPURenderingInEditor = InPreviewSettings->bAllowMultiGPURenderingInEditor;
+				RenderFrameSettings.PreviewMinGPUIndex = InPreviewSettings->MinGPUIndex;
+				RenderFrameSettings.PreviewMaxGPUIndex = InPreviewSettings->MaxGPUIndex;
+
+
+				RenderFrameSettings.bIsRenderingInEditor = true;
+			}
+
+			ConfigurationBase.Update(InClusterNodeId);
 			ConfigurationICVFX.Update();
 			ConfigurationProjectionPolicy.Update();
 			ConfigurationICVFX.PostUpdate();
@@ -97,11 +110,7 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 
 			ConfigurationBase.UpdateClusterNodePostProcess(InClusterNodeId);
-			if (!RenderFrameSettings.bIsRenderingInEditor)
-			{
-				// TextureShare not supported in Editor Preview
-				ConfigurationBase.UpdateTextureShare(InClusterNodeId);
-			}
+			ConfigurationBase.UpdateTextureShare(InClusterNodeId);
 
 			ImplPostUpdateRenderFrameConfiguration();
 
@@ -111,6 +120,42 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 
 	return false;
 }
+
+bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId)
+{
+	return ImplUpdateConfiguration(InRenderMode, InClusterNodeId, nullptr);
+}
+
+#if WITH_EDITOR
+bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, const FDisplayClusterPreviewSettings& InPreviewSettings)
+{
+	if (InClusterNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase))
+	{
+		// initialize all nodes
+		ADisplayClusterRootActor* RootActor = GetRootActor();
+		if (RootActor != nullptr)
+		{
+			const UDisplayClusterConfigurationData* ConfigurationData = RootActor->GetConfigData();
+			if (ConfigurationData != nullptr && ConfigurationData->Cluster != nullptr)
+			{
+				TArray<FString> ClusterNodesIDs;
+				ConfigurationData->Cluster->GetNodeIds(ClusterNodesIDs);
+				for (const FString& ClusterNodeIdIt : ClusterNodesIDs)
+				{
+					ImplUpdateConfiguration(InRenderMode, ClusterNodeIdIt, &InPreviewSettings);
+				}
+
+				// all cluster nodes viewports updated
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	return ImplUpdateConfiguration(InRenderMode, InClusterNodeId, &InPreviewSettings);
+}
+#endif
 
 void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
 {
@@ -206,57 +251,3 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	}
 #endif /*WITH_EDITOR*/
 }
-
-#if WITH_EDITOR
-bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& InPreviewConfiguration)
-{
-	check(IsInGameThread());
-	check(InPreviewConfiguration.bEnable);
-
-	ADisplayClusterRootActor* RootActor = GetRootActor();
-	if (RootActor)
-	{
-		const UDisplayClusterConfigurationData* ConfigurationData = RootActor->GetConfigData();
-		if (ConfigurationData)
-		{
-			TArray<FString> RenderNodes;
-			if (InPreviewConfiguration.PreviewNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll)
-			{
-				// Collect all nodes from cluster
-				for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& It : ConfigurationData->Cluster->Nodes)
-				{
-					RenderNodes.Add(It.Key);
-				}
-			}
-			else
-			{
-				RenderNodes.Add(InPreviewConfiguration.PreviewNodeId);
-			}
-
-			FDisplayClusterViewportConfigurationBase ConfigurationBase(ViewportManager, *RootActor, *ConfigurationData);
-			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
-			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
-
-			ConfigurationBase.Update(RenderNodes);
-			ConfigurationICVFX.Update();
-			ConfigurationProjectionPolicy.Update();
-			ConfigurationICVFX.PostUpdate();
-
-			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
-			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
-
-			// Downscale resources with PreviewDownscaleRatio
-			RenderFrameSettings.PreviewRenderTargetRatioMult = InPreviewConfiguration.PreviewRenderTargetRatioMult;
-			RenderFrameSettings.RenderMode = EDisplayClusterRenderFrameMode::PreviewMono;
-
-			RenderFrameSettings.bIsRenderingInEditor = true;
-
-			ImplPostUpdateRenderFrameConfiguration();
-
-			return true;
-		}
-	}
-
-	return false;
-}
-#endif

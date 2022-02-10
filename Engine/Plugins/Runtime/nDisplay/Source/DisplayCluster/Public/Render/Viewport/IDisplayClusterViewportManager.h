@@ -6,8 +6,8 @@
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
+#include "Render/Viewport/Containers/DisplayClusterPreviewSettings.h"
 #include "SceneView.h"
-
 
 class UWorld;
 class FViewport;
@@ -16,8 +16,6 @@ class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
 class IDisplayClusterViewportManagerProxy;
 class FReferenceCollector;
-
-struct FDisplayClusterConfigurationViewportPreview;
 
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
 {
@@ -46,10 +44,11 @@ public:
 	* @param InRenderMode     - Render mode
 	* @param InClusterNodeId  - cluster node for rendering
 	* @param InRootActorPtr   - reference to RootActor with actual configuration inside
+	* @param InPreviewSettings - support preview rendering
 	*
 	* @return - true, if success
 	*/
-	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr) = 0;
+	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr, const FDisplayClusterPreviewSettings* InPreviewSettings = nullptr) = 0;
 
 	/**
 	* Initialize new frame for all viewports on game thread, and update context, render resources with viewport new settings
@@ -104,8 +103,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) = 0;
 
 #if WITH_EDITOR
-	virtual bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, ADisplayClusterRootActor* InRootActorPtr) = 0;
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport) = 0;
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmmount, bool& bOutFrameRendered) = 0;
 #endif
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

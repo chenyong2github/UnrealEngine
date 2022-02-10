@@ -84,6 +84,7 @@ public:
 	FIntRect FrameRect;
 
 	int32 DesiredNumberOfViews = 0;
+	int32 ViewportsAmmount = 0;
 
 	IDisplayClusterViewportManager* ViewportManager = nullptr;
 };

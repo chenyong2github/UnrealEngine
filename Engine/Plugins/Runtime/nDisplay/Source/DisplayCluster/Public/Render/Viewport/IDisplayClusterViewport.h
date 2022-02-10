@@ -24,6 +24,7 @@ public:
 
 public:
 	virtual FString GetId() const = 0;
+	virtual FString GetClusterNodeId() const = 0;
 
 	virtual const FDisplayClusterViewport_RenderSettings&      GetRenderSettings() const = 0;
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX() const = 0;

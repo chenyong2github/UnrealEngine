@@ -49,7 +49,7 @@ public:
 
 	virtual bool IsSceneOpened() const override;
 
-	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr) override;
+	virtual bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr, const FDisplayClusterPreviewSettings* InPreviewSettings = nullptr) override;
 
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
 	virtual void FinalizeNewFrame() override;
@@ -66,8 +66,7 @@ public:
 	virtual void RenderFrame(FViewport* InViewport) override;
 
 #if WITH_EDITOR
-	virtual bool UpdatePreviewConfiguration(const FDisplayClusterConfigurationViewportPreview& PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr) override;
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport) override;
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmmount, bool& bOutFrameRendered) override;
 	
 	void ImplUpdatePreviewRTTResources();
 #endif
@@ -129,7 +128,7 @@ private:
 	void ResetSceneRenderTargetSize();
 	void UpdateSceneRenderTargetSize();
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
-
+	void ImplUpdateClusterNodeViewports();
 
 protected:
 	friend FDisplayClusterViewportManagerProxy;
@@ -144,7 +143,8 @@ public:
 private:
 	TUniquePtr<FDisplayClusterRenderFrameManager>  RenderFrameManager;
 
-	TArray<FDisplayClusterViewport*>      Viewports;
+	TArray<FDisplayClusterViewport*> Viewports;
+	TArray<FDisplayClusterViewport*> ClusterNodeViewports;
 
 	/** Render thread proxy manager. Deleted on render thread */
 	FDisplayClusterViewportManagerProxy* ViewportManagerProxy = nullptr;

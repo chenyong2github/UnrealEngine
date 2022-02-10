@@ -912,7 +912,8 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 		return false;
 	}
 
-	if (ViewportManager->RenderInEditor(RenderFrame, InViewport) == false)
+	bool bOutFrameRendered = false;
+	if (ViewportManager->RenderInEditor(RenderFrame, InViewport, 0, -1, bOutFrameRendered) == false)
 	{
 		return false;
 	}
