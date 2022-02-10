@@ -470,6 +470,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Tier of Indirect Argument Buffers to use when compiling shaders", ConfigRestartRequired = true))
 	int32 IndirectArgumentTier;
 	
+    /** Supports Apple A8 devices, disables 3d texture compression */
+    UPROPERTY(config, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Support Apple A8", ConfigRestartRequired = true))
+    bool bSupportAppleA8;
+    
 	// Whether or not the keyboard should be usable on it's own without a UITextField
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input)
 	bool bUseIntegratedKeyboard;

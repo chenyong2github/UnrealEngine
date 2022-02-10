@@ -441,6 +441,14 @@ static bool SupportsMetalMRT()
 	return bSupportsMetalMRT;
 }
 
+static bool SupportsA8Devices()
+{
+    // default to NOT supporting A8 devices
+    bool bSupportAppleA8 = false;
+    GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportAppleA8"), bSupportAppleA8, GEngineIni);
+    return bSupportAppleA8;
+}
+
 static bool SupportsLandscapeMeshLODStreaming()
 {
 	bool bStreamLandscapeMeshLODs = false;
@@ -583,7 +591,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
         int32 BlockSize = 1;
 		// Compressed volume textures require MTLGPUFamilyApple3 or later
 		// min spec for TVOS is AppleTV HD which is MTLGPUFamilyApple2 (A8)
-		bool bSupportCompressedVolumeTexture = !bIsTVOS;
+		bool bSupportCompressedVolumeTexture = !bIsTVOS && !SupportsA8Devices();
 		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, bSupportCompressedVolumeTexture, BlockSize);
 	}
 
