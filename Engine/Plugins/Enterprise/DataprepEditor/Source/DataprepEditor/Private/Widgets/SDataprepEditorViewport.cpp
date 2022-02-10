@@ -135,9 +135,10 @@ public:
 		uint8 InDepthPriorityGroup,
 		bool bUseSelectionOutline,
 		bool bAllowPreCulledIndices,
-		FMeshBatch& OutMeshBatch) const override
+		FMeshBatch& OutMeshBatch,
+		bool bSecondaryMeshBatch) const override
 	{
-		if(FStaticMeshSceneProxy::GetMeshElement(LODIndex, BatchIndex, ElementIndex, InDepthPriorityGroup, bUseSelectionOutline, bAllowPreCulledIndices, OutMeshBatch))
+		if(FStaticMeshSceneProxy::GetMeshElement(LODIndex, BatchIndex, ElementIndex, InDepthPriorityGroup, bUseSelectionOutline, bAllowPreCulledIndices, OutMeshBatch, bSecondaryMeshBatch))
 		{
 			OutMeshBatch.bWireframe = CustomComponent->bForceWireframe;
 			OutMeshBatch.bUseWireframeSelectionColoring = 0;

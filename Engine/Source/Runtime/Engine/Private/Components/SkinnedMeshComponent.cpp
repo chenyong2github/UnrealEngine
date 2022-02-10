@@ -398,6 +398,7 @@ void USkinnedMeshComponent::UpdateMorphMaterialUsageOnProxy()
 							if (LODModel.RenderSections.IsValidIndex(SectionIndex))
 							{
 								MaterialUsingMorphTarget.AddUnique(GetMaterial(LODModel.RenderSections[SectionIndex].MaterialIndex));
+								MaterialUsingMorphTarget.AddUnique(GetSecondaryMaterial(LODModel.RenderSections[SectionIndex].MaterialIndex));
 							}
 						}
 					}
@@ -2527,6 +2528,12 @@ void USkinnedMeshComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMa
 			// GetMaterial will determine the correct material to use for this index.  
 			UMaterialInterface* MaterialInterface = GetMaterial( MatIdx );
 			OutMaterials.Add( MaterialInterface );
+		}
+
+		for (int32 MatIdx = 0; MatIdx < SecondaryMaterials.Num(); ++MatIdx)
+		{
+			UMaterialInterface* MaterialInterface = GetSecondaryMaterial(MatIdx);
+			OutMaterials.Add(MaterialInterface);
 		}
 	}
 

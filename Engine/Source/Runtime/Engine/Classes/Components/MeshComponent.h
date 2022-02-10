@@ -26,6 +26,9 @@ public:
 	/** Per-Component material overrides.  These must NOT be set directly or a race condition can occur between GC and the rendering thread. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, Meta=(ToolTip="Material overrides."))
 	TArray<class UMaterialInterface*> OverrideMaterials;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Rendering, Meta = (ToolTip = "Materials for secondary rendering."))
+	TArray<class UMaterialInterface*> SecondaryMaterials;
 	
 	UFUNCTION(BlueprintCallable, Category="Components|Mesh")
 	virtual TArray<class UMaterialInterface*> GetMaterials() const;
@@ -63,6 +66,7 @@ public:
 	//~ Begin UPrimitiveComponent Interface
 	virtual int32 GetNumMaterials() const override;
 	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	virtual UMaterialInterface* GetSecondaryMaterial(int32 ElementIndex) const override;
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
 	virtual void SetMaterialByName(FName MaterialSlotName, class UMaterialInterface* Material) override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;	

@@ -35,6 +35,18 @@ UMaterialInterface* UMeshComponent::GetMaterial(int32 ElementIndex) const
 	}
 }
 
+UMaterialInterface* UMeshComponent::GetSecondaryMaterial(int32 ElementIndex) const
+{
+	if (SecondaryMaterials.IsValidIndex(ElementIndex))
+	{
+		return SecondaryMaterials[ElementIndex];
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Material)
 {
 	if (ElementIndex >= 0)
@@ -109,6 +121,16 @@ FMaterialRelevance UMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type I
 		}
 		Result |= MaterialInterface->GetRelevance_Concurrent(InFeatureLevel);
 	}
+
+	for (int32 ElementIndex = 0; ElementIndex < SecondaryMaterials.Num(); ElementIndex++)
+	{
+		UMaterialInterface * MaterialInterface = GetSecondaryMaterial(ElementIndex);
+		if (MaterialInterface)
+		{
+			Result |= MaterialInterface->GetRelevance_Concurrent(InFeatureLevel);
+		}
+	}
+
 	return Result;
 }
 

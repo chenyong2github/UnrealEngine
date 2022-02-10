@@ -523,7 +523,8 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	uint8 InDepthPriorityGroup, 
 	bool bUseSelectionOutline,
 	bool bAllowPreCulledIndices, 
-	FMeshBatch& OutMeshBatch) const
+	FMeshBatch& OutMeshBatch,
+	bool bSecondaryMeshBatch) const
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
@@ -531,7 +532,9 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
-	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
+	check(!bSecondaryMeshBatch || ProxyLODInfo.Sections[SectionIndex].SecondaryMaterial != NULL);
+
+	UMaterialInterface* MaterialInterface = bSecondaryMeshBatch ? ProxyLODInfo.Sections[SectionIndex].SecondaryMaterial : ProxyLODInfo.Sections[SectionIndex].Material;
 	FMaterialRenderProxy* MaterialRenderProxy = MaterialInterface->GetRenderProxy();
 	const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
 
@@ -1244,6 +1247,20 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 								MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
 								MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
 								PDI->DrawMesh(MeshBatch, ScreenSize);
+							}
+
+							if (LODs[LODIndex].Sections[SectionIndex].SecondaryMaterial)
+							{
+								if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, bIsMeshElementSelected, true, BaseMeshBatch, true))
+								{
+									// Standard mesh elements.
+									// If we have submitted an optimized shadow-only mesh, remaining mesh elements must not cast shadows.
+									FMeshBatch MeshBatch(BaseMeshBatch);
+									MeshBatch.CastShadow &= !bUseUnifiedMeshForShadow;
+									MeshBatch.bUseAsOccluder &= !bUseUnifiedMeshForDepth;
+									MeshBatch.bUseForDepthPass &= !bUseUnifiedMeshForDepth;
+									PDI->DrawMesh(MeshBatch, ScreenSize);
+								}
 							}
 						}
 					}
@@ -2076,6 +2093,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 
 		// Determine the material applied to this element of the LOD.
 		SectionInfo.Material = InComponent->GetMaterial(Section.MaterialIndex);
+		SectionInfo.SecondaryMaterial = InComponent->GetSecondaryMaterial(Section.MaterialIndex);
 #if WITH_EDITORONLY_DATA
 		SectionInfo.MaterialIndex = Section.MaterialIndex;
 #endif
@@ -2086,12 +2104,18 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		}
 
 		// If there isn't an applied material, or if we need static lighting and it doesn't support it, fall back to the default material.
-		if(!SectionInfo.Material || (bHasSurfaceStaticLighting && !SectionInfo.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
+		if (!SectionInfo.Material || (bHasSurfaceStaticLighting && !SectionInfo.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
 		{
 			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(SectionInfo.Material, VFs.VertexFactory.GetType(), FeatureLevel);
+		if (SectionInfo.SecondaryMaterial && (bHasSurfaceStaticLighting && !SectionInfo.SecondaryMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
+		{
+			SectionInfo.SecondaryMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(SectionInfo.Material, VFs.VertexFactory.GetType(), FeatureLevel);
+		bRequiresAdjacencyInformation &= SectionInfo.SecondaryMaterial ? RequiresAdjacencyInformation(SectionInfo.SecondaryMaterial, VFs.VertexFactory.GetType(), FeatureLevel) : true;
 		if ( bRequiresAdjacencyInformation && !LODModel.bHasAdjacencyInfo )
 		{
 			UE_LOG(LogStaticMesh, Warning, TEXT("Adjacency information not built for static mesh with a material that requires it. Using default material instead.\n\tMaterial: %s\n\tStaticMesh: %s"),
