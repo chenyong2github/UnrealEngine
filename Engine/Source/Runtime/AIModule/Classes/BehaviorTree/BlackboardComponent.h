@@ -141,8 +141,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
 	void SetValueAsInt(const FName& KeyName, int32 IntValue);
 
-	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsFloat(const FName& KeyName, float FloatValue);
+	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard", DisplayName = "Set Value As Real", Meta = (ToolTip = "Set Value As Real"))
+	void SetValueAsFloat(const FName& KeyName, UPARAM(DisplayName = "Real Value") float FloatValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
 	void SetValueAsBool(const FName& KeyName, bool BoolValue);
