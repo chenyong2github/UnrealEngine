@@ -181,11 +181,13 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+#if WITH_EDITOR
 			Info.Description = LOCTEXT("Metasound_InitVariableNodeDescription", "Initialize a variable of a MetaSound graph.");
+			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
+#endif // WITH_EDITOR
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
-			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
 
 			return Info;
 		}
@@ -327,12 +329,15 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableMutatorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+
+#if WITH_EDITOR
 			Info.DisplayName = LOCTEXT("Metasound_VariableMutatorNodeDisplayName", "Set");
 			Info.Description = LOCTEXT("Metasound_VariableMutatorNodeDescription", "Set variable on MetaSound graph.");
+			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
+#endif // WITH_EDITOR
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
-			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
 
 			return Info;
 		};
@@ -435,12 +440,14 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableDeferredAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+#if WITH_EDITOR
 			Info.DisplayName = LOCTEXT("Metasound_VariableDeferredAccessorNodeDisplayName", "Get Delayed");
 			Info.Description = LOCTEXT("Metasound_VariableDeferredAccessorNodeDescription", "Get a delayed variable on MetaSound graph.");
+			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
+#endif // WITH_EDITOR
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
-			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
 
 			return Info;
 		};
@@ -542,13 +549,15 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+#if WITH_EDITOR
 			Info.DisplayName = LOCTEXT("Metasound_VariableAccessorNodeDisplayName", "Get");
 			Info.Description = LOCTEXT("Metasound_VariableAccessorNodeDescription", "Get variable on MetaSound graph.");
+#endif // WITH_EDITOR
+
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 
-			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
 			return Info;
 		};
 

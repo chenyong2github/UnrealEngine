@@ -22,7 +22,7 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{ LOCTEXT("ValueCategory", "Value") },
+				{ METASOUND_LOCTEXT("ValueCategory", "Value") },
 				{ },
 				FNodeDisplayStyle{}
 			};

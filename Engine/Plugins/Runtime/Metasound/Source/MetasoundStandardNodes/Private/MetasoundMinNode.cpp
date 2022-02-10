@@ -155,8 +155,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				const FName OperatorName = TEXT("Min");
-				const FText NodeDisplayName = FText::Format(LOCTEXT("MinDisplayNamePattern", "Min ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-				const FText NodeDescription = LOCTEXT("MinDesc", "Returns the min of A and B.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("MinDisplayNamePattern", "Min ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("MinDesc", "Returns the min of A and B.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundMinNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

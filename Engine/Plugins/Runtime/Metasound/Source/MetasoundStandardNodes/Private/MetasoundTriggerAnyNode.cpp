@@ -50,7 +50,7 @@ namespace Metasound
 
 		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDescription(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("TriggerAnyInputTriggerDesc", "Trigger {0} input. The output trigger is hit when any of the input triggers are hit."), InIndex);
+			return METASOUND_LOCTEXT_FORMAT("TriggerAnyInputTriggerDesc", "Trigger {0} input. The output trigger is hit when any of the input triggers are hit.", InIndex);
 		}
 
 		METASOUNDSTANDARDNODES_API const FVertexName& GetOutputTriggerName()
@@ -61,7 +61,7 @@ namespace Metasound
 
 		METASOUNDSTANDARDNODES_API const FText& GetOutputTriggerDescription()
 		{
-			static const FText Desc = LOCTEXT("TriggerAnyOutputTriggerDesc", "Triggered when any of the input triggers have been triggered. ");
+			static const FText Desc = METASOUND_LOCTEXT("TriggerAnyOutputTriggerDesc", "Triggered when any of the input triggers have been triggered. ");
 			return Desc;
 		}
 	}
@@ -98,8 +98,8 @@ namespace Metasound
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Trigger Any (%d)"), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("TriggerAnyDisplayNamePattern", "Trigger Any ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("TriggerAnyDescription", "Will trigger output on any of the input triggers.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerAnyDisplayNamePattern", "Trigger Any ({0})", NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("TriggerAnyDescription", "Will trigger output on any of the input triggers.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundTriggerAnyNodePrivate::CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

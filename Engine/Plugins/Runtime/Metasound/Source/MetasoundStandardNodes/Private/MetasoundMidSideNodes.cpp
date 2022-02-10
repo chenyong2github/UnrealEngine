@@ -64,8 +64,8 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "Mid-Side Decode", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("MidSideEncodeDisplayName", "Mid-Side Encode"),
-					LOCTEXT("MidSideEncodeDesc", "Converts a stereo audio signal from Left and Right to Mid and Side channels."),
+					METASOUND_LOCTEXT("MidSideEncodeDisplayName", "Mid-Side Encode"),
+					METASOUND_LOCTEXT("MidSideEncodeDesc", "Converts a stereo audio signal from Left and Right to Mid and Side channels."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
@@ -288,8 +288,8 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "Mid-Side Encode", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("MidSideDecodeDisplayName", "Mid-Side Decode"),
-					LOCTEXT("MidSideDecodeDesc", "Decodes a stereo signal with Mid and Side channels to Left and Right channels."),
+					METASOUND_LOCTEXT("MidSideDecodeDisplayName", "Mid-Side Decode"),
+					METASOUND_LOCTEXT("MidSideDecodeDesc", "Decodes a stereo signal with Mid and Side channels to Left and Right channels."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

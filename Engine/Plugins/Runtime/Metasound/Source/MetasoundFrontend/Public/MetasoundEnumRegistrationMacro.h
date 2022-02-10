@@ -89,10 +89,16 @@ namespace Metasound
 
 /** DEFINE_METASOUND_ENUM_ENTRY - defines a single Enum Entry
   * @param ENTRY - Fully Qualified Name of Entry of the Enum. (e.g. EMyType::One)
-  * @param DISPLAYNAME - FText Presented to User
-  * @param TOOLTIP - FText displayed as a tooltip
+  * @param DISPLAYNAME_KEY - Display Name loc key 
+  * @param DISPLAYNAME - Display Name text presented to User
+  * @param TOOLTIP_KEY - Tooltip loc key 
+  * @param TOOLTIP - Tooltip text 
   */
-	#define DEFINE_METASOUND_ENUM_ENTRY(ENTRY, DISPLAYNAME, TOOLTIP) { ENTRY, TEXT(#ENTRY), DISPLAYNAME, TOOLTIP }
+#if WITH_EDITOR
+	#define DEFINE_METASOUND_ENUM_ENTRY(ENTRY, DISPLAYNAME_KEY, DISPLAYNAME, TOOLTIP_KEY, TOOLTIP) { ENTRY, TEXT(#ENTRY), LOCTEXT(DISPLAYNAME_KEY, DISPLAYNAME), LOCTEXT(TOOLTIP_KEY, TOOLTIP) }
+#else
+	#define DEFINE_METASOUND_ENUM_ENTRY(ENTRY, DISPLAYNAME_KEY, DISPLAYNAME, TOOLTIP_KEY, TOOLTIP) { ENTRY, TEXT(#ENTRY), FText::GetEmpty(), FText::GetEmpty() }
+#endif // WITH_EDITOR
 
 /** DEFINE_METASOUND_ENUM_END - macro which ends the function body of the GetAllEntries function
    */

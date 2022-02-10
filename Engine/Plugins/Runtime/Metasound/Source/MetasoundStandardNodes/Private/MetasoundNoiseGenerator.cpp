@@ -29,8 +29,8 @@ namespace Metasound
 		FEnumNoiseType, FEnumNoiseTypeInfo, FEnumNoiseTypeReadRef, FEnumNoiseTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ENoiseType, FEnumNoiseType, "NoiseType")
-		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::Pink, LOCTEXT("PinkDescription", "Pink Noise"), LOCTEXT("PinkDescriptionTT", "Pink noise or ​1⁄f noise, spectral density is inversely proportional to the frequency of the signal")),
-		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::White, LOCTEXT("WhiteDescription", "White Noise"), LOCTEXT("WhiteDescriptionTT", "A random signal having equal intensity at different frequencies")),
+		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::Pink, "PinkDescription", "Pink Noise", "PinkDescriptionTT", "Pink noise or ​1⁄f noise, spectral density is inversely proportional to the frequency of the signal"),
+		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::White, "WhiteDescription", "White Noise", "WhiteDescriptionTT", "A random signal having equal intensity at different frequencies"),
 	DEFINE_METASOUND_ENUM_END()
 
 	class FNoiseOperator : public IOperator
@@ -162,11 +162,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<int32>(SeedPinName, LOCTEXT("SeedPinDescription", "Seed for seeding the Random Number Generator, -1 (default) will use current time"), FNoiseOperator::DefaultSeed),
-				TInputDataVertexModel<FEnumNoiseType>(TriggerTypePinName, LOCTEXT("NoiseTypeDescription", "Type of Noise to Generate"))
+				TInputDataVertexModel<int32>(SeedPinName, METASOUND_LOCTEXT("SeedPinDescription", "Seed for seeding the Random Number Generator, -1 (default) will use current time"), FNoiseOperator::DefaultSeed),
+				TInputDataVertexModel<FEnumNoiseType>(TriggerTypePinName, METASOUND_LOCTEXT("NoiseTypeDescription", "Type of Noise to Generate"))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(OutPinName, LOCTEXT("AudioOutDescription", "Audio output"))
+				TOutputDataVertexModel<FAudioBuffer>(OutPinName, METASOUND_LOCTEXT("AudioOutDescription", "Audio output"))
 			)
 		);
 		return Interface;
@@ -180,8 +180,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Noise"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_NoiseNodeDisplayNameX", "Noise");
-			Info.Description = LOCTEXT("Metasound_NoiseNodeDescription", "Noise Generator that produces different types of noise");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_NoiseNodeDisplayNameX", "Noise");
+			Info.Description = METASOUND_LOCTEXT("Metasound_NoiseNodeDescription", "Noise Generator that produces different types of noise");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();

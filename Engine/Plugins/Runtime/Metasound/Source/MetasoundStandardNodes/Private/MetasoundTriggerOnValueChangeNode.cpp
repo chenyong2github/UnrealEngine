@@ -149,8 +149,8 @@ namespace Metasound
 		{
 			const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 			const FName OperatorName = TEXT("Trigger On Value Change");
-			const FText NodeDisplayName = FText::Format(LOCTEXT("TriggerOnValueChangeName", "Trigger On Value Change ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-			const FText NodeDescription = LOCTEXT("TriggerOnValueChangeNameDesc", "Triggers when a given value changes.");
+			const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerOnValueChangeName", "Trigger On Value Change ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+			const FText NodeDescription = METASOUND_LOCTEXT("TriggerOnValueChangeNameDesc", "Triggers when a given value changes.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, DataTypeName };

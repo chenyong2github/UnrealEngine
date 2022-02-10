@@ -35,8 +35,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{ LOCTEXT("ClampCategory", "Math") },
-				{ LOCTEXT("ClampKeyword", "Clamp") },
+				{ METASOUND_LOCTEXT("ClampCategory", "Math") },
+				{ METASOUND_LOCTEXT("ClampKeyword", "Clamp") },
 				FNodeDisplayStyle()
 			};
 
@@ -175,8 +175,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				const FName OperatorName = "Clamp";
-				const FText NodeDisplayName = FText::Format(LOCTEXT("ClampDisplayNamePattern", "Clamp ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-				const FText NodeDescription = LOCTEXT("ClampDesc", "Returns the clamped value of the input within the given value range.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("ClampDisplayNamePattern", "Clamp ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("ClampDesc", "Returns the clamped value of the input within the given value range.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundClampNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

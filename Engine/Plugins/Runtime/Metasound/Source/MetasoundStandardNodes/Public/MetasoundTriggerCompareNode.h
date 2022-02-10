@@ -51,12 +51,12 @@ namespace Metasound
 	FEnumTriggerComparisonType, FEnumTriggerComparisonTypeInfo, FEnumTriggerComparisonTypeReadRef, FEnumTriggerComparisonTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ETriggerComparisonType, FEnumTriggerComparisonType, "TriggerComparisonType")
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::Equals, LOCTEXT("EqualsDescription", "Equals"), LOCTEXT("EqualsDescriptionTT", "True if A and B are equal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::NotEquals, LOCTEXT("NotEqualsDescriptioin", "Not Equals"), LOCTEXT("NotEqualsTT", "True if A and B are not equal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::LessThan, LOCTEXT("LessThanDescription", "Less Than"), LOCTEXT("LessThanTT", "True if A is less than B.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::GreaterThan, LOCTEXT("GreaterThanDescription", "Greater Than"), LOCTEXT("GreaterThanTT", "True if A is greater than B.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::LessThanOrEquals, LOCTEXT("LessThanOrEqualsDescription", "Less Than Or Equals"), LOCTEXT("LessThanOrEqualsTT", "True if A is less than or equal to B.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::GreaterThanOrEquals, LOCTEXT("GreaterThanOrEqualsDescription", "Greater Than Or Equals"), LOCTEXT("GreaterThanOrEqualsTT", "True if A is greater than or equal to B.")),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::Equals, "EqualsDescription", "Equals", "EqualsDescriptionTT", "True if A and B are equal."),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::NotEquals, "NotEqualsDescriptioin", "Not Equals", "NotEqualsTT", "True if A and B are not equal."),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::LessThan, "LessThanDescription", "Less Than", "LessThanTT", "True if A is less than B."),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::GreaterThan, "GreaterThanDescription", "Greater Than", "GreaterThanTT", "True if A is greater than B."),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::LessThanOrEquals, "LessThanOrEqualsDescription", "Less Than Or Equals", "LessThanOrEqualsTT", "True if A is less than or equal to B."),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriggerComparisonType::GreaterThanOrEquals, "GreaterThanOrEqualsDescription", "Greater Than Or Equals", "GreaterThanOrEqualsTT", "True if A is greater than or equal to B."),
 	DEFINE_METASOUND_ENUM_END()
 
 
@@ -91,8 +91,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				const FName OperatorName = TEXT("Clamp");
-				const FText NodeDisplayName = FText::Format(LOCTEXT("TriggerCompareDisplayPattern", "Trigger Compare ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-				const FText NodeDescription = LOCTEXT("TriggerCompareDisc", "Output triggers (True or False) based on comparing inputs, A and B.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerCompareDisplayPattern", "Trigger Compare ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("TriggerCompareDisc", "Output triggers (True or False) based on comparing inputs, A and B.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundTriggerCompareNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

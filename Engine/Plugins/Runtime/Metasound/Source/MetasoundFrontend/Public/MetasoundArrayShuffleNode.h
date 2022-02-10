@@ -147,19 +147,19 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTrigger>(GetInputTriggerNextName(), LOCTEXT("ShuffleOpInputTriggerNextTT", "Trigger to get the next value in the shuffled array.")),
-					TInputDataVertexModel<FTrigger>(GetInputTriggerShuffleName(), LOCTEXT("ShuffleOpInputTriggerShuffleTT", "Trigger to shuffle the array manually.")),
-					TInputDataVertexModel<FTrigger>(GetInputTriggerResetName(), LOCTEXT("ShuffleOpInputTriggerResetTT", "Trigger to reset the random seed stream of the shuffle node.")),
-					TInputDataVertexModel<ArrayType>(GetInputShuffleArrayName(), LOCTEXT("ShuffleOpInputShuffleArrayTT", "Input Array.")),
-					TInputDataVertexModel<int32>(GetInputSeedName(), LOCTEXT("ShuffleOpInputSeedTT", "Seed to use for the the random shuffle."), -1),
-					TInputDataVertexModel<bool>(GetInputAutoShuffleName(), LOCTEXT("ShuffleOpInputAutoShuffleTT", "Set to true to automatically shuffle when the array has been read."), true),
-					TInputDataVertexModel<bool>(GetInputEnableSharedStateName(), LOCTEXT("ShuffleOpInputEnableSharedStatTT", "Set to enabled shared state across instances of this metasound."), false)
+					TInputDataVertexModel<FTrigger>(GetInputTriggerNextName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerNextTT", "Trigger to get the next value in the shuffled array.")),
+					TInputDataVertexModel<FTrigger>(GetInputTriggerShuffleName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerShuffleTT", "Trigger to shuffle the array manually.")),
+					TInputDataVertexModel<FTrigger>(GetInputTriggerResetName(), METASOUND_LOCTEXT("ShuffleOpInputTriggerResetTT", "Trigger to reset the random seed stream of the shuffle node.")),
+					TInputDataVertexModel<ArrayType>(GetInputShuffleArrayName(), METASOUND_LOCTEXT("ShuffleOpInputShuffleArrayTT", "Input Array.")),
+					TInputDataVertexModel<int32>(GetInputSeedName(), METASOUND_LOCTEXT("ShuffleOpInputSeedTT", "Seed to use for the the random shuffle."), -1),
+					TInputDataVertexModel<bool>(GetInputAutoShuffleName(), METASOUND_LOCTEXT("ShuffleOpInputAutoShuffleTT", "Set to true to automatically shuffle when the array has been read."), true),
+					TInputDataVertexModel<bool>(GetInputEnableSharedStateName(), METASOUND_LOCTEXT("ShuffleOpInputEnableSharedStatTT", "Set to enabled shared state across instances of this metasound."), false)
 					),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnNextName(), LOCTEXT("ShuffleOpOutputTriggerOnNextNameTT", "Triggers when the \"Next\" input is triggered.")),
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnShuffleName(), LOCTEXT("ShuffleOpOutputTriggerOnShuffleNameTT", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.")),
-					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnResetName(), LOCTEXT("ShuffleOpOutputTriggerOnResetNameTT", "Triggers when the \"Reset Seed\" input is triggered.")),
-					TOutputDataVertexModel<ElementType>(GetOutputValueName(), LOCTEXT("ShuffleOpOutputValueTT", "Value of the current shuffled element."))
+					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnNextName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnNextNameTT", "Triggers when the \"Next\" input is triggered.")),
+					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnShuffleName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnShuffleNameTT", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.")),
+					TOutputDataVertexModel<FTrigger>(GetOutputTriggerOnResetName(), METASOUND_LOCTEXT("ShuffleOpOutputTriggerOnResetNameTT", "Triggers when the \"Reset Seed\" input is triggered.")),
+					TOutputDataVertexModel<ElementType>(GetOutputValueName(), METASOUND_LOCTEXT("ShuffleOpOutputValueTT", "Value of the current shuffled element."))
 				)
 			);
 
@@ -172,8 +172,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
 				const FName OperatorName = "Shuffle";
-				const FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArrayShuffleDisplayNamePattern", "Shuffle ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
-				const FText NodeDescription = LOCTEXT("ArrayOpArrayShuffleDescription", "Output next element of a shuffled array on trigger.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("ArrayOpArrayShuffleDisplayNamePattern", "Shuffle ({0})", GetMetasoundDataTypeDisplayText<ArrayType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("ArrayOpArrayShuffleDescription", "Output next element of a shuffled array on trigger.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

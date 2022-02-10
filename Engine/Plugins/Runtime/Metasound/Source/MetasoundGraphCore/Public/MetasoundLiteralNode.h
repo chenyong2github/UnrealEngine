@@ -116,8 +116,10 @@ namespace Metasound
 			Info.ClassName = {"Literal", GetMetasoundDataTypeName<DataType>(), ""};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+#if WITH_EDITOR
 			Info.DisplayName = FText::Format(LOCTEXT("Metasound_LiteralNodeDisplayNameFormat", "Literal {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 			Info.Description = LOCTEXT("Metasound_LiteralNodeDescription", "Literal accessible within a parent Metasound graph.");
+#endif // WITH_EDITOR
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();

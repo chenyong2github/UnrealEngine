@@ -60,16 +60,16 @@ namespace Metasound
 	METASOUNDSTANDARDNODES_API, FEnumEBiquadFilterType, FEnumBiQuadFilterTypeInfo, FEnumBiQuadFilterReadRef, FEnumBiQuadFilterWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(Audio::EBiquadFilter::Type, FEnumEBiquadFilterType, "BiquadFilterType")
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Lowpass, LOCTEXT("LpDescription", "Low Pass"), LOCTEXT("LpDescriptionTT", "Low pass Biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Highpass, LOCTEXT("HpDescription", "High Pass"), LOCTEXT("HpDescriptionTT", "High pass Biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Bandpass, LOCTEXT("BpDescription", "Band Pass"), LOCTEXT("BpDescriptionTT", "Band pass Biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Notch, LOCTEXT("NotchDescription", "Notch "), LOCTEXT("NotchDescriptionTT", "Notch biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ParametricEQ, LOCTEXT("ParaEqDescription", "Parametric EQ"), LOCTEXT("ParaEqDescriptionTT", "Parametric EQ biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::LowShelf, LOCTEXT("LowShelfDescription", "Low Shelf"), LOCTEXT("LowShelfDescriptionTT", "Low shelf biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::HighShelf, LOCTEXT("HighShelfDescription", "High Shelf"), LOCTEXT("HighShelfDescriptionTT", "High shelf biquad filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::AllPass, LOCTEXT("AllPassDescription", "All Pass"), LOCTEXT("AllPassDescriptionTT", "All pass biquad Filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthLowPass, LOCTEXT("LowPassButterDescription", "Butterworth Low Pass"), LOCTEXT("LowPassButterDescriptionTT", "Butterworth Low Pass Biquad Filter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthHighPass, LOCTEXT("HighPassButterDescription", "Butterworth High Pass"), LOCTEXT("HighPassButterDescriptionTT", "Butterworth High Pass Biquad Filter."))
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Lowpass, "LpDescription", "Low Pass", "LpDescriptionTT", "Low pass Biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Highpass, "HpDescription", "High Pass", "HpDescriptionTT", "High pass Biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Bandpass, "BpDescription", "Band Pass", "BpDescriptionTT", "Band pass Biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::Notch, "NotchDescription", "Notch ", "NotchDescriptionTT", "Notch biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ParametricEQ, "ParaEqDescription", "Parametric EQ", "ParaEqDescriptionTT", "Parametric EQ biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::LowShelf, "LowShelfDescription", "Low Shelf", "LowShelfDescriptionTT", "Low shelf biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::HighShelf, "HighShelfDescription", "High Shelf", "HighShelfDescriptionTT", "High shelf biquad filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::AllPass, "AllPassDescription", "All Pass", "AllPassDescriptionTT", "All pass biquad Filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthLowPass, "LowPassButterDescription", "Butterworth Low Pass", "LowPassButterDescriptionTT", "Butterworth Low Pass Biquad Filter."),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EBiquadFilter::ButterworthHighPass, "HighPassButterDescription", "Butterworth High Pass", "HighPassButterDescriptionTT", "Butterworth High Pass Biquad Filter.")
 		DEFINE_METASOUND_ENUM_END()
 #pragma endregion
 
@@ -163,8 +163,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Ladder Filter"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_LadderFilterNodeDisplayName", "Ladder Filter");
-			Info.Description = LOCTEXT("Ladder_Filter_NodeDescription", "Ladder filter"),
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_LadderFilterNodeDisplayName", "Ladder Filter");
+			Info.Description = METASOUND_LOCTEXT("Ladder_Filter_NodeDescription", "Ladder filter");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
@@ -345,9 +345,9 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("State Variable Filter"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_StateVariableFilterNodeDisplayName", "State Variable Filter");
-			Info.Description = LOCTEXT("State_Variable_Filter_NodeDescription", "State Variable filter"),
-				Info.Author = PluginAuthor;
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_StateVariableFilterNodeDisplayName", "State Variable Filter");
+			Info.Description = METASOUND_LOCTEXT("State_Variable_Filter_NodeDescription", "State Variable filter");
+			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
@@ -517,9 +517,9 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("One-Pole Low Pass Filter"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_OnePoleLpfNodeDisplayName", "One-Pole Low Pass Filter");
-			Info.Description = LOCTEXT("One_Pole_Low_Pass_Filter_NodeDescription", "One-Pole Low Pass Filter"),
-				Info.Author = PluginAuthor;
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_OnePoleLpfNodeDisplayName", "One-Pole Low Pass Filter");
+			Info.Description = METASOUND_LOCTEXT("One_Pole_Low_Pass_Filter_NodeDescription", "One-Pole Low Pass Filter");
+			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
@@ -654,9 +654,9 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("One-Pole High Pass Filter"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_OnePoleHpfNodeDisplayName", "One-Pole High Pass Filter");
-			Info.Description = LOCTEXT("One_Pole_High_Pass_Filter_NodeDescription", "One-Pole High Pass Filter"),
-				Info.Author = PluginAuthor;
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_OnePoleHpfNodeDisplayName", "One-Pole High Pass Filter");
+			Info.Description = METASOUND_LOCTEXT("One_Pole_High_Pass_Filter_NodeDescription", "One-Pole High Pass Filter");
+			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
@@ -810,9 +810,9 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Biquad Filter"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_BiquadFilterNodeDisplayName", "Biquad Filter");
-			Info.Description = LOCTEXT("Biquad_Filter_NodeDescription", "Biquad filter"),
-				Info.Author = PluginAuthor;
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_BiquadFilterNodeDisplayName", "Biquad Filter");
+			Info.Description = METASOUND_LOCTEXT("Biquad_Filter_NodeDescription", "Biquad filter");
+			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);

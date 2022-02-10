@@ -124,3 +124,13 @@ namespace Metasound
 	 static_assert(::Metasound::ConstructorTakesNodeInitData<NodeClass>::Value, "In order to be registered as a Metasound Node, " #NodeClass " needs to implement the following public constructor: " #NodeClass "(const Metasound::FNodeInitData& InInitData);"); \
 	 static bool bSuccessfullyRegistered##NodeClass  = FMetasoundFrontendRegistryContainer::Get()->EnqueueInitCommand([](){ ::Metasound::RegisterNodeWithFrontend<NodeClass>(__VA_ARGS__); }); // This static bool is useful for debugging, but also is the only way the compiler will let us call this function outside of an expression.
 
+/*
+Macros to help define various FText node fields.
+*/
+#if WITH_EDITOR
+#define METASOUND_LOCTEXT(KEY, NAME_TEXT) LOCTEXT(KEY, NAME_TEXT)
+#define METASOUND_LOCTEXT_FORMAT(KEY, NAME_TEXT, ...) FText::Format(LOCTEXT(KEY, NAME_TEXT), __VA_ARGS__)
+#else 
+#define METASOUND_LOCTEXT(KEY, NAME_TEXT) FText::GetEmpty()
+#define METASOUND_LOCTEXT_FORMAT(KEY, NAME_TEXT, ...) FText::GetEmpty()
+#endif // WITH_EDITOR

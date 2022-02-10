@@ -533,16 +533,16 @@ namespace Metasound
 			static const FVertexInterface Interface
 			{
 				FInputVertexInterface{
-					TInputDataVertexModel<bool>(EnabledPinName, LOCTEXT("OscActivateDescription", "Enable the oscillator."), true),
-					TInputDataVertexModel<bool>(BiPolarPinName, LOCTEXT("OscBaseBiPolarDescription", "If the output is Bi-Polar (-1..1) or Uni-Polar (0..1)"), true),
-					TInputDataVertexModel<float>(BaseFrequencyPinName, LOCTEXT("OscBaseFrequencyDescription", "Base Frequency of Oscillator in HZ"), 440.f),
-					TInputDataVertexModel<FAudioBuffer>(FrequencyModPinName, LOCTEXT("OscModFrequencyDescription", "Modulation Frequency Input (for doing FM)")),
-					TInputDataVertexModel<FTrigger>(PhaseResetPinName, LOCTEXT("OscPhaseResetDescription", "Phase Reset")),
-					TInputDataVertexModel<float>(PhaseOffsetPinName, LOCTEXT("OscPhaseOffsetDescription", "Phase Offset In Degrees (0..360)"), 0.f),
-					TInputDataVertexModel<float>(GlideFactorPinName, LOCTEXT("OscGlideFactorDescription", "The amount of glide to use when changing frequencies. 0.0 = no glide, 1.0 = lots of glide."), 0.f)
+					TInputDataVertexModel<bool>(EnabledPinName, METASOUND_LOCTEXT("OscActivateDescription", "Enable the oscillator."), true),
+					TInputDataVertexModel<bool>(BiPolarPinName, METASOUND_LOCTEXT("OscBaseBiPolarDescription", "If the output is Bi-Polar (-1..1) or Uni-Polar (0..1)"), true),
+					TInputDataVertexModel<float>(BaseFrequencyPinName, METASOUND_LOCTEXT("OscBaseFrequencyDescription", "Base Frequency of Oscillator in HZ"), 440.f),
+					TInputDataVertexModel<FAudioBuffer>(FrequencyModPinName, METASOUND_LOCTEXT("OscModFrequencyDescription", "Modulation Frequency Input (for doing FM)")),
+					TInputDataVertexModel<FTrigger>(PhaseResetPinName, METASOUND_LOCTEXT("OscPhaseResetDescription", "Phase Reset")),
+					TInputDataVertexModel<float>(PhaseOffsetPinName, METASOUND_LOCTEXT("OscPhaseOffsetDescription", "Phase Offset In Degrees (0..360)"), 0.f),
+					TInputDataVertexModel<float>(GlideFactorPinName, METASOUND_LOCTEXT("OscGlideFactorDescription", "The amount of glide to use when changing frequencies. 0.0 = no glide, 1.0 = lots of glide."), 0.f)
 				},
 				FOutputVertexInterface{
-					TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"))
+					TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), METASOUND_LOCTEXT("AudioTooltip", "The output audio"))
 				}
 			};
 			return Interface;
@@ -740,11 +740,11 @@ namespace Metasound
 		FEnumSineGenerationType, FEnumSineGenerationTypeInfo, FEnumSineGenerationTypeReadRef, FEnumSineGenerationTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ESineGenerationType, FEnumSineGenerationType, "SineGenerationType")
-		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Rotation, LOCTEXT("RotationDescription", "2D Rotation"), LOCTEXT("RotationDescriptionTT", "Rotates around the unit circle generate the sine. Note: Glide and audio rate FM modulation is not supported with the 2D rotator.")),
-		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Sinf, LOCTEXT("SinfDescription", "Pure Math"), LOCTEXT("SinfDescriptionTT", "Uses the standard math library (Sinf) to generate the sine (most expensive)")),
-		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Bhaskara, LOCTEXT("BhaskaraDescription", "Bhaskara"), LOCTEXT("BhaskaraDescriptionTT", "Sine approximation using Bhaskara technique discovered in 7th century")),
-		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Wavetable, LOCTEXT("WavetableDescription", "Wavetable"), LOCTEXT("WavetableDescriptionTT", "Uses a wavetable to generate the sine")),
-		//DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::FilterResonanceFeedback, LOCTEXT("FRFDescription", "Filter resonance"), LOCTEXT("FRFDescriptionTT", "Filter resonance/feedback")),
+		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Rotation, "RotationDescription", "2D Rotation", "RotationDescriptionTT", "Rotates around the unit circle generate the sine. Note: Glide and audio rate FM modulation is not supported with the 2D rotator."),
+		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Sinf, "SinfDescription", "Pure Math", "SinfDescriptionTT", "Uses the standard math library (Sinf) to generate the sine (most expensive)"),
+		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Bhaskara, "BhaskaraDescription", "Bhaskara", "BhaskaraDescriptionTT", "Sine approximation using Bhaskara technique discovered in 7th century"),
+		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Wavetable, "WavetableDescription", "Wavetable", "WavetableDescriptionTT", "Uses a wavetable to generate the sine"),
+		//DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::FilterResonanceFeedback, "FRFDescription", "Filter resonance", "FRFDescriptionTT", "Filter resonance/feedback"),
 	DEFINE_METASOUND_ENUM_END()
 
 	class FSineOscilatorNode::FFactory : public FOscilatorFactoryBase
@@ -762,8 +762,8 @@ namespace Metasound
 				Info.ClassName = { StandardNodes::Namespace, TEXT("Sine"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 1;
-				Info.DisplayName = LOCTEXT("Metasound_SineNodeDisplayName", "Sine");
-				Info.Description = LOCTEXT("Metasound_SineNodeDescription", "Emits an audio signal of a sinusoid.");
+				Info.DisplayName = METASOUND_LOCTEXT("Metasound_SineNodeDisplayName", "Sine");
+				Info.Description = METASOUND_LOCTEXT("Metasound_SineNodeDescription", "Emits an audio signal of a sinusoid.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
@@ -779,7 +779,7 @@ namespace Metasound
 			{
 				FVertexInterface Interface = GetCommmonVertexInterface();
 				Interface.GetInputInterface().Add(
-					TInputDataVertexModel<FEnumSineGenerationType>(SineTypePin, LOCTEXT("SineTypeDescription", "Type of the Sinewave Generator"), static_cast<int32>(ESineGenerationType::Wavetable))
+					TInputDataVertexModel<FEnumSineGenerationType>(SineTypePin, METASOUND_LOCTEXT("SineTypeDescription", "Type of the Sinewave Generator"), static_cast<int32>(ESineGenerationType::Wavetable))
 				);
 				return Interface;
 			};
@@ -863,9 +863,9 @@ namespace Metasound
 		FEnumSawGenerationType, FEnumSawGenerationTypeInfo, FSawGenerationTypeReadRef, FEnumSawGenerationTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ESawGenerationType, FEnumSawGenerationType, "SawGenerationType")
-		DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::PolySmooth, LOCTEXT("SawPolySmoothDescription", "Poly Smooth"), LOCTEXT("PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)")),
-		DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::Trivial, LOCTEXT("SawTrivialDescription", "Trivial"), LOCTEXT("TrivialDescriptionTT", "The most basic raw implementation")),
-		//DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::Wavetable, LOCTEXT("SawWavetableDescription", "Wavetable"), LOCTEXT("SawWavetableDescriptionTT", "Use a Wavetable iterpolation to generate the Waveform"))
+		DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::PolySmooth, "SawPolySmoothDescription", "Poly Smooth", "PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)"),
+		DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::Trivial, "SawTrivialDescription", "Trivial", "TrivialDescriptionTT", "The most basic raw implementation"),
+		//DEFINE_METASOUND_ENUM_ENTRY(ESawGenerationType::Wavetable, "SawWavetableDescription", "Wavetable", "SawWavetableDescriptionTT", "Use a Wavetable iterpolation to generate the Waveform")
 	DEFINE_METASOUND_ENUM_END()
 
 	class FSawOscilatorNode::FFactory : public FOscilatorFactoryBase
@@ -885,8 +885,8 @@ namespace Metasound
 				Info.ClassName = { StandardNodes::Namespace, TEXT("Saw"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = LOCTEXT("Metasound_SawNodeDisplayName", "Saw");
-				Info.Description = LOCTEXT("Metasound_SawNodeDescription", "Emits a Saw wave");
+				Info.DisplayName = METASOUND_LOCTEXT("Metasound_SawNodeDisplayName", "Saw");
+				Info.Description = METASOUND_LOCTEXT("Metasound_SawNodeDescription", "Emits a Saw wave");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
@@ -902,7 +902,7 @@ namespace Metasound
 			{
 				FVertexInterface Interface = GetCommmonVertexInterface();
 				Interface.GetInputInterface().Add(
-					TInputDataVertexModel<FEnumSawGenerationType>(SawTypePin, LOCTEXT("Saw Type", "Which type of Saw Generator to Create"))
+					TInputDataVertexModel<FEnumSawGenerationType>(SawTypePin, METASOUND_LOCTEXT("Saw Type", "Which type of Saw Generator to Create"))
 				);
 				return Interface;
 			};
@@ -982,9 +982,9 @@ namespace Metasound
 	FEnumSquareGenerationType, FEnumSquareGenerationTypeInfo, FSquareGenerationTypeReadRef, FEnumSquareGenerationTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ESquareGenerationType, FEnumSquareGenerationType, "SquareGenerationType")
-		DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::PolySmooth, LOCTEXT("SquarePolySmoothDescription", "Poly Smooth"), LOCTEXT("PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)")),
-		DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::Trivial, LOCTEXT("SquareTrivialDescription", "Trivial"), LOCTEXT("SquareTrivialDescriptionTT", "The most basic raw implementation. Does not obey pulse width.")),
-		//DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::Wavetable, LOCTEXT("SquareWavetableDescription", "Wavetable"), LOCTEXT("SquareWavetableDescriptionTT", "Use a Wavetable interpolation to generate the Waveform"))
+		DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::PolySmooth, "SquarePolySmoothDescription", "Poly Smooth", "PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)"),
+		DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::Trivial, "SquareTrivialDescription", "Trivial", "SquareTrivialDescriptionTT", "The most basic raw implementation. Does not obey pulse width."),
+		//DEFINE_METASOUND_ENUM_ENTRY(ESquareGenerationType::Wavetable, "SquareWavetableDescription", "Wavetable", "SquareWavetableDescriptionTT", "Use a Wavetable interpolation to generate the Waveform")
 	DEFINE_METASOUND_ENUM_END()
 	
 	template<typename GeneratorPolicy>
@@ -1116,8 +1116,8 @@ namespace Metasound
 				Info.ClassName = { StandardNodes::Namespace, TEXT("Square"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = LOCTEXT("Metasound_SquareNodeDisplayName", "Square");
-				Info.Description = LOCTEXT("Metasound_SquareNodeDescription", "Emits a Square wave");
+				Info.DisplayName = METASOUND_LOCTEXT("Metasound_SquareNodeDisplayName", "Square");
+				Info.Description = METASOUND_LOCTEXT("Metasound_SquareNodeDescription", "Emits a Square wave");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
@@ -1132,8 +1132,8 @@ namespace Metasound
 			auto MakeInterface = []() -> FVertexInterface
 			{
 				FVertexInterface Interface = GetCommmonVertexInterface();
-				Interface.GetInputInterface().Add(TInputDataVertexModel<FEnumSquareGenerationType>(SquareTypePinName, LOCTEXT("SquareTypeDescription", "The generator type to make the squarewave")));
-				Interface.GetInputInterface().Add(TInputDataVertexModel<float>(PulseWidthPinName, LOCTEXT("PhaseWidthDescription", "The Width of the square part of the wave"), 0.5f));
+				Interface.GetInputInterface().Add(TInputDataVertexModel<FEnumSquareGenerationType>(SquareTypePinName, METASOUND_LOCTEXT("SquareTypeDescription", "The generator type to make the squarewave")));
+				Interface.GetInputInterface().Add(TInputDataVertexModel<float>(PulseWidthPinName, METASOUND_LOCTEXT("PhaseWidthDescription", "The Width of the square part of the wave"), 0.5f));
 				return Interface;
 			};
 			static const FVertexInterface Interface = MakeInterface();
@@ -1166,9 +1166,9 @@ namespace Metasound
 	FEnumTriangleGenerationType, FEnumTriangleGenerationTypeInfo, FTriangleGenerationTypeReadRef, FEnumTriangleGenerationTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ETriangleGenerationType, FEnumTriangleGenerationType, "TriangleGenerationType")
-		DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::PolySmooth, LOCTEXT("TrianglePolySmoothDescription", "Poly Smooth"), LOCTEXT("PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)")),
-		DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::Trivial, LOCTEXT("TriangleTrivialDescription", "Trivial"), LOCTEXT("TriangleTrivialDescriptionTT", "The most basic raw implementation")),
-		//DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::Wavetable, LOCTEXT("TriangleWavetableDescription", "Wavetable"), LOCTEXT("TriangleWavetableDescriptionTT", "Use a Wavetable iterpolation to generate the Waveform"))
+		DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::PolySmooth, "TrianglePolySmoothDescription", "Poly Smooth", "PolySmoothDescriptionTT", "PolySmooth (i.e. BLEP)"),
+		DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::Trivial, "TriangleTrivialDescription", "Trivial", "TriangleTrivialDescriptionTT", "The most basic raw implementation"),
+		//DEFINE_METASOUND_ENUM_ENTRY(ETriangleGenerationType::Wavetable, "TriangleWavetableDescription", "Wavetable", "TriangleWavetableDescriptionTT", "Use a Wavetable iterpolation to generate the Waveform")
 	DEFINE_METASOUND_ENUM_END()
 
 	class FTriangleOscilatorNode::FFactory : public FOscilatorFactoryBase
@@ -1230,8 +1230,8 @@ namespace Metasound
 				Info.ClassName = { StandardNodes::Namespace, TEXT("Triangle"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = LOCTEXT("Metasound_TriangleNodeDisplayName", "Triangle");
-				Info.Description = LOCTEXT("Metasound_TriangleNodeDescription", "Emits a Triangle wave");
+				Info.DisplayName = METASOUND_LOCTEXT("Metasound_TriangleNodeDisplayName", "Triangle");
+				Info.Description = METASOUND_LOCTEXT("Metasound_TriangleNodeDescription", "Emits a Triangle wave");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
@@ -1247,7 +1247,7 @@ namespace Metasound
 			{
 				FVertexInterface Interface = GetCommmonVertexInterface();
 				Interface.GetInputInterface().Add(
-					TInputDataVertexModel<FEnumTriangleGenerationType>(TriangeTypePinName, LOCTEXT("TriangleTypeDescription", "The generator type to make the triangle wave"))
+					TInputDataVertexModel<FEnumTriangleGenerationType>(TriangeTypePinName, METASOUND_LOCTEXT("TriangleTypeDescription", "The generator type to make the triangle wave"))
 				);
 				return Interface;
 			};
@@ -1284,10 +1284,10 @@ namespace Metasound
 		FEnumLfoWaveshapeType, FEnumLfoWaveshapeTypeInfo, FEnumLfoWaveshapeTypeReadRef, FEnumLfoWaveshapeTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ELfoWaveshapeType, FEnumLfoWaveshapeType, "LfoWaveshapeType")
-		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Sine, LOCTEXT("LfoWaveShapeSineDescription", "Sine"), LOCTEXT("LfoWaveShapeSineDescriptionTT", "Sinewave Low Frequency Oscillator")),
-		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Saw, LOCTEXT("LfoWaveShapeSawDescription", "Saw"), LOCTEXT("LfoWaveShapeSawDescriptionTT", "Sawtooth Low Frequency Oscillator")),
-		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Triangle, LOCTEXT("LfoWaveShapeTriangleDescription", "Triangle"), LOCTEXT("LfoWaveShapeTriangleDescriptionTT", "Triangle shape Frequency Oscillator")),
-		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Square, LOCTEXT("LfoWaveShapeSquareDescription", "Square"), LOCTEXT("LfoWaveShapeSquareDescriptionTT", "Square shape Low Frequency Oscillator"))
+		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Sine, "LfoWaveShapeSineDescription", "Sine", "LfoWaveShapeSineDescriptionTT", "Sinewave Low Frequency Oscillator"),
+		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Saw, "LfoWaveShapeSawDescription", "Saw", "LfoWaveShapeSawDescriptionTT", "Sawtooth Low Frequency Oscillator"),
+		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Triangle, "LfoWaveShapeTriangleDescription", "Triangle", "LfoWaveShapeTriangleDescriptionTT", "Triangle shape Frequency Oscillator"),
+		DEFINE_METASOUND_ENUM_ENTRY(ELfoWaveshapeType::Square, "LfoWaveShapeSquareDescription", "Square", "LfoWaveShapeSquareDescriptionTT", "Square shape Low Frequency Oscillator")
 	DEFINE_METASOUND_ENUM_END()
 
 	// Blockrate All-Purpose Oscillator
@@ -1303,16 +1303,16 @@ namespace Metasound
 			static const FVertexInterface Interface
 			{
 				FInputVertexInterface{
-					TInputDataVertexModel<float>(FOscilatorFactoryBase::BaseFrequencyPinName, LOCTEXT("LfoFrequencyDescription", "Frequency of LFO (Hz), clamped at blockrate"), 5.f),
-					TInputDataVertexModel<FEnumLfoWaveshapeType>(WaveshapePinName, LOCTEXT("LfoShapeDescription", "Waveshape of the LFO")),
-					TInputDataVertexModel<float>(FOscilatorFactoryBase::MinOutputValuePinName, LOCTEXT("LfoMinValueDescription", "The minimum output value."), -1.0f),
-					TInputDataVertexModel<float>(FOscilatorFactoryBase::MaxOutputValuePinName, LOCTEXT("LfoMaxValueDescription", "The maximum output value."), 1.0f),
-					TInputDataVertexModel<FTrigger>(FOscilatorFactoryBase::PhaseResetPinName, LOCTEXT("LfoPhaseResetDescription", "Phase Reset (block rate only)")),
-					TInputDataVertexModel<float>(FOscilatorFactoryBase::PhaseOffsetPinName, LOCTEXT("LfoPhaseOffsetDescription", "Phase Offset In Degrees (0..360)"), 0.f),
-					TInputDataVertexModel<float>(FSquareOscilatorNode::FFactory::PulseWidthPinName, LOCTEXT("LfoPulseWidthDescription", "Pulse Width (0..1)"), 0.5f)
+					TInputDataVertexModel<float>(FOscilatorFactoryBase::BaseFrequencyPinName, METASOUND_LOCTEXT("LfoFrequencyDescription", "Frequency of LFO (Hz), clamped at blockrate"), 5.f),
+					TInputDataVertexModel<FEnumLfoWaveshapeType>(WaveshapePinName, METASOUND_LOCTEXT("LfoShapeDescription", "Waveshape of the LFO")),
+					TInputDataVertexModel<float>(FOscilatorFactoryBase::MinOutputValuePinName, METASOUND_LOCTEXT("LfoMinValueDescription", "The minimum output value."), -1.0f),
+					TInputDataVertexModel<float>(FOscilatorFactoryBase::MaxOutputValuePinName, METASOUND_LOCTEXT("LfoMaxValueDescription", "The maximum output value."), 1.0f),
+					TInputDataVertexModel<FTrigger>(FOscilatorFactoryBase::PhaseResetPinName, METASOUND_LOCTEXT("LfoPhaseResetDescription", "Phase Reset (block rate only)")),
+					TInputDataVertexModel<float>(FOscilatorFactoryBase::PhaseOffsetPinName, METASOUND_LOCTEXT("LfoPhaseOffsetDescription", "Phase Offset In Degrees (0..360)"), 0.f),
+					TInputDataVertexModel<float>(FSquareOscilatorNode::FFactory::PulseWidthPinName, METASOUND_LOCTEXT("LfoPulseWidthDescription", "Pulse Width (0..1)"), 0.5f)
 				},
 				FOutputVertexInterface{
-					TOutputDataVertexModel<float>(LfoOutPinName, LOCTEXT("LfoOutputDescription", "Output of the LFO (blockrate)"))
+					TOutputDataVertexModel<float>(LfoOutPinName, METASOUND_LOCTEXT("LfoOutputDescription", "Output of the LFO (blockrate)"))
 				}
 			};
 			return Interface;
@@ -1326,8 +1326,8 @@ namespace Metasound
 				Info.ClassName = { StandardNodes::Namespace, TEXT("LFO"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = LOCTEXT("Metasound_LfoNodeDisplayName", "LFO");
-				Info.Description = LOCTEXT("Metasound_LfoNodeDescription", "Low frequency oscillator < blockrate");
+				Info.DisplayName = METASOUND_LOCTEXT("Metasound_LfoNodeDisplayName", "LFO");
+				Info.Description = METASOUND_LOCTEXT("Metasound_LfoNodeDescription", "Low frequency oscillator < blockrate");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();

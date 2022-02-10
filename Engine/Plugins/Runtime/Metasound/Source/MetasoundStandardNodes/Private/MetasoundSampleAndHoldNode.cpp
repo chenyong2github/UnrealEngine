@@ -41,8 +41,8 @@ namespace Metasound
 					FNodeClassName { "SampleAndHold", "Sample And Hold", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("SampleAndHoldDisplayName", "Sample And Hold"),
-					LOCTEXT("SampleAndHoldDesc", "Will output a single value of the input audio signal when triggered."),
+					METASOUND_LOCTEXT("SampleAndHoldDisplayName", "Sample And Hold"),
+					METASOUND_LOCTEXT("SampleAndHoldDesc", "Will output a single value of the input audio signal when triggered."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

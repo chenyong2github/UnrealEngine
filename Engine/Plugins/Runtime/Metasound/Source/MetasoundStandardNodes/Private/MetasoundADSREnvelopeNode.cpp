@@ -359,8 +359,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				const FName OperatorName = "ADSR Envelope";
-				const FText NodeDisplayName = FText::Format(LOCTEXT("ADSREnvelopeDisplayNamePattern", "ADSR Envelope ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-				const FText NodeDescription = LOCTEXT("ADSREnevelopeDesc", "Generates an attack-decay-sustain-release envelope value output when triggered.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("ADSREnvelopeDisplayNamePattern", "ADSR Envelope ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("ADSREnevelopeDesc", "Generates an attack-decay-sustain-release envelope value output when triggered.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				const FNodeClassMetadata Metadata

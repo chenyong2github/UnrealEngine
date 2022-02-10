@@ -108,8 +108,8 @@ namespace Metasound
 		{
 			const FName DataTypeName = GetMetasoundDataTypeName<float>();
 			const FName OperatorName = TEXT("Frequency to MIDI");
-			const FText NodeDisplayName = LOCTEXT("Metasound_FreqToMidiNodeName", "Frequency To MIDI");
-			const FText NodeDescription = LOCTEXT("Metasound_FreqToMidiNodeDescription", "Converts a frequency (Hz) value to a Midi Note value.");
+			const FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_FreqToMidiNodeName", "Frequency To MIDI");
+			const FText NodeDescription = METASOUND_LOCTEXT("Metasound_FreqToMidiNodeDescription", "Converts a frequency (Hz) value to a Midi Note value.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { StandardNodes::Namespace, OperatorName, DataTypeName };

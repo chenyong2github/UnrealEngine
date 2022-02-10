@@ -33,8 +33,8 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = TEXT("Linear To Log Frequency");
-				FText NodeDisplayName = LOCTEXT("LinearToLogFrequencyName", "Linear To Log Frequency");
-				FText NodeDescription = LOCTEXT("LinearToLogFrequencyDescription", "Converts a linear space input value to log-frequency space.");
+				FText NodeDisplayName = METASOUND_LOCTEXT("LinearToLogFrequencyName", "Linear To Log Frequency");
+				const FText NodeDescription = METASOUND_LOCTEXT("LinearToLogFrequencyDescription", "Converts a linear space input value to log-frequency space.");
 
 				FNodeClassMetadata Info;
 				Info.ClassName = { StandardNodes::Namespace, OperatorName, TEXT("") };

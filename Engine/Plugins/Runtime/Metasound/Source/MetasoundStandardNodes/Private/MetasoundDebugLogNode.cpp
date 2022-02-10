@@ -76,9 +76,9 @@ namespace Metasound
 				static const FVertexInterface DefaultInterface(
 					FInputVertexInterface(
 
-						TInputDataVertexModel<FTrigger>(PrintLogVertexNames::GetInputTriggerName(), LOCTEXT("PrintLogTrigger", "Trigger to write the set value to the log.")),
-						TInputDataVertexModel<FString>(PrintLogVertexNames::GetLabelPrintLogName(), LOCTEXT("PrintLogLabel", "The label to attach to the value that will be logged")),
-						TInputDataVertexModel<PrintLogType>(PrintLogVertexNames::GetToLogPrintLogName(), LOCTEXT("PrintLogValueToLog", "The value to record to the log when triggered"))
+						TInputDataVertexModel<FTrigger>(PrintLogVertexNames::GetInputTriggerName(), METASOUND_LOCTEXT("PrintLogTrigger", "Trigger to write the set value to the log.")),
+						TInputDataVertexModel<FString>(PrintLogVertexNames::GetLabelPrintLogName(), METASOUND_LOCTEXT("PrintLogLabel", "The label to attach to the value that will be logged")),
+						TInputDataVertexModel<PrintLogType>(PrintLogVertexNames::GetToLogPrintLogName(), METASOUND_LOCTEXT("PrintLogValueToLog", "The value to record to the log when triggered"))
 					),
 					FOutputVertexInterface(
 					)
@@ -93,8 +93,8 @@ namespace Metasound
 				{
 					FName DataTypeName = GetMetasoundDataTypeName<PrintLogType>();
 					FName OperatorName = TEXT("Print Log");
-					FText NodeDisplayName = FText::Format(LOCTEXT("PrintLogDisplayNamePattern", "Print Log ({0})"), GetMetasoundDataTypeDisplayText<PrintLogType>());
-					FText NodeDescription = LOCTEXT("PrintLogOpDescription", "Used to record values to the log, on trigger");
+					FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("PrintLogDisplayNamePattern", "Print Log ({0})", GetMetasoundDataTypeDisplayText<PrintLogType>());
+					const FText NodeDescription = METASOUND_LOCTEXT("PrintLogOpDescription", "Used to record values to the log, on trigger");
 					FVertexInterface NodeInterface = GetDefaultInterface();
 
 					return MetasoundPrintLogNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

@@ -152,8 +152,8 @@ namespace Metasound
 		{
 			using namespace ConversionNodeVertexNames;
 
-			static FText InputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternFrom", "Input {0} value."), GetMetasoundDataTypeDisplayText<FromType>());
-			static FText OutputDesc = FText::Format(LOCTEXT("ConvDisplayNamePatternTo", "Output {0} value."), GetMetasoundDataTypeDisplayText<ToType>());
+			static FText InputDesc = METASOUND_LOCTEXT_FORMAT("ConvDisplayNamePatternFrom", "Input {0} value.", GetMetasoundDataTypeDisplayText<FromType>());
+			static FText OutputDesc = METASOUND_LOCTEXT_FORMAT("ConvDisplayNamePatternTo", "Output {0} value.", GetMetasoundDataTypeDisplayText<ToType>());
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
@@ -184,7 +184,7 @@ namespace Metasound
 				const FString& ToTypeString = GetMetasoundDataTypeString<ToType>();
 
 				const FName ClassName = *FString::Format(TEXT("Conversion{0}To{1}"), { FromTypeString, ToTypeString });
-				const FText NodeDisplayName = FText::Format(LOCTEXT("ConverterNodeDisplayName", "{0} To {1}"), FromTypeText, ToTypeText);
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("ConverterNodeDisplayName", "{0} To {1}", FromTypeText, ToTypeText);
 
 				FNodeClassMetadata Info;
 				Info.ClassName = { StandardNodes::Namespace, ClassName, "" };
@@ -227,15 +227,15 @@ namespace Metasound
 		{
 			if constexpr (std::is_same<FromType, float>::value && std::is_same<ToType, FAudioBuffer>::value)
 			{
-				return LOCTEXT("FloatToAudioConverterDescription", "Converts from float to audio buffer with each sample set to the given float value.");
+				return METASOUND_LOCTEXT("FloatToAudioConverterDescription", "Converts from float to audio buffer with each sample set to the given float value.");
 			}
 			else if constexpr (std::is_same<FromType, FAudioBuffer>::value && std::is_same<ToType, float>::value)
 			{
-				return LOCTEXT("AudioToFloatConverterDescription", "Converts from audio buffer to float by averaging sample values over the buffer. ");
+				return METASOUND_LOCTEXT("AudioToFloatConverterDescription", "Converts from audio buffer to float by averaging sample values over the buffer. ");
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("ConverterNodeDesc", "Converts from {0} to {1}."), GetMetasoundDataTypeDisplayText<FromType>(), GetMetasoundDataTypeDisplayText<ToType>());
+				return METASOUND_LOCTEXT_FORMAT("ConverterNodeDesc", "Converts from {0} to {1}.", GetMetasoundDataTypeDisplayText<FromType>(), GetMetasoundDataTypeDisplayText<ToType>());
 			}
 		}
 

@@ -123,7 +123,11 @@ namespace Metasound
 		virtual ~FFileWriteError() = default;
 
 		FFileWriteError(const FNode& InNode, const FString& InFilename)
-			: FBuildErrorBase(ErrorType, FText::Format(FTextFormat(LOCTEXT("MetasoundFileWriterErrorDescription", "File Writer Error while trying to write '{0}'")), FText::FromString(InFilename)))
+#if WITH_EDITOR
+			: FBuildErrorBase(ErrorType, METASOUND_LOCTEXT_FORMAT("MetasoundFileWriterErrorDescription", "File Writer Error while trying to write '{0}'", FText::FromString(InFilename)))
+#else 
+			: FBuildErrorBase(ErrorType, FText::GetEmpty())
+#endif // WITH_EDITOR
 		{
 			AddNode(InNode);
 		}
@@ -269,8 +273,8 @@ namespace Metasound
 
 				// inputs
 				FInputVertexInterface InputInterface(
-					TInputDataVertexModel<FString>(GetFilenamePrefixPinName(), LOCTEXT("WaveWriterFilenamePrefixDescription", "Filename Prefix of file you are writing."), GetDefaultFileName()),
-					TInputDataVertexModel<bool>(GetEnabledPinName(), LOCTEXT("WaveWriterEnabledDescription", "If this wave writer is enabled or not."), true)
+					TInputDataVertexModel<FString>(GetFilenamePrefixPinName(), METASOUND_LOCTEXT("WaveWriterFilenamePrefixDescription", "Filename Prefix of file you are writing."), GetDefaultFileName()),
+					TInputDataVertexModel<bool>(GetEnabledPinName(), METASOUND_LOCTEXT("WaveWriterEnabledDescription", "If this wave writer is enabled or not."), true)
 				);
 
 				// For backwards compatibility with previous (mono) node, in the case of 1 channels, just provide the old interface.
@@ -294,8 +298,8 @@ namespace Metasound
 			{
 				// For backwards compatibility with previous (mono) WaveWriters keep the node name the same.
 				FName OperatorName = TEXT("WaveWriter");
-				FText NodeDisplayName = LOCTEXT("Metasound_WaveWriterNodeMonoDisplayName", "Wave Writer (Mono)");
-				FText NodeDescription = LOCTEXT("Metasound_WaveWriterNodeMonoDescription", "Write a mono audio signal to disk");
+				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMonoDisplayName", "Wave Writer (Mono)");
+				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMonoDescription", "Write a mono audio signal to disk");
 				FVertexInterface NodeInterface = DeclareVertexInterface();
 
 				return CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -305,8 +309,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = TEXT("Wave Writer (Stereo)");
-				FText NodeDisplayName = LOCTEXT("Metasound_WaveWriterNodeStereoDisplayName", "Wave Writer (Stereo)");
-				FText NodeDescription = LOCTEXT("Metasound_WaveWriterNodeStereoDescription", "Write a stereo audio signal to disk");
+				FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_WaveWriterNodeStereoDisplayName", "Wave Writer (Stereo)");
+				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_WaveWriterNodeStereoDescription", "Write a stereo audio signal to disk");
 				FVertexInterface NodeInterface = DeclareVertexInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -316,8 +320,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMultiChan = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Wave Writer (%d-Channel)"), NumInputChannels);
-				FText NodeDisplayName = FText::Format(LOCTEXT("Metasound_WaveWriterNodeMultiChannelDisplayName", "Wave Writer ({0}-channel)"), NumInputChannels);
-				FText NodeDescription = LOCTEXT("Metasound_WaveWriterNodeMultiDescription", "Write a multi-channel audio signal to disk");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("Metasound_WaveWriterNodeMultiChannelDisplayName", "Wave Writer ({0}-channel)", NumInputChannels);
+				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_WaveWriterNodeMultiDescription", "Write a multi-channel audio signal to disk");
 				FVertexInterface NodeInterface = DeclareVertexInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -378,7 +382,7 @@ namespace Metasound
 
 		static const FText GetAudioInputDescription(int32 InputIndex)
 		{
-			return FText::Format(LOCTEXT("WaveWriterAudioInputDescription", "Audio Input #: {0}"), InputIndex);
+			return METASOUND_LOCTEXT_FORMAT("WaveWriterAudioInputDescription", "Audio Input #: {0}", InputIndex);
 		}
 
 		static FNodeClassMetadata CreateNodeClassMetadata(const FName& InOperatorName, const FText& InDisplayName, const FText& InDescription, const FVertexInterface& InDefaultInterface)
@@ -394,7 +398,7 @@ namespace Metasound
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
 				{ NodeCategories::Io },
-				{ LOCTEXT("Metasound_AudioMixerKeyword", "Writer") },
+				{ METASOUND_LOCTEXT("Metasound_AudioMixerKeyword", "Writer") },
 				FNodeDisplayStyle{}
 			};
 			return Metadata;

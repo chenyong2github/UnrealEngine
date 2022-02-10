@@ -107,8 +107,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Musical Scale To Note Array"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_ScaleToNoteArray_NodeDisplayName", "Scale to Note Array");
-			Info.Description = LOCTEXT("MusicalScaleToNoteArray_NodeDescription", "Returns an array represeting the selected scale"),
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_ScaleToNoteArray_NodeDisplayName", "Scale to Note Array");
+			Info.Description = METASOUND_LOCTEXT("MusicalScaleToNoteArray_NodeDescription", "Returns an array represeting the selected scale");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();

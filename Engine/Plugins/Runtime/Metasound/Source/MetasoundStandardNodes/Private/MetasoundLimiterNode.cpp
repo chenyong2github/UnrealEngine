@@ -39,8 +39,8 @@ namespace Metasound
 	FEnumKneeMode, FEnumKneeModeInfo, FKneeModeReadRef, FEnumKneeModeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(EKneeMode, FEnumKneeMode, "KneeMode")
-		DEFINE_METASOUND_ENUM_ENTRY(EKneeMode::Hard, LOCTEXT("KneeModeHardDescription", "Hard"), LOCTEXT("KneeModeHardDescriptionTT", "Only audio strictly above the threshold is affected by the limiter.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EKneeMode::Soft, LOCTEXT("KneeModeSoftDescription", "Soft"), LOCTEXT("KneeModeSoftDescriptionTT", "Limiter activates more smoothly near the threshold.")),
+		DEFINE_METASOUND_ENUM_ENTRY(EKneeMode::Hard, "KneeModeHardDescription", "Hard", "KneeModeHardDescriptionTT", "Only audio strictly above the threshold is affected by the limiter."),
+		DEFINE_METASOUND_ENUM_ENTRY(EKneeMode::Soft, "KneeModeSoftDescription", "Soft", "KneeModeSoftDescriptionTT", "Limiter activates more smoothly near the threshold."),
 		DEFINE_METASOUND_ENUM_END()
 
 	// Operator Class
@@ -100,8 +100,8 @@ namespace Metasound
 					FNodeClassName{StandardNodes::Namespace, TEXT("Limiter"), StandardNodes::AudioVariant},
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("LimiterDisplayName", "Limiter"),
-					LOCTEXT("LimiterDesc", "Prevents a signal from going above a given threshold."),
+					METASOUND_LOCTEXT("LimiterDisplayName", "Limiter"),
+					METASOUND_LOCTEXT("LimiterDesc", "Prevents a signal from going above a given threshold."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

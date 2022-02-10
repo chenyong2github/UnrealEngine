@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -40,7 +41,7 @@ namespace Metasound
 
 				for (uint32 i = 0; i < NumInputs; ++i)
 				{
-					InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(InputTrigger, i)));
+					InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_WITH_INDEX_AND_TT(InputTrigger, i)));
 				}
 
 				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoReset)));
@@ -60,8 +61,8 @@ namespace Metasound
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Trigger Accumulate (%d)") , NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("TriggerAccumulateDisplayNamePattern", "Trigger Accumulate ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("TriggerAccumulateDescription", "Will trigger output once all input triggers have been hit at some point in the past.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerAccumulateDisplayNamePattern", "Trigger Accumulate ({0})", NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("TriggerAccumulateDescription", "Will trigger output once all input triggers have been hit at some point in the past.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundTriggerAccumulatorNodePrivate::CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -83,7 +84,7 @@ namespace Metasound
 
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
-				InputTriggers.Add(InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_VARIABLE_PARAM_NAME(InputTrigger, i), InParams.OperatorSettings));
+				InputTriggers.Add(InputCollection.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME_WITH_INDEX(InputTrigger, i), InParams.OperatorSettings));
 			}
 
 			return MakeUnique<TTriggerAccumulatorOperator<NumInputs>>(InParams.OperatorSettings, bInAutoReset, MoveTemp(InputTriggers));
@@ -109,7 +110,7 @@ namespace Metasound
 			FDataReferenceCollection Inputs;
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
-				Inputs.AddDataReadReference(METASOUND_GET_VARIABLE_PARAM_NAME(InputTrigger, i), InputTriggers[i]);
+				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME_WITH_INDEX(InputTrigger, i), InputTriggers[i]);
 			}
 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAutoReset), bAutoReset);
 

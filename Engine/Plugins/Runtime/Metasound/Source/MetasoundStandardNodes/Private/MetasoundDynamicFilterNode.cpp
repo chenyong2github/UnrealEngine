@@ -48,9 +48,9 @@ namespace Metasound
 	);
 
 	DEFINE_METASOUND_ENUM_BEGIN(Audio::EDynamicFilterType, FEnumEDynamicFilterType, "DynamicFilterType")
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::Bell, LOCTEXT("BellDescription", "Bell"), LOCTEXT("BellTT", "Bell Filter")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::LowShelf, LOCTEXT("LowShelfDescription", "Low Shelf"), LOCTEXT("LowShelfTT", "Low Shelf Filter")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::HighShelf, LOCTEXT("HighShelfDescription", "High Shelf"), LOCTEXT("HighShelfTT", "High Shelf Filter")),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::Bell, "BellDescription", "Bell", "BellTT", "Bell Filter"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::LowShelf, "LowShelfDescription", "Low Shelf", "LowShelfTT", "Low Shelf Filter"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EDynamicFilterType::HighShelf, "HighShelfDescription", "High Shelf", "HighShelfTT", "High Shelf Filter"),
 	DEFINE_METASOUND_ENUM_END()
 
 	class FDynamicFilterOperator : public TExecutableOperator<FDynamicFilterOperator>
@@ -106,8 +106,8 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "DynamicFilter", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("DynamicFilterDisplayName", "Dynamic Filter"),
-					LOCTEXT("DynamicFilterDesc", "Filters a band of audio based on the strength of the input signal."),
+					METASOUND_LOCTEXT("DynamicFilterDisplayName", "Dynamic Filter"),
+					METASOUND_LOCTEXT("DynamicFilterDesc", "Filters a band of audio based on the strength of the input signal."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

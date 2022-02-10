@@ -33,7 +33,7 @@ namespace Metasound
 
 		const FText GetInputCrossfadeValueDescription()
 		{
-			static const FText Desc = LOCTEXT("InputCrossfadeValueDesc", "Crossfade value to crossfade across inputs. Output will be the float value between adjacent whole number values.");
+			static const FText Desc = METASOUND_LOCTEXT("InputCrossfadeValueDesc", "Crossfade value to crossfade across inputs. Output will be the float value between adjacent whole number values.");
 			return Desc;
 		}
 
@@ -44,7 +44,7 @@ namespace Metasound
 
 		const FText GetInputDescription(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("CrossfadeInputDesc", "Cross fade {0} input."), InIndex);
+			return METASOUND_LOCTEXT_FORMAT("CrossfadeInputDesc", "Cross fade {0} input.", InIndex);
 		}
 
 		const FVertexName& GetOutputName()
@@ -55,7 +55,7 @@ namespace Metasound
 
 		const FText& GetOutputDescription()
 		{
-			static const FText Desc = LOCTEXT("TriggerAccumulateOutputTriggerDesc", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\"");
+			static const FText Desc = METASOUND_LOCTEXT("TriggerAccumulateOutputTriggerDesc", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\"");
 			return Desc;
 		}
 	}
@@ -185,8 +185,8 @@ namespace Metasound
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				FName OperatorName = *FString::Printf(TEXT("Trigger Route (%s, %d)"), *DataTypeName.ToString(), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("CrossfadeDisplayNamePattern", "Crossfade ({0}, {1})"), GetMetasoundDataTypeDisplayText<ValueType>(), NumInputs);
-				FText NodeDescription = LOCTEXT("CrossfadeDescription", "Crossfades inputs to outputs.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("CrossfadeDisplayNamePattern", "Crossfade ({0}, {1})", GetMetasoundDataTypeDisplayText<ValueType>(), NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("CrossfadeDescription", "Crossfades inputs to outputs.");
 				FVertexInterface NodeInterface = GetVertexInterface();
 
 				FNodeClassMetadata Metadata

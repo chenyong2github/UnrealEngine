@@ -5,7 +5,11 @@
 namespace Metasound
 {
 	const FString PluginAuthor = TEXT("Epic Games, Inc.");
+#if WITH_EDITOR
 	const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingNodePrompt", "The node was likely removed, renamed, or the Metasound plugin is not loaded.");
+#else 
+	const FText PluginNodeMissingPrompt = FText::GetEmpty();
+#endif // WITH_EDITOR
 
 	FNodeClassName::FNodeClassName()
 	{

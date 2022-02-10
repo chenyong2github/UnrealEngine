@@ -207,8 +207,8 @@ namespace Metasound
 			Info.ClassName = {StandardNodes::Namespace, TEXT("Trigger Counter"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_TriggerCounterNodeDisplayName", "Trigger Counter");
-			Info.Description = LOCTEXT("Metasound_TriggerCounterNodeDescription", "Counts the trigger inputs. Supports a start count value, counting by a step size, and auto resetting back to the start count.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_TriggerCounterNodeDisplayName", "Trigger Counter");
+			Info.Description = METASOUND_LOCTEXT("Metasound_TriggerCounterNodeDescription", "Counts the trigger inputs. Supports a start count value, counting by a step size, and auto resetting back to the start count.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

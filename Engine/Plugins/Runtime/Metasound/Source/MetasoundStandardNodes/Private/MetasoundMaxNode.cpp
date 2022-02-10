@@ -156,8 +156,8 @@ namespace Metasound
 			{
 				const FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				const FName OperatorName = TEXT("Max");
-				const FText NodeDisplayName = FText::Format(LOCTEXT("MaxDisplayNamePattern", "Max ({0})"), GetMetasoundDataTypeDisplayText<ValueType>());
-				const FText NodeDescription = LOCTEXT("MaxDesc", "Returns the max of A and B.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("MaxDisplayNamePattern", "Max ({0})", GetMetasoundDataTypeDisplayText<ValueType>());
+				const FText NodeDescription = METASOUND_LOCTEXT("MaxDesc", "Returns the max of A and B.");
 				const FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundMaxNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

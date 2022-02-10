@@ -175,8 +175,8 @@ namespace Metasound
 			Info.ClassName = FNodeClassName(StandardNodes::Namespace, "Pipe", "");
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("PipeTriggerNode_NodeDisplayName", "Trigger Pipe");
-			Info.Description = LOCTEXT("Metasound_DelayNodeDescription", "Delays execution of the input trigger(s) by the given delay for all input trigger executions.");
+			Info.DisplayName = METASOUND_LOCTEXT("PipeTriggerNode_NodeDisplayName", "Trigger Pipe");
+			Info.Description = METASOUND_LOCTEXT("Metasound_DelayNodeDescription", "Delays execution of the input trigger(s) by the given delay for all input trigger executions.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

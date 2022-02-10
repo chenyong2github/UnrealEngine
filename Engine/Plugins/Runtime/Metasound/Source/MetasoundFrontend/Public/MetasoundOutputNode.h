@@ -24,7 +24,7 @@ namespace Metasound
 		FMissingOutputNodeInputReferenceError(const INode& InNode, const FText& InDataType)
 			: FBuildErrorBase(
 				"MetasoundMissingOutputDataReferenceError",
-				FText::Format(LOCTEXT("MissingOutputNodeInputReferenceError", "Missing required output node input reference for type {0}."), InDataType))
+				METASOUND_LOCTEXT_FORMAT("MissingOutputNodeInputReferenceError", "Missing required output node input reference for type {0}.", InDataType))
 		{
 			AddNode(InNode);
 		}
@@ -101,7 +101,7 @@ namespace Metasound
 
 		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
-			static const FText VertexDescription = LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph.");
+			static const FText VertexDescription = METASOUND_LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph.");
 
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -120,7 +120,7 @@ namespace Metasound
 			Info.ClassName = { "Output", GetMetasoundDataTypeName<DataType>(), FName() };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
+			Info.Description = METASOUND_LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface(InVertexName);

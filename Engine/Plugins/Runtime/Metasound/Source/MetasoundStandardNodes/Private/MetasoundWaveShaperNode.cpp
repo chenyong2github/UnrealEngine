@@ -29,11 +29,11 @@ namespace Metasound
 	DECLARE_METASOUND_ENUM(Audio::EWaveShaperType, Audio::EWaveShaperType::ATan, METASOUNDSTANDARDNODES_API, FEnumEWaveShaperType, FEnumWaveShaperTypeInfo, FEnumWaveShaperReadRef, FEnumWaveShaperWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(Audio::EWaveShaperType, FEnumEWaveShaperType, "WaveShaperType")
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Sin, LOCTEXT("SinDescription", "Sine"), LOCTEXT("SinTT", "Sine WaveShaper")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::ATan, LOCTEXT("ATanDescription", "Inverse Tangent"), LOCTEXT("ATanTT", "Inverse Tangent WaveShaper")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Tanh, LOCTEXT("TanHDescription", "Hyperbolic Tangent"), LOCTEXT("TanHTT", "Hyperbolic Tangent WaveShaper")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Cubic, LOCTEXT("CubicDescription", "Cubic Polynomial"), LOCTEXT("CubicTT", "Cubic Polynomial WaveShaper")),
-		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::HardClip, LOCTEXT("HarClipDescription", "Hard Clip"), LOCTEXT("HardClipTT", "Hard Clipper"))
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Sin, "SinDescription", "Sine", "SinTT", "Sine WaveShaper"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::ATan, "ATanDescription", "Inverse Tangent", "ATanTT", "Inverse Tangent WaveShaper"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Tanh, "TanHDescription", "Hyperbolic Tangent", "TanHTT", "Hyperbolic Tangent WaveShaper"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::Cubic, "CubicDescription", "Cubic Polynomial", "CubicTT", "Cubic Polynomial WaveShaper"),
+		DEFINE_METASOUND_ENUM_ENTRY(Audio::EWaveShaperType::HardClip, "HarClipDescription", "Hard Clip", "HardClipTT", "Hard Clipper")
 		DEFINE_METASOUND_ENUM_END()
 
 	class FWaveShaperOperator : public TExecutableOperator<FWaveShaperOperator>
@@ -132,14 +132,14 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(InParamNameAudioInput, LOCTEXT("AudioInputTT", "Audio input.")),
-				TInputDataVertexModel<float>(InParamNameWaveShapeAmount, LOCTEXT("WaveShapeAmountTT", "The amount of wave shaping to apply."), 1.0f),
-				TInputDataVertexModel<float>(InParamNameWaveShapeBias, LOCTEXT("WaveShaperBiasTT", "DC offset to apply before wave shaping."), 0.0f),
-				TInputDataVertexModel<float>(InParamNameOutputGain, LOCTEXT("WaveShaperGainTT", "The amount of gain to apply after processing."), 1.0f),
-				TInputDataVertexModel<FEnumEWaveShaperType>(InParamNameType, LOCTEXT("WaveShaperTypeTT", "Algorithm to use to process the audio."))
+				TInputDataVertexModel<FAudioBuffer>(InParamNameAudioInput, METASOUND_LOCTEXT("AudioInputTT", "Audio input.")),
+				TInputDataVertexModel<float>(InParamNameWaveShapeAmount, METASOUND_LOCTEXT("WaveShapeAmountTT", "The amount of wave shaping to apply."), 1.0f),
+				TInputDataVertexModel<float>(InParamNameWaveShapeBias, METASOUND_LOCTEXT("WaveShaperBiasTT", "DC offset to apply before wave shaping."), 0.0f),
+				TInputDataVertexModel<float>(InParamNameOutputGain, METASOUND_LOCTEXT("WaveShaperGainTT", "The amount of gain to apply after processing."), 1.0f),
+				TInputDataVertexModel<FEnumEWaveShaperType>(InParamNameType, METASOUND_LOCTEXT("WaveShaperTypeTT", "Algorithm to use to process the audio."))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(OutParamNameAudio, LOCTEXT("WaveShaperOutputTT", "Audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(OutParamNameAudio, METASOUND_LOCTEXT("WaveShaperOutputTT", "Audio output."))
 			)
 		);
 
@@ -154,8 +154,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("WaveShaper"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_WaveShaperDisplayName", "WaveShaper");
-			Info.Description = LOCTEXT("Metasound_WaveShaperNodeDescription", "Applies non-linear shaping to the audio input.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_WaveShaperDisplayName", "WaveShaper");
+			Info.Description = METASOUND_LOCTEXT("Metasound_WaveShaperNodeDescription", "Applies non-linear shaping to the audio input.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

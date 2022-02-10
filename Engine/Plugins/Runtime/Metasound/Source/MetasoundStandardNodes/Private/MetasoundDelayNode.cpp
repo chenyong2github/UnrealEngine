@@ -170,14 +170,14 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(Delay::InParamNameAudioInput, LOCTEXT("DelayNode_AudioInputTooltip", "Audio input.")),
-				TInputDataVertexModel<FTime>(Delay::InParamNameDelayTime, LOCTEXT("DelayNode_DelayTimeTooltip", "The amount of time to delay the audio, in seconds."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameDryLevel, LOCTEXT("DelayNode_DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameWetLevel, LOCTEXT("DelayNode_WetlevelTooltip", "The wet level of the delay."), 1.0f),
-				TInputDataVertexModel<float>(Delay::InParamNameFeedbackAmount, LOCTEXT("DelayNode_FeedbackTooltip", "Feedback amount."), 0.0f)
+				TInputDataVertexModel<FAudioBuffer>(Delay::InParamNameAudioInput, METASOUND_LOCTEXT("DelayNode_AudioInputTooltip", "Audio input.")),
+				TInputDataVertexModel<FTime>(Delay::InParamNameDelayTime, METASOUND_LOCTEXT("DelayNode_DelayTimeTooltip", "The amount of time to delay the audio, in seconds."), 1.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameDryLevel, METASOUND_LOCTEXT("DelayNode_DryLevelTooltip", "The dry level of the delay."), 0.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameWetLevel, METASOUND_LOCTEXT("DelayNode_WetlevelTooltip", "The wet level of the delay."), 1.0f),
+				TInputDataVertexModel<float>(Delay::InParamNameFeedbackAmount, METASOUND_LOCTEXT("DelayNode_FeedbackTooltip", "Feedback amount."), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(Delay::OutParamNameAudio, LOCTEXT("DelayNode_DelayOutputTooltip", "Audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(Delay::OutParamNameAudio, METASOUND_LOCTEXT("DelayNode_DelayOutputTooltip", "Audio output."))
 			)
 		);
 
@@ -192,8 +192,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, "Delay", StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 1;
-			Info.DisplayName = LOCTEXT("DelayNode_DisplayName", "Delay");
-			Info.Description = LOCTEXT("DelayNode_Description", "Delays an audio buffer by the specified amount.");
+			Info.DisplayName = METASOUND_LOCTEXT("DelayNode_DisplayName", "Delay");
+			Info.Description = METASOUND_LOCTEXT("DelayNode_Description", "Delays an audio buffer by the specified amount.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

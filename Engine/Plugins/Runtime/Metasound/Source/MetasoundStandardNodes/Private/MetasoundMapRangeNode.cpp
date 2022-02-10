@@ -42,7 +42,7 @@ namespace Metasound
 
 			static FText GetNodeName()
 			{
-				return LOCTEXT("MapRange_Int32Name", "Map Range (Int32)");
+				return METASOUND_LOCTEXT("MapRange_Int32Name", "Map Range (Int32)");
 			}
 
 			static FVertexInterface GetVertexInterface()
@@ -126,7 +126,7 @@ namespace Metasound
 
 			static FText GetNodeName()
 			{
-				return LOCTEXT("MapRange_FloatName", "Map Range (Float)");
+				return METASOUND_LOCTEXT("MapRange_FloatName", "Map Range (Float)");
 			}
 
 			static FVertexInterface GetVertexInterface()
@@ -210,7 +210,7 @@ namespace Metasound
 
 			static FText GetNodeName()
 			{
-				return LOCTEXT("MapRange_AudioName", "Map Range (Audio)");
+				return METASOUND_LOCTEXT("MapRange_AudioName", "Map Range (Audio)");
 			}
 
 			static FVertexInterface GetVertexInterface()
@@ -301,7 +301,7 @@ namespace Metasound
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = TEXT("MapRange");
-				FText NodeDescription = LOCTEXT("MapRangeDescription", "Maps an input value in the given input range to the given output range.");
+				const FText NodeDescription = METASOUND_LOCTEXT("MapRangeDescription", "Maps an input value in the given input range to the given output range.");
 				FVertexInterface NodeInterface = FMappingClass::GetVertexInterface();
 
 				FNodeClassMetadata Metadata

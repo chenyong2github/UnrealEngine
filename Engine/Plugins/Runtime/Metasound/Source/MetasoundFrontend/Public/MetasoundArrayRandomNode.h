@@ -27,16 +27,16 @@ namespace Metasound
 		static const FName OutputTriggerOnResetName = "On Reset";
 		static const FName OutputValueName = "Value";
 
-		static const FText InputTriggerNextTooltip = LOCTEXT("RandomArrayGetNode_TriggerNextTooltip", "Trigger to get the next value in the randomized array.");
-		static const FText InputTriggerResetTooltip = LOCTEXT("RandomArrayGetNode_TriggerResetTooltip", "Trigger to reset the seed for the randomized array.");
-		static const FText InputRandomArrayTooltip = LOCTEXT("RandomArrayGetNode_RandomArrayTooltip", "Input array to randomized.");
-		static const FText InputWeightsTooltip = LOCTEXT("RandomArrayGetNode_WeightsTooltip", "Input array of weights to use for random selection. Will repeat if this array is shorter than the input array to select from.");
-		static const FText InputSeedTooltip = LOCTEXT("RandomArrayGetNode_SeedTooltip", "Seed to use for the random shuffle.");
-		static const FText InputNoRepeatOrderTooltip = LOCTEXT("RandomArrayGetNode_NoRepeatOrderTooltip", "The number of elements to track to avoid repeating in a row.");
-		static const FText InputEnableSharedStateTooltip = LOCTEXT("RandomArrayGetNode_EnableSharedStateTooltip", "Set to enabled to share state across instances of this MetaSound.");
-		static const FText OutputTriggerOnNextTooltip = LOCTEXT("RandomArrayGetNode_TriggerOnNextTooltip", "Triggers when the \"Next\" input is triggered.");
-		static const FText OutputTriggerOnResetTooltip = LOCTEXT("RandomArrayGetNode_TriggerOnResetTooltip", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.");
-		static const FText OutputValueTooltip = LOCTEXT("RandomArrayGetNode_ValueTooltip", "Value of the current shuffled element.");
+		static const FText InputTriggerNextTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerNextTooltip", "Trigger to get the next value in the randomized array.");
+		static const FText InputTriggerResetTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerResetTooltip", "Trigger to reset the seed for the randomized array.");
+		static const FText InputRandomArrayTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_RandomArrayTooltip", "Input array to randomized.");
+		static const FText InputWeightsTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_WeightsTooltip", "Input array of weights to use for random selection. Will repeat if this array is shorter than the input array to select from.");
+		static const FText InputSeedTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_SeedTooltip", "Seed to use for the random shuffle.");
+		static const FText InputNoRepeatOrderTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_NoRepeatOrderTooltip", "The number of elements to track to avoid repeating in a row.");
+		static const FText InputEnableSharedStateTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_EnableSharedStateTooltip", "Set to enabled to share state across instances of this MetaSound.");
+		static const FText OutputTriggerOnNextTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerOnNextTooltip", "Triggers when the \"Next\" input is triggered.");
+		static const FText OutputTriggerOnResetTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_TriggerOnResetTooltip", "Triggers when the \"Shuffle\" input is triggered or if the array is auto-shuffled.");
+		static const FText OutputValueTooltip = METASOUND_LOCTEXT("RandomArrayGetNode_ValueTooltip", "Value of the current shuffled element.");
 	}
 
 	class METASOUNDFRONTEND_API FArrayRandomGet
@@ -140,8 +140,8 @@ namespace Metasound
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
 				FName OperatorName = "Random Get";
-				FText NodeDisplayName = FText::Format(LOCTEXT("RandomArrayGetNode_OpDisplayNamePattern", "Random Get ({0})"), GetMetasoundDataTypeDisplayText<ArrayType>());
-				FText NodeDescription = LOCTEXT("RandomArrayGetNode_Description", "Randomly retrieve data from input array using the supplied weights.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("RandomArrayGetNode_OpDisplayNamePattern", "Random Get ({0})", GetMetasoundDataTypeDisplayText<ArrayType>());
+				FText NodeDescription = METASOUND_LOCTEXT("RandomArrayGetNode_Description", "Randomly retrieve data from input array using the supplied weights.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

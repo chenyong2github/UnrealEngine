@@ -30,7 +30,7 @@ namespace Metasound
 
 		const FText& GetInputAudioDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodeInDesc", "The input audio to spatialize.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeInDesc", "The input audio to spatialize.");
 			return Desc;
 		}
 
@@ -42,7 +42,7 @@ namespace Metasound
 
 		const FText& GetInputPanAngleDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodePanAngleDesc", "The sound source angle in degrees. 90 degrees is in front, 0 degrees is to the right, 270 degrees is behind, 180 degrees is to the left.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodePanAngleDesc", "The sound source angle in degrees. 90 degrees is in front, 0 degrees is to the right, 270 degrees is behind, 180 degrees is to the left.");
 			return Desc;
 		}
 
@@ -54,7 +54,7 @@ namespace Metasound
 
 		const FText& GetInputDistanceFactorDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodeDistanceFactorDesc", "The normalized distance factor (0.0 to 1.0) to use for ILD (Inter-aural level difference) calculations. 0.0 is near, 1.0 is far. The further away something is the less there is a difference in levels (gain) between the ears.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeDistanceFactorDesc", "The normalized distance factor (0.0 to 1.0) to use for ILD (Inter-aural level difference) calculations. 0.0 is near, 1.0 is far. The further away something is the less there is a difference in levels (gain) between the ears.");
 			return Desc;
 		}
 
@@ -66,7 +66,7 @@ namespace Metasound
 
 		const FText& GetInputHeadWidthDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodeHeadWidthDesc", "The width of the listener head to use for ITD calculations in centimeters.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeHeadWidthDesc", "The width of the listener head to use for ITD calculations in centimeters.");
 			return Desc;
 		}
 
@@ -78,7 +78,7 @@ namespace Metasound
 
 		const FText& GetOutputAudioLeftDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodeOutputLeftDescription", "Left channel audio output.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeOutputLeftDescription", "Left channel audio output.");
 			return Desc;
 		}
 
@@ -90,7 +90,7 @@ namespace Metasound
 
 		const FText& GetOutputAudioRightDescription()
 		{
-			static FText Desc = LOCTEXT("ITDPannerNodeOutputRightDescription", "Right channel audio output.");
+			static FText Desc = METASOUND_LOCTEXT("ITDPannerNodeOutputRightDescription", "Right channel audio output.");
 			return Desc;
 		}
 	}
@@ -314,8 +314,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("ITD Panner"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_ITDPannerDisplayName", "ITD Panner");
-			Info.Description = LOCTEXT("Metasound_ITDPannerNodeDescription", "Pans an input audio signal using an inter-aural time delay method.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_ITDPannerDisplayName", "ITD Panner");
+			Info.Description = METASOUND_LOCTEXT("Metasound_ITDPannerNodeDescription", "Pans an input audio signal using an inter-aural time delay method.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

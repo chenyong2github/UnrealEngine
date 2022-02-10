@@ -172,8 +172,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("TriggerRepeat"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_PeriodicTriggerNodeDisplayName", "Trigger Repeat");
-			Info.Description = LOCTEXT("Metasound_PeriodicTriggerNodeDescription", "Emits a trigger periodically based on the period duration given.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_PeriodicTriggerNodeDisplayName", "Trigger Repeat");
+			Info.Description = METASOUND_LOCTEXT("Metasound_PeriodicTriggerNodeDescription", "Emits a trigger periodically based on the period duration given.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

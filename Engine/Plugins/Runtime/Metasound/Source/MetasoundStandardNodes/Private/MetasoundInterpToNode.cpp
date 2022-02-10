@@ -126,11 +126,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTime>(InterpTo::InParamNameInterpTime, LOCTEXT("InterpTimeTooltip", "The time to interpolate from the current value to the target value."), 0.1f),
-				TInputDataVertexModel<float>(InterpTo::InParamNameTarget, LOCTEXT("TargetValueTooltip", "Target value."), 1.0f)
+				TInputDataVertexModel<FTime>(InterpTo::InParamNameInterpTime, METASOUND_LOCTEXT("InterpTimeTooltip", "The time to interpolate from the current value to the target value."), 0.1f),
+				TInputDataVertexModel<float>(InterpTo::InParamNameTarget, METASOUND_LOCTEXT("TargetValueTooltip", "Target value."), 1.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(InterpTo::OutParamNameValue, LOCTEXT("ValueTooltip", "The current value."))
+				TOutputDataVertexModel<float>(InterpTo::OutParamNameValue, METASOUND_LOCTEXT("ValueTooltip", "The current value."))
 			)
 		);
 
@@ -145,8 +145,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("InterpTo"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_InterpDisplayName", "InterpTo");
-			Info.Description = LOCTEXT("Metasound_InterpNodeDescription", "Interpolates between the current value and a target value over the specified time.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_InterpDisplayName", "InterpTo");
+			Info.Description = METASOUND_LOCTEXT("Metasound_InterpNodeDescription", "Interpolates between the current value and a target value over the specified time.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

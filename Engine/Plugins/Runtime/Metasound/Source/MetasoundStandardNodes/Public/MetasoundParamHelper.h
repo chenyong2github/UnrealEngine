@@ -34,22 +34,31 @@ For variable parameters (e.g. templated on number), do the following:
 
 Then to retrieve the name/tooltip use:
 
-METASOUND_GET_VARIABLE_PARAM_NAME(InputParam, NUMBER);
+METASOUND_GET_PARAM_NAME_WITH_INDEX(InputParam, NUMBER);
 
 Where NUMBER is a number (or whatever) to slot into the format specifier you defined in the param def.
 
 */
 
-
+#if WITH_EDITOR
 #define METASOUND_PARAM(NAME, NAME_TEXT, TOOLTIP_TEXT) \
 	static const TCHAR* NAME##Name = TEXT(NAME_TEXT); \
-	static const FText NAME##Tooltip = LOCTEXT(#NAME "Tooltip", TOOLTIP_TEXT); \
-
+	static const FText NAME##Tooltip = LOCTEXT(#NAME "Tooltip", TOOLTIP_TEXT);
+#else 
+#define METASOUND_PARAM(NAME, NAME_TEXT, TOOLTIP_TEXT) \
+	static const TCHAR* NAME##Name = TEXT(NAME_TEXT); \
+	static const FText NAME##Tooltip = FText::GetEmpty();
+#endif // WITH_EDITOR
 
 #define METASOUND_GET_PARAM_NAME(NAME) NAME##Name
 #define METASOUND_GET_PARAM_TT(NAME) NAME##Tooltip
 #define METASOUND_GET_PARAM_NAME_AND_TT(NAME) NAME##Name, NAME##Tooltip
 
-#define METASOUND_GET_VARIABLE_PARAM_NAME(NAME, INDEX) *FString::Format(NAME##Name, {INDEX})
-#define METASOUND_GET_VARIABLE_TT(NAME, INDEX)  FText::Format(NAME##Tooltip, INDEX)
-#define METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(NAME, INDEX)  *FString::Format(NAME##Name, {INDEX}), FText::Format(NAME##Tooltip, INDEX)
+#define METASOUND_GET_PARAM_NAME_WITH_INDEX(NAME, INDEX) *FString::Format(NAME##Name, {INDEX})
+#if WITH_EDITOR
+#define METASOUND_GET_PARAM_NAME_WITH_INDEX_AND_TT(NAME, INDEX)  *FString::Format(NAME##Name, {INDEX}), FText::Format(NAME##Tooltip, INDEX)
+#define METASOUND_GET_PARAM_TT_WITH_INDEX(NAME, INDEX)  FText::Format(NAME##Tooltip, INDEX)
+#else 
+#define METASOUND_GET_PARAM_NAME_WITH_INDEX_AND_TT(NAME, INDEX)  *FString::Format(NAME##Name, {INDEX}), FText::GetEmpty()
+#define METASOUND_GET_PARAM_TT_WITH_INDEX(NAME, INDEX)  FText::GetEmpty();
+#endif // WITH_EDITOR

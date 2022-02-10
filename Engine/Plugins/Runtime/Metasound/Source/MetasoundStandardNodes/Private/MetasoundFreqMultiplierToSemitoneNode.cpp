@@ -107,8 +107,8 @@ namespace Metasound
 		{
 			const FName DataTypeName = GetMetasoundDataTypeName<float>();
 			const FName OperatorName = TEXT("Frequency Multiplier to Semitone");
-			const FText NodeDisplayName = LOCTEXT("Metasound_FrequencyMultiplierToSemitoneName", "Frequency Multiplier to Semitone");
-			const FText NodeDescription = LOCTEXT("Metasound_FrequencyMultiplierToSemitoneDescription", "Converts a frequency multiplier to the corresponding difference in semitones.");
+			const FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_FrequencyMultiplierToSemitoneName", "Frequency Multiplier to Semitone");
+			const FText NodeDescription = METASOUND_LOCTEXT("Metasound_FrequencyMultiplierToSemitoneDescription", "Converts a frequency multiplier to the corresponding difference in semitones.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { StandardNodes::Namespace, OperatorName, DataTypeName };

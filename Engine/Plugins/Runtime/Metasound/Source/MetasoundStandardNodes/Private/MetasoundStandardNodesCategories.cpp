@@ -8,19 +8,19 @@ namespace Metasound
 {
 	namespace NodeCategories
 	{
-		const FText Debug = { LOCTEXT("Metasound_DebugCategory", "Debug") };
-		const FText Delays = { LOCTEXT("Metasound_EffectsCategory", "Delays") };
-		const FText Dynamics = { LOCTEXT("Metasound_DynamicsCategory", "Dynamics") };
-		const FText Envelopes = { LOCTEXT("Metasound_EnvelopesCategory", "Envelopes") };
-		const FText Filters = { LOCTEXT("Metasound_FiltersCategory", "Filters") };
-		const FText Generators = { LOCTEXT("Metasound_GeneratorsCategory", "Generators") };
-		const FText Io = { LOCTEXT("Metasound_IoCategory", "External IO") };
-		const FText Math = { LOCTEXT("Metasound_MathCategory", "Math") };
-		const FText Mix = { LOCTEXT("Metasound_MixCategory", "Mix") };
-		const FText Music = { LOCTEXT("Metasound_MusicCategory", "Music") };
-		const FText RandomUtils = { LOCTEXT("Metasound_RandomCategory", "Random") };
-		const FText Spatialization = { LOCTEXT("Metasound_SpatializationCategory", "Spatialization") };
-		const FText Trigger = { LOCTEXT("Metasound_TriggerCategory", "Triggers") };
+		const FText Debug = { METASOUND_LOCTEXT("Metasound_DebugCategory", "Debug") };
+		const FText Delays = { METASOUND_LOCTEXT("Metasound_EffectsCategory", "Delays") };
+		const FText Dynamics = { METASOUND_LOCTEXT("Metasound_DynamicsCategory", "Dynamics") };
+		const FText Envelopes = { METASOUND_LOCTEXT("Metasound_EnvelopesCategory", "Envelopes") };
+		const FText Filters = { METASOUND_LOCTEXT("Metasound_FiltersCategory", "Filters") };
+		const FText Generators = { METASOUND_LOCTEXT("Metasound_GeneratorsCategory", "Generators") };
+		const FText Io = { METASOUND_LOCTEXT("Metasound_IoCategory", "External IO") };
+		const FText Math = { METASOUND_LOCTEXT("Metasound_MathCategory", "Math") };
+		const FText Mix = { METASOUND_LOCTEXT("Metasound_MixCategory", "Mix") };
+		const FText Music = { METASOUND_LOCTEXT("Metasound_MusicCategory", "Music") };
+		const FText RandomUtils = { METASOUND_LOCTEXT("Metasound_RandomCategory", "Random") };
+		const FText Spatialization = { METASOUND_LOCTEXT("Metasound_SpatializationCategory", "Spatialization") };
+		const FText Trigger = { METASOUND_LOCTEXT("Metasound_TriggerCategory", "Triggers") };
 	}
 }
 

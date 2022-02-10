@@ -29,9 +29,9 @@ namespace Metasound
 	FEnumBufferTriggerType, FEnumBufferTriggerTypeInfo, FBufferTriggerTypeReadRef, FEnumBufferTriggerTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(EBufferTriggerType, FEnumBufferTriggerType, "BufferTriggerType")
-		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::RisingEdge, LOCTEXT("RisingEdgeDescription", "Rising Edge"), LOCTEXT("RisingEdgeDescriptionTT", "")),
-		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::FallingEdge, LOCTEXT("FallingEdgeDescription", "Falling Edge"), LOCTEXT("FallingEdgeDescriptionTT", "")),
-		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::AbsThreshold, LOCTEXT("AbsThresholdDescription", "Abs Threshold"), LOCTEXT("AbsThresholdDescriptionTT", ""))
+		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::RisingEdge, "RisingEdgeDescription", "Rising Edge", "RisingEdgeDescriptionTT", ""),
+		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::FallingEdge, "FallingEdgeDescription", "Falling Edge", "FallingEdgeDescriptionTT", ""),
+		DEFINE_METASOUND_ENUM_ENTRY(EBufferTriggerType::AbsThreshold, "AbsThresholdDescription", "Abs Threshold", "AbsThresholdDescriptionTT", "")
 		DEFINE_METASOUND_ENUM_END()
 
 	class FTriggerOnThresholdOperator : public IOperator
@@ -183,12 +183,12 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(InPinName, LOCTEXT("BufferInDescription", "Input")),
-				TInputDataVertexModel<float>(ThresholdPinName, LOCTEXT("ThresholdDescription", "Trigger Threshold"), DefaultThreshold),
-				TInputDataVertexModel<FEnumBufferTriggerType>(TriggerType, LOCTEXT("ThresholdDescription", "Trigger Threshold"))
+				TInputDataVertexModel<FAudioBuffer>(InPinName, METASOUND_LOCTEXT("BufferInDescription", "Input")),
+				TInputDataVertexModel<float>(ThresholdPinName, METASOUND_LOCTEXT("ThresholdDescription", "Trigger Threshold"), DefaultThreshold),
+				TInputDataVertexModel<FEnumBufferTriggerType>(TriggerType, METASOUND_LOCTEXT("ThresholdDescription", "Trigger Threshold"))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(OutPinName, LOCTEXT("TriggerOutDescription", "Output"))
+				TOutputDataVertexModel<FTrigger>(OutPinName, METASOUND_LOCTEXT("TriggerOutDescription", "Output"))
 			)
 		);
 		return Interface;
@@ -202,8 +202,8 @@ namespace Metasound
 			Info.ClassName = {StandardNodes::Namespace, TEXT("TriggerOnThreshold"), StandardNodes::AudioVariant};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_TriggerOnThresholdNodeDisplayName", "Trigger On Threshold");
-			Info.Description = LOCTEXT("Metasound_TriggerOnThresholdNodeDescription", "Trigger based on a audio buffer input");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_TriggerOnThresholdNodeDisplayName", "Trigger On Threshold");
+			Info.Description = METASOUND_LOCTEXT("Metasound_TriggerOnThresholdNodeDescription", "Trigger based on a audio buffer input");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface(); 

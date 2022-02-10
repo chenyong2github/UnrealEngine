@@ -38,8 +38,8 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				const FName OperatorName = "Additive Synth";
-				const FText NodeDisplayName = LOCTEXT("Metasound_AdditiveSynthNodeDisplayName", "Additive Synth");
-				const FText NodeDescription = LOCTEXT("Metasound_AdditiveSynthNodeDescription", "Synthesizes audio output given input array of sinusoids.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_AdditiveSynthNodeDisplayName", "Additive Synth");
+				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_AdditiveSynthNodeDescription", "Synthesizes audio output given input array of sinusoids.");
 
 				FNodeClassMetadata Info;
 				Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, FName() };

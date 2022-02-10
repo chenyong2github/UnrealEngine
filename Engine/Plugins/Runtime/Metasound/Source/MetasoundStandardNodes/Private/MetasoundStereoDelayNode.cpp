@@ -45,9 +45,9 @@ namespace Metasound
 		FEnumStereoDelayMode, FEnumStereoDelayModeInfo, FStereoDelayModeReadRef, FEnumStereoDelayModeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(EStereoDelayMode, FEnumStereoDelayMode, "StereoDelayMode")
-		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::Normal, LOCTEXT("StereoDelayModeNormalDescription", "Normal"), LOCTEXT("StereoDelayModeNormalDescriptionTT", "Left input mixes with left delay output and feeds to left output.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::Cross, LOCTEXT("StereoDelayModeCrossDescription", "Cross"), LOCTEXT("StereoDelayModeCrossDescriptionTT", "Left input mixes with right delay output and feeds to right output.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::PingPong, LOCTEXT("StereoDelayModePingPongDescription", "Ping Pong"), LOCTEXT("StereoDelayModePingPongDescriptionTT", "Left input mixes with left delay output and feeds to right output.")),
+		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::Normal, "StereoDelayModeNormalDescription", "Normal", "StereoDelayModeNormalDescriptionTT", "Left input mixes with left delay output and feeds to left output."),
+		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::Cross, "StereoDelayModeCrossDescription", "Cross", "StereoDelayModeCrossDescriptionTT", "Left input mixes with right delay output and feeds to right output."),
+		DEFINE_METASOUND_ENUM_ENTRY(EStereoDelayMode::PingPong, "StereoDelayModePingPongDescription", "Ping Pong", "StereoDelayModePingPongDescriptionTT", "Left input mixes with left delay output and feeds to right output."),
 		DEFINE_METASOUND_ENUM_END()
 
 	class FStereoDelayOperator : public TExecutableOperator<FStereoDelayOperator>
@@ -284,18 +284,18 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputLeft, LOCTEXT("LeftAudioInputTooltip", "Left channel audio input.")),
-				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputRight, LOCTEXT("RightAudioInputTooltip", "Right channel audio input.")),
-				TInputDataVertexModel<FEnumStereoDelayMode>(StereoDelay::InParamNameDelayMode, LOCTEXT("DelayModeTooltip", "Delay mode.")),
-				TInputDataVertexModel<FTime>(StereoDelay::InParamNameDelayTime, LOCTEXT("DelayTimeTooltip", "The amount of time to delay the audio."), 1.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameDelayRatio, LOCTEXT("DelayRatioTooltip", "Delay spread for left and right channels. Allows left and right channels to have differential delay amounts. Useful for stereo channel decorrelation"), 0.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameDryLevel, LOCTEXT("DryLevelTooltip", "The dry level of the delay."), 0.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameWetLevel, LOCTEXT("WetLevelTooltip", "The wet level of the delay."), 1.0f),
-				TInputDataVertexModel<float>(StereoDelay::InParamNameFeedbackAmount, LOCTEXT("FeedbackTooltip", "Feedback amount."), 0.0f)
+				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputLeft, METASOUND_LOCTEXT("LeftAudioInputTooltip", "Left channel audio input.")),
+				TInputDataVertexModel<FAudioBuffer>(StereoDelay::InParamNameAudioInputRight, METASOUND_LOCTEXT("RightAudioInputTooltip", "Right channel audio input.")),
+				TInputDataVertexModel<FEnumStereoDelayMode>(StereoDelay::InParamNameDelayMode, METASOUND_LOCTEXT("DelayModeTooltip", "Delay mode.")),
+				TInputDataVertexModel<FTime>(StereoDelay::InParamNameDelayTime, METASOUND_LOCTEXT("DelayTimeTooltip", "The amount of time to delay the audio."), 1.0f),
+				TInputDataVertexModel<float>(StereoDelay::InParamNameDelayRatio, METASOUND_LOCTEXT("DelayRatioTooltip", "Delay spread for left and right channels. Allows left and right channels to have differential delay amounts. Useful for stereo channel decorrelation"), 0.0f),
+				TInputDataVertexModel<float>(StereoDelay::InParamNameDryLevel, METASOUND_LOCTEXT("DryLevelTooltip", "The dry level of the delay."), 0.0f),
+				TInputDataVertexModel<float>(StereoDelay::InParamNameWetLevel, METASOUND_LOCTEXT("WetLevelTooltip", "The wet level of the delay."), 1.0f),
+				TInputDataVertexModel<float>(StereoDelay::InParamNameFeedbackAmount, METASOUND_LOCTEXT("FeedbackTooltip", "Feedback amount."), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioLeft, LOCTEXT("LeftDelayOutputTooltip", "Left channel audio output.")),
-				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioRight, LOCTEXT("RightDelayOutputTooltip", "Right channel audio output."))
+				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioLeft, METASOUND_LOCTEXT("LeftDelayOutputTooltip", "Left channel audio output.")),
+				TOutputDataVertexModel<FAudioBuffer>(StereoDelay::OutParamNameAudioRight, METASOUND_LOCTEXT("RightDelayOutputTooltip", "Right channel audio output."))
 			)
 		);
 
@@ -310,8 +310,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Stereo Delay"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_StereoDelayDisplayName", "Stereo Delay");
-			Info.Description = LOCTEXT("Metasound_StereoDelayNodeDescription", "Delays a stereo audio buffer by the specified amount.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_StereoDelayDisplayName", "Stereo Delay");
+			Info.Description = METASOUND_LOCTEXT("Metasound_StereoDelayNodeDescription", "Delays a stereo audio buffer by the specified amount.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

@@ -100,7 +100,7 @@ namespace Metasound
 		FDataReferenceCollection OutputDataReferences;
 		for (uint32 i = 0; i < NumOutputs; ++i)
 		{
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_VARIABLE_PARAM_NAME(OutputTrigger, i), TriggerOutputs[i]);
+			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME_WITH_INDEX(OutputTrigger, i), TriggerOutputs[i]);
 		}
 
 		return OutputDataReferences;
@@ -178,7 +178,7 @@ namespace Metasound
 			FOutputVertexInterface OutputInterface;
 			for (uint32 i = 0; i < NumOutputs; ++i)
 			{
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(OutputTrigger, i)));
+				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_WITH_INDEX_AND_TT(OutputTrigger, i)));
 			}
 			return FVertexInterface(InputInterface, OutputInterface);
 		};
@@ -193,8 +193,8 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FName OperatorName = *FString::Printf(TEXT("Trigger Sequence (%d)"), NumOutputs);
-			FText NodeDisplayName = FText::Format(LOCTEXT("TriggerSequenceDisplayNamePattern", "Trigger Sequence ({0})"), NumOutputs);
-			FText NodeDescription = LOCTEXT("TriggerSequenceDescription", "Each time this node is triggered, it sends the next output trigger in the sequence.");
+			FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerSequenceDisplayNamePattern", "Trigger Sequence ({0})", NumOutputs);
+			const FText NodeDescription = METASOUND_LOCTEXT("TriggerSequenceDescription", "Each time this node is triggered, it sends the next output trigger in the sequence.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { StandardNodes::Namespace, OperatorName, TEXT("") };

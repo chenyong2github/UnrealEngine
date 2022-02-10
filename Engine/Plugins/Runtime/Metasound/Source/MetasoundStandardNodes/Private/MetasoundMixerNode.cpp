@@ -85,8 +85,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMono = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (Mono, %d)"), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("MonoMixer", "Mono Mixer ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription1", "Will scale input channels by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("MonoMixer", "Mono Mixer ({0})", NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("MixerDescription1", "Will scale input channels by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -96,8 +96,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (Stereo, %d)"), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("StereoMixer", "Stereo Mixer ({0})"), NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription2", "Will scale input channels by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("StereoMixer", "Stereo Mixer ({0})", NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("MixerDescription2", "Will scale input channels by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -107,8 +107,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMultiChan = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Audio Mixer (%d-Channel, %d)"), NumChannels, NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("NChannelMixer", "{0}-channel Mixer ({1})"), NumChannels, NumInputs);
-				FText NodeDescription = LOCTEXT("MixerDescription3", "Will scale input audio by their corresponding gain value and sum them together.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("NChannelMixer", "{0}-channel Mixer ({1})", NumChannels, NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("MixerDescription3", "Will scale input audio by their corresponding gain value and sum them together.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -218,7 +218,7 @@ namespace Metasound
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
 				{ NodeCategories::Mix },
-				{ LOCTEXT("Metasound_AudioMixerKeyword", "Mixer") },
+				{ METASOUND_LOCTEXT("Metasound_AudioMixerKeyword", "Mixer") },
 				FNodeDisplayStyle{}
 			};
 
@@ -242,7 +242,7 @@ namespace Metasound
 
 		static const FText GetAudioInputDescription(uint32 InputIndex, uint32 ChannelIndex)
 		{
-			return FText::Format(LOCTEXT("AudioMixerAudioInputDescription", "Audio Input #: {0}, Channel: {1}"), InputIndex, ChannelIndex);
+			return METASOUND_LOCTEXT_FORMAT("AudioMixerAudioInputDescription", "Audio Input #: {0}, Channel: {1}", InputIndex, ChannelIndex);
 		}
 
 		static const FVertexName GetGainInputName(uint32 InputIndex)
@@ -252,7 +252,7 @@ namespace Metasound
 
 		static const FText GetGainInputDescription(uint32 InputIndex)
 		{
-			return FText::Format(LOCTEXT("AudioMixerGainInputDescription", "Gain Input #: {0}"), InputIndex);
+			return METASOUND_LOCTEXT_FORMAT("AudioMixerGainInputDescription", "Gain Input #: {0}", InputIndex);
 		}
 
 		static const FVertexName GetAudioOutputName(uint32 ChannelIndex)
@@ -271,7 +271,7 @@ namespace Metasound
 
 		static const FText GetAudioOutputDescription(uint32 ChannelIndex)
 		{
-			return FText::Format(LOCTEXT("AudioMixerAudioOutputDescription", "Summed output for channel: {0}"), ChannelIndex);
+			return METASOUND_LOCTEXT_FORMAT("AudioMixerAudioOutputDescription", "Summed output for channel: {0}", ChannelIndex);
 		}
 #pragma endregion
 	}; // class TAudioMixerNodeOperator

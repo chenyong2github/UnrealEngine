@@ -134,12 +134,12 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<float>(GetInputBPMTempoName(), LOCTEXT("BPMToSecondsNode_BPMTT", "Beats Per Minute."), 90.0f),
-				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), LOCTEXT("BPMToSecondsNode_BeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
-				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), LOCTEXT("BPMToSecondsNode_DivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
+				TInputDataVertexModel<float>(GetInputBPMTempoName(), METASOUND_LOCTEXT("BPMToSecondsNode_BPMTT", "Beats Per Minute."), 90.0f),
+				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), METASOUND_LOCTEXT("BPMToSecondsNode_BeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
+				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), METASOUND_LOCTEXT("BPMToSecondsNode_DivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), LOCTEXT("BPMToSecondsNode_OutputTimeTT", "The output time in seconds."))
+				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), METASOUND_LOCTEXT("BPMToSecondsNode_OutputTimeTT", "The output time in seconds."))
 			)
 		);
 
@@ -154,8 +154,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, "BPMToSeconds", "" };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 1;
-			Info.DisplayName = LOCTEXT("BPMToSecondsNode_DisplayName", "BPM To Seconds");
-			Info.Description = LOCTEXT("BPMToSecondsNode_Desc", "Calculates a beat time in seconds from the given BPM, beat multiplier and divisions of a whole note.");
+			Info.DisplayName = METASOUND_LOCTEXT("BPMToSecondsNode_DisplayName", "BPM To Seconds");
+			Info.Description = METASOUND_LOCTEXT("BPMToSecondsNode_Desc", "Calculates a beat time in seconds from the given BPM, beat multiplier and divisions of a whole note.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

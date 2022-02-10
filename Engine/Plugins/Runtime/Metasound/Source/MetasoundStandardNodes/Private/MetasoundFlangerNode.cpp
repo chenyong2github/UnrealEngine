@@ -35,8 +35,8 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				const FName OperatorName = TEXT("Flanger");
-				const FText NodeDisplayName = LOCTEXT("Metasound_FlangerNodeDisplayName", "Flanger");
-				const FText NodeDescription = LOCTEXT("Metasound_FlangerNodeDescription", "Applies a flanger effect to input audio.");
+				const FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_FlangerNodeDisplayName", "Flanger");
+				const FText NodeDescription = METASOUND_LOCTEXT("Metasound_FlangerNodeDescription", "Applies a flanger effect to input audio.");
 
 				FNodeClassMetadata Info;
 				Info.ClassName = { StandardNodes::Namespace, OperatorName, TEXT("") };

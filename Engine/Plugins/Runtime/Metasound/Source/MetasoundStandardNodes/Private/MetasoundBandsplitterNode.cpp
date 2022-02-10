@@ -35,10 +35,10 @@ namespace Metasound
 		FEnumBandSplitterFilterOrder, FEnumBandSplitterFilterOrderInfo, FEnumBandSplitterFilterOrderReadRef, FEnumBandSplitterFilterOrderWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(EBandSplitterFilterOrder, FEnumBandSplitterFilterOrder, "Filter Order")
-		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::TwoPole, LOCTEXT("BandSplitterFilterOrderTwoPoleDescription", "Two Pole"), LOCTEXT("EnvelopePeakModeMSDescriptionTT", "Envelope follows a running Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::FourPole, LOCTEXT("BandSplitterFilterOrderFourPoleDescription", "Four Pole"), LOCTEXT("EnvelopePeakModeRMSDescriptionTT", "Envelope follows a running Root Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::SixPole, LOCTEXT("BandSplitterFilterOrderSixPoleDescription", "Six Pole"), LOCTEXT("EnvelopePeakModePeakDescriptionTT", "Envelope follows the peaks in the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::EightPole, LOCTEXT("BandSplitterFilterOrderEightPoleDescription", "Eight Pole"), LOCTEXT("EnvelopePeakModePeakDescriptionTT", "Envelope follows the peaks in the audio signal.")),
+		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::TwoPole, "BandSplitterFilterOrderTwoPoleDescription", "Two Pole", "EnvelopePeakModeMSDescriptionTT", "Envelope follows a running Mean Squared of the audio signal."),
+		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::FourPole, "BandSplitterFilterOrderFourPoleDescription", "Four Pole", "EnvelopePeakModeRMSDescriptionTT", "Envelope follows a running Root Mean Squared of the audio signal."),
+		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::SixPole, "BandSplitterFilterOrderSixPoleDescription", "Six Pole", "EnvelopePeakModePeakDescriptionTT", "Envelope follows the peaks in the audio signal."),
+		DEFINE_METASOUND_ENUM_ENTRY(EBandSplitterFilterOrder::EightPole, "BandSplitterFilterOrderEightPoleDescription", "Eight Pole", "EnvelopePeakModePeakDescriptionTT", "Envelope follows the peaks in the audio signal."),
 	DEFINE_METASOUND_ENUM_END()
 
 	template<uint32 NumBands, uint32 NumChannels>
@@ -89,8 +89,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMono = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (Mono, %d)"), NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern1", "Mono Band Splitter ({0})"), NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription1", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("BandSplitterDisplayNamePattern1", "Mono Band Splitter ({0})", NumBands);
+				const FText NodeDescription = METASOUND_LOCTEXT("BandSplitterDescription1", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -100,8 +100,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataStereo = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (Stereo, %d)"), NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern2", "Stereo Band Splitter ({0})"), NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription2", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("BandSplitterDisplayNamePattern2", "Stereo Band Splitter ({0})", NumBands);
+				const FText NodeDescription = METASOUND_LOCTEXT("BandSplitterDescription2", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -111,8 +111,8 @@ namespace Metasound
 			auto CreateNodeClassMetadataMultiChan = []() -> FNodeClassMetadata
 			{
 				FName OperatorName = *FString::Printf(TEXT("Band Splitter (%d-Channel, %d)"), NumChannels, NumBands);
-				FText NodeDisplayName = FText::Format(LOCTEXT("BandSplitterDisplayNamePattern3", "{0}-channel Band Splitter ({1})"), NumChannels, NumBands);
-				FText NodeDescription = LOCTEXT("BandSplitterDescription3", "Will split incoming audio into separate frequency bands.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("BandSplitterDisplayNamePattern3", "{0}-channel Band Splitter ({1})", NumChannels, NumBands);
+				const FText NodeDescription = METASOUND_LOCTEXT("BandSplitterDescription3", "Will split incoming audio into separate frequency bands.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return  CreateNodeClassMetadata(OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -336,7 +336,7 @@ namespace Metasound
 
 		static const FText GetAudioInputDescription(uint32 ChannelIndex)
 		{
-			return FText::Format(LOCTEXT("BandSplitterAudioInputDescription", "Audio Channel: {0}"), ChannelIndex);
+			return METASOUND_LOCTEXT_FORMAT("BandSplitterAudioInputDescription", "Audio Channel: {0}", ChannelIndex);
 		}
 
 		static const FVertexName GetCrossoverInputName(uint32 InputIndex)
@@ -346,7 +346,7 @@ namespace Metasound
 
 		static const FText GetCrossoverInputDescription(uint32 InputIndex)
 		{
-			return FText::Format(LOCTEXT("BandSplitterCrossoverInputDescription", "Crossover Input #: {0}"), InputIndex);
+			return METASOUND_LOCTEXT_FORMAT("BandSplitterCrossoverInputDescription", "Crossover Input #: {0}", InputIndex);
 		}
 
 		static const FVertexName GetAudioOutputName(uint32 OutputIndex, uint32 ChannelIndex)
@@ -365,7 +365,7 @@ namespace Metasound
 
 		static const FText GetAudioOutputDescription(uint32 OutputIndex, uint32 ChannelIndex)
 		{
-			return FText::Format(LOCTEXT("BandSplitterAudioOutputDescription", "Channel {0} Output for Band {1}"), ChannelIndex, OutputIndex);
+			return METASOUND_LOCTEXT_FORMAT("BandSplitterAudioOutputDescription", "Channel {0} Output for Band {1}", ChannelIndex, OutputIndex);
 		}
 
 		FORCEINLINE Audio::EFilterOrder GetFilterOrder(EBandSplitterFilterOrder InFilterOrder) const

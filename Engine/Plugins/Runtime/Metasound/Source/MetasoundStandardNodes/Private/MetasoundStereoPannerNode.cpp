@@ -29,7 +29,7 @@ namespace Metasound
 
 		const FText& GetInputAudioDescription()
 		{
-			static FText Desc = LOCTEXT("StereoPannerNodeInDesc", "The input audio to pan.");
+			static FText Desc = METASOUND_LOCTEXT("StereoPannerNodeInDesc", "The input audio to pan.");
 			return Desc;
 		}
 
@@ -41,7 +41,7 @@ namespace Metasound
 
 		const FText& GetInputPanAmountDescription()
 		{
-			static FText Desc = LOCTEXT("StereoPannerNodePanAmountDesc", "The amount of pan. -1.0 is full left, 1.0 is full right.");
+			static FText Desc = METASOUND_LOCTEXT("StereoPannerNodePanAmountDesc", "The amount of pan. -1.0 is full left, 1.0 is full right.");
 			return Desc;
 		}
 
@@ -53,7 +53,7 @@ namespace Metasound
 
 		const FText& GetInputPanningLawDescription()
 		{
-			static FText Desc = LOCTEXT("StereoPannerNodePanningLawDescription", "Which panning law should be used for the stereo panner.");
+			static FText Desc = METASOUND_LOCTEXT("StereoPannerNodePanningLawDescription", "Which panning law should be used for the stereo panner.");
 			return Desc;
 		}
 
@@ -65,7 +65,7 @@ namespace Metasound
 
 		const FText& GetOutputAudioLeftDescription()
 		{
-			static FText Desc = LOCTEXT("StereoPannerNodeOutputLeftDescription", "Left channel audio output.");
+			static FText Desc = METASOUND_LOCTEXT("StereoPannerNodeOutputLeftDescription", "Left channel audio output.");
 			return Desc;
 		}
 
@@ -77,7 +77,7 @@ namespace Metasound
 
 		const FText& GetOutputAudioRightDescription()
 		{
-			static FText Desc = LOCTEXT("StereoPannerNodeOutputRightDescription", "Right channel audio output.");
+			static FText Desc = METASOUND_LOCTEXT("StereoPannerNodeOutputRightDescription", "Right channel audio output.");
 			return Desc;
 		}
 	}
@@ -92,8 +92,8 @@ namespace Metasound
 	FEnumPanningLaw, FEnumPanningLawInfo, FPanningLawReadRef, FPanningLawWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(EPanningLaw, FEnumPanningLaw, "PanningLaw")
-		DEFINE_METASOUND_ENUM_ENTRY(EPanningLaw::EqualPower, LOCTEXT("PanningLawEqualPowerName", "Equal Power"), LOCTEXT("PanningLawEqualPowerTT", "The power of the audio signal is constant while panning.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EPanningLaw::Linear, LOCTEXT("PanningLawLinearName", "Linear"), LOCTEXT("PanningLawLinearTT", "The amplitude of the audio signal is constant while panning.")),
+		DEFINE_METASOUND_ENUM_ENTRY(EPanningLaw::EqualPower, "PanningLawEqualPowerName", "Equal Power", "PanningLawEqualPowerTT", "The power of the audio signal is constant while panning."),
+		DEFINE_METASOUND_ENUM_ENTRY(EPanningLaw::Linear, "PanningLawLinearName", "Linear", "PanningLawLinearTT", "The amplitude of the audio signal is constant while panning."),
 	DEFINE_METASOUND_ENUM_END()
 
 	class FStereoPannerOperator : public TExecutableOperator<FStereoPannerOperator>
@@ -254,8 +254,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Stereo Panner"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_StereoPannerDisplayName", "Stereo Panner");
-			Info.Description = LOCTEXT("Metasound_StereoPannerNodeDescription", "Pans an input audio signal to left and right outputs.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_StereoPannerDisplayName", "Stereo Panner");
+			Info.Description = METASOUND_LOCTEXT("Metasound_StereoPannerNodeDescription", "Pans an input audio signal to left and right outputs.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

@@ -59,8 +59,8 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "Bitcrusher", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("BitcrusherDisplayName", "Bitcrusher"),
-					LOCTEXT("BitcrusherDesc", "Downsamples and lowers the bit-depth of an incoming audio signal."),
+					METASOUND_LOCTEXT("BitcrusherDisplayName", "Bitcrusher"),
+					METASOUND_LOCTEXT("BitcrusherDesc", "Downsamples and lowers the bit-depth of an incoming audio signal."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

@@ -172,13 +172,13 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, LOCTEXT("AudioInputToolTT", "Audio input.")),
-				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameAttackTime, LOCTEXT("AttackTimeTT", "The attack time of the envelope follower."), 0.01f),
-				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameReleaseTime, LOCTEXT("ReleaseTimeTT", "The release time of the envelope follower."), 0.1f),
-				TInputDataVertexModel<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode, LOCTEXT("FollowModeTT", "The following-method of the envelope follower."))
+				TInputDataVertexModel<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, METASOUND_LOCTEXT("AudioInputToolTT", "Audio input.")),
+				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameAttackTime, METASOUND_LOCTEXT("AttackTimeTT", "The attack time of the envelope follower."), 0.01f),
+				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameReleaseTime, METASOUND_LOCTEXT("ReleaseTimeTT", "The release time of the envelope follower."), 0.1f),
+				TInputDataVertexModel<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode, METASOUND_LOCTEXT("FollowModeTT", "The following-method of the envelope follower."))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(EnvelopeFollower::OutParamNameEnvelope, LOCTEXT("EnvelopeFollowerOutputTT", "The output envelope value of the audio signal.")),
+				TOutputDataVertexModel<float>(EnvelopeFollower::OutParamNameEnvelope, METASOUND_LOCTEXT("EnvelopeFollowerOutputTT", "The output envelope value of the audio signal.")),
 				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputAudioEnvelope))
 			)
 		);
@@ -194,8 +194,8 @@ namespace Metasound
 			Info.ClassName = { StandardNodes::Namespace, TEXT("Envelope Follower"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 3;
-			Info.DisplayName = LOCTEXT("Metasound_EnvelopeFollowerDisplayName", "Envelope Follower");
-			Info.Description = LOCTEXT("Metasound_EnvelopeFollowerDescription", "Outputs an envelope from an input audio signal.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_EnvelopeFollowerDisplayName", "Envelope Follower");
+			Info.Description = METASOUND_LOCTEXT("Metasound_EnvelopeFollowerDescription", "Outputs an envelope from an input audio signal.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

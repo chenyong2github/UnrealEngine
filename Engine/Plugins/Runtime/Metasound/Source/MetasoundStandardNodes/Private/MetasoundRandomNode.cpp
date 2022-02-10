@@ -61,42 +61,42 @@ namespace Metasound
 
 		static FText GetNextTriggerDescription()
 		{
-			return LOCTEXT("RandomNode_NextTT", "Trigger to generate the next random integer.");
+			return METASOUND_LOCTEXT("RandomNode_NextTT", "Trigger to generate the next random integer.");
 		}
 
 		static FText GetResetDescription()
 		{
-			return LOCTEXT("RandomNode_ResetTT", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.");
+			return METASOUND_LOCTEXT("RandomNode_ResetTT", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.");
 		}
 
 		static FText GetSeedDescription()
 		{
-			return LOCTEXT("RandomNode_SeedTT", "The seed value to use for the random node. Set to -1 to use a random seed.");
+			return METASOUND_LOCTEXT("RandomNode_SeedTT", "The seed value to use for the random node. Set to -1 to use a random seed.");
 		}
 
 		static FText GetMinDescription()
 		{
-			return LOCTEXT("RandomNode_MinTT", "Min random value.");
+			return METASOUND_LOCTEXT("RandomNode_MinTT", "Min random value.");
 		}
 
 		static FText GetMaxDescription()
 		{
-			return LOCTEXT("RandomNode_MaxTT", "Max random value.");
+			return METASOUND_LOCTEXT("RandomNode_MaxTT", "Max random value.");
 		}
 
 		static FText GetOutputDescription()
 		{
-			return LOCTEXT("RandomNode_OutputTT", "The randomly generated value.");
+			return METASOUND_LOCTEXT("RandomNode_OutputTT", "The randomly generated value.");
 		}
 
 		static FText GetOutputOnNextDescription()
 		{
-			return LOCTEXT("RandomNode_OutputNextTT", "Triggers when next is triggered.");
+			return METASOUND_LOCTEXT("RandomNode_OutputNextTT", "Triggers when next is triggered.");
 		}
 
 		static FText GetOutputOnResetDescription()
 		{
-			return LOCTEXT("RandomNode_OutputResetTT", "Triggers when reset is triggered.");
+			return METASOUND_LOCTEXT("RandomNode_OutputResetTT", "Triggers when reset is triggered.");
 		}
 	}
 

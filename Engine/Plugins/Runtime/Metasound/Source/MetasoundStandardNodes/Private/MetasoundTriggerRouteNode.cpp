@@ -34,9 +34,9 @@ namespace Metasound
 		{
 			if (InIndex == 0)
 			{
-				return FText::Format(LOCTEXT("TriggerRouteInputTriggerDescInit", "The input trigger {0} to cause the corresponding input value to route to the output value. This trigger is the default output."), InIndex);
+				return METASOUND_LOCTEXT_FORMAT("TriggerRouteInputTriggerDescInit", "The input trigger {0} to cause the corresponding input value to route to the output value. This trigger is the default output.", InIndex);
 			}
-			return FText::Format(LOCTEXT("TriggerRouteInputTriggerDesc", "The input trigger {0} to cause the corresponding input value to route to the output value."), InIndex);
+			return METASOUND_LOCTEXT_FORMAT("TriggerRouteInputTriggerDesc", "The input trigger {0} to cause the corresponding input value to route to the output value.", InIndex);
 		}
 
 		const FVertexName GetInputValueName(uint32 InIndex)
@@ -46,7 +46,7 @@ namespace Metasound
 
 		const FText GetInputValueDescription(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("TriggerRouteValueDesc", "The input value ({0}) to route to the output when triggered by Set {0}."), InIndex);
+			return METASOUND_LOCTEXT_FORMAT("TriggerRouteValueDesc", "The input value ({0}) to route to the output when triggered by Set {0}.", InIndex);
 		}
 
 		const FVertexName& GetOutputTriggerName()
@@ -57,7 +57,7 @@ namespace Metasound
 
 		const FText& GetOutputTriggerDescription()
 		{
-			static const FText Desc = LOCTEXT("TriggerRouteOnSetDesc", "Triggered when any of the input triggers are set.");
+			static const FText Desc = METASOUND_LOCTEXT("TriggerRouteOnSetDesc", "Triggered when any of the input triggers are set.");
 			return Desc;
 		}
 
@@ -69,7 +69,7 @@ namespace Metasound
 
 		const FText& GetOutputValueDescription()
 		{
-			static const FText Desc = LOCTEXT("TriggerRouteOutputValueDesc", "The output value set by the input triggers.");
+			static const FText Desc = METASOUND_LOCTEXT("TriggerRouteOutputValueDesc", "The output value set by the input triggers.");
 			return Desc;
 		}
 	}
@@ -131,8 +131,8 @@ namespace Metasound
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ValueType>();
 				FName OperatorName = *FString::Printf(TEXT("Trigger Route (%s, %d)"), *DataTypeName.ToString(), NumInputs);
-				FText NodeDisplayName = FText::Format(LOCTEXT("TriggerRouteDisplayNamePattern", "Trigger Route ({0}, {1})"), GetMetasoundDataTypeDisplayText<ValueType>(), NumInputs);
-				FText NodeDescription = LOCTEXT("TriggerRouteDescription", "Allows routing different values to the same output pin depending on trigger inputs.");
+				FText NodeDisplayName = METASOUND_LOCTEXT_FORMAT("TriggerRouteDisplayNamePattern", "Trigger Route ({0}, {1})", GetMetasoundDataTypeDisplayText<ValueType>(), NumInputs);
+				const FText NodeDescription = METASOUND_LOCTEXT("TriggerRouteDescription", "Allows routing different values to the same output pin depending on trigger inputs.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 
 				return MetasoundTriggerRouteNodePrivate::CreateNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);

@@ -6,6 +6,7 @@
 #include "MetasoundBuildError.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
@@ -58,8 +59,8 @@ namespace Metasound
 
 		static FVertexInterface DeclareVertexInterface()
 		{
-			static const FText InputDesc = FText::Format(LOCTEXT("AutoConvDisplayNamePatternFrom", "Input {0} value."), GetMetasoundDataTypeDisplayText<FromDataType>());
-			static const FText OutputDesc = FText::Format(LOCTEXT("AutoConvDisplayNamePatternTo", "Output {0} value."), GetMetasoundDataTypeDisplayText<ToDataType>());
+			static const FText InputDesc = METASOUND_LOCTEXT_FORMAT("AutoConvDisplayNamePatternFrom", "Input {0} value.", GetMetasoundDataTypeDisplayText<FromDataType>());
+			static const FText OutputDesc = METASOUND_LOCTEXT_FORMAT("AutoConvDisplayNamePatternTo", "Output {0} value.", GetMetasoundDataTypeDisplayText<ToDataType>());
 
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -88,8 +89,8 @@ namespace Metasound
 				Info.ClassName = { TEXT("Convert"), GetMetasoundDataTypeName<ToDataType>(), GetMetasoundDataTypeName<FromDataType>() };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDisplayNameFormat", "{0} to {1}"), FromTypeText, ToTypeText);
-				Info.Description = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDescriptionNameFormat", "Converts from {0} to {1}."), FromTypeText, ToTypeText);
+				Info.DisplayName = METASOUND_LOCTEXT_FORMAT("Metasound_AutoConverterNodeDisplayNameFormat", "{0} to {1}", FromTypeText, ToTypeText);
+				Info.Description = METASOUND_LOCTEXT_FORMAT("Metasound_AutoConverterNodeDescriptionNameFormat", "Converts from {0} to {1}.", FromTypeText, ToTypeText);
 				Info.Author = PluginAuthor;
 				Info.DisplayStyle = DisplayStyle;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -103,7 +104,7 @@ namespace Metasound
 				
 				Info.Keywords =
 				{
-					LOCTEXT("MetasoundConvertKeyword", "Convert"),
+					METASOUND_LOCTEXT("MetasoundConvertKeyword", "Convert"),
 					GetMetasoundDataTypeDisplayText<FromDataType>(),
 					GetMetasoundDataTypeDisplayText<ToDataType>()
 				};

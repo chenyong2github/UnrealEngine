@@ -128,13 +128,13 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(GetInputOnTriggerName(), LOCTEXT("TriggerGateOnTT", "Trigger to toggle gate output to 1.")),
-				TInputDataVertexModel<FTrigger>(GetInputOffTriggerName(), LOCTEXT("TriggerGateOffTT", "Trigger to toggle gate output to 0.")),
-				TInputDataVertexModel<bool>(GetInputInitName(), LOCTEXT("TriggerGateInitTT", "Initial value of the output gate."))
+				TInputDataVertexModel<FTrigger>(GetInputOnTriggerName(), METASOUND_LOCTEXT("TriggerGateOnTT", "Trigger to toggle gate output to 1.")),
+				TInputDataVertexModel<FTrigger>(GetInputOffTriggerName(), METASOUND_LOCTEXT("TriggerGateOffTT", "Trigger to toggle gate output to 0.")),
+				TInputDataVertexModel<bool>(GetInputInitName(), METASOUND_LOCTEXT("TriggerGateInitTT", "Initial value of the output gate."))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), LOCTEXT("TriggerGateOutputTriggerTT", "Triggers output when gate is toggled.")),
-				TOutputDataVertexModel<bool>(GetOutputValueName(), LOCTEXT("BoolOutputTT", "Current output value of the toggle."))
+				TOutputDataVertexModel<FTrigger>(GetOutputTriggerName(), METASOUND_LOCTEXT("TriggerGateOutputTriggerTT", "Triggers output when gate is toggled.")),
+				TOutputDataVertexModel<bool>(GetOutputValueName(), METASOUND_LOCTEXT("BoolOutputTT", "Current output value of the toggle."))
 			)
 		);
 
@@ -149,8 +149,8 @@ namespace Metasound
 			Info.ClassName = {StandardNodes::Namespace, TEXT("Trigger Toggle"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_TriggerToggleNodeDisplayName", "Trigger Toggle");
-			Info.Description = LOCTEXT("Metasound_TriggerToggleNodeDescription", "Toggles a boolean value on or off.");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_TriggerToggleNodeDisplayName", "Trigger Toggle");
+			Info.Description = METASOUND_LOCTEXT("Metasound_TriggerToggleNodeDescription", "Toggles a boolean value on or off.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

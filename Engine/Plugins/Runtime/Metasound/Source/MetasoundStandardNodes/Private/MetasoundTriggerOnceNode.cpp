@@ -166,8 +166,8 @@ namespace Metasound
 			Info.ClassName = { Metasound::StandardNodes::Namespace, "Trigger Once", FName() };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = LOCTEXT("Metasound_TriggerOnceNodeDisplayName", "Trigger Once");
-			Info.Description = LOCTEXT("Metasound_TriggerOnceNodeDescription", "Sends an output trigger the first time the node is triggered, and ignores all others (can be re-opened).");
+			Info.DisplayName = METASOUND_LOCTEXT("Metasound_TriggerOnceNodeDisplayName", "Trigger Once");
+			Info.Description = METASOUND_LOCTEXT("Metasound_TriggerOnceNodeDescription", "Sends an output trigger the first time the node is triggered, and ignores all others (can be re-opened).");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();

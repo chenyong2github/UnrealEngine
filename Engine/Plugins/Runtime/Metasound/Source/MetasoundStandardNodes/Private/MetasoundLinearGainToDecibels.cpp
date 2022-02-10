@@ -103,8 +103,8 @@ namespace Metasound
 		{
 			const FName DataTypeName = GetMetasoundDataTypeName<float>();
 			const FName OperatorName = TEXT("Linear Gain to Decibels");
-			const FText NodeDisplayName = LOCTEXT("Metasound_LinearGainToDecibelsName", "Linear Gain to Decibels");
-			const FText NodeDescription = LOCTEXT("Metasound_LinearGainToDecibelsDescription", "Converts a linear gain value to a logarithmic (dB) gain value.");
+			const FText NodeDisplayName = METASOUND_LOCTEXT("Metasound_LinearGainToDecibelsName", "Linear Gain to Decibels");
+			const FText NodeDescription = METASOUND_LOCTEXT("Metasound_LinearGainToDecibelsDescription", "Converts a linear gain value to a logarithmic (dB) gain value.");
 
 			FNodeClassMetadata Info;
 			Info.ClassName = { StandardNodes::Namespace, OperatorName, DataTypeName };

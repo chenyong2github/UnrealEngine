@@ -122,8 +122,8 @@ namespace Metasound
 					FNodeClassName { StandardNodes::Namespace, "Compressor", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
-					LOCTEXT("CompressorDisplayName", "Compressor"),
-					LOCTEXT("CompressorDesc", "Lowers the dynamic range of a signal."),
+					METASOUND_LOCTEXT("CompressorDisplayName", "Compressor"),
+					METASOUND_LOCTEXT("CompressorDesc", "Lowers the dynamic range of a signal."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,

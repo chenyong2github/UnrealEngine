@@ -24,9 +24,9 @@
 
 // 3. Define it using the BEGIN/ENTRY/END macros
 // DEFINE_METASOUND_ENUM_BEGIN(EMyOtherTestEnum)
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Alpha, LOCTEXT("AlphaDescription", "Alpha"), LOCTEXT("AlphaDescriptionTT", "Alpha tooltip")),
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Beta, LOCTEXT("BetaDescription", "Beta"), LOCTEXT("BetaDescriptioTT", "Beta tooltip")),
-// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Gamma, LOCTEXT("GammaDescription", "Gamma", LOCTEXT("GammaDescriptionTT", "Gamma tooltip"))
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Alpha, "AlphaDescription", "Alpha", "AlphaDescriptionTT", "Alpha tooltip"),
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Beta, "BetaDescription", "Beta", "BetaDescriptioTT", "Beta tooltip"),
+// 		DEFINE_METASOUND_ENUM_ENTRY(EMyOtherTestEnum::Gamma, "GammaDescription", "Gamma", "GammaDescriptionTT", "Gamma tooltip")
 // DEFINE_METASOUND_ENUM_END()
 
 namespace Metasound
