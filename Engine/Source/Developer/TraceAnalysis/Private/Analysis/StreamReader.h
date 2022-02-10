@@ -62,6 +62,7 @@ class FStreamBuffer
 {
 public:
 								FStreamBuffer() = default;
+								FStreamBuffer(uint32_t InitalBufferSize);
 								~FStreamBuffer();
 								FStreamBuffer(FStreamBuffer&& Rhs) noexcept;
 								FStreamBuffer(const FStreamBuffer&)	= default;

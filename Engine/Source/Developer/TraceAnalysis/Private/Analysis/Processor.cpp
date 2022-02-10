@@ -35,7 +35,7 @@ uint32 FAnalysisProcessor::FImpl::Run()
 {
 	AnalysisEngine.Begin();
 
-	FStreamBuffer Buffer;
+	FStreamBuffer Buffer(4 << 20);
 	while (!StopEvent->Wait(0, true))
 	{
 		UnpausedEvent->Wait();

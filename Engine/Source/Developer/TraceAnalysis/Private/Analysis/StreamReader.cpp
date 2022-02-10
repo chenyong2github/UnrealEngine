@@ -74,6 +74,13 @@ void FStreamReader::RestoreMark(struct FMark* Mark)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+FStreamBuffer::FStreamBuffer(uint32 InitialBufferSize)
+: BufferSize(InitialBufferSize)
+{
+	Buffer = (uint8*)FMemory::Malloc(BufferSize);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FStreamBuffer::Append(const uint8* Data, uint32 Size)
 {
 	uint8* Out = Append(Size);
