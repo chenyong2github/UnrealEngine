@@ -382,13 +382,13 @@ void FMetasoundFrontendClassMetadata::SetSerializeText(bool bInSerializeText)
 
 	bSerializeText = bInSerializeText;
 }
+#endif // WITH_EDITOR
 
 void FMetasoundFrontendClassMetadata::SetVersion(const FMetasoundFrontendVersionNumber& InVersion)
 {
 	using namespace Metasound::DocumentPrivate;
 	SetWithChangeID(InVersion, Version, ChangeID);
 }
-#endif // WITH_EDITOR
 
 void FMetasoundFrontendClassMetadata::SetClassName(const FMetasoundFrontendClassName& InClassName)
 {

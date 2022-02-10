@@ -126,7 +126,7 @@ public:
 
 	bool VersionAsset();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	/*
 	 * Caches transient metadata (class & vertex) found in the registry
 	 * that is not necessary for serialization or core graph generation.
@@ -143,7 +143,7 @@ public:
 	void ResetSynchronizationState();
 	void SetUpdateDetailsOnSynchronization();
 	void SetSynchronizationRequired();
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 
 	// Calls the outermost package and marks it dirty.
 	bool MarkMetasoundDocumentDirty() const;

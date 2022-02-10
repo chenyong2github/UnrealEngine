@@ -1137,10 +1137,11 @@ public:
 	void SetIsDeprecated(bool bInIsDeprecated);
 	void SetKeywords(const TArray<FText>& InKeywords);
 	void SetPromptIfMissing(const FText& InPromptIfMissing);
-	void SetVersion(const FMetasoundFrontendVersionNumber& InVersion);
 
 	void SetSerializeText(bool bInSerializeText);
 #endif // WITH_EDITOR
+
+	void SetVersion(const FMetasoundFrontendVersionNumber& InVersion);
 
 	const FGuid& GetChangeID() const
 	{
