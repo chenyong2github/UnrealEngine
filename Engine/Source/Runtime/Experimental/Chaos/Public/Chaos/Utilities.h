@@ -563,6 +563,29 @@ namespace Chaos
 			C2 = P2 + T * D2;
 		}
 
+		inline FReal ClosestTimeOnLineSegment(const FVector& Point, const FVector& StartPoint, const FVector& EndPoint)
+		{
+			const FVector Segment = EndPoint - StartPoint;
+			const FVector VectToPoint = Point - StartPoint;
+
+			// See if closest point is before StartPoint
+			const FVector::FReal Dot1 = FVec3::DotProduct(VectToPoint, Segment);
+			if (Dot1 <= 0)
+			{
+				return FReal(0);
+			}
+
+			// See if closest point is beyond EndPoint
+			const FVector::FReal Dot2 = FVec3::DotProduct(Segment, Segment);
+			if (Dot2 <= Dot1)
+			{
+				return FReal(1);
+			}
+
+			// Closest Point is within segment
+			return Dot1 / Dot2;
+		}
+
 
 	} // namespace Utilities
 } // namespace Chaos

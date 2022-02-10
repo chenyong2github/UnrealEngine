@@ -20,6 +20,10 @@
 
 namespace Chaos
 {
+	// If a sphere is this much smaller than a capsule, we create a single-point manifold. Otherwise a three-point manifold
+	FRealSingle Chaos_Collision_Manifold_SphereCapsuleSizeThreshold = 0.5f;
+	FAutoConsoleVariableRef CVarChaos_Manifold_SphereCapsuleSizeThreshold(TEXT("p.Chaos.Collision.Manifold.SphereCapsuleSizeThreshold"), Chaos_Collision_Manifold_SphereCapsuleSizeThreshold, TEXT(""));
+
 	FRealSingle Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
 
@@ -28,10 +32,6 @@ namespace Chaos
 
 	FRealSingle Chaos_Collision_Manifold_EdgeContactNormalThreshold = 0.9f;	// About 25deg
 	FAutoConsoleVariableRef CVarChaos_Manifold_EdgeContactNormalThreshold(TEXT("p.Chaos.Collision.Manifold.EdgeNormalThreshold"), Chaos_Collision_Manifold_EdgeContactNormalThreshold, TEXT(""));
-
-	// @todo(chaos): TEMP - use convex-convex collisio detection for box-box until TBox::GetClosestEdgePosition is implemented for that path (without plane hint)
-	bool bChaos_Collision_Manifold_BoxAsConvex = true;
-	FAutoConsoleVariableRef CVarChaosCollisioConvexManifoldBoxAsConvex(TEXT("p.Chaos.Collision.Manifold.BoxAsConvex"), bChaos_Collision_Manifold_BoxAsConvex, TEXT(""));
 
 	FRealSingle Chaos_Collision_Manifold_CullDistanceMarginMultiplier = 1.0f;
 	FAutoConsoleVariableRef CVarChaosCollisioConvexManifoldCullDistanceMarginMultiplier(TEXT("p.Chaos.Collision.Manifold.CullDistanceMarginMultiplier"), Chaos_Collision_Manifold_CullDistanceMarginMultiplier, TEXT(""));
