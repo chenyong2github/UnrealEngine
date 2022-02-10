@@ -60,6 +60,12 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 
 	bool NeedsRealloc = false;
 
+	// We need to essentially make this a linked list to avoid more refactoring for now
+	// eventually we can clean this logic up, but this allows us to have a subclass that
+	// overrides the render thread data, which in this case is for a grid reader
+	UNiagaraDataInterface* OtherDI = nullptr;
+	FGrid2DCollectionRWInstanceData_GameThread* OtherInstanceData = nullptr;
+
 	int32 FindAttributeIndexByName(const FName& InName, int32 NumChannels);
 
 	bool UpdateTargetTexture(ENiagaraGpuBufferFormat BufferFormat);
@@ -88,6 +94,11 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 #endif
 
+	// We need to essentially make this a linked list to avoid more refactoring for now
+	// eventually we can clean this logic up, but this allows us to have a subclass that
+	// overrides the render thread data, which in this case is for a grid reader
+	FNiagaraDataInterfaceProxy* OtherProxy = nullptr;
+
 	void BeginSimulate(FRHICommandList& RHICmdList);
 	void EndSimulate(FRHICommandList& RHICmdList);
 };
@@ -108,6 +119,31 @@ struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInte
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 
+};
+
+struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataInterfaceParametersCS
+{
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid2DCollection, NonVirtual);
+
+public:
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
+	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
+
+private:
+	LAYOUT_FIELD(FShaderParameter, NumAttributesParam);
+	LAYOUT_FIELD(FShaderParameter, UnitToUVParam);
+	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
+	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
+	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
+
+	LAYOUT_FIELD(FShaderResourceParameter, GridParam);
+	LAYOUT_FIELD(FRWShaderParameter, OutputGridParam);
+	LAYOUT_FIELD(FShaderParameter, AttributeIndicesParam);
+
+	LAYOUT_FIELD(FShaderResourceParameter, SamplerParam);
+	LAYOUT_FIELD(TMemoryImageArray<FName>, AttributeNames);
+	LAYOUT_FIELD(TMemoryImageArray<uint32>, AttributeChannelCount);
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Grid2D Collection", Experimental), Blueprintable, BlueprintType)
@@ -274,6 +310,8 @@ public:
 	static int32 GetComponentCountFromFuncName(const FName& FuncName);
 	static FNiagaraTypeDefinition GetValueTypeFromFuncName(const FName& FuncName);
 	static bool CanCreateVarFromFuncName(const FName& FuncName);
+
+	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_GameThread*>& GetSystemInstancesToProxyData_GT() { return SystemInstancesToProxyData_GT; }
 protected:
 #if WITH_EDITORONLY_DATA
 	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
