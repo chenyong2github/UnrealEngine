@@ -43,9 +43,6 @@ public:
 	virtual uint64 GetHiddenEditorViews() const override;
 #endif// WITH_EDITOR
 
-	// UInstancedStaticMesh interface
-	virtual FVector GetTranslatedInstanceSpaceOrigin() const override;
-
 	/** Used by procedural generation to link generated component with its creator */
 	void SetGenerationGuid(const FGuid& InGuid) { GenerationGuid = InGuid; }
 	const FGuid& GetGenerationGuid() const { return GenerationGuid; }

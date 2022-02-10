@@ -143,6 +143,15 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 
 	TSharedPtr<TArray<FClusterNode>, ESPMode::ThreadSafe> ClusterTreePtr;
 
+	// If true then we allow a translated space when building the cluster tree.
+	// This can help for impementations (foliage) where we can have instances with offsets to large for single float precision.
+	UPROPERTY()
+	uint32 bUseTranslatedInstanceSpace : 1;
+
+	// Origin of the translated space used when building the cluster tree.
+	UPROPERTY()
+	FVector TranslatedInstanceSpaceOrigin;
+
 	// Table for remapping instances from cluster tree to PerInstanceSMData order
 	UPROPERTY()
 	TArray<int32> SortedInstances;
@@ -273,6 +282,7 @@ protected:
 	void ApplyEmpty();
 	void SetPerInstanceLightMapAndEditorData(FStaticMeshInstanceData& PerInstanceData, const TArray<TRefCountPtr<HHitProxy>>& HitProxies);
 
+	FVector CalcTranslatedInstanceSpaceOrigin() const;
 	void GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms, FVector const& Offset) const;
 	void InitializeInstancingRandomSeed();
 
@@ -287,6 +297,8 @@ protected:
 	void PostBuildStats();
 
 	virtual void OnPostLoadPerInstanceData() override;
+
+	virtual FVector GetTranslatedInstanceSpaceOrigin() const override { return TranslatedInstanceSpaceOrigin; }
 
 	virtual void GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const override;
 	virtual void PartialNavigationUpdate(int32 InstanceIdx) override;

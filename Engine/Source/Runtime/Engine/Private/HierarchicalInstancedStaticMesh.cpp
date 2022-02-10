@@ -2015,6 +2015,8 @@ static FBox GetClusterTreeBounds(TArray<FClusterNode> const& InClusterTree, FVec
 UHierarchicalInstancedStaticMeshComponent::UHierarchicalInstancedStaticMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ClusterTreePtr(MakeShareable(new TArray<FClusterNode>))
+	, bUseTranslatedInstanceSpace(false)
+	, TranslatedInstanceSpaceOrigin(ForceInitToZero)
 	, NumBuiltInstances(0)
 	, NumBuiltRenderInstances(0)
 	, UnbuiltInstanceBounds(ForceInit)
@@ -2124,7 +2126,7 @@ void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && !BuiltInstanceBounds.IsValid)
 	{
 		TArray<FClusterNode>& ClusterTree = *ClusterTreePtr.Get();
-		BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin());
+		BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, TranslatedInstanceSpaceOrigin);
 	}
 }
 
@@ -2512,7 +2514,8 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 			++InstanceCountToRender;
 		}
 
-		InstanceUpdateCmdBuffer.AddInstance(PerInstanceSMData[InstanceIndex].Transform);
+		// CmdBuffer takes final render transforms so should include the translated space.
+		InstanceUpdateCmdBuffer.AddInstance(PerInstanceSMData[InstanceIndex].Transform.ConcatTranslation(-TranslatedInstanceSpaceOrigin));
 
 		const FBox NewInstanceBounds = GetStaticMesh()->GetBounds().GetBox().TransformBy(PerInstanceSMData[InstanceIndex].Transform);
 		UnbuiltInstanceBounds += NewInstanceBounds;
@@ -2719,7 +2722,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 	if (PerInstanceSMData.Num() > 0 && GetStaticMesh() && !GetStaticMesh()->IsCompiling() && GetStaticMesh()->HasValidRenderData())
 	{
 		// Build the tree in translated space to maintain precision.
-		const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
+		TranslatedInstanceSpaceOrigin = CalcTranslatedInstanceSpaceOrigin();
 
 		InitializeInstancingRandomSeed();
 		TArray<FMatrix> InstanceTransforms;
@@ -2772,7 +2775,7 @@ void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FClust
 	// this is only for prebuild data, already in the correct order
 	check(!PerInstanceSMData.Num());
 	NumBuiltInstances = 0;
-	check(GetTranslatedInstanceSpaceOrigin() == FVector::Zero());
+	TranslatedInstanceSpaceOrigin = FVector::Zero();
 	check(PerInstanceRenderData.IsValid());
 	NumBuiltRenderInstances = InNumBuiltRenderInstances;
 	check(NumBuiltRenderInstances);
@@ -2878,7 +2881,7 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& 
 
 	// Get the new bounds taking into account the translated space used when building the tree.
 	const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
-	BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin());
+	BuiltInstanceBounds = GetClusterTreeBounds(ClusterTree, TranslatedInstanceSpaceOrigin);
 
 	UnbuiltInstanceBounds.Init();
 	UnbuiltInstanceBoundsList.Empty();
@@ -2969,6 +2972,18 @@ bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, 
 	return false;
 }
 
+FVector UHierarchicalInstancedStaticMeshComponent::CalcTranslatedInstanceSpaceOrigin() const
+{
+	// Foliage is often built in world space which can cause problems with large world coordinates because
+	// the instance transforms in the renderer are single precision, and the HISM culling is also single precision.
+	// We should fix the HISM culling to be double precision.
+	// But the instance transforms (relative to the owner primitive) will probably stay single precision to not bloat memory.
+	// A fix for that is to have authoring tools set sensible primitive transforms (instead of identity).
+	// But until that happens we set a translated instance space here.
+	// For simplicity we use the first instance as the origin of the translated space.
+	return bUseTranslatedInstanceSpace && PerInstanceSMData.Num() ? PerInstanceSMData[0].Transform.GetOrigin() : FVector::Zero();
+}
+
 void UHierarchicalInstancedStaticMeshComponent::GetInstanceTransforms(TArray<FMatrix>& InstanceTransforms, FVector const& Offset) const
 {
 	double StartTime = FPlatformTime::Seconds();
@@ -3019,7 +3034,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAsync()
 		double StartTime = FPlatformTime::Seconds();
 		
 		// Build the tree in translated space to maintain precision.
-		const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
+		TranslatedInstanceSpaceOrigin = CalcTranslatedInstanceSpaceOrigin();
 
 		InitializeInstancingRandomSeed();
 		TArray<FMatrix> InstanceTransforms;
@@ -3457,7 +3472,7 @@ void UHierarchicalInstancedStaticMeshComponent::FlushAccumulatedNavigationUpdate
 		const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
 		if (ClusterTree.Num())
 		{
-			const FBox NewBounds = GetClusterTreeBounds(ClusterTree, GetTranslatedInstanceSpaceOrigin()).TransformBy(GetComponentTransform());
+			const FBox NewBounds = GetClusterTreeBounds(ClusterTree, TranslatedInstanceSpaceOrigin).TransformBy(GetComponentTransform());
 			FNavigationSystem::OnComponentBoundsChanged(*this, NewBounds, AccumulatedNavigationDirtyArea);
 		}
 			

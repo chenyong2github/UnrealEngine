@@ -2300,8 +2300,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 FMatrix UInstancedStaticMeshComponent::GetRenderMatrix() const
 {
 	// Apply the translated space to the render matrix.
-	const FVector TranslatedInstanceSpaceOrigin = GetTranslatedInstanceSpaceOrigin();
-	return GetComponentTransform().ToMatrixWithScale().ConcatTranslation(TranslatedInstanceSpaceOrigin);
+	return (FTransform(GetTranslatedInstanceSpaceOrigin()) * GetComponentTransform()).ToMatrixWithScale();
 }
 
 void UInstancedStaticMeshComponent::CreateHitProxyData(TArray<TRefCountPtr<HHitProxy>>& HitProxies)
