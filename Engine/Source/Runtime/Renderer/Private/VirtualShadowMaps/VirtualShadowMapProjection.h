@@ -17,6 +17,7 @@ enum class EVirtualShadowMapProjectionInputType
 	GBuffer = 0,
 	HairStrands = 1
 };
+const TCHAR* ToString(EVirtualShadowMapProjectionInputType In);
 
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,

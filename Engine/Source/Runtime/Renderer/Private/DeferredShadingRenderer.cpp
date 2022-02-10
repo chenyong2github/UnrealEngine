@@ -2696,6 +2696,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager);
 	}
 
+	// Post base pass for material classification
+	// This needs to run before virtual shadow map, in order to have ready&cleared classified SSS data
+	if (Strata::IsStrataEnabled())
+	{
+		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
+	}
+
 	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 
 	// Shadows, lumen and fog after base pass
@@ -2784,12 +2791,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
 	FRDGTextureRef LightingChannelsTexture = CopyStencilToLightingChannelTexture(GraphBuilder, SceneTextures.Stencil);
-
-	// Post base pass for material classification
-	if (Strata::IsStrataEnabled())
-	{
-		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
-	}
 
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO

@@ -528,6 +528,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("VSM_DEFAULT_CS_GROUP_XY"), DefaultCSGroupXY);
 		OutEnvironment.SetDefine(TEXT("VSM_GENERATE_PAGE_FLAGS_CS_GROUP_XYZ"), GeneratePageFlagsGroupXYZ);
 		OutEnvironment.SetDefine(TEXT("VSM_BUILD_EXPLICIT_BOUNDS_CS_XY"), BuildExplicitBoundsGroupXY);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
@@ -552,6 +553,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirectionalLightIds)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
@@ -1180,12 +1182,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			// Mark pages based on projected depth buffer pixels
 			if (CVarMarkPixelPages.GetValueOnRenderThread() != 0)
 			{
-				auto GeneratePageFlags = [&](bool bHairPass)
+				auto GeneratePageFlags = [&](const EVirtualShadowMapProjectionInputType InputType)
 				{
-					const uint32 InputType = bHairPass ? 1U : 0U; // HairStrands or GBuffer
-
 					FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FInputType>(InputType);
+					PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FInputType>(InputType == EVirtualShadowMapProjectionInputType::HairStrands ? 1u : 0u);
 					FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
 					PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 
@@ -1200,13 +1200,14 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
 					PassParameters->PageDilationBorderSizeDirectional = CVarPageDilationBorderSizeDirectional.GetValueOnRenderThread();
 					PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 					auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
 					static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
 					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
 
-					if (bHairPass && View.HairStrandsViewData.VisibilityData.TileData.IsValid())
+					if (InputType == EVirtualShadowMapProjectionInputType::HairStrands && View.HairStrandsViewData.VisibilityData.TileData.IsValid())
 					{
 						PassParameters->IndirectBufferArgs = View.HairStrandsViewData.VisibilityData.TileData.TileIndirectDispatchBuffer;
 						FComputeShaderUtils::AddPass(
@@ -1221,17 +1222,17 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					{
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,
-							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", bHairPass ? TEXT("HairStrands") : TEXT("GBuffer")),
+							RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", ToString(InputType)),
 							ComputeShader,
 							PassParameters,
 							FIntVector(GridSize.X, GridSize.Y, 1));
 					}
 				};
 
-				GeneratePageFlags(false);
+				GeneratePageFlags(EVirtualShadowMapProjectionInputType::GBuffer);
 				if (HairStrands::HasViewHairStrandsData(View))
 				{
-					GeneratePageFlags(true);
+					GeneratePageFlags(EVirtualShadowMapProjectionInputType::HairStrands);
 				}
 			}
 			// Mark coarse pages

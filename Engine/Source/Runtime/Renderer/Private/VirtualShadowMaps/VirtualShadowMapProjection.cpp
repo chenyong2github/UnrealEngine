@@ -116,6 +116,15 @@ static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
 	ECVF_RenderThreadSafe
 );
 
+const TCHAR* ToString(EVirtualShadowMapProjectionInputType In)
+{
+	switch (In)
+	{
+	case EVirtualShadowMapProjectionInputType::HairStrands: return TEXT("HairStrands");
+	case EVirtualShadowMapProjectionInputType::GBuffer:     return Strata::IsStrataEnabled() ? TEXT("Strata") : TEXT("GBuffer");
+	}
+	return TEXT("Invalid");
+}
 
 // Composite denoised shadow projection mask onto the light's shadow mask
 // Basically just a copy shader with a special blend mode
@@ -200,6 +209,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ContactShadowLength)
@@ -231,9 +241,9 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
 		if (PermutationVector.Get<FSMRTAdaptiveRayCountDim>())
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
@@ -289,6 +299,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
 	PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScale.GetValueOnRenderThread();
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 	if (bHasHairStrandsData)
 	{
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
@@ -359,7 +370,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%s,Input:%s%s)", 
 			bAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
-			(InputType == EVirtualShadowMapProjectionInputType::HairStrands) ? TEXT("HairStrands") : TEXT("GBuffer"),
+			ToString(InputType),
 			bDebugOutput ? TEXT(",Debug") : TEXT("")),
 		ComputeShader,
 		PassParameters,

@@ -1716,6 +1716,13 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 	return 0.f;
 }
 
+// Legacy conversion function, which translated Strata sub-surface data into 'opacity' for shadow transmission purpose. 
+// Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
+float StrataGetOpacityFromSubSurface(FStrataSubsurfaceData In)
+{
+	return In.bIsValid ? (In.bIsProfile ? In.ProfileRadiusScale : saturate(1.f - max3(In.DMFP.x, In.DMFP.y, In.DMFP.z))) : 1.f;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs packing/unpacking
 // 11G11B10F and 10F are unsigned float format
