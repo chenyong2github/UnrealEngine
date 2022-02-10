@@ -808,6 +808,18 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 			// Allocate the linker with a tempfile, forcing byte swapping if wanted.
 			SaveContext.SetTempFilename(FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32)));
 			SaveContext.SetLinker(MakePimpl<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.GetTempFilename().GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversionedNative()));
+			if (!SaveContext.GetLinker()->Saver)
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("Name"), FText::FromString(*SaveContext.GetTempFilename()));
+				FText ErrorText = FText::Format(NSLOCTEXT("SavePackage", "CouldNotCreateSaveFile", "Could not create temporary save filename {Name}."), Arguments);
+				UE_LOG(LogSavePackage, Error, TEXT("%s"), *ErrorText.ToString());
+				if (SaveContext.IsGenerateSaveError())
+				{
+					SaveContext.GetError()->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorText.ToString());
+				}
+				return ESavePackageResult::Error;
+			}
 		}
 
 		if (SaveContext.IsGenerateSaveError())
@@ -2006,12 +2018,12 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		{
 			if (SaveContext.IsGenerateSaveError())
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("%s"), *FString::Printf(TEXT("Error saving '%s'"), SaveContext.GetFilename()));
+				UE_LOG(LogSavePackage, Error, TEXT("%s"), *FString::Printf(TEXT("Error saving '%s'"), SaveContext.GetFilename()));
+				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format(NSLOCTEXT("Core", "SaveWarning", "Error saving '{0}'"), FText::FromString(FString(SaveContext.GetFilename()))).ToString());
 			}
 			else
 			{
-				UE_LOG(LogSavePackage, Error, TEXT("%s"), *FString::Printf(TEXT("Error saving '%s'"), SaveContext.GetFilename()));
-				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format(NSLOCTEXT("Core", "SaveWarning", "Error saving '{0}'"), FText::FromString(FString(SaveContext.GetFilename()))).ToString());
+				UE_LOG(LogSavePackage, Warning, TEXT("%s"), *FString::Printf(TEXT("Error saving '%s'"), SaveContext.GetFilename()));
 			}
 			return FinalizeResult;
 		}

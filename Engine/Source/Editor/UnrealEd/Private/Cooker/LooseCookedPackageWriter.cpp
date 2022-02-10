@@ -17,6 +17,7 @@
 #include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Optional.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
@@ -279,30 +280,60 @@ static void WriteToFile(const FString& Filename, const FCompositeBuffer& Buffer)
 {
 	IFileManager& FileManager = IFileManager::Get();
 
+	struct FFailureReason
+	{
+		uint32 LastErrorCode = 0;
+		bool bSizeMatchFailed = false;
+	};
+	TOptional<FFailureReason> FailureReason;
+
 	for (int32 Tries = 0; Tries < 3; ++Tries)
 	{
-		if (FArchive* Ar = FileManager.CreateFileWriter(*Filename))
+		FArchive* Ar = FileManager.CreateFileWriter(*Filename);
+		if (!Ar)
 		{
-			int64 DataSize = 0;
-			for (const FSharedBuffer& Segment : Buffer.GetSegments())
+			if (!FailureReason)
 			{
-				int64 SegmentSize = static_cast<int64>(Segment.GetSize());
-				Ar->Serialize(const_cast<void*>(Segment.GetData()), SegmentSize);
-				DataSize += SegmentSize;
+				FailureReason = FFailureReason{ FPlatformMisc::GetLastError(), false };
 			}
-			delete Ar;
-
-			if (FileManager.FileSize(*Filename) != DataSize)
-			{
-				FileManager.Delete(*Filename);
-
-				UE_LOG(LogSavePackage, Fatal, TEXT("Could not save to %s!"), *Filename);
-			}
-			return;
+			continue;
 		}
+
+		int64 DataSize = 0;
+		for (const FSharedBuffer& Segment : Buffer.GetSegments())
+		{
+			int64 SegmentSize = static_cast<int64>(Segment.GetSize());
+			Ar->Serialize(const_cast<void*>(Segment.GetData()), SegmentSize);
+			DataSize += SegmentSize;
+		}
+		delete Ar;
+
+		if (FileManager.FileSize(*Filename) != DataSize)
+		{
+			if (!FailureReason)
+			{
+				FailureReason = FFailureReason{ 0, true };
+			}
+			FileManager.Delete(*Filename);
+			continue;
+		}
+		return;
 	}
 
-	UE_LOG(LogSavePackage, Fatal, TEXT("Could not write to %s!"), *Filename);
+	TCHAR LastErrorText[1024];
+	if (FailureReason && FailureReason->bSizeMatchFailed)
+	{
+		FCString::Strcpy(LastErrorText, TEXT("Unexpected file size. Another operation is modifying the file, or the write operation failed to write completely."));
+	}
+	else if (FailureReason && FailureReason->LastErrorCode != 0)
+	{
+		FPlatformMisc::GetSystemErrorMessage(LastErrorText, UE_ARRAY_COUNT(LastErrorText), FailureReason->LastErrorCode);
+	}
+	else
+	{
+		FCString::Strcpy(LastErrorText, TEXT("Unknown failure reason."));
+	}
+	UE_LOG(LogSavePackage, Fatal, TEXT("SavePackage Async write %s failed: %s"), *Filename, LastErrorText);
 }
 
 void FLooseCookedPackageWriter::FWriteFileData::Write(FMD5& AccumulatedHash, EWriteOptions WriteOptions) const

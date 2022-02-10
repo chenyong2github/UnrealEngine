@@ -34,7 +34,18 @@ FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForc
 		Saver = IFileManager::Get().CreateFileWriter( InFilename, 0 );
 		if( !Saver )
 		{
-			UE_LOG(LogLinker, Fatal, TEXT("%s"), *FString::Printf( TEXT("Error opening file '%s'."), InFilename ) );
+			TCHAR LastErrorText[1024];
+			uint32 LastError = FPlatformMisc::GetLastError();
+			if (LastError != 0)
+			{
+				FPlatformMisc::GetSystemErrorMessage(LastErrorText, UE_ARRAY_COUNT(LastErrorText), LastError);
+			}
+			else
+			{
+				FCString::Strcpy(LastErrorText, TEXT("Unknown failure reason."));
+			}
+			UE_LOG(LogLinker, Error, TEXT("Error opening file '%s': %s"), InFilename, LastErrorText);
+			return; // Caller must test this->Saver to detect the failure
 		}
 
 		UPackage* Package = dynamic_cast<UPackage*>(LinkerRoot);

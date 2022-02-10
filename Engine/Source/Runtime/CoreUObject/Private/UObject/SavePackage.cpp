@@ -2153,6 +2153,18 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						// Allocate the linker with a tempfile, forcing byte swapping if wanted.
 						TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
 						Linker = MakePimpl<FLinkerSave>(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversionedNative);
+						if (!Linker->Saver)
+						{
+							FFormatNamedArguments Arguments;
+							Arguments.Add(TEXT("Name"), FText::FromString(*TempFilename));
+							FText ErrorText = FText::Format(NSLOCTEXT("SavePackage", "CouldNotCreateSaveFile", "Could not create temporary save filename {Name}."), Arguments);
+							UE_LOG(LogSavePackage, Error, TEXT("%s"), *ErrorText.ToString());
+							if (!(SaveFlags & SAVE_NoError))
+							{
+								Error->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorText.ToString());
+							}
+							return ESavePackageResult::Error;
+						}
 					}
 
 					Linker->bProceduralSave = ObjectSaveContext.bProceduralSave;
