@@ -355,6 +355,27 @@ public:
 		}
 	};
 
+	virtual void MarkPackageDirty(const FName& PackageName) override
+	{
+		Cooker.ExternalRequests->AddCallback([this, PackageName]()
+			{
+				UE::Cook::FPackageData* PackageData = Cooker.PackageDatas->FindPackageDataByPackageName(PackageName);
+				if (!PackageData)
+				{
+					return;
+				}
+				if (PackageData->IsInProgress())
+				{
+					return;
+				}
+				if (!PackageData->HasAnyCookedPlatform())
+				{
+					return;
+				}
+				PackageData->ClearCookProgress();
+			});
+	}
+
 	virtual bool EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest RecompileShaderRequest) override
 	{
 		UE_LOG(LogCook, Verbose, TEXT("Enqueing recompile shader(s) request, Platform='%s', ShaderPlatform='%d'"),
@@ -435,6 +456,7 @@ void UCookOnTheFlyServer::Tick(float DeltaTime)
 	uint32 CookedPackagesCount = 0;
 	const static float CookOnTheSideTimeSlice = 0.1f; // seconds
 	TickCookOnTheSide( CookOnTheSideTimeSlice, CookedPackagesCount);
+	TickRequestManager();
 	TickRecompileShaderRequests();
 }
 
@@ -1249,6 +1271,11 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 		// if we are out of stuff and we are in cook by the book from the editor mode then we finish up
 		UpdateDisplay(TickFlags, true /* bForceDisplay */);
 		CookByTheBookFinished();
+	}
+
+	if (IsCookOnTheFlyMode() && bCookComplete)
+	{
+		CollectGarbage(RF_NoFlags);
 	}
 
 	CookedPackageCount += StackData.CookedPackageCount;
@@ -3818,6 +3845,14 @@ void UCookOnTheFlyServer::BeginDestroy()
 	ShutdownCookOnTheFly();
 
 	Super::BeginDestroy();
+}
+
+void UCookOnTheFlyServer::TickRequestManager()
+{
+	if (CookOnTheFlyRequestManager)
+	{
+		CookOnTheFlyRequestManager->Tick();
+	}
 }
 
 void UCookOnTheFlyServer::TickRecompileShaderRequests()

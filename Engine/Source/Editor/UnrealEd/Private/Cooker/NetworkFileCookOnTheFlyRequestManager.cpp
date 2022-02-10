@@ -34,6 +34,10 @@ public:
 		return NetworkFileServer.IsValid();
 	}
 
+	virtual void Tick() override
+	{
+	}
+
 	virtual void Shutdown() override
 	{
 		if (NetworkFileServer.IsValid())

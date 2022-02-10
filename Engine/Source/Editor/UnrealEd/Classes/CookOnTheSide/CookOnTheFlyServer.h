@@ -544,6 +544,8 @@ public:
 	*/
 	void StopAndClearCookedData();
 
+	void TickRequestManager();
+
 	/** 
 	* Process any shader recompile requests
 	*/

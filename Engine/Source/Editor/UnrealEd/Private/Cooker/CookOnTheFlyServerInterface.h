@@ -87,6 +87,8 @@ public:
 	 */
 	virtual bool EnqueueCookRequest(FCookPackageRequest CookPackageRequest) = 0;
 
+	virtual void MarkPackageDirty(const FName& PackageName) = 0;
+
 	/**
 	 * Enqueue a new shader compile request.
 	 *
@@ -112,6 +114,8 @@ public:
 
 	/** Initialze the request manager. */
 	virtual bool Initialize() = 0;
+
+	virtual void Tick() = 0;
 
 	/** Shutdown the reques tmanager. */
 	virtual void Shutdown() = 0;

@@ -52,6 +52,8 @@ enum class ECookOnTheFlyMessage : uint32
 	FilesAdded			= 0x60,
 	/* Heartbeat message. */
 	Heartbeat			= 0x70,
+	/* Request to recook packages. */
+	RecookPackages		= 0x80,
 };
 ENUM_CLASS_FLAGS(ECookOnTheFlyMessage);
 
@@ -80,6 +82,8 @@ inline const TCHAR* LexToString(ECookOnTheFlyMessage Message)
 			return TEXT("FilesAdded");
 		case ECookOnTheFlyMessage::Heartbeat:
 			return TEXT("Heartbeat");
+		case ECookOnTheFlyMessage::RecookPackages:
+			return TEXT("RecookPackages");
 		default:
 			return TEXT("Unknown");
 	};

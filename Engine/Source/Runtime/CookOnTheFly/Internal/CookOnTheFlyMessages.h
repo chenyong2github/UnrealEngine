@@ -34,6 +34,18 @@ struct FCookPackageResponse
 	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response);
 };
 
+struct FRecookPackagesRequest
+{
+	TArray<FPackageId> PackageIds;
+
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FRecookPackagesRequest& Request);
+};
+
+struct FRecookPackagesResponse
+{
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FRecookPackagesResponse& Response);
+};
+
 }}} // namesapce UE::ZenCookOnTheFly::Messaging
 
 #endif // WITH_COTF

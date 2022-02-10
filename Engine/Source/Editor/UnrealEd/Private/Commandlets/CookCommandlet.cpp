@@ -556,6 +556,8 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 
 		while ( (CookOnTheFlyServer->HasRemainingWork() == false) && !IsEngineExitRequested())
 		{
+			CookOnTheFlyServer->TickRequestManager();
+
 			CookOnTheFlyServer->TickRecompileShaderRequests();
 
 			// Shaders need to be updated

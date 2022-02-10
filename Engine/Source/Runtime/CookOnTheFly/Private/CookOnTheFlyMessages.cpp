@@ -33,6 +33,18 @@ FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FRecookPackagesRequest& Request)
+{
+	Ar << Request.PackageIds;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FRecookPackagesResponse& Response)
+{
+	return Ar;
+}
+
 }}} // namesapce UE::ZenCookOnTheFly::Messaging
 
 #endif // WITH_COTF
