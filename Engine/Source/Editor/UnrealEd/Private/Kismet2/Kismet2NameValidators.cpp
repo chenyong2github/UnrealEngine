@@ -152,13 +152,29 @@ EValidatorResult FKismetNameValidator::IsValid(const FName& Name, bool /* bOrigi
 		// If it is in the names list then it is already in use.
 		if(!Names.Contains(Name))
 		{
-			UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, const_cast<UBlueprint*>(BlueprintObject), *Name.ToString(), true);
-			ValidatorResult = (ExistingObject == NULL)? EValidatorResult::Ok : EValidatorResult::AlreadyInUse;
+			ValidatorResult = EValidatorResult::Ok;
+
+			// Check for collision with an existing object.
+			if (UObject* ExistingObject = StaticFindObject(/*Class=*/ nullptr, const_cast<UBlueprint*>(BlueprintObject), *Name.ToString(), true))
+			{
+				// To allow the linker to resolve imports when dependent Blueprints are loaded, macro libraries
+				// will leave behind a redirector whenever one of its macro graph objects are renamed. These get
+				// moved aside to allow their names to be recycled, so we consider a collision with an existing
+				// redirector object in that case to be a false positive.
+				// 
+				// Note that while the linker will resolve references to either a graph or redirector by name on load,
+				// macro instance nodes will instead resolve references to any external macro library's graph by GUID. 
+				const bool bIgnoreRedirectors = BlueprintObject && BlueprintObject->BlueprintType == BPTYPE_MacroLibrary;
+				if (!bIgnoreRedirectors || !ExistingObject->IsA<UObjectRedirector>())
+				{
+					ValidatorResult = EValidatorResult::AlreadyInUse;
+				}
+			}
 		}
 
 		if(ValidatorResult == EValidatorResult::Ok)
 		{
-			if(Scope == NULL)
+			if(Scope == nullptr)
 			{
 				// Search through all functions for their local variables and prevent duplicate names
 				TArray<UK2Node_FunctionEntry*> FunctionEntryNodes;
@@ -182,7 +198,7 @@ EValidatorResult FKismetNameValidator::IsValid(const FName& Name, bool /* bOrigi
 			}
 			else
 			{
-				if(FindFProperty<const FProperty>(Scope, *Name.ToString()) != NULL)
+				if(FindFProperty<const FProperty>(Scope, *Name.ToString()) != nullptr)
 				{
 					ValidatorResult = EValidatorResult::LocallyInUse;
 				}

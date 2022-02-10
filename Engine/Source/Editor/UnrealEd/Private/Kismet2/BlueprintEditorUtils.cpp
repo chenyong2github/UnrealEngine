@@ -2721,11 +2721,27 @@ void FBlueprintEditorUtils::RemoveGraph(UBlueprint* Blueprint, class UEdGraph* G
 /** Rename a graph and mark objects for modified */
 void FBlueprintEditorUtils::RenameGraph(UEdGraph* Graph, const FString& NewNameStr)
 {
-	if (Graph && Graph->Rename(*NewNameStr, Graph->GetOuter(), REN_Test))
+	if (Graph)
 	{
 		// Cache old name
 		const FName OldGraphName = Graph->GetFName();
 		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Graph);
+
+		// When renaming a graph inside a macro library, we may have dropped a redirector after a previous
+		// rename (see below). If we're now trying to reuse it, move the redirector aside to free up the name.
+		if (Blueprint->BlueprintType == BPTYPE_MacroLibrary)
+		{
+			if (UObjectRedirector* Redirector = FindObjectFast<UObjectRedirector>(Graph->GetOuter(), *NewNameStr))
+			{
+				Redirector->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+			}
+		}
+
+		// Ensure that there are no collisions; leave the name as-is if this fails for some reason.
+		if (!Graph->Rename(*NewNameStr, Graph->GetOuter(), REN_Test))
+		{
+			return;
+		}
 
 		auto RenameGraphLambda = [](UEdGraph* GraphToRename, const FName LocalOldGraphName, const FName LocalNewGraphName, ERenameFlags RenameFlags)
 		{
@@ -2760,9 +2776,23 @@ void FBlueprintEditorUtils::RenameGraph(UEdGraph* Graph, const FString& NewNameS
 			}
 		};
 
+		ERenameFlags RenameFlagsToApply = REN_None;
+		if (Blueprint->bIsRegeneratingOnLoad)
+		{
+			RenameFlagsToApply |= REN_ForceNoResetLoaders;
+		}
+
+		// Macro library graphs are referenced indirectly and resolved at edit/compile time via GUID (see FGraphReference).
+		// However, they will be exported by name at save time, so renaming a macro library graph implies we should also
+		// export a redirector with the old name so that the linker will still be able to resolve existing imports on load.
+		if (Blueprint->BlueprintType != BPTYPE_MacroLibrary)
+		{
+			RenameFlagsToApply |= REN_DontCreateRedirectors;
+		}
+
 		// Apply new name
 		const FName NewGraphName(*NewNameStr);
-		RenameGraphLambda(Graph, OldGraphName, NewGraphName, (Blueprint->bIsRegeneratingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_DontCreateRedirectors);
+		RenameGraphLambda(Graph, OldGraphName, NewGraphName, RenameFlagsToApply);
 
 		TArray<UBlueprint*> ModifiedBlueprints;
 		ModifiedBlueprints.Add(Blueprint);
