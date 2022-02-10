@@ -6,6 +6,10 @@
 #include "../SceneTextureParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "../SphericalGaussian.ush"
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#include "../Strata/Strata.ush"
+#endif
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 
@@ -85,31 +89,32 @@ float3 SampleNeightborPosition(uint2 PixelCoord, int2 Offset)
 
 RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
+	const uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 
-	// Get G-Buffer surface data
-	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
-	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
+	#if STRATA_ENABLED
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+	const bool bIsValid = TopLayerData.bIsValid;
+	const bool bReconstructGeometryNormal = true; // STRATA_TODO: legacy avoids this on foliage, how do we do that?
+	const float3 WorldNormal = TopLayerData.WorldNormal;
+	#else
+	const FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
+	const bool bIsValid = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+	const bool bReconstructGeometryNormal = GBufferData.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE;
+	const float3 WorldNormal = GBufferData.WorldNormal;
+	#endif
 
-#if 0
-	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
-#else
-	//#dxr-todo: workaround for flickering. UE-87281
-	FGBufferData GBufferData = GetGBufferDataFromSceneTexturesLoad(PixelCoord);
-#endif
+	const float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-	float Depth = GBufferData.Depth;
-	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
-	float3 WorldNormal = GBufferData.WorldNormal;
 
 	float3 GeometricNormal;
 	float ShadingDotGeometric;
-	if (GBufferData.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE && CONFIG_SHOOT_WITH_GEOMETRIC_NORMAL)
+	if (bReconstructGeometryNormal && CONFIG_SHOOT_WITH_GEOMETRIC_NORMAL)
 	{
-		float WorldPixelRadius = ComputeWorldBluringRadiusCausedByPixelSize(Depth);
+		float WorldPixelRadius = ComputeWorldBluringRadiusCausedByPixelSize(SceneDepth);
 
 		float3 E = SampleNeightborPosition(PixelCoord, int2( 1,  0)) - WorldPosition;
 		float3 W = SampleNeightborPosition(PixelCoord, int2(-1,  0)) - WorldPosition;
@@ -160,7 +165,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 	
 	// Mask out depth values beyond far plane
 	bool IsFiniteDepth = DeviceZ > 0.0;
-	bool bTraceRay = (IsFiniteDepth && GBufferData.ShadingModelID != SHADINGMODELID_UNLIT);
+	bool bTraceRay = (IsFiniteDepth && bIsValid);
 	if (!bTraceRay)
 	{
 		Visibility = 1.0;
