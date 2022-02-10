@@ -958,4 +958,11 @@ private:
 	friend class FShaderCompilingManager;
 };
 
+/** CVars */
+extern NIAGARASHADER_API int32 GNiagaraTranslatorFailIfNotSetSeverity;
 
+namespace FNiagaraCVarUtilities
+{
+	NIAGARASHADER_API FNiagaraCompileEventSeverity GetCompileEventSeverityForFailIfNotSet();
+	NIAGARASHADER_API bool GetShouldEmitMessagesForFailIfNotSet();
+};

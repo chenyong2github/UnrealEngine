@@ -29,6 +29,15 @@ IMPLEMENT_TYPE_LAYOUT(FNiagaraShaderMapContent);
 IMPLEMENT_TYPE_LAYOUT(FNiagaraShaderMapId);
 IMPLEMENT_TYPE_LAYOUT(FNiagaraComputeShaderCompilationOutput);
 
+//* CVars */
+int32 GNiagaraTranslatorFailIfNotSetSeverity = 3;
+static FAutoConsoleVariableRef CVarNiagaraTranslatorSilenceFailIfNotSet(
+	TEXT("fx.Niagara.FailIfNotSetSeverity"),
+	GNiagaraTranslatorFailIfNotSetSeverity,
+	TEXT("The severity of messages emitted by Parameters with Default Mode \"Fail If Not Set\". 3 = Error, 2 = Warning, 1= Log, 0 = Disabled.\n"),
+	ECVF_Default
+);
+
 #if WITH_EDITOR
 	FNiagaraCompilationQueue* FNiagaraCompilationQueue::Singleton = nullptr;
 #endif
@@ -748,6 +757,25 @@ bool FNiagaraShaderScript::BeginCompileShaderMap(
 	UE_LOG(LogShaders, Fatal, TEXT("Compiling of shaders in a build without editordata is not supported."));
 	return false;
 #endif
+}
+
+FNiagaraCompileEventSeverity FNiagaraCVarUtilities::GetCompileEventSeverityForFailIfNotSet()
+{
+	switch (GNiagaraTranslatorFailIfNotSetSeverity) {
+	case 3:
+		return FNiagaraCompileEventSeverity::Error;
+	case 2:
+		return FNiagaraCompileEventSeverity::Warning;
+	case 1:
+		return FNiagaraCompileEventSeverity::Log;
+	default:
+		return FNiagaraCompileEventSeverity::Log;
+	};
+}
+
+bool FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet()
+{
+	return GNiagaraTranslatorFailIfNotSetSeverity != 0;
 }
 
 #endif

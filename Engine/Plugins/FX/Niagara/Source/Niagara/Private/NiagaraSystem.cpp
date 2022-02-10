@@ -14,6 +14,7 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
+#include "NiagaraShared.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraStats.h"
 #include "NiagaraTrace.h"
@@ -2701,7 +2702,7 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 		{
 			FNiagaraVariableBase TestVar = Dependency.DependentVariable;
 			ensure(TestVar.GetName() != NAME_None);
-			if (ValidationInfo.Emitter)
+			if (ValidationInfo.Emitter && Dependency.bDependentVariableFromCustomIterationNamespace == false)
 			{
 				FName NewName = GetEmitterVariableAliasName(TestVar, ValidationInfo.Emitter);
 				TestVar.SetName(NewName);
@@ -2730,7 +2731,7 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 			if (!bDependencyMet)
 			{
 				FNiagaraCompileEvent LinkerErrorEvent(
-					FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids, FNiagaraCompileEventSource::ScriptDependency);
+					FNiagaraCVarUtilities::GetCompileEventSeverityForFailIfNotSet(), Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids, FNiagaraCompileEventSource::ScriptDependency);
 				ValidationInfo.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
 				ValidationInfo.bCompileResultStatusDirty = true;
 			}
@@ -2907,7 +2908,10 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		}
 
 		// Once compile results have been set, check dependencies found during compile and evaluate whether dependency compile events should be added.
-		EvaluateCompileResultDependencies();
+		if (FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet())
+		{
+			EvaluateCompileResultDependencies();
+		}
 
 		if (bDoPost)
 		{

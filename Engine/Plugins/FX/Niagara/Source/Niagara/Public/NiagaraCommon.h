@@ -1387,10 +1387,24 @@ public:
 		NodeGuid = FGuid();
 		PinGuid = FGuid();
 		StackGuids.Empty();
-	}
+		bDependentVariableFromCustomIterationNamespace = false;
+	};
 
-	FNiagaraCompileDependency(const FNiagaraVariableBase& InVar, const FString& InLinkerErrorMessage, FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
-		: LinkerErrorMessage(InLinkerErrorMessage), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids), DependentVariable(InVar) {}
+	FNiagaraCompileDependency(
+		const FNiagaraVariableBase& InVar
+		, const FString& InLinkerErrorMessage
+		, FGuid InNodeGuid = FGuid()
+		, FGuid InPinGuid = FGuid()
+		, const TArray<FGuid>& InCallstackGuids = TArray<FGuid>()
+		, bool bInDependentVariableFromCustomIterationNamespace = false
+	)
+		: LinkerErrorMessage(InLinkerErrorMessage)
+		, NodeGuid(InNodeGuid)
+		, PinGuid(InPinGuid)
+		, StackGuids(InCallstackGuids)
+		, DependentVariable(InVar)
+		, bDependentVariableFromCustomIterationNamespace(bInDependentVariableFromCustomIterationNamespace)
+	{};
 
 	/* The message itself*/
 	UPROPERTY()
@@ -1411,6 +1425,9 @@ public:
 	/** The variable we are dependent on.*/
 	UPROPERTY()
 	FNiagaraVariableBase DependentVariable;
+
+	UPROPERTY()
+	bool bDependentVariableFromCustomIterationNamespace;
 
 	FORCEINLINE bool operator==(const FNiagaraCompileDependency& Other)const
 	{

@@ -1,11 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraHlslTranslator.h"
-#include "NiagaraComponent.h"
-#include "NiagaraGraph.h"
-#include "NiagaraScriptSource.h"
+
+#include "EdGraphSchema_Niagara.h"
 #include "EdGraphUtilities.h"
+#include "INiagaraEditorTypeUtilities.h"
+#include "Modules/ModuleManager.h"
+#include "NiagaraCommon.h"
+#include "NiagaraComponent.h"
+#include "NiagaraConstants.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceCurve.h"
+#include "NiagaraDataInterfaceVector2DCurve.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorTickables.h"
+#include "NiagaraEditorUtilities.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraNodeEmitter.h"
+#include "NiagaraGraph.h"
 #include "NiagaraNode.h"
+#include "NiagaraNodeConvert.h"
+#include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeIf.h"
 #include "NiagaraNodeInput.h"
@@ -13,34 +29,16 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeParameterMapFor.h"
-#include "NiagaraNodeCustomHlsl.h"
+#include "NiagaraNodeSelect.h"
+#include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeOp.h"
-#include "NiagaraNodeConvert.h"
-#include "EdGraphSchema_Niagara.h"
-#include "NiagaraConstants.h"
-#include "NiagaraNodeEmitter.h"
-#include "INiagaraEditorTypeUtilities.h"
-#include "NiagaraEditorUtilities.h"
-#include "NiagaraEditorModule.h"
+#include "NiagaraParameterCollection.h"
+#include "NiagaraScriptSource.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraShared.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
-#include "NiagaraCommon.h"
-#include "Modules/ModuleManager.h"
-
-#include "NiagaraFunctionLibrary.h"
-
-#include "NiagaraDataInterface.h"
-#include "NiagaraDataInterfaceCurve.h"
-#include "NiagaraDataInterfaceVector2DCurve.h"
-
-#include "NiagaraParameterCollection.h"
-#include "NiagaraEditorTickables.h"
 #include "ShaderCore.h"
-
-#include "NiagaraEditorSettings.h"
-#include "NiagaraNodeStaticSwitch.h"
-#include "NiagaraNodeSelect.h"
-#include "NiagaraScriptVariable.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -5113,8 +5111,15 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 					RecordParamMapDefinedAttributeToNamespaceVar(Var, Inputs[i].Pin);
 					if (!Var.GetType().IsStatic())
 					{
-						if (ParamMapHistories[ParamMapHistoryIdx].IsPrimaryDataSetOutput(Var, GetTargetUsage())) // Note that data interfaces aren't ever in the primary data set even if the namespace matches.)
+						// Note that data interfaces aren't ever in the primary data set even if the namespace matches.)
+						if (ParamMapHistories[ParamMapHistoryIdx].IsPrimaryDataSetOutput(Var, GetTargetUsage()))
+						{
 							CompilationOutput.ScriptData.AttributesWritten.AddUnique(Var);
+						}
+						else if (ParamMapHistories[ParamMapHistoryIdx].IsVariableFromCustomIterationNamespaceOverride(Var))
+						{
+							CompilationOutput.ScriptData.AttributesWritten.AddUnique(Var);
+						}
 					}
 					else 
 					{
@@ -5933,7 +5938,7 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 				{
 					if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !Variable->Variable.IsInNameSpace(FNiagaraConstants::UserNamespaceString))
 					{
-						RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), GetNode, OutputPins[i], true);
+						RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), GetNode, OutputPins[i], true, ParamMapHistoryIdx);
 					}
 				}
 
@@ -6002,9 +6007,9 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	
 	if (FNiagaraParameterMapHistory::IsExternalConstantNamespace(Var, CompileOptions.TargetUsage, CompileOptions.GetTargetUsageBitmask()))
 	{
-		if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !Variable->Variable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) && !bIgnoreDefaultSetFirst)
+		if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !bIgnoreDefaultSetFirst)
 		{
-			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, true);
+			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, true, ParamMapHistoryIdx);
 		}
 		if (Var.GetType().IsStatic())
 		{
@@ -6202,7 +6207,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 		// First check to see if this is defaulted to fail if not set previously. If so, then make sure we don't suck in defaults and error out.
 		if (bValidateFailIfPreviouslyNotSet && bFailIfPreviouslyNotSetSentinel && !bIgnoreDefaultSetFirst)
 		{		
-			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, false);
+			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, false, ParamMapHistoryIdx);
 		}
 
 		if (bIsPerInstanceAttribute)
@@ -9132,10 +9137,17 @@ void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNo
 	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin, ShortDescription, bDismissable);
 }
 
-void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker)
+void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker, int32 ParamMapHistoryIdx)
 {
-	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
+	if (FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet() == false)
+	{
 		return;
+	}
+
+	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespaceString) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
+	{
+		return;
+	}
 
 	if (FNiagaraConstants::IsNiagaraConstant(InVar) || InVar.GetName() == TEXT("Emitter.InterpSpawnStartDt") || InVar.GetName() == TEXT("Emitter.SpawnInterval"))
 	{
@@ -9143,16 +9155,19 @@ void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBas
 	}
 
 	if (bEmitAsLinker)																					
-	{																									 
+	{			
+		bool bVarFromCustomIterationNamespaceOverride = ParamMapHistories[ParamMapHistoryIdx].IsVariableFromCustomIterationNamespaceOverride(InVar);
 		const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 		const UNiagaraNode* TargetNode = Node ? Node : CurContextNode;
 
 		FString MessageString = NodePinToMessage(MessageText, TargetNode, Pin);
-		TranslateResults.CompileDependencies.AddUnique(FNiagaraCompileDependency(InVar, MessageString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids()));
+		TranslateResults.CompileDependencies.AddUnique(FNiagaraCompileDependency(InVar, MessageString, TargetNode ? TargetNode->NodeGuid : FGuid(), Pin ? Pin->PersistentGuid : FGuid(), GetCallstackGuids(), bVarFromCustomIterationNamespaceOverride));
 	}
 	else
 	{
-		Error(MessageText, Node, Pin);
+		const bool bDismissable = false;
+		const FString ShortDescription = FString();
+		Message(FNiagaraCVarUtilities::GetCompileEventSeverityForFailIfNotSet(), MessageText, Node, Pin, ShortDescription, bDismissable);
 	}
 }
 
