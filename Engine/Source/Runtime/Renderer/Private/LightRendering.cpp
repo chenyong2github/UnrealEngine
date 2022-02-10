@@ -1883,7 +1883,7 @@ static void InternalRenderLight(
 			Strata::FStrataTilePassVS::FParameters VSParameters;
 			if (Strata::IsStrataEnabled())
 			{
-				Strata::FillUpTiledPassData(StrataTileMaterialType, View, VSParameters, GraphicsPSOInit.PrimitiveType);
+				VSParameters = Strata::SetTileParameters(View, StrataTileMaterialType, GraphicsPSOInit.PrimitiveType);
 			}
 
 			// Turn DBT back off
@@ -1985,12 +1985,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDeferredLightPS::FParameters, PS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDeferredLightVS::FParameters, VS)
 	// Strata tiles
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBufferSimple)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBufferSingle)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBufferComplex)
-	RDG_BUFFER_ACCESS(TileIndirectBufferSimple, ERHIAccess::IndirectArgs)
-	RDG_BUFFER_ACCESS(TileIndirectBufferSingle, ERHIAccess::IndirectArgs)
-	RDG_BUFFER_ACCESS(TileIndirectBufferComplex, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataTileParameter, StrataTileSimple)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataTileParameter, StrataTileSingle)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataTileParameter, StrataTileComplex)
 END_SHADER_PARAMETER_STRUCT()
 
 /** Shader parameters for Standard Deferred Light pass. */
@@ -2075,21 +2072,11 @@ static void RenderLight(
 		// VS - Strata tile parameters
 		if (Strata::IsStrataEnabled())
 		{
-			PassParameters->TileListBufferSimple = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::ESimple];
-			PassParameters->TileListBufferSingle = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::ESingle];
-			PassParameters->TileListBufferComplex = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::EComplex];
-			PassParameters->TileIndirectBufferSimple = View.StrataSceneData->ClassificationTileIndirectBuffer[EStrataTileMaterialType::ESimple];
-			PassParameters->TileIndirectBufferSingle = View.StrataSceneData->ClassificationTileIndirectBuffer[EStrataTileMaterialType::ESingle];
-			PassParameters->TileIndirectBufferComplex = View.StrataSceneData->ClassificationTileIndirectBuffer[EStrataTileMaterialType::EComplex];
-		}
-		else
-		{
-			FRDGBufferRef BufferDummy = GSystemTextures.GetDefaultBuffer(GraphBuilder, 4, 0u);
-			FRDGBufferSRVRef BufferDummySRV = GraphBuilder.CreateSRV(BufferDummy, PF_R32_UINT);
-			PassParameters->TileListBufferSimple = BufferDummySRV;
-			PassParameters->TileListBufferComplex = BufferDummySRV;
-			PassParameters->TileIndirectBufferSimple = BufferDummy;
-			PassParameters->TileIndirectBufferComplex = BufferDummy;
+			// Note: we register all tile types here in order to have all resources tracked properly and being able 
+			//       to create a single pass parameters struct instead of created one for each tile types
+			PassParameters->StrataTileSimple = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::ESingle);
+			PassParameters->StrataTileSingle = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::ESimple);
+			PassParameters->StrataTileComplex = Strata::SetTileParameters(GraphBuilder, View, EStrataTileMaterialType::EComplex);
 		}
 
 		FDeferredLightPS::FPermutationDomain PermutationVector;

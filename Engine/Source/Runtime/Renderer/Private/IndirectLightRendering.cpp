@@ -1276,7 +1276,7 @@ static void AddSkyReflectionPass(
 	if (bStrataEnabled)
 	{
 		check(StrataTileMaterialType != EStrataTileMaterialType::ECount);
-		Strata::FillUpTiledPassData(StrataTileMaterialType, View, PassParameters->VS, StrataTilePrimitiveType);
+		PassParameters->VS = Strata::SetTileParameters(GraphBuilder, View, StrataTileMaterialType, StrataTilePrimitiveType);
 		ClearUnusedGraphResources(StrataTilePassVertexShader, &PassParameters->VS);
 	}
 

@@ -500,20 +500,62 @@ class FStrataMaterialStencilTaggingPassPS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FStrataTilePassVS, "/Engine/Private/Strata/StrataTiling.usf", "StrataTilePassVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FStrataMaterialStencilTaggingPassPS, "/Engine/Private/Strata/StrataTiling.usf", "StencilTaggingMainPS", SF_Pixel);
 
-void FillUpTiledPassData(
-	EStrataTileMaterialType Type, 
-	const FViewInfo& View, 
-	FStrataTilePassVS::FParameters& ParametersVS,
+static FStrataTileParameter InternalSetTileParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View, const EStrataTileMaterialType TileType)
+{
+	FStrataTileParameter Out;
+	if (View.StrataSceneData && TileType != EStrataTileMaterialType::ECount)
+	{
+		Out.TileListBuffer = View.StrataSceneData->ClassificationTileListBufferSRV[TileType];
+		Out.TileIndirectBuffer = View.StrataSceneData->ClassificationTileIndirectBuffer[TileType];
+	}
+	else if (GraphBuilder)
+	{
+		FRDGBufferRef BufferDummy = GSystemTextures.GetDefaultBuffer(*GraphBuilder, 4, 0u);
+		FRDGBufferSRVRef BufferDummySRV = GraphBuilder->CreateSRV(BufferDummy, PF_R32_UINT);
+		Out.TileListBuffer = BufferDummySRV;
+		Out.TileIndirectBuffer = BufferDummy;
+	}
+	return Out;
+}
+
+FStrataTilePassVS::FParameters SetTileParameters(
+	const FViewInfo& View,
+	const EStrataTileMaterialType TileType,
 	EPrimitiveType& PrimitiveType)
 {
-	ParametersVS.OutputViewSizeAndInvSize = View.CachedViewUniformShaderParameters->ViewSizeAndInvSize;
-	ParametersVS.OutputBufferSizeAndInvSize = View.CachedViewUniformShaderParameters->BufferSizeAndInvSize;
-	ParametersVS.ViewScreenToTranslatedWorld = View.CachedViewUniformShaderParameters->ScreenToTranslatedWorld;
-
-	ParametersVS.TileListBuffer = View.StrataSceneData->ClassificationTileListBufferSRV[Type];
-	ParametersVS.TileIndirectBuffer = View.StrataSceneData->ClassificationTileIndirectBuffer[Type];
-
+	FStrataTileParameter Temp = InternalSetTileParameters(nullptr, View, TileType);
 	PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+
+	FStrataTilePassVS::FParameters Out;
+	Out.OutputViewSizeAndInvSize = View.CachedViewUniformShaderParameters->ViewSizeAndInvSize;
+	Out.OutputBufferSizeAndInvSize = View.CachedViewUniformShaderParameters->BufferSizeAndInvSize;
+	Out.ViewScreenToTranslatedWorld = View.CachedViewUniformShaderParameters->ScreenToTranslatedWorld;
+	Out.TileListBuffer = Temp.TileListBuffer;
+	Out.TileIndirectBuffer = Temp.TileIndirectBuffer;
+	return Out;
+}
+
+FStrataTilePassVS::FParameters SetTileParameters(
+	FRDGBuilder& GraphBuilder, 
+	const FViewInfo& View, 
+	const EStrataTileMaterialType TileType,
+	EPrimitiveType& PrimitiveType)
+{
+	FStrataTileParameter Temp = InternalSetTileParameters(&GraphBuilder, View, TileType);
+	PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
+
+	FStrataTilePassVS::FParameters Out;
+	Out.OutputViewSizeAndInvSize = View.CachedViewUniformShaderParameters->ViewSizeAndInvSize;
+	Out.OutputBufferSizeAndInvSize = View.CachedViewUniformShaderParameters->BufferSizeAndInvSize;
+	Out.ViewScreenToTranslatedWorld = View.CachedViewUniformShaderParameters->ScreenToTranslatedWorld;
+	Out.TileListBuffer = Temp.TileListBuffer;
+	Out.TileIndirectBuffer = Temp.TileIndirectBuffer;
+	return Out;
+}
+
+FStrataTileParameter SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileMaterialType TileType)
+{
+	return InternalSetTileParameters(&GraphBuilder, View, TileType);
 }
 
 static void AddStrataInternalClassificationTilePass(
@@ -529,7 +571,7 @@ static void AddStrataInternalClassificationTilePass(
 	FVector4f OutputResolutionAndInv = FVector4f(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
 
 	FStrataMaterialStencilTaggingPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilTaggingPassPS::FParameters>();
-	FillUpTiledPassData(TileMaterialType, View, ParametersPS->VS, StrataTilePrimitiveType);
+	ParametersPS->VS = Strata::SetTileParameters(GraphBuilder, View, TileMaterialType, StrataTilePrimitiveType);
 
 	FStrataTilePassVS::FPermutationDomain VSPermutationVector;
 	VSPermutationVector.Set< FStrataTilePassVS::FEnableDebug >(bDebug);
