@@ -807,7 +807,6 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 	if (!ExistingAsset)
 	{
 		UTexture* NewTexture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		NewTexture->AlphaCoverageThresholds = FVector4(0.0, 0.0, 0.0, 1.0);
 		Texture = NewTexture;
 
 		if (UTextureLightProfile* LightProfile = Cast<UTextureLightProfile>(NewTexture))
