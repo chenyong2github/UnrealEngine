@@ -1009,9 +1009,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					continue;
 				}
 
-				FPropertyChangedEvent PropertyEvent(nullptr, EPropertyChangeType::Redirected);
-				ObjectReferencerPtr->PostEditChangeProperty(PropertyEvent);
-
+				if (!ObjectReferencerPtr->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					// Calling PostEditChangeProperty on an actor with an outdated class will trigger a check() during construction scripts.
+					FPropertyChangedEvent PropertyEvent(nullptr, EPropertyChangeType::Redirected);
+					ObjectReferencerPtr->PostEditChangeProperty(PropertyEvent);
+				}
+				
 				// We need to recompile any Blueprints that had properties changed to make sure their generated class is up-to-date and has no lingering references to the old objects
 				UBlueprint* BlueprintToRecompile = nullptr;
 				if (UBlueprint* BlueprintReferencer = Cast<UBlueprint>(ObjectReferencerPtr))
