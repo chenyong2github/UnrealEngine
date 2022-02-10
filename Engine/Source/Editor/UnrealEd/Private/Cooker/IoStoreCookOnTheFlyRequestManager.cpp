@@ -20,6 +20,9 @@
 #include "Serialization/BufferArchive.h"
 #include "NetworkMessage.h"
 #include "Engine/Engine.h"
+#include "MessageEndpoint.h"
+#include "MessageEndpointBuilder.h"
+#include "Cooker/ExternalCookOnTheFlyServer.h"
 
 class FIoStoreCookOnTheFlyNetworkServer
 {
@@ -61,7 +64,9 @@ public:
 
 	FIoStoreCookOnTheFlyNetworkServer(FServerOptions InOptions)
 		: Options(MoveTemp(InOptions))
+		, ServiceId(FExternalCookOnTheFlyServer::GenerateServiceId())
 	{
+		MessageEndpoint = FMessageEndpoint::Builder("FCookOnTheFly");
 	}
 
 	~FIoStoreCookOnTheFlyNetworkServer()
@@ -111,6 +116,14 @@ public:
 		ServerThread = AsyncThread([this] { return ServerThreadEntry(); }, 8 * 1024, TPri_AboveNormal);
 
 		UE_LOG(LogCookOnTheFly, Display, TEXT("COTF server is ready for client(s) on '%s'!"), *ListenAddr->ToString(true));
+
+		if (MessageEndpoint.IsValid())
+		{
+			FZenCookOnTheFlyRegisterServiceMessage* RegisterServiceMessage = FMessageEndpoint::MakeMessage<FZenCookOnTheFlyRegisterServiceMessage>();
+			RegisterServiceMessage->ServiceId = ServiceId;
+			RegisterServiceMessage->Port = ListenAddr->GetPort();
+			MessageEndpoint->Publish(RegisterServiceMessage);
+		}
 
 		return true;
 	}
@@ -433,6 +446,8 @@ private:
 	TAtomic<bool> bStopRequested{ false };
 	uint32 NextClientId = 1;
 	TAtomic<uint32> NextCorrelationId{ 1 };
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+	const FString ServiceId;
 };
 
 class FIoStoreCookOnTheFlyRequestManager final

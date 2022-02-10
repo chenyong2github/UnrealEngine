@@ -253,7 +253,7 @@ namespace AutomationScripts
 
 					if (Params.ZenStore)
 					{
-						COTFCommandLine += " -zenstore";
+						COTFCommandLine += " -zenstore -messaging";
 					}
 
 					var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");

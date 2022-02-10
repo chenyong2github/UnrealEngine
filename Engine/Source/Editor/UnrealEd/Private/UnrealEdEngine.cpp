@@ -71,7 +71,7 @@
 #include "ProfilingDebugging/StallDetector.h"
 #include "GameMapsSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#include "Cooker/ExternalCookOnTheFlyServer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
@@ -217,6 +217,8 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 			CookServer = NewObject<UCookOnTheFlyServer>();
 			CookServer->Initialize(ECookMode::CookByTheBookFromTheEditor, BaseCookingFlags);
 		}
+
+		ExternalCookOnTheFlyServer = new FExternalCookOnTheFlyServer();
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("nomcp")))
@@ -429,6 +431,12 @@ void UUnrealEdEngine::FinishDestroy()
 	{
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(CookServer);
 		FCoreUObjectDelegates::OnObjectModified.RemoveAll(CookServer);
+	}
+
+	if (ExternalCookOnTheFlyServer)
+	{
+		delete ExternalCookOnTheFlyServer;
+		ExternalCookOnTheFlyServer = nullptr;
 	}
 
 	if(PackageAutoSaver.Get())

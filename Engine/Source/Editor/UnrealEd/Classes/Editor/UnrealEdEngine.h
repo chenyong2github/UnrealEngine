@@ -949,6 +949,9 @@ private:
 	/** Transient unsaved version of template map infos used by the editor. */
 	TArray<FTemplateMapInfo> TemplateMapInfoCache;
 
+	/** Proxy for a cotf server running in a separate process */
+	class FExternalCookOnTheFlyServer* ExternalCookOnTheFlyServer = nullptr;
+
 	/**
 	* Internal helper function to count how many dirty packages require checkout.
 	*
