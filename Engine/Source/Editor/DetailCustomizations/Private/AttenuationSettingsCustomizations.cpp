@@ -725,7 +725,7 @@ void FForceFeedbackAttenuationSettingsCustomization::CustomizeChildren(TSharedRe
 	EnumRestriction->AddHiddenValue(AttenuationDistanceModelEnum->GetNameStringByValue((uint8)EAttenuationDistanceModel::NaturalSound));
 	DistanceAlgorithmHandle->AddRestriction(EnumRestriction.ToSharedRef());
 
-	if (PropertyHandles.Num() != 7)
+	if (PropertyHandles.Num() != 10)
 	{
 		FString PropertyList;
 		for (auto It(PropertyHandles.CreateConstIterator()); It; ++It)
