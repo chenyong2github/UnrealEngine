@@ -638,6 +638,11 @@ UEdMode* UAssetEditorSubsystem::CreateEditorModeWithToolsOwner(FEditorModeID Mod
 
 bool UAssetEditorSubsystem::FindEditorModeInfo(const FEditorModeID& InModeID, FEditorModeInfo& OutModeInfo) const
 {
+	if (!IsEditorModeAllowed(InModeID))
+	{
+		return false;
+	}
+	
 	const TSharedRef<IEditorModeFactory>* ModeFactory = FEditorModeRegistry::Get().GetFactoryMap().Find(InModeID);
 	if (ModeFactory)
 	{
@@ -660,11 +665,19 @@ TArray<FEditorModeInfo> UAssetEditorSubsystem::GetEditorModeInfoOrderedByPriorit
 
 	for (const auto& Pair : FEditorModeRegistry::Get().GetFactoryMap())
 	{
-		ModeInfoArray.Add(Pair.Value->GetModeInfo());
+		FEditorModeInfo ModeInfo = Pair.Value->GetModeInfo();
+		if (IsEditorModeAllowed(ModeInfo.ID))
+		{
+			ModeInfoArray.Add(MoveTemp(ModeInfo));
+		}
 	}
 	for (const auto& EditorMode : EditorModes)
 	{
-		ModeInfoArray.Add(EditorMode.Value.ModeInfo);
+		const FEditorModeInfo& ModeInfo = EditorMode.Value.ModeInfo;
+		if (IsEditorModeAllowed(ModeInfo.ID))
+		{
+			ModeInfoArray.Add(ModeInfo);
+		}
 	}
 
 	ModeInfoArray.Sort([](const FEditorModeInfo& A, const FEditorModeInfo& B) {
@@ -1016,6 +1029,16 @@ void UAssetEditorSubsystem::UnregisterEditorModes()
 	}
 	OnEditorModesChangedEvent.Broadcast();
 	EditorModes.Empty();
+}
+
+FNamePermissionList& UAssetEditorSubsystem::GetAllowedEditorModes()
+{
+	return AllowedEditorModes;
+}
+
+bool UAssetEditorSubsystem::IsEditorModeAllowed(const FName ModeId) const
+{
+	return AllowedEditorModes.PassesFilter(ModeId);
 }
 
 void UAssetEditorSubsystem::OnSMInstanceElementsEnabled()

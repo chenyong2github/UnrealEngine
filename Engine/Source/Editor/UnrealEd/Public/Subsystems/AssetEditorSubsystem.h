@@ -8,6 +8,7 @@
 
 #include "Containers/Ticker.h"
 #include "Tools/Modes.h"
+#include "Misc/NamePermissionList.h"
 #include "AssetEditorSubsystem.generated.h"
 
 class UAssetEditor;
@@ -198,6 +199,9 @@ public:
 	 */
 	FOnModeUnregistered& OnEditorModeUnregistered();
 
+	/** Get the permission list that controls which editor modes are exposed */
+	FNamePermissionList& GetAllowedEditorModes();
+
 private:
 
 	/** Handles FAssetEditorRequestOpenAsset messages. */
@@ -249,6 +253,8 @@ private:
 	void RegisterEditorModes();
 	void UnregisterEditorModes();
 	void OnSMInstanceElementsEnabled();
+
+	bool IsEditorModeAllowed(const FName ModeId) const;
 
 private:
 
@@ -334,4 +340,10 @@ private:
 
 	/** Event that is triggered whenever a mode is unregistered */
 	FOnModeUnregistered OnEditorModeUnregisteredEvent;
+	
+	/**
+	 * Which FEditorModeInfo data should be returned when queried, filtered by the mode's ID.
+	 * Note that this does not disable or unregister disallowed modes, it simply removes them from the query results.
+	 */
+	FNamePermissionList AllowedEditorModes;
 };
