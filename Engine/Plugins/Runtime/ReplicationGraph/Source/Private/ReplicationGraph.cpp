@@ -705,7 +705,9 @@ void UReplicationGraph::ForceNetUpdate(AActor* Actor)
 	if (FGlobalActorReplicationInfo* RepInfo = GlobalActorReplicationInfoMap.Find(Actor))
 	{
 		RepInfo->ForceNetUpdateFrame = ReplicationGraphFrame;
+#if REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 		RepInfo->Events.ForceNetUpdate.Broadcast(Actor, *RepInfo);
+#endif // REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 
 		CSVTracker.PostActorForceUpdated(Actor->GetClass());
 	}

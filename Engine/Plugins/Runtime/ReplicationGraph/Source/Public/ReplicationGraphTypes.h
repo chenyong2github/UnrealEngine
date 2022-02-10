@@ -56,6 +56,10 @@ LLM_DECLARE_TAG_API(NetRepGraph, REPLICATIONGRAPH_API);
 	const Type Var = Value;
 #endif
 
+#ifndef REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
+#define REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE 1
+#endif // REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // Actor Replication List Types
@@ -527,13 +531,18 @@ struct FFastSharedReplicationInfo
 
 DECLARE_MULTICAST_DELEGATE_FourParams(FNotifyActorChangeDormancy, FActorRepListType, FGlobalActorReplicationInfo&, ENetDormancy /*NewVlue*/, ENetDormancy /*OldValue*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FNotifyActorFlushDormancy, FActorRepListType, FGlobalActorReplicationInfo&);
+
+#if REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 DECLARE_MULTICAST_DELEGATE_TwoParams(FNotifyActorForceNetUpdate, FActorRepListType, FGlobalActorReplicationInfo&);
+#endif // REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 
 struct FGlobalActorReplicationEvents
 {
 	FNotifyActorChangeDormancy	DormancyChange;
 	FNotifyActorFlushDormancy	DormancyFlush; // This delegate is cleared after broadcasting
+#if REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 	FNotifyActorForceNetUpdate	ForceNetUpdate;
+#endif // REPGRAPH_ENABLE_FORCENETUPDATE_DELEGATE
 };
 
 /** Per-Actor data that is global for the entire Replication Graph */
