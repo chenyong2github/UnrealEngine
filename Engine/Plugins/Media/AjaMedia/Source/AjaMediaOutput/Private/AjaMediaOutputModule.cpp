@@ -5,6 +5,7 @@
 #include "AjaMediaFrameGrabberProtocol.h"
 #include "AjaLib.h"
 #include "DynamicRHI.h"
+#include "GenericPlatform/GenericPlatformDriver.h"
 #include "RenderingThread.h"
 #include "RHI.h"
 
@@ -14,51 +15,57 @@ DEFINE_LOG_CATEGORY(LogAjaMediaOutput);
 
 void FAjaMediaOutputModule::StartupModule()
 {
-	ENQUEUE_RENDER_COMMAND(AjaMediaCaptureInitialize)(
-		[this](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			if (!GDynamicRHI)
-			{
-				return;
-			}
+	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA();
 
-			auto GetRHI = []()
+	if (bIsGPUTextureTransferAvailable)
+	{
+		ENQUEUE_RENDER_COMMAND(AjaMediaCaptureInitialize)(
+			[this](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				FString RHIName = GDynamicRHI->GetName();
-				if (RHIName == TEXT("D3D11"))
+				if (!GDynamicRHI)
 				{
-					return AJA::ERHI::D3D11;
-				}
-				else if (RHIName == TEXT("D3D12"))
-				{
-					return AJA::ERHI::D3D12;
-				}
-				else if (RHIName == TEXT("Vulkan"))
-				{
-					return AJA::ERHI::Vulkan;
+					return;
 				}
 
-				return AJA::ERHI::Invalid;
+				auto GetRHI = []()
+				{
+					FString RHIName = GDynamicRHI->GetName();
+					if (RHIName == TEXT("D3D11"))
+					{
+						return AJA::ERHI::D3D11;
+					}
+					else if (RHIName == TEXT("D3D12"))
+					{
+						return AJA::ERHI::D3D12;
+					}
+					else if (RHIName == TEXT("Vulkan"))
+					{
+						return AJA::ERHI::Vulkan;
+					}
 
-			};
+					return AJA::ERHI::Invalid;
 
-			AJA::FInitializeDMAArgs Args;
-			AJA::ERHI RHI = GetRHI();
-			Args.RHI = RHI;
-			/* Re-enable when adding vulkan support
-			if (RHI == AJA::ERHI::Vulkan)
-			{
-				FVulkanDynamicRHI* vkDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
-				Args.InVulkanInstance = vkDynamicRHI->GetInstance();
+				};
 
-				FMemory::Memcpy(Args.InRHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);
-			}
-			*/
-			Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-			Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+				AJA::FInitializeDMAArgs Args;
+				AJA::ERHI RHI = GetRHI();
+				Args.RHI = RHI;
+				/* Re-enable when adding vulkan support
+				if (RHI == AJA::ERHI::Vulkan)
+				{
+					FVulkanDynamicRHI* vkDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+					Args.InVulkanInstance = vkDynamicRHI->GetInstance();
 
-			bIsGPUTextureTransferAvailable = AJA::InitializeDMA(Args);
-		});
+					FMemory::Memcpy(Args.InRHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);
+				}
+				*/
+				Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+				Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+
+				bIsGPUTextureTransferAvailable = AJA::InitializeDMA(Args);
+			});
+	}
 }
 
 void FAjaMediaOutputModule::ShutdownModule()

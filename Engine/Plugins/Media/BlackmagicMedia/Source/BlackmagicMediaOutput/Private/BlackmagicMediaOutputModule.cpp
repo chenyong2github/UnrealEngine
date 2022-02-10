@@ -3,6 +3,7 @@
 #include "BlackmagicMediaOutputModule.h"
 
 #include "BlackmagicLib.h"
+#include "GenericPlatform/GenericPlatformDriver.h"
 #include "RenderingThread.h"
 #include "RHI.h"
 
@@ -15,42 +16,48 @@ FBlackmagicMediaOutputModule& FBlackmagicMediaOutputModule::Get()
 
 void FBlackmagicMediaOutputModule::StartupModule()
 {
-	ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
-		[this](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			if (!GDynamicRHI)
+	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA();
+
+	if (bIsGPUTextureTransferAvailable)
+	{
+		ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
+			[this](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				return;
-			}
-
-			auto GetRHI = []()
-			{
-				FString RHIName = GDynamicRHI->GetName();
-				if (RHIName == TEXT("D3D11"))
+				if (!GDynamicRHI)
 				{
-					return BlackmagicDesign::ERHI::D3D11;
-				}
-				else if (RHIName == TEXT("D3D12"))
-				{
-					return BlackmagicDesign::ERHI::D3D12;
-				}
-				else if (RHIName == TEXT("Vulkan"))
-				{
-					return BlackmagicDesign::ERHI::Vulkan;
+					return;
 				}
 
-				return  BlackmagicDesign::ERHI::Invalid;
-			};
+				auto GetRHI = []()
+				{
+					FString RHIName = GDynamicRHI->GetName();
+					if (RHIName == TEXT("D3D11"))
+					{
+						return BlackmagicDesign::ERHI::D3D11;
+					}
+					else if (RHIName == TEXT("D3D12"))
+					{
+						return BlackmagicDesign::ERHI::D3D12;
+					}
+					else if (RHIName == TEXT("Vulkan"))
+					{
+						return BlackmagicDesign::ERHI::Vulkan;
+					}
+
+					return  BlackmagicDesign::ERHI::Invalid;
+				};
 
 
-			BlackmagicDesign::FInitializeDMAArgs Args;
-			BlackmagicDesign::ERHI RHI = GetRHI();
-			Args.RHI = RHI;
-			Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-			Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+				BlackmagicDesign::FInitializeDMAArgs Args;
+				BlackmagicDesign::ERHI RHI = GetRHI();
+				Args.RHI = RHI;
+				Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+				Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
 
-			bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
-		});
+				bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
+			});
+	}
 }
 
 void FBlackmagicMediaOutputModule::ShutdownModule()
