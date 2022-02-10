@@ -3065,7 +3065,10 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			{
 				if (!TranslationStages[i].CustomWriteFunction.IsEmpty())
 				{
-					HlslOutput += TranslationStages[i].CustomWriteFunction + TEXT("(Context);\n\n");
+					HlslOutput += TEXT("if ( bIsValidInstance )\n");
+					HlslOutput += TEXT("{\n");
+					HlslOutput += TEXT("\t") + TranslationStages[i].CustomWriteFunction + TEXT("(Context);\n\n");
+					HlslOutput += TEXT("}\n");
 					continue;
 				}
 			}
@@ -5425,7 +5428,11 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					else
 					{
 						DataInterface = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(const_cast<UClass*>(InVariable.GetType().GetClass()));
-						checkf(DataInterface != nullptr, TEXT("GetDuplicatedDataInterfaceCDOForClass failed for Variable(%s) Class(%s)"), *InVariable.GetName().ToString(), *InVariable.GetType().GetClass()->GetName());
+						if (DataInterface == nullptr)
+						{
+							Error(FText::Format(LOCTEXT("GetDuplicatedDataInterfaceCDOForClassFailed", "GetDuplicatedDataInterfaceCDOForClass failed for Variable({0}) Class({1})"), FText::FromName(InVariable.GetName()), InVariable.GetType().GetNameText()), InNodeForErrorReporting, InDefaultPin);
+							return false;
+						}
 					}
 					if (ensure(DataInterface))
 					{
