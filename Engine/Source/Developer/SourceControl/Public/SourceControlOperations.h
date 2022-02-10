@@ -94,12 +94,25 @@ public:
 		return SuccessMessage;
 	}
 
+	void SetKeepCheckedOut( const bool bInKeepCheckedOut )
+	{
+		bKeepCheckedOut = bInKeepCheckedOut;
+	}
+
+	bool GetKeepCheckedOut()
+	{
+		return bKeepCheckedOut;
+	}
+
 protected:
 	/** Description of the checkin */
 	FText Description;
 
 	/** A short message listing changelist/revision we submitted, if successful */
 	FText SuccessMessage;
+
+	/** Keep files checked-out after checking in */
+	bool bKeepCheckedOut = false;
 };
 
 /**
@@ -118,6 +131,51 @@ public:
 	{
 		return LOCTEXT("SourceControl_CheckOut", "Checking file(s) out of Source Control...");
 	}
+};
+
+/**
+ * Operation used to get the file list of a folder out of source control
+ */
+class FGetFileList : public FSourceControlOperationBase
+{
+public:
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "GetFileList";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_GetFileList", "Getting file list out of Source Control...");
+	}
+
+	void SetIncludeDeleted( const bool bInIncludeDeleted )
+	{
+		bIncludeDeleted = bInIncludeDeleted;
+	}
+
+	bool GetIncludeDeleted()
+	{
+		return bIncludeDeleted;
+	}
+
+	const TArray<FString>& GetFilesList() const
+	{
+		return FilesList;
+	}
+
+	void SetFilesList(TArray<FString>&& InFilesList)
+	{
+		FilesList = MoveTemp(InFilesList);
+	}
+
+protected:
+	/** Include deleted files in the list. */
+	bool bIncludeDeleted = false;
+
+	/** Stored result of the operation */
+	TArray<FString> FilesList;
 };
 
 /**

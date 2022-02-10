@@ -111,7 +111,7 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, bool bAl
 	}
 
 	// Package paths
-	if (SCFile[0] == TEXT('/') && FPackageName::IsValidLongPackageName(SCFile, /*bIncludeReadOnlyRoots*/false))//	if (SCFile[0] == TEXT('/') && FPackageName::IsValidPath(SCFile))
+	if (SCFile[0] == TEXT('/') && FPackageName::IsValidLongPackageName(SCFile, /*bIncludeReadOnlyRoots*/false))
 	{
 		// Assume it is a package
 		bool bPackage = true;
@@ -1007,7 +1007,7 @@ bool USourceControlHelpers::RevertUnchangedFiles(const TArray<FString>& InFiles,
 }
 
 
-bool USourceControlHelpers::CheckInFile(const FString& InFile, const FString& InDescription, bool bSilent)
+bool USourceControlHelpers::CheckInFile(const FString& InFile, const FString& InDescription, bool bSilent, bool bKeepCheckedOut)
 {
 	// Determine file type and ensure it is in form source control wants
 	FString SCFile = SourceControlHelpersInternal::ConvertFileToQualifiedPath(InFile, bSilent);
@@ -1028,13 +1028,15 @@ bool USourceControlHelpers::CheckInFile(const FString& InFile, const FString& In
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOp = ISourceControlOperation::Create<FCheckIn>();
 	CheckInOp->SetDescription(FText::FromString(InDescription));
 
+	CheckInOp->SetKeepCheckedOut(bKeepCheckedOut);
+
 	ECommandResult::Type Result = Provider->Execute(CheckInOp, SCFile);
 
 	return Result == ECommandResult::Succeeded;
 }
 
 
-bool USourceControlHelpers::CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent)
+bool USourceControlHelpers::CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent, bool bKeepCheckedOut)
 {
 	// If we have nothing to process, exit immediately
 	if (InFiles.IsEmpty())
@@ -1058,6 +1060,8 @@ bool USourceControlHelpers::CheckInFiles(const TArray<FString>& InFiles, const F
 	// This multi-file version could be made similarly more sophisticated.
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOp = ISourceControlOperation::Create<FCheckIn>();
 	CheckInOp->SetDescription(FText::FromString(InDescription));
+
+	CheckInOp->SetKeepCheckedOut(bKeepCheckedOut);
 
 	ECommandResult::Type Result = Provider->Execute(CheckInOp, FilePaths);
 
@@ -1177,7 +1181,43 @@ FSourceControlState USourceControlHelpers::QueryFileState(const FString& InFile,
 	return State;
 }
 
+bool USourceControlHelpers::GetFilesInDepotAtPath(const FString& PathToDirectory, TArray<FString>& OutFilesList, bool bIncludeDeleted, bool bSilent)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(USourceControlHelpers::GetFilesInDepotAtPath);
 
+	bool bSuccess = false;
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+		if (SourceControlProvider.IsAvailable())
+		{
+			FString CorrectedPath = PathToDirectory.Replace(TEXT("/Game"), TEXT(""), ESearchCase::CaseSensitive);
+			FString FullPath = FPaths::ProjectContentDir() / CorrectedPath;
+			FPaths::RemoveDuplicateSlashes(FullPath);
+
+			TArray<FString> FileArray;
+			FileArray.Add(FullPath);
+
+			TSharedRef<FGetFileList, ESPMode::ThreadSafe> Operation = ISourceControlOperation::Create<FGetFileList>();
+			Operation->SetIncludeDeleted(bIncludeDeleted);
+
+			ECommandResult::Type Result = SourceControlProvider.Execute(Operation, FileArray, EConcurrency::Synchronous);
+			bSuccess = (Result == ECommandResult::Succeeded);
+
+			if (!bSuccess)
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("PathToDirectory"), FText::FromString(PathToDirectory));
+				SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("CouldNotGetFileList", "Could not get file list under path: {PathToDirectory}."), Arguments), bSilent);
+			}
+			else
+			{
+				OutFilesList = Operation->GetFilesList();
+			}
+		}
+	}
+	return bSuccess;
+}
 
 static FString PackageFilename_Internal( const FString& InPackageName )
 {

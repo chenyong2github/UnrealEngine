@@ -507,6 +507,11 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			TArray<FString> SubmitParams;
 			FP4RecordSet Records;
 
+			if (Operation->GetKeepCheckedOut())
+			{
+				SubmitParams.Add(TEXT("-r"));
+			}
+
 			SubmitParams.Add(TEXT("-c"));
 			SubmitParams.Add(ChangeList.ToString());
 
@@ -592,6 +597,55 @@ bool FPerforceCheckInWorker::UpdateStates() const
 	}
 
 	return (bUpdatedStates || bUpdatedChangelistStates);
+}
+
+FName FPerforceGetFileListWorker::GetName() const
+{
+	return "GetFileList";
+}
+
+static void AppendMaskParameter(TArray<FString>& InOutParams)
+{
+	for (int i = 0; i < InOutParams.Num(); ++i)
+	{
+		InOutParams[i] += TEXT("/...");
+	}
+}
+
+bool FPerforceGetFileListWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		TSharedRef<FGetFileList, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFileList>(InCommand.Operation);
+
+		TArray<FString> Parameters;
+		if (!Operation->GetIncludeDeleted())
+		{
+			Parameters.Add(TEXT("-e"));
+		}
+		Parameters.Append(InCommand.Files);
+		AppendMaskParameter(Parameters);
+		FP4RecordSet Records;
+		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("files"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+		ParseRecordSetForState(Records, OutResults);
+
+		TArray<FString> FilesList;
+		FilesList.Reserve(OutResults.Num());
+		for (const auto& Pair : OutResults)
+		{
+			FilesList.Add(Pair.Key);
+		}
+		Operation->SetFilesList(MoveTemp(FilesList));
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceGetFileListWorker::UpdateStates() const
+{
+	return false;
 }
 
 FName FPerforceMarkForAddWorker::GetName() const
@@ -2892,8 +2946,6 @@ bool FPerforceCreateWorkspaceWorker::Execute(class FPerforceSourceControlCommand
 			ClientDesc << Mapping.Value << TEXT("\n");
 		}
 
-		AddType(*Operation, ClientDesc);
-		
 		InCommand.bCommandSuccessful = Connection.CreateWorkspace(	ClientDesc,
 																	FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled),
 																	InCommand.ResultInfo.ErrorMessages);
@@ -2910,28 +2962,6 @@ bool FPerforceCreateWorkspaceWorker::UpdateStates() const
 FName FPerforceDeleteWorkspaceWorker::GetName() const
 {
 	return "DeleteWorkspace";
-}
-
-void FPerforceCreateWorkspaceWorker::AddType(const FCreateWorkspace& Operation, FStringBuilderBase& ClientDesc)
-{
-	ClientDesc << TEXT("Type:\t");
-
-	switch (Operation.GetType())
-	{
-	case FCreateWorkspace::EType::Writeable:
-		ClientDesc << TEXT("writeable");
-		break;
-	case FCreateWorkspace::EType::ReadOnly:
-		ClientDesc << TEXT("readonly");
-		break;
-	case FCreateWorkspace::EType::Partitioned:
-		ClientDesc << TEXT("partitioned");
-		break;
-	default:
-		checkNoEntry();
-	}
-
-	ClientDesc << TEXT("\n");
 }
 
 bool FPerforceDeleteWorkspaceWorker::Execute(class FPerforceSourceControlCommand& InCommand)

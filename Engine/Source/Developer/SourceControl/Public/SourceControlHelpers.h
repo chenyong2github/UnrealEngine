@@ -383,10 +383,11 @@ public:
 	 * @param	InFile			The file to check in - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
 	 * @param	InDescription	Description for check in
 	 * @param	bSilent			if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @param	bKeepCheckedOut Keep files checked-out after checking in. This is helpful for maintaining "ownership" of files if further operations are needed.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
-	static bool CheckInFile(const FString& InFile, const FString& InDescription, bool bSilent = false);
+	static bool CheckInFile(const FString& InFile, const FString& InDescription, bool bSilent = false, bool bKeepCheckedOut = false);
 
 	/**
 	 * Use currently set source control provider to check in specified files.
@@ -395,10 +396,11 @@ public:
 	 * @param	InFiles			Files to check out - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
 	 * @param	InDescription	Description for check in
 	 * @param	bSilent			if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @param	bKeepCheckedOut Keep files checked-out after checking in. This is helpful for maintaining "ownership" of files if further operations are needed.
 	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
-	static bool CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent = false);
+	static bool CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent = false, bool bKeepCheckedOut = false);
 
 	/**
 	 * Use currently set source control provider to copy a file.
@@ -436,6 +438,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
 	static FSourceControlState QueryFileState(const FString& InFile, bool bSilent = false);
 
+	/**
+	 * Use currently set source control provider to query the list of files in the depot under a certain path.
+	 * @note	Blocks until action is complete.
+	 *
+	 * @param	PathToDirectory	The path which we want to query the list of files from.
+	 * @param	OutFilesList	An array containing the list of files under the queried path.
+	 * @param	bIncludeDeleted	Include files that have been deleted from the depot.
+	 * @param	bSilent			if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @return	Success or failure of the operation
+	 */
+	static bool GetFilesInDepotAtPath(const FString& PathToDirectory, TArray<FString>& OutFilesList, bool bIncludeDeleted = false, bool bSilent = false);
 
 	/**
 	 * Helper function to get a filename for a package name.

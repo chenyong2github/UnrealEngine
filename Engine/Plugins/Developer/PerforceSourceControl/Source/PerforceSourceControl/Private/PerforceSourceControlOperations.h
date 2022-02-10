@@ -55,6 +55,20 @@ public:
 	FPerforceSourceControlChangelist OutChangelist;
 };
 
+class FPerforceGetFileListWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceGetFileListWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+
+public:
+	/** Map of filenames to perforce state */
+	TMap<FString, EPerforceState::Type> OutResults;
+};
+
 class FPerforceMarkForAddWorker : public IPerforceSourceControlWorker
 {
 public:

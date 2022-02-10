@@ -40,6 +40,7 @@ void FPerforceSourceControlModule::StartupModule()
 	PerforceSourceControlProvider.RegisterWorker( "DownloadFile", FGetPerforceSourceControlWorker::CreateStatic( &CreateWorker<FPerforceDownloadFileWorker>) );
 	PerforceSourceControlProvider.RegisterWorker( "CreateWorkspace", FGetPerforceSourceControlWorker::CreateStatic( &CreateWorker<FPerforceCreateWorkspaceWorker>) );
 	PerforceSourceControlProvider.RegisterWorker( "DeleteWorkspace", FGetPerforceSourceControlWorker::CreateStatic( &CreateWorker<FPerforceDeleteWorkspaceWorker>) );
+	PerforceSourceControlProvider.RegisterWorker( "GetFileList", FGetPerforceSourceControlWorker::CreateStatic(&CreateWorker<FPerforceGetFileListWorker>));
 
 	// load our settings
 	PerforceSourceControlSettings.LoadSettings();
