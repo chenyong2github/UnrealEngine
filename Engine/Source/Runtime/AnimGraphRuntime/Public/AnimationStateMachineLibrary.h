@@ -7,6 +7,7 @@
 #include "Animation/AnimExecutionContext.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Animation/AnimNodeReference.h"
+#include "Animation/AnimStateMachineTypes.h"
 #include "AnimationStateMachineLibrary.generated.h"
 
 struct FAnimNode_StateMachine;
