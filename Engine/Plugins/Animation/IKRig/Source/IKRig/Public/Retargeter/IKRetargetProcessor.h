@@ -95,12 +95,12 @@ struct IKRIG_API FResolvedBoneChain
 	bool bFoundStartBone = false;
 	/* Does the END bone exist in the skeleton? */
 	bool bFoundEndBone = false;
-	/* Is the END bone a child of the START bone? */
-	bool bEndIsChildOfStart = false;
+	/* Is the END bone equals or a child of the START bone? */
+	bool bEndIsStartOrChildOfStart  = false;
 
 	bool IsValid() const
 	{
-		return bFoundStartBone && bFoundEndBone && bEndIsChildOfStart;
+		return bFoundStartBone && bFoundEndBone && bEndIsStartOrChildOfStart;
 	}
 };
 
