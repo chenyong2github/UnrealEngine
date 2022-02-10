@@ -72,6 +72,9 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		Descriptor.AdditionalFieldsToWrite.FindOrAdd(TEXT("BuiltInInitialFeatureState")) = MakeShared<FJsonValueString>(TEXT("Active"));
 		Descriptor.Category = TEXT("Game Features");
 
+		// Game features should be disabled by default, as they are managed by the game feature subsystem
+		Descriptor.EnabledByDefault = EPluginEnabledByDefault::Disabled;
+
 		if (Descriptor.Modules.Num() > 0)
 		{
 			Descriptor.Modules[0].Name = FName(*(Descriptor.Modules[0].Name.ToString() + TEXT("Runtime")));
