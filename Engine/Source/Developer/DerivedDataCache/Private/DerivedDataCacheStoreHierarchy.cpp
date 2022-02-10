@@ -795,11 +795,13 @@ void FCacheStoreHierarchy::FCacheRecordBatchParams::FilterResponseByRequest(
 	FCacheGetResponse& Response,
 	const FCacheGetRequest& Request)
 {
-	if ((!Request.Policy.IsUniform() && Algo::AnyOf(Response.Record.GetValues(), &FValue::HasData)) ||
-		(EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::SkipMeta) && Response.Record.GetMeta()))
+	const ECachePolicy RecordPolicy = Request.Policy.GetRecordPolicy();
+	const bool bMightSkipData = EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipData) || !Request.Policy.IsUniform();
+	if ((bMightSkipData && Algo::AnyOf(Response.Record.GetValues(), &FValue::HasData)) ||
+		(EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipMeta) && Response.Record.GetMeta()))
 	{
 		FCacheRecordBuilder Builder(Response.Record.GetKey());
-		if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
+		if (!EnumHasAnyFlags(RecordPolicy, ECachePolicy::SkipMeta))
 		{
 			Builder.SetMeta(CopyTemp(Response.Record.GetMeta()));
 		}
@@ -1069,7 +1071,7 @@ auto FCacheStoreHierarchy::FLegacyCacheBatchParams::Get() -> GetFunctionType
 template <>
 bool FCacheStoreHierarchy::FLegacyCacheBatchParams::HasResponseData(const FLegacyCacheGetResponse& Response)
 {
-	return !Response.Value.IsNull();
+	return Response.Value.HasData();
 }
 
 template <>
@@ -1088,7 +1090,7 @@ FLegacyCachePutRequest FCacheStoreHierarchy::FLegacyCacheBatchParams::MakePutReq
 	const FLegacyCacheGetResponse& Response,
 	const FLegacyCacheGetRequest& Request)
 {
-	return {Response.Name, Response.Key, FCompositeBuffer(Response.Value), Request.Policy};
+	return {Response.Name, Response.Key, Response.Value, Request.Policy};
 }
 
 template <>

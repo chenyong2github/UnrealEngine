@@ -5,6 +5,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/BitArray.h"
+#include "Containers/StringView.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataLegacyCacheStore.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -34,9 +35,19 @@ LLM_DECLARE_TAG_API(UntaggedDDCResult, DERIVEDDATACACHE_API);
 namespace UE::DerivedData
 {
 
+enum class EBackendLegacyMode
+{
+	/** Use only GetValue/PutValue. */
+	ValueOnly,
+	/** Use GetValue/PutValue with a fallback to GetCachedData+PutValue for misses. */
+	ValueWithLegacyFallback,
+	/** Use only GetCachedData/PutCachedData. */
+	LegacyOnly,
+};
+
 /**
-	* Speed classes. Higher values are faster so > / < comparisons make sense.
-	*/
+ * Speed classes. Higher values are faster so > / < comparisons make sense.
+ */
 enum class EBackendSpeedClass
 {
 	Unknown,		/* Don't know yet*/
@@ -199,24 +210,26 @@ public:
 	 */
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
 
+	virtual EBackendLegacyMode GetLegacyMode() const { return EBackendLegacyMode::LegacyOnly; }
+
 	virtual void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) override;
+		FOnLegacyCachePutComplete&& OnComplete) final;
 
 	virtual void LegacyGet(
 		TConstArrayView<FLegacyCacheGetRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) override;
+		FOnLegacyCacheGetComplete&& OnComplete) final;
 
 	virtual void LegacyDelete(
 		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) override;
+		FOnLegacyCacheDeleteComplete&& OnComplete) final;
 
-	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) override;
+	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
 
-	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) override;
+	virtual bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 };
 
 class FDerivedDataBackend
@@ -272,6 +285,42 @@ public:
 };
 
 /** Lexical conversions from and to enums */
+
+[[nodiscard]] inline const TCHAR* LexToString(const EBackendLegacyMode Value)
+{
+	switch (Value)
+	{
+	case EBackendLegacyMode::ValueOnly:
+		return TEXT("ValueOnly");
+	case EBackendLegacyMode::ValueWithLegacyFallback:
+		return TEXT("ValueWithLegacyFallback");
+	case EBackendLegacyMode::LegacyOnly:
+		return TEXT("LegacyOnly");
+	default:
+		checkNoEntry();
+		return TEXT("Unknown");
+	}
+}
+
+[[nodiscard]] inline bool TryLexFromString(EBackendLegacyMode& OutValue, const FStringView String)
+{
+	if (String == TEXTVIEW("ValueOnly"))
+	{
+		OutValue = EBackendLegacyMode::ValueOnly;
+		return true;
+	}
+	if (String == TEXTVIEW("ValueWithLegacyFallback"))
+	{
+		OutValue = EBackendLegacyMode::ValueWithLegacyFallback;
+		return true;
+	}
+	if (String == TEXTVIEW("LegacyOnly"))
+	{
+		OutValue = EBackendLegacyMode::LegacyOnly;
+		return true;
+	}
+	return false;
+}
 
 inline const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
 {

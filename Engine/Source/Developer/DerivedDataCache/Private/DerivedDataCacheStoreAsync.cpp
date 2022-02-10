@@ -251,6 +251,14 @@ private:
 	FLazyEvent DoneEvent{EEventMode::ManualReset};
 };
 
+void Private::ExecuteInCacheThreadPool(
+	IRequestOwner& Owner,
+	TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)>&& Function)
+{
+	FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner, MoveTemp(Function));
+	Request->Start(Owner.GetPriority());
+}
+
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>
 void FCacheStoreAsync::Execute(
 	COOK_STAT(CookStatsFunction OnAddStats,)
@@ -278,8 +286,12 @@ void FCacheStoreAsync::Execute(
 		return ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
 	}
 
-	FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-		[this, Requests = TArray<RequestType>(Requests), OnComplete = MoveTemp(OnComplete), ExecuteWithStats = MoveTemp(ExecuteWithStats)](IRequestOwner& Owner, bool bCancel) mutable
+	Private::ExecuteInCacheThreadPool(Owner,
+		[this,
+		Requests = TArray<RequestType>(Requests),
+		OnComplete = MoveTemp(OnComplete),
+		ExecuteWithStats = MoveTemp(ExecuteWithStats)]
+		(IRequestOwner& Owner, bool bCancel) mutable
 		{
 			if (!bCancel)
 			{
@@ -291,7 +303,6 @@ void FCacheStoreAsync::Execute(
 				FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-Requests.Num());
 			}
 		});
-	Request->Start(Owner.GetPriority());
 }
 
 ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts)

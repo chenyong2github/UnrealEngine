@@ -3,7 +3,10 @@
 #pragma once
 
 #include "DerivedDataCacheStore.h"
+#include "HAL/CriticalSection.h"
 #include "Logging/LogMacros.h"
+#include "Templates/RefCounting.h"
+#include <atomic>
 
 class FDerivedDataCacheStatsNode;
 
@@ -15,6 +18,7 @@ namespace UE::DerivedData { struct FLegacyCacheGetRequest; }
 namespace UE::DerivedData { struct FLegacyCacheGetResponse; }
 namespace UE::DerivedData { struct FLegacyCachePutRequest; }
 namespace UE::DerivedData { struct FLegacyCachePutResponse; }
+namespace UE::DerivedData::Private { class FLegacyCacheValueShared; }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
 
@@ -31,17 +35,17 @@ public:
 	virtual void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCachePutComplete&& OnComplete) = 0;
+		FOnLegacyCachePutComplete&& OnComplete);
 
 	virtual void LegacyGet(
 		TConstArrayView<FLegacyCacheGetRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCacheGetComplete&& OnComplete) = 0;
+		FOnLegacyCacheGetComplete&& OnComplete);
 
 	virtual void LegacyDelete(
 		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
 		IRequestOwner& Owner,
-		FOnLegacyCacheDeleteComplete&& OnComplete) = 0;
+		FOnLegacyCacheDeleteComplete&& OnComplete);
 
 	virtual void LegacyStats(FDerivedDataCacheStatsNode& OutNode) = 0;
 
@@ -68,11 +72,65 @@ private:
 	FSharedString ShortKey;
 };
 
+class Private::FLegacyCacheValueShared final
+{
+public:
+	explicit FLegacyCacheValueShared(const FValue& Value);
+	explicit FLegacyCacheValueShared(const FCompositeBuffer& RawData);
+
+	inline bool HasData() const { return Value.HasData() || RawData; }
+	const FValue& GetValue();
+	const FCompositeBuffer& GetRawData();
+	FIoHash GetRawHash() const;
+	uint64 GetRawSize() const;
+
+	inline void AddRef()
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release()
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+private:
+	FValue Value;
+	FCompositeBuffer RawData;
+	std::atomic<uint32> ReferenceCount{0};
+	FRWLock Lock;
+};
+
+class FLegacyCacheValue
+{
+public:
+	FLegacyCacheValue() = default;
+	explicit FLegacyCacheValue(const FValue& Value);
+	explicit FLegacyCacheValue(const FCompositeBuffer& RawData);
+
+	inline void Reset() { Shared.SafeRelease(); }
+
+	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
+	[[nodiscard]] inline bool IsNull() const { return !Shared; }
+
+	[[nodiscard]] bool HasData() const { return Shared ? Shared->HasData() : false; }
+	[[nodiscard]] const FValue& GetValue() const { return Shared ? Shared->GetValue() : FValue::Null; }
+	[[nodiscard]] const FCompositeBuffer& GetRawData() const { return Shared ? Shared->GetRawData() : FCompositeBuffer::Null; }
+	[[nodiscard]] inline FIoHash GetRawHash() const { return Shared ? Shared->GetRawHash() : FIoHash(); }
+	[[nodiscard]] inline uint64 GetRawSize() const { return Shared ? Shared->GetRawSize() : 0; }
+
+private:
+	TRefCountPtr<Private::FLegacyCacheValueShared> Shared;
+};
+
 struct FLegacyCachePutRequest
 {
 	FSharedString Name;
 	FLegacyCacheKey Key;
-	FCompositeBuffer Value;
+	FLegacyCacheValue Value;
 	ECachePolicy Policy = ECachePolicy::Default;
 	uint64 UserData = 0;
 
@@ -101,7 +159,7 @@ struct FLegacyCacheGetResponse
 {
 	FSharedString Name;
 	FLegacyCacheKey Key;
-	FSharedBuffer Value;
+	FLegacyCacheValue Value;
 	uint64 UserData = 0;
 	EStatus Status = EStatus::Error;
 };

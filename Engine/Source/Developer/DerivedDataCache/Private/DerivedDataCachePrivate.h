@@ -9,8 +9,11 @@
 class FDerivedDataCacheInterface;
 class FQueuedThreadPool;
 
+template <typename FuncType> class TUniqueFunction;
+
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class ICache; }
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheKey; }
 
 namespace UE::DerivedData::Private
@@ -26,6 +29,11 @@ ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache);
 uint64 GetCacheRecordCompressedSize(const FCacheRecord& Record);
 uint64 GetCacheRecordTotalRawSize(const FCacheRecord& Record);
 uint64 GetCacheRecordRawSize(const FCacheRecord& Record);
+
+// Implemented in DerivedDataCacheStoreAsync.cpp
+void ExecuteInCacheThreadPool(
+	IRequestOwner& Owner,
+	TUniqueFunction<void (IRequestOwner& Owner, bool bCancel)>&& Function);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

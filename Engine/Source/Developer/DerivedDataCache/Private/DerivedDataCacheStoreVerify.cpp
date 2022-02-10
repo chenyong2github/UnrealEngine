@@ -127,7 +127,14 @@ private:
 
 	static bool CompareRecords(const FCacheRecord& PutRecord, const FCacheRecord& GetRecord, const FSharedString& Name);
 
-	static void LogChangedValue(const FSharedString& Name, const FCacheKey& Key, const FValueId& Id, const FValue& NewValue, const FValue& OldValue);
+	static void LogChangedValue(
+		const FSharedString& Name,
+		const FCacheKey& Key,
+		const FValueId& Id,
+		const FIoHash& NewRawHash,
+		const FIoHash& OldRawHash,
+		const FCompositeBuffer& NewRawData,
+		const FCompositeBuffer& OldRawData);
 
 private:
 	ILegacyCacheStore* InnerCache;
@@ -387,7 +394,9 @@ void FCacheStoreVerify::GetDataComplete(IRequestOwner& Owner, FVerifyPutValueSta
 		}
 		else
 		{
-			LogChangedValue(Request.Name, Request.Key, FValueId::Null, Request.Value, Response.Value);
+			LogChangedValue(Request.Name, Request.Key, FValueId::Null,
+				Request.Value.GetRawHash(), Response.Value.GetRawHash(),
+				Request.Value.GetData().DecompressToComposite(), Response.Value.GetData().DecompressToComposite());
 			if (bPutOnError)
 			{
 				// Ask to overwrite existing values to potentially eliminate the mismatch.
@@ -528,8 +537,8 @@ void FCacheStoreVerify::GetDataComplete(IRequestOwner& Owner, FVerifyLegacyPutSt
 
 	if (Response.Status == EStatus::Ok)
 	{
-		const FValue NewValue(FCompressedBuffer::Compress(Request.Value, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None));
-		const FValue OldValue(FCompressedBuffer::Compress(Response.Value, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None));
+		const FLegacyCacheValue& NewValue = Request.Value;
+		const FLegacyCacheValue& OldValue = Response.Value;
 		if (NewValue.GetRawHash() == OldValue.GetRawHash())
 		{
 			UE_LOG(LogDerivedDataCache, Log,
@@ -539,7 +548,9 @@ void FCacheStoreVerify::GetDataComplete(IRequestOwner& Owner, FVerifyLegacyPutSt
 		}
 		else
 		{
-			LogChangedValue(Request.Name, Request.Key.GetKey(), FValueId::Null, NewValue, OldValue);
+			LogChangedValue(Request.Name, Request.Key.GetKey(), FValueId::Null,
+				NewValue.GetRawHash(), OldValue.GetRawHash(),
+				NewValue.GetRawData(), OldValue.GetRawData());
 			if (bPutOnError)
 			{
 				// Ask to overwrite existing values to potentially eliminate the mismatch.
@@ -639,7 +650,9 @@ bool FCacheStoreVerify::CompareRecords(const FCacheRecord& PutRecord, const FCac
 		{
 			if (PutIt->GetRawHash() != GetIt->GetRawHash())
 			{
-				LogChangedValue(Name, Key, PutIt->GetId(), *PutIt, *GetIt);
+				LogChangedValue(Name, Key, PutIt->GetId(),
+					PutIt->GetRawHash(), GetIt->GetRawHash(),
+					PutIt->GetData().DecompressToComposite(), GetIt->GetData().DecompressToComposite());
 				bEqual = false;
 			}
 			++PutIt;
@@ -672,7 +685,14 @@ bool FCacheStoreVerify::CompareRecords(const FCacheRecord& PutRecord, const FCac
 	return bEqual;
 }
 
-void FCacheStoreVerify::LogChangedValue(const FSharedString& Name, const FCacheKey& Key, const FValueId& Id, const FValue& NewValue, const FValue& OldValue)
+void FCacheStoreVerify::LogChangedValue(
+	const FSharedString& Name,
+	const FCacheKey& Key,
+	const FValueId& Id,
+	const FIoHash& NewRawHash,
+	const FIoHash& OldRawHash,
+	const FCompositeBuffer& NewRawData,
+	const FCompositeBuffer& OldRawData)
 {
 	TStringBuilder<32> IdString;
 	if (Id.IsValid())
@@ -680,9 +700,9 @@ void FCacheStoreVerify::LogChangedValue(const FSharedString& Name, const FCacheK
 		IdString << TEXT(' ') << Id;
 	}
 
-	const auto LogDataToFile = [&Name, &Key, &Id, &IdString](const FValue& Value, FStringView Extension)
+	const auto LogDataToFile = [&Name, &Key, &Id, &IdString](const FIoHash& RawHash, const FCompositeBuffer& RawData, FStringView Extension)
 	{
-		if (FSharedBuffer RawData = Value.GetData().Decompress())
+		if (!RawData.IsNull())
 		{
 			TStringBuilder<256> Path;
 			FPathViews::Append(Path, FPaths::ProjectSavedDir(), TEXT("VerifyDDC"), TEXT(""));
@@ -694,23 +714,25 @@ void FCacheStoreVerify::LogChangedValue(const FSharedString& Name, const FCacheK
 			Path << Extension;
 			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*Path, FILEWRITE_Silent)})
 			{
-				Ar->Serialize(const_cast<void*>(RawData.GetData()), int64(RawData.GetSize()));
+				for (const FSharedBuffer& Segment : RawData.GetSegments())
+				{
+					Ar->Serialize(const_cast<void*>(Segment.GetData()), int64(Segment.GetSize()));
+				}
 			}
 		}
 		else
 		{
 			UE_LOG(LogDerivedDataCache, Log,
 				TEXT("Verify: Value%s does not have data with hash %s to save to disk for %s from '%s'."),
-				*IdString, *WriteToString<48>(Value.GetRawHash()), *WriteToString<96>(Key), *Name);
+				*IdString, *WriteToString<48>(RawHash), *WriteToString<96>(Key), *Name);
 		}
 	};
 
 	UE_LOG(LogDerivedDataCache, Error,
 		TEXT("Verify: Value%s has hash %s in the newly generated data and hash %s in the cache for %s from '%s'."),
-		*IdString, *WriteToString<48>(NewValue.GetRawHash()), *WriteToString<48>(OldValue.GetRawHash()),
-		*WriteToString<96>(Key), *Name);
-	LogDataToFile(NewValue, TEXTVIEW(".verify"));
-	LogDataToFile(OldValue, TEXTVIEW(".fromcache"));
+		*IdString, *WriteToString<48>(NewRawHash), *WriteToString<48>(OldRawHash), *WriteToString<96>(Key), *Name);
+	LogDataToFile(NewRawHash, NewRawData, TEXTVIEW(".verify"));
+	LogDataToFile(OldRawHash, OldRawData, TEXTVIEW(".fromcache"));
 }
 
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError)

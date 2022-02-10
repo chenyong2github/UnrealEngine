@@ -149,7 +149,7 @@ public:
 		ValueSizes.Reserve(Requests.Num());
 		Algo::Transform(Requests, ValueSizes, [](const FLegacyCachePutRequest& Request) -> FValueSize
 		{
-			return {Request.Key.GetKey(), Request.Value.GetSize()};
+			return {Request.Key.GetKey(), Request.Value.GetRawSize()};
 		});
 
 		InnerCache->LegacyPut(Requests, Owner,
@@ -172,7 +172,7 @@ public:
 		InnerCache->LegacyGet(Requests, Owner,
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCacheGetResponse&& Response)
 			{
-				CloseThrottlingScope(State, FThrottlingState(this, Response.Value.GetSize()));
+				CloseThrottlingScope(State, FThrottlingState(this, Response.Value.GetRawSize()));
 				if (OnComplete)
 				{
 					OnComplete(MoveTemp(Response));

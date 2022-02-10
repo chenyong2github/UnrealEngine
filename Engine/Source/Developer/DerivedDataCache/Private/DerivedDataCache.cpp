@@ -300,10 +300,16 @@ class FDerivedDataCache final
 					FDerivedDataBackend::Get().GetRoot().LegacyGet({LegacyRequest}, BlockingOwner,
 						[this, &bGetResult](FLegacyCacheGetResponse&& Response)
 						{
-							bGetResult = Response.Status == EStatus::Ok && Response.Value.GetSize() < MAX_int32;
+							const uint64 RawSize = Response.Value.GetRawSize();
+							bGetResult = Response.Status == EStatus::Ok && RawSize < MAX_int32;
 							if (bGetResult)
 							{
-								Data = MakeArrayView(static_cast<const uint8*>(Response.Value.GetData()), int32(Response.Value.GetSize()));
+								const FCompositeBuffer& RawData = Response.Value.GetRawData();
+								Data.Reset(int32(RawSize));
+								for (const FSharedBuffer& Segment : RawData.GetSegments())
+								{
+									Data.Append(static_cast<const uint8*>(Segment.GetData()), int32(Segment.GetSize()));
+								}
 							}
 						});
 					BlockingOwner.Wait();
@@ -380,7 +386,7 @@ class FDerivedDataCache final
 						FLegacyCachePutRequest LegacyRequest;
 						LegacyRequest.Name = DebugContext;
 						LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
-						LegacyRequest.Value = FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data)));
+						LegacyRequest.Value = FLegacyCacheValue(FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data))));
 						FRequestOwner BlockingOwner(EPriority::Blocking);
 						FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
 						BlockingOwner.Wait();
@@ -599,7 +605,7 @@ public:
 			FLegacyCachePutRequest LegacyRequest;
 			LegacyRequest.Name = DebugContext;
 			LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
-			LegacyRequest.Value = FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data)));
+			LegacyRequest.Value = FLegacyCacheValue(FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data))));
 			FRequestOwner BlockingOwner(EPriority::Blocking);
 			FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
 			BlockingOwner.Wait();

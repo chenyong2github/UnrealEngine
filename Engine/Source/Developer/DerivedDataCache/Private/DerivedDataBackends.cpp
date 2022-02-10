@@ -3,8 +3,10 @@
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
+#include "DerivedDataRequestOwner.h"
 #include "FileBackedDerivedDataBackend.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -1335,9 +1337,14 @@ void FDerivedDataBackendInterface::LegacyPut(
 	IRequestOwner& Owner,
 	FOnLegacyCachePutComplete&& OnComplete)
 {
+	if (GetLegacyMode() != EBackendLegacyMode::LegacyOnly)
+	{
+		return ILegacyCacheStore::LegacyPut(Requests, Owner, MoveTemp(OnComplete));
+	}
+
 	for (const FLegacyCachePutRequest& Request : Requests)
 	{
-		FCompositeBuffer CompositeValue = Request.Value;
+		FCompositeBuffer CompositeValue = Request.Value.GetRawData();
 		Request.Key.WriteValueTrailer(CompositeValue);
 
 		checkf(CompositeValue.GetSize() < MAX_int32,
@@ -1355,10 +1362,61 @@ void FDerivedDataBackendInterface::LegacyPut(
 }
 
 void FDerivedDataBackendInterface::LegacyGet(
-	const TConstArrayView<FLegacyCacheGetRequest> Requests,
+	TConstArrayView<FLegacyCacheGetRequest> Requests,
 	IRequestOwner& Owner,
 	FOnLegacyCacheGetComplete&& OnComplete)
 {
+	const EBackendLegacyMode LegacyMode = GetLegacyMode();
+	if (LegacyMode == EBackendLegacyMode::ValueOnly)
+	{
+		return ILegacyCacheStore::LegacyGet(Requests, Owner, MoveTemp(OnComplete));
+	}
+
+	// Make a blocking query to the value cache and fall back to the legacy cache for requests with errors.
+
+	TArray<FLegacyCacheGetRequest> LegacyRequests;
+	if (LegacyMode == EBackendLegacyMode::ValueWithLegacyFallback)
+	{
+		TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> ValueRequests;
+		ValueRequests.Reserve(Requests.Num());
+		uint64 RequestIndex = 0;
+		for (const FLegacyCacheGetRequest& Request : Requests)
+		{
+			ValueRequests.Add_GetRef(Request).UserData = RequestIndex++;
+		}
+
+		FRequestOwner BlockingOwner(EPriority::Blocking);
+		ILegacyCacheStore::LegacyGet(ValueRequests, BlockingOwner, [this, &OnComplete, &Requests, &ValueRequests](FLegacyCacheGetResponse&& Response)
+		{
+			if (Response.Status != EStatus::Error)
+			{
+				const int32 Index = int32(Response.UserData);
+				Response.UserData = Requests[Index].UserData;
+				ValueRequests[Index].UserData = MAX_uint64;
+				OnComplete(MoveTemp(Response));
+			}
+		});
+		BlockingOwner.Wait();
+
+		for (const FLegacyCacheGetRequest& Request : ValueRequests)
+		{
+			if (Request.UserData != MAX_uint64)
+			{
+				LegacyRequests.Add(Requests[int32(Request.UserData)]);
+			}
+		}
+		if (LegacyRequests.IsEmpty())
+		{
+			return;
+		}
+		Requests = LegacyRequests;
+	}
+
+	// Query the legacy cache by translating the requests to legacy cache functions.
+
+	FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
+	AsyncOwner.KeepAlive();
+
 	TArray<FString, TInlineAllocator<8>> ExistsKeys;
 	TArray<const FLegacyCacheGetRequest*, TInlineAllocator<8>> ExistsRequests;
 
@@ -1390,7 +1448,15 @@ void FDerivedDataBackendInterface::LegacyGet(
 				}
 			}
 			const EStatus Status = Value ? EStatus::Ok : EStatus::Error;
-			OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
+			FLegacyCacheValue LegacyValue(FCompositeBuffer(MoveTemp(Value)));
+			if (LegacyValue.HasData() && LegacyMode == EBackendLegacyMode::ValueWithLegacyFallback)
+			{
+				Private::ExecuteInCacheThreadPool(AsyncOwner, [this, Request, LegacyValue](IRequestOwner& AsyncOwner, bool bCancel)
+				{
+					ILegacyCacheStore::LegacyPut({{Request.Name, Request.Key, LegacyValue}}, AsyncOwner, [](auto&&){});
+				});
+			}
+			OnComplete({Request.Name, Request.Key, MoveTemp(LegacyValue), Request.UserData, Status});
 		}
 	}
 
@@ -1422,6 +1488,11 @@ void FDerivedDataBackendInterface::LegacyDelete(
 	IRequestOwner& Owner,
 	FOnLegacyCacheDeleteComplete&& OnComplete)
 {
+	if (GetLegacyMode() != EBackendLegacyMode::LegacyOnly)
+	{
+		return ILegacyCacheStore::LegacyDelete(Requests, Owner, MoveTemp(OnComplete));
+	}
+
 	for (const FLegacyCacheDeleteRequest& Request : Requests)
 	{
 		RemoveCachedData(*Request.Key.GetShortKey(), Request.bTransient);
