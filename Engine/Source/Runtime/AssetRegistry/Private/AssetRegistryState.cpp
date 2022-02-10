@@ -1596,6 +1596,38 @@ void FAssetRegistryState::AddAssetData(FAssetData* AssetData)
 	}
 }
 
+void FAssetRegistryState::AddTagsToAssetData(const FSoftObjectPath& InObjectPath, FAssetDataTagMap&& InTagsAndValues)
+{
+	if (InTagsAndValues.IsEmpty())
+	{
+		return;
+	}
+
+	FAssetData* AssetData = CachedAssetsByObjectPath.FindRef(InObjectPath.GetAssetPathName());
+	if (AssetData == nullptr)
+	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("AddTagsToAssetData called with asset data that doesn't exist! Tags not added. ObjectPath: %s"), *InObjectPath.GetAssetPathName().ToString());
+		return;
+	}
+
+	// Update the tag cache map with the new tags.
+	for (auto TagIt : InTagsAndValues)
+	{
+		const FName FNameKey = TagIt.Key;
+
+		if (!AssetData->TagsAndValues.Contains(FNameKey))
+		{
+			TArray<FAssetData*>& NewTagAssets = CachedAssetsByTag.FindOrAdd(FNameKey);
+			NewTagAssets.Add(AssetData);
+		}
+	}
+
+	FAssetDataTagMap OldTags = AssetData->TagsAndValues.CopyMap();
+	OldTags.Append(MoveTemp(InTagsAndValues));
+	AssetData->TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(OldTags));
+}
+
+
 void FAssetRegistryState::UpdateAssetData(const FAssetData& NewAssetData)
 {
 	if (FAssetData* AssetData = CachedAssetsByObjectPath.FindRef(NewAssetData.ObjectPath))

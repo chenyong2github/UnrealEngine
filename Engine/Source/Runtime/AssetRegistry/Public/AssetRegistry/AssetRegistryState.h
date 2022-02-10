@@ -326,6 +326,9 @@ public:
 	/** Adds the asset data to the lookup maps */
 	void AddAssetData(FAssetData* AssetData);
 
+	/** Add the given tags/values to the asset data associated with the given object path, if it exists */
+	void AddTagsToAssetData(const FSoftObjectPath& InObjectPath, FAssetDataTagMap&& InTagsAndValues);
+
 	/** Finds an existing asset data based on object path and updates it with the new value and updates lookup maps */
 	void UpdateAssetData(const FAssetData& NewAssetData);
 
