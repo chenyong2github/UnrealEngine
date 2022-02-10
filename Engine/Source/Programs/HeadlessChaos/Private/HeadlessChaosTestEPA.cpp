@@ -12,6 +12,7 @@
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/TriangleRegister.h"
 
 namespace ChaosTest
 {
@@ -705,6 +706,10 @@ namespace ChaosTest
 		// Sphere sweep against triangle, fails when it should hit. Raycast added as well for verification purposes.
 		{
 			const FTriangle Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
+			const FTriangleRegister TriangleReg(
+				MakeVectorRegisterFloat( 0.000000000f, 0.000000000f, 0.000000000f, 0.0f ), 
+				MakeVectorRegisterFloat(128.000000f, 0.000000000f, -114.064575, 0.0f), 
+				MakeVectorRegisterFloat(128.000000, 128.000000, 2.35327148, 0.0f));
 			const TSphere<FReal, 3> Sphere({ 0.0, 0.0, 0.0 }, 4);
 			const TRigidTransform<FReal, 3> Transform({ 174.592773, -161.781250, -68.0469971 }, FQuat::Identity);
 			const FVec3 Dir(-0.406315684, 0.913382649, -0.0252906363);
@@ -716,7 +721,7 @@ namespace ChaosTest
 			FVec3 OutPosition;
 			FVec3 OutNormal;
 
-			bool bSweepResult = GJKRaycast2(Triangle, Sphere, Transform, Dir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD);
+			bool bSweepResult = GJKRaycast2(TriangleReg, Sphere, Transform, Dir, Length, OutTime, OutPosition, OutNormal, Thickness, bComputeMTD);
 
 
 			// Do a raycast w/ same inputs instead of sweep against triangle to verify sweep should be a hit.
@@ -800,6 +805,10 @@ namespace ChaosTest
 			// Triangle v Box
 			{
 				FTriangle Triangle(FVec3(0.000000000,0.000000000,0.000000000),FVec3(128.000000,0.000000000,35.9375000),FVec3(128.000000,128.000000,134.381042));
+				FTriangleRegister TriangleReg(
+					MakeVectorRegisterFloat(0.000000000f, 0.000000000f, 0.000000000f, 0.0f), 
+					MakeVectorRegisterFloat(128.000000f, 0.000000000f, 35.9375000f, 0.0f), 
+					MakeVectorRegisterFloat(128.000000f, 128.000000f, 134.381042f, 0.0f));
 				TBox<FReal,3> Box(FVec3(-50.0000000,-60.0000000,-30.0000000),FVec3 (50.0000000,60.0000000,30.0000000));
 
 				const TRigidTransform<FReal,3> Transform({127.898438,35.0742188,109.781067},FQuat(0.374886870,-0.0289460570,0.313643545,0.871922970),FVec3(1.0));
@@ -812,7 +821,7 @@ namespace ChaosTest
 				FReal OutTime = -1;
 				FVec3 LocalPosition(-1);
 				FVec3 LocalNormal(-1);
-				GJKRaycast2(Triangle,Box,Transform,Dir,Length,OutTime,LocalPosition,LocalNormal,Thickness,bComputeMTD);
+				GJKRaycast2(TriangleReg,Box,Transform,Dir,Length,OutTime,LocalPosition,LocalNormal,Thickness,bComputeMTD);
 			}
 		}
 
@@ -1263,6 +1272,12 @@ namespace ChaosTest
 				{-91.0660172, 839.028320, 118.413063}
 				});
 
+			FTriangleRegister TriangleReg({
+				MakeVectorRegisterFloat(-306.119476f, 1674.38647f, 117.138489f, 0.0f),
+				MakeVectorRegisterFloat(-491.015747f, 1526.35803f, 116.067123f, 0.0f),
+				MakeVectorRegisterFloat(-91.0660172f, 839.028320f, 118.413063f, 0.0f)
+				});
+
 
 			FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
 			ExpectedNormal.Normalize();
@@ -1287,7 +1302,7 @@ namespace ChaosTest
 			int32 FaceIndex = -1;
 
 			// This is local to trimesh, world scale.
-			bool bResult = GJKRaycast2<FReal>(Triangle, ScaledCapsule, StartTM, Dir, Length, OutTime, Position, Normal, Thickness, bComputeMTD);
+			bool bResult = GJKRaycast2<FReal>(TriangleReg, ScaledCapsule, StartTM, Dir, Length, OutTime, Position, Normal, Thickness, bComputeMTD);
 
 			// Compare results against GJKPenetration, sweep is initial overlap, so this should be the same.
 			FVec3 Normal2, ClosestA, ClosestB;

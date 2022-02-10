@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/TriangleRegister.h"
 
 namespace Chaos
 {
@@ -378,8 +379,11 @@ namespace Chaos
 				}
 
 				//Convert into local space of A to get better precision
+				VectorRegister4Float AReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(A.X, B.Y, A.Z, 0.0));
+				VectorRegister4Float BReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0));
+				VectorRegister4Float CReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0));
 
-				FTriangle Triangle(FVec3(0), B-A, C-A);
+				FTriangleRegister Triangle(VectorZero(), VectorSubtract(BReg, AReg), VectorSubtract(CReg, AReg));
 
 				FReal Time;
 				FVec3 LocalHitPosition;
@@ -1524,6 +1528,11 @@ namespace Chaos
 			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 			const FVec3 TriNormal = Offset.GetUnsafeNormal();
 			FTriangle TriangleConvex(A, B, C);
+			FTriangleRegister TriangleConvexReg(
+				MakeVectorRegisterFloatFromDouble(MakeVectorRegister(A.X, A.Y, A.Z, 0.0f)),
+				MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0f)),
+				MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0f)));
+
 
 			FReal Penetration;
 			FVec3 ClosestA, ClosestB, Normal;
@@ -1540,7 +1549,7 @@ namespace Chaos
 				const FReal ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
 				const FReal SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
 				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
-				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, (FReal)0., true))
+				if (GJKRaycast2(TriangleConvexReg, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, (FReal)0., true))
 				{
 					LocalContactLocation = ClosestB;
 					LocalContactNormal = TriNormal;

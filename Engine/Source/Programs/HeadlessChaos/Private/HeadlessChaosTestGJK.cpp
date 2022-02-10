@@ -11,6 +11,7 @@
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/TriangleRegister.h"
 
 namespace ChaosTest
 {
@@ -1505,6 +1506,10 @@ namespace ChaosTest
 			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,FVec3(1.0,1.0,1.0));
 
 			FTriangle A(ConvexParticles[0],ConvexParticles[1],ConvexParticles[2]);
+			FTriangleRegister AReg(
+				MakeVectorRegisterFloat(ConvexParticles[0].X, ConvexParticles[0].Y, ConvexParticles[0].Z, 0.0f),
+				MakeVectorRegisterFloat(ConvexParticles[1].X, ConvexParticles[1].Y, ConvexParticles[1].Z, 0.0f),
+				MakeVectorRegisterFloat(ConvexParticles[2].X, ConvexParticles[2].Y, ConvexParticles[2].Z, 0.0f));
 
 			const FVec3 Pt0(0.0,0.0,-29.6999969);
 			FVec3 Pt1 = Pt0;
@@ -1526,7 +1531,7 @@ namespace ChaosTest
 			FReal Time2;
 			FVec3 Position2,Normal2;
 			EXPECT_TRUE(GJKRaycast2<FReal>(AConvScaled,B,BToATM2,LocalDir,Length+100,Time2,Position2,Normal2,0,true,SearchDir,0));
-			EXPECT_TRUE(GJKRaycast2<FReal>(A,B,BToATM2,LocalDir,Length+100,Time2,Position2,Normal2,0,true,SearchDir,0));
+			EXPECT_TRUE(GJKRaycast2<FReal>(AReg,B,BToATM2,LocalDir,Length+100,Time2,Position2,Normal2,0,true,SearchDir,0));
 
 			EXPECT_NEAR(Time+100,Time2, 1.0f); // TODO: Investigate: This used to be 0
 			EXPECT_VECTOR_NEAR(Normal,Normal2,1e-3); // TODO: Investigate: This used to be 1e-4

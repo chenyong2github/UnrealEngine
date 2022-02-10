@@ -6,6 +6,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/GJK.h"
 #include "Chaos/Triangle.h"
+#include "Chaos/TriangleRegister.h"
 #include "Chaos/Convex.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/GeometryQueries.h"
@@ -889,6 +890,8 @@ struct FTriangleMeshSweepVisitor
 	, OutTime(TNumericLimits<FReal>::Max())
 	, TriMeshScale(InTriMeshScale)
 	{
+		VectorScaledDirNormalized = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InScaledDirNormalized.X, InScaledDirNormalized.Y, InScaledDirNormalized.Z, 0.0));
+		VectorCullsBackFaceSweepsCode = MakeVectorRegisterFloatFromDouble(VectorLoadFloat1(&InCullsBackFaceSweepsCode));
 	}
 
 	const void* GetQueryData() const { return nullptr; }
@@ -920,19 +923,33 @@ struct FTriangleMeshSweepVisitor
 		FVec3 HitPosition;
 		FVec3 HitNormal;
 
-		FVec3 A, B, C;
-		TriangleMeshTransformVertsHelper(TriMeshScale,TriIdx,TriMesh.MParticles,Elements,A,B,C);
-		FTriangle Tri(A, B, C);
+		const VectorRegister4Float TriMeshScaleVector = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TriMeshScale.X, TriMeshScale.Y, TriMeshScale.Z, 0.0));
+
+		const TParticles<FRealSingle, 3>& Particles = TriMesh.MParticles;
+
+		const TVector<FRealSingle, 3>& AVec = Particles.X(Elements[TriIdx][0]);
+		const TVector<FRealSingle, 3>& BVec = Particles.X(Elements[TriIdx][1]);
+		const TVector<FRealSingle, 3>& CVec = Particles.X(Elements[TriIdx][2]);
+
+		VectorRegister4Float A = MakeVectorRegister(AVec.X, AVec.Y, AVec.Z, 0.0f);
+		VectorRegister4Float B = MakeVectorRegister(BVec.X, BVec.Y, BVec.Z, 0.0f);
+		VectorRegister4Float C = MakeVectorRegister(CVec.X, CVec.Y, CVec.Z, 0.0f);
+
+		A = VectorMultiply(A, TriMeshScaleVector);
+		B = VectorMultiply(B, TriMeshScaleVector);
+		C = VectorMultiply(C, TriMeshScaleVector);
+
+		FTriangleRegister Tri(A, B, C);
 
 		if(CullsBackFaceSweepsCode != 0)
 		{
-			const FVec3 TriNormal = FVec3::CrossProduct(B - A, C - A);
-			if (FVec3::DotProduct(TriNormal, ScaledDirNormalized) * CullsBackFaceSweepsCode > 0)
+			const VectorRegister4Float TriNormal = VectorCross(VectorSubtract(B, A), VectorSubtract(C, A));
+			const VectorRegister4Float ReturnTrue = VectorCompareGT(VectorMultiply(VectorCross(TriNormal, VectorScaledDirNormalized), VectorCullsBackFaceSweepsCode), VectorZero());
+			if (VectorMaskBits(ReturnTrue))
 			{
 				return true;
 			}
 		}
-		
 
 		const auto& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 
@@ -968,9 +985,11 @@ struct FTriangleMeshSweepVisitor
 	const FReal Thickness;
 	const bool bComputeMTD;
 	const FReal CullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
+	VectorRegister4Float VectorCullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
 
 	// Cache these values for Scaled Triangle Mesh, as they are needed for transformation when sweeping against triangles.
 	FVec3 ScaledDirNormalized;
+	VectorRegister4Float VectorScaledDirNormalized;
 	FReal LengthScale;
 	FRigidTransform3 ScaledStartTM;
 
