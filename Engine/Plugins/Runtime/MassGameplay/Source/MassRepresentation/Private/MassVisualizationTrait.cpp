@@ -18,6 +18,25 @@ UMassVisualizationTrait::UMassVisualizationTrait()
 	Params.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
 	Params.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
 	Params.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
+
+	LODParams.BaseLODDistance[EMassLOD::High] = 0.f;
+	LODParams.BaseLODDistance[EMassLOD::Medium] = 1000.f;
+	LODParams.BaseLODDistance[EMassLOD::Low] = 2500.f;
+	LODParams.BaseLODDistance[EMassLOD::Off] = 10000.f;
+
+	LODParams.VisibleLODDistance[EMassLOD::High] = 0.f;
+	LODParams.VisibleLODDistance[EMassLOD::Medium] = 2000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Low] = 4000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Off] = 10000.f;
+
+	LODParams.LODMaxCount[EMassLOD::High] = 50;
+	LODParams.LODMaxCount[EMassLOD::Medium] = 100;
+	LODParams.LODMaxCount[EMassLOD::Low] = 500;
+	LODParams.LODMaxCount[EMassLOD::Off] = 0;
+
+	LODParams.BufferHysteresisOnDistancePercentage = 10.0f;
+	LODParams.DistanceToFrustum = 0.0f;
+	LODParams.DistanceToFrustumHysteresis = 0.0f;
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
@@ -64,6 +83,12 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	RepresentationFragment.StaticMeshDescIndex = RepresentationSubsystem->FindOrAddStaticMeshDesc(StaticMeshInstanceDesc);
 	RepresentationFragment.HighResTemplateActorIndex = HighResTemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(HighResTemplateActor.Get()) : INDEX_NONE;
 	RepresentationFragment.LowResTemplateActorIndex = LowResTemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(LowResTemplateActor.Get()) : INDEX_NONE;
+
+	uint32 LODParamsHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(LODParams));
+	FConstSharedStruct LODParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment<FMassVisualizationLODParameters>(LODParamsHash, LODParams);
+	BuildContext.AddConstSharedFragment(LODParamsFragment);
+	FSharedStruct LODSharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassVisualizationLODSharedFragment>(LODParamsHash, LODParams);
+	BuildContext.AddSharedFragment(LODSharedFragment);
 
 	BuildContext.AddFragment<FMassRepresentationLODFragment>();
 	BuildContext.AddTag<FMassVisibilityCulledByDistanceTag>();

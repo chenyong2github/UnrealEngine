@@ -38,7 +38,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
 
-	/** Configuration parameters for the representaion processor */
+	/** Configuration parameters for the representation processor */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	FMassRepresentationParameters Params;
+
+	/** Configuration parameters for the visualization LOD processor */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	FMassVisualizationLODParameters LODParams;
 };

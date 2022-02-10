@@ -14,54 +14,100 @@ UMassVisualizationLODProcessor::UMassVisualizationLODProcessor()
 	bAutoRegisterWithProcessingPhases = false;
 
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;
-
-	BaseLODDistance[EMassLOD::High] = 0.f;
-	BaseLODDistance[EMassLOD::Medium] = 1000.f;
-	BaseLODDistance[EMassLOD::Low] = 2500.f;
-	BaseLODDistance[EMassLOD::Off] = 10000.f;
-	
-	VisibleLODDistance[EMassLOD::High] = 0.f;
-	VisibleLODDistance[EMassLOD::Medium] = 2000.f;
-	VisibleLODDistance[EMassLOD::Low] = 4000.f;
-	VisibleLODDistance[EMassLOD::Off] = 10000.f;
-	
-	LODMaxCount[EMassLOD::High] = 50;
-	LODMaxCount[EMassLOD::Medium] = 100;
-	LODMaxCount[EMassLOD::Low] = 500;
-	LODMaxCount[EMassLOD::Off] = 0;
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LODCollector);
 }
 
 void UMassVisualizationLODProcessor::ConfigureQueries()
 {
-	CloseEntityQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
-	CloseEntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
-	CloseEntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	FMassEntityQuery BaseQuery;
+	BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
+	BaseQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
+	BaseQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	BaseQuery.AddConstSharedRequirement<FMassVisualizationLODParameters>();
+	BaseQuery.AddSharedRequirement<FMassVisualizationLODSharedFragment>(EMassFragmentAccess::ReadWrite);
 
-	FarEntityQuery = CloseEntityQuery;
-
+	CloseEntityQuery = BaseQuery;
 	CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
 	
+	CloseEntityAdjustDistanceQuery = CloseEntityQuery;
+	CloseEntityAdjustDistanceQuery.SetArchetypeFilter([](const FMassExecutionContext& Context)
+	{
+		const FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetSharedFragment<FMassVisualizationLODSharedFragment>();
+		return LODSharedFragment.bHasAdjustedDistancesFromCount;
+	});
+
+	FarEntityQuery = BaseQuery;
 	FarEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
 	FarEntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
-}
+	FarEntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk);
 
-void UMassVisualizationLODProcessor::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
-	LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
-}
-
-void UMassVisualizationLODProcessor::PrepareExecution()
-{
-	check(World);
-
-	check(LODSubsystem);
-	const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
-	LODCalculator.PrepareExecution(Viewers);
+	DebugEntityQuery = BaseQuery;
 }
 
 void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	ExecuteInternal(EntitySubsystem, Context);
+	if (bForceOFFLOD)
+	{
+		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
+			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+			LODSharedFragment.LODCalculator.ForceOffLOD(Context, RepresentationLODList);
+		});
+		return;
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareExecution)
+		check(LODSubsystem);
+		const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
+		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([&Viewers](FMassVisualizationLODSharedFragment& LODSharedFragment)
+		{
+			LODSharedFragment.LODCalculator.PrepareExecution(Viewers);
+		});
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CalculateLOD)
+
+		auto CalculateLOD = [this](FMassExecutionContext& Context)
+		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
+			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+			TConstArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
+			LODSharedFragment.LODCalculator.CalculateLOD(Context, ViewerInfoList, RepresentationLODList);
+		};
+		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, CalculateLOD);
+		FarEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, CalculateLOD);
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustDistanceAndLODFromCount)
+		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([](FMassVisualizationLODSharedFragment& LODSharedFragment)
+		{
+			LODSharedFragment.bHasAdjustedDistancesFromCount = LODSharedFragment.LODCalculator.AdjustDistancesFromCount();
+		});
+
+		CloseEntityAdjustDistanceQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
+			TConstArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
+			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+			LODSharedFragment.LODCalculator.AdjustLODFromCount(Context, ViewerInfoList, RepresentationLODList);
+		});
+		// Far entities do not need to maximize count
+	}
+
+	// Optional debug display
+	if (UE::MassRepresentation::bDebugRepresentationLOD)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DebugDisplayLOD)
+		DebugEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
+			TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
+			TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
+			LODSharedFragment.LODCalculator.DebugDisplayLOD(Context, RepresentationLODList, TransformList, World);
+		});
+	}
 }

@@ -19,22 +19,22 @@ namespace UE::MassCrowd
 		FAutoConsoleVariableRef(TEXT("ai.debug.ShowISMUnderSpecifiedRange"), bDebugShowISMUnderSpecifiedRange, TEXT("Show ISM under a specified range (meters)"), ECVF_Cheat)
 	};
 
-#if WITH_EDITOR
-	int32 DebugCrowdMaxCountHigh = -1;
-	int32 DebugCrowdMaxCountMedium = -1;
-	int32 DebugCrowdMaxCountLow = -1;
-
-	FAutoConsoleVariableRef EditorConsoleVariables[] =
-	{
-		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountHigh"), DebugCrowdMaxCountHigh, TEXT("Forced MASS crowd max count high"), ECVF_Cheat),
-		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountMedium"), DebugCrowdMaxCountMedium, TEXT("Forced MASS crowd max count medium"), ECVF_Cheat),
-		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountLow"), DebugCrowdMaxCountLow, TEXT("Forced MASS crowd max count low"), ECVF_Cheat)
-	};
-
-	int32 LastDebugCrowdMaxCountHigh = -1;
-	int32 LastDebugCrowdMaxCountMedium = -1;
-	int32 LastDebugCrowdMaxCountLow = -1;
-#endif // WITH_EDITOR
+// #if WITH_EDITOR
+// 	int32 DebugCrowdMaxCountHigh = -1;
+// 	int32 DebugCrowdMaxCountMedium = -1;
+// 	int32 DebugCrowdMaxCountLow = -1;
+// 
+// 	FAutoConsoleVariableRef EditorConsoleVariables[] =
+// 	{
+// 		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountHigh"), DebugCrowdMaxCountHigh, TEXT("Forced MASS crowd max count high"), ECVF_Cheat),
+// 		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountMedium"), DebugCrowdMaxCountMedium, TEXT("Forced MASS crowd max count medium"), ECVF_Cheat),
+// 		FAutoConsoleVariableRef(TEXT("ai.debug.CrowdMaxCountLow"), DebugCrowdMaxCountLow, TEXT("Forced MASS crowd max count low"), ECVF_Cheat)
+// 	};
+// 
+// 	int32 LastDebugCrowdMaxCountHigh = -1;
+// 	int32 LastDebugCrowdMaxCountMedium = -1;
+// 	int32 LastDebugCrowdMaxCountLow = -1;
+// #endif // WITH_EDITOR
 } // UE::MassCrowd
 
 UMassCrowdVisualizationLODProcessor::UMassCrowdVisualizationLODProcessor()
@@ -46,28 +46,21 @@ UMassCrowdVisualizationLODProcessor::UMassCrowdVisualizationLODProcessor()
 	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LODCollector);
 
-#if WITH_EDITOR
-	UE::MassCrowd::LastDebugCrowdMaxCountHigh = -1;
-	UE::MassCrowd::LastDebugCrowdMaxCountMedium = -1;
-	UE::MassCrowd::LastDebugCrowdMaxCountLow = -1;
-#endif // WITH_EDITOR
+// #if WITH_EDITOR
+// 	UE::MassCrowd::LastDebugCrowdMaxCountHigh = -1;
+// 	UE::MassCrowd::LastDebugCrowdMaxCountMedium = -1;
+// 	UE::MassCrowd::LastDebugCrowdMaxCountLow = -1;
+// #endif // WITH_EDITOR
 }
 
 void UMassCrowdVisualizationLODProcessor::ConfigureQueries()
 {
-	// @todo remove, no need for this anymore since we have the common LOD collector
-	// Do not call super as we do have our own LODInfo fragment, so need to duplicate
+	Super::ConfigureQueries();
 
 	CloseEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
-	CloseEntityQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
-	CloseEntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
-	CloseEntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
-	CloseEntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
-
-	FarEntityQuery = CloseEntityQuery;
-	CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
-	FarEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
-	FarEntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
+	CloseEntityAdjustDistanceQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	FarEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	DebugEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
 }
 
 void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -76,28 +69,26 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CrowdVisualizationLOD"))
 
-	Super::ExecuteInternal<FMassViewerInfoFragment>(EntitySubsystem, Context);
+	Super::Execute(EntitySubsystem, Context);
 	
 	if (UE::MassCrowd::bDebugCrowdVisualizationLOD)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("DebugDisplayLOD"))
 
-		auto DebugDisplayLOD = [this](FMassExecutionContext& Context)
+		DebugEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
 			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassRepresentationLODFragment> VisualizationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
-			LODCalculator.DebugDisplayLOD(Context, VisualizationLODList, LocationList, World);
-		};
-
-		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, DebugDisplayLOD);
-		FarEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, DebugDisplayLOD);
+			LODSharedFragment.LODCalculator.DebugDisplayLOD(Context, VisualizationLODList, LocationList, World);
+		});
 	}
 
 	if (UE::MassCrowd::bDebugShowISMUnderSpecifiedRange > 0)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("ShowISMUnderSpecifiedRange"))
 
-		auto ShowISMUnderSpecifiedRange = [this](const FMassExecutionContext& Context)
+		DebugEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](const FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 			const TConstArrayView<FMassRepresentationFragment> RepresentationFragmentList = Context.GetFragmentView<FMassRepresentationFragment>();
@@ -114,50 +105,49 @@ void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySu
 					DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 150.0f), FVector(50.0f), FColor::Red);
 				}
 			}
-		};
-		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, ShowISMUnderSpecifiedRange);
-		FarEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, ShowISMUnderSpecifiedRange);
+		});
 	}
 
-#if WITH_EDITOR
-	if (UE::MassCrowd::LastDebugCrowdMaxCountHigh != UE::MassCrowd::DebugCrowdMaxCountHigh)
-	{
-		if (UE::MassCrowd::DebugCrowdMaxCountHigh >= 0)
-		{
-			LODMaxCount[0] = UE::MassCrowd::DebugCrowdMaxCountHigh;
-		}
-		else
-		{
-			LODMaxCount[0] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[0];
-		}
-		UE::MassCrowd::LastDebugCrowdMaxCountHigh = UE::MassCrowd::DebugCrowdMaxCountHigh;
-		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
-	}
-	if (UE::MassCrowd::LastDebugCrowdMaxCountMedium != UE::MassCrowd::DebugCrowdMaxCountMedium)
-	{
-		if (UE::MassCrowd::DebugCrowdMaxCountMedium >= 0)
-		{
-			LODMaxCount[1] = UE::MassCrowd::DebugCrowdMaxCountMedium;
-		}
-		else
-		{
-			LODMaxCount[1] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[1];
-		}
-		UE::MassCrowd::LastDebugCrowdMaxCountMedium = UE::MassCrowd::DebugCrowdMaxCountMedium;
-		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
-	}
-	if (UE::MassCrowd::LastDebugCrowdMaxCountLow != UE::MassCrowd::DebugCrowdMaxCountLow)
-	{
-		if (UE::MassCrowd::DebugCrowdMaxCountLow >= 0)
-		{
-			LODMaxCount[2] = UE::MassCrowd::DebugCrowdMaxCountLow;
-		}
-		else
-		{
-			LODMaxCount[2] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[2];
-		}
-		UE::MassCrowd::LastDebugCrowdMaxCountLow = UE::MassCrowd::DebugCrowdMaxCountLow;
-		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
-	}
-#endif // WITH_EDITOR
+// @todo find a way to do this now with shared fragments
+// #if WITH_EDITOR
+// 	if (UE::MassCrowd::LastDebugCrowdMaxCountHigh != UE::MassCrowd::DebugCrowdMaxCountHigh)
+// 	{
+// 		if (UE::MassCrowd::DebugCrowdMaxCountHigh >= 0)
+// 		{
+// 			LODMaxCount[0] = UE::MassCrowd::DebugCrowdMaxCountHigh;
+// 		}
+// 		else
+// 		{
+// 			LODMaxCount[0] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[0];
+// 		}
+// 		UE::MassCrowd::LastDebugCrowdMaxCountHigh = UE::MassCrowd::DebugCrowdMaxCountHigh;
+// 		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
+// 	}
+// 	if (UE::MassCrowd::LastDebugCrowdMaxCountMedium != UE::MassCrowd::DebugCrowdMaxCountMedium)
+// 	{
+// 		if (UE::MassCrowd::DebugCrowdMaxCountMedium >= 0)
+// 		{
+// 			LODMaxCount[1] = UE::MassCrowd::DebugCrowdMaxCountMedium;
+// 		}
+// 		else
+// 		{
+// 			LODMaxCount[1] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[1];
+// 		}
+// 		UE::MassCrowd::LastDebugCrowdMaxCountMedium = UE::MassCrowd::DebugCrowdMaxCountMedium;
+// 		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
+// 	}
+// 	if (UE::MassCrowd::LastDebugCrowdMaxCountLow != UE::MassCrowd::DebugCrowdMaxCountLow)
+// 	{
+// 		if (UE::MassCrowd::DebugCrowdMaxCountLow >= 0)
+// 		{
+// 			LODMaxCount[2] = UE::MassCrowd::DebugCrowdMaxCountLow;
+// 		}
+// 		else
+// 		{
+// 			LODMaxCount[2] = GetClass()->GetDefaultObject<UMassCrowdVisualizationLODProcessor>()->LODMaxCount[2];
+// 		}
+// 		UE::MassCrowd::LastDebugCrowdMaxCountLow = UE::MassCrowd::DebugCrowdMaxCountLow;
+// 		LODCalculator.Initialize(BaseLODDistance, BufferHysteresisOnDistancePercentage / 100.f, LODMaxCount, nullptr, DistanceToFrustum, DistanceToFrustumHysteresis, VisibleLODDistance);
+// 	}
+// #endif // WITH_EDITOR
 }

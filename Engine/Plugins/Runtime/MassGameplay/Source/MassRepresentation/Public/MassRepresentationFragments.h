@@ -8,6 +8,7 @@
 #include "MassActorSpawnerSubsystem.h"
 #include "MassRepresentationTypes.h"
 #include "MassRepresentationActorManagement.h"
+#include "MassLODCalculator.h"
 
 #include "MassRepresentationFragments.generated.h"
 
@@ -130,3 +131,40 @@ inline void FMassRepresentationParameters::ComputeCachedValues() const
 		CachedRepresentationActorManagement = UMassRepresentationActorManagement::StaticClass()->GetDefaultObject<UMassRepresentationActorManagement>();
 	}
 }
+
+USTRUCT()
+struct FMassVisualizationLODParameters : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	/** Distances where each LOD becomes relevant */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	float BaseLODDistance[EMassLOD::Max];
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	float VisibleLODDistance[EMassLOD::Max];
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float BufferHysteresisOnDistancePercentage = 10.0f;
+
+	/** Maximum limit for each entity per LOD */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	int32 LODMaxCount[EMassLOD::Max];
+
+	/** How far away from frustum does this entities are considered visible */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float DistanceToFrustum = 0.0f;
+	/** Once visible how much further than DistanceToFrustum does the entities need to be before being cull again */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float DistanceToFrustumHysteresis = 0.0f;
+};
+
+USTRUCT()
+struct FMassVisualizationLODSharedFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	FMassVisualizationLODSharedFragment() = default;
+	FMassVisualizationLODSharedFragment(const FMassVisualizationLODParameters& LODParams);
+
+	TMassLODCalculator<FMassRepresentationLODLogic> LODCalculator;
+	bool bHasAdjustedDistancesFromCount = false;
+};
