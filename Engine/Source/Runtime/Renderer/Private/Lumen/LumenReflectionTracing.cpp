@@ -457,6 +457,7 @@ void SetupIndirectTracingParametersForReflections(const FViewInfo& View, FLumenI
 	OutParameters.TanDiffuseConeHalfAngle = 0.0f;
 	OutParameters.SpecularFromDiffuseRoughnessStart = 0.0f;
 	OutParameters.SpecularFromDiffuseRoughnessEnd = 0.0f;
+	OutParameters.HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
 }
 
 FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(

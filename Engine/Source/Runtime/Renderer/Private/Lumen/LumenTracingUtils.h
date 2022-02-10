@@ -157,6 +157,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenIndirectTracingParameters, )
 	SHADER_PARAMETER(float, CardInterpolateInfluenceRadius)
 	SHADER_PARAMETER(float, SpecularFromDiffuseRoughnessStart)
 	SHADER_PARAMETER(float, SpecularFromDiffuseRoughnessEnd)
+	SHADER_PARAMETER(int32, HeightfieldMaxTracingSteps)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )

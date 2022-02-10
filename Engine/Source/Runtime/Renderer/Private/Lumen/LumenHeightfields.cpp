@@ -15,6 +15,14 @@ TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldTracing(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldMaxTracingSteps(
+	TEXT("r.LumenScene.Heightfield.MaxTracingSteps"),
+	32,
+	TEXT("Sets the maximum steps for heightfield (Landscape) software ray tracing (default = 32)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+
 bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData)
 {
 	bool bHeightfieldEnabled = CVarLumenSceneHeightfieldTracing.GetValueOnRenderThread() != 0;
@@ -25,6 +33,11 @@ bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSc
 bool Lumen::UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData)
 {
 	return UseHeightfieldTracingForVoxelLighting(LumenSceneData) && ViewFamily.EngineShowFlags.LumenDetailTraces;
+}
+
+int32 Lumen::GetHeightfieldMaxTracingSteps()
+{
+	return FMath::Clamp(CVarLumenSceneHeightfieldMaxTracingSteps.GetValueOnRenderThread(), 1, 256);
 }
 
 void FLumenHeightfieldGPUData::FillData(const FLumenHeightfield& RESTRICT Heightfield, const TSparseSpanArray<FLumenMeshCards>& MeshCards, FVector4f* RESTRICT OutData)

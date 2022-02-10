@@ -664,6 +664,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER(float, MeshSDFShadowRayBias)
 		SHADER_PARAMETER(float, HeightfieldShadowRayBias)
 		SHADER_PARAMETER(float, GlobalSDFShadowRayBias)
+		SHADER_PARAMETER(int32, HeightfieldMaxTracingSteps)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
@@ -1173,6 +1174,7 @@ void TraceDistanceFieldShadows(
 		PassParameters->MeshSDFShadowRayBias = LumenSceneDirectLighting::GetMeshSDFShadowRayBias();
 		PassParameters->HeightfieldShadowRayBias = LumenSceneDirectLighting::GetHeightfieldShadowRayBias();
 		PassParameters->GlobalSDFShadowRayBias = LumenSceneDirectLighting::GetGlobalSDFShadowRayBias();
+		PassParameters->HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;

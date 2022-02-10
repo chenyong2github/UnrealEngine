@@ -291,6 +291,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneSoftwareRayTracingParameters, 
 	SHADER_PARAMETER(float, CardInterpolateInfluenceRadius)
 	SHADER_PARAMETER(int, VisualizeClipmapIndex)
 	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
+	SHADER_PARAMETER(int, HeightfieldMaxTracingSteps)
 END_SHADER_PARAMETER_STRUCT()
 
 class FVisualizeLumenSceneCS : public FGlobalShader
@@ -650,6 +651,7 @@ void SetupVisualizeParameters(
 
 		VisualizeParameters.MaxMeshSDFTraceDistanceForVoxelTracing = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
 		VisualizeParameters.MaxMeshSDFTraceDistance = FMath::Clamp(MaxMeshSDFTraceDistance, VisualizeParameters.MinTraceDistance, VisualizeParameters.MaxTraceDistance);
+		VisualizeParameters.HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
 	}
 }
 

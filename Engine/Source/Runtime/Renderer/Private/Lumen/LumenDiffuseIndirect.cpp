@@ -245,6 +245,7 @@ void SetupLumenDiffuseTracingParameters(const FViewInfo& View, FLumenIndirectTra
 	OutParameters.MaxMeshSDFTraceDistance = FMath::Clamp(GLumenGatherCvars.MeshSDFTraceDistance, OutParameters.MinTraceDistance, OutParameters.MaxTraceDistance);
 	OutParameters.SurfaceBias = FMath::Clamp(GLumenGatherCvars.SurfaceBias, .01f, 100.0f);
 	OutParameters.CardInterpolateInfluenceRadius = FMath::Clamp(GLumenDiffuseCardInterpolateInfluenceRadius, .01f, 1000.0f);
+	OutParameters.HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
 	//@todo - remove
 	OutParameters.DiffuseConeHalfAngle = 0.1f;
 	OutParameters.TanDiffuseConeHalfAngle = FMath::Tan(OutParameters.DiffuseConeHalfAngle);

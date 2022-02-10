@@ -527,6 +527,7 @@ class FHeightfieldVoxelTraceCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, VoxelCoordToUVScale)
 		SHADER_PARAMETER(FVector3f, VoxelCoordToUVBias)
 		SHADER_PARAMETER(uint32, ClipmapIndex)
+		SHADER_PARAMETER(int32, HeightfieldMaxTracingSteps)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1305,6 +1306,7 @@ void UpdateVoxelVisBuffer(
 					PassParameters->CullGridResolution = UpdateGridResolution;
 					PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
 					PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
+					PassParameters->HeightfieldMaxTracingSteps = Lumen::GetHeightfieldMaxTracingSteps();
 
 					auto ComputeShader = View.ShaderMap->GetShader<FHeightfieldVoxelTraceCS>();
 
