@@ -7,6 +7,9 @@ public abstract class DatasmithWireTranslatorBase : ModuleRules
 {
 	public DatasmithWireTranslatorBase(ReadOnlyTargetRules Target) : base(Target)
 	{
+		// TODO: investigate to remove that (Jira UETOOL-4975)
+		bUseUnity = false;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
