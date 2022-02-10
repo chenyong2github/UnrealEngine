@@ -183,7 +183,7 @@ export class DescriptionParser {
 		private isDefaultBot: boolean,
 		private graphBotName: string,
 		private cl: number,
-		private aliasUpper: string,
+		private aliasesUpper: string[],
 		private macros: {[name: string]: string[]}
 
 	) {
@@ -270,7 +270,7 @@ export class DescriptionParser {
 				continue
 			}
 
-			const thisBotNames = ['', this.graphBotName, this.aliasUpper, 'ALL']
+			const thisBotNames = ['', this.graphBotName, ...this.aliasesUpper, 'ALL']
 			const commands: Token_Command[] = []
 			for (const tokenCommand of (result as Token_Command[])) {
 				const macroLines = this.macros[tokenCommand.param.toLowerCase()]
@@ -323,12 +323,12 @@ export function parseDescriptionLines(args: {
 		isDefaultBot: boolean, 
 		graphBotName: string, 
 		cl: number, 
-		aliasUpper: string,
+		aliasesUpper: string[],
 		macros: {[name: string]: string[]},
 		logger: ContextualLogger
 	}
 	) {
-	const lineParser = new DescriptionParser(args.isDefaultBot, args.graphBotName, args.cl, args.aliasUpper, args.macros)
+	const lineParser = new DescriptionParser(args.isDefaultBot, args.graphBotName, args.cl, args.aliasesUpper, args.macros)
 	lineParser.parse(args.lines)
 	return lineParser
 }
@@ -381,7 +381,7 @@ export function processOtherBotTargets(
 			info = {
 				firstHopBranches: new Set<Branch>(),
 				commands: [],
-				aliasOrName: bg.config.alias || bg.botname
+				aliasOrName: bg.config.aliases.length > 0 ? bg.config.aliases[0] : bg.botname
 			}
 			otherBotInfo.set(key, info)
 		}
@@ -774,7 +774,7 @@ export function runTests(parentLogger: ContextualLogger) {
 		isDefaultBot: true,
 		graphBotName: 'test',
 		cl: 1,
-		aliasUpper: '',
+		aliasesUpper: [],
 		macros: {'m': ['#robomerge X, Y'], 'otherbot': ['#robomerge[A] B']},
 		logger
 	}

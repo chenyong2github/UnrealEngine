@@ -25,7 +25,7 @@ export interface BotConfig {
 	slackChannel: string
 	reportToBuildHealth: boolean
 	mirrorPath: string[]
-	alias: string // alias if we need to mask name of bot in commands
+	aliases: string[] // alternative names for the bot, first in list used for incognito mode
 	badgeUrlOverride: string
 	branchNamesToIgnore: string[]
 
@@ -256,24 +256,32 @@ export class BranchDefs {
 			slackChannel: '',
 			reportToBuildHealth: false,
 			mirrorPath: [],
-			alias: '',
+			aliases: [],
 			branchNamesToIgnore: [],
 			macros: {},
 			badgeUrlOverride: ''
 		}
 
-		let branchGraph
+		let branchGraphRaw: any
 		try {
-			branchGraph = jsonlint.parse(branchSpecsText) as BranchGraphDefinition
+			branchGraphRaw = jsonlint.parse(branchSpecsText)
+
+			if (!Array.isArray(branchGraphRaw.branches)) {
+				throw new Error('expected "branches" array!')
+			}
 		}
 		catch (err) {
 			outErrors.push(err)
 			return {branchGraphDef: null, config: defaultConfigForWholeBot}
 		}
 
+		if (branchGraphRaw.alias) {
+			branchGraphRaw.aliases = [branchGraphRaw.alias, ...(branchGraphRaw.aliases || [])]
+		}
+
 		// copy config values
 		for (let key of Object.keys(defaultConfigForWholeBot)) {
-			let value = (branchGraph as any)[key]
+			let value = branchGraphRaw[key]
 			if (value !== undefined) {
 				if (key === 'macros') {
 					let macrosLower: {[name:string]: string[]} | null = {}
@@ -310,6 +318,7 @@ export class BranchDefs {
 
 		const names = new Map<string, string>()
 
+		const branchGraph = branchGraphRaw as BranchGraphDefinition
 		const branchesFromJSON = branchGraph.branches
 		branchGraph.branches = []
 

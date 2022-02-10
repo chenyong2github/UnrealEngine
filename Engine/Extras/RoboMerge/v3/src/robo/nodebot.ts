@@ -1560,7 +1560,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			isDefaultBot: this.branch.isDefaultBot,
 			graphBotName: this.graphBotName,
 			cl: change.change,
-			aliasUpper: (this.branchGraph.config.alias || '').toUpperCase(),
+			aliasesUpper: this.branchGraph.config.aliases.map(s => s.toUpperCase()),
 			macros: this.branchGraph.config.macros,
 			logger: this.nodeBotLogger
 		})

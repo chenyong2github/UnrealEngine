@@ -232,7 +232,8 @@ export class Graph {
 		return null
 	}
 
-	private findAllRoutesBetweenImpl(completeRoutes: Edge[][], routeSoFar: Edge[], src: Node, seen: Set<Node>, target: Node, flags: EdgeFlag[]) {
+	private findAllRoutesBetweenImpl(completeRoutes: Edge[][], routeSoFar: Edge[],
+																	src: Node, seen: Set<Node>, target: Node, flags: EdgeFlag[]) {
 		for (const edge of this.getEdgesBySource(src, ...flags)) {
 			if (!seen.has(edge.target)) {
 				const routePlus = [...routeSoFar, edge]
@@ -281,7 +282,8 @@ export class Graph {
 			// flood the graph one step to include all unseen direct flowsTo nodes of one branch
 			let anyUnseen = false
 
-			let flowsTo: Set<Edge> | Edge[] | undefined = this.edgesBySource.get(sourceNode) // here's where we will need to be able to filter by bot
+		 // here's where we will need to be able to filter by bot
+			let flowsTo: Set<Edge> | Edge[] | undefined = this.edgesBySource.get(sourceNode)
 			if (flowsTo && allowedBots) {
 				// console.log('before: ', flowsTo)
 				flowsTo = [...flowsTo].filter((e: Edge) => allowedBots.indexOf(e.bot) >= 0)
@@ -335,11 +337,11 @@ export class Graph {
 
 export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) {
 
-	graph.branchGraphAliases.set(branchGraph.botname.toUpperCase(), branchGraph)
-	if (branchGraph.config.alias) {
-		graph.branchGraphAliases.set(branchGraph.config.alias.toUpperCase(), branchGraph)
-
-	}
+	graph.branchGraphAliases  = new Map([
+		[branchGraph.botname.toUpperCase(), branchGraph],
+		...graph.branchGraphAliases.entries(),
+		...(branchGraph.config.aliases.map(s => [s.toUpperCase(), branchGraph]) as [[string, BranchGraphInterface]])
+	])
 
 	const botname = branchGraph.botname as BotName
 	const branchNodes = new Map<Branch, Node>()
@@ -648,7 +650,8 @@ function parseTargetsAndFlagsImpl(tokens: string[], logger: ContextualLogger, fo
 	return {status: 'succeeded', flags, targets}
 }
 
-export function parseTargetsAndFlags(graph: Graph, botname: BotName, tokens: string[], automaticTargets: Node[], logger: ContextualLogger, forcedMode?: MergeMode) {
+export function parseTargetsAndFlags(graph: Graph, botname: BotName, tokens: string[], automaticTargets: Node[],
+																logger: ContextualLogger, forcedMode?: MergeMode) {
 	const result = parseTargetsAndFlagsImpl(tokens, logger, forcedMode)
 	if (result.status !== 'succeeded') {
 		throw new Error('to do!')
@@ -718,7 +721,8 @@ function parseChange(cldesc: string) {
 		}
 
 		if (bot) {
-			const tokensForThisLine: StringBotNamePair[] = value.split(/[ ,]/).filter(Boolean).map(token => [token, bot] as StringBotNamePair)
+			const tokensForThisLine: StringBotNamePair[] = value.split(/[ ,]/)
+													.filter(Boolean).map(token => [token, bot] as StringBotNamePair)
 			tokens = [...tokens, ...tokensForThisLine]
 		}
 	}

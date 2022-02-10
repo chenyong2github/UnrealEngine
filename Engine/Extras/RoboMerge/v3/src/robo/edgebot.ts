@@ -428,8 +428,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				target.mergeMode === 'null' ? '!' : '') + target.branchName)
 
 		if (flags || thisBotMergeCommands.length !== 0) {
-			const thisBotname = 
-				(this.incognitoMode && this.sourceNode.branchGraph.config.alias) ||
+			const botAliases = this.sourceNode.branchGraph.config.aliases
+			const thisBotname = this.incognitoMode && botAliases.length > 0 ? botAliases[0] :
 				this.graphBotName
 
 			description += `#ROBOMERGE[${thisBotname}]: ${thisBotMergeCommands.join(' ')}${flags}\n`
