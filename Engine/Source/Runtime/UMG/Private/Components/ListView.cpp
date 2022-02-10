@@ -85,6 +85,18 @@ void UListView::OnRefreshDesignerItems()
 
 void UListView::AddItem(UObject* Item)
 {
+	if (Item == nullptr)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot add null item into ListView."), ELogVerbosity::Warning, "NullListViewItem");
+		return;
+	}
+
+	if (ListItems.Contains(Item))
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot add duplicate item into ListView."), ELogVerbosity::Warning, "DuplicateListViewItem");
+		return;
+	}
+
 	ListItems.Add(Item);
 
 	const TArray<UObject*> Added = { Item };
@@ -248,7 +260,7 @@ void UListView::OnItemsChanged(const TArray<UObject*>& AddedItems, const TArray<
 
 	// Keep track of references to Actors and make sure to release them when Actors are about to be removed
 	for (UObject* AddedItem : AddedItems)
-	{		
+	{
 		if (AActor* AddedActor = Cast<AActor>(AddedItem))
 		{
 			AddedActor->OnEndPlay.AddDynamic(this, &UListView::OnListItemEndPlayed);
