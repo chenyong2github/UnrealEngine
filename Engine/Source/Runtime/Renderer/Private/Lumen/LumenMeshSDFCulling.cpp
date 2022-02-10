@@ -111,14 +111,6 @@ class FCombineObjectIndexBuffersCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FCombineObjectIndexBuffersCS, "/Engine/Private/Lumen/LumenMeshSDFCulling.usf", "CombineObjectIndexBuffersCS", SF_Compute);
 
-enum class EMeshType
-{
-	SDF,
-	Heightfield,
-
-	MAX
-};
-
 class FMeshSDFObjectCullVS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMeshSDFObjectCullVS);
