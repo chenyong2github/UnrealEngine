@@ -39,7 +39,9 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 	}
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
-	
+	bool bWroteThisFrame = false;
+	bool bReadThisFrame = false;
+
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTexture3DRHIRef TextureRHI;
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;

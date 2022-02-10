@@ -135,6 +135,11 @@ public:
 	virtual void ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup) override;
 #endif
 
+#if WITH_MGPU
+	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const override;
+	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const override;
+#endif
+
 	void OnPrimitiveGPUSceneInstancesAllocated();
 	void OnPrimitiveGPUSceneInstancesFreed();
 
@@ -231,13 +236,22 @@ private:
 	TArray<FDebugReadbackInfo> GpuDebugReadbackInfos;
 
 #if WITH_MGPU
-	static const FName TemporalEffectName;
-	TArray<FRHIBuffer*> TemporalEffectBuffers;
-	ENiagaraGpuComputeTickStage::Type StageToWaitForTemporalEffect = ENiagaraGpuComputeTickStage::First;
-	ENiagaraGpuComputeTickStage::Type StageToBroadcastTemporalEffect = ENiagaraGpuComputeTickStage::First;
+	ENiagaraGpuComputeTickStage::Type StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::First;
+	ENiagaraGpuComputeTickStage::Type StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
 
-	void AddTemporalEffectBuffers(FNiagaraDataBuffer* FinalData);
-	void BroadcastTemporalEffect(FRHICommandList& RHICmdList);
+	bool bAFREnabled = false;
+	TArray<FRHIBuffer*> AFRBuffers;
+	TArray<FRHITexture*> AFRTextures;
+
+	bool bCrossGPUTransferEnabled = false;
+	TArray<FTransferResourceParams> CrossGPUTransferBuffers;
+
+	void AddAFRBuffer(FRHIBuffer* Buffer);
+	void AddCrossGPUTransfer(FRHICommandList& RHICmdList, FRHIBuffer* Buffer);
+
+	void CalculateCrossGPUTransferLocation();
+	void TransferMultiGPUBufers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
+	void WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
 #endif // WITH_MGPU
 
 	/** Pool of free GPU ray traced collision groups. */

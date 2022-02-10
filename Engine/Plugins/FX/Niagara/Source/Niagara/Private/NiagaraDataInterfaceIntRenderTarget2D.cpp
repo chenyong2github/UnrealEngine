@@ -74,6 +74,8 @@ struct FNDIIntRenderTarget2DInstanceData_RenderThread
 	bool bPreviewRenderTarget = false;
 	FVector2D PreviewDisplayRange = FVector2D(0.0f, 255.0f);
 #endif
+	bool bWroteThisFrame = false;
+	bool bReadThisFrame = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureRHIRef TextureRHI;
@@ -105,21 +107,35 @@ struct FNDIIntRenderTarget2DProxy : public FNiagaraDataInterfaceProxyRW
 
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
 	{
-		if (FNDIIntRenderTarget2DInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
+		FNDIIntRenderTarget2DInstanceData_RenderThread* InstanceData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
+		if ( InstanceData == nullptr )
 		{
+			return;
+		}
+
+		// We only need to transfer this frame if it was written to.
+		// If also read then we need to notify that the texture is important for the simulation
+		// We also assume the texture is important for rendering, without discovering renderer bindings we don't really know
+		if (InstanceData->bWroteThisFrame)
+		{
+			Context.ComputeDispatchInterface->MultiGPUResourceModified(RHICmdList, InstanceData->TextureRHI, InstanceData->bReadThisFrame, true);
+		}
+
+		InstanceData->bWroteThisFrame = true;
+		InstanceData->bReadThisFrame = true;
+
 #if NIAGARA_COMPUTEDEBUG_ENABLED && WITH_EDITORONLY_DATA
-			if (InstanceData->bPreviewRenderTarget)
+		if (InstanceData->bPreviewRenderTarget)
+		{
+			if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.ComputeDispatchInterface->GetGpuComputeDebug())
 			{
-				if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.ComputeDispatchInterface->GetGpuComputeDebug())
+				if (FRHITexture* RHITexture = InstanceData->TextureRHI)
 				{
-					if (FRHITexture* RHITexture = InstanceData->TextureRHI)
-					{
-						GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture, InstanceData->PreviewDisplayRange);
-					}
+					GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture, InstanceData->PreviewDisplayRange);
 				}
 			}
-#endif
 		}
+#endif
 	}
 
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override
@@ -161,6 +177,9 @@ public:
 	
 		if (TextureUAVParam.IsUAVBound())
 		{
+			InstanceData->bWroteThisFrame = true;
+			InstanceData->bReadThisFrame = true;
+
 			FRHIUnorderedAccessView* OutputUAV = InstanceData->UnorderedAccessViewRHI;
 			if (OutputUAV != nullptr)
 			{

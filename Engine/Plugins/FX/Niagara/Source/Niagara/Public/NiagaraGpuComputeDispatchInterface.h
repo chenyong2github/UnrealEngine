@@ -92,6 +92,19 @@ public:
 	virtual void ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup) = 0;
 #endif
 
+#if WITH_MGPU
+	/**
+	Notify that a GPU resource was modified that will impact MultiGPU rendering.
+	bRequiredForSimulation	- When true we require this resource for simulation passes
+	bRequiredForRendering	- When true we require this resource for rendering passes
+	*/
+	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const = 0;
+	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const = 0;
+#else
+	FORCEINLINE void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const {}
+	FORCEINLINE void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const {}
+#endif
+
 protected:
 	EShaderPlatform							ShaderPlatform;
 	ERHIFeatureLevel::Type					FeatureLevel;

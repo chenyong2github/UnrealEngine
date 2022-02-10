@@ -4733,6 +4733,29 @@ void FFXSystem::SimulateGPUParticles(
 		TemporalEffectTextures.Add(CurrentStateRenderTargets[0]);
 		TemporalEffectTextures.Add(CurrentStateRenderTargets[1]);
 	}
+
+	TArray<FTransferResourceParams, TFixedAllocator<4>> CrossGPUTransferResources;
+	const bool bCrossTransferEnabled = GNumAlternateFrameRenderingGroups == 1 && GNumExplicitGPUsForRendering > 1;
+	auto AddCrossGPUTransferResource =
+		[&](FRHITexture* TextureToTransfer)
+		{
+			const bool bPullData = false;
+			const bool bLockStep = true;
+
+			const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
+			for (uint32 GPUIndex : FRHIGPUMask::All())
+			{
+				if (!GPUMask.Contains(GPUIndex))
+				{
+					CrossGPUTransferResources.Emplace(TextureToTransfer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				}
+			}
+		};
+	if (bCrossTransferEnabled)
+	{
+		AddCrossGPUTransferResource(CurrentStateRenderTargets[0]);
+		AddCrossGPUTransferResource(CurrentStateRenderTargets[1]);
+	}
 #endif
 
 	{
@@ -5051,6 +5074,13 @@ void FFXSystem::SimulateGPUParticles(
 #endif
 			}
 		}
+#if WITH_MGPU
+		if (bCrossTransferEnabled)
+		{
+			AddCrossGPUTransferResource(ParticleSimulationResources->RenderAttributesTexture.TextureTargetRHI);
+			AddCrossGPUTransferResource(ParticleSimulationResources->SimulationAttributesTexture.TextureTargetRHI);
+		}
+#endif
 		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->RenderAttributesTexture.TextureTargetRHI);
 		RHICmdList.EndUpdateMultiFrameResource(ParticleSimulationResources->SimulationAttributesTexture.TextureTargetRHI);
 	}
@@ -5121,9 +5151,16 @@ void FFXSystem::SimulateGPUParticles(
 	// using the textures until we're done, however for a potential AFR performance
 	// boost, we can put the broadcast back to where it was, and use a third buffer for
 	// temporary extra particle simulation work.
-	if (GNumAlternateFrameRenderingGroups > 1 && Phase == PhaseToBroadcastTemporalEffect)
+	if (Phase == PhaseToBroadcastTemporalEffect)
 	{
-		RHICmdList.BroadcastTemporalEffect(TemporalEffectName, TemporalEffectTextures);
+		if (GNumAlternateFrameRenderingGroups > 1)
+		{
+			RHICmdList.BroadcastTemporalEffect(TemporalEffectName, TemporalEffectTextures);
+		}
+		if (CrossGPUTransferResources.Num() > 0)
+		{
+			RHICmdList.TransferResources(CrossGPUTransferResources);
+		}
 	}
 #endif
 

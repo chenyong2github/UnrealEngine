@@ -53,10 +53,6 @@ DECLARE_GPU_STAT_NAMED(NiagaraGPUSorting, TEXT("Niagara GPU sorting"));
 
 uint32 FNiagaraComputeExecutionContext::TickCounter = 0;
 
-#if WITH_MGPU
-const FName FNiagaraGpuComputeDispatch::TemporalEffectName("FNiagaraGpuComputeDispatch");
-#endif // WITH_MGPU
-
 int32 GNiagaraGpuSubmitCommandHint = 0;
 static FAutoConsoleVariableRef CVarNiagaraGpuSubmitCommandHint(
 	TEXT("fx.NiagaraGpuSubmitCommandHint"),
@@ -87,6 +83,11 @@ const FName FNiagaraGpuComputeDispatch::Name(TEXT("FNiagaraGpuComputeDispatch"))
 
 namespace FNiagaraGpuComputeDispatchLocal
 {
+#if WITH_MGPU
+	const FName TemporalEffectBuffersName("FNiagaraGpuComputeDispatch_Buffers");
+	const FName TemporalEffectTexturesName("FNiagaraGpuComputeDispatch_Textures");
+#endif // WITH_MGPU
+
 	int32 GTickFlushMaxQueuedFrames = 10;
 	static FAutoConsoleVariableRef CVarNiagaraTickFlushMaxQueuedFrames(
 		TEXT("fx.Niagara.Batcher.TickFlush.MaxQueuedFrames"),
@@ -182,14 +183,9 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
 					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PreOpaque);
-#if WITH_MGPU
-					// For PreInitViews we actually need to broadcast here and not in ExecuteAll since
-					// this is the last place the instance count buffer is written to.
-					if (StageToBroadcastTemporalEffect == ENiagaraGpuComputeTickStage::PreInitViews)
-					{
-						BroadcastTemporalEffect(RHICmdList);
-					}
-#endif // WITH_MGPU
+				#if WITH_MGPU
+					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PreInitViews);
+				#endif // WITH_MGPU
 				}
 			);
 
@@ -198,6 +194,9 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
 					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PostOpaque);
+				#if WITH_MGPU
+					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PostOpaqueRender);
+				#endif // WITH_MGPU
 				}
 			);
 		}
@@ -1167,9 +1166,6 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
 			FinalBuffer->SetGPUDataReadyStage(ComputeProxy->GetComputeTickStage());
 			ComputeContext->SetDataToRender(FinalBuffer);
-#if WITH_MGPU
-			AddTemporalEffectBuffers(FinalBuffer);
-#endif // WITH_MGPU
 		}
 		// When low latency translucency is enabled we can setup the final buffer / final count here.
 		// This will allow our mesh processor commands to pickup the data for the same frame.
@@ -1183,29 +1179,6 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 			ComputeContext->SetTranslucentDataToRender(FinalBuffer);
 		}
 	}
-
-#if WITH_MGPU
-	if (GNumAlternateFrameRenderingGroups > 1)
-	{
-		StageToBroadcastTemporalEffect = ENiagaraGpuComputeTickStage::Last;
-		while (StageToBroadcastTemporalEffect > ENiagaraGpuComputeTickStage::First && !DispatchListPerStage[static_cast<int32>(StageToBroadcastTemporalEffect)].HasWork())
-		{
-			StageToBroadcastTemporalEffect = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToBroadcastTemporalEffect) - 1);
-		}
-
-		StageToWaitForTemporalEffect = ENiagaraGpuComputeTickStage::First;
-		// If we're going to write to the instance count buffer after PreInitViews then
-		// that needs to be the wait stage, regardless of whether or not we're ticking
-		// anything in that stage.
-		if (!GPUInstanceCounterManager.HasEntriesPendingFree())
-		{
-			while (StageToWaitForTemporalEffect < StageToBroadcastTemporalEffect && !DispatchListPerStage[static_cast<int32>(StageToWaitForTemporalEffect)].HasWork())
-			{
-				StageToWaitForTemporalEffect = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToWaitForTemporalEffect) + 1);
-			}
-		}
-	}
-#endif // WITH_MGPU
 }
 
 void FNiagaraGpuComputeDispatch::PrepareAllTicks(FRHICommandListImmediate& RHICmdList)
@@ -1222,10 +1195,7 @@ void FNiagaraGpuComputeDispatch::PrepareAllTicks(FRHICommandListImmediate& RHICm
 void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, ENiagaraGpuComputeTickStage::Type TickStage)
 {
 #if WITH_MGPU
-	if (GNumAlternateFrameRenderingGroups > 1 && TickStage == StageToWaitForTemporalEffect)
-	{
-		RHICmdList.WaitForTemporalEffect(TemporalEffectName);
-	}
+	WaitForMultiGPUBuffers(RHICmdList, TickStage);
 #endif // WITH_MGPU
 
 	// Anything to execute for this stage
@@ -1390,10 +1360,25 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIU
 						ComputeContext->SetDataToRender(CurrentData);
 
 #if WITH_MGPU
-						AddTemporalEffectBuffers(CurrentData);
+						if (bAFREnabled)
+						{
+							AddAFRBuffer(CurrentData->GetGPUBufferFloat().Buffer);
+							AddAFRBuffer(CurrentData->GetGPUBufferHalf().Buffer);
+							AddAFRBuffer(CurrentData->GetGPUBufferInt().Buffer);
+							if (ComputeContext->MainDataSet->RequiresPersistentIDs())
+							{
+								AddAFRBuffer(ComputeContext->MainDataSet->GetGPUFreeIDs().Buffer);
+							}
+						}
+						if (bCrossGPUTransferEnabled)
+						{
+							AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferFloat().Buffer);
+							AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferHalf().Buffer);
+							AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferInt().Buffer);
+						}
 #endif // WITH_MGPU
 					}
-						// If this is not the final tick of the final stage we need set our temporary buffer for data interfaces, etc, that may snoop from CurrentData
+					// If this is not the final tick of the final stage we need set our temporary buffer for data interfaces, etc, that may snoop from CurrentData
 					else
 					{
 						ComputeContext->MainDataSet->CurrentData = FinalSimStageDataBuffer;
@@ -1410,15 +1395,6 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRHICommandList& RHICmdList, FRHIU
 		// Execute After Transitions
 		RHICmdList.Transition(TransitionsAfter);
 		TransitionsAfter.Reset();
-
-#if WITH_MGPU
-		// For PreInitViews we actually need to broadcast after UpdateDrawIndirectBuffer
-		// since this is the last place the instance count buffer is written to.
-		if (TickStage == StageToBroadcastTemporalEffect && StageToBroadcastTemporalEffect != ENiagaraGpuComputeTickStage::PreInitViews)
-		{
-			BroadcastTemporalEffect(RHICmdList);
-		}
-#endif // WITH_MGPU
 
 		// Update free IDs
 		if (DispatchGroup.FreeIDUpdates.Num() > 0)
@@ -1657,6 +1633,12 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 #if WITH_EDITOR
 	bRaisedWarningThisFrame = false;
 #endif
+#if WITH_MGPU
+	bAFREnabled = GNumAlternateFrameRenderingGroups > 1;
+	bCrossGPUTransferEnabled = !bAFREnabled && (GNumExplicitGPUsForRendering > 1);
+	StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::Last;
+	StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
+#endif
 
 	GpuReadbackManagerPtr->Tick();
 #if NIAGARA_COMPUTEDEBUG_ENABLED
@@ -1691,6 +1673,10 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 			UpdateInstanceCountManager(GraphBuilder.RHICmdList);
 			PrepareAllTicks(GraphBuilder.RHICmdList);
 		
+		#if WITH_MGPU
+			CalculateCrossGPUTransferLocation();
+		#endif
+
 #if RHI_RAYTRACING
 			RayTracingHelper->BeginFrame(GraphBuilder.RHICmdList, HasRayTracingScene());
 #endif
@@ -1739,13 +1725,17 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TArray
 			PassParameters,
 			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			[this, PassParameters, Views](FRHICommandListImmediate& RHICmdList)
-		{
-			NiagaraSceneTextures = PassParameters;
-			ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
+			{
+				NiagaraSceneTextures = PassParameters;
+				ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
 
-			FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
-			ExecuteTicks(RHICmdList, ViewUniformBuffer, ENiagaraGpuComputeTickStage::PostInitViews);
-		});
+				FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
+				ExecuteTicks(RHICmdList, ViewUniformBuffer, ENiagaraGpuComputeTickStage::PostInitViews);
+			#if WITH_MGPU
+				TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PostInitViews);
+			#endif // WITH_MGPU
+			}
+		);
 	}
 }
 
@@ -2245,33 +2235,127 @@ void FNiagaraGpuComputeDispatch::DrawSceneDebug_RenderThread(class FRDGBuilder& 
 }
 
 #if WITH_MGPU
-void FNiagaraGpuComputeDispatch::AddTemporalEffectBuffers(FNiagaraDataBuffer* FinalData)
+void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const
 {
-	if (GNumAlternateFrameRenderingGroups > 1)
+	if (bAFREnabled && bRequiredForSimulation)
 	{
-		for (FRHIBuffer* Buffer : { FinalData->GetGPUBufferFloat().Buffer, FinalData->GetGPUBufferInt().Buffer, FinalData->GetGPUBufferHalf().Buffer })
+		const_cast<FNiagaraGpuComputeDispatch*>(this)->AddAFRBuffer(Buffer);
+	}
+	if (bCrossGPUTransferEnabled && bRequiredForRendering)
+	{
+		const_cast<FNiagaraGpuComputeDispatch*>(this)->AddCrossGPUTransfer(RHICmdList, Buffer);
+	}
+}
+
+void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const
+{
+	if (bAFREnabled && bRequiredForSimulation)
+	{
+		if (Texture)
 		{
-			if (Buffer)
+			const_cast<FNiagaraGpuComputeDispatch*>(this)->AFRTextures.Add(Texture);
+		}
+	}
+	if (bCrossGPUTransferEnabled && bRequiredForRendering)
+	{
+		const bool bPullData = false;
+		const bool bLockStep = true;
+
+		const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
+		for (uint32 GPUIndex : FRHIGPUMask::All())
+		{
+			if (!GPUMask.Contains(GPUIndex))
 			{
-				TemporalEffectBuffers.Add(Buffer);
+				const_cast<FNiagaraGpuComputeDispatch*>(this)->CrossGPUTransferBuffers.Emplace(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
 			}
 		}
 	}
 }
 
-void FNiagaraGpuComputeDispatch::BroadcastTemporalEffect(FRHICommandList& RHICmdList)
+void FNiagaraGpuComputeDispatch::AddAFRBuffer(FRHIBuffer* Buffer)
 {
-	if (GNumAlternateFrameRenderingGroups > 1)
+	check(bAFREnabled);
+	if (Buffer)
 	{
-		if (GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer)
+		AFRBuffers.Add(Buffer);
+	}
+}
+
+void FNiagaraGpuComputeDispatch::AddCrossGPUTransfer(FRHICommandList& RHICmdList, FRHIBuffer* Buffer)
+{
+	check(bCrossGPUTransferEnabled);
+	if (Buffer)
+	{
+		const bool bPullData = false;
+		const bool bLockStep = true;
+
+		const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
+		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
-			TemporalEffectBuffers.Add(GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer);
+			if (!GPUMask.Contains(GPUIndex))
+			{
+				CrossGPUTransferBuffers.Emplace(Buffer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+			}
 		}
-		if (TemporalEffectBuffers.Num())
+	}
+}
+
+void FNiagaraGpuComputeDispatch::CalculateCrossGPUTransferLocation()
+{
+	StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::Last;
+	while (StageToTransferGPUBuffers > ENiagaraGpuComputeTickStage::First && !DispatchListPerStage[static_cast<int32>(StageToTransferGPUBuffers)].HasWork())
+	{
+		StageToTransferGPUBuffers = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToTransferGPUBuffers) - 1);
+	}
+
+	StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
+	// If we're going to write to the instance count buffer after PreInitViews then
+	// that needs to be the wait stage, regardless of whether or not we're ticking
+	// anything in that stage.
+	if (!GPUInstanceCounterManager.HasEntriesPendingFree())
+	{
+		while (StageToWaitForGPUTransfers < StageToTransferGPUBuffers && !DispatchListPerStage[static_cast<int32>(StageToWaitForGPUTransfers)].HasWork())
 		{
-			RHICmdList.BroadcastTemporalEffect(TemporalEffectName, TemporalEffectBuffers);
-			TemporalEffectBuffers.Reset();
+			StageToWaitForGPUTransfers = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToWaitForGPUTransfers) + 1);
 		}
+	}
+}
+
+void FNiagaraGpuComputeDispatch::TransferMultiGPUBufers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage)
+{
+	if (StageToTransferGPUBuffers != TickStage)
+	{
+		return;
+	}
+
+	// Transfer buffers for AFR rendering
+	if (AFRBuffers.Num())
+	{
+		AddAFRBuffer(GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer);
+		RHICmdList.BroadcastTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectBuffersName, AFRBuffers);
+		AFRBuffers.Reset();
+	}
+	if (AFRTextures.Num())
+	{
+		RHICmdList.BroadcastTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectTexturesName, AFRTextures);
+		AFRTextures.Reset();
+	}
+
+	// Transfer buffers for cross GPU rendering
+	if (CrossGPUTransferBuffers.Num())
+	{
+		AddCrossGPUTransfer(RHICmdList, GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer);
+		RHICmdList.TransferResources(CrossGPUTransferBuffers);
+		CrossGPUTransferBuffers.Reset();
+	}
+}
+
+void FNiagaraGpuComputeDispatch::WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage)
+{
+	if (StageToWaitForGPUTransfers == TickStage)
+	{
+		RHICmdList.WaitForTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectBuffersName);
+		RHICmdList.WaitForTemporalEffect(FNiagaraGpuComputeDispatchLocal::TemporalEffectTexturesName);
 	}
 }
 #endif // WITH_MGPU

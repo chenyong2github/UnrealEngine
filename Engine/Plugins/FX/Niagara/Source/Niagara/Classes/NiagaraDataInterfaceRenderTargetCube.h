@@ -39,7 +39,9 @@ struct FRenderTargetCubeRWInstanceData_RenderThread
 	}
 
 	int Size = 0;
-	
+	bool bWroteThisFrame = false;
+	bool bReadThisFrame = false;
+
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureCubeRHIRef TextureRHI;
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;

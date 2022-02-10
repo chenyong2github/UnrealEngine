@@ -45,7 +45,9 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
-	bool bWasWrittenTo = false;
+	bool bRebuildMips = false;
+	bool bReadThisFrame = false;
+	bool bWroteThisFrame = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTexture2DRHIRef TextureRHI;
