@@ -27,6 +27,8 @@
 #include <atomic>
 
 DEFINE_LOG_CATEGORY(LogDerivedDataCache);
+LLM_DEFINE_TAG(UntaggedDDCResult);
+LLM_DEFINE_TAG(DDCBackend);
 
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"

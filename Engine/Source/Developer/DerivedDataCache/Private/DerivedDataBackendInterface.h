@@ -7,6 +7,7 @@
 #include "Containers/BitArray.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataLegacyCacheStore.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Stats/Stats.h"
 
 class FDerivedDataCacheUsageStats;
@@ -23,6 +24,12 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("ASync Wait Time"),STAT_DDC_ASyncWait
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Put Time"),STAT_DDC_PutTime,STATGROUP_DDC, );
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Build Time"),STAT_DDC_SyncBuildTime,STATGROUP_DDC, );
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STATGROUP_DDC, );
+
+/** Memory allocation tag for internal allocations of DDC backends */
+LLM_DECLARE_TAG_API(DDCBackend, DERIVEDDATACACHE_API);
+
+/** Memory allocation tag for allocations made by DDC but that are passed to other systems */
+LLM_DECLARE_TAG_API(UntaggedDDCResult, DERIVEDDATACACHE_API);
 
 namespace UE::DerivedData
 {

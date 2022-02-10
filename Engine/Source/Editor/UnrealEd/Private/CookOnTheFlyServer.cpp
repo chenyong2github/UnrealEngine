@@ -123,6 +123,8 @@
 #define LOCTEXT_NAMESPACE "Cooker"
 
 DEFINE_LOG_CATEGORY(LogCook);
+LLM_DEFINE_TAG(Cooker);
+
 
 int32 GCookProgressDisplay = (int32)ECookProgressDisplayMode::RemainingPackages;
 static FAutoConsoleVariableRef CVarCookDisplayMode(
@@ -405,6 +407,7 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 void UCookOnTheFlyServer::Tick(float DeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Tick);
+	LLM_SCOPE_BYTAG(Cooker);
 
 	check(IsCookingInEditor());
 
@@ -447,6 +450,7 @@ TStatId UCookOnTheFlyServer::GetStatId() const
 
 bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyOptions)
 {
+	LLM_SCOPE_BYTAG(Cooker);
 #if WITH_COTF
 	check(IsCookOnTheFlyMode());
 	//GetDerivedDataCacheRef().WaitForQuiescence(false);
@@ -1129,6 +1133,7 @@ bool UCookOnTheFlyServer::RequestPackage(const FName& StandardPackageFName, cons
 
 uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &CookedPackageCount, ECookTickFlags TickFlags)
 {
+	LLM_SCOPE_BYTAG(Cooker);
 	TickCancels();
 	TickNetwork();
 	if (!IsInSession())
@@ -2753,7 +2758,11 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 			}
 		}
 
-		UPackage* LoadedPackage = LoadPackage(LoadIntoPackage, *FileName, LOAD_None);
+		UPackage* LoadedPackage;
+		{
+			LLM_SCOPE(ELLMTag::Untagged); // Reset the scope so that untagged memory in the package shows up as Untagged rather than Cooker
+			LoadedPackage = LoadPackage(LoadIntoPackage, *FileName, LOAD_None);
+		}
 		if (IsValid(LoadedPackage) && LoadedPackage->IsFullyLoaded())
 		{
 			OutPackage = LoadedPackage;
@@ -7400,6 +7409,7 @@ void UCookOnTheFlyServer::TermSandbox()
 void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions& CookByTheBookStartupOptions )
 {
 	UE_SCOPED_COOKTIMER(StartCookByTheBook);
+	LLM_SCOPE_BYTAG(Cooker);
 
 	const TArray<FString>& CookMaps = CookByTheBookStartupOptions.CookMaps;
 	const TArray<FString>& CookDirectories = CookByTheBookStartupOptions.CookDirectories;
@@ -8209,7 +8219,10 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					const FString BuildFilename = BuildFilenameFName.ToString();
 					GIsCookerLoadingPackage = true;
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(LoadPackage);
-					LoadPackage(nullptr, *BuildFilename, LOAD_None);
+					{
+						LLM_SCOPE(ELLMTag::Untagged); // Reset the scope so that untagged memory in the package shows up as Untagged rather than Cooker
+						LoadPackage(nullptr, *BuildFilename, LOAD_None);
+					}
 					if (GShaderCompilingManager)
 					{
 						GShaderCompilingManager->ProcessAsyncResults(true, false);
@@ -8440,7 +8453,10 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				FName BuildFilenameFName = PackageDatas->GetFileNameByPackageName(FName(*ToLoad));
 				if (!PackageTracker->NeverCookPackageList.Contains(BuildFilenameFName))
 				{
-					LoadPackage(nullptr, *ToLoad, LOAD_None);
+					{
+						LLM_SCOPE(ELLMTag::Untagged); // Reset the scope so that untagged memory in the package shows up as Untagged rather than Cooker
+						LoadPackage(nullptr, *ToLoad, LOAD_None);
+					}
 					if (GShaderCompilingManager)
 					{
 						GShaderCompilingManager->ProcessAsyncResults(true, false);

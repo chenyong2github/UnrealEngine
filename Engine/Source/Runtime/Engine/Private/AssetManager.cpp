@@ -38,6 +38,7 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetManager"
+LLM_DEFINE_TAG(AssetManager);
 
 DEFINE_LOG_CATEGORY(LogAssetManager);
 
@@ -806,6 +807,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 
 int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
 {
+	LLM_SCOPE_BYTAG(AssetManager);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
 	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
@@ -3643,6 +3645,7 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 	{
 		return;
 	}
+	LLM_SCOPE_BYTAG(AssetManager);
 
 	ManagementParentMap.Reset();
 

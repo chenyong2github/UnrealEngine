@@ -76,6 +76,8 @@ void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObjec
 							*Referencer.ToString(), *Referenced.ToString());
 					}
 
+					LLM_SCOPE_BYNAME(TEXTVIEW("TObjectPtr"));
+
 					FBuildDependencyAccessData AccessData{ Referenced, AccumulatedScopeData->TargetPlatform };
 					FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
 					if (Referencer == Singleton.LastReferencer)

@@ -4129,6 +4129,7 @@ FArchive& operator<<(FArchive& Ar, FFoliageMeshInfo_Old& MeshInfo)
 
 void AInstancedFoliageActor::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE_BYNAME(TEXT("Foliage"));
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FFoliageCustomVersion::GUID);

@@ -100,6 +100,7 @@ namespace UE::Cook
 
 			if (Package->GetOuter() == nullptr)
 			{
+				LLM_SCOPE_BYTAG(Cooker);
 				if (LoadingPackageData && Package->GetFName() != LoadingPackageData->GetPackageName())
 				{
 					COOK_STAT(++Stats::NumInlineLoads);

@@ -1830,6 +1830,7 @@ void FCollectionManager::LoadCollections()
 
 	const double LoadStartTime = FPlatformTime::Seconds();
 	const int32 PrevNumCollections = AvailableCollections.Num();
+	LLM_SCOPE_BYNAME(TEXT("CollectionManager"));
 
 	FRWLock CollectionLock;
 	ParallelFor(

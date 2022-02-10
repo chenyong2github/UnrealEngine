@@ -28,6 +28,7 @@
 #include "Compression/CompressedBuffer.h"
 #include "Compression/OodleDataCompression.h"
 #include "Containers/StringFwd.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Memory/CompositeBuffer.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
@@ -37,6 +38,8 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "HAL/PlatformProcess.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+
+LLM_DEFINE_TAG(ZenDDC, NAME_None, TEXT("DDCBackend"));
 
 DEFINE_LOG_CATEGORY_STATIC(LogZenHttp, Log, All);
 
@@ -450,6 +453,7 @@ namespace UE::Zen {
 
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength)
 	{
+		LLM_SCOPE_BYTAG(ZenDDC);
 		// Strip any leading slashes because we compose the prefix and the suffix with a separating slash below
 		while (Uri.StartsWith('/'))
 		{

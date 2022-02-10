@@ -1112,6 +1112,8 @@ namespace UE::AssetRegistry
 
 void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext, bool bSynchronousSearch)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	ConstructGatherer();
 	FAssetDataGatherer& Gatherer = *GlobalGatherer;
 	if (Gatherer.IsSynchronous())
@@ -1159,6 +1161,7 @@ void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext, bool
 void UAssetRegistryImpl::WaitForCompletion()
 {
 	using namespace UE::AssetRegistry::Impl;
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 
 	for (;;)
 	{
@@ -2880,6 +2883,7 @@ bool FAssetRegistryImpl::IsLoadingAssets() const
 void UAssetRegistryImpl::Tick(float DeltaTime)
 {
 	checkf(IsInGameThread(), TEXT("The tick function executes deferred loads and events and must be on the game thread to do so."));
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 
 	UE::AssetRegistry::Impl::EGatherStatus Status = UE::AssetRegistry::Impl::EGatherStatus::Active;
 	double TickStartTime = -1; // Force a full flush if DeltaTime < 0

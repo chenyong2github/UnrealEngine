@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
 #include "DerivedDataRequestOwner.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
 #include "Serialization/PackageWriter.h"
@@ -260,5 +261,7 @@ public:
 };
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
+LLM_DECLARE_TAG(Cooker);
+
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")

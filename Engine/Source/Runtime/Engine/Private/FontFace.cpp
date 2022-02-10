@@ -22,6 +22,7 @@ UFontFace::UFontFace()
 
 void UFontFace::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE_BYNAME(TEXT("FontFaceData"));
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 

@@ -858,6 +858,7 @@ void FZenDerivedDataBackend::Get(
 		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 		{
+			LLM_SCOPE_BYTAG(UntaggedDDCResult);
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
 		}
@@ -1100,6 +1101,7 @@ void FZenDerivedDataBackend::GetValue(
 			Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 			{
+				LLM_SCOPE_BYTAG(UntaggedDDCResult);
 				Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 				HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
 			}
@@ -1249,6 +1251,7 @@ void FZenDerivedDataBackend::GetChunks(
 		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 		{
+			LLM_SCOPE_BYTAG(UntaggedDDCResult);
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
 		}

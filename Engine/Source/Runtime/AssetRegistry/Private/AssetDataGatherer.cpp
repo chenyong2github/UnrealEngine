@@ -1421,6 +1421,8 @@ void FAssetDataDiscovery::EnsureCompletion()
 
 void FAssetDataDiscovery::TickInternal()
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	TStringBuilder<256> DirLocalAbsPath;
 	TStringBuilder<128> DirLongPackageName;
 	TStringBuilder<128> DirMountRelPath;
@@ -2725,6 +2727,8 @@ void FAssetDataGatherer::EnsureCompletion()
 
 void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	using namespace UE::AssetDataGather::Private;
 
 	const int32 BatchSize = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads()) * AssetDataGathererConstants::SingleThreadFilesPerBatch;
