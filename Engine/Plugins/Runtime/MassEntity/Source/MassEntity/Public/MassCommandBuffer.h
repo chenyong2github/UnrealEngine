@@ -486,8 +486,14 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 
 	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
 	{
-		ObservedTypes.TagRemoved(OldTagType, TargetEntity);
-		ObservedTypes.TagAdded(NewTagType, TargetEntity);
+		if (OldTagType)
+		{
+			ObservedTypes.TagRemoved(OldTagType, TargetEntity);
+		}
+		if (NewTagType)
+		{
+			ObservedTypes.TagAdded(NewTagType, TargetEntity);
+		}
 	}
 
 protected:
