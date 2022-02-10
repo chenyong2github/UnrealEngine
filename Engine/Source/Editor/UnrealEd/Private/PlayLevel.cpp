@@ -2695,6 +2695,15 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	// Now that we've gotten all of the editor house-keeping out of the way we can finally
 	// start creating world instances and multi player clients!
 	{
+		// Allow the engine to cancel the PIE request if needed.
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEInstances(
+			ErroredBlueprints.Num() > 0, false /*bStartInSpectorMode*/, PIEStartTime, SupportsOnlinePIE(), PlayInEditorSessionInfo->NumOutstandingPIELogins);
+		if (!PreCreateResult.IsSuccess())
+		{
+			UE_LOG(LogPlayLevel, Warning, TEXT("PlayInEditor Session failed (%s::PreCreatePIEInstances) and will not be started."), *GetClass()->GetName());
+			return;
+		}
+		
 		// First, we handle starting a dedicated server. This can exist as either a separate 
 		// process, or as an internal world.
 		bool bUserWantsSingleProcess;
@@ -2707,15 +2716,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		const bool bNetModeRequiresSeparateServer = NetMode == EPlayNetMode::PIE_Client;
 		const bool bLaunchExtraServerAnyways = InRequestParams.EditorPlaySettings->bLaunchSeparateServer;
 		const bool bNeedsServer = bNetModeRequiresSeparateServer || bLaunchExtraServerAnyways;
-
-		// Allow the engine to cancel the PIE request if needed.
-		FGameInstancePIEResult PreCreateResult = PreCreatePIEInstances(
-			ErroredBlueprints.Num() > 0, false /*bStartInSpectorMode*/, PIEStartTime, SupportsOnlinePIE(), PlayInEditorSessionInfo->NumOutstandingPIELogins);
-		if (!PreCreateResult.IsSuccess())
-		{
-			UE_LOG(LogPlayLevel, Warning, TEXT("PlayInEditor Session failed (%s::PreCreatePIEInstances) and will not be started."), *GetClass()->GetName());
-			return;
-		}
 
 		// If they require a separate server we'll give the EditorEngine a chance to handle any additional prep-work.
 		if (bNeedsServer)
