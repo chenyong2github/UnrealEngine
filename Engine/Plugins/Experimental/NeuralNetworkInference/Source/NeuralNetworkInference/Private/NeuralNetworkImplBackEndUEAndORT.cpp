@@ -2,6 +2,7 @@
 
 #include "NeuralNetworkImplBackEndUEAndORT.h"
 #include "Async/Async.h"
+#include "NeuralEnumClasses.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "RedirectCoutAndCerrToUeLog.h"
@@ -288,37 +289,17 @@ UNeuralNetwork::FImplBackEndUEAndORT::~FImplBackEndUEAndORT()
 /* FImplBackEndUEAndORT public functions
  *****************************************************************************/
 
-void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog)
+bool UNeuralNetwork::FImplBackEndUEAndORT::ForceCPUIfNoGPU(ENeuralDeviceType& InOutDeviceType)
 {
 	if (InOutDeviceType != ENeuralDeviceType::CPU)
 	{
 		if (!IsGPUSupported())
 		{
 			InOutDeviceType = ENeuralDeviceType::CPU;
-
-			const FString RHIName = GDynamicRHI->GetName();
-#ifdef PLATFORM_WIN64
-			const FString ErrorMessage = TEXT("On Windows, only DirectX 12 rendering (\"D3D12\") is compatible with the UEAndORT back end of NeuralNetworkInference (NNI). Instead, \"")
-				+ RHIName + TEXT("\" was used. You have the following options:\n\n"
-					"\t1. (Recommended) Switch Unreal Engine to DX12. In order to do that:\n"
-					"\t\t - Go to \"Project Settings\", \"Platforms\", \"Windows\", \"Default RHI\".\n"
-					"\t\t - Select \"DirectX 12\".\n"
-					"\t\t - Restart Unreal Engine.\n"
-					"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n\n"
-					"Network set to CPU provisionally.");
-#else //PLATFORM_WIN64
-			const FString ErrorMessage = TEXT("GPU version is not supported for non-Windows platforms yet. Switch the network to CPU with UNeuralNetwork::SetDeviceType() or run from Windows.\n\n"
-					"Network set to CPU provisionally.");
-#endif //PLATFORM_WIN64
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(): %s"), *ErrorMessage);
-#if WITH_EDITOR
-			if (bInShouldOpenMessageLog)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
-			}
-#endif //WITH_EDITOR
+			return true;
 		}
 	}
+	return false;
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUSupported()
@@ -427,6 +408,11 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralSynchronousMode InSy
 	const ENeuralDeviceType InInputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
+	if (! bHasRun)
+	{
+		WarnOnCPUForced(true);
+		bHasRun = true;
+	}
 #if WITH_EDITOR
 	try
 #endif //WITH_EDITOR
@@ -456,8 +442,8 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralSynchronousMode InSy
 #endif //WITH_EDITOR
 
 #else //WITH_UE_AND_ORT_SUPPORT
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Run(): Platform or Operating System not suported yet for UEAndORT"
-		" BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Run(): Platform or Operating System not suported yet for UEAndORT"
+														" BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
 #endif //WITH_UE_AND_ORT_SUPPORT
 }
 
@@ -467,6 +453,38 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralSynchronousMode InSy
  *****************************************************************************/
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
+
+void UNeuralNetwork::FImplBackEndUEAndORT::WarnOnCPUForced(bool bInShouldOpenMessageLog)
+{
+	if (!bIsCPUForced)
+	{
+		return;
+	}
+
+	const FString RHIName = GDynamicRHI->GetName();
+#ifdef PLATFORM_WIN64
+	const FString ErrorMessage = TEXT("On Windows, only DirectX 12 rendering (\"D3D12\") is compatible with the UEAndORT back end of NeuralNetworkInference (NNI). Instead, \"")
+		+ RHIName + TEXT("\" was used. You have the following options:\n\n"
+						 "\t1. (Recommended) Switch Unreal Engine to DX12. In order to do that:\n"
+						 "\t\t - Go to \"Project Settings\", \"Platforms\", \"Windows\", \"Default RHI\".\n"
+						 "\t\t - Select \"DirectX 12\".\n"
+						 "\t\t - Restart Unreal Engine.\n"
+						 "\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n\n"
+						 "Network set to CPU provisionally.");
+#else //PLATFORM_WIN64
+	const FString ErrorMessage = TEXT("GPU version is not supported for non-Windows platforms yet. Switch the network to CPU with UNeuralNetwork::SetDeviceType() or run from Windows.\n\n"
+									  "Network set to CPU provisionally.");
+#endif //PLATFORM_WIN64
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(): %s"), *ErrorMessage);
+#if WITH_EDITOR
+	if (bInShouldOpenMessageLog)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
+	}
+#endif //WITH_EDITOR
+}
+
+
 void UNeuralNetwork::FImplBackEndUEAndORT::EnsureAsyncTaskCompletion() const
 {
 	if (NeuralNetworkAsyncTask && !NeuralNetworkAsyncTask->IsDone())

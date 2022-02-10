@@ -543,10 +543,15 @@ bool UNeuralNetwork::Load()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/true);
+		// Need to catch this in a local because the back end isn't created yet
+		bool bIsCPUForced =
+			UNeuralNetwork::FImplBackEndUEAndORT::ForceCPUIfNoGPU(DeviceType);
 		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate,
 			ThreadModeDelegateForAsyncRunCompleted, ResoucesCriticalSection, AreInputTensorSizesVariable, ModelReadFromFileInBytes,
 			ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
+#ifdef WITH_UE_AND_ORT_SUPPORT
+		ImplBackEndUEAndORT->bIsCPUForced = bIsCPUForced;
+#endif
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
@@ -681,11 +686,6 @@ void UNeuralNetwork::PostLoad()
 	// If ModelReadFromFileInBytes is not empty, call Load() 
 	if (ModelReadFromFileInBytes.Num() > 0)
 	{
-		// If GPU selected but not compatible, set to CPU
-		if (BackEnd == ENeuralBackEnd::UEAndORT)
-		{
-			FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/false);
-		}
 		// Load
 		if (!Load())
 		{
@@ -703,7 +703,22 @@ void UNeuralNetwork::Serialize(FArchive& Archive)
 		ReimportAssetFromEditorData();
 	}
 #endif // WITH_EDITORONLY_DATA
-	Super::Serialize(Archive);
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	bool bSwapDeviceType = (Archive.IsSaving() && (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT) && (ImplBackEndUEAndORT->bIsCPUForced));
+#else
+	bool bSwapDeviceType = false;
+#endif
+
+	if (bSwapDeviceType)
+	{
+		DeviceType = ENeuralDeviceType::GPU;
+		Super::Serialize(Archive);
+		DeviceType = ENeuralDeviceType::CPU;
+	}
+	else
+	{
+		Super::Serialize(Archive);
+	}
 }
 
 

@@ -47,8 +47,7 @@ public:
 
 	~FImplBackEndUEAndORT();
 
-	static void WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog);
-
+	[[nodiscard]] static bool ForceCPUIfNoGPU(ENeuralDeviceType& InOutDeviceType);
 	static bool IsGPUSupported();
 
 	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
@@ -93,6 +92,12 @@ private:
 	TArray<Ort::Value> OutputOrtTensors;
 	/** Tensor names */
 	TArray<const char*> OutputTensorNames;
+	public:
+	/** Has the device type been forced to CPU after requesting GPU*/
+	bool bIsCPUForced = false;
+	private:
+	/** Has this network been run before */
+	bool bHasRun = false;
 
 	/**
 	 * Storage for input and output tensors for ONNX backend.
@@ -170,6 +175,9 @@ private:
 	void RunSessionImpl(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType);
 
 	void ClearResources();
+
+	void WarnOnCPUForced(bool bInShouldOpenMessageLog);
+
 
 #endif //WITH_UE_AND_ORT_SUPPORT
 };
