@@ -9,6 +9,7 @@
 #include "CoreTechSurfaceHelper.h"
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithMeshHelper.h"
+#include "ParametricSurfaceTranslator.h"
 
 class FCADModelToCoretechConverterBase : public CADLibrary::FCTSession, public CADLibrary::ICADModelConverter
 {
@@ -38,7 +39,7 @@ public:
 		SetSceneUnit(NewSceneunit);
 	}
 
-	virtual bool SaveBRep(const TCHAR* InFolderPath, TSharedRef<IDatasmithMeshElement>& MeshElement) override
+	virtual bool SaveModel(const TCHAR* InFolderPath, TSharedRef<IDatasmithMeshElement>& MeshElement) override
 	{
 		FString FilePath = FPaths::Combine(InFolderPath, MeshElement->GetName()) + TEXT(".ct");
 		if (SaveBrep(FilePath))
@@ -77,7 +78,7 @@ public:
 	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload) const
 	{
 		const CADLibrary::FImportParameters& InImportParameters = GetImportParameters();
-		CoreTechSurface::AddSurfaceDataForMesh(InFilePath, InImportParameters, InMeshParameters, InTessellationOptions, OutMeshPayload);
+		ParametricSurfaceUtils::AddSurfaceData(InFilePath, InImportParameters, InMeshParameters, InTessellationOptions, OutMeshPayload);
 	}
 
 };

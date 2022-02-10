@@ -9,6 +9,7 @@
 #include "CADOptions.h"
 #include "CADSceneGraph.h"
 
+#include "TechSoftInterface.h"
 #include "TUniqueTechSoftObj.h"
 
 typedef void A3DAsmModelFile;
@@ -137,7 +138,7 @@ private:
 	// Methods to parse a first time the file to count the number of components
 	// Needed to reserve CADFileData
 	// Start with CountUnderModel
-	void CountUnderModel(const A3DAsmModelFile* AsmModel);
+	void CountUnderModel();
 	void CountUnderConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence);
 	void CountUnderPrototype(const A3DAsmProductOccurrence* Prototype);
@@ -153,7 +154,7 @@ private:
 	void ReadMaterialsAndColors();
 
 	// Traverse ASM tree by starting from the model
-	ECADParsingResult TraverseModel(const A3DAsmModelFile* AsmModel);
+	ECADParsingResult TraverseModel();
 	void TraverseReference(const A3DAsmProductOccurrence* Reference);
 	bool IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet);
@@ -205,7 +206,7 @@ private:
 	FMatrix TraverseGeneralTransformation(const A3DMiscTransformation* GeneralTransformation);
 	FMatrix TraverseTransformation3D(const A3DMiscTransformation* CartesianTransformation);
 
-	// Archive methodes
+	// Archive methods
 	FArchiveInstance& AddInstance(FEntityMetaData& InstanceMetaData);
 	FArchiveComponent& AddComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
 	FArchiveUnloadedComponent& AddUnloadedComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
@@ -215,6 +216,8 @@ private:
 #endif
 
 private:
+
+	FUniqueTechSoftModelFile ModelFile;
 
 	TSet<const A3DAsmProductOccurrence*> PrototypeCounted;
 	uint32 ComponentCount[EComponentType::LastType] = { 0 };
@@ -231,25 +234,5 @@ private:
 	// 
 	TMap<A3DRiRepresentationItem*, int32> RepresentationItemsCache;
 };
-
-namespace TechSoftFileParserImpl
-{
-#ifdef USE_TECHSOFT_SDK
-	inline FColor GetColorAt(uint32 ColorIndex)
-	{
-		TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(ColorIndex);
-		if (ColorData.IsValid())
-		{
-			return FColor((uint8)(ColorData->m_dRed * 255)
-				, (uint8)(ColorData->m_dGreen * 255)
-				, (uint8)(ColorData->m_dBlue * 255));
-		}
-		else
-		{
-			return FColor(200, 200, 200);
-		}
-	}
-#endif
-} // ns TechSoftFileParserImpl
 
 } // ns CADLibrary

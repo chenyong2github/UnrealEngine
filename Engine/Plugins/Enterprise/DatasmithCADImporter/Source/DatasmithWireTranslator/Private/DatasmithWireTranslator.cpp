@@ -26,12 +26,17 @@
 #include "Modules/ModuleManager.h"
 #endif
 
-#include "AliasModelToCoretechConverter.h" // requires CoreTech as public dependency
-#include "AliasModelToCADKernelConverter.h"
-#include "CADInterfacesModule.h"
 #include "AliasBrepConverter.h"
+#include "AliasModelToCADKernelConverter.h"
+#include "AliasModelToCoretechConverter.h" // requires CoreTech as public dependency
+#include "AliasModelToTechSoftConverter.h" // requires Techsoft as public dependency
+#include "CADInterfacesModule.h"
 #include "CoreTechSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
 
 #ifdef USE_OPENMODEL
 #include <AlChannel.h>
@@ -225,9 +230,18 @@ public:
 		CADLibrary::FImportParameters ImportParameters(0.01, 1);
 		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
-			CADModelConverter = AliasToCoretechConverter;
-			AliasBRepConverter = AliasToCoretechConverter;
+			if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
+			{
+				TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
+				CADModelConverter = AliasToCoretechConverter;
+				AliasBRepConverter = AliasToCoretechConverter;
+			}
+			else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
+			{
+				TSharedRef<FAliasModelToTechSoftConverter> AliasToTechSoftConverter = MakeShared<FAliasModelToTechSoftConverter>(ImportParameters);
+				CADModelConverter = AliasToTechSoftConverter;
+				AliasBRepConverter = AliasToTechSoftConverter;
+			}
 		}
 		else
 		{
@@ -1855,7 +1869,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 
 	CADModelConverter->RepairTopology();
 
-	CADModelConverter->SaveBRep(*OutputPath, MeshElement);
+	CADModelConverter->SaveModel(*OutputPath, MeshElement);
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
@@ -1889,7 +1903,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 
 	CADModelConverter->RepairTopology();
 
-	CADModelConverter->SaveBRep(*OutputPath, MeshElement);
+	CADModelConverter->SaveModel(*OutputPath, MeshElement);
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
@@ -2221,3 +2235,6 @@ void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDa
 
 #undef LOCTEXT_NAMESPACE // "DatasmithWireTranslator"
 
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif

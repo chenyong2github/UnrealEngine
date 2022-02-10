@@ -11,8 +11,6 @@
 #include "opennurbs.h"
 #pragma warning(pop)
 
-#include <vector>
-
 // As of 2018 SP2, CoreTech tessellation for a face is broken when the outer loop is the whole uv range, and some edges are singularities.
 // In those cases, inner loops behave like outers, outer is ignored.
 // current fix will split the uv plane in two parts.
@@ -153,7 +151,7 @@ struct SurfaceInfo
 		if (bUOrderIncreased || bVOrderIncreased)
 		{
 			BuildHull();
-	}
+		}
 	}
 
 	void FixUnsupportedParameters()
@@ -285,7 +283,7 @@ void FBRepToKernelIOBodyTranslator::CreateCTFace_internal(const ON_BrepFace& Fac
 			{
 				for (int32 j = 0; j < CTCurve.ControlPoints.Num(); j += CTCurve.ControlPointSize)
 				{
-					CTCurve.ControlPoints[j] = min(max(CTCurve.ControlPoints[j], outerBBox.m_min.x), outerBBox.m_max.x);
+					CTCurve.ControlPoints[j] = FMath::Min(FMath::Max(CTCurve.ControlPoints[j], outerBBox.m_min.x), outerBBox.m_max.x);
 				}
 			}
 

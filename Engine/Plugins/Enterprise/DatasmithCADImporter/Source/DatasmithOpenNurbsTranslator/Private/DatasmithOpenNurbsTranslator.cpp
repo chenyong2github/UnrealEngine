@@ -21,6 +21,7 @@
 #include "OpenNurbsBRepConverter.h"
 #include "OpenNurbsBRepToCADKernelConverter.h"
 #include "OpenNurbsBRepToCoretechConverter.h" // requires CoreTech as public dependency
+#include "OpenNurbsBRepToTechSoftConverter.h" // requires Techsoft as public dependency
 #include "Utility/DatasmithMeshHelper.h"
 
 #if WITH_EDITOR
@@ -2970,7 +2971,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		OpenNurbsBRepConverter->AddBRep(*Brep, Offset);
 		CADModelConverter->RepairTopology();
 
-		CADModelConverter->SaveBRep(*OutputPath, MeshElement);
+		CADModelConverter->SaveModel(*OutputPath, MeshElement);
 
 		CADLibrary::FMeshParameters MeshParameters;
 		return CADModelConverter->Tessellate(MeshParameters, OutMesh);

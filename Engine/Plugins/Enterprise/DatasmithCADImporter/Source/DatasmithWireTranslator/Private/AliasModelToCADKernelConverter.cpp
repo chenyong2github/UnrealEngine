@@ -98,7 +98,7 @@ TSharedPtr<CADKernel::FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge
 	CADKernel::FNurbsCurveData NurbsCurveData;
 
 	NurbsCurveData.Degree = AliasTrimCurve.degree();
-	int ControlPointCount = AliasTrimCurve.numberOfCVs();
+	int32 ControlPointCount = AliasTrimCurve.numberOfCVs();
 
 	NurbsCurveData.Dimension = 2;
 	NurbsCurveData.bIsRational = true;

@@ -41,8 +41,11 @@ bool UTempCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, con
 #if WITH_EDITOR
 	// make a temporary file as CoreTech can only deal with files.
 	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
-	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.ct"), Hash));
 
+	FString CachePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("Retessellate")));
+	IFileManager::Get().MakeDirectory(*CachePath, true);
+
+	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::Combine(CachePath, FString::Printf(TEXT("0x%08x.ct"), Hash)));
 	FFileHelper::SaveArrayToFile(RawData, *ResourceFile);
 
 	CADLibrary::FCTMesh Mesh;

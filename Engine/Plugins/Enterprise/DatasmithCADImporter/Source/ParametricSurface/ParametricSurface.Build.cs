@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithContent",
 					"DatasmithTranslator",
 					"Engine",
+					"Json",
 					"MeshDescription",
 					"StaticMeshDescription",
 				}

@@ -11,8 +11,6 @@
 #include "opennurbs.h"
 #pragma warning(pop)
 
-#include <vector>
-
 #include "CADKernelTools.h"
 
 #include "CADKernel/Core/Session.h"
@@ -198,7 +196,7 @@ TSharedPtr<CADKernel::FTopologicalEdge> FOpenNurbsBRepToCADKernelConverter::AddE
 	}
 
 	ON_NurbsCurve OpenNurbsCurve;
-	int NurbFormSuccess = OpenNurbsTrim.GetNurbForm(OpenNurbsCurve); // 0:Nok 1:Ok 2:OkBut
+	int32 NurbFormSuccess = OpenNurbsTrim.GetNurbForm(OpenNurbsCurve); // 0:Nok 1:Ok 2:OkBut
 	if (NurbFormSuccess == 0)
 	{
 		return TSharedPtr<FTopologicalEdge>();
@@ -214,7 +212,7 @@ TSharedPtr<CADKernel::FTopologicalEdge> FOpenNurbsBRepToCADKernelConverter::AddE
 
 	NurbsCurveData.NodalVector.Reserve(KnotCount + 2);
 	NurbsCurveData.NodalVector.Emplace(OpenNurbsCurve.SuperfluousKnot(0));
-	for (int Index = 0; Index < KnotCount; ++Index)
+	for (int32 Index = 0; Index < KnotCount; ++Index)
 	{
 		NurbsCurveData.NodalVector.Emplace(OpenNurbsCurve.Knot(Index));
 	}
@@ -284,8 +282,8 @@ TSharedPtr<CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::AddF
 		return Face;
 	}
 
-	int LoopCount = OpenNurbsFace.LoopCount();
-	for (int LoopIndex = 0; LoopIndex < LoopCount; ++LoopIndex)
+	int32 LoopCount = OpenNurbsFace.LoopCount();
+	for (int32 LoopIndex = 0; LoopIndex < LoopCount; ++LoopIndex)
 	{
 		const ON_BrepLoop& OpenNurbsLoop = *OpenNurbsFace.Loop(LoopIndex);
 		TSharedPtr<FTopologicalLoop> Loop = AddLoop(OpenNurbsLoop, Surface);
@@ -314,8 +312,8 @@ bool FOpenNurbsBRepToCADKernelConverter::AddBRep(ON_Brep& BRep, const ON_3dVecto
 	BRep.FlipReversedSurfaces();
 
 	// Create faces
-	int FaceCount = BRep.m_F.Count();
-	for (int index = 0; index < FaceCount; index++)
+	int32 FaceCount = BRep.m_F.Count();
+	for (int32 index = 0; index < FaceCount; index++)
 	{
 		const ON_BrepFace& OpenNurbsFace = BRep.m_F[index];
 		TSharedPtr<FTopologicalFace> Face = AddFace(OpenNurbsFace);

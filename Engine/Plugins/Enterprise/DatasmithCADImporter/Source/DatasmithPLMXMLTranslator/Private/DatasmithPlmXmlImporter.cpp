@@ -27,6 +27,8 @@
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithUtils.h"
+#include "ParametricSurfaceTranslator.h"
+
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogDatasmithPlmXmlImport, Log, All);
@@ -299,7 +301,7 @@ namespace PlmXml
 
 				if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 				{
-					CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
+					ParametricSurfaceUtils::AddSurfaceData(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
 				}
 				else
 				{

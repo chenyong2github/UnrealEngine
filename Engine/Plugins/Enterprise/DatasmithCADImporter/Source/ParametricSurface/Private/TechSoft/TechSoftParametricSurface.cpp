@@ -2,11 +2,11 @@
 
 #include "TechSoftParametricSurface.h"
 
-#include "TechSoftInterface.h"
-
 #include "CADInterfacesModule.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithPayload.h"
+#include "TechSoftInterface.h"
+#include "TechSoftUtils.h"
 
 #include "Engine/StaticMesh.h"
 #include "HAL/PlatformFileManager.h"
@@ -24,8 +24,11 @@ bool UTechSoftParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 
 #if WITH_EDITOR
 	// make a temporary file as TechSoft can only deal with files.
+	FString CachePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("Retessellate")));
+	IFileManager::Get().MakeDirectory(*CachePath, true);
+
 	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
-	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.hsf"), Hash));
+	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::Combine(CachePath, FString::Printf(TEXT("0x%08x.prc"), Hash)));
 
 	FFileHelper::SaveArrayToFile(RawData, *ResourceFile);
 
@@ -44,14 +47,14 @@ bool UTechSoftParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 		CADLibrary::FImportParameters ImportParameters(SceneParameters.MetricUnit, SceneParameters.ScaleFactor, (FDatasmithUtils::EModelCoordSystem)SceneParameters.ModelCoordSys);
 		ImportParameters.SetTesselationParameters(RetessellateOptions.ChordTolerance, RetessellateOptions.MaxEdgeLength, RetessellateOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)RetessellateOptions.StitchingTechnique);
 
-		FTechSoftInterface& TechSoftInterface = TechSoftUtils::GetTechSoftInterface();
+		CADLibrary::FTechSoftInterface& TechSoftInterface = CADLibrary::FTechSoftInterface::Get();
 
 		bSuccessfulTessellation = TechSoftInterface.InitializeKernel(*FPaths::EnginePluginsDir());
 		if (bSuccessfulTessellation)
 		{
 			CADLibrary::FBodyMesh BodyMesh;
 
-			bSuccessfulTessellation = TechSoftInterface.GetBodyFromHsfFile(ResourceFile, ImportParameters, BodyMesh);
+			bSuccessfulTessellation = CADLibrary::TechSoftUtils::GetBodyFromPcrFile(ResourceFile, ImportParameters, BodyMesh);
 
 			if (bSuccessfulTessellation)
 			{

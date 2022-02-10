@@ -33,8 +33,6 @@ public:
 	virtual void SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;
 	// End IDatasmithTranslator overrides
 
-	bool AddSurfaceData(const TCHAR* MeshFilePath, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& MeshParameters, FDatasmithMeshElementPayload& OutMeshPayload);
-
 protected:
 	const FDatasmithTessellationOptions& GetCommonTessellationOptions()
 	{
@@ -52,3 +50,7 @@ private:
 	FDatasmithTessellationOptions CommonTessellationOptions;
 };
 
+namespace ParametricSurfaceUtils
+{
+	PARAMETRICSURFACE_API bool AddSurfaceData(const TCHAR* MeshFilePath, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InCommonTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
+}

@@ -62,22 +62,4 @@ namespace CoreTechSurface
 
 		return Tessellate(MainObjectID, ImportParameters, MeshParameters, MeshDescription);
 	}
-
-	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
-	{
-		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
-		{
-			UTempCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UTempCoreTechParametricSurfaceData>();
-
-			if (CoreTechData->SetFile(InFilePath))
-			{
-				CoreTechData->SetImportParameters(InSceneParameters);
-				CoreTechData->SetMeshParameters(InMeshParameters);
-				CoreTechData->SetLastTessellationOptions(InTessellationOptions);
-
-				OutMeshPayload.AdditionalData.Add(CoreTechData);
-			}
-		}
-	}
-
 }

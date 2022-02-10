@@ -1,0 +1,57 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "TechSoftInterface.h"
+
+#define JSON_ENTRY_FILE_UNIT		TEXT("FileUnit")
+#define JSON_ENTRY_COLOR_NAME		TEXT("ColorName")
+#define JSON_ENTRY_MATERIAL_NAME	TEXT("MaterialName")
+
+struct FColor;
+
+typedef void A3DAsmPartDefinition;
+typedef void A3DCrvNurbs;
+typedef void A3DEntity;
+typedef void A3DRiRepresentationItem;
+typedef void A3DSurfBase;
+typedef void A3DTopoEdge;
+typedef void A3DTopoFace;
+typedef void A3DTopoShell;
+
+namespace CADLibrary
+{
+
+class FImportParameters;
+class FBodyMesh;
+
+namespace TechSoftInterface
+{
+class FTechSoftInterface;
+}
+
+
+namespace TechSoftUtils
+{
+
+CADINTERFACES_API bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& ImportParameters, FBodyMesh& BodyMesh);
+CADINTERFACES_API bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh);
+
+CADINTERFACES_API FUniqueTechSoftModelFile SaveBodiesToPcrFile(void** Bodies, uint32 BodyCount, const FString& Filename, const FString& JsonString);
+CADINTERFACES_API void SaveModelFileToPcrFile(void* ModelFile, const FString& Filename);
+
+CADINTERFACES_API int32 SetEntityGraphicsColor(A3DEntity* InEntity, FColor Color);
+
+CADINTERFACES_API A3DAsmPartDefinition* CreatePart(TArray<A3DRiRepresentationItem*>& RepresentationItems);
+CADINTERFACES_API A3DRiRepresentationItem* CreateRIBRep(A3DTopoShell* TopoShellPtr);
+CADINTERFACES_API A3DTopoEdge* CreateTopoEdge();
+CADINTERFACES_API A3DTopoFace* CreateTopoFaceWithNaturalLoop(A3DSurfBase* CarrierSurface);
+CADINTERFACES_API A3DCrvNurbs* CreateTrimNurbsCurve(A3DCrvNurbs* CurveNurbsPtr, double UMin, double UMax, bool bIs2D);
+
+CADINTERFACES_API FColor GetColorAt(uint32 ColorIndex);
+
+} // NS TechSoftUtils
+
+} // CADLibrary
+

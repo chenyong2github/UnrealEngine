@@ -36,7 +36,7 @@ void FParametricSurfaceTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr
 	}
 }
 
-bool FParametricSurfaceTranslator::AddSurfaceData(const TCHAR* MeshFilePath, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& MeshParameters, FDatasmithMeshElementPayload& OutMeshPayload)
+bool ParametricSurfaceUtils::AddSurfaceData(const TCHAR* MeshFilePath, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InCommonTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
 {
 	if (MeshFilePath && IFileManager::Get().FileExists(MeshFilePath))
 	{
@@ -48,8 +48,8 @@ bool FParametricSurfaceTranslator::AddSurfaceData(const TCHAR* MeshFilePath, con
 		}
 
 		ParametricSurfaceData->SetImportParameters(ImportParameters);
-		ParametricSurfaceData->SetMeshParameters(MeshParameters);
-		ParametricSurfaceData->SetLastTessellationOptions(CommonTessellationOptions);
+		ParametricSurfaceData->SetMeshParameters(InMeshParameters);
+		ParametricSurfaceData->SetLastTessellationOptions(InCommonTessellationOptions);
 
 		OutMeshPayload.AdditionalData.Add(ParametricSurfaceData);
 

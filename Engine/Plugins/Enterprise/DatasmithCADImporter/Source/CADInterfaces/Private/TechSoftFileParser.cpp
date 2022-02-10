@@ -7,6 +7,7 @@
 #ifdef USE_TECHSOFT_SDK
 
 #include "TechSoftInterface.h"
+#include "TechSoftUtils.h"
 
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -278,7 +279,7 @@ void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImp
 
 FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
 	: CADFileData(InCADData)
-	, TechSoftInterface(TechSoftUtils::GetTechSoftInterface())
+	, TechSoftInterface(FTechSoftInterface::Get())
 {
 	TechSoftInterface.InitializeKernel(*EnginePluginsPath);
 }
@@ -300,8 +301,9 @@ ECADParsingResult FTechSoftFileParser::Process()
 	Format = File.GetFileFormat();
 	TechSoftFileParserImpl::UpdateIOOptionAccordingToFormat(Format, Import);
 
-	A3DStatus IRet = TechSoftInterface.Import(Import);
-	if (IRet != A3D_SUCCESS && IRet != A3D_LOAD_MULTI_MODELS_CADFILE && IRet != A3D_LOAD_MISSING_COMPONENTS)
+	ModelFile = TechSoftInterface::LoadModelFileFromFile(Import);
+
+	if (!ModelFile.IsValid())
 	{
 		return ECADParsingResult::ProcessFailed;
 	}
@@ -312,18 +314,17 @@ ECADParsingResult FTechSoftFileParser::Process()
 		FString CacheFilePath = CADFileData.GetCADCachePath();
 		if (CacheFilePath != File.GetPathOfFileToLoad())
 		{
-			// todo
+			TechSoftUtils::SaveModelFileToPcrFile(ModelFile.Get(), CacheFilePath);
 		}
 	}
 
-	A3DAsmModelFile* ModelFile = TechSoftInterface.GetModelFile();
-
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingSew && FImportParameters::bGDisableCADKernelTessellation)
 	{
-		TUniqueTSObj<A3DSewOptionsData> SewData;
+		CADLibrary::TUniqueTSObj<A3DSewOptionsData> SewData;
 		SewData->m_bComputePreferredOpenShellOrientation = false;
 		double ToleranceMM = 0.01 / FileUnit;
-		A3DStatus Status = TechSoftUtils::SewModel(&ModelFile, ToleranceMM, &*SewData);
+
+		A3DStatus Status = TechSoftInterface::SewModel(ModelFile.GetPtr(), ToleranceMM, SewData.GetPtr());
 		if(Status != A3DStatus::A3D_SUCCESS)
 		{
 			// To do but what ?
@@ -334,20 +335,20 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	ReadMaterialsAndColors();
 
-	ECADParsingResult Result = TraverseModel(ModelFile);
+	ECADParsingResult Result = TraverseModel();
 
 	if (Result == ECADParsingResult::ProcessOk)
 	{
 		GenerateBodyMeshes();
 	}
 
-	FString TechsoftVersion = TechSoftUtils::GetTechSoftVersion();
-	if (!TechsoftVersion.IsEmpty() && CADFileData.ComponentCount() > 0)
+	FString TechSoftVersion = TechSoftInterface::GetTechSoftVersion();
+	if (!TechSoftVersion.IsEmpty() && CADFileData.ComponentCount() > 0)
 	{
-		CADFileData.GetComponentAt(0).MetaData.Add(TEXT("TechsoftVersion"), TechsoftVersion);
+		CADFileData.GetComponentAt(0).MetaData.Add(TEXT("TechsoftVersion"), TechSoftVersion);
 	}
-
-	TechSoftInterface.UnloadModel();
+	
+	ModelFile.Reset();
 
 	return Result;
 }
@@ -382,7 +383,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 			//}
 			//else
 			{
-				TechSoftInterface.FillBodyMesh(RepresentationItemPtr, CADFileData.GetImportParameters(), FileUnit, BodyMesh);
+				TechSoftUtils::FillBodyMesh(RepresentationItemPtr, CADFileData.GetImportParameters(), FileUnit, BodyMesh);
 			}
 
 			// Convert material
@@ -419,7 +420,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 			Body.ColorFaceSet = BodyMesh.ColorSet;
 			Body.MaterialFaceSet = BodyMesh.MaterialSet;
 
-			// Write part's representation as hsf file if it is a BRep
+			// Write part's representation as Prc file if it is a BRep
 			A3DEEntityType Type;
 			A3DEntityGetType(RepresentationItemPtr, &Type);
 
@@ -441,7 +442,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 
 					FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
-					TechSoftInterface.SaveBodyToHsfFile(RepresentationItemPtr, FilePath, JsonString);
+					TechSoftUtils::SaveBodiesToPcrFile(&RepresentationItemPtr, 1, FilePath, JsonString);
 				}
 			}
 		}
@@ -455,7 +456,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 void FTechSoftFileParser::ReserveCADFileData()
 {
 	// TODO: Could be more accurate
-	CountUnderModel(TechSoftInterface.GetModelFile());
+	CountUnderModel();
 
 	CADFileData.ReserveBodyMeshes(ComponentCount[EComponentType::Body]);
 
@@ -466,9 +467,9 @@ void FTechSoftFileParser::ReserveCADFileData()
 	SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
 }
 
-void FTechSoftFileParser::CountUnderModel(const A3DAsmModelFile* AsmModel)
+void FTechSoftFileParser::CountUnderModel()
 {
-	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(AsmModel);
+	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile.Get());
 	if (!ModelFileData.IsValid())
 	{
 		return;
@@ -489,9 +490,9 @@ void FTechSoftFileParser::CountUnderModel(const A3DAsmModelFile* AsmModel)
 	}
 }
 
-ECADParsingResult FTechSoftFileParser::TraverseModel(const A3DAsmModelFile* ModelFile)
+ECADParsingResult FTechSoftFileParser::TraverseModel()
 {
-	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile);
+	TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile.Get());
 	if (!ModelFileData.IsValid())
 	{
 		return ECADParsingResult::ProcessFailed;
@@ -501,8 +502,8 @@ ECADParsingResult FTechSoftFileParser::TraverseModel(const A3DAsmModelFile* Mode
 	FileUnit = ModelFileData->m_dUnit;
 
 	FEntityMetaData MetaData;
-	ExtractMetaData(ModelFile, MetaData);
-	ExtractSpecificMetaData(ModelFile, MetaData);
+	ExtractMetaData(ModelFile.Get(), MetaData);
+	ExtractSpecificMetaData(ModelFile.Get(), MetaData);
 
 	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
 	{
@@ -915,10 +916,10 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 			ExtractMaterialProperties(PrototypePtr);
 
 			TUniqueTSObj<A3DUTF8Char*> FilePathUTF8Ptr;
-			FilePathUTF8Ptr.FillWith(&TechSoftUtils::GetFilePathName, PrototypePtr);
+			FilePathUTF8Ptr.FillWith(&TechSoftInterface::GetFilePathName, PrototypePtr);
 			if (!FilePathUTF8Ptr.IsValid())
 			{
-				FilePathUTF8Ptr.FillWith(&TechSoftUtils::GetOriginalFilePathName, PrototypePtr);
+				FilePathUTF8Ptr.FillWith(&TechSoftInterface::GetOriginalFilePathName, PrototypePtr);
 			}
 			if (FilePathUTF8Ptr.IsValid())
 			{
@@ -1493,7 +1494,7 @@ FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex, c
 		return *MaterialArchive;
 	}
 
-	bool bIsTexture = TechSoftUtils::IsMaterialTexture(MaterialIndex);
+	bool bIsTexture = TechSoftInterface::IsMaterialTexture(MaterialIndex);
 	if (bIsTexture)
 	{
 		TUniqueTSObjFromIndex<A3DGraphTextureApplicationData> TextureData(MaterialIndex);
@@ -1737,8 +1738,8 @@ bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occu
 
 uint32 FTechSoftFileParser::CountColorAndMaterial()
 {
-	A3DGlobal* GlobalPtr = nullptr;
-	if (TechSoftUtils::GetGlobalPointer(&GlobalPtr) != A3D_SUCCESS)
+	A3DGlobal* GlobalPtr = TechSoftInterface::GetGlobalPointer();
+	if (GlobalPtr == nullptr)
 	{
 		return 0;
 	}
@@ -1795,8 +1796,8 @@ void ExtractTextureDefinition(const A3DGraphTextureDefinitionData& TextureDefini
 
 void FTechSoftFileParser::ReadMaterialsAndColors()
 {
-	A3DGlobal* GlobalPtr = nullptr;
-	if(TechSoftUtils::GetGlobalPointer(&GlobalPtr) != A3D_SUCCESS)
+	A3DGlobal* GlobalPtr = TechSoftInterface::GetGlobalPointer();
+	if(GlobalPtr == nullptr)
 	{
 		return;
 	}
@@ -1828,7 +1829,7 @@ void FTechSoftFileParser::ReadMaterialsAndColors()
 			TUniqueTSObjFromIndex<A3DGraphPictureData> PictureData;
 			for (uint32 PictureIndex = 0; PictureIndex < PictureCount; ++PictureIndex)
 			{
-				A3DEntity* PicturePtr = TechSoftUtils::GetPointerFromIndex(PictureIndex, kA3DTypeGraphPicture);
+				A3DEntity* PicturePtr = TechSoftInterface::GetPointerFromIndex(PictureIndex, kA3DTypeGraphPicture);
 				if (PicturePtr)
 				{
 					FEntityMetaData PictureMetaData;

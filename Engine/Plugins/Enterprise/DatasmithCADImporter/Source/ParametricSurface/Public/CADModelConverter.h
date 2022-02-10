@@ -44,7 +44,7 @@ public:
 	virtual void InitializeProcess(double InMetricUnit) = 0;
 
 	virtual bool RepairTopology() = 0;
-	virtual bool SaveBRep(const TCHAR* OutputPath, TSharedRef<IDatasmithMeshElement>& MeshElement) = 0;
+	virtual bool SaveModel(const TCHAR* OutputPath, TSharedRef<IDatasmithMeshElement>& MeshElement) = 0;
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) = 0;
 
 	/**

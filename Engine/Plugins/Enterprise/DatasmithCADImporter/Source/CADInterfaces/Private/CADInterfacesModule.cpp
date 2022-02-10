@@ -45,7 +45,7 @@ ECADInterfaceAvailability ICADInterfacesModule::GetAvailability()
 		}
 		else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
 		{
-			if (CADLibrary::TechSoftUtils::TECHSOFT_InitializeKernel())
+			if (CADLibrary::TechSoftInterface::TECHSOFT_InitializeKernel())
 			{
 				return ECADInterfaceAvailability::Available;
 			}

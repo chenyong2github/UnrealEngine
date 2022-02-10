@@ -60,13 +60,13 @@ const FUVReparameterization FUVReparameterization::Identity(1., 0, 1., 0);
 template<typename... InArgTypes>
 A3DStatus GetCurveAsNurbs(const A3DCrvBase* A3DCurve, A3DCrvNurbsData* DataPtr, InArgTypes&&... Args)
 {
-	return CADLibrary::TechSoftUtils::GetCurveAsNurbs(A3DCurve, DataPtr, Forward<InArgTypes>(Args)...);
+	return CADLibrary::TechSoftInterface::GetCurveAsNurbs(A3DCurve, DataPtr, Forward<InArgTypes>(Args)...);
 };
 
 template<typename... InArgTypes>
 A3DStatus GetSurfaceAsNurbs(const A3DSurfBase* A3DSurface, A3DSurfNurbsData* DataPtr, InArgTypes&&... Args)
 {
-	return CADLibrary::TechSoftUtils::GetSurfaceAsNurbs(A3DSurface, DataPtr, Forward<InArgTypes>(Args)...);
+	return CADLibrary::TechSoftInterface::GetSurfaceAsNurbs(A3DSurface, DataPtr, Forward<InArgTypes>(Args)...);
 }; 
 
 FString GetFileName(const FString& InFilePath)
@@ -366,11 +366,11 @@ int TraverseBaseWithGraphics(const ECADType FileType, const A3DEntity* Entity, F
 
 int TraverseSource(const A3DEntity* Entity, FEntityData& OutEntityData, bool bIsOccurrence, const ECADType FileType)
 {
-	if (CADLibrary::TechSoftUtils::IsEntityBaseWithGraphicsType(Entity))
+	if (CADLibrary::TechSoftInterface::IsEntityBaseWithGraphicsType(Entity))
 	{
 		return TraverseBaseWithGraphics(FileType, Entity, OutEntityData, bIsOccurrence);
 	}
-	else if (CADLibrary::TechSoftUtils::IsEntityBaseType(Entity))
+	else if (CADLibrary::TechSoftInterface::IsEntityBaseType(Entity))
 	{
 		return TraverseBase(FileType, Entity, OutEntityData, bIsOccurrence);
 	}
@@ -588,7 +588,7 @@ FMatrixH TraverseTransformation(const A3DMiscCartesianTransformation* Transforma
 	TraverseSource(Transformation3D, MetaData, false);
 
 	A3DEEntityType Type = kA3DTypeUnknown;
-	CADLibrary::TechSoftUtils::GetEntityType(Transformation3D, &Type);
+	CADLibrary::TechSoftInterface::GetEntityType(Transformation3D, &Type);
 
 	if (Type == kA3DTypeMiscCartesianTransformation)
 	{
@@ -814,8 +814,8 @@ TSharedPtr<FCurve> FTechSoftBridge::AddCurve(const A3DCrvBase* A3DCurve, const T
 {
 	TSharedPtr<FCurve> Curve = TSharedPtr<FCurve>();
 	A3DEEntityType eType;
-	A3DInt32 iRet = CADLibrary::TechSoftUtils::GetEntityType(A3DCurve, &eType);
-	if (iRet == A3D_SUCCESS)
+	A3DInt32 Ret = CADLibrary::TechSoftInterface::GetEntityType(A3DCurve, &eType);
+	if (Ret == A3D_SUCCESS)
 	{
 		Report.CurveCount++;
 
@@ -1391,7 +1391,7 @@ TSharedPtr<FSurface> FTechSoftBridge::AddSurface(const A3DSurfBase* A3DSurface, 
 	TechSoftUtils::TraverseSource(A3DSurface, MetaData);
 
 	A3DEEntityType Type;
-	int32 Ret = CADLibrary::TechSoftUtils::GetEntityType(A3DSurface, &Type);
+	int32 Ret = CADLibrary::TechSoftInterface::GetEntityType(A3DSurface, &Type);
 	if (Ret == A3D_SUCCESS)
 	{
 		switch (Type)

@@ -8,16 +8,21 @@
 
 #ifdef USE_OPENMODEL
 
-#include "AlAccessTypes.h"
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
 #include "AlShadingFields.h"
 #include "AlDagNode.h"
 #include "AlPersistentID.h"
 
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 class IDatasmithActorElement;
-class AlDagNode;
 class AlMesh;
-class AlPersistentID;
+
 struct FMeshDescription;
 
 typedef double AlMatrix4x4[4][4];

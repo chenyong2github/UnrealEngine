@@ -209,7 +209,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			AddSurfaceData(MeshElement->GetFile(), ImportParameters, MeshParameters, OutMeshPayload);
+			ParametricSurfaceUtils::AddSurfaceData(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}
 		else
 		{

@@ -43,12 +43,13 @@ public:
 			double JoiningTolerance = ImportParameters.ConvertMMToImportUnit(0.1);
 			CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance);
 			Topomaker.Sew();
+			Topomaker.OrientShells();
 		}
 
 		return true;
 	}
 
-	virtual bool SaveBRep(const TCHAR* InFolderPath, TSharedRef<IDatasmithMeshElement>& MeshElement) override
+	virtual bool SaveModel(const TCHAR* InFolderPath, TSharedRef<IDatasmithMeshElement>& MeshElement) override
 	{
 		FString FilePath = FPaths::Combine(InFolderPath, MeshElement->GetName()) + TEXT(".ugeom");
 		CADKernelSession.SaveDatabase(*FilePath);

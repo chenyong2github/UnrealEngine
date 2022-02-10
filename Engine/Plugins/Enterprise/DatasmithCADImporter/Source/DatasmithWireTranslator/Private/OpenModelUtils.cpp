@@ -8,14 +8,19 @@
 #include "DatasmithTranslator.h"
 #include "IDatasmithSceneElements.h"
 
-#include "AlDagNode.h"
-#include "AlMesh.h"
-#include "AlLayer.h"
-#include "AlTesselate.h"
 #include "MeshAttributes.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
+#include "AlDagNode.h"
+#include "AlMesh.h"
+#include "AlLayer.h"
+#include "AlTesselate.h"
 
 namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
@@ -1834,6 +1839,10 @@ TSharedPtr<AlDagNode> OpenModelUtils::TesselateDagLeaf(const AlDagNode& DagLeaf,
 }
 
 }
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #endif
 
