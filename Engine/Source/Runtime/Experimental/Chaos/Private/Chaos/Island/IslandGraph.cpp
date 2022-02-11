@@ -138,7 +138,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::RemoveNode(const NodeType& No
 			FGraphNode& GraphNode = GraphNodes[NodeIndex];
 			
 			// If only one node and zero edges, we invalidate the node island
-			if(GraphNode.bValidNode  && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
+			if(GraphNode.NodeEdges.Num() == 0  && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
 			{
 				if(!GraphNode.bStationaryNode)
 				{
@@ -742,7 +742,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 			// Update of the sleeping flag on the island
 			if(GraphIslands.IsValidIndex(GraphNode.IslandIndex) && !GraphNode.bStationaryNode)
 			{
-				if(GraphNode.bValidNode)
+				if(GraphNode.NodeEdges.Num() == 0)
 				{
 					GraphIslands[GraphNode.IslandIndex].bIsSleeping = false;
 				}

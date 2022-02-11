@@ -500,7 +500,7 @@ void FPBDIslandManager::RemoveParticle(FGeometryParticleHandle* ParticleHandle)
 			{
 				const FGraphNode& GraphNode = IslandGraph->GraphNodes[*NodeIndex];
 				// If the node is valid : we need to also remove it from its own island 
-				if(GraphNode.bValidNode && IslandSolvers.IsValidIndex(GraphNode.IslandIndex))
+				if(GraphNode.NodeEdges.Num() == 0 && IslandSolvers.IsValidIndex(GraphNode.IslandIndex))
 				{
 					IslandSolvers[GraphNode.IslandIndex]->RemoveParticle(ParticleHandle);
 				}
