@@ -22,6 +22,7 @@ public class UnrealMultiUserServer : ModuleRules
 				"Launch",
 				"ConcertSyncCore",
 				"ConcertSyncServer",
+				"ConcertServerUI",
 			}
 		);
 
@@ -34,6 +35,7 @@ public class UnrealMultiUserServer : ModuleRules
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"ConcertSyncServer",
+				"ConcertServerUI"
 			}
 		);
 	}

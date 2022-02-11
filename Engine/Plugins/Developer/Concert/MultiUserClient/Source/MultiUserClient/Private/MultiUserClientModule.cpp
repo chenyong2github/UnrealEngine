@@ -1309,10 +1309,10 @@ private:
 			// Unicast endpoint setting
 			EngineConfig->GetString(TEXT("/Script/UdpMessaging.UdpMessagingSettings"), TEXT("UnicastEndpoint"), Setting);
 
-			// if the unicast endpoint port is bound, add 1 to the port for server 
+			// if the unicast endpoint port is bound, add 1 to the port for server
+			const UConcertClientConfig* ClientConfig = GetDefault<UConcertClientConfig>();
 			if (Setting.ParseIntoArray(Settings, TEXT(":"), false) == 2)
 			{
-				const UConcertClientConfig* ClientConfig = GetDefault<UConcertClientConfig>();
 				if (ClientConfig && ClientConfig->ClientSettings.ServerPort != 0)
 				{
 					Setting = FString::Printf(TEXT("%s:%d"), *Settings[0], ClientConfig->ClientSettings.ServerPort);
@@ -1342,6 +1342,11 @@ private:
 					CmdLine += ',';
 					CmdLine += Settings[i];
 				}
+			}
+
+			if (ClientConfig && ClientConfig->bRunWithSlate)
+			{
+				CmdLine += TEXT(" -WITHSLATE");
 			}
 		}
 		return CmdLine;

@@ -331,6 +331,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Client Settings")
 	bool bRetryAutoConnectOnError = false;
 
+	/** If true, MU servers will be launched with Slate UI. This appends -WITHSLATE to the cmd.  */
+	UPROPERTY(config, EditAnywhere, Category="Client Settings")
+	bool bRunWithSlate = false;
+
 	/** 
 	 * Default server url (just a name for now) to look for on auto or default connect. 
  	 * Can be specified on the editor cmd with `-CONCERTSERVER=`.

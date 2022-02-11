@@ -90,6 +90,9 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 
 	if (Result >= 0)
 	{
+		// Give external modules to do early initialisation
+		InitArgs.PreInitServerLoop.Broadcast();
+		
 		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("UdpMessaging"));
 		if (!Plugin || !Plugin->IsEnabled())
 		{
@@ -143,9 +146,10 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 				}
 			}
 		}
-
+		
 		UE_LOG(LogSyncServer, Display, TEXT("%s Initialized (Name: %s, Version: %d.%d, Role: %s)"), *InitArgs.ServiceFriendlyName, *ConcertSyncServer->GetConcertServer()->GetServerInfo().ServerName, ENGINE_MAJOR_VERSION, ENGINE_MINOR_VERSION, *ConcertSyncServer->GetConcertServer()->GetRole());
-
+		InitArgs.PostInitServerLoop.Broadcast(ConcertSyncServer.ToSharedRef());
+		
 		double LastTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / InitArgs.IdealFramerate;
 
@@ -157,6 +161,7 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
 			// Pump & Tick objects
+			InitArgs.TickPostGameThread.Broadcast(DeltaTime);
 			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 			GFrameCounter++;
