@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Backends/CborStructSerializerBackend.h"
-
-#include "StructSerializationUtilities.h"
-#include "UObject/EnumProperty.h"
-#include "UObject/PropertyPortFlags.h"
-#include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/TextProperty.h"
+#include "UObject/PropertyPortFlags.h"
 
 FCborStructSerializerBackend::FCborStructSerializerBackend(FArchive& InArchive)
 	: CborWriter(&InArchive)
@@ -217,15 +215,7 @@ void FCborStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	// Double & Float
 	else if (State.FieldType == FDoubleProperty::StaticClass())
 	{
-		if (EnumHasAnyFlags(Flags, EStructSerializerBackendFlags::WriteLWCTypesAsFloats) && StructSerializationUtilities::IsLWCType(State.ValueProperty->GetOwnerStruct()))
-		{
-			const double Value = CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-			WritePropertyValue(CborWriter, State, static_cast<float>(Value));
-		}
-		else
-		{
-			WritePropertyValue(CborWriter, State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
-		}
+		WritePropertyValue(CborWriter, State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FFloatProperty::StaticClass())
 	{

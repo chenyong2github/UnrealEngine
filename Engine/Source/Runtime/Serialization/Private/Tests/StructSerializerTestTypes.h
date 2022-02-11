@@ -3,12 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Math/DualQuat.h"
-#include "Math/Sphere.h"
+#include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/ObjectMacros.h"
-
 #include "StructSerializerTestTypes.generated.h"
 
 /**
@@ -247,243 +244,6 @@ struct FStructSerializerBuiltinTestStruct
 	}
 };
 
-/**
- * Test structure for LWC types.
- * @see NoExportTypes.h
- */
-USTRUCT()
-struct FStructSerializerLWCTypesTest
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FVector Vector;
-
-	UPROPERTY()
-	FVector2D Vector2D;
-
-	UPROPERTY()
-	FVector4 Vector4;
-
-	UPROPERTY()
-	FMatrix Matrix;
-
-	UPROPERTY()
-	FPlane Plane;
-	
-	UPROPERTY()
-	FQuat Quat;
-	
-	UPROPERTY()
-	FRotator Rotator;
-
-	UPROPERTY()
-	FTransform Transform;
-
-	UPROPERTY()
-	FBox Box;
-
-	UPROPERTY()
-	FBox2D Box2D;
-
-	UPROPERTY()
-	FBoxSphereBounds BoxSphereBounds;
-	
-	UPROPERTY()
-	FOrientedBox OrientedBox;
-
-	UPROPERTY()
-	float Float;
-
-	UPROPERTY()
-	double Double;
-
-	UPROPERTY()
-	TArray<FVector> VectorArray;
-
-	UPROPERTY()
-	TMap<FString, FVector> StrToVec;
-
-	UPROPERTY()
-	TSet<FVector> VectorSet;
-
-	/** Default constructor. */
-	FStructSerializerLWCTypesTest()
-		: Vector(1.25, 2.5, 3.75)
-		, Vector2D(2.25, 3.5)
-		, Vector4(0.5, 1.25, 2.5, 3.75)
-		, Matrix(FVector(1.25, 2.25, 3.25), FVector(4.25, 5.5, 6.5), FVector(7.25, 8.25, 9.25), FVector(1, 2, 3))
-		, Plane(0.25, 1.25, 2.25, 3.25)
-		, Quat(0.25, 0.5, 0.75, 1.)
-		, Rotator(2.25)
-		, Transform(FQuat(1, 2, 3, 4))
-		, Box(FVector4(1.0, 2.0, 3.0, 4.0), FVector4(5.0, 6.0, 7.0, 8.0))
-		, Box2D(FVector2D(10.0, 20.0), FVector2D(30.0, 40.0))
-		, BoxSphereBounds(FVector(1.0, 2.0, 3.0), FVector(10.0, 10.0, 10.0), 20.0)
-		, Float(5.25f)
-		, Double(1.114)
-	{
-		OrientedBox.AxisX = FVector(1.0, 1.0, 1.0);
-		OrientedBox.AxisY = FVector(2.0, 2.0, 2.0);
-		OrientedBox.AxisZ = FVector(3.0, 3.0, 3.0);
-		OrientedBox.Center = FVector(5.0, 5.0, 5.0);
-		OrientedBox.ExtentX = 10.0;
-		OrientedBox.ExtentY = 20.0;
-		OrientedBox.ExtentZ = 30.0;
-
-		VectorArray.Add(FVector(1.0, 2.0, 3.0));
-		VectorArray.Add(FVector(-1.0, -2.0, -3.0));
-
-		StrToVec.Add(TEXT("V000"), FVector(0.0, 0.0, 0.0));
-		StrToVec.Add(TEXT("V123"), FVector(1.0, 2.0, 3.0));
-		StrToVec.Add(TEXT("V666"), FVector(6.0, 6.0, 6.0));
-
-		VectorSet.Add(FVector(10.0, 11.0, 12.0));
-	}
-
-	/** Creates an uninitialized instance. */
-	FStructSerializerLWCTypesTest(ENoInit) 
-	{
-	
-	}
-};
-
-/** Float (Non LWC) version of FOrientedBox since the float version doesn't exist yet */
-USTRUCT()
-struct FOrientedBoxFloat
-{
-	GENERATED_BODY()
-
-	/** Holds the center of the box. */
-	UPROPERTY()
-	FVector3f Center;
-
-	/** Holds the x-axis vector of the box. Must be a unit vector. */
-	UPROPERTY()
-	FVector3f AxisX;
-
-	/** Holds the y-axis vector of the box. Must be a unit vector. */
-	UPROPERTY()
-	FVector3f AxisY;
-
-	/** Holds the z-axis vector of the box. Must be a unit vector. */
-	UPROPERTY()
-	FVector3f AxisZ;
-
-	/** Holds the extent of the box along its x-axis. */
-	UPROPERTY()
-	float ExtentX;
-
-	/** Holds the extent of the box along its y-axis. */
-	UPROPERTY()
-	float ExtentY;
-
-	/** Holds the extent of the box along its z-axis. */
-	UPROPERTY()
-	float ExtentZ;
-};
-
-/**
- * Test structure for Non-LWC version of built in types.
- * @see NoExportTypes.h
- */
-USTRUCT()
-struct FStructSerializerNonLWCTypesTest
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FVector3f Vector;
-
-	UPROPERTY()
-	FVector2f Vector2D;
-
-	UPROPERTY()
-	FVector4f Vector4;
-
-	UPROPERTY()
-	FMatrix44f Matrix;
-
-	UPROPERTY()
-	FPlane4f Plane;
-
-	UPROPERTY()
-	FQuat4f Quat;
-
-	UPROPERTY()
-	FRotator3f Rotator;
-
-	UPROPERTY()
-	FTransform3f Transform;
-
-	UPROPERTY()
-	FBox3f Box;
-
-	UPROPERTY()
-	FBox2f Box2D;
-
-	UPROPERTY()
-	FBoxSphereBounds3f BoxSphereBounds;
-
-	UPROPERTY()
-	FOrientedBoxFloat OrientedBox;
-
-	UPROPERTY()
-	float Float;
-
-	UPROPERTY()
-	double Double;
-
-	UPROPERTY()
-	TArray<FVector3f> VectorArray;
-
-	UPROPERTY()
-	TMap<FString, FVector3f> StrToVec;
-
-	UPROPERTY()
-	TSet<FVector3f> VectorSet;
-
-	/** Default constructor. */
-	FStructSerializerNonLWCTypesTest()
-		: Vector(1.25f, 2.5f, 3.75f)
-		, Vector2D(2.25f, 3.5f)
-		, Vector4(0.5f, 1.25f, 2.5f, 3.75f)
-		, Matrix(FVector3f(1.25f, 2.25f, 3.25f), FVector3f(4.25f, 5.5f, 6.5f), FVector3f(7.25f, 8.25f, 9.25f), FVector3f(1.f, 2.f, 3.f))
-		, Plane(0.25f, 1.25f, 2.25f, 3.25f)
-		, Quat(0.25f, 0.5f, 0.75f, 1.f)
-		, Rotator(2.25f)
-		, Transform(FQuat4f(1.f, 2.f, 3.f, 4.f))
-		, Box(FVector4f(1.0f, 2.0f, 3.0f, 4.0f), FVector4f(5.0f, 6.0f, 7.0f, 8.0f))
-		, Box2D(FVector2f(10.0f, 20.0f), FVector2f(30.0f, 40.0f))
-		, BoxSphereBounds(FVector3f(1.0f, 2.0f, 3.0f), FVector3f(10.0f, 10.0f, 10.0f), 20.0f)
-		, Float(5.25f)
-		, Double(1.114)
-	{
-		OrientedBox.AxisX = FVector3f(1.0f, 1.0f, 1.0f);
-		OrientedBox.AxisY = FVector3f(2.0f, 2.0f, 2.0f);
-		OrientedBox.AxisZ = FVector3f(3.0f, 3.0f, 3.0f);
-		OrientedBox.Center = FVector3f(5.0f, 5.0f, 5.0f);
-		OrientedBox.ExtentX = 10.0f;
-		OrientedBox.ExtentY = 20.0f;
-		OrientedBox.ExtentZ = 30.0f;
-
-		VectorArray.Add(FVector3f(1.0f, 2.0f, 3.0f));
-		VectorArray.Add(FVector3f(-1.0f, -2.0f, -3.0f));
-
-		StrToVec.Add(TEXT("V000"), FVector3f(0.0f, 0.0f, 0.0f));
-		StrToVec.Add(TEXT("V123"), FVector3f(1.0f, 2.0f, 3.0f));
-		StrToVec.Add(TEXT("V666"), FVector3f(6.0f, 6.0f, 6.0f));
-
-		VectorSet.Add(FVector3f(10.0f, 11.0f, 12.0f));
-	}
-
-	/** Creates an uninitialized instance. */
-	FStructSerializerNonLWCTypesTest(ENoInit)
-	{
-
-	}
-};
-
 // basic type hash to test built in struct in sets
 FORCEINLINE uint32 GetTypeHash(const FStructSerializerBuiltinTestStruct& S)
 {
@@ -710,9 +470,6 @@ struct FStructSerializerTestStruct
 	UPROPERTY()
 	FStructSerializerSetTestStruct Sets;
 
-	UPROPERTY()
-	FStructSerializerLWCTypesTest LWCTypes;
-
 	/** Default constructor. */
 	FStructSerializerTestStruct() = default;
 
@@ -725,6 +482,5 @@ struct FStructSerializerTestStruct
 		, Arrays(NoInit)
 		, Maps(NoInit)
 		, Sets(NoInit)
-		, LWCTypes(NoInit)
 	{ }
 };
