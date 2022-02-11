@@ -622,12 +622,14 @@ static void AddStrataInternalClassificationTilePass(
 			}
 			else
 			{
-				check(TileMaterialType == EStrataTileMaterialType::ESimple || TileMaterialType == EStrataTileMaterialType::ESingle);
+				check(TileMaterialType != EStrataTileMaterialType::ECount);
 
 				// No blending and no pixel shader required. Stencil will be writen to.
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
 				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				if (TileMaterialType == EStrataTileMaterialType::ESimple)
+				switch (TileMaterialType)
+				{
+				case EStrataTileMaterialType::ESimple:
 				{
 					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
 						false, CF_Always,
@@ -636,7 +638,8 @@ static void AddStrataInternalClassificationTilePass(
 						0xFF, StencilBit_Fast>::GetRHI();
 					StencilRef = StencilBit_Fast;
 				}
-				else // EStrataTileMaterialType::ESingle
+				break;
+				case EStrataTileMaterialType::ESingle:
 				{
 					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
 						false, CF_Always,
@@ -644,6 +647,18 @@ static void AddStrataInternalClassificationTilePass(
 						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 						0xFF, StencilBit_Single>::GetRHI();
 					StencilRef = StencilBit_Single;
+				}
+				break;
+				case EStrataTileMaterialType::EComplex:
+				{
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
+						false, CF_Always,
+						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+						0xFF, StencilBit_Complex>::GetRHI();
+					StencilRef = StencilBit_Complex;
+				}
+				break;
 				}
 			}
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -664,15 +679,6 @@ static void AddStrataInternalClassificationTilePass(
 
 void AddStrataStencilPass(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const FMinimalSceneTextures& SceneTextures)
-{
-	AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
-	AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESingle);
-}
-
-void AddStrataStencilPass(
-	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	const FMinimalSceneTextures& SceneTextures)
 {
@@ -681,6 +687,7 @@ void AddStrataStencilPass(
 		const FViewInfo& View = Views[i];
 		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
 		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESingle);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::EComplex);
 	}
 }
 
