@@ -217,6 +217,8 @@ void AMassSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UMassSimulationSubsystem::GetOnSimulationStarted().Remove(SimulationStartedHandle);
 
+	DoDespawning();
+
 	Super::EndPlay(EndPlayReason);
 }
 
