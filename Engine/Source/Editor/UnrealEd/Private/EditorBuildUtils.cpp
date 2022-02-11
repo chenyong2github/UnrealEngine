@@ -963,29 +963,26 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 		int32 Result = 0;
 		if (!bCancelled && FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
 		{	
-			if (Result == 0)
+			// Force a directory watcher tick for the asset registry to get notified of the changes
+			FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
+			DirectoryWatcherModule.Get()->Tick(-1.0f);
+			
+			// Unload any loaded map
+			if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
 			{
-				// Force a directory watcher tick for the asset registry to get notified of the changes
-				FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
-				DirectoryWatcherModule.Get()->Tick(-1.0f);
-				
-				// Unload any loaded map
-				if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
-				{
-					return false;
-				}
-			
-				// Force registry update before loading converted map
-				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-											
-				FString MapToLoad = InLongPackageName;
-			
-				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
-				AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
-			
-				FEditorFileUtils::LoadMap(MapToLoad);
+				return false;
 			}
+		
+			// Force registry update before loading converted map
+			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+										
+			FString MapToLoad = InLongPackageName;
+		
+			AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+			AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
+		
+			FEditorFileUtils::LoadMap(MapToLoad);
 		}
 		else if (bCancelled)
 		{
@@ -994,7 +991,7 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 	
 		if (Result != 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationFailed", "Building navigation failed!"));
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationFailed", "Errors occured during the build process, please refer to the logs ('WPNavigationBuilderLog.txt')."));
 		}
 	}
 	

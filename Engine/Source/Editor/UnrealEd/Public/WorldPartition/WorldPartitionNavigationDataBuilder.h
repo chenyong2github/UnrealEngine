@@ -25,6 +25,7 @@ protected:
 	bool GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds) const;
 
 	bool SavePackages(const TArray<UPackage*>& PackagesToSave) const;
+	bool DeletePackages(FPackageSourceControlHelper& PackageHelper, const TArray<UPackage*>& PackagesToDelete) const;
 
 	bool bCleanBuilderPackages = false;
 };

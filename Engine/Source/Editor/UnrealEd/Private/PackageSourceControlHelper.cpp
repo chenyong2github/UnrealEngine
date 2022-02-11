@@ -184,14 +184,16 @@ bool FPackageSourceControlHelper::Delete(const TArray<UPackage*>& Packages) cons
 		return true;
 	}
 
-	bool bAllPackagesDeleted = true;
+	TArray<FString> PackageNames;
+	PackageNames.Reserve(Packages.Num());
+	
 	for (UPackage* Package : Packages)
 	{
+		PackageNames.Add(Package->GetName());
 		ResetLoaders(Package);
-		bAllPackagesDeleted &= Delete(Package->GetName());
 	}
 
-	return bAllPackagesDeleted;
+	return Delete(PackageNames);
 }
 
 bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
