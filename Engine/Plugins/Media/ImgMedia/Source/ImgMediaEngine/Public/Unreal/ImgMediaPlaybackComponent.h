@@ -6,7 +6,7 @@
 #include "ImgMediaPlaybackComponent.generated.h"
 
 class UMediaTexture;
-struct FImgMediaMipMapObjectInfo;
+struct FMediaTextureTrackerObject;
 
 /**
  * Component to help with ImgMedia playback.
@@ -21,9 +21,6 @@ class IMGMEDIAENGINE_API UImgMediaPlaybackComponent : public UActorComponent
 public:
 	UImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer);
 
-	/** Width of the object. If < 0, then get the width automatically. */
-	UPROPERTY(EditAnywhere, Category = MipMaps)
-	float Width = -1.0f;
 	/** This will be added to the calculated mipmap level. E.g. if set to 2, and you would normally be at mipmap level 1, then you will actually be at level 3. */
 	UPROPERTY(EditAnywhere, Category = MipMaps)
 	float LODBias = 0.0f;
@@ -47,5 +44,5 @@ protected:
 	TArray<TWeakObjectPtr<UMediaTexture>> MediaTextures;
 
 	/** Info representing this object. */
-	TSharedPtr<FImgMediaMipMapObjectInfo, ESPMode::ThreadSafe> ObjectInfo;
+	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfo;
 };

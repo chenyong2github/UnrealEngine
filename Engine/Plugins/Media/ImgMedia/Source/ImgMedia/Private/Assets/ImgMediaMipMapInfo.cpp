@@ -2,7 +2,6 @@
 
 #include "ImgMediaMipMapInfo.h"
 
-#include "ImgMediaEngine.h"
 #include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaPrivate.h"
 
@@ -10,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
+#include "MediaTextureTracker.h"
 
 DECLARE_CYCLE_STAT(TEXT("ImgMedia MipMap Update Cache"), STAT_ImgMedia_MipMapUpdateCache, STATGROUP_Media);
 
@@ -80,19 +80,19 @@ void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMedia
 {
 	// Get objects using this texture.
 	FImgMediaMipMapInfoManager& InfoManager = FImgMediaMipMapInfoManager::Get();
-	FImgMediaEngine& ImgMediaEngine = FImgMediaEngine::Get();
-	const TArray<TWeakPtr<FImgMediaMipMapObjectInfo, ESPMode::ThreadSafe>>* ObjectInfos = ImgMediaEngine.GetObjects(InMediaTexture);
+	FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
+	const TArray<TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe>>* ObjectInfos = TextureTracker.GetObjects(InMediaTexture);
 	if (ObjectInfos != nullptr)
 	{
-		for (TWeakPtr<FImgMediaMipMapObjectInfo, ESPMode::ThreadSafe> ObjectInfoPtr : *ObjectInfos)
+		for (TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfoPtr : *ObjectInfos)
 		{
-			TSharedPtr<FImgMediaMipMapObjectInfo, ESPMode::ThreadSafe> ObjectInfo = ObjectInfoPtr.Pin();
+			TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfo = ObjectInfoPtr.Pin();
 			if (ObjectInfo.IsValid())
 			{
 				AActor* Owner = ObjectInfo->Object.Get();
 				if (Owner != nullptr)
 				{
-					AddObject(Owner, ObjectInfo->Width, ObjectInfo->LODBias);
+					AddObject(Owner, 0.0f, ObjectInfo->MipMapLODBias);
 				}
 			}
 		}

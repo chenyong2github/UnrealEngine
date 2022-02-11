@@ -3,10 +3,10 @@
 #include "Unreal/ImgMediaPlaybackComponent.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "ImgMediaEngine.h"
 #include "ImgMediaMipMapInfo.h"
 #include "Materials/MaterialInterface.h"
 #include "MediaTexture.h"
+#include "MediaTextureTracker.h"
 
 UImgMediaPlaybackComponent::UImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -35,11 +35,10 @@ void UImgMediaPlaybackComponent::RegisterWithMipMapInfo()
 	if (Owner != nullptr)
 	{
 		// Create info.
-		FImgMediaEngine& ImgMediaEngine = FImgMediaEngine::Get();
-		ObjectInfo = MakeShared<FImgMediaMipMapObjectInfo, ESPMode::ThreadSafe>();
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+		ObjectInfo = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
 		ObjectInfo->Object = Owner;
-		ObjectInfo->Width = Width;
-		ObjectInfo->LODBias = LODBias;
+		ObjectInfo->MipMapLODBias = LODBias;
 
 		// Loop over all primitive components.
 		TArray<UActorComponent*> Components;
@@ -64,7 +63,7 @@ void UImgMediaPlaybackComponent::RegisterWithMipMapInfo()
 						if (MediaTexture != nullptr)
 						{
 							MediaTextures.Add(MediaTexture);
-							ImgMediaEngine.RegisterTexture(ObjectInfo, MediaTexture);
+							MediaTextureTracker.RegisterTexture(ObjectInfo, MediaTexture);
 						}
 					}
 				}
@@ -77,7 +76,7 @@ void UImgMediaPlaybackComponent::UnregisterWithMipMapInfo()
 {
 	if (ObjectInfo != nullptr)
 	{
-		FImgMediaEngine& ImgMediaEngine = FImgMediaEngine::Get();
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
 
 		// Loop over all our media textures.
 		for (TWeakObjectPtr<UMediaTexture> MediaTexturePtr : MediaTextures)
@@ -85,7 +84,7 @@ void UImgMediaPlaybackComponent::UnregisterWithMipMapInfo()
 			UMediaTexture* MediaTexture = MediaTexturePtr.Get();
 			if (MediaTexture != nullptr)
 			{
-				ImgMediaEngine.UnregisterTexture(ObjectInfo, MediaTexture);
+				MediaTextureTracker.UnregisterTexture(ObjectInfo, MediaTexture);
 			}
 		}
 	}

@@ -6,6 +6,7 @@
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 #include "MediaTexture.h"
+#include "MediaTextureTracker.h"
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -96,10 +97,10 @@ void FImgMediaMipMapInfoManager::RemoveCamera(AActor* InActor)
 
 void FImgMediaMipMapInfoManager::GetMediaTexturesFromPlayer(TArray<UMediaTexture*>& OutMediaTextures, IMediaPlayer* InPlayer)
 {
-	FImgMediaEngine& ImgMediaEngine = FImgMediaEngine::Get();
+	FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
 
 	// Look through all the media textures we know about.
-	const TArray<TWeakObjectPtr<UMediaTexture>>& MediaTextures = ImgMediaEngine.GetTextures();
+	const TArray<TWeakObjectPtr<UMediaTexture>>& MediaTextures = TextureTracker.GetTextures();
 	for (TWeakObjectPtr<UMediaTexture> TexturePtr : MediaTextures)
 	{
 		UMediaTexture* Texture = TexturePtr.Get();
