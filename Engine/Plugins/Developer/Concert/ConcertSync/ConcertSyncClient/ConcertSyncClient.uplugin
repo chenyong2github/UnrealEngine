@@ -20,11 +20,6 @@
 			"Name": "ConcertSyncClient",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "ConcertSyncUI",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
