@@ -33,7 +33,7 @@ fi
 DevIdApplication="Developer ID Application: $DevAppId"
 DevIdInstaller="Developer ID Installer: $DevInsId"
 
-for i in {2019..2021}
+for i in {2019..2022}
 do
 	/usr/bin/codesign --force --deep --sign "$DevIdApplication" --timestamp=none "../../.build/${i}/Plugin/UnrealDatasmithSketchUp/DatasmithSketchUpRuby.bundle"
 done

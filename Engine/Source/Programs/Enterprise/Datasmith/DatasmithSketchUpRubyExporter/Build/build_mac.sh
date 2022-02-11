@@ -78,6 +78,7 @@ BuildSketchUpPlugin() {
 BuildSketchUpPlugin 2019 SDK_Mac_2019-3-252
 BuildSketchUpPlugin 2020 SDK_Mac_2020-2-171
 BuildSketchUpPlugin 2021 SDK_Mac_2021-0-338
+BuildSketchUpPlugin 2022 SDK_Mac_2022-0-315
 
 # install_name_tool -change @rpath/DatasmithSDK.dylib @loader_path/Dylibs/DatasmithSDK.dylib DatasmithSketchUp.bundle 
 # install_name_tool -change @loader_path/libfreeimage-3.18.0.dylib @loader_path/Dylibs/libfreeimage-3.18.0.dylib DatasmithSketchUp.bundle
