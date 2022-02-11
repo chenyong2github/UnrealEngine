@@ -61,6 +61,7 @@ public:
 	 * @return			true if the data was retrieved from the cache or the deriver built the data successfully. false can only occur if the plugin returns false.
 	**/
 	virtual bool GetAsynchronousResults(uint32 Handle, TArray<uint8>& OutData, bool* bDataWasBuilt = nullptr) = 0;
+	virtual bool GetAsynchronousResults(uint32 Handle, TArray64<uint8>& OutData, bool* bDataWasBuilt = nullptr) = 0;
 
 	//--------------------------
 	// Low Level Static Helpers
@@ -170,6 +171,7 @@ public:
 	 * @return	true if the data was retrieved from the cache.
 	**/
 	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData, FStringView DebugContext) = 0; 
+	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray64<uint8>& OutData, FStringView DebugContext) = 0; 
 
 	/** 
 	 * Starts the async process of checking the cache and if the item is present, retrieving the cached results.
@@ -191,7 +193,7 @@ public:
 	 * @param	Data		Data to put in the cache under this key
 	 * @param	DataContext	A string used to describe the data being generated. Typically the path to the object that it is generated from is sufficient.
 	**/
-	virtual void Put(const TCHAR* CacheKey, TArrayView<const uint8> Data, FStringView DataContext, bool bPutEvenIfExists = false) = 0;
+	virtual void Put(const TCHAR* CacheKey, TArrayView64<const uint8> Data, FStringView DataContext, bool bPutEvenIfExists = false) = 0;
 
 	/**
 	 * Hint that the data associated with the key is transient and may be optionally purged from the cache.

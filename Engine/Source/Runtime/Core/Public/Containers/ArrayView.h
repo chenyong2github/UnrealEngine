@@ -707,8 +707,8 @@ struct TIsZeroConstructType<TArrayView<InElementType>>
 	enum { Value = true };
 };
 
-template <typename T>
-struct TIsContiguousContainer<TArrayView<T>>
+template <typename T, typename SizeType>
+struct TIsContiguousContainer<TArrayView<T, SizeType>>
 {
 	enum { Value = true };
 };
