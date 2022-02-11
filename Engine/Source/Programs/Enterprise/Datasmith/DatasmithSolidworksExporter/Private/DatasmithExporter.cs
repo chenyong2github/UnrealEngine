@@ -21,6 +21,7 @@ namespace DatasmithSolidworks
 		public string Label;
 		public string Name;
 		public string ParentName;
+		public string MeshName;
 		public float[] Transform;
 		public bool bVisible;
 	};
@@ -98,6 +99,12 @@ namespace DatasmithSolidworks
 			Actor.SetLabel(InExportInfo.Label);
 			Actor.SetVisibility(InExportInfo.bVisible);
 			Actor.SetWorldTransform(AdjustTransformForDatasmith(InExportInfo.Transform));
+
+			if (InExportInfo.Type == EActorType.MeshActor)
+			{
+				FDatasmithFacadeActorMesh MeshActor = Actor as FDatasmithFacadeActorMesh;
+				MeshActor.SetMesh(InExportInfo.MeshName);
+			}
 		}
 
 		public void RemoveActor(string InActorName)
@@ -111,18 +118,18 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public void ExportMesh(string InMeshName, FMeshData InData, string InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
+		public string ExportMesh(string InMeshName, FMeshData InData, string InUpdateMeshActor, out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> OutMeshPair)
 		{
 			OutMeshPair = null;
 
 			if (InData.Vertices == null || InData.Normals == null || InData.TexCoords == null || InData.Triangles == null)
 			{
-				return;
+				return null;
 			}
 
 			if (InData.Vertices.Length == 0 || InData.Normals.Length == 0 || InData.TexCoords.Length == 0 || InData.Triangles.Length == 0)
 			{
-				return;
+				return null;
 			}
 
 			InMeshName = SanitizeName(InMeshName);
@@ -201,6 +208,8 @@ namespace DatasmithSolidworks
 					MeshActor.SetMesh(InMeshName);
 				}
 			}
+
+			return InMeshName;
 		}
 
 		public void ExportMetadata(FMetadata InMetadata)

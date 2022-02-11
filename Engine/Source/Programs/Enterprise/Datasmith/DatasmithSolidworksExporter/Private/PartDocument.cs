@@ -80,35 +80,44 @@ namespace DatasmithSolidworks
 
 		public override void ExportToDatasmithScene()
 		{
-			FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
-			ExportInfo.Name = Path.GetFileNameWithoutExtension(PathName);
-			ExportInfo.bVisible = true;
-			ExportInfo.Label = ExportInfo.Name;
-			ExportInfo.Type = EActorType.MeshActor;
+			string ActorName = Path.GetFileNameWithoutExtension(PathName);
 
-			Exporter.ExportOrUpdateActor(ExportInfo);
-
-			SetExportStatus($"{ExportInfo.Name} Materials");
+			SetExportStatus($"{ActorName} Materials");
 
 			ExportedPartMaterials = FObjectMaterials.LoadPartMaterials(this, SwPartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
 
 			Exporter.ExportMaterials(ExportedMaterialsMap);
 
-			SetExportStatus($"{ExportInfo.Name} Meshes");
+			SetExportStatus($"{ActorName} Meshes");
 
 			ConcurrentBag<FBody> Bodies = FBody.FetchBodies(SwPartDoc);
 			FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ExportedPartMaterials);
 
+			string MeshName = null;
+
 			if (MeshData != null)
 			{
 				Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh = null;
-				Exporter.ExportMesh($"{ExportInfo.Name}_Mesh", MeshData, ExportInfo.Name, out NewMesh);
+				MeshName = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName, out NewMesh);
 
 				if (NewMesh != null)
 				{
 					DatasmithScene.AddMesh(NewMesh.Item1);
 				}
+				else
+				{
+					MeshName = null;
+				}
 			}
+
+			FDatasmithActorExportInfo ExportInfo = new FDatasmithActorExportInfo();
+			ExportInfo.Name = ActorName;
+			ExportInfo.bVisible = true;
+			ExportInfo.Label = ActorName;
+			ExportInfo.MeshName = MeshName;
+			ExportInfo.Type = MeshName != null ? EActorType.MeshActor : EActorType.SimpleActor;
+
+			Exporter.ExportOrUpdateActor(ExportInfo);
 		}
 
 		public override bool HasMaterialUpdates()
