@@ -50,7 +50,7 @@ class FSetupRayTracingLightCullData : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, RankedLights)
-		SHADER_PARAMETER(FVector3f, WorldPos)
+		SHADER_PARAMETER(FVector3f, TranslatedWorldPos)
 		SHADER_PARAMETER(uint32, NumLightsToUse)
 		SHADER_PARAMETER(uint32, CellCount)
 		SHADER_PARAMETER(float, CellScale)
@@ -114,15 +114,15 @@ static void CreateRaytracingLightCullingStructure(
 	// setup light vector array sorted by rank
 	for (int32 LightIndex = 0; LightIndex < NumLightsToUse; LightIndex++)
 	{
-		VectorRegister BoundingSphere = Lights[LightIndices[LightIndex]].BoundingSphereVector;
-		RankedLights.Push(
-			FVector4f(
-				VectorGetComponentImpl<0>(BoundingSphere), 
-				VectorGetComponentImpl<1>(BoundingSphere), 
-				VectorGetComponentImpl<2>(BoundingSphere), 
-				VectorGetComponentImpl<3>(BoundingSphere)
-			)
+		VectorRegister BoundingSphereRegister = Lights[LightIndices[LightIndex]].BoundingSphereVector;
+		FVector4 BoundingSphere = FVector4(
+			VectorGetComponentImpl<0>(BoundingSphereRegister),
+			VectorGetComponentImpl<1>(BoundingSphereRegister),
+			VectorGetComponentImpl<2>(BoundingSphereRegister),
+			VectorGetComponentImpl<3>(BoundingSphereRegister)
 		);
+		FVector4f TranslatedBoundingSphere = FVector4f(BoundingSphere + View.ViewMatrices.GetPreViewTranslation());
+		RankedLights.Push(TranslatedBoundingSphere);
 	}
 
 	// push null vector to prevent failure in RHICreateStructuredBuffer due to requesting a zero sized allocation
@@ -162,7 +162,7 @@ static void CreateRaytracingLightCullingStructure(
 			FSetupRayTracingLightCullData::FParameters Params;
 			Params.RankedLights = RankedLightsSRV;
 
-			Params.WorldPos = (FVector3f)View.ViewMatrices.GetViewOrigin(); // View.ViewLocation; // LWC_TODO: Precision Loss
+			Params.TranslatedWorldPos = (FVector3f)(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
 			Params.NumLightsToUse = NumLightsToUse;
 			Params.LightCullingVolume = LightCullVolumeUAV;
 			Params.LightIndices = OutLightingData.LightIndices.UAV;

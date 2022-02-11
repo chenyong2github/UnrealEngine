@@ -4,7 +4,7 @@
 #define CACHED_LIGHT_COUNT  16
 
 // inputs
-float3                    WorldPos;
+float3                    TranslatedWorldPos;
 uint                      NumLightsToUse;
 uint                      CellCount;
 float                     CellScale;
@@ -74,7 +74,7 @@ void GenerateCulledLightListCS(
 
 	float3 Min, Max;
 	ComputeCoords(Min, Max, GroupId);
-	float3 CellCenter = (Min + Max) * 0.5 + WorldPos;
+	float3 CellCenter = (Min + Max) * 0.5 + TranslatedWorldPos;
 	float3 CellExtents = (Max - Min) * 0.5;
 
 	uint LightIndexBufferOffset = (GroupId.x + CellCount * (GroupId.y + (GroupId.z * CellCount))) * NumLightsToUse;

@@ -6,9 +6,6 @@
 
 #pragma once
 
-#define CULL_VOLUME_STRUCTURED_BUFFER 1
-
-
 // *************** LIGHT CULLING *********************************
 // Use view-centered, world-aligned volume to store references to lights impacting cells
 // Volume cells store light indices directly if space permits, otherwise indirect into
@@ -23,12 +20,12 @@ struct FCulledLightList
 	static const uint PackedLightMask = (1u << PackedLightBits) - 1;
 	static const uint PackedLightsMax = 11;
 
-	static FCulledLightList Create(float3 WorldPos)
+	static FCulledLightList Create(float3 TranslatedWorldPosition)
 	{
 		FCulledLightList Result = (FCulledLightList)0;
 
 		// volume is centered on the viewer
-		float3 Position = WorldPos - LWCHackToFloat(PrimaryView.WorldViewOrigin);
+		float3 Position = TranslatedWorldPosition - PrimaryView.TranslatedWorldCameraOrigin;
 
 		const float Scale = 100.0f;
 		const int Dim = RaytracingLightsDataPacked.CellCount;

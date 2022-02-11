@@ -400,7 +400,7 @@ float3 ComputeDirectLighting(
 	Payload.SetRadiance(float3(0, 0, 0));
 	Payload.SetIndirectIrradiance(ViewDirection);
 
-	FCulledLightList CullData = FCulledLightList::Create(WorldPosition);
+	FCulledLightList CullData = FCulledLightList::Create(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation)); // RT_LWC_TODO
 	const uint LightCount = CullData.NumLights();
 
 	for (uint Index = 0; WaveActiveAnyTrue(Index < LightCount); Index++)
@@ -416,7 +416,7 @@ float3 ComputeDirectLighting(
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 
-		float3 ToLight = LightData.TranslatedWorldPosition - WorldPosition; // LWC_TODO
+		float3 ToLight = LightData.TranslatedWorldPosition - WorldPosition; // RT_LWC_TODO
 		float LightMask = 1.0;
 
 		if (LightType == LIGHT_TYPE_DIRECTIONAL)
