@@ -1042,11 +1042,17 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DefaultHLODFlattenMaterialName;
 
+	/** A material used to flatten materials to VT textures, with the normals being in world space. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath DefaultLandscapeFlattenMaterialName;
+
 	/** Materials used when flattening materials */
 	UPROPERTY()
 	TObjectPtr<class UMaterial> DefaultFlattenMaterial;
 	UPROPERTY()
 	TObjectPtr<class UMaterial> DefaultHLODFlattenMaterial;
+	UPROPERTY()
+	TObjectPtr<class UMaterial> DefaultLandscapeFlattenMaterial;
 #endif
 
 	/** A material used to render debug opaque material. Used in various animation editor viewport features. */
