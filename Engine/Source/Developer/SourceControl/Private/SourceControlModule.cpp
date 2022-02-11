@@ -6,6 +6,7 @@
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlAssetDataCache.h"
+#include "Misc/Paths.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
 	#include "Widgets/DeclarativeSyntaxSupport.h"
@@ -504,6 +505,29 @@ void FSourceControlModule::UnregisterFilesDeleted(FDelegateHandle InHandle)
 const FSourceControlFilesDeletedDelegate& FSourceControlModule::GetOnFilesDeleted() const
 {
 	return OnFilesDeleted;
+}
+
+void FSourceControlModule::RegisterSourceControlProjectDirDelegate(const FSourceControlProjectDirDelegate& InSourceControlProjectDirDelegate)
+{
+	SourceControlProjectDirDelegate = InSourceControlProjectDirDelegate;
+}
+
+void FSourceControlModule::UnregisterSourceControlProjectDirDelegate()
+{
+	SourceControlProjectDirDelegate = FSourceControlProjectDirDelegate();
+}
+
+FString FSourceControlModule::GetSourceControlProjectDir() const
+{
+	if (SourceControlProjectDirDelegate.IsBound())
+	{
+		FString ProjectDir = SourceControlProjectDirDelegate.Execute();
+		if (!ProjectDir.IsEmpty())
+		{
+			return ProjectDir;
+		}
+	}
+	return FPaths::ProjectDir();
 }
 
 IMPLEMENT_MODULE( FSourceControlModule, SourceControl );

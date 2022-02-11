@@ -7,6 +7,7 @@
 #include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
 #include "Modules/ModuleManager.h"
+#include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "PerforceSourceControlRevision.h"
@@ -220,7 +221,7 @@ static bool UpdateCachedStates(const TMap<FString, EPerforceState::Type>& InResu
 
 static bool CheckWorkspaceRecordSet(const FP4RecordSet& InRecords, TArray<FText>& OutErrorMessages, FText& OutNotificationText)
 {
-	FString ApplicationPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::ProjectDir()).ToLower();
+	FString ApplicationPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ISourceControlModule::Get().GetSourceControlProjectDir()).ToLower();
 	ApplicationPath = ApplicationPath.Replace(TEXT("\\"), TEXT("/"));
 
 	for(const auto& Record : InRecords)

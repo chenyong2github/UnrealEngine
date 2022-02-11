@@ -23,6 +23,9 @@ DECLARE_MULTICAST_DELEGATE_TwoParams( FSourceControlProviderChanged, ISourceCont
 /** Delegate called on pre-submit for data validation */
 DECLARE_DELEGATE_FourParams(FSourceControlPreSubmitDataValidationDelegate, FSourceControlChangelistPtr /*Changelist*/, EDataValidationResult& /*Result*/, TArray<FText>& /*ValidationErrors*/, TArray<FText>& /*ValidationWarnings*/);
 
+/** Delegate used to specify the project base directory to be used by the source control */
+DECLARE_DELEGATE_RetVal(FString, FSourceControlProjectDirDelegate);
+
 /** 
  * Delegate called once the user has confirmed that they want to submit files to source control BUT before the files are actually submitted.
  * It is intended for last minute checks that can only run once there is no chance of the user canceling the actual submit.
@@ -205,6 +208,22 @@ public:
 	 * Returns access to the delegate so that it can be broadcast as needed. @see FSourceControlFilesDeletedDelegate
 	 */
 	virtual const FSourceControlFilesDeletedDelegate& GetOnFilesDeleted() const = 0;
+
+	/**
+	 * Register a delegate used to specify the project base directory to be used by the source control
+	 */
+	virtual void RegisterSourceControlProjectDirDelegate(const FSourceControlProjectDirDelegate& SourceControlProjectDirDelegate) = 0;
+
+	/**
+	 * Unregister the FSourceControlProjectDirDelegate delegate
+	 */
+	virtual void UnregisterSourceControlProjectDirDelegate() = 0;
+
+
+	/**
+	 * Returns the project base directory to be used by the source control
+	 */
+	virtual FString GetSourceControlProjectDir() const = 0;
 
 	/**
 	 * Gets a reference to the source control module instance.

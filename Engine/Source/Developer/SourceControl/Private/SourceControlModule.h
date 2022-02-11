@@ -53,6 +53,10 @@ public:
 	virtual void UnregisterFilesDeleted(FDelegateHandle InHandle) override;
 	virtual const FSourceControlFilesDeletedDelegate& GetOnFilesDeleted() const override;
 
+	virtual void RegisterSourceControlProjectDirDelegate(const FSourceControlProjectDirDelegate& SourceControlProjectDirDelegate) override;
+	virtual void UnregisterSourceControlProjectDirDelegate() override;
+	virtual FString GetSourceControlProjectDir() const override;
+
 	/** Save the settings to the ini file */
 	void SaveSettings();
 
@@ -144,4 +148,7 @@ private:
 
 	/** Used to cache source controlled AssetData information */
 	FSourceControlAssetDataCache AssetDataCache;
+
+	/** Delegate used to return the current project base directory */
+	FSourceControlProjectDirDelegate SourceControlProjectDirDelegate;
 };
