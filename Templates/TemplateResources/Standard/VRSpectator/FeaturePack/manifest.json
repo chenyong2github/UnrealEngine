@@ -25,7 +25,7 @@
 		}
 	],
 	"ClassTypes": " ",
-	"Category": ["SharedPack", "BlueprintFeature"],
+	"Category": "SharedPack",
 	"Thumbnail": "VRSpectator.png",
 	"Screenshots": [
 		"VRSpectator_Preview.png"
