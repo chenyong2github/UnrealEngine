@@ -10,43 +10,45 @@ class FArchive;
 namespace CADLibrary
 {
 
-class CADINTERFACES_API ICADArchiveObject
+class CADINTERFACES_API FCADArchiveObject
 {
 public:
-	ICADArchiveObject(FCadId Id = 0)
+	FCADArchiveObject(FCadId Id = 0)
 		: ObjectId(Id)
 	{
 	}
 
-	virtual ~ICADArchiveObject() = default;
+	virtual ~FCADArchiveObject() = default;
+
+	friend FArchive& operator<<(FArchive& Ar, FCADArchiveObject& C);
 
 public:
 	uint32 ObjectId;
 	TMap<FString, FString> MetaData;
+	FMatrix TransformMatrix = FMatrix::Identity;
 };
 
-class CADINTERFACES_API FArchiveInstance : public ICADArchiveObject
+class CADINTERFACES_API FArchiveInstance : public FCADArchiveObject
 {
 public:
 	FArchiveInstance(FCadId Id = 0)
-		: ICADArchiveObject(Id)
+		: FCADArchiveObject(Id)
 	{
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FArchiveInstance& C);
 
 public:
-	FMatrix TransformMatrix = FMatrix::Identity;
 	FCadId ReferenceNodeId = 0;
 	bool bIsExternalReference = false;
 	FFileDescriptor ExternalReference;
 };
 
-class CADINTERFACES_API FArchiveComponent : public ICADArchiveObject
+class CADINTERFACES_API FArchiveComponent : public FCADArchiveObject
 {
 public:
 	FArchiveComponent(FCadId Id = 0)
-		: ICADArchiveObject(Id)
+		: FCADArchiveObject(Id)
 	{
 	}
 
@@ -67,11 +69,11 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveUnloadedComponent& C);
 };
 
-class CADINTERFACES_API FArchiveBody : public ICADArchiveObject
+class CADINTERFACES_API FArchiveBody : public FCADArchiveObject
 {
 public:
 	FArchiveBody(FCadId Id = 0)
-		: ICADArchiveObject(Id)
+		: FCADArchiveObject(Id)
 	{
 	}
 

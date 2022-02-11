@@ -80,7 +80,7 @@ namespace CADLibrary
 		return NewColor;
 	}
 
-	uint32 FCoreTechFileParser::GetObjectMaterial(ICADArchiveObject& Object)
+	uint32 FCoreTechFileParser::GetObjectMaterial(FCADArchiveObject& Object)
 	{
 		if (FString* Material = Object.MetaData.Find(TEXT("MaterialName")))
 		{

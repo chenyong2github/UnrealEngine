@@ -155,7 +155,7 @@ private:
 
 	// Traverse ASM tree by starting from the model
 	ECADParsingResult TraverseModel();
-	void TraverseReference(const A3DAsmProductOccurrence* Reference);
+	void TraverseReference(const A3DAsmProductOccurrence* Reference, const FMatrix& ParentMatrix);
 	bool IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet);
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
@@ -212,7 +212,7 @@ private:
 	FArchiveUnloadedComponent& AddUnloadedComponent(FEntityMetaData& ComponentMetaData, FArchiveInstance& Instance);
 	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FEntityMetaData& ReferenceMetaData, FCadId& OutComponentId);
 	FArchiveComponent& AddOccurence(FEntityMetaData& InstanceMetaData, FCadId& OutComponentId);
-	int32 AddBody(FEntityMetaData& BodyMetaData);
+	int32 AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix);
 #endif
 
 private:

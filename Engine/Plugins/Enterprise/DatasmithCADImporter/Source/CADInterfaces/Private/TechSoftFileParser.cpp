@@ -308,6 +308,17 @@ ECADParsingResult FTechSoftFileParser::Process()
 		return ECADParsingResult::ProcessFailed;
 	}
 
+	{
+		TUniqueTSObj<A3DAsmModelFileData> ModelFileData(ModelFile.Get());
+		if (!ModelFileData.IsValid())
+		{
+			return ECADParsingResult::ProcessFailed;
+		}
+
+		ModellerType = (EModellerType)ModelFileData->m_eModellerType;
+		FileUnit = ModelFileData->m_dUnit;
+	}
+
 	// save the file for the next load
 	if (CADFileData.IsCacheDefined())
 	{
@@ -498,9 +509,6 @@ ECADParsingResult FTechSoftFileParser::TraverseModel()
 		return ECADParsingResult::ProcessFailed;
 	}
 
-	ModellerType = (EModellerType)ModelFileData->m_eModellerType;
-	FileUnit = ModelFileData->m_dUnit;
-
 	FEntityMetaData MetaData;
 	ExtractMetaData(ModelFile.Get(), MetaData);
 	ExtractSpecificMetaData(ModelFile.Get(), MetaData);
@@ -513,7 +521,7 @@ ECADParsingResult FTechSoftFileParser::TraverseModel()
 		}
 		else
 		{
-			TraverseReference(ModelFileData->m_ppPOccurrences[Index]);
+			TraverseReference(ModelFileData->m_ppPOccurrences[Index], FMatrix::Identity);
 		}
 	}
 
@@ -533,6 +541,13 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 	ExtractSpecificMetaData(ConfigurationSetPtr, MetaData);
 
 	const FString& ConfigurationToLoad = CADFileData.GetCADFileDescription().GetConfiguration();
+
+	FMatrix TransformMatrix = FMatrix::Identity;;
+	A3DMiscTransformation* Location = ConfigurationSetData->m_pLocation;
+	if (Location)
+	{
+		TransformMatrix = TraverseTransformation(Location);
+	}
 
 	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationData;
 	for (unsigned int Index = 0; Index < ConfigurationSetData->m_uiPOccurrencesSize; ++Index)
@@ -563,7 +578,7 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 
 			if (bIsConfigurationToLoad)
 			{
-				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index]);
+				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], TransformMatrix);
 				return;
 			}
 		}
@@ -582,7 +597,7 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 
 			if (ConfigurationData->m_uiProductFlags & A3D_PRODUCT_FLAG_CONFIG)
 			{
-				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index]);
+				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], TransformMatrix);
 			}
 		}
 	}
@@ -619,7 +634,7 @@ void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurren
 	}
 }
 
-void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* ReferencePtr)
+void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* ReferencePtr, const FMatrix& ParentMatrix)
 {
 	FEntityMetaData MetaData;
 	ExtractMetaData(ReferencePtr, MetaData);
@@ -644,6 +659,15 @@ void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* Refer
 	{
 		return;
 	}
+
+	FMatrix ReferenceMatrix = FMatrix::Identity;;
+	A3DMiscTransformation* Location = ReferenceData->m_pLocation;
+	if (Location)
+	{
+		ReferenceMatrix = TraverseTransformation(Location);
+	}
+	
+	Component.TransformMatrix = ParentMatrix * ReferenceMatrix;
 
 	for (uint32 OccurenceIndex = 0; OccurenceIndex < ReferenceData->m_uiPOccurrencesSize; ++OccurenceIndex)
 	{
@@ -720,11 +744,12 @@ FArchiveComponent& FTechSoftFileParser::AddOccurence(FEntityMetaData& InstanceMe
 	return Prototype;
 }
 
-int32 FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData)
+int32 FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix)
 {
 	FCadId BodyId = LastEntityId++;
 	int32 BodyIndex = CADFileData.AddBody(BodyId);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
+	Body.TransformMatrix = Matrix;
 	Body.MetaData = MoveTemp(BodyMetaData.MetaData);
 	if(BodyMetaData.ColorName != 0)
 	{
@@ -1131,7 +1156,14 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FEnt
 	ExtractSpecificMetaData(BRepModelPtr, BRepMetaData);
 	ExtractMaterialProperties(BRepModelPtr);
 
-	int32 BodyIndex = AddBody(BRepMetaData);
+	FMatrix Matrix = FMatrix::Identity;
+	TUniqueTSObj<A3DRiRepresentationItemData> RepresentationData(BRepModelPtr);
+	if (RepresentationData->m_pCoordinateSystem)
+	{
+		Matrix = FTechSoftFileParser::TraverseCoordinateSystem(RepresentationData->m_pCoordinateSystem);
+	}
+
+	int32 BodyIndex = AddBody(BRepMetaData, Matrix);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 
 	RepresentationItemsCache.Add(BRepModelPtr, BodyIndex);
@@ -1161,7 +1193,14 @@ FCadId FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalP
 	ExtractSpecificMetaData(PolygonalPtr, BRepMetaData);
 	ExtractMaterialProperties(PolygonalPtr);
 
-	int32 BodyIndex = AddBody(BRepMetaData);
+	FMatrix Matrix = FMatrix::Identity;
+	TUniqueTSObj<A3DRiRepresentationItemData> RepresentationData(PolygonalPtr);
+	if (RepresentationData->m_pCoordinateSystem)
+	{
+		Matrix = FTechSoftFileParser::TraverseCoordinateSystem(RepresentationData->m_pCoordinateSystem);
+	}
+
+	int32 BodyIndex = AddBody(BRepMetaData, Matrix);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 
 	RepresentationItemsCache.Add(PolygonalPtr, BodyIndex);
@@ -1658,7 +1697,7 @@ FMatrix FTechSoftFileParser::TraverseGeneralTransformation(const A3DMiscTransfor
 	TUniqueTSObj<A3DMiscGeneralTransformationData> GeneralTransformationData(GeneralTransformation);
 	if (GeneralTransformationData.IsValid())
 	{
-		FMatrix Matrix;
+		FMatrix Matrix = FMatrix::Identity;;
 		int32 Index = 0;
 		for (int32 Andex = 0; Andex < 4; ++Andex)
 		{

@@ -31,14 +31,14 @@ namespace DatasmithSceneGraphBuilderImpl
 		}
 	}
 
-	void AddTransformToActor(const CADLibrary::FArchiveInstance& Instance, TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& ImportParameters)
+	void AddTransformToActor(const CADLibrary::FCADArchiveObject& Object, TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& ImportParameters)
 	{
 		if (!Actor.IsValid())
 		{
 			return;
 		}
 
-		FTransform LocalTransform(Instance.TransformMatrix);
+		FTransform LocalTransform(Object.TransformMatrix);
 		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(ImportParameters.GetModelCoordSys(), LocalTransform);
 
 		Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.GetScaleFactor());
@@ -413,7 +413,6 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		OutName = "NoName";
 	}
-	DatasmithSceneGraphBuilderImpl::CleanName(OutName);
 
 	FCADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
@@ -468,6 +467,8 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildCompone
 
 	AddChildren(Actor, Component, ComponentData);
 
+	DatasmithSceneGraphBuilderImpl::AddTransformToActor(Component, Actor, ImportParameters);
+
 	return Actor;
 }
 
@@ -505,6 +506,8 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 
 	ActorElement->SetLabel(*BodyLabel);
 	ActorElement->SetStaticMeshPathName(MeshElement->GetName());
+
+	DatasmithSceneGraphBuilderImpl::AddTransformToActor(Body, ActorElement, ImportParameters);
 
 	if (MaterialUuid && ImportParameters.GetPropagation() != CADLibrary::EDisplayDataPropagationMode::BodyOnly)
 	{

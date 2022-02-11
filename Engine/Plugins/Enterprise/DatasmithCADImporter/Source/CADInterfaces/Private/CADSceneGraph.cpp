@@ -9,11 +9,17 @@
 namespace CADLibrary
 {
 
+FArchive& operator<<(FArchive& Ar, FCADArchiveObject& Object)
+{
+	Ar << Object.ObjectId;
+	Ar << Object.MetaData;
+	Ar << Object.TransformMatrix;
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FArchiveInstance& Instance) 
 {
-	Ar << Instance.ObjectId;
-	Ar << Instance.MetaData;
-	Ar << Instance.TransformMatrix;
+	Ar << (FCADArchiveObject&) Instance;
 	Ar << Instance.ReferenceNodeId;
 	Ar << Instance.bIsExternalReference;
 	Ar << Instance.ExternalReference;
@@ -22,23 +28,20 @@ FArchive& operator<<(FArchive& Ar, FArchiveInstance& Instance)
 
 FArchive& operator<<(FArchive& Ar, FArchiveComponent& Component)
 {
-	Ar << Component.ObjectId;
-	Ar << Component.MetaData;
+	Ar << (FCADArchiveObject&) Component;
 	Ar << Component.Children;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FArchiveUnloadedComponent& Unloaded) 
 {
-	Ar << Unloaded.ObjectId;
-	Ar << Unloaded.MetaData;
+	Ar << (FArchiveComponent&) Unloaded;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FArchiveBody& Body) 
 {
-	Ar << Body.ObjectId;
-	Ar << Body.MetaData;
+	Ar << (FCADArchiveObject&) Body;
 	Ar << Body.MaterialFaceSet;
 	Ar << Body.ColorFaceSet;
 	Ar << Body.MeshActorName;

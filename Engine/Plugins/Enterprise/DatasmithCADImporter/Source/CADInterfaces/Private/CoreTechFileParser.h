@@ -82,7 +82,7 @@ namespace CADLibrary
 		uint32 GetMaterialNum();
 		void ReadMaterials();
 
-		uint32 GetObjectMaterial(ICADArchiveObject& Object);
+		uint32 GetObjectMaterial(FCADArchiveObject& Object);
 		FArchiveColor& FindOrAddColor(uint32 ColorHId);
 		FArchiveMaterial& FindOrAddMaterial(CT_MATERIAL_ID MaterialId);
 		void SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex);
