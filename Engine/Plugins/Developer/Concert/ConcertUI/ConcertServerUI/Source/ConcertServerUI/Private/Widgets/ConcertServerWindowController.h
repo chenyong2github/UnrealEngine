@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Docking/TabManager.h"
 
 class IConcertSyncServer;
 class FConcertServerSessionBrowserController;
 class FOutputLogController;
+class SWindow;
 
 struct FConcertServerWindowInitParams
 {

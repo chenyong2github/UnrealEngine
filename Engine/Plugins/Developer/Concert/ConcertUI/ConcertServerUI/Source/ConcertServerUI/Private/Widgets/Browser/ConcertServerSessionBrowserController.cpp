@@ -3,8 +3,11 @@
 #include "ConcertServerSessionBrowserController.h"
 
 #include "ConcertServerStyle.h"
+#include "Framework/Docking/TabManager.h"
 #include "SConcertServerSessionBrowser.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/ConcertServerTabs.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class IConcertSyncServer;
+
 struct FConcertComponentInitParams
 {
 	TSharedRef<IConcertSyncServer> Server;

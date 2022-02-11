@@ -6,6 +6,6 @@
 
 namespace ConcertServerTabs
 {
-	static FName GetSessionBrowserTabId();
-	static FName GetOutputLogTabId();
+	FName GetSessionBrowserTabId();
+	FName GetOutputLogTabId();
 }

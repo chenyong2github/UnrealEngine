@@ -6,10 +6,12 @@
 #include "Browser/ConcertServerSessionBrowserController.h"
 #include "OutputLog/OutputLogController.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/ConfigCacheIni.h"
 #include "OutputLog/Public/OutputLogModule.h"
 #include "Widgets/SWindow.h"
 
