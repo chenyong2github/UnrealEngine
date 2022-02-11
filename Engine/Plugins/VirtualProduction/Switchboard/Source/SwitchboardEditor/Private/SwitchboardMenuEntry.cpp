@@ -103,7 +103,7 @@ struct FSwitchboardMenuEntryImpl
 	TSharedRef<SWidget> CreateListenerEntries()
 	{
 		const bool bShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
+		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Actions);
 
 		MenuBuilder.BeginSection("Switchboard", LOCTEXT("SwitchboardListener", "Listener"));
 		{
