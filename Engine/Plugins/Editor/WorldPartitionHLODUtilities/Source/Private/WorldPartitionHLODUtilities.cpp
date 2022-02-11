@@ -16,8 +16,6 @@
 #include "Serialization/ArchiveCrc32.h"
 #include "Templates/UniquePtr.h"
 
-#include "AssetCompilingManager.h"
-
 #include "HLODBuilderInstancing.h"
 #include "HLODBuilderMeshMerge.h"
 #include "HLODBuilderMeshSimplify.h"
@@ -366,12 +364,6 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 			HLODBuilder->AddToRoot();
 
 			HLODBuilder->SetHLODBuilderSettings(HLODLayer->GetHLODBuilderSettings());
-
-			if (HLODBuilder->RequiresCompiledAssets())
-			{
-				// Wait for compilation to finish
-				FAssetCompilingManager::Get().FinishAllCompilation();
-			}
 
 			FHLODBuildContext HLODBuildContext;
 			HLODBuildContext.World = InHLODActor->GetWorld();
