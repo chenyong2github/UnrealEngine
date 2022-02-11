@@ -700,7 +700,7 @@ TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericM
 	// Make sure we don't create an expression for an input if it already has one
 	if (UInterchangeShaderPortsAPI::HasInput(MaterialFactoryNode, *InputName))
 	{
-		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString>{};
+		return TTuple<UInterchangeMaterialExpressionFactoryNode*, FString>{};
 	}
 
 	// If we have a connection
