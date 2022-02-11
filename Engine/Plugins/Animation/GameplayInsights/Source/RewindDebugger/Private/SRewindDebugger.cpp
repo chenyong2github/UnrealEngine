@@ -417,7 +417,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 			]
 			+SVerticalBox::Slot().FillHeight(1.0f)
 			[
-				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
+				TabManager->RestoreFrom(Layout,TSharedPtr<SWindow>()).ToSharedRef()
 			]
 		]
 	];
