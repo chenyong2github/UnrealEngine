@@ -416,7 +416,7 @@ uint32 WINAPI StartSplashScreenThread( LPVOID unused )
 		const bool bAllowFading = false;
 
 		// Force the editor splash screen to show up in the taskbar and alt-tab lists
-		uint32 dwWindowStyle = (GIsEditor ? WS_EX_APPWINDOW : 0) | WS_EX_TOOLWINDOW;
+		uint32 dwWindowStyle = GIsEditor ? WS_EX_APPWINDOW : WS_EX_TOOLWINDOW;
 		if( bAllowFading )
 		{
 			dwWindowStyle |= WS_EX_LAYERED;
