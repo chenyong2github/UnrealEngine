@@ -237,8 +237,8 @@ static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
 
-// Use Shadow stencil mask is set to 0x7F instead of 0xFF so that that last bit can be used for strata classification without clearing the stencil bit for pre-shadow/per-object static shadow mask
-constexpr uint32 ShadowStencilMask = 0x7f;
+// Use Shadow stencil mask is set to 0x07u instead of 0xFF so that that last bit can be used for strata classification without clearing the stencil bit for pre-shadow/per-object static shadow mask
+constexpr uint32 ShadowStencilMask = 0x07u;
 
 // 0:off, 1:low, 2:med, 3:high, 4:very high, 5:max
 uint32 GetShadowQuality()
