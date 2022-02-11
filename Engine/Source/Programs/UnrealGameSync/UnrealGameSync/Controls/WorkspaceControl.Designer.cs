@@ -85,8 +85,8 @@ namespace UnrealGameSync
 			this.BuildListContextMenu_CustomTool_Start = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildListContextMenu_CustomTool_End = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildListContextMenu_ViewInSwarm = new System.Windows.Forms.ToolStripMenuItem();
-			this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
 			this.BuildListContextMenu_CopyChangelistNumber = new System.Windows.Forms.ToolStripMenuItem();
+			this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
 			this.NotifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
 			this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildListToolTip = new System.Windows.Forms.ToolTip(this.components);
@@ -114,9 +114,6 @@ namespace UnrealGameSync
 			this.MoreActionsContextMenu_CustomToolSeparator = new System.Windows.Forms.ToolStripSeparator();
 			this.MoreToolsContextMenu_CleanWorkspace = new System.Windows.Forms.ToolStripMenuItem();
 			this.SyncContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-			this.SyncContextMenu_LatestChange = new System.Windows.Forms.ToolStripMenuItem();
-			this.SyncContextMenu_LatestGoodChange = new System.Windows.Forms.ToolStripMenuItem();
-			this.SyncContextMenu_LatestStarredChange = new System.Windows.Forms.ToolStripMenuItem();
 			this.toolStripSeparator8 = new System.Windows.Forms.ToolStripSeparator();
 			this.SyncContexMenu_EnterChangelist = new System.Windows.Forms.ToolStripMenuItem();
 			this.StreamContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -178,22 +175,22 @@ namespace UnrealGameSync
 			// OptionsContextMenu
 			// 
 			this.OptionsContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.OptionsContextMenu_ApplicationSettings,
-            this.toolStripSeparator2,
-            this.OptionsContextMenu_ScheduledSync,
-            this.OptionsContextMenu_SyncPrecompiledBinaries,
-            this.OptionsContextMenu_AutoResolveConflicts,
-            this.OptionsContextMenu_SyncFilter,
-            this.toolStripSeparator3,
-            this.OptionsContextMenu_EditorBuildConfiguration,
-            this.OptionsContextMenu_CustomizeBuildSteps,
-            this.OptionsContextMenu_EditorArguments,
-            this.toolStripSeparator5,
-            this.tabLabelsToolStripMenuItem,
-            this.showChangesToolStripMenuItem,
-            this.OptionsContextMenu_TimeZone,
-            this.toolStripSeparator6,
-            this.OptionsContextMenu_Diagnostics});
+			this.OptionsContextMenu_ApplicationSettings,
+			this.toolStripSeparator2,
+			this.OptionsContextMenu_ScheduledSync,
+			this.OptionsContextMenu_SyncPrecompiledBinaries,
+			this.OptionsContextMenu_AutoResolveConflicts,
+			this.OptionsContextMenu_SyncFilter,
+			this.toolStripSeparator3,
+			this.OptionsContextMenu_EditorBuildConfiguration,
+			this.OptionsContextMenu_CustomizeBuildSteps,
+			this.OptionsContextMenu_EditorArguments,
+			this.toolStripSeparator5,
+			this.tabLabelsToolStripMenuItem,
+			this.showChangesToolStripMenuItem,
+			this.OptionsContextMenu_TimeZone,
+			this.toolStripSeparator6,
+			this.OptionsContextMenu_Diagnostics});
 			this.OptionsContextMenu.Name = "ToolsMenuStrip";
 			this.OptionsContextMenu.Size = new System.Drawing.Size(262, 292);
 			// 
@@ -219,10 +216,10 @@ namespace UnrealGameSync
 			// OptionsContextMenu_SyncPrecompiledBinaries
 			// 
 			this.OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.disabledToolStripMenuItem,
-            this.toolStripSeparator11,
-            this.editorToolStripMenuItem,
-            this.editorPhysXToolStripMenuItem});
+			this.disabledToolStripMenuItem,
+			this.toolStripSeparator11,
+			this.editorToolStripMenuItem,
+			this.editorPhysXToolStripMenuItem});
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Name = "OptionsContextMenu_SyncPrecompiledBinaries";
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Size = new System.Drawing.Size(261, 22);
 			this.OptionsContextMenu_SyncPrecompiledBinaries.Text = "Sync Precompiled Binaries";
@@ -273,9 +270,9 @@ namespace UnrealGameSync
 			// OptionsContextMenu_EditorBuildConfiguration
 			// 
 			this.OptionsContextMenu_EditorBuildConfiguration.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.OptionsContextMenu_BuildConfig_Debug,
-            this.OptionsContextMenu_BuildConfig_DebugGame,
-            this.OptionsContextMenu_BuildConfig_Development});
+			this.OptionsContextMenu_BuildConfig_Debug,
+			this.OptionsContextMenu_BuildConfig_DebugGame,
+			this.OptionsContextMenu_BuildConfig_Development});
 			this.OptionsContextMenu_EditorBuildConfiguration.Name = "OptionsContextMenu_EditorBuildConfiguration";
 			this.OptionsContextMenu_EditorBuildConfiguration.Size = new System.Drawing.Size(261, 22);
 			this.OptionsContextMenu_EditorBuildConfiguration.Text = "Editor Build Configuration";
@@ -325,10 +322,10 @@ namespace UnrealGameSync
 			// tabLabelsToolStripMenuItem
 			// 
 			this.tabLabelsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.OptionsContextMenu_TabNames_Stream,
-            this.OptionsContextMenu_TabNames_WorkspaceName,
-            this.OptionsContextMenu_TabNames_WorkspaceRoot,
-            this.OptionsContextMenu_TabNames_ProjectFile});
+			this.OptionsContextMenu_TabNames_Stream,
+			this.OptionsContextMenu_TabNames_WorkspaceName,
+			this.OptionsContextMenu_TabNames_WorkspaceRoot,
+			this.OptionsContextMenu_TabNames_ProjectFile});
 			this.tabLabelsToolStripMenuItem.Name = "tabLabelsToolStripMenuItem";
 			this.tabLabelsToolStripMenuItem.Size = new System.Drawing.Size(261, 22);
 			this.tabLabelsToolStripMenuItem.Text = "Tab Names";
@@ -364,8 +361,8 @@ namespace UnrealGameSync
 			// showChangesToolStripMenuItem
 			// 
 			this.showChangesToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.OptionsContextMenu_ShowChanges_ShowUnreviewed,
-            this.OptionsContextMenu_ShowChanges_ShowAutomated});
+			this.OptionsContextMenu_ShowChanges_ShowUnreviewed,
+			this.OptionsContextMenu_ShowChanges_ShowAutomated});
 			this.showChangesToolStripMenuItem.Name = "showChangesToolStripMenuItem";
 			this.showChangesToolStripMenuItem.Size = new System.Drawing.Size(261, 22);
 			this.showChangesToolStripMenuItem.Text = "Show Changes";
@@ -387,8 +384,8 @@ namespace UnrealGameSync
 			// OptionsContextMenu_TimeZone
 			// 
 			this.OptionsContextMenu_TimeZone.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.OptionsContextMenu_TimeZone_Local,
-            this.OptionsContextMenu_TimeZone_PerforceServer});
+			this.OptionsContextMenu_TimeZone_Local,
+			this.OptionsContextMenu_TimeZone_PerforceServer});
 			this.OptionsContextMenu_TimeZone.Name = "OptionsContextMenu_TimeZone";
 			this.OptionsContextMenu_TimeZone.Size = new System.Drawing.Size(261, 22);
 			this.OptionsContextMenu_TimeZone.Text = "Time Zone";
@@ -456,41 +453,41 @@ namespace UnrealGameSync
 			// BuildListContextMenu
 			// 
 			this.BuildListContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.BuildListContextMenu_LaunchEditor,
-            this.BuildListContextMenu_Sync,
-            this.BuildListContextMenu_SyncContentOnly,
-            this.BuildListContextMenu_SyncOnlyThisChange,
-            this.BuildListContextMenu_Build,
-            this.BuildListContextMenu_Rebuild,
-            this.BuildListContextMenu_GenerateProjectFiles,
-            this.BuildListContextMenu_Cancel,
-            this.BuildListContextMenu_OpenVisualStudio,
-            this.BuildListContextMenu_Bisect_Separator,
-            this.BuildListContextMenu_Bisect_Pass,
-            this.BuildListContextMenu_Bisect_Fail,
-            this.BuildListContextMenu_Bisect_Include,
-            this.BuildListContextMenu_Bisect_Exclude,
-            this.toolStripSeparator4,
-            this.BuildListContextMenu_MarkGood,
-            this.BuildListContextMenu_MarkBad,
-            this.BuildListContextMenu_WithdrawReview,
-            this.BuildListContextMenu_LeaveComment,
-            this.BuildListContextMenu_EditComment,
-            this.BuildListContextMenu_StartInvestigating,
-            this.BuildListContextMenu_FinishInvestigating,
-            this.toolStripSeparator1,
-            this.BuildListContextMenu_AddStar,
-            this.BuildListContextMenu_RemoveStar,
-            this.BuildListContextMenu_TimeZoneSeparator,
-            this.BuildListContextMenu_ShowServerTimes,
-            this.BuildListContextMenu_ShowLocalTimes,
-            this.BuildListContextMenu_CustomTool_Start,
-            this.BuildListContextMenu_CustomTool_End,
-            this.BuildListContextMenu_ViewInSwarm,
+			this.BuildListContextMenu_LaunchEditor,
+			this.BuildListContextMenu_Sync,
+			this.BuildListContextMenu_SyncContentOnly,
+			this.BuildListContextMenu_SyncOnlyThisChange,
+			this.BuildListContextMenu_Build,
+			this.BuildListContextMenu_Rebuild,
+			this.BuildListContextMenu_GenerateProjectFiles,
+			this.BuildListContextMenu_Cancel,
+			this.BuildListContextMenu_OpenVisualStudio,
+			this.BuildListContextMenu_Bisect_Separator,
+			this.BuildListContextMenu_Bisect_Pass,
+			this.BuildListContextMenu_Bisect_Fail,
+			this.BuildListContextMenu_Bisect_Include,
+			this.BuildListContextMenu_Bisect_Exclude,
+			this.toolStripSeparator4,
+			this.BuildListContextMenu_MarkGood,
+			this.BuildListContextMenu_MarkBad,
+			this.BuildListContextMenu_WithdrawReview,
+			this.BuildListContextMenu_LeaveComment,
+			this.BuildListContextMenu_EditComment,
+			this.BuildListContextMenu_StartInvestigating,
+			this.BuildListContextMenu_FinishInvestigating,
+			this.toolStripSeparator1,
+			this.BuildListContextMenu_AddStar,
+			this.BuildListContextMenu_RemoveStar,
+			this.BuildListContextMenu_TimeZoneSeparator,
+			this.BuildListContextMenu_ShowServerTimes,
+			this.BuildListContextMenu_ShowLocalTimes,
+			this.BuildListContextMenu_CustomTool_Start,
+			this.BuildListContextMenu_CustomTool_End,
+			this.BuildListContextMenu_ViewInSwarm,
 			this.BuildListContextMenu_CopyChangelistNumber,
-            this.BuildListContextMenu_MoreInfo});
+			this.BuildListContextMenu_MoreInfo});
 			this.BuildListContextMenu.Name = "BuildListContextMenu";
-			this.BuildListContextMenu.Size = new System.Drawing.Size(199, 612);
+			this.BuildListContextMenu.Size = new System.Drawing.Size(199, 634);
 			// 
 			// BuildListContextMenu_LaunchEditor
 			// 
@@ -697,19 +694,19 @@ namespace UnrealGameSync
 			this.BuildListContextMenu_ViewInSwarm.Text = "View in Swarm...";
 			this.BuildListContextMenu_ViewInSwarm.Click += new System.EventHandler(this.BuildListContextMenu_ViewInSwarm_Click);
 			// 
+			// BuildListContextMenu_CopyChangelistNumber
+			// 
+			this.BuildListContextMenu_CopyChangelistNumber.Name = "BuildListContextMenu_CopyChangelistNumber";
+			this.BuildListContextMenu_CopyChangelistNumber.Size = new System.Drawing.Size(198, 22);
+			this.BuildListContextMenu_CopyChangelistNumber.Text = "Copy Changelist";
+			this.BuildListContextMenu_CopyChangelistNumber.Click += new System.EventHandler(this.BuildListContextMenu_CopyChangelistNumber_Click);
+			// 
 			// BuildListContextMenu_MoreInfo
 			// 
 			this.BuildListContextMenu_MoreInfo.Name = "BuildListContextMenu_MoreInfo";
 			this.BuildListContextMenu_MoreInfo.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_MoreInfo.Text = "More Info...";
 			this.BuildListContextMenu_MoreInfo.Click += new System.EventHandler(this.BuildListContextMenu_MoreInfo_Click);
-			//
-			// BuildListContextMenu_CopyChangelistNumber
-			// 
-			this.BuildListContextMenu_CopyChangelistNumber.Name = "BuildListContextMenu_CopyChangelistNumber";
-			this.BuildListContextMenu_CopyChangelistNumber.Size = new System.Drawing.Size(199, 22);
-			this.BuildListContextMenu_CopyChangelistNumber.Text = "Copy Changelist";
-			this.BuildListContextMenu_CopyChangelistNumber.Click += new System.EventHandler(this.BuildListContextMenu_CopyChangelistNumber_Click);
 			// 
 			// toolStripSeparator7
 			// 
@@ -870,14 +867,14 @@ namespace UnrealGameSync
 			// BuildList
 			// 
 			this.BuildList.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.IconColumn,
-            this.TypeColumn,
-            this.ChangeColumn,
-            this.TimeColumn,
-            this.AuthorColumn,
-            this.DescriptionColumn,
-            this.CISColumn,
-            this.StatusColumn});
+			this.IconColumn,
+			this.TypeColumn,
+			this.ChangeColumn,
+			this.TimeColumn,
+			this.AuthorColumn,
+			this.DescriptionColumn,
+			this.CISColumn,
+			this.StatusColumn});
 			this.BuildList.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.BuildList.FullRowSelect = true;
 			this.BuildList.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
@@ -969,8 +966,8 @@ namespace UnrealGameSync
 			// MoreToolsContextMenu
 			// 
 			this.MoreToolsContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.MoreActionsContextMenu_CustomToolSeparator,
-            this.MoreToolsContextMenu_CleanWorkspace});
+			this.MoreActionsContextMenu_CustomToolSeparator,
+			this.MoreToolsContextMenu_CleanWorkspace});
 			this.MoreToolsContextMenu.Name = "MoreActionsContextMenu";
 			this.MoreToolsContextMenu.Size = new System.Drawing.Size(175, 32);
 			// 
@@ -989,44 +986,20 @@ namespace UnrealGameSync
 			// SyncContextMenu
 			// 
 			this.SyncContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.SyncContextMenu_LatestChange,
-            this.SyncContextMenu_LatestGoodChange,
-            this.SyncContextMenu_LatestStarredChange,
-            this.toolStripSeparator8,
-            this.SyncContexMenu_EnterChangelist});
+			this.SyncContexMenu_EnterChangelist,
+			this.toolStripSeparator8});
 			this.SyncContextMenu.Name = "SyncContextMenu";
-			this.SyncContextMenu.Size = new System.Drawing.Size(190, 98);
-			// 
-			// SyncContextMenu_LatestChange
-			// 
-			this.SyncContextMenu_LatestChange.Name = "SyncContextMenu_LatestChange";
-			this.SyncContextMenu_LatestChange.Size = new System.Drawing.Size(189, 22);
-			this.SyncContextMenu_LatestChange.Text = "Latest Change";
-			this.SyncContextMenu_LatestChange.Click += new System.EventHandler(this.SyncContextMenu_LatestChange_Click);
-			// 
-			// SyncContextMenu_LatestGoodChange
-			// 
-			this.SyncContextMenu_LatestGoodChange.Name = "SyncContextMenu_LatestGoodChange";
-			this.SyncContextMenu_LatestGoodChange.Size = new System.Drawing.Size(189, 22);
-			this.SyncContextMenu_LatestGoodChange.Text = "Latest Good Change";
-			this.SyncContextMenu_LatestGoodChange.Click += new System.EventHandler(this.SyncContextMenu_LatestGoodChange_Click);
-			// 
-			// SyncContextMenu_LatestStarredChange
-			// 
-			this.SyncContextMenu_LatestStarredChange.Name = "SyncContextMenu_LatestStarredChange";
-			this.SyncContextMenu_LatestStarredChange.Size = new System.Drawing.Size(189, 22);
-			this.SyncContextMenu_LatestStarredChange.Text = "Latest Starred Change";
-			this.SyncContextMenu_LatestStarredChange.Click += new System.EventHandler(this.SyncContextMenu_LatestStarredChange_Click);
+			this.SyncContextMenu.Size = new System.Drawing.Size(184, 32);
 			// 
 			// toolStripSeparator8
 			// 
 			this.toolStripSeparator8.Name = "toolStripSeparator8";
-			this.toolStripSeparator8.Size = new System.Drawing.Size(186, 6);
+			this.toolStripSeparator8.Size = new System.Drawing.Size(180, 6);
 			// 
 			// SyncContexMenu_EnterChangelist
 			// 
 			this.SyncContexMenu_EnterChangelist.Name = "SyncContexMenu_EnterChangelist";
-			this.SyncContexMenu_EnterChangelist.Size = new System.Drawing.Size(189, 22);
+			this.SyncContexMenu_EnterChangelist.Size = new System.Drawing.Size(183, 22);
 			this.SyncContexMenu_EnterChangelist.Text = "Specific Changelist...";
 			this.SyncContexMenu_EnterChangelist.Click += new System.EventHandler(this.SyncContextMenu_EnterChangelist_Click);
 			// 
@@ -1038,10 +1011,10 @@ namespace UnrealGameSync
 			// RecentMenu
 			// 
 			this.RecentMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.RecentMenu_Browse,
-            this.toolStripSeparator9,
-            this.RecentMenu_Separator,
-            this.RecentMenu_ClearList});
+			this.RecentMenu_Browse,
+			this.toolStripSeparator9,
+			this.RecentMenu_Separator,
+			this.RecentMenu_ClearList});
 			this.RecentMenu.Name = "RecentMenu";
 			this.RecentMenu.Size = new System.Drawing.Size(123, 60);
 			// 
@@ -1072,10 +1045,10 @@ namespace UnrealGameSync
 			// BuildListMultiContextMenu
 			// 
 			this.BuildListMultiContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.BuildListMultiContextMenu_Bisect,
-            this.BuildListMultiContextMenu_TimeZoneSeparator,
-            this.BuildListMultiContextMenu_ShowServerTimes,
-            this.BuildListMultiContextMenu_ShowLocalTimes});
+			this.BuildListMultiContextMenu_Bisect,
+			this.BuildListMultiContextMenu_TimeZoneSeparator,
+			this.BuildListMultiContextMenu_ShowServerTimes,
+			this.BuildListMultiContextMenu_ShowLocalTimes});
 			this.BuildListMultiContextMenu.Name = "BuildListContextMenu";
 			this.BuildListMultiContextMenu.Size = new System.Drawing.Size(184, 76);
 			// 
@@ -1117,7 +1090,7 @@ namespace UnrealGameSync
 			this.FilterContextMenu_AfterBadgeSeparator,
 			this.FilterContextMenu_ShowBuildMachineChanges});
 			this.FilterContextMenu.Name = "FilterContextMenu";
-			this.FilterContextMenu.Size = new System.Drawing.Size(232, 104);
+			this.FilterContextMenu.Size = new System.Drawing.Size(232, 148);
 			// 
 			// FilterContextMenu_Default
 			// 
@@ -1134,10 +1107,10 @@ namespace UnrealGameSync
 			// FilterContextMenu_Type
 			// 
 			this.FilterContextMenu_Type.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.FilterContextMenu_Type_ShowAll,
-            this.toolStripSeparator10,
-            this.FilterContextMenu_Type_Code,
-            this.FilterContextMenu_Type_Content});
+			this.FilterContextMenu_Type_ShowAll,
+			this.toolStripSeparator10,
+			this.FilterContextMenu_Type_Code,
+			this.FilterContextMenu_Type_Content});
 			this.FilterContextMenu_Type.Name = "FilterContextMenu_Type";
 			this.FilterContextMenu_Type.Size = new System.Drawing.Size(231, 22);
 			this.FilterContextMenu_Type.Text = "Type";
@@ -1186,36 +1159,36 @@ namespace UnrealGameSync
 			this.FilterContextMenu_Robomerge.Size = new System.Drawing.Size(231, 22);
 			this.FilterContextMenu_Robomerge.Text = "Robomerge";
 			// 
-			// FilterContextMenu_Robomerge_Show
+			// FilterContextMenu_Robomerge_ShowAll
 			// 
-			this.FilterContextMenu_Robomerge_ShowAll.Name = "FilterContextMenu_Robomerge_Show";
-			this.FilterContextMenu_Robomerge_ShowAll.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowAll.Name = "FilterContextMenu_Robomerge_ShowAll";
+			this.FilterContextMenu_Robomerge_ShowAll.Size = new System.Drawing.Size(237, 22);
 			this.FilterContextMenu_Robomerge_ShowAll.Text = "Show All";
 			this.FilterContextMenu_Robomerge_ShowAll.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowAll_Click);
 			// 
 			// FilterContextMenu_Robomerge_ShowBadged
 			// 
 			this.FilterContextMenu_Robomerge_ShowBadged.Name = "FilterContextMenu_Robomerge_ShowBadged";
-			this.FilterContextMenu_Robomerge_ShowBadged.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowBadged.Size = new System.Drawing.Size(237, 22);
 			this.FilterContextMenu_Robomerge_ShowBadged.Text = "Show Changes with Badges";
 			this.FilterContextMenu_Robomerge_ShowBadged.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowBadged_Click);
 			// 
 			// FilterContextMenu_Robomerge_ShowNone
 			// 
 			this.FilterContextMenu_Robomerge_ShowNone.Name = "FilterContextMenu_Robomerge_ShowNone";
-			this.FilterContextMenu_Robomerge_ShowNone.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowNone.Size = new System.Drawing.Size(237, 22);
 			this.FilterContextMenu_Robomerge_ShowNone.Text = "Show None";
 			this.FilterContextMenu_Robomerge_ShowNone.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowNone_Click);
 			// 
 			// FilterContextMenu_AfterRobomergeShowSeparator
 			// 
 			this.FilterContextMenu_AfterRobomergeShowSeparator.Name = "FilterContextMenu_AfterRobomergeShowSeparator";
-			this.FilterContextMenu_AfterRobomergeShowSeparator.Size = new System.Drawing.Size(228, 6);
+			this.FilterContextMenu_AfterRobomergeShowSeparator.Size = new System.Drawing.Size(234, 6);
 			// 
 			// FilterContextMenu_Robomerge_Annotate
 			// 
-			this.FilterContextMenu_Robomerge_Annotate.Name = "FilterContextMenu_Type_Content";
-			this.FilterContextMenu_Robomerge_Annotate.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_Annotate.Name = "FilterContextMenu_Robomerge_Annotate";
+			this.FilterContextMenu_Robomerge_Annotate.Size = new System.Drawing.Size(237, 22);
 			this.FilterContextMenu_Robomerge_Annotate.Text = "Annotate Robomerge Changes";
 			this.FilterContextMenu_Robomerge_Annotate.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_Annotate_Click);
 			// 
@@ -1253,10 +1226,10 @@ namespace UnrealGameSync
 			// BuildHealthContextMenu
 			// 
 			this.BuildHealthContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.BuildHealthContextMenu_Browse,
-            this.BuildHealthContextMenu_MinSeparator,
-            this.BuildHealthContextMenu_MaxSeparator,
-            this.BuildHealthContextMenu_Settings});
+			this.BuildHealthContextMenu_Browse,
+			this.BuildHealthContextMenu_MinSeparator,
+			this.BuildHealthContextMenu_MaxSeparator,
+			this.BuildHealthContextMenu_Settings});
 			this.BuildHealthContextMenu.Name = "BuildHealthContextMenu";
 			this.BuildHealthContextMenu.Size = new System.Drawing.Size(130, 60);
 			// 
@@ -1408,11 +1381,8 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_SyncFilter;
 		private System.Windows.Forms.ToolStripMenuItem BuildListContextMenu_SyncOnlyThisChange;
 		private System.Windows.Forms.ContextMenuStrip SyncContextMenu;
-		private System.Windows.Forms.ToolStripMenuItem SyncContextMenu_LatestChange;
-		private System.Windows.Forms.ToolStripMenuItem SyncContextMenu_LatestGoodChange;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
 		private System.Windows.Forms.ToolStripMenuItem SyncContexMenu_EnterChangelist;
-		private System.Windows.Forms.ToolStripMenuItem SyncContextMenu_LatestStarredChange;
 		private System.Windows.Forms.ContextMenuStrip StreamContextMenu;
 		private System.Windows.Forms.ToolStripMenuItem tabLabelsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem OptionsContextMenu_TabNames_Stream;

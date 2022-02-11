@@ -452,7 +452,7 @@ namespace UnrealGameSync
 			if (StartupTimer != null)
 			{
 				int LatestChangeNumber;
-				if (FindChangeToSync(Settings.SyncType, out LatestChangeNumber))
+				if (FindChangeToSync(Settings.SyncTypeID, out LatestChangeNumber))
 				{
 					StartupTimerElapsed(false);
 				}
@@ -686,7 +686,10 @@ namespace UnrealGameSync
 				components.Dispose();
 			}
 
-			UpdateTimer.Stop();
+			if (UpdateTimer != null)
+			{
+				UpdateTimer.Stop();
+			}
 
 			if (StartupCallbacks != null)
 			{
@@ -2016,6 +2019,73 @@ namespace UnrealGameSync
 			return SelectedArchives.Count == 0 || SelectedArchives.All(x => GetArchiveKeyForChangeNumber(x, ChangeNumber) != null);
 		}
 
+		/// <summary>
+		/// Should read as Do Required Badges Exist and Are They Good.
+		/// Determines if the ini specified INI filter is a subset of the InBadges passed
+		/// BadgeGroupSyncFilter - is used as the ini 
+		/// </summary>
+		/// <param name="InBadges"></param>
+		/// <returns></returns>
+		private bool DoRequiredBadgesExist(List<string> RequiredBadgeList, List<BadgeData> InBadges)
+		{
+			Dictionary<string, BadgeData> InBadgeDictionary = new Dictionary<string, BadgeData>();
+			foreach (BadgeData Badge in InBadges)
+			{
+				InBadgeDictionary.Add(Badge.BadgeName, Badge);
+			}
+
+			// make sure all required badges exist in the InBadgeSet
+			foreach (string BadgeName in RequiredBadgeList)
+			{
+				BadgeData? Badge;
+				if (InBadgeDictionary.TryGetValue(BadgeName, out Badge))
+				{
+					// If any required badge is not successful then the filter isn't matched.
+					if (!Badge.IsSuccess)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					// required badge not found.
+					return false;
+				}
+			}
+
+			// All required badges existed and were successful 
+			return true;
+		}
+
+		private bool CanSyncChangeType(LatestChangeType ChangeType, ChangesRecord Change, EventSummary? Summary)
+		{
+			if (ChangeType.bGood)
+			{
+				if (Summary == null || Summary.Verdict != ReviewVerdict.Good)
+				{
+					return false;
+				}
+			}
+
+			if (ChangeType.bStarred)
+			{
+				if ((Summary == null || Summary.LastStarReview == null || Summary.LastStarReview.Type != EventType.Starred) && !PromotedChangeNumbers.Contains(Change.Number))
+				{
+					return false;
+				}
+			}
+
+			if (ChangeType.RequiredBadges.Count > 0)
+			{
+				if (Summary == null || !DoRequiredBadgesExist(ChangeType.RequiredBadges, Summary.Badges))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
 		private ChangeLayoutInfo GetChangeLayoutInfo(ChangesRecord Change)
 		{
 			ChangeLayoutInfo? LayoutInfo;
@@ -2463,6 +2533,47 @@ namespace UnrealGameSync
 			LayoutBadges(Badges);
 
 			return Badges;
+		}
+
+		private void PrintLatestChangeTypeUsage(string ErroringDefinition)
+		{
+			string ErrorMessage = "Error: Name not set for config value in \"Sync.LatestChangeType\"";
+			string UsageMessage = "Expected Format under the [Sync] ini category: +LatestChangeType=(Name=[string], Description=[string], OrderIndex=[int], bGood=[bool], bStarred=[bool], RequiredBadges=\"List of Badges For Changelist to have\")";
+
+			ShowErrorDialog("{0} Erroring String({1}) \n {2}", ErrorMessage, ErroringDefinition, UsageMessage);
+		}
+
+
+		/**
+		 * Array of config specified options for what the Latest Change to Sync should be.
+		 * See PrintLatestChangeTypeUsage for usage information
+		 */
+		public List<LatestChangeType> GetCustomLatestChangeTypes()
+		{
+			List<LatestChangeType> FoundLatestChangeTypes = new List<LatestChangeType>();
+
+			// Add three default change types that can be synced to
+			FoundLatestChangeTypes.Add(LatestChangeType.LatestChange());
+			FoundLatestChangeTypes.Add(LatestChangeType.LatestGoodChange());
+			FoundLatestChangeTypes.Add(LatestChangeType.LatestStarredChange());
+
+			string[] LatestChangeTypeDefinitions = PerforceMonitor.LatestProjectConfigFile.GetValues("Sync.LatestChangeType", new string[0]);
+			foreach (string LatestChangeDefinition in LatestChangeTypeDefinitions.Distinct())
+			{
+				LatestChangeType? NewType;
+				if (LatestChangeType.TryParseConfigEntry(LatestChangeDefinition, out NewType))
+				{
+					FoundLatestChangeTypes.Add(NewType);
+				}
+				else
+				{
+					PrintLatestChangeTypeUsage(LatestChangeDefinition);
+				}
+			}
+
+			FoundLatestChangeTypes = FoundLatestChangeTypes.OrderBy(X => X.OrderIndex).ToList();
+
+			return FoundLatestChangeTypes;
 		}
 
 		private static void SafeProcessStart(ProcessStartInfo StartInfo)
@@ -4370,9 +4481,18 @@ namespace UnrealGameSync
 			if (Workspace != null)
 			{
 				int ChangeNumber;
-				if (!FindChangeToSync(Settings.SyncType, out ChangeNumber))
+				if (!FindChangeToSync(Settings.SyncTypeID, out ChangeNumber))
 				{
-					ShowErrorDialog(String.Format("Couldn't find any {0}changelist. Double-click on the change you want to sync manually.", (Settings.SyncType == LatestChangeType.Starred) ? "starred " : (Settings.SyncType == LatestChangeType.Good) ? "good " : ""));
+					string SyncTypeName = "";
+					foreach (LatestChangeType ChangeType in GetCustomLatestChangeTypes())
+					{
+						if (ChangeType.Name == Settings.SyncTypeID)
+						{
+							SyncTypeName = ChangeType.Name;
+							break;
+						}
+					}
+					ShowErrorDialog(String.Format("Couldn't find any {0}changelist. Double-click on the change you want to sync manually.", SyncTypeName));
 				}
 				else if (ChangeNumber < Workspace.CurrentChangeNumber)
 				{
@@ -4797,12 +4917,22 @@ namespace UnrealGameSync
 		{
 			if (Settings.bScheduleEnabled)
 			{
-				Logger.LogInformation("Scheduled sync at {Time} for {Change}.", DateTime.Now, Settings.ScheduleChange);
+				// Check the project config if they have a scheduled setting selected.
+				string? ScheduledSyncTypeID = null;
+				UserSelectedProjectSettings ProjectSetting = Settings.ScheduleProjects.First(x => x.LocalPath != null && x.LocalPath.Equals(SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase));
+				if (ProjectSetting != null)
+				{
+					ScheduledSyncTypeID = ProjectSetting.ScheduledSyncTypeID;
+				}
+
+				Logger.LogInformation("Scheduled sync at {0} for {1}.",
+					DateTime.Now,
+					ScheduledSyncTypeID != null ? ScheduledSyncTypeID : "Default");
 
 				int ChangeNumber;
-				if (!FindChangeToSync(Settings.ScheduleChange, out ChangeNumber))
+				if (!FindChangeToSync(ScheduledSyncTypeID, out ChangeNumber))
 				{
-					Logger.LogInformation("Couldn't find any matching change");
+					SyncLog.AppendLine("Couldn't find any matching change");
 				}
 				else if (Workspace.CurrentChangeNumber >= ChangeNumber)
 				{
@@ -4820,6 +4950,31 @@ namespace UnrealGameSync
 			}
 		}
 
+		bool FindChangeToSync(string? ChangeTypeID, out int ChangeNumber)
+		{
+			if (ChangeTypeID != null)
+			{
+				LatestChangeType? ChangeTypeToSyncTo = null;
+				foreach (LatestChangeType ChangeType in GetCustomLatestChangeTypes())
+				{
+					if (ChangeType.Name == ChangeTypeID)
+					{
+						ChangeTypeToSyncTo = ChangeType;
+						break;
+					}
+				}
+
+				if (ChangeTypeToSyncTo != null)
+				{
+					return FindChangeToSync(ChangeTypeToSyncTo, out ChangeNumber);
+				}
+			}
+
+			SyncLog.AppendLine("Invalid or not set Scheduled Sync type using (Sync to Latest Good)");
+
+			return FindChangeToSync(LatestChangeType.LatestGoodChange(), out ChangeNumber);
+		}
+
 		bool FindChangeToSync(LatestChangeType ChangeType, out int ChangeNumber)
 		{
 			for (int Idx = 0; Idx < BuildList.Items.Count; Idx++)
@@ -4827,31 +4982,12 @@ namespace UnrealGameSync
 				ChangesRecord Change = (ChangesRecord)BuildList.Items[Idx].Tag;
 				if (Change != null)
 				{
-					if (ChangeType == LatestChangeType.Any)
+					EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
+					if (CanSyncChange(Change.Number)
+						&& CanSyncChangeType(ChangeType, Change, Summary))
 					{
-						if (CanSyncChange(Change.Number))
-						{
-							ChangeNumber = FindNewestGoodContentChange(Change.Number);
-							return true;
-						}
-					}
-					else if (ChangeType == LatestChangeType.Good)
-					{
-						EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
-						if (Summary != null && Summary.Verdict == ReviewVerdict.Good && CanSyncChange(Change.Number))
-						{
-							ChangeNumber = FindNewestGoodContentChange(Change.Number);
-							return true;
-						}
-					}
-					else if (ChangeType == LatestChangeType.Starred)
-					{
-						EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
-						if (((Summary != null && Summary.LastStarReview != null && Summary.LastStarReview.Type == EventType.Starred) || PromotedChangeNumbers.Contains(Change.Number)) && CanSyncChange(Change.Number))
-						{
-							ChangeNumber = FindNewestGoodContentChange(Change.Number);
-							return true;
-						}
+						ChangeNumber = FindNewestGoodContentChange(Change.Number);
+						return true;
 					}
 				}
 			}
@@ -5236,29 +5372,67 @@ namespace UnrealGameSync
 			}
 		}
 
+		/// <summary>
+		/// Used to load CustomLatestChangeTypes config data into the windows form.
+		/// </summary>
+		private void RefreshSyncMenuItems()
+		{
+			SyncContextMenu.Items.Clear();
+			SyncContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+			this.SyncContexMenu_EnterChangelist,
+			this.toolStripSeparator8});
+
+			foreach (LatestChangeType ChangeType in GetCustomLatestChangeTypes())
+			{
+				System.Windows.Forms.ToolStripMenuItem MenuItem = new System.Windows.Forms.ToolStripMenuItem();
+				MenuItem.Name = ChangeType.Name;
+				MenuItem.Text = ChangeType.Description;
+				MenuItem.Size = new System.Drawing.Size(189, 22);
+				MenuItem.Click += (sender, e) => this.SyncContextMenu_LatestChangeType_Click(sender, e, ChangeType.Name);
+
+				SyncContextMenu.Items.Add(MenuItem);
+			}
+		}
+
 		private void ShowSyncMenu(Rectangle Bounds)
 		{
-			SyncContextMenu_LatestChange.Checked = (Settings.SyncType == LatestChangeType.Any);
-			SyncContextMenu_LatestGoodChange.Checked = (Settings.SyncType == LatestChangeType.Good);
-			SyncContextMenu_LatestStarredChange.Checked = (Settings.SyncType == LatestChangeType.Starred);
+			RefreshSyncMenuItems();
+
+			string? NameOfLatestChangeType = null;
+			foreach (LatestChangeType ChangeType in GetCustomLatestChangeTypes())
+			{
+				if (ChangeType.Name == Settings.SyncTypeID)
+				{
+					NameOfLatestChangeType = ChangeType.Name;
+					break;
+				}
+			}
+
+			if (NameOfLatestChangeType != null)
+			{
+				foreach (int value in Enumerable.Range(0, SyncContextMenu.Items.Count))
+				{
+					System.Windows.Forms.ToolStripMenuItem? Item = SyncContextMenu.Items[value] as System.Windows.Forms.ToolStripMenuItem;
+					if (Item != null)
+					{
+						if (Item.Name == NameOfLatestChangeType)
+						{
+							Item.Checked = true;
+						}
+						else
+						{
+							Item.Checked = false;
+						}
+					}
+				}
+			}
+
 			SyncContextMenu.Show(StatusPanel, new Point(Bounds.Left, Bounds.Bottom), ToolStripDropDownDirection.BelowRight);
 		}
 
-		private void SyncContextMenu_LatestChange_Click(object sender, EventArgs e)
+		private void SyncContextMenu_LatestChangeType_Click(object? sender, EventArgs e, string SyncTypeID)
 		{
-			Settings.SyncType = LatestChangeType.Any;
-			Settings.Save();
-		}
-
-		private void SyncContextMenu_LatestGoodChange_Click(object sender, EventArgs e)
-		{
-			Settings.SyncType = LatestChangeType.Good;
-			Settings.Save();
-		}
-
-		private void SyncContextMenu_LatestStarredChange_Click(object sender, EventArgs e)
-		{
-			Settings.SyncType = LatestChangeType.Starred;
+			Settings.SyncTypeID = SyncTypeID;
 			Settings.Save();
 		}
 

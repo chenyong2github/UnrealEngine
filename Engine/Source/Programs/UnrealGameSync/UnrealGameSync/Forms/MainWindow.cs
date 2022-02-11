@@ -863,10 +863,20 @@ namespace UnrealGameSync
 				OpenProjects.Add(TabPanel.SelectedProject);
 			}
 
-			ScheduleWindow Schedule = new ScheduleWindow(Settings.bScheduleEnabled, Settings.ScheduleChange, Settings.ScheduleTime, Settings.ScheduleAnyOpenProject, Settings.ScheduleProjects, OpenProjects);
+			Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> ProjectToLatestChangeTypes = new Dictionary<UserSelectedProjectSettings, List<LatestChangeType>>();
+			for (int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
+			{
+				WorkspaceControl? Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
+				if (Workspace != null)
+				{
+					ProjectToLatestChangeTypes.Add(Workspace.SelectedProject, Workspace.GetCustomLatestChangeTypes());
+				}
+			}
+
+			ScheduleWindow Schedule = new ScheduleWindow(Settings.bScheduleEnabled, Settings.ScheduleTime, Settings.ScheduleAnyOpenProject, Settings.ScheduleProjects, OpenProjects, ProjectToLatestChangeTypes);
 			if(Schedule.ShowDialog() == System.Windows.Forms.DialogResult.OK)
 			{
-				Schedule.CopySettings(out Settings.bScheduleEnabled, out Settings.ScheduleChange, out Settings.ScheduleTime, out Settings.ScheduleAnyOpenProject, out Settings.ScheduleProjects);
+				Schedule.CopySettings(out Settings.bScheduleEnabled, out Settings.ScheduleTime, out Settings.ScheduleAnyOpenProject, out Settings.ScheduleProjects);
 				Settings.Save();
 			}
 

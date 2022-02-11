@@ -51,11 +51,81 @@ namespace UnrealGameSync
 		Content
 	}
 
-	public enum LatestChangeType
+	/// <summary>
+	/// Config specified class to determine what is the Latest Change to Sync
+	/// Can be configured using badges, good and starred CLs
+	/// </summary>
+	public class LatestChangeType
 	{
-		Any,
-		Good,
-		Starred,
+		// Display Specifiers
+		public string Name = ""; // Name will the saved ID for this LatestChangeType
+		public string Description = "";
+		public int OrderIndex = Int32.MaxValue;
+
+		// What Rules to Check for.
+		public bool bGood = false;
+		public bool bStarred = false;
+		public List<string> RequiredBadges = new List<string>();
+
+		public static bool TryParseConfigEntry(string Text, [NotNullWhen(true)] out LatestChangeType? ChangeType)
+		{
+			ConfigObject DefinitionObject = new ConfigObject(Text);
+
+			string LatestChangeTypeName = DefinitionObject.GetValue("Name", "");
+			if (LatestChangeTypeName != "")
+			{
+				ChangeType = new LatestChangeType();
+				ChangeType.Name = LatestChangeTypeName;
+				ChangeType.Description = DefinitionObject.GetValue("Description", "No \"Description\" for LatestChangeType given.");
+				ChangeType.OrderIndex = DefinitionObject.GetValue("OrderIndex", Int32.MaxValue);
+
+				ChangeType.bGood = DefinitionObject.GetValue("bGood", false);
+				ChangeType.bStarred = DefinitionObject.GetValue("bStarred", false);
+				ChangeType.RequiredBadges = new List<string>(DefinitionObject.GetValue("RequiredBadges", "").Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+				return true;
+			}
+			else
+			{
+				ChangeType = null;
+			}
+
+			return false;
+		}
+
+		// Default Template for Latest Change
+		public static LatestChangeType LatestChange()
+		{
+			LatestChangeType Latest = new LatestChangeType();
+			Latest.Name = "LatestChange";
+			Latest.Description = "Latest Change";
+			Latest.OrderIndex = -3;
+
+			return Latest;
+		}
+
+		// Default Template for Latest Good Change
+		public static LatestChangeType LatestGoodChange()
+		{
+			LatestChangeType LatestGood = new LatestChangeType();
+			LatestGood.Name = "LatestGoodChange";
+			LatestGood.Description = "Latest Good Change";
+			LatestGood.OrderIndex = -2;
+			LatestGood.bGood = true;
+
+			return LatestGood;
+		}
+
+		// Default Template for Latest Starred Change
+		public static LatestChangeType LatestStarredChange()
+		{
+			LatestChangeType LatestStarred = new LatestChangeType();
+			LatestStarred.Name = "LatestStarredChange";
+			LatestStarred.Description = "Latest Starred Change";
+			LatestStarred.OrderIndex = -1;
+			LatestStarred.bStarred = true;
+
+			return LatestStarred;
+		}
 	}
 
 	public enum UserSettingsVersion
@@ -124,6 +194,7 @@ namespace UnrealGameSync
 		public UserSelectedProjectType Type { get; set; }
 		public string? ClientPath { get; set; }
 		public string? LocalPath { get; set; }
+		public string? ScheduledSyncTypeID { get; set; }
 
 		public UserSelectedProjectSettings(string? ServerAndPort, string? UserName, UserSelectedProjectType Type, string? ClientPath, string? LocalPath)
 		{
@@ -171,9 +242,16 @@ namespace UnrealGameSync
 					ClientPath = null;
 				}
 
-				if((Type == UserSelectedProjectType.Client && ClientPath != null) || (Type == UserSelectedProjectType.Local && LocalPath != null))
+				string? ScheduledSyncTypeID = Object.GetValue("ScheduledSyncTypeID", null);
+				if (String.IsNullOrWhiteSpace(ScheduledSyncTypeID))
+				{
+					ScheduledSyncTypeID = null;
+				}
+
+				if ((Type == UserSelectedProjectType.Client && ClientPath != null) || (Type == UserSelectedProjectType.Local && LocalPath != null))
 				{
 					Project = new UserSelectedProjectSettings(ServerAndPort, UserName, Type, ClientPath, LocalPath);
+					Project.ScheduledSyncTypeID = ScheduledSyncTypeID;
 					return true;
 				}
 			}
@@ -204,6 +282,10 @@ namespace UnrealGameSync
 			if(LocalPath != null)
 			{
 				Object.SetValue("LocalPath", LocalPath);
+			}
+			if (ScheduledSyncTypeID != null)
+			{
+				Object.SetValue("ScheduledSyncTypeID", ScheduledSyncTypeID);
 			}
 
 			return Object.ToString();
@@ -453,7 +535,7 @@ namespace UnrealGameSync
 		public UserSelectedProjectSettings? LastProject;
 		public List<UserSelectedProjectSettings> OpenProjects;
 		public List<UserSelectedProjectSettings> RecentProjects;
-		public LatestChangeType SyncType;
+		public string SyncTypeID;
 		public BuildConfig CompiledEditorBuildConfig; // NB: This assumes not using precompiled editor. See CurrentBuildConfig.
 		public TabLabels TabLabels;
 
@@ -471,7 +553,6 @@ namespace UnrealGameSync
 		// Schedule settings
 		public bool bScheduleEnabled;
 		public TimeSpan ScheduleTime;
-		public LatestChangeType ScheduleChange;
 		public bool ScheduleAnyOpenProject;
 		public List<UserSelectedProjectSettings> ScheduleProjects;
 
@@ -608,9 +689,22 @@ namespace UnrealGameSync
 
 			OpenProjects = ReadProjectList("General.OpenProjects", "General.OpenProjectFileNames");
 			RecentProjects = ReadProjectList("General.RecentProjects", "General.OtherProjectFileNames");
-			if(!Enum.TryParse(ConfigFile.GetValue("General.SyncType", ""), out SyncType))
+			SyncTypeID = ConfigFile.GetValue("General.SyncTypeID", "");
+			string? OldSyncTye = ConfigFile.GetValue("General.SyncType", null);
+			if (OldSyncTye != null)
 			{
-				SyncType = LatestChangeType.Good;
+				if (OldSyncTye == "Any")
+				{
+					SyncTypeID = LatestChangeType.LatestChange().Name;
+				}
+				else if (OldSyncTye == "Good")
+				{
+					SyncTypeID = LatestChangeType.LatestGoodChange().Name;
+				}
+				else if (OldSyncTye == "Starred")
+				{
+					SyncTypeID = LatestChangeType.LatestStarredChange().Name;
+				}
 			}
 
 			// Build configuration
@@ -690,10 +784,7 @@ namespace UnrealGameSync
 			{
 				ScheduleTime = new TimeSpan(6, 0, 0);
 			}
-			if(!Enum.TryParse(ConfigFile.GetValue("Schedule.Change", ""), out ScheduleChange))
-			{
-				ScheduleChange = LatestChangeType.Good;
-			}
+
 			ScheduleAnyOpenProject = ConfigFile.GetValue("Schedule.AnyOpenProject", true);
 			ScheduleProjects = ReadProjectList("Schedule.Projects", "Schedule.ProjectFileNames");
 
@@ -969,7 +1060,7 @@ namespace UnrealGameSync
 			GeneralSection.SetValues("EnabledTools", EnabledTools);
 			GeneralSection.SetValue("FilterIndex", FilterIndex);
 			GeneralSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());
-			GeneralSection.SetValue("SyncType", SyncType.ToString());
+			GeneralSection.SetValue("SyncTypeID", SyncTypeID);
 
 			// Build configuration
 			GeneralSection.SetValue("BuildConfig", CompiledEditorBuildConfig.ToString());
@@ -991,7 +1082,6 @@ namespace UnrealGameSync
 			ScheduleSection.Clear();
 			ScheduleSection.SetValue("Enabled", bScheduleEnabled);
 			ScheduleSection.SetValue("Time", ScheduleTime.ToString());
-			ScheduleSection.SetValue("Change", ScheduleChange.ToString());
 			ScheduleSection.SetValue("AnyOpenProject", ScheduleAnyOpenProject);
 			ScheduleSection.SetValues("Projects", ScheduleProjects.Select(x => x.ToConfigEntry()).ToArray());
 

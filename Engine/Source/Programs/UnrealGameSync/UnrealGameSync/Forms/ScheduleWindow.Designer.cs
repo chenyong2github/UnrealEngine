@@ -30,16 +30,16 @@ namespace UnrealGameSync
 		/// </summary>
 		private void InitializeComponent()
 		{
+			this.components = new System.ComponentModel.Container();
 			this.TimePicker = new System.Windows.Forms.DateTimePicker();
 			this.EnableCheckBox = new System.Windows.Forms.CheckBox();
-			this.label1 = new System.Windows.Forms.Label();
 			this.OkBtn = new System.Windows.Forms.Button();
 			this.CancelBtn = new System.Windows.Forms.Button();
-			this.ChangeComboBox = new System.Windows.Forms.ComboBox();
 			this.ProjectListBox = new System.Windows.Forms.CheckedListBox();
 			this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
 			this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
 			this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
+			this.SyncTypeDropDown = new System.Windows.Forms.ContextMenuStrip(this.components);
 			this.tableLayoutPanel1.SuspendLayout();
 			this.flowLayoutPanel1.SuspendLayout();
 			this.flowLayoutPanel2.SuspendLayout();
@@ -50,7 +50,7 @@ namespace UnrealGameSync
 			this.TimePicker.Anchor = System.Windows.Forms.AnchorStyles.Left;
 			this.TimePicker.CustomFormat = "";
 			this.TimePicker.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
-			this.TimePicker.Location = new System.Drawing.Point(439, 3);
+			this.TimePicker.Location = new System.Drawing.Point(252, 3);
 			this.TimePicker.Name = "TimePicker";
 			this.TimePicker.ShowUpDown = true;
 			this.TimePicker.Size = new System.Drawing.Size(118, 23);
@@ -63,22 +63,11 @@ namespace UnrealGameSync
 			this.EnableCheckBox.Location = new System.Drawing.Point(0, 5);
 			this.EnableCheckBox.Margin = new System.Windows.Forms.Padding(0, 3, 3, 3);
 			this.EnableCheckBox.Name = "EnableCheckBox";
-			this.EnableCheckBox.Size = new System.Drawing.Size(180, 19);
+			this.EnableCheckBox.Size = new System.Drawing.Size(246, 19);
 			this.EnableCheckBox.TabIndex = 1;
-			this.EnableCheckBox.Text = "Automatically sync and build";
+			this.EnableCheckBox.Text = "Automatically sync and build every day at";
 			this.EnableCheckBox.UseVisualStyleBackColor = true;
 			this.EnableCheckBox.CheckedChanged += new System.EventHandler(this.EnableCheckBox_CheckedChanged);
-			// 
-			// label1
-			// 
-			this.label1.Anchor = System.Windows.Forms.AnchorStyles.Left;
-			this.label1.AutoSize = true;
-			this.label1.Location = new System.Drawing.Point(363, 7);
-			this.label1.Name = "label1";
-			this.label1.Size = new System.Drawing.Size(70, 15);
-			this.label1.TabIndex = 3;
-			this.label1.Text = "every day at";
-			this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
 			// 
 			// OkBtn
 			// 
@@ -103,25 +92,11 @@ namespace UnrealGameSync
 			this.CancelBtn.Text = "Cancel";
 			this.CancelBtn.UseVisualStyleBackColor = true;
 			// 
-			// ChangeComboBox
-			// 
-			this.ChangeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
-			this.ChangeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-			this.ChangeComboBox.FormattingEnabled = true;
-			this.ChangeComboBox.Items.AddRange(new object[] {
-            "latest change",
-            "latest good change",
-            "latest starred change"});
-			this.ChangeComboBox.Location = new System.Drawing.Point(186, 3);
-			this.ChangeComboBox.Name = "ChangeComboBox";
-			this.ChangeComboBox.Size = new System.Drawing.Size(171, 23);
-			this.ChangeComboBox.TabIndex = 2;
-			// 
 			// ProjectListBox
 			// 
 			this.ProjectListBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			| System.Windows.Forms.AnchorStyles.Left) 
+			| System.Windows.Forms.AnchorStyles.Right)));
 			this.ProjectListBox.CheckOnClick = true;
 			this.ProjectListBox.FormattingEnabled = true;
 			this.ProjectListBox.IntegralHeight = false;
@@ -134,8 +109,8 @@ namespace UnrealGameSync
 			// tableLayoutPanel1
 			// 
 			this.tableLayoutPanel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+			| System.Windows.Forms.AnchorStyles.Left) 
+			| System.Windows.Forms.AnchorStyles.Right)));
 			this.tableLayoutPanel1.ColumnCount = 1;
 			this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.tableLayoutPanel1.Controls.Add(this.flowLayoutPanel1, 0, 0);
@@ -154,13 +129,11 @@ namespace UnrealGameSync
 			// 
 			this.flowLayoutPanel1.AutoSize = true;
 			this.flowLayoutPanel1.Controls.Add(this.EnableCheckBox);
-			this.flowLayoutPanel1.Controls.Add(this.ChangeComboBox);
-			this.flowLayoutPanel1.Controls.Add(this.label1);
 			this.flowLayoutPanel1.Controls.Add(this.TimePicker);
 			this.flowLayoutPanel1.Location = new System.Drawing.Point(0, 0);
 			this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
 			this.flowLayoutPanel1.Name = "flowLayoutPanel1";
-			this.flowLayoutPanel1.Size = new System.Drawing.Size(560, 29);
+			this.flowLayoutPanel1.Size = new System.Drawing.Size(373, 29);
 			this.flowLayoutPanel1.TabIndex = 0;
 			this.flowLayoutPanel1.WrapContents = false;
 			// 
@@ -176,6 +149,11 @@ namespace UnrealGameSync
 			this.flowLayoutPanel2.Size = new System.Drawing.Size(183, 32);
 			this.flowLayoutPanel2.TabIndex = 1;
 			// 
+			// SyncTypeDropDown
+			// 
+			this.SyncTypeDropDown.Name = "SyncTypeDropDown";
+			this.SyncTypeDropDown.Size = new System.Drawing.Size(61, 4);
+			// 
 			// ScheduleWindow
 			// 
 			this.AcceptButton = this.OkBtn;
@@ -184,7 +162,7 @@ namespace UnrealGameSync
 			this.CancelButton = this.CancelBtn;
 			this.ClientSize = new System.Drawing.Size(793, 296);
 			this.Controls.Add(this.tableLayoutPanel1);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.Icon = global::UnrealGameSync.Properties.Resources.Icon;
 			this.MinimumSize = new System.Drawing.Size(720, 315);
 			this.Name = "ScheduleWindow";
@@ -204,13 +182,12 @@ namespace UnrealGameSync
 
 		private System.Windows.Forms.DateTimePicker TimePicker;
 		private System.Windows.Forms.CheckBox EnableCheckBox;
-		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Button OkBtn;
 		private System.Windows.Forms.Button CancelBtn;
-		private System.Windows.Forms.ComboBox ChangeComboBox;
 		private System.Windows.Forms.CheckedListBox ProjectListBox;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
 		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
 		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel2;
+		private System.Windows.Forms.ContextMenuStrip SyncTypeDropDown;
 	}
 }
