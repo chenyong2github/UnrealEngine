@@ -2729,6 +2729,11 @@ void FSequencer::SetPlaybackRangeToAllShots()
 
 bool FSequencer::IsPlaybackRangeLocked() const
 {
+	if (IsReadOnly())
+	{
+		return true;
+	}
+	
 	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
 	if (FocusedMovieSceneSequence != nullptr)
 	{
@@ -11347,129 +11352,187 @@ void FSequencer::ClearGlobalMarkedFrames()
 void FSequencer::ToggleMarkAtPlayPosition()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			FFrameNumber TickFrameNumber = GetLocalTime().Time.FloorToFrame();
-			int32 MarkedFrameIndex = FocusedMovieScene->FindMarkedFrameByFrameNumber(TickFrameNumber);
-			if (MarkedFrameIndex != INDEX_NONE)
-			{
-				FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrames_Transaction", "Delete Marked Frame"));
+		return;
+	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
 
-				FocusedMovieScene->Modify();
-				FocusedMovieScene->DeleteMarkedFrame(MarkedFrameIndex);
-			}
-			else
-			{
-				FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
 
-				FocusedMovieScene->Modify();
-				FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(TickFrameNumber));
-			}
-		}
+	FFrameNumber TickFrameNumber = GetLocalTime().Time.FloorToFrame();
+	int32 MarkedFrameIndex = FocusedMovieScene->FindMarkedFrameByFrameNumber(TickFrameNumber);
+	if (MarkedFrameIndex != INDEX_NONE)
+	{
+		FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrames_Transaction", "Delete Marked Frame"));
+
+		FocusedMovieScene->Modify();
+		FocusedMovieScene->DeleteMarkedFrame(MarkedFrameIndex);
+	}
+	else
+	{
+		FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
+
+		FocusedMovieScene->Modify();
+		FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(TickFrameNumber));
 	}
 }
 
 void FSequencer::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			FocusedMovieScene->Modify();
-			FocusedMovieScene->SetMarkedFrame(InMarkIndex, InFrameNumber);
-		}
+		return;
 	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+			
+	FocusedMovieScene->Modify();
+	FocusedMovieScene->SetMarkedFrame(InMarkIndex, InFrameNumber);
 }
 
 void FSequencer::AddMarkedFrame(FFrameNumber FrameNumber)
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
-
-			FocusedMovieScene->Modify();
-			FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(FrameNumber));
-		}
+		return;
 	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	FScopedTransaction AddMarkedFrameTransaction(LOCTEXT("AddMarkedFrame_Transaction", "Add Marked Frame"));
+
+	FocusedMovieScene->Modify();
+	FocusedMovieScene->AddMarkedFrame(FMovieSceneMarkedFrame(FrameNumber));
 }
 
 void FSequencer::DeleteMarkedFrame(int32 InMarkIndex)
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			if (InMarkIndex != INDEX_NONE)
-			{
-				FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrame_Transaction", "Delete Marked Frame"));
+		return;
+	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
 
-				FocusedMovieScene->Modify();
-				FocusedMovieScene->DeleteMarkedFrame(InMarkIndex);
-			}
-		}
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+
+	if (InMarkIndex != INDEX_NONE)
+	{
+		FScopedTransaction DeleteMarkedFrameTransaction(LOCTEXT("DeleteMarkedFrame_Transaction", "Delete Marked Frame"));
+
+		FocusedMovieScene->Modify();
+		FocusedMovieScene->DeleteMarkedFrame(InMarkIndex);
 	}
 }
 
 void FSequencer::DeleteAllMarkedFrames()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			FScopedTransaction DeleteAllMarkedFramesTransaction(LOCTEXT("DeleteAllMarkedFrames_Transaction", "Delete All Marked Frames"));
-
-			FocusedMovieScene->Modify();
-			FocusedMovieScene->DeleteMarkedFrames();
-		}
+		return;
 	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return;
+	}
+			
+	FScopedTransaction DeleteAllMarkedFramesTransaction(LOCTEXT("DeleteAllMarkedFrames_Transaction", "Delete All Marked Frames"));
+
+	FocusedMovieScene->Modify();
+	FocusedMovieScene->DeleteMarkedFrames();
 }
 
 void FSequencer::StepToNextMark()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			const bool bForwards = true;
-			int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
-			if (MarkedIndex != INDEX_NONE)
-			{
-				AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
-			}
-		}
+		return;
+	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	const bool bForwards = true;
+	int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
+	if (MarkedIndex != INDEX_NONE)
+	{
+		AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
 	}
 }
 
 void FSequencer::StepToPreviousMark()
 {
 	UMovieSceneSequence* FocusedMovieSequence = GetFocusedMovieSceneSequence();
-	if (FocusedMovieSequence != nullptr)
+	if (!FocusedMovieSequence)
 	{
-		UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
-		if (FocusedMovieScene != nullptr)
-		{
-			const bool bForwards = false;
-			int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
-			if (MarkedIndex != INDEX_NONE)
-			{
-				AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
-			}
-		}
+		return;
+	}
+	
+	UMovieScene* FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+	
+	const bool bForwards = false;
+	int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
+	if (MarkedIndex != INDEX_NONE)
+	{
+		AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
 	}
 }
 

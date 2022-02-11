@@ -709,7 +709,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						.Style(FAppStyle::Get(),"ToggleButtonCheckBoxAlt")
 						.Type(ESlateCheckBoxType::CheckBox) // Use CheckBox instead of ToggleType since we're not putting ohter widget inside
 						.Padding(FMargin(0.f))
-						.IsFocusable(false)		
+						.IsFocusable(false)
+						.IsEnabled(!SequencerPtr.Pin()->IsReadOnly())		
 						.IsChecked_Lambda([this] { return GetIsSequenceReadOnly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
 						.OnCheckStateChanged(this, &SSequencer::OnSetSequenceReadOnly)
 						.ToolTipText_Lambda([this] { return GetIsSequenceReadOnly() ? LOCTEXT("UnlockSequence", "Unlock the animation so that it is editable") : LOCTEXT("LockSequence", "Lock the animation so that it is not editable"); } )
