@@ -12,6 +12,7 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Misc/Paths.h"
 #include "ImageCore.h"
+#include <cmath>
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -313,6 +314,64 @@ private:
 	float KernelWeights[MaxKernelExtend * MaxKernelExtend];
 };
 
+static float DetermineScaledThreshold(float Threshold, float Scale)
+{
+	check(Threshold > 0.f && Scale > 0.f);
+
+	// Assuming Scale > 0 and Threshold > 0, find ScaledThreshold such that
+	//	 x * Scale >= Threshold
+	// is exactly equivalent to
+	//	 x >= ScaledThreshold.
+	//
+	// This is for a test that was originally written in the first form that we want to
+	// transform to the second form without changing results (which would in turn change
+	// texture cooks).
+	//
+	// In exact arithmetic, this is just ScaledThreshold = Threshold / Scale.
+	//
+	// In floating point, we need to consider rounding. Computed in floating point
+	// and assuming round-to-nearest (breaking ties towards even), we get 
+	//
+	//	 RN(x * Scale) >= Threshold
+	//
+	// The smallest conceivable x that passes RN(x * Scale) >= Threshold is
+	// x = (Threshold - 0.5u) / Scale, landing exactly halfway with the rounding
+	// going up; this is slightly less than an exact Threshold/Scale.
+	//
+	// For regular floating point division, we get
+	//	 RN(Threshold / Scale)
+	// = (Threshold / Scale) * (1 + e),  |e| < 0.5u (the inequality is strict for divisions)
+	//
+	// That gets us relatively close to the target value, but we have no guarantee that rounding
+	// on the division was in the direction we wanted. Just check whether our target inequality
+	// is satisfied and bump up or down to the next representable float as required.
+	float ScaledThreshold = Threshold / Scale;
+	float SteppedDown = std::nextafter(ScaledThreshold, 0.f);
+
+	// We want ScaledThreshold to be the smallest float such that
+	//	 ScaledThreshold * Scale >= Threshold
+	// meaning the next-smaller float below ScaledThreshold (which is SteppedDown)
+	// should not be >=Threshold. 
+
+	if (SteppedDown * Scale >= Threshold)
+	{
+		// We were too large, go down by 1 ulp
+		ScaledThreshold = SteppedDown;
+	}
+	else if (ScaledThreshold * Scale < Threshold)
+	{
+		// We were too small, go up by 1 ulp
+		ScaledThreshold = std::nextafter(ScaledThreshold, 2.f * ScaledThreshold);
+	}
+
+	// We should now have the right threshold:
+	check(ScaledThreshold * Scale >= Threshold); // ScaledThreshold is large enough
+	check(std::nextafter(ScaledThreshold, 0.f) * Scale < Threshold); // next below is too small
+
+	return ScaledThreshold;
+}
+
+
 static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector4f& Scales, const FImageView2D& SourceImageData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage);
@@ -328,7 +387,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector
 		
 		check( Thresholds[3] != 0.f );
 
-		const float ThresholdScaled = Thresholds[3] / Scales[3];
+		const float ThresholdScaled = DetermineScaledThreshold(Thresholds[3] , Scales[3]);
 		
 		int32 CommonResult = 0;
 		ParallelFor(NumJobs, [&](int32 Index)
@@ -344,10 +403,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector
 
 				for (int32 x = 0; x < SourceImageData.SizeX; ++x)
 				{
-					// Sample channel values at pixel neighborhood
-					const float A = RowPixels[x].A;
-
-					LocalCoverage += (A >= ThresholdScaled);
+					LocalCoverage += (RowPixels[x].A >= ThresholdScaled);
 				}
 			}
 
@@ -374,7 +430,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f& Thresholds, const FVector
 			else
 			{
 				check( Scales[i] != 0.f );
-				ThresholdsScaled[i] = Thresholds[i] / Scales[i];
+				ThresholdsScaled[i] = DetermineScaledThreshold( Thresholds[i] , Scales[i] );
 			}
 		}
 
@@ -492,6 +548,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	const FImageView2D& SourceImageData, 
 	FImageView2D& DestImageData, 
 	bool bDitherMipMapAlpha,
+	bool bDoScaleMipsForAlphaCoverage,
 	FVector4f AlphaCoverages,
 	FVector4f AlphaThresholds,
 	const FImageKernel2D& Kernel,
@@ -509,7 +566,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	FRandomStream RandomStream(0);
 
 	FVector4f AlphaScale(1, 1, 1, 1);
-	if (AlphaThresholds != FVector4f(0,0,0,0))
+	if (bDoScaleMipsForAlphaCoverage)
 	{
 		AlphaScale = ComputeAlphaScale(AlphaCoverages, AlphaThresholds, SourceImageData);
 	}
@@ -622,6 +679,7 @@ static void GenerateSharpenedMipB8G8R8A8(
 	FImageView2D& DestImageData, 
 	EMipGenAddressMode AddressMode, 
 	bool bDitherMipMapAlpha,
+	bool bDoScaleMipsForAlphaCoverage,
 	FVector4f AlphaCoverages,
 	FVector4f AlphaThresholds,
 	const FImageKernel2D &Kernel,
@@ -635,13 +693,13 @@ static void GenerateSharpenedMipB8G8R8A8(
 	switch(AddressMode)
 	{
 	case MGTAM_Wrap:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData, DestImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	case MGTAM_Clamp:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData, DestImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	case MGTAM_BorderBlack:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData, DestImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	default:
 		check(0);
@@ -656,13 +714,13 @@ static void GenerateSharpenedMipB8G8R8A8(
 		switch(AddressMode)
 		{
 		case MGTAM_Wrap:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData2, TempImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		case MGTAM_Clamp:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData2, TempImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		case MGTAM_BorderBlack:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData2, TempImageData, bDitherMipMapAlpha, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		default:
 			check(0);
@@ -769,6 +827,7 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 			DestView,
 			AddressMode,
 			Settings.bDitherMipMapAlpha,
+			false,
 			FVector4f(0, 0, 0, 0),
 			FVector4f(0, 0, 0, 0),
 			KernelDownsample,
@@ -859,6 +918,7 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 			SrcImageData, 
 			DstImageData, 
 			Settings.bDitherMipMapAlpha, 
+			false,
 			FVector4f(0, 0, 0, 0),
 			FVector4f(0, 0, 0, 0), 
 			AvgKernel, 
@@ -982,7 +1042,7 @@ void ITextureCompressorModule::GenerateMipChain(
 	const int32 SrcHeight= BaseMip.SizeY;
 	const int32 SrcNumSlices = BaseMip.NumSlices;
 	const ERawImageFormat::Type ImageFormat = ERawImageFormat::RGBA32F;
-	FVector4f AlphaScales(1, 1, 1, 1);
+
 	FVector4f AlphaCoverages(0, 0, 0, 0);
 
 
@@ -1028,11 +1088,13 @@ void ITextureCompressorModule::GenerateMipChain(
 	}
 
 	// Calculate alpha coverage value to preserve along mip chain
-	if (Settings.AlphaCoverageThresholds != FVector4f(0,0,0,0))
+	if ( Settings.bDoScaleMipsForAlphaCoverage )
 	{
+		check(Settings.AlphaCoverageThresholds != FVector4f(0,0,0,0));
 		check(IntermediateSrcPtr);
 		const FImageView2D IntermediateSrcView = FImageView2D::ConstructConst(*IntermediateSrcPtr, 0);
-		
+
+		const FVector4f AlphaScales(1, 1, 1, 1);		
 		AlphaCoverages = ComputeAlphaCoverage(Settings.AlphaCoverageThresholds, AlphaScales, IntermediateSrcView);
 	}
 
@@ -1063,6 +1125,7 @@ void ITextureCompressorModule::GenerateMipChain(
 				DestView,
 				AddressMode,
 				Settings.bDitherMipMapAlpha,
+				Settings.bDoScaleMipsForAlphaCoverage,
 				AlphaCoverages,
 				Settings.AlphaCoverageThresholds,
 				KernelDownsample,
@@ -1080,6 +1143,7 @@ void ITextureCompressorModule::GenerateMipChain(
 					IntermediateDstView,
 					AddressMode,
 					Settings.bDitherMipMapAlpha,
+					Settings.bDoScaleMipsForAlphaCoverage,
 					AlphaCoverages,
 					Settings.AlphaCoverageThresholds,
 					KernelSimpleAverage,

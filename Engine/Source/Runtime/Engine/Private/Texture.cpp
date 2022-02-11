@@ -123,6 +123,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	bUseLegacyGamma = false;
 	bIsImporting = false;
 	bCustomPropertiesImported = false;
+	bDoScaleMipsForAlphaCoverage = false;
 	AlphaCoverageThresholds = FVector4(0, 0, 0, 0);
 	PaddingColor = FColor::Black;
 	ChromaKeyColor = FColorList::Magenta;
@@ -575,6 +576,37 @@ void UTexture::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		FWriteScopeLock BulkDataExclusiveScope(Source.BulkDataLock.Get());
 #endif
+
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureDoScaleMipsForAlphaCoverage)
+		{
+			// bDoScaleMipsForAlphaCoverage was not transmitted in old versions
+			//	and AlphaCoverageThresholds was being incorrectly set to (0,0,0,1)
+			check( bDoScaleMipsForAlphaCoverage == false );
+	
+			if ( AlphaCoverageThresholds != FVector4(0,0,0,0) && AlphaCoverageThresholds != FVector4(0,0,0,1) )
+			{
+				// AlphaCoverageThresholds is a non-default value, assume that means they wanted it on
+				bDoScaleMipsForAlphaCoverage = true;
+			}
+			else if ( AlphaCoverageThresholds == FVector4(0,0,0,1) )
+			{
+				// if value is (0,0,0,1)
+				//	that was previously incorrectly being set by default and enabling alpha coverage processing
+				// we don't want that, but to optionally preserve old behavior you can set a config option :
+
+				static struct ReadConfigOnce
+				{
+					bool bBool;
+					ReadConfigOnce()
+					{
+						bBool = false;
+						GConfig->GetBool(TEXT("Texture"), TEXT("EnableLegacyAlphaCoverageThresholdScaling"), bBool, GEditorIni);
+					}
+				} ConfigValue;
+
+				bDoScaleMipsForAlphaCoverage = ConfigValue.bBool;
+			}
+		}
 
 		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::VirtualizedBulkDataHaveUniqueGuids)
 		{

@@ -187,6 +187,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Added some new MeshInfo to the FSkeletalMeshLODModel class.
 		SkeletalMeshLODModelMeshInfo,
 		
+		// Add Texture DoScaleMipsForAlphaCoverage
+		TextureDoScaleMipsForAlphaCoverage,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

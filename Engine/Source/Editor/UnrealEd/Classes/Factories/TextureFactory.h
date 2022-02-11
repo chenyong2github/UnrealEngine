@@ -115,6 +115,10 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	/** If enabled, mip-map alpha values will be dithered for smooth transitions */
 	UPROPERTY(EditAnywhere, Category=DitherMipMaps, meta=(ToolTip="If enabled, mip-map alpha values will be dithered for smooth transitions"))
 	uint32 bDitherMipMapAlpha:1;
+	
+	/** Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds */
+	UPROPERTY(EditAnywhere, Category=PreserveAlphaCoverage, meta=(ToolTip="Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds"))
+	bool bDoScaleMipsForAlphaCoverage = false;
 
 	/** Channel values to compare to when preserving alpha coverage from a mask. */
 	UPROPERTY(EditAnywhere, Category=PreserveAlphaCoverage, meta=(ToolTip="Channel values to compare to when preserving alpha coverage from a mask for mips"))

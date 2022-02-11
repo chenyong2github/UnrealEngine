@@ -72,6 +72,8 @@ struct FTextureBuildSettings
 	FCbObjectView FormatConfigOverride;
 	/** Color adjustment parameters. */
 	FColorAdjustmentParameters ColorAdjustment;
+	/** Enable preserving alpha coverage. */
+	bool bDoScaleMipsForAlphaCoverage;
 	/** Channel values to compare to when preserving alpha coverage. */
 	FVector4f AlphaCoverageThresholds;
 	/** The desired amount of mip sharpening. */
@@ -213,7 +215,8 @@ struct FTextureBuildSettings
 
 	/** Default settings. */
 	FTextureBuildSettings()
-		: AlphaCoverageThresholds(0, 0, 0, 0)
+		: bDoScaleMipsForAlphaCoverage(false)
+		, AlphaCoverageThresholds(0, 0, 0, 0)
 		, MipSharpening(0.0f)
 		, DiffuseConvolveMipLevel(0)
 		, SharpenMipKernelSize(2)

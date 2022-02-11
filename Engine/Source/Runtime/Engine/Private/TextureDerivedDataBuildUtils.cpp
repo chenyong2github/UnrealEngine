@@ -113,8 +113,13 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 		WriteCbFieldWithDefault(Writer, "AdjustMaxAlpha", BuildSettings.ColorAdjustment.AdjustMaxAlpha, DefaultSettings.ColorAdjustment.AdjustMaxAlpha);
 		Writer.EndObject();
 	}
-
-	WriteCbFieldWithDefault(Writer, "AlphaCoverageThresholds", BuildSettings.AlphaCoverageThresholds, DefaultSettings.AlphaCoverageThresholds);
+	
+	WriteCbFieldWithDefault<bool>(Writer, "bDoScaleMipsForAlphaCoverage", BuildSettings.bDoScaleMipsForAlphaCoverage, DefaultSettings.bDoScaleMipsForAlphaCoverage);
+	if ( BuildSettings.bDoScaleMipsForAlphaCoverage )
+	{
+		// AlphaCoverageThresholds do not affect build if bDoScaleMipsForAlphaCoverage is off
+		WriteCbFieldWithDefault(Writer, "AlphaCoverageThresholds", BuildSettings.AlphaCoverageThresholds, DefaultSettings.AlphaCoverageThresholds);
+	}
 	WriteCbFieldWithDefault(Writer, "MipSharpening", BuildSettings.MipSharpening, DefaultSettings.MipSharpening);
 	WriteCbFieldWithDefault(Writer, "DiffuseConvolveMipLevel", BuildSettings.DiffuseConvolveMipLevel, DefaultSettings.DiffuseConvolveMipLevel);
 	WriteCbFieldWithDefault(Writer, "SharpenMipKernelSize", BuildSettings.SharpenMipKernelSize, DefaultSettings.SharpenMipKernelSize);
