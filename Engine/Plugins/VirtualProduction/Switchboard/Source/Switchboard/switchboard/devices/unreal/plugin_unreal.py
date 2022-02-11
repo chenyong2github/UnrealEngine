@@ -11,6 +11,7 @@ import ipaddress
 import os
 import pathlib
 import re
+import sys
 import threading
 from typing import Callable, List, Optional, Set
 import uuid
@@ -1936,9 +1937,12 @@ class DeviceUnreal(Device):
         return remote_project_path / 'Saved' / 'Logs'
 
     def get_rsync_path(self):
-        return pathlib.Path(
-            CONFIG.ENGINE_DIR.get_value(self.name),
-            'Extras', 'ThirdPartyNotUE', 'cwrsync', 'bin', 'rsync.exe')
+        if sys.platform.startswith('win'):
+            return pathlib.Path(
+                CONFIG.ENGINE_DIR.get_value(self.name),
+                'Extras', 'ThirdPartyNotUE', 'cwrsync', 'bin', 'rsync.exe')
+        else:
+            return 'rsync'
 
     def fetch_file(self, remote_path):
         program_name = 'retrieve'

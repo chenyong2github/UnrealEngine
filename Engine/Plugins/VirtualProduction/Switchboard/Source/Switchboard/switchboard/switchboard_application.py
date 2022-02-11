@@ -131,7 +131,12 @@ class MultiUserApplication:
                              f'{self.exe_path()}. Has it been built?')
                 return
 
-            cmdline = f'start "Multi User Server" "{self.exe_path()}"'
+            cmdline = ''
+            if sys.platform.startswith('win'):
+                cmdline = f'start "Multi User Server" "{self.exe_path()}"'
+            else:
+                cmdline = f'{self.exe_path()}'
+
             cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"'
             cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}'
             cmdline += f' {self.get_mu_server_endpoint_arg()}'
