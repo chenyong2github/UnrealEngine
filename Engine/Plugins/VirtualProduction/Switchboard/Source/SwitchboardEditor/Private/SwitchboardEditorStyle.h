@@ -13,8 +13,6 @@ class SWITCHBOARDEDITOR_API FSwitchboardEditorStyle : public FSlateStyleSet
 public:
 	static FSwitchboardEditorStyle& Get();
 
-	static const FName NAME_SwitchboardBrush;
-
 private:
 	FSwitchboardEditorStyle();
 	~FSwitchboardEditorStyle();

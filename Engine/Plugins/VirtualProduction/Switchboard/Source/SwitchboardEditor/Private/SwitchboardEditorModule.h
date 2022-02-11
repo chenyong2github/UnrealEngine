@@ -53,6 +53,17 @@ public:
 	bool LaunchSwitchboard();
 	bool LaunchListener();
 
+	enum class ESwitchboardInstallState
+	{
+		VerifyInProgress,
+
+		NeedInstallOrRepair,
+		ShortcutsMissing,
+		Nominal,
+	};
+
+	ESwitchboardInstallState GetSwitchboardInstallState();
+
 	TSharedFuture<FSwitchboardVerifyResult> GetVerifyResult(bool bForceRefresh = false);
 
 #if SB_LISTENER_AUTOLAUNCH

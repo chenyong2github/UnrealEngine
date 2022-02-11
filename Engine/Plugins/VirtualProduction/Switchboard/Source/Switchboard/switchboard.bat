@@ -54,7 +54,7 @@ goto:eof
 :start_sb
 
 set PYTHONPATH=%_switchboardDir%;%PYTHONPATH%
-start "Switchboard" "%_venvDir%\Scripts\pythonw.exe" -m switchboard
+start "Switchboard" /D "%_switchboardDir%" "%_venvDir%\Scripts\pythonw.exe" -m switchboard
 if %ERRORLEVEL% NEQ 0 (
     echo Failed to launch Switchboard^!
     if defined _bUsingDefaultVenv ( pause )

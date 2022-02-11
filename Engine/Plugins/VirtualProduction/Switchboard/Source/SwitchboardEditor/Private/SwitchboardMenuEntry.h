@@ -9,5 +9,7 @@ class FSwitchboardMenuEntry
 {
 public:
 	static void Register();
+	static void AddMenu();
+	static void RemoveMenu();
 	static void Unregister();
 };

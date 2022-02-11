@@ -5,6 +5,7 @@
 #include "SwitchboardMenuEntry.h"
 #include "SwitchboardProjectSettings.h"
 #include "SwitchboardSettingsCustomization.h"
+#include "Async/Async.h"
 #include "Editor.h"
 #include "EditorUtilitySubsystem.h"
 #include "ISettingsModule.h"
@@ -149,6 +150,37 @@ bool FSwitchboardEditorModule::RunProcess(const FString& InExe, const FString& I
 }
 
 
+FSwitchboardEditorModule::ESwitchboardInstallState FSwitchboardEditorModule::GetSwitchboardInstallState()
+{
+	TSharedFuture<FSwitchboardVerifyResult> Result = GetVerifyResult();
+
+	if (!Result.IsReady())
+	{
+		return ESwitchboardInstallState::VerifyInProgress;
+	}
+
+	if (Result.Get().Summary != FSwitchboardVerifyResult::ESummary::Success)
+	{
+		return ESwitchboardInstallState::NeedInstallOrRepair;
+	}
+
+#if SWITCHBOARD_SHORTCUTS
+	const bool bListenerDesktopShortcutExists = DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
+	const bool bListenerProgramsShortcutExists = DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
+	const bool bAppDesktopShortcutExists = DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
+	const bool bAppProgramsShortcutExists = DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
+
+	if (!bListenerDesktopShortcutExists || !bListenerProgramsShortcutExists
+		|| !bAppDesktopShortcutExists || !bAppProgramsShortcutExists)
+	{
+		return ESwitchboardInstallState::ShortcutsMissing;
+	}
+#endif // #if SWITCHBOARD_SHORTCUTS
+
+	return ESwitchboardInstallState::Nominal;
+}
+
+
 TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResult(bool bForceRefresh /* = false */)
 {
 	const FString CurrentVenv = GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path;
@@ -167,6 +199,17 @@ TSharedFuture<FSwitchboardVerifyResult> FSwitchboardEditorModule::GetVerifyResul
 			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify complete for venv: %s"), *Venv);
 			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify summary: %d"), Result.Summary);
 			UE_LOG(LogSwitchboardPlugin, Log, TEXT("Verify log: %s"), *Result.Log);
+
+			Async(EAsyncExecution::TaskGraphMainThread, []() {
+				if (FSwitchboardEditorModule::Get().GetSwitchboardInstallState() == ESwitchboardInstallState::Nominal)
+				{
+					FSwitchboardMenuEntry::RemoveMenu();
+				}
+				else
+				{
+					FSwitchboardMenuEntry::AddMenu();
+				}
+			});
 
 			return Result;
 		});
@@ -266,6 +309,9 @@ void FSwitchboardEditorModule::OnEngineInitComplete()
 	DeferredStartDelegateHandle.Reset();
 
 	RunDefaultOSCListener();
+
+	// Populate initial verification results.
+	GetVerifyResult(true);
 }
 
 

@@ -146,7 +146,7 @@ TFuture<FSwitchboardVerifyResult> FSwitchboardVerifyResult::RunVerify(FStringVie
 
 			if (!FPaths::FileExists(Verify.PythonExe))
 			{
-				UE_LOG(LogSwitchboardPlugin, Warning, TEXT("RunVerify: Python interpreter not found: %s"), *Verify.PythonExe);
+				UE_LOG(LogSwitchboardPlugin, Log, TEXT("RunVerify: Python interpreter not found: %s"), *Verify.PythonExe);
 				Result.Summary = FSwitchboardVerifyResult::ESummary::InterpreterMissing;
 				return Result;
 			}
@@ -155,7 +155,7 @@ TFuture<FSwitchboardVerifyResult> FSwitchboardVerifyResult::RunVerify(FStringVie
 			const FString Args = FString::Printf(TEXT("\"%s\" verify --output-json"), *SbSetupPath);
 			if (!Verify.Run(Args))
 			{
-				UE_LOG(LogSwitchboardPlugin, Warning, TEXT("RunVerify: Failed to launch: \"%s\" %s"),
+				UE_LOG(LogSwitchboardPlugin, Log, TEXT("RunVerify: Failed to launch: \"%s\" %s"),
 					*Verify.PythonExe, *Args);
 				Result.Summary = FSwitchboardVerifyResult::ESummary::LaunchFailed;
 				return Result;

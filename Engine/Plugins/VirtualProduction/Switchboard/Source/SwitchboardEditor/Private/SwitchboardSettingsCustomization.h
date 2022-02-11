@@ -14,17 +14,6 @@ class FSwitchboardEditorSettingsCustomization : public IDetailCustomization
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
-	enum class ESwitchboardInstallState
-	{
-		VerifyInProgress,
-
-		NeedInstallOrRepair,
-		ShortcutsMissing,
-		Nominal,
-	};
-
-	ESwitchboardInstallState GetInstallState() const;
-
 	FText GetHealthRowHintText() const;
 	FText GetHealthRowButtonText() const;
 	const FSlateBrush* GetHealthRowBorderBrush() const;

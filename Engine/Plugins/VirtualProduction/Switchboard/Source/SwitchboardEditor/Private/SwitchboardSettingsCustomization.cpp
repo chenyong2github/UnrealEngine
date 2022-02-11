@@ -27,49 +27,15 @@ TSharedRef<IDetailCustomization> FSwitchboardEditorSettingsCustomization::MakeIn
 }
 
 
-FSwitchboardEditorSettingsCustomization::ESwitchboardInstallState FSwitchboardEditorSettingsCustomization::GetInstallState() const
-{
-	FSwitchboardEditorModule& SbEditorModule = FSwitchboardEditorModule::Get();
-	TSharedFuture<FSwitchboardVerifyResult> VerifyResult = SbEditorModule.GetVerifyResult();
-
-	if (!VerifyResult.IsReady())
-	{
-		return ESwitchboardInstallState::VerifyInProgress;
-	}
-
-	if (VerifyResult.Get().Summary != FSwitchboardVerifyResult::ESummary::Success)
-	{
-		return ESwitchboardInstallState::NeedInstallOrRepair;
-	}
-
-#if SWITCHBOARD_SHORTCUTS
-	using namespace UE::Switchboard::Private::Shorcuts;
-
-	const bool bListenerDesktopShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
-	const bool bListenerProgramsShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Listener, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
-	const bool bAppDesktopShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Desktop) == EShortcutCompare::AlreadyExists;
-	const bool bAppProgramsShortcutExists = SbEditorModule.DoesShortcutExist(EShortcutApp::Switchboard, EShortcutLocation::Programs) == EShortcutCompare::AlreadyExists;
-
-	if (!bListenerDesktopShortcutExists || !bListenerProgramsShortcutExists
-		|| !bAppDesktopShortcutExists || !bAppProgramsShortcutExists)
-	{
-		return ESwitchboardInstallState::ShortcutsMissing;
-	}
-#endif // #if SWITCHBOARD_SHORTCUTS
-
-	return ESwitchboardInstallState::Nominal;
-}
-
-
 FText FSwitchboardEditorSettingsCustomization::GetHealthRowHintText() const
 {
-	switch (GetInstallState())
+	switch (FSwitchboardEditorModule::Get().GetSwitchboardInstallState())
 	{
-		case ESwitchboardInstallState::Nominal:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::Nominal:
 			return LOCTEXT("ReinstallEnvHint", "Switchboard requires additional library/framework dependencies to launch, which are installed. If you encounter issues launching Switchboard, it may help to reinstall them.");
-		case ESwitchboardInstallState::ShortcutsMissing:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::ShortcutsMissing:
 			return LOCTEXT("AddShortcutsHint", "Add shortcuts to launch Switchboard from the Desktop and Start Menu.");
-		case ESwitchboardInstallState::NeedInstallOrRepair:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::NeedInstallOrRepair:
 		default:
 			return LOCTEXT("InstallEnvHint", "Switchboard requires additional library/framework dependencies to launch, please install them.");
 	}
@@ -78,13 +44,13 @@ FText FSwitchboardEditorSettingsCustomization::GetHealthRowHintText() const
 
 FText FSwitchboardEditorSettingsCustomization::GetHealthRowButtonText() const
 {
-	switch (GetInstallState())
+	switch (FSwitchboardEditorModule::Get().GetSwitchboardInstallState())
 	{
-		case ESwitchboardInstallState::Nominal:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::Nominal:
 			return LOCTEXT("ReinstallEnvButton", "Reinstall Dependencies");
-		case ESwitchboardInstallState::ShortcutsMissing:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::ShortcutsMissing:
 			return LOCTEXT("AddShortcutsButton", "Add Shortcuts");
-		case ESwitchboardInstallState::NeedInstallOrRepair:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::NeedInstallOrRepair:
 		default:
 			return LOCTEXT("InstallEnvButton", "Install Dependencies");
 	}
@@ -93,12 +59,12 @@ FText FSwitchboardEditorSettingsCustomization::GetHealthRowButtonText() const
 
 const FSlateBrush* FSwitchboardEditorSettingsCustomization::GetHealthRowBorderBrush() const
 {
-	switch (GetInstallState())
+	switch (FSwitchboardEditorModule::Get().GetSwitchboardInstallState())
 	{
-		case ESwitchboardInstallState::Nominal:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::Nominal:
 			return FSwitchboardEditorStyle::Get().GetBrush("Settings.RowBorder.Nominal");
-		case ESwitchboardInstallState::ShortcutsMissing:
-		case ESwitchboardInstallState::NeedInstallOrRepair:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::ShortcutsMissing:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::NeedInstallOrRepair:
 		default:
 			return FSwitchboardEditorStyle::Get().GetBrush("Settings.RowBorder.Warning");
 	}
@@ -107,12 +73,12 @@ const FSlateBrush* FSwitchboardEditorSettingsCustomization::GetHealthRowBorderBr
 
 const FSlateBrush* FSwitchboardEditorSettingsCustomization::GetHealthRowIconBrush() const
 {
-	switch (GetInstallState())
+	switch (FSwitchboardEditorModule::Get().GetSwitchboardInstallState())
 	{
-		case ESwitchboardInstallState::Nominal:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::Nominal:
 			return FSwitchboardEditorStyle::Get().GetBrush("Settings.Icons.Nominal");
-		case ESwitchboardInstallState::ShortcutsMissing:
-		case ESwitchboardInstallState::NeedInstallOrRepair:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::ShortcutsMissing:
+		case FSwitchboardEditorModule::ESwitchboardInstallState::NeedInstallOrRepair:
 		default:
 			return FSwitchboardEditorStyle::Get().GetBrush("Settings.Icons.Warning");
 	}
@@ -121,6 +87,10 @@ const FSlateBrush* FSwitchboardEditorSettingsCustomization::GetHealthRowIconBrus
 
 void FSwitchboardEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
+	// Force the status to refresh whenever the editor settings are closed and reopened.
+	const bool bForceRefresh = true;
+	FSwitchboardEditorModule::Get().GetVerifyResult(bForceRefresh);
+
 	IDetailCategoryBuilder& SwitchboardCategory = DetailLayout.EditCategory("Switchboard");
 
 	FText HealthFilterString = FText::GetEmpty();
@@ -162,14 +132,11 @@ void FSwitchboardEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuil
 				[
 					SNew(SButton)
 					.Text(TAttribute<FText>::CreateSP(this, &FSwitchboardEditorSettingsCustomization::GetHealthRowButtonText))
-					.OnClicked_Lambda([ThisWeak = TWeakPtr<FSwitchboardEditorSettingsCustomization>(SharedThis(this))]() {
+					.OnClicked_Lambda([this]() {
 						SSwitchboardSetupWizard::EWizardPage StartPage = SSwitchboardSetupWizard::EWizardPage::Intro;
-						if (TSharedPtr<FSwitchboardEditorSettingsCustomization> This = ThisWeak.Pin())
+						if (FSwitchboardEditorModule::Get().GetSwitchboardInstallState() == FSwitchboardEditorModule::ESwitchboardInstallState::ShortcutsMissing)
 						{
-							if (This->GetInstallState() == ESwitchboardInstallState::ShortcutsMissing)
-							{
-								StartPage = SSwitchboardSetupWizard::EWizardPage::Shortcuts;
-							}
+							StartPage = SSwitchboardSetupWizard::EWizardPage::Shortcuts;
 						}
 						SSwitchboardSetupWizard::OpenWindow(StartPage);
 						return FReply::Handled();

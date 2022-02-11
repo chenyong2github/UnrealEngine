@@ -29,16 +29,17 @@ void SSwitchboardSetupWizard::OpenWindow(EWizardPage StartPage /* = EWizardPage:
 		.SupportsMaximize(false)
 		.ClientSize(FVector2D(700, 350));
 
-	const TSharedRef<SSwitchboardSetupWizard> Wizard = SNew(SSwitchboardSetupWizard, ModalWindow);
-	Wizard->SwitchToPage(StartPage);
+	const TSharedRef<SSwitchboardSetupWizard> Wizard = SNew(SSwitchboardSetupWizard, ModalWindow, StartPage);
 	ModalWindow->SetContent(Wizard);
 
 	GEditor->EditorAddModalWindow(ModalWindow);
 }
 
 
-void SSwitchboardSetupWizard::Construct(const FArguments& InArgs, const TSharedRef<SWindow>& InWindow)
+void SSwitchboardSetupWizard::Construct(const FArguments& InArgs, const TSharedRef<SWindow>& InWindow, EWizardPage InStartPage /* = EWizardPage::Intro */)
 {
+	StartPage = InStartPage;
+
 	ModalWindow = InWindow;
 	ModalWindow->SetRequestDestroyWindowOverride(FRequestDestroyWindowOverride::CreateSP(SharedThis(this), &SSwitchboardSetupWizard::Handle_RequestDestroyWindow));
 
@@ -68,6 +69,8 @@ void SSwitchboardSetupWizard::Construct(const FArguments& InArgs, const TSharedR
 	[
 		Construct_Page_Complete()
 	];
+
+	SwitchToPage(StartPage);
 
 	ChildSlot
 	[
@@ -141,11 +144,8 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Intro()
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Wizard_Intro_CancelButton", "Cancel"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						This->ModalWindow->RequestDestroyWindow();
-					}
+				.OnClicked_Lambda([this]() {
+					ModalWindow->RequestDestroyWindow();
 					return FReply::Handled();
 				})
 			]
@@ -162,14 +162,8 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_InstallProgress()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-				EInstallProgress Progress = EInstallProgress::Idle;
-				if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-				{
-					Progress = This->GetProgress();
-				}
-
-				switch (Progress)
+			.Text_Lambda([this]() {
+				switch (GetProgress())
 				{
 					case EInstallProgress::Running: return LOCTEXT("Wizard_Progress_InstallRunning", "Installation in progress...");
 					case EInstallProgress::Succeeded: return LOCTEXT("Wizard_Progress_InstallSucceeded", "Installation completed successfully!");
@@ -198,22 +192,8 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_InstallProgress()
 			.AutoWidth()
 			[
 				SNew(SPrimaryButton)
-				.Text_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					EInstallProgress Progress = EInstallProgress::Idle;
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						Progress = This->GetProgress();
-					}
-					return Progress != EInstallProgress::Failed ? LOCTEXT("Wizard_Progress_ContinueButton", "Continue") : LOCTEXT("Wizard_Progress_ExitButton", "Exit");
-				})
-				.IsEnabled_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					EInstallProgress Progress = EInstallProgress::Idle;
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						Progress = This->GetProgress();
-					}
-					return Progress != EInstallProgress::Running;
-				})
+				.Text_Lambda([this]() { return GetProgress() != EInstallProgress::Failed ? LOCTEXT("Wizard_Progress_ContinueButton", "Continue") : LOCTEXT("Wizard_Progress_ExitButton", "Exit"); })
+				.IsEnabled_Lambda([this]() { return GetProgress() != EInstallProgress::Running; })
 				.OnClicked(this, &SSwitchboardSetupWizard::Handle_InstallProgress_ContinueClicked)
 			]
 			+ SHorizontalBox::Slot()
@@ -222,12 +202,9 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_InstallProgress()
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Wizard_Progress_CancelButton", "Cancel"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						// Handle_RequestDestroyWindow will prompt the user to confirm if interrupting installer
-						This->ModalWindow->RequestDestroyWindow();
-					}
+				.OnClicked_Lambda([this]() {
+					// Handle_RequestDestroyWindow will prompt the user to confirm if interrupting installer
+					ModalWindow->RequestDestroyWindow();
 					return FReply::Handled();
 				})
 			]
@@ -258,7 +235,9 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			.Padding(24.0f, 0.0f, 12.0f, 0.0f)
 			[
 				SAssignNew(DesktopShortcutCheckbox, SCheckBox)
-#if !SWITCHBOARD_SHORTCUTS
+#if SWITCHBOARD_SHORTCUTS
+				.IsChecked(ECheckBoxState::Checked)
+#else
 				.IsEnabled(false)
 #endif
 			]
@@ -284,7 +263,9 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			.Padding(24.0f, 0.0f, 12.0f, 0.0f)
 			[
 				SAssignNew(ProgramsShortcutCheckbox, SCheckBox)
-#if !SWITCHBOARD_SHORTCUTS
+#if SWITCHBOARD_SHORTCUTS
+				.IsChecked(ECheckBoxState::Checked)
+#else
 				.Visibility(EVisibility::Collapsed)
 #endif
 			]
@@ -313,24 +294,29 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			[
 				SNew(SPrimaryButton)
 				.Text(LOCTEXT("Wizard_Shortcuts_CreateButton", "Create"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
+				.OnClicked_Lambda([this]() {
 #if SWITCHBOARD_SHORTCUTS
-						if (This->DesktopShortcutCheckbox->IsChecked())
-						{
-							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Desktop);
-							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Desktop);
-						}
-
-						if (This->ProgramsShortcutCheckbox->IsChecked())
-						{
-							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Programs);
-							FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Programs);
-						}
-#endif
-						This->SwitchToPage(EWizardPage::Autolaunch);
+					if (DesktopShortcutCheckbox->IsChecked())
+					{
+						FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Desktop);
+						FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Desktop);
 					}
+
+					if (ProgramsShortcutCheckbox->IsChecked())
+					{
+						FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Switchboard, FSwitchboardEditorModule::EShortcutLocation::Programs);
+						FSwitchboardEditorModule::Get().CreateOrUpdateShortcut(FSwitchboardEditorModule::EShortcutApp::Listener, FSwitchboardEditorModule::EShortcutLocation::Programs);
+					}
+#endif
+
+					// If the user just wanted to create shortcuts, we end here.
+					if (StartPage == EWizardPage::Shortcuts)
+					{
+						ModalWindow->RequestDestroyWindow();
+						return FReply::Handled();
+					}
+
+					SwitchToPage(EWizardPage::Autolaunch);
 					return FReply::Handled();
 				})
 			]
@@ -339,12 +325,16 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Shortcuts()
 			.Padding(16.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("Wizard_Shortcuts_SkipButton", "Cancel"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
+				.Text(LOCTEXT("Wizard_Shortcuts_SkipButton", "Skip"))
+				.OnClicked_Lambda([this]() {
+					// If the user just wanted to create shortcuts, we end here.
+					if (StartPage == EWizardPage::Shortcuts)
 					{
-						This->SwitchToPage(EWizardPage::Autolaunch);
+						ModalWindow->RequestDestroyWindow();
+						return FReply::Handled();
 					}
+
+					SwitchToPage(EWizardPage::Autolaunch);
 					return FReply::Handled();
 				})
 			]
@@ -375,7 +365,9 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Autolaunch()
 			.Padding(24.0f, 0.0f, 12.0f, 0.0f)
 			[
 				SAssignNew(AutolaunchCheckbox, SCheckBox)
-#if !SB_LISTENER_AUTOLAUNCH
+#if SB_LISTENER_AUTOLAUNCH
+				.IsChecked(FSwitchboardEditorModule::Get().IsListenerAutolaunchEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+#else
 				.IsEnabled(false)
 #endif
 			]
@@ -406,14 +398,11 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Autolaunch()
 			[
 				SNew(SPrimaryButton)
 				.Text(LOCTEXT("Wizard_Autolaunch_ContinueButton", "Continue"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
+				.OnClicked_Lambda([this]() {
 #if SB_LISTENER_AUTOLAUNCH
-						FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(This->AutolaunchCheckbox->IsChecked());
+					FSwitchboardEditorModule::Get().SetListenerAutolaunchEnabled(AutolaunchCheckbox->IsChecked());
 #endif
-						This->SwitchToPage(EWizardPage::Complete);
-					}
+					SwitchToPage(EWizardPage::Complete);
 					return FReply::Handled();
 				})
 			]
@@ -423,11 +412,8 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Autolaunch()
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Wizard_Autolaunch_SkipButton", "Skip"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						This->SwitchToPage(EWizardPage::Complete);
-					}
+				.OnClicked_Lambda([this]() {
+					SwitchToPage(EWizardPage::Complete);
 					return FReply::Handled();
 				})
 			]
@@ -459,12 +445,9 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Complete()
 			[
 				SNew(SPrimaryButton)
 				.Text(LOCTEXT("Wizard_Complete_LaunchButton", "Launch Switchboard"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
+				.OnClicked_Lambda([this]() {
 					FSwitchboardEditorModule::Get().LaunchSwitchboard();
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						This->ModalWindow->RequestDestroyWindow();
-					}
+					ModalWindow->RequestDestroyWindow();
 					return FReply::Handled();
 				})
 			]
@@ -474,11 +457,8 @@ TSharedRef<SWidget> SSwitchboardSetupWizard::Construct_Page_Complete()
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Wizard_Complete_CloseButton", "Close"))
-				.OnClicked_Lambda([ThisWeak = TWeakPtr<SSwitchboardSetupWizard>(SharedThis(this))]() {
-					if (TSharedPtr<SSwitchboardSetupWizard> This = ThisWeak.Pin())
-					{
-						This->ModalWindow->RequestDestroyWindow();
-					}
+				.OnClicked_Lambda([this]() {
+					ModalWindow->RequestDestroyWindow();
 					return FReply::Handled();
 				})
 			]

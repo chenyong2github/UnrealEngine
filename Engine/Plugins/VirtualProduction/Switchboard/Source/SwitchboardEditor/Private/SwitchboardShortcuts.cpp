@@ -41,18 +41,14 @@ FShortcutParams BuildShortcutParams(EShortcutApp App, EShortcutLocation Location
 			FString VenvPath = GetDefault<USwitchboardEditorSettings>()->VirtualEnvironmentPath.Path;
 			FPaths::MakePlatformFilename(SbPath);
 			FPaths::MakePlatformFilename(VenvPath);
-			//Params.Target = FString::Printf(TEXT("\"%s\" \"%s\""), *SbPath, *VenvPath);
 			Params.Target = SbPath;
 			Params.Args = FString::Printf(TEXT("\"%s\""), *VenvPath);
 			break;
 		}
 		case EShortcutApp::Listener:
 		{
-			const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
-			const FString& ListenerArgs = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
-			//Params.Target = FString::Printf(TEXT("\"%s\" %s"), *ListenerPath, *ListenerArgs);
-			Params.Target = ListenerPath;
-			Params.Args = ListenerArgs;
+			Params.Target = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
+			Params.Args = GetDefault<USwitchboardEditorSettings>()->ListenerCommandlineArguments;
 			break;
 		}
 		default:

@@ -42,6 +42,16 @@ ENGINE_PATH = find_engine_ancestor_dir(SWITCHBOARD_PATH)
 THIRDPARTY_PATH = ENGINE_PATH / 'Extras/ThirdPartyNotUE'
 SB_THIRDPARTY_PATH = THIRDPARTY_PATH / 'SwitchboardThirdParty'
 
+CWRSYNC_SRC_DIR = THIRDPARTY_PATH / 'cwrsync'
+CWRSYNC_DEST_DIR = SB_THIRDPARTY_PATH / 'cwrsync'
+CWRSYNC_FSTAB_PATH = CWRSYNC_DEST_DIR / 'etc/fstab'
+CWRSYNC_FSTAB_CONTENTS = '''\
+# This is equivalent to the default, except for the addition of the "noacl"
+# option, which skips any attempt by Cygwin to store POSIX permissions via the
+# Windows host's NTFS access control lists.
+none /cygdrive cygdrive binary,posix=0,user,noacl 0 0
+'''
+
 
 class SbEnvBuilder(venv.EnvBuilder):
     def __init__(self, *args, **kwargs):
@@ -106,13 +116,15 @@ class SbSetup:
         if not sys.platform.startswith('win'):
             return
 
-        logging.debug('Copying cwrsync')
-
-        cwrsync_src_path = THIRDPARTY_PATH / 'cwrsync'
-        sb_cwrsync_dest_path = SB_THIRDPARTY_PATH / 'cwrsync'
-        if not (sb_cwrsync_dest_path / 'bin/rsync.exe').exists():
-            shutil.copytree(cwrsync_src_path, sb_cwrsync_dest_path,
+        if not (CWRSYNC_DEST_DIR / 'bin/rsync.exe').exists():
+            logging.info('Copying cwrsync')
+            shutil.copytree(CWRSYNC_SRC_DIR, CWRSYNC_DEST_DIR,
                             dirs_exist_ok=True)
+
+        if not (CWRSYNC_FSTAB_PATH).exists():
+            logging.info('Writing cwrsync fstab')
+            with open(CWRSYNC_FSTAB_PATH, 'wt') as fstab:
+                fstab.write(CWRSYNC_FSTAB_CONTENTS)
 
     @staticmethod
     def is_venv(dir: pathlib.Path) -> bool:

@@ -38,7 +38,7 @@ public:
 
 	static void OpenWindow(EWizardPage StartPage = EWizardPage::Intro);
 
-	void Construct(const FArguments& InArgs, const TSharedRef<SWindow>& InWindow);
+	void Construct(const FArguments& InArgs, const TSharedRef<SWindow>& InWindow, EWizardPage InStartPage = EWizardPage::Intro);
 
 protected:
 	TSharedRef<SWidget> Construct_Page_Intro();
@@ -61,6 +61,7 @@ protected:
 	FReply Handle_InstallProgress_ContinueClicked();
 
 protected:
+	EWizardPage StartPage;
 	TSharedPtr<SWindow> ModalWindow;
 	TSharedPtr<SWidgetSwitcher> PageSwitcher;
 

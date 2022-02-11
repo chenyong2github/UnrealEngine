@@ -23,4 +23,4 @@ if [ ! -x "$_venvDir/bin/python3" ]; then
     fi
 fi
 
-PYTHONPATH="$_switchboardDir:$PYTHONPATH" "$_venvDir/bin/python3" -m switchboard
+(cd "$_switchboardDir" && PYTHONPATH="$_switchboardDir:$PYTHONPATH" "$_venvDir/bin/python3" -m switchboard)

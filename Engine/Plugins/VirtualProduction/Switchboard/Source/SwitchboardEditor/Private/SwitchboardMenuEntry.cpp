@@ -15,6 +15,7 @@
 #include "SwitchboardEditorModule.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardEditorStyle.h"
+#include "SwitchboardSetupWizard.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditor"
@@ -29,10 +30,12 @@ public:
 
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(TriggerToolbarButtonCmd, "Launch Switchboard", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(LaunchSwitchboard, "Launch Switchboard", "Launch Switchboard", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(LaunchSwitchboardListener, "Launch Switchboard Listener", "Launch Switchboard Listener", EUserInterfaceActionType::Button, FInputChord());
 	}
 
-	TSharedPtr<FUICommandInfo> TriggerToolbarButtonCmd;
+	TSharedPtr<FUICommandInfo> LaunchSwitchboard;
+	TSharedPtr<FUICommandInfo> LaunchSwitchboardListener;
 };
 
 
@@ -41,21 +44,29 @@ struct FSwitchboardMenuEntryImpl
 	FSwitchboardMenuEntryImpl()
 	{
 		FSwitchboardUICommands::Register();
-		const TSharedPtr<FUICommandList> Actions = MakeShared<FUICommandList>();
 
-		Actions->MapAction(FSwitchboardUICommands::Get().TriggerToolbarButtonCmd,
-			FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchSwitchboardClicked),
-			FCanExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::IsToolbarButtonEnabled));
+		Actions->MapAction(FSwitchboardUICommands::Get().LaunchSwitchboard,
+			FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchSwitchboard),
+			FCanExecuteAction());
 
+		Actions->MapAction(FSwitchboardUICommands::Get().LaunchSwitchboardListener,
+			FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchSwitchboardListener),
+			FCanExecuteAction());
+
+		AddMenu();
+	}
+
+	void AddMenu()
+	{
 		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
-		FToolMenuSection& Section = Menu->FindOrAddSection("Switchboard");
+		if (Menu->FindSection("Switchboard"))
+		{
+			return;
+		}
 
-		FToolMenuEntry SwitchboardButtonEntry = FToolMenuEntry::InitToolBarButton(
-			FSwitchboardUICommands::Get().TriggerToolbarButtonCmd,
-			TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboard", "Switchboard"); }),
-			TAttribute<FText>::Create([this]() { return LOCTEXT("LaunchSwitchboardTooltip", "Launch Switchboard"); }),
-			TAttribute<FSlateIcon>::Create([this]() { return GetToolbarButtonIcon(); })
-		);
+		FToolMenuSection& Section = Menu->AddSection("Switchboard");
+
+		FToolMenuEntry SwitchboardButtonEntry = FToolMenuEntry::InitToolBarButton(FSwitchboardUICommands::Get().LaunchSwitchboard);
 		SwitchboardButtonEntry.SetCommandList(Actions);
 
 		const FToolMenuEntry SwitchboardComboEntry = FToolMenuEntry::InitComboButton(
@@ -70,6 +81,15 @@ struct FSwitchboardMenuEntryImpl
 
 		Section.AddEntry(SwitchboardButtonEntry);
 		Section.AddEntry(SwitchboardComboEntry);
+	}
+
+	void RemoveMenu()
+	{
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
+		if (Menu->FindSection("Switchboard"))
+		{
+			Menu->RemoveSection("Switchboard");
+		}
 	}
 
 	~FSwitchboardMenuEntryImpl()
@@ -87,12 +107,7 @@ struct FSwitchboardMenuEntryImpl
 
 		MenuBuilder.BeginSection("Switchboard", LOCTEXT("SwitchboardListener", "Listener"));
 		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ListenerLaunchLabel", "Launch SwitchboardListener"),
-				LOCTEXT("ListenerLaunchTooltip", "Launches the SwitchboardListener with the settings from Editor Settings."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FSwitchboardMenuEntryImpl::OnLaunchListenerClicked))
-			);
+			MenuBuilder.AddMenuEntry(FSwitchboardUICommands::Get().LaunchSwitchboardListener);
 
 #if SB_LISTENER_AUTOLAUNCH
 			MenuBuilder.AddMenuSeparator();
@@ -119,7 +134,7 @@ struct FSwitchboardMenuEntryImpl
 		return MenuBuilder.MakeWidget();
 	}
 
-	void OnLaunchListenerClicked()
+	void OnLaunchSwitchboardListener()
 	{
 		const FString ListenerPath = GetDefault<USwitchboardEditorSettings>()->GetListenerPlatformPath();
 		if (!FPaths::FileExists(ListenerPath))
@@ -161,8 +176,15 @@ struct FSwitchboardMenuEntryImpl
 	}
 #endif // #if SB_LISTENER_AUTOLAUNCH
 
-	void OnLaunchSwitchboardClicked()
+	void OnLaunchSwitchboard()
 	{
+		const FSwitchboardVerifyResult& VerifyResult = FSwitchboardEditorModule::Get().GetVerifyResult().Get();
+		if (VerifyResult.Summary != FSwitchboardVerifyResult::ESummary::Success)
+		{
+			SSwitchboardSetupWizard::OpenWindow();
+			return;
+		}
+
 		if (FSwitchboardEditorModule::Get().LaunchSwitchboard())
 		{
 			UE_LOG(LogSwitchboardPlugin, Display, TEXT("Successfully started Switchboard"));
@@ -174,18 +196,10 @@ struct FSwitchboardMenuEntryImpl
 		}
 	}
 
-	FSlateIcon GetToolbarButtonIcon() const
-	{
-		return FSlateIcon(FSwitchboardEditorStyle::Get().GetStyleSetName(), FSwitchboardEditorStyle::NAME_SwitchboardBrush, FSwitchboardEditorStyle::NAME_SwitchboardBrush);
-	}
-
-	bool IsToolbarButtonEnabled()
-	{
-		return true;
-	}
-
 public:
 	static TUniquePtr<FSwitchboardMenuEntryImpl> Implementation;
+
+	TSharedPtr<FUICommandList> Actions = MakeShared<FUICommandList>();
 };
 
 TUniquePtr<FSwitchboardMenuEntryImpl> FSwitchboardMenuEntryImpl::Implementation;
@@ -195,6 +209,22 @@ void FSwitchboardMenuEntry::Register()
 	if (!IsRunningCommandlet())
 	{
 		FSwitchboardMenuEntryImpl::Implementation = MakeUnique<FSwitchboardMenuEntryImpl>();
+	}
+}
+
+void FSwitchboardMenuEntry::AddMenu()
+{
+	if (FSwitchboardMenuEntryImpl::Implementation)
+	{
+		FSwitchboardMenuEntryImpl::Implementation->AddMenu();
+	}
+}
+
+void FSwitchboardMenuEntry::RemoveMenu()
+{
+	if (FSwitchboardMenuEntryImpl::Implementation)
+	{
+		FSwitchboardMenuEntryImpl::Implementation->RemoveMenu();
 	}
 }
 
