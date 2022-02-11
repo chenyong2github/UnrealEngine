@@ -226,6 +226,24 @@ public:
 		return false;
 	}
 
+	virtual float GetVariantPriority() const override
+	{
+		// by returning -1, we will never use this variant when targeting host platform this class implements
+		// (without this, cooking for Windows in the editor may choose this variant to cook for, which we never want)
+		return -1.0f;
+	}
+
+	virtual void GetAllDevices(TArray<ITargetDevicePtr>& OutDevices) const override
+	{
+	}
+
+	virtual ITargetDevicePtr GetDefaultDevice() const override
+	{
+		return nullptr;
+	}
+
+
+
 	TUniquePtr<ICookedEditorPackageManager> PackageManager;
 
 };
