@@ -86,6 +86,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+		float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
@@ -96,7 +97,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		float LightMask = 1;
 		if (LightData.bRadialLight)
 		{
-			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, L);
+			LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
 		}
 
 		float Attenuation;
@@ -151,7 +152,6 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if DENSE_SHADOW_MAP
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
-						float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 						float3 TranslatedWorldPositionForShadowing = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, ShadowMapSamplingBias + ReceiverBias);
 
 						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
