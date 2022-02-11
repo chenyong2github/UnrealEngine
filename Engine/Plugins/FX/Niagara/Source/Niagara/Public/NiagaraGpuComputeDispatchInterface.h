@@ -7,6 +7,7 @@
 #include "NiagaraGPUInstanceCountManager.h"
 #include "FXSystem.h"
 
+class FNiagaraAsyncGpuTraceHelper;
 struct FNiagaraComputeExecutionContext;
 class FNiagaraGpuComputeDebug;
 class FNiagaraGPUInstanceCountManager;
@@ -82,15 +83,7 @@ public:
 	/** Processes all pending debug readbacks */
 	virtual void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion) = 0;
 
-#if RHI_RAYTRACING
-	virtual FNiagaraRayTracingHelper& GetRayTracingHelper() const = 0;
-	virtual bool HasRayTracingScene() const = 0;
-
-	virtual void SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* PrimitiveComponent, uint32 Group) = 0;
-
-	virtual int32 AcquireGPURayTracedCollisionGroup() = 0;
-	virtual void ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup) = 0;
-#endif
+	virtual FNiagaraAsyncGpuTraceHelper& GetAsyncGpuTraceHelper() const = 0;
 
 #if WITH_MGPU
 	/**

@@ -3,10 +3,11 @@
 #include "NiagaraDataInterfaceCollisionQuery.h"
 
 #include "GlobalDistanceFieldParameters.h"
+#include "NiagaraAsyncGpuTraceHelper.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
-#include "NiagaraRayTracingHelper.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraStats.h"
 #include "NiagaraTypes.h"
@@ -19,22 +20,6 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
 
-void OnHWRTCollisionsEnabledChanged(IConsoleVariable* CVar)
-{
-	//Force a reinit of everything just to be safe.
-	FNiagaraSystemUpdateContext Context;
-	Context.AddAll(true);
-}
-
-int32 GEnableGPUHWRTCollisions = 1;
-static FAutoConsoleVariableRef CVarEnableGPUHWRTCollisions(
-	TEXT("fx.Niagara.Collision.EnableGPURayTracedCollisions"),
-	GEnableGPUHWRTCollisions,
-	TEXT("If greater than zero, GPU hardware ray trace collisions are enabled."),
-	FConsoleVariableDelegate::CreateStatic(&OnHWRTCollisionsEnabledChanged),
-	ECVF_Default
-);
-
 namespace NDICollisionQueryLocal
 {
 	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush");
@@ -45,19 +30,14 @@ namespace NDICollisionQueryLocal
 	static const FName DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
 	static const FName SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
 	static const FName AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
+
+	// DEPRECATE_BEGIN
 	static const FName IssueAsyncRayTraceName(TEXT("IssueAsyncRayTraceGpu"));
 	static const FName CreateAsyncRayTraceName(TEXT("CreateAsyncRayTraceGpu"));
 	static const FName ReserveAsyncRayTraceName(TEXT("ReserveAsyncRayTraceGpu"));
 	static const FName ReadAsyncRayTraceName(TEXT("ReadAsyncRayTraceGpu"));
+	// DEPRECATE_END
 
-	static const FString RayTracingEnabledParamName(TEXT("RayTracingEnabled_"));
-	static const FString MaxRayTraceCountParamName(TEXT("MaxRayTraceCount_"));
-	static const FString RayRequestsParamName(TEXT("RayRequests_"));
-	static const FString RayRequestsOffsetParamName(TEXT("RayRequestsOffset_"));
-	static const FString IntersectionResultsParamName(TEXT("IntersectionResults_"));
-	static const FString IntersectionResultsOffsetParamName(TEXT("IntersectionResultsOffset_"));
-	static const FString RayTraceCountsParamName(TEXT("RayTraceCounts_"));
-	static const FString RayTraceCountsOffsetParamName(TEXT("RayTraceCountsOffset_"));
 	static const FString SystemLWCTileName(TEXT("SystemLWCTile_"));
 }
 
@@ -72,79 +52,28 @@ struct FNiagaraCollisionDIFunctionVersion
 		AddedCustomDepthCollision = 2,
 		ReturnCollisionMaterialIdx = 3,
 		LargeWorldCoordinates = 4,
+		DeprecatedAsyncGpuTrace = 5,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};
 };
+
 struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy
 {
-#if RHI_RAYTRACING
-	int32 MaxTracesPerParticle = 0;
-	uint32 MaxRetraces = 0;
-#endif
-
-	virtual ~FNiagaraDataIntefaceProxyCollisionQuery()
-	{
-	}
+	// There's nothing in this proxy. It just reads from scene textures.
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
 		return 0;
 	}
-
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
-	{
-		FNiagaraDataInterfaceProxy::PreStage(RHICmdList, Context);
-
-#if RHI_RAYTRACING
-		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
-		{
-			//Accumulate the total ray requests for this DI for all dispatches in the stage.
-			int32 RayRequests = MaxTracesPerParticle * Context.SimStageData->DestinationNumInstances;
-			FNiagaraRayTracingHelper& RTHelper = Context.ComputeDispatchInterface->GetRayTracingHelper();
-			RTHelper.AddToDispatch(this, RayRequests, MaxRetraces);
-		}
-#endif
-	}
-
-#if RHI_RAYTRACING
-	virtual bool RequiresPreStageFinalize() const override
-	{
-		return true;
-	}
-
-	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) override
-	{
-		FNiagaraRayTracingHelper& RTHelper = ComputeDispatchInterface->GetRayTracingHelper();
-		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
-		{
-			RTHelper.BuildDispatch(RHICmdList, this);
-		}
-		else
-		{
-			RTHelper.BuildDummyDispatch(RHICmdList);
-		}
-	}
-#endif
-
-	void RenderThreadInitialize(int32 InMaxTracesPerParticle, uint32 InMaxRetraces)
-	{
-#if RHI_RAYTRACING
-		MaxRetraces = InMaxRetraces;
-		MaxTracesPerParticle = InMaxTracesPerParticle;
-#endif
-	}
 };
-
 
 UNiagaraDataInterfaceCollisionQuery::UNiagaraDataInterfaceCollisionQuery(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	TraceChannelEnum = StaticEnum<ECollisionChannel>();
-	SystemInstance = nullptr;
-
-    Proxy.Reset(new FNiagaraDataIntefaceProxyCollisionQuery());
+	Proxy.Reset(new FNiagaraDataIntefaceProxyCollisionQuery());
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance)
@@ -155,6 +84,7 @@ bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceD
 	{
 		PIData->CollisionBatch.Init(InSystemInstance->GetId(), InSystemInstance->GetWorld());
 	}
+
 	return true;
 }
 
@@ -174,16 +104,6 @@ void UNiagaraDataInterfaceCollisionQuery::PostInitProperties()
 		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(TraceChannelEnum), Flags);
-	}
-}
-
-void UNiagaraDataInterfaceCollisionQuery::PostLoad()
-{
-	Super::PostLoad();
-
-	if (MaxTracesPerParticle)
-	{
-		MarkRenderDataDirty();
 	}
 }
 
@@ -341,6 +261,8 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	
 	const FText TraceStartWorldDescription = LOCTEXT("TraceStartWorldDescription", "Ray starting point in world space");
 	const FText TraceEndWorldDescription = LOCTEXT("TraceEndWorldDescription", "Ray end point in world space");
+
+	// DEPRECATE_BEGIN
 	{
 		const FText AsyncTraceChannelDescription = LOCTEXT("TraceChannelDescription", "Currently unused, will represent the trace channels for which geometry the trace should test against");
 		const FText QueryIDDescription = LOCTEXT("QueryIDDescription", "Unique (for this frame) index of the query being enqueued (used in subsequent frames to retrieve results).  Must be less than MaxRayTraceCount");
@@ -351,6 +273,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		IssueRayTrace.bRequiresExecPin = true;
 		IssueRayTrace.bMemberFunction = true;
 		IssueRayTrace.bSupportsCPU = false;
+		IssueRayTrace.bSoftDeprecatedFunction = true;
 #if WITH_EDITORONLY_DATA
 		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
 		IssueRayTrace.Description = LOCTEXT("IssueAsync_RayTraceDescription", "Enqueues a GPU raytrace with the result being available the following frame");
@@ -367,6 +290,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		CreateRayTrace.bRequiresExecPin = true;
 		CreateRayTrace.bMemberFunction = true;
 		CreateRayTrace.bSupportsCPU = false;
+		CreateRayTrace.bSoftDeprecatedFunction = true;
 #if WITH_EDITORONLY_DATA
 		CreateRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
 		CreateRayTrace.Description = LOCTEXT("CreateAsync_RayTraceDescription", "Creates a GPU raytrace with the result being available the following frame (index is returned)");
@@ -380,19 +304,20 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	}
 
 	{
-		FNiagaraFunctionSignature& IssueRayTrace = OutFunctions.AddDefaulted_GetRef();
-		IssueRayTrace.Name = NDICollisionQueryLocal::ReserveAsyncRayTraceName;
-		IssueRayTrace.bRequiresExecPin = true;
-		IssueRayTrace.bMemberFunction = true;
-		IssueRayTrace.bSupportsCPU = false;
+		FNiagaraFunctionSignature& ReserveRayTrace = OutFunctions.AddDefaulted_GetRef();
+		ReserveRayTrace.Name = NDICollisionQueryLocal::ReserveAsyncRayTraceName;
+		ReserveRayTrace.bRequiresExecPin = true;
+		ReserveRayTrace.bMemberFunction = true;
+		ReserveRayTrace.bSupportsCPU = false;
+		ReserveRayTrace.bSoftDeprecatedFunction = true;
 #if WITH_EDITORONLY_DATA
-		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-		IssueRayTrace.Description = LOCTEXT("ReserveAsync_RayTraceDescription", "Reserves a number of ray trace request slots");
+		ReserveRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		ReserveRayTrace.Description = LOCTEXT("ReserveAsync_RayTraceDescription", "Reserves a number of ray trace request slots");
 #endif
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TraceCount")), LOCTEXT("ReserveAsync_QueryIDDescription", "Number of async raytrace requests to be reserved"));
-		IssueRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("FirstQueryID")), LOCTEXT("ReserveAsync_TraceChannelDescription", "The first index in the block reserved through this call"));
-		IssueRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsQueryValid")), LOCTEXT("ReserveAsync_IsQueryValidDescription", "Returns true if the requested indices were reserved"));
+		ReserveRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		ReserveRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TraceCount")), LOCTEXT("ReserveAsync_QueryIDDescription", "Number of async raytrace requests to be reserved"));
+		ReserveRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("FirstQueryID")), LOCTEXT("ReserveAsync_TraceChannelDescription", "The first index in the block reserved through this call"));
+		ReserveRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsQueryValid")), LOCTEXT("ReserveAsync_IsQueryValidDescription", "Returns true if the requested indices were reserved"));
 	}
 
 	{
@@ -400,6 +325,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		ReadRayTrace.Name = NDICollisionQueryLocal::ReadAsyncRayTraceName;
 		ReadRayTrace.bMemberFunction = true;
 		ReadRayTrace.bSupportsCPU = false;
+		ReadRayTrace.bSoftDeprecatedFunction = true;
 #if WITH_EDITORONLY_DATA
 		ReadRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
 		ReadRayTrace.Description = LOCTEXT("ReadAsync_RayTraceDescription", "Reads the results of a previously enqueued GPU ray trace");
@@ -411,6 +337,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CollisionPosWorld")), LOCTEXT("ReadAsync_CollisionPosWorldDescription", "The point in world space where the intersection occured"));
 		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), LOCTEXT("ReadAsync_CollisionNormalDescription", "The surface normal of the world geometry at the point of intersection"));
 	}
+	// DEPRECATE_END
 
 	{
 		const FText TraceChannelDescription = LOCTEXT("TraceChannelDescription", "The trace channel to collide against. Trace channels can be configured in the project settings.");
@@ -484,10 +411,12 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 	if ( (FunctionInfo.DefinitionName == NDICollisionQueryLocal::SceneDepthName) ||
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::CustomDepthName) ||
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::DistanceFieldName) ||
+		// DEPRECATE_BEGIN
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::IssueAsyncRayTraceName) ||
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::CreateAsyncRayTraceName) ||
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::ReserveAsyncRayTraceName) ||
 		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::ReadAsyncRayTraceName) )
+		// DEPRECATE_END
 	{
 		return true;
 	}
@@ -534,11 +463,6 @@ void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctio
 	}
 }
 #endif
-
-bool UNiagaraDataInterfaceCollisionQuery::RequiresRayTracingScene() const
-{
-	return IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0;
-}
 
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -592,13 +516,6 @@ bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashV
 	InVisitor->UpdateString(TEXT("NDICollisionQueryTemplateHLSLSource"), GetShaderFileHash(NDICollisionQueryLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
 
 	return true;
-}
-
-void UNiagaraDataInterfaceCollisionQuery::ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, FShaderCompilerEnvironment& OutEnvironment) const
-{
-	Super::ModifyCompilationEnvironment(ShaderPlatform, OutEnvironment);
-
-	OutEnvironment.SetDefine(TEXT("NIAGARA_SUPPORTS_RAY_TRACING"), ShouldCompileRayTracingShadersForProject(ShaderPlatform) ? 1 : 0);
 }
 
 #endif
@@ -732,55 +649,6 @@ bool UNiagaraDataInterfaceCollisionQuery::PerInstanceTickPostSimulate(void* PerI
 	return false;
 }
 
-bool UNiagaraDataInterfaceCollisionQuery::Equals(const UNiagaraDataInterface* Other) const
-{
-	if (!Super::Equals(Other))
-	{
-		return false;
-	}
-
-	const UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<const UNiagaraDataInterfaceCollisionQuery>(Other);
-	return OtherTyped->MaxTracesPerParticle == MaxTracesPerParticle;
-}
-
-bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* Destination) const
-{
-	if (!Super::CopyToInternal(Destination))
-	{
-		return false;
-	}
-
-	UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<UNiagaraDataInterfaceCollisionQuery>(Destination);
-	OtherTyped->MaxTracesPerParticle = MaxTracesPerParticle;
-	OtherTyped->MaxRetraces = MaxRetraces;
-	OtherTyped->MarkRenderDataDirty();
-	return true;
-}
-
-void UNiagaraDataInterfaceCollisionQuery::PushToRenderThreadImpl()
-{
-	FNiagaraDataIntefaceProxyCollisionQuery* RT_Proxy = GetProxyAs<FNiagaraDataIntefaceProxyCollisionQuery>();
-
-	// Push Updates to Proxy, first release any resources
-	ENQUEUE_RENDER_COMMAND(FUpdateDI)(
-		[RT_Proxy, RT_MaxTracesPerParticle = MaxTracesPerParticle, RT_MaxRetraces = MaxRetraces](FRHICommandListImmediate& RHICmdList)
-		{
-			RT_Proxy->RenderThreadInitialize(RT_MaxTracesPerParticle, RT_MaxRetraces);
-		});
-}
-
-#if WITH_EDITOR
-void UNiagaraDataInterfaceCollisionQuery::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCollisionQuery, MaxTracesPerParticle))
-	{
-		MarkRenderDataDirty();
-	}
-}
-#endif
-
 //////////////////////////////////////////////////////////////////////////
 
 struct FNiagaraDataInterfaceParametersCS_CollisionQuery : public FNiagaraDataInterfaceParametersCS
@@ -791,23 +659,12 @@ public:
 	{
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
 		SystemLWCTileParam.Bind(ParameterMap, *(NDICollisionQueryLocal::SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
-#if RHI_RAYTRACING
-		RayTracingEnabledParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTracingEnabledParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		MaxRayTraceCountParam.Bind(ParameterMap, *(NDICollisionQueryLocal::MaxRayTraceCountParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		RayRequestsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayRequestsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		RayRequestOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayRequestsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		IntersectionResultsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::IntersectionResultsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		IntersectionResultOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::IntersectionResultsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		RayTraceCountsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTraceCountsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-		RayTraceCountsOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTraceCountsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
-#endif
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
-		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
 		
@@ -825,91 +682,12 @@ public:
 			{
 				GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, FGlobalDistanceFieldParameterData());
 			}
-			
-		}
-
-#if RHI_RAYTRACING
-		const bool HasRayTracingParametersBound = RayRequestsParam.IsUAVBound()
-			|| IntersectionResultsParam.IsBound()
-			|| RayTraceCountsParam.IsBound();
-
-		if ((IsRayTracingEnabled() && GEnableGPUHWRTCollisions) || HasRayTracingParametersBound)
-		{
-			FNiagaraRayTracingHelper& RTHelper = Context.ComputeDispatchInterface->GetRayTracingHelper();
-			const FNiagaraRayTraceDispatchInfo* DispatchInfo = nullptr;
-			if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && QueryDI->MaxTracesPerParticle > 0)
-			{
-				DispatchInfo = &RTHelper.GetDispatch(QueryDI);
-			}
-			else
-			{
-				DispatchInfo = &RTHelper.GetDummyDispatch();
-			}
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() && GEnableGPUHWRTCollisions ? 1 : 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, DispatchInfo->MaxRays);
-
-			if (RayRequestsParam.IsUAVBound())
-			{
-				check(DispatchInfo->RayRequests.IsValid());
-				RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), DispatchInfo->RayRequests.Buffer->UAV);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, RayRequestOffsetParam, DispatchInfo->RayRequests.Offset);
-			}
-
-			if (IntersectionResultsParam.IsBound())
-			{
-				check(DispatchInfo->LastFrameRayTraceIntersections.IsValid());
-
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, DispatchInfo->LastFrameRayTraceIntersections.Buffer->SRV);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, IntersectionResultOffsetParam, DispatchInfo->LastFrameRayTraceIntersections.Offset);
-			}
-
-			if (RayTraceCountsParam.IsUAVBound())
-			{
-				check(DispatchInfo->RayCounts.IsValid());
-
-				RHICmdList.SetUAVParameter(ComputeShaderRHI, RayTraceCountsParam.GetUAVIndex(), DispatchInfo->RayCounts.Buffer->UAV);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, RayTraceCountsOffsetParam, DispatchInfo->RayCounts.Offset);
-			}
-		}
-		else
-		{
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, 0);
-		}
-#endif
-	}
-
-#if RHI_RAYTRACING
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		if (RayRequestsParam.IsUAVBound())
-		{
-			RayRequestsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
-		}
-
-		if (RayTraceCountsParam.IsUAVBound())
-		{
-			RayTraceCountsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
 		}
 	}
-#endif
 
 private:
 	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
 	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
-
-#if RHI_RAYTRACING
-	LAYOUT_FIELD(FShaderParameter, RayTracingEnabledParam);
-	LAYOUT_FIELD(FShaderParameter, MaxRayTraceCountParam);
-	LAYOUT_FIELD(FRWShaderParameter, RayRequestsParam);
-	LAYOUT_FIELD(FShaderParameter, RayRequestOffsetParam);
-	LAYOUT_FIELD(FShaderResourceParameter, IntersectionResultsParam);
-	LAYOUT_FIELD(FShaderParameter, IntersectionResultOffsetParam);
-	LAYOUT_FIELD(FRWShaderParameter, RayTraceCountsParam);
-	LAYOUT_FIELD(FShaderParameter, RayTraceCountsOffsetParam);
-#endif
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_CollisionQuery);

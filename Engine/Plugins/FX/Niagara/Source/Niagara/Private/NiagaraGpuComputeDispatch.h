@@ -27,8 +27,8 @@ the same VectorVM byte code / compute shader code
 #include "Tickable.h"
 
 class FGPUSortManager;
-class FNiagaraRayTracingHelper;
 class FDistanceFieldSceneData;
+class FNiagaraAsyncGpuTraceHelper;
 
 class FNiagaraGpuComputeDispatch : public FNiagaraGpuComputeDispatchInterface
 {
@@ -125,23 +125,12 @@ public:
 	/** Debug only function to readback data. */
 	virtual void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context) override;
 
-#if RHI_RAYTRACING
-	virtual FNiagaraRayTracingHelper& GetRayTracingHelper() const override;
-	virtual bool HasRayTracingScene() const override;
-
-	virtual void SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* PrimitiveComponent, uint32 Group) override;
-
-	virtual int32 AcquireGPURayTracedCollisionGroup() override;
-	virtual void ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup) override;
-#endif
-
 #if WITH_MGPU
 	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const override;
 	virtual void MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const override;
 #endif
 
-	void OnPrimitiveGPUSceneInstancesAllocated();
-	void OnPrimitiveGPUSceneInstancesFreed();
+	virtual FNiagaraAsyncGpuTraceHelper& GetAsyncGpuTraceHelper() const override;
 
 private:
 	void DumpDebugFrame();
@@ -172,11 +161,6 @@ private:
 	 */
 	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
 
-#if RHI_RAYTRACING
-	void BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views);
-	void ResetRayTracingSceneInfo();
-#endif
-
 	void FinishDispatches();
 
 	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
@@ -190,10 +174,7 @@ private:
 	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
 	TArray<FNiagaraGPUSortInfo> SimulationsToSort;
 
-#if RHI_RAYTRACING
-	// helper object which is valid during PostRenderOpaque if DataInterfaces are present that require a RayTrace scene
-	TUniquePtr<FNiagaraRayTracingHelper> RayTracingHelper;
-#endif
+	TUniquePtr<FNiagaraAsyncGpuTraceHelper> AsyncGpuTraceHelper;
 
 #if WITH_NIAGARA_GPU_PROFILER
 	TUniquePtr<FNiagaraGPUProfiler> GPUProfilerPtr;
@@ -253,10 +234,6 @@ private:
 	void TransferMultiGPUBufers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
 	void WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
 #endif // WITH_MGPU
-
-	/** Pool of free GPU ray traced collision groups. */
-	TArray<int32> FreeGPURayTracedCollisionGroups;
-	int32 NumGPURayTracedCollisionGroups = 0;
 
 	// Cached information to build a dummy view info if necessary
 	FIntRect CachedViewRect;
