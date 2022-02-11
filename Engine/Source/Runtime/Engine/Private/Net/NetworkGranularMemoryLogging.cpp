@@ -49,8 +49,11 @@ namespace GranularNetworkMemoryTrackingPrivate
 			};
 
 			TArray<FField> FieldValues;
-			FieldValues.Reserve(Fields.Num() + 1);
+			FieldValues.Reserve(Fields.Num() + 2);
 			FieldValues.Add({ &NewPrefix, TotalBytes });
+
+			static const FString CountName = TEXT("Count");
+			FieldValues.Add({ &CountName, Count });
 
 			for (auto ConstIt = Fields.CreateConstIterator(); ConstIt; ++ConstIt)
 			{
@@ -58,7 +61,7 @@ namespace GranularNetworkMemoryTrackingPrivate
 			}
 
 			// Keep our total scope data in place, but sort the rest of the fields.
-			Sort(FieldValues.GetData() + 1, FieldValues.Num() - 1, FieldLessThan);
+			Sort(FieldValues.GetData() + 2, FieldValues.Num() - 2, FieldLessThan);
 
 			FString ReportRow = FString::Printf(TEXT("%s\r\n%s"),
 				*FString::JoinBy(FieldValues, TEXT(","), [](const FField& Field) { return *Field.Name; }),
@@ -89,12 +92,18 @@ namespace GranularNetworkMemoryTrackingPrivate
 			return TotalBytes;
 		}
 
+		void IncrementCount()
+		{
+			++Count;
+		}
+
 		const FString ScopeName;
 
 	private:
 
 		TMap<FString, TUniquePtr<FNetworkMemoryTrackingScope>> SubScopes;
 		TMap<FString, uint64> Fields;
+		uint32 Count = 0;
 		uint64 TotalBytes = 0u;
 	};
 
@@ -124,8 +133,10 @@ namespace GranularNetworkMemoryTrackingPrivate
 			}
 			else
 			{
-				 CurrentScope = TopLevelScopes.Add(ScopeName, MakeUnique<FNetworkMemoryTrackingScope>(ScopeName)).Get();
+				CurrentScope = TopLevelScopes.Add(ScopeName, MakeUnique<FNetworkMemoryTrackingScope>(ScopeName)).Get();
 			}
+
+			CurrentScope->IncrementCount();
 
 			ScopeStack.Push(CurrentScope);
 		}

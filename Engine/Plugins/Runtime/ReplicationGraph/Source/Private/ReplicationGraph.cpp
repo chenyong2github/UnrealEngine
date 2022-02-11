@@ -2908,6 +2908,18 @@ UReplicationGraphNode::UReplicationGraphNode()
 
 }
 
+void UReplicationGraphNode::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UReplicationGraphNode::Serialize");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AllChildNodes", AllChildNodes.CountBytes(Ar));
+	}
+}
+
 void UReplicationGraphNode::NotifyResetAllNetworkActors()
 {
 	for (UReplicationGraphNode* ChildNode : AllChildNodes)
@@ -3255,6 +3267,29 @@ void UReplicationGraphNode_ActorList::LogActorList(FReplicationGraphDebugInfo& D
 
 
 UReplicationGraphNode_ActorListFrequencyBuckets::FSettings UReplicationGraphNode_ActorListFrequencyBuckets::DefaultSettings;
+
+void UReplicationGraphNode_ActorListFrequencyBuckets::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UReplicationGraphNode_ActorListFrequencyBuckets::Serialize");
+		if (Settings.IsValid())
+		{
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Settings", Settings->CountBytes(Ar));
+		}
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NonStreamingCollection",
+			NonStreamingCollection.CountBytes(Ar);
+			for (const FActorRepListRefView& RepList : NonStreamingCollection)
+			{
+				RepList.CountBytes(Ar);
+			}
+		);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StreamingLevelCollection", StreamingLevelCollection.CountBytes(Ar));
+	}
+}
 
 void UReplicationGraphNode_ActorListFrequencyBuckets::NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo)
 {
@@ -4672,6 +4707,23 @@ UReplicationGraphNode_GridSpatialization2D::UReplicationGraphNode_GridSpatializa
 	bDestroyDormantDynamicActors = CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault != 0;
 }
 
+void UReplicationGraphNode_GridSpatialization2D::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UReplicationGraphNode_GridSpatialization2D::Serialize");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClassRebuildDenyList", ClassRebuildDenyList.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DynamicSpatializedActors", DynamicSpatializedActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StaticSpatializedActors", StaticSpatializedActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingStaticSpatializedActors", PendingStaticSpatializedActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Grid", Grid.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("GatheredNodes", GatheredNodes.CountBytes(Ar));
+	}
+}
+
 void UReplicationGraphNode_GridSpatialization2D::NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo)
 {
 	ensureAlwaysMsgf(false, TEXT("UReplicationGraphNode_GridSpatialization2D::NotifyAddNetworkActor should not be called directly"));
@@ -5810,6 +5862,19 @@ void UReplicationGraphNode_AlwaysRelevant::GatherActorListsForConnection(const F
 }
 
 // -------------------------------------------------------
+
+void UReplicationGraphNode_TearOff_ForConnection::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UReplicationGraphNode_TearOff_ForConnection::Serialize");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TearOffActors", TearOffActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ReplicationActorList", ReplicationActorList.CountBytes(Ar));
+	}
+}
 
 void UReplicationGraphNode_TearOff_ForConnection::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {

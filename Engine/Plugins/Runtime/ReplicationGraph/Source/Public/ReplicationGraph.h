@@ -78,6 +78,8 @@ public:
 
 	UReplicationGraphNode();
 
+	virtual void Serialize(FArchive& Ar) override;
+
 	/** Called when a network actor is spawned or an actor changes replication status */
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& Actor ) PURE_VIRTUAL(UReplicationGraphNode::NotifyAddNetworkActor, );
 	
@@ -281,6 +283,11 @@ public:
 		};
 
 		TArray<FBucketThresholds, TInlineAllocator<4>> BucketThresholds;
+
+		void CountBytes(FArchive& Ar) const 
+		{
+			BucketThresholds.CountBytes(Ar);
+		}
 	};
 
 	/** Default settings for all nodes. By being static, this allows games to easily override the settings are all nodes without having to subclass every graph node class */
@@ -292,6 +299,8 @@ public:
 	const FSettings& GetSettings() const { return Settings.IsValid() ? *Settings.Get() : DefaultSettings; }
 	
 	UReplicationGraphNode_ActorListFrequencyBuckets() { if (!HasAnyFlags(RF_ClassDefaultObject)) { SetNonStreamingCollectionSize(GetSettings().NumBuckets); } }
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo) override;
 	
@@ -588,6 +597,8 @@ public:
 
 	UReplicationGraphNode_GridSpatialization2D();
 
+	virtual void Serialize(FArchive& Ar) override;
+
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& Actor) override;	
 	virtual bool NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound=true) override;
 	virtual void NotifyResetAllNetworkActors() override;
@@ -857,6 +868,7 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_TearOff_ForConnection : public 
 	GENERATED_BODY()
 
 public:
+	virtual void Serialize(FArchive& Ar) override;
 
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo) override { }
 	virtual bool NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound=true) override { return false; }
