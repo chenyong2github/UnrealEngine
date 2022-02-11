@@ -1698,7 +1698,9 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		//     and thus overhead of multithreading will simply make it slower
 		bool bForceSingleThread = GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
 
-		TFunctionRef<void (int32)> AdjustImageColorsFunc = [&](int32 Index)
+		// TFunction or auto are okay here
+		// TFunctionRef is not
+		TFunction<void (int32)> AdjustImageColorsFunc = [&](int32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(AdjustImageColors.PF);
 
