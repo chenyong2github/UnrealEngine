@@ -4130,7 +4130,6 @@ void SLevelViewport::StartPlayInEditorSession(UGameViewportClient* PlayClient, c
 
 	bPIEHasFocus = ActiveViewport->HasMouseCapture();
 
-
 	if(EditorPlayInSettings->ShowMouseControlLabel && !GEngine->IsStereoscopic3D( ActiveViewport.Get() ) )
 	{
 		ELabelAnchorMode AnchorMode = EditorPlayInSettings->MouseControlLabelPosition.GetValue();
@@ -4139,6 +4138,15 @@ void SLevelViewport::StartPlayInEditorSession(UGameViewportClient* PlayClient, c
 	}
 
 	GEngine->BroadcastLevelActorListChanged();
+
+	// register for preview feature level change
+	UEditorEngine* Editor = CastChecked<UEditorEngine>(GEngine);
+	UWorld* PIEWorld = PlayClient->GetWorld();
+	PIEPreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([PIEWorld](ERHIFeatureLevel::Type NewFeatureLevel)
+		{
+			PIEWorld->GetWorld()->ChangeFeatureLevel(NewFeatureLevel);
+		});
+
 }
 
 EVisibility SLevelViewport::GetMouseCaptureLabelVisibility() const
@@ -4353,6 +4361,13 @@ void SLevelViewport::EndPlayInEditorSession()
 	}
 
 	GEngine->BroadcastLevelActorListChanged();
+
+	// Remove preview feature level delegate if set
+	if (PIEPreviewFeatureLevelChangedHandle.IsValid())
+	{
+		CastChecked<UEditorEngine>(GEngine)->OnPreviewFeatureLevelChanged().Remove(PIEPreviewFeatureLevelChangedHandle);
+		PIEPreviewFeatureLevelChangedHandle.Reset();
+	}
 }
 
 void SLevelViewport::SwapViewportsForSimulateInEditor()

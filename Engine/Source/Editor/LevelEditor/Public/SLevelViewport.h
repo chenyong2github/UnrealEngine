@@ -783,6 +783,11 @@ private:
 	 */
 	TSharedPtr<SWidget> InactiveViewportWidgetEditorContent;
 
+	/** 
+	 *  When PIE is active, the handle for the change feature level delegate
+	 */
+	FDelegateHandle PIEPreviewFeatureLevelChangedHandle;
+
 	/** Level viewport client */
 	TSharedPtr<FLevelEditorViewportClient> LevelViewportClient;
 
