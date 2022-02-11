@@ -81,6 +81,20 @@ struct FMeshSceneAdapterBuildOptions
 
 	/** If true, AABBTree and Fast Winding data structures will be built for unique scene meshes */
 	bool bBuildSpatialDataStructures = true;
+
+	/** If true, UV queries will be supported on mesh wrappers */
+	bool bEnableUVQueries = true;
+
+	/** If true, Normals queries at hit locations will be supported */
+	bool bEnableNormalsQueries = true;
+
+
+	/** 
+	* If true, the source meshes in StaticMesh Assets are ignored in favor of the render meshes.
+	* This can speed up processing and reduce memory usage on scenes with large Nanite-enabled meshes,
+	* but potentially with lower-quality results for operations querying the mesh scene.
+	*/
+	bool bIgnoreStaticMeshSourceData = false;
 };
 
 

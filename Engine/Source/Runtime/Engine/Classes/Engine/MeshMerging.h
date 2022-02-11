@@ -900,16 +900,27 @@ struct FMeshApproximationSettings
 
 
 	//
+	// Performance Settings
+	//
+
+
+	/** If true, LOD0 Render Meshes (or Nanite Fallback meshes) are used instead of Source Mesh data. This can significantly reduce computation time and memory usage, but potentially at the cost of lower quality output. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PerformanceSettings)
+	bool bUseRenderLODMeshes = false;
+
+
+
+	//
 	// Debug Output Settings
 	//
 
 
 	/** If true, print out debugging messages */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = DebugSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = DebugSettings)
 	bool bPrintDebugMessages = false;
 
 	/** If true, write the full mesh triangle set (ie flattened, non-instanced) used for mesh generation. Warning: this asset may be extremely large!! */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = DebugSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = DebugSettings)
 	bool bEmitFullDebugMesh = false;
 
 

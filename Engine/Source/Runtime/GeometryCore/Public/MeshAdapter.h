@@ -229,5 +229,32 @@ struct TIndexVectorMeshArrayAdapter
 typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
 
 
+/**
+ * TMeshWrapperAdapterd<T> can be used to present an arbitrary Mesh / Adapter type as a FTriangleMeshAdapterd.
+ * This is useful in cases where it would be difficult or undesirable to write code templated on
+ * the standard "Mesh Type" signature. If the code is written for FTriangleMeshAdapterd then this
+ * shim can be used to present any compatible mesh type as a FTriangleMeshAdapterd
+ */ 
+template <class WrappedMeshType>
+struct TMeshWrapperAdapterd : public UE::Geometry::FTriangleMeshAdapterd
+{
+	WrappedMeshType* WrappedAdapter;
+
+	TMeshWrapperAdapterd(WrappedMeshType* WrappedAdapterIn) : WrappedAdapter(WrappedAdapterIn)
+	{
+		IsTriangle = [this](int index) { return WrappedAdapter->IsTriangle(index); };
+		IsVertex = [this](int index) { return WrappedAdapter->IsVertex(index); };
+		MaxTriangleID = [this]() { return WrappedAdapter->MaxTriangleID(); };
+		MaxVertexID = [this]() { return WrappedAdapter->MaxVertexID(); };
+		TriangleCount = [this]() { return WrappedAdapter->TriangleCount(); };
+		VertexCount = [this]() { return WrappedAdapter->VertexCount(); };
+		GetChangeStamp = [this]() { return WrappedAdapter->GetChangeStamp(); };
+		GetTriangle = [this](int32 TriangleID) { return WrappedAdapter->GetTriangle(TriangleID); };
+		GetVertex = [this](int32 VertexID) { return WrappedAdapter->GetVertex(VertexID); };
+	}
+};
+
+
+
 } // end namespace UE::Geometry
 } // end namespace UE

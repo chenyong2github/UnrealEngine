@@ -423,7 +423,6 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	}
 
 	Progress.EnterProgressFrame(1.f, LOCTEXT("SolidifyMesh", "Approximating Mesh..."));
-
 	TRACE_BOOKMARK(TEXT("ApproximateActors-Solidify"));
 
 	FDynamicMesh3 SolidMesh;
@@ -494,7 +493,6 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	}
 
 	Progress.EnterProgressFrame(1.f, LOCTEXT("SimplifyingMesh", "Simplifying Mesh..."));
-
 	TRACE_BOOKMARK(TEXT("ApproximateActors-Simplify"));
 
 	FVolPresMeshSimplification Simplifier(CurResultMesh);
@@ -522,7 +520,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			// (this does not seem to help perf and probably makes the results slightly worse)
 			//{
 			//	TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
-			//	Simplifier.FastCollapsePass(0.1 * UseTargetTolerance, 5);
+			//	Simplifier.FastCollapsePass(ApproxAccuracy, 5);
 			//}
 
 			// now simplify down to a reasonable tri count, as geometric metric is (relatively) expensive
@@ -862,6 +860,10 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 	Options.BasePolicy = (UseSettings.OutputType == EMeshApproximationType::MeshShapeOnly) ?
 		IGeometryProcessing_ApproximateActors::EApproximationPolicy::CollisionMesh :
 		IGeometryProcessing_ApproximateActors::EApproximationPolicy::MeshAndGeneratedMaterial;
+	
+	Options.MeshDataLODPolicy = (UseSettings.bUseRenderLODMeshes) ?
+		EMeshDataSourceLODPolicy::LOD0RenderMeshes : EMeshDataSourceLODPolicy::LOD0SourceMeshes;
+	
 	Options.WorldSpaceApproximationAccuracyMeters = UseSettings.ApproximationAccuracy;
 
 	Options.bAutoThickenThinParts = UseSettings.bAttemptAutoThickening;
@@ -1015,12 +1017,14 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 
 	TUniquePtr<FMeshSceneAdapter> Scene = MakeUnique<FMeshSceneAdapter>();
 	FMeshSceneAdapterBuildOptions SceneBuildOptions;
+	SceneBuildOptions.bIgnoreStaticMeshSourceData = (Options.MeshDataLODPolicy == EMeshDataSourceLODPolicy::LOD0RenderMeshes);		// default is false
 	SceneBuildOptions.bThickenThinMeshes = Options.bAutoThickenThinParts;
 	SceneBuildOptions.DesiredMinThickness = Options.AutoThickenThicknessMeters * 100.0;		// convert to cm (UE Units)
 	// filter out objects smaller than 10% of voxel size
 	SceneBuildOptions.bFilterTinyObjects = Options.bIgnoreTinyParts;
 	SceneBuildOptions.TinyObjectBoxMaxDimension = Options.TinyPartMaxDimensionMeters;
-	SceneBuildOptions.bOnlySurfaceMaterials = true;
+	SceneBuildOptions.bOnlySurfaceMaterials = true;				// don't include decal geometry in 3D mesh scene (will be included in renderings)
+	SceneBuildOptions.bEnableUVQueries = SceneBuildOptions.bEnableNormalsQueries = false;		// not required in this context, will reduce memory usage
 	SceneBuildOptions.bPrintDebugMessages = Options.bVerbose;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_BuildScene);

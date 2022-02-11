@@ -32,6 +32,12 @@ class IGeometryProcessing_ApproximateActors : public IModularFeature
 public:
 	virtual ~IGeometryProcessing_ApproximateActors() {}
 
+	enum class EMeshDataSourceLODPolicy
+	{
+		LOD0SourceMeshes,
+		LOD0RenderMeshes
+	};
+
 	enum class EApproximationPolicy
 	{
 		MeshAndGeneratedMaterial,
@@ -96,6 +102,13 @@ public:
 
 		// high-level control of the overall approximation process
 		EApproximationPolicy BasePolicy = EApproximationPolicy::MeshAndGeneratedMaterial;
+
+		// 
+		// Actor/Scene configuration settings
+		//
+
+		// control which LOD, and which type of LOD mesh, should be used as the source for the approximation process
+		EMeshDataSourceLODPolicy MeshDataLODPolicy = EMeshDataSourceLODPolicy::LOD0SourceMeshes;
 
 		//
 		// Mesh Preprocessing settings

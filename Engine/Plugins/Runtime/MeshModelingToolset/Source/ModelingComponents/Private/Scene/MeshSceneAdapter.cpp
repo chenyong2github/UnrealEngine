@@ -4,9 +4,11 @@
 #include "Scene/MeshSceneAdapter.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/ColliderMesh.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Spatial/FastWinding.h"
 #include "MeshDescriptionAdapter.h"
+#include "StaticMeshLODResourcesAdapter.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "BoxTypes.h"
@@ -240,12 +242,12 @@ static bool IsClosedRegion(const FDynamicMesh3& Mesh, const TArray<int32>& Trian
 
 
 
-
-class FDynamicMeshSpatialWrapper : public IMeshSpatialWrapper
+/**
+ * Base type for various spatial wrappers, to provide common config variables
+ */
+class FBaseMeshSpatialWrapper : public IMeshSpatialWrapper
 {
 public:
-	FDynamicMesh3 Mesh;
-
 	// if true, Mesh is in world space (whatever that means)
 	bool bHasBakedTransform = false;
 	// if true, Mesh is only translated and rotated (allows some assumptions to be made)
@@ -259,8 +261,29 @@ public:
 	// query would only create a shell instead of a full solid
 	bool bRequiresWindingQueryFallback = false;
 
+};
+
+
+
+/**
+ * IMeshSpatialWrapper for a FDynamicMesh3, with optional AABBTree and FWNTree.
+ * 
+ */
+class FDynamicMeshSpatialWrapper : public FBaseMeshSpatialWrapper
+{
+public:
+	FDynamicMesh3 Mesh;
 	TUniquePtr<TMeshAABBTree3<FDynamicMesh3>> AABBTree;
 	TUniquePtr<TFastWindingTree<FDynamicMesh3>> FWNTree;
+
+	FDynamicMeshSpatialWrapper()
+	{
+	}
+
+	FDynamicMeshSpatialWrapper(FDynamicMesh3&& SourceMesh)
+	{
+		Mesh = MoveTemp(SourceMesh);
+	}
 
 	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) override
 	{
@@ -491,6 +514,255 @@ public:
 
 
 
+
+
+/**
+* IMeshSpatialWrapper that stores a minimal ("compressed") version of an input mesh,
+* basically just a vertex array and indexed triangle list. This reduces the memory
+* footprint of large MeshDescription/FDynamicMeshes by dropping expensive attribute 
+* overlays and connectivity storage. In addition, for very small meshes, FDynamicMesh3
+* is not an efficient representation because each internal buffer has a minimum size,
+* so using this format can significantly reduce the overhead of all those tiny meshes.
+* 
+* Generally supports the same options and behavior as FDynamicMeshSpatialWrapper. 
+* It might be useful to try and combine the various queries in a template base class?
+* 
+* Note that this wrapper currently does not support the barycentric-interpolation queries 
+* of IMeshSpatialWrapper, and cannot be used if they are requested in the build options.
+*/
+class FCompressedMeshSpatialWrapper : public FBaseMeshSpatialWrapper
+{
+public:
+	FDynamicMesh3 BuildInputMesh;		// source mesh data - only used in build, then discarded
+
+	// compressed representation
+	FColliderMesh ColliderMesh;
+	TUniquePtr<TFastWindingTree<FColliderMesh>> FWNTree;
+
+	FCompressedMeshSpatialWrapper()
+	{
+	}
+
+	FCompressedMeshSpatialWrapper(FDynamicMesh3&& SourceMesh)
+	{
+		BuildInputMesh = MoveTemp(SourceMesh);
+	}
+
+
+	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) override
+	{
+		ensure(BuildOptions.bEnableUVQueries == false && BuildOptions.bEnableNormalsQueries == false);
+		ensure(BuildInputMesh.TriangleCount() > 0);
+
+		FColliderMesh::FBuildOptions ColliderBuildOptions;
+		ColliderBuildOptions.bBuildAABBTree = BuildOptions.bBuildSpatialDataStructures;
+		ColliderMesh.Initialize(BuildInputMesh);
+		BuildInputMesh = FDynamicMesh3();		// discard input mesh data
+
+		if (BuildOptions.bBuildSpatialDataStructures)
+		{
+			if (bUseDistanceShellForWinding == false || bRequiresWindingQueryFallback)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_DMesh_FWNTree);
+				FWNTree = MakeUnique<TFastWindingTree<FColliderMesh>>(&ColliderMesh.GetAABBTree(), true);
+			}
+		}
+		return true;
+	}
+
+	virtual int32 GetTriangleCount() const override
+	{
+		return ColliderMesh.TriangleCount();
+	}
+
+	virtual bool IsTriangle(int32 TriId) const override
+	{
+		return ColliderMesh.IsTriangle(TriId);
+	}
+
+	virtual FIndex3i GetTriangle(int32 TriId) const override
+	{
+		return ColliderMesh.GetTriangle(TriId);
+	}
+
+	virtual bool HasNormals() const override
+	{
+		check(false);
+		return false;
+	}
+	virtual bool HasUVs(const int UVLayer = 0) const override
+	{
+		check(false);
+		return false;
+	}
+
+	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override
+	{
+		check(false);
+		return FVector3d::Zero();
+	}
+	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const override
+	{
+		check(false);
+		return false;
+	}
+	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override
+	{
+		check(false);
+		return false;
+	}
+
+	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
+	{
+		FAxisAlignedBox3d Bounds = bHasBakedTransform ?
+			GetTransformedVertexBounds<FColliderMesh>(ColliderMesh, [](const FVector3d& P) { return P;}) :
+			GetTransformedVertexBounds<FColliderMesh>(ColliderMesh, LocalToWorldFunc);
+		if (bUseDistanceShellForWinding)
+		{
+			Bounds.Expand(WindingShellThickness);
+		}
+		return Bounds;
+	}
+
+	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
+	{
+		return bHasBakedTransform ?
+			CollectSeedPointsFromMeshVertices<FColliderMesh>(ColliderMesh, [](const FVector3d& P) {return P;}, WorldPoints) :
+			CollectSeedPointsFromMeshVertices<FColliderMesh>(ColliderMesh, LocalToWorldFunc, WorldPoints);
+	}
+
+	virtual double FastWindingNumber(const FVector3d& P, const FTransformSequence3d& LocalToWorldTransform) override
+	{
+		if (bUseDistanceShellForWinding)
+		{
+			if (bRequiresWindingQueryFallback)
+			{
+				double WindingNumber = bHasBakedTransform ?
+					FWNTree->FastWindingNumber(P) :
+					FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P));
+				if (WindingNumber > 0.99)
+				{
+					return 1.0;
+				}
+			}
+
+			if (bHasBakedTransform || bHasBakedScale)
+			{
+				FVector3d UseP = (bHasBakedTransform) ? P : LocalToWorldTransform.InverseTransformPosition(P);
+				double NearestDistSqr;
+				int32 NearTriID = ColliderMesh.GetAABBTree().FindNearestTriangle(UseP, NearestDistSqr, IMeshSpatial::FQueryOptions(WindingShellThickness));
+				if (NearTriID != IndexConstants::InvalidID)
+				{
+					// Do we even need to do this? won't we return InvalidID if we don't find point within distance?
+					// (also technically we can early-out as soon as we find any point, not the nearest point - might be worth a custom query)
+					FDistPoint3Triangle3d Query = TMeshQueries<FColliderMesh>::TriangleDistance(ColliderMesh, NearTriID, UseP);
+					if (Query.GetSquared() < WindingShellThickness * WindingShellThickness)
+					{
+						return 1.0;
+					}
+				}
+			}
+			else
+			{
+				ensure(false);		// not supported yet
+			}
+			return 0.0;
+		}
+		else
+		{
+			return bHasBakedTransform ?
+				FWNTree->FastWindingNumber(P) :
+				FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P));
+		}
+	}
+
+
+	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) override
+	{
+		FRay3d UseRay = WorldRay;
+		if (bHasBakedTransform == false)
+		{
+			FVector3d LocalOrigin = LocalToWorldTransform.InverseTransformPosition(WorldRay.Origin);
+			FVector3d LocalDir = Normalized(LocalToWorldTransform.InverseTransformPosition(WorldRay.PointAt(1.0)) - LocalOrigin);
+			UseRay = FRay3d(LocalOrigin, LocalDir);
+		}
+
+		double RayHitT; int32 HitTID; FVector3d HitBaryCoords;
+		if (ColliderMesh.GetAABBTree().FindNearestHitTriangle(UseRay, RayHitT, HitTID, HitBaryCoords))
+		{
+			WorldHitResultOut.HitMeshTriIndex = HitTID;
+			WorldHitResultOut.HitMeshSpatialWrapper = this;
+			if (bHasBakedTransform)
+			{
+				WorldHitResultOut.RayDistance = RayHitT;
+			}
+			else
+			{
+				FVector3d WorldPos = LocalToWorldTransform.TransformPosition(UseRay.PointAt(RayHitT));
+				WorldHitResultOut.RayDistance = WorldRay.GetParameter(WorldPos);
+			}
+			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
+			return true;
+		}
+		return false;
+	}
+
+
+	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
+	{
+		bool bContinue = true;
+		if (bHasBakedTransform)
+		{
+			for ( int32 k = 0; k < ColliderMesh.VertexCount(); ++k)
+			{
+				bContinue = ProcessFunc(ColliderMesh.GetVertex(k));
+				if (!bContinue)
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			for ( int32 k = 0; k < ColliderMesh.VertexCount(); ++k )
+			{
+				bContinue = ProcessFunc( LocalToWorldTransform.TransformPosition(ColliderMesh.GetVertex(k)) );
+				if (!bContinue)
+				{
+					break;
+				}
+			}
+		}
+		return bContinue;
+	}
+
+
+	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) override
+	{
+		// this is necessary because the Editor.AppendMesh function is not a template and explicitly takes a FTriangleMeshAdapterd
+		TMeshWrapperAdapterd<FColliderMesh> AdapterWrapper(&ColliderMesh);
+
+		FDynamicMeshEditor Editor(&AppendTo);
+		FMeshIndexMappings Mappings;
+		if (bHasBakedTransform)
+		{
+			Editor.AppendMesh(&AdapterWrapper, Mappings,
+				[](int, const FVector3d& Pos) { return Pos; });
+		}
+		else
+		{
+			Editor.AppendMesh(&AdapterWrapper, Mappings,
+				[&](int, const FVector3d& Pos) { return TransformSeq.TransformPosition(Pos); });
+		}
+	}
+
+};
+
+
+
+
+
+
 /**
  * Utility function for handling static mesh material queries
  */
@@ -598,115 +870,134 @@ private:
 	bool bHasInvalidPolyGroup;
 };
 
-template <class TriangleMeshType>
-struct TMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<double>
+/**
+* Extension of Mesh adapter for StaticMesh LODResources (ie LOD0 rendering mesh) to filter out all mesh sections that 
+* are using materials for which the material domain isn't "Surface". This excludes decals for example.
+*/
+struct FStaticMeshLODResourcesMeshSurfaceAdapter : public FStaticMeshLODResourcesMeshAdapter
 {
-	TriangleMeshType ParentAdapter;
-
-	TMeshDescriptionMeshAdapterd(TriangleMeshType ParentAdapterIn) : ParentAdapter(ParentAdapterIn)
+	FStaticMeshLODResourcesMeshSurfaceAdapter(const FStaticMeshLODResources* MeshIn, UStaticMesh* StaticMeshIn, bool bOnlySurfaceMaterials)
 	{
-		IsTriangle = [this](int index) { return ParentAdapter.IsTriangle(index); };
-		IsVertex = [this](int index) { return ParentAdapter.IsVertex(index); };
-		MaxTriangleID = [this]() { return ParentAdapter.MaxTriangleID(); };
-		MaxVertexID = [this]() { return ParentAdapter.MaxVertexID(); };
-		TriangleCount = [this]() { return ParentAdapter.TriangleCount(); };
-		VertexCount = [this]() { return ParentAdapter.VertexCount(); };
-		GetChangeStamp = [this]() { return ParentAdapter.GetChangeStamp(); };
-		GetTriangle = [this](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
-		GetVertex = [this](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
+		this->Mesh = MeshIn;
+		this->NumTriangles = 0;
+
+		TriangleOffsetArray.Reserve(MeshIn->Sections.Num() + 1);
+		ValidSections.Reserve(MeshIn->Sections.Num());
+
+		int32 SectionOffset = 0;
+		for (const FStaticMeshSection& Section : MeshIn->Sections)
+		{
+			auto IsValidMaterial = [StaticMeshIn, Section]()
+			{
+				UMaterialInterface* MaterialInterface = StaticMeshIn->GetMaterial(Section.MaterialIndex);
+				const UMaterial* Material = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
+
+				return Material != nullptr && Material->MaterialDomain == EMaterialDomain::MD_Surface;
+			};
+
+			bool bIsValidMaterial = bOnlySurfaceMaterials ? IsValidMaterial() : true;
+			if (bIsValidMaterial)
+			{
+				TriangleOffsetArray.Add(SectionOffset);
+				NumTriangles += Section.NumTriangles;
+				ValidSections.Add(&Section);
+			}
+
+			SectionOffset += Section.NumTriangles;
+		}
+
+		TriangleOffsetArray.Add(SectionOffset);
 	}
 };
 
-template <class TriangleMeshType>
-class TStaticMeshSpatialWrapper : public IMeshSpatialWrapper
+
+
+/**
+ * TStaticMeshSpatialWrapperBase is an IMeshSpatialWrapper implementation that can be used
+ * with various different mesh adapter types, depending on whether the "source" mesh or built/render
+ * mesh should be used. This is an abstract base class, calling code should use FStaticMeshSourceDataSpatialWrapper 
+ * or FStaticMeshRenderDataSpatialWrapper as needed
+ */
+template <class MeshAdapterType>
+class TStaticMeshSpatialWrapperBase : public IMeshSpatialWrapper
 {
 public:
 	UStaticMesh* StaticMesh = nullptr;
 	int32 LODIndex = 0;
+
 	FVector3d BuildScale = FVector3d::One();
-	
-	FMeshDescription* SourceMesh = nullptr;
+	TUniquePtr<MeshAdapterType> Adapter;
 
-	TUniquePtr<TriangleMeshType> Adapter;
+	TUniquePtr<TMeshAABBTree3<MeshAdapterType>> AABBTree;
+	TUniquePtr<TFastWindingTree<MeshAdapterType>> FWNTree;
 
-	TUniquePtr<TMeshAABBTree3<TriangleMeshType>> AABBTree;
-	TUniquePtr<TFastWindingTree<TriangleMeshType>> FWNTree;
-
-	virtual ~TStaticMeshSpatialWrapper()
-	{
-#if WITH_EDITOR
-		// Release any MeshDescriptions that were loaded. This is potentially not ideal and should probably be controlled by the build options...
-		StaticMesh->ClearMeshDescriptions();
-#endif
-	}
+	/**
+	 * Create the MeshAdapterType instance based on the build options and source mesh.
+	 * Subclasses must implement this function.
+	 */
+	virtual TUniquePtr<MeshAdapterType> MakeMeshAdapter(const FMeshSceneAdapterBuildOptions& BuildOptions) = 0;
 
 	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) override
 	{
 		check(StaticMesh);
 
-#if !WITH_EDITOR
-		SourceMesh = nullptr;
-#else
-		SourceMesh = StaticMesh->GetMeshDescription(LODIndex);
-#endif
-		Adapter = MakeUnique<FMeshDescriptionTriangleMeshSurfaceAdapter>(SourceMesh, StaticMesh, BuildOptions.bOnlySurfaceMaterials);
-
-		if (SourceMesh && Adapter)
+		Adapter = MakeMeshAdapter(BuildOptions);
+		if (!Adapter)
 		{
-			BuildScale = FVector3d::One();
-#if WITH_EDITOR
-			// respect BuildScale build setting
-			const FMeshBuildSettings& LODBuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
-			BuildScale = (FVector3d)LODBuildSettings.BuildScale3D;
-			Adapter->SetBuildScale(BuildScale, false);
-#endif
-			if (BuildOptions.bBuildSpatialDataStructures)
-			{
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMesh_AABBTree);
-					AABBTree = MakeUnique<TMeshAABBTree3<TriangleMeshType>>(Adapter.Get(), true);
-				}
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMesh_FWNTree);
-					FWNTree = MakeUnique<TFastWindingTree<TriangleMeshType>>(AABBTree.Get(), true);
-				}
-			}
-			return true;
+			return false;
 		}
 
-		SourceMesh = nullptr;
-		return false;
+		BuildScale = FVector3d::One();
+#if WITH_EDITOR
+		// respect BuildScale build setting
+		const FMeshBuildSettings& LODBuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
+		BuildScale = (FVector3d)LODBuildSettings.BuildScale3D;
+		Adapter->SetBuildScale(BuildScale, false);
+#endif
+
+		if (BuildOptions.bBuildSpatialDataStructures)
+		{
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMesh_AABBTree);
+				AABBTree = MakeUnique<TMeshAABBTree3<MeshAdapterType>>(Adapter.Get(), true);
+			}
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMesh_FWNTree);
+				FWNTree = MakeUnique<TFastWindingTree<MeshAdapterType>>(AABBTree.Get(), true);
+			}
+		}
+
+		return true;
 	}
 
 	virtual int32 GetTriangleCount() const override
 	{
-		if (!SourceMesh) return 0;
-		return Adapter->TriangleCount();
+		return Adapter ? Adapter->TriangleCount() : 0;
 	}
 
 	virtual bool IsTriangle(int32 TriId) const override
 	{
-		return SourceMesh ? Adapter->IsTriangle(TriId) : false;
+		return Adapter ? Adapter->IsTriangle(TriId) : false;
 	}
 
 	virtual FIndex3i GetTriangle(int32 TriId) const override
 	{
-		return SourceMesh ? Adapter->GetTriangle(TriId) : FIndex3i::Invalid();
+		return Adapter ? Adapter->GetTriangle(TriId) : FIndex3i::Invalid();
 	}
 
 	virtual bool HasNormals() const override
 	{
-		return SourceMesh ? Adapter->HasNormals() : false;
+		return Adapter ? Adapter->HasNormals() : false;
 	}
 
 	virtual bool HasUVs(const int UVLayer = 0) const override
 	{
-		return SourceMesh ? Adapter->HasUVs(UVLayer) : false;
+		return Adapter ? Adapter->HasUVs(UVLayer) : false;
 	}
 
 	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override
 	{
-		if (SourceMesh)
+		if (Adapter)
 		{
 			FVector3d P0, P1, P2;
 			Adapter->GetTriVertices(TriId, P0, P1, P2);
@@ -717,7 +1008,7 @@ public:
 
 	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const override
 	{
-		if (SourceMesh && Adapter->HasNormals())
+		if (Adapter && Adapter->HasNormals())
 		{
 			FIndex3i VertIds = Adapter->GetTriangle(TriId);
 			
@@ -731,7 +1022,7 @@ public:
 
 	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override
 	{
-		if (SourceMesh && Adapter->HasUVs(UVLayer))
+		if (Adapter && Adapter->HasUVs(UVLayer))
 		{
 			FVector2f UV0, UV1, UV2;
 			Adapter->GetTriUVs(TriId, UVLayer, UV0, UV1, UV2);
@@ -743,19 +1034,19 @@ public:
 
 	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
 	{
-		if (!SourceMesh) return FAxisAlignedBox3d::Empty();
-		return GetTransformedVertexBounds<TriangleMeshType>(*Adapter, LocalToWorldFunc);
+		if (!Adapter) return FAxisAlignedBox3d::Empty();
+		return GetTransformedVertexBounds<MeshAdapterType>(*Adapter, LocalToWorldFunc);
 	}
 
 	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
 	{
-		if (!SourceMesh) return;
-		CollectSeedPointsFromMeshVertices<TriangleMeshType>(*Adapter, LocalToWorldFunc, WorldPoints);
+		if (!Adapter) return;
+		CollectSeedPointsFromMeshVertices<MeshAdapterType>(*Adapter, LocalToWorldFunc, WorldPoints);
 	}
 
 	virtual double FastWindingNumber(const FVector3d& P, const FTransformSequence3d& LocalToWorldTransform) override
 	{
-		return (SourceMesh) ? FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P)) : 0.0;
+		return (Adapter) ? FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P)) : 0.0;
 	}
 
 	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) override
@@ -781,7 +1072,7 @@ public:
 	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
 	{
 		bool bContinue = true;
-		int32 NumVertices = (SourceMesh) ? Adapter->VertexCount() : 0;
+		int32 NumVertices = (Adapter) ? Adapter->VertexCount() : 0;
 		for (int32 vi = 0; vi < NumVertices && bContinue; ++vi)
 		{
 			if (Adapter->IsVertex(vi))
@@ -794,28 +1085,30 @@ public:
 
 	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) override
 	{
-		if (!SourceMesh) return;
+		if (!Adapter) return;
 
-#if WITH_EDITOR
-		// Fast path only works on non-filtered meshes
-		// as it relies on the mesh description directly rather than the adapter
-		bool bFilteredMesh = SourceMesh->Triangles().Num() != Adapter->TriangleCount();
-		if (!bFilteredMesh && AppendTo.TriangleCount() == 0 && TransformSeq.Num() == 0)
-		{
-			// this is somewhat faster in profiling
-			FMeshDescription* UseMeshDescription = StaticMesh->GetMeshDescription(LODIndex);
-			FMeshDescriptionToDynamicMesh Converter;
-			Converter.bEnableOutputGroups = false; Converter.bCalculateMaps = false;
-			Converter.bDisableAttributes = true;
-			Converter.Convert(UseMeshDescription, AppendTo);
-			MeshTransforms::Scale(AppendTo, BuildScale, FVector3d::Zero());
-			return;
-		}
-#endif
+		// TODO: need to move this to FStaticMeshSourceDataSpatialWrapper?
+//#if WITH_EDITOR
+//		// Fast path only works on non-filtered meshes
+//		// as it relies on the mesh description directly rather than the adapter
+//		bool bFilteredMesh = SourceMesh->Triangles().Num() != Adapter->TriangleCount();
+//		if (!bFilteredMesh && AppendTo.TriangleCount() == 0 && TransformSeq.Num() == 0)
+//		{
+//			// this is somewhat faster in profiling
+//			FMeshDescription* UseMeshDescription = StaticMesh->GetMeshDescription(LODIndex);
+//			FMeshDescriptionToDynamicMesh Converter;
+//			Converter.bEnableOutputGroups = false; Converter.bCalculateMaps = false;
+//			Converter.bDisableAttributes = true;
+//			Converter.Convert(UseMeshDescription, AppendTo);
+//			MeshTransforms::Scale(AppendTo, BuildScale, FVector3d::Zero());
+//			return;
+//		}
+//#endif
 
 		FDynamicMeshEditor Editor(&AppendTo);
 		FMeshIndexMappings Mappings;
-		TMeshDescriptionMeshAdapterd<TriangleMeshType> AdapterWrapper(*Adapter);
+		// this is necessary because the Editor.AppendMesh function is not a template and explicitly takes a FTriangleMeshAdapterd
+		TMeshWrapperAdapterd<MeshAdapterType> AdapterWrapper(Adapter.Get());
 		Editor.AppendMesh(&AdapterWrapper, Mappings,
 			[&](int, const FVector3d& Pos) { return TransformSeq.TransformPosition(Pos); });
 	}
@@ -824,24 +1117,245 @@ public:
 
 
 
-
-static TUniquePtr<IMeshSpatialWrapper> SpatialWrapperFactory( const FMeshTypeContainer& MeshContainer )
+class FStaticMeshSourceDataSpatialWrapper : public TStaticMeshSpatialWrapperBase<FMeshDescriptionTriangleMeshSurfaceAdapter>
 {
-#if WITH_EDITOR
-	if (MeshContainer.MeshType == ESceneMeshType::StaticMeshAsset)
-	{
-		TUniquePtr<TStaticMeshSpatialWrapper<FMeshDescriptionTriangleMeshSurfaceAdapter>> SMWrapper = MakeUnique<TStaticMeshSpatialWrapper<FMeshDescriptionTriangleMeshSurfaceAdapter>>();
+public:
+	FMeshDescription* CachedSourceMeshDescription = nullptr;
 
-		SMWrapper->SourceContainer = MeshContainer;
-		SMWrapper->StaticMesh = MeshContainer.GetStaticMesh();
-		if (ensure(SMWrapper->StaticMesh != nullptr))
+	virtual ~FStaticMeshSourceDataSpatialWrapper()
+	{
+#if WITH_EDITOR
+		// Release any MeshDescriptions that were loaded. This is potentially not ideal and should probably be controlled by the build options...
+		if (CachedSourceMeshDescription != nullptr)
 		{
-			return SMWrapper;
+			CachedSourceMeshDescription = nullptr;
+			StaticMesh->ClearMeshDescriptions();
+		}
+#endif
+	}
+
+
+	virtual TUniquePtr<FMeshDescriptionTriangleMeshSurfaceAdapter> MakeMeshAdapter(const FMeshSceneAdapterBuildOptions& BuildOptions) override
+	{
+#if WITH_EDITOR
+		CachedSourceMeshDescription = StaticMesh->GetMeshDescription(LODIndex);
+		return MakeUnique<FMeshDescriptionTriangleMeshSurfaceAdapter>(CachedSourceMeshDescription, StaticMesh, BuildOptions.bOnlySurfaceMaterials);
+#else
+		// cannot use this path in non-editor builds, but this should have been handled higher up by instantiating 
+		// the runtime subclass
+		check(false);
+		return nullptr;
+#endif
+	}
+
+};
+
+
+class FStaticMeshRenderDataSpatialWrapper : public TStaticMeshSpatialWrapperBase<FStaticMeshLODResourcesMeshSurfaceAdapter>
+{
+public:
+	virtual TUniquePtr<FStaticMeshLODResourcesMeshSurfaceAdapter> MakeMeshAdapter(const FMeshSceneAdapterBuildOptions& BuildOptions) override
+	{
+		return MakeUnique<FStaticMeshLODResourcesMeshSurfaceAdapter>(&StaticMesh->GetRenderData()->LODResources[0], StaticMesh, BuildOptions.bOnlySurfaceMaterials);
+	}
+};
+
+
+
+/**
+ * FCompressedStaticMeshSpatialWrapper mirrors the behavior of FStaticMeshSourceDataSpatialWrapper, but instead of
+ * using the underlying MeshDescription directly, it copies the mesh into a minimal indexed mesh (vert list and indexed tris)
+ * and then releases the MeshDescription memory. This is useful to limit the total memory usage of the MeshSceneAdapter
+ * in cases where only certain queries are needed. In particular, the UV and Normal queries
+ * are not available with this MeshSpatialWrapper. 
+ */
+class FCompressedStaticMeshSpatialWrapper : public IMeshSpatialWrapper
+{
+public:
+	UStaticMesh* StaticMesh = nullptr;
+
+	FColliderMesh ColliderMesh;
+	TUniquePtr<TMeshAABBTree3<FColliderMesh>> AABBTree;
+	TUniquePtr<TFastWindingTree<FColliderMesh>> FWNTree;
+
+	virtual bool Build(const FMeshSceneAdapterBuildOptions& BuildOptions) override
+	{
+		// this is because Build() will be called twice
+		if (ColliderMesh.TriangleCount() == 0)
+		{
+			TUniquePtr<FStaticMeshSourceDataSpatialWrapper> TempWrapper = MakeUnique<FStaticMeshSourceDataSpatialWrapper>();
+			TempWrapper->SourceContainer = SourceContainer;
+			TempWrapper->StaticMesh = StaticMesh;
+
+			FMeshSceneAdapterBuildOptions TempBuildOptions;
+			TempBuildOptions.bBuildSpatialDataStructures = false;	// we are just copying from this so do not build spatials
+			TempWrapper->Build(TempBuildOptions);
+
+			FDynamicMesh3 TempMesh(EMeshComponents::None);
+			TempWrapper->AppendMesh(TempMesh, FTransformSequence3d());
+
+#if WITH_EDITOR
+			// dump mesh description memory
+			StaticMesh->ClearMeshDescriptions();
+#endif
+
+			FColliderMesh::FBuildOptions ColliderBuildOptions;
+			ColliderBuildOptions.bBuildAABBTree = false;		// will use our own AABBTree so that we can defer build
+			ColliderMesh.Initialize(TempMesh, ColliderBuildOptions);
+		}
+
+		if (BuildOptions.bBuildSpatialDataStructures)
+		{
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMeshCompressed_AABBTree);
+				AABBTree = MakeUnique<TMeshAABBTree3<FColliderMesh>>(&ColliderMesh, true);
+			}
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_StaticMeshCompressed_FWNTree);
+				FWNTree = MakeUnique<TFastWindingTree<FColliderMesh>>(AABBTree.Get(), true);
+			}
+		}
+
+		return true;
+	}
+
+	virtual int32 GetTriangleCount() const override
+	{
+		return ColliderMesh.TriangleCount();
+	}
+
+	virtual bool IsTriangle(int32 TriId) const override
+	{
+		return ColliderMesh.IsTriangle(TriId);
+	}
+
+	virtual FIndex3i GetTriangle(int32 TriId) const override
+	{
+		return ColliderMesh.GetTriangle(TriId);
+	}
+
+	virtual bool HasNormals() const override { return false; }
+	virtual bool HasUVs(const int UVLayer = 0) const override { return false; }
+	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override { check(false); return FVector3d::Zero(); }
+	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const override { check(false); return false; }
+	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override { check(false); return false; }
+
+	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
+	{
+		return GetTransformedVertexBounds<FColliderMesh>(ColliderMesh, LocalToWorldFunc);
+	}
+
+	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
+	{
+		CollectSeedPointsFromMeshVertices<FColliderMesh>(ColliderMesh, LocalToWorldFunc, WorldPoints);
+	}
+
+	virtual double FastWindingNumber(const FVector3d& P, const FTransformSequence3d& LocalToWorldTransform) override
+	{
+		return FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P));
+	}
+
+	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) override
+	{
+		FVector3d LocalOrigin = LocalToWorldTransform.InverseTransformPosition(WorldRay.Origin);
+		FVector3d LocalDir = Normalized(LocalToWorldTransform.InverseTransformPosition(WorldRay.PointAt(1.0)) - LocalOrigin);
+		FRay3d LocalRay(LocalOrigin, LocalDir);
+
+		double LocalHitT; int32 HitTID; FVector3d HitBaryCoords;
+		if (AABBTree->FindNearestHitTriangle(LocalRay, LocalHitT, HitTID, HitBaryCoords))
+		{
+			WorldHitResultOut.HitMeshTriIndex = HitTID;
+			WorldHitResultOut.HitMeshSpatialWrapper = this;
+			FVector3d WorldPos = LocalToWorldTransform.TransformPosition(LocalRay.PointAt(LocalHitT));
+			WorldHitResultOut.RayDistance = WorldRay.GetParameter(WorldPos);
+			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
+			return true;
+		}
+		return false;
+	}
+
+
+	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
+	{
+		bool bContinue = true;
+		int32 NumVertices = ColliderMesh.VertexCount();
+		for (int32 vi = 0; vi < NumVertices && bContinue; ++vi)
+		{
+			if (ColliderMesh.IsVertex(vi))
+			{
+				bContinue = ProcessFunc(LocalToWorldTransform.TransformPosition(ColliderMesh.GetVertex(vi)));
+			}
+		}
+		return bContinue;
+	}
+
+	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) override
+	{
+		TArray<int32> NewVertIDs;
+		NewVertIDs.SetNum(ColliderMesh.VertexCount());
+		for (int32 k = 0; k < ColliderMesh.VertexCount(); ++k)
+		{
+			NewVertIDs[k] = AppendTo.AppendVertex(ColliderMesh.GetVertex(k));
+		}
+		for (int32 k = 0; k < ColliderMesh.TriangleCount(); ++k)
+		{
+			FIndex3i Tri = ColliderMesh.GetTriangle(k);
+			AppendTo.AppendTriangle(NewVertIDs[Tri.A], NewVertIDs[Tri.B], NewVertIDs[Tri.C]);
 		}
 	}
+
+};
+
+
+
+
+
+
+
+
+static TUniquePtr<IMeshSpatialWrapper> SpatialWrapperFactory( const FMeshTypeContainer& MeshContainer, const FMeshSceneAdapterBuildOptions& BuildOptions )
+{
+
+	if (MeshContainer.MeshType == ESceneMeshType::StaticMeshAsset)
+	{
+#if WITH_EDITOR
+		bool bUseRenderMeshes = BuildOptions.bIgnoreStaticMeshSourceData;
 #else
-	checkf(false, TEXT("Not currently supported - to build at Runtime it is necessary to read from the StaticMesh RenderBuffers"));
+		bool bUseRenderMeshes = true;
 #endif
+
+		if (bUseRenderMeshes)
+		{
+			TUniquePtr<FStaticMeshRenderDataSpatialWrapper> SMWrapper = MakeUnique<FStaticMeshRenderDataSpatialWrapper>();
+			SMWrapper->SourceContainer = MeshContainer;
+			SMWrapper->StaticMesh = MeshContainer.GetStaticMesh();
+			if (ensure(SMWrapper->StaticMesh != nullptr))
+			{
+				return SMWrapper;
+			}
+		}
+		else if (BuildOptions.bEnableUVQueries == false && BuildOptions.bEnableUVQueries == false)
+		{
+			TUniquePtr<FCompressedStaticMeshSpatialWrapper> SMWrapper = MakeUnique<FCompressedStaticMeshSpatialWrapper>();
+			SMWrapper->SourceContainer = MeshContainer;
+			SMWrapper->StaticMesh = MeshContainer.GetStaticMesh();
+			if (ensure(SMWrapper->StaticMesh != nullptr))
+			{
+				return SMWrapper;
+			}
+		}
+		else
+		{
+			TUniquePtr<FStaticMeshSourceDataSpatialWrapper> SMWrapper = MakeUnique<FStaticMeshSourceDataSpatialWrapper>();
+			SMWrapper->SourceContainer = MeshContainer;
+			SMWrapper->StaticMesh = MeshContainer.GetStaticMesh();
+			if (ensure(SMWrapper->StaticMesh != nullptr))
+			{
+				return SMWrapper;
+			}
+		}
+
+	}
 
 	return TUniquePtr<IMeshSpatialWrapper>();
 }
@@ -907,6 +1421,7 @@ static void CollectComponentChildMeshes(UActorComponent* Component, FActorAdapte
 
 }	// end namespace UE
 }	// end namespace Geometry
+
 
 
 void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)
@@ -985,7 +1500,7 @@ void FMeshSceneAdapter::InitializeSpatialWrappers(const TArray<FActorAdapter*>& 
 				SpatialAdapters.Add(MeshKey, NewWrapperInfo);
 
 				NewWrapperInfo->SourceContainer = ChildMesh->MeshContainer;
-				NewWrapperInfo->SpatialWrapper = SpatialWrapperFactory(ChildMesh->MeshContainer);
+				NewWrapperInfo->SpatialWrapper = nullptr;	// these are now initialized at beginning of Build() function
 				MeshInfo = NewWrapperInfo.Get();
 			}
 			else
@@ -1007,6 +1522,12 @@ void FMeshSceneAdapter::InitializeSpatialWrappers(const TArray<FActorAdapter*>& 
 void FMeshSceneAdapter::Build(const FMeshSceneAdapterBuildOptions& BuildOptions)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_Build);
+
+	// Initialize all Spatial Wrappers using the default factory
+	for (TPair<void*, TSharedPtr<FSpatialWrapperInfo>> Pair : SpatialAdapters)
+	{
+		Pair.Value->SpatialWrapper = SpatialWrapperFactory(Pair.Value->SourceContainer, BuildOptions);
+	}
 
 	if (BuildOptions.bThickenThinMeshes)
 	{
@@ -1143,6 +1664,8 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 {
 	EParallelForFlags ParallelFlags = (CVarMeshSceneAdapterDisableMultiThreading.GetValueOnAnyThread() != 0) ?
 		EParallelForFlags::ForceSingleThread : EParallelForFlags::Unbalanced;
+
+	bool bCanUseCompressedMeshes = (BuildOptions.bEnableUVQueries == false && BuildOptions.bEnableNormalsQueries == false);
 
 	// initial list of spatial wrappers that need to be built
 	TArray<FSpatialWrapperInfo*> ToBuild;
@@ -1432,18 +1955,25 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 		ItemStats.TotalNumUniqueTris += ItemStats.InstancedSubmeshTris;
 
 		// First handle the LocalSpaceParts mesh, which can still be shared between the original FActorChildMesh instances
-		if (LocalSpaceParts.TriangleCount() > 0)
+		int32 LocalSpacePartsTriangleCount = LocalSpaceParts.TriangleCount();
+		if (LocalSpacePartsTriangleCount > 0)
 		{
-			TUniquePtr<FDynamicMeshSpatialWrapper> LocalSpaceMeshWrapper = MakeUnique<FDynamicMeshSpatialWrapper>();
-			LocalSpaceMeshWrapper->Mesh = MoveTemp(LocalSpaceParts);
-			AddBuildJob(LocalSpaceMeshWrapper.Get(), LocalSpaceMeshWrapper->Mesh.TriangleCount());
-			WrapperInfo->SpatialWrapper = MoveTemp(LocalSpaceMeshWrapper);
+			if (bCanUseCompressedMeshes)
+			{
+				WrapperInfo->SpatialWrapper = MakeUnique<FCompressedMeshSpatialWrapper>(MoveTemp(LocalSpaceParts));
+			}
+			else
+			{
+				WrapperInfo->SpatialWrapper = MakeUnique<FDynamicMeshSpatialWrapper>(MoveTemp(LocalSpaceParts));
+			}
+
+			AddBuildJob(WrapperInfo->SpatialWrapper.Get(), LocalSpacePartsTriangleCount);
 			for (FActorChildMesh* MeshInstance : MeshesToDecompose)
 			{
 				MeshInstance->MeshSpatial = WrapperInfo->SpatialWrapper.Get();
 			}
 			InternalListsLock.Lock();
-			InstancedTrisCount += LocalSpaceParts.TriangleCount() * ParentTransforms.Num();
+			InstancedTrisCount += LocalSpacePartsTriangleCount * ParentTransforms.Num();
 			InternalListsLock.Unlock();
 		}
 		else
@@ -1476,29 +2006,41 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 			TUniquePtr<FActorAdapter> NewActor = MakeUnique<FActorAdapter>();
 			NewActor->SourceActor = nullptr;		// not a "real" actor
 
+			int32 SubmeshTriangleCount = Submesh.Mesh->TriangleCount();
+			ensure(SubmeshTriangleCount > 0);
+
 			// make new spatialwrapper for this instanced mesh
-			TUniquePtr<FDynamicMeshSpatialWrapper> NewInstancedMesh = MakeUnique<FDynamicMeshSpatialWrapper>();
-			int32 TriangleCount = Submesh.Mesh->TriangleCount();
-			NewInstancedMesh->Mesh = MoveTemp(*Submesh.Mesh);
-			NewInstancedMesh->bHasBakedTransform = false;
-			NewInstancedMesh->bHasBakedScale = true;
-			// queue up build job
-			AddBuildJob(NewInstancedMesh.Get(), TriangleCount);
+			TUniquePtr<FBaseMeshSpatialWrapper> NewSpatialWrapper;
+			if (bCanUseCompressedMeshes)
+			{
+				NewSpatialWrapper = MakeUnique<FCompressedMeshSpatialWrapper>(MoveTemp(*Submesh.Mesh));
+			}
+			else
+			{
+				NewSpatialWrapper = MakeUnique<FDynamicMeshSpatialWrapper>(MoveTemp(*Submesh.Mesh));
+			}
+
+			// configure flags
+			NewSpatialWrapper->bHasBakedTransform = false;
+			NewSpatialWrapper->bHasBakedScale = true;
 			// if mesh is too thin, configure the extra shell offset based on 'missing' thickness
 			if (Submesh.ComputedThickness < BuildOptions.DesiredMinThickness)
 			{
-				NewInstancedMesh->bUseDistanceShellForWinding = true;
-				NewInstancedMesh->WindingShellThickness = 0.5 * (BuildOptions.DesiredMinThickness - Submesh.ComputedThickness);
-				NewInstancedMesh->bRequiresWindingQueryFallback = (NewInstancedMesh->WindingShellThickness < 0.6*BuildOptions.DesiredMinThickness);
+				NewSpatialWrapper->bUseDistanceShellForWinding = true;
+				NewSpatialWrapper->WindingShellThickness = 0.5 * (BuildOptions.DesiredMinThickness - Submesh.ComputedThickness);
+				NewSpatialWrapper->bRequiresWindingQueryFallback = (NewSpatialWrapper->WindingShellThickness < 0.6*BuildOptions.DesiredMinThickness);
 			}
 
 			TSharedPtr<FSpatialWrapperInfo> NewWrapperInfo = MakeShared<FSpatialWrapperInfo>();
-			NewWrapperInfo->SpatialWrapper = MoveTemp(NewInstancedMesh);
+			NewWrapperInfo->SpatialWrapper = MoveTemp(NewSpatialWrapper);
+
+			// queue up build job
+			AddBuildJob(NewWrapperInfo->SpatialWrapper.Get(), SubmeshTriangleCount);
 
 			// add to internal lists
 			InternalListsLock.Lock();
-			AddedUniqueTrisCount += TriangleCount;
-			InstancedTrisCount += TriangleCount * Submesh.NewTransforms.Num();
+			AddedUniqueTrisCount += SubmeshTriangleCount;
+			InstancedTrisCount += SubmeshTriangleCount * Submesh.NewTransforms.Num();
 			void* UseKey = (void*)NewWrapperInfo->SpatialWrapper.Get();
 			SpatialAdapters.Add(UseKey, NewWrapperInfo);
 			InternalListsLock.Unlock();
@@ -1520,10 +2062,10 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 				NewInstancesCount++;
 			}
 
-			ItemStats.SubmeshSizeCount.Add(FVector2i(TriangleCount, Submesh.NewTransforms.Num()));
+			ItemStats.SubmeshSizeCount.Add(FVector2i(SubmeshTriangleCount, Submesh.NewTransforms.Num()));
 			ItemStats.NewInstances += Submesh.NewTransforms.Num();
-			ItemStats.NewUniqueTris += TriangleCount;
-			ItemStats.TotalNumUniqueTris += TriangleCount;
+			ItemStats.NewUniqueTris += SubmeshTriangleCount;
+			ItemStats.TotalNumUniqueTris += SubmeshTriangleCount;
 
 			// add actor our actor set
 			InternalListsLock.Lock();
