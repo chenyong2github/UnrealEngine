@@ -252,7 +252,7 @@ void UPolyEditBevelEdgeActivity::ApplyBevel()
 
 	if (ResultMesh->TriangleCount() == 0)
 	{
-		ParentTool->GetToolManager()->DisplayMessage( LOCTEXT("OnBevelFailedMessage", "Bevel created empty mesh, ignoring"), EToolMessageLevel::UserWarning);
+		ParentTool->GetToolManager()->DisplayMessage( LOCTEXT("OnBevelEmptyMeshMessage", "Bevel created empty mesh, ignoring"), EToolMessageLevel::UserWarning);
 		// Reset the preview
 		ActivityContext->Preview->PreviewMesh->UpdatePreview(ActivityContext->CurrentMesh.Get());
 		return;

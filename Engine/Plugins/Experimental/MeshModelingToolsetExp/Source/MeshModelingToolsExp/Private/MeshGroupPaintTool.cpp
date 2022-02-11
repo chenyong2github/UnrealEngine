@@ -1229,7 +1229,7 @@ void UMeshGroupPaintTool::ToggleFrozenGroup(int32 FreezeGroupID)
 			TempROIBuffer.Add(tid);
 		}
 	}
-	EmitFrozenGroupsChange(InitialFrozenGroups, FrozenGroups, LOCTEXT("ToggleFrozenGroup", "Toggle Frozen Group"));
+	EmitFrozenGroupsChange(InitialFrozenGroups, FrozenGroups, LOCTEXT("ToggleFrozenGroupChange", "Toggle Frozen Group"));
 	DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(TempROIBuffer, EMeshRenderAttributeFlags::VertexColors);
 	GetToolManager()->PostInvalidation();
 }

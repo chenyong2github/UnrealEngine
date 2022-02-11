@@ -343,7 +343,7 @@ TSharedPtr<SWidget> FVertexBrushSculptPropertiesDetails::MakeFreezeTargetWidget(
 				SNew(STextBlock)
 				.Justification(ETextJustify::Center)
 				.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-				.Text_Lambda( [this] { return IsFreezeTargetEnabled() ? LOCTEXT("FreezeTarget", "UnFreeze Target") : LOCTEXT("FreezeTarget", "Freeze Target"); } )
+				.Text_Lambda( [this] { return IsFreezeTargetEnabled() ? LOCTEXT("UnFreezeTarget", "UnFreeze Target") : LOCTEXT("FreezeTarget", "Freeze Target"); } )
 			]
 		];
 }

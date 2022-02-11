@@ -194,7 +194,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	if (!ensure(MeshDescription != nullptr))
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs,
-			FText::Format(LOCTEXT("CopyMeshToAsset_EngineAsset", "CopyMeshToAsset: MeshDescription for LOD {0} is null?"), FText::AsNumber(UseLODIndex)));
+			FText::Format(LOCTEXT("CopyMeshToAsset_NullMeshDescription", "CopyMeshToAsset: MeshDescription for LOD {0} is null?"), FText::AsNumber(UseLODIndex)));
 		return FromDynamicMesh;
 	}
 
