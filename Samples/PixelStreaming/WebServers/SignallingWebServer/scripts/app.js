@@ -462,8 +462,6 @@ function playVideoStream() {
         requestQualityControl();
         showFreezeFrameOverlay();
         hideOverlay();
-    } else {
-        console.error("Could not player video stream because webRtcPlayerObj.video was not valid.")
     }
 }
 
@@ -611,6 +609,13 @@ function setupWebRtcPlayer(htmlElement, config) {
             let answerStr = JSON.stringify(answer);
             console.log("%c[Outbound SS message (answer)]", "background: lightgreen; color: black", answer);
             ws.send(answerStr);
+
+            if (webRtcPlayerObj.sfu) {
+                // request a data channel (change to as needed based on *something* or just later)
+                const requestMsg = { type: "dataChannelRequest" };
+                console.log("%c[Outbound SS message (dataChannelRequest)]", "background: lightgreen; color: black", requestMsg);
+                ws.send(JSON.stringify(requestMsg));
+            }
         }
     };
 
@@ -629,7 +634,7 @@ function setupWebRtcPlayer(htmlElement, config) {
 
     webRtcPlayerObj.onDataChannelConnected = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
-            showTextOverlay('WebRTC data channel connected... waiting for video');
+            console.log("Data channel connected")
             requestQualityControl();
         }
     };
@@ -1063,6 +1068,10 @@ function onWebRtcOffer(webRTCData) {
 function onWebRtcAnswer(webRTCData) {
     webRtcPlayerObj.receiveAnswer(webRTCData);
     setupStats();
+}
+
+function onWebRtcDatachannel(webRTCData) {
+    webRtcPlayerObj.receiveData(webRTCData);
 }
 
 function onWebRtcIce(iceCandidate) {
@@ -2085,6 +2094,8 @@ function connect() {
             onWebRtcIce(msg.candidate);
         } else if(msg.type === 'warning' && msg.warning) {
             console.warn(msg.warning);
+        } else if (msg.type === 'peerDataChannels') {
+            onWebRtcDatachannel(msg);
         } else {
             console.error("Invalid SS message type", msg.type);
         }

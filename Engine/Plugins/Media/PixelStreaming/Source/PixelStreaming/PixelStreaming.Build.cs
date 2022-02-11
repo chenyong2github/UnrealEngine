@@ -12,44 +12,20 @@ namespace UnrealBuildTool.Rules
 	{
 		const string PixelStreamingProgramsDirectory = "../../Samples/PixelStreaming";
 
-		private void AddSignallingServer()
+		private void AddFolder(string Folder)
 		{
-			string SignallingServerDir = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/SignallingWebServer").FullName;
+			string DirectoryToAdd = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/" + Folder).FullName;
 
-			if (!Directory.Exists(SignallingServerDir))
+			if (!Directory.Exists(DirectoryToAdd))
 			{
 				return;
 			}
 
 			List<string> DependenciesToAdd = new List<string>();
-			DependenciesToAdd.AddRange(Directory.GetFiles(SignallingServerDir, "*.*", SearchOption.AllDirectories));
+			DependenciesToAdd.AddRange(Directory.GetFiles(DirectoryToAdd, "*.*", SearchOption.AllDirectories));
 
-			string NodeModulesDirPath = new DirectoryInfo(SignallingServerDir + "/node_modules").FullName;
-			string LogsDirPath = new DirectoryInfo(SignallingServerDir + "/logs").FullName;
-			foreach (string Dependency in DependenciesToAdd)
-			{
-				if (!Dependency.StartsWith(NodeModulesDirPath) &&
-					!Dependency.StartsWith(LogsDirPath))
-				{
-					RuntimeDependencies.Add(Dependency, StagedFileType.NonUFS);
-				}
-			}
-		}
-
-		private void AddMatchmakingServer()
-		{
-			string MatchmakingServerDir = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/Matchmaker").FullName;
-
-			if (!Directory.Exists(MatchmakingServerDir))
-			{
-				return;
-			}
-
-			List<string> DependenciesToAdd = new List<string>();
-			DependenciesToAdd.AddRange(Directory.GetFiles(MatchmakingServerDir, "*.*", SearchOption.AllDirectories));
-
-			string NodeModulesDirPath = new DirectoryInfo(MatchmakingServerDir + "/node_modules").FullName;
-			string LogsDirPath = new DirectoryInfo(MatchmakingServerDir + "/logs").FullName;
+			string NodeModulesDirPath = new DirectoryInfo(DirectoryToAdd + "/node_modules").FullName;
+			string LogsDirPath = new DirectoryInfo(DirectoryToAdd + "/logs").FullName;
 			foreach (string Dependency in DependenciesToAdd)
 			{
 				if (!Dependency.StartsWith(NodeModulesDirPath) &&
@@ -137,8 +113,9 @@ namespace UnrealBuildTool.Rules
 				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
 			}
 
-			AddSignallingServer();
-			AddMatchmakingServer();
+			AddFolder("SignallingWebServer");
+			AddFolder("Matchmaker");
+			AddFolder("SFU");
 		}
 	}
 }

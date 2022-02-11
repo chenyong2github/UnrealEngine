@@ -109,7 +109,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 
 			if (RHIName == TEXT("D3D11"))
 			{	
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height, true, IsRHIDeviceAMD()).ToSharedRef();
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceAMD()).ToSharedRef();
 				
 				if (Result && !Result->Setup(Input, config))
 				{
@@ -119,7 +119,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 			}
 			else if (RHIName == TEXT("D3D12"))
 			{				
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height, true, IsRHIDeviceNVIDIA()).ToSharedRef();
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceNVIDIA()).ToSharedRef();
 				
 				if (Result && !Result->Setup(Input, config))
 				{
@@ -134,7 +134,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 															static_cast<VkPhysicalDevice>(GDynamicRHI->RHIGetNativePhysicalDevice()), 
 															static_cast<VkDevice>(GDynamicRHI->RHIGetNativeDevice())};
 
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForVulkan( &VulkanData, config.Width, config.Height, true).ToSharedRef();
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForVulkan( &VulkanData, true).ToSharedRef();
 				
 				if (Result && !Result->Setup(Input, config))
 				{

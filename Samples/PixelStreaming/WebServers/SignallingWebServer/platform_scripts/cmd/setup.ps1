@@ -84,7 +84,7 @@ Push-Location $PSScriptRoot
 Write-Host "Checking for  Coturn..." -NoNewLine
 if (-not(Test-Path -Path coturn/turnserver.exe -PathType Leaf)) {
     Write-Host " ...installing... " -NoNewLine
-    curl -o ./turnserver.zip https://github.com/mcottontensor/coturn/releases/download/v4.5.2-windows/turnserver.zip
+    Invoke-WebRequest -Uri https://github.com/mcottontensor/coturn/releases/download/v4.5.2-windows/turnserver.zip -OutFile ./turnserver.zip
     Expand-Archive -Path ./turnserver.zip -DestinationPath ./coturn
     Remove-Item -Path ./turnserver.zip
     Write-Host " ...done. "

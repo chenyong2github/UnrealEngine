@@ -6,9 +6,8 @@
 #include "VideoEncoderFactory.h"
 #include "EncoderFactory.h"
 
-UE::PixelStreaming::FVideoEncoderH264Wrapper::FVideoEncoderH264Wrapper(uint64 EncoderId, TUniquePtr<FEncoderFrameFactory> InFrameFactory, TUniquePtr<AVEncoder::FVideoEncoder> InEncoder)
-	: Id(EncoderId)
-	, FrameFactory(MoveTemp(InFrameFactory))
+UE::PixelStreaming::FVideoEncoderH264Wrapper::FVideoEncoderH264Wrapper(TUniquePtr<FEncoderFrameFactory> InFrameFactory, TUniquePtr<AVEncoder::FVideoEncoder> InEncoder)
+	: FrameFactory(MoveTemp(InFrameFactory))
 	, Encoder(MoveTemp(InEncoder)) 
 {
 	checkf(Encoder, TEXT("Encoder is nullptr."))
@@ -32,7 +31,7 @@ void UE::PixelStreaming::FVideoEncoderH264Wrapper::Encode(const webrtc::VideoFra
 	if (SourceTexture)
 	{
 		AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig = GetCurrentConfig();
-		AVEncoder::FVideoEncoderInputFrame* EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(EncoderConfig.Width, EncoderConfig.Height, SourceTexture);
+		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(SourceTexture);
 		if (EncoderInputFrame)
 		{
 			EncoderInputFrame->SetTimestampUs(WebRTCFrame.timestamp_us());
@@ -59,9 +58,9 @@ AVEncoder::FVideoEncoder::FLayerConfig UE::PixelStreaming::FVideoEncoderH264Wrap
 void UE::PixelStreaming::FVideoEncoderH264Wrapper::SetConfig(const AVEncoder::FVideoEncoder::FLayerConfig& NewConfig)
 {
 	checkf(Encoder, TEXT("Cannot set layer config when encoder is nullptr."));
-
+	AVEncoder::FVideoEncoder::FLayerConfig CurrentConfig = GetCurrentConfig();
 	// Assumer user wants to update layer zero.
-	if (NewConfig != GetCurrentConfig())
+	if (NewConfig != CurrentConfig)
 	{
 		if (Encoder)
 		{
@@ -72,7 +71,7 @@ void UE::PixelStreaming::FVideoEncoderH264Wrapper::SetConfig(const AVEncoder::FV
 
 /* ------------------ Static functions below --------------------- */
 
-void UE::PixelStreaming::FVideoEncoderH264Wrapper::OnEncodedPacket(uint64 SourceEncoderId, UE::PixelStreaming::FVideoEncoderFactory* Factory, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
+void UE::PixelStreaming::FVideoEncoderH264Wrapper::OnEncodedPacket(UE::PixelStreaming::FVideoEncoderFactory* Factory, uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, const AVEncoder::FCodecPacket& InPacket)
 {
 	webrtc::EncodedImage Image;
 
@@ -113,5 +112,5 @@ void UE::PixelStreaming::FVideoEncoderH264Wrapper::OnEncodedPacket(uint64 Source
 	CodecInfo.codecSpecific.H264.idr_frame = InPacket.IsKeyFrame;
 	CodecInfo.codecSpecific.H264.base_layer_sync = false;
 
-	Factory->OnEncodedImage(SourceEncoderId, Image, &CodecInfo, &FragHeader);
+	Factory->OnEncodedImage(Image, &CodecInfo, &FragHeader);
 }

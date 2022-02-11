@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "WebRTCIncludes.h"
+#include "EncoderFactory.h"
 
 namespace webrtc
 {
@@ -19,7 +20,7 @@ namespace UE {
 		class FSimulcastEncoderAdapter : public webrtc::VideoEncoder
 		{
 		public:
-			FSimulcastEncoderAdapter(webrtc::VideoEncoderFactory* primary_factory, const webrtc::SdpVideoFormat& format);
+			FSimulcastEncoderAdapter(FSimulcastEncoderFactory& InSimulcastFactory, const webrtc::SdpVideoFormat& format);
 			~FSimulcastEncoderAdapter() override;
 
 			// Implements VideoEncoder.
@@ -75,9 +76,10 @@ namespace UE {
 			bool IsInitialized() const;
 
 			TAtomic<bool> Initialized;
-			webrtc::VideoEncoderFactory* const PrimaryEncoderFactory;
+			FSimulcastEncoderFactory& SimulcastEncoderFactory;
 			const webrtc::SdpVideoFormat VideoFormat;
 			webrtc::VideoCodec CurrentCodec;
+			FCriticalSection StreamInfosGuard;
 			std::vector<StreamInfo> StreamInfos;
 			webrtc::EncodedImageCallback* EncodedCompleteCallback;
 

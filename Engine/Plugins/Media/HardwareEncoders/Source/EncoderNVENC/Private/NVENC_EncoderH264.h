@@ -24,7 +24,7 @@ namespace AVEncoder
 		// Register encoder with video encoder factory
 		static void Register(FVideoEncoderFactory& InFactory);
 
-		void Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions) override;
+		void Encode(const TSharedPtr<FVideoEncoderInputFrame> InFrame, const FEncodeOptions& EncodeOptions) override;
 		void Flush();
 
 	protected:
@@ -40,7 +40,7 @@ namespace AVEncoder
 		public:
 			struct FInputOutput
 			{
-				const AVEncoder::FVideoEncoderInputFrameImpl* SourceFrame = nullptr;
+				TSharedPtr<AVEncoder::FVideoEncoderInputFrameImpl> SourceFrame = nullptr;
 				void* InputTexture = nullptr;
 				uint32 Width = 0;
 				uint32 Height = 0;
@@ -68,14 +68,14 @@ namespace AVEncoder
 			void MaybeReconfigure();
 			void UpdateConfig();
 			void UpdateLastEncodedQP(uint32 InLastEncodedQP);
-			void Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions);
+			void Encode(const TSharedPtr<FVideoEncoderInputFrame> InFrame, const FEncodeOptions& EncodeOptions);
 			void EncodeBuffer(FInputOutput* Buffer);
 			void ProcessEncodedBuffer(FInputOutput* Buffer);
 			void Flush();
 			void Shutdown();
 			void UpdateBitrate(uint32 InMaxBitRate, uint32 InTargetBitRate);
 			void UpdateResolution(uint32 InMaxBitRate, uint32 InTargetBitRate);
-			FInputOutput* GetOrCreateBuffer(const FVideoEncoderInputFrameImpl* InFrame);
+			FInputOutput* GetOrCreateBuffer(const TSharedPtr<FVideoEncoderInputFrameImpl> InFrame);
 			FInputOutput* CreateBuffer();
 			void DestroyBuffer(FInputOutput* InBuffer);
 			bool RegisterInputTexture(FInputOutput* InBuffer);
@@ -98,8 +98,10 @@ namespace AVEncoder
 			FDateTime LastKeyFrameTime = 0;
 			bool bForceNextKeyframe = false;
 			uint32 LastEncodedQP = 0;
-			FInputOutput* InputOutputBuffer = nullptr;
+
+		private:
 			FThreadSafeBool bIsProcessingFrame = false;
+			FInputOutput* InputOutputBuffer = nullptr;
 		};
 
 		FNVENCCommon& NVENC;

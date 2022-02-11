@@ -106,9 +106,9 @@ private:
 	void UpdateVideoConfig();
 
 	void OnEncodedAudioFrame(const AVEncoder::FMediaPacket& Packet) override;
-	void OnEncodedVideoFrame(uint32 LayerIndex, const AVEncoder::FVideoEncoderInputFrame* Frame, const AVEncoder::FCodecPacket& Packet);
+	void OnEncodedVideoFrame(uint32 LayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame, const AVEncoder::FCodecPacket& Packet);
 
-	AVEncoder::FVideoEncoderInputFrame* ObtainInputFrame();
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> ObtainInputFrame();
 	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
 
 	void FloatToPCM16(float const* floatSamples, int32 numSamples, TArray<int16>& out) const;
@@ -149,6 +149,6 @@ private:
 	FThreadSafeBool bChangeFramerate = false;
 
 	TArray<int16> PCM16;
-	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
+	TMap<TSharedPtr<AVEncoder::FVideoEncoderInputFrame>, FTexture2DRHIRef> BackBuffers;
 };
 

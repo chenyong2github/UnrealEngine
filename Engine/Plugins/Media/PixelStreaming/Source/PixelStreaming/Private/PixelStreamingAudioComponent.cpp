@@ -24,8 +24,8 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 		UE_LOG(LogPixelStreaming, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
 	}
 
-	NumChannels = 1; //2 channels seem to cause problems
 	PreferredBufferLength = 512u;
+	NumChannels = 2;
 	PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
 	SetComponentTickEnabled(bPixelStreamingLoaded);
 	bAutoActivate = true;
@@ -34,6 +34,7 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 ISoundGeneratorPtr UPixelStreamingAudioComponent::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	SoundGenerator->SetParameters(InParams);
+	Initialize(InParams.SampleRate);
 	return SoundGenerator;
 }
 
@@ -107,20 +108,23 @@ bool UPixelStreamingAudioComponent::WillListenToAnyPlayer()
 
 void UPixelStreamingAudioComponent::ConsumeRawPCM(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames)
 {
-	if (SoundGenerator->GetSampleRate() != InSampleRate || SoundGenerator->GetNumChannels() != NChannels)
+	// Sound generator has not been initialized yet.
+	if (SoundGenerator->GetSampleRate() == 0 || GetAudioComponent() == nullptr)
 	{
-		SoundGenerator->UpdateChannelsAndSampleRate(NChannels, InSampleRate);
-
-		//this is the smallest buffer size we can set without triggering internal checks to fire
-		PreferredBufferLength = FGenericPlatformMath::Max(512.0f, InSampleRate * NChannels / 100.0f);
-
-		NumChannels = NChannels;
-		Initialize(InSampleRate);
+		return;
 	}
-	else
+
+	// Set pitch multiplier as a way to handle mismatched sample rates
+	if (InSampleRate != SoundGenerator->GetSampleRate())
 	{
-		SoundGenerator->AddAudio(AudioData, InSampleRate, NChannels, NFrames);
+		GetAudioComponent()->SetPitchMultiplier((float)InSampleRate / SoundGenerator->GetSampleRate());
 	}
+	else if (GetAudioComponent()->PitchMultiplier != 1.0f)
+	{
+		GetAudioComponent()->SetPitchMultiplier(1.0f);
+	}
+
+	SoundGenerator->AddAudio(AudioData, InSampleRate, NChannels, NFrames);
 }
 
 void UPixelStreamingAudioComponent::OnConsumerAdded()
@@ -169,32 +173,17 @@ FWebRTCSoundGenerator::FWebRTCSoundGenerator()
 void FWebRTCSoundGenerator::SetParameters(const FSoundGeneratorInitParams& InitParams)
 {
 	Params = InitParams;
-	UpdateChannelsAndSampleRate(Params.NumChannels, Params.SampleRate);
+}
+
+int32 FWebRTCSoundGenerator::GetDesiredNumSamplesToRenderPerCallback() const
+{
+	return Params.NumFramesPerCallback * Params.NumChannels;
 }
 
 void FWebRTCSoundGenerator::EmptyBuffers()
 {
 	FScopeLock Lock(&CriticalSection);
 	Buffer.Empty();
-}
-
-bool FWebRTCSoundGenerator::UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate)
-{
-
-	if (InNumChannels != Params.NumChannels || InSampleRate != Params.SampleRate)
-	{
-
-		// Critical Section - empty buffer because sample rate/num channels changed
-		FScopeLock Lock(&CriticalSection);
-		Buffer.Empty();
-
-		Params.NumChannels = InNumChannels;
-		Params.SampleRate = InSampleRate;
-
-		return true;
-	}
-
-	return false;
 }
 
 void FWebRTCSoundGenerator::AddAudio(const int16_t* AudioData, int InSampleRate, size_t NChannels, size_t NFrames)
@@ -204,25 +193,12 @@ void FWebRTCSoundGenerator::AddAudio(const int16_t* AudioData, int InSampleRate,
 		return;
 	}
 
-	// Trigger a latent update for channels and sample rate, if required
-	bool bSampleRateOrChannelMismatch = UpdateChannelsAndSampleRate(NChannels, InSampleRate);
-
-	// If there was a mismatch then skip this incoming audio until this the samplerate/channels update is completed on the gamethread
-	if (bSampleRateOrChannelMismatch)
-	{
-		return;
-	}
-
-	// Copy into our local TArray<int16_t> Buffer;
 	int NSamples = NFrames * NChannels;
 
-	// Critical Section
-	{
-		FScopeLock Lock(&CriticalSection);
-		Buffer.Append(AudioData, NSamples);
-		// checkf((uint32)Buffer.Num() < SampleRate,
-		// 	TEXT("Pixel Streaming Audio Component internal buffer is getting too big, for some reason OnGenerateAudio is not consuming samples quickly enough."))
-	}
+	// Critical Section as we are writing into the `Buffer` that `ISoundGenerator` is using on another thread.
+	FScopeLock Lock(&CriticalSection);
+
+	Buffer.Append(AudioData, NSamples);
 }
 
 // Called when a new buffer is required.
@@ -241,15 +217,15 @@ int32 FWebRTCSoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		int32 NumSamplesToCopy = FGenericPlatformMath::Min(NumSamples, Buffer.Num());
 
 		// Copy from local buffer into OutAudio if we have enough samples
-		for (int SampleIndex = 0; SampleIndex < NumSamplesToCopy; SampleIndex++)
+		for (int i = 0; i < NumSamplesToCopy; i++)
 		{
-			// Convert from int16 to float audio
-			*OutAudio = ((float)Buffer[SampleIndex]) / 32767.0f;
+			*OutAudio = Buffer[i] / 32767.0f;
 			OutAudio++;
 		}
 
 		// Remove front NumSamples from the local buffer
 		Buffer.RemoveAt(0, NumSamplesToCopy, false);
+
 		return NumSamplesToCopy;
 	}
 }

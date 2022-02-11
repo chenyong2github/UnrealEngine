@@ -139,6 +139,11 @@ namespace UE
 					Initialize(FrameBuffer->GetSizeXY().X * FrameScale, FrameBuffer->GetSizeXY().Y * FrameScale);
 				}
 
+				if ((FrameBuffer->GetSizeXY().X * FrameScale != SourceWidth) || (FrameBuffer->GetSizeXY().Y * FrameScale != SourceHeight))
+				{
+					Initialize(FrameBuffer->GetSizeXY().X * FrameScale, FrameBuffer->GetSizeXY().Y * FrameScale);
+				}
+
 				if (!IsEnabled())
 				{
 					return;

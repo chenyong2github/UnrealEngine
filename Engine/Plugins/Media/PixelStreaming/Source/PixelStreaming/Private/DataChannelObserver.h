@@ -7,45 +7,43 @@
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
 
-namespace UE {
-	namespace PixelStreaming {
-		class IPixelStreamingSessions;
-		class FInputDevice;
+namespace UE::PixelStreaming
+{
+	class FPlayerSessions;
+	class FInputDevice;
 
-		// Observer on a particular player/peer's data channel.
-		class FDataChannelObserver : public webrtc::DataChannelObserver
-		{
+	// Observer on a particular player/peer's data channel.
+	class FDataChannelObserver : public webrtc::DataChannelObserver
+	{
 
-		public:
-			FDataChannelObserver(IPixelStreamingSessions* InSessions, FPixelStreamingPlayerId InPlayerId);
+	public:
+		FDataChannelObserver(FPlayerSessions* InSessions, FPixelStreamingPlayerId InPlayerId);
 
-			// Begin webrtc::DataChannelObserver
+		// Begin webrtc::DataChannelObserver
 
-			// The data channel state have changed.
-			virtual void OnStateChange() override;
+		// The data channel state have changed.
+		virtual void OnStateChange() override;
 
-			//  A data buffer was successfully received.
-			virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
+		//  A data buffer was successfully received.
+		virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
 
-			// The data channel's buffered_amount has changed.
-			virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
+		// The data channel's buffered_amount has changed.
+		virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
 
-			// End webrtc::DataChannelObserver
+		// End webrtc::DataChannelObserver
 
-			void SendInitialSettings() const;
+		void SendInitialSettings() const;
 
-			void Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel);
-			void Unregister();
+		void Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel);
+		void Unregister();
 
-		private:
-			void SendLatencyReport() const;
-			
+	private:
+		void SendLatencyReport() const;
 
-		private:
-			rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
-			IPixelStreamingSessions* PlayerSessions;
-			FPixelStreamingPlayerId PlayerId;
-			FInputDevice& InputDevice;
-		};
-	}
-}
+	private:
+		rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
+		FPlayerSessions* PlayerSessions;
+		FPixelStreamingPlayerId PlayerId;
+		FInputDevice& InputDevice;
+	};
+} // namespace UE::PixelStreaming

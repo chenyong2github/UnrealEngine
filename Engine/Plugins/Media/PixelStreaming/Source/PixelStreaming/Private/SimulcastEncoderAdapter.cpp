@@ -91,13 +91,12 @@ namespace
 	};
 } // namespace
 
-UE::PixelStreaming::FSimulcastEncoderAdapter::FSimulcastEncoderAdapter(webrtc::VideoEncoderFactory* primary_factory, const webrtc::SdpVideoFormat& format)
+UE::PixelStreaming::FSimulcastEncoderAdapter::FSimulcastEncoderAdapter(FSimulcastEncoderFactory& InSimulcastFactory, const webrtc::SdpVideoFormat& format)
 	: Initialized(false)
-	, PrimaryEncoderFactory(primary_factory)
+	, SimulcastEncoderFactory(InSimulcastFactory)
 	, VideoFormat(format)
 	, EncodedCompleteCallback(nullptr)
 {
-	check(PrimaryEncoderFactory);
 	memset(&CurrentCodec, 0, sizeof(webrtc::VideoCodec));
 }
 
@@ -108,17 +107,21 @@ UE::PixelStreaming::FSimulcastEncoderAdapter::~FSimulcastEncoderAdapter()
 
 int UE::PixelStreaming::FSimulcastEncoderAdapter::Release()
 {
-	while (!StreamInfos.empty())
 	{
-		std::unique_ptr<VideoEncoder> Encoder = std::move(StreamInfos.back().Encoder);
-		// Even though it seems very unlikely, there are no guarantees that the
-		// encoder will not call back after being Release()'d. Therefore, we first
-		// disable the callbacks here.
-		Encoder->RegisterEncodeCompleteCallback(nullptr);
-		Encoder->Release();
-		StreamInfos.pop_back(); // Deletes callback adapter.
+		// Lock during deleting an encoder
+		FScopeLock Lock(&StreamInfosGuard);
+		while (!StreamInfos.empty())
+		{
+			std::unique_ptr<VideoEncoder> Encoder = std::move(StreamInfos.back().Encoder);
+			// Even though it seems very unlikely, there are no guarantees that the
+			// encoder will not call back after being Release()'d. Therefore, we first
+			// disable the callbacks here.
+			Encoder->RegisterEncodeCompleteCallback(nullptr);
+			Encoder->Release();
+			StreamInfos.pop_back(); // Deletes callback adapter.
+		}
 	}
-
+	
 	Initialized = false;
 
 	return WEBRTC_VIDEO_CODEC_OK;
@@ -140,7 +143,9 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::InitEncode(const webrtc::Video
 	if (NumActiveStreams == 1)
 	{
 		// with one stream we just proxy the pixelstreaming encoder
-		std::unique_ptr<VideoEncoder> Encoder = PrimaryEncoderFactory->CreateVideoEncoder(Format);
+		FVideoEncoderFactory* EncoderFactory = SimulcastEncoderFactory.GetOrCreateEncoderFactory(0);
+		std::unique_ptr<VideoEncoder> Encoder = EncoderFactory->CreateVideoEncoder(Format);
+
 		int ReturnCode = Encoder->InitEncode(&CurrentCodec, settings);
 		if (ReturnCode < 0)
 		{
@@ -166,7 +171,10 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::InitEncode(const webrtc::Video
 			uint32_t StartBitrateKbps = CurrentCodec.simulcastStream[i].targetBitrate;
 			PopulateStreamCodec(CurrentCodec, i, StartBitrateKbps, &StreamCodec);
 
-			std::unique_ptr<VideoEncoder> Encoder = PrimaryEncoderFactory->CreateVideoEncoder(Format);
+			FVideoEncoderFactory* EncoderFactory = SimulcastEncoderFactory.GetOrCreateEncoderFactory(i);
+			std::unique_ptr<VideoEncoder> Encoder = EncoderFactory->CreateVideoEncoder(Format);
+			
+			// std::unique_ptr<VideoEncoder> Encoder = SimulcastEncoderFactory->CreateVideoEncoder(Format);
 			int ReturnCode = Encoder->InitEncode(&StreamCodec, settings);
 			if (ReturnCode < 0)
 			{
@@ -280,8 +288,6 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::Encode(const webrtc::VideoFram
 		}
 
 		TSharedPtr<ITextureSource> LayerFrameSource = SimulcastFrameBuffer->GetLayerFrameSource(StreamInfos.size() == 1 ? SimulcastFrameBuffer->GetNumLayers() - 1 : StreamIdx);
-		checkf(LayerFrameSource->GetSourceWidth() == StreamInfos[StreamIdx].Width, TEXT("Width of simulcast layer must match width of stream info it is associated with."));
-		checkf(LayerFrameSource->GetSourceHeight() == StreamInfos[StreamIdx].Height, TEXT("Height of simulcast layer must match height of stream info it is associated with."));
 
 		int RtcError = EncodeStream(input_image, LayerFrameSource, StreamIdx, bSendKeyFrame);
 		if (RtcError != WEBRTC_VIDEO_CODEC_OK)

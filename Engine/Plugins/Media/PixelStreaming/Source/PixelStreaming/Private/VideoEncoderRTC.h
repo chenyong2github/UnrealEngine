@@ -7,6 +7,7 @@
 #include "VideoEncoder.h"
 #include "Templates/SharedPointer.h"
 #include "Misc/Optional.h"
+#include "VideoEncoderH264Wrapper.h"
 
 namespace UE {
 	namespace PixelStreaming {
@@ -34,7 +35,7 @@ namespace UE {
 			// virtual void OnLossNotification(const LossNotification& loss_notification) override;
 			// End WebRTC Interface.
 
-			void SendEncodedImage(uint64 SourceEncoderId, webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
+			void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
 
 		private:
 			void UpdateConfig();
@@ -42,7 +43,7 @@ namespace UE {
 
 			FVideoEncoderFactory& Factory;
 
-			uint64 HardwareEncoderId;
+			UE::PixelStreaming::FVideoEncoderH264Wrapper* HardwareEncoder;
 
 			// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
 			int32 WebRtcProposedTargetBitrate = 5000000;

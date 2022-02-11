@@ -13,20 +13,18 @@
 #include "Templates/Atomic.h"
 #include "WebRTCIncludes.h"
 
-namespace UE {
-	namespace PixelStreaming {
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		inline FString ToString(const std::string& Str)
 		{
-			auto Conv = StringCast<TCHAR>(Str.c_str(), Str.size());
-			FString Res{ Conv.Length(), Conv.Get() };
-			return Res;
+			return UTF8_TO_TCHAR(Str.c_str());
 		}
 
-		inline std::string to_string(const FString& Str)
+		inline std::string ToString(const FString& Str)
 		{
-			auto Ansi = StringCast<ANSICHAR>(*Str, Str.Len());
-			std::string Res{ Ansi.Get(), static_cast<SIZE_T>(Ansi.Length()) };
-			return Res;
+			return TCHAR_TO_UTF8(*Str);
 		}
 
 		inline FString ToString(const TSharedPtr<FJsonObject>& JsonObj, bool bPretty = true)
@@ -72,11 +70,25 @@ namespace UE {
 			};
 
 			return ensureMsgf(
-				0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax,
-				TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"),
-				static_cast<uint32>(Val))
-					? IceConnectionStatsStr[Val]
-					: TEXT("Unknown");
+					   0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax,
+					   TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"),
+					   static_cast<uint32>(Val))
+				? IceConnectionStatsStr[Val]
+				: TEXT("Unknown");
+		}
+
+		inline FString ToString(const webrtc::SessionDescriptionInterface& Sdp)
+		{
+			std::string SdpAnsi;
+			verifyf(Sdp.ToString(&SdpAnsi), TEXT("Failed to serialize IceCandidate"));
+			return ToString(SdpAnsi);
+		}
+
+		inline FString ToString(const webrtc::IceCandidateInterface& IceCandidate)
+		{
+			std::string CandidateAnsi;
+			verifyf(IceCandidate.ToString(&CandidateAnsi), TEXT("Failed to serialize IceCandidate"));
+			return ToString(CandidateAnsi);
 		}
 
 		inline const TCHAR* ToString(webrtc::PeerConnectionInterface::IceGatheringState Val)
@@ -88,11 +100,11 @@ namespace UE {
 			};
 
 			return ensureMsgf(
-				0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete,
-				TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"),
-				static_cast<uint32>(Val))
-					? IceGatheringStatsStr[Val]
-					: TEXT("Unknown");
+					   0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete,
+					   TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"),
+					   static_cast<uint32>(Val))
+				? IceGatheringStatsStr[Val]
+				: TEXT("Unknown");
 		}
 
 		inline const TCHAR* ToString(webrtc::VideoFrameType FrameType)
@@ -106,10 +118,10 @@ namespace UE {
 			};
 			int FrameTypeInt = (int)FrameType;
 			return ensureMsgf(
-				0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta,
-				TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType))
-					? FrameTypesStr[FrameTypeInt]
-					: TEXT("Unknown");
+					   0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta,
+					   TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType))
+				? FrameTypesStr[FrameTypeInt]
+				: TEXT("Unknown");
 		}
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

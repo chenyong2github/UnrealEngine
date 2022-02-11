@@ -26,6 +26,7 @@ const SdpTransform = __importStar(require("sdp-transform"));
 const uuid_1 = require("uuid");
 const BrowserRtpCapabilities = __importStar(require("./BrowserRtpCapabilities"));
 const SdpUtils = __importStar(require("./SdpUtils"));
+const MediaSection_1 = require("mediasoup-client/lib/handlers/sdp/MediaSection");
 require("util").inspect.defaultOptions.depth = null;
 class SdpEndpoint {
     constructor(webRtcTransport, localCaps) {
@@ -35,6 +36,8 @@ class SdpEndpoint {
         this.webRtcTransport = webRtcTransport;
         this.transport = webRtcTransport;
         this.localCaps = localCaps;
+        this.sctpMedia = null;
+        this.consumeData = false;
     }
     async processOffer(sdpOffer) {
         if (this.remoteSdp) {
@@ -49,31 +52,37 @@ class SdpEndpoint {
             }),
         });
         for (const media of remoteSdpObj.media) {
-            if (!("rtp" in media)) {
-                continue;
+            if (media.type == "application") {
+                this.sctpMedia = media;
+                console.log("[SdpEndpoint.processOffer] SCTP association received");
             }
-            if (!("direction" in media)) {
-                continue;
+            else {
+                if (!("rtp" in media)) {
+                    continue;
+                }
+                if (!("direction" in media)) {
+                    continue;
+                }
+                if (media.direction !== "sendonly") {
+                    continue;
+                }
+                const sendParams = SdpUtils.sdpToSendRtpParameters(remoteSdpObj, media, this.localCaps, media.type);
+                let producer;
+                try {
+                    producer = await this.transport.produce({
+                        kind: media.type,
+                        rtpParameters: sendParams,
+                        paused: false,
+                    });
+                }
+                catch (err) {
+                    console.error("FIXME BUG:", err);
+                    process.exit(1);
+                }
+                this.producers.push(producer);
+                this.producerMedias.push(media);
+                console.log("[SdpEndpoint.processOffer] mediasoup Producer created, kind: %s, type: %s, paused: %s", producer.kind, producer.type, producer.paused);
             }
-            if (media.direction !== "sendonly") {
-                continue;
-            }
-            const sendParams = SdpUtils.sdpToSendRtpParameters(remoteSdpObj, media, this.localCaps, media.type);
-            let producer;
-            try {
-                producer = await this.transport.produce({
-                    kind: media.type,
-                    rtpParameters: sendParams,
-                    paused: false,
-                });
-            }
-            catch (err) {
-                console.error("FIXME BUG:", err);
-                process.exit(1);
-            }
-            this.producers.push(producer);
-            this.producerMedias.push(media);
-            console.log("[SdpEndpoint.processOffer] mediasoup Producer created, kind: %s, type: %s, paused: %s", producer.kind, producer.type, producer.paused);
         }
         return this.producers;
     }
@@ -102,11 +111,17 @@ class SdpEndpoint {
                 extmapAllowMixed: false,
             });
         }
+        if (this.sctpMedia != null) {
+            sdpBuilder.sendSctpAssociation({offerMediaObject: this.sctpMedia});
+        }
         this.localSdp = sdpBuilder.getSdp();
         return this.localSdp;
     }
     addConsumer(consumer) {
         this.consumers.push(consumer);
+    }
+    addConsumeData() {
+        this.consumeData = true;
     }
     createOffer() {
         var _a;
@@ -134,6 +149,9 @@ class SdpEndpoint {
                 streamId: sendMsid,
                 trackId: `${sendMsid}-${kind}`,
             });
+        }
+        if (this.consumeData) {
+            sdpBuilder.receiveSctpAssociation();
         }
         this.localSdp = sdpBuilder.getSdp();
         return this.localSdp;

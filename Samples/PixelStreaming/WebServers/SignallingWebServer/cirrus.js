@@ -309,6 +309,7 @@ function sendMessageToPlayer(playerId, msg) {
 }
 
 let WebSocket = require('ws');
+const { URL } = require('url');
 
 console.logColor(logging.Green, `WebSocket listening for Streamer connections on :${streamerPort}`)
 let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
@@ -395,7 +396,7 @@ streamerServer.on('connection', function (ws, req) {
 	streamer.send(JSON.stringify(clientConfig));
 
 	if (sfuIsConnected()) {
-		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false, sfu: true };
+		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: true, sfu: true };
 		streamer.send(JSON.stringify(msg));
 	}
 });
@@ -436,19 +437,33 @@ sfuServer.on('connection', function (ws, req) {
 			logOutgoing("Streamer", msg.type, rawMsg);
 			streamer.send(rawMsg);
 		}
+		else if (msg.type == 'streamerDataChannels') {
+			// sfu is asking streamer to open a data channel for a connected peer
+			msg.sfuId = SFUPlayerId;
+			const rawMsg = JSON.stringify(msg);
+			logOutgoing("Streamer", msg.type, rawMsg);
+			streamer.send(rawMsg);
+		}
+		else if (msg.type == 'peerDataChannels') {
+			// sfu is telling a peer what stream id to use for a data channel
+			const playerId = msg.playerId;
+			delete msg.playerId;
+			sendMessageToPlayer(playerId, msg);
+			// remember the player has a data channel
+			const player = players.get(playerId);
+			player.datachannel = true;
+		}
 	});
 
 	ws.on('close', function(code, reason) {
 		console.error(`SFU disconnected: ${code} - ${reason}`);
 		sfu = null;
-		disconnectAllPlayers();
 		disconnectSFUPlayer();
 	});
 
 	ws.on('error', function(error) {
 		console.error(`SFU connection error: ${error}`);
 		sfu = null;
-		disconnectAllPlayers();
 		disconnectSFUPlayer();
 		try {
 			ws.close(1006 /* abnormal closure */, error);
@@ -461,7 +476,7 @@ sfuServer.on('connection', function (ws, req) {
 	console.logColor(logging.Green, `SFU (${req.connection.remoteAddress}) connected `);
 
 	if (streamer && streamer.readyState == 1) {
-		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false, sfu: true };
+		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: true, sfu: true };
 		streamer.send(JSON.stringify(msg));
 	}
 });
@@ -477,9 +492,15 @@ playerServer.on('connection', function (ws, req) {
 		return;
 	}
 
-	const urlParams = new URLSearchParams(req.url.substring(2));
-	const useDirect = urlParams.get("UseDirect");
-	const skipSFU = useDirect != null && (useDirect == '' || (useDirect != 'false' && useDirect != '0'));
+	var url = require('url');
+	const parsedUrl = url.parse(req.url);
+	const urlParams = new URLSearchParams(parsedUrl.search);
+	const preferSFU = urlParams.has('preferSFU') && urlParams.get('preferSFU') !== 'false';
+	const skipSFU = !preferSFU;
+
+	if(preferSFU && !sfu) {
+		ws.send(JSON.stringify({ type: "warning", warning: "Even though ?preferSFU was specified, there is currently no SFU connected." }));
+	}
 
 	++playerCount;
 	let playerId = (++nextPlayerId).toString();
@@ -504,6 +525,12 @@ playerServer.on('connection', function (ws, req) {
 			return;
 		}
 
+		if(!msg || !msg.type)
+		{
+			console.error(`Cannot parse message ${msgRaw}`);
+			return;
+		}
+		
 		logIncoming(`player ${playerId}`, msg.type, msgRaw);
 
 		if (msg.type == 'answer') {
@@ -514,6 +541,9 @@ playerServer.on('connection', function (ws, req) {
 			sendMessageToController(msg, skipSFU);
 		} else if (msg.type == 'stats') {
 			console.log(`player ${playerId}: stats\n${msg.data}`);
+		} else if (msg.type == "dataChannelRequest") {
+			msg.playerId = playerId;
+			sendMessageToController(msg, false);
 		} else {
 			console.error(`player ${playerId}: unsupported message type: ${msg.type}`);
 			ws.close(1008, 'Unsupported message type');
@@ -524,6 +554,11 @@ playerServer.on('connection', function (ws, req) {
 	function onPlayerDisconnected() {
 		try {
 			--playerCount;
+			const player = players.get(playerId);
+			if (player.datachannel) {
+				// have to notify the streamer that the datachannel can be closed
+				sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, true);
+			}
 			players.delete(playerId);
 			sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, skipSFU);
 			sendPlayerDisconnectedToFrontend();

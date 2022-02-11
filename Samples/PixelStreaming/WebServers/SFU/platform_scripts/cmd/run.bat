@@ -5,7 +5,7 @@ title SFU
 
 pushd "%~dp0\..\.."
 
-cmd /k npm start
+npm start
 
 popd
 @pause

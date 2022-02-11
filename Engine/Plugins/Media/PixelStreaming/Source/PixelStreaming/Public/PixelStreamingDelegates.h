@@ -95,6 +95,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelOpen, FPixelStreamingPlayerId, webrtc::DataChannelInterface*)
 	FDataChannelOpen OnDataChannelOpenNative;
 	
+	/**
+	 * An existing data channel has been closed
+	 */
+	 // C++ Delegate
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelClosed, FPixelStreamingPlayerId, webrtc::DataChannelInterface*)
+	FDataChannelClosed OnDataChannelClosedNative;
 
 	/**
 	 * A pixel streaming stat has changed

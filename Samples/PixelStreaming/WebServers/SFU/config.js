@@ -25,6 +25,7 @@ const config = {
         "rtp",
         "srtp",
         "rtcp",
+        "sctp"
         // 'rtx',
         // 'bwe',
         // 'score',

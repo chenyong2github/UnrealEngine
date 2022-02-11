@@ -6,6 +6,7 @@
 #include "VulkanRHIPrivate.h"
 #include "Settings.h"
 #include "VideoEncoderInput.h"
+#include "Templates/SharedPointer.h"
 
 #if PLATFORM_WINDOWS
 	#include "VideoCommon.h"
@@ -33,10 +34,6 @@ UE::PixelStreaming::FEncoderFrameFactory::~FEncoderFrameFactory()
 
 void UE::PixelStreaming::FEncoderFrameFactory::FlushFrames()
 {
-	for (auto& Entry : TextureToFrameMapping)
-	{
-		EncoderInput->DestroyBuffer(Entry.Value);
-	}
 	TextureToFrameMapping.Empty();
 }
 
@@ -44,74 +41,69 @@ void UE::PixelStreaming::FEncoderFrameFactory::RemoveStaleTextures()
 {
 	// Remove any textures whose only reference is the one held by this class
 
-	TMap<FTexture2DRHIRef, AVEncoder::FVideoEncoderInputFrame*>::TIterator Iter = TextureToFrameMapping.CreateIterator();
+	TMap<FTexture2DRHIRef, TSharedPtr<AVEncoder::FVideoEncoderInputFrame>>::TIterator Iter = TextureToFrameMapping.CreateIterator();
 	for(; Iter; ++Iter)
 	{
 		FTexture2DRHIRef& Tex = Iter.Key();
-		AVEncoder::FVideoEncoderInputFrame* Frame = Iter.Value();
 
-		if(Tex.GetRefCount() == 1)
-		{
-			EncoderInput->DestroyBuffer(Frame);
+		if(Tex.GetRefCount() == 1) {
 			Iter.RemoveCurrent();
 		}
 	}
 }
 
-AVEncoder::FVideoEncoderInputFrame* UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateFrame(int InWidth, int InHeight, const FTexture2DRHIRef InTexture)
+TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateFrame(const FTexture2DRHIRef InTexture)
 {
 	check(EncoderInput.IsValid());
 
 	RemoveStaleTextures();
 
-	AVEncoder::FVideoEncoderInputFrame* OutFrame;
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> OutFrame;	
 
 	if (TextureToFrameMapping.Contains(InTexture))
 	{
 		OutFrame = *(TextureToFrameMapping.Find(InTexture));
-		checkf(
-            InWidth == OutFrame->GetWidth() && InHeight == OutFrame->GetHeight(),
-            TEXT("The requested resolution does not match the existing frame, we do not support a resolution change at this step."));
 	}
-	// A frame needs to be created
 	else
 	{
-		OutFrame = EncoderInput->CreateBuffer([this](const AVEncoder::FVideoEncoderInputFrame* ReleasedFrame) { /* OnReleased */ });
+		// A frame needs to be created
+		// NOTE: This create and move is necessary as this constructor is the only way we can create a new TSharedPtr with a custom deleter.
+		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> NewFrame(
+			EncoderInput->CreateBuffer([this](const AVEncoder::FVideoEncoderInputFrame* ReleasedFrame) { /* OnReleased */ }), 
+			[this](AVEncoder::FVideoEncoderInputFrame* InFrame){ EncoderInput->DestroyBuffer(InFrame); }
+		);
+		OutFrame = MoveTemp(NewFrame);
+
 		SetTexture(OutFrame, InTexture);
 		TextureToFrameMapping.Add(InTexture, OutFrame);
 	}
 
+	OutFrame->SetWidth(InTexture->GetSizeX());
+	OutFrame->SetHeight(InTexture->GetSizeY());
 	OutFrame->SetFrameID(++FrameId);
 	return OutFrame;
 }
 
-AVEncoder::FVideoEncoderInputFrame* UE::PixelStreaming::FEncoderFrameFactory::GetFrameAndSetTexture(int InWidth, int InHeight, FTexture2DRHIRef InTexture)
+TSharedPtr<AVEncoder::FVideoEncoderInputFrame> UE::PixelStreaming::FEncoderFrameFactory::GetFrameAndSetTexture(FTexture2DRHIRef InTexture)
 {
 	check(EncoderInput.IsValid());
 
-	AVEncoder::FVideoEncoderInputFrame* Frame = GetOrCreateFrame(InWidth, InHeight, InTexture);
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame = GetOrCreateFrame(InTexture);
 
 	return Frame;
 }
 
-TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateVideoEncoderInput(int InWidth, int InHeight)
+TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::GetOrCreateVideoEncoderInput()
 {
 	if (!EncoderInput.IsValid())
 	{
-		EncoderInput = CreateVideoEncoderInput(InWidth, InHeight);
+		EncoderInput = CreateVideoEncoderInput();
 	}
 
 	return EncoderInput;
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetResolution(int InWidth, int InHeight)
-{
-	TSharedPtr<AVEncoder::FVideoEncoderInput> NewEncoderInput = GetOrCreateVideoEncoderInput(InWidth, InHeight);
-	NewEncoderInput->SetResolution(InWidth, InHeight);
-	NewEncoderInput->Flush();
-}
-
-TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::CreateVideoEncoderInput(int InWidth, int InHeight) const
+TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFactory::CreateVideoEncoderInput() const
 {
 	if (!GDynamicRHI)
 	{
@@ -131,13 +123,13 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 			FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 			AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
 
-			return AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, InWidth, InHeight, bIsResizable);
+			return AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, bIsResizable);
 		}
 		else if (IsRHIDeviceNVIDIA())
 		{
 			if (FModuleManager::Get().IsModuleLoaded("CUDA"))
 			{
-				return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), InWidth, InHeight, bIsResizable);
+				return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), bIsResizable);
 			}
 			else
 			{
@@ -151,22 +143,22 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	{
 		if (IsRHIDeviceAMD())
 		{
-			return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, true);
+			return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), bIsResizable, true);
 		}
 		else if (IsRHIDeviceNVIDIA())
 		{
-			return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, false);
+			return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), bIsResizable, false);
 		}
 	}
 	else if (RHIName == TEXT("D3D12"))
 	{
 		if (IsRHIDeviceAMD())
 		{
-			return AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, false);
+			return AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), bIsResizable, false);
 		}
 		else if (IsRHIDeviceNVIDIA())
 		{
-			return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), InWidth, InHeight, bIsResizable);
+			return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), bIsResizable);
 		}
 	}
 #endif
@@ -175,7 +167,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	return nullptr;
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
 	FString RHIName = GDynamicRHI->GetName();
 
@@ -226,7 +218,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(AVEncoder::FVideoEncod
 	}
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
 	FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 	VkDevice Device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
@@ -386,7 +378,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(AVEncoder::F
 }
 
 #if PLATFORM_WINDOWS
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
 	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
 	unsigned long long TextureMemorySize = D3D11Texture->GetMemorySize();
@@ -492,7 +484,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(AVEncoder::FV
 	});
 }
 
-void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
 	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(Texture);
 	ID3D12Resource* NativeD3D12Resource = (ID3D12Resource*)Texture->GetNativeResource();

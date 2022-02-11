@@ -24,18 +24,17 @@ UE::PixelStreaming::FVideoEncoderRTC::~FVideoEncoderRTC()
 	Factory.ReleaseVideoEncoder(this);
 }
 
-int UE::PixelStreaming::FVideoEncoderRTC::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
+int UE::PixelStreaming::FVideoEncoderRTC::InitEncode(webrtc::VideoCodec const* InCodecSettings, VideoEncoder::Settings const& settings)
 {
 	checkf(AVEncoder::FVideoEncoderFactory::Get().IsSetup(), TEXT("FVideoEncoderFactory not setup"));
-
-	// Try to create an encoder if it doesnt already.
-	TOptional<FVideoEncoderFactory::FHardwareEncoderId> EncoderIdOptional = Factory.GetOrCreateHardwareEncoder(codec_settings->width, codec_settings->height, codec_settings->maxBitrate, codec_settings->startBitrate, codec_settings->maxFramerate);
+	// Try and get the encoder. If it doesn't exist, create it.
+	FVideoEncoderH264Wrapper* Encoder = Factory.GetOrCreateHardwareEncoder(InCodecSettings->width, InCodecSettings->height, InCodecSettings->maxBitrate, InCodecSettings->startBitrate, InCodecSettings->maxFramerate);
 	
-	if(EncoderIdOptional.IsSet())
+	if(Encoder != nullptr)
 	{
-		HardwareEncoderId = EncoderIdOptional.GetValue();
+		HardwareEncoder = Encoder;
 		UpdateConfig();
-		WebRtcProposedTargetBitrate = codec_settings->startBitrate;
+		WebRtcProposedTargetBitrate = InCodecSettings->startBitrate;
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 	else
@@ -73,7 +72,7 @@ int32 UE::PixelStreaming::FVideoEncoderRTC::Encode(webrtc::VideoFrame const& fra
 		bKeyframe = true;
 	}
 
-	UE::PixelStreaming::FVideoEncoderH264Wrapper* Encoder = Factory.GetHardwareEncoder(HardwareEncoderId);
+	UE::PixelStreaming::FVideoEncoderH264Wrapper* Encoder = Factory.GetHardwareEncoder();
 	if (Encoder == nullptr)
 	{
 		return WEBRTC_VIDEO_CODEC_ERROR;
@@ -114,7 +113,7 @@ webrtc::VideoEncoder::EncoderInfo UE::PixelStreaming::FVideoEncoderRTC::GetEncod
 
 void UE::PixelStreaming::FVideoEncoderRTC::UpdateConfig()
 {
-	if (UE::PixelStreaming::FVideoEncoderH264Wrapper* Encoder = Factory.GetHardwareEncoder(HardwareEncoderId))
+	if (UE::PixelStreaming::FVideoEncoderH264Wrapper* Encoder = Factory.GetHardwareEncoder())
 	{
 		AVEncoder::FVideoEncoder::FLayerConfig NewConfig = Encoder->GetCurrentConfig();
 
@@ -130,8 +129,6 @@ void UE::PixelStreaming::FVideoEncoderRTC::UpdateConfig()
 			// Clear the rate change request
 			PendingRateChange.Reset();
 		}
-
-		// TODO how to handle res changes?
 
 		NewConfig = CreateEncoderConfigFromCVars(NewConfig);
 
@@ -163,13 +160,8 @@ AVEncoder::FVideoEncoder::FLayerConfig UE::PixelStreaming::FVideoEncoderRTC::Cre
 	return InEncoderConfig;
 }
 
-void UE::PixelStreaming::FVideoEncoderRTC::SendEncodedImage(uint64 SourceEncoderId, webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation)
+void UE::PixelStreaming::FVideoEncoderRTC::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation)
 {
-	if (SourceEncoderId != HardwareEncoderId)
-	{
-		return;
-	}
-
 	if (FirstKeyframeCountdown > 0)
 	{
 		// ideally we want to make the first frame of new peers a keyframe but we

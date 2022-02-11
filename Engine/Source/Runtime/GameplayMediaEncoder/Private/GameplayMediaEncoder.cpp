@@ -223,15 +223,15 @@ bool FGameplayMediaEncoder::Initialize()
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		if(RHIName == TEXT("D3D11"))
 		{
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), VideoConfig.Width, VideoConfig.Height, true, IsRHIDeviceAMD());
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceAMD());
 		}
 		else if(RHIName == TEXT("D3D12"))
 		{
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), VideoConfig.Width, VideoConfig.Height, true, IsRHIDeviceNVIDIA());
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceNVIDIA());
 		}
 		else if (RHIName == TEXT("Vulkan"))
 		{
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(GDynamicRHI->RHIGetNativeDevice(), VideoConfig.Width, VideoConfig.Height, true);
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(GDynamicRHI->RHIGetNativeDevice(), true);
 		}
 		else
 #endif
@@ -263,7 +263,7 @@ bool FGameplayMediaEncoder::Initialize()
 		return false;
 	}
 
-	VideoEncoder->SetOnEncodedPacket([this](uint32 LayerIndex, const AVEncoder::FVideoEncoderInputFrame* Frame, const AVEncoder::FCodecPacket& Packet)
+	VideoEncoder->SetOnEncodedPacket([this](uint32 LayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame, const AVEncoder::FCodecPacket& Packet)
 	                                 { OnEncodedVideoFrame(LayerIndex, Frame, Packet); });
 
 	if(!VideoEncoder)
@@ -561,7 +561,7 @@ void FGameplayMediaEncoder::ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffe
 
 	UpdateVideoConfig();
 
-	AVEncoder::FVideoEncoderInputFrame* InputFrame = ObtainInputFrame();
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame = ObtainInputFrame();
 	const int32 FrameId = InputFrame->GetFrameID();
 	InputFrame->SetTimestampUs(Now.GetTicks());
 
@@ -574,9 +574,10 @@ void FGameplayMediaEncoder::ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffe
 	NumCapturedFrames++;
 }
 
-AVEncoder::FVideoEncoderInputFrame* FGameplayMediaEncoder::ObtainInputFrame()
+TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FGameplayMediaEncoder::ObtainInputFrame()
 {
-	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
+	AVEncoder::FVideoEncoderInputFrame* Frame = VideoEncoderInput->ObtainInputFrame();
+	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame = MakeShareable(Frame);
 
 	if(!BackBuffers.Contains(InputFrame))
 	{
@@ -654,7 +655,7 @@ void FGameplayMediaEncoder::OnEncodedAudioFrame(const AVEncoder::FMediaPacket& P
 	}
 }
 
-void FGameplayMediaEncoder::OnEncodedVideoFrame(uint32 LayerIndex, const AVEncoder::FVideoEncoderInputFrame* InputFrame, const AVEncoder::FCodecPacket& Packet)
+void FGameplayMediaEncoder::OnEncodedVideoFrame(uint32 LayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const AVEncoder::FCodecPacket& Packet)
 {
 	AVEncoder::FMediaPacket packet(AVEncoder::EPacketType::Video);
 

@@ -260,7 +260,7 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::DestroyLayer(FLayer* layer) { delete layer; }
 
-	void FVideoEncoderNVENC_H264::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
+	void FVideoEncoderNVENC_H264::Encode(const TSharedPtr<FVideoEncoderInputFrame> InFrame, const FEncodeOptions& EncodeOptions)
 	{
 		for (FVideoEncoder::FLayer* Layer : Layers)
 		{
@@ -465,6 +465,15 @@ namespace AVEncoder
 				EncoderInitParams.frameRateNum = CurrentConfig.MaxFramerate;
 			}
 
+			if (CurrentConfig.Width != InputOutputBuffer->Width)
+			{
+				EncoderInitParams.encodeWidth = CurrentConfig.Width = InputOutputBuffer->Width;
+			}
+			if (CurrentConfig.Height != InputOutputBuffer->Height)
+			{
+				EncoderInitParams.encodeHeight = CurrentConfig.Height = InputOutputBuffer->Height;
+			}
+
 			NVENCStruct(NV_ENC_RECONFIGURE_PARAMS, ReconfigureParams);
 			FMemory::Memcpy(&ReconfigureParams.reInitEncodeParams, &EncoderInitParams, sizeof(EncoderInitParams));
 
@@ -618,7 +627,7 @@ namespace AVEncoder
 		}
 	}
 
-	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
+	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(const TSharedPtr<FVideoEncoderInputFrame> InFrame, const FEncodeOptions& EncodeOptions)
 	{
 		// This encode is single threaded and blocking, if someone else is encoding right now, we wait.
 		while (bIsProcessingFrame) 
@@ -632,7 +641,7 @@ namespace AVEncoder
 
 		bIsProcessingFrame = true;
 
-		FInputOutput* Buffer = GetOrCreateBuffer(static_cast<const FVideoEncoderInputFrameImpl*>(InFrame));
+		FInputOutput* Buffer = GetOrCreateBuffer(StaticCastSharedPtr<FVideoEncoderInputFrameImpl>(InFrame));
 
 		if (!Buffer)
 		{
@@ -780,7 +789,7 @@ namespace AVEncoder
 		return CapsValue;
 	}
 
-	FVideoEncoderNVENC_H264::FNVENCLayer::FInputOutput* FVideoEncoderNVENC_H264::FNVENCLayer::GetOrCreateBuffer(const FVideoEncoderInputFrameImpl* InFrame)
+	FVideoEncoderNVENC_H264::FNVENCLayer::FInputOutput* FVideoEncoderNVENC_H264::FNVENCLayer::GetOrCreateBuffer(const TSharedPtr<FVideoEncoderInputFrameImpl> InFrame)
 	{
 
 		if (InputOutputBuffer == nullptr)
@@ -794,10 +803,13 @@ namespace AVEncoder
 			{
 				DestroyBuffer(InputOutputBuffer);
 				InputOutputBuffer = CreateBuffer();
+				NeedsReconfigure = true;
 			}
 		}
 
 		InputOutputBuffer->SourceFrame = InFrame;
+		InputOutputBuffer->Width = InFrame->GetWidth();
+		InputOutputBuffer->Height = InFrame->GetHeight();
 		return InputOutputBuffer;
 	}
 
@@ -855,7 +867,7 @@ namespace AVEncoder
 		InBuffer->InputTexture = nullptr;
 
 		delete InBuffer;
-		InBuffer = nullptr;
+		InBuffer = nullptr;	
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::CreateResourceDIRECTX(FInputOutput* InBuffer, NV_ENC_REGISTER_RESOURCE& RegisterParam, FIntPoint TextureSize)

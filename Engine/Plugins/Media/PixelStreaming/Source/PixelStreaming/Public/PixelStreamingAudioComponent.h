@@ -23,7 +23,7 @@ public:
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
 
 	// Returns the number of samples to render per callback
-	virtual int32 GetDesiredNumSamplesToRenderPerCallback() const { return Params.NumFramesPerCallback * Params.NumChannels; }
+	virtual int32 GetDesiredNumSamplesToRenderPerCallback() const;
 
 	// Optional. Called on audio generator thread right when the generator begins generating.
 	virtual void OnBeginGenerate() { bGeneratingAudio = true; };
@@ -38,7 +38,6 @@ public:
 
 	int32 GetSampleRate() { return Params.SampleRate; }
 	int32 GetNumChannels() { return Params.NumChannels; }
-	bool UpdateChannelsAndSampleRate(int InNumChannels, int InSampleRate);
 	void EmptyBuffers();
 	void SetParameters(const FSoundGeneratorInitParams& InitParams);
 

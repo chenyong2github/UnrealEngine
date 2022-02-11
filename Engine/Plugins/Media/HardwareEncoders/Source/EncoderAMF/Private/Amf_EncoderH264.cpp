@@ -227,9 +227,9 @@ namespace AVEncoder
 		delete layer;
 	}
 
-	void FVideoEncoderAmf_H264::Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options)
+	void FVideoEncoderAmf_H264::Encode(const TSharedPtr<FVideoEncoderInputFrame> frame, FEncodeOptions const& options)
 	{
-		const FVideoEncoderInputFrameImpl* amfFrame = static_cast<const FVideoEncoderInputFrameImpl*>(frame);
+		const TSharedPtr<FVideoEncoderInputFrameImpl> amfFrame = StaticCastSharedPtr<FVideoEncoderInputFrameImpl>(frame);
 		for (auto& layer : Layers)
 		{
 			FAMFLayer* amfLayer = static_cast<FAMFLayer*>(layer);
@@ -402,19 +402,27 @@ namespace AVEncoder
 		}
 	}
 
-	AMF_RESULT FVideoEncoderAmf_H264::FAMFLayer::Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options)
+	AMF_RESULT FVideoEncoderAmf_H264::FAMFLayer::Encode(const TSharedPtr<FVideoEncoderInputFrameImpl> frame, FEncodeOptions const& options)
 	{
 		AMF_RESULT Result = AMF_FAIL;
 		TSharedPtr<FInputOutput> Buffer = GetOrCreateSurface(frame);
 
 		if (Buffer)
 		{
+			if(CurrentConfig.Width != frame->GetWidth() || CurrentConfig.Height != frame->GetHeight())
+			{
+				CurrentConfig.Width = frame->GetWidth();
+				CurrentConfig.Height = frame->GetHeight();
+				NeedsReconfigure = true;
+			}
+
+			
 			MaybeReconfigure();
 
 			Buffer->Surface->SetPts(frame->GetTimestampRTP());
 			amf_int64 Start_ts = FPlatformTime::Cycles64();
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, Start_ts);
-			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame));
+			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame.Get()));
 
 #if PLATFORM_WINDOWS
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_STATISTICS_FEEDBACK, true);
@@ -530,7 +538,7 @@ namespace AVEncoder
 			Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::ToSeconds64(FPlatformTime::Cycles64()));
 			Packet.Framerate = GetConfig().MaxFramerate;
 
-			FVideoEncoderInputFrameImpl* SourceFrame;
+			TSharedPtr<FVideoEncoderInputFrameImpl> SourceFrame;
 			if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (intptr_t*)&SourceFrame) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
@@ -594,7 +602,7 @@ namespace AVEncoder
 		return SurfaceTexture;
 	}
 
-	TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput> FVideoEncoderAmf_H264::FAMFLayer::GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame)
+	TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput> FVideoEncoderAmf_H264::FAMFLayer::GetOrCreateSurface(const TSharedPtr<FVideoEncoderInputFrameImpl> InFrame)
 	{
 		void* TextureToCompress = nullptr;
 
@@ -682,7 +690,7 @@ namespace AVEncoder
 	class FSampleObserver : public AMFSurfaceObserver
 	{
 	public:
-		FSampleObserver(const FVideoEncoderInputFrameImpl *Frame) : SourceFrame(Frame) {}
+		FSampleObserver(const TSharedPtr<FVideoEncoderInputFrameImpl> Frame) : SourceFrame(Frame) {}
 		virtual ~FSampleObserver() {}
 
 	protected:
@@ -693,10 +701,10 @@ namespace AVEncoder
 		}
 
 	private:
-		const FVideoEncoderInputFrameImpl* SourceFrame;
+		const TSharedPtr<FVideoEncoderInputFrameImpl> SourceFrame;
 	};
 
-	bool FVideoEncoderAmf_H264::FAMFLayer::CreateSurface(TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress)
+	bool FVideoEncoderAmf_H264::FAMFLayer::CreateSurface(TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput>& OutBuffer, const TSharedPtr<FVideoEncoderInputFrameImpl> SourceFrame, void* TextureToCompress)
 	{
 		AMF_RESULT Result = AMF_OK;
 

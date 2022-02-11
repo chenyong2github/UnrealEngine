@@ -26,7 +26,7 @@ namespace AVEncoder
         static void Register(FVideoEncoderFactory &InFactory);
 
         bool Setup(TSharedRef<FVideoEncoderInput> input, FLayerConfig const& config) override;
-        void Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options) override;
+        void Encode(const TSharedPtr<FVideoEncoderInputFrame> frame, FEncodeOptions const& options) override;
         void Flush();
         void Shutdown() override;
 
@@ -62,15 +62,15 @@ namespace AVEncoder
 			template<class T>
 			bool GetCapability(const TCHAR* CapToQuery, T& OutCap) const;
 
-			AMF_RESULT Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options);
+			AMF_RESULT Encode(const TSharedPtr<FVideoEncoderInputFrameImpl> frame, FEncodeOptions const& options);
 			void Flush();
 			void Shutdown();
 			void UpdateBitrate(uint32 InMaxBitRate, uint32 InTargetBitRate);
 			void UpdateResolution(uint32 InMaxBitRate, uint32 InTargetBitRate);
 			void MaybeReconfigure();
 			void ProcessFrameBlocking();
-			TSharedPtr<FInputOutput> GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame);
-			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress);
+			TSharedPtr<FInputOutput> GetOrCreateSurface(const TSharedPtr<FVideoEncoderInputFrameImpl> InFrame);
+			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const TSharedPtr<FVideoEncoderInputFrameImpl> SourceFrame, void* TextureToCompress);
 
 			FVideoEncoderAmf_H264& Encoder;
 			FAmfCommon& Amf;

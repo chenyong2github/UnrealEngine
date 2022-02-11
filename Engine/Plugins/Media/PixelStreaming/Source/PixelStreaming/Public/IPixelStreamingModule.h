@@ -46,7 +46,7 @@ public:
 	/*
 	* Event fired when internal streamer is initialized and the methods on this module are ready for use.
 	*/
-	DECLARE_EVENT_OneParam(IPixelStreamingModule, FReadyEvent, IPixelStreamingModule&)
+	DECLARE_EVENT_OneParam(IPixelStreamingModule, FReadyEvent, IPixelStreamingModule&);
 
 	/*
 	* A getter for the OnReady event. Intent is for users to call IPixelStreamingModule::Get().OnReady().AddXXX.
@@ -59,6 +59,39 @@ public:
 	* @return True if Pixel Streaming module methods are ready for use.
 	*/
 	virtual bool IsReady() = 0;
+
+	/*
+	* Connect to the specified signalling server and begin a streaming session
+	* @param SignallingServerUrl The url of the signalling server to use. eg. ws://localhost:8888
+	*/
+	virtual bool StartStreaming(const FString& SignallingServerUrl) = 0;
+
+	/*
+	* Ends the current streaming session
+	*/
+	virtual void StopStreaming() = 0;
+
+	/*
+	* Event fired when the streamer has connected to a signalling server and is ready for peers.
+	*/
+	DECLARE_EVENT_OneParam(IPixelStreamingModule, FStreamingStartedEvent, IPixelStreamingModule&);
+
+	/*
+	* A getter for the OnStreamingStarted event. Intent is for users to call IPixelStreamingModule::Get().OnStreamingStarted().AddXXX.
+	* @return The bindable OnStreamingStarted event.
+	*/
+	virtual FStreamingStartedEvent& OnStreamingStarted() = 0;
+
+	/*
+	* Event fired when the streamer has disconnected from a signalling server and has stopped streaming.
+	*/
+	DECLARE_EVENT_OneParam(IPixelStreamingModule, FStreamingStoppedEvent, IPixelStreamingModule&);
+
+	/*
+	* A getter for the OnStreamingStopped event. Intent is for users to call IPixelStreamingModule::Get().OnStreamingStopped().AddXXX.
+	* @return The bindable OnStreamingStopped event.
+	*/
+	virtual FStreamingStoppedEvent& OnStreamingStopped() = 0;
 
 	/**
 	 * Returns a reference to the input device. The lifetime of this reference

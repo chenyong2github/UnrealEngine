@@ -143,8 +143,8 @@ namespace UE::PixelStreaming::Settings
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxBitrate(
 		TEXT("PixelStreaming.WebRTC.MaxBitrate"),
-		20000000,
-		TEXT("Max bitrate (bps) that WebRTC will not request above. Careful not to set too high otherwise because a local (ideal network) will actually reach this. Default: 20000000"),
+		100000000,
+		TEXT("Max bitrate (bps) that WebRTC will not request above. Default: 100000000 aka 100 megabits/per second."),
 		ECVF_RenderThreadSafe);
 
 	TAutoConsoleVariable<int> CVarPixelStreamingWebRTCLowQpThreshold(
@@ -267,6 +267,14 @@ namespace UE::PixelStreaming::Settings
 	}
 	// Ends Pixel Streaming Plugin CVars
 
+	// Begin TextureSource CVars
+	TAutoConsoleVariable<float> CVarPixelStreamingFrameScale(
+		TEXT("PixelStreaming.FrameScale"),
+		1.0,
+		TEXT("The texture source frame scale. Default: 1.0"),
+		ECVF_Default);
+	// End TextureSource CVars
+
 	// Begin utility functions etc.
 	std::map<FString, AVEncoder::FVideoEncoder::RateControlMode> const RateControlCVarMap{
 		{ "ConstQP", AVEncoder::FVideoEncoder::RateControlMode::CONSTQP },
@@ -348,7 +356,7 @@ namespace UE::PixelStreaming::Settings
 		if (!bPassedSimulcastParams)
 		{
 			//StringOptions = FString(TEXT("1.0,5000000,20000000,2.0,1000000,5000000,4.0,50000,1000000"));
-			StringOptions = FString(TEXT("1.0,5000000,20000000,2.0,1000000,5000000"));
+			StringOptions = FString(TEXT("1.0,5000000,100000000,2.0,1000000,5000000"));
 		}
 
 		TArray<FString> ParameterArray;
@@ -459,6 +467,7 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCHighQpThreshold);
 		CommandLineParseValue(TEXT("PixelStreamingFreezeFrameQuality"), UE::PixelStreaming::Settings::CVarPixelStreamingFreezeFrameQuality);
 		CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), UE::PixelStreaming::Settings::CVarPixelStreamingKeyFilter);
+		CommandLineParseValue(TEXT("PixelStreamingFrameScale="), UE::PixelStreaming::Settings::CVarPixelStreamingFrameScale);
 
 		// Options parse (if these exist they are set to true)
 		CommandLineParseOption(TEXT("AllowPixelStreamingCommands"), UE::PixelStreaming::Settings::CVarPixelStreamingAllowConsoleCommands);
@@ -479,6 +488,19 @@ namespace UE::PixelStreaming::Settings
 
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
 		Module.OnReady().AddStatic(&UE::PixelStreaming::Settings::OnStreamerReady);
-	}
 
+		IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("PixelStreaming.StartStreaming"),
+			TEXT("<SignallingServer URL> - Connect to a signalling server and begin a streaming session."),
+			FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args) {
+				IPixelStreamingModule::Get().StartStreaming(Args[0].TrimQuotes());
+			}));
+
+		IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("PixelStreaming.StopStreaming"),
+			TEXT("End any existing streaming sessions."),
+			FConsoleCommandDelegate::CreateLambda([]() {
+				IPixelStreamingModule::Get().StopStreaming();
+			}));
+	}
 } // namespace UE::PixelStreaming::Settings

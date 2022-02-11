@@ -19,16 +19,19 @@ namespace UE {
 		public:
 			FSimulcastEncoderFactory();
 			virtual ~FSimulcastEncoderFactory();
-			virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const;
+			virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const ;
 			virtual CodecInfo QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const override;
 			virtual std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& format);
 
-			FVideoEncoderFactory* GetRealFactory() const;
 
+			using FEncoderFactoryId = uint64;
+			FVideoEncoderFactory* GetOrCreateEncoderFactory(FEncoderFactoryId Id);
+			FVideoEncoderFactory* GetEncoderFactory(FEncoderFactoryId Id);
 		private:
-			// making this a unique ptr is a little cheeky since we pass around raw pointers to it
-			// but the sole ownership lies in this class
-			TUniquePtr<FVideoEncoderFactory> RealFactory;
+			TMap<FEncoderFactoryId, TUniquePtr<FVideoEncoderFactory>> EncoderFactories;
+			FCriticalSection EncoderFactoriesGuard;
+
+			TUniquePtr<FVideoEncoderFactory> PrimaryEncoderFactory;
 		};
 
 		class FVideoEncoderFactory : public webrtc::VideoEncoderFactory
@@ -48,19 +51,17 @@ namespace UE {
 			void ReleaseVideoEncoder(FVideoEncoderRTC* Encoder);
 			void ForceKeyFrame();
 
-			using FHardwareEncoderId = uint64;
-			TOptional<FHardwareEncoderId> GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate);
-			FVideoEncoderH264Wrapper* GetHardwareEncoder(FHardwareEncoderId Id);
+			
+			FVideoEncoderH264Wrapper* GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate);
+			FVideoEncoderH264Wrapper* GetHardwareEncoder();
 
-			void OnEncodedImage(FHardwareEncoderId SourceEncoderId, const webrtc::EncodedImage& Encoded_image, const webrtc::CodecSpecificInfo* CodecSpecificInfo, const webrtc::RTPFragmentationHeader* Fragmentation);
+			void OnEncodedImage(const webrtc::EncodedImage& Encoded_image, const webrtc::CodecSpecificInfo* CodecSpecificInfo, const webrtc::RTPFragmentationHeader* Fragmentation);
 
 		private:
 
 			static webrtc::SdpVideoFormat CreateH264Format(webrtc::H264::Profile Profile, webrtc::H264::Level Level);
 
-			// These are the actual hardware encoders serving multiple pixelstreaming encoders
-			TMap<FHardwareEncoderId, TUniquePtr<FVideoEncoderH264Wrapper>> HardwareEncoders;
-			FCriticalSection HardwareEncodersGuard;
+			TUniquePtr<FVideoEncoderH264Wrapper> HardwareEncoder;
 
 			// Encoders assigned to each peer. Each one of these will be assigned to one of the hardware encoders
 			TArray<FVideoEncoderRTC*> ActiveEncoders;

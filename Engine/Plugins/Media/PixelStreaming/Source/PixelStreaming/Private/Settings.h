@@ -59,6 +59,10 @@ namespace UE
 			extern TArray<FKey> FilteredKeys;
 			// Ends Pixel Streaming Plugin CVars
 
+			// Begin TextureSource CVars
+			extern TAutoConsoleVariable<float> CVarPixelStreamingFrameScale;
+			// End TextureSource CVars
+
 			enum ECodec
 			{
 				H264,

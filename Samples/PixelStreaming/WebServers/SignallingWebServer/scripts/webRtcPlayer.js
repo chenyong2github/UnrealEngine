@@ -40,6 +40,7 @@ function webRtcPlayer(parOptions) {
     this.pcClient = null;
     this.dcClient = null;
     this.tnClient = null;
+    this.sfu = false;
 
     this.sdpConstraints = {
       offerToReceiveAudio: 1, //Note: if you don't need audio you can get improved latency by turning this off.
@@ -265,7 +266,7 @@ function webRtcPlayer(parOptions) {
             }
 
             datachannel.onclose = function (e) {
-                console.log("Data channel connected", e);
+                console.log("Data channel disconnected", e);
             }
 
             datachannel.onmessage = function (e) {
@@ -297,7 +298,7 @@ function webRtcPlayer(parOptions) {
         pc.createOffer(self.sdpConstraints).then(function (offer) {
 
             // Munging is where we modifying the sdp string to set parameters that are not exposed to the browser's WebRTC API
-            mungeSDPOffer(offer);
+            mungeSDP(offer);
 
             // Set our munged SDP on the local peer connection so it is "set" and will be send across
             pc.setLocalDescription(offer);
@@ -308,13 +309,12 @@ function webRtcPlayer(parOptions) {
         function () { console.warn("Couldn't create offer") });
     }
 
-    mungeSDPOffer = function (offer) {
+    mungeSDP = function (offer) {
 
-        // turn off video-timing sdp sent from browser
-        //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "");
-
-        // this indicate we support stereo (Chrome needs this)
-        offer.sdp = offer.sdp.replace('useinbandfec=1', 'useinbandfec=1;stereo=1;sprop-maxcapturerate=48000');
+        // Increase the capture rate of audio so we can have higher quality audio over mic
+        if(self.useMic){
+            offer.sdp = offer.sdp.replace('useinbandfec=1', 'useinbandfec=1;sprop-maxcapturerate=48000;maxaveragebitrate=510000');
+        }
 
     }
     
@@ -434,6 +434,7 @@ function webRtcPlayer(parOptions) {
                 latency: 0,
                 noiseSuppression: false,
                 sampleRate: 48000,
+                sampleSize: 16,
                 volume: 1.0
             } : false;
 
@@ -534,7 +535,10 @@ function webRtcPlayer(parOptions) {
 
     //Called externaly when an offer is received from the server
     this.receiveOffer = function(offer) {
-        var offerDesc = new RTCSessionDescription(offer);
+        if (offer.sfu) {
+            this.sfu = true;
+            delete offer.sfu;
+        }
 
         if (!self.pcClient){
             console.log("Creating a new PeerConnection in the browser.")
@@ -542,12 +546,15 @@ function webRtcPlayer(parOptions) {
             setupPeerConnection(self.pcClient);
 
             // Put things here that happen post transceiver setup
-            self.pcClient.setRemoteDescription(offerDesc)
+            self.pcClient.setRemoteDescription(offer)
             .then(() => 
             {
                 setupTransceiversAsync(self.pcClient).finally(function(){
                 self.pcClient.createAnswer()
-                .then(answer => self.pcClient.setLocalDescription(answer))
+                .then(answer => {
+                    mungeSDP(answer);
+                    return self.pcClient.setLocalDescription(answer);
+                })
                 .then(() => {
                     if (self.onWebRtcAnswer) {
                         self.onWebRtcAnswer(self.pcClient.currentLocalDescription);
@@ -568,15 +575,31 @@ function webRtcPlayer(parOptions) {
 
     //Called externaly when an answer is received from the server
     this.receiveAnswer = function(answer) {
-        var answerDesc = new RTCSessionDescription(answer);
-        self.pcClient.setRemoteDescription(answerDesc);
-
-        let receivers = self.pcClient.getReceivers();
-        for(let receiver of receivers)
-        {
-            receiver.playoutDelayHint = 0;
-        }
+        self.pcClient.setRemoteDescription(answer);
     };
+
+    this.receiveData = function(channelData) {
+        const sendOptions = {
+            ordered: true,
+            negotiated: true,
+            id: channelData.sendStreamId
+        };
+        const sendDataChannel = self.pcClient.createDataChannel('datachannel', sendOptions);
+
+        if (channelData.sendStreamId != channelData.recvStreamId) {
+            const recvOptions = {
+                ordered: true,
+                negotiated: true,
+                id: channelData.recvStreamId
+            };
+            const recvDataChannel = self.pcClient.createDataChannel('datachannel', recvOptions);
+            setupDataChannelCallbacks(recvDataChannel);
+        }
+        else {
+            setupDataChannelCallbacks(sendDataChannel);
+        }
+        this.dcClient = sendDataChannel;
+    }
 
     this.close = function(){
         if(self.pcClient){
