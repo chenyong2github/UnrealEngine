@@ -20,6 +20,7 @@ public:
 	virtual ~ICounter() = default;
 
 	virtual const TCHAR* GetName() const = 0;
+	virtual const TCHAR* GetGroup() const = 0;
 	virtual const TCHAR* GetDescription() const = 0;
 	virtual bool IsFloatingPoint() const = 0;
 	virtual ECounterDisplayHint GetDisplayHint() const = 0;
@@ -34,6 +35,7 @@ public:
 	virtual ~IEditableCounter() = default;
 
 	virtual void SetName(const TCHAR* Name) = 0;
+	virtual void SetGroup(const TCHAR* Group) = 0;
 	virtual void SetDescription(const TCHAR* Description) = 0;
 	virtual void SetIsFloatingPoint(bool bIsFloatingPoint) = 0;
 	virtual void SetDisplayHint(ECounterDisplayHint DisplayHint) = 0;

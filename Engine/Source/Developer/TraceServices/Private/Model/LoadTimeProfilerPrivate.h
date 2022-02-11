@@ -87,6 +87,7 @@ private:
 		virtual ~FLoaderFrameCounter() {}
 
 		virtual const TCHAR* GetName() const override;
+		virtual const TCHAR* GetGroup() const override;
 		virtual const TCHAR* GetDescription() const override;
 		virtual bool IsFloatingPoint() const override;
 		virtual ECounterDisplayHint GetDisplayHint() const override;

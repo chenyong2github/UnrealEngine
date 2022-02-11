@@ -1749,6 +1749,7 @@ public:
 	/**
 	 * Returns a pointer to a bool (valid forever) that determines if this group is active
 	 * This should be CACHED. We will get a few calls from different stats and different threads and stuff, but once things are "warmed up", this should NEVER be called.
+	 * This function will also register any stats with the StatsTrace system 
 	 * @param InGroup, group to look up
 	 * @param InCategory, the category the group belongs to
 	 * @param bDefaultEnable, If this is the first time this group has been set up, this sets the default enable value for this group.

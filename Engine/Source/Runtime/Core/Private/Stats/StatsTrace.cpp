@@ -19,6 +19,7 @@ UE_TRACE_EVENT_BEGIN(Stats, Spec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(bool, ShouldClearEveryFrame)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Name)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Description)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Group)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
@@ -103,18 +104,20 @@ void FStatsTraceInternal::EndEncodeOp(FThreadState* ThreadState, uint8* BufferPt
 	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
 }
 
-void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCHAR* Description, bool IsFloatingPoint, bool IsMemory, bool ShouldClearEveryFrame)
+void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCHAR* Description, const ANSICHAR* Group, bool IsFloatingPoint, bool IsMemory, bool ShouldClearEveryFrame)
 {
 	uint32 NameLen = FCStringAnsi::Strlen(Name);
 	uint32 DescriptionLen = FCString::Strlen(Description);
-
-	UE_TRACE_LOG(Stats, Spec, StatsChannel, NameLen + DescriptionLen)
+	uint32 GroupLen = FCStringAnsi::Strlen(Group);
+		
+	UE_TRACE_LOG(Stats, Spec, StatsChannel, NameLen + DescriptionLen + GroupLen)
 		<< Spec.Id(Stat.GetComparisonIndex().ToUnstableInt())
 		<< Spec.IsFloatingPoint(IsFloatingPoint)
 		<< Spec.IsMemory(IsMemory)
 		<< Spec.ShouldClearEveryFrame(ShouldClearEveryFrame)
 		<< Spec.Name(Name, NameLen)
-		<< Spec.Description(Description, DescriptionLen);
+		<< Spec.Description(Description, DescriptionLen)
+		<< Spec.Group(Group, GroupLen);
 }
 
 void FStatsTrace::Increment(const FName& Stat)

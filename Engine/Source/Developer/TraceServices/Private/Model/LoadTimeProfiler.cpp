@@ -28,6 +28,11 @@ const TCHAR* FLoadTimeProfilerProvider::FLoaderFrameCounter::GetName() const
 	return TEXT("");
 }
 
+const TCHAR* FLoadTimeProfilerProvider::FLoaderFrameCounter::GetGroup() const
+{
+	return nullptr;
+}
+
 const TCHAR* FLoadTimeProfilerProvider::FLoaderFrameCounter::GetDescription() const
 {
 	return TEXT("N/A");

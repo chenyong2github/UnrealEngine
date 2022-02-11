@@ -619,7 +619,7 @@ public:
 		{
 			ANSICHAR NameBuffer[1024];
 			StatShortName.GetPlainANSIString(NameBuffer);
-			FStatsTrace::DeclareStat(Stat, NameBuffer, *StatDescription, InStatType == EStatDataType::ST_double, MemoryRegion != FPlatformMemory::MCR_Invalid, bShouldClearEveryFrame);
+			FStatsTrace::DeclareStat(Stat, NameBuffer, *StatDescription, InGroup, InStatType == EStatDataType::ST_double, MemoryRegion != FPlatformMemory::MCR_Invalid, bShouldClearEveryFrame);
 		}
 #endif
 		return TStatId(Result);

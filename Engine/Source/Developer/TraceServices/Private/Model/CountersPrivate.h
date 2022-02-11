@@ -196,6 +196,8 @@ public:
 	FCounter(ILinearAllocator& Allocator, const TArray64<double>& FrameStartTimes);
 	virtual const TCHAR* GetName() const override { return Name; }
 	virtual void SetName(const TCHAR* InName) override { Name = InName; }
+	virtual const TCHAR* GetGroup() const override { return Group; }
+	virtual void SetGroup(const TCHAR* InGroup) override { Group = InGroup; }
 	virtual const TCHAR* GetDescription() const override { return Description; }
 	virtual void SetDescription(const TCHAR* InDescription) override { Description = InDescription; }
 	virtual bool IsFloatingPoint() const override { return bIsFloatingPoint; }
@@ -215,6 +217,7 @@ private:
 	TCounterData<int64> IntCounterData;
 	TCounterData<double> DoubleCounterData;
 	const TCHAR* Name = nullptr;
+	const TCHAR* Group = nullptr;
 	const TCHAR* Description = nullptr;
 	uint64 ModCount = 0;
 	ECounterDisplayHint DisplayHint = CounterDisplayHint_None;
