@@ -446,9 +446,29 @@ void UEditorEngine::EndPlayMap()
 			Arguments.Add(TEXT("Path"), FText::FromString(RefChainSearch.GetRootPath()));
 				
 			// We cannot safely recover from this.
-			FMessageLog(NAME_CategoryPIE).CriticalError()
-				->AddToken(FUObjectToken::Create(Object, FText::FromString(Object->GetFullName())))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("PIEObjectStillReferenced", "Object from PIE level still referenced. Shortest path from root: {Path}"), Arguments)));
+			if (UObjectBaseUtility::IsPendingKillEnabled())
+			{
+				FMessageLog(NAME_CategoryPIE).CriticalError()
+					->AddToken(FUObjectToken::Create(Object, FText::FromString(Object->GetFullName())))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("PIEObjectStillReferenced", "Object from PIE level still referenced. Shortest path from root: {Path}"), Arguments)));
+			}
+			else
+			{
+				// And yet we still try and recover
+				UPackage* ObjectPackage = Object->GetOutermost();
+				ObjectPackage->ClearPackageFlags(PKG_PlayInEditor);
+				ObjectPackage->ClearFlags(RF_Standalone);
+				// We let it leak but it needs to be renamed to not collide with future attempts at creating the same object(s)
+				ObjectPackage->Rename(*MakeUniqueObjectName(nullptr, UPackage::StaticClass()).ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional);
+
+				FText ErrorMessage = FText::Format(LOCTEXT("PIEObjectStillReferenced", "Object from PIE level still referenced. Shortest path from root: {Path}"), Arguments);
+				// Throw an ensure so that crash reporter logs this error
+				ensureAlwaysMsgf(false, TEXT("%s"), *ErrorMessage.ToString());
+				// Display the error in the editor window
+				FMessageLog(NAME_CategoryPIE).Error()
+					->AddToken(FUObjectToken::Create(Object, FText::FromString(Object->GetFullName())))
+					->AddToken(FTextToken::Create(ErrorMessage));
+			}
 		}
 	}
 

@@ -859,7 +859,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 	// Reset transaction buffer and run GC to clear out the destroyed level
 	GEditor->Cleanse(bClearSelection, false, TransResetText, bResetTransBuffer);
 
-	auto CheckPackage = [](const TArray<FName>& PackageNames, ELogVerbosity::Type Verbosity)
+	auto CheckPackage = [](const TArray<FName>& PackageNames, EPrintStaleReferencesOptions Options)
 	{
 		// Check Package no longer exists
 		for (const FName& LevelPackageName : PackageNames)
@@ -871,7 +871,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 				UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
 				if (TheWorld != nullptr)
 				{
-					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, Verbosity);
+					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, Options);
 					return false;
 				}
 			}
@@ -880,17 +880,17 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 	};
 
 	// Check that packages no longer exist
-	ELogVerbosity::Type Verbosity = ELogVerbosity::Log;
+	EPrintStaleReferencesOptions PrintStaleReferencesOptions = EPrintStaleReferencesOptions::Log;
 	if (bResetTransBuffer)
 	{
-		Verbosity = UObjectBaseUtility::IsPendingKillEnabled() ? ELogVerbosity::Fatal : ELogVerbosity::Error;
+		PrintStaleReferencesOptions = UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure);
 	}
-	bool bFailed = !CheckPackage(PackageNames, Verbosity);
-	if (bFailed && Verbosity != ELogVerbosity::Fatal)
+	bool bFailed = !CheckPackage(PackageNames, PrintStaleReferencesOptions);
+	if (bFailed && !(PrintStaleReferencesOptions & EPrintStaleReferencesOptions::Fatal))
 	{
 		// We tried avoiding clearing the Transaction buffer but it failed. Plan B.
 		GEditor->Cleanse(bClearSelection, false, TransResetText, true);
-		CheckPackage(PackageNames, Verbosity);
+		CheckPackage(PackageNames, PrintStaleReferencesOptions);
 	}
 
 	return true;

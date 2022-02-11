@@ -701,7 +701,7 @@ private:
 				if (Package)
 				{
 					UE_LOG(LogCookOnTheFly, Warning, TEXT("Can't recook package '%s'"), *PackageName.ToString());
-					UEngine::FindAndPrintStaleReferencesToObject(Package, ELogVerbosity::Display);
+					UEngine::FindAndPrintStaleReferencesToObject(Package, EPrintStaleReferencesOptions::Display);
 				}
 				else
 				{

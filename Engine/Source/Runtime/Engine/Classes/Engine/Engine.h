@@ -613,6 +613,20 @@ struct FPluginRedirect
 	FString NewPluginName;
 };
 
+/* Options for UEngine::FindAndPrintStaleReferencesToObject function */
+enum class EPrintStaleReferencesOptions
+{
+	None = 0,
+	Log = 1,
+	Display = 2,
+	Warning = 3,
+	Error = 4,
+	Fatal = 5,
+	Ensure = 0x00000100,
+
+	VerbosityMask = 0x000000ff
+};
+ENUM_CLASS_FLAGS(EPrintStaleReferencesOptions);
 
 /** Game thread events for dynamic resolution state. */
 enum class EDynamicResolutionStateEvent : uint8;
@@ -3133,7 +3147,15 @@ public:
 	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
 	 * @param Verbosity Verbosity (can be fatal or non-fatal) with which to print the error message with
 	 */
+	UE_DEPRECATED(5.1, "Please use FindAndPrintStaleReferencesToObject overload that takes EPrintStaleReferencesOptions parameter")
 	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
+
+	/**
+	 * Attempts to find what is referencing a world that should have been garbage collected
+	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
+	 * @param Options Determines how the stale references messages should be logged
+	 */
+	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options);
 
 	FWorldContext& CreateNewWorldContext(EWorldType::Type WorldType);
 

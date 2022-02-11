@@ -15004,7 +15004,7 @@ void UEngine::VerifyLoadMapWorldCleanup()
 				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
 				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
 
-				FindAndPrintStaleReferencesToObject(World, UObjectBaseUtility::IsPendingKillEnabled() ? ELogVerbosity::Fatal : ELogVerbosity::Error);
+				FindAndPrintStaleReferencesToObject(World, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
 			}
 		}
 	}
@@ -15061,7 +15061,41 @@ static FString GetPathToStaleObjectReferencer(UObject* ObjectToFindReferencesTo,
 
 void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity)
 {
-	check(ObjectToFindReferencesTo);
+	EPrintStaleReferencesOptions Options = EPrintStaleReferencesOptions::None;
+	switch (Verbosity)
+	{
+	case ELogVerbosity::NoLogging:
+		Options = EPrintStaleReferencesOptions::None;
+		break;
+	case ELogVerbosity::Log:
+		Options = EPrintStaleReferencesOptions::Log;
+		break;
+	case ELogVerbosity::Display:
+		Options = EPrintStaleReferencesOptions::Display;
+		break;
+	case ELogVerbosity::Warning:
+		Options = EPrintStaleReferencesOptions::Warning;
+		break;
+	case ELogVerbosity::Error:
+		Options = EPrintStaleReferencesOptions::Error;
+		break;
+	case ELogVerbosity::Fatal:
+		Options = EPrintStaleReferencesOptions::Fatal;
+		break;
+	default:
+		checkf(false, TEXT("Unsupported Verbosity: %d"), Verbosity);
+		break;
+	}
+	FindAndPrintStaleReferencesToObject(ObjectToFindReferencesTo, Options);
+}
+
+void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options)
+{
+	checkf(ObjectToFindReferencesTo, TEXT("ObjectToFindReferencesTo cannot be null"));
+	const ELogVerbosity::Type OptionsToVerbosityMapping[] = { ELogVerbosity::NoLogging, ELogVerbosity::Log, ELogVerbosity::Display, ELogVerbosity::Warning, ELogVerbosity::Error, ELogVerbosity::Fatal };
+	const int32 VerbosityIndex = int32(Options & EPrintStaleReferencesOptions::VerbosityMask);
+	checkf(VerbosityIndex < UE_ARRAY_COUNT(OptionsToVerbosityMapping), TEXT("Unsupported verbosity option provided: %d"), VerbosityIndex);
+	ELogVerbosity::Type Verbosity = OptionsToVerbosityMapping[VerbosityIndex];
 
 	UE_LOG(LogLoad, Log, TEXT("Looking for existing references to %s..."), *ObjectToFindReferencesTo->GetFullName());
 
@@ -15120,6 +15154,14 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 		{
 			GarbageErrorMessage = TEXT("However it's not referenced by any object. It may have a flag set that's preventing it from being destroyed (see log for details)");
 		}
+	}
+
+	if ((Options & EPrintStaleReferencesOptions::Ensure) == EPrintStaleReferencesOptions::Ensure)
+	{
+		ensureAlwaysMsgf(false, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+			*ObjectToFindReferencesTo->GetFullName(),
+			*GarbageErrorMessage,
+			*PathToCulprit);
 	}
 
 	if (Verbosity == ELogVerbosity::Fatal)
