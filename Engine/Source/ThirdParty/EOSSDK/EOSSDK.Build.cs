@@ -148,7 +148,7 @@ public class EOSSDK : ModuleRules
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LOAD_REQUIRED={0}", bRequiresRuntimeLoad ? 1 : 0));
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LIBRARY_NAME=\"{0}\"", RuntimeLibraryFileName));
 
-		bool bUseProjectBinary = Target.GlobalDefinitions.Contains("EOSSDK_USE_PROJECT_BINARY=1");
+		bool bUseProjectBinary = Target.LinkType == TargetLinkType.Monolithic && Target.GlobalDefinitions.Contains("EOSSDK_USE_PROJECT_BINARY=1");
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
