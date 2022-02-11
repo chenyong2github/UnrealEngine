@@ -26,6 +26,7 @@
 #include "TextFilterKeyValueHandlers.h"
 #include "TextFilterValueHandlers.h"
 #include "AssetCompilingManager.h"
+#include "ContentBrowserDataSource.h"
 
 /** Helper functions for frontend filters */
 namespace FrontendFilterHelper
@@ -1486,4 +1487,26 @@ bool FFrontendFilter_Writable::PassesFilter(FAssetFilterType InItem) const
 	ItemDiskPath = FPaths::ConvertRelativePathToFull(MoveTemp(ItemDiskPath));
 
 	return !IFileManager::Get().IsReadOnly(*ItemDiskPath);
+}
+
+/////////////////////////////////////////
+// FFrontendFilter_VirtualizedData
+/////////////////////////////////////////
+
+FFrontendFilter_VirtualizedData::FFrontendFilter_VirtualizedData(TSharedPtr<FFrontendFilterCategory> InCategory)
+	: FFrontendFilter(InCategory)
+{
+}
+
+bool FFrontendFilter_VirtualizedData::PassesFilter(FAssetFilterType InItem) const
+{
+	const FContentBrowserItemDataAttributeValue AttributeValue = InItem.GetItemAttribute(ContentBrowserItemAttributes::VirtualizedData);
+	if (AttributeValue.IsValid())
+	{
+		return AttributeValue.GetValue<FString>() == TEXT("True");
+	}
+	else
+	{
+		return false;
+	}
 }

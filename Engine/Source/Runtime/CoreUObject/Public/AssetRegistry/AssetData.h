@@ -740,6 +740,10 @@ public:
 	bool IsLicenseeVersion() const { return (Flags & FLAG_LICENSEE_VERSION) != 0; }
 	void SetIsLicenseeVersion(bool bValue) { Flags = (Flags & ~FLAG_LICENSEE_VERSION) | (bValue ? FLAG_LICENSEE_VERSION : 0); }
 
+	/** Whether the package contains virtualized payloads or not */
+	bool HasVirtualizedPayloads() const { return (Flags & FLAG_HAS_VIRTUALIZED_PAYLOADS) != 0; }
+	void SetHasVirtualizedPayloads(bool bValue) { Flags = (Flags & ~FLAG_HAS_VIRTUALIZED_PAYLOADS) | (bValue ? FLAG_HAS_VIRTUALIZED_PAYLOADS : 0); }
+
 	/**
 	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
 	 * To version this data change FAssetRegistryVersion
@@ -757,7 +761,8 @@ public:
 private:
 	enum
 	{
-		FLAG_LICENSEE_VERSION = 0x1,
+		FLAG_LICENSEE_VERSION			= 1 << 0,
+		FLAG_HAS_VIRTUALIZED_PAYLOADS	= 1 << 1
 	};
 
 	void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version);

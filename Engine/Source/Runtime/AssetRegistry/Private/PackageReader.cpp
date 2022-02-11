@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "Misc/PackageName.h"
 #include "UObject/Class.h"
+#include "UObject/PackageTrailer.h"
 
 FPackageReader::FPackageReader()
 	: Loader(nullptr)
@@ -237,6 +238,37 @@ bool FPackageReader::SerializeAssetRegistryDependencyData(FPackageDependencyData
 	return true;
 }
 
+bool FPackageReader::SerializePackageTrailer(FPackageDependencyData& DependencyData)
+{
+	bool bHasVirtualizedPayloads = false;
+
+	if (PackageFileSummary.PayloadTocOffset != INDEX_NONE)
+	{
+		// Store the original offset in the package being read, since we are about to seek to near the end
+		const int64 InitialOffset = Tell();
+		
+		Seek(PackageFileSummary.PayloadTocOffset);
+
+		if (IsError())
+		{
+			return false;
+		}
+
+		UE::FPackageTrailer Trailer;
+		if (Trailer.TryLoad(*this))
+		{
+			bHasVirtualizedPayloads = Trailer.GetNumPayloads(UE::EPayloadFilter::Virtualized) > 0 ? true : false;
+		}
+
+		// Restore the original offset inside the package
+		Seek(InitialOffset);
+	}
+
+	DependencyData.PackageData.SetHasVirtualizedPayloads(bHasVirtualizedPayloads);
+
+	return true;
+}
+
 bool FPackageReader::ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetDataList)
 {
 	if (!StartSerializeSection(PackageFileSummary.ThumbnailTableOffset))
@@ -409,6 +441,11 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 		return false;
 	}
 	if (!SerializeAssetRegistryDependencyData(OutDependencyData))
+	{
+		return false;
+	}
+	// Note that the trailer is read from the end of the package file, and so should be the last thing read here
+	if (!SerializePackageTrailer(OutDependencyData))
 	{
 		return false;
 	}

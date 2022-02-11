@@ -1112,6 +1112,38 @@ bool GetDiskSizeItemAttribute(const FAssetData& InAssetData, IAssetRegistry* InA
 	return false;
 }
 
+bool GetVirtualizationItemAttribute(const FAssetData& InAssetData, IAssetRegistry* InAssetRegistry, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValue& OutAttributeValue)
+{
+	check(InAssetData.IsValid());
+	check(InAssetRegistry != nullptr);
+
+	if (TOptional<FAssetPackageData> PackageData = InAssetRegistry->GetAssetPackageDataCopy(InAssetData.PackageName))
+	{
+		// We could set a bool here but that will display the value in lower case, where as asset properties 
+		// use a string value with the first letter in upper case, so we replicate that here to avoid the 
+		// entry looking out of place.
+		OutAttributeValue.SetValue(PackageData->HasVirtualizedPayloads() ? TEXT("True") : TEXT("False"));
+
+		if (InIncludeMetaData)
+		{
+			static const FText DisplayName = LOCTEXT("AttributeDisplayName_VirtualizedData", "Has Virtualized Data");
+
+			FContentBrowserItemDataAttributeMetaData AttributeMetaData;
+			AttributeMetaData.AttributeType = UObject::FAssetRegistryTag::TT_Alphabetical;
+			AttributeMetaData.DisplayFlags = UObject::FAssetRegistryTag::TD_None;
+			AttributeMetaData.DisplayName = DisplayName;
+
+			OutAttributeValue.SetMetaData(MoveTemp(AttributeMetaData));
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void GetGenericItemAttribute(const FName InTagKey, const FString& InTagValue, const FAssetPropertyTagCache::FClassPropertyTagCache& InClassPropertyTagCache, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValue& OutAttributeValue)
 {
 	check(!InTagKey.IsNone());
@@ -1248,6 +1280,11 @@ bool GetAssetFileItemAttribute(const FContentBrowserAssetFileItemDataPayload& In
 			return GetDiskSizeItemAttribute(InAssetPayload.GetAssetData(), IAssetRegistry::Get(), InIncludeMetaData, OutAttributeValue);
 		}
 
+		if (InAttributeKey == ContentBrowserItemAttributes::VirtualizedData)
+		{
+			return GetVirtualizationItemAttribute(InAssetPayload.GetAssetData(), IAssetRegistry::Get(), InIncludeMetaData, OutAttributeValue);
+		}
+
 		if (InAttributeKey == ContentBrowserItemAttributes::ItemIsDeveloperContent)
 		{
 			const bool bIsDevelopersFolder = AssetViewUtils::IsDevelopersFolder(InAssetPayload.GetAssetData().PackageName.ToString());
@@ -1345,6 +1382,13 @@ bool GetAssetFileItemAttributes(const FContentBrowserAssetFileItemDataPayload& I
 		{
 			OutAttributeValues.Add(ContentBrowserItemAttributes::ItemDiskSize, MoveTemp(DiskSizeAttributeValue));
 		}
+
+		// Virtualized Payloads
+		FContentBrowserItemDataAttributeValue VirtualizedAttributeValue;
+		if (GetVirtualizationItemAttribute(InAssetPayload.GetAssetData(), IAssetRegistry::Get(), InIncludeMetaData, VirtualizedAttributeValue))
+		{
+			OutAttributeValues.Add(ContentBrowserItemAttributes::VirtualizedData, MoveTemp(VirtualizedAttributeValue));
+		}	
 	}
 
 	// Generic attribute keys

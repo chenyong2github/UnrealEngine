@@ -390,4 +390,21 @@ public:
 private:
 };
 
+/** A filter that displays only packages that contain virtualized data  */
+class CONTENTBROWSER_API FFrontendFilter_VirtualizedData : public FFrontendFilter
+{
+public:
+	FFrontendFilter_VirtualizedData(TSharedPtr<FFrontendFilterCategory> InCategory);
+	~FFrontendFilter_VirtualizedData() = default;
+
+private:
+	// FFrontendFilter implementation
+	virtual FString GetName() const override { return TEXT("VirtualizedData"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_VirtualizedData", "Virtualized Data"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_VirtualizedDataTooltip", "Show only package that contain virtualized data."); }
+
+	// IFilter implementation
+	virtual bool PassesFilter(FAssetFilterType InItem) const override;
+};
+
 #undef LOCTEXT_NAMESPACE

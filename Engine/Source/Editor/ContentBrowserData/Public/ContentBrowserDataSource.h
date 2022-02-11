@@ -43,6 +43,12 @@ namespace ContentBrowserItemAttributes
 	const FName ItemDiskSize = "ItemDiskSize";
 
 	/**
+	 * Attribute key that can be used to query if the item has virtualized data or not.
+	 * Type: bool.
+	 */
+	const FName VirtualizedData = "HasVirtualizedData";
+
+	/**
 	 * Attribute key that can be used to query whether the given item is considered to be developer content.
 	 * Type: bool.
 	 */

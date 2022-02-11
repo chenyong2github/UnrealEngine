@@ -61,6 +61,7 @@ public:
 	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
 	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
 	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
+	bool SerializePackageTrailer(FPackageDependencyData& DependencyData);
 
 	/** Returns flags the asset package was saved with */
 	uint32 GetPackageFlags() const;
