@@ -128,12 +128,6 @@ static TAutoConsoleVariable<int32> CVarBasePassWriteDepthEvenWithFullPrepass(
 	TEXT("0 to allow a readonly base pass, which skips an MSAA depth resolve, and allows masked materials to get EarlyZ (writing to depth while doing clip() disables EarlyZ) (default)\n")
 	TEXT("1 to force depth writes in the base pass.  Useful for debugging when the prepass and base pass don't match what they render."));
 
-static TAutoConsoleVariable<int32> CVarWPOPrimitivesOutputVelocity(
-	TEXT("r.WPOPrimitivesOutputVelocity"),
-	0,
-	TEXT("Whether primitives using World Position Offset (WPO) materials output velocity."),
-	ECVF_RenderThreadSafe);
-
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer MotionBlurStartFrame"), STAT_FDeferredShadingSceneRenderer_MotionBlurStartFrame, STATGROUP_SceneRendering);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameters, "PrimitiveFade");
@@ -4215,7 +4209,7 @@ struct FPrimitiveArraySortKey
 
 static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy, const FStaticShaderPlatform ShaderPlatform)
 {
-	bool bShouldPrimitiveOutputVelocity = Proxy->DrawsVelocity() || (!!CVarWPOPrimitivesOutputVelocity.GetValueOnRenderThread() && Proxy->IsUsingWPOMaterial());
+	bool bShouldPrimitiveOutputVelocity = Proxy->DrawsVelocity();
 
 	bool bPlatformSupportsVelocityRendering = PlatformSupportsVelocityRendering(ShaderPlatform);
 

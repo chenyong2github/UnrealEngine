@@ -40,10 +40,11 @@ static TAutoConsoleVariable<int32> CVarCacheWPOPrimitives(
 
 static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
 	TEXT("r.VertexDeformationOutputsVelocity"),
-	0,
+	2,
 	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
-	TEXT("This only has an impact if r.VelocityOutputPass=2. \n")
-	TEXT("This will incur a performance cost that can be quite significant if many objects are using WPO, such as a forest of trees."));
+	TEXT("0=Off, 1=On, 2=Auto(Default). \n")
+	TEXT("Auto setting is off if r.VelocityOutputPass=2, or else on. \n")
+	TEXT("When r.VelocityOutputPass=2 this can incur a performance cost due to additional draw calls."));
 
 bool CacheShadowDepthsFromPrimitivesUsingWPO()
 {
@@ -107,13 +108,10 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 
 static bool VertexDeformationOutputsVelocity()
 {
-	// This is only optional when velocity pass is after base pass (when it could create many more draw calls).
-	// Note this output pass setting is read only.
 	static const auto CVarVelocityOutputPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
-	bool bVertexDeformationOutputsVelocityForPass = CVarVelocityOutputPass && CVarVelocityOutputPass->GetInt() != 2;
-	
-	bool bVertexDeformationOutputsVelocity = CVarVertexDeformationOutputsVelocity.GetValueOnAnyThread() != 0;
-	return bVertexDeformationOutputsVelocityForPass || bVertexDeformationOutputsVelocity;
+	const bool bVertexDeformationOutputsVelocityDefault = CVarVelocityOutputPass && CVarVelocityOutputPass->GetInt() != 2;
+	const int32 VertexDeformationOutputsVelocity = CVarVertexDeformationOutputsVelocity.GetValueOnAnyThread();
+	return VertexDeformationOutputsVelocity == 1 || (VertexDeformationOutputsVelocity == 2 && bVertexDeformationOutputsVelocityDefault);
 }
 
 FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName InResourceName)

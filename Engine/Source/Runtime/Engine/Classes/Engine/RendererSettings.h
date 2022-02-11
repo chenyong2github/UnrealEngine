@@ -79,7 +79,7 @@ namespace EEarlyZPass
 }
 
 /**
- * Enumerates available options for early Z-passes.
+ * Enumerates available options for velocity pass.
  */
 UENUM()
 namespace EVelocityOutputPass
@@ -89,6 +89,20 @@ namespace EVelocityOutputPass
 		DepthPass = 0 UMETA(DisplayName = "Write during depth pass"),
 		BasePass = 1 UMETA(DisplayName = "Write during base pass"),
 		AfterBasePass = 2 UMETA(DisplayName = "Write after base pass"),
+	};
+}
+
+/**
+ * Enumerates available options for Vertex Deformation Outputs Velocity.
+ */
+UENUM()
+namespace EVertexDeformationOutputsVelocity
+{
+	enum Type
+	{
+		Off = 0 UMETA(ToolTip = "Always off"),
+		On = 1 UMETA(ToolTip = "Always on"),
+		Auto = 2 UMETA(ToolTip = "On when the performance cost is low (velocity in depth or base pass)."),
 	};
 }
 
@@ -705,10 +719,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
 		DisplayName="Output velocities due to vertex deformation",
 		ConsoleVariable="r.VertexDeformationOutputsVelocity",
-		EditCondition = "VelocityPass == EVelocityOutputPass::AfterBasePass",
-		ToolTip="Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. This incurs a performance cost and can be quite significant if many objects are using WPO, such as a forest of trees. Instead consider outputting velocities during depth or base pass (r.VelocityOutputPass)."
-		))
-	uint32 bVertexDeformationOutputsVelocity:1;
+		ToolTip="Enables materials with World Position Offset and/or World Displacement to output velocities during the velocity pass even when the actor has not moved. \nIf the VelocityPass is set to 'Write after base pass' this can incur a performance cost due to additional draw calls. \nThat performance cost is higher if many objects are using World Position Offset. A forest of trees for example." ))
+	TEnumAsByte<EVertexDeformationOutputsVelocity::Type> VertexDeformationOutputsVelocity;
 
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
 		ConsoleVariable="r.SelectiveBasePassOutputs", DisplayName="Selectively output to the GBuffer rendertargets",
