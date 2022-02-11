@@ -9,6 +9,7 @@
 #include "MassEntityQuery.h"
 #include "StructUtilsTypes.h"
 #include "MassObserverManager.h"
+#include "Containers/Queue.h"
 #include "MassEntitySubsystem.generated.h"
 
 
