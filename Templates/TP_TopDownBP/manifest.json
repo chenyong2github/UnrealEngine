@@ -70,6 +70,13 @@
 			]
 		},
 		{
+			"MountName": "Cursor",
+			"DetailLevels":
+			[			
+				"Standard"
+			]
+		},
+		{
 			"MountName": "Mannequin",
 			"DetailLevels":
 			[

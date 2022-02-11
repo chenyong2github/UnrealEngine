@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 #include "GameFramework/PlayerController.h"
 #include "TP_TopDownPlayerController.generated.h"
+
+/** Forward declaration to improve compiling times */
+class UNiagaraSystem;
 
 UCLASS()
 class ATP_TopDownPlayerController : public APlayerController
@@ -13,6 +17,14 @@ class ATP_TopDownPlayerController : public APlayerController
 
 public:
 	ATP_TopDownPlayerController();
+
+	/** Time Threshold to know if it was a short press */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	float ShortPressThreshold;
+
+	/** FX Class that we will spawn when clicking */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UNiagaraSystem* FXCursor;
 
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
@@ -23,18 +35,16 @@ protected:
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
-	/** Navigate player to the current mouse cursor location. */
-	void MoveToMouseCursor();
-
-	/** Navigate player to the current touch location. */
-	void MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location);
-	
-	/** Navigate player to the given world location. */
-	void SetNewMoveDestination(const FVector DestLocation);
-
 	/** Input handlers for SetDestination action. */
 	void OnSetDestinationPressed();
 	void OnSetDestinationReleased();
+	void OnTouchPressed(const ETouchIndex::Type FingerIndex, const FVector Location);
+	void OnTouchReleased(const ETouchIndex::Type FingerIndex, const FVector Location);
+
+private:
+	bool bInputPressed; // Input is bring pressed
+	bool bIsTouch; // Is it a touch device
+	float FollowTime; // For how long it has been pressed
 };
 
 
