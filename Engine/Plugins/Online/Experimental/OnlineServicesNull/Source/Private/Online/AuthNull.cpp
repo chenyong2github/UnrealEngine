@@ -62,11 +62,11 @@ FString FAuthNull::GenerateRandomUserId(int32 LocalUserNum)
 	if (bUseStableNullId)
 	{
 		// Use a stable id possibly with a user num suffix
-		return FString::Printf(TEXT("%s-%s%s"), *HostName, *FPlatformMisc::GetLoginId().ToUpper(), *UserSuffix);
+		return FString::Printf(TEXT("OSSV2-%s-%s%s"), *HostName, *FPlatformMisc::GetLoginId().ToUpper(), *UserSuffix);
 	}
 
 	// If we're not the first instance (or in the editor), return truly random id
-	return FString::Printf(TEXT("%s-%s%s"), *HostName, *FGuid::NewGuid().ToString(), *UserSuffix);
+	return FString::Printf(TEXT("OSSV2-%s-%s%s"), *HostName, *FGuid::NewGuid().ToString(), *UserSuffix);
 }
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthNull::Login(FAuthLogin::Params&& Params)
@@ -81,6 +81,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthNull::Login(FAuthLogin::Params&& Params)
 		AccountInfo->PlatformUserId = InAsyncOp.GetParams().PlatformUserId;
 		AccountInfo->DisplayName = DisplayId;
 		AccountInfo->UserId = FOnlineAccountIdRegistryNull::Get().Create(DisplayId, AccountInfo->PlatformUserId);
+		AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
 		FAuthLogin::Result Result{ AccountInfo };
 		AccountInfos.Add(AccountInfo->UserId, AccountInfo);
 		InAsyncOp.SetResult(MoveTemp(Result));
@@ -220,7 +221,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryNull::Create(FString UserId, FPla
 		return ExistingHandle;
 	}
 
-	FOnlineAccountIdString Id = Ids.Emplace_GetRef();
+	FOnlineAccountIdString& Id = Ids.Emplace_GetRef();
 	Id.AccountIndex = Ids.Num();
 	Id.Data = UserId;
 	Id.Handle = FOnlineAccountIdHandle(EOnlineServices::Null, Id.AccountIndex);
@@ -230,7 +231,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryNull::Create(FString UserId, FPla
 	{
 		if(LocalUserMap.Contains(LocalUserIndex.GetInternalId()))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OssNull: Found a duplicate ID for local user %d"), LocalUserIndex.GetInternalId());
+			UE_LOG(LogTemp, Error, TEXT("OssNull: Found a duplicate ID for local user %d"), LocalUserIndex.GetInternalId());
 		}
 		LocalUserMap.Add(LocalUserIndex.GetInternalId(), Id);
 	}
@@ -254,15 +255,16 @@ TArray<uint8> FOnlineAccountIdRegistryNull::ToReplicationData(const FOnlineAccou
 	if (const FOnlineAccountIdString* Id = GetInternal(Handle))
 	{
 		TArray<uint8> ReplicationData;
-		ReplicationData.Reserve(Id->Data.Len());
+		ReplicationData.SetNumUninitialized(Id->Data.Len());
 		StringToBytes(Id->Data, ReplicationData.GetData(), Id->Data.Len());
+		UE_LOG(LogTemp, VeryVerbose, TEXT("StringToBytes on %s returned %d len"), *Id->Data, ReplicationData.Num())
 		return ReplicationData;
 	}
 
 	return TArray<uint8>();;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryNull::FromReplicationData(const TArray<uint8> ReplicationData)
+FOnlineAccountIdHandle FOnlineAccountIdRegistryNull::FromReplicationData(const TArray<uint8>& ReplicationData)
 {
 	FString Result = BytesToString(ReplicationData.GetData(), ReplicationData.Num());
 	if(Result.Len() > 0)

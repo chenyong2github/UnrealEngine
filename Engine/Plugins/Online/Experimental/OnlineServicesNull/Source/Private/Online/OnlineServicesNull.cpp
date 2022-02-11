@@ -4,6 +4,7 @@
 #include "Online/OnlineServicesNullTypes.h"
 
 #include "Online/AuthNull.h"
+#include "Online/LobbiesNull.h"
 
 namespace UE::Online {
 
@@ -30,7 +31,42 @@ FOnlineServicesNull::FOnlineServicesNull()
 void FOnlineServicesNull::RegisterComponents()
 {
 	Components.Register<FAuthNull>(*this);
+	Components.Register<FLobbiesNull>(*this);
 	FOnlineServicesCommon::RegisterComponents();
+}
+
+TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
+{
+	ILobbiesPtr LobbiesPtr = GetLobbiesInterface();
+	check(LobbiesPtr);
+
+	TOnlineResult<FGetJoinedLobbies> JoinedLobbies = LobbiesPtr->GetJoinedLobbies({ Params.LocalUserId });
+	if (JoinedLobbies.IsOk())
+	{
+		for (TSharedRef<const FLobby>& Lobby : JoinedLobbies.GetOkValue().Lobbies)
+		{
+			if (Lobby->LobbyId == Params.LobbyId)
+			{
+				FName Tag = FName(TEXT("ConnectAddress")); // todo: global tag
+				if(Lobby->Attributes.Contains(Tag))
+				{
+					FGetResolvedConnectString::Result Result;
+					Result.ResolvedConnectString = Lobby->Attributes[Tag].GetString();
+ 					return TOnlineResult<FGetResolvedConnectString>(Result);
+				}
+				else
+				{
+					continue;
+				}
+			}
+		}
+		// No matching lobby
+		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
+	}
+	else
+	{
+		return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
+	}
 }
 
 void FOnlineServicesNull::Initialize()
@@ -46,3 +82,4 @@ void FOnlineServicesNull::Initialize()
 
 
 /* UE::Online */ }
+

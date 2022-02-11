@@ -6,6 +6,7 @@
 
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineServicesNull.h"
+#include "Online/AuthNull.h"
 
 namespace UE::Online
 {

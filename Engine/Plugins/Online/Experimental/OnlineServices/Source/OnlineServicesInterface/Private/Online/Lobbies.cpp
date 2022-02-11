@@ -90,6 +90,10 @@ FString FLobbyVariant::GetString() const
 	{
 		return ::LexToString(VariantData.Get<bool>());
 	}
+	else if (VariantData.IsType<double>())
+	{
+		return FString::Printf(TEXT("%f"), VariantData.Get<double>());
+	}
 	else
 	{
 		checkNoEntry();

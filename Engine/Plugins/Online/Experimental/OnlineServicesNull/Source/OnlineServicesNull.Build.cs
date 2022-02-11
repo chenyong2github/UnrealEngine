@@ -10,8 +10,12 @@ public class OnlineServicesNull : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreOnline",
+				"Sockets",
 				"OnlineServicesInterface",
 				"OnlineServicesCommon",
+				"OnlineSubsystem",
+				"OnlineSubsystemUtils"
 			}
 		);
 	}

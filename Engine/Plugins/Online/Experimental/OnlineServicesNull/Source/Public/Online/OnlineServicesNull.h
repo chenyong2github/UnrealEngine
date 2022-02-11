@@ -14,6 +14,7 @@ public:
 	FOnlineServicesNull();
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
+	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
 
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Null; }
 };
