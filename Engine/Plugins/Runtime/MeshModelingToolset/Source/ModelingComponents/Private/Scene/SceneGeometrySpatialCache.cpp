@@ -6,6 +6,7 @@
 #include "GameFramework/Volume.h"
 #include "Components/BrushComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"
+#include "TransformTypes.h"
 
 using namespace UE::Geometry;
 
