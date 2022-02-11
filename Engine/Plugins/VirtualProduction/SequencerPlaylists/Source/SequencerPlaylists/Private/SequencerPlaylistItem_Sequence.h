@@ -22,7 +22,7 @@ class USequencerPlaylistItem_Sequence : public USequencerPlaylistItem
 	FText GetDisplayName() override;
 
 public:
-	UPROPERTY(EditAnywhere, Category="SequencerPlaylists", meta=(NoResetToDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SequencerPlaylists", meta=(NoResetToDefault))
 	TObjectPtr<ULevelSequence> Sequence;
 };
 
