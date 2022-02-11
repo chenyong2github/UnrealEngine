@@ -4152,6 +4152,16 @@ void UInstancedStaticMeshComponent::PostLoad()
 {
 	Super::PostLoad();
 
+	// Ensure we have the proper amount of per instance custom float data.
+	// We have instances, and we have custom float data per instance, but we don't have custom float data allocated.
+	if (PerInstanceSMData.Num() > 0 && 
+		PerInstanceSMCustomData.Num() == 0 &&
+		NumCustomDataFloats > 0)
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("%s has %d instances, and %d NumCustomDataFloats, but no PerInstanceSMCustomData.  Allocating %d custom floats."), *GetFullName(), PerInstanceSMData.Num(), NumCustomDataFloats, PerInstanceSMData.Num() * NumCustomDataFloats);
+		PerInstanceSMCustomData.AddZeroed(PerInstanceSMData.Num() * NumCustomDataFloats);
+	}
+
 	// Has different implementation in HISMC
 	OnPostLoadPerInstanceData();
 }
