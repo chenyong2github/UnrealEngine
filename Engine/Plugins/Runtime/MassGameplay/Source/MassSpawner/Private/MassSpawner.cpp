@@ -525,6 +525,16 @@ bool AMassSpawner::DespawnEntity(const FMassEntityHandle Entity)
 	return false;
 }
 
+int32 AMassSpawner::GetCount() const
+{
+	return Count;
+}
+
+float AMassSpawner::GetSpawningCountScale() const
+{
+	return SpawningCountScale;
+}
+
 void AMassSpawner::ClearTemplates()
 {
 	for (FMassSpawnedEntityType& EntityType : EntityTypes)

@@ -79,6 +79,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void ScaleSpawningCount(float Scale) { SpawningCountScale = Scale; }
 
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	int32 GetCount() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	float GetSpawningCountScale() const;
+
 	/** Called once DoSpawning completes and all entities have been spawned. */
 	UPROPERTY(BlueprintAssignable)
 	FMassSpawnerOnSpawningFinishedEvent OnSpawningFinishedEvent;
@@ -126,6 +132,7 @@ protected:
 	TArray<TObjectPtr<UMassProcessor>> PostSpawnProcessors;
 
 	/** Scale of the spawning count */
+	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
 	float SpawningCountScale = 1.0f;
 
 	FDelegateHandle SimulationStartedHandle;
