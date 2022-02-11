@@ -46,7 +46,7 @@ half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 */
 half ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
 	int VirtualShadowMapId, 
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	half SubsurfaceOpacity)
 {
 	// If the receiver is a subsurface material, we do a very simple transmission approximation
@@ -57,9 +57,9 @@ half ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
 	// a common case.
 
 	// Do a separate unfiltered lookup to get approximate occluder distance
-	FVirtualShadowMapSampleResult SSSResult = SampleVirtualShadowMap(
+	FVirtualShadowMapSampleResult SSSResult = SampleVirtualShadowMapTranslatedWorld(
 		VirtualShadowMapId,
-		WorldPosition,
+		TranslatedWorldPosition,
 		0.0f // RayStartDistance
 	);
 

@@ -2362,15 +2362,6 @@ void CreateConsoleVariables()
 // sg.     scalability group (used by scalability system, ini load/save or using SCALABILITY console command)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-static TAutoConsoleVariable<int32> CVarPreViewTranslation(
-	TEXT("r.PreViewTranslation"),
-	1,
-	TEXT("To limit issues with float world space positions we offset the world by the\n")
-	TEXT("PreViewTranslation vector. This command allows to disable updating this vector.\n")
-	TEXT(" 0: disable update\n")
-	TEXT(" 1: update the offset is each frame (default)"),
-	ECVF_Cheat);
-
 static TAutoConsoleVariable<FString> CVarFreezeAtPosition(
 	TEXT("FreezeAtPosition"),
 	TEXT(""),	// default value is empty

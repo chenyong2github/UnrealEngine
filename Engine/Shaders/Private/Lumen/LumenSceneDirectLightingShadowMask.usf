@@ -136,7 +136,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 					#if VIRTUAL_SHADOW_MAP
 					{
 						// Bias only ray start to maximize chances of hitting an allocated page
-						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSamplingBias + ReceiverBias, WorldNormal);
+						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapLWCHack(VirtualShadowMapId, WorldPosition, VirtualShadowMapSamplingBias + ReceiverBias, WorldNormal);
 
 						bVSMValid = VirtualShadowMapSample.bValid;
 						ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;

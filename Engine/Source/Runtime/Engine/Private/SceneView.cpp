@@ -542,67 +542,19 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	InvViewMatrix = ViewRotationMatrix.GetTransposed() * FTranslationMatrix(LocalViewOrigin);
 	InvViewProjectionMatrix = InvProjectionMatrix * InvViewMatrix;
 
-	bool bApplyPreViewTranslation = true;
-	bool bViewOriginIsFudged = false;
+	// Translate world-space so its origin is at ViewOrigin for improved precision.
+	ViewOrigin = LocalViewOrigin;
+	PreViewTranslation = -LocalViewOrigin;
 
-	// Calculate the view origin from the view/projection matrices.
-	if (IsPerspectiveProjection())
-	{
-		this->ViewOrigin = LocalViewOrigin;
-	}
-	else if (Initializer.bUseFauxOrthoViewPos)
-	{
-		auto DistanceToViewOrigin = UE_OLD_WORLD_MAX;
-		ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal())) * DistanceToViewOrigin + LocalViewOrigin;
-		bViewOriginIsFudged = true;
-	}
-	else
-	{
-		this->ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal()));
-		// to avoid issues with view dependent effect (e.g. Frensel)
-		bApplyPreViewTranslation = false;
-	}
-
-	/** The view transform, starting from world-space points translated by -ViewOrigin. */
 	FMatrix LocalTranslatedViewMatrix = ViewRotationMatrix;
 	FMatrix LocalInvTranslatedViewMatrix = LocalTranslatedViewMatrix.GetTransposed();
 
-	// Translate world-space so its origin is at ViewOrigin for improved precision.
-	// Note that this isn't exactly right for orthogonal projections (See the above special case), but we still use ViewOrigin
-	// in that case so the same value may be used in shaders for both the world-space translation and the camera's world position.
-	if (bApplyPreViewTranslation)
+	if (!IsPerspectiveProjection() && Initializer.bUseFauxOrthoViewPos)
 	{
-		PreViewTranslation = -FVector(LocalViewOrigin);
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		{
-			// console variable override
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PreViewTranslation"));
-			int32 Value = CVar->GetValueOnAnyThread();
-
-			static FVector PreViewTranslationBackup;
-
-			if (Value)
-			{
-				PreViewTranslationBackup = PreViewTranslation;
-			}
-			else
-			{
-				PreViewTranslation = PreViewTranslationBackup;
-			}
-		}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	}
-	else
-	{
-		// If not applying PreViewTranslation then we need to use the view matrix directly.
-		LocalTranslatedViewMatrix = ViewMatrix;
-		LocalInvTranslatedViewMatrix = InvViewMatrix;
-	}
-
-	// When the view origin is fudged for faux ortho view position the translations don't cancel out.
-	if (bViewOriginIsFudged)
-	{
+		auto DistanceToViewOrigin = UE_OLD_WORLD_MAX;
+		ViewOrigin = FVector(InvViewMatrix.TransformVector(FVector(0, 0, -1).GetSafeNormal())) * DistanceToViewOrigin + LocalViewOrigin;
+		
+		// When the view origin is fudged for faux ortho view position the translations don't cancel out.
 		LocalTranslatedViewMatrix = FTranslationMatrix(-PreViewTranslation)
 			* FTranslationMatrix(-LocalViewOrigin) * ViewRotationMatrix;
 		LocalInvTranslatedViewMatrix = LocalTranslatedViewMatrix.Inverse();

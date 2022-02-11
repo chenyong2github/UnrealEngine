@@ -2,7 +2,9 @@
 
 #pragma once
 
-// Rougly the same structure as in VirtualShadowMapArray.h
+#include "../LargeWorldCoordinates.ush"
+
+// Rougly the same structure as in VirtualShadowMapArray.h, with some logic around LWC values
 struct FVirtualShadowMapProjectionShaderData
 {
 	float4x4 TranslatedWorldToShadowViewMatrix;
@@ -10,12 +12,11 @@ struct FVirtualShadowMapProjectionShaderData
 	float4x4 TranslatedWorldToShadowUVMatrix;
 	float4x4 TranslatedWorldToShadowUVNormalMatrix;
 
-	float3 ShadowPreViewTranslation;
+	FLWCVector3 PreViewTranslation;
 	uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.ush
-
-	float3 ClipmapWorldOrigin;
 	float LightSourceRadius;
 
+	FLWCVector3 ClipmapWorldOrigin;
 	int2 ClipmapCornerOffset;
 	int ClipmapIndex;		// 0..ClipmapLevelCount-1
 	int ClipmapLevel;
@@ -33,7 +34,7 @@ FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteA
 	Result.VirtualShadowMapId = VirtualShadowMapId;
 
 	// Seems the FMatrix forces 16-byte alignment, so ensure padding matches the C++ structure size
-	const uint Stride = 16 * 20;
+	const uint Stride = 16 * 21;
 	const uint Base = VirtualShadowMapId * Stride;
 
 	Result.TranslatedWorldToShadowViewMatrix[0]		= asfloat(ProjectionData.Load4(Base + 16*0));
@@ -55,18 +56,24 @@ FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteA
 
 	// NOTE: Stick with struct-element-sized loads for the moment since we may only be using subsets
 	// of the data in the calling code and we want to ensure the compiler has simple DCE options.
-	Result.ShadowPreViewTranslation			= asfloat(ProjectionData.Load3(Base + (16*16 + 4*0)));
+	 
+	float3 PreViewTranslationTile			= asfloat(ProjectionData.Load3(Base + (16*16 + 4*0)));
 	Result.LightType						=		 (ProjectionData.Load (Base + (16*16 + 4*3)));
 
-	Result.ClipmapWorldOrigin				= asfloat(ProjectionData.Load3(Base + (16*17 + 4*0)));
+	float3 PreViewTranslationOffset			= asfloat(ProjectionData.Load3(Base + (16*17 + 4*0)));
 	Result.LightSourceRadius				= asfloat(ProjectionData.Load (Base + (16*17 + 4*3)));
 
-	Result.ClipmapCornerOffset				= asint  (ProjectionData.Load2(Base + (16*18 + 4*0)));
-	Result.ClipmapIndex						= asint  (ProjectionData.Load (Base + (16*18 + 4*2)));
-	Result.ClipmapLevel						= asint  (ProjectionData.Load (Base + (16*18 + 4*3)));
+	float3 NegativeClipmapWorldOriginOffset = asfloat(ProjectionData.Load3(Base + (16*18 + 4*0)));
+	Result.ClipmapResolutionLodBias			= asfloat(ProjectionData.Load (Base + (16*18 + 4*3)));
+		
+	Result.ClipmapCornerOffset				= asint  (ProjectionData.Load2(Base + (16*19 + 4*0)));
+	Result.ClipmapIndex						= asint  (ProjectionData.Load (Base + (16*19 + 4*2)));
+	Result.ClipmapLevel						= asint  (ProjectionData.Load (Base + (16*19 + 4*3)));
 
-	Result.ClipmapLevelCount 				= asint  (ProjectionData.Load (Base + (16*19 + 4*0)));
-	Result.ClipmapResolutionLodBias			= asfloat(ProjectionData.Load (Base + (16*19 + 4*1)));
+	Result.ClipmapLevelCount 				= asint  (ProjectionData.Load (Base + (16*20 + 4*0)));
+		
+	Result.PreViewTranslation				= MakeLWCVector3(PreViewTranslationTile, PreViewTranslationOffset);
+	Result.ClipmapWorldOrigin				= LWCNegate(MakeLWCVector3(PreViewTranslationTile, NegativeClipmapWorldOriginOffset));
 
 	return Result;
 }

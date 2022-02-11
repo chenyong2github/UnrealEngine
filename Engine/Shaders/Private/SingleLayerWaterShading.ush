@@ -182,7 +182,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			// TODO: Sample virtual shadow map when present; something like the following:
 			//if (ForwardLightData.DirectionalLightVSM != INDEX_NONE)
 			//{
-			//	FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(ForwardLightData.DirectionalLightVSM, WorldPosition);
+			//	FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
 			//	Shadow *= VirtualShadowMapSample.ShadowFactor;
 			//}
 

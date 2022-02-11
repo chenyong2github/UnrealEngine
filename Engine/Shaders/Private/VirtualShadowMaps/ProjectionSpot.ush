@@ -31,13 +31,14 @@ struct FSMRTSingleRayState
 
 FSMRTSingleRayState SMRTSingleRayInitialize(
 	int VirtualShadowMapId,
-	float3 RayStart,
-	float3 RayEnd)
+	// Shadow PreViewTranslation already added in
+	float3 RayStartShadowTranslatedWorld,
+	float3 RayEndShadowTranslatedWorld)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	float4 RayStartUVz = mul(float4(RayStart + ProjectionData.ShadowPreViewTranslation, 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
-	float4 RayEndUVz   = mul(float4(RayEnd   + ProjectionData.ShadowPreViewTranslation, 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+	float4 RayStartUVz = mul(float4(RayStartShadowTranslatedWorld, 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
+	float4 RayEndUVz   = mul(float4(RayEndShadowTranslatedWorld  , 1), ProjectionData.TranslatedWorldToShadowUVMatrix).xyzw;
 
 	// NOTE: We assume by construction that ray ends are not behind the light near plane as the warping
 	// due to SMRT ray tests gets severe long before the rays would otherwise clip at that plane.
@@ -111,12 +112,12 @@ struct FSMRTTwoCubeFaceRayState
 FSMRTTwoCubeFaceRayState SMRTTwoCubeFaceRayInitialize(
 	int VirtualShadowMapId0,
 	int VirtualShadowMapId1,
-	float3 RayStart,
-	float3 RayEnd)
+	float3 RayStartShadowTranslatedWorld,
+	float3 RayEndShadowTranslatedWorld)
 {
 	FSMRTTwoCubeFaceRayState Result;
-	Result.Face0 = SMRTSingleRayInitialize(VirtualShadowMapId0, RayStart, RayEnd);
-	Result.Face1 = SMRTSingleRayInitialize(VirtualShadowMapId1, RayStart, RayEnd);
+	Result.Face0 = SMRTSingleRayInitialize(VirtualShadowMapId0, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
+	Result.Face1 = SMRTSingleRayInitialize(VirtualShadowMapId1, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
 	Result.bSampleInFace0 = false;
 	return Result;
 }
@@ -152,30 +153,28 @@ float SMRTComputeOccluderDistance(FSMRTTwoCubeFaceRayState RayState, float Sampl
 
 FSMRTResult ShadowRayCastSpotLight(
 	int VirtualShadowMapId,
-	float3 RayStart,
-	float3 RayEnd,
+	float3 RayStartShadowTranslatedWorld,
+	float3 RayEndShadowTranslatedWorld,
 	int NumSteps,
 	half StepOffset,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
-	OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStart, RayEnd);
+	OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
 	return SMRTRayCast(OutRayState, NumSteps, StepOffset);
 }
 
 FSMRTResult ShadowRayCastPointLight(
 	int VirtualShadowMapId,
-	float3 RayStart,
-	float3 RayEnd,
+	float3 RayStartShadowTranslatedWorld,
+	float3 RayEndShadowTranslatedWorld,
 	int NumSteps,
 	half StepOffset,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
-	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-
-	uint RayStartFace = VirtualShadowMapGetCubeFace( RayStart + BaseProjectionData.ShadowPreViewTranslation );
-	uint RayEndFace   = VirtualShadowMapGetCubeFace( RayEnd   + BaseProjectionData.ShadowPreViewTranslation );
+	uint RayStartFace = VirtualShadowMapGetCubeFace(RayStartShadowTranslatedWorld);
+	uint RayEndFace   = VirtualShadowMapGetCubeFace(RayEndShadowTranslatedWorld);
 		
 	FSMRTResult Result;	
 	if (RayStartFace != RayEndFace)
@@ -183,7 +182,7 @@ FSMRTResult ShadowRayCastPointLight(
 		FSMRTTwoCubeFaceRayState RayState = SMRTTwoCubeFaceRayInitialize(
 			VirtualShadowMapId + RayStartFace,
 			VirtualShadowMapId + RayEndFace,
-			RayStart, RayEnd);
+			RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
 		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
 
 		if (RayState.bSampleInFace0)
@@ -198,7 +197,7 @@ FSMRTResult ShadowRayCastPointLight(
 	else
 	{
 		// Fast path: ray stays on a single cube map face (effectively a spot light)
-		OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStart, RayEnd);
+		OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
 		Result = SMRTRayCast(OutRayState, NumSteps, StepOffset);
 	}
 
@@ -233,15 +232,13 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 
 // Normal should be normalized
 bool IsBackfaceToLocalLight(
-	float3 Position,
+	float3 ToLight,
 	half3 Normal,
-	float3 LightPosition,
 	half LightSourceRadius,
 	out half3 OutConeAxis,
 	out half OutConeSin,
 	out half OutDistToLight)
 {
-	float3 ToLight = LightPosition - Position;
 	float DistSqr = dot(ToLight, ToLight);
 	float Falloff = rcp(DistSqr + 1);
 	float InvDist = rsqrt(DistSqr);
@@ -258,12 +255,12 @@ bool IsBackfaceToLocalLight(
 }
 
 // Version without outputs
-bool IsBackfaceToLocalLight(float3 Position, half3 Normal, float3 LightPosition, half LightSourceRadius)
+bool IsBackfaceToLocalLight(float3 ToLight, half3 Normal, half LightSourceRadius)
 {
 	half3 Dummy1;
 	half Dummy2;
 	half Dummy3;
-	return IsBackfaceToLocalLight(Position, Normal, LightPosition, LightSourceRadius, Dummy1, Dummy2, Dummy3);
+	return IsBackfaceToLocalLight(ToLight, Normal, LightSourceRadius, Dummy1, Dummy2, Dummy3);
 }
 
 FVirtualShadowMapSampleResult TraceLocalLight(
@@ -280,14 +277,13 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	const bool bCullBackface,
 	half3 WorldNormal)
 {
-	const float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-
-	uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+	const uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+	const float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
 
 	half3 ConeAxis;
 	half ConeSin;
-	half DistToLight;	
-	bool bBackface = IsBackfaceToLocalLight(TranslatedWorldPosition, WorldNormal, Light.TranslatedWorldPosition, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
+	half DistToLight;
+	bool bBackface = IsBackfaceToLocalLight(ToLight, WorldNormal, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
 
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 	Result.bValid = true;
@@ -298,6 +294,12 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 		float StepOffset = Noise;
 
 		uint TileID = MortonEncode( PixelPos );
+
+		// Move from PrimaryView translated world to Shadow translated world
+		// NOTE: Cube map faces all share the same PreViewTranslation
+		FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+		float3 PrimaryToShadowTranslation = LWCToFloat(LWCSubtract(BaseProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
+		float3 ShadowTranslatedWorld = TranslatedWorldPosition + PrimaryToShadowTranslation;
 
 		uint i = 0;
 		uint RayMissCount = 0;
@@ -333,8 +335,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			float ClampedEnd = DistToLight * 0.75 * saturate( 1.5 / ( CosTheta + CotMaxRayAngleFromLight * SinTheta ) );
 			float Start = min(RayStartOffset, ClampedEnd - 1e-6f);
 
-			float3 RayStart = WorldPosition + Dir * Start;
-			float3 RayEnd = WorldPosition + Dir * ClampedEnd;
+			float3 RayStart = ShadowTranslatedWorld + Dir * Start;
+			float3 RayEnd = ShadowTranslatedWorld + Dir * ClampedEnd;
 
 			FSMRTResult SMRTResult;
 			FSMRTSingleRayState RayState;	// For debug output
@@ -428,10 +430,12 @@ bool GenerateRayLocalLight(
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
+	const float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
+
 	half3 ConeAxis;
 	half ConeSin;
-	half DistToLight;	
-	bool bBackface = IsBackfaceToLocalLight(TranslatedWorldPosition, WorldNormal, Light.TranslatedWorldPosition, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
+	half DistToLight;
+	bool bBackface = IsBackfaceToLocalLight(ToLight, WorldNormal, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
 	
 	if (!bBackface)
 	{

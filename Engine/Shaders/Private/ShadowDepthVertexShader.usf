@@ -140,7 +140,7 @@ void TransformToVirtualSmPage(inout float4 PointClip, inout float4 ClipPlanesInO
 	// Load nanite view and perform transform to SM space.
 	FNaniteView NaniteView = UnpackNaniteView(PassStruct.PackedNaniteViews[PageInfo.ViewId]);
 
-	PointTranslatedWorld += ( -LWCHackToFloat(ResolvedView.PreViewTranslation) + LWCHackToFloat(NaniteView.PreViewTranslation) );
+	PointTranslatedWorld += LWCToFloat( LWCSubtract( NaniteView.PreViewTranslation, ResolvedView.PreViewTranslation ) );
 	PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 
 	// Clamp the vertex to the near plane if it is in front of the near plane

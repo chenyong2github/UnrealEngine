@@ -81,22 +81,24 @@ struct FVirtualShadowMapProjectionShaderData
 	FMatrix44f TranslatedWorldToShadowUVMatrix;
 	FMatrix44f TranslatedWorldToShadowUVNormalMatrix;
 
-	FVector3f ShadowPreViewTranslation;
+	FVector3f PreViewTranslationLWCTile;
 	uint32 LightType = ELightComponentType::LightType_Directional;
+	FVector3f PreViewTranslationLWCOffset;
+	float LightSourceRadius;						// This should live in shared light structure...
 	
 	// TODO: There are more local lights than directional
 	// We should move the directional-specific stuff out to its own structure.
-	FVector3f ClipmapWorldOrigin;
-	float LightSourceRadius;				// This should live in shared light structure...
-	
+	FVector3f NegativeClipmapWorldOriginLWCOffset;	// Shares the LWCTile with PreViewTranslation
+	float ClipmapResolutionLodBias = 0.0f;
+
 	FIntPoint ClipmapCornerOffset = FIntPoint(0, 0);
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
+
 	int32 ClipmapLevelCount = 0;
-	float ClipmapResolutionLodBias = 0.0f;
 
 	// Seems the FMatrix forces 16-byte alignment
-	float Padding[2];
+	float Padding[3];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 

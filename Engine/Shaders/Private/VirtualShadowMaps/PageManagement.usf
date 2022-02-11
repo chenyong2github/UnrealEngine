@@ -48,36 +48,9 @@ float PageDilationBorderSizeLocal;
 uint InputType;
 uint bCullBackfacingPixels;
 
-// Convenience to group up a bunch of data computed for a screen pixel
-struct FScreenPixelData
-{
-	// Note: Actual world position (not pre-translated)
-	float3 WorldPosition;
-	float SceneDepth;
-};
-
 float2 CalcScreenUV(uint2 PixelPos)
 {
 	return (float2(PixelPos.xy) + View.ViewRectMin.xy + 0.5f) * View.BufferSizeAndInvSize.zw;
-}
-
-// Use an explicit DeviceZ value for this pixel
-FScreenPixelData GetScreenPixelData(uint2 PixelPos, float DeviceZ)
-{
-	FScreenPixelData Data;
-	Data.SceneDepth = ConvertFromDeviceZ(DeviceZ);
-
-	//float4 ClipPosition = float4(((CalcScreenUV(PixelPos) - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy), DeviceZ, 1.0f);
-	//float4 TranslatedWorldH = mul(ClipPosition, View.ClipToTranslatedWorld);
-	//float3 TranslatedWorldPosition = TranslatedWorldH.xyz / TranslatedWorldH.w;
-
-	const float4 SvPosition = float4( float2( PixelPos ) + 0.5, DeviceZ, 1.0f );
-	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld( SvPosition );
-
-	// Subtract the view pre-translation to get back to world space
-	Data.WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-
-	return Data;
 }
 
 uint CalcMipLevelLocal(float Footprint)
@@ -87,7 +60,7 @@ uint CalcMipLevelLocal(float Footprint)
 	return min(MipLevel, (VSM_MAX_MIP_LEVELS - 1U));
 }
 
-uint GetMipLevelLocal(int VirtualShadowMapId, float3 WorldPosition, float SceneDepth)
+uint GetMipLevelLocal(int VirtualShadowMapId, float3 TranslatedWorldPosition, float SceneDepth)
 {
 	float Footprint = float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
@@ -103,8 +76,11 @@ uint GetMipLevelLocal(int VirtualShadowMapId, float3 WorldPosition, float SceneD
 
 		float RadiusWorld = DepthScale * RadiusScreen;
 
-		float3 TranslatedWorldPosition = WorldPosition + ProjectionData.ShadowPreViewTranslation;
-		float4 ShadowUVz = mul(float4(TranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+		// If local lights are near the primary view the combined offset should be small
+		float3 ShadowTranslatedWorldPosition = TranslatedWorldPosition + 
+			LWCToFloat(LWCSubtract(ProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
+		
+		float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 
 		float4 RadiusClipH = mul(float4(RadiusWorld, 0.0f, ShadowUVz.w, 1.0f), ProjectionData.ShadowViewToClipMatrix);
 		float RadiusClip = abs(RadiusClipH.x / RadiusClipH.w);
@@ -114,10 +90,12 @@ uint GetMipLevelLocal(int VirtualShadowMapId, float3 WorldPosition, float SceneD
 	return CalcMipLevelLocal(Footprint);
 }
 
-void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, bool bUsePageDilation, float2 PageDilationOffset)
+void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 TranslatedWorldPosition, bool bUsePageDilation, float2 PageDilationOffset)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-	float4 ShadowUVz = mul(float4(WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+	float3 ShadowTranslatedWorldPosition = TranslatedWorldPosition + 
+		LWCToFloat(LWCSubtract(ProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
+	float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 	ShadowUVz.xyz /= ShadowUVz.w;
 
 	// Check overlap vs the shadow map space
@@ -185,25 +163,19 @@ void GeneratePageFlagsFromPixels(
 		return;
 	}
 
-	float3 WorldPosition = 0;
 	half3  WorldNormal   = half3(0, 0, 0);
-	float  SceneDepth    = 0;
+	float  DeviceZ		 = 0;
 	bool   bIsValid		 = true;
 	bool   bBackfaceCull = bCullBackfacingPixels != 0;
 	#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_HAIRSTRANDS
 	{
-		const float HairDeviceZ = HairStrands.HairOnlyDepthTexture.Load(uint3(PixelPos, 0)).x;
-		FScreenPixelData HairPixel = GetScreenPixelData(PixelPos, HairDeviceZ);
-		WorldPosition = HairPixel.WorldPosition;
-		SceneDepth = HairPixel.SceneDepth;
-		bIsValid = HairDeviceZ > 0;
+		DeviceZ = HairStrands.HairOnlyDepthTexture.Load(uint3(PixelPos, 0)).x;
+		bIsValid = DeviceZ > 0;
 		bBackfaceCull = false;
 	}
 	#else // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER
 	{
-		FScreenPixelData Pixel = GetScreenPixelData(PixelPos, LookupDeviceZ(CalcScreenUV(PixelPos)));
-		WorldPosition = Pixel.WorldPosition;
-		SceneDepth = Pixel.SceneDepth;
+		DeviceZ = LookupDeviceZ(CalcScreenUV(PixelPos));
 	  #if STRATA_ENABLED
 		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 		WorldNormal = TopLayerData.WorldNormal;
@@ -223,7 +195,13 @@ void GeneratePageFlagsFromPixels(
 	{
 		return;
 	}
+	
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+	const float4 SvPosition = float4(float2(PixelPos) + 0.5f, DeviceZ, 1.0f);
+	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
 
+	const FLWCVector3 WorldPosition = LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation);
+	
 	// Dither pattern for page dilation
 	// We don't need to to check all 8 adjacent pages; as long as there's at least a single pixel near the edge
 	// the adjacent one will get mapped. In practice only checking one diagonal seems to work fine and have minimal
@@ -244,21 +222,18 @@ void GeneratePageFlagsFromPixels(
 
 #if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
-			float3 LightDirection = -BaseProjectionData.TranslatedWorldToShadowViewMatrix._13_23_33;
-			if (bBackfaceCull && IsBackfaceToDirectionalLight(normalize(WorldNormal), normalize(LightDirection), BaseProjectionData.LightSourceRadius))
+			float3 LightDirection = normalize(-BaseProjectionData.TranslatedWorldToShadowViewMatrix._13_23_33);
+			if (bBackfaceCull && IsBackfaceToDirectionalLight(WorldNormal, LightDirection, BaseProjectionData.LightSourceRadius))
 			{
 				continue;
 			}
 #endif
 
-			// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
-			// each level (to handle snapping). For now we maintain one per level.
-			//int ClipmapLevel = CalcClipmapLevel(length(WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
 			const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, WorldPosition);
 			int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
 			if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
 			{
-				MarkPage(ClipmapStartId + ClipmapIndex, 0, WorldPosition, bUsePageDilation, PageDilationOffset);
+				MarkPage(ClipmapStartId + ClipmapIndex, 0, TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
 			}
 		}
 	}
@@ -278,11 +253,13 @@ void GeneratePageFlagsFromPixels(
 		{
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
 			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
-			const float3 LightWorldPosition = LightData.LightPositionAndInvRadius.xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
+
+			// Relative to PrimaryView
+			const float3 LightTranslatedWorldPosition = LightData.LightPositionAndInvRadius.xyz;
+			float3 ToLight = normalize(LightTranslatedWorldPosition - TranslatedWorldPosition);
 
 			// TODO: Can optimize these tests by fusing them together
 			// Also do precise cone test, since froxels are pretty coarse at times.
-			float3 ToLight = normalize(LightWorldPosition - WorldPosition);
 			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
 			{
 				continue;
@@ -292,7 +269,7 @@ void GeneratePageFlagsFromPixels(
 
 #if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
 			// Backface test if requested
-			if (bBackfaceCull && IsBackfaceToLocalLight(WorldPosition, WorldNormal, LightWorldPosition, LightData.SpotAnglesAndSourceRadiusPacked.z))
+			if (bBackfaceCull && IsBackfaceToLocalLight(ToLight, WorldNormal, LightData.SpotAnglesAndSourceRadiusPacked.z))
 			{
 				continue;
 			}
@@ -306,8 +283,8 @@ void GeneratePageFlagsFromPixels(
 					VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
 				}
 
-				uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, WorldPosition, SceneDepth);
-				MarkPage(VirtualShadowMapId, MipLevel, WorldPosition, bUsePageDilation, PageDilationOffset);
+				uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, TranslatedWorldPosition, SceneDepth);
+				MarkPage(VirtualShadowMapId, MipLevel, TranslatedWorldPosition, bUsePageDilation, PageDilationOffset);
 			}
 		}
 	}
@@ -343,7 +320,8 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 		if (((ClipmapIndexMask >> ProjectionData.ClipmapIndex) & 1) != 0)
 		{
 			// TODO: Optimize this... can be boiled down to be just in terms of the snap offsets
-			float4 ShadowUVz = mul(float4(ProjectionData.ClipmapWorldOrigin + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+			float3 OriginTranslatedWorld = LWCToFloat(LWCAdd(ProjectionData.ClipmapWorldOrigin, ProjectionData.PreViewTranslation));
+			float4 ShadowUVz = mul(float4(OriginTranslatedWorld, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 			float2 VirtualTexelAddressFloat = ShadowUVz.xy * float(CalcLevelDimsTexels(0));
 			float2 PageAddressFloat = VirtualTexelAddressFloat * float(1.0f / VSM_PAGE_SIZE);
 			// NOTE: Page addresses round down/truncate normally, so grab the surrounding 4

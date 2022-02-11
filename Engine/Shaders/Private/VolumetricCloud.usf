@@ -785,7 +785,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if VIRTUAL_SHADOW_MAP 
 				if (RenderVolumetricCloudParameters.VirtualShadowMapId0 != INDEX_NONE)
 				{
-					FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(RenderVolumetricCloudParameters.VirtualShadowMapId0, SampleWorldPosition);
+					FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(RenderVolumetricCloudParameters.VirtualShadowMapId0, SampleTranslatedWorldPosition);
 					OpaqueShadow *= VirtualShadowMapSample.ShadowFactor;
 				}
 #endif // VIRTUALSHADOW_MAP

@@ -45,6 +45,11 @@ public:
 		return FirstLevel + ClipmapIndex;
 	}
 
+	FVector GetPreViewTranslation(int32 ClipmapIndex) const
+	{
+		return -LevelData[ClipmapIndex].WorldCenter;
+	}
+
 	const FLightSceneInfo& GetLightSceneInfo() const
 	{
 		return LightSceneInfo;

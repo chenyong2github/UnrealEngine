@@ -262,8 +262,6 @@ float4 GetLightGridLocalLighting(
 	uint TotalSampleCount=0, 
 	uint2 PixelCoord=0)
 {
-	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
-
 	float4 DirectLighting = 0;
 
 	// Limit max to ForwardLightData.NumLocalLights.
@@ -304,9 +302,9 @@ float4 GetLightGridLocalLighting(
 			// TODO: Normal bias? Screen space ray? Etc? Do we need a path that does more of that stuff
 			// unified but without SMRT? For now we'll just keep this as a simple lookup to avoid potential performance tradeoffs
 			// as this is meant to be the fallback path on overflowing tiles.
-			FVirtualShadowMapSampleResult VSMResult = SampleVirtualShadowMap(
+			FVirtualShadowMapSampleResult VSMResult = SampleVirtualShadowMapTranslatedWorld(
 				LocalLight.VirtualShadowMapId,
-				WorldPosition,
+				TranslatedWorldPosition,
 				30.0f // RayStartDistance TODO... maybe at least make this a proportional screen offset like the contact shadow trace
 			);
 			LightAttenuation = VSMResult.ShadowFactor.xxxx;
@@ -315,7 +313,7 @@ float4 GetLightGridLocalLighting(
 		if ( SubsurfaceOpacity < 1.0f )
 		{
 			// Replace SSS portion for subsurface materials
-			half SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(LocalLight.VirtualShadowMapId, WorldPosition, SubsurfaceOpacity);
+			half SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(LocalLight.VirtualShadowMapId, TranslatedWorldPosition, SubsurfaceOpacity);
 			LightAttenuation.yw = SSSTransmission;
 		}
 

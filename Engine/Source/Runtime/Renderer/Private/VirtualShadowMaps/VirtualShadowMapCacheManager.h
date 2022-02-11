@@ -30,9 +30,9 @@ public:
 	void UpdateClipmap(int32 VirtualShadowMapId,
 		const FMatrix &WorldToLight,
 		FIntPoint PageSpaceLocation,
-		float LevelRadius,
-		float ViewCenterZ,
-		float ViewRadiusZ);
+		double LevelRadius,
+		double ViewCenterZ,
+		double ViewRadiusZ);
 
 	void MarkRendered() { bCurrentRendered = true; }
 
@@ -52,8 +52,8 @@ public:
 	struct FClipmapInfo
 	{
 		FMatrix	WorldToLight;
-		float ViewCenterZ;
-		float ViewRadiusZ;
+		double ViewCenterZ;
+		double ViewRadiusZ;
 	};
 	FClipmapInfo Clipmap;
 };

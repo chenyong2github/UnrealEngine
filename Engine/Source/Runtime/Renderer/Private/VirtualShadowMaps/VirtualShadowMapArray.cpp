@@ -1090,14 +1090,16 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					int32 ID = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
 
-					FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices( i, true );
+					const FViewMatrices ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices( i, true );
+					const FLargeWorldRenderPosition PreViewTranslation(ProjectedShadowInfo->PreShadowTranslation);
 
 					FVirtualShadowMapProjectionShaderData& Data = ProjectionData[ ID ];
 					Data.TranslatedWorldToShadowViewMatrix		= FMatrix44f(ViewMatrices.GetTranslatedViewMatrix());	// LWC_TODO: Precision loss?
 					Data.ShadowViewToClipMatrix					= FMatrix44f(ViewMatrices.GetProjectionMatrix());
 					Data.TranslatedWorldToShadowUVMatrix		= FMatrix44f(CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() ));
 					Data.TranslatedWorldToShadowUVNormalMatrix	= FMatrix44f(CalcTranslatedWorldToShadowUVNormalMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() ));
-					Data.ShadowPreViewTranslation				= FVector3f(ProjectedShadowInfo->PreShadowTranslation);
+					Data.PreViewTranslationLWCTile				= PreViewTranslation.GetTile();
+					Data.PreViewTranslationLWCOffset			= PreViewTranslation.GetOffset();
 					Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
 					Data.LightSourceRadius						= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetSourceRadius();
 				}

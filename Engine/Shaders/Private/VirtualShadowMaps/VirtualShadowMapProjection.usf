@@ -245,9 +245,9 @@ FVirtualShadowMapSampleResult ProjectLight(
 		}
 		else
 		{
-			Result = SampleVirtualShadowMap(
+			Result = SampleVirtualShadowMapTranslatedWorld(
 				VirtualShadowMapId,
-				TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation),
+				TranslatedWorldPosition,
 				ContactShadowLengthWorld,
 				WorldNormal);
 		}
@@ -540,7 +540,7 @@ void VirtualShadowMapProjection(
 		{
 			SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
 				VirtualShadowMapId,
-				LWCHackToFloat(LWCSubtract(TranslatedWorldPosition, PrimaryView.PreViewTranslation)),
+				TranslatedWorldPosition,
 				SubsurfaceOpacity);
 		}
 

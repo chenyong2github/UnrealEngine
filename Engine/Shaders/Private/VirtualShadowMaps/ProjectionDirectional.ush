@@ -20,8 +20,7 @@ struct FSMRTClipmapRayState
 	int ClipmapIdAdjacent;	// Pre-offset virtual shadow map ID of specific clipmap level
 	float3 RayStartShadowTexelsZ;	
 	float3 RayStepShadowTexelsZ;
-	float4 AdjacentTexelScaleBias;
-	float2 AdjacentToBaseDepthScaleBias;
+	FVirtualShadowMapClipmapRelativeTransform BaseToAdjacentTexels;
 	uint2 PhysicalTexelAddress;
 	uint2 VirtualTexelAddress;
 };
@@ -49,7 +48,7 @@ float ComputeOptimalSlopeBiasDirectional(
 
 FSMRTClipmapRayState SMRTClipmapRayInitialize(
 	int VirtualShadowMapId,
-	float3 RayOriginWorld,
+	FLWCVector3 RayOriginWorld,
 	float3 RayDir,
 	float RayLength,
 	float RayStartOffset,
@@ -58,9 +57,10 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 {
 	const FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
+	// TODO: Refactor parts of this that only depend on RayOriginWorld outside the ray loop
 	// The page at RayOriginWorld has a high chance of being mapped since that is close or equal to to the receiver point
 	// Thus we start our clipmap sampling around that page even as we walk through the depth space
-	const float ClipmapLevelFloat = CalcClipmapLevelFloat(BaseProjectionData, RayOriginWorld);	
+	const float ClipmapLevelFloat = CalcClipmapLevelFloat(BaseProjectionData, RayOriginWorld);
 	const int ClipmapIndex = max(0, int(floor(ClipmapLevelFloat)) - BaseProjectionData.ClipmapLevel);
 	const float ClipmapLevelFrac = frac(ClipmapLevelFloat);
 	int ClipmapIndexAdjacent = ClipmapIndex + (ClipmapLevelFrac > 0.5f ? 1 : -1);
@@ -68,10 +68,13 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 
 	const FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId + ClipmapIndex);
 
-	float3 RayStart = RayOriginWorld + RayDir * RayStartOffset;
+	// Clipmap origin should be near shaded samples, so shadow translated world should be regular range
+	float3 RayOriginShadowTranslatedWorld = LWCToFloat(LWCAdd(RayOriginWorld, ProjectionData.PreViewTranslation));
+
+	float3 RayStart = RayOriginShadowTranslatedWorld + RayDir * RayStartOffset;
 	float3 RayVector = RayDir * RayLength;
 
-	const float3 RayStartUV = mul(float4(RayStart + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
+	const float3 RayStartUV = mul(float4(RayStart, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
 	const float3 RayStepUV  = mul(float4(RayVector, 0.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
 
 	const float LevelDims = float(CalcLevelDimsTexels(0));
@@ -93,33 +96,21 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 		RayStartShadowTexelsZ.xy += TexelDitherOffset;
 		RayStartShadowTexelsZ.z += OptimalBias;
 	}
+		
+	// We are working in texels rather than UVs, so need to scale bias appropriately
+	FVirtualShadowMapClipmapRelativeTransform BaseToAdjacentTexels =
+		CalcClipmapRelativeTransform(VirtualShadowMapId + ClipmapIndex, ClipmapIndexAdjacent - ClipmapIndex);
+	BaseToAdjacentTexels.Bias.xy *= LevelDims;
 
-	// Work out scale/bias to convert to the adjacent UVs from the regular UVs
-	const FVirtualShadowMapProjectionShaderData ProjectionDataAdjacent = GetVirtualShadowMapProjectionData(VirtualShadowMapId + ClipmapIndexAdjacent);
-
-	// TranslatedWorldToShadowViewMatrix is identical for each of the cascades; only the pre-view translation changes
-	float3 UVz         = mul(float4(ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix).xyz;
-	float3 UVzAdjacent = mul(float4(ProjectionDataAdjacent.ShadowPreViewTranslation, 1.0f), ProjectionDataAdjacent.TranslatedWorldToShadowUVMatrix).xyz;
-
-	float2 AdjacentTexelScale = (ProjectionDataAdjacent.ShadowViewToClipMatrix._11_22 / ProjectionData.ShadowViewToClipMatrix._11_22);
-	float2 AdjacentTexelBias = LevelDims * (UVzAdjacent.xy - AdjacentTexelScale * UVz.xy);
-
-	// Always rescale adjacent samples back to the same depth mapping as the regular clipmap level to ensure
-	// precision is maintained and DepthHistory remains well defined.
-	float AdjacentToBaseDepthScale = (ProjectionData.ShadowViewToClipMatrix._33 / ProjectionDataAdjacent.ShadowViewToClipMatrix._33);
-	float AdjacentToBaseDepthBias = (UVz.z - AdjacentToBaseDepthScale * UVzAdjacent.z);
-	
 	FSMRTClipmapRayState Result;
 	Result.ClipmapId = VirtualShadowMapId + ClipmapIndex;
 	Result.ClipmapIdAdjacent = VirtualShadowMapId + ClipmapIndexAdjacent;
 	Result.RayStartShadowTexelsZ = RayStartShadowTexelsZ;
 	Result.RayStepShadowTexelsZ = RayStepShadowTexelsZ;
-	Result.AdjacentTexelScaleBias = float4(AdjacentTexelScale, AdjacentTexelBias);
-	Result.AdjacentToBaseDepthScaleBias = float2(AdjacentToBaseDepthScale, AdjacentToBaseDepthBias);
+	Result.BaseToAdjacentTexels = BaseToAdjacentTexels;
 	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	return Result;
-
 }
 
 FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime)
@@ -137,10 +128,13 @@ FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime
 	if (!bValid)
 	{
 		// Replace with adjacent level sample
-		float2 AdjacentTexels = SampleTexelsZ.xy * RayState.AdjacentTexelScaleBias.xy + RayState.AdjacentTexelScaleBias.zw;
+		float2 AdjacentTexels = SampleTexelsZ.xy * RayState.BaseToAdjacentTexels.Scale + RayState.BaseToAdjacentTexels.Bias.xy;
 		VirtualTexelAddress = uint2(AdjacentTexels.xy);
 		bValid = VirtualToPhysicalTexel(RayState.ClipmapIdAdjacent, 0, VirtualTexelAddress, PhysicalTexelAddress);
-		ToBaseDepthScaleBias = RayState.AdjacentToBaseDepthScaleBias;
+
+		// These are to bring the ray back into the base depth range
+		ToBaseDepthScaleBias.x = 1.0f / RayState.BaseToAdjacentTexels.Scale;
+		ToBaseDepthScaleBias.y = - RayState.BaseToAdjacentTexels.Bias.z * ToBaseDepthScaleBias.x;
 	}
 
 	if (bValid)
@@ -212,7 +206,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	half3 WorldNormal,
 	half TexelDitherScale)
 {
-	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	FLWCVector3 WorldPosition = LWCSubtract(LWCPromote(TranslatedWorldPosition), PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 

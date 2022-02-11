@@ -111,10 +111,10 @@ void VirtualSmInvalidateInstancePagesCS(
 				{
 					++VirtualShadowMapId;
 				}
-
-				float4x4 LocalToTranslatedWorld = LWCHackToFloat(InstanceSceneData.LocalToWorld);
-				LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;
-
+				
+				// NOTE: This is the *shadow view*'s translated world, not primary view
+				float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceSceneData.LocalToWorld, ProjectionData.PreViewTranslation);
+				
 				// Go back to clip space
 				float4x4 UVToClip;
 				UVToClip[0] = float4(2, 0, 0, 0);

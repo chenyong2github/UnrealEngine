@@ -125,8 +125,8 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		const float RawLevelRadius = GetLevelRadius(AbsoluteLevel);
 
-		float HalfLevelDim = 2.0f * RawLevelRadius;
-		float SnapSize = RawLevelRadius;
+		double HalfLevelDim = 2.0 * RawLevelRadius;
+		double SnapSize = RawLevelRadius;
 
 		FVector ViewCenter = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
 		FIntPoint CenterSnapUnits(
@@ -158,10 +158,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		// This also better accomodates SMRT where we want to avoid stepping outside of the Z bounds of a given clipmap
 		// NOTE: It's tempting to use a single global Z range for the entire clipmap (which avoids some SMRT overhead too)
 		// but this can cause precision issues with cached pages very near the camera.
-		const float ViewRadiusZScale = CVarVirtualShadowMapClipmapZRangeScale.GetValueOnRenderThread();
+		const double ViewRadiusZScale = CVarVirtualShadowMapClipmapZRangeScale.GetValueOnRenderThread();
 
-		float ViewRadiusZ = RawLevelRadius * ViewRadiusZScale;
-		float ViewCenterDeltaZ = 0.0f;
+		double ViewRadiusZ = RawLevelRadius * ViewRadiusZScale;
+		double ViewCenterDeltaZ = 0.0f;
 
 		if (CacheEntry)
 		{
@@ -184,8 +184,9 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 			ViewRadiusZ = CacheEntry->Clipmap.ViewRadiusZ;
 		}
 
-		const float ZScale = 0.5f / ViewRadiusZ;
-		const float ZOffset = ViewRadiusZ + ViewCenterDeltaZ;
+		// NOTE: These values are all in regular ranges after being offset
+		const double ZScale = 0.5 / ViewRadiusZ;
+		const double ZOffset = ViewRadiusZ + ViewCenterDeltaZ;
 		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
 	}
 
@@ -239,15 +240,23 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	check(ClipmapIndex >= 0 && ClipmapIndex < LevelData.Num());
 	const FLevelData& Level = LevelData[ClipmapIndex];
 	
+	const FLargeWorldRenderPosition PreViewTranslation(GetPreViewTranslation(ClipmapIndex));
+
+	// WorldOrigin should be near the Level.WorldCenter, so we share the LWC tile offset
+	// NOTE: We need to negate so that it's not opposite though
+	const FVector TileOffset = PreViewTranslation.GetTileOffset();
+	const FVector3f NegativeClipmapWorldOriginOffset(-WorldOrigin - TileOffset);
+
 	// NOTE: Some shader logic (projection, etc) assumes some of these parameters are constant across all levels in a clipmap
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = FMatrix44f(WorldToLightViewRotationMatrix);	// LWC_TODO: Precision loss?
+	Data.TranslatedWorldToShadowViewMatrix = FMatrix44f(WorldToLightViewRotationMatrix);
 	Data.ShadowViewToClipMatrix = FMatrix44f(Level.ViewToClip);
 	Data.TranslatedWorldToShadowUVMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
 	Data.TranslatedWorldToShadowUVNormalMatrix = FMatrix44f(CalcTranslatedWorldToShadowUVNormalMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip));
-	Data.ShadowPreViewTranslation = (FVector3f)-Level.WorldCenter;
+	Data.PreViewTranslationLWCTile = PreViewTranslation.GetTile();
+	Data.PreViewTranslationLWCOffset = PreViewTranslation.GetOffset();
 	Data.LightType = ELightComponentType::LightType_Directional;
-	Data.ClipmapWorldOrigin = (FVector3f)WorldOrigin;
+	Data.NegativeClipmapWorldOriginLWCOffset = NegativeClipmapWorldOriginOffset;
 	Data.ClipmapIndex = ClipmapIndex;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();

@@ -65,10 +65,10 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
 	FIntPoint PageSpaceLocation,
-	float LevelRadius,
-	float ViewCenterZ,
+	double LevelRadius,
+	double ViewCenterZ,
 	// NOTE: ViewRadiusZ must be constant for a given clipmap level
-	float ViewRadiusZ)
+	double ViewRadiusZ)
 {
 	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE);
 	
@@ -92,8 +92,8 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	// Invalidate if the new Z radius strayed too close/outside the guardband of the cached shadow map
 	if (bCacheValid)
 	{
-		float DeltaZ = FMath::Abs(ViewCenterZ - Clipmap.ViewCenterZ);
-		if ((DeltaZ + LevelRadius) > 0.9f * Clipmap.ViewRadiusZ)
+		double DeltaZ = FMath::Abs(ViewCenterZ - Clipmap.ViewCenterZ);
+		if ((DeltaZ + LevelRadius) > 0.9 * Clipmap.ViewRadiusZ)
 		{
 			bCacheValid = false;
 			//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to depth range movement"), VirtualShadowMapId);

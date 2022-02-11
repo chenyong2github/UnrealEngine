@@ -1061,9 +1061,9 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	MeshPassTargetType = EMeshPass::VSMShadowDepth;
 	MeshSelectionMask = EShadowMeshSelection::VSM;
 
-
-	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
-	PreShadowTranslation = (FVector)Data.ShadowPreViewTranslation;
+	const int32 ClipmapLevel = VirtualShadowMapClipmap->GetLevelCount() - 1;
+	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(ClipmapLevel);
+	PreShadowTranslation = VirtualShadowMapClipmap->GetPreViewTranslation(ClipmapLevel);
 	const FMatrix CasterMatrix = FMatrix(Data.TranslatedWorldToShadowViewMatrix * Data.ShadowViewToClipMatrix);
 	GetViewFrustumBounds(CasterOuterFrustum, CasterMatrix, true);
 	ReceiverInnerFrustum = CasterOuterFrustum;

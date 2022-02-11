@@ -371,7 +371,7 @@ void InjectShadowedLocalLightPS(
 				ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPosition, IsPointLight, LightData.bSpotLight, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
-				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition);
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(VirtualShadowMapId, TranslatedWorldPosition);
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 #endif
 			}
@@ -600,7 +600,7 @@ void LightScatteringCS(
 				ShadowFactor *= ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
-				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, WorldPosition );
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
 				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 #endif
 

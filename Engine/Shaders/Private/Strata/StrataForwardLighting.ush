@@ -239,7 +239,7 @@ float3 StrataForwardLighting(
 	BRANCH
 	if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
 	{
-		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, AbsoluteWorldPosition);
+		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(ForwardLightData.DirectionalLightVSM, TranslatedWorldPosition);
 		DirLightDynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 	}
 #endif

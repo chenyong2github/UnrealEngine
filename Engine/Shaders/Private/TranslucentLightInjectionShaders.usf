@@ -198,7 +198,7 @@ void InjectMainPS(
 		float ShadowFactor = ComputeVolumeShadowing(TranslatedWorldPositionForLighting, bPointLight, bSpotLight, bUnused);
 
 #if VIRTUAL_SHADOW_MAP
-		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPositionForLighting);
+		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMapTranslatedWorld(VirtualShadowMapId, TranslatedWorldPositionForLighting);
 		ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
 #endif
 
