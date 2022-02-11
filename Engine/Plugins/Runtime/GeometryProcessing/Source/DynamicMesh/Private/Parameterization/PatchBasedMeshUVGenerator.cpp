@@ -147,7 +147,7 @@ bool FPatchBasedMeshUVGenerator::ComputeInitialMeshPatches(
 	{
 		return false;
 	}
-	InitialComponentsOut.InitializeFromTriangleComponents(Generator.FoundPolygroups, true);
+	InitialComponentsOut.InitializeFromTriangleComponents(Generator.FoundPolygroups, true, false);
 
 	return true;
 }
