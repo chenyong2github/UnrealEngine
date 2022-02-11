@@ -3219,17 +3219,35 @@ TArray<UPackage*> ULevel::GetLoadedExternalObjectPackages() const
 
 	if (!ExternalObjectsPaths.IsEmpty())
 	{
-		for (TObjectIterator<UPackage> It; It; ++It)
-		{
-			TStringBuilder<256> PackageName;
-			It->GetLoadedPath().AppendPackageName(PackageName);
-			FStringView PackageNameStringView(PackageName);
-			for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
-			{
-				if (PackageNameStringView.Contains(ExternalObjectsPath))
+			TArray<UObject*> Packages;
+			GetObjectsOfClass(UPackage::StaticClass(), Packages, /*bIncludeDerivedClasses =*/ true, /*EObjectFlags ExcludeFlags =*/ RF_ClassDefaultObject,/*EInternalObjectFlags ExclusionInternalFlags =*/ EInternalObjectFlags::None);
+
+			TArray<bool> PackageIsInExternalObjectsPath;
+			PackageIsInExternalObjectsPath.InsertUninitialized(0, Packages.Num());
+
+			ParallelFor(Packages.Num(), [&Packages = std::as_const(Packages), &ExternalObjectsPath = std::as_const(ExternalObjectsPath), &PackageIsInExternalObjectsPath](int32 Index) {
+				UPackage* Package = static_cast<UPackage*>(Packages[Index]);
+
+				TStringBuilder<256> PackageName;
+				Package->GetLoadedPath().AppendPackageName(PackageName);
+				FStringView PackageNameStringView(PackageName);
+				bool bIsInExternalObjectsPath = false;
+				for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
 				{
-					ExternalObjectPackages.Add(*It);
-					break;
+					bIsInExternalObjectsPath = PackageNameStringView.Contains(ExternalObjectsPath);
+					if (bIsInExternalObjectsPath)
+					{
+						break;
+					}
+				}
+				PackageIsInExternalObjectsPath[Index] = bIsInExternalObjectsPath;
+			}
+
+			for (int Index=0; Index<PackageIsInExternalObjectsPath.Num(); Index++)
+			{
+				if (PackageIsInExternalObjectsPath[Index])
+				{
+					ActorPackages.Add(static_cast<UPackage*>(Packages[Index]));
 				}
 			}
 		}
