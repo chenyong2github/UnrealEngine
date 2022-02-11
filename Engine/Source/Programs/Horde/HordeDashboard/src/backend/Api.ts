@@ -296,6 +296,13 @@ export type JobQuery = {
 	count?: number;
 };
 
+export type JobTimingsQuery = {
+	streamId?: string;
+	template?: string[];
+	filter?: string;
+	count?: number;
+};
+
 
 export type IssueQuery = {
 	jobId?: string;
@@ -2328,11 +2335,17 @@ export type GetGraphResponse = {
 /**The timing info for  */
 export type GetJobTimingResponse = {
 
+	job: JobData;
+	jobResponse: JobData;
 	/**Timing info for each step */
 	steps: { [key: string]: GetStepTimingInfoResponse };
 
 	/**Timing information for each label */
 	labels: GetLabelTimingInfoResponse[];
+}
+/** batch timing info */
+export type FindJobTimingsResponse = {
+	timings: { [jobId: string]: GetJobTimingResponse };
 }
 
 /**Information about the timing info for a label */
