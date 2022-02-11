@@ -35,12 +35,22 @@ enum class EStructSerializerBackendFlags
 	WriteCborStandardEndianness = 1 << 2,
 
 	/**
+	 * Support backward compatibility for LWC types by writing double properties as floats.
+	 */
+	WriteLWCTypesAsFloats = 1 << 3,
+
+	/**
 	 * Legacy settings for backwards compatibility with code compiled prior to 4.22.
 	 */
 	Legacy = None,
 
 	/**
-	 * Default settings for code compiled for 4.25 onwards.
+	 * Legacy settings for backwards compatibility with code compiled for 4.25 up to UE5.
+	 */
+	LegacyUE4 = WriteTextAsComplexString | WriteByteArrayAsByteStream | WriteLWCTypesAsFloats,
+
+	/**
+	 * Default settings for code compiled for 5.0 onwards.
 	 */
 	Default = WriteTextAsComplexString | WriteByteArrayAsByteStream,
 };
