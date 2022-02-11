@@ -1254,7 +1254,7 @@ FCullingContext InitCullingContext(
 	CullingContext.DebugFlags				= 0;
 
 	// Disable two pass occlusion if previous HZB is invalid
-	if (CullingContext.PrevHZB != nullptr)
+	if (CullingContext.PrevHZB == nullptr)
 	{
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
