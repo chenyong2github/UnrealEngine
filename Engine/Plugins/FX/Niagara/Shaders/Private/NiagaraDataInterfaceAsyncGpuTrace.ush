@@ -103,7 +103,7 @@ void NDIAsyncGpuTrace_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<
 	{
 		FNiagaraAsyncGpuTraceResult HitResult = IntersectionResults[In_PreviousFrameQueryID + IntersectionRestultsOffest];
 
-		Out_CollisionValid = HitResult.IsHit();
+		Out_CollisionValid = IsHit(HitResult);
 		if (Out_CollisionValid)
 		{
 			Out_CollisionDistance = HitResult.HitT;
