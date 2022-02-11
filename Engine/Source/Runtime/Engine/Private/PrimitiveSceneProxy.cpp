@@ -38,8 +38,8 @@ static TAutoConsoleVariable<int32> CVarCacheWPOPrimitives(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
-static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
-	TEXT("r.VertexDeformationOutputsVelocity"),
+static TAutoConsoleVariable<int32> CVarVelocityEnableVertexDeformation(
+	TEXT("r.Velocity.EnableVertexDeformation"),
 	2,
 	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
 	TEXT("0=Off, 1=On, 2=Auto(Default). \n")
@@ -110,7 +110,7 @@ static bool VertexDeformationOutputsVelocity()
 {
 	static const auto CVarVelocityOutputPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
 	const bool bVertexDeformationOutputsVelocityDefault = CVarVelocityOutputPass && CVarVelocityOutputPass->GetInt() != 2;
-	const int32 VertexDeformationOutputsVelocity = CVarVertexDeformationOutputsVelocity.GetValueOnAnyThread();
+	const int32 VertexDeformationOutputsVelocity = CVarVelocityEnableVertexDeformation.GetValueOnAnyThread();
 	return VertexDeformationOutputsVelocity == 1 || (VertexDeformationOutputsVelocity == 2 && bVertexDeformationOutputsVelocityDefault);
 }
 

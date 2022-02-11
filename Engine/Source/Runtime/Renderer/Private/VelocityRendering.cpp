@@ -40,6 +40,12 @@ static TAutoConsoleVariable<int32> CVarBasePassOutputsVelocity(
 	TEXT("Deprecated CVar. Use r.VelocityOutputPass instead.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarVertexDeformationOutputsVelocity(
+	TEXT("r.VertexDeformationOutputsVelocity"),
+	-1,
+	TEXT("Deprecated CVar. Use r.Velocity.EnableVertexDeformation instead.\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarParallelVelocity(
 	TEXT("r.ParallelVelocity"),
 	1,  
@@ -61,10 +67,19 @@ inline void ValidateVelocityCVars()
 	static bool bHasValidatedCVars = false;
 	if (!bHasValidatedCVars)
 	{
-		const int32 Value = CVarBasePassOutputsVelocity.GetValueOnAnyThread();
-		if (Value != -1)
 		{
-			UE_LOG(LogRenderer, Warning, TEXT("Deprectaed CVar r.BasePassOutputsVelocity is set to %d. Use r.VelocityOutputPass instead."), Value);
+			const int32 Value = CVarBasePassOutputsVelocity.GetValueOnAnyThread();
+			if (Value != -1)
+			{
+				UE_LOG(LogRenderer, Warning, TEXT("Deprectaed CVar r.BasePassOutputsVelocity is set to %d. Remove and use r.VelocityOutputPass instead."), Value);
+			}
+		}
+		{
+			const int32 Value = CVarVertexDeformationOutputsVelocity.GetValueOnAnyThread();
+			if (Value != -1)
+			{
+				UE_LOG(LogRenderer, Warning, TEXT("Deprectaed CVar r.VertexDeformationOutputsVelocity is set to %d. Remove and use r.Velocity.EnableVertexDeformation instead."), Value);
+			}
 		}
 		bHasValidatedCVars = true;
 	}
