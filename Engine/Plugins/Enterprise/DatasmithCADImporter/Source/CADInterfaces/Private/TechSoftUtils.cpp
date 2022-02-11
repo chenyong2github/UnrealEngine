@@ -26,7 +26,7 @@ namespace TechSoftUtils
 #ifdef USE_TECHSOFT_SDK
 TSharedPtr<FJsonObject> GetJsonObject(A3DAsmProductOccurrence* ProductOcccurence);
 void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, CADLibrary::FBodyMesh& BodyMesh);
-void SaveModelFileToPcrFile(void* ModelFile, const FString& Filename);
+void SaveModelFileToPrcFile(void* ModelFile, const FString& Filename);
 A3DUns32 CreateRGBColor(FColor& Color);
 void SetRootOccurenceAttributes(A3DEntity* Entity);
 #endif
@@ -81,7 +81,7 @@ bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& Import
 	return bExtractionSuccessful;
 }
 
-FUniqueTechSoftModelFile SaveBodiesToPcrFile(void** Bodies, uint32 BodyCount, const FString& Filename, const FString& JsonString)
+FUniqueTechSoftModelFile SaveBodiesToPrcFile(void** Bodies, uint32 BodyCount, const FString& Filename, const FString& JsonString)
 {
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	if (!Bodies)
@@ -129,7 +129,7 @@ FUniqueTechSoftModelFile SaveBodiesToPcrFile(void** Bodies, uint32 BodyCount, co
 	FUniqueTechSoftModelFile ModelFile = TechSoftInterface::CreateAsmModelFile(*ModelFileData);
 
 	// Save ModelFile to Pcr file
-	SaveModelFileToPcrFile(ModelFile.Get(), Filename);
+	SaveModelFileToPrcFile(ModelFile.Get(), Filename);
 
 	// #ueent_techsoft: Deleting the model seems to delete the entire content. To be double-checked
 	TechSoftInterface::DeleteEntity(Attributes);
@@ -326,7 +326,7 @@ FColor GetColorAt(uint32 ColorIndex)
 	return FColor(200, 200, 200);
 }
 
-void SaveModelFileToPcrFile(void* ModelFile, const FString& Filename)
+void SaveModelFileToPrcFile(void* ModelFile, const FString& Filename)
 {
 #if defined USE_TECHSOFT_SDK && !defined CADKERNEL_DEV
 	TUniqueTSObj<A3DRWParamsExportPrcData> ParamsExportData;

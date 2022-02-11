@@ -66,7 +66,7 @@ bool FCADModelToTechSoftConverterBase::SaveModel(const TCHAR* InFolderPath, TSha
 		FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 	}
 
-	ModelFile = CADLibrary::TechSoftUtils::SaveBodiesToPcrFile(RiRepresentationItems.GetData(), RiRepresentationItems.Num(), FilePath, JsonString);
+	ModelFile = CADLibrary::TechSoftUtils::SaveBodiesToPrcFile(RiRepresentationItems.GetData(), RiRepresentationItems.Num(), FilePath, JsonString);
 
 	MeshElement->SetFile(*FilePath);
 #endif

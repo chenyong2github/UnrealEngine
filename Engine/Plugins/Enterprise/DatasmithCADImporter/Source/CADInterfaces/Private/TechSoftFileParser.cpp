@@ -233,12 +233,13 @@ void SetIOOption(A3DImport& Importer)
 	Importer.m_sLoadData.m_sIncremental.m_bLoadStructureOnly = false;
 }
 
-void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImport& Importer)
+void UpdateIOOptionAccordingToFormat(const CADLibrary::ECADFormat Format, A3DImport& Importer, bool& OutForceSew)
 {
 	switch (Format)
 	{
 	case CADLibrary::ECADFormat::IGES:
 	{
+		OutForceSew = true;
 		break;
 	}
 
@@ -299,12 +300,46 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	// Add specific options according to format
 	Format = File.GetFileFormat();
-	TechSoftFileParserImpl::UpdateIOOptionAccordingToFormat(Format, Import);
+	bool bForceSew = false;
+	TechSoftFileParserImpl::UpdateIOOptionAccordingToFormat(Format, Import, bForceSew);
 
-	ModelFile = TechSoftInterface::LoadModelFileFromFile(Import);
+	A3DStatus LoadStatus = A3DStatus::A3D_SUCCESS;
+	ModelFile = TechSoftInterface::LoadModelFileFromFile(Import, LoadStatus);
 
 	if (!ModelFile.IsValid())
 	{
+		switch (LoadStatus)
+		{
+		case A3DStatus::A3D_LOAD_FILE_TOO_OLD:
+		{
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the version is less than the oldest supported version."), *File.GetFileName()));
+			break;
+		}
+
+		case A3DStatus::A3D_LOAD_FILE_TOO_RECENT:
+		{
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the version is more recent than supported version."), *File.GetFileName()));
+			break;
+		}
+
+		case A3DStatus::A3D_LOAD_CANNOT_ACCESS_CADFILE: 
+		{
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the input path cannot be opened by the running process for reading."), *File.GetFileName()));
+			break;
+		}
+
+		case A3DStatus::A3D_LOAD_INVALID_FILE_FORMAT:
+		{
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the format is not supported."), *File.GetFileName()));
+			break;
+		}
+
+		default:
+		{
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because an error occured while reading the file."), *File.GetFileName()));
+			break;
+		}
+		};
 		return ECADParsingResult::ProcessFailed;
 	}
 
@@ -325,17 +360,17 @@ ECADParsingResult FTechSoftFileParser::Process()
 		FString CacheFilePath = CADFileData.GetCADCachePath();
 		if (CacheFilePath != File.GetPathOfFileToLoad())
 		{
-			TechSoftUtils::SaveModelFileToPcrFile(ModelFile.Get(), CacheFilePath);
+			TechSoftUtils::SaveModelFileToPrcFile(ModelFile.Get(), CacheFilePath);
 		}
 	}
 
-	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingSew && FImportParameters::bGDisableCADKernelTessellation)
+	if (bForceSew || CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingSew && FImportParameters::bGDisableCADKernelTessellation)
 	{
 		CADLibrary::TUniqueTSObj<A3DSewOptionsData> SewData;
 		SewData->m_bComputePreferredOpenShellOrientation = false;
 		double ToleranceMM = 0.01 / FileUnit;
 
-		A3DStatus Status = TechSoftInterface::SewModel(ModelFile.GetPtr(), ToleranceMM, SewData.GetPtr());
+		A3DStatus Status = TechSoftInterface::SewModel(ModelFile.Get(), ToleranceMM, SewData.GetPtr());
 		if(Status != A3DStatus::A3D_SUCCESS)
 		{
 			// To do but what ?
@@ -453,7 +488,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 
 					FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
-					TechSoftUtils::SaveBodiesToPcrFile(&RepresentationItemPtr, 1, FilePath, JsonString);
+					TechSoftUtils::SaveBodiesToPrcFile(&RepresentationItemPtr, 1, FilePath, JsonString);
 				}
 			}
 		}

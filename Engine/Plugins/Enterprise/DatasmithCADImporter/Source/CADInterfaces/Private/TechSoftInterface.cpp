@@ -85,14 +85,22 @@ FString GetTechSoftVersion()
 
 #ifdef USE_TECHSOFT_SDK
 
-FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import)
+FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatus& Status)
 {
 	A3DAsmModelFile* ModelFile = nullptr;
-	if (A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile) != A3DStatus::A3D_SUCCESS)
+	Status = A3DAsmModelFileLoadFromFile(Import.GetFilePath(), &Import.m_sLoadData, &ModelFile);
+
+	switch (Status)
 	{
-		return FUniqueTechSoftModelFile();
+	case A3D_LOAD_MULTI_MODELS_CADFILE: //if the file contains multiple entries (see A3DRWParamsMultiEntriesData).
+	case A3D_LOAD_MISSING_COMPONENTS: //_[I don't know about this one]_
+	case A3D_SUCCESS:
+		return FUniqueTechSoftModelFile(ModelFile);
+
+	default:
+		break;
 	}
-	return FUniqueTechSoftModelFile(ModelFile);
+	return FUniqueTechSoftModelFile();
 }
 
 FUniqueTechSoftModelFile LoadModelFileFromPrcFile(const A3DUTF8Char* CADFileName, A3DRWParamsPrcReadHelper** ReadHelper)

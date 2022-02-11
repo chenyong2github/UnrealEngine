@@ -83,7 +83,7 @@ CADINTERFACES_API FString GetTechSoftVersion();
 
 #ifdef USE_TECHSOFT_SDK
 
-CADINTERFACES_API FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import);
+CADINTERFACES_API FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatus& Status);
 CADINTERFACES_API FUniqueTechSoftModelFile LoadModelFileFromPrcFile(const A3DUTF8Char* CADFileName, A3DRWParamsPrcReadHelper** ReadHelper);
 
 CADINTERFACES_API A3DStatus DeleteModelFile(A3DAsmModelFile* ModelFile);
@@ -196,11 +196,6 @@ public:
 	A3DAsmModelFile* Get()
 	{
 		return ModelFile;
-	}
-
-	A3DAsmModelFile** GetPtr()
-	{
-		return &ModelFile;
 	}
 
 	void Reset()

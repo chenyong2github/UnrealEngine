@@ -38,8 +38,8 @@ namespace TechSoftUtils
 CADINTERFACES_API bool GetBodyFromPcrFile(const FString& Filename, const FImportParameters& ImportParameters, FBodyMesh& BodyMesh);
 CADINTERFACES_API bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, double FileUnit, FBodyMesh& BodyMesh);
 
-CADINTERFACES_API FUniqueTechSoftModelFile SaveBodiesToPcrFile(void** Bodies, uint32 BodyCount, const FString& Filename, const FString& JsonString);
-CADINTERFACES_API void SaveModelFileToPcrFile(void* ModelFile, const FString& Filename);
+CADINTERFACES_API FUniqueTechSoftModelFile SaveBodiesToPrcFile(void** Bodies, uint32 BodyCount, const FString& Filename, const FString& JsonString);
+CADINTERFACES_API void SaveModelFileToPrcFile(void* ModelFile, const FString& Filename);
 
 CADINTERFACES_API int32 SetEntityGraphicsColor(A3DEntity* InEntity, FColor Color);
 

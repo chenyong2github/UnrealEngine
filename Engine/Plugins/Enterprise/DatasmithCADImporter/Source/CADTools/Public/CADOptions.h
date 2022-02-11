@@ -214,7 +214,7 @@ namespace CADLibrary
 
 		if (FImportParameters::bGDisableCADKernelTessellation)
 		{
-			OutFileName += FImportParameters::GCADLibrary.Equals("TechSoft") ? TEXT(".hsf") : TEXT(".ct");
+			OutFileName += FImportParameters::GCADLibrary.Equals("TechSoft") ? TEXT(".prc") : TEXT(".ct");
 		}
 		else
 		{
