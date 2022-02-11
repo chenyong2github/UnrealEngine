@@ -90,6 +90,50 @@ void FPBDJointCachedSolver::Update(
 	//UpdateIsActive();
 }
 
+void FPBDJointCachedSolver::UpdateMass0()
+{
+	// @todo(chaos): this needs to recache all the mass-dependent state on the axis data etc
+	if ((ConditionedInvMs[0] > 0) && (InvMScales[0] > 0))
+	{
+		InvMs[0] = InvMScales[0] * ConditionedInvMs[0];
+		InvIs[0] = Utilities::ComputeWorldSpaceInertia(Q(0), InvMScales[0] * ConditionedInvILs[0]);
+	}
+	else
+	{
+		InvMs[0] = 0;
+		InvIs[0] = FMatrix33(0);
+	}
+}
+
+void FPBDJointCachedSolver::UpdateMass1()
+{
+	// @todo(chaos): this needs to recache all the mass-dependent state on the axis data etc
+	if ((ConditionedInvMs[1] > 0) && (InvMScales[1] > 0))
+	{
+		InvMs[1] = InvMScales[1] * ConditionedInvMs[1];
+		InvIs[1] = Utilities::ComputeWorldSpaceInertia(Q(1), InvMScales[1] * ConditionedInvILs[1]);
+	}
+	else
+	{
+		InvMs[1] = 0;
+		InvIs[1] = FMatrix33(0);
+	}
+}
+
+void FPBDJointCachedSolver::SetInvMassScales(const FReal InvMScale0, const FReal InvMScale1)
+{
+	if (InvMScales[0] != InvMScale0)
+	{
+		InvMScales[0] = InvMScale0;
+		UpdateMass0();
+	}
+	if (InvMScales[1] != InvMScale1)
+	{
+		InvMScales[1] = InvMScale1;
+		UpdateMass1();
+	}
+}
+
 void FPBDJointCachedSolver::EnableProjection()
 {
 	Body0().SetInvMScale(0);
@@ -115,12 +159,11 @@ void FPBDJointCachedSolver::Init(
 	SolverBodies[0].SetInvMScale(JointSettings.ParentInvMassScale);
 	SolverBodies[1].SetInvMScale(FReal(1));
 
-	FVec3 ConditionedInvILs[2];
-	FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(),
-		SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
-
-	ConditionedInvIs[0] = Utilities::ComputeWorldSpaceInertia(Q(0), ConditionedInvILs[0]);
-	ConditionedInvIs[1] = Utilities::ComputeWorldSpaceInertia(Q(1), ConditionedInvILs[1]);
+	InvMScales[0] = FReal(1);
+	InvMScales[1] = FReal(1);
+	FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(), SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
+	UpdateMass0();
+	UpdateMass1();
 
 	NetLinearImpulse = FVec3(0);
 	NetAngularImpulse = FVec3(0);
@@ -176,11 +219,22 @@ void FPBDJointCachedSolver::ApplyConstraints(
 	NumActiveConstraints = 0;
 	SolverStiffness = InSolverStiffness;
 
-	ApplyPositionConstraints(Dt);
-	ApplyRotationConstraints(Dt);
+	if (SolverSettings.bSolvePositionLast)
+	{
+		ApplyRotationConstraints(Dt);
+		ApplyPositionConstraints(Dt);
 
-	ApplyPositionDrives(Dt);
-	ApplyRotationDrives(Dt);
+		ApplyRotationDrives(Dt);
+		ApplyPositionDrives(Dt);
+	}
+	else
+	{
+		ApplyPositionConstraints(Dt);
+		ApplyRotationConstraints(Dt);
+
+		ApplyPositionDrives(Dt);
+		ApplyRotationDrives(Dt);
+	}
 
 	//UpdateIsActive();
 }
@@ -199,8 +253,16 @@ void FPBDJointCachedSolver::ApplyVelocityConstraints(
 	// (including restitution) are also enforced. This also prevents any position
 	// errors from the previous frame getting converted into energy.
 
-	ApplyLinearVelocityConstraints();
-	ApplyAngularVelocityConstraints();
+	if (SolverSettings.bSolvePositionLast)
+	{
+		ApplyAngularVelocityConstraints();
+		ApplyLinearVelocityConstraints();
+	}
+	else
+	{
+		ApplyLinearVelocityConstraints();
+		ApplyAngularVelocityConstraints();
+	}
 
 	// @todo(chaos): We can also apply velocity drives here rather than in the Pbd pass
 }

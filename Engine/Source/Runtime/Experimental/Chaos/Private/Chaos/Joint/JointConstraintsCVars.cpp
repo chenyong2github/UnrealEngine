@@ -29,5 +29,3 @@ FAutoConsoleVariableRef CVarChaosJointLinearVelocityThresholdToApplyRestitution(
 float Chaos_Joint_AngularVelocityThresholdToApplyRestitution = 1e-2f;
 FAutoConsoleVariableRef CVarChaosJointAngularVelocityThresholdToApplyRestitution(TEXT("p.Chaos.Joint.AngularVelocityThresholdToApplyRestitution"), Chaos_Joint_AngularVelocityThresholdToApplyRestitution, TEXT("Apply restitution only if initial velocity is higher than this threshold (used in Quasipbd)"));
 
-bool bChaos_Joint_UseCachedSolver = true;
-FAutoConsoleVariableRef CVarChaosJointUseCachedSolver(TEXT("p.Chaos.Joint.UseCachedSolver"), bChaos_Joint_UseCachedSolver, TEXT("Use cached version of joint solver. (default is false"));

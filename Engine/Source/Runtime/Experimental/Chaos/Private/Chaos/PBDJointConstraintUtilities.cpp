@@ -601,6 +601,24 @@ namespace Chaos
 		return JointSettings.AngularDriveForceMode == EJointForceMode::Acceleration;
 	}
 
+	FReal FPBDJointUtilities::GetShockPropagationInvMassScale(
+		EConstraintSolverType SolverType,
+		int32 It,
+		int32 NumIts,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		// Shock propagation is only enabled for the last iteration, and only for the QPBD solver
+		const bool bEnableShockPropagation = JointSettings.bProjectionEnabled && (It >= NumIts - SolverSettings.NumShockPropagationIterations) && (SolverType == EConstraintSolverType::QuasiPbd);
+
+		if (bEnableShockPropagation)
+		{
+			return (SolverSettings.ShockPropagationOverride >= 0.0f) ? SolverSettings.ShockPropagationOverride : JointSettings.ShockPropagation;
+		}
+
+		return FReal(1);
+	}
+
 
 	FVec3 FPBDJointUtilities::ConditionInertia(const FVec3& InI, const FReal MaxRatio)
 	{

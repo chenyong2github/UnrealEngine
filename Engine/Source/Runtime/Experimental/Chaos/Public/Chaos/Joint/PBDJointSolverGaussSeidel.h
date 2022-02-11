@@ -104,12 +104,17 @@ namespace Chaos
 
 		inline FReal InvM(int32 BodyIndex) const
 		{
-			return ConditionedInvMs[BodyIndex];
+			return InvMs[BodyIndex];
 		}
 
 		inline FMatrix33 InvI(int32 BodyIndex) const
 		{
-			return ConditionedInvIs[BodyIndex];
+			return InvIs[BodyIndex];
+		}
+
+		inline bool IsDynamic(int32 BodyIndex) const
+		{
+			return (InvM(BodyIndex) > 0);
 		}
 
 		inline const FVec3& GetNetLinearImpulse() const
@@ -175,6 +180,10 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		void SetInvMassScales(
+			const FReal InvMScale0, 
+			const FReal InvMScale1);
+
 	private:
 
 		// Initialize state dependent on particle positions
@@ -183,6 +192,9 @@ namespace Chaos
 		// Update state dependent on particle positions (after moving one or both of them)
 		void UpdateDerivedState(const int32 BodyIndex);
 		void UpdateDerivedState();
+
+		void UpdateMass0();
+		void UpdateMass1();
 
 		// Check to see if this constraint still needs further solved
 		// @todo(chaos): the term "active" is used inconsistently with the meaning elsewhere. Active should
@@ -706,8 +718,11 @@ namespace Chaos
 		FRotation3 InitConnectorRs[MaxConstrainedBodies];	// World-space joint connector rotations
 
 		// Conditioned InvM and InvI
+		FReal InvMScales[MaxConstrainedBodies];
 		FReal ConditionedInvMs[MaxConstrainedBodies];
-		FMatrix33 ConditionedInvIs[MaxConstrainedBodies];
+		FVec3 ConditionedInvILs[MaxConstrainedBodies];		// Local-space
+		FReal InvMs[MaxConstrainedBodies];
+		FMatrix33 InvIs[MaxConstrainedBodies];				// World-space
 
 		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
 		FVec3 NetLinearImpulse;

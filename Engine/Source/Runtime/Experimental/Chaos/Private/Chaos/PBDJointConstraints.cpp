@@ -187,6 +187,7 @@ namespace Chaos
 		: Stiffness(1)
 		, LinearProjection(0)
 		, AngularProjection(0)
+		, ShockPropagation(0)
 		, ParentInvMassScale(1)
 		, bCollisionEnabled(true)
 		, bProjectionEnabled(false)
@@ -356,6 +357,9 @@ namespace Chaos
 		, MinSolverStiffness(1)
 		, MaxSolverStiffness(1)
 		, NumIterationsAtMaxSolverStiffness(1)
+		, NumShockPropagationIterations(0)
+		, bUseLinearSolver(true)
+		, bSolvePositionLast(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
@@ -364,6 +368,7 @@ namespace Chaos
 		, SwingStiffnessOverride(-1)
 		, LinearProjectionOverride(-1)
 		, AngularProjectionOverride(-1)
+		, ShockPropagationOverride(-1)
 		, LinearDriveStiffnessOverride(-1)
 		, LinearDriveDampingOverride(-1)
 		, AngularDriveStiffnessOverride(-1)
@@ -757,7 +762,7 @@ namespace Chaos
 			bJointsDirty = false;
 		}
 
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			CachedConstraintSolvers.SetNum(NumConstraints());
 		}
@@ -771,7 +776,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_UnprepareTick);
 
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			CachedConstraintSolvers.Empty();
 		}
@@ -864,7 +869,7 @@ namespace Chaos
 		FSolverBody* Body0 = SolverData.GetBodyContainer().FindOrAdd(Particle0);
 		FSolverBody* Body1 = SolverData.GetBodyContainer().FindOrAdd(Particle1);
 
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 			Solver.Init(
@@ -921,7 +926,7 @@ namespace Chaos
 				int32 Index0, Index1;
 				GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
 
-				if (bChaos_Joint_UseCachedSolver)
+				if (Settings.bUseLinearSolver)
 				{
 					FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 					// NOTE: LinearImpulse/AngularImpulse in the solver are not really impulses - they are mass-weighted position/rotation delta, or (impulse x dt).
@@ -1024,7 +1029,7 @@ namespace Chaos
 			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
 			{
 				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-				if (bChaos_Joint_UseCachedSolver)
+				if (Settings.bUseLinearSolver)
 				{
 					if (JointSettings.bProjectionEnabled)
 					{
@@ -1083,7 +1088,7 @@ namespace Chaos
 		}
 
 		// check valid particle and solver state
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			const FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 			if ((Particle0->Sleeping() && Particle1->Sleeping())
@@ -1121,7 +1126,7 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Solve Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 
@@ -1141,6 +1146,11 @@ namespace Chaos
 			// If we were solved last iteration and nothing has changed since, we are done
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
+
+			// Set parent inverser mass scale based on current shock propagation state
+			// @todo(chaos): needs to handle the parent/child being in opposite order
+			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
 
 			if (!bWasActive && !Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
 			{
@@ -1198,6 +1208,11 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 
+			// Set parent inverser mass scale based on current shock propagation state
+			// @todo(chaos): needs to handle the parent/child being in opposite order
+			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+
 			if (!bWasActive && !Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
 			{
 				return false;
@@ -1246,7 +1261,7 @@ namespace Chaos
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("Project Joint Constraint %d %s %s (dt = %f; it = %d / %d)"), ConstraintIndex, *Constraint[0]->ToString(), *Constraint[1]->ToString(), Dt, It, NumIts);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
-		if (bChaos_Joint_UseCachedSolver)
+		if (Settings.bUseLinearSolver)
 		{
 			FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
 
@@ -1267,6 +1282,11 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 			
+			// Set parent inverser mass scale based on current shock propagation state
+			// @todo(chaos): needs to handle the parent/child being in opposite order
+			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+
 			// For quasipbd, we may still need to stabilize velocities and solve for restitution.
 			if (!bWasActive && !Solver.GetIsActive() && SolverType != EConstraintSolverType::QuasiPbd && bChaos_Joint_EarlyOut_Enabled)
 			{
@@ -1319,7 +1339,12 @@ namespace Chaos
 			// If we were solved last iteration and nothing has changed since, we are done
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
-			
+
+			// Set parent inverser mass scale based on current shock propagation state
+			// @todo(chaos): needs to handle the parent/child being in opposite order
+			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+
 			// For quasipbd, we may still need to stabilize velocities and solve for restitution.
 			if (!bWasActive && !Solver.GetIsActive() && SolverType != EConstraintSolverType::QuasiPbd && bChaos_Joint_EarlyOut_Enabled)
 			{
@@ -1415,8 +1440,8 @@ namespace Chaos
 			}
 		}
 
-		FConstraintSolverBody& Body0 = bChaos_Joint_UseCachedSolver ? CachedConstraintSolvers[ConstraintIndex].Body(0) : ConstraintSolvers[ConstraintIndex].Body(0);
-		FConstraintSolverBody& Body1 = bChaos_Joint_UseCachedSolver ? CachedConstraintSolvers[ConstraintIndex].Body(1) : ConstraintSolvers[ConstraintIndex].Body(1);
+		FConstraintSolverBody& Body0 = Settings.bUseLinearSolver ? CachedConstraintSolvers[ConstraintIndex].Body(0) : ConstraintSolvers[ConstraintIndex].Body(0);
+		FConstraintSolverBody& Body1 = Settings.bUseLinearSolver ? CachedConstraintSolvers[ConstraintIndex].Body(1) : ConstraintSolvers[ConstraintIndex].Body(1);
 
 		const FTransformPair& ConstraintFramesLocal = JointSettings.ConnectorTransforms;
 		FTransformPair ConstraintFramesGlobal(ConstraintFramesLocal[Index0] * FRigidTransform3(Body0.ActorP(), Body0.ActorQ()), ConstraintFramesLocal[Index1] * FRigidTransform3(Body1.ActorP(), Body1.ActorQ()));

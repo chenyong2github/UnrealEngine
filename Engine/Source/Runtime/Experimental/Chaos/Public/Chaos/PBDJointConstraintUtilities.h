@@ -5,6 +5,7 @@
 
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDJointConstraintTypes.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 
 
 namespace Chaos
@@ -263,6 +264,13 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings);
 
 		static bool GetDriveAccelerationMode(
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings);
+
+		static FReal GetShockPropagationInvMassScale(
+			EConstraintSolverType SolverType,
+			int32 It,
+			int32 NumIts,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 

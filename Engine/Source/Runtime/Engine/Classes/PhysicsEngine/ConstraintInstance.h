@@ -42,6 +42,10 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ProjectionAngularAlpha;
 
+	/** How much shock propagation to apply [0-1] */
+	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ShockPropagationAlpha;
+
 	/** Force needed to break the distance constraint. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (editcondition = "bLinearBreakable", ClampMin = "0.0"))
 	float LinearBreakThreshold;
@@ -907,6 +911,12 @@ public:
 	* Chaos returns alphas, PhysX returns tolerances
 	*/
 	void GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const;
+
+	/** Set the shock propagation amount [0, 1] */
+	void SetShockPropagationParams(float ShockPropagationAlpha);
+
+	/** Get the shock propagation amount [0, 1] */
+	float GetShockPropagationAlpha() const;
 
 	/** Whether parent domination is enabled (meaning the parent body cannot be be affected at all by a child) */
 	bool IsParentDominatesEnabled() const
