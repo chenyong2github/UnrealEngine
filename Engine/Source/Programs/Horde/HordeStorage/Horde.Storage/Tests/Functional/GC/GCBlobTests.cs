@@ -78,7 +78,8 @@ namespace Horde.Storage.FunctionalTests.GC
                     {
                         GCSettings gcSettings = new GCSettings()
                         {
-                            CleanOldBlobs = true
+                            CleanOldBlobs = true,
+                            CleanOldBlobsLegacy = true,
                         };
                         IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
 
@@ -168,6 +169,7 @@ namespace Horde.Storage.FunctionalTests.GC
             GCSettings gcSettings = new GCSettings()
             {
                 CleanOldBlobs = true,
+                CleanOldBlobsLegacy = true,
                 CleanNamespacesV1 = new List<string> { TestNamespace.ToString() }
             };
             IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
@@ -237,6 +239,7 @@ namespace Horde.Storage.FunctionalTests.GC
                     new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore"),
                     new KeyValuePair<string, string>("GC:CleanNamespaces:0", TestNamespace.ToString()),
                     new KeyValuePair<string, string>("GC:CleanOldBlobs", true.ToString()),
+                    new KeyValuePair<string, string>("GC:CleanOldBlobsLegacy", true.ToString()),
                     new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", GetImplementation()),
                     
                 })

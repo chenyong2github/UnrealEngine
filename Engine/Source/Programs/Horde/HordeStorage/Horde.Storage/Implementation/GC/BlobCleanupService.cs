@@ -35,7 +35,7 @@ namespace Horde.Storage.Implementation
         {
             _settings = settings;
 
-            if (settings.CurrentValue.CleanOldBlobs)
+            if (settings.CurrentValue.CleanOldBlobsLegacy)
             {
                 OrphanBlobCleanup orphanBlobCleanup = provider.GetService<OrphanBlobCleanup>()!;
                 RegisterCleanup(orphanBlobCleanup);

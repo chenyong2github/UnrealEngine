@@ -253,6 +253,7 @@ namespace Horde.Storage
         
         public bool CleanOldRefRecords { get; set; } = false;
         public bool CleanOldBlobs { get; set; } = true;
+        public bool CleanOldBlobsLegacy { get; set; } = false;
 
         public TimeSpan LastAccessCutoff { get; set; } = TimeSpan.FromDays(14);
 
@@ -260,6 +261,7 @@ namespace Horde.Storage
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public List<string> CleanNamespacesV1 { get; set; } = new List<string>();
         public List<string> CleanNamespaces { get; set; }  = new List<string>();
+
     }
 
     public class UpstreamRelaySettings
