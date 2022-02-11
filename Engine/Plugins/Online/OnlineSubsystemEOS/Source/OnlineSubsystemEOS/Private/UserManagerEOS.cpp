@@ -1463,6 +1463,13 @@ FPlatformUserId FUserManagerEOS::GetPlatformUserIdFromUniqueNetId(const FUniqueN
 	return GetPlatformUserIdFromLocalUserNum(GetLocalUserNumFromUniqueNetId(UniqueNetId));
 }
 
+void FUserManagerEOS::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
+{
+	FExternalAuthToken ExternalToken;
+	ExternalToken.TokenString = GetAuthToken(LocalUserNum);
+	Delegate.ExecuteIfBound(LocalUserNum, ExternalToken.HasTokenString(), ExternalToken);
+}
+
 void FUserManagerEOS::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate)
 {
 	Delegate.ExecuteIfBound(UserId, Privilege, (uint32)EPrivilegeResults::NoFailures);
