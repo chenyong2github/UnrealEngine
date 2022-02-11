@@ -1218,6 +1218,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		}
 	}
 
+	// Cache shaders for all GPU scripts
+#if WITH_EDITORONLY_DATA
+	if ( AreAllScriptAndSourcesSynchronized() )
+	{
+		ForEachScript(
+			[](UNiagaraScript* Script)
+			{
+				Script->CacheResourceShadersForRendering(false, false);
+			}
+		);
+	}
+#endif
+
 	// Cache information for GPU compute sims
 	CacheFromShaderCompiled();
 
@@ -1276,19 +1289,6 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	{
 		MaxInstanceCount = 0;
 	}
-
-	// Cache shaders for all GPU scripts
-#if WITH_EDITORONLY_DATA
-	if (AreAllScriptAndSourcesSynchronized())
-	{
-		ForEachScript(
-			[](UNiagaraScript* Script)
-			{
-				Script->CacheResourceShadersForRendering(false, false);
-			}
-		);
-	}
-#endif
 
 #if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	// Ensure our debug simulation name is up to date
