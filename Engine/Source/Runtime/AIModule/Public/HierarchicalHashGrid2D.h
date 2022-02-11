@@ -529,7 +529,7 @@ public:
 	 * @params CellLocation - Cell location.
 	 * @return Returns the bounds of the cell.
 	 */
-	FBox CalcCellBounds(const FCellLocation& CellLocation)
+	FBox CalcCellBounds(const FCellLocation& CellLocation) const
 	{
 		const float Size = CellSize[CellLocation.Level];
 		const float X = CellLocation.X * Size;
