@@ -34,9 +34,15 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=GameFeatures)
 	TArray<FString> AdditionalPluginMetadataKeys;
 
-	/** The folder in which all discovered plugins are automatically considered game feature plugins. Plugins outside this folder may also be game features, but need to have bGameFeature: true in the plugin file */
-	//@TODO: GameFeaturePluginEnginePush: Make this configurable
-	//@TODO: GameFeaturePluginEnginePush: This comment doesn't jive with some of the code in the subsystem which is only paying attention to plugins in this folder
-	UPROPERTY(transient)
+	UE_DEPRECATED(5.0, "Use IsValidGameFeaturePlugin() instead")
 	FString BuiltInGameFeaturePluginsFolder;
+
+private:
+	// Cached list of all GameFeature plugin directories (including extension versions)
+	mutable TArray<FString> BuiltInGameFeaturePluginsFolders;
+
+public:
+	// Returns true if the specified (fully qualified) path is a game feature plugin
+	bool IsValidGameFeaturePlugin(const FString& PluginDescriptorFilename) const;
+
 };

@@ -769,9 +769,8 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 
 	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
 
-	// Make sure you are in the game feature plugins folder. All GameFeaturePlugins are in this folder.
-	//@TODO: GameFeaturePluginEnginePush: Comments elsewhere allow plugins outside of the folder as long as they explicitly opt in, either those are wrong or this check is wrong
-	if (!PluginDescriptorFilename.IsEmpty() && FPaths::ConvertRelativePathToFull(PluginDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) && FPaths::FileExists(PluginDescriptorFilename))
+	// Make sure you are in a game feature plugins folder. All GameFeaturePlugins are rooted in a GameFeatures folder.
+	if (!PluginDescriptorFilename.IsEmpty() && GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(PluginDescriptorFilename)) && FPaths::FileExists(PluginDescriptorFilename))
 	{
 		const FString PluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
 		if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
@@ -961,7 +960,7 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 								const FString& PluginDependencyDescriptorFilename = DependencyPlugin->GetDescriptorFileName();
 
 								if (!PluginDependencyDescriptorFilename.IsEmpty() &&
-									FPaths::ConvertRelativePathToFull(PluginDependencyDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) &&
+									GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(PluginDependencyDescriptorFilename)) &&
 									FPaths::FileExists(PluginDependencyDescriptorFilename))
 								{
 									OutPluginDetails.PluginDependencies.Add(GetPluginURL_FileProtocol(DependencyPlugin->GetDescriptorFileName()));
