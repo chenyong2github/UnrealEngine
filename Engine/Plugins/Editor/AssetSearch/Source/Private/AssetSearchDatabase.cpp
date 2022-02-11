@@ -490,17 +490,23 @@ bool FAssetSearchDatabase::Open(const FString& InSessionPath, const ESQLiteDatab
 		return false;
 	}
 
+	if (!Database->PerformQuickIntegrityCheck())
+	{
+		UE_LOG(LogAssetSearch, Error, TEXT("Database failed integrity check, deleting."));
+
+		const bool bDeleteTheDatabase = true;
+		Close(bDeleteTheDatabase);
+
+		return false;
+	}
+
 	// Set the database to use exclusive WAL mode for performance (exclusive works even on platforms without a mmap implementation)
 	// Set the database "NORMAL" fsync mode to only perform a fsync when check-pointing the WAL to the main database file (fewer fsync calls are better for performance, with a very slight loss of WAL durability if the power fails)
+	Database->Execute(TEXT("PRAGMA journal_mode=WAL;"));
+	Database->Execute(TEXT("PRAGMA synchronous=FULL;"));
 	Database->Execute(TEXT("PRAGMA cache_size=1000;"));
 	Database->Execute(TEXT("PRAGMA page_size=65535;"));
 	Database->Execute(TEXT("PRAGMA locking_mode=EXCLUSIVE;"));
-
-	Database->Execute(TEXT("PRAGMA journal_mode=WAL;"));
-	Database->Execute(TEXT("PRAGMA synchronous=NORMAL;"));
-
-	/*Database->Execute(TEXT("PRAGMA journal_mode=NORMAL;"));
-	Database->Execute(TEXT("PRAGMA synchronous=OFF;"));*/
 
 	int32 LoadedDatabaseVersion = 0;
 	Database->GetUserVersion(LoadedDatabaseVersion);
