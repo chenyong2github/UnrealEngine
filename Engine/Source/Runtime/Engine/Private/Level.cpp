@@ -3241,7 +3241,7 @@ TArray<UPackage*> ULevel::GetLoadedExternalObjectPackages() const
 					}
 				}
 				PackageIsInExternalObjectsPath[Index] = bIsInExternalObjectsPath;
-			}
+			});
 
 			for (int Index=0; Index<PackageIsInExternalObjectsPath.Num(); Index++)
 			{
