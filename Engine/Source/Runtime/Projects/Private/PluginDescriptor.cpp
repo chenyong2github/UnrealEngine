@@ -330,7 +330,10 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	}
 
 	JsonObject.SetBoolField(TEXT("CanContainContent"), bCanContainContent);
-	JsonObject.SetBoolField(TEXT("CanContainVerse"), bCanContainVerse);
+	if (bCanContainVerse)
+	{
+		JsonObject.SetBoolField(TEXT("CanContainVerse"), bCanContainVerse);
+	}
 	JsonObject.SetBoolField(TEXT("IsBetaVersion"), bIsBetaVersion);
 	JsonObject.SetBoolField(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
 	JsonObject.SetBoolField(TEXT("Installed"), bInstalled);

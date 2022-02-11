@@ -387,7 +387,10 @@ namespace UnrealBuildTool
 				Writer.WriteValue("EnabledByDefault", bEnabledByDefault.Value);
 			}
 			Writer.WriteValue("CanContainContent", bCanContainContent);
-			Writer.WriteValue("CanContainVerse", bCanContainVerse);
+			if (bCanContainVerse)
+			{
+				Writer.WriteValue("CanContainVerse", bCanContainVerse);
+			}
 			if (bIsBetaVersion)
 			{
 				Writer.WriteValue("IsBetaVersion", bIsBetaVersion);
