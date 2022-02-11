@@ -16,62 +16,75 @@ FBlackmagicMediaOutputModule& FBlackmagicMediaOutputModule::Get()
 
 void FBlackmagicMediaOutputModule::StartupModule()
 {
-	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-	bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA();
-
-	if (bIsGPUTextureTransferAvailable)
+	const auto DMAInitializationFunc = [this]()
 	{
-		ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
-			[this](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				if (!GDynamicRHI)
+		const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+		bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA();
+
+		if (bIsGPUTextureTransferAvailable)
+		{
+			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
+				[this](FRHICommandListImmediate& RHICmdList) mutable
 				{
-					return;
-				}
+					if (!GDynamicRHI)
+					{
+						return;
+					}
 
-				auto GetRHI = []()
+					auto GetRHI = []()
+					{
+						FString RHIName = GDynamicRHI->GetName();
+						if (RHIName == TEXT("D3D11"))
+						{
+							return BlackmagicDesign::ERHI::D3D11;
+						}
+						else if (RHIName == TEXT("D3D12"))
+						{
+							return BlackmagicDesign::ERHI::D3D12;
+						}
+						else if (RHIName == TEXT("Vulkan"))
+						{
+							return BlackmagicDesign::ERHI::Vulkan;
+						}
+
+						return  BlackmagicDesign::ERHI::Invalid;
+					};
+
+
+					BlackmagicDesign::FInitializeDMAArgs Args;
+					BlackmagicDesign::ERHI RHI = GetRHI();
+					Args.RHI = RHI;
+					Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+					Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+
+					bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
+				});
+		}
+	};
+
+
+	auto DMAUninitialize = [this]()
+	{
+		if (bIsGPUTextureTransferAvailable)
+		{
+			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureUninitialize)(
+				[](FRHICommandListImmediate& RHICmdList) mutable
 				{
-					FString RHIName = GDynamicRHI->GetName();
-					if (RHIName == TEXT("D3D11"))
-					{
-						return BlackmagicDesign::ERHI::D3D11;
-					}
-					else if (RHIName == TEXT("D3D12"))
-					{
-						return BlackmagicDesign::ERHI::D3D12;
-					}
-					else if (RHIName == TEXT("Vulkan"))
-					{
-						return BlackmagicDesign::ERHI::Vulkan;
-					}
+					BlackmagicDesign::UninitializeDMA();
+				});
+		}
+	};
 
-					return  BlackmagicDesign::ERHI::Invalid;
-				};
-
-
-				BlackmagicDesign::FInitializeDMAArgs Args;
-				BlackmagicDesign::ERHI RHI = GetRHI();
-				Args.RHI = RHI;
-				Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-				Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-
-				bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
-			});
-	}
+	//Postpone initialization after all modules have been loaded to be sure Blackmagic library has been loaded
+	FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddLambda(DMAInitializationFunc);
+	//Same for shutdown, uninitialize ourselves before library is unloaded
+	FCoreDelegates::OnEnginePreExit.AddLambda(DMAUninitialize);
 }
 
 void FBlackmagicMediaOutputModule::ShutdownModule()
 {
-	ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureUninitialize)(
-		[bIsAvailable = bIsGPUTextureTransferAvailable](FRHICommandListImmediate& RHICmdList) mutable
-		{
-			if (bIsAvailable)
-			{
-				BlackmagicDesign::UninitializeDMA();
-			}
-		});
+	
 }
-
 
 bool FBlackmagicMediaOutputModule::IsGPUTextureTransferAvailable() const
 {

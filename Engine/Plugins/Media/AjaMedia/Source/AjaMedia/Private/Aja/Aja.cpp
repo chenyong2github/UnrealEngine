@@ -31,6 +31,10 @@ bool FAja::Initialize()
 	FPlatformProcess::PushDllDirectory(*AjaDllPath);
 	AjaDllPath = FPaths::Combine(AjaDllPath, AjaDll);
 
+	//Need to add the path to our dll dependency for cooked game, otherwise it won't be found when launching
+	FString GPUTextureTransferDllPath = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("MediaIOFramework"))->GetBaseDir(), TEXT("/Binaries/Win64"));
+	FPlatformProcess::PushDllDirectory(*GPUTextureTransferDllPath);
+
 	if (!FPaths::FileExists(AjaDllPath))
 	{
 		UE_LOG(LogAjaMedia, Error, TEXT("Failed to find the binary folder for the AJA dll. Plug-in will not be functional."));

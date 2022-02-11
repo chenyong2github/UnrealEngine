@@ -31,6 +31,10 @@ bool FBlackmagic::Initialize()
 	FPlatformProcess::PushDllDirectory(*DllPath);
 	DllPath = FPaths::Combine(DllPath, VideoIODll);
 
+	//Need to add the path to our dll dependency for cooked game, otherwise it won't be found when launching
+	FString GPUTextureTransferDllPath = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("MediaIOFramework"))->GetBaseDir(), TEXT("/Binaries/Win64"));
+	FPlatformProcess::PushDllDirectory(*GPUTextureTransferDllPath);
+
 	if (!FPaths::FileExists(DllPath))
 	{
 		UE_LOG(LogBlackmagicMedia, Error, TEXT("Failed to find the binary folder for the dll. Plug-in will not be functional."));
