@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
 					"Concert",
 					"ConcertSyncClient",
 					"ConcertSyncCore",
-					"ConcertSyncUI",
+					"ConcertSharedSlate",
 					"ConcertTransport",
 					"DesktopPlatform",
 					"Json",

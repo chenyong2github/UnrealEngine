@@ -25,6 +25,10 @@
 		{
 			"Name": "ConcertSyncClient",
 			"Enabled": true
-		}
+		},
+        {
+          "Name": "ConcertSharedSlate",
+          "Enabled": true
+        }
 	]
 }

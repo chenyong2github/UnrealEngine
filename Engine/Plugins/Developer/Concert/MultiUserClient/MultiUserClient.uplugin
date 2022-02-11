@@ -31,6 +31,10 @@
 			"Name": "ConcertSyncClient",
 			"Enabled": true
 		},
+        {
+          "Name": "ConcertSharedSlate",
+          "Enabled": true
+        },
 		{
 			"Name": "MultiUserTakes",
 			"Enabled": true
