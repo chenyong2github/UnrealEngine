@@ -485,7 +485,6 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 	// Now voxelise all the light we have just gathered.
 	if (LightsToInject.Num() > 0)
 	{
-		OutLocalShadowedLightScattering = GraphBuilder.CreateTexture(VolumeDesc, TEXT("VolumetricFog.LocalShadowedLightScattering"));
 		TMap<FLightSceneInfo*, FVolumetricFogLocalLightFunctionInfo>& LocalLightFunctionData = View.VolumetricFogResources.LocalLightFunctionData;
 
 		bool bClearExecuted = false;
@@ -525,6 +524,11 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 					PassParameters->LightFunctionAtlasTexture = LightFunctionData->AtlasTile.Texture;
 					PassParameters->LightFunctionAtlasTileMinMaxUvBound = LightFunctionData->AtlasTile.MinMaxUvBound;
 				}
+
+				// We need to delay the real texture creation replacing the dummy on first use after all the culling logic, 
+				// otherwise it will be reported as not written by any pass (in this case we need to keep the default dummy).
+				const bool bHasTextureBeenCreated = bClearExecuted == true;
+				OutLocalShadowedLightScattering = bHasTextureBeenCreated ? OutLocalShadowedLightScattering : GraphBuilder.CreateTexture(VolumeDesc, TEXT("VolumetricFog.LocalShadowedLightScattering"));
 
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(OutLocalShadowedLightScattering, bClearExecuted ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
 				bClearExecuted = true;
