@@ -769,6 +769,9 @@ private:
 
 private:
 
+	/** Called when SceneOutlinerModule column permission list changes. */
+	void OnColumnPermissionListChanged();
+
 	/** Structure containing information relating to the expansion state of parent items in the tree */
 	typedef TMap<FSceneOutlinerTreeItemID, bool> FParentsExpansionState;
 	

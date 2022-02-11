@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "ISceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
+#include "Misc/NamePermissionList.h"
 
 class ICustomSceneOutliner;
 class ISceneOutlinerColumn;
@@ -25,6 +26,8 @@ class FSceneOutlinerModule
 	: public IModuleInterface
 {
 public:
+
+	FSceneOutlinerModule();
 
 	/**
 	 * Creates a scene outliner widget
@@ -55,6 +58,13 @@ public:
 	virtual TSharedRef<ISceneOutliner> CreateActorBrowser(
 		const FSceneOutlinerInitializationOptions& InInitOptions,
 		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
+
+	/** Column permission list */
+	TSharedRef<FNamePermissionList>& GetColumnPermissionList() { return ColumnPermissionList; }
+
+	/** Delegate that broadcasts when column permission list changes. */
+	DECLARE_MULTICAST_DELEGATE(FOnColumnPermissionListChanged);
+	FOnColumnPermissionListChanged& OnColumnPermissionListChanged() { return ColumnPermissionListChanged; }
 
 public:
 	/** Register a new type of column available to all scene outliners */
@@ -114,6 +124,12 @@ private:
 
 	/** Map of column type name -> factory delegate */
 	TMap< FName, FCreateSceneOutlinerColumn > ColumnMap;
+
+	/** Column permission list used to filter scene ouliner columns. */
+	TSharedRef<FNamePermissionList> ColumnPermissionList;
+
+	/** Delegate that broadcasts when column permission list changes. */
+	FOnColumnPermissionListChanged ColumnPermissionListChanged;
 
 	// Function to recreate what originally was FActorInfoColumn as separate columns using FTextInfoColumn
 	void CreateActorInfoColumns(FSceneOutlinerInitializationOptions& InInitOptions) const;

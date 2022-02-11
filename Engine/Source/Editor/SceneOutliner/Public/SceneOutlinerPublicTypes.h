@@ -22,73 +22,30 @@ DECLARE_DELEGATE_RetVal_OneParam(ISceneOutlinerMode*, FCreateSceneOutlinerMode, 
 /** Container for built in column types. Function-static so they are available without linking */
 struct FSceneOutlinerBuiltInColumnTypes
 {
-	/** The gutter column */
-	static const FName& Gutter()
-	{
-		static FName Gutter("Visibility"); // Renamed "Gutter" to "Visibility" so the purpose is more obvious in editor menus
-		return Gutter;
+	#define DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(ColumnID, ColumnName, ColumnKey, ColumnLocalizedTextLiteral) \
+	static FName& ColumnID() \
+	{ \
+		static FName ColumnID = ColumnName; \
+		return ColumnID; \
+	} \
+	static const FText& ColumnID##_Localized() \
+	{ \
+		static FText ColumnID##_Localized = LOCTEXT(ColumnKey, ColumnLocalizedTextLiteral); \
+		return ColumnID##_Localized; \
 	}
 
-	/** Localizable FText name for the Gutter Column (pass into FSceneOutlinerColumnInfo) */
-	static const FText& Gutter_Localized()
-	{
-		static FText Gutter_Localized = LOCTEXT("VisibilityColumnName", "Visibility");
-		return Gutter_Localized;
-	}
-
-	/** The item label column */
-	static const FName& Label()
-	{
-		static FName Label("Item Label");
-		return Label;
-	}
-
-	/** Localizable FText name for the Item Label Column (pass into FSceneOutlinerColumnInfo) */
-	static const FText& Label_Localized()
-	{
-		static FText Label_Localized = LOCTEXT("ItemLabelColumnName", "Item Label");
-		return Label_Localized;
-	}
-
-	/** Generic actor info column */
-	static FName& ActorInfo()
-	{
-		static FName ActorInfo("Type"); // Renamed "Actor Info" to "Type" since it has been refactored to only show type information
-		return ActorInfo;
-	}
-
-	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
-	static const FText& ActorInfo_Localized()
-	{
-		static FText ActorInfo_Localized = LOCTEXT("TypeColumnName", "Type");
-		return ActorInfo_Localized;
-	}
-
-	static FName& SourceControl()
-	{
-		static FName SourceControl("Source Control");
-		return SourceControl;
-	}
-
-	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
-	static const FText& SourceControl_Localized()
-	{
-		static FText SourceControl_Localized = LOCTEXT("SourceControlColumnName", "Source Control");
-		return SourceControl_Localized;
-	}
-
-	static FName& Pinned()
-	{
-		static FName Pinned("Pinned");
-		return Pinned;
-	}
-
-	/** Localizable FText name for the Type Column (pass into FSceneOutlinerColumnInfo) */
-	static const FText& Pinned_Localized()
-	{
-		static FText Pinned_Localized = LOCTEXT("PinnedColumnName", "Pinned");
-		return Pinned_Localized;
-	}
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Label, "Item Label", "ItemLabelColumnName", "Item Label");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Gutter, "Visibility", "VisibilityColumnName", "Visibility");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(ActorInfo, "Type", "TypeColumnName", "Type");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(SourceControl, "Source Control", "SourceControlColumnName", "Source Control");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Mobility, "Mobility", "SceneOutlinerMobilityColumn", "Mobility");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Level, "Level", "SceneOutlinerLevelColumn", "Level");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Layer, "Layer", "SceneOutlinerLayerColumn", "Layer");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(DataLayer, "Data Layer", "SceneOutlinerDataLayerColumn", "Data Layer");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(Pinned, "Pinned", "SceneOutlinerPinnedColumn", "Pinned");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(IDName, "ID Name", "SceneOutlinerIDNameColumn", "ID Name");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(PackageShortName, "Package Short Name", "SceneOutlinerPackageShortNameColumn", "Package Short Name");
+	DEFINE_SCENEOUTLINER_BUILTIN_COLUMN_TYPE(UncachedLights, "Uncached Lights", "SceneOutlinerUncachedLightsColumn", "# Uncached Lights");
 };
 
 /** Visibility enum for scene outliner columns */

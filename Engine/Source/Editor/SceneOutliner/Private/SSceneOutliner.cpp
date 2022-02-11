@@ -97,6 +97,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 		SearchBoxFilter = MakeShareable( new SceneOutliner::TreeItemTextFilter( Delegate ) );
 	}
 
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	SceneOutlinerModule.OnColumnPermissionListChanged().AddSP(this, &SSceneOutliner::OnColumnPermissionListChanged);
+
 	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
 
 	for (auto& ModeFilterInfo : Mode->GetFilterInfos())
@@ -305,16 +308,25 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		SharedData->UseDefaultColumns();
 	}
 
-	Columns.Empty(SharedData->ColumnMap.Num());
+	TMap<FName, FSceneOutlinerColumnInfo> FilteredColumnMap;
+	for(auto It(SharedData->ColumnMap.CreateIterator()); It; ++It)
+	{
+		if (SceneOutlinerModule.GetColumnPermissionList()->PassesFilter(It.Key()))
+		{
+			FilteredColumnMap.Add(It.Key(), It.Value());
+		}
+	}
+
+	Columns.Empty(FilteredColumnMap.Num());
 	HeaderRow.ClearColumns();
 
 	// Get a list of sorted columns IDs to create
 	TArray<FName> SortedIDs;
-	SortedIDs.Reserve(SharedData->ColumnMap.Num());
-	SharedData->ColumnMap.GenerateKeyArray(SortedIDs);
+	SortedIDs.Reserve(FilteredColumnMap.Num());
+	FilteredColumnMap.GenerateKeyArray(SortedIDs);
 
 	SortedIDs.Sort([&](const FName& A, const FName& B){
-		return SharedData->ColumnMap[A].PriorityIndex < SharedData->ColumnMap[B].PriorityIndex;
+		return FilteredColumnMap[A].PriorityIndex < FilteredColumnMap[B].PriorityIndex;
 	});
 
 	TMap<FName, bool> ColumnVisibilities;
@@ -336,16 +348,16 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		{
 			bIsVisible = *ColumnVisibility;
 		}
-		else if (SharedData->ColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
+		else if (FilteredColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
 		{
 			bIsVisible = false;
 		}
 
 		TSharedPtr<ISceneOutlinerColumn> Column;
 
-		if (SharedData->ColumnMap[ID].Factory.IsBound())
+		if (FilteredColumnMap[ID].Factory.IsBound())
 		{
-			Column = SharedData->ColumnMap[ID].Factory.Execute(*this);
+			Column = FilteredColumnMap[ID].Factory.Execute(*this);
 		}
 		else
 		{
@@ -365,9 +377,9 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 					.OnSort(this, &SSceneOutliner::OnColumnSortModeChanged);
 			}
 
-			if (SharedData->ColumnMap[ID].ColumnLabel.IsSet())
+			if (FilteredColumnMap[ID].ColumnLabel.IsSet())
 			{
-				ColumnArgs.DefaultLabel(SharedData->ColumnMap[ID].ColumnLabel);
+				ColumnArgs.DefaultLabel(FilteredColumnMap[ID].ColumnLabel);
 			}
 			else
 			{
@@ -379,7 +391,7 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 				ColumnArgs.DefaultLabel(FText::FromName(ID));
 			}
 			
-			if (!SharedData->ColumnMap[ID].bCanBeHidden)
+			if (!FilteredColumnMap[ID].bCanBeHidden)
 			{
 				ColumnArgs.ShouldGenerateWidget(true);
 			}
@@ -402,8 +414,19 @@ void SSceneOutliner::RefreshColums()
 	bNeedsColumRefresh = true;
 }
 
+void SSceneOutliner::OnColumnPermissionListChanged()
+{
+	RefreshColums();
+	FullRefresh();
+}
+
 SSceneOutliner::~SSceneOutliner()
 {
+	if (FSceneOutlinerModule* SceneOutlinerModule = FModuleManager::GetModulePtr<FSceneOutlinerModule>("SceneOutliner"))
+	{
+		SceneOutlinerModule->OnColumnPermissionListChanged().RemoveAll(this);
+	}
+
 	Mode->GetHierarchy()->OnHierarchyChanged().RemoveAll(this);
 	delete Mode;
 
