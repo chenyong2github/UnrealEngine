@@ -153,6 +153,8 @@ void FReplayHelper::StartRecording(UNetConnection* Connection)
 	Params.bRecord = true;
 	Params.ReplayVersion = FNetworkVersion::GetReplayVersion();
 
+	FNetworkReplayDelegates::OnReplayRecordingStartAttempt.Broadcast(World.Get());
+
 	ReplayStreamer->StartStreaming(Params, FStartStreamingCallback::CreateRaw(this, &FReplayHelper::OnStartRecordingComplete));
 
 	AddNewLevel(GetNameSafe(World->GetOuter()));

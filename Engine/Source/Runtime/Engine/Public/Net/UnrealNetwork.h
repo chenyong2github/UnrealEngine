@@ -50,6 +50,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayStartedDelegate, UWorld* /*World*/)
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayStartFailureDelegate, UWorld* /*World*/, EDemoPlayFailure::Type /*Error*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayScrubCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayPlaybackCompleteDelegate, UWorld* /*World*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingStartAttemptDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingCompleteDelegate, UWorld* /*World*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPauseChannelsChangedDelegate, UWorld* /*World*/, bool /*bPaused*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayIDChangedDelegate, UWorld* /*World*/, const FString& /*ReplayID*/);
@@ -78,6 +79,9 @@ struct ENGINE_API FNetworkReplayDelegates
 
 	/** Delegate for external systems to be notified when playback ends */
 	static FOnReplayPlaybackCompleteDelegate OnReplayPlaybackComplete;
+
+	/** Public Delegate for external systems to be notified when replay recording is about to start. */
+	static FOnReplayRecordingStartAttemptDelegate OnReplayRecordingStartAttempt;
 
 	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
 	static FOnReplayRecordingCompleteDelegate OnReplayRecordingComplete;

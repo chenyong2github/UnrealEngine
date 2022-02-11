@@ -121,7 +121,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		return;
 	}
 
-	if(IsRecording())
+	if (IsRecording())
 	{
 		UE_LOG(LogDemo, Warning, TEXT("UReplaySubsystem::RecordReplay: A replay is already being recorded, cannot begin recording another one."));
 		return;
@@ -160,7 +160,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		UE_LOG(LogDemo, Log, TEXT("UReplaySubsystem::RecordReplay: Starting recording with replay connection.  Name: %s FriendlyName: %s"), *Name, *FriendlyName);
 
 		Connection->StartRecording();
-		OnReplayRecordingStarted.Broadcast();
+
 		return;
 	}
 
@@ -218,7 +218,6 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 	}
 
 	UE_LOG(LogDemo, Verbose, TEXT("Num Network Actors: %i"), DemoNetDriver->GetNetworkObjectList().GetActiveObjects().Num());
-	OnReplayRecordingStarted.Broadcast();
 }
 
 bool UReplaySubsystem::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)
@@ -311,8 +310,6 @@ void UReplaySubsystem::StopExistingReplays(UWorld* InWorld)
 		Connection->CleanUp();
 		ReplayConnection = nullptr;
 	}
-
-	OnReplayRecordingStopped.Broadcast();
 }
 
 FString UReplaySubsystem::GetActiveReplayName() const
