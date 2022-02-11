@@ -11,18 +11,13 @@
 #include "Editor/UnrealEdEngine.h"
 #endif
 
-FCriticalSection FDisplayClusterAppExit::InternalsSyncScope;
-
 
 void FDisplayClusterAppExit::ExitApplication(const FString& Msg)
 {
-	FScopeLock lock(&InternalsSyncScope);
-
-	UE_LOG(LogDisplayClusterModule, Log, TEXT("Exit requested - %s"), *Msg);
-
 	if (GEngine && GEngine->IsEditor())
 	{
 #if WITH_EDITOR
+		UE_LOG(LogDisplayClusterModule, Log, TEXT("PIE end requested - %s"), *Msg);
 		GUnrealEd->RequestEndPlayMap();
 #endif
 	}
@@ -30,12 +25,17 @@ void FDisplayClusterAppExit::ExitApplication(const FString& Msg)
 	{
 		if (!IsEngineExitRequested())
 		{
+			UE_LOG(LogDisplayClusterModule, Log, TEXT("Exit requested - %s"), *Msg);
+
 			if (IsInGameThread())
 			{
 				FPlatformMisc::RequestExit(false);
 			}
 			else
 			{
+				// For some reason UE4 generates crash info if FPlatformMisc::RequestExit gets called
+				// from a thread other than GameThread. Since it may be called from the networking
+				// session threads (failover pipeline), we don't want to generate unnecessary crash reports.
 				AsyncTask(ENamedThreads::GameThread, []()
 				{
 					FPlatformMisc::RequestExit(false);

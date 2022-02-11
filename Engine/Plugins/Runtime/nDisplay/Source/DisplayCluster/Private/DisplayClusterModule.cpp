@@ -121,16 +121,6 @@ bool FDisplayClusterModule::StartSession(UDisplayClusterConfigurationData* InCon
 	return bResult;
 }
 
-void FDisplayClusterModule::PreAppExit()
-{
-	UE_LOG(LogDisplayClusterModule, Log, TEXT("Preparing to application exit..."));
-
-	for (IPDisplayClusterManager* const Manager : Managers)
-	{
-		Manager->PreAppExit();
-	}
-}
-
 void FDisplayClusterModule::EndSession()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Stopping DisplayCluster session..."));

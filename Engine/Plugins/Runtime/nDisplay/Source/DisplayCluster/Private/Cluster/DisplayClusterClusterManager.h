@@ -27,7 +27,6 @@ public:
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
 	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& NodeID) override;
-	virtual void PreAppExit() override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* World) override;
 	virtual void EndScene() override;

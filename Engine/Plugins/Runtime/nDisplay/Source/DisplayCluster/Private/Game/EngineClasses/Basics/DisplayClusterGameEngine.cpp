@@ -61,14 +61,12 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		FDisplayClusterAppExit::ExitApplication(FString("Couldn't initialize DisplayCluster module"));
 	}
 
+	// This is required to prevent GameThread dead-locking when Alt+F4 is used
+	// to terminate p-node of a 2+ nodes cluster. This gets called before
+	// virtual PreExit which allows to unlock GameThread in advance.
 	FCoreDelegates::ApplicationWillTerminateDelegate.AddLambda([this]()
 	{
-		UE_LOG(LogDisplayClusterEngine, Log, TEXT("ApplicationWillTerminateDelegate fired!"));
-
-		if (OperationMode == EDisplayClusterOperationMode::Cluster)
-		{
-			GDisplayCluster->PreAppExit();
-		}
+		PreExitImpl();
 	});
 
 	if (OperationMode == EDisplayClusterOperationMode::Cluster)
@@ -263,7 +261,15 @@ bool UDisplayClusterGameEngine::ValidateConfigFile(const FString& FilePath)
 
 void UDisplayClusterGameEngine::PreExit()
 {
-	UE_LOG(LogDisplayClusterEngine, Log, TEXT("UDisplayClusterGameEngine::PreExit"));
+	PreExitImpl();
+
+	// Release the engine
+	UGameEngine::PreExit();
+}
+
+void UDisplayClusterGameEngine::PreExitImpl()
+{
+	UE_LOG(LogDisplayClusterEngine, Log, TEXT("UDisplayClusterGameEngine::PreExitImpl"));
 
 	if (OperationMode == EDisplayClusterOperationMode::Cluster)
 	{
@@ -272,9 +278,6 @@ void UDisplayClusterGameEngine::PreExit()
 		// Close current DisplayCluster session
 		GDisplayCluster->EndSession();
 	}
-
-	// Release the engine
-	UGameEngine::PreExit();
 }
 
 bool UDisplayClusterGameEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)

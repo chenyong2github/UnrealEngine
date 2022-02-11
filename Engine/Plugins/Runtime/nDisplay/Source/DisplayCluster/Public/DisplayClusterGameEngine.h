@@ -49,6 +49,7 @@ protected:
 	EDisplayClusterOperationMode DetectOperationMode() const;
 	bool GetResolvedNodeId(const UDisplayClusterConfigurationData* ConfigData, FString& NodeId) const;
 	bool ValidateConfigFile(const FString& FilePath);
+	void PreExitImpl();
 
 private:
 	bool OutOfSync() const;

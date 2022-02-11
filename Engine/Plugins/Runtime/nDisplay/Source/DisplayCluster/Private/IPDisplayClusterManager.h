@@ -30,10 +30,6 @@ public:
 	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 	{ return true; }
 
-	// The callback comes from the engine during Tick(). Notifies about application exit once the frame is finished.
-	virtual void PreAppExit()
-	{ }
-
 	// Called on each session end at early step before exit (before UGameEngine::Preexit)
 	virtual void EndSession()
 	{ }

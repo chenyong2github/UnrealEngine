@@ -12,7 +12,4 @@ class FDisplayClusterAppExit
 {
 public:
 	static void ExitApplication(const FString& Msg);
-
-private:
-	static FCriticalSection InternalsSyncScope;
 };

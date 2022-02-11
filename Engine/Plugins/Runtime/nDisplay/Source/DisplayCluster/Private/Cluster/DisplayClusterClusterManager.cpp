@@ -140,25 +140,13 @@ bool FDisplayClusterClusterManager::StartSession(UDisplayClusterConfigurationDat
 	return true;
 }
 
-void FDisplayClusterClusterManager::PreAppExit()
-{
-	// Trigger all data cache availability events to prevent
-	// client session threads to be deadlocked.
-	SetInternalSyncObjectsReleaseState(true);
-
-	// Also stop clients/servers
-	if (ClusterNodeCtrl)
-	{
-		ClusterNodeCtrl->Shutdown();
-	}
-}
-
 void FDisplayClusterClusterManager::EndSession()
 {
 	// Trigger all data cache availability events to prevent
 	// client session threads to be deadlocked.
 	SetInternalSyncObjectsReleaseState(true);
 
+	// Stop local clients/servers
 	if (ClusterNodeCtrl)
 	{
 		ClusterNodeCtrl->Shutdown();
