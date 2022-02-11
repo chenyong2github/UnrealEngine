@@ -49,15 +49,10 @@ namespace UE::Mass::SmartObject
 			const FMassEntityView EntityView(*EntitySubsystem, Payload.Entity);
 			const FMassBehaviorEntityContext Context(EntityView, *SmartObjectSubsystem);
 
-			if (EntitySubsystem->IsProcessing())
+			Release(EntitySubsystem->Defer(), Context, EMassSmartObjectInteractionStatus::Aborted);
+			if (EntitySubsystem->IsProcessing() == false)
 			{
-				Release(EntitySubsystem->Defer(), Context, EMassSmartObjectInteractionStatus::Aborted);
-			}
-			else
-			{
-				FMassCommandBuffer CommandBuffer;
-				Release(CommandBuffer, Context, EMassSmartObjectInteractionStatus::Aborted);
-				CommandBuffer.ReplayBufferAgainstSystem(EntitySubsystem);
+				EntitySubsystem->FlushCommands();
 			}
 
 			SignalSubsystem->SignalEntity(UE::Mass::Signals::SmartObjectInteractionDone, Payload.Entity);

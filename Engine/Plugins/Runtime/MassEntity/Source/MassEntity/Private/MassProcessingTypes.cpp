@@ -13,10 +13,24 @@ DEFINE_LOG_CATEGORY(LogMass);
 //----------------------------------------------------------------------//
 //  FMassProcessingContext
 //----------------------------------------------------------------------//
-FMassProcessingContext::FMassProcessingContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds)
-	: EntitySubsystem(&InEntities), DeltaSeconds(InDeltaSeconds)
+FMassProcessingContext::FMassProcessingContext(UMassEntitySubsystem& InEntitySubsystem, const float InDeltaSeconds)
+	: EntitySubsystem(&InEntitySubsystem), DeltaSeconds(InDeltaSeconds)
 {
 
+}
+
+FMassProcessingContext::~FMassProcessingContext()
+{
+	if (CommandBuffer && CommandBuffer.IsUnique() && CommandBuffer->HasPendingCommands())
+	{
+		UE_CLOG(EntitySubsystem == nullptr, LogMass, Error, TEXT("Unable to auto-flush FMassProcessingContext\'s commands due to missing EntitySubsystem"));
+		if (ensure(EntitySubsystem))
+		{
+			UE_VLOG(EntitySubsystem, LogMass, Log, TEXT("Auto-flushing command buffer as part of FMassProcessingContext destruction"));
+			checkf(CommandBuffer->IsFlushing() == false, TEXT("A totally unexpected scenario."));
+			EntitySubsystem->FlushCommands(CommandBuffer);
+		}
+	}
 }
 
 //----------------------------------------------------------------------//

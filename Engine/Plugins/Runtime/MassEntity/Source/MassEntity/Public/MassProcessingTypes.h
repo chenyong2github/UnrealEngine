@@ -55,7 +55,8 @@ struct MASSENTITY_API FMassProcessingContext
 	TSharedPtr<FMassCommandBuffer> CommandBuffer;
 	
 	FMassProcessingContext() = default;
-	FMassProcessingContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds);
+	FMassProcessingContext(UMassEntitySubsystem& InEntitySubsystem, const float InDeltaSeconds);
+	~FMassProcessingContext();
 };
 
 /** 

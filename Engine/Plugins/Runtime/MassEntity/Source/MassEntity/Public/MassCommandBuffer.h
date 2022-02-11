@@ -547,6 +547,7 @@ struct MASSENTITY_API FMassCommandBuffer
 {
 public:
 	FMassCommandBuffer() = default;
+	~FMassCommandBuffer();
 
 	/** Push any command, requires to derive from FCommandBufferEntryBase */
 	template< typename T, typename = typename TEnableIf<TIsDerivedFrom<typename TRemoveReference<T>::Type, FCommandBufferEntryBase>::IsDerived, void>::Type >
@@ -614,8 +615,6 @@ public:
 		EntitiesToDestroy.Append(InEntitiesToDestroy);
 	}
 
-	void ReplayBufferAgainstSystem(UMassEntitySubsystem* System);
-
 	SIZE_T GetAllocatedSize() const { return PendingCommands.GetAllocatedSize(); }
 
 	/** 
@@ -629,6 +628,10 @@ public:
 	bool IsFlushing() const { return bIsFlushing; }
 
 private:
+	friend UMassEntitySubsystem;
+	void Flush(UMassEntitySubsystem& EntitySystem);
+	void CleanUp();
+
 	FInstancedStructStream PendingCommands;
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(PendingCommandsDetector);
 	FCriticalSection AppendingCommandsCS;

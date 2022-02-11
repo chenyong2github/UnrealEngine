@@ -275,6 +275,12 @@ public:
 	FScopedProcessing NewProcessingScope() { return FScopedProcessing(ProcessingScopeCount); }
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
 	FMassCommandBuffer& Defer() const { return *DeferredCommandBuffer.Get(); }
+	/** 
+	 * @param InCommandBuffer if not set then the default command buffer will be flushed. If set and there's already 
+	 *		a command buffer being flushed (be it the main one or a previously requested one) then this command buffer 
+	 *		will be queue itself.
+	 */
+	void FlushCommands(const TSharedPtr<FMassCommandBuffer>& InCommandBuffer = TSharedPtr<FMassCommandBuffer>());
 
 	/**
 	 * Shared fragment creation methods
@@ -363,7 +369,10 @@ private:
 	TChunkedArray<FEntityData> Entities;
 	TArray<int32> EntityFreeIndexList;
 
+	std::atomic<bool> bCommandBufferFlushingInProgress = false;
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
+	TQueue<TSharedPtr<FMassCommandBuffer>, EQueueMode::Mpsc> FlushedCommandBufferQueue;
+
 	std::atomic<int32> SerialNumberGenerator;
 	std::atomic<int32> ProcessingScopeCount;
 
@@ -440,9 +449,9 @@ private:
 	FString DebugExecutionDescription;
 #endif
 	
-	/** @todo update comment, and look if we If true the EntitySystem will flush the deferred commands stored in DeferredCommandBuffer just after executing 
+	/** If true the EntitySystem will flush the deferred commands stored in DeferredCommandBuffer just after executing 
 	 *  the given system. If False then the party calling UEntitySubsystem::ExecuteSystem is responsible for manually
-	 *  calling FMassCommandBuffer.ReplayBufferAgainstSystem() */
+	 *  calling MassEntitySubsystem.FlushCommands() */
 	bool bFlushDeferredCommands = true;
 
 	TArrayView<FFragmentView> GetMutableRequirements() { return FragmentViews; }

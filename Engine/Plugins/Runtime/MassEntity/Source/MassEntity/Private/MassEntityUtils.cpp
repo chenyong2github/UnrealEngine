@@ -35,7 +35,7 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 }
 
 void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
-	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks >& OutChunkCollections)
+	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks>& OutChunkCollections)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass_CreateSparseChunks");
 

@@ -20,7 +20,7 @@ MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold
  * @param DuplicatesHandling used to inform the function whether to expect duplicates.
  */
 MASSENTITY_API extern void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
-	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks >& OutChunkCollections);
+	, const FMassArchetypeSubChunks::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeSubChunks>& OutChunkCollections);
 
 /**
 * AbstractSort is a sorting function that only needs to know how many items there are, how to compare items

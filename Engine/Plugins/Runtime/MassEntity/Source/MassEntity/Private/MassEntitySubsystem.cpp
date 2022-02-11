@@ -82,7 +82,8 @@ void UMassEntitySubsystem::PostInitialize()
 
 void UMassEntitySubsystem::Deinitialize()
 {
-	//@TODO: Should actually do this...
+	// closing down so no point in actually flushing commands, but need to clean them up to avoid warnings on destruction
+	DeferredCommandBuffer->CleanUp();
 }
 
 FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAndTagsList)
@@ -436,8 +437,6 @@ void UMassEntitySubsystem::BatchDestroyEntityChunks(const FMassArchetypeSubChunk
 			EntityFreeIndexList.Add(Entity.Index);
 		}
 	}
-
-	ensure(ProcessingContext.CommandBuffer->HasPendingCommands() == false);
 }
 
 void UMassEntitySubsystem::AddFragmentToEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType)
@@ -940,6 +939,36 @@ FMassExecutionContext UMassEntitySubsystem::CreateExecutionContext(const float D
 	return MoveTemp(ExecutionContext);
 }
 
+void UMassEntitySubsystem::FlushCommands(const TSharedPtr<FMassCommandBuffer>& InCommandBuffer)
+{
+	constexpr int MaxIterations = 3;
+
+	if (InCommandBuffer)
+	{
+		FlushedCommandBufferQueue.Enqueue(InCommandBuffer);
+	}
+	else
+	{
+		FlushedCommandBufferQueue.Enqueue(DeferredCommandBuffer);
+	}
+
+	if (bCommandBufferFlushingInProgress == false && IsProcessing() == false)
+	{
+		bCommandBufferFlushingInProgress = true;
+		
+		int IterationsCounter = 0;
+		TSharedPtr<FMassCommandBuffer> CurrentCommandBuffer;
+		while (IterationsCounter++ < MaxIterations && FlushedCommandBufferQueue.Dequeue(CurrentCommandBuffer))
+		{
+			CurrentCommandBuffer->Flush(*this);
+		}
+		ensure(IterationsCounter >= MaxIterations || FlushedCommandBufferQueue.IsEmpty());
+		UE_CVLOG_UELOG(IterationsCounter >= MaxIterations, this, LogMass, Error, TEXT("Reached loop count limit while flushing commands"));
+
+		bCommandBufferFlushingInProgress = false;
+	}
+}
+
 #if WITH_MASSENTITY_DEBUG
 void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar, const bool bIncludeEmpty) const
 {
@@ -1118,7 +1147,7 @@ void FMassExecutionContext::FlushDeferred(UMassEntitySubsystem& EntitySystem) co
 {
 	if (bFlushDeferredCommands && DeferredCommandBuffer)
 	{
-		DeferredCommandBuffer->ReplayBufferAgainstSystem(&EntitySystem);
+		EntitySystem.FlushCommands(DeferredCommandBuffer);
 	}
 }
 

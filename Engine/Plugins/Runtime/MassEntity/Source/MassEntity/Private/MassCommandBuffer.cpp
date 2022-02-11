@@ -110,10 +110,13 @@ void FMassCommandsObservedTypes::Append(const FMassCommandsObservedTypes& Other)
 //////////////////////////////////////////////////////////////////////
 // FMassCommandBuffer
 
-void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntitySystem)
+FMassCommandBuffer::~FMassCommandBuffer()
 {
-	check(EntitySystem);
+	ensureMsgf(HasPendingCommands() == false, TEXT("Destroying FMassCommandBuffer while there are still unprocessed commands. These operations will never be performed now."));
+}
 
+void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
+{
 	check(!bIsFlushing);
 	TGuardValue FlushingGuard(bIsFlushing, true);
 
@@ -123,7 +126,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		return;
 	}
 
-	FMassObserverManager& ObserverManager = EntitySystem->GetObserverManager();
+	FMassObserverManager& ObserverManager = EntitySystem.GetObserverManager();
 
 	const FMassFragmentBitSet* ObservedFragments = ObserverManager.GetObservedFragmentBitSets();
 	const FMassTagBitSet* ObservedTags = ObserverManager.GetObservedTagBitSets();
@@ -133,8 +136,8 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		check(It.Key);
 		if (ObservedFragments[(uint8)EMassObservedOperation::Remove].Contains(*It.Key))
 		{
-			TArray<FMassArchetypeSubChunks > ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			TArray<FMassArchetypeSubChunks> ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
@@ -148,8 +151,8 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		check(It.Key);
 		if (ObservedTags[(uint8)EMassObservedOperation::Remove].Contains(*It.Key))
 		{
-			TArray<FMassArchetypeSubChunks > ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			TArray<FMassArchetypeSubChunks> ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
@@ -158,20 +161,20 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		}
 	}
 	
-	TArray<FMassArchetypeSubChunks > EntityChunksToDestroy;
+	TArray<FMassArchetypeSubChunks> EntityChunksToDestroy;
 	if (EntitiesToDestroy.Num())
 	{
-		UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
+		UE::Mass::Utils::CreateSparseChunks(EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
 		for (FMassArchetypeSubChunks& Collection : EntityChunksToDestroy)
 		{
-			EntitySystem->BatchDestroyEntityChunks(Collection);
+			EntitySystem.BatchDestroyEntityChunks(Collection);
 		}
 	}
 	EntitiesToDestroy.Reset();
 
 
 	UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
-	PendingCommands.ForEach([EntitySystem](FStructView Entry)
+	PendingCommands.ForEach([&EntitySystem](FStructView Entry)
 	{
 		const FCommandBufferEntryBase* Command = Entry.GetPtr<FCommandBufferEntryBase>();
 		checkf(Command, TEXT("Either the entry is null or the command does not derive from FCommandBufferEntryBase"));
@@ -189,7 +192,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), 1, ECsvCustomStatOp::Accumulate);
 #endif // CSV_PROFILER
 
-		Command->Execute(*EntitySystem);
+		Command->Execute(EntitySystem);
 	});
 
 	// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
@@ -200,8 +203,8 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		check(It.Key);
 		if (ObservedFragments[(uint8)EMassObservedOperation::Add].Contains(*It.Key))
 		{
-			TArray<FMassArchetypeSubChunks > ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			TArray<FMassArchetypeSubChunks> ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
@@ -215,8 +218,8 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		check(It.Key);
 		if (ObservedTags[(uint8)EMassObservedOperation::Add].Contains(*It.Key))
 		{
-			TArray<FMassArchetypeSubChunks > ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
+			TArray<FMassArchetypeSubChunks> ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(EntitySystem, It.Value, FMassArchetypeSubChunks::FoldDuplicates, ChunkCollections);
 			for (FMassArchetypeSubChunks& Collection : ChunkCollections)
 			{
 				check(It.Key);
@@ -225,6 +228,13 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		}
 	}
 
+	ObservedTypes.Reset();
+}
+ 
+void FMassCommandBuffer::CleanUp()
+{
+	PendingCommands.Reset();
+	EntitiesToDestroy.Reset();
 	ObservedTypes.Reset();
 }
 
@@ -293,7 +303,13 @@ void FCommandAddFragment::Execute(UMassEntitySubsystem& System) const
 
 void FCommandRemoveFragment::Execute(UMassEntitySubsystem& System) const
 {
-	System.RemoveFragmentFromEntity(TargetEntity, StructParam);
+	// note that we should probably add checks like this to all the commands, but that would impact the performance,
+	// and this specific approach of command execution is going to be replaced in a way that doesn't require such 
+	// per-entity testing.
+	if (System.IsEntityActive(TargetEntity))
+	{
+		System.RemoveFragmentFromEntity(TargetEntity, StructParam);
+	}
 }
 
 void FCommandAddFragmentList::Execute(UMassEntitySubsystem& System) const

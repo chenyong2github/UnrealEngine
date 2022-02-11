@@ -73,7 +73,7 @@ bool FMassObserverManager::OnPostEntitiesCreated(const FMassArchetypeSubChunks& 
 
 	if (OnPostEntitiesCreated(ProcessingContext, ChunkCollection))
 	{
-		ProcessingContext.CommandBuffer->ReplayBufferAgainstSystem(&EntitySubsystem);
+		EntitySubsystem.FlushCommands(ProcessingContext.CommandBuffer);
 		return true;
 	}
 	return false;
@@ -107,7 +107,7 @@ bool FMassObserverManager::OnPreEntitiesDestroyed(const FMassArchetypeSubChunks&
 
 	if (OnPreEntitiesDestroyed(ProcessingContext, ChunkCollection))
 	{
-		ProcessingContext.CommandBuffer->ReplayBufferAgainstSystem(&EntitySubsystem);
+		EntitySubsystem.FlushCommands(ProcessingContext.CommandBuffer);
 		return true;
 	}
 	return false;
