@@ -509,7 +509,6 @@ public:
 
 				if (!OpenCloseTimer.IsValid())
 				{
-					AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
 					OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(SharedThis(this), &SStatusBarProgressArea::UpdateProgressAnimation));
 				}
 			}
@@ -527,7 +526,6 @@ public:
 
 			if (!OpenCloseTimer.IsValid())
 			{
-				AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
 				OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SStatusBarProgressArea::UpdateProgressAnimation));
 			}
 
@@ -549,7 +547,6 @@ private:
 				SetVisibility(EVisibility::Collapsed);
 			}
 
-			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
 			OpenCloseTimer.Reset();
 			return EActiveTimerReturnType::Stop;
 		}
