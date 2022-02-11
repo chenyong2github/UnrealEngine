@@ -345,7 +345,7 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 {
 	if (FApp::CanEverRender())
 	{
-		const UMaterial* Material = Instance->GetMaterial();
+		const UMaterial* Material = Instance->GetMaterial_Concurrent();
 		if (Material != nullptr)
 		{
 			EMaterialDomain Domain = Material->MaterialDomain;
