@@ -11,6 +11,7 @@
 #include "../ThinFilmBSDF.ush"
 #include "../MortonCode.ush"
 #include "../OctahedralCommon.ush"
+#include "../SubsurfaceProfileCommon.ush"
 #include "/Engine/Shared/StrataDefinitions.h"     
 
 
@@ -584,13 +585,6 @@ struct FStrataData
 	FStrataLayer Layers[STRATA_MAX_LAYER_COUNT];	// Layer 0 is the top layer
 };
 
-uint GetStrataSubsurfaceProfile(float NormalizedId)
-{
-	// can be optimized
-	return uint(NormalizedId * 255.0f + 0.5f);
-
-}
-
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
@@ -622,6 +616,39 @@ FStrataData GetStrataSlabBSDF(
 {
 	FStrataData StrataData = GetInitialisedStrataDataWithReservedFirstSlot();
 
+	// STRATA_TODO apply SSS as a function of pixel footprint w.r.t. MFP
+	SSSDMFPScale = saturate(SSSDMFPScale);
+	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
+	const bool bDMFPPlugged = any(SSSDMFP > 0);
+	const bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
+	const bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSDMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
+	const bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
+
+	// Derive roughness and haziness from profile data
+	if (bSSSProfilePlugged)
+	{
+		// Average roughness for dual specular.
+		const uint SubsurfaceProfileUInt = StrataSubsurfaceProfileIdTo8bits(SSSProfileID);
+
+		float AverageToRoughness0 = 0;
+		float AverageToRoughness1 = 0;
+		float LobeMix = 0;
+		float MaterialRoughnessToAverage = 0;
+		GetSubsurfaceProfileDualSpecular(SubsurfaceProfileUInt, SSSDMFPScale, AverageToRoughness0, AverageToRoughness1, LobeMix, MaterialRoughnessToAverage);
+
+		float AverageRoughness = saturate(Roughness * MaterialRoughnessToAverage); // This is the roughness originallys stored into the gbuffer
+		float Lobe0Roughness   = saturate(AverageRoughness * AverageToRoughness0);
+		float Lobe1Roughness   = saturate(AverageRoughness * AverageToRoughness1);
+
+		GetSubsurfaceProfileRoughnesses(Lobe0Roughness, Lobe1Roughness, SSSDMFPScale);
+
+		// Convertion from roughness0/1 to roughness+haziness
+		// * This encoding is based on how roughness0 + haziness is translated to roughness1, see ComputeHazyLobeRoughness
+		// * The mix factor is hardoded to 0.5 i.e., 0.5 * Fs(roughness0) + 0.5 * Fs(roughness1)
+		Haziness = (Lobe1Roughness - Lobe0Roughness) / (1.f - min(Lobe0Roughness, 0.99f));
+		Roughness = Lobe0Roughness;
+	}
+
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
 	const uint bHasThinFilm = ThinFilmThickness > 0.0f ? 1 : 0;
 	const uint bHasAnisotropy = Anisotropy != 0 ? 1 : 0;
@@ -631,11 +658,6 @@ FStrataData GetStrataSlabBSDF(
 		StrataRequestSharedLocalBasisTangent(SharedLocalBasisTypes, SharedLocalBasisIndex);
 	}
 
-	// STRATA_TODO apply SSS as a function of pixel footprint w.r.t. MFP
-	const bool bDMFPPlugged = any(SSSDMFP > 0);
-	const bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
-	const bool bHasSSSProfile = !bIsThin && SSSProfileID  > 0.0f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
-	const bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
 
 	// About the thin, a.k.a. two sided lighting, model:
 	// 	- Thin lighting model is used when thickness becomes less than STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM
@@ -686,11 +708,11 @@ FStrataData GetStrataSlabBSDF(
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
-		SLAB_SSSPROFILERADIUSSCALE(StrataData.Layers[0].BSDFs[0])= saturate(SSSDMFPScale);
+		SLAB_SSSPROFILERADIUSSCALE(StrataData.Layers[0].BSDFs[0])= SSSDMFPScale;
 	}
 	else
 	{
-		SLAB_SSSDMFP	(StrataData.Layers[0].BSDFs[0])			= SSSDMFP * saturate(SSSDMFPScale);
+		SLAB_SSSDMFP	(StrataData.Layers[0].BSDFs[0])			= SSSDMFP * SSSDMFPScale;
 	}
 
 	SLAB_FUZZ_AMOUNT		(StrataData.Layers[0].BSDFs[0])		= FuzzAmount;
@@ -698,7 +720,7 @@ FStrataData GetStrataSlabBSDF(
 
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
-	StrataData.Layers[0].BSDFs[0].TmpDMFP = SSSDMFP * saturate(SSSDMFPScale);
+	StrataData.Layers[0].BSDFs[0].TmpDMFP = SSSDMFP * SSSDMFPScale;
 
 	StrataData.Layers[0].BSDFs[0].Coverage = 1.0f;
 #endif

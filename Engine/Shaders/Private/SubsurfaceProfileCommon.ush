@@ -48,3 +48,27 @@ half4 GetSubsurfaceProfileTexture(Texture2D InSSProfilesTexture, SamplerState In
 	return InSSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0));
 #endif 
 }
+
+void GetSubsurfaceProfileDualSpecular(uint SubsurfaceProfileInt, float Opacity, inout float AverageToRoughness0, inout float AverageToRoughness1, inout float LobeMix, inout float MaterialRoughnessToAverage)
+{
+#if COMPILER_GLSL_ES3_1 // Force to use a point sampler for Texture2D.Load on OpenGLES platform
+	float4 Data = View.SSProfilesTexture.SampleLevel(View.SSProfilesSampler, (uint2(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt) + float2(0.5f, 0.5f)) * View.SSProfilesTextureSizeAndInvSize.zw, 0);
+#else
+	float4 Data = View.SSProfilesTexture.Load(int3(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt, 0));
+#endif 
+	AverageToRoughness0 = Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+	AverageToRoughness1 = Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+	LobeMix = Data.z;
+
+	// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
+	// get to 0.01, as opposed to 0.0.
+	MaterialRoughnessToAverage = lerp(1.0f, Data.w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
+}
+
+void GetSubsurfaceProfileRoughnesses(inout float Lobe0Roughness, inout float Lobe1Roughness, float Opacity)
+{
+	// Smoothly lerp to default single GGX lobe as Opacity approaches 0, before reverting to SHADINGMODELID_DEFAULT_LIT.
+	// See SUBSURFACE_PROFILE_OPACITY_THRESHOLD in ShadingModelsMaterial.ush.
+	Lobe0Roughness = lerp(1.0f, Lobe0Roughness, saturate(Opacity * 10.0f));
+	Lobe1Roughness = lerp(1.0f, Lobe1Roughness, saturate(Opacity * 10.0f));
+}

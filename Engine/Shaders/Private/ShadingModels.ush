@@ -562,16 +562,12 @@ float ApproximateHG(float cosJ, float g)
 	return (ISO_PHASE_FUNC_Normalized * (1.0f - g2) / max( 1e-5, gcos2));
 }
 
-void GetProfileDualSpecular(FGBufferData GBuffer, out float AverageToRoughness0, out float AverageToRoughness1, out float LobeMix)
+void GetProfileDualSpecular(FGBufferData GBuffer, inout float AverageToRoughness0, inout float AverageToRoughness1, inout float LobeMix)
 {
 #if !FORWARD_SHADING
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
-
-	float4 Data = View.SSProfilesTexture.Load(int3(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt, 0));
-	AverageToRoughness0 = Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
-	AverageToRoughness1 = Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
-	LobeMix = Data.z;
+	float DummyOpacity = 0;
+	float DummyMaterialRoughnessToAverage = 0;
+	GetSubsurfaceProfileDualSpecular(ExtractSubsurfaceProfileInt(GBuffer), DummyOpacity, AverageToRoughness0, AverageToRoughness1, LobeMix, DummyMaterialRoughnessToAverage);
 #else
 	// Disable dual lobe, as subsurface profile doesn't work with forward.
 	AverageToRoughness0 = 1.f;
@@ -596,11 +592,8 @@ FDirectLighting SubsurfaceProfileBxDF( FGBufferData GBuffer, half3 N, half3 V, h
 	float Lobe0Roughness = max(saturate(AverageRoughness * AverageToRoughness0), 0.02f);
 	float Lobe1Roughness = saturate(AverageRoughness * AverageToRoughness1);
 
-	// Smoothly lerp to default single GGX lobe as Opacity approaches 0, before reverting to SHADINGMODELID_DEFAULT_LIT.
-	// See SUBSURFACE_PROFILE_OPACITY_THRESHOLD in ShadingModelsMaterial.ush.
-	float Opacity = GBuffer.CustomData.a;
-	Lobe0Roughness = lerp(1.0f, Lobe0Roughness, saturate(Opacity * 10.0f));
-	Lobe1Roughness = lerp(1.0f, Lobe1Roughness, saturate(Opacity * 10.0f));
+	const float Opacity = GBuffer.CustomData.a;
+	GetSubsurfaceProfileRoughnesses(Lobe0Roughness, Lobe1Roughness, Opacity);
 
 	// Take the average roughness instead of compute a separate energy term for each roughness
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(AverageRoughness, Context.NoV, GBuffer.SpecularColor);

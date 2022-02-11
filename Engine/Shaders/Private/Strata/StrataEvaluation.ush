@@ -189,8 +189,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			float HazeSafeRoughness		= SafeRoughness;
 		#endif
 			const bool bHasSubsurface	= BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
-			const bool bHasAnisotropy = BSDF_GETHASANISOTROPY(BSDFContext.BSDF);
-			const bool bHaziness = BSDF_GETHASHAZINESS(BSDFContext.BSDF);
+			const bool bHasAnisotropy	= BSDF_GETHASANISOTROPY(BSDFContext.BSDF);
+			const bool bHaziness		= BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 
 			if (bForceFullyRough)
 			{
