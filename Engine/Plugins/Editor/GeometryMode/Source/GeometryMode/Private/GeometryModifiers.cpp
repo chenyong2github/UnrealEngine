@@ -3226,8 +3226,8 @@ UGeomModifier_Turn::UGeomModifier_Turn(const FObjectInitializer& ObjectInitializ
 
 bool UGeomModifier_Turn::SupportsCurrentSelection()
 {
-	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
-	return mode->HaveEdgesSelected();
+	FEdModeGeometry* Mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
+	return Mode != nullptr && Mode->HaveEdgesSelected();
 }
 
 bool UGeomModifier_Turn::OnApply()
