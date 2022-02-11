@@ -147,10 +147,6 @@ struct RIGVM_API FRigVMStruct
 
 public:
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	FORCEINLINE virtual int32 GetArraySize(const FName& InParameterName, const FRigVMUserDataArray& RigVMUserData) { return INDEX_NONE; }
-#endif
-
 	// loop related
 	FORCEINLINE virtual bool IsForLoop() const { return false; }
 	FORCEINLINE virtual int32 GetNumSlices() const { return 1; }

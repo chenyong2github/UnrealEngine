@@ -369,13 +369,8 @@ public:
 	// Returns true if this pin is bound to an input argument
 	bool IsBoundToInputArgument() const;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	// Returns true if the pin can be bound to a given variable
-	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset = FRigVMRegisterOffset()) const;
-#else
 	// Returns true if the pin can be bound to a given variable
 	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FString& InSegmentPath = FString()) const;
-#endif
 
 	// helper function to retrieve an object from a path
 	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath);

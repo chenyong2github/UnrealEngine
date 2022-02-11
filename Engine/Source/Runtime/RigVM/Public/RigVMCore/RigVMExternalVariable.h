@@ -15,9 +15,7 @@ struct RIGVM_API FRigVMExternalVariable
 {
 	FORCEINLINE FRigVMExternalVariable()
 		: Name(NAME_None)
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		, Property(nullptr)
-#endif
 		, TypeName(NAME_None)
 		, TypeObject(nullptr)
 		, bIsArray(false)
@@ -176,9 +174,7 @@ struct RIGVM_API FRigVMExternalVariable
 
 		FRigVMExternalVariable ExternalVariable;
 		ExternalVariable.Name = InOptionalName.IsNone() ? InProperty->GetFName() : InOptionalName;
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		ExternalVariable.Property = Property;
-#endif
 		ExternalVariable.bIsPublic = !InProperty->HasAllPropertyFlags(CPF_DisableEditOnInstance);
 		ExternalVariable.bIsReadOnly = InProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly);
 
@@ -549,19 +545,6 @@ struct RIGVM_API FRigVMExternalVariable
 			(bAllowNullPtr || Memory != nullptr);
 	}
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-	FORCEINLINE FRigVMMemoryHandle GetHandle() const
-	{
-		return FRigVMMemoryHandle(
-			Memory,
-			Size,
-			bIsArray ? FRigVMMemoryHandle::FType::Dynamic : FRigVMMemoryHandle::FType::Plain
-		);
-	}
-
-#endif
-
 	FORCEINLINE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
 	{
 		if(!InVariable.IsValid(true))
@@ -583,9 +566,7 @@ struct RIGVM_API FRigVMExternalVariable
 	}
 
 	FName Name;
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	const FProperty* Property;
-#endif
 	FName TypeName;
 	UObject* TypeObject;
 	bool bIsArray;

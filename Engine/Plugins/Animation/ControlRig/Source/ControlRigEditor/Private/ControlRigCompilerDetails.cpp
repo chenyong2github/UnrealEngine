@@ -55,8 +55,6 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 			StructBuilder.AddProperty(InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef());
 		}
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 		StructBuilder.AddCustomRow(LOCTEXT("MemoryInspection", "Memory Inspection"))
 			.NameContent()
 			[
@@ -92,7 +90,6 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 					]
 				]
 			];
-#endif
 
 		StructBuilder.AddCustomRow(LOCTEXT("DebuggingTools", "Debugging Tools"))
 			.NameContent()
@@ -144,8 +141,6 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 	}
 }
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 FReply FRigVMCompileSettingsDetails::OnInspectMemory(ERigVMMemoryType InMemoryType)
 {
 	if (BlueprintBeingCustomized)
@@ -161,8 +156,6 @@ FReply FRigVMCompileSettingsDetails::OnInspectMemory(ERigVMMemoryType InMemoryTy
 	}
 	return FReply::Handled();
 }
-
-#endif
 
 FReply FRigVMCompileSettingsDetails::OnCopyASTClicked()
 {

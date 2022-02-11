@@ -24,9 +24,7 @@ public:
 
 protected:
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FReply OnInspectMemory(ERigVMMemoryType InMemoryType);
-#endif
 	FReply OnCopyASTClicked();
 	FReply OnCopyByteCodeClicked();
 	FReply OnCopyHierarchyGraphClicked();

@@ -6,13 +6,10 @@
 #include "UObject/ObjectMacros.h"
 #include "RigVMTraits.h"
 #include "RigVMStatistics.h"
-#include "RigVMArray.h"
 #include "RigVMMemoryCommon.h"
 #include "EdGraph/EdGraphNode.h"
 #include "RigVMPropertyPath.h"
 #include "RigVMMemoryStorage.generated.h"
-
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 /**
  * The FRigVMMemoryHandle is used to access the memory used within a URigMemoryStorage.
@@ -132,8 +129,6 @@ private:
 
 	friend class URigVM;
 };
-
-#endif
 
 //////////////////////////////////////////////////////////////////////////////
 /// Property Management
@@ -520,8 +515,6 @@ public:
 		return SetDataFromString(PropertyIndex, InValue);
 	}
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	// Returns the handle for a given property by index (and optionally property path)
 	FRigVMMemoryHandle GetHandle(int32 InPropertyIndex, const FRigVMPropertyPath* InPropertyPath = nullptr);
 
@@ -531,8 +524,6 @@ public:
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
 		return GetHandle(PropertyIndex, InPropertyPath);
 	}
-	
-#endif
 
 	/**
 	 * Copies the content of a source property and memory into the memory of a target property
@@ -586,8 +577,6 @@ public:
 		int32 InSourcePropertyIndex,
 		const FRigVMPropertyPath& InSourcePropertyPath);
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	/**
 	 * Copies the content of a source property and memory into the memory of a target property.
 	 * This variant retrieves the memory pointers given target and source storage objects.
@@ -598,8 +587,6 @@ public:
 	static bool CopyProperty(
 		FRigVMMemoryHandle& InTargetHandle,
 		FRigVMMemoryHandle& InSourceHandle);
-	
-#endif
 
 	void CopyFrom(URigVMMemoryStorage* InSourceMemory);
 

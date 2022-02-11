@@ -642,24 +642,14 @@ public:
 	static const FName NAME_OutputText;
 	static const FName NAME_ConstantText;
 	static const FName NAME_VisibleText;
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	static const FName NAME_ArraySizeText;
-#endif
 	static const FName NAME_SingletonText;
 	static const TCHAR* TArrayText;
 	static const TCHAR* TEnumAsByteText;
 	static const TCHAR* GetRefText;
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	static const TCHAR* FFixedArrayText;
-	static const TCHAR* FDynamicArrayText;
-	static const TCHAR* GetFixedArrayText;
-	static const TCHAR* GetDynamicArrayText;
-#else
 	static const TCHAR* FTArrayText;
 	static const TCHAR* FTArrayViewText;
 	static const TCHAR* GetArrayText;
 	static const TCHAR* GetArrayViewText;
-#endif	
 };
 
 /////////////////////////////////////////////////////

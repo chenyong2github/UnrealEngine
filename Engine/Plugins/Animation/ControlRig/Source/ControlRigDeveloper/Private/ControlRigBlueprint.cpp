@@ -2971,32 +2971,13 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						
 						if(!bRequiresRecompile)
 						{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-							TArray<FString> DefaultValues;
-							if (RootPin->IsArray())
-							{
-								for (URigVMPin* ArrayElementPin : RootPin->GetSubPins())
-								{
-									DefaultValues.Add(ArrayElementPin->GetDefaultValue());
-								}
-							}
-							else
-							{
-								DefaultValues.Add(RootPin->GetDefaultValue());
-							}
-#else
 							const FString DefaultValue = RootPin->GetDefaultValue();
-#endif
 
 							UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 							UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 							if (CDO->VM != nullptr)
 							{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-								CDO->VM->SetRegisterValueFromString(*Operand, RootPin->GetCPPType(), RootPin->GetCPPTypeObject(), DefaultValues);
-#else
 								CDO->VM->SetPropertyValueFromString(*Operand, DefaultValue);
-#endif
 							}
 
 							TArray<UObject*> ArchetypeInstances;
@@ -3008,11 +2989,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 								{
 									if (InstancedControlRig->VM)
 									{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-										InstancedControlRig->VM->SetRegisterValueFromString(*Operand, RootPin->GetCPPType(), RootPin->GetCPPTypeObject(), DefaultValues);
-#else
 										InstancedControlRig->VM->SetPropertyValueFromString(*Operand, DefaultValue);
-#endif
 									}
 								}
 							}
@@ -3162,9 +3139,6 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						}
 						else
 						{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-							Compiler->CreateDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
-#else
 							if(CR->GetVM()->GetDebugMemory()->Num() == 0)
 							{
 								RequestAutoVMRecompilation();
@@ -3174,16 +3148,11 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							{
 								Compiler->MarkDebugWatch(true, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
 							}
-#endif
 						}
 					}
 					else
 					{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-						Compiler->RemoveDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
-#else
 						Compiler->MarkDebugWatch(false, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
-#endif
 					}
 				}
 				// break; fall through

@@ -5,12 +5,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const FString FRigVMPropertyDescription::ArrayPrefix = TEXT("TArray<");
 const FString FRigVMPropertyDescription::MapPrefix = TEXT("TMap<");
 const FString FRigVMPropertyDescription::ContainerSuffix = TEXT(">");
@@ -706,8 +700,6 @@ bool URigVMMemoryStorage::SetDataFromString(int32 InPropertyIndex, const FString
 	return ErrorPipe.NumErrors == 0;
 }
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 FRigVMMemoryHandle URigVMMemoryStorage::GetHandle(int32 InPropertyIndex, const FRigVMPropertyPath* InPropertyPath)
 {
 	check(IsValidIndex(InPropertyIndex));
@@ -717,8 +709,6 @@ FRigVMMemoryHandle URigVMMemoryStorage::GetHandle(int32 InPropertyIndex, const F
 
 	return FRigVMMemoryHandle(Data, Property, InPropertyPath);
 }
-
-#endif
 
 bool URigVMMemoryStorage::CopyProperty(
 	const FProperty* InTargetProperty,
@@ -877,8 +867,6 @@ bool URigVMMemoryStorage::CopyProperty(
 	return CopyProperty(TargetProperty, TargetPtr, InTargetPropertyPath, SourceProperty, SourcePtr, InSourcePropertyPath);
 }
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 bool URigVMMemoryStorage::CopyProperty(
 	FRigVMMemoryHandle& InTargetHandle,
 	FRigVMMemoryHandle& InSourceHandle)
@@ -891,8 +879,6 @@ bool URigVMMemoryStorage::CopyProperty(
 		InSourceHandle.GetData(false),
 		InSourceHandle.GetPropertyPathRef());
 }
-
-#endif
 
 void URigVMMemoryStorage::CopyFrom(URigVMMemoryStorage* InSourceMemory)
 {

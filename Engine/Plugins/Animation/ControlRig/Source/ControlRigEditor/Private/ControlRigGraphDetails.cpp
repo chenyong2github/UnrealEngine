@@ -1272,8 +1272,6 @@ TSharedRef<ITableRow> FControlRigGraphDetails::HandleGenerateRowAccessSpecifier(
         ];
 }
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 TSharedRef<IDetailCustomization> FControlRigWrappedNodeDetails::MakeInstance()
 {
 	return MakeShareable(new FControlRigWrappedNodeDetails);
@@ -1570,7 +1568,5 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		}
 	}
 }
-
-#endif
 
 #undef LOCTEXT_NAMESPACE

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "RigVMDefines.h"
-#include "RigVMArray.h"
 #include "RigVMExternalVariable.h"
 #include "RigVMModule.h"
 #include "Logging/TokenizedMessage.h"
@@ -344,11 +343,7 @@ struct RIGVM_API FRigVMExecuteContext
 	uint16 InstructionIndex;
 	URigVM* VM;
 	FRigVMRuntimeSettings RuntimeSettings;
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	FRigVMFixedArray<void*> OpaqueArguments;
-#else
 	TArrayView<void*> OpaqueArguments;
-#endif
 	TArray<FRigVMExternalVariable> ExternalVariables;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;

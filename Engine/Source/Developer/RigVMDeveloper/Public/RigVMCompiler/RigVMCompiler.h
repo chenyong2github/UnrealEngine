@@ -100,8 +100,6 @@ public:
 	const FRigVMASTProxySourceMap* ProxySources;
 	FRigVMASTProxyTargetsMap ProxyTargets;
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	TArray<URigVMPin*> WatchedPins;
 	
 	TMap<ERigVMMemoryType, TArray<FRigVMPropertyPathDescription>> PropertyPathDescriptions;
@@ -111,8 +109,6 @@ public:
 	FRigVMOperand FindProperty(ERigVMMemoryType InMemoryType, const FName& InName);
 	FRigVMPropertyDescription GetProperty(const FRigVMOperand& InOperand);
 	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InHeadCPPType, const FString& InSegmentPath);
-	
-#endif
 
 	TSharedPtr<FRigVMParserAST> AST;
 	
@@ -156,16 +152,7 @@ public:
 	// this is currently only used for arrays.
 	static const FRigVMVarExprAST* GetSourceVarExpr(const FRigVMExprAST* InExpr);
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	
-	void CreateDebugRegister(URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
-	void RemoveDebugRegister(URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
-
-#else
-
 	void MarkDebugWatch(bool bRequired, URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
-
-#endif
 
 private:
 

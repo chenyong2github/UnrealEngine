@@ -846,12 +846,8 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		}
 		case ERigVMOpCode::ChangeType:
 		{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-			return (uint64)sizeof(FRigVMChangeTypeOp);
-#else
 			checkNoEntry();
 			return 0;
-#endif
 		}
 		case ERigVMOpCode::Exit:
 		{
@@ -915,20 +911,6 @@ uint64 FRigVMByteCode::AddTrueOp(const FRigVMOperand& InArg)
 	return AddOp(Op);
 }
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType, ERigVMCopyType InCopyType)
-{
-	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
-	check(InNumBytes > 0);
-	check(InTargetType != ERigVMRegisterType::Invalid);
-	
-	FRigVMCopyOp Op(InSource, InTarget, InNumBytes, InTargetType, InCopyType);
-	return AddOp(Op);
-}
-
-#else
-
 uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
 	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
@@ -946,15 +928,9 @@ uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOper
 	return ByteIndex;
 }
 
-#endif
-
 uint64 FRigVMByteCode::AddCopyOp(const FRigVMCopyOp& InCopyOp)
 {
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	return AddCopyOp(InCopyOp.Source, InCopyOp.Target, InCopyOp.NumBytes, InCopyOp.RegisterType, InCopyOp.CopyType);
-#else
 	return AddCopyOp(InCopyOp.Source, InCopyOp.Target);
-#endif
 }
 
 uint64 FRigVMByteCode::AddIncrementOp(const FRigVMOperand& InArg)
@@ -1016,16 +992,6 @@ uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIn
 	FRigVMJumpIfOp Op(InOpCode, InConditionArg, InInstructionIndex, bJumpWhenConditionIs);
 	return AddOp(Op);
 }
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-uint64 FRigVMByteCode::AddChangeTypeOp(FRigVMOperand InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount)
-{
-	FRigVMChangeTypeOp Op(InArg, InType, InElementSize, InElementCount, InSliceCount);
-	return AddOp(Op);
-}
-
-#endif
 
 uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands)
 {
@@ -1150,9 +1116,6 @@ FString FRigVMByteCode::DumpToText() const
 				FString TargetContent;
 				FRigVMOperand::StaticStruct()->ExportText(TargetContent, &Op.Target, &Op.Target, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Target %s"), *TargetContent);
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-				Line += FString::Printf(TEXT(", NumBytes %d"), (int32)Op.NumBytes);
-#endif
 				break;
 			}
 			case ERigVMOpCode::Zero:
@@ -1497,13 +1460,8 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		}
 		case ERigVMOpCode::ChangeType:
 		{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-			static const uint64 Alignment = FRigVMChangeTypeOp::StaticStruct()->GetCppStructOps()->GetAlignment();
-			return Alignment;
-#else
 			checkNoEntry();
 			return 0;
-#endif
 		}
 		case ERigVMOpCode::Exit:
 		{

@@ -17,9 +17,7 @@ FRigUnit_KalmanFloat_Execute()
 		return;
 	}
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	Buffer.SetNum(BufferSize);
-#endif
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -70,9 +68,7 @@ FRigUnit_KalmanVector_Execute()
 		return;
 	}
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	Buffer.SetNum(BufferSize);
-#endif
 
 	if (Context.State == EControlRigState::Init)
 	{
@@ -123,9 +119,7 @@ FRigUnit_KalmanTransform_Execute()
 		return;
 	}
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	Buffer.SetNum(BufferSize);
-#endif
 
 	if (Context.State == EControlRigState::Init)
 	{

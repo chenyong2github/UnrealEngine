@@ -3279,113 +3279,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 			if(Parameter.RequiresCast())
 			{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.ArraySize.IsEmpty())
-				{
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNum( %s );"), *Parameter.Name, *Parameter.ArraySize));
-				}
-
-				if (Parameter.CastType.StartsWith(FHeaderParser::FDynamicArrayText))
-				{
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("FRigVMByteArray %s_Bytes;"), *Parameter.CastName));
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s_Bytes);"), *Parameter.CastType, *Parameter.CastName, *Parameter.CastName));
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.CopyFrom(%s);"), *Parameter.CastName, *Parameter.Name));
-					RigVMVirtualFuncEpilog.Add(FString::Printf(TEXT("%s.CopyTo(%s);"), *Parameter.CastName, *Parameter.Name));
-				}
-				else
-				{
-					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
-				}
-#else
 				RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
-#endif
 			}
 
 			const FString& ParamTypeOriginal = Parameter.TypeOriginal(true);
 			const FString& ParamNameOriginal = Parameter.NameOriginal(false);
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-			if (ParamTypeOriginal.StartsWith(FHeaderParser::FFixedArrayText, ESearchCase::CaseSensitive))
-			{
-				FString VariableType = ParamTypeOriginal;
-				FString ExtractedType = VariableType.LeftChop(1).RightChop(17);
-
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s((%s*)RigVMMemoryHandles[%d].GetData(), reinterpret_cast<uint64>(RigVMMemoryHandles[%d].GetData()));"),
-					*VariableType,
-					*ParamNameOriginal,
-					*ExtractedType,
-					OperandIndex,
-					OperandIndex + 1));
-
-				OperandIndex += 2;
-			}
-			else if (ParamTypeOriginal.StartsWith(FHeaderParser::FDynamicArrayText, ESearchCase::CaseSensitive))
-			{
-				FString VariableType = ParamTypeOriginal;
-				FString ExtractedType = VariableType.LeftChop(1).RightChop(19);
-
-				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMNestedByteArray& %s_%d_Array = *(FRigVMNestedByteArray*)RigVMMemoryHandles[%d].GetData(0, false);"),
-					*ParamNameOriginal,
-					OperandIndex,
-					OperandIndex));
-
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s_%d_Array.SetNum(FMath::Max<int32>(RigVMExecuteContext.GetSlice().TotalNum(), %s_%d_Array.Num()));"),
-					*ParamNameOriginal,
-					OperandIndex,
-					*ParamNameOriginal,
-					OperandIndex));
-
-				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMDynamicArray<%s> %s(%s_%d_Array[RigVMExecuteContext.GetSlice().GetIndex()]);"),
-					*ExtractedType,
-					*ParamNameOriginal,
-					*ParamNameOriginal,
-					OperandIndex));
-
-				OperandIndex ++;
-			}
-			else if (!Parameter.IsArray() && Parameter.IsDynamic())
-			{
-				RigVMStubProlog.Add(FString::Printf(TEXT("FRigVMDynamicArray<%s> %s_%d_Array(*((FRigVMByteArray*)RigVMMemoryHandles[%d].GetData(0, false)));"),
-					*ParamTypeOriginal,
-					*ParamNameOriginal,
-					OperandIndex,
-					OperandIndex));
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s_%d_Array.EnsureMinimumSize(RigVMExecuteContext.GetSlice().TotalNum());"),
-					*ParamNameOriginal,
-					OperandIndex));
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s& %s = %s_%d_Array[RigVMExecuteContext.GetSlice().GetIndex()];"),
-					*ParamTypeOriginal,
-					*ParamNameOriginal,
-					*ParamNameOriginal,
-					OperandIndex));
-
-				OperandIndex++;
-			}
-			else
-			{
-				FString VariableType = Parameter.TypeVariableRef(true);
-				FString ExtractedType = Parameter.TypeOriginal();
-				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
-
-				// if the parameter is a const enum we need to cast it slightly differently,
-				// we'll get the reference of the stored uint8 and cast it by value.
-				if (Parameter.bIsEnum && !Parameter.bOutput)
-				{
-					VariableType = Parameter.TypeOriginal();
-					ParameterCast = FString::Printf(TEXT("(%s)*(uint8*)"), *ExtractedType);
-				}
-
-				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData();"),
-				*VariableType,
-				*ParamNameOriginal,
-					*ParameterCast,
-					OperandIndex));
-
-				OperandIndex++;
-			}
-
-#else
 
 			FString AdditionalParameters;
 			if(!Parameter.bInput && !Parameter.bOutput && !Parameter.bSingleton)
@@ -3421,8 +3319,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 				OperandIndex++;
 			}
-			
-#endif
 		}
 
 		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
@@ -3490,19 +3386,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t\t%sStatic%s(\r\n\t\t\t%s%s%s\r\n\t\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix4, *StructMembersForStub, *ParameterNamesSuffix);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\t}\r\n"));
 			}
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-			for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
-			{
-				if (!StructMember.ArraySize.IsEmpty())
-				{
-					RigVMMethodsDeclarations += TEXT("\tvirtual int32 GetArraySize(const FName& InMemberName, const FRigVMUserDataArray& Context) override;\r\n");
-					break;
-				}
-			}
-
-#endif
 		}
 
 		const FString SuperTypedef = BaseStructDef ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), *BaseStructDef->GetAlternateNameCPP()) : FString();
@@ -3712,39 +3595,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		}
 
 			Out.Log(TEXT("\r\n"));
-
-					
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-		
-		bool bHasGetArraySize = false;
-		for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
-			{
-			if (!StructMember.ArraySize.IsEmpty())
-				{
-				bHasGetArraySize = true;
-				break;
-				}
-			}
-
-		if (bHasGetArraySize)
-			{
-			Out.Logf(TEXT("int32 %s::GetArraySize(const FName& InMemberName, const FRigVMUserDataArray& Context)\r\n"), *StructNameCPP);
-			Out.Log(TEXT("{\r\n"));
-			for (const FRigVMParameter& StructMember : StructRigVMInfo.Members)
-			{
-				if (!StructMember.ArraySize.IsEmpty())
-				{
-					Out.Logf(TEXT("\tif(InMemberName == TEXT(\"%s\"))\r\n"), *StructMember.Name);
-					Out.Log(TEXT("\t{\r\n"));
-					Out.Logf(TEXT("\t\treturn %s;\r\n"), *StructMember.ArraySize);
-					Out.Log(TEXT("\t}\r\n"));
-				}
-			}
-			Out.Log(TEXT("\treturn INDEX_NONE;\r\n"));
-			Out.Log(TEXT("}\r\n\r\n"));
-		}
-
-#endif
 	}
 }
 

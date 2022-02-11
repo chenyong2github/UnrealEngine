@@ -213,8 +213,6 @@ private:
 	static TArray<TSharedPtr<FString>> AccessSpecifierStrings;
 };
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 /** Customization for editing a Control Rig node */
 class FControlRigWrappedNodeDetails : public IDetailCustomization
 {
@@ -226,5 +224,3 @@ public:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 };
-
-#endif

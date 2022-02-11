@@ -10305,13 +10305,6 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		return nullptr;
 	}
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-	ReportError(TEXT("This build of Control Rig doesn't support Array Nodes."));
-	return nullptr;
-	
-#endif
-
 	// validate the op code
 	bool bIsMutable = false;
 	switch(InOpCode)

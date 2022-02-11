@@ -429,9 +429,7 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 {
 	GENERATED_USTRUCT_BODY()
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 public:
-#endif
 
 	FRigVMCopyOp()
 	: FRigVMBaseOp(ERigVMOpCode::Copy)
@@ -446,24 +444,13 @@ public:
 	FRigVMCopyOp(
 		FRigVMOperand InSource,
 		FRigVMOperand InTarget
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-		, uint16 InNumBytes,
-		ERigVMRegisterType InRegisterType,
-		ERigVMCopyType InCopyType
-#endif
 	)
 		: FRigVMBaseOp(ERigVMOpCode::Copy)
 		, Source(InSource)
 		, Target(InTarget)
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-		, NumBytes(InNumBytes)
-		, RegisterType(InRegisterType)
-		, CopyType(InCopyType)
-#else
 		, NumBytes(0)
 		, RegisterType(ERigVMRegisterType::Invalid)
 		, CopyType(ERigVMCopyType::Default)
-#endif
 	{
 	}
 
@@ -478,16 +465,13 @@ public:
 
 	FRigVMOperand Source;
 	FRigVMOperand Target;
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 private:
-#endif
 	uint16 NumBytes;
 	ERigVMRegisterType RegisterType;
 	ERigVMCopyType CopyType;
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 public:
-#endif
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
 	{
@@ -611,33 +595,6 @@ USTRUCT()
 struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 {
 	GENERATED_USTRUCT_BODY()
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-	FRigVMChangeTypeOp()
-		: FRigVMUnaryOp()
-		, Type(ERigVMRegisterType::Invalid)
-		, ElementSize(0)
-		, ElementCount(0)
-		, SliceCount(0)
-	{
-	}
-
-	FRigVMChangeTypeOp(FRigVMOperand InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount)
-		: FRigVMUnaryOp(ERigVMOpCode::ChangeType, InArg)
-		, Type(InType)
-		, ElementSize(InElementSize)
-		, ElementCount(InElementCount)
-		, SliceCount(InSliceCount)
-	{
-	}
-
-	ERigVMRegisterType Type;
-	uint16 ElementSize;
-	uint16 ElementCount;
-	uint16 SliceCount;
-
-#endif
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMChangeTypeOp& P)
@@ -791,11 +748,7 @@ public:
 	uint64 AddTrueOp(const FRigVMOperand& InArg);
 
 	// adds a copy operator to copy the content of a source argument to a target argument
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType, ERigVMCopyType InCopyType);
-#else
 	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
-#endif
 
 	// adds a copy operator to copy the content of a source argument to a target argument
 	uint64 AddCopyOp(const FRigVMCopyOp& InCopyOp);
@@ -817,13 +770,6 @@ public:
 
 	// adds an absolute, forward or backward jump operator based on a condition argument
 	uint64 AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMOperand& InConditionArg, bool bJumpWhenConditionIs = false);
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-	// adds a change-type operator to reuse a register for a smaller or same size type
-	uint64 AddChangeTypeOp(FRigVMOperand InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount = 1);
-
-#endif
 
 	// adds an exit operator to exit the execution loop
 	uint64 AddExitOp();
@@ -946,25 +892,12 @@ public:
 		return GetOperandsAt(ByteCodeIndex, ExecuteOp.GetOperandCount());
 	}
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-	// returns the raw data of the byte code
-	FORCEINLINE const FRigVMFixedArray<uint8> GetByteCode() const
-	{
-		const uint8* Data = ByteCode.GetData();
-		return FRigVMFixedArray<uint8>((uint8*)Data, ByteCode.Num());
-	}
-
-#else
-
 	// returns the raw data of the byte code
 	FORCEINLINE const TArrayView<const uint8> GetByteCode() const
 	{
 		const uint8* Data = ByteCode.GetData();
 		return TArrayView<const uint8>((uint8*)Data, ByteCode.Num());
 	}
-
-#endif
 
 	// returns the statistics information
 	FRigVMByteCodeStatistics GetStatistics() const

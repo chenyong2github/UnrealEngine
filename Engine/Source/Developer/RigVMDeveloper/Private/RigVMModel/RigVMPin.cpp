@@ -1043,11 +1043,7 @@ bool URigVMPin::IsBoundToInputArgument() const
 	return false;
 }
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset) const
-#else
 bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FString& InSegmentPath) const
-#endif
 {
 	if (!InExternalVariable.IsValid(true))
 	{
@@ -1067,11 +1063,7 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 
 	// check type validity
 	// in the future we need to allow arrays as well
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	if (IsArray() && InOffset.IsValid())
-#else
 	if (IsArray() && !InSegmentPath.IsEmpty())
-#endif
 	{
 		return false;
 	}
@@ -1083,13 +1075,6 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	FName ExternalCPPType = InExternalVariable.TypeName;
 	UObject* ExternalCPPTypeObject = InExternalVariable.TypeObject;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	if (InOffset.IsValid())
-	{
-		ExternalCPPType = InOffset.GetCPPType();
-		ExternalCPPTypeObject = InOffset.GetScriptStruct();
-	}
-#else
 	if(!InSegmentPath.IsEmpty())
 	{
 		check(InExternalVariable.Property);
@@ -1100,7 +1085,6 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 
 		FRigVMExternalVariable::GetTypeFromProperty(Property, ExternalCPPType, ExternalCPPTypeObject);
 	}
-#endif
 
 	const FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
 	return RigVMTypeUtils::AreCompatible(CPPBaseType, GetCPPTypeObject(), ExternalCPPType.ToString(), ExternalCPPTypeObject);
@@ -1515,14 +1499,8 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		bool bCPPTypesDiffer = true;
 		static const FString Float = TEXT("float");
 		static const FString Double = TEXT("double");
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
-		if((InSourcePin->CPPType == Float && InTargetPin->CPPType == Double) ||
-			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float))
-#else
 
 		if (RigVMTypeUtils::AreCompatible(InSourcePin->CPPType, InSourcePin->CPPTypeObject, InTargetPin->CPPType, InTargetPin->CPPTypeObject))
-#endif
 		{
 			bCPPTypesDiffer = false;
 		}
