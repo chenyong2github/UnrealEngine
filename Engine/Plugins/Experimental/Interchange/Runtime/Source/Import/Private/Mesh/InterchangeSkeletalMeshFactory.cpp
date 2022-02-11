@@ -431,11 +431,11 @@ namespace UE
 					}
 					
 					FTransform JointBindPoseGlobalTransform;
-					if (!JointNode->GetCustomBindPoseGlobalTransform(JointBindPoseGlobalTransform))
+					if (!JointNode->GetCustomBindPoseGlobalTransform(NodeContainer, JointBindPoseGlobalTransform))
 					{
 						//If there is no bind pose we will fall back on the CustomGlobalTransform of the link.
 						//We ensure here because any scenenode should have a valid CustomGlobalTransform.
-						if (!ensure(JointNode->GetCustomGlobalTransform(JointBindPoseGlobalTransform)))
+						if (!ensure(JointNode->GetCustomGlobalTransform(NodeContainer, JointBindPoseGlobalTransform)))
 						{
 							//No value to convert from, skip this joint.
 							continue;
@@ -443,7 +443,7 @@ namespace UE
 					}
 
 					FTransform JointTimeZeroGlobalTransform;
-					if (!JointNode->GetCustomTimeZeroGlobalTransform(JointTimeZeroGlobalTransform))
+					if (!JointNode->GetCustomTimeZeroGlobalTransform(NodeContainer, JointTimeZeroGlobalTransform))
 					{
 						//If there is no time zero global transform we cannot set the bind pose to time zero.
 						//We must skip this joint.
@@ -1246,9 +1246,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
 					//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
 					FTransform SceneNodeGlobalTransform;
-					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(SceneNodeGlobalTransform))
+					if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
 					{
-						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform));
+						ensure(MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform));
 					}
 					FTransform SceneNodeGeometricTransform;
 					if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))

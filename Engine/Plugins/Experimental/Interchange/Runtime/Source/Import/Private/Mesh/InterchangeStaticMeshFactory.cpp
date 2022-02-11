@@ -209,7 +209,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 					// Cache the scene node global matrix, we will use this matrix to bake the vertices
 					FTransform SceneNodeGlobalTransform;
-					if (MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform))
+					if (MeshReference.SceneNode->GetCustomGlobalTransform(Arguments.NodeContainer, SceneNodeGlobalTransform))
 					{
 						MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
 					}

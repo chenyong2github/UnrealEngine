@@ -30,6 +30,7 @@ struct FAssetImportParams
 		, bForceOverrideExisting(false)
 		, bAutomated(false)
 		, bAllowAsyncImport(false)
+		, bSceneImport(false)
 	{}
 
 	/** Factory to use for importing files */
@@ -46,6 +47,8 @@ struct FAssetImportParams
 	bool bAutomated : 1;
 	/** Temporary setting to enable the async import. (We will figure a better solution in a later release) */
 	bool bAllowAsyncImport : 1;
+	/** Whether or not this is a scene import */
+	bool bSceneImport : 1;
 };
 
 
@@ -87,7 +90,7 @@ public:
 	virtual void RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap) override;
 	virtual TArray<UObject*> ImportAssetsWithDialog(const FString& DestinationPath) override;
 	virtual void ImportAssetsWithDialogAsync(const FString& DestinationPath) override;
-	virtual TArray<UObject*> ImportAssets(const TArray<FString>& Files, const FString& DestinationPath, UFactory* ChosenFactory, bool bSyncToBrowser = true, TArray<TPair<FString, FString>>* FilesAndDestinations = nullptr, bool bAllowAsyncImport = false) const override;
+	virtual TArray<UObject*> ImportAssets(const TArray<FString>& Files, const FString& DestinationPath, UFactory* ChosenFactory, bool bSyncToBrowser = true, TArray<TPair<FString, FString>>* FilesAndDestinations = nullptr, bool bAllowAsyncImport = false, bool bSceneImport = false) const override;
 	virtual TArray<UObject*> ImportAssetsAutomated(const UAutomatedAssetImportData* ImportData) override;
 	virtual void ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTasks) override;
 	virtual void ExportAssets(const TArray<FString>& AssetsToExport, const FString& ExportPath) override;

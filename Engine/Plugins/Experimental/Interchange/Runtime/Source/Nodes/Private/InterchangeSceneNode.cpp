@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeSceneNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 
 //Interchange namespace
 namespace UE
@@ -18,6 +19,12 @@ namespace UE
 		{
 			static FString MaterialDependencyUids_BaseKey = TEXT("__MaterialDependencyUidsBaseKey__");
 			return MaterialDependencyUids_BaseKey;
+		}
+		
+		const FString& FSceneNodeStaticData::GetTransformSpecializeTypeString()
+		{
+			static FString TransformSpecializeTypeString = TEXT("Transform");
+			return TransformSpecializeTypeString;
 		}
 
 		const FString& FSceneNodeStaticData::GetJointSpecializeTypeString()
@@ -98,7 +105,6 @@ FString UInterchangeSceneNode::GetAttributeCategory(const UE::Interchange::FAttr
 		return FString(TEXT("MaterialDependencies"));
 	}
 	else if (NodeAttributeKey == Macro_CustomLocalTransformKey
-		|| NodeAttributeKey == Macro_CustomGlobalTransformKey
 		|| NodeAttributeKey == Macro_CustomAssetInstanceUidKey)
 	{
 		return FString(TEXT("Scene"));
@@ -187,19 +193,15 @@ bool UInterchangeSceneNode::GetCustomLocalTransform(FTransform& AttributeValue) 
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(LocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomLocalTransform(const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
 {
+	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomGlobalTransform(FTransform& AttributeValue) const
+bool UInterchangeSceneNode::GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(GlobalTransform, FTransform);
-}
-
-bool UInterchangeSceneNode::SetCustomGlobalTransform(const FTransform& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GlobalTransform, FTransform);
+	return GetGlobalTransformInternal(Macro_CustomLocalTransformKey, CacheGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomBindPoseLocalTransform(FTransform& AttributeValue) const
@@ -207,19 +209,15 @@ bool UInterchangeSceneNode::GetCustomBindPoseLocalTransform(FTransform& Attribut
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomBindPoseLocalTransform(const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomBindPoseLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
 {
+	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomBindPoseGlobalTransform(FTransform& AttributeValue) const
+bool UInterchangeSceneNode::GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseGlobalTransform, FTransform);
-}
-
-bool UInterchangeSceneNode::SetCustomBindPoseGlobalTransform(const FTransform& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseGlobalTransform, FTransform);
+	return GetGlobalTransformInternal(Macro_CustomBindPoseLocalTransformKey, CacheBindPoseGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomTimeZeroLocalTransform(FTransform& AttributeValue) const
@@ -227,19 +225,15 @@ bool UInterchangeSceneNode::GetCustomTimeZeroLocalTransform(FTransform& Attribut
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomTimeZeroLocalTransform(const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomTimeZeroLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
 {
+	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::GetCustomTimeZeroGlobalTransform(FTransform& AttributeValue) const
+bool UInterchangeSceneNode::GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache /*= false*/) const
 {
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroGlobalTransform, FTransform);
-}
-
-bool UInterchangeSceneNode::SetCustomTimeZeroGlobalTransform(const FTransform& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroGlobalTransform, FTransform);
+	return GetGlobalTransformInternal(Macro_CustomTimeZeroLocalTransformKey, CacheTimeZeroGlobalTransform, BaseNodeContainer, AttributeValue, bForceRecache);
 }
 
 bool UInterchangeSceneNode::GetCustomGeometricTransform(FTransform& AttributeValue) const
@@ -262,3 +256,87 @@ bool UInterchangeSceneNode::SetCustomAssetInstanceUid(const FString& AttributeVa
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AssetInstanceUid, FString);
 }
 
+void UInterchangeSceneNode::ResetAllGlobalTransformCaches(const UInterchangeBaseNodeContainer* BaseNodeContainer)
+{
+	BaseNodeContainer->IterateNodes([](const FString& NodeUid, UInterchangeBaseNode* Node)
+		{
+			if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
+			{
+				SceneNode->CacheGlobalTransform.Reset();
+				SceneNode->CacheBindPoseGlobalTransform.Reset();
+				SceneNode->CacheTimeZeroGlobalTransform.Reset();
+			}
+		});
+}
+
+void UInterchangeSceneNode::ResetGlobalTransformCachesOfNodeAndAllChildren(const UInterchangeBaseNodeContainer* BaseNodeContainer, const UInterchangeBaseNode* ParentNode)
+{
+	check(ParentNode);
+	if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(ParentNode))
+	{
+		SceneNode->CacheGlobalTransform.Reset();
+		SceneNode->CacheBindPoseGlobalTransform.Reset();
+		SceneNode->CacheTimeZeroGlobalTransform.Reset();
+	}
+	TArray<FString> ChildrenUids = BaseNodeContainer->GetNodeChildrenUids(ParentNode->GetUniqueID());
+	for (const FString& ChildUid : ChildrenUids)
+	{
+		if (const UInterchangeBaseNode* ChildNode = BaseNodeContainer->GetNode(ChildUid))
+		{
+			ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, ChildNode);
+		}
+	}
+}
+
+bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey, TOptional<FTransform>& CacheTransform, const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache) const
+{
+	if (!Attributes->ContainAttribute(LocalTransformKey))
+	{
+		return false;
+	}
+	if (bForceRecache)
+	{
+		CacheTransform.Reset();
+	}
+	if (!CacheTransform.IsSet())
+	{
+		FTransform LocalTransform;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FTransform> AttributeHandle = GetAttributeHandle<FTransform>(LocalTransformKey);
+		if (AttributeHandle.IsValid() && AttributeHandle.Get(LocalTransform) == UE::Interchange::EAttributeStorageResult::Operation_Success)
+		{
+			//Compute the Global
+			if (Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::ParentIDKey()))
+			{
+				FTransform GlobalParent;
+				if (const UInterchangeSceneNode* ParentSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(GetParentUid())))
+				{
+					if (LocalTransformKey == Macro_CustomLocalTransformKey)
+					{
+						ParentSceneNode->GetCustomGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+					}
+					else if (LocalTransformKey == Macro_CustomBindPoseLocalTransformKey)
+					{
+						ParentSceneNode->GetCustomBindPoseGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+					}
+					else if (LocalTransformKey == Macro_CustomTimeZeroLocalTransformKey)
+					{
+						ParentSceneNode->GetCustomTimeZeroGlobalTransform(BaseNodeContainer, GlobalParent, bForceRecache);
+					}
+				}
+				CacheTransform = LocalTransform * GlobalParent;
+			}
+			else
+			{
+				CacheTransform = LocalTransform;
+			}
+		}
+		else
+		{
+			CacheTransform = FTransform::Identity;
+		}
+	}
+	//The cache is always valid here
+	check(CacheTransform.IsSet());
+	AttributeValue = CacheTransform.GetValue();
+	return true;
+}

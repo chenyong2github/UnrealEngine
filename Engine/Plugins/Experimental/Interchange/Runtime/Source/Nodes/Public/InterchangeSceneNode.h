@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Optional.h"
 #include "Nodes/InterchangeBaseNode.h"
 
 #include "InterchangeSceneNode.generated.h"
 
+class UInterchangeBaseNodeContainer;
 //Interchange namespace
 namespace UE
 {
@@ -17,6 +19,7 @@ namespace UE
 		{
 			static const FString& GetNodeSpecializeTypeBaseKey();
 			static const FString& GetMaterialDependencyUidsBaseKey();
+			static const FString& GetTransformSpecializeTypeString();
 			static const FString& GetJointSpecializeTypeString();
 			static const FString& GetLodGroupSpecializeTypeString();
 		};
@@ -89,15 +92,11 @@ public:
 
 	/** Store the default scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomLocalTransform(const FTransform& AttributeValue);
+	bool SetCustomLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue);
 
-	/** Return the default scene node global transform. */
+	/** Return the default scene node global transform. This value is computed with all parent local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomGlobalTransform(FTransform& AttributeValue) const;
-
-	/** Store the default scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomGlobalTransform(const FTransform& AttributeValue);
+	bool GetCustomGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	//Bind pose transform is the transform of the joint when the binding with the mesh was done.
 	//This attribute should be set only if we have a joint.
@@ -108,15 +107,11 @@ public:
 
 	/** Store the bind pose scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseLocalTransform(const FTransform& AttributeValue);
+	bool SetCustomBindPoseLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue);
 
-	/** Return the bind pose scene node global transform. */
+	/** Return the bind pose scene node global transform. This value is computed with all parent bind pose local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseGlobalTransform(FTransform& AttributeValue) const;
-
-	/** Store the bind pose scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseGlobalTransform(const FTransform& AttributeValue);
+	bool GetCustomBindPoseGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	//Time zero transform is the transform of the node at time zero.
 	//This is useful when there is no bind pose or when we import rigid mesh.
@@ -127,15 +122,11 @@ public:
 
 	/** Store the time zero scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroLocalTransform(const FTransform& AttributeValue);
+	bool SetCustomTimeZeroLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue);
 
-	/** Return the time zero scene node global transform. */
+	/** Return the time zero scene node global transform. This value is computed with all parent timezero local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroGlobalTransform(FTransform& AttributeValue) const;
-
-	/** Store the time zero scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroGlobalTransform(const FTransform& AttributeValue);
+	bool GetCustomTimeZeroGlobalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache = false) const;
 
 	/** Return the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
@@ -153,17 +144,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool SetCustomAssetInstanceUid(const FString& AttributeValue);
 
+	/** This static function make sure all the global transform caches are reset for all the UInterchangeSceneNode nodes in the UInterchangeBaseNodeContainer */
+	static void ResetAllGlobalTransformCaches(const UInterchangeBaseNodeContainer* BaseNodeContainer);
+
+	/** This static function make sure all the global transform caches are reset for all the UInterchangeSceneNode nodes children in the UInterchangeBaseNodeContainer */
+	static void ResetGlobalTransformCachesOfNodeAndAllChildren(const UInterchangeBaseNodeContainer* BaseNodeContainer, const UInterchangeBaseNode* ParentNode);
+
 private:
+
+	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey, TOptional<FTransform>& CacheTransform, const UInterchangeBaseNodeContainer* BaseNodeContainer, FTransform& AttributeValue, bool bForceRecache) const;
+
 	//Scene Attribute Keys
 	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomBindPoseLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("BindPoseLocalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomBindPoseGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("BindPoseGlobalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomTimeZeroLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("TimeZeroLocalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomTimeZeroGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("TimeZeroGlobalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomGeometricTransformKey = UE::Interchange::FAttributeKey(TEXT("GeometricTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomAssetInstanceUidKey = UE::Interchange::FAttributeKey(TEXT("AssetInstanceUid"));
 
 	UE::Interchange::TArrayAttributeHelper<FString> NodeSpecializeTypes;
 	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencyUids;
+
+	mutable TOptional<FTransform> CacheGlobalTransform;
+	mutable TOptional<FTransform> CacheBindPoseGlobalTransform;
+	mutable TOptional<FTransform> CacheTimeZeroGlobalTransform;
 };

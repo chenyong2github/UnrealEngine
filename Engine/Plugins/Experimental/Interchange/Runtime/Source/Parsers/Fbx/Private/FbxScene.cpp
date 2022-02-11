@@ -71,6 +71,24 @@ namespace UE
 				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeLightNode::StaticAssetTypeName());
 			}
 
+			bool DoesTheParentHierarchyContainJoints(FbxNode* Node)
+			{
+				if (!Node)
+				{
+					return false;
+				}
+				int32 AttributeCount = Node->GetNodeAttributeCount();
+				for (int32 AttributeIndex = 0; AttributeIndex < AttributeCount; ++AttributeIndex)
+				{
+					FbxNodeAttribute* NodeAttribute = Node->GetNodeAttributeByIndex(AttributeIndex);
+					if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton)
+					{
+						return true;
+					}
+				}
+				return DoesTheParentHierarchyContainJoints(Node->GetParent());
+			}
+
 			void FFbxScene::AddHierarchyRecursively(UInterchangeSceneNode* UnrealParentNode, FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				FString NodeName = FFbxHelper::GetFbxObjectName(Node);
@@ -113,18 +131,17 @@ namespace UE
 				{
 					FbxAMatrix GlobalFbxMatrix = Node->EvaluateGlobalTransform();
 					FTransform GlobalTransform = GetConvertedTransform(GlobalFbxMatrix);
-					UnrealNode->SetCustomGlobalTransform(GlobalTransform);
 					if (FbxNode* ParentNode = Node->GetParent())
 					{
 						FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform();
 						FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalFbxMatrix;
 						FTransform LocalTransform = GetConvertedTransform(LocalFbxMatrix);
-						UnrealNode->SetCustomLocalTransform(LocalTransform);
+						UnrealNode->SetCustomLocalTransform(&NodeContainer, LocalTransform);
 					}
 					else
 					{
 						//No parent, set the same matrix has the global
-						UnrealNode->SetCustomLocalTransform(GlobalTransform);
+						UnrealNode->SetCustomLocalTransform(&NodeContainer, GlobalTransform);
 					}
 				}
 
@@ -156,8 +173,15 @@ namespace UE
 							break;
 
 						case FbxNodeAttribute::eNull:
+						{
+							if (!DoesTheParentHierarchyContainJoints(Node->GetParent()))
+							{
+								//eNull node will be set has a transform and a joint specialized type
+								UnrealNode->AddSpecializedType(FSceneNodeStaticData::GetTransformSpecializeTypeString());
+							}
+						}
+						//No break since the eNull act has a skeleton if possible
 						case FbxNodeAttribute::eSkeleton:
-							//eNull node will be set has a skeleton node
 						{
 							//Add the joint specialized type
 							UnrealNode->AddSpecializedType(FSceneNodeStaticData::GetJointSpecializeTypeString());
@@ -166,7 +190,6 @@ namespace UE
 							if (FFbxMesh::GetGlobalJointBindPoseTransform(SDKScene, Node, GlobalBindPoseJointMatrix))
 							{
 								FTransform GlobalBindPoseJointTransform = GetConvertedTransform(GlobalBindPoseJointMatrix);
-								UnrealNode->SetCustomBindPoseGlobalTransform(GlobalBindPoseJointTransform);
 								//We grab the fbx parent node to compute the local transform
 								if (FbxNode* ParentNode = Node->GetParent())
 								{
@@ -174,12 +197,12 @@ namespace UE
 									FFbxMesh::GetGlobalJointBindPoseTransform(SDKScene, ParentNode, GlobalFbxParentMatrix);
 									FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalBindPoseJointMatrix;
 									FTransform LocalBindPoseJointTransform = GetConvertedTransform(LocalFbxMatrix);
-									UnrealNode->SetCustomBindPoseLocalTransform(LocalBindPoseJointTransform);
+									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, LocalBindPoseJointTransform);
 								}
 								else
 								{
 									//No parent, set the same matrix has the global
-									UnrealNode->SetCustomBindPoseLocalTransform(GlobalBindPoseJointTransform);
+									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, GlobalBindPoseJointTransform);
 								}
 							}
 
@@ -188,18 +211,17 @@ namespace UE
 								//Set the global node transform
 								FbxAMatrix GlobalFbxMatrix = Node->EvaluateGlobalTransform(FBXSDK_TIME_ZERO);
 								FTransform GlobalTransform = GetConvertedTransform(GlobalFbxMatrix);
-								UnrealNode->SetCustomTimeZeroGlobalTransform(GlobalTransform);
 								if (FbxNode* ParentNode = Node->GetParent())
 								{
 									FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform(FBXSDK_TIME_ZERO);
 									FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalFbxMatrix;
 									FTransform LocalTransform = GetConvertedTransform(LocalFbxMatrix);
-									UnrealNode->SetCustomTimeZeroLocalTransform(LocalTransform);
+									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, LocalTransform);
 								}
 								else
 								{
 									//No parent, set the same matrix has the global
-									UnrealNode->SetCustomTimeZeroLocalTransform(GlobalTransform);
+									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform);
 								}
 							}
 

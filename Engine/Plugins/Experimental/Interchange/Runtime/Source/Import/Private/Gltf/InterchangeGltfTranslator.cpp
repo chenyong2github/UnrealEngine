@@ -34,14 +34,6 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 	constexpr float MetersToCentimeters = 100.f;
 	Transform.SetTranslation( Transform.GetTranslation() * MetersToCentimeters );
 
-	if ( ParentSceneNode )
-	{
-		FTransform ParentTransform;
-		ParentSceneNode->GetCustomGlobalTransform( ParentTransform );
-
-		Transform = Transform * ParentTransform;
-	}
-
 	switch ( GltfNode.Type )
 	{
 		case GLTF::FNode::EType::Mesh:
@@ -84,7 +76,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 		}
 	}
 
-	InterchangeSceneNode->SetCustomGlobalTransform( Transform );
+	InterchangeSceneNode->SetCustomLocalTransform(&NodeContainer, Transform );
 
 	if ( !ParentNodeUid.IsEmpty() )
 	{

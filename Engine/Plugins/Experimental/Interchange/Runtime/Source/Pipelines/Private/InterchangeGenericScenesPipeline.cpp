@@ -46,15 +46,24 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 
 	for (const UInterchangeSceneNode* SceneNode : SceneNodes)
 	{
-		//Ignore specialized types for now as they are used for bones hierarchies and other asset internal data
-		if (SceneNode && SceneNode->GetSpecializedTypeCount() == 0)
+		if (SceneNode)
 		{
-			CreateActorFactoryNode(SceneNode, InBaseNodeContainer);
+			if (SceneNode->GetSpecializedTypeCount() > 0)
+			{
+				TArray<FString> SpecializeTypes;
+				SceneNode->GetSpecializedTypes(SpecializeTypes);
+				if (!SpecializeTypes.Contains(UE::Interchange::FSceneNodeStaticData::GetTransformSpecializeTypeString()))
+				{
+					//Skip any scene node that have specialized types but not the "Transform" type.
+					continue;
+				}
+			}
+			CreateActorFactoryNode(InBaseNodeContainer, SceneNode, InBaseNodeContainer);
 		}
 	}
 }
 
-void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
+void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
 {
 	if (!SceneNode)
 	{
@@ -94,7 +103,7 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
 
 	FTransform GlobalTransform;
-	if (SceneNode->GetCustomGlobalTransform(GlobalTransform))
+	if (SceneNode->GetCustomGlobalTransform(InBaseNodeContainer, GlobalTransform))
 	{
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}
