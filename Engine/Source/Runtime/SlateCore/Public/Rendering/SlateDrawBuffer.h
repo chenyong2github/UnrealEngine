@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/GCObject.h"
 
+#include <atomic>
+
 class FSlateWindowElementList;
 class SWindow;
 
@@ -17,7 +19,8 @@ public:
 
 	/** Default constructor. */
 	explicit FSlateDrawBuffer()
-		: Locked(0)
+		: bLocked(false)
+		, bIsLockedBySlateThread(false)
 		, ResourceVersion(0)
 	{ }
 
@@ -78,8 +81,8 @@ protected:
 	// that we restore if they're requested again.
 	TArray< TSharedRef<FSlateWindowElementList> > WindowElementListsPool;
 
-	// 1 if this buffer is locked, 0 otherwise.
-	volatile int32 Locked;
+	std::atomic<bool> bLocked;
+	bool bIsLockedBySlateThread;
 
 	// Last recorded version from the render. The WindowElementListsPool is emptied when this changes.
 	uint32 ResourceVersion;

@@ -970,15 +970,31 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("FSlateWindowElementList MemManager Count"), STA
 
 void FSlateWindowElementList::ResetElementList()
 {
+	ResetDrawElementList();
+	ResetBatchData();
+}
+
+void FSlateWindowElementList::ResetBatchData()
+{
+	// data that is used on the render thread
+	BatchData.ResetData();
+	ClippingManager.ResetClippingState();
+
+	check(DeferredPaintList.Num() == 0);
+	check(UncachedDrawElements.Num() == 0);
+	check(CachedElementDataList.Num() == 0);
+	check(CachedElementDataListStack.Num() == 0);
+	check(RenderTargetWindow == nullptr);
+}
+
+void FSlateWindowElementList::ResetDrawElementList()
+{
+	// data that is used on the game thread
 	QUICK_SCOPE_CYCLE_COUNTER(Slate_ResetElementList);
 
 	check(IsThreadSafeForSlateRendering());
 
 	DeferredPaintList.Reset();
-
-	BatchData.ResetData();
-
-	ClippingManager.ResetClippingState();
 
 	UncachedDrawElements.Reset();
 

@@ -313,6 +313,7 @@ private:
 
 	static FVector2D GetRotationPoint( const FPaintGeometry& PaintGeometry, const TOptional<FVector2D>& UserRotationPoint, ERotationSpace RotationSpace );
 	static FSlateDrawElement& MakeBoxInternal(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FSlateBrush* InBrush, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint);
+
 private:
 	FSlateDataPayload* DataPayload;
 	FSlateRenderTransform RenderTransform;
@@ -533,9 +534,7 @@ public:
 		return *Payload;
 	}
 
-	/**
-	 * Creates an uninitialized draw element
-	 */
+	/** Creates an uninitialized draw element */
 	SLATECORE_API FSlateDrawElement& AddUninitialized();
 
 
@@ -619,10 +618,15 @@ public:
 	// OTHER
 	//--------------------------------------------------------------------------
 	
-	/**
-	 * Remove all the elements from this draw list.
-	 */
+	/** Remove all the elements from this draw list. */
+	UE_DEPRECATED(5.0, "ResetElementList is deprecated. Use ResetBatchData or ResetDrawElementList to reset the elements")
 	SLATECORE_API void ResetElementList();
+
+	/** Remove all the batch data. */
+	SLATECORE_API void ResetBatchData();
+
+	/** Remove all the draw elements needed to create the batch data. */
+	SLATECORE_API void ResetDrawElementList();
 
 
 	FSlateBatchData& GetBatchData() { return BatchData; }
@@ -637,11 +641,12 @@ private:
 	TArrayView<FSlateCachedElementData* const> GetCachedElementDataList() const { return MakeArrayView(CachedElementDataList.GetData(), CachedElementDataList.Num()); }
 
 	FSlateCachedElementData* GetCurrentCachedElementData() const { return CachedElementDataListStack.Num() ? CachedElementDataList[CachedElementDataListStack.Top()] : nullptr; }
+
 private:
 	/**
-	* Window which owns the widgets that are being painted but not necessarily rendered to
-	* Widgets are always rendered to the RenderTargetWindow
-	*/
+	 * Window which owns the widgets that are being painted but not necessarily rendered to
+	 * Widgets are always rendered to the RenderTargetWindow
+	 */
 	TWeakPtr<SWindow> WeakPaintWindow;
 	SWindow* RawPaintWindow;
 
@@ -669,7 +674,7 @@ private:
 	bool bNeedsDeferredResolve;
 	TArray<int32> ResolveToDeferredIndex;
 
-	// Begin Fast Path
+	//~ Begin Fast Path
 
 	/** State of the current widget that is adding draw elements */
 	struct FWidgetDrawElementState
@@ -692,7 +697,7 @@ private:
 	TArray<FWidgetDrawElementState, TInlineAllocator<50>> WidgetDrawStack;
 	TArray<FSlateCachedElementData*, TInlineAllocator<4>> CachedElementDataList;
 	TArray<int32, TInlineAllocator<4>> CachedElementDataListStack;
-	// End Fast Path
+	//~ End Fast Path
 
 	/** Store the size of the window being used to paint */
 	FVector2D WindowSize;
