@@ -172,7 +172,7 @@ bool FEditorBulkDataTestUpdatePayload::RunTest(const FString& Parameters)
 
 		// Update the bulkdata object with the original data but this time we give ownership of the buffer to
 		// the bulkdata object.
-		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(OriginalData.Release(), BufferSize, FMemory::Free));
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(OriginalData.Release(), BufferSize, [](void* Ptr, uint64) { delete[] (uint8*)Ptr; }));
 
 		FSharedBuffer Payload = BulkData.GetPayload().Get();
 		TestEqual(TEXT("Updated payload length"), (int64)Payload.GetSize(), BufferSize);
