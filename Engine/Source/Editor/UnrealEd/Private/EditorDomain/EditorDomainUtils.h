@@ -35,11 +35,16 @@ struct FClassDigestData
 {
 public:
 	FBlake3Hash SchemaHash;
+	/** CustomVersions used by the class */
 	TArray<int32> CustomVersionHandles;
-	bool bNative = false;
+	/** Classes that can be created by the class during PostLoad/PreSave (parsed from ini) */
+	TArray<FName> ConstructClasses;
+	/** The closest native parent of (the possibly CoreRedirected target of) the class */
+	FName ResolvedClosestNative;
 	/** EditorDomainEnabled allows everything and uses only a blocklist, so DomainUse by default is enabled. */
 	EDomainUse EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
 
+	bool bNative = false;
 	/** bTargetIterativeEnabled uses an allowlist (with a blocklist override), so defaults to false. */
 	bool bTargetIterativeEnabled = false;
 

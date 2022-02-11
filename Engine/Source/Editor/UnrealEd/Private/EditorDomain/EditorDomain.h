@@ -61,14 +61,16 @@ struct FPackageDigest
 	 * created from properties that change if the saved version would change (package bytes, serialization versions).
 	 */
 	FIoHash Hash;
+	/** Classes used by the resaved package: imports or instances that can be created by PostLoad/PreSave */
+	TArray<FName> ImportedClasses;
+	/** List of CustomVersions used to save the package. */
+	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
 	/** Allow flags for whether the package can be saved/loaded from EditorDomain. */
 	EDomainUse DomainUse = EDomainUse::None;
 	/** Status for creation of this digest. Either Success or an error code for why it couldn't be created. */
 	EStatus Status = EStatus::NotYetRequested;
 	/** Extended information for the status description (e.g. missing class name). */
 	FName StatusArg;
-	/** List of CustomVersions used to save the package. */
-	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
 };
 
 }
