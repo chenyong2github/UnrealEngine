@@ -167,7 +167,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		else
 		{
 			float2 ScreenUVTime = ScreenPositionTime.xy * float2(0.5, -0.5) + 0.5;
-			int2 ScreenPixelIdTime = int2(ScreenUVTime * float2(GatherPointsResolution) + View.ViewRectMin);
+			int2 ScreenPixelIdTime = int2(ScreenUVTime * float2(GatherPointsResolution) + View.ViewRectMin.xy);
 			ScreenPixelIdTime = min(ScreenPixelIdTime, GatherPointsResolution-1);
 			GatherPointsIndex = DispatchThreadIdToLinearIndex(ScreenPixelIdTime);
 		}

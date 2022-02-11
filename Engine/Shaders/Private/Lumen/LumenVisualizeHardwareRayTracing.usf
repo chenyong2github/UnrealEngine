@@ -351,16 +351,18 @@ void FLumenVisualizeBucketRaysByMaterialIdCS(
 	FRayDataPacked RayDataPackedCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 	FTraceDataLocal TraceDataCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 
-	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
 	{
-		uint RayIndex = GroupOffset + i;
-		if (RayIndex < RayAllocator[0])
+		for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
 		{
-			RayDataPackedCache[i / THREADGROUP_SIZE_1D] = RayDataPacked[RayIndex];
-			TraceDataCache[i / THREADGROUP_SIZE_1D] = UnpackTraceData(TraceDataPacked[RayIndex]);
-			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
+			uint RayIndex = GroupOffset + i;
+			if (RayIndex < RayAllocator[0])
+			{
+				RayDataPackedCache[i / THREADGROUP_SIZE_1D] = RayDataPacked[RayIndex];
+				TraceDataCache[i / THREADGROUP_SIZE_1D] = UnpackTraceData(TraceDataPacked[RayIndex]);
+				uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
 
-			InterlockedAdd(BinSize[BinIndex], 1, Hash[i / THREADGROUP_SIZE_1D]);
+				InterlockedAdd(BinSize[BinIndex], 1, Hash[i / THREADGROUP_SIZE_1D]);
+			}
 		}
 	}
 
@@ -376,16 +378,18 @@ void FLumenVisualizeBucketRaysByMaterialIdCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
 	{
-		uint RayIndex = GroupOffset + i;
-		if (RayIndex < RayAllocator[0])
+		for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
 		{
-			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
-			uint OutputIndex = GroupOffset + BinOffset[BinIndex] + Hash[i / THREADGROUP_SIZE_1D];
+			uint RayIndex = GroupOffset + i;
+			if (RayIndex < RayAllocator[0])
+			{
+				uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
+				uint OutputIndex = GroupOffset + BinOffset[BinIndex] + Hash[i / THREADGROUP_SIZE_1D];
 
-			RWRayDataPacked[OutputIndex] = RayDataPackedCache[i / THREADGROUP_SIZE_1D];
-			RWTraceDataPacked[OutputIndex] = PackTraceData(TraceDataCache[i / THREADGROUP_SIZE_1D]);
+				RWRayDataPacked[OutputIndex] = RayDataPackedCache[i / THREADGROUP_SIZE_1D];
+				RWTraceDataPacked[OutputIndex] = PackTraceData(TraceDataCache[i / THREADGROUP_SIZE_1D]);
+			}
 		}
 	}
 }
