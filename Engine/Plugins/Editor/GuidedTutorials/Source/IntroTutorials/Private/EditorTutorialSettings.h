@@ -33,7 +33,7 @@ struct FTutorialContext
 };
 
 /** Editor-wide tutorial settings */
-UCLASS(config=EditorSettings)
+UCLASS(config=GuidedTutorials)
 class UEditorTutorialSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
