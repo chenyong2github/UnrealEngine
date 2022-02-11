@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_ENGINE
 #include "SocketSubsystemEOSUtils_OnlineServicesEOS.h"
 
 #include "Online/OnlineServicesEOS.h"
@@ -88,3 +89,5 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 }
 
 /* UE::Online */}
+
+#endif // WITH_ENGINE

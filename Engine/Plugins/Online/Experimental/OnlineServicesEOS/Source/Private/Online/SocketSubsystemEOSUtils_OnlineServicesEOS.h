@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_ENGINE
+
 #include "SocketSubsystemEOS.h"
 
 namespace UE::Online {
@@ -22,3 +24,5 @@ private:
 };
 
 /* UE::Online */}
+
+#endif // WITH_ENGINE
