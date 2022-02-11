@@ -28,7 +28,7 @@ class UWorldThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 
 private:
 	/** Allocates then adds an FSceneView to the ViewFamily. */
-	FSceneView* CreateView(UWorld* World, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
+	[[nodiscard]] FSceneView* CreateView(UWorld* World, FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
 
 private:
 	/** Offset used to orient all worlds to show a more vertical camera, if necessary. Individual thumbnail infos can provide additional offset. */

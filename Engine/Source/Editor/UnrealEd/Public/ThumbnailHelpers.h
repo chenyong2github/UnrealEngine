@@ -25,7 +25,7 @@ public:
 	void GetView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
 
 	/** Allocates then adds an FSceneView to the ViewFamily. */
-	FSceneView* CreateView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
+	[[nodiscard]] FSceneView* CreateView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const;
 
 	/* Begin FTickableEditorObject */
 	virtual void Tick(float DeltaTime) override;

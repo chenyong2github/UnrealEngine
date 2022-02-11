@@ -70,7 +70,8 @@ FThumbnailPreviewScene::FThumbnailPreviewScene()
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FThumbnailPreviewScene::GetView(FSceneViewFamily* ViewFamily, int32 X, int32 Y, uint32 SizeX, uint32 SizeY) const
 {
-	CreateView(ViewFamily, X, Y, SizeX, SizeY);
+	// CreateView allocates a FSceneView, which is only accessible as a const pointer in FSceneViewFamily afterwards so CreateView is the new way and is marked as [[nodiscard]], hence the static_cast<void>, to avoid a compiler warning :
+	static_cast<void>(CreateView(ViewFamily, X, Y, SizeX, SizeY)); 
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
