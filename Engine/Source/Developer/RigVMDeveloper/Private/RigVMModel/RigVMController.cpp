@@ -13,6 +13,7 @@
 #include "RigVMDeveloperModule.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Algo/Sort.h"
 #include "RigVMPythonUtils.h"

@@ -28,6 +28,7 @@ Level.cpp: Level-related functions
 #include "Engine/Brush.h"
 #include "Engine/Engine.h"
 #include "Containers/TransArray.h"
+#include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
