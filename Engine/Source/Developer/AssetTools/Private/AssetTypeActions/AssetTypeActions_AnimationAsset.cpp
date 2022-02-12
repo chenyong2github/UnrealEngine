@@ -90,6 +90,30 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 	// For each one..
 	for (UAnimationAsset* AnimAsset : AnimAssets)
 	{
+		USkeleton* AnimSkeleton = AnimAsset->GetSkeleton();
+		if (!AnimSkeleton)
+		{
+			FText ShouldRetargetMessage = LOCTEXT("ShouldRetargetAnimAsset_Message", "Could not find the skeleton for Anim '{AnimName}' Would you like to choose a new one?");
+
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("AnimName"), FText::FromString(AnimAsset->GetName()));
+
+			if (FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(ShouldRetargetMessage, Arguments)) == EAppReturnType::Yes)
+			{
+				TArray<TObjectPtr<UObject>> AssetsToRetarget;
+				AssetsToRetarget.Add(AnimAsset);
+				const bool bSkeletonReplaced = ReplaceMissingSkeleton(AssetsToRetarget);
+				if (!bSkeletonReplaced)
+				{
+					return; // Persona will crash if trying to load asset without a skeleton
+				}
+			}
+			else
+			{
+				return;
+			}
+		}
+		
 		// First see if we already have it open
 		const bool bBringToFrontIfOpen = true;
 #if WITH_EDITOR
@@ -157,7 +181,6 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 	}
 }
 
-
 void FAssetTypeActions_AnimationAsset::ExecuteOpenInNewWindow(TArray<TWeakObjectPtr<UAnimationAsset>> Objects)
 {
 	TArray<UObject*> ObjectsToSync;
@@ -192,6 +215,16 @@ void FAssetTypeActions_AnimationAsset::ExecuteFindSkeleton(TArray<TWeakObjectPtr
 	{
 		FAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
 	}
+}
+
+bool FAssetTypeActions_AnimationAsset::ReplaceMissingSkeleton(TArray<TObjectPtr<UObject>> InAnimationAssets) const
+{
+	// record anim assets that need skeleton replaced
+	const TArray<TWeakObjectPtr<UObject>> AnimsToFix = GetTypedWeakObjectPtrs<UObject>(InAnimationAssets);
+	// get a skeleton from the user and replace it
+	const TSharedPtr<SReplaceMissingSkeletonDialog> PickSkeletonWindow = SNew(SReplaceMissingSkeletonDialog).AnimAssets(AnimsToFix);
+	const bool bWasSkeletonReplaced = PickSkeletonWindow.Get()->ShowModal();
+	return bWasSkeletonReplaced;
 }
 
 #undef LOCTEXT_NAMESPACE

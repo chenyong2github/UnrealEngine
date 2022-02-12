@@ -767,7 +767,113 @@ FDisplayedAssetEntryInfo::FDisplayedAssetEntryInfo(UObject* InAsset, USkeleton* 
 	, AnimAsset(InAsset)
 	, RemapAsset(nullptr)
 {
+}
 
+void SReplaceMissingSkeletonDialog::Construct(const FArguments& InArgs)
+{
+	AssetsToReplaceSkeletonOn = InArgs._AnimAssets;
+	
+	// Load the content browser module to display an asset picker
+	const FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+
+	FAssetPickerConfig AssetPickerConfig;
+
+	/** The asset picker will only show skeleton assets */
+	AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
+	AssetPickerConfig.Filter.bRecursiveClasses = true;
+
+	/** The delegate that fires when an asset was selected */
+	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, & SReplaceMissingSkeletonDialog::OnSkeletonSelected);
+
+	/** The default view mode should be a list view */
+	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+
+	SWindow::Construct(SWindow::FArguments()
+		.Title(LOCTEXT("ReplaceSkeletonOptions", "Pick Replacement Skeleton"))
+		.ClientSize(FVector2D(500, 600))
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		.ClientSize(FVector2D(450, 450))
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot() // Add user input block
+			[
+				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(5)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				+SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("OK", "OK"))
+					.OnClicked(this, &SReplaceMissingSkeletonDialog::OnButtonClick, EAppReturnType::Ok)
+				]
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("Cancel", "Cancel"))
+					.OnClicked(this, &SReplaceMissingSkeletonDialog::OnButtonClick, EAppReturnType::Cancel)
+				]
+			]
+		]);
+}
+
+void SReplaceMissingSkeletonDialog::OnSkeletonSelected(const FAssetData& Replacement)
+{
+	SelectedAsset = Replacement;
+}
+
+FReply SReplaceMissingSkeletonDialog::OnButtonClick(EAppReturnType::Type ButtonID)
+{
+	UserResponse = ButtonID;
+	RequestDestroyWindow();
+
+	if (ButtonID != EAppReturnType::Ok)
+	{
+		return FReply::Handled();
+	}
+
+	const TObjectPtr<UObject> Asset = SelectedAsset.GetAsset();
+	if (Asset.IsNull())
+	{
+		return FReply::Handled();
+	}
+	
+	if (const TObjectPtr<USkeleton> ReplacementSkeleton = CastChecked<USkeleton>(Asset))
+	{
+		constexpr bool bRetargetReferredAssets = true;
+		constexpr bool bConvertSpaces = false;
+		FAnimationRetargetContext RetargetContext(AssetsToReplaceSkeletonOn, bRetargetReferredAssets, bConvertSpaces);
+		// since we are replacing a missing skeleton, we don't want to duplicate the asset
+		// setting this to null prevents assets from being duplicated
+		const FNameDuplicationRule* NameRule = nullptr;
+
+		EditorAnimUtils::RetargetAnimations(nullptr, ReplacementSkeleton, RetargetContext, bRetargetReferredAssets, NameRule);
+
+		bWasSkeletonReplaced = true;
+	}
+
+	return FReply::Handled();
+}
+
+bool SReplaceMissingSkeletonDialog::ShowModal()
+{
+	bWasSkeletonReplaced = false;
+	GEditor->EditorAddModalWindow(SharedThis(this));
+	return bWasSkeletonReplaced;
 }
 
 #undef LOCTEXT_NAMESPACE 

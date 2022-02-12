@@ -184,6 +184,28 @@ void FAssetTypeActions_AnimBlueprint::OpenAssetEditor( const TArray<UObject*>& I
 		auto AnimBlueprint = Cast<UAnimBlueprint>(*ObjIt);
 		if (AnimBlueprint != NULL && AnimBlueprint->SkeletonGeneratedClass && AnimBlueprint->GeneratedClass)
 		{
+			if(AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->TargetSkeleton && !AnimBlueprint->bIsTemplate)
+			{
+				FText ShouldRetargetMessage = LOCTEXT("ShouldRetarget_Message", "Could not find the skeleton for Anim Blueprint '{BlueprintName}' Would you like to choose a new one?");
+				
+				FFormatNamedArguments Arguments;
+				Arguments.Add( TEXT("BlueprintName"), FText::FromString(AnimBlueprint->GetName()));
+
+				if (FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(ShouldRetargetMessage, Arguments)) == EAppReturnType::Yes)
+				{
+					TArray<TObjectPtr<UObject>> AssetsToRetarget;
+					AssetsToRetarget.Add(AnimBlueprint);
+					const bool bSkeletonReplaced = ReplaceMissingSkeleton(AssetsToRetarget);
+					if (!bSkeletonReplaced)
+					{
+						return; // Persona will crash if trying to load asset without a skeleton
+					}
+				}
+				else
+				{
+					return;
+				}
+			}
 			const bool bBringToFrontIfOpen = true;
 #if WITH_EDITOR
 			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, bBringToFrontIfOpen))
@@ -262,6 +284,16 @@ void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<
 		FText ShouldRetargetMessage = LOCTEXT("NoSkeletonFound", "Could not find the skeleton");
 		FMessageDialog::Open(EAppMsgType::Ok, ShouldRetargetMessage);
 	}
+}
+
+bool FAssetTypeActions_AnimBlueprint::ReplaceMissingSkeleton(TArray<UObject*> InAnimBlueprints) const
+{
+	// record anim assets that need skeleton replaced
+	const TArray<TWeakObjectPtr<UObject>> ABPsToFix = GetTypedWeakObjectPtrs<UObject>(InAnimBlueprints);
+	// get a skeleton from the user and replace it
+	const TSharedPtr<SReplaceMissingSkeletonDialog> PickSkeletonWindow = SNew(SReplaceMissingSkeletonDialog).AnimAssets(ABPsToFix);
+	const bool bWasSkeletonReplaced = PickSkeletonWindow.Get()->ShowModal();
+	return bWasSkeletonReplaced;
 }
 
 TSharedPtr<SWidget> FAssetTypeActions_AnimBlueprint::GetThumbnailOverlay(const FAssetData& AssetData) const

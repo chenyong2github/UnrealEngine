@@ -418,4 +418,30 @@ protected:
 	FText AssetPath;
 };
 
+class SReplaceMissingSkeletonDialog : public SWindow
+{
+	
+public:
+	
+	SLATE_BEGIN_ARGS(SReplaceMissingSkeletonDialog)
+	{
+	}
+
+	SLATE_ARGUMENT(TArray<TWeakObjectPtr<UObject>>, AnimAssets)
+	SLATE_END_ARGS()
+
+	void UNREALED_API Construct(const FArguments& InArgs);
+	SReplaceMissingSkeletonDialog() : UserResponse(EAppReturnType::Cancel){}
+
+	bool UNREALED_API ShowModal();
+
+protected:
+	void OnSkeletonSelected(const FAssetData& Replacement);
+	FReply OnButtonClick(EAppReturnType::Type ButtonID);
+	EAppReturnType::Type UserResponse;
+	FAssetData SelectedAsset;
+	TArray<TWeakObjectPtr<UObject>> AssetsToReplaceSkeletonOn;
+	bool bWasSkeletonReplaced;
+};
+
 #undef LOCTEXT_NAMESPACE

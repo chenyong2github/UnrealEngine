@@ -7,6 +7,8 @@
 #include "AssetTypeActions_Base.h"
 #include "Animation/AnimationAsset.h"
 #include "EditorAnimUtils.h"
+#include "SSkeletonWidget.h"
+
 
 class ASSETTOOLS_API FAssetTypeActions_AnimationAsset : public FAssetTypeActions_Base
 {
@@ -32,4 +34,7 @@ private:
 
 	/** Open animation asset, will find existing editor if desired. */
 	void OpenAnimAssetEditor(const TArray<UObject*>& InObjects, bool bForceNewEditor, TSharedPtr<IToolkitHost> EditWithinLevelEditor);
+	
+	/** Replace skeleton when USkeleton is missing. Returns true only if Skeleton was replaced. */
+	bool ReplaceMissingSkeleton(TArray<TObjectPtr<UObject>> InAnimationAssets) const;
 };

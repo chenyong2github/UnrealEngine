@@ -34,4 +34,7 @@ private:
 	
 	/** Certain options are not available for template anim BPs */
 	bool AreAnyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const;
+
+	/** When skeleton asset is missing, allow replacing skeleton asset */ 
+	bool ReplaceMissingSkeleton(TArray<UObject*> InAnimBlueprints) const;
 };
