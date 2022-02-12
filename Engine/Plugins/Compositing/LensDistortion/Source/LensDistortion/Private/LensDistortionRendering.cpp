@@ -25,6 +25,7 @@ static const uint32 kGridSubdivisionY = 16;
  * Internal intermediary structure derived from FLensDistortionCameraModel by the game thread
  * to hand to the render thread.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FCompiledCameraModel
 {
 	/** Orignal camera model that has generated this compiled model. */
@@ -370,5 +371,5 @@ void FLensDistortionCameraModel::DrawUVDisplacementToRenderTarget(
 		}
 	);
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #undef LOCTEXT_NAMESPACE

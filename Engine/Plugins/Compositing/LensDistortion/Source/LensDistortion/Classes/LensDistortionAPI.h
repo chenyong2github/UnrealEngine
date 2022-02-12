@@ -13,6 +13,7 @@
  *  |  0  F.Y C.Y |
  *  |  0   0   1  |
  */
+struct UE_DEPRECATED(5.0, "The LensDistortion plugin is deprecated. Please update your project to use the features of the CameraCalibration plugin.") FLensDistortionCameraModel;
 USTRUCT(BlueprintType)
 struct LENSDISTORTION_API FLensDistortionCameraModel
 {

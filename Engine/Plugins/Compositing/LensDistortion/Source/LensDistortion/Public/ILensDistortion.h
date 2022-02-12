@@ -10,6 +10,7 @@
 /**
  * The public interface to this module
  */
+class UE_DEPRECATED(5.0, "The LensDistortion plugin is deprecated. Please update your project to use the features of the CameraCalibration plugin.") ILensDistortion;
 class ILensDistortion : public IModuleInterface
 {
 
@@ -21,6 +22,7 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
+	UE_DEPRECATED(5.0, "The LensDistortion plugin is deprecated. Please update your project to use the features of the CameraCalibration plugin.")
 	static inline ILensDistortion& Get()
 	{
 		return FModuleManager::LoadModuleChecked< ILensDistortion >( "LensDistortion" );
@@ -31,6 +33,7 @@ public:
 	 *
 	 * @return True if the module is loaded and ready to use
 	 */
+	UE_DEPRECATED(5.0, "The LensDistortion plugin is deprecated. Please update your project to use the features of the CameraCalibration plugin.")
 	static inline bool IsAvailable()
 	{
 		return FModuleManager::Get().IsModuleLoaded( "LensDistortion" );

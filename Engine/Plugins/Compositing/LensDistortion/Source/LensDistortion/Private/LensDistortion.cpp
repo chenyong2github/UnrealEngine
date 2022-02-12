@@ -7,7 +7,7 @@
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FLensDistortion : public ILensDistortion
 {
 	/** IModuleInterface implementation */
@@ -30,3 +30,4 @@ void FLensDistortion::ShutdownModule()
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

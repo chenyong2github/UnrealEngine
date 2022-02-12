@@ -3,7 +3,7 @@
 #include "LensDistortionBlueprintLibrary.h"
 
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ULensDistortionBlueprintLibrary::ULensDistortionBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 { }
@@ -37,3 +37,4 @@ void ULensDistortionBlueprintLibrary::DrawUVDisplacementToRenderTarget(
 		UndistortOverscanFactor, OutputRenderTarget,
 		OutputMultiply, OutputAdd);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
