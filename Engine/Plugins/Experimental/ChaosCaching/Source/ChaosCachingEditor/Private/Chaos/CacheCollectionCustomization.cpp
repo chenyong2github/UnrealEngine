@@ -32,16 +32,19 @@ void FCacheCollectionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 
 	Item = Objects[0];
 
-	if(UChaosCacheCollection* Collection = GetSelectedCollection())
+	if (UChaosCacheCollection* Collection = GetSelectedCollection())
 	{
-		NameEditBoxes.SetNum(Collection->Caches.Num());
+		if (Collection->Caches.Num())
+		{
+			NameEditBoxes.SetNum(Collection->Caches.Num());
 
-		TSharedRef<IPropertyHandle> CachesProp    = DetailBuilder.GetProperty("Caches");
-		IDetailCategoryBuilder&     CacheCategory = DetailBuilder.EditCategory(CachesProp->GetDefaultCategoryName());
+			TSharedRef<IPropertyHandle> CachesProp = DetailBuilder.GetProperty("Caches");
+			IDetailCategoryBuilder& CacheCategory = DetailBuilder.EditCategory(CachesProp->GetDefaultCategoryName());
 
-		TSharedRef<FDetailArrayBuilder> CacheArrayBuilder = MakeShareable(new FDetailArrayBuilder(CachesProp, true, false, true));
-		CacheArrayBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FCacheCollectionDetails::GenerateCacheArrayElementWidget, &DetailBuilder));
-		CacheCategory.AddCustomBuilder(CacheArrayBuilder);
+			TSharedRef<FDetailArrayBuilder> CacheArrayBuilder = MakeShareable(new FDetailArrayBuilder(CachesProp, true, false, true));
+			CacheArrayBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FCacheCollectionDetails::GenerateCacheArrayElementWidget, &DetailBuilder));
+			CacheCategory.AddCustomBuilder(CacheArrayBuilder);
+		}
 	}
 }
 
@@ -158,6 +161,7 @@ void FCacheCollectionDetails::GenerateCacheArrayElementWidget(TSharedRef<IProper
 			InPropertyHandle->CreatePropertyNameWidget()
 		];
 
+
 	WidgetRow.ValueContent()
 		[
 			SNew(SHorizontalBox)
@@ -171,6 +175,7 @@ void FCacheCollectionDetails::GenerateCacheArrayElementWidget(TSharedRef<IProper
 				.OnTextChanged(this, &FCacheCollectionDetails::OnChangeCacheName, ArrayIndex)
 				.OnTextCommitted(this, &FCacheCollectionDetails::OnCommitCacheName, ArrayIndex)
 			]
+
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Fill)

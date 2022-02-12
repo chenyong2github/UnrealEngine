@@ -15,8 +15,10 @@ void UChaosCacheCollection::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutT
 	float Duration = 0.0;
 	for (int32 CacheIdx = 0; CacheIdx < NumCaches; ++CacheIdx)
 	{
-		UChaosCache* Cache = Caches[CacheIdx];
-		Duration = FMath::Max(Duration, Cache->RecordedDuration);
+		if (UChaosCache* Cache = Caches[CacheIdx])
+		{
+			Duration = FMath::Max(Duration, Cache->RecordedDuration);
+		}
 	}	
 	OutTags.Add(FAssetRegistryTag(TEXT("Recorded Duration"), FString::Printf(TEXT("%.2f"), Duration), FAssetRegistryTag::TT_Numerical));
 #endif
@@ -28,7 +30,11 @@ UChaosCache* UChaosCacheCollection::FindCache(const FName& CacheName) const
 {
 	UChaosCache* const* ExistingCache = Algo::FindByPredicate(Caches, [&CacheName](const UChaosCache* Test)
 	{
-		return Test->GetFName() == CacheName;
+		if (Test)
+		{
+			return Test->GetFName() == CacheName;
+		}
+		return false;
 	});
 
 	return ExistingCache ? *ExistingCache : nullptr;
@@ -43,7 +49,11 @@ UChaosCache* UChaosCacheCollection::FindOrAddCache(const FName& CacheName)
 	{
 		UChaosCache** ExistingCache = Algo::FindByPredicate(Caches, [&FinalName](const UChaosCache* Test)
 		{
-			return Test->GetFName() == FinalName;
+			if (Test)
+			{
+				return Test->GetFName() == FinalName;
+			}
+			return false;
 		});
 
 		ResultCache = ExistingCache ? *ExistingCache : nullptr;
@@ -70,7 +80,10 @@ void UChaosCacheCollection::FlushAllCacheWrites()
 {
 	ParallelFor(Caches.Num(), [this](int32 InIndex)
 	{
-		Caches[InIndex]->FlushPendingFrames();
+		if (Caches[InIndex])
+		{
+			Caches[InIndex]->FlushPendingFrames();
+		}
 	});
 }
 
