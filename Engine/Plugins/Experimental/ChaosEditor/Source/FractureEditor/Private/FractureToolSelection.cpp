@@ -21,6 +21,28 @@
 #define LOCTEXT_NAMESPACE "FractureSelection"
 
 
+namespace UE { namespace FractureToolSelectionInternal {
+
+bool IsGeometryCollectionSelected()
+{
+	if (USelection* SelectedActors = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			AActor* Actor = Cast<AActor>(*Iter);
+			TArray<UGeometryCollectionComponent*, TInlineAllocator<1>> GeometryComponents;
+			Actor->GetComponents<UGeometryCollectionComponent>(GeometryComponents);
+			if (GeometryComponents.Num() > 0)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+}} // namespace UE::FractureToolSelectionInternal
+
 UFractureToolSelection::UFractureToolSelection(const FObjectInitializer& ObjInit) 
 	: Super(ObjInit) 
 {
@@ -49,7 +71,7 @@ void UFractureToolSelection::RegisterUICommand( FFractureEditorCommands* Binding
 	BindingContext->SelectCustom = UICommandInfo;
 }
 
-void UFractureToolSelection::Setup()
+void UFractureToolSelection::CreateRectangleSelectionBehavior()
 {
 	// Set things up for being able to add behaviors to live preview.
 	SelectionBehaviorSet = NewObject<UInputBehaviorSet>();
@@ -74,6 +96,19 @@ void UFractureToolSelection::Setup()
 
 	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
 	Context->InputRouter->RegisterSource(SelectionBehaviorSource);
+}
+
+void UFractureToolSelection::DestroyRectangleSelectionBehavior()
+{
+	if (SelectionBehaviorSource)
+	{
+		UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
+		Context->InputRouter->DeregisterSource(SelectionBehaviorSource);
+	}
+
+	SelectionBehaviorSet = nullptr;
+	SelectionBehaviorSource = nullptr;
+	RectangleMarqueeManager = nullptr;
 }
 
 void UFractureToolSelection::OnUpdateModifierState(int ModifierID, bool bIsOn)
@@ -277,27 +312,28 @@ void URectangleMarqueeManager::DrawHUD(FCanvas* Canvas, bool bThisViewHasFocus)
 
 void UFractureToolSelection::Shutdown()
 {
-	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
-	Context->InputRouter->DeregisterSource(SelectionBehaviorSource);
-
-	SelectionBehaviorSet = nullptr;
-	SelectionBehaviorSource = nullptr;
-	RectangleMarqueeManager = nullptr;
+	DestroyRectangleSelectionBehavior();
 }
 
 void UFractureToolSelection::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	Super::DrawHUD(ViewportClient, Viewport, View, Canvas);
-
-	const FEditorViewportClient* Focused = GLevelEditorModeTools().GetFocusedViewportClient();
-	const bool bThisViewHasFocus = (ViewportClient == Focused);
 	
-	RectangleMarqueeManager->DrawHUD(Canvas, bThisViewHasFocus);
+	if (RectangleMarqueeManager)
+	{
+		const FEditorViewportClient* Focused = GLevelEditorModeTools().GetFocusedViewportClient();
+		const bool bThisViewHasFocus = (ViewportClient == Focused);
+
+		RectangleMarqueeManager->DrawHUD(Canvas, bThisViewHasFocus);
+	}
 }
 
 void UFractureToolSelection::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	RectangleMarqueeManager->Render(View, Viewport, PDI);
+	if (RectangleMarqueeManager)
+	{
+		RectangleMarqueeManager->Render(View, Viewport, PDI);
+	}
 
 	EnumerateVisualizationMapping(SelectionMappings, SelectionBounds.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
@@ -335,7 +371,22 @@ TArray<UObject*> UFractureToolSelection::GetSettingsObjects() const
 
 void UFractureToolSelection::FractureContextChanged()
 {
-	RectangleMarqueeManager->SetIsEnabled(SelectionSettings->MouseSelectionMethod == EMouseSelectionMethod::RectSelect);
+	bool bWantsRectangleSelection =
+		SelectionSettings->MouseSelectionMethod == EMouseSelectionMethod::RectSelect &&
+		UE::FractureToolSelectionInternal::IsGeometryCollectionSelected();
+	if (!RectangleMarqueeManager && bWantsRectangleSelection)
+	{
+		CreateRectangleSelectionBehavior();
+	}
+	else if (RectangleMarqueeManager && !bWantsRectangleSelection)
+	{
+		DestroyRectangleSelectionBehavior();
+	}
+
+	if (RectangleMarqueeManager)
+	{
+		RectangleMarqueeManager->SetIsEnabled(bWantsRectangleSelection);
+	}
 
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();

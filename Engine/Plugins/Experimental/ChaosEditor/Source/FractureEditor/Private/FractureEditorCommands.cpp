@@ -47,6 +47,8 @@ void FFractureEditorCommands::RegisterCommands()
 	RegisterCommandInfo(ExplodeMore);
 	UI_COMMAND(ExplodeLess, "ExplodeLess", "Explode 10% Less", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::Q) );
 	RegisterCommandInfo(ExplodeLess);
+	UI_COMMAND(CancelTool, "CancelTool", "Exit Current Tool Mode", EUserInterfaceActionType::Button, FInputChord(EKeys::Escape));
+	RegisterCommandInfo(CancelTool);
 
 	// Fracture Tools
 	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)

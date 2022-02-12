@@ -850,6 +850,11 @@ void FFractureEditorModeToolkit::BindCommands()
 		EUIActionRepeatMode::RepeatEnabled
 	);
 
+	ToolkitCommands->MapAction(
+		Commands.CancelTool,
+		FExecuteAction::CreateLambda([=]() { this->SetActiveTool(nullptr); })
+	);
+
 	// Map actions of all the Fracture Tools
 	TArray<UClass*> SourceClasses = FindFractureToolClasses();
 	for (UClass* Class : SourceClasses)

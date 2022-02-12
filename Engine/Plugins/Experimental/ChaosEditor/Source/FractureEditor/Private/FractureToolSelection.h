@@ -218,7 +218,6 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 	void UpdateSelection(FFractureToolContext& FractureContext);
 
-	virtual void Setup() override;
 	virtual void Shutdown() override;
 
 	// IClickBehaviorTarget implementation
@@ -228,6 +227,9 @@ public:
 	}
 	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
+	void CreateRectangleSelectionBehavior();
+	void DestroyRectangleSelectionBehavior();
 
 protected:
 	virtual void ClearVisualizations() override

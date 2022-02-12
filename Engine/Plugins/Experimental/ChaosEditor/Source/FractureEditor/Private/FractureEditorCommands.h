@@ -42,6 +42,9 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > ExplodeMore;
 		TSharedPtr< FUICommandInfo > ExplodeLess;
 
+		// Tool exit
+		TSharedPtr< FUICommandInfo > CancelTool;
+
 		// Cluster Commands
 		TSharedPtr< FUICommandInfo > AutoCluster;
 		TSharedPtr< FUICommandInfo > ClusterMagnet;
