@@ -86,9 +86,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 	SortKeys.AddUninitialized( NumElements );
 	SortedTo.AddUninitialized( NumElements );
 
-	const bool bSingleThreaded = NumElements < 5000;
-	const EParallelForFlags ThreadingFlags = bSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None;
-	ParallelFor( NumElements,
+	ParallelFor( TEXT("BuildLocalityLinks.PF"), NumElements,4096,
 		[&]( uint32 Index )
 		{
 			FVector3f Center = GetCenter( Index );
@@ -99,7 +97,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 			Morton |= FMath::MortonCode3( CenterLocal.Y * 1023 ) << 1;
 			Morton |= FMath::MortonCode3( CenterLocal.Z * 1023 ) << 2;
 			SortKeys[ Index ] = Morton;
-		}, ThreadingFlags);
+		});
 
 	RadixSort32( SortedTo.GetData(), Indexes.GetData(), NumElements,
 		[&]( uint32 Index )

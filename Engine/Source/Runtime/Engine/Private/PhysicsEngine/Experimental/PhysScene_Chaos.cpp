@@ -1355,7 +1355,7 @@ void FPhysScene_Chaos::ProcessDeferredCreatePhysicsState()
 	}
 
 	TArray<UBodySetup*> BodySetups = UniqueBodySetups.Array();
-	ParallelFor(BodySetups.Num(), [this, &BodySetups](int32 Index)
+	ParallelFor( TEXT("CreatePhysicsMeshes.PF"), BodySetups.Num(),1, [this, &BodySetups](int32 Index)
 	{
 		BodySetups[Index]->CreatePhysicsMeshes();
 	});

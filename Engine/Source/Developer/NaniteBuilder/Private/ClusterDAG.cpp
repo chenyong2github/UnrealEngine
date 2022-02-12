@@ -16,6 +16,8 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 
 void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds& MeshBounds )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite.BuildDAG);
+
 	uint32 LevelOffset	= ClusterRangeStart;
 	
 	TAtomic< uint32 > NumClusters( Clusters.Num() );
@@ -26,8 +28,6 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 	{
 		TArrayView< FCluster > LevelClusters( &Clusters[LevelOffset], bFirstLevel ? ClusterRangeNum : (Clusters.Num() - LevelOffset) );
 		bFirstLevel = false;
-
-		bool bSingleThreaded = LevelClusters.Num() <= 32;
 
 		uint32 NumExternalEdges = 0;
 
@@ -88,7 +88,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		ExternalEdgeHash.Clear( 1 << FMath::FloorLog2( NumExternalEdges ), NumExternalEdges );
 
 		// Add edges to hash table
-		ParallelFor( LevelClusters.Num(),
+		ParallelFor( TEXT("Nanite.BuildDAG.PF"), LevelClusters.Num(), 32,
 			[&]( uint32 ClusterIndex )
 			{
 				FCluster& Cluster = LevelClusters[ ClusterIndex ];
@@ -112,15 +112,14 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 						ExternalEdgeHash.Add_Concurrent( Hash, ExternalEdgeIndex );
 					}
 				}
-			},
-			bSingleThreaded );
+			});
 
 		check( ExternalEdgeOffset == ExternalEdges.Num() );
 
 		TAtomic< uint32 > NumAdjacency(0);
 
 		// Find matching edge in other clusters
-		ParallelFor( LevelClusters.Num(),
+		ParallelFor( TEXT("Nanite.BuildDAG.PF"), LevelClusters.Num(), 32,
 			[&]( uint32 ClusterIndex )
 			{
 				FCluster& Cluster = LevelClusters[ ClusterIndex ];
@@ -174,8 +173,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 					{
 						return LevelClusters[A].GUID < LevelClusters[B].GUID;
 					} );
-			},
-			bSingleThreaded );
+			});
 
 		FDisjointSet DisjointSet( LevelClusters.Num() );
 
@@ -244,6 +242,8 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		LOG_CRC( Graph->Adjacency );
 		LOG_CRC( Graph->AdjacencyCost );
 		LOG_CRC( Graph->AdjacencyOffset );
+		
+		bool bSingleThreaded = LevelClusters.Num() <= 32;
 
 		Partitioner.PartitionStrict( Graph, MinGroupSize, MaxGroupSize, !bSingleThreaded );
 
@@ -267,7 +267,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		Clusters.AddDefaulted( MaxParents );
 		Groups.AddDefaulted( Partitioner.Ranges.Num() );
 
-		ParallelFor( Partitioner.Ranges.Num(),
+		ParallelFor( TEXT("Nanite.BuildDAG.PF"), Partitioner.Ranges.Num(), 1,
 			[&]( int32 PartitionIndex )
 			{
 				auto& Range = Partitioner.Ranges[ PartitionIndex ];

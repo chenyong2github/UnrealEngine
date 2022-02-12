@@ -258,6 +258,8 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	bool bGenerateAsIfTwoSided,
 	FDistanceFieldVolumeData& OutData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSignedDistanceFieldVolumeData);
+
 	if (DistanceFieldResolutionScale > 0)
 	{
 		const double StartTime = FPlatformTime::Seconds();
@@ -409,7 +411,9 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			{
 				EParallelForFlags Flags = EParallelForFlags::BackgroundPriority | EParallelForFlags::Unbalanced;
 
-				ParallelForTemplate(AsyncTasks.Num(), [&AsyncTasks](int32 TaskIndex)
+				ParallelForTemplate(
+					TEXT("GenerateSignedDistanceFieldVolumeData.PF"),
+					AsyncTasks.Num(),1, [&AsyncTasks](int32 TaskIndex)
 				{
 					AsyncTasks[TaskIndex].DoWork();
 				}, Flags);

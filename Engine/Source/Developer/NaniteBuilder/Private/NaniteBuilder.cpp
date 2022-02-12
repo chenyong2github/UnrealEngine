@@ -296,14 +296,14 @@ static void ClusterTriangles(
 	uint32 NumTexCoords,
 	bool bHasColors )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::ClusterTriangles);
+
 	uint32 Time0 = FPlatformTime::Cycles();
 
 	LOG_CRC( Verts );
 	LOG_CRC( Indexes );
 
 	uint32 NumTriangles = Indexes.Num() / 3;
-
-	const bool bSingleThreaded = NumTriangles <= 5000;
 
 	FAdjacency Adjacency( Indexes.Num() );
 	FEdgeHash EdgeHash( Indexes.Num() );
@@ -313,14 +313,13 @@ static void ClusterTriangles(
 		return Verts[ Indexes[ EdgeIndex ] ].Position;
 	};
 
-	ParallelFor( Indexes.Num(),
+	ParallelFor( TEXT("Nanite.ClusterTriangles.PF"), Indexes.Num(), 4096,
 		[&]( int32 EdgeIndex )
 		{
 			EdgeHash.Add_Concurrent( EdgeIndex, GetPosition );
-		},
-		bSingleThreaded );
+		});
 
-	ParallelFor( Indexes.Num(),
+	ParallelFor( TEXT("Nanite.ClusterTriangles.PF"), Indexes.Num(), 1024,
 		[&]( int32 EdgeIndex )
 		{
 			int32 AdjIndex = -1;
@@ -336,8 +335,7 @@ static void ClusterTriangles(
 				AdjIndex = -2;
 
 			Adjacency.Direct[ EdgeIndex ] = AdjIndex;
-		},
-		bSingleThreaded );
+		});
 
 	FDisjointSet DisjointSet( NumTriangles );
 
@@ -399,6 +397,8 @@ static void ClusterTriangles(
 		}
 		Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
 
+		bool bSingleThreaded = NumTriangles < 5000;
+
 		Partitioner.PartitionStrict( Graph, FCluster::ClusterSize - 4, FCluster::ClusterSize, !bSingleThreaded );
 		check( Partitioner.Ranges.Num() );
 
@@ -415,7 +415,7 @@ static void ClusterTriangles(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildClusters);
-		ParallelFor( Partitioner.Ranges.Num(),
+		ParallelFor( TEXT("Nanite.BuildClusters.PF"), Partitioner.Ranges.Num(), 1024,
 			[&]( int32 Index )
 			{
 				auto& Range = Partitioner.Ranges[ Index ];
@@ -429,8 +429,7 @@ static void ClusterTriangles(
 
 				// Negative notes it's a leaf
 				Clusters[ BaseCluster + Index ].EdgeLength *= -1.0f;
-			},
-			bSingleThreaded );
+			});
 	}
 
 	uint32 LeavesTime = FPlatformTime::Cycles();
@@ -650,7 +649,10 @@ static bool BuildNaniteData(
 	
 		FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
 
-		ParallelFor(FMath::Square(FImposterAtlas::AtlasSize),
+		ParallelFor(
+			TEXT("Nanite.BuildData.PF"),
+			FMath::Square(FImposterAtlas::AtlasSize),
+			1,
 			[&](int32 TileIndex)
 		{
 			FIntPoint TilePos(

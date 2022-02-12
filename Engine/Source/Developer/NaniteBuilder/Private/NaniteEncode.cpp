@@ -717,7 +717,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 
 	const float RcpQuantizationScale = 1.0f / QuantizationScale;
 
-	ParallelFor(Clusters.Num(), [&](uint32 ClusterIndex)
+	ParallelFor( TEXT("NaniteEncode.PF"), Clusters.Num(),1, [&](uint32 ClusterIndex)
 	{
 		FCluster& Cluster = Clusters[ClusterIndex];
 		
@@ -1499,7 +1499,7 @@ static TArray<TMap<FVariableVertex, FVertexMapEntry>> BuildVertexMaps(const TArr
 	TArray<TMap<FVariableVertex, FVertexMapEntry>> VertexMaps;
 	VertexMaps.SetNum(Pages.Num());
 
-	ParallelFor(Pages.Num(), [&VertexMaps, &Pages, &Clusters, &Parts](int32 PageIndex)
+	ParallelFor( TEXT("NaniteEncode.PF"),Pages.Num(),1, [&VertexMaps, &Pages, &Clusters, &Parts](int32 PageIndex)
 	{
 		const FPage& Page = Pages[PageIndex];
 		for (uint32 i = 0; i < Page.PartsNum; i++)
@@ -1635,7 +1635,7 @@ static void WritePages(	FResources& Resources,
 	TArray< TArray<uint8> > PageResults;
 	PageResults.SetNum(NumPages);
 
-	ParallelFor(NumPages, [&Resources, &Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageVertexMaps, &PageDistances, &PageResults, NumTexCoords](int32 PageIndex)
+	ParallelFor(TEXT("NaniteEncode.PF"),NumPages,1, [&Resources, &Pages, &Groups, &Parts, &Clusters, &EncodingInfos, &FixupChunks, &PageVertexMaps, &PageDistances, &PageResults, NumTexCoords](int32 PageIndex)
 	{
 		const FPage& Page = Pages[PageIndex];
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
@@ -2503,7 +2503,7 @@ static void BuildMaterialRanges( TArray<FCluster>& Clusters )
 {
 	//const uint32 NumClusters = Clusters.Num();
 	//for( uint32 ClusterIndex = 0; ClusterIndex < NumClusters; ClusterIndex++ )
-	ParallelFor( Clusters.Num(),
+	ParallelFor(TEXT("NaniteEncode.PF"), Clusters.Num(),1,
 		[&]( uint32 ClusterIndex )
 		{
 			BuildMaterialRanges( Clusters[ ClusterIndex ] );
@@ -3928,7 +3928,7 @@ static void RemoveDegenerateTriangles(FCluster& Cluster)
 
 static void RemoveDegenerateTriangles(TArray<FCluster>& Clusters)
 {
-	ParallelFor( Clusters.Num(),
+	ParallelFor(TEXT("NaniteEncode.PF"), Clusters.Num(),1,
 		[&]( uint32 ClusterIndex )
 		{
 			RemoveDegenerateTriangles( Clusters[ ClusterIndex ] );
@@ -3946,7 +3946,7 @@ static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< F
 		TotalOldVertices += Cluster.NumVerts;
 	}
 
-	ParallelFor( Clusters.Num(),
+	ParallelFor(TEXT("NaniteEncode.PF"), Clusters.Num(),1,
 		[&]( uint32 i )
 		{
 #if NANITE_USE_STRIP_INDICES
@@ -3999,7 +3999,7 @@ static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< F
 #if DO_CHECK
 static void VerifyClusterContraints( const TArray< FCluster >& Clusters )
 {
-	ParallelFor( Clusters.Num(),
+	ParallelFor(TEXT("NaniteEncode.PF"), Clusters.Num(),1,
 		[&]( uint32 i )
 		{
 			VerifyClusterConstaints( Clusters[i] );

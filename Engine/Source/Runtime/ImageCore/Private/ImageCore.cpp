@@ -128,10 +128,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::G8:
 			{
 				TArrayView64<uint8> DestLum = DestImage.AsG8();
-				ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
+				ParallelFor( TEXT("CopyImage.PF"),NumJobs,1, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					const int64 StartIndex = JobIndex * TexelsPerJob;
 					const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 					for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
@@ -145,10 +143,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::G16:
 		{
 			TArrayView64<uint16>DestLum = DestImage.AsG16();
-			ParallelFor(NumJobs, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
+			ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [NumJobs, DestLum, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 				const int64 StartIndex = JobIndex * TexelsPerJob;
 				const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 				for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
@@ -162,10 +158,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::BGRA8:
 			{
 				TArrayView64<FColor> DestColors = DestImage.AsBGRA8();
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					const int64 StartIndex = JobIndex * TexelsPerJob;
 					const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 					for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
@@ -179,10 +173,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::BGRE8:
 			{
 				TArrayView64<FColor> DestColors = DestImage.AsBGRE8();
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels, bDestIsGammaCorrected](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					const int64 StartIndex = JobIndex * TexelsPerJob;
 					const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 					for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
@@ -196,10 +188,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::RGBA16:
 			{
 				TArrayView64<uint16> DestColors = DestImage.AsRGBA16();
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 					{
 						int64 DestIndex = TexelIndex * 4;
@@ -215,10 +205,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::RGBA16F:
 			{
 				TArrayView64<FFloat16Color> DestColors = DestImage.AsRGBA16F();
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 					{
 						DestColors[TexelIndex] = FFloat16Color(SrcColors[TexelIndex]);
@@ -230,10 +218,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::R16F:
 			{
 				TArrayView64<FFloat16> DestColors = DestImage.AsR16F();
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 					{
 						DestColors[TexelIndex] = FFloat16(SrcColors[TexelIndex].R);
@@ -288,10 +274,8 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				TArrayView64<const FColor> SrcColors = SrcImage.AsBGRA8();
 				EGammaSpace SrcGamma = SrcImage.GammaSpace;
 
-				ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, SrcGamma](int64 JobIndex)
+				ParallelFor(TEXT("CopyImage.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels, SrcGamma](int64 JobIndex)
 				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CopyImage.PF);
-
 					int64 StartIndex = JobIndex * TexelsPerJob;
 					int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 
@@ -401,9 +385,8 @@ void FImage::TransformToWorkingColorSpace(const FVector2D& SourceRedChromaticity
 	int64 TexelsPerJob;
 	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
 
-	ParallelFor(NumJobs, [Transform, ImageColors, TexelsPerJob, NumTexels](int64 JobIndex)
+	ParallelFor(TEXT("TransformToWorkingColorSpace.PF"),NumJobs,1, [Transform, ImageColors, TexelsPerJob, NumTexels](int64 JobIndex)
 		{
-		TRACE_CPUPROFILER_EVENT_SCOPE(TransformToWorkingColorSpace.PF);
 
 			const int64 StartIndex = JobIndex * TexelsPerJob;
 			const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
@@ -629,10 +612,8 @@ void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
 		TArrayView64<const FColor> SrcColors = SrcImage.AsBGRA8();
 		EGammaSpace SrcGamma = SrcImage.GammaSpace;
 
-		ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, SrcGamma, DecodeFunction](int64 JobIndex)
+		ParallelFor(TEXT("Linearize.PF"),NumJobs,1, [DestColors, SrcColors, TexelsPerJob, NumTexels, SrcGamma, DecodeFunction](int64 JobIndex)
 			{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Linearize.PF);
-
 				int64 StartIndex = JobIndex * TexelsPerJob;
 				int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
 				for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)

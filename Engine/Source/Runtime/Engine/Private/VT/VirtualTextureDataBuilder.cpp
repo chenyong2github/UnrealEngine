@@ -713,8 +713,9 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		//	TextureFormats should disable their own internal use of TaskGraph for VT tiles if necessary
 		
 		const bool bIsSingleThreaded = !bAllowAsync;
+
 		int NumTiles = TileList.Num();
-		ParallelFor(NumTiles, [&](int32 TileIndex)
+		ParallelFor( TEXT("VT.BuildTiles.PF"), NumTiles,1, [&](int32 TileIndex)
 		{
 			const FVTSourceTileEntry& Tile = TileList[TileIndex];
 
@@ -785,7 +786,8 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 			{
 				GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 			}
-		}, bIsSingleThreaded);
+		}, 
+		(bIsSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None));
 
 		if (BuildSettingsLayer0.bVirtualTextureEnableCompressZlib)
 		{
