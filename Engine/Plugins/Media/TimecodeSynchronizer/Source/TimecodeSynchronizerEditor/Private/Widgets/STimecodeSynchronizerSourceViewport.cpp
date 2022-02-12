@@ -17,6 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "STimecodeSynchronizercSourceViewport"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /* STimecodeSynchronizerSourceViewport structors
 *****************************************************************************/
@@ -219,5 +220,7 @@ const FTimecodeSynchronizerActiveTimecodedInputSource* STimecodeSynchronizerSour
 
 	return Result;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

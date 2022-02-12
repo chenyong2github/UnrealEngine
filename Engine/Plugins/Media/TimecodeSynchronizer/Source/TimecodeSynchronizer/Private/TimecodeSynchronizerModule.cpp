@@ -11,6 +11,8 @@
 
 DEFINE_LOG_CATEGORY(LogTimecodeSynchronizer)
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////
 // FTimecodeSynchronizer
 class FTimecodeSynchronizer : public ITimecodeSynchronizerModule, public FSelfRegisteringExec
@@ -68,3 +70,5 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 IMPLEMENT_MODULE(FTimecodeSynchronizer, TimecodeSynchronizer);
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

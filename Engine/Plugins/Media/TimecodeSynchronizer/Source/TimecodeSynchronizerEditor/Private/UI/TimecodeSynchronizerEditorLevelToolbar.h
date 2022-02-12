@@ -15,7 +15,7 @@ class SWidget;
 
 //////////////////////////////////////////////////////////////////////////
 // FTimecodeSynchronizerEditorLevelToolbar
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FTimecodeSynchronizerEditorLevelToolbar
 {
 public:
@@ -37,4 +37,4 @@ private:
 	TSharedPtr<FExtender> LevelToolbarExtender;
 	TWeakObjectPtr<UTimecodeSynchronizer> CurrentTimecodeSynchronizer;
 };
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

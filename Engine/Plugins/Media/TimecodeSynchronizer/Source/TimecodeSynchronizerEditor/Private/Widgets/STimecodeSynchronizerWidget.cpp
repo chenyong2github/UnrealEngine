@@ -22,6 +22,8 @@ namespace TimecodeSynchronizerBarWidget
 	const int32 TextSize = 10;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 STimecodeSynchronizerBarWidget::STimecodeSynchronizerBarWidget()
 	: SWidget()
 	, CurrentFrameWidth(10)
@@ -401,3 +403,4 @@ void STimecodeSynchronizerWidget::SetFrameWidth(int32 InFrameWidth)
 {
 	BarWidget->SetFrameWidth(InFrameWidth);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

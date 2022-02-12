@@ -31,6 +31,8 @@ namespace TimecodeSynchronizerEditorToolkit
 	const FName Layout(TEXT("Standalone_TimecodeSynchronizerEditor_Layout_v1"));
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 TSharedRef<FTimecodeSynchronizerEditorToolkit> FTimecodeSynchronizerEditorToolkit::CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UTimecodeSynchronizer* InTimecodeSynchronizer)
 {
 	TSharedRef<FTimecodeSynchronizerEditorToolkit> NewEditor(new FTimecodeSynchronizerEditorToolkit());
@@ -409,5 +411,7 @@ void FTimecodeSynchronizerEditorToolkit::RemoveEditingObject(UObject* Object)
 	}
 	Super::RemoveEditingObject(Object);
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

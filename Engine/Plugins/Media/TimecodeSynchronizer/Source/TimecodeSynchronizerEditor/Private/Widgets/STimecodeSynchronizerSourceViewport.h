@@ -12,6 +12,8 @@ struct FSlateBrush;
 struct FTimecodeSynchronizerActiveTimecodedInputSource;
 class UTimecodeSynchronizer;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class STimecodeSynchronizerSourceViewport
 	: public SCompoundWidget
 {
@@ -68,3 +70,4 @@ private:
 	/** Whether or not this source is used for synchronization. */
 	bool bIsSynchronizedSource;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

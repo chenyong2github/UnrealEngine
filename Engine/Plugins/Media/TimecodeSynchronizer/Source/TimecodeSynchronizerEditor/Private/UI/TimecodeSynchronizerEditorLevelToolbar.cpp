@@ -22,6 +22,8 @@
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////
 // FTimecodeSynchronizerEditorLevelToolbar
 
@@ -198,5 +200,5 @@ void FTimecodeSynchronizerEditorLevelToolbar::NewTimecodeSynchronizerSelected(co
 	GetMutableDefault<UTimecodeSynchronizerEditorSettings>()->SaveConfig();
 	CurrentTimecodeSynchronizer = Asset;
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #undef LOCTEXT_NAMESPACE

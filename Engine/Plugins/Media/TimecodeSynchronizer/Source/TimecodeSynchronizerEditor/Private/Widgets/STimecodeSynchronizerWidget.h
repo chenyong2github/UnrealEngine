@@ -15,6 +15,7 @@
 class UTimecodeSynchronizer;
 class FSlateFontMeasure;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class STimecodeSynchronizerBarWidget : public SWidget
 {
 public:
@@ -104,4 +105,4 @@ public:
 private:
 	TSharedPtr<STimecodeSynchronizerBarWidget> BarWidget;
 };
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

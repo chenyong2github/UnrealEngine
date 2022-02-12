@@ -16,6 +16,8 @@
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizer"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace TimecodeSynchronizerPrivate
 {
 	struct FTimecodeInputSourceValidator
@@ -1052,5 +1054,5 @@ FFrameTime UTimecodeSynchronizer::CalculateSyncTime()
 		return CurrentProviderFrameTime + ActualFrameOffset;
 	}
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #undef LOCTEXT_NAMESPACE

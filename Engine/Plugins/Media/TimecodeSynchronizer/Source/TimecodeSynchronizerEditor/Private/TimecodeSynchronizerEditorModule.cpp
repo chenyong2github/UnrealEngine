@@ -13,6 +13,8 @@
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////
 // FTimecodeSynchronizerEditorModule
 class FTimecodeSynchronizerEditorModule : public ITimecodeSynchronizerEditorModule
@@ -67,5 +69,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 IMPLEMENT_MODULE(FTimecodeSynchronizerEditorModule, TimecodeSynchronizerEditor);
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

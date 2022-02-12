@@ -8,6 +8,7 @@
 
 #define TIMECODESYNCHRONIZEREDITOR_MODULE_NAME TEXT("TimecodeSynchronizerEditor")
 
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ITimecodeSynchronizerEditorModule;
 class TIMECODESYNCHRONIZEREDITOR_API ITimecodeSynchronizerEditorModule : public IModuleInterface
 {
 public:

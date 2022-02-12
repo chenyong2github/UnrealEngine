@@ -4,6 +4,7 @@
 
 #include "TimecodeSynchronizer.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UTimecodeSynchronizerFactory::UTimecodeSynchronizerFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -19,3 +20,4 @@ UObject* UTimecodeSynchronizerFactory::FactoryCreateNew(UClass* Class, UObject* 
 	UTimecodeSynchronizer* TimecodeSynchronizer = NewObject<UTimecodeSynchronizer>(InParent, Name, Flags);
 	return TimecodeSynchronizer;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

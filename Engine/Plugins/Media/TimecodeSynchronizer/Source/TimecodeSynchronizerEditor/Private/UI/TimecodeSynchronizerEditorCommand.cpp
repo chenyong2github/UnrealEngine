@@ -10,6 +10,8 @@
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////
 // FTimecodeSynchronizerEditorCommand
 
@@ -56,5 +58,7 @@ bool FTimecodeSynchronizerEditorCommand::CanOpenTimecodeSynchronizerEditor()
 {
 	return !UTimecodeSynchronizerProjectSettings::StaticClass()->GetDefaultObject<UTimecodeSynchronizerProjectSettings>()->DefaultTimecodeSynchronizer.IsNull();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

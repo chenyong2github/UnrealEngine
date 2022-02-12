@@ -14,13 +14,15 @@
 
 #include "TimecodeSynchronizer.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class UFixedFrameRateCustomTimeStep;
 
 /**
  * Defines the various modes that the synchronizer can use to try and achieve synchronization.
  */
 UENUM()
-enum class ETimecodeSynchronizationSyncMode
+enum class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ETimecodeSynchronizationSyncMode
 {
 	/**
 	 * User will specify an offset (number of frames) from the Timecode Source (see ETimecodeSycnrhonizationTimecodeType).
@@ -51,7 +53,7 @@ enum class ETimecodeSynchronizationSyncMode
  * Enumerates Timecode source type.
  */
 UENUM()
-enum class ETimecodeSynchronizationTimecodeType
+enum class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ETimecodeSynchronizationTimecodeType
 {
 	/** Use the configured Engine Default Timecode provider. */
 	DefaultProvider,
@@ -67,7 +69,7 @@ enum class ETimecodeSynchronizationTimecodeType
  * Enumerates possible framerate source
  */
 UENUM()
-enum class ETimecodeSynchronizationFrameRateSources: uint8
+enum class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ETimecodeSynchronizationFrameRateSources: uint8
 {
 	EngineCustomTimeStepFrameRate UMETA(ToolTip="Frame Rate of engine custom time step if it is of type UFixedFrameRateCustomTimeStep."),
 	CustomFrameRate UMETA(ToolTip = "Custom Frame Rate selected by the user.")
@@ -77,7 +79,7 @@ enum class ETimecodeSynchronizationFrameRateSources: uint8
 /**
  * Enumerates Synchronization related events.
  */
-enum class ETimecodeSynchronizationEvent
+enum class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ETimecodeSynchronizationEvent
 {
 	/** The synchronization procedure has started. */
 	SynchronizationStarted,
@@ -93,6 +95,7 @@ enum class ETimecodeSynchronizationEvent
 };
 
 /** Cached values to use during synchronization / while synchronized */
+struct UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") FTimecodeSynchronizerCachedSyncState;
 struct FTimecodeSynchronizerCachedSyncState
 {
 	/** If we're using rollover, the frame time that represents the rollover point (e.g., the modulus). */
@@ -109,6 +112,7 @@ struct FTimecodeSynchronizerCachedSyncState
 };
 
 /** Cached frame values for a given source. */
+struct UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") FTimecodeSourceState;
 struct FTimecodeSourceState
 {
 	/** Frame time of the newest available sample. */
@@ -124,6 +128,7 @@ struct FTimecodeSourceState
  *
  * The values are typically updated once per frame.
  */
+struct UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") FTimecodeSynchronizerActiveTimecodedInputSource;
 USTRUCT()
 struct FTimecodeSynchronizerActiveTimecodedInputSource
 {
@@ -225,6 +230,8 @@ private:
 	FTimecodeSynchronizerActiveTimecodedInputSource& operator=(FTimecodeSynchronizerActiveTimecodedInputSource&&) = delete;
 };
 
+template<> struct UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") TStructOpsTypeTraits<FTimecodeSynchronizerActiveTimecodedInputSource>;
+
 template<>
 struct TStructOpsTypeTraits<FTimecodeSynchronizerActiveTimecodedInputSource> : public TStructOpsTypeTraitsBase2<FTimecodeSynchronizerActiveTimecodedInputSource>
 {
@@ -247,6 +254,7 @@ struct TStructOpsTypeTraits<FTimecodeSynchronizerActiveTimecodedInputSource> : p
  * TimeSynchronizationSources). Instead, the synchronizer simply acts as a coordinator
  * making sure all sources are ready, determining if sync is possible, etc.
  */
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") UTimecodeSynchronizer;
 UCLASS()
 class TIMECODESYNCHRONIZER_API UTimecodeSynchronizer : public UTimecodeProvider, public FTickableGameObject
 {
@@ -578,3 +586,4 @@ private:
 	bool bAddSourcesGuard;
 	bool bShouldResetTimecodeProvider;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

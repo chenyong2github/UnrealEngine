@@ -9,10 +9,11 @@
 
 #include "TimecodeSynchronizerProjectSettings.generated.h"
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /**
  * Global settings for TimecodeSynchronizer
  */
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") UTimecodeSynchronizerProjectSettings;
 UCLASS(config=Engine)
 class TIMECODESYNCHRONIZER_API UTimecodeSynchronizerProjectSettings : public UObject
 {
@@ -49,6 +50,7 @@ public:
 /**
  * Editor settings for TimecodeSynchronizer
  */
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") UTimecodeSynchronizerEditorSettings;
 UCLASS(config= EditorPerProjectUserSettings)
 class TIMECODESYNCHRONIZER_API UTimecodeSynchronizerEditorSettings : public UObject
 {
@@ -60,3 +62,4 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="TimecodeSynchronizer")
 	TSoftObjectPtr<UTimecodeSynchronizer> UserTimecodeSynchronizer;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

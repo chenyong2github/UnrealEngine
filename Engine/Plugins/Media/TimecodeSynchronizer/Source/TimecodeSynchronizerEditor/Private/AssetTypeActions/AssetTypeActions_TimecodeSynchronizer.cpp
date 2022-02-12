@@ -6,7 +6,7 @@
 #include "TimecodeSynchronizer.h"
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FText FAssetTypeActions_TimecodeSynchronizer::GetName() const
 {
 	return LOCTEXT("AssetTypeActions_TimecodeSynchronizer", "Timecode Synchronizer");
@@ -27,5 +27,5 @@ void FAssetTypeActions_TimecodeSynchronizer::OpenAssetEditor(const TArray<UObjec
 		}
 	}
 }
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #undef LOCTEXT_NAMESPACE

@@ -11,6 +11,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTimecodeSynchronizer, Verbose, All);
 
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") ITimecodeSynchronizerModule;
 class TIMECODESYNCHRONIZER_API ITimecodeSynchronizerModule : public IModuleInterface
 {
 public:

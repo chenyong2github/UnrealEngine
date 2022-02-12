@@ -17,7 +17,7 @@ class SEditableTextBox;
 class STimecodeSynchronizerSourceViewport;
 class SVerticalBox;
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /**
  * Implements the contents of the viewer tab in the TimecodeSynchronizer editor.
  */
@@ -61,4 +61,4 @@ private:
 	/** VerticalBox holding active sources viewport */
 	TSharedPtr<SVerticalBox> ViewportVerticalBox;
 };
-	
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

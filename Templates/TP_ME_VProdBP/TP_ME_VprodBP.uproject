@@ -123,10 +123,6 @@
 			"Enabled": true
 		},
 		{
-			"Name": "TimecodeSynchronizer",
-			"Enabled": true
-		},
-		{
 			"Name": "VariantManager",
 			"Enabled": true
 		},

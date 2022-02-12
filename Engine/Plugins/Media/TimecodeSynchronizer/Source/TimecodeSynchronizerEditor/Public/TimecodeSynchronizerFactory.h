@@ -7,6 +7,7 @@
 #include "Factories/Factory.h"
 #include "TimecodeSynchronizerFactory.generated.h"
 
+class UE_DEPRECATED(5.0, "The TimecodeSynchronizer plugin is deprecated. Please update your project to use the features of the TimedDataMonitor plugin.") UTimecodeSynchronizerFactory;
 UCLASS(hidecategories = Object)
 class TIMECODESYNCHRONIZEREDITOR_API UTimecodeSynchronizerFactory : public UFactory
 {

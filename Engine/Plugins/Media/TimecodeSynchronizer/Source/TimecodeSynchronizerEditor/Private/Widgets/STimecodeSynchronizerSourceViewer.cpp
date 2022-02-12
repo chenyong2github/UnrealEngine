@@ -11,7 +11,7 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/STimecodeSynchronizerSourceViewport.h"
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /* STimecodeSynchronizerSourceViewer structors
  *****************************************************************************/
 
@@ -111,4 +111,4 @@ void STimecodeSynchronizerSourceViewer::HandleSynchronizationEvent(ETimecodeSync
 	}
 }
 
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

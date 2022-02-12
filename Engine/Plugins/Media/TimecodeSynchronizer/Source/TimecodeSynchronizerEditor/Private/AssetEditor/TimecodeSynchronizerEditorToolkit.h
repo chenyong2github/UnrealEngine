@@ -7,6 +7,8 @@
 
 #include "TimecodeSynchronizer.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /** Viewer/editor for a TimecodeSynchronizer */
 class FTimecodeSynchronizerEditorToolkit : public FAssetEditorToolkit
 {
@@ -55,3 +57,4 @@ private:
 	/** Details view */
 	TSharedPtr<class IDetailsView> DetailsView;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
