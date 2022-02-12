@@ -959,38 +959,12 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 	}
 }
 
-void WriteRasterizerArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint NumClustersSW, uint NumClustersHW)
-{
-	RasterizerArgsSWHW[0] = NumClustersSW;							// SW: ThreadGroupCountX
-	RasterizerArgsSWHW[1] = 1;										// SW: ThreadGroupCountY
-	RasterizerArgsSWHW[2] = 1;										// SW: ThreadGroupCountZ
-	RasterizerArgsSWHW[3] = 0;										// padding
-
-	if (RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER)
-	{
-		RasterizerArgsSWHW[4] = NumClustersHW;						// HW: ThreadGroupCountX
-		RasterizerArgsSWHW[5] = 1;									// HW: ThreadGroupCountY
-		RasterizerArgsSWHW[6] = 1;									// HW: ThreadGroupCountZ
-	}
-	else if (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER)
-	{
-		RasterizerArgsSWHW[4] = NumClustersHW;						// HW: VertexCountPerInstance
-		RasterizerArgsSWHW[5] = 1;									// HW: InstanceCount
-		RasterizerArgsSWHW[6] = 0;									// HW: StartVertexLocation
-	}
-	else
-	{
-		RasterizerArgsSWHW[4] = NANITE_MAX_CLUSTER_TRIANGLES * 3;	// HW: VertexCountPerInstance
-		RasterizerArgsSWHW[5] = NumClustersHW;						// HW: InstanceCount
-		RasterizerArgsSWHW[6] = 0;									// HW: StartVertexLocation
-	}
-
-	RasterizerArgsSWHW[7] = 0;										// HW: StartInstanceLocation
-}
-
 // Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.
 Buffer<uint>				InRasterizerArgsSWHW;
 RWBuffer<uint>				OutSafeRasterizerArgsSWHW;
+#if PROGRAMMABLE_RASTER
+RWStructuredBuffer<uint2>	OutClusterCountSWHW;
+#endif
 
 [numthreads(1, 1, 1)]
 void CalculateSafeRasterizerArgs()
@@ -1031,7 +1005,13 @@ void CalculateSafeRasterizerArgs()
 		NumClustersHW = min(NumClustersHW, MaxClustersHW);
 	}
 
-	WriteRasterizerArgsSWHW(OutSafeRasterizerArgsSWHW, NumClustersSW, NumClustersHW);
+	const uint ArgsOffset = 0u;
+#if PROGRAMMABLE_RASTER
+	WriteDispatchArgsSWHW(OutSafeRasterizerArgsSWHW, ArgsOffset, NumClustersSW, NumClustersHW);
+	OutClusterCountSWHW[0] = uint2(NumClustersSW, NumClustersHW);
+#else
+	WriteRasterizerArgsSWHW(OutSafeRasterizerArgsSWHW, ArgsOffset, NumClustersSW, NumClustersHW);
+#endif
 }
 
 RWByteAddressBuffer		OutMainAndPostNodesAndClusterBatches;
@@ -1083,8 +1063,9 @@ void InitArgs()
 	}
 
 	DrawnClusterCounts += uint2(InOutMainPassRasterizeArgsSWHW[0], InOutMainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	WriteRasterizerArgsSWHW(InOutMainPassRasterizeArgsSWHW, 0, 0);
-	
+
+	const uint ArgsOffset = 0u;
+	WriteRasterizerArgsSWHW(InOutMainPassRasterizeArgsSWHW, ArgsOffset, 0, 0);
 
 #if OCCLUSION_CULLING
 	OutOccludedInstancesArgs[0] = 0;
@@ -1093,7 +1074,8 @@ void InitArgs()
 	OutOccludedInstancesArgs[3] = 0;
 
 	DrawnClusterCounts += uint2(InOutPostPassRasterizeArgsSWHW[0], InOutPostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	WriteRasterizerArgsSWHW(InOutPostPassRasterizeArgsSWHW, 0, 0);
+
+	WriteRasterizerArgsSWHW(InOutPostPassRasterizeArgsSWHW, ArgsOffset, 0, 0);
 #endif
 
 #if DRAW_PASS_INDEX == 1

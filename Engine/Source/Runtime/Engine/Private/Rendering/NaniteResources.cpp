@@ -96,7 +96,7 @@ FAutoConsoleVariableRef CVarNaniteErrorOnPixelDepthOffset(
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteErrorOnMaskedBlendMode = 1;
+int32 GNaniteErrorOnMaskedBlendMode = 0;
 FAutoConsoleVariableRef CVarNaniteErrorOnMaskedBlendMode(
 	TEXT("r.Nanite.ErrorOnMaskedBlendMode"),
 	GNaniteErrorOnMaskedBlendMode,
@@ -343,8 +343,8 @@ public:
 	{
 		bool bShouldCompile = 
 			(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
-			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
-			Parameters.MaterialParameters.BlendMode == BLEND_Opaque &&
+			IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
+			IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
 			Parameters.ShaderType->GetFrequency() == SF_Pixel &&
 			RHISupportsComputeShaders(Parameters.Platform) &&
 			DoesPlatformSupportNanite(Parameters.Platform);
@@ -524,8 +524,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 		// Keep track of highest observed material index.
 		MaterialMaxIndex = FMath::Max(MaterialSection.MaterialIndex, MaterialMaxIndex);
-		
-		MaterialSection.RasterMaterial = nullptr;
+
 		MaterialSection.ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
 		// Copy over per-instance material flags for this section
@@ -541,6 +540,11 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		{
 			MaterialSection.ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+
+		//const FMaterial& RasterMaterial = RasterMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), DefaultMaterialProxy);
+		//bHasProgammableRaster = RasterMaterial.IsMasked() || RasterMaterial.MaterialUsesPixelDepthOffset() || RasterMaterial.MaterialMayModifyMeshPosition();
+		bHasProgrammableRaster = MaterialSection.ShadingMaterial->IsMasked();
+		MaterialSection.RasterMaterial = bHasProgrammableRaster ? MaterialSection.ShadingMaterial : nullptr;
 	}
 
 #if RHI_RAYTRACING
@@ -1518,6 +1522,16 @@ bool IsSupportedBlendMode(EBlendMode Mode)
 	{
 		return Mode == EBlendMode::BLEND_Opaque || Mode == EBlendMode::BLEND_Masked;
 	}
+}
+
+bool IsSupportedMaterialDomain(EMaterialDomain Domain)
+{
+	return Domain == EMaterialDomain::MD_Surface;
+}
+
+bool IsWorldPositionOffsetSupported()
+{
+	return false; // TODO: PROG_RASTER
 }
 
 void FVertexFactoryResource::InitRHI()

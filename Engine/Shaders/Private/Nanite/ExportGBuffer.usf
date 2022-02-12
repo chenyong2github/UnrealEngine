@@ -69,7 +69,7 @@ void EmitMaterialDepthPS(
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster, false );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 	}
 #endif
 
@@ -118,7 +118,7 @@ void EmitSceneDepthPS(
 
 #if MATERIAL_RESOLVE
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
 #endif
@@ -203,7 +203,7 @@ void EmitSceneDepthStencilPS
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-		const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		
 #if VELOCITY_EXPORT

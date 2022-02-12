@@ -44,7 +44,7 @@ void FNaniteDrawListContext::BeginPrimitiveSceneInfo(FPrimitiveSceneInfo& Primit
 	{
 		check(PrimitiveSceneInfo.NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
 
-		TArray<uint32>& MaterialSlots = PrimitiveSceneInfo.NaniteMaterialSlots[NaniteMeshPassIndex];
+		TArray<FNaniteMaterialSlot>& MaterialSlots = PrimitiveSceneInfo.NaniteMaterialSlots[NaniteMeshPassIndex];
 		check(MaterialSlots.Num() == 0);
 
 		MaterialSlots.SetNumUninitialized(MaterialSections.Num());
@@ -116,9 +116,10 @@ void FNaniteDrawListContext::AddCommandInfo(FPrimitiveSceneInfo& PrimitiveSceneI
 	PrimitiveSceneInfo.NaniteCommandInfos[MeshPass].Add(CommandInfo);
 
 	check(SectionIndex < uint32(PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass].Num()));
-	check(PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] == INDEX_NONE ||
-		 PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] == CommandInfo.GetMaterialSlot());
-	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] = CommandInfo.GetMaterialSlot();
+	check(PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId == 0xFFFFu ||
+		 PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId == CommandInfo.GetMaterialSlot());
+	check(uint16(CommandInfo.GetMaterialSlot()) == CommandInfo.GetMaterialSlot());
+	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex].ShadingId = uint16(CommandInfo.GetMaterialSlot());
 }
 
 void FNaniteDrawListContextImmediate::FinalizeCommand(
@@ -326,8 +327,8 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
-	check(BlendMode == BLEND_Opaque);
-	check(Material.GetMaterialDomain() == MD_Surface);
+	check(Nanite::IsSupportedBlendMode(BlendMode));
+	check(Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()));
 
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && ShadingModels != MSM_Unlit;
 

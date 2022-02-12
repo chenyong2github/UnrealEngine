@@ -96,7 +96,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+					const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 
 				// Scalarize tile classify if all lanes ballot the same material slot index
 				#if COMPILER_SUPPORTS_WAVE_VOTE

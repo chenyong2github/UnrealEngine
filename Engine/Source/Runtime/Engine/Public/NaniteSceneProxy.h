@@ -71,6 +71,8 @@ struct FMaterialAudit
 ENGINE_API void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit);
 ENGINE_API void FixupMaterials(FMaterialAudit& Audit);
 ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
+ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
+ENGINE_API bool IsWorldPositionOffsetSupported();
 
 class FSceneProxyBase : public FPrimitiveSceneProxy
 {
@@ -129,6 +131,11 @@ public:
 		return MaterialSections;
 	}
 
+	inline TArray<FMaterialSection>& GetMaterialSections()
+	{
+		return MaterialSections;
+	}
+
 	inline int32 GetMaterialMaxIndex() const
 	{
 		return MaterialMaxIndex;
@@ -150,14 +157,17 @@ public:
 	{
 		bHasPerInstanceCustomData	= false;
 		bHasPerInstanceRandom		= false;
-		bHasProgrammableRaster 		= false;
 
 		// Checks if any assigned material uses special features
 		for (const FMaterialSection& MaterialSection : MaterialSections)
 		{
 			bHasPerInstanceCustomData	|= MaterialSection.bHasPerInstanceCustomData;
 			bHasPerInstanceRandom		|= MaterialSection.bHasPerInstanceRandomID;
-			bHasProgrammableRaster		|= MaterialSection.RasterMaterial.IsValid();
+
+			if (bHasPerInstanceCustomData && bHasPerInstanceRandom)
+			{
+				break;
+			}
 		}
 	}
 

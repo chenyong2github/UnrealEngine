@@ -744,3 +744,45 @@ void PatchViewState(FNaniteView NaniteView, inout ViewState InOutView)
 	InOutView.ViewForward					= NaniteView.ViewForward;
 	InOutView.NearPlane						= NaniteView.NearPlane;
 }
+
+void WriteDispatchArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint ArgsOffset, uint NumClustersSW, uint NumClustersHW)
+{
+	RasterizerArgsSWHW[ArgsOffset + 0] = NumClustersSW;							// SW: ThreadGroupCountX
+	RasterizerArgsSWHW[ArgsOffset + 1] = 1;										// SW: ThreadGroupCountY
+	RasterizerArgsSWHW[ArgsOffset + 2] = 1;										// SW: ThreadGroupCountZ
+	RasterizerArgsSWHW[ArgsOffset + 3] = 0;										// padding
+
+	RasterizerArgsSWHW[ArgsOffset + 4] = NumClustersHW;							// HW: ThreadGroupCountX
+	RasterizerArgsSWHW[ArgsOffset + 5] = 1;										// HW: ThreadGroupCountY
+	RasterizerArgsSWHW[ArgsOffset + 6] = 1;										// HW: ThreadGroupCountZ
+	RasterizerArgsSWHW[ArgsOffset + 7] = 0;										// padding
+}
+
+void WriteRasterizerArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint ArgsOffset, uint NumClustersSW, uint NumClustersHW)
+{
+	RasterizerArgsSWHW[ArgsOffset + 0] = NumClustersSW;							// SW: ThreadGroupCountX
+	RasterizerArgsSWHW[ArgsOffset + 1] = 1;										// SW: ThreadGroupCountY
+	RasterizerArgsSWHW[ArgsOffset + 2] = 1;										// SW: ThreadGroupCountZ
+	RasterizerArgsSWHW[ArgsOffset + 3] = 0;										// padding
+
+	if (RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER)
+	{
+		RasterizerArgsSWHW[ArgsOffset + 4] = NumClustersHW;						// HW: ThreadGroupCountX
+		RasterizerArgsSWHW[ArgsOffset + 5] = 1;									// HW: ThreadGroupCountY
+		RasterizerArgsSWHW[ArgsOffset + 6] = 1;									// HW: ThreadGroupCountZ
+	}
+	else if (RenderFlags & NANITE_RENDER_FLAG_PRIMITIVE_SHADER)
+	{
+		RasterizerArgsSWHW[ArgsOffset + 4] = NumClustersHW;						// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[ArgsOffset + 5] = 1;									// HW: InstanceCount
+		RasterizerArgsSWHW[ArgsOffset + 6] = 0;									// HW: StartVertexLocation
+	}
+	else
+	{
+		RasterizerArgsSWHW[ArgsOffset + 4] = NANITE_MAX_CLUSTER_TRIANGLES * 3;	// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[ArgsOffset + 5] = NumClustersHW;						// HW: InstanceCount
+		RasterizerArgsSWHW[ArgsOffset + 6] = 0;									// HW: StartVertexLocation
+	}
+
+	RasterizerArgsSWHW[ArgsOffset + 7] = 0;										// HW: StartInstanceLocation
+}

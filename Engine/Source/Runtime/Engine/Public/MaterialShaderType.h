@@ -259,8 +259,10 @@ struct FMaterialShaders
 	template<typename ShaderType> inline bool TryGetVertexShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Vertex, OutShader); }
 	template<typename ShaderType> inline bool TryGetPixelShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Pixel, OutShader); }
 	template<typename ShaderType> inline bool TryGetGeometryShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Geometry, OutShader); }
+	template<typename ShaderType> inline bool TryGetMeshShader(TShaderRef<ShaderType>& OutShader) const { return TryGetShader(SF_Mesh, OutShader); }
 
 	template<typename ShaderType> inline bool TryGetVertexShader(TShaderRef<ShaderType>* OutShader) const { return TryGetShader(SF_Vertex, OutShader); }
 	template<typename ShaderType> inline bool TryGetPixelShader(TShaderRef<ShaderType>* OutShader) const { return TryGetShader(SF_Pixel, OutShader); }
 	template<typename ShaderType> inline bool TryGetGeometryShader(TShaderRef<ShaderType>* OutShader) const { return TryGetShader(SF_Geometry, OutShader); }
+	template<typename ShaderType> inline bool TryGetMeshShader(TShaderRef<ShaderType>* OutShader) const { return TryGetShader(SF_Mesh, OutShader); }
 };

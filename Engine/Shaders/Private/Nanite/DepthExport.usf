@@ -108,7 +108,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
-			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			const float NaniteDepth = asfloat(DepthInt);
 

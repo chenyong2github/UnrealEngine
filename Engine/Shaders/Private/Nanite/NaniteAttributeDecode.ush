@@ -200,15 +200,42 @@ uint RemapMaterialIndexToId(uint InPrimitiveIndex, uint InMaterialIndex, ByteAdd
 	return MaterialId;
 }
 
-uint GetMaterialSlot(
+uint GetMaterialShadingSlotFromIndex(
+	uint InRelativeMaterialIndex,
+	uint InPrimitiveIndex,
+	ByteAddressBuffer InMaterialSlotTable)
+{
+	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
+	return (MaterialSlot >> 16u);
+}
+
+uint GetMaterialRasterSlotFromIndex(
+	uint InRelativeMaterialIndex,
+	uint InPrimitiveIndex,
+	ByteAddressBuffer InMaterialSlotTable)
+{
+	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, InRelativeMaterialIndex, InMaterialSlotTable);
+	return (MaterialSlot & 0xFFFFu);
+}
+
+uint GetMaterialShadingSlot(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
 	ByteAddressBuffer InMaterialSlotTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialSlotTable);
-	return MaterialSlot;
+	return GetMaterialShadingSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
+}
+
+uint GetMaterialRasterSlot(
+	FCluster InCluster,
+	uint InPrimitiveIndex,
+	uint InTriIndex,
+	ByteAddressBuffer InMaterialSlotTable)
+{
+	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
+	return GetMaterialRasterSlotFromIndex(RelativeMaterialIndex, InPrimitiveIndex, InMaterialSlotTable);
 }
 
 uint GetMaterialDepthId(

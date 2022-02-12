@@ -15,6 +15,7 @@
 #include "GPUScene.h"
 #include "Rendering/NaniteResources.h"
 #include "Nanite/Nanite.h"
+#include "NaniteSceneProxy.h"
 #include "PixelShaderUtils.h"
 #include "Lumen.h"
 #include "LumenMeshCards.h"
@@ -715,9 +716,8 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 	const FMaterial& Material)
 {
 	const EBlendMode BlendMode = Material.GetBlendMode();
-
-	check(BlendMode == BLEND_Opaque);
-	check(Material.GetMaterialDomain() == MD_Surface);
+	check(Nanite::IsSupportedBlendMode(BlendMode));
+	check(Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()));
 
 	TShaderMapRef<FNaniteMultiViewMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
 

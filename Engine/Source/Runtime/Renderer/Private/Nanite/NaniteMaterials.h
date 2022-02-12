@@ -81,6 +81,23 @@ private:
 	int32 MaterialSlot = INDEX_NONE;
 };
 
+struct FNaniteMaterialSlot
+{
+	FNaniteMaterialSlot()
+	: ShadingId(0xFFFF)
+	, RasterId(0xFFFF)
+	{
+	}
+
+	inline uint32 Pack() const
+	{
+		return (ShadingId << 16u | RasterId);
+	}
+
+	uint16 ShadingId;
+	uint16 RasterId;
+};
+
 struct FNaniteMaterialPassCommand
 {
 	FNaniteMaterialPassCommand(const FMeshDrawCommand& InMeshDrawCommand)

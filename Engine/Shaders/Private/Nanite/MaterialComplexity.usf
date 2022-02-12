@@ -42,7 +42,7 @@ void CalculateMaterialComplexity(uint3 GTID : SV_GroupThreadID, uint3 GID : SV_G
 			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 			FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			PixelMaterialID = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 		}
 	//}

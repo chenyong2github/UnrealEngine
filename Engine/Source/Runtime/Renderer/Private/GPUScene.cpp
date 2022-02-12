@@ -1193,24 +1193,24 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							check(UploadInfo.PrimitiveSceneInfo != nullptr);
 							const FPrimitiveSceneInfo* PrimitiveSceneInfo = UploadInfo.PrimitiveSceneInfo;
 							const Nanite::FSceneProxyBase* NaniteSceneProxy = UploadInfo.NaniteSceneProxy;
+							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
+							const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
 
-							// Update material depth and hit proxy ID remapping tables.
+							// Update raster bin, material depth and hit proxy ID remapping tables.
 							for (int32 NaniteMeshPass = 0; NaniteMeshPass < ENaniteMeshPass::Num; ++NaniteMeshPass)
 							{
 								FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPass];
-
-								const TArray<uint32>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
-								const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
+								const TArray<FNaniteMaterialSlot>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
+								
 								if (PassMaterials.Num() == PassMaterialSlots.Num())
 								{
-									const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
 									check(TableEntryCount >= uint32(PassMaterials.Num()));
 
 									void* MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, TableEntryCount);
 									uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
 									for (int32 Entry = 0; Entry < PassMaterialSlots.Num(); ++Entry)
 									{
-										MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry];
+										MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry].Pack();
 									}
 
 								#if WITH_EDITOR

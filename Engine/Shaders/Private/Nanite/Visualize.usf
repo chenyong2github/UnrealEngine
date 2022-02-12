@@ -230,7 +230,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == VISUALIZE_MATERIAL_DEPTH)
 		{
-			//const uint MaterialSlot = GetMaterialSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			//const uint MaterialSlot = GetMaterialShadingSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			const uint MaterialSlot = ResolvedMaterialSlot;
 			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
