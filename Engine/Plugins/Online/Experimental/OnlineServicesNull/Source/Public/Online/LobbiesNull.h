@@ -8,6 +8,8 @@
 
 namespace UE::Online {
 
+class FOnlineServicesNull;
+
 class FLobbyNull
 {
 public: 
@@ -26,9 +28,7 @@ class FLobbiesNull : public FLobbiesCommon
 
 public:
 
-	FLobbiesNull(FOnlineServicesNull& InServices)
-		: FLobbiesCommon(InServices)
-		, Services(InServices) {}
+	FLobbiesNull(FOnlineServicesNull& InServices);
 
 	virtual void Initialize() override;
 	virtual void PreShutdown() override;

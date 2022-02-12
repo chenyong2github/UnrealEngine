@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/LobbiesNull.h"
+#include "Online/OnlineServicesNull.h"
 #include "Misc/Guid.h"
 #include "SocketSubsystem.h"
 #include "Online/NboSerializerNullSvc.h"
@@ -42,6 +43,12 @@ FLobbyNull::FLobbyNull()
 
 	HostAddr->GetIp(HostAddrIp);
 	HostAddr->GetPort(HostAddrPort);
+}
+
+FLobbiesNull::FLobbiesNull(FOnlineServicesNull& InServices)
+	: FLobbiesCommon(InServices)
+	, Services(InServices)
+{
 
 }
 
