@@ -165,7 +165,7 @@ struct POSESEARCH_API FPoseSearchBone
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
 */
-UCLASS(BlueprintType, Category = "Animation|Pose Search")
+UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental)
 class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
@@ -442,7 +442,7 @@ struct FPoseSearchBlockTransitionParameters
 };
 
 /** Animation metadata object for indexing a single animation. */
-UCLASS(BlueprintType, Category = "Animation|Pose Search")
+UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental)
 class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
 {
 	GENERATED_BODY()
@@ -616,9 +616,9 @@ private:
 UENUM()
 enum class EPoseSearchMirrorOption : int32
 {
-	UnmirroredOnly,
-	MirroredOnly,
-	UnmirroredAndMirrored,
+	UnmirroredOnly UMETA(DisplayName="Original Only"),
+	MirroredOnly UMETA(DisplayName="Mirrored Only"),
+	UnmirroredAndMirrored UMETA(DisplayName="Original and Mirrored"),
 	
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -685,7 +685,7 @@ public:
 };
 
 /** A data asset for indexing a collection of animation sequences. */
-UCLASS(BlueprintType, Category = "Animation|Pose Search")
+UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental)
 class POSESEARCH_API UPoseSearchDatabase : public UDataAsset
 {
 	GENERATED_BODY()

@@ -43,7 +43,7 @@ struct MOTIONTRAJECTORY_API FMotionTrajectorySettings
 };
 
 // Abstract component interface for the minimum Motion Trajectory prediction and history API
-UCLASS(ClassGroup=Movement, abstract, BlueprintType, Category="Motion Trajectory")
+UCLASS(ClassGroup=Movement, abstract, BlueprintType, Category="Motion Trajectory", Experimental)
 class MOTIONTRAJECTORY_API UMotionTrajectoryComponent : public UActorComponent
 {
 	GENERATED_BODY()

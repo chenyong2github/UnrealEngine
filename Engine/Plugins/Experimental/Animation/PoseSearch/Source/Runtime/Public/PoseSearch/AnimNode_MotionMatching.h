@@ -94,5 +94,8 @@ private:
 	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
 	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(FoldProperty, PinHiddenByDefault))
 	bool bIgnoreForRelevancyTest = false;
+
+	// Whether this node was evaluated last frame
+	bool bWasEvaluated = false;
 #endif // WITH_EDITORONLY_DATA
 };

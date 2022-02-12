@@ -9,7 +9,7 @@
 #include "AnimGraphNode_MotionMatching.generated.h"
 
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Experimental)
 class UAnimGraphNode_MotionMatching : public UAnimGraphNode_AssetPlayerBase
 {
 	GENERATED_BODY()

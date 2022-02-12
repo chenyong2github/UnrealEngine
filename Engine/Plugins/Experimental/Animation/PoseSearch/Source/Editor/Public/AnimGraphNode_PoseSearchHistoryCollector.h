@@ -9,7 +9,7 @@
 #include "AnimGraphNode_PoseSearchHistoryCollector.generated.h"
 
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Experimental)
 class UAnimGraphNode_PoseSearchHistoryCollector : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
