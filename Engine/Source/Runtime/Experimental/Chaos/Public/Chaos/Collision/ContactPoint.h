@@ -54,6 +54,10 @@ namespace Chaos
 		bool IsSet() const { return (Phi != TNumericLimits<FReal>::Max()); }
 
 		// Switch the shape indices. For use when calling a collision detection method which takes shape types in the opposite order to what you want.
+		// @todo(chaos): remove or fix this function
+		// WARNING: this function can no longer be used in isolation as it could when we were calculating world-space contact data. For this to
+		// work correctly, the normal must either already be in the space of the first shape, or will need to be transformed after.
+		// Alternatively we could start using EContactPointType to indicate normal ownership
 		FContactPoint& SwapShapes()
 		{
 			if (IsSet())

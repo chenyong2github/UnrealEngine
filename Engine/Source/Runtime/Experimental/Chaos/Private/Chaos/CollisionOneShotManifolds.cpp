@@ -24,6 +24,18 @@ namespace Chaos
 	FRealSingle Chaos_Collision_Manifold_SphereCapsuleSizeThreshold = 0.5f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_SphereCapsuleSizeThreshold(TEXT("p.Chaos.Collision.Manifold.SphereCapsuleSizeThreshold"), Chaos_Collision_Manifold_SphereCapsuleSizeThreshold, TEXT(""));
 
+	// When two capsule axes are aligned more than this, generate a multi-point manifold
+	FRealSingle Chaos_Collision_Manifold_CapsuleAxisAlignedThreshold = 0.8f;	// About 30deg
+	FAutoConsoleVariableRef CVarChaos_Manifold_CapsuleAxisAlignedThreshold(TEXT("p.Chaos.Collision.Manifold.CapsuleAxisAlignedThreshold"), Chaos_Collision_Manifold_CapsuleAxisAlignedThreshold, TEXT(""));
+
+	// When two capsules penetrate by more than this fraction of the radius, generate a multi-point manifold
+	FRealSingle Chaos_Collision_Manifold_CapsuleDeepPenetrationFraction = 0.05f;
+	FAutoConsoleVariableRef CVarChaos_Manifold_CapsuleDeepPenetrationFraction(TEXT("p.Chaos.Collision.Manifold.CapsuleDeepPenetrationFraction"), Chaos_Collision_Manifold_CapsuleDeepPenetrationFraction, TEXT(""));
+
+	// When two capsule lie on top of each other in an X, the extra manifold points are this fraction of the radius from the primary contact point
+	FRealSingle Chaos_Collision_Manifold_CapsuleRadialContactFraction = 0.25f;
+	FAutoConsoleVariableRef CVarChaos_Manifold_CapsuleRadialContactFraction(TEXT("p.Chaos.Collision.Manifold.CapsuleRadialContactFraction"), Chaos_Collision_Manifold_CapsuleRadialContactFraction, TEXT(""));
+
 	FRealSingle Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
 
