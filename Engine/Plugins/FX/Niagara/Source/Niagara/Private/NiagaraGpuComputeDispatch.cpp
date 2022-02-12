@@ -10,13 +10,13 @@
 #include "Engine/World.h"
 #include "Misc/ScopeExit.h"
 
-#include "NiagaraAsyncGpuTraceHelper.h"
 #include "NiagaraDataInterfaceRW.h"
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 #include "NiagaraGpuComputeDebug.h"
 #endif
 #include "NiagaraGPUProfilerInterface.h"
 #include "NiagaraGpuReadbackManager.h"
+#include "NiagaraRayTracingHelper.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraSystemGpuComputeProxy.h"
@@ -207,8 +207,9 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 	OwnerCBufferLayout   = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Owner CBuffer"),   sizeof(FNiagaraOwnerParameters));
 	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"), sizeof(FNiagaraEmitterParameters));
 
-
-	AsyncGpuTraceHelper.Reset(new FNiagaraAsyncGpuTraceHelper(InShaderPlatform, InFeatureLevel, this));
+#if RHI_RAYTRACING
+	RayTracingHelper.Reset(new FNiagaraRayTracingHelper(InShaderPlatform));
+#endif
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	GpuComputeDebugPtr.Reset(new FNiagaraGpuComputeDebug(FeatureLevel));
@@ -218,13 +219,18 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 #endif
 	GpuReadbackManagerPtr.Reset(new FNiagaraGpuReadbackManager());
 	EmptyUAVPoolPtr.Reset(new FNiagaraEmptyUAVPool());
+
+	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(this, &FNiagaraGpuComputeDispatch::OnPrimitiveGPUSceneInstancesAllocated);
+	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(this, &FNiagaraGpuComputeDispatch::OnPrimitiveGPUSceneInstancesFreed);
 }
 
 FNiagaraGpuComputeDispatch::~FNiagaraGpuComputeDispatch()
 {
 	FinishDispatches();
 
-	AsyncGpuTraceHelper->Reset();
+#if RHI_RAYTRACING
+	RayTracingHelper->Reset();
+#endif
 
 	GlobalCBufferLayout = nullptr;
 	SystemCBufferLayout = nullptr;
@@ -506,8 +512,10 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			//UE_LOG(LogNiagara, Log, TEXT("FNiagaraGpuComputeDispatch: Queued ticks are being Destroyed due to not rendering.  This may result in undesirable simulation artifacts."));
 
 			FinishDispatches();
-			AsyncGpuTraceHelper->Reset();
 
+#if RHI_RAYTRACING
+			RayTracingHelper->Reset();
+#endif
 			break;
 		}
 	}
@@ -1669,7 +1677,9 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 			CalculateCrossGPUTransferLocation();
 		#endif
 
-			AsyncGpuTraceHelper->BeginFrame(GraphBuilder.RHICmdList, this);
+#if RHI_RAYTRACING
+			RayTracingHelper->BeginFrame(GraphBuilder.RHICmdList, HasRayTracingScene());
+#endif
 
 			if ( FNiagaraGpuComputeDispatchLocal::GDebugLogging)
 			{
@@ -1756,7 +1766,9 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 			NiagaraSceneTextures = PassParameters;
 			ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
 
-			AsyncGpuTraceHelper->PostRenderOpaque(RHICmdList, this, Views);
+	#if RHI_RAYTRACING
+			BuildRayTracingSceneInfo(RHICmdList, Views);
+	#endif
 
 			CurrentPassViews = Views;
 
@@ -1767,7 +1779,9 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 
 			FinishDispatches();
 
-			AsyncGpuTraceHelper->EndFrame(RHICmdList, this);
+	#if RHI_RAYTRACING
+			RayTracingHelper->EndFrame(RHICmdList, HasRayTracingScene(), GetScene());
+	#endif
 
 			// Clear CurrentPassViews
 			CurrentPassViews = TConstArrayView<FViewInfo>();
@@ -2023,10 +2037,86 @@ void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHIC
 	RHICmdList.EndUAVOverlap(MakeArrayView(OverlapUAVs, NumOverlapUAVs));
 }
 
-FNiagaraAsyncGpuTraceHelper& FNiagaraGpuComputeDispatch::GetAsyncGpuTraceHelper() const
+#if RHI_RAYTRACING
+void FNiagaraGpuComputeDispatch::BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views)
 {
-	check(AsyncGpuTraceHelper.IsValid());
-	return *AsyncGpuTraceHelper.Get();
+	if (NumProxiesThatRequireRayTracingScene > 0)
+	{
+		RayTracingHelper->BuildRayTracingSceneInfo(RHICmdList, Views);
+
+		RayTracingHelper->UpdateCollisionGroupMap(RHICmdList, GetScene(), FeatureLevel);
+	}
+	else
+	{
+		RayTracingHelper->Reset();
+	}
+}
+
+void FNiagaraGpuComputeDispatch::ResetRayTracingSceneInfo()
+{
+	RayTracingHelper->Reset();
+}
+
+
+FNiagaraRayTracingHelper& FNiagaraGpuComputeDispatch::GetRayTracingHelper()const
+{
+	check(RayTracingHelper.IsValid());
+	return *RayTracingHelper.Get();
+}
+
+bool FNiagaraGpuComputeDispatch::HasRayTracingScene() const
+{
+	return NumProxiesThatRequireRayTracingScene && RayTracingHelper->IsValid();
+}
+
+void FNiagaraGpuComputeDispatch::SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* Primitive, uint32 Group)
+{
+	check(IsInGameThread());
+	if (Primitive == nullptr || Primitive->SceneProxy == nullptr)
+	{
+		return;
+	}
+
+	ENQUEUE_RENDER_COMMAND(NiagaraSetPrimHWRTCollisionGroup)(
+		[RT_NiagaraBatcher = this, Proxy = Primitive->SceneProxy, CollisionGroup=Group](FRHICommandListImmediate& RHICmdList)
+		{
+			check(Proxy);
+			RT_NiagaraBatcher->RayTracingHelper->SetPrimitiveCollisionGroup(*Proxy->GetPrimitiveSceneInfo(), CollisionGroup);
+		}
+	);
+}
+
+int32 FNiagaraGpuComputeDispatch::AcquireGPURayTracedCollisionGroup()
+{
+	check(IsInGameThread());//one of the few batcher functions that should be called from the GT
+	if (FreeGPURayTracedCollisionGroups.Num() > 0)
+	{
+		return FreeGPURayTracedCollisionGroups.Pop();
+	}
+
+	return NumGPURayTracedCollisionGroups++;
+}
+
+void FNiagaraGpuComputeDispatch::ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup)
+{
+	check(IsInGameThread());//one of the few batcher functions that should be called from the GT
+	FreeGPURayTracedCollisionGroups.Add(CollisionGroup);
+}
+
+#endif
+
+void FNiagaraGpuComputeDispatch::OnPrimitiveGPUSceneInstancesAllocated()
+{
+#if RHI_RAYTRACING
+	RayTracingHelper->RefreshPrimitiveInstanceData();
+#endif
+}
+
+void FNiagaraGpuComputeDispatch::OnPrimitiveGPUSceneInstancesFreed()
+{
+#if RHI_RAYTRACING
+	RayTracingHelper->RefreshPrimitiveInstanceData();
+#endif
 }
 
 /* Set shader parameters for data interfaces

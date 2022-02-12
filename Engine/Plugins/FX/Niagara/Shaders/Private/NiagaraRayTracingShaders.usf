@@ -5,14 +5,14 @@
 #include "/Engine/Private/ShadingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
-#include "NiagaraAsyncGpuTraceCommon.ush"
+#include "NiagaraRayTracingCommon.ush"
 #include "/Engine/Private/HashTable.ush"
 #include "/Engine/Private/RayTracing/VFXTraceRay.ush"
 
 RaytracingAccelerationStructure					TLAS;
-StructuredBuffer<FNiagaraAsyncGpuTrace>			Rays;
+StructuredBuffer<FNiagaraRayData>				Rays;
 uint											RaysOffset;
-RWStructuredBuffer<FNiagaraAsyncGpuTraceResult>	CollisionOutput;
+RWStructuredBuffer<FNiagaraRayTracingResult>	CollisionOutput;
 uint											CollisionOutputOffset;
 
 #if NIAGARA_RAYTRACE_FAKE_INDIRECT
@@ -22,7 +22,6 @@ Buffer<uint>                                  RayTraceCounts;
 Buffer<uint> HashToCollisionGroups;
 uint MaxRetraces;
 
-#if NIAGARA_SUPPORTS_COLLISION_GROUPS
 uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
@@ -51,7 +50,6 @@ bool FindCollisionGroup(int GPUSceneIndexId, out int CollisionGroup)
 
 	return false;
 }
-#endif
 
 
 RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
@@ -65,7 +63,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 #endif
 
-	FNiagaraAsyncGpuTrace InputRay = Rays[RayIndex + RaysOffset];
+	FNiagaraRayData InputRay = Rays[RayIndex + RaysOffset];
 
 	RayDesc Ray;
 	Ray.Origin = InputRay.Origin;
@@ -78,7 +76,6 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	FVFXTracePayload Payload = (FVFXTracePayload) 0;
 	uint RayCollisionGroup = InputRay.CollisionGroup;
 
-#if NIAGARA_SUPPORTS_COLLISION_GROUPS
 	if (RayCollisionGroup != -1)
 	{
 		uint NumCasts = 0;
@@ -116,7 +113,6 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 		}
 	}
 	else
-#endif
 	{
 		VfxTraceRay(
 			TLAS,   // AccelerationStructure
@@ -131,7 +127,6 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 
 	uint OutputIndex = RayIndex + CollisionOutputOffset;
-	CollisionOutput[OutputIndex] = (FNiagaraAsyncGpuTraceResult) 0;
 	CollisionOutput[OutputIndex].HitT = Payload.HitT;
 	if (Payload.IsHit())
 	{

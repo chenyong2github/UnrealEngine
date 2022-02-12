@@ -61,18 +61,6 @@ enum class ENiagaraDefaultRendererPixelCoverageMode : uint8
 	Disabled,
 };
 
-UENUM()
-namespace ENDICollisionQuery_AsyncGpuTraceProvider
-{
-	enum Type
-	{
-		Default = 0 UMETA(DisplayName = "Project Default"),
-		HWRT = 1 UMETA(DisplayName = "HW Ray Tracing"),
-		GSDF = 2 UMETA(DisplayName = "Global Signed Distance Fields"),
-		None = 3 UMETA(DisplayName = "Disabled"),
-	};
-}
-
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 {
@@ -145,13 +133,6 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = StaticMeshDI, meta = (DisplayName = "Allow Distance Fields (Experimental)", ConfigRestartRequired = true))
 	bool NDIStaticMesh_AllowDistanceFields = false;
-
-	/** 
-	Defines how traces tagged as 'Project Default' will be interpreted when using the AsyncGpuTrace data interface.
-	The system will go through (starting at element 0) to find the first provider that is available.
-	*/
-	UPROPERTY(config, EditAnywhere, Category = AsyncGpuTraceDI, meta = (DisplayName = "Trace Provider Priorities (Experimental)", ConfigRestartRequired = true))
-	TArray<TEnumAsByte<ENDICollisionQuery_AsyncGpuTraceProvider::Type>> NDICollisionQuery_AsyncGpuTraceProviderOrder;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;

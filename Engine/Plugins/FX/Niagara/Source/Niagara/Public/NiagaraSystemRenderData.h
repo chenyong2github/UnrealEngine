@@ -7,10 +7,6 @@
 #include "PrimitiveUniformShaderParameters.h"
 #include "PrimitiveViewRelevance.h"
 
-#if RHI_RAYTRACING
-#include "RayTracingInstance.h"
-#endif
-
 class FNiagaraSystemInstance;
 class FNiagaraSystemRenderData;
 class FMeshElementCollector;
