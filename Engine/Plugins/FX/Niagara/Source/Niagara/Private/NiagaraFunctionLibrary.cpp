@@ -10,6 +10,7 @@
 #include "ContentStreaming.h"
 #include "Internationalization/Internationalization.h"
 
+#include "NiagaraAsyncGpuTraceHelper.h"
 #include "NiagaraWorldManager.h"
 #include "DataInterface/NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraStats.h"
@@ -1844,12 +1845,12 @@ void UNiagaraFunctionLibrary::InitVectorVMFastPathOps()
 
 void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, UPrimitiveComponent* Primitive, int32 CollisionGroup)
 {
-#if RHI_RAYTRACING
+#if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if ( UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) )
 	{
 		if ( FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World) )
 		{
-			ComputeDispatchInterface->SetPrimitiveRayTracingCollisionGroup(Primitive, CollisionGroup);
+			ComputeDispatchInterface->GetAsyncGpuTraceHelper().SetPrimitiveRayTracingCollisionGroup_GT(Primitive, CollisionGroup);
 		}
 	}
 #endif
@@ -1857,7 +1858,7 @@ void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObj
 
 void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, AActor* Actor, int32 CollisionGroup)
 {
-#if RHI_RAYTRACING
+#if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if (Actor == nullptr)
 	{
 		return;
@@ -1867,11 +1868,13 @@ void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject*
 	{
 		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
+			FNiagaraAsyncGpuTraceHelper& Helper = ComputeDispatchInterface->GetAsyncGpuTraceHelper();
+
 			Actor->ForEachComponent<UPrimitiveComponent>(
 				/*bIncludeFromChildActors*/true,
-				[&ComputeDispatchInterface, &CollisionGroup](UPrimitiveComponent* PrimitiveComponent)
+				[&Helper, &CollisionGroup](UPrimitiveComponent* PrimitiveComponent)
 				{
-					ComputeDispatchInterface->SetPrimitiveRayTracingCollisionGroup(PrimitiveComponent, CollisionGroup);
+					Helper.SetPrimitiveRayTracingCollisionGroup_GT(PrimitiveComponent, CollisionGroup);
 				});
 			}
 	}
@@ -1880,12 +1883,12 @@ void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject*
 
 int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject)
 {
-#if RHI_RAYTRACING
+#if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
-			return ComputeDispatchInterface->AcquireGPURayTracedCollisionGroup();
+			return ComputeDispatchInterface->GetAsyncGpuTraceHelper().AcquireGPURayTracedCollisionGroup_GT();
 		}
 	}
 #endif
@@ -1894,12 +1897,12 @@ int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject*
 
 void UNiagaraFunctionLibrary::ReleaseNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, int32 CollisionGroup)
 {
-#if RHI_RAYTRACING
+#if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
-			ComputeDispatchInterface->ReleaseGPURayTracedCollisionGroup(CollisionGroup);
+			ComputeDispatchInterface->GetAsyncGpuTraceHelper().ReleaseGPURayTracedCollisionGroup_GT(CollisionGroup);
 		}
 	}
 #endif
