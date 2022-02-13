@@ -1890,7 +1890,7 @@ static void AddPass_Binning(
 {
 	const bool bProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
 
-	BinningData.BinCount = 0; // TODO: PROG_RASTER bProgrammableRaster ? uint32(Scene.NaniteRasterPipelines.PipelineBins.FindLast(true) + 1) : 0u;
+	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines.GetBinCount() : 0u;
 	if (BinningData.BinCount == 0)
 	{
 		return;
@@ -2038,6 +2038,7 @@ static void AddPass_Binning(
 
 void AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
@@ -2063,6 +2064,8 @@ void AddPass_Rasterize(
 	LLM_SCOPE_BYTAG(Nanite);
 
 	check(RasterState.CullMode == CM_CW || RasterState.CullMode == CM_CCW);		// CM_None not implemented
+
+	RasterPipelines.BeginRaster();
 
 	// Rasterizer Binning
 	FBinningData BinningData = {};
@@ -2247,8 +2250,7 @@ void AddPass_Rasterize(
 
 		TShaderRef<FMicropolyRasterizeCS> RasterComputeShader;
 
-		// TODO: PROG_RASTER
-		//FNaniteRasterPipeline* RasterPipeline = nullptr;
+		FNaniteRasterPipeline* RasterPipeline = nullptr;
 
 		const FMaterialRenderProxy* VertexMaterialProxy	= nullptr;
 		const FMaterialRenderProxy* PixelMaterialProxy	= nullptr;
@@ -2265,8 +2267,91 @@ void AddPass_Rasterize(
 	TArray<FRasterizerPass, SceneRenderingAllocator> RasterizerPasses;
 	if (bProgrammableRaster)
 	{
-		// TODO: PROG_RASTER
-		check(false);
+		const auto& Pipelines = RasterPipelines.GetRasterPipelines();
+
+		RasterizerPasses.Reserve(Pipelines.Num());
+		for (auto PipelineIt = Pipelines.CreateConstIterator(); PipelineIt; ++PipelineIt)
+		{
+			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
+			RasterizerPass.RasterPipeline = PipelineIt->Value;
+			RasterizerPass.RasterPipeline->Cache(Scene.GetFeatureLevel());
+
+			RasterizerPass.RasterizerBin = uint32(RasterizerPass.RasterPipeline->GetBinIndex());
+
+			RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
+			RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
+
+			FMaterialShaderTypes ProgrammableShaderTypes;
+			ProgrammableShaderTypes.PipelineType = nullptr;
+			{
+				const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline->GetRenderProxy()->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+
+				const bool bMayModifyMeshPosition	= false;//RasterMaterial.MaterialModifiesMeshPosition_RenderThread(); // TODO: PROG_RASTER
+				const bool bUsesPixelDepthOffset	= false;//RasterMaterial.MaterialUsesPixelDepthOffset(); // TODO: PROG_RASTER
+				const bool bUsesAlphaTest			= RasterMaterial.GetBlendMode() == EBlendMode::BLEND_Masked;
+
+				// Programmable vertex features
+				if (bMayModifyMeshPosition)
+				{
+					if (bUseMeshShader)
+					{
+						ProgrammableShaderTypes.AddShaderType<FHWRasterizeMS>(PermutationVectorMS.ToDimensionValueId());
+					}
+					else
+					{
+						ProgrammableShaderTypes.AddShaderType<FHWRasterizeVS>(PermutationVectorVS.ToDimensionValueId());
+					}
+				}
+
+				// Programmable pixel features
+				if (bUsesPixelDepthOffset || bUsesAlphaTest)
+				{
+					ProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
+				}
+			}
+
+			const FMaterialRenderProxy* ProgrammableRasterProxy = RasterizerPass.RasterPipeline->GetRenderProxy();
+			while (ProgrammableRasterProxy)
+			{
+				const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
+				if (Material)
+				{
+					FMaterialShaders ProgrammableShaders;
+					if (Material->TryGetShaders(ProgrammableShaderTypes, nullptr, ProgrammableShaders))
+					{
+						if (bUseMeshShader)
+						{
+							if (ProgrammableShaders.TryGetMeshShader(&RasterizerPass.RasterMeshShader))
+							{
+								RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+							}
+						}
+						else
+						{
+							if (ProgrammableShaders.TryGetVertexShader(&RasterizerPass.RasterVertexShader))
+							{
+								RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+							}
+						}
+
+						if (ProgrammableShaders.TryGetPixelShader(&RasterizerPass.RasterPixelShader))
+						{
+							RasterizerPass.PixelMaterialProxy = ProgrammableRasterProxy;
+						}
+
+						break;
+					}
+				}
+
+				ProgrammableRasterProxy = ProgrammableRasterProxy->GetFallback(Scene.GetFeatureLevel());
+			}
+
+			// Note: The indirect args offset is in bytes
+			RasterizerPass.IndirectOffset = (RasterizerPass.RasterizerBin * NANITE_RASTERIZER_ARG_COUNT) * 4u;
+			RasterizerPass.IndirectArgs = BinningData.IndirectArgs;
+
+			RasterizerPass.RasterPipeline = nullptr; // To disallow accessing this outside of BeginRaster/FinishRaster
+		}
 	}
 	else
 	{
@@ -2277,6 +2362,8 @@ void AddPass_Rasterize(
 		RasterizerPass.IndirectOffset		= 0u;
 		RasterizerPass.RasterizerBin		= 0u;
 	}
+
+	RasterPipelines.FinishRaster();
 
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
@@ -2600,6 +2687,7 @@ static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalSha
 // Visibility buffer rendering requires that view references are uniquely decodable.
 static void CullRasterizeMultiPass(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -2657,6 +2745,7 @@ static void CullRasterizeMultiPass(
 
 		CullRasterize(
 			GraphBuilder,
+			RasterPipelines,
 			Scene,
 			SceneView,
 			RangeViews,
@@ -2674,6 +2763,7 @@ static void CullRasterizeMultiPass(
 
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -2697,6 +2787,7 @@ void CullRasterize(
 		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
 		CullRasterizeMultiPass(
 			GraphBuilder,
+			RasterPipelines,
 			Scene,
 			SceneView,
 			Views,
@@ -2945,6 +3036,7 @@ void CullRasterize(
 
 	AddPass_Rasterize(
 		GraphBuilder,
+		RasterPipelines,
 		Views,
 		Scene,
 		SceneView,
@@ -3028,6 +3120,7 @@ void CullRasterize(
 		// Render post pass
 		AddPass_Rasterize(
 			GraphBuilder,
+			RasterPipelines,
 			Views,
 			Scene,
 			SceneView,
@@ -3069,6 +3162,7 @@ void CullRasterize(
 
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -3082,6 +3176,7 @@ void CullRasterize(
 {
 	CullRasterize(
 		GraphBuilder,
+		RasterPipelines,
 		Scene,
 		SceneView,
 		Views,

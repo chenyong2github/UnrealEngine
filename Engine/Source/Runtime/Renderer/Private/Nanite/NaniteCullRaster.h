@@ -210,6 +210,7 @@ struct FRasterState
 
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
@@ -228,6 +229,7 @@ void CullRasterize(
  */
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
+	FNaniteRasterPipelines& RasterPipelines,
 	const FScene& Scene,
 	const FViewInfo& SceneView,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,

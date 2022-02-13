@@ -621,7 +621,25 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 
 		// Raster material mapping
 		{
-			// TODO: PROG_RASTER
+			Nanite::FSceneProxyBase* NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(Proxy);
+			TArray<Nanite::FSceneProxyBase::FMaterialSection>& NaniteMaterialSections = NaniteProxy->GetMaterialSections();
+
+			for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < NaniteMaterialSections.Num(); ++MaterialSectionIndex)
+			{
+				Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
+
+				const bool bValidMaterial = MaterialSection.RasterMaterial.IsValid() && !MaterialSection.RasterMaterial.IsStale();
+				const UMaterialInterface* RasterMaterial = bValidMaterial ? MaterialSection.RasterMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
+				check(RasterMaterial);
+
+				FNaniteRasterPipeline* RasterPipeline = Scene->NaniteRasterPipelines.Register(RasterMaterial);
+				check(RasterPipeline);
+
+				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+				{
+					PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPassIndex][MaterialSectionIndex].RasterId = uint16(RasterPipeline->GetBinIndex());
+				}
+			}
 		}
 	}
 }
@@ -637,9 +655,17 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RemoveCachedNaniteDrawCommands);
 
+	// Release raster materials
 	{
-		// Release raster materials
-		// TODO: PROG_RASTER
+		Nanite::FSceneProxyBase* NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(Proxy);
+		TArray<Nanite::FSceneProxyBase::FMaterialSection>& NaniteMaterialSections = NaniteProxy->GetMaterialSections();
+		for (Nanite::FSceneProxyBase::FMaterialSection& MaterialSection : NaniteMaterialSections)
+		{
+			const bool bValidMaterial = MaterialSection.RasterMaterial.IsValid() && !MaterialSection.RasterMaterial.IsStale();
+			const UMaterialInterface* RasterMaterial = bValidMaterial ? MaterialSection.RasterMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
+			check(RasterMaterial);
+			Scene->NaniteRasterPipelines.Unregister(RasterMaterial);
+		}
 	}
 
 	for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)

@@ -2606,6 +2606,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 							Nanite::FRasterState RasterState;
 							Nanite::CullRasterize(
 								GraphBuilder,
+								Scene->NaniteRasterPipelines,
 								*Scene,
 								*SharedView,
 								NaniteViews,
@@ -2638,6 +2639,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 							Nanite::CullRasterize(
 								GraphBuilder,
+								Scene->NaniteRasterPipelines,
 								*Scene,
 								*SharedView,
 								{ PackedView },
@@ -2672,6 +2674,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 						Nanite::CullRasterize(
 							GraphBuilder,
+							Scene->NaniteRasterPipelines,
 							*Scene,
 							*SharedView,
 							{ PackedView },

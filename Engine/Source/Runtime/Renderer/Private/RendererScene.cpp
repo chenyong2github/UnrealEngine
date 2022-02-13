@@ -1146,6 +1146,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 :	FSceneInterface(InFeatureLevel)
 ,	World(InWorld)
 ,	FXSystem(nullptr)
+,	NaniteRasterPipelines(InFeatureLevel)
 ,	bScenesPrimitivesNeedStaticMeshElementUpdate(false)
 ,	bPathTracingNeedsInvalidation(true)
 #if RHI_RAYTRACING

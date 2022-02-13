@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
-#include "NaniteDataDecode.ush"
+#include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 #include "../VirtualShadowMaps/StaticCaching.ush"
 #include "WritePixel.ush"
@@ -18,6 +18,19 @@
 #define SUBPIXEL_SAMPLES			(1 << SUBPIXEL_BITS)
 #define SUBPIXEL_MASK				(SUBPIXEL_SAMPLES - 1)
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
+
+#if HAS_RASTER_BIN
+uint ActiveRasterizerBin;
+StructuredBuffer<uint2> RasterizerBinData;
+
+// .x = count of SW clusters in bin
+// .y = count of HW clusters in bin
+// .z = offset of contiguous cluster range in global buffer
+// .w
+StructuredBuffer<uint4> RasterizerBinHeaders;
+
+ByteAddressBuffer MaterialSlotTable;
+#endif
 
 #if VISUALIZE
 uint VisualizeModeBitMask;
@@ -570,6 +583,11 @@ void MicropolyRasterize(
 	uint	VisibleIndex	: SV_GroupID,
 	uint	GroupIndex		: SV_GroupIndex) 
 {
+#if HAS_RASTER_BIN
+	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
+	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+#endif
+
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].x;
 #endif
@@ -648,6 +666,15 @@ void MicropolyRasterize(
 	for( uint i = 0; i < 2; i++ )
 	{
 		uint TriIndex = GroupIndex + i * 64;
+	#if HAS_RASTER_BIN
+		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		BRANCH
+		if (RasterizerBin != ActiveRasterizerBin)
+		{
+			continue;
+		}
+	#endif
+
 		uint3 VertIndexes = 0;
 		if( TriIndex < Cluster.NumTris )
 		{
@@ -853,6 +880,12 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	GroupMemoryBarrierWithGroupSync();
 
 	uint VisibleIndex = GroupClusterIndex;
+#if HAS_RASTER_BIN
+	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
+	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
+	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top
+	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+#endif
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].y;
 #endif
@@ -886,15 +919,27 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	PrimOutput.VertCount = Cluster.NumVerts;
 	PrimOutput.PrimCount = Cluster.NumTris;
 
-	bool bCullTriangle = false;
-
 	if (GroupThreadID < Cluster.NumTris)
 	{
 		uint TriangleID = GroupThreadID;
-		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
-		if (ReverseWindingOrder(InstanceData))
+
+		bool bValidTriangle = true;
+		uint3 TriangleIndices = uint3(0u, 0u, 0u); // TODO: PROG_RASTER: Not safe to skip triangles here
+	#if HAS_RASTER_BIN
+		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriangleID, MaterialSlotTable);
+		BRANCH
+		if (RasterizerBin != ActiveRasterizerBin)
 		{
-			TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			bValidTriangle = false;
+		}
+		else
+	#endif
+		{
+			TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
+			if (ReverseWindingOrder(InstanceData))
+			{
+				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			}
 		}
 
 #if VERTEX_TO_TRIANGLE_MASKS
@@ -950,6 +995,12 @@ void HWRasterizeMS(
 )
 {
 	uint VisibleIndex = GroupID;
+#if HAS_RASTER_BIN
+	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
+	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
+	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top
+	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+#endif
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].y;
 #endif
@@ -969,10 +1020,24 @@ void HWRasterizeMS(
 	if (GroupThreadID < Cluster.NumTris)
 	{
 		uint TriangleIndex = GroupThreadID;
-		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
-		if (ReverseWindingOrder(InstanceData))
+
+		bool bValidTriangle = true;
+		uint3 TriangleIndices = uint3(0u, 0u, 0u);
+	#if HAS_RASTER_BIN
+		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriangleIndex, MaterialSlotTable);
+		BRANCH
+		if (RasterizerBin != ActiveRasterizerBin)
 		{
-			TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			bValidTriangle = false;
+		}
+		else
+	#endif
+		{
+			TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
+			if (ReverseWindingOrder(InstanceData))
+			{
+				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			}
 		}
 
 		MESH_SHADER_WRITE_TRIANGLE(TriangleIndex, TriangleIndices);
@@ -1015,6 +1080,13 @@ VSOut HWRasterizeVS(
 	uint VisibleIndex	: SV_InstanceID
 	)
 {
+#if HAS_RASTER_BIN
+	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
+	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
+	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top (in each raster bin)
+	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+#endif
+
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].y;
 #endif
@@ -1022,7 +1094,8 @@ VSOut HWRasterizeVS(
 #if ADD_CLUSTER_OFFSET
 	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
 #endif
-	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
+
+	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex; // HW clusters are written from the top (in the visible cluster list)
 
 	uint TriIndex = VertexID / 3;
 	VertexID = VertexID - TriIndex * 3;
@@ -1041,25 +1114,54 @@ VSOut HWRasterizeVS(
 
 	if( TriIndex < Cluster.NumTris )
 	{
-		uint3 TriangleIndices = ReadTriangleIndices( Cluster, TriIndex );
-		if( ReverseWindingOrder( InstanceData ) )
+		bool bValidTriangle = true;
+		uint3 TriangleIndices = uint3(0u, 0u, 0u);
+	#if HAS_RASTER_BIN
+		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		BRANCH
+		if (RasterizerBin != ActiveRasterizerBin)
 		{
-			TriangleIndices = uint3( TriangleIndices.x, TriangleIndices.z, TriangleIndices.y );
+			bValidTriangle = false;
 		}
-
+		else
+	#endif
+		{
+			TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
+			if (ReverseWindingOrder(InstanceData))
+			{
+				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			}
+		}
+	
 		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
 
 	#if IS_NANITE_RASTER_PASS
-		FVertexFactoryInput Input = (FVertexFactoryInput)0;
-		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+		BRANCH
+		if (bValidTriangle)
+		{
+			FVertexFactoryInput Input = (FVertexFactoryInput)0;
+			FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+			float4 WorldPositionExcludingWPO = (float4)0;// VertexFactoryGetWorldPosition(Input, VFIntermediates);
+			float4 WorldPosition = WorldPositionExcludingWPO;
+			//float4 ClipSpacePosition;
 
-		 // TODO: PROG_RASTER
+			// TODO: PROG_RASTER
 
-		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
-		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
+			float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+			FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
+
+			// Isolate instructions used for world position offset
+			// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
+			// This is only necessary for shaders used in passes that have depth testing enabled.
+			{
+				//WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+			}
+
+			WorldPositionOffset = (float3)0;///*GetMaterialWorldPositionOffset(VertexParameters) +*/ float3(2000, 1000, 1000);
+		}
 	#endif
 
-		uint VertIndex = TriangleIndices[ VertexID ];
+		uint VertIndex = TriangleIndices[VertexID];
 		float4 PointClipNoScaling;
 		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, WorldPositionOffset, PointClipNoScaling);
 	#if PIXEL_VALUE
@@ -1140,7 +1242,7 @@ void HWRasterizePS(VSOut In)
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	#if IS_NANITE_RASTER_PASS
+	#if IS_NANITE_RASTER_PASS && MATERIALBLENDING_MASKED
 		const uint DepthInt = asuint(DeviceZ);
 		const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
 
@@ -1150,9 +1252,11 @@ void HWRasterizePS(VSOut In)
 		
 		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, Interpolants, In.Position /*SvPosition*/);
 		FPixelMaterialInputs PixelMaterialInputs;
-		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /* bIsFrontFace */);
+		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
 
-		 // TODO: PROG_RASTER
+		// TODO: PROG_RASTER
+
+		MaterialMask = GetMaterialMask(PixelMaterialInputs);
 	#endif
 
 		DeviceZ += MaterialDepthOffset;
