@@ -20,6 +20,9 @@ struct FNiagaraAsyncGpuTraceResult
 	float3 WorldNormal;
 
 	float _Pad0; // padding to force 16 byte alignment to meet requirements for VK
-
-	bool IsHit() { return HitT > 0; }
 };
+
+bool IsHit(FNiagaraAsyncGpuTraceResult Result)
+{
+	return Result.HitT > 0;
+}
