@@ -356,6 +356,7 @@ void UNiagaraGraph::PostLoad()
 				if (Variable == OldVarType)
 				{
 					Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetPositionDef());
+					Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 					NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
 					break;
 				}
@@ -484,6 +485,7 @@ void UNiagaraGraph::ChangeParameterType(const FNiagaraVariable& CurrentParameter
 			{
 				Pin->Modify();
 				Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(NewType);
+				Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 				NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
 				break;
 			}

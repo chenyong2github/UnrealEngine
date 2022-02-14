@@ -99,17 +99,13 @@ private:
 	bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const;
 
 	void DeleteSelectedItems() const;
-
 	bool CanDeleteSelectedItems() const;
 
 	void RequestRenameSelectedItem() const;
-
 	bool CanRequestRenameSelectedItem() const;
 
 	void CopyParameterReference() const;
-
 	bool CanCopyParameterReference() const;
-
 	FText GetCopyParameterReferenceToolTip() const;
 
 	void OnParameterNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, const FNiagaraParameterPanelItem ItemToBeRenamed) const;

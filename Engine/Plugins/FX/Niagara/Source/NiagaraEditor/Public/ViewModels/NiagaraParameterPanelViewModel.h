@@ -189,12 +189,14 @@ public:
 
 	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDelete, FText& OutCanDeleteParameterToolTip) const;
 
-	virtual bool GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip);
+	virtual void ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const;
+	virtual bool GetCanChangeParameterType(const FNiagaraParameterPanelItem ItemToChange, FText& OutTooltip) const;
+	virtual void GetChangeTypeSubMenu(FMenuBuilder& MenuBuilder, FNiagaraParameterPanelItem Item) const;
 
 	virtual void PasteParameterMetaData(const TArray<FNiagaraParameterPanelItem> SelectedItems);
+	virtual bool GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip);
 
 	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const;
-
 	virtual bool GetCanDuplicateParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDuplicate, FText& OutCanDuplicateParameterToolTip) const;
 
 	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToRename, const FText& NewVariableNameText, bool bCheckEmptyNameText, FText& OutCanRenameParameterToolTip) const;
@@ -388,6 +390,8 @@ public:
 	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
+	
+	virtual void ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const override;
 
 	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const override;
 

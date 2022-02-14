@@ -1013,11 +1013,11 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 				}
 				else if (FNiagaraTypeDefinition::IsLossyConversion(PinToTypeDefinition(InputPin), PinToTypeDefinition(OutputPin)))
 				{
-					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s. Be aware that this can be a lossy conversion."), *(PinToTypeDefinition(InputPin).GetNameText().ToString()), *(PinToTypeDefinition(OutputPin).GetNameText().ToString())));
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s. Be aware that this can be a lossy conversion."), *(PinToTypeDefinition(OutputPin).GetNameText().ToString()), *(PinToTypeDefinition(InputPin).GetNameText().ToString())));
 				}
 				else
 				{
-					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s"), *(PinToTypeDefinition(InputPin).GetNameText().ToString()), *(PinToTypeDefinition(OutputPin).GetNameText().ToString())));
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s"), *(PinToTypeDefinition(OutputPin).GetNameText().ToString()), *(PinToTypeDefinition(InputPin).GetNameText().ToString())));
 				}
 			}
 		}

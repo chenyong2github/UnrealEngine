@@ -50,7 +50,6 @@ TArray<FNiagaraParameterPanelCategory> FNiagaraScriptToolkitParameterPanelViewMo
 TArray<FNiagaraParameterPanelCategory> FNiagaraScriptToolkitParameterPanelViewModel::DefaultAdvancedCategories;
 TArray<FNiagaraParameterPanelCategory> FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::DefaultCategories;
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// System Toolkit Parameter Panel Utilities								///
 ///////////////////////////////////////////////////////////////////////////////
@@ -334,18 +333,6 @@ bool INiagaraParameterPanelViewModel::GetCanDeleteParameterAndToolTip(const FNia
 	return true;
 }
 
-bool INiagaraParameterPanelViewModel::GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip)
-{
-	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
-	if (ClipboardContent == nullptr || ClipboardContent->ScriptVariables.Num() != 1)
-	{
-		OutCanPasteToolTip = LOCTEXT("CantPasteMetaDataToolTip_Invalid", "Cannot Paste: There is not any parameter metadata to paste in the clipboard.");
-		return false;
-	}
-	OutCanPasteToolTip = LOCTEXT("PasteMetaDataToolTip", "Paste the parameter metadata from the system clipboard to the selected parameters.");
-	return true;
-}
-
 void INiagaraParameterPanelViewModel::PasteParameterMetaData(const TArray<FNiagaraParameterPanelItem> SelectedItems)
 {
 	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
@@ -371,6 +358,18 @@ void INiagaraParameterPanelViewModel::PasteParameterMetaData(const TArray<FNiaga
 			TargetScriptVariable->PostEditChange();
 		}
 	}
+}
+
+bool INiagaraParameterPanelViewModel::GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip)
+{
+	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
+	if (ClipboardContent == nullptr || ClipboardContent->ScriptVariables.Num() != 1)
+	{
+		OutCanPasteToolTip = LOCTEXT("CantPasteMetaDataToolTip_Invalid", "Cannot Paste: There is not any parameter metadata to paste in the clipboard.");
+		return false;
+	}
+	OutCanPasteToolTip = LOCTEXT("PasteMetaDataToolTip", "Paste the parameter metadata from the system clipboard to the selected parameters.");
+	return true;
 }
 
 void INiagaraParameterPanelViewModel::DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const
@@ -559,6 +558,74 @@ void INiagaraParameterPanelViewModel::SetParameterNamespaceModifier(const FNiaga
 			FScopedTransaction Transaction(LOCTEXT("SetCustomNamespaceModifierTransaction", "Set custom namespace modifier"));
 			RenameParameter(ItemToModify, NewName);
 		}
+	}
+}
+
+void INiagaraParameterPanelViewModel::ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const
+{
+	ensureMsgf(false, TEXT("type change not supported for this view"));
+}
+
+bool INiagaraParameterPanelViewModel::GetCanChangeParameterType(const FNiagaraParameterPanelItem ItemToChange, FText& OutTooltip) const
+{
+	if (ItemToChange.bExternallyReferenced)
+	{
+		OutTooltip = LOCTEXT("CantChangeSelectedType_External", "This parameter is referenced in an external script and its type cannot be changed.");
+		return false;
+	}
+	
+	for(const UNiagaraGraph* Graph : GetEditableGraphsConst())
+	{
+		if(UNiagaraScriptVariable* ScriptVariable = Graph->GetScriptVariable(ItemToChange.GetVariable()))
+		{
+			if(ScriptVariable->GetIsStaticSwitch())
+			{
+				OutTooltip = LOCTEXT("CantChangeSelectedType_StaticSwitch", "This parameter is a static switch parameter and its type cannot be changed here.");
+				return false;
+			}
+
+			if(ItemToChange.GetVariable().GetType().IsStatic())
+			{
+				OutTooltip = LOCTEXT("CantChangeSelectedType_StaticParameter", "This parameter is static and its type cannot be changed.");
+				return false;
+			}
+
+			if(ScriptVariable->GetIsSubscribedToParameterDefinitions())
+			{
+				OutTooltip = LOCTEXT("CantChangeSelectedType_SubscribedParameter", "This parameter is subscribed to a parameter definition. The parameter can only be changed in the parameter definition asset.");
+				return false;
+			}
+		}
+	}	
+
+	OutTooltip = LOCTEXT("CanChangeSelectedType", "Change this parameter's type");
+	return true;
+}
+
+void INiagaraParameterPanelViewModel::GetChangeTypeSubMenu(FMenuBuilder& MenuBuilder, FNiagaraParameterPanelItem Item) const
+{
+	TArray<FNiagaraTypeDefinition> FilteredTypes;
+	for (const FNiagaraTypeDefinition& RegisteredType : FNiagaraTypeRegistry::GetRegisteredTypes())
+	{
+		// only allow basic types for now
+		if (RegisteredType.IsDataInterface() || RegisteredType.IsEnum() || RegisteredType.IsUObject() ||RegisteredType.GetNameText().ToString().Contains("event"))
+		{
+			continue;
+		}
+		FilteredTypes.Add(RegisteredType);
+	}
+	FilteredTypes.Sort([](const FNiagaraTypeDefinition& Lhs, const FNiagaraTypeDefinition& Rhs)
+	{
+		return Lhs.GetNameText().CompareTo(Rhs.GetNameText()) < 0;
+	});
+	
+	for (const FNiagaraTypeDefinition& Type : FilteredTypes)
+	{
+		MenuBuilder.AddMenuEntry(
+			Type.GetNameText(),
+			LOCTEXT("ChangeTypeActionTooltip", "Change the type of this variable. Replaced all pins in the graph and metadata with the selected type."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &INiagaraParameterPanelViewModel::ChangeParameterType, Item, Type))); 
 	}
 }
 
@@ -2191,6 +2258,23 @@ void FNiagaraScriptToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	RenameParameter(ItemToRename.ScriptVariable, NewName);
 }
 
+void FNiagaraScriptToolkitParameterPanelViewModel::ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const
+{
+	FScopedTransaction Transaction(LOCTEXT("ChangeParameterTypeTransaction", "Change parameter type"));
+	
+	FNiagaraVariable CurrentVar = ItemToModify.GetVariable();
+	
+	ScriptViewModel->GetStandaloneScript().Script->Modify();
+	for (UNiagaraGraph* Graph : GetEditableGraphs())
+	{
+		Graph->Modify();
+		Graph->ChangeParameterType(CurrentVar, NewType);
+	}
+
+	Refresh();
+	SelectParameterItemByName(CurrentVar.GetName(), false);
+}
+
 void FNiagaraScriptToolkitParameterPanelViewModel::RenameParameter(const UNiagaraScriptVariable* ScriptVarToRename, const FName NewName) const
 {
 	FScopedTransaction RenameTransaction(LOCTEXT("RenameParameterTransaction", "Rename parameter"));
@@ -2362,6 +2446,20 @@ TSharedPtr<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::CreateContextM
 
 
 				MenuBuilder.AddMenuSeparator();
+				
+				FText CanChangeTooltip;
+				bool bCanChangeType = GetCanChangeParameterType(SelectedItem, CanChangeTooltip);
+				FUIAction CanChangeTypeAction;
+				CanChangeTypeAction.CanExecuteAction = FCanExecuteAction::CreateLambda([bCanChangeType]()
+				{
+					return bCanChangeType;
+				});
+				
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("ChangeType", "Change Type"),
+					CanChangeTooltip,
+					FNewMenuDelegate::CreateSP(this, &FNiagaraScriptToolkitParameterPanelViewModel::GetChangeTypeSubMenu, SelectedItem),
+					CanChangeTypeAction, NAME_None, EUserInterfaceActionType::Button);
 
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("ChangeNamespace", "Change Namespace"),
