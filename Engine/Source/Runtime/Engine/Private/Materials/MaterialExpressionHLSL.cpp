@@ -4,6 +4,7 @@
 #if WITH_EDITOR
 
 #include "MaterialHLSLGenerator.h"
+#include "Misc/MemStackUtility.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 
@@ -56,6 +57,7 @@
 #include "Materials/MaterialExpressionReflectionVectorWS.h"
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
@@ -837,6 +839,109 @@ bool UMaterialExpressionTransformPosition::GenerateHLSLExpression(FMaterialHLSLG
 	}
 
 	OutExpression = TransformBase(Generator.GetTree(), kTable[TransformSourceType], kTable[TransformType], ExpressionInput, true);
+	return true;
+}
+
+static UE::Shader::FType GetCustomOutputType(const FMaterialHLSLGenerator& Generator, ECustomMaterialOutputType Type)
+{
+	using namespace UE::Shader;
+	switch (Type)
+	{
+	case CMOT_Float1: return EValueType::Float1;
+	case CMOT_Float2: return EValueType::Float2;
+	case CMOT_Float3: return EValueType::Float3;
+	case CMOT_Float4: return EValueType::Float4;
+	case CMOT_MaterialAttributes: return Generator.GetMaterialAttributesType();
+	default: checkNoEntry(); return EValueType::Void;
+	}
+}
+
+bool UMaterialExpressionCustom::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	if (OutputIndex < 0 || OutputIndex > AdditionalOutputs.Num())
+	{
+		return Generator.GetErrors().AddErrorf(TEXT("Invalid output index %d"), OutputIndex);
+	}
+
+	FMemStackBase& Allocator = Generator.GetTree().GetAllocator();
+
+	TArray<FCustomHLSLInput, TInlineAllocator<8>> LocalInputs;
+	LocalInputs.Reserve(Inputs.Num());
+	for (int32 Index = 0; Index < Inputs.Num(); ++Index)
+	{
+		const FCustomInput& Input = Inputs[Index];
+		if (!Input.InputName.IsNone())
+		{
+			FExpression* Expression = Input.Input.AcquireHLSLExpression(Generator, Scope);
+			if (!Expression)
+			{
+				return false;
+			}
+			const FStringView InputName = UE::MemStack::AllocateStringView(Allocator, Input.InputName.ToString());
+			LocalInputs.Emplace(InputName, Expression);
+		}
+	}
+
+	TArray<FStructFieldInitializer, TInlineAllocator<8>> OutputFieldInitializers;
+	TArray<FString, TInlineAllocator<8>> OutputNames;
+	OutputFieldInitializers.Reserve(AdditionalOutputs.Num() + 1);
+	OutputNames.Reserve(AdditionalOutputs.Num());
+
+	const FType ReturnType = GetCustomOutputType(Generator, OutputType);
+	OutputFieldInitializers.Emplace(TEXT("Default"), ReturnType);
+	for (int32 Index = 0; Index < AdditionalOutputs.Num(); ++Index)
+	{
+		const FCustomOutput& Output = AdditionalOutputs[Index];
+		OutputNames.Add(Output.OutputName.ToString());
+		OutputFieldInitializers.Emplace(OutputNames.Last(), GetCustomOutputType(Generator, Output.OutputType));
+	}
+
+	FString OutputStructName = TEXT("FCustomOutput") + GetName();
+	FStructTypeInitializer OutputStructInitializer;
+	OutputStructInitializer.Name = OutputStructName;
+	OutputStructInitializer.Fields = OutputFieldInitializers;
+	const UE::Shader::FStructType* OutputStructType = Generator.GetTypeRegistry().NewType(OutputStructInitializer);
+
+	TStringBuilder<8 * 1024> DeclarationCode;
+	for (FCustomDefine DefineEntry : AdditionalDefines)
+	{
+		if (DefineEntry.DefineName.Len() > 0)
+		{
+			DeclarationCode.Appendf(TEXT("#ifndef %s\n#define %s %s\n#endif\n"), *DefineEntry.DefineName, *DefineEntry.DefineName, *DefineEntry.DefineValue);
+		}
+	}
+
+	for (FString IncludeFile : IncludeFilePaths)
+	{
+		if (IncludeFile.Len() > 0)
+		{
+			DeclarationCode.Appendf(TEXT("#include \"%s\"\n"), *IncludeFile);
+		}
+	}
+
+	FStringView FunctionCode;
+	if (Code.Contains(TEXT("return")))
+	{
+		// Can just reference to 'Code' field directly, the UMaterialExpressionCustom lifetime will be longer than the resulting HLSLTree
+		FunctionCode = Code;
+	}
+	else
+	{
+		TStringBuilder<8 * 1024> FormattedCode;
+		FormattedCode.Appendf(TEXT("return %s;"), *Code);
+		FunctionCode = UE::MemStack::AllocateStringView(Allocator, FormattedCode.ToView());
+	}
+
+	FExpression* ExpressionCustom = Generator.GetTree().NewExpression<FExpressionCustomHLSL>(
+		UE::MemStack::AllocateStringView(Allocator, DeclarationCode.ToView()),
+		FunctionCode,
+		LocalInputs,
+		OutputStructType);
+
+	OutExpression = Generator.GetTree().NewExpression<FExpressionGetStructField>(OutputStructType, &OutputStructType->Fields[OutputIndex], ExpressionCustom);
 	return true;
 }
 

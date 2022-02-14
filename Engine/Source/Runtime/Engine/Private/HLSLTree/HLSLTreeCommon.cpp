@@ -549,7 +549,7 @@ bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, FEmitScope& 
 		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
 	}
 
-	StructPreparedType.SetForwardValue(RequestedStructType, StructExpression);
+	//StructPreparedType.SetForwardValue(RequestedStructType, StructExpression);
 	return OutResult.SetType(Context, RequestedType, StructPreparedType.GetFieldType(Field));
 }
 
@@ -1500,6 +1500,25 @@ bool FExpressionReflectionVector::PrepareValue(FEmitContext& Context, FEmitScope
 void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	OutResult.Code = Context.EmitInlineExpression(Scope, Shader::EValueType::Float3, TEXT("Parameters.ReflectionVector"));
+}
+
+bool FExpressionCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	for (const FCustomHLSLInput& Input : Inputs)
+	{
+		const FPreparedType& InputType = Context.PrepareExpression(Input.Expression, Scope, ERequestedType::Vector4);
+		if (InputType.IsVoid())
+		{
+			return false;
+		}
+	}
+
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::FType(OutputStructType));
+}
+
+void FExpressionCustomHLSL::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	OutResult.Code = Context.EmitCustomHLSL(Scope, DeclarationCode, FunctionCode, Inputs, OutputStructType);
 }
 
 bool FStatementBreak::Prepare(FEmitContext& Context, FEmitScope& Scope) const

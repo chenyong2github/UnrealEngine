@@ -127,5 +127,14 @@ inline uint32 GetTypeHash(const FTextureDescription& Ref)
 	return HashCombine(GetTypeHash(Ref.Texture), GetTypeHash(Ref.SamplerType));
 }
 
+struct FCustomHLSLInput
+{
+	FCustomHLSLInput() = default;
+	FCustomHLSLInput(FStringView InName, FExpression* InExpression) : Name(InName), Expression(InExpression) {}
+
+	FStringView Name;
+	FExpression* Expression = nullptr;
+};
+
 } // namespace HLSLTree
 } // namespace UE

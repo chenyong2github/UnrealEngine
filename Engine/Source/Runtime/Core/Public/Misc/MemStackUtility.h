@@ -25,6 +25,11 @@ inline const TCHAR* AllocateString(FMemStackBase& Allocator, FStringView String)
 	return AllocateString(Allocator, String.GetData(), String.Len());
 }
 
+inline FStringView AllocateStringView(FMemStackBase& Allocator, FStringView String)
+{
+	return FStringView(AllocateString(Allocator, String), String.Len());
+}
+
 inline const TCHAR* AllocateString(FMemStackBase& Allocator, const FStringBuilderBase& StringBuilder)
 {
 	return AllocateString(Allocator, StringBuilder.GetData(), StringBuilder.Len());

@@ -76,6 +76,7 @@ public:
 	bool Generate();
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
+	UE::Shader::FStructTypeRegistry& GetTypeRegistry() const { return *TypeRegistry; }
 	FMaterialHLSLErrorHandler& GetErrors() { return Errors; }
 
 	UE::HLSLTree::FExpression* GetResultExpression() { return ResultExpression; }

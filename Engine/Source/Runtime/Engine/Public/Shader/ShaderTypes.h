@@ -79,6 +79,7 @@ inline bool IsComponentTypeWithinBounds(EValueComponentType Type, FComponentBoun
 EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
 inline EValueComponentType MakeNonLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double ? EValueComponentType::Float : Type; }
+inline bool IsLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double; }
 
 enum class EValueType : uint8
 {
@@ -126,6 +127,7 @@ struct FValueTypeDescription
 };
 
 FValueTypeDescription GetValueTypeDescription(EValueType Type);
+inline bool IsLWCType(EValueType Type) { return IsLWCType(GetValueTypeDescription(Type).ComponentType); }
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
 EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
@@ -141,9 +143,11 @@ struct FType
 
 	const TCHAR* GetName() const;
 	FType GetDerivativeType() const;
+	FType GetNonLWCType() const { return IsNumericLWC() ? FType(MakeNonLWCType(ValueType)) : *this; }
 	bool IsVoid() const { return ValueType == EValueType::Void; }
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
 	bool IsNumeric() const { return !IsVoid() && !IsStruct(); }
+	bool IsNumericLWC() const { return IsNumeric() && IsLWCType(ValueType); }
 	int32 GetNumComponents() const;
 	int32 GetNumFlatFields() const;
 	EValueComponentType GetComponentType(int32 Index) const;

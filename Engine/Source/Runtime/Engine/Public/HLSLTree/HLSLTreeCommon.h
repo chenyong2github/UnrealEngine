@@ -329,10 +329,20 @@ public:
 class FExpressionCustomHLSL : public FExpression
 {
 public:
+	FExpressionCustomHLSL(FStringView InDeclarationCode, FStringView InFunctionCode, TArrayView<FCustomHLSLInput> InInputs, const Shader::FStructType* InOutputStructType)
+		: DeclarationCode(InDeclarationCode)
+		, FunctionCode(InFunctionCode)
+		, Inputs(InInputs)
+		, OutputStructType(InOutputStructType)
+	{}
+
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 
-
+	FStringView DeclarationCode;
+	FStringView FunctionCode;
+	TArray<FCustomHLSLInput, TInlineAllocator<8>> Inputs;
+	const Shader::FStructType* OutputStructType = nullptr;
 };
 
 class FStatementReturn : public FStatement

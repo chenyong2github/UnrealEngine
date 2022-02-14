@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Shader/ShaderTypes.h"
 #include "Misc/StringBuilder.h"
-#include "Misc/SecureHash.h"
+#include "Hash/xxhash.h"
 #include "Misc/MemStackUtility.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
@@ -783,46 +783,56 @@ void SetFieldType(EValueType* FieldTypes, EValueComponentType* ComponentTypes, i
 
 const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& Initializer)
 {
-	FSHA1 Hasher;
-	Hasher.UpdateWithString(Initializer.Name.GetData(), Initializer.Name.Len());
-
 	TArray<FStructFieldInitializer, TInlineAllocator<16>> DerivativeFields;
 
 	const int32 NumFields = Initializer.Fields.Num();
+	FStructField* Fields = new(*Allocator) FStructField[NumFields];
 	int32 ComponentIndex = 0;
 	int32 FlatFieldIndex = 0;
-	FStructField* Fields = new(*Allocator) FStructField[NumFields];
-	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
+	uint64 Hash = 0u;
 	{
-		const FStructFieldInitializer& FieldInitializer = Initializer.Fields[FieldIndex];
-		const FType& FieldType = FieldInitializer.Type;
+		FXxHash64Builder Hasher;
+		Hasher.Update(Initializer.Name.GetData(), Initializer.Name.Len() * sizeof(TCHAR));
 
-		Hasher.UpdateWithString(FieldInitializer.Name.GetData(), FieldInitializer.Name.Len());
-		if (FieldType.IsStruct())
+		for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
 		{
-			Hasher.Update((uint8*)&FieldType.StructType->Hash, sizeof(FieldType.StructType->Hash));
-		}
-		else
-		{
-			Hasher.Update((uint8*)&FieldType.ValueType, sizeof(FieldType.ValueType));
-		}
+			const FStructFieldInitializer& FieldInitializer = Initializer.Fields[FieldIndex];
+			const FType& FieldType = FieldInitializer.Type;
 
-		FStructField& Field = Fields[FieldIndex];
-		Field.Name = MemStack::AllocateString(*Allocator, FieldInitializer.Name);
-		Field.Type = FieldType;
-		Field.ComponentIndex = ComponentIndex;
-		Field.FlatFieldIndex = FlatFieldIndex;
-		ComponentIndex += FieldType.GetNumComponents();
-		FlatFieldIndex += FieldType.GetNumFlatFields();
-
-		if (!Initializer.bIsDerivativeType)
-		{
-			const FType FieldDerivativeType = FieldType.GetDerivativeType();
-			if (!FieldDerivativeType.IsVoid())
+			Hasher.Update(FieldInitializer.Name.GetData(), FieldInitializer.Name.Len() * sizeof(TCHAR));
+			if (FieldType.IsStruct())
 			{
-				DerivativeFields.Emplace(FieldInitializer.Name, FieldDerivativeType);
+				Hasher.Update(&FieldType.StructType->Hash, sizeof(FieldType.StructType->Hash));
+			}
+			else
+			{
+				Hasher.Update(&FieldType.ValueType, sizeof(FieldType.ValueType));
+			}
+
+			FStructField& Field = Fields[FieldIndex];
+			Field.Name = MemStack::AllocateString(*Allocator, FieldInitializer.Name);
+			Field.Type = FieldType;
+			Field.ComponentIndex = ComponentIndex;
+			Field.FlatFieldIndex = FlatFieldIndex;
+			ComponentIndex += FieldType.GetNumComponents();
+			FlatFieldIndex += FieldType.GetNumFlatFields();
+
+			if (!Initializer.bIsDerivativeType)
+			{
+				const FType FieldDerivativeType = FieldType.GetDerivativeType();
+				if (!FieldDerivativeType.IsVoid())
+				{
+					DerivativeFields.Emplace(FieldInitializer.Name, FieldDerivativeType);
+				}
 			}
 		}
+		Hash = Hasher.Finalize().Hash;
+	}
+
+	FStructType const* const* PrevStructType = Types.Find(Hash);
+	if (PrevStructType)
+	{
+		return *PrevStructType;
 	}
 
 	EValueComponentType* ComponentTypes = new(*Allocator) EValueComponentType[ComponentIndex];
@@ -833,16 +843,14 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 		Private::SetFieldType(FlatFieldTypes, ComponentTypes, Field.FlatFieldIndex, Field.ComponentIndex, Field.Type);
 	}
 
-	const FSHAHash Hash = Hasher.Finalize();
-
 	FStructType* StructType = new(*Allocator) FStructType();
 	StructType->Name = MemStack::AllocateString(*Allocator, Initializer.Name);
-	StructType->Hash = *reinterpret_cast<const uint64*>(Hash.Hash);
+	StructType->Hash = Hash;
 	StructType->Fields = MakeArrayView(Fields, NumFields);
 	StructType->ComponentTypes = MakeArrayView(ComponentTypes, ComponentIndex);
 	StructType->FlatFieldTypes = MakeArrayView(FlatFieldTypes, FlatFieldIndex);
 
-	Types.Add(StructType->Hash, StructType);
+	Types.Add(Hash, StructType);
 
 	if (DerivativeFields.Num() > 0)
 	{

@@ -47,6 +47,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	const FMaterial& Material,
 	const UE::HLSLTree::FEmitContext& EmitContext,
 	const TCHAR* DeclarationsCode,
+	const TCHAR* SharedShaderCode,
 	const TCHAR* VertexShaderCode,
 	const TCHAR* PixelShaderCodePhase0,
 	const TCHAR* PixelShaderCodePhase1)
@@ -292,7 +293,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	//if (bEnableExecutionFlow)
 	{
-		FString EvaluateMaterialDeclaration;
+		FString EvaluateMaterialDeclaration = SharedShaderCode;
 
 		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributesInternal(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
@@ -919,10 +920,14 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FStringBuilderMemstack Declarations(Allocator, 64 * 1024);
 	TypeRegistry.EmitDeclarationsCode(Declarations);
 
+	FStringBuilderMemstack SharedCode(Allocator, 64 * 1024);
+	EmitContext.EmitDeclarationsCode(SharedCode);
+
 	FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform,
 		InOutMaterial,
 		EmitContext,
 		Declarations.ToString(),
+		SharedCode.ToString(),
 		VertexCode.ToString(),
 		PixelCodePhase0.ToString(),
 		EmitContext.bReadMaterialNormal ? PixelCodePhase1.ToString() : nullptr);

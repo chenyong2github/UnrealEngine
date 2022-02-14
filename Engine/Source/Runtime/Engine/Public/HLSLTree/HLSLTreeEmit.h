@@ -7,9 +7,9 @@
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
-#include "Hash/xxhash.h"
 #include "RHIDefinitions.h"
 #include "HLSLTree/HLSLTreeTypes.h"
+#include "HLSLTree/HLSLTreeHash.h"
 
 class FMaterial;
 class FMaterialCompilationOutput;
@@ -194,6 +194,29 @@ public:
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
 
+struct FEmitCustomHLSLInput
+{
+	FStringView Name;
+	Shader::FType Type;
+};
+
+inline void AppendHash(FHasher& Hasher, const FEmitCustomHLSLInput& Value)
+{
+	AppendHash(Hasher, Value.Name);
+	AppendHash(Hasher, Value.Type);
+}
+
+class FEmitCustomHLSL
+{
+public:
+	FStringView DeclarationCode;
+	FStringView FunctionCode;
+	TConstArrayView<FEmitCustomHLSLInput> Inputs;
+	const Shader::FStructType* OutputType;
+	uint32 ShaderFrequencyMask;
+	int32 Index;
+};
+
 struct FPreshaderLocalPHIScope
 {
 	FPreshaderLocalPHIScope(const FExpression* InExpression, int32 InValueStackPosition) : ExpressionLocalPHI(InExpression), ValueStackPosition(InValueStackPosition) {}
@@ -208,6 +231,8 @@ class FEmitContext
 public:
 	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
 	~FEmitContext();
+
+	void EmitDeclarationsCode(FStringBuilderBase& OutCode);
 
 	FPreparedType PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
 
@@ -374,6 +399,9 @@ public:
 	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
 	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType);
 
+	/** FStringViews passed to this method are expected to reference persistent memory */
+	FEmitShaderExpression* EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType);
+
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
@@ -386,6 +414,7 @@ public:
 	TMap<FXxHash64, FEmitShaderExpression*> EmitExpressionMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitPreshaderMap;
 	TMap<const FFunction*, FEmitShaderNode*> EmitFunctionMap;
+	TMap<FXxHash64, FEmitCustomHLSL> EmitCustomHLSLMap;
 	TArray<struct FPreshaderLoopScope*> PreshaderLoopScopes;
 	TArray<const FPreshaderLocalPHIScope*> PreshaderLocalPHIScopes;
 	int32 PreshaderStackPosition = 0;

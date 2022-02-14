@@ -205,6 +205,97 @@ FEmitContext::~FEmitContext()
 {
 }
 
+namespace Private
+{
+void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* ParametersTypeName, FStringBuilderBase& OutCode)
+{
+	const Shader::FStructType* OutputStruct = EmitCustomHLSL.OutputType;
+	
+	OutCode.Append(EmitCustomHLSL.DeclarationCode);
+	OutCode.Append(TEXT("\n"));
+
+	// Function that wraps custom HLSL, provides the interface expected by custom HLSL
+	// * LWC inputs have both LWC version and non-LWC version
+	// * First output is given through return value, additional outputs use inout function parameters
+	OutCode.Appendf(TEXT("%s CustomExpressionInternal%d(%s Parameters"), OutputStruct->Fields[0].Type.GetName(), EmitCustomHLSL.Index, ParametersTypeName);
+	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
+	{
+		Shader::FType InputType = Input.Type;
+		if (InputType.IsNumericLWC())
+		{
+			// Add an additional input for LWC type with the LWC-prefix
+			OutCode.Appendf(TEXT(", %s LWC"), InputType.GetName());
+			OutCode.Append(Input.Name);
+			// Regular, unprefixed input uses non-LWC type
+			InputType = InputType.GetNonLWCType();
+		}
+
+		OutCode.Appendf(TEXT(", %s "), InputType.GetName());
+		OutCode.Append(Input.Name);
+	}
+	for (int32 OutputIndex = 1; OutputIndex < OutputStruct->Fields.Num(); ++OutputIndex)
+	{
+		const Shader::FStructField& OutputField = OutputStruct->Fields[OutputIndex];
+		OutCode.Appendf(TEXT(", inout %s %s"), OutputField.Type.GetName(), OutputField.Name);
+	}
+	OutCode.Append(TEXT(")\n{\n"));
+	OutCode.Append(EmitCustomHLSL.FunctionCode);
+	OutCode.Append(TEXT("\n}\n"));
+
+	// Function that calls the above wrapper, provides the interface expected by HLSLTree
+	// * No special handling for LWC inputs
+	// * All outputs are provided through a 'struct' type
+	OutCode.Appendf(TEXT("%s CustomExpression%d(%s Parameters"), OutputStruct->Name, EmitCustomHLSL.Index, ParametersTypeName);
+	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
+	{
+		OutCode.Appendf(TEXT(", %s "), Input.Type.GetName());
+		OutCode.Append(Input.Name);
+	}
+	OutCode.Append(TEXT(")\n{\n"));
+	OutCode.Appendf(TEXT("\t%s Result = (%s)0;\n"), OutputStruct->Name, OutputStruct->Name);
+	OutCode.Appendf(TEXT("\tResult.%s = CustomExpressionInternal%d(Parameters"), OutputStruct->Fields[0].Name, EmitCustomHLSL.Index);
+	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
+	{
+		OutCode.Append(TEXT(", "));
+		OutCode.Append(Input.Name);
+		if (Input.Type.IsNumericLWC())
+		{
+			OutCode.Append(TEXT(", LWCToFloat("));
+			OutCode.Append(Input.Name);
+			OutCode.Append(TEXT(")"));
+		}
+	}
+	for (int32 OutputIndex = 1; OutputIndex < OutputStruct->Fields.Num(); ++OutputIndex)
+	{
+		const Shader::FStructField& OutputField = OutputStruct->Fields[OutputIndex];
+		OutCode.Appendf(TEXT(", Result.%s"), OutputField.Name);
+	}
+	OutCode.Append(TEXT(");\n"));
+	OutCode.Append(TEXT("\treturn Result;\n"));
+	OutCode.Append(TEXT("}\n"));
+}
+} // namespace Private
+
+void FEmitContext::EmitDeclarationsCode(FStringBuilderBase& OutCode)
+{
+	for(const auto& It : EmitCustomHLSLMap)
+	{
+		const FEmitCustomHLSL& EmitCustomHLSL = It.Value;
+		uint32 ShaderFrequencyMask = EmitCustomHLSL.ShaderFrequencyMask;
+		if (ShaderFrequencyMask & (1u << SF_Vertex))
+		{
+			// Emit VS version if needed
+			Private::EmitCustomHLSL(EmitCustomHLSL, TEXT("FMaterialVertexParameters"), OutCode);
+			ShaderFrequencyMask &= ~(1u << SF_Vertex);
+		}
+		if (ShaderFrequencyMask != 0u)
+		{
+			// All other frequencies use PS version
+			Private::EmitCustomHLSL(EmitCustomHLSL, TEXT("FMaterialPixelParameters"), OutCode);
+		}
+	}
+}
+
 FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	if (!InExpression || RequestedType.IsVoid())
@@ -1006,6 +1097,53 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 		ShaderValue = EmitCast(Scope, ShaderValue, DestType);
 	}
 	return ShaderValue;
+}
+
+FEmitShaderExpression* FEmitContext::EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType)
+{
+	TArray<FEmitCustomHLSLInput, TInlineAllocator<8>> EmitInputs;
+	EmitInputs.Reserve(Inputs.Num());
+	for (const FCustomHLSLInput& Input : Inputs)
+	{
+		EmitInputs.Add(FEmitCustomHLSLInput{ Input.Name, Input.Expression->GetType() });
+	}
+
+	FHasher Hasher;
+	AppendHash(Hasher, DeclarationCode);
+	AppendHash(Hasher, FunctionCode);
+	AppendHash(Hasher, MakeArrayView(EmitInputs));
+	AppendHash(Hasher, OutputType);
+	const FXxHash64 Hash = Hasher.Finalize();
+
+	FEmitCustomHLSL* EmitCustomHLSL = EmitCustomHLSLMap.Find(Hash);
+	if (!EmitCustomHLSL)
+	{
+		const int32 Index = EmitCustomHLSLMap.Num();
+		EmitCustomHLSL = &EmitCustomHLSLMap.Emplace(Hash);
+		EmitCustomHLSL->DeclarationCode = DeclarationCode;
+		EmitCustomHLSL->FunctionCode = FunctionCode;
+		EmitCustomHLSL->Inputs = MemStack::AllocateArrayView(*Allocator, MakeArrayView(EmitInputs));
+		EmitCustomHLSL->OutputType = OutputType;
+		EmitCustomHLSL->Index = Index;
+	}
+
+	// Track the different shader frequencies that call this expression
+	EmitCustomHLSL->ShaderFrequencyMask |= (1u << ShaderFrequency);
+
+	FEmitShaderDependencies Dependencies;
+	Dependencies.Reserve(Inputs.Num());
+
+	TStringBuilder<1024> FormattedCode;
+	FormattedCode.Appendf(TEXT("CustomExpression%d(Parameters"), EmitCustomHLSL->Index);
+	for (const FCustomHLSLInput& Input : Inputs)
+	{
+		FEmitShaderExpression* EmitInputExpression = Input.Expression->GetValueShader(*this, Scope);
+		FormattedCode.Appendf(TEXT(", %s"), EmitInputExpression->Reference);
+		Dependencies.Add(EmitInputExpression);
+	}
+	FormattedCode.AppendChar(TEXT(')'));
+
+	return EmitExpressionWithDependencies(Scope, Dependencies, OutputType, FormattedCode.ToView());
 }
 
 void FEmitContext::Finalize()
