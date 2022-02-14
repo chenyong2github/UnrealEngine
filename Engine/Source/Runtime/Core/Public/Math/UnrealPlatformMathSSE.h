@@ -66,12 +66,12 @@ namespace SSE
 		return InvSqrt(InValue);
 	}
 
-	static FORCEINLINE int32 TruncToInt(float F)
+	static FORCEINLINE int32 TruncToInt32(float F)
 	{
 		return _mm_cvtt_ss2si(_mm_set_ss(F));
 	}
 
-	static FORCEINLINE int32 TruncToInt(double InValue)
+	static FORCEINLINE int32 TruncToInt32(double InValue)
 	{
 		return _mm_cvttsd_si32(_mm_set_sd(InValue));
 	}
@@ -81,14 +81,14 @@ namespace SSE
 		return _mm_cvttsd_si64(_mm_set_sd(InValue));
 	}
 
-	static FORCEINLINE int32 FloorToInt(float F)
+	static FORCEINLINE int32 FloorToInt32(float F)
 	{
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
 	}
 
-	static FORCEINLINE int32 FloorToInt(double InValue)
+	static FORCEINLINE int32 FloorToInt32(double InValue)
 	{
 		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
 	}
@@ -98,7 +98,7 @@ namespace SSE
 		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int32 RoundToInt(float F)
+	static FORCEINLINE int32 RoundToInt32(float F)
 	{
 		// Note: the times-2 is to remove the rounding-to-nearest-even-number behavior that mm_cvt_ss2si uses when the fraction is .5
 		// The formula we uses causes the round instruction to always be applied to a an odd integer when the original value was 0.5, and eliminates the rounding-to-nearest-even-number behavior
@@ -108,7 +108,7 @@ namespace SSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
 	}
 
-	static FORCEINLINE int32 RoundToInt(double InValue)
+	static FORCEINLINE int32 RoundToInt32(double InValue)
 	{
 		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
 	}
@@ -118,14 +118,14 @@ namespace SSE
 		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int32 CeilToInt(float F)
+	static FORCEINLINE int32 CeilToInt32(float F)
 	{
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
 	}
 
-	static FORCEINLINE int32 CeilToInt(double InValue)
+	static FORCEINLINE int32 CeilToInt32(double InValue)
 	{
 		return -(_mm_cvtsd_si32(_mm_set_sd(-0.5 - (InValue + InValue))) >> 1);
 	}
@@ -226,40 +226,62 @@ template<class Base>
 struct TUnrealPlatformMathSSEBase : public Base
 {
 	template<typename T>
-	static FORCEINLINE int32 TruncToInt(T F)
+	static FORCEINLINE int32 TruncToInt32(T F)
 	{
-		return UE4::SSE::TruncToInt(F);
+		return UE4::SSE::TruncToInt32(F);
+	}
+
+	static FORCEINLINE int64 TruncToInt64(double F)
+	{
+		return UE4::SSE::TruncToInt64(F);
 	}
 
 	template<typename T>
-	static FORCEINLINE int32 RoundToInt(T F)
+	static FORCEINLINE int32 RoundToInt32(T F)
 	{
-		return UE4::SSE::RoundToInt(F);
+		return UE4::SSE::RoundToInt32(F);
+	}
+
+	static FORCEINLINE int64 RoundToInt64(double F)
+	{
+		return UE4::SSE::RoundToInt64(F);
 	}
 
 	template<typename T>
-	static FORCEINLINE int32 FloorToInt(T F)
+	static FORCEINLINE int32 FloorToInt32(T F)
 	{
-		return UE4::SSE::FloorToInt(F);
+		return UE4::SSE::FloorToInt32(F);
 	}
 
-	template<typename T>
-	static FORCEINLINE int64 FloorToInt64(T F)
+	static FORCEINLINE int64 FloorToInt64(double F)
 	{
 		return UE4::SSE::FloorToInt64(F);
 	}
 
 	template<typename T>
-	static FORCEINLINE int32 CeilToInt(T F)
+	static FORCEINLINE int32 CeilToInt32(T F)
 	{
-		return UE4::SSE::CeilToInt(F);
+		return UE4::SSE::CeilToInt32(F);
 	}
 
-	template<typename T>
-	static FORCEINLINE int64 CeilToInt64(T F)
+	static FORCEINLINE int64 CeilToInt64(double F)
 	{
 		return UE4::SSE::CeilToInt64(F);
 	}
+
+	//
+	// Wrappers for overloads in the base, required since calls declared in base struct won't redirect back to this class
+	//
+
+	static FORCEINLINE int32 TruncToInt(float F) { return TruncToInt32(F); }
+	static FORCEINLINE int64 TruncToInt(double F) { return TruncToInt64(F); }
+	static FORCEINLINE int32 FloorToInt(float F) { return FloorToInt32(F); }
+	static FORCEINLINE int64 FloorToInt(double F) { return FloorToInt64(F); }
+	static FORCEINLINE int32 RoundToInt(float F) { return RoundToInt32(F); }
+	static FORCEINLINE int64 RoundToInt(double F) { return RoundToInt64(F); }
+	static FORCEINLINE int32 CeilToInt(float F) { return CeilToInt32(F); }
+	static FORCEINLINE int64 CeilToInt(double F) { return CeilToInt64(F); }
+
 
 	template<typename T>
 	static FORCEINLINE T InvSqrt(T F)

@@ -1768,11 +1768,11 @@ static bool ComputeProjectedSphereShaft(
 			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
 			if(FMath::IsNegative(Nxa) ^ FMath::IsNegative(AxisSign))
 			{
-				InOutMaxX = FMath::Min<int32>(FMath::CeilToInt(ViewSizeX * X + ViewX),InOutMaxX);
+				InOutMaxX = FMath::Min(FMath::CeilToInt32(ViewSizeX * X + ViewX),InOutMaxX);
 			}
 			else
 			{
-				InOutMinX = FMath::Max<int32>(FMath::FloorToInt(ViewSizeX * X + ViewX),InOutMinX);
+				InOutMinX = FMath::Max(FMath::FloorToInt32(ViewSizeX * X + ViewX),InOutMinX);
 			}
 		}
 
@@ -1784,11 +1784,11 @@ static bool ComputeProjectedSphereShaft(
 			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
 			if(FMath::IsNegative(Nxb) ^ FMath::IsNegative(AxisSign))
 			{
-				InOutMaxX = FMath::Min<int32>(FMath::CeilToInt(ViewSizeX * X + ViewX),InOutMaxX);
+				InOutMaxX = FMath::Min(FMath::CeilToInt32(ViewSizeX * X + ViewX),InOutMaxX);
 			}
 			else
 			{
-				InOutMinX = FMath::Max<int32>(FMath::FloorToInt(ViewSizeX * X + ViewX),InOutMinX);
+				InOutMinX = FMath::Max(FMath::FloorToInt32(ViewSizeX * X + ViewX),InOutMinX);
 			}
 		}
 	}

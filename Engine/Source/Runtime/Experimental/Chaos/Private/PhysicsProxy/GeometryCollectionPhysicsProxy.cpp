@@ -964,7 +964,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	{
 		const Chaos::FReal NumCollisionParticles = static_cast<Chaos::FReal>(ClusterCreationParameters.CollisionParticles->Size());
 		const int32 ClampedCollisionParticlesSize = 
-			FMath::TruncToInt(Chaos::FReal(FMath::Max(0, FMath::Min(NumCollisionParticles * CollisionParticlesPerObjectFraction, NumCollisionParticles))));
+			FMath::TruncToInt32(Chaos::FReal(FMath::Max(0, FMath::Min(NumCollisionParticles * CollisionParticlesPerObjectFraction, NumCollisionParticles))));
 		ClusterCreationParameters.CollisionParticles->Resize(ClampedCollisionParticlesSize);
 	}
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*> ChildHandlesCopy(ChildHandles);
@@ -2437,8 +2437,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 								MassSpaceParticles,
 								*UnionMesh,
 								InstanceBoundingBox,
-								FMath::FloorToInt(MinResolution),
-								FMath::FloorToInt(MaxResolution),
+								FMath::FloorToInt32(MinResolution),
+								FMath::FloorToInt32(MaxResolution),
 								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
 								SizeSpecificData.CollisionShapesData[0].CollisionType));
 						// Fall back on sphere if level set rasterization failed.

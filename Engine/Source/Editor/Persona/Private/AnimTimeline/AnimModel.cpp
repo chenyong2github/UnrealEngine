@@ -66,13 +66,13 @@ double FAnimModel::GetFrameRate() const
 
 int32 FAnimModel::GetTickResolution() const
 {
-	return FMath::RoundToInt((double)GetDefault<UPersonaOptions>()->TimelineScrubSnapValue * GetFrameRate());
+	return FMath::RoundToInt32((double)GetDefault<UPersonaOptions>()->TimelineScrubSnapValue * GetFrameRate());
 }
 
 TRange<FFrameNumber> FAnimModel::GetPlaybackRange() const
 {
 	const int32 Resolution = GetTickResolution();
-	return TRange<FFrameNumber>(FFrameNumber(FMath::RoundToInt(PlaybackRange.GetLowerBoundValue() * (double)Resolution)), FFrameNumber(FMath::RoundToInt(PlaybackRange.GetUpperBoundValue() * (double)Resolution)));
+	return TRange<FFrameNumber>(FFrameNumber(FMath::RoundToInt32(PlaybackRange.GetLowerBoundValue() * (double)Resolution)), FFrameNumber(FMath::RoundToInt32(PlaybackRange.GetUpperBoundValue() * (double)Resolution)));
 }
 
 FFrameNumber FAnimModel::GetScrubPosition() const
@@ -82,7 +82,7 @@ FFrameNumber FAnimModel::GetScrubPosition() const
 		UDebugSkelMeshComponent* PreviewMeshComponent = WeakPreviewScene.Pin()->GetPreviewMeshComponent();
 		if(PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn())
 		{
-			return FFrameNumber(FMath::RoundToInt(PreviewMeshComponent->PreviewInstance->GetCurrentTime() * (double)GetTickResolution()));
+			return FFrameNumber(FMath::RoundToInt32(PreviewMeshComponent->PreviewInstance->GetCurrentTime() * (double)GetTickResolution()));
 		}
 	}
 

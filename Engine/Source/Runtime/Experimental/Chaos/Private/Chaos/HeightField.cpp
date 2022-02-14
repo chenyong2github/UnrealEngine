@@ -1226,7 +1226,7 @@ namespace Chaos
 							ExpandAxis = 0;
 						}
 						FReal ExpandSize = HalfExtents3D[ExpandAxis];
-						int32 Steps = FMath::TruncToInt(FMath::RoundFromZero(ExpandSize / FMath::Abs(GeomData.Scale[ExpandAxis])));
+						int32 Steps = FMath::TruncToInt32(FMath::RoundFromZero(ExpandSize / FMath::Abs(GeomData.Scale[ExpandAxis])));
 
 						Expand(Coord, ThickenDir, Steps);
 						Expand(Coord, -ThickenDir, Steps);

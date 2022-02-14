@@ -1044,7 +1044,7 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 		FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
 		FFrameRate DisplayRate = GetSequencer()->GetFocusedDisplayRate();
 		for (FFrameNumber FrameItr = InAttachRange.GetLowerBoundValue(); FrameItr < InAttachRange.GetUpperBoundValue(); 
-			FrameItr += FMath::RoundToInt(TickResolution.AsDecimal() / DisplayRate.AsDecimal()))
+			FrameItr += FMath::RoundToInt32(TickResolution.AsDecimal() / DisplayRate.AsDecimal()))
 		{
 			ResizeAndAddKey(FrameItr, Channels.Num(), TransformMap, &KeyTimesToCompensate);
 			for (FMovieSceneDoubleValue& DoubleVal : TransformMap[FrameItr])

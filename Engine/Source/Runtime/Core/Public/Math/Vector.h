@@ -2597,9 +2597,9 @@ inline FVector FMath::VRand()
 
 
 FORCEINLINE FIntVector::FIntVector(FVector InVector)
-    : X(FMath::TruncToInt(InVector.X))
-    , Y(FMath::TruncToInt(InVector.Y))
-    , Z(FMath::TruncToInt(InVector.Z))
+	: X(FMath::TruncToInt32(InVector.X))
+	, Y(FMath::TruncToInt32(InVector.Y))
+	, Z(FMath::TruncToInt32(InVector.Z))
 {
 }
 

@@ -71,7 +71,7 @@ public:
 			return Segments;
 		}
 
-		const int32 SegmentCount = FMath::Max(4, FMath::CeilToInt(64 * Angle / 360.f));
+		const int32 SegmentCount = FMath::Max(4, FMath::CeilToInt32(64 * (float)Angle / 360.f));
 		const FReal AngleStep = Angle / FReal(SegmentCount);
 		const FRotator ShapeRotation = FRotationMatrix::MakeFromX(Axis).Rotator();
 		const FVector ScaledAxis = FVector::ForwardVector * Radius;

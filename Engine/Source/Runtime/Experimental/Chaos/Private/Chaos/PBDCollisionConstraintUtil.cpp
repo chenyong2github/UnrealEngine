@@ -35,15 +35,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>
@@ -83,15 +83,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>
@@ -131,15 +131,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>
@@ -150,9 +150,9 @@ namespace Chaos
 		{
 			CellSize = PrincipalAxisLength / 1000;
 			CellSizeInv = 1 / CellSize;
-			NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-			NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-			NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+			NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+			NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+			NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 			NumberOfCellsXY = NumberOfCellsX * NumberOfCellsY;
 			NumberOfCellsXYZ = NumberOfCellsXY * NumberOfCellsZ;
 		}
@@ -189,15 +189,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>
@@ -237,15 +237,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>
@@ -285,15 +285,15 @@ namespace Chaos
 		{
 			PrincipalAxisLength = Extent.Z;
 		}
-		int32 NumberOfCells = FMath::CeilToInt(PrincipalAxisLength / CellSize);
+		int32 NumberOfCells = FMath::CeilToInt32(PrincipalAxisLength / CellSize);
 		check(NumberOfCells > 0);
 
 		CellSize = PrincipalAxisLength / (FReal)NumberOfCells;
 		FReal CellSizeInv = 1 / CellSize;
 
-		int32 NumberOfCellsX = FMath::CeilToInt(Extent.X * CellSizeInv) + 1;
-		int32 NumberOfCellsY = FMath::CeilToInt(Extent.Y * CellSizeInv) + 1;
-		int32 NumberOfCellsZ = FMath::CeilToInt(Extent.Z * CellSizeInv) + 1;
+		int32 NumberOfCellsX = FMath::CeilToInt32(Extent.X * CellSizeInv) + 1;
+		int32 NumberOfCellsY = FMath::CeilToInt32(Extent.Y * CellSizeInv) + 1;
+		int32 NumberOfCellsZ = FMath::CeilToInt32(Extent.Z * CellSizeInv) + 1;
 
 		// Create a Hash Table, but only store the buckets with constraint(s) as a map
 		// HashTableMap<BucketIdx, ConstraintIdx>

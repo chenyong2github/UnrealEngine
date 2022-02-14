@@ -771,7 +771,7 @@ public:
 		// https://en.wikipedia.org/wiki/Perfect_hash_function
 		TRACE_CPUPROFILER_EVENT_SCOPE(TocGeneratePerfectHashes);
 		uint32 ChunkCount = TocResource.ChunkIds.Num();
-		uint32 SeedCount = FMath::Max(1, FMath::RoundToInt(ChunkCount / 2.0));
+		uint32 SeedCount = FMath::Max(1, FMath::RoundToInt32(ChunkCount / 2.0));
 		check(TocResource.ChunkOffsetLengths.Num() == ChunkCount);
 		
 		TArray<FIoChunkId> OutTocChunkIds;

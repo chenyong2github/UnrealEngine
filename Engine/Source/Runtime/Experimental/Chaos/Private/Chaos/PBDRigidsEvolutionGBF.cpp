@@ -163,7 +163,7 @@ void SerializeToDisk(TEvolution& Evolution)
 void FPBDRigidsEvolutionGBF::Advance(const FReal Dt,const FReal MaxStepDt,const int32 MaxSteps)
 {
 	// Determine how many steps we would like to take
-	int32 NumSteps = FMath::CeilToInt(Dt / MaxStepDt);
+	int32 NumSteps = FMath::CeilToInt32(Dt / MaxStepDt);
 	if (NumSteps > 0)
 	{
 		PrepareTick();

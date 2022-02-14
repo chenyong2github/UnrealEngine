@@ -3069,6 +3069,11 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		// Expected to generate errors (float->int truncation)
 		I = FMath::Clamp(I1, F2, I3);
 #endif
+
+		int64 Big1 = 0, Big2 = 0, Big3 = 0;
+		Big3 = FMath::Max(Big1, Big2);
+		Big3 = FMath::Max(Big1, I2);
+		Big3 = FMath::Max(I1, Big2);
 	}
 
 	// Sin, Cos, Tan tests

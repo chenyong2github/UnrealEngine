@@ -197,15 +197,21 @@ struct FGenericPlatformMath
 	 * @param F		Floating point value to convert
 	 * @return		Truncated integer.
 	 */
-	static CONSTEXPR FORCEINLINE int32 TruncToInt(float F)
+	static CONSTEXPR FORCEINLINE int32 TruncToInt32(float F)
 	{
 		return (int32)F;
 	}
-	static CONSTEXPR FORCEINLINE int32 TruncToInt(double F)
+	static CONSTEXPR FORCEINLINE int32 TruncToInt32(double F)
 	{
 		return (int32)F;
 	}
-	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(TruncToInt, int32);
+	static CONSTEXPR FORCEINLINE int64 TruncToInt64(double F)
+	{
+		return (int64)F;
+	}
+
+	static CONSTEXPR FORCEINLINE int32 TruncToInt(float F) { return TruncToInt32(F); }
+	static CONSTEXPR FORCEINLINE int64 TruncToInt(double F) { return TruncToInt64(F); }
 
 	/**
 	 * Converts a float to an integer value with truncation towards zero.
@@ -239,26 +245,28 @@ struct FGenericPlatformMath
 	 * @param F		Floating point value to convert
 	 * @return		An integer less or equal to 'F'.
 	 */
-	static FORCEINLINE int32 FloorToInt(float F)
+	static FORCEINLINE int32 FloorToInt32(float F)
 	{
-		int32 I = (int32)F;
-		I -= ( (float)I > F );
-		return I;
-	}
-	static FORCEINLINE int32 FloorToInt(double F)
-	{
-		int32 I = (int32)F;
+		int32 I = TruncToInt32(F);
 		I -= ((float)I > F);
 		return I;
 	}
-	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(FloorToInt, int32);
-
-	static FORCEINLINE int64 FloorToInt64(double F)
+	static FORCEINLINE int32 FloorToInt32(double F)
 	{
-		int64 I = (int64)F;
+		int32 I = TruncToInt32(F);
 		I -= ((double)I > F);
 		return I;
 	}
+	static FORCEINLINE int64 FloorToInt64(double F)
+	{
+		int64 I = TruncToInt64(F);
+		I -= ((double)I > F);
+		return I;
+	}
+
+	static FORCEINLINE int32 FloorToInt(float F) { return FloorToInt32(F); }
+	static FORCEINLINE int64 FloorToInt(double F) { return FloorToInt64(F); }
+	
 	
 	/**
 	* Converts a float to the nearest less or equal integer.
@@ -292,10 +300,21 @@ struct FGenericPlatformMath
 	 * @param F		Floating point value to convert
 	 * @return		The nearest integer to 'F'.
 	 */
-	static FORCEINLINE int32 RoundToInt(float F)
+	static FORCEINLINE int32 RoundToInt32(float F)
 	{
-		return FloorToInt(F + 0.5f);
+		return FloorToInt32(F + 0.5f);
 	}
+	static FORCEINLINE int32 RoundToInt32(double F)
+	{
+		return FloorToInt32(F + 0.5);
+	}
+	static FORCEINLINE int64 RoundToInt64(double F)
+	{
+		return FloorToInt64(F + 0.5);
+	}
+	
+	static FORCEINLINE int32 RoundToInt(float F) { return RoundToInt32(F); }
+	static FORCEINLINE int64 RoundToInt(double F) { return RoundToInt64(F); }
 
 	/**
 	* Converts a float to the nearest integer. Rounds up when the fraction is .5
@@ -329,28 +348,27 @@ struct FGenericPlatformMath
 	* @param F		Floating point value to convert
 	* @return		An integer greater or equal to 'F'.
 	*/
-	static FORCEINLINE int32 CeilToInt(float F)
+	static FORCEINLINE int32 CeilToInt32(float F)
 	{
-		int32 I = (int32)F;
-		I += ( (float)I < F );
-		return I;
-	}
-
-	static FORCEINLINE int32 CeilToInt(double F)
-	{
-		int32 I = (int32)F;
+		int32 I = TruncToInt32(F);
 		I += ((float)I < F);
 		return I;
 	}
-
-	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(CeilToInt, int32);
-
-	static FORCEINLINE int64 CeilToInt64(double F)
+	static FORCEINLINE int32 CeilToInt32(double F)
 	{
-		int64 I = (int64)F;
+		int32 I = TruncToInt32(F);
 		I += ((double)I < F);
 		return I;
 	}
+	static FORCEINLINE int64 CeilToInt64(double F)
+	{
+		int64 I = TruncToInt64(F);
+		I += ((double)I < F);
+		return I;
+	}
+
+	static FORCEINLINE int32 CeilToInt(float F) { return CeilToInt32(F); }
+	static FORCEINLINE int64 CeilToInt(double F) { return CeilToInt64(F); }
 
 	/**
 	* Converts a float to the nearest greater or equal integer.
@@ -916,11 +934,9 @@ struct FGenericPlatformMath
 		return (A<=B) ? A : B;
 	}
 
-	// LWC_TODO: Simplify code refactoring to avoid double/float mismatches. Should not ship?
-	static CONSTEXPR FORCEINLINE double Max(const double A, const float B) { return Max<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Max(const float A, const double B) { return Max<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Min(const double A, const float B) { return Min<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Min(const float A, const double B) { return Min<double>(A, B); }
+	// Allow mixing of types to promote to highest precision type
+	MIX_TYPES_2_ARGS_CONSTEXPR(Max);
+	MIX_TYPES_2_ARGS_CONSTEXPR(Min);
 
 	/**
 	* Min of Array

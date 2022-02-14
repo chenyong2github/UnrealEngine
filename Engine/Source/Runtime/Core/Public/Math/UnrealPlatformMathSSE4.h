@@ -67,6 +67,9 @@ template<class Base>
 struct TUnrealPlatformMathSSE4Base : public TUnrealPlatformMathSSEBase<Base>
 {
 #if UNREALPLATFORMMATH_SSE4_1_ENABLED
+
+	// Truncate
+
 	static FORCEINLINE float TruncToFloat(float F)
 	{
 		return UE4::SSE4::TruncToFloat(F);
@@ -76,6 +79,9 @@ struct TUnrealPlatformMathSSE4Base : public TUnrealPlatformMathSSEBase<Base>
 	{
 		return UE4::SSE4::TruncToDouble(F);
 	}
+
+	// Round
+
 	static FORCEINLINE float RoundToFloat(float F)
 	{
 		return UE4::SSE4::RoundToFloat(F);
@@ -85,6 +91,8 @@ struct TUnrealPlatformMathSSE4Base : public TUnrealPlatformMathSSEBase<Base>
 	{
 		return UE4::SSE4::RoundToDouble(F);
 	}
+
+	// Floor
 
 	static FORCEINLINE float FloorToFloat(float F)
 	{
@@ -96,6 +104,8 @@ struct TUnrealPlatformMathSSE4Base : public TUnrealPlatformMathSSEBase<Base>
 		return UE4::SSE4::FloorToDouble(F);
 	}
 
+	// Ceil
+
 	static FORCEINLINE float CeilToFloat(float F)
 	{
 		return UE4::SSE4::CeilToFloat(F);
@@ -105,5 +115,16 @@ struct TUnrealPlatformMathSSE4Base : public TUnrealPlatformMathSSEBase<Base>
 	{
 		return UE4::SSE4::CeilToDouble(F);
 	}
+
+
+	//
+	// Wrappers for overloads in the base, required since calls declared in base struct won't redirect back to this class
+	//
+
+	static FORCEINLINE double TruncToFloat(double F) { return TruncToDouble(F); }
+	static FORCEINLINE double RoundToFloat(double F) { return RoundToDouble(F); }
+	static FORCEINLINE double FloorToFloat(double F) { return FloorToDouble(F); }
+	static FORCEINLINE double CeilToFloat(double F) { return CeilToDouble(F); }
+
 #endif // UNREALPLATFORMMATH_SSE4_ENABLED
 };

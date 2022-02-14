@@ -107,7 +107,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 					// Do they have the same hours, minutes, seconds
 					// To test this, we start from the number of events (FrameIndex) from which we got our timecode first
 					// Timecode is just a label and doesn't necessarily reflect real time especially with 23.976 FrameRate like
-					const int32 TotalSeconds = FMath::FloorToInt((double)FrameIndex * FrameRate.AsInterval());
+					const int32 TotalSeconds = FMath::FloorToInt32((double)FrameIndex * FrameRate.AsInterval());
 					const int32 FrameHours = (TotalSeconds / (60 * 60));
 					const int32 FrameMinutes = ((TotalSeconds % (60 * 60)) / 60);
 					const int32 FrameSeconds = ((TotalSeconds % (60 * 60)) % 60);

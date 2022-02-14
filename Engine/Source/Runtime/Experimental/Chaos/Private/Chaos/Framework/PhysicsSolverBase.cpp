@@ -347,13 +347,13 @@ namespace Chaos
 			{
 
 				InternalDt = AsyncDt;
-				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
+				NumSteps = FMath::FloorToInt32(AccumulatedTime / InternalDt);
 				AccumulatedTime -= InternalDt * static_cast<FReal>(NumSteps);
 			}
 		}
 		else if (bSubstepping && InDt > 0)
 		{
-			NumSteps = FMath::CeilToInt(DtWithPause / MMaxDeltaTime);
+			NumSteps = FMath::CeilToInt32(DtWithPause / MMaxDeltaTime);
 			if (NumSteps > MMaxSubSteps)
 			{
 				// Hitting this case means we're losing time, given the constraints of MaxSteps and MaxDt we can't

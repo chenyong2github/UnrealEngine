@@ -315,8 +315,9 @@ public:
 
 FORCEINLINE FIntRect FIntRect::Scale( float Fraction ) const
 {
-	FVector2D Min2D = FVector2D((float)Min.X, (float)Min.Y) * Fraction;
-	FVector2D Max2D = FVector2D((float)Max.X, (float)Max.Y) * Fraction;
+	using Vec2D = UE::Math::TVector2<float>;
+	const Vec2D Min2D = Vec2D((float)Min.X, (float)Min.Y) * Fraction;
+	const Vec2D Max2D = Vec2D((float)Max.X, (float)Max.Y) * Fraction;
 
 	return FIntRect(FMath::FloorToInt(Min2D.X), FMath::FloorToInt(Min2D.Y), FMath::CeilToInt(Max2D.X), FMath::CeilToInt(Max2D.Y));
 }

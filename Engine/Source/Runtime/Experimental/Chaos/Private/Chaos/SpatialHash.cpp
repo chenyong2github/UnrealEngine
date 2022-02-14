@@ -30,13 +30,13 @@ namespace Chaos
 		}
 
 		T PrincipalAxisLength = Extents[MBoundingBox.LargestAxis()];
-		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt(PrincipalAxisLength / MCellSize);
+		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt32(PrincipalAxisLength / MCellSize);
 		MCellSize = PrincipalAxisLength / (T)NumberOfCellsOnPrincipalAxis;
 		T CellSizeInv = (T)1.0 / MCellSize;
 
-		MNumberOfCellsX = FMath::CeilToInt(Extents[0] * CellSizeInv) + 1;
-		MNumberOfCellsY = FMath::CeilToInt(Extents[1] * CellSizeInv) + 1;
-		MNumberOfCellsZ = FMath::CeilToInt(Extents[2] * CellSizeInv) + 1;
+		MNumberOfCellsX = FMath::CeilToInt32(Extents[0] * CellSizeInv) + 1;
+		MNumberOfCellsY = FMath::CeilToInt32(Extents[1] * CellSizeInv) + 1;
+		MNumberOfCellsZ = FMath::CeilToInt32(Extents[2] * CellSizeInv) + 1;
 
 		for (int32 IdxParticle = 0; IdxParticle < MParticles.Num(); ++IdxParticle)
 		{
@@ -75,13 +75,13 @@ namespace Chaos
 		MCellSize = SmallestAxisLength / (T)10.0;
 
 		T PrincipalAxisLength = Extents[MBoundingBox.LargestAxis()];
-		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt(PrincipalAxisLength / MCellSize);
+		int32 NumberOfCellsOnPrincipalAxis = FMath::CeilToInt32(PrincipalAxisLength / MCellSize);
 		MCellSize = PrincipalAxisLength / (T)NumberOfCellsOnPrincipalAxis;
 		T CellSizeInv = (T)1.0 / MCellSize;
 
-		MNumberOfCellsX = FMath::CeilToInt(Extents[0] * CellSizeInv) + 1;
-		MNumberOfCellsY = FMath::CeilToInt(Extents[1] * CellSizeInv) + 1;
-		MNumberOfCellsZ = FMath::CeilToInt(Extents[2] * CellSizeInv) + 1;
+		MNumberOfCellsX = FMath::CeilToInt32(Extents[0] * CellSizeInv) + 1;
+		MNumberOfCellsY = FMath::CeilToInt32(Extents[1] * CellSizeInv) + 1;
+		MNumberOfCellsZ = FMath::CeilToInt32(Extents[2] * CellSizeInv) + 1;
 
 		for (int32 IdxParticle = 0; IdxParticle < MParticles.Num(); ++IdxParticle)
 		{

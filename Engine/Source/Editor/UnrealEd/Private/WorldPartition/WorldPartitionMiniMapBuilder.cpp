@@ -119,8 +119,8 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 	SourceBlocks.Reserve(MiniMapTiles.Num());
 	SourceImageData.Reserve(MiniMapTiles.Num());
 
-	FTileCoordinates Min = { FMath::FloorToInt(EditorBounds.Min.X / IterativeCellSize), FMath::FloorToInt(EditorBounds.Min.Y / IterativeCellSize) };
-	FTileCoordinates Max = { FMath::FloorToInt(EditorBounds.Max.X / IterativeCellSize), FMath::FloorToInt(EditorBounds.Max.Y / IterativeCellSize) };
+	FTileCoordinates Min = { FMath::FloorToInt32(EditorBounds.Min.X / IterativeCellSize), FMath::FloorToInt32(EditorBounds.Min.Y / IterativeCellSize) };
+	FTileCoordinates Max = { FMath::FloorToInt32(EditorBounds.Max.X / IterativeCellSize), FMath::FloorToInt32(EditorBounds.Max.Y / IterativeCellSize) };
 
 	FVector2D				Offset;
 	ETextureSourceFormat	Format = TSF_BGRA8;
