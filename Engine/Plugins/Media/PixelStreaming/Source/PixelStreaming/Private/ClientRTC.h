@@ -3,7 +3,7 @@
 
 #include "WebRTCIncludes.h"
 #include "SignallingServerConnection.h"
-#include "ProtocolDefs.h"
+#include "PixelStreamingProtocolDefs.h"
 
 namespace UE::PixelStreaming
 {
@@ -46,7 +46,7 @@ namespace UE::PixelStreaming
 		virtual void OnSessionDescription(webrtc::SdpType Type, const FString& Sdp) override;
 		virtual void OnRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) override;
 		virtual void OnPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) override;
-		virtual void OnPlayerCount(uint32 Count) override { }
+		virtual void OnPlayerCount(uint32 Count) override {}
 
 		//
 		// webrtc::PeerConnectionObserver implementation.

@@ -3,13 +3,15 @@
 #pragma once
 
 #include "FixedFPSPump.h"
+#include "PixelStreamingTextureSource.h"
 #include "Settings.h"
+
+class IPixelStreamingTextureSource;
 
 namespace UE::PixelStreaming
 {
 	class FVideoSourceFactory;
 	class FPlayerSessions;
-	class ITextureSource;
 
 	/*
 		* Base class for pumped Pixel Streaming video sources. Video sources are WebRTC video sources that populate WebRTC tracks
@@ -38,6 +40,8 @@ namespace UE::PixelStreaming
 		virtual bool HasOneRef() const { return RefCount.HasOneRef(); }
 		/* End IPumpedVideoSource */
 
+		/* Begin rtc::RefCountInterface */
+
 	protected:
 		virtual bool AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution);
 		virtual webrtc::VideoFrame CreateFrame(int32 FrameId) = 0;
@@ -60,7 +64,7 @@ namespace UE::PixelStreaming
 
 	protected:
 		FPlayerSessions* Sessions;
-		TSharedPtr<ITextureSource> TextureSource;
+		TSharedPtr<IPixelStreamingTextureSource> TextureSource;
 		Settings::ECodec Codec;
 
 	protected:
@@ -82,7 +86,7 @@ namespace UE::PixelStreaming
 		FVideoSourceSFU();
 
 	protected:
-		TArray<TSharedPtr<ITextureSource>> LayerTextures;
+		TArray<TSharedPtr<IPixelStreamingTextureSource>> LayerTextures;
 
 	protected:
 		/* Begin FVideoSourceBase */

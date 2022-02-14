@@ -5,18 +5,19 @@
 #include "WebRTCIncludes.h"
 #include "EncoderFactory.h"
 
+class IPixelStreamingTextureSource;
+
 namespace webrtc
 {
 	class SimulcastRateAllocator;
 	class VideoEncoderFactory;
 } // namespace webrtc
 
-namespace UE {
-	namespace PixelStreaming {
-		class ITextureSource;
-
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		// This is highly modified version of webrtc::simulcast_encoder_adapter
-
 		class FSimulcastEncoderAdapter : public webrtc::VideoEncoder
 		{
 		public:
@@ -85,7 +86,7 @@ namespace UE {
 
 			int LowestResolutionStreamIndex;
 			int HighestResolutionStreamIndex;
-			int EncodeStream(const webrtc::VideoFrame& InputImage, TSharedPtr<ITextureSource> LayerFrameSource, size_t StreamIdx, bool bSendKeyFrame);
+			int EncodeStream(const webrtc::VideoFrame& InputImage, TSharedPtr<IPixelStreamingTextureSource> LayerFrameSource, size_t StreamIdx, bool bSendKeyFrame);
 		};
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

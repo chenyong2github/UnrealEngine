@@ -1,28 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FrameBuffer.h"
-#include "TextureSource.h"
+#include "PixelStreamingFrameBuffer.h"
+#include "PixelStreamingTextureSource.h"
 #include "Utils.h"
 
 /*
 * ----------------- FInitializeFrameBuffer -----------------
 */
 
-UE::PixelStreaming::FInitializeFrameBuffer::FInitializeFrameBuffer(TSharedPtr<ITextureSource> InTextureSource)
+FInitializeFrameBuffer::FInitializeFrameBuffer(TSharedPtr<IPixelStreamingTextureSource> InTextureSource)
 	: TextureSource(InTextureSource)
 {
 }
 
-UE::PixelStreaming::FInitializeFrameBuffer::~FInitializeFrameBuffer()
+FInitializeFrameBuffer::~FInitializeFrameBuffer()
 {
 }
 
-int UE::PixelStreaming::FInitializeFrameBuffer::width() const
+int FInitializeFrameBuffer::width() const
 {
 	return TextureSource->GetSourceWidth();
 }
 
-int UE::PixelStreaming::FInitializeFrameBuffer::height() const
+int FInitializeFrameBuffer::height() const
 {
 	return TextureSource->GetSourceHeight();
 }
@@ -31,33 +31,33 @@ int UE::PixelStreaming::FInitializeFrameBuffer::height() const
 * ----------------- FSimulcastFrameBuffer -----------------
 */
 
-UE::PixelStreaming::FSimulcastFrameBuffer::FSimulcastFrameBuffer(TArray<TSharedPtr<ITextureSource>>& InTextureSources)
+FSimulcastFrameBuffer::FSimulcastFrameBuffer(TArray<TSharedPtr<IPixelStreamingTextureSource>>& InTextureSources)
 	: TextureSources(InTextureSources)
 {
 }
 
-UE::PixelStreaming::FSimulcastFrameBuffer::~FSimulcastFrameBuffer()
+FSimulcastFrameBuffer::~FSimulcastFrameBuffer()
 {
 }
 
-int UE::PixelStreaming::FSimulcastFrameBuffer::GetNumLayers() const
+int FSimulcastFrameBuffer::GetNumLayers() const
 {
 	return TextureSources.Num();
 }
 
-TSharedPtr<UE::PixelStreaming::ITextureSource> UE::PixelStreaming::FSimulcastFrameBuffer::GetLayerFrameSource(int LayerIndex) const
+TSharedPtr<IPixelStreamingTextureSource> FSimulcastFrameBuffer::GetLayerFrameSource(int LayerIndex) const
 {
 	checkf(LayerIndex >= 0 && LayerIndex < TextureSources.Num(), TEXT("Requested layer index was out of bounds."));
 	return TextureSources[LayerIndex];
 }
 
-int UE::PixelStreaming::FSimulcastFrameBuffer::width() const
+int FSimulcastFrameBuffer::width() const
 {
 	checkf(TextureSources.Num() > 0, TEXT("Must be at least one texture source to get the width from."));
 	return FMath::Max(TextureSources[0]->GetSourceWidth(), TextureSources[TextureSources.Num() - 1]->GetSourceWidth());
 }
 
-int UE::PixelStreaming::FSimulcastFrameBuffer::height() const
+int FSimulcastFrameBuffer::height() const
 {
 	checkf(TextureSources.Num() > 0, TEXT("Must be at least one texture source to get the height from."));
 	return FMath::Max(TextureSources[0]->GetSourceHeight(), TextureSources[TextureSources.Num() - 1]->GetSourceHeight());
@@ -67,26 +67,26 @@ int UE::PixelStreaming::FSimulcastFrameBuffer::height() const
 * ----------------- FLayerFrameBuffer -----------------
 */
 
-UE::PixelStreaming::FLayerFrameBuffer::FLayerFrameBuffer(TSharedPtr<UE::PixelStreaming::ITextureSource> InTextureSource)
+FLayerFrameBuffer::FLayerFrameBuffer(TSharedPtr<IPixelStreamingTextureSource> InTextureSource)
 	: TextureSource(InTextureSource)
 {
 }
 
-UE::PixelStreaming::FLayerFrameBuffer::~FLayerFrameBuffer()
+FLayerFrameBuffer::~FLayerFrameBuffer()
 {
 }
 
-FTexture2DRHIRef UE::PixelStreaming::FLayerFrameBuffer::GetFrame() const
+FTexture2DRHIRef FLayerFrameBuffer::GetFrame() const
 {
 	return TextureSource->GetTexture();
 }
 
-int UE::PixelStreaming::FLayerFrameBuffer::width() const
+int FLayerFrameBuffer::width() const
 {
 	return TextureSource->GetSourceWidth();
 }
 
-int UE::PixelStreaming::FLayerFrameBuffer::height() const
+int FLayerFrameBuffer::height() const
 {
 	return TextureSource->GetSourceHeight();
 }
@@ -95,31 +95,31 @@ int UE::PixelStreaming::FLayerFrameBuffer::height() const
 * ----------------- FFrameBufferI420 -----------------
 */
 
-UE::PixelStreaming::FFrameBufferI420::FFrameBufferI420(TSharedPtr<UE::PixelStreaming::ITextureSource> InTextureSource)
+FFrameBufferI420::FFrameBufferI420(TSharedPtr<IPixelStreamingTextureSource> InTextureSource)
 	: TextureSource(InTextureSource)
 {
 }
 
-UE::PixelStreaming::FFrameBufferI420::~FFrameBufferI420()
+FFrameBufferI420::~FFrameBufferI420()
 {
 }
 
-FTexture2DRHIRef UE::PixelStreaming::FFrameBufferI420::GetFrame() const
+FTexture2DRHIRef FFrameBufferI420::GetFrame() const
 {
 	return TextureSource->GetTexture();
 }
 
-int UE::PixelStreaming::FFrameBufferI420::width() const
+int FFrameBufferI420::width() const
 {
 	return TextureSource->GetSourceWidth();
 }
 
-int UE::PixelStreaming::FFrameBufferI420::height() const
+int FFrameBufferI420::height() const
 {
 	return TextureSource->GetSourceHeight();
 }
 
-const webrtc::I420BufferInterface* UE::PixelStreaming::FFrameBufferI420::GetI420() const
+const webrtc::I420BufferInterface* FFrameBufferI420::GetI420() const
 {
 	return Buffer;
 }
@@ -127,16 +127,15 @@ const webrtc::I420BufferInterface* UE::PixelStreaming::FFrameBufferI420::GetI420
 /*
 * NOTE: Only used for non-hardware encoders (e.g. VP8) - H264 does NOT hit this function.
 */
-rtc::scoped_refptr<webrtc::I420BufferInterface> UE::PixelStreaming::FFrameBufferI420::ToI420()
+rtc::scoped_refptr<webrtc::I420BufferInterface> FFrameBufferI420::ToI420()
 {
-	ITextureSource* TextureSourcePtr = TextureSource.Get();
-	checkf(TextureSourcePtr && TextureSourcePtr->GetName() == FString(TEXT("FTextureSourceBackBufferToCPU")), TEXT("To use VPX encoder texture source must be FTextureSourceBackBufferToCPU"));
+	IBackBufferTextureSource* TextureSourcePtr = static_cast<IBackBufferTextureSource*>(TextureSource.Get());
+	checkf(TextureSourcePtr && TextureSourcePtr->GetName() == FString(TEXT("FBackBufferToCPUTextureSource")), TEXT("To use VPX encoder texture source must be FBackBufferToCPUTextureSource"));
 
-	FTextureSourceBackBufferToCPU* TextureSourceCPU = static_cast<FTextureSourceBackBufferToCPU*>(TextureSourcePtr);
-	TRefCountPtr<FRawPixelsTexture> Current = TextureSourceCPU->GetCurrent();
+	TRefCountPtr<FPixelStreamingCPUReadableBackbufferTexture> Current = static_cast<FPixelStreamingCPUReadableBackbufferTexture*>(TextureSourcePtr->GetCurrent().GetReference());
 
-	uint32 TextureWidth = Current->TextureRef->GetSizeX();
-	uint32 TextureHeight = Current->TextureRef->GetSizeY();
+	uint32 TextureWidth = Current->GetTexture()->GetSizeX();
+	uint32 TextureHeight = Current->GetTexture()->GetSizeY();
 
 	uint32 i = 0;
 	uint32 NumPixels = TextureWidth * TextureHeight;
@@ -152,14 +151,14 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> UE::PixelStreaming::FFrameBuffer
 	Buffer = webrtc::I420Buffer::Create(TextureWidth, TextureHeight, TextureWidth, TextureWidth / 2, TextureWidth / 2);
 
 	// If we have no raw pixels then early exit this swizzle operation
-	if (Current->RawPixels.Num() == 0)
+	if (Current->GetRawPixels().Num() == 0)
 	{
 		webrtc::I420Buffer::SetBlack(Buffer);
 		return Buffer;
 	}
 
 	uint8* yuv420p = Buffer->MutableDataY();
-	const uint8* rgbIn = (const uint8*)Current->RawPixels.GetData();
+	const uint8* rgbIn = (const uint8*)Current->GetRawPixels().GetData();
 	for (uint32 j = 0; j < TextureHeight; j++)
 	{
 		for (uint32 k = 0; k < TextureWidth; k++)

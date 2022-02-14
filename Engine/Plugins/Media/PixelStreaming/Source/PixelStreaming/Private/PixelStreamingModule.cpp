@@ -46,6 +46,7 @@ THIRD_PARTY_INCLUDES_END
 #include "IImageWrapperModule.h"
 #include "Async/Async.h"
 #include "Engine/Engine.h"
+#include "EncoderFactory.h"
 
 #if !UE_BUILD_SHIPPING
 	#include "DrawDebugHelpers.h"
@@ -299,7 +300,6 @@ namespace UE::PixelStreaming
 		return ReadyEvent;
 	}
 
-
 	IPixelStreamingModule::FStreamingStartedEvent& FPixelStreamingModule::OnStreamingStarted()
 	{
 		return StreamingStartedEvent;
@@ -494,7 +494,7 @@ namespace UE::PixelStreaming
 			return nullptr;
 		}
 
-		return Streamer->GetPlayerSessions().ForSession<IPixelStreamingAudioSink*>(PlayerId, [](auto Session) { return Session->GetAudioSink(); });
+		return Streamer->GetPlayerSessions().ForSession<IPixelStreamingAudioSink*>(PlayerId, [](TSharedPtr<IPlayerSession> Session) { return Session->GetAudioSink(); });
 	}
 
 	IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
@@ -516,5 +516,25 @@ namespace UE::PixelStreaming
 		return Result;
 	}
 } // namespace UE::PixelStreaming
+
+void UE::PixelStreaming::FPixelStreamingModule::AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task)
+{
+	FencePollerThread.AddJob(Fence, bIsEnabled, Task);
+}
+
+void UE::PixelStreaming::FPixelStreamingModule::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* VideoSource)
+{
+	PumpThread.RegisterVideoSource(PlayerId, VideoSource);
+}
+
+void UE::PixelStreaming::FPixelStreamingModule::UnregisterVideoSource(FPixelStreamingPlayerId PlayerId)
+{
+	PumpThread.UnregisterVideoSource(PlayerId);
+}
+
+webrtc::VideoEncoderFactory* UE::PixelStreaming::FPixelStreamingModule::CreateVideoEncoderFactory()
+{
+	return new UE::PixelStreaming::FVideoEncoderFactory();
+}
 
 IMPLEMENT_MODULE(UE::PixelStreaming::FPixelStreamingModule, PixelStreaming)

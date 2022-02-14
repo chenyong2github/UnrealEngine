@@ -3,8 +3,8 @@
 #include "FixedFPSPump.h"
 #include "VideoSource.h"
 #include "Settings.h"
-#include "TextureSource.h"
-#include "FrameBuffer.h"
+#include "PixelStreamingTextureSource.h"
+#include "PixelStreamingFrameBuffer.h"
 #include "PlayerSession.h"
 
 /*
@@ -45,7 +45,7 @@ void UE::PixelStreaming::FFixedFPSPump::UnregisterVideoSource(FPixelStreamingPla
 	NextPumpEvent->Trigger();
 }
 
-void UE::PixelStreaming::FFixedFPSPump::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, UE::PixelStreaming::IPumpedVideoSource* Source)
+void UE::PixelStreaming::FFixedFPSPump::RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* Source)
 {
 	checkf(Source, TEXT("Cannot register a nullptr VideoSource."));
 	FScopeLock Guard(&SourcesGuard);
@@ -72,12 +72,12 @@ void UE::PixelStreaming::FFixedFPSPump::PumpLoop()
 
 			// Pump each video source
 			TMap<FPixelStreamingPlayerId, IPumpedVideoSource*>::TIterator Iter = VideoSources.CreateIterator();
-			for(; Iter; ++Iter)
+			for (; Iter; ++Iter)
 			{
 
 				IPumpedVideoSource* VideoSource = Iter.Value();
 
-				if(VideoSource->IsReadyForPump())
+				if (VideoSource->IsReadyForPump())
 				{
 					VideoSource->OnPump(FrameId);
 				}
@@ -85,12 +85,12 @@ void UE::PixelStreaming::FFixedFPSPump::PumpLoop()
 		}
 
 		// Sleep as long as we need for a constant FPS
-		const uint64 EndCycles	  = FPlatformTime::Cycles64();
-		const double DeltaMs	  = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
-		const int32 FPS			  = UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+		const uint64 EndCycles = FPlatformTime::Cycles64();
+		const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
+		const int32 FPS = UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
 		const double FrameDeltaMs = 1000.0 / FPS;
-		const double SleepMs	  = FrameDeltaMs - DeltaMs;
-		LastCycles				  = EndCycles;
+		const double SleepMs = FrameDeltaMs - DeltaMs;
+		LastCycles = EndCycles;
 
 		if (SleepMs > 0)
 		{

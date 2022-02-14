@@ -367,7 +367,7 @@ namespace UE::PixelStreaming
 		// webrtc::metrics::Histogram* Hist1 = webrtc::metrics::HistogramFactoryGetCounts("WebRTC.Video.NacksSent", 0, 100000, 100);
 		// Will require calling webrtc::metrics::Enable();
 
-		Sessions->ForEachSession([](auto Session) {
+		Sessions->ForEachSession([](TSharedPtr<IPlayerSession> Session) {
 			Session->PollWebRTCStats();
 		});
 

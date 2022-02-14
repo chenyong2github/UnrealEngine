@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SimulcastEncoderAdapter.h"
-#include "FrameBuffer.h"
+#include "PixelStreamingFrameBuffer.h"
+#include "IPixelStreamingTextureSource.h"
 
 namespace
 {
@@ -121,7 +122,7 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::Release()
 			StreamInfos.pop_back(); // Deletes callback adapter.
 		}
 	}
-	
+
 	Initialized = false;
 
 	return WEBRTC_VIDEO_CODEC_OK;
@@ -173,7 +174,7 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::InitEncode(const webrtc::Video
 
 			FVideoEncoderFactory* EncoderFactory = SimulcastEncoderFactory.GetOrCreateEncoderFactory(i);
 			std::unique_ptr<VideoEncoder> Encoder = EncoderFactory->CreateVideoEncoder(Format);
-			
+
 			// std::unique_ptr<VideoEncoder> Encoder = SimulcastEncoderFactory->CreateVideoEncoder(Format);
 			int ReturnCode = Encoder->InitEncode(&StreamCodec, settings);
 			if (ReturnCode < 0)
@@ -199,10 +200,10 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::InitEncode(const webrtc::Video
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int UE::PixelStreaming::FSimulcastEncoderAdapter::EncodeStream(const webrtc::VideoFrame& InputImage, TSharedPtr<UE::PixelStreaming::ITextureSource> LayerFrameSource, size_t StreamIdx, bool bSendKeyFrame)
+int UE::PixelStreaming::FSimulcastEncoderAdapter::EncodeStream(const webrtc::VideoFrame& InputImage, TSharedPtr<IPixelStreamingTextureSource> LayerFrameSource, size_t StreamIdx, bool bSendKeyFrame)
 {
 	// grab the simulcast frame source, extract the frame source for this layer and wrap that in a new frame buffer
-	rtc::scoped_refptr<UE::PixelStreaming::FLayerFrameBuffer> LayerFrameBuffer = new rtc::RefCountedObject<UE::PixelStreaming::FLayerFrameBuffer>(LayerFrameSource);
+	rtc::scoped_refptr<FLayerFrameBuffer> LayerFrameBuffer = new rtc::RefCountedObject<FLayerFrameBuffer>(LayerFrameSource);
 	webrtc::VideoFrame NewFrame(InputImage);
 	NewFrame.set_video_frame_buffer(LayerFrameBuffer);
 
@@ -245,15 +246,15 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::Encode(const webrtc::VideoFram
 	// ignore any init frames
 	// NOTE: It seems most of the time they never even get here because the internals of WebRTC decide to drop it. It seems it thinks
 	// the encoder is paused or something.
-	const UE::PixelStreaming::FFrameBuffer* FrameBuffer = static_cast<UE::PixelStreaming::FFrameBuffer*>(input_image.video_frame_buffer().get());
-	if (FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::FFrameBufferType::Initialize)
+	const FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(input_image.video_frame_buffer().get());
+	if (FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::EFrameBufferType::Initialize)
 	{
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 
 	// separate out our pixelstreaming image sources
-	check(FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::FFrameBufferType::Simulcast);
-	const UE::PixelStreaming::FSimulcastFrameBuffer* SimulcastFrameBuffer = static_cast<const UE::PixelStreaming::FSimulcastFrameBuffer*>(FrameBuffer);
+	check(FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::EFrameBufferType::Simulcast);
+	const FSimulcastFrameBuffer* SimulcastFrameBuffer = static_cast<const FSimulcastFrameBuffer*>(FrameBuffer);
 
 	// All active streams should generate a key frame if
 	// a key frame is requested by any stream.
@@ -287,7 +288,7 @@ int UE::PixelStreaming::FSimulcastEncoderAdapter::Encode(const webrtc::VideoFram
 			continue;
 		}
 
-		TSharedPtr<ITextureSource> LayerFrameSource = SimulcastFrameBuffer->GetLayerFrameSource(StreamInfos.size() == 1 ? SimulcastFrameBuffer->GetNumLayers() - 1 : StreamIdx);
+		TSharedPtr<IPixelStreamingTextureSource> LayerFrameSource = SimulcastFrameBuffer->GetLayerFrameSource(StreamInfos.size() == 1 ? SimulcastFrameBuffer->GetNumLayers() - 1 : StreamIdx);
 
 		int RtcError = EncodeStream(input_image, LayerFrameSource, StreamIdx, bSendKeyFrame);
 		if (RtcError != WEBRTC_VIDEO_CODEC_OK)

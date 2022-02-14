@@ -3,7 +3,7 @@
 #pragma once
 
 #include "SignallingServerConnection.h"
-#include "ProtocolDefs.h"
+#include "PixelStreamingProtocolDefs.h"
 #include "RHI.h"
 #include "PlayerSessions.h"
 #include "FixedFPSPump.h"

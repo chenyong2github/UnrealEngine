@@ -1,20 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlayerSessions.h"
-#include "PlayerSession.h"
-#include "PlayerSessionSFU.h"
-#include "PlayerSessionDataOnly.h"
-#include "PixelStreamingPrivate.h"
-#include "Settings.h"
 #include "PixelStreamingDelegates.h"
+#include "PixelStreamingPrivate.h"
+#include "PlayerSession.h"
+#include "PlayerSessionDataOnly.h"
+#include "PlayerSessionSFU.h"
+#include "Settings.h"
 
 namespace UE::PixelStreaming
 {
-	TSharedPtr<IPlayerSession> FPlayerSessions::CreatePlayerSession(FPixelStreamingPlayerId PlayerId,
-		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory,
+	TSharedPtr<IPlayerSession> FPlayerSessions::CreatePlayerSession(
+		FPixelStreamingPlayerId PlayerId,
+		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
+			PeerConnectionFactory,
 		webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
-		FSignallingServerConnection* SignallingServerConnection,
-		int Flags)
+		FSignallingServerConnection *SignallingServerConnection, int Flags)
 	{
 		check(PeerConnectionFactory);
 
@@ -26,33 +27,46 @@ namespace UE::PixelStreaming
 			return nullptr;
 		}
 
-		UE_LOG(LogPixelStreaming, Log, TEXT("Creating player session for PlayerId=%s"), *PlayerId);
+		UE_LOG(LogPixelStreaming, Log,
+			   TEXT("Creating player session for PlayerId=%s"), *PlayerId);
 
-		// this is called from WebRTC signalling thread, the only thread where `Players` map is modified, so no need to lock it
+		// this is called from WebRTC signalling thread, the only thread where
+		// `Players` map is modified, so no need to lock it
 		bool bIsSFU = (Flags & Protocol::EPlayerFlags::PSPFlag_IsSFU) != 0;
-		bool bMakeQualityController = !bIsSFU && Players.Num() == 0; // first player controls quality by default
+		bool bMakeQualityController =
+			!bIsSFU && Players.Num() == 0; // first player controls quality by default
 		TSharedPtr<IPlayerSession> Session;
 		if (bIsSFU)
 		{
-			Session = MakeShared<FPlayerSessionSFU>(this, SignallingServerConnection, PlayerId);
+			Session = MakeShared<FPlayerSessionSFU>(this, SignallingServerConnection,
+													PlayerId);
 		}
 		else
 		{
-			Session = MakeShared<FPlayerSession>(this, SignallingServerConnection, PlayerId);
+			Session =
+				MakeShared<FPlayerSession>(this, SignallingServerConnection, PlayerId);
 		}
 
-		rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection = PeerConnectionFactory->CreatePeerConnection(PeerConnectionConfig, webrtc::PeerConnectionDependencies{ Session.Get() });
+		rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection =
+			PeerConnectionFactory->CreatePeerConnection(
+				PeerConnectionConfig,
+				webrtc::PeerConnectionDependencies{Session.Get()});
 		if (!PeerConnection)
 		{
-			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to created PeerConnection. This may indicate you passed malformed peerConnectionOptions."));
+			UE_LOG(LogPixelStreaming, Error,
+				   TEXT("Failed to created PeerConnection. This may indicate you "
+						"passed malformed peerConnectionOptions."));
 			return nullptr;
 		}
 
 		// Setup suggested bitrate settings on the Peer Connection based on our CVars
 		webrtc::BitrateSettings BitrateSettings;
-		BitrateSettings.min_bitrate_bps = Settings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
-		BitrateSettings.max_bitrate_bps = Settings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
-		BitrateSettings.start_bitrate_bps = Settings::CVarPixelStreamingWebRTCStartBitrate.GetValueOnAnyThread();
+		BitrateSettings.min_bitrate_bps =
+			Settings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
+		BitrateSettings.max_bitrate_bps =
+			Settings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
+		BitrateSettings.start_bitrate_bps =
+			Settings::CVarPixelStreamingWebRTCStartBitrate.GetValueOnAnyThread();
 		PeerConnection->SetBitrate(BitrateSettings);
 
 		Session->SetPeerConnection(PeerConnection);
@@ -68,25 +82,29 @@ namespace UE::PixelStreaming
 			SetQualityController(PlayerId);
 		}
 
-		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		if (UPixelStreamingDelegates *Delegates =
+				UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			Delegates->OnNewConnection.Broadcast(PlayerId, bMakeQualityController);
-			Delegates->OnNewConnectionNative.Broadcast(PlayerId, bMakeQualityController);
+			Delegates->OnNewConnectionNative.Broadcast(PlayerId,
+													   bMakeQualityController);
 		}
 
 		return Session;
 	}
 
-	void FPlayerSessions::CreateNewDataChannel(FPixelStreamingPlayerId SFUId,
-		FPixelStreamingPlayerId PlayerId,
-		int32 SendStreamId,
-		int32 RecvStreamId,
-		FSignallingServerConnection* SignallingServerConnection)
+	void FPlayerSessions::CreateNewDataChannel(
+		FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId,
+		int32 SendStreamId, int32 RecvStreamId,
+		FSignallingServerConnection *SignallingServerConnection)
 	{
-		if (auto ParentSession = StaticCastSharedPtr<FPlayerSessionSFU>(GetPlayerSession(SFUId)))
+		if (auto ParentSession =
+				StaticCastSharedPtr<FPlayerSessionSFU>(GetPlayerSession(SFUId)))
 		{
 			auto PeerConnection = &ParentSession->GetPeerConnection();
-			auto NewSession = MakeShared<FPlayerSessionDataOnly>(this, SignallingServerConnection, PlayerId, PeerConnection, SendStreamId, RecvStreamId);
+			auto NewSession = MakeShared<FPlayerSessionDataOnly>(
+				this, SignallingServerConnection, PlayerId, PeerConnection,
+				SendStreamId, RecvStreamId);
 			ParentSession->AddChildSession(NewSession);
 
 			{
@@ -101,7 +119,9 @@ namespace UE::PixelStreaming
 		TSharedPtr<IPlayerSession> PlayerSession = GetPlayerSession(PlayerId);
 		if (!PlayerSession)
 		{
-			UE_LOG(LogPixelStreaming, VeryVerbose, TEXT("Failed to delete player %s - that player was not found."), *PlayerId);
+			UE_LOG(LogPixelStreaming, VeryVerbose,
+				   TEXT("Failed to delete player %s - that player was not found."),
+				   *PlayerId);
 			return GetNumPlayers();
 		}
 
@@ -115,11 +135,13 @@ namespace UE::PixelStreaming
 			RemainingCount = Players.Num();
 		}
 
-		UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates();
+		UPixelStreamingDelegates *Delegates =
+			UPixelStreamingDelegates::GetPixelStreamingDelegates();
 		if (Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming"))
 		{
 			Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
-			Delegates->OnClosedConnectionNative.Broadcast(PlayerId, bWasQualityController);
+			Delegates->OnClosedConnectionNative.Broadcast(PlayerId,
+														  bWasQualityController);
 
 			if (RemainingCount == 0)
 			{
@@ -132,7 +154,8 @@ namespace UE::PixelStreaming
 
 		if (bWasQualityController && RemainingCount > 0)
 		{
-			// Quality Controller session has been just removed, set quality control to any of remaining sessions
+			// Quality Controller session has been just removed, set quality control to
+			// any of remaining sessions
 			SetQualityController(Players.begin()->Key);
 		}
 
@@ -145,8 +168,8 @@ namespace UE::PixelStreaming
 		TSet<FPixelStreamingPlayerId> OldPlayerIds;
 		Players.GetKeys(OldPlayerIds);
 
-		// Do the modification to the critical parts separately since quality controller
-		// lock is requested in the destructor of the video source base.
+		// Do the modification to the critical parts separately since quality
+		// controller lock is requested in the destructor of the video source base.
 		{
 			FScopeLock QualityControllerLock(&QualityControllerCS);
 			QualityControllingPlayer = INVALID_PLAYER_ID;
@@ -154,19 +177,20 @@ namespace UE::PixelStreaming
 		{
 			FScopeLock PlayersLock(&PlayersCS);
 			Players.Empty();
-		
 		}
 
 		// Notify all delegates of all the closed players
-		UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates();
+		UPixelStreamingDelegates *Delegates =
+			UPixelStreamingDelegates::GetPixelStreamingDelegates();
 		if (Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming"))
 		{
-			for (auto&& PlayerId : OldPlayerIds)
+			for (auto &&PlayerId : OldPlayerIds)
 			{
 				bool bWasQualityController = OldQualityController == PlayerId;
 
 				Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
-				Delegates->OnClosedConnectionNative.Broadcast(PlayerId, bWasQualityController);
+				Delegates->OnClosedConnectionNative.Broadcast(PlayerId,
+															  bWasQualityController);
 			}
 
 			Delegates->OnAllConnectionsClosed.Broadcast();
@@ -174,12 +198,10 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	int FPlayerSessions::GetNumPlayers() const
-	{
-		return Players.Num();
-	}
+	int FPlayerSessions::GetNumPlayers() const { return Players.Num(); }
 
-	bool FPlayerSessions::IsQualityController(FPixelStreamingPlayerId PlayerId) const
+	bool FPlayerSessions::IsQualityController(
+		FPixelStreamingPlayerId PlayerId) const
 	{
 		FScopeLock Lock(&QualityControllerCS);
 		return QualityControllingPlayer == PlayerId;
@@ -194,34 +216,35 @@ namespace UE::PixelStreaming
 		}
 
 		// Let any listeners know the quality controller has changed
-		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		if (UPixelStreamingDelegates *Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			Delegates->OnQualityControllerChangedNative.Broadcast(PlayerId);
 		}
 
-		UE_LOG(LogPixelStreaming, Log, TEXT("Quality controller is now PlayerId=%s."), *PlayerId);
+		UE_LOG(LogPixelStreaming, Log, TEXT("Quality controller is now PlayerId=%s."),
+			   *PlayerId);
 
 		// Update quality controller status on the browser side too
-		ForEachSession([&](TSharedPtr<IPlayerSession> Session) {
+		ForEachSession([&](TSharedPtr<IPlayerSession> Session)
+					   {
 			bool bIsQualityController = Session->GetPlayerId() == QualityControllingPlayer;
-			Session->SendQualityControlStatus(bIsQualityController);
-		});
+			Session->SendQualityControlStatus(bIsQualityController); });
 	}
 
-	void FPlayerSessions::ForEachSession(const TFunction<void(TSharedPtr<IPlayerSession>)>& Func)
+	void FPlayerSessions::ForEachSession(const TFunction<void(TSharedPtr<IPlayerSession>)> &Func)
 	{
 		// We have to be careful here
-		// We dont lock here because we can end up in a situation where Func dispatches to
-		// another thread and that thread is already waiting to acquire this lock and bam
-		// we have a deadlock. Instead we grab the current list of keys and then iterate
-		// over our copy of those. We DO lock while checking and pulling the session just
-		// in case Players is being modified between Contains and when we actually pull it.
-		// luckily GetPlayerSession handles that for us.
+		// We dont lock here because we can end up in a situation where Func
+		// dispatches to another thread and that thread is already waiting to acquire
+		// this lock and bam we have a deadlock. Instead we grab the current list of
+		// keys and then iterate over our copy of those. We DO lock while checking and
+		// pulling the session just in case Players is being modified between Contains
+		// and when we actually pull it. luckily GetPlayerSession handles that for us.
 		TSet<FPixelStreamingPlayerId> KeySet;
 		Players.GetKeys(KeySet);
-		for (auto&& PlayerId : KeySet)
+		for (auto &&PlayerId : KeySet)
 		{
-			if (auto Session = GetPlayerSession(PlayerId))
+			if (TSharedPtr<IPlayerSession> Session = GetPlayerSession(PlayerId))
 			{
 				Func(Session);
 			}

@@ -1,69 +1,160 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TextureSource.h"
+#include "PixelStreamingTextureSource.h"
+#include "Stats.h"
 #include "Utils.h"
 
+/*
+ * --------- IBackBufferTextureSource ------------------------------------------
+ */
+
+IBackBufferTextureSource::IBackBufferTextureSource(float InFrameScale)
+	: FrameScale(InFrameScale)
+{
+	// Explictly make clear we are adding another ref to this shared bool for the purposes of using in the below lambda
+	TSharedRef<bool, ESPMode::ThreadSafe> bEnabledClone = bEnabled;
+
+	// The backbuffer delegate can only be accessed using GameThread
+	AsyncTask(ENamedThreads::GameThread, [this, bEnabledClone]() {
+		/*Early exit if `this` died before game thread ran.*/
+		if (bEnabledClone.IsUnique())
+		{
+			return;
+		}
+		OnBackbuffer = &FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent();
+		BackbufferDelegateHandle = OnBackbuffer->AddSP(this, &IBackBufferTextureSource::OnBackBufferReady_RenderThread);
+	});
+}
+
+IBackBufferTextureSource::~IBackBufferTextureSource()
+{
+	if (OnBackbuffer)
+	{
+		OnBackbuffer->Remove(BackbufferDelegateHandle);
+	}
+
+	*bEnabled = false;
+}
+
+TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> IBackBufferTextureSource::GetCurrent()
+{
+	if (bIsTempDirty)
+	{
+		FScopeLock Lock(&CriticalSection);
+		ReadBuffer.Swap(TempBuffer);
+		bIsTempDirty = false;
+	}
+	return ReadBuffer;
+}
+
+void IBackBufferTextureSource::SetEnabled(bool bInEnabled)
+{
+	*bEnabled = bInEnabled;
+	// This source has been disabled, so set `bInitialized` to false so `OnBackBufferReady_RenderThread`
+	// will make new textures next time it is called.
+	if (bInitialized && bInEnabled == false)
+	{
+		bInitialized = false;
+	}
+}
+
+void IBackBufferTextureSource::OnBackBufferReady_RenderThread(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer)
+{
+	if (!bInitialized)
+	{
+		Initialize(FrameBuffer->GetSizeXY().X * FrameScale, FrameBuffer->GetSizeXY().Y * FrameScale);
+	}
+
+	if (!IsEnabled())
+	{
+		return;
+	}
+
+	auto& WriteBuffer = bWriteParity ? WriteBuffers[0] : WriteBuffers[1];
+	bWriteParity = !bWriteParity;
+
+	// for safety we just make sure that the buffer is not currently waiting for a copy
+	if (WriteBuffer.bAvailable)
+	{
+		WriteBuffer.bAvailable = false;
+
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		WriteBuffer.Fence->Clear();
+
+		RHICmdList.EnqueueLambda([&WriteBuffer](FRHICommandListImmediate& RHICmdList) {
+			WriteBuffer.PreWaitingOnCopy = FPlatformTime::Cycles64();
+		});
+
+		UE::PixelStreaming::CopyTexture(FrameBuffer, WriteBuffer.TextureWrapper->GetTexture(), WriteBuffer.Fence);
+
+		IPixelStreamingModule::Get().AddGPUFencePollerTask(WriteBuffer.Fence, bEnabled, [this, &WriteBuffer]() {
+			// This lambda is called only once the GPUFence is done
+			{
+				FScopeLock Lock(&CriticalSection);
+				TempBuffer.Swap(WriteBuffer.TextureWrapper);
+				WriteBuffer.Fence->Clear();
+				WriteBuffer.bAvailable = true;
+
+				bIsTempDirty = true;
+			}
+
+			// For debugging timing information about the copy operation
+			// Turning it on all the time is a bit too much log spam if logging stats
+			uint64 PostWaitingOnCopy = FPlatformTime::Cycles64();
+			UE::PixelStreaming::FStats* Stats = UE::PixelStreaming::FStats::Get();
+			if (Stats)
+			{
+				double CaptureLatencyMs = FPlatformTime::ToMilliseconds64(PostWaitingOnCopy - WriteBuffer.PreWaitingOnCopy);
+				Stats->StoreApplicationStat(UE::PixelStreaming::FStatData(FName(*FString::Printf(TEXT("Layer (x%.2f) Capture time (ms)"), FrameScale)), CaptureLatencyMs, 2, true));
+			}
+		});
+	}
+}
+
+void IBackBufferTextureSource::Initialize(int Width, int Height)
+{
+	SourceWidth = Width;
+	SourceHeight = Height;
+
+	for (auto& Buffer : WriteBuffers)
+	{
+		Buffer.TextureWrapper = CreateTexture(SourceWidth, SourceHeight);
+		Buffer.Fence = GDynamicRHI->RHICreateGPUFence(TEXT("VideoCapturerCopyFence"));
+		Buffer.bAvailable = true;
+	}
+	bWriteParity = true;
+
+	TempBuffer = CreateTexture(SourceWidth, SourceHeight);
+	ReadBuffer = CreateTexture(SourceWidth, SourceHeight);
+	bIsTempDirty = false;
+
+	bInitialized = true;
+}
 
 /*
-* -------- UE::PixelStreaming::FTextureSourceBackBuffer ----------------
-*/
-
-UE::PixelStreaming::FTextureSourceBackBuffer::FTextureSourceBackBuffer() 
-	: TTextureSourceBackBufferBase()
+ * -------- FTextureSourceBackBuffer ----------------
+ */
+void FBackBufferTextureSource::CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence)
 {
-
-};
-
-UE::PixelStreaming::FTextureSourceBackBuffer::FTextureSourceBackBuffer(float InScale) 
-	: TTextureSourceBackBufferBase(InScale)
-{
-
-};
-
-void UE::PixelStreaming::FTextureSourceBackBuffer::CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<FRHITexture2D> DestTexture, FGPUFenceRHIRef& CopyFence)
-{
-	UE::PixelStreaming::CopyTexture(SourceTexture, DestTexture, CopyFence);
+	UE::PixelStreaming::CopyTexture(SourceTexture, DestTexture->GetTexture(), CopyFence);
 }
 
-TRefCountPtr<FRHITexture2D> UE::PixelStreaming::FTextureSourceBackBuffer::CreateTexture(int Width, int Height)
+TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> FBackBufferTextureSource::CreateTexture(int Width, int Height)
 {
-	return UE::PixelStreaming::CreateTexture(Width, Height);
-}
-
-FTexture2DRHIRef UE::PixelStreaming::FTextureSourceBackBuffer::ToTextureRef(TRefCountPtr<FRHITexture2D> Texture)
-{
-	return Texture;
+	return new FPixelStreamingRHIBackBufferTexture(UE::PixelStreaming::CreateTexture(Width, Height));
 }
 
 /*
-* -------- UE::PixelStreaming::FTextureSourceBackBufferToCPU ----------------
-*/
+ * -------- FBackBufferToCPUTextureSource ----------------
+ */
 
-UE::PixelStreaming::FTextureSourceBackBufferToCPU::FTextureSourceBackBufferToCPU() 
-	: TTextureSourceBackBufferBase()
+void FBackBufferToCPUTextureSource::CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> DestTexture, FGPUFenceRHIRef& CopyFence)
 {
-
-};
-
-UE::PixelStreaming::FTextureSourceBackBufferToCPU::FTextureSourceBackBufferToCPU(float InScale) 
-	: TTextureSourceBackBufferBase(InScale)
-{
-
-};
-
-void UE::PixelStreaming::FTextureSourceBackBufferToCPU::CopyTexture(const FTexture2DRHIRef& SourceTexture, TRefCountPtr<UE::PixelStreaming::FRawPixelsTexture> DestTexture, FGPUFenceRHIRef& CopyFence)
-{
-	UE::PixelStreaming::CopyTexture(SourceTexture, DestTexture->TextureRef, CopyFence);
-	UE::PixelStreaming::ReadTextureToCPU(FRHICommandListExecutor::GetImmediateCommandList(), DestTexture->TextureRef, DestTexture->RawPixels);
+	UE::PixelStreaming::CopyTexture(SourceTexture, DestTexture->GetTexture(), CopyFence);
+	UE::PixelStreaming::ReadTextureToCPU(FRHICommandListExecutor::GetImmediateCommandList(), DestTexture->GetTexture(), static_cast<FPixelStreamingCPUReadableBackbufferTexture*>(DestTexture.GetReference())->GetRawPixels());
 }
 
-TRefCountPtr<UE::PixelStreaming::FRawPixelsTexture> UE::PixelStreaming::FTextureSourceBackBufferToCPU::CreateTexture(int Width, int Height)
+TRefCountPtr<IPixelStreamingBackBufferTextureWrapper> FBackBufferToCPUTextureSource::CreateTexture(int Width, int Height)
 {
-	FRawPixelsTexture* Tex = new FRawPixelsTexture(UE::PixelStreaming::CreateTexture(Width, Height));
-	return TRefCountPtr<FRawPixelsTexture>(Tex);
-}
-
-FTexture2DRHIRef UE::PixelStreaming::FTextureSourceBackBufferToCPU::ToTextureRef(TRefCountPtr<UE::PixelStreaming::FRawPixelsTexture> Texture)
-{
-	return Texture->TextureRef;
+	return new FPixelStreamingCPUReadableBackbufferTexture(UE::PixelStreaming::CreateTexture(Width, Height));
 }

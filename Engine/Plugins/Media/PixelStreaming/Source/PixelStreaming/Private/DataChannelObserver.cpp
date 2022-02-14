@@ -58,7 +58,7 @@ namespace UE::PixelStreaming
 				{
 					Delegates->OnDataChannelClosedNative.Broadcast(PlayerId, DataChannel.get());
 				}
-				PlayerSessions->ForSession(PlayerId, [](auto Session) {
+				PlayerSessions->ForSession(PlayerId, [](TSharedPtr<IPlayerSession> Session) {
 					Session->OnDataChannelClosed();
 				});
 				break;
@@ -89,7 +89,7 @@ namespace UE::PixelStreaming
 			const size_t StringLen = (Buffer.data.size() - 1) / sizeof(TCHAR);
 			const TCHAR* StringPtr = reinterpret_cast<const TCHAR*>(Buffer.data.data() + 1);
 			const FString EchoMessage(StringLen, StringPtr);
-			PlayerSessions->ForSession(PlayerId, [&](auto Session) {
+			PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
 				Session->SendMessage(Protocol::EToPlayerMsg::TestEcho, EchoMessage);
 			});
 		}
@@ -141,7 +141,7 @@ namespace UE::PixelStreaming
 					TransmissionTimeMs);
 			}
 
-			PlayerSessions->ForSession(PlayerId, [&](auto Session) {
+			PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
 				Session->SendMessage(Protocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
 			});
 		});
@@ -188,7 +188,7 @@ namespace UE::PixelStreaming
 
 		const FString FullPayload = FString::Printf(TEXT("{ \"PixelStreaming\": %s, \"Encoder\": %s, \"WebRTC\": %s }"), *PixelStreamingPayload, *EncoderPayload, *WebRTCPayload);
 
-		PlayerSessions->ForSession(PlayerId, [&](auto Session) {
+		PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
 			if (!Session->SendMessage(Protocol::EToPlayerMsg::InitialSettings, FullPayload))
 			{
 				UE_LOG(LogPixelStreaming, Log, TEXT("Failed to send initial Pixel Streaming settings."));

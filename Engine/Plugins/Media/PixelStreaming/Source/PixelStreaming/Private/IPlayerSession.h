@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ProtocolDefs.h"
+#include "PixelStreamingProtocolDefs.h"
 #include "PixelStreamingPlayerId.h"
 
 class IPixelStreamingAudioSink;

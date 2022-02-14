@@ -38,7 +38,7 @@ namespace UE::PixelStreaming
 		// do something with a single session
 		void ForSession(FPixelStreamingPlayerId PlayerId, const TFunction<void(TSharedPtr<IPlayerSession>)>& Func) const
 		{
-			if (auto Session = GetPlayerSession(PlayerId))
+			if (TSharedPtr<IPlayerSession> Session = GetPlayerSession(PlayerId))
 			{
 				Func(Session);
 			}
@@ -48,7 +48,7 @@ namespace UE::PixelStreaming
 		template <typename R, typename T>
 		R ForSession(FPixelStreamingPlayerId PlayerId, T&& Func) const
 		{
-			if (auto Session = GetPlayerSession(PlayerId))
+			if (TSharedPtr<IPlayerSession> Session = GetPlayerSession(PlayerId))
 			{
 				return Func(Session);
 			}

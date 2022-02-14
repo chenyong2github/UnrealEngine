@@ -6,6 +6,8 @@
 #include "RHI.h"
 #include "Tickable.h"
 #include "InputDevice.h"
+#include "GPUFencePoller.h"
+#include "FixedFPSPump.h"
 
 class AController;
 class AGameModeBase;
@@ -18,9 +20,9 @@ namespace UE::PixelStreaming
 {
 	class FStreamer;
 
-	/**
-	* This plugin allows the back buffer to be sent as a compressed video across a network.
-	*/
+	/*
+	 * This plugin allows the back buffer to be sent as a compressed video across a network.
+	 */
 	class FPixelStreamingModule : public IPixelStreamingModule, public FTickableGameObject
 	{
 	public:
@@ -28,6 +30,11 @@ namespace UE::PixelStreaming
 
 		virtual bool StartStreaming(const FString& SignallingServerUrl) override;
 		virtual void StopStreaming() override;
+
+		virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() override;
+		virtual void RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* VideoSource) override;
+		virtual void UnregisterVideoSource(FPixelStreamingPlayerId PlayerId) override;
+		virtual void AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task) override;
 
 	private:
 		/** IModuleInterface implementation */
@@ -47,10 +54,10 @@ namespace UE::PixelStreaming
 		void SendCommand(const FString& Descriptor) override;
 
 		/*
-		* Returns a shared pointer to the device which handles pixel streaming
-		* input.
-		* @return The shared pointer to the input device.
-		*/
+		 * Returns a shared pointer to the device which handles pixel streaming
+		 * input.
+		 * @return The shared pointer to the input device.
+		 */
 		TSharedPtr<FInputDevice> GetInputDevicePtr();
 		void AddInputComponent(UPixelStreamingInput* InInputComponent) override;
 		void RemoveInputComponent(UPixelStreamingInput* InInputComponent) override;
@@ -88,5 +95,8 @@ namespace UE::PixelStreaming
 		bool bCaptureNextBackBufferAndStream = false;
 		double LastVideoEncoderQPReportTime = 0;
 		static IPixelStreamingModule* PixelStreamingModule;
+
+		FFixedFPSPump PumpThread;
+		FGPUFencePoller FencePollerThread;
 	};
 } // namespace UE::PixelStreaming

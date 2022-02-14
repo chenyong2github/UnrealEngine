@@ -9,12 +9,18 @@
 #include "Templates/SharedPointer.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
+#include "IPixelStreamingPumpedVideoSource.h"
 #include "Templates/SharedPointer.h"
 
 #include "IInputDevice.h"
 
 class UTexture2D;
 class UPixelStreamingInput;
+
+namespace webrtc
+{
+	class VideoEncoderFactory;
+}
 
 /**
 * The public interface to this module
@@ -172,4 +178,24 @@ public:
 	 * Get the input components currently attached to Pixel Streaming.
 	 */
 	virtual const TArray<UPixelStreamingInput*> GetInputComponents() = 0;
+
+	/*
+	 * Create a webrtc::VideoEncoderFactory pointer.
+	 */
+	virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() = 0;
+
+	/*
+	 * Register a VideoSource with the module
+	 */
+	virtual void RegisterVideoSource(FPixelStreamingPlayerId PlayerId, IPumpedVideoSource* VideoSource) = 0;
+
+	/*
+	 * Unregister a VideoSource with the module
+	 */
+	virtual void UnregisterVideoSource(FPixelStreamingPlayerId PlayerId) = 0;
+
+	/*
+	 * Create add a task to the GPU fence poller.
+	 */
+	virtual void AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task) = 0;
 };

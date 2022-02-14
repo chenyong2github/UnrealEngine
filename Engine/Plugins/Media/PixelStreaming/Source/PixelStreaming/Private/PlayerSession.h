@@ -7,6 +7,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "AudioSink.h"
 
+class IPixelStreamingSessions;
 class IPixelStreamingStatsConsumer;
 
 namespace UE::PixelStreaming

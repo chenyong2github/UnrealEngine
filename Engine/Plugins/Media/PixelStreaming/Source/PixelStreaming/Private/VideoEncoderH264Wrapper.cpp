@@ -5,15 +5,15 @@
 #include "Stats.h"
 #include "VideoEncoderFactory.h"
 #include "EncoderFactory.h"
+#include "PixelStreamingFrameBuffer.h"
 
 UE::PixelStreaming::FVideoEncoderH264Wrapper::FVideoEncoderH264Wrapper(TUniquePtr<FEncoderFrameFactory> InFrameFactory, TUniquePtr<AVEncoder::FVideoEncoder> InEncoder)
 	: FrameFactory(MoveTemp(InFrameFactory))
-	, Encoder(MoveTemp(InEncoder)) 
-{
-	checkf(Encoder, TEXT("Encoder is nullptr."))
-}
+	, Encoder(MoveTemp(InEncoder)){
+		checkf(Encoder, TEXT("Encoder is nullptr."))
+	}
 
-UE::PixelStreaming::FVideoEncoderH264Wrapper::~FVideoEncoderH264Wrapper()
+	UE::PixelStreaming::FVideoEncoderH264Wrapper::~FVideoEncoderH264Wrapper()
 {
 	Encoder->ClearOnEncodedPacket();
 	Encoder->Shutdown();
@@ -23,9 +23,9 @@ void UE::PixelStreaming::FVideoEncoderH264Wrapper::Encode(const webrtc::VideoFra
 {
 	FTexture2DRHIRef SourceTexture;
 
-	UE::PixelStreaming::FFrameBuffer* FrameBuffer = static_cast<UE::PixelStreaming::FFrameBuffer*>(WebRTCFrame.video_frame_buffer().get());
-	check(FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::FFrameBufferType::Layer);
-	UE::PixelStreaming::FLayerFrameBuffer* LayerFrameBuffer = static_cast<UE::PixelStreaming::FLayerFrameBuffer*>(FrameBuffer);
+	FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(WebRTCFrame.video_frame_buffer().get());
+	check(FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::EFrameBufferType::Layer);
+	FLayerFrameBuffer* LayerFrameBuffer = static_cast<FLayerFrameBuffer*>(FrameBuffer);
 	SourceTexture = LayerFrameBuffer->GetFrame();
 
 	if (SourceTexture)

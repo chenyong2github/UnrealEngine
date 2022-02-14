@@ -38,6 +38,7 @@ std::vector<webrtc::SdpVideoFormat> UE::PixelStreaming::FVideoEncoderFactory::Ge
 		case UE::PixelStreaming::Settings::ECodec::H264:
 		default:
 			video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
+			video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileBaseline, webrtc::H264::kLevel3_1));
 	}
 	return video_formats;
 }
@@ -146,16 +147,15 @@ UE::PixelStreaming::FVideoEncoderH264Wrapper* UE::PixelStreaming::FVideoEncoderF
 * ------------- UE::PixelStreaming::FSimulcastEncoderFactory ---------------
 */
 
-UE::PixelStreaming::FSimulcastEncoderFactory::FSimulcastEncoderFactory() 
+UE::PixelStreaming::FSimulcastEncoderFactory::FSimulcastEncoderFactory()
 	: PrimaryEncoderFactory(MakeUnique<UE::PixelStreaming::FVideoEncoderFactory>())
 {
 	// Make a copy of simulcast settings and sort them based on scaling.
-	for(FEncoderFactoryId i = 0; i < Settings::SimulcastParameters.Layers.Num(); i++)
+	for (FEncoderFactoryId i = 0; i < Settings::SimulcastParameters.Layers.Num(); i++)
 	{
 		GetOrCreateEncoderFactory(i);
 	}
 }
-
 
 UE::PixelStreaming::FSimulcastEncoderFactory::~FSimulcastEncoderFactory()
 {
@@ -165,7 +165,6 @@ std::unique_ptr<webrtc::VideoEncoder> UE::PixelStreaming::FSimulcastEncoderFacto
 {
 	return std::make_unique<UE::PixelStreaming::FSimulcastEncoderAdapter>(*this, format);
 }
-
 
 UE::PixelStreaming::FVideoEncoderFactory* UE::PixelStreaming::FSimulcastEncoderFactory::GetEncoderFactory(FEncoderFactoryId Id)
 {
@@ -180,7 +179,7 @@ UE::PixelStreaming::FVideoEncoderFactory* UE::PixelStreaming::FSimulcastEncoderF
 UE::PixelStreaming::FVideoEncoderFactory* UE::PixelStreaming::FSimulcastEncoderFactory::GetOrCreateEncoderFactory(FEncoderFactoryId Id)
 {
 	UE::PixelStreaming::FVideoEncoderFactory* Existing = GetEncoderFactory(Id);
-	if(Existing == nullptr)
+	if (Existing == nullptr)
 	{
 		FScopeLock Lock(&EncoderFactoriesGuard);
 		TUniquePtr<FVideoEncoderFactory> EncoderFactory = MakeUnique<UE::PixelStreaming::FVideoEncoderFactory>();
@@ -192,7 +191,6 @@ UE::PixelStreaming::FVideoEncoderFactory* UE::PixelStreaming::FSimulcastEncoderF
 		return Existing;
 	}
 }
-
 
 std::vector<webrtc::SdpVideoFormat> UE::PixelStreaming::FSimulcastEncoderFactory::GetSupportedFormats() const
 {

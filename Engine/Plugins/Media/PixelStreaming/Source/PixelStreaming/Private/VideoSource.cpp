@@ -2,10 +2,11 @@
 
 #include "VideoSource.h"
 #include "FixedFPSPump.h"
-#include "FrameBuffer.h"
+#include "PixelStreamingFrameBuffer.h"
 #include "Stats.h"
 #include "PixelStreamingStatNames.h"
 #include "PlayerSessions.h"
+#include "IPixelStreamingTextureSource.h"
 
 namespace UE::PixelStreaming
 {
@@ -84,11 +85,11 @@ namespace UE::PixelStreaming
 	{
 		if (Settings::IsCodecVPX())
 		{
-			TextureSource = MakeShared<FTextureSourceBackBufferToCPU>((Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
+			TextureSource = TSharedPtr<IPixelStreamingTextureSource, ESPMode::ThreadSafe>(new FBackBufferToCPUTextureSource(Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
 		}
 		else
 		{
-			TextureSource = MakeShared<FTextureSourceBackBuffer>((Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
+			TextureSource = TSharedPtr<IPixelStreamingTextureSource, ESPMode::ThreadSafe>(new FBackBufferTextureSource(Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread() <= 0 ? 1.0 : Settings::CVarPixelStreamingFrameScale.GetValueOnAnyThread()));
 		}
 
 		// We store the codec during construction as querying it everytime seem overly wasteful
@@ -185,7 +186,7 @@ namespace UE::PixelStreaming
 		for (FLayer* SimulcastLayer : SortedLayers)
 		{
 			const float Scale = 1.0f / SimulcastLayer->Scaling;
-			TSharedPtr<FTextureSourceBackBuffer> TextureSource = MakeShared<FTextureSourceBackBuffer>(Scale);
+			TSharedPtr<FBackBufferTextureSource> TextureSource = MakeShared<FBackBufferTextureSource>(Scale);
 			TextureSource->SetEnabled(true);
 			LayerTextures.Add(TextureSource);
 		}

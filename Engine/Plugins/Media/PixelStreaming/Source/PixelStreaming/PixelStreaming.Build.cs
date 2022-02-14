@@ -47,7 +47,8 @@ namespace UnrealBuildTool.Rules
 			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
 			PublicDependencyModuleNames.AddRange(new string[]
 			{
-				"InputDevice"
+				"InputDevice",
+				"WebRTC"
 			});
 
 			// NOTE: General rule is not to access the private folder of another module

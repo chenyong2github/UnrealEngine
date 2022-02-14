@@ -4,25 +4,12 @@
 #include "PixelStreamingPlayerId.h"
 #include "HAL/Thread.h"
 #include "WebRTCIncludes.h"
+#include "IPixelStreamingPumpedVideoSource.h"
 
-namespace UE {
-	namespace PixelStreaming {
-
-		/*
-		* Interface for video sources that get pumped through `OnPump`.
-		*/
-		class IPumpedVideoSource : public rtc::RefCountInterface
-		{
-			public:
-				virtual void OnPump(int32 FrameId) = 0;
-				virtual bool IsReadyForPump() const = 0;
-				
-				/* rtc::RefCountInterface */
-				virtual void AddRef() const = 0;
-				virtual rtc::RefCountReleaseStatus Release() const = 0;
-				virtual bool HasOneRef() const = 0;
-		};
-
+namespace UE
+{
+	namespace PixelStreaming
+	{
 		/*
 		* Runs a seperate thread that "pumps" at a fixed FPS interval. WebRTC video sources may add themselves to be "pumped" 
 		* at a fixed interval indepedent of render FPS or game thread FPS. This is useful so that poorly 
@@ -47,7 +34,6 @@ namespace UE {
 			FCriticalSection SourcesGuard;
 			TMap<FPixelStreamingPlayerId, IPumpedVideoSource*> VideoSources;
 
-
 			TUniquePtr<FThread> PumpThread;
 			bool bThreadRunning = true;
 			//FEvent* PlayersChangedEvent;
@@ -56,5 +42,5 @@ namespace UE {
 
 			static FFixedFPSPump* Instance;
 		};
-	}
-}
+	} // namespace PixelStreaming
+} // namespace UE

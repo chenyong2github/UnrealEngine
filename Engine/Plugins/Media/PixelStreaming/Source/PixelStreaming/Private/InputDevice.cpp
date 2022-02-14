@@ -4,7 +4,7 @@
 #include "PixelStreamingInputComponent.h"
 #include "Settings.h"
 #include "PixelStreamingModule.h"
-#include "ProtocolDefs.h"
+#include "PixelStreamingProtocolDefs.h"
 #include "JavaScriptKeyCodes.inl"
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
@@ -28,6 +28,29 @@ namespace UE
 {
 	namespace PixelStreaming
 	{
+		template <typename T>
+		static const T& ParseBuffer(const uint8*& Data, uint32& Size)
+		{
+			checkf(sizeof(T) <= Size, TEXT("%d - %d"), sizeof(T), Size);
+			const T& Value = *reinterpret_cast<const T*>(Data);
+			Data += sizeof(T);
+			Size -= sizeof(T);
+			return Value;
+		}
+
+		static FString ParseString(const webrtc::DataBuffer& Buffer, const size_t Offset = 0)
+		{
+			FString Res;
+			if (Buffer.data.size() > Offset)
+			{
+				size_t StringLength = (Buffer.data.size() - Offset) / sizeof(TCHAR);
+				Res.GetCharArray().SetNumUninitialized(StringLength + 1);
+				FMemory::Memcpy(Res.GetCharArray().GetData(), Buffer.data.data() + Offset, StringLength * sizeof(TCHAR));
+				Res.GetCharArray()[StringLength] = 0;
+			}
+			return Res;
+		}
+
 		/**
 		 * When reading input from a browser then the cursor position will be sent
 		 * across with mouse events. We want to use this position and avoid getting the
@@ -414,7 +437,6 @@ void UE::PixelStreaming::FInputDevice::Tick(float DeltaTime)
 		}
 	}
 
-	
 	FString Command;
 	while (Commands.Dequeue(Command))
 	{
@@ -631,7 +653,7 @@ void UE::PixelStreaming::FInputDevice::FindFocusedWidget()
 namespace
 {
 
-#define GET(Type, Var) Type Var = UE::PixelStreaming::Protocol::ParseBuffer<Type>(Data, Size)
+#define GET(Type, Var) Type Var = UE::PixelStreaming::ParseBuffer<Type>(Data, Size)
 
 	// XY positions are the ratio (0.0..1.0) along a viewport axis, quantized
 	// into an uint16 (0..65536). This allows the browser viewport and player
@@ -753,14 +775,14 @@ void UE::PixelStreaming::FInputDevice::OnMessage(const webrtc::DataBuffer& Buffe
 	{
 		case EToStreamerMsg::UIInteraction:
 		{
-			FString Descriptor = UE::PixelStreaming::Protocol::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
+			FString Descriptor = UE::PixelStreaming::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
 			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 			ProcessUIInteraction(Descriptor);
 			break;
 		}
 		case EToStreamerMsg::Command:
 		{
-			FString Descriptor = UE::PixelStreaming::Protocol::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
+			FString Descriptor = UE::PixelStreaming::ParseString(Buffer, UE::PixelStreaming::FInputDevice::GetMessageHeaderOffset());
 			UE_LOG(LogPixelStreamingInput, Verbose, TEXT("Command: %s"), *Descriptor);
 			ProcessCommand(Descriptor);
 			break;

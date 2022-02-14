@@ -26,7 +26,7 @@ namespace UE::PixelStreaming
 		// Begin IPixelStreamingStatsConsumer
 		void ConsumeStat(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue) override
 		{
-			Sessions->ForSession(PlayerId, [&](auto Session) {
+			Sessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
 				Session->SendVideoEncoderQP((int)StatValue);
 			});
 		}
@@ -78,7 +78,7 @@ namespace UE::PixelStreaming
 	void FPlayerSession::PollWebRTCStats() const
 	{
 		check(PeerConnection);
-		//PeerConnection->GetStats(WebRTCStatsCallback);
+		// PeerConnection->GetStats(WebRTCStatsCallback);
 		std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Transceivers = PeerConnection->GetTransceivers();
 		for (rtc::scoped_refptr<webrtc::RtpTransceiverInterface> Transceiver : Transceivers)
 		{
@@ -254,8 +254,10 @@ namespace UE::PixelStreaming
 	{
 		// Send the mime type first
 		FPlayerSession::SendMessage(Protocol::EToPlayerMsg::FileMimeType, MimeType);
+
 		// Send the extension next
 		FPlayerSession::SendMessage(Protocol::EToPlayerMsg::FileExtension, FileExtension);
+
 		// Send the contents of the file
 		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [this, ByteData]() {
 			FPlayerSession::SendArbitraryData(ByteData, static_cast<uint8>(Protocol::EToPlayerMsg::FileContents));
@@ -310,8 +312,10 @@ namespace UE::PixelStreaming
 
 			// Write message type
 			Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+
 			// Write size of payload
 			Pos = SerializeToBuffer(Buffer, Pos, &DataSize, sizeof(DataSize));
+
 			// Write the data bytes payload
 			Pos = SerializeToBuffer(Buffer, Pos, DataBytes.GetData() + BytesTransmitted, BytesToTransmit);
 
@@ -438,6 +442,7 @@ namespace UE::PixelStreaming
 		}
 
 		rtc::scoped_refptr<webrtc::RtpReceiverInterface> Receiver = transceiver->receiver();
+
 		if (mediaType != cricket::MediaType::MEDIA_TYPE_AUDIO)
 		{
 			return;

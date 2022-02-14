@@ -9,7 +9,7 @@
 #include "Settings.h"
 #include "TimerManager.h"
 #include "PixelStreamingDelegates.h"
-#include "ProtocolDefs.h"
+#include "PixelStreamingProtocolDefs.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -17,8 +17,7 @@ DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 namespace UE::PixelStreaming
 {
 	FSignallingServerConnection::FSignallingServerConnection(FSignallingServerConnectionObserver& InObserver, FString InStreamerId)
-		: Observer(InObserver),
-		  StreamerId(InStreamerId)
+		: Observer(InObserver), StreamerId(InStreamerId)
 	{
 		RegisterHandler("identify", [this](FJsonObjectPtr JsonMsg) { OnIdRequested(); });
 		RegisterHandler("config", [this](FJsonObjectPtr JsonMsg) { OnConfig(JsonMsg); });

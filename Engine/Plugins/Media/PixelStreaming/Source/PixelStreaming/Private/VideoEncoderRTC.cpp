@@ -3,7 +3,7 @@
 #include "VideoEncoderRTC.h"
 #include "EncoderFactory.h"
 #include "VideoEncoderFactory.h"
-#include "FrameBuffer.h"
+#include "PixelStreamingFrameBuffer.h"
 #include "PlayerSession.h"
 #include "Stats.h"
 #include "UnrealEngine.h"
@@ -29,8 +29,8 @@ int UE::PixelStreaming::FVideoEncoderRTC::InitEncode(webrtc::VideoCodec const* I
 	checkf(AVEncoder::FVideoEncoderFactory::Get().IsSetup(), TEXT("FVideoEncoderFactory not setup"));
 	// Try and get the encoder. If it doesn't exist, create it.
 	FVideoEncoderH264Wrapper* Encoder = Factory.GetOrCreateHardwareEncoder(InCodecSettings->width, InCodecSettings->height, InCodecSettings->maxBitrate, InCodecSettings->startBitrate, InCodecSettings->maxFramerate);
-	
-	if(Encoder != nullptr)
+
+	if (Encoder != nullptr)
 	{
 		HardwareEncoder = Encoder;
 		UpdateConfig();
@@ -57,11 +57,11 @@ int32 UE::PixelStreaming::FVideoEncoderRTC::Release()
 
 int32 UE::PixelStreaming::FVideoEncoderRTC::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 {
-	UE::PixelStreaming::FFrameBuffer* FrameBuffer = static_cast<UE::PixelStreaming::FFrameBuffer*>(frame.video_frame_buffer().get());
+	FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(frame.video_frame_buffer().get());
 
 	// If initialize frame is passed, this is a dummy frame so WebRTC is happy frames are passing through
 	// This is used so that an encoder can be active as far as WebRTC is concerned by simply have frames transmitted by some other encoder on its behalf.
-	if(FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::FFrameBufferType::Initialize)
+	if (FrameBuffer->GetFrameBufferType() == UE::PixelStreaming::EFrameBufferType::Initialize)
 	{
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
