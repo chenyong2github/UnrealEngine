@@ -91,6 +91,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** Sets the default navigation behavior for the system preview viewport. */
 	UPROPERTY(config, EditAnywhere, Category = Viewport)
 	bool bSystemViewportInOrbitMode = true;
+
+	/** If true then the "link input" menu will also show variables of different types, as long as there is a conversion script for them. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	bool bShowConvertibleInputsInStack = false;
 #endif // WITH_EDITORONLY_DATA
 
 	/** If true then active effects rebase the simulation positions to not lose precision. Can be turned off if not needed to skip unnecessary rebasing calculations. */

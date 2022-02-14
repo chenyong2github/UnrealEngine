@@ -50,6 +50,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraCommon.h"
+#include "NiagaraSettings.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -1109,6 +1110,11 @@ TArray<TSharedPtr<FNiagaraMenuAction_Generic>> SNiagaraStackFunctionInputValue::
 		}
 	}
 
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	if (ensure(Settings) && Settings->bShowConvertibleInputsInStack == false)
+	{
+		AvailableConversionHandles.Empty();
+	}
 	const FText ConvertInputFormat = LOCTEXT("ConvertInputFormat", "Link this input to {0} via a conversion script");
 	for (const auto& Entry : AvailableConversionHandles)
 	{
