@@ -94,6 +94,14 @@ namespace Metasound
 		{
 			if (Analyzer.IsValid() && ResultsDelegateHandle.IsValid())
 			{
+				if (ensure(GEditor))
+				{
+					UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+					if (ensure(EditorWorld))
+					{
+						Analyzer->StopAnalyzing(EditorWorld);
+					}
+				}
 				Analyzer->OnLatestPerChannelMeterResultsNative.Remove(ResultsDelegateHandle);
 				Analyzer.Reset();
 				ResultsDelegateHandle.Reset();
