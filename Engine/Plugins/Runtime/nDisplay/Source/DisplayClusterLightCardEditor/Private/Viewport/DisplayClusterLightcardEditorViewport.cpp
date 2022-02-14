@@ -10,6 +10,8 @@
 #include "STransformViewportToolbar.h"
 #include "Slate/SceneViewport.h"
 
+#include "Kismet2/DebuggerCommands.h"
+
 #define LOCTEXT_NAMESPACE "DisplayClusterLightcardEditorViewport"
 
 class SDisplayClusterLightCardEditorViewportToolBar : public SViewportToolBar
@@ -39,30 +41,18 @@ public:
 					SNew(SEditorViewportToolbarMenu)
 					.ParentToolBar(SharedThis(this))
 					.Cursor(EMouseCursor::Default)
-					.Image("EditorViewportToolBar.MenuDropdown")
+					.Image("EditorViewportToolBar.OptionsDropdown")
 					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GeneratePreviewMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(2.0f, 2.0f)
 				[
-					SNew( SEditorViewportToolbarMenu )
-					.ParentToolBar( SharedThis( this ) )
-					.Cursor( EMouseCursor::Default )
-					.Label(this, &SDisplayClusterLightCardEditorViewportToolBar::GetCameraMenuLabel)
-					.LabelIcon(this, &SDisplayClusterLightCardEditorViewportToolBar::GetCameraMenuLabelIcon)
-					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateCameraMenu)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 2.0f)
-				[
-					SNew( SEditorViewportToolbarMenu )
-					.ParentToolBar( SharedThis( this ) )
-					.Cursor( EMouseCursor::Default )
-					.Label(this, &SDisplayClusterLightCardEditorViewportToolBar::GetViewMenuLabel)
-					.LabelIcon(this, &SDisplayClusterLightCardEditorViewportToolBar::GetViewMenuLabelIcon)
-					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateViewMenu)
+					SNew(SEditorViewportToolbarMenu)
+					.ParentToolBar(SharedThis(this))
+					.Cursor(EMouseCursor::Default)
+					.Label(this, &SDisplayClusterLightCardEditorViewportToolBar::GetProjectionMenuLabel)
+					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateProjectionMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.Padding( 3.0f, 1.0f )
@@ -87,10 +77,9 @@ public:
 
 		FMenuBuilder PreviewOptionsMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 		{
-			PreviewOptionsMenuBuilder.BeginSection("BlueprintEditorPreviewOptions", NSLOCTEXT("BlueprintEditor", "PreviewOptionsMenuHeader", "Preview Viewport Options"));
+			PreviewOptionsMenuBuilder.BeginSection("LightCardEditorViewportOptions", LOCTEXT("ViewportOptionsMenuHeader", "Viewport Options"));
 			{
 				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().ResetCamera);
-				PreviewOptionsMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().ToggleRealTime);
 			}
 			PreviewOptionsMenuBuilder.EndSection();
 		}
@@ -98,45 +87,38 @@ public:
 		return PreviewOptionsMenuBuilder.MakeWidget();
 	}
 
-	FText GetCameraMenuLabel() const
+	FText GetProjectionMenuLabel() const
 	{
-		if(EditorViewport.IsValid())
+		FText Label = LOCTEXT("ProjectionMenuTitle_Default", "Projection");
+
+		if (EditorViewport.IsValid())
 		{
-			return GetCameraMenuLabelFromViewportType(EditorViewport.Pin()->GetViewportClient()->GetViewportType());
+			switch (EditorViewport.Pin()->GetLightCardEditorViewportClient()->GetProjectionMode())
+			{
+			case EDisplayClusterMeshProjectionType::Perspective:
+				Label = LOCTEXT("ProjectionwMenuTitle_Perspective", "Perspective");
+				break;
+
+			case EDisplayClusterMeshProjectionType::Azimuthal:
+				Label = LOCTEXT("ProjectionwMenuTitle_Azimuthal", "Azimuthal");
+				break;
+			}
 		}
 
-		return NSLOCTEXT("BlueprintEditor", "CameraMenuTitle_Default", "Camera");
+		return Label;
 	}
 
-	const FSlateBrush* GetCameraMenuLabelIcon() const
+	TSharedRef<SWidget> GenerateProjectionMenu() const
 	{
-		if(EditorViewport.IsValid())
-		{
-			return GetCameraMenuLabelIconFromViewportType( EditorViewport.Pin()->GetViewportClient()->GetViewportType() );
-		}
-
-		return FEditorStyle::GetBrush(NAME_None);
-	}
-
-	TSharedRef<SWidget> GenerateCameraMenu() const
-	{
-		TSharedPtr<const FUICommandList> CommandList = EditorViewport.IsValid()? EditorViewport.Pin()->GetCommandList(): nullptr;
+		TSharedPtr<const FUICommandList> CommandList = EditorViewport.IsValid() ? EditorViewport.Pin()->GetCommandList() : nullptr;
 
 		const bool bInShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder CameraMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+		FMenuBuilder ViewMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
 
-		CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Perspective);
+		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection);
+		ViewMenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection);
 
-		CameraMenuBuilder.BeginSection("LevelViewportCameraType_Ortho", NSLOCTEXT("BlueprintEditor", "CameraTypeHeader_Ortho", "Orthographic"));
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Top);
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Bottom);
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Left);
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Right);
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Front);
-			CameraMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().Back);
-		CameraMenuBuilder.EndSection();
-
-		return CameraMenuBuilder.MakeWidget();
+		return ViewMenuBuilder.MakeWidget();
 	}
 
 	FText GetViewMenuLabel() const
@@ -164,49 +146,6 @@ public:
 		return Label;
 	}
 
-	const FSlateBrush* GetViewMenuLabelIcon() const
-	{
-		static FName LitModeIconName("EditorViewport.LitMode");
-		static FName UnlitModeIconName("EditorViewport.UnlitMode");
-		static FName WireframeModeIconName("EditorViewport.WireframeMode");
-
-		FName Icon = NAME_None;
-
-		if (EditorViewport.IsValid())
-		{
-			switch (EditorViewport.Pin()->GetViewportClient()->GetViewMode())
-			{
-			case VMI_Lit:
-				Icon = LitModeIconName;
-				break;
-
-			case VMI_Unlit:
-				Icon = UnlitModeIconName;
-				break;
-
-			case VMI_BrushWireframe:
-				Icon = WireframeModeIconName;
-				break;
-			}
-		}
-
-		return FEditorStyle::GetBrush(Icon);
-	}
-
-	TSharedRef<SWidget> GenerateViewMenu() const
-	{
-		TSharedPtr<const FUICommandList> CommandList = EditorViewport.IsValid() ? EditorViewport.Pin()->GetCommandList() : nullptr;
-
-		const bool bInShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder ViewMenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
-
-		ViewMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().LitMode, NAME_None, NSLOCTEXT("BlueprintEditor", "LitModeMenuOption", "Lit"));
-		ViewMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().UnlitMode, NAME_None, NSLOCTEXT("BlueprintEditor", "UnlitModeMenuOption", "Unlit"));
-		ViewMenuBuilder.AddMenuEntry(FEditorViewportCommands::Get().WireframeMode, NAME_None, NSLOCTEXT("BlueprintEditor", "WireframeModeMenuOption", "Wireframe"));
-
-		return ViewMenuBuilder.MakeWidget();
-	}
-
 private:
 	/** Reference to the parent viewport */
 	TWeakPtr<SDisplayClusterLightCardEditorViewport> EditorViewport;
@@ -220,8 +159,6 @@ void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs,
 	AdvancedPreviewScene->SetFloorVisibility(true);
 		
 	SEditorViewport::Construct(SEditorViewport::FArguments());
-
-	ViewportClient->SetSceneViewport(SceneViewport);
 }
 
 SDisplayClusterLightCardEditorViewport::~SDisplayClusterLightCardEditorViewport()
@@ -281,12 +218,38 @@ void SDisplayClusterLightCardEditorViewport::PopulateViewportOverlays(TSharedRef
 void SDisplayClusterLightCardEditorViewport::BindCommands()
 {
 	const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
-	
+
 	CommandList->MapAction(
-	Commands.ResetCamera,
-	FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera));
+		FDisplayClusterLightCardEditorCommands::Get().PerspectiveProjection,
+		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Perspective),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Perspective));
+
+	CommandList->MapAction(
+		FDisplayClusterLightCardEditorCommands::Get().AzimuthalProjection,
+		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::SetProjectionMode, EDisplayClusterMeshProjectionType::Azimuthal),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected, EDisplayClusterMeshProjectionType::Azimuthal));
 
 	SEditorViewport::BindCommands();
+}
+
+void SDisplayClusterLightCardEditorViewport::SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode)
+{
+	if (ViewportClient.IsValid())
+	{
+		ViewportClient->SetProjectionMode(InProjectionMode);
+	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const
+{
+	if (ViewportClient.IsValid())
+	{
+		return ViewportClient->GetProjectionMode() == InProjectionMode;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

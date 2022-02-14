@@ -7,8 +7,11 @@
 #include "SCommonEditorViewportToolbarBase.h"
 #include "SEditorViewport.h"
 
+#include "DisplayClusterMeshProjectionRenderer.h"
+
 class SDisplayClusterLightCardEditor;
 class ADisplayClusterRootActor;
+class FDisplayClusterLightCardEditorViewportClient;
 
 /**
  * Slate widget which renders our view client.
@@ -32,6 +35,8 @@ public:
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 	
+	TSharedRef<FDisplayClusterLightCardEditorViewportClient> GetLightCardEditorViewportClient() const { return ViewportClient.ToSharedRef(); }
+
 private:
 	// SEditorViewport
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
@@ -40,12 +45,15 @@ private:
 	virtual void BindCommands() override;
 	// ~SEditorViewport
 
+	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
+	bool IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const;
+
 private:
 	/** Preview Scene - uses advanced preview settings */
 	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;
 	
 	/** Level viewport client */
-	TSharedPtr<class FDisplayClusterLightCardEditorViewportClient> ViewportClient;
+	TSharedPtr<FDisplayClusterLightCardEditorViewportClient> ViewportClient;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
 
 };

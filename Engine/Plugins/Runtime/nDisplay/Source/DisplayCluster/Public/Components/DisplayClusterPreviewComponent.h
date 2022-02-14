@@ -75,6 +75,9 @@ public:
 	/** Create and retrieve a render texture 2d from the render target. */
 	UTexture2D* GetOrCreateViewportPreviewTexture2D();
 
+	/** Sets an override texture to display on the viewport instead of the render target */
+	void SetOverrideTexture(UTexture* InOverrideTexture);
+
 protected:
 	class IDisplayClusterViewport* GetCurrentViewport() const;
 	bool GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const;
@@ -144,6 +147,9 @@ private:
 
 	UPROPERTY(Transient)
 	UTexture2D* PreviewTexture = nullptr;
+
+	UPROPERTY(Transient)
+	UTexture* OverrideTexture = nullptr;
 
 #endif /*WITH_EDITORONLY_DATA*/
 };

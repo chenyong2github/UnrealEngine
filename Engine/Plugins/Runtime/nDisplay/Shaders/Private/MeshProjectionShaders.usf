@@ -1,0 +1,67 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Generated/Material.ush"
+#include "/Engine/Generated/VertexFactory.ush"
+
+
+struct FMeshProjectionVSToPS
+{
+	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
+	float4 Position : SV_POSITION;
+	float4 SavedWorldPosition : POSITION1;
+};
+
+void AzimuthalVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
+{
+	ResolvedView = ResolveView();
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	Output.SavedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
+	Output.SavedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+
+	// Project the vertex view position onto a unit sphere
+	float4 ViewPosition = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToView);
+	float rho = length(ViewPosition.xyz);
+	float3 UnitPosition = ViewPosition.xyz / rho;
+	
+	// Compute the position in view space of the point on the projection plane using azimthual equidistance projection
+	float2 PolarCoords = float2(acos(UnitPosition.z), atan2(UnitPosition.y, UnitPosition.x));
+	float3 PlanePosition = float3(PolarCoords.x * cos(PolarCoords.y), PolarCoords.x * sin(PolarCoords.y), 1);
+	
+	// Project the plane position into view space
+	float4 ProjectedPosition = float4(PlanePosition * rho / length(PlanePosition), 1);
+	
+	Output.Position = mul(ProjectedPosition, ResolvedView.ViewToClip);
+}
+
+void PerspectiveVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
+{
+	ResolvedView = ResolveView();
+
+	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	Output.SavedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+
+	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
+	Output.SavedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+
+	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
+	
+	Output.Position = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToClip);
+}
+
+void MainPS(FMeshProjectionVSToPS Input, in float4 SvPosition : SV_Position OPTIONAL_IsFrontFace, out float4 OutputColor : SV_Target0)
+{
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, SvPosition);
+	FPixelMaterialInputs PixelMaterialInputs;
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
+
+	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
+	OutputColor = float4(Emissive, 1);
+}

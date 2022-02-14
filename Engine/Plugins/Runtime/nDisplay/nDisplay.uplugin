@@ -109,6 +109,15 @@
 			]
 		},
 		{
+			"Name": "DisplayClusterLightCardEditorShaders",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
 			"Name": "DisplayClusterStageMonitoring",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",

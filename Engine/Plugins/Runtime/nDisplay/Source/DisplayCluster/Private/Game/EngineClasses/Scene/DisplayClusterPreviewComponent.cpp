@@ -218,7 +218,14 @@ void UDisplayClusterPreviewComponent::UpdatePreviewMaterial()
 {
 	if (PreviewMaterialInstance != nullptr)
 	{
-		PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), RenderTarget);
+		if (OverrideTexture)
+		{
+			PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), OverrideTexture);
+		}
+		else
+		{
+			PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), RenderTarget);
+		}
 	}
 }
 
@@ -439,6 +446,15 @@ UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateViewportPreviewTexture2D
 	}
 
 	return nullptr;
+}
+
+void UDisplayClusterPreviewComponent::SetOverrideTexture(UTexture* InOverrideTexture)
+{
+	if (OverrideTexture != InOverrideTexture)
+	{
+		OverrideTexture = InOverrideTexture;
+		UpdatePreviewMaterial();
+	}
 }
 
 #endif
