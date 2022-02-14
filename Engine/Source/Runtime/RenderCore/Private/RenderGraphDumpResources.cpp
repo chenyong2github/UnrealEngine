@@ -1226,12 +1226,23 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 
 	NewResourceDumpContext.Time = FDateTime::Now();
 	{
-		FString MasterDirectoryPath = GDumpGPUDirectoryCVar.GetValueOnGameThread();
-		if (MasterDirectoryPath.IsEmpty())
+		FString CVarDirectoryPath = GDumpGPUDirectoryCVar.GetValueOnGameThread();
+		FString EnvDirectoryPath = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-DumpGPUPath"));
+
+		FString DirectoryPath;
+		if (!CVarDirectoryPath.IsEmpty())
 		{
-			MasterDirectoryPath = FPaths::ProjectSavedDir() / TEXT("GPUDumps/");
+			DirectoryPath = CVarDirectoryPath;
 		}
-		NewResourceDumpContext.DumpingDirectoryPath = MasterDirectoryPath / FApp::GetProjectName() + TEXT("-") + FPlatformProperties::PlatformName() + TEXT("-") + NewResourceDumpContext.Time.ToString() + TEXT("/");
+		else if (!EnvDirectoryPath.IsEmpty())
+		{
+			DirectoryPath = EnvDirectoryPath;
+		}
+		else
+		{
+			DirectoryPath = FPaths::ProjectSavedDir() / TEXT("GPUDumps/");
+		}
+		NewResourceDumpContext.DumpingDirectoryPath = DirectoryPath / FApp::GetProjectName() + TEXT("-") + FPlatformProperties::PlatformName() + TEXT("-") + NewResourceDumpContext.Time.ToString() + TEXT("/");
 	}
 	NewResourceDumpContext.bEnableDiskWrite = GDumpTestEnableDiskWrite.GetValueOnGameThread() != 0;
 	NewResourceDumpContext.bShowInExplore = NewResourceDumpContext.bEnableDiskWrite && GDumpExploreCVar.GetValueOnGameThread() != 0;
