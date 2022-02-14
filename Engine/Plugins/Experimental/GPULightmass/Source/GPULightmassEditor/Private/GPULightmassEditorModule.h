@@ -36,6 +36,7 @@ public:
 	static bool IsRealtimeOn();
 	static bool IsRunning();
 	static bool IsBakeWhatYouSeeMode();
+	static bool IsAllowStaticLightingEnabled();
 
 	FReply OnStartClicked();
 	FReply OnSaveAndStopClicked();
