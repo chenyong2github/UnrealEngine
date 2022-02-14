@@ -267,11 +267,15 @@ namespace Horde.Storage.Implementation
 
             // process snapshot
             // fetch the snapshot from the remote blob store
-            HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{blobNamespace}/{snapshotBlob}");
-            HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobStream);
+            ReplicationLogSnapshot snapshot;
+            {
+                HttpRequestMessage request = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{blobNamespace}/{snapshotBlob}");
+                HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                await using Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(blobStream);
+                snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(payload.GetStream());
+            }
 
             if (!snapshot.LastEvent.HasValue)
                 throw new Exception("No last event found");
@@ -437,6 +441,12 @@ namespace Horde.Storage.Implementation
             HttpRequestMessage referencesRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/objects/{ns}/{blob}/references");
             HttpResponseMessage referencesResponse = await _httpClient.SendAsync(referencesRequest, cancellationToken);
             string body = await referencesResponse.Content.ReadAsStringAsync(cancellationToken);
+
+            if (referencesResponse.StatusCode == HttpStatusCode.BadRequest)
+            {
+                _logger.Warning("Failed to resolve references for object {Blob} in {Namespace}. Skipping replication", blob, ns);
+                return;
+            }
             referencesResponse.EnsureSuccessStatusCode();
 
             ResolvedReferencesResult? refs = JsonConvert.DeserializeObject<ResolvedReferencesResult>(body);
@@ -468,7 +478,9 @@ namespace Horde.Storage.Implementation
                         _logger.Error("Bad http response when replicating {Blob} in {Namespace} . Status code: {StatusCode}", blobToReplicate, ns, blobResponse.StatusCode);
                         return;
                     }
-                    using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(await blobResponse.Content.ReadAsStreamAsync(cancellationToken));
+
+                    await using Stream s = await blobResponse.Content.ReadAsStreamAsync(cancellationToken);
+                    using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(s);
                     await _blobService.PutObject(ns, payload, blobToReplicate);
                 });
             }

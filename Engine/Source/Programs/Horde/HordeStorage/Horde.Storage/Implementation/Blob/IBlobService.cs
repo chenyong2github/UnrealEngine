@@ -354,7 +354,8 @@ public class BlobService : IBlobService
         {
             using IScope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
             // buffer the blob contents as it could be to large for us to buffer into memory before forwarding to the blob stores
-            using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(blobContents.Stream);
+            await using Stream s = blobContents.Stream;
+            using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(s);
 
             // Don't populate the last store, as that is where we got the hit
             // Populate each store traversed that did not have the content found lower in the hierarchy
