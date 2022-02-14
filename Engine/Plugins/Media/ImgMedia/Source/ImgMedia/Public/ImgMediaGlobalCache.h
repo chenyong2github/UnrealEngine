@@ -16,7 +16,7 @@ class UImgMediaSettings;
  *
  * Uses Least Recently Used (LRU).
  */
-class FImgMediaGlobalCache : public TSharedFromThis<FImgMediaGlobalCache, ESPMode::ThreadSafe>
+class IMGMEDIA_API FImgMediaGlobalCache : public TSharedFromThis<FImgMediaGlobalCache, ESPMode::ThreadSafe>
 {
 public:
 	/**

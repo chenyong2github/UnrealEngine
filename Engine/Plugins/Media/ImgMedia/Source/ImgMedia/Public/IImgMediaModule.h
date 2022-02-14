@@ -13,7 +13,7 @@ class IMediaPlayer;
 /**
  * Interface for the ImgMedia module.
  */
-class IImgMediaModule
+class IMGMEDIA_API IImgMediaModule
 	: public IModuleInterface
 {
 public:
