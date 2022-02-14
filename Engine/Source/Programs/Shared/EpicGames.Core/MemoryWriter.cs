@@ -176,5 +176,17 @@ namespace EpicGames.Core
 				WriteItem(Array[Idx]);
 			}
 		}
+
+		/// <summary>
+		/// Allocate a writable span from the buffer
+		/// </summary>
+		/// <param name="Length">Length of the span to allocate</param>
+		/// <returns>Span that can be written to</returns>
+		public Span<byte> AllocateSpan(int Length)
+		{
+			Span<byte> Span = Memory.Span.Slice(Offset, Length);
+			Offset += Length;
+			return Span;
+		}
 	}
 }

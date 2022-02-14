@@ -17,7 +17,7 @@ namespace HordeCommon
 		/// <param name="Hash"></param>
 		public IoHashWrapper(IoHash Hash)
 		{
-			this.Hash = ByteString.CopyFrom(Hash.Memory.ToArray());
+			this.Hash = ByteString.CopyFrom(Hash.ToByteArray());
 		}
 
 		/// <summary>
@@ -50,7 +50,7 @@ namespace HordeCommon
 		/// <param name="RefId"></param>
 		public RefIdWrapper(RefId RefId)
 		{
-			this.Hash = ByteString.CopyFrom(RefId.Hash.Span);
+			this.Hash = ByteString.CopyFrom(RefId.Hash.ToByteArray());
 		}
 
 		/// <summary>

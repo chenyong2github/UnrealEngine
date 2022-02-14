@@ -599,7 +599,7 @@ namespace EpicGames.Serialization
 		void WriteHashPayload(IoHash Hash)
 		{
 			Span<byte> Buffer = Allocate(IoHash.NumBytes).Span;
-			Hash.Span.CopyTo(Buffer);
+			Hash.CopyTo(Buffer);
 		}
 
 		/// <summary>

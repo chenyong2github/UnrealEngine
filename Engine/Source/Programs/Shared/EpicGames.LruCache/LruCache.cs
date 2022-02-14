@@ -198,7 +198,7 @@ namespace HordeCommon
 					Slot = NextSlot;
 				}
 
-				Hash.Memory.CopyTo(GetHashMemory(Slot));
+				Hash.CopyTo(GetHashMemory(Slot).Span);
 				Items[Slot] = ItemData;
 			}
 
@@ -209,7 +209,7 @@ namespace HordeCommon
 				return ProbeLen > CompareProbeLen;
 			}
 
-			public IoHash GetHash(int Slot) => new IoHash(GetHashMemory(Slot));
+			public IoHash GetHash(int Slot) => new IoHash(GetHashMemory(Slot).Span);
 			public Item GetItem(int Slot) => new Item(Items[Slot]);
 
 			public int Find(IoHash Hash)
@@ -574,7 +574,7 @@ namespace HordeCommon
 					Item Item = Lookup.GetItem(Slot);
 					if (Item.IsValid)
 					{
-						Writer.WriteFixedLengthBytes(Lookup.GetHash(Slot).Span);
+						Writer.WriteIoHash(Lookup.GetHash(Slot));
 						Writer.WriteInt64(Item.Data);
 
 						if (Item.IsLargeItem)

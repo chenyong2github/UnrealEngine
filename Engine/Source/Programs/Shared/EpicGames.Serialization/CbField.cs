@@ -1197,7 +1197,7 @@ namespace EpicGames.Serialization
 			if (CbFieldUtils.IsObjectAttachment(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
-				return new IoHash(Payload);
+				return new IoHash(Payload.Span);
 			}
 			else
 			{
@@ -1223,7 +1223,7 @@ namespace EpicGames.Serialization
 			if (CbFieldUtils.IsBinaryAttachment(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
-				return new IoHash(Payload);
+				return new IoHash(Payload.Span);
 			}
 			else
 			{
@@ -1249,7 +1249,7 @@ namespace EpicGames.Serialization
 			if (CbFieldUtils.IsAttachment(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
-				return new IoHash(Payload);
+				return new IoHash(Payload.Span);
 			}
 			else
 			{
@@ -1274,7 +1274,7 @@ namespace EpicGames.Serialization
 			if (CbFieldUtils.IsHash(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
-				return new IoHash(Payload);
+				return new IoHash(Payload.Span);
 			}
 			else
 			{
@@ -2669,7 +2669,7 @@ namespace EpicGames.Serialization
 			}
 			else if (Field.IsHash())
 			{
-				Writer.WriteString(Field.Name.Span, StringUtils.FormatUtf8HexString(Field.AsHash().Span).Span);
+				Writer.WriteString(Field.Name.Span, Field.AsHash().ToUtf8String().Span);
 			}
 			else if (Field.IsString())
 			{
