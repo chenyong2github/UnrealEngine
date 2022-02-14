@@ -113,7 +113,7 @@ class FEmitShadowMapPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitShadowMapPS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitShadowMapPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitShadowMapPS, "/Engine/Private/Nanite/NaniteEmitShadow.usf", "EmitShadowMapPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FEmitCubemapShadowParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DepthBuffer)
@@ -149,7 +149,7 @@ class FEmitCubemapShadowVS : public FNaniteGlobalShader
 
 	using FParameters = FEmitCubemapShadowParameters;
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowVS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowVS, "/Engine/Private/Nanite/NaniteEmitShadow.usf", "EmitCubemapShadowVS", SF_Vertex);
 
 class FEmitCubemapShadowGS : public FNaniteGlobalShader
 {
@@ -170,7 +170,7 @@ class FEmitCubemapShadowGS : public FNaniteGlobalShader
 		OutEnvironment.SetDefine(TEXT("USE_GEOMETRY_SHADER"), 1);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowGS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowGS", SF_Geometry);
+IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowGS, "/Engine/Private/Nanite/NaniteEmitShadow.usf", "EmitCubemapShadowGS", SF_Geometry);
 
 class FEmitCubemapShadowPS : public FNaniteGlobalShader
 {
@@ -190,7 +190,7 @@ class FEmitCubemapShadowPS : public FNaniteGlobalShader
 	
 	using FParameters = FEmitCubemapShadowParameters;
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowPS, "/Engine/Private/Nanite/EmitShadow.usf", "EmitCubemapShadowPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowPS, "/Engine/Private/Nanite/NaniteEmitShadow.usf", "EmitCubemapShadowPS", SF_Pixel);
 
 // Gather culling stats and build dispatch indirect buffer for per-cluster stats
 class FCalculateStatsCS : public FNaniteGlobalShader
@@ -222,7 +222,7 @@ class FCalculateStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PostPassRasterizeArgsSWHW)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FCalculateStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "CalculateStats", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCalculateStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateStats", SF_Compute);
 
 // Calculates and accumulates per-cluster stats
 class FCalculateClusterStatsCS : public FNaniteGlobalShader
@@ -260,7 +260,7 @@ class FCalculateClusterStatsCS : public FNaniteGlobalShader
 		RDG_BUFFER_ACCESS(StatsArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FCalculateClusterStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "CalculateClusterStats", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCalculateClusterStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateClusterStats", SF_Compute);
 
 class FPrintStatsCS : public FNaniteGlobalShader
 {
@@ -295,7 +295,7 @@ class FPrintStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, PostPassRasterizeArgsSWHW )
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FPrintStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "PrintStats", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FPrintStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "PrintStats", SF_Compute);
 
 namespace Nanite
 {

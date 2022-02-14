@@ -32,7 +32,7 @@ class FNaniteFeedbackStatusCS : public FNaniteGlobalShader
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FNaniteFeedbackStatusCS, "/Engine/Private/Nanite/ClusterCulling.usf", "FeedbackStatus", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FNaniteFeedbackStatusCS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "FeedbackStatus", SF_Compute);
 
 #if !UE_BUILD_SHIPPING
 FFeedbackManager::FFeedbackManager()

@@ -5,7 +5,7 @@
 // Define types used by Generated Uniform buffers (which is pulled in by Common.ush)
 
 // Nanite
-#include "Nanite/PackedNaniteView.ush"
+#include "Nanite/NanitePackedNaniteView.ush"
 
 // Hair Strands
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush"

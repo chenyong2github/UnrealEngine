@@ -109,7 +109,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FNaniteVisualizeCS, "/Engine/Private/Nanite/Visualize.usf", "VisualizeCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FNaniteVisualizeCS, "/Engine/Private/Nanite/NaniteVisualize.usf", "VisualizeCS", SF_Compute);
 
 class FMaterialComplexityCS : public FNaniteGlobalShader
 {
@@ -139,7 +139,7 @@ public:
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FMaterialComplexityCS, "/Engine/Private/Nanite/MaterialComplexity.usf", "CalculateMaterialComplexity", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMaterialComplexityCS, "/Engine/Private/Nanite/NaniteMaterialComplexity.usf", "CalculateMaterialComplexity", SF_Compute);
 
 class FExportDebugViewPS : public FNaniteGlobalShader
 {
@@ -185,7 +185,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("EDITOR_SELECTED_BUFFER_COUNT"), SelectedBufferCount);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/DebugViews.usf", "ExportDebugViewPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/NaniteDebugViews.usf", "ExportDebugViewPS", SF_Pixel);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteGlobalShader

@@ -20,7 +20,7 @@
 #endif
 
 // Need to get the definition of nanite packed view for generated unform buffer (which is pulled in by Common.ush)
-#include "Nanite/PackedNaniteView.ush"
+#include "Nanite/NanitePackedNaniteView.ush"
 #include "Common.ush"
 
 // Reroute SceneTexturesStruct uniform buffer references to the shadow depth pass uniform buffer

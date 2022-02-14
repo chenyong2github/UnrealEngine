@@ -6,7 +6,7 @@
 #include "../ShaderPrintCommon.ush"
 #endif
 
-#include "Culling.ush"
+#include "NaniteCulling.ush"
 
 #ifndef VIRTUAL_TEXTURE_TARGET
 #define VIRTUAL_TEXTURE_TARGET 0

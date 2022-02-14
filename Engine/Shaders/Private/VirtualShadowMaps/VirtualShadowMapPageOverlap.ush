@@ -3,7 +3,7 @@
 #pragma once
 
 #include "../Common.ush"
-#include "../Nanite/HZBCull.ush"
+#include "../Nanite/NaniteHZBCull.ush"
 #include "../SceneData.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 

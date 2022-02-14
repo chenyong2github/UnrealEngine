@@ -35,7 +35,7 @@ class FEmitHitProxyIdPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitHitProxyIdPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitHitProxyIdPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitHitProxyIdPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitHitProxyIdPS", SF_Pixel);
 
 class FEmitEditingLevelInstanceDepthPS : public FNaniteGlobalShader
 {
@@ -62,7 +62,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("EDITOR_LEVELINSTANCE_BUFFER_COUNT"), LevelInstanceBufferCount);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitEditorLevelInstanceDepthPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitEditingLevelInstanceDepthPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitEditorLevelInstanceDepthPS", SF_Pixel);
 
 class FEmitEditorSelectionDepthPS : public FNaniteGlobalShader
 {
@@ -89,7 +89,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("EDITOR_SELECTED_BUFFER_COUNT"), SelectedBufferCount);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitEditorSelectionDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitEditorSelectionDepthPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitEditorSelectionDepthPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitEditorSelectionDepthPS", SF_Pixel);
 
 namespace Nanite
 {

@@ -63,7 +63,7 @@ class FNaniteMarkStencilPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FNaniteMarkStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "MarkStencilPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FNaniteMarkStencilPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "MarkStencilPS", SF_Pixel);
 
 class FEmitMaterialDepthPS : public FNaniteGlobalShader
 {
@@ -100,10 +100,10 @@ class FEmitMaterialDepthPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitMaterialDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitMaterialDepthPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitMaterialDepthPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitMaterialDepthPS", SF_Pixel);
 
-IMPLEMENT_GLOBAL_SHADER(FNaniteIndirectMaterialVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
-IMPLEMENT_GLOBAL_SHADER(FNaniteMultiViewMaterialVS, "/Engine/Private/Nanite/ExportGBuffer.usf", "FullScreenVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FNaniteIndirectMaterialVS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "FullScreenVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FNaniteMultiViewMaterialVS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "FullScreenVS", SF_Vertex);
 
 class FEmitSceneDepthPS : public FNaniteGlobalShader
 {
@@ -135,7 +135,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitSceneDepthPS", SF_Pixel);
 
 class FEmitSceneStencilPS : public FNaniteGlobalShader
 {
@@ -164,7 +164,7 @@ class FEmitSceneStencilPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitSceneStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneStencilPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneStencilPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitSceneStencilPS", SF_Pixel);
 
 class FEmitSceneDepthStencilPS : public FNaniteGlobalShader
 {
@@ -198,7 +198,7 @@ class FEmitSceneDepthStencilPS : public FNaniteGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthStencilPS, "/Engine/Private/Nanite/ExportGBuffer.usf", "EmitSceneDepthStencilPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FEmitSceneDepthStencilPS, "/Engine/Private/Nanite/NaniteExportGBuffer.usf", "EmitSceneDepthStencilPS", SF_Pixel);
 
 class FDepthExportCS : public FNaniteGlobalShader
 {
@@ -233,7 +233,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/NaniteDepthExport.usf", "DepthExport", SF_Compute);
 
 class FInitializeMaterialsCS : public FNaniteGlobalShader
 {
@@ -251,7 +251,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MaterialTileRemap)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FInitializeMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "InitializeMaterials", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FInitializeMaterialsCS, "/Engine/Private/Nanite/NaniteMaterialCulling.usf", "InitializeMaterials", SF_Compute);
 
 class FClassifyMaterialsCS : public FNaniteGlobalShader
 {
@@ -298,7 +298,7 @@ public:
 		//FPermutationDomain PermutationVector(Parameters.PermutationId);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FClassifyMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "ClassifyMaterials", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClassifyMaterialsCS, "/Engine/Private/Nanite/NaniteMaterialCulling.usf", "ClassifyMaterials", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteMarkStencilRectsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)

@@ -15,8 +15,8 @@
 #endif
 
 #include "NaniteDataDecode.ush"
-#include "HZBCull.ush"
-#include "Culling.ush"
+#include "NaniteHZBCull.ush"
+#include "NaniteCulling.ush"
 #include "../GPUMessaging.ush"
 
 #ifndef NEAR_CLIP

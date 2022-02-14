@@ -6,11 +6,11 @@
 #include "../ComputeShaderUtils.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 
-#include "Culling.ush"
+#include "NaniteCulling.ush"
 #include "NaniteDataDecode.ush"
-#include "HZBCull.ush"
-#include "WritePixel.ush"
-#include "Imposter.ush"
+#include "NaniteHZBCull.ush"
+#include "NaniteWritePixel.ush"
+#include "NaniteImposter.ush"
 
 void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, uint ImposterIndex, FScreenRect Rect )
 {

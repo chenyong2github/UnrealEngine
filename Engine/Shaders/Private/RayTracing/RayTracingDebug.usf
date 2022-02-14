@@ -21,7 +21,7 @@ float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float3 FarFieldReferencePos;
 
-// TODO: move MurmurMix and IntToColor into a common header, shared with Nanite/Visualize.usf
+// TODO: move MurmurMix and IntToColor into a common header, shared with Nanite/NaniteVisualize.usf
 
 uint MurmurMix(uint Hash)
 {

@@ -16,7 +16,7 @@
 #include "InstanceCullingCommon.ush"
 #include "InstanceCompactionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
-#include "../Nanite/HZBCull.ush"
+#include "../Nanite/NaniteHZBCull.ush"
 #include "../WaveOpUtil.ush"
 #include "../ComputeShaderUtils.ush"
 

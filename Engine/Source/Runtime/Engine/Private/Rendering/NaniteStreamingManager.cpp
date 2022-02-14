@@ -194,7 +194,7 @@ class FTranscodePageToGPU_CS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FTranscodePageToGPU_CS, "/Engine/Private/Nanite/Transcode.usf", "TranscodePageToGPU", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTranscodePageToGPU_CS, "/Engine/Private/Nanite/NaniteTranscode.usf", "TranscodePageToGPU", SF_Compute);
 
 class FClearStreamingRequestCount_CS : public FGlobalShader
 {
@@ -215,7 +215,7 @@ class FClearStreamingRequestCount_CS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FClearStreamingRequestCount_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "ClearStreamingRequestCount", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearStreamingRequestCount_CS, "/Engine/Private/Nanite/NaniteClusterCulling.usf", "ClearStreamingRequestCount", SF_Compute);
 
 
 // Lean hash table for deduplicating requests.

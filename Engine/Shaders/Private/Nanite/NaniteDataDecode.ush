@@ -6,7 +6,7 @@
 #include "../BitPacking.ush"
 #include "../SceneData.ush"
 #include "/Engine/Shared/NaniteDefinitions.h"
-#include "PackedNaniteView.ush"
+#include "NanitePackedNaniteView.ush"
 
 #ifndef DEBUG_FLAGS
 #define DEBUG_FLAGS 0

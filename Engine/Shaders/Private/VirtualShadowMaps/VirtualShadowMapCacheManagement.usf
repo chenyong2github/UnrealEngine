@@ -8,7 +8,7 @@
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 
 //#include "NaniteDataDecode.ush"
- #include "../Nanite/HZBCull.ush"
+ #include "../Nanite/NaniteHZBCull.ush"
 
 #if ENABLE_DEBUG_MODE
 #include "../ShaderDrawDebug.ush"

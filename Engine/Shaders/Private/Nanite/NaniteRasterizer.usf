@@ -5,7 +5,7 @@
 #include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
-#include "WritePixel.ush"
+#include "NaniteWritePixel.ush"
 
 #if IS_NANITE_RASTER_PASS
 
