@@ -115,7 +115,9 @@ float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
 {
 	//return ((WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f);
 	float4 WorldToUVAddAndMul = GlobalVolumeWorldToUVAddAndMul[ClipmapIndex];
-	return frac(WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz);
+	float3 UV = frac(WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz); // wraparound addressing
+	UV = frac(UV); // apply frac twice to prevent UV == 1.0f because frac(-0.00...001f) = 1.0f
+	return UV;
 }
 
 float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
@@ -144,7 +146,7 @@ float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
 
 		if (DistanceFromClipmap > ClipmapVoxelExtent)
 		{
-			float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
+			float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
 
 			uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 
@@ -174,7 +176,7 @@ float SampleGlobalDistanceField(float3 WorldPosition, float MaxDistance, int Min
 	{
 		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		
-		float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
+		float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
 		uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 
 		if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
@@ -222,7 +224,7 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 
 		if (DistanceFromClipmap >= ClipmapVoxelExtent)
 		{
-			const float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
+			const float3 ClipmapVolumeUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
 
 			uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
 

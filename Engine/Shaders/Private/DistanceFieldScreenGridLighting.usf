@@ -256,7 +256,6 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	// Cover AO leaking by comparing initial step SDF value against initial step size.
 	{
 		float3 WorldSamplePosition = WorldShadingPosition + WorldNormal * InitialOffset;
-		float3 StepVolumeUV = ComputeGlobalUV(WorldSamplePosition, ClipmapIndex);
 		float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 		ConeTraceLeakFill = saturate(Pow2(DistanceToOccluder / InitialOffset)) * 0.4f + 0.6f;
 	}
@@ -275,7 +274,6 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 		for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < AOGlobalMaxOcclusionDistance; StepIndex++)
 		{
 			float3 WorldSamplePosition = WorldShadingPosition + RotatedConeDirection * WorldStepOffset;
-			float3 StepVolumeUV = ComputeGlobalUV(WorldSamplePosition, ClipmapIndex);
 			float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 			float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 			float InvSphereRadius = rcpFast(SphereRadius);

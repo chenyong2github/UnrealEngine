@@ -51,13 +51,14 @@ float LoadPrevDistanceFieldValue(int3 MipCoord, int3 Offset)
 #if READ_PAGES
 	// Reverse clipmap scroll offset as coarse clipmap is always centered around camera
 	float3 ScrolledClipmapUV = (MipCoord + 0.5f) / ClipmapMipResolution;
-	ScrolledClipmapUV = frac(ScrolledClipmapUV + ClipmapUVScrollOffset);
+	ScrolledClipmapUV = frac(ScrolledClipmapUV + ClipmapUVScrollOffset); // wraparound addressing
+	ScrolledClipmapUV = frac(ScrolledClipmapUV); // apply frac twice to prevent UV == 1.0f because frac(-0.00...001f) = 1.0f
 
 	int3 PageTableTextureCoord = saturate(ScrolledClipmapUV) * GlobalDistanceFieldClipmapSizeInPages + int3(0, 0, ClipmapIndex * GlobalDistanceFieldClipmapSizeInPages);
 	uint PageIndex = PageTableTexture.Load(int4(PageTableTextureCoord, 0));
 
 	float DistanceFieldValue = 1.0f;
-	if (PageIndex < 0xFFFF)
+	if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 	{
 		float3 PageUV = ComputeGlobalDistanceFieldPageUV(ScrolledClipmapUV, PageIndex);
 		DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;

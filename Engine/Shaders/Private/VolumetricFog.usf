@@ -434,7 +434,6 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < AOGlobalMaxOcclusionDistance; StepIndex++)
 	{
 		float3 WorldSamplePosition = WorldShadingPosition + ConeDirection * WorldStepOffset;
-		float3 StepVolumeUV = ComputeGlobalUV(WorldSamplePosition, ClipmapIndex);
 		float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 		float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 		float InvSphereRadius = rcpFast(SphereRadius);
