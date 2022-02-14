@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
+#include "VisualLogger/VisualLogger.h"
 
 const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 
