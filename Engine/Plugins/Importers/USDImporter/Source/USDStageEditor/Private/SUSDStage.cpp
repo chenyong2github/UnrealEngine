@@ -94,9 +94,13 @@ namespace SUSDStageImpl
 			UE::FSdfLayer& Layer = AllLayers[ Index ];
 
 			TArray< UE::FSdfLayer > NewLayers;
-			for ( const FString& Reference : Layer.GetExternalReferences() )
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+			for ( const FString& AssetDependency : Layer.GetCompositionAssetDependencies() )
+#else
+			for ( const FString& AssetDependency : Layer.GetExternalReferences() )
+#endif
 			{
-				FString AbsoluteReference = Layer.ComputeAbsolutePath( Reference );
+				FString AbsoluteReference = Layer.ComputeAbsolutePath( AssetDependency );
 				FPaths::NormalizeFilename( AbsoluteReference );
 
 				if ( !LoadedLayers.Contains( AbsoluteReference ) )
@@ -1392,14 +1396,22 @@ void SUsdStage::OnExportAll()
 
 			// Remap references to layers so that they point at the other newly saved files. Note that SUSDStageImpl::AppendAllExternalReferences
 			// will have collected all external references already, so OldPathToSavedPath should have entries for all references we'll find
-			for ( const FString& Ref : OutputLayer.GetExternalReferences() )
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+			for ( const FString& AssetDependency : OutputLayer.GetCompositionAssetDependencies() )
+#else
+			for ( const FString& AssetDependency : OutputLayer.GetExternalReferences() )
+#endif
 			{
-				FString AbsRef = FPaths::ConvertRelativePathToFull( FPaths::GetPath( LayerPath ), Ref ); // Relative to the original file
+				FString AbsRef = FPaths::ConvertRelativePathToFull( FPaths::GetPath( LayerPath ), AssetDependency ); // Relative to the original file
 				FPaths::NormalizeFilename( AbsRef );
 
 				if ( FString* SavedReference = OldPathToSavedPath.Find( AbsRef ) )
 				{
-					OutputLayer.UpdateExternalReference( *Ref, **SavedReference );
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+					OutputLayer.UpdateCompositionAssetDependency( *AssetDependency, **SavedReference );
+#else
+					OutputLayer.UpdateExternalReference( *AssetDependency, **SavedReference );
+#endif
 				}
 			}
 

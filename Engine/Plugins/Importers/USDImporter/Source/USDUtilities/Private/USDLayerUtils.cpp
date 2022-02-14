@@ -43,7 +43,7 @@ namespace UE::UsdLayerUtilsImpl::Private
 {
 	/**
 		* Adapted from flattenUtils.cpp::_FixAssetPaths, except that we only handle actual AssetPaths here as layer/prim paths
-		* will be remapped via Layer.UpdateExternalReference.
+		* will be remapped via Layer.UpdateCompositionAssetDependency().
 		* Returns whether anything was remapped
 		*/
 	bool FixAssetPaths( const pxr::SdfLayerHandle& SourceLayer, pxr::VtValue* Value )

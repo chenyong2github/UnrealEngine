@@ -90,6 +90,14 @@ namespace UE
 		TSet<FString> GetExternalReferences() const;
 		bool UpdateExternalReference( const TCHAR* OldReferencePath, const TCHAR* NewReferencePath );
 
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+		TSet<FString> GetCompositionAssetDependencies() const;
+
+		bool UpdateCompositionAssetDependency(
+			const TCHAR* OldAssetPath,
+			const TCHAR* NewAssetPath = nullptr);
+#endif // #if defined(PXR_VERSION) && PXR_VERSION >= 2111
+
 		FString GetRealPath() const;
 		FString GetIdentifier() const;
 		FString GetDisplayName() const;

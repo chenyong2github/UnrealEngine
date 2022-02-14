@@ -47,11 +47,20 @@ namespace UE::USDLayersTreeViewImpl::Private
 		// Convert layer references to absolute paths so that it still works at its target location
 		FString LayerPath = LayerToExport.GetRealPath();
 		FPaths::NormalizeFilename( LayerPath );
-		TSet<FString> ExternalReferences = OutputLayer.GetExternalReferences();
-		for ( const FString& Ref : ExternalReferences )
+		const TSet<FString> AssetDependencies =
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+			OutputLayer.GetCompositionAssetDependencies();
+#else
+			OutputLayer.GetExternalReferences();
+#endif
+		for ( const FString& Ref : AssetDependencies )
 		{
 			FString AbsRef = FPaths::ConvertRelativePathToFull( FPaths::GetPath( LayerPath ), Ref ); // Relative to the original file
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+			OutputLayer.UpdateCompositionAssetDependency( *Ref, *AbsRef );
+#else
 			OutputLayer.UpdateExternalReference( *Ref, *AbsRef );
+#endif
 		}
 
 		bool bForce = true;

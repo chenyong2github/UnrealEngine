@@ -306,6 +306,45 @@ namespace UE
 		return false;
 	}
 
+#if defined(PXR_VERSION) && PXR_VERSION >= 2111
+	template<typename PtrType>
+	TSet<FString> FSdfLayerBase<PtrType>::GetCompositionAssetDependencies() const
+	{
+		TSet<FString> Results;
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			const std::set<std::string> AssetDependencies = Ptr->GetCompositionAssetDependencies();
+
+			Results.Reserve( AssetDependencies.size() );
+			for ( const std::string& AssetDependency : AssetDependencies )
+			{
+				Results.Add( ANSI_TO_TCHAR( AssetDependency.c_str() ) );
+			}
+		}
+#endif // #if USE_USD_SDK
+		return Results;
+	}
+
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::UpdateCompositionAssetDependency(
+			const TCHAR* OldAssetPath,
+			const TCHAR* NewAssetPath)
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			return Ptr->UpdateCompositionAssetDependency(
+				TCHAR_TO_ANSI( OldAssetPath ),
+				(NewAssetPath != nullptr) ? TCHAR_TO_ANSI( NewAssetPath ) : std::string() );
+		}
+#endif // #if USE_USD_SDK
+		return false;
+	}
+#endif // #if defined(PXR_VERSION) && PXR_VERSION >= 2111
+
 	template<typename PtrType>
 	FString FSdfLayerBase<PtrType>::GetRealPath() const
 	{

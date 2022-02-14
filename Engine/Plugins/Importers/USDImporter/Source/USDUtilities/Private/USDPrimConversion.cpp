@@ -70,7 +70,11 @@
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/diskLight.h"
 #include "pxr/usd/usdLux/distantLight.h"
+#if defined(HAS_USDLUX_LIGHTAPI)
+#include "pxr/usd/usdLux/lightAPI.h"
+#else
 #include "pxr/usd/usdLux/light.h"
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 #include "pxr/usd/usdLux/rectLight.h"
 #include "pxr/usd/usdLux/shapingAPI.h"
 #include "pxr/usd/usdLux/sphereLight.h"
@@ -253,7 +257,12 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	// Extra rotation to match different camera facing direction convention
 	// Note: The camera space is always Y-up, yes, but this is not what this is: This is the camera's transform wrt the stage,
 	// which follows the stage up axis
-	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() || Xformable.GetPrim().IsA< pxr::UsdLuxLight >() )
+	if ( Xformable.GetPrim().IsA< pxr::UsdGeomCamera >() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+			Xformable.GetPrim().HasAPI< pxr::UsdLuxLightAPI >() )
+#else
+			Xformable.GetPrim().IsA< pxr::UsdLuxLight >() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	{
 		if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 		{
@@ -267,7 +276,12 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	// Invert the compensation applied to our parents, in case they're a camera or a light
 	if ( pxr::UsdPrim Parent = Xformable.GetPrim().GetParent() )
 	{
-		if ( Parent.IsA< pxr::UsdGeomCamera >() || Parent.IsA< pxr::UsdLuxLight >() )
+		if ( Parent.IsA< pxr::UsdGeomCamera >() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+				Parent.HasAPI< pxr::UsdLuxLightAPI >() )
+#else
+				Parent.IsA< pxr::UsdLuxLight >() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 		{
 			if ( StageInfo.UpAxis == EUsdUpAxis::YAxis )
 			{
@@ -908,11 +922,15 @@ UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const 
 			}
 		}
 	}
-	else if ( pxr::UsdLuxLight Light{ Prim } )
+#if defined(HAS_USDLUX_LIGHTAPI)
+	else if ( const pxr::UsdLuxLightAPI LightAPI{ Prim } )
+#else
+	else if ( const pxr::UsdLuxLight LightAPI{ Prim } )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	{
 		if ( PropertyPath == UnrealIdentifiers::LightColorPropertyName )
 		{
-			if ( pxr::UsdAttribute Attr = Light.GetColorAttr() )
+			if ( pxr::UsdAttribute Attr = LightAPI.GetColorAttr() )
 			{
 				pxr::GfVec3f UsdDefault;
 				Attr.Get<pxr::GfVec3f>( &UsdDefault );
@@ -935,7 +953,7 @@ UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const 
 		}
 		else if ( PropertyPath == UnrealIdentifiers::UseTemperaturePropertyName )
 		{
-			if ( pxr::UsdAttribute Attr = Light.GetEnableColorTemperatureAttr() )
+			if ( pxr::UsdAttribute Attr = LightAPI.GetEnableColorTemperatureAttr() )
 			{
 				bool Default;
 				Attr.Get<bool>( &Default );
@@ -951,7 +969,7 @@ UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const 
 		}
 		else if ( PropertyPath == UnrealIdentifiers::TemperaturePropertyName )
 		{
-			if ( pxr::UsdAttribute Attr = Light.GetColorTemperatureAttr() )
+			if ( pxr::UsdAttribute Attr = LightAPI.GetColorTemperatureAttr() )
 			{
 				float Default;
 				Attr.Get<float>( &Default );
@@ -1928,7 +1946,12 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 	// In UE cameras shoot towards local + X, with + Z up.Lights also emit towards local + X, with + Z up
 	// Note that this wouldn't have worked in case we collapsed light and camera components, but these always get their own
 	// actors, so we know that we don't have a single component that represents a large collapsed prim hierarchy
-	if ( UsdPrim.IsA<pxr::UsdGeomCamera>() || UsdPrim.IsA<pxr::UsdLuxLight>() )
+	if ( UsdPrim.IsA<pxr::UsdGeomCamera>() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+			UsdPrim.HasAPI<pxr::UsdLuxLightAPI>() )
+#else
+			UsdPrim.IsA<pxr::UsdLuxLight>() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	{
 		FTransform AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 
@@ -1943,7 +1966,12 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 	// Invert compensation applied to parent if it's a light or camera component
 	if ( pxr::UsdPrim ParentPrim = UsdPrim.GetParent() )
 	{
-		if ( ParentPrim.IsA<pxr::UsdGeomCamera>() || ParentPrim.IsA<pxr::UsdLuxLight>() )
+		if ( ParentPrim.IsA<pxr::UsdGeomCamera>() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+			ParentPrim.HasAPI<pxr::UsdLuxLightAPI>() )
+#else
+			ParentPrim.IsA<pxr::UsdLuxLight>() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 		{
 			FTransform AdditionalRotation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 
@@ -2444,7 +2472,13 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 
 			// Compensate different orientation for light or camera components
 			FTransform AdditionalRotation = FTransform::Identity;
-			if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+			if ( UsdPrim.IsA< pxr::UsdGeomCamera >() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+					UsdPrim.HasAPI< pxr::UsdLuxLightAPI >() )
+#else
+					UsdPrim.IsA< pxr::UsdLuxLight >() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
+				
 			{
 				AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
 
@@ -2832,7 +2866,12 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 
 					// Compensate different orientation for light or camera components
 					FTransform AdditionalRotation = FTransform::Identity;
-					if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+					if ( UsdPrim.IsA< pxr::UsdGeomCamera >() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+							UsdPrim.HasAPI< pxr::UsdLuxLightAPI >() )
+#else
+							UsdPrim.IsA< pxr::UsdLuxLight >() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 					{
 						AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
 
@@ -2944,11 +2983,15 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 			}
 		}
 	}
-	else if ( pxr::UsdLuxLight Light{ Prim } )
+#if defined(HAS_USDLUX_LIGHTAPI)
+	else if ( pxr::UsdLuxLightAPI LightAPI{ Prim } )
+#else
+	else if ( pxr::UsdLuxLight LightAPI{ Prim } )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	{
 		if ( PropertyPath == UnrealIdentifiers::LightColorPropertyName )
 		{
-			Attr = Light.GetColorAttr();
+			Attr = LightAPI.GetColorAttr();
 			if ( Attr )
 			{
 				Result.ColorWriter = [Attr]( const FLinearColor& UEValue, double UsdTimeCode )
@@ -2960,7 +3003,7 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 		}
 		else if ( PropertyPath == UnrealIdentifiers::UseTemperaturePropertyName )
 		{
-			Attr = Light.GetEnableColorTemperatureAttr();
+			Attr = LightAPI.GetEnableColorTemperatureAttr();
 			if ( Attr )
 			{
 				Result.BoolWriter = [Attr]( bool UEValue, double UsdTimeCode )
@@ -2971,7 +3014,7 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 		}
 		else if ( PropertyPath == UnrealIdentifiers::TemperaturePropertyName )
 		{
-			Attr = Light.GetColorTemperatureAttr();
+			Attr = LightAPI.GetColorTemperatureAttr();
 			if ( Attr )
 			{
 				Result.FloatWriter = [Attr]( float UEValue, double UsdTimeCode )
@@ -3417,7 +3460,12 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 
 		// Compensate different orientation for light or camera components
 		FTransform CameraCompensation = FTransform::Identity;
-		if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+		if ( UsdPrim.IsA< pxr::UsdGeomCamera >() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+				UsdPrim.HasAPI< pxr::UsdLuxLightAPI >() )
+#else
+				UsdPrim.IsA< pxr::UsdLuxLight >() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 		{
 			CameraCompensation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
 
@@ -3431,7 +3479,12 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 		FTransform InverseCameraCompensation = FTransform::Identity;
 		if ( pxr::UsdPrim ParentPrim = UsdPrim.GetParent() )
 		{
-			if ( ParentPrim.IsA<pxr::UsdGeomCamera>() || ParentPrim.IsA<pxr::UsdLuxLight>() )
+			if ( ParentPrim.IsA<pxr::UsdGeomCamera>() ||
+#if defined(HAS_USDLUX_LIGHTAPI)
+					ParentPrim.HasAPI<pxr::UsdLuxLightAPI>() )
+#else
+					ParentPrim.IsA<pxr::UsdLuxLight>() )
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 			{
 				InverseCameraCompensation = FTransform( FRotator( 0.0f, 90.f, 0.0f ) );
 

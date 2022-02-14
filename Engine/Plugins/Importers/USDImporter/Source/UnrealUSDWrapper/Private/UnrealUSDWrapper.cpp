@@ -58,7 +58,11 @@
 #include "pxr/usd/usdGeom/modelAPI.h"
 #include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
+#if defined(HAS_USDLUX_LIGHTAPI)
+#include "pxr/usd/usdLux/lightAPI.h"
+#else
 #include "pxr/usd/usdLux/light.h"
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 #include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "pxr/usd/usdShade/tokens.h"
 #include "pxr/usd/usdUtils/stageCache.h"
@@ -180,10 +184,18 @@ bool IsHolding(const VtValue& Value)
 // Only used to make sure we link against UsdLux so that it's available to Python on Linux
 float GetLightIntensity(const pxr::UsdPrim& Prim)
 {
-	pxr::UsdLuxLight UsdLuxLight( Prim );
+	float Value = 1.0f;
 
-	float Value;
-	UsdLuxLight.GetIntensityAttr().Get( &Value );
+#if defined(HAS_USDLUX_LIGHTAPI)
+	const pxr::UsdLuxLightAPI LightAPI(Prim);
+#else
+	const pxr::UsdLuxLight LightAPI(Prim);
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
+
+	if (LightAPI)
+	{
+		LightAPI.GetIntensityAttr().Get(&Value);
+	}
 
 	return Value;
 }

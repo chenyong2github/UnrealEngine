@@ -44,7 +44,9 @@
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
+	#include "pxr/usd/ar/ar.h"
 	#include "pxr/usd/ar/asset.h"
+	#include "pxr/usd/ar/resolvedPath.h"
 	#include "pxr/usd/ar/resolver.h"
 	#include "pxr/usd/ar/resolverScopedCache.h"
 	#include "pxr/usd/sdf/layer.h"
@@ -133,15 +135,19 @@ namespace UE
 					? UsdToUnreal::ConvertString( pxr::SdfComputeAssetPathRelativeToLayer( LayerHandle, UnrealToUsd::ConvertString( *AssetPathToResolve ).Get() ) )
 					: AssetPathToResolve;
 
-				std::string ResolvedPathUsd = Resolver.Resolve( UnrealToUsd::ConvertString( *RelativePathToResolve ).Get().c_str() );
+				std::string AssetIdentifier = Resolver.Resolve( UnrealToUsd::ConvertString( *RelativePathToResolve ).Get().c_str() );
 
 				// Don't normalize an empty path as the result will be "."
-				if ( ResolvedPathUsd.size() > 0 )
+				if ( AssetIdentifier.size() > 0 )
 				{
-					ResolvedPathUsd = Resolver.ComputeNormalizedPath( ResolvedPathUsd );
+#if AR_VERSION >= 2
+					AssetIdentifier = Resolver.CreateIdentifier( AssetIdentifier );
+#else
+					AssetIdentifier = Resolver.ComputeNormalizedPath( AssetIdentifier );
+#endif // #if AR_VERSION >= 2
 				}
 
-				FString ResolvedAssetPath = UsdToUnreal::ConvertString( ResolvedPathUsd );
+				FString ResolvedAssetPath = UsdToUnreal::ConvertString( AssetIdentifier );
 
 				return ResolvedAssetPath;
 			}
@@ -179,7 +185,12 @@ namespace UE
 			TUsdStore<std::shared_ptr<const char>> ReadTextureBufferFromUsdzArchive( const FString& ResolvedTexturePath, uint64& OutBufferSize )
 			{
 				pxr::ArResolver& Resolver = pxr::ArGetResolver();
-				std::shared_ptr<pxr::ArAsset> Asset = Resolver.OpenAsset( UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() );
+				std::shared_ptr<pxr::ArAsset> Asset = Resolver.OpenAsset(
+#if AR_VERSION >= 2
+					pxr::ArResolvedPath( UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() ) );
+#else
+					UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() );
+#endif // #if AR_VERSION >= 2
 
 				TUsdStore<std::shared_ptr<const char>> Buffer;
 
@@ -2185,14 +2196,18 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 
 	pxr::ArResolver& Resolver = pxr::ArGetResolver();
 
-	std::string UsdResolvedPath = TextureAssetPath.GetResolvedPath();
+	std::string AssetIdentifier = TextureAssetPath.GetResolvedPath();
 	// Don't normalize an empty path as the result will be "."
-	if ( UsdResolvedPath.size() > 0 )
+	if ( AssetIdentifier.size() > 0 )
 	{
-		UsdResolvedPath = Resolver.ComputeNormalizedPath( UsdResolvedPath );
+#if AR_VERSION >= 2
+		AssetIdentifier = Resolver.CreateIdentifier( AssetIdentifier );
+#else
+		AssetIdentifier = Resolver.ComputeNormalizedPath( AssetIdentifier );
+#endif // #if AR_VERSION >= 2
 	}
 
-	FString ResolvedTexturePath = UsdToUnreal::ConvertString( UsdResolvedPath );
+	FString ResolvedTexturePath = UsdToUnreal::ConvertString( AssetIdentifier );
 	FPaths::NormalizeFilename( ResolvedTexturePath );
 
 	if ( ResolvedTexturePath.IsEmpty() )

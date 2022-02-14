@@ -22,6 +22,11 @@
 	#include "pxr/usd/usdLux/diskLight.h"
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
+#if defined(HAS_USDLUX_LIGHTAPI)
+	#include "pxr/usd/usdLux/lightAPI.h"
+#else
+	#include "pxr/usd/usdLux/light.h"
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	#include "pxr/usd/usdLux/rectLight.h"
 	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
@@ -47,9 +52,14 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdPrim Prim = GetPrim();
-	pxr::UsdLuxLight UsdLight{ Prim };
 
-	if ( !UsdLight )
+#if defined(HAS_USDLUX_LIGHTAPI)
+	const pxr::UsdLuxLightAPI LightAPI( Prim );
+#else
+	const pxr::UsdLuxLight LightAPI( Prim );
+#endif // #if defined(HAS_USDLUX_LIGHTAPI)
+
+	if ( !LightAPI )
 	{
 		return;
 	}
