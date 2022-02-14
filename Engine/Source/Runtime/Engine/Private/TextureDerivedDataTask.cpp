@@ -710,7 +710,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	const bool bValidateVirtualTextureCompression = CVarVTValidateCompressionOnLoad.GetValueOnAnyThread() != 0;
 	bool bInvalidVirtualTextureCompression = false;
 
-	TArray<uint8> RawDerivedData;
+	TArray64<uint8> RawDerivedData;
 
 	// Can't have a fetch first if we are rebuilding
 	if (bForceRebuild)
@@ -765,7 +765,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		const bool bForDDC = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForDDCBuild);
 
 		BytesCached = RawDerivedData.Num();
-		FMemoryReader Ar(RawDerivedData, /*bIsPersistent=*/ true);
+		FMemoryReaderView Ar(MakeMemoryView(RawDerivedData), /*bIsPersistent=*/ true);
 		DerivedData->Serialize(Ar, NULL);
 		bSucceeded = true;
 		// Load any streaming (not inline) mips that are necessary for our platform.

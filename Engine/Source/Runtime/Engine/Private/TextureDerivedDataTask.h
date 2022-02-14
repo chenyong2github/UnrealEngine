@@ -33,7 +33,7 @@ enum
 namespace UE::DerivedData { class FBuildOutput; }
 
 void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix);
-uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC);
+int64 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC);
 
 enum class ETextureCacheFlags : uint32
 {
@@ -144,7 +144,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** Texture cache flags. */
 	ETextureCacheFlags CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
-	uint32 BytesCached = 0;
+	int64 BytesCached = 0;
 	/** Estimate of the peak amount of memory required to complete this task. */
 	int64 RequiredMemoryEstimate = -1;
 
@@ -175,7 +175,7 @@ public:
 	void Finalize();
 
 	/** Expose bytes cached for telemetry. */
-	uint32 GetBytesCached() const
+	int64 GetBytesCached() const
 	{
 		return BytesCached;
 	}

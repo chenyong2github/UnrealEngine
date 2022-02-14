@@ -992,11 +992,11 @@ static void GetBuildSettingsPerFormat(
  * @param bForceAllMipsToBeInlined - Whether to store all mips in the main DDC. Relates to how the texture resources get initialized (not supporting streaming).
  * @return number of bytes put to the DDC (total, including all mips)
  */
-uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC)
+int64 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC)
 {
-	TArray<uint8> RawDerivedData;
+	TArray64<uint8> RawDerivedData;
 	FString DerivedDataKey;
-	uint32 TotalBytesPut = 0;
+	int64 TotalBytesPut = 0;
 
 	// Build the key with which to cache derived data.
 	GetTextureDerivedDataKeyFromSuffix(DerivedDataKeySuffix, DerivedDataKey);
@@ -1074,7 +1074,7 @@ uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& D
 
 	// Store derived data.
 	// At this point we've stored all the non-inline data in the DDC, so this will only serialize and store the TexturePlatformData metadata and any inline mips
-	FMemoryWriter Ar(RawDerivedData, /*bIsPersistent=*/ true);
+	FMemoryWriter64 Ar(RawDerivedData, /*bIsPersistent=*/ true);
 	DerivedData->Serialize(Ar, NULL);
 	TotalBytesPut += RawDerivedData.Num();
 	GetDerivedDataCacheRef().Put(*DerivedDataKey, RawDerivedData, TextureName, bReplaceExistingDerivedDataDDC);
@@ -1359,7 +1359,7 @@ static void BeginLoadDerivedVTChunks(const TArray<FVirtualTextureDataChunk>& Chu
 }
 
 /** Logs a warning that MipSize is correct for the mipmap. */
-static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 MipSize)
+static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int64 MipSize)
 {
 	// this check is incorrect ; it does not account of platform tiling and padding done on textures
 	// re-enable if fixed
@@ -1369,7 +1369,7 @@ static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 
 	if (MipSize != Mip.SizeZ * CalcTextureMipMapSize(Mip.SizeX, Mip.SizeY, PixelFormat, 0))
 	{
 		UE_LOG(LogTexture, Warning,
-			TEXT("%dx%d mip of %s texture has invalid data in the DDC. Got %d bytes, expected %d. Key=%s"),
+			TEXT("%dx%d mip of %s texture has invalid data in the DDC. Got %" INT64_FMT " bytes, expected %" SIZE_T_FMT ". Key=%s"),
 			Mip.SizeX,
 			Mip.SizeY,
 			GPixelFormats[PixelFormat].Name,
@@ -1385,7 +1385,7 @@ static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 
 // Retrieve all built texture data in to the associated arrays, and don't return unless there's an error
 // or we have the data.
 //
-static bool FetchAllTextureDataSynchronous(FTexturePlatformData* PlatformData, FStringView DebugContext, TArray<TArray<uint8>>& OutMipData, TArray<TArray<uint8>>& OutVTChunkData)
+static bool FetchAllTextureDataSynchronous(FTexturePlatformData* PlatformData, FStringView DebugContext, TArray<TArray64<uint8>>& OutMipData, TArray<TArray64<uint8>>& OutVTChunkData)
 {
 	OutMipData.Empty();
 	OutVTChunkData.Empty();
@@ -1488,8 +1488,8 @@ static bool FetchAllTextureDataSynchronous(FTexturePlatformData* PlatformData, F
 // it is illustrative.
 //
 static void EstimateOnDiskCompressionForTextureData(
-	TArray<TArray<uint8>> InMipData,
-	TArray<TArray<uint8>> InVTChunkData,
+	TArray<TArray64<uint8>> InMipData,
+	TArray<TArray64<uint8>> InVTChunkData,
 	FOodleDataCompression::ECompressor InOodleCompressor,
 	FOodleDataCompression::ECompressionLevel InOodleCompressionLevel,
 	uint32 InCompressionBlockSize,
@@ -1503,11 +1503,11 @@ static void EstimateOnDiskCompressionForTextureData(
 	// both.
 	//
 	uint64 UncompressedByteCount = 0;
-	for (TArray<uint8>& Mip : InMipData)
+	for (TArray64<uint8>& Mip : InMipData)
 	{
 		UncompressedByteCount += Mip.Num();
 	}
-	for (TArray<uint8>& VTChunk : InVTChunkData)
+	for (TArray64<uint8>& VTChunk : InVTChunkData)
 	{
 		UncompressedByteCount += VTChunk.Num();
 	}
@@ -1522,7 +1522,7 @@ static void EstimateOnDiskCompressionForTextureData(
 
 	int32 MipIndex = 0;
 	int32 VTChunkIndex = 0;
-	int32 CurrentOffsetInContainer = 0;
+	int64 CurrentOffsetInContainer = 0;
 	uint64 CompressedByteCount = 0;
 
 	// Array for compressed data so we don't have to realloc.
@@ -1530,13 +1530,13 @@ static void EstimateOnDiskCompressionForTextureData(
 	Compressed.Reserve(InCompressionBlockSize + 1024);
 
 	// When we cross our input array boundaries, we accumulate in to here.
-	TArray<uint8> ContinuousMemory;
+	TArray64<uint8> ContinuousMemory;
 	for (;;)
 	{
-		TArray<uint8>& CurrentContainer = MipIndex < InMipData.Num() ? InMipData[MipIndex] : InVTChunkData[VTChunkIndex];
+		TArray64<uint8>& CurrentContainer = MipIndex < InMipData.Num() ? InMipData[MipIndex] : InVTChunkData[VTChunkIndex];
 
-		uint32 NeedBytes = InCompressionBlockSize - ContinuousMemory.Num();
-		uint32 CopyBytes = CurrentContainer.Num() - CurrentOffsetInContainer;
+		uint64 NeedBytes = InCompressionBlockSize - ContinuousMemory.Num();
+		uint64 CopyBytes = CurrentContainer.Num() - CurrentOffsetInContainer;
 		if (CopyBytes > NeedBytes)
 		{
 			CopyBytes = NeedBytes;
@@ -1638,8 +1638,8 @@ TFuture<TTuple<uint64, uint64>> FTexturePlatformData::LaunchEstimateOnDiskSizeTa
 	FStringView InDebugContext
 	)
 {
-	TArray<TArray<uint8>> MipData;
-	TArray<TArray<uint8>> VTChunkData;
+	TArray<TArray64<uint8>> MipData;
+	TArray<TArray64<uint8>> VTChunkData;
 	if (FetchAllTextureDataSynchronous(this, InDebugContext, MipData, VTChunkData) == false)
 	{
 		return TFuture<TTuple<uint64, uint64>>();
@@ -1648,8 +1648,8 @@ TFuture<TTuple<uint64, uint64>> FTexturePlatformData::LaunchEstimateOnDiskSizeTa
 	struct FAsyncEstimateState
 	{
 		TPromise<TPair<uint64, uint64>> Promise;
-		TArray<TArray<uint8>> MipData;
-		TArray<TArray<uint8>> VTChunkData;
+		TArray<TArray64<uint8>> MipData;
+		TArray<TArray64<uint8>> VTChunkData;
 		FOodleDataCompression::ECompressor OodleCompressor;
 		FOodleDataCompression::ECompressionLevel OodleCompressionLevel;
 		uint32 CompressionBlockSize;
@@ -1694,7 +1694,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView De
 
 	FAsyncMipHandles AsyncHandles;
 	FAsyncVTChunkHandles AsyncVTHandles;
-	TArray<uint8> TempData;
+	TArray64<uint8> TempData;
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 
 
@@ -1733,7 +1733,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView De
 			}
 			if (bLoadedFromDDC)
 			{
-				FMemoryReader Ar(TempData, /*bIsPersistent=*/ true);
+				FMemoryReaderView Ar(MakeMemoryView(TempData), /*bIsPersistent=*/ true);
 
 				Mip.BulkData.Lock(LOCK_READ_WRITE);
 				void* MipData = Mip.BulkData.Realloc(TempData.Num());
@@ -1845,7 +1845,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 
 #if WITH_EDITOR
 
-	TArray<uint8> TempData;
+	TArray64<uint8> TempData;
 	FAsyncMipHandles AsyncHandles;
 	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 	if (!BeginLoadDerivedMips(*this, FirstMipToLoad, DebugContext, AsyncHandles,
@@ -1853,7 +1853,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
 
-			const int32 MipSize = static_cast<int32>(MipBuffer.GetSize());
+			const int64 MipSize = static_cast<int64>(MipBuffer.GetSize());
 			CheckMipSize(Mip, PixelFormat, MipSize);
 			NumMipsCached++;
 
@@ -1919,7 +1919,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 				DDC.WaitAsynchronousCompletion(AsyncHandle);
 				if (DDC.GetAsynchronousResults(AsyncHandle, TempData))
 				{
-					FMemoryReader Ar(TempData, /*bIsPersistent=*/ true);
+					FMemoryReaderView Ar(MakeMemoryView(TempData), /*bIsPersistent=*/ true);
 					CheckMipSize(Mip, PixelFormat, TempData.Num());
 					NumMipsCached++;
 
@@ -1953,9 +1953,9 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 		for (int32 MipIndex = FirstMipToLoad; MipIndex < LoadableMips; ++MipIndex)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
-			UE_LOG(LogTexture, Verbose, TEXT("  Mip %d, BulkDataSize: %d"),
+			UE_LOG(LogTexture, Verbose, TEXT("  Mip %d, BulkDataSize: %" INT64_FMT),
 				MipIndex,
-				(int32)Mip.BulkData.GetBulkDataSize());
+				Mip.BulkData.GetBulkDataSize());
 
 			if (OutMipData && OutMipData[MipIndex - FirstMipToLoad])
 			{

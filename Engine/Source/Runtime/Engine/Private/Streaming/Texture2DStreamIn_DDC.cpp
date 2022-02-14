@@ -66,7 +66,7 @@ void FAbandonedDDCHandleManager::Purge()
 	}
 
 	FDerivedDataCacheInterface& DDCInterface = GetDerivedDataCacheRef();
-	TArray<uint8> Data;
+	TArray64<uint8> Data;
 
 	for (int32 Index = 0; Index < TempHandles.Num(); ++Index)
 	{
@@ -241,7 +241,7 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 				if (MipMap.IsPagedToDerivedData())
 				{
 					// The overhead of doing 2 copy of each mip data (from GetSynchronous() and FMemoryReader) in hidden by other texture DDC ops happening at the same time.
-					TArray<uint8> DerivedMipData;
+					TArray64<uint8> DerivedMipData;
 					bool bDDCValid = true;
 
 					const uint32 Handle = DDCHandles[MipIndex];
@@ -257,8 +257,8 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 
 					if (bDDCValid)
 					{
-						const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
-						FMemoryReader Ar(DerivedMipData, true);
+						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+						FMemoryReaderView Ar(MakeMemoryView(DerivedMipData), true);
 
 						if (DerivedMipData.Num() == ExpectedMipSize)
 						{
@@ -266,7 +266,8 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 						}
 						else
 						{
-							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d)."), MipIndex, ExpectedMipSize);
+							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%" SIZE_T_FMT ") not as expected (%" SIZE_T_FMT ") for mip %d of %s."),
+								static_cast<SIZE_T>(DerivedMipData.Num()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
 							MarkAsCancelled();
 						}
 					}
@@ -328,14 +329,15 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 
 					if (MipResult)
 					{
-						const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
 						if (MipResult.GetSize() == ExpectedMipSize)
 						{
 							FMemory::Memcpy(MipData[MipIndex], MipResult.GetData(), MipResult.GetSize());
 						}
 						else
 						{
-							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d) for mip %d of %s."), static_cast<int32>(MipResult.GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
+							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%" SIZE_T_FMT ") not as expected (%" SIZE_T_FMT ") for mip %d of %s."),
+								static_cast<SIZE_T>(MipResult.GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
 							MarkAsCancelled();
 						}
 					}

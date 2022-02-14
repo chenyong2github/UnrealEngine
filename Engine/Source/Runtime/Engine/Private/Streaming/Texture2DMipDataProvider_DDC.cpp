@@ -124,7 +124,7 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 	}
 }
 
-bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int32 MipSize, const FTextureMipInfo& OutMipInfo)
+bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int64 MipSize, const FTextureMipInfo& OutMipInfo)
 {
 	const uint32 DepthOrArraySize = FMath::Max<uint32>(OutMipInfo.ArraySize, OutMipInfo.SizeZ);
 	if (MipSize == OutMipInfo.DataSize)
@@ -132,7 +132,7 @@ bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext
 		Ar.Serialize(OutMipInfo.DestData, MipSize);
 		return true;
 	}
-	else if (MipSize < OutMipInfo.DataSize && DepthOrArraySize > 1 && OutMipInfo.DataSize % DepthOrArraySize == 0 && MipSize % DepthOrArraySize == 0)
+	else if (uint64(MipSize) < OutMipInfo.DataSize && DepthOrArraySize > 1 && OutMipInfo.DataSize % DepthOrArraySize == 0 && MipSize % DepthOrArraySize == 0)
 	{
 		UE_LOG(LogTexture, Verbose, TEXT("DDC mip size smaller than streaming buffer size. (%s, Mip %d): %d KB / %d KB."), *Context.Resource->GetTextureName().ToString(), ResourceState.MaxNumLODs - MipIndex, OutMipInfo.DataSize / 1024, MipSize / 1024);
 
@@ -178,13 +178,13 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 				{
 					DDCHandles[MipIndex] = 0; // Clear the handle.
 
-					TArray<uint8> DerivedMipData;
+					TArray64<uint8> DerivedMipData;
 					if (GetDerivedDataCacheRef().GetAsynchronousResults(Handle, DerivedMipData))
 					{
 						const FTextureMipInfo& MipInfo = MipInfos[MipIndex];
 
 						// The result must be read from a memory reader!
-						FMemoryReader Ar(DerivedMipData, true);
+						FMemoryReaderView Ar(MakeMemoryView(DerivedMipData), true);
 						if (SerializeMipInfo(Context, Ar, MipIndex, DerivedMipData.Num(), MipInfo))
 						{
 							bSuccess = true;

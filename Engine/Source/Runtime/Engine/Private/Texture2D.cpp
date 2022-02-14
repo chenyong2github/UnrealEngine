@@ -162,19 +162,19 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 }
 
 #if WITH_EDITORONLY_DATA
-uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
+int64 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
 {
-	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
+	int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
 
-	TArray<uint8> DerivedData;
-	FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
+	TArray64<uint8> DerivedData;
+	FMemoryWriter64 Ar(DerivedData, /*bIsPersistent=*/ true);
 	{
 		void* BulkMipData = BulkData.Lock(LOCK_READ_ONLY);
 		Ar.Serialize(BulkMipData, BulkDataSizeInBytes);
 		BulkData.Unlock();
 	}
-	const uint32 Result = DerivedData.Num();
+	const int64 Result = DerivedData.Num();
 	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
 	bPagedToDerivedData = true;
 	BulkData.RemoveBulkData();

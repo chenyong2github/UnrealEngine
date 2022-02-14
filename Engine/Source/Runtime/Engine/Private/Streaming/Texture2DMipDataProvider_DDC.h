@@ -40,7 +40,7 @@ protected:
 	// Helper to route incomplete DDC requests to the FAbandonedDDCHandleManager.
 	void ReleaseDDCResources();
 
-	bool SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int32 MipSize, const FTextureMipInfo& OutMipInfo);
+	bool SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int64 MipSize, const FTextureMipInfo& OutMipInfo);
 
 private:
 

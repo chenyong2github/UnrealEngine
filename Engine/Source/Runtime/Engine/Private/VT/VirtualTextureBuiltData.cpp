@@ -408,7 +408,7 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 
 	const uint32 TilePixelSize = GetPhysicalTileSize();
 	TArray<uint8> UncompressedResult;
-	TArray<uint8> ChunkDataDDC;
+	TArray64<uint8> ChunkDataDDC;
 
 	const FString TextureName(InDDCDebugContext);
 
@@ -535,16 +535,16 @@ bool FVirtualTextureDataChunk::ShortenKey(const FString& CacheKey, FString& Resu
 	return true;
 }
 
-uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
+int64 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureDataChunk::StoreInDerivedDataCache);
 
-	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
+	int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
 
 	{
 		const uint8* BulkChunkData = (uint8*)BulkData.Lock(LOCK_READ_ONLY);
-		GetDerivedDataCacheRef().Put(*InDerivedDataKey, MakeArrayView(BulkChunkData, BulkDataSizeInBytes), TextureName, bReplaceExistingDDC);
+		GetDerivedDataCacheRef().Put(*InDerivedDataKey, TConstArrayView64<uint8>(BulkChunkData, BulkDataSizeInBytes), TextureName, bReplaceExistingDDC);
 		BulkData.Unlock();
 	}
 

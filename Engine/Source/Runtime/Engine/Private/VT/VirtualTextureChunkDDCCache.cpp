@@ -75,7 +75,7 @@ public:
 					Header.Version == FVirtualTextureFileHeader::CurrentVersion &&
 					Header.HashSize <= kMaxHashSize)
 				{
-					TArray<uint8> FileContents;
+					TArray64<uint8> FileContents;
 					FileContents.AddUninitialized(Header.HashSize);
 					Ar->Serialize(FileContents.GetData(), Header.HashSize);
 
@@ -104,7 +104,7 @@ public:
 		}
 
 		// Fetch data from DDC
-		TArray<uint8> Results;
+		TArray64<uint8> Results;
 		//TODO(ddebaets) this sync request seems to be blocking here while it uses the job pool. add overload to perform it on this thread?
 		const bool DDCResult = DDC.GetSynchronous(*Chunk->DerivedDataKey, Results, FinalFilename);
 		if (DDCResult == false)
@@ -115,12 +115,12 @@ public:
 
 		if (Results.Num() <= sizeof(FVirtualTextureChunkHeader))
 		{
-			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %d (key: %s)"), Results.Num(), *Chunk->DerivedDataKey);
+			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %" INT64_FMT " (key: %s)"), Results.Num(), *Chunk->DerivedDataKey);
 			return;
 		}
 
 		const uint8* ChunkData = Results.GetData();
-		const int32 ChunkDataSize = Results.Num();
+		const int64 ChunkDataSize = Results.Num();
 
 		FSHAHash Hash;
 		FSHA1::HashBuffer(ChunkData, ChunkDataSize, Hash.Hash);
