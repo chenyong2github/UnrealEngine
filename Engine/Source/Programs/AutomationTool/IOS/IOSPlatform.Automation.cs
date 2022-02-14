@@ -1910,6 +1910,14 @@ public class IOSPlatform : Platform
 		}
 	}
 
+	public override bool RemapFileType(StagedFileType FileType)
+	{
+		return (
+			FileType == StagedFileType.UFS || 
+			FileType == StagedFileType.NonUFS ||
+			FileType == StagedFileType.DebugNonUFS);
+	}
+
 	public override StagedFileReference Remap(StagedFileReference Dest)
 	{
 		return new StagedFileReference("cookeddata/" + Dest.Name);

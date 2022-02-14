@@ -623,6 +623,16 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// return true if we need to call Remap of a specific file type
+		/// </summary>
+		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <returns>true if files should be remaped, for the given filetype</returns>
+		public virtual bool RemapFileType(StagedFileType FileType)
+		{
+			return (FileType == StagedFileType.UFS || FileType == StagedFileType.NonUFS);
+		}
+
+		/// <summary>
 		/// Remaps the given content directory to its final location
 		/// </summary>
 		public virtual StagedFileReference Remap(StagedFileReference Dest)

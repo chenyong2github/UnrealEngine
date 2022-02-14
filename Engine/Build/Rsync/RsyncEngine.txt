@@ -129,6 +129,11 @@ protect /Programs/UnrealBuildTool/
 protect /Programs/UnrealHeaderTool/Intermediate/
 protect /Programs/UnrealHeaderTool/Saved/
 
+# Extras: Allow specific folders
++ /Extras/
++ /Extras/GPUDumpViewer/
++ /Extras/GPUDumpViewer/**
+
 # Saved
 protect /Saved/
 

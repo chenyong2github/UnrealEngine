@@ -1319,22 +1319,18 @@ namespace AutomationScripts
 			}
 
 			// Remap all the non-ufs files if not using a PAK file
-			if (Params.HasIterateSharedCookedBuild)
-			{
-				// Shared NonUFS files are staged in their remapped location, and may be duplicated in the to-stage list.
-				Dictionary<StagedFileReference, FileReference> NonUFSToStage = new Dictionary<StagedFileReference, FileReference>();
-				foreach (KeyValuePair<StagedFileReference, FileReference> StagedFilePair in SC.FilesToStage.NonUFSFiles)
-				{
-					NonUFSToStage[SC.StageTargetPlatform.Remap(StagedFilePair.Key)] = StagedFilePair.Value;
-				}
-				SC.FilesToStage.NonUFSFiles = NonUFSToStage;
-			}
-			else
+			// Shared NonUFS files are staged in their remapped location, and may be duplicated in the to-stage list.
+			if (SC.StageTargetPlatform.RemapFileType(StagedFileType.NonUFS))
 			{
 				SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
 			}
+				
+			if (SC.StageTargetPlatform.RemapFileType(StagedFileType.DebugNonUFS))
+			{
+				SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+			}
 
-			if (!Params.UsePak(SC.StageTargetPlatform))
+			if (SC.StageTargetPlatform.RemapFileType(StagedFileType.UFS) && !Params.UsePak(SC.StageTargetPlatform))
 			{
 				SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
 			}
