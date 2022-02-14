@@ -168,6 +168,21 @@ void UNiagaraScratchPadViewModel::RefreshScriptViewModels()
 	}
 }
 
+void UNiagaraScratchPadViewModel::ApplyScratchPadChanges()
+{
+	bIsBulkApplying = true;
+	for(const TSharedRef<FNiagaraScratchPadScriptViewModel>& ScriptViewModel : ScriptViewModels)
+	{
+		if(ScriptViewModel->HasUnappliedChanges())
+		{
+			ScriptViewModel->ApplyChanges();
+		}
+	}
+
+	GetSystemViewModel()->RefreshAll();
+	bIsBulkApplying = false;
+}
+
 const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& UNiagaraScratchPadViewModel::GetScriptViewModels() const
 {
 	return ScriptViewModels;
@@ -714,6 +729,12 @@ void UNiagaraScratchPadViewModel::ScriptViewModelHasUnappliedChangesChanged()
 void UNiagaraScratchPadViewModel::ScriptViewModelChangesApplied()
 {
 	UpdateChangeId(GetSystemViewModel());
+
+	// if we are bulk applying, we don't want to force refreshes more often than necessary. The bulk apply will refresh explicitly after all scripts have been applied.
+	if(!bIsBulkApplying)
+	{
+		SystemViewModelWeak.Pin()->RefreshAll();
+	}
 }
 
 void UNiagaraScratchPadViewModel::ScriptViewModelRequestDiscardChanges(TWeakPtr<FNiagaraScratchPadScriptViewModel> ScriptViewModelWeak)

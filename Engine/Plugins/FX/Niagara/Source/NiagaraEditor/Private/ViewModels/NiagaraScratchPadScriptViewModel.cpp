@@ -185,11 +185,6 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 		FunctionCallNodeToRefresh->RefreshFromExternalChanges();
 		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
 	}
-	
-	FRefreshAllScriptsFromExternalChangesArgs Args;
-	Args.OriginatingScript = OriginalScript;
-	Args.OriginatingGraph = CastChecked<UNiagaraScriptSource>(OriginalScript->GetSource(EditScript.Version))->NodeGraph;
-	FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
 
 	OnHasUnappliedChangesChangedDelegate.Broadcast();
 	OnChangesAppliedDelegate.Broadcast();

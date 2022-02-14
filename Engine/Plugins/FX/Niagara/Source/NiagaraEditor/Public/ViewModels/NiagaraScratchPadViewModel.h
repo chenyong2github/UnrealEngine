@@ -29,6 +29,8 @@ public:
 
 	void RefreshScriptViewModels();
 
+	void ApplyScratchPadChanges();
+	
 	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetScriptViewModels() const;
 
 	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetEditScriptViewModels() const;
@@ -132,4 +134,6 @@ private:
 	FOnScriptRenamed OnScriptRenamedDelegate;
 
 	FOnScriptDeleted OnScriptDeletedDelegate;
+
+	bool bIsBulkApplying = false;
 };
