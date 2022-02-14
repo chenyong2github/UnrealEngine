@@ -114,6 +114,28 @@ namespace Interchange
 				const FName Roughness = TEXT("Roughness"); // Type: float
 			}
 		}
+
+		namespace ClearCoat
+		{
+			namespace Parameters
+			{
+				using namespace PBR::Parameters;
+
+				const FName ClearCoat = TEXT("ClearCoat"); // Type: float
+				const FName ClearCoatRoughness = TEXT("ClearCoatRoughness"); // Type: float
+				const FName ClearCoatNormal = TEXT("ClearCoatNormal"); // Type: vector3
+			}
+		}
+
+		namespace ThinTranslucent
+		{
+			namespace Parameters
+			{
+				using namespace PBR::Parameters;
+
+				const FName TransmissionColor = TEXT("TransmissionColor"); // Type: vector3
+			}
+		}
 	}
 }
 }

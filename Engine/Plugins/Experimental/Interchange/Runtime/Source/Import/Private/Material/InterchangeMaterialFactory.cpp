@@ -10,9 +10,11 @@
 #include "InterchangeSourceData.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpression.h"
+#include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -539,6 +541,92 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 					{
 						RefractionExpression->ConnectExpression(RefractionInput, GetOutputIndex(*RefractionExpression, OutputName));
 					}
+				}
+			}
+		}
+	}
+
+	// Clear Coat
+	{
+		FString ClearCoatUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetClearCoatConnection(ClearCoatUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* ClearCoatNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(ClearCoatUid));
+
+			if (ClearCoatNode)
+			{
+				if (UMaterialExpression* ClearCoatExpression = CreateExpressionsForNode(Material, Arguments, ClearCoatNode, Expressions))
+				{
+					if (FExpressionInput* ClearCoatInput = Material->GetExpressionInputForProperty(MP_CustomData0))
+					{
+						ClearCoatExpression->ConnectExpression(ClearCoatInput, GetOutputIndex(*ClearCoatExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Clear Coat Roughness
+	{
+		FString ClearCoatRoughnessUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetClearCoatRoughnessConnection(ClearCoatRoughnessUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* ClearCoatRoughnessNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(ClearCoatRoughnessUid));
+
+			if (ClearCoatRoughnessNode)
+			{
+				if (UMaterialExpression* ClearCoatRoughnessExpression = CreateExpressionsForNode(Material, Arguments, ClearCoatRoughnessNode, Expressions))
+				{
+					if (FExpressionInput* ClearCoatRoughnessInput = Material->GetExpressionInputForProperty(MP_CustomData1))
+					{
+						ClearCoatRoughnessExpression->ConnectExpression(ClearCoatRoughnessInput, GetOutputIndex(*ClearCoatRoughnessExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Clear Coat Normal
+	{
+		FString ClearCoatNormalUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetClearCoatNormalConnection(ClearCoatNormalUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* ClearCoatNormalNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(ClearCoatNormalUid));
+
+			if (ClearCoatNormalNode)
+			{
+				if (UMaterialExpression* ClearCoatNormalExpression = CreateExpressionsForNode(Material, Arguments, ClearCoatNormalNode, Expressions))
+				{
+					UMaterialExpression* ClearCoatNormalCustomOutput = CreateMaterialExpression(Material, UMaterialExpressionClearCoatNormalCustomOutput::StaticClass());
+					
+					ClearCoatNormalExpression->ConnectExpression(ClearCoatNormalCustomOutput->GetInput(0), GetOutputIndex(*ClearCoatNormalExpression, OutputName));
+				}
+			}
+		}
+	}
+
+	// Thin Translucent
+	{
+		FString TransmissionColorUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetTransmissionColorConnection(TransmissionColorUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* TransmissionColorNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(TransmissionColorUid));
+
+			if (TransmissionColorNode)
+			{
+				if (UMaterialExpression* TransmissionColorExpression = CreateExpressionsForNode(Material, Arguments, TransmissionColorNode, Expressions))
+				{
+					UMaterialExpression* ThinTranslucentMaterialOutput = CreateMaterialExpression(Material, UMaterialExpressionThinTranslucentMaterialOutput::StaticClass());
+					
+					TransmissionColorExpression->ConnectExpression(ThinTranslucentMaterialOutput->GetInput(0), GetOutputIndex(*TransmissionColorExpression, OutputName));
 				}
 			}
 		}
