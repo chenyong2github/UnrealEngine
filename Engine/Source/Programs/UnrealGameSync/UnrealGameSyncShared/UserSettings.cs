@@ -452,7 +452,7 @@ namespace UnrealGameSync
 
 		public bool IsValid(ProjectInfo ProjectInfo)
 		{
-			return ProjectInfo.Equals(ProjectInfo.ProjectIdentifier, StringComparison.Ordinal);
+			return ProjectIdentifier.Equals(ProjectInfo.ProjectIdentifier, StringComparison.OrdinalIgnoreCase);
 		}
 
 		public void SetBisectState(int Change, BisectState State)
