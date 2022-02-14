@@ -128,7 +128,7 @@ void UConstructionPlaneMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 		FColor GridColor(128, 128, 128, 32);
 		float GridThickness = 0.75f*PDIScale;
 
-		FFrame3f DrawFrame(Plane);
+		FFrame3d DrawFrame(Plane);
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(CameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }

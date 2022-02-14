@@ -90,7 +90,7 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 			const float GridLineSpacing = PlaneSize / (NumGridLines - 1);
 			const FColor GridColor(64, 64, 64, 128);
 			const float GridThickness = 1.0f;
-			const UE::Geometry::FFrame3f DrawFrame(Center, Transform.GetRotation());
+			const UE::Geometry::FFrame3d DrawFrame(Center, Transform.GetRotation());
 			MeshDebugDraw::DrawSimpleGrid(DrawFrame, NumGridLines, GridLineSpacing, GridThickness, GridColor, true, PDI, FTransform::Identity);
 		};
 

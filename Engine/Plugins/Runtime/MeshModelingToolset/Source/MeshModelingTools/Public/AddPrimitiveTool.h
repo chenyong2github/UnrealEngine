@@ -529,7 +529,7 @@ protected:
 	UWorld* TargetWorld;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
-	UE::Geometry::FFrame3f ShapeFrame;
+	UE::Geometry::FFrame3d ShapeFrame;
 
 	void UpdatePreviewMesh() const;
 };

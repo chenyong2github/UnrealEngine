@@ -1471,7 +1471,7 @@ void UDynamicMeshSculptTool::Render(IToolsContextRenderAPI* RenderAPI)
 		FColor GridColor(128, 128, 128, 32);
 		float GridThickness = 0.5f*RenderCameraState.GetPDIScalingFactor();
 		int NumGridLines = 10;
-		FFrame3f DrawFrame(GizmoProperties->Position, GizmoProperties->Rotation);
+		FFrame3d DrawFrame(GizmoProperties->Position, GizmoProperties->Rotation);
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 }

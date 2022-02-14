@@ -319,9 +319,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPlaneDistanceFromHitMechanic> HeightMechanic;
 
-
-	UE::Geometry::FFrame3f HitPosFrameWorld;
-
 	/** Generate extruded meshes.  Returns true on success. */
 	bool GeneratePolygonMesh(const TArray<FVector3d>& Polygon, const TArray<TArray<FVector3d>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, UE::Geometry::FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
 

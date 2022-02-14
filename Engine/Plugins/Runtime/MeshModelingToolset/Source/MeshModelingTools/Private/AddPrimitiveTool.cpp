@@ -217,9 +217,9 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->TargetSurface == EMakeMeshPlacementType::GroundPlane)
 	{
-		FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+		FVector3d DrawPlanePos = (FVector3d)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
-		ShapeFrame = FFrame3f(DrawPlanePos);
+		ShapeFrame = FFrame3d(DrawPlanePos);
 	}
 	else
 	{
@@ -228,20 +228,20 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, ClickPosWorldRay);
 		if (bHit)
 		{
-			FVector3f Normal = (FVector3f)Result.ImpactNormal;
+			FVector3d Normal = (FVector3d)Result.ImpactNormal;
 			if (!ShapeSettings->bAlignToNormal)
 			{
-				Normal = FVector3f::UnitZ();
+				Normal = FVector3d::UnitZ();
 			}
-			ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, Normal);
+			ShapeFrame = FFrame3d((FVector3d)Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
 		}
 		else
 		{
 			// fall back to ground plane if we don't have a scene hit
-			FVector3f DrawPlanePos = (FVector3f)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			FVector3d DrawPlanePos = (FVector3d)FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 			bHit = true;
-			ShapeFrame = FFrame3f(DrawPlanePos);
+			ShapeFrame = FFrame3d(DrawPlanePos);
 		}
 	}
 
@@ -258,14 +258,14 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			TArray<FSceneSnapQueryResult> Results;
 			if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
 			{
-				ShapeFrame.Origin = (FVector3f)Results[0].Position;
+				ShapeFrame.Origin = (FVector3d)Results[0].Position;
 			}
 		}
 	}
 
 	if (ShapeSettings->Rotation != 0)
 	{
-		ShapeFrame.Rotate(FQuaternionf(ShapeFrame.Z(), ShapeSettings->Rotation, true));
+		ShapeFrame.Rotate(FQuaterniond(ShapeFrame.Z(), ShapeSettings->Rotation, true));
 	}
 
 	if (bHit)

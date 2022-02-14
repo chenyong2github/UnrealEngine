@@ -80,7 +80,7 @@ namespace MeshDebugDraw
 	 * @param Transform transform applied to LocalFrame. Pass as Identity() if you have world frame.
 	 */
 	void MODELINGCOMPONENTS_API DrawSimpleGrid(
-		const FFrame3f& LocalFrame, int GridLines, float GridLineSpacing,
+		const FFrame3d& LocalFrame, int GridLines, double GridLineSpacing,
 		float LineWidth, FColor Color, bool bDepthTested,
 		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 
@@ -99,7 +99,7 @@ namespace MeshDebugDraw
 	 */
 	void MODELINGCOMPONENTS_API DrawSimpleFixedScreenAreaGrid(
 		const FViewCameraState& CameraState, 
-		const FFrame3f& LocalFrame, int32 NumGridLines, float VisualAngleSpan,
+		const FFrame3d& LocalFrame, int32 NumGridLines, double VisualAngleSpan,
 		float LineWidth, FColor Color, bool bDepthTested,
 		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 
@@ -119,9 +119,9 @@ namespace MeshDebugDraw
 	 * @param Transform transform applied to LocalFrame. Pass as Identity() if you have world frame.		
 	*/
 	void MODELINGCOMPONENTS_API DrawHierarchicalGrid(
-		float BaseGridScale, float GridZoomFactor, int32 MaxLevelDensity,
+		double BaseGridScale, double GridZoomFactor, int32 MaxLevelDensity,
 		const FVector& WorldMaxBounds, const FVector& WorldMinBounds,
 		int32 Levels, int32 Subdivisions, TArray<FColor>& Colors,
-		const FFrame3f& LocalFrame, float LineWidth, bool bDepthTested,
+		const FFrame3d& LocalFrame, float LineWidth, bool bDepthTested,
 		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 }

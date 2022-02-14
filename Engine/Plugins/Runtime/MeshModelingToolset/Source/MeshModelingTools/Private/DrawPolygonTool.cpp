@@ -318,7 +318,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	//
 	if (bInInteractiveExtrude == false)
 	{
-		FFrame3f DrawFrame((FVector3f)DrawPlaneOrigin, (FQuaternionf)DrawPlaneOrientation);
+		FFrame3d DrawFrame(DrawPlaneOrigin, DrawPlaneOrientation);
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 
@@ -1327,7 +1327,7 @@ bool UDrawPolygonTool::GeneratePolygonMesh(const TArray<FVector3d>& Polygon, con
 		FVector3d ExtrudeNormal = FVector3d::UnitZ();
 		Extruder.ExtrudedPositionFunc = [&ExtrudeDistance, &ExtrudeNormal](const FVector3d& Position, const FVector3f& Normal, int VertexID)
 		{
-			return Position + ExtrudeDistance * ExtrudeNormal;
+			return Position + ExtrudeDistance * (FVector3d)ExtrudeNormal;
 		};
 
 		Extruder.Apply();
