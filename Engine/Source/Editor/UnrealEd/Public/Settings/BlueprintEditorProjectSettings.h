@@ -34,6 +34,16 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Experimental)
 	uint8 bEnableChildActorExpansionInTreeView : 1;
 
+	/**
+	 * Default view mode to use for child actor components in a Blueprint actor's component tree hierarchy (experimental).
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Experimental, meta = (EditCondition = "bEnableChildActorExpansionInTreeView"))
+	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
+
+	// The list of namespaces to always expose in any Blueprint (for all users of the game/project). Requires Blueprint namespace features to be enabled in editor preferences.
+	UPROPERTY(EditAnywhere, config, Category = Experimental)
+	TArray<FString> NamespacesToAlwaysInclude;
+
 	/** 
 	 * List of compiler messages that have been suppressed outside of full, interactive editor sessions for 
 	 * the current project - useful for silencing warnings that were added to the engine after 
@@ -49,16 +59,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category= Blueprints, DisplayName = "Compiler Messages Disabled Entirely")
 	TArray<FName> DisabledCompilerMessages;
-
-	// The list of namespaces to always expose in any Blueprint (for all users of the game/project)
-	UPROPERTY(EditAnywhere, config, Category=Experimental)
-	TArray<FString> NamespacesToAlwaysInclude;
-	
-	/**
-	 * Default view mode to use for child actor components in a Blueprint actor's component tree hierarchy (experimental).
-	 */
-	UPROPERTY(EditAnywhere, config, Category=Experimental, meta=(EditCondition="bEnableChildActorExpansionInTreeView"))
-	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
 
 	/**
 	 * Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor

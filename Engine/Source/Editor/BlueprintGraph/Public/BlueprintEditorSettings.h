@@ -176,7 +176,7 @@ public:
 	bool bEnableNamespaceImportingFeatures;
 
 	// The list of namespaces to always expose in any Blueprint (local per-user)
-	UPROPERTY(EditAnywhere, config, Category = Experimental)
+	UPROPERTY(EditAnywhere, config, Category = Experimental, meta = (EditCondition = "bEnableNamespaceEditorFeatures"))
 	TArray<FString> NamespacesToAlwaysInclude;
 
 	/** If enabled, then placed cast nodes will default to their "pure" form (meaning: without execution pins). */
