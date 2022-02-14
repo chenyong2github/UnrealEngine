@@ -386,7 +386,41 @@ namespace UnrealBuildTool
 		/// <param name="Target">The target being build</param>
 		public override void ModifyModuleRulesForOtherPlatform(string ModuleName, ModuleRules Rules, ReadOnlyTargetRules Target)
 		{
-			// This code has been removed because it causes a full rebuild after generating project files (since response files are overwritten with different defines).
+			// don't do any target platform stuff if SDK is not available
+			if (!UEBuildPlatform.IsPlatformAvailableForTarget(Platform, Target))
+			{
+				return;
+			}
+			
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				if (!Target.bBuildRequiresCookedData)
+				{
+					if (ModuleName == "Engine")
+					{
+						if (Target.bBuildDeveloperTools)
+						{
+							Rules.DynamicallyLoadedModuleNames.Add("HoloLensTargetPlatform");
+						}
+					}
+				}
+
+				// allow standalone tools to use targetplatform modules, without needing Engine
+				if (ModuleName == "TargetPlatform")
+				{
+					if (Target.bForceBuildTargetPlatforms)
+					{
+						Rules.DynamicallyLoadedModuleNames.Add("HoloLensTargetPlatform");
+					}
+				}
+
+				if (ModuleName == "UnrealEd")
+				{
+					Rules.DynamicallyLoadedModuleNames.Add("HoloLensPlatformEditor");
+				}
+			}
+			
+// This code has been removed because it causes a full rebuild after generating project files (since response files are overwritten with different defines).
 #if false
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{

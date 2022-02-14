@@ -58,13 +58,6 @@
 			]
 		},
 		{
-			"Name": "HoloLensAR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "OpenXRHandTracking",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
