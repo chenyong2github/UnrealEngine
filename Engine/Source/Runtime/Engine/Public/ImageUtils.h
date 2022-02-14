@@ -16,7 +16,7 @@ class UTextureRenderTarget2D;
 class UTextureRenderTargetCube;
 
 /**
- *	Parameters used for creating a Texture2D frmo a simple color buffer.
+ *	Parameters used for creating a Texture2D from a simple color buffer.
  */
 struct FCreateTexture2DParameters
 {
@@ -32,6 +32,9 @@ struct FCreateTexture2DParameters
 	/** If texture should be set as SRGB */
 	bool						bSRGB;
 
+	/** If texture should be a virtual texture */
+	bool						bVirtualTexture;
+
 	/** Mip-map generation settings */
 	TextureMipGenSettings		MipGenSettings;
 
@@ -46,6 +49,7 @@ struct FCreateTexture2DParameters
 			CompressionSettings(TC_Default),
 			bDeferCompression(false),
 			bSRGB(true),
+			bVirtualTexture(false),
 			MipGenSettings(TMGS_FromTextureGroup),
 			TextureGroup(TEXTUREGROUP_MAX)
 	{

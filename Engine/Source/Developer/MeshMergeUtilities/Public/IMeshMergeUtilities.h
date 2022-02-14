@@ -125,7 +125,7 @@ public:
 	*/
 	virtual void CreateProxyMesh(const TArray<UStaticMeshComponent*>& InComponents, const struct FMeshProxySettings& InMeshProxySettings, UMaterialInterface* InBaseMaterial, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, const FCreateProxyDelegate& InProxyCreatedDelegate, const bool bAllowAsync = false, const float ScreenSize = 1.0f) const = 0;
 
-	/** Checks whether or not the give material is valid as a base for the Proxy Material. This as it requires certain Material Parameters to be included to get a desirable material */
+	UE_DEPRECATED(5.0, "Use FMaterialUtilities::IsValidFlattenMaterial()")
 	virtual bool IsValidBaseMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster) const = 0;
 
 	/** Extract mesh data in FMeshDescription form from the provided static mesh component */

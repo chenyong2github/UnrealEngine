@@ -13,6 +13,7 @@
 
 #include "LightMap.h"
 #include "ShadowMap.h"
+#include "ImageUtils.h"
 
 class ALandscapeProxy;
 class Error;
@@ -270,11 +271,20 @@ public:
 	 * Flattens specified landscape material
 	 *
 	 * @param InLandscape			Target landscape
+	 * @param OutFlattenMaterial	Output flattened material
+	 * @return						Whether operation was successful
+	 */
+	static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, FFlattenMaterial& OutFlattenMaterial);
+
+	/**
+	 * Flattens specified landscape material
+	 *
+	 * @param InLandscape			Target landscape
 	 * @param HiddenPrimitives		Primitives to hide while rendering scene to texture
 	 * @param OutFlattenMaterial	Output flattened material
 	 * @return						Whether operation was successful
 	 */
-	static bool ExportLandscapeMaterial(ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial);
+	static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial);
 	
 	/**
  	 * Generates a texture from an array of samples 
@@ -291,6 +301,19 @@ public:
 	 * @return						The new texture.
 	 */
 	static UTexture2D* CreateTexture(UPackage* Outer, const FString& AssetLongName, FIntPoint Size, const TArray<FColor>& Samples, TextureCompressionSettings CompressionSettings, TextureGroup LODGroup, EObjectFlags Flags, bool bSRGB, const FGuid& SourceGuidHash = FGuid());
+
+	/**
+	 * Generates a texture from an array of samples
+	 *
+	 * @param Outer					Outer for the material and texture objects, if NULL new packages will be created for each asset
+	 * @param AssetLongName			Long asset path for the new texture
+	 * @param Size					Resolution of the texture to generate (must match the number of samples)
+	 * @param Samples				Color data for the texture
+	 * @param CreateParams			Params about how to set up the texture
+	 * @param Flags					ObjectFlags for the new texture
+	 * @return						The new texture.
+	 */
+	static UTexture2D* CreateTexture(UPackage* Outer, const FString& AssetLongName, FIntPoint Size, const TArray<FColor>& Samples, const FCreateTexture2DParameters& CreateParams, EObjectFlags Flags);
 
 	/**
 	 * Creates UMaterial object from a flatten material
@@ -449,6 +472,9 @@ public:
 	/** Creates a proxy material and the required texture assets */
 	static UMaterialInterface* CreateProxyMaterialAndTextures(const FString& PackageName, const FString& AssetName, const FBakeOutput& BakeOutput, const FMeshData& MeshData, const FMaterialData& MaterialData, UMaterialOptions* Options);
 
+	/** Creates a flatten material instance and the required texture assets */
+	static UMaterialInstanceConstant* CreateFlattenMaterialInstance(UPackage* InOuter, const FMaterialProxySettings& InMaterialProxySettings, UMaterialInterface* InBaseMaterial, const FFlattenMaterial& FlattenMaterial, const FString& AssetBasePath, const FString& AssetBaseName, TArray<UObject*>& OutAssetsToSync, FMaterialUpdateContext* MaterialUpdateContext = nullptr);
+
 	/** Compute the required texel density needed to properly represent an object/objects covering the provided world space radius
 	* 
 	* @param InScreenSize		Screen size at which the objects are expected to be be shown
@@ -464,6 +490,9 @@ public:
 	* @return					The required texel density per METER
 	*/
 	static float ComputeRequiredTexelDensityFromDrawDistance(const float InDrawDistance, float InWorldSpaceRadius);
+
+	/** Validate that the provided material has all the required parameters needed to be considered a flattening material */
+	static bool IsValidFlattenMaterial(const UMaterialInterface* InBaseMaterial);
 
 private:
 	

@@ -36,8 +36,6 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "HierarchicalLOD.h"
-#include "IMeshMergeUtilities.h"
-#include "MeshMergeModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Landscape.h"
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -774,8 +772,7 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 		{
 			if (!OverrideBaseMaterial.IsNull())
 			{
-				const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-				if (!Module.IsValidBaseMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
+				if (!UHierarchicalLODSettings::IsValidFlattenMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
 				{
 					OverrideBaseMaterial = GEngine->DefaultHLODFlattenMaterial;
 				}
@@ -790,8 +787,7 @@ void UHierarchicalLODSetup::PostEditChangeProperty(struct FPropertyChangedEvent&
 	{
 		if (!OverrideBaseMaterial.IsNull())
 		{
-			const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-			if (!Module.IsValidBaseMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
+			if (!UHierarchicalLODSettings::IsValidFlattenMaterial(OverrideBaseMaterial.LoadSynchronous(), true))
 			{
 				OverrideBaseMaterial = GEngine->DefaultHLODFlattenMaterial;
 			}

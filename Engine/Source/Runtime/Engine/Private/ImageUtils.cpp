@@ -329,6 +329,8 @@ UTexture2D* FImageUtils::CreateTexture2D(int32 SrcWidth, int32 SrcHeight, const 
 		Tex2D->LODGroup = InParams.TextureGroup;
 	}
 
+	Tex2D->VirtualTextureStreaming = InParams.bVirtualTexture;
+
 	Tex2D->PostEditChange();
 	return Tex2D;
 #else

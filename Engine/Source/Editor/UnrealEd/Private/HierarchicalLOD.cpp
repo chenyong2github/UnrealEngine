@@ -30,10 +30,14 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "HLOD/HLODEngineSubsystem.h"
-#include "IMeshMergeUtilities.h"
+#include "MaterialUtilities.h"
 #include "MeshMergeModule.h"
 #include "MeshDescription.h"
 #include "StaticMeshOperations.h"
+
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
+
 #endif // WITH_EDITOR
 
 
@@ -60,14 +64,32 @@ UHierarchicalLODSettings::UHierarchicalLODSettings(const FObjectInitializer& Obj
 	}
 }
 
+bool UHierarchicalLODSettings::IsValidFlattenMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster)
+{
+	bool bIsValid = FMaterialUtilities::IsValidFlattenMaterial(InBaseMaterial);
+
+#if WITH_EDITOR
+	if (!bIsValid && bShowToaster)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("MaterialName"), FText::FromString(InBaseMaterial->GetName()));
+		FText ErrorMessage = FText::Format(LOCTEXT("UHierarchicalLODSettings_PostEditChangeProperty", "Material {MaterialName} is missing required Material Parameters (check log for details)"), Arguments);
+		FNotificationInfo Info(ErrorMessage);
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+#endif
+
+	return bIsValid;
+}
+
 void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UHierarchicalLODSettings, BaseMaterial))
 	{
 		if (!BaseMaterial.IsNull())
 		{
-			const IMeshMergeUtilities& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-			if (!Module.IsValidBaseMaterial(BaseMaterial.LoadSynchronous(), true))
+			if (!IsValidFlattenMaterial(BaseMaterial.LoadSynchronous(), true))
 			{
 				BaseMaterial = GEngine->DefaultFlattenMaterial;
 			}

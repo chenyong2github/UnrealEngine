@@ -10,6 +10,7 @@
 
 #include "Misc/PackageName.h"
 #include "MaterialUtilities.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -35,7 +36,6 @@
 #include "ProxyGenerationProcessor.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 
-#include "ProxyMaterialUtilities.h"
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -73,6 +73,9 @@
 #include "Async/Future.h"
 #include "Async/Async.h"
 #include "TextureCompiler.h"
+
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
@@ -1961,7 +1964,18 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 bool FMeshMergeUtilities::IsValidBaseMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster) const
 {
-	return ProxyMaterialUtilities::IsValidBaseMaterial(InBaseMaterial, bShowToaster);
+	bool bIsValid = FMaterialUtilities::IsValidFlattenMaterial(InBaseMaterial);
+	if (!bIsValid && bShowToaster)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("MaterialName"), FText::FromString(InBaseMaterial->GetName()));
+		FText ErrorMessage = FText::Format(LOCTEXT("UHierarchicalLODSettings_PostEditChangeProperty", "Material {MaterialName} is missing required Material Parameters (check log for details)"), Arguments);
+		FNotificationInfo Info(ErrorMessage);
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+
+	return bIsValid;
 }
 
 void FMeshMergeUtilities::RetrieveMeshDescription(const UStaticMeshComponent* InStaticMeshComponent, int32 LODIndex, FMeshDescription& InOutMeshDescription, bool bPropagateMeshData) const
@@ -3587,7 +3601,7 @@ UMaterialInterface* FMeshMergeUtilities::CreateProxyMaterial(const FString &InBa
 		MaterialPackage->Modify();
 	}
 
-	UMaterialInstanceConstant* MergedMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(MaterialPackage, InSettings.MaterialSettings, InBaseMaterial, OutMaterial, MaterialPackageName, MaterialAssetName, OutAssetsToSync, InMaterialUpdateContext);
+	UMaterialInstanceConstant* MergedMaterial = FMaterialUtilities::CreateFlattenMaterialInstance(MaterialPackage, InSettings.MaterialSettings, InBaseMaterial, OutMaterial, MaterialPackageName, MaterialAssetName, OutAssetsToSync, InMaterialUpdateContext);
 	// Set material static lighting usage flag if project has static lighting enabled
 	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnGameThread() != 0);

@@ -53,6 +53,8 @@ public:
 	TSoftObjectPtr<class UMaterialInterface> BaseMaterial;
 
 #if WITH_EDITOR
+	static bool IsValidFlattenMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster);
+
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 };

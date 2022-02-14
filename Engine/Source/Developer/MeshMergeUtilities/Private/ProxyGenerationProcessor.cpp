@@ -4,7 +4,6 @@
 #include "MaterialUtilities.h"
 #include "MeshMergeUtilities.h"
 #include "IMeshMergeExtension.h"
-#include "ProxyMaterialUtilities.h"
 #include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
 #include "Modules/ModuleManager.h"
@@ -16,6 +15,7 @@
 #include "Editor.h"
 #include "MeshMergeHelpers.h"
 #include "ObjectCacheEventSink.h"
+#include "Materials/MaterialInstanceConstant.h"
 #endif // WITH_EDITOR
 
 FProxyGenerationProcessor::FProxyGenerationProcessor(const FMeshMergeUtilities* InOwner)
@@ -160,7 +160,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		FMaterialUtilities::OptimizeFlattenMaterial(FlattenMaterial);
 
 		// Create a new proxy material instance
-		ProxyMaterial = ProxyMaterialUtilities::CreateProxyMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync, &MaterialUpdateContext);
+		ProxyMaterial = FMaterialUtilities::CreateFlattenMaterialInstance(Data->MergeData->InOuter, Data->MergeData->InProxySettings.MaterialSettings, Data->MergeData->BaseMaterial, FlattenMaterial, AssetBasePath, AssetBaseName, OutAssetsToSync, &MaterialUpdateContext);
 
 		for (IMeshMergeExtension* Extension : Owner->MeshMergeExtensions)
 		{

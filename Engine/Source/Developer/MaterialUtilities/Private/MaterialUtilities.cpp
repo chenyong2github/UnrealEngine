@@ -55,6 +55,12 @@ IMPLEMENT_MODULE(FMaterialUtilities, MaterialUtilities);
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialUtilities, Log, All);
 
+static TAutoConsoleVariable<int32> CVarMaterialUtilitiesWarmupFrames(
+	TEXT("MaterialUtilities.WarmupFrames"),
+	10,
+	TEXT("Number of frames to render before each capture in order to warmup various rendering systems (VT/Nanite/etc)."));
+
+
 bool FMaterialUtilities::CurrentlyRendering = false;
 TArray<UTextureRenderTarget2D*> FMaterialUtilities::RenderTargetPool;
 
@@ -119,12 +125,27 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 		// If the pixel data isn't constant create a texture for it 
 		if (ColorData.Num() > 1)
 		{
-			TextureCompressionSettings CompressionSettings = SpecialCompressionSettingProperties.Contains(Property) ? SpecialCompressionSettingProperties.FindChecked(Property) : TC_Default;
-			bool bSRGBEnabled = SRGBEnabledProperties.Contains(Property);
-			UTexture* Texture = FMaterialUtilities::CreateTexture(OuterPackage, TEXT("T_") + AssetName + TEXT("_") + TrimmedPropertyName, DataSize, ColorData, CompressionSettings, TEXTUREGROUP_HierarchicalLOD, RF_Public | RF_Standalone, bSRGBEnabled);
+			FMaterialParameterInfo ParameterInfo(*(TrimmedPropertyName + TEXT("Texture")));
+
+			FCreateTexture2DParameters CreateParams;
+			CreateParams.TextureGroup = TEXTUREGROUP_HierarchicalLOD;
+			CreateParams.CompressionSettings = SpecialCompressionSettingProperties.Contains(Property) ? SpecialCompressionSettingProperties.FindChecked(Property) : TC_Default;
+			CreateParams.bSRGB = SRGBEnabledProperties.Contains(Property);
+
+			// Make sure the texture is a VT if required by the material sampler
+			if (Material != nullptr)
+			{
+				UTexture* DefaultTexture = nullptr;
+				Material->GetTextureParameterValue(ParameterInfo, DefaultTexture);
+				if (DefaultTexture)
+				{
+					CreateParams.bVirtualTexture = DefaultTexture->VirtualTextureStreaming;
+				}
+			}
+
+			UTexture* Texture = FMaterialUtilities::CreateTexture(OuterPackage, TEXT("T_") + AssetName + TEXT("_") + TrimmedPropertyName, DataSize, ColorData, CreateParams, RF_Public | RF_Standalone);
 
 			// Set texture parameter value on instance material
-			FMaterialParameterInfo ParameterInfo(*(TrimmedPropertyName + TEXT("Texture")));
 			Material->SetTextureParameterValueEditorOnly(ParameterInfo, Texture);
 
 			FStaticSwitchParameter SwitchParameter;
@@ -730,16 +751,36 @@ private:
 	FGuid Id;
 };
 
+/**
+ * Render the scene to the provided canvas. Will potentially perform the render multiple times, depending on the value of
+ * the CVarMaterialUtilitiesWarmupFrames CVar. This is needed to ensure various rendering systems are primed properly before capturing
+ * the scene.
+ */
+static void PerformSceneRender(FCanvas& Canvas, FSceneViewFamily& ViewFamily, bool bWithWarmup)
+{
+	if (bWithWarmup)
+	{
+		for (int32 i = 0; i < CVarMaterialUtilitiesWarmupFrames.GetValueOnGameThread(); i++)
+		{
+			GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+		}
+	}
+
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+}
+
 static void RenderSceneToTexture(
-		FSceneInterface* Scene,
-		const FName& VisualizationMode, 
-		const FVector& ViewOrigin,
-		const FMatrix& ViewRotationMatrix, 
-		const FMatrix& ProjectionMatrix,  
-		const TSet<FPrimitiveComponentId>& HiddenPrimitives, 
-		FIntPoint TargetSize,
-		float TargetGamma,
-		TArray<FColor>& OutSamples)
+	FSceneInterface* Scene,
+	const FName& VisualizationMode, 
+	const FVector& ViewOrigin,
+	const FMatrix& ViewRotationMatrix, 
+	const FMatrix& ProjectionMatrix,
+	const TSet<FPrimitiveComponentId>& ShowOnlyPrimitives,
+	const TSet<FPrimitiveComponentId>& HiddenPrimitives, 
+	FIntPoint TargetSize,
+	float TargetGamma,
+	bool bPerformWarmpup,
+	TArray<FColor>& OutSamples)
 {
 	auto RenderTargetTexture = NewObject<UTextureRenderTarget2D>();
 	check(RenderTargetTexture);
@@ -763,6 +804,7 @@ static void RenderSceneToTexture(
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.SetViewRectangle(FIntRect(0, 0, TargetSize.X, TargetSize.Y));
 	ViewInitOptions.ViewFamily = &ViewFamily;
+	ViewInitOptions.ShowOnlyPrimitives = ShowOnlyPrimitives;
 	ViewInitOptions.HiddenPrimitives = HiddenPrimitives;
 	ViewInitOptions.ViewOrigin = ViewOrigin;
 	ViewInitOptions.ViewRotationMatrix = ViewRotationMatrix;
@@ -785,17 +827,58 @@ static void RenderSceneToTexture(
 		Extension->SetupView(ViewFamily, *NewView);
 	}
 
-	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+	PerformSceneRender(Canvas, ViewFamily, bPerformWarmpup);
 
 	// Copy the contents of the remote texture to system memory
 	OutSamples.SetNumUninitialized(TargetSize.X*TargetSize.Y);
 	FReadSurfaceDataFlags ReadSurfaceDataFlags;
 	ReadSurfaceDataFlags.SetLinearToGamma(false);
 	RenderTargetResource->ReadPixelsPtr(OutSamples.GetData(), ReadSurfaceDataFlags, FIntRect(0, 0, TargetSize.X, TargetSize.Y));
-	FlushRenderingCommands();
 					
 	RenderTargetTexture->RemoveFromRoot();
 	RenderTargetTexture = nullptr;
+}
+
+
+static void RenderSceneToTextures(
+	FSceneInterface* Scene,
+	const FVector& ViewOrigin,
+	const FMatrix& ViewRotationMatrix,
+	const FMatrix& ProjectionMatrix,
+	const TSet<FPrimitiveComponentId>& ShowOnlyPrimitives,
+	const TSet<FPrimitiveComponentId>& HiddenPrimitives,
+	FFlattenMaterial& OutFlattenMaterial)
+{
+	TMap<EFlattenMaterialProperties, TPair<FName, float>>	SupportedProperties; // Property -> VisualisationMode|Gamma
+	SupportedProperties.Add(EFlattenMaterialProperties::Diffuse) = TPair<FName, float>(FName("BaseColor"), true);	// BaseColor to gamma space
+	SupportedProperties.Add(EFlattenMaterialProperties::Normal) = TPair<FName, float>(FName("WorldNormal"), false);	// Dump normal texture in linear space
+	SupportedProperties.Add(EFlattenMaterialProperties::Metallic) = TPair<FName, float>(FName("Metallic"), false);	// Dump metallic texture in linear space
+	SupportedProperties.Add(EFlattenMaterialProperties::Roughness) = TPair<FName, float>(FName("Roughness"), true);	// Roughness material powers color by 2.2, transform it back to linear
+	SupportedProperties.Add(EFlattenMaterialProperties::Specular) = TPair<FName, float>(FName("Specular"), false);	// Dump specular texture in linear space
+
+	bool bPerformWarmpup = true;
+	for (int32 PropertyIndex = 0; PropertyIndex < (int32)EFlattenMaterialProperties::NumFlattenMaterialProperties; ++PropertyIndex)
+	{
+		const EFlattenMaterialProperties Property = (EFlattenMaterialProperties)PropertyIndex;
+		if (OutFlattenMaterial.ShouldGenerateDataForProperty(Property))
+		{
+			TPair<FName, float>* PropertyInfo = SupportedProperties.Find(Property);
+			if (PropertyInfo)
+			{
+				TArray<FColor>& Samples = OutFlattenMaterial.GetPropertySamples(Property);
+				const FIntPoint& Size = OutFlattenMaterial.GetPropertySize(Property);
+				const FName VisModeName = PropertyInfo->Key;
+				const float Gamma = PropertyInfo->Value ? 2.2f : 1.0f;
+
+				RenderSceneToTexture(Scene, VisModeName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, ShowOnlyPrimitives, HiddenPrimitives, Size, Gamma, bPerformWarmpup, Samples);
+				bPerformWarmpup = false; // Perform warmup only on first render
+			}
+			else
+			{
+				UE_LOG(LogMaterialUtilities, Error, TEXT("RenderSceneToTextures - Ignoring unsupported property"));
+			}
+		}
+	}
 }
 
 FIntPoint FMaterialUtilities::FindMaxTextureSize(UMaterialInterface* InMaterialInterface, FIntPoint MinimumSize)
@@ -854,7 +937,7 @@ bool FMaterialUtilities::SupportsExport(EBlendMode InBlendMode, EMaterialPropert
 	return FExportMaterialProxy::WillFillData(InBlendMode, InMaterialProperty);
 }
 
-bool FMaterialUtilities::ExportLandscapeMaterial(ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial)
+static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& ShowOnlyPrimitives, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial)
 {
 	check(InLandscape);
 
@@ -879,65 +962,31 @@ bool FMaterialUtilities::ExportLandscapeMaterial(ALandscapeProxy* InLandscape, c
 		ZOffset);
 
 	FSceneInterface* Scene = InLandscape->GetWorld()->Scene;
-						
-	// Render diffuse texture using BufferVisualizationMode=BaseColor
-	if (OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Diffuse))
-	{
-		const FIntPoint& DiffuseSize = OutFlattenMaterial.GetPropertySize(EFlattenMaterialProperties::Diffuse);
-		static const FName BaseColorName("BaseColor");
-		const float BaseColorGamma = 2.2f; // BaseColor to gamma space
-		TArray<FColor>& DiffuseSamples = OutFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Diffuse);
-		RenderSceneToTexture(Scene, BaseColorName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, 
-			DiffuseSize, BaseColorGamma, DiffuseSamples);
-	}
 
-	// Render normal map using BufferVisualizationMode=WorldNormal
-	// Final material should use world space instead of tangent space for normals
-	if (OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Normal))
-	{
-		static const FName WorldNormalName("WorldNormal");
-		const float NormalColorGamma = 1.0f; // Dump normal texture in linear space
-		const FIntPoint& NormalSize = OutFlattenMaterial.GetPropertySize(EFlattenMaterialProperties::Normal);
-		TArray<FColor>& NormalSamples = OutFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Normal);
-		RenderSceneToTexture(Scene, WorldNormalName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, 
-			NormalSize, NormalColorGamma, NormalSamples);
-	}
+	RenderSceneToTextures(Scene, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, ShowOnlyPrimitives, HiddenPrimitives, OutFlattenMaterial);
 
-	// Render metallic map using BufferVisualizationMode=Metallic
-	if (OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Metallic))
-	{
-		static const FName MetallicName("Metallic");
-		const float MetallicColorGamma = 1.0f; // Dump metallic texture in linear space
-		const FIntPoint& MetallicSize = OutFlattenMaterial.GetPropertySize(EFlattenMaterialProperties::Metallic);
-		TArray<FColor>& MetallicSamples = OutFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Metallic);
-		RenderSceneToTexture(Scene, MetallicName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, 
-			MetallicSize, MetallicColorGamma, MetallicSamples);
-	}
-
-	// Render roughness map using BufferVisualizationMode=Roughness
-	if (OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Roughness))
-	{
-		static const FName RoughnessName("Roughness");
-		const float RoughnessColorGamma = 2.2f; // Roughness material powers color by 2.2, transform it back to linear
-		const FIntPoint& RoughnessSize = OutFlattenMaterial.GetPropertySize(EFlattenMaterialProperties::Roughness);
-		TArray<FColor>& RoughnessSamples = OutFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Roughness);
-		RenderSceneToTexture(Scene, RoughnessName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, 
-			RoughnessSize, RoughnessColorGamma, RoughnessSamples);
-	}
-
-	// Render specular map using BufferVisualizationMode=Specular
-	if (OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Specular))
-	{
-		static const FName SpecularName("Specular");
-		const float SpecularColorGamma = 1.0f; // Dump specular texture in linear space
-		const FIntPoint& SpecularSize = OutFlattenMaterial.GetPropertySize(EFlattenMaterialProperties::Specular);
-		TArray<FColor>& SpecularSamples = OutFlattenMaterial.GetPropertySamples(EFlattenMaterialProperties::Specular);
-		RenderSceneToTexture(Scene, SpecularName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, 
-			SpecularSize, SpecularColorGamma, SpecularSamples);
-	}
-				
 	OutFlattenMaterial.MaterialId = InLandscape->GetLandscapeGuid();
 	return true;
+}
+
+bool FMaterialUtilities::ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, FFlattenMaterial& OutFlattenMaterial)
+{
+	TSet<FPrimitiveComponentId> ShowOnlyPrimitives;
+
+	for (ULandscapeComponent* LandscapeComponent : InLandscape->LandscapeComponents)
+	{
+		if (ensure(LandscapeComponent->SceneProxy))
+		{
+			ShowOnlyPrimitives.Add(LandscapeComponent->SceneProxy->GetPrimitiveComponentId());
+		}
+	}
+
+	return ::ExportLandscapeMaterial(InLandscape, ShowOnlyPrimitives, {}, OutFlattenMaterial);
+}
+
+bool FMaterialUtilities::ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial)
+{
+	return ::ExportLandscapeMaterial(InLandscape, {}, HiddenPrimitives, OutFlattenMaterial);
 }
 
 UMaterial* FMaterialUtilities::CreateMaterial(const FFlattenMaterial& InFlattenMaterial, UPackage* InOuter, const FString& BaseName, EObjectFlags Flags, const struct FMaterialProxySettings& MaterialProxySettings, TArray<UObject*>& OutGeneratedAssets, const TextureGroup& InTextureGroup /*= TEXTUREGROUP_World*/)
@@ -1395,19 +1444,21 @@ UTexture2D* FMaterialUtilities::CreateTexture(UPackage* Outer, const FString& As
 	TexParams.bDeferCompression = true;
 	TexParams.bSRGB = bSRGB;
 	TexParams.SourceGuidHash = SourceGuidHash;
+	TexParams.TextureGroup = LODGroup;
 
+	return CreateTexture(Outer, AssetLongName, Size, Samples, TexParams, Flags);
+}
+
+UTexture2D* FMaterialUtilities::CreateTexture(UPackage* Outer, const FString& AssetLongName, FIntPoint Size, const TArray<FColor>& Samples, const FCreateTexture2DParameters& CreateParams, EObjectFlags Flags)
+{
 	if (Outer == nullptr)
 	{
-		Outer = CreatePackage( *AssetLongName);
+		Outer = CreatePackage(*AssetLongName);
 		Outer->FullyLoad();
 		Outer->Modify();
 	}
 
-	UTexture2D* Texture = FImageUtils::CreateTexture2D(Size.X, Size.Y, Samples, Outer, FPackageName::GetShortName(AssetLongName), Flags, TexParams);
-	Texture->LODGroup = LODGroup;
-	Texture->PostEditChange();
-			
-	return Texture;
+	return FImageUtils::CreateTexture2D(Size.X, Size.Y, Samples, Outer, FPackageName::GetShortName(AssetLongName), Flags, CreateParams);
 }
 
 bool FMaterialUtilities::ExportBaseColor(ULandscapeComponent* LandscapeComponent, int32 TextureSize, TArray<FColor>& OutSamples)
@@ -1438,19 +1489,15 @@ bool FMaterialUtilities::ExportBaseColor(ULandscapeComponent* LandscapeComponent
 	FSceneInterface* Scene = LandscapeProxy->GetWorld()->Scene;
 
 	// Hide all but the component
+	TSet<FPrimitiveComponentId> ShowOnlyPrimitives = { LandscapeComponent->SceneProxy->GetPrimitiveComponentId() };
 	TSet<FPrimitiveComponentId> HiddenPrimitives;
-	for (auto PrimitiveComponentId : Scene->GetScenePrimitiveComponentIds())
-	{
-		HiddenPrimitives.Add(PrimitiveComponentId);
-	}
-	HiddenPrimitives.Remove(LandscapeComponent->SceneProxy->GetPrimitiveComponentId());
 				
 	FIntPoint TargetSize(TextureSize, TextureSize);
 
 	// Render diffuse texture using BufferVisualizationMode=BaseColor
 	static const FName BaseColorName("BaseColor");
 	const float BaseColorGamma = 2.2f;
-	RenderSceneToTexture(Scene, BaseColorName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, HiddenPrimitives, TargetSize, BaseColorGamma, OutSamples);
+	RenderSceneToTexture(Scene, BaseColorName, ViewOrigin, ViewRotationMatrix, ProjectionMatrix, ShowOnlyPrimitives, HiddenPrimitives, TargetSize, BaseColorGamma, true, OutSamples);
 	return true;
 }
 
@@ -2511,7 +2558,6 @@ void FMaterialUtilities::ClearRenderTargetPool()
 
 void FMaterialUtilities::OptimizeSampleArray(TArray<FColor>& InSamples, FIntPoint& InSampleSize)
 {
-	// QQ LOOK AT 
 	if (InSamples.Num() > 1)
 	{
 		TArray<FColor> Colors;
@@ -2529,37 +2575,6 @@ void FMaterialUtilities::OptimizeSampleArray(TArray<FColor>& InSamples, FIntPoin
 			InSamples.Empty(1);
 			InSamples.Add(Colors[0]);
 			InSampleSize = FIntPoint(1, 1);
-		}
-
-		FColor ColourValue;
-		bool bValueFound = false;
-		for (FColor& Sample : InSamples)
-		{
-			if (Sample.A != 0)
-			{
-				ColourValue = Sample;
-				bValueFound = true;
-				break;
-			}
-		}
-
-		if (bValueFound)
-		{
-			bool bConstantValue = true;
-
-			for (FColor& Sample : InSamples)
-			{
-				if (Sample.A != 0 && ((Sample.DWColor() & FColor::Black.DWColor()) != (ColourValue.DWColor() & FColor::Black.DWColor())))
-				{
-					bConstantValue = false;
-					break;
-				}
-			}
-
-			if (bConstantValue)
-			{
-
-			}
 		}
 	}	
 }
