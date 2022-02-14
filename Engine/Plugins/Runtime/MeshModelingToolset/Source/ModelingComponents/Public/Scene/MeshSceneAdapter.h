@@ -392,11 +392,42 @@ protected:
 	// top-level list of ActorAdapters, which represent each Actor and set of Components
 	TArray<TUniquePtr<FActorAdapter>> SceneActors;
 
+	/*
+	 * The data structures used for supporting spatial queries in FMeshSceneAdapter are somewhat complex.
+	 * Externally, the user adds Actors/Components, which results in FActorAdapter objects, each with list of
+	 * FActorChildMesh. Each FActorChildMesh is a /reference/ to a mesh, not a mesh itself, as well as a transform.
+	 * This allows unique mesh data to be shared across many usages, eg similar to StaticMeshActor / ISMComponent / Asset.
+	 * (However there is no required 1-1 correspondence between FActorChildMesh and an actual Component, and in the case
+	 *  of an InstancedStaticMeshComponent, there will be an FActorChildMesh for each Component)
+	 *
+	 * Each FActorChildMesh has a pointer to an IMeshSpatialWrapper, this is where unique mesh data, and any spatial data
+	 * structures, will be stored. Each unique IMeshSpatialWrapper instance is owned by a FSpatialWrapperInfo, which
+	 * are stored in the SpatialAdapters map below. Each FSpatialWrapperInfo also knows which parent FActorChildMesh 
+	 * objects own it.
+	 * 
+	 * The main action inside a FSpatialWrapperInfo (ie unique mesh) is inside the IMeshSpatialWrapper implementation,
+	 * this is where mesh data is unpacked and things like an AABBTree will be built if required. The top-level Build() 
+	 * will do this work.
+	 * 
+	 * *However* evaluating spatial queries across a large set of actors / scene meshes would require testing each
+	 * mesh instance one-by-one. To speed this up, BuildSpatialEvaluationCache() can be called to build an Octree
+	 * across mesh instances. FSpatialCacheInfo is a separate representation of each unique (actor, chlidmesh, spatial, boundingbox)
+	 * tuple, a list of these is built and then inserted into an Octree.
+	 */
+
+
+	// FSpatialWrapperInfo is a "unique mesh" that knows which parent objects have references to it
 	struct FSpatialWrapperInfo
 	{
+		// identifier for mesh, including source pointer, mesh type, etc
 		FMeshTypeContainer SourceContainer;
+		// list of scene mesh instances that reference this unique mehs
 		TArray<FActorChildMesh*> ParentMeshes;
+		// number of non-uniform scales applied to this mesh by parent instances
 		int32 NonUniformScaleCount = 0;
+		// implementation of IMeshSpatialWrapper for this mesh, that provides spatial and other mesh data queries
+		// *NOTE* that each FActorChildMesh in ParentMeshes has a pointer to this object, so if SpatialWrapper is
+		// replaced, the FActorChildMesh objects must also be updated
 		TUniquePtr<IMeshSpatialWrapper> SpatialWrapper;
 	};
 
@@ -412,6 +443,7 @@ protected:
 	void Build_FullDecompose(const FMeshSceneAdapterBuildOptions& BuildOptions);
 
 
+	// FSpatialCacheInfo represents a unique scene mesh with spatial data structure
 	struct FSpatialCacheInfo
 	{
 		FActorAdapter* Actor;
@@ -419,7 +451,9 @@ protected:
 		IMeshSpatialWrapper* Spatial;
 		FAxisAlignedBox3d Bounds;
 	};
+	// list of all unique scene meshes that have spatial data structure available
 	TArray<FSpatialCacheInfo> SortedSpatials;
+	// Octree of elements in SortedSpatials list
 	TSharedPtr<FSparseDynamicOctree3> Octree;
 	FAxisAlignedBox3d CachedWorldBounds;
 	bool bHaveSpatialEvaluationCache = false;

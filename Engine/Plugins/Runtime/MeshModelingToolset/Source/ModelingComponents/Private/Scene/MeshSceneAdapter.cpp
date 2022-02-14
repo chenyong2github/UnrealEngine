@@ -1513,7 +1513,7 @@ void FMeshSceneAdapter::InitializeSpatialWrappers(const TArray<FActorAdapter*>& 
 			{
 				MeshInfo->NonUniformScaleCount++;
 			}
-			ChildMesh->MeshSpatial = MeshInfo->SpatialWrapper.Get();
+			ChildMesh->MeshSpatial = nullptr;	// these are now initialized at beginning of Build() function
 		}
 	}
 }
@@ -1527,6 +1527,11 @@ void FMeshSceneAdapter::Build(const FMeshSceneAdapterBuildOptions& BuildOptions)
 	for (TPair<void*, TSharedPtr<FSpatialWrapperInfo>> Pair : SpatialAdapters)
 	{
 		Pair.Value->SpatialWrapper = SpatialWrapperFactory(Pair.Value->SourceContainer, BuildOptions);
+		// populate the MeshSpatial members of the FActorChildMeshes
+		for (FActorChildMesh* ParentMesh : Pair.Value->ParentMeshes)
+		{
+			ParentMesh->MeshSpatial = Pair.Value->SpatialWrapper.Get();
+		}
 	}
 
 	if (BuildOptions.bThickenThinMeshes)
@@ -1978,11 +1983,12 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 		}
 		else
 		{
-			// have to null out spatials for the child meshes so that they are ignored during computation
+			// disconnect parent meshes from this spatialwrapper as it is now invalid
 			for (FActorChildMesh* MeshInstance : MeshesToDecompose)
 			{
 				MeshInstance->MeshSpatial = nullptr;
 			}
+			WrapperInfo->ParentMeshes.Reset();
 		}
 
 		// Exit if we don't have any more work to do. This happens if we ended up skipping all the possible decompositions
@@ -2253,6 +2259,20 @@ double FMeshSceneAdapter::FastWindingNumber(const FVector3d& P, bool bFastEarlyO
 void FMeshSceneAdapter::BuildSpatialEvaluationCache()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_BuildSpatialEvaluationCache);
+
+	// validate that internals are correctly configured
+	for (TPair<void*, TSharedPtr<FSpatialWrapperInfo>> Pair : SpatialAdapters)
+	{
+		FSpatialWrapperInfo& WrapperInfo = *Pair.Value;
+		IMeshSpatialWrapper* SpatialWrapper = WrapperInfo.SpatialWrapper.Get();
+		for (FActorChildMesh* MeshInstance : WrapperInfo.ParentMeshes)
+		{
+			if (ensure(MeshInstance->MeshSpatial == SpatialWrapper) == false)
+			{
+				UE_LOG(LogGeometry, Warning, TEXT("FMeshSceneAdapter::BuildSpatialEvaluationCache: broken MeshSpatial link found!"));
+			}
+		}
+	}
 
 	// build list of unique meshes we need to evaluate for spatial queries
 	SortedSpatials.Reset();
