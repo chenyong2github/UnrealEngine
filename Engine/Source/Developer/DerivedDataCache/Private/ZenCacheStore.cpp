@@ -41,7 +41,7 @@ TRACE_DECLARE_INT_COUNTER(ZenDDC_BytesSent,		TEXT("ZenDDC Bytes Sent"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_CacheRecordRequestCount, TEXT("ZenDDC CacheRecord Request Count"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_ChunkRequestCount, TEXT("ZenDDC Chunk Request Count"));
 
-namespace UE::DerivedData::CacheStore::ZenCache
+namespace UE::DerivedData
 {
 
 template<typename T>
@@ -65,13 +65,13 @@ void ForEachBatch(const int32 BatchSize, const int32 TotalCount, T&& Fn)
 }
 
 //----------------------------------------------------------------------------------------------------------
-// FZenDerivedDataBackend
+// FZenCacheStore
 //----------------------------------------------------------------------------------------------------------
 
 /**
  * Backend for a HTTP based caching service (Zen)
- **/
-class FZenDerivedDataBackend : public FDerivedDataBackendInterface
+ */
+class FZenCacheStore final : public FDerivedDataBackendInterface
 {
 public:
 	
@@ -81,9 +81,9 @@ public:
 	 * @param ServiceUrl	Base url to the service including schema.
 	 * @param Namespace		Namespace to use.
 	 */
-	FZenDerivedDataBackend(const TCHAR* ServiceUrl, const TCHAR* Namespace);
+	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace);
 
-	~FZenDerivedDataBackend();
+	~FZenCacheStore();
 
 	/**
 	 * Checks is backend is usable (reachable and accessible).
@@ -112,6 +112,8 @@ public:
 	virtual FString GetName() const override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
+	virtual EBackendLegacyMode GetLegacyMode() const override { return EBackendLegacyMode::LegacyOnly; }
 
 	// ICacheStore
 
@@ -187,7 +189,7 @@ private:
 	TSet<FCacheKey> DebugMissedCacheKeys;
 };
 
-FZenDerivedDataBackend::FZenDerivedDataBackend(
+FZenCacheStore::FZenCacheStore(
 	const TCHAR* InServiceUrl,
 	const TCHAR* InNamespace)
 	: Namespace(InNamespace)
@@ -212,21 +214,21 @@ FZenDerivedDataBackend::FZenDerivedDataBackend(
 	GConfig->GetInt(TEXT("Zen"), TEXT("CacheChunksBatchSize"), CacheChunksBatchSize, GEngineIni);
 }
 
-FZenDerivedDataBackend::~FZenDerivedDataBackend()
+FZenCacheStore::~FZenCacheStore()
 {
 }
 
-FString FZenDerivedDataBackend::GetName() const
+FString FZenCacheStore::GetName() const
 {
 	return ZenService.GetInstance().GetURL();
 }
 
-bool FZenDerivedDataBackend::IsServiceReady()
+bool FZenCacheStore::IsServiceReady()
 {
 	return ZenService.GetInstance().IsServiceReady();
 }
 
-bool FZenDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)
+bool FZenCacheStore::ShouldRetryOnError(int64 ResponseCode)
 {
 	// Access token might have expired, request a new token and try again.
 	if (ResponseCode == 401)
@@ -243,7 +245,7 @@ bool FZenDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-bool FZenDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
+bool FZenCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::Exist);
 	TRACE_COUNTER_ADD(ZenDDC_Exist, int64(1));
@@ -288,7 +290,7 @@ bool FZenDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	return false;
 }
 
-bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
+bool FZenCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetCachedData);
 	TRACE_COUNTER_ADD(ZenDDC_Get, int64(1));
@@ -330,8 +332,8 @@ bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>&
 	return true;
 }
 
-FZenDerivedDataBackend::EGetResult
-FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const
+FZenCacheStore::EGetResult
+FZenCacheStore::GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const
 {
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	EGetResult GetResult = EGetResult::NotFound;
@@ -372,8 +374,8 @@ FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>* OutData, Ze
 	return GetResult;
 }
 
-FZenDerivedDataBackend::EGetResult
-FZenDerivedDataBackend::GetZenData(const FCacheKey& CacheKey, ECachePolicy CachePolicy, FCbPackage& OutPackage) const
+FZenCacheStore::EGetResult
+FZenCacheStore::GetZenData(const FCacheKey& CacheKey, ECachePolicy CachePolicy, FCbPackage& OutPackage) const
 {
 	TStringBuilder<256> QueryUri;
 	AppendZenUri(CacheKey, QueryUri);
@@ -419,7 +421,7 @@ FZenDerivedDataBackend::GetZenData(const FCacheKey& CacheKey, ECachePolicy Cache
 }
 
 FDerivedDataBackendInterface::EPutStatus
-FZenDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FZenCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::PutCachedData);
 
@@ -433,7 +435,7 @@ FZenDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const ui
 }
 
 FDerivedDataBackendInterface::EPutStatus
-FZenDerivedDataBackend::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType)
+FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Put);
 	COOK_STAT(auto Timer = UsageStats.TimePut());
@@ -469,24 +471,24 @@ FZenDerivedDataBackend::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InD
 	return EPutStatus::NotCached;
 }
 
-FString FZenDerivedDataBackend::MakeLegacyZenKey(const TCHAR* CacheKey)
+FString FZenCacheStore::MakeLegacyZenKey(const TCHAR* CacheKey)
 {
 	FIoHash KeyHash = FIoHash::HashBuffer(CacheKey, FCString::Strlen(CacheKey) * sizeof(TCHAR));
 	return FString::Printf(TEXT("/z$/legacy/%s"), *LexToString(KeyHash));
 }
 
-void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out)
+void FZenCacheStore::AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out)
 {
 	Out << TEXT("/z$/") << CacheKey.Bucket << TEXT('/') << CacheKey.Hash;
 }
 
-void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out)
+void FZenCacheStore::AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out)
 {
 	AppendZenUri(CacheKey, Out);
 	Out << TEXT('/') << Id;
 }
 
-void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Uri)
+void FZenCacheStore::AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Uri)
 {
 	if (Policy != ECachePolicy::Default)
 	{
@@ -494,7 +496,7 @@ void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStrin
 	}
 }
 
-void FZenDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
+void FZenCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Remove);
 	FString Uri = MakeLegacyZenKey(CacheKey);
@@ -526,18 +528,18 @@ void FZenDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTrans
 	}
 }
 
-bool FZenDerivedDataBackend::IsWritable() const 
+bool FZenCacheStore::IsWritable() const 
 {
 	return true;
 }
 
 FDerivedDataBackendInterface::ESpeedClass 
-FZenDerivedDataBackend::GetSpeedClass() const
+FZenCacheStore::GetSpeedClass() const
 {
 	return ESpeedClass::Fast;
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats() const
+TSharedRef<FDerivedDataCacheStatsNode> FZenCacheStore::GatherUsageStats() const
 {
 	Zen::FZenStats ZenStats;
 
@@ -588,23 +590,23 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats(
 	return GroupNode;
 }
 
-TBitArray<> FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FZenCacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
-bool FZenDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+bool FZenCacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
 {
 	return true;
 }
 
-bool FZenDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FZenCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
-bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+bool FZenCacheStore::ShouldSimulateMiss(const TCHAR* InKey)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -630,7 +632,7 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-bool FZenDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+bool FZenCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -654,7 +656,7 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 	return false;
 }
 
-void FZenDerivedDataBackend::Put(
+void FZenCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
@@ -687,10 +689,7 @@ void FZenDerivedDataBackend::Put(
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache Put complete for %s from '%s'"),
 			*GetName(), *WriteToString<96>(Key), *Request.Name);
 		COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Request.Record)));
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Key, Request.UserData, EStatus::Ok });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Ok));
 	};
 	auto OnMiss = [this, &OnComplete COOK_STAT(, &Timer)](const FCachePutRequest& Request)
 	{
@@ -698,10 +697,7 @@ void FZenDerivedDataBackend::Put(
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache Put miss for '%s' from '%s'"),
 			*GetName(), *WriteToString<96>(Key), *Request.Name);
 		COOK_STAT(Timer.AddMiss());
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Key, Request.UserData, EStatus::Error });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	};
 
 	for (TArrayView<const FCachePutRequest> Batch : Batches)
@@ -784,7 +780,7 @@ void FZenDerivedDataBackend::Put(
 	}
 }
 
-void FZenDerivedDataBackend::Get(
+void FZenCacheStore::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
@@ -804,20 +800,14 @@ void FZenDerivedDataBackend::Get(
 		TRACE_COUNTER_ADD(ZenDDC_BytesReceived, ReceivedSize);
 		COOK_STAT(Timer.AddHit(ReceivedSize));
 
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, MoveTemp(Record), Request.UserData, EStatus::Ok });
-		}
+		OnComplete({Request.Name, MoveTemp(Record), Request.UserData, EStatus::Ok});
 	};
 	auto OnMiss = [this, &OnComplete](const FCacheGetRequest& Request)
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
 			*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	};
 
 	ForEachBatch(CacheRecordBatchSize, Requests.Num(),
@@ -906,7 +896,7 @@ void FZenDerivedDataBackend::Get(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
 }
 
-void FZenDerivedDataBackend::PutValue(
+void FZenCacheStore::PutValue(
 	TConstArrayView<FCachePutValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutValueComplete&& OnComplete)
@@ -933,20 +923,14 @@ void FZenDerivedDataBackend::PutValue(
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache PutValue complete for %s from '%s'"),
 			*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 		COOK_STAT(Timer.AddHit(Request.Value.GetData().GetCompressedSize()));
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, Request.UserData, EStatus::Ok });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Ok));
 	};
 	auto OnMiss = [this, &OnComplete COOK_STAT(, &Timer)](const FCachePutValueRequest& Request)
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache PutValue miss for '%s' from '%s'"),
 			*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 		COOK_STAT(Timer.AddMiss());
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, Request.UserData, EStatus::Error });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	};
 
 	for (TArrayView<const FCachePutValueRequest> Batch : Batches)
@@ -1029,7 +1013,7 @@ void FZenDerivedDataBackend::PutValue(
 	}
 }
 
-void FZenDerivedDataBackend::GetValue(
+void FZenCacheStore::GetValue(
 	TConstArrayView<FCacheGetValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetValueComplete&& OnComplete)
@@ -1048,20 +1032,14 @@ void FZenDerivedDataBackend::GetValue(
 		TRACE_COUNTER_ADD(ZenDDC_BytesReceived, ReceivedSize);
 		COOK_STAT(Timer.AddHit(ReceivedSize));
 
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, MoveTemp(Value), Request.UserData, EStatus::Ok });
-		}
+		OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, EStatus::Ok});
 	};
 	auto OnMiss = [this, &OnComplete](const FCacheGetValueRequest& Request)
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
 			*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, {}, Request.UserData, EStatus::Error });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	};
 
 	ForEachBatch(CacheRecordBatchSize, Requests.Num(),
@@ -1162,7 +1140,7 @@ void FZenDerivedDataBackend::GetValue(
 }
 
 
-void FZenDerivedDataBackend::GetChunks(
+void FZenCacheStore::GetChunks(
 	TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
@@ -1180,22 +1158,16 @@ void FZenDerivedDataBackend::GetChunks(
 			*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 		TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
 		COOK_STAT(Timer.AddHit(RawSize));
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, RawSize, MoveTemp(RawHash), MoveTemp(RequestedBytes), Request.UserData, EStatus::Ok });
-		}
+		OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+			RawSize, MoveTemp(RawHash), MoveTemp(RequestedBytes), Request.UserData, EStatus::Ok});
 	};
 
 	auto OnMiss = [this, &OnComplete COOK_STAT(, &Timer)](const FCacheGetChunkRequest& Request)
 	{
 		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: CacheChunk miss with missing value '%s' for '%s' from '%s'"),
 			*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);
-		if (OnComplete)
-		{
-			OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error });
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	};
-
 
 	ForEachBatch(CacheChunksBatchSize, SortedRequests.Num(),
 		[this, &SortedRequests, &Owner, &OnHit, &OnMiss](int32 BatchFirst, int32 BatchLast)
@@ -1321,9 +1293,9 @@ void FZenDerivedDataBackend::GetChunks(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 }
 
-FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
 {
-	FZenDerivedDataBackend* Backend = new FZenDerivedDataBackend(ServiceUrl, Namespace);
+	FZenCacheStore* Backend = new FZenCacheStore(ServiceUrl, Namespace);
 	if (Backend->IsUsable())
 	{
 		return Backend;
@@ -1333,18 +1305,18 @@ FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName,
 	return nullptr;
 }
 
-} // namespace UE::DerivedData::CacheStore::ZenCache
+} // namespace UE::DerivedData
 
 #else
 
-namespace UE::DerivedData::CacheStore::ZenCache
+namespace UE::DerivedData
 {
 
-FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
 {
 	return nullptr;
 }
 
-} // UE::DerivedData::CacheStore::ZenCache
+} // UE::DerivedData
 
 #endif // UE_WITH_ZEN

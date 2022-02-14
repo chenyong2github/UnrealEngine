@@ -55,7 +55,7 @@
 #endif // PLATFORM_LINUX
 #define MAX_CACHE_EXTENTION_LEN (4)
 
-namespace UE::DerivedData::CacheStore::FileSystem
+namespace UE::DerivedData
 {
 
 TRACE_DECLARE_INT_COUNTER(FileSystemDDC_Exist, TEXT("FileSystemDDC Exist"));
@@ -74,7 +74,7 @@ static const TCHAR GContentDirectoryName[] = TEXT("Content");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderBase& Path)
+void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderBase& Path)
 {
 	TStringBuilder<256> Key;
 	Key << CacheKey;
@@ -89,7 +89,7 @@ static void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderB
 	Path.Appendf(TEXT("%1d/%1d/%1d/%s.udd"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10, *Key);
 }
 
-static void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path)
+void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path)
 {
 	const FIoHash::ByteArray& Bytes = CacheKey.Hash.GetBytes();
 	Path.Appendf(TEXT("%s/%hs/%02x/%02x/"), GBucketsDirectoryName, CacheKey.Bucket.ToCString(), Bytes[0], Bytes[1]);
@@ -97,7 +97,7 @@ static void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBa
 	Path << TEXT(".udd"_SV);
 }
 
-static void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
+void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
 {
 	const FIoHash::ByteArray& Bytes = RawHash.GetBytes();
 	Path.Appendf(TEXT("%s/%02x/%02x/"), GContentDirectoryName, Bytes[0], Bytes[1]);
@@ -752,6 +752,8 @@ public:
 	bool WouldCache(const TCHAR* CacheKey, TConstArrayView<uint8> InData) final;
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
 
+	EBackendLegacyMode GetLegacyMode() const final { return LegacyMode; }
+
 	// ICacheStore Interface
 
 	void Put(
@@ -835,6 +837,8 @@ private:
 
 	/** Base path we are storing the cache files in. */
 	FString	CachePath;
+	/** How to access the legacy cache. */
+	EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueWithLegacyFallback;
 	/** Class of this cache */
 	ESpeedClass SpeedClass;
 	/** If true, we failed to write to this directory and it did not contain anything so we should not be used. */
@@ -907,6 +911,14 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	FParse::Value(InParams, TEXT("UnusedFileAge="), DaysToDeleteUnusedFiles);
 	FParse::Value(InParams, TEXT("MaxRecordSizeKB="), MaxRecordSizeKB);
 	FParse::Value(InParams, TEXT("MaxValueSizeKB="), MaxValueSizeKB);
+
+	if (FString LegacyModeString; FParse::Value(InParams, TEXT("LegacyMode="), LegacyModeString))
+	{
+		if (!TryLexFromString(LegacyMode, LegacyModeString))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Ignoring unrecognized legacy mode '%s'"), *CachePath, *LegacyModeString);
+		}
+	}
 
 	// Flush the cache if requested.
 	bool bFlush = false;
@@ -1564,17 +1576,11 @@ void FFileSystemCacheStore::Put(
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_PutHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, WriteSize);
 			COOK_STAT(if (WriteSize) { Timer.AddHit(WriteSize); });
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Ok));
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
@@ -1597,17 +1603,11 @@ void FFileSystemCacheStore::Get(
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, Private::GetCacheRecordCompressedSize(Record.Get()));
 			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
-			}
+			OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
-			}
+			OnComplete(Request.MakeResponse(Status));
 		}
 	}
 }
@@ -1630,17 +1630,11 @@ void FFileSystemCacheStore::PutValue(
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_PutHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, WriteSize);
 			COOK_STAT(if (WriteSize) { Timer.AddHit(WriteSize); });
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Ok});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Ok));
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Ok));
 		}
 	}
 }
@@ -1663,17 +1657,11 @@ void FFileSystemCacheStore::GetValue(
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, Value.GetData().GetCompressedSize());
 			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
-			}
+			OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
@@ -1692,7 +1680,6 @@ void FFileSystemCacheStore::GetChunks(
 	FCacheKey ValueKey;
 	TUniquePtr<FArchive> ValueAr;
 	FCompressedBufferReader ValueReader;
-	EStatus ValueStatus = EStatus::Error;
 	FOptionalCacheRecord Record;
 	for (const FCacheGetChunkRequest& Request : SortedRequests)
 	{
@@ -1702,7 +1689,6 @@ void FFileSystemCacheStore::GetChunks(
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		if (!(bHasValue && ValueKey == Request.Key && ValueId == Request.Id) || ValueReader.HasSource() < !bExistsOnly)
 		{
-			ValueStatus = EStatus::Error;
 			ValueReader.ResetSource();
 			ValueAr.Reset();
 			ValueKey = {};
@@ -1720,19 +1706,24 @@ void FFileSystemCacheStore::GetChunks(
 				}
 				if (Record)
 				{
-					const FValueWithId& ValueWithId = Record.Get().GetValue(Request.Id);
-					bHasValue = ValueWithId.IsValid();
-					Value = ValueWithId;
-					ValueId = Request.Id;
-					ValueKey = Request.Key;
-					GetCacheContent(Request.Name, Request.Key, ValueId, Value, Request.Policy, ValueReader, ValueAr);
+					if (const FValueWithId& ValueWithId = Record.Get().GetValue(Request.Id))
+					{
+						bHasValue = true;
+						Value = ValueWithId;
+						ValueId = Request.Id;
+						ValueKey = Request.Key;
+						GetCacheContent(Request.Name, Request.Key, ValueId, Value, Request.Policy, ValueReader, ValueAr);
+					}
 				}
 			}
 			else
 			{
 				ValueKey = Request.Key;
 				bHasValue = GetCacheValueOnly(Request.Name, Request.Key, Request.Policy, Value);
-				GetCacheContent(Request.Name, Request.Key, Request.Id, Value, Request.Policy, ValueReader, ValueAr);
+				if (bHasValue)
+				{
+					GetCacheContent(Request.Name, Request.Key, Request.Id, Value, Request.Policy, ValueReader, ValueAr);
+				}
 			}
 		}
 		if (bHasValue)
@@ -1744,24 +1735,18 @@ void FFileSystemCacheStore::GetChunks(
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, !bExistsOnly ? RawSize : 0);
 			COOK_STAT(Timer.AddHit(!bExistsOnly ? RawSize : 0));
-			if (OnComplete)
+			FSharedBuffer Buffer;
+			if (!bExistsOnly)
 			{
-				FSharedBuffer Buffer;
-				if (!bExistsOnly)
-				{
-					Buffer = ValueReader.Decompress(RawOffset, RawSize);
-				}
-				const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
-				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
+				Buffer = ValueReader.Decompress(RawOffset, RawSize);
 			}
+			const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+				RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
 			continue;
 		}
 
-		if (OnComplete)
-		{
-			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	}
 }
 
@@ -2114,7 +2099,7 @@ bool FFileSystemCacheStore::PutCacheValue(
 				return false;
 			}
 		}
-		else if (Value.GetData().GetCompressedSize() <= MaxValueSizeKB)
+		else if (Value.GetData().GetCompressedSize() <= MaxValueSizeKB * 1024)
 		{
 			// Store the content in the package.
 			Package.AddAttachment(FCbAttachment(Value.GetData()));
@@ -2644,13 +2629,22 @@ bool FFileSystemCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
 	return false;
 }
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(
+ILegacyCacheStore* CreateFileSystemCacheStore(
 	const TCHAR* CachePath,
 	const TCHAR* Params,
-	const TCHAR* AccessLogPath)
+	const TCHAR* AccessLogPath,
+	ECacheStoreFlags& OutFlags)
 {
 	TUniquePtr<FFileSystemCacheStore> Store(new FFileSystemCacheStore(CachePath, Params, AccessLogPath));
-	return Store->IsUsable() ? Store.Release() : nullptr;
+	if (Store->IsUsable())
+	{
+		ECacheStoreFlags Flags = ECacheStoreFlags::Query;
+		Flags |= Store->IsWritable() ? ECacheStoreFlags::Store : ECacheStoreFlags::None;
+		Flags |= Store->GetSpeedClass() == EBackendSpeedClass::Local ? ECacheStoreFlags::Local : ECacheStoreFlags::Remote;
+		OutFlags = Flags;
+		return Store.Release();
+	}
+	return nullptr;
 }
 
-} // UE::DerivedData::CacheStore::FileSystem
+} // UE::DerivedData

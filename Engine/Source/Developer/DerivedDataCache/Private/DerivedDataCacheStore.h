@@ -65,7 +65,7 @@ public:
 	virtual void PutValue(
 		TConstArrayView<FCachePutValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutValueComplete&& OnComplete);
+		FOnCachePutValueComplete&& OnComplete) = 0;
 
 	/**
 	 * Asynchronous request to get values from the cache.
@@ -77,7 +77,7 @@ public:
 	virtual void GetValue(
 		TConstArrayView<FCacheGetValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetValueComplete&& OnComplete);
+		FOnCacheGetValueComplete&& OnComplete) = 0;
 
 	/**
 	 * Asynchronous request to get chunks, which are subsets of values, from records or values.

@@ -10,7 +10,7 @@
 #include "Misc/Crc.h"
 #include "Serialization/Archive.h"
 
-namespace UE::DerivedData::CacheStore
+namespace UE::DerivedData
 {
 
 /**
@@ -83,4 +83,4 @@ public:
 	}
 };
 
-} // UE::DerivedData::CacheStore
+} // UE::DerivedData

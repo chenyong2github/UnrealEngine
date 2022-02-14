@@ -16,13 +16,10 @@
 #include "Tasks/Task.h"
 #include "Templates/Invoke.h"
 
-namespace UE::DerivedData::CacheStore::Memory
-{
-FFileBackedDerivedDataBackend* CreateMemoryDerivedDataBackend(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
-} // UE::DerivedData::CacheStore::Memory
-
 namespace UE::DerivedData
 {
+
+FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 
 /**
  * A cache store that executes non-blocking requests in a dedicated thread pool.
@@ -125,7 +122,7 @@ private:
 FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, ECacheStoreFlags InInnerFlags, bool bCacheInFlightPuts)
 	: InnerCache(InInnerCache)
 	, InnerFlags(InInnerFlags)
-	, MemoryCache(bCacheInFlightPuts ? CacheStore::Memory::CreateMemoryDerivedDataBackend(TEXT("InflightMemoryCache"), /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false) : nullptr)
+	, MemoryCache(bCacheInFlightPuts ? CreateMemoryCacheStore(TEXT("InflightMemoryCache"), /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false) : nullptr)
 {
 	check(InnerCache);
 }

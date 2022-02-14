@@ -160,34 +160,6 @@ bool GVerifyDDC = false;
 namespace UE::DerivedData
 {
 
-void ICacheStore::PutValue(
-	const TConstArrayView<FCachePutValueRequest> Requests,
-	IRequestOwner& Owner,
-	FOnCachePutValueComplete&& OnComplete)
-{
-	if (OnComplete)
-	{
-		for (const FCachePutValueRequest& Request : Requests)
-		{
-			OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Error});
-		}
-	}
-}
-
-void ICacheStore::GetValue(
-	const TConstArrayView<FCacheGetValueRequest> Requests,
-	IRequestOwner& Owner,
-	FOnCacheGetValueComplete&& OnComplete)
-{
-	if (OnComplete)
-	{
-		for (const FCacheGetValueRequest& Request : Requests)
-		{
-			OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
-		}
-	}
-}
-
 FCachePutResponse FCachePutRequest::MakeResponse(const EStatus Status) const
 {
 	return {Name, Record.GetKey(), UserData, Status};

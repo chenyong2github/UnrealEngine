@@ -80,7 +80,7 @@
 #define UE_HTTPDDC_BATCH_HEAD_WEIGHT 1
 #define UE_HTTPDDC_BATCH_WEIGHT_HINT 12
 
-namespace UE::DerivedData::CacheStore::Http
+namespace UE::DerivedData
 {
 
 TRACE_DECLARE_INT_COUNTER(HttpDDC_Exist, TEXT("HttpDDC Exist"));
@@ -2000,13 +2000,13 @@ uint32 FHttpAccessToken::GetSerial() const
 }
 
 //----------------------------------------------------------------------------------------------------------
-// FHttpDerivedDataBackend
+// FHttpCacheStore
 //----------------------------------------------------------------------------------------------------------
 
 /**
  * Backend for a HTTP based caching service (Jupiter).
  **/
-class FHttpDerivedDataBackend : public FDerivedDataBackendInterface
+class FHttpCacheStore final : public FDerivedDataBackendInterface
 {
 public:
 	
@@ -2020,16 +2020,17 @@ public:
 	 * @param OAuthClientId			OAuth client identifier.
 	 * @param OAuthData				OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
 	 */
-	FHttpDerivedDataBackend(
+	FHttpCacheStore(
 		const TCHAR* ServiceUrl, 
 		const TCHAR* Namespace, 
 		const TCHAR* StructuredNamespace, 
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
 		const TCHAR* OAuthData,
+		EBackendLegacyMode LegacyMode,
 		bool bReadOnly);
 
-	~FHttpDerivedDataBackend();
+	~FHttpCacheStore();
 
 	/**
 	 * Checks is backend is usable (reachable and accessible).
@@ -2058,6 +2059,8 @@ public:
 
 	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
 
+	EBackendLegacyMode GetLegacyMode() const final { return LegacyMode; }
+
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
@@ -2080,7 +2083,7 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) override;
 
-	static FHttpDerivedDataBackend* GetAny()
+	static FHttpCacheStore* GetAny()
 	{
 		return AnyInstance;
 	}
@@ -2113,7 +2116,8 @@ private:
 	bool bReadOnly;
 	uint32 FailedLoginAttempts;
 	ESpeedClass SpeedClass;
-	static inline FHttpDerivedDataBackend* AnyInstance = nullptr;
+	EBackendLegacyMode LegacyMode;
+	static inline FHttpCacheStore* AnyInstance = nullptr;
 
 	bool IsServiceReady();
 	bool AcquireAccessToken();
@@ -2167,13 +2171,14 @@ private:
 		ValuePrinterType ValuePrinter);
 };
 
-FHttpDerivedDataBackend::FHttpDerivedDataBackend(
+FHttpCacheStore::FHttpCacheStore(
 	const TCHAR* InServiceUrl, 
 	const TCHAR* InNamespace, 
 	const TCHAR* InStructuredNamespace, 
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
 	const TCHAR* InOAuthSecret,
+	const EBackendLegacyMode InLegacyMode,
 	const bool bInReadOnly)
 	: Domain(InServiceUrl)
 	, Namespace(InNamespace)
@@ -2187,6 +2192,7 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	, bReadOnly(bInReadOnly)
 	, FailedLoginAttempts(0)
 	, SpeedClass(ESpeedClass::Slow)
+	, LegacyMode(InLegacyMode)
 {
 #if WITH_DATAREQUEST_HELPER
 	FDataRequestHelper::StaticInitialize();
@@ -2250,7 +2256,7 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	AnyInstance = this;
 }
 
-FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
+FHttpCacheStore::~FHttpCacheStore()
 {
 	if (AnyInstance == this)
 	{
@@ -2261,34 +2267,34 @@ FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
 #endif
 }
 
-FString FHttpDerivedDataBackend::GetName() const
+FString FHttpCacheStore::GetName() const
 {
 	return Domain;
 }
 
-TBitArray<> FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FHttpCacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
-bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+bool FHttpCacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
 {
 	return IsWritable();
 }
 
-FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass() const
+FHttpCacheStore::ESpeedClass FHttpCacheStore::GetSpeedClass() const
 {
 	return SpeedClass;
 }
 
-bool FHttpDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FHttpCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
 
-bool FHttpDerivedDataBackend::IsServiceReady()
+bool FHttpCacheStore::IsServiceReady()
 {
 	FHttpRequest Request(*Domain, *Domain, nullptr, false);
 	FHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
@@ -2306,7 +2312,7 @@ bool FHttpDerivedDataBackend::IsServiceReady()
 	return false;
 }
 
-bool FHttpDerivedDataBackend::AcquireAccessToken()
+bool FHttpCacheStore::AcquireAccessToken()
 {
 	// Avoid spamming the this if the service is down
 	if (FailedLoginAttempts > UE_HTTPDDC_MAX_FAILED_LOGIN_ATTEMPTS)
@@ -2414,7 +2420,7 @@ bool FHttpDerivedDataBackend::AcquireAccessToken()
 	return false;
 }
 
-bool FHttpDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)
+bool FHttpCacheStore::ShouldRetryOnError(int64 ResponseCode)
 {
 	// Access token might have expired, request a new token and try again.
 	if (ResponseCode == 401 && AcquireAccessToken())
@@ -2431,7 +2437,7 @@ bool FHttpDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-bool FHttpDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+bool FHttpCacheStore::ShouldSimulateMiss(const TCHAR* InKey)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -2456,7 +2462,7 @@ bool FHttpDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-bool FHttpDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+bool FHttpCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -2480,7 +2486,7 @@ bool FHttpDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 	return false;
 }
 
-uint64 FHttpDerivedDataBackend::PutRef(const FCbPackage& Package, const FCacheKey& Key, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully)
+uint64 FHttpCacheStore::PutRef(const FCbPackage& Package, const FCacheKey& Key, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully)
 {
 	bOutPutCompletedSuccessfully = false;
 
@@ -2547,7 +2553,7 @@ uint64 FHttpDerivedDataBackend::PutRef(const FCbPackage& Package, const FCacheKe
 	return BytesSent;
 }
 
-bool FHttpDerivedDataBackend::PutCacheRecord(
+bool FHttpCacheStore::PutCacheRecord(
 	FStringView Name,
 	const FCacheRecord& Record,
 	const FCacheRecordPolicy& Policy,
@@ -2653,7 +2659,7 @@ bool FHttpDerivedDataBackend::PutCacheRecord(
 	return bPutCompletedSuccessfully;
 }
 
-FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecordOnly(
+FOptionalCacheRecord FHttpCacheStore::GetCacheRecordOnly(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FCacheRecordPolicy& Policy)
@@ -2737,7 +2743,7 @@ FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecordOnly(
 	return Record;
 }
 
-bool FHttpDerivedDataBackend::PutCacheValue(
+bool FHttpCacheStore::PutCacheValue(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FValue& Value,
@@ -2821,7 +2827,7 @@ bool FHttpDerivedDataBackend::PutCacheValue(
 	return true;
 }
 
-bool FHttpDerivedDataBackend::GetCacheValueOnly(
+bool FHttpCacheStore::GetCacheValueOnly(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const ECachePolicy Policy,
@@ -2909,7 +2915,7 @@ bool FHttpDerivedDataBackend::GetCacheValueOnly(
 	return true;
 }
 
-bool FHttpDerivedDataBackend::GetCacheValue(
+bool FHttpCacheStore::GetCacheValue(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const ECachePolicy Policy,
@@ -2943,7 +2949,7 @@ bool FHttpDerivedDataBackend::GetCacheValue(
 	return false;
 }
 
-FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecord(
+FOptionalCacheRecord FHttpCacheStore::GetCacheRecord(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FCacheRecordPolicy& Policy,
@@ -3018,7 +3024,7 @@ FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecord(
 }
 
 template<typename ValueType, typename ValuePrinterType>
-bool FHttpDerivedDataBackend::TryGetCachedDataBatch(
+bool FHttpCacheStore::TryGetCachedDataBatch(
 	const FStringView Name,
 	const FCacheKey& Key,
 	TConstArrayView<ValueType> Values,
@@ -3075,7 +3081,7 @@ bool FHttpDerivedDataBackend::TryGetCachedDataBatch(
 }
 
 template<typename ValueType, typename ValuePrinterType>
-bool FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(
+bool FHttpCacheStore::CachedDataProbablyExistsBatch(
 	const FStringView Name,
 	const FCacheKey& Key,
 	TConstArrayView<ValueType> Values,
@@ -3115,7 +3121,7 @@ bool FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(
 	return true;
 }
 
-bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
+bool FHttpCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Exist);
 	TRACE_COUNTER_ADD(HttpDDC_Exist, int64(1));
@@ -3175,7 +3181,7 @@ bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	return false;
 }
 
-TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FHttpCacheStore::CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Exist);
 	TRACE_COUNTER_ADD(HttpDDC_Exist, int64(1));
@@ -3285,7 +3291,7 @@ TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayVi
 	return TBitArray<>(false, CacheKeys.Num());
 }
 
-bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
+bool FHttpCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Get);
 	TRACE_COUNTER_ADD(HttpDDC_Get, int64(1));
@@ -3347,7 +3353,7 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 	return false;
 }
 
-FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FHttpCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Put);
 
@@ -3428,7 +3434,7 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 	return EPutStatus::NotCached;
 }
 
-void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
+void FHttpCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
 	// do not remove transient data as Jupiter does its own verification of the content and cleans itself up
 	if (!IsWritable() || bTransient)
@@ -3462,7 +3468,7 @@ void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTran
 	}
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats() const
+TSharedRef<FDerivedDataCacheStatsNode> FHttpCacheStore::GatherUsageStats() const
 {
 	TSharedRef<FDerivedDataCacheStatsNode> Usage =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Horde Storage"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false);
@@ -3470,7 +3476,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats
 	return Usage;
 }
 
-void FHttpDerivedDataBackend::Put(
+void FHttpCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
@@ -3486,22 +3492,16 @@ void FHttpDerivedDataBackend::Put(
 				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
 			TRACE_COUNTER_ADD(HttpDDC_BytesSent, int64(BytesSent));
 			COOK_STAT(Timer.AddHit(BytesSent));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Ok));
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FHttpDerivedDataBackend::Get(
+void FHttpCacheStore::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
@@ -3516,22 +3516,16 @@ void FHttpDerivedDataBackend::Get(
 				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Private::GetCacheRecordCompressedSize(Record.Get()));
 			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
-			}
+			OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
-			}
+			OnComplete(Request.MakeResponse(Status));
 		}
 	}
 }
 
-void FHttpDerivedDataBackend::PutValue(
+void FHttpCacheStore::PutValue(
 	const TConstArrayView<FCachePutValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutValueComplete&& OnComplete)
@@ -3546,22 +3540,16 @@ void FHttpDerivedDataBackend::PutValue(
 				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_ADD(HttpDDC_BytesSent, WriteSize);
 			COOK_STAT(if (WriteSize) { Timer.AddHit(WriteSize); });
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Ok});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Ok));
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FHttpDerivedDataBackend::GetValue(
+void FHttpCacheStore::GetValue(
 	const TConstArrayView<FCacheGetValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetValueComplete&& OnComplete)
@@ -3576,22 +3564,16 @@ void FHttpDerivedDataBackend::GetValue(
 				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Value.GetData().GetCompressedSize());
 			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			if (OnComplete)
-			{
-				OnComplete({ Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok });
-			}
+			OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({ Request.Name, Request.Key, {}, Request.UserData, EStatus::Error });
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FHttpDerivedDataBackend::GetChunks(
+void FHttpCacheStore::GetChunks(
 	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
@@ -3694,35 +3676,29 @@ void FHttpDerivedDataBackend::GetChunks(
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
 				*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 			COOK_STAT(Timer.AddHit(!bExistsOnly ? RawSize : 0));
-			if (OnComplete)
+			FSharedBuffer Buffer;
+			if (!bExistsOnly)
 			{
-				FSharedBuffer Buffer;
-				if (!bExistsOnly)
-				{
-					Buffer = ValueReader.Decompress(RawOffset, RawSize);
-				}
-				const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
-				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
+				Buffer = ValueReader.Decompress(RawOffset, RawSize);
 			}
+			const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+				RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
 			continue;
 		}
 
-		if (OnComplete)
-		{
-			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	}
 }
 
-} // UE::DerivedData::CacheStore::Http
+} // UE::DerivedData
 
 #endif // WITH_HTTP_DDC_BACKEND
 
-namespace UE::DerivedData::CacheStore::Http
+namespace UE::DerivedData
 {
 
-FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
+ILegacyCacheStore* CreateHttpCacheStore(
 	const TCHAR* NodeName,
 	const TCHAR* ServiceUrl,
 	const TCHAR* Namespace,
@@ -3731,10 +3707,11 @@ FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
 	const TCHAR* OAuthClientId,
 	const TCHAR* OAuthData,
 	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
+	EBackendLegacyMode LegacyMode,
 	bool bReadOnly)
 {
 #if WITH_HTTP_DDC_BACKEND
-	FHttpDerivedDataBackend* Backend = new FHttpDerivedDataBackend(ServiceUrl, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, bReadOnly);
+	FHttpCacheStore* Backend = new FHttpCacheStore(ServiceUrl, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, LegacyMode, bReadOnly);
 	if (Backend->IsUsable())
 	{
 		return Backend;
@@ -3748,7 +3725,7 @@ FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
 #endif
 }
 
-FDerivedDataBackendInterface* GetAnyHttpDerivedDataBackend(
+FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 	FString& OutDomain,
 	FString& OutOAuthProvider,
 	FString& OutOAuthClientId,
@@ -3757,7 +3734,7 @@ FDerivedDataBackendInterface* GetAnyHttpDerivedDataBackend(
 	FString& OutStructuredNamespace)
 {
 #if WITH_HTTP_DDC_BACKEND
-	if (FHttpDerivedDataBackend* HttpBackend = FHttpDerivedDataBackend::GetAny())
+	if (FHttpCacheStore* HttpBackend = FHttpCacheStore::GetAny())
 	{
 		OutDomain = HttpBackend->GetDomain();
 		OutOAuthProvider = HttpBackend->GetOAuthProvider();
@@ -3774,4 +3751,4 @@ FDerivedDataBackendInterface* GetAnyHttpDerivedDataBackend(
 #endif
 }
 
-} // UE::DerivedData::CacheStore::Http
+} // UE::DerivedData

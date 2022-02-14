@@ -24,7 +24,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHttpDerivedDataBackendTests, Log, All);
 #define TEST_NAME_ROOT TEXT("System.DerivedDataCache.HttpDerivedDataBackend")
 
 #define IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST( TClass, PrettyName, TFlags ) \
-	IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(TClass, FHttpDerivedDataTestBase, TEST_NAME_ROOT PrettyName, TFlags) \
+	IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(TClass, FHttpCacheStoreTestBase, TEST_NAME_ROOT PrettyName, TFlags) \
 	void TClass::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const \
 	{ \
 		if (CheckPrequisites()) \
@@ -34,29 +34,23 @@ DEFINE_LOG_CATEGORY_STATIC(LogHttpDerivedDataBackendTests, Log, All);
 		} \
 	}
 
-namespace UE::DerivedData::CacheStore::Http
+namespace UE::DerivedData
 {
-FDerivedDataBackendInterface* GetAnyHttpDerivedDataBackend(
+
+FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 	FString& OutDomain,
 	FString& OutOAuthProvider,
 	FString& OutOAuthClientId,
 	FString& OutOAuthSecret,
 	FString& OutNamespace,
 	FString& OutStructuredNamespace);
-} // UE::DerivedData::CacheStore::Http
 
-namespace UE::DerivedData::CacheStore::ZenCache
-{
-FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
-} // UE::DerivedData::CacheStore::ZenCache
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
 
-namespace UE::DerivedData::CacheStore::Http
-{
-
-class FHttpDerivedDataTestBase : public FAutomationTestBase
+class FHttpCacheStoreTestBase : public FAutomationTestBase
 {
 public:
-	FHttpDerivedDataTestBase(const FString& InName, const bool bInComplexTask)
+	FHttpCacheStoreTestBase(const FString& InName, const bool bInComplexTask)
 	: FAutomationTestBase(InName, bInComplexTask)
 	{
 	}
@@ -161,15 +155,15 @@ protected:
 
 	FDerivedDataBackendInterface* GetTestBackend() const
 	{
-		static FDerivedDataBackendInterface* CachedBackend = UE::DerivedData::CacheStore::Http::GetAnyHttpDerivedDataBackend(
+		static FDerivedDataBackendInterface* CachedBackend = GetAnyHttpCacheStore(
 			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestNamespace, TestStructuredNamespace);
 		return CachedBackend;
 	}
 
-	bool GetRecords(TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, TArray<UE::DerivedData::FCacheRecord>& OutRecords)
+	bool GetRecords(TConstArrayView<FCacheRecord> Records, FCacheRecordPolicy Policy, TArray<FCacheRecord>& OutRecords)
 	{
 		using namespace UE::DerivedData;
-		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+		ICacheStore* TestBackend = GetTestBackend();
 
 		TArray<FCacheGetRequest> Requests;
 		Requests.Reserve(Records.Num());
@@ -177,7 +171,7 @@ protected:
 		for (int32 RecordIndex = 0; RecordIndex < Records.Num(); ++RecordIndex)
 		{
 			const FCacheRecord& Record = Records[RecordIndex];
-			Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Record.GetKey(), Policy, static_cast<uint64>(RecordIndex) });
+			Requests.Add({ {TEXT("FHttpCacheStoreTestBase")}, Record.GetKey(), Policy, static_cast<uint64>(RecordIndex) });
 		}
 
 		struct FGetOutput
@@ -222,10 +216,10 @@ protected:
 		return true;
 	}
 
-	bool GetValues(TConstArrayView<UE::DerivedData::FValue> Values, UE::DerivedData::ECachePolicy Policy, TArray<UE::DerivedData::FValue>& OutValues, const char* BucketName = nullptr)
+	bool GetValues(TConstArrayView<FValue> Values, ECachePolicy Policy, TArray<FValue>& OutValues, const char* BucketName = nullptr)
 	{
 		using namespace UE::DerivedData;
-		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+		ICacheStore* TestBackend = GetTestBackend();
 		FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
 
 		TArray<FCacheGetValueRequest> Requests;
@@ -237,7 +231,7 @@ protected:
 			FCacheKey Key;
 			Key.Bucket = TestCacheBucket;
 			Key.Hash = Value.GetRawHash();
-			Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Key, Policy, static_cast<uint64>(ValueIndex) });
+			Requests.Add({ {TEXT("FHttpCacheStoreTestBase")}, Key, Policy, static_cast<uint64>(ValueIndex) });
 		}
 
 		struct FGetValueOutput
@@ -268,10 +262,10 @@ protected:
 		return true;
 	}
 
-	bool GetRecordChunks(TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size, TArray<FSharedBuffer>& OutChunks)
+	bool GetRecordChunks(TConstArrayView<FCacheRecord> Records, FCacheRecordPolicy Policy, uint64 Offset, uint64 Size, TArray<FSharedBuffer>& OutChunks)
 	{
 		using namespace UE::DerivedData;
-		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+		ICacheStore* TestBackend = GetTestBackend();
 
 		TArray<FCacheGetChunkRequest> Requests;
 
@@ -283,7 +277,7 @@ protected:
 			for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
 			{
 				const FValueWithId& Value = Values[ValueIndex];
-				Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Record.GetKey(),  Value.GetId(), Offset, Size, Value.GetRawHash(), Policy.GetValuePolicy(Value.GetId()), static_cast<uint64>(OverallIndex) });
+				Requests.Add({ {TEXT("FHttpCacheStoreTestBase")}, Record.GetKey(),  Value.GetId(), Offset, Size, Value.GetRawHash(), Policy.GetValuePolicy(Value.GetId()), static_cast<uint64>(OverallIndex) });
 				++OverallIndex;
 			}
 		}
@@ -317,7 +311,7 @@ protected:
 
 	}
 	
-	void ValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> RecordsToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy)
+	void ValidateRecords(const TCHAR* Name, TConstArrayView<FCacheRecord> RecordsToTest, TConstArrayView<FCacheRecord> ReferenceRecords, FCacheRecordPolicy Policy)
 	{
 		using namespace UE::DerivedData;
 
@@ -360,7 +354,7 @@ protected:
 		}
 	}
 
-	void ValidateValues(const TCHAR* Name, TConstArrayView<UE::DerivedData::FValue> ValuesToTest, TConstArrayView<UE::DerivedData::FValue> ReferenceValues, UE::DerivedData::ECachePolicy Policy)
+	void ValidateValues(const TCHAR* Name, TConstArrayView<FValue> ValuesToTest, TConstArrayView<FValue> ReferenceValues, ECachePolicy Policy)
 	{
 		using namespace UE::DerivedData;
 
@@ -387,7 +381,7 @@ protected:
 		}
 	}
 
-	void ValidateRecordChunks(const TCHAR* Name, TConstArrayView<FSharedBuffer> RecordChunksToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
+	void ValidateRecordChunks(const TCHAR* Name, TConstArrayView<FSharedBuffer> RecordChunksToTest, TConstArrayView<FCacheRecord> ReferenceRecords, FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
 	{
 		using namespace UE::DerivedData;
 
@@ -432,7 +426,7 @@ protected:
 		}
 	}
 
-	TArray<UE::DerivedData::FCacheRecord> GetAndValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy)
+	TArray<FCacheRecord> GetAndValidateRecords(const TCHAR* Name, TConstArrayView<FCacheRecord> Records, FCacheRecordPolicy Policy)
 	{
 		using namespace UE::DerivedData;
 		TArray<FCacheRecord> ReceivedRecords;
@@ -448,7 +442,7 @@ protected:
 		return ReceivedRecords;
 	}
 
-	TArray<UE::DerivedData::FValue> GetAndValidateValues(const TCHAR* Name, TConstArrayView<UE::DerivedData::FValue> Values, UE::DerivedData::ECachePolicy Policy)
+	TArray<FValue> GetAndValidateValues(const TCHAR* Name, TConstArrayView<FValue> Values, ECachePolicy Policy)
 	{
 		using namespace UE::DerivedData;
 		TArray<FValue> ReceivedValues;
@@ -464,7 +458,7 @@ protected:
 		return ReceivedValues;
 	}
 
-	TArray<FSharedBuffer> GetAndValidateRecordChunks(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
+	TArray<FSharedBuffer> GetAndValidateRecordChunks(const TCHAR* Name, TConstArrayView<FCacheRecord> Records, FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
 	{
 		using namespace UE::DerivedData;
 		TArray<FSharedBuffer> ReceivedChunks;
@@ -480,7 +474,7 @@ protected:
 		return ReceivedChunks;
 	}
 
-	TArray<UE::DerivedData::FCacheRecord> GetAndValidateRecordsAndChunks(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy)
+	TArray<FCacheRecord> GetAndValidateRecordsAndChunks(const TCHAR* Name, TConstArrayView<FCacheRecord> Records, FCacheRecordPolicy Policy)
 	{
 		GetAndValidateRecordChunks(Name, Records, Policy, 5, 5);
 		return GetAndValidateRecords(Name, Records, Policy);
@@ -518,7 +512,7 @@ TArray<FString> CreateTestCacheKeys(FDerivedDataBackendInterface* InTestBackend,
 	return Keys;
 }
 
-TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::ICacheStore* InTestBackend, uint32 InNumKeys, uint32 InNumValues, FCbObject MetaContents = FCbObject(), const char* BucketName = nullptr)
+TArray<FCacheRecord> CreateTestCacheRecords(ICacheStore* InTestBackend, uint32 InNumKeys, uint32 InNumValues, FCbObject MetaContents = FCbObject(), const char* BucketName = nullptr)
 {
 	using namespace UE::DerivedData;
 	FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
@@ -577,7 +571,7 @@ TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::IC
 	return CacheRecords;
 }
 
-TArray<UE::DerivedData::FValue> CreateTestCacheValues(UE::DerivedData::ICacheStore* InTestBackend, uint32 InNumValues, const char* BucketName = nullptr)
+TArray<FValue> CreateTestCacheValues(ICacheStore* InTestBackend, uint32 InNumValues, const char* BucketName = nullptr)
 {
 	using namespace UE::DerivedData;
 	FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
@@ -720,8 +714,8 @@ bool CacheStore::RunTest(const FString& Parameters)
 	ZenTestAutoLaunchSettings.bLimitProcessLifetime = true;
 
 	FScopeZenService ScopeZenService(MoveTemp(ZenTestServiceSettings));
-	TUniquePtr<FDerivedDataBackendInterface> ZenIntermediaryBackend(UE::DerivedData::CacheStore::ZenCache::CreateZenDerivedDataBackend(TEXT("Test"), ScopeZenService.GetInstance().GetURL(), *TestNamespace));
-	auto WaitForZenPushToUpstream = [](FDerivedDataBackendInterface* ZenBackend, TConstArrayView<FCacheRecord> Records)
+	TUniquePtr<ILegacyCacheStore> ZenIntermediaryBackend(CreateZenCacheStore(TEXT("Test"), ScopeZenService.GetInstance().GetURL(), *TestNamespace));
+	auto WaitForZenPushToUpstream = [](ILegacyCacheStore* ZenBackend, TConstArrayView<FCacheRecord> Records)
 	{
 		// TODO: Expecting a legitimate means to wait for zen to finish pushing records to its upstream in the future
 		FPlatformProcess::Sleep(1.0f);
@@ -800,6 +794,6 @@ bool CacheStore::RunTest(const FString& Parameters)
 	return true;
 }
 
-} // UE::DerivedData::CacheStore::Http
+} // UE::DerivedData
 
 #endif // #if WITH_DEV_AUTOMATION_TESTS && WITH_HTTP_DDC_BACKEND

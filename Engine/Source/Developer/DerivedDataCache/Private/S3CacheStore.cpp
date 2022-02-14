@@ -59,7 +59,7 @@
 #define S3DDC_MAX_ATTEMPTS 4
 #define S3DDC_MAX_BUFFER_RESERVE 104857600u
 
-namespace UE::DerivedData::CacheStore::S3
+namespace UE::DerivedData
 {
 
 TRACE_DECLARE_INT_COUNTER(S3DDC_Exist, TEXT("S3DDC Exist"));
@@ -75,31 +75,15 @@ static const TCHAR GContentDirectoryName[] = TEXT("Content");
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FString BuildPathForLegacyCache(const TCHAR* CacheKey)
-{
-	FString Key = FString(CacheKey).ToUpper();
-	checkf(Algo::AllOf(Key, [](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
-		TEXT("Invalid characters in cache key %s"), CacheKey);
-	uint32 Hash = FCrc::StrCrc_DEPRECATED(*Key);
-	// this creates a tree of 1000 directories
-	FString HashPath = FString::Printf(TEXT("%1d/%1d/%1d/"), (Hash / 100) % 10, (Hash / 10) % 10, Hash % 10);
-	return HashPath / Key + TEXT(".udd");
-}
+void BuildPathForLegacyCache(const TCHAR* const CacheKey, FStringBuilderBase& Path);
+void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path);
+void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path);
 
-static void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Path)
+static FString BuildPathForLegacyCache(const TCHAR* CacheKey)
 {
-	const FIoHash::ByteArray& Bytes = CacheKey.Hash.GetBytes();
-	Path.Appendf(TEXT("%s/%hs/%02x/%02x/"), GBucketsDirectoryName, CacheKey.Bucket.ToCString(), Bytes[0], Bytes[1]);
-	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
-	Path << TEXT(".udd"_SV);
-}
-
-static void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
-{
-	const FIoHash::ByteArray& Bytes = RawHash.GetBytes();
-	Path.Appendf(TEXT("%s/%02x/%02x/"), GContentDirectoryName, Bytes[0], Bytes[1]);
-	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
-	Path << TEXT(".udd"_SV);
+	TStringBuilder<256> Path;
+	BuildPathForLegacyCache(CacheKey, Path);
+	return FString(Path);
 }
 
 class FStringAnsi
@@ -220,7 +204,7 @@ struct IRequestCallback
 /**
  * Backend for a read-only AWS S3 based caching service.
  **/
-class FS3DerivedDataBackend : public FDerivedDataBackendInterface
+class FS3CacheStore final : public FDerivedDataBackendInterface
 {
 public:
 	/**
@@ -232,8 +216,8 @@ public:
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
 	 * @param  InCachePath          Path to cache the DDC files
 	 */
-	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
-	~FS3DerivedDataBackend();
+	FS3CacheStore(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
+	~FS3CacheStore() final;
 
 	/**
 	 * Checks is backend is usable (reachable and accessible).
@@ -242,43 +226,46 @@ public:
 	bool IsUsable() const;
 
 	/* S3 Cache cannot be written to*/
-	bool IsWritable() const override { return false; }
+	bool IsWritable() const final { return false; }
 
 	/* S3 Cache does not try to write back to lower caches (e.g. Shared DDC) */
-	bool BackfillLowerCacheLevels() const override { return false; }
+	bool BackfillLowerCacheLevels() const final { return false; }
 
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
-	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
+	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
+	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) final;
+	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) final;
+	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
+	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
 
-	FString GetName() const override;
-	ESpeedClass GetSpeedClass() const override;
-	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
-	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+	FString GetName() const final;
+	ESpeedClass GetSpeedClass() const final;
+	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
+	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final;
 
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
 
-	virtual void Put(
+	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueWithLegacyFallback; }
+
+	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutComplete&& OnComplete) override;
-
-	virtual void Get(
+		FOnCachePutComplete&& OnComplete) final;
+	void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetComplete&& OnComplete) override;
-
-	virtual void GetValue(
+		FOnCacheGetComplete&& OnComplete) final;
+	void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete) final;
+	void GetValue(
 		TConstArrayView<FCacheGetValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetValueComplete&& OnComplete) override;
-
-	virtual void GetChunks(
+		FOnCacheGetValueComplete&& OnComplete) final;
+	void GetChunks(
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) final;
 
 private:
 	struct FBundle;
@@ -363,7 +350,7 @@ private:
  * CURL has a global library initialization (curl_global_init). We rely on this happening in 
  * the Online/HTTP library which is a dependency on this module.
  */
-class FS3DerivedDataBackend::FHttpRequest
+class FS3CacheStore::FHttpRequest
 {
 public:
 	FHttpRequest(const ANSICHAR* InRegion, const ANSICHAR* InAccessKey, const ANSICHAR* InSecretKey)
@@ -711,10 +698,10 @@ private:
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend::FRequestPool
+// FS3CacheStore::FRequestPool
 //----------------------------------------------------------------------------------------------------------
 
-class FS3DerivedDataBackend::FRequestPool
+class FS3CacheStore::FRequestPool
 {
 public:
 	FRequestPool(const ANSICHAR* Region, const ANSICHAR* AccessKey, const ANSICHAR* SecretKey)
@@ -790,20 +777,20 @@ private:
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend::FBundleEntry
+// FS3CacheStore::FBundleEntry
 //----------------------------------------------------------------------------------------------------------
 
-struct FS3DerivedDataBackend::FBundleEntry
+struct FS3CacheStore::FBundleEntry
 {
 	int64 Offset;
 	int32 Length;
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend::FBundle
+// FS3CacheStore::FBundle
 //----------------------------------------------------------------------------------------------------------
 
-struct FS3DerivedDataBackend::FBundle
+struct FS3CacheStore::FBundle
 {
 	FString Name;
 	FString ObjectKey;
@@ -814,10 +801,10 @@ struct FS3DerivedDataBackend::FBundle
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend::FBundleDownloadInfo
+// FS3CacheStore::FBundleDownloadInfo
 //----------------------------------------------------------------------------------------------------------
 
-struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
+struct FS3CacheStore::FBundleDownload final : IRequestCallback
 {
 	FCriticalSection& CriticalSection;
 	FBundle& Bundle;
@@ -881,7 +868,7 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 		Context->Logf(TEXT("Finished downloading %s to %s"), *BundleUrl, *Bundle.LocalFile);
 	}
 
-	virtual bool Update(int NumBytes, int MaxBytes) override final
+	bool Update(int NumBytes, int MaxBytes) final
 	{
 		FScopeLock Lock(&CriticalSection);
 		DownloadedBytes = NumBytes;
@@ -890,10 +877,10 @@ struct FS3DerivedDataBackend::FBundleDownload : IRequestCallback
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend::FRootManifest
+// FS3CacheStore::FRootManifest
 //----------------------------------------------------------------------------------------------------------
 
-struct FS3DerivedDataBackend::FRootManifest
+struct FS3CacheStore::FRootManifest
 {
 	FString AccessKey;
 	FString SecretKey;
@@ -947,10 +934,10 @@ struct FS3DerivedDataBackend::FRootManifest
 };
 
 //----------------------------------------------------------------------------------------------------------
-// FS3DerivedDataBackend
+// FS3CacheStore
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
+FS3CacheStore::FS3CacheStore(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
 	: RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
@@ -1071,16 +1058,16 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 	}
 }
 
-FS3DerivedDataBackend::~FS3DerivedDataBackend()
+FS3CacheStore::~FS3CacheStore()
 {
 }
 
-bool FS3DerivedDataBackend::IsUsable() const
+bool FS3CacheStore::IsUsable() const
 {
 	return bEnabled;
 }
 
-bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
+bool FS3CacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Exist);
 	TRACE_COUNTER_ADD(S3DDC_Exist, int64(1));
@@ -1105,7 +1092,7 @@ bool FS3DerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	return true;
 }
 
-bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
+bool FS3CacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_Get);
 	TRACE_COUNTER_ADD(S3DDC_Get, int64(1));
@@ -1140,18 +1127,18 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 	return false;
 }
 
-FDerivedDataBackendInterface::EPutStatus FS3DerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FS3CacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	// Not implemented
 	return EPutStatus::NotCached;
 }
 
-void FS3DerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
+void FS3CacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
 	// Not implemented
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FS3DerivedDataBackend::GatherUsageStats() const
+TSharedRef<FDerivedDataCacheStatsNode> FS3CacheStore::GatherUsageStats() const
 {
 	TSharedRef<FDerivedDataCacheStatsNode> Usage =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("S3"), BaseUrl, /*bIsLocal*/ false);
@@ -1159,27 +1146,27 @@ TSharedRef<FDerivedDataCacheStatsNode> FS3DerivedDataBackend::GatherUsageStats()
 	return Usage;
 }
 
-FString FS3DerivedDataBackend::GetName() const
+FString FS3CacheStore::GetName() const
 {
 	return BaseUrl;
 }
 
-FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass() const
+FDerivedDataBackendInterface::ESpeedClass FS3CacheStore::GetSpeedClass() const
 {
 	return ESpeedClass::Local;
 }
 
-TBitArray<> FS3DerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FS3CacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
-bool FS3DerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+bool FS3CacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
 {
 	return false;
 }
 
-bool FS3DerivedDataBackend::DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context)
+bool FS3CacheStore::DownloadManifest(const FRootManifest& RootManifest, FFeedbackContext* Context)
 {
 	// Read the root manifest from disk
 	if (RootManifest.Keys.Num() == 0)
@@ -1254,7 +1241,7 @@ bool FS3DerivedDataBackend::DownloadManifest(const FRootManifest& RootManifest, 
 	return true;
 }
 
-void FS3DerivedDataBackend::RemoveUnusedBundles()
+void FS3CacheStore::RemoveUnusedBundles()
 {
 	IFileManager& FileManager = IFileManager::Get();
 
@@ -1279,7 +1266,7 @@ void FS3DerivedDataBackend::RemoveUnusedBundles()
 	}
 }
 
-void FS3DerivedDataBackend::ReadBundle(FBundle& Bundle)
+void FS3CacheStore::ReadBundle(FBundle& Bundle)
 {
 	IFileManager& FileManager = IFileManager::Get();
 
@@ -1331,7 +1318,7 @@ void FS3DerivedDataBackend::ReadBundle(FBundle& Bundle)
 	}
 }
 
-bool FS3DerivedDataBackend::FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const
+bool FS3CacheStore::FindBundleEntry(const TCHAR* CacheKey, const FBundle*& OutBundle, const FBundleEntry*& OutBundleEntry) const
 {
 	FSHAHash Hash;
 
@@ -1352,13 +1339,13 @@ bool FS3DerivedDataBackend::FindBundleEntry(const TCHAR* CacheKey, const FBundle
 	return false;
 }
 
-bool FS3DerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FS3CacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
-bool FS3DerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+bool FS3CacheStore::DidSimulateMiss(const TCHAR* InKey)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -1368,7 +1355,7 @@ bool FS3DerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
 	return DebugMissedKeys.Contains(FName(InKey));
 }
 
-bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+bool FS3CacheStore::ShouldSimulateMiss(const TCHAR* InKey)
 {
 	// once missed, always missed
 	if (DidSimulateMiss(InKey))
@@ -1387,7 +1374,7 @@ bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-FOptionalCacheRecord FS3DerivedDataBackend::GetCacheRecordOnly(
+FOptionalCacheRecord FS3CacheStore::GetCacheRecordOnly(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FCacheRecordPolicy& Policy)
@@ -1448,7 +1435,7 @@ FOptionalCacheRecord FS3DerivedDataBackend::GetCacheRecordOnly(
 	return Record;
 }
 
-FOptionalCacheRecord FS3DerivedDataBackend::GetCacheRecord(
+FOptionalCacheRecord FS3CacheStore::GetCacheRecord(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FCacheRecordPolicy& Policy,
@@ -1495,7 +1482,7 @@ FOptionalCacheRecord FS3DerivedDataBackend::GetCacheRecord(
 	return RecordBuilder.Build();
 }
 
-bool FS3DerivedDataBackend::GetCacheValueOnly(
+bool FS3CacheStore::GetCacheValueOnly(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const ECachePolicy Policy,
@@ -1572,7 +1559,7 @@ bool FS3DerivedDataBackend::GetCacheValueOnly(
 	return true;
 }
 
-bool FS3DerivedDataBackend::GetCacheValue(
+bool FS3CacheStore::GetCacheValue(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const ECachePolicy Policy,
@@ -1581,14 +1568,14 @@ bool FS3DerivedDataBackend::GetCacheValue(
 	return GetCacheValueOnly(Name, Key, Policy, OutValue) && GetCacheContent(Name, Key, {}, OutValue, Policy, OutValue);
 }
 
-bool FS3DerivedDataBackend::GetCacheContentExists(const FCacheKey& Key, const FIoHash& RawHash) const
+bool FS3CacheStore::GetCacheContentExists(const FCacheKey& Key, const FIoHash& RawHash) const
 {
 	TStringBuilder<256> Path;
 	BuildCacheContentPath(RawHash, Path);
 	return FileExists(Path);
 }
 
-bool FS3DerivedDataBackend::GetCacheContent(
+bool FS3CacheStore::GetCacheContent(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FValueId& Id,
@@ -1645,7 +1632,7 @@ bool FS3DerivedDataBackend::GetCacheContent(
 	return false;
 }
 
-void FS3DerivedDataBackend::GetCacheContent(
+void FS3CacheStore::GetCacheContent(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const FValueId& Id,
@@ -1706,17 +1693,17 @@ void FS3DerivedDataBackend::GetCacheContent(
 		Name.Len(), Name.GetData());
 }
 
-void FS3DerivedDataBackend::BuildCachePackagePath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const
+void FS3CacheStore::BuildCachePackagePath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const
 {
 	BuildPathForCachePackage(CacheKey, Path);
 }
 
-void FS3DerivedDataBackend::BuildCacheContentPath(const FIoHash& RawHash, FStringBuilderBase& Path) const
+void FS3CacheStore::BuildCacheContentPath(const FIoHash& RawHash, FStringBuilderBase& Path) const
 {
 	BuildPathForCacheContent(RawHash, Path);
 }
 
-bool FS3DerivedDataBackend::LoadFileWithHash(
+bool FS3CacheStore::LoadFileWithHash(
 	FStringBuilderBase& Path,
 	const FStringView DebugName,
 	const TFunctionRef<void (FArchive& Ar)> ReadFunction) const
@@ -1740,7 +1727,7 @@ bool FS3DerivedDataBackend::LoadFileWithHash(
 	});
 }
 
-bool FS3DerivedDataBackend::LoadFile(
+bool FS3CacheStore::LoadFile(
 	FStringBuilderBase& Path,
 	const FStringView DebugName,
 	const TFunctionRef<void (FArchive& Ar)> ReadFunction) const
@@ -1776,7 +1763,7 @@ bool FS3DerivedDataBackend::LoadFile(
 	return !bError && ReadSize > 0;
 }
 
-TUniquePtr<FArchive> FS3DerivedDataBackend::OpenFile(FStringBuilderBase& Path, const FStringView DebugName) const
+TUniquePtr<FArchive> FS3CacheStore::OpenFile(FStringBuilderBase& Path, const FStringView DebugName) const
 {
 	FSHAHash Hash;
 
@@ -1800,7 +1787,7 @@ TUniquePtr<FArchive> FS3DerivedDataBackend::OpenFile(FStringBuilderBase& Path, c
 	return nullptr;
 }
 
-bool FS3DerivedDataBackend::FileExists(FStringBuilderBase& Path) const
+bool FS3CacheStore::FileExists(FStringBuilderBase& Path) const
 {
 	FSHAHash Hash;
 
@@ -1819,21 +1806,15 @@ bool FS3DerivedDataBackend::FileExists(FStringBuilderBase& Path) const
 	return false;
 }
 
-void FS3DerivedDataBackend::Put(
+void FS3CacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	if (OnComplete)
-	{
-		for (const FCachePutRequest& Request : Requests)
-		{
-			OnComplete({Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Error});
-		}
-	}
+	CompleteWithStatus(Requests, OnComplete, EStatus::Error);
 }
 
-void FS3DerivedDataBackend::Get(
+void FS3CacheStore::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
@@ -1850,22 +1831,24 @@ void FS3DerivedDataBackend::Get(
 				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_INCREMENT(S3DDC_GetHit);
 			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
-			}
+			OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
-			}
+			OnComplete(Request.MakeResponse(Status));
 		}
 	}
 }
 
-void FS3DerivedDataBackend::GetValue(
+void FS3CacheStore::PutValue(
+	const TConstArrayView<FCachePutValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCachePutValueComplete&& OnComplete)
+{
+	CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+}
+
+void FS3CacheStore::GetValue(
 	const TConstArrayView<FCacheGetValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetValueComplete&& OnComplete)
@@ -1882,22 +1865,16 @@ void FS3DerivedDataBackend::GetValue(
 				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_INCREMENT(S3DDC_GetHit);
 			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
-			}
+			OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FS3DerivedDataBackend::GetChunks(
+void FS3CacheStore::GetChunks(
 	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
@@ -1911,7 +1888,6 @@ void FS3DerivedDataBackend::GetChunks(
 	FCacheKey ValueKey;
 	TUniquePtr<FArchive> ValueAr;
 	FCompressedBufferReader ValueReader;
-	EStatus ValueStatus = EStatus::Error;
 	FOptionalCacheRecord Record;
 	for (const FCacheGetChunkRequest& Request : SortedRequests)
 	{
@@ -1921,7 +1897,6 @@ void FS3DerivedDataBackend::GetChunks(
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		if (!(bHasValue && ValueKey == Request.Key && ValueId == Request.Id) || ValueReader.HasSource() < !bExistsOnly)
 		{
-			ValueStatus = EStatus::Error;
 			ValueReader.ResetSource();
 			ValueAr.Reset();
 			ValueKey = {};
@@ -1939,19 +1914,24 @@ void FS3DerivedDataBackend::GetChunks(
 				}
 				if (Record)
 				{
-					const FValueWithId& ValueWithId = Record.Get().GetValue(Request.Id);
-					bHasValue = ValueWithId.IsValid();
-					Value = ValueWithId;
-					ValueId = Request.Id;
-					ValueKey = Request.Key;
-					GetCacheContent(Request.Name, Request.Key, ValueId, Value, Request.Policy, ValueReader, ValueAr);
+					if (const FValueWithId& ValueWithId = Record.Get().GetValue(Request.Id))
+					{
+						bHasValue = true;
+						Value = ValueWithId;
+						ValueId = Request.Id;
+						ValueKey = Request.Key;
+						GetCacheContent(Request.Name, Request.Key, ValueId, Value, Request.Policy, ValueReader, ValueAr);
+					}
 				}
 			}
 			else
 			{
 				ValueKey = Request.Key;
 				bHasValue = GetCacheValueOnly(Request.Name, Request.Key, Request.Policy, Value);
-				GetCacheContent(Request.Name, Request.Key, Request.Id, Value, Request.Policy, ValueReader, ValueAr);
+				if (bHasValue)
+				{
+					GetCacheContent(Request.Name, Request.Key, Request.Id, Value, Request.Policy, ValueReader, ValueAr);
+				}
 			}
 		}
 		if (bHasValue)
@@ -1962,44 +1942,38 @@ void FS3DerivedDataBackend::GetChunks(
 				*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 			TRACE_COUNTER_INCREMENT(S3DDC_GetHit);
 			COOK_STAT(Timer.AddHit(!bExistsOnly ? RawSize : 0));
-			if (OnComplete)
+			FSharedBuffer Buffer;
+			if (!bExistsOnly)
 			{
-				FSharedBuffer Buffer;
-				if (!bExistsOnly)
-				{
-					Buffer = ValueReader.Decompress(RawOffset, RawSize);
-				}
-				const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
-				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
+				Buffer = ValueReader.Decompress(RawOffset, RawSize);
 			}
+			const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+				RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
 			continue;
 		}
 
-		if (OnComplete)
-		{
-			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
-		}
+		OnComplete(Request.MakeResponse(EStatus::Error));
 	}
 }
 
-FDerivedDataBackendInterface* CreateS3DerivedDataBackend(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath)
+ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath)
 {
-	return new FS3DerivedDataBackend(RootManifestPath, BaseUrl, Region, CanaryObjectKey, CachePath);
+	return new FS3CacheStore(RootManifestPath, BaseUrl, Region, CanaryObjectKey, CachePath);
 }
 
-} // UE::DerivedData::CacheStore::S3
+} // UE::DerivedData
 
 #else
 
-namespace UE::DerivedData::CacheStore::S3
+namespace UE::DerivedData
 {
 
-FDerivedDataBackendInterface* CreateS3DerivedDataBackend(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath)
+ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath)
 {
 	return nullptr;
 }
 
-} // UE::DerivedData::CacheStore::S3
+} // UE::DerivedData
 
 #endif // WITH_S3_DDC_BACKEND

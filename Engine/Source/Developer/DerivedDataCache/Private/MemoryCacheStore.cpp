@@ -14,26 +14,26 @@
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
 
-namespace UE::DerivedData::CacheStore::Memory
+namespace UE::DerivedData
 {
 
 /**
  * A simple thread safe, memory based backend. This is used for Async puts and the boot cache.
  */
-class FMemoryDerivedDataBackend : public FFileBackedDerivedDataBackend
+class FMemoryCacheStore final : public FFileBackedDerivedDataBackend
 {
 public:
-	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
-	~FMemoryDerivedDataBackend();
+	explicit FMemoryCacheStore(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
+	~FMemoryCacheStore() final;
 
 	/** Return a name for this interface */
-	virtual FString GetName() const override { return Name; }
+	FString GetName() const final { return Name; }
 
 	/** return true if this cache is writable **/
-	virtual bool IsWritable() const override;
+	bool IsWritable() const final;
 
 	/** Returns a class of speed for this interface **/
-	virtual ESpeedClass GetSpeedClass()  const override;
+	ESpeedClass GetSpeedClass()  const final;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -41,7 +41,7 @@ public:
 	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
 	 * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
 	 */
-	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
 
 	/**
 	 * Synchronous retrieve of a cache item
@@ -50,7 +50,7 @@ public:
 	 * @param	OutData		Buffer to receive the results, if any were found
 	 * @return				true if any data was found, and in this case OutData is non-empty
 	 */
-	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) final;
 
 	/**
 	 * Asynchronous, fire-and-forget placement of a cache item
@@ -59,9 +59,9 @@ public:
 	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
 	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
 	 */
-	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) final;
 
-	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
+	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
 
 	/**
 	 * Save the cache to disk
@@ -80,46 +80,44 @@ public:
 	/**
 	 * Disable cache and ignore all subsequent requests
 	 */
-	void Disable() override;
+	void Disable() final;
 
-	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
+	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
 
-	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
 
 	/**
 	 *  Determines if we would cache the provided data
 	 */
-	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final;
 
 	/**
 	 * Apply debug options
 	 */
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
 
-	virtual void Put(
+	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueWithLegacyFallback; }
+
+	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutComplete&& OnComplete) override;
-
-	virtual void Get(
+		FOnCachePutComplete&& OnComplete) final;
+	void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetComplete&& OnComplete) override;
-
-	virtual void PutValue(
+		FOnCacheGetComplete&& OnComplete) final;
+	void PutValue(
 		TConstArrayView<FCachePutValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutValueComplete&& OnComplete) override;
-
-	virtual void GetValue(
+		FOnCachePutValueComplete&& OnComplete) final;
+	void GetValue(
 		TConstArrayView<FCacheGetValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetValueComplete&& OnComplete) override;
-
-	virtual void GetChunks(
+		FOnCacheGetValueComplete&& OnComplete) final;
+	void GetChunks(
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) final;
 
 private:
 	/** Name of the cache file loaded (if any). */
@@ -224,7 +222,7 @@ protected:
 	TSet<FCacheKey> DebugMissedCacheKeys;
 };
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
+FMemoryCacheStore::FMemoryCacheStore(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
 	: Name(InName)
 	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
@@ -234,23 +232,23 @@ FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 
 {
 }
 
-FMemoryDerivedDataBackend::~FMemoryDerivedDataBackend()
+FMemoryCacheStore::~FMemoryCacheStore()
 {
 	bShuttingDown = true;
 	Disable();
 }
 
-bool FMemoryDerivedDataBackend::IsWritable() const
+bool FMemoryCacheStore::IsWritable() const
 {
 	return !bDisabled;
 }
 
-FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedClass() const
+FDerivedDataBackendInterface::ESpeedClass FMemoryCacheStore::GetSpeedClass() const
 {
 	return ESpeedClass::Local;
 }
 
-bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
+bool FMemoryCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	// See comments on the declaration of bCanBeDisabled variable.
 	if (bCanBeDisabled)
@@ -279,7 +277,7 @@ bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	return Result;
 }
 
-bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
+bool FMemoryCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
 
@@ -295,7 +293,7 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 		FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
 		if (Item)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::GetCachedData);
+			TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::GetCachedData);
 			FReadScopeLock ItemLock(Item->DataLock);
 
 			OutData = Item->Data;
@@ -309,12 +307,12 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	return false;
 }
 
-TBitArray<> FMemoryDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
+TBitArray<> FMemoryCacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return CachedDataProbablyExistsBatch(CacheKeys);
 }
 
-bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
+bool FMemoryCacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
 {
 	if (bDisabled || bMaxSizeExceeded)
 	{
@@ -324,9 +322,9 @@ bool FMemoryDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<con
 	return true;
 }
 
-FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
+FDerivedDataBackendInterface::EPutStatus FMemoryCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::PutCachedData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::PutCachedData);
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 
 	FString Key;
@@ -395,14 +393,14 @@ FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedDat
 	return EPutStatus::Cached;
 }
 
-void FMemoryDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
+void FMemoryCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
 	if (bDisabled || bTransient)
 	{
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::RemoveCachedData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::RemoveCachedData);
 	FString Key(CacheKey);
 	FCacheValue* Item = nullptr;
 	{
@@ -427,9 +425,9 @@ void FMemoryDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTr
 	}
 }
 
-bool FMemoryDerivedDataBackend::SaveCache(const TCHAR* Filename)
+bool FMemoryCacheStore::SaveCache(const TCHAR* Filename)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::SaveCache);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::SaveCache);
 
 	double StartTime = FPlatformTime::Seconds();
 	TUniquePtr<FArchive> SaverArchive(IFileManager::Get().CreateFileWriter(Filename, FILEWRITE_EvenIfReadOnly));
@@ -466,9 +464,9 @@ bool FMemoryDerivedDataBackend::SaveCache(const TCHAR* Filename)
 	return true;
 }
 
-bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
+bool FMemoryCacheStore::LoadCache(const TCHAR* Filename)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryDerivedDataBackend::LoadCache);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::LoadCache);
 
 	double StartTime = FPlatformTime::Seconds();
 	const int64 FileSize = IFileManager::Get().FileSize(Filename);
@@ -578,7 +576,7 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 	return true;
 }
 
-void FMemoryDerivedDataBackend::Disable()
+void FMemoryCacheStore::Disable()
 {
 	check(bCanBeDisabled || bShuttingDown);
 	FWriteScopeLock ScopeLock(SynchronizationObject);
@@ -592,7 +590,7 @@ void FMemoryDerivedDataBackend::Disable()
 	CurrentCacheSize = SerializationSpecificDataSize;
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FMemoryDerivedDataBackend::GatherUsageStats() const
+TSharedRef<FDerivedDataCacheStatsNode> FMemoryCacheStore::GatherUsageStats() const
 {
 	TSharedRef<FDerivedDataCacheStatsNode> Usage =
 		MakeShared<FDerivedDataCacheStatsNode>(CacheFilename.IsEmpty() ? TEXT("Memory") : TEXT("Boot"), CacheFilename, /*bIsLocal*/ true);
@@ -600,13 +598,13 @@ TSharedRef<FDerivedDataCacheStatsNode> FMemoryDerivedDataBackend::GatherUsageSta
 	return Usage;
 }
 
-bool FMemoryDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FMemoryCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
-bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
+bool FMemoryCacheStore::ShouldSimulateMiss(const TCHAR* InKey)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -632,7 +630,7 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+bool FMemoryCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
 {
 	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
@@ -656,7 +654,7 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 	return false;
 }
 
-void FMemoryDerivedDataBackend::Put(
+void FMemoryCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
@@ -668,10 +666,7 @@ void FMemoryDerivedDataBackend::Put(
 		EStatus Status = EStatus::Error;
 		ON_SCOPE_EXIT
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Key, Request.UserData, Status});
-			}
+			OnComplete({Request.Name, Key, Request.UserData, Status});
 		};
 
 		if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::StoreLocal))
@@ -729,21 +724,14 @@ void FMemoryDerivedDataBackend::Put(
 	}
 }
 
-void FMemoryDerivedDataBackend::Get(
+void FMemoryCacheStore::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	if (bDisabled)
 	{
-		for (const FCacheGetRequest& Request : Requests)
-		{
-			if (OnComplete)
-			{
-				OnComplete({ Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error });
-			}
-		}
-		return;
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
 	}
 
 	for (const FCacheGetRequest& Request : Requests)
@@ -782,43 +770,35 @@ void FMemoryDerivedDataBackend::Get(
 		if (Record)
 		{
 			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
-			}
+			OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FMemoryDerivedDataBackend::PutValue(
+void FMemoryCacheStore::PutValue(
 	const TConstArrayView<FCachePutValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCachePutValueComplete&& OnComplete)
 {
 	for (const FCachePutValueRequest& Request : Requests)
 	{
-		const FValue& Value = Request.Value;
-		const FCacheKey& Key = Request.Key;
 		EStatus Status = EStatus::Error;
 		ON_SCOPE_EXIT
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Key, Request.UserData, Status});
-			}
+			OnComplete(Request.MakeResponse(Status));
 		};
 
 		if (!EnumHasAnyFlags(Request.Policy, ECachePolicy::StoreLocal))
 		{
 			continue;
 		}
+
+		const FCacheKey& Key = Request.Key;
+		const FValue& Value = Request.Value;
 
 		if (ShouldSimulateMiss(Key))
 		{
@@ -827,7 +807,7 @@ void FMemoryDerivedDataBackend::PutValue(
 			continue;
 		}
 
-		if (!Request.Value.HasData())
+		if (!Value.HasData())
 		{
 			continue;
 		}
@@ -868,15 +848,14 @@ void FMemoryDerivedDataBackend::PutValue(
 	}
 }
 
-void FMemoryDerivedDataBackend::GetValue(
+void FMemoryCacheStore::GetValue(
 	const TConstArrayView<FCacheGetValueRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetValueComplete&& OnComplete)
 {
 	if (bDisabled)
 	{
-		CompleteWithStatus(Requests, OnComplete, EStatus::Error);
-		return;
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
 	}
 
 	for (const FCacheGetValueRequest& Request : Requests)
@@ -908,26 +887,26 @@ void FMemoryDerivedDataBackend::GetValue(
 			}
 
 			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			if (OnComplete)
-			{
-				OnComplete({ Request.Name, Request.Key, EnumHasAnyFlags(Policy, ECachePolicy::SkipData) ? Value.RemoveData() : Value, Request.UserData, Status });
-			}
+			Value = EnumHasAnyFlags(Policy, ECachePolicy::SkipData) ? Value.RemoveData() : Value;
+			OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({ Request.Name, Request.Key, {}, Request.UserData, EStatus::Error });
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-void FMemoryDerivedDataBackend::GetChunks(
+void FMemoryCacheStore::GetChunks(
 	const TConstArrayView<FCacheGetChunkRequest> Requests,
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
 {
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
 	bool bHasValue = false;
 	FValue Value;
 	FValueId ValueId;
@@ -986,32 +965,25 @@ void FMemoryDerivedDataBackend::GetChunks(
 		{
 			const uint64 RawSize = FMath::Min(Value.GetRawSize() - Request.RawOffset, Request.RawSize);
 			COOK_STAT(Timer.AddHit(RawSize));
-			if (OnComplete)
+			FSharedBuffer Buffer;
+			if (Value.HasData() && !bExistsOnly)
 			{
-				FSharedBuffer Buffer;
-				if (Value.HasData() && !bExistsOnly)
-				{
-					Buffer = Reader.Decompress(Request.RawOffset, RawSize);
-				}
-				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
-				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, Status});
+				Buffer = Reader.Decompress(Request.RawOffset, RawSize);
 			}
+			const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+				RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, Status});
 		}
 		else
 		{
-			if (OnComplete)
-			{
-				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					0, {}, {}, Request.UserData, EStatus::Error});
-			}
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 	}
 }
 
-FFileBackedDerivedDataBackend* CreateMemoryDerivedDataBackend(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled)
+FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled)
 {
-	return new FMemoryDerivedDataBackend(Name, MaxCacheSize, bCanBeDisabled);
+	return new FMemoryCacheStore(Name, MaxCacheSize, bCanBeDisabled);
 }
 
-} // UE::DerivedData::CacheStore::Memory
+} // UE::DerivedData

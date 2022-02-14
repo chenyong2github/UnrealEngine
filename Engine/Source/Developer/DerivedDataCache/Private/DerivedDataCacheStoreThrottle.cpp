@@ -50,10 +50,7 @@ public:
 			{
 				const FRecordSize* Size = Algo::FindBy(RecordSizes, Response.Key, &FRecordSize::Key);
 				CloseThrottlingScope(State, FThrottlingState(this, Size ? Size->Size : 0));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -66,10 +63,7 @@ public:
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Private::GetCacheRecordCompressedSize(Response.Record)));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -95,10 +89,7 @@ public:
 			{
 				const FValueSize* Size = Algo::FindBy(ValueSizes, Response.Key, &FValueSize::Key);
 				CloseThrottlingScope(State, FThrottlingState(this, Size ? Size->Size : 0));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -111,10 +102,7 @@ public:
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetValueResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Response.Value.GetData().GetCompressedSize()));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -127,10 +115,7 @@ public:
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetChunkResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Response.RawData.GetSize()));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 
 	}
@@ -157,10 +142,7 @@ public:
 			{
 				const FValueSize* Size = Algo::FindBy(ValueSizes, Response.Key.GetKey(), &FValueSize::Key);
 				CloseThrottlingScope(State, FThrottlingState(this, Size ? Size->Size : 0));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -173,10 +155,7 @@ public:
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCacheGetResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Response.Value.GetRawSize()));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 
@@ -189,10 +168,7 @@ public:
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FLegacyCacheDeleteResponse&& Response)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, 0));
-				if (OnComplete)
-				{
-					OnComplete(MoveTemp(Response));
-				}
+				OnComplete(MoveTemp(Response));
 			});
 	}
 

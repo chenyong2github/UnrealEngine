@@ -210,7 +210,7 @@ public:
 	 */
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
 
-	virtual EBackendLegacyMode GetLegacyMode() const { return EBackendLegacyMode::LegacyOnly; }
+	virtual EBackendLegacyMode GetLegacyMode() const = 0;
 
 	virtual void LegacyPut(
 		TConstArrayView<FLegacyCachePutRequest> Requests,
