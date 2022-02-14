@@ -1184,6 +1184,26 @@ FTransform ALandscapeProxy::LandscapeActorToWorld() const
 	return TM;
 }
 
+TArray<float> ALandscapeProxy::GetLODScreenSizeArray() const
+{
+	static TConsoleVariableData<float>* CVarSMLODDistanceScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.StaticMeshLODDistanceScale"));
+	static IConsoleVariable* CVarLSLOD0DistributionScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LandscapeLOD0DistributionScale"));
+	float CurrentScreenSize = LOD0ScreenSize / CVarSMLODDistanceScale->GetValueOnGameThread();
+	const float ScreenSizeMult = 1.f / FMath::Max(LOD0DistributionSetting * CVarLSLOD0DistributionScale->GetFloat(), 1.01f);
+	
+	const int32 NumLODLevels = FMath::Clamp<int32>(MaxLODLevel, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
+	
+	TArray<float> Result;
+	Result.Empty(NumLODLevels);
+	for (int32 Idx = 0; Idx < NumLODLevels; ++Idx)
+	{
+		Result.Add(CurrentScreenSize);
+		CurrentScreenSize *= ScreenSizeMult;
+	}
+	return Result;
+}
+
+
 ALandscape* ULandscapeComponent::GetLandscapeActor() const
 {
 	ALandscapeProxy* Landscape = GetLandscapeProxy();
@@ -4458,19 +4478,7 @@ bool ULandscapeLODStreamingProxy::StreamIn(int32 NewMipCount, bool bHighPrio)
 TArray<float> ULandscapeLODStreamingProxy::GetLODScreenSizeArray() const
 {
 	check(LandscapeComponent);
-	static TConsoleVariableData<float>* CVarSMLODDistanceScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.StaticMeshLODDistanceScale"));
-	static IConsoleVariable* CVarLSLOD0DistributionScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.LandscapeLOD0DistributionScale"));
-	float CurrentScreenSize = LandscapeComponent->GetLandscapeProxy()->LOD0ScreenSize / CVarSMLODDistanceScale->GetValueOnGameThread();
-	const float ScreenSizeMult = 1.f / FMath::Max(LandscapeComponent->GetLandscapeProxy()->LOD0DistributionSetting * CVarLSLOD0DistributionScale->GetFloat(), 1.01f);
-	const int32 NumLODs = CachedSRRState.MaxNumLODs;
-	TArray<float> Result;
-	Result.Empty(NumLODs);
-	for (int32 Idx = 0; Idx < NumLODs; ++Idx)
-	{
-		Result.Add(CurrentScreenSize);
-		CurrentScreenSize *= ScreenSizeMult;
-	}
-	return Result;
+	return LandscapeComponent->GetLandscapeProxy()->GetLODScreenSizeArray();
 }
 
 TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> ULandscapeLODStreamingProxy::GetRenderData() const

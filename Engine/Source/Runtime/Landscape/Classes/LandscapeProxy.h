@@ -937,6 +937,9 @@ public:
 	// ILandscapeSplineInterface
 	LANDSCAPE_API virtual ULandscapeSplinesComponent* GetSplinesComponent() const override { return SplineComponent; }
 
+	// Retrieve the screen size at which each LOD should be rendered
+	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
+
 #if WITH_EDITOR
 	LANDSCAPE_API void SetSplinesComponent(ULandscapeSplinesComponent* InSplineComponent) { check(!SplineComponent); SplineComponent = InSplineComponent; }
 

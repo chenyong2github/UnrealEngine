@@ -8730,16 +8730,16 @@ FLandscapeLayer* ALandscape::GetLandscapeSplinesReservedLayer()
 
 LANDSCAPE_API extern bool GDisableUpdateLandscapeMaterialInstances;
 
-uint32 ULandscapeComponent::ComputeLayerHash() const
+uint32 ULandscapeComponent::ComputeLayerHash(bool InReturnEditingHash) const
 {
-	UTexture2D* Heightmap = GetHeightmap(true);
+	UTexture2D* Heightmap = GetHeightmap(InReturnEditingHash);
 	const uint8* MipData = Heightmap->Source.LockMipReadOnly(0);
 	uint32 Hash = FCrc::MemCrc32(MipData, Heightmap->GetSizeX() * Heightmap->GetSizeY() * sizeof(FColor));
 	Heightmap->Source.UnlockMip(0);
 
 	// Copy to sort
-	const TArray<UTexture2D*>& Weightmaps = GetWeightmapTextures(true);
-	TArray<FWeightmapLayerAllocationInfo> AllocationInfos = GetWeightmapLayerAllocations(true);
+	const TArray<UTexture2D*>& Weightmaps = GetWeightmapTextures(InReturnEditingHash);
+	TArray<FWeightmapLayerAllocationInfo> AllocationInfos = GetWeightmapLayerAllocations(InReturnEditingHash);
 
 	// Sort allocations infos by LayerInfo Path so the Weightmaps hahses get ordered properly
 	AllocationInfos.Sort([](const FWeightmapLayerAllocationInfo& A, const FWeightmapLayerAllocationInfo& B)

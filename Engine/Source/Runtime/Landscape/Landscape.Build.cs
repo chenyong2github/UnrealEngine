@@ -64,9 +64,10 @@ public class Landscape : ModuleRules
 				new string[] {
 					"EditorFramework",
 					"UnrealEd",
-					"MaterialUtilities", 
+					"MaterialUtilities",
 					"SlateCore",
 					"Slate",
+					"GeometryCore"
 				}
 			);
 

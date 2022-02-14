@@ -36,7 +36,6 @@ struct FEngineShowFlags;
 struct FLandscapeEditDataInterface;
 struct FLandscapeTextureDataInfo;
 struct FStaticLightingPrimitiveInfo;
-struct FMeshDescription;
 struct FLandscapeEditDataInterface;
 struct FLandscapeMobileRenderData;
 
@@ -759,7 +758,7 @@ public:
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
 
 #if WITH_EDITOR
-	LANDSCAPE_API uint32 ComputeLayerHash() const;
+	LANDSCAPE_API uint32 ComputeLayerHash(bool InReturnEditingHash = true) const;
 
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
 
@@ -819,6 +818,7 @@ public:
 	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
 #endif
 	virtual void PropagateLightingScenarioChange() override;
+	virtual bool IsHLODRelevant() const { return true; }
 	//~ End UActorComponent Interface.
 
 	/** Gets the landscape info object for this landscape */
@@ -865,8 +865,7 @@ public:
 	/** Generate mobile data if it's missing or outdated */
 	void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
-	LANDSCAPE_API void ExportToMeshDescription(const int32 InExportLOD, FMeshDescription& OutMesh);
-	LANDSCAPE_API void ExportToMeshDescription(const int32 InExportLOD, const FBoxSphereBounds& InBounds, FMeshDescription& OutMesh);
+	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
 #endif
 
 	LANDSCAPE_API int32 GetMaterialInstanceCount(bool InDynamic = true) const;
