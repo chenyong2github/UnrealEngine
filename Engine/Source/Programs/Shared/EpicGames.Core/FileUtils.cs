@@ -86,11 +86,14 @@ namespace EpicGames.Core
 		public static FileInfo FindCorrectCase(FileInfo Info)
 		{
 			DirectoryInfo ParentInfo = DirectoryUtils.FindCorrectCase(Info.Directory);
-			foreach (FileInfo ChildInfo in ParentInfo.EnumerateFiles())
+			if (Info.Exists)
 			{
-				if (String.Equals(ChildInfo.Name, Info.Name, FileReference.Comparison))
+				foreach (FileInfo ChildInfo in ParentInfo.EnumerateFiles())
 				{
-					return ChildInfo;
+					if (String.Equals(ChildInfo.Name, Info.Name, FileReference.Comparison))
+					{
+						return ChildInfo;
+					}
 				}
 			}
 			return new FileInfo(Path.Combine(ParentInfo.FullName, Info.Name));
