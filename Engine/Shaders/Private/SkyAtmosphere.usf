@@ -490,11 +490,11 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	const float3 wi = Light0Dir;
 	const float3 wo = WorldDir;
 	float cosTheta = dot(wi, wo);
-	float MiePhaseValueLight0 = HgPhase(Atmosphere.MiePhaseG, -cosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
+	float MiePhaseValueLight0 = HenyeyGreensteinPhase(Atmosphere.MiePhaseG, -cosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
 	float RayleighPhaseValueLight0 = RayleighPhase(cosTheta);
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 	cosTheta = dot(Light1Dir, wo);
-	float MiePhaseValueLight1 = HgPhase(Atmosphere.MiePhaseG, -cosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
+	float MiePhaseValueLight1 = HenyeyGreensteinPhase(Atmosphere.MiePhaseG, -cosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
 	float RayleighPhaseValueLight1 = RayleighPhase(cosTheta);
 #endif
 

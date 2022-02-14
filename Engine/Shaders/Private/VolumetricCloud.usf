@@ -277,8 +277,8 @@ float SamplePhaseFunction(in float PhaseCosTheta, in float PhaseG, in float Phas
 	PhaseG = clamp(PhaseG, -0.999f, 0.999f);
 	PhaseG2 = clamp(PhaseG2, -0.999f, 0.999f);
 	PhaseBlend = clamp(PhaseBlend, 0.0f, 1.0f);
-	float MiePhaseValueLight0 = HgPhase(PhaseG, -PhaseCosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
-	float MiePhaseValueLight1 = HgPhase(PhaseG2, -PhaseCosTheta);
+	float MiePhaseValueLight0 = HenyeyGreensteinPhase(PhaseG, -PhaseCosTheta);	// negate cosTheta because due to WorldDir being a "in" direction. 
+	float MiePhaseValueLight1 = HenyeyGreensteinPhase(PhaseG2, -PhaseCosTheta);
 	const float Phase = MiePhaseValueLight0 + PhaseBlend * (MiePhaseValueLight1 - MiePhaseValueLight0);
 	return Phase;
 }

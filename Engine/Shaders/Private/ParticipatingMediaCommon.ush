@@ -83,12 +83,17 @@ float IsotropicPhase()
 // Follows PBRT convention http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html#PhaseHG
 float HenyeyGreensteinPhase(float G, float CosTheta)
 {
-	return (1.0f - G * G) / (4.0f * PI * pow(1.0f + G * G + 2.0f * G * CosTheta, 1.5f));
+	// Reference implementation (i.e. not schlick approximation). 
+	// See http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html
+	float Numer = 1.0f - G * G;
+	float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
+	return Numer / (4.0f * PI * Denom * sqrt(Denom));
 }
 
-float RaleighPhase(float CosTheta)
+float RayleighPhase(float CosTheta)
 {
-	return 3.0f * (1.0f + CosTheta * CosTheta) / (16.0f * PI);
+	float Factor = 3.0f / (16.0f * PI);
+	return Factor * (1.0f + CosTheta * CosTheta);
 }
 
 // Schlick phase function approximating henyey-greenstein
