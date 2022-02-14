@@ -70,10 +70,11 @@ void MainCS(
 
 	float4 Debug = 0.0;
 	
-	tsr_short2 InputPixelPos = (
-		tsr_short2(InputPixelPosMin) +
+	tsr_short2 DispatchThreadId = (
 		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
 		Map16x16Tile2x2Lane(GroupThreadIndex));
+		
+	tsr_short2 InputPixelPos = tsr_short2(InputPixelPosMin) + DispatchThreadId;
 
 	// Fetch center of the kernel
 	tsr_halfC CenterInput;

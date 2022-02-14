@@ -105,9 +105,11 @@ void MainCS(
 {
 	float4 Debug = 0;
 	
-	tsr_short2 InputPixelPos = tsr_short2(
+	tsr_short2 DispatchThreadId = tsr_short2(
 		ZOrder2D(GroupThreadIndex, uint(log2(float(TILE_SIZE)))) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
+		
+	tsr_short2 InputPixelPos = tsr_short2(InputInfo_ViewportMin) + DispatchThreadId;
 
 	float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
 	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];

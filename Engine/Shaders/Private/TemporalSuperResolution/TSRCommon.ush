@@ -62,7 +62,7 @@
 	// COMPRESS_PREV_USE_COUNT compress the use count in 8bit, so need to sum of a 2x2 to not overflow these 8bits
 	#define PREV_USE_COUNT_QUANTIZATION 63
 #else
-	#define PREV_USE_COUNT_QUANTIZATION 256
+	#define PREV_USE_COUNT_QUANTIZATION 255
 #endif
 
 #define PARALLAX_REJECTION_MASK_THRESHOLD 0.5
@@ -1057,8 +1057,10 @@ void ComputeCompressedUseCountPixelCoordinates(uint2 PixelPos, out uint2 Compres
 	// Overlap 2x2 consecutive blocks of 8x8 pixel to reduce atomic contention in the scattering pass
 	const uint kTileSize = 8;
 
-	CompressedUseCountPixelPos = (PixelPos % kTileSize) | ((PixelPos >> 1) & ~(kTileSize - 1));
-	Shift = ((PixelPos.x / kTileSize) % 2) | (((PixelPos.y / kTileSize) % 2) << 1);
+	uint2 PixelPosOffset = PixelPos - InputInfo_ViewportMin;
+
+	CompressedUseCountPixelPos = ((PixelPosOffset % kTileSize) | ((PixelPosOffset >> 1) & ~(kTileSize - 1))) + InputInfo_ViewportMin;
+	Shift = ((PixelPosOffset.x / kTileSize) % 2) | (((PixelPosOffset.y / kTileSize) % 2) << 1);
 }
 	
 #endif

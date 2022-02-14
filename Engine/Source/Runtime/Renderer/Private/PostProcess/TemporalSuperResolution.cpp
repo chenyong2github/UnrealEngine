@@ -621,7 +621,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FIntRect InputRect = View.ViewRect;
 
 	FIntPoint LowFrequencyExtent = InputExtent;
-	FIntRect LowFrequencyRect = FIntRect(FIntPoint(0, 0), InputRect.Size());
+	FIntRect LowFrequencyRect = InputRect;
 
 	if (bHalfResLowFrequency)
 	{
@@ -705,7 +705,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			InputExtent, InputRect));
 		CommonParameters.InputPixelPosMin = CommonParameters.InputInfo.ViewportMin;
 		CommonParameters.InputPixelPosMax = CommonParameters.InputInfo.ViewportMax - 1;
-		CommonParameters.InputPixelPosToScreenPos = (FScreenTransform::Identity + 0.5) * CommonParameters.InputInfo.ViewportSizeInverse * FScreenTransform::ViewportUVToScreenPos;
+		CommonParameters.InputPixelPosToScreenPos = (FScreenTransform::Identity + 0.5f) * FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(
+			InputExtent, InputRect), FScreenTransform::ETextureBasis::TexelPosition, FScreenTransform::ETextureBasis::ScreenPosition);
 		CommonParameters.ScreenVelocityToInputPixelVelocity = (FScreenTransform::Identity / CommonParameters.InputPixelPosToScreenPos).Scale;
 		CommonParameters.InputPixelVelocityToScreenVelocity = CommonParameters.InputPixelPosToScreenPos.Scale.GetAbs();
 
@@ -1297,7 +1298,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	if (PostFilter != ERejectionPostFilter::Disabled)
 	{
 		bool bOutputHalfRes = PostFilter == ERejectionPostFilter::PreRejectionDownsample;
-		FIntRect Rect = bOutputHalfRes ? LowFrequencyRect : RejectionRect;
+		FIntRect Rect = bOutputHalfRes ? FIntRect(FIntPoint(0, 0), LowFrequencyRect.Size()) : RejectionRect;
 
 		FRDGTextureRef FilteredHistoryRejectionTexture;
 		{
