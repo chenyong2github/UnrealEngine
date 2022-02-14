@@ -48,6 +48,7 @@
 #include "MeshTexturePaintingTool.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
+#include "InterchangeGenericMeshPipeline.h"
 
 
 void UMeshPaintModeSubsystem::SetViewportColorMode(EMeshPaintDataColorViewMode ColorViewMode, FEditorViewportClient* ViewportClient)
@@ -321,11 +322,11 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Sk
 			{
 				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
 				{
-					if (GenericAssetPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
+					if (GenericAssetPipeline->MeshPipeline && GenericAssetPipeline->MeshPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{
 						InterchangeAssetImportData->SetFlags(RF_Transactional);
 						InterchangeAssetImportData->Modify();
-						GenericAssetPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
+						GenericAssetPipeline->MeshPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
 					}
 				}
 			}

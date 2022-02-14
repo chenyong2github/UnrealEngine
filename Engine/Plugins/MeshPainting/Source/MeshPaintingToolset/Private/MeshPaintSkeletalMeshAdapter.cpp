@@ -11,6 +11,7 @@
 #include "IndexTypes.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeGenericAssetsPipeline.h"
+#include "InterchangeGenericMeshPipeline.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshPaintSkeletalMeshAdapter, Log, All);
 //////////////////////////////////////////////////////////////////////////
@@ -370,11 +371,11 @@ void FMeshPaintSkeletalMeshComponentAdapter::PreEdit()
 			{
 				if (UInterchangeGenericAssetsPipeline* GenericAssetPipeline = Cast<UInterchangeGenericAssetsPipeline>(PipelineBase.Get()))
 				{
-					if (GenericAssetPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
+					if (GenericAssetPipeline->MeshPipeline && GenericAssetPipeline->MeshPipeline->VertexColorImportOption != EInterchangeVertexColorImportOption::IVCIO_Ignore)
 					{
 						GenericAssetPipeline->SetFlags(RF_Transactional);
 						GenericAssetPipeline->Modify();
-						GenericAssetPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
+						GenericAssetPipeline->MeshPipeline->VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Ignore;
 					}
 				}
 			}

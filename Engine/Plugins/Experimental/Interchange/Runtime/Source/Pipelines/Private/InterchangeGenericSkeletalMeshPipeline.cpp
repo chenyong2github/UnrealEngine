@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
-#include "InterchangeGenericAssetsPipeline.h"
+#include "InterchangeGenericMeshPipeline.h"
 
 #include "Animation/Skeleton.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -240,7 +240,7 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 	}
 }
 
-void UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
+void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 {
 	if (!bImportSkeletalMeshes)
 	{
@@ -416,7 +416,7 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 }
 
 
-UInterchangeSkeletonFactoryNode* UInterchangeGenericAssetsPipeline::CreateSkeletonFactoryNode(const FString& RootJointUid)
+UInterchangeSkeletonFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletonFactoryNode(const FString& RootJointUid)
 {
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
 	if (!RootJointNode)
@@ -466,7 +466,7 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericAssetsPipeline::CreateSkelet
 	return SkeletonFactoryNode;
 }
 
-UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericAssetsPipeline::CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
+UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex)
 {
 	//Get the skeleton factory node
 	const UInterchangeBaseNode* RootJointNode = BaseNodeContainer->GetNode(RootJointUid);
@@ -631,7 +631,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericAssetsPipeline::CreateSk
 	return SkeletalMeshFactoryNode;
 }
 
-UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericAssetsPipeline::CreateSkeletalMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID)
+UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericMeshPipeline::CreateSkeletalMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID)
 {
 	FString DisplayLabel(NodeName);
 	FString NodeUID(NodeUniqueID);
@@ -647,7 +647,7 @@ UInterchangeSkeletalMeshLodDataNode* UInterchangeGenericAssetsPipeline::CreateSk
 	return SkeletalMeshLodDataNode;
 }
 
-void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
+void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex)
 {
 	const FString SkeletalMeshUid = SkeletalMeshFactoryNode->GetUniqueID();
 	const FString SkeletonUid = SkeletonFactoryNode->GetUniqueID();
@@ -727,7 +727,7 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 	}
 }
 
-void UInterchangeGenericAssetsPipeline::PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node)
+void UInterchangeGenericMeshPipeline::PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node)
 {
 	if (!BaseNodeContainer)
 	{
@@ -747,7 +747,7 @@ void UInterchangeGenericAssetsPipeline::PostImportSkeletalMesh(UObject* CreatedA
 	}
 }
 
-void UInterchangeGenericAssetsPipeline::PostImportPhysicsAssetImport(UObject* CreatedAsset, UInterchangeBaseNode* Node)
+void UInterchangeGenericMeshPipeline::PostImportPhysicsAssetImport(UObject* CreatedAsset, UInterchangeBaseNode* Node)
 {
 #if WITH_EDITOR
 	if (!bCreatePhysicsAsset || !BaseNodeContainer)
@@ -801,7 +801,7 @@ void UInterchangeGenericAssetsPipeline::PostImportPhysicsAssetImport(UObject* Cr
 #endif //WITH_EDITOR
 }
 
-void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount)
+void UInterchangeGenericMeshPipeline::ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount, const bool bUseSourceNameForAsset)
 {
 	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
 	TArray<FString> SkeletalMeshNodeUids;
