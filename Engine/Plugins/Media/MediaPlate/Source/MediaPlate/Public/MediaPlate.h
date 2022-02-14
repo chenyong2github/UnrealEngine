@@ -10,6 +10,7 @@ class UMediaComponent;
 class UMediaPlayer;
 class UMediaSource;
 class UMediaTexture;
+struct FMediaTextureTrackerObject;
 
 /**
  * MediaPlate is an actor that can play and show media in the world.
@@ -23,6 +24,7 @@ public:
 	//~ Begin AActor Interface
 	virtual void PostRegisterAllComponents() override;
 	virtual void BeginPlay() override;
+	virtual void BeginDestroy() override;
 	//~ End AActor Interface
 
 	/**
@@ -30,6 +32,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
 	UMediaPlayer* GetMediaPlayer();
+
+	/**
+	 * Call this get our media texture.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	UMediaTexture* GetMediaTexture();
 
 	/**
 	 * Call this to start playing.
@@ -65,4 +73,16 @@ private:
 	static FLazyName MediaComponentName;
 	/** Name for the media texture parameter in the material. */
 	static FLazyName MediaTextureName;
+
+	/** Info representing this object. */
+	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
+
+	/**
+	 * Adds our media texture to the media texture tracker.
+	 */
+	void RegisterWithMediaTextureTracker();
+	/**
+	 * Removes our texture from the media texture tracker.
+	 */
+	void UnregisterWithMediaTextureTracker();
 };

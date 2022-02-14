@@ -9,6 +9,7 @@
 #include "MediaPlayer.h"
 #include "MediaPlateModule.h"
 #include "MediaTexture.h"
+#include "MediaTextureTracker.h"
 #include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MediaPlate"
@@ -81,6 +82,9 @@ void AMediaPlate::PostRegisterAllComponents()
 			}
 		}
 	}
+
+	// Add our media texture to the tracker.
+	RegisterWithMediaTextureTracker();
 }
 
 void AMediaPlate::BeginPlay()
@@ -93,6 +97,14 @@ void AMediaPlate::BeginPlay()
 	}
 }
 
+void AMediaPlate::BeginDestroy()
+{
+	// Remove our media texture.
+	UnregisterWithMediaTextureTracker();
+	
+	Super::BeginDestroy();
+}
+
 UMediaPlayer* AMediaPlate::GetMediaPlayer()
 {
 	TObjectPtr<UMediaPlayer> MediaPlayer = nullptr;
@@ -102,6 +114,17 @@ UMediaPlayer* AMediaPlate::GetMediaPlayer()
 	}
 
 	return MediaPlayer;
+}
+
+UMediaTexture* AMediaPlate::GetMediaTexture()
+{
+	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
+	if (MediaComponent != nullptr)
+	{
+		MediaTexture = MediaComponent->GetMediaTexture();
+	}
+
+	return MediaTexture;
 }
 
 void AMediaPlate::Play()
@@ -120,6 +143,33 @@ void AMediaPlate::Stop()
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->Close();
+	}
+}
+
+void AMediaPlate::RegisterWithMediaTextureTracker()
+{
+	// Set up object.
+	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
+	MediaTextureTrackerObject->Object = this;
+	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
+
+	// Add our texture.
+	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
+	if (MediaTexture != nullptr)
+	{
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+		MediaTextureTracker.RegisterTexture(MediaTextureTrackerObject, MediaTexture);
+	}
+}
+
+void AMediaPlate::UnregisterWithMediaTextureTracker()
+{
+	// Remove out texture.
+	if (MediaTextureTrackerObject != nullptr)
+	{
+		FMediaTextureTracker& MediaTextureTracker = FMediaTextureTracker::Get();
+		TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
+		MediaTextureTracker.UnregisterTexture(MediaTextureTrackerObject, MediaTexture);
 	}
 }
 
