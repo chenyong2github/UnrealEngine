@@ -783,11 +783,16 @@ namespace UnrealGameSync
 
 							Item.SubItems.Add(Change.Number.ToString());
 
-							DateTime DisplayTime = Change.Time;
-							if (ServerTimeOffset.HasValue)
+							DateTime DisplayTime;
+							if (!ServerTimeOffset.HasValue)
 							{
-								DisplayTime = (DisplayTime - ServerTimeOffset.Value).ToLocalTime();
+								DisplayTime = Change.Time.ToLocalTime();
 							}
+							else
+							{
+								DisplayTime = new DateTime(Change.Time.Ticks + ServerTimeOffset.Value.Ticks, DateTimeKind.Local);
+							}
+
 							Item.SubItems.Add(DisplayTime.ToString("h\\.mmtt"));
 
 							Item.SubItems.Add(WorkspaceControl.FormatUserName(Change.User));

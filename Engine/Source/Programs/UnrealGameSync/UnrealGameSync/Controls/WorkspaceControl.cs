@@ -1323,10 +1323,14 @@ namespace UnrealGameSync
 		void BuildList_AddItem(ChangesRecord Change)
 		{
 			// Get the display time for this item
-			DateTime DisplayTime = Change.Time;
+			DateTime DisplayTime;
 			if (Settings.bShowLocalTimes)
 			{
-				DisplayTime = (DisplayTime - PerforceMonitor.ServerTimeZone).ToLocalTime();
+				DisplayTime = Change.Time.ToLocalTime();
+			}
+			else
+			{
+				DisplayTime = new DateTime(Change.Time.Ticks + PerforceMonitor.ServerTimeZone.Ticks, DateTimeKind.Local);
 			}
 
 			// Find or add the new group
