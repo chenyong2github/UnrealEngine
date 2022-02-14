@@ -688,9 +688,10 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 
 	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
 	class FIsPostPass : SHADER_PERMUTATION_BOOL("IS_POST_PASS");
+	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("RASTER_BIN_PASS", NANITE_RASTER_BIN_CLASSIFY_SW, NANITE_RASTER_BIN_CLASSIFY_HW, NANITE_RASTER_BIN_SCATTER_SW, NANITE_RASTER_BIN_SCATTER_HW);
 
-	using FPermutationDomain = TShaderPermutationDomain<FHasPrevDrawData, FIsPostPass, FBuildPassDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FHasPrevDrawData, FIsPostPass, FVirtualTextureTargetDim, FBuildPassDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
@@ -1885,6 +1886,7 @@ static void AddPass_Binning(
 	FRDGBufferRef TotalPrevDrawClustersBuffer,
 	const FGPUSceneParameters& GPUSceneParameters,
 	bool bMainPass,
+	bool bVirtualTextureTarget,
 	FBinningData& BinningData
 )
 {
@@ -1937,6 +1939,7 @@ static void AddPass_Binning(
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY_SW);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
@@ -1956,6 +1959,7 @@ static void AddPass_Binning(
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_CLASSIFY_HW);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
@@ -2000,6 +2004,7 @@ static void AddPass_Binning(
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER_SW);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
@@ -2021,6 +2026,7 @@ static void AddPass_Binning(
 		FRasterBinBuild_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterBinBuild_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FRasterBinBuild_CS::FIsPostPass>(!bMainPass);
+		PermutationVector.Set<FRasterBinBuild_CS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
 		PermutationVector.Set<FRasterBinBuild_CS::FBuildPassDim>(NANITE_RASTER_BIN_SCATTER_HW);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinBuild_CS>(PermutationVector);
@@ -2082,6 +2088,7 @@ void AddPass_Rasterize(
 		TotalPrevDrawClustersBuffer,
 		GPUSceneParameters,
 		bMainPass,
+		VirtualShadowMapArray != nullptr,
 		BinningData
 	);
 

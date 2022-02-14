@@ -174,7 +174,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 		VisibleClusterIndex = (MaxVisibleClusters - 1) - VisibleClusterIndex; // HW clusters are written from the top
 	#endif
 
-		FVisibleCluster VisibleCluster		= GetVisibleCluster(VisibleClusterIndex);
+		FVisibleCluster VisibleCluster		= GetVisibleCluster(VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET);
 		FInstanceSceneData InstanceData		= GetInstanceSceneData(VisibleCluster, false);
 		FCluster Cluster					= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
