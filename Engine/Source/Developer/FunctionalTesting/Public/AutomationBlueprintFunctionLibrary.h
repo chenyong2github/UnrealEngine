@@ -189,6 +189,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (HidePin = "WorldContextObject", DefaultToSelf = "WorldContextObject"))
 	static void SetScalabilityQualityToLow(UObject* WorldContextObject);
+
+	/** Sets all viewports of the first found level editor to have the given ViewMode (Lit/Unlit/etc.) **/
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	static void SetEditorViewportViewMode(EViewModeIndex Index);
+
+	/** Sets all viewports of the first found level editor to have the VisualizeBuffer ViewMode and also display a given buffer (BaseColor/Metallic/Roughness/etc.) **/
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	static void SetEditorViewportVisualizeBuffer(FName BufferName);
 };
 
 #if WITH_AUTOMATION_TESTS
