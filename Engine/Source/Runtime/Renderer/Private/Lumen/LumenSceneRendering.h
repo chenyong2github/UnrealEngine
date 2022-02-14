@@ -48,20 +48,20 @@ public:
 	TArray<FNaniteCommandInfo, SceneRenderingAllocator> NaniteCommandInfos;
 	float NaniteLODScaleFactor = 1.0f;
 
-	bool bCardWasAllocated = false;
+	bool bResampleLastLighting = false;
 
 	// Non-Nanite mesh inclusive instance ranges to draw
 	TArray<uint32, SceneRenderingAllocator> InstanceRuns;
 
 	FCardPageRenderData(const FViewInfo& InMainView,
-		FLumenCard& InCardData,
+		const FLumenCard& InLumenCard,
 		FVector4f InCardUVRect,
 		FIntRect InCardCaptureAtlasRect,
 		FIntRect InSurfaceCacheAtlasRect,
 		int32 InPrimitiveGroupIndex,
 		int32 InCardIndex,
 		int32 InCardPageIndex,
-		bool bInCardWasAllocated);
+		bool bResampleLastLighting);
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 
@@ -71,6 +71,7 @@ public:
 struct FResampledCardCaptureAtlas
 {
 	FIntPoint Size;
+	FRDGTextureRef DirectLighting = nullptr;
 	FRDGTextureRef IndirectLighting = nullptr;
 	FRDGTextureRef NumFramesAccumulated = nullptr;
 };

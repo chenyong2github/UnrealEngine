@@ -126,18 +126,24 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
-class FCopyRadiosityToAtlasPS : public FGlobalShader
+class FCopyCardCaptureLightingToAtlasPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FCopyRadiosityToAtlasPS);
-	SHADER_USE_PARAMETER_STRUCT(FCopyRadiosityToAtlasPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FCopyCardCaptureLightingToAtlasPS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyCardCaptureLightingToAtlasPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoCardCaptureAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveCardCaptureAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityCardCaptureAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityNumFramesAccumulatedCardCaptureAtlas)
+		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FIndirectLighting : SHADER_PERMUTATION_BOOL("INDIRECT_LIGHTING");
+	class FResample : SHADER_PERMUTATION_BOOL("RESAMPLE");
+	using FPermutationDomain = TShaderPermutationDomain<FIndirectLighting, FResample>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -197,6 +203,7 @@ namespace Lumen
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);
 
+	inline EPixelFormat GetDirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
 	inline EPixelFormat GetIndirectLightingAtlasFormat() { return PF_FloatR11G11B10; }
 	inline EPixelFormat GetNumFramesAccumulatedAtlasFormat() { return PF_R8; }
 };
@@ -211,4 +218,9 @@ namespace LumenSceneDirectLighting
 	float GetHardwareRayTracingShadowRayBias();
 	float GetHeightfieldShadowReceiverBias();
 	bool UseVirtualShadowMaps();
+}
+
+namespace LumenSurfaceCache
+{
+	float GetDiffuseReflectivityOverride();
 }

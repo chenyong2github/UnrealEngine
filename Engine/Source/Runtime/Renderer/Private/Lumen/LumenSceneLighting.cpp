@@ -32,14 +32,6 @@ FAutoConsoleVariableRef CVarLumenSceneLightingFeedback(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneSurfaceCacheDiffuseReflectivityOverride = 0;
-FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
-	TEXT("r.LumenScene.Lighting.DiffuseReflectivityOverride"),
-	GLumenSceneSurfaceCacheDiffuseReflectivityOverride,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenDirectLightingUpdateFactor = 16;
 FAutoConsoleVariableRef CVarLumenSceneDirectLightingUpdateFactor(
 	TEXT("r.LumenScene.DirectLighting.UpdateFactor"),
@@ -117,7 +109,7 @@ void SetLightingUpdateAtlasSize(FIntPoint PhysicalAtlasSize, int32 UpdateFactor,
 }
 
 IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
-IMPLEMENT_GLOBAL_SHADER(FCopyRadiosityToAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CopyRadiosityToAtlasPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FCopyCardCaptureLightingToAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CopyCardCaptureLightingToAtlasPS", SF_Pixel);
 
 bool FRasterizeToCardsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
@@ -150,7 +142,7 @@ class FLumenCardCombineLightingPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardCombineLightingPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CombineLumenSceneLighting", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardCombineLightingPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CombineLumenSceneLightingPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCombineLighting, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
@@ -183,7 +175,7 @@ void Lumen::CombineLumenSceneLighting(
 	PassParameters->PS.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
 	PassParameters->PS.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
 	PassParameters->PS.OpacityAtlas = TracingInputs.OpacityAtlas;
-	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneSurfaceCacheDiffuseReflectivityOverride, 0.0f, 1.0f);
+	PassParameters->PS.DiffuseReflectivityOverride = LumenSurfaceCache::GetDiffuseReflectivityOverride();
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("CombineLighting"),

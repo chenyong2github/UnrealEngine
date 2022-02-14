@@ -779,27 +779,27 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 }
 
 FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
-	FLumenCard& InCardData,
+	const FLumenCard& InLumenCard,
 	FVector4f InCardUVRect,
 	FIntRect InCardCaptureAtlasRect,
 	FIntRect InSurfaceCacheAtlasRect,
 	int32 InPrimitiveGroupIndex,
 	int32 InCardIndex,
 	int32 InPageTableIndex,
-	bool bInCardWasAllocated)
+	bool bInResampleLastLighting)
 	: PrimitiveGroupIndex(InPrimitiveGroupIndex)
 	, CardIndex(InCardIndex)
 	, PageTableIndex(InPageTableIndex)
-	, bDistantScene(InCardData.bDistantScene)
+	, bDistantScene(InLumenCard.bDistantScene)
 	, CardUVRect(InCardUVRect)
 	, CardCaptureAtlasRect(InCardCaptureAtlasRect)
 	, SurfaceCacheAtlasRect(InSurfaceCacheAtlasRect)
-	, CardWorldOBB(InCardData.WorldOBB)
-	, bCardWasAllocated(bInCardWasAllocated)
+	, CardWorldOBB(InLumenCard.WorldOBB)
+	, bResampleLastLighting(bInResampleLastLighting)
 {
 	ensure(CardIndex >= 0 && PageTableIndex >= 0);
 
-	if (InCardData.bDistantScene)
+	if (InLumenCard.bDistantScene)
 	{
 		NaniteLODScaleFactor = Lumen::GetDistanceSceneNaniteLODScaleFactor();
 	}
@@ -1354,7 +1354,7 @@ void ProcessLumenSurfaceCacheRequests(
 					Card.bVisible = true;
 					Card.DesiredLockedResLevel = Request.ResLevel;
 
-					const bool bCardWasAllocated = Card.IsAllocated();
+					const bool bResampleLastLighting = Card.IsAllocated();
 
 					// Free previous MinAllocatedResLevel
 					LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MinAllocatedResLevel);
@@ -1371,7 +1371,7 @@ void ProcessLumenSurfaceCacheRequests(
 					for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
 					{
 						const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
-						const FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
+						FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
 
 						if (!PageTableEntry.IsMapped())
 						{
@@ -1392,7 +1392,7 @@ void ProcessLumenSurfaceCacheRequests(
 								MeshCardsElement.PrimitiveGroupIndex,
 								Request.CardIndex,
 								PageIndex,
-								bCardWasAllocated));
+								bResampleLastLighting));
 
 							LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 						}
@@ -1453,7 +1453,7 @@ void ProcessLumenSurfaceCacheRequests(
 			if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
 			{
 				const bool bLockPages = false;
-				const bool bCardWasAllocated = Card.IsAllocated();
+				const bool bResampleLastLighting = Card.IsAllocated();
 
 				LumenSceneData.ReallocVirtualSurface(Card, VirtualPageIndex.CardIndex, VirtualPageIndex.ResLevel, bLockPages);
 
@@ -1480,7 +1480,7 @@ void ProcessLumenSurfaceCacheRequests(
 						MeshCardsElement.PrimitiveGroupIndex,
 						VirtualPageIndex.CardIndex,
 						PageIndex,
-						bCardWasAllocated));
+						bResampleLastLighting));
 
 					LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 
@@ -1679,13 +1679,21 @@ void AllocateResampledCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint Card
 {
 	CardCaptureAtlas.Size = CardCaptureAtlasSize;
 
+	CardCaptureAtlas.DirectLighting = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			CardCaptureAtlasSize,
+			Lumen::GetDirectLightingAtlasFormat(),
+			FClearValueBinding::Green,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
+		TEXT("Lumen.ResampledCardCaptureDirectLighting"));
+
 	CardCaptureAtlas.IndirectLighting = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
 			CardCaptureAtlasSize,
 			Lumen::GetIndirectLightingAtlasFormat(),
 			FClearValueBinding::Green,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
-		TEXT("Lumen.CardCaptureIndirectLighting"));
+		TEXT("Lumen.ResampledCardCaptureIndirectLighting"));
 
 	CardCaptureAtlas.NumFramesAccumulated = GraphBuilder.CreateTexture(
 		FRDGTextureDesc::Create2D(
@@ -1693,18 +1701,19 @@ void AllocateResampledCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint Card
 			Lumen::GetNumFramesAccumulatedAtlasFormat(),
 			FClearValueBinding::Black,
 			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear),
-		TEXT("Lumen.CardCaptureNumFramesAccumulated"));
+		TEXT("Lumen.ResampledCardCaptureNumFramesAccumulated"));
 }
 
-class FResampleRadiosityHistoryToCardCaptureAtlasPS : public FGlobalShader
+class FResampleLightingHistoryToCardCaptureAtlasPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FResampleRadiosityHistoryToCardCaptureAtlasPS);
-	SHADER_USE_PARAMETER_STRUCT(FResampleRadiosityHistoryToCardCaptureAtlasPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FResampleLightingHistoryToCardCaptureAtlasPS);
+	SHADER_USE_PARAMETER_STRUCT(FResampleLightingHistoryToCardCaptureAtlasPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityNumFramesAccumulatedAtlas)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, NewCardPageResampleData)
@@ -1718,11 +1727,11 @@ class FResampleRadiosityHistoryToCardCaptureAtlasPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FResampleRadiosityHistoryToCardCaptureAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ResampleRadiosityHistoryToCardCaptureAtlasPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FResampleLightingHistoryToCardCaptureAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ResampleLightingHistoryToCardCaptureAtlasPS", SF_Pixel);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FResampleRadiosityHistoryToCardCaptureParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FResampleLightingHistoryToCardCaptureParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FResampleRadiosityHistoryToCardCaptureAtlasPS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FResampleLightingHistoryToCardCaptureAtlasPS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1776,7 +1785,8 @@ void FLumenSceneData::CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderR
 	LastPageTableBufferForResampleSRV = LastPageTableBufferForResample.SRV;
 }
 
-void ResampleRadiosityHistory(
+// Try to resample direct lighting and indirect lighting (radiosity) from existing surface cache to new captured cards
+void ResampleLightingHistory(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FScene* Scene,
@@ -1811,7 +1821,7 @@ void ResampleRadiosityHistory(
 			FUintVector4& CardPageResampleData0 = CardPageResampleDataArray[Index * 2 + 0];
 			FUintVector4& CardPageResampleData1 = CardPageResampleDataArray[Index * 2 + 1];
 
-			CardPageResampleData0.X = CardPageRenderData.bCardWasAllocated ? CardPageRenderData.CardIndex : -1;
+			CardPageResampleData0.X = CardPageRenderData.bResampleLastLighting ? CardPageRenderData.CardIndex : -1;
 			CardPageResampleData1 = FUintVector4(
 				*(const uint32*)&CardPageRenderData.CardUVRect.X,
 				*(const uint32*)&CardPageRenderData.CardUVRect.Y,
@@ -1830,10 +1840,11 @@ void ResampleRadiosityHistory(
 		FRDGBufferSRVRef NewCardPageResampleDataSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(NewCardPageResampleDataBuffer, PF_R32G32B32A32_UINT));
 
 		{
-			FResampleRadiosityHistoryToCardCaptureParameters* PassParameters = GraphBuilder.AllocParameters<FResampleRadiosityHistoryToCardCaptureParameters>();
+			FResampleLightingHistoryToCardCaptureParameters* PassParameters = GraphBuilder.AllocParameters<FResampleLightingHistoryToCardCaptureParameters>();
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(CardCaptureAtlas.IndirectLighting, ERenderTargetLoadAction::ENoAction);
-			PassParameters->RenderTargets[1] = FRenderTargetBinding(CardCaptureAtlas.NumFramesAccumulated, ERenderTargetLoadAction::ENoAction);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(CardCaptureAtlas.DirectLighting, ERenderTargetLoadAction::ENoAction);
+			PassParameters->RenderTargets[1] = FRenderTargetBinding(CardCaptureAtlas.IndirectLighting, ERenderTargetLoadAction::ENoAction);
+			PassParameters->RenderTargets[2] = FRenderTargetBinding(CardCaptureAtlas.NumFramesAccumulated, ERenderTargetLoadAction::ENoAction);
 
 			PassParameters->PS.View = View.ViewUniformBuffer;
 
@@ -1846,17 +1857,18 @@ void ResampleRadiosityHistory(
 			}
 
 			PassParameters->PS.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
+			PassParameters->PS.DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
 			PassParameters->PS.IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
 			PassParameters->PS.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
 			PassParameters->PS.NewCardPageResampleData = NewCardPageResampleDataSRV;
 
-			FResampleRadiosityHistoryToCardCaptureAtlasPS::FPermutationDomain PermutationVector;
-			auto PixelShader = View.ShaderMap->GetShader<FResampleRadiosityHistoryToCardCaptureAtlasPS>(PermutationVector);
+			FResampleLightingHistoryToCardCaptureAtlasPS::FPermutationDomain PermutationVector;
+			auto PixelShader = View.ShaderMap->GetShader<FResampleLightingHistoryToCardCaptureAtlasPS>(PermutationVector);
 
-			FPixelShaderUtils::AddRasterizeToRectsPass<FResampleRadiosityHistoryToCardCaptureAtlasPS>(
+			FPixelShaderUtils::AddRasterizeToRectsPass<FResampleLightingHistoryToCardCaptureAtlasPS>(
 				GraphBuilder,
 				View.ShaderMap,
-				RDG_EVENT_NAME("ResampleRadiosityHistoryToCardCaptureAtlas"),
+				RDG_EVENT_NAME("ResampleLightingHistoryToCardCaptureAtlas"),
 				PixelShader,
 				PassParameters,
 				CardCaptureAtlas.Size,
@@ -1969,7 +1981,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		{
 			// Before we update the GPU page table, read from the persistent atlases for the card pages we are reallocating, and write it to the card capture atlas
 			// This is a resample operation, as the original data may have been at a different mip level, or didn't exist at all
-			ResampleRadiosityHistory(GraphBuilder, View, Scene, CardPagesToRender, LumenSceneData, LumenCardRenderer.ResampledCardCaptureAtlas);
+			ResampleLightingHistory(GraphBuilder, View, Scene, CardPagesToRender, LumenSceneData, LumenCardRenderer.ResampledCardCaptureAtlas);
 		}
 
 		LumenSceneData.UploadPageTable(GraphBuilder);

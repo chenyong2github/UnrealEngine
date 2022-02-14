@@ -131,15 +131,26 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	ResLevelXY.x = (PageTableValue.x >> 24) & 0xF;
 	ResLevelXY.y = (PageTableValue.x >> 28) & 0xF;
 
+	// Mapped page index (sampled page may be pointing to another mip map level)
 	const uint CardPageIndex = PageTableValue.y;
 
-	// Recompute new SizeInPages, as page may be pointing to an another mip map level
+	// Recompute new SizeInPages and PageCoord, as sampled page may be pointing to an another mip map level
 	SizeInPages = ResLevelXYToSizeInPages(ResLevelXY);
+	PageCoord = CardUV * SizeInPages;
 	uint2 AtlasScale = ResLevelXY > SUB_ALLOCATION_RES_LEVEL ? PHYSICAL_PAGE_SIZE : (1u << ResLevelXY);
 
-	// Sample page with a bilinear sampling border
 	float2 PageUV = frac(CardUV * SizeInPages);
-	float2 PhysicalAtlasUV = (PageUV * (AtlasScale - 1.0f) + AtlasBias + 0.5f) * LumenCardScene.InvPhysicalAtlasSize;
+
+	// Page edges (which aren't card edges) need to be remapped from [0; PageSize] to [0.5; PageSize - 0.5] 
+	// for correct bilinear filtering between pages and not reading texels outside of that page
+	float2 MinUVBorder = PageCoord.xy == 0 ? 0.0f : 0.5f;
+	float2 MaxUVBorder = PageCoord.xy + 1 == SizeInPages.xy ? 0.0f : 0.5f;
+	float2 CoordInPage = (PageUV * (AtlasScale - MinUVBorder - MaxUVBorder)) + MinUVBorder;
+
+	// Card edges need to be clamped to [0.5; CardResolution - 0.5] so that bilinear filtering doesn't read texels from other cards
+	CoordInPage = clamp(CoordInPage, 0.5f, AtlasScale - 0.5f);
+
+	float2 PhysicalAtlasUV = (CoordInPage + AtlasBias) * LumenCardScene.InvPhysicalAtlasSize;
 	
 	// Indirect lighting can be sampled from a downsampled atlas
 	float ILFactor = LumenCardScene.IndirectLightingAtlasDownsampleFactor;

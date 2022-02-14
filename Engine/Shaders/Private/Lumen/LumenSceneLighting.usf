@@ -450,14 +450,9 @@ void RasterizeToCardsVS(
 
 float DiffuseReflectivityOverride;
 
-void CombineLumenSceneLighting(
-	FCardVSToPS CardInterpolants,
-	out float4 OutFinalLighting : SV_Target0)
+float3 CombineFinalLighting(float3 Albedo, float3 Emissive, float3 DirectLighting, float3 IndirectLighting)
 {
-	float3 Albedo = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz);
-	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 DirectLighting = Texture2DSampleLevel(DirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 IndirectLighting = Texture2DSampleLevel(IndirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.IndirectLightingAtlasUV, 0).xyz;
+	Albedo = DecodeSurfaceCacheAlbedo(Albedo);
 
 	if (DiffuseReflectivityOverride > 0.0f)
 	{
@@ -469,6 +464,20 @@ void CombineLumenSceneLighting(
 
 	// Secure against strange values, as we are writing it to a persistent atlas with a feedback loop
 	FinalLighting = max(MakeFinite(FinalLighting), float3(0.0f, 0.0f, 0.0f));
+
+	return FinalLighting;
+}
+
+void CombineLumenSceneLightingPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutFinalLighting : SV_Target0)
+{
+	float3 Albedo = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	float3 DirectLighting = Texture2DSampleLevel(DirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	float3 IndirectLighting = Texture2DSampleLevel(IndirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.IndirectLightingAtlasUV, 0).xyz;
+
+	float3 FinalLighting = CombineFinalLighting(Albedo, Emissive, DirectLighting, IndirectLighting);
 
 	OutFinalLighting = float4(FinalLighting, 0);
 }
@@ -501,14 +510,17 @@ void ClearLumenCardCapturePS(
 Buffer<uint4> NewCardPageResampleData;
 Texture2D RadiosityNumFramesAccumulatedAtlas;
 
-void ResampleRadiosityHistoryToCardCaptureAtlasPS(
+
+void ResampleLightingHistoryToCardCaptureAtlasPS(
 	float4 SvPosition : SV_POSITION,
 	float2 InUV : TEXCOORD0,
 	float2 InRectUV : TEXCOORD1,
 	float InRectIndex : RECT_INDEX,
-	out float3 OutRadiosityCardCaptureAtlas : SV_Target0,
-	out float OutRadiosityNumFramesAccumulatedCardCaptureAtlas : SV_Target1)
+	out float3 OutDirectLightingCardCaptureAtlas : SV_Target0,
+	out float3 OutRadiosityCardCaptureAtlas : SV_Target1,
+	out float OutRadiosityNumFramesAccumulatedCardCaptureAtlas : SV_Target2)
 {
+	OutDirectLightingCardCaptureAtlas = 0;
 	OutRadiosityCardCaptureAtlas = 0;
 	OutRadiosityNumFramesAccumulatedCardCaptureAtlas = 0;
 
@@ -526,32 +538,56 @@ void ResampleRadiosityHistoryToCardCaptureAtlasPS(
 		// Assuming card extent hasn't changed
 		float2 LocalSamplePosition = GetCardLocalPosition(OldCard.LocalExtent, NewCardUV, 0.0f).xy;
 
-		// Test the high res pages first
 		FLumenCardSample CardSample = ComputeSurfaceCacheSample(OldCard, CardIndex, LocalSamplePosition, 0.0f, true);
-
-		if (!CardSample.bValid)
-		{
-			CardSample = ComputeSurfaceCacheSample(OldCard, CardIndex, LocalSamplePosition, 0.0f, false);
-		}
-
 		if (CardSample.bValid)
 		{
+			OutDirectLightingCardCaptureAtlas = Texture2DSampleLevel(DirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xyz;
 			OutRadiosityCardCaptureAtlas = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).xyz;
 			OutRadiosityNumFramesAccumulatedCardCaptureAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).x;
 		}
 	}
 }
 
+Texture2D AlbedoCardCaptureAtlas;
+Texture2D EmissiveCardCaptureAtlas;
+Texture2D DirectLightingCardCaptureAtlas;
 Texture2D RadiosityCardCaptureAtlas;
 Texture2D RadiosityNumFramesAccumulatedCardCaptureAtlas;
 
-void CopyRadiosityToAtlasPS(
+void CopyCardCaptureLightingToAtlasPS(
 	float4 SvPosition : SV_POSITION,
 	float2 AtlasUV : TEXCOORD0,
-	out float3 OutRadiosityAtlas : SV_Target0,
-	out float OutRadiosityNumFramesAccumulatedAtlas : SV_Target1
+	out float3 OutDirectLightingAtlas : SV_Target0,
+	out float3 OutFinalLightingAtlas : SV_Target1
+	#if INDIRECT_LIGHTING
+		, out float3 OutRadiosityAtlas : SV_Target2
+		, out float OutRadiosityNumFramesAccumulatedAtlas : SV_Target3
+	#endif
 	)
 {
-	OutRadiosityAtlas = Texture2DSampleLevel(RadiosityCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
-	OutRadiosityNumFramesAccumulatedAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+	float3 Albedo = 0.0f;
+	float3 Emissive = 0.0f;
+	float3 DirectLighting = 0.0f;
+	float3 IndirectLighting = 0.0f;
+	float RadiosityNumFramesAccumulated = 0.0f;
+
+	#if RESAMPLE
+	{
+		Albedo = Texture2DSampleLevel(AlbedoCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+		Emissive = Texture2DSampleLevel(EmissiveCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+		DirectLighting = Texture2DSampleLevel(DirectLightingCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+		IndirectLighting = Texture2DSampleLevel(RadiosityCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
+		RadiosityNumFramesAccumulated = Texture2DSampleLevel(RadiosityNumFramesAccumulatedCardCaptureAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
+	}
+	#endif
+
+	OutDirectLightingAtlas = DirectLighting;
+	OutFinalLightingAtlas = CombineFinalLighting(Albedo, Emissive, DirectLighting, IndirectLighting);
+
+	#if INDIRECT_LIGHTING
+	{
+		OutRadiosityAtlas = IndirectLighting;
+		OutRadiosityNumFramesAccumulatedAtlas = RadiosityNumFramesAccumulated;
+	}
+	#endif
 }
