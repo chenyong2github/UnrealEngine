@@ -50,6 +50,11 @@ namespace Metasound
 				{
 					InPhase -= 1.f;
 				}
+
+				while (InPhase <= -1.f)
+				{
+					InPhase += 1.f;
+				}
 			}
 		};
 
@@ -341,7 +346,9 @@ namespace Metasound
 			{
 				static const float TwoPi = 2.f * PI;
 				float PhaseRadians = InPhase * TwoPi;
-				return Audio::FastSin3(PhaseRadians - PI); // Expects [-PI, PI] 
+
+				float InBhaskaraDomain = (PhaseRadians < 0) ? PhaseRadians + PI : PhaseRadians - PI;
+				return Audio::FastSin3(InBhaskaraDomain); // Expects [-PI, PI] 
 			}
 		};
 		struct FSineWaveTableGenerator
