@@ -19,6 +19,7 @@ namespace Horde.Storage.Controllers
 {
     [ApiController]
     [Route("api/v1/admin")]
+    [InternalApiFilter]
     public class AdminController : Controller
     {
         private readonly LastAccessService _lastAccessService;

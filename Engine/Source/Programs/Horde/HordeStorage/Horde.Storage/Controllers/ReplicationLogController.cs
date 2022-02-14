@@ -21,6 +21,7 @@ namespace Horde.Storage.Controllers
 {
     [ApiController]
     [Route("api/v1/replication-log")]
+    [InternalApiFilter]
     public class ReplicationLogController : ControllerBase
     {
         private readonly IServiceProvider _provider;

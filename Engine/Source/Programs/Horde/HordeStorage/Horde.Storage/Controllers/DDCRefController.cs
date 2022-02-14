@@ -79,15 +79,12 @@ namespace Horde.Storage.Controllers
         {
             NamespaceId[] namespaces = await _refsStore.GetNamespaces().ToArrayAsync();
 
-            if (!ShouldDoAuth())
+            // filter namespaces down to only the namespaces the user has access to
+            namespaces = namespaces.Where(ns =>
             {
-                // filter namespaces down to only the namespaces the user has access to
-                namespaces = namespaces.Where(ns =>
-                {
-                    Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-                    return authorizationResult.Result.Succeeded;
-                }).ToArray();
-            }
+                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                return authorizationResult.Result.Succeeded;
+            }).ToArray();
 
             return Ok(new GetNamespacesResponse(namespaces));
         }
@@ -114,16 +111,13 @@ namespace Horde.Storage.Controllers
             [FromQuery] string[] fields,
             [FromRoute] string? format = null)
         {
-            if (!ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -194,201 +188,6 @@ namespace Horde.Storage.Controllers
             }
         }
 
-        private static bool IsServedOnHighPerfHttpPort(HostString host, IEnumerable<int> highPerfPorts)
-        {
-            foreach (int port in highPerfPorts)
-            {
-                if (host.Port.HasValue && host.Port.Value == port)
-                    return true;
-            }
-            
-            return false;
-        }
-
-        [ApiExplorerSettings(IgnoreApi = true)]
-        [NonAction]
-        public async Task FastGet(HttpContext httpContext, Func<Task> next)
-        {
-            bool isHighPerf = IsServedOnHighPerfHttpPort(httpContext.Request.Host, _jupiterSettings.CurrentValue.DisableAuthOnPorts);
-
-            if (isHighPerf && httpContext.Request.Path.StartsWithSegments("/api/v1/c/ddc", out var remaining))
-            {
-                string[] parts = remaining.ToString().Split("/");
-                if (parts.Length == 4)
-                {
-                    NamespaceId ns = new NamespaceId(parts[1]);
-                    BucketId bucket = new BucketId(parts[2]);
-                    string keyAndFormat = parts[3];
-                    if (httpContext.Request.Method == "GET")
-                    {
-                        KeyId key;
-                        // assume raw key if nothing is specified
-                        string format = "raw";
-                        string[] keyParts = keyAndFormat.Split(".");
-                        if (keyParts.Length == 2)
-                        {
-                            key = new KeyId(keyParts[0]);
-                            format = keyParts[1];
-                        }
-                        else
-                        {
-                            key = new KeyId(keyAndFormat);
-                        }
-
-                        if (format != "raw")
-                        {
-                            // if not requesting the raw format we can not be used so continue searching middlewares
-                            await next.Invoke();
-                            return;
-                        }
-
-                        httpContext.Response.Headers["X-Jupiter-ImplUsed"] = "ReqMid";
-                        try
-                        {
-                            (RefResponse refRes, BlobContents? tempBlob) = await _ddcRefService.Get(ns, bucket, key, fields: new[] {"blob"});
-                            BlobContents blob = tempBlob!;
-                            
-                            httpContext.Response.StatusCode = StatusCodes.Status200OK;
-                            httpContext.Response.Headers["Content-Type"] = MediaTypeNames.Application.Octet;
-                            httpContext.Response.Headers["Content-Length"] = Convert.ToString(blob.Length);
-                            httpContext.Response.Headers[CommonHeaders.HashHeaderName] = refRes.ContentHash.ToString();
-
-                            using (IScope _ = Tracer.Instance.StartActive("body.write"))
-                            {
-                                await blob.Stream.CopyToAsync(httpContext.Response.Body);
-                            }
-                        }
-                        catch (NamespaceNotFoundException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync("{\"title\": \"Namespace " + e.Namespace + " did not exist\", \"status\": 400}");
-                        }
-                        catch (RefRecordNotFoundException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync("{\"title\": \"Object " + e.Bucket + " " + e.Key + " did not exist\", \"status\": 400}");
-                        }
-                        catch (BlobNotFoundException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync("{\"title\": \"Object " + e.Blob + " in " + e.Ns + " not found\", \"status\": 400}");
-                        }
-
-                        return;
-                    }
-                    else if (httpContext.Request.Method == "HEAD")
-                    {
-                        KeyId key = new KeyId(keyAndFormat);
-                        httpContext.Response.Headers["X-Jupiter-ImplUsed"] = "ReqMid";
-                        try
-                        {
-                            RefRecord record = await _ddcRefService.Exists(ns, bucket, key);
-                            
-                            httpContext.Response.StatusCode = StatusCodes.Status204NoContent;
-                            httpContext.Response.Headers[CommonHeaders.HashHeaderName] = record.ContentHash.ToString();
-                        }
-                        catch (NamespaceNotFoundException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync($"{{\"title\": \"Namespace {e.Namespace} did not exist\", \"status\": 400}}");
-                        }
-                        catch (RefRecordNotFoundException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync($"{{\"title\": \"Object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist\", \"status\": 400}}");
-                        }
-                        catch (MissingBlobsException e)
-                        {
-                            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                            httpContext.Response.Headers["Content-Type"] = "application/json";
-                            await httpContext.Response.WriteAsync($"{{\"title\": \"Blobs {e.Blobs} from object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist\", \"status\": 400}}");
-                        }
-
-                        return;
-                    }
-
-                }
-            }
-            else if (isHighPerf && httpContext.Request.Path.StartsWithSegments("/api/v1/c/ddc-rpc/batchGet", out _))
-            {
-                string requestBody;
-
-                using (StreamReader sr = new StreamReader(httpContext.Request.Body))
-                {
-                    using IScope _ = Tracer.Instance.StartActive("body.read");
-                    requestBody = await sr.ReadToEndAsync();
-                }
-
-                BatchGetOp batch;
-                using (IScope _ = Tracer.Instance.StartActive("json.deserialize"))
-                {
-                    batch = JsonConvert.DeserializeObject<BatchGetOp>(requestBody)!;
-                }
-                
-                BatchWriter writer = new BatchWriter();
-                httpContext.Response.StatusCode = StatusCodes.Status200OK;
-                await writer.WriteToStream(httpContext.Response.Body, batch.Namespace!.Value, batch.Operations.Select(op => new Tuple<BatchWriter.OpVerb, BucketId, KeyId>(op.Verb, op.Bucket!.Value, op.Key!.Value)).ToList(),
-                    async (verb, ns, bucket, key, fields) =>
-                    {
-                        BatchWriter.OpState opState;
-                        RefResponse? refResponse = null;
-                        BlobContents? blob = null;
-                        try
-                        {
-                            switch (verb)
-                            {
-                                case BatchWriter.OpVerb.GET:
-                                    (refResponse, blob) = await _ddcRefService.Get(ns, bucket, key, fields);
-                                    opState = BatchWriter.OpState.OK;
-                                    break;
-                                case BatchWriter.OpVerb.HEAD:
-                                    await _ddcRefService.Exists(ns, bucket, key);
-                                    opState = BatchWriter.OpState.Exists;
-                                    refResponse = null;
-                                    blob = null;
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException(nameof(verb), verb, null);
-                            }
-                        }
-                        catch (RefRecordNotFoundException)
-                        {
-                            opState = BatchWriter.OpState.NotFound;
-                        }
-                        catch (BlobNotFoundException)
-                        {
-                            opState = BatchWriter.OpState.NotFound;
-                        }
-                        catch (MissingBlobsException)
-                        {
-                            opState = BatchWriter.OpState.NotFound;
-                        }
-                        catch (NamespaceNotFoundException)
-                        {
-                            opState = BatchWriter.OpState.NotFound;
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.Error(e, "Unknown exception when executing batch get");
-
-                            // we want to make sure that we always continue to write the results even when we get errors
-                            opState = BatchWriter.OpState.Failed;
-                        }
-
-                        return new Tuple<ContentHash?, BlobContents?, BatchWriter.OpState>(refResponse?.ContentHash, blob, opState);
-                    });
-
-                return;
-            }
-
-            await next.Invoke();
-        }
-
         /// <summary>
         /// Checks if a refs key exists
         /// </summary>
@@ -405,7 +204,6 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] KeyId key)
         {
-            if (!ShouldDoAuth())
             {
                 AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -456,7 +254,6 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] KeyId key,
             [FromBody] RefRequest refRequest)
         {
-            if (!ShouldDoAuth())
             {
                 AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -499,7 +296,6 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] KeyId key)
         {
-            if (!ShouldDoAuth())
             {
                 AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -833,7 +629,6 @@ namespace Horde.Storage.Controllers
                 throw new ArgumentNullException();
             }
 
-            if (!ShouldDoAuth())
             {
                 AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, batch.Namespace, NamespaceAccessRequirement.Name);
 
@@ -897,17 +692,6 @@ namespace Horde.Storage.Controllers
 
             // we have already set the result by writing to Response
             return new EmptyResult();
-        }
-
-        private bool ShouldDoAuth()
-        {
-            foreach (int port in _jupiterSettings.CurrentValue.DisableAuthOnPorts)
-            {
-                if (port == HttpContext.Connection.LocalPort)
-                    return true;
-            }
-
-            return false;
         }
     }
 

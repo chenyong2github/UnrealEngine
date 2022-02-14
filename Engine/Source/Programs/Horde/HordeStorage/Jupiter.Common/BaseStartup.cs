@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
-using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text;
@@ -12,7 +11,6 @@ using System.Threading.Tasks;
 using Amazon;
 using Datadog.Trace;
 using Jupiter.Common;
-using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -21,7 +19,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -243,10 +240,7 @@ namespace Jupiter
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             JupiterSettings jupiterSettings = app.ApplicationServices.GetService<IOptionsMonitor<JupiterSettings>>()!.CurrentValue;
-            
-            bool IsHttpPort(HttpContext httpContext) => !IsHighPerfHttpPort(httpContext);
-            bool IsHighPerfHttpPort(HttpContext httpContext) => jupiterSettings.DisableAuthOnPorts.Any(port => port == httpContext.Connection.LocalPort);
-            
+
             if (jupiterSettings.ShowPII)
             {
                 _logger.Error("Personally Identifiable information being shown. This should not be generally enabled in prod.");
@@ -255,37 +249,24 @@ namespace Jupiter
                 Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
             }
 
-            if (jupiterSettings.DisableAuthOnPorts.Any())
-            {
-                _logger.Information("Auth is disabled on port(s) {Ports}", jupiterSettings.DisableAuthOnPorts);
-            }
-
-            app.MapWhen(IsHttpPort, httpApp =>
-            {
-                ConfigureMiddlewares(false, jupiterSettings, httpApp, env);
-            });
-            
-            app.MapWhen(IsHighPerfHttpPort, highPerfApp =>
-            {
-                ConfigureMiddlewares(true, jupiterSettings, highPerfApp, env);
-            });
+            ConfigureMiddlewares(jupiterSettings, app, env);
         }
 
-        private void ConfigureMiddlewares(bool isHighPerf, JupiterSettings jupiterSettings, IApplicationBuilder app, IWebHostEnvironment env)
+        private void ConfigureMiddlewares(JupiterSettings jupiterSettings, IApplicationBuilder app, IWebHostEnvironment env)
         {
             // enable use of forwarding headers as we expect a reverse proxy to be running in front of us
             //app.UseMiddleware<DatadogTraceMiddleware>("ForwardedHeaders");
             app.UseForwardedHeaders();
 
-            if (!isHighPerf && jupiterSettings.UseRequestLogging)
+            if (jupiterSettings.UseRequestLogging)
             {
                 //app.UseMiddleware<DatadogTraceMiddleware>("RequestLogging");
                 app.UseSerilogRequestLogging();
             }
 
             OnConfigureAppEarly(app, env);
-                
-            if (!isHighPerf && env.IsDevelopment() && UseDeveloperExceptionPage)
+
+            if (env.IsDevelopment() && UseDeveloperExceptionPage)
             {
                 app.UseDeveloperExceptionPage();
             }
@@ -297,13 +278,10 @@ namespace Jupiter
             //app.UseMiddleware<DatadogTraceMiddleware>("Routing");
             app.UseRouting();
 
-            if (!isHighPerf)
-            {
-                //app.UseMiddleware<DatadogTraceMiddleware>("Authentication");
-                app.UseAuthentication();
-                //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
-                app.UseAuthorization();
-            }
+            //app.UseMiddleware<DatadogTraceMiddleware>("Authentication");
+            app.UseAuthentication();
+            //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
+            app.UseAuthorization();
             
             //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
@@ -335,12 +313,11 @@ namespace Jupiter
                     context.Response.Headers.ContentType = "text/plain";
                     await context.Response.Body.WriteAsync(Encoding.ASCII.GetBytes("Healthy"));
                 });
-                OnUseEndpoints(env, endpoints);
-                
+
                 endpoints.MapControllers();
             });
 
-            if (!isHighPerf && jupiterSettings.HostSwaggerDocumentation)
+            if (jupiterSettings.HostSwaggerDocumentation)
             {
                 //app.UseMiddleware<DatadogTraceMiddleware>("Swagger");
                 app.UseSwagger();
@@ -348,11 +325,6 @@ namespace Jupiter
             }
 
             OnConfigureApp(app, env);
-        }
-
-        protected virtual void OnUseEndpoints(IWebHostEnvironment env, IEndpointRouteBuilder endpoints)
-        {
-            
         }
 
         public virtual bool UseDeveloperExceptionPage { get; } = true;
@@ -458,6 +430,8 @@ namespace Jupiter
 
     public class JupiterSettings
     {
+        public const int DefaultInternalPort = 8080;
+
         /// <summary>
         /// If the request is smaller then MemoryBufferSize we buffer it in memory rather then as a file
         /// </summary>
@@ -468,7 +442,7 @@ namespace Jupiter
         public bool DisableHealthChecks { get; set; } = false;
         public bool HostSwaggerDocumentation { get; set; } = true;
 
-        public List<int> DisableAuthOnPorts { get; set; } = new();
+        public int InternalApiPort { get; set; } = DefaultInternalPort;
 
         // Enable to echo every request to the log file, usually this is more efficiently done on the load balancer
         public bool UseRequestLogging { get; set; } = false;
@@ -479,8 +453,6 @@ namespace Jupiter
         [Required]
         [Key]
         public string CurrentSite { get; set; } = "";
-
-        //public Dictionary<string, int> DisableAuthOnPorts { get; set; } = new ();
     }
 
     public class NamespaceSettings
@@ -509,7 +481,7 @@ namespace Jupiter
         {
             using IScope _ = Tracer.Instance.StartActive(_scopeName);
 
-            //Move to next delegate/middleware in the pipleline
+            //Move to next delegate/middleware in the pipeline
             await _next.Invoke(httpContext);
         }
     }

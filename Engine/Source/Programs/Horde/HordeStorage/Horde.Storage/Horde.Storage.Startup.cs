@@ -131,18 +131,6 @@ namespace Horde.Storage
             });
         }
 
-        protected override void OnUseEndpoints(IWebHostEnvironment env, IEndpointRouteBuilder endpoints)
-        {
-            HordeStorageSettings settings = endpoints.ServiceProvider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;
-
-            if (settings.UseNewDDCEndpoints)
-            {
-                DDCEndpoints ddcEndpoints = endpoints.ServiceProvider.GetService<DDCEndpoints>()!;
-
-                endpoints.Map(ddcEndpoints.GetRawRoute, ddcEndpoints.GetRaw).RequireAuthorization("Cache.read");
-            }
-        }
-
         protected override void OnAddService(IServiceCollection services)
         {
             // For requests served on the high-perf HTTP port there is not authn/authz.
@@ -408,21 +396,7 @@ namespace Horde.Storage
                     throw new ArgumentOutOfRangeException();
             }
         }
-
-        protected override void OnConfigureAppEarly(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            HordeStorageSettings settings = app.ApplicationServices.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;
-            // Register two methods as middlewares for benchmarking purposes
-            // By circumventing the full ASP.NET stack we can measure the performance difference between these calls.
-            if (!settings.UseNewDDCEndpoints)
-            {
-                DDCRefController ddcRefController = ActivatorUtilities.CreateInstance<DDCRefController>(app.ApplicationServices);
-                DebugController debugController = ActivatorUtilities.CreateInstance<DebugController>(app.ApplicationServices);
-                app.Use(ddcRefController.FastGet);
-                app.Use(debugController.FastGetBytes);
-            }
-        }
-
+        
         private ILeaderElection CreateLeaderElection(IServiceProvider provider)
         {
             HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;

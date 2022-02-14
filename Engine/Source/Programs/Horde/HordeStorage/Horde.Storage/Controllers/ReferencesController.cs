@@ -69,15 +69,12 @@ namespace Horde.Storage.Controllers
         {
             NamespaceId[] namespaces = await _objectService.GetNamespaces().ToArrayAsync();
 
-            if (ShouldDoAuth())
+            // filter namespaces down to only the namespaces the user has access to
+            namespaces = namespaces.Where(ns =>
             {
-                // filter namespaces down to only the namespaces the user has access to
-                namespaces = namespaces.Where(ns =>
-                {
-                    Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
-                    return authorizationResult.Result.Succeeded;
-                }).ToArray();
-            }
+                Task<AuthorizationResult> authorizationResult = _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                return authorizationResult.Result.Succeeded;
+            }).ToArray();
 
             return Ok(new GetNamespacesResponse(namespaces));
         }
@@ -99,16 +96,13 @@ namespace Horde.Storage.Controllers
             [FromQuery] string[] fields,
             [FromRoute] string? format = null)
         {
-            if (ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -226,16 +220,13 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] IoHashKey key,
             [FromQuery] string[] fields)
         {
-            if (ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -276,16 +267,13 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            if (ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -352,16 +340,13 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] BucketId bucket,
             [FromRoute] [Required] IoHashKey key)
         {
-            if (ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -455,16 +440,13 @@ namespace Horde.Storage.Controllers
             [FromRoute] [Required] IoHashKey key,
             [FromRoute] [Required] BlobIdentifier hash)
         {
-            if (ShouldDoAuth())
             {
-                using (IScope _ = Tracer.Instance.StartActive("authorize"))
-                {
-                    AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
-                    if (!authorizationResult.Succeeded)
-                    {
-                        return Forbid();
-                    }
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
                 }
             }
 
@@ -572,17 +554,6 @@ namespace Horde.Storage.Controllers
             {
                 return NotFound(new ProblemDetails {Title = $"Namespace {e.Namespace} did not exist"});
             }
-        }
-
-        private bool ShouldDoAuth()
-        {
-            foreach (int port in _jupiterSettings.CurrentValue.DisableAuthOnPorts)
-            {
-                if (port == HttpContext.Connection.LocalPort)
-                    return false;
-            }
-
-            return true;
         }
     }
 

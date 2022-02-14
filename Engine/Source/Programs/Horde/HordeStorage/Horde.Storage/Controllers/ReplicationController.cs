@@ -18,6 +18,7 @@ namespace Horde.Storage.Controllers
     [FormatFilter]
     [Route("api/v1/g")]
     [Authorize("Admin")]
+    [InternalApiFilter]
     public class ReplicationController : ControllerBase
     {
         private readonly ReplicationService _replicationService;

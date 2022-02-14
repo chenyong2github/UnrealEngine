@@ -136,7 +136,6 @@ namespace Horde.Storage
 
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
 
-        public bool UseNewDDCEndpoints { get; set; } = false;
         public bool BlobStoreParallel { get; set; } = false;
     }
 

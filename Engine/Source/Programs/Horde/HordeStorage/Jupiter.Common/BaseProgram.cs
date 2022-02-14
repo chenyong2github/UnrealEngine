@@ -15,34 +15,9 @@ using Serilog;
 
 namespace Jupiter
 {
-    public abstract class BaseHttpConnection
-    {
-        protected readonly IServiceProvider ServiceProvider;
-        protected readonly PipeReader Reader;
-        protected readonly PipeWriter Writer;
-        protected readonly Socket Socket;
-
-        public BaseHttpConnection(IServiceProvider serviceProvider, PipeReader reader, PipeWriter writer, Socket socket)
-        {
-            ServiceProvider = serviceProvider;
-            Reader = reader;
-            Writer = writer;
-            Socket = socket;
-        }
-
-        /// <summary>
-        /// A function that can process a connection.
-        /// </summary>
-        /// <param name="connection">A <see cref="ConnectionContext" /> representing the connection.</param>
-        /// <returns>A <see cref="Task"/> that represents the connection lifetime. When the task completes, the connection will be closed.</returns>
-        public abstract Task ExecuteAsync(ConnectionContext connection);
-    }
-    
     // ReSharper disable once UnusedMember.Global
     public static class BaseProgram<T> where T : BaseStartup
     {
-        public delegate BaseHttpConnection HttpConnectionFactory(IServiceProvider sp, PipeReader reader, PipeWriter writer, Socket socket);
-
         private static IConfiguration Configuration { get; } = GetConfigurationBuilder();
 
         private static IConfiguration GetConfigurationBuilder()
@@ -72,7 +47,7 @@ namespace Jupiter
 
         }
 
-        public static int BaseMain(string[] args, HttpConnectionFactory? httpConnectionFactory = null)
+        public static int BaseMain(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(Configuration)
@@ -81,7 +56,7 @@ namespace Jupiter
             try
             {
                 Log.Information("Creating ASPNET Host");
-                CreateHostBuilder(args, httpConnectionFactory).Build().Run();
+                CreateHostBuilder(args).Build().Run();
                 return 0;
             }
             catch (Exception ex)
@@ -95,7 +70,7 @@ namespace Jupiter
             }
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args, HttpConnectionFactory? httpConnectionFactory)
+        public static IHostBuilder CreateHostBuilder(string[] args)
         {
             return Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
