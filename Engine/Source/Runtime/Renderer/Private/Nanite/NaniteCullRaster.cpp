@@ -2409,7 +2409,93 @@ void AddPass_Rasterize(
 		check(RasterizerPass.PixelMaterial);
 	}
 
-	FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters();
+	// TEMP: TODO: PROG_RASTER - Fix ValidateRHIAccess errors around IndirectArgs and re-merge RDG passes
+#if 1
+	for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
+	{
+		FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters();
+		RasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
+		RasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
+
+		GraphBuilder.AddPass(
+			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
+			RasterBinPassParameters,
+			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[RasterBinPassParameters, RasterizerPass, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
+			RHICmdList.SetStreamSource(0, nullptr, 0);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
+			// changes the index order in cases where the culling should be flipped.
+#if 1 // TODO: PROG_RASTER (two sided material bin that turns off culling)
+			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
+#else
+			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_None);
+#endif
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			if (bUsePrimitiveShader || bUseMeshShader)
+			{
+				GraphicsPSOInit.PrimitiveType = PT_PointList;
+			}
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
+
+			if (bUseMeshShader)
+			{
+				GraphicsPSOInit.BoundShaderState.SetMeshShader(RasterizerPass.RasterMeshShader.GetMeshShader());
+			}
+			else
+			{
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = RasterizerPass.RasterVertexShader.GetVertexShader();
+			}
+
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = RasterizerPass.RasterPixelShader.GetPixelShader();
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+			if (bUseMeshShader)
+			{
+				RasterizerPass.RasterMeshShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
+			}
+			else
+			{
+				RasterizerPass.RasterVertexShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
+			}
+
+			RasterizerPass.RasterPixelShader->SetParameters(RHICmdList, SceneView, RasterizerPass.PixelMaterialProxy, *RasterizerPass.PixelMaterial);
+
+			if (bUseMeshShader)
+			{
+				SetShaderParameters(RHICmdList, RasterizerPass.RasterMeshShader, RasterizerPass.RasterMeshShader.GetMeshShader(), RasterBinPassParameters->Common);
+			}
+			else
+			{
+				SetShaderParameters(RHICmdList, RasterizerPass.RasterVertexShader, RasterizerPass.RasterVertexShader.GetVertexShader(), RasterBinPassParameters->Common);
+			}
+
+			SetShaderParameters(RHICmdList, RasterizerPass.RasterPixelShader, RasterizerPass.RasterPixelShader.GetPixelShader(), *RasterBinPassParameters);
+
+			if (bUseMeshShader)
+			{
+				RHICmdList.DispatchIndirectMeshShader(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
+			}
+			else
+			{
+				RHICmdList.DrawPrimitiveIndirect(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
+			}	
+
+			RHICmdList.EndRenderPass();
+		});
+	}
+#else
+	
 	
 	GraphBuilder.AddPass(
 		bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
@@ -2494,6 +2580,7 @@ void AddPass_Rasterize(
 
 		RHICmdList.EndRenderPass();
 	});
+#endif // TODO: TEMP - END
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
