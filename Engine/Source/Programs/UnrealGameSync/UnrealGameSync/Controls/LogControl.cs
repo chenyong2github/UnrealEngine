@@ -384,7 +384,7 @@ namespace UnrealGameSync
 						SelectedText.Append(Lines[LineIdx], MinIdx, MaxIdx - MinIdx);
 					}
 				}
-				Clipboard.SetText(SelectedText.ToString().Replace("\n", "\r\n"));
+				Clipboard.SetText(Regex.Replace(SelectedText.ToString(), "(?<!\r)\n", "\r\n"));
 			}
 		}
 
