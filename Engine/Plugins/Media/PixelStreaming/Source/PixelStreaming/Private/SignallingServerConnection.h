@@ -40,7 +40,7 @@ namespace UE::PixelStreaming
 	{
 	public:
 		explicit FSignallingServerConnection(FSignallingServerConnectionObserver& Observer, FString InStreamerId);
-		virtual ~FSignallingServerConnection();
+		~FSignallingServerConnection();
 
 		void Connect(const FString& Url);
 		void Disconnect();
