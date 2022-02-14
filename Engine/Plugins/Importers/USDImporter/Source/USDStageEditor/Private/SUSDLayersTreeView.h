@@ -33,6 +33,8 @@ private:
 	bool CanEditSelectedLayer() const;
 	void OnEditSelectedLayer();
 
+	void OnExportSelectedLayers() const;
+
 	bool CanAddSubLayer() const;
 	void OnAddSubLayer();
 	void OnNewSubLayer();

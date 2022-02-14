@@ -80,13 +80,21 @@ namespace UE
 
 	// Wrapped pxr::SdfLayer functions, refer to the USD SDK documentation
 	public:
+		void TransferContent( const FSdfLayer& SourceLayer );
+
 		static FSdfLayer FindOrOpen( const TCHAR* Identifier );
+		static FSdfLayer CreateNew( const TCHAR* Identifier );
 
 		bool Save( bool bForce = false ) const;
+
+		TSet<FString> GetExternalReferences() const;
+		bool UpdateExternalReference( const TCHAR* OldReferencePath, const TCHAR* NewReferencePath );
 
 		FString GetRealPath() const;
 		FString GetIdentifier() const;
 		FString GetDisplayName() const;
+
+		FString ComputeAbsolutePath(const FString& AssetPath) const;
 
 		bool IsEmpty() const;
 		bool IsAnonymous() const;

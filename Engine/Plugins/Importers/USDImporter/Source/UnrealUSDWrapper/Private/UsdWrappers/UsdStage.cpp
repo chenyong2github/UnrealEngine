@@ -213,6 +213,27 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::Export( const TCHAR* FileName, bool bAddSourceFileComment, const TMap<FString, FString>& FileFormatArguments ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs Allocs;
+
+			std::map<std::string, std::string> UsdFileFormatArguments;
+			for ( const TPair<FString, FString>& Pair : FileFormatArguments )
+			{
+				UsdFileFormatArguments.insert( { TCHAR_TO_ANSI( *Pair.Key ), TCHAR_TO_ANSI( *Pair.Value ) } );
+			}
+
+			return Ptr->Export( TCHAR_TO_ANSI( FileName ), bAddSourceFileComment, UsdFileFormatArguments );
+		}
+#endif // #if USE_USD_SDK
+
+		return false;
+	}
+
+	template<typename PtrType>
 	FSdfLayer FUsdStageBase<PtrType>::GetSessionLayer() const
 	{
 #if USE_USD_SDK
@@ -304,6 +325,50 @@ namespace UE
 			Ptr->SetEditTarget( EditTarget );
 		}
 #endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	TArray<UE::FSdfLayer> FUsdStageBase<PtrType>::GetLayerStack( bool bIncludeSessionLayers /*= true */ ) const
+	{
+		TArray<UE::FSdfLayer> Result;
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			pxr::SdfLayerHandleVector LayerHandleVector = Ptr->GetLayerStack( bIncludeSessionLayers );
+
+			Result.Reserve( LayerHandleVector.size() );
+
+			for ( pxr::SdfLayerHandle Layer : LayerHandleVector )
+			{
+				Result.Add( UE::FSdfLayer{ Layer } );
+			}
+		}
+#endif // #if USE_USD_SDK
+		return Result;
+	}
+
+	template<typename PtrType>
+	TArray<UE::FSdfLayer> FUsdStageBase<PtrType>::GetUsedLayers( bool bIncludeClipLayers /*= true */ ) const
+	{
+		TArray<UE::FSdfLayer> Result;
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			pxr::SdfLayerHandleVector LayerHandleVector = Ptr->GetUsedLayers( bIncludeClipLayers );
+
+			Result.Reserve( LayerHandleVector.size() );
+
+			for ( pxr::SdfLayerHandle Layer : LayerHandleVector )
+			{
+				Result.Add( UE::FSdfLayer{ Layer } );
+			}
+		}
+#endif // #if USE_USD_SDK
+		return Result;
 	}
 
 	template<typename PtrType>

@@ -6,6 +6,7 @@
 #include "SUSDPrimInfo.h"
 #include "SUSDStageTreeView.h"
 #include "UnrealUSDWrapper.h"
+#include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
 #include "USDSchemasModule.h"
@@ -24,6 +25,7 @@
 
 #include "ActorTreeItem.h"
 #include "Async/Async.h"
+#include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
@@ -48,6 +50,65 @@ namespace SUSDStageConstants
 
 namespace SUSDStageImpl
 {
+#if PLATFORM_LINUX
+	struct FCaseSensitiveStringSetFuncs : BaseKeyFuncs<FString, FString>
+	{
+		static FORCEINLINE const FString& GetSetKey( const FString& Element )
+		{
+			return Element;
+		}
+		static FORCEINLINE bool Matches( const FString& A, const FString& B )
+		{
+			return A.Equals( B, ESearchCase::CaseSensitive );
+		}
+		static FORCEINLINE uint32 GetKeyHash( const FString& Key )
+		{
+			return FCrc::StrCrc32<TCHAR>( *Key );
+		}
+	};
+#endif
+
+	/**
+	 * Makes sure that AllLayers includes all the external references of any of its members.
+	 * Example: Receives AllLayers [a.usda], that references b.usda and c.usda, while c.usda also references d.usda -> Modifies AllLayers to be [a.usda, b.usda, c.usda, d.usda]
+	 */
+	void AppendAllExternalReferences( TArray<UE::FSdfLayer>& AllLayers )
+	{
+		// Consider paths in a case-sensitive way for linux
+#if PLATFORM_LINUX
+		TSet<FString, FCaseSensitiveStringSetFuncs> LoadedLayers;
+#else
+		TSet<FString> LoadedLayers;
+#endif
+
+		LoadedLayers.Reserve( AllLayers.Num() );
+		for ( const UE::FSdfLayer& Layer : AllLayers )
+		{
+			FString LayerPath = Layer.GetRealPath();
+			FPaths::NormalizeFilename( LayerPath );
+			LoadedLayers.Add( LayerPath );
+		}
+
+		for ( int32 Index = 0; Index < AllLayers.Num(); ++Index )
+		{
+			UE::FSdfLayer& Layer = AllLayers[ Index ];
+
+			TArray< UE::FSdfLayer > NewLayers;
+			for ( const FString& Reference : Layer.GetExternalReferences() )
+			{
+				FString AbsoluteReference = Layer.ComputeAbsolutePath( Reference );
+				FPaths::NormalizeFilename( AbsoluteReference );
+
+				if ( !LoadedLayers.Contains( AbsoluteReference ) )
+				{
+					NewLayers.Add( UE::FSdfLayer::FindOrOpen( *AbsoluteReference ) );
+					LoadedLayers.Add( AbsoluteReference );
+				}
+			}
+			AllLayers.Append( NewLayers );
+		}
+	}
+
 	void SelectGeneratedComponentsAndActors( AUsdStageActor* StageActor, const TArray<FString>& PrimPaths )
 	{
 		if ( !StageActor )
@@ -507,8 +568,16 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			EUserInterfaceActionType::Button
 		);
 
-		MenuBuilder.AddSeparator();
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "Export", "Export" ),
+			FText::GetEmpty(),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillExportSubMenu )
+		);
+	}
+	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection( "Reload", LOCTEXT( "Reload", "Reload" ) );
+	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Reload", "Reload"),
 			LOCTEXT("Reload_ToolTip", "Reloads the stage from disk, keeping aspects of the session intact"),
@@ -557,9 +626,11 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
+	}
+	MenuBuilder.EndSection();
 
-		MenuBuilder.AddSeparator();
-
+	MenuBuilder.BeginSection( "Close", LOCTEXT( "Close", "Close" ) );
+	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Close", "Close"),
 			LOCTEXT("Close_ToolTip", "Closes the opened stage"),
@@ -663,6 +734,55 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			false );
 	}
 	MenuBuilder.EndSection();
+}
+
+void SUsdStage::FillExportSubMenu( FMenuBuilder& MenuBuilder )
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "ExportAll", "Export all layers..." ),
+		LOCTEXT( "ExportAll_ToolTip", "Exports copies of all file-based layers in the stage's layer stack to a new folder" ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &SUsdStage::OnExportAll ),
+			FCanExecuteAction::CreateLambda( [this]()
+			{
+				if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+					{
+						return true;
+					}
+				}
+
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "ExportFlattened", "Export flattened stage..." ),
+		LOCTEXT( "ExportFlattened_ToolTip", "Flattens the current stage to a single USD layer and exports it as a new USD file" ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &SUsdStage::OnExportFlattened ),
+			FCanExecuteAction::CreateLambda( [this]()
+			{
+				if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+					{
+						return true;
+					}
+				}
+
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::Button
+	);
 }
 
 void SUsdStage::FillPayloadsSubMenu(FMenuBuilder& MenuBuilder)
@@ -1164,6 +1284,152 @@ void SUsdStage::OnSave()
 			}
 		}
 	}
+}
+
+void SUsdStage::OnExportAll()
+{
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( !StageActor )
+	{
+		return;
+	}
+
+	UE::FUsdStage UsdStage = StageActor->GetUsdStage();
+	if ( !UsdStage )
+	{
+		return;
+	}
+
+	const bool bIncludeClipLayers = false;
+	TArray<UE::FSdfLayer> LayerStack = UsdStage.GetUsedLayers( bIncludeClipLayers );
+	if ( LayerStack.Num() < 1 )
+	{
+		return;
+	}
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if ( !DesktopPlatform )
+	{
+		return;
+	}
+
+	TSharedPtr< SWindow > ParentWindow = FSlateApplication::Get().FindWidgetWindow( AsShared() );
+	void* ParentWindowHandle = ( ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid() )
+		? ParentWindow->GetNativeWindow()->GetOSWindowHandle()
+		: nullptr;
+
+	FString TargetFolderPath;
+	if ( !DesktopPlatform->OpenDirectoryDialog( ParentWindowHandle, LOCTEXT( "ChooseFolder", "Choose output folder" ).ToString(), TEXT( "" ), TargetFolderPath ) )
+	{
+		return;
+	}
+	TargetFolderPath = FPaths::ConvertRelativePathToFull( TargetFolderPath );
+
+	// Manually load any layer that is referenced by any of the stage's layers, but not currently loaded.
+	// This can happen if e.g. an unselected variant appends a reference or has a payload.
+	// We will need to actually load these as opposed to just copy-paste the files as we may need to update references/paths
+	SUSDStageImpl::AppendAllExternalReferences( LayerStack );
+
+	// Discard session layers
+	for ( int32 Index = LayerStack.Num() - 1; Index >= 0; --Index )
+	{
+		UE::FSdfLayer& Layer = LayerStack[ Index ];
+		if ( Layer.IsAnonymous() )
+		{
+			const int32 Count = 1;
+			const bool bAllowShrinking = false;
+			LayerStack.RemoveAt( Index, Count, bAllowShrinking );
+		}
+	}
+
+#if PLATFORM_LINUX
+	TMap<FString, FString, FDefaultSetAllocator, UsdUtils::FCaseSensitiveStringMapFuncs< FString > > OldPathToSavedPath;
+#else
+	TMap<FString, FString> OldPathToSavedPath;
+#endif
+
+	// If the stage has layers referencing each other, we will need to remap those to point exclusively at the newly saved files
+	TSet<FString> SavedPaths;
+	for ( const UE::FSdfLayer& Layer : LayerStack )
+	{
+		FString LayerPath = Layer.GetRealPath();
+		FPaths::NormalizeFilename( LayerPath );
+
+		FString TargetPath = FPaths::Combine( TargetFolderPath, Layer.GetDisplayName() );
+		FPaths::NormalizeFilename( TargetPath );
+
+		// Filename collision (should be rare, but possible given that we're discarding the folder structure)
+		if ( SavedPaths.Contains( TargetPath ) )
+		{
+			FString TargetPathNoExt = FPaths::SetExtension( TargetPath, TEXT( "" ) );
+			FString Ext = FPaths::GetExtension( TargetPath );
+			int32 Suffix = 0;
+
+			do
+			{
+				TargetPath = FString::Printf( TEXT( "%s_%d.%s" ), *TargetPathNoExt, Suffix++, *Ext );
+			} while ( SavedPaths.Contains( TargetPath ) );
+		}
+
+		OldPathToSavedPath.Add( LayerPath, TargetPath );
+		SavedPaths.Add( TargetPath );
+	}
+
+	// Actually save the output layers
+	for ( UE::FSdfLayer& Layer : LayerStack )
+	{
+		FString LayerPath = Layer.GetRealPath();
+		FPaths::NormalizeFilename( LayerPath );
+
+		if ( FString* TargetLayerPath = OldPathToSavedPath.Find( LayerPath ) )
+		{
+			// Clone the layer so that we don't modify the currently opened stage
+			UE::FSdfLayer OutputLayer = UE::FSdfLayer::CreateNew( **TargetLayerPath );
+			OutputLayer.TransferContent( Layer );
+
+			// Update references to assets (e.g. textures) so that they're absolute and also work from the new file
+			UsdUtils::ConvertAssetRelativePathsToAbsolute( OutputLayer, Layer );
+
+			// Remap references to layers so that they point at the other newly saved files. Note that SUSDStageImpl::AppendAllExternalReferences
+			// will have collected all external references already, so OldPathToSavedPath should have entries for all references we'll find
+			for ( const FString& Ref : OutputLayer.GetExternalReferences() )
+			{
+				FString AbsRef = FPaths::ConvertRelativePathToFull( FPaths::GetPath( LayerPath ), Ref ); // Relative to the original file
+				FPaths::NormalizeFilename( AbsRef );
+
+				if ( FString* SavedReference = OldPathToSavedPath.Find( AbsRef ) )
+				{
+					OutputLayer.UpdateExternalReference( *Ref, **SavedReference );
+				}
+			}
+
+			bool bForce = true;
+			OutputLayer.Save( bForce );
+		}
+	}
+}
+
+void SUsdStage::OnExportFlattened()
+{
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( !StageActor )
+	{
+		return;
+	}
+
+	UE::FUsdStage UsdStage = StageActor->GetUsdStage();
+	if ( !UsdStage )
+	{
+		return;
+	}
+
+	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+	if ( !UsdFilePath.IsSet() )
+	{
+		return;
+	}
+
+	UsdStage.Export( *( UsdFilePath.GetValue() ) );
 }
 
 void SUsdStage::OnReloadStage()

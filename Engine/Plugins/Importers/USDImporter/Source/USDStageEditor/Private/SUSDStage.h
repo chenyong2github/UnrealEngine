@@ -42,6 +42,7 @@ protected:
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
 	void FillActionsMenu( FMenuBuilder& MenuBuilder );
 	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
+	void FillExportSubMenu( FMenuBuilder& MenuBuilder );
 	void FillPayloadsSubMenu( FMenuBuilder& MenuBuilder );
 	void FillPurposesToLoadSubMenu( FMenuBuilder& MenuBuilder );
 	void FillRenderContextSubMenu( FMenuBuilder& MenuBuilder );
@@ -53,6 +54,8 @@ protected:
 	void OnNew();
 	void OnOpen();
 	void OnSave();
+	void OnExportAll();
+	void OnExportFlattened();
 	void OnReloadStage();
 	void OnResetStage();
 	void OnClose();

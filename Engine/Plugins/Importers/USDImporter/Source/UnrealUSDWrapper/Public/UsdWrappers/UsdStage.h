@@ -63,6 +63,12 @@ namespace UE
 
 	// Wrapped pxr::UsdStage functions, refer to the USD SDK documentation
 	public:
+		/**
+		 * Saves a flattened copy of the stage to the given path (e.g. "C:/Folder/FlattenedStage.usda"). Will use the corresponding file writer depending on FilePath extension.
+		 * Will not alter the current stage.
+		 */
+		bool Export( const TCHAR* FileName, bool bAddSourceFileComment = true, const TMap<FString, FString>& FileFormatArguments = {} ) const;
+
 		FSdfLayer GetRootLayer() const;
 		FSdfLayer GetSessionLayer() const;
 		bool HasLocalLayer( const FSdfLayer& Layer ) const;
@@ -70,6 +76,9 @@ namespace UE
 		FUsdPrim GetPseudoRoot() const;
 		FUsdPrim GetDefaultPrim() const;
 		FUsdPrim GetPrimAtPath( const FSdfPath& Path ) const;
+
+		TArray<FSdfLayer> GetLayerStack( bool bIncludeSessionLayers = true ) const;
+		TArray<FSdfLayer> GetUsedLayers( bool bIncludeClipLayers = true ) const;
 
 		bool IsEditTargetValid() const;
 		void SetEditTarget( const FSdfLayer& Layer );

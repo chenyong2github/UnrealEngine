@@ -25,6 +25,7 @@
 
 #include "USDIncludesStart.h"
 	#include "pxr/usd/pcp/layerStack.h"
+	#include "pxr/usd/sdf/attributeSpec.h"
 	#include "pxr/usd/sdf/fileFormat.h"
 	#include "pxr/usd/sdf/layer.h"
 	#include "pxr/usd/sdf/layerUtils.h"
@@ -37,6 +38,39 @@
 #include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDLayerUtils"
+
+namespace UE::UsdLayerUtilsImpl::Private
+{
+	/**
+		* Adapted from flattenUtils.cpp::_FixAssetPaths, except that we only handle actual AssetPaths here as layer/prim paths
+		* will be remapped via Layer.UpdateExternalReference.
+		* Returns whether anything was remapped
+		*/
+	bool FixAssetPaths( const pxr::SdfLayerHandle& SourceLayer, pxr::VtValue* Value )
+	{
+		if ( Value->IsHolding<pxr::SdfAssetPath>() )
+		{
+			pxr::SdfAssetPath AssetPath;
+			Value->Swap( AssetPath );
+			AssetPath = pxr::SdfAssetPath( SourceLayer->ComputeAbsolutePath( AssetPath.GetAssetPath() ) );
+			Value->Swap( AssetPath );
+			return true;
+		}
+		else if ( Value->IsHolding<pxr::VtArray<pxr::SdfAssetPath>>() )
+		{
+			pxr::VtArray<pxr::SdfAssetPath> PathArray;
+			Value->Swap( PathArray );
+			for ( pxr::SdfAssetPath& AssetPath : PathArray )
+			{
+				AssetPath = pxr::SdfAssetPath( SourceLayer->ComputeAbsolutePath( AssetPath.GetAssetPath() ) );
+			}
+			Value->Swap( PathArray );
+			return true;
+		}
+
+		return false;
+	}
+}
 
 namespace UsdUtils
 {
@@ -662,6 +696,36 @@ bool UsdUtils::IsSessionLayerWithinStage( const pxr::SdfLayerRefPtr& Layer, cons
 	}
 
 	return false;
+}
+
+void UsdUtils::ConvertAssetRelativePathsToAbsolute( UE::FSdfLayer& LayerToConvert, const UE::FSdfLayer& AnchorLayer )
+{
+	FScopedUsdAllocs Allocs;
+
+	pxr::SdfLayerRefPtr UsdLayer{ LayerToConvert };
+
+	UsdLayer->Traverse(
+		pxr::SdfPath::AbsoluteRootPath(),
+		[ &UsdLayer, &AnchorLayer ]( const pxr::SdfPath& Path )
+		{
+			pxr::SdfSpecType SpecType = UsdLayer->GetSpecType( Path );
+			if ( SpecType != pxr::SdfSpecTypeAttribute )
+			{
+				return;
+			}
+
+			pxr::VtValue LayerValue;
+			if ( !UsdLayer->HasField( Path, pxr::SdfFieldKeys->Default, &LayerValue ) )
+			{
+				return;
+			}
+
+			if ( UE::UsdLayerUtilsImpl::Private::FixAssetPaths( pxr::SdfLayerRefPtr{ AnchorLayer }, &LayerValue ) )
+			{
+				UsdLayer->SetField( Path, pxr::SdfFieldKeys->Default, LayerValue );
+			}
+		}
+	);
 }
 
 #undef LOCTEXT_NAMESPACE
