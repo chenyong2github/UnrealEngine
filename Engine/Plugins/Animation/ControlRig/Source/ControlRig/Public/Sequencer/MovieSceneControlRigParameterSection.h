@@ -428,6 +428,9 @@ public:
 	/** Remove All Keys, but maybe not space keys if bIncludeSpaceKeys is false */
 	void RemoveAllKeys(bool bIncludeSpaceKeys);
 
+	/** Whether or not create a space channel for a particular control */
+	bool CanCreateSpaceChannel(FName InControlName) const;
+
 public:
 	/**
 	* Access the interrogation key for control rig data 
