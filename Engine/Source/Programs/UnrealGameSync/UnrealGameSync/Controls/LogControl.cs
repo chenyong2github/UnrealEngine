@@ -930,7 +930,7 @@ namespace UnrealGameSync
 			{
 				foreach (string Line in Exception.ToString().Trim().Split('\n'))
 				{
-					LogControl.AppendLine(Message);
+					LogControl.AppendLine(Line);
 				}
 			}
 		}
