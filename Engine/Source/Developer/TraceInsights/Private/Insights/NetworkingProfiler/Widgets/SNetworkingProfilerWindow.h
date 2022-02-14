@@ -274,11 +274,14 @@ private:\
 	//////////////////////////////////////////////////
 
 private:
-	/** Commandlist used in the window (Maps commands to window specific actions) */
-	TSharedPtr<FUICommandList> CommandList;
-
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;
+
+	/** All tabs owned by this window */
+	TSet<TSharedPtr<SDockTab>> OpenTabs;
+
+	/** Commandlist used in the window (Maps commands to window specific actions) */
+	TSharedPtr<FUICommandList> CommandList;
 
 	/** The Packet View widget */
 	TSharedPtr<SPacketView> PacketView;

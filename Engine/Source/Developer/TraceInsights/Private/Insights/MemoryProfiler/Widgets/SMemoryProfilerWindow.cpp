@@ -64,29 +64,23 @@ SMemoryProfilerWindow::SMemoryProfilerWindow()
 
 SMemoryProfilerWindow::~SMemoryProfilerWindow()
 {
-	if (ModulesView)
+	// Close all tabs.
+	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
+	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
 	{
-		HideTab(FMemoryProfilerTabs::ModulesViewID);
-		check(ModulesView == nullptr);
+		LocalOpenTabs.Add(Tab);
 	}
+	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
+	{
+		Tab->RequestCloseTab();
+	}
+	LocalOpenTabs.Reset();
+	check(OpenTabs.IsEmpty());
 
-	if (MemTagTreeView)
-	{
-		HideTab(FMemoryProfilerTabs::MemTagTreeViewID);
-		check(MemTagTreeView == nullptr);
-	}
-
-	if (MemInvestigationView)
-	{
-		HideTab(FMemoryProfilerTabs::MemInvestigationViewID);
-		check(MemInvestigationView == nullptr);
-	}
-
-	if (TimingView)
-	{
-		HideTab(FMemoryProfilerTabs::TimingViewID);
-		check(TimingView == nullptr);
-	}
+	check(ModulesView == nullptr);
+	check(MemTagTreeView == nullptr);
+	check(MemInvestigationView == nullptr);
+	check(TimingView == nullptr);
 
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
@@ -147,6 +141,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	TimingView->HideAllDefaultTracks();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnTimingViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -167,6 +162,8 @@ void SMemoryProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingC
 
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, &SharedState.Get());
 	SharedState->SetTimingView(nullptr);
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +181,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemInvestigationView(const 
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemInvestigationViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -195,6 +193,8 @@ void SMemoryProfilerWindow::OnMemInvestigationViewTabClosed(TSharedRef<SDockTab>
 {
 	FMemoryProfilerManager::Get()->SetMemInvestigationViewVisible(false);
 	MemInvestigationView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +212,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemTagTreeView(const FSpawn
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemTagTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -223,6 +224,8 @@ void SMemoryProfilerWindow::OnMemTagTreeViewTabClosed(TSharedRef<SDockTab> TabBe
 {
 	FMemoryProfilerManager::Get()->SetMemTagTreeViewVisible(false);
 	MemTagTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,6 +253,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const
 	MemAllocTableTreeViews.Add(MemAllocTableTreeView);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -294,6 +298,8 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 
 	MemAllocTableTreeView->OnClose();
 	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,6 +377,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_ModulesView(const FSpawnTab
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnModulesViewClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -382,6 +389,8 @@ void SMemoryProfilerWindow::OnModulesViewClosed(TSharedRef<SDockTab> TabBeingClo
 {
 	FMemoryProfilerManager::Get()->SetModulesViewVisible(false);
 	ModulesView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

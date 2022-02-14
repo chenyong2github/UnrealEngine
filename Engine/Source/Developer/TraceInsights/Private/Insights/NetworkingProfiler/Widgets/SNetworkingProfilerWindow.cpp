@@ -61,23 +61,22 @@ SNetworkingProfilerWindow::SNetworkingProfilerWindow()
 
 SNetworkingProfilerWindow::~SNetworkingProfilerWindow()
 {
-	if (NetStatsView)
+	// Close all tabs.
+	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
+	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
 	{
-		HideTab(FNetworkingProfilerTabs::NetStatsViewID);
-		check(NetStatsView == nullptr);
+		LocalOpenTabs.Add(Tab);
 	}
+	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
+	{
+		Tab->RequestCloseTab();
+	}
+	LocalOpenTabs.Reset();
+	check(OpenTabs.IsEmpty());
 
-	if (PacketContentView)
-	{
-		HideTab(FNetworkingProfilerTabs::PacketContentViewID);
-		check(PacketContentView == nullptr);
-	}
-
-	if (PacketView)
-	{
-		HideTab(FNetworkingProfilerTabs::PacketViewID);
-		check(PacketView == nullptr);
-	}
+	check(NetStatsView == nullptr);
+	check(PacketContentView == nullptr);
+	check(PacketView == nullptr);
 
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
@@ -134,6 +133,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_PacketView(const FSpawn
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnPacketViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -144,6 +144,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNetworkingProfilerWindow::OnPacketViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	PacketView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,6 +161,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_PacketContentView(const
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnPacketContentViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -169,6 +172,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNetworkingProfilerWindow::OnPacketContentViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	PacketContentView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +189,7 @@ TSharedRef<SDockTab> SNetworkingProfilerWindow::SpawnTab_NetStatsView(const FSpa
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SNetworkingProfilerWindow::OnNetStatsViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -194,6 +200,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNetworkingProfilerWindow::OnNetStatsViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	NetStatsView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

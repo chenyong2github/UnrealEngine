@@ -60,41 +60,25 @@ SLoadingProfilerWindow::SLoadingProfilerWindow()
 
 SLoadingProfilerWindow::~SLoadingProfilerWindow()
 {
-	if (RequestsTreeView)
+	// Close all tabs.
+	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
+	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
 	{
-		HideTab(FLoadingProfilerTabs::RequestsTreeViewID);
-		check(RequestsTreeView == nullptr);
+		LocalOpenTabs.Add(Tab);
 	}
+	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
+	{
+		Tab->RequestCloseTab();
+	}
+	LocalOpenTabs.Reset();
+	check(OpenTabs.IsEmpty());
 
-	if (ExportDetailsTreeView)
-	{
-		HideTab(FLoadingProfilerTabs::ExportDetailsTreeViewID);
-		check(ExportDetailsTreeView == nullptr);
-	}
-
-	if (PackageDetailsTreeView)
-	{
-		HideTab(FLoadingProfilerTabs::PackageDetailsTreeViewID);
-		check(PackageDetailsTreeView == nullptr);
-	}
-
-	if (ObjectTypeAggregationTreeView)
-	{
-		HideTab(FLoadingProfilerTabs::ObjectTypeAggregationTreeViewID);
-		check(ObjectTypeAggregationTreeView == nullptr);
-	}
-
-	if (EventAggregationTreeView)
-	{
-		HideTab(FLoadingProfilerTabs::EventAggregationTreeViewID);
-		check(EventAggregationTreeView == nullptr);
-	}
-
-	if (TimingView)
-	{
-		HideTab(FLoadingProfilerTabs::TimingViewID);
-		check(TimingView == nullptr);
-	}
+	check(RequestsTreeView == nullptr);
+	check(ExportDetailsTreeView == nullptr);
+	check(PackageDetailsTreeView == nullptr);
+	check(ObjectTypeAggregationTreeView == nullptr);
+	check(EventAggregationTreeView == nullptr);
+	check(TimingView == nullptr);
 
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
@@ -296,6 +280,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_TimingView(const FSpawnTab
 	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnTimingViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -311,6 +296,8 @@ void SLoadingProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeing
 		TimingView->OnSelectionChanged().RemoveAll(this);
 		TimingView = nullptr;
 	}
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -334,6 +321,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView(c
 	UpdateEventAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -345,6 +333,8 @@ void SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed(TSharedRef<SDoc
 {
 	FLoadingProfilerManager::Get()->SetEventAggregationTreeViewVisible(false);
 	EventAggregationTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -368,6 +358,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeV
 	UpdateObjectTypeAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -379,6 +370,8 @@ void SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed(TSharedRef
 {
 	FLoadingProfilerManager::Get()->SetObjectTypeAggregationTreeViewVisible(false);
 	ObjectTypeAggregationTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -402,6 +395,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView(con
 	UpdatePackageDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -413,6 +407,8 @@ void SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed(TSharedRef<SDockT
 {
 	FLoadingProfilerManager::Get()->SetPackageDetailsTreeViewVisible(false);
 	PackageDetailsTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,6 +432,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView(cons
 	UpdateExportDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -447,6 +444,8 @@ void SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed(TSharedRef<SDockTa
 {
 	FLoadingProfilerManager::Get()->SetExportDetailsTreeViewVisible(false);
 	ExportDetailsTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -470,6 +469,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_RequestsTreeView(const FSp
 	UpdateRequestsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnRequestsTreeViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -481,6 +481,8 @@ void SLoadingProfilerWindow::OnRequestsTreeViewTabClosed(TSharedRef<SDockTab> Ta
 {
 	FLoadingProfilerManager::Get()->SetRequestsTreeViewVisible(false);
 	RequestsTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

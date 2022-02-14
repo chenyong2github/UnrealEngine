@@ -187,6 +187,14 @@ private:
 private:
 	TSharedRef<FMemorySharedState> SharedState;
 
+	/** Holds the tab manager that manages the front-end's tabs. */
+	TSharedPtr<FTabManager> TabManager;
+
+	TSharedPtr<FWorkspaceItem> AppMenuGroup;
+
+	/** All tabs owned by this window */
+	TSet<TSharedPtr<SDockTab>> OpenTabs;
+
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
 
@@ -206,11 +214,6 @@ private:
 
 	const int32 MaxMemAllocTableTreeViews = 4;
 	int32 LastMemAllocTableTreeViewIndex = -1;
-
-	/** Holds the tab manager that manages the front-end's tabs. */
-	TSharedPtr<FTabManager> TabManager;
-
-	TSharedPtr<FWorkspaceItem> AppMenuGroup;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

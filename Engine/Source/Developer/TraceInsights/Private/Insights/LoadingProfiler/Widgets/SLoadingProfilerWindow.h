@@ -173,6 +173,12 @@ private:
 	void OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
 
 private:
+	/** Holds the tab manager that manages the front-end's tabs. */
+	TSharedPtr<FTabManager> TabManager;
+
+	/** All tabs owned by this window */
+	TSet<TSharedPtr<SDockTab>> OpenTabs;
+
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
 
@@ -190,9 +196,6 @@ private:
 
 	/** The Requests tree view widget */
 	TSharedPtr<Insights::SUntypedTableTreeView> RequestsTreeView;
-
-	/** Holds the tab manager that manages the front-end's tabs. */
-	TSharedPtr<FTabManager> TabManager;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

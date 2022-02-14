@@ -66,47 +66,26 @@ STimingProfilerWindow::STimingProfilerWindow()
 
 STimingProfilerWindow::~STimingProfilerWindow()
 {
-	if (LogView)
+	// Close all tabs.
+	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
+	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
 	{
-		HideTab(FTimingProfilerTabs::LogViewID);
-		check(LogView == nullptr);
+		LocalOpenTabs.Add(Tab);
 	}
+	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
+	{
+		Tab->RequestCloseTab();
+	}
+	LocalOpenTabs.Reset();
+	check(OpenTabs.IsEmpty());
 
-	if (StatsView)
-	{
-		HideTab(FTimingProfilerTabs::StatsCountersID);
-		check(StatsView == nullptr);
-	}
-
-	if (CalleesTreeView)
-	{
-		HideTab(FTimingProfilerTabs::CalleesID);
-		check(CalleesTreeView == nullptr);
-	}
-
-	if (CallersTreeView)
-	{
-		HideTab(FTimingProfilerTabs::CallersID);
-		check(CallersTreeView == nullptr);
-	}
-
-	if (TimersView)
-	{
-		HideTab(FTimingProfilerTabs::TimersID);
-		check(TimersView == nullptr);
-	}
-
-	if (TimingView)
-	{
-		HideTab(FTimingProfilerTabs::TimingViewID);
-		check(TimingView == nullptr);
-	}
-
-	if (FrameTrack)
-	{
-		HideTab(FTimingProfilerTabs::FramesTrackID);
-		check(FrameTrack == nullptr);
-	}
+	check(LogView == nullptr);
+	check(StatsView == nullptr);
+	check(CalleesTreeView == nullptr);
+	check(CallersTreeView == nullptr);
+	check(TimersView == nullptr);
+	check(TimingView == nullptr);
+	check(FrameTrack == nullptr);
 
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
@@ -171,6 +150,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_FramesTrack(const FSpawnTab
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnFramesTrackTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -182,6 +162,8 @@ void STimingProfilerWindow::OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeing
 {
 	FTimingProfilerManager::Get()->SetFramesTrackVisible(false);
 	FrameTrack = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -205,6 +187,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimingViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -220,6 +203,8 @@ void STimingProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingC
 		TimingView->OnSelectionChanged().RemoveAll(this);
 		TimingView = nullptr;
 	}
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -237,6 +222,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Timers(const FSpawnTabArgs&
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimersTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -248,6 +234,8 @@ void STimingProfilerWindow::OnTimersTabClosed(TSharedRef<SDockTab> TabBeingClose
 {
 	FTimingProfilerManager::Get()->SetTimersViewVisible(false);
 	TimersView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,6 +253,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Callers(const FSpawnTabArgs
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnCallersTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -276,6 +265,8 @@ void STimingProfilerWindow::OnCallersTabClosed(TSharedRef<SDockTab> TabBeingClos
 {
 	FTimingProfilerManager::Get()->SetCallersTreeViewVisible(false);
 	CallersTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,6 +284,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_Callees(const FSpawnTabArgs
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnCalleesTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -304,6 +296,8 @@ void STimingProfilerWindow::OnCalleesTabClosed(TSharedRef<SDockTab> TabBeingClos
 {
 	FTimingProfilerManager::Get()->SetCalleesTreeViewVisible(false);
 	CalleesTreeView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,6 +315,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_StatsCounters(const FSpawnT
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnStatsCountersTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -332,6 +327,8 @@ void STimingProfilerWindow::OnStatsCountersTabClosed(TSharedRef<SDockTab> TabBei
 {
 	FTimingProfilerManager::Get()->SetStatsCountersViewVisible(false);
 	StatsView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,6 +346,7 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_LogView(const FSpawnTabArgs
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnLogViewTabClosed));
+	OpenTabs.Add(DockTab);
 
 	return DockTab;
 }
@@ -360,6 +358,8 @@ void STimingProfilerWindow::OnLogViewTabClosed(TSharedRef<SDockTab> TabBeingClos
 {
 	FTimingProfilerManager::Get()->SetLogViewVisible(false);
 	LogView = nullptr;
+
+	OpenTabs.Remove(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
