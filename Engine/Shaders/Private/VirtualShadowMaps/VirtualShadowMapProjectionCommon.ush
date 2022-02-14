@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-ProjectionCommon.ush:
+VirtualShadowMapProjectionCommon.ush:
 =============================================================================*/
 #pragma once
 
 #include "../Common.ush"
-#include "PageAccessCommon.ush"
-#include "ProjectionStructs.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapProjectionStructs.ush"
 
 /** Light types */
 #define LIGHT_TYPE_DIRECTIONAL 0

@@ -2,9 +2,9 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
-#include "ProjectionCommon.ush"
-#include "PageOverlap.ush"
-#include "PageCacheCommon.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapPageOverlap.ush"
+#include "VirtualShadowMapPageCacheCommon.ush"
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 
 //#include "NaniteDataDecode.ush"

@@ -39,7 +39,7 @@
 #if VIRTUAL_SM_ENABLED
 #include "Nanite/NaniteDataDecode.ush"
 #include "SceneData.ush"
-#include "VirtualShadowMaps/PageAccessCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #endif
 
 #define SECONDARY_OCCLUSION			1

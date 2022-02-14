@@ -4,7 +4,7 @@
 
 #include "../Common.ush"
 #if VIRTUAL_TEXTURE_TARGET
-#include "../VirtualShadowMaps/PageAccessCommon.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #endif
 
 // Must match ERasterTechnique in NaniteCullRaster.h

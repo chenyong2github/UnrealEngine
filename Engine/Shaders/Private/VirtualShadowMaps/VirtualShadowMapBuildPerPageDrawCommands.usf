@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	BuildPerPageDrawCommands.usf: 
+	VirtualShadowMapBuildPerPageDrawCommands.usf: 
 =============================================================================*/
 
 #include "../Common.ush"
-#include "PageOverlap.ush"
-#include "ProjectionCommon.ush"
+#include "VirtualShadowMapPageOverlap.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../InstanceCulling/InstanceCullingCommon.ush"
 #include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 #include "../WaveOpUtil.ush"
-#include "Stats.ush"
-#include "PageCacheCommon.ush"
+#include "VirtualShadowMapStats.ush"
+#include "VirtualShadowMapPageCacheCommon.ush"
 
 
 #ifndef NEAR_CLIP

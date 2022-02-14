@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PageManagement.usf: 
+	VirtualShadowMapPageManagement.usf: 
 =============================================================================*/
 
 #include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
@@ -15,13 +15,13 @@
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "../HairStrands/HairStrandsTileCommon.ush"
 #include "../ReductionCommon.ush"
-#include "PageAccessCommon.ush"
-#include "PageCacheCommon.ush"
-#include "PageOverlap.ush"
-#include "ProjectionCommon.ush"
-#include "ProjectionSpot.ush"
-#include "ProjectionDirectional.ush"
-#include "Stats.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapPageCacheCommon.ush"
+#include "VirtualShadowMapPageOverlap.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapProjectionSpot.ush"
+#include "VirtualShadowMapProjectionDirectional.ush"
+#include "VirtualShadowMapStats.ush"
 #include "../GPUMessaging.ush"
 
 #ifndef HAS_CACHE_DATA

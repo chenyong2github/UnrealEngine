@@ -19,7 +19,7 @@
 #include "Random.ush"
 
 #if VIRTUAL_SHADOW_MAP
-#include "VirtualShadowMaps/ProjectionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 
 #ifndef USE_EMISSIVE

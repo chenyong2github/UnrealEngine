@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-SMRTCommon.ush: 
+VirtualShadowMapSMRTCommon.ush:
 =============================================================================*/
 
 #pragma once

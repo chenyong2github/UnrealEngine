@@ -20,7 +20,7 @@
 #include "../ForwardShadowingCommon.ush"
 #include "../LightGridCommon.ush"
 #if VIRTUAL_SHADOW_MAP
-#include "../VirtualShadowMaps/ProjectionCommon.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 #define DISTANCE_FIELD_IN_VIEW_UB 1
 #define DF_SHADOW_QUALITY 2

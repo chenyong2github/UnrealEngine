@@ -3,8 +3,8 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteAttributeDecode.ush"
-#include "../VirtualShadowMaps/PageAccessCommon.ush"
-#include "../VirtualShadowMaps/StaticCaching.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
 #include "WritePixel.ush"
 
 #if IS_NANITE_RASTER_PASS

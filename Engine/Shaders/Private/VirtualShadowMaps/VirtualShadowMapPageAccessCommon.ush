@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PageAccessCommon.ush:
+	VirtualShadowMapPageAccessCommon.ush:
 =============================================================================*/
 #pragma once
 

@@ -11,7 +11,7 @@
 #include "../WaveOpUtil.ush"
 #include "../ComputeShaderUtils.ush"
 #if VIRTUAL_TEXTURE_TARGET
-#include "../VirtualShadowMaps/PageOverlap.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #endif
 
 #include "NaniteDataDecode.ush"

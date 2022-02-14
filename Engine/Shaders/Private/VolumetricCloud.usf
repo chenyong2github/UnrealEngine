@@ -267,7 +267,7 @@ bool RayIntersectSphereSolution(float3 RayOrigin, float3 RayDirection, float4 Sp
 #undef Light0Shadow
 
 #if VIRTUAL_SHADOW_MAP
-#include "VirtualShadowMaps/ProjectionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 
 #endif

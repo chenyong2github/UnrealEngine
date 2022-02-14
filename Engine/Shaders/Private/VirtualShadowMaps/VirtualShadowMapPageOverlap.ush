@@ -5,7 +5,7 @@
 #include "../Common.ush"
 #include "../Nanite/HZBCull.ush"
 #include "../SceneData.ush"
-#include "PageAccessCommon.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
 
 StructuredBuffer<uint> ShadowHZBPageTable;
 

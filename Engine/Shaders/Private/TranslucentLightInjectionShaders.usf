@@ -28,7 +28,7 @@ uint AtmospherePerPixelTransmittanceEnabled;
 #endif
 
 #if VIRTUAL_SHADOW_MAP
-#include "VirtualShadowMaps/ProjectionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 
 float CalcSimpleLightAttenuation(float3 TranslatedWorldPosition)

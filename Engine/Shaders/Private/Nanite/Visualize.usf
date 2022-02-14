@@ -5,7 +5,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../ColorMap.ush"
 #include "../Visualization.ush"
-#include "../VirtualShadowMaps/StaticCaching.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
 
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"

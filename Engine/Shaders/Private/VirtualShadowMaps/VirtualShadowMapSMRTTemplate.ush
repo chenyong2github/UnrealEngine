@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-SMRTTemplate.ush: 
+VirtualShadowMapSMRTTemplate.ush:
 
 Required parameters before including this file:
 1) Include "SMRTCommon.ush"
@@ -10,7 +10,7 @@ Required parameters before including this file:
 4) Implement SMRTComputeOccluderDistance(FRayState RayState, float SampleDepth)
 5) Include this file:
 #define SMRT_TEMPLATE_RAY_STRUCT FRayState
-#include "SMRTTemplate.ush"
+#include "VirtualShadowMapSMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
 =============================================================================*/
 

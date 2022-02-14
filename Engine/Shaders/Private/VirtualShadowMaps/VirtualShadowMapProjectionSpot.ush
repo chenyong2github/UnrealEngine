@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-ProjectionSpot.ush: 
+VirtualShadowMapProjectionSpot.ush:
 =============================================================================*/
 #pragma once
 
@@ -9,9 +9,9 @@ ProjectionSpot.ush:
 #include "../SceneTexturesCommon.ush"
 #include "../LightShaderParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
-#include "PageAccessCommon.ush"
-#include "ProjectionCommon.ush"
-#include "SMRTCommon.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapSMRTCommon.ush"
 
 #ifndef SMRT_ADAPTIVE_RAY_COUNT
 #define SMRT_ADAPTIVE_RAY_COUNT 0
@@ -98,7 +98,7 @@ float SMRTComputeOccluderDistance(FSMRTSingleRayState RayState, float SampleDept
 
 // Instantiate SMRTRayCast for FSMRTSingleRayState
 #define SMRT_TEMPLATE_RAY_STRUCT FSMRTSingleRayState
-#include "SMRTTemplate.ush"
+#include "VirtualShadowMapSMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
 
 
@@ -147,7 +147,7 @@ float SMRTComputeOccluderDistance(FSMRTTwoCubeFaceRayState RayState, float Sampl
 
 // Instantiate SMRTRayCast for FSMRTTwoCubeFaceRayState
 #define SMRT_TEMPLATE_RAY_STRUCT FSMRTTwoCubeFaceRayState
-#include "SMRTTemplate.ush"
+#include "VirtualShadowMapSMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
 
 

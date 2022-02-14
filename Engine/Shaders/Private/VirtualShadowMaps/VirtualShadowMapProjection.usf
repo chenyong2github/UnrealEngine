@@ -17,11 +17,11 @@
 #include "../LightGridCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "../Visualization.ush"
-#include "PageAccessCommon.ush"
-#include "ProjectionCommon.ush"
-#include "ProjectionDirectional.ush"
-#include "ProjectionSpot.ush"
-#include "TransmissionCommon.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapProjectionDirectional.ush"
+#include "VirtualShadowMapProjectionSpot.ush"
+#include "VirtualShadowMapTransmissionCommon.ush"
 #include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 
 #if HAS_HAIR_STRANDS

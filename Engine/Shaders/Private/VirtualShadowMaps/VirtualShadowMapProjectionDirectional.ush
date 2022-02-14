@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-ProjectionDirectional.ush: 
+VirtualShadowMapProjectionDirectional.ush:
 =============================================================================*/
 #pragma once
 
@@ -9,9 +9,9 @@ ProjectionDirectional.ush:
 #include "../SceneTexturesCommon.ush"
 #include "../LightShaderParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
-#include "PageAccessCommon.ush"
-#include "ProjectionCommon.ush"
-#include "SMRTCommon.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
+#include "VirtualShadowMapSMRTCommon.ush"
 
 
 struct FSMRTClipmapRayState
@@ -166,7 +166,7 @@ float SMRTComputeOccluderDistance(FSMRTClipmapRayState RayState, float SampleDep
 
 // Instantiate SMRTRayCast for FSMRTClipmapRayState
 #define SMRT_TEMPLATE_RAY_STRUCT FSMRTClipmapRayState
-#include "SMRTTemplate.ush"
+#include "VirtualShadowMapSMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
 
 float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)

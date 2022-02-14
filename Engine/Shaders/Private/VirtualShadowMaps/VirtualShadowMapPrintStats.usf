@@ -2,8 +2,8 @@
 
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
-#include "PageAccessCommon.ush"
-#include "Stats.ush"
+#include "VirtualShadowMapPageAccessCommon.ush"
+#include "VirtualShadowMapStats.ush"
 
 StructuredBuffer<uint>	InStatsBuffer;
 // Rectangles bounding (allocated) pages for each mip level

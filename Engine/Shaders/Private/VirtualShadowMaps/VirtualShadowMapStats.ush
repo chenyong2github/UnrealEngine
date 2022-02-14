@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	Stats.ush: 
+	VirtualShadowMapStats.ush: 
 =============================================================================*/
 
 #include "../Common.ush"

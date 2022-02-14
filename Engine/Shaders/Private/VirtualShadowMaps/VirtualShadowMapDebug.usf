@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PageManagement.usf: 
+	VirtualShadowMapPageManagement.usf: 
 =============================================================================*/
 
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
-#include "PageOverlap.ush"
-#include "PageCacheCommon.ush"
-#include "ProjectionCommon.ush"
+#include "VirtualShadowMapPageOverlap.ush"
+#include "VirtualShadowMapPageCacheCommon.ush"
+#include "VirtualShadowMapProjectionCommon.ush"
 #include "../Visualization.ush"
 #include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 

@@ -28,7 +28,7 @@
 #include "ShadingModels.ush"
 #include "LightGridCommon.ush"
 #include "DeferredLightingCommon.ush"
-#include "VirtualShadowMaps/TransmissionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush"
 
 #if STRATA_ENABLED
   #if STRATA_TILETYPE == 0

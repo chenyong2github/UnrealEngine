@@ -28,7 +28,7 @@
 #endif
 
 #if VIRTUAL_SHADOW_MAP
-#include "VirtualShadowMaps/ProjectionCommon.ush"
+#include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 
 #if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
