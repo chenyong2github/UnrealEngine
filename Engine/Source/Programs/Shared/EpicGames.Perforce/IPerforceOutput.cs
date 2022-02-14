@@ -52,6 +52,7 @@ namespace EpicGames.Perforce
 			public static Utf8String Stat = "stat";
 			public static Utf8String Info = "info";
 			public static Utf8String Error = "error";
+			public static Utf8String Io = "io";
 		}
 
 		/// <summary>
@@ -462,6 +463,14 @@ namespace EpicGames.Perforce
 			else if (Code == ReadOnlyUtf8StringConstants.Error)
 			{
 				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, PerforceReflection.ErrorRecordInfo, out Record))
+				{
+					Response = null;
+					return false;
+				}
+			}
+			else if (Code == ReadOnlyUtf8StringConstants.Io)
+			{
+				if (!TryReadTypedRecord(Buffer, ref BufferPos, Utf8String.Empty, PerforceReflection.IoRecordInfo, out Record))
 				{
 					Response = null;
 					return false;

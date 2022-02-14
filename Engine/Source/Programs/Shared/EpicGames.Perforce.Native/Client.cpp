@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning(push)
+#pragma warning(disable: 4244)
 #include "clientapi.h"
 #include "strtable.h"
+#include "datetime.h"
+#pragma warning(pop)
 #include <assert.h>
 
 #ifdef _MSC_VER
@@ -55,12 +59,15 @@ private:
 public:
 	const char* Func = nullptr;
 	const char* PromptResponse = nullptr;
+	bool InterceptIo = false;
 
 	FClientUser(FWriteBuffer* WriteBuffer, FOnBufferReadyFn* OnBufferReady)
 	{
 		SetWriteBuffer(WriteBuffer);
 		this->OnBufferReady = OnBufferReady;
 	}
+
+	virtual FileSys* File(FileSysType type) override;
 
 	virtual void InputData(StrBuf* strbuf, Error* e) override
 	{
@@ -198,6 +205,43 @@ public:
 	virtual void OutputError(const char* errBuf) override
 	{
 		assert(false);
+	}
+
+	void OutputIo(int FileId, const char* Command, const void* Payload, int PayloadLen)
+	{
+		while (!TryOutputIo(FileId, Command, Payload, PayloadLen))
+		{
+			Flush();
+		}
+	}
+
+	bool TryOutputIo(int FileId, const char* Command, const void* Payload, int PayloadLen)
+	{
+		static const char CodeKey[] = "code";
+		static const char FileKey[] = "file";
+		static const char CommandKey[] = "command";
+		static const char PayloadKey[] = "payload";
+
+		static const char IoCode[] = "io";
+
+		unsigned int CommandLen = (unsigned int)strlen(Command);
+		unsigned int RecordLen = (unsigned int)(1 + MeasureStringField(CodeKey, IoCode) + MeasureIntField(FileKey) + MeasureStringField(CommandKey, CommandLen) + MeasureStringField(PayloadKey, PayloadLen) + 1);
+		if (Length + RecordLen > MaxLength)
+		{
+			return false;
+		}
+
+		unsigned char* Pos = Data + Length;
+		*(Pos++) = '{';
+		Pos = WriteStringField(Pos, CodeKey, IoCode);
+		Pos = WriteIntField(Pos, FileKey, FileId);
+		Pos = WriteStringField(Pos, CommandKey, Command, CommandLen);
+		Pos = WriteStringField(Pos, PayloadKey, (const char*)Payload, PayloadLen);
+		*(Pos++) = '0';
+		assert(Pos == Data + Length + RecordLen);
+
+		Length += RecordLen;
+		return true;
 	}
 
 	virtual void OutputInfo(char Level, const char* Data) override
@@ -395,6 +439,136 @@ public:
 	}
 };
 
+class FFileSys : public FileSys
+{
+public:
+	static int NextFileId;
+	int FileId = -1;
+
+	const FileSysType Type;
+	class FClientUser& User;
+
+	FFileSys(FileSysType InType, FClientUser& InUser)
+		: Type(InType)
+		, User(InUser)
+	{
+	}
+
+	virtual void	ChmodTimeHP(const DateTimeHighPrecision& /* modTime */, Error* /* e */) override {};
+	virtual void	SetAttribute(FileSysAttr, Error*) override { };
+
+	virtual bool	HasOnlyPerm(FilePerm perms) override { return false; }
+	virtual int	GetFd() override { return -1; }
+	virtual int     GetOwner() override { return 0; }
+	virtual offL_t	GetSize() override { return 0; }
+	virtual void	Seek(offL_t offset, Error*) override { }
+	virtual offL_t	Tell() override { return 0; }
+
+	virtual void	MakeLocalTemp(char* file) override { assert(false); }
+	virtual void	SetDeleteOnClose() override { }
+	virtual void	ClearDeleteOnClose() override {}
+	virtual StrArray* ScanDir(Error* e) override { return nullptr; }
+
+	virtual void	MkDir(const StrPtr& p, Error* e) override { }
+	virtual void	PurgeDir(const char* p, Error* e) override { }
+	virtual void	RmDir(const StrPtr& p, Error* e) override { }
+	virtual int	ReadLine(StrBuf* buf, Error* e) override { return 0; }
+
+	virtual void Open(FileOpenMode mode, Error* e) override
+	{
+		int PathLen = path.Length() + 1;
+
+		int BufferLen = PathLen + sizeof(int) + sizeof(int);
+
+		char* Buffer = new char[BufferLen];
+		memcpy(Buffer, path.Text(), (size_t)PathLen);
+
+		int TypeInt = (int)Type;
+		memcpy(Buffer + PathLen, &TypeInt, sizeof(int));
+
+		int ModeInt = (int)mode;
+		memcpy(Buffer + PathLen + sizeof(int), &ModeInt, sizeof(int));
+
+		FileId = ++NextFileId;
+		User.OutputIo(FileId, "open", Buffer, BufferLen);
+
+		delete[] Buffer;
+	}
+
+	virtual void Write(const char* buf, int len, Error* e) override
+	{
+		User.OutputIo(FileId, "write", buf, len);
+	}
+
+	virtual int Read(char* buf, int len, Error* e) override
+	{
+		return 0;
+	}
+
+	virtual void Close(Error* e) override
+	{
+		User.OutputIo(FileId, "close", nullptr, 0);
+	}
+
+	virtual int Stat() override
+	{
+		return 0;
+	}
+
+	virtual int StatModTime() override
+	{
+		return 0;
+	}
+
+	virtual void StatModTimeHP(DateTimeHighPrecision* modTime) override
+	{
+	}
+
+	virtual void Truncate(Error* e) override
+	{
+		assert(false);
+	}
+
+	virtual void Truncate(offL_t offset, Error* e) override
+	{
+		assert(false);
+	}
+
+	virtual void Unlink(Error* e = 0) override
+	{
+		User.OutputIo(FileId, "unlink", path.Text(), path.Length());
+	}
+
+	virtual void Rename(FileSys* target, Error* e) override
+	{
+		assert(false);
+	}
+
+	virtual void Chmod(FilePerm perms, Error* e) override
+	{
+		assert(false);
+	}
+
+	virtual void ChmodTime(Error* e) override
+	{
+		assert(false);
+	}
+};
+
+int FFileSys::NextFileId = 100;
+
+FileSys* FClientUser::File(FileSysType type)
+{
+	if (InterceptIo)
+	{
+		return new FFileSys(type, *this);
+	}
+	else
+	{
+		return ClientUser::File(type);
+	}
+}
+
 class FClient
 {
 public:
@@ -458,14 +632,16 @@ extern "C" NATIVE_API void Client_Login(FClient * Client, const char* Password)
 	Client->User.PromptResponse = nullptr;
 }
 
-extern "C" NATIVE_API void Client_Command(FClient* Client, const char* Func, int ArgCount, const char** Args, const char* InputData, int InputLength)
+extern "C" NATIVE_API void Client_Command(FClient* Client, const char* Func, int ArgCount, const char** Args, const char* InputData, int InputLength, bool InterceptIo)
 {
+	Client->User.InterceptIo = InterceptIo;
 	Client->User.Func = Func;
 	Client->User.SetInputBuffer(InputData, InputLength);
 	Client->ClientApi.SetArgv(ArgCount, (char* const*)Args);
 	Client->ClientApi.Run(Func, &Client->User);
 	Client->User.Flush();
 	Client->User.Func = nullptr;
+	Client->User.InterceptIo = false;
 }
 
 extern "C" NATIVE_API void Client_Destroy(FClient* Client)

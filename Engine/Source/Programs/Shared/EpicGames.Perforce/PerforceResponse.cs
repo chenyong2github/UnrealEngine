@@ -72,6 +72,14 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// Returns the io data, or null if this is a regular response.
+		/// </summary>
+		public PerforceIo? Io
+		{
+			get { return InternalData as PerforceIo; }
+		}
+
+		/// <summary>
 		/// Throws an exception if the response is an error
 		/// </summary>
 		public void EnsureSuccess()

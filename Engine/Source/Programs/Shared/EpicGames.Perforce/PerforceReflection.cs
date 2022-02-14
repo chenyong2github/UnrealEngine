@@ -356,6 +356,11 @@ namespace EpicGames.Perforce
 		public static CachedRecordInfo ErrorRecordInfo = GetCachedRecordInfo(typeof(PerforceError));
 
 		/// <summary>
+		/// Default type for errors
+		/// </summary>
+		public static CachedRecordInfo IoRecordInfo = GetCachedRecordInfo(typeof(PerforceIo));
+
+		/// <summary>
 		/// Gets a mapping of flags to enum values for the given type
 		/// </summary>
 		/// <param name="EnumType">The enum type to retrieve flags for</param>
@@ -466,6 +471,10 @@ namespace EpicGames.Perforce
 						else if (FieldType == typeof(List<string>))
 						{
 							TagInfo.SetFromString = (Obj, String) => ((List<string>)PropertyCopy.GetValue(Obj)!).Add(String.ToString());
+						}
+						else if (FieldType == typeof(ReadOnlyMemory<byte>))
+						{
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, String.Memory);
 						}
 						else
 						{

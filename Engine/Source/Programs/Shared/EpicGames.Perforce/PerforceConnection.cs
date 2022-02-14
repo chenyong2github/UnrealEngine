@@ -309,8 +309,12 @@ namespace EpicGames.Perforce
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData)
+		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, bool InterceptIo)
 		{
+			if (InterceptIo)
+			{
+				throw new NotSupportedException($"{nameof(InterceptIo)} option is not supported through legacy Perforce client");
+			}
 			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(Command, Arguments, FileArguments, InputData, GetGlobalArguments(), Logger));
 		}
 
@@ -421,7 +425,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
 		{
-			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
+			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, false))
 			{
 				return await Response.ReadResponsesAsync(StatRecordType, CancellationToken);
 			}
@@ -436,11 +440,12 @@ namespace EpicGames.Perforce
 		/// <param name="FileArguments">File arguments for the command</param>
 		/// <param name="InputData">Input data to pass to Perforce</param>
 		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="InterceptIo">Whether to intercept Io operations and return them in the response output</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of objects returned by the server</returns>
-		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, [EnumeratorCancellation] CancellationToken CancellationToken)
+		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, bool InterceptIo, [EnumeratorCancellation] CancellationToken CancellationToken)
 		{
-			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
+			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, InterceptIo))
 			{
 				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
 				{
@@ -461,7 +466,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async IAsyncEnumerable<PerforceResponse<T>> StreamCommandAsync<T>(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments = null, byte[]? InputData = null, [EnumeratorCancellation] CancellationToken CancellationToken = default) where T : class
 		{
-			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
+			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData, false))
 			{
 				Type StatRecordType = typeof(T);
 				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
@@ -483,7 +488,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task RecordCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default)
 		{
-			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, null, InputData))
+			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, null, InputData, false))
 			{
 				await Response.ReadRecordsAsync(HandleRecord, CancellationToken);
 			}
