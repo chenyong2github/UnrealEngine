@@ -458,7 +458,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 					BuildDisabledParticles(Island, DisabledParticles, SleepedIslands);
 				}
 			}
-		}, true);
+		});
 	}
 
 	{
