@@ -96,7 +96,7 @@ namespace UnrealGameSync
 						Password = PasswordWindow.Password;
 						continue;
 					}
-					MessageBox.Show(Owner, Title, Result.Error, MessageBoxButtons.OK);
+					MessageBox.Show(Owner, Result.Error, Title, MessageBoxButtons.OK);
 				}
 
 				return Result;
