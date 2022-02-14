@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/LatentActionManager.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "AutomationScreenshotOptions.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Engine/LatentActionManager.h"
 #include "HAL/IConsoleManager.h"
-#include "Templates/UniquePtr.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/AutomationTest.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectMacros.h"
 #include "AutomationBlueprintFunctionLibrary.generated.h"
 
 class ACameraActor;
