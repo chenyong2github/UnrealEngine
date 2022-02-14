@@ -990,9 +990,8 @@ EMainTAAPassConfig ITemporalUpscaler::GetMainTAAPassConfig(const FViewInfo& View
 	{
 		return EMainTAAPassConfig::ThirdParty;
 	}
-	else if (View.AntiAliasingMethod == AAM_TSR && !IsPostProcessingWithAlphaChannelSupported())
+	else if (View.AntiAliasingMethod == AAM_TSR)
 	{
-		// TODO(TSR): alpha channel is not supported yet
 		check(SupportsTSR(View.GetShaderPlatform()));
 		return EMainTAAPassConfig::TSR;
 	}
