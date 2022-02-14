@@ -23,7 +23,7 @@ enum class EMediaPlayerTrack : uint8;
 /**
  * Implements the contents of the viewer tab in the UMediaPlayer asset editor.
  */
-class SMediaPlayerEditorViewer
+class MEDIAPLAYEREDITOR_API SMediaPlayerEditorViewer
 	: public SCompoundWidget
 {
 public:
