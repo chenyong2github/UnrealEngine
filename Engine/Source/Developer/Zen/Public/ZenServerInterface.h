@@ -6,18 +6,13 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Dom/JsonObject.h"
+#include "Misc/Optional.h"
 #include "Misc/TVariant.h"
 #include "Policies/PrettyJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
 #include "Templates/UniquePtr.h"
-
-#ifndef UE_WITH_ZEN
-#	if PLATFORM_WINDOWS
-#		define UE_WITH_ZEN 1
-#	else
-#		define UE_WITH_ZEN 0
-#	endif
-#endif
+#include "ZenGlobals.h"
+#include "ZenServerHttp.h"
 
 #define UE_API ZEN_API
 
@@ -136,6 +131,10 @@ private:
 	void PromptUserToStopRunningServerInstance(const FString& ServerFilePath);
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
+
+	mutable TOptional<FZenHttpRequest> StatsRequest;
+	mutable FZenStats LastStats;
+	mutable uint64 LastStatsTime = 0;
 
 	FServiceSettings Settings;
 	FString URL;

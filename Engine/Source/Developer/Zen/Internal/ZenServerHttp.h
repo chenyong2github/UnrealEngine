@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ZenServerInterface.h"
+#include "ZenGlobals.h"
 
 #include "Containers/StaticArray.h"
 #include "Containers/UnrealString.h"
