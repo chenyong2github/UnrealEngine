@@ -96,7 +96,11 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 void UMetaSoundSource::PostEditUndo()
 {
 	Super::PostEditUndo();
-	SetSynchronizationRequired();
+
+	if (Graph)
+	{
+		Graph->RegisterGraphWithFrontend();
+	}
 }
 
 void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)

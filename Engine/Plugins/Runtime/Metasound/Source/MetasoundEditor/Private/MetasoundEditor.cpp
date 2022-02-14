@@ -574,11 +574,6 @@ namespace Metasound
 				MetasoundGraphEditor->NotifyGraphChanged();
 			}
 
-			// Synchronize will update the interface
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
-			check(MetasoundAsset);
-			MetasoundAsset->SetSynchronizationRequired();
-
 			FSlateApplication::Get().DismissAllMenus();
 		}
 

@@ -53,7 +53,11 @@ void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 void UMetaSound::PostEditUndo()
 {
 	Super::PostEditUndo();
-	bSynchronizationRequired = true;
+
+	if (Graph)
+	{
+		Graph->RegisterGraphWithFrontend();
+	}
 }
 
 void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
