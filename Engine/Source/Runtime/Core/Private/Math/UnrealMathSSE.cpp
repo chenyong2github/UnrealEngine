@@ -2,10 +2,62 @@
 
 // This file implements non-inlined functions from UnrealMathSSE.h
 #include "Math/UnrealMathSSE.h"
-
-#if (UE_USING_UNREALMATH_SSE != 0)
+#if PLATFORM_ENABLE_VECTORINTRINSICS && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON
 
 #include "Math/Matrix.h"
+#define USE_SSE2
+#include "ThirdParty/SSEMathFun/sse_mathfun_extension.h"
+#undef USE_SSE2
+
+namespace SSE 
+{
+
+CORE_API __m128 log_ps(__m128 x)
+{
+	return ::log_ps(x);
+}
+
+CORE_API __m128 exp_ps(__m128 x)
+{
+	return ::exp_ps(x);
+}
+
+CORE_API __m128 sin_ps(__m128 x)
+{
+	return ::sin_ps(x);
+}
+
+CORE_API __m128 cos_ps(__m128 x)
+{
+	return ::cos_ps(x);
+}
+
+CORE_API void sincos_ps(__m128 x, __m128 *s, __m128 *c)
+{
+	return ::sincos_ps(x, s, c);
+}
+
+CORE_API __m128 tan_ps( __m128 x )
+{
+	return ::tancot_ps( x, 0 );
+}
+
+CORE_API __m128 cot_ps(__m128 x)
+{
+	return ::tancot_ps( x, 1 );
+}
+
+CORE_API __m128 atan_ps(__m128 x)
+{
+	return ::atan_ps(x);
+}
+
+CORE_API __m128 atan2_ps(__m128 y, __m128 x )
+{
+	return ::atan2_ps(y, x);
+}
+
+}
 
 void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1, const FMatrix44f* Matrix2)
 {

@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 /* SIMD (SSE1+MMX or SSE2) implementation of sin, cos, exp and log
 
    Inspired by Intel Approximate Math library, and based on the
@@ -31,25 +29,22 @@
   (this is the zlib license)
 */
 
-/*
-  EPIC CHANGES:
-
-  Making a few modifications to this file.
-  1. The original version of this code has #ifdef USE_SSE2. Do not want to pollute the defines
-     and we have no need for the MMX Version so all those are being replace with #if 1.
-  2. It looks like some linked object files have conflicting names (log_ps, exp_ps, etc). So adding the 
-     prefix SseMath_ to all the functions.
-  3. constexpr and alignas transition
-*/
-#pragma once
-
 #include <xmmintrin.h>
+
+/* yes I know, the top of this file is quite ugly */
+
+#ifdef _MSC_VER /* visual c++ */
+# define ALIGN16_BEG __declspec(align(16))
+# define ALIGN16_END 
+#else /* gcc or icc */
+# define ALIGN16_BEG
+# define ALIGN16_END __attribute__((aligned(16)))
+#endif
 
 /* __m128 is ugly to write */
 typedef __m128 v4sf;  // vector of 4 float (sse1)
 
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
 # include <emmintrin.h>
 typedef __m128i v4si; // vector of 4 int (sse2)
 #else
@@ -58,11 +53,11 @@ typedef __m64 v2si;   // vector of 2 int (mmx)
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
 #define _PS_CONST(Name, Val)                                            \
-  alignas(16) static constexpr float _ps_##Name[4] = { Val, Val, Val, Val }
+  static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { (float)(Val), (float)(Val), (float)(Val), (float)(Val) }
 #define _PI32_CONST(Name, Val)                                            \
-  alignas(16) static constexpr int _pi32_##Name[4] = { Val, Val, Val, Val }
+  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { (Val), (Val), (Val), (Val) }
 #define _PS_CONST_TYPE(Name, Type, Val)                                 \
-  alignas(16) static constexpr Type _ps_##Name[4] = { Val, Val, Val, Val }
+  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { (Type)(Val), (Type)(Val), (Type)(Val), (Type)(Val) }
 
 _PS_CONST(1  , 1.0f);
 _PS_CONST(0p5, 0.5f);
@@ -80,21 +75,20 @@ _PI32_CONST(2, 2);
 _PI32_CONST(4, 4);
 _PI32_CONST(0x7f, 0x7f);
 
-_PS_CONST(cephes_SQRTHF, 0.707106781186547524f);
-_PS_CONST(cephes_log_p0, 7.0376836292E-2f);
-_PS_CONST(cephes_log_p1, - 1.1514610310E-1f);
-_PS_CONST(cephes_log_p2, 1.1676998740E-1f);
-_PS_CONST(cephes_log_p3, - 1.2420140846E-1f);
-_PS_CONST(cephes_log_p4, + 1.4249322787E-1f);
-_PS_CONST(cephes_log_p5, - 1.6668057665E-1f);
-_PS_CONST(cephes_log_p6, + 2.0000714765E-1f);
-_PS_CONST(cephes_log_p7, - 2.4999993993E-1f);
-_PS_CONST(cephes_log_p8, + 3.3333331174E-1f);
-_PS_CONST(cephes_log_q1, -2.12194440e-4f);
-_PS_CONST(cephes_log_q2, 0.693359375f);
+_PS_CONST(cephes_SQRTHF, 0.707106781186547524);
+_PS_CONST(cephes_log_p0, 7.0376836292E-2);
+_PS_CONST(cephes_log_p1, - 1.1514610310E-1);
+_PS_CONST(cephes_log_p2, 1.1676998740E-1);
+_PS_CONST(cephes_log_p3, -1.2420140846E-1);
+_PS_CONST(cephes_log_p4, +1.4249322787E-1);
+_PS_CONST(cephes_log_p5, -1.6668057665E-1);
+_PS_CONST(cephes_log_p6, +2.0000714765E-1);
+_PS_CONST(cephes_log_p7, -2.4999993993E-1);
+_PS_CONST(cephes_log_p8, +3.3333331174E-1);
+_PS_CONST(cephes_log_q1, -2.12194440e-4);
+_PS_CONST(cephes_log_q2, 0.693359375);
 
-//#ifdef USE_SSE2
-#if 1
+#ifndef USE_SSE2
 typedef union xmm_mm_union {
   __m128 xmm;
   __m64 mm[2];
@@ -115,9 +109,8 @@ typedef union xmm_mm_union {
 /* natural logarithm computed for 4 simultaneous float 
    return NaN for x <= 0
 */
-inline v4sf SseMath_log_ps(v4sf x) {
-//#ifdef USE_SSE2
-#if 1
+v4sf log_ps(v4sf x) {
+#ifdef USE_SSE2
   v4si emm0;
 #else
   v2si mm0, mm1;
@@ -128,8 +121,7 @@ inline v4sf SseMath_log_ps(v4sf x) {
 
   x = _mm_max_ps(x, *(v4sf*)_ps_min_norm_pos);  /* cut off denormalized stuff */
 
-//#ifndef USE_SSE2
-#if 0
+#ifndef USE_SSE2
   /* part 1: x = frexpf(x, &e); */
   COPY_XMM_TO_MM(x, mm0, mm1);
   mm0 = _mm_srli_pi32(mm0, 23);
@@ -141,8 +133,7 @@ inline v4sf SseMath_log_ps(v4sf x) {
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_mant_mask);
   x = _mm_or_ps(x, *(v4sf*)_ps_0p5);
 
-//#ifndef USE_SSE2
-#if 0
+#ifndef USE_SSE2
   /* now e=mm0:mm1 contain the really base-2 exponent */
   mm0 = _mm_sub_pi32(mm0, *(v2si*)_pi32_0x7f);
   mm1 = _mm_sub_pi32(mm1, *(v2si*)_pi32_0x7f);
@@ -209,21 +200,20 @@ inline v4sf SseMath_log_ps(v4sf x) {
 _PS_CONST(exp_hi,	88.3762626647949f);
 _PS_CONST(exp_lo,	-88.3762626647949f);
 
-_PS_CONST(cephes_LOG2EF, 1.44269504088896341f);
-_PS_CONST(cephes_exp_C1, 0.693359375f);
-_PS_CONST(cephes_exp_C2, -2.12194440e-4f);
+_PS_CONST(cephes_LOG2EF, 1.44269504088896341);
+_PS_CONST(cephes_exp_C1, 0.693359375);
+_PS_CONST(cephes_exp_C2, -2.12194440e-4);
 
-_PS_CONST(cephes_exp_p0, 1.9875691500E-4f);
-_PS_CONST(cephes_exp_p1, 1.3981999507E-3f);
-_PS_CONST(cephes_exp_p2, 8.3334519073E-3f);
-_PS_CONST(cephes_exp_p3, 4.1665795894E-2f);
-_PS_CONST(cephes_exp_p4, 1.6666665459E-1f);
-_PS_CONST(cephes_exp_p5, 5.0000001201E-1f);
+_PS_CONST(cephes_exp_p0, 1.9875691500E-4);
+_PS_CONST(cephes_exp_p1, 1.3981999507E-3);
+_PS_CONST(cephes_exp_p2, 8.3334519073E-3);
+_PS_CONST(cephes_exp_p3, 4.1665795894E-2);
+_PS_CONST(cephes_exp_p4, 1.6666665459E-1);
+_PS_CONST(cephes_exp_p5, 5.0000001201E-1);
 
-inline v4sf SseMath_exp_ps(v4sf x) {
+v4sf exp_ps(v4sf x) {
   v4sf tmp = _mm_setzero_ps(), fx;
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   v4si emm0;
 #else
   v2si mm0, mm1;
@@ -238,8 +228,7 @@ inline v4sf SseMath_exp_ps(v4sf x) {
   fx = _mm_add_ps(fx, *(v4sf*)_ps_0p5);
 
   /* how to perform a floorf with SSE: just below */
-//#ifndef USE_SSE2
-#if 0
+#ifndef USE_SSE2
   /* step 1 : cast to int */
   tmp = _mm_movehl_ps(tmp, fx);
   mm0 = _mm_cvttps_pi32(fx);
@@ -278,8 +267,7 @@ inline v4sf SseMath_exp_ps(v4sf x) {
   y = _mm_add_ps(y, one);
 
   /* build 2^n */
-//#ifndef USE_SSE2
-#if 0
+#ifndef USE_SSE2
   z = _mm_movehl_ps(z, fx);
   mm0 = _mm_cvttps_pi32(fx);
   mm1 = _mm_cvttps_pi32(z);
@@ -301,16 +289,16 @@ inline v4sf SseMath_exp_ps(v4sf x) {
   return y;
 }
 
-_PS_CONST(minus_cephes_DP1, -0.78515625f);
-_PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
-_PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
-_PS_CONST(sincof_p0, -1.9515295891E-4f);
-_PS_CONST(sincof_p1,  8.3321608736E-3f);
-_PS_CONST(sincof_p2, -1.6666654611E-1f);
-_PS_CONST(coscof_p0,  2.443315711809948E-005f);
-_PS_CONST(coscof_p1, -1.388731625493765E-003f);
-_PS_CONST(coscof_p2,  4.166664568298827E-002f);
-_PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
+_PS_CONST(minus_cephes_DP1, -0.78515625);
+_PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4);
+_PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8);
+_PS_CONST(sincof_p0, -1.9515295891E-4);
+_PS_CONST(sincof_p1,  8.3321608736E-3);
+_PS_CONST(sincof_p2, -1.6666654611E-1);
+_PS_CONST(coscof_p0,  2.443315711809948E-005);
+_PS_CONST(coscof_p1, -1.388731625493765E-003);
+_PS_CONST(coscof_p2,  4.166664568298827E-002);
+_PS_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
 
 
 /* evaluation of 4 sines at onces, using only SSE1+MMX intrinsics so
@@ -341,11 +329,10 @@ _PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    Since it is based on SSE intrinsics, it has to be compiled at -O2 to
    deliver full speed.
 */
-inline v4sf SseMath_sin_ps(v4sf x) { // any x
+v4sf sin_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   v4si emm0, emm2;
 #else
   v2si mm0, mm1, mm2, mm3;
@@ -359,8 +346,7 @@ inline v4sf SseMath_sin_ps(v4sf x) { // any x
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
 
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   /* store the integer part of y in mm0 */
   emm2 = _mm_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
@@ -460,10 +446,9 @@ inline v4sf SseMath_sin_ps(v4sf x) { // any x
 }
 
 /* almost the same as sin_ps */
-inline v4sf SseMath_cos_ps(v4sf x) { // any x
+v4sf cos_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   v4si emm0, emm2;
 #else
   v2si mm0, mm1, mm2, mm3;
@@ -474,8 +459,7 @@ inline v4sf SseMath_cos_ps(v4sf x) { // any x
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
   
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   /* store the integer part of y in mm0 */
   emm2 = _mm_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
@@ -581,10 +565,9 @@ inline v4sf SseMath_cos_ps(v4sf x) { // any x
 
 /* since sin_ps and cos_ps are almost identical, sincos_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-inline void SseMath_sincos_ps(v4sf x, v4sf *s, v4sf *c) {
+void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   v4sf xmm1, xmm2, xmm3 = _mm_setzero_ps(), sign_bit_sin, y;
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   v4si emm0, emm2, emm4;
 #else
   v2si mm0, mm1, mm2, mm3, mm4, mm5;
@@ -598,8 +581,7 @@ inline void SseMath_sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
     
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   /* store the integer part of y in emm2 */
   emm2 = _mm_cvttps_epi32(y);
 
@@ -666,8 +648,7 @@ inline void SseMath_sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   x = _mm_add_ps(x, xmm2);
   x = _mm_add_ps(x, xmm3);
 
-//#ifdef USE_SSE2
-#if 1
+#ifdef USE_SSE2
   emm4 = _mm_sub_epi32(emm4, *(v4si*)_pi32_2);
   emm4 = _mm_andnot_si128(emm4, *(v4si*)_pi32_4);
   emm4 = _mm_slli_epi32(emm4, 29);
@@ -727,4 +708,3 @@ inline void SseMath_sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   *s = _mm_xor_ps(xmm1, sign_bit_sin);
   *c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
-

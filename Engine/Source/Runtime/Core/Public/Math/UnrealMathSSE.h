@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
 
 #if !WITH_DIRECTXMATH && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON && !(defined(__cplusplus_cli) && !PLATFORM_HOLOLENS) && PLATFORM_ENABLE_VECTORINTRINSICS
 
 struct VectorRegisterConstInit {};
-
-// Define to pull in UnrealMathSSE.cpp, since conditions for this file are complex in VectorRegister.h
-#define UE_USING_UNREALMATH_SSE 1
 
 // We require SSE2
 #include <emmintrin.h>
@@ -60,8 +57,6 @@ struct VectorRegisterConstInit {};
 #define UE_SSE_DOUBLE_ALIGNMENT 16
 #endif
 
-#include "Math/sse_mathfun.inl"
-
 // We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2
 // and VectorLoadTwoPairsFloat below:
 // -V:VectorLoadFloat2:615
@@ -84,6 +79,20 @@ typedef __m128i VectorRegister4Int;
 // 2 doubles
 typedef __m128d	VectorRegister2Double;
 
+
+namespace SSE
+{
+	//wrapper for sse_mathfun.h and sse_mathfun_extension.h
+	CORE_API VectorRegister4Float sin_ps    (VectorRegister4Float x);
+	CORE_API VectorRegister4Float cos_ps    (VectorRegister4Float x);
+	CORE_API void                 sincos_ps (VectorRegister4Float x, VectorRegister4Float* s, VectorRegister4Float* c);
+	CORE_API VectorRegister4Float log_ps    (VectorRegister4Float x);
+	CORE_API VectorRegister4Float exp_ps    (VectorRegister4Float x);
+	CORE_API VectorRegister4Float tan_ps    (VectorRegister4Float x);
+	CORE_API VectorRegister4Float cot_ps    (VectorRegister4Float x);
+	CORE_API VectorRegister4Float atan_ps   (VectorRegister4Float x);
+	CORE_API VectorRegister4Float atan2_ps  (VectorRegister4Float y, VectorRegister4Float x);
+};
 
 // 4 doubles
 struct alignas(UE_SSE_DOUBLE_ALIGNMENT) VectorRegister4Double
@@ -369,6 +378,10 @@ FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatFromDouble(const VectorR
 FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
 {
 	return _mm_setr_epi32(X, Y, Z, W);
+}
+
+FORCEINLINE VectorRegister4Int MakeVectorRegisterInt64(int64 X, int64 Y) {
+	return _mm_set_epi64x(Y, X);
 }
 
 /**
@@ -1875,7 +1888,7 @@ FORCEINLINE VectorRegister4Double VectorCross(const VectorRegister4Double& Vec1,
 FORCEINLINE VectorRegister4Float VectorPow( const VectorRegister4Float& Base, const VectorRegister4Float& Exponent )
 {
 	// using SseMath library
-	return SseMath_exp_ps(_mm_mul_ps(SseMath_log_ps(Base), Exponent));
+	return SSE::exp_ps(_mm_mul_ps(SSE::log_ps(Base), Exponent));
 /*
 	// old version, keeping for reference in case something breaks and we need to debug it.
 	union { VectorRegister4Float v; float f[4]; } B, E;
@@ -2051,6 +2064,11 @@ FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
 }
 
+FORCEINLINE VectorRegister4Float VectorLerp(const VectorRegister4Float &Vec1, const VectorRegister4Float &Vec2, const VectorRegister4Float &Vec3)
+{
+	VectorRegister4Float SubVec = VectorSubtract(GlobalVectorConstants::FloatOne, Vec3);
+	return VectorMultiplyAdd(Vec2, Vec3, VectorMultiply(Vec1, SubVec));
+}
 
 /**
 * Loads XYZ and sets W=0
@@ -2274,6 +2292,11 @@ FORCEINLINE VectorRegister4Double VectorMax(const VectorRegister4Double& Vec1, c
 	return Result;
 }
 
+FORCEINLINE VectorRegister4Float VectorClamp(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3) 
+{
+	return _mm_min_ps(_mm_max_ps(Vec1, Vec2), Vec3);
+}
+
 /**
 * Creates a vector by combining two high components from each vector
 *
@@ -2372,7 +2395,6 @@ FORCEINLINE VectorRegister4Double VectorMergeVecXYZ_VecW(const VectorRegister4Do
 
 /**
  * Loads 4 BYTEs from unaligned memory and converts them into 4 FLOATs.
- * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
  * @return				VectorRegister4Float( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
@@ -2383,7 +2405,6 @@ FORCEINLINE VectorRegister4Double VectorMergeVecXYZ_VecW(const VectorRegister4Do
 
 /**
 * Loads 4 signed BYTEs from unaligned memory and converts them into 4 FLOATs.
-* IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
 * @return				VectorRegister4Float( float(Ptr[0]), float(Ptr[1]), float(Ptr[2]), float(Ptr[3]) )
@@ -2400,7 +2421,6 @@ FORCEINLINE VectorRegister4Float VectorLoadSignedByte4(const void* Ptr)
 
 /**
  * Loads 4 BYTEs from unaligned memory and converts them into 4 FLOATs in reversed order.
- * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the 4 BYTEs.
  * @return				VectorRegister4Float( float(Ptr[3]), float(Ptr[2]), float(Ptr[1]), float(Ptr[0]) )
@@ -2413,7 +2433,6 @@ FORCEINLINE VectorRegister4Float VectorLoadByte4Reverse( void* Ptr )
 
 /**
  * Converts the 4 FLOATs in the vector to 4 BYTEs, clamped to [0,255], and stores to unaligned memory.
- * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Vec			Vector containing 4 FLOATs
  * @param Ptr			Unaligned memory pointer to store the 4 BYTEs.
@@ -2427,7 +2446,6 @@ FORCEINLINE void VectorStoreByte4( const VectorRegister4Float& Vec, void* Ptr )
 
 /**
 * Converts the 4 FLOATs in the vector to 4 BYTEs, clamped to [-127,127], and stores to unaligned memory.
-* IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the 4 BYTEs.
@@ -2442,7 +2460,6 @@ FORCEINLINE void VectorStoreSignedByte4(const VectorRegister4Float& Vec, void* P
 
 /**
 * Loads packed RGB10A2(4 bytes) from unaligned memory and converts them into 4 FLOATs.
-* IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Ptr			Unaligned memory pointer to the RGB10A2(4 bytes).
 * @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
@@ -2462,7 +2479,6 @@ FORCEINLINE VectorRegister4Float VectorLoadURGB10A2N(void* Ptr)
 
 /**
 * Converts the 4 FLOATs in the vector RGB10A2, clamped to [0, 1023] and [0, 3], and stores to unaligned memory.
-* IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the packed RGBA16(8 bytes).
@@ -2491,7 +2507,6 @@ FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister4Float& Vec, void* Ptr
 
 /**
  * Loads packed RGBA16(8 bytes) from unaligned memory and converts them into 4 FLOATs.
- * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the RGBA16(8 bytes).
  * @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
@@ -2500,7 +2515,6 @@ FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister4Float& Vec, void* Ptr
 
 /**
  * Loads packed signed RGBA16(8 bytes) from unaligned memory and converts them into 4 FLOATs.
- * IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
  *
  * @param Ptr			Unaligned memory pointer to the RGBA16(8 bytes).
  * @return				VectorRegister4Float with 4 FLOATs loaded from Ptr.
@@ -2515,7 +2529,6 @@ FORCEINLINE VectorRegister4Float VectorLoadSRGBA16N(const void* Ptr)
 
 /**
 * Converts the 4 FLOATs in the vector RGBA16, clamped to [0, 65535], and stores to unaligned memory.
-* IMPORTANT: You need to call VectorResetFloatRegisters() before using scalar FLOATs after you've used this intrinsic!
 *
 * @param Vec			Vector containing 4 FLOATs
 * @param Ptr			Unaligned memory pointer to store the packed RGB10A2(4 bytes).
@@ -2706,6 +2719,14 @@ FORCEINLINE VectorRegister4Double VectorTruncate(const VectorRegister4Double& V)
 	return Result;
 }
 
+FORCEINLINE VectorRegister4Float VectorRound(const VectorRegister4Float &Vec) {
+#if UE_PLATFORM_MATH_USE_SSE4_1
+	return _mm_round_ps(Vec, _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC);
+#else
+	VectorRegister4Float Trunc = VectorTruncate(Vec);
+	return VectorAdd(Trunc, VectorTruncate(VectorMultiply(VectorSubtract(Vec, Trunc), GlobalVectorConstants::FloatAlmostTwo())));
+#endif
+}
 
 FORCEINLINE VectorRegister4Float VectorCeil(const VectorRegister4Float& V)
 {
@@ -2831,7 +2852,7 @@ FORCEINLINE VectorRegister4Float VectorExp(const VectorRegister4Float& X)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_exp_ps(X);
 #else
-	return SseMath_exp_ps(X);
+	return SSE::exp_ps(X);
 #endif
 }
 
@@ -2886,7 +2907,7 @@ FORCEINLINE VectorRegister4Float VectorLog(const VectorRegister4Float& X)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_log_ps(X);
 #else
-	return SseMath_log_ps(X);
+	return SSE::log_ps(X);
 #endif
 }
 
@@ -2957,25 +2978,7 @@ FORCEINLINE VectorRegister4Float VectorSin(const VectorRegister4Float& V)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_sin_ps(V);
 #else
-	//Sine approximation using a squared parabola restrained to f(0) = 0, f(PI) = 0, f(PI/2) = 1.
-	//based on a good discussion here http://forum.devmaster.net/t/fast-and-accurate-sine-cosine/9648
-	//After approx 2.5 million tests comparing to sin(): 
-	//Average error of 0.000128
-	//Max error of 0.001091
-	//
-	// Error clarification - the *relative* error rises above 1.2% near
-	// 0 and PI (as the result nears 0). This is enough to introduce 
-	// harmonic distortion when used as an oscillator - VectorSinCos
-	// doesn't cost that much more and is significantly more accurate.
-	// (though don't use either for an oscillator if you care about perf)
-	//
-	// Also - other platforms (NEON) don't vectorize this as of January 2021,
-	// so you'll get accuracy differences between platforms.
-	//
-	VectorRegister4Float y = VectorMultiply(V, GlobalVectorConstants::OneOverTwoPi);
-	y = VectorSubtract(y, VectorFloor(VectorAdd(y, GlobalVectorConstants::FloatOneHalf)));
-	y = VectorMultiply(VectorSinConstantsSSE::A, VectorMultiply(y, VectorSubtract(GlobalVectorConstants::FloatOneHalf, VectorAbs(y))));
-	return VectorMultiply(y, VectorAdd(VectorSinConstantsSSE::B, VectorAbs(y)));
+	return SSE::sin_ps(V);
 #endif
 }
 
@@ -3000,7 +3003,8 @@ FORCEINLINE VectorRegister4Float VectorCos(const VectorRegister4Float& V)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_cos_ps(V);
 #else
-	return VectorSin(VectorAdd(V, GlobalVectorConstants::PiByTwo));
+	//return VectorSin(VectorAdd(V, GlobalVectorConstants::PiByTwo));
+	return SSE::cos_ps(V);
 #endif
 }
 
@@ -3102,12 +3106,7 @@ FORCEINLINE VectorRegister4Float VectorTan(const VectorRegister4Float& X)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_tan_ps(X);
 #else
-	AlignedFloat4 Floats(X);
-	Floats[0] = FMath::Tan(Floats[0]);
-	Floats[1] = FMath::Tan(Floats[1]);
-	Floats[2] = FMath::Tan(Floats[2]);
-	Floats[3] = FMath::Tan(Floats[3]);
-	return Floats.ToVectorRegister();
+	return SSE::tan_ps(X);
 #endif
 }
 
@@ -3192,12 +3191,7 @@ FORCEINLINE VectorRegister4Float VectorATan(const VectorRegister4Float& X)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_atan_ps(X);
 #else
-	AlignedFloat4 Floats(X);
-	Floats[0] = FMath::Atan(Floats[0]);
-	Floats[1] = FMath::Atan(Floats[1]);
-	Floats[2] = FMath::Atan(Floats[2]);
-	Floats[3] = FMath::Atan(Floats[3]);
-	return Floats.ToVectorRegister();
+	return SSE::atan_ps(X);
 #endif
 }
 
@@ -3222,13 +3216,7 @@ FORCEINLINE VectorRegister4Float VectorATan2(const VectorRegister4Float& Y, cons
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_atan2_ps(Y, X);
 #else
-	AlignedFloat4 FloatsY(Y);
-	AlignedFloat4 FloatsX(X);
-	FloatsY[0] = FMath::Atan2(FloatsY[0], FloatsX[0]);
-	FloatsY[1] = FMath::Atan2(FloatsY[1], FloatsX[1]);
-	FloatsY[2] = FMath::Atan2(FloatsY[2], FloatsX[2]);
-	FloatsY[3] = FMath::Atan2(FloatsY[3], FloatsX[3]);
-	return FloatsY.ToVectorRegister();
+	return SSE::atan2_ps(Y, X);
 #endif
 }
 
@@ -3311,6 +3299,11 @@ FORCEINLINE VectorRegister4Int VectorIntAbs(const VectorRegister4Int& A)
 	return VectorIntSelect(Mask, A, VectorIntNegate(A));
 }
 
+FORCEINLINE VectorRegister4Int VectorIntClamp(const VectorRegister4Int& Vec1, const VectorRegister4Int& Vec2, const VectorRegister4Int& Vec3) 
+{
+	return VectorIntMin(VectorIntMax(Vec1, Vec2), Vec3);
+}
+
 #define VectorIntSign(A) VectorIntSelect( VectorIntCompareGE(A, GlobalVectorConstants::IntZero), GlobalVectorConstants::IntOne, GlobalVectorConstants::IntMinusOne )
 
 #define VectorIntToFloat(A) _mm_cvtepi32_ps(A)
@@ -3368,9 +3361,15 @@ FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
 * @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	_mm_set1_epi32(*(Ptr))
-
-#else
-
-#define UE_USING_UNREALMATH_SSE 0
+#define VectorSetZero()								_mm_setzero_si128()
+#define VectorSet1(F)								_mm_set1_ps(F)
+#define VectorIntSet1(F)							_mm_set1_epi32(F)
+#define VectorShiftLeftImm(Vec, ImmAmt)             _mm_slli_epi32(Vec, ImmAmt)
+#define VectorShiftRightImmArithmetic(Vec, ImmAmt)  _mm_srai_epi32(Vec, ImmAmt)
+#define VectorShiftRightImmLogical(Vec, ImmAmt)     _mm_srli_epi32(Vec, ImmAmt)
+#define VectorCastIntToFloat(Vec)                   _mm_castsi128_ps(Vec)
+#define VectorCastFloatToInt(Vec)                   _mm_castps_si128(Vec)
+#define VectorShuffleImmediate(Vec, I0, I1, I2, I3) _mm_shuffle_epi32(Vec, _MM_SHUFFLE(I0, I1, I2, I3))
+#define VectorIntExpandLow16To32(V0)				_mm_unpacklo_epi16(V0, _mm_setzero_si128())
 
 #endif

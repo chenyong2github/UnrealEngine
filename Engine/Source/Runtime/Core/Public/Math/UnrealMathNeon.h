@@ -207,6 +207,11 @@ struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 };
 
 typedef AlignedDouble4 AlignedRegister4;
+// Aliases
+typedef VectorRegister4Int VectorRegister4i;
+typedef VectorRegister4Float VectorRegister4f;
+typedef VectorRegister4Double VectorRegister4d;
+typedef VectorRegister2Double VectorRegister2d;
 
 /**
  * Returns a bitwise equivalent vector based on 4 uint32s.
@@ -900,6 +905,12 @@ FORCEINLINE VectorRegister4Double VectorMultiplyAdd(VectorRegister4Double Vec1, 
 	Result.XY = vfmaq_f64(Acc.XY, Vec1.XY, Vec2.XY);
 	Result.ZW = vfmaq_f64(Acc.ZW, Vec1.ZW, Vec2.ZW);
 	return Result;
+}
+
+FORCEINLINE VectorRegister4Float VectorLerp(const VectorRegister4Float &Vec1, const VectorRegister4Float &Vec2, const VectorRegister4Float &Vec3)
+{
+	VectorRegister4Float SubVec = VectorSubtract(GlobalVectorConstants::FloatOne, Vec3);
+	return VectorMultiplyAdd(Vec2, Vec3, VectorMultiply(Vec1, SubVec));
 }
 
 /**
@@ -2147,6 +2158,12 @@ FORCEINLINE VectorRegister4Double VectorMax(VectorRegister4Double Vec1, VectorRe
 	return Result;
 }
 
+FORCEINLINE VectorRegister4Float VectorClamp(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3) 
+{
+	return VectorMin(VectorMax(Vec1, Vec2), Vec3);
+}
+
+
 /**
  * Merges the XYZ components of one vector with the W component of another vector and returns the result.
  *
@@ -2913,6 +2930,7 @@ FORCEINLINE VectorRegister4Int VectorIntSelect(const VectorRegister4Int& Mask, c
 #define VectorIntNegate(A) vnegq_s32(A)
 #define VectorIntMin(A, B) vminq_s32(A,B)
 #define VectorIntMax(A, B) vmaxq_s32(A,B)
+#define VectorIntClamp(A, B, C) VectorIntMin(VectorIntMax(A, B), C)
 #define VectorIntAbs(A) vabdq_s32(A, GlobalVectorConstants::IntZero)
 
 #define VectorIntSign(A) VectorIntSelect( VectorIntCompareGE(A, GlobalVectorConstants::IntZero), GlobalVectorConstants::IntOne, GlobalVectorConstants::IntMinusOne )
@@ -2970,6 +2988,21 @@ FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
 * @return		VectorRegister4Int(*Ptr, *Ptr, *Ptr, *Ptr)
 */
 #define VectorIntLoad1( Ptr )	vld1q_dup_s32((int32*)(Ptr))
+
+#define VectorIntSet1(F)                            vdupq_n_s32(F)
+#define VectorSetZero()                             vdupq_n_s32(0)
+#define VectorSet1(F)                               vdupq_n_f32(F)
+#define VectorCastIntToFloat(Vec)                   vreinterpretq_f32_s32(Vec)
+#define VectorCastFloatToInt(Vec)					vreinterpretq_s32_f32(Vec)
+#define VectorShiftLeftImm(Vec, ImmAmt)             vshlq_n_s32(Vec, ImmAmt)
+#define VectorShiftRightImmArithmetic(Vec, ImmAmt)  vshrq_n_s32(Vec, ImmAmt)
+#define VectorShiftRightImmLogical(Vec, ImmAmt)     vshrq_n_u32(Vec, ImmAmt)
+#define VectorRound(Vec)							vreinterpretq_f32_s32(vcvtnq_s32_f32(Vec))
+
+inline VectorRegister4i VectorIntExpandLow16To32(VectorRegister4i V) {
+	int16x4x2_t res = vzip_s16(vget_low_u16(V), vdup_n_u16(0));
+	return vcombine_s16(res.val[0], res.val[1]);
+}
 
 // To be continued...
 
