@@ -1765,6 +1765,7 @@ void UEdGraphPin::DeclareCustomVersions(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	FEdGraphPinType::DeclareCustomVersions(Ar);
 }
 

@@ -500,6 +500,7 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 	}
 
 	// Propagate values from the parent
+	TArray<FName> ConstructClasses; // Not a class scratch variable because we use it across recursive calls
 	if (!ParentName.IsNone())
 	{
 		// CoreRedirects are expected to act only on import classes from packages; they are not expected to act on the parent class pointer
@@ -535,21 +536,22 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 			{
 				DigestData->bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
 			}
+			ConstructClasses.Append(ParentDigest->ConstructClasses);
 		}
 	}
 
 	// Get and validate the list of ConstructClasses by recursively initializing them
-	TArray<FName> ConstructClasses; // Not a class scratch variable because we use it across recursive calls
-	GConstructClasses.MultiFind(ClassName, ConstructClasses);
+	TArray<FName> AddedConstructClasses; // Not a class scratch variable because we use it across recursive calls
+	GConstructClasses.MultiFind(ClassName, AddedConstructClasses);
 	if (RedirectsResolvedName != ClassName)
 	{
-		GConstructClasses.MultiFind(RedirectsResolvedName, ConstructClasses);
+		GConstructClasses.MultiFind(RedirectsResolvedName, AddedConstructClasses);
 	}
-	if (!ConstructClasses.IsEmpty())
+	if (!AddedConstructClasses.IsEmpty())
 	{
-		for (int32 Index = 0; Index < ConstructClasses.Num(); )
+		for (int32 Index = 0; Index < AddedConstructClasses.Num(); )
 		{
-			FName ConstructClass = ConstructClasses[Index];
+			FName ConstructClass = AddedConstructClasses[Index];
 			FClassDigestData* ConstructClassDigest = GetRecursive(ConstructClass, true /* bAllowRedirects */);
 			if (!ConstructClassDigest)
 			{
@@ -558,7 +560,7 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 					TEXT("This is a class that can be constructed by postload upgrades of class %s. ")
 					TEXT("Old packages with class %s will load more slowly."),
 					*ConstructClass.ToString(), *ClassName.ToString(), *ClassName.ToString(), *ClassName.ToString());
-				ConstructClasses.RemoveAt(Index);
+				AddedConstructClasses.RemoveAt(Index);
 			}
 			else
 			{
@@ -571,11 +573,15 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName, bool bAllo
 				++Index;
 			}
 		}
-		Algo::Sort(ConstructClasses, FNameLexicalLess());
-		ConstructClasses.SetNum(Algo::Unique(ConstructClasses));
+		ConstructClasses.Append(AddedConstructClasses);
 
 		// The map has possibly been modified so we need to recalculate the address of ClassName's DigestData
 		DigestData = &ClassDigests.FindChecked(ClassName);
+	}
+	if (ConstructClasses.Num())
+	{
+		Algo::Sort(ConstructClasses, FNameLexicalLess());
+		ConstructClasses.SetNum(Algo::Unique(ConstructClasses));
 		DigestData->ConstructClasses = MoveTemp(ConstructClasses);
 	}
 
@@ -1559,6 +1565,53 @@ bool TrySavePackage(UPackage* Package)
 			*Package->GetName());
 		return false;
 	}
+
+	// Replace any Blueprint classes in SavedImportedClasses with their native base class, since only native classes
+	// have class schemas and customversions that could change the custom versions. EditorDomain packages with blueprint
+	// instances do not use unversioned properties and so do not need to be keyed to changes in the BP class they depend on.
+	// ImportedClasses used that same replacement, so we need to match it here when identifying which classes are new.
+	int32 NextClass = 0;
+	bool bHasTriedPrecacheClassDigests = false;
+	FClassDigestMap& ClassDigests = GetClassDigests();
+	while (NextClass < SavedImportedClasses.Num())
+	{
+		{
+			FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+			while (NextClass < SavedImportedClasses.Num())
+			{
+				FName ClassName = SavedImportedClasses[NextClass];
+				FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
+				if (!ExistingData)
+				{
+					break;
+				}
+				SavedImportedClasses[NextClass] = ExistingData->ResolvedClosestNative;
+				++NextClass;
+			}
+		}
+
+		if (NextClass < SavedImportedClasses.Num())
+		{
+			if (bHasTriedPrecacheClassDigests)
+			{
+				UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: It constructed an instance of class %s which which does not exist."),
+					*Package->GetName(), *SavedImportedClasses[NextClass].ToString());
+				return false;
+			}
+			// EDITORDOMAIN_TODO: Remove this !IsInGameThread check once FindObject no longer asserts if GIsSavingPackage
+			if (!IsInGameThread())
+			{
+				UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: It constructed an instance of a class %s which is not yet saved in the EditorDomain, ")
+					TEXT("and we are not on the gamethread so we cannot add it."),
+					*Package->GetName(), *SavedImportedClasses[NextClass].ToString());
+				return false;
+			}
+			TConstArrayView<FName> RemainingClasses = TConstArrayView<FName>(SavedImportedClasses).RightChop(NextClass);
+			PrecacheClassDigests(RemainingClasses);
+			bHasTriedPrecacheClassDigests = true;
+		}
+	}
+
 	TSet<FName> KnownImportedClasses(PackageDigest.ImportedClasses);
 	for (FName ImportedClass : SavedImportedClasses)
 	{

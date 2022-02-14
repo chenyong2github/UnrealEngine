@@ -36,6 +36,13 @@ void UMorphTarget::Serialize( FArchive& Ar )
 	}
 }
 
+void UMorphTarget::DeclareCustomVersions(FArchive& Ar)
+{
+	Super::DeclareCustomVersions(Ar);
+	FMorphTargetLODModel MorphLODModel;
+	Ar << MorphLODModel;
+}
+
 namespace
 {
 	void SerializeMorphLODModels(FMemoryArchive& Ar, TArray<FMorphTargetLODModel>& MorphLODModels)

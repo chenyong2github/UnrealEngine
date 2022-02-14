@@ -175,6 +175,7 @@ public:
 	//~ UObject interface
 
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void DeclareCustomVersions(FArchive& Ar) override;
 	ENGINE_API virtual void PostLoad() override;
 
 	/** UObject does not support serialization via FMemoryArchive, so manually handle separately */
