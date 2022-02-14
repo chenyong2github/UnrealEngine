@@ -219,6 +219,11 @@ public:
 		return NumTilesY;
 	}
 
+	bool IsTiled() const
+	{
+		return (NumTilesX > 1) || (NumTilesY > 1);
+	}
+
 	/**
 	 * Get the next work item.
 	 *
