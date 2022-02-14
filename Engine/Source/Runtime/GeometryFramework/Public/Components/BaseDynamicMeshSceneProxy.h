@@ -906,6 +906,14 @@ public:
 		return (Material != nullptr) ? Material : UMaterial::GetDefaultMaterial(MD_Surface);
 	}
 
+	/**
+	 * Set whether or not to validate mesh batch materials against the component materials.
+	 */
+	void SetVerifyUsedMaterials(const bool bState)
+	{
+		bVerifyUsedMaterials = bState;
+	}
+
 
 	/**
 	 * This needs to be called if the set of active materials changes, otherwise

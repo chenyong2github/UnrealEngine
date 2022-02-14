@@ -75,11 +75,6 @@ void UBakeMeshAttributeMapsToolBase::PostSetup()
 	AddToolPropertySource(VisualizationProps);
 	VisualizationProps->WatchProperty(VisualizationProps->bPreviewAsMaterial, [this](bool) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
 
-	// Initialize background compute
-	Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
-	Compute->Setup(this);
-	Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
-
 	// Initialize UV charts
 	// TODO: Compute UV charts asynchronously
 	TargetMeshUVCharts = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
@@ -153,6 +148,13 @@ void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 
 void UBakeMeshAttributeMapsToolBase::InvalidateCompute()
 {
+	if (!Compute)
+	{
+		// Initialize background compute
+		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
+		Compute->Setup(this);
+		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
+	}
 	Compute->InvalidateResult();
 	OpState = EBakeOpState::Clean;
 }

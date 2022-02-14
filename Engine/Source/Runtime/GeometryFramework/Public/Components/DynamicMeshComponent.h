@@ -546,6 +546,15 @@ protected:
 	 */
 	bool bProxyValid = false;
 
+	/**
+	 * If true, the render proxy will verify that the mesh batch materials match the contents from
+	 * the component GetUsedMaterials(). Used material verification is prone to races when changing
+	 * materials on this component in quick succession (for example, SetOverrideRenderMaterial). This
+	 * parameter is provided to allow clients to opt out of used material verification for these
+	 * use cases.
+	 */
+	bool bProxyVerifyUsedMaterials = true;
+
 	virtual FBaseDynamicMeshSceneProxy* GetBaseSceneProxy() override { return (FBaseDynamicMeshSceneProxy*)GetCurrentSceneProxy(); }
 
 	/** 
@@ -573,6 +582,9 @@ protected:
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+public:
+	/** Set whether or not to validate mesh batch materials against the component materials. */
+	void SetSceneProxyVerifyUsedMaterials(bool bState);
 
 
 };

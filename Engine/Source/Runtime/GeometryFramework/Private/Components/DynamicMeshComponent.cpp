@@ -839,6 +839,8 @@ FPrimitiveSceneProxy* UDynamicMeshComponent::CreateSceneProxy()
 		{
 			NewProxy->Initialize();
 		}
+
+		NewProxy->SetVerifyUsedMaterials(bProxyVerifyUsedMaterials);
 	}
 
 	bProxyValid = true;
@@ -1249,3 +1251,13 @@ void UDynamicMeshComponent::SetDeferredCollisionUpdatesEnabled(bool bEnabled, bo
 		}
 	}
 }
+
+void UDynamicMeshComponent::SetSceneProxyVerifyUsedMaterials(bool bState)
+{
+	bProxyVerifyUsedMaterials = bState;
+	if (FDynamicMeshSceneProxy* Proxy = GetCurrentSceneProxy())
+	{
+		Proxy->SetVerifyUsedMaterials(bState);
+	}
+}
+

@@ -37,6 +37,14 @@ void UPreviewMesh::CreateInWorld(UWorld* World, const FTransform& WithTransform)
 	TemporaryParentActor = World->SpawnActor<APreviewMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
 
 	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(TemporaryParentActor);
+
+	// Disable VerifyUsedMaterials on the DynamicMeshSceneProxy. Material verification is prone
+	// to data races when materials are subject to change at a high frequency. Since the
+	// preview mesh material usage (override render materials) is particularly prone to these
+	// races and we are certain the component materials are updated appropriately, we disable
+	// used material verification.
+	DynamicMeshComponent->SetSceneProxyVerifyUsedMaterials(false);
+	
 	TemporaryParentActor->SetRootComponent(DynamicMeshComponent);
 	//DynamicMeshComponent->SetupAttachment(TemporaryParentActor->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
