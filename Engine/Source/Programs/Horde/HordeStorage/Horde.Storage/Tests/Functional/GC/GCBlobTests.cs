@@ -78,7 +78,7 @@ namespace Horde.Storage.FunctionalTests.GC
                     {
                         GCSettings gcSettings = new GCSettings()
                         {
-                            CleanOldBlobs = true,
+                            CleanOldBlobs = true
                             CleanOldBlobsLegacy = true,
                         };
                         IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
