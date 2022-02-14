@@ -59,15 +59,15 @@ float UnpackParticleVertexTextureV(uint InterpIdx)
 }
 
 
-float3 TransformPosition(float3 InPosition)
+FLWCVector3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraRibbonVF.bLocalSpace)
 	{
-		return LWCHackToFloat(TransformLocalToWorld(InPosition));
+		return TransformLocalToWorld(InPosition);
 	}
 	else
 	{
-		return LWCHackToFloat(MakeLWCVector3(NiagaraRibbonVF.SystemLWCTile, InPosition));
+		return MakeLWCVector3(NiagaraRibbonVF.SystemLWCTile, InPosition);
 	}
 }
 
@@ -142,8 +142,7 @@ struct FSegmentData
 
 struct FVertexFactoryIntermediates
 {
-	float3 Position;
-	float3 OldPosition;
+	FLWCVector3 Position;
 	float3 Direction;
 	float DistanceOnSegment;
 	float4 Color;
@@ -413,7 +412,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.VertexColor = Intermediates.Color;
 	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3()); 
 	Result.Particle.Color = Intermediates.Color;
-	Result.PreSkinnedPosition = Intermediates.Position.xyz;
+	Result.PreSkinnedPosition = LWCToFloat(Intermediates.Position);
 	Result.PreSkinnedNormal = TangentToLocal[2].xyz;
 
 #if (DYNAMIC_PARAMETERS_MASK != 0)
@@ -473,15 +472,12 @@ float3 SafeNormalize(float3 V)
 
 float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	{
-		float2 SliceVertexPositions = UnpackParticleVertexPosition(Input.InterpVtxId);
-				
-		float3 Pos = Intermediates.Position.xyz +
-			((Intermediates.GeoRight * SliceVertexPositions.xxx) + (Intermediates.GeoUp * SliceVertexPositions.yyy)) * Intermediates.RibbonWidth.xxx;
+	const float2 SliceVertexPositions = UnpackParticleVertexPosition(Input.InterpVtxId);
+	const float3 Offset = ((Intermediates.GeoRight * SliceVertexPositions.xxx) + (Intermediates.GeoUp * SliceVertexPositions.yyy)) * Intermediates.RibbonWidth.xxx;
+	const FLWCVector3 Pos = LWCAdd(LWCAdd(Intermediates.Position, LWCPromote(Offset)), ResolvedView.PreViewTranslation);
 		
-		// Intermediates are already in world space, only need to account for the translation around view origin.
-		return float4(Pos + LWCHackToFloat(ResolvedView.PreViewTranslation), 1);
-	}
+	// Intermediates are already in world space, only need to account for the translation around view origin.
+	return float4(LWCToFloat(Pos), 1);
 }
 
 /** derive basis vectors */
@@ -663,7 +659,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	}
 	else
 	{
-		Facing = normalize(LWCHackToFloat(ResolvedView.WorldCameraOrigin) - Intermediates.Position);
+		Facing = normalize(LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position)));
 	}
 
 	float3 Right = normalize(cross(Facing, Intermediates.Direction));
@@ -712,13 +708,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 	// Flip the normal only for multiplane shape if the normal is looking away from the camera.
 	// This lets us still render as two sided, but at least gets the normals corrected so the plane faces the camera.
-	float3 ViewNormal = normalize(LWCHackToFloat(ResolvedView.WorldCameraOrigin) - Intermediates.Position);	
+	float3 ViewNormal = normalize(LWCToFloat(LWCSubtract(ResolvedView.WorldCameraOrigin, Intermediates.Position)));
 	Intermediates.TangentZ *= (NiagaraRibbonVF.ShouldFlipNormalToView > 0 && dot(ViewNormal, Intermediates.TangentZ) < 0) ? -1 : 1;
 	
 	Intermediates.TangentX = cross(Intermediates.TangentZ, Intermediates.TangentY);
 
 #if USE_PARTICLE_POSITION
-	Intermediates.TranslatedWorldPositionAndSize = float4(Intermediates.Position + LWCHackToFloat(ResolvedView.PreViewTranslation),  .5 * Intermediates.RibbonWidth);
+	Intermediates.TranslatedWorldPositionAndSize = float4(LWCToFloat(LWCAdd(Intermediates.Position, ResolvedView.PreViewTranslation)),  .5 * Intermediates.RibbonWidth);
 #endif
 
 #if USE_PARTICLE_TIME

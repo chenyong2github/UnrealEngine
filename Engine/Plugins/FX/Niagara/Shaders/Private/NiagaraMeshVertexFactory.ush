@@ -204,9 +204,9 @@ struct FVertexFactoryIntermediates
 	float ParticleRandom;
 #endif
 
-	float4x4 ParticleToWorld;
-	float4x4 WorldToParticle;
-	float4x4 PrevParticleToWorld;	
+	FLWCMatrix ParticleToWorld;
+	FLWCInverseMatrix WorldToParticle;
+	FLWCMatrix PrevParticleToWorld;	
 	float3x3 ParticleToWorldNoScale;
 
 	float3x3 TangentToLocal;
@@ -221,24 +221,24 @@ FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
 	return Intermediates.SceneData.Primitive;
 }
 
-float4x4 GetParticleTransform(FVertexFactoryIntermediates Inters)
+FLWCMatrix GetParticleTransform(FVertexFactoryIntermediates Inters)
 {
 	return Inters.ParticleToWorld;
+}
+
+FLWCInverseMatrix GetParticleInvTransform(FVertexFactoryIntermediates Inters)
+{
+	return Inters.WorldToParticle;
+}
+
+FLWCMatrix GetParticlePrevTransform(FVertexFactoryIntermediates Inters)
+{
+	return Inters.PrevParticleToWorld;
 }
 
 float3x3 GetParticleRotationNoScale(FVertexFactoryIntermediates Inters)
 {
 	return Inters.ParticleToWorldNoScale;
-}
-
-float4x4 GetParticleInvTransform(FVertexFactoryIntermediates Inters)
-{
-	return Inters.WorldToParticle;
-}
-
-float4x4 GetParticlePrevTransform(FVertexFactoryIntermediates Inters)
-{
-	return Inters.PrevParticleToWorld;
 }
 
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
@@ -301,7 +301,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if USE_PARTICLE_POSITION
-	Result.Particle.TranslatedWorldPositionAndSize.xyz = Interpolants.ParticleTranslatedWorldPosition.xyz;
+	Result.Particle.TranslatedWorldPositionAndSize.xyz = Interpolants.ParticleTranslatedWorldPosition;
 	Result.Particle.TranslatedWorldPositionAndSize.w = 1;
 #endif
 
@@ -320,6 +320,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if USE_PARTICLE_LOCAL_TO_WORLD
+	//-TODO:
 	FLWCMatrix ParticleToWorld = LWCPromote(transpose(float4x4(Interpolants.ParticleToWorld[0], Interpolants.ParticleToWorld[1], Interpolants.ParticleToWorld[2], float4(0.0f, 0.0f, 0.0f, 1.0f))));
 	#if NEEDS_PARTICLE_LOCAL_TO_WORLD
 		Result.Particle.ParticleToWorld = ParticleToWorld;
@@ -330,6 +331,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 #endif
 
 #if USE_PARTICLE_WORLD_TO_LOCAL
+	//-TODO:
 	FLWCInverseMatrix WorldToParticle = LWCPromoteInverse(transpose(float4x4(Interpolants.WorldToParticle[0], Interpolants.WorldToParticle[1], Interpolants.WorldToParticle[2], float4(0.0f, 0.0f, 0.0f, 1.0f))));
 	#if NEEDS_PARTICLE_WORLD_TO_LOCAL
 		Result.Particle.WorldToParticle = WorldToParticle;
@@ -361,7 +363,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PreSkinnedNormal = Intermediates.TangentToLocal[2];
 
 #if NEEDS_PARTICLE_POSITION
-	Result.Particle.TranslatedWorldPositionAndSize.xyz = Intermediates.ParticleTranslatedWorldPosition.xyz;
+	Result.Particle.TranslatedWorldPositionAndSize.xyz = Intermediates.ParticleTranslatedWorldPosition;
 	Result.Particle.TranslatedWorldPositionAndSize.w = 1;
 #endif
 
@@ -397,8 +399,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.Particle.DynamicParameter3 = Intermediates.DynamicParameter3;
 #endif
 
-	Result.InstanceLocalToWorld = LWCPromote(GetParticleTransform(Intermediates));
-	Result.InstanceWorldToLocal = LWCPromoteInverse(GetParticleInvTransform(Intermediates));
+	Result.InstanceLocalToWorld = GetParticleTransform(Intermediates);
+	Result.InstanceWorldToLocal = GetParticleInvTransform(Intermediates);
 
 	Result.Particle.ParticleToWorld = Result.InstanceLocalToWorld;
 	Result.Particle.WorldToParticle = Result.InstanceWorldToLocal;
@@ -406,7 +408,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	// Use the particle's unscaled transform for rotating normals to match static mesh
 	Result.TangentToWorld = mul(TangentToLocal, GetParticleRotationNoScale(Intermediates));
 
-	Result.PrevFrameLocalToWorld = LWCPromote(GetParticlePrevTransform(Intermediates));
+	Result.PrevFrameLocalToWorld = GetParticlePrevTransform(Intermediates);
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
@@ -496,12 +498,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	// Compute transforms
 #if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	Intermediates.ParticleToWorld = LWCHackToFloat(Intermediates.SceneData.InstanceData.LocalToWorld);
-	Intermediates.WorldToParticle = LWCHackToFloat(Intermediates.SceneData.InstanceData.WorldToLocal);
-	Intermediates.PrevParticleToWorld = LWCHackToFloat(Intermediates.SceneData.InstanceData.PrevLocalToWorld);
+	Intermediates.ParticleToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
+	Intermediates.WorldToParticle = Intermediates.SceneData.InstanceData.WorldToLocal;
+	Intermediates.PrevParticleToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
 
 	const float3 InstInvScale = Intermediates.SceneData.InstanceData.InvNonUniformScale;
-	Intermediates.ParticleToWorldNoScale = (float3x3)Intermediates.ParticleToWorld;
+	Intermediates.ParticleToWorldNoScale = LWCToFloat3x3(Intermediates.ParticleToWorld);
 	Intermediates.ParticleToWorldNoScale[0] *= InstInvScale.x;
 	Intermediates.ParticleToWorldNoScale[1] *= InstInvScale.y;
 	Intermediates.ParticleToWorldNoScale[2] *= InstInvScale.z;
@@ -555,14 +557,14 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	NiagaraMeshParticleTransforms Transforms = NiagaraCalculateMeshParticleTransforms(Params);
 
-	Intermediates.ParticleToWorld 			= LWCHackToFloat(Transforms.LocalToWorld);
-	Intermediates.WorldToParticle 			= LWCHackToFloat(Transforms.WorldToLocal);
-	Intermediates.PrevParticleToWorld		= LWCHackToFloat(Transforms.PrevLocalToWorld);
+	Intermediates.ParticleToWorld 			= Transforms.LocalToWorld;
+	Intermediates.WorldToParticle 			= Transforms.WorldToLocal;
+	Intermediates.PrevParticleToWorld		= Transforms.PrevLocalToWorld;
 	Intermediates.ParticleToWorldNoScale	= Transforms.LocalToWorldNoScale;
 #endif // (VF_USE_PRIMITIVE_SCENE_DATA == 1)
 
 	// Particle translated world position.
-	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticleToWorld[3].xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
+	Intermediates.ParticleTranslatedWorldPosition = LWCToFloat(LWCAdd(LWCGetOrigin(Intermediates.ParticleToWorld), ResolvedView.PreViewTranslation));
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	#if MANUAL_VERTEX_FETCH
@@ -650,8 +652,8 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 // @return translated world position
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {	
-	float4x4 Transform = GetParticleTransform(Intermediates);
-	float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
+	FLWCMatrix Transform = GetParticleTransform(Intermediates);
+	float3 WorldPosition = LWCToFloat(LWCAdd(LWCMultiply(Input.Position.xyz, Transform), ResolvedView.PreViewTranslation));
 	return float4(WorldPosition, Input.Position.w);
 }
 
@@ -662,7 +664,7 @@ float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVerte
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return Intermediates.ParticleToWorld[2].xyz;
+	return LWCToFloat3x3(Intermediates.ParticleToWorld)[2].xyz;
 }
 
 float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
@@ -791,8 +793,8 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-    float4x4 Transform = GetParticlePrevTransform(Intermediates);
-    float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PrevPreViewTranslation);
+    FLWCMatrix Transform = GetParticlePrevTransform(Intermediates);
+    float3 WorldPosition = LWCToFloat(LWCAdd(LWCMultiply(Input.Position.xyz, Transform), ResolvedView.PreViewTranslation));
     return float4(WorldPosition, Input.Position.w);
 }
 
