@@ -217,6 +217,10 @@ void AddPostProcessingPasses(
 	const FTranslucencyPassResources& PostDOFTranslucencyResources = Inputs.TranslucencyViewResourcesMap.Get(ETranslucencyPass::TPT_TranslucencyAfterDOF);
 	const FTranslucencyPassResources& PostMotionBlurTranslucencyResources = Inputs.TranslucencyViewResourcesMap.Get(ETranslucencyPass::TPT_TranslucencyAfterMotionBlur);
 
+	// Whether should process the alpha channel of the scene color.
+	const bool bProcessSceneColorAlpha = IsPostProcessingWithAlphaChannelSupported();
+	const EPixelFormat SceneColorFormat = bProcessSceneColorAlpha ? PF_FloatRGBA : PF_FloatR11G11B10;
+
 	// Scene color is updated incrementally through the post process pipeline.
 	FScreenPassTexture SceneColor((*Inputs.SceneTextures)->SceneColorTexture, PrimaryViewRect);
 
@@ -536,6 +540,7 @@ void AddPostProcessingPasses(
 				TranslucencyComposition.SceneColor = SceneColor;
 				TranslucencyComposition.SceneDepth = SceneDepth;
 				TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColor);
+				TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
 
 				SceneColor = TranslucencyComposition.AddPass(
 					GraphBuilder, View, PostDOFTranslucencyResources);
@@ -677,6 +682,7 @@ void AddPostProcessingPasses(
 			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToNewSceneColor;
 			TranslucencyComposition.SceneColor = SceneColor;
 			TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColor);
+			TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
 
 			SceneColor = TranslucencyComposition.AddPass(
 				GraphBuilder, View, PostMotionBlurTranslucencyResources);
@@ -910,7 +916,7 @@ void AddPostProcessingPasses(
 				PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 				PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
 				PassInputs.ColorGradingTexture = ColorGradingTexture;
-				PassInputs.bWriteAlphaChannel = AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported();
+				PassInputs.bWriteAlphaChannel = AntiAliasingMethod == AAM_FXAA || bProcessSceneColorAlpha;
 				PassInputs.bOutputInHDR = bTonemapOutputInHDR;
 
 				SceneColor = AddTonemapPass(GraphBuilder, View, PassInputs);
@@ -987,6 +993,7 @@ void AddPostProcessingPasses(
 			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToNewSceneColor;
 			TranslucencyComposition.SceneColor = SceneColor;
 			TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColor);
+			TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
 
 			if (PostDOFTranslucencyResources.IsValid())
 			{

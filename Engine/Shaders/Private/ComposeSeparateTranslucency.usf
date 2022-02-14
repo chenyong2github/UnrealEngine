@@ -81,5 +81,7 @@ void MainPS(
 
 	// Final composition
 	OutColor.rgb = SceneColorSample.rgb * SeparateTranslucencySample.a * SeparateModulationSample.rgb + SeparateTranslucencySample.rgb;
-	OutColor.a   = SceneColorSample.a   * SeparateTranslucencySample.a;
+
+	float GreyScaleModulateColorBackgroundVisibility = dot(SeparateModulationSample.rgb, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+	OutColor.a = SceneColorSample.a * SeparateTranslucencySample.a * GreyScaleModulateColorBackgroundVisibility;
 }

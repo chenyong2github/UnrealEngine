@@ -632,7 +632,7 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 
 		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
 			OutputViewport.Extent,
-			PF_FloatRGB,
+			OutputPixelFormat != PF_Unknown ? OutputPixelFormat : SceneColor.Texture->Desc.Format,
 			FClearValueBinding::Black,
 			TexCreate_RenderTargetable | TexCreate_ShaderResource);
 
