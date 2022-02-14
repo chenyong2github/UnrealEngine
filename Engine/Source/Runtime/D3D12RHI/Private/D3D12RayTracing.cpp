@@ -4252,6 +4252,24 @@ void FD3D12CommandContext::BuildAccelerationStructuresInternal(const TArrayView<
 	}
 }
 
+#if WITH_MGPU
+void FD3D12CommandContext::UnregisterAccelerationStructuresInternalMGPU(const TArrayView<const FRayTracingGeometryBuildParams> Params, FRHIGPUMask GPUMask)
+{
+	// We need to unregister rename listeners for all GPUs in a separate pass before running "RHIBuildAccelerationStructures", as the build process
+	// may modify the buffer references in the ray tracing geometry.  This leads to an assert where the code attempts to unregister the newer buffer
+	// references on the additional GPUs, rather than the original buffer references.  It's OK to unregister redundantly, as a flag is set to track
+	// whether a buffer is registered, and additional unregister calls do nothing.
+	for (uint32 GPUIndex : GPUMask)
+	{
+		for (const FRayTracingGeometryBuildParams& P : Params)
+		{
+			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(P.Geometry.GetReference());
+			Geometry->UnregisterAsRenameListener(GPUIndex);
+		}
+	}
+}
+#endif  // WITH_MGPU
+
 void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildAccelerationStructure_BottomLevel);
