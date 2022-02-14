@@ -11917,31 +11917,47 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			const FRigVMGraphVariableDescription VariableDescription = VariableNode->GetVariableDescription();
 			const FRigVMExternalVariable CurrentExternalVariable = VariableDescription.ToExternalVariable();
 
-			for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+			FRigVMExternalVariable Variable;
+			if (VariableNode->IsInputArgument())
 			{
-				if(ExternalVariable.Name == CurrentExternalVariable.Name)
+				if (URigVMFunctionEntryNode* GraphEntryNode = Graph->GetEntryNode())
 				{
-					if(ExternalVariable.TypeName != CurrentExternalVariable.TypeName ||
-						ExternalVariable.TypeObject != CurrentExternalVariable.TypeObject ||
-						ExternalVariable.bIsArray != CurrentExternalVariable.bIsArray)
+					if (URigVMPin* EntryPin = GraphEntryNode->FindPin(VariableDescription.Name.ToString()))
 					{
-						FString CPPType;
-						UObject* CPPTypeObject;
-						
-						if(RigVMTypeUtils::CPPTypeFromExternalVariable(ExternalVariable, CPPType, &CPPTypeObject))
-						{
-							RefreshVariableNode(VariableNode->GetFName(), ExternalVariable.Name, CPPType, ExternalVariable.TypeObject, false, bSetupOrphanedPins);
-						}
-						else
-						{
-							ReportErrorf(
-								TEXT("Control Rig '%s', Type of Variable '%s' cannot be resolved."),
-								*InNode->GetOutermost()->GetPathName(),
-								*ExternalVariable.Name.ToString()
-							);
-						}
+						Variable = RigVMTypeUtils::ExternalVariableFromCPPType(VariableDescription.Name, EntryPin->GetCPPType(), EntryPin->GetCPPTypeObject());
 					}
-					break;
+				}
+			}
+			else
+			{				
+				for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+				{
+					if(ExternalVariable.Name == CurrentExternalVariable.Name)
+					{
+						Variable = ExternalVariable;
+						break;
+					}
+				}
+			}
+			
+			if(Variable.TypeName != CurrentExternalVariable.TypeName ||
+				Variable.TypeObject != CurrentExternalVariable.TypeObject ||
+				Variable.bIsArray != CurrentExternalVariable.bIsArray)
+			{
+				FString CPPType;
+				UObject* CPPTypeObject;
+				
+				if(RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject))
+				{
+					RefreshVariableNode(VariableNode->GetFName(), Variable.Name, CPPType, Variable.TypeObject, false, bSetupOrphanedPins);
+				}
+				else
+				{
+					ReportErrorf(
+						TEXT("Control Rig '%s', Type of Variable '%s' cannot be resolved."),
+						*InNode->GetOutermost()->GetPathName(),
+						*Variable.Name.ToString()
+					);
 				}
 			}
 		}

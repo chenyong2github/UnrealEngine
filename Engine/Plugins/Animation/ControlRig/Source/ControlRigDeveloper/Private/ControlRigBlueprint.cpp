@@ -3687,25 +3687,30 @@ void UControlRigBlueprint::PatchVariableNodesWithIncorrectType()
 		{
 			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 			{
+				if (VariableNode->IsInputArgument())
+				{
+					continue;
+				}
+				
 				FRigVMGraphVariableDescription Description = VariableNode->GetVariableDescription();
 
-				// Check for inputs and local variables
-				TArray<FRigVMGraphVariableDescription> LocalVariables = Graph->GetLocalVariables(true);
-				bool bLocalVariableFound = false;
-				for (FRigVMGraphVariableDescription Variable : LocalVariables)
+				// Check for local variables
+				if (VariableNode->IsLocalVariable())
 				{
-					if (Variable.Name == Description.Name)
+					TArray<FRigVMGraphVariableDescription> LocalVariables = Graph->GetLocalVariables(false);
+					for (FRigVMGraphVariableDescription Variable : LocalVariables)
 					{
-						if (Local::RefreshIfNeeded(Controller, VariableNode, Variable.CPPType, Variable.CPPTypeObject))
+						if (Variable.Name == Description.Name)
 						{
-							bDirtyDuringLoad = true;
+							if (Local::RefreshIfNeeded(Controller, VariableNode, Variable.CPPType, Variable.CPPTypeObject))
+							{
+								bDirtyDuringLoad = true;
+							}
+							break;
 						}
-						bLocalVariableFound = true;
-						break;
 					}
 				}
-
-				if (!bLocalVariableFound)
+				else
 				{
 					for (struct FBPVariableDescription& Variable : NewVariables)
 					{
