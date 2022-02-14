@@ -60,7 +60,7 @@ struct VectorRegisterConstInit {};
 #define UE_SSE_DOUBLE_ALIGNMENT 16
 #endif
 
-#include "Math/sse_mathfun.h"
+#include "Math/sse_mathfun.inl"
 
 // We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2
 // and VectorLoadTwoPairsFloat below:
