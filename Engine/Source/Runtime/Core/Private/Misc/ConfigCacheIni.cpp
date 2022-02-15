@@ -51,7 +51,7 @@ namespace Private
 	static FCriticalSection ExpansionsCriticalSection;
 }
 }
-}?
+}
 const TSet<FString>* FConfigCacheIni::IniCacheSet = nullptr;
 
 namespace
