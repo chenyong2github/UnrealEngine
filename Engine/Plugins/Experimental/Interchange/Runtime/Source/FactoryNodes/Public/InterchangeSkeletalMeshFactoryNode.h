@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 
 #if WITH_ENGINE
 #include "Engine/SkeletalMesh.h"
@@ -26,7 +26,7 @@ namespace UE
 }//ns UE
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeSkeletalMeshFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeSkeletalMeshFactoryNode : public UInterchangeFactoryBaseNode
 {
 	GENERATED_BODY()
 

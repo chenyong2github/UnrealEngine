@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 #include "InterchangeMaterialDefinitions.h"
 #include "InterchangeShaderGraphNode.h"
 
@@ -14,7 +14,7 @@
 #include "InterchangeMaterialFactoryNode.generated.h"
 
 UCLASS(Abstract, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeBaseMaterialFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeBaseMaterialFactoryNode : public UInterchangeFactoryBaseNode
 {
 	GENERATED_BODY()
 

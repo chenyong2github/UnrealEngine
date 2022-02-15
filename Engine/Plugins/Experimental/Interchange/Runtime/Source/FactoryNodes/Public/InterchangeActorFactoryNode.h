@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 
 #include "InterchangeActorFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeActorFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeActorFactoryNode : public UInterchangeFactoryBaseNode
 {
 	GENERATED_BODY()
 

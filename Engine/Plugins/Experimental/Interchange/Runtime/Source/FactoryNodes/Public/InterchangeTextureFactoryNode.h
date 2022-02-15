@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 
 #if WITH_ENGINE
 #include "Engine/Texture.h"
@@ -14,19 +14,11 @@
 
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeTextureFactoryNode : public UInterchangeBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTextureFactoryNode : public UInterchangeFactoryBaseNode
 {
 	GENERATED_BODY()
 
 public:
-	UInterchangeTextureFactoryNode()
-		:UInterchangeBaseNode()
-	{
-#if WITH_ENGINE
-		AssetClass = nullptr;
-#endif
-	}
-
 	/**
 	 * Initialize node data
 	 * @param: UniqueID - The uniqueId for this node

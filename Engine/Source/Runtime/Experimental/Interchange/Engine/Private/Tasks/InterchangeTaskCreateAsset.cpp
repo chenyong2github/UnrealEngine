@@ -19,6 +19,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
 
 namespace UE
 {
@@ -39,7 +40,16 @@ namespace UE
 				FString SanitazedPackageBasePath = PackageBasePath;
 				SanitizeObjectPath(SanitazedPackageBasePath);
 
-				OutPackageName = FPaths::Combine(*SanitazedPackageBasePath, *OutAssetName);
+				FString SubPath;
+				if (const UInterchangeFactoryBaseNode* FactoryBaseNode = Cast<UInterchangeFactoryBaseNode>(Node))
+				{
+					if(FactoryBaseNode->GetCustomSubPath(SubPath))
+					{
+						SanitizeObjectPath(SubPath);
+					}
+				}
+
+				OutPackageName = FPaths::Combine(*SanitazedPackageBasePath, *SubPath, *OutAssetName);
 			}
 
 			UObject* GetExistingObjectFromAssetImportData(TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper, UInterchangeBaseNode* Node)
