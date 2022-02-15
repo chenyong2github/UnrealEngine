@@ -2466,10 +2466,6 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		TextureFormatName = NameDXT1;
 	}
-	else if (Texture->bDitherMipMapAlpha)
-	{
-		TextureFormatName = NameDXT5;
-	}
 	else
 	{
 		TextureFormatName = NameAutoDXT;

@@ -112,10 +112,6 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	UPROPERTY(EditAnywhere, Category=LODGroup, meta=(ToolTip="The group the texture belongs to"))
 	TEnumAsByte<enum TextureGroup> LODGroup;
 
-	/** If enabled, mip-map alpha values will be dithered for smooth transitions */
-	UPROPERTY(EditAnywhere, Category=DitherMipMaps, meta=(ToolTip="If enabled, mip-map alpha values will be dithered for smooth transitions"))
-	uint32 bDitherMipMapAlpha:1;
-	
 	/** Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds */
 	UPROPERTY(EditAnywhere, Category=PreserveAlphaCoverage, meta=(ToolTip="Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds"))
 	bool bDoScaleMipsForAlphaCoverage = false;

@@ -137,7 +137,11 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	}
 
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
-	TempByte = Settings.bDitherMipMapAlpha; Ar << TempByte;
+
+	// bDitherMipMapAlpha was removed from Texture
+	//  serialize to DDC as if it was still around and false to keep keys the same:
+	uint8 bDitherMipMapAlpha = 0;
+	TempByte = bDitherMipMapAlpha; Ar << TempByte;
 
 	if (Settings.bDoScaleMipsForAlphaCoverage)
 	{
@@ -692,7 +696,6 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.ColorAdjustment.AdjustMaxAlpha = Texture.AdjustMaxAlpha;
 	OutBuildSettings.bUseLegacyGamma = Texture.bUseLegacyGamma;
 	OutBuildSettings.bPreserveBorder = Texture.bPreserveBorder;
-	OutBuildSettings.bDitherMipMapAlpha = Texture.bDitherMipMapAlpha;
 
 	// in Texture , the fields bDoScaleMipsForAlphaCoverage and AlphaCoverageThresholds are independent
 	// but in the BuildSettings bDoScaleMipsForAlphaCoverage is only on if thresholds are valid (not all zero)

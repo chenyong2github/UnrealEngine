@@ -122,8 +122,6 @@ struct FTextureBuildSettings
 	uint32 bForceNoAlphaChannel : 1;
 	/** Whether we should not discard the alpha channel when it contains 1 for the entire texture. */
 	uint32 bForceAlphaChannel : 1;
-	/** Whether the alpha channel should contain a dithered alpha value. */
-	uint32 bDitherMipMapAlpha : 1;
 	/** Whether bokeh alpha values should be computed for the texture. */
 	uint32 bComputeBokehAlpha : 1;
 	/** Whether the contents of the red channel should be replicated to all channels. */
@@ -239,7 +237,6 @@ struct FTextureBuildSettings
 		, bPreserveBorder(false)
 		, bForceNoAlphaChannel(false)
 		, bForceAlphaChannel(false)
-		, bDitherMipMapAlpha(false)
 		, bComputeBokehAlpha(false)
 		, bReplicateRed(false)
 		, bReplicateAlpha(false)

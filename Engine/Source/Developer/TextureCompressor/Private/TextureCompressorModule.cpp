@@ -397,10 +397,8 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 		const float ThresholdScaled = DetermineScaledThreshold(Thresholds[3] , Scales[3]);
 		
 		int32 CommonResult = 0;
-		ParallelFor(NumJobs, [&](int32 Index)
+		ParallelFor( TEXT("ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage.PF);
-
 			int32 StartIndex = Index * NumRowsEachJob;
 			int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, SourceImageData.SizeY);
 			int32 LocalCoverage = 0;
@@ -442,10 +440,8 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 		}
 
 		int32 CommonResults[4] = { 0, 0, 0, 0 };
-		ParallelFor(NumJobs, [&](int32 Index)
+		ParallelFor( TEXT("ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage.PF);
-
 			int32 StartIndex = Index * NumRowsEachJob;
 			int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, SourceImageData.SizeY);
 			int32 LocalCoverage[4] = { 0, 0, 0, 0 };
@@ -581,7 +577,6 @@ template <EMipGenAddressMode AddressMode>
 static void GenerateSharpenedMipB8G8R8A8Templ(
 	const FImageView2D& SourceImageData, 
 	FImageView2D& DestImageData, 
-	bool bDitherMipMapAlpha,
 	bool bDoScaleMipsForAlphaCoverage,
 	const FVector4f AlphaCoverages,
 	const FVector4f AlphaThresholds,
@@ -607,8 +602,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 		DestImageData.SizeX*2 == SourceImageData.SizeX &&
 		DestImageData.SizeY*2 == SourceImageData.SizeY &&
 		! bDoScaleMipsForAlphaCoverage &&
-		! bUnfiltered &&
-		! bDitherMipMapAlpha )
+		! bUnfiltered )
 	{
 		// bSharpenWithoutColorShift is ignored for 2x2 filter
 		GenerateMip2x2Simple(SourceImageData,DestImageData);
@@ -616,10 +610,6 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	}
 
 	const int32 KernelCenter = KernelFilterTableSize / 2 - 1;
-
-	// Set up a random number stream for dithering.
-	// @todo Oodle : this is shared across the ParallelFor which is very bad
-	FRandomStream RandomStream(0);
 
 	FVector4f AlphaScale(1, 1, 1, 1);
 	if (bDoScaleMipsForAlphaCoverage)
@@ -716,21 +706,6 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 				FilteredColor.B *= AlphaScale.Z;
 				FilteredColor.A *= AlphaScale.W;
 
-				if ( bDitherMipMapAlpha )
-				{
-					// @todo Oodle : this looks very odd
-					// 
-					// Dither the alpha of any pixel which passes an alpha threshold test.
-					const int32 DitherAlphaThreshold = 5.0f / 255.0f;
-					const float MinRandomAlpha = 85.0f;
-					const float MaxRandomAlpha = 255.0f;
-
-					if ( FilteredColor.A > DitherAlphaThreshold)
-					{
-						FilteredColor.A = FMath::TruncToInt( FMath::Lerp( MinRandomAlpha, MaxRandomAlpha, RandomStream.GetFraction() ) );
-					}
-				}
-
 				// Set the destination pixel.
 				DestImageData.Access(DestX, DestY) = FilteredColor;
 			}
@@ -745,7 +720,6 @@ static void GenerateSharpenedMipB8G8R8A8(
 	const FImageView2D& SourceImageData2, // Only used with volume texture.
 	FImageView2D& DestImageData, 
 	EMipGenAddressMode AddressMode, 
-	bool bDitherMipMapAlpha,
 	bool bDoScaleMipsForAlphaCoverage,
 	FVector4f AlphaCoverages,
 	FVector4f AlphaThresholds,
@@ -760,13 +734,13 @@ static void GenerateSharpenedMipB8G8R8A8(
 	switch(AddressMode)
 	{
 	case MGTAM_Wrap:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData, DestImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	case MGTAM_Clamp:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData, DestImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	case MGTAM_BorderBlack:
-		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData, DestImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData, DestImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 		break;
 	default:
 		check(0);
@@ -781,13 +755,13 @@ static void GenerateSharpenedMipB8G8R8A8(
 		switch(AddressMode)
 		{
 		case MGTAM_Wrap:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Wrap>(SourceImageData2, TempImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		case MGTAM_Clamp:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(SourceImageData2, TempImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		case MGTAM_BorderBlack:
-			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData2, TempImageData, bDitherMipMapAlpha, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
+			GenerateSharpenedMipB8G8R8A8Templ<MGTAM_BorderBlack>(SourceImageData2, TempImageData, bDoScaleMipsForAlphaCoverage, AlphaCoverages, AlphaThresholds, Kernel, ScaleFactor, bSharpenWithoutColorShift, bUnfiltered);
 			break;
 		default:
 			check(0);
@@ -893,7 +867,6 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 			FImageView2D(),
 			DestView,
 			AddressMode,
-			Settings.bDitherMipMapAlpha,
 			false,
 			FVector4f(0, 0, 0, 0),
 			FVector4f(0, 0, 0, 0),
@@ -930,7 +903,6 @@ struct FTextureDownscaleSettings
 	int32 BlockSize;
 	float Downscale;
 	uint8 DownscaleOptions;
-	bool bDitherMipMapAlpha;
 };
 
 static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FTextureDownscaleSettings& Settings)
@@ -984,7 +956,6 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 		GenerateSharpenedMipB8G8R8A8Templ<MGTAM_Clamp>(
 			SrcImageData, 
 			DstImageData, 
-			Settings.bDitherMipMapAlpha, 
 			false,
 			FVector4f(0, 0, 0, 0),
 			FVector4f(0, 0, 0, 0), 
@@ -1032,8 +1003,6 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 		ImageChain[0] = &Image0;
 	}
 	
-	// Set up a random number stream for dithering.
-	FRandomStream RandomStream(0);
 	ImageChain[1]->Init(FinalSizeX, FinalSizeY, ImageChain[0]->NumSlices, ImageChain[0]->Format, ImageChain[0]->GammaSpace);
 	Downscale = (float)ImageChain[0]->SizeX / FinalSizeX;
 
@@ -1070,19 +1039,6 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 						FLinearColor Sample = LookupSourceMipBilinear(SrcImageData, SourceX + KernelX - KernelCenter, SourceY + KernelY - KernelCenter);
 						FilteredColor += Weight	* Sample;
 					}
-				}
-			}
-
-			if (Settings.bDitherMipMapAlpha)
-			{
-				// Dither the alpha of any pixel which passes an alpha threshold test.
-				const int32 DitherAlphaThreshold = 5.0f / 255.0f;
-				const float MinRandomAlpha = 85.0f;
-				const float MaxRandomAlpha = 255.0f;
-
-				if (FilteredColor.A > DitherAlphaThreshold)
-				{
-					FilteredColor.A = FMath::TruncToInt(FMath::Lerp(MinRandomAlpha, MaxRandomAlpha, RandomStream.GetFraction()));
 				}
 			}
 
@@ -1189,7 +1145,6 @@ void ITextureCompressorModule::GenerateMipChain(
 				IntermediateSrcView2,
 				DestView,
 				AddressMode,
-				Settings.bDitherMipMapAlpha,
 				Settings.bDoScaleMipsForAlphaCoverage,
 				AlphaCoverages,
 				Settings.AlphaCoverageThresholds,
@@ -1207,7 +1162,6 @@ void ITextureCompressorModule::GenerateMipChain(
 					IntermediateSrcView2,
 					IntermediateDstView,
 					AddressMode,
-					Settings.bDitherMipMapAlpha,
 					Settings.bDoScaleMipsForAlphaCoverage,
 					AlphaCoverages,
 					Settings.AlphaCoverageThresholds,
@@ -1822,17 +1776,9 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		int64 NumPixelsEachJob;
 		int32 NumJobs = ImageParallelForComputeNumJobsForPixels(NumPixelsEachJob,NumPixels);
 
-		// bForceSingleThread is set to true when: 
-		// editor or cooker is loading as this is when the derived data cache is rebuilt as it will already be limited to a single thread 
-		//     and thus overhead of multithreading will simply make it slower
-		bool bForceSingleThread = GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
-
-		// TFunction or auto are okay here
-		// TFunctionRef is not
-		TFunction<void (int32)> AdjustImageColorsFunc = [&](int32 Index)
+		//TFunction<void (int32)> 
+		auto AdjustImageColorsFunc = [&](int32 Index)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(AdjustImageColors.PF);
-
 			int64 StartIndex = Index * NumPixelsEachJob;
 			int64 EndIndex = FMath::Min(StartIndex + NumPixelsEachJob, NumPixels);
 			for (int64 CurPixelIndex = StartIndex; CurPixelIndex < EndIndex; ++CurPixelIndex)
@@ -1924,8 +1870,15 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 				ImageColors[CurPixelIndex] = LinearColor;
 			}
 		};
+		
+		// bForceSingleThread is set to true when: 
+		// editor or cooker is loading as this is when the derived data cache is rebuilt as it will already be limited to a single thread 
+		//     and thus overhead of multithreading will simply make it slower
+		// @todo Oodle - this is done here and not in other similar ParallelFor places here.  It should either be done everywhere or nowhere.
+		bool bForceSingleThread = GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
 
-		ParallelFor(NumJobs, AdjustImageColorsFunc, bForceSingleThread);
+		ParallelFor( TEXT("AdjustImageColorsFunc.PF"),NumJobs,1, AdjustImageColorsFunc, 
+			(bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None) );
 	}
 }
 
@@ -2335,25 +2288,27 @@ static bool CompressMipChain(
 		}
 	}
 
-	ParallelForWithPreWork(AsyncCompressionTasks.Num(), [&AsyncCompressionTasks](int32 TaskIndex)
-	{
-		AsyncCompressionTasks[TaskIndex].DoWork();
-	},
-	[&PreWorkTasks, &TextureFormat, &OutMips, &bCompressionSucceeded, &CompressorCaps, &Settings, DebugTexturePathName, FirstMipTailIndex, bImageHasAlphaChannel]()
-	{
-		for (PreWork& Work : PreWorkTasks)
+	ParallelForWithPreWork( TEXT("CompressMipChain.PF"),AsyncCompressionTasks.Num(),1,
+		[&AsyncCompressionTasks](int32 TaskIndex)
 		{
-			bCompressionSucceeded = bCompressionSucceeded && TextureFormat->CompressImageEx(
-				&Work.SrcMip,
-				Work.MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
-				Settings,
-				DebugTexturePathName,
-				bImageHasAlphaChannel,
-				CompressorCaps.ExtData,
-				Work.DestMip
-			);
-		}
-	}, EParallelForFlags::Unbalanced);
+			AsyncCompressionTasks[TaskIndex].DoWork();
+		},
+		[&PreWorkTasks, &TextureFormat, &OutMips, &bCompressionSucceeded, &CompressorCaps, &Settings, DebugTexturePathName, FirstMipTailIndex, bImageHasAlphaChannel]()
+		{
+			for (PreWork& Work : PreWorkTasks)
+			{
+				bCompressionSucceeded = bCompressionSucceeded && TextureFormat->CompressImageEx(
+					&Work.SrcMip,
+					Work.MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
+					Settings,
+					DebugTexturePathName,
+					bImageHasAlphaChannel,
+					CompressorCaps.ExtData,
+					Work.DestMip
+				);
+			}
+		}, 
+		EParallelForFlags::Unbalanced);
 
 	for (int32 TaskIndex = 0; TaskIndex < AsyncCompressionTasks.Num(); ++TaskIndex)
 	{
@@ -2429,6 +2384,8 @@ public:
 		uint32& OutExtData
 	)
 	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(BuildTexture);
+
 		const ITextureFormat* TextureFormat = nullptr;
 
 		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
@@ -2788,7 +2745,6 @@ private:
 				FTextureDownscaleSettings DownscaleSettings;
 				DownscaleSettings.Downscale = BuildSettings.Downscale;
 				DownscaleSettings.DownscaleOptions = BuildSettings.DownscaleOptions;
-				DownscaleSettings.bDitherMipMapAlpha = BuildSettings.bDitherMipMapAlpha;
 				DownscaleSettings.BlockSize = 4;
 		
 				DownscaleImage(*Mip, *Mip, DownscaleSettings);

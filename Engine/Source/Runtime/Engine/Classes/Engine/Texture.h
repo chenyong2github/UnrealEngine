@@ -1060,9 +1060,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta = (DisplayName = "ASTC Compression Quality"), AdvancedDisplay)
 	TEnumAsByte<enum ETextureCompressionQuality> CompressionQuality;
 
-	/** When true, the alpha channel of mip-maps and the base image are dithered for smooth LOD transitions. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AdvancedDisplay)
-	uint32 bDitherMipMapAlpha:1;
+	/** Removed. */
+	UPROPERTY()
+	uint32 bDitherMipMapAlpha_DEPRECATED:1;
 
 	/** Whether mip RGBA should be scaled to preserve the number of pixels with Value >= AlphaCoverageThresholds.  AlphaCoverageThresholds are ignored if this is off. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AdvancedDisplay)

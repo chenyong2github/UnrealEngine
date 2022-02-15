@@ -4225,7 +4225,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 		ExistingNoAlpha = ExistingTexture->CompressionNoAlpha;
 		ExistingDeferCompression = ExistingTexture->DeferCompression;
 		ExistingFlipGreenChannel = ExistingTexture->bFlipGreenChannel;
-		ExistingDitherMipMapAlpha = ExistingTexture->bDitherMipMapAlpha;
 		ExistingbDoScaleMipsForAlphaCoverage = ExistingTexture->bDoScaleMipsForAlphaCoverage;
 		ExistingAlphaCoverageThresholds = ExistingTexture->AlphaCoverageThresholds;
 		ExistingAdjustBrightness = ExistingTexture->AdjustBrightness;
@@ -4346,7 +4345,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 	Texture->CompressionNone		= NoCompression;
 	Texture->CompressionNoAlpha		= NoAlpha;
 	Texture->DeferCompression		= bDeferCompression;
-	Texture->bDitherMipMapAlpha		= bDitherMipMapAlpha;
 	Texture->bDoScaleMipsForAlphaCoverage = bDoScaleMipsForAlphaCoverage;
 	Texture->AlphaCoverageThresholds = AlphaCoverageThresholds;
 	
@@ -4409,7 +4407,6 @@ UObject* UTextureFactory::FactoryCreateBinary
 		Texture->CompressionNone = ExistingNoCompression;
 		Texture->CompressionNoAlpha = ExistingNoAlpha;
 		Texture->DeferCompression = ExistingDeferCompression;
-		Texture->bDitherMipMapAlpha = ExistingDitherMipMapAlpha;
 		Texture->bDoScaleMipsForAlphaCoverage = ExistingbDoScaleMipsForAlphaCoverage;
 		Texture->AlphaCoverageThresholds = ExistingAlphaCoverageThresholds;
 		Texture->bFlipGreenChannel = ExistingFlipGreenChannel;
