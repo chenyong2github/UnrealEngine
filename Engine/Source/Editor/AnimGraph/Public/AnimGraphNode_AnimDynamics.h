@@ -86,6 +86,10 @@ public:
 	FAnimNode_AnimDynamics* GetPreviewDynamicsNode() const;
 	bool IsPreviewLiveActive() const { return bPreviewLive;  }
 
+	// UI callbacks for customising the physics bodies array in the details panel.
+	void OnPhysicsBodyDefCustomizeDetails(TSharedRef<IPropertyHandle> ElementProperty, int32 ElementIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout);
+	FText BodyDefinitionUINameString(const uint32 BodyIndex) const;
+
 protected:
 
 	virtual FText GetControllerDescription() const override;
@@ -102,7 +106,6 @@ protected:
 	USkeleton* GetSkeleton() const;
 
 private:
-	TSharedPtr<class FAnimGraphNode_AnimDynamics_DetailCustomization> DetailCustomization;
 
 	FNodeTitleTextTable CachedNodeTitles;
 };
