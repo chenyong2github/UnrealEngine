@@ -1529,9 +1529,15 @@ inline FVector3f operator*(const float F, const FVector3f &A)
 	return Result;
 }
 
-inline uniform FVector operator*(const uniform FVector &A, const uniform FReal F)
+inline uniform FVector3d operator*(const uniform FVector3d &A, const uniform double F)
 {
-	const uniform FVector FVec = {{F,F,F}};
+	const uniform FVector3d FVec = {{F,F,F}};
+	return A * FVec;
+}
+
+inline uniform FVector3f operator*(const uniform FVector3f &A, const uniform float F)
+{
+	const uniform FVector3f FVec = {{F,F,F}};
 	return A * FVec;
 }
 
@@ -3802,20 +3808,37 @@ inline float VectorSize(const varying FVector3f &A)
 	return sqrt(VectorDot(A, A));
 }
 
-inline uniform FVector VectorGetSafeNormal(const uniform FVector &Vector)
+inline uniform FVector3d VectorGetSafeNormal(const uniform FVector3d &Vector)
 {
-	const uniform FReal SquareSum = VectorSizeSquared(Vector);
+	const uniform double SquareSum = VectorSizeSquared(Vector);
+
+	// Not sure if it's safe to add tolerance in there. Might introduce too many errors
+	if(SquareSum == 1.)
+	{
+		return Vector;
+	}
+	else if(SquareSum < DOUBLE_SMALL_NUMBER)
+	{
+		return ZeroVector;
+	}
+	const uniform double Scale = InvSqrt(SquareSum);
+	return Vector * Scale;
+}
+
+inline uniform FVector3f VectorGetSafeNormal(const uniform FVector3f &Vector)
+{
+	const uniform float SquareSum = VectorSizeSquared(Vector);
 
 	// Not sure if it's safe to add tolerance in there. Might introduce too many errors
 	if(SquareSum == 1.f)
 	{
 		return Vector;
 	}
-	else if(SquareSum < SMALL_NUMBER)
+	else if(SquareSum < FLOAT_SMALL_NUMBER)
 	{
-		return ZeroVector;
+		return FloatZeroVector;
 	}
-	const uniform FReal Scale = InvSqrt(SquareSum);
+	const uniform float Scale = InvSqrt(SquareSum);
 	return Vector * Scale;
 }
 

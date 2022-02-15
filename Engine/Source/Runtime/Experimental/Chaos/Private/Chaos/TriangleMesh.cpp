@@ -256,6 +256,7 @@ TArray<TVec4<int32>> FTriangleMesh::GetUniqueAdjacentElements() const
 template <typename T>
 void FTriangleMesh::GetFaceNormals(TArray<TVec3<T>>& Normals, const TConstArrayView<TVec3<T>>& Points, const bool ReturnEmptyOnError) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTriangleMesh_GetFaceNormals);
 	Normals.Reset(MElements.Num());
 	if (ReturnEmptyOnError)
 	{
@@ -339,12 +340,11 @@ template <typename T>
 void FTriangleMesh::GetPointNormals(TArrayView<TVec3<T>> PointNormals, const TConstArrayView<TVec3<T>>& FaceNormals, const bool bUseGlobalArray) const
 {
 	check(MPointToTriangleMap.Num() != 0);
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTriangleMesh_GetPointNormals);
 	for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 	{
 		const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
-		TVec3<T>& Normal = PointNormals[NormalIndex];
-		Normal = TVec3<T>(0.);
+		TVec3<T> Normal((T)0);
 		const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
 		for (int32 k = 0; k < TriangleMap.Num(); ++k)
 		{
@@ -353,7 +353,7 @@ void FTriangleMesh::GetPointNormals(TArrayView<TVec3<T>> PointNormals, const TCo
 				Normal += FaceNormals[TriangleMap[k]];
 			}
 		}
-		Normal = Normal.GetSafeNormal();
+		PointNormals[NormalIndex] = Normal.GetSafeNormal();
 	}
 }
 template CHAOS_API void FTriangleMesh::GetPointNormals<FRealDouble>(TArrayView<TVec3<FRealDouble>>, const TConstArrayView<TVec3<FRealDouble>>&, const bool) const;
@@ -380,8 +380,7 @@ CHAOS_API void FTriangleMesh::GetPointNormals<FRealSingle>(TArrayView<TVec3<FRea
 		for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 		{
 			const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
-			TVec3<FRealSingle>& Normal = PointNormals[NormalIndex];
-			Normal = TVec3<FRealSingle>(0.);
+			TVec3<FRealSingle> Normal(0.f);
 			const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
 			for (int32 k = 0; k < TriangleMap.Num(); ++k)
 			{
@@ -390,7 +389,7 @@ CHAOS_API void FTriangleMesh::GetPointNormals<FRealSingle>(TArrayView<TVec3<FRea
 					Normal += FaceNormals[TriangleMap[k]];
 				}
 			}
-			Normal = Normal.GetSafeNormal();
+			PointNormals[NormalIndex] = Normal.GetSafeNormal();
 		}
 	}
 }

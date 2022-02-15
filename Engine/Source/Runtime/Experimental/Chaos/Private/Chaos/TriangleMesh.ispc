@@ -39,24 +39,27 @@ export void GetPointNormals(uniform FVector3f PointNormals[],
 							const uniform int32 NumFaceNormals,
 							const uniform int32 NumIndices)
 {
-	foreach(Element = 0 ... NumIndices)
+	#pragma unroll 4
+	for(uniform int32 Element = 0; Element < NumIndices; Element++)
 	{
-		varying FVector3f Normal = FloatZeroVector;
+		uniform FVector4f Normal = FloatZero;
 
-		#pragma ignore warning(perf)
-		const varying TArrayInt TriangleMap = PointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
+		const uniform TArrayInt TriangleMap = PointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
 
-		for (int32 k = 0; k < TriangleMap.ArrayNum; ++k)
+		#pragma unroll 2
+		for (uniform int32 k = 0; k < TriangleMap.ArrayNum; ++k)
 		{
-			#pragma ignore warning(perf)
-			const int32 Index = TriangleMap.Data[k];
+			const uniform int32 Index = TriangleMap.Data[k];
 
 			if (Index >= 0 && Index < NumFaceNormals)
 			{
-				Normal = Normal + VectorGather(&FaceNormals[Index]);
+				const uniform FVector3f FaceNormal = FaceNormals[Index];
+
+				Normal = Normal + SetVector4(FaceNormal, FLOAT_ZERO);
 			}
 		}
 
-		VectorStore(&PointNormals[extract(Element, 0) + StartIndex], VectorGetSafeNormal(Normal));
+		uniform FVector3f SafeNormal = VectorGetSafeNormal(SetVector(Normal));
+		PointNormals[Element + StartIndex] = SafeNormal;
 	}
 }
