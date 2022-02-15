@@ -397,8 +397,8 @@ uint EdgeToTileMask( float2 Edge, float C, int2 TileOffset )
 		if( bOpenEdge )
 		{
 			uint x0 = uint( clamp( ceil( CrossX ), 0, 8 ) );
-			uint LineMask = ( 255 << x0 ) & 255;
-			TileMask |= LineMask << (8 * y);
+			uint LineMask = ( 255u << x0 ) & 255u;
+			TileMask |= LineMask << (8u * y);
 		}
 		else
 		{
@@ -409,8 +409,8 @@ uint EdgeToTileMask( float2 Edge, float C, int2 TileOffset )
 		}
 #else
 		uint x0 = uint( clamp( ceil( CrossX ), 0, 8 ) );
-		uint LineMask = ( 255 << x0 ) & 255;
-		TileMask |= LineMask << (8 * y);
+		uint LineMask = ( 255u << x0 ) & 255u;
+		TileMask |= LineMask << (8u * y);
 #endif
 
 		C += Edge.x;
@@ -663,9 +663,9 @@ void MicropolyRasterize(
 	Raster.PageTranslation	= PageTranslation;
 
 	UNROLL
-	for( uint i = 0; i < 2; i++ )
+	for( uint j = 0; j < 2; j++ )
 	{
-		uint TriIndex = GroupIndex + i * 64;
+		uint TriIndex = GroupIndex + j * 64;
 	#if HAS_RASTER_BIN
 		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		BRANCH
