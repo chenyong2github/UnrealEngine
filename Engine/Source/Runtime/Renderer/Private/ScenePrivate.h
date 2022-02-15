@@ -692,6 +692,7 @@ struct FHLODSceneNodeVisibilityState
 struct FShaderDrawDebugStateData
 {
 	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	FVector PreViewTranslation = FVector::ZeroVector;
 	bool bIsLocked = false;
 
 	void Release()

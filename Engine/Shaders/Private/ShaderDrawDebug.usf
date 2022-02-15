@@ -5,6 +5,8 @@
 
 #include "ShaderDrawDebug.ush"
 
+float3 TranslatedWorldOffsetConversion;
+
 // The shader used to render the debug element on view
 StructuredBuffer<uint> ShaderDrawDebugPrimitive;
 
@@ -27,6 +29,11 @@ void ShaderDrawDebugVS(
 
 	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
+
+	// Optional world offset. For 'locked' debug drawing, this offset translates the world 
+	// position recorded for a given translated world offset, into the current translated 
+	// world offset
+	VertexPositionTWS.xyz += TranslatedWorldOffsetConversion;
 
 	Position = mul(VertexPositionTWS, PrimaryView.TranslatedWorldToClip);
 	ColorAlpha = VertexColor;
