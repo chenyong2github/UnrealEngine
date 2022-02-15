@@ -603,6 +603,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 		int32 CurrentPragamLineoffset = -1;
 		int32 CurrentLineoffset = 0;
 
+		int32 TypeQualifierStartPos = -1;
 		int32 TypeStartPos = -1;
 		int32 TypeEndPos = -1;
 		int32 NameStartPos = -1;
@@ -616,6 +617,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 
 		auto ResetState = [&]()
 		{
+			TypeQualifierStartPos = -1;
 			TypeStartPos = -1;
 			TypeEndPos = -1;
 			NameStartPos = -1;
@@ -702,7 +704,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				// Erases this shader parameter conserving the same line numbers.
 				if (bEraseOriginalParameter)
 				{
-					for (int32 j = TypeStartPos; j <= Cursor; j++)
+					for (int32 j = (TypeQualifierStartPos != -1 ? TypeQualifierStartPos : TypeStartPos); j <= Cursor; j++)
 					{
 						if (PreprocessedShaderSource[j] != '\r' && PreprocessedShaderSource[j] != '\n')
 							PreprocessedShaderSource[j] = ' ';
@@ -801,6 +803,11 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 					else if (RecognisedKeywordId == 2)
 					{
 						// Ignore the const keywords, but still parse given it might still be a shader parameter.
+						if (TypeQualifierStartPos == -1)
+						{
+							// If the parameter is erased, we also have to erase *all* 'const'-qualifiers, e.g. "const int Foo" or "const const int Foo".
+							TypeQualifierStartPos = Cursor;
+						}
 						Cursor += KeywordTableSize[RecognisedKeywordId];
 					}
 					else
