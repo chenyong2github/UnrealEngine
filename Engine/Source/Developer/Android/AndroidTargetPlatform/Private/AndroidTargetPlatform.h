@@ -41,39 +41,6 @@ template<typename KeyType,typename ValueType,typename SetAllocator ,typename Key
 template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMultiMap;
 template<typename TPlatformProperties> class TTargetPlatformBase;
 
-/**
- * Defines supported texture format names.
- */
-namespace AndroidTexFormat
-{
-	// Compressed Texture Formats
-	static FName NameDXT1(TEXT("DXT1"));
-	static FName NameDXT5(TEXT("DXT5"));
-	static FName NameAutoDXT(TEXT("AutoDXT"));
-	static FName NameETC2_RGB(TEXT("ETC2_RGB"));
-	static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
-	static FName NameAutoETC2(TEXT("AutoETC2"));
-	static FName NameASTC_4x4(TEXT("ASTC_4x4"));
-	static FName NameASTC_6x6(TEXT("ASTC_6x6"));
-	static FName NameASTC_8x8(TEXT("ASTC_8x8"));
-	static FName NameASTC_10x10(TEXT("ASTC_10x10"));
-	static FName NameASTC_12x12(TEXT("ASTC_12x12"));
-	static FName NameAutoASTC(TEXT("AutoASTC"));
-
-	// Uncompressed Texture Formats
-	static FName NameBGRA8(TEXT("BGRA8"));
-	static FName NameG8(TEXT("G8"));
-	static FName NameVU8(TEXT("VU8"));
-	static FName NameRGBA16F(TEXT("RGBA16F"));
-	static FName NameR16F(TEXT("R16F"));
-	static FName NameR5G6B5(TEXT("R5G6B5"));
-	static FName NameA1RGB555(TEXT("A1RGB555"));
-	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
-	static FName NameRGB555A1(TEXT("RGB555A1"));
-	// Error "formats" (uncompressed)
-	static FName NamePOTERROR(TEXT("POTERROR"));
-}
-
 /** Listed in order of priority...if device supports multiple formats, first format in list will be chosen */
 enum class EAndroidTextureFormatCategory
 {
@@ -141,12 +108,6 @@ public:
 
 	virtual bool SupportsFeature( ETargetPlatformFeatures Feature ) const override;
 
-	virtual bool SupportsTextureFormat( FName Format ) const 
-	{
-		// By default we support all texture formats.
-		return true;
-	}
-
 	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const
 	{
 		return true;
@@ -206,16 +167,6 @@ public:
 	}
 
 protected:
-
-	/**
-	 * Adds the specified texture format to the OutFormats if this android target platforms supports it.
-	 *
-	 * @param Format - The format to add.
-	 * @param OutFormats - The collection of formats to add to.
-	 * @param bIsCompressedNonPOT - If this is true, the texture wants to be compressed but is not a power of 2
-	 */
-	void AddTextureFormatIfSupports( FName Format, TArray<FName>& OutFormats, bool bIsCompressedNonPOT=false ) const;
-
 	/**
 	 * Return true if this device has a supported set of extensions for this platform.
 	 *
@@ -279,17 +230,6 @@ public:
 	{
 	}
 
-	virtual bool SupportsTextureFormat(FName Format) const override
-	{
-		if (Format == AndroidTexFormat::NameDXT1 ||
-			Format == AndroidTexFormat::NameDXT5 ||
-			Format == AndroidTexFormat::NameAutoDXT)
-		{
-			return true;
-		}
-		return false;
-	}
-
 	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
 	{
 		return Category == EAndroidTextureFormatCategory::DXT;
@@ -308,26 +248,11 @@ public:
 	}
 };
 
-
 class FAndroid_ASTCTargetPlatform : public FAndroidTargetPlatform
 {
 public:
 	FAndroid_ASTCTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("ASTC")) 
 	{
-	}
-
-	virtual bool SupportsTextureFormat(FName Format) const override
-	{
-		if (Format == AndroidTexFormat::NameASTC_4x4 ||
-			Format == AndroidTexFormat::NameASTC_6x6 ||
-			Format == AndroidTexFormat::NameASTC_8x8 ||
-			Format == AndroidTexFormat::NameASTC_10x10 ||
-			Format == AndroidTexFormat::NameASTC_12x12 ||
-			Format == AndroidTexFormat::NameAutoASTC)
-		{
-			return true;
-		}
-		return false;
 	}
 
 	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
@@ -336,91 +261,8 @@ public:
 	}
 
 #if WITH_ENGINE
-	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
-	{
-		check(Texture);
-
-		// we remap some of the defaults (with ASTC formats)
-		static FName FormatRemap[][2] =
-		{
-			// Default format:				ASTC format:
-			{ { FName(TEXT("DXT1")) },		{ FName(TEXT("ASTC_RGB")) } },
-			{ { FName(TEXT("DXT5")) },		{ FName(TEXT("ASTC_RGBA")) } },
-			{ { FName(TEXT("DXT5n")) },		{ FName(TEXT("ASTC_NormalAG")) } },
-			{ { FName(TEXT("BC5")) },		{ FName(TEXT("ASTC_NormalRG")) } },
-			{ { FName(TEXT("BC6H")) },		{ FName(TEXT("ASTC_RGB")) } },
-			{ { FName(TEXT("BC7")) },		{ FName(TEXT("ASTC_RGBAuto")) } },
-			{ { FName(TEXT("AutoDXT")) },	{ FName(TEXT("ASTC_RGBAuto")) } },
-			{ { AndroidTexFormat::NameA1RGB555 },	{ AndroidTexFormat::NameRGB555A1 } },
-		};
-
-		// Supported in ES3.2 with ASTC
-		bool bSupportCompressedVolumeTexture = true;
-		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true, bSupportCompressedVolumeTexture, 1);
-
-		for (FName& TextureFormatName : OutFormats.Last())
-		{
-			if (Texture->LODGroup == TEXTUREGROUP_Shadowmap)
-			{
-				// forward rendering only needs one channel for shadow maps
-				TextureFormatName = FName(TEXT("G8"));
-			}
-			else
-			{
-				// perform any remapping away from defaults
-				for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); ++RemapIndex)
-				{
-					if (TextureFormatName == FormatRemap[RemapIndex][0])
-					{
-						// we found a remapping
-						TextureFormatName = FormatRemap[RemapIndex][1];
-						break;
-					}
-				}
-			}
-
-
-			if (Texture->IsA(UTextureCube::StaticClass()))
-			{
-				const UTextureCube* Cube = CastChecked<UTextureCube>(Texture);
-				if (Cube != nullptr)
-				{
-					FTextureFormatSettings FormatSettings;
-					Cube->GetDefaultFormatSettings(FormatSettings);
-					if (FormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !FormatSettings.CompressionNone)
-					{
-						TextureFormatName = FName(TEXT("ETC2_RGBA"));
-					}
-				}
-			}
-		}
-	}
-
-
-	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override
-	{
-		// we remap some of the defaults (with ASTC formats)
-		static FName FormatRemap[][2] =
-		{
-			// Default format:				ASTC format:
-			{ { FName(TEXT("DXT1")) },		{ FName(TEXT("ASTC_RGB")) } },
-			{ { FName(TEXT("DXT5")) },		{ FName(TEXT("ASTC_RGBA")) } },
-			{ { FName(TEXT("DXT5n")) },		{ FName(TEXT("ASTC_NormalAG")) } },
-			{ { FName(TEXT("BC5")) },		{ FName(TEXT("ASTC_NormalRG")) } },
-			{ { FName(TEXT("BC6H")) },		{ FName(TEXT("ASTC_RGB")) } },
-			{ { FName(TEXT("BC7")) },		{ FName(TEXT("ASTC_RGBAuto")) } },
-			{ { FName(TEXT("AutoDXT")) },	{ FName(TEXT("ASTC_RGBAuto")) } },
-		};
-
-		GetAllDefaultTextureFormats(this, OutFormats, true);
-
-		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); ++RemapIndex)
-		{
-			OutFormats.Remove(FormatRemap[RemapIndex][0]);
-			OutFormats.AddUnique(FormatRemap[RemapIndex][1]);
-		}
-	}
-
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const;
+	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 #endif
 
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
@@ -445,22 +287,15 @@ public:
 	{
 	}
 
-	virtual bool SupportsTextureFormat(FName Format) const override
-	{
-		if (Format == AndroidTexFormat::NameETC2_RGB ||
-			Format == AndroidTexFormat::NameETC2_RGBA ||
-			Format == AndroidTexFormat::NameAutoETC2)
-		{
-			return true;
-		}
-
-		return false;
-	}
-
 	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
 	{
 		return Category == EAndroidTextureFormatCategory::ETC2;
 	}
+
+#if WITH_ENGINE
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const;
+	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
+#endif
 
 	virtual bool SupportedByExtensionsString(const FString& ExtensionsString, const int GLESVersion) const override
 	{
