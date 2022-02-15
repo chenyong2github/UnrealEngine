@@ -944,5 +944,15 @@ namespace HordeServer
 			}
 			return LogEventLevel.Information;
 		}
+
+		public static IServiceProvider CreateServiceProvider(IConfiguration Configuration)
+		{
+			IServiceCollection ServiceCollection = new ServiceCollection();
+
+			Startup Startup = new Startup(Configuration);
+			Startup.ConfigureServices(ServiceCollection);
+
+			return ServiceCollection.BuildServiceProvider();
+		}
 	}
 }

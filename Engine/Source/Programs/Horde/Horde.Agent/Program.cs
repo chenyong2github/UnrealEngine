@@ -71,32 +71,10 @@ namespace HordeAgent
 		{
 			Program.Args = Args;
 
-			ILogger Logger = new Logging.HordeLoggerProvider().CreateLogger("HordeAgent");
-			try
-			{
-				int Result = await GuardedMain(Args, Logger);
-				return Result;
-			}
-			catch (FatalErrorException Ex)
-			{
-				Logger.LogCritical(Ex, "Fatal error.");
-				return Ex.ExitCode;
-			}
-			catch (Exception Ex)
-			{
-				Logger.LogCritical(Ex, "Fatal error.");
-				return 1;
-			}
-		}
+			IServiceCollection Services = new ServiceCollection();
+			Services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
+			Services.AddLogging(Builder => Builder.AddProvider(new Logging.HordeLoggerProvider()));
 
-		/// <summary>
-		/// Actual Main function, without exception guards
-		/// </summary>
-		/// <param name="Args">Command-line arguments</param>
-		/// <param name="Logger">The logger interface</param>
-		/// <returns>Exit code</returns>
-		static async Task<int> GuardedMain(string[] Args, ILogger Logger)
-		{
 			// Enable unencrypted HTTP/2 for gRPC channel without TLS
 			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -112,7 +90,8 @@ namespace HordeAgent
 			}
 
 			// Execute all the commands
-			return await CommandHost.RunAsync(new CommandLineArguments(Args), typeof(HordeAgent.Modes.Service.RunCommand), Logger);
+			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
+			return await CommandHost.RunAsync(new CommandLineArguments(Args), ServiceProvider, typeof(HordeAgent.Modes.Service.RunCommand));
 		}
 
 		/// <summary>

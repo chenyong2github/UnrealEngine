@@ -21,6 +21,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Options;
 using System.IO.Compression;
 using System.Security.Cryptography.X509Certificates;
+using Horde.Build.Commands;
 
 namespace HordeServer.Services
 {
@@ -311,7 +312,7 @@ namespace HordeServer.Services
 
             byte[] Bytes = await File.ReadAllBytesAsync(AgentZip.ToString());
 
-			using X509Certificate2? GrpcCertificate = Program.ReadGrpcCertificate(Settings.CurrentValue);
+			using X509Certificate2? GrpcCertificate = ServerCommand.ReadGrpcCertificate(Settings.CurrentValue);
 
 			if (GrpcCertificate == null)
 			{

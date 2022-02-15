@@ -41,6 +41,24 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
+		/// Array of types included in the schema
+		/// </summary>
+		public static Type[] ConfigSchemas { get; } = FindSchemaTypes();
+
+		static Type[] FindSchemaTypes()
+		{
+			List<Type> SchemaTypes = new List<Type>();
+			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			{
+				if (Type.GetCustomAttribute<JsonSchemaAttribute>() != null)
+				{
+					SchemaTypes.Add(Type);
+				}
+			}
+			return SchemaTypes.ToArray();
+		}
+
+		/// <summary>
 		/// Get the catalog for config schema
 		/// </summary>
 		/// <returns>Information about all the schedules</returns>
@@ -62,7 +80,7 @@ namespace HordeServer.Controllers
 			}
 
 			CatalogRoot Root = new CatalogRoot();
-			foreach (Type SchemaType in Program.ConfigSchemas)
+			foreach (Type SchemaType in ConfigSchemas)
 			{
 				JsonSchemaAttribute? SchemaAttribute = SchemaType.GetCustomAttribute<JsonSchemaAttribute>();
 				if (SchemaAttribute != null)
@@ -87,7 +105,7 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/schema/types/{TypeName}.json")]
 		public ActionResult GetSchema(string TypeName)
 		{
-			foreach (Type SchemaType in Program.ConfigSchemas)
+			foreach (Type SchemaType in ConfigSchemas)
 			{
 				if (SchemaType.Name.Equals(TypeName, StringComparison.OrdinalIgnoreCase))
 				{

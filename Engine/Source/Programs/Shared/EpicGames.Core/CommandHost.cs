@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,53 @@ using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Interface for commands
+	/// </summary>
+	public interface ICommand
+	{
+		/// <summary>
+		/// Configure this object with the given command line arguments
+		/// </summary>
+		/// <param name="Arguments">Command line arguments</param>
+		void Configure(CommandLineArguments Arguments, ILogger Logger);
+
+		/// <summary>
+		/// Gets all command line parameters to show in help for this command
+		/// </summary>
+		/// <param name="Arguments">The command line arguments</param>
+		/// <returns>List of name/description pairs</returns>
+		List<KeyValuePair<string, string>> GetParameters(CommandLineArguments Arguments);
+
+		/// <summary>
+		/// Execute this command
+		/// </summary>
+		/// <param name="Logger">The logger to use for this command</param>
+		/// <returns>Exit code</returns>
+		Task<int> ExecuteAsync(ILogger Logger);
+	}
+
+	/// <summary>
+	/// Interface describing a command that can be exectued
+	/// </summary>
+	public interface ICommandFactory
+	{
+		/// <summary>
+		/// Names for this command
+		/// </summary>
+		public string[] Names { get; }
+
+		/// <summary>
+		/// Short description for the mode. Will be displayed in the help text.
+		/// </summary>
+		public string Description { get; }
+
+		/// <summary>
+		/// Create a command instance
+		/// </summary>
+		public ICommand CreateInstance(IServiceProvider ServiceProvider);
+	}
+
 	/// <summary>
 	/// Attribute used to specify names of program modes, and help text
 	/// </summary>
@@ -52,34 +100,43 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Base class for all commands that can be executed by HordeAgent
 	/// </summary>
-	public abstract class Command
+	public abstract class Command : ICommand
 	{
-		/// <summary>
-		/// Configure this object with the given command line arguments
-		/// </summary>
-		/// <param name="Arguments">Command line arguments</param>
-		/// <param name="Logger">Logging output device</param>
+		/// <inheritdoc/>
 		public virtual void Configure(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this, Logger);
 		}
 
-		/// <summary>
-		/// Gets all command line parameters to show in help for this command
-		/// </summary>
-		/// <param name="Arguments">The command line arguments</param>
-		/// <returns>List of name/description pairs</returns>
+		/// <inheritdoc/>
 		public virtual List<KeyValuePair<string, string>> GetParameters(CommandLineArguments Arguments)
 		{
 			return CommandLineArguments.GetParameters(GetType());
 		}
 
-		/// <summary>
-		/// Execute this command
-		/// </summary>
-		/// <param name="Logger">The logger to use for this command</param>
-		/// <returns>Exit code</returns>
+		/// <inheritdoc/>
 		public abstract Task<int> ExecuteAsync(ILogger Logger);
+	}
+
+	/// <summary>
+	/// Default implementation of a command factory
+	/// </summary>
+	class CommandFactory : ICommandFactory
+	{
+		public string[] Names { get; }
+		public string Description { get; }
+
+		public Type Type;
+
+		public CommandFactory(string[] Names, string Description, Type Type)
+		{
+			this.Names = Names;
+			this.Description = Description;
+			this.Type = Type;
+		}
+
+		public ICommand CreateInstance(IServiceProvider ServiceProvider) => (ICommand)ServiceProvider.GetRequiredService(Type);
+		public override string ToString() => String.Join(" ", Names);
 	}
 
 	/// <summary>
@@ -88,41 +145,42 @@ namespace EpicGames.Core
 	public static class CommandHost
 	{
 		/// <summary>
-		/// Entry point for executing registered command types in a particular assembly
+		/// Adds services for executing the 
 		/// </summary>
-		/// <param name="Args">Command line arguments</param>
-		/// <param name="DefaultCommandType">The default command type</param>
-		/// <param name="Logger">Logging device to pass to the command object</param>
-		/// <returns>Return code from the command</returns>
-		public static Task<int> RunAsync(CommandLineArguments Args, Type? DefaultCommandType, ILogger Logger)
+		/// <param name="Services"></param>
+		/// <param name="Assembly"></param>
+		public static void AddCommandsFromAssembly(this IServiceCollection Services, Assembly Assembly)
 		{
-			return RunAsync(Args, Assembly.GetEntryAssembly()!, DefaultCommandType, Logger);
+			List<(CommandAttribute, Type)> Commands = new List<(CommandAttribute, Type)>();
+			foreach (Type Type in Assembly.GetTypes())
+			{
+				if (typeof(ICommand).IsAssignableFrom(Type) && !Type.IsAbstract)
+				{
+					CommandAttribute? Attribute = Type.GetCustomAttribute<CommandAttribute>();
+					if (Attribute != null)
+					{
+						Services.AddTransient(Type);
+						Services.AddTransient(typeof(ICommandFactory), SP => new CommandFactory(Attribute.Names, Attribute.Description, Type));
+					}
+				}
+			}
 		}
 
 		/// <summary>
 		/// Entry point for executing registered command types in a particular assembly
 		/// </summary>
 		/// <param name="Args">Command line arguments</param>
-		/// <param name="CommandAssembly">Assembly to scan for command types</param>
+		/// <param name="ServiceProvider">The service provider for the application</param>
 		/// <param name="DefaultCommandType">The default command type</param>
-		/// <param name="Logger">Logging device to pass to the command object</param>
 		/// <returns>Return code from the command</returns>
-		public static async Task<int> RunAsync(CommandLineArguments Args, Assembly CommandAssembly, Type? DefaultCommandType, ILogger Logger)
+		public static async Task<int> RunAsync(CommandLineArguments Args, IServiceProvider ServiceProvider, Type? DefaultCommandType)
 		{
 			// Find all the command types
-			List<(CommandAttribute, Type)> Commands = new List<(CommandAttribute, Type)>();
-			foreach (Type Type in CommandAssembly.GetTypes())
-			{
-				CommandAttribute? Attribute = Type.GetCustomAttribute<CommandAttribute>();
-				if (Attribute != null)
-				{
-					Commands.Add((Attribute, Type));
-				}
-			}
+			List<ICommandFactory> CommandFactories = ServiceProvider.GetServices<ICommandFactory>().ToList();
 
 			// Check if there's a matching command
-			Type? CommandType = null;
-			CommandAttribute? CommandAttribute = null;
+			ICommand? Command = null;
+			ICommandFactory? CommandFactory = null;
 
 			// Parse the positional arguments for the command name
 			string[] PositionalArgs = Args.GetPositionalArguments();
@@ -130,21 +188,12 @@ namespace EpicGames.Core
 			{
 				if (DefaultCommandType == null || Args.HasOption("-Help"))
 				{
-					Console.WriteLine(CommandAssembly.GetName().Name);
-					Console.WriteLine("");
-
-					AssemblyDescriptionAttribute? Description = CommandAssembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
-					if (Description != null)
-					{
-						Console.WriteLine(Description.Description);
-					}
-
 					Console.WriteLine("Usage:");
 					Console.WriteLine("    [Command] [-Option1] [-Option2]...");
 					Console.WriteLine("");
 					Console.WriteLine("Commands:");
 
-					PrintCommands(Commands.Select(x => x.Item1));
+					PrintCommands(CommandFactories);
 
 					Console.WriteLine("");
 					Console.WriteLine("Specify \"<CommandName> -Help\" for command-specific help");
@@ -152,49 +201,47 @@ namespace EpicGames.Core
 				}
 				else 
 				{
-					CommandType = DefaultCommandType;
+					Command = (ICommand)ServiceProvider.GetService(DefaultCommandType);
 				}
 			}
 			else
 			{
-				foreach ((CommandAttribute Attribute, Type Type) in Commands.OrderBy(x => x.Item1.Names.Length))
+				foreach (ICommandFactory Factory in CommandFactories)
 				{
-					if (Attribute.Names.SequenceEqual(PositionalArgs, StringComparer.OrdinalIgnoreCase))
+					if (Factory.Names.SequenceEqual(PositionalArgs, StringComparer.OrdinalIgnoreCase))
 					{
-						CommandType = Type;
-						CommandAttribute = Attribute;
+						Command = Factory.CreateInstance(ServiceProvider);
+						CommandFactory = Factory;
 						break;
 					}
 				}
-				if (CommandType == null)
+				if (Command == null)
 				{
 					ConsoleUtils.WriteError($"Invalid command '{String.Join(" ", PositionalArgs)}'");
 					Console.WriteLine("");
 					Console.WriteLine("Available commands:");
 
-					PrintCommands(Commands.Select(x => x.Item1));
+					PrintCommands(CommandFactories);
 					return 1;
 				}
 			}
 
-			// Create the command instance
-			Command Command = (Command)Activator.CreateInstance(CommandType)!;
-
 			// If the help flag is specified, print the help info and exit immediately
 			if (Args.HasOption("-Help"))
 			{
-				if (CommandAttribute == null)
+				if (CommandFactory == null)
 				{
 					HelpUtils.PrintHelp(null, null, Command.GetParameters(Args));
 				}
 				else
 				{
-					HelpUtils.PrintHelp(String.Join(" ", CommandAttribute.Names), CommandAttribute.Description, Command.GetParameters(Args));
+					HelpUtils.PrintHelp(String.Join(" ", CommandFactory.Names), CommandFactory.Description, Command.GetParameters(Args));
 				}
 				return 1;
 			}
 
 			// Configure the command
+			ILogger Logger = ServiceProvider.GetRequiredService<ILoggerProvider>().CreateLogger("CommandHost");
 			try
 			{
 				Command.Configure(Args, Logger);
@@ -231,10 +278,10 @@ namespace EpicGames.Core
 		/// Print a formatted list of all the available commands
 		/// </summary>
 		/// <param name="Attributes">List of command attributes</param>
-		static void PrintCommands(IEnumerable<CommandAttribute> Attributes)
+		static void PrintCommands(IEnumerable<ICommandFactory> Attributes)
 		{
 			List<KeyValuePair<string, string>> Commands = new List<KeyValuePair<string, string>>();
-			foreach (CommandAttribute Attribute in Attributes)
+			foreach (ICommandFactory Attribute in Attributes)
 			{
 				Commands.Add(new KeyValuePair<string, string>(String.Join(" ", Attribute.Names), Attribute.Description));
 			}

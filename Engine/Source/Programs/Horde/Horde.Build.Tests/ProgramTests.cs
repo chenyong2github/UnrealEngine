@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using EpicGames.Core;
+using Horde.Build.Commands;
 using HordeServer;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -28,11 +29,11 @@ namespace Horde.Build.Tests
 			File.WriteAllBytes(TempCertPath, TempCertData);
 			
 			// No cert given
-			Assert.IsNull(Program.ReadGrpcCertificate(new () { ServerPrivateCert = null }));
+			Assert.IsNull(ServerCommand.ReadGrpcCertificate(new () { ServerPrivateCert = null }));
 
 			// Cert as file path
 			{
-				X509Certificate2? Cert = Program.ReadGrpcCertificate(new() { ServerPrivateCert = TempCertPath });
+				X509Certificate2? Cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = TempCertPath });
 				Assert.IsNotNull(Cert);
 				Assert.AreEqual(FriendlyName, Cert!.FriendlyName);
 			}
@@ -40,7 +41,7 @@ namespace Horde.Build.Tests
 			// Cert as base64 data
 			{
 				string TempCertBase64 = Convert.ToBase64String(TempCertData);
-				X509Certificate2? Cert = Program.ReadGrpcCertificate(new() { ServerPrivateCert = "base64:" + TempCertBase64 });
+				X509Certificate2? Cert = ServerCommand.ReadGrpcCertificate(new() { ServerPrivateCert = "base64:" + TempCertBase64 });
 				Assert.IsNotNull(Cert);
 				Assert.AreEqual(FriendlyName, Cert!.FriendlyName);	
 			}

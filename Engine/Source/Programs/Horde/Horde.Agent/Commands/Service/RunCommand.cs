@@ -36,11 +36,6 @@ namespace HordeAgent.Modes.Service
 	class RunCommand : Command
 	{
 		/// <summary>
-		/// The logger instance
-		/// </summary>
-		ILogger Logger = null!;
-
-		/// <summary>
 		/// Override for the server to use
 		/// </summary>
 		[CommandLine("-Server=")]
@@ -55,12 +50,9 @@ namespace HordeAgent.Modes.Service
 		/// <summary>
 		/// Runs the service indefinitely
 		/// </summary>
-		/// <param name="Logger">Logger to use</param>
 		/// <returns>Exit code</returns>
 		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
-			this.Logger = Logger;
-
 			IHostBuilder HostBuilder = Host.CreateDefaultBuilder();
 
 			// Attempt to setup this process as a Windows service. A race condition inside Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService
