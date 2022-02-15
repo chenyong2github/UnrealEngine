@@ -91,9 +91,8 @@ TAutoConsoleVariable<int32> CVarShowSlateBatching(
 struct FSlateDrawWindowCommandParams
 {
 	FSlateRHIRenderer* Renderer;
+	FSlateWindowElementList* WindowElementList;
 	SWindow* Window;
-	FSlateBatchData* BatchData;
-	FVector2D WindowSize;
 #if WANTS_DRAW_MESH_EVENTS
 	FString WindowTitle;
 #endif
@@ -677,7 +676,7 @@ int32 SlateWireFrame = 0;
 static FAutoConsoleVariableRef CVarSlateWireframe(TEXT("Slate.ShowWireFrame"), SlateWireFrame, TEXT(""), ECVF_Default);
 
 /** Draws windows from a FSlateDrawBuffer on the render thread */
-void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, struct FSlateDrawWindowCommandParams& DrawCommandParams)
+void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawCommandParams)
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
 	
@@ -731,7 +730,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		bool bRenderedStereo = false;
 		if (CVarDrawToVRRenderTarget->GetInt() == 0 && GEngine && IsValidRef(ViewportInfo.GetRenderTargetTexture()) && GEngine->StereoRenderingDevice.IsValid())
 		{
-			const FVector2D WindowSize = DrawCommandParams.WindowSize;
+			const FVector2D WindowSize = WindowElementList.GetWindowSize();
 			GEngine->StereoRenderingDevice->RenderTexture_RenderThread(RHICmdList, RHICmdList.GetViewportBackBuffer(ViewportInfo.ViewportRHI), ViewportInfo.GetRenderTargetTexture(), WindowSize);
 			bRenderedStereo = true;
 		}
@@ -741,8 +740,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			SCOPE_CYCLE_COUNTER(STAT_SlateRenderingRTTime);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Slate);
 
-			check(DrawCommandParams.BatchData);
-			FSlateBatchData& BatchData = *DrawCommandParams.BatchData;
+			FSlateBatchData& BatchData = WindowElementList.GetBatchData();
 
 			// Update the vertex and index buffer	
 			RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchData);
@@ -1095,7 +1093,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 #endif
 			if (!bRenderedStereo && GEngine && IsValidRef(ViewportInfo.GetRenderTargetTexture()) && GEngine->StereoRenderingDevice.IsValid())
 			{
-				const FVector2D WindowSize = DrawCommandParams.WindowSize;
+				const FVector2D WindowSize = WindowElementList.GetWindowSize();
 				GEngine->StereoRenderingDevice->RenderTexture_RenderThread(RHICmdList, RHICmdList.GetViewportBackBuffer(ViewportInfo.ViewportRHI), ViewportInfo.GetRenderTargetTexture(), WindowSize);
 			}
 			RHICmdList.Transition(FRHITransitionInfo(BackBuffer, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
@@ -1313,8 +1311,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					FSlateDrawWindowCommandParams Params;
 
 					Params.Renderer = this;
-					Params.WindowSize = ElementList.GetWindowSize();
-					Params.BatchData = &ElementList.GetBatchData();
+					Params.WindowElementList = &ElementList;
 					Params.Window = Window;
 #if WANTS_DRAW_MESH_EVENTS
 					Params.WindowTitle = Window->GetTitle().ToString();
@@ -1334,9 +1331,9 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					if (GIsClient && !IsRunningCommandlet() && !GUsingNullRHI)
 					{
 						ENQUEUE_RENDER_COMMAND(SlateDrawWindowsCommand)(
-							[Params, ViewInfo](FRHICommandListImmediate& RHICmdList) mutable
+							[Params, ViewInfo](FRHICommandListImmediate& RHICmdList)
 							{
-								Params.Renderer->DrawWindow_RenderThread(RHICmdList, *ViewInfo, Params);
+								Params.Renderer->DrawWindow_RenderThread(RHICmdList, *ViewInfo, *Params.WindowElementList, Params);
 							}
 						);
 					}

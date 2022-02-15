@@ -342,7 +342,7 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 		}
 		else
 		{
-			WindowElementList.ResetDrawElementList();
+			WindowElementList.ResetElementList();
 			DrawBuffer.Unlock();
 		}
 	}

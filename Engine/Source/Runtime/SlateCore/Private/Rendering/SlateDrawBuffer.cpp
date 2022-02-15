@@ -25,15 +25,14 @@ FSlateWindowElementList& FSlateDrawBuffer::AddWindowElementList(TSharedRef<SWind
 			WindowElementLists.Add(ExistingElementList);
 			WindowElementListsPool.RemoveAtSwap(WindowIndex);
 
-			ensureMsgf(ExistingElementList->GetBatchData().GetNumFinalBatches() == 0, TEXT("The Buffer should have been clear when it was unlocked."));
+			ExistingElementList->ResetElementList();
+
 			return *ExistingElementList;
 		}
 	}
 
 	TSharedRef<FSlateWindowElementList> WindowElements = MakeShared<FSlateWindowElementList>(ForWindow);
-	WindowElements->ResetDrawElementList();
-	WindowElements->ResetBatchData();
-
+	WindowElements->ResetElementList();
 	WindowElementLists.Add(WindowElements);
 
 	return *WindowElements;
@@ -47,8 +46,6 @@ void FSlateDrawBuffer::RemoveUnusedWindowElement(const TArray<SWindow*>& AllWind
 		SWindow* CandidateWindow = WindowElementLists[WindowIndex]->GetPaintWindow();
 		if (!CandidateWindow || !AllWindows.Contains(CandidateWindow))
 		{
-			WindowElementLists[WindowIndex]->ResetDrawElementList();
-			WindowElementLists[WindowIndex]->ResetBatchData();
 			WindowElementLists.RemoveAtSwap(WindowIndex);
 			--WindowIndex;
 		}
@@ -57,31 +54,18 @@ void FSlateDrawBuffer::RemoveUnusedWindowElement(const TArray<SWindow*>& AllWind
 
 bool FSlateDrawBuffer::Lock()
 {
-	bool ExpectedValue = false;
-	bool bIsLock = bLocked.compare_exchange_strong(ExpectedValue, true);
-	if (bIsLock)
-	{
-		bIsLockedBySlateThread = IsInSlateThread();
-	}
-	return bIsLock;
+	return FPlatformAtomics::InterlockedCompareExchange(&Locked, 1, 0) == 0;
 }
 
 void FSlateDrawBuffer::Unlock()
 {
-	// Rendering doesn't need the batch data anymore
-	for (TSharedRef<FSlateWindowElementList>& ExistingElementList : WindowElementLists)
-	{
-		ExistingElementList->ResetBatchData();
-	}
-
-	bLocked = false;
+	FPlatformAtomics::InterlockedExchange(&Locked, 0);
 }
 
 void FSlateDrawBuffer::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	// Locked buffers are the only ones that are currently referencing objects.
-	//If unlocked, the element list is not in-use and contains "to-be-cleared" data.
-	if(bLocked && !bIsLockedBySlateThread)
+	// Locked buffers are the only ones that are currently referencing objects.  If unlocked, the element list is not in-use and contains to-be-cleared data
+	if(Locked != 0)
 	{
 		for (TSharedRef<FSlateWindowElementList>& ElementList : WindowElementLists)
 		{

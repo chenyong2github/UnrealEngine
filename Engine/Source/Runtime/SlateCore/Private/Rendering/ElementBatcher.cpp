@@ -312,9 +312,6 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 		}
 	}
 
-	// Draw Elements are added. They are not needed anymore.
-	WindowElementList.ResetDrawElementList();
-
 	// Done with the element list
 	BatchData = nullptr;
 	PrecachedClippingStates = nullptr;
