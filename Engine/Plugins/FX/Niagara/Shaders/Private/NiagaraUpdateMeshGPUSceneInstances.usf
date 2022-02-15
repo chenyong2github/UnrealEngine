@@ -180,28 +180,18 @@ void UpdateMeshInstancesCS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_Grou
 		}
 	}
 
-	// The transforms solved are currently relative to the system LWC tile. We need to re-base it to the 
-	// Primitive's current tile
-	FLWCMatrix LocalToWorld = Transforms.LocalToWorld;
-	FLWCMatrix PrevLocalToWorld = Transforms.PrevLocalToWorld;
-	FLWCVector3 NewTileOrigin = MakeLWCVector3(PrimitiveData.TilePosition, (float3)0);
-	FLWCVector3 PrimitiveOffset = LWCSubtract(LWCGetOrigin(Transforms.LocalToWorld), NewTileOrigin);
-	FLWCVector3 PrevPrimitiveOffset = LWCSubtract(LWCGetOrigin(Transforms.PrevLocalToWorld), NewTileOrigin);
-	LWCSetOrigin(LocalToWorld, MakeLWCVector3(PrimitiveData.TilePosition, LWCToFloat(PrimitiveOffset)));
-	LWCSetOrigin(PrevLocalToWorld, MakeLWCVector3(PrimitiveData.TilePosition, LWCToFloat(PrevPrimitiveOffset)));
-
 	const uint PayloadDataFlags = GetPayloadDataFlags();
-	InitializeInstanceSceneData(
+	InitializeInstanceSceneDataWS(
 		InstanceId,
 		PrimitiveId,
 		LocalInstanceId,
  		PayloadDataFlags,
  		1,
  		0.0f,
-		LocalToWorld.M
+		Transforms.LocalToWorld
 	);
 	
 	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(PrimitiveId, PayloadDataFlags, LocalInstanceId);
-	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld.M);
+	WriteInstanceDynamicDataWS(PayloadOffsets, PrimitiveId, Transforms.PrevLocalToWorld);
 	WriteInstanceCustomData(PayloadOffsets, 0, float4(asfloat(ParticleIndex), 0.0f, 0.0f, 0.0f));
 }

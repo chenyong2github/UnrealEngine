@@ -388,6 +388,17 @@ void LWCSetOrigin(inout FLWCMatrix InOutMatrix, FLWCVector3 Origin)
 #undef FBoolType
 #undef LWCConstructor
 
+// Creates a coordinate with the same value, but relative to the specified tile, while keeping precision loss as low as possible
+FLWCScalar LWCMakeRelativeToTile(FLWCScalar V, float NewTile) { return MakeLWCScalar(NewTile, LWCToFloat(LWCSubtract(V, MakeLWCScalar(NewTile, (float)0.0f)))); }
+FLWCVector2 LWCMakeRelativeToTile(FLWCVector2 V, float2 NewTile) { return MakeLWCVector2(NewTile, LWCToFloat(LWCSubtract(V, MakeLWCVector2(NewTile, (float2)0.0f)))); }
+FLWCVector3 LWCMakeRelativeToTile(FLWCVector3 V, float3 NewTile) { return MakeLWCVector3(NewTile, LWCToFloat(LWCSubtract(V, MakeLWCVector3(NewTile, (float3)0.0f)))); }
+FLWCVector4 LWCMakeRelativeToTile(FLWCVector4 V, float4 NewTile) { return MakeLWCVector4(NewTile, LWCToFloat(LWCSubtract(V, MakeLWCVector4(NewTile, (float4)0.0f)))); }
+FLWCMatrix LWCMakeRelativeToTile(FLWCMatrix M, float3 NewTile)
+{
+	LWCSetOrigin(M, LWCMakeRelativeToTile(LWCGetOrigin(M), NewTile));
+	return M;
+}
+
 FLWCScalar LWCDot(FLWCScalar Lhs, FLWCScalar Rhs)
 {
 	return LWCMultiply(Lhs, Rhs);

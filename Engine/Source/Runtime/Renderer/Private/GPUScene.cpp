@@ -1606,6 +1606,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.InstanceFlags                = PrimData.SourceData.PayloadDataFlags;
 			InstanceUploadInfo.PrimitiveInstances 			= PrimData.SourceData.InstanceSceneData;
 			InstanceUploadInfo.InstanceDynamicData 			= PrimData.SourceData.InstanceDynamicData;
+			InstanceUploadInfo.InstanceLocalBounds 			= PrimData.SourceData.InstanceLocalBounds;
 			InstanceUploadInfo.InstanceCustomData 			= PrimData.SourceData.InstanceCustomData;
 			InstanceUploadInfo.InstanceRandomID				= TConstArrayView<float>();
 			InstanceUploadInfo.InstanceHierarchyOffset		= TConstArrayView<uint32>();

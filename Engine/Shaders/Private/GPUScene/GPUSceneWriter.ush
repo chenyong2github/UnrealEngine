@@ -37,6 +37,11 @@ void StoreInstancePayloadDataElement(uint PayloadDataOffset, uint ElementIndex, 
 	GPUSceneInstancePayloadDataRW[PayloadDataOffset + ElementIndex] = DataElement;
 }
 
+void StoreInstancePayloadDataElementZW(uint PayloadDataOffset, uint ElementIndex, float2 DataElement)
+{
+	GPUSceneInstancePayloadDataRW[PayloadDataOffset + ElementIndex].zw = DataElement;
+}
+
 /**
  * Helpers to load and store the primitive ID and flags for the specified instance, which are packed together
  */
@@ -64,21 +69,24 @@ void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
 
 /**
  * Store the contents of InstanceData.LocalToWorld to the GPUScene buffers. Optionally, also calculates the determinant
- * of the transform's rotation to set or unset the determinant sign flag on the instance flags
+ * of the transform's rotation to set or unset the determinant sign flag on the instance flags.
+ *
+ * NOTE: With Large World Coordinates, the transform provided is expected to be relative to the primitive's tile position.
+ * Use the WriteInstanceLocalToWorld helper if you don't already have a relative transform.
  **/
-void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool StoreDeterminantSign)
+void WriteInstanceLocalToRelativeWorld(uint InstanceId, float4x4 LocalToRelativeWorld, bool StoreDeterminantSign)
 {
 #if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
 	uint4 RotationScale;
 	float3 Translation;
-	EncodeTransform(LocalToWorld, RotationScale, Translation);
+	EncodeTransform(LocalToRelativeWorld, RotationScale, Translation);
 	StoreInstanceSceneDataElement(InstanceId, 1, asfloat(RotationScale));
 	StoreInstanceSceneDataElement(InstanceId, 2, float4(Translation, 0.0f));
 #else
-	LocalToWorld = transpose(LocalToWorld);
-	StoreInstanceSceneDataElement(InstanceId, 1, LocalToWorld[0]);
-	StoreInstanceSceneDataElement(InstanceId, 2, LocalToWorld[1]);
-	StoreInstanceSceneDataElement(InstanceId, 3, LocalToWorld[2]);
+	LocalToRelativeWorld = transpose(LocalToRelativeWorld);
+	StoreInstanceSceneDataElement(InstanceId, 1, LocalToRelativeWorld[0]);
+	StoreInstanceSceneDataElement(InstanceId, 2, LocalToRelativeWorld[1]);
+	StoreInstanceSceneDataElement(InstanceId, 3, LocalToRelativeWorld[2]);
 #endif
 
 	// check to update the determinant sign flag on the instance flags as well
@@ -87,13 +95,22 @@ void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool Stor
 		// Check to update the determinant sign flag on the instance flags
 		uint PrimitiveId, InstanceFlags;
 		LoadInstancePrimitiveIdAndFlags(InstanceId, PrimitiveId, InstanceFlags);
-		SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToWorld), InstanceFlags);
+		SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToRelativeWorld), InstanceFlags);
 		WriteInstancePrimitiveIdAndFlags(InstanceId, PrimitiveId, InstanceFlags);
 	}
 }
 
+void WriteInstanceLocalToWorld(uint InstanceId, uint PrimitiveId, FLWCMatrix LocalToWorld, bool StoreDeterminantSign)
+{
+	// Ensure the LocalToWorld matrix is relative to the primitive tile position
+	LocalToWorld = LWCMakeRelativeToTile(LocalToWorld, GetPrimitiveData(PrimitiveId).TilePosition);
+	WriteInstanceLocalToRelativeWorld(InstanceId, LocalToWorld.M, StoreDeterminantSign);
+}
+
 /**
- * Initializes the instance scene data of the specified instance data slot.
+ * Initializes the instance scene data of the specified instance data slot using a LocalToWorld matrix that is already relative to
+ * its primitive's render tile position (When LWC. Otherwise, the matrix is simply LocalToWorld). Use InitializeInstanceSceneDataWS
+ * or InitializeInstanceSceneDataLS if you don't already have a LocalToRelativeWorldMatrix
  * NOTE: This function must match FInstanceSceneShaderData::BuildInternal
  **/
  void InitializeInstanceSceneData(
@@ -103,9 +120,9 @@ void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool Stor
  	uint InstanceFlags, // combination of INSTANCE_SCENE_DATA_FLAG_
  	uint CustomDataCount,
  	float RandomId,
- 	float4x4 LocalToWorld)
+ 	float4x4 LocalToRelativeWorld)
  {
- 	SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToWorld), InstanceFlags);
+ 	SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToRelativeWorld), InstanceFlags);
  	
  	float4 Element0 =
  	{
@@ -115,8 +132,38 @@ void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool Stor
  		RandomId
 	};
  	StoreInstanceSceneDataElement(InstanceId, 0, Element0);
- 	WriteInstanceLocalToWorld(InstanceId, LocalToWorld, false);
+ 	WriteInstanceLocalToRelativeWorld(InstanceId, LocalToRelativeWorld, false);
  }
+
+/** This version initializes the instance with a world-space transform */
+void InitializeInstanceSceneDataWS(
+ 	uint InstanceId,
+ 	uint PrimitiveId,
+ 	uint InstanceRelativeId,
+ 	uint PayloadDataFlags,
+ 	uint CustomDataCount,
+ 	float RandomId,
+ 	FLWCMatrix LocalToWorld)
+ {
+ 	// Ensure the WS matrix is relative to the primitive's render tile, then the internal matrix is LocalToRelativeWorld
+ 	LocalToWorld = LWCMakeRelativeToTile(LocalToWorld, GetPrimitiveData(PrimitiveId).TilePosition);
+ 	InitializeInstanceSceneData(InstanceId, PrimitiveId, InstanceRelativeId, PayloadDataFlags, CustomDataCount, RandomId, LocalToWorld.M);
+ }
+
+/** This version initializes the instance with a transform that is relative to its primitive's local space */
+void InitializeInstanceSceneDataLS(
+ 	uint InstanceId,
+ 	uint PrimitiveId,
+ 	uint InstanceRelativeId,
+ 	uint PayloadDataFlags,
+ 	uint CustomDataCount,
+ 	float RandomId,
+ 	float4x4 LocalToPrimitive)
+{
+	// Multiply the LS by the primitive's LocalToWorld, then the internal matrix is guaranteed to be LocalToRelativeWorld
+	FLWCMatrix LocalToWorld = LWCMultiply(LocalToPrimitive, GetPrimitiveData(PrimitiveId).LocalToWorld);
+	InitializeInstanceSceneData(InstanceId, PrimitiveId, InstanceRelativeId, PayloadDataFlags, CustomDataCount, RandomId, LocalToWorld.M);
+}
 
 /**
  * Helper for loading instance payload offsets for GPU writers (assumes global parameter for SOA stride)
@@ -130,9 +177,31 @@ void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool Stor
 }
 
 /**
- * Store the data for dynamic instances to the GPUScene sidecar payload buffer.
+ * Store the local instance bounds to the GPU Scene sidecar payload buffer.
  **/
-void WriteInstanceDynamicData(FInstancePayloadDataOffsets PayloadOffsets, float4x4 PrevLocalToWorld)
+void WriteInstanceLocalBounds(FInstancePayloadDataOffsets PayloadOffsets, float3 LocalCenter, float3 LocalExtent)
+{
+	BRANCH
+	if (PayloadOffsets.LocalBounds == INVALID_INSTANCE_PAYLOAD_OFFSET)
+	{
+		return;
+	}
+
+	StoreInstancePayloadDataElementZW(PayloadOffsets.LocalBounds, 0, LocalCenter.xy);
+	StoreInstancePayloadDataElement(PayloadOffsets.LocalBounds, 1, float4(LocalCenter.z, LocalExtent.x, LocalExtent.y, LocalExtent.z));
+}
+
+void WriteInstanceLocalBounds(uint InstanceId, float3 LocalCenter, float3 LocalExtent)
+{
+	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(InstanceId);
+	WriteInstanceLocalBounds(PayloadOffsets, LocalCenter, LocalExtent);
+}
+
+/**
+ * Store the data for dynamic instances to the GPUScene sidecar payload buffer. Use WriteInstanceDynamicDataWS or 
+ * WriteInstanceDynamicDataLS if you don't have a relative transform.
+ **/
+void WriteInstanceDynamicData(FInstancePayloadDataOffsets PayloadOffsets, float4x4 PrevLocalToRelativeWorld)
 {	
 	BRANCH
 	if (PayloadOffsets.DynamicData == INVALID_INSTANCE_PAYLOAD_OFFSET)
@@ -144,21 +213,44 @@ void WriteInstanceDynamicData(FInstancePayloadDataOffsets PayloadOffsets, float4
 #if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
 	uint4 RotationScale;
 	float3 Translation;
-	EncodeTransform(PrevLocalToWorld, RotationScale, Translation);
+	EncodeTransform(PrevLocalToRelativeWorld, RotationScale, Translation);
 	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 0, asfloat(RotationScale));
 	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 1, float4(Translation, 0.0f));
 #else
-	PrevLocalToWorld = transpose(PrevLocalToWorld);
-	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 0, PrevLocalToWorld[0]);
-	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 1, PrevLocalToWorld[1]);
-	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 2, PrevLocalToWorld[2]);
+	PrevLocalToRelativeWorld = transpose(PrevLocalToRelativeWorld);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 0, PrevLocalToRelativeWorld[0]);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 1, PrevLocalToRelativeWorld[1]);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 2, PrevLocalToRelativeWorld[2]);
 #endif
 }
 
-void WriteInstanceDynamicData(uint InstanceId, float4x4 PrevLocalToWorld)
+void WriteInstanceDynamicData(uint InstanceId, float4x4 PrevLocalToRelativeWorld)
 {
-	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(InstanceId);
-	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld);
+	WriteInstanceDynamicData(GetInstancePayloadDataOffsets(InstanceId), PrevLocalToRelativeWorld);
+}
+
+/** This version computes the relative transform from the specified world transform */
+void WriteInstanceDynamicDataWS(FInstancePayloadDataOffsets PayloadOffsets, uint PrimitiveId, FLWCMatrix PrevLocalToWorld)
+{
+	PrevLocalToWorld = LWCMakeRelativeToTile(PrevLocalToWorld, GetPrimitiveData(PrimitiveId).TilePosition);
+	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld.M);
+}
+
+void WriteInstanceDynamicDataWS(uint InstanceId, uint PrimitiveId, FLWCMatrix PrevLocalToWorld)
+{
+	WriteInstanceDynamicDataWS(GetInstancePayloadDataOffsets(InstanceId), PrimitiveId, PrevLocalToWorld);
+}
+
+/** This version computes the relative transform from the specified local-space transform */
+void WriteInstanceDynamicDataLS(FInstancePayloadDataOffsets PayloadOffsets, uint PrimitiveId, float4x4 PrevLocalToPrimitive)
+{
+	FLWCMatrix PrevLocalToWorld = LWCMultiply(PrevLocalToPrimitive, GetPrimitiveData(PrimitiveId).PreviousLocalToWorld);
+	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld.M);
+}
+
+void WriteInstanceDynamicDataLS(uint InstanceId, uint PrimitiveId, float4x4 PrevLocalToPrimitive)
+{
+	WriteInstanceDynamicDataLS(GetInstancePayloadDataOffsets(InstanceId), PrimitiveId, PrevLocalToPrimitive);
 }
 
 /**
