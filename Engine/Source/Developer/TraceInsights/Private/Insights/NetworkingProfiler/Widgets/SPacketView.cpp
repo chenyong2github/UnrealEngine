@@ -31,7 +31,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SPacketView::SPacketView()
-	: ProfilerWindow()
+	: ProfilerWindowWeakPtr()
 	, PacketSeries(MakeShared<FNetworkPacketSeries>())
 {
 	Reset();
@@ -47,7 +47,7 @@ SPacketView::~SPacketView()
 
 void SPacketView::Reset()
 {
-	//ProfilerWindow
+	//ProfilerWindowWeakPtr
 
 	GameInstanceIndex = 0;
 	ConnectionIndex = 0;
@@ -105,6 +105,7 @@ void SPacketView::Reset()
 	OnPaintDurationHistory.Reset();
 	LastOnPaintTime = FPlatformTime::Cycles64();
 
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 	if (ProfilerWindow.IsValid())
 	{
 		SetConnection(ProfilerWindow->GetSelectedGameInstanceIndex(), ProfilerWindow->GetSelectedConnectionIndex(), ProfilerWindow->GetSelectedConnectionMode());
@@ -132,9 +133,9 @@ void SPacketView::SetConnection(uint32 InGameInstanceIndex, uint32 InConnectionI
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
+void SPacketView::Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow)
 {
-	ProfilerWindow = InProfilerWindow;
+	ProfilerWindowWeakPtr = InProfilerWindow;
 
 	ChildSlot
 	[
@@ -284,6 +285,7 @@ void SPacketView::UpdateState()
 
 	FPacketFilter Filter;
 
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 	if (ProfilerWindow)
 	{
 		TSharedPtr<SPacketContentView> PacketContentView = ProfilerWindow->GetPacketContentView();
@@ -603,6 +605,7 @@ void SPacketView::SelectSampleAtMousePosition(float X, float Y, const FPointerEv
 
 void SPacketView::OnSelectionChanged()
 {
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 	if (ProfilerWindow.IsValid())
 	{
 		if (SelectedSample.IsValid())
@@ -628,7 +631,7 @@ const TCHAR* StatusToString(TraceServices::ENetProfilerDeliveryStatus Status)
 		case TraceServices::ENetProfilerDeliveryStatus::Delivered:  return TEXT("Delivered");
 		case TraceServices::ENetProfilerDeliveryStatus::Dropped:    return TEXT("Dropped");
 		case TraceServices::ENetProfilerDeliveryStatus::Unknown:
-		default:                                               return TEXT("Unknown");
+		default:                                                    return TEXT("Unknown");
 	};
 }
 
@@ -639,7 +642,7 @@ const TCHAR* AggregatedStatusToString(TraceServices::ENetProfilerDeliveryStatus 
 		case TraceServices::ENetProfilerDeliveryStatus::Delivered:  return TEXT("all packets are Delivered");
 		case TraceServices::ENetProfilerDeliveryStatus::Dropped:    return TEXT("at least one Dropped packet");
 		case TraceServices::ENetProfilerDeliveryStatus::Unknown:
-		default:                                               return TEXT("Unknown");
+		default:                                                    return TEXT("Unknown");
 	}
 }
 

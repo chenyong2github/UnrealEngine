@@ -30,13 +30,11 @@ SNetworkingProfilerToolbar::~SNetworkingProfilerToolbar()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
+void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow)
 {
-	ProfilerWindow = InProfilerWindow;
-
 	struct Local
 	{
-		static void FillViewToolbar(TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow, FToolBarBuilder& ToolbarBuilder)
+		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder, TSharedRef<SNetworkingProfilerWindow> ProfilerWindow)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
@@ -84,11 +82,11 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedPtr<
 		}
 	};
 
-	TSharedPtr<FUICommandList> CommandList = ProfilerWindow->GetCommandList();
+	TSharedPtr<FUICommandList> CommandList = InProfilerWindow->GetCommandList();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillViewToolbar(ProfilerWindow, ToolbarBuilder);
+	Local::FillViewToolbar(ToolbarBuilder, InProfilerWindow);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");

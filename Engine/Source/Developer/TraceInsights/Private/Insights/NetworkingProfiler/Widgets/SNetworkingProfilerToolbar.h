@@ -25,8 +25,5 @@ public:
 	 *
 	 * @param InArgs The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
-
-private:
-	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+	void Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow);
 };

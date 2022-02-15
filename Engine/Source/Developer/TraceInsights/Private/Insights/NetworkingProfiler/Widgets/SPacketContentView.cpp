@@ -31,7 +31,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SPacketContentView::SPacketContentView()
-	: ProfilerWindow()
+	: ProfilerWindowWeakPtr()
 	, DrawState(MakeShared<FPacketContentViewDrawState>())
 	, FilteredDrawState(MakeShared<FPacketContentViewDrawState>())
 {
@@ -48,7 +48,7 @@ SPacketContentView::~SPacketContentView()
 
 void SPacketContentView::Reset()
 {
-	//ProfilerWindow
+	//ProfilerWindowWeakPtr
 
 	Viewport.Reset();
 	//FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
@@ -104,9 +104,9 @@ void SPacketContentView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
+void SPacketContentView::Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow)
 {
-	ProfilerWindow = InProfilerWindow;
+	ProfilerWindowWeakPtr = InProfilerWindow;
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "SecondaryToolbar2");
@@ -339,10 +339,14 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 
 void SPacketContentView::FindPreviousPacket()
 {
-	TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
-	if (PacketView.IsValid())
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
 	{
-		PacketView->SelectPreviousPacket();
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+		if (PacketView.IsValid())
+		{
+			PacketView->SelectPreviousPacket();
+		}
 	}
 }
 
@@ -350,10 +354,14 @@ void SPacketContentView::FindPreviousPacket()
 
 void SPacketContentView::FindNextPacket()
 {
-	TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
-	if (PacketView.IsValid())
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
 	{
-		PacketView->SelectNextPacket();
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+		if (PacketView.IsValid())
+		{
+			PacketView->SelectNextPacket();
+		}
 	}
 }
 
@@ -373,10 +381,14 @@ void SPacketContentView::Packet_OnTextCommitted(const FText& InNewText, ETextCom
 		uint32 NewPacketSequence = 0;
 		TTypeFromString<uint32>::FromString(NewPacketSequence, *InNewText.ToString());
 
-		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
-		if (PacketView.IsValid())
+		TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+		if (ProfilerWindow.IsValid())
 		{
-			PacketView->SelectPacketBySequenceNumber(NewPacketSequence);
+			TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+			if (PacketView.IsValid())
+			{
+				PacketView->SelectPacketBySequenceNumber(NewPacketSequence);
+			}
 		}
 	}
 }
@@ -601,10 +613,14 @@ void SPacketContentView::FilterByNetId_OnCheckStateChanged(ECheckBoxState NewSta
 	bFilterByNetId = (NewState == ECheckBoxState::Checked);
 	bIsStateDirty = true;
 
-	TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
-	if (PacketView.IsValid())
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
 	{
-		PacketView->InvalidateState();
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+		if (PacketView.IsValid())
+		{
+			PacketView->InvalidateState();
+		}
 	}
 }
 
@@ -641,10 +657,14 @@ void SPacketContentView::FilterByEventType_OnCheckStateChanged(ECheckBoxState Ne
 	bFilterByEventType = (NewState == ECheckBoxState::Checked);
 	bIsStateDirty = true;
 
-	TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
-	if (PacketView.IsValid())
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
 	{
-		PacketView->InvalidateState();
+		TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+		if (PacketView.IsValid())
+		{
+			PacketView->InvalidateState();
+		}
 	}
 }
 
@@ -764,10 +784,14 @@ void SPacketContentView::SetFilterNetId(const uint32 InNetId)
 	{
 		bIsStateDirty = true;
 
-		TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
-		if (PacketView.IsValid())
+		TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+		if (ProfilerWindow.IsValid())
 		{
-			PacketView->InvalidateState();
+			TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+			if (PacketView.IsValid())
+			{
+				PacketView->InvalidateState();
+			}
 		}
 	}
 }
@@ -783,10 +807,14 @@ void SPacketContentView::SetFilterEventType(const uint32 InEventTypeIndex, const
 	{
 		bIsStateDirty = true;
 
-		TSharedPtr<SPacketView> PacketView = ProfilerWindow ? ProfilerWindow->GetPacketView() : nullptr;
-		if (PacketView.IsValid())
+		TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+		if (ProfilerWindow.IsValid())
 		{
-			PacketView->InvalidateState();
+			TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+			if (PacketView.IsValid())
+			{
+				PacketView->InvalidateState();
+			}
 		}
 	}
 }
@@ -997,10 +1025,14 @@ void SPacketContentView::UpdateHoveredEvent()
 
 void SPacketContentView::OnSelectedEventChanged()
 {
-	if (SelectedEvent.IsValid() && ProfilerWindow.IsValid())
+	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
 	{
-		// Select the node coresponding to net event type of selected net event instance.
-		ProfilerWindow->SetSelectedEventTypeIndex(SelectedEvent.Event.EventTypeIndex);
+		if (SelectedEvent.IsValid())
+		{
+			// Select the node coresponding to net event type of selected net event instance.
+			ProfilerWindow->SetSelectedEventTypeIndex(SelectedEvent.Event.EventTypeIndex);
+		}
 	}
 }
 
@@ -1425,6 +1457,7 @@ FReply SPacketContentView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 		else if (InKeyEvent.GetModifierKeys().IsControlDown() ||
 				 InKeyEvent.GetModifierKeys().IsCommandDown())
 		{
+			TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 			if (ProfilerWindow.IsValid())
 			{
 				const TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
@@ -1449,6 +1482,7 @@ FReply SPacketContentView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 		else if (InKeyEvent.GetModifierKeys().IsControlDown() ||
 				 InKeyEvent.GetModifierKeys().IsCommandDown())
 		{
+			TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
 			if (ProfilerWindow.IsValid())
 			{
 				const TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();

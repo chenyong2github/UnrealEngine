@@ -112,7 +112,7 @@ public:
 	SLATE_BEGIN_ARGS(SPacketContentView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
+	void Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow);
 
 	/**
 	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
@@ -211,7 +211,7 @@ private:
 	void AdjustForSplitContent();
 
 private:
-	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+	TWeakPtr<SNetworkingProfilerWindow> ProfilerWindowWeakPtr;
 
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FPacketContentViewport Viewport;

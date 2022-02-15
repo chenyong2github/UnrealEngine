@@ -106,7 +106,7 @@ public:
 	}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow);
+	void Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow);
 
 	/**
 	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
@@ -178,7 +178,7 @@ private:
 	void ZoomHorizontally(const float Delta, const float X);
 
 private:
-	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
+	TWeakPtr<SNetworkingProfilerWindow> ProfilerWindowWeakPtr;
 
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
