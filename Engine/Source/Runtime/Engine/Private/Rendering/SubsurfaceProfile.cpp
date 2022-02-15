@@ -661,7 +661,7 @@ FRHITexture* GetSubsurfaceProfileTextureWithFallback()
 
 FRHITexture* GetSSProfilesPreIntegratedTextureWithFallback()
 {
-	return GSSProfilesPreIntegratedTexture ? GSSProfilesPreIntegratedTexture->GetRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
+	return GSSProfilesPreIntegratedTexture ? GSSProfilesPreIntegratedTexture->GetRHI() : static_cast<FRHITexture*>(GBlackArrayTexture->TextureRHI);
 }
 
 void UpdateSubsurfaceProfileTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform)
