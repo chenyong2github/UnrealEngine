@@ -26,11 +26,11 @@ public:
 	virtual bool Construct(UMeshComponent* InComponent, int32 InMeshLODIndex) override;
 	virtual ~FMeshPaintStaticMeshComponentAdapter();
 	virtual bool Initialize() override;
-	virtual void OnAdded() override;
-	virtual void OnRemoved() override;
-	virtual bool IsValid() const override { return StaticMeshComponent && StaticMeshComponent->GetStaticMesh() == ReferencedStaticMesh; }
+	virtual void OnAdded() override {}
+	virtual void OnRemoved() override {}
+	virtual bool IsValid() const override { return StaticMeshComponent.IsValid() && ReferencedStaticMesh && StaticMeshComponent->GetStaticMesh() == ReferencedStaticMesh; }
 	virtual bool SupportsTexturePaint() const override { return true; }
-	virtual bool SupportsVertexPaint() const override { return StaticMeshComponent && !StaticMeshComponent->bDisallowMeshPaintPerInstance; }
+	virtual bool SupportsVertexPaint() const override { return StaticMeshComponent.IsValid() && !StaticMeshComponent->bDisallowMeshPaintPerInstance; }
 	virtual bool LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const override;	
 	virtual void QueryPaintableTextures(int32 MaterialIndex, int32& OutDefaultIndex, TArray<struct FPaintableTexture>& InOutTextureList) override;
 	virtual void ApplyOrRemoveTextureOverride(UTexture* SourceTexture, UTexture* OverrideTexture) const override;
@@ -54,7 +54,7 @@ protected:
 	void OnStaticMeshChanged(UStaticMeshComponent* StaticMeshComponent);
 
 	/** Static mesh component represented by this adapter */
-	UStaticMeshComponent* StaticMeshComponent;
+	TWeakObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 	/** Static mesh currently set to the Static Mesh Component */
 	UStaticMesh* ReferencedStaticMesh;
 	/** LOD model (at Mesh LOD Index) containing data to change */

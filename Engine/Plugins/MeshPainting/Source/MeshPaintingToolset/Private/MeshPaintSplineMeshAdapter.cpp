@@ -10,8 +10,13 @@
 
 bool FMeshPaintSplineMeshComponentAdapter::InitializeVertexData()
 {
+	if (!StaticMeshComponent.IsValid())
+	{
+		return false;
+	}
+
 	// Cache deformed spline mesh vertices for quick lookup during painting / previewing
-	USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
+	USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent.Get());
 	check(SplineMeshComponent);
 
 	bool bValid = false;

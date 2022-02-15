@@ -25,6 +25,7 @@
 #include "ToolContextInterfaces.h"
 #include "Engine/StaticMesh.h"
 #include "BaseTools/BaseBrushTool.h"
+#include "Algo/Copy.h"
 
 extern void PropagateVertexPaintToSkeletalMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
@@ -1415,7 +1416,18 @@ void UMeshPaintingSubsystem::AddToComponentToAdapterMap(const UMeshComponent* In
 
 TArray<UMeshComponent*> UMeshPaintingSubsystem::GetSelectedMeshComponents() const
 {
-	return SelectedMeshComponents;
+	TArray<UMeshComponent*> Result;
+	Result.Reserve(SelectedMeshComponents.Num());
+
+	for (TWeakObjectPtr<UMeshComponent> SelectedMeshComponent : SelectedMeshComponents)
+	{
+		if (SelectedMeshComponent.IsValid())
+		{
+			Result.Add(SelectedMeshComponent.Get());
+		}
+	}
+
+	return Result;
 }
 
 void UMeshPaintingSubsystem::ClearSelectedMeshComponents()
@@ -1426,13 +1438,25 @@ void UMeshPaintingSubsystem::ClearSelectedMeshComponents()
 
 void UMeshPaintingSubsystem::AddSelectedMeshComponents(const TArray<UMeshComponent*>& InComponents)
 {
-	SelectedMeshComponents.Append(InComponents);
+	SelectedMeshComponents.Reserve(SelectedMeshComponents.Num() + InComponents.Num());
+	Algo::Copy(InComponents, SelectedMeshComponents);
 }
 
 
 TArray<UMeshComponent*> UMeshPaintingSubsystem::GetPaintableMeshComponents() const
 {
-	return PaintableComponents;
+	TArray<UMeshComponent*> Result;
+	Result.Reserve(PaintableComponents.Num());
+
+	for (TWeakObjectPtr<UMeshComponent> PaintableComponent : PaintableComponents)
+	{
+		if (PaintableComponent.IsValid())
+		{
+			Result.Add(PaintableComponent.Get());
+		}
+	}
+
+	return Result;
 }
 
 void UMeshPaintingSubsystem::AddPaintableMeshComponent(UMeshComponent* InComponent)
@@ -1462,7 +1486,7 @@ void UMeshPaintingSubsystem::Refresh()
 
 void UMeshPaintingSubsystem::CleanUp()
 {
-	for (auto MeshAdapterPair : ComponentToAdapterMap)
+	for (auto& MeshAdapterPair : ComponentToAdapterMap)
 	{
 		MeshAdapterPair.Value->OnRemoved();
 	}
@@ -1480,7 +1504,7 @@ bool UMeshPaintingSubsystem::FindHitResult(const FRay Ray, FHitResult& BestTrace
 		const FVector TraceStart(Origin);
 		const FVector TraceEnd(Origin + Direction * HALF_WORLD_MAX);
 
-		for (UMeshComponent* MeshComponent : PaintableComponents)
+		for (UMeshComponent* MeshComponent : GetPaintableMeshComponents())
 		{
 			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = GetAdapterForComponent(MeshComponent);
 			if (!MeshAdapter.IsValid())
@@ -1506,7 +1530,7 @@ bool UMeshPaintingSubsystem::FindHitResult(const FRay Ray, FHitResult& BestTrace
 
 bool UMeshPaintingSubsystem::SelectionContainsValidAdapters() const
 {
-	for (auto& MeshAdapterPair : ComponentToAdapterMap)
+	for (const auto& MeshAdapterPair : ComponentToAdapterMap)
 	{
 		if (MeshAdapterPair.Value && MeshAdapterPair.Value->IsValid())
 		{
@@ -1530,18 +1554,23 @@ void UMeshPaintingSubsystem::SetCopiedColorsByComponent(TArray<FPerComponentVert
 void UMeshPaintingSubsystem::CacheSelectionData(const int32 PaintLODIndex, const int32 UVChannel)
 {
 	bSelectionContainsPerLODColors = false;
-	for (UMeshComponent* MeshComponent : SelectedMeshComponents)
+	for (UMeshComponent* MeshComponent : GetSelectedMeshComponents())
 	{
-		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
-		if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
+		// Don't create an adapter for transient components, as it doesn't make sense to edit them if they will not be saved.
+		// (An example is the procedurally generated foliage meshes)
+		if (!MeshComponent->HasAnyFlags(RF_Transient))
 		{
-			TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;
-			AddPaintableMeshComponent(MeshComponent);
-			AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
-			MeshAdapter->OnAdded();
-			GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ForceRenderMeshLOD(MeshComponent, PaintLODIndex);
-			ComponentReregisterContext.Reset(new FComponentReregisterContext(MeshComponent));
-			bSelectionContainsPerLODColors |= GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->DoesMeshComponentContainPerLODColors(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, PaintLODIndex);
+			if (MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid())
+			{
+				TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;
+				AddPaintableMeshComponent(MeshComponent);
+				AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+				MeshAdapter->OnAdded();
+				GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->ForceRenderMeshLOD(MeshComponent, PaintLODIndex);
+				ComponentReregisterContext.Reset(new FComponentReregisterContext(MeshComponent));
+				bSelectionContainsPerLODColors |= GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->DoesMeshComponentContainPerLODColors(MeshComponent);
+			}
 		}
 	}
 	bNeedsRecache = false;
@@ -1549,9 +1578,9 @@ void UMeshPaintingSubsystem::CacheSelectionData(const int32 PaintLODIndex, const
 
 int32 UMeshPaintingSubsystem::GetMaxUVIndexToPaint() const
 {
-	if (PaintableComponents.Num() == 1 && PaintableComponents[0])
+	if (PaintableComponents.Num() == 1 && PaintableComponents[0].IsValid())
 	{
-		return GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetNumberOfUVs(PaintableComponents[0], 0) - 1;
+		return GEngine->GetEngineSubsystem<UMeshPaintingSubsystem>()->GetNumberOfUVs(PaintableComponents[0].Get(), 0) - 1;
 	}
 
 	return 0;

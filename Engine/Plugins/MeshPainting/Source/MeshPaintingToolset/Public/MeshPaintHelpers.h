@@ -269,16 +269,18 @@ protected:
 	bool bSelectionHasMaterialValidForTexturePaint;
 
 private:
-	FName GetComponentActorName(const UMeshComponent* InComponent) const;
-
 	void CleanUp();
 
 private:
 	/** Map of geometry adapters for each selected mesh component */
 	TMap<FString, TSharedPtr<IMeshPaintComponentAdapter>> ComponentToAdapterMap;
-	TArray<UMeshComponent*> SelectedMeshComponents;
+
+	/** Currently selected mesh components as provided by the mode class */
+	TArray<TWeakObjectPtr<UMeshComponent>> SelectedMeshComponents;
+
 	/** Mesh components within the current selection which are eligible for painting */
-	TArray<UMeshComponent*> PaintableComponents;
+	TArray<TWeakObjectPtr<UMeshComponent>> PaintableComponents;
+
 	/** Contains copied vertex color data */
 	TArray<FPerComponentVertexColorData> CopiedColorsByComponent;
 	bool bSelectionContainsPerLODColors;

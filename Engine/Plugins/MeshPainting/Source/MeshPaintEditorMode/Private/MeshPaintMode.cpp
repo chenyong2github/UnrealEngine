@@ -391,10 +391,9 @@ void UMeshPaintMode::UpdateSelectedMeshes()
 		FName PaletteName = Toolkit->GetCurrentPalette();
 
 		MeshPaintingSubsystem->ResetState();
-		const TArray<UMeshComponent*> CurrentMeshComponents = GetSelectedComponents<UMeshComponent>();
+		TArray<UMeshComponent*> CurrentMeshComponents = GetSelectedComponents<UMeshComponent>();
 		MeshPaintingSubsystem->AddSelectedMeshComponents(CurrentMeshComponents);
 		MeshPaintingSubsystem->bNeedsRecache = true;
-
 
 		// Check the current selection for a material that supports texture paint
 		if (PaletteName == UMeshPaintMode::MeshPaintMode_Texture)
