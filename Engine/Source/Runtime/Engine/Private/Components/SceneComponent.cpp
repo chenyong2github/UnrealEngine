@@ -469,7 +469,7 @@ static bool SceneComponentNeedsLoadForTarget(USceneComponent const* SceneCompone
 		}
 	}
 
-	return TargetPlatform->HasEditorOnlyData() || !SceneComponentObject->IsEditorOnly();
+	return TargetPlatform->AllowsEditorObjects() || !SceneComponentObject->IsEditorOnly();
 }
 
 static bool CheckDescendantsAreAlsoCulledForTarget(USceneComponent const* SceneComponentObject, const ITargetPlatform* TargetPlatform)
