@@ -209,9 +209,6 @@ struct FMath : public FPlatformMath
 		return Min + RandHelper64(Range);
 	}
 
-	UE_NODISCARD static FORCEINLINE int64 RandRange(int32 Min, int64 Max) { return RandRange((int64)Min, Max); }
-	UE_NODISCARD static FORCEINLINE int64 RandRange(int64 Min, int32 Max) { return RandRange(Min, (int64)Max); }
-
 	/** Util to generate a random number in a range. Overloaded to distinguish from int32 version, where passing a float is typically a mistake. */
 	UE_NODISCARD static FORCEINLINE float RandRange(float InMin, float InMax)
 	{
