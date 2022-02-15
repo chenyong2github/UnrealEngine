@@ -33,16 +33,10 @@ public class Unsync : ModuleRules
 			PrivateDefinitions.Add("UNSYNC_PLATFORM_UNIX=1");
 		}
 
-		if (!IsVcPackageSupported)
-		{
-			return;
-		}
-
-		// AddVcPackage(string PackageName, bool AddInclude, params string[] Libraries)
-		AddVcPackage("cli11", true, new string[] {});
-		AddVcPackage("fmt", true, "fmt");
-		AddVcPackage("http-parser", true, "http_parser");
-		AddVcPackage("libressl", true, new string [] { "crypto", "ssl", "tls" });
-		AddVcPackage("zstd", true, "zstd_static");
+		PrivateDependencyModuleNames.Add("CLI11");
+		PrivateDependencyModuleNames.Add("fmt");
+		PrivateDependencyModuleNames.Add("http_parser");
+		PrivateDependencyModuleNames.Add("LibreSSL");
+		PrivateDependencyModuleNames.Add("zstd");
 	}
 }
