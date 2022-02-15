@@ -36,6 +36,8 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 		FProcessedPayload& operator=(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant&& InPayloadVariant);
 
+		bool IsValid() const;
+
 		UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant SettingsFromPayload;
 		UE::Serialization::FEditorBulkData::FSharedBufferWithID PayloadAndId;
 	};
