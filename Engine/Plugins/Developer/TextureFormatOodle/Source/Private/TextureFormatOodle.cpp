@@ -1374,7 +1374,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	Task->Init(TEXT("Oodle_EncodeBCN_Task"), 
 		[JobFunction, JobData]
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(OodleJob);
+			TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN_Task);
 			JobFunction(JobData);
 		}, 
 		// Use Background priority so we don't use Foreground time in the Editor
