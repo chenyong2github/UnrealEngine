@@ -7,63 +7,6 @@
 
 #include "SubsurfaceProfileCommon.ush"
 
-#define BURLEY_MM_2_CM		0.1f
-#define BURLEY_CM_2_MM      10.0f
-
-// exactly one of these should be true
-#define LIGHT_PERPENDICULAR 0
-#define LIGHT_DIFFUSESURFACE 0
-#define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE 1
-
-//------------------------------------------------------------------------------------------
-// Consistent in BurleyNormalizedSSSCommon.ush and SubsurfaceProfile.cpp
-
-#define SSS_TYPE_BURLEY	    0
-#define SSS_TYPE_SSSS		1
-
-// Make sure UIMax|ClampMax of WorldUNitScale * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT <= 1
-#define ENC_WORLDUNITSCALE_IN_CM_TO_UNIT 0.02f
-#define DEC_UNIT_TO_WORLDUNITSCALE_IN_CM 1/ENC_WORLDUNITSCALE_IN_CM_TO_UNIT
-
-// Make sure UIMax|ClampMax of DiffuseMeanFreePath * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
-#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT (0.01f*0.2f)
-#define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
-//------------------------------------------------------------------------------------------
-
-float DecodeWorldUnitScale(float EncodedWorldUnitScale)
-{
-	return EncodedWorldUnitScale * DEC_UNIT_TO_WORLDUNITSCALE_IN_CM;
-}
-
-float4 DecodeDiffuseMeanFreePath(float4 EncodedDiffuseMeanFreePath)
-{
-	return EncodedDiffuseMeanFreePath * DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM;
-}
-
-bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
-{
-	// 0..255, which SubSurface profile to pick
-	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
-
-	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
-}
-
-bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
-{
-	// 0..255, which SubSurface profile to pick
-	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
-
-	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
-}
-
-bool GetSubsurfaceProfileUseSeparable(uint SubsurfaceProfileInt)
-{
-	// 0..255, which SubSurface profile to pick
-	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
-
-	return abs(Type - SSS_TYPE_SSSS) < 0.01f;
-}
-
 inline float3 Burley_Profile(float Radius, float3 Albedo, float3 S3D, float L)
 {   //R(r)r
 	float3 D = 1 / S3D;
@@ -249,19 +192,3 @@ struct FBurleyParameter
 	float  WorldUnitScale;
 	float  SurfaceOpacity; // 1.0 means full Burley, 0.0 means full Default Lit
 };
-
-//Surface albedo and mean free path length
-float4 GetSubsurfaceProfileSurfaceAlbedo(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
-}
-
-float4 GetSubsurfaceProfileDiffuseMeanFreePath(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
-}
-
-float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(SSSS_TINT_SCALE_OFFSET, SubsurfaceProfileInt, 0)).a;
-}
