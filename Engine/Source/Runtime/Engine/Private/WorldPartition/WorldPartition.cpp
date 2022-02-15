@@ -253,6 +253,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
+	, bIsEditorLevelAlwaysLoaded(false)
 	, WorldPartitionEditor(nullptr)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
@@ -347,6 +348,27 @@ void UWorldPartition::OnEndPlay()
 FName UWorldPartition::GetWorldPartitionEditorName() const
 {
 	return EditorHash->GetWorldPartitionEditorName();
+}
+
+void UWorldPartition::SetIsEditorLevelAlwaysLoaded(bool bIsAlwaysLoaded)
+{
+	if (bIsEditorLevelAlwaysLoaded != bIsAlwaysLoaded)
+	{
+		bIsEditorLevelAlwaysLoaded = bIsAlwaysLoaded;
+		UpdateEditorLevelAlwaysLoaded();
+	}
+}
+
+void UWorldPartition::UpdateEditorLevelAlwaysLoaded()
+{
+	// Can be called if SetIsEditorLevelAlwaysLoaded is called on a freshly created UWorldPartition.
+	if (IsInitialized() && EditorHash && bIsEditorLevelAlwaysLoaded)
+	{
+		EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+		{
+			UpdateLoadingEditorCell(Cell, true, false);
+		});
+	}
 }
 #endif
 
@@ -451,7 +473,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				{
 					HashActorDesc(*ActorDescIterator);
 				}
-			}
+				}
 		}
 	}
 
@@ -493,7 +515,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	InitState = EWorldPartitionInitState::Initialized;
 
 #if WITH_EDITOR
-	if (!bIsEditor)
+	if (bIsEditor)
+	{
+		UpdateEditorLevelAlwaysLoaded();
+	}
+	else
 	{
 		if (bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 		{
@@ -553,13 +579,13 @@ void UWorldPartition::Uninitialize()
 				// Unload all Editor cells
 				if (EditorHash)
 				{
-					// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
-					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-					{
-						UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
-					});
-				}
+				// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
+				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+				{
+					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
+				});
 			}
+		}
 		}
 
 		WorldDataLayersActor = FWorldPartitionReference();
@@ -587,7 +613,7 @@ void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Ro
 {
 #if WITH_EDITOR
 	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadCells())
-	{
+{
 		const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, WORLDPARTITION_MAX);
 		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
 		LoadEditorCells(LoadCellsBox, false);
@@ -1425,9 +1451,9 @@ FBox UWorldPartition::GetWorldBounds() const
 	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
 		if (ActorDescIterator->GetIsSpatiallyLoaded())
-		{
-			WorldBounds += ActorDescIterator->GetBounds();
-		}
+			{
+				WorldBounds += ActorDescIterator->GetBounds();
+			}
 	}
 	return WorldBounds;
 }

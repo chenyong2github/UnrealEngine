@@ -45,6 +45,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	EHLODLayerType GetLayerType() const { return LayerType; }
+	void SetLayerType(EHLODLayerType InLayerType) { LayerType = InLayerType; }
 	const TSubclassOf<UHLODBuilder> GetHLODBuilderClass() const { return HLODBuilderClass; }
 	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
@@ -52,6 +53,7 @@ public:
 	float GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
 	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
+	void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bAlwaysLoaded = bInIsAlwaysLoaded; }
 
 	bool DoesRequireWarmup() const;
 
