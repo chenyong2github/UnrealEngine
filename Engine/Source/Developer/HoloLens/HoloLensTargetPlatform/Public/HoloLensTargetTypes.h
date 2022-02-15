@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "CoreMinimal.h"
 
-struct HOLOLENSPLATFORMEDITOR_API FHoloLensSDKVersion
+struct HOLOLENSTARGETPLATFORM_API FHoloLensSDKVersion
 {
 	/** The whole version string for the SDK */
 	FString VersionString;

@@ -17,8 +17,7 @@ public class HoloLensTargetPlatform : ModuleRules
                 "TargetPlatform",
 				"DesktopPlatform",
 				"HTTP",
-                "Json",
-                "HoloLensPlatformEditor",
+                "Json"
             }
         );
 

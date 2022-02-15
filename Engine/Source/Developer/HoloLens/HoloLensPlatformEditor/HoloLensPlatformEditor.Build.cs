@@ -24,6 +24,7 @@ public class HoloLensPlatformEditor : ModuleRules
 				"UnrealEd",
 				"SourceControl",
 				"WindowsTargetPlatform", // For ECompilerVersion
+				"HoloLensTargetPlatform",
 				"EngineSettings",
 				"Projects",
 				"gltfToolkit",

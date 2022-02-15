@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HoloLensTargetSettingsCustomization.h"
-#include "HoloLensPlatformEditor.h"
+#include "HoloLensTargetTypes.h"
 #include "SExternalImageReference.h"
 #include "IExternalImagePickerModule.h"
 #include "DetailLayoutBuilder.h"
@@ -34,69 +34,6 @@
 #pragma warning( disable : 6387 )
 
 #define LOCTEXT_NAMESPACE "HoloLensTargetSettingsCustomization"
-
-TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()
-{
-	bool bFound18362 = false;
-
-	static TArray<FHoloLensSDKVersion> SDKVersions;
-	if (SDKVersions.Num() == 0)
-	{
-		HKEY hRoots[] = { HKEY_LOCAL_MACHINE , HKEY_CURRENT_USER };
-
-		for (DWORD dwRootIdx = 0; dwRootIdx < _countof(hRoots); ++dwRootIdx)
-		{
-			HKEY hKey;
-			if (RegOpenKeyExW(hRoots[dwRootIdx], L"Software\\Microsoft\\Windows Kits\\Installed Roots", 0, KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
-			{
-				DWORD dwIndex = 0;
-				WCHAR sSubKeyName[256];
-				DWORD dwSubKeyNameLen = _countof(sSubKeyName);
-				FString SDKPath;
-
-				if (ERROR_SUCCESS == RegQueryValueExW(hKey, L"KitsRoot10", 0, NULL, (LPBYTE)sSubKeyName, &dwSubKeyNameLen))
-				{
-					SDKPath = FString(dwSubKeyNameLen, sSubKeyName);
-				}
-				dwSubKeyNameLen = _countof(sSubKeyName);
-
-				while (RegEnumKeyExW(hKey, dwIndex, sSubKeyName, &dwSubKeyNameLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-				{
-					int version[4];
-					if (swscanf_s(sSubKeyName, L"%d.%d.%d.%d", &version[0], &version[1], &version[2], &version[3]) == 4)
-					{
-						if (FPaths::FileExists(FPaths::Combine(SDKPath, TEXT("Include"), FString(dwSubKeyNameLen, sSubKeyName), TEXT("um"), TEXT("Windows.h"))))
-						{
-							// HoloLens min version is 17763 for remoting and 18317 for hand tracking
-							// @todo JoeG - update this version when the official os/sdk are released
-							if (version[0] >= 10 && version[2] >= 17763)
-							{
-								new(SDKVersions) FHoloLensSDKVersion(FString(dwSubKeyNameLen, sSubKeyName), version[0], version[1], version[2], version[3]);
-							}
-							if (version[2] == 18362)
-							{
-								bFound18362 = true;
-							}
-						}
-					}
-					dwSubKeyNameLen = _countof(sSubKeyName);
-					dwIndex++;
-				}
-				RegCloseKey(hKey);
-			}
-		}
-
-		// 18362 is required as the official minimum SDK released by Microsoft for all needed HL2 features to work
-		// If it's not found, we still need it as a hidden SDK version so that we can set MinimumPlatformVersion correctly to
-		// allow the package to run on lower installed firmware revisions
-		if (!bFound18362)
-		{
-			new(SDKVersions) FHoloLensSDKVersion(FString(L"10.0.18362.0"), 10, 0, 18362, 0);
-		}
-	}
-
-	return SDKVersions;
-}
 
 TSharedRef<IDetailCustomization> FHoloLensTargetSettingsCustomization::MakeInstance()
 {
