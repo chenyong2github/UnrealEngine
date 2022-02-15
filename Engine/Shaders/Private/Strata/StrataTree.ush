@@ -108,7 +108,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		const float BMix = Mix;
 
 		Op.Coverage = AMix * OpA.Coverage + BMix * OpB.Coverage;
-		Op.Transmittance = (AMix * OpA.Coverage * OpA.Transmittance + BMix * OpB.Coverage * OpB.Transmittance) / max(1e-5, AMix * OpA.Coverage + BMix * OpB.Coverage);
+		Op.Transmittance = (AMix * OpA.Coverage * OpA.Transmittance + BMix * OpB.Coverage * OpB.Transmittance) / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
 		break;
 	}
 
@@ -116,7 +116,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 	{
 		const float SafeABSDFCoverage = saturate(OpA.Coverage);
 		const float SafeBBSDFCoverage = saturate(OpB.Coverage);
-		const float AMixFactor = SafeABSDFCoverage / (1e-10 + SafeABSDFCoverage + SafeBBSDFCoverage);
+		const float AMixFactor = SafeABSDFCoverage / max(STRATA_EPSILON, SafeABSDFCoverage + SafeBBSDFCoverage);
 
 		Op.Coverage = saturate(OpA.Coverage + OpB.Coverage);
 		Op.Transmittance = lerp(OpB.Transmittance, OpA.Transmittance, AMixFactor);

@@ -220,7 +220,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 				SphereMaxNoH(BSDFContext.Context, AreaLightContext.AreaLight.SphereSinAlpha, true);
 			}
-			BSDFContext.Context.NoV = saturate(abs(BSDFContext.Context.NoV) + 1e-5);
+			BSDFContext.Context.NoV = saturate(max(abs(BSDFContext.Context.NoV), STRATA_EPSILON));
 
 			////
 			//// Evaluate the diffuse component.
@@ -273,7 +273,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				{
 					const float ChanF0 = 0.04;
 					FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, ChanF0, 1.0f);
-					const float3 SpecularTransmitionChanF0ToMaterialF0 = DirectionalAlbedo_SpecularTransmission / max(1e-8f, ComputeEnergyPreservation(EnergyTerms));
+					const float3 SpecularTransmitionChanF0ToMaterialF0 = DirectionalAlbedo_SpecularTransmission / max(STRATA_EPSILON, ComputeEnergyPreservation(EnergyTerms));
 					Sample.DiffusePathValue *= SpecularTransmitionChanF0ToMaterialF0;
 					Sample.IntegratedDiffuseValue *= SpecularTransmitionChanF0ToMaterialF0;
 				}
