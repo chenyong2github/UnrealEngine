@@ -2,6 +2,7 @@
 
 #include "RiderPathLocator/RiderPathLocator.h"
 
+#include "Internationalization/Regex.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
