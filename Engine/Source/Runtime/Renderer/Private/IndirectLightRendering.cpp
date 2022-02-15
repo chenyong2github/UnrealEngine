@@ -32,7 +32,8 @@ static TAutoConsoleVariable<int32> CVarDynamicGlobalIlluminationMethod(
 	TEXT("0 - None.  Global Illumination can be baked into Lightmaps but no technique will be used for Dynamic Global Illumination.\n")
 	TEXT("1 - Lumen.  Use Lumen Global Illumination for all lights, emissive materials casting light and SkyLight Occlusion.  Requires 'Generate Mesh Distance Fields' enabled for Software Ray Tracing and 'Support Hardware Ray Tracing' enabled for Hardware Ray Tracing.\n")
 	TEXT("2 - SSGI.  Standalone Screen Space Global Illumination.  Low cost, but limited by screen space information.\n")
-	TEXT("3 - RTGI.  Ray Traced Global Illumination technique.  Deprecated, use Lumen Global Illumination instead."),
+	TEXT("3 - RTGI.  Ray Traced Global Illumination technique.  Deprecated, use Lumen Global Illumination instead.\n")
+	TEXT("4 - Plugin.  Use a plugin for Global Illumination."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 // Must match EReflectionMethod
@@ -391,6 +392,11 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::RTGI;
 			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
 		}
+		else if (ShouldRenderPluginRayTracingGlobalIllumination(View))
+		{
+			DiffuseIndirectMethod = EDiffuseIndirectMethod::Plugin;
+			DiffuseIndirectDenoiser = IScreenSpaceDenoiser::GetDenoiserMode(CVarDiffuseIndirectDenoiser);
+		}
 		
 		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled && ScreenSpaceRayTracing::IsScreenSpaceDiffuseIndirectSupported(View))
 		{
@@ -527,6 +533,29 @@ TUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(co
 	SetupReflectionUniformParameters(View, ReflectionStruct);
 	return CreateUniformBufferImmediate(ReflectionStruct, Usage);
 }
+
+#if RHI_RAYTRACING
+bool ShouldRenderPluginRayTracingGlobalIllumination(const FViewInfo& View)
+{
+	if (View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod != EDynamicGlobalIlluminationMethod::Plugin)
+	{
+		return false;
+	}
+
+	bool bAnyRayTracingPassEnabled = false;
+	FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled& Delegate = FGlobalIlluminationPluginDelegates::AnyRayTracingPassEnabled();
+	Delegate.Broadcast(bAnyRayTracingPassEnabled);
+
+	return ShouldRenderRayTracingEffect(bAnyRayTracingPassEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline);
+}
+
+void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIlluminationPlugin(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	// Call the GI plugin delegate function to prepare ray tracing
+	FGlobalIlluminationPluginDelegates::FPrepareRayTracing& Delegate = FGlobalIlluminationPluginDelegates::PrepareRayTracing();
+	Delegate.Broadcast(View, OutRayGenShaders);
+}
+#endif
 
 static const FVector SampleArray4x4x6[96] = {
 	FVector(0.72084325551986694, -0.44043412804603577, -0.53516626358032227),
@@ -850,6 +879,20 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			{
 				DenoiserOutputs.Textures[2] = DenoiserOutputs.Textures[1];
 			}
+		}
+		else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Plugin)
+		{
+			// Get the resources and call the GI plugin's rendering function delegate
+			FGlobalIlluminationPluginResources GIPluginResources;
+			GIPluginResources.GBufferA = SceneTextures.GBufferA;
+			GIPluginResources.GBufferB = SceneTextures.GBufferB;
+			GIPluginResources.GBufferC = SceneTextures.GBufferC;
+			GIPluginResources.LightingChannelsTexture = LightingChannelsTexture;
+			GIPluginResources.SceneDepthZ = SceneTextures.Depth.Target;
+			GIPluginResources.SceneColor = SceneTextures.Color.Target;
+
+			FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight& Delegate = FGlobalIlluminationPluginDelegates::RenderDiffuseIndirectLight();
+			Delegate.Broadcast(*Scene, View, GraphBuilder, GIPluginResources);
 		}
 
 		FRDGTextureRef AmbientOcclusionMask = DenoiserInputs.AmbientOcclusionMask;
@@ -1650,3 +1693,43 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 	}
 
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+void FDeferredShadingSceneRenderer::RenderGlobalIlluminationPluginVisualizations(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef LightingChannelsTexture)
+{
+	// Early out if GI plugins aren't enabled
+	bool bGIPluginEnabled = false;
+	for (const FViewInfo& View : Views)
+	{
+		if (View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Plugin)
+		{
+			bGIPluginEnabled = true;
+			break;
+		}
+	}
+	if (!bGIPluginEnabled)
+	{
+		return;
+	}
+
+	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+
+	// Get the resources passed to GI plugins
+	FGlobalIlluminationPluginResources GIPluginResources;
+	GIPluginResources.GBufferA = SceneTextures.GBufferA;
+	GIPluginResources.GBufferB = SceneTextures.GBufferB;
+	GIPluginResources.GBufferC = SceneTextures.GBufferC;
+	GIPluginResources.LightingChannelsTexture = LightingChannelsTexture;
+	GIPluginResources.SceneDepthZ = SceneTextures.Depth.Target;
+	GIPluginResources.SceneColor = SceneTextures.Color.Target;
+
+	// Render visualizations to all views by calling the GI plugin's delegate
+	FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectVisualizations& PRVDelegate = FGlobalIlluminationPluginDelegates::RenderDiffuseIndirectVisualizations();
+	for (int32 ViewIndexZ = 0; ViewIndexZ < Views.Num(); ViewIndexZ++)
+	{
+		PRVDelegate.Broadcast(*Scene, Views[ViewIndexZ], GraphBuilder, GIPluginResources);
+	}
+}
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)

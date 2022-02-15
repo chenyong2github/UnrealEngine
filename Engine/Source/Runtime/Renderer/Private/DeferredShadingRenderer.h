@@ -154,6 +154,41 @@ private:
 
 
 /**
+ * Encapsulates the resources and render targets used by global illumination plugins.
+ */
+class RENDERER_API FGlobalIlluminationPluginResources : public FRenderResource
+
+{
+public:
+	FRDGTextureRef GBufferA;
+	FRDGTextureRef GBufferB;
+	FRDGTextureRef GBufferC;
+	FRDGTextureRef SceneDepthZ;
+	FRDGTextureRef SceneColor;
+	FRDGTextureRef LightingChannelsTexture;
+};
+
+/**
+ * Delegate callback used by global illumination plugins
+ */
+class RENDERER_API FGlobalIlluminationPluginDelegates
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FAnyRayTracingPassEnabled, bool& /*bAnyRayTracingPassEnabled*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FPrepareRayTracing, const FViewInfo& /*View*/, TArray<FRHIRayTracingShader*>& /*OutRayGenShaders*/);
+	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectLight, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
+
+	static FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
+	static FPrepareRayTracing& PrepareRayTracing();
+	static FRenderDiffuseIndirectLight& RenderDiffuseIndirectLight();
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectVisualizations, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
+	static FRenderDiffuseIndirectVisualizations& RenderDiffuseIndirectVisualizations();
+#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+};
+
+/**
  * Scene renderer that implements a deferred shading pipeline and associated features.
  */
 class FDeferredShadingSceneRenderer : public FSceneRenderer
@@ -265,6 +300,7 @@ private:
 		SSGI,
 		RTGI,
 		Lumen,
+		Plugin,
 	};
 
 	enum class EAmbientOcclusionMethod
@@ -463,6 +499,11 @@ private:
 		FRDGTextureRef DynamicBentNormalAOTexture);
 
 	void RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Renders debug visualizations for global illumination plugins. */
+	void RenderGlobalIlluminationPluginVisualizations(FRDGBuilder& GraphBuilder, FRDGTextureRef LightingChannelsTexture);
+#endif
 
 	/** Computes DFAO, modulates it to scene color (which is assumed to contain diffuse indirect lighting), and stores the output bent normal for use occluding specular. */
 	void RenderDFAOAsIndirectShadowing(
@@ -916,6 +957,7 @@ private:
 	static void PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingSkyLight(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareRayTracingGlobalIlluminationPlugin(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDebug(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PreparePathTracing(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders);

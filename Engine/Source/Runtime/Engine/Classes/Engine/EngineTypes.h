@@ -397,6 +397,9 @@ namespace EDynamicGlobalIlluminationMethod
 
 		/** Standalone Ray Traced Global Illumination technique.  Deprecated, use Lumen Global Illumination instead. */
 		RayTraced UMETA(DisplayName="Standalone Ray Traced (Deprecated)"),
+
+		/** Use a plugin for Global Illumination */
+		Plugin UMETA(DisplayName="Plugin"),
 	};
 }
 
