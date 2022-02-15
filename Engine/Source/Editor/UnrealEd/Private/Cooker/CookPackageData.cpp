@@ -1375,7 +1375,7 @@ bool FPendingCookedPlatformData::PollIsComplete()
 		return true;
 	}
 	UE_TRACK_REFERENCING_PACKAGE_SCOPED(LocalObject->GetPackage(), PackageAccessTrackingOps::NAME_CookerBuildObject);
-	if (LocalObject->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+	if (RouteIsCachedCookedPlatformDataLoaded(LocalObject, TargetPlatform))
 	{
 		Release();
 		return true;

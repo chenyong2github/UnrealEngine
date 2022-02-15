@@ -852,6 +852,7 @@ bool IsProceduralSave(bool bIsCooking, const FPackagePath& TargetPackagePath, ui
 
 void CallPreSave(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
 {
+	SCOPED_SAVETIMER_TEXT(*WriteToString<256>(Object->GetClass()->GetFName(), TEXTVIEW("_PreSave")));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Object->PreSave(ObjectSaveContext.TargetPlatform);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
@@ -874,6 +875,7 @@ void CallPreSave(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
 
 void CallPreSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
 {
+	SCOPED_SAVETIMER_TEXT(*WriteToString<256>(Object->GetClass()->GetFName(), TEXTVIEW("_PreSave")));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	bool bLegacyNeedsCleanup = Object->PreSaveRoot(*ObjectSaveContext.TargetFilename);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
@@ -885,6 +887,7 @@ void CallPreSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext)
 
 void CallPostSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext, bool bNeedsCleanup)
 {
+	SCOPED_SAVETIMER_TEXT(*WriteToString<256>(Object->GetClass()->GetFName(), TEXTVIEW("_PreSave")));
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Object->PostSaveRoot(bNeedsCleanup);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;

@@ -5,6 +5,7 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
+#include "Cooker/CookProfiling.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
 #include "DerivedDataRequestOwner.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -210,6 +211,18 @@ namespace UE::Cook
 		};
 		TMap<FName, FPendingBuildData> PendingBuilds;
 	};
+}
+
+inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
+{
+	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(Obj->GetClass()->GetFName(), TEXT("_BeginCacheForCookedPlatformData")));
+	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
+}
+
+inline bool RouteIsCachedCookedPlatformDataLoaded(UObject* Obj, const ITargetPlatform* TargetPlatform)
+{
+	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(Obj->GetClass()->GetFName(), TEXT("_IsCachedCookedPlatformDataLoaded")));
+	return Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
 }
 
 //////////////////////////////////////////////////////////////////////////

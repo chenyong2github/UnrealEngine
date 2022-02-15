@@ -248,7 +248,10 @@ void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext
 
 	// In the CDO case the above would serialize most of the references, including transient properties
 	// but we still want to serialize the object using the normal path to collect all custom versions it might be using.
-	Export->Serialize(*this);
+	{
+		SCOPED_SAVETIMER_TEXT(*WriteToString<128>(Export->GetClass()->GetFName(), TEXT("_SaveSerialize")));
+		Export->Serialize(*this);
+	}
 
 	// Gather object preload dependencies
 	if (SaveContext.IsCooking())

@@ -1720,6 +1720,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 			bool bSupportsText = false;
 #endif
 
+			SCOPED_SAVETIMER_TEXT(*WriteToString<128>(Export.Object->GetClass()->GetFName(), TEXT("_SaveSerialize")));
 			if (Export.Object->HasAnyFlags(RF_ClassDefaultObject))
 			{
 				if (bSupportsText)

@@ -30,8 +30,10 @@ enum class ESavePackageResult;
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 UE_TRACE_CHANNEL_EXTERN(SaveTimeChannel)
 #define SCOPED_SAVETIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TimerName, SaveTimeChannel)
+#define SCOPED_SAVETIMER_TEXT(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(TimerName, SaveTimeChannel)
 #else
 #define SCOPED_SAVETIMER(TimerName)
+#define SCOPED_SAVETIMER_TEXT(TimerName)
 #endif
 
 struct FLargeMemoryDelete

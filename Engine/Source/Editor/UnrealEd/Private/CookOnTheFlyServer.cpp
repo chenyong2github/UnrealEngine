@@ -2534,9 +2534,9 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 			*CurrentAsyncCache -= 1;
 		}
 
-		Obj->BeginCacheForCookedPlatformData(TargetPlatform);
+		RouteBeginCacheForCookedPlatformData(Obj, TargetPlatform);
 		++CookedPlatformDataNextIndex;
-		if (Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+		if (RouteIsCachedCookedPlatformDataLoaded(Obj, TargetPlatform))
 		{
 			if (CurrentAsyncCache)
 			{
@@ -3258,9 +3258,9 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 			{
 				continue;
 			}
-			if (!Material->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+			if (!RouteIsCachedCookedPlatformDataLoaded(Material, TargetPlatform))
 			{
-				Material->BeginCacheForCookedPlatformData(TargetPlatform);
+				RouteBeginCacheForCookedPlatformData(Material, TargetPlatform);
 				AllMaterialsCompiled = false;
 			}
 		}
@@ -3299,9 +3299,9 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 			{
 				continue;
 			}
-			if (!Texture->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+			if (!RouteIsCachedCookedPlatformDataLoaded(Texture, TargetPlatform))
 			{
-				Texture->BeginCacheForCookedPlatformData(TargetPlatform);
+				RouteBeginCacheForCookedPlatformData(Texture, TargetPlatform);
 			}
 		}
 		if (Timer.IsTimeUp())
@@ -8422,8 +8422,8 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 								{
 									UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_BeginCache);
 									UE_TRACK_REFERENCING_PACKAGE_SCOPED(Package, PackageAccessTrackingOps::NAME_CookerBuildObject);
-									Obj->BeginCacheForCookedPlatformData(TargetPlatform);
-									if (!Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+									RouteBeginCacheForCookedPlatformData(Obj, TargetPlatform);
+									if (!RouteIsCachedCookedPlatformDataLoaded(Obj, TargetPlatform))
 									{
 										bAllPlatformDataLoaded = false;
 									}
@@ -8543,7 +8543,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				UE_TRACK_REFERENCING_PACKAGE_SCOPED(Obj->GetPackage(), PackageAccessTrackingOps::NAME_CookerBuildObject);
 				for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 				{
-					if (!Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+					if (!RouteIsCachedCookedPlatformDataLoaded(Obj, TargetPlatform))
 					{
 						bAllPlatformDataLoaded = false;
 						break;
@@ -8612,7 +8612,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 
 						for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 						{
-							Obj->BeginCacheForCookedPlatformData(TargetPlatform);
+							RouteBeginCacheForCookedPlatformData(Obj, TargetPlatform);
 						}
 					}
 				}

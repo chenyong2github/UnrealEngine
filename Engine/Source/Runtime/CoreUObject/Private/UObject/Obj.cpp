@@ -1095,7 +1095,7 @@ void UObject::ConditionalPostLoad()
 			else
 			{
 #if WITH_EDITOR
-				SCOPED_LOADTIMER_TEXT(*(GetClass()->GetName() + TEXT("_PostLoad")));
+				SCOPED_LOADTIMER_TEXT(*WriteToString<128>(GetClass()->GetFName(), TEXTVIEW("_PostLoad")));
 #endif
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetOutermost(), ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass(), ELLMTagSet::AssetClasses);

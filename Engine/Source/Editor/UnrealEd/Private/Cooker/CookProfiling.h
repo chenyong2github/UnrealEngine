@@ -40,36 +40,70 @@ private:
 
 UE_TRACE_CHANNEL_EXTERN(CookChannel)
 
-#define UE_CREATE_HIERARCHICAL_COOKTIMER(name, incrementScope)	FScopeTimer ScopeTimer##name(__COUNTER__, #name, incrementScope); 
+#define UE_CREATE_HIERARCHICAL_COOKTIMER(name, incrementScope) \
+			FScopeTimer PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__)(__COUNTER__, #name, incrementScope); 
+#define UE_CREATE_TEXT_HIERARCHICAL_COOKTIMER(name, incrementScope) \
+			FScopeTimer PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__)(__COUNTER__, name, incrementScope);
 
 // Emits trace events denoting scope/lifetime of an activity on the cooking channel.
 #define UE_SCOPED_COOKTIMER(name)						TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(name, CookChannel)
+// More expensive version that takes a dynamic TCHAR*
+#define UE_SCOPED_TEXT_COOKTIMER(name)					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(name, CookChannel)
+
 #define UE_SCOPED_COOKTIMER_AND_DURATION(name, durationStorage) \
-			FScopedDurationTimer name##Timer(durationStorage); UE_SCOPED_COOKTIMER(name)
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_COOKTIMER(name)
+// More expensive version that takes a dynamic TCHAR*
+#define UE_SCOPED_TEXT_COOKTIMER_AND_DURATION(name, durationStorage) \
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_TEXT_COOKTIMER(name)
 
 // Emits trace events denoting scope/lifetime of an activity on the cooking channel.  Also creates a named hierarchical timer that can be aggregated and reported at cook completion.
-#define UE_SCOPED_HIERARCHICAL_COOKTIMER(name)			UE_CREATE_HIERARCHICAL_COOKTIMER(name, true); ScopeTimer##name.Start(); UE_SCOPED_COOKTIMER(name)
+#define UE_SCOPED_HIERARCHICAL_COOKTIMER(name) \
+			UE_CREATE_HIERARCHICAL_COOKTIMER(name, true); \
+			PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__).Start(); \
+			UE_SCOPED_COOKTIMER(name)
+// More expensive version that takes a dynamic TCHAR*
+#define UE_SCOPED_TEXT_HIERARCHICAL_COOKTIMER(name) \
+			UE_CREATE_TEXT_HIERARCHICAL_COOKTIMER(name, true); \
+			PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__).Start(); \
+			UE_SCOPED_TEXT_COOKTIMER(name)
+// Version that takes a separate variable for where the duration should be stored
 #define UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(name, durationStorage) \
-			FScopedDurationTimer name##Timer(durationStorage); UE_SCOPED_HIERARCHICAL_COOKTIMER(name)
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_HIERARCHICAL_COOKTIMER(name)
+// More expensive version that takes a separate variable for where the duration should be stored and a dynamic TCHAR*
+#define UE_SCOPED_TEXT_HIERARCHICAL_COOKTIMER_AND_DURATION(name, durationStorage) \
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_TEXT_HIERARCHICAL_COOKTIMER(name)
 
 #define UE_CUSTOM_COOKTIMER_LOG Cpu
 
 // Emits trace events denoting scope/lifetime of an activity on the cooking channel.
 #define UE_SCOPED_CUSTOM_COOKTIMER(name)				UE_TRACE_LOG_SCOPED_T(UE_CUSTOM_COOKTIMER_LOG, name, CookChannel)
 #define UE_SCOPED_CUSTOM_COOKTIMER_AND_DURATION(name, durationStorage) \
-			FScopedDurationTimer name##Timer(durationStorage); UE_SCOPED_CUSTOM_COOKTIMER(name)
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_CUSTOM_COOKTIMER(name)
 
 // Emits trace events denoting scope/lifetime of an activity on the cooking channel.  Also creates a named hierarchical timer that can be aggregated and reported at cook completion.
-#define UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER(name)	UE_CREATE_HIERARCHICAL_COOKTIMER(name, true); ScopeTimer##name.Start(); UE_SCOPED_CUSTOM_COOKTIMER(name)
+#define UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER(name) \
+			UE_CREATE_HIERARCHICAL_COOKTIMER(name, true); \
+			PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__).Start(); \
+			UE_SCOPED_CUSTOM_COOKTIMER(name)
 #define UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER_AND_DURATION(name, durationStorage) \
-			FScopedDurationTimer name##Timer(durationStorage); UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER(name)
+			FScopedDurationTimer PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(durationStorage); \
+			UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER(name)
 #define UE_ADD_CUSTOM_COOKTIMER_META(name, key, value) << name.key(value)
 
 #else
 #define UE_SCOPED_COOKTIMER(name)
+#define UE_SCOPED_TEXT_COOKTIMER(name)
 #define UE_SCOPED_COOKTIMER_AND_DURATION(name, durationStorage)
+#define UE_SCOPED_TEXT_COOKTIMER_AND_DURATION(name, durationStorage)
 #define UE_SCOPED_HIERARCHICAL_COOKTIMER(name)
+#define UE_SCOPED_TEXT_HIERARCHICAL_COOKTIMER(name)
 #define UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(name, durationStorage)
+#define UE_SCOPED_TEXT_HIERARCHICAL_COOKTIMER_AND_DURATION(name, durationStorage)
 
 #define UE_CUSTOM_COOKTIMER_LOG Cpu
 #define UE_SCOPED_CUSTOM_COOKTIMER(name)

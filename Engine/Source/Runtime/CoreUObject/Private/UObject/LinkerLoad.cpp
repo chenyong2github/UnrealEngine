@@ -4217,7 +4217,9 @@ void FLinkerLoad::Preload( UObject* Object )
 #endif
 						check(CurrentLoadContext);
 #if WITH_EDITOR
-						SCOPED_LOADTIMER_TEXT(*(Object->GetClass()->GetName() + TEXT("_Serialize")));
+						SCOPED_LOADTIMER_TEXT(*WriteToString<128>(Object->GetClass()->GetFName(), TEXTVIEW("_LoadSerialize")));
+						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*WriteToString<128>(Object->GetClass()->GetFName(), TEXTVIEW("_Serialize")));
+						TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*Object->GetFullName());
 #endif
 
 						// Maintain the current SerializedObjects.
@@ -4243,10 +4245,6 @@ void FLinkerLoad::Preload( UObject* Object )
 						else
 #endif
 						{
-#if WITH_EDITOR
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*(Object->GetClass()->GetName() + TEXT("_Serialize")));
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*Object->GetFullName());
-#endif
 							Object->Serialize(*this);
 						}
 
