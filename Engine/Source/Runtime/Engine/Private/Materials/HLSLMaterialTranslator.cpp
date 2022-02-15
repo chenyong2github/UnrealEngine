@@ -260,7 +260,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	}
 
 	StrataMaterialRootOperator = nullptr;
-	StrataMaterialExpressionRegisteredOperators.Reset(STRATA_MAX_OPERATOR_COUNT);
+	StrataMaterialExpressionRegisteredOperators.Reserve(STRATA_MAX_OPERATOR_COUNT);
 	StrataMaterialExpressionToOperatorIndex.Reserve(STRATA_MAX_OPERATOR_COUNT);
 	StrataMaterialBSDFCount = 0;
 	bStrataUsesConversionFromLegacy = false;
@@ -665,11 +665,6 @@ bool FHLSLMaterialTranslator::Translate()
 		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
 		if (bStrataEnabled && FrontMaterialExpr)
 		{
-			if (Material->GetAssetName() == FString("ColorCoat_Strata"))
-			{
-				int i = 0;
-				i = 2;
-			}
 			FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
 			StrataGenerateDerivedMaterialOperatorData();
 		}
@@ -1414,12 +1409,12 @@ bool FHLSLMaterialTranslator::Translate()
 									{
 									case STRATA_OPERATOR_VERTICAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // VERTICAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.AIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // VERTICAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 									case STRATA_OPERATOR_HORIZONTAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // HORIZONTAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.AIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // HORIZONTAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 
@@ -1441,9 +1436,9 @@ bool FHLSLMaterialTranslator::Translate()
 									}
 									}
 
-									if (CurrentOperator.TopIndex != INDEX_NONE)
+									if (CurrentOperator.ParentIndex != INDEX_NONE)
 									{
-										WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[CurrentOperator.TopIndex], CurrentOperator.Index);
+										WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[CurrentOperator.ParentIndex], CurrentOperator.Index);
 									}
 								};
 
@@ -1451,9 +1446,9 @@ bool FHLSLMaterialTranslator::Translate()
 								FStrataOperator& BSDFOperator = StrataMaterialExpressionRegisteredOperators[BSDFOperatorIndex];
 
 								// Start visiting node up from the BSDF leaf only if it has a parent.
-								if (BSDFOperator.TopIndex != INDEX_NONE)
+								if (BSDFOperator.ParentIndex != INDEX_NONE)
 								{
-									WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[BSDFOperator.TopIndex], BSDFOperator.Index);
+									WalkOperatorsUp(StrataMaterialExpressionRegisteredOperators[BSDFOperator.ParentIndex], BSDFOperator.Index);
 								}
 							}
 						}
@@ -9578,9 +9573,9 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 	NewOperator.OperatorType = OperatorType;
 	NewOperator.bNodeRequestParameterBlending = bUseParameterBlending;
 	NewOperator.Index = NewOperatorIndex;
-	NewOperator.TopIndex = ParentOperatorIndex != nullptr ? *ParentOperatorIndex : INDEX_NONE;
-	NewOperator.AIndex   = INDEX_NONE;
-	NewOperator.BIndex   = INDEX_NONE;
+	NewOperator.ParentIndex = ParentOperatorIndex != nullptr ? *ParentOperatorIndex : INDEX_NONE;
+	NewOperator.LeftIndex   = INDEX_NONE;
+	NewOperator.RightIndex   = INDEX_NONE;
 
 	NewOperator.BSDFIndex = INDEX_NONE;	// Allocated later to be ableto account for inline
 
@@ -9606,7 +9601,7 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 	int32 RootIndex = INDEX_NONE;
 	for (auto& It : StrataMaterialExpressionRegisteredOperators)
 	{
-		if (It.TopIndex == INDEX_NONE)
+		if (It.ParentIndex == INDEX_NONE)
 		{
 			check(RootIndex == INDEX_NONE);	// There can only be one
 			RootIndex = It.Index;
@@ -9636,20 +9631,20 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			{
 			case STRATA_OPERATOR_VERTICAL:
 			{
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex], bUseParameterBlending);
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.BIndex], bUseParameterBlending);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex], bUseParameterBlending);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex], bUseParameterBlending);
 				break;
 			}
 			case STRATA_OPERATOR_HORIZONTAL:
 			case STRATA_OPERATOR_ADD:
 			{
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex], bUseParameterBlending);
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.BIndex], bUseParameterBlending);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex], bUseParameterBlending);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex], bUseParameterBlending);
 				break;
 			}
 			case STRATA_OPERATOR_WEIGHT:
 			{
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex], bUseParameterBlending);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex], bUseParameterBlending);
 				break;
 			}
 			case STRATA_OPERATOR_BSDF:
@@ -9668,8 +9663,8 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			{
 				CurrentOperator.OperatorType = STRATA_OPERATOR_BSDF;
 				CurrentOperator.BSDFIndex = StrataMaterialBSDFCount++;
-				CurrentOperator.AIndex = INDEX_NONE;
-				CurrentOperator.BIndex = INDEX_NONE;
+				CurrentOperator.LeftIndex = INDEX_NONE;
+				CurrentOperator.RightIndex = INDEX_NONE;
 			}
 		};
 
@@ -9697,7 +9692,7 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		// Operators without any child
 		case STRATA_OPERATOR_BSDF:
 		{
-			check(It.AIndex == INDEX_NONE && It.BIndex == INDEX_NONE && It.BSDFIndex != INDEX_NONE);
+			check(It.LeftIndex == INDEX_NONE && It.RightIndex == INDEX_NONE && It.BSDFIndex != INDEX_NONE);
 			break;
 		}
 
@@ -9706,14 +9701,14 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 		case STRATA_OPERATOR_VERTICAL:
 		case STRATA_OPERATOR_ADD:
 		{
-			check(It.BIndex != INDEX_NONE);
+			check(It.RightIndex != INDEX_NONE);
 		}
 		// Fallthrough
 
 		// Operators with a single child
 		case STRATA_OPERATOR_WEIGHT:
 		{
-			check(It.AIndex != INDEX_NONE);
+			check(It.LeftIndex != INDEX_NONE);
 		}
 		// Fallthrough
 		}
@@ -9729,7 +9724,7 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			{
 			case STRATA_OPERATOR_WEIGHT:
 			{
-				CurrentOperator.MaxDistanceFromLeaves = StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex].MaxDistanceFromLeaves + 1;
+				CurrentOperator.MaxDistanceFromLeaves = StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex].MaxDistanceFromLeaves + 1;
 				break;
 			}
 			case STRATA_OPERATOR_VERTICAL:
@@ -9737,8 +9732,8 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			case STRATA_OPERATOR_ADD:
 			{
 				CurrentOperator.MaxDistanceFromLeaves = FMath::Max(
-					StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex].MaxDistanceFromLeaves,
-					StrataMaterialExpressionRegisteredOperators[CurrentOperator.BIndex].MaxDistanceFromLeaves) + 1;
+					StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex].MaxDistanceFromLeaves,
+					StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex].MaxDistanceFromLeaves) + 1;
 				break;
 			}
 			case STRATA_OPERATOR_BSDF:
@@ -9748,9 +9743,9 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			}
 			}
 
-			if (CurrentOperator.TopIndex != INDEX_NONE)
+			if (CurrentOperator.ParentIndex != INDEX_NONE)
 			{
-				WalkOperatorsToRoot(StrataMaterialExpressionRegisteredOperators[CurrentOperator.TopIndex]);
+				WalkOperatorsToRoot(StrataMaterialExpressionRegisteredOperators[CurrentOperator.ParentIndex]);
 			}
 		};
 
@@ -9783,23 +9778,23 @@ void FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			case STRATA_OPERATOR_VERTICAL:
 			{
 				VOpTopBranchCountTaken++;
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex]);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
 				VOpTopBranchCountTaken--;
 				VOpBottomBranchCountTaken++;
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.BIndex]);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex]);
 				VOpBottomBranchCountTaken--;
 				break;
 			}
 			case STRATA_OPERATOR_HORIZONTAL:
 			case STRATA_OPERATOR_ADD:
 			{
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex]);
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.BIndex]);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex]);
 				break;
 			}
 			case STRATA_OPERATOR_WEIGHT:
 			{
-				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.AIndex]);
+				WalkOperators(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
 				break;
 			}
 			case STRATA_OPERATOR_BSDF:

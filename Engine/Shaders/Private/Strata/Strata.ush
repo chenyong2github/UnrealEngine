@@ -592,24 +592,26 @@ bool StrataHasGreyScaleWeight(in float3 Weight)
 struct FStrataOperator
 {
 	// STRATA_TODO: pack in a single uint
-	uint TopIndex;
-	uint MaxDistanceFromLeaves;
-	uint Type;
-	int	AIndex;
-	int BIndex;
+	uint ParentIndex;
+	uint MaxDistanceFromLeaves;			// The largest depth distance from any tree leaf representing a BSDF
+	uint Type;							// The type of operator
+	int	LeftIndex;
+	int RightIndex;
 	float Weight;
 
-	float  Coverage;
-	float3 Transmittance;	// This is the transmittance of the matter. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
+	float  Coverage;					// The summarised coverage of all the matter (from the sub tree) represented by that operator
+	float3 Transmittance;				// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
 
-	float VerticalTopCoverage;
-	float3 VerticalTopTransmittance;
+	float VerticalTopCoverage;			// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
+	float3 VerticalTopTransmittance;	// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
 };
 
 FStrataOperator GetInitialisedStrataOperator()
 {
 	FStrataOperator StrataOp = (FStrataOperator)0;
-	StrataOp.TopIndex = -1;
+	StrataOp.ParentIndex = -1;
+	StrataOp.LeftIndex = -1;
+	StrataOp.RightIndex = -1;
 	return StrataOp;
 }
 
@@ -786,8 +788,6 @@ FStrataData GetStrataVolumeFogCloudBSDF(float3 Albedo, float3 Extinction, float3
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
 
-	// STRATA_TODO BSDF OP
-
 	return StrataData;
 }
 
@@ -802,8 +802,6 @@ FStrataData GetStrataUnlitBSDF(float3 Emissive, float3 TransmittanceColor)
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
-
-	// STRATA_TODO BSDF OP
 
 	return StrataData;
 }
@@ -835,8 +833,6 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
 
-	// STRATA_TODO BSDF OP
-
 	return StrataData;
 }
 
@@ -864,8 +860,6 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;
 #endif
-
-	// STRATA_TODO BSDF OP
 
 	return StrataData;
 }
@@ -1104,11 +1098,11 @@ FStrataData StrataAdd(FStrataData A, FStrataData B, inout FStrataTree StrataTree
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_ADD;
-	StrataTree.Operators[OperatorIndex].AIndex					= A.OperatorIndex;
-	StrataTree.Operators[OperatorIndex].BIndex					= B.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].LeftIndex				= A.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].RightIndex				= B.OperatorIndex;
 
-	StrataTree.Operators[A.OperatorIndex].TopIndex				= OperatorIndex;
-	StrataTree.Operators[B.OperatorIndex].TopIndex				= OperatorIndex;
+	StrataTree.Operators[A.OperatorIndex].ParentIndex			= OperatorIndex;
+	StrataTree.Operators[B.OperatorIndex].ParentIndex			= OperatorIndex;
 
 	return StrataData;
 }
@@ -1126,9 +1120,9 @@ FStrataData StrataWeight(FStrataData A, float Weight, inout FStrataTree StrataTr
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_WEIGHT;
 	StrataTree.Operators[OperatorIndex].Weight					= Weight;
-	StrataTree.Operators[OperatorIndex].AIndex					= A.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].LeftIndex				= A.OperatorIndex;
 
-	StrataTree.Operators[A.OperatorIndex].TopIndex				= OperatorIndex;
+	StrataTree.Operators[A.OperatorIndex].ParentIndex				= OperatorIndex;
 
 	return StrataData;
 }
@@ -1147,11 +1141,11 @@ FStrataData StrataHorizontalMixing(FStrataData Background, FStrataData Foregroun
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_HORIZONTAL;
 	StrataTree.Operators[OperatorIndex].Weight					= Mix;
-	StrataTree.Operators[OperatorIndex].AIndex					= Background.OperatorIndex;
-	StrataTree.Operators[OperatorIndex].BIndex					= Foreground.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].LeftIndex				= Background.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].RightIndex				= Foreground.OperatorIndex;
 
-	StrataTree.Operators[Background.OperatorIndex].TopIndex		= OperatorIndex;
-	StrataTree.Operators[Foreground.OperatorIndex].TopIndex		= OperatorIndex;
+	StrataTree.Operators[Background.OperatorIndex].ParentIndex	= OperatorIndex;
+	StrataTree.Operators[Foreground.OperatorIndex].ParentIndex	= OperatorIndex;
 
 	return StrataData;
 }
@@ -1166,11 +1160,11 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base, inout FStr
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= MaxDistanceFromLeaves;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_VERTICAL;
-	StrataTree.Operators[OperatorIndex].AIndex					= Top.OperatorIndex;
-	StrataTree.Operators[OperatorIndex].BIndex					= Base.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].LeftIndex				= Top.OperatorIndex;
+	StrataTree.Operators[OperatorIndex].RightIndex				= Base.OperatorIndex;
 
-	StrataTree.Operators[Top.OperatorIndex].TopIndex			= OperatorIndex;
-	StrataTree.Operators[Base.OperatorIndex].TopIndex			= OperatorIndex;
+	StrataTree.Operators[Top.OperatorIndex].ParentIndex			= OperatorIndex;
+	StrataTree.Operators[Base.OperatorIndex].ParentIndex		= OperatorIndex;
 
 	return StrataData;
 }
@@ -1186,7 +1180,7 @@ FStrataData PromoteParameterBlendedBSDFToOperator(FStrataData StrataData, inout 
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= 0;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_BSDF;
-	StrataTree.Operators[OperatorIndex].AIndex					= BSDFIndex;
+	StrataTree.Operators[OperatorIndex].LeftIndex				= BSDFIndex;
 
 	StrataTree.BSDFs[BSDFIndex].OperatorIndex					= OperatorIndex;
 	StrataTree.BSDFs[BSDFIndex].bIsBottom						= bIsBottom;
@@ -1449,7 +1443,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	const float  TopFactor				= Info.SurfaceTop / max(1e-5, Info.Coverage);
 	
 	// Add both layers thickness
-//	BSDF_SETTHICKNESSCM(ResultBSDF,		BSDF_GETTHICKNESSCM(BaseBSDF)												+ SafeTopCoverage * BSDF_GETTHICKNESSCM(TopBSDF));
+	BSDF_SETTHICKNESSCM(ResultBSDF,		BSDF_GETTHICKNESSCM(BaseBSDF)												+ SafeTopCoverage * BSDF_GETTHICKNESSCM(TopBSDF));
 
 	// Now add bottom layer component weights by throughput to the top layer.
 	// Those parameters will contribute to added luminance, in this case we add them together and saturate to not go out of the safe range
@@ -1498,9 +1492,6 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	const float3 NewMFP = Info2.TransmittanceOnlyBottom * BaseBSDF.TmpDMFP + Info2.TransmittanceOnlyTop * TopBSDF.TmpDMFP + Info2.TransmittanceTopAndBottom * min(TopBSDF.TmpDMFP, BaseBSDF.TmpDMFP);
 #endif
 
-	BSDF_SETTHICKNESSCM(ResultBSDF, CENTIMETER_TO_METER);
-
-	//ResultBSDF.TmpDMFP =				lerp(TopBSDF.TmpDMFP,							BaseBSDF.TmpDMFP,			TopToBottomLerp);
 	ResultBSDF.TmpDMFP					= NewMFP;
 	SLAB_SSSDMFP(ResultBSDF)			= NewMFP;
 
@@ -2309,8 +2300,6 @@ void PackStrataOut(
 	bStrataSubsurfaceEnable = false;
 	EmissiveColor = 0.0f;
 
-	const float OpaqueBSDFThroughput = 0.0f;
-	const float FullThroughput = 1.0f;
 	const float FullyRough = 1.0f;
 
 	// While packing Strata layer data, Classification/SSS/TopLayer data are extracted & stored for dedicated passes
@@ -2398,9 +2387,6 @@ void PackStrataOut(
 						const bool bIsSimpleVolume = !BSDF.bIsBottom && BSDF_GETHASDMFP(BSDF);
 
 						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume);
-
-						// By default, without coverage, the diffuse BSDF is completely opaque
-						float3 BSDFThroughput = OpaqueBSDFThroughput;
 
 						if (bIsSimpleVolume)
 						{

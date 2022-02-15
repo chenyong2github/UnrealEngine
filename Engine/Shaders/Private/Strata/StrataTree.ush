@@ -55,8 +55,8 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int OpIndex)
 {
 #define Op StrataTree.Operators[OpIndex]
-#define OpA StrataTree.Operators[StrataTree.Operators[OpIndex].AIndex]
-#define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].BIndex]
+#define OpA StrataTree.Operators[StrataTree.Operators[OpIndex].LeftIndex]
+#define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].RightIndex]
 
 	switch (Op.Type)
 	{
@@ -114,8 +114,12 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 	case STRATA_OPERATOR_ADD:
 	{
+		const float SafeABSDFCoverage = saturate(OpA.Coverage);
+		const float SafeBBSDFCoverage = saturate(OpB.Coverage);
+		const float AMixFactor = SafeABSDFCoverage / (1e-10 + SafeABSDFCoverage + SafeBBSDFCoverage);
+
 		Op.Coverage = saturate(OpA.Coverage + OpB.Coverage);
-		Op.Transmittance = saturate(OpA.Transmittance + OpB.Transmittance);
+		Op.Transmittance = lerp(OpB.Transmittance, OpA.Transmittance, AMixFactor);
 		break;
 	}
 

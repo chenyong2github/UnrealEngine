@@ -74,9 +74,9 @@ struct FStrataOperator
 	bool bNodeRequestParameterBlending;
 
 	int32 Index;		// Index into the array of operators
-	int32 TopIndex;		// Parent operator index
-	int32 AIndex;		// Left child operator index
-	int32 BIndex;		// Right child operator index
+	int32 ParentIndex;	// Parent operator index
+	int32 LeftIndex;	// Left child operator index
+	int32 RightIndex;	// Right child operator index
 
 	int32 BSDFIndex;	// Index in the array of BSDF if a BSDF operator
 
@@ -93,9 +93,9 @@ struct FStrataOperator
 		OperatorType = INDEX_NONE;
 		bNodeRequestParameterBlending = false;
 		Index = INDEX_NONE;
-		TopIndex = INDEX_NONE;
-		AIndex = INDEX_NONE;
-		BIndex = INDEX_NONE;
+		ParentIndex = INDEX_NONE;
+		LeftIndex = INDEX_NONE;
+		RightIndex = INDEX_NONE;
 		BSDFIndex = INDEX_NONE;
 		MaxDistanceFromLeaves = 0;
 		LayerDepth = 0;
