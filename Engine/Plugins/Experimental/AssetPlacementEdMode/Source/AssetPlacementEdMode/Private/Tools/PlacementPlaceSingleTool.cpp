@@ -268,6 +268,11 @@ void UPlacementModePlaceSingleTool::CreatePreviewElements(const FInputDeviceRay&
 		GeneratePlacementData(DevicePos);
 	}
 
+	if (!PlacementInfo)
+	{
+		return;
+	}
+
 	if (UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
 	{
 		FPlacementOptions PlacementOptions;
