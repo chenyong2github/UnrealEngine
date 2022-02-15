@@ -113,7 +113,7 @@ public:
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 
-	virtual EBackendLegacyMode GetLegacyMode() const override { return EBackendLegacyMode::LegacyOnly; }
+	virtual EBackendLegacyMode GetLegacyMode() const override { return EBackendLegacyMode::ValueWithLegacyFallback; }
 
 	// ICacheStore
 

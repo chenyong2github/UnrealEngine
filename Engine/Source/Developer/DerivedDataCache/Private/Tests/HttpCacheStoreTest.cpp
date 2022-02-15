@@ -588,7 +588,7 @@ TArray<FValue> CreateTestCacheValues(ICacheStore* InTestBackend, uint32 InNumVal
 		ValueContents.AddUninitialized(NumBytes);
 		for (int32 ContentIndex = 0; ContentIndex < NumBytes; ++ContentIndex)
 		{
-			ValueContents[ContentIndex] = (uint8)(ValueIndex + ContentIndex + 42); // offset of 42 to keep the contents distinct from record test data
+			ValueContents[ContentIndex] = (uint8)(ValueIndex + ContentIndex + 52); // offset of 52 to keep the contents distinct from record test data
 		}
 		ValueBuffers.Emplace(MakeSharedBufferFromArray(MoveTemp(ValueContents)));
 	}
@@ -698,16 +698,27 @@ bool CacheStore::RunTest(const FString& Parameters)
 
 #if UE_WITH_ZEN
 	using namespace UE::Zen;
-	FServiceSettings ZenTestServiceSettings;
-	FServiceAutoLaunchSettings& ZenTestAutoLaunchSettings = ZenTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
-	ZenTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUnitTest"));
-	ZenTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-oauth-url \"%s\" --upstream-jupiter-oauth-clientid \"%s\" --upstream-jupiter-oauth-clientsecret \"%s\" --upstream-jupiter-namespace-ddc \"%s\" --upstream-jupiter-namespace \"%s\""),
+	FServiceSettings ZenUpstreamTestServiceSettings;
+	FServiceAutoLaunchSettings& ZenUpstreamTestAutoLaunchSettings = ZenUpstreamTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
+	ZenUpstreamTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUpstreamUnitTest"));
+	ZenUpstreamTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-oauth-url \"%s\" --upstream-jupiter-oauth-clientid \"%s\" --upstream-jupiter-oauth-clientsecret \"%s\" --upstream-jupiter-namespace-ddc \"%s\" --upstream-jupiter-namespace \"%s\""),
 		*TestDomain,
 		*TestOAuthProvider,
 		*TestOAuthClientId,
 		*TestOAuthSecret,
 		*TestNamespace,
 		*TestStructuredNamespace
+	);
+	ZenUpstreamTestAutoLaunchSettings.DesiredPort = 23337; // Avoid the normal default port
+	ZenUpstreamTestAutoLaunchSettings.bShowConsole = true;
+	ZenUpstreamTestAutoLaunchSettings.bLimitProcessLifetime = true;
+	FScopeZenService ScopeZenUpstreamService(MoveTemp(ZenUpstreamTestServiceSettings));
+
+	FServiceSettings ZenTestServiceSettings;
+	FServiceAutoLaunchSettings& ZenTestAutoLaunchSettings = ZenTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
+	ZenTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUnitTest"));
+	ZenTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-zen-url \"http://localhost:%d\""),
+		ScopeZenUpstreamService.GetInstance().GetPort()
 	);
 	ZenTestAutoLaunchSettings.DesiredPort = 13337; // Avoid the normal default port
 	ZenTestAutoLaunchSettings.bShowConsole = true;
@@ -716,6 +727,11 @@ bool CacheStore::RunTest(const FString& Parameters)
 	FScopeZenService ScopeZenService(MoveTemp(ZenTestServiceSettings));
 	TUniquePtr<ILegacyCacheStore> ZenIntermediaryBackend(CreateZenCacheStore(TEXT("Test"), ScopeZenService.GetInstance().GetURL(), *TestNamespace));
 	auto WaitForZenPushToUpstream = [](ILegacyCacheStore* ZenBackend, TConstArrayView<FCacheRecord> Records)
+	{
+		// TODO: Expecting a legitimate means to wait for zen to finish pushing records to its upstream in the future
+		FPlatformProcess::Sleep(1.0f);
+	};
+	auto WaitForZenPushValuesToUpstream = [](ILegacyCacheStore* ZenBackend, TConstArrayView<FValue> Values)
 	{
 		// TODO: Expecting a legitimate means to wait for zen to finish pushing records to its upstream in the future
 		FPlatformProcess::Sleep(1.0f);
@@ -787,8 +803,18 @@ bool CacheStore::RunTest(const FString& Parameters)
 
 	{
 		TArray<FValue> PutValues = CreateTestCacheValues(TestBackend, ValuesInBatch);
-		GetAndValidateValues(TEXT("SimpleValue"), PutValues, ECachePolicy::Default);
-		GetAndValidateValues(TEXT("SimpleValueSkipData"), PutValues, ECachePolicy::Default | ECachePolicy::SkipData);
+		TArray<FValue> ReceivedValues = GetAndValidateValues(TEXT("SimpleValue"), PutValues, ECachePolicy::Default);
+		TArray<FValue> ReceivedValuesSkipData = GetAndValidateValues(TEXT("SimpleValueSkipData"), PutValues, ECachePolicy::Default | ECachePolicy::SkipData);
+
+#if UE_WITH_ZEN
+		if (ZenIntermediaryBackend)
+		{
+			TArray<FValue> PutValuesZen = CreateTestCacheValues(ZenIntermediaryBackend.Get(), ValuesInBatch);
+			WaitForZenPushValuesToUpstream(ZenIntermediaryBackend.Get(), PutValuesZen);
+			ValidateValues(TEXT("SimpleValueZenAndDirect"), GetAndValidateValues(TEXT("SimpleValueZen"), PutValuesZen, ECachePolicy::Default), ReceivedValues, ECachePolicy::Default);
+			ValidateValues(TEXT("SimpleValueSkipDataZenAndDirect"), GetAndValidateValues(TEXT("SimpleValueSkipDataZen"), PutValuesZen, ECachePolicy::Default | ECachePolicy::SkipData), ReceivedValuesSkipData, ECachePolicy::Default | ECachePolicy::SkipData);
+		}
+#endif // UE_WITH_ZEN
 	}
 
 	return true;
