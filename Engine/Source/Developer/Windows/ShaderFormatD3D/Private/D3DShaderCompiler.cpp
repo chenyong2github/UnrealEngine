@@ -640,7 +640,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		);
 
 		// Some materials give FXC a hard time to optimize and the compiler fails with an internal error.
-		if (Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW))
+		if (Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) || Result == E_OUTOFMEMORY || bException)
 		{
 			CrossCompiler::FShaderConductorContext CompilerContext;
 
