@@ -680,7 +680,7 @@ public:
 		typename... ArgTypes,
 		decltype(UE::Core::Private::Tuple::ConstructibleConceptCheck<Types...>(DeclVal<ArgTypes&&>()...))* = nullptr
 	>
-	explicit(!std::conjunction_v<std::is_convertible<ArgTypes&&, Types>...>>) TTuple(ArgTypes&&... Args)
+	explicit(!std::conjunction_v<std::is_convertible<ArgTypes&&, Types>...>) TTuple(ArgTypes&&... Args)
 		: Super(UE::Core::Private::Tuple::ForwardingConstructor, Forward<ArgTypes>(Args)...)
 	{
 	}
