@@ -255,6 +255,12 @@ void UpdateMotionMatchingState(
 {
 	using namespace UE::PoseSearch;
 
+	if (!Database)
+	{
+		Context.LogMessage(EMessageSeverity::Error, LOCTEXT("NoDatabase", "No database provided for motion matching."));
+		return;
+	}
+
 	InOutMotionMatchingState.Flags = EMotionMatchingFlags::None;
 	if (InOutMotionMatchingState.CurrentDatabase != Database)
 	{
