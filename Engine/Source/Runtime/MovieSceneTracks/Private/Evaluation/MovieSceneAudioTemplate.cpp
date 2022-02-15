@@ -414,6 +414,8 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			AudioComponent.SetPitchMultiplier(PitchMultiplier);
 		}
 
+		AudioComponent.bSuppressSubtitles = AudioSection->GetSuppressSubtitles();			
+
 		// Evaluate inputs and apply the params.
 		EvaluateAllAndSetParameters<FMovieSceneFloatChannel, float>(AudioComponent, Context.GetTime());
 		EvaluateAllAndSetParameters<FMovieSceneBoolChannel, bool> (AudioComponent, Context.GetTime());
