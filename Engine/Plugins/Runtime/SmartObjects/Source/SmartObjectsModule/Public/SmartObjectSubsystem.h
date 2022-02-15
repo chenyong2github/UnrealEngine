@@ -352,6 +352,22 @@ public:
 	 * @note Method will ensure on invalid slot handle.
 	 */
 	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
+	
+	/**
+	 * Returns the Activity GameplayTagContainer of the smartobject associated to the given request result.
+	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
+	 * @return FGameplayTagContainer of the slot associated to Result.
+	 * @note Method will ensure on invalid FSmartObjectRequestResult.
+	 */
+	const FGameplayTagContainer& GetActivityTags(const FSmartObjectRequestResult& Result) const;
+
+	/**
+	 * Returns the Activity GameplayTagContainer of the smartobject represented by the provided handle.
+	 * @param Handle Handle to the SmartObject.
+	 * @return FGameplayTagContainer of the SmartObject associated to Handle.
+	 * @note Method will ensure on invalid FSmartObjectHandle.
+	 */
+	const FGameplayTagContainer& GetActivityTags(const FSmartObjectHandle& Handle) const;
 
 	/** @return The octree used by the subsystem to store all registered smart objects. */
 	const FSmartObjectOctree& GetOctree() const;

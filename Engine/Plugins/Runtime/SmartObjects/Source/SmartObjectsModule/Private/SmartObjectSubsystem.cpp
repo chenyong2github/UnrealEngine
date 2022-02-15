@@ -580,6 +580,32 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 	return TOptional<FTransform>();
 }
 
+const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectRequestResult& Result) const
+{
+	if (ensureMsgf(Result.IsValid(), TEXT("Requesting ActivityTags from an invalid request result.")))
+	{
+		return GetActivityTags(Result.SmartObjectHandle);
+	}
+
+	return FGameplayTagContainer::EmptyContainer;
+}
+
+const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectHandle& Handle) const
+{
+	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle.")))
+	{
+		return FGameplayTagContainer::EmptyContainer;
+	}
+
+	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
+	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("A SmartObjectRuntime must be created for %s"), *LexToString(Handle)))
+	{
+		return FGameplayTagContainer::EmptyContainer;
+	}
+
+	return SmartObjectRuntime->GetDefinition().GetActivityTags();
+}
+
 FSmartObjectSlotClaimState* USmartObjectSubsystem::GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle)
 {
 	return RuntimeSlotStates.Find(ClaimHandle.SlotHandle);
