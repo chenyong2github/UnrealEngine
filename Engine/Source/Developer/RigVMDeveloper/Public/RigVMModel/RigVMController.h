@@ -783,7 +783,7 @@ public:
 	 * Helper function to disable a series of checks that can be ignored during a unit test
 	 */
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void SetIsRunningUnitTest(bool bIsRunning) { bIsRunningUnitTest = bIsRunning; }
+	void SetIsRunningUnitTest(bool bIsRunning);
 
 private:
 

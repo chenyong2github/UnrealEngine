@@ -110,10 +110,15 @@ public:
 	// Clear references to temp assets
 	void ClearInvalidReferences();
 
+	// Helper function to disable clearing transient package references
+	void SetIsRunningUnitTest(bool bIsRunning) { bIsRunningUnitTest = bIsRunning; }
+
 private:
 
 	UPROPERTY(VisibleAnywhere, Category = "BuildData")
 	TMap< TSoftObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences;
+
+	bool bIsRunningUnitTest;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;

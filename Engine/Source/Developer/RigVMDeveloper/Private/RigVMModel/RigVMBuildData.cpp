@@ -65,6 +65,7 @@ URigVMLibraryNode* FRigVMReferenceNodeData::GetReferencedFunction()
 
 URigVMBuildData::URigVMBuildData()
 : UObject()
+, bIsRunningUnitTest(false)
 {
 }
 
@@ -234,6 +235,11 @@ void URigVMBuildData::UnregisterFunctionReference(TSoftObjectPtr<URigVMLibraryNo
 
 void URigVMBuildData::ClearInvalidReferences()
 {
+	if (bIsRunningUnitTest)
+	{
+		return;
+	}
+	
 	Modify();
 	
 	// check each function's each reference

@@ -233,6 +233,16 @@ void URigVMController::ResendAllNotifications()
 	}
 }
 
+void URigVMController::SetIsRunningUnitTest(bool bIsRunning)
+{
+	bIsRunningUnitTest = bIsRunning;
+
+	if(URigVMBuildData* BuildData = GetBuildData())
+	{
+		BuildData->SetIsRunningUnitTest(bIsRunning);
+	}	
+}
+
 void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	switch (InNotifType)
