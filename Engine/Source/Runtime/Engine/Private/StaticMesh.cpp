@@ -1638,7 +1638,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #if WITH_EDITOR
 	if (bCooked && Ar.IsLoading())
 	{
-		CurrentFirstLODIdx = 0;
+		CurrentFirstLODIdx = Owner->GetMinLODIdx();
 	}
 	else
 #endif
