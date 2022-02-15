@@ -41,7 +41,6 @@ struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const { return false; }
 };
 
-
 /**
  * Base class (namespace) for all common Conditions that are generally applicable.
  * This allows schemas to safely include all conditions child of this struct. 
