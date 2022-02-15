@@ -308,7 +308,7 @@ FServiceSettings::ReadFromURL(FStringView InstanceURL)
 	}
 
 	int32 PortDelimIndex = INDEX_NONE;
-	InstanceURL.FindChar(TEXT(':'), PortDelimIndex);
+	InstanceURL.FindLastChar(TEXT(':'), PortDelimIndex);
 	if (PortDelimIndex != INDEX_NONE)
 	{
 		ConnectExistingSettings.HostName = InstanceURL.Left(PortDelimIndex);
