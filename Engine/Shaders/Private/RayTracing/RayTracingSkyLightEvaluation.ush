@@ -28,7 +28,7 @@ StructuredBuffer<FSkyLightVisibilityRays> SkyLightVisibilityRays;
 // Evaluates the current sky light at a given location on a surface by integrating over the sky light via casting occlusion rays
 // SampleCoord - Used for accessing the decoupled visibility ray buffer and should reflect some sort of uniformly distributed 2d coordinate to properly importance sample from the sky light. If bGBufferSampleOrigin is true this must be
 //               the pixel location of the g-buffer sample for proper camera ray bias and depth reconstruction.
-// WorldPosition - Unbiased position on a surface to sample from.
+// TranslatedWorldPosition - Unbiased position on a surface to sample from.
 // WorldNormal - Normal of the surface to sample from.
 // ViewDirection - Normalized vector from the viewing source in the direction of observation of the point to sample from
 // GBufferData - GBuffer data to use for surface BxDF evaluation.
@@ -39,7 +39,7 @@ void SkyLightEvaluate(
 	in const uint2 SampleCoord,
 	in const uint2 PixelCoord,
 	in const uint SamplesPerPixel,
-	in const float3 WorldPosition,
+	in const float3 TranslatedWorldPosition,
 	in const float3 WorldNormal,
 	in const float3 ViewDirection,
 	in const FGBufferData GBufferData,
@@ -79,7 +79,7 @@ void SkyLightEvaluate(
 			const uint SkyLightVisibilityRayIndex = GetSkyLightVisibilityRayTiledIndex(SampleCoord, SampleIndex, SkyLightVisibilityRaysDimensions.xy);
 			FSkyLightVisibilityRays SkyLightVisibilityRay = SkyLightVisibilityRays[SkyLightVisibilityRayIndex];
 
-			Ray.Origin = WorldPosition;
+			Ray.Origin = TranslatedWorldPosition;
 			Ray.Direction = SkyLightVisibilityRay.DirectionAndPdf.xyz;
 			Ray.TMin = 0.0;
 			Ray.TMax = SkyLight.MaxRayDistance;
@@ -118,7 +118,7 @@ void SkyLightEvaluate(
 				SkyLightPdf = SkyLight_EvalLight(Ray.Direction).w;
 			}
 
-			Ray.Origin = WorldPosition;
+			Ray.Origin = TranslatedWorldPosition;
 			Ray.TMin = 0.0;
 			Ray.TMax = SkyLight.MaxRayDistance;
 			// MIS / pdf
@@ -260,7 +260,7 @@ void SkyLightEvaluate(
 		float ShadowThickness = 0.0;
 		{
 			RayDesc RayLocal;
-			RayLocal.Origin = WorldPosition + L * SkyLight.MaxShadowThickness;
+			RayLocal.Origin = TranslatedWorldPosition + L * SkyLight.MaxShadowThickness;
 			RayLocal.Direction = -L;
 			RayLocal.TMin = 0.0;
 			RayLocal.TMax = SkyLight.MaxShadowThickness;
@@ -283,7 +283,7 @@ void SkyLightEvaluate(
 				RayLocal);
 
 			float3 P = RayLocal.Origin + RayLocal.Direction * MinimalPayloadLocal.HitT;
-			ShadowThickness = min(length(WorldPosition - P), 1.0);
+			ShadowThickness = min(length(TranslatedWorldPosition - P), 1.0);
 		}
 		float3 ScatterThroughput = PI * KajiyaKayDiffuseAttenuation(GBufferData, L, V, N, ShadowThickness);
 		float3 SkySHDiffuseIrradiance = GetSkySHDiffuse(L) * View.SkyLightColor.rgb;
@@ -297,7 +297,7 @@ void SkyLightEvaluate(
 void SkyLightEvaluate(
 	in const uint2 SampleCoord,
 	in const uint SamplesPerPixel,
-	in const float3 WorldPosition,
+	in const float3 TranslatedWorldPosition,
 	in const float3 WorldNormal,
 	in const float3 ViewDirection,
 	in const FGBufferData GBufferData,
@@ -314,7 +314,7 @@ void SkyLightEvaluate(
 		SampleCoord,
 		SampleCoord,
 		SamplesPerPixel,
-		WorldPosition,
+		TranslatedWorldPosition,
 		WorldNormal,
 		ViewDirection,
 		GBufferData,

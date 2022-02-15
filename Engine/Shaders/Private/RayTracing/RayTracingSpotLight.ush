@@ -6,7 +6,7 @@
 
 bool GenerateSpotLightOcclusionRay(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -16,18 +16,18 @@ bool GenerateSpotLightOcclusionRay(
 )
 {
 	bool IsVisible = true;
-	float3 LightDirection = LightParameters.Position - WorldPosition;
+	float3 LightDirection = LightParameters.TranslatedWorldPosition - TranslatedWorldPosition;
 	float RayLength = length(LightDirection);
 	LightDirection *= rcp(RayLength);
 
 	if (LightParameters.SourceRadius > 0.0)
 	{
-		IsVisible = GenerateDiskLightOcclusionRay(LightParameters, WorldPosition, WorldNormal, RandSample,
+		IsVisible = GenerateDiskLightOcclusionRay(LightParameters, TranslatedWorldPosition, WorldNormal, RandSample,
 			RayOrigin, RayDirection, RayTMin, RayTMax);
 	}
 	else
 	{
-		RayOrigin = WorldPosition;
+		RayOrigin = TranslatedWorldPosition;
 		RayDirection = LightDirection;
 		RayTMin = 0.01;
 		RayTMax = RayLength;

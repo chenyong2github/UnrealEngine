@@ -135,7 +135,7 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 CustomVector;
 	float3 WorldTangent;
 	float  Anisotropy;
-	float3 WorldPos;
+	float3 TranslatedWorldPos;
 
 	void SetFrontFace() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE; }
 	bool IsFrontFace() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
@@ -299,7 +299,7 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, Ra
 	Output.CustomData.z = f16tof32(Input.PackedData[12]);
 	Output.CustomData.w = f16tof32(Input.PackedData[12] >> 16);
 
-	Output.WorldPos = Ray.Origin + Output.HitT * Ray.Direction;
+	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
 
 	Output.DiffuseColor = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);

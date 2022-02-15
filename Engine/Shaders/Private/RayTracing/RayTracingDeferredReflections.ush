@@ -95,9 +95,9 @@ FSortedReflectionRay GenerateDeferredReflectionRay(uint2 PixelPos, float2 Upscal
 	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(BufferUV);
 	float DeviceZ                = SampleDeviceZFromSceneTextures(BufferUV);
 
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(SvPosition, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(SvPosition, DeviceZ, TranslatedWorldPosition, CameraDirection);
 	float3 V = -CameraDirection;
 
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
@@ -145,7 +145,7 @@ FSortedReflectionRay GenerateDeferredReflectionRay(uint2 PixelPos, float2 Upscal
 		Ray.Pdf = 1;
 	}
 
-	Ray.Origin = WorldPosition;
+	Ray.Origin = TranslatedWorldPosition;
 	Ray.SetDirection(L);
 
 	ApplyCameraRelativeDepthBias(Ray.Origin, L, SvPosition, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);

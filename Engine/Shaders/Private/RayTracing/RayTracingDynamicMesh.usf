@@ -15,17 +15,6 @@ struct FRayTracingDynamicMeshVSToGS
 	float4 WorldPosition : SV_POSITION;
 };
 
-void RayTracingDynamicMeshVS(
-	FVertexFactoryInput Input,
-	out FRayTracingDynamicMeshVSToGS Output
-	)
-{
-	ResolvedView = ResolveView();
-
-	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-	Output.WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates) - float4(LWCHackToFloat(ResolvedView.PreViewTranslation), 0.0f);
-}
-
 // Must match GetUniformMeshStreamOutLayout and TRIANGLE_VERTEX_DATA_STRIDE
 struct FRayTracingDynamicMeshVertex
 {

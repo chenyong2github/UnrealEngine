@@ -6,28 +6,21 @@
 
 #pragma once
 
-float3 ReconstructWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
-{
-	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
-	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
-	return TranslatedWorldPosition.xyz + LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-}
-
-void ReconstructWorldPositionAndCameraDirectionFromDeviceZ(uint2 PixelCoord, float DeviceZ, out float3 OutWorldPosition, out float3 OutCameraDirection)
-{
-	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
-	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
-	OutWorldPosition = TranslatedWorldPosition.xyz + LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-	OutCameraDirection = normalize(TranslatedWorldPosition.xyz - View.TranslatedWorldCameraOrigin);
-}
-
 float3 ReconstructTranslatedWorldPositionFromDeviceZ(uint2 PixelCoord, float DeviceZ)
 {
 	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
 	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
 	return TranslatedWorldPosition.xyz;
 }
- 
+
+void ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(uint2 PixelCoord, float DeviceZ, out float3 OutTranslatedWorldPosition, out float3 OutCameraDirection)
+{
+	float4 TranslatedWorldPosition = mul(float4(PixelCoord + 0.5, DeviceZ, 1), View.SVPositionToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+	OutTranslatedWorldPosition = TranslatedWorldPosition.xyz;
+	OutCameraDirection = normalize(TranslatedWorldPosition.xyz - View.TranslatedWorldCameraOrigin);
+}
+
 float3 ReconstructTranslatedWorldPositionFromDepth(float2 UV, float SceneDepth)
 {
 	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;

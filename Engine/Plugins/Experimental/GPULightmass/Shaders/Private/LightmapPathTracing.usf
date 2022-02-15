@@ -60,7 +60,7 @@ RWTexture2D<float4> SHCorrectionAndStationarySkyLightBentNormal;
 RWTexture2D<float4> OutputTileAtlas;
 
 void GenerateCosineNormalRay(
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	inout RandomSequence RandSequence,
 	out float3 RayOrigin,
@@ -80,7 +80,7 @@ void GenerateCosineNormalRay(
 	TangentDirection = Direction_Tangent.xyz;
 	float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	RayDirection = Direction_World;
 	RayTMin = 0.01;
 	RayTMax = 1e20;
@@ -195,7 +195,6 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCa
 		{
 			RayDesc LightRay = Ray;
 			LightRay.TMax = PackedPayload.IsMiss() ? Ray.TMax : PackedPayload.HitT;
-			LightRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
 		}
@@ -314,7 +313,7 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 
 void PathTracingKernel(
 	in uint RenderPassIndex,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 ShadingNormal,
 	inout RandomSequence RandSequence,
 	inout uint SampleIndex,
@@ -341,7 +340,7 @@ void PathTracingKernel(
 	
 	// GPULightmass's SampleEmitter(): generate a fake camera ray hitting the texel
 	RayDesc Ray;
-	Ray.Origin = WorldPosition + ShadingNormal;
+	Ray.Origin = TranslatedWorldPosition + ShadingNormal;
 	Ray.Direction = -ShadingNormal;
 	Ray.TMin = -0.01f;
 	Ray.TMax = 1.01f;
@@ -374,7 +373,7 @@ void PathTracingKernel(
 		{
 			// GPULightmass fakes a 'camera' ray that hits the lightmap texel perpendicularly
 			Payload.RayCone = (FRayCone)0;
-			Payload.WorldPos = WorldPosition;
+			Payload.TranslatedWorldPos = TranslatedWorldPosition;
 			Payload.WorldNormal = ShadingNormal;
 			Payload.Radiance = float3(0, 0, 0);
 			Payload.BaseColor = float3(1, 1, 1);
@@ -422,7 +421,7 @@ void PathTracingKernel(
 			float3 RecordIrradiance;
 			float3 RecordWorldNormal;
 			
-			uint3 Key = EncodeVoxelKey(floor(Payload.WorldPos / (Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing)));
+			uint3 Key = EncodeVoxelKey(floor(Payload.TranslatedWorldPos / (Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing)));
 			uint NormalDirectionBits = EncodeNormalBits(Payload.WorldNormal);			
 			uint HashKey = 0;
 			HashKey = MurmurAdd( HashKey, Key.x );
@@ -461,7 +460,7 @@ void PathTracingKernel(
 					if (!bGeometryQuerySuccessful)
 					{
 						bShouldEmitGeometryHitPoint = true;
-						IrradianceCachePrimaryGIHitPoint.WorldPosition.xyz = Payload.WorldPos;
+						IrradianceCachePrimaryGIHitPoint.WorldPosition.xyz = Payload.TranslatedWorldPos - LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 						IrradianceCachePrimaryGIHitPoint.WorldNormal.xyz = Payload.WorldNormal;
 						NewEntrySize = Payload.HitT >= CoarseLevelSpacing ? CoarseLevelSpacing : DetailLevelSpacing;
 					}
@@ -486,7 +485,7 @@ void PathTracingKernel(
 			AdjustMaterialRoughness(Payload, PathRoughness);
 		}
 		
-		FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation)); // RT_LWC_TODO
+		FLightLoopCount LightLoopCount = LightGridLookup(Payload.TranslatedWorldPos);
 
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
@@ -502,8 +501,7 @@ void PathTracingKernel(
 		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
 		{
 			// Choose a light and sample it
-			float3 WorldPos = Payload.WorldPos; // RT_LWC_TODO
-			float3 TranslatedWorldPos = Payload.WorldPos + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
+			float3 TranslatedWorldPos = Payload.TranslatedWorldPos;
 			float3 WorldNormal = Payload.WorldNormal;
 			uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
@@ -539,7 +537,7 @@ void PathTracingKernel(
 						const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldNormal, LightSample.Direction)) : 1.0;
 
 						RayDesc LightRay;
-						LightRay.Origin = WorldPos;
+						LightRay.Origin = TranslatedWorldPos;
 						LightRay.TMin = 0;
 						LightRay.Direction = LightSample.Direction;
 						LightRay.TMax = LightSample.Distance;
@@ -632,7 +630,7 @@ void PathTracingKernel(
 		}
 
 		// Update ray according to material sample
-		Ray.Origin = Payload.WorldPos;
+		Ray.Origin = Payload.TranslatedWorldPos;
 		Ray.Direction = MaterialSample.Direction;
 		Ray.TMin = 0;
 		Ray.TMax = POSITIVE_INFINITY;
@@ -669,9 +667,7 @@ void PathTracingKernel(
 					continue;
 				}
 
-				RayDesc TranslatedRay = Ray;
-				TranslatedRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
-				FLightHit LightResult = TraceLight(TranslatedRay, LightId);
+				FLightHit LightResult = TraceLight(Ray, LightId);
 
 				if (LightResult.IsMiss())
 				{
@@ -746,13 +742,18 @@ void LightmapPathTracingMainRG()
 	uint2 TexelIndexInPool = LaunchIndex + BatchedTiles[TileIndex].WorkingSetPosition;
 	uint2 TexelIndexInScratch = LaunchIndex + BatchedTiles[TileIndex].ScratchPosition;
 
-	float3 WorldPosition = GBufferWorldPosition[TexelIndexInScratch].xyz / WorldPositionScalar;
 	float3 WorldNormal = GBufferWorldNormal[TexelIndexInScratch].xyz;
 	float3 ShadingNormal = GBufferShadingNormal[TexelIndexInScratch].xyz;
 
+	float4 EncodedGBufferWorldPosition = GBufferWorldPosition[TexelIndexInScratch];
+
 	bool bIsValidSample = true;
-	
-	if (GBufferWorldPosition[TexelIndexInScratch].w == 0.0f) bIsValidSample = false;
+	if (EncodedGBufferWorldPosition.w == 0.0f)
+	{
+		bIsValidSample = false;
+	}
+
+	float3 TranslatedWorldPosition = EncodedGBufferWorldPosition.xyz / WorldPositionScalar + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	
 	if (NumTotalSamples <= 0 || (NumTotalSamples > 0 && BatchedTiles[TileIndex].RenderPassIndex < NumTotalSamples - 1))
 	{
@@ -785,7 +786,7 @@ void LightmapPathTracingMainRG()
 				{
 					PathTracingKernel(
 						BatchedTiles[TileIndex].RenderPassIndex,
-						WorldPosition,
+						TranslatedWorldPosition,
 						WorldNormal,
 						RandSequence,
 						SampleIndex,
@@ -950,7 +951,6 @@ struct FLightShaderConstants
 	{
 		const FLWCVector3 WorldPosition = MakeLWCVector3(TilePosition, RelativeWorldPosition);
 
-		LightShaderParameters.Position = LWCHackToFloat(WorldPosition); // RT_LWC_TODO
 		LightShaderParameters.TranslatedWorldPosition = LWCToFloat(LWCAdd(WorldPosition, PrimaryView.PreViewTranslation));
 		LightShaderParameters.InvRadius = InvRadius;
 		LightShaderParameters.Color = Color;
@@ -976,7 +976,7 @@ struct FLightShaderConstants
 bool GenerateOcclusionRay(
 	int LightType,
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	inout float3 RayOrigin,
@@ -989,7 +989,7 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -1002,7 +1002,7 @@ bool GenerateOcclusionRay(
 		{
 			return GeneratePointLightOcclusionRay(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ RayDirection,
@@ -1014,7 +1014,7 @@ bool GenerateOcclusionRay(
 			float RayPdf;
 			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ RayDirection,
@@ -1027,7 +1027,7 @@ bool GenerateOcclusionRay(
 	{
 		return GenerateSpotLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -1039,7 +1039,7 @@ bool GenerateOcclusionRay(
 		float RayPdf = 0.0;
 		return GenerateRectLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -1080,7 +1080,8 @@ void VolumetricLightmapPathTracingMainRG()
 	
 	float3 JitteredCellPosInVLM = (BrickRequests[BrickIndex].xyz * 4 + CellPosInBrick + Jitter - float3(0.5, 0.5, 0.5)) * BrickRequests[BrickIndex].w;	
 	float DetailCellSize = VolumeSize.xyz / IndirectionTextureDim / 4;
-	float3 WorldPosition = VolumeMin + DetailCellSize * JitteredCellPosInVLM;
+	float3 WorldPosition = VolumeMin + DetailCellSize * JitteredCellPosInVLM; // RT_LWC_TODO
+	float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	float3 ShadingNormal = float3(0, 0, (FrameNumber % 2 == 0) ? 1 : -1);
 
 	float3 RadianceValue = 0;
@@ -1097,7 +1098,7 @@ void VolumetricLightmapPathTracingMainRG()
 		
 		PathTracingKernel(
 			FrameNumber,
-			WorldPosition,
+			TranslatedWorldPosition,
 			ShadingNormal,
 			RandSequence,
 			SampleIndex,
@@ -1210,7 +1211,7 @@ void VolumetricLightmapPathTracingMainRG()
 		bool bIsValidRay = GenerateOcclusionRay(
 			LIGHT_TYPE_DIRECTIONAL,
 			LightParameters,
-			WorldPosition, ShadingNormal,
+			TranslatedWorldPosition, ShadingNormal,
 			RandSample,
 			/* out */ Ray.Origin,
 			/* out */ Ray.Direction,
@@ -1254,12 +1255,15 @@ void StationaryLightShadowTracingMainRG()
 	int ChannelIndex = ChannelIndexArray[TileIndex];
 
 	bool bIsValidSample = true;
+
+	float4 EncodedGBufferWorldPosition = GBufferWorldPosition[TexelIndexInScratch];
 	
-	float3 WorldPosition = GBufferWorldPosition[TexelIndexInScratch].xyz / WorldPositionScalar;	
-	if (GBufferWorldPosition[TexelIndexInScratch].w == 0.0f)
+	if (EncodedGBufferWorldPosition.w == 0.0f)
 	{
 		bIsValidSample = false;
 	}
+
+	float3 TranslatedWorldPosition = EncodedGBufferWorldPosition.xyz / WorldPositionScalar + LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 	
 	if (bIsValidSample)
 	{
@@ -1284,7 +1288,7 @@ void StationaryLightShadowTracingMainRG()
 			bIsValidSample &= GenerateOcclusionRay(
 				LightType,
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ Ray.Origin,
 				/* out */ Ray.Direction,

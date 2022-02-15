@@ -108,9 +108,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 	// Construct position, normal, and view direction
 	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, TranslatedWorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 
 //#if USE_REJECTION_CRITERIA
@@ -123,10 +123,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	RayDesc Ray = CreatePrimaryRay(UV);
 
 	// Intersect ray differential with normal to find world-space distance
-	float d = -dot(WorldNormal, WorldPosition);
+	float d = -dot(WorldNormal, TranslatedWorldPosition);
 	float T = -(d + dot(WorldNormal, Ray.Origin)) / dot(WorldNormal, Ray.Direction);
 	float3 WorldDeltaPosition = Ray.Origin + T * Ray.Direction;
-	float RejectionDistance = length(WorldDeltaPosition - WorldPosition);
+	float RejectionDistance = length(WorldDeltaPosition - TranslatedWorldPosition);
 
 	float3 ExitantRadiance = 0.0;
 	float3 MaxExitantRadianceSample = 0.0;
@@ -139,7 +139,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #if USE_TEMPORAL_SAMPLES
 
 	uint GatherPointsIndex = DispatchThreadIdToLinearIndex(DispatchThreadId);
-	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(WorldPosition, RejectionDistance);
+	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(TranslatedWorldPosition, RejectionDistance);
 #if USE_REJECTION_CRITERIA
 	CreateRejectionMask(RejectionCriteria, GatherPointsBuffer, GatherPointsIndex, 0, GatherPointsResolution.x* GatherPointsResolution.y, SamplesPerPixel, bShouldReject);
 #endif
@@ -157,7 +157,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #endif
 
 #if USE_REPROJECTION
-		float4 ScreenPositionTime = mul(float4(WorldPosition, 1.0), GatherPointData.ViewMatrices[LocalSampleIndex]);
+		float4 ScreenPositionTime = mul(float4(TranslatedWorldPosition, 1.0), GatherPointData.ViewMatrices[LocalSampleIndex]);
 		ScreenPositionTime.xyz /= ScreenPositionTime.w;
 		if (any(abs(ScreenPositionTime.xy) > 1.0))
 		{
@@ -176,7 +176,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		FGatherSample GatherSample = ReadGatherSample(GatherPointsBuffer, GatherPointsIndex, LocalSampleIndex, GatherPointsResolution.x * GatherPointsResolution.y);
 
 #if USE_REPROJECTION
-		float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherSample.CreationPoint;
+		float3 GPDistance2 = RejectionCriteria.TranslatedCreationPoint - GatherSample.TranslatedCreationPoint;
 		if (dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2)
 		{
 			bShouldReject[LocalSampleIndex] = true;
@@ -201,13 +201,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		}
 		ValidSamplesPerPixel++;
 
-		float3 GPPosition = GatherSample.Position;
+		float3 GPTranslatedPosition = GatherSample.TranslatedCreationPoint;
 		float3 GPIrradiance = GatherSample.Irradiance;
 
 		// Initialize throughput based on BRDF
 		half3 N = WorldNormal;
 		half3 V = -CameraDirection;
-		half3 L = normalize(GPPosition - WorldPosition);
+		half3 L = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 		float NoL = dot(N, L);
 		if (NoL <= 0.0) continue;
 
@@ -226,10 +226,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 		// Create ray
 		RayDesc Ray;
-		Ray.Origin = WorldPosition;
-		Ray.Direction = normalize(GPPosition - WorldPosition);
+		Ray.Origin = TranslatedWorldPosition;
+		Ray.Direction = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 		Ray.TMin = 0.05;
-		float RayLength = length(GPPosition - WorldPosition);
+		float RayLength = length(GPTranslatedPosition - TranslatedWorldPosition);
 		Ray.TMax = max(RayLength - 0.01, Ray.TMin);
 
 		// Trace ray
@@ -281,6 +281,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 			if (bShouldReject[ParentSampleIndex]) continue;
 
 #if USE_REPROJECTION
+			float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 			float4 ScreenPositionTime = mul(float4(WorldPosition, 1.0), GatherPointData.ViewMatrices[ParentSampleIndex]);
 			ScreenPositionTime.xyz /= ScreenPositionTime.w;
 			float2 ScreenUVTime = ScreenPositionTime.xy * float2(0.5, -0.5) + 0.5;
@@ -315,13 +316,13 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 				ValidSamplesPerPixel++;
 				uint GatherPointsIndex = DispatchThreadIdToLinearIndex(GlobalIndex);
 				FGatherSample GatherSample = ReadGatherSample(GatherPointsBuffer, GatherPointsIndex, ParentSampleIndex, GatherPointsResolution.x * GatherPointsResolution.y);
-				float3 GPPosition = GatherSample.Position;
+				float3 GPTranslatedPosition = GatherSample.TranslatedPosition;
 				float3 GPIrradiance = GatherSample.Irradiance;
 
 				// Initialize throughput based on BRDF
 				half3 N = WorldNormal;
 				half3 V = -CameraDirection;
-				half3 L = normalize(GPPosition - WorldPosition);
+				half3 L = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 				float NoL = dot(N, L);
 
 				// Threshold against grazing angle, so the the pdf's don't explode
@@ -342,10 +343,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #if USE_NEIGHBOR_VISIBILITY_TEST
 				// Create ray
 				RayDesc Ray;
-				Ray.Origin = WorldPosition;
-				Ray.Direction = normalize(GPPosition - WorldPosition);
+				Ray.Origin = TranslatedWorldPosition;
+				Ray.Direction = normalize(GPTranslatedPosition - TranslatedWorldPosition);
 				Ray.TMin = 0.01;
-				float RayLength = length(GPPosition - WorldPosition);
+				float RayLength = length(GPTranslatedPosition - TranslatedWorldPosition);
 				Ray.TMax = max(RayLength - 0.01, Ray.TMin);
 
 				// Trace ray

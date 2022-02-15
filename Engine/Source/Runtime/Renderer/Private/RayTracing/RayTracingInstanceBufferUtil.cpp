@@ -116,6 +116,7 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 
 void FillRayTracingInstanceUploadBuffer(
 	FRayTracingSceneRHIRef RayTracingSceneRHI,
+	FVector PreViewTranslation,
 	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	TConstArrayView<uint32> InstanceGeometryIndices,
 	TConstArrayView<uint32> BaseUploadBufferOffsets,
@@ -138,6 +139,7 @@ void FillRayTracingInstanceUploadBuffer(
 			Instances,
 			InstanceGeometryIndices,
 			BaseUploadBufferOffsets,
+			PreViewTranslation,
 			&SceneInitializer,
 			&NumInactiveNativeInstances
 		](int32 SceneInstanceIndex)
@@ -208,10 +210,11 @@ void FillRayTracingInstanceUploadBuffer(
 				if (bCpuInstance)
 				{
 					const uint32 TransformDataOffset = InstanceDesc.GPUSceneInstanceOrTransformIndex * 3;
-					const FMatrix44f LocalToWorld = FMatrix44f(SceneInstance.Transforms[TransformIndex].GetTransposed());		// LWC_TODO: Precision loss
-					OutTransformData[TransformDataOffset + 0] = *(FVector4f*)&LocalToWorld.M[0];
-					OutTransformData[TransformDataOffset + 1] = *(FVector4f*)&LocalToWorld.M[1];
-					OutTransformData[TransformDataOffset + 2] = *(FVector4f*)&LocalToWorld.M[2];
+					FMatrix LocalToTranslatedWorld = SceneInstance.Transforms[TransformIndex].ConcatTranslation(PreViewTranslation);
+					const FMatrix44f LocalToTranslatedWorldF = FMatrix44f(LocalToTranslatedWorld.GetTransposed());
+					OutTransformData[TransformDataOffset + 0] = *(FVector4f*)&LocalToTranslatedWorldF.M[0];
+					OutTransformData[TransformDataOffset + 1] = *(FVector4f*)&LocalToTranslatedWorldF.M[1];
+					OutTransformData[TransformDataOffset + 2] = *(FVector4f*)&LocalToTranslatedWorldF.M[2];
 				}
 			}
 
@@ -244,6 +247,9 @@ struct FRayTracingBuildInstanceBufferCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, InputDescOffset)
 
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
+
+		SHADER_PARAMETER(FVector3f, ViewTilePosition)
+		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FUseGPUSceneDim : SHADER_PERMUTATION_BOOL("USE_GPUSCENE");
@@ -271,6 +277,8 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingBuildInstanceBufferCS, "/Engine/Private/Raytr
 void BuildRayTracingInstanceBuffer(
 	FRHICommandList& RHICmdList,
 	const FGPUScene* GPUScene,
+	FVector3f ViewTilePosition,
+	FVector3f RelativePreViewTranslation,
 	uint32 NumInstances,
 	uint32 InputDescOffset,
 	FUnorderedAccessViewRHIRef InstancesUAV,
@@ -286,6 +294,8 @@ void BuildRayTracingInstanceBuffer(
 	PassParams.FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();	// LWC_TODO: Precision Loss
 	PassParams.NumInstances = NumInstances;
 	PassParams.InputDescOffset = InputDescOffset;
+	PassParams.ViewTilePosition = ViewTilePosition;
+	PassParams.RelativePreViewTranslation = RelativePreViewTranslation;
 
 	if (GPUScene)
 	{
@@ -315,6 +325,8 @@ void BuildRayTracingInstanceBuffer(
 void BuildRayTracingInstanceBuffer(
 	FRHICommandList& RHICmdList,
 	const FGPUScene* GPUScene,
+	FVector3f ViewTilePosition,
+	FVector3f RelativePreViewTranslation,
 	FUnorderedAccessViewRHIRef InstancesUAV,
 	FShaderResourceViewRHIRef InstanceUploadSRV,
 	FShaderResourceViewRHIRef AccelerationStructureAddressesSRV,
@@ -328,6 +340,8 @@ void BuildRayTracingInstanceBuffer(
 		BuildRayTracingInstanceBuffer(
 			RHICmdList,
 			GPUScene,
+			ViewTilePosition,
+			RelativePreViewTranslation,
 			NumNativeGPUSceneInstances,
 			0,
 			InstancesUAV,
@@ -341,6 +355,8 @@ void BuildRayTracingInstanceBuffer(
 		BuildRayTracingInstanceBuffer(
 			RHICmdList,
 			GPUScene,
+			ViewTilePosition,
+			RelativePreViewTranslation,
 			NumNativeCPUInstances,
 			NumNativeGPUSceneInstances, // CPU instance input descriptors are stored after GPU Scene instances
 			InstancesUAV,
@@ -357,6 +373,8 @@ void BuildRayTracingInstanceBuffer(
 		BuildRayTracingInstanceBuffer(
 			RHICmdList,
 			GPUScene,
+			ViewTilePosition,
+			RelativePreViewTranslation,
 			GPUInstance.NumInstances,
 			InputDescOffset,
 			InstancesUAV,

@@ -79,7 +79,7 @@ void NeedTraceHair(
 
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -92,7 +92,7 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -105,7 +105,7 @@ bool GenerateOcclusionRay(
 		{
 			return GeneratePointLightOcclusionRay(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ RayDirection,
@@ -118,7 +118,7 @@ bool GenerateOcclusionRay(
 			//return GenerateSphereLightOcclusionRayWithAreaSampling(
 			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ RayDirection,
@@ -131,7 +131,7 @@ bool GenerateOcclusionRay(
 	{
 		return GenerateSpotLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -143,7 +143,7 @@ bool GenerateOcclusionRay(
 		float RayPdf = 0.0;
 		return GenerateRectLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ RayDirection,
@@ -330,7 +330,7 @@ FOcclusionResult ComputeOcclusion(
 {
 	FOcclusionResult Out = InitOcclusionResult();
 
-	const float3 WorldPosition = ReconstructWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
+	const float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
 
 	// For hair shading model, WorldNormal is actually the shading tangent.
 	// To generate proper bias, we compute a normal oriented toward the light.
@@ -349,7 +349,7 @@ FOcclusionResult ComputeOcclusion(
 	#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 		const float3 LightDirection = LightParameters.Direction;
 	#else
-		const float3 LightDirection = normalize(LightParameters.Position - WorldPosition);
+		const float3 LightDirection = normalize(LightParameters.TranslatedWorldPosition - TranslatedWorldPosition);
 	#endif
 		WorldNormal = LightDirection;
 	}
@@ -383,7 +383,7 @@ FOcclusionResult ComputeOcclusion(
 		RayDesc Ray;
 		bool bIsValidRay = GenerateOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ Ray.Origin,
 			/* out */ Ray.Direction,
@@ -495,7 +495,7 @@ FOcclusionResult ComputeOcclusion(
 						Density = 1;
 					}
 					float ExtinctionCoefficient = Density;
-					float Thickness = length(HitPosition - WorldPosition);
+					float Thickness = length(HitPosition - TranslatedWorldPosition);
 					float Transmission = saturate(exp(-ExtinctionCoefficient * Thickness));
 
 					if (Transmission == 1.0)
@@ -529,12 +529,13 @@ FOcclusionResult ComputeOcclusion(
 
 		// Fix light sampling to occur at the light center for all transmission computations..
 		float2 LightSample = 0.5;
-		const float3 V = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldViewOrigin));
+		const float3 TranslatedWorldViewOrigin = LWCToFloat(LWCAdd(PrimaryView.WorldViewOrigin, PrimaryView.PreViewTranslation));
+		const float3 V = normalize(TranslatedWorldPosition - TranslatedWorldViewOrigin);
 
 		const float MeanFreePath = TransmissionProfileParams.ExtinctionScale;
 		const float Eta = TransmissionProfileParams.OneOverIOR;
 		const uint RejectionRetryMax = LocalSamplesPerPixel - 1;
-		Out.TransmissionDistance = ComputeDiffuseTransmission(V, WorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax, PixelCoord);
+		Out.TransmissionDistance = ComputeDiffuseTransmission(V, TranslatedWorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax, PixelCoord);
 
 		// Overload closest-hit distance to express occlusion distance when facing the light or transmission distance when back-facing
 		if (Out.TransmissionDistance < SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE)
@@ -547,7 +548,7 @@ FOcclusionResult ComputeOcclusion(
 	}
 	else if (ShadingDesc.bIsSubsurface || ShadingDesc.bIsHair)
 	{
-		float Depth = length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+		float Depth = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
 		float Range = LODTransitionEnd - LODTransitionStart;
 		if (Depth > LODTransitionStart && Range > 0.0)
 		{
@@ -579,7 +580,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 		uint LinearIndex = CalcLinearIndex(PixelCoord);
 		RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
-		FLightShaderParameters LightParameters = GetRootLightShaderParameters(PrimaryView.PreViewTranslation);
+		FLightShaderParameters LightParameters = GetRootLightShaderParameters();
 
 		// Read material data
 		float3 WorldNormal = 0;

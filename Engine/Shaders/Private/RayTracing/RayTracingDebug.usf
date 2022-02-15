@@ -145,7 +145,7 @@ float4 DebugRayTracingMaterial(RayDesc Ray, bool bIsFarField)
 			Result = float4(Payload.IndirectIrradiance, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_WORLD_POSITION:
-			Result = float4(Payload.WorldPos, 1.0f);
+			Result = float4(Payload.TranslatedWorldPos, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_HITKIND:
 			Result = Payload.IsFrontFace() ? float4(0.0, 1.0, 0.0, 1.0f) : float4(1.0, 0.0, 0.0, 1.0f);

@@ -6,7 +6,7 @@
 
 bool GenerateSphereLightOcclusionRayWithAreaSampling(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -18,12 +18,12 @@ bool GenerateSphereLightOcclusionRayWithAreaSampling(
 {
 	float4 Result = UniformSampleSphere(RandSample);
 	float3 LightNormal = Result.xyz;
-	float3 LightPosition = LightParameters.Position + LightNormal * LightParameters.SourceRadius;
-	float3 LightDirection = LightPosition - WorldPosition;
+	float3 TranslatedLightPosition = LightParameters.TranslatedWorldPosition + LightNormal * LightParameters.SourceRadius;
+	float3 LightDirection = TranslatedLightPosition - TranslatedWorldPosition;
 	float RayLength = length(LightDirection);
 	LightDirection /= RayLength;
 
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	RayDirection = LightDirection;
 	RayTMin = 0.0;
 	RayTMax = RayLength;
@@ -35,7 +35,7 @@ bool GenerateSphereLightOcclusionRayWithAreaSampling(
 
 bool GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -52,14 +52,14 @@ bool GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 	RayPdf = 0.0;
 
 	// Determine if shading point is contained within sphere light
-	float3 LightDirection = LightParameters.Position - WorldPosition;
+	float3 LightDirection = LightParameters.TranslatedWorldPosition - TranslatedWorldPosition;
 	float RayLength2 = dot(LightDirection, LightDirection);
 	float Radius2 = LightParameters.SourceRadius * LightParameters.SourceRadius;
 
 	BRANCH
 	if (RayLength2 <= Radius2)
 	{
-		return GenerateSphereLightOcclusionRayWithAreaSampling(LightParameters, WorldPosition, WorldNormal, RandSample,
+		return GenerateSphereLightOcclusionRayWithAreaSampling(LightParameters, TranslatedWorldPosition, WorldNormal, RandSample,
 			RayOrigin, RayDirection, RayTMin, RayTMax, RayPdf);
 	}
 
@@ -77,7 +77,7 @@ bool GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 	float CosTheta = DirAndPdf.z;
 	float SinTheta2 = 1.0 - CosTheta * CosTheta;
 
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	// Project ray direction to world-space, such that z-axis aligns with LightDirection
 	float RayLength = sqrt(RayLength2);
 	LightDirection *= rcp(RayLength + 1e-4);

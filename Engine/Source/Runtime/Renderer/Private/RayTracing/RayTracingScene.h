@@ -34,7 +34,7 @@ public:
 	// Creates RayTracingSceneRHI.
 	// Allocates GPU memory to fit at least the current number of instances.
 	// Kicks off instance buffer build to parallel thread along with RDG pass
-	void Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene);
+	void Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices);
 
 	// Resets the instance list and reserves memory for this frame.
 	void Reset();

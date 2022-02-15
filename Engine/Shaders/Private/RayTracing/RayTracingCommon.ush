@@ -169,7 +169,7 @@ struct FDefaultPayload : FIntersectionPayload
 
 struct FVFXTracePayload : FIntersectionPayload
 {
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 WorldNormal;
 };
 
@@ -321,7 +321,7 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	// Quite some code assume FRayHitInfo has a WorldPos
 	// So keep it here and force to re-construct it in Unpack call using ray information.
 	// It is not packed in FRayHitInfoPacked
-	float3 WorldPos;					// 136       0       (derived)
+	float3 TranslatedWorldPos;			// 136       0       (derived)
 	uint Flags;							// 148       0       6bits (packed with ShadingModelID)
 	float3 WorldTangent;				// 152       6       48bits
 	float Anisotropy;					// 164       2       16bits (packed with WorldTangent)
@@ -358,8 +358,8 @@ void ApplyPositionBias(inout float3 RayOrigin, float3 RayDirection, const float3
 
 void ApplyCameraRelativeDepthBias(inout float3 RayOrigin, float3 RayDirection, uint2 PixelCoord, float DeviceZ, const float3 WorldNormal, const float AbsoluteNormalBias)
 {
-	float3 WorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
-	float3 CameraDirection = WorldPosition - View.TranslatedWorldCameraOrigin;
+	float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
+	float3 CameraDirection = TranslatedWorldPosition - View.TranslatedWorldCameraOrigin;
 	float DistanceToCamera = length(CameraDirection);
 	CameraDirection = normalize(CameraDirection);
 	float Epsilon = 1.0e-4;
@@ -380,7 +380,7 @@ RayDesc CreatePrimaryRay(float2 UV)
 	RayDesc Ray;
 	float4 NearPoint = mul(float4(ScreenPosition, 1, 1), View.ClipToTranslatedWorld);
 	float4 FarPoint  = mul(float4(ScreenPosition, 0, 1), View.ClipToTranslatedWorld);
-	Ray.Origin = NearPoint.xyz * rcp(NearPoint.w) + LWCHackToFloat(MakeLWCVector3(View.ViewTilePosition, View.RelativeWorldCameraOrigin));
+	Ray.Origin = NearPoint.xyz * rcp(NearPoint.w);
 	Ray.Direction = normalize(NearPoint.w * FarPoint.xyz - FarPoint.w * NearPoint.xyz);
 
 	// extract far plane (ortho only, so ignore distinction between T and Z)
@@ -595,7 +595,7 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);
-	Output.WorldPos		 = Ray.Origin + Output.HitT * Ray.Direction;
+	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
 
 	return Output;
 }

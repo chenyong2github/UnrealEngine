@@ -98,7 +98,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 #endif
 
 	float Depth = GBufferData.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
+	float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDepth(UV, Depth);
 
 	// Trace rays from camera origin to Gbuffer (only translucent objects are considered on the first ray, so a bias is not needed)
 	RayDesc Ray = CreatePrimaryRay(UV);
@@ -110,7 +110,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 		// NOTE: we need a small epsilon even though we only trace RAY_TRACING_MASK_TRANSLUCENT objects at first
 		//       because we might have an object with a mix of materials on it and therefore still need to avoid
 		//       hitting the target surface if possible
-		Ray.TMax = dot(WorldPosition - Ray.Origin, Ray.Direction) - 0.1; // assumes Ray.Direction is normalized
+		Ray.TMax = dot(TranslatedWorldPosition - Ray.Origin, Ray.Direction) - 0.1; // assumes Ray.Direction is normalized
 	}
 
 	bool bAllowSkySampling;

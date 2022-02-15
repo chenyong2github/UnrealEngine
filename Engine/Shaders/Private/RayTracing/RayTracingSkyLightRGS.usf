@@ -36,9 +36,9 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 #endif
 
 	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, TranslatedWorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 	float3 Albedo = GBufferData.DiffuseColor;
 
@@ -72,7 +72,7 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 		DispatchThreadId,
 		PixelCoord,
 		SamplesPerPixel,
-		WorldPosition,
+		TranslatedWorldPosition,
 		WorldNormal,
 		CameraDirection,
 		GBufferData,

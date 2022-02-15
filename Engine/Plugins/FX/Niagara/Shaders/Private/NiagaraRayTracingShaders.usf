@@ -68,7 +68,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	FNiagaraAsyncGpuTrace InputRay = Rays[RayIndex + RaysOffset];
 
 	RayDesc Ray;
-	Ray.Origin = InputRay.Origin;
+	Ray.Origin = InputRay.Origin + LWCHackToFloat(PrimaryView.PreViewTranslation); // LWC_TODO
 	Ray.Direction = InputRay.Direction;
 	Ray.TMin = 0.0f;
 	Ray.TMax = InputRay.TFar;
@@ -135,7 +135,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	CollisionOutput[OutputIndex].HitT = Payload.HitT;
 	if (Payload.IsHit())
 	{
-		CollisionOutput[OutputIndex].WorldPosition = Payload.WorldPosition;
+		CollisionOutput[OutputIndex].WorldPosition = Payload.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // LWC_TODO
 		CollisionOutput[OutputIndex].WorldNormal = Payload.WorldNormal;
 	}
 }

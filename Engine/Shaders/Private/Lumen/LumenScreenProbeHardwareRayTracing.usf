@@ -147,7 +147,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		uint2 ScreenProbeTraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
-		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		float2 ProbeUV;
@@ -155,7 +155,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 
 		RayDesc Ray;
-		Ray.Origin = WorldPosition;
+		Ray.Origin = TranslatedWorldPosition;
 		Ray.Direction = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 		Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 #if ENABLE_FAR_FIELD_TRACING
@@ -188,9 +188,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
 			Ray.TMax = Ray.TMin;
 			// Cull TMax by the bounding sphere of the near-field
-			if (length(Ray.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) < MaxTraceDistance)
+			if (length(Ray.Origin - PrimaryView.TranslatedWorldCameraOrigin) < MaxTraceDistance)
 			{
-				float2 Hit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(LWCHackToFloat(PrimaryView.WorldCameraOrigin), MaxTraceDistance));
+				float2 Hit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(PrimaryView.TranslatedWorldCameraOrigin, MaxTraceDistance));
 				Ray.TMax = (Hit.x > 0) ? Hit.x : ((Hit.y > 0) ? Hit.y : Ray.TMin);
 			}
 
@@ -198,7 +198,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 #if DIM_RADIANCE_CACHE
 			{
 				float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(Ray.Origin, Ray.Direction, ClipmapDitherRandom);
+				float3 RayOriginWorldPos = Ray.Origin - LWCHackToFloat(PrimaryView.PreViewTranslation);
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(RayOriginWorldPos, Ray.Direction, ClipmapDitherRandom); // LUMEN_LWC_TODO
 				if (Coverage.bValid)
 				{
 					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
@@ -235,8 +236,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		bool bMoving = false;
 		if (Result.bIsHit)
 		{
-			float3 HitWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
-			bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, Result.WorldVelocity);
+			float3 HitTranslatedWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
+			bMoving = IsTraceMoving(TranslatedWorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition, Result.WorldVelocity);
 		}
 
 		RWTraceRadiance[ScreenProbeTraceCoord] = Result.Radiance * View.PreExposure;

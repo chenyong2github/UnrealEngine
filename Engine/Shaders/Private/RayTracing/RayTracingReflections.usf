@@ -259,10 +259,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	}
 
 	// Calculate the world position and direction to the camera for the raster pixel from the g-buffer
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
-	float3 OriginalWorldPosition = WorldPosition;
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, TranslatedWorldPosition, CameraDirection);
+	float3 OriginalTranslatedWorldPosition = TranslatedWorldPosition;
 
 	// Reflection information
 	float4 ReflectedColor = 0.0;
@@ -390,7 +390,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				const bool bDecoupleSampleGeneration = SkyLightDecoupleSampleGeneration != 0;
 
 				// Prepare a ray to trace the top layer reflection
-				TopLayerRay.Origin = WorldPosition;
+				TopLayerRay.Origin = TranslatedWorldPosition;
 				TopLayerRay.TMin = 0.0;
 				TopLayerRay.TMax = LocalMaxRayDistance;
 
@@ -440,8 +440,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 						if (DIM_HYBRID && DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 						{
-							float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
-							float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+							float3 RayHitTranslatedWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
+							float4 RayHitClipPos = mul(float4(RayHitTranslatedWorldPos, 1.0f), PrimaryView.TranslatedWorldToClip);
 
 							if (RayHitClipPos.w > 0)
 							{
@@ -487,7 +487,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				{
 					// Trace reflection ray for the bottom layer
 					RayDesc BottomLayerRay;
-					BottomLayerRay.Origin = WorldPosition;
+					BottomLayerRay.Origin = TranslatedWorldPosition;
 					BottomLayerRay.TMin = 0.0;
 					BottomLayerRay.TMax = LocalMaxRayDistance;
 
@@ -571,7 +571,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						BottomLayerRadiance = SpecularOcclusion *
 							CompositeReflectionCapturesAndSkylight(
 								1.0,	// coverage of 1
-								WorldPosition,
+								TranslatedWorldPosition,
 								R,
 								BottomLayerRoughness,
 								IndirectIrradiance,
@@ -620,8 +620,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				if (DIM_HYBRID && DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE 
 					&& DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE)
 				{
-					float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
-					float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), LWCHackToFloat(PrimaryView.WorldToClip));
+					float3 RayHitTranslatedWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
+					float4 RayHitClipPos = mul(float4(RayHitTranslatedWorldPos, 1.0f), PrimaryView.TranslatedWorldToClip);
+
 					float2 RayHitScreenPos = RayHitClipPos.xy / RayHitClipPos.w;
 					float2 RayHitUV = RayHitScreenPos * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 
@@ -666,20 +667,20 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						Transmission = Transmit(TransmissionRay, PixelCoord, TopLayerRadiance);
 					}
 
-					float3 RayHitWorldPos = TopLayerRay.Origin + PackedPayload.HitT * TopLayerRay.Direction;
+					float3 RayHitTranslatedWorldPos = TopLayerRay.Origin + PackedPayload.HitT * TopLayerRay.Direction;
 					float3 LightingViewDirection = TopLayerRay.Direction;
 
 					if (DIM_HYBRID)
 					{
 						// Enforce consistent eye vector for computing lighting between screen space and ray traced reflections when using hybrid mode.
 						// This ensures that specular lighting matches and there is no visual discontinuity, even though it is wrong.
-						LightingViewDirection = normalize(RayHitWorldPos - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+						LightingViewDirection = normalize(RayHitTranslatedWorldPos - View.TranslatedWorldCameraOrigin);
 					}
 
 					float3 Radiance = 0.0;
 					AccumulateResults(
 						PackedPayload,
-						RayHitWorldPos,
+						RayHitTranslatedWorldPos,
 						LightingViewDirection,
 						TLAS,
 						RandSequence,
@@ -783,7 +784,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 				// Setup next iteration
 				IncidentDirection = TopLayerRay.Direction;
-				WorldPosition = TopLayerRay.Origin + PackedPayload.HitT * TopLayerRay.Direction;
+				TranslatedWorldPosition = TopLayerRay.Origin + PackedPayload.HitT * TopLayerRay.Direction;
 
 				ShadingModelID = PackedPayload.GetShadingModelID();
 				TopLayerWorldNormal = PackedPayload.GetWorldNormal();
@@ -855,7 +856,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					PathRadiance.rgb += EnvBRDF(TopLayerSpecularColor, TopLayerRoughness, NoV) * SpecularOcclusion * PathThroughput *
 						CompositeReflectionCapturesAndSkylight(
 							1.0,	// coverage of 1
-							WorldPosition,
+							TranslatedWorldPosition,
 							R,
 							TopLayerRoughness,
 							IndirectIrradiance,
@@ -908,14 +909,14 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	{
 		// Calculate imaginary closest hit depth based on the closest hit distance (NVIDIA's denoiser specifically uses the closest hit depth)
 
-		float4 ImaginaryClosestWorldPos = float4(WorldPosition + CameraDirection * ClosestHitDistance, 1.0f);
-		float4 ImaginaryClosestClipPos = mul(ImaginaryClosestWorldPos, LWCHackToFloat(PrimaryView.WorldToClip));
+		float3 ImaginaryClosestTranslatedWorldPos = TranslatedWorldPosition + CameraDirection * ClosestHitDistance;
+		float4 ImaginaryClosestClipPos = mul(float4(ImaginaryClosestTranslatedWorldPos, 1.0f), PrimaryView.TranslatedWorldToClip);
 		float ImaginaryClosestSVDepth = saturate(ImaginaryClosestClipPos.z / ImaginaryClosestClipPos.w);
 
 		// Calculate imaginary hit depth based on the imaginary hit distance
 
-		float4 ImaginaryWorldPos = float4(WorldPosition + CameraDirection * ImaginaryHitDistance, 1.0f);
-		float4 ImaginaryClipPos = mul(ImaginaryWorldPos, LWCHackToFloat(PrimaryView.WorldToClip));
+		float3 ImaginaryTranslatedWorldPos = TranslatedWorldPosition + CameraDirection * ImaginaryHitDistance;
+		float4 ImaginaryClipPos = mul(float4(ImaginaryTranslatedWorldPos, 1.0f), PrimaryView.TranslatedWorldToClip);
 
 		// Calculate imaginary hit position velocity if the denoiser expects the regular G-buffer to have one
 
@@ -944,7 +945,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 
 		float ConfusionFactor = ComputeDenoiserConfusionFactor(
 			ClosestHitDistance != DENOISER_INVALID_HIT_DISTANCE,
-			length(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin)),
+			length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin),
 			ClosestHitDistance);
 
 		// Accumulate output information if it has been set by the initial sample
@@ -1012,10 +1013,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		if (EnableTranslucency && (SampleMode == SAMPLE_PHASE_MONOLITHIC || SampleMode == SAMPLE_PHASE_RESOLVE))
 		{
 			RayDesc TransmissionRay;
-			TransmissionRay.Origin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+			TransmissionRay.Origin = View.TranslatedWorldCameraOrigin;
 			TransmissionRay.Direction = CameraDirection;
 			TransmissionRay.TMin = 0.0;
-			TransmissionRay.TMax = dot(OriginalWorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraDirection) - 0.1;
+			TransmissionRay.TMax = dot(OriginalTranslatedWorldPosition - View.TranslatedWorldCameraOrigin, CameraDirection) - 0.1;
 			float3 Inscattering = 0.0;
 			float Transmission = Transmit(TransmissionRay, PixelCoord, Inscattering);
 			//#dxr_todo: add Inscattering support (this is emission only so far)

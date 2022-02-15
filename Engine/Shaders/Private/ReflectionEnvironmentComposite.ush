@@ -228,7 +228,7 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 
 float3 CompositeReflectionCapturesAndSkylight(
 	float CompositeAlpha, 
-	float3 WorldPosition, 
+	float3 TranslatedWorldPosition, 
 	float3 RayDirection, 
 	float Roughness, 
 	float IndirectIrradiance, 
@@ -241,7 +241,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 {
 	return CompositeReflectionCapturesAndSkylightTWS(
 		CompositeAlpha, 
-		WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 
+		TranslatedWorldPosition,
 		RayDirection, 
 		Roughness, 
 		IndirectIrradiance, 
@@ -256,7 +256,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 
 float3 CompositeReflectionCapturesAndSkylight(
 	float CompositeAlpha, 
-	float3 WorldPosition, 
+	float3 TranslatedWorldPosition,
 	float3 RayDirection, 
 	float Roughness, 
 	float IndirectIrradiance, 
@@ -270,7 +270,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 {
 	return CompositeReflectionCapturesAndSkylightTWS(
 		CompositeAlpha, 
-		WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), 
+		TranslatedWorldPosition,
 		RayDirection, 
 		Roughness, 
 		IndirectIrradiance, 

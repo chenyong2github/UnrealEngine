@@ -1067,6 +1067,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				FVector4f* TransformUploadData = (FVector4f*)RHICmdList.LockBuffer(TransformUploadBuffer, 0, TransformUploadBufferSize, RLM_WriteOnly);
 				FillRayTracingInstanceUploadBuffer(
 					RayTracingScene,
+					View.ViewMatrices.GetPreViewTranslation(),
 					RayTracingGeometryInstances,
 					SceneWithGeometryInstances.InstanceGeometryIndices,
 					SceneWithGeometryInstances.BaseUploadBufferOffsets,
@@ -1101,9 +1102,14 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 					}
 				});
 
+			const FLargeWorldRenderPosition AbsoluteViewOrigin(View.ViewMatrices.GetViewOrigin());
+			const FVector ViewTileOffset = AbsoluteViewOrigin.GetTileOffset();
+
 			BuildRayTracingInstanceBuffer(
 				RHICmdList,
 				nullptr,
+				AbsoluteViewOrigin.GetTile(),
+				View.ViewMatrices.GetPreViewTranslation() + ViewTileOffset,
 				InstanceBuffer.UAV,
 				InstanceUploadSRV,
 				AccelerationStructureAddressesBuffer.SRV,
@@ -2695,6 +2701,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						RayTracingResolution.Y = GPreviewLightmapPhysicalTileSize;
 
 						FStationaryLightShadowTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStationaryLightShadowTracingRGS::FParameters>();
+						PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 						PassParameters->TLAS = Scene->RayTracingSceneSRV;
 						PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 						PassParameters->LightTypeArray = HoldReference(GraphBuilder, LightTypeSRV);

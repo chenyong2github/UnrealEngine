@@ -62,7 +62,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 
 			if (RadiosityTexel.Opacity > 0.0f)
 			{
-				float3 WorldPosition = RadiosityTexel.WorldPosition;
+				float3 TranslatedWorldPosition = RadiosityTexel.WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 				float3 WorldNormal = RadiosityTexel.WorldNormal;
 				
 				float3 WorldRayDirection;
@@ -71,7 +71,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 				RayDesc Ray;
-				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
+				Ray.Origin = TranslatedWorldPosition + WorldNormal * SurfaceBias;
 				Ray.Direction = WorldRayDirection;
 				Ray.TMin = MinTraceDistance;
 
@@ -118,7 +118,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 
 					// Recalculate TraceHitDistance to incorporate biases
 					float3 HitPosition = Ray.Origin + Ray.Direction * RayResult.TraceHitDistance;
-					TraceHitDistance = length(RadiosityTexel.WorldPosition - HitPosition);
+					TraceHitDistance = length(TranslatedWorldPosition - HitPosition);
 				}
 				else
 				{

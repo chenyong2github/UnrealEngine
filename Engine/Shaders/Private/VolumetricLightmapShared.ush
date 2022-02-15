@@ -22,7 +22,7 @@
 	#define VLSkyBentNormalSharedSampler View.SkyBentNormalTextureSampler
 #endif
 
-float3 ComputeVolumetricLightmapBrickTextureUVs(float3 WorldPosition)
+float3 ComputeVolumetricLightmapBrickTextureUVs(float3 WorldPosition) // RT_LWC_TODO
 {
 	// Compute indirection UVs from world position
 	float3 IndirectionVolumeUVs = clamp(WorldPosition * View.VolumetricLightmapWorldToUVScale + View.VolumetricLightmapWorldToUVAdd, 0.0f, .99f);

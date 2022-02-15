@@ -8,7 +8,7 @@
 
 bool GenerateRectLightOcclusionRay(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -18,7 +18,7 @@ bool GenerateRectLightOcclusionRay(
 	out float RayPdf
 )
 {
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	RayDirection = float3(0,0,0);
 	RayTMin = 0.0;
 	RayTMax = 0.0;
@@ -33,19 +33,19 @@ bool GenerateRectLightOcclusionRay(
 	RandSample -= 0.5;
 
 	// Map sample point to quad
-	float3 LightSamplePosition = LightParameters.Position + Tangent * LightDimensions.x * RandSample.x + BiTangent * LightDimensions.y * RandSample.y;
-	float3 LightDirection = normalize(LightSamplePosition - WorldPosition);
+	float3 LightSamplePosition = LightParameters.TranslatedWorldPosition + Tangent * LightDimensions.x * RandSample.x + BiTangent * LightDimensions.y * RandSample.y;
+	float3 LightDirection = normalize(LightSamplePosition - TranslatedWorldPosition);
 
 	// Light-normal culling
 	bool bIsValidRay = dot(-LightDirection, -LightParameters.Direction) >= 0.0;
 
 	// Apply normal perturbation when defining ray
 	RayDirection = LightDirection;
-	RayTMax = length(LightSamplePosition - WorldPosition);
+	RayTMax = length(LightSamplePosition - TranslatedWorldPosition);
 
 	// Define rectangle
 	FRect Rect;
-	Rect.Origin = LightParameters.Position - WorldPosition;
+	Rect.Origin = LightParameters.TranslatedWorldPosition - TranslatedWorldPosition;
 	Rect.Axis[0] = Tangent;
 	Rect.Axis[1] = BiTangent;
 	Rect.Axis[2] = cross(Tangent, BiTangent);

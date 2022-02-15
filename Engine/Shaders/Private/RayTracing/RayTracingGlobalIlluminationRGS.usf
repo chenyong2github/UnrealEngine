@@ -39,7 +39,7 @@ uint RenderTileOffsetX;
 uint RenderTileOffsetY;
 
 void GenerateCosineNormalRay(
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -53,7 +53,7 @@ void GenerateCosineNormalRay(
 	float4 Direction_Tangent = CosineSampleHemisphere(RandSample);
 	float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	RayDirection = Direction_World;
 	RayTMin = 0.01;
 	RayTMax = max(MaxRayDistanceForGI, MaxRayDistanceForAO);
@@ -87,9 +87,9 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 		GBufferData.DiffuseColor = GBufferData.StoredBaseColor;
 	}
 	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, TranslatedWorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 	uint ShadingModelID = GBufferData.ShadingModelID;
 	if (ShadingModelID == SHADINGMODELID_UNLIT)
@@ -130,7 +130,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 		RayDesc Ray;
 		float RayPdf = 1.0;
 #if 1
-		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(TranslatedWorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		half3 N = WorldNormal;
 		half3 V = -CameraDirection;
 		half3 L = Ray.Direction;
@@ -141,8 +141,8 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 #else
 		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 		float2 ViewportUV = (PixelCoord.xy + RandSample.xy) * View.BufferSizeAndInvSize.zw;
-		Ray.Origin = ReconstructWorldPositionFromDepth(ViewportUV, 0.0f);
-		Ray.Direction = normalize(ReconstructWorldPositionFromDepth(ViewportUV, 1.f) - Ray.Origin);
+		Ray.Origin = ReconstructTranslatedWorldPositionFromDepth(ViewportUV, 0.0f);
+		Ray.Direction = normalize(ReconstructTranslatedWorldPositionFromDepth(ViewportUV, 1.f) - Ray.Origin);
 		Ray.TMin = 0.0;
 		Ray.TMax = 1.0e12;
 		float3 RayThroughput = 1.0;
@@ -184,7 +184,6 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 					uint SkyLightId = 0;
 					RayDesc LightRay = Ray;
 					LightRay.TMax = POSITIVE_INFINITY;
-					LightRay.Origin += LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
 					float3 EnvironmentRadiance = SkyLight_TraceLight(Ray, SkyLightId).Radiance;
 					Irradiance += EnvironmentRadiance * RayThroughput / RayPdf;
 				}
@@ -234,7 +233,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 
 				RayDesc LightRay;
 				if (SampleLight(RandSample3,
-								Ray.Origin + LWCHackToFloat(PrimaryView.PreViewTranslation), // RT_LWC_TODO,
+								Ray.Origin,
 								Payload.WorldNormal,
 								Payload.PrimitiveLightingChannelMask,
 								ENABLE_TRANSMISSION,

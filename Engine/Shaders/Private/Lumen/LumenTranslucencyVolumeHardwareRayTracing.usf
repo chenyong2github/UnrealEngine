@@ -76,7 +76,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 			#endif
 
 			RayDesc Ray;
-			Ray.Origin = WorldPosition;
+			Ray.Origin = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 			Ray.Direction = WorldConeDirection;
 			Ray.TMin = 0;
 			Ray.TMax = TraceDistance;

@@ -25,7 +25,7 @@ void InitVFXTracePayloadFromHitShader(FDefaultAttributes Attributes, out FVFXTra
 	OutPayload.Barycentrics = Attributes.Barycentrics;
 
 	//Reconstruct world position.
-	OutPayload.WorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	OutPayload.TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
 	//Reconstruct world normal.
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());

@@ -24,7 +24,7 @@ FRayTracingScene::~FRayTracingScene()
 	WaitForTasks();
 }
 
-void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene)
+void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
@@ -143,11 +143,13 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 			Instances = MakeArrayView(Instances),
 			InstanceGeometryIndices = MoveTemp(SceneWithGeometryInstances.InstanceGeometryIndices),
 			BaseUploadBufferOffsets = MoveTemp(SceneWithGeometryInstances.BaseUploadBufferOffsets),
-			RayTracingSceneRHI = RayTracingSceneRHI]()
+			RayTracingSceneRHI = RayTracingSceneRHI,
+			PreViewTranslation = ViewMatrices.GetPreViewTranslation()]()
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
 			FillRayTracingInstanceUploadBuffer(
 				RayTracingSceneRHI,
+				PreViewTranslation,
 				Instances,
 				InstanceGeometryIndices,
 				BaseUploadBufferOffsets,
@@ -160,6 +162,9 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
 		PassParams->InstanceBuffer = GraphBuilder.CreateUAV(InstanceBuffer);
 
+		const FLargeWorldRenderPosition AbsoluteViewOrigin(ViewMatrices.GetViewOrigin());
+		const FVector ViewTileOffset = AbsoluteViewOrigin.GetTileOffset();
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("BuildTLASInstanceBuffer"),
 			PassParams,
@@ -167,6 +172,8 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 			[PassParams,
 			this,
 			GPUScene = &GPUScene,
+			ViewTilePosition = AbsoluteViewOrigin.GetTile(),
+			RelativePreViewTranslation = ViewMatrices.GetPreViewTranslation() + ViewTileOffset,
 			&SceneInitializer,
 			NumNativeGPUSceneInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
@@ -205,6 +212,8 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 				BuildRayTracingInstanceBuffer(
 					RHICmdList,
 					GPUScene,
+					ViewTilePosition,
+					RelativePreViewTranslation,
 					PassParams->InstanceBuffer->GetRHI(),
 					InstanceUploadSRV,
 					AccelerationStructureAddressesBuffer.SRV,

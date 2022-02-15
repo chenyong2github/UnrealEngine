@@ -175,6 +175,7 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(Buffer<int>, LightTypeArray)
 		SHADER_PARAMETER_SRV(Buffer<int>, ChannelIndexArray)

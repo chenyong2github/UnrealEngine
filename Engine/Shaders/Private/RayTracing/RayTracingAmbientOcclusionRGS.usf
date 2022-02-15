@@ -37,7 +37,7 @@ float ComputeWorldBluringRadiusCausedByPixelSize(float WorldDepth)
 
 void GenerateCosineNormalRay(
 	uint2 PixelCoord,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float3 GeometricNormal,
 	inout RandomSequence RandSequence,
@@ -71,7 +71,7 @@ void GenerateCosineNormalRay(
 		float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 	#endif
 
-	RayOrigin = WorldPosition;
+	RayOrigin = TranslatedWorldPosition;
 	RayDirection = Direction_World;
 	RayTMin = 0.0;
 	RayTMax = MaxRayDistance;
@@ -84,7 +84,7 @@ float3 SampleNeightborPosition(uint2 PixelCoord, int2 Offset)
 
 	float DeviceZ = SceneDepthTexture.Load(int3(ClampedPixelCoord, 0)).r;
 
-	return ReconstructWorldPositionFromDeviceZ(PixelCoord + Offset, DeviceZ);
+	return ReconstructTranslatedWorldPositionFromDeviceZ(PixelCoord + Offset, DeviceZ);
 }
 
 RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
@@ -106,9 +106,9 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 	const float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-	float3 WorldPosition;
+	float3 TranslatedWorldPosition;
 	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	ReconstructTranslatedWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, TranslatedWorldPosition, CameraDirection);
 
 	float3 GeometricNormal;
 	float ShadingDotGeometric;
@@ -116,11 +116,11 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 	{
 		float WorldPixelRadius = ComputeWorldBluringRadiusCausedByPixelSize(SceneDepth);
 
-		float3 E = SampleNeightborPosition(PixelCoord, int2( 1,  0)) - WorldPosition;
-		float3 W = SampleNeightborPosition(PixelCoord, int2(-1,  0)) - WorldPosition;
+		float3 E = SampleNeightborPosition(PixelCoord, int2( 1,  0)) - TranslatedWorldPosition;
+		float3 W = SampleNeightborPosition(PixelCoord, int2(-1,  0)) - TranslatedWorldPosition;
 
-		float3 N = SampleNeightborPosition(PixelCoord, int2( 0, -1)) - WorldPosition;
-		float3 S = SampleNeightborPosition(PixelCoord, int2( 0,  1)) - WorldPosition;
+		float3 N = SampleNeightborPosition(PixelCoord, int2( 0, -1)) - TranslatedWorldPosition;
+		float3 S = SampleNeightborPosition(PixelCoord, int2( 0,  1)) - TranslatedWorldPosition;
 
 		float DH = dot(E, View.ViewForward) + dot(W, View.ViewForward);
 		float DV = dot(N, View.ViewForward) + dot(S, View.ViewForward);
@@ -183,7 +183,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 		RandomSequence RandSequence;
 		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, TimeSeed, SamplesPerPixelLocal);
 
-		GenerateCosineNormalRay(PixelCoord, WorldPosition, WorldNormal, GeometricNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPDF);
+		GenerateCosineNormalRay(PixelCoord, TranslatedWorldPosition, WorldNormal, GeometricNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPDF);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
 		//if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO(Denoiser): does it needs to be handled by the denoiser?

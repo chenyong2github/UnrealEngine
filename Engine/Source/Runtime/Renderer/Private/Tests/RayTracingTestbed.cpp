@@ -168,6 +168,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		FVector4f* TransformUploadData = (FVector4f*)RHICmdList.LockBuffer(TransformUploadBuffer, 0, TransformUploadBufferSize, RLM_WriteOnly);
 		FillRayTracingInstanceUploadBuffer(
 			RayTracingScene.Scene,
+			FVector::ZeroVector,
 			Instances,
 			RayTracingScene.InstanceGeometryIndices,
 			RayTracingScene.BaseUploadBufferOffsets,
@@ -198,6 +199,8 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	BuildRayTracingInstanceBuffer(
 		RHICmdList,
 		nullptr,
+		FVector3f::ZeroVector,
+		FVector3f::ZeroVector,
 		InstanceBuffer.UAV,
 		InstanceUploadSRV,
 		AccelerationStructureAddressesBuffer.SRV,

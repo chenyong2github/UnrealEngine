@@ -33,7 +33,7 @@ float2 ToConcentricMap(float2 RectangularCoords)
 
 void GenerateDirectionalLightOcclusionRay(
 	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
+	float3 TranslatedWorldPosition,
 	float3 WorldNormal,
 	float2 RandSample,
 	out float3 RayOrigin,
@@ -61,7 +61,7 @@ void GenerateDirectionalLightOcclusionRay(
 	float3 dPdv = cross(dPdu, N);
 	LightDirection += dPdu * DiskUV.x + dPdv * DiskUV.y;
 	
-    RayOrigin = WorldPosition;
+    RayOrigin = TranslatedWorldPosition;
     RayDirection = normalize(LightDirection);
 	RayTMin = 0.0;
 	RayTMax = 1.0e27;

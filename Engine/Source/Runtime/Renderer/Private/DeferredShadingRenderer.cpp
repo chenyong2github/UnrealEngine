@@ -1519,7 +1519,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	RayTracingScene.Create(GraphBuilder, Scene->GPUScene);
+	RayTracingScene.Create(GraphBuilder, Scene->GPUScene, ReferenceView.ViewMatrices);
 
 	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)

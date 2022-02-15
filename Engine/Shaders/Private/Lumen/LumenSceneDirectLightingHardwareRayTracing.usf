@@ -102,7 +102,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
-				float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
+				float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 
 				float3 L = LumenLight.DeferredLightData.Direction;
 				float3 ToLight = L;
@@ -126,7 +126,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 #else
 				const float ReceiverBias = Card.bHeightfield ? HeightfieldShadowReceiverBias : 0.0f;
-				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias);
+				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias) + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 				Ray.Direction = L;
 #endif
 
@@ -156,7 +156,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 					{
 						// Rebase origin and point-source direction for far-field rays
 						RayDesc FarFieldRay;
-						FarFieldRay.Origin = WorldPosition + FarFieldReferencePos;
+						FarFieldRay.Origin = TranslatedWorldPosition + FarFieldReferencePos;
 						FarFieldRay.Direction = Ray.Direction;
 						FarFieldRay.TMin = NearFieldTMax;
 						FarFieldRay.TMax = FarFieldTMax;

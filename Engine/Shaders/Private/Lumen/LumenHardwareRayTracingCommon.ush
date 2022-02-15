@@ -27,19 +27,14 @@
 #include "../RayTracing/TraceRayInline.ush"
 #endif
 
-float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
+float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 TranslatedWorldPosition, uint GPUSceneInstanceIndex)
 {
 	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
-	float4 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(InstanceSceneData.WorldToLocal));
-	float3 PrevWorldPosition = mul(LocalPosition, LWCHackToFloat(InstanceSceneData.PrevLocalToWorld)).xyz;
-	return PrevWorldPosition;
-}
 
-float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
-{
-	FInstanceSceneData InstanceSceneData = GetInstanceSceneData(GPUSceneInstanceIndex, View.InstanceSceneDataSOAStride);
-	float3 LocalPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(InstanceSceneData.WorldToLocal)).xyz;
-	return LocalPosition;
+	FLWCVector3 WorldPosition = LWCSubtract(LWCPromote(TranslatedWorldPosition), PrimaryView.PreViewTranslation);
+	float3 LocalPosition = LWCMultiply(WorldPosition, InstanceSceneData.WorldToLocal);
+	FLWCVector3 PrevWorldPosition = LWCMultiply(LocalPosition, InstanceSceneData.PrevLocalToWorld);
+	return LWCToFloat(LWCAdd(PrevWorldPosition, PrimaryView.PreViewTranslation));
 }
 
 #ifndef ENABLE_NEAR_FIELD_TRACING
@@ -349,7 +344,7 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 float3 CalculateSurfaceCacheLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
-	float3 RayHitWorldPosition,
+	float3 RayHitTranslatedWorldPosition,
 	float3 RayHitWorldNormal,
 	float HitDistance,
 	uint SceneInstanceIndex,
@@ -373,7 +368,7 @@ float3 CalculateSurfaceCacheLighting(
 	FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 		Context.TraceCoord,
 		MeshCardsIndex,
-		RayHitWorldPosition,
+		RayHitTranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), // LUMEN_LWC_TODO
 		RayHitWorldNormal,
 		InterpolateRadius,
 		SurfaceCacheDepthTestBias,
@@ -403,9 +398,9 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 )
 {
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
-	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
+	float3 RayHitTranslatedWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
-	float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, bValidSurfaceCache);
+	float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, bValidSurfaceCache);
 	
 	float3 Radiance = 0;
 
@@ -442,7 +437,7 @@ float3 CalculateDirectLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
 	inout FPackedMaterialClosestHitPayload Payload,
-	float3 RayHitWorldPosition,
+	float3 RayHitTranslatedWorldPosition,
 	float3 RayHitWorldNormal
 )
 {
@@ -459,7 +454,7 @@ float3 CalculateDirectLighting(
 	float3 DirectLighting = 0.0f;
 	AccumulateResults(
 		Payload,
-		RayHitWorldPosition,
+		RayHitTranslatedWorldPosition,
 		Ray.Direction,
 		Context.TLAS,
 		RandSequence,
@@ -489,10 +484,10 @@ float3 CalculateRayTracedLighting(
 
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 
-	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
+	float3 RayHitTranslatedWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	if (LightingMode >= EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
 	{
-		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
+		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitTranslatedWorldPosition, RayHitWorldNormal);
 	}
 
 	float3 DiffuseColor = Payload.GetDiffuseColor();
@@ -504,7 +499,7 @@ float3 CalculateRayTracedLighting(
 	else
 	{
 		bool bValidSurfaceCache = false;
-		float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, bValidSurfaceCache);
+		float3 SurfaceCacheRadiance = CalculateSurfaceCacheLighting(Ray, Context, RayHitTranslatedWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, bValidSurfaceCache);
 
 		// The Surface Cache lighting was computed using the front face, don't leak to the backface
 		if (dot(Ray.Direction, RayHitWorldNormal) <= 0 || (Payload.GetFlags() | RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED))
@@ -610,8 +605,8 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		if (Context.bCalculateHitVelocity)
 		{
 			uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-			float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
-			Result.WorldVelocity = WorldPosition - CalcPrevWorldPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
+			float3 TranslatedWorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
+			Result.WorldVelocity = TranslatedWorldPosition - CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(TranslatedWorldPosition, GPUSceneInstanceIndex);
 		}
 
 		uint SceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());

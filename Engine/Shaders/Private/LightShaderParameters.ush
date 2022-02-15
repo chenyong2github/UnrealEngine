@@ -12,12 +12,6 @@
 // Mirrors FLightShaderParameters on C++ side.
 struct FLightShaderParameters
 {
-	// Absolute world-space position
-	// LWC_TODO - Primarily used in ray tracing, two choices here:
-	// 1) Remove this field and make all lighting work in translated world space
-	// 2) Promote this to FLWCVector3 and properly handle all usages
-	float3 Position;
-
 	float3 TranslatedWorldPosition;
 	float  InvRadius;
 	float3 Color;
@@ -68,11 +62,10 @@ Texture2D Light_SourceTexture;
 
 
 /** Returns the FLightShaderParameters from the root shader parameters. */
-FLightShaderParameters GetRootLightShaderParameters(FLWCVector3 PreViewTranslation)
+FLightShaderParameters GetRootLightShaderParameters()
 {
 	// Hopefully one day the shader compiler will be so nice we would no longer have to do this.
 	FLightShaderParameters LightParameters;
-	LightParameters.Position = Light_TranslatedWorldPosition - LWCHackToFloat(PreViewTranslation);
 	LightParameters.TranslatedWorldPosition = Light_TranslatedWorldPosition;
 	LightParameters.InvRadius = Light_InvRadius;
 	LightParameters.Color = Light_Color;

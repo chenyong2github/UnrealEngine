@@ -120,8 +120,7 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 
 	const uint LightType = RayTracingLightData.Type;
 
-	// We are actually storing WorldPosition at the moment (but FDeferredLightData struct is shared with other systems)
-	LightData.TranslatedWorldPosition = RayTracingLightData.TranslatedLightPosition - LWCHackToFloat(PrimaryView.PreViewTranslation); // RT_LWC_TODO
+	LightData.TranslatedWorldPosition = RayTracingLightData.TranslatedLightPosition;
 	LightData.InvRadius = RayTracingLightData.InvRadius;
 	LightData.Color = RayTracingLightData.LightColor;
 	LightData.FalloffExponent = RayTracingLightData.FalloffExponent;
@@ -233,7 +232,7 @@ void TraceShadowRayMissShaderLighting(
 
 float3 SampleAreaLightDirection(
 	in FDeferredLightData LightData, 
-	in float3 WorldPosition,
+	in float3 TranslatedWorldPosition,
 	in float3 WorldNormal,
 	in uint LightType, 
 	inout RandomSequence RandSequence )
@@ -248,7 +247,7 @@ float3 SampleAreaLightDirection(
 	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 	FLightShaderParameters LightParameters;
-	LightParameters.Position = LightData.TranslatedWorldPosition; // LWC_TODO
+	LightParameters.TranslatedWorldPosition = LightData.TranslatedWorldPosition;
 	LightParameters.SpotAngles = LightData.SpotAngles;
 	LightParameters.SourceRadius = LightData.SourceRadius;
 	LightParameters.SourceLength = LightData.SourceLength;
@@ -261,7 +260,7 @@ float3 SampleAreaLightDirection(
 		LightParameters.SourceRadius *= ShadowSourceAngleFactor;
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ ShadowRayDirection,
@@ -272,7 +271,7 @@ float3 SampleAreaLightDirection(
 	{
 		GenerateSpotLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ ShadowRayDirection,
@@ -285,7 +284,7 @@ float3 SampleAreaLightDirection(
 		{
 			GeneratePointLightOcclusionRay(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ ShadowRayDirection,
@@ -297,7 +296,7 @@ float3 SampleAreaLightDirection(
 			//GenerateSphereLightOcclusionRayWithAreaSampling(
 			GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
-				WorldPosition, WorldNormal,
+				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ ShadowRayDirection,
@@ -310,7 +309,7 @@ float3 SampleAreaLightDirection(
 	{
 		GenerateRectLightOcclusionRay(
 			LightParameters,
-			WorldPosition, WorldNormal,
+			TranslatedWorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
 			/* out */ ShadowRayDirection,
@@ -323,7 +322,7 @@ float3 SampleAreaLightDirection(
 }
 
 float3 ComputeIndirectLighting(
-	in float3 WorldPosition,
+	in float3 TranslatedWorldPosition,
 	in float3 ViewDirection,
 	in RaytracingAccelerationStructure TLAS,
 	in uint2 PixelCoord,
@@ -358,7 +357,7 @@ float3 ComputeIndirectLighting(
 		SkyLightEvaluate(
 			PixelCoord,
 			SkyLight.SamplesPerPixel,
-			WorldPosition,
+			TranslatedWorldPosition,
 			GBufferData.WorldNormal,
 			ViewDirection,
 			GBufferData,
@@ -379,7 +378,7 @@ float3 ComputeIndirectLighting(
 }
 
 float3 ComputeDirectLighting(
-	in float3 WorldPosition,
+	in float3 TranslatedWorldPosition,
 	in float3 ViewDirection,
 	in FRayCone RayCone,
 	in uint2 PixelCoord,
@@ -400,7 +399,7 @@ float3 ComputeDirectLighting(
 	Payload.SetRadiance(float3(0, 0, 0));
 	Payload.SetIndirectIrradiance(ViewDirection);
 
-	FCulledLightList CullData = FCulledLightList::Create(WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation)); // RT_LWC_TODO
+	FCulledLightList CullData = FCulledLightList::Create(TranslatedWorldPosition);
 	const uint LightCount = CullData.NumLights();
 
 	for (uint Index = 0; WaveActiveAnyTrue(Index < LightCount); Index++)
@@ -416,7 +415,7 @@ float3 ComputeDirectLighting(
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 
-		float3 ToLight = LightData.TranslatedWorldPosition - WorldPosition; // RT_LWC_TODO
+		float3 ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 		float LightMask = 1.0;
 
 		if (LightType == LIGHT_TYPE_DIRECTIONAL)
@@ -426,7 +425,7 @@ float3 ComputeDirectLighting(
 		}
 		else
 		{
-			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, ShadowRayDirection);
+			LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, ShadowRayDirection);
 
 			// Skip the light sample that does not contribute anything due to attenuation.
 			if (LightMask <= 0.0)
@@ -449,13 +448,13 @@ float3 ComputeDirectLighting(
 		bool IsLightVisible = false;
 		if (ReflectedShadowsType == 2)
 		{
-			ShadowRayDirection = SampleAreaLightDirection(LightData, WorldPosition, Payload.GetWorldNormal(), LightType, RandSequence);
+			ShadowRayDirection = SampleAreaLightDirection(LightData, TranslatedWorldPosition, Payload.GetWorldNormal(), LightType, RandSequence);
 		}
 
 		const bool ApplyShadow = (Lit && ReflectedShadowsType != 0);
 
 		RayDesc ShadowRay;
-		ShadowRay.Origin = WorldPosition;
+		ShadowRay.Origin = TranslatedWorldPosition;
 		ShadowRay.Direction = ShadowRayDirection;
 		ShadowRay.TMin = 1e-4f;
 		ShadowRay.TMax = (ApplyShadow) ? length(ToLight) : ShadowRay.TMin;
@@ -508,7 +507,7 @@ void ComputeBottomLayerMaterialProperties(RayDesc Ray, inout FMaterialClosestHit
 
 void AccumulateResults(
 	inout FPackedMaterialClosestHitPayload Payload,
-	in float3 WorldPosition,
+	in float3 TranslatedWorldPosition,
 	in float3 ViewDirection,
 	in RaytracingAccelerationStructure TLAS,
 	inout RandomSequence RandSequence,
@@ -534,7 +533,7 @@ void AccumulateResults(
 		// Save and restore original payload HitT, as it's modified during shadow ray tracing
 		float OldHitT = Payload.HitT;
 
-		DirectLighting = ComputeDirectLighting(WorldPosition, ViewDirection, RayCone, PixelCoord, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+		DirectLighting = ComputeDirectLighting(TranslatedWorldPosition, ViewDirection, RayCone, PixelCoord, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
 
 		Payload.HitT = OldHitT;
 	}
@@ -550,7 +549,7 @@ void AccumulateResults(
 
 		// Indirect contribution
 		const float3 IndirectLighting = ComputeIndirectLighting(
-			WorldPosition,
+			TranslatedWorldPosition,
 			ViewDirection,
 			TLAS,
 			PixelCoord,
@@ -596,12 +595,12 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 		PixelCoord,
 		bEnableSkyLightContribution);
 
-	float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
+	float3 TranslatedWorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
 	float3 ViewDirection = Ray.Direction;
 
 	AccumulateResults(
 		Payload,
-		WorldPosition,
+		TranslatedWorldPosition,
 		ViewDirection,
 		TLAS,
 		RandSequence,
@@ -655,13 +654,13 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 
 	ComputeBottomLayerMaterialProperties(Ray, BottomLayerPayload);
 
-	float3 WorldPosition = Ray.Origin + Ray.Direction * BottomLayerPayload.HitT;
+	float3 TranslatedWorldPosition = Ray.Origin + Ray.Direction * BottomLayerPayload.HitT;
 	float3 ViewDirection = Ray.Direction;
 
 	FPackedMaterialClosestHitPayload PackedBottomLayerPayload = PackRayTracingPayload(BottomLayerPayload, RayCone);
 	AccumulateResults(
 		PackedBottomLayerPayload,
-		WorldPosition,
+		TranslatedWorldPosition,
 		ViewDirection,
 		TLAS,
 		RandSequence,

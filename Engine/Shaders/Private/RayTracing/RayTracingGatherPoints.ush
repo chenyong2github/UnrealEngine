@@ -4,15 +4,15 @@
 
 struct FGatherPoints
 {
-	float3 CreationPoint;
-	float3 Position;
+	float3 TranslatedCreationPoint;
+	float3 TranslatedPosition;
 	uint2 Irradiance;
 };
 
 struct FGatherSample
 {
-	float3 CreationPoint;
-	float3 Position;
+	float3 TranslatedCreationPoint;
+	float3 TranslatedPosition;
 	float3 Irradiance;
 	float Pdf;
 };
@@ -20,7 +20,7 @@ struct FGatherSample
 
 struct FRejectionCriteria
 {
-	float3 CreationPoint;
+	float3 TranslatedCreationPoint;
 	float DistanceThreshold2;
 };
 
@@ -52,8 +52,8 @@ FGatherSample ReadGatherSample(StructuredBuffer<FGatherPoints> GatherBuffer, uin
 	FGatherSample GatherSample = (FGatherSample) 0.0;
 
 	uint Index = BaseIndex + SampleIndex * ElementCount;
-	GatherSample.CreationPoint = GatherBuffer[Index].CreationPoint;
-	GatherSample.Position = GatherBuffer[Index].Position;
+	GatherSample.TranslatedCreationPoint = GatherBuffer[Index].TranslatedCreationPoint;
+	GatherSample.TranslatedPosition = GatherBuffer[Index].TranslatedPosition;
 	GatherSample.Irradiance = UnpackIrradiance(GatherBuffer[Index].Irradiance, GatherSample.Pdf);
 
 	return GatherSample;
@@ -62,15 +62,15 @@ FGatherSample ReadGatherSample(StructuredBuffer<FGatherPoints> GatherBuffer, uin
 void WriteGatherSample(RWStructuredBuffer<FGatherPoints> GatherBuffer, uint BaseIndex, uint SampleIndex, uint ElementCount, FGatherSample GatherSample)
 {
 	uint Index = BaseIndex + SampleIndex * ElementCount;
-	GatherBuffer[Index].CreationPoint = GatherSample.CreationPoint;
-	GatherBuffer[Index].Position = GatherSample.Position;
+	GatherBuffer[Index].TranslatedCreationPoint = GatherSample.TranslatedCreationPoint;
+	GatherBuffer[Index].TranslatedPosition = GatherSample.TranslatedPosition;
 	GatherBuffer[Index].Irradiance = PackIrradiance(GatherSample.Irradiance, GatherSample.Pdf);
 }
 
-FRejectionCriteria CreateRejectionCriteria(float3 CreationPoint, float DistanceThreshold)
+FRejectionCriteria CreateRejectionCriteria(float3 TranslatedCreationPoint, float DistanceThreshold)
 {
 	FRejectionCriteria RejectionCriteria;
-	RejectionCriteria.CreationPoint = CreationPoint;
+	RejectionCriteria.TranslatedCreationPoint = TranslatedCreationPoint;
 	RejectionCriteria.DistanceThreshold2 = DistanceThreshold * DistanceThreshold;
 	return RejectionCriteria;
 }
@@ -89,7 +89,7 @@ void CreateRejectionMask(
 		for (int Index = 0; Index < SampleCount; ++Index)
 		{
 			FGatherSample GatherSample = ReadGatherSample(GatherBuffer, BaseIndex, SampleIndex + Index, ElementCount);
-			float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherSample.CreationPoint;
+			float3 GPDistance2 = RejectionCriteria.TranslatedCreationPoint - GatherSample.TranslatedCreationPoint;
 			bShouldReject[Index] = dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2;
 		}
 	}
