@@ -14,6 +14,8 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorStyle.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Styling/AppStyle.h"
 #include "IDetailTreeNode.h"
 
@@ -154,12 +156,13 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 		// so guard against receiving an event when finalized here.
 		bCanResetToBaseCache.Reset();
 		RefreshChildren();
+
+		if (Emitter.IsValid())
+		{
+			GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(Emitter.Get()).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
+		}
 	}
 }
-
-
-
-
 
 void UNiagaraStackEmitterSummaryItem::Initialize(FRequiredEntryData InRequiredEntryData)
 {

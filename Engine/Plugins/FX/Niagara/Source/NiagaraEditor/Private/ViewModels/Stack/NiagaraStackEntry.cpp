@@ -608,6 +608,29 @@ const TArray<UNiagaraStackEntry*>& UNiagaraStackEntry::GetAllChildrenWithIssues(
 	return GetCollectedIssueData().ChildrenWithIssues;
 }
 
+void UNiagaraStackEntry::AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed)
+{
+	FStackIssue NewIssue(Severity, SummaryText, Description, GetStackEditorDataKey(), bCanBeDismissed);
+	for (const FStackIssue& ExistingIssue : ExternalStackIssues)
+	{
+		if (ExistingIssue.GetUniqueIdentifier().Equals(NewIssue.GetUniqueIdentifier()))
+		{
+			return;
+		}
+	}
+	ExternalStackIssues.Add(NewIssue);
+	RefreshChildren();
+}
+
+void UNiagaraStackEntry::ClearExternalIssues()
+{
+	if (ExternalStackIssues.Num() > 0)
+	{
+		ExternalStackIssues.Empty();
+		Cast<UNiagaraStackEntry>(GetOuter())->RefreshChildren();
+	}
+}
+
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackEntry::CanDropInternal(const FDropRequest& DropRequest)
 {
 	return TOptional<FDropRequestResponse>();
@@ -713,6 +736,7 @@ void UNiagaraStackEntry::RefreshChildren()
 
 	StackIssues.Empty();
 	StackIssues.Append(NewStackIssues);
+	StackIssues.Append(ExternalStackIssues);
 	RefreshStackErrorChildren();
 	for (UNiagaraStackErrorItem* ErrorChild : ErrorChildren)
 	{

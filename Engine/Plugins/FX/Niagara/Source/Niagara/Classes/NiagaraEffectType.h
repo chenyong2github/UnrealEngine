@@ -6,6 +6,7 @@
 #include "RenderCommandFence.h"
 #include "NiagaraPlatformSet.h"
 #include "NiagaraPerfBaseline.h"
+#include "NiagaraValidationRule.h"
 #include "NiagaraEffectType.generated.h"
 
 #define DEBUG_SCALABILITY_STATE (!UE_BUILD_SHIPPING)
@@ -403,6 +404,10 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
+
+	/** A set of rules to apply when checking content. To create your own rules, write a custom class that extends UNiagaraValidationRule. */
+	UPROPERTY(EditAnywhere, Category = "Validation")
+	TArray<TSubclassOf<UNiagaraValidationRule>> ValidationRules;
 
 	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }

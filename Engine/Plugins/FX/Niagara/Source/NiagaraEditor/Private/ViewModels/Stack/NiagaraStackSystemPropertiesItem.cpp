@@ -6,6 +6,8 @@
 #include "NiagaraSystemDetailsCustomization.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackSystemItemGroup"
 
@@ -78,6 +80,12 @@ void UNiagaraStackSystemPropertiesItem::RefreshChildrenInternal(const TArray<UNi
 void UNiagaraStackSystemPropertiesItem::SystemPropertiesChanged()
 {
 	bCanResetToBase.Reset();
+
+	GetSystemViewModel()->GetSystemStackViewModel()->RequestValidationUpdate();
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : GetSystemViewModel()->GetEmitterHandleViewModels())
+	{
+		EmitterHandleViewModel->GetEmitterStackViewModel()->RequestValidationUpdate();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

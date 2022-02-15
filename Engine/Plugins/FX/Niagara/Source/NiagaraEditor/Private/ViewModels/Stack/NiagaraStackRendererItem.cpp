@@ -28,6 +28,8 @@
 #include "NiagaraEmitterEditorData.h"
 
 #include "Styling/SlateIconFinder.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackRendererItem"
 
@@ -467,6 +469,12 @@ void UNiagaraStackRendererItem::RendererChanged()
 		// so guard against receiving an event when finalized here.
 		bCanResetToBaseCache.Reset();
 		RefreshChildren();
+
+		
+		if (GetEmitterViewModel().IsValid())
+		{
+			GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(GetEmitterViewModel()->GetEmitter()).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
+		}
 	}
 }
 

@@ -74,6 +74,43 @@ bool UNiagaraStackViewModel::FTopLevelViewModel::operator==(const FTopLevelViewM
 	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel && Other.RootEntry == RootEntry;
 }
 
+void UNiagaraStackViewModel::UpdateStackWithValidationResults()
+{
+	bValidatorUpdatePending = false;
+
+	// clear out old stack entries
+	TArray<UNiagaraStackEntry*> EntriesToClear;
+	RootEntry->GetUnfilteredChildren(EntriesToClear);
+	while (EntriesToClear.Num() > 0)
+	{
+		UNiagaraStackEntry* Entry = EntriesToClear.Pop();
+		Entry->ClearExternalIssues();
+		Entry->GetUnfilteredChildren(EntriesToClear);
+	}
+
+	UNiagaraSystem& NiagaraSystem = SystemViewModel.Pin()->GetSystem();
+	if (NiagaraSystem.GetEffectType())
+	{
+		// go over the validation rules
+		for (TSubclassOf<UNiagaraValidationRule> ValidationClass : NiagaraSystem.GetEffectType()->ValidationRules)
+		{
+			if (UNiagaraValidationRule* ValidationRule = Cast<UNiagaraValidationRule>(ValidationClass->GetDefaultObject()))
+			{
+				TArray<FNiagaraValidationResult> NiagaraValidationResults = ValidationRule->CheckValidity(SystemViewModel.Pin());
+				for (const FNiagaraValidationResult& Result : NiagaraValidationResults)
+				{
+					EStackIssueSeverity Severity = (Result.Severity == ENiagaraValidationSeverity::Error) ? EStackIssueSeverity::Error : (Result.Severity == ENiagaraValidationSeverity::Warning ? EStackIssueSeverity::Warning : EStackIssueSeverity::Info);
+					if (UNiagaraStackEntry* SourceEntry = Cast<UNiagaraStackEntry>(Result.SourceObject.Get()))
+					{
+						SourceEntry->AddExternalIssue(Severity, Result.SummaryText, Result.Description, Result.Severity == ENiagaraValidationSeverity::Info);
+					}
+				}
+			}
+			
+		}
+	}
+}
+
 void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)
 {
 	Reset();
@@ -114,6 +151,8 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		RootEntries.Add(RootEntry);
 
 		bExternalRootEntry = false;
+
+		UpdateStackWithValidationResults();
 	}
 
 	StructureChangedDelegate.Broadcast(ENiagaraStructureChangedFlags::StructureChanged);
@@ -178,6 +217,7 @@ void UNiagaraStackViewModel::Reset()
 	CurrentFocusedSearchMatchIndex = -1;
 	bRestartSearch = false;
 	bRefreshPending = false;
+	bValidatorUpdatePending = false;
 	bUsesTopLevelViewModels = false;
 }
 
@@ -206,6 +246,11 @@ void UNiagaraStackViewModel::Tick()
 			RootEntry->RefreshChildren();
 			bRefreshPending = false;
 			InvalidateSearchResults();
+		}
+
+		if (bValidatorUpdatePending)
+		{
+			UpdateStackWithValidationResults();
 		}
 
 		SearchTick();

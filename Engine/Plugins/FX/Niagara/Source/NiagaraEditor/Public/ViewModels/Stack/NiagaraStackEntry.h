@@ -4,6 +4,7 @@
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "NiagaraEditorCommon.h"
+#include "NiagaraValidationRule.h"
 #include "Widgets/Views/STableRow.h"
 #include "NiagaraStackEntry.generated.h"
 
@@ -464,6 +465,9 @@ public:
 
 	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
 
+	void AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed);
+	void ClearExternalIssues();
+
 	virtual bool SupportsCut() const { return false; }
 
 	virtual bool TestCanCutWithMessage(FText& OutMessage) const { return false; }
@@ -626,6 +630,7 @@ private:
 	FOnRequestDrop OnRequestDropDelegate;
 	
 	TArray<FStackIssue> StackIssues;
+	TArray<FStackIssue> ExternalStackIssues;
 
 	bool bIsFinalized;
 
