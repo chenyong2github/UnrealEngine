@@ -10,6 +10,10 @@
 #include "Net/DataReplication.h"
 #include "ActorChannel.generated.h"
 
+#ifndef NET_ENABLE_SUBOBJECT_REPKEYS
+#define NET_ENABLE_SUBOBJECT_REPKEYS 1
+#endif // NET_ENABLE_SUBOBJECT_REPKEYS
+
 class AActor;
 class FInBunch;
 class FNetFieldExportGroup;
@@ -286,6 +290,7 @@ public:
 		return WroteSomething;
 	}
 
+#if NET_ENABLE_SUBOBJECT_REPKEYS
 	// Static size for SubobjectRepKeyMap. Allows us to resuse arrays and avoid dyanmic memory allocations
 	static const int32 SubobjectRepKeyBufferSize = 64;
 
@@ -309,6 +314,7 @@ public:
 	// Returns true if the given ObjID is not up to date with RepKey
 	// this implicitly 'writes' the RepKey to the current out bunch.
 	bool KeyNeedsToReplicate(int32 ObjID, int32 RepKey);
+#endif // NET_ENABLE_SUBOBJECT_REPKEYS
 	
 	// --------------------------------
 
