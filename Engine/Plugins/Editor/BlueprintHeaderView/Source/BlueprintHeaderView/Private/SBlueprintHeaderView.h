@@ -13,6 +13,16 @@ class UBlueprint;
 class ITableRow;
 class STableViewBase;
 
+/** rich text decorators for BlueprintHeaderView Syntax Highlighting */
+namespace HeaderViewSyntaxDecorators
+{
+	extern const FString CommentDecorator;
+	extern const FString IdentifierDecorator;
+	extern const FString KeywordDecorator;
+	extern const FString MacroDecorator;
+	extern const FString TypenameDecorator;
+}
+
 /** A base class for List Items in the Header View */
 struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 {
@@ -73,6 +83,9 @@ private:
 	
 	/** Clears the list and repopulates it with info for the selected Blueprint */
 	void RepopulateListView();
+
+	/** Adds items to the list view representing all functions present in the given blueprint */
+	void PopulateFunctionItems(const UBlueprint* Blueprint);
 private:
 	/** The blueprint currently being displayed by the header view */
 	TWeakObjectPtr<UBlueprint> SelectedBlueprint;

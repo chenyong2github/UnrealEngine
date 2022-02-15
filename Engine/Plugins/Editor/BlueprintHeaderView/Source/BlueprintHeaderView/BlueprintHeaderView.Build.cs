@@ -25,6 +25,8 @@ public class BlueprintHeaderView : ModuleRules
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
+				"UnrealEd",
+				"BlueprintGraph",
 			}
 			);
 		

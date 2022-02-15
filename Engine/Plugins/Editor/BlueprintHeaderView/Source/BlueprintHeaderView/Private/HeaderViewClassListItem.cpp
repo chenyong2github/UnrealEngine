@@ -4,8 +4,6 @@
 #include "Engine/Blueprint.h"
 #include "String/LineEndings.h"
 
-#define LOCTEXT_NAMESPACE "HeaderViewClassListItem"
-
 FHeaderViewListItemPtr FHeaderViewClassListItem::Create(TWeakObjectPtr<UBlueprint> InBlueprint)
 {
 	return MakeShareable(new FHeaderViewClassListItem(InBlueprint));
@@ -13,7 +11,6 @@ FHeaderViewListItemPtr FHeaderViewClassListItem::Create(TWeakObjectPtr<UBlueprin
 
 FString FHeaderViewClassListItem::GetConditionalUClassSpecifiers(const UBlueprint* Blueprint) const
 {
-	// Avoid lots of reallocations
 	TStringBuilder<256> AdditionalSpecifiers;
 
 	if (Blueprint->bGenerateConstClass)
@@ -101,7 +98,7 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 
 			// Always add Blueprintable and BlueprintType
 			RawItemString += FString::Printf(TEXT("\nUCLASS(Blueprintable, BlueprintType%s)"), *AdditionalSpecifiers);
-			RichTextString += FString::Printf(TEXT("\n<macro>UCLASS</>(Blueprintable, BlueprintType%s)"), *AdditionalSpecifiers);
+			RichTextString += FString::Printf(TEXT("\n<%s>UCLASS</>(Blueprintable, BlueprintType%s)"), *HeaderViewSyntaxDecorators::MacroDecorator, *AdditionalSpecifiers);
 		}
 
 		// Add the class declaration line
@@ -115,7 +112,15 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 				ParentBlueprint ? *ParentBlueprint->GetName() : *Blueprint->ParentClass->GetAuthoredName());
 
 			RawItemString += FString::Printf(TEXT("\nclass %s : public %s\n{\n\tGENERATED_BODY()"), *BlueprintName, *ParentClassName);
-			RichTextString += FString::Printf(TEXT("\n<keyword>class</> <typename>%s</> : <keyword>public</> <typename>%s</>\n{\n\t<macro>GENERATED_BODY</>()"), *BlueprintName, *ParentClassName);
+			RichTextString += FString::Printf(TEXT("\n<%s>class</> <%s>%s</> : <%s>public</> <%s>%s</>\n{\n\t<%s>GENERATED_BODY</>()"), 
+				*HeaderViewSyntaxDecorators::KeywordDecorator,
+				*HeaderViewSyntaxDecorators::TypenameDecorator, 
+				*BlueprintName,
+				*HeaderViewSyntaxDecorators::KeywordDecorator,
+				*HeaderViewSyntaxDecorators::TypenameDecorator,
+				*ParentClassName,
+				*HeaderViewSyntaxDecorators::MacroDecorator
+			);
 		}
 
 		// normalize to platform newlines
@@ -124,4 +129,3 @@ FHeaderViewClassListItem::FHeaderViewClassListItem(TWeakObjectPtr<UBlueprint> In
 	}
 }
 
-#undef LOCTEXT_NAMESPACE

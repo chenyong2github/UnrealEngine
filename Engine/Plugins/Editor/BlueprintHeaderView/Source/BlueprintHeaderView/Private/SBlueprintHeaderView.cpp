@@ -11,10 +11,24 @@
 #include "Engine/Blueprint.h"
 #include "Framework/Text/SlateTextRun.h"
 #include "HeaderViewClassListItem.h"
+#include "HeaderViewFunctionListItem.h"
+#include "EdGraphSchema_K2.h"
+#include "K2Node_FunctionEntry.h"
 #include "EditorStyleSet.h"
 #include "String/LineEndings.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintHeaderView"
+
+// HeaderViewSyntaxDecorators /////////////////////////////////////////////////
+
+namespace HeaderViewSyntaxDecorators
+{
+	const FString CommentDecorator = TEXT("comment");
+	const FString IdentifierDecorator = TEXT("identifier");
+	const FString KeywordDecorator = TEXT("keyword");
+	const FString MacroDecorator = TEXT("macro");
+	const FString TypenameDecorator = TEXT("typename");
+}
 
 // FHeaderViewSyntaxDecorator /////////////////////////////////////////////////
 
@@ -89,11 +103,11 @@ TSharedRef<SWidget> FHeaderViewListItem::GenerateWidgetForItem()
 			SNew(SRichTextBlock)
 			.Text(FText::FromString(RichTextString))
 			.TextStyle(FEditorStyle::Get(), "Log.Normal")
-			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(TEXT("comment"), SyntaxColors.Comment))
-			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(TEXT("macro"), SyntaxColors.Macro))
-			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(TEXT("typename"), SyntaxColors.Typename))
-			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(TEXT("identifier"), SyntaxColors.Identifier))
-			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(TEXT("keyword"), SyntaxColors.Keyword))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::CommentDecorator, SyntaxColors.Comment))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::IdentifierDecorator, SyntaxColors.Identifier))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::KeywordDecorator, SyntaxColors.Keyword))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::MacroDecorator, SyntaxColors.Macro))
+			+SRichTextBlock::Decorator(FHeaderViewSyntaxDecorator::Create(HeaderViewSyntaxDecorators::TypenameDecorator, SyntaxColors.Typename))
 		];
 }
 
@@ -132,8 +146,8 @@ void FHeaderViewListItem::FormatCommentString(FString InComment, FString& OutRaw
 	OutRawString = InComment;
 
 	// mark each line of the comment as the beginning and end of a comment style for the rich text representation
-	InComment.ReplaceInline(TEXT("\n"), TEXT("</>\n<comment>"));
-	OutRichString = FString::Printf(TEXT("<comment>%s</>"), *InComment);
+	InComment.ReplaceInline(TEXT("\n"), *FString::Printf(TEXT("</>\n<%s>"), *HeaderViewSyntaxDecorators::CommentDecorator));
+	OutRichString = FString::Printf(TEXT("<%s>%s</>"), *HeaderViewSyntaxDecorators::CommentDecorator, *InComment);
 }
 
 // SBlueprintHeaderView ///////////////////////////////////////////////////////
@@ -249,14 +263,65 @@ void SBlueprintHeaderView::RepopulateListView()
 {
 	ListItems.Empty();
 
-	// Add the class declaration
-	ListItems.Add(FHeaderViewClassListItem::Create(SelectedBlueprint));
+	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
+	{
+		// Add the class declaration
+		ListItems.Add(FHeaderViewClassListItem::Create(SelectedBlueprint));
 
+		PopulateFunctionItems(Blueprint);
 
-	// Add the closing brace of the class
-	ListItems.Add(FHeaderViewListItem::Create(TEXT("};"), TEXT("};")));
-	
+		// Add the closing brace of the class
+		ListItems.Add(FHeaderViewListItem::Create(TEXT("};"), TEXT("};")));
+	}
+
 	ListView->RequestListRefresh();
+}
+
+void SBlueprintHeaderView::PopulateFunctionItems(const UBlueprint* Blueprint)
+{
+	if (Blueprint)
+	{
+		// We should only add an access specifier line if the previous function was a different one
+		int32 PrevAccessSpecifier = 0;
+		for (const UEdGraph* FunctionGraph : Blueprint->FunctionGraphs)
+		{
+			if (FunctionGraph && !UEdGraphSchema_K2::IsConstructionScript(FunctionGraph))
+			{
+				TArray<UK2Node_FunctionEntry*> EntryNodes;
+				FunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);
+
+				if (ensure(EntryNodes.Num() == 1 && EntryNodes[0]))
+				{
+					int32 AccessSpecifier = EntryNodes[0]->GetFunctionFlags() & FUNC_AccessSpecifiers;
+
+					if (AccessSpecifier != PrevAccessSpecifier)
+					{
+						switch (AccessSpecifier)
+						{
+						case FUNC_Public:
+							ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+							break;
+						case FUNC_Protected:
+							ListItems.Add(FHeaderViewListItem::Create(TEXT("protected:"), FString::Printf(TEXT("<%s>protected</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+							break;
+						case FUNC_Private:
+							ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+							break;
+						}
+					}
+					else
+					{
+						// add an empty line to space functions out
+						ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
+					}
+
+					PrevAccessSpecifier = AccessSpecifier;
+
+					ListItems.Add(FHeaderViewFunctionListItem::Create(EntryNodes[0]));
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
