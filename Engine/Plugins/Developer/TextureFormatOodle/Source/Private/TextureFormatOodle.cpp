@@ -1361,7 +1361,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 {
 	using namespace UE::Tasks;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_RunJob);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN_RunJob);
 	
 	TArray<Private::FTaskBase*> Prerequisites;
 	Prerequisites.Reserve(NumDependencies);
@@ -1371,7 +1371,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	}
 
 	auto* Task{ new Private::FTaskBase };
-	Task->Init(TEXT("OodleJob"), 
+	Task->Init(TEXT("Oodle_EncodeBCN_Task"), 
 		[JobFunction, JobData]
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(OodleJob);
