@@ -14,7 +14,7 @@ namespace EpicGames.Core
 	/// Representation of an absolute directory path. Allows fast hashing and comparisons.
 	/// </summary>
 	[Serializable]
-	public class DirectoryReference : FileSystemReference, IEquatable<DirectoryReference>
+	public class DirectoryReference : FileSystemReference, IEquatable<DirectoryReference>, IComparable<DirectoryReference>
 	{
 		/// <summary>
 		/// Special value used to invoke the non-sanitizing constructor overload
@@ -205,6 +205,9 @@ namespace EpicGames.Core
 		{
 			return Comparer.GetHashCode(FullName);
 		}
+
+		/// <inheritdoc/>
+		public int CompareTo(DirectoryReference? Other) => Comparer.Compare(FullName, Other?.FullName);
 
 		/// <summary>
 		/// Helper function to create a remote directory reference. Unlike normal DirectoryReference objects, these aren't converted to a full path in the local filesystem.

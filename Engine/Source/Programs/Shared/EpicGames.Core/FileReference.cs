@@ -15,7 +15,7 @@ namespace EpicGames.Core
 	/// Representation of an absolute file path. Allows fast hashing and comparisons.
 	/// </summary>
 	[Serializable]
-	public class FileReference : FileSystemReference, IEquatable<FileReference>
+	public class FileReference : FileSystemReference, IEquatable<FileReference>, IComparable<FileReference>
 	{
 		/// <summary>
 		/// Dummy enum to allow invoking the constructor which takes a sanitized full path
@@ -238,6 +238,9 @@ namespace EpicGames.Core
 		{
 			return Comparer.GetHashCode(FullName);
 		}
+
+		/// <inheritdoc/>
+		public int CompareTo(FileReference? Other) => Comparer.Compare(FullName, Other?.FullName);
 
 		/// <summary>
 		/// Helper function to create a remote file reference. Unlike normal FileReference objects, these aren't converted to a full path in the local filesystem, but are
