@@ -447,6 +447,7 @@ struct FMaterialPixelParameters
 #if TEMPLATE_USES_STRATA
 	FSharedLocalBases SharedLocalBases;
 	FStrataTree StrataTree;
+	FStrataPixelFootprint StrataPixelFootprint;
 #endif
 };
 
@@ -2880,6 +2881,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 %s
 
 #if TEMPLATE_USES_STRATA
+	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative);
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif
@@ -2940,6 +2942,7 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 %s
 
 #if TEMPLATE_USES_STRATA
+	Parameters.StrataPixelFootprint = StrataGetPixelFootprint(Parameters.WorldPosition_CamRelative);
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif

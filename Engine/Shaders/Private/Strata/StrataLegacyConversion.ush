@@ -6,6 +6,7 @@
 
 struct FStrataLegacyParameters
 {
+	FStrataPixelFootprint PixelFootprint;
 	bool UseMetalness;
 	float3 DiffuseAlbedo;
 	float3 F0;
@@ -31,7 +32,7 @@ struct FStrataLegacyParameters
 	float Weight;
 };
 
-FStrataLegacyParameters InitStrataLegacyParameters(uint InSharedLocalBasisIndex, float InWeight)
+FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixelFootprint, uint InSharedLocalBasisIndex, float InWeight)
 {
 	const float3 Zeros = float3(0, 0, 0);
 
@@ -58,6 +59,7 @@ FStrataLegacyParameters InitStrataLegacyParameters(uint InSharedLocalBasisIndex,
 	Out.bIsTop = 1;
 	Out.bIsBottom = 1;
 	Out.Weight = InWeight;
+	Out.PixelFootprint = InPixelFootprint;
 	return Out;
 }
 
@@ -72,6 +74,7 @@ FStrataData CreateLegacySlab(
 	// Fixed layer structure for helping compiler to unroll and optimize shader
 	return PromoteParameterBlendedBSDFToOperator(
 		GetStrataSlabBSDF(
+			In.PixelFootprint,
 			In.UseMetalness,	// UseMetalness
 			In.BaseColor,		// BaseColor		-  Metalness workflow
 			Ones,				// EdgeColor		-  Metalness workflow
@@ -105,6 +108,7 @@ FStrataData CreateLegacySlab(
 // helping the compiler to unroll Strata BSDF traversing and packing. In most cases, the bottom slab is 
 // weighted by 0 and it will be removed once the data are written-out/packed.
 FStrataData StrataConvertLegacyMaterialDynamic(
+	FStrataPixelFootprint PixelFootprint,
 	float3 BaseColor, float Specular, float Metallic,
 	float Roughness, float Anisotropy,
 	float3 SubSurfaceColor, float SubSurfaceProfileId,
@@ -165,8 +169,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	#endif
 
 	// Top/Bottom
-	FStrataLegacyParameters Top = InitStrataLegacyParameters(SharedLocalBasisIndex, 1.0f);
-	FStrataLegacyParameters Bot = InitStrataLegacyParameters(SharedLocalBasisIndex, 1.0f);
+	FStrataLegacyParameters Top = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
+	FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 
 	float FinalWeight = 1.0f;
 
@@ -468,6 +472,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 // It reuses the dynamic version for most part, but for special node like Unlit/Hair/Water, 
 // we use the dedicated node
 FStrataData StrataConvertLegacyMaterialStatic(
+	FStrataPixelFootprint PixelFootprint,
 	float3 BaseColor, float Specular, float Metallic,
 	float Roughness, float Anisotropy,
 	float3 SubSurfaceColor, float SubSurfaceProfileId,
@@ -529,6 +534,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	else
 	{
 		Out = StrataConvertLegacyMaterialDynamic(
+			PixelFootprint,
 			BaseColor, Specular, Metallic,
 			Roughness, Anisotropy,
 			SubSurfaceColor, SubSurfaceProfileId,

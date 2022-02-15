@@ -12,6 +12,7 @@
 #include "../MortonCode.ush"
 #include "../OctahedralCommon.ush"
 #include "../SubsurfaceProfileCommon.ush"
+#include "../BurleyNormalizedSSSCommon.ush"
 #include "/Engine/Shared/StrataDefinitions.h"     
 
 
@@ -646,10 +647,26 @@ FStrataData GetInitialisedStrataData()
 	return StrataData;
 }
 
+struct FStrataPixelFootprint
+{
+	float PixelRadiusInWorldSpace; // In cm
+};
+
+FStrataPixelFootprint StrataGetPixelFootprint(float3 InWorldPosition)
+{
+	const float dX = lengthFast(ddx(InWorldPosition));
+	const float dY = lengthFast(ddy(InWorldPosition));
+
+	FStrataPixelFootprint Out;
+	Out.PixelRadiusInWorldSpace = min(dX, dY) * 0.5f;
+	return Out;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF
 
 FStrataData GetStrataSlabBSDF(
+	FStrataPixelFootprint InPixelFootprint,
 	float UseMetalness,
 	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic,	//  Metalness workflow
 	float3 DiffuseAlbedo, float3 F0, float3 F90,						// !Metalness workflow
@@ -668,9 +685,9 @@ FStrataData GetStrataSlabBSDF(
 	SSSDMFPScale = saturate(SSSDMFPScale);
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
 	const bool bDMFPPlugged = any(SSSDMFP > 0);
-	const bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
-	const bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSDMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
-	const bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
+	bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
+	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSDMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
+	bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
 
 	// Derive roughness and haziness from profile data
 	if (bSSSProfilePlugged)
@@ -695,6 +712,20 @@ FStrataData GetStrataSlabBSDF(
 		// * The mix factor is hardoded to 0.5 i.e., 0.5 * Fs(roughness0) + 0.5 * Fs(roughness1)
 		Haziness = (Lobe1Roughness - Lobe0Roughness) / (1.f - min(Lobe0Roughness, 0.99f));
 		Roughness = Lobe0Roughness;
+
+		SSSDMFP = GetSubsurfaceProfileDMFPInCm(SubsurfaceProfileUInt).xyz * SSSDMFPScale;
+	}
+
+	// If MFP is smaller than the pixel's footprint, remove SSS attributes
+	// The scaling factor 'SSSFootprintScale' is based on empiric tests
+	const float SSSFootprintScale = 0.9f;
+	if (all(SSSDMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace))
+	{
+		bHasSSSProfile = false;
+		bHasSSS = false;
+
+		// DMFPPlugged is not cleared as it is used for thin surface and thin volumetric
+		// bDMFPPlugged = false;
 	}
 
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
@@ -705,7 +736,6 @@ FStrataData GetStrataSlabBSDF(
 	{
 		StrataRequestSharedLocalBasisTangent(SharedLocalBasisTypes, SharedLocalBasisIndex);
 	}
-
 
 	// About the thin, a.k.a. two sided lighting, model:
 	// 	- Thin lighting model is used when thickness becomes less than STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM
@@ -756,7 +786,7 @@ FStrataData GetStrataSlabBSDF(
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.InlinedBSDF)		= SSSProfileID;
-		SLAB_SSSPROFILERADIUSSCALE(StrataData.InlinedBSDF)= SSSDMFPScale;
+		SLAB_SSSPROFILERADIUSSCALE(StrataData.InlinedBSDF)	= SSSDMFPScale;
 	}
 	else
 	{
@@ -2234,8 +2264,10 @@ void StrataConvertFromDBuffer(
 
 	// Data
 	// Decal only support a single Slab BSDF with no-anisotropy
+	const FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
 	const float DefaultThickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
 	OutData = GetStrataSlabBSDF(
+		PixelFootprint,		// PixelFootprint
 		true,				// UseMetalness
 		In.BaseColor,		// BaseColor		-  Metalness workflow
 		1.f,				// EdgeColor		-  Metalness workflow

@@ -255,12 +255,13 @@ void MainPS(
 		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 
 		// STRATA_TODO: produce the tree
-
+		FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
 		uint SharedLocalBasisIndex = 0;
 		StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
 		StrataPixelHeader.SharedLocalBases.Count = 1;
 
 		FStrataData StrataData = GetStrataSlabBSDF(
+			/**FStrataPixelFootprint PixelFootprint */PixelFootprint,
 			/*float UseMetalness					*/true,
 			/*float3 BaseColor						*/BaseColor,
 			/*float3 EdgeColor						*/1.0f,

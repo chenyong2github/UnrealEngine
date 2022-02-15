@@ -71,6 +71,49 @@ float3 DrawPlot(
 	return Out;
 }
 
+void AddDrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, float2 Scale, bool bNormalize, float4 Color)
+{
+	const float3 T = (bNormalize ? normalize(dPdx) : dPdx) * Scale.x;
+	const float3 B = (bNormalize ? normalize(dPdy) : dPdy) * Scale.y;
+	const float3 N = normalize(cross(T, B));
+
+	const float3 WP0 = P - T - B;
+	const float3 WP1 = P + T - B;
+	const float3 WP2 = P + T + B;
+	const float3 WP3 = P - T + B;
+
+	AddLineTWS(WP0, WP1, Color);
+	AddLineTWS(WP1, WP2, Color);
+	AddLineTWS(WP2, WP3, Color);
+	AddLineTWS(WP3, WP0, Color);
+}
+
+void DrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, uint2 PixelCoord)
+{
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	if (SSSData.bIsValid)
+	{
+		float3 DMFP = 0;
+		if (SSSData.bIsProfile)
+		{
+			DMFP = GetSubsurfaceProfileDMFPInCm(SSSData.ProfileId).xyz * SSSData.ProfileRadiusScale;
+		}
+		else
+		{
+			DMFP = SSSData.DMFP;
+		}
+
+		FStrataPixelFootprint Footprint = StrataGetPixelFootprint(P);
+		AddDrawPixelFootprint(P, dPdx, dPdy, 0.5f, false, ColorRed);
+		AddDrawPixelFootprint(P, dPdx, dPdy, Footprint.PixelRadiusInWorldSpace, true, ColorOrange);
+		AddDrawPixelFootprint(P, dPdx, dPdy, max3(DMFP.x, DMFP.y, DMFP.z), true, ColorCyan);
+
+		// Normal
+		const float3 N = normalize(cross(normalize(dPdx), normalize(dPdy)));
+		AddLineTWS(P, P + N * 10.f, ColorBlue);
+	}
+}
+
 void VisualizeMaterialPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
@@ -80,16 +123,16 @@ void VisualizeMaterialPS(
 	float2 BufferUV = SvPositionToBufferUV(float4(MaterialPos, SVPos.zw));
 	const int  InspectSquare = 10;
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(MaterialPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-	bool bStrataMaterial = Header.BSDFCount > 0;
-
 	const float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 	const float2 ScreenMaterialPosition = SvPositionToScreenPosition(float4(MaterialPos, 0.5f, 1)).xy;
 	float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 	const float3 WorldPosition = mul(float4(ScreenMaterialPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	const float3 V = -normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
+
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(MaterialPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	bool bStrataMaterial = Header.BSDFCount > 0;
 
 #if 0
 	OutColor = 0;
@@ -135,6 +178,15 @@ void VisualizeMaterialPS(
 		}
 	}
 #endif
+
+	// Print pixel footprint & SSS footprint
+	const float3 P = WorldPosition;
+	const float3 dPdx = ddx(P);
+	const float3 dPdy = ddy(P);
+	if (bStrataMaterial && all(PixelPos == MaterialPos))
+	{
+		DrawPixelFootprint(P, dPdx, dPdy, PixelPos);
+	}
 
 	OutColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
