@@ -4,22 +4,22 @@
 #include "PCGGraph.h"
 #include "PCGComponent.h"
 
-void UPCGSubgraphSettings::PostLoad()
+void UPCGBaseSubgraphSettings::PostLoad()
 {
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (Subgraph)
+	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
 		Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
 	}
 #endif
 }
 
-void UPCGSubgraphSettings::BeginDestroy()
+void UPCGBaseSubgraphSettings::BeginDestroy()
 {
 #if WITH_EDITOR
-	if (Subgraph)
+	if (UPCGGraph* Subgraph = GetSubgraph())
 	{
 		Subgraph->OnGraphChangedDelegate.RemoveAll(this);
 	}
@@ -28,30 +28,12 @@ void UPCGSubgraphSettings::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-UPCGNode* UPCGSubgraphSettings::CreateNode() const
-{
-	return NewObject<UPCGSubgraphNode>();
-}
-
 #if WITH_EDITOR
-TArray<FName> UPCGSubgraphSettings::GetTrackedActorTags() const
+void UPCGBaseSubgraphSettings::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	return Subgraph ? Subgraph->GetTrackedActorTags() : TArray<FName>();
-}
-#endif
-
-FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
-{
-	return MakeShared<FPCGSubgraphElement>();
-}
-
-#if WITH_EDITOR
-
-void UPCGSubgraphSettings::PreEditChange(FProperty* PropertyAboutToChange)
-{
-	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph))
+	if (PropertyAboutToChange && IsStructuralProperty(PropertyAboutToChange->GetFName()))
 	{
-		if (Subgraph)
+		if (UPCGGraph* Subgraph = GetSubgraph())
 		{
 			Subgraph->OnGraphChangedDelegate.RemoveAll(this);
 		}
@@ -60,22 +42,22 @@ void UPCGSubgraphSettings::PreEditChange(FProperty* PropertyAboutToChange)
 	Super::PreEditChange(PropertyAboutToChange);
 }
 
-void UPCGSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UPCGBaseSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph))
+	if (PropertyChangedEvent.Property && IsStructuralProperty(PropertyChangedEvent.Property->GetFName()))
 	{
-		if (Subgraph)
+		if (UPCGGraph* Subgraph = GetSubgraph())
 		{
 			Subgraph->OnGraphChangedDelegate.AddUObject(this, &UPCGSubgraphSettings::OnSubgraphChanged);
 		}
 	}
 }
 
-void UPCGSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural)
+void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural)
 {
-	if (InGraph == Subgraph)
+	if (InGraph == GetSubgraph())
 	{
 		if (bIsStructural)
 		{
@@ -89,6 +71,28 @@ void UPCGSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructu
 }
 
 #endif // WITH_EDITOR
+
+UPCGNode* UPCGSubgraphSettings::CreateNode() const
+{
+	return NewObject<UPCGSubgraphNode>();
+}
+
+#if WITH_EDITOR
+bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
+{
+	return (InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph)) || Super::IsStructuralProperty(InPropertyName);
+}
+
+TArray<FName> UPCGSubgraphSettings::GetTrackedActorTags() const
+{
+	return Subgraph ? Subgraph->GetTrackedActorTags() : TArray<FName>();
+}
+#endif
+
+FPCGElementPtr UPCGSubgraphSettings::CreateElement() const
+{
+	return MakeShared<FPCGSubgraphElement>();
+}
 
 TObjectPtr<UPCGGraph> UPCGSubgraphNode::GetSubgraph() const
 {
@@ -162,7 +166,7 @@ void UPCGSubgraphNode::OnStructuralSettingsChanged(UPCGSettings* InSettings)
 }
 #endif // WITH_EDITOR
 
-FPCGContextPtr FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent)
+FPCGContextPtr FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
 {
 	TSharedPtr<FPCGSubgraphContext> Context = MakeShared<FPCGSubgraphContext>();
 	Context->InputData = InputData;

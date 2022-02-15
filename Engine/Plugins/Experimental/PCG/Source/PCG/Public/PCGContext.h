@@ -18,7 +18,7 @@ struct FPCGContext
 
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
-	const UPCGComponent* SourceComponent = nullptr;
+	UPCGComponent* SourceComponent = nullptr;
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;

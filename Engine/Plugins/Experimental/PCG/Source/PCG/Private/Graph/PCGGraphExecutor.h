@@ -22,7 +22,7 @@ struct FPCGGraphTask
 	TArray<FPCGTaskId> Inputs;
 	//TArray<DataId> Outputs;
 	const UPCGNode* Node = nullptr;
-	const UPCGComponent* SourceComponent = nullptr; // TODO: can technically be editor only
+	UPCGComponent* SourceComponent = nullptr;
 	FPCGElementPtr Element; // Added to have tasks that aren't node-bound
 	FPCGTaskId NodeId = InvalidTaskId;
 };
@@ -50,7 +50,7 @@ public:
 
 	/** Schedules the execution of a given graph with specified inputs. This call is threadsafe */
 	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>());
-	FPCGTaskId Schedule(UPCGGraph* Graph, const UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
+	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
 
 	/** General job scheduling, used to control loading/unloading */
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);

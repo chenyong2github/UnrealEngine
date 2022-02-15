@@ -56,6 +56,8 @@ public:
 	UPCGGraph* GetGraph() const { return Graph; }
 	void SetGraph(UPCGGraph* InGraph);
 
+	void AddToGeneratedActors(AActor* InActor);
+
 	/** Transactionable methods to be called from details UI */
 	void Generate();
 	void Cleanup();
@@ -130,6 +132,7 @@ private:
 	bool ShouldGenerate(bool bForce = false) const;
 	FPCGTaskId GenerateInternal(bool bForce, const TArray<FPCGTaskId>& Dependencies);
 	void CleanupInternal(bool bRemoveComponents);
+	void CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors);
@@ -172,6 +175,9 @@ private:
 
 	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> CachedExcludedActors; 
+
+	UPROPERTY()
+	TSet<TSoftObjectPtr<AActor>> GeneratedActors;
 
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);

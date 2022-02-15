@@ -15,6 +15,7 @@ namespace PCGHelpers
 	/** Tag that will be added on every component generated through the PCG system */
 	const FName DefaultPCGTag = TEXT("PCG Generated Component");
 	const FName DefaultPCGDebugTag = TEXT("PCG Generated Debug Component");
+	const FName DefaultPCGActorTag = TEXT("PCG Generated Actor");
 
 	int ComputeSeed(int A);
 	int ComputeSeed(int A, int B);

@@ -58,23 +58,17 @@ void UPCGGraph::InitializeFromTemplate()
 {
 	Modify();
 
-	auto ResetDefaultNode = [](UPCGNode* InNode, bool bIsInput) {
+	auto ResetDefaultNode = [](UPCGNode* InNode) {
 		check(InNode);
-		if (bIsInput)
-		{
-			InNode->OutboundNodes.Reset();
-		}
-		else
-		{
-			InNode->InboundNodes.Reset();
-		}
+		InNode->OutboundNodes.Reset();
+		InNode->InboundNodes.Reset();
 
 		// Reset settings as well
 		InNode->DefaultSettings = NewObject<UPCGTrivialSettings>(InNode);
 	};
 
-	ResetDefaultNode(InputNode, true);
-	ResetDefaultNode(OutputNode, false);
+	ResetDefaultNode(InputNode);
+	ResetDefaultNode(OutputNode);
 
 	for (UPCGNode* Node : Nodes)
 	{

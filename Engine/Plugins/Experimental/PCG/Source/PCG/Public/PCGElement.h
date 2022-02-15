@@ -18,7 +18,7 @@ class IPCGElement
 {
 public:
 	virtual ~IPCGElement() = default;
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent) = 0;
+	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) = 0;
 
 	bool Execute(FPCGContextPtr Context) const;
 
@@ -33,7 +33,7 @@ protected:
 class FSimplePCGElement : public IPCGElement
 {
 public:
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent) override;
+	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
 };
 
 /**

@@ -14,8 +14,35 @@ class UPCGGraph;
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGNodeStructuralSettingsChanged, UPCGNode*);
 #endif
 
+UCLASS()
+class UPCGBaseSubgraphSettings : public UPCGSettings
+{
+	GENERATED_BODY()
+public:
+	virtual UPCGGraph* GetSubgraph() const { return nullptr; }
+
+protected:
+	//~Begin UObject interface implementation
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~End UObject interface implementation
+
+	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
+
+	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
+#endif
+
+public:
+#if WITH_EDITOR
+	FOnPCGStructuralSettingsChanged OnStructuralSettingsChangedDelegate;
+#endif
+};
+
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGSubgraphSettings : public UPCGSettings
+class UPCGSubgraphSettings : public UPCGBaseSubgraphSettings
 {
 	GENERATED_BODY()
 
@@ -32,25 +59,18 @@ protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface implementation
 
+	//~Begin UPCGBaseSubgraphSettings interface
+public:
+	virtual UPCGGraph* GetSubgraph() const override { return Subgraph; }
 protected:
-	//~Begin UObject interface implementation
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	//~End UObject interface implementation
-
-	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
+	virtual bool IsStructuralProperty(const FName& InPropertyName) const override;
 #endif
+	//~End UPCGBaseSubgraphSettings interface
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TObjectPtr<UPCGGraph> Subgraph;
-
-#if WITH_EDITOR
-	FOnPCGStructuralSettingsChanged OnStructuralSettingsChangedDelegate;
-#endif
 };
 
 UCLASS(Abstract)
@@ -101,7 +121,7 @@ struct FPCGSubgraphContext : public FPCGContext
 class FPCGSubgraphElement : public IPCGElement
 {
 public:
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent) override;
+	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
 
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;

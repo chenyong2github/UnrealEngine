@@ -14,6 +14,7 @@
 #include "Data/PCGVolumeData.h"
 #include "Graph/PCGGraphExecutor.h"
 #include "Grid/PCGPartitionActor.h"
+#include "Helpers/PCGActorHelpers.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -80,6 +81,14 @@ void UPCGComponent::SetGraph(UPCGGraph* InGraph)
 
 	OnGraphChanged(Graph, true, false);
 #endif	
+}
+
+void UPCGComponent::AddToGeneratedActors(AActor* InActor)
+{
+	if (InActor)
+	{
+		GeneratedActors.Add(InActor);
+	}
 }
 
 bool UPCGComponent::ShouldGenerate(bool bForce) const
@@ -322,6 +331,13 @@ void UPCGComponent::Cleanup(bool bRemoveComponents, bool bSave)
 
 void UPCGComponent::CleanupInternal(bool bRemoveComponents)
 {
+	TSet<TSoftObjectPtr<AActor>> ActorsToDelete;
+	CleanupInternal(bRemoveComponents, ActorsToDelete);
+	UPCGActorHelpers::DeleteActors(GetWorld(), ActorsToDelete.Array());
+}
+
+void UPCGComponent::CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+{
 	if (!bGenerated || IsPartitioned())
 	{
 		return;
@@ -350,6 +366,28 @@ void UPCGComponent::CleanupInternal(bool bRemoveComponents)
 			}
 		}
 	}
+
+	// Cleanup recursively before deleting the actor(s)
+	OutActorsToDelete.Append(GeneratedActors);
+
+	TArray<UPCGComponent*> ComponentsToCleanup;
+
+	for (TSoftObjectPtr<AActor> GeneratedActor : GeneratedActors)
+	{
+		if (GeneratedActor.IsValid())
+		{
+			GeneratedActor.Get()->GetComponents<UPCGComponent>(ComponentsToCleanup);
+
+			for (UPCGComponent* Component : ComponentsToCleanup)
+			{
+				Component->CleanupInternal(/*bRemoveComponents=*/false, OutActorsToDelete);
+			}
+
+			ComponentsToCleanup.Reset();
+		}
+	}
+
+	GeneratedActors.Reset();
 }
 
 void UPCGComponent::BeginPlay()

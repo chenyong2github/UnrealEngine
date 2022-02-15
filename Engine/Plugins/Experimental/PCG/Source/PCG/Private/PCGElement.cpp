@@ -91,7 +91,7 @@ bool IPCGElement::Execute(FPCGContextPtr Context) const
 	}
 }
 
-FPCGContextPtr FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent)
+FPCGContextPtr FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
 {
 	FPCGContextPtr Context = MakeShared<FPCGContext>();
 	Context->InputData = InputData;
