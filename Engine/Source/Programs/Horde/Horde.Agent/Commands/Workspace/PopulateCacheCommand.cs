@@ -14,7 +14,7 @@ using EpicGames.Perforce;
 
 namespace HordeAgent.Commands.Workspace
 {
-	[Command("Workspace", "PopulateWorkspaceCache", "Populates the cache with the head revision of the given streams")]
+	[Command("Workspace", "PopulateCache", "Populates the cache with the head revision of the given streams")]
 	class PopulateCacheCommand : WorkspaceCommand
 	{
 		[CommandLine("-ClientAndStream=")]

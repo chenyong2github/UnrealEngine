@@ -60,5 +60,27 @@ namespace EpicGames.Core
 				Console.WriteLine(Line);
 			}
 		}
+
+		/// <summary>
+		/// Writes an colored warning message to the console
+		/// </summary>
+		/// <param name="Text">The message to output</param>
+		public static void WriteWarning(string Text)
+		{
+			Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.WriteLine(Text);
+			Console.ResetColor();
+		}
+
+		/// <summary>
+		/// Writes an colored error message to the console
+		/// </summary>
+		/// <param name="Text">The message to output</param>
+		public static void WriteError(string Text)
+		{
+			Console.ForegroundColor = ConsoleColor.Red;
+			Console.WriteLine(Text);
+			Console.ResetColor();
+		}
 	}
 }

@@ -305,7 +305,7 @@ namespace AutomationTool
 @"Executes scripted commands
 
 AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 ...] Command1 [-Arg0 -Arg1 ...] Command2 [-Arg0 ...] Commandn ... [EnvVar0=MyValue0 ... EnvVarn=MyValuen]",
-				ParamDict.ToList(), HelpUtils.WindowWidth, Log.Logger);
+				ParamDict.ToList());
 			CommandUtils.LogHelp(typeof(Automation));
 		}
 

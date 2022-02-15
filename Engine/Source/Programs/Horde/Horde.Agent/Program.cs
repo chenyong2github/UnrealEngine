@@ -24,6 +24,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
+using System.Text;
+using EpicGames.Perforce;
+using System.Security.Cryptography;
 
 namespace HordeAgent
 {
@@ -58,14 +63,6 @@ namespace HordeAgent
 		public static string Version { get; } = GetVersion();
 
 		/// <summary>
-		/// Width to use for printing out help
-		/// </summary>
-		static int HelpWidth
-		{
-			get { return HelpUtils.WindowWidth - 20; }
-		}
-
-		/// <summary>
 		/// Entry point
 		/// </summary>
 		/// <param name="Args">Command-line arguments</param>
@@ -92,24 +89,6 @@ namespace HordeAgent
 			}
 		}
 
-		static bool MatchCommand(string[] Args, CommandAttribute Attribute)
-		{
-			if(Args.Length < Attribute.Names.Length)
-			{
-				return false;
-			}
-
-			for (int Idx = 0; Idx < Attribute.Names.Length; Idx++)
-			{
-				if (!Attribute.Names[Idx].Equals(Args[Idx], StringComparison.OrdinalIgnoreCase))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
 		/// <summary>
 		/// Actual Main function, without exception guards
 		/// </summary>
@@ -120,116 +99,6 @@ namespace HordeAgent
 		{
 			// Enable unencrypted HTTP/2 for gRPC channel without TLS
 			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-			
-			// Find all the command types
-			List<(CommandAttribute, Type)> Commands = new List<(CommandAttribute, Type)>();
-			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
-			{
-				CommandAttribute? Attribute = Type.GetCustomAttribute<CommandAttribute>();
-				if (Attribute != null)
-				{
-					Commands.Add((Attribute, Type));
-				}
-			}
-
-			// Check if there's a matching command
-			Type? CommandType = null;
-			CommandAttribute? CommandAttribute = null;
-
-			string[] DefaultArgs = new string[] { "Service", "Run" };
-;			Type? DefaultCommandType = null;
-			CommandAttribute? DefaultCommandAttribute = null;
-
-			foreach ((CommandAttribute Attribute, Type Type) in Commands.OrderBy(x => x.Item1.Names.Length))
-			{
-				if (MatchCommand(Args, Attribute))
-				{
-					CommandType = Type;
-					CommandAttribute = Attribute;
-				}
-
-				if (MatchCommand(DefaultArgs, Attribute))
-				{
-					DefaultCommandType = Type;
-					DefaultCommandAttribute = Attribute;
-				}
-
-			}
-
-			// Check if there are any commands specified on the command line.
-			if (CommandType == null)
-			{
-				if (Args.Length > 0 && !Args[0].StartsWith("-"))
-				{
-					Logger.LogError("Invalid command");
-					Logger.LogInformation("");
-					Logger.LogInformation("Available commands");
-
-					PrintCommands(Commands.Select(x => x.Item1), Logger);
-					return 1;
-				}
-				else if (Args.Length > 0 && Args[0].Equals("-Help", StringComparison.OrdinalIgnoreCase))
-				{
-					Logger.LogInformation("HordeAgent");
-					Logger.LogInformation("");
-					Logger.LogInformation("Utility for managing automated processes on build machines.");
-					Logger.LogInformation("");
-					Logger.LogInformation("Usage:");
-					Logger.LogInformation("    HordeAgent.exe [Command] [-Option1] [-Option2]...");
-					Logger.LogInformation("");
-					Logger.LogInformation("Commands:");
-
-					PrintCommands(Commands.Select(x => x.Item1), Logger);
-
-					Logger.LogInformation("");
-					Logger.LogInformation("Specify \"Command -Help\" for command-specific help");
-					return 0;
-				}
-				else
-				{
-					CommandType = DefaultCommandType;
-					CommandAttribute = DefaultCommandAttribute;
-
-					if (CommandType == null || CommandAttribute == null)
-					{
-						Logger.LogError("Invalid default command");
-						return 1;
-					}
-				}
-			}
-
-			// Extract the 
-			string CommandName = String.Join(" ", CommandAttribute!.Names);
-
-			// Build an argument list for the command, including all the global arguments as well as arguments until the next command
-			CommandLineArguments CommandArguments = new CommandLineArguments(Args.Skip(CommandAttribute.Names.Length).ToArray());
-
-			// Create the command instance
-			Command Command = (Command)Activator.CreateInstance(CommandType)!;
-
-			// If the help flag is specified, print the help info and exit immediately
-			if (CommandArguments.HasOption("-Help"))
-			{
-				HelpUtils.PrintHelp(CommandName, CommandAttribute.Description, Command.GetParameters(CommandArguments), HelpWidth, Logger);
-				return 1;
-			}
-
-			// Configure the command
-			try
-			{
-				Command.Configure(CommandArguments, Logger);
-				CommandArguments.CheckAllArgumentsUsed(Logger);
-			}
-			catch (CommandLineArgumentException Ex)
-			{
-				Logger.LogError("{0}: {1}", CommandName, Ex.Message);
-
-				Logger.LogInformation("");
-				Logger.LogInformation("Arguments for {0}:", CommandName);
-
-				HelpUtils.PrintTable(Command.GetParameters(CommandArguments), 4, 24, HelpWidth, Logger);
-				return 1;
-			}
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
@@ -243,22 +112,7 @@ namespace HordeAgent
 			}
 
 			// Execute all the commands
-			return await Command.ExecuteAsync(Logger);
-		}
-
-		/// <summary>
-		/// Print a formatted list of all the available commands
-		/// </summary>
-		/// <param name="Attributes">List of command attributes</param>
-		/// <param name="Logger">The logging output device</param>
-		static void PrintCommands(IEnumerable<CommandAttribute> Attributes, ILogger Logger)
-		{
-			List<KeyValuePair<string, string>> Commands = new List<KeyValuePair<string, string>>();
-			foreach(CommandAttribute Attribute in Attributes)
-			{
-				Commands.Add(new KeyValuePair<string, string>(String.Join(" ", Attribute.Names), Attribute.Description));
-			}
-			HelpUtils.PrintTable(Commands.OrderBy(x => x.Key).ToList(), 4, 20, HelpWidth, Logger);
+			return await CommandHost.RunAsync(new CommandLineArguments(Args), typeof(HordeAgent.Modes.Service.RunCommand), Logger);
 		}
 
 		/// <summary>

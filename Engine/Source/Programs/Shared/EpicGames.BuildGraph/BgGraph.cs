@@ -658,7 +658,14 @@ namespace EpicGames.BuildGraph
 					Logger.LogInformation("");
 					Logger.LogInformation("Options:");
 					Logger.LogInformation("");
-					HelpUtils.PrintTable(Parameters, 4, 24, Logger);
+
+					List<string> Lines = new List<string>();
+					HelpUtils.FormatTable(Parameters, 4, 24, HelpUtils.WindowWidth - 20, Lines);
+
+					foreach (string Line in Lines)
+					{
+						Logger.Log(LogLevel.Information, Line);
+					}
 				}
 			}
 
