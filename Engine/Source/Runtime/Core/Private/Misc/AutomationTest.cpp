@@ -23,7 +23,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 	only Display/Warning/Error are supported in the automation log so anything with NoLogging/Log will not be shown
 	(Should be moved under a namespace for 4.27).
 */
-CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbosity, FAutomationTestBase* CurrentTest)
+CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbosity, FName LogCategory, FAutomationTestBase* CurrentTest)
 {
 	ELogVerbosity::Type EffectiveVerbosity = LogVerbosity;
 
@@ -33,21 +33,23 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 	static bool bSuppressLogWarnings = false;
 	static bool bSuppressLogErrors = false;
 	static bool bElevateLogWarningsToErrors = false;
-
+	static TArray<FString> SuppressedLogCategories;
 	static FAutomationTestBase* LastTest = nullptr;
 
 	if (CurrentTest != LastTest)
 	{
 		// These can be changed in the editor so can't just be cached for the whole session
+		SuppressedLogCategories.Empty();
 		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
 		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
 		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bElevateLogWarningsToErrors"), bElevateLogWarningsToErrors, GEngineIni);
+		GConfig->GetArray(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("SuppressedLogCategories"), SuppressedLogCategories, GEngineIni);
 		LastTest = CurrentTest;
 	}
 
 	if (CurrentTest)
 	{
-		if (CurrentTest->SuppressLogs())
+		if (CurrentTest->SuppressLogs() || SuppressedLogCategories.Contains(LogCategory.ToString()))
 		{
 			EffectiveVerbosity = ELogVerbosity::NoLogging;
 		}
@@ -97,7 +99,9 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 		if (CaptureLog)
 		{
 		
-			ELogVerbosity::Type EffectiveVerbosity = GetAutomationLogLevel(Verbosity, CurTest);
+			ELogVerbosity::Type EffectiveVerbosity = GetAutomationLogLevel(Verbosity, Category, CurTest);
+
+			FString FormattedMsg = FString::Printf(TEXT("%s: %s"), *Category.ToString(), V);
 			
 			// Errors
 			if (EffectiveVerbosity == ELogVerbosity::Error)
@@ -107,17 +111,17 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 					CurTest->AddError(FString::Printf(TEXT("%s will be marked as failing due to errors being logged"), *CurTest->GetTestFullName()), STACK_OFFSET);
 					LoggedFailureCause.Add(CurTest);
 				}
-				CurTest->AddError(FString(V), STACK_OFFSET);
+				CurTest->AddError(FormattedMsg, STACK_OFFSET);
 			}
 			// Warnings
 			else if (EffectiveVerbosity == ELogVerbosity::Warning)
 			{
-				CurTest->AddWarning(FString(V), STACK_OFFSET);
+				CurTest->AddWarning(FormattedMsg, STACK_OFFSET);
 			}
 			// Display
 			else
 			{
-				CurTest->AddInfo(FString(V), STACK_OFFSET);
+				CurTest->AddInfo(FormattedMsg, STACK_OFFSET);
 			}
 		}
 		// Log...etc

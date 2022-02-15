@@ -82,6 +82,10 @@ public:
 	/** Whether to treat log warnings as log errors (default=true) */
 	UPROPERTY(Config)
 	bool bElevateLogWarningsToErrors;
+
+	/** Log categories where warnings/errors will not affect the result of tests. A finer-grained way of preventing rogue systems from leading to test warnings/errors */
+	UPROPERTY(Config)
+	TArray<FString> SuppressedLogCategories;
 	
 private:
 	/** Whether to treat log warnings as test errors (default=true) */
