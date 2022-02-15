@@ -114,6 +114,8 @@ public:
 	/** Updates internal properties from other component, dirties as required but does not trigger Refresh */
 	void SetPropertiesFromOriginal(const UPCGComponent* Original);
 
+	UPCGSubsystem* GetSubsystem() const;
+
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	TObjectPtr<UPCGGraph> Graph;
@@ -125,7 +127,6 @@ private:
 	UPCGData* CreateActorPCGData(AActor* Actor);
 	void UpdatePCGExclusionData();
 
-	UPCGSubsystem* GetSubsystem() const;
 	bool ShouldGenerate(bool bForce = false) const;
 	FPCGTaskId GenerateInternal(bool bForce, const TArray<FPCGTaskId>& Dependencies);
 	void CleanupInternal(bool bRemoveComponents);

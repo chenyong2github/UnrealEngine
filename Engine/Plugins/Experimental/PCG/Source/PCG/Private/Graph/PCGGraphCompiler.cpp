@@ -29,27 +29,28 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 	{
 		const UPCGNode* Node = NodeQueue.Pop();
 
-		const UPCGSubgraphNode* SubgraphNode = Cast<const UPCGSubgraphNode>(Node);
+		const UPCGBaseSubgraphNode* SubgraphNode = Cast<const UPCGBaseSubgraphNode>(Node);
+		UPCGGraph* Subgraph = SubgraphNode ? SubgraphNode->GetSubgraph() : nullptr;
 
-		if (SubgraphNode != nullptr && !SubgraphNode->bAllowDynamicGraph)
+		if (SubgraphNode != nullptr && !SubgraphNode->bDynamicGraph && Subgraph)
 		{
 			const FPCGTaskId PreId = NextId++;
 
 			// 1. Compile the subgraph making sure we don't reuse the same ids
 			// Note that we will not consume the pre or post-execute tasks, ergo bIsTopGraph=false
-			TArray<FPCGGraphTask> Subtasks = GetCompiledTasks(SubgraphNode->GetGraph(), /*bIsTopGraph=*/false);
+			TArray<FPCGGraphTask> Subtasks = GetCompiledTasks(Subgraph, /*bIsTopGraph=*/false);
 
 #if WITH_EDITOR
 			GraphDependenciesLock.Lock();
-			GraphDependencies.AddUnique(SubgraphNode->GetGraph(), InGraph);
+			GraphDependencies.AddUnique(Subgraph, InGraph);
 			GraphDependenciesLock.Unlock();
 #endif // WITH_EDITOR
 
 			OffsetNodeIds(Subtasks, NextId);
 			NextId += Subtasks.Num();
 
-			const UPCGNode* SubgraphInputNode = SubgraphNode->GetGraph()->GetInputNode();
-			const UPCGNode* SubgraphOutputNode = SubgraphNode->GetGraph()->GetOutputNode();
+			const UPCGNode* SubgraphInputNode = Subgraph->GetInputNode();
+			const UPCGNode* SubgraphOutputNode = Subgraph->GetOutputNode();
 
 			// 2. Update the "input" and "output" node tasks so we can add the proper dependencies
 			FPCGGraphTask* InputNodeTask = Subtasks.FindByPredicate([SubgraphInputNode](const FPCGGraphTask& Subtask) {
@@ -94,7 +95,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			IdMapping.Add(Node, PostId);
 
 			// Prime any input-less nodes from the subgraph
-			for (const UPCGNode* SubNode : SubgraphNode->GetGraph()->GetNodes())
+			for (const UPCGNode* SubNode : Subgraph->GetNodes())
 			{
 				if (SubNode->InboundNodes.IsEmpty())
 				{
@@ -247,7 +248,7 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	// Find end nodes, e.g. all nodes that have no successors.
 	// In our representation we don't have this, so find it out by going backwards
 	// Note: this works because there is a weak ordering on the tasks such that
-	// a successor task is always after if predecessor
+	// a successor task is always after its predecessors
 	TSet<FPCGTaskId> TasksWithSuccessors;
 	TArray<FPCGTaskId> EndNodes;
 

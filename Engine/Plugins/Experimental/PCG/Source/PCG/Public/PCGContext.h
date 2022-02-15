@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "PCGData.h"
 #include "PCGNode.h"
+#include "PCGSubsystem.h"
 
 struct FPCGContext;
 class UPCGComponent;
@@ -13,12 +14,16 @@ typedef TSharedPtr<FPCGContext, ESPMode::ThreadSafe> FPCGContextPtr;
 
 struct FPCGContext
 {
+	virtual ~FPCGContext() = default;
+
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
 	const UPCGComponent* SourceComponent = nullptr;
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;
+	FPCGTaskId TaskId = InvalidTaskId;
+	bool bIsPaused = false;
 
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings()

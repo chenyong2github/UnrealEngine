@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "PCGSettings.h"
 
 class UPCGGraph;
@@ -52,20 +53,31 @@ public:
 #endif
 };
 
-UCLASS(ClassGroup = (Procedural))
-class UPCGSubgraphNode : public UPCGNode
+UCLASS(Abstract)
+class UPCGBaseSubgraphNode : public UPCGNode
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bAllowDynamicGraph = false;
+	bool bDynamicGraph = false;
 
+	virtual TObjectPtr<UPCGGraph> GetSubgraph() const { return nullptr; }
+};
+
+UCLASS(ClassGroup = (Procedural))
+class UPCGSubgraphNode : public UPCGBaseSubgraphNode
+{
+	GENERATED_BODY()
+
+public:
 #if WITH_EDITOR
 	FOnPCGNodeStructuralSettingsChanged OnNodeStructuralSettingsChangedDelegate;
 #endif
 
-	TObjectPtr<UPCGGraph> GetGraph() const;
+	/** ~Begin UPCGBaseSubgraphNode interface */
+	TObjectPtr<UPCGGraph> GetSubgraph() const override;
+	/** ~End UPCGBaseSubgraphNode interface */
 
 protected:	
 	/** ~Begin UObject interface */
@@ -78,4 +90,29 @@ protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnStructuralSettingsChanged(UPCGSettings* InSettings);
 #endif
+};
+
+struct FPCGSubgraphContext : public FPCGContext
+{
+	FPCGTaskId SubgraphTaskId = InvalidTaskId;
+	bool bScheduledSubgraph = false;
+};
+
+class FPCGSubgraphElement : public IPCGElement
+{
+public:
+	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, const UPCGComponent* SourceComponent) override;
+
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+};
+
+class FPCGInputForwardingElement : public FSimplePCGElement
+{
+public:
+	FPCGInputForwardingElement(const FPCGDataCollection& InputToForward);
+
+protected:
+	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	FPCGDataCollection Input;
 };

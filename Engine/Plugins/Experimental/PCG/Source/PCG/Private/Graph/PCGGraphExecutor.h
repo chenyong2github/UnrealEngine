@@ -50,11 +50,15 @@ public:
 
 	/** Schedules the execution of a given graph with specified inputs. This call is threadsafe */
 	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>());
+	FPCGTaskId Schedule(UPCGGraph* Graph, const UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
 
-#if WITH_EDITOR
 	/** General job scheduling, used to control loading/unloading */
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);
 
+	/** Gets data in the output results. Returns false if data is not ready. */
+	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
+
+#if WITH_EDITOR
 	void AddToDirtyActors(AActor* Actor);
 	void AddToUnusedActors(const TSet<FWorldPartitionReference>& UnusedActors);
 
@@ -111,7 +115,6 @@ private:
 	UPCGComponent* Component = nullptr;
 };
 
-#if WITH_EDITOR
 class FPCGGenericElement : public FSimplePCGElement
 {
 public:
@@ -126,4 +129,3 @@ protected:
 private:
 	TFunction<bool()> Operation;
 };
-#endif // WITH_EDITOR

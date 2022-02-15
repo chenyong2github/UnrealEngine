@@ -29,6 +29,12 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 {
 	check(Component);
 	UPCGGraph* Graph = Component->GetGraph();
+
+	return Schedule(Graph, Component, MakeShared<FPCGFetchInputElement>(Component), ExternalDependencies);
+}
+
+FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, const UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies)
+{
 	FPCGTaskId ScheduledId = InvalidTaskId;
 
 	// Get compiled tasks from compiler
@@ -37,7 +43,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 	// Assign this component to the tasks
 	for (FPCGGraphTask& Task : CompiledTasks)
 	{
-		Task.SourceComponent = Component;
+		Task.SourceComponent = SourceComponent;
 	}
 
 	// Prepare scheduled task that will be promoted in the next Execute call.
@@ -46,7 +52,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 		check(CompiledTasks[0].Node == Graph->GetInputNode());
 
 		// Setup fetch task on input node
-		CompiledTasks[0].Element = MakeShared<FPCGFetchInputElement>(Component);
+		CompiledTasks[0].Element = InputElement;
 
 		ScheduleLock.Lock();
 
@@ -71,7 +77,6 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 	return ScheduledId;
 }
 
-#if WITH_EDITOR
 FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies)
 {
 	// Build task & element to hold the operation to perform
@@ -91,7 +96,20 @@ FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, con
 
 	return Task.NodeId;
 }
-#endif
+
+bool FPCGGraphExecutor::GetOutputData(FPCGTaskId TaskId, FPCGDataCollection& OutData)
+{
+	// TODO: this is not threadsafe - make threadsafe once we multithread execution
+	if (OutputData.Contains(TaskId))
+	{
+		OutData = OutputData[TaskId];
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 
 void FPCGGraphExecutor::Execute()
 {
@@ -123,7 +141,7 @@ void FPCGGraphExecutor::Execute()
 	check(Tasks.Num() == 0 || ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0);
 
 	// TODO: change this when we support time-slicing
-	while (ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0)
+	if(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0)
 	{
 		// First: if we have free resources, move ready tasks to the active tasks
 		bool bCanStartNewTasks = true; // TODO implement this
@@ -169,6 +187,7 @@ void FPCGGraphExecutor::Execute()
 				
 				FPCGContextPtr Context = Element->Initialize(TaskInput, Task.SourceComponent);
 				Context->Node = Task.Node; // still needed?
+				Context->TaskId = Task.NodeId;
 
 				FPCGGraphActiveTask& ActiveTask = ActiveTasks.Emplace_GetRef();
 				ActiveTask.Element = Element;
@@ -186,7 +205,7 @@ void FPCGGraphExecutor::Execute()
 		{
 			FPCGGraphActiveTask& ActiveTask = ActiveTasks[ExecutionIndex];
 
-			if (ActiveTask.Element->Execute(ActiveTask.Context))
+			if (!ActiveTask.Context->bIsPaused && ActiveTask.Element->Execute(ActiveTask.Context))
 			{
 				// Store output data in map
 				StoreResults(ActiveTask.NodeId, ActiveTask.Context->OutputData);
@@ -366,7 +385,6 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContextPtr Context) const
 	return true;
 }
 
-#if WITH_EDITOR
 FPCGGenericElement::FPCGGenericElement(TFunction<bool()> InOperation)
 	: Operation(InOperation)
 {
@@ -376,4 +394,3 @@ bool FPCGGenericElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	return Operation();
 }
-#endif // WITH_EDITOR

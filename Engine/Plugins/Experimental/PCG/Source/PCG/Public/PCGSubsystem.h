@@ -11,9 +11,13 @@ class FPCGGraphExecutor;
 class APCGPartitionActor;
 class APCGWorldActor;
 class UPCGGraph;
+struct FPCGDataCollection;
 
 using FPCGTaskId = uint64;
 static const FPCGTaskId InvalidTaskId = (uint64)-1;
+
+class IPCGElement;
+typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 
 /**
 * UPCGSubsystem
@@ -47,6 +51,15 @@ public:
 	// Schedule graph (owner -> graph)
 	FPCGTaskId ScheduleComponent(UPCGComponent* PCGComponent, const TArray<FPCGTaskId>& Dependencies);
 
+	// Schedule graph (used internally for dynamic subgraph execution)
+	FPCGTaskId ScheduleGraph(UPCGGraph* Graph, const UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies);
+
+	/** General job scheduling, used to control loading/unloading */
+	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);
+
+	/** Gets the output data for a given task */
+	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
+
 #if WITH_EDITOR
 public:
 	/** Operations to schedule a later operation, which enables to delay bounds querying */
@@ -64,8 +77,6 @@ public:
 	void CleanupPartitionActors(const FBox& InBounds);
 	void DeletePartitionActors();
 
-	/** General job scheduling, used to control loading/unloading */
-	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);
 
 	/** Propagate to the graph compiler graph changes */
 	void NotifyGraphChanged(UPCGGraph* InGraph);

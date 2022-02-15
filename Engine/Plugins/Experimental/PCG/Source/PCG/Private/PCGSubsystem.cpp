@@ -97,6 +97,11 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, const T
 	}
 }
 
+FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, const UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies)
+{
+	return GraphExecutor->Schedule(Graph, SourceComponent, InputElement, Dependencies);
+}
+
 ETickableTickType UPCGSubsystem::GetTickableTickType() const
 {
 	return IsTemplate() ? ETickableTickType::Never : ETickableTickType::Always;
@@ -105,6 +110,18 @@ ETickableTickType UPCGSubsystem::GetTickableTickType() const
 TStatId UPCGSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UPCGSubsystem, STATGROUP_Tickables);
+}
+
+FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies)
+{
+	check(GraphExecutor);
+	return GraphExecutor->ScheduleGeneric(InOperation, TaskDependencies);
+}
+
+bool UPCGSubsystem::GetOutputData(FPCGTaskId TaskId, FPCGDataCollection& OutData)
+{
+	check(GraphExecutor);
+	return GraphExecutor->GetOutputData(TaskId, OutData);
 }
 
 #if WITH_EDITOR
@@ -461,12 +478,6 @@ void UPCGSubsystem::DeletePartitionActors()
 			// Log error...
 		}
 	}
-}
-
-FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies)
-{
-	check(GraphExecutor);
-	return GraphExecutor->ScheduleGeneric(InOperation, TaskDependencies);
 }
 
 void UPCGSubsystem::NotifyGraphChanged(UPCGGraph* InGraph)
