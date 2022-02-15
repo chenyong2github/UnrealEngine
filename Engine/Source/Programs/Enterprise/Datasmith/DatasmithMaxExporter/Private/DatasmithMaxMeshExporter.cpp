@@ -26,7 +26,11 @@ MAX_INCLUDES_START
 	#include "mesh.h"
 	#include "meshnormalspec.h"
 	#include "modstack.h"
-	#include "point3.h"
+#if MAX_PRODUCT_YEAR_NUMBER > 2022
+#include "geom/point3.h"
+#else
+#include "point3.h"
+#endif
 MAX_INCLUDES_END
 #pragma warning(pop)
 
