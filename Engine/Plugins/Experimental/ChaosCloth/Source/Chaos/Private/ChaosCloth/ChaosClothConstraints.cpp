@@ -76,7 +76,7 @@ void FClothConstraints::CreateRules()
 		ConstraintRuleOffset = Evolution->AddConstraintRuleRange(NumConstraintRules, false);
 	}
 
-	TFunction<void(const Softs::FSolverParticles&, const Softs::FSolverReal)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
+	TFunction<void(Softs::FSolverParticles&, const Softs::FSolverReal)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
 	TFunction<void(Softs::FSolverParticles&, const Softs::FSolverReal)>* const ConstraintRules = Evolution->ConstraintRules().GetData() + ConstraintRuleOffset;
 
 	int32 ConstraintInitIndex = 0;
@@ -85,7 +85,7 @@ void FClothConstraints::CreateRules()
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				XEdgeConstraints->Init();
 				XEdgeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
@@ -100,7 +100,7 @@ void FClothConstraints::CreateRules()
 	if (EdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				EdgeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
@@ -113,7 +113,7 @@ void FClothConstraints::CreateRules()
 	if (XBendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				XBendingConstraints->Init();
 				XBendingConstraints->ApplyProperties(Dt, Evolution->GetIterations());
@@ -127,7 +127,7 @@ void FClothConstraints::CreateRules()
 	if (BendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				BendingConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
@@ -148,7 +148,7 @@ void FClothConstraints::CreateRules()
 	if (XAreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				XAreaConstraints->Init();
 				XAreaConstraints->ApplyProperties(Dt, Evolution->GetIterations());
@@ -162,7 +162,7 @@ void FClothConstraints::CreateRules()
 	if (AreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				AreaConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
@@ -191,28 +191,20 @@ void FClothConstraints::CreateRules()
 	if (XLongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 			{
 				XLongRangeConstraints->Init();
 				XLongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
-			};
-		ConstraintRules[ConstraintRuleIndex++] =
-			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
-			{
-				XLongRangeConstraints->Apply(Particles, Dt);
+				XLongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
 			};
 	}
 	if (LongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
-			{
-				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
-			};
-		ConstraintRules[ConstraintRuleIndex++] =
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 			{
-				LongRangeConstraints->Apply(Particles, Dt);
+				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+				LongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
 			};
 	}
 	if (MaximumDistanceConstraints)
@@ -234,7 +226,7 @@ void FClothConstraints::CreateRules()
 	if (AnimDriveConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
 			{
 				AnimDriveConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
@@ -256,7 +248,7 @@ void FClothConstraints::CreateRules()
 	if (SelfCollisionConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const Softs::FSolverParticles& Particles, const Softs::FSolverReal /*Dt*/)
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal /*Dt*/)
 			{
 				SelfCollisionConstraints->Init(Particles);
 			};
@@ -422,8 +414,7 @@ void FClothConstraints::SetLongRangeConstraints(
 			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
 			TetherScale);
 	}
-	++NumConstraintInits;  // Uses init to update the property tables
-	++NumConstraintRules;
+	++NumConstraintInits;  // Uses init to both update the property tables and apply the constraint
 }
 
 void FClothConstraints::SetMaximumDistanceConstraints(const TConstArrayView<FRealSingle>& MaxDistances)

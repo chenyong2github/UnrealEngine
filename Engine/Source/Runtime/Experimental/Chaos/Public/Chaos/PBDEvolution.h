@@ -76,8 +76,8 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	void ActivateConstraintRuleRange(int32 Offset, bool bActivate) { MConstraintRulesActiveView.ActivateRange(Offset, bActivate); }
 
 	// Constraint accessors
-	const TArray<TFunction<void(const FSolverParticles&, const FSolverReal)>>& ConstraintInits() const { return MConstraintInits; }
-	TArray<TFunction<void(const FSolverParticles&, const FSolverReal)>>& ConstraintInits() { return MConstraintInits; }
+	const TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintInits() const { return MConstraintInits; }
+	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintInits() { return MConstraintInits; }
 	const TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintRules() const { return MConstraintRules; }
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintRules() { return MConstraintRules; }
 	
@@ -151,8 +151,8 @@ private:
 	TArrayCollectionArray<FSolverReal> MGroupDampings;
 	TArrayCollectionArray<bool> MGroupUseCCDs;
 	
-	TArray<TFunction<void(const FSolverParticles&, const FSolverReal)>> MConstraintInits;
-	TPBDActiveView<TArray<TFunction<void(const FSolverParticles&, const FSolverReal)>>> MConstraintInitsActiveView;
+	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MConstraintInits;
+	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MConstraintInitsActiveView;
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MConstraintRules;
 	TPBDActiveView<TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>> MConstraintRulesActiveView;
 

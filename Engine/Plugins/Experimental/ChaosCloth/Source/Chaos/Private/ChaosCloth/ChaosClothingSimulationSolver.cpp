@@ -40,7 +40,7 @@ namespace Chaos
 {
 
 static int32 ClothSolverMinParallelBatchSize = 1000;
-static bool bClothSolverParallelClothPreUpdate = false;  // TODO: Doesn't seem to improve much here. Review this after the ISPC implementation.
+static bool bClothSolverParallelClothPreUpdate = true;
 static bool bClothSolverParallelClothUpdate = true;
 static bool bClothSolverParallelClothPostUpdate = true;
 static bool bClothSolverUseImprovedTimeStepSmoothing = true;

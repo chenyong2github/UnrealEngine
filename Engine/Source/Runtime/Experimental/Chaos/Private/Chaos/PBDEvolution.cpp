@@ -377,7 +377,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosXPBDConstraintsInit);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosXPBDConstraintsInit);
 		MConstraintInitsActiveView.SequentialFor(
-			[this, Dt](TArray<TFunction<void(const FSolverParticles&, const FSolverReal)>>& ConstraintInits, int32 Index)
+			[this, Dt](TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintInits, int32 Index)
 			{
 				ConstraintInits[Index](MParticles, Dt);
 			});
