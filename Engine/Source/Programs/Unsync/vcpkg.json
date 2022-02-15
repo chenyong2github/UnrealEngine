@@ -1,0 +1,11 @@
+{
+  "name": "unsync",
+  "version-string": "1",
+  "dependencies": [
+    "cli11",
+    "fmt",
+    "http-parser",
+    "libressl",
+    "zstd"
+  ]
+}
