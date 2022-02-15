@@ -610,6 +610,7 @@ int32 InternalFormatString(FStringBuilderBase* OutString, FEmitShaderDependencie
 				case EFormatArgType::ShaderValue: FormatArg_ShaderValue(Arg.ShaderValue, OutDependencies, *OutString); break;
 				case EFormatArgType::String: OutString->Append(Arg.String); break;
 				case EFormatArgType::Int: OutString->Appendf(TEXT("%d"), Arg.Int); break;
+				case EFormatArgType::Bool: OutString->Append(Arg.Bool ? TEXT("true") : TEXT("false")); break;
 				default:
 					checkNoEntry();
 					break;

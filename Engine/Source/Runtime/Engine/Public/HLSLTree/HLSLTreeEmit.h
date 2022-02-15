@@ -112,6 +112,7 @@ enum class EFormatArgType : uint8
 	ShaderValue,
 	String,
 	Int,
+	Bool,
 };
 
 struct FFormatArgVariant
@@ -120,6 +121,7 @@ struct FFormatArgVariant
 	FFormatArgVariant(FEmitShaderExpression* InValue) : Type(EFormatArgType::ShaderValue), ShaderValue(InValue) { check(InValue); }
 	FFormatArgVariant(const TCHAR* InValue) : Type(EFormatArgType::String), String(InValue) { check(InValue); }
 	FFormatArgVariant(int32 InValue) : Type(EFormatArgType::Int), Int(InValue) {}
+	FFormatArgVariant(bool InValue) : Type(EFormatArgType::Bool), Bool(InValue) {}
 
 	EFormatArgType Type = EFormatArgType::Void;
 	union
@@ -127,6 +129,7 @@ struct FFormatArgVariant
 		FEmitShaderExpression* ShaderValue;
 		const TCHAR* String;
 		int32 Int;
+		bool Bool;
 	};
 };
 

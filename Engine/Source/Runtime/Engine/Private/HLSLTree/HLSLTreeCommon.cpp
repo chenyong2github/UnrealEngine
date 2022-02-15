@@ -3,6 +3,7 @@
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
 #include "MaterialShared.h"
+#include "MaterialSceneTextureId.h"
 #include "Engine/Texture.h"
 
 namespace UE
@@ -61,6 +62,11 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 
 	case EExternalInput::WorldPosition_Ddx: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
 	case EExternalInput::WorldPosition_Ddy: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
+
+	case EExternalInput::ViewportUV: return FExternalInputDescription(TEXT("ViewportUV"), Shader::EValueType::Float2);
+	case EExternalInput::PixelPosition: return FExternalInputDescription(TEXT("PixelPosition"), Shader::EValueType::Float2);
+	case EExternalInput::ViewSize: return FExternalInputDescription(TEXT("ViewSize"), Shader::EValueType::Float2);
+	case EExternalInput::RcpViewSize: return FExternalInputDescription(TEXT("RcpViewSize"), Shader::EValueType::Float2);
 
 	case EExternalInput::CameraWorldPosition: return FExternalInputDescription(TEXT("CameraWorldPosition"), Shader::EValueType::Double3, EExternalInput::None, EExternalInput::None, EExternalInput::PrevCameraWorldPosition);
 	case EExternalInput::PreViewTranslation: return FExternalInputDescription(TEXT("PreViewTranslation"), Shader::EValueType::Double3, EExternalInput::None, EExternalInput::None, EExternalInput::PrevPreViewTranslation);
@@ -260,6 +266,24 @@ void FExpressionExternalInput::ComputeAnalyticDerivatives(FTree& Tree, FExpressi
 		OutResult.ExpressionDdx = Tree.NewExpression<FExpressionExternalInput>(InputDesc.Ddx);
 		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionExternalInput>(InputDesc.Ddy);
 	}
+	else
+	{
+		switch (InputType)
+		{
+		case EExternalInput::ViewportUV:
+		{
+			// Ddx = float2(RcpViewSize.x, 0.0f)
+			// Ddy = float2(0.0f, RcpViewSize.y)
+			FExpression* RcpViewSize = Tree.NewExpression<FExpressionExternalInput>(EExternalInput::RcpViewSize);
+			FExpression* Constant0 = Tree.NewConstant(0.0f);
+			OutResult.ExpressionDdx = Tree.NewExpression<FExpressionAppend>(Tree.NewExpression<FExpressionSwizzle>(MakeSwizzleMask(true, false, false, false), RcpViewSize), Constant0);
+			OutResult.ExpressionDdy = Tree.NewExpression<FExpressionAppend>(Constant0, Tree.NewExpression<FExpressionSwizzle>(MakeSwizzleMask(false, true, false, false), RcpViewSize));
+			break;
+		}
+		default:
+			break;
+		}
+	}
 }
 
 FExpression* FExpressionExternalInput::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
@@ -314,6 +338,11 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::WorldPosition_Ddx: Code = TEXT("Parameters.WorldPosition_DDX"); break;
 		case EExternalInput::WorldPosition_Ddy: Code = TEXT("Parameters.WorldPosition_DDY"); break;
 
+		case EExternalInput::ViewportUV: Code = TEXT("GetViewportUV(Parameters)"); break;
+		case EExternalInput::PixelPosition: Code = TEXT("GetPixelPosition(Parameters)"); break;
+		case EExternalInput::ViewSize: Code = TEXT("View.ViewSizeAndInvSize.xy"); break;
+		case EExternalInput::RcpViewSize: Code = TEXT("View.ViewSizeAndInvSize.zw"); break;
+
 		case EExternalInput::CameraWorldPosition: Code = TEXT("ResolvedView.WorldCameraOrigin"); break;
 		case EExternalInput::PreViewTranslation: Code = TEXT("ResolvedView.PreViewTranslation"); break;
 		case EExternalInput::TangentToWorld: Code = TEXT("Parameters.TangentToWorld"); break;
@@ -351,6 +380,52 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		}
 		OutResult.Code = Context.EmitInlineExpression(Scope, InputDesc.Type, Code);
 	}
+}
+
+bool FExpressionMaterialSceneTexture::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
+
+	Context.MaterialCompilationOutput->bNeedsSceneTextures = true;
+	Context.MaterialCompilationOutput->SetIsSceneTextureUsed((ESceneTextureId)SceneTextureId);
+
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
+}
+
+void FExpressionMaterialSceneTexture::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	const bool bSupportedOnMobile = SceneTextureId == PPI_PostProcessInput0 ||
+		SceneTextureId == PPI_CustomDepth ||
+		SceneTextureId == PPI_SceneDepth ||
+		SceneTextureId == PPI_CustomStencil;
+
+	FEmitShaderExpression* EmitTexCoord = nullptr;
+	if (TexCoordExpression)
+	{
+		EmitTexCoord = TexCoordExpression->GetValueShader(Context, Scope, Shader::EValueType::Float2);
+		EmitTexCoord = Context.EmitExpression(Scope, Shader::EValueType::Float2, TEXT("ClampSceneTextureUV(ViewportUVToSceneTextureUV(%, %), %)"), EmitTexCoord, (int)SceneTextureId, (int)SceneTextureId);
+	}
+	else
+	{
+		EmitTexCoord = Context.EmitExpression(Scope, Shader::EValueType::Float2, TEXT("GetDefaultSceneTextureUV(Parameters, %)"), (int)SceneTextureId);
+	}
+
+	FEmitShaderExpression* EmitLookup = nullptr;
+	if (Context.Material->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+	{
+		EmitLookup = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("SceneTextureLookup(%, %, %)"), EmitTexCoord, (int)SceneTextureId, bFiltered);
+	}
+	else
+	{
+		EmitLookup = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("MobileSceneTextureLookup(Parameters, %, %, %)"), (int)SceneTextureId, EmitTexCoord);
+	}
+
+	if (SceneTextureId == PPI_PostProcessInput0 && Context.Material->GetMaterialDomain() == MD_PostProcess && Context.Material->GetBlendableLocation() != BL_AfterTonemapping)
+	{
+		EmitLookup = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("(float4(View.OneOverPreExposure.xxx, 1) * %)"), EmitLookup);
+	}
+	
+	OutResult.Code = EmitLookup;
 }
 
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

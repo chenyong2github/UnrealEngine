@@ -26,16 +26,21 @@
 #include "Materials/MaterialExpressionCameraPositionWS.h"
 #include "Materials/MaterialExpressionTime.h"
 #include "Materials/MaterialExpressionDeltaTime.h"
+#include "Materials/MaterialExpressionScreenPosition.h"
+#include "Materials/MaterialExpressionSceneTexelSize.h"
+#include "Materials/MaterialExpressionViewSize.h"
 #include "Materials/MaterialExpressionPanner.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionStaticSwitch.h"
+#include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionAdd.h"
@@ -125,6 +130,28 @@ bool UMaterialExpressionStaticSwitch::GenerateHLSLExpression(FMaterialHLSLGenera
 	return true;
 }
 
+bool UMaterialExpressionFeatureLevelSwitch::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	const ERHIFeatureLevel::Type FeatureLevelToCompile = Generator.GetCompileTarget().FeatureLevel;
+	check(FeatureLevelToCompile < UE_ARRAY_COUNT(Inputs));
+	FExpressionInput& FeatureInput = Inputs[FeatureLevelToCompile];
+
+	if (!Default.GetTracedInput().Expression)
+	{
+		return Generator.GetErrors().AddError(TEXT("Feature Level switch missing default input"));
+	}
+
+	if (FeatureInput.GetTracedInput().Expression)
+	{
+		OutExpression = FeatureInput.AcquireHLSLExpression(Generator, Scope);
+	}
+	else
+	{
+		OutExpression = Default.AcquireHLSLExpression(Generator, Scope);
+	}
+	return OutExpression != nullptr;
+}
+
 bool UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.GetTree().AcquireLocal(Scope, LocalName);
@@ -202,7 +229,7 @@ bool UMaterialExpressionTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Gen
 	}
 
 	EExternalInput InputType = bIgnorePause ? EExternalInput::RealTime : EExternalInput::GameTime;
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(InputType);
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(InputType);
 	if (bOverride_Period)
 	{
 		OutExpression = Generator.GetTree().NewFmod(OutExpression, Generator.NewConstant(Period));
@@ -213,6 +240,31 @@ bool UMaterialExpressionTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Gen
 bool UMaterialExpressionDeltaTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::EExternalInput::DeltaTime);
+	return true;
+}
+
+bool UMaterialExpressionScreenPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	const EExternalInput InputType = (OutputIndex == 1) ? EExternalInput::PixelPosition : EExternalInput::ViewportUV;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(InputType);
+	return true;
+}
+
+bool UMaterialExpressionSceneTexelSize::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	// To make sure any material that were correctly handling BufferUV != ViewportUV, we just lie to material
+	// to make it believe ViewSize == BufferSize, so they are still compatible with SceneTextureLookup().
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::RcpViewSize);
+	return true;
+}
+
+bool UMaterialExpressionViewSize::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ViewSize);
 	return true;
 }
 
@@ -322,6 +374,29 @@ bool UMaterialExpressionTextureSampleParameter::GenerateHLSLExpression(FMaterial
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
+}
+
+bool UMaterialExpressionSceneTexture::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	if (OutputIndex == 0)
+	{
+		FExpression* ExpressionTexCoord = nullptr;
+		if (Coordinates.GetTracedInput().Expression)
+		{
+			ExpressionTexCoord = Coordinates.AcquireHLSLExpression(Generator, Scope);
+		}
+		OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialSceneTexture>(ExpressionTexCoord, SceneTextureId, bFiltered);
+		return true;
+	}
+	else if (OutputIndex == 1 || OutputIndex == 2)
+	{
+		//return Compiler->GetSceneTextureViewSize(SceneTextureId, /* InvProperty = */ OutputIndex == 2);
+		return false; // TODO
+	}
+
+	return Generator.GetErrors().AddError(TEXT("Invalid input parameter"));
 }
 
 bool UMaterialExpressionOneMinus::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)

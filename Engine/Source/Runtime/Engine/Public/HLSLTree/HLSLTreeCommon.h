@@ -86,6 +86,11 @@ enum class EExternalInput : uint8
 	WorldPosition_Ddx,
 	WorldPosition_Ddy,
 
+	ViewportUV,
+	PixelPosition,
+	ViewSize,
+	RcpViewSize,
+
 	CameraWorldPosition,
 	PreViewTranslation,
 	TangentToWorld,
@@ -164,6 +169,23 @@ public:
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+};
+
+class FExpressionMaterialSceneTexture : public FExpression
+{
+public:
+	FExpressionMaterialSceneTexture(FExpression* InTexCoordExpression, uint32 InSceneTextureId, bool bInFiltered)
+		: TexCoordExpression(InTexCoordExpression)
+		, SceneTextureId(InSceneTextureId)
+		, bFiltered(bInFiltered)
+	{}
+
+	FExpression* TexCoordExpression;
+	uint32 SceneTextureId;
+	bool bFiltered;
+
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };

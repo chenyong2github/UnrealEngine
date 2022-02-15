@@ -136,7 +136,10 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
 static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
 	TEXT("r.MaterialEnableNewHLSLGenerator"),
 	0,
-	TEXT("Enables the new (WIP) material HLSL generator.\n"),
+	TEXT("Enables the new (WIP) material HLSL generator.\n")
+	TEXT("0 - Don't allow\n")
+	TEXT("1 - Allow if enabled by material\n")
+	TEXT("2 - Force all materials to use new generator\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 bool Engine_IsStrataEnabled()
@@ -3411,11 +3414,12 @@ bool UMaterial::IsUsingControlFlow() const
 
 bool UMaterial::IsUsingNewHLSLGenerator() const
 {
+	const int CVarValue = CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread();
 	if (bEnableNewHLSLGenerator)
 	{
-		return CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread() != 0;
+		return CVarValue != 0;
 	}
-	return false;
+	return CVarValue == 2;
 }
 
 #if WITH_EDITOR
