@@ -260,9 +260,9 @@ bool FWorldPartitionConverter::PrepareStreamingLevelForConversion(ULevelStreamin
 	{
 		for (AActor* Actor : Level->Actors)
 		{
-			if (Actor)
+			if (Actor && Actor->CanChangeIsSpatiallyLoadedFlag())
 			{
-				Actor->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+				Actor->SetIsSpatiallyLoaded(false);
 			}
 		}
 	}
@@ -349,7 +349,7 @@ void FWorldPartitionConverter::FixupSoftObjectPaths(UPackage* OuterPackage)
 			Object->Serialize(FixupSerializer);
 		}
 		return true;
-	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}, true, RF_NoFlags, EInternalObjectFlags::Garbage);
 }
 
 #endif

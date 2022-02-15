@@ -53,7 +53,7 @@ public:
 	float GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
 	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
-	void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bAlwaysLoaded = bInIsAlwaysLoaded; }
+	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded) { bIsSpatiallyLoaded = bInIsSpatiallyLoaded; }
 
 	bool DoesRequireWarmup() const;
 
