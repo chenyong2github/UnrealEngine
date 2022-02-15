@@ -215,6 +215,9 @@ public:
 	void UpdateDisplayStringIfOutOfDate();
 
 protected:
+	/** True if "UpdateDisplayString" might do something if called, or False if it would be redundant */
+	virtual bool CanUpdateDisplayString() { return true; }
+
 	/** Update the display string when the history is out-of-date */
 	virtual void UpdateDisplayString() = 0;
 
@@ -254,6 +257,7 @@ public:
 	virtual FString BuildInvariantDisplayString() const override;
 	virtual bool IdenticalTo(const FTextHistory& Other, const ETextIdenticalModeFlags CompareModeFlags) const override;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	virtual bool CanUpdateDisplayString() override;
 	virtual void UpdateDisplayString() override;
 	//~ End FTextHistory Interface
 

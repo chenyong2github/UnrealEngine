@@ -682,16 +682,19 @@ void WriteTextFormatToBuffer(FString& Buffer, const FString& TokenMarker, const 
 
 void FTextHistory::UpdateDisplayStringIfOutOfDate()
 {
-	FTextLocalizationManager& TLM = FTextLocalizationManager::Get();
-	const uint16 CurrentGlobalRevision = TLM.GetTextRevision();
-	const uint16 CurrentLocalRevision = TLM.GetLocalRevisionForTextId(GetTextId());
-
-	if (GlobalRevision != CurrentGlobalRevision || LocalRevision != CurrentLocalRevision)
+	if (CanUpdateDisplayString())
 	{
-		GlobalRevision = CurrentGlobalRevision;
-		LocalRevision = CurrentLocalRevision;
+		uint16 CurrentGlobalRevision = 0;
+		uint16 CurrentLocalRevision = 0;
+		FTextLocalizationManager::Get().GetTextRevisions(GetTextId(), CurrentGlobalRevision, CurrentLocalRevision);
 
-		UpdateDisplayString();
+		if (GlobalRevision != CurrentGlobalRevision || LocalRevision != CurrentLocalRevision)
+		{
+			GlobalRevision = CurrentGlobalRevision;
+			LocalRevision = CurrentLocalRevision;
+
+			UpdateDisplayString();
+		}
 	}
 }
 
@@ -703,9 +706,15 @@ void FTextHistory::MarkDisplayStringOutOfDate()
 
 void FTextHistory::MarkDisplayStringUpToDate()
 {
-	FTextLocalizationManager& TLM = FTextLocalizationManager::Get();
-	GlobalRevision = TLM.GetTextRevision();
-	LocalRevision = TLM.GetLocalRevisionForTextId(GetTextId());
+	if (CanUpdateDisplayString())
+	{
+		FTextLocalizationManager::Get().GetTextRevisions(GetTextId(), GlobalRevision, LocalRevision);
+	}
+	else
+	{
+		GlobalRevision = 0;
+		LocalRevision = 0;
+	}
 }
 
 ///////////////////////////////////////
@@ -822,6 +831,7 @@ void FTextHistory_Base::Serialize(FStructuredArchive::FRecord Record)
 #endif // WITH_EDITOR
 
 		TextId = FTextId(Namespace, Key);
+		LocalizedString.Reset();
 		MarkDisplayStringOutOfDate();
 	}
 	else if(BaseArchive.IsSaving())
@@ -885,16 +895,15 @@ void FTextHistory_Base::Serialize(FStructuredArchive::FRecord Record)
 	}
 }
 
+bool FTextHistory_Base::CanUpdateDisplayString()
+{
+	return !TextId.IsEmpty();
+}
+
 void FTextHistory_Base::UpdateDisplayString()
 {
-	if (TextId.IsEmpty())
-	{
-		LocalizedString.Reset();
-	}
-	else
-	{
-		LocalizedString = FTextLocalizationManager::Get().GetDisplayString(TextId.GetNamespace(), TextId.GetKey(), &SourceString);
-	}
+	check(!TextId.IsEmpty()); // CanUpdateDisplayString should prevent UpdateDisplayString being called
+	LocalizedString = FTextLocalizationManager::Get().GetDisplayString(TextId.GetNamespace(), TextId.GetKey(), &SourceString);
 }
 
 bool FTextHistory_Base::StaticShouldReadFromBuffer(const TCHAR* Buffer)
@@ -961,6 +970,7 @@ const TCHAR* FTextHistory_Base::ReadFromBuffer(const TCHAR* Buffer, const TCHAR*
 			TextNamespaceUtil::StripPackageNamespaceInline(NamespaceString);
 		}
 		TextId = FTextId(NamespaceString, KeyString);
+		LocalizedString.Reset();
 		MarkDisplayStringOutOfDate();
 
 		return Buffer;
@@ -1015,6 +1025,7 @@ const TCHAR* FTextHistory_Base::ReadFromBuffer(const TCHAR* Buffer, const TCHAR*
 			TextNamespaceUtil::StripPackageNamespaceInline(NamespaceString);
 		}
 		TextId = FTextId(NamespaceString, KeyString);
+		LocalizedString.Reset();
 		MarkDisplayStringOutOfDate();
 
 		return Buffer;

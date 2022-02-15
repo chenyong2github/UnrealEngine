@@ -89,8 +89,10 @@ private:
 		return EnumHasAnyFlags(InitializedFlags, ETextLocalizationManagerInitializedFlags::Initializing);
 	}
 
-	mutable FCriticalSection SynchronizationObject;
+	mutable FCriticalSection DisplayStringLookupTableCS;
 	FDisplayStringLookupTable DisplayStringLookupTable;
+
+	mutable FRWLock TextRevisionRW;
 	TMap<FTextId, uint16> LocalTextRevisions;
 	uint16 TextRevisionCounter;
 
@@ -167,13 +169,6 @@ public:
 	UE_DEPRECATED(5.0, "FindNamespaceAndKeyFromDisplayString no longer functions! Use FTextInspector::GetTextId instead.")
 	bool FindNamespaceAndKeyFromDisplayString(const FTextConstDisplayStringPtr& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey) const { return false; }
 	
-	/**
-	 * Attempts to find a local revision history for the given text ID.
-	 * This will only be set if the display string has been changed since the localization manager version has been changed (eg, if it has been edited while keeping the same key).
-	 * @return The local revision, or 0 if there have been no changes since a global history change.
-	 */
-	uint16 GetLocalRevisionForTextId(const FTextId& InTextId) const;
-
 	/**	Attempts to register the specified display string, associating it with the specified namespace and key.
 	 *	Returns true if the display string has been or was already associated with the namespace and key.
 	 *	Returns false if the display string was already associated with another namespace and key or the namespace and key are already in use by another display string.
@@ -187,9 +182,24 @@ public:
 	/** Reloads resources for the current culture. */
 	void RefreshResources();
 
-	/**	Returns the current text revision number. This value can be cached when caching information from the text localization manager.
-	 *	If the revision does not match, cached information may be invalid and should be recached. */
-	uint16 GetTextRevision() const { return TextRevisionCounter; }
+	/**
+	 * Returns the current text revision number. This value can be cached when caching information from the text localization manager.
+	 * If the revision does not match, cached information may be invalid and should be recached.
+	 */
+	uint16 GetTextRevision() const;
+
+	/**
+	 * Attempts to find a local revision history for the given text ID.
+	 * This will only be set if the display string has been changed since the localization manager version has been changed (eg, if it has been edited while keeping the same key).
+	 * @return The local revision, or 0 if there have been no changes since a global history change.
+	 */
+	uint16 GetLocalRevisionForTextId(const FTextId& InTextId) const;
+
+	/**
+	 * Get both the global and local revision for the given text ID.
+	 * @see GetTextRevision and GetLocalRevisionForTextId.
+	 */
+	void GetTextRevisions(const FTextId& InTextId, uint16& OutGlobalTextRevision, uint16& OutLocalTextRevision) const;
 
 #if WITH_EDITOR
 	/**
