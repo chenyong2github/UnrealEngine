@@ -65,6 +65,12 @@ void IBackBufferTextureSource::OnBackBufferReady_RenderThread(SWindow& SlateWind
 		Initialize(FrameBuffer->GetSizeXY().X * FrameScale, FrameBuffer->GetSizeXY().Y * FrameScale);
 	}
 
+	// Note: this is the logic that makes mid-stream resolution changing work.
+	if ((FrameBuffer->GetSizeXY().X * FrameScale != SourceWidth) || (FrameBuffer->GetSizeXY().Y * FrameScale != SourceHeight))
+	{
+		Initialize(FrameBuffer->GetSizeXY().X * FrameScale, FrameBuffer->GetSizeXY().Y * FrameScale);
+	}
+
 	if (!IsEnabled())
 	{
 		return;

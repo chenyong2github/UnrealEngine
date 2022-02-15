@@ -1302,7 +1302,7 @@ function updateVideoStreamSize() {
             return;
 
         let descriptor = {
-            ConsoleCommand: 'setres ' + playerElement.clientWidth + 'x' + playerElement.clientHeight
+            ConsoleCommand: 'r.setres ' + playerElement.clientWidth + 'x' + playerElement.clientHeight
         };
         emitCommand(descriptor);
         console.log(descriptor);
