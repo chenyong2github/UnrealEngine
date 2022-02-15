@@ -1213,7 +1213,8 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 	InMID->SetScalarParameterValue(FixedWaterDepthName, GetConstantDepth());
 	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
-	if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor())
+	// Use WaterZone actor of the same level
+	if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor(GetTypedOuter<ULevel>()))
 	{
 		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterVelocityTexture);
 

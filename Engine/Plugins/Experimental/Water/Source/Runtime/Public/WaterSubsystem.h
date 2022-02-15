@@ -101,7 +101,7 @@ public:
 
 	FWaterBodyManager WaterBodyManager;
 
-	AWaterZone* GetWaterZoneActor() const;
+	AWaterZone* GetWaterZoneActor(ULevel* InPreferredOuterLevel = nullptr) const;
 
 	ABuoyancyManager* GetBuoyancyManager() const { return BuoyancyManager; }
 
@@ -220,8 +220,6 @@ public:
 	UStaticMesh* DefaultLakeMesh;
 
 private:
-	UPROPERTY()
-	mutable AWaterZone* WaterZoneActor;
 
 	TWeakObjectPtr<UWaterBodyComponent> OceanBodyComponent;
 

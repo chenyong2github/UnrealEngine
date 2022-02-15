@@ -202,9 +202,9 @@ void UWaterSubsystem::Tick(float DeltaTime)
 	SetMPCTime(MPCTime, PrevWorldTimeSeconds);
 	PrevWorldTimeSeconds = MPCTime;
 
-	if (WaterZoneActor)
+	if (AWaterZone* LocalWaterZoneActor = GetWaterZoneActor())
 	{
-		WaterZoneActor->Update();
+		LocalWaterZoneActor->Update();
 	}
 
 	if (!bUnderWaterForAudio && CachedDepthUnderwater > 0.0f)
@@ -479,14 +479,24 @@ void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 	}
 }
 
-AWaterZone* UWaterSubsystem::GetWaterZoneActor() const
+AWaterZone* UWaterSubsystem::GetWaterZoneActor(ULevel* InPreferredOuterLevel) const
 {
 	if (UWorld* World = GetWorld())
 	{
+		// First, try to find the AWaterZone outered to the provided level
+		if (InPreferredOuterLevel)
+		{
+			for (TActorIterator<AWaterZone> It(World); It; ++It)
+			{
+				if (It && (It->GetTypedOuter<ULevel>() == InPreferredOuterLevel))
+				{
+					return *It;
+				}
+			}
+		}
 		// #todo_water: this assumes only one water zone actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
 		TActorIterator<AWaterZone> It(World);
-		WaterZoneActor = It ? *It : nullptr;
-		return WaterZoneActor;
+		return It ? *It : nullptr;
 	}
 
 	return nullptr;
