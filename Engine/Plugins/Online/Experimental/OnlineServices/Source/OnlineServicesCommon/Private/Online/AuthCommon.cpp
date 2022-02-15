@@ -18,6 +18,7 @@ void FAuthCommon::RegisterCommands()
 	RegisterCommand(&FAuthCommon::Login);
 	RegisterCommand(&FAuthCommon::Logout);
 	RegisterCommand(&FAuthCommon::GenerateAuth);
+	RegisterCommand(&FAuthCommon::GetAuthToken);
 	RegisterCommand(&FAuthCommon::GetAccountByPlatformUserId);
 	RegisterCommand(&FAuthCommon::GetAccountByAccountId);
 }
@@ -41,6 +42,11 @@ TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthCommon::GenerateAuth(FAuthGenerateA
 	TOnlineAsyncOpRef<FAuthGenerateAuth> Operation = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
 	Operation->SetError(Errors::NotImplemented());
 	return Operation->GetHandle();
+}
+
+TOnlineResult<FAuthGetAuthToken> FAuthCommon::GetAuthToken(FAuthGetAuthToken::Params&& Params)
+{
+	return TOnlineResult<FAuthGetAuthToken>(Errors::NotImplemented());
 }
 
 TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthCommon::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)

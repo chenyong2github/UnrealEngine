@@ -91,6 +91,23 @@ struct FAuthGenerateAuth
 	};
 };
 
+struct FAuthGetAuthToken
+{
+	static constexpr TCHAR Name[] = TEXT("GetAuthToken");
+
+	struct Params
+	{
+		FOnlineAccountIdHandle LocalUserId;
+		FString Type;
+		TArray<FString> Scopes;
+	};
+
+	struct Result
+	{
+		FString Token;
+	};
+};
+
 struct FAuthGetAccountByPlatformUserId
 {
 	static constexpr TCHAR Name[] = TEXT("GetAccountByPlatformUserId");
@@ -151,6 +168,11 @@ public:
 	virtual TOnlineAsyncOpHandle<FAuthGenerateAuth> GenerateAuth(FAuthGenerateAuth::Params&& Params) = 0;
 
 	/**
+	 * Retrive a cached auth token
+	 */
+	virtual TOnlineResult<FAuthGetAuthToken> GetAuthToken(FAuthGetAuthToken::Params&& Params) = 0;
+
+	/**
 	 * Get logged in user by local user num
 	 */ 
 	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) = 0;
@@ -202,6 +224,16 @@ BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAuthToken::Params)
+	ONLINE_STRUCT_FIELD(FAuthGetAuthToken::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthGetAuthToken::Params, Type),
+	ONLINE_STRUCT_FIELD(FAuthGetAuthToken::Params, Scopes)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGetAuthToken::Result)
+	ONLINE_STRUCT_FIELD(FAuthGetAuthToken::Result, Token)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByPlatformUserId::Params)
