@@ -221,8 +221,12 @@ bool FMallocAnsi::GetAllocationSize( void *Original, SIZE_T &SizeOut )
 		return false;
 	}
 
+#if	PLATFORM_USES__ALIGNED_MALLOC
+	return false;
+#else
 	SizeOut = AnsiGetAllocationSize(Original);
 	return true;
+#endif
 }
 
 bool FMallocAnsi::IsInternallyThreadSafe() const
