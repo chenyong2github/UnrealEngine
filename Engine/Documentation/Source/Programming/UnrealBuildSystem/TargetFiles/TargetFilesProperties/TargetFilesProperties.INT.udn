@@ -204,7 +204,7 @@ $ UnsafeTypeCastWarningLevel (WarningLevel): Indicates what warning/error level 
 
 $ bUndefinedIdentifierErrors (Boolean): Forces the use of undefined identifiers in conditional expressions to be treated as errors.
 
-$ bRetainFramePointers (Boolean): Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
+$ bRetainFramePointersOverride (Nullable&lt;Boolean&gt;): Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 
 $ bUseFastMonoCalls (Boolean): New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
 
@@ -379,6 +379,8 @@ $ bAdaptiveUnityDisablesPCHForProject (Boolean): Whether to disable force-includ
 $ DefaultWarningLevel (WarningLevel): Default treatment of uncategorized warnings
 
 $ DeprecationWarningLevel (WarningLevel): Level to report deprecation warnings as errors
+
+$ bRetainFramePointers (Boolean): Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 
 $ bLegacyPublicIncludePaths (Boolean): Add all the public folders as include paths for the compile environment.
 
