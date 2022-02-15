@@ -2471,6 +2471,8 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 	{
 		return nullptr;
 	}
+	
+	check(EjectedNode);
 
 	return EjectNodeFromPin(Pin, bSetupUndoRedo, bPrintPythonCommand);
 }
