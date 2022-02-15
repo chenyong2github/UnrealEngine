@@ -17,7 +17,6 @@ struct FClassReloadVersionInfo;
 /** Represents a serializable object pointer in blueprint bytecode. This is always 64-bits, even on 32-bit platforms. */
 typedef	uint64 ScriptPointerType;
 
-
 #if PLATFORM_VTABLE_AT_END_OF_CLASS
 #error "not supported in UE"
 #endif
