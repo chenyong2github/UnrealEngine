@@ -128,7 +128,7 @@ FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 	return BlendStates[Material->GetBlendMode()];
 }
 
-bool PostProceessStencilTest(uint32 StencilValue, uint32 StencilComp, uint32 StencilRef)
+bool PostProcessStencilTest(uint32 StencilValue, uint32 StencilComp, uint32 StencilRef)
 {
 	bool bStencilTestPassed = true;
 
@@ -619,12 +619,12 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		if (!DepthStencilTexture)
 		{
 			uint32 StencilClearValue = Inputs.CustomDepthTexture ? Inputs.CustomDepthTexture->Desc.ClearValue.Value.DSValue.Stencil : 0;
-			bFailStencil &= PostProceessStencilTest(StencilClearValue, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
+			bFailStencil &= PostProcessStencilTest(StencilClearValue, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
 		}
 
 		for (const uint32& Value : View.CustomDepthStencilValues)
 		{
-			bFailStencil &= PostProceessStencilTest(Value, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
+			bFailStencil &= PostProcessStencilTest(Value, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
 
 			if (!bFailStencil)
 			{
