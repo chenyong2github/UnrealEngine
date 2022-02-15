@@ -157,6 +157,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 			ManifestMimeTypeRequest->StartGet(this);
 			return;
 		}
+		DispatchEvent(FMetricEvent::ReportOpenSource(URL));
 		if (mimeType.Len())
 		{
 			check(!ManifestReader.IsValid());
@@ -188,7 +189,6 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 
 			if (ManifestReader.IsValid())
 			{
-				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
 				ManifestReader->LoadAndParse(URL);
 			}
 		}

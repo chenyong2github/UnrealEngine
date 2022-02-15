@@ -68,6 +68,11 @@ public:
 	virtual void Initialize(const FParamDict& InOptions) = 0;
 
 	/**
+	 * Modifies options. Not all options are modifiable during playback.
+	 */
+	virtual void ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear) = 0;
+
+	/**
 	 * Sets the attributes for the stream to start buffering for and playing.
 	 * This must be set before calling SeekTo() or LoadManifest() to have an immediate effect.
 	 * A best effort to match a stream with the given attributes will be made.

@@ -1065,12 +1065,21 @@ void FElectraPlayer::CalculateTargetSeekTime(FTimespan& OutTargetTime, const FTi
 
 bool FElectraPlayer::Seek(const FTimespan& Time)
 {
+	FSeekParam NoParams;
+	return Seek(Time, NoParams);
+}
+
+bool FElectraPlayer::Seek(const FTimespan& Time, const FSeekParam& Param)
+{
 	if (CurrentPlayer.Get())
 	{
 		FTimespan Target;
 		CalculateTargetSeekTime(Target, Time);
 		Electra::IAdaptiveStreamingPlayer::FSeekParam seek;
 		seek.Time.SetFromTimespan(Target);
+		seek.StartingBitrate = Param.StartingBitrate;
+		seek.bOptimizeForScrubbing = Param.bOptimizeForScrubbing;
+		seek.DistanceThreshold = Param.DistanceThreshold;
 		bInitialSeekPerformed = true;
 		CurrentPlayer->AdaptivePlayer->SeekTo(seek);
 		return true;
@@ -1087,6 +1096,16 @@ void FElectraPlayer::SetFrameAccurateSeekMode(bool bEnableFrameAccuracy)
 		LockedPlayer->AdaptivePlayer->EnableFrameAccurateSeeking(bFrameAccurateSeeking.GetValue());
 	}
 }
+
+void FElectraPlayer::ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear)
+{
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+	if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+	{
+		LockedPlayer->AdaptivePlayer->ModifyOptions(InOptionsToSetOrChange, InOptionsToClear);
+	}
+}
+
 
 void FElectraPlayer::SetPlaybackRange(const FPlaybackRange& InPlaybackRange)
 {
@@ -2137,6 +2156,11 @@ void FElectraPlayer::HandlePlayerEventBufferUtilization(const Electra::Metrics::
 
 void FElectraPlayer::HandlePlayerEventSegmentDownload(const Electra::Metrics::FSegmentDownloadStats& SegmentDownloadStats)
 {
+	// Cached responses are not actual network traffic, so we ignore them.
+	if (SegmentDownloadStats.bIsCachedResponse)
+	{
+		return;
+	}
 	// Update statistics
 	FScopeLock Lock(&StatisticsLock);
 	if (SegmentDownloadStats.StreamType == Electra::EStreamType::Video)
@@ -2874,6 +2898,7 @@ void FElectraPlayer::MediaStateOnEndReached()
 	case EPlayerState::Preparing:
 	case EPlayerState::Playing:
 	case EPlayerState::Paused:
+	case EPlayerState::Stopped:
 		DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::PlaybackEndReached);
 		break;
 	default:

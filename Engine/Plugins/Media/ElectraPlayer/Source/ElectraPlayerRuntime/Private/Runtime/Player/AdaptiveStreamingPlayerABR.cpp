@@ -1216,9 +1216,9 @@ namespace Electra
 					bool bIsFeasible = (bCond1 || bCond2) && bCond3;
 
 					// If there is an enforced initial bitrate then any stream that is outside that bitrate is not feasible.
-					if (ForcedInitialBandwidth && StreamInformationVideo[nStr]->Bitrate > ForcedInitialBandwidth)
+					if (ForcedInitialBandwidth)
 					{
-						bIsFeasible = false;
+						bIsFeasible = StreamInformationVideo[nStr]->Bitrate <= ForcedInitialBandwidth;
 					}
 
 					// If there is an initial playstart bitrate set then this stream must be used, regardless of actual

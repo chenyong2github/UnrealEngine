@@ -181,6 +181,7 @@ struct FPlaybackState
 		bIsPlaying = false;
 		bIsPaused = false;
 		bPlayrateHasChanged = false;
+		bLoopStateHasChanged = false;
 	}
 
 	mutable FMediaCriticalSection			Lock;
@@ -196,6 +197,7 @@ struct FPlaybackState
 	bool									bIsPlaying;
 	bool									bIsPaused;
 	bool									bPlayrateHasChanged;
+	bool									bLoopStateHasChanged;
 	TArray<FTrackMetadata>					VideoTracks;
 	TArray<FTrackMetadata>					AudioTracks;
 	TArray<FTrackMetadata>					SubtitleTracks;
@@ -390,6 +392,16 @@ struct FPlaybackState
 		FMediaCriticalSection::ScopedLock lock(Lock);
 		return bPlayrateHasChanged;
 	}
+	void SetLoopStateHasChanged(bool bWasChanged)
+	{
+		FMediaCriticalSection::ScopedLock lock(Lock);
+		bLoopStateHasChanged = bWasChanged;
+	}
+	bool GetLoopStateHasChanged()
+	{
+		FMediaCriticalSection::ScopedLock lock(Lock);
+		return bLoopStateHasChanged;
+	}
 };
 
 
@@ -455,6 +467,10 @@ struct FMetricEvent
 			Metrics::ETimeJumpReason	Reason;
 
 		};
+		struct FSeekComplete
+		{
+			bool bWasAlreadyThere;
+		};
 		FString								URL;
 		Metrics::EBufferingReason			BufferingReason;
 		Metrics::FBufferStats				BufferStats;
@@ -466,6 +482,7 @@ struct FMetricEvent
 		FQualityChange						QualityChange;
 		FStreamCodecInformation				CodecFormatChange;
 		FTimeJumped							TimeJump;
+		FSeekComplete						SeekComplete;
 		FErrorDetail						ErrorDetail;
 		FLogMessage							LogMessage;
 	};
@@ -626,10 +643,11 @@ struct FMetricEvent
 		Evt->Type = EType::PlaybackStopped;
 		return Evt;
 	}
-	static TSharedPtrTS<FMetricEvent> ReportSeekCompleted()
+	static TSharedPtrTS<FMetricEvent> ReportSeekCompleted(bool bWasAlreadyThere=false)
 	{
 		TSharedPtrTS<FMetricEvent> Evt = MakeSharedTS<FMetricEvent>();
 		Evt->Type = EType::SeekCompleted;
+		Evt->Param.SeekComplete.bWasAlreadyThere = bWasAlreadyThere;
 		return Evt;
 	}
 	static TSharedPtrTS<FMetricEvent> ReportError(const FErrorDetail& ErrorDetail)
@@ -752,6 +770,7 @@ public:
 	virtual void RemoveSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
 
 	virtual void Initialize(const FParamDict& Options) override;
+	virtual void ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear) override;
 
 	virtual void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) override;
 	virtual void EnableFrameAccurateSeeking(bool bEnabled) override;
@@ -1745,6 +1764,7 @@ private:
 
 	double GetMinBufferTimeBeforePlayback();
 	bool HaveEnoughBufferedDataToStartPlayback();
+	void PrepareForPrerolling();
 
 	FTimeValue ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd);
 

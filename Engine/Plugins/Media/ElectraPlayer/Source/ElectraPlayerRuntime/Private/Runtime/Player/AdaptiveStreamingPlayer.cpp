@@ -400,6 +400,24 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 	}
 }
 
+void FAdaptiveStreamingPlayer::ModifyOptions(const FParamDict& InOptionsToSetOrChange, const FParamDict& InOptionsToClear)
+{
+	// Remove options
+	TArray<FString> Keys;
+	InOptionsToClear.GetKeysStartingWith(FString(), Keys);
+	for(auto &Key : Keys)
+	{
+		PlayerOptions.Remove(Key);
+	}
+
+	InOptionsToSetOrChange.GetKeysStartingWith(FString(), Keys);
+	for(auto &Key : Keys)
+	{
+		FVariantValue Value = InOptionsToSetOrChange.GetValue(Key);
+		PlayerOptions.SetOrUpdate(Key, Value);
+	}
+}
+
 
 void FAdaptiveStreamingPlayer::SetStaticResourceProviderCallback(const TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe>& InStaticResourceProvider)
 {
@@ -1607,11 +1625,11 @@ void FAdaptiveStreamingPlayer::HandlePlayStateChanges()
 		}
 	}
 
-	// Did the play range change?
-	if (PlaybackState.GetPlayRangeHasChanged())
+	// Did the play range or loop state change such that we need to start over?
+	if (PlaybackState.GetPlayRangeHasChanged() || PlaybackState.GetLoopStateHasChanged())
 	{
-		// When in a possible playback state we need to start over at the current position.
-		if (CurrentState == EPlayerState::eState_Playing || CurrentState == EPlayerState::eState_Paused)
+		// We do not do this when paused as setting the range usually happens only when paused for seeking or scrubbing.
+		if (CurrentState == EPlayerState::eState_Playing)
 		{
 			InternalStartoverAtCurrentPosition();
 		}
@@ -1640,7 +1658,8 @@ void FAdaptiveStreamingPlayer::HandleSeeking()
 	if (SeekVars.PendingRequest.IsSet())
 	{
 		// If there is an active request and the new request is for scrubbing we let the active request finish first.
-		if (SeekVars.ActiveRequest.IsSet() && SeekVars.PendingRequest.GetValue().bOptimizeForScrubbing.Get(false))
+		bool bIsForScrubbing = SeekVars.PendingRequest.GetValue().bOptimizeForScrubbing.Get(PlayerOptions.GetValue(OptionKeyFrameOptimizeSeekForScrubbing).SafeGetBool(false));
+		if (SeekVars.ActiveRequest.IsSet() && bIsForScrubbing)
 		{
 			return;
 		}
@@ -1653,7 +1672,7 @@ void FAdaptiveStreamingPlayer::HandleSeeking()
 			{
 				// Already there
 				SeekVars.PendingRequest.Reset();
-				DispatchEvent(FMetricEvent::ReportSeekCompleted());
+				DispatchEvent(FMetricEvent::ReportSeekCompleted(true));
 				return;
 			}
 		}
@@ -1677,14 +1696,7 @@ void FAdaptiveStreamingPlayer::HandleSeeking()
 			}
 			CurrentState = EPlayerState::eState_Seeking;
 
-			if (SeekParam.bOptimizeForScrubbing.IsSet())
-			{
-				SeekVars.bForScrubbing = SeekParam.bOptimizeForScrubbing.GetValue();
-			}
-			else
-			{
-				SeekVars.bForScrubbing = PlayerOptions.GetValue(OptionKeyFrameOptimizeSeekForScrubbing).SafeGetBool(false);
-			}
+			SeekVars.bForScrubbing = bIsForScrubbing;
 		}
 		SeekVars.ActiveRequest = SeekParam;
 		InternalStartAt(SeekVars.ActiveRequest.GetValue());
@@ -2082,6 +2094,43 @@ bool FAdaptiveStreamingPlayer::HaveEnoughBufferedDataToStartPlayback()
 }
 
 
+void FAdaptiveStreamingPlayer::PrepareForPrerolling()
+{
+	PrerollVars.StartTime = MEDIAutcTime::CurrentMSec();
+
+	// We need to check if there is any data available in the buffers that can be decoded.
+	// It may be possible that playback was starting on the last segment that did not bring in any playable
+	// data or none at all if it was past end of stream.
+	DiagnosticsCriticalSection.Lock();
+
+	// Check video buffer
+	if (StreamReaderHandler && bHaveVideoReader.GetWithDefault(false))
+	{
+		if (VideoBufferStats.StreamBuffer.bEndOfData && (VideoBufferStats.StreamBuffer.PlayableDuration == FTimeValue::GetZero() || VideoBufferStats.StreamBuffer.NumCurrentAccessUnits == 0))
+		{
+			PrerollVars.bHaveEnoughVideo = true;
+			VideoBufferStats.DecoderInputBuffer.bEODSignaled = true;
+			VideoBufferStats.DecoderInputBuffer.bEODReached = true;
+			VideoBufferStats.DecoderOutputBuffer.bEODreached = true;
+		}
+	}
+
+	// Check audio buffer
+	if (StreamReaderHandler && bHaveAudioReader.GetWithDefault(false))
+	{
+		if (AudioBufferStats.StreamBuffer.bEndOfData && (AudioBufferStats.StreamBuffer.PlayableDuration == FTimeValue::GetZero() || AudioBufferStats.StreamBuffer.NumCurrentAccessUnits == 0))
+		{
+			PrerollVars.bHaveEnoughAudio = true;
+			AudioBufferStats.DecoderInputBuffer.bEODSignaled = true;
+			AudioBufferStats.DecoderInputBuffer.bEODReached = true;
+			AudioBufferStats.DecoderOutputBuffer.bEODreached = true;
+		}
+	}
+
+	DiagnosticsCriticalSection.Unlock();
+}
+
+
 //-----------------------------------------------------------------------------
 /**
  * Checks if buffers have enough data to advance the play state.
@@ -2119,9 +2168,10 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 				}
 				DataBuffersCriticalSection.Unlock();
 
-				DecoderState = EDecoderState::eDecoder_Running;
+				PrepareForPrerolling();
 				PipelineState = EPipelineState::ePipeline_Prerolling;
-				PrerollVars.StartTime = MEDIAutcTime::CurrentMSec();
+				DecoderState = EDecoderState::eDecoder_Running;
+
 				PostrollVars.Clear();
 				// We are synced up now and can clear the state.
 				LiveSyncVars.Clear();
@@ -2152,9 +2202,9 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 				DataBuffersCriticalSection.Unlock();
 				if (bHaveActiveOutputBuffer)
 				{
-					DecoderState = EDecoderState::eDecoder_Running;
+					PrepareForPrerolling();
 					PipelineState = EPipelineState::ePipeline_Prerolling;
-					PrerollVars.StartTime = MEDIAutcTime::CurrentMSec();
+					DecoderState = EDecoderState::eDecoder_Running;
 					PostrollVars.Clear();
 					LiveSyncVars.Clear();
 					DispatchEvent(FMetricEvent::ReportPrerollStart());
@@ -2302,9 +2352,9 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 			if (StreamReaderHandler && bHaveVideoReader.Value())
 			{
 				// If the video decoder output buffer is stalled then we have enough video output. There won't be any more coming in.
-				// Also when the stream has reached the end and that has propagated through the buffers.
+				// Also when the stream has reached the end and that has propagated through the decoder's buffer.
 				if (VideoBufferStats.DecoderOutputBuffer.bOutputStalled ||
-					(VideoBufferStats.StreamBuffer.bEndOfData && VideoBufferStats.DecoderInputBuffer.bEODSignaled && VideoBufferStats.DecoderOutputBuffer.bEODreached) ||
+					(VideoBufferStats.StreamBuffer.bEndOfData && VideoBufferStats.DecoderInputBuffer.bEODSignaled && VideoBufferStats.DecoderInputBuffer.bEODReached) ||
 					bIsVideoDeselected)
 				{
 					bHaveEnoughVideo = true;
@@ -2323,9 +2373,9 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 			if (StreamReaderHandler && bHaveAudioReader.Value())
 			{
 				// If the audio decoder output buffer is stalled then we have enough video output. There won't be any more coming in.
-				// Also when the stream has reached the end and that has propagated through the buffers.
+				// Also when the stream has reached the end and that has propagated through the decoder's buffer.
 				if (AudioBufferStats.DecoderOutputBuffer.bOutputStalled ||
-					(AudioBufferStats.StreamBuffer.bEndOfData && AudioBufferStats.DecoderInputBuffer.bEODSignaled && AudioBufferStats.DecoderOutputBuffer.bEODreached) ||
+					(AudioBufferStats.StreamBuffer.bEndOfData && AudioBufferStats.DecoderInputBuffer.bEODSignaled && AudioBufferStats.DecoderInputBuffer.bEODReached) ||
 					bIsAudioDeselected)
 				{
 					bHaveEnoughAudio = true;
@@ -2490,8 +2540,19 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						}
 						case IManifest::FResult::EType::PastEOS:
 						{
-							PendingStartRequest.Reset();
-							InternalSetPlaybackEnded();
+							// If the initial start time is beyond the end of the presentation
+							// but looping is enabled we set this request up to start at the beginning.
+							if (CurrentLoopParam.bEnableLooping)
+							{
+								FTimeRange Seekable = Manifest->GetSeekableTimeRange();
+								PendingStartRequest->SearchType = IManifest::ESearchType::Closest;
+								PendingStartRequest->StartAt.Time = Seekable.Start;
+							}
+							else
+							{
+								PendingStartRequest.Reset();
+								InternalSetPlaybackEnded();
+							}
 							break;
 						}
 						case IManifest::FResult::EType::NotFound:
@@ -2577,6 +2638,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 								{
 									StartingBitrate = PlayerOptions.GetValue(OptionKeySeekStartBitrate).SafeGetInt64(StartingBitrate);
 									bForceInitial = true;
+									bForceStartRate = true;
 								}
 							}
 						}
@@ -3912,16 +3974,20 @@ void FAdaptiveStreamingPlayer::CheckForStreamEnd()
 			// Check for end of video stream
 			if (StreamReaderHandler && bHaveVid)
 			{
-				// All buffers at end of data?
-				bEndVid = (vidStats.StreamBuffer.bEndOfData && vidStats.DecoderInputBuffer.bEODSignaled && vidStats.DecoderOutputBuffer.bEODreached);
+				// Source buffer and decoder input buffer at end of data?
+				// We do not check the decoder output buffer since it is possible that no decodable output was produced
+				// which tends to happen at the end of the stream or when there is no video any more when audio is longer.
+				bEndVid = (vidStats.StreamBuffer.bEndOfData && vidStats.DecoderInputBuffer.bEODSignaled && vidStats.DecoderInputBuffer.bEODReached);
 				VidStalled = vidStats.StreamBuffer.bEndOfData ? vidStats.GetStalledDurationMillisec() : 0;
 			}
 
 			// Check for end of audio stream
 			if (StreamReaderHandler && bHaveAud)
 			{
-				// All buffers at end of data?
-				bEndAud = (audStats.StreamBuffer.bEndOfData && audStats.DecoderInputBuffer.bEODSignaled && audStats.DecoderOutputBuffer.bEODreached);
+				// Source buffer and decoder input buffer at end of data?
+				// We do not check the decoder output buffer since it is possible that no decodable output was produced
+				// which tends to happen at the end of the stream or when there is no audio any more when video is longer.
+				bEndAud = (audStats.StreamBuffer.bEndOfData && audStats.DecoderInputBuffer.bEODSignaled && audStats.DecoderInputBuffer.bEODReached);
 				AudStalled = audStats.StreamBuffer.bEndOfData ? audStats.GetStalledDurationMillisec() : 0;
 			}
 
@@ -4025,6 +4091,7 @@ void FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 
 	PlaybackState.SetHasEnded(false);
 	PlaybackState.SetPlayRangeHasChanged(false);
+	PlaybackState.SetLoopStateHasChanged(false);
 
 	VideoBufferStats.Clear();
 	AudioBufferStats.Clear();
@@ -4111,6 +4178,12 @@ void FAdaptiveStreamingPlayer::InternalSetPlaybackEnded()
 		TimelineRange.End = RangeEnd;
 	}
 	PlaybackState.SetPlayPosition(TimelineRange.End);
+
+	if (LastBufferingState == EPlayerState::eState_Seeking)
+	{
+		DispatchEvent(FMetricEvent::ReportSeekCompleted());
+	}
+	SeekVars.Reset();
 
 	PlaybackState.SetHasEnded(true);
 	StreamState = EStreamState::eStream_ReachedEnd;
@@ -4372,7 +4445,7 @@ void FAdaptiveStreamingPlayer::InternalSetLoop(const FLoopParam& LoopParam)
 		PlaybackState.SetLoopStateEnable(LoopParam.bEnableLooping);
 		if (bStartOver)
 		{
-			InternalStartoverAtCurrentPosition();
+			PlaybackState.SetLoopStateHasChanged(true);
 		}
 	}
 }

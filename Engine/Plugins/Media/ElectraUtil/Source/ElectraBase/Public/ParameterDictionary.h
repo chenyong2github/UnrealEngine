@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
 #include "PlayerTime.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Containers/Array.h"
@@ -150,19 +151,29 @@ class ELECTRABASE_API FParamDict
 {
 public:
 	FParamDict();
+	FParamDict(const FParamDict& Other);
+	FParamDict& operator=(const FParamDict& Other);
 	~FParamDict();
 	void Clear();
 	void Set(const FString& Key, const FVariantValue& Value);
 	bool HaveKey(const FString& Key) const;
-	const FVariantValue& GetValue(const FString& Key) const;
+	FVariantValue GetValue(const FString& Key) const;
 	void Remove(const FString& Key)
-	{ Dictionary.Remove(Key); }
+	{
+		FScopeLock lock(&Lock);
+		Dictionary.Remove(Key); 
+	}
 	void SetOrUpdate(const FString& Key, const FVariantValue& Value)
-	{ Dictionary.Add(Key, Value); }
+	{ 
+		FScopeLock lock(&Lock);
+		Dictionary.Add(Key, Value); 
+	}
 
-	void GetKeysStartingWith(const FString& StartsWith, TArray<FString>& Keys);
+	void GetKeysStartingWith(const FString& StartsWith, TArray<FString>& Keys) const;
 private:
-	TMap<FString, FVariantValue>		Dictionary;
+	void InternalCopy(const FParamDict& Other);
+	mutable FCriticalSection Lock;
+	TMap<FString, FVariantValue> Dictionary;
 };
 
 

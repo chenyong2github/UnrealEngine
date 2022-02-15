@@ -738,6 +738,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 			// If there is a playback range and we have reached it we are at EOS, regardless of whether this is a Live stream or not.
 			if (SearchParam.LastPTS.IsValid() && SegmentList[SelectedSegmentIndex].AbsoluteDateTime >= SearchParam.LastPTS)
 			{
+				Req->AbsoluteDateTime = SegmentList[SelectedSegmentIndex].AbsoluteDateTime;
 				Req->bIsEOSSegment = true;
 				OutRequest = Req;
 				return IManifest::FResult(IManifest::FResult::EType::PastEOS);
@@ -775,6 +776,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 			// Unless this is a VOD list or it has as ENDLIST tag we have to try this later, assuming that an updated playlist has added additional segments.
 			if (InStream->PlaylistType == FManifestHLSInternal::FMediaStream::EPlaylistType::VOD || InStream->bHasListEnd)
 			{
+				Req->AbsoluteDateTime = SearchParam.Time;
 				Req->bIsEOSSegment = true;
 				OutRequest = Req;
 				return IManifest::FResult(IManifest::FResult::EType::PastEOS);
@@ -789,6 +791,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 	else
 	{
 		// No segments is not really expected. If this occurs we assume the presentation has ended.
+		Req->AbsoluteDateTime = SearchParam.Time;
 		Req->bIsEOSSegment = true;
 		OutRequest = Req;
 		return IManifest::FResult(IManifest::FResult::EType::PastEOS);

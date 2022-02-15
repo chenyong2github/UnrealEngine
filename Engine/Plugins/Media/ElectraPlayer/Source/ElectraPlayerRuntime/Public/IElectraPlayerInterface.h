@@ -173,8 +173,19 @@ public:
 	virtual float GetRate() const = 0;
 	virtual bool SetRate(float Rate) = 0;
 
+
+	struct FSeekParam
+	{
+		TOptional<int32> StartingBitrate;
+		TOptional<bool> bOptimizeForScrubbing;
+		TOptional<double> DistanceThreshold;
+	};
+
 	virtual bool Seek(const FTimespan& Time) = 0;
+	virtual bool Seek(const FTimespan& Time, const FSeekParam& Param) = 0;
 	virtual void SetFrameAccurateSeekMode(bool bEnableFrameAccuracy) = 0;
+	
+	virtual void ModifyOptions(const Electra::FParamDict& InOptionsToSetOrChange, const Electra::FParamDict& InOptionsToClear) = 0;
 
 	struct FAudioTrackFormat
 	{
