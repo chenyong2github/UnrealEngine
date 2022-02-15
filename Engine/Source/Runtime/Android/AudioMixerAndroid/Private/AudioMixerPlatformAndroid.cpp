@@ -425,16 +425,7 @@ namespace Audio
 
 		if (RuntimeFormat == Audio::NAME_PLATFORM_SPECIFIC)
 		{
-#if WITH_OGGVORBIS
-			if (InSoundWave->HasCompressedData(Audio::NAME_OGG))
-			{
-				RuntimeFormat = Audio::NAME_OGG;
-			}
-			else
-#endif // #if WITH_OGGVORBIS
-			{
-				RuntimeFormat = Audio::NAME_ADPCM;
-			}
+			RuntimeFormat = Audio::NAME_OGG;
 		}
 
 		return RuntimeFormat;
@@ -444,20 +435,17 @@ namespace Audio
 	{
 		ICompressedAudioInfo* Decoder = nullptr;
 
-#if WITH_OGGVORBIS
 		if (InRuntimeFormat == Audio::NAME_OGG)
 		{
 			Decoder = new FVorbisAudioInfo();
 		}
-		else
-#endif // #if WITH_OGGVORBIS
-#if WITH_BINK_AUDIO
-		if (InRuntimeFormat == Audio::NAME_BINKA)
+		else if (InRuntimeFormat == Audio::NAME_BINKA)
 		{
+#if WITH_BINK_AUDIO
 			Decoder = new FBinkAudioInfo();
-		} 
-		else
 #endif // WITH_BINK_AUDIO			
+		}
+		else
 		{
 			Decoder = Audio::CreateSoundAssetDecoder(InRuntimeFormat);
 		}

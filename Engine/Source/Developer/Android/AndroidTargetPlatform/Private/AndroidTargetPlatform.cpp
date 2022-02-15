@@ -621,44 +621,10 @@ const UTextureLODSettings& FAndroidTargetPlatform::GetTextureLODSettings() const
 
 FName FAndroidTargetPlatform::GetWaveFormat(const class USoundWave* Wave) const
 {
-	// Platform specific codec name
-	static bool bFormatRead = false;
-	static FName NAME_FORMAT;
-	if (!bFormatRead)
-	{
-		bFormatRead = true;
-
-		FName AudioSetting;
-		{
-			FString AudioSettingStr;
-			if (!GConfig->GetString(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("AndroidAudio"), AudioSettingStr, GEngineIni))
-			{
-				AudioSetting = *AudioSettingStr;
-			}
-		}
-
-#if WITH_OGGVORBIS
-		if (AudioSetting == Audio::NAME_OGG || AudioSetting == NAME_None)
-		{
-			NAME_FORMAT = Audio::NAME_OGG;
-		}
-#else
-		if (AudioSetting == Audio::NAME_OGG)
-		{
-			UE_LOG(LogAudio, Error, TEXT("Attemped to select Ogg Vorbis encoding when the cooker is built without Ogg Vorbis support."));
-		}
-#endif
-		else
-		{
-			// Otherwise return ADPCM as it'll either be option '2' or 'default' depending on WITH_OGGVORBIS config
-			NAME_FORMAT = Audio::NAME_ADPCM;
-		}
-	}
-
 	FName FormatName = Audio::ToName(Wave->GetSoundAssetCompressionType());
 	if (FormatName == Audio::NAME_PLATFORM_SPECIFIC)
 	{
-		FormatName = NAME_FORMAT;
+		FormatName = Audio::NAME_OGG;
 	}
 	return FormatName;
 }
