@@ -673,19 +673,30 @@ namespace UnrealBuildTool
 
 			//Result += " -DOPERATOR_NEW_INLINE=FORCENOINLINE";
 
+			bool bRetainFramePointers = CompileEnvironment.bRetainFramePointers 
+				|| Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer)
+				|| CompileEnvironment.Configuration == CppConfiguration.Debug;
+
 			// shipping builds will cause this warning with "ensure", so disable only in those case
 			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
 			{
 				Result += " -Wno-unused-value";
-				Result += " -fomit-frame-pointer";
+				if (!bRetainFramePointers)
+                {
+					Result += " -fomit-frame-pointer";
+				}
 			}
 			// switches to help debugging
 			else if (CompileEnvironment.Configuration == CppConfiguration.Debug)
 			{
 				Result += " -fno-inline";                   // disable inlining for better debuggability (e.g. callstacks, "skip file" in gdb)
-				Result += " -fno-omit-frame-pointer";       // force not omitting fp
 				Result += " -fstack-protector";             // detect stack smashing
 				//Result += " -fsanitize=address";            // detect address based errors (support properly and link to libasan)
+			}
+
+			if (bRetainFramePointers)
+			{
+				Result += " -fno-optimize-sibling-calls -fno-omit-frame-pointer";
 			}
 
 			// debug info
@@ -717,7 +728,7 @@ namespace UnrealBuildTool
 				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
 				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 				{
-					Result += " -O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer";
+					Result += " -O1 -g";
 				}
 				else if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
 				{
