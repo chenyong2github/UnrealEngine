@@ -48,7 +48,11 @@ struct ANIMATIONBLUEPRINTLIBRARY_API FAnimPoseEvaluationOptions
 
 	// Whether or not to extract root motion values
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
-	bool bExtractRootMotion = false;	
+	bool bExtractRootMotion = false;
+
+	// Optional skeletal mesh with proportions to use when evaluating a pose
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category="Animation|Pose")
+	TObjectPtr<USkeletalMesh> OptionalSkeletalMesh = nullptr;
 };
 
 /** Script friendly representation of an evaluated animation bone pose */

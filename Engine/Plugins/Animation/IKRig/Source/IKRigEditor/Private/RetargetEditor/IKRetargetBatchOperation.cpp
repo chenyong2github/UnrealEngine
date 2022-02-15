@@ -334,13 +334,17 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 			BoneTracks[TargetBoneIndex].RotKeys.SetNum(NumFrames);
 			BoneTracks[TargetBoneIndex].ScaleKeys.SetNum(NumFrames);
 		}
+
+		// ensure we evaluate the source animation using the skeletal mesh proportions that were evaluated in the viewport
+		FAnimPoseEvaluationOptions EvaluationOptions = FAnimPoseEvaluationOptions();
+		EvaluationOptions.OptionalSkeletalMesh = SourceSkeleton.SkeletalMesh;
 		
 		// retarget each frame's pose from source to target
 		for (int32 FrameIndex=0; FrameIndex<NumFrames; ++FrameIndex)
 		{
 			// get the source global pose
 			FAnimPose SourcePoseAtFrame;
-			UAnimPoseExtensions::GetAnimPoseAtFrame(SourceSequence, FrameIndex, FAnimPoseEvaluationOptions(), SourcePoseAtFrame);
+			UAnimPoseExtensions::GetAnimPoseAtFrame(SourceSequence, FrameIndex, EvaluationOptions, SourcePoseAtFrame);
 
 			// we don't use UAnimPoseExtensions::GetBoneNames as the sequence can store bones that only exist on the
 			// skeleton, but not on the current mesh. This results in indices discrepancy

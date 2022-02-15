@@ -487,8 +487,19 @@ void UAnimPoseExtensions::GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSe
 				RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 			}
 
+			// asset to use for retarget proportions (can be either USkeletalMesh or USkeleton)
+			UObject* AssetToUse;
+			if (EvaluationOptions.OptionalSkeletalMesh)
+			{
+				AssetToUse = CastChecked<UObject>(EvaluationOptions.OptionalSkeletalMesh);
+			}
+			else
+			{
+				AssetToUse = CastChecked<UObject>(AnimationSequenceBase->GetSkeleton());
+			}
+
 			FBoneContainer RequiredBones;
-			RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(false), *AnimationSequenceBase->GetSkeleton());
+			RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(false), *AssetToUse);
 			
 			RequiredBones.SetUseRAWData(EvaluationOptions.EvaluationType == EAnimDataEvalType::Raw);
 			RequiredBones.SetUseSourceData(EvaluationOptions.EvaluationType == EAnimDataEvalType::Source);
