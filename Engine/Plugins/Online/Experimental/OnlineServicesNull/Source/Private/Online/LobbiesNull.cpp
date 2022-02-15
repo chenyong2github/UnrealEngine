@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_ENGINE
 #include "Online/LobbiesNull.h"
 #include "Online/OnlineServicesNull.h"
 #include "Misc/Guid.h"
@@ -410,3 +411,5 @@ TOnlineResult<FGetJoinedLobbies> FLobbiesNull::GetJoinedLobbies(FGetJoinedLobbie
 
 
 #undef NOT_IMPLEMENTED
+
+#endif // WITH_ENGINE

@@ -13,10 +13,19 @@ public class OnlineServicesNull : ModuleRules
 				"CoreOnline",
 				"Sockets",
 				"OnlineServicesInterface",
-				"OnlineServicesCommon",
-				"OnlineSubsystem",
-				"OnlineSubsystemUtils"
+				"OnlineServicesCommon"
 			}
 		);
+
+		if (Target.bCompileAgainstEngine)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"OnlineSubsystem",
+					"OnlineSubsystemUtils"
+				}
+			);
+		}
 	}
 }

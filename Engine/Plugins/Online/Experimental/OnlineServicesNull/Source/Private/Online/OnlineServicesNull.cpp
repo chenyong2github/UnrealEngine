@@ -31,12 +31,15 @@ FOnlineServicesNull::FOnlineServicesNull()
 void FOnlineServicesNull::RegisterComponents()
 {
 	Components.Register<FAuthNull>(*this);
+#if WITH_ENGINE
 	Components.Register<FLobbiesNull>(*this);
+#endif
 	FOnlineServicesCommon::RegisterComponents();
 }
 
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
+#if WITH_ENGINE
 	ILobbiesPtr LobbiesPtr = GetLobbiesInterface();
 	check(LobbiesPtr);
 
@@ -67,6 +70,9 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnect
 	{
 		return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
 	}
+#else
+	return Super::GetResolvedConnectString(MoveTemp(Params));
+#endif
 }
 
 void FOnlineServicesNull::Initialize()
