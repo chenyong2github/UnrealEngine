@@ -2977,7 +2977,7 @@ FRHIGPUMask FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate& RHICmdList
 #endif // WITH_MGPU
 
 #if WITH_MGPU
-DECLARE_GPU_STAT_NAMED(CrossGPUTransfers, TEXT("Cross GPU Tranfer"));
+DECLARE_GPU_STAT_NAMED(CrossGPUTransfers, TEXT("Cross GPU Transfer"));
 #endif // WITH_MGPU
 
 void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask RenderTargetGPUMask, FRDGTextureRef ViewFamilyTexture)
