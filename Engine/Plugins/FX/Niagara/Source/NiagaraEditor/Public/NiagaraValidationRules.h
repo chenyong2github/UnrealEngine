@@ -40,3 +40,11 @@ class UNiagara_InvalidEffectType : public UNiagaraValidationRule
 public:
 	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
 };
+
+UCLASS(Category = "Validation")
+class UNiagara_LWC_Validator : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+public:
+	virtual TArray<FNiagaraValidationResult> CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel) const override;
+};

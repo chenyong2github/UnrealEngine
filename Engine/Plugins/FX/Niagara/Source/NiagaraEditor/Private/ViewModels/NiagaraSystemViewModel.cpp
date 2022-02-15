@@ -322,6 +322,15 @@ void FNiagaraSystemViewModel::CompileSystem(bool bForce)
 	SystemScriptViewModel->CompileSystem(bForce);
 	bCompilePendingCompletion = true;
 	InvalidateCachedCompileStatus();
+
+	if (SystemStackViewModel)
+	{
+		SystemStackViewModel->RequestValidationUpdate();
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel :GetEmitterHandleViewModels())
+		{
+			EmitterHandleViewModel->GetEmitterStackViewModel()->RequestValidationUpdate();
+		}
+	}
 }
 
 ENiagaraScriptCompileStatus FNiagaraSystemViewModel::GetLatestCompileStatus() const
