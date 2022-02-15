@@ -593,8 +593,8 @@ bool IPlatformFile::IterateDirectoryRecursively(const TCHAR* Directory, FDirecto
 	while (bResult && DirectoriesToVisitNext.Num() > 0)
 	{
 		TArray<FString> DirectoriesToVisit = MoveTemp(DirectoriesToVisitNext);
-		ParallelFor(
-			DirectoriesToVisit.Num(),
+		ParallelFor( TEXT("IterateDirectoryRecursively.PF"),
+			DirectoriesToVisit.Num(),1,
 			[this, &DirectoriesToVisit, &Recurse, &bResult](int32 Index)
 			{
 				if (bResult && !IterateDirectory(*DirectoriesToVisit[Index], Recurse))

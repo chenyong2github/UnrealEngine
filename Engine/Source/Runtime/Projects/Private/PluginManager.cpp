@@ -519,8 +519,8 @@ void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, con
 		TArray<FLoadContext> Contexts;
 		Contexts.SetNum(FileNames.Num());
 
-		ParallelFor(
-			FileNames.Num(),
+		ParallelFor(TEXT("ReadPluginsInDirectory.PF"),
+			FileNames.Num(),1,
 			[&Contexts, &FileNames](int32 Index)
 			{
 				FLoadContext& Context = Contexts[Index];

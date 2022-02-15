@@ -523,8 +523,8 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 			// Just precompute the InputHash for each job in multiple-thread.
 			if (ShaderCompiler::IsJobCacheEnabled())
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(GetInputHash);
-				ParallelFor(InJobs.Num(), [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); });
+				TRACE_CPUPROFILER_EVENT_SCOPE(ShaderCompiler.GetInputHash);
+				ParallelFor( TEXT("ShaderCompiler.GetInputHash.PF"), InJobs.Num(),1, [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); });
 			}
 
 			FWriteScopeLock Locker(Lock);
@@ -2202,7 +2202,7 @@ void FShaderCompileThreadRunnable::PushCompletedJobsToManager()
 
 void FShaderCompileThreadRunnable::WriteNewTasks()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileThreadRunnable::WriteNewTasks);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ShaderCompiler.WriteNewTasks);
 
 	// first, a quick check if anything is needed just to avoid hammering the task graph
 	bool bHasTasksToWrite = false;
@@ -2229,7 +2229,7 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 		// Only write tasks once
 		if (!CurrentWorkerInfo.bIssuedTasksToWorker && CurrentWorkerInfo.QueuedJobs.Num() > 0)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileThreadRunnable::WriteNewTasksForWorker);
+			TRACE_CPUPROFILER_EVENT_SCOPE(ShaderCompiler.WriteNewTasksForWorker);
 			CurrentWorkerInfo.bIssuedTasksToWorker = true;
 
 			const FString WorkingDirectory = Manager->AbsoluteShaderBaseWorkingDirectory + FString::FromInt(WorkerIndex);
@@ -2312,7 +2312,7 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 
 	if (bParallelizeIO)
 	{
-		ParallelFor(WorkerInfos.Num(), LoopBody, EParallelForFlags::Unbalanced);
+		ParallelFor( TEXT("ShaderCompiler.WriteNewTasks.PF"), WorkerInfos.Num(),1, LoopBody, EParallelForFlags::Unbalanced);
 	}
 	else
 	{
@@ -2423,7 +2423,7 @@ bool FShaderCompileThreadRunnable::LaunchWorkersIfNeeded()
 
 int32 FShaderCompileThreadRunnable::ReadAvailableResults()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileThreadRunnable::ReadAvailableResults);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ShaderCompiler.ReadAvailableResults);
 	int32 NumProcessed = 0;
 
 	// first, a quick check if anything is needed just to avoid hammering the task graph
@@ -2495,7 +2495,7 @@ int32 FShaderCompileThreadRunnable::ReadAvailableResults()
 
 	if (bParallelizeIO)
 	{
-		ParallelFor(WorkerInfos.Num(), LoopBody, EParallelForFlags::Unbalanced);
+		ParallelFor( TEXT("ShaderCompiler.ReadAvailableResults.PF"),WorkerInfos.Num(),1, LoopBody, EParallelForFlags::Unbalanced);
 	}
 	else 
 	{
