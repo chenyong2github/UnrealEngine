@@ -5,6 +5,7 @@
 #include "ZenGlobals.h"
 
 #include "Containers/StaticArray.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Memory/MemoryFwd.h"
 
