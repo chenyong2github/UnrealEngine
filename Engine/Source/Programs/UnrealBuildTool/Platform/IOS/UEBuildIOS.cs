@@ -374,14 +374,12 @@ namespace UnrealBuildTool
 			{
 				switch (MinimumIOSVersion)
 				{
-					case "IOS_13":
-						return "13.0";
 					case "IOS_14":
 						return "14.0";
 					case "IOS_15":
 						return "15.0";
 					default:
-						return "13.0";
+						return "14.0";
 				}
 			}
 		}
