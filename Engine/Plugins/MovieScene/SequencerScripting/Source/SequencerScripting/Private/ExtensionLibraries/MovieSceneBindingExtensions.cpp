@@ -104,6 +104,12 @@ TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::GetTracks(const FSequenc
 
 void UMovieSceneBindingExtensions::RemoveTrack(const FSequencerBindingProxy& InBinding, UMovieSceneTrack* TrackToRemove)
 {
+	if (!TrackToRemove)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveTrack on a null track"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (TrackToRemove && MovieScene)
 	{

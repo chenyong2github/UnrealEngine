@@ -22,17 +22,35 @@
 
 FSequencerScriptingRange UMovieSceneSectionExtensions::GetRange(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetRange on a null section"), ELogVerbosity::Error);
+		return FSequencerScriptingRange();
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	return FSequencerScriptingRange::FromNative(Section->GetRange(), MovieScene->GetTickResolution());
 }
 
 bool UMovieSceneSectionExtensions::HasStartFrame(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call HasStartFrame on a null section"), ELogVerbosity::Error);
+		return false;
+	}
+
 	return Section->HasStartFrame();
 }
 
 int32 UMovieSceneSectionExtensions::GetStartFrame(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetStartFrame on a null section"), ELogVerbosity::Error);
+		return -1;
+	}
+
 	if (!Section->HasStartFrame())
 	{
 		FFrame::KismetExecutionMessage(TEXT("Section does not have a start frame"), ELogVerbosity::Error);
@@ -53,6 +71,12 @@ int32 UMovieSceneSectionExtensions::GetStartFrame(UMovieSceneSection* Section)
 
 float UMovieSceneSectionExtensions::GetStartFrameSeconds(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetStartFrameSeconds on a null section"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
 	if (!Section->HasStartFrame())
 	{
 		FFrame::KismetExecutionMessage(TEXT("Section does not have a start frame"), ELogVerbosity::Error);
@@ -71,12 +95,24 @@ float UMovieSceneSectionExtensions::GetStartFrameSeconds(UMovieSceneSection* Sec
 
 bool UMovieSceneSectionExtensions::HasEndFrame(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call HasEndFrame on a null section"), ELogVerbosity::Error);
+		return false;
+	}
+
 	return Section->HasEndFrame();
 }
 
 
 int32 UMovieSceneSectionExtensions::GetEndFrame(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetEndFrame on a null section"), ELogVerbosity::Error);
+		return -1;
+	}
+
 	if (!Section->HasEndFrame())
 	{
 		FFrame::KismetExecutionMessage(TEXT("Section does not have an end frame"), ELogVerbosity::Error);
@@ -97,6 +133,12 @@ int32 UMovieSceneSectionExtensions::GetEndFrame(UMovieSceneSection* Section)
 
 float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Section)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetEndFrameSeconds on a null section"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
 	if (!Section->HasEndFrame())
 	{
 		FFrame::KismetExecutionMessage(TEXT("Section does not have an end frame"), ELogVerbosity::Error);
@@ -115,6 +157,12 @@ float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Secti
 
 void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 StartFrame, int32 EndFrame)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetRange on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -137,6 +185,12 @@ void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 S
 
 void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, float StartTime, float EndTime)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetRangeSeconds on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -159,6 +213,12 @@ void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, 
 
 void UMovieSceneSectionExtensions::SetStartFrame(UMovieSceneSection* Section, int32 StartFrame)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetStartFrame on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -170,6 +230,12 @@ void UMovieSceneSectionExtensions::SetStartFrame(UMovieSceneSection* Section, in
 
 void UMovieSceneSectionExtensions::SetStartFrameSeconds(UMovieSceneSection* Section, float StartTime)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetStartFrameSeconds on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -179,6 +245,12 @@ void UMovieSceneSectionExtensions::SetStartFrameSeconds(UMovieSceneSection* Sect
 
 void UMovieSceneSectionExtensions::SetStartFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetStartFrameBounded on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -201,6 +273,12 @@ void UMovieSceneSectionExtensions::SetStartFrameBounded(UMovieSceneSection* Sect
 
 void UMovieSceneSectionExtensions::SetEndFrame(UMovieSceneSection* Section, int32 EndFrame)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetEndFrame on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -212,6 +290,12 @@ void UMovieSceneSectionExtensions::SetEndFrame(UMovieSceneSection* Section, int3
 
 void UMovieSceneSectionExtensions::SetEndFrameSeconds(UMovieSceneSection* Section, float EndTime)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetEndFrameSeconds on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
@@ -221,6 +305,12 @@ void UMovieSceneSectionExtensions::SetEndFrameSeconds(UMovieSceneSection* Sectio
 
 void UMovieSceneSectionExtensions::SetEndFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
 {
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetEndFrameBounded on a null section"), ELogVerbosity::Error);
+		return;
+	}
+
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
 	if (MovieScene)
 	{
