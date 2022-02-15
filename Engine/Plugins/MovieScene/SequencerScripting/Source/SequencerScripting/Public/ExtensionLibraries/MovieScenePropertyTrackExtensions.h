@@ -8,7 +8,7 @@
 
 #include "MovieScenePropertyTrackExtensions.generated.h"
 
-
+class UMovieSceneByteTrack;
 class UMovieScenePropertyTrack;
 class UMovieSceneObjectPropertyTrack;
 
@@ -76,4 +76,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static UClass* GetObjectPropertyClass(UMovieSceneObjectPropertyTrack* Track);
+
+	/**
+	 * Set this byte track's enum
+	 *
+	 * @param Track        The track to use
+	 * @param InEnum The enum to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
+	static void SetByteTrackEnum(UMovieSceneByteTrack* Track, UEnum* InEnum);
+
+	/**
+	 * Get this byte track's enum
+	 *
+	 * @param Track        The track to use
+	 * @return The enum for this byte track
+	 */
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Track", meta = (ScriptMethod))
+	static UEnum* GetByteTrackEnum(UMovieSceneByteTrack* Track);
 };
