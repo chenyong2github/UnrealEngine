@@ -33,10 +33,10 @@ namespace Chaos
 	using namespace CVars;
 
 	inline bool ImplicitOverlapOBBToAABB(
-		const FImplicitObject* Implicit0, 
-		const FImplicitObject* Implicit1, 
-		const FRigidTransform3& ShapeWorldTransform0, 
-		const FRigidTransform3& ShapeWorldTransform1, 
+		const FImplicitObject* Implicit0,
+		const FImplicitObject* Implicit1,
+		const FRigidTransform3& ShapeWorldTransform0,
+		const FRigidTransform3& ShapeWorldTransform1,
 		const FReal CullDistance)
 	{
 		if (Implicit0->HasBoundingBox() && Implicit1->HasBoundingBox())
@@ -96,7 +96,7 @@ namespace Chaos
 		const FPerShapeData* InShape0,
 		FGeometryParticleHandle* InParticle1,
 		const FPerShapeData* InShape1,
-		const EContactShapesType InShapePairType, 
+		const EContactShapesType InShapePairType,
 		FParticlePairMidPhase& InMidPhase)
 		: MidPhase(InMidPhase)
 		, Constraint(nullptr)
@@ -126,7 +126,7 @@ namespace Chaos
 		Flags.bEnableAABBCheck = bAllowBoundsChecked && !(bIsSphere0 && bIsSphere1);	// No AABB test if both are spheres
 		Flags.bEnableOBBCheck0 = bAllowBoundsChecked && !bIsSphere0;					// No OBB test for spheres
 		Flags.bEnableOBBCheck1 = bAllowBoundsChecked && !bIsSphere1;					// No OBB test for spheres
-		
+
 		if (bAllowBoundsChecked && bIsSphere0 && bIsSphere1)
 		{
 			SphereBoundsCheckSize = Implicit0->GetMargin() + Implicit1->GetMargin();	// Sphere-Sphere bounds test
@@ -250,7 +250,7 @@ namespace Chaos
 	}
 
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionImpl(
-		const FReal CullDistance, 
+		const FReal CullDistance,
 		const bool bUseManifold,
 		const FReal Dt)
 	{
@@ -284,7 +284,7 @@ namespace Chaos
 
 			// If the constraint was not used last frame, it needs to be reset. 
 			// Otherwise we will try to reuse it below
-			if (!bWasUpdatedLastTick  || (Constraint->GetManifoldPoints().Num() == 0))
+			if (!bWasUpdatedLastTick || (Constraint->GetManifoldPoints().Num() == 0))
 			{
 				// Clear all manifold data including saved contact data
 				Constraint->ResetManifold();
@@ -327,7 +327,7 @@ namespace Chaos
 	}
 
 	int32 FSingleShapePairCollisionDetector::GenerateCollisionCCDImpl(
-		const FReal CullDistance, 
+		const FReal CullDistance,
 		const bool bUseManifold,
 		const FReal Dt)
 	{
@@ -473,12 +473,12 @@ namespace Chaos
 		LocalContext.CollisionAllocator = this;
 
 		Collisions::ConstructConstraints(
-			Particle0, 
-			Particle1, 
-			Implicit0, 
-			BVHParticles0, 
-			Implicit1, 
-			BVHParticles1, 
+			Particle0,
+			Particle1,
+			Implicit0,
+			BVHParticles0,
+			Implicit1,
+			BVHParticles1,
 			ParticleWorldTransform0,
 			ShapeRelativeTransform0,
 			ParticleWorldTransform1,
@@ -601,7 +601,7 @@ namespace Chaos
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
 		TUniquePtr<FPBDCollisionConstraint> Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
-		
+
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = true;
 		Constraint->GetContainerCookie().CreationEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
@@ -832,7 +832,7 @@ namespace Chaos
 		const FReal MaxBoundsSize1 = bIsDynamic1 ? Particle1->LocalBounds().Extents().GetMax() : FReal(0);
 		const FReal CullDistanceScale0 = MaxBoundsSize0 * CullDistanceReferenceSizeInv;
 		const FReal CullDistanceScale1 = MaxBoundsSize1 * CullDistanceReferenceSizeInv;
-		CullDistanceScale = (FRealSingle) FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);
+		CullDistanceScale = (FRealSingle)FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);
 	}
 
 	void FParticlePairMidPhase::GenerateCollisions(
@@ -853,7 +853,7 @@ namespace Chaos
 
 		// Enable CCD?
 		const bool bUseCCD = Flags.bIsCCD && ShouldEnableCCD(Dt);
-		
+
 		// Allow Manifolds?
 		const bool bUseManifold = Context.bAllowManifolds;
 

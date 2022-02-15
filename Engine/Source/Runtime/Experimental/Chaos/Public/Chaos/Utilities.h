@@ -44,7 +44,7 @@ namespace Chaos
 		}
 
 		//! Compute the minimum, average, and maximum values of \p Values.
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		void GetMinAvgMax(const TARRAY& Values, T& MinV, double& AvgV, T& MaxV)
 		{
 			MinV = TNumericLimits<T>::Max();
@@ -67,7 +67,7 @@ namespace Chaos
 		}
 
 		//! Compute the average value.
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		T GetAverage(const TARRAY& Values)
 		{
 			double AvgV = 0.0;
@@ -83,7 +83,7 @@ namespace Chaos
 		}
 
 		//! Compute the variance of \p Values, given the average value of \p Avg.
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		T GetVariance(const TARRAY& Values, const T Avg)
 		{
 			double Variance = 0.0;
@@ -100,14 +100,14 @@ namespace Chaos
 		}
 
 		//! Compute the variance of \p Values (computes their average on the fly).
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		T GetVariance(const TARRAY& Values)
 		{
 			return GetVariance(Values, GetAverage(Values));
 		}
 
 		//! Compute the standard deviation of \p Values, given the average value of \p Avg.
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		T GetStandardDeviation(const TARRAY& Values, const T Avg)
 		{
 			const T Variance = GetVariance(Values, Avg);
@@ -115,7 +115,7 @@ namespace Chaos
 		}
 
 		//! Compute the standard deviation of \p Values (computes their average on the fly).
-		template<class T, class TARRAY=TArray<T>>
+		template<class T, class TARRAY = TArray<T>>
 		T GetStandardDeviation(const TARRAY& Values)
 		{
 			const T Variance = GetVariance(Values);
@@ -132,9 +132,9 @@ namespace Chaos
 		inline static FMatrix33 CrossProductMatrix(const FVec3& V)
 		{
 			return FMatrix33(
-			    0, -V.Z, V.Y,
-			    V.Z, 0, -V.X,
-			    -V.Y, V.X, 0);
+				0, -V.Z, V.Y,
+				V.Z, 0, -V.X,
+				-V.Y, V.X, 0);
 		}
 
 		/**
@@ -159,7 +159,7 @@ namespace Chaos
 				L.M[0][2] * R.M[0][0] + L.M[1][2] * R.M[0][1] + L.M[2][2] * R.M[0][2],	// x20
 				L.M[0][2] * R.M[1][0] + L.M[1][2] * R.M[1][1] + L.M[2][2] * R.M[1][2],	// x21
 				L.M[0][2] * R.M[2][0] + L.M[1][2] * R.M[2][1] + L.M[2][2] * R.M[2][2]	// x22
-				);
+			);
 		}
 
 		inline FMatrix44 Multiply(const FMatrix44& L, const FMatrix44& R)
@@ -188,7 +188,7 @@ namespace Chaos
 				L.M[0][3] * R.M[1][0] + L.M[1][3] * R.M[1][1] + L.M[2][3] * R.M[1][2] + L.M[3][3] * R.M[1][3],	// x31
 				L.M[0][3] * R.M[2][0] + L.M[1][3] * R.M[2][1] + L.M[2][3] * R.M[2][2] + L.M[3][3] * R.M[2][3],	// x32
 				L.M[0][3] * R.M[3][0] + L.M[1][3] * R.M[3][1] + L.M[2][3] * R.M[3][2] + L.M[3][3] * R.M[3][3]	// x33
-				);
+			);
 		}
 
 		inline FMatrix33 MultiplyAB(const FMatrix33& LIn, const FMatrix33& RIn)
@@ -210,7 +210,7 @@ namespace Chaos
 				L.M[0][2] * R.M[0][0] + L.M[1][2] * R.M[1][0] + L.M[2][2] * R.M[2][0],	// x20
 				L.M[0][2] * R.M[0][1] + L.M[1][2] * R.M[1][1] + L.M[2][2] * R.M[2][1],	// x21
 				L.M[0][2] * R.M[0][2] + L.M[1][2] * R.M[1][2] + L.M[2][2] * R.M[2][2]	// x22
-				);
+			);
 		}
 
 		inline FMatrix33 MultiplyAtB(const FMatrix33& L, const FMatrix33& R)
@@ -227,7 +227,7 @@ namespace Chaos
 				L.M[2][0] * R.M[0][0] + L.M[2][1] * R.M[0][1] + L.M[2][2] * R.M[0][2],	// x20
 				L.M[2][0] * R.M[1][0] + L.M[2][1] * R.M[1][1] + L.M[2][2] * R.M[1][2],	// x21
 				L.M[2][0] * R.M[2][0] + L.M[2][1] * R.M[2][1] + L.M[2][2] * R.M[2][2]	// x22
-				);
+			);
 
 		}
 
@@ -239,9 +239,9 @@ namespace Chaos
 		{
 			// @todo(chaos): optimize: use simd
 			return FVec3(
-			    L.M[0][0] * R.X + L.M[1][0] * R.Y + L.M[2][0] * R.Z,
-			    L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z,
-			    L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z);
+				L.M[0][0] * R.X + L.M[1][0] * R.Y + L.M[2][0] * R.Z,
+				L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z,
+				L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z);
 		}
 
 		inline TVec3<FRealSingle> Multiply(const TMatrix33<FRealSingle>& L, const TVec3<FRealSingle>& R)
@@ -261,7 +261,7 @@ namespace Chaos
 				L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z + L.M[3][1] * R.W,
 				L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z + L.M[3][2] * R.W,
 				L.M[0][3] * R.X + L.M[1][3] * R.Y + L.M[2][3] * R.Z + L.M[3][3] * R.W
-				);
+			);
 		}
 
 		/**
@@ -297,12 +297,12 @@ namespace Chaos
 			// Vx*M*VxT+Im
 			check(Im > FLT_MIN);
 			return PMatrix<T, 3, 3>(
-			    -V[2] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]) + V[1] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]) + Im,
-			    V[2] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) - V[0] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]),
-			    -V[1] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) + V[0] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]),
-			    V[2] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) - V[0] * (V[2] * M.M[2][0] - V[0] * M.M[2][2]) + Im,
-			    -V[1] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) + V[0] * (V[2] * M.M[1][0] - V[0] * M.M[2][1]),
-			    -V[1] * (-V[1] * M.M[0][0] + V[0] * M.M[1][0]) + V[0] * (-V[1] * M.M[1][0] + V[0] * M.M[1][1]) + Im);
+				-V[2] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]) + V[1] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]) + Im,
+				V[2] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) - V[0] * (-V[2] * M.M[2][1] + V[1] * M.M[2][2]),
+				-V[1] * (-V[2] * M.M[1][0] + V[1] * M.M[2][0]) + V[0] * (-V[2] * M.M[1][1] + V[1] * M.M[2][1]),
+				V[2] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) - V[0] * (V[2] * M.M[2][0] - V[0] * M.M[2][2]) + Im,
+				-V[1] * (V[2] * M.M[0][0] - V[0] * M.M[2][0]) + V[0] * (V[2] * M.M[1][0] - V[0] * M.M[2][1]),
+				-V[1] * (-V[1] * M.M[0][0] + V[0] * M.M[1][0]) + V[0] * (-V[1] * M.M[1][0] + V[0] * M.M[1][1]) + Im);
 		}
 
 		/**
@@ -342,7 +342,7 @@ namespace Chaos
 				// Whole line segment is outside of face - reject it
 				return false;
 			}
-			
+
 			if ((Dist0 > 0.0f) && (Dist1 < 0.0f))
 			{
 				// We must move vert 0 to the plane
