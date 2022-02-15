@@ -490,63 +490,89 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
 
-	const FMetasoundFrontendDocument& Document = GetDocumentChecked();
-	for(const FMetasoundFrontendClassInput& Input : Document.RootGraph.Interface.Inputs)
-	{		
+	TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
+	for(const FMetasoundFrontendClassInput* Input : TransmittableInputs)
+	{
+		check(Input);
+
 		FAudioParameter Params;
-		Params.ParamName = Input.Name;
-		switch (Input.DefaultLiteral.GetType())
+		Params.ParamName = Input->Name;
+
+		switch (Input->DefaultLiteral.GetType())
 		{
-		// bool
-		case EMetasoundFrontendLiteralType::Boolean:
-			Params.ParamType = EAudioParameterType::Boolean;
-			ensure(Input.DefaultLiteral.TryGet(Params.BoolParam));
-			break;
-		case EMetasoundFrontendLiteralType::BooleanArray:
-			Params.ParamType = EAudioParameterType::BooleanArray;
-			ensure(Input.DefaultLiteral.TryGet(Params.ArrayBoolParam));
+			case EMetasoundFrontendLiteralType::Boolean:
+			{
+				Params.ParamType = EAudioParameterType::Boolean;
+				ensure(Input->DefaultLiteral.TryGet(Params.BoolParam));
+			}
 			break;
 
-		// int32
-		case EMetasoundFrontendLiteralType::Integer:
-			Params.ParamType = EAudioParameterType::Integer;
-			ensure(Input.DefaultLiteral.TryGet(Params.IntParam));
-			break;
-		case EMetasoundFrontendLiteralType::IntegerArray:
-			Params.ParamType = EAudioParameterType::IntegerArray;
-			ensure(Input.DefaultLiteral.TryGet(Params.ArrayIntParam));
+			case EMetasoundFrontendLiteralType::BooleanArray:
+			{
+				Params.ParamType = EAudioParameterType::BooleanArray;
+				ensure(Input->DefaultLiteral.TryGet(Params.ArrayBoolParam));
+			}
 			break;
 
-		// float
-		case EMetasoundFrontendLiteralType::Float:
-			Params.ParamType = EAudioParameterType::Float;
-			ensure(Input.DefaultLiteral.TryGet(Params.FloatParam));
-			break;
-		case EMetasoundFrontendLiteralType::FloatArray:
-			Params.ParamType = EAudioParameterType::FloatArray;
-			ensure(Input.DefaultLiteral.TryGet(Params.ArrayFloatParam));
+			case EMetasoundFrontendLiteralType::Integer:
+			{
+				Params.ParamType = EAudioParameterType::Integer;
+				ensure(Input->DefaultLiteral.TryGet(Params.IntParam));
+			}
 			break;
 
-		// FStrings.
-		case EMetasoundFrontendLiteralType::String:
-			Params.ParamType = EAudioParameterType::String;
-			ensure(Input.DefaultLiteral.TryGet(Params.StringParam));
-			break;
-		case EMetasoundFrontendLiteralType::StringArray:
-			Params.ParamType = EAudioParameterType::StringArray;
-			ensure(Input.DefaultLiteral.TryGet(Params.ArrayStringParam));
+			case EMetasoundFrontendLiteralType::IntegerArray:
+			{
+				Params.ParamType = EAudioParameterType::IntegerArray;
+				ensure(Input->DefaultLiteral.TryGet(Params.ArrayIntParam));
+			}
 			break;
 
-		// UObjects.
-		//case EMetasoundFrontendLiteralType::UObject:
-		//	Params.ParamType = EAudioParameterType::Object;
-		//	ensure(Input.DefaultLiteral.TryGet(Params.ObjectParam));
-		//	break;
-		case EMetasoundFrontendLiteralType::UObjectArray:
-			Params.ParamType = EAudioParameterType::ObjectArray;
-			ensure(Input.DefaultLiteral.TryGet(Params.ArrayObjectParam));
+			case EMetasoundFrontendLiteralType::Float:
+			{
+				Params.ParamType = EAudioParameterType::Float;
+				ensure(Input->DefaultLiteral.TryGet(Params.FloatParam));
+			}
 			break;
-		default:
+
+			case EMetasoundFrontendLiteralType::FloatArray:
+			{
+				Params.ParamType = EAudioParameterType::FloatArray;
+				ensure(Input->DefaultLiteral.TryGet(Params.ArrayFloatParam));
+			}
+			break;
+
+			case EMetasoundFrontendLiteralType::String:
+			{
+				Params.ParamType = EAudioParameterType::String;
+				ensure(Input->DefaultLiteral.TryGet(Params.StringParam));
+			}
+			break;
+
+			case EMetasoundFrontendLiteralType::StringArray:
+			{
+				Params.ParamType = EAudioParameterType::StringArray;
+				ensure(Input->DefaultLiteral.TryGet(Params.ArrayStringParam));
+			}
+			break;
+
+			case EMetasoundFrontendLiteralType::UObject:
+			{
+				Params.ParamType = EAudioParameterType::Object;
+				UObject* Object = nullptr;
+				ensure(Input->DefaultLiteral.TryGet(Object));
+				Params.ObjectParam = Object;
+			}
+			break;
+
+			case EMetasoundFrontendLiteralType::UObjectArray:
+			{
+				Params.ParamType = EAudioParameterType::ObjectArray;
+				ensure(Input->DefaultLiteral.TryGet(Params.ArrayObjectParam));
+			}
+			break;
+
+			default:
 			break;
 		}
 
@@ -557,7 +583,6 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 	}
 	return true;
 }
-
 
 bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter) const
 {

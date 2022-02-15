@@ -1161,10 +1161,7 @@ namespace Audio
 		if (bIsCurrentlyDisabled)
 		{
 			bIsCurrentlyDisabled = false;
-			if (LogSubmixEnablementCVar == 1)
-			{
-				UE_LOG(LogAudioMixer, Log, TEXT("Submix Enabled: %s"), *SubmixName);
-			}
+			UE_CLOG(LogSubmixEnablementCVar == 1, LogAudioMixer, Verbose, TEXT("Submix Enabled: %s"), *SubmixName);
 		}
 
 		// If this is a Soundfield Submix, process our soundfield and decode it to a OutAudioBuffer.

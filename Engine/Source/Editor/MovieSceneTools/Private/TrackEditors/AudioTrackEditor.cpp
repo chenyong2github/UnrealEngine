@@ -311,6 +311,12 @@ void FAudioThumbnail::GenerateWaveformPreview(TArray<uint8>& OutData, TRange<flo
 	
 	check(SoundWave->NumChannels == 1 || SoundWave->NumChannels == 2);
 
+	// If this SoundWave is generated procedurally, it's not possible to render a thumbnail.
+	if (SoundWave->bProcedural)
+	{
+		return;
+	}
+
 	uint32 SampleRate;
 	uint16 NumChannels;
 	TArray<uint8> RawPCMData;

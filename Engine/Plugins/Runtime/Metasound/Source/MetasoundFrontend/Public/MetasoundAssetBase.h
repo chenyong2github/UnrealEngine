@@ -186,6 +186,9 @@ protected:
 	bool bSynchronizationUpdateDetails = false;
 #endif // WITH_EDITORONLY_DATA
 
+protected:
+	TArray<const FMetasoundFrontendClassInput*> GetTransmittableClassInputs() const;
+
 private:
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
@@ -210,7 +213,6 @@ private:
 	const FRuntimeData& GetRuntimeData() const;
 
 	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument() const;
-	TArray<const FMetasoundFrontendClassInput*> GetTransmittableClassInputs() const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };
