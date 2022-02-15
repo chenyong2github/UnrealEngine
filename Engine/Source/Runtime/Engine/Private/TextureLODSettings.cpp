@@ -292,6 +292,7 @@ void UTextureLODSettings::GetMipGenSettings(const UTexture& Texture, TextureMipG
 	else if(Setting >= TMGS_Blur1 && Setting <= TMGS_Blur5)
 	{
 		int32 BlurFactor = ((int32)Setting + 1 - (int32)TMGS_Blur1);
+		check( BlurFactor > 0 );
 		OutSharpen = -BlurFactor * 2;
 		OutKernelSize = 2 + 2 * BlurFactor;
 		bOutDownsampleWithAverage = false;
