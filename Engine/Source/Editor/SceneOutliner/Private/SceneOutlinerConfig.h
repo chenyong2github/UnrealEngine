@@ -18,6 +18,10 @@ public:
 	/** Map to store the visibility of each column */
 	UPROPERTY()
 	TMap<FName, bool> ColumnVisibilities;
+
+	/** Whether the hierarchy is pinned at the top of the outliner*/
+	UPROPERTY()
+	bool bShouldStackHierarchyHeaders = false;
 };
 
 

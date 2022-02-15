@@ -538,6 +538,8 @@ private:
 		return Columns;
 	}
 
+	void GetSortedColumnIDs(TArray<FName>& OutColumnIDs) const;
+
 	bool PassesFilters(const ISceneOutlinerTreeItem& Item) const
 	{
 		return Filters->PassesAllFilters(Item);
@@ -603,6 +605,9 @@ private:
 
 	/** Called by STreeView to generate a table row for the specified item */
 	TSharedRef< ITableRow > OnGenerateRowForOutlinerTree( FSceneOutlinerTreeItemPtr Item, const TSharedRef< STableViewBase >& OwnerTable );
+
+	/** Called by STreeView to generate a table row for the specified item is pinned*/
+	TSharedRef< ITableRow > OnGeneratePinnedRowForOutlinerTree(FSceneOutlinerTreeItemPtr Item, const TSharedRef< STableViewBase >& OwnerTable);
 
 	/** Called by STreeView to get child items for the specified parent item */
 	void OnGetChildrenForOutlinerTree( FSceneOutlinerTreeItemPtr InParent, TArray< FSceneOutlinerTreeItemPtr >& OutChildren );
@@ -857,8 +862,15 @@ private:
 	/** Currently selected sorting mode */
 	EColumnSortMode::Type SortMode;
 
-	/** Identifier for this outliner (Set through FSceneOutlinerInitializationOptions)*/
+	/** Identifier for this outliner (Set through FSceneOutlinerInitializationOptions) */
 	FName OutlinerIdentifier;
+
+	/** true if the hierarchy of items is pinned at the top of the outliner */
+	bool bShouldStackHierarchyHeaders;
+
+	void ToggleStackHierarchyHeaders();
+
+	bool ShouldStackHierarchyHeaders() const;
 
 	/** Handles column sorting mode change */
 	void OnColumnSortModeChanged( const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode );

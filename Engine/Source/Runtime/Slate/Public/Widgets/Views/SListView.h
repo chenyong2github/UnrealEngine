@@ -20,6 +20,8 @@
 #include "Types/SlateConstants.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Framework/Layout/Overscroll.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
 #if WITH_ACCESSIBILITY
 #include "Application/SlateApplicationBase.h"
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
@@ -81,10 +83,12 @@ public:
 	SLATE_BEGIN_ARGS(SListView<ItemType>)
 		: _ListViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"))
 		, _OnGenerateRow()
+		, _OnGeneratePinnedRow()
 		, _OnEntryInitialized()
 		, _OnRowReleased()
 		, _ListItemsSource()
 		, _ItemHeight(16)
+		, _MaxPinnedItems(6)
 		, _OnContextMenuOpening()
 		, _OnMouseButtonClick()
 		, _OnMouseButtonDoubleClick()
@@ -115,6 +119,8 @@ public:
 		SLATE_STYLE_ARGUMENT( FTableViewStyle, ListViewStyle )
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
+
+		SLATE_EVENT( FOnGenerateRow, OnGeneratePinnedRow )
 		
 		SLATE_EVENT( FOnEntryInitialized, OnEntryInitialized )
 
@@ -129,6 +135,8 @@ public:
 		SLATE_ARGUMENT( const TArray<ItemType>* , ListItemsSource )
 
 		SLATE_ATTRIBUTE( float, ItemHeight )
+
+		SLATE_ATTRIBUTE(int32, MaxPinnedItems)
 
 		SLATE_EVENT( FOnContextMenuOpening, OnContextMenuOpening )
 
@@ -198,6 +206,7 @@ public:
 		this->Clipping = InArgs._Clipping;
 
 		this->OnGenerateRow = InArgs._OnGenerateRow;
+		this->OnGeneratePinnedRow = InArgs._OnGeneratePinnedRow;
 		this->OnEntryInitialized = InArgs._OnEntryInitialized;
 		this->OnRowReleased = InArgs._OnRowReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
@@ -237,6 +246,9 @@ public:
 		this->OnKeyDownHandler = InArgs._OnKeyDownHandler;
 
 		this->SetStyle(InArgs._ListViewStyle);
+
+		this->MaxPinnedItems = InArgs._MaxPinnedItems;
+		this->DefaultMaxPinnedItems = InArgs._MaxPinnedItems;
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -279,6 +291,7 @@ public:
 	SListView(ETableViewMode::Type InListMode = ETableViewMode::List)
 		: STableViewBase(InListMode)
 		, WidgetGenerator(this)
+		, PinnedWidgetGenerator(this)
 		, SelectorItem(TListTypeTraits<ItemType>::MakeNullPtr())
 		, RangeSelectionStart(TListTypeTraits<ItemType>::MakeNullPtr())
 		, ItemsSource(nullptr)
@@ -735,7 +748,7 @@ private:
 
 		void ProcessItemCleanUp()
 		{
-			
+
 			for (int32 ItemIndex = 0; ItemIndex < ItemsToBeCleanedUp.Num(); ++ItemIndex)
 			{
 				ItemType ItemToBeCleanedUp = ItemsToBeCleanedUp[ItemIndex];
@@ -969,7 +982,7 @@ public:
 	virtual const ItemType* Private_ItemFromWidget( const ITableRow* TheWidget ) const override
 	{
 		ItemType const * LookupResult = WidgetGenerator.WidgetMapToItem.Find( TheWidget );
-		return LookupResult == nullptr ? nullptr : LookupResult;
+		return LookupResult == nullptr ? PinnedWidgetGenerator.WidgetMapToItem.Find(TheWidget) : LookupResult;
 	}
 
 	virtual bool Private_UsesSelectorFocus() const override
@@ -1106,6 +1119,147 @@ public:
 	{
 		return SharedThis(this);
 	}
+
+private:
+
+	friend class SListViewPinnedRowWidget;
+
+	// Private class that acts as a wrapper around PinnedRows, to allow for customized styling
+	class SListViewPinnedRowWidget : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(SListViewPinnedRowWidget) {}
+
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, TSharedPtr<ITableRow> InPinnedItemRow, TSharedRef<SListView> InOwnerListView, const int32 ItemIndex, const int32 NumPinnedItems)
+		{
+			PinnedItemRow = InPinnedItemRow;
+			OwnerListView = InOwnerListView;
+
+			TSharedPtr<STableRow<ItemType>> PinnedRow = StaticCastSharedPtr<STableRow<ItemType>>(InPinnedItemRow);
+
+			// If the PinnedRow inherits from STableRow (i.e has a custom border already), remove it since we will be adding our own border
+			if (PinnedRow.IsValid())
+			{
+				PinnedRow->SetBorderImage(FAppStyle::Get().GetBrush("NoBrush"));
+			}
+
+			TSharedRef<SWidget> InPinnedItemRowWidget = InPinnedItemRow->AsWidget();
+			InPinnedItemRowWidget->SetVisibility(EVisibility::HitTestInvisible);
+
+			ChildSlot
+				[
+					SNew(SOverlay)
+					.Visibility(TAttribute<EVisibility>::CreateSP(this, &SListViewPinnedRowWidget::SetPinnedItemVisibility, ItemIndex, NumPinnedItems))
+
+					+ SOverlay::Slot()
+					.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SNew(SBorder)
+						.BorderImage_Lambda([this]()
+							{
+								return this->IsHovered() ? FAppStyle::Get().GetBrush("Brushes.Hover") : FAppStyle::Get().GetBrush("Brushes.Header");
+							})
+						.Padding(0.f)
+						.Content()
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								InPinnedItemRowWidget
+							]
+							+ SHorizontalBox::Slot()
+							.FillWidth(1.0f)
+							.Padding(2.0f, 2.0f, 0.0f, 0.0f)
+							[
+								// Text Block for ellipses, shows up when some items in the pinned list are collapsed when the number of items > MaxPinnedItems
+								SNew(STextBlock).Text(NSLOCTEXT("SListView", "Ellipses", "..."))
+								.Visibility(this, &SListViewPinnedRowWidget::SetPinnedItemEllipsesVisibility, ItemIndex)
+							]
+						]
+					]
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Top)
+					[
+						// A shadow to indicate parent/child relationship
+						SNew(SImage)
+						.Visibility(EVisibility::HitTestInvisible)
+						.Image(FAppStyle::Get().GetBrush("ListView.PinnedItemShadow"))
+					]
+					
+				];
+
+		}
+
+	protected:
+
+		virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+		{
+			if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+			{
+				const ItemType* PinnedItem = OwnerListView->ItemFromWidget(PinnedItemRow.Get());
+
+				if (PinnedItem)
+				{
+					// Navigate to the pinned item on click
+					OwnerListView->RequestNavigateToItem(*PinnedItem);
+					return FReply::Handled();
+				}
+			}
+
+			return FReply::Unhandled();
+		}
+
+	private:
+
+		EVisibility SetPinnedItemVisibility(const int32 IndexInList, const int32 NumPinnedItems) const
+		{
+			// If the hierarchy is not collapsed (i.e all items are visible)
+			if (!OwnerListView->bIsHierarchyCollapsed)
+			{
+				return EVisibility::Visible;
+			}
+
+			int32 CurrentMaxPinnedItems = OwnerListView->MaxPinnedItems.Get();
+
+			// If this is the last item, it is visible
+			if (IndexInList == NumPinnedItems - 1)
+			{
+				return EVisibility::Visible;
+			}
+			// Only show a limited number of items depending on MaxPinnedItems
+			else if (IndexInList < CurrentMaxPinnedItems - 1)
+			{
+				return EVisibility::Visible;
+			}
+
+			return EVisibility::Collapsed;
+		}
+
+		EVisibility SetPinnedItemEllipsesVisibility(const int32 IndexInList) const
+		{
+			// If all items are visible, the ...'s are never visible
+			if (!OwnerListView->bIsHierarchyCollapsed)
+			{
+				return EVisibility::Collapsed;
+			}
+
+			int32 CurrentMaxPinnedItems = OwnerListView->MaxPinnedItems.Get();
+
+			// If the hierarchy is collapsed, the last item before the collapsed items gets the ellipses
+			return IndexInList == CurrentMaxPinnedItems - 2 ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+
+	private:
+		// A pointer to the ListView that owns this widget
+		TSharedPtr<SListView> OwnerListView;
+
+		// A pointer to the row contained by this widget
+ 		TSharedPtr<ITableRow> PinnedItemRow;
+	};
 
 public:	
 
@@ -1350,10 +1504,110 @@ public:
 		return GeneratedWidgetDimensions.ScrollAxis;
 	}
 
+	void ReGeneratePinnedItems(const TArray<ItemType>& InItems, const FGeometry& MyGeometry, int32 MaxPinnedItemsOverride = -1)
+	{
+		const float LayoutScaleMultiplier = MyGeometry.GetAccumulatedLayoutTransform().GetScale();
+
+		ClearPinnedWidgets();
+
+		// Ensure that we always begin and clean up a generation pass.
+		FGenerationPassGuard GenerationPassGuard(PinnedWidgetGenerator);
+
+		// Check if the User provided an override for MaxPinnedItems, valid until the next time ReGeneratePinnedItems is called
+		if (MaxPinnedItemsOverride != -1)
+		{
+			MaxPinnedItems.Set(MaxPinnedItemsOverride);
+		}
+		else
+		{
+			// Reset it back to the default value if there is no override
+			MaxPinnedItems = DefaultMaxPinnedItems;
+		}
+
+		int32 CurrentMaxPinnedItems = MaxPinnedItems.Get();
+		// There are more items than what we allow to show
+		if (InItems.Num() > CurrentMaxPinnedItems)
+		{
+			bIsHierarchyCollapsed = true;
+		}
+		else
+		{
+			bIsHierarchyCollapsed = false;
+		}
+		
+
+		const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
+
+		for (int32 ItemIndex = 0; ItemIndex < InItems.Num(); ++ItemIndex)
+		{
+			GeneratePinnedWidgetForItem(InItems[ItemIndex], ItemIndex, InItems.Num(), LayoutScaleMultiplier);
+
+			// Deselect any pinned items that were previously selected, since pinned items can only be navigated to on click and not selected
+			if (TListTypeTraits<ItemType>::IsPtrValid(SelectorItem))
+			{
+				if (InItems[ItemIndex] == SelectorItem)
+				{
+					TListTypeTraits<ItemType>::ResetPtr(SelectorItem);
+				}
+			}
+
+		}
+		
+	}
+
+	void GeneratePinnedWidgetForItem(const ItemType& CurItem, int32 ItemIndex, int32 NumPinnedItems, float LayoutScaleMultiplier)
+	{
+		ensure(TListTypeTraits<ItemType>::IsPtrValid(CurItem));
+		// Find a previously generated Widget for this item, if one exists.
+		TSharedPtr<ITableRow> WidgetForItem = PinnedWidgetGenerator.GetWidgetForItem(CurItem);
+		if (!WidgetForItem.IsValid())
+		{
+			// We couldn't find an existing widgets, meaning that this data item was not visible before.
+			// Make a new widget for it.
+			WidgetForItem = this->GenerateNewPinnedWidget(CurItem, ItemIndex, NumPinnedItems);
+		}
+
+		// It is useful to know the item's index that the widget was generated from.
+		// Helps with even/odd coloring
+		WidgetForItem->SetIndexInList(ItemIndex);
+
+		// Let the item generator know that we encountered the current Item and associated Widget.
+		PinnedWidgetGenerator.OnItemSeen(CurItem, WidgetForItem.ToSharedRef());
+
+		// We wrap the row widget around an SListViewPinnedRowWidget for custom styling
+		TSharedRef< SWidget > NewListItemWidget = SNew(SListViewPinnedRowWidget, WidgetForItem, SharedThis(this), ItemIndex, NumPinnedItems);
+		NewListItemWidget->MarkPrepassAsDirty();
+		NewListItemWidget->SlatePrepass(LayoutScaleMultiplier);
+
+		// We have a widget for this item; add it to the panel so that it is part of the UI.
+		this->AppendPinnedWidget(NewListItemWidget);
+	}
+
 	/** @return how many items there are in the TArray being observed */
 	virtual int32 GetNumItemsBeingObserved() const override
 	{
 		return ItemsSource == nullptr ? 0 : ItemsSource->Num();
+	}
+
+	virtual TSharedRef<ITableRow> GenerateNewPinnedWidget(ItemType InItem, const int32 ItemIndex, const int32 NumPinnedItems)
+	{
+		if (OnGeneratePinnedRow.IsBound())
+		{
+			return OnGeneratePinnedRow.Execute(InItem, SharedThis(this));
+		}
+		else
+		{
+			// The programmer did not provide an OnGeneratePinnedRow() handler; let them know.
+			TSharedRef< STableRow<ItemType> > NewListItemWidget =
+				SNew(STableRow<ItemType>, SharedThis(this))
+				.Content()
+				[
+					SNew(STextBlock).Text(NSLOCTEXT("SListView", "BrokenUIMessage", "OnGeneratePinnedRow() not assigned."))
+				];
+
+			return NewListItemWidget;
+		}
+
 	}
 
 	/**
@@ -1524,6 +1778,7 @@ public:
 	virtual void RebuildList() override
 	{
 		WidgetGenerator.Clear();
+		PinnedWidgetGenerator.Clear();
 		RequestListRefresh();
 	}
 
@@ -1689,7 +1944,9 @@ public:
 	*/
 	virtual TSharedPtr<ITableRow> WidgetFromItem( const ItemType& InItem ) const override
 	{
-		return WidgetGenerator.GetWidgetForItem(InItem);
+		TSharedPtr<ITableRow> ItemWidget = WidgetGenerator.GetWidgetForItem(InItem);
+
+		return ItemWidget != nullptr ? ItemWidget : PinnedWidgetGenerator.GetWidgetForItem(InItem);
 	}
 
 	/**
@@ -2143,11 +2400,17 @@ protected:
 	/** A widget generator component */
 	FWidgetGenerator WidgetGenerator;
 
+	/** A widget generator component used for pinned items in the list */
+	FWidgetGenerator PinnedWidgetGenerator;
+
 	/** Invoked after initializing an entry being generated, before it may be added to the actual widget hierarchy. */
 	FOnEntryInitialized OnEntryInitialized;
 
 	/** Delegate to be invoked when the list needs to generate a new widget from a data item. */
 	FOnGenerateRow OnGenerateRow;
+
+	/** Delegate to be invoked when the list needs to generate a new pinned widget from a data item. */
+	FOnGenerateRow OnGeneratePinnedRow;
 
 	/** Assign this to get more diagnostics from the list view. */
 	FOnItemToString_Debug OnItemToString_Debug;
@@ -2226,6 +2489,15 @@ protected:
 
 	/** Style resource for the list */
 	const FTableViewStyle* Style;
+
+	/** The maximum number of pinned items allowed */
+	TAttribute<int32> MaxPinnedItems;
+
+	/** The initial value of MaxPinnedItems (used to restore it back if overriden) */
+	TAttribute<int32> DefaultMaxPinnedItems;
+	
+	/** If true, number of pinned items > MaxPinnedItems so some items are collapsed in the hierarchy */
+	bool bIsHierarchyCollapsed = false;
 
 private:
 	struct FGenerationPassGuard

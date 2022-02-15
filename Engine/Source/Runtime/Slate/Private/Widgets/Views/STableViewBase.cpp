@@ -69,6 +69,15 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 		.ItemAlignment(InItemAlignment)
 		.ListOrientation(Orientation);
 
+	PinnedItemsPanel = SNew(SListPanel)
+		.Clipping(GetClipping())
+		.ItemWidth(InItemWidth)
+		.ItemHeight(InItemHeight)
+		.NumDesiredItems(this, &STableViewBase::GetNumPinnedItems)
+		.ItemAlignment(InItemAlignment)
+		.ListOrientation(Orientation)
+		.Visibility(this, &STableViewBase::GetPinnedItemsVisiblity);
+
 	TSharedPtr<SWidget> ListAndScrollbar;
 	if (InScrollBar)
 	{
@@ -93,7 +102,17 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 				+SHorizontalBox::Slot()
 				.FillWidth(1)
 				[
-					ItemsPanel.ToSharedRef()
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						PinnedItemsPanel.ToSharedRef()
+					]
+					+SVerticalBox::Slot()
+					.FillHeight(1)
+					[
+						ItemsPanel.ToSharedRef()
+					]
 				]
 				+SHorizontalBox::Slot()
 				.AutoWidth()
@@ -111,7 +130,17 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 				+SVerticalBox::Slot()
 				.FillHeight(1)
 				[
-					ItemsPanel.ToSharedRef()
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						PinnedItemsPanel.ToSharedRef()
+					]
+					+SVerticalBox::Slot()
+					.FillHeight(1)
+					[
+						ItemsPanel.ToSharedRef()
+					]
 				]
 				+SVerticalBox::Slot()
 				.AutoHeight()
@@ -912,6 +941,27 @@ void STableViewBase::ClearWidgets()
 	ItemsPanel->ClearItems();
 }
 
+void STableViewBase::InsertPinnedWidget( const TSharedRef<SWidget> & WidgetToInset )
+{
+	PinnedItemsPanel->AddSlot(0)
+	[
+		WidgetToInset
+	];
+}
+
+void STableViewBase::AppendPinnedWidget( const TSharedRef<SWidget>& WidgetToAppend )
+{
+	PinnedItemsPanel->AddSlot()
+	[
+		WidgetToAppend
+	];
+}
+
+void STableViewBase::ClearPinnedWidgets()
+{
+	PinnedItemsPanel->ClearItems();
+}
+
 float STableViewBase::GetItemWidth() const
 {
 	return GetItemSize().X;
@@ -1056,6 +1106,16 @@ bool STableViewBase::CanUseInertialScroll( float ScrollAmount ) const
 	// We allow sampling for the inertial scroll if we are not in the overscroll region,
 	// Or if we are scrolling outwards of the overscroll region
 	return CurrentOverscroll == 0.f || FMath::Sign(CurrentOverscroll) != FMath::Sign(ScrollAmount);
+}
+
+int32 STableViewBase::GetNumPinnedItems() const
+{
+	return PinnedItemsPanel->GetChildren()->Num();
+}
+
+EVisibility STableViewBase::GetPinnedItemsVisiblity() const
+{
+	return PinnedItemsPanel->GetChildren()->Num() != 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 static const TBitArray<> EmptyBitArray = TBitArray<>();

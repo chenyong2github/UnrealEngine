@@ -14,6 +14,8 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Layout/Overscroll.h"
 #include "Widgets/Views/SListView.h"
+#include "Algo/Reverse.h"
+#include "Math/NumericLimits.h"
 
 /** Info needed by a (relatively) small fraction of the tree items; some of them may not be visible. */
 struct FSparseItemInfo
@@ -114,10 +116,12 @@ public:
 	SLATE_BEGIN_ARGS( STreeView<ItemType> )
 		: _TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"))
 		, _OnGenerateRow()
+		, _OnGeneratePinnedRow()
 		, _OnGetChildren()
 		, _OnSetExpansionRecursive()
 		, _TreeItemsSource( static_cast< const TArray<ItemType>* >(nullptr) ) //@todo Slate Syntax: Initializing from nullptr without a cast
 		, _ItemHeight(16)
+		, _MaxPinnedItems(6) // Having more than the max amount of items leads to the extra items in the middle being collapsed into ellipses, and the last item is fully shown
 		, _OnContextMenuOpening()
 		, _OnMouseButtonClick()
 		, _OnMouseButtonDoubleClick()
@@ -140,6 +144,7 @@ public:
 		, _AllowInvisibleItemSelection(false)
 		, _HighlightParentNodesForSelection(false)
 		, _ReturnFocusToSelection()
+		, _ShouldStackHierarchyHeaders(false)
 		{
 			this->_Clipping = EWidgetClipping::ClipToBounds;
 		}
@@ -147,6 +152,8 @@ public:
 		SLATE_STYLE_ARGUMENT( FTableViewStyle, TreeViewStyle )
 
 		SLATE_EVENT( FOnGenerateRow, OnGenerateRow )
+
+		SLATE_EVENT( FOnGenerateRow, OnGeneratePinnedRow )
 
 		SLATE_EVENT( FOnWidgetToBeRemoved, OnRowReleased )
 
@@ -158,13 +165,15 @@ public:
 
 		SLATE_EVENT( FOnSetExpansionRecursive, OnSetExpansionRecursive )
 
-		SLATE_ARGUMENT( const TArray<ItemType>* , TreeItemsSource )
+		SLATE_ARGUMENT( const TArray<ItemType>*, TreeItemsSource )
 
 		SLATE_ATTRIBUTE( float, ItemHeight )
 
+		SLATE_ATTRIBUTE( int32, MaxPinnedItems );
+
 		SLATE_EVENT( FOnContextMenuOpening, OnContextMenuOpening )
 
-		SLATE_EVENT(FOnMouseButtonClick, OnMouseButtonClick)
+		SLATE_EVENT( FOnMouseButtonClick, OnMouseButtonClick)
 
 		SLATE_EVENT( FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick )
 
@@ -172,7 +181,7 @@ public:
 
 		SLATE_EVENT( FOnExpansionChanged, OnExpansionChanged )
 
-		SLATE_EVENT(FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
+		SLATE_EVENT( FIsSelectableOrNavigable, OnIsSelectableOrNavigable)
 
 		SLATE_ATTRIBUTE( ESelectionMode::Type, SelectionMode )
 
@@ -211,6 +220,9 @@ public:
 
 		SLATE_ARGUMENT(bool, ReturnFocusToSelection)
 
+		/** If true, Show the current hierarchy of items pinned at the top of the Tree View */
+		SLATE_ATTRIBUTE(bool, ShouldStackHierarchyHeaders)
+
 	SLATE_END_ARGS()
 
 		
@@ -224,6 +236,7 @@ public:
 		this->Clipping = InArgs._Clipping;
 
 		this->OnGenerateRow = InArgs._OnGenerateRow;
+		this->OnGeneratePinnedRow = InArgs._OnGeneratePinnedRow;
 		this->OnRowReleased = InArgs._OnRowReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
 		this->OnGetChildren = InArgs._OnGetChildren;
@@ -259,7 +272,12 @@ public:
 
 		this->bReturnFocusToSelection = InArgs._ReturnFocusToSelection;
 
+		this->bShouldStackHierarchyHeaders = InArgs._ShouldStackHierarchyHeaders;
+
 		this->SetStyle(InArgs._TreeViewStyle);
+
+		this->MaxPinnedItems = InArgs._MaxPinnedItems;
+		this->DefaultMaxPinnedItems = InArgs._MaxPinnedItems;
 
 		// Check for any parameters that the coder forgot to specify.
 		FString ErrorString;
@@ -673,6 +691,107 @@ public:
 
 		return bSawExpandedItems;
 	}
+
+	int32 PopulatePinnedItems(const TArray<ItemType>& InItemsSource, TArray< ItemType >& InPinnedItems, const STableViewBase::FReGenerateResults& Results)
+	{
+		// The value we return, to signify if we want the hierarchy to be collapsed even if it doesn't reach the max amount
+		int32 MaxPinnedItemsOverride = -1;
+
+		if (InItemsSource.IsEmpty())
+		{
+			return MaxPinnedItemsOverride;
+		}
+
+		// Calculate the index of the first item in view
+		int32 StartIndex = FMath::Clamp((int32)(FMath::FloorToDouble(Results.NewScrollOffset)), 0, InItemsSource.Num() - 1);
+		int32 CurrentItemIndex = StartIndex;
+
+		auto GetNonVisibleParents = [this, &InItemsSource, StartIndex](TArray<ItemType>& OutParents, int32 ItemIndex) {
+
+			int32 ParentIndex = ItemIndex;
+
+			// Walk through the list of parents of the current item until you reach the root
+			do
+			{
+				ParentIndex = DenseItemInfos[ItemIndex].ParentIndex;
+
+				// If the current item has a parent, and the parent is not visible, add the parent to the list of pinned items
+				if (ParentIndex != INDEX_NONE && ParentIndex < StartIndex)
+				{
+					OutParents.Add(InItemsSource[ParentIndex]);
+				}
+
+				ItemIndex = ParentIndex;
+
+			} while (ParentIndex != INDEX_NONE);
+		};
+
+		/* Special Case for if we are at the end of the list. When there is no space to scroll down in a list, changing the pinned hierarchy could also change the first visible item
+		 * which is used to calculate the pinned hierarchy. This leads to an infinite loop, so we solve this by finding a first visible item that has a hierachy large enough to hide
+		 * itself, and then collapse the hierarchy until the item remains the first visible item (so there are no infinite loops since the first visible item doesn't change)
+		 *  
+		 */ 
+		if (Results.bGeneratedPastLastItem && Results.NewScrollOffset > 0)
+		{
+			int32 LastItem = InItemsSource.Num() - 1;
+			int32 CurrentMaxPinnedItems = this->MaxPinnedItems.Get();
+
+			// Could be different than reported by STableViewBase if some items are collapsed
+			int32 NumPinnedItems = (this->GetNumPinnedItems() < CurrentMaxPinnedItems) ? this->GetNumPinnedItems() : CurrentMaxPinnedItems;
+
+			// This is the first item that would be visible, if there were no pinned rows
+			int32 FirstItem = Results.NewScrollOffset - NumPinnedItems;
+
+			// We find items that have a hierarchy big enough to cover themselves, but select the smallest among them
+			int32 MinSpaceOccupied = TNumericLimits<int32>::Max();
+
+			// The index of the item we select
+			int32 MinIndex = -1;
+
+			for (int32 ItemIndex = FirstItem; ItemIndex <= LastItem; ItemIndex++)
+			{
+				// Get all parents of the current item that are not visible, to calculate the number of items in its hierarchy
+				TArray<ItemType> NonVisibleParents;
+				GetNonVisibleParents(NonVisibleParents, ItemIndex);
+
+				int32 NumParents = NonVisibleParents.Num();
+
+				// How many items would be required in the hierarchy to cover the item itself
+				int32 IndexOffset = ItemIndex - FirstItem;
+
+				// If the hierarchy is too small, ignore it
+				if (NumParents < IndexOffset)
+				{
+					continue;
+				}
+
+				// If the hierarchy is big enough, AND the smallest we have found so far
+				if (NumParents - IndexOffset < MinSpaceOccupied)
+				{
+					MinSpaceOccupied = NumParents - IndexOffset;
+					MinIndex = ItemIndex;
+				}
+				
+			}
+
+			// If we found no such items, we are in the middle of generating the list so pinned rows are not required
+			if (MinIndex == -1)
+			{
+				return MaxPinnedItemsOverride;
+			}
+
+			CurrentItemIndex = MinIndex;
+			MaxPinnedItemsOverride = MinIndex - FirstItem;
+		}
+
+		// Get all the parents of the item that are not visible, which is the hierarchy to stack
+		GetNonVisibleParents(InPinnedItems, CurrentItemIndex);
+
+		// Reverse the list so the root is at the front
+		Algo::Reverse(InPinnedItems);
+
+		return MaxPinnedItemsOverride;
+	}
 		
 	/**
 	 * Given a TreeItem, create a Widget to represent it in the tree view.
@@ -795,6 +914,27 @@ public:
 		RequestTreeRefresh();
 	}
 
+	virtual STableViewBase::FReGenerateResults ReGenerateItems(const FGeometry& MyGeometry) override
+	{
+		// We need to call the parent function first to know if we reached the end of the list
+		STableViewBase::FReGenerateResults Results = SListView<ItemType>::ReGenerateItems(MyGeometry);
+
+		if (bShouldStackHierarchyHeaders.Get())
+		{
+			TArray<ItemType> PinnedItems;
+
+			// If we reached the end of the list and there is space, a special case requires the hierarchy to be collapsed forcefully
+			int32 MaxPinnedItemsOverride = PopulatePinnedItems(LinearizedItems, PinnedItems, Results);
+			this->ReGeneratePinnedItems(PinnedItems, MyGeometry, MaxPinnedItemsOverride);
+		}
+		else
+		{
+			this->ClearPinnedWidgets();
+		}
+
+		return Results;
+	}
+
 protected:
 	
 	/** The delegate that is invoked whenever we need to gather an item's children. */
@@ -834,4 +974,7 @@ private:
 
 	/** true if we should highlight all parents for each of the currently selected items */
 	bool bHighlightParentNodesForSelection = false;
+
+	/** true if we want to show the hierarchy of items pinned at the top */
+	TAttribute<bool> bShouldStackHierarchyHeaders = false;
 };

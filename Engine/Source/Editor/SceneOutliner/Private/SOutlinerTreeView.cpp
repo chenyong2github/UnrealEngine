@@ -8,6 +8,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SSceneOutliner.h"
+#include "Styling/StyleColors.h"
 
 #include "FolderTreeItem.h"
 
@@ -396,6 +397,151 @@ int32 SSceneOutlinerTreeRow::OnPaint( const FPaintArgs& Args, const FGeometry& A
 	}
 
 	return FMath::Max(StartLayer, LayerId + TextLayer);
+}
+
+void SSceneOutlinerPinnedTreeRow::Construct(const FArguments& InArgs, const TSharedRef<SSceneOutlinerTreeView>& OutlinerTreeView, TSharedRef<SSceneOutliner> SceneOutliner)
+{
+	Item = InArgs._Item->AsShared();
+	SceneOutlinerWeak = SceneOutliner;
+	OutlinerTreeViewWeak = OutlinerTreeView;
+
+	FSuperRowType::FArguments Args = FSuperRowType::FArguments()
+		.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
+
+	Args.OnDragDetected_Static(HandleOnDragDetected, TWeakPtr<SSceneOutlinerTreeView>(OutlinerTreeView));
+
+	SMultiColumnTableRow<FSceneOutlinerTreeItemPtr>::Construct(Args, OutlinerTreeView);
+
+}
+
+TSharedRef<SWidget> SSceneOutlinerPinnedTreeRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin();
+	if (!ItemPtr.IsValid())
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	TSharedPtr<SSceneOutliner> Outliner = SceneOutlinerWeak.Pin();
+	check(Outliner.IsValid());
+
+	// Create the widget for this item
+	TSharedRef<SWidget> NewItemWidget = SNullWidget::NullWidget;
+
+	TSharedPtr<ISceneOutlinerColumn> Column = Outliner->GetColumns().FindRef(ColumnName);
+
+	if (Column.IsValid())
+	{
+		// Construct the actual column widget first
+		TSharedRef<SWidget> ActualWidget = Column->ConstructRowWidget(ItemPtr.ToSharedRef(), *this);
+
+		if (ColumnName == FSceneOutlinerBuiltInColumnTypes::Label())
+		{
+			// We add space for the expander arrow for the label widget to make sure the spacing/indentation is consistent with non-pinned rows
+			NewItemWidget = SNew(SBox)
+				.MinDesiredHeight(FSceneOutlinerDefaultTreeItemMetrics::RowHeight())
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6, 0, 0, 0)
+					[
+						SNew(SExpanderArrow, SharedThis(this)).IndentAmount(12)
+						.Visibility(EVisibility::Hidden) // Hidden SExpanderArrow to occupy the same space as non-pinned rows
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						ActualWidget
+					]
+				];
+		}
+		else
+		{
+			if (ActualWidget != SNullWidget::NullWidget)
+			{
+				// Get the sorted column IDs from the outliner
+				TArray<FName> SortedColumnIDs;
+				Outliner->GetSortedColumnIDs(SortedColumnIDs);
+
+				// Get the current column and label column index to compare
+				int32 ColumnIndex = SortedColumnIDs.Find(ColumnName);
+				int32 LabelColumnIndex = SortedColumnIDs.Find(FSceneOutlinerBuiltInColumnTypes::Label());
+
+				// If either of the columns don't exist, this widget does not need to occupy space
+				if (ColumnIndex == INDEX_NONE || LabelColumnIndex == INDEX_NONE)
+				{
+					ActualWidget->SetVisibility(EVisibility::Collapsed);
+				}
+
+				// If this column is to the LEFT of the label column, it is hidden but occupies space to ensure proper indentation
+				if (ColumnIndex < LabelColumnIndex)
+				{
+					ActualWidget->SetVisibility(EVisibility::Hidden);
+				}
+				// If this column is to the RIGHT of the label colum, it should not occupy space
+				else
+				{
+					ActualWidget->SetVisibility(EVisibility::Collapsed);
+				}
+
+			}
+
+			NewItemWidget = ActualWidget;
+		}
+		
+	}
+
+	return NewItemWidget;
+}
+
+FReply SSceneOutlinerPinnedTreeRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin();
+	TSharedPtr<SSceneOutliner> SceneOutlinerPtr = SceneOutlinerWeak.Pin();
+	if (ItemPtr.IsValid() && SceneOutlinerPtr.IsValid())
+	{
+		FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
+		return HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, true);
+	}
+
+	return FReply::Unhandled();
+}
+
+void SSceneOutlinerPinnedTreeRow::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin();
+	TSharedPtr<SSceneOutliner> SceneOutlinerPtr = SceneOutlinerWeak.Pin();
+	if (ItemPtr.IsValid() && SceneOutlinerPtr.IsValid())
+	{
+		FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
+
+		FReply Reply = HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, false);
+		if (Reply.IsEventHandled())
+		{
+			UpdateOperationDecorator(DragDropEvent, ValidationInfo);
+		}
+	}
+}
+
+void SSceneOutlinerPinnedTreeRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	ResetOperationDecorator(DragDropEvent);
+}
+
+FReply SSceneOutlinerPinnedTreeRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<SSceneOutliner> SceneOutlinerPtr = SceneOutlinerWeak.Pin();
+	if (SSceneOutliner* SceneOutliner = SceneOutlinerPtr.Get())
+	{
+		if (const ISceneOutlinerTreeItem* ItemPtr = Item.Pin().Get())
+		{
+			return SceneOutliner->OnDragOverItem(DragDropEvent, *ItemPtr);
+		}
+		return FReply::Unhandled();
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -252,6 +252,17 @@ protected:
 	 */
 	void ClearWidgets();
 
+	/** Insert WidgetToInsert at the top of the pinned view. */
+	void InsertPinnedWidget(const TSharedRef<SWidget>& WidgetToInset);
+
+	/** Add a WidgetToAppend to the bottom of the pinned view. */
+	void AppendPinnedWidget(const TSharedRef<SWidget>& WidgetToAppend);
+
+	/**
+	 * Remove all the pinned widgets from the view.
+	 */
+	void ClearPinnedWidgets();
+
 	/**
 	 * Get the uniform item width.
 	 */
@@ -335,6 +346,11 @@ protected:
 	/** @return how many items there are in the TArray being observed */
 	virtual int32 GetNumItemsBeingObserved() const = 0;
 
+	/** @return how many pinned items are in the table */
+	int32 GetNumPinnedItems() const;
+
+	EVisibility GetPinnedItemsVisiblity() const;
+
 	enum class EScrollIntoViewResult
 	{
 		/** The function scrolled an item (if set) into view (or the item was already in view) */
@@ -367,6 +383,9 @@ protected:
 
 	/** The panel which holds the visible widgets in this list */
 	TSharedPtr< SListPanel > ItemsPanel;
+
+	/** The panel which holds the pinned widgets in this list */
+	TSharedPtr< SListPanel > PinnedItemsPanel;
 
 	/** The scroll bar widget */
 	TSharedPtr< SScrollBar > ScrollBar;

@@ -822,6 +822,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetActiveHoveredBrush(FSlateNoResource())
 			.SetInactiveHoveredBrush(FSlateNoResource())
 			);
+	
+		Set("ListView.PinnedItemShadow", new IMAGE_BRUSH("Starship/ListView/PinnedItemShadow", FVector2D(16.f, 8.f)));
 	}
 	
 	// Spinboxes

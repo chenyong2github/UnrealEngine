@@ -113,3 +113,54 @@ private:
 	double LastHighlightInteractionTime;
 };
 
+/** Widget that represents a pinned row in the outliner's tree control.*/
+class SSceneOutlinerPinnedTreeRow
+	: public SMultiColumnTableRow< FSceneOutlinerTreeItemPtr >
+{
+
+public:
+
+	SLATE_BEGIN_ARGS(SSceneOutlinerPinnedTreeRow) {}
+
+		/** The list item for this row */
+		SLATE_ARGUMENT(FSceneOutlinerTreeItemPtr, Item)
+
+	SLATE_END_ARGS()
+
+
+	/** Construct function for this widget */
+	void Construct(const FArguments& InArgs, const TSharedRef<SSceneOutlinerTreeView>& OutlinerTreeView, TSharedRef<SSceneOutliner> SceneOutliner);
+
+	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the tree row. */
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
+
+protected:
+
+	virtual void ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent) override
+	{
+		STableRow<FSceneOutlinerTreeItemPtr>::Content = InContent;
+
+		// We don't want the expander by default.
+		this->ChildSlot
+			.Padding(InPadding)
+			[
+				InContent
+			];
+	}
+
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+
+private:
+
+	/** Weak reference to the outliner widget that owns our list */
+	TWeakPtr< SSceneOutliner > SceneOutlinerWeak;
+
+	/** Weak reference to the tree view that contains our list */
+	TWeakPtr< SSceneOutlinerTreeView > OutlinerTreeViewWeak;
+
+	/** The item associated with this row of data */
+	TWeakPtr<ISceneOutlinerTreeItem> Item;
+};

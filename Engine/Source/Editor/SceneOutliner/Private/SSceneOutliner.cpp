@@ -88,6 +88,14 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	UOutlinerConfig* OutlinerConfig = GetMutableDefault<UOutlinerConfig>();
 	OutlinerConfig->LoadEditorConfig();
 
+	const FSceneOutlinerConfig* SceneOutlinerConfig = GetConstConfig();
+
+	// Load the pinned items visibility from the config file
+	if (SceneOutlinerConfig)
+	{
+		bShouldStackHierarchyHeaders = SceneOutlinerConfig->bShouldStackHierarchyHeaders;
+	}
+
 	// @todo outliner: Should probably save this in layout!
 	// @todo outliner: Should save spacing for list view in layout
 
@@ -232,6 +240,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 			// Generates the actual widget for a tree item
 			.OnGenerateRow( this, &SSceneOutliner::OnGenerateRowForOutlinerTree ) 
 
+			// Generates the actual widget for a pinned tree item
+			.OnGeneratePinnedRow(this, &SSceneOutliner::OnGeneratePinnedRowForOutlinerTree)
+
 			// Use the level viewport context menu as the right click menu for tree items
 			.OnContextMenuOpening(this, &SSceneOutliner::OnOpenContextMenu)
 
@@ -243,6 +254,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 			// Make it easier to see hierarchies when there are a lot of items
 			.HighlightParentNodesForSelection(true)
+
+			// Show the Hierarchy of actors pinned at the top of the tree view
+			.ShouldStackHierarchyHeaders(this, &SSceneOutliner::ShouldStackHierarchyHeaders)
 		]
 	];
 
@@ -299,14 +313,9 @@ void SSceneOutliner::HandleHiddenColumnsChanged()
 	}
 }
 
-void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
+void SSceneOutliner::GetSortedColumnIDs(TArray<FName>& OutColumnIDs) const
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-
-	if (SharedData->ColumnMap.Num() == 0)
-	{
-		SharedData->UseDefaultColumns();
-	}
 
 	TMap<FName, FSceneOutlinerColumnInfo> FilteredColumnMap;
 	for(auto It(SharedData->ColumnMap.CreateIterator()); It; ++It)
@@ -317,17 +326,40 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		}
 	}
 
+	// Get a list of sorted columns IDs to create
+	OutColumnIDs.Empty();
+
+	OutColumnIDs.Reserve(FilteredColumnMap.Num());
+	FilteredColumnMap.GenerateKeyArray(OutColumnIDs);
+
+	OutColumnIDs.Sort([&](const FName& A, const FName& B) {
+		return FilteredColumnMap[A].PriorityIndex < FilteredColumnMap[B].PriorityIndex;
+		});
+}
+
+void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
+{
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+
+	if (SharedData->ColumnMap.Num() == 0)
+	{
+		SharedData->UseDefaultColumns();
+	}
+
+	TMap<FName, FSceneOutlinerColumnInfo> FilteredColumnMap;
+	for (auto It(SharedData->ColumnMap.CreateIterator()); It; ++It)
+	{
+		if (SceneOutlinerModule.GetColumnPermissionList()->PassesFilter(It.Key()))
+		{
+			FilteredColumnMap.Add(It.Key(), It.Value());
+		}
+	}
+
 	Columns.Empty(FilteredColumnMap.Num());
 	HeaderRow.ClearColumns();
 
-	// Get a list of sorted columns IDs to create
 	TArray<FName> SortedIDs;
-	SortedIDs.Reserve(FilteredColumnMap.Num());
-	FilteredColumnMap.GenerateKeyArray(SortedIDs);
-
-	SortedIDs.Sort([&](const FName& A, const FName& B){
-		return FilteredColumnMap[A].PriorityIndex < FilteredColumnMap[B].PriorityIndex;
-	});
+	GetSortedColumnIDs(SortedIDs);
 
 	TMap<FName, bool> ColumnVisibilities;
 	const FSceneOutlinerConfig* OutlinerConfig = GetConstConfig();
@@ -337,7 +369,6 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 	{
 		ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
 	}
-
 
 	for (const FName& ID : SortedIDs)
 	{
@@ -472,6 +503,19 @@ TSharedRef<SWidget> SSceneOutliner::GetViewButtonContent(bool bShowFilters)
 			LOCTEXT("CollapseAllToolTip", "Collapse All Items in the Hierarchy"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSceneOutliner::CollapseAll)));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowHierarchy", "Stack Hierarchy Headers"),
+			LOCTEXT("ShowHierarchyToolTip", "Toggle pinning of the hierarchy of items at the top of the outliner"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &SSceneOutliner::ToggleStackHierarchyHeaders),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &SSceneOutliner::ShouldStackHierarchyHeaders)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -1693,6 +1737,11 @@ TSharedRef< ITableRow > SSceneOutliner::OnGenerateRowForOutlinerTree( FSceneOutl
 	return SNew( SSceneOutlinerTreeRow, OutlinerTreeView.ToSharedRef(), SharedThis(this) ).Item( Item );
 }
 
+TSharedRef< ITableRow > SSceneOutliner::OnGeneratePinnedRowForOutlinerTree(FSceneOutlinerTreeItemPtr Item, const TSharedRef< STableViewBase >& OwnerTable)
+{
+	return SNew(SSceneOutlinerPinnedTreeRow, OutlinerTreeView.ToSharedRef(), SharedThis(this)).Item(Item);
+}
+
 void SSceneOutliner::OnGetChildrenForOutlinerTree( FSceneOutlinerTreeItemPtr InParent, TArray< FSceneOutlinerTreeItemPtr >& OutChildren )
 {
 	if( SharedData->bShowParentTree )
@@ -2237,6 +2286,25 @@ FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeIte
 	return Parent;
 }
 
+void SSceneOutliner::ToggleStackHierarchyHeaders()
+{
+	bShouldStackHierarchyHeaders = !bShouldStackHierarchyHeaders;
+
+	FSceneOutlinerConfig* OutlinerConfig = GetMutableConfig();
+
+	if (OutlinerConfig != nullptr)
+	{
+		OutlinerConfig->bShouldStackHierarchyHeaders = bShouldStackHierarchyHeaders;
+		SaveConfig();
+	}
+
+	FullRefresh();
+}
+
+bool SSceneOutliner::ShouldStackHierarchyHeaders() const
+{
+	return bShouldStackHierarchyHeaders;
+}
 
 struct FSceneOutlinerConfig* SSceneOutliner::GetMutableConfig()
 {
