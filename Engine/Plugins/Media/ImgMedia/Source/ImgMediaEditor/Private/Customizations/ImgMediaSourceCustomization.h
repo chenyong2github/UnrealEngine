@@ -54,40 +54,6 @@ public:
 protected:
 
 	/**
-	 * Adds custom UI for mipmap info.
-	 *
-	 * @param DetailBuilder Adds to this UI.
-	 */
-	void CustomizeMipMapInfo(IDetailLayoutBuilder& DetailBuilder);
-
-	/**
-	 * Adds info on objects to the UI.
-	 *
-	 * @param InCategory UI will be added here.
-	 * @param MipMapInfo Object info will be retrieved from this.
-	 */
-	void AddMipMapObjects(IDetailCategoryBuilder& InCategory, const FImgMediaMipMapInfo* MipMapInfo);
-
-	/**
-	 * Adds object info for a camera to the UI.
-	 * 
-	 * @param InCameraGroup UI to add to.
-	 * @param InCameraInfo Camera to use.
-	 * @param InMipLevelDistances Distances for each mip map level in world space.
-	 * @param Objects List of objects to show info for.
-	 */
-	void AddCameraObjects(IDetailGroup& InCameraGroup, const FImgMediaMipMapCameraInfo& InCameraInfo, const TArray<float>& InMipLevelDistances, const TArray<FImgMediaMipMapObjectInfo*>& Objects);
-	
-	/**
-	 * Adds mip level distances for a camera to the UI.
-	 *
-	 * @param InCameraGroup UI to add to.
-	 * @param InCameraInfo Camera to use.
-	 * @param InMipLevelDistances Distances for each mip map level in world space.
-	 */
-	void AddCameraMipDistances(IDetailGroup& InCameraGroup, const FImgMediaMipMapCameraInfo& InCameraInfo, const TArray<float>& InMipLevelDistances);
-
-	/**
 	 * Get the path to the currently selected image sequence.
 	 *
 	 * @return Sequence path string.
