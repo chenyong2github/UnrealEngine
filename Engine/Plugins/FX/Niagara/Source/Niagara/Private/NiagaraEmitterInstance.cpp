@@ -1671,8 +1671,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	const int32 NumBeforeSpawn = Data.GetDestinationDataChecked().GetNumInstances();
 	uint32 TotalActualEventSpawns = 0;
 
+	Data.NumSpawnedIDs = 0;
+#ifndef NIAGARA_EXP_VM
 	Data.GetSpawnedIDsTable().SetNum(0, false);
-
+#endif
 	int32 SpawnCountRemaining = AllocationSize - OrigNumParticles;
 
 	//Init new particles with the spawn script.

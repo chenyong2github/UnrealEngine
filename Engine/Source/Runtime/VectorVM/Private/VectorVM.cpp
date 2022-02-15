@@ -7,6 +7,8 @@
 #include "VectorVMPrivate.h"
 #include "Stats/Stats.h"
 #include "HAL/ConsoleManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "Async/ParallelFor.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, VectorVM);
@@ -138,6 +140,15 @@ FORCEINLINE VectorRegister4Int VectorIntShuffle(const VectorRegister4Int& Vec, c
 }
 #endif
 
+#ifdef NIAGARA_EXP_VM
+//@TODO: remove these functions when we go to the new VM
+FORCEINLINE void FDataSetMeta::LockFreeTable() {
+
+}
+FORCEINLINE void FDataSetMeta::UnlockFreeTable() {
+
+}
+#else
 //Temporarily locking the free table until we can implement a lock free algorithm. UE-65856
 FORCEINLINE void FDataSetMeta::LockFreeTable()
 {
@@ -161,6 +172,7 @@ FORCEINLINE void FDataSetMeta::UnlockFreeTable()
 {
  	FreeTableLock.Unlock();
 }
+#endif //NIAGARA_EXP_VM
 
 static int32 GbParallelVVM = 1;
 static FAutoConsoleVariableRef CVarbParallelVVM(
@@ -193,6 +205,22 @@ static FAutoConsoleVariableRef CVarParallelVVMInstancesPerChunk(
 	GParallelVVMInstancesPerChunk,
 	TEXT("Number of instances per VM chunk. (default=128) \n"),
 	ECVF_ReadOnly
+);
+
+static int32 GVVMChunkSizeInBytes = 32768;
+static FAutoConsoleVariableRef CVarVVMChunkSizeInBytes(
+	TEXT("vm.ChunkSizeInBytes"),
+	GVVMChunkSizeInBytes,
+	TEXT("Number of bytes per VM chunk  Ideally <= L1 size. (default=32768) \n"),
+	ECVF_Default
+);
+
+static int32 GVVMMaxThreadsPerScript = 8;
+static FAutoConsoleVariableRef CVarVVMMaxThreadsPerScript(
+	TEXT("vm.MaxThreadsPerScript"),
+	GVVMMaxThreadsPerScript,
+	TEXT("Maximum number of threads per script. Set 0 to mean 'as many as necessary'\n"),
+	ECVF_Default
 );
 
 static int32 GbOptimizeVMByteCode = 1;
@@ -250,6 +278,8 @@ static FAutoConsoleVariableRef CVarbBatchPackVMOutput(
 	TEXT("If > 0 output elements will be packed and batched branch free.\n"),
 	ECVF_Default
 );
+
+#include "VectorVMExperimental.inl"
 
 //////////////////////////////////////////////////////////////////////////
 //  VM Code Optimizer Context
@@ -2528,7 +2558,7 @@ void VectorVM::Init()
 	}
 }
 
-void VectorVM::Exec(FVectorVMExecArgs& Args)
+void VectorVM::Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeState)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
@@ -2546,9 +2576,14 @@ void VectorVM::Exec(FVectorVMExecArgs& Args)
 	const int32 ChunksPerBatch = (GbParallelVVM != 0 && FApp::ShouldUseThreadingForPerformance()) ? GParallelVVMChunksPerBatch : NumChunks;
 	const int32 NumBatches = FMath::DivideAndRoundUp(NumChunks, ChunksPerBatch);
 	const bool bParallel = NumBatches > 1 && Args.bAllowParallel;
+#	ifdef VVM_INCLUDE_SERIALIZATION
+	const bool bUseOptimizedByteCode = false; //serializes the bytecode from the instructions, cannot use jump table
+#	else //VVM_INCLUDE_SERIALIZATION
 	const bool bUseOptimizedByteCode = (Args.OptimizedByteCode != nullptr) && GbUseOptimizedVMByteCode;
-
+#	endif
 	const FVectorVMExecFunction* OptimizedJumpTable = bUseOptimizedByteCode ? FVectorVMCodeOptimizerContext::DecodeJumpTable(Args.OptimizedByteCode) : nullptr;
+	
+	uint64 StartTime = FPlatformTime::Cycles64();
 
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
@@ -2593,10 +2628,12 @@ void VectorVM::Exec(FVectorVMExecArgs& Args)
 				// Setup execution context.
 				Context.PrepareForChunk(Args.ByteCode, NumInstancesThisChunk, StartInstance);
 
+				VVMSer_chunkStart(Context, ChunkIdx, BatchIdx);
 				// Execute VM on all vectors in this chunk.
 				EVectorVMOp Op = EVectorVMOp::done;
 				do
 				{
+					VVMSer_insStart(Context);
 					Op = Context.DecodeOp();
 					switch (Op)
 					{
@@ -2712,7 +2749,9 @@ void VectorVM::Exec(FVectorVMExecArgs& Args)
 							UE_LOG(LogVectorVM, Fatal, TEXT("Unknown op code 0x%02x"), (uint32)Op);
 							return;//BAIL
 					}
+					VVMSer_insEnd(Context, (int)(VVMSerCtxStartInsCode - VVMSerStartCtxCode), (int)(Context.Code - VVMSerCtxStartInsCode));
 				} while (Op != EVectorVMOp::done);
+				VVMSer_chunkEnd(SerializeState)
 			}
 
 			InstancesLeft -= GParallelVVMInstancesPerChunk;
@@ -2736,6 +2775,13 @@ void VectorVM::Exec(FVectorVMExecArgs& Args)
 		FPlatformMisc::EndNamedEvent();
 	}
 #endif
+
+#ifdef VVM_INCLUDE_SERIALIZATION
+	uint64 EndTime = FPlatformTime::Cycles64();
+	if (SerializeState) {
+		SerializeState->ExecDt = EndTime - StartTime; //NOTE: doesn't work if ParallelFor splits the work into multiple threads
+	}
+#endif //VVM_INCLUDE_SERIALIZATION
 }
 
 uint8 VectorVM::GetNumOpCodes()

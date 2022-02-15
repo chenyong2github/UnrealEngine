@@ -18,6 +18,7 @@
 #include "NiagaraParameterDefinitionsSubscriber.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformAtomics.h"
+#include "VectorVM.h"
 
 #include "NiagaraScript.generated.h"
 
@@ -649,6 +650,9 @@ class UNiagaraScript : public UNiagaraScriptBase
 public:
 	UNiagaraScript();
 	~UNiagaraScript();
+#	ifdef NIAGARA_EXP_VM
+	FVectorVMOptimizeContext OptimizeContext;
+#	endif //NIAGARA_EXP_VM
 
 #if WITH_EDITORONLY_DATA
 	/** If true then this script asset uses active version control to track changes. */

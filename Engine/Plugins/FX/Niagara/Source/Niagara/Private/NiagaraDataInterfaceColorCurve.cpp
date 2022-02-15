@@ -237,10 +237,87 @@ FORCEINLINE_DEBUGGABLE FLinearColor UNiagaraDataInterfaceColorCurve::SampleCurve
 	return FLinearColor(RedCurve.Eval(X), GreenCurve.Eval(X), BlueCurve.Eval(X), AlphaCurve.Eval(X));
 }
 
+
+#if defined(NIAGARA_EXP_VM) && PLATFORM_ENABLE_VECTORINTRINSICS && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+template<>
+void UNiagaraDataInterfaceColorCurve::SampleCurve<TIntegralConstant<bool, true>>(FVectorVMExternalFunctionContext& Context)
+{
+	if (Context.NumInstances == 1) //could be a per-instance function call, in which can we can't write 4-wide so just use the old method
+	{ 
+		VectorVM::FExternalFuncInputHandler<float> XParam(Context);
+		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrR(Context);
+		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrG(Context);
+		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrB(Context);
+		VectorVM::FExternalFuncRegisterHandler<float> SamplePtrA(Context);
+
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			float X = XParam.GetAndAdvance();
+			FLinearColor C = SampleCurveInternal<TIntegralConstant<bool, true>>(X);
+			*SamplePtrR.GetDestAndAdvance() = C.R;
+			*SamplePtrG.GetDestAndAdvance() = C.G;
+			*SamplePtrB.GetDestAndAdvance() = C.B;
+			*SamplePtrA.GetDestAndAdvance() = C.A;
+		}
+	}
+	else
+	{
+		float *LUT = ShaderLUT.GetData();
+		VectorRegister4f LutNumSamplesMinusOne4 = VectorSetFloat1(LUTNumSamplesMinusOne);
+		VectorRegister4f LutMinTime4            = VectorSetFloat1(LUTMinTime);
+		VectorRegister4f LutInvTimeRange4       = VectorSetFloat1(LUTInvTimeRange);
+
+		VectorRegister4f *XParam = (VectorRegister4f *)Context.RegisterData[0];
+		VectorRegister4f *RReg   = (VectorRegister4f *)Context.RegisterData[1];
+		VectorRegister4f *GReg   = (VectorRegister4f *)Context.RegisterData[2];
+		VectorRegister4f *BReg   = (VectorRegister4f *)Context.RegisterData[3];
+		VectorRegister4f *AReg   = (VectorRegister4f *)Context.RegisterData[4];
+
+		int IdxA[4];
+		int IdxB[4];
+
+		for (int i = 0; i < Context.NumLoops; ++i)
+		{
+			VectorRegister4f NormalizedX = VectorMultiply(VectorSubtract(XParam[i & Context.RegInc[0]], LutMinTime4), LutInvTimeRange4);
+			VectorRegister4f RemappedX   = VectorClamp(VectorMultiply(NormalizedX, LutNumSamplesMinusOne4), VectorZeroFloat(), LutNumSamplesMinusOne4);
+			VectorRegister4f PrevEntry   = VectorTruncate(RemappedX);
+			VectorRegister4f NextEntry   = VectorAdd(PrevEntry, VectorBitwiseAnd(VectorOneFloat(), VectorCompareLT(PrevEntry, LutNumSamplesMinusOne4))); //this could be made faster by duplicating the last entry in the LUT so you can read one past it
+			VectorRegister4f Interp      = VectorSubtract(RemappedX, PrevEntry);
+			VectorRegister4i IdxA4       = VectorShiftLeftImm(VectorFloatToInt(PrevEntry), 2);
+			VectorRegister4i IdxB4       = VectorShiftLeftImm(VectorFloatToInt(NextEntry), 2);
+
+			VectorIntStore(IdxA4, IdxA);
+			VectorIntStore(IdxB4, IdxB);
+
+			VectorRegister4f A0 = VectorLoad(LUT + IdxA[0]);
+			VectorRegister4f A1 = VectorLoad(LUT + IdxA[1]);
+			VectorRegister4f A2 = VectorLoad(LUT + IdxA[2]);
+			VectorRegister4f A3 = VectorLoad(LUT + IdxA[3]);
+
+			VectorRegister4f B0 = VectorLoad(LUT + IdxB[0]);
+			VectorRegister4f B1 = VectorLoad(LUT + IdxB[1]);
+			VectorRegister4f B2 = VectorLoad(LUT + IdxB[2]);
+			VectorRegister4f B3 = VectorLoad(LUT + IdxB[3]);
+
+			VectorRegister4f I0 = VectorCastIntToFloat(VectorShuffleImmediate(VectorCastFloatToInt(Interp), 0, 0, 0, 0));
+			VectorRegister4f I1 = VectorCastIntToFloat(VectorShuffleImmediate(VectorCastFloatToInt(Interp), 1, 1, 1, 1));
+			VectorRegister4f I2 = VectorCastIntToFloat(VectorShuffleImmediate(VectorCastFloatToInt(Interp), 2, 2, 2, 2));
+			VectorRegister4f I3 = VectorCastIntToFloat(VectorShuffleImmediate(VectorCastFloatToInt(Interp), 3, 3, 3, 3));
+
+			RReg[i] = VectorMultiplyAdd(B0, I0, VectorMultiply(A0, VectorSubtract(VectorOneFloat(), I0)));
+			GReg[i] = VectorMultiplyAdd(B1, I1, VectorMultiply(A1, VectorSubtract(VectorOneFloat(), I1)));
+			BReg[i] = VectorMultiplyAdd(B2, I2, VectorMultiply(A2, VectorSubtract(VectorOneFloat(), I2)));
+			AReg[i] = VectorMultiplyAdd(B3, I3, VectorMultiply(A3, VectorSubtract(VectorOneFloat(), I3)));
+
+			_MM_TRANSPOSE4_PS(RReg[i], GReg[i], BReg[i], AReg[i]);
+		}
+	}
+}
+#endif //NIAGARA_EXP_VM
+
 template<typename UseLUT>
 void UNiagaraDataInterfaceColorCurve::SampleCurve(FVectorVMExternalFunctionContext& Context)
 {
-	//TODO: Create some SIMDable optimized representation of the curve to do this faster.
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> SamplePtrR(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> SamplePtrG(Context);

@@ -1420,8 +1420,17 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMExternalFun
 	VectorVM::FExternalFuncRegisterHandler<int32> OutIDAcquireTag(Context);
 
 	FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
+#ifdef NIAGARA_EXP_VM
+	int32 *SpawnedIDsTable = EmitterInstance ? EmitterInstance->GetData().GetFreeIDTable().GetData() + EmitterInstance->GetData().GetFreeIDTable().Max() : nullptr;
+	int32 NumSpawned = EmitterInstance ? EmitterInstance->GetData().NumSpawnedIDs : 0;
+	if (SpawnedIDsTable && NumSpawned) {
+		SpawnedIDsTable -= NumSpawned; //spawned ids are at the end of the FreeID table
+	}
+#else
 	const TArray<int32>* SpawnedIDsTable = EmitterInstance ? &EmitterInstance->GetData().GetSpawnedIDsTable() : nullptr;
 	int32 NumSpawned = SpawnedIDsTable ? SpawnedIDsTable->Num() : 0;
+#endif
+
 	int32 IDAcquireTag = EmitterInstance ? EmitterInstance->GetData().GetIDAcquireTag() : 0;
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
@@ -1433,7 +1442,11 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMExternalFun
 		if (SpawnIndex >= 0 && SpawnIndex < NumSpawned)
 		{
 			ValidValue.SetValue(true);
+#ifdef NIAGARA_EXP_VM
+			IDValue.Index = SpawnedIDsTable[SpawnIndex];
+#else
 			IDValue.Index = (*SpawnedIDsTable)[SpawnIndex];
+#endif
 			IDValue.AcquireTag = IDAcquireTag;
 		}
 		else

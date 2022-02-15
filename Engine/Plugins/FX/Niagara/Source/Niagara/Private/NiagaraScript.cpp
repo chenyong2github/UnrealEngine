@@ -289,6 +289,9 @@ FVersionedNiagaraScriptData::FVersionedNiagaraScriptData()
 
 UNiagaraScript::UNiagaraScript()
 {
+#	ifdef NIAGARA_EXP_VM
+	FMemory::Memzero(&OptimizeContext, sizeof(OptimizeContext));
+#	endif //NIAGARA_EXP_VM
 }
 
 #if WITH_EDITORONLY_DATA
@@ -735,6 +738,9 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	, IsCooked(false)
 #endif
 {
+#	ifdef NIAGARA_EXP_VM
+	FMemory::Memzero(&OptimizeContext, sizeof(OptimizeContext));
+#	endif //NIAGARA_EXP_VM
 #if WITH_EDITORONLY_DATA
 	ScriptResource = MakeUnique<FNiagaraShaderScript>();
 	ScriptResource->OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::RaiseOnGPUCompilationComplete);
@@ -745,6 +751,9 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 
 UNiagaraScript::~UNiagaraScript()
 {
+#	ifdef NIAGARA_EXP_VM
+	FreeVectorVMOptimizeContext(&OptimizeContext);
+#	endif //NIAGARA_EXP_VM
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1392,6 +1401,17 @@ bool UNiagaraScript::ShouldFreeUnoptimizedByteCode() const
 
 FGraphEventRef UNiagaraScript::HandleByteCodeOptimization(bool bShouldForceNow)
 {
+#	ifdef NIAGARA_EXP_VM
+	//this is just necessary because VectorVM doesn't know about FVMExternalFunctionBindingInfo
+	int NumExtFns = CachedScriptVM.CalledVMExternalFunctions.Num();
+	FVectorVMExtFunctionData *ExtFnTable = (FVectorVMExtFunctionData *)alloca(32 + sizeof(FVectorVMExtFunctionData) * NumExtFns); //32 is pointless, it just gets around static analysis triggering for unknown reasons
+	for (int i = 0; i < NumExtFns; ++i) {
+		ExtFnTable[i].NumInputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumInputs();
+		ExtFnTable[i].NumOutputs = CachedScriptVM.CalledVMExternalFunctions[i].GetNumOutputs();
+	}
+	OptimizeVectorVMScript(CachedScriptVM.ByteCode.GetDataPtr(), CachedScriptVM.ByteCode.GetLength(), ExtFnTable, NumExtFns, &OptimizeContext, VVMOptFlag_SaveIntermediateState);
+
+#	endif //NIAGARA_EXP_VM
 	check(IsInGameThread());
 
 	const bool bHasOptimizationTask = CachedScriptVM.OptimizationTask.State.IsValid();

@@ -403,6 +403,7 @@ public:
 
 	const FNiagaraDataSetCompiledData& GetCompiledData() const { check(CompiledData.Get() != nullptr); return *CompiledData.Get(); }
 
+	int NumSpawnedIDs;
 private:
 
 	void Reset();

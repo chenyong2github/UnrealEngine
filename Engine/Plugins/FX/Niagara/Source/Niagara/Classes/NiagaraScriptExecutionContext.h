@@ -152,6 +152,8 @@ struct FNiagaraScriptExecutionContextBase
 {
 	UNiagaraScript* Script;
 
+	FVectorVMState *VectorVMState;
+	
 	/** Table of external function delegate handles called from the VM. */
 	TArray<const FVMExternalFunction*> FunctionTable;
 
@@ -168,6 +170,9 @@ struct FNiagaraScriptExecutionContextBase
 	TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<2>> DataSetInfo;
 
 	static uint32 TickCounter;
+
+	/** The script type this context is for. Allows us to access the correct per instance function table on the system instance. */
+	ENiagaraSystemSimulationScript ScriptType;
 
 	int32 HasInterpolationParameters : 1;
 	int32 bAllowParallel : 1;
@@ -241,14 +246,12 @@ protected:
 	*/
 	TArray<FNiagaraSystemInstance*>* SystemInstances;
 
-	/** The script type this context is for. Allows us to access the correct per instance function table on the system instance. */
-	ENiagaraSystemSimulationScript ScriptType;
 
 	/** Helper function that handles calling into per instance DI calls and massages the VM context appropriately. */
 	void PerInstanceFunctionHook(FVectorVMExternalFunctionContext& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex);
 
 public:
-	FNiagaraSystemScriptExecutionContext(ENiagaraSystemSimulationScript InScriptType) : SystemInstances(nullptr), ScriptType(InScriptType){}
+	FNiagaraSystemScriptExecutionContext(ENiagaraSystemSimulationScript InScriptType) : SystemInstances(nullptr) { ScriptType = InScriptType; }
 	
 	virtual bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)override;
 	virtual bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget);

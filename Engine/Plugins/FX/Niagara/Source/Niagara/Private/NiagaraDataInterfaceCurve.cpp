@@ -195,6 +195,57 @@ FORCEINLINE_DEBUGGABLE float UNiagaraDataInterfaceCurve::SampleCurveInternal<TIn
 	return Curve.Eval(X);
 }
 
+#ifdef NIAGARA_EXP_VM
+template<>
+void UNiagaraDataInterfaceCurve::SampleCurve<TIntegralConstant<bool, true>>(FVectorVMExternalFunctionContext& Context)
+{
+	if (Context.NumInstances == 1)
+	{
+		VectorVM::FExternalFuncInputHandler<float> XParam(Context);
+		VectorVM::FExternalFuncRegisterHandler<float> OutSample(Context);
+
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			*OutSample.GetDest() = SampleCurveInternal<TIntegralConstant<bool, true>>(XParam.Get());
+			XParam.Advance();
+			OutSample.Advance();
+		}
+	}
+	else
+	{
+		float *LUT = ShaderLUT.GetData();
+		VectorRegister4f LutNumSamplesMinusOne4 = VectorSetFloat1(LUTNumSamplesMinusOne);
+		VectorRegister4f LutMinTime4            = VectorSetFloat1(LUTMinTime);
+		VectorRegister4f LutInvTimeRange4       = VectorSetFloat1(LUTInvTimeRange);
+	
+		VectorRegister4f *XParam = (VectorRegister4f *)Context.RegisterData[0];
+		VectorRegister4f *OutSample = (VectorRegister4f *)Context.RegisterData[1];
+
+		int IdxA[4];
+		int IdxB[4];
+
+		for (int i = 0; i < Context.NumLoops; ++i)
+		{
+			VectorRegister4f NormalizedTime4 = VectorMultiply(VectorSubtract(XParam[i & Context.RegInc[0]], LutMinTime4), LutInvTimeRange4);
+			VectorRegister4f RemappedX4      = VectorMin(VectorMax(VectorMultiply(NormalizedTime4, LutNumSamplesMinusOne4), VectorZeroFloat()), LutNumSamplesMinusOne4);
+			VectorRegister4f PrevEntry4      = VectorTruncate(RemappedX4);
+			VectorRegister4f NextEntry4      = VectorAdd(PrevEntry4, VectorBitwiseAnd(VectorOneFloat(), VectorCompareLT(PrevEntry4, LutNumSamplesMinusOne4))); //this could be made faster by duplicating the last entry in the LUT so you can read one past it
+			VectorRegister4f Interp4         = VectorSubtract(RemappedX4, PrevEntry4);
+			VectorRegister4i IdxA4           = VectorFloatToInt(PrevEntry4);
+			VectorRegister4i IdxB4           = VectorFloatToInt(NextEntry4);
+
+			VectorIntStore(IdxA4, IdxA);
+			VectorIntStore(IdxB4, IdxB);
+
+			VectorRegister4f A4 = MakeVectorRegisterFloat(LUT[IdxA[0]], LUT[IdxA[1]], LUT[IdxA[2]], LUT[IdxA[3]]);
+			VectorRegister4f B4 = MakeVectorRegisterFloat(LUT[IdxB[0]], LUT[IdxB[1]], LUT[IdxB[2]], LUT[IdxB[3]]);
+
+			OutSample[i] = VectorMultiplyAdd(B4, Interp4, VectorMultiply(A4, VectorSubtract(VectorOneFloat(), Interp4)));
+		}
+	}
+}
+#endif
+
 template<typename UseLUT>
 void UNiagaraDataInterfaceCurve::SampleCurve(FVectorVMExternalFunctionContext& Context)
 {

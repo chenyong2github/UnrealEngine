@@ -156,7 +156,39 @@ enum class EVectorVMOp : uint8
 	//acquires a new ID from the free list.
 	acquire_id,
 
+	//experimental VM only
+	fused_input1_1, /* 95    op has 1 input operand	   - binary 1          ie: register 0 is an input          (ORDER IS CRUCIAL) */
+	fused_input2_1, /* 96    op has 2 input operands   - binary 01         ie: register 0 is an input          (ORDER IS CRUCIAL) */
+	fused_input2_2, /* 97    op has 2 input operands   - binary 10         ie: register 1 is an input          (ORDER IS CRUCIAL) */
+	fused_input2_3, /* 97    op has 2 input operands   - binary 11         ie: register 1 and 2 are inputs     (ORDER IS CRUCIAL) */
+	fused_input3_1, /* 98    op has 3 input operands   - binary 001        ie: register 1 is an input          (ORDER IS CRUCIAL) */
+	fused_input3_2, /* 99    op has 3 input operands   - binary 010        ie: register 2 is an input          (ORDER IS CRUCIAL) */
+	fused_input3_4, /* 101   op has 3 input operands   - binary 100        ie: register 3 is an input          (ORDER IS CRUCIAL) */
+	fused_input3_3, /* 100   op has 3 input operands   - binary 011        ie: register 1 and 2 are inputs     (ORDER IS CRUCIAL) */
+	fused_input3_5, /* 102   op has 3 input operands   - binary 101        ie: register 3 and 1 are inputs     (ORDER IS CRUCIAL) */
+	fused_input3_6, /* 103   op has 3 input operands   - binary 110        ie: register 2 and 2 are inputs     (ORDER IS CRUCIAL) */
+	fused_input3_7, /* 104   op has 3 input operands   - binary 111        ie: register 1, 2 and 3 are inputs  (ORDER IS CRUCIAL) */
+	copy_to_output, /* 105 */
+	output_batch2,  /* 106 */
+	output_batch3,  /* 107 */
+	output_batch4,  /* 108 */
+	output_batch7,  /* 108 */
+	output_batch8,  /* 108 */
+
 	NumOpcodes
+};
+	
+enum class EVectorVMOpCategory : uint8 {
+	Input,
+	Output,
+	Op,
+	ExtFnCall,
+	IndexGen,
+	ExecIndex,
+	RWBuffer,
+	Stat,
+	Fused,
+	Other
 };
 
 #if STATS
@@ -215,14 +247,19 @@ struct FDataSetMeta
 	/** MaxID used in this execution. */
 	int32* MaxUsedID;
 
+	int32 *NumSpawnedIDs;
+
 	int32 IDAcquireTag;
 
 	//Temporary lock we're using for thread safety when writing to the FreeIDTable.
 	//TODO: A lock free algorithm is possible here. We can create a specialized lock free list and reuse the IDTable slots for FreeIndices as Next pointers for our LFL.
 	//This would also work well on the GPU. 
 	//UE-65856 for tracking this work.
-	FCriticalSection FreeTableLock;
 
+	//@NOTE (smcgrath): the lock/unlock functions can go with the ne VM, we don't need them
+#ifndef NIAGARA_EXP_VM
+	FCriticalSection FreeTableLock;
+#endif
 	FORCEINLINE void LockFreeTable();
 	FORCEINLINE void UnlockFreeTable();
 
@@ -254,7 +291,7 @@ struct FDataSetMeta
 		IDAcquireTag = INDEX_NONE;
 	}
 
-	FORCEINLINE void Init(const TArrayView<uint8 const* RESTRICT const>& InInputRegisters, const TArrayView<uint8 const* RESTRICT const>& InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32* InMaxUsedID, int32 InIDAcquireTag, TArray<int32>* InSpawnedIDsTable)
+	FORCEINLINE void Init(const TArrayView<uint8 const* RESTRICT const>& InInputRegisters, const TArrayView<uint8 const* RESTRICT const>& InOutputRegisters, int32 InInstanceOffset, TArray<int32>* InIDTable, TArray<int32>* InFreeIDTable, int32* InNumFreeIDs, int32 *InNumSpawnedIDs, int32* InMaxUsedID, int32 InIDAcquireTag, TArray<int32>* InSpawnedIDsTable)
 	{
 		InputRegisters = InInputRegisters;
 		OutputRegisters = InOutputRegisters;
@@ -264,6 +301,7 @@ struct FDataSetMeta
 		IDTable = InIDTable;
 		FreeIDTable = InFreeIDTable;
 		NumFreeIDs = InNumFreeIDs;
+		NumSpawnedIDs = InNumSpawnedIDs;
 		MaxUsedID = InMaxUsedID;
 		IDAcquireTag = InIDAcquireTag;
 		SpawnedIDsTable = InSpawnedIDsTable;
@@ -276,6 +314,8 @@ private:
 	FDataSetMeta& operator=(FDataSetMeta&&) = delete;
 	FDataSetMeta& operator=(const FDataSetMeta&) = delete;
 };
+
+#include "VectorVMExperimental.h"
 
 //Data the VM will keep on each dataset locally per thread which is then thread safely pushed to it's destination at the end of execution.
 struct FDataSetThreadLocalTempData
@@ -481,6 +521,42 @@ public:
 };
 
 class FVectorVMExternalFunctionContext {
+#ifdef NIAGARA_EXP_VM
+public:
+	uint32 **                RegisterData;
+	uint16 *                 RawVecIndices; //undecoded, for compatbility with the previous VM
+	uint32 *                 RegInc;
+
+	int                      RegReadCount;
+	int                      NumRegisters;
+
+	int                      StartInstance;
+	int                      NumInstances;
+	int                      NumLoops;
+	int                      PerInstanceFnInstanceIdx;
+
+	void **                  UserPtrTable;
+	int                      NumUserPtrs;
+	
+	FRandomStream *          RandStream;
+	int32 *                  RandCounters;
+	TArrayView<FDataSetMeta> DataSets;
+
+	FORCEINLINE int32                                  GetStartInstance() const             { return StartInstance; }
+	FORCEINLINE int32                                  GetNumInstances() const              { return NumInstances; }
+	FORCEINLINE int32 *                                GetRandCounters()                    { return RandCounters; }
+	FORCEINLINE FRandomStream &                        GetRandStream()                      { return *RandStream; }
+	FORCEINLINE void *                                 GetUserPtrTable(int32 UserPtrIdx)    { check(UserPtrIdx < NumUserPtrs);  return UserPtrTable[UserPtrIdx]; }
+	template<uint32 InstancesPerOp> FORCEINLINE int32  GetNumLoops() const                  { static_assert(InstancesPerOp == 4); return NumLoops; };
+
+	FORCEINLINE float *GetNextRegister(int32 *OutAdvanceOffset, int32 *OutVecIndex) {
+		check(RegReadCount < NumRegisters);
+		*OutAdvanceOffset = RegInc[RegReadCount] & 1;
+		*OutVecIndex      = RawVecIndices[RegReadCount];
+		return (float *)RegisterData[RegReadCount++];
+	}
+
+#else
 	friend struct FNiagaraSystemScriptExecutionContext; //@NOTE(smcgrath): required for the PerInstanceFunctionHook() in the non-experimental version of VectorVM
 public:
 	FVectorVMExternalFunctionContext(FVectorVMContext *InVectorVMContext) : VectorVMContext(InVectorVMContext) { }
@@ -508,6 +584,7 @@ public:
 	FORCEINLINE int32 GetNumLoops() const { return VectorVMContext->GetNumLoops<InstancesPerOp>(); }
 private:
 	FVectorVMContext *VectorVMContext;
+#endif
 };
 
 namespace VectorVM
@@ -545,7 +622,7 @@ namespace VectorVM
 	/**
 	 * Execute VectorVM bytecode.
 	 */
-	VECTORVM_API void Exec(FVectorVMExecArgs& Args);
+	VECTORVM_API void Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeState);
 
 	VECTORVM_API void OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedCode, TArrayView<uint8> ExternalFunctionRegisterCounts);
 
@@ -562,7 +639,13 @@ namespace VectorVM
 		FUserPtrHandler(FVectorVMExternalFunctionContext& Context)
 		{
 #ifdef NIAGARA_EXP_VM
-			check(false);
+			int32 AdvanceOffset;
+			int32 RegIdx;
+			int32 *ConstPtr = (int32 *)Context.GetNextRegister(&AdvanceOffset, &RegIdx);
+			check(AdvanceOffset == 0); //must be constant
+			UserPtrIdx = *ConstPtr;
+			check(UserPtrIdx != INDEX_NONE);
+			Ptr = (T *)Context.GetUserPtrTable(UserPtrIdx);
 #else
 			const uint16 VariableOffset = Context.DecodeU16();
 			check(!(VariableOffset & VVM_EXT_FUNC_INPUT_LOC_BIT));
@@ -609,7 +692,7 @@ namespace VectorVM
 		void Init(FVectorVMExternalFunctionContext& Context)
 		{
 #ifdef NIAGARA_EXP_VM
-			check(false);
+			InputPtr = (T*)Context.GetNextRegister(&AdvanceOffset, &InputOffset) + Context.PerInstanceFnInstanceIdx;
 #else
 			InputOffset = Context.DecodeU16();
 
@@ -654,7 +737,7 @@ namespace VectorVM
 	public:
 #ifdef NIAGARA_EXP_VM
 		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMExternalFunctionContext& Context) {
-			check(false);
+			Register = (T*)Context.GetNextRegister(&AdvanceOffset, &RegisterIndex) + Context.PerInstanceFnInstanceIdx;
 		}
 #else
 		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMExternalFunctionContext& Context)

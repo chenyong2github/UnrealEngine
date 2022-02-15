@@ -204,6 +204,7 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	FreeIDsTable.Reset();
 	NumFreeIDs = 0;
 	MaxUsedID = INDEX_NONE;
+	NumSpawnedIDs = 0;
 	SpawnedIDsTable.Reset();
 
 	//Ensure we have a valid current buffer
@@ -356,8 +357,10 @@ void FNiagaraDataSet::Allocate(int32 NumInstances, bool bMaintainExisting)
 			RequiredIDs = ExistingNumIDs;
 		}
 
+#ifndef NIAGARA_EXP_VM //the new VM doesn't use the SpawnedIDsTable, so remove it.
 		// We know that we can't spawn more than NumFreeIDs particles, so we can pre-allocate SpawnedIDsTable here, to avoid allocations during execution.
 		SpawnedIDsTable.Reserve(NumFreeIDs);
+#endif
 
 		// We need to clear the ID to index table to -1 so we don't have stale entries for particles which died in the previous
 		// frame (when the results were written to another buffer). All the entries which are in use will be filled in by the script.
