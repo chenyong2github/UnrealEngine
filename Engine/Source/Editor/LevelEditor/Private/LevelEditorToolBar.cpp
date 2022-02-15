@@ -1968,11 +1968,11 @@ void FLevelEditorToolBar::RegisterAddMenu()
 
 		Section.InitSection("Content", LOCTEXT("Content_Label", "Get Content"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
 
-		Section.AddMenuEntry(FLevelEditorCommands::Get().ImportContent);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().ImportContent).InsertPosition.Position = EToolMenuInsertType::First;
 
 		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
 		{
-			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace).InsertPosition = FToolMenuInsert("OpenBridgeTab", EToolMenuInsertType::After);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace);
 		}
 	}
 #undef LOCTEXT_NAMESPACE

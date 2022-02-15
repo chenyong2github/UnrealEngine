@@ -80,7 +80,8 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 		LOCTEXT("OpenBridgeTab_Desc", "Opens the Quixel Bridge."),
 		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWindow), FCanExecuteAction())
-	);
+	).InsertPosition = FToolMenuInsert("ImportContent", EToolMenuInsertType::After);
+
 
 	UToolMenu* WindowMenu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Window");
 	FToolMenuSection* ContentSectionPtr = WindowMenu->FindSection("GetContent");
