@@ -34,6 +34,7 @@ void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* Ou
 
 	OutPostProcessSettings->bOverride_ColorCorrectionShadowsMax = true;
 	OutPostProcessSettings->bOverride_ColorCorrectionHighlightsMin = true;
+	OutPostProcessSettings->bOverride_ColorCorrectionHighlightsMax = true;
 
 	OutPostProcessSettings->ColorSaturation = Global.Saturation;
 	OutPostProcessSettings->ColorContrast = Global.Contrast;
@@ -61,6 +62,7 @@ void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* Ou
 
 	OutPostProcessSettings->ColorCorrectionShadowsMax = ShadowsMax;
 	OutPostProcessSettings->ColorCorrectionHighlightsMin = HighlightsMin;
+	OutPostProcessSettings->ColorCorrectionHighlightsMax = HighlightsMax;
 }
 
 void FFilmStockSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
@@ -346,6 +348,7 @@ static void DoPostProcessSettingsSanityCheck()
 		RenameMap.Add(TEXT("FilmGrainIntensityHighlights"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainShadowsMax"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainHighlightsMin"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainHighlightsMax"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexelSize"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexture"), TEXT(""));
 		VerifyPostProcessingProperties(TEXT("Film"),
@@ -392,6 +395,7 @@ FPostProcessSettings::FPostProcessSettings()
 
 	ColorCorrectionShadowsMax = 0.09f;
 	ColorCorrectionHighlightsMin = 0.5f;
+	ColorCorrectionHighlightsMax = 1.0f;
 
 	BlueCorrection = 0.6f;
 	ExpandGamut = 1.0f;
@@ -498,6 +502,7 @@ FPostProcessSettings::FPostProcessSettings()
 	FilmGrainIntensityHighlights = 1.0f;
 	FilmGrainShadowsMax = 0.09f;
 	FilmGrainHighlightsMin = 0.5f;
+	FilmGrainHighlightsMax = 1.0f;
 	FilmGrainTexelSize = 1.0f;
 
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusion
@@ -633,6 +638,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_ColorOffsetHighlights(Settings.bOverride_ColorOffsetHighlights)
 	, bOverride_ColorCorrectionShadowsMax(Settings.bOverride_ColorCorrectionShadowsMax)
 	, bOverride_ColorCorrectionHighlightsMin(Settings.bOverride_ColorCorrectionHighlightsMin)
+	, bOverride_ColorCorrectionHighlightsMax(Settings.bOverride_ColorCorrectionHighlightsMax)
 	, bOverride_BlueCorrection(Settings.bOverride_BlueCorrection)
 	, bOverride_ExpandGamut(Settings.bOverride_ExpandGamut)
 	, bOverride_ToneCurveAmount(Settings.bOverride_ToneCurveAmount)
@@ -710,6 +716,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_FilmGrainIntensityHighlights(Settings.bOverride_FilmGrainIntensityHighlights)
 	, bOverride_FilmGrainShadowsMax(Settings.bOverride_FilmGrainShadowsMax)
 	, bOverride_FilmGrainHighlightsMin(Settings.bOverride_FilmGrainHighlightsMin)
+	, bOverride_FilmGrainHighlightsMax(Settings.bOverride_FilmGrainHighlightsMax)
 	, bOverride_FilmGrainTexelSize(Settings.bOverride_FilmGrainTexelSize)
 	, bOverride_FilmGrainTexture(Settings.bOverride_FilmGrainTexture)
 	, bOverride_AmbientOcclusionIntensity(Settings.bOverride_AmbientOcclusionIntensity)
@@ -819,6 +826,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, ColorGainHighlights(Settings.ColorGainHighlights)
 	, ColorOffsetHighlights(Settings.ColorOffsetHighlights)
 	, ColorCorrectionHighlightsMin(Settings.ColorCorrectionHighlightsMin)
+	, ColorCorrectionHighlightsMax(Settings.ColorCorrectionHighlightsMax)
 	, ColorCorrectionShadowsMax(Settings.ColorCorrectionShadowsMax)
 	, BlueCorrection(Settings.BlueCorrection)
 	, ExpandGamut(Settings.ExpandGamut)
@@ -922,6 +930,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, FilmGrainIntensityHighlights(Settings.FilmGrainIntensityHighlights)
 	, FilmGrainShadowsMax(Settings.FilmGrainShadowsMax)
 	, FilmGrainHighlightsMin(Settings.FilmGrainHighlightsMin)
+	, FilmGrainHighlightsMax(Settings.FilmGrainHighlightsMax)
 	, FilmGrainTexelSize(Settings.FilmGrainTexelSize)
 	, FilmGrainTexture(Settings.FilmGrainTexture)
 	, AmbientOcclusionIntensity(Settings.AmbientOcclusionIntensity)

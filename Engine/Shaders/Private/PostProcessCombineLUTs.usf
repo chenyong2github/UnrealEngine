@@ -92,6 +92,7 @@ float4 ColorOffsetHighlights;
 
 float  ColorCorrectionShadowsMax;
 float  ColorCorrectionHighlightsMin;
+float  ColorCorrectionHighlightsMax;
 
 float3 ColorCorrect( float3 WorkingColor,
 	float4 ColorSaturation,
@@ -130,7 +131,7 @@ float3 ColorCorrectAll( float3 WorkingColor )
 		ColorGammaHighlights*ColorGamma, 
 		ColorGainHighlights*ColorGain, 
 		ColorOffsetHighlights+ColorOffset);
-	float CCWeightHighlights = smoothstep(ColorCorrectionHighlightsMin, 1, Luma);
+	float CCWeightHighlights = smoothstep(ColorCorrectionHighlightsMin, ColorCorrectionHighlightsMax, Luma);
 
 	// Midtone CC
 	float3 CCColorMidtones = ColorCorrect(WorkingColor, 

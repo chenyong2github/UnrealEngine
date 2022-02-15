@@ -1393,6 +1393,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 
 		LERP_PP(ColorCorrectionShadowsMax);
 		LERP_PP(ColorCorrectionHighlightsMin);
+		LERP_PP(ColorCorrectionHighlightsMax);
 
 		LERP_PP(BlueCorrection);
 		LERP_PP(ExpandGamut);
@@ -1459,6 +1460,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(FilmGrainIntensityHighlights);
 		LERP_PP(FilmGrainShadowsMax);
 		LERP_PP(FilmGrainHighlightsMin);
+		LERP_PP(FilmGrainHighlightsMax);
 		LERP_PP(FilmGrainTexelSize);
 		LERP_PP(AmbientOcclusionIntensity);
 		LERP_PP(AmbientOcclusionStaticFraction);

@@ -83,6 +83,7 @@ float FilmGrainIntensityMidtones;
 float FilmGrainIntensityHighlights;
 float FilmGrainShadowsMax;
 float FilmGrainHighlightsMin;
+float FilmGrainHighlightsMax;
 Texture2D<half3> FilmGrainTexture;
 SamplerState FilmGrainSampler;
 float4 ScreenPosToFilmGrainTextureUV;
@@ -150,7 +151,7 @@ float ComputeFilmGrainIntensity(float3 LinearColorRGBGamut)
 	float Luma = dot(LinearColorRGBGamut,  mul(AP1_2_sRGB, AP1_RGB2Y));
 
 	float CCWeightShadows = 1 - smoothstep(0, FilmGrainShadowsMax, Luma);
-	float CCWeightHighlights = smoothstep(FilmGrainHighlightsMin, 1, Luma);
+	float CCWeightHighlights = smoothstep(FilmGrainHighlightsMin, FilmGrainHighlightsMax, Luma);
 	float CCWeightMidtones = 1 - CCWeightShadows - CCWeightHighlights;
 	
 	// Blend Shadow, Midtone and Highlight CCs

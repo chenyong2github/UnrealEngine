@@ -120,6 +120,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(float, WhiteTint)
 	SHADER_PARAMETER(float, ColorCorrectionShadowsMax)
 	SHADER_PARAMETER(float, ColorCorrectionHighlightsMin)
+	SHADER_PARAMETER(float, ColorCorrectionHighlightsMax)
 	SHADER_PARAMETER(float, BlueCorrection)
 	SHADER_PARAMETER(float, ExpandGamut)
 	SHADER_PARAMETER(float, ToneCurveAmount)
@@ -203,6 +204,7 @@ void GetCombineLUTParameters(
 
 	Parameters.ColorCorrectionShadowsMax = Settings.ColorCorrectionShadowsMax;
 	Parameters.ColorCorrectionHighlightsMin = Settings.ColorCorrectionHighlightsMin;
+	Parameters.ColorCorrectionHighlightsMax = Settings.ColorCorrectionHighlightsMax;
 
 	Parameters.BlueCorrection = Settings.BlueCorrection;
 	Parameters.ExpandGamut = Settings.ExpandGamut;
