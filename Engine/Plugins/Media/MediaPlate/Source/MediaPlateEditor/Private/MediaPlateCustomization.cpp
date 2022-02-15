@@ -8,6 +8,7 @@
 #include "EditorStyleSet.h"
 #include "MediaPlate.h"
 #include "MediaPlateEditorModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 
@@ -23,14 +24,13 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	// Get objects we are editing.
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
-	TSharedPtr<TArray<TWeakObjectPtr<AMediaPlate>>> ActorsListPtr = MakeShared<TArray<TWeakObjectPtr<AMediaPlate>>>();
-	ActorsListPtr->Reserve(Objects.Num());
+	ActorsList.Reserve(Objects.Num());
 	for (TWeakObjectPtr<UObject>& Obj : Objects)
 	{
 		TWeakObjectPtr<AMediaPlate> ActorPtr = Cast<AMediaPlate>(Obj.Get());
 		if (ActorPtr.IsValid())
 		{
-			ActorsListPtr->Add(ActorPtr);
+			ActorsList.Add(ActorPtr);
 		}
 	}
 
@@ -53,9 +53,9 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 				[
 					SNew(SButton)
 						.VAlign(VAlign_Center)
-						.OnClicked_Lambda([ActorsListPtr]() -> FReply
+						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : *ActorsListPtr)
+							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
 							{
 								AMediaPlate* MediaPlate = ActorPtr.Get();
 								if (MediaPlate != nullptr)
@@ -87,9 +87,9 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 				[
 					SNew(SButton)
 						.VAlign(VAlign_Center)
-						.OnClicked_Lambda([ActorsListPtr]() -> FReply
+						.OnClicked_Lambda([this]() -> FReply
 						{
-							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : *ActorsListPtr)
+							for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
 							{
 								AMediaPlate* MediaPlate = ActorPtr.Get();
 								if (MediaPlate != nullptr)
@@ -107,5 +107,46 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 				]
 		];
 
+
+	// Add button to open the media plate editor.
+	MediaPlateCategory.AddCustomRow(LOCTEXT("OpenMediaPlate", "Open Media Plate"))
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				.Padding(0, 5, 10, 5)
+				[
+					SNew(SButton)
+						.ContentPadding(3)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &FMediaPlateCustomization::OnOpenMediaPlate)
+						.Text(LOCTEXT("OpenMediaPlate", "Open Media Plate"))
+				]
+		];
 }
 
+FReply FMediaPlateCustomization::OnOpenMediaPlate()
+{
+	// Get all our objects.
+	TArray<UObject*> AssetArray;
+	for (TWeakObjectPtr<AMediaPlate>& ActorPtr : ActorsList)
+	{
+		AMediaPlate* MediaPlate = ActorPtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			AssetArray.Add(MediaPlate);
+		}
+	}
+
+	// Open the editor.
+	if (AssetArray.Num() > 0)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(AssetArray);
+	}
+
+	return FReply::Handled();
+}
+
+#undef LOCTEXT_NAMESPACE

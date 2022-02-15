@@ -2,17 +2,26 @@
 
 #include "MediaPlateEditorModule.h"
 
+#include "AssetTools/MediaPlateActions.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "MediaPlate.h"
 #include "MediaPlateCustomization.h"
+#include "MediaPlateEditorStyle.h"
 #include "MediaPlayer.h"
+#include "Models/MediaPlateEditorCommands.h"
 #include "PropertyEditorModule.h"
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
 void FMediaPlateEditorModule::StartupModule()
 {
+	Style = MakeShareable(new FMediaPlateEditorStyle());
+
+	FMediaPlateEditorCommands::Register();
+
+	RegisterAssetTools();
+
 	// Register customizations.
 	MediaPlateName = AMediaPlate::StaticClass()->GetFName();
 
@@ -23,6 +32,8 @@ void FMediaPlateEditorModule::StartupModule()
 
 void FMediaPlateEditorModule::ShutdownModule()
 {
+	UnregisterAssetTools();
+
 	// Unregister customizations.
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.UnregisterCustomClassLayout(MediaPlateName);
@@ -78,6 +89,34 @@ void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<AMediaPlate> 
 	if (MediaPlate != nullptr)
 	{
 		ActiveMediaPlates.Add(MediaPlate);
+	}
+}
+
+void FMediaPlateEditorModule::RegisterAssetTools()
+{
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaPlateActions(Style.ToSharedRef())));
+}
+
+void FMediaPlateEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+{
+	AssetTools.RegisterAssetTypeActions(Action);
+	RegisteredAssetTypeActions.Add(Action);
+}
+
+void FMediaPlateEditorModule::UnregisterAssetTools()
+{
+	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
+
+	if (AssetToolsModule != nullptr)
+	{
+		IAssetTools& AssetTools = AssetToolsModule->Get();
+
+		for (TSharedRef<IAssetTypeActions>& Action : RegisteredAssetTypeActions)
+		{
+			AssetTools.UnregisterAssetTypeActions(Action);
+		}
 	}
 }
 

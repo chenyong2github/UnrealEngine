@@ -9,6 +9,9 @@
 #include "UObject/ObjectPtr.h"
 
 class AMediaPlate;
+class IAssetTools;
+class IAssetTypeActions;
+class ISlateStyle;
 
 /** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaPlateEditor, Log, All);
@@ -36,4 +39,27 @@ private:
 	FName MediaPlateName;
 	/** Holds all the media plates that are playing. */
 	TArray<TWeakObjectPtr<AMediaPlate>> ActiveMediaPlates;
+
+	/** Holds the plug-ins style set. */
+	TSharedPtr<ISlateStyle> Style;
+	/** The collection of registered asset type actions. */
+	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
+
+	/**
+	 * Registers all of our asset tools.
+	 */
+	void RegisterAssetTools();
+
+	/**
+	 * Registers a single asset type action.
+	 *
+	 * @param AssetTools	The asset tools object to register with.
+	 * @param Action		The asset type action to register.
+	 */
+	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
+
+	/**
+	 * Unregisters all of our asset tools.
+	 */
+	void UnregisterAssetTools();
 };

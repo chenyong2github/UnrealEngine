@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Editor.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
+class AMediaPlate;
 class IDetailLayoutBuilder;
 
 /**
@@ -28,5 +31,16 @@ public:
 	{
 		return MakeShareable(new FMediaPlateCustomization());
 	}
+
+private:
+
+	/** List of the actors we are editing. */
+	TArray<TWeakObjectPtr<AMediaPlate>> ActorsList;
+
+	/**
+	 * Called when the open media plate button is pressed.
+	 */
+	FReply OnOpenMediaPlate();
+
 };
 
