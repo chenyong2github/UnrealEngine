@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
+					"WorkspaceMenuStructure",
 				});
 
 			PrivateIncludePaths.AddRange(

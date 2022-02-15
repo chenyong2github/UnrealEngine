@@ -12,8 +12,16 @@
 #include "ImgMediaSource.h"
 #include "PropertyEditorModule.h"
 #include "UObject/NameTypes.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SImgMediaCache.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
+
+#define LOCTEXT_NAMESPACE "ImgMediaEditorModule"
 
 DEFINE_LOG_CATEGORY(LogImgMediaEditor);
+
+static const FName ImgMediaCacheTabName(TEXT("ImgMediaCache"));
 
 /**
  * Implements the ImgMediaEditor module.
@@ -29,10 +37,12 @@ public:
 	{
 		RegisterCustomizations();
 		RegisterAssetTools();
+		RegisterTabSpawners();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UnregisterTabSpawners();
 		UnregisterAssetTools();
 		UnregisterCustomizations();
 	}
@@ -90,6 +100,41 @@ protected:
 		}
 	}
 
+	void RegisterTabSpawners()
+	{
+		// Add ImgMedia group.
+		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+		TSharedRef<FWorkspaceItem> MediaBrowserGroup = MenuStructure.GetLevelEditorCategory()->AddGroup(
+			LOCTEXT("WorkspaceMenu_ImgMediaCategory", "ImgMedia"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"),
+			true);
+
+		// Add cache tab.
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaCacheTabName,
+			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnCacheTab))
+			.SetGroup(MediaBrowserGroup)
+			.SetDisplayName(LOCTEXT("ImgMediaCacheTabTitle", "Cache"))
+			.SetTooltipText(LOCTEXT("ImgMediaCacheTooltipText", "Open the cache tab."))
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+	}
+
+	void UnregisterTabSpawners()
+	{
+		if (FSlateApplication::IsInitialized())
+		{
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaCacheTabName);
+		}
+	}
+
+	static TSharedRef<SDockTab> SpawnCacheTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			[
+				SNew(SImgMediaCache)
+			];
+	}
+
 private:
 
 	/** Customization name to avoid reusing staticstruct during shutdown. */
@@ -102,3 +147,5 @@ private:
 
 
 IMPLEMENT_MODULE(FImgMediaEditorModule, ImgMediaEditor);
+
+#undef LOCTEXT_NAMESPACE
