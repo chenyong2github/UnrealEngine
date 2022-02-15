@@ -25,7 +25,12 @@ public:
 
 protected:
 	XrSwapchain Handle;
-	std::atomic<bool> Acquired;
+
+	/** Whether the image associated with the swapchain has been acquired. */
+	std::atomic<bool> ImageAcquired;
+
+	/** Whether the image associated with the swapchain is ready for being written to. */
+	std::atomic<bool> ImageReady;
 };
 
 #ifdef XR_USE_GRAPHICS_API_D3D11

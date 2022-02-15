@@ -13,7 +13,8 @@ static TAutoConsoleVariable<int32> CVarOpenXRSwapchainRetryCount(
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
 	Handle(InHandle),
-	Acquired(false)
+	ImageAcquired(false),
+	ImageReady(false)
 {
 }
 
@@ -31,7 +32,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 	// TODO: When moving this function to the RenderThread remove this logic so the RenderThread
 	// can acquire a new swapchain image before the RHI thread is done with it.
 	bool WasAcquired = false;
-	Acquired.compare_exchange_strong(WasAcquired, true);
+	ImageAcquired.compare_exchange_strong(WasAcquired, true);
 	if (WasAcquired)
 	{
 		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
@@ -54,9 +55,17 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
-	if (!Acquired)
+	if (!ImageAcquired)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		return;
+	}
+
+	bool WasReady = false;
+	ImageReady.compare_exchange_strong(WasReady, true);
+	if (WasReady)
+	{
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly wait on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
 		return;
 	}
 
@@ -92,10 +101,18 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	check(IsInRenderingThread() || IsInRHIThread());
 
 	bool WasAcquired = true;
-	Acquired.compare_exchange_strong(WasAcquired, false);
+	ImageAcquired.compare_exchange_strong(WasAcquired, false);
 	if (!WasAcquired)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to release unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to release unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		return;
+	}
+
+	bool WasReady = true;
+	ImageReady.compare_exchange_strong(WasAcquired, false);
+	if (!WasReady)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to release image %d in swapchain %p that wasn't ready for being written to."), SwapChainIndex_RHIThread, Handle);
 		return;
 	}
 

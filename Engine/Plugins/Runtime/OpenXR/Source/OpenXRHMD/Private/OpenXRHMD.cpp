@@ -1682,12 +1682,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 			return false;
 		}
 
-		// Acquire the first swapchain image if we're already rendering since the old swapchain was already acquired.
-		// We need to be careful here that we only re-acquire swapchains and not acquire swapchain images redundantly.
-		if (bIsRendering)
-		{
-			Swapchain->IncrementSwapChainIndex_RHIThread();
-		}
+		// image will be acquired next time we begin the rendering
 
 #if WITH_EDITOR
 		if (GIsEditor)
@@ -1758,12 +1753,7 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 			return false;
 		}
 
-		// Acquire the first swapchain image if we're already rendering since the old swapchain was already acquired.
-		// We need to be careful here that we only re-acquire swapchains and not acquire swapchain images redundantly.
-		if (bIsRendering)
-		{
-			Swapchain->IncrementSwapChainIndex_RHIThread();
-		}
+		// image will be acquired next time we begin the rendering
 	}
 
 	bNeedReAllocatedDepth = false;
