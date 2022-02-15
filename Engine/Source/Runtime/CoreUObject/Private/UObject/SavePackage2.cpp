@@ -1649,6 +1649,26 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 		WriteGatherableText(StructuredArchiveRoot, SaveContext);
 	}
 
+	// Write ImportTable
+	{
+		SCOPED_SAVETIMER(UPackage_Save_WriteImportTable);
+		FStructuredArchive::FStream ImportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ImportTable")));
+		for (FObjectImport& Import : Linker->ImportMap)
+		{
+			ImportTableStream.EnterElement() << Import;
+		}
+	}
+
+	// Write ExportTable
+	{
+		SCOPED_SAVETIMER(UPackage_Save_WriteExportTable);
+		FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
+		for (FObjectExport& Export : Linker->ExportMap)
+		{
+			ExportTableStream.EnterElement() << Export;
+		}
+	}
+
 	// Save thumbnails
 	{
 		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
@@ -1693,12 +1713,6 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 			FString ObjectName = Export.Object->GetPathName(SaveContext.GetPackage());
 			FStructuredArchive::FSlot ExportSlot = ExportsRecord.EnterField(SA_FIELD_NAME(*ObjectName));
-
-			if (SaveContext.IsTextFormat())
-			{
-				FObjectTextExport ObjectTextExport(Export, SaveContext.GetPackage());
-				ExportSlot << ObjectTextExport;
-			}
 
 #if WITH_EDITOR
 			bool bSupportsText = UClass::IsSafeToSerializeToStructuredArchives(Export.Object->GetClass());

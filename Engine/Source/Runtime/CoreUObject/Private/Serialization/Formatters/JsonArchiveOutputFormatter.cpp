@@ -345,8 +345,8 @@ void FJsonArchiveOutputFormatter::Serialize(UObject*& Value)
 {
 	if (Value != nullptr && IsObjectAllowed(Value))
 	{
-		FString FullObjectName = Value->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage);
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *FullObjectName));
+		FPackageIndex ObjectIndex = ObjectIndicesMap->FindChecked(Value);
+		SerializeStringInternal(LexToString(ObjectIndex));
 	}
 	else
 	{
@@ -405,15 +405,8 @@ void FJsonArchiveOutputFormatter::Serialize(FLazyObjectPtr& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FObjectPtr& Value)
 {
-	if (!Value.IsNull() && IsObjectAllowed(Value.Get()))
-	{
-		FString FullObjectName = Value->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage);
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *FullObjectName));
-	}
-	else
-	{
-		WriteValue(TEXT("null"));
-	}
+	UObject* Object = Value.Get();
+	Serialize(Object);
 }
 
 void FJsonArchiveOutputFormatter::Serialize(TArray<uint8>& Data)
@@ -615,7 +608,7 @@ void FJsonArchiveOutputFormatter::SerializeStringInternal(const FString& String)
 
 bool FJsonArchiveOutputFormatter::IsObjectAllowed(UObject* InObject) const
 {
-	return ObjectIndicesMap == nullptr || ObjectIndicesMap->Contains(InObject);
+	return ObjectIndicesMap && ObjectIndicesMap->Contains(InObject);
 }
 
 #endif

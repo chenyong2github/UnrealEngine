@@ -758,11 +758,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 			}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
-			// Reconstruct the import and export maps for text assets
+			// Construct the exports readers
 			if (Status == LINKER_Loaded)
 			{
-				SCOPED_LOADTIMER(LinkerLoad_ReconstructImportAndExportMap);
-				Status = ReconstructImportAndExportMap();
+				SCOPED_LOADTIMER(LinkerLoad_ConstructExportsReaders);
+				Status = ConstructExportsReaders();
 			}
 #endif
 
@@ -875,7 +875,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , ExportHashIndex(0)
 , bHasSerializedPackageFileSummary(false)
 , bHasSerializedPackageTrailer(false)
-, bHasReconstructedImportAndExportMap(false)
+, bHasConstructedExportsReaders(false)
 , bHasSerializedPreloadDependencies(false)
 , bHasFixedUpImportMap(false)
 , bHasPopulatedInstancingContext(false)
@@ -1087,9 +1087,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				INC_DWORD_STAT(STAT_TextAssetLinkerCount);
 				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::CreateTextArchiveFormatter"), STAT_LinkerLoad_CreateTextArchiveFormatter, STATGROUP_LinkerLoad);
 				TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::CreateTextArchiveFormatter);
-				StructuredArchiveFormatter = new FJsonArchiveInputFormatter(*this, [this](const FString& InFullPath)
+				StructuredArchiveFormatter = new FJsonArchiveInputFormatter(*this, [this](const FPackageIndex Index)
 				{
-					FPackageIndex Index = FindOrCreateImportOrExport(InFullPath);
 					if (Index.IsNull())
 					{
 						return (UObject*)nullptr;
@@ -1658,12 +1657,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeImportMap()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::SerializeImportMap" ), STAT_LinkerLoad_SerializeImportMap, STATGROUP_LinkerLoad );
 
-	if (IsTextFormat())
-	{
-		return LINKER_Loaded;
-	}
-
-	if(ImportMapIndex == 0 && Summary.ImportCount > 0 )
+	if(!IsTextFormat() && ImportMapIndex == 0 && Summary.ImportCount > 0 )
 	{
 		Seek( Summary.ImportOffset );
 	}
@@ -1938,12 +1932,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeExportMap()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::SerializeExportMap" ), STAT_LinkerLoad_SerializeExportMap, STATGROUP_LinkerLoad );
 
-	if (IsTextFormat())
-	{
-		return LINKER_Loaded;
-	}
-
-	if(ExportMapIndex == 0 && Summary.ExportCount > 0)
+	if(!IsTextFormat() && ExportMapIndex == 0 && Summary.ExportCount > 0)
 	{
 		Seek( Summary.ExportOffset );
 	}
@@ -1970,30 +1959,6 @@ FStructuredArchiveSlot FLinkerLoad::GetExportSlot(FPackageIndex InExportIndex)
 	check(InExportIndex.IsExport());
 	int32 Index = InExportIndex.ToExport();
 	return ExportReaders[Index]->GetRoot();
-}
-
-FPackageIndex FLinkerLoad::FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName)
-{
-	for (int32 ImportIndex = 0; ImportIndex < ImportMap.Num(); ++ImportIndex)
-	{
-		FObjectImport& ExistingImport = ImportMap[ImportIndex];
-		if (ExistingImport.ObjectName == InObjectName && ExistingImport.ClassPackage == InClassPackageName && ExistingImport.ClassName == InClassName)
-		{
-			return FPackageIndex::FromImport(ImportIndex);
-		}
-	}
-
-	FObjectImport& NewImport = ImportMap.Emplace_GetRef();
-	NewImport.ObjectName = InObjectName;
-	NewImport.ClassName = InClassName;
-	NewImport.ClassPackage = InClassPackageName;
-	NewImport.SourceIndex = INDEX_NONE;
-	NewImport.XObject = nullptr;
-	NewImport.SourceLinker = nullptr;
-
-	Summary.ImportCount++;
-
-	return FPackageIndex::FromImport(ImportMap.Num() - 1);
 }
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
@@ -2102,127 +2067,23 @@ FString ExtractObjectName(const FString& InFullPath)
 	return ObjectName;
 }
 
-FPackageIndex FLinkerLoad::FindOrCreateImportOrExport(const FString& InFullPath)
+FLinkerLoad::ELinkerStatus FLinkerLoad::ConstructExportsReaders()
 {
-	if (InFullPath.Len() == 0)
-	{
-		return FPackageIndex();
-	}
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::ConstructExportsReaders"), STAT_LinkerLoad_ConstructExportsReaders, STATGROUP_LinkerLoad);
 
-	FString Class, Package, Object, SubObject;
-	FPackageName::SplitFullObjectPath(InFullPath, Class, Package, Object, SubObject);
-	FName ObjectName = *(Object + (SubObject.Len() ? TEXT(":") : TEXT("")) + SubObject);
-
-	bool bIsExport = Package == LinkerRoot->GetName();
-
-	if (bIsExport)
-	{
-		for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
-		{
-			if (OriginalExportNames[ExportIndex] == ObjectName)
-			{
-				return FPackageIndex::FromExport(ExportIndex);
-			}
-		}
-
-		return FPackageIndex();
-	}
-	else
-	{
-		FName ClassName = *Class;
-		FName ClassPackageName;
-		FName PackageName = *Package;
-
-		if (Class.StartsWith(TEXT("/")))
-		{
-			int32 EndOfPackage = INDEX_NONE;
-			if (Class.FindChar('.', EndOfPackage))
-			{
-				ClassPackageName = *FString(EndOfPackage, *Class);
-				ClassName = *FString(Class.Len() - EndOfPackage, *Class + EndOfPackage + 1);
-			}
-		}
-		else
-		{
-			if (UClass * ObjectClass = FindObjectFast<UClass>(nullptr, ClassName, false, true))
-			{
-				ClassPackageName = *ObjectClass->GetOuterUPackage()->GetPathName();
-			}
-		}
-
-		if (ClassPackageName != NAME_None)
-		{
-			FPackageIndex ImportOuterIndex = FindOrCreateImport(PackageName, NAME_Package, FName(TEXT("/Script/CoreUObject")));
-			FPackageIndex ImportIndex = FindOrCreateImport(ObjectName, ClassName, ClassPackageName);
-			ImportMap[ImportIndex.ToImport()].OuterIndex = ImportOuterIndex;
-
-			return ImportIndex;
-		}
-		else
-		{
-			UE_LOG(LogLinker, Warning, TEXT("Failed to find class '%s' while trying to resolve full path '%s'"), *ClassName.ToString(), *InFullPath);
-		}
-	}
-
-	return FPackageIndex();
-}
-
-FLinkerLoad::ELinkerStatus FLinkerLoad::ReconstructImportAndExportMap()
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::ReconstructImportAndExportMap"), STAT_LinkerLoad_ReconstructImportAndExportMap, STATGROUP_LinkerLoad);
-
-	if (!bHasReconstructedImportAndExportMap && IsTextFormat())
+	if (!bHasConstructedExportsReaders && IsTextFormat())
 	{
 		int32 NumExports = 0;
 		FStructuredArchiveMap PackageExports = StructuredArchiveRootRecord->EnterMap(SA_FIELD_NAME(TEXT("Exports")), NumExports);
 
-		TArray<FObjectTextExport> ExportRecords;
-		ExportRecords.Reserve(NumExports);
-		ExportMap.SetNum(NumExports);
-		OriginalExportNames.SetNum(NumExports);
 		ExportReaders.AddDefaulted(NumExports);
-
-		Summary.ExportCount = ExportMap.Num();
-		Summary.ImportCount = 0;
-
 		for (int32 ExportIndex = 0; ExportIndex < NumExports; ++ExportIndex)
 		{
-			FObjectTextExport& TextExport = ExportRecords.Emplace_GetRef(ExportMap[ExportIndex], nullptr);
 			FString ExportName;
 			ExportReaders[ExportIndex] = new FStructuredArchiveChildReader(PackageExports.EnterElement(ExportName));
-			ExportReaders[ExportIndex]->GetRoot() << TextExport;
-			OriginalExportNames[ExportIndex] = *ExportName;
-			
-			if (TextExport.OuterName.Len())
-			{
-				FString Class, Package, Object, SubObject;
-				FPackageName::SplitFullObjectPath(TextExport.OuterName, Class, Package, Object, SubObject);
-				FString OuterPath = Object;
-				if (SubObject.Len())
-				{
-					OuterPath += TEXT(":") + SubObject;
-				}
-				if (ExportName.StartsWith(OuterPath))
-				{
-					ExportName = ExportName.Right(ExportName.Len() - OuterPath.Len() - 1);
-				}
-			}
-
-			ExportMap[ExportIndex].ObjectName = *ExportName;
 		}
 		
-		// Now pass over all the exports and rebuild the export/import records
-		for (int32 ExportIndex = 0; ExportIndex < NumExports; ++ExportIndex)
-		{
-			FObjectTextExport& TextExport = ExportRecords[ExportIndex];
-			
-			TextExport.Export.ThisIndex = FPackageIndex::FromExport(ExportIndex);
-			TextExport.Export.ClassIndex = FindOrCreateImportOrExport(TextExport.ClassName);
-			TextExport.Export.SuperIndex = FindOrCreateImportOrExport(TextExport.SuperStructName);
-			TextExport.Export.OuterIndex = FindOrCreateImportOrExport(TextExport.OuterName);
-		}
-
-		bHasReconstructedImportAndExportMap = true;
+		bHasConstructedExportsReaders = true;
 		return LINKER_Loaded;
 	}
 	else

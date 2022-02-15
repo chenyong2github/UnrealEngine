@@ -349,8 +349,8 @@ private:
 	bool					bHasSerializedPackageFileSummary:1;
 	/** Whether we already serialized the package trailer.																	*/
 	bool					bHasSerializedPackageTrailer : 1;
-	/** Whether we have already reconstructed the import/export tables for a text asset */
-	bool					bHasReconstructedImportAndExportMap:1;
+	/** Whether we have already constructed the exports readers																*/
+	bool					bHasConstructedExportsReaders:1;
 	/** Whether we already serialized preload dependencies.																	*/
 	bool					bHasSerializedPreloadDependencies:1;
 	/** Whether we already fixed up import map.																				*/
@@ -1052,23 +1052,23 @@ private:
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	/**
-	 * Create an import and export table when loading a text asset.
+	 * Create the export readers.
 	 */
-	ELinkerStatus ReconstructImportAndExportMap();
+	ELinkerStatus ConstructExportsReaders();
 #endif
 
+	/**
+	 * Serializes the depends map.
+	 */
 	ELinkerStatus SerializeDependsMap();
 
+	/**
+	 * Serializes the preload dependencies.
+	 */
 	ELinkerStatus SerializePreloadDependencies();
 
 	/** Sets the basic linker archive info */
 	void ResetStatusInfo();
-
-	/** For a given full object path, find or create the associated import or export table record. Used when loading text assets which only store object paths */
-	FPackageIndex FindOrCreateImportOrExport(const FString& InFullPath);
-
-	/** For the given object and class info, find or create an associated import record. Used when loading text assets which only store object paths */
-	FPackageIndex FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName);
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	enum class EImportLoadBehavior
@@ -1330,9 +1330,6 @@ private:
 private:
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
-	// Cache of the export names in a text asset. Allows us to enter those export slots by index rather than needing to reconstruct the name
-	TArray<FName> OriginalExportNames;
-
 	// Function to get a slot for a given export
 	FStructuredArchiveSlot GetExportSlot(FPackageIndex InExportIndex);
 #endif

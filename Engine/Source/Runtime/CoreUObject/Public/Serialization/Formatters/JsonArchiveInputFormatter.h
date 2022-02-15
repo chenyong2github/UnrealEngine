@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/StructuredArchiveFormatter.h"
+#include "UObject/ObjectResource.h"
 
 class FJsonObject;
 class FJsonValue;
@@ -13,7 +14,7 @@ class FJsonValue;
 class COREUOBJECT_API FJsonArchiveInputFormatter final : public FStructuredArchiveFormatter
 {
 public:
-	FJsonArchiveInputFormatter(FArchive& InInner, TFunction<UObject* (const FString&)> InResolveObjectName = nullptr);
+	FJsonArchiveInputFormatter(FArchive& InInner, TFunction<UObject* (const FPackageIndex)> InResolveObject = nullptr);
 	virtual ~FJsonArchiveInputFormatter();
 
 	virtual FArchive& GetUnderlyingArchive() override;
@@ -95,7 +96,7 @@ private:
 		int64 ValueCountOnCreation;	// For debugging purposes, so we can ensure all values have been consumed
 	};
 
-	TFunction<UObject* (const FString&)> ResolveObjectName;
+	TFunction<UObject* (const FPackageIndex)> ResolveObject;
 	TArray<FObjectRecord> ObjectStack;
 	TArray<TSharedPtr<FJsonValue>> ValueStack;
 	TArray<TMap<FString, TSharedPtr<FJsonValue>>::TIterator> MapIteratorStack;

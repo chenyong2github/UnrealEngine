@@ -393,6 +393,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 /**
  * Simple wrapper around a FObjectExport which does the text asset specific serialization of export data
  */
+// TODO SavePackageDeprecation: remove once SavePackage2 replaces SavePackage
 struct FObjectTextExport
 {
 	/**

@@ -2109,6 +2109,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 				FArchiveFormatterType* Formatter = nullptr;
 				FArchive* TextFormatArchive = nullptr;
 				const bool bTextFormat = FString(Filename).EndsWith(FPackageName::GetTextAssetPackageExtension()) || FString(Filename).EndsWith(FPackageName::GetTextMapPackageExtension());
+				checkf(!bTextFormat, TEXT("Text format is not supported in old Save, please enable SavePackage2 instead"));
 
 				const FString BaseFilename = FPaths::GetBaseFilename(Filename);
 				// Make temp file. CreateTempFilename guarantees unique, non-existing filename.
