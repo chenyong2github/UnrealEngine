@@ -4475,7 +4475,7 @@ void UStaticMesh::ClearAllCachedCookedPlatformData()
 void UStaticMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
-	PlatformRenderData.NaniteResources.RebuildBulkDataFromDDC();
+	PlatformRenderData.NaniteResources.RebuildBulkDataFromDDC(this);
 }
 
 bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)

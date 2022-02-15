@@ -253,7 +253,7 @@ void FResources::DropBulkData()
 	}
 }
 
-void FResources::RebuildBulkDataFromDDC()
+void FResources::RebuildBulkDataFromDDC(const UObject* Owner)
 {
 	if (!HasStreamingData())
 	{
@@ -273,6 +273,7 @@ void FResources::RebuildBulkDataFromDDC()
 	check(!DDCKeyHash.IsZero());
 	
 	FCacheGetChunkRequest Request;
+	Request.Name = Owner->GetPathName();
 	Request.Id = FValueId::FromName("NaniteStreamingData");
 	Request.Key = Key;
 	Request.RawHash = DDCRawHash;

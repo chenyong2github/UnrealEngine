@@ -269,7 +269,7 @@ struct FResources
 	FIoHash							DDCRawHash;
 
 	ENGINE_API void DropBulkData();
-	ENGINE_API void RebuildBulkDataFromDDC();
+	ENGINE_API void RebuildBulkDataFromDDC(const UObject* Owner);
 #endif
 
 	ENGINE_API void InitResources(const UObject* Owner);
