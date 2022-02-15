@@ -8,6 +8,8 @@ vcpkg-*/
 # Ignore Win64 packages except custom triplet cross-compiled folders
 Win64/x64-windows-static-*/*/
 !Win64/x64-windows-static-*/*_x64-windows-static-*/
+Win64/arm64-windows-static-*/*/
+!Win64/arm64-windows-static-*/*_arm64-windows-static-*/
 
 # Ignore Linux packages except custom triplet cross-compiled folders
 Linux/x86_64-unknown-linux-gnu/*/
