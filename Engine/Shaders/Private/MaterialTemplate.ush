@@ -149,6 +149,7 @@
 
 #if PROJECT_STRATA
 #include "/Engine/Private/Strata/Strata.ush"
+#include "/Engine/Private/Strata/StrataTree.ush"
 #include "/Engine/Private/Strata/StrataLegacyConversion.ush"
 #else
 struct FStrataData
@@ -445,6 +446,7 @@ struct FMaterialPixelParameters
 
 #if TEMPLATE_USES_STRATA
 	FSharedLocalBases SharedLocalBases;
+	FStrataTree StrataTree;
 #endif
 };
 
@@ -2879,6 +2881,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 
 #if TEMPLATE_USES_STRATA
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
+	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space
@@ -2938,6 +2941,7 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 
 #if TEMPLATE_USES_STRATA
 	Parameters.SharedLocalBases = StrataInitialiseSharedLocalBases();
+	Parameters.StrataTree = GetInitialisedStrataTree();
 #endif
 
 	// Note that here MaterialNormal can be in world space or tangent space

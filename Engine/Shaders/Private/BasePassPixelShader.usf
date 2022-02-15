@@ -1043,11 +1043,8 @@ void FPixelShaderInOut_MainPS(
 
 	// Initialise a Strata header with normal in registers
 	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
-	UNROLL
-	for (int l = 0; l < StrataData.LayerCount; ++l)
-	{
-		StrataPixelHeader.BSDFCount += StrataData.Layers[l].BSDFCount;
-	}
+	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 	StrataPixelHeader.MaterialAO = MaterialAO;
 	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
@@ -1059,8 +1056,8 @@ void FPixelShaderInOut_MainPS(
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
-	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0]);
-	FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	SanitizeStrataSingleLayerWater(PixelMaterialInputs.FrontMaterial.InlinedBSDF);
+	FStrataBSDF SLWBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 	BaseColor = SLW_BASECOLOR(SLWBSDF);
 	Metallic = SLW_METALLIC(SLWBSDF);
@@ -1673,7 +1670,7 @@ void FPixelShaderInOut_MainPS(
 
 #if (STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING) && !STRATA_INLINE_SINGLELAYERWATER && !STRATA_OPTIMIZED_UNLIT
 	//FORWARD_SHADING
-	if (StrataData.LayerCount > 0)
+	if (StrataPixelHeader.BSDFCount > 0)
 	{
 		float2 ScreenUV = ScreenPositionToBufferUV(MaterialParameters.ScreenPosition);
 
@@ -1714,7 +1711,7 @@ void FPixelShaderInOut_MainPS(
 #elif STRATA_ENABLED && STRATA_OPTIMIZED_UNLIT
 
 	// Unlit forces a single BSDF
-	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 #if STRATA_OPAQUE_DEFERRED
 	Color = BSDF_GETEMISSIVE(UnlitBSDF);

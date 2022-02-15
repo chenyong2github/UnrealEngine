@@ -86,7 +86,7 @@ float4 StrataDeferredLighting(
 		float3 SpecularLuminance = BSDFEvaluate.IntegratedSpecularValue;
 
 		const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
-		const float3 CommonMultiplier = LightData.Color * LightMask * BSDF.FinalWeight;
+		const float3 CommonMultiplier = LightData.Color * LightMask * BSDF.LuminanceWeight;
 		LightAccumulator_AddSplit(Out, DiffuseLuminance, SpecularLuminance, DiffuseLuminance, CommonMultiplier, bNeedsSeparateSubsurfaceLightAccumulation);
 	}
 

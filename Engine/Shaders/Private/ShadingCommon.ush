@@ -4,6 +4,11 @@
 
 #include "Common.ush"
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Shading models
+
+
 // SHADINGMODELID_* occupy the 4 low bits of an 8bit channel and SKIP_* occupy the 4 high bits
 #define SHADINGMODELID_UNLIT				0
 #define SHADINGMODELID_DEFAULT_LIT			1
@@ -89,6 +94,8 @@ bool GetShadingModelRequiresBackfaceLighting(uint ShadingModelID)
 	return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Shading parameterisation
 
 float F0ToDielectricSpecular(float F0)
 {
@@ -153,3 +160,41 @@ float F0RGBToMetallic(float3 F0)
 {
 	return F0ToMetallic(max(F0.r, max(F0.g, F0.b)));
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Layering, coverage and transmittance
+
+struct FVerticalLayeringInfo
+{
+	float TransmittanceTopAndBottom;	// Ratio of transmittance of both top and bottom surface only
+	float TransmittanceOnlyBottom;		// Ratio of transmittance of bottom surface only 
+	float TransmittanceOnlyTop;			// Ratio of transmittance of top surface only 
+
+	float SurfaceBottom;				// Ratio of bottom surface visible
+	float SurfaceTop;					// Ratio of top surface visible
+
+	float Coverage;						// Ratio of any surface is visible
+	float NoSurface;					// Ratio of no surface is visible
+};
+
+// This function returns surface information after a layering of two slab of matter having difference and uncorelated coverage.
+// See https://www.desmos.com/calculator/qg5yc3nnr4
+FVerticalLayeringInfo GetVerticalLayeringInfo(const float TopCoverage, const float BottomCoverage)
+{
+	FVerticalLayeringInfo Info;
+
+	Info.TransmittanceTopAndBottom	= TopCoverage * BottomCoverage;
+	Info.TransmittanceOnlyBottom	= (1.0f - TopCoverage) * BottomCoverage;
+	Info.TransmittanceOnlyTop		= (1.0f - BottomCoverage) * TopCoverage;
+
+	Info.SurfaceBottom				= Info.TransmittanceOnlyBottom;
+	Info.SurfaceTop					= TopCoverage;								// == Info.TransmittanceOnlyTop + Info.TransmittanceTopAndBottom;
+
+	Info.Coverage					= Info.SurfaceTop + Info.SurfaceBottom;		// == Info.TransmittanceTopAndBottom + Info.TransmittanceOnlyBottom + Info.TransmittanceOnlyTop;// == TopCoverage + Info.TransmittanceOnlyBottom
+	Info.NoSurface					= 1.0f - Info.Coverage;
+
+	return Info;
+}
+
+

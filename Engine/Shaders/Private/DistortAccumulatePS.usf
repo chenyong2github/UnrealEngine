@@ -88,6 +88,8 @@ void Main(
 
 #if STRATA_ENABLED
 
+	// STRATA_TODO Fix me
+#if 0
 
 	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 
@@ -101,6 +103,8 @@ void Main(
 		StrataPixelHeader.BSDFCount += StrataData.Layers[l].BSDFCount;
 	}
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+	// STRATA_TODO: process the tree
 
 	const float3 V = MaterialParameters.CameraVector;
 	
@@ -224,7 +228,11 @@ void Main(
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
+#endif
 
+	OutVariance = 0.0f;
+	float2 BufferUVDistortion = 0.0f;
+	float2 DistortBufferUV = ScreenUV;
 
 #else // STRATA_ENABLED
 

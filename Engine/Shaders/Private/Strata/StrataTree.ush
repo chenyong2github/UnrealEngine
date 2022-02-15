@@ -1,0 +1,209 @@
+
+
+#include "/Engine/Private/Strata/StrataEvaluation.ush"
+#include "/Engine/Private/ShadingCommon.ush"
+
+#ifndef STRATA_OPAQUE_MATERIAL
+#define STRATA_OPAQUE_MATERIAL 0
+#endif
+
+void UpdateSingleBSDFOperatorCoverageTransmittance(
+	FStrataPixelHeader StrataPixelHeader,
+	inout FStrataTree StrataTree, 
+	inout FStrataBSDF CurrentBSDF,
+	bool bRoughDiffuseEnabled,
+	FStrataAddressing NullStrataAddressing,
+	float3 V,
+	float3 L
+)
+{
+	// Sanitize BSDF before it is used for forward shading
+	StrataSanitizeBSDF(CurrentBSDF);
+
+	BRANCH
+	if (BSDF_GETTYPE(CurrentBSDF) == STRATA_BSDF_TYPE_SLAB)
+	{
+		// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric.
+		// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
+		// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
+		const bool bIsSimpleVolume = BSDF_GETHASDMFP(CurrentBSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !CurrentBSDF.bIsBottom));
+
+		if (bIsSimpleVolume)
+		{
+			EnableSlabBSDFSimpleVolumetric(CurrentBSDF);
+		}
+	}
+
+	// Compute current BSDF transmittance
+	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
+	FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
+
+	float CurrentBSDFCoverage = CurrentBSDF.Coverage;
+	float3 CurrentBSDFTransmittance = BSDFEvaluate.Throughput;
+
+	// We multiply this weight with coverage:
+	//  - Because when coming from parameter blending, we need to scale the output down according to coverage resulting from parameter blending.
+	//  - That will be applied on emissive and reflected light, so we do not ned to apply that anywhere else.
+	//  - When coming from non parameter blending, this is equal identity 1 and the operator parsing will continue to correctly weight the BSDF according to the tree.
+	CurrentBSDF.LuminanceWeight = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
+
+	StrataTree.Operators[CurrentBSDF.OperatorIndex].Coverage = CurrentBSDFCoverage;
+	StrataTree.Operators[CurrentBSDF.OperatorIndex].Transmittance = CurrentBSDFTransmittance;
+}
+
+
+void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int OpIndex)
+{
+#define Op StrataTree.Operators[OpIndex]
+#define OpA StrataTree.Operators[StrataTree.Operators[OpIndex].AIndex]
+#define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].BIndex]
+
+	switch (Op.Type)
+	{
+
+	case STRATA_OPERATOR_WEIGHT:
+	{
+		const float Weight = saturate(Op.Weight);
+		Op.Coverage = Weight * OpA.Coverage;
+		Op.Transmittance = OpA.Transmittance;
+		break;
+	}
+
+	case STRATA_OPERATOR_VERTICAL:
+	{
+		const float3 TopTransmittance = OpA.Transmittance;
+		const float3 BotTransmittance = OpB.Transmittance;
+		const float TopCoverage = OpA.Coverage;
+		const float BotCoverage = OpB.Coverage;
+
+#if 0
+		// This is coverage assuming correlation
+		const float LayerMaxCoverage = max(TopCoverage, BotCoverage);
+		const float LayerMaxCoverageInv = LayerMaxCoverage <= 0.0f ? 1.0f : 1.0f / LayerMaxCoverage;
+
+		// If a layer has a lower coverage than the other, we account for that when compuing the Transmittance.
+		const float TransmittanceOne = 1.0f;
+		const float3 TopTransmittanceAdjusted = lerp(TransmittanceOne, TopTransmittance, TopCoverage * LayerMaxCoverageInv);
+		const float3 BotTransmittanceAdjusted = lerp(TransmittanceOne, BotTransmittance, BotCoverage * LayerMaxCoverageInv);
+
+		// Now we update the material transmittance and coverage
+		Op.Coverage = LayerMaxCoverage;
+		Op.Transmittance = TopTransmittanceAdjusted * BotTransmittanceAdjusted;
+#else
+		FVerticalLayeringInfo Info = GetVerticalLayeringInfo(TopCoverage, BotCoverage);
+
+		Op.Coverage					= Info.Coverage;
+		Op.Transmittance			= Info.TransmittanceOnlyTop * TopTransmittance + Info.TransmittanceOnlyBottom * BotTransmittance + Info.TransmittanceTopAndBottom * TopTransmittance * BotTransmittance;
+#endif
+
+		Op.VerticalTopCoverage		= OpA.Coverage;
+		Op.VerticalTopTransmittance = OpA.Transmittance;
+		break;
+	}
+
+	case STRATA_OPERATOR_HORIZONTAL:
+	{
+		const float Mix = saturate(Op.Weight);
+		const float AMix = 1.0 - Mix;
+		const float BMix = Mix;
+
+		Op.Coverage = AMix * OpA.Coverage + BMix * OpB.Coverage;
+		Op.Transmittance = (AMix * OpA.Coverage * OpA.Transmittance + BMix * OpB.Coverage * OpB.Transmittance) / max(1e-5, AMix * OpA.Coverage + BMix * OpB.Coverage);
+		break;
+	}
+
+	case STRATA_OPERATOR_ADD:
+	{
+		Op.Coverage = saturate(OpA.Coverage + OpB.Coverage);
+		Op.Transmittance = saturate(OpA.Transmittance + OpB.Transmittance);
+		break;
+	}
+
+	}
+
+#undef Op
+#undef OpA
+#undef OpB
+}
+
+
+
+void UpdateBSDFWeightAfterOperatorVisit(
+	inout FStrataTree StrataTree,
+	inout FStrataBSDF CurrentBSDF, 
+	int OpIndex,
+	int PreviousIsInputA)
+{
+#define Op StrataTree.Operators[OpIndex]
+
+	switch (Op.Type)
+	{
+
+	case STRATA_OPERATOR_WEIGHT:
+	{
+		const float Weight = saturate(Op.Weight);
+		CurrentBSDF.LuminanceWeight *= Weight;
+#if STRATA_INLINE_SHADING
+		CurrentBSDF.Coverage *= Weight;
+#endif
+		break;
+	}
+
+	case STRATA_OPERATOR_VERTICAL:
+	{
+		// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
+		// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
+		CurrentBSDF.LuminanceWeight *= PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTopCoverage) + saturate(Op.VerticalTopCoverage) * Op.VerticalTopTransmittance;
+		break;
+	}
+
+	case STRATA_OPERATOR_HORIZONTAL:
+	{
+		const float Mix = saturate(Op.Weight);
+		const float AMix = 1.0 - Mix;
+		const float BMix = Mix;
+		const float Weight = PreviousIsInputA > 0 ? AMix : BMix;
+		CurrentBSDF.LuminanceWeight *= Weight;
+#if STRATA_INLINE_SHADING
+		CurrentBSDF.Coverage *= Weight;
+#endif
+		break;
+	}
+
+	// case STRATA_OPERATOR_ADD: NOP
+
+	}
+
+#undef Op
+}
+
+
+void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 NullLightDir)
+{
+	// This must match what is done in StrataConvertLegacyMaterialDynamic
+	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[0], bRoughDiffuseEnabled, NullStrataAddressing, V, NullLightDir);
+	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[1], bRoughDiffuseEnabled, NullStrataAddressing, V, NullLightDir);
+
+	// MaxDistanceFromLeaves = 1 
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/2);
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/3);
+	// MaxDistanceFromLeaves = 2 
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/4);
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+	// MaxDistanceFromLeaves = 3 
+	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/5);
+#endif
+
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1); // WEIGHT
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/4, /*PreviousIsInputA*/1); // VERTICAL
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
+#endif
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/3, /*PreviousIsInputA*/1); // WEIGHT
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/4, /*PreviousIsInputA*/0); // VERTICAL
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+	UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
+#endif
+}
+
+

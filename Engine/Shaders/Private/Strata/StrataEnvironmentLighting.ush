@@ -61,7 +61,7 @@ float4 StrataEnvironmentLighting(
 	#else
 		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 	#endif
-		const float3 BSDFThroughput = BSDF.FinalWeight;
+		const float3 BSDFThroughput = BSDF.LuminanceWeight;
 
 		// Create the BSDF context
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);

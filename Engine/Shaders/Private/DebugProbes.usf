@@ -64,6 +64,17 @@ void MainPS(
 	, out float  OutDepth		: SV_DEPTH
 )
 {
+	OutColor = 0;
+#if PERMUTATION_PASS == RENDER_BASEPASS
+	OutGBufferA = 0;
+	OutGBufferB = 0;
+	OutGBufferC = 0;
+	OutGBufferD = 0;
+	OutGBufferE = 0;
+#endif
+	OutDepth = 0;
+
+#if 0
 	ResolvedView = ResolveView();
 	const uint2 PixelCoord = uint2(SvPosition.xy);
 
@@ -243,6 +254,8 @@ void MainPS(
 	{
 		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 
+		// STRATA_TODO: produce the tree
+
 		uint SharedLocalBasisIndex = 0;
 		StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
 		StrataPixelHeader.SharedLocalBases.Count = 1;
@@ -322,4 +335,5 @@ void MainPS(
 	OutDepth = DeviceZ;
 #endif
 
+#endif // TODO
 }

@@ -97,6 +97,12 @@ FStrataMaterialCompilationInfo StrataCompilationInfoWeight(FMaterialCompiler* Co
 	return StrataInfo;
 }
 
+FStrataMaterialCompilationInfo StrataCompilationInfoWeightParamBlend(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A)
+{
+	FStrataMaterialCompilationInfo StrataInfo = A;
+	return StrataInfo;
+}
+
 
 FStrataMaterialCompilationInfo StrataCompilationInfoAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B)
 {

@@ -27,7 +27,7 @@ float SampleExtinctionCoefficients(in FPixelMaterialInputs PixelMaterialInputs)
 {
 	float Extinction = 0.0f;
 #if STRATA_ENABLED
-	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 	Extinction = VOLUMETRICFOGCLOUD_EXTINCTION(BSDF).r;
 #else
 	#if !MATERIAL_SHADINGMODEL_UNLIT
@@ -41,7 +41,7 @@ float3 SampleEmissive(in FPixelMaterialInputs PixelMaterialInputs)
 {
 	float3 EmissiveColor = 0.0f;
 #if STRATA_ENABLED
-	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 	EmissiveColor = BSDF_GETEMISSIVE(BSDF);
 #else
 	EmissiveColor = GetMaterialEmissiveRaw(PixelMaterialInputs);
@@ -53,7 +53,7 @@ float3 SampleAlbedo(in FPixelMaterialInputs PixelMaterialInputs, in ViewState In
 {
 	float3 Albedo = 0.0f;
 #if STRATA_ENABLED
-	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	FStrataBSDF BSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 	Albedo = VOLUMETRICFOGCLOUD_ALBEDO(BSDF);
 #else
 	#if !MATERIAL_SHADINGMODEL_UNLIT

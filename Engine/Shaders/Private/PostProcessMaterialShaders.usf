@@ -208,7 +208,7 @@ void MainPS(
 	float Alpha = 1.0f;
 #if STRATA_ENABLED   
 	// Unlit forces a single BSDF
-	const FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+	const FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 	// Grab emissive colour as output
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA

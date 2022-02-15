@@ -5,7 +5,6 @@
 
 #define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
-
 // Forward declarations
 void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
@@ -176,12 +175,8 @@ float3 StrataForwardLighting(
 
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 
-	const float OpaqueBSDFThroughput = 0.0f;
-	const float FullThroughput = 1.0f;
-
 	float3 Color = 0;
 	OutCoverage = 0.0f;
-	float3 TransmittancePostCoverage = 1.0f;
 	OutTransmittancePreCoverage = 1.0f;
 
 	float4 DynamicShadowFactors = 1;
@@ -253,48 +248,59 @@ float3 StrataForwardLighting(
 	GridIndex = ComputeLightGridCellIndex((uint2)((MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy) * View.LightProbeSizeRatioAndInvSizeRatio.zw), MaterialParameters.SvPosition.w, EyeIndex);
 #endif
 
-	STRATA_UNROLL_N(STRATA_CLAMPED_LAYER_COUNT)
-	for (int l = 0; l < StrataData.LayerCount; ++l)
+
+
+	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
+	if (StrataTree.BSDFCount > 0)
 	{
-		float3 LayerThroughput = 0.0f;
-		float3 LayerCoverage = 0.0f;
+#if STRATA_USES_CONVERSION_FROM_LEGACY==0
+		//
+		// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
+		//
+		UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, L);
 
-		const bool bTopLayer = l == 0;
-		const bool bBottomLayer = l == (StrataData.LayerCount - 1);
+		//
+		// Propagate up the coverage/transmittance of each node in the strata tree.
+		//
+		UpdateAllOperatorsCoverageTransmittance(StrataTree);
 
-		STRATA_UNROLL_N(STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER)
-		for (int i = 0; i < StrataData.Layers[l].BSDFCount; ++i)
+		//
+		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
+		//
+		UpdateAllBSDFWeightAfterOperatorVisit(StrataTree);
+#else
+		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, L);
+#endif
+
+		//
+		// TODO the top root node now contains the coverage and transmittance of the entire material (used for blending and fog on transparent_.
+		//
+		OutCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Coverage);
+		OutTransmittancePreCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Transmittance);
+
+		//
+		// Forward lighting
+		//
+		STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
+		for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
 		{
-			FStrataBSDF BSDF = StrataData.Layers[l].BSDFs[i];
+			#define CurrentBSDF StrataTree.BSDFs[BSDFIdx]
 
-			// Sanitize BSDF before it is used for forward shading
-			StrataSanitizeBSDF(BSDF);
+			// This causes some flickering.
+			//if (!StrataIsBSDFVisible(CurrentBSDF))
+			//{
+			//	continue;
+			//}
 
-			BRANCH
-			if(BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
-			{
-				// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric.
-				// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
-				// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
-				const bool bIsSimpleVolume = BSDF_GETHASDMFP(BSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !bBottomLayer));
-				if (bIsSimpleVolume)
-				{
-					EnableSlabBSDFSimpleVolumetric(BSDF);
-				}
-			}
-
-			const float3 BSDFCoverage = BSDF.Coverage;
-			const float3 BSDFColoredVisibility = TransmittancePostCoverage * BSDFCoverage;
-
-			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, NullStrataAddressing, V, L);
+			// Compute current BSDF transmittance
+			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 			
 			#if FORCE_FULLY_ROUGH
 			const bool bForceFullyRough = true;
 			#else
 			const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0;
 			#endif
-
+			
 			////
 			//// Evaluate environment lighting
 			////
@@ -302,7 +308,7 @@ float3 StrataForwardLighting(
 			if (UseBasePassSkylight > 0)
 			{
 				const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
-				float Roughness = StrataGetBSDFRoughness(BSDF);
+				float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
 				float IndirectOcclusion = 1.0f;
 				float IndirectIrradiance = 0.0f; 
 
@@ -356,7 +362,7 @@ float3 StrataForwardLighting(
 					#endif
 
 						Color += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColorForIndirect) * 
-							BSDFColoredVisibility * AOMultiBounce(StrataEnvLight.DiffuseColor, DiffOcclusion);
+							CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.DiffuseColor, DiffOcclusion);
 					}
 				}
 
@@ -371,7 +377,7 @@ float3 StrataForwardLighting(
 					{
 						int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
 						Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
-							 StrataEnvLight.SpecularWeight * IndirectOcclusion * BSDFColoredVisibility * AOMultiBounce(StrataEnvLight.SpecularColor, SpecOcclusion);
+							 StrataEnvLight.SpecularWeight * IndirectOcclusion * CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.SpecularColor, SpecOcclusion);
 					}
 					// We skip hazy lob evaluation in forward.
 				}
@@ -404,7 +410,6 @@ float3 StrataForwardLighting(
 			ComputeVolumeUVs(TranslatedWorldPosition, LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
 			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
-			LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
 
 		#if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 
@@ -471,7 +476,7 @@ float3 StrataForwardLighting(
 			}
 		#endif
 
-			Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * BSDFColoredVisibility;
+			Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * CurrentBSDF.LuminanceWeight;
 
 		#elif FORWARD_PER_PIXEL_SHADING
 
@@ -513,21 +518,11 @@ float3 StrataForwardLighting(
 						AbsoluteWorldPosition,
 						TranslatedWorldPosition,
 						SceneDepth,
-						BSDFColoredVisibility,
+						CurrentBSDF.LuminanceWeight,
 						StrataPixelHeader,
 						StrataBSDFContext,
 						bEvaluateHasBeenExecuted,
 						BSDFEvaluate) * DirectionalLightCloudShadow;
-
-					LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
-				}
-
-				BRANCH
-				if(!bEvaluateHasBeenExecuted)
-				{
-					// Only update the throughput
-					FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
-					LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
 				}
 			}
 
@@ -608,7 +603,7 @@ float3 StrataForwardLighting(
 					AbsoluteWorldPosition,
 					TranslatedWorldPosition,
 					SceneDepth,
-					BSDFColoredVisibility,
+					CurrentBSDF.LuminanceWeight,
 					StrataPixelHeader,
 					StrataBSDFContext,
 					bEvaluateHasBeenExecuted,
@@ -619,37 +614,10 @@ float3 StrataForwardLighting(
 
 		#endif // Lighting technique
 
-			LayerCoverage	+= BSDFCoverage;
+		#undef CurrentBSDF
 		}
-
-
-
-		// Now we are going to compute TransmittancePreCoverage and Coverage by combining the top layer0 and bottom layer1.
-		const float3 Layer0Meant = OutTransmittancePreCoverage;
-		const float3 Layer1Meant = LayerThroughput / max(1e-5, LayerCoverage);
-
-		const float Layer0Coverage = OutCoverage;
-		const float Layer1Coverage = LayerCoverage;
-		const float LayerMaxCoverage = max(Layer0Coverage, Layer1Coverage);
-		const float LayerMaxCoverageInv = LayerMaxCoverage <= 0.0f ? 1.0f : 1.0f / LayerMaxCoverage;
-
-		// If a layer has a lower coverage than the other, we account for that when compuing the TransmittancePreCoverage.
-		const float TransmittanceOne = 1.0f;
-		const float3 LayertT0 = lerp(1.0, Layer0Meant, Layer0Coverage * LayerMaxCoverageInv); // Layer0Meant * (Layer0Coverage * LayerMaxCoverageInv) + TransmittanceOne * saturate(1.0f - Layer0Coverage * LayerMaxCoverageInv);
-		const float3 LayertT1 = lerp(1.0, Layer1Meant, Layer1Coverage * LayerMaxCoverageInv); // Layer1Meant * (Layer1Coverage * LayerMaxCoverageInv) + TransmittanceOne * saturate(1.0f - Layer1Coverage * LayerMaxCoverageInv);
-
-		// Now we update the material transmittance pre coverage
-		OutTransmittancePreCoverage = LayertT0 * LayertT1;
-		OutCoverage = LayerMaxCoverage;
-
-
-
-		// Take into account the non covered part for this layer and update throughput accordingly
-		LayerThroughput += (1.0 - saturate(LayerCoverage)) * FullThroughput;
-
-		// And combine this layer throughtput with the full material throughput
-		TransmittancePostCoverage *= LayerThroughput;
 	}
+
 
 	return Color;
 }

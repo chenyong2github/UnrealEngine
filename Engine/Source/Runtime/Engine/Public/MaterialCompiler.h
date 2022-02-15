@@ -68,6 +68,49 @@ struct FStrataRegisteredSharedLocalBasis
 	uint8 GraphSharedLocalBasisIndex;
 };
 
+struct FStrataOperator
+{
+	int32 OperatorType;
+	bool bNodeRequestParameterBlending;
+
+	int32 Index;		// Index into the array of operators
+	int32 TopIndex;		// Parent operator index
+	int32 AIndex;		// Left child operator index
+	int32 BIndex;		// Right child operator index
+
+	int32 BSDFIndex;	// Index in the array of BSDF if a BSDF operator
+
+	// Data derived after the tree has been built.
+	int32 MaxDistanceFromLeaves;
+	int32 LayerDepth;
+	bool bIsTop;
+	bool bIsBottom;
+	bool bUseParameterBlending;				// True when part of a sub tree where parameter blending is in use
+	bool bRootOfParameterBlendingSubTree;	// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
+
+	FStrataOperator()
+	{
+		OperatorType = INDEX_NONE;
+		bNodeRequestParameterBlending = false;
+		Index = INDEX_NONE;
+		TopIndex = INDEX_NONE;
+		AIndex = INDEX_NONE;
+		BIndex = INDEX_NONE;
+		BSDFIndex = INDEX_NONE;
+		MaxDistanceFromLeaves = 0;
+		LayerDepth = 0;
+		bIsTop = false;
+		bIsBottom = false;
+		bUseParameterBlending = false;
+		bRootOfParameterBlendingSubTree = false;
+	}
+
+	bool IsDiscarded()
+	{
+		return bUseParameterBlending && !bRootOfParameterBlendingSubTree;
+	}
+};
+
 /** 
  * The interface used to translate material expressions into executable code. 
  * Note: Most member functions should be pure virtual to force a FProxyMaterialCompiler override!
@@ -454,7 +497,8 @@ public:
 		int32 ThinFilmThickness, 
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
-		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) = 0;
+		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
+		FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataConversionFromLegacy(
 		bool bHasDynamicShadingModels,
 		int32 BaseColor, int32 Specular, int32 Metallic,
@@ -474,14 +518,24 @@ public:
 	virtual int32 StrataSingleLayerWaterBSDF(
 		int32 BaseColor, int32 Metallic, int32 Specular, int32 Roughness, int32 EmissiveColor, int32 TopMaterialOpacity, 
 		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedLocalBasisIndexMacro) = 0;
-	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix) = 0;
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) = 0;
-	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) = 0;
-	virtual int32 StrataAdd(int32 A, int32 B) = 0;
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro) = 0;
-	virtual int32 StrataWeight(int32 A, int32 Weight) = 0;
+	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) = 0;
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) = 0;
+	virtual int32 StrataAdd(int32 A, int32 B, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) = 0;
+	virtual int32 StrataWeight(int32 A, int32 Weight, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
+	virtual int32 StrataWeightParameterBlending(int32 A, int32 Weight, FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
+
+	/**
+	 * Register an operator of the tree representation the starta material and its topology.
+	 */
+	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) = 0;
+	/**
+	 * Return the operator information for a given expression.
+	 */
+	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) = 0;
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
@@ -982,7 +1036,8 @@ public:
 		int32 ThinFilmThickness, 
 		int32 FuzzAmount, int32 FuzzColor,
 		int32 Thickness,
-		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) override
+		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
+		FStrataOperator* PromoteToOperator) override
 	{
 		return Compiler->StrataSlabBSDF(
 			UseMetalness,
@@ -995,7 +1050,8 @@ public:
 			ThinFilmThickness,
 			FuzzAmount, FuzzColor,
 			Thickness,
-			Normal, Tangent, SharedLocalBasisIndexMacro);
+			Normal, Tangent, SharedLocalBasisIndexMacro,
+			PromoteToOperator);
 	}
 
 	virtual int32 StrataConversionFromLegacy(
@@ -1051,39 +1107,44 @@ public:
 			WaterAlbedo, WaterExtinction, WaterPhaseG, ColorScaleBehindWater, Normal, SharedLocalBasisIndexMacro);
 	}
 
-	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix) override
+	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
 	{
-		return Compiler->StrataHorizontalMixing(Background, Foreground, Mix);
+		return Compiler->StrataHorizontalMixing(Background, Foreground, Mix, OperatorIndex, MaxDistanceFromLeaves);
 	}
 
-	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro) override
+	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) override
 	{
-		return Compiler->StrataHorizontalMixingParameterBlending(Background, Foreground, HorizontalMixCodeChunk, NormalMixCodeChunk, SharedLocalBasisIndexMacro);
+		return Compiler->StrataHorizontalMixingParameterBlending(Background, Foreground, HorizontalMixCodeChunk, NormalMixCodeChunk, SharedLocalBasisIndexMacro, PromoteToOperator);
 	}
 
-	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) override
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
 	{
-		return Compiler->StrataVerticalLayering(Top, Base);
+		return Compiler->StrataVerticalLayering(Top, Base, OperatorIndex, MaxDistanceFromLeaves);
 	}
 
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk) override
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) override
 	{
-		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedLocalBasisIndexMacro, TopBSDFNormalCodeChunk);
+		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedLocalBasisIndexMacro, TopBSDFNormalCodeChunk, PromoteToOperator);
 	}
 
-	virtual int32 StrataAdd(int32 A, int32 B) override
+	virtual int32 StrataAdd(int32 A, int32 B, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
 	{
-		return Compiler->StrataAdd(A, B);
+		return Compiler->StrataAdd(A, B, OperatorIndex, MaxDistanceFromLeaves);
 	}
 
-	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro) override
+	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) override
 	{
-		return Compiler->StrataAddParameterBlending(A, B, AMixWeight, SharedLocalBasisIndexMacro);
+		return Compiler->StrataAddParameterBlending(A, B, AMixWeight, SharedLocalBasisIndexMacro, PromoteToOperator);
 	}
 
-	virtual int32 StrataWeight(int32 A, int32 Weight) override
+	virtual int32 StrataWeight(int32 A, int32 Weight, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
 	{
-		return Compiler->StrataWeight(A, Weight);
+		return Compiler->StrataWeight(A, Weight, OperatorIndex, MaxDistanceFromLeaves);
+	}
+
+	virtual int32 StrataWeightParameterBlending(int32 A, int32 Weight, FStrataOperator* PromoteToOperator) override
+	{
+		return Compiler->StrataWeightParameterBlending(A, Weight, PromoteToOperator);
 	}
 
 	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) override
@@ -1094,6 +1155,16 @@ public:
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override
 	{
 		Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataMaterialCompilationInfo);
+	}
+
+	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override
+	{
+		return Compiler->StrataCompilationRegisterOperator(OperatorType, Expression, Parent, bUseParameterBlending);
+	}
+
+	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) override
+	{
+		return Compiler->StrataCompilationGetOperator(Expression);
 	}
 
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) override

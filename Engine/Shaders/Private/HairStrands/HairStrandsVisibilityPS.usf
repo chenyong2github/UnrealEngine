@@ -125,7 +125,7 @@ void MainVisibility(
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
 #if PROJECT_STRATA && MATERIAL_IS_STRATA
-		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 		BaseColor		 = HAIR_BASECOLOR(HairBSDF);
 		Roughness		 = HAIR_ROUGHNESS(HairBSDF);
