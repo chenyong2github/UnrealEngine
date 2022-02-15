@@ -16,11 +16,20 @@
  */
 struct FIntPoint
 {
-	/** Holds the point's x-coordinate. */
-	int32 X;
-	
-	/** Holds the point's y-coordinate. */
-	int32 Y;
+	union
+	{
+		struct
+		{
+			/** Holds the point's x-coordinate. */
+			int32 X;
+
+			/** Holds the point's y-coordinate. */
+			int32 Y;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int32 XY[2];
+	};
 
 public:
 
@@ -373,13 +382,17 @@ FORCEINLINE FIntPoint::FIntPoint(EForceInit)
 
 FORCEINLINE const int32& FIntPoint::operator()(int32 PointIndex) const
 {
-	return (&X)[PointIndex];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XY[PointIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
 FORCEINLINE int32& FIntPoint::operator()(int32 PointIndex)
 {
-	return (&X)[PointIndex];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XY[PointIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

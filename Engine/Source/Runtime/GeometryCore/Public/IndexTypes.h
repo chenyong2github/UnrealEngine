@@ -25,8 +25,16 @@ namespace Geometry
  */
 struct FIndex2i
 {
-	int A{ IndexConstants::InvalidID };
-	int B{ IndexConstants::InvalidID };
+	union
+	{
+		struct
+		{
+			int A, B;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int AB[2] = { IndexConstants::InvalidID, IndexConstants::InvalidID };
+	};
 
 	constexpr FIndex2i() = default;
 	constexpr FIndex2i(int ValA, int ValB)
@@ -48,11 +56,15 @@ struct FIndex2i
 
 	int& operator[](int Idx)
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return AB[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	const int& operator[](int Idx) const
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return AB[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	inline bool operator==(const FIndex2i& Other) const
@@ -138,9 +150,18 @@ FORCEINLINE uint32 GetTypeHash(const FIndex2i& Index)
  */
 struct FIndex3i
 {
-	int A{ IndexConstants::InvalidID };
-	int B{ IndexConstants::InvalidID };
-	int C{ IndexConstants::InvalidID };
+	union
+	{
+		struct
+		{
+			int A;
+			int B;
+			int C;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int ABC[3] = { IndexConstants::InvalidID, IndexConstants::InvalidID, IndexConstants::InvalidID };
+	};
 
 	constexpr FIndex3i() = default;
 	constexpr FIndex3i(int ValA, int ValB, int ValC)
@@ -162,11 +183,15 @@ struct FIndex3i
 
 	int& operator[](int Idx)
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ABC[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	const int& operator[](int Idx) const
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ABC[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool operator==(const FIndex3i& Other) const
@@ -258,7 +283,16 @@ FORCEINLINE uint32 GetTypeHash(const FIndex3i& Index)
 
 struct FIndex4i
 {
-	int A, B, C, D;
+	union
+	{
+		struct
+		{
+			int A, B, C, D;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int ABCD[4];
+	};
 
 	FIndex4i()
 	{
@@ -286,11 +320,15 @@ struct FIndex4i
 
 	int& operator[](int Idx)
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ABCD[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	const int& operator[](int Idx) const
 	{
-		return (&A)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ABCD[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool operator==(const FIndex4i& Other) const

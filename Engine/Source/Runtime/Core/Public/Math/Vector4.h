@@ -31,17 +31,26 @@ struct alignas(16) TVector4
 public:
 	using FReal = T;
 
-	/** The vector's X-component. */
-	T X;
+	union
+	{
+		struct
+		{
+			/** The vector's X-component. */
+			T X;
 
-	/** The vector's Y-component. */
-	T Y;
+			/** The vector's Y-component. */
+			T Y;
 
-	/** The vector's Z-component. */
-	T Z;
+			/** The vector's Z-component. */
+			T Z;
 
-	/** The vector's W-component. */
-	T W;
+			/** The vector's W-component. */
+			T W;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		T XYZW[4];
+	};
 
 public:
 
@@ -607,14 +616,18 @@ FORCEINLINE TVector4<T>::TVector4(const FIntVector4& InVector)
 template<typename T>
 FORCEINLINE T& TVector4<T>::operator[](int32 ComponentIndex)
 {
-	return (&X)[ ComponentIndex ];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XYZW[ ComponentIndex ];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
 template<typename T>
 FORCEINLINE T TVector4<T>::operator[](int32 ComponentIndex) const
 {
-	return (&X)[ ComponentIndex ];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XYZW[ ComponentIndex ];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -691,13 +704,17 @@ FORCEINLINE TVector4<T> TVector4<T>::operator^(const TVector4<T>& V) const
 template<typename T>
 FORCEINLINE T& TVector4<T>::Component(int32 Index)
 {
-	return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XYZW[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>
 FORCEINLINE const T& TVector4<T>::Component(int32 Index) const
 {
-	return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XYZW[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>

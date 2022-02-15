@@ -18,51 +18,49 @@ namespace Chaos
 		}
 
 		FTriangle(const FVec3& InA, const FVec3& InB, const FVec3& InC)
-			: A(InA)
-			, B(InB)
-			, C(InC)
+			: ABC{ InA, InB, InC }
 		{
 		}
 
 		FORCEINLINE FVec3& operator[](uint32 InIndex)
 		{
 			checkSlow(InIndex < 3);
-			return (&A)[InIndex];
+			return ABC[InIndex];
 		}
 
 		FORCEINLINE const FVec3& operator[](uint32 InIndex) const
 		{
 			checkSlow(InIndex < 3);
-			return (&A)[InIndex];
+			return ABC[InIndex];
 		}
 
 		FORCEINLINE const FVec3& GetVertex(const int32 InIndex) const
 		{
 			checkSlow(InIndex < 3);
-			return (&A)[InIndex];
+			return ABC[InIndex];
 		}
 
 		FORCEINLINE FVec3 GetNormal() const
 		{
-			return FVec3::CrossProduct(B - A, C - A).GetSafeNormal();
+			return FVec3::CrossProduct(ABC[1] - ABC[0], ABC[2] - ABC[0]).GetSafeNormal();
 		}
 
 		FORCEINLINE TPlane<FReal, 3> GetPlane() const
 		{
-			return TPlane<FReal, 3>(A, GetNormal());
+			return TPlane<FReal, 3>(ABC[0], GetNormal());
 		}
 
 		// Face index is ignored since we only have one face
 		// Used for manifold generation
 		FORCEINLINE TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
-			return TPlaneConcrete < FReal, 3> (A, GetNormal());
+			return TPlaneConcrete < FReal, 3> (ABC[0], GetNormal());
 		}
 
 		FORCEINLINE void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
 		{
 			OutN = GetNormal();
-			OutX = A;
+			OutX = ABC[0];
 		}
 
 		// Get the nearest point on an edge and the edge vertices
@@ -73,12 +71,12 @@ namespace Chaos
 			FReal ClosestDistanceSq = TNumericLimits<FReal>::Max();
 
 			int32 PlaneVerticesNum = 3;
-
-			FVec3 P0 = C;
+			
+			FVec3 P0 = ABC[2];
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
 			{
 				const TVector<FReal, 3>& P1 = GetVertex(PlaneVertexIndex);
-
+				
 				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
 				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
 
@@ -158,61 +156,61 @@ namespace Chaos
 		FORCEINLINE FReal PhiWithNormal(const FVec3& InSamplePoint, FVec3& OutNormal) const
 		{
 			OutNormal = GetNormal();
-			FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, InSamplePoint);
+			FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], InSamplePoint);
 			return FVec3::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
 		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 		{
-			const FReal DotA = FVec3::DotProduct(A, Direction);
-			const FReal DotB = FVec3::DotProduct(B, Direction);
-			const FReal DotC = FVec3::DotProduct(C, Direction);
+			const FReal DotA = FVec3::DotProduct(ABC[0], Direction);
+			const FReal DotB = FVec3::DotProduct(ABC[1], Direction);
+			const FReal DotC = FVec3::DotProduct(ABC[2], Direction);
 
 			if(DotA >= DotB && DotA >= DotC)
 			{
 				VertexIndex = 0;
 				if(Thickness != 0)
 				{
-					return A + Direction.GetUnsafeNormal() * Thickness;
+					return ABC[0] + Direction.GetUnsafeNormal() * Thickness;
 				}
-				return A;
+				return ABC[0];
 			}
 			else if(DotB >= DotA && DotB >= DotC)
 			{
 				VertexIndex = 1;
 				if(Thickness != 0)
 				{
-					return B + Direction.GetUnsafeNormal() * Thickness;
+					return ABC[1] + Direction.GetUnsafeNormal() * Thickness;
 				}
-				return B;
+				return ABC[1];
 			}
 			VertexIndex = 2;
 			if(Thickness != 0)
 			{
-				return C + Direction.GetUnsafeNormal() * Thickness;
+				return ABC[2] + Direction.GetUnsafeNormal() * Thickness;
 			}
-			return C;
+			return ABC[2];
 		}
 
 		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta,int32& VertexIndex) const
 		{
 			// Note: assumes margin == 0
-			const FReal DotA = FVec3::DotProduct(A, Direction);
-			const FReal DotB = FVec3::DotProduct(B, Direction);
-			const FReal DotC = FVec3::DotProduct(C, Direction);
+			const FReal DotA = FVec3::DotProduct(ABC[0], Direction);
+			const FReal DotB = FVec3::DotProduct(ABC[1], Direction);
+			const FReal DotC = FVec3::DotProduct(ABC[2], Direction);
 
 			if (DotA >= DotB && DotA >= DotC)
 			{
 				VertexIndex = 0;
-				return A;
+				return ABC[0];
 			}
 			else if (DotB >= DotA && DotB >= DotC)
 			{
 				VertexIndex = 1;
-				return B;
+				return ABC[1];
 			}
 			VertexIndex = 2;
-			return C;
+			return ABC[2];
 		}
 
 		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
@@ -237,7 +235,7 @@ namespace Chaos
 
 		FORCEINLINE bool Overlap(const FVec3& Point, const FReal Thickness) const
 		{
-			const FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, Point);
+			const FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), ABC[0], ABC[1], ABC[2], Point);
 			const FReal AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
 			return (Point - ClosestPoint).SizeSquared() <= (AdjustedThickness * AdjustedThickness);
 		}
@@ -251,14 +249,12 @@ namespace Chaos
 
 		friend FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value);
 
-		FVec3 A;
-		FVec3 B;
-		FVec3 C;
+		FVec3 ABC[3];
 	};
 
 	inline FChaosArchive& operator<<(FChaosArchive& Ar, FTriangle& Value)
 	{
-		Ar << Value.A << Value.B << Value.C;
+		Ar << Value.ABC[0] << Value.ABC[1] << Value.ABC[2];
 		return Ar;
 	}
 

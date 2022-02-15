@@ -13,9 +13,18 @@ class FPoint2D;
 class CADKERNEL_API FPoint
 {
 public:
-	double X;
-	double Y;
-	double Z;
+	union
+	{
+		struct
+		{
+			double X;
+			double Y;
+			double Z;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		double XYZ[3];
+	};
 
 public:
 
@@ -48,12 +57,16 @@ public:
 
 	constexpr double& operator[](int32 Index)
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr double operator[](int32 Index) const
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool operator==(const FPoint& Point) const
@@ -319,10 +332,19 @@ public:
 class CADKERNEL_API FPointH
 {
 public:
-	double X;
-	double Y;
-	double Z;
-	double W;
+	union
+	{
+		struct
+		{
+			double X;
+			double Y;
+			double Z;
+			double W;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		double XYZW[4];
+	};
 
 public:
 	/** A zero point (0,0,0)*/
@@ -356,12 +378,16 @@ public:
 
 	constexpr double& operator[](int32 Index)
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr double operator[](int32 Index) const
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FPointH operator+(const FPointH& Point) const
@@ -632,9 +658,18 @@ typedef FPoint2D FSurfacicTolerance;
 class CADKERNEL_API FFPoint
 {
 public:
-	float X;
-	float Y;
-	float Z;
+	union
+	{
+		struct
+		{
+			float X;
+			float Y;
+			float Z;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		float XYZ[3];
+	};
 
 	/** A zero point (0,0,0)*/
 	static const FFPoint ZeroPoint;
@@ -657,12 +692,16 @@ public:
 
 	constexpr float& operator[](int32 Index)
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr float operator[](int32 Index) const
 	{
-		return *(&X + Index);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FFPoint& operator=(const FPoint& Point)

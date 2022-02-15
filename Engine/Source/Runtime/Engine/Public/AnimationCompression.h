@@ -219,9 +219,18 @@ public:
 class FQuatFloat96NoW
 {
 public:
-	float X;
-	float Y;
-	float Z;
+	union
+	{
+		struct
+		{
+			float X;
+			float Y;
+			float Z;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		float XYZ[3];
+	};
 
 	FQuatFloat96NoW()
 	{}
@@ -266,7 +275,9 @@ public:
 
 	void ToQuat(FQuat4f& Out) const
 	{
-		Out = ToQuat<true>(&X);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Out = ToQuat<true>(XYZ);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FQuatFloat96NoW& Quat)

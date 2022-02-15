@@ -1064,8 +1064,10 @@ namespace Chaos
 			return !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z);
 		}
 
-		FORCEINLINE T operator[](int32 Idx) const { return (static_cast<const T*>(&X))[Idx]; }
-		FORCEINLINE T& operator[](int32 Idx) { return (static_cast<T*>(&X))[Idx]; }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FORCEINLINE T operator[](int32 Idx) const { return XYZ[Idx]; }
+		FORCEINLINE T& operator[](int32 Idx) { return XYZ[Idx]; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FORCEINLINE TVector<T, 3> operator-() const { return {-X, -Y, -Z}; }
 		FORCEINLINE TVector<T, 3> operator*(const TVector<T, 3>& Other) const { return {X * Other.X, Y * Other.Y, Z * Other.Z}; }
@@ -1120,9 +1122,18 @@ namespace Chaos
 		}
 #endif
 
-		T X;
-		T Y;
-		T Z;
+		union
+		{
+			struct
+			{
+				T X;
+				T Y;
+				T Z;
+			};
+
+			UE_DEPRECATED(all, "For internal use only")
+			T XYZ[3];
+		};
 	};
 	template<class T>
 	inline TVector<T, 3> operator*(const T S, const TVector<T, 3>& V)
@@ -1187,8 +1198,10 @@ namespace Chaos
 			return *this;
 		}
 
-		FORCEINLINE FElement operator[](const int32 Idx) const { return (static_cast<const FElement*>(&X))[Idx]; }
-		FORCEINLINE FElement& operator[](const int32 Idx) { return (static_cast<FElement*>(&X))[Idx]; }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FORCEINLINE FElement operator[](const int32 Idx) const { return XY[Idx]; }
+		FORCEINLINE FElement& operator[](const int32 Idx) { return XY[Idx]; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FORCEINLINE TVector<FElement, 2> operator-() const { return {-X, -Y}; }
 		FORCEINLINE TVector<FElement, 2> operator*(const TVector<FElement, 2>& Other) const { return {X * Other.X, Y * Other.Y}; }
@@ -1237,8 +1250,17 @@ namespace Chaos
 
 
 	private:
-		FElement X;
-		FElement Y;
+		union
+		{
+			struct
+			{
+				FElement X;
+				FElement Y;
+			};
+
+			UE_DEPRECATED(all, "For internal use only")
+			FElement XY[2];
+		};
 	};
 
 	template<class T>

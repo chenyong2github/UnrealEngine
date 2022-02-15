@@ -17,7 +17,16 @@ namespace Geometry {
 */
 struct FVector2i
 {
-	int32 X{}, Y{};
+	union
+	{
+		struct
+		{
+			int32 X, Y;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int32 XY[2] = { {}, {} };
+	};
 
 	constexpr FVector2i()
 		: X(0), Y(0)
@@ -34,17 +43,23 @@ struct FVector2i
 	{
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	constexpr FVector2i(const FVector2i& Vec) = default;
 	constexpr FVector2i& operator=(const FVector2i& V2) = default;
+//PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	explicit constexpr operator const int32*() const
 	{
-		return &X;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	};
 
 	explicit constexpr operator int32*()
 	{
-		return &X;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	explicit operator FVector2f() const
@@ -90,11 +105,15 @@ struct FVector2i
 
 	constexpr int32& operator[](int Idx)
 	{
-		return (&X)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	constexpr const int32& operator[](int Idx) const
 	{
-		return (&X)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XY[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr int32 SquaredLength() const
@@ -221,7 +240,16 @@ FORCEINLINE uint32 GetTypeHash(const FVector2i& Vector)
 */
 struct FVector3i
 {
-	int32 X{}, Y{}, Z{};
+	union
+	{
+		struct
+		{
+			int32 X, Y, Z;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		int32 XYZ[3] = { {}, {}, {} };
+	};
 
 	constexpr FVector3i()
 		: X(0), Y(0), Z(0)
@@ -238,16 +266,22 @@ struct FVector3i
 	{
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	constexpr FVector3i(const FVector3i& Vec) = default;
 	FVector3i& operator=(const FVector3i& V2) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	explicit constexpr operator const int32*() const
 	{
-		return &X;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	};
 	explicit constexpr operator int32*()
 	{
-		return &X;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	explicit operator FVector3f() const
@@ -296,11 +330,15 @@ struct FVector3i
 	
 	int32& operator[](int Idx)
 	{
-		return (&X)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	const int32& operator[](int Idx) const
 	{
-		return (&X)[Idx];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZ[Idx];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr int32 SquaredLength() const

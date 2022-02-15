@@ -35,11 +35,20 @@ struct TVector2
 public:
 	using FReal = T;
 	
-	/** Vector's X component. */
-	T X;
+	union
+	{
+		struct
+		{
+			/** Vector's X component. */
+			T X;
 
-	/** Vector's Y component. */
-	T Y;
+			/** Vector's Y component. */
+			T Y;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		T XY[2];
+	};
 
 	/** Global 2D zero vector constant (0,0) */
 	CORE_API static const TVector2<T> ZeroVector;
@@ -1100,13 +1109,17 @@ FORCEINLINE bool TVector2<T>::IsZero() const
 template<typename T>
 FORCEINLINE T& TVector2<T>::Component(int32 Index)
 {
-	return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XY[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>
 FORCEINLINE T TVector2<T>::Component(int32 Index) const
 {
-	return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return XY[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>

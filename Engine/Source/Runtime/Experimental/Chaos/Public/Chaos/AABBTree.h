@@ -2802,6 +2802,8 @@ private:
 			const TVec3<T> ElemCenter = Elem.Bounds.Center();
 			
 			// This was changed to work around a code generation issue on some platforms, don't change it without testing results of ElemCenter computation.
+			// 
+			// NOTE: This needs review.  TVec3<T>::operator[] should now cope with the strict aliasing violation which caused the original codegen breakage.
 			T CenterVal = ElemCenter[0];
 			if (MaxAxis == 1)
 			{

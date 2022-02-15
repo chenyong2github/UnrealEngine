@@ -53,14 +53,23 @@ struct TVector
 public:
 	using FReal = T;
 
-    /** Vector's X component. */
-    T X;
+	union
+	{
+		struct
+		{
+			/** Vector's X component. */
+			T X;
 
-    /** Vector's Y component. */
-    T Y;
+			/** Vector's Y component. */
+			T Y;
 
-    /** Vector's Z component. */
-    T Z;
+			/** Vector's Z component. */
+			T Z;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		T XYZ[3];
+	};
 
 	/** A zero vector (0,0,0) */
 	CORE_API static const TVector<T> ZeroVector;
@@ -1537,14 +1546,18 @@ template<typename T>
 FORCEINLINE T& TVector<T>::operator[](int32 Index)
 {
     checkSlow(Index >= 0 && Index < 3);
-    return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>
 FORCEINLINE T TVector<T>::operator[](int32 Index)const
 {
     checkSlow(Index >= 0 && Index < 3);
-    return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>
@@ -1837,13 +1850,17 @@ FORCEINLINE void TVector<T>::AddBounded(const TVector<T>& V, T Radius)
 template<typename T>
 FORCEINLINE T& TVector<T>::Component(int32 Index)
 {
-    return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>
 FORCEINLINE T TVector<T>::Component(int32 Index) const
 {
-    return (&X)[Index];
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    return XYZ[Index];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<typename T>

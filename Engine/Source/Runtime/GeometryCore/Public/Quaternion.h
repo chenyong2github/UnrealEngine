@@ -20,11 +20,20 @@ using namespace UE::Math;
 template<typename RealType>
 struct TQuaternion
 {
-	// note: in Wm5 version, this is a 4-element arraY stored in order (w,x,y,z).
-	RealType X;
-	RealType Y;
-	RealType Z;
-	RealType W;
+	union
+	{
+		struct
+		{
+			// note: in Wm5 version, this is a 4-element arraY stored in order (w,x,y,z).
+			RealType X;
+			RealType Y;
+			RealType Z;
+			RealType W;
+		};
+
+		UE_DEPRECATED(all, "For internal use only")
+		RealType XYZW[4];
+	};
 
 	TQuaternion();
 	TQuaternion(RealType X, RealType Y, RealType Z, RealType W);
@@ -46,8 +55,18 @@ struct TQuaternion
 	static TQuaternion<RealType> Zero() { return TQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)0); }
 	static TQuaternion<RealType> Identity() { return TQuaternion<RealType>((RealType)0, (RealType)0, (RealType)0, (RealType)1); }
 
-	RealType & operator[](int i) { return (&X)[i]; }
-	const RealType & operator[](int i) const { return (&X)[i]; }
+	RealType& operator[](int i)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[i];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	const RealType& operator[](int i) const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return XYZW[i];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	bool EpsilonEqual(const TQuaternion<RealType>& Other, RealType Epsilon) const;
 
