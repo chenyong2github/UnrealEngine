@@ -682,7 +682,7 @@ namespace UnrealBuildTool
 			{
 				Result += " -Wno-unused-value";
 				if (!bRetainFramePointers)
-                {
+				{
 					Result += " -fomit-frame-pointer";
 				}
 			}
@@ -729,6 +729,9 @@ namespace UnrealBuildTool
 				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
 				{
 					Result += " -O1 -g";
+
+					// This enables __asan_default_options() in UnixCommonStartup.h which disables the leak detector
+					Result += " -DDISABLE_ASAN_LEAK_DETECTOR=1";
 				}
 				else if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
 				{
