@@ -4,6 +4,7 @@
 
 #include "Blackmagic.h"
 #include "BlackmagicMediaPrivate.h"
+#include "IBlackmagicMediaModule.h"
 
 #include "MediaIOCorePlayerBase.h"
 
@@ -116,15 +117,9 @@ bool UBlackmagicMediaSource::Validate() const
 		return false;
 	}
 
-	if (!FBlackmagic::IsInitialized())
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		UE_LOG(LogBlackmagicMedia, Warning, TEXT("Can't validate MediaSource '%s'. the Blackmagic library was not initialized."), *GetName());
-		return false;
-	}
-
-	if (!FBlackmagic::CanUseBlackmagicCard())
-	{
-		UE_LOG(LogBlackmagicMedia, Warning, TEXT("Can't validate MediaSource '%s' because Blackmagic card cannot be used. Are you in a Commandlet? You may override this behavior by launching with -ForceBlackmagicUsage"), *GetName());
 		return false;
 	}
 	

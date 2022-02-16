@@ -5,6 +5,7 @@
 #include "Blackmagic.h"
 #include "BlackmagicLib.h"
 #include "BlackmagicMediaPrivate.h"
+#include "IBlackmagicMediaModule.h"
 #include "MediaIOCoreCommonDisplayMode.h"
 
 #define LOCTEXT_NAMESPACE "BlackmagicDeviceProvider"
@@ -106,7 +107,8 @@ TArray<FMediaIOConfiguration> FBlackmagicDeviceProvider::GetConfigurations(bool 
 	const int32 MaxNumberOfChannel = 8;
 
 	TArray<FMediaIOConfiguration> Results;
-	if (!FBlackmagic::IsInitialized() || !FBlackmagic::CanUseBlackmagicCard())
+	
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		return Results;
 	}
@@ -281,7 +283,7 @@ TArray<FMediaIOOutputConfiguration> FBlackmagicDeviceProvider::GetOutputConfigur
 TArray<FMediaIODevice> FBlackmagicDeviceProvider::GetDevices() const
 {
 	TArray<FMediaIODevice> Results;
-	if (!FBlackmagic::IsInitialized() || !FBlackmagic::CanUseBlackmagicCard())
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		return Results;
 	}

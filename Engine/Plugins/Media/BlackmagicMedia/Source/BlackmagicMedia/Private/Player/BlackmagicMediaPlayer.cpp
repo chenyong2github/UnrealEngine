@@ -450,15 +450,9 @@ FGuid FBlackmagicMediaPlayer::GetPlayerPluginGUID() const
  */
 bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 {
-	if (!FBlackmagic::IsInitialized())
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		UE_LOG(LogBlackmagicMedia, Error, TEXT("The BlackmagicMediaPlayer can't open URL '%s'. Blackmagic is not initialized on your machine."), *Url);
-		return false;
-	}
-
-	if (!FBlackmagic::CanUseBlackmagicCard())
-	{
-		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The BlackmagicMediaPlayer can't open URL '%s' because Blackmagic card cannot be used. Are you in a Commandlet? You may override this behavior by launching with -ForceBlackmagicUsage"), *Url);
 		return false;
 	}
 

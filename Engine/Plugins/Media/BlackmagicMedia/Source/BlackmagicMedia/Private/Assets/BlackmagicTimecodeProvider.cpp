@@ -3,6 +3,7 @@
 #include "BlackmagicTimecodeProvider.h"
 #include "BlackmagicMediaPrivate.h"
 #include "Blackmagic.h"
+#include "IBlackmagicMediaModule.h"
 
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
@@ -167,15 +168,9 @@ bool UBlackmagicTimecodeProvider::Initialize(class UEngine* InEngine)
 		return false;
 	}
 
-	if (!FBlackmagic::IsInitialized())
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		UE_LOG(LogBlackmagicMedia, Error, TEXT("The TimecodeProvider '%s' can't be initialized. Blackmagic is not initialized on your machine."), *GetName());
-		return false;
-	}
-
-	if (!FBlackmagic::CanUseBlackmagicCard())
-	{
-		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The TimecodeProvider '%s' can't be initialized because Blackmagic card cannot be used. Are you in a Commandlet? You may override this behavior by launching with -ForceBlackmagicUsage"), *GetName());
 		return false;
 	}
 

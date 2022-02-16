@@ -4,6 +4,7 @@
 
 #include "Blackmagic.h"
 #include "BlackmagicMediaPrivate.h"
+#include "IBlackmagicMediaModule.h"
 
 #include "HAL/Event.h"
 #include "HAL/IConsoleManager.h"
@@ -232,16 +233,10 @@ bool UBlackmagicCustomTimeStep::Initialize(class UEngine* InEngine)
 	}
 
 	check(InputEventCallback == nullptr);
-
-	if (!FBlackmagic::IsInitialized())
+	
+	if (!IBlackmagicMediaModule::Get().IsInitialized())
 	{
 		UE_LOG(LogBlackmagicMedia, Error, TEXT("The CustomTimeStep '%s' can't be initialized. Blackmagic is not initialized on your machine."), *GetName());
-		return false;
-	}
-
-	if (!FBlackmagic::CanUseBlackmagicCard())
-	{
-		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The CustomTimeStep '%s' can't be initialized because Blackmagic card cannot be used. Are you in a Commandlet? You may override this behavior by launching with -ForceBlackmagicUsage"), *GetName());
 		return false;
 	}
 

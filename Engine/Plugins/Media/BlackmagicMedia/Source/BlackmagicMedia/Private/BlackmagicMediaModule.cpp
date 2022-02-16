@@ -50,10 +50,13 @@ public:
 	virtual void StartupModule() override
 	{
 		// initialize
-		if (!FBlackmagic::Initialize())
+		if (CanBeUsed())
 		{
-			UE_LOG(LogBlackmagicMedia, Error, TEXT("Failed to initialize Blackmagic"));
-			return;
+			if (!FBlackmagic::Initialize())
+			{
+				UE_LOG(LogBlackmagicMedia, Error, TEXT("Failed to initialize Blackmagic"));
+				return;
+			}
 		}
 
 		CreateStyle();
