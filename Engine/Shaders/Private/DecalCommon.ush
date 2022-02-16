@@ -16,10 +16,9 @@
 float DecalCommonOutput(
 	inout FPixelShaderOut Out, 
 	in FStrataPixelHeader InHeader,
-	in FStrataData InData,
 	in float CoverageWeight)
 {
-	FStrataDBuffer DBuffer = StrataConvertToDBuffer(InHeader, InData);
+	FStrataDBuffer DBuffer = StrataConvertToDBuffer(InHeader);
 	DBuffer.Coverage *= CoverageWeight;
 
 	float3 Color = DBuffer.Emissive;
