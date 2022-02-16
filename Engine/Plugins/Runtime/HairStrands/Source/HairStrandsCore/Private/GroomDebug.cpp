@@ -12,6 +12,7 @@
 #include "UnrealEngine.h"
 #include "SystemTextures.h"
 #include "CanvasTypes.h"
+#include "ShaderCompilerCore.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -886,6 +887,154 @@ FCachedGeometry GetCacheGeometryForHair(
 	const FGPUSkinCache* SkinCache,
 	FGlobalShaderMap* ShaderMap);
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairDebugPrintInstanceCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairDebugPrintInstanceCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairDebugPrintInstanceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, InstanceCount)
+		SHADER_PARAMETER(uint32, NameInfoCount)
+		SHADER_PARAMETER(uint32, NameCharacterCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, NameInfos)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, Names)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, Infos)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Skip optimization for avoiding long compilation time due to large UAV writes
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.SetDefine(TEXT("SHADER_PRINT_INSTANCE"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairDebugPrintInstanceCS, "/Engine/Private/HairStrands/HairStrandsDebugPrint.usf", "MainCS", SF_Compute);
+
+struct FHairDebugNameInfo
+{
+	uint32 PrimitiveID;
+	uint16 Offset;
+	uint8  Length;
+	uint8  Pad0;
+};
+
+static void AddHairDebugPrintInstancePass(
+	FRDGBuilder& GraphBuilder, 
+	FGlobalShaderMap* ShaderMap,
+	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
+	const FHairStrandsInstances& Instances)
+{
+	const uint32 InstanceCount = Instances.Num();
+
+	// Request more drawing primitives & characters for printing if needed	
+	ShaderDrawDebug::SetEnabled(true);
+	ShaderDrawDebug::RequestSpaceForElements(InstanceCount * 16u);
+	ShaderPrint::RequestSpaceForCharacters(InstanceCount * 256 + 512);
+
+	if (!ShaderPrintData || !ShaderDrawData || InstanceCount == 0) { return; }
+
+	const uint32 MaxPrimitiveNameCount = 128u;
+	check(sizeof(FHairDebugNameInfo) == 8);
+
+	TArray<FHairDebugNameInfo> NameInfos;
+	TArray<uint8> Names;
+	Names.Reserve(MaxPrimitiveNameCount * 30u);
+
+	TArray<FUintVector4> Infos;
+	Infos.Reserve(InstanceCount);
+	for (uint32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+	{
+		const FHairStrandsInstance* AbstractInstance = Instances[InstanceIndex];
+		const FHairGroupInstance* Instance = static_cast<const FHairGroupInstance*>(AbstractInstance);
+
+		// Collect Names
+		if (InstanceIndex < MaxPrimitiveNameCount)
+		{
+			const FString Name = *Instance->Debug.GroomAssetName;
+			const uint32 NameOffset = Names.Num();
+			const uint32 NameLength = Name.Len();
+			for (TCHAR C : Name)
+			{
+				Names.Add(uint8(C));
+			}
+
+			FHairDebugNameInfo& NameInfo = NameInfos.AddDefaulted_GetRef();
+			NameInfo.PrimitiveID = InstanceIndex;
+			NameInfo.Length = NameLength;
+			NameInfo.Offset = NameOffset;
+		}
+
+		const float LODIndex = Instance->HairGroupPublicData->LODIndex;
+		const uint32 LODCount = Instance->HairGroupPublicData->GetLODScreenSizes().Num();
+
+		const uint32 DataX =
+			((Instance->Debug.GroupIndex & 0xFF)) |
+			((Instance->Debug.GroupCount & 0xFF) << 8) |
+			((LODCount & 0xFF) << 16) |
+			((uint32(Instance->GeometryType) & 0x7)<<24) |
+			((uint32(Instance->BindingType) & 0x7)<<27) |
+			((Instance->Guides.bIsSimulationEnable ? 0x1 : 0x0) << 30) |
+			((Instance->Guides.bHasGlobalInterpolation ? 0x1 : 0x0) << 31);
+
+		const uint32 DataY =
+			(FFloat16(LODIndex).Encoded) |
+			(FFloat16(Instance->Strands.Modifier.HairLengthScale_Override ? Instance->Strands.Modifier.HairLengthScale : -1.f).Encoded << 16);
+
+
+		const uint32 DataZ = Instance->Strands.Data->GetNumCurves(); // Change this later on for having dynamic value
+		const uint32 DataW = Instance->Strands.Data->GetNumPoints(); // Change this later on for having dynamic value
+
+		Infos.Add(FUintVector4(DataX, DataY, DataZ, DataW));
+	}
+
+	if (NameInfos.IsEmpty())
+	{
+		FHairDebugNameInfo& NameInfo = NameInfos.AddDefaulted_GetRef();
+		NameInfo.PrimitiveID = ~0;
+		NameInfo.Length = 4;
+		NameInfo.Offset = 0;
+		Names.Add(uint8('N'));
+		Names.Add(uint8('o'));
+		Names.Add(uint8('n'));
+		Names.Add(uint8('e'));
+	}	
+
+	const uint32 InfoInBytes = 16u;
+	FRDGBufferRef NameBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNames"), FRDGBufferDesc::CreateBufferDesc(1, Names.Num()), Names.GetData(), Names.Num());
+	FRDGBufferRef NameInfoBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceNameInfos"), NameInfos);	
+	FRDGBufferRef InfoBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceInfos"), FRDGBufferDesc::CreateBufferDesc(InfoInBytes, Infos.Num()), Infos.GetData(), InfoInBytes * Infos.Num());
+
+	FHairDebugPrintInstanceCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintInstanceCS::FParameters>();
+	Parameters->InstanceCount = InstanceCount;
+	Parameters->NameInfoCount = NameInfos.Num();
+	Parameters->NameCharacterCount = Names.Num();
+	Parameters->Names = GraphBuilder.CreateSRV(NameBuffer, PF_R8_UINT);
+	Parameters->NameInfos = GraphBuilder.CreateSRV(NameInfoBuffer);
+	Parameters->Infos = GraphBuilder.CreateSRV(InfoBuffer, PF_R32G32B32A32_UINT);
+	ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
+	ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawUniformBuffer);
+	TShaderMapRef<FHairDebugPrintInstanceCS> ComputeShader(ShaderMap);
+
+	ClearUnusedGraphResources(ComputeShader, Parameters);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrands::DebugPrintInstance(Instances:%d)", InstanceCount),
+		ComputeShader,
+		Parameters,
+		FIntVector(1, 1, 1));
+}
+
 void RunHairStrandsDebug(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -893,6 +1042,7 @@ void RunHairStrandsDebug(
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
 	FIntRect Viewport,
@@ -902,90 +1052,7 @@ void RunHairStrandsDebug(
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
-		FHairDebugCanvasParameter* PassParameters = GraphBuilder.AllocParameters<FHairDebugCanvasParameter>();
-		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad, 0);
-
-		const FSceneViewFamily& ViewFamily = *View.Family;
-		FCanvas& Canvas = *FCanvas::Create(GraphBuilder, SceneColorTexture, nullptr, ViewFamily.Time, View.FeatureLevel);
-		Canvas.SetRenderTargetRect(Viewport);
-
-		{
-			const float YStep = 14;
-			float ClusterY = 68;
-			float X = 20;
-			float Y = ClusterY;
-			const FLinearColor InactiveColor(0.5, 0.5, 0.5);
-			const FLinearColor DebugColor(1, 1, 0);
-			const FLinearColor DebugGroupColor(1, 0.5f, 0);
-			const FLinearColor DebugWarningColor(0.75f, 0, 0);
-			FString Line;
-			// Active groom
-			// Name | Group x / x | LOD x / x | GeometryType | BindingType | Sim | RBF | VertexCount | Warning
-
-			Line = FString::Printf(TEXT("----------------------------------------------------------------"));
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-			Line = FString::Printf(TEXT("Registered hair groups count : %d"), Instances.Num());
-			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
-
-			for (FHairStrandsInstance* AbstractInstance : Instances)
-			{
-				FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-
-				// Check if a groom request a Skinning binding for the current LOD, that the parent has its skin cache enabled
-				bool bInvaliSkinBinding = false;
-				{
-					const int32 GroomLODIndex = Instance->HairGroupPublicData->LODIndex;
-					EHairBindingType OriginalBindingType = Instance->HairGroupPublicData->GetBindingType(GroomLODIndex);
-
-					if (OriginalBindingType == EHairBindingType::Skinning)
-					{
-						bool bHasValidSkinCacheData = false;
-						FHairStrandsProjectionMeshData::LOD MeshDataLOD;
-						const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
-						for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
-						{
-							if (Section.LODIndex >= 0) { bHasValidSkinCacheData = true; break; }
-						}
-						bInvaliSkinBinding = !bHasValidSkinCacheData;
-					}
-				}
-
-				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d (%s) | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | Clip:%d(%1.2f) | VertexCount:%d | Name: %s"),
-					Instance->Debug.GroupIndex,
-					Instance->Debug.GroupCount,
-
-					Instance->HairGroupPublicData->LODIndex,
-					Instance->HairGroupPublicData->GetLODScreenSizes().Num(),
-					ToString(Instance->Debug.LODSelectionTypeForDebug),
-
-					ToString(Instance->GeometryType),
-					ToString(Instance->BindingType),
-					Instance->Guides.bIsSimulationEnable,
-					Instance->Guides.bHasGlobalInterpolation,
-
-					Instance->Strands.Modifier.HairLengthScale_Override,
-					Instance->Strands.Modifier.HairLengthScale,
-
-					Instance->HairGroupPublicData->VertexCount,
-					*Instance->Debug.GroomAssetName);
-				int32 XOffset = Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugGroupColor);
-
-				// Warning/error
-				if (bInvaliSkinBinding)
-				{
-					Line = FString::Printf(TEXT(" - Warning: Request SKINNING binding but skel. mesh has no Skin Cache (%s)"),						
-						*Instance->Debug.MeshComponentName);
-					Canvas.DrawShadowedString(X + XOffset, Y += YStep, *Line, GetStatsFont(), DebugWarningColor);
-				}
-			}
-
-			const bool bFlush = false;
-			Canvas.Flush_RenderThread(GraphBuilder, bFlush);
-
-			ClusterY = Y;
-		}
+		AddHairDebugPrintInstancePass(GraphBuilder, ShaderMap, ShaderDrawData, ShaderPrintData, Instances);
 	}
 
 	if (HairDebugMode == EHairDebugMode::MeshProjection)

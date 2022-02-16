@@ -52,8 +52,9 @@ FFontColor GetOccupancyColor(float In)
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {	
 	// Draw AABB of the instance groups
-	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0 && DispatchThreadId.z == 0)
+	if (all(DispatchThreadId == 0))
 	{
+		// Macro groups bounds
 		for (uint GroupIndex =0;GroupIndex< HairMacroGroupCount; GroupIndex++)
 		{
 			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
@@ -67,27 +68,26 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		const uint DispatchedSampleCount = DispatchX * DispatchY * HairVisibilityNodeGroupSize;
 
 		const uint2 EquivalentResolution = ceil(sqrt(UsedSampleCount));
-		
-
+	
 		// Pixel coord
-		float2 OriginalPos = float2(50, 50) / float2(MaxResolution);
+		float2 OriginalPos = float2(450, 50) / float2(MaxResolution);
 		float2 Pos = OriginalPos;
-		Pos = ShaderPrintText(Pos, TEXT("Sample Count (Used/Allocated)"), FontCyan);
+		Pos = ShaderPrintText(Pos, TEXT("Sample Count (Used/Alloc)  "), FontCyan);
 		Pos = ShaderPrint(Pos, UsedSampleCount, FontCyan);
 		Pos = ShaderPrint(Pos, AllocatedSampleCount, FontCyan);
 
 		const float AllocationPercentage = float(UsedSampleCount) / float(AllocatedSampleCount);
 		const FFontColor OccupancyColor = GetOccupancyColor(AllocationPercentage);
-		Pos = ShaderPrintText(Pos, TEXT(" \% "), OccupancyColor);
+		Pos = ShaderPrintText(Pos, TEXT(" %% "), OccupancyColor);
 		Pos = ShaderPrint(Pos, AllocationPercentage * 100.f, OccupancyColor);
 
 		AddNewLine(OriginalPos, Pos);
 
-		Pos = ShaderPrintText(Pos, TEXT("Equivalent Res     "), FontCyan);
+		Pos = ShaderPrintText(Pos, TEXT("Sample Lighting Resolution "), FontCyan);
 		Pos = ShaderPrint(Pos, EquivalentResolution, FontCyan);
 		AddNewLine(OriginalPos, Pos);
 
-		Pos = ShaderPrintText(Pos, TEXT("MacroGroup Count   "), FontYellow);
+		Pos = ShaderPrintText(Pos, TEXT("MacroGroup Count           "), FontYellow);
 		Pos = ShaderPrint(Pos, HairMacroGroupCount, FontYellow);
 		AddNewLine(OriginalPos, Pos);
 	}
@@ -250,6 +250,203 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 }
 
 #endif // SHADER_PRINT
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_PRINT_INSTANCE
+
+int2					MaxResolution;
+uint					InstanceCount;
+
+Buffer<uint4>			Infos;
+
+uint					NameInfoCount;
+uint					NameCharacterCount;
+StructuredBuffer<uint2> NameInfos;
+Buffer<uint>			Names;
+
+struct FNameInfo
+{
+	uint PrimitiveID;
+	uint Length;
+	uint Offset;
+	uint Pad0;
+	uint Pad1;
+};
+
+FNameInfo UnpackDebugNameInfo(uint2 In)
+{
+	FNameInfo Out = (FNameInfo)0;
+	Out.PrimitiveID = In.x;
+	Out.Offset = (In.y) & 0xFFFF;
+	Out.Length = (In.y >> 16) & 0xFF;
+
+	return Out;
+}
+
+FNameInfo FindNameInfo(uint PrimitiveID)
+{
+	FNameInfo Out = (FNameInfo)0;
+	Out.PrimitiveID = ~0;
+	for (uint It = 0; It < NameInfoCount; ++It)
+	{
+		if (NameInfos[It].x == PrimitiveID)
+		{
+			return UnpackDebugNameInfo(NameInfos[It]);
+		}
+	}
+	return Out;
+}
+
+float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
+{
+	const FNameInfo Info = FindNameInfo(PrimitiveID);
+	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= NameCharacterCount)
+	{
+		for (uint It = 0; It < Info.Length; ++It)
+		{
+			const uint Char = Names[It + Info.Offset];
+			InPos = ShaderPrintSymbol(InPos, Char, InColor);
+		}
+	}
+	return InPos;
+}
+
+
+float2 Print(float2 Pos, uint X, uint DigitCount, FFontColor Color)
+{
+	Pos = ShaderPrint(Pos, X, Color);
+	Pos.x -= ShaderPrintUniform.FontSize.z * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
+	return Pos;
+}
+
+float2 Print(float2 Pos, float X, uint DigitCount, FFontColor Color)
+{
+	Pos = ShaderPrint(Pos, X, Color);
+	Pos.x -= ShaderPrintUniform.FontSize.z * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
+	return Pos;
+}
+
+[numthreads(1, 1, 1)]
+void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	// Draw AABB of the instance groups
+	if (any(DispatchThreadId != 0))
+	{
+		return;
+	}
+
+	// Draw legend
+	float2 OriginalPos = ShaderPrintGetPos(uint2(50, 50));
+	float2 Pos = OriginalPos;
+
+
+	// Draw totals
+	const uint TotalGroup = InstanceCount;
+	uint TotalStrandsCount = 0;
+	uint TotalVertexCount = 0;
+	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+	{
+		const uint4 InstanceData = Infos[InstanceIndex];
+		TotalStrandsCount += InstanceData.z;
+		TotalVertexCount += InstanceData.w;
+	}
+
+	Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
+	Pos = Print(Pos, TotalGroup, 8, FontYellow);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("Total Strand Curves : "), FontWhite);
+	Pos = Print(Pos, TotalStrandsCount, 8, FontOrange);
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrintText(Pos, TEXT("Total Strand Vertex : "), FontWhite);
+	Pos = Print(Pos, TotalVertexCount, 8, FontSilver);
+	AddNewLine(OriginalPos, Pos);
+
+	AddNewLine(OriginalPos, Pos);
+
+	// Draw instance details
+	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD        Geometry Binding Sim   RBF   Clip    Strands Vertex  Name"));
+	AddNewLine(OriginalPos, Pos);
+
+	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+	{
+		const uint4 InstanceData	= Infos[InstanceIndex];
+		const uint GroupIndex		= (InstanceData.x>>0)  & 0xFF;
+		const uint GroupCount		= (InstanceData.x>>8)  & 0xFF;
+		const float LODCount		= (InstanceData.x>>16) & 0xFF;
+		const uint GeometryType		= (InstanceData.x>>24) & 0x7;
+		const uint BindingType		= (InstanceData.x>>27) & 0x7;
+		const bool bHasSim			= (InstanceData.x>>30) & 0x1;
+		const bool bHasRBF			= (InstanceData.x>>31) & 0x1;
+
+		const float LOD				= f16tof32((InstanceData.y>>0)  & 0xFFFF);
+		const float ClipValue		= f16tof32((InstanceData.y>>16) & 0xFFFF);
+
+		const uint StrandsCount		= InstanceData.z;
+		const uint VertexCount		= InstanceData.w;
+
+		// Index
+		Pos = Print(Pos, InstanceIndex, 2, FontSilver);
+		Pos = ShaderPrintText(Pos, TEXT(" "));
+
+		// Group
+		Pos = Print(Pos, GroupIndex, 1, FontYellow);
+		Pos = ShaderPrintText(Pos, TEXT("/"));
+		Pos = Print(Pos, GroupCount, 1, FontYellow);
+		Pos = ShaderPrintText(Pos, TEXT("    "));
+
+		// LOD
+		Pos = Print(Pos, LOD, 7, FontYellow);	
+		Pos = ShaderPrintText(Pos, TEXT("/"));
+		Pos = Print(Pos, LODCount, 1, FontYellow);
+		Pos = ShaderPrintText(Pos, TEXT("  "));
+
+		// Geometry
+		if (GeometryType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Strands "), FontEmerald); }
+		else if (GeometryType == 1) { Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontEmerald); }
+		else if (GeometryType == 2) { Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontEmerald); }
+		Pos = ShaderPrintText(Pos, TEXT(" "));
+
+		// Binding
+		if (BindingType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Skinned "), FontTurquoise); }
+		else if (BindingType == 1)	{ Pos = ShaderPrintText(Pos, TEXT("Rigid   "), FontTurquoise); }
+		else if (BindingType == 2)	{ Pos = ShaderPrintText(Pos, TEXT("None    "), FontTurquoise); }
+
+		// Sim
+		if (bHasSim)
+			Pos = ShaderPrintText(Pos, TEXT("True"), FontGreen);
+		else
+			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
+		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
+
+		// RBF
+		if (bHasRBF)
+			Pos = ShaderPrintText(Pos, TEXT("True"), FontGreen);
+		else
+			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
+		Pos = ShaderPrintText(Pos, TEXT(" "));
+
+		// Clip
+		if (ClipValue >= 0)
+			Pos = Print(Pos, ClipValue, 7, FontGreen);
+		else 
+			Pos = Print(Pos, 0u, 7, FontSilver);
+		Pos = ShaderPrintText(Pos, TEXT(" "));
+
+		// Count
+		Pos = Print(Pos, StrandsCount, 8, FontOrange);
+		Pos = Print(Pos, VertexCount,  8, FontSilver);
+
+		// Name
+		Pos = PrintInstanceName(Pos, InstanceIndex, FontWhite);
+
+		AddNewLine(OriginalPos, Pos);
+	}
+}
+
+#endif // SHADER_PRINT_INSTANCE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
