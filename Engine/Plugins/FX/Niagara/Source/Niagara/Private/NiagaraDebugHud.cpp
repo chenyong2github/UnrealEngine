@@ -1572,13 +1572,16 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	{
 		TextLocation.Y += fAdvanceHeight;		
 		uint32 NumLines = 1;
-		for (auto& Pair : PerSystemDebugInfo)
+		for (const auto& Pair : PerSystemDebugInfo)
 		{
-			const FSystemDebugInfo& SysInfo = Pair.Value;
-			if (SysInfo.FramesSinceVisible < Settings.PerfHistoryFrames)
+			const FSystemDebugInfo& SystemInfo = Pair.Value;
+			if ((SystemInfo.FramesSinceVisible >= Settings.PerfHistoryFrames) ||
+				(Settings.bOverviewShowFilteredSystemOnly && !SystemInfo.bPassesSystemFilter))
 			{
-				++NumLines;
+				continue;
 			}
+
+			++NumLines;
 		}
 		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, TotalOverviewWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 
@@ -1595,10 +1598,12 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 		for (auto it = PerSystemDebugInfo.CreateConstIterator(); it; ++it)
 		{
 			const auto& SystemInfo = it->Value;
-			if (SystemInfo.FramesSinceVisible >= Settings.PerfHistoryFrames)
+			if ((SystemInfo.FramesSinceVisible >= Settings.PerfHistoryFrames) ||
+				(Settings.bOverviewShowFilteredSystemOnly && !SystemInfo.bPassesSystemFilter))
 			{
 				continue;
 			}
+
 			for (FOverviewColumn& Column : OverviewColumns)
 			{
 				Column.DrawSystemData(DrawCanvas, Font, TextLocation.X, TextLocation.Y, SystemInfo);

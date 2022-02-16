@@ -71,6 +71,9 @@ struct FNiagaraOutlinerSystemInstanceData
 	FString ComponentName;
 
 	UPROPERTY(VisibleAnywhere, Category = "System")
+	FVector3f LWCTile = FVector3f::Zero();
+
+	UPROPERTY(VisibleAnywhere, Category = "System")
 	TArray<FNiagaraOutlinerEmitterInstanceData> Emitters;
 	
 	UPROPERTY(VisibleAnywhere, Category = "State")
@@ -460,6 +463,10 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	/** Overview display location. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Text Location", EditCondition = "bOverviewEnabled"))
 	FVector2D OverviewLocation = FIntPoint(30.0f, 150.0f);
+
+	/** When enabled the overview will only show the filter system information. */
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (EditCondition = "bOverviewEnabled"))
+	bool bOverviewShowFilteredSystemOnly = false;
 
 	/**
 	Wildcard filter which is compared against the Components Actor name to narrow down the detailed information.
