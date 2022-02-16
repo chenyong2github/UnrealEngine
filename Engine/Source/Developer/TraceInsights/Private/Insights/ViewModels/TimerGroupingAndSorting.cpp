@@ -7,6 +7,9 @@
 
 #define LOCTEXT_NAMESPACE "TimerNode"
 
+//#define INSIGHTS_ENSURE ensure
+#define INSIGHTS_ENSURE(...)
+
 // Sort by name (ascending).
 #define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetName().LexicalLess(B->GetName());
 //#define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetDefaultSortOrder() < B->GetDefaultSortOrder();
@@ -33,20 +36,20 @@ void FTimerNodeSortingByTimerType::Sort(TArray<Insights::FBaseTreeNodePtr>& Node
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const ETimerNodeType ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const ETimerNodeType ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetType();
 
-			if (TimerNodeA->GetType() == TimerNodeB->GetType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by timer type (ascending).
-				return TimerNodeA->GetType() < TimerNodeB->GetType();
+				return ValueA < ValueB;
 			}
 		});
 	}
@@ -54,20 +57,20 @@ void FTimerNodeSortingByTimerType::Sort(TArray<Insights::FBaseTreeNodePtr>& Node
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const ETimerNodeType ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const ETimerNodeType ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetType();
 
-			if (TimerNodeA->GetType() == TimerNodeB->GetType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by timer type (descending).
-				return TimerNodeB->GetType() < TimerNodeA->GetType();
+				return ValueB < ValueA;
 			}
 		});
 	}
@@ -95,13 +98,11 @@ void FTimerNodeSortingByInstanceCount::Sort(TArray<Insights::FBaseTreeNodePtr>& 
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const uint64 ValueA = TimerNodeA->GetAggregatedStats().InstanceCount;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const uint64 ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().InstanceCount;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const uint64 ValueB = TimerNodeB->GetAggregatedStats().InstanceCount;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const uint64 ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().InstanceCount;
 
 			if (ValueA == ValueB)
 			{
@@ -118,13 +119,11 @@ void FTimerNodeSortingByInstanceCount::Sort(TArray<Insights::FBaseTreeNodePtr>& 
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const uint64 ValueA = TimerNodeA->GetAggregatedStats().InstanceCount;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const uint64 ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().InstanceCount;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const uint64 ValueB = TimerNodeB->GetAggregatedStats().InstanceCount;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const uint64 ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().InstanceCount;
 
 			if (ValueA == ValueB)
 			{
@@ -161,13 +160,11 @@ void FTimerNodeSortingByTotalInclusiveTime::Sort(TArray<Insights::FBaseTreeNodeP
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const double ValueA = TimerNodeA->GetAggregatedStats().TotalInclusiveTime;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const double ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().TotalInclusiveTime;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const double ValueB = TimerNodeB->GetAggregatedStats().TotalInclusiveTime;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const double ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().TotalInclusiveTime;
 
 			if (ValueA == ValueB)
 			{
@@ -184,13 +181,11 @@ void FTimerNodeSortingByTotalInclusiveTime::Sort(TArray<Insights::FBaseTreeNodeP
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const double ValueA = TimerNodeA->GetAggregatedStats().TotalInclusiveTime;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const double ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().TotalInclusiveTime;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const double ValueB = TimerNodeB->GetAggregatedStats().TotalInclusiveTime;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const double ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().TotalInclusiveTime;
 
 			if (ValueA == ValueB)
 			{
@@ -227,13 +222,11 @@ void FTimerNodeSortingByTotalExclusiveTime::Sort(TArray<Insights::FBaseTreeNodeP
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const double ValueA = TimerNodeA->GetAggregatedStats().TotalExclusiveTime;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const double ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().TotalExclusiveTime;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const double ValueB = TimerNodeB->GetAggregatedStats().TotalExclusiveTime;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const double ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().TotalExclusiveTime;
 
 			if (ValueA == ValueB)
 			{
@@ -250,13 +243,11 @@ void FTimerNodeSortingByTotalExclusiveTime::Sort(TArray<Insights::FBaseTreeNodeP
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeA = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(A);
-			const double ValueA = TimerNodeA->GetAggregatedStats().TotalExclusiveTime;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FTimerNode::TypeName);
+			const double ValueA = reinterpret_cast<FTimerNode*>(A.Get())->GetAggregatedStats().TotalExclusiveTime;
 
-			ensure(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
-			const FTimerNodePtr TimerNodeB = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(B);
-			const double ValueB = TimerNodeB->GetAggregatedStats().TotalExclusiveTime;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FTimerNode::TypeName);
+			const double ValueB = reinterpret_cast<FTimerNode*>(B.Get())->GetAggregatedStats().TotalExclusiveTime;
 
 			if (ValueA == ValueB)
 			{
@@ -274,4 +265,5 @@ void FTimerNodeSortingByTotalExclusiveTime::Sort(TArray<Insights::FBaseTreeNodeP
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef INSIGHTS_DEFAULT_SORTING_NODES
+#undef INSIGHTS_ENSURE
 #undef LOCTEXT_NAMESPACE

@@ -925,34 +925,18 @@ void STimersView::InsightsManager_OnSessionAnalysisCompleted()
 
 void STimersView::UpdateTree()
 {
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
 	CreateGroups();
-
-	Stopwatch.Update();
-	const double Time1 = Stopwatch.GetAccumulatedTime();
-
 	SortTreeNodes();
-
-	Stopwatch.Update();
-	const double Time2 = Stopwatch.GetAccumulatedTime();
-
 	ApplyFiltering();
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	if (TotalTime > 0.1)
-	{
-		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view updated in %.3fs (%d timers) --> G:%.3fs + S:%.3fs + F:%.3fs"),
-			TotalTime, TimerNodes.Num(), Time1, Time2 - Time1, TotalTime - Time2);
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::ApplyFiltering()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	FilteredGroupNodes.Reset();
 
 	// Apply filter to all groups and its children.
@@ -1056,6 +1040,14 @@ void STimersView::ApplyFiltering()
 
 	// Request tree refresh
 	TreeView->RequestTreeRefresh();
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view filtered in %.3fs (%d timers)"),
+			TotalTime, TimerNodes.Num());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1288,6 +1280,9 @@ bool STimersView::SearchBox_IsEnabled() const
 
 void STimersView::CreateGroups()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	if (GroupingMode == ETimerGroupingMode::Flat)
 	{
 		GroupNodes.Reset();
@@ -1404,6 +1399,14 @@ void STimersView::CreateGroups()
 	{
 		//im:TODO:
 	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view grouping updated in %.3fs (%d timers)"),
+			TotalTime, TimerNodes.Num());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1515,12 +1518,25 @@ void STimersView::UpdateCurrentSortingByColumn()
 
 void STimersView::SortTreeNodes()
 {
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
 	if (CurrentSorter.IsValid())
 	{
 		for (FTimerNodePtr& Root : GroupNodes)
 		{
 			SortTreeNodesRec(*Root, *CurrentSorter);
 		}
+	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	if (TotalTime > 0.1)
+	{
+		UE_LOG(TimingProfiler, Log, TEXT("[Timers] Tree view sorted (%s, %c) in %.3fs (%d timers)"),
+			CurrentSorter.IsValid() ? *CurrentSorter->GetShortName().ToString() : TEXT("N/A"),
+			(ColumnSortMode == EColumnSortMode::Type::Descending) ? TEXT('D') : TEXT('A'),
+			TotalTime, TimerNodes.Num());
 	}
 }
 
@@ -1536,7 +1552,8 @@ void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellV
 	{
 		Node.SortChildrenAscending(Sorter);
 	}
-/*
+
+#if 0 // Current groupings creates only one level.
 	for (Insights::FBaseTreeNodePtr ChildPtr : Node.GetChildren())
 	{
 		if (ChildPtr->GetChildren().Num() > 0)
@@ -1544,7 +1561,7 @@ void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellV
 			SortTreeNodesRec(*StaticCastSharedPtr<FTimerNode>(ChildPtr), Sorter);
 		}
 	}
-*/
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1950,6 +1967,7 @@ void STimersView::RebuildTree(bool bResync)
 				ensure(Timer.Id == TimerIndex);
 				const ETimerNodeType Type = Timer.IsGpuTimer ? ETimerNodeType::GpuScope : ETimerNodeType::CpuScope;
 				FTimerNodePtr TimerNodePtr = MakeShared<FTimerNode>(Timer.Id, Timer.Name, Type);
+				TimerNodePtr->SetDefaultSortOrder(TimerIndex + 1);
 				TimerNodes.Add(TimerNodePtr);
 			}
 			ensure(TimerNodes.Num() == TimerCount);

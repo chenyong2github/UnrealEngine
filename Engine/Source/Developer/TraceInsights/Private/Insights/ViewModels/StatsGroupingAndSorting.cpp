@@ -7,6 +7,9 @@
 
 #define LOCTEXT_NAMESPACE "StatsNode"
 
+//#define INSIGHTS_ENSURE ensure
+#define INSIGHTS_ENSURE(...)
+
 // Sort by name (ascending).
 #define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetName().LexicalLess(B->GetName());
 //#define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetDefaultSortOrder() < B->GetDefaultSortOrder();
@@ -20,7 +23,7 @@ FStatsNodeSortingByStatsType::FStatsNodeSortingByStatsType(TSharedRef<Insights::
 		FName(TEXT("ByStatsType")),
 		LOCTEXT("Sorting_ByStatsType_Name", "By Type"),
 		LOCTEXT("Sorting_ByStatsType_Title", "Sort By Type"),
-		LOCTEXT("Sorting_ByStatsType_Desc", "Sort by stats counter type."),
+		LOCTEXT("Sorting_ByStatsType_Desc", "Sort by counter type."),
 		InColumnRef)
 {
 }
@@ -33,20 +36,20 @@ void FStatsNodeSortingByStatsType::Sort(TArray<Insights::FBaseTreeNodePtr>& Node
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeType ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeType ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetType();
 
-			if (StatsNodeA->GetType() == StatsNodeB->GetType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by node type (ascending).
-				return StatsNodeA->GetType() < StatsNodeB->GetType();
+				return ValueA < ValueB;
 			}
 		});
 	}
@@ -54,20 +57,20 @@ void FStatsNodeSortingByStatsType::Sort(TArray<Insights::FBaseTreeNodePtr>& Node
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeType ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeType ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetType();
 
-			if (StatsNodeA->GetType() == StatsNodeB->GetType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by node type (descending).
-				return StatsNodeB->GetType() < StatsNodeA->GetType();
+				return ValueB < ValueA;
 			}
 		});
 	}
@@ -95,20 +98,20 @@ void FStatsNodeSortingByDataType::Sort(TArray<Insights::FBaseTreeNodePtr>& Nodes
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeDataType ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetDataType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeDataType ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetDataType();
 
-			if (StatsNodeA->GetDataType() == StatsNodeB->GetDataType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by data type (ascending).
-				return StatsNodeA->GetDataType() < StatsNodeB->GetDataType();
+				return ValueA < ValueB;
 			}
 		});
 	}
@@ -116,20 +119,20 @@ void FStatsNodeSortingByDataType::Sort(TArray<Insights::FBaseTreeNodePtr>& Nodes
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeDataType ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetDataType();
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const EStatsNodeDataType ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetDataType();
 
-			if (StatsNodeA->GetDataType() == StatsNodeB->GetDataType())
+			if (ValueA == ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			else
 			{
 				// Sort by data type (descending).
-				return StatsNodeB->GetDataType() < StatsNodeA->GetDataType();
+				return ValueB < ValueA;
 			}
 		});
 	}
@@ -157,13 +160,11 @@ void FStatsNodeSortingByCount::Sort(TArray<Insights::FBaseTreeNodePtr>& NodesToS
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
-			const uint64 ValueA = StatsNodeA->GetAggregatedStats().Count;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const uint64 ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetAggregatedStats().Count;
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
-			const uint64 ValueB = StatsNodeB->GetAggregatedStats().Count;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const uint64 ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetAggregatedStats().Count;
 
 			if (ValueA == ValueB)
 			{
@@ -180,13 +181,11 @@ void FStatsNodeSortingByCount::Sort(TArray<Insights::FBaseTreeNodePtr>& NodesToS
 	{
 		NodesToSort.Sort([](const Insights::FBaseTreeNodePtr& A, const Insights::FBaseTreeNodePtr& B) -> bool
 		{
-			ensure(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeA = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(A);
-			const uint64 ValueA = StatsNodeA->GetAggregatedStats().Count;
+			INSIGHTS_ENSURE(A.IsValid() && A->GetTypeName() == FStatsNode::TypeName);
+			const uint64 ValueA = reinterpret_cast<FStatsNode*>(A.Get())->GetAggregatedStats().Count;
 
-			ensure(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
-			const FStatsNodePtr StatsNodeB = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(B);
-			const uint64 ValueB = StatsNodeB->GetAggregatedStats().Count;
+			INSIGHTS_ENSURE(B.IsValid() && B->GetTypeName() == FStatsNode::TypeName);
+			const uint64 ValueB = reinterpret_cast<FStatsNode*>(B.Get())->GetAggregatedStats().Count;
 
 			if (ValueA == ValueB)
 			{
@@ -204,4 +203,5 @@ void FStatsNodeSortingByCount::Sort(TArray<Insights::FBaseTreeNodePtr>& NodesToS
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef INSIGHTS_DEFAULT_SORTING_NODES
+#undef INSIGHTS_ENSURE
 #undef LOCTEXT_NAMESPACE
