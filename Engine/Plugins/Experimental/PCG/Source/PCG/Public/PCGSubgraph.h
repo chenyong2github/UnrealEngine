@@ -14,7 +14,7 @@ class UPCGGraph;
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGNodeStructuralSettingsChanged, UPCGNode*);
 #endif
 
-UCLASS()
+UCLASS(Abstract)
 class UPCGBaseSubgraphSettings : public UPCGSettings
 {
 	GENERATED_BODY()
