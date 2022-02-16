@@ -12,7 +12,6 @@
 #include "DataLayerTreeItem.h"
 #include "WorldTreeItem.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
-#include "DataLayerDragDropOp.h"
 #include "ActorDescTreeItem.h"
 #include "ISceneOutlinerHierarchy.h"
 #include "SceneOutlinerMenuContext.h"
@@ -397,13 +396,47 @@ FReply FDataLayerMode::OnKeyDown(const FKeyEvent& InKeyEvent)
 
 bool FDataLayerMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const
 {
-	return !GetActorsFromOperation(Operation, true).IsEmpty() || !GetDataLayersFromOperation(Operation, true).IsEmpty();
+	return !GetDataLayerActorPairsFromOperation(Operation).IsEmpty() || !GetActorsFromOperation(Operation, true).IsEmpty() || !GetDataLayersFromOperation(Operation, true).IsEmpty();
+}
+
+FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation /*= false*/) const
+{
+	if (const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>())
+	{
+		const UDataLayer* TargetDataLayer = DataLayerItem->GetDataLayer();
+		if (!TargetDataLayer)
+		{
+			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
+		}
+
+		if (TargetDataLayer->IsLocked())
+		{
+			const FText Text = bMoveOperation ? LOCTEXT("CantMoveLockedDataLayer", "Can't move actors to locked Data Layer") : LOCTEXT("CantAssignLockedDataLayer", "Can't assign actors to locked Data Layer");
+			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, Text);
+		}
+
+		if (!bMoveOperation)
+		{
+			if (GetSelectedDataLayers(SceneOutliner).Num() > 1)
+			{
+				if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
+				{
+					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("AssignToDataLayers", "Assign to Selected Data Layers"));
+				}
+			}
+		}
+
+		const FText Text = bMoveOperation ? FText::Format(LOCTEXT("MoveToDataLayer", "Move to Data Layer \"{0}\""), FText::FromName(TargetDataLayer->GetDataLayerLabel())) : FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromName(TargetDataLayer->GetDataLayerLabel()));
+		return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, Text);
+	}
+
+	return FSceneOutlinerDragValidationInfo::Invalid();
 }
 
 FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload) const
 {
 	TArray<AActor*> PayloadActors = GetActorsFromOperation(Payload.SourceOperation);
-	if (!PayloadActors.IsEmpty())
+	if (!PayloadActors.IsEmpty()) // Adding actor(s) in data layer(s)
 	{
 		for (AActor* Actor : PayloadActors)
 		{
@@ -413,31 +446,13 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 			}
 		}
 
-		if (const FDataLayerTreeItem* DataLayerItem = DropTarget.CastTo<FDataLayerTreeItem>())
-		{
-			const UDataLayer* TargetDataLayer = DataLayerItem->GetDataLayer();
-			if (!TargetDataLayer)
-			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
-			}
-			
-			if (TargetDataLayer->IsLocked())
-			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantAssignLockedDataLayer", "Can't assign actors to locked Data Layer"));
-			}
-
-			if (GetSelectedDataLayers(SceneOutliner).Num() > 1)
-			{
-				if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
-				{
-					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, LOCTEXT("AssignToDataLayers", "Assign to Selected Data Layers"));
-				}
-			}
-
-			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::Compatible, FText::Format(LOCTEXT("AssignToDataLayer", "Assign to Data Layer \"{0}\""), FText::FromName(TargetDataLayer->GetDataLayerLabel())));
-		}
+		return ValidateDrop(DropTarget);
 	}
-	else 
+	else if (!GetDataLayerActorPairsFromOperation(Payload.SourceOperation).IsEmpty()) // Moving actor(s) into a Data Layer
+	{
+		return ValidateDrop(DropTarget, true);
+	}
+	else // Moving a data layer(s)
 	{
 		TArray<UDataLayer*> PayloadDataLayers = GetDataLayersFromOperation(Payload.SourceOperation);
 		if (!PayloadDataLayers.IsEmpty())
@@ -487,7 +502,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	return FSceneOutlinerDragValidationInfo::Invalid();
 }
 
-TArray<UDataLayer*> FDataLayerMode::GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst) const
+TArray<UDataLayer*> FDataLayerMode::GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst /*= false*/) const
 {
 	TArray<UDataLayer*> OutDataLayers;
 	
@@ -520,7 +535,20 @@ TArray<UDataLayer*> FDataLayerMode::GetDataLayersFromOperation(const FDragDropOp
 	return OutDataLayers;
 }
 
-TArray<AActor*> FDataLayerMode::GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst) const
+TArray<FDataLayerActorMoveElement> FDataLayerMode::GetDataLayerActorPairsFromOperation(const FDragDropOperation& Operation) const
+{
+	TArray<FDataLayerActorMoveElement> Out;
+
+	if (Operation.IsOfType<FDataLayerActorMoveOp>())
+	{
+		const FDataLayerActorMoveOp& DataLayerActorDragOp = StaticCast<const FDataLayerActorMoveOp&>(Operation);
+		return DataLayerActorDragOp.DataLayerActorMoveElements;
+	}
+
+	return Out;
+}
+
+TArray<AActor*> FDataLayerMode::GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst /*= false*/ ) const
 {
 	TSet<AActor*> Actors;
 
@@ -599,7 +627,7 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 	UDataLayer* TargetDataLayer = DataLayerItem ? DataLayerItem->GetDataLayer() : nullptr;
 
 	TArray<AActor*> ActorsToAdd = GetActorsFromOperation(Payload.SourceOperation);
-	if (!ActorsToAdd.IsEmpty())
+	if (!ActorsToAdd.IsEmpty()) // Adding actor(s) in data layer(s)
 	{
 		if (SceneOutliner->GetTree().IsItemSelected(const_cast<ISceneOutlinerTreeItem&>(DropTarget).AsShared()))
 		{
@@ -618,11 +646,50 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 			DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, TargetDataLayer);
 		}
 	}
-	else
+	else if (Payload.SourceOperation.IsOfType<FDataLayerActorMoveOp>()) // Moving actor(s) into a Data Layer
+	{
+		TArray<FDataLayerActorMoveElement> ActorsToMove = GetDataLayerActorPairsFromOperation(Payload.SourceOperation);
+		if (!ActorsToMove.IsEmpty() && TargetDataLayer)
+		{
+			const FScopedDataLayerTransaction Transaction(LOCTEXT("DataLayerOutlinerMoveActorsToDataLayer", "Move Actors to Data Layer"), RepresentingWorld.Get());
+			for (const auto& DataLayerActorPair : ActorsToMove)
+			{
+				if (AActor* ActorPtr = DataLayerActorPair.Key.Get())
+				{
+					DataLayerEditorSubsystem->AddActorToDataLayer(ActorPtr, TargetDataLayer);
+					DataLayerEditorSubsystem->RemoveActorFromDataLayer(ActorPtr, DataLayerActorPair.Value.Get());
+				}
+			}
+		}
+
+		return;
+	}
+	else // Moving a data layer(s)
 	{
 		TArray<UDataLayer*> DataLayers = GetDataLayersFromOperation(Payload.SourceOperation);
 		SetParentDataLayer(DataLayers, TargetDataLayer);
 	}
+}
+
+FReply FDataLayerMode::OnDragOverItem(const FDragDropEvent& Event, const ISceneOutlinerTreeItem& Item) const
+{
+	TSharedPtr<FDragDropOperation> DragOperation = Event.GetOperation();
+	
+	if (!DragOperation.IsValid())
+	{
+		return FReply::Handled();
+	}
+
+	if (DragOperation->IsOfType<FDataLayerActorMoveOp>()) // Moving actor(s) into a Data Layer
+	{
+		DragOperation->SetCursorOverride(EMouseCursor::GrabHandClosed);
+	}
+	else if (DragOperation->IsOfType<FActorDragDropOp>()) // Adding actor(s) in data layer(s)
+	{
+		DragOperation->SetCursorOverride(EMouseCursor::Default);
+	}
+
+	return FReply::Handled();
 }
 
 void FDataLayerMode::SetParentDataLayer(const TArray<UDataLayer*> DataLayers, UDataLayer* ParentDataLayer) const
@@ -669,6 +736,26 @@ struct FWeakDataLayerActorSelector
 	}
 };
 
+struct FDataLayerActorPairSelector
+{
+	bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, FDataLayerActorMoveElement& DataOut) const
+	{
+		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
+		{
+			if (FDataLayerActorTreeItem* TypedItem = ItemPtr->CastTo<FDataLayerActorTreeItem>())
+			{
+				if (TypedItem->IsValid())
+				{
+					DataOut = FDataLayerActorMoveElement(TypedItem->Actor.Get(), TypedItem->GetDataLayer());
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+};
+
+
 struct FWeakDataLayerSelector
 {
 	bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TWeakObjectPtr<UDataLayer>& DataOut) const
@@ -688,7 +775,7 @@ struct FWeakDataLayerSelector
 	}
 };
 
-TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
+TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
 {
 	FSceneOutlinerDragDropPayload DraggedObjects(InTreeItems);
 
@@ -724,13 +811,28 @@ TSharedPtr<FDragDropOperation> FDataLayerMode::CreateDragDropOperation(const TAr
 		return ActorOperation;
 	};
 
+	auto GetActorDataLayerOperation = [&DraggedObjects]()
+	{
+		TSharedPtr<FDataLayerActorMoveOp> DataLayerActorOperation = MakeShareable(new FDataLayerActorMoveOp);
+		DataLayerActorOperation->DataLayerActorMoveElements = DraggedObjects.GetData<FDataLayerActorMoveElement>(FDataLayerActorPairSelector());
+		DataLayerActorOperation->Construct();
+		return DataLayerActorOperation;
+	};
+
 	if (DraggedObjects.Has<FDataLayerTreeItem>() && !DraggedObjects.Has<FDataLayerActorTreeItem>())
 	{
 		return GetDataLayerOperation();
 	}
 	else if (!DraggedObjects.Has<FDataLayerTreeItem>() && DraggedObjects.Has<FDataLayerActorTreeItem>())
-	{
-		return GetActorOperation();
+	{	
+		if (MouseEvent.IsLeftAltDown())
+		{
+			return GetActorDataLayerOperation();
+		}
+		else
+		{
+			return GetActorOperation();
+		}
 	}
 	else
 	{
@@ -764,7 +866,7 @@ TArray<UDataLayer*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner* InScen
 	return MoveTemp(ValidSelectedDataLayers);
 }
 
-void FDataLayerMode::CreateDataLayerPicker(UToolMenu* InMenu, FOnDataLayerPicked OnDataLayerPicked, bool bInShowRoot)
+void FDataLayerMode::CreateDataLayerPicker(UToolMenu* InMenu, FOnDataLayerPicked OnDataLayerPicked, bool bInShowRoot /*= false*/)
 {
 	if (bInShowRoot)
 	{

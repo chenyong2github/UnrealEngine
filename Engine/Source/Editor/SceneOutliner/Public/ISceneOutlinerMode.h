@@ -41,7 +41,7 @@ public:
 	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject()) const { return FCreateSceneOutlinerMode(); }
 public:
 	/** Construct a new Drag and drop operation */
-	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const { return nullptr; }
+	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const { return nullptr; }
 
 	/**
 		* Populates a drag/drop operation if the mode supports that type of operation.

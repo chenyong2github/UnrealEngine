@@ -47,7 +47,7 @@ static FReply HandleOnDragDetected( const FGeometry& MyGeometry, const FPointerE
 	auto TablePtr = Table.Pin();
 	if (TablePtr.IsValid() && MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ))
 	{
-		auto Operation = TablePtr->GetOutlinerPtr().Pin()->CreateDragDropOperation(TablePtr->GetSelectedItems());
+		auto Operation = TablePtr->GetOutlinerPtr().Pin()->CreateDragDropOperation(MouseEvent, TablePtr->GetSelectedItems());
 
 		if (Operation.IsValid())
 		{

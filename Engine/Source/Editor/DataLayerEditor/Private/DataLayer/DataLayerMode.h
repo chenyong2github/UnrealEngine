@@ -6,6 +6,7 @@
 #include "SceneOutlinerFwd.h"
 #include "ISceneOutlinerMode.h"
 #include "DataLayerTreeItem.h"
+#include "DataLayerDragDropOp.h"
 
 class UDataLayerEditorSubsystem;
 class SDataLayerBrowser;
@@ -65,7 +66,8 @@ public:
 	virtual bool ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const override;
 	virtual FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload) const override;
 	virtual void OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload, const FSceneOutlinerDragValidationInfo& ValidationInfo) const override;
-	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const override;
+	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const override;
+	virtual FReply OnDragOverItem(const FDragDropEvent& Event, const ISceneOutlinerTreeItem& Item) const override; 
 
 	void DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>& Items);
 	SDataLayerBrowser* GetDataLayerBrowser() const;
@@ -96,6 +98,7 @@ private:
 	void ChooseRepresentingWorld();
 	void OnSelectWorld(TWeakObjectPtr<UWorld> World);
 	bool IsWorldChecked(TWeakObjectPtr<UWorld> World) const;
+	TArray<FDataLayerActorMoveElement> GetDataLayerActorPairsFromOperation(const FDragDropOperation& Operation) const;
 	TArray<AActor*> GetActorsFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
 	TArray<UDataLayer*> GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
 	TArray<UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
@@ -105,6 +108,7 @@ private:
 	bool ShouldExpandDataLayer(const UDataLayer* DataLayer) const;
 	bool ContainsSelectedChildDataLayer(const UDataLayer* DataLayer) const;
 	void RefreshSelection();
+	FSceneOutlinerDragValidationInfo ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, bool bMoveOperation = false) const;
 
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();

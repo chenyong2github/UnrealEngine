@@ -907,7 +907,7 @@ bool FActorBrowsingMode::GetFolderNamesFromPayload(const FSceneOutlinerDragDropP
 	return GetFolderNamesFromFolders(InPayload.GetData<FFolder>(SceneOutliner::FFolderPathSelector()), OutFolders, OutCommonRootObject);
 }
 
-TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
+TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
 {
 	FSceneOutlinerDragDropPayload DraggedObjects(InTreeItems);
 

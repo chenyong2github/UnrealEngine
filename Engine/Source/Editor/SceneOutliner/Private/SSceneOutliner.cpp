@@ -2227,9 +2227,9 @@ void SSceneOutliner::SetItemExpansionRecursive(FSceneOutlinerTreeItemPtr Model, 
 	}
 }
 
-TSharedPtr<FDragDropOperation> SSceneOutliner::CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const 
+TSharedPtr<FDragDropOperation> SSceneOutliner::CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
 { 
-	return Mode->CreateDragDropOperation(InTreeItems); 
+	return Mode->CreateDragDropOperation(MouseEvent, InTreeItems); 
 }
 
 /** Parse a drag drop operation into a payload */

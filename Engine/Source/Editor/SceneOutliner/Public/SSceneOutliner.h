@@ -451,7 +451,7 @@ public:
 	TSharedPtr<FSceneOutlinerFilters>& GetFilters() { return Filters; }
 
 	/** Create a drag drop operation */
-	TSharedPtr<FDragDropOperation> CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const;
+	TSharedPtr<FDragDropOperation> CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const;
 
 	/** Parse a drag drop operation into a payload */
 	bool ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const;
