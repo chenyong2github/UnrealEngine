@@ -52,7 +52,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		EntryPointName = FString();
 		KernelSourceText = FString();
 		PermutationSet = FComputeKernelPermutationSet();
-		DefinitionsSet = FComputeKernelDefinitionsSet();
+		DefinitionsSet = FComputeKernelDefinitionSet();
 		InputParams.Empty();
 
 		return;
@@ -93,7 +93,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		FRegexMatcher Matcher(KernelPermutationBoolPattern, KernelSourceText);
 		while (Matcher.FindNext())
 		{
-			NewPermutationSet.BooleanOptions.Emplace(Matcher.GetCaptureGroup(1));
+			NewPermutationSet.BooleanOptions.Emplace(Matcher.GetCaptureGroup(1), true);
 		}
 
 		PermutationSet = MoveTemp(NewPermutationSet);
@@ -101,7 +101,7 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 
 	{
 		static const FRegexPattern KernelDefinePattern(TEXT(R"(KERNEL_DEFINE\(\s*([a-zA-Z_][\w]*)\s*\))"));
-		FComputeKernelDefinitionsSet NewDefinitionsSet;
+		FComputeKernelDefinitionSet NewDefinitionsSet;
 
 		FRegexMatcher Matcher(KernelDefinePattern, KernelSourceText);
 		while (Matcher.FindNext())

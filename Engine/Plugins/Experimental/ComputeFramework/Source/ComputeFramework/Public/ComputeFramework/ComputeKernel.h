@@ -52,7 +52,7 @@ public:
 
 	/** Shader compilation environment overrides on the kernel. */
 	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelDefinitionsSet DefinitionsSetOverrides;
+	FComputeKernelDefinitionSet DefinitionSetOverrides;
 
 protected:
 #if WITH_EDITOR

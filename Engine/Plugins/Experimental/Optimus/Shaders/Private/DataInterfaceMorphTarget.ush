@@ -2,9 +2,6 @@
 
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
-// todo: This should be set by compute graph permutations when that is working.
-#define ENABLE_DEFORMER_MORPHTARGET 1
-
 uint DI_LOCAL(NumVertices);
 uint DI_LOCAL(InputStreamStart);
 

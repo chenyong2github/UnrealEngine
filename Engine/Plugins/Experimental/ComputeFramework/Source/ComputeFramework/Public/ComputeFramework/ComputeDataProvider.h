@@ -6,7 +6,7 @@
 #include "ComputeDataProvider.generated.h"
 
 class FComputeDataProviderRenderProxy;
-struct FComputeKernelPermutationSet;
+class FComputeKernelPermutationId;
 class FRDGBuilder;
 
 /**
@@ -50,7 +50,7 @@ public:
 	 * Get the shader permutations required for this data provider. 
 	 * All potential data permutations should already have been registered by the associated data interface to ensure that the compiled permutation exists. 
 	 */
-	virtual void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const {}
+	virtual void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const {}
 
 	/* Called once before any calls to GetBindings() to allow any RDG resource allocation. */
 	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}

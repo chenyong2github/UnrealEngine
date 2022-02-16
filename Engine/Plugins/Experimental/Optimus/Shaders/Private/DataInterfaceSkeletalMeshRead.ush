@@ -4,7 +4,6 @@
 #include "/Engine/Private/GpuSkinCommon.ush"
 
 // todo: These should be set by compute graph permutations when that is working.
-#define ENABLE_DEFORMER_BONES 1
 #define MERGE_DUPLICATED_VERTICES 0
 
 // The following should come from project settings and be set on compute graph kernel compilation.
@@ -142,7 +141,7 @@ DI_IMPL_READ(ReadBlendMatrix, float3x4, uint VertexIndex)
 			BoneIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneIndex;
 		}
 		float BoneWeight = float(DI_LOCAL(InputWeightStream)[WeightsOffset + InfluenceIndex]) / 255.0f;
-		BlendMatrix += BoneWeight * GetBoneMatrix(BoneIndex);
+		BlendMatrix += BoneWeight * DI_LOCAL(GetBoneMatrix)(BoneIndex);
 	}
 
 	return BlendMatrix;
@@ -211,7 +210,7 @@ DI_IMPL_READ(ReadBoneMatrix, float3x4, uint VertexIndex, uint BoneIndex)
 		BoneGlobalIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneGlobalIndex;
 	}
 	
-	return GetBoneMatrix(BoneGlobalIndex);
+	return DI_LOCAL(GetBoneMatrix)(BoneGlobalIndex);
 
 #else // !GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	

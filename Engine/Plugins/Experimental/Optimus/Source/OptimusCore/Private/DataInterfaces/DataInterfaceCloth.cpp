@@ -3,7 +3,7 @@
 #include "DataInterfaces/DataInterfaceCloth.h"
 
 #include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -120,6 +120,11 @@ void UClothDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParameter
 	OutBuilder.AddNestedStruct<FClothDataInterfaceParameters>(UID);
 }
 
+void UClothDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+{
+	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_CLOTH"), 2);
+}
+
 void UClothDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceCloth.ush\"\n");
@@ -183,9 +188,12 @@ FIntVector FClothDataProviderProxy::GetDispatchDim(int32 InvocationIndex, FIntVe
 	return FIntVector(NumGroups, 1, 1);
 }
 
-void FClothDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const
+void FClothDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const
 {
-	// todo[CF]: Set permutations required such as ENABLE_DEFORMER_CLOTH
+	static FString EnableDeformerCloth(TEXT("ENABLE_DEFORMER_CLOTH"));
+	static uint32 EnableDeformerClothHash = GetTypeHash(EnableDeformerCloth);
+	// todo[CF]: Only enable for segments with cloth.
+	OutPermutation.Set(EnableDeformerCloth, EnableDeformerClothHash, 1);
 }
 
 void FClothDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const

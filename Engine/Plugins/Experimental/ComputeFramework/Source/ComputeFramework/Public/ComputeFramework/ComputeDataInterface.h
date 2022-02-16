@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "ComputeDataInterface.generated.h"
 
-struct FComputeKernelPermutationSet;
+struct FComputeKernelDefinitionSet;
+struct FComputeKernelPermutationVector;
 struct FShaderCompilerEnvironment;
 struct FShaderFunctionDefinition;
 class FShaderParametersMetadataBuilder;
@@ -22,8 +23,10 @@ class COMPUTEFRAMEWORK_API UComputeDataInterface : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Gather compile definitions from the data interface. Any connected kernel will compile with these. */
+	virtual void GetDefines(FComputeKernelDefinitionSet& OutDefinitionSet) const {}
 	/** Gather permutations from the data interface. Any connected kernel will include these in its total compiled permutations. */
-	virtual void GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const {}
+	virtual void GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const {}
 	/** Get the data interface functions available to fulfill external inputs of a kernel. */
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const {}
 	/** Get the data interface functions available to fulfill external outputs of a kernel. */
@@ -32,8 +35,6 @@ public:
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const {}
 	/** Gather the shader code for this data provider. */
 	virtual void GetHLSL(FString& OutHLSL) const {}
-	/** Gather modifications to the compilation environment always required when including this data provider. */
-	virtual void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const {}
 	/** Get types of UObject required to instantiate a UComputeDataProvider from this interface. */
 	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const {}
 	/** Instantiate an associated UComputeDataProvider. InSourceObjects provides an optional array of objects to set on the provider. */

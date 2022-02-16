@@ -33,18 +33,18 @@ void UComputeKernel::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		if (KernelSource)
 		{
 			PermutationSetOverrides = KernelSource->PermutationSet;
-			DefinitionsSetOverrides = KernelSource->DefinitionsSet;
+			DefinitionSetOverrides = KernelSource->DefinitionsSet;
 		}
 		else
 		{
 			PermutationSetOverrides = FComputeKernelPermutationSet();
-			DefinitionsSetOverrides = FComputeKernelDefinitionsSet();
+			DefinitionSetOverrides = FComputeKernelDefinitionSet();
 		}
 
 		bNotifyGraphs = true;
 	}
 	else if (ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, PermutationSetOverrides) ||
-		ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, DefinitionsSetOverrides))
+		ModifiedPropName == GET_MEMBER_NAME_CHECKED(UComputeKernel, DefinitionSetOverrides))
 	{
 		bNotifyGraphs = true;
 	}

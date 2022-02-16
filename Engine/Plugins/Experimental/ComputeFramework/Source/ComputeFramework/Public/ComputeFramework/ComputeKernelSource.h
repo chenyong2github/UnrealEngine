@@ -22,7 +22,7 @@ public:
 
 	/** Base environment defines for kernel compilation. These will be extended by further defines declared in any linked data providers. */
 	UPROPERTY(VisibleAnywhere, meta = (ShowOnlyInnerProperties), Category = "Kernel")
-	FComputeKernelDefinitionsSet DefinitionsSet;
+	FComputeKernelDefinitionSet DefinitionsSet;
 
 	/* Named input parameters for the kernel. */
 	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Parameters")

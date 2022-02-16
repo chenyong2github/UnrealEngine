@@ -3,16 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "Engine/EngineTypes.h"
-#include "Misc/Guid.h"
-#include "Misc/Optional.h"
-#include "Misc/SecureHash.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
 #include "RHI.h"
 #include "SceneTypes.h"
 #include "Shader.h"
-#include "StaticParameterSet.h"
 #include "ShaderCompiler.h"
 #include "Templates/RefCounting.h"
 
@@ -133,8 +131,8 @@ public:
 	static FComputeKernelShaderMap* FindId(const FComputeKernelShaderMapId& InShaderMapId, EShaderPlatform InPlatform);
 
 	// ShaderMap interface
-	template<typename ShaderType> TShaderRef<ShaderType> GetShader() const { return TShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(), *this); }
-	TShaderRef<FShader> GetShader(FShaderType* ShaderType) const { return TShaderRef<FShader>(GetContent()->GetShader(ShaderType), *this); }
+	template<typename ShaderType> TShaderRef<ShaderType> GetShader(int32 PermutationId) const { return TShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(PermutationId), *this); }
+	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId) const { return TShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this); }
 
 	/**
 	 * Attempts to load the shader map for the given kernel from the Derived Data Cache.
@@ -416,7 +414,9 @@ public:
 		return ShaderEntryPoint;
 	}
 
-	const FString& GetFriendlyName()	const { return FriendlyName; }
+	const FString& GetFriendlyName() const { return FriendlyName; }
+
+	int32 GetNumPermutations() const;
 
 	void SetupResource(
 		ERHIFeatureLevel::Type InFeatureLevel,
@@ -424,8 +424,12 @@ public:
 		FString const& InShaderEntryPoint,
 		FString InShaderSource,
 		uint64 InShaderCodeHash,
+		FComputeKernelDefinitionSet& InShaderDefinitionSet,
+		FComputeKernelPermutationVector& InShaderPermutationVector,
 		FShaderParametersMetadata* InShaderMetadata
 	);
+
+	void SetupCompileEnvironment(int32 InPermutationId, FShaderCompilerEnvironment& OutShaderEnvironment) const;
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
@@ -437,8 +441,8 @@ public:
 		return ShaderMetadata.Get();
 	}
 	
-	TShaderRef<FComputeKernelShader> GetShader() const;
-	TShaderRef<FComputeKernelShader> GetShaderGameThread() const;
+	TShaderRef<FComputeKernelShader> GetShader(int32 PermutationId) const;
+	TShaderRef<FComputeKernelShader> GetShaderGameThread(int32 PermutationId) const;
 	
 	bool IsSame(const FComputeKernelShaderMapId& InId) const;
 
@@ -472,8 +476,10 @@ private:
 	 */
 	FComputeKernelShaderMap* RenderingThreadShaderMap = nullptr;
 
+	/** Name of shader main function. */
 	FString ShaderEntryPoint;
 
+	/** Cached shader source for compilation. */
 	FString ShaderSource;
 
 	/** 
@@ -482,6 +488,13 @@ private:
 	 */
 	uint64 ShaderCodeHash = 0;
 
+	/** Defines used when compiling shaders. */
+	FComputeKernelDefinitionSet ShaderDefinitionSet;
+	
+	/** Permutations used for compiling shaders. */
+	FComputeKernelPermutationVector ShaderPermutationVector;
+
+	/** Compilation flags. */
 	uint32 KernelFlags = 0;
 
 	/** 

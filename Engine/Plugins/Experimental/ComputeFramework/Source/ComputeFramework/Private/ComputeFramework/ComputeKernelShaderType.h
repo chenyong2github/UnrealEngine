@@ -98,6 +98,7 @@ public:
 
 	void BeginCompileShader(
 		uint32 ShaderMapId,
+		int32 PermutationId,
 		const FComputeKernelResource* InKernel,
 		FSharedShaderCompilerEnvironment* InCompilationEnvironment,
 		EShaderPlatform Platform,

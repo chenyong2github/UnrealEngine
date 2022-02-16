@@ -126,10 +126,6 @@ void UTransientBufferDataInterface::GetHLSL(FString& OutHLSL) const
 	if (SupportsAtomics()) { OutHLSL += TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"); }
 }
 
-void UTransientBufferDataInterface::ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const
-{
-}
-
 void UTransientBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	// Default setup with an assumption that we want to size to match a USkeletalMeshComponent.

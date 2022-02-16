@@ -3,7 +3,7 @@
 #include "DataInterfaces/DataInterfaceMorphTarget.h"
 
 #include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -80,6 +80,11 @@ void UMorphTargetDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPar
 	OutBuilder.AddNestedStruct<FMorphTargetDataInterfaceParameters>(UID);
 }
 
+void UMorphTargetDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+{
+	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_MORPHTARGET"), 2);
+}
+
 void UMorphTargetDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceMorphTarget.ush\"\n");
@@ -142,9 +147,13 @@ FIntVector FMorphTargetDataProviderProxy::GetDispatchDim(int32 InvocationIndex, 
 	return FIntVector(NumGroups, 1, 1);
 }
 
-void FMorphTargetDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const
+void FMorphTargetDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const
 {
-	// todo[CF]: Set permutations required such as ENABLE_DEFORMER_MORPHTARGET
+	static FString EnableDeformerMorphTarget(TEXT("ENABLE_DEFORMER_MORPHTARGET"));
+	static uint32 EnableDeformerMorphTargetHash = GetTypeHash(EnableDeformerMorphTarget);
+
+	// todo[CF]: Only enable for segments with morph targets.
+	OutPermutation.Set(EnableDeformerMorphTarget, EnableDeformerMorphTargetHash, 1);
 }
 
 void FMorphTargetDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const

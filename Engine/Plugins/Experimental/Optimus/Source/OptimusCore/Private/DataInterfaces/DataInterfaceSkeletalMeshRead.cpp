@@ -4,6 +4,7 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -38,16 +39,6 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 	Defs.Add({"IndexBuffer", "ReadIndexBuffer", Triangle, "ReadNumTriangles"});
 
 	return Defs;
-}
-
-void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const
-{
-	// Need to be able to support these permutations according to the skeletal mesh settings.
-	// todo[CF]: Filter these based on which functions in the data interface are attached. That will reduce unnecessary permutations.
-	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE")));
-	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_BONE_INDEX_UINT16")));
-	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("GPUSKIN_MORPH_BLEND")));
-	OutPermutationSet.BooleanOptions.Add(FComputeKernelPermutationBool(TEXT("MERGE_DUPLICATED_VERTICES")));
 }
 
 void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
@@ -277,6 +268,16 @@ void USkeletalMeshReadDataInterface::GetShaderParameters(TCHAR const* UID, FShad
 	OutBuilder.AddNestedStruct<FSkeletalMeshReadDataInterfaceParameters>(UID);
 }
 
+void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const
+{
+	// Need to be able to support these permutations according to the skeletal mesh settings.
+	// todo[CF]: Filter these based on which functions in the data interface are attached. That will reduce unnecessary permutations.
+	//OutPermutationVector.AddPermutation(TEXT("MERGE_DUPLICATED_VERTICES"), 2);
+	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_BONE_INDEX_UINT16"), 2);
+	OutPermutationVector.AddPermutation(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"), 2);
+	OutPermutationVector.AddPermutation(TEXT("ENABLE_DEFORMER_BONES"), 2);
+}
+
 void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeletalMeshRead.ush\"\n");
@@ -339,9 +340,21 @@ FIntVector FSkeletalMeshReadDataProviderProxy::GetDispatchDim(int32 InvocationIn
 	return FIntVector(NumGroups, 1, 1);
 }
 
-void FSkeletalMeshReadDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const
+void FSkeletalMeshReadDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const
 {
-	// todo[CF]: Set permutations required such as ENABLE_DEFORMER_BONES, MERGE_DUPLICATED_VERTICES
+	static FString BoneIndexUint16(TEXT("GPUSKIN_BONE_INDEX_UINT16"));
+	static uint32 BoneIndexUint16Hash = GetTypeHash(BoneIndexUint16);
+	static FString UnlimitedBoneInfluence(TEXT("GPUSKIN_UNLIMITED_BONE_INFLUENCE"));
+	static uint32 UnlimitedBoneInfluenceHash = GetTypeHash(UnlimitedBoneInfluence);
+	static FString EnableDeformerBones(TEXT("ENABLE_DEFORMER_BONES"));
+	static uint32 EnableDeformerBonesHash = GetTypeHash(EnableDeformerBones);
+
+	// todo[CF]: Set according to current segment data.
+	//OutPermutation.Set(BoneIndexUint16, BoneIndexUint16Hash, 1);
+	//OutPermutation.Set(UnlimitedBoneInfluence, UnlimitedBoneInfluenceHash, 1);
+
+	// todo[CF]: Only enable for segments with bones.
+	OutPermutation.Set(EnableDeformerBones, EnableDeformerBonesHash, 1);
 }
 
 void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const

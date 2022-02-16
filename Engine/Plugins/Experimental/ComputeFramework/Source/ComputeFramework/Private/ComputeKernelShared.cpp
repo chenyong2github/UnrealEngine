@@ -30,6 +30,10 @@ FComputeKernelResource::~FComputeKernelResource()
 /** Populates OutEnvironment with defines needed to compile shaders for this kernel. */
 void FComputeKernelResource::SetupShaderCompilationEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment) const
 {
+	for (FComputeKernelDefinition const& Define : ShaderDefinitionSet.Defines)
+	{
+		OutEnvironment.SetDefine(*Define.Symbol, *Define.Define);
+	}
 }
 
 bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
@@ -199,6 +203,8 @@ void FComputeKernelResource::SetupResource(
 	FString const& InShaderEntryPoint,
 	FString InShaderSource,
 	uint64 InShaderCodeHash,
+	FComputeKernelDefinitionSet& InShaderDefinitionSet,
+	FComputeKernelPermutationVector& InShaderPermutationVector,
 	FShaderParametersMetadata* InShaderMetadata
 	)
 {
@@ -207,8 +213,31 @@ void FComputeKernelResource::SetupResource(
 	ShaderEntryPoint = InShaderEntryPoint;
 	ShaderSource = MoveTemp(InShaderSource);
 	ShaderCodeHash = InShaderCodeHash;
+	ShaderDefinitionSet = MoveTemp(InShaderDefinitionSet);
+	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
 	ShaderMetadata.Reset(InShaderMetadata);
 	CompileErrors.Reset();
+}
+
+int32 FComputeKernelResource::GetNumPermutations() const 
+{
+	// todo[CF]: Support sparse permutation bits.
+	return 1 << ShaderPermutationVector.BitCount;
+}
+
+void FComputeKernelResource::SetupCompileEnvironment(int32 InPermutationId, FShaderCompilerEnvironment& OutShaderEnvironment) const
+{
+ 	for (TPair<FString, uint32> const& Permutation : ShaderPermutationVector.Permutations)
+	{
+		FComputeKernelPermutationVector::FPermutationBits PermutationBits;
+		PermutationBits.PackedValue = Permutation.Value;
+		const uint32 Mask = (1 << FMath::CeilLogTwo(PermutationBits.NumValues)) - 1;
+		const uint32 Value = (InPermutationId >> PermutationBits.BitIndex) & Mask;
+		if (Value > 0 && Value < PermutationBits.NumValues)
+		{
+			OutShaderEnvironment.SetDefine(*Permutation.Key, Value);
+		}
+	}
 }
 
 void FComputeKernelResource::SetRenderingThreadShaderMap(FComputeKernelShaderMap* InShaderMap)
@@ -359,21 +388,21 @@ void FComputeKernelResource::FinishCompilation()
 #endif
 }
 
-TShaderRef<FComputeKernelShader> FComputeKernelResource::GetShader() const
+TShaderRef<FComputeKernelShader> FComputeKernelResource::GetShader(int32 PermutationId) const
 {
 	check(!GIsThreadedRendering || !IsInGameThread());
 	if (!GIsEditor || RenderingThreadShaderMap)
 	{
-		return RenderingThreadShaderMap->GetShader<FComputeKernelShader>();
+		return RenderingThreadShaderMap->GetShader<FComputeKernelShader>(PermutationId);
 	}
 	return TShaderRef<FComputeKernelShader>();
 };
 
-TShaderRef<FComputeKernelShader> FComputeKernelResource::GetShaderGameThread() const
+TShaderRef<FComputeKernelShader> FComputeKernelResource::GetShaderGameThread(int32 PermutationId) const
 {
 	if (GameThreadShaderMap)
 	{
-		return GameThreadShaderMap->GetShader<FComputeKernelShader>();
+		return GameThreadShaderMap->GetShader<FComputeKernelShader>(PermutationId);
 	}
 	return TShaderRef<FComputeKernelShader>();
 };

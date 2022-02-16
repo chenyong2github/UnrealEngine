@@ -22,9 +22,9 @@ public:
 	//~ End UOptimusComputeDataInterface Interface
 	
 	//~ Begin UComputeDataInterface Interface
-	void GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const override;
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
+	void GetPermutations(FComputeKernelPermutationVector& OutPermutationVector) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
 	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
@@ -55,7 +55,7 @@ public:
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetInvocationCount() const override;
 	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
-	void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationSet& OutPermutationSet) const override;
+	void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const override;
 	void GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const override;
 	//~ End FComputeDataProviderRenderProxy Interface
 

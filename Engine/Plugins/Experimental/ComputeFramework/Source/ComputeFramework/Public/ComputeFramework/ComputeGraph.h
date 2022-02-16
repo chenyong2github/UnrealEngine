@@ -8,7 +8,11 @@
 
 class FArchive;
 class FComputeDataProviderRenderProxy;
+struct FComputeKernelDefinitionSet;
+struct FComputeKernelPermutationVector;
+struct FComputeKernelPermutationSet;
 class FComputeKernelResource;
+class FComputeGraphRenderProxy;
 class FShaderParametersMetadata;
 class ITargetPlatform;
 class UComputeDataInterface;
@@ -111,18 +115,6 @@ public:
 	/** Returns true if graph has a full set of compiled shaders. */
 	bool IsCompiled() const;
 
-	/** Get the number of kernel slots in the graph. Note that some of these kernel slots may be empty due to fragmentation in graph edition. */
-	int32 GetNumKernelInvocations() const { return KernelInvocations.Num(); }
-	
-	/** Get the nth kernel in the graph. Note that it is valid to return nullptr here. */
-	UComputeKernel const* GetKernelInvocation(int32 Index) const { return KernelInvocations[Index]; }
-	
-	/** Get the resource object for the nth kernel in the graph. Note that it is valid to return nullptr here. */
-	FComputeKernelResource const* GetKernelResource(int32 Index) const { return KernelResources[Index].Get(); }
-
-	/** Get the shader metadata for the nth kernel in the graph. Note that it is valid to return nullptr here. */
-	FShaderParametersMetadata* GetKernelShaderMetadata(int32 Index) const { return ShaderMetadatas[Index]; }
-
 	/** 
 	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
 	 * If InBindingObject is set then we attempt to setup bindings from that UObject.
@@ -132,6 +124,12 @@ public:
 
 	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
 	bool ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const;
+
+	/** 
+	 * Create FComputeGraphRenderProxy render thread proxy. 
+	 * Ownership of the proxy is passed to the caller.
+	 */
+	FComputeGraphRenderProxy* CreateProxy() const;
 
 	/**
 	 * Get unique data interface id.
@@ -164,10 +162,12 @@ private:
 	FShaderParametersMetadata* BuildKernelShaderMetadata(int32 KernelIndex) const;
 	/** Recache the shader metadata for all kernels in the graph. */
 	void CacheShaderMetadata();
+	/** Recache the shader permutation vectors for all kernels in the graph. */
+	void CacheShaderPermutationVectors();
 
 #if WITH_EDITOR
 	/** Build the HLSL source for a kernel with its linked data interfaces. */
-	FString BuildKernelSource(int32 KernelIndex) const;
+	FString BuildKernelSource(int32 KernelIndex, FComputeKernelDefinitionSet& OutDefinitionSet, FComputeKernelPermutationVector& OutPermutationVector) const;
 
 	/** Cache shader resources for all kernels in the graph. */
 	void CacheResourceShadersForRendering(uint32 CompilationFlags);
@@ -223,4 +223,7 @@ private:
 
 	/** Shader metadata stored with the same indexing as the KernelInvocations array. */
 	TArray<FShaderParametersMetadata*> ShaderMetadatas;
+
+	/** Shader permutation vector stored with the same indexing as the KernelInvocations array. */
+	TArray<FComputeKernelPermutationVector> ShaderPermutationVectors;
 };

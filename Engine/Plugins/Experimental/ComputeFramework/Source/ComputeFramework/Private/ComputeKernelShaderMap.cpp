@@ -162,6 +162,7 @@ void FComputeKernelShaderMapId::AppendKeyString(FString& OutKeyString) const
  */
 void FComputeKernelShaderType::BeginCompileShader(
 	uint32 InShaderMapId,
+	int32 PermutationId,
 	const FComputeKernelResource* InKernel,
 	FSharedShaderCompilerEnvironment* InCompilationEnvironment,
 	EShaderPlatform InPlatform,
@@ -171,7 +172,7 @@ void FComputeKernelShaderType::BeginCompileShader(
 {
 	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(
 		InShaderMapId, 
-		FShaderCompileJobKey(this, nullptr, /* PermutationId = */ 0),
+		FShaderCompileJobKey(this, nullptr, PermutationId),
 		EShaderCompileJobPriority::Normal
 		);
 
@@ -191,6 +192,8 @@ void FComputeKernelShaderType::BeginCompileShader(
 	UE_LOG(LogShaders, Verbose, TEXT("			%s"), GetName());
 	COOK_STAT(ComputeKernelShaderCookStats::ShadersCompiled++);
 
+	InKernel->SetupCompileEnvironment(PermutationId, ShaderEnvironment);
+
 	// Allow the shader type to modify the compile environment.
 	SetupCompileEnvironment(InPlatform, InKernel, ShaderEnvironment);
 
@@ -199,7 +202,7 @@ void FComputeKernelShaderType::BeginCompileShader(
 		nullptr,
 		this,
 		nullptr,//ShaderPipeline,
-		0, // PermutationId
+		PermutationId,
 		*virtualSourcePath,
 		*InKernel->GetEntryPoint(),
 		FShaderTarget(GetFrequency(), InPlatform),
@@ -222,12 +225,11 @@ FShader* FComputeKernelShaderType::FinishCompileShader(
 {
 	check(InCurrentJob.bSucceeded);
 
-	const int32 PermutationId = 0;
 	FShader* Shader = ConstructCompiled(
 		FComputeKernelShaderType::CompiledShaderInitializerType(
 			this,
 			static_cast<const FParameters*>(InCurrentJob.ShaderParameters.Get()),
-			PermutationId,
+			InCurrentJob.Key.PermutationId,
 			InCurrentJob.Output,
 			InShaderMapHash,
 			InDebugDescription
@@ -409,22 +411,26 @@ void FComputeKernelShaderMap::Compile(
 					// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 					check(InShaderMapId.ContainsShaderType(ShaderType));
 					
-					// Compile this ComputeKernel shader .
+					// Compile this ComputeKernel shader.
 					TArray<FString> ShaderErrors;
   
-					// Only compile the shader if we don't already have it
-					if (!NewContent->HasShader(ShaderType, /* PermutationId = */ 0))
+					for (int32 PermutationId = 0; PermutationId < InKernel->GetNumPermutations(); ++PermutationId)
 					{
-						ShaderType->BeginCompileShader(
-							CompilingId,
-							InKernel,
-							InCompilationEnvironment,
-							InPlatform,
-							NewJobs,
-							FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform())
-							);
+						// Only compile the shader if we don't already have it
+						if (!NewContent->HasShader(ShaderType, PermutationId))
+						{
+							ShaderType->BeginCompileShader(
+								CompilingId,
+								PermutationId,
+								InKernel,
+								InCompilationEnvironment,
+								InPlatform,
+								NewJobs,
+								FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform())
+								);
+						}
+						NumShaders++;
 					}
-					NumShaders++;
 				}
 				else if (ShaderType)
 				{
@@ -477,8 +483,8 @@ FShader* FComputeKernelShaderMap::ProcessCompilationResultsForSingleJob(FShaderC
 
 	FComputeKernelShader* ComputeKernelShader = static_cast<FComputeKernelShader*>(Shader);
 	check(Shader);
-	check(!GetContent()->HasShader(ComputeKernelShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(ComputeKernelShaderType->GetHashedName(), 0, Shader);
+	check(!GetContent()->HasShader(ComputeKernelShaderType, CurrentJob.Key.PermutationId));
+	return GetMutableContent()->FindOrAddShader(ComputeKernelShaderType->GetHashedName(), CurrentJob.Key.PermutationId, Shader);
 }
 
 bool FComputeKernelShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutJobIndex, float& InOutTimeBudget)
@@ -538,13 +544,19 @@ bool FComputeKernelShaderMap::TryToAddToExistingCompilationTask(FComputeKernelRe
 bool FComputeKernelShaderMap::IsComputeKernelShaderComplete(const FComputeKernelResource* InKernel, const FComputeKernelShaderType* InShaderType, bool bSilent)
 {
 	// If we should cache this kernel, it's incomplete if the shader is missing
-	if (ShouldCacheComputeKernelShader(InShaderType, GetShaderPlatform(), InKernel) && !GetContent()->HasShader((FShaderType*)InShaderType, /* PermutationId = */ 0))
+	if (ShouldCacheComputeKernelShader(InShaderType, GetShaderPlatform(), InKernel))
 	{
-		if (!bSilent)
+		for (int32 PermutationId = 0; PermutationId < InKernel->GetNumPermutations(); ++PermutationId)
 		{
-			UE_LOG(LogShaders, Warning, TEXT("Incomplete shader %s, missing FComputeKernelShader %s."), *InKernel->GetFriendlyName(), InShaderType->GetName());
+			if (!GetContent()->HasShader((FShaderType*)InShaderType, PermutationId))
+			{
+				if (!bSilent)
+				{
+					UE_LOG(LogShaders, Warning, TEXT("Incomplete shader %s, missing FComputeKernelShader %s."), *InKernel->GetFriendlyName(), InShaderType->GetName());
+				}
+				return false;
+			}
 		}
-		return false;
 	}
 
 	return true;
@@ -685,7 +697,11 @@ void FComputeKernelShaderMap::FlushShadersByShaderType(const FShaderType* InShad
 {
 	if (InShaderType->GetComputeKernelShaderType())
 	{
-		GetMutableContent()->RemoveShaderTypePermutaion(InShaderType->GetComputeKernelShaderType(), /* PermutationId = */ 0);	
+		const int32 PermutationCount = InShaderType->GetPermutationCount();
+		for (int32 PermutationId = 0; PermutationId < PermutationCount; ++PermutationId)
+		{
+			GetMutableContent()->RemoveShaderTypePermutaion(InShaderType->GetComputeKernelShaderType(), PermutationId);	
+		}
 	}
 }
 

@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ComputeFrameworkModule.h"
 #include "ComputeFramework/ComputeGraph.h"
+#include "ComputeFramework/ComputeGraphRenderProxy.h"
 #include "ComputeFramework/ComputeGraphWorker.h"
 #include "ComputeFramework/ComputeSystem.h"
 
@@ -66,8 +67,7 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		ComputeDataProviderProxies.Add(ProviderProxy);
 	}
 
-	FComputeGraphProxy* ComputeGraphProxy = new FComputeGraphProxy();
-	ComputeGraphProxy->Initialize(InComputeGraph);
+	FComputeGraphRenderProxy* ComputeGraphProxy = InComputeGraph->CreateProxy();
 
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
 		[ComputeGraphWorker, ComputeGraphProxy, DataProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)

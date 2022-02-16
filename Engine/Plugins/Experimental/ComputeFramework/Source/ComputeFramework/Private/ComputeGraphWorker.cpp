@@ -5,6 +5,7 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShader.h"
 #include "ComputeFramework/ComputeGraph.h"
+#include "ComputeFramework/ComputeGraphRenderProxy.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -12,36 +13,7 @@
 
 DECLARE_GPU_STAT_NAMED(ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
 
-void FComputeGraphProxy::Initialize(UComputeGraph* ComputeGraph)
-{
-	const int32 NumKernels = ComputeGraph->GetNumKernelInvocations();
-	for (int32 KernelIndex = 0; KernelIndex < NumKernels; ++KernelIndex)
-	{
-		UComputeKernel const* Kernel = ComputeGraph->GetKernelInvocation(KernelIndex);
-		FComputeKernelResource const* KernelResource = ComputeGraph->GetKernelResource(KernelIndex);
-		FShaderParametersMetadata const* ShaderMetadata = ComputeGraph->GetKernelShaderMetadata(KernelIndex);
-
-		if (Kernel != nullptr && KernelResource != nullptr && ShaderMetadata != nullptr)
-		{
-			TMap<int32, TArray<uint8>> KernelBindings;
-		
-			ComputeGraph->GetKernelBindings(KernelIndex, KernelBindings);
-			
-			FKernelInvocation KernelInvocation = {
-				Kernel->GetFName(),
-				FName("InvocationName"),
-				FIntVector(64, 1, 1), // todo[CF]: read group size from kernel (or possibly apply it through defines)
-				ShaderMetadata,
-				KernelBindings,
-				KernelResource
-				};
-
-			KernelInvocations.Emplace(KernelInvocation);
-		}
-	}
-}
-
-void FComputeGraphTaskWorker::Enqueue(const FComputeGraphProxy* ComputeGraph, TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders)
+void FComputeGraphTaskWorker::Enqueue(const FComputeGraphRenderProxy* ComputeGraph, TArray<FComputeDataProviderRenderProxy*> ComputeDataProviders)
 {
 	FGraphInvocation& GraphInvocation = GraphInvocations.AddDefaulted_GetRef();
 
@@ -59,33 +31,43 @@ void FComputeGraphTaskWorker::Enqueue(const FComputeGraphProxy* ComputeGraph, TA
 	const int32 NumSubInvocations = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetInvocationCount() : 1;
 	GraphInvocation.NumSubInvocations = NumSubInvocations;
 
-	for (FComputeGraphProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
+	for (FComputeGraphRenderProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
 	{
-		// todo[CF]: If you hit this then shader compilation might not have happened yet.
-		if (Invocation.Kernel->GetShader().IsValid())
+		for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 		{
-			if (Invocation.Kernel->GetShader()->Bindings.StructureLayoutHash != Invocation.ShaderMetadata->GetLayoutHash())
+			// Get kernel resource permutation vector...
+			FComputeKernelPermutationId PermutationId(*Invocation.ShaderPermutationVector);
+			for (int32 ProviderIndex : Invocation.BoundProviderIndices)
+			{
+				ComputeDataProviders[ProviderIndex]->GetPermutations(SubInvocationIndex, PermutationId);
+			}
+
+			TShaderRef<FComputeKernelShader> Shader = Invocation.KernelResource->GetShader(PermutationId.Get());
+
+			if (!Shader.IsValid())
+			{
+				// todo[CF]: If you hit this then shader compilation might not have happened yet.
+				continue;
+			}
+
+			if (Shader->Bindings.StructureLayoutHash != Invocation.ShaderMetadata->GetLayoutHash())
 			{
 				// todo[CF]: Fix issue where shader metadata is updated out of sync with shader compilation.
 				continue;
 			}
 
-			for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++ SubInvocationIndex)
-			{
-				// todo[CF]: dispatch dimension logic needs to be way more involved
-				const FIntVector DispatchDim = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
+			// todo[CF]: dispatch dimension logic needs to be way more involved
+			const FIntVector DispatchDim = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
 
-				FShaderInvocation ShaderInvocation = {
-					Invocation.KernelName,
-					Invocation.InvocationName,
-					DispatchDim,
-					Invocation.ShaderMetadata,
-					Invocation.ShaderParamBindings,
-					Invocation.Kernel->GetShader(),
-					SubInvocationIndex };
+			FShaderInvocation ShaderInvocation = {
+				Invocation.KernelName,
+				DispatchDim,
+				Invocation.ShaderMetadata,
+				Invocation.ShaderParamBindings,
+				Shader,
+				SubInvocationIndex };
 
-				GraphInvocation.ComputeShaders.Emplace(ShaderInvocation);
-			}
+			GraphInvocation.ComputeShaders.Emplace(ShaderInvocation);
 		}
 	}
 
@@ -242,12 +224,9 @@ void FComputeGraphTaskWorker::SubmitWork(
 					TCHAR KernelName[128];
 					Compute.KernelName.ToString(KernelName);
 
-					TCHAR InvocationName[128];
-					Compute.InvocationName.ToString(InvocationName);
-
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
-						RDG_EVENT_NAME("Compute[%s]: %s", KernelName, InvocationName),
+						RDG_EVENT_NAME("Compute[%s]", KernelName),
 						ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 						Compute.Shader,
 						Compute.ShaderParamMetadata,
