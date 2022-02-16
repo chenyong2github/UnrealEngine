@@ -4266,6 +4266,24 @@ void FControlRigEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
 void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
+	
+	// we need to listen to changes for variables on the blueprint here since
+	// OnFinishedChangingProperties is called only for top level property changes.
+	// changes on a lower level property like transform under a user defined struct
+	// only go through this.
+	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
+	if(ControlRig && ControlRigBP)
+	{
+		const FName VarName = PropertyChangedEvent.MemberProperty->GetFName();
+		for(FBPVariableDescription& NewVariable : ControlRigBP->NewVariables)
+		{
+			if(NewVariable.VarName == VarName)
+			{
+				UpdateDefaultValueForVariable(NewVariable, false);
+				break;
+			}
+		}
+	}
 }
 
 void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
@@ -4292,20 +4310,6 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		{
 			ControlRigBP->PropagateDrawInstructionsFromBPToInstances();
 			return;
-		}
-	}
-
-	// this might be a property value for a variable
-	if(ControlRig && ControlRigBP)
-	{
-		const FName VarName = PropertyChangedEvent.MemberProperty->GetFName();
-		for(FBPVariableDescription& NewVariable : ControlRigBP->NewVariables)
-		{
-			if(NewVariable.VarName == VarName)
-			{
-				UpdateDefaultValueForVariable(NewVariable, false);
-				break;
-			}
 		}
 	}
 }
