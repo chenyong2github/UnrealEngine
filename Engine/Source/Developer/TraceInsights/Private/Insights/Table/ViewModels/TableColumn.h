@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
 #include "Misc/EnumClassFlags.h"
+#include "Widgets/Views/SHeaderRow.h" // for EColumnSortMode
 
 #include "Insights/Table/ViewModels/TableCellValue.h"
 
@@ -73,6 +74,7 @@ public:
 		, ValueGetter(GetDefaultValueGetter())
 		, ValueFormatter(GetDefaultValueFormatter())
 		, ValueSorter(nullptr)
+		, InitialSortMode(EColumnSortMode::Ascending)
 		, ParentTable(nullptr)
 	{
 	}
@@ -185,6 +187,12 @@ public:
 	/** Whether this column can be used for sorting. */
 	bool CanBeSorted() const { return ValueSorter.IsValid(); }
 
+	/** Gets the initial sorting mode. */
+	EColumnSortMode::Type GetInitialSortMode() const { return InitialSortMode; }
+
+	/** Sets the initial sorting mode. */
+	void SetInitialSortMode(EColumnSortMode::Type InMode) { InitialSortMode = InMode; }
+
 	//////////////////////////////////////////////////
 	// Value Converter (can be nullptr)
 
@@ -248,6 +256,9 @@ private:
 
 	/** Custom sorter for values displayed by this column. */
 	TSharedPtr<ITableCellValueSorter> ValueSorter;
+
+	/** Initial sorting mode. */
+	EColumnSortMode::Type InitialSortMode;
 	
 	/** Used to convert in a custom way from string to column data type in FilterConfigurator */
 	TSharedPtr<IFilterValueConverter> ValueConverter;

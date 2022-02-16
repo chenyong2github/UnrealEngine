@@ -70,7 +70,7 @@ SNetStatsView::~SNetStatsView()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingProfilerWindow> InProfilerWindow)
+void SNetStatsView::Construct(const FArguments& InArgs, TSharedRef<SNetworkingProfilerWindow> InProfilerWindow)
 {
 	ProfilerWindowWeakPtr = InProfilerWindow;
 
@@ -1247,6 +1247,7 @@ void SNetStatsView::ShowColumn(const FName ColumnId)
 		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Fill)
 		.VAlignCell(VAlign_Fill)
+		.InitialSortMode(Column.GetInitialSortMode())
 		.SortMode(this, &SNetStatsView::GetSortModeForColumn, Column.GetId())
 		.OnSort(this, &SNetStatsView::OnSortModeChanged)
 		.FillWidth(Column.GetInitialWidth())

@@ -243,6 +243,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateInstanceCount
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FTimerNodeSortingByInstanceCount>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -292,6 +293,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateTotalInclusiv
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FTimerNodeSortingByTotalInclusiveTime>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -337,6 +339,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMaxInclusiveT
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -382,6 +385,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateAverageInclus
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -427,6 +431,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMedianInclusi
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -472,6 +477,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMinInclusiveT
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -521,6 +527,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateTotalExclusiv
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FTimerNodeSortingByTotalExclusiveTime>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -566,6 +573,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMaxExclusiveT
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -611,6 +619,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateAverageExclus
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -656,6 +665,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMedianExclusi
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -701,6 +711,7 @@ TSharedRef<Insights::FTableColumn> FTimersViewColumnFactory::CreateMinExclusiveT
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }

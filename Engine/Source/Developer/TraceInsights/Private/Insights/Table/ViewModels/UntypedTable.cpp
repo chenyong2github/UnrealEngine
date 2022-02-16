@@ -208,6 +208,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 
 		TSharedPtr<ITableCellValueFormatter> FormatterPtr;
 		TSharedPtr<ITableCellValueSorter> SorterPtr;
+		EColumnSortMode::Type InitialSortMode = EColumnSortMode::Ascending;
 
 		switch (ColumnType)
 		{
@@ -219,6 +220,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 			//else // if (Hint == AsTrueFalse)
 			FormatterPtr = MakeShared<FBoolValueFormatterAsTrueFalse>();
 			SorterPtr = MakeShared<FSorterByBoolValue>(ColumnRef);
+			InitialSortMode = EColumnSortMode::Ascending;
 			break;
 
 		case TraceServices::TableColumnType_Int:
@@ -238,6 +240,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 				FormatterPtr = MakeShared<FInt64ValueFormatterAsNumber>();
 			}
 			SorterPtr = MakeShared<FSorterByInt64Value>(ColumnRef);
+			InitialSortMode = EColumnSortMode::Descending;
 			break;
 
 		case TraceServices::TableColumnType_Float:
@@ -251,10 +254,12 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Time)
 			{
 				FormatterPtr = MakeShared<FFloatValueFormatterAsTimeAuto>();
+				InitialSortMode = EColumnSortMode::Ascending;
 			}
 			else
 			{
 				FormatterPtr = MakeShared<FFloatValueFormatterAsNumber>();
+				InitialSortMode = EColumnSortMode::Descending;
 			}
 			SorterPtr = MakeShared<FSorterByFloatValue>(ColumnRef);
 			break;
@@ -270,10 +275,12 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 			if (ColumnDisplayHintFlags & TraceServices::TableColumnDisplayHint_Time)
 			{
 				FormatterPtr = MakeShared<FDoubleValueFormatterAsTimeAuto>();
+				InitialSortMode = EColumnSortMode::Ascending;
 			}
 			else
 			{
 				FormatterPtr = MakeShared<FDoubleValueFormatterAsNumber>();
+				InitialSortMode = EColumnSortMode::Descending;
 			}
 			SorterPtr = MakeShared<FSorterByDoubleValue>(ColumnRef);
 			break;
@@ -284,6 +291,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 			InitialColumnWidth = FMath::Max(120.0f, 6.0f * ColumnNameStr.Len());
 			FormatterPtr = MakeShared<FCStringValueFormatterAsText>();
 			SorterPtr = MakeShared<FSorterByCStringValue>(ColumnRef);
+			InitialSortMode = EColumnSortMode::Ascending;
 			break;
 		}
 
@@ -309,6 +317,7 @@ void FUntypedTable::CreateColumns(const TraceServices::ITableLayout& TableLayout
 		}
 
 		Column.SetValueSorter(SorterPtr);
+		Column.SetInitialSortMode(InitialSortMode);
 
 		AddColumn(ColumnRef);
 	}

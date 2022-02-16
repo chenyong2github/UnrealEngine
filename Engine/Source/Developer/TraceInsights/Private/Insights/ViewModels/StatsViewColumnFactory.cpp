@@ -261,6 +261,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateCountColumn()
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByCount>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -318,6 +319,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateSumColumn()
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingBySum>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -375,6 +377,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMaxColumn()
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMax>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -432,6 +435,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateUpperQuartileC
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByUpperQuartile>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -488,6 +492,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateAverageColumn(
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByAverage>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -544,6 +549,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMedianColumn()
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMedian>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -601,6 +607,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateLowerQuartileC
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByLowerQuartile>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -658,6 +665,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMinColumn()
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMin>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
@@ -711,6 +719,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateDiffColumn()
 
 	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 	Column.SetValueSorter(Sorter);
+	Column.SetInitialSortMode(EColumnSortMode::Descending);
 
 	return ColumnRef;
 }
