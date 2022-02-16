@@ -7,6 +7,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Logging/MessageLog.h"
+#include "MessageLog/Public/MessageLogModule.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
@@ -21,6 +23,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
 #include "Insights/NetworkingProfiler/Widgets/SPacketView.h"
 
@@ -403,6 +406,12 @@ void SPacketContentView::FindFirstEvent()
 		OnSelectedEventChanged();
 		BringEventIntoView(SelectedEvent);
 	}
+	else
+	{
+		FMessageLog ReportMessageLog(FNetworkingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -414,6 +423,8 @@ void SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType)
 		FindFirstEvent();
 		return;
 	}
+
+	FNetworkPacketEventRef PreviousSelectedEvent = SelectedEvent;
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
 	for (int32 EventIndex = EventCount - 1; EventIndex >= 0; --EventIndex)
@@ -459,6 +470,13 @@ void SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType)
 	}
 
 	BringEventIntoView(SelectedEvent);
+
+	if (PreviousSelectedEvent.Equals(SelectedEvent))
+	{
+		FMessageLog ReportMessageLog(FNetworkingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -470,6 +488,8 @@ void SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
 		FindLastEvent();
 		return;
 	}
+
+	FNetworkPacketEventRef PreviousSelectedEvent = SelectedEvent;
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
 	for (int32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
@@ -515,6 +535,13 @@ void SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
 	}
 
 	BringEventIntoView(SelectedEvent);
+
+	if (PreviousSelectedEvent.Equals(SelectedEvent))
+	{
+		FMessageLog ReportMessageLog(FNetworkingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -526,6 +553,12 @@ void SPacketContentView::FindLastEvent()
 		SelectedEvent.Set(FilteredDrawState->Events.Last());
 		OnSelectedEventChanged();
 		BringEventIntoView(SelectedEvent);
+	}
+	else
+	{
+		FMessageLog ReportMessageLog(FNetworkingProfilerManager::Get()->GetLogListingName());
+		ReportMessageLog.Error(LOCTEXT("NoEventFound", "No event found!"));
+		ReportMessageLog.Notify();
 	}
 }
 

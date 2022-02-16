@@ -2,6 +2,7 @@
 
 #include "NetworkingProfilerManager.h"
 
+#include "MessageLog/Public/MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "WorkspaceMenuStructure.h"
@@ -51,6 +52,7 @@ FNetworkingProfilerManager::FNetworkingProfilerManager(TSharedRef<FUICommandList
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindows()
+	, LogListingName(TEXT("NetworkingInsights"))
 {
 }
 
@@ -87,6 +89,16 @@ void FNetworkingProfilerManager::Shutdown()
 		return;
 	}
 	bIsInitialized = false;
+
+	// If the MessageLog module was already unloaded as part of the global Shutdown process, do not load it again.
+	if (FModuleManager::Get().IsModuleLoaded("MessageLog"))
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		if (MessageLogModule.IsRegisteredLogListing(GetLogListingName()))
+		{
+			MessageLogModule.UnregisterLogListing(GetLogListingName());
+		}
+	}
 
 	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 
@@ -259,6 +271,10 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
+
+			FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+			MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("NetworkingInsights", "Networking Profiler Insights"));
+			MessageLogModule.EnableMessageLogDisplay(true);
 
 			//int32 SpawnTabCount = 2; // we want to spawn 2 tabs
 			//for (int32 ReservedId = 0; SpawnTabCount > 0 && ReservedId < 10; ++ReservedId)
