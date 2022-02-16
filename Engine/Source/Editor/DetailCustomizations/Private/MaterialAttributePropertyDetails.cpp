@@ -22,10 +22,19 @@ void FMaterialAttributePropertyDetails::CustomizeDetails(IDetailLayoutBuilder& D
 	// Populate combo boxes with material property list
 	FMaterialAttributeDefinitionMap::GetAttributeNameToIDList(AttributeNameToIDList);
 
+	static const FString ExcludedFrontMaterialName = FString("FrontMaterial");
+
 	AttributeDisplayNameList.Empty(AttributeNameToIDList.Num());
 	for (const TPair<FString, FGuid>& NameGUIDPair : AttributeNameToIDList)
 	{
-		AttributeDisplayNameList.Add(MakeShareable(new FString(NameGUIDPair.Key)));
+		// We remove unwanted elements from the list of material attributes that can be used in the material layer workflow.
+		// We do not want to blend strata BSDF which could increase the complexity of the material (BSDF / Slab count) for each blend operation.
+		// Only parameters are allowed to finally be transform into Strata at the end of the chain.
+		// This filtering is ran only when constructing the UI element.
+		if (NameGUIDPair.Key != ExcludedFrontMaterialName)
+		{
+			AttributeDisplayNameList.Add(MakeShareable(new FString(NameGUIDPair.Key)));
+		}
 	}
 
 	// Fetch root property we're dealing with

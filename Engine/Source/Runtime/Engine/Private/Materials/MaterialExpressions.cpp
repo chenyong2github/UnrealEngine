@@ -645,25 +645,8 @@ int32 CompileShadingModelBlendFunction(FMaterialCompiler* Compiler, const int32 
 
 int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, const int32 B, const int32 Alpha)
 {
-	if (A == INDEX_NONE || B == INDEX_NONE || Alpha == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	uint32 MaxDistanceToLeaves = 0; // STRATA_TODO: fix me
-
-	int32 OutputCodeChunk = Compiler->StrataHorizontalMixing(A, B, Alpha, 0, MaxDistanceToLeaves); // A is background (fully visible when Alpha=0) and B is foreground (fully visible when Alpha=1)
-
-#if WITH_EDITOR
-	// Also register the horizontal mixing operation with the compiler.
-	if (!Compiler->StrataCompilationInfoContainsCodeChunk(A) || !Compiler->StrataCompilationInfoContainsCodeChunk(B))
-	{
-		return Compiler->Errorf(TEXT("Could not find A or B code chunk in CompileStrataBlendFunction"));
-	}
-	FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoHorizontalMixing(Compiler, Compiler->GetStrataCompilationInfo(A), Compiler->GetStrataCompilationInfo(B));
-	Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
-#endif
-
-	return OutputCodeChunk;
+	check(false);	// we should never blend Strata data from material layers.
+	return INDEX_NONE;
 }
 
 #if WITH_EDITOR

@@ -362,7 +362,6 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 			if (PropertyIndex == MP_FrontMaterial)
 			{
-				// TODO - Strata
 				EvaluateMaterialAttributesCode += FString::Printf("    PixelMaterialInputs.%s = GetInitialisedStrataData();" LINE_TERMINATOR, *PropertyName);
 			}
 			else if (PropertyIndex == MP_SubsurfaceColor)
