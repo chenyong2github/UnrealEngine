@@ -155,6 +155,8 @@
 #include "Dialogs/Dialogs.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Interfaces/IPluginManager.h"
+#include "Settings/ContentBrowserSettings.h"
 
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -2820,7 +2822,67 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 			}
 		}
 	}
-	
+
+	// Fetch the enabled plugins and their mount points
+	TMap<FName, EPluginLoadedFrom> EnabledPluginToLoadedFrom;
+	TArray<TSharedRef<IPlugin>> EnabledPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
+	for (const TSharedRef<IPlugin>& EnabledPlugin : EnabledPlugins)
+	{
+		EnabledPluginToLoadedFrom.Add(FName(EnabledPlugin->GetMountedAssetPath()), EnabledPlugin->GetLoadedFrom());
+	}
+
+	// Find assets in non-Project Plugins
+	TSet<FName> ShouldMigratePackage;
+	bool bShouldShowEngineContent = GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder();
+	{
+		// This is the new list to prompt for migration
+		TSet<FName> FilteredPackageNamesToMove;
+
+		for (const FName& PackageName : AllPackageNamesToMove)
+		{
+			 FName PackageMountPoint = FPackageName::GetPackageMountPoint(PackageName.ToString(), false);
+			 EPluginLoadedFrom* Found = EnabledPluginToLoadedFrom.Find(PackageMountPoint);
+
+			 bool bShouldMigratePackage = true;
+			 if (Found)
+			 {
+				 // plugin content, decide if it's appropriate to migrate
+				 switch (*Found)
+				 {
+				 case EPluginLoadedFrom::Engine:
+					 if (!bShouldShowEngineContent)
+					 {
+						 continue;
+					 }
+					 bShouldMigratePackage = false;
+					 break;
+
+				 case EPluginLoadedFrom::Project:
+					 bShouldMigratePackage = true;
+					 break;
+				 
+				 default:
+					 bShouldMigratePackage = false;
+					 break;
+				 }
+			 }
+			 else
+			 {
+				 // this is not plugin content
+				 bShouldMigratePackage = true;
+			 }
+
+			 FilteredPackageNamesToMove.Add(PackageName);
+
+			 if (bShouldMigratePackage)
+			 {
+				 ShouldMigratePackage.Add(PackageName);
+			 }
+		}
+
+		AllPackageNamesToMove = FilteredPackageNamesToMove;
+	}
+
 	// Confirm that there is at least one package to move 
 	if (AllPackageNamesToMove.Num() == 0)
 	{
@@ -2834,7 +2896,8 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 		TSharedPtr<TArray<ReportPackageData>> ReportPackages = MakeShareable(new TArray<ReportPackageData>);
 		for ( auto PackageIt = AllPackageNamesToMove.CreateConstIterator(); PackageIt; ++PackageIt )
 		{
-			ReportPackages.Get()->Add({ (*PackageIt).ToString(), true });
+			bool bShouldMigratePackage = ShouldMigratePackage.Find(*PackageIt) != nullptr;
+			ReportPackages.Get()->Add({ (*PackageIt).ToString(), bShouldMigratePackage });
 		}
 		SPackageReportDialog::FOnReportConfirmed OnReportConfirmed = SPackageReportDialog::FOnReportConfirmed::CreateUObject(this, &UAssetToolsImpl::MigratePackages_ReportConfirmed, ReportPackages);
 		SPackageReportDialog::OpenPackageReportDialog(ReportMessage, *ReportPackages.Get(), OnReportConfirmed);
@@ -3015,7 +3078,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 		}
 
 		// Prompt to consolidate to a migration folder
-		FText Prompt = FText::Format(LOCTEXT("MigratePackages_ConsolidateToTemp", "Some selected assets don't have a corresponding content root in the destination.{0}\n\nWould you like to migrate all selected assets into a folder with consolidated references? Without migrating into a folder the assets in the above roots will not be migrated."), FText::FromString(LostPackageRootsString));
+		FText Prompt = FText::Format(LOCTEXT("MigratePackages_ConsolidateToTemp", "Some selected assets don't have a corresponding content root in the destination.{0}\n\nWould you like to save a copy of all selected assets into a folder with consolidated references? If you select No then assets in the above roots will not be migrated."), FText::FromString(LostPackageRootsString));
 		switch (FMessageDialog::Open(EAppMsgType::YesNoCancel, Prompt))
 		{
 		case EAppReturnType::Yes:
@@ -3240,7 +3303,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 
 	SlowTask.EnterProgressFrame();
 	{
-		FScopedSlowTask LoopProgress(PackageDataToMigrate.Get()->Num());
+		FScopedSlowTask LoopProgress(AllPackageNamesToMove.Num());
 		for ( const FName& PackageNameToMove : AllPackageNamesToMove )
 		{
 			LoopProgress.EnterProgressFrame();

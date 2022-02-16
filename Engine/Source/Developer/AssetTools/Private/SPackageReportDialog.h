@@ -25,9 +25,7 @@ struct FPackageReportNode
 	/** The name of the tree node without the path */
 	FString NodeName; 
 	/** A user-exposed flag determining whether the content of this node and its children should be migrated or not. */
-	bool bIsChecked;
-	/** A flag determining whether this node should be migrated or not. This node is active as long as bIsChecked is true and if all the parent nodes are also checked. */
-	bool bIsActive;
+	ECheckBoxState CheckedState;
 	/** A pointer to an external bool describing whether this node ultimately should be migrated or not. Is only non-null for leaf nodes.*/
 	bool* bShouldMigratePackage;
 	/** If true, this node is a folder instead of a package */
@@ -50,8 +48,13 @@ struct FPackageReportNode
 	void ExpandChildrenRecursively(const TSharedRef<PackageReportTree>& Treeview);
 
 private:
+	struct FChildrenState
+	{
+		bool bAnyChildIsChecked;
+		bool bAllChildrenAreChecked;
+	};
 	/** Helper function for AddPackage. PathElements is the tokenized path delimited by "/" */
-	void AddPackage_Recursive(TArray<FString>& PathElements, bool* bInIsPackageIncluded);
+	FChildrenState AddPackage_Recursive(TArray<FString>& PathElements, bool* bInIsPackageIncluded);
 };
 
 class SPackageReportDialog : public SCompoundWidget
@@ -74,7 +77,7 @@ public:
 
 private:
 	/** Recursively sets the checked/active state of every child of this node in the tree when a checkbox is toggled. */
-	void SetStateRecursive(TSharedPtr<FPackageReportNode> TreeItem, bool bWasChecked);
+	void SetStateRecursive(TSharedPtr<FPackageReportNode> TreeItem, bool bIsChecked);
 
 	/** Callback to check whether a checkbox is checked or not. */
 	ECheckBoxState GetEnabledCheckState(TSharedPtr<FPackageReportNode> TreeItem) const;
