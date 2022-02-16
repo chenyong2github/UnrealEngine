@@ -8,6 +8,9 @@
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
 
+//
+//	Deferred probes are only stamped in deferred mode.
+//
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarVisualizeLightingOnProbes(
@@ -76,7 +79,7 @@ static void CommonStampDeferredDebugProbeDrawCall(
 	int32 RenderPass)
 {
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->MaterialTextureArrayUAV = View.StrataSceneData->MaterialTextureArrayUAV;
+	PassParameters->MaterialTextureArrayUAV = View.StrataSceneData->MaterialTextureArrayUAVWithoutRTs;
 	PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
 	PassParameters->DebugProbesMode = View.Family->EngineShowFlags.VisualizeLightingOnProbes ? 3 : FMath::Clamp(CVarVisualizeLightingOnProbes.GetValueOnRenderThread(), 0, 3);
 		
