@@ -15,6 +15,7 @@
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "IDetailChildrenBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -1093,9 +1094,20 @@ public:
 	}
 
 #if WITH_EDITOR
-	
+
+	static IDetailGroup& ConstructDetailGroup(IDetailCategoryBuilder& InBuilder, FName GroupName, const FText& LocalizedDisplayName)
+	{
+		return InBuilder.AddGroup(GroupName, LocalizedDisplayName, false, true);
+	}
+
+	static IDetailGroup& ConstructDetailGroup(IDetailChildrenBuilder& InBuilder, FName GroupName, const FText& LocalizedDisplayName)
+	{
+		return InBuilder.AddGroup(GroupName, LocalizedDisplayName);
+	}
+
+	template<typename BuilderType = IDetailCategoryBuilder>
 	static void ConstructGroupedTransformRows(
-		IDetailCategoryBuilder& InCategory,
+		BuilderType& InBuilder,
 		const FText& InLabel,
 		const FText& InTooltip,
 		typename SAdvancedTransformInputBox<TransformType>::FArguments WidgetArgs
@@ -1164,7 +1176,7 @@ public:
 			}			
 		};
 		
-		IDetailGroup& Group = InCategory.AddGroup(*InLabel.ToString(), InLabel, false, true);
+		IDetailGroup& Group = ConstructDetailGroup(InBuilder, *InLabel.ToString(), InLabel);
 		FDetailWidgetRow& HeaderRow = Group.HeaderRow();
 		ConstructComponentWidgetRow(HeaderRow, ESlateTransformComponent::Max);
 

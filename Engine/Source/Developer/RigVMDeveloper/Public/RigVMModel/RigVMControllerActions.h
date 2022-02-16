@@ -91,12 +91,15 @@ struct FRigVMBaseAction
 
 	// Default constructor
 	FRigVMBaseAction()
-		 : Title(TEXT("ACtion"))
+		 : Title(TEXT("Action"))
 	{
 	}
 
 	// Default destructor
 	virtual ~FRigVMBaseAction() {};
+
+	// Returns true if this action is empty has no effect
+	virtual bool IsEmpty() const { return SubActions.IsEmpty(); }
 
 	// Returns the title of the action - used for the Edit menu's undo / redo
 	virtual FString GetTitle() const { return Title; }

@@ -205,7 +205,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 				PinInfo.bHideInputWidget = !bIsStructEditable;
 				PinInfo.bAutoHeight = bIsStructEditable;
 			}
-			else if(PinInfo.bHasChildren)
+			else if(PinInfo.bHasChildren && !ModelPin->IsBoundToVariable())
 			{
 				PinInfo.bHideInputWidget = true;
 			}

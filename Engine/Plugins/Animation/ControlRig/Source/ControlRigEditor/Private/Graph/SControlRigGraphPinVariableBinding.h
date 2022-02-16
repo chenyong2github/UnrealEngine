@@ -16,14 +16,14 @@ class SControlRigVariableBinding : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SControlRigVariableBinding)
-	: _ModelPin(nullptr)
+	: _ModelPins()
     , _FunctionReferenceNode(nullptr)
     , _InnerVariableName(NAME_None)
     , _Blueprint(nullptr)
 	, _CanRemoveBinding(true)
 	{}
 
-		SLATE_ARGUMENT(URigVMPin*, ModelPin)
+		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
 		SLATE_ARGUMENT(URigVMFunctionReferenceNode*, FunctionReferenceNode)
 		SLATE_ARGUMENT(FName, InnerVariableName)
 		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
@@ -35,6 +35,7 @@ public:
 
 protected:
 
+	FText GetBindingText(URigVMPin* ModelPin) const;
 	FText GetBindingText() const;
 	const FSlateBrush* GetBindingImage() const;
 	FLinearColor GetBindingColor() const;
@@ -46,7 +47,7 @@ protected:
 	void FillLocalVariableMenu( FMenuBuilder& MenuBuilder );
 	void HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable);
 
-	URigVMPin* ModelPin;
+	TArray<URigVMPin*> ModelPins;
 	URigVMFunctionReferenceNode* FunctionReferenceNode;
 	FName InnerVariableName;
 	UControlRigBlueprint* Blueprint;
@@ -60,7 +61,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SControlRigGraphPinVariableBinding){}
 
-		SLATE_ARGUMENT(URigVMPin*, ModelPin)
+		SLATE_ARGUMENT(TArray<URigVMPin*>, ModelPins)
 		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
 
 	SLATE_END_ARGS()
@@ -73,6 +74,6 @@ protected:
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
 
-	URigVMPin* ModelPin;
+	TArray<URigVMPin*> ModelPins;
 	UControlRigBlueprint* Blueprint;
 };

@@ -27,6 +27,8 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphDetails"
 
+static const FText ControlRigGraphDetailsMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
+
 FControlRigArgumentGroupLayout::FControlRigArgumentGroupLayout(
 	URigVMGraph* InGraph, 
 	UControlRigBlueprint* InBlueprint, 
@@ -565,7 +567,8 @@ FControlRigArgumentDefaultNode::FControlRigArgumentDefaultNode(
 					FOnGraphChanged::FDelegate::CreateRaw(this, &FControlRigArgumentDefaultNode::OnGraphChanged)
 				);
 			}
-		}
+		}	
+
 	}
 }
 
@@ -1272,6 +1275,11 @@ TSharedRef<ITableRow> FControlRigGraphDetails::HandleGenerateRowAccessSpecifier(
         ];
 }
 
+FControlRigWrappedNodeDetails::FControlRigWrappedNodeDetails()
+: BlueprintBeingCustomized(nullptr)
+{
+}
+
 TSharedRef<IDetailCustomization> FControlRigWrappedNodeDetails::MakeInstance()
 {
 	return MakeShareable(new FControlRigWrappedNodeDetails);
@@ -1279,93 +1287,305 @@ TSharedRef<IDetailCustomization> FControlRigWrappedNodeDetails::MakeInstance()
 
 void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	TArray<TWeakObjectPtr<UObject>> Objects;
-	DetailLayout.GetObjectsBeingCustomized(Objects);
-
-	TArray<UDetailsViewWrapperObject*> Wrappers;
-	TArray<URigVMNode*> Nodes;
-	for(const TWeakObjectPtr<UObject>& Object : Objects)
+	TArray<TWeakObjectPtr<UObject>> DetailObjects;
+	DetailLayout.GetObjectsBeingCustomized(DetailObjects);
+	if (DetailObjects.Num() == 0)
 	{
-		UDetailsViewWrapperObject* Wrapper = CastChecked<UDetailsViewWrapperObject>(Object);
-		Wrappers.Add(Wrapper);
+		return;
+	}
 
-		URigVMNode* Node = Wrapper->GetTypedOuter<URigVMNode>();
-		if(Node == nullptr)
+	for(TWeakObjectPtr<UObject> DetailObject : DetailObjects)
+	{
+		UDetailsViewWrapperObject* WrapperObject = CastChecked<UDetailsViewWrapperObject>(DetailObject.Get());
+		if(BlueprintBeingCustomized == nullptr)
 		{
-			return;
+			BlueprintBeingCustomized = WrapperObject->GetTypedOuter<UControlRigBlueprint>();
 		}
-		Nodes.Add(Node);
+
+		ObjectsBeingCustomized.Add(WrapperObject);
+		NodesBeingCustomized.Add(CastChecked<URigVMNode>(WrapperObject->GetOuter()));
 	}
 
-	UDetailsViewWrapperObject* FirstWrapper = Wrappers[0];
-	URigVMNode* FirstNode = Nodes[0];
-
-	TArray<FName> Categories;
-	DetailLayout.GetCategoryNames(Categories);
-
-	if(Categories.IsEmpty())
-	{
-		return;
-	}
-	
-	IDetailCategoryBuilder& DefaultsCategory = DetailLayout.EditCategory(Categories[0]);
-
-	UControlRigBlueprint* Blueprint = FirstNode->GetTypedOuter<UControlRigBlueprint>();
-	if(Blueprint == nullptr)
+	if (BlueprintBeingCustomized == nullptr || ObjectsBeingCustomized.IsEmpty() || NodesBeingCustomized.IsEmpty())
 	{
 		return;
 	}
 
-	for(URigVMPin* Pin : FirstNode->GetPins())
+	UClass* WrapperClass = ObjectsBeingCustomized[0]->GetClass();
+
+	// now loop over all of the properties and display them
+	TArray<TSharedPtr<IPropertyHandle>> PropertiesToVisit;
+	for (TFieldIterator<FProperty> PropertyIt(WrapperClass); PropertyIt; ++PropertyIt)
 	{
-		bool bHasAnyInputLink = false;
-		for(URigVMNode* EachNode : Nodes)
+		FProperty* Property = *PropertyIt;
+		TSharedPtr<IPropertyHandle> PropertyHandle = DetailLayout.GetProperty(Property->GetFName(), WrapperClass);
+		if (!PropertyHandle->IsValidHandle())
 		{
-			if(URigVMPin* EachPin = EachNode->FindPin(Pin->GetName()))
+			continue;
+		}
+		PropertiesToVisit.Add(PropertyHandle);
+
+		// check if any / all pins are bound to a variable
+		int32 PinsBoundToVariable = 0;
+		TArray<URigVMPin*> ModelPins;
+		for(TWeakObjectPtr<URigVMNode> Node : NodesBeingCustomized)
+		{
+			if(URigVMPin* ModelPin = Node->FindPin(Property->GetName()))
 			{
-				if(EachPin->GetSourceLinks(true).Num() > 0)
+				ModelPins.Add(ModelPin);
+				PinsBoundToVariable += ModelPin->IsBoundToVariable() ? 1 : 0;
+			}
+		}
+
+		if(PinsBoundToVariable > 0)
+		{
+			if(PinsBoundToVariable == ModelPins.Num())
+			{
+				if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
 				{
-					bHasAnyInputLink = true;
+					Row->CustomWidget()
+					.NameContent()
+					[
+						PropertyHandle->CreatePropertyNameWidget()
+					]
+					.ValueContent()
+					[
+					SNew(SControlRigVariableBinding)
+						.ModelPins(ModelPins)
+						.Blueprint(BlueprintBeingCustomized)
+					];
+				}
+			}
+			else // in this case some pins are bound, and some are not - we'll hide the input value widget
+			{
+				if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
+				{
+					Row->CustomWidget()
+					.NameContent()
+					[
+						PropertyHandle->CreatePropertyNameWidget()
+					];
+				}
+			}
+
+			continue;
+		}
+		
+		if (FNameProperty* NameProperty = CastField<FNameProperty>(Property))
+        {
+        	FString CustomWidgetName = NameProperty->GetMetaData(TEXT("CustomWidget"));
+        	if (!CustomWidgetName.IsEmpty())
+        	{
+        		UControlRigGraph* GraphBeingCustomized = Cast<UControlRigGraph>(
+        			BlueprintBeingCustomized->GetEdGraph(NodesBeingCustomized[0]->GetGraph()));
+        		ensure(GraphBeingCustomized);
+        		
+        		const TArray<TSharedPtr<FString>>* NameList = nullptr;
+        		if (CustomWidgetName == TEXT("BoneName"))
+        		{
+        			NameList = GraphBeingCustomized->GetBoneNameList();
+        		}
+        		else if (CustomWidgetName == TEXT("ControlName"))
+        		{
+        			NameList = GraphBeingCustomized->GetControlNameList();
+        		}
+        		else if (CustomWidgetName == TEXT("SpaceName"))
+        		{
+        			NameList = GraphBeingCustomized->GetNullNameList();
+        		}
+        		else if (CustomWidgetName == TEXT("CurveName"))
+        		{
+        			NameList = GraphBeingCustomized->GetCurveNameList();
+        		}
+
+        		if (NameList)
+        		{
+        			TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListWidget;
+
+        			if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
+        			{
+        				Row->CustomWidget()
+						.NameContent()
+						[
+							PropertyHandle->CreatePropertyNameWidget()
+						]
+						.ValueContent()
+						[
+							SAssignNew(NameListWidget, SControlRigGraphPinNameListValueWidget)
+							.OptionsSource(NameList)
+							.OnGenerateWidget(this, &FControlRigWrappedNodeDetails::MakeNameListItemWidget)
+							.OnSelectionChanged(this, &FControlRigWrappedNodeDetails::OnNameListChanged, NameProperty, DetailLayout.GetPropertyUtilities())
+							.OnComboBoxOpening(this, &FControlRigWrappedNodeDetails::OnNameListComboBox, NameProperty, NameList)
+							.InitiallySelectedItem(GetCurrentlySelectedItem(NameProperty, NameList))
+							.Content()
+							[
+								SNew(STextBlock)
+								.Text(this, &FControlRigWrappedNodeDetails::GetNameListText, NameProperty)
+								.ColorAndOpacity_Lambda([this, NameProperty]() -> FSlateColor
+								{
+									static FText NoneText = LOCTEXT("None", "None"); 
+									if(GetNameListText(NameProperty).EqualToCaseIgnored(NoneText))
+									{
+										return FSlateColor(FLinearColor::Red);
+									}
+									return FSlateColor::UseForeground();
+								})
+							]
+        				];
+        			}        			
+        			NameListWidgets.Add(Property->GetFName(), NameListWidget);
+        		}
+        		else
+        		{
+        			if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
+        			{
+        				Row->CustomWidget()
+						.NameContent()
+						[
+							PropertyHandle->CreatePropertyNameWidget()
+						];
+        			}
+        		}
+        		continue;
+        	}
+        }
+	}
+
+	// now loop over all handles and determine expansion states of the corresponding pins
+	for (int32 Index = 0; Index < PropertiesToVisit.Num(); Index++)
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = PropertiesToVisit[Index];
+		FProperty* Property = PropertyHandle->GetProperty();
+
+		// certain properties we don't look at for expansion states
+		if(FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			if(StructProperty->Struct == TBaseStructure<FVector>::Get() ||
+				StructProperty->Struct == TBaseStructure<FVector2D>::Get() ||
+				StructProperty->Struct == TBaseStructure<FRotator>::Get() ||
+				StructProperty->Struct == TBaseStructure<FQuat>::Get())
+			{
+				continue;
+			}
+		}
+
+		bool bFound = false;
+		const FString PinPath = PropertyHandle->GeneratePathToProperty();
+		for(TWeakObjectPtr<URigVMNode> Node : NodesBeingCustomized)
+		{
+			if(URigVMPin* Pin = Node->FindPin(PinPath))
+			{
+				bFound = true;
+				
+				if(Pin->IsExpanded())
+				{
+					if(IDetailPropertyRow* Row = DetailLayout.EditDefaultProperty(PropertyHandle))
+					{
+						Row->ShouldAutoExpand(true);
+					}
 					break;
 				}
 			}
 		}
 
-		TSharedPtr<IPropertyHandle> PinHandle = DetailLayout.GetProperty(Pin->GetFName());
-		if(PinHandle.IsValid())
+		if(!bFound)
 		{
-			static const TCHAR DisabledFormat[] = TEXT("%s\n\nNote: Editing disabled since pin has an input link.");
+			continue;
+		}
 
-			if (Pin->IsBoundToVariable())
-			{
-				DefaultsCategory.AddCustomRow(FText::FromName(Pin->GetDisplayName()))
-				.NameContent()
-				[
-					PinHandle->CreatePropertyNameWidget()
-				]
-				.ValueContent()
-				[
-					SNew(SControlRigVariableBinding)
-						.ModelPin(Pin)
-						.Blueprint(Blueprint)
-				];
-			}
-			else
-			{
-				DefaultsCategory.AddProperty(PinHandle)
-				.DisplayName(FText::FromName(Pin->GetDisplayName()))
-				.IsEnabled(!bHasAnyInputLink)
-				.ToolTip(FText::FromString(FString::Printf(DisabledFormat, *Pin->GetToolTipText().ToString())));				
-			}
+		uint32 NumChildren = 0;
+		PropertyHandle->GetNumChildren(NumChildren);
+		for(uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
+		{
+			PropertiesToVisit.Add(PropertyHandle->GetChildHandle(ChildIndex));
 		}
 	}
 
-	if(Objects.Num() > 1)
+	CustomizeLiveValues(DetailLayout);
+}
+
+TSharedRef<SWidget> FControlRigWrappedNodeDetails::MakeNameListItemWidget(TSharedPtr<FString> InItem)
+{
+	return 	SNew(STextBlock).Text(FText::FromString(*InItem));// .Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+}
+
+FText FControlRigWrappedNodeDetails::GetNameListText(FNameProperty* InProperty) const
+{
+	FText FirstText;
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if (FName* Value = InProperty->ContainerPtrToValuePtr<FName>(ObjectBeingCustomized.Get()))
+		{
+			FText Text = FText::FromName(*Value);
+			if(FirstText.IsEmpty())
+			{
+				FirstText = Text;
+			}
+			else if(!FirstText.EqualTo(Text))
+			{
+				return ControlRigGraphDetailsMultipleValues;
+			}
+		}
+	}
+	return FirstText;
+}
+
+TSharedPtr<FString> FControlRigWrappedNodeDetails::GetCurrentlySelectedItem(FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList) const
+{
+	FString CurrentItem = GetNameListText(InProperty).ToString();
+	for (const TSharedPtr<FString>& Item : *InNameList)
+	{
+		if (Item->Equals(CurrentItem))
+		{
+			return Item;
+		}
+	}
+	return TSharedPtr<FString>();
+}
+
+
+void FControlRigWrappedNodeDetails::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type, FNameProperty* InProperty, TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	URigVMGraph* Graph = NodesBeingCustomized[0]->GetGraph();
+	URigVMController* Controller = BlueprintBeingCustomized->GetController(Graph);
+
+	Controller->OpenUndoBracket(FString::Printf(TEXT("Set %s"), *InProperty->GetName()));
+	
+	for(TWeakObjectPtr<URigVMNode> Node : NodesBeingCustomized)
+	{
+		if(URigVMPin* Pin = Node->FindPin(InProperty->GetName()))
+		{
+			Controller->SetPinDefaultValue(Pin->GetPinPath(), NewTypeInValue.ToString(), false, true, false, true);
+		}
+	}
+
+	Controller->CloseUndoBracket();
+}
+
+void FControlRigWrappedNodeDetails::OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo, FNameProperty* InProperty, TSharedRef<IPropertyUtilities> PropertyUtilities)
+{
+	if (SelectInfo != ESelectInfo::Direct)
+	{
+		FString NewValue = *NewSelection.Get();
+		SetNameListText(FText::FromString(NewValue), ETextCommit::OnEnter, InProperty, PropertyUtilities);
+	}
+}
+
+void FControlRigWrappedNodeDetails::OnNameListComboBox(FNameProperty* InProperty, const TArray<TSharedPtr<FString>>* InNameList)
+{
+	TSharedPtr<SControlRigGraphPinNameListValueWidget> Widget = NameListWidgets.FindChecked(InProperty->GetFName());
+	const TSharedPtr<FString> CurrentlySelected = GetCurrentlySelectedItem(InProperty, InNameList);
+	Widget->SetSelectedItem(CurrentlySelected);
+}
+
+void FControlRigWrappedNodeDetails::CustomizeLiveValues(IDetailLayoutBuilder& DetailLayout)
+{
+	if(ObjectsBeingCustomized.Num() != 1)
 	{
 		return;
 	}
-
-	UControlRig* DebuggedRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
+	
+	UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged());
 	if(DebuggedRig == nullptr)
 	{
 		return;
@@ -1377,7 +1597,10 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		return;
 	}
 
-	TSharedPtr<FRigVMParserAST> AST = FirstNode->GetGraph()->GetRuntimeAST(Blueprint->VMCompileSettings.ASTSettings, false);
+	UDetailsViewWrapperObject* FirstWrapper = ObjectsBeingCustomized[0].Get();
+	URigVMNode* FirstNode = NodesBeingCustomized[0].Get();
+
+	TSharedPtr<FRigVMParserAST> AST = FirstNode->GetGraph()->GetRuntimeAST(BlueprintBeingCustomized->VMCompileSettings.ASTSettings, false);
 	if(!AST.IsValid())
 	{
 		return;
@@ -1404,7 +1627,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		}
 		
 		URigVMPin* SourcePin = Pin;
-		if(Blueprint->VMCompileSettings.ASTSettings.bFoldAssignments)
+		if(BlueprintBeingCustomized->VMCompileSettings.ASTSettings.bFoldAssignments)
 		{
 			do
 			{
@@ -1474,7 +1697,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			const FRigVMVarExprAST* VarExpr = Expression->To<FRigVMVarExprAST>();
 
 			FString PinHash = URigVMCompiler::GetPinHash(SourcePin, VarExpr, false);
-			const FRigVMOperand* Operand = Blueprint->PinToOperandMap.Find(PinHash);
+			const FRigVMOperand* Operand = BlueprintBeingCustomized->PinToOperandMap.Find(PinHash);
 			if(Operand)
 			{
 				if(Operand->GetRegisterOffset() != INDEX_NONE)
@@ -1566,6 +1789,99 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 				.IsEnabled(false);
 			}
 		}
+	}
+}
+
+FControlRigGraphMathTypeDetails::FControlRigGraphMathTypeDetails()
+: ScriptStruct(nullptr)
+, BlueprintBeingCustomized(nullptr)
+, GraphBeingCustomized(nullptr)
+, bEnabled(true)
+{
+}
+
+void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
+                                                           FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	TArray<UObject*> Objects;
+	InPropertyHandle->GetOuterObjects(Objects);
+
+	for (UObject* Object : Objects)
+	{
+		ObjectsBeingCustomized.Add(Object);
+
+		if(BlueprintBeingCustomized == nullptr)
+		{
+			BlueprintBeingCustomized = Object->GetTypedOuter<UControlRigBlueprint>();
+		}
+
+		if(GraphBeingCustomized == nullptr)
+		{
+			GraphBeingCustomized = Object->GetTypedOuter<URigVMGraph>();
+		}
+	}
+
+	ObjectBeingCustomizedView = TArrayView<const UObject* const>(ObjectsBeingCustomized.GetData(), ObjectsBeingCustomized.Num());
+
+	FProperty* Property = InPropertyHandle->GetProperty();
+	const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+	ScriptStruct = StructProperty->Struct;
+
+	TSharedPtr<class IPropertyHandle> ChainHandle = InPropertyHandle;
+	do
+	{
+		PropertyChain.AddHead(ChainHandle->GetProperty());
+		ChainHandle = ChainHandle->GetParentHandle();
+
+		if(ChainHandle.IsValid())
+		{
+			if(ChainHandle->GetProperty() == nullptr)
+			{
+				break;
+			}
+		}
+	}
+	while (ChainHandle.IsValid());
+	PropertyChain.SetActiveMemberPropertyNode(PropertyChain.GetTail()->GetValue());
+
+	bEnabled = !PropertyChain.GetHead()->GetValue()->HasAnyPropertyFlags(CPF_EditConst);
+}
+
+void FControlRigGraphMathTypeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
+	IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	if(!InPropertyHandle->IsValidHandle())
+	{
+		return;
+	}
+
+	if(ScriptStruct == TBaseStructure<FVector>::Get())
+	{
+		CustomizeVector<FVector, 3>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FVector2D>::Get())
+	{
+		CustomizeVector<FVector2D, 2>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FVector4>::Get())
+	{
+		CustomizeVector<FVector4, 4>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FRotator>::Get())
+	{
+		CustomizeRotation<FRotator>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FQuat>::Get())
+	{
+		CustomizeRotation<FQuat>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FTransform>::Get())
+	{
+		CustomizeTransform<FTransform>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
+	}
+	else if(ScriptStruct == TBaseStructure<FEulerTransform>::Get())
+	{
+		CustomizeTransform<FEulerTransform>(InPropertyHandle, StructBuilder, StructCustomizationUtils);
 	}
 }
 

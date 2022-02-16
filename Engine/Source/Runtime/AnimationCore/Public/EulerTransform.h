@@ -21,6 +21,8 @@ struct ANIMATIONCORE_API FEulerTransform
 {
 	GENERATED_BODY()
 
+	typedef FVector::FReal FReal;
+
 	/**
 	 * The identity transformation (Rotation = FRotator::ZeroRotator, Translation = FVector::ZeroVector, Scale = (1,1,1)).
 	 */
@@ -90,6 +92,14 @@ struct ANIMATIONCORE_API FEulerTransform
 		Location = InTransform.GetLocation();
 		Rotation = InTransform.GetRotation().Rotator();
 		Scale = InTransform.GetScale3D();
+	}
+
+	// Test if all components of the transforms are equal, within a tolerance.
+	FORCEINLINE bool Equals(const FEulerTransform& Other, FReal Tolerance = KINDA_SMALL_NUMBER) const
+	{
+		return Location.Equals(Other.Location, Tolerance) &&
+			Rotation.Equals(Other.Rotation, Tolerance) &&
+			Scale.Equals(Other.Scale, Tolerance);
 	}
 
 	FORCEINLINE const FVector& GetLocation() const { return Location; }

@@ -1362,7 +1362,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								TSharedRef<SControlRigVariableBinding> VariableBindingWidget =
 									SNew(SControlRigVariableBinding)
 									.Blueprint(RigBlueprint)
-									.ModelPin(ModelPin)
+									.ModelPins({ModelPin})
 									.CanRemoveBinding(false);
 
 								VariablesSection.AddEntry(FToolMenuEntry::InitWidget("BindPinToVariableWidget", VariableBindingWidget, FText(), true));

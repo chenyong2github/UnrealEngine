@@ -16,9 +16,11 @@
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphPinVariableBinding"
 
+static const FText ControlRigVariableBindingMultipleValues = LOCTEXT("MultipleValues", "Multiple Values");
+
 void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 {
-	this->ModelPin = InArgs._ModelPin;
+	this->ModelPins = InArgs._ModelPins;
 	this->FunctionReferenceNode = InArgs._FunctionReferenceNode;
 	this->InnerVariableName = InArgs._InnerVariableName;
 	this->Blueprint = InArgs._Blueprint;
@@ -56,12 +58,29 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 	];
 }
 
-FText SControlRigVariableBinding::GetBindingText() const
+FText SControlRigVariableBinding::GetBindingText(URigVMPin* ModelPin) const
 {
 	if (ModelPin)
 	{
 		const FString VariablePath = ModelPin->GetBoundVariablePath();
 		return FText::FromString(VariablePath);
+	}
+	return FText();
+}
+
+FText SControlRigVariableBinding::GetBindingText() const
+{
+	if (ModelPins.Num() > 0)
+	{
+		const FText FirstText = GetBindingText(ModelPins[0]);
+		for(int32 Index = 1; Index < ModelPins.Num(); Index++)
+		{
+			if(!GetBindingText(ModelPins[Index]).EqualTo(FirstText))
+			{
+				return ControlRigVariableBindingMultipleValues;
+			}
+		}
+		return FirstText;
 	}
 	else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 	{
@@ -71,7 +90,6 @@ FText SControlRigVariableBinding::GetBindingText() const
 			return FText::FromName(BoundVariable);
 		}
 	}
-
 	return FText();
 }
 
@@ -88,9 +106,9 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 		FName BoundVariable(NAME_None);
 
-		if(ModelPin)
+		if(ModelPins.Num() > 0)
 		{
-			BoundVariable = *ModelPin->GetBoundVariableName();
+			BoundVariable = *ModelPins[0]->GetBoundVariableName();
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -109,9 +127,9 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 			}
 		}
 
-		if (ModelPin)
+		if (ModelPins.Num() > 0)
 		{
-			URigVMGraph* Model = ModelPin->GetGraph();
+			URigVMGraph* Model = ModelPins[0]->GetGraph();
 			if(Model == nullptr)
 			{
 				return  FLinearColor::Red;
@@ -147,9 +165,9 @@ bool SControlRigVariableBinding::OnCanBindProperty(FProperty* InProperty) const
 	if (InProperty)
 	{
 		const FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InProperty, nullptr);
-		if(ModelPin)
+		if(ModelPins.Num() > 0)
 		{
-			return ModelPin->CanBeBoundToVariable(ExternalVariable);
+			return ModelPins[0]->CanBeBoundToVariable(ExternalVariable);
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -203,9 +221,12 @@ void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray
 			Parts.Add(ChainElement.Field.GetName());
 		}
 
-		if(ModelPin)
+		if(ModelPins.Num() > 0)
 		{
-			Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */, true /* python */);
+			for(URigVMPin* ModelPin : ModelPins)
+			{
+				Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */, true /* python */);
+			}
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -224,9 +245,12 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 {
 	if (Blueprint)
 	{
-		if(ModelPin)
+		if(ModelPins.Num() > 0)
 		{
-			Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */, true /* python */);
+			for(URigVMPin* ModelPin : ModelPins)
+			{
+				Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */, true /* python */);
+			}
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -237,12 +261,12 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 
 void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder)
 {
-	if(ModelPin == nullptr)
+	if(ModelPins.Num() == 0)
 	{
 		return;
 	}
 
-	URigVMGraph* Model = ModelPin->GetGraph();
+	URigVMGraph* Model = ModelPins[0]->GetGraph();
 	if(Model == nullptr)
 	{
 		return;
@@ -258,7 +282,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 			continue;
 		}
 
-		if(!ModelPin->CanBeBoundToVariable(ExternalVariable))
+		if(!ModelPins[0]->CanBeBoundToVariable(ExternalVariable))
 		{
 			continue;
 		}
@@ -284,7 +308,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 				continue;
 			}
 
-			if(!ModelPin->CanBeBoundToVariable(ExternalVariable))
+			if(!ModelPins[0]->CanBeBoundToVariable(ExternalVariable))
 			{
 				continue;
 			}
@@ -324,31 +348,34 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 
 void SControlRigVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable)
 {
-	if((ModelPin == nullptr) || (Blueprint == nullptr))
+	if(ModelPins.IsEmpty() || (Blueprint == nullptr))
 	{
 		return;
 	}
 
-	URigVMGraph* Model = ModelPin->GetGraph();
-	if(Model == nullptr)
+	for(URigVMPin* ModelPin : ModelPins)
 	{
-		return;
-	}
+		URigVMGraph* Model = ModelPin->GetGraph();
+		if(Model == nullptr)
+		{
+			continue;
+		}
 
-	URigVMController* Controller = Blueprint->GetOrCreateController(Model);
-	if(Controller == nullptr)
-	{
-		return;
-	}
+		URigVMController* Controller = Blueprint->GetOrCreateController(Model);
+		if(Controller == nullptr)
+		{
+			continue;
+		}
 
-	Controller->BindPinToVariable(ModelPin->GetPinPath(), InLocalVariable.Name.ToString(), true, true);
+		Controller->BindPinToVariable(ModelPin->GetPinPath(), InLocalVariable.Name.ToString(), true, true);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SControlRigGraphPinVariableBinding::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
-	this->ModelPin = InArgs._ModelPin;
+	this->ModelPins = InArgs._ModelPins;
 	this->Blueprint = InArgs._Blueprint;
 
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
@@ -358,7 +385,7 @@ TSharedRef<SWidget>	SControlRigGraphPinVariableBinding::GetDefaultValueWidget()
 {
 	return SNew(SControlRigVariableBinding)
 		.Blueprint(Blueprint)
-		.ModelPin(ModelPin);
+		.ModelPins(ModelPins);
 }
 
 #undef LOCTEXT_NAMESPACE

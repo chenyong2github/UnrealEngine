@@ -547,6 +547,25 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	FString BlueprintName = InControlRigBlueprint->GetPathName();
 	RigVMPythonUtils::PrintPythonContext(BlueprintName);
 #endif
+
+	TArray<UScriptStruct*> StructsToCustomize = {
+		TBaseStructure<FVector>::Get(),
+		TBaseStructure<FVector2D>::Get(),
+		TBaseStructure<FVector4>::Get(),
+		TBaseStructure<FRotator>::Get(),
+		TBaseStructure<FQuat>::Get(),
+		TBaseStructure<FTransform>::Get(),
+		TBaseStructure<FEulerTransform>::Get(),
+	};
+
+	for(UScriptStruct* StructToCustomize : StructsToCustomize)
+	{
+		Inspector->GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(StructToCustomize->GetFName(),
+			FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]()
+			{
+				return FControlRigGraphMathTypeDetails::MakeInstance();
+			}));
+	}
 }
 
 void FControlRigEditor::BindCommands()
@@ -1423,41 +1442,18 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 
 	TArray<UObject*> FilteredObjects;
 
+	TArray<URigVMNode*> ModelNodes;
 	for(UObject* InObject : InObjects)
 	{
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InObject))
+		if (URigVMNode* ModelNode = Cast<URigVMNode>(InObject))
 		{
-			UScriptStruct* NodeDetailStruct = UnitNode->GetScriptStruct();
-			const FName NodeDetailName = UnitNode->GetFName();
-
-			if (NodeDetailStruct)
-			{
-				// create a struct matching this node
-				TSharedPtr<FStructOnScope> StructInstance  = UnitNode->ConstructStructInstance(false);
-
-				// check if we know the dynamic class already
-				bool bClassCreated = UDetailsViewWrapperObject::GetClassForStruct(NodeDetailStruct, false) == nullptr;
-
-				// create the wrapper object
-				UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
-					NodeDetailStruct, StructInstance->GetStructMemory(), UnitNode);
-				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
-				WrapperObject->AddToRoot();
-
-				if(bClassCreated)
-				{
-					UClass* WrapperClass = UDetailsViewWrapperObject::GetClassForStruct(NodeDetailStruct, false);
-					check(WrapperClass);
-
-					FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-					EditModule.RegisterCustomClassLayout(WrapperClass->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigWrappedNodeDetails::MakeInstance));
-				}
-				
-				FilteredObjects.Add(WrapperObject);
-				continue;
-			}
+			ModelNodes.Add(ModelNode);
 		}
-		else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InObject))
+	}
+	
+	for(UObject* InObject : InObjects)
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InObject))
 		{
 			UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
 			if (EdGraph)
@@ -1477,13 +1473,32 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 		}
 		else if (URigVMNode* ModelNode = Cast<URigVMNode>(InObject))
 		{
-			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetFocusedGraph());
-			if (UEdGraphNode* EdNode = RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
+			// check if we know the dynamic class already
+			bool bClassCreated = UDetailsViewWrapperObject::GetClassForNodes(ModelNodes, false) == nullptr;
+
+			// create the wrapper object
+			if(UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(ModelNodes, ModelNode, ModelNode))
 			{
-				FilteredObjects.AddUnique(EdNode);
+				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+				WrapperObject->AddToRoot();
+
+				if(bClassCreated)
+				{
+					UClass* WrapperClass = UDetailsViewWrapperObject::GetClassForNodes(ModelNodes, false);
+					check(WrapperClass);
+
+					FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+					EditModule.RegisterCustomClassLayout(WrapperClass->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigWrappedNodeDetails::MakeInstance));
+				}
+
+				// todo: use transform widget for transforms
+				// todo: use rotation widget for rotations
+				
+				FilteredObjects.Add(WrapperObject);
 				continue;
 			}
 		}
+
 
 		FilteredObjects.Add(InObject);
 	}
@@ -4305,150 +4320,205 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
 
 	FString PropertyPath = InPropertyPath;
-	if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
+	if(InWrapperObject->GetWrappedStruct())
 	{
-		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
-
-		URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetOuter());
-		const FRigBaseElement WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
-		const FRigBaseElement FirstWrappedElement = WrapperObjects[0]->GetContent<FRigBaseElement>();
-		const FRigElementKey& Key = WrappedElement.GetKey();
-		if(!Hierarchy->Contains(Key))
+		if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
 		{
-			return;
-		}
+			check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
 
-		const FString PoseString = TEXT("Pose->");
-		const FString OffsetString = TEXT("Offset->");
-		const FString ShapeString = TEXT("Shape->");
-		const FString SettingsString = TEXT("Settings->");
-
-		struct Local
-		{
-			static ERigTransformType::Type GetTransformTypeFromPath(FString& PropertyPath)
-			{
-				const FString InitialString = TEXT("Initial->");
-				const FString CurrentString = TEXT("Current->");
-				const FString GlobalString = TEXT("Global->");
-				const FString LocalString = TEXT("Local->");
-
-				ERigTransformType::Type TransformType = ERigTransformType::CurrentLocal;
-
-				if(PropertyPath.RemoveFromStart(InitialString))
-				{
-					TransformType = ERigTransformType::MakeInitial(TransformType);
-				}
-				else
-				{
-					check(PropertyPath.RemoveFromStart(CurrentString));
-					TransformType = ERigTransformType::MakeCurrent(TransformType);
-				}
-
-				if(PropertyPath.RemoveFromStart(GlobalString))
-				{
-					TransformType = ERigTransformType::MakeGlobal(TransformType);
-				}
-				else
-				{
-					check(PropertyPath.RemoveFromStart(LocalString));
-					TransformType = ERigTransformType::MakeLocal(TransformType);
-				}
-
-				return TransformType;
-			}
-		};
-
-		bool bIsInitial = false;
-		if(PropertyPath.RemoveFromStart(PoseString))
-		{
-			const ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
-			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-			
-			if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
-			{
-				Hierarchy = ControlRigBP->Hierarchy;
-			}
-
-			FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(WrappedElement.GetKey());
-			if(TransformElement == nullptr)
+			URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetOuter());
+			const FRigBaseElement WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
+			const FRigBaseElement FirstWrappedElement = WrapperObjects[0]->GetContent<FRigBaseElement>();
+			const FRigElementKey& Key = WrappedElement.GetKey();
+			if(!Hierarchy->Contains(Key))
 			{
 				return;
 			}
 
-			const FTransform Transform = InWrapperObject->GetContent<FRigTransformElement>().Pose.Get(TransformType);
+			const FString PoseString = TEXT("Pose->");
+			const FString OffsetString = TEXT("Offset->");
+			const FString ShapeString = TEXT("Shape->");
+			const FString SettingsString = TEXT("Settings->");
 
-			if(ERigTransformType::IsLocal(TransformType) && TransformElement->IsA<FRigControlElement>())
+			struct Local
 			{
-				FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement);
-						
-				FRigControlValue Value;
-				Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
-						
+				static ERigTransformType::Type GetTransformTypeFromPath(FString& PropertyPath)
+				{
+					const FString InitialString = TEXT("Initial->");
+					const FString CurrentString = TEXT("Current->");
+					const FString GlobalString = TEXT("Global->");
+					const FString LocalString = TEXT("Local->");
+
+					ERigTransformType::Type TransformType = ERigTransformType::CurrentLocal;
+
+					if(PropertyPath.RemoveFromStart(InitialString))
+					{
+						TransformType = ERigTransformType::MakeInitial(TransformType);
+					}
+					else
+					{
+						check(PropertyPath.RemoveFromStart(CurrentString));
+						TransformType = ERigTransformType::MakeCurrent(TransformType);
+					}
+
+					if(PropertyPath.RemoveFromStart(GlobalString))
+					{
+						TransformType = ERigTransformType::MakeGlobal(TransformType);
+					}
+					else
+					{
+						check(PropertyPath.RemoveFromStart(LocalString));
+						TransformType = ERigTransformType::MakeLocal(TransformType);
+					}
+
+					return TransformType;
+				}
+			};
+
+			bool bIsInitial = false;
+			if(PropertyPath.RemoveFromStart(PoseString))
+			{
+				const ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+				bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+				
 				if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
 				{
-					Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true, true);
+					Hierarchy = ControlRigBP->Hierarchy;
 				}
-				Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, true, true, true);
+
+				FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(WrappedElement.GetKey());
+				if(TransformElement == nullptr)
+				{
+					return;
+				}
+
+				const FTransform Transform = InWrapperObject->GetContent<FRigTransformElement>().Pose.Get(TransformType);
+
+				if(ERigTransformType::IsLocal(TransformType) && TransformElement->IsA<FRigControlElement>())
+				{
+					FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement);
+							
+					FRigControlValue Value;
+					Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
+							
+					if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+					{
+						Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true, true);
+					}
+					Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, true, true, true);
+				}
+				else
+				{
+					Hierarchy->SetTransform(TransformElement, Transform, TransformType, true, true, false, true);
+				}
 			}
-			else
+			else if(PropertyPath.RemoveFromStart(OffsetString))
 			{
-				Hierarchy->SetTransform(TransformElement, Transform, TransformType, true, true, false, true);
+				FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
+				if(ControlElement == nullptr)
+				{
+					return;
+				}
+				
+				ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+				bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+
+				const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Offset.Get(TransformType);
+				
+				ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false, true);
+			}
+			else if(PropertyPath.RemoveFromStart(ShapeString))
+			{
+				FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
+				if(ControlElement == nullptr)
+				{
+					return;
+				}
+
+				ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+				bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+
+				const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Shape.Get(TransformType);
+				
+				ControlRigBP->Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
+			}
+			else if(PropertyPath.RemoveFromStart(SettingsString))
+			{
+				const FRigControlSettings Settings  = InWrapperObject->GetContent<FRigControlElement>().Settings;
+
+				FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
+				if(ControlElement == nullptr)
+				{
+					return;
+				}
+
+				ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false, true);
+			}
+
+			if(bSetupModeEnabled || bIsInitial)
+			{
+				ControlRigBP->PropagatePoseFromBPToInstances();
+				ControlRigBP->Modify();
+				ControlRigBP->MarkPackageDirty();
 			}
 		}
-		else if(PropertyPath.RemoveFromStart(OffsetString))
+		else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
 		{
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
-			if(ControlElement == nullptr)
-			{
-				return;
-			}
+			check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
 			
-			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
-			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-
-			const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Offset.Get(TransformType);
-			
-			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false, true);
-		}
-		else if(PropertyPath.RemoveFromStart(ShapeString))
-		{
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
-			if(ControlElement == nullptr)
+			const FRigVMGraphVariableDescription VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
+			URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetOuter());
+			URigVMController* Controller = ControlRigBP->GetController(Graph);
+			if (PropertyPath == TEXT("Name") && MyBlueprintWidget.IsValid())
 			{
-				return;
+				if (FEdGraphSchemaAction_BlueprintVariableBase* VariableAcion = MyBlueprintWidget->SelectionAsBlueprintVariable())
+				{
+					const FName OldVariableName = VariableAcion->GetVariableName();
+					if (!OldVariableName.IsNone())
+					{
+						for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+						{
+							if (Variable.Name == OldVariableName)
+							{
+								Controller->RenameLocalVariable(OldVariableName, VariableDescription.Name);
+								break;
+							}
+						}
+					}
+				}
+				RefreshMyBlueprint();
+				GetControlRigBlueprint()->RequestAutoVMRecompilation();
 			}
-
-			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
-			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
-
-			const FTransform Transform = WrapperObjects[0]->GetContent<FRigControlElement>().Shape.Get(TransformType);
-			
-			ControlRigBP->Hierarchy->SetControlShapeTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false, true);
-		}
-		else if(PropertyPath.RemoveFromStart(SettingsString))
-		{
-			const FRigControlSettings Settings  = InWrapperObject->GetContent<FRigControlElement>().Settings;
-
-			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement.GetKey());
-			if(ControlElement == nullptr)
-			{
-				return;
+			else if (PropertyPath == TEXT("CPPType") || PropertyPath == TEXT("CPPTypeObject"))
+			{			
+				for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+				{
+					if (Variable.Name == VariableDescription.Name)
+					{
+						Controller->SetLocalVariableType(Variable.Name, VariableDescription.CPPType, VariableDescription.CPPTypeObject);
+						break;
+					}
+				}
+				GetControlRigBlueprint()->RequestAutoVMRecompilation();
 			}
+			else if (PropertyPath == TEXT("DefaultValue"))
+			{			
+				for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+				{
+					if (Variable.Name == VariableDescription.Name)
+					{
+						Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription.DefaultValue, true, true, false);
+						break;
+					}
+				}
 
-			ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false, true);
-		}
-
-		if(bSetupModeEnabled || bIsInitial)
-		{
-			ControlRigBP->PropagatePoseFromBPToInstances();
-			ControlRigBP->Modify();
-			ControlRigBP->MarkPackageDirty();
+				// Do not recompile now! That destroys the object that is currently being displayed (the literal memory storage), and can cause a crash.
+				// The user has to manually trigger the recompilation.
+			}		
 		}
 	}
-	else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigUnit::StaticStruct()))
+	else if(!InWrapperObject->GetWrappedNodeNotation().IsEmpty())
 	{
-		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
-		
 		FName RootPinName = InPropertyChangedChainEvent.PropertyChain.GetHead()->GetValue()->GetFName();
 		FProperty* TargetProperty = WrapperObjects[0]->GetClass()->FindPropertyByName(RootPinName);
 		uint8* FirstPropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObjects[0].Get());
@@ -4456,66 +4526,14 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetOuter());
 
 		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(TargetProperty, FirstPropertyStorage);
+		URigVMController* Controller = GetControlRigBlueprint()->GetController(Node->GetGraph());
 
 		if (!DefaultValue.IsEmpty())
 		{
 			FString PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetName(), *RootPinName.ToString());
-			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true, false, true);
+			const bool bInteractive = InPropertyChangedChainEvent.ChangeType == EPropertyChangeType::Interactive;
+			Controller->SetPinDefaultValue(PinPath, DefaultValue, true, !bInteractive, true, !bInteractive);
 		}
-	}
-	else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
-	{
-		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
-		
-		const FRigVMGraphVariableDescription VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
-		URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetOuter());
-		URigVMController* Controller = ControlRigBP->GetController(Graph);
-		if (PropertyPath == TEXT("Name") && MyBlueprintWidget.IsValid())
-		{
-			if (FEdGraphSchemaAction_BlueprintVariableBase* VariableAcion = MyBlueprintWidget->SelectionAsBlueprintVariable())
-			{
-				const FName OldVariableName = VariableAcion->GetVariableName();
-				if (!OldVariableName.IsNone())
-				{
-					for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
-					{
-						if (Variable.Name == OldVariableName)
-						{
-							Controller->RenameLocalVariable(OldVariableName, VariableDescription.Name);
-							break;
-						}
-					}
-				}
-			}
-			RefreshMyBlueprint();
-			GetControlRigBlueprint()->RequestAutoVMRecompilation();
-		}
-		else if (PropertyPath == TEXT("CPPType") || PropertyPath == TEXT("CPPTypeObject"))
-		{			
-			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
-			{
-				if (Variable.Name == VariableDescription.Name)
-				{
-					Controller->SetLocalVariableType(Variable.Name, VariableDescription.CPPType, VariableDescription.CPPTypeObject);
-					break;
-				}
-			}
-			GetControlRigBlueprint()->RequestAutoVMRecompilation();
-		}
-		else if (PropertyPath == TEXT("DefaultValue"))
-		{			
-			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
-			{
-				if (Variable.Name == VariableDescription.Name)
-				{
-					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription.DefaultValue, true, true, false);
-					break;
-				}
-			}
-
-			// Do not recompile now! That destroys the object that is currently being displayed (the literal memory storage), and can cause a crash.
-			// The user has to manually trigger the recompilation.
-		}		
 	}
 }
 

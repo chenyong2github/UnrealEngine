@@ -53,6 +53,10 @@ bool URigVMActionStack::OpenUndoBracket(const FString& InTitle)
 bool URigVMActionStack::CloseUndoBracket()
 {
 	ensure(BracketActions.Num() > 0);
+	if(BracketActions.Last()->IsEmpty())
+	{
+		return CancelUndoBracket();
+	}
 	FRigVMBaseAction* Action = BracketActions.Pop();
 	EndAction(*Action);
 	delete(Action);
