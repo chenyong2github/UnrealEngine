@@ -46,7 +46,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		}
 		AvgError /= LevelClusters.Num();
 
-		UE_LOG( LogStaticMesh, Log, TEXT("Num clusters %i. Error %.4f, %.4f, %.4f"), LevelClusters.Num(), MinError, AvgError, MaxError );
+		UE_LOG( LogStaticMesh, Verbose, TEXT("Num clusters %i. Error %.4f, %.4f, %.4f"), LevelClusters.Num(), MinError, AvgError, MaxError );
 
 		if( LevelClusters.Num() < 2 )
 			break;
