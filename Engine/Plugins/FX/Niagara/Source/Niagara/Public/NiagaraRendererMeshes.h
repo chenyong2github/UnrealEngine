@@ -191,6 +191,7 @@ private:
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
 	FVector2f DistanceCullRange;
+	FVector2f DistanceCullRangeSquared;
 	int32 RendererVisTagOffset;
 	int32 RendererVisibility;
 	int32 MeshIndexOffset;
