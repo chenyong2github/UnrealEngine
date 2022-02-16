@@ -4,6 +4,9 @@
 
 #include "Online/OnlineIdOSSAdapter.h"
 #include "Online/AuthOSSAdapter.h"
+#include "Online/ConnectivityOSSAdapter.h"
+#include "Online/PrivilegesOSSAdapter.h"
+#include "Online/ExternalUIOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
 
@@ -19,6 +22,13 @@ FOnlineServicesOSSAdapter::FOnlineServicesOSSAdapter(EOnlineServices InServicesT
 void FOnlineServicesOSSAdapter::RegisterComponents()
 {
 	Components.Register<FAuthOSSAdapter>(*this);
+	Components.Register<FConnectivityOSSAdapter>(*this);
+	Components.Register<FPrivilegesOSSAdapter>(*this);
+
+	if (Subsystem->GetExternalUIInterface().IsValid())
+	{
+		Components.Register<FExternalUIOSSAdapter>(*this);
+	}
 
 	FOnlineServicesCommon::RegisterComponents();
 }

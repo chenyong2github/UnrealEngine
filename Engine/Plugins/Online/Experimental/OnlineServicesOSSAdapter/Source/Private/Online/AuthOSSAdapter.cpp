@@ -211,19 +211,123 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 
 TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthOSSAdapter::GenerateAuth(FAuthGenerateAuth::Params&& Params)
 {
-	// TODO: If no cached auth token available, call Login with appropriate parameters to generate an auth token
+	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuth>> Op = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
 
-	return Super::GenerateAuth(MoveTemp(Params));
+	if (!Op->IsReady())
+	{
+		FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Params.LocalUserId);
+
+		if (!UniqueNetId->IsValid())
+		{
+			Op->SetError(Errors::InvalidParams());
+			return Op->GetHandle();
+		}
+
+		if (GetIdentityInterface()->GetLoginStatus(*UniqueNetId) != ::ELoginStatus::LoggedIn)
+		{
+			Op->SetError(Errors::InvalidAuth());
+		}
+		else
+		{
+			Op->SetResult(FAuthGenerateAuth::Result());
+		}
+	}
+
+	return Op->GetHandle();
+}
+
+TOnlineResult<FAuthGetAuthToken> FAuthOSSAdapter::GetAuthToken(FAuthGetAuthToken::Params&& Params)
+{
+	FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Params.LocalUserId);
+
+	if (!UniqueNetId->IsValid())
+	{
+		return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
+	}
+
+	if (GetIdentityInterface()->GetLoginStatus(*UniqueNetId) != ::ELoginStatus::LoggedIn)
+	{
+		return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidAuth());
+	}
+
+	TSharedPtr<FUserOnlineAccount> UserAccount = GetIdentityInterface()->GetUserAccount(*UniqueNetId);
+	if (UserAccount.IsValid())
+	{
+		FAuthGetAuthToken::Result Result;
+		Result.Token = UserAccount->GetAccessToken();
+
+		return TOnlineResult<FAuthGetAuthToken>(Result);
+	}
+	else
+	{
+		// Fall back to GetAuthToken if the user account is not available (Steam doesn't implement GetUserAccount)
+		int32 LocalUserIndex = GetLocalUserNum(Params.LocalUserId);
+
+		if (LocalUserIndex < 0 || LocalUserIndex >= MAX_LOCAL_PLAYERS)
+		{
+			return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
+		}
+
+		FString Token = GetIdentityInterface()->GetAuthToken(LocalUserIndex);
+		if (!Token.IsEmpty())
+		{
+			FAuthGetAuthToken::Result Result;
+			Result.Token = Token;
+
+			return TOnlineResult<FAuthGetAuthToken>(Result);
+		}
+		else
+		{
+			return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
+		}
+	}
 }
 
 TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthOSSAdapter::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)
 {
-	return Super::GetAccountByPlatformUserId(MoveTemp(Params));
+	int32 LocalUserIndex = FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId);
+
+	if (LocalUserIndex < 0 || LocalUserIndex >= MAX_LOCAL_PLAYERS)
+	{
+		return TOnlineResult<FAuthGetAccountByPlatformUserId>(Errors::InvalidUser());
+	}
+
+	FUniqueNetIdPtr UniqueNetId = GetIdentityInterface()->GetUniquePlayerId(LocalUserIndex);
+
+	if (!UniqueNetId.IsValid())
+	{
+		return TOnlineResult<FAuthGetAccountByPlatformUserId>(Errors::InvalidUser());
+	}
+
+	FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueNetId.ToSharedRef());
+	FAuthGetAccountByPlatformUserId::Result Result = { MakeShared<FAccountInfo>() };
+	Result.AccountInfo->PlatformUserId = Params.PlatformUserId;
+	Result.AccountInfo->UserId = Handle;
+	// v1 and v2 login status have the same values, so we can just cast here
+	Result.AccountInfo->LoginStatus = static_cast<ELoginStatus>(GetIdentityInterface()->GetLoginStatus(*UniqueNetId));
+	Result.AccountInfo->DisplayName = GetIdentityInterface()->GetPlayerNickname(*UniqueNetId);
+
+	return TOnlineResult<FAuthGetAccountByPlatformUserId>(MoveTemp(Result));
 }
 
 TOnlineResult<FAuthGetAccountByAccountId> FAuthOSSAdapter::GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params)
 {
-	return Super::GetAccountByAccountId(MoveTemp(Params));
+	FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Params.LocalUserId);
+
+	if (!UniqueNetId->IsValid())
+	{
+		return TOnlineResult<FAuthGetAccountByAccountId>(Errors::InvalidUser());
+	}
+
+	FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueNetId);
+	FAuthGetAccountByAccountId::Result Result = { MakeShared<FAccountInfo>() };
+	Result.AccountInfo->PlatformUserId = GetIdentityInterface()->GetPlatformUserIdFromUniqueNetId(*UniqueNetId);
+	Result.AccountInfo->UserId = Handle;
+	// v1 and v2 login status have the same values, so we can just cast here
+	Result.AccountInfo->LoginStatus = static_cast<ELoginStatus>(GetIdentityInterface()->GetLoginStatus(*UniqueNetId));
+	Result.AccountInfo->DisplayName = GetIdentityInterface()->GetPlayerNickname(*UniqueNetId);
+
+	return TOnlineResult<FAuthGetAccountByAccountId>(MoveTemp(Result));
 }
 
 FUniqueNetIdRef FAuthOSSAdapter::GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const
