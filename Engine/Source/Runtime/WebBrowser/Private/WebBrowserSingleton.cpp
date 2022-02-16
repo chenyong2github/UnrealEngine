@@ -235,7 +235,7 @@ FWebBrowserSingleton::FWebBrowserSingleton(const FWebBrowserInitSettings& WebBro
 #if WITH_CEF3
 	
 	// Only enable CEF if we have CEF3, we are not running a commandlet without rendering (e.g. cooking assets) and it has not been explicitly disabled
-	bAllowCEF = (!IsRunningCommandlet() || IsAllowCommandletRendering()) && !FParse::Param(FCommandLine::Get(), TEXT("nocef"));
+	bAllowCEF = (!IsRunningCommandlet() || IsAllowCommandletRendering()) && !FParse::Param(FCommandLine::Get(), TEXT("nocef")) && FParse::Param(FCommandLine::Get(), TEXT("AllowCommandletCEF"));
 	if (bAllowCEF)
 	{
 		// The FWebBrowserSingleton must be initialized on the game thread
