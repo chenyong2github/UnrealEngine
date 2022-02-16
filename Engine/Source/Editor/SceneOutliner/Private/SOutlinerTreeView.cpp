@@ -236,6 +236,18 @@ FReply SSceneOutlinerTreeRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 	return FReply::Handled();
 }
 
+FReply SSceneOutlinerTreeRow::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	auto ItemPtr = Item.Pin();
+	// We don't want to act on double click on an item that can't be interacted with
+	if (ItemPtr.IsValid() && ItemPtr->CanInteract())
+	{
+		return SMultiColumnTableRow<FSceneOutlinerTreeItemPtr>::OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+	}
+
+	return FReply::Handled();
+}
+
 TSharedRef<SWidget> SSceneOutlinerTreeRow::GenerateWidgetForColumn( const FName& ColumnName )
 {
 	auto ItemPtr = Item.Pin();
