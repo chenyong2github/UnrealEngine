@@ -56,6 +56,41 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		[CbField("data")]
 		public ReadOnlyMemory<byte> Data { get; set; }
+
+		/// <summary>
+		/// Parses an object from a ref
+		/// </summary>
+		/// <param name="Ref"></param>
+		/// <returns></returns>
+		public static TreePackObject Parse(IRef Ref) => Parse(Ref.Value.GetView());
+
+		/// <summary>
+		/// Parse an object from the given data
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns></returns>
+		public static TreePackObject Parse(ReadOnlyMemory<byte> Data) => CbSerializer.Deserialize<TreePackObject>(Data);
+
+		/// <summary>
+		/// Gets the root hash for this object
+		/// </summary>
+		/// <returns></returns>
+		public IoHash GetRootHash()
+		{
+			TreePackExport Export = new TreePackExport(Exports.Span);
+			return Export.Hash;
+		}
+
+		/// <summary>
+		/// Gets the root node data for this object
+		/// </summary>
+		/// <returns></returns>
+		public ReadOnlyMemory<byte> GetRootNode()
+		{
+			TreePackExport Export = new TreePackExport(Exports.Span);
+			ReadOnlyMemory<byte> CompressedData = Data.Slice(Export.Offset, Export.CompressedLength);
+			return TreePack.UncompressData(CompressedData, Export.UncompressedLength);
+		}
 	}
 
 	/// <summary>
@@ -105,6 +140,84 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		[CbField("exports")]
 		public ReadOnlyMemory<byte> Exports { get; set; }
+	}
+
+	/// <summary>
+	/// Entry for a block of data exported from a blob
+	/// </summary>
+	public class TreePackExport
+	{
+		/// <summary>
+		/// Length of the export when encoded to a byte array
+		/// </summary>
+		public const int EncodedLength = IoHash.NumBytes + sizeof(int) + sizeof(int) + sizeof(int);
+
+		/// <summary>
+		/// Hash of the exported item
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
+		/// Offset of the exported data
+		/// </summary>
+		public int Offset { get; }
+
+		/// <summary>
+		/// Compressed length of the exported data
+		/// </summary>
+		public int CompressedLength { get; }
+
+		/// <summary>
+		/// Length of the exported data when uncompressed
+		/// </summary>
+		public int UncompressedLength { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public TreePackExport(IoHash Hash, int Offset, int CompressedLength, int UncompressedLength)
+		{
+			this.Hash = Hash;
+			this.Offset = Offset;
+			this.CompressedLength = CompressedLength;
+			this.UncompressedLength = UncompressedLength;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Span"></param>
+		public TreePackExport(ReadOnlySpan<byte> Span)
+		{
+			Hash = new IoHash(Span);
+			Span = Span.Slice(IoHash.NumBytes);
+
+			Offset = BinaryPrimitives.ReadInt32LittleEndian(Span);
+			Span = Span.Slice(sizeof(int));
+
+			CompressedLength = BinaryPrimitives.ReadInt32LittleEndian(Span);
+			Span = Span.Slice(sizeof(int));
+
+			UncompressedLength = BinaryPrimitives.ReadInt32LittleEndian(Span);
+		}
+
+		/// <summary>
+		/// Encode an export into a byte array 
+		/// </summary>
+		/// <param name="Output"></param>
+		public void CopyTo(Span<byte> Output)
+		{
+			Hash.CopyTo(Output);
+			Output = Output.Slice(IoHash.NumBytes);
+
+			BinaryPrimitives.WriteInt32LittleEndian(Output, Offset);
+			Output = Output.Slice(sizeof(int));
+
+			BinaryPrimitives.WriteInt32LittleEndian(Output, CompressedLength);
+			Output = Output.Slice(sizeof(int));
+
+			BinaryPrimitives.WriteInt32LittleEndian(Output, UncompressedLength);
+		}
 	}
 
 	#endregion
@@ -503,26 +616,7 @@ namespace EpicGames.Horde.Storage
 			public override string ToString() => IsLeaf ? $"{Hash} (Leaf)" : $"{Hash}";
 		}
 
-		/// <summary>
-		/// Entry for a block of data exported from a blob
-		/// </summary>
-		class ExportInfo
-		{
-			public IoHash Hash { get; }
-			public int Offset { get; }
-			public int CompressedLength { get; }
-			public int UncompressedLength { get; }
-
-			public ExportInfo(IoHash Hash, int Offset, int CompressedLength, int UncompressedLength)
-			{
-				this.Hash = Hash;
-				this.Offset = Offset;
-				this.CompressedLength = CompressedLength;
-				this.UncompressedLength = UncompressedLength;
-			}
-		}
-
-		IBlobStorageClient StorageClient { get; }
+		IStorageClient StorageClient { get; }
 		NamespaceId NamespaceId { get; }
 
 		public TreePackOptions Options { get; }
@@ -535,7 +629,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TreePack(IBlobStorageClient StorageClient, NamespaceId NamespaceId)
+		public TreePack(IStorageClient StorageClient, NamespaceId NamespaceId)
 			: this(StorageClient, NamespaceId, new TreePackOptions())
 		{
 		}
@@ -543,7 +637,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TreePack(IBlobStorageClient StorageClient, NamespaceId NamespaceId, TreePackOptions Options)
+		public TreePack(IStorageClient StorageClient, NamespaceId NamespaceId, TreePackOptions Options)
 		{
 			this.StorageClient = StorageClient;
 			this.NamespaceId = NamespaceId;
@@ -554,10 +648,43 @@ namespace EpicGames.Horde.Storage
 		/// Adds a root blob to the pack
 		/// </summary>
 		/// <param name="Data"></param>
-		public void AddRootBlob(ReadOnlyMemory<byte> Data)
+		/// <returns>Hash of the root node</returns>
+		public ReadOnlyMemory<byte> AddRootBlob(IRef Ref) => AddRootBlob(Ref.Value.GetView());
+
+		/// <summary>
+		/// Adds a root blob to the pack
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns>Hash of the root node</returns>
+		public ReadOnlyMemory<byte> AddRootBlob(ReadOnlyMemory<byte> Data)
 		{
 			TreePackObject Object = CbSerializer.Deserialize<TreePackObject>(Data);
 			RegisterObject(Object, null);
+
+			TreePackExport Export = new TreePackExport(Object.Exports.Span);
+			return UncompressData(Object.Data.Slice(Export.Offset, Export.CompressedLength), Export.UncompressedLength);
+		}
+
+		/// <summary>
+		/// Adds a root blob to the pack
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns>Hash of the root node</returns>
+		public void AddRootObject(TreePackObject Object)
+		{
+			RegisterObject(Object, null);
+		}
+
+		/// <summary>
+		/// Adds a root object to the pack
+		/// </summary>
+		/// <param name="Ref"></param>
+		/// <returns></returns>
+		public TreePackObject AddRootObject(IRef Ref)
+		{
+			TreePackObject Object = TreePackObject.Parse(Ref);
+			AddRootObject(Object);
+			return Object;
 		}
 
 		/// <summary>
@@ -627,16 +754,27 @@ namespace EpicGames.Horde.Storage
 			return Hash;
 		}
 
-		private static ReadOnlyMemory<byte> CompressData(ReadOnlyMemory<byte> Data)
+		/// <summary>
+		/// Compresses the given node data 
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns></returns>
+		public static ReadOnlyMemory<byte> CompressData(ReadOnlyMemory<byte> Data)
 		{
 			byte[] Output = new byte[LZ4Codec.MaximumOutputSize(Data.Length)];
 			int Length = LZ4Codec.Encode(Data.Span, Output);
 			return Output.AsMemory(0, Length);
 		}
 
-		private static byte[] UncompressData(ReadOnlyMemory<byte> Data, int Length)
+		/// <summary>
+		/// Uncompresses the given node data
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <param name="UncompressedLength">Size of the uncompressed data</param>
+		/// <returns></returns>
+		public static byte[] UncompressData(ReadOnlyMemory<byte> Data, int UncompressedLength)
 		{
-			byte[] Output = new byte[Length];
+			byte[] Output = new byte[UncompressedLength];
 			LZ4Codec.Decode(Data.Span, Output);
 			return Output;
 		}
@@ -707,6 +845,20 @@ namespace EpicGames.Horde.Storage
 				}
 			}
 			return UncompressData(Node.CompressedData, Node.UncompressedLength);
+		}
+
+		/// <summary>
+		/// Writes the pack file to storage, and set a reference to it
+		/// </summary>
+		/// <param name="BucketId"></param>
+		/// <param name="RefId"></param>
+		/// <param name="RootHash"></param>
+		/// <param name="UtcNow"></param>
+		/// <returns></returns>
+		public async Task WriteAsync(BucketId BucketId, RefId RefId, IoHash RootHash, DateTime UtcNow)
+		{
+			TreePackObject Object = await FlushAsync(RootHash, UtcNow);
+			await StorageClient.SetRefAsync(NamespaceId, BucketId, RefId, Object);
 		}
 
 		/// <summary>
@@ -856,7 +1008,7 @@ namespace EpicGames.Horde.Storage
 		void RegisterObject(TreePackObject Object, BlobInfo? BlobInfo)
 		{
 			// Register all the exports from the object
-			foreach (ExportInfo Export in ReadExports(Object.Exports))
+			foreach (TreePackExport Export in ReadExports(Object.Exports))
 			{
 				NodeInfo NodeInfo = FindOrAddNode(Export.Hash, Export.Offset, Export.CompressedLength, Export.UncompressedLength, BlobInfo);
 				NodeInfo.UncompressedLength = Export.UncompressedLength;
@@ -881,8 +1033,8 @@ namespace EpicGames.Horde.Storage
 			{
 				BlobInfo ImportedBlob = FindOrAddBlob(Import.Binary.Hash, Import.Time, Import.Length, true);
 
-				ExportInfo[] Exports = ReadExports(Import.Exports);
-				foreach (ExportInfo Export in Exports)
+				TreePackExport[] Exports = ReadExports(Import.Exports);
+				foreach (TreePackExport Export in Exports)
 				{
 					FindOrAddNode(Export.Hash, Export.Offset, Export.CompressedLength, Export.UncompressedLength, ImportedBlob);
 				}
@@ -919,7 +1071,7 @@ namespace EpicGames.Horde.Storage
 			TreePackObject Object = new TreePackObject();
 			Object.Time = UtcNow;
 			Object.Data = Data;
-			Object.Exports = WriteExports(Nodes.Select(x => new ExportInfo(x.Hash, x.Offset, x.CompressedLength, x.UncompressedLength)).ToArray());
+			Object.Exports = WriteExports(Nodes.Select(x => new TreePackExport(x.Hash, x.Offset, x.CompressedLength, x.UncompressedLength)).ToArray());
 
 			foreach (IGrouping<BlobInfo, NodeInfo> Group in References.GroupBy(x => x.Blob!))
 			{
@@ -930,7 +1082,7 @@ namespace EpicGames.Horde.Storage
 					BinaryImport.Binary = new CbBinaryAttachment(ImportBlob.Hash);
 					BinaryImport.Time = ImportBlob.Time;
 					BinaryImport.Length = ImportBlob.Length;
-					BinaryImport.Exports = WriteExports(Group.Select(x => new ExportInfo(x.Hash, x.Offset, x.CompressedLength, x.UncompressedLength)).ToArray());
+					BinaryImport.Exports = WriteExports(Group.Select(x => new TreePackExport(x.Hash, x.Offset, x.CompressedLength, x.UncompressedLength)).ToArray());
 					Object.BinaryImports.Add(BinaryImport);
 				}
 				else
@@ -1000,51 +1152,31 @@ namespace EpicGames.Horde.Storage
 			return Data;
 		}
 
-		static ExportInfo[] ReadExports(ReadOnlyMemory<byte> ExportData)
+		static TreePackExport[] ReadExports(ReadOnlyMemory<byte> ExportData)
 		{
 			int NumEntries = ExportData.Length / (IoHash.NumBytes + sizeof(int) + sizeof(int) + sizeof(int));
 
-			ExportInfo[] Exports = new ExportInfo[NumEntries];
+			TreePackExport[] Exports = new TreePackExport[NumEntries];
 
 			ReadOnlySpan<byte> Span = ExportData.Span;
 			for (int Idx = 0; Idx < NumEntries; Idx++)
 			{
-				IoHash Key = new IoHash(Span);
-				Span = Span.Slice(IoHash.NumBytes);
-
-				int Offset = BinaryPrimitives.ReadInt32LittleEndian(Span);
-				Span = Span.Slice(sizeof(int));
-
-				int CompressedLength = BinaryPrimitives.ReadInt32LittleEndian(Span);
-				Span = Span.Slice(sizeof(int));
-
-				int UncompressedLength = BinaryPrimitives.ReadInt32LittleEndian(Span);
-				Span = Span.Slice(sizeof(int));
-
-				Exports[Idx] = new ExportInfo(Key, Offset, CompressedLength, UncompressedLength);
+				Exports[Idx] = new TreePackExport(Span);
+				Span = Span.Slice(TreePackExport.EncodedLength);
 			}
 
 			return Exports;
 		}
 
-		static byte[] WriteExports(ExportInfo[] Exports)
+		static byte[] WriteExports(TreePackExport[] Exports)
 		{
 			byte[] Data = new byte[Exports.Length * (IoHash.NumBytes + sizeof(int) + sizeof(int) + sizeof(int))];
 
 			Span<byte> Output = Data;
-			foreach (ExportInfo Export in Exports.OrderBy(x => x.Offset))
+			foreach (TreePackExport Export in Exports.OrderBy(x => x.Offset))
 			{
-				Export.Hash.CopyTo(Output);
-				Output = Output.Slice(IoHash.NumBytes);
-
-				BinaryPrimitives.WriteInt32LittleEndian(Output, Export.Offset);
-				Output = Output.Slice(sizeof(int));
-
-				BinaryPrimitives.WriteInt32LittleEndian(Output, Export.CompressedLength);
-				Output = Output.Slice(sizeof(int));
-
-				BinaryPrimitives.WriteInt32LittleEndian(Output, Export.UncompressedLength);
-				Output = Output.Slice(sizeof(int));
+				Export.CopyTo(Output);
+				Output = Output.Slice(TreePackExport.EncodedLength);
 			}
 
 			return Data;
@@ -1144,7 +1276,7 @@ namespace EpicGames.Horde.Storage
 			}
 			foreach (TreePackBinaryImport BinaryImport in Object.BinaryImports)
 			{
-				foreach (ExportInfo Export in ReadExports(BinaryImport.Exports))
+				foreach (TreePackExport Export in ReadExports(BinaryImport.Exports))
 				{
 					HashToLocator[Export.Hash] = $"{BinaryImport.Binary} [{Export.Offset},{Export.CompressedLength}]";
 				}
@@ -1176,7 +1308,7 @@ namespace EpicGames.Horde.Storage
 				{
 					Writer.WriteLine($"- blob: {BinaryImport.Binary.Hash}");
 					Writer.WriteLine("  keys:");
-					foreach (ExportInfo Export in ReadExports(BinaryImport.Exports))
+					foreach (TreePackExport Export in ReadExports(BinaryImport.Exports))
 					{
 						Writer.WriteLine($"  - \"{Export.Hash}\"");
 					}
@@ -1186,8 +1318,8 @@ namespace EpicGames.Horde.Storage
 
 			Writer.WriteLine("exports:");
 
-			ExportInfo[] Exports = ReadExports(Object.Exports);
-			foreach (ExportInfo Export in Exports)
+			TreePackExport[] Exports = ReadExports(Object.Exports);
+			foreach (TreePackExport Export in Exports)
 			{
 				ReadOnlyMemory<byte> Data = UncompressData(Object.Data.Slice(Export.Offset, Export.CompressedLength), Export.UncompressedLength);
 				TreePackNodeType Type = (TreePackNodeType)Data.Span[0];

@@ -58,7 +58,7 @@ namespace HordeAgent.Commands.Archive
 
 			DirectoryReference Inputdir = InputPath.Directory;
 			NamespaceId NamespaceId = new NamespaceId("test");
-			FileSystemStorageClient Storage = new FileSystemStorageClient(Inputdir, Logger);
+			FileStorageClient Storage = new FileStorageClient(Inputdir, Logger);
 
 			TreePack TreePack = new TreePack(Storage, NamespaceId, Options);
 
@@ -131,7 +131,7 @@ namespace HordeAgent.Commands.Archive
 			}
 		}
 
-		async Task WriteSummaryFiles(NamespaceId NamespaceId, TreePackObject RootObject, HashSet<IoHash> VisitedObjects, IBlobStorageClient StorageClient, DirectoryReference TargetDir)
+		async Task WriteSummaryFiles(NamespaceId NamespaceId, TreePackObject RootObject, HashSet<IoHash> VisitedObjects, IStorageClient StorageClient, DirectoryReference TargetDir)
 		{
 			foreach (TreePackObjectImport Import in RootObject.ObjectImports)
 			{

@@ -30,37 +30,6 @@ using EpicGames.Perforce;
 
 namespace HordeAgent.Commands.Archive
 {
-	class FileSystemStorageClient : IBlobStorageClient
-	{
-		public DirectoryReference BaseDir;
-		ILogger Logger;
-
-		public FileSystemStorageClient(DirectoryReference BaseDir, ILogger Logger)
-		{
-			this.BaseDir = BaseDir;
-			this.Logger = Logger;
-
-			DirectoryReference.CreateDirectory(BaseDir);
-		}
-
-		public Task<Stream> ReadBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
-		{
-			FileReference File = FileReference.Combine(BaseDir, $"{NamespaceId}-{Hash}.dat");
-			Logger.LogInformation("Reading {File} ({Size} bytes)", File, new FileInfo(File.FullName).Length);
-			return Task.FromResult<Stream>(FileReference.Open(File, FileMode.Open, FileAccess.Read, FileShare.Read));
-		}
-
-		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default)
-		{
-			FileReference File = FileReference.Combine(BaseDir, $"{NamespaceId}-{Hash}.dat");
-			Logger.LogInformation("Writing {File} ({Size} bytes)", File, Stream.Length);
-			using (Stream OutputStream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
-			{
-				await Stream.CopyToAsync(OutputStream);
-			}
-		}
-	}
-
 	/// <summary>
 	/// Installs the agent as a service
 	/// </summary>
@@ -94,7 +63,7 @@ namespace HordeAgent.Commands.Archive
 
 			DirectoryReference TargetDir = TargetPath.Directory;
 			NamespaceId NamespaceId = new NamespaceId("test");
-			FileSystemStorageClient Storage = new FileSystemStorageClient(TargetDir, Logger);
+			FileStorageClient Storage = new FileStorageClient(TargetDir, Logger);
 
 			TreePack TargetPack = new TreePack(Storage, NamespaceId, Options);
 
@@ -120,7 +89,7 @@ namespace HordeAgent.Commands.Archive
 				await ReadFilesFromDiskAsync(SourcePath, TargetPack, TargetWriter);
 			}
 
-			IoHash NewHash = await TargetWriter.FinalizeAsync();
+			IoHash NewHash = await TargetWriter.FlushAsync();
 			TreePackObject Pack = await TargetPack.FlushAsync(NewHash, DateTime.UtcNow);
 			await WriteSummaryFiles(NamespaceId, Pack, new HashSet<IoHash>(), Storage, TargetDir);
 
@@ -136,7 +105,7 @@ namespace HordeAgent.Commands.Archive
 			return 0;
 		}
 
-		async Task WriteSummaryFiles(NamespaceId NamespaceId, TreePackObject RootObject, HashSet<IoHash> VisitedObjects, IBlobStorageClient StorageClient, DirectoryReference TargetDir)
+		async Task WriteSummaryFiles(NamespaceId NamespaceId, TreePackObject RootObject, HashSet<IoHash> VisitedObjects, IStorageClient StorageClient, DirectoryReference TargetDir)
 		{
 			foreach (TreePackObjectImport Import in RootObject.ObjectImports)
 			{

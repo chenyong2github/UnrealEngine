@@ -154,8 +154,10 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base interface for a storage client that only records blobs.
 	/// </summary>
-	public interface IBlobStorageClient
+	public interface IStorageClient
 	{
+		#region Blobs
+
 		/// <summary>
 		/// Opens a blob read stream
 		/// </summary>
@@ -173,13 +175,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Stream">The stream to write</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default);
-	}
 
-	/// <summary>
-	/// Interface for a collection of ref documents
-	/// </summary>
-	public interface IStorageClient : IBlobStorageClient
-	{
+		#endregion
+		#region Refs
+
 		/// <summary>
 		/// Gets the given reference
 		/// </summary>
@@ -241,6 +240,8 @@ namespace EpicGames.Horde.Storage
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if the ref was deleted, false if it did not exist</returns>
 		Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default);
+
+		#endregion
 	}
 
 	/// <summary>
@@ -258,7 +259,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Hash">Hash of the blob to read</param>
 		/// <param name="MaxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <returns>Data for the blob that was read. Throws an exception if the blob was not found.</returns>
-		public static async Task<byte[]> ReadBlobToMemoryAsync(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
+		public static async Task<byte[]> ReadBlobToMemoryAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
 		{
 			using Stream Stream = await StorageClient.ReadBlobAsync(NamespaceId, Hash);
 
@@ -290,7 +291,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Hash">Hash of the blob to read</param>
 		/// <param name="MaxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <returns>The decoded object</returns>
-		public static async Task<CbObject> ReadObjectAsync(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
+		public static async Task<CbObject> ReadObjectAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
 		{
 			return new CbObject(await ReadBlobToMemoryAsync(StorageClient, NamespaceId, Hash, MaxInMemoryBlobLength));
 		}
@@ -304,7 +305,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Hash">Hash of the blob to read</param>
 		/// <param name="MaxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <returns>The decoded object</returns>
-		public static async Task<T> ReadObjectAsync<T>(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
+		public static async Task<T> ReadObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, int MaxInMemoryBlobLength = DefaultMaxInMemoryBlobLength)
 		{
 			return CbSerializer.Deserialize<T>(await ReadBlobToMemoryAsync(StorageClient, NamespaceId, Hash, MaxInMemoryBlobLength));
 		}
@@ -316,7 +317,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="NamespaceId">Namespace containing the blob</param>
 		/// <param name="Data">Data to write</param>
 		/// <returns></returns>
-		public static async Task<IoHash> WriteBlobFromMemoryAsync(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, ReadOnlyMemory<byte> Data)
+		public static async Task<IoHash> WriteBlobFromMemoryAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, ReadOnlyMemory<byte> Data)
 		{
 			IoHash Hash = IoHash.Compute(Data.Span);
 			await WriteBlobFromMemoryAsync(StorageClient, NamespaceId, Hash, Data);
@@ -330,7 +331,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="NamespaceId">Namespace containing the blob</param>
 		/// <param name="Object">The object to be written</param>
 		/// <returns></returns>
-		public static Task<IoHash> WriteObjectAsync(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, CbObject Object)
+		public static Task<IoHash> WriteObjectAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, CbObject Object)
 		{
 			return WriteBlobFromMemoryAsync(StorageClient, NamespaceId, Object.GetView());
 		}
@@ -342,7 +343,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="NamespaceId">Namespace containing the blob</param>
 		/// <param name="Object">The object to be written</param>
 		/// <returns></returns>
-		public static Task<IoHash> WriteObjectAsync<T>(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, T Object)
+		public static Task<IoHash> WriteObjectAsync<T>(this IStorageClient StorageClient, NamespaceId NamespaceId, T Object)
 		{
 			return WriteObjectAsync(StorageClient, NamespaceId, CbSerializer.Serialize<T>(Object));
 		}
@@ -355,7 +356,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="Hash">Hash of the data</param>
 		/// <param name="Data">The data to be written</param>
 		/// <returns></returns>
-		public static async Task WriteBlobFromMemoryAsync(this IBlobStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data)
+		public static async Task WriteBlobFromMemoryAsync(this IStorageClient StorageClient, NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data)
 		{
 			using ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Data);
 			await StorageClient.WriteBlobAsync(NamespaceId, Hash, Stream);

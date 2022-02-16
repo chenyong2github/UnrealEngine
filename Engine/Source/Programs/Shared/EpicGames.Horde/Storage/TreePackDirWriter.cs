@@ -29,6 +29,16 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Cosntructor. Initializes the contents of the tree to the root node in the given ref.
+		/// </summary>
+		/// <param name="TreePack"></param>
+		/// <param name="Ref"></param>
+		public TreePackDirWriter(TreePack TreePack, IRef Ref)
+			: this(TreePack, TreePackDirNode.Parse(TreePack.AddRootObject(Ref).GetRootNode()))
+		{
+		}
+
+		/// <summary>
 		/// Constructor. Initializes the contents of the tree to an existing directory node.
 		/// </summary>
 		/// <param name="TreePack"></param>
@@ -121,11 +131,11 @@ namespace EpicGames.Horde.Storage
 		/// Flushes the current tree state and writes it to the tree pack
 		/// </summary>
 		/// <returns>Hash of the tree</returns>
-		public async Task<IoHash> FinalizeAsync()
+		public async Task<IoHash> FlushAsync()
 		{
 			foreach ((Utf8String Name, TreePackDirWriter Writer) in NameToSubDir)
 			{
-				IoHash Hash = await Writer.FinalizeAsync();
+				IoHash Hash = await Writer.FlushAsync();
 				NameToEntry[Name] = new TreePackDirEntry(TreePackDirEntryFlags.Directory, Name, Hash, Sha1Hash.Zero);
 			}
 			NameToSubDir.Clear();
@@ -133,6 +143,18 @@ namespace EpicGames.Horde.Storage
 			TreePackDirNode Node = new TreePackDirNode();
 			Node.Entries.AddRange(NameToEntry.Values);
 			return await TreePack.AddNodeAsync(Node.ToByteArray());
+		}
+
+		/// <summary>
+		/// Writes the directory tree to the storage client with the 
+		/// </summary>
+		/// <param name="BucketId"></param>
+		/// <param name="RefId"></param>
+		/// <returns></returns>
+		public async Task WriteAsync(BucketId BucketId, RefId RefId)
+		{
+			IoHash RootHash = await FlushAsync();
+			await TreePack.WriteAsync(BucketId, RefId, RootHash, DateTime.UtcNow);
 		}
 
 		/// <summary>
