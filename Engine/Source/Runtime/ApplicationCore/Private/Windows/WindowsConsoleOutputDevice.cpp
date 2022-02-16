@@ -137,6 +137,12 @@ void FWindowsConsoleOutputDevice::Show( bool ShowWindow )
 					ConsolePosY = WindowRect.top;
 				}
 
+				FString ConsoleTitle;
+				if (FParse::Value(FCommandLine::Get(), TEXT("ConsoleTitle="), ConsoleTitle))
+				{
+					SetConsoleTitleW(*ConsoleTitle);
+				}
+
 				FDisplayMetrics DisplayMetrics;
 				FDisplayMetrics::RebuildDisplayMetrics(DisplayMetrics);
 
