@@ -45,8 +45,8 @@ struct FStoreBrowserTraceInfo
 	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 
-	bool bIsMetadataUpdated = false;
 	bool bIsLive = false;
+	uint8 MetadataUpdateCount = 1;
 
 	uint32 IpAddress = 0;
 

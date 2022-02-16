@@ -1171,7 +1171,7 @@ void STraceStoreWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights:
 	InOutTrace.IpAddress = InSourceTrace.IpAddress;
 
 	// Is metadata updated?
-	if (!InOutTrace.bIsMetadataUpdated && InSourceTrace.bIsMetadataUpdated)
+	if (!InOutTrace.bIsMetadataUpdated && InSourceTrace.MetadataUpdateCount == 0)
 	{
 		InOutTrace.bIsMetadataUpdated = true;
 		InOutTrace.Platform = FText::FromString(InSourceTrace.Platform);
