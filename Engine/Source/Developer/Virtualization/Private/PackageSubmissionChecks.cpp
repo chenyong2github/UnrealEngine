@@ -9,6 +9,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Serialization/EditorBulkData.h"
 #include "UObject/Linker.h"
 #include "UObject/Package.h"
@@ -150,6 +151,9 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 	const double StartTime = FPlatformTime::Seconds();
 
+	FScopedSlowTask Progress(5.0f, LOCTEXT("Virtualization_Task", "Virtualizing Assets..."));
+	Progress.MakeDialog();
+
 	// Other systems may have added errors to this array, we need to check so later we can determine if this function added any additional errors.
 	const int32 NumErrors = Errors.Num();
 
@@ -171,6 +175,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 	TArray<FIoHash> AllLocalPayloads;
 	AllLocalPayloads.Reserve(FilesToSubmit.Num());
+
+	Progress.EnterProgressFrame(1.0f);
 
 	// From the list of files to submit we need to find all of the valid packages that contain
 	// local payloads that need to be virtualized.
@@ -215,6 +221,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	}
 
 	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payload(s) in %d package(s) that need to be examined for virtualization"), TotalPayloadsToCheck, Packages.Num());
+
+	Progress.EnterProgressFrame(1.0f);
 
 	TArray<FPayloadStatus> PayloadStatuses;
 	if (System.QueryPayloadStatuses(AllLocalPayloads, EStorageType::Persistent, PayloadStatuses) != EQueryResult::Success)
@@ -265,7 +273,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payload(s) that potentially need to be pushed to persistent virtualized storage"), TotalPayloadsToVirtualize);
 
 	// TODO Optimization: In theory we could have many packages sharing the same payload and we only need to push once
-	
+	Progress.EnterProgressFrame(1.0f);
+
 	TArray<Virtualization::FPushRequest> PayloadsToSubmit;
 	PayloadsToSubmit.Reserve(TotalPayloadsToVirtualize);
 
@@ -319,6 +328,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		}
 	}
 
+	Progress.EnterProgressFrame(1.0f);
+
 	if (!System.PushData(PayloadsToSubmit, EStorageType::Persistent))
 	{
 		FText Message = LOCTEXT("Virtualization_PushFailure", "Failed to push payloads");
@@ -358,6 +369,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			}
 		}
 	}
+
+	Progress.EnterProgressFrame(1.0f);
 
 	TArray<TPair<FPackagePath, FString>> PackagesToReplace;
 
