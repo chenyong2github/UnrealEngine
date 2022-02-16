@@ -116,6 +116,7 @@ public:
 			, _MenuContent()
 			, _HAlignCell( HAlign_Fill )
 			, _VAlignCell( VAlign_Fill )
+			, _InitialSortMode( EColumnSortMode::Ascending )
 			, _SortMode( EColumnSortMode::None )
 			, _OnSort()
 			{}
@@ -146,6 +147,7 @@ public:
 			SLATE_ARGUMENT( EHorizontalAlignment, HAlignCell )
 			SLATE_ARGUMENT( EVerticalAlignment, VAlignCell )
 
+			SLATE_ATTRIBUTE( EColumnSortMode::Type, InitialSortMode )
 			SLATE_ATTRIBUTE( EColumnSortMode::Type, SortMode )
 			SLATE_ATTRIBUTE( EColumnSortPriority::Type, SortPriority )
 			SLATE_EVENT( FOnSortModeChanged, OnSort )
@@ -171,6 +173,7 @@ public:
 			, HeaderComboVisibility (InArgs._HeaderComboVisibility )
 			, CellHAlignment( InArgs._HAlignCell )
 			, CellVAlignment( InArgs._VAlignCell )
+			, InitialSortMode( InArgs._InitialSortMode )
 			, SortMode( InArgs._SortMode )
 			, SortPriority( InArgs._SortPriority )
 			, OnSortModeChanged( InArgs._OnSort )
@@ -255,6 +258,7 @@ public:
 		EHorizontalAlignment CellHAlignment;
 		EVerticalAlignment CellVAlignment;
 
+		TAttribute< EColumnSortMode::Type > InitialSortMode;
 		TAttribute< EColumnSortMode::Type > SortMode;
 		TAttribute< EColumnSortPriority::Type > SortPriority;
 		FOnSortModeChanged OnSortModeChanged;

@@ -32,7 +32,8 @@ public:
 	SLATE_END_ARGS()
 
 	STableColumnHeader()
-		: SortMode( EColumnSortMode::None )
+		: InitialSortMode( EColumnSortMode::Ascending )
+		, SortMode( EColumnSortMode::None )
 		, SortPriority( EColumnSortPriority::Primary )
 		, OnSortModeChanged()
 		, ContextMenuContent( SNullWidget::NullWidget )
@@ -53,6 +54,7 @@ public:
 
 		Style = InArgs._Style;
 		ColumnId = Column.ColumnId;
+		InitialSortMode = Column.InitialSortMode;
 		SortMode = Column.SortMode;
 		SortPriority = Column.SortPriority;
 
@@ -214,6 +216,18 @@ public:
 				Overlay
 			]
 		];
+	}
+
+	/** Gets initial sorting mode */
+	EColumnSortMode::Type GetInitialSortMode() const
+	{
+		return InitialSortMode.Get();
+	}
+
+	/** Sets initial sorting mode */
+	void SetInitialSortMode(EColumnSortMode::Type NewMode)
+	{
+		InitialSortMode = NewMode;
 	}
 
 	/** Gets sorting mode */
@@ -378,7 +392,7 @@ private:
 					ColumnSortPriority = EColumnSortPriority::Primary;
 				}
 
-				ColumnSortMode = EColumnSortMode::Ascending;
+				ColumnSortMode = InitialSortMode.Get();
 			}
 			else
 			{
@@ -417,6 +431,9 @@ private:
 
 
 private:
+
+	/** Initial sorting mode */
+	TAttribute< EColumnSortMode::Type > InitialSortMode;
 
 	/** Current sorting mode */
 	TAttribute< EColumnSortMode::Type > SortMode;
