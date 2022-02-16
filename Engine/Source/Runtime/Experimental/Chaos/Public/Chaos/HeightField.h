@@ -644,8 +644,14 @@ namespace Chaos
 		template <typename GeomType>
 		bool GJKContactPointImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& ContactLocation, FVec3& ContactNormal, FReal& ContactPhi) const;
 
+		// @todo(chaos): remove ContactManifoldNonPlanarConvexImp and ContactManifoldPlanarConvexImp and move collision detection code out of this class.
+		// Instead, provide an API for generating triangles in a query bounds in some space.
+
 		template <typename GeomType>
-		bool ContactManifoldImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
+		bool ContactManifoldNonPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
+
+		template <typename GeomType>
+		bool ContactManifoldPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const;
 
 	};
 }

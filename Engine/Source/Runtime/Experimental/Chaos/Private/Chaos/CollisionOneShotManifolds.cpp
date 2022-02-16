@@ -1539,6 +1539,20 @@ namespace Chaos
 				const FTriangle& Triangle,
 				const FReal CullDistance,
 				TCArray<FContactPoint, 4>& OutContactPoints);
+
+		template
+			void ConstructPlanarConvexTriangleOneShotManifold(
+				const TImplicitObjectScaled<FImplicitBox3>& Convex,
+				const FTriangle& Triangle,
+				const FReal CullDistance,
+				TCArray<FContactPoint, 4>& OutContactPoints);
+
+		template
+			void ConstructPlanarConvexTriangleOneShotManifold(
+				const TImplicitObjectInstanced<FImplicitBox3>& Convex,
+				const FTriangle& Triangle,
+				const FReal CullDistance,
+				TCArray<FContactPoint, 4>& OutContactPoints);
 	}
 }
 
