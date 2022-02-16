@@ -1952,9 +1952,10 @@ FProtocol2Stage::EStatus FProtocol2Stage::OnData(
 	}
 
 	auto& Serial = Context.Bridge.GetSerial();
-	uint32 ActiveCount = uint32(Rota.Num());
 	while (true)
 	{
+		uint32 ActiveCount = uint32(Rota.Num());
+
 		for (uint32 i = 0; i < ActiveCount;)
 		{
 			FRotaItem& RotaItem = Rota[i];
