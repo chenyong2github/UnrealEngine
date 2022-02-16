@@ -7,6 +7,7 @@
 #include "InputRouter.h" // Need to define this and UWorld so weak pointers know they are UThings
 #include "InteractiveToolManager.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
+#include "UDIMUtilities.h"
 
 using namespace UE::Geometry;
 
@@ -81,6 +82,25 @@ void UUVToolLivePreviewAPI::Initialize(UWorld* WorldIn, UInputRouter* RouterIn,
 	World = WorldIn;
 	InputRouter = RouterIn;
 	GetLivePreviewCameraStateFunc = MoveTemp(GetLivePreviewCameraStateFuncIn);
+}
+
+int32 FUDIMBlock::BlockU() const
+{
+	int32 BlockU, BlockV;
+	UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIM, BlockU, BlockV);
+	return BlockU;
+}
+
+int32 FUDIMBlock::BlockV() const
+{
+	int32 BlockU, BlockV;
+	UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIM, BlockU, BlockV);
+	return BlockV;
+}
+
+void FUDIMBlock::SetFromBlocks(int32 BlockU, int32 BlockV)
+{
+	UDIM = UE::TextureUtilitiesCommon::GetUDIMIndex(BlockU, BlockV);
 }
 
 void UUVToolAABBTreeStorage::Set(FDynamicMesh3* MeshKey, TSharedPtr<FDynamicMeshAABBTree3> Tree, 

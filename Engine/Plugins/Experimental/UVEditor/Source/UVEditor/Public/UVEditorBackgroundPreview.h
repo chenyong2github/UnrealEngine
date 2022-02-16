@@ -21,33 +21,6 @@ enum class EUVEditorBackgroundSourceType
 	Material
 };
 
-USTRUCT()
-struct UVEDITOR_API FUVEditorBackgroundUDIMBlockInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	int32 BlockX = 1;
-
-	UPROPERTY()
-	int32 BlockY = 1;
-
-	UPROPERTY()
-	int32 SizeX = 256;
-
-	UPROPERTY()
-	int32 SizeY = 256;
-};
-
-USTRUCT()
-struct UVEDITOR_API FUVEditorBackgroundUDIMBlocks
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<FUVEditorBackgroundUDIMBlockInfo> UDIMBlocks;
-};
-
 /**
  * Visualization settings for the UUVEditorBackgroundPreview
  */
@@ -71,6 +44,12 @@ public:
 	/** Display a background based on the selected material */
 	UPROPERTY(EditAnywhere, Category = Background, meta = (EditCondition = "SourceType==EUVEditorBackgroundSourceType::Material && bVisible", EditConditionHides = true))
 	TObjectPtr<UMaterial> SourceMaterial;
+
+	UPROPERTY()
+	TArray<int32> UDIMBlocks;
+
+	UPROPERTY()
+	bool bUDIMsEnabled = false;
 };
 
 /**
@@ -88,15 +67,11 @@ public:
 	 * Client must call this every frame for changes to .Settings to be reflected in rendered result.
 	 */
 	void OnTick(float DeltaTime);
-
-
+	
 public:
 	/** Visualization settings */
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreviewProperties> Settings;
-
-	UPROPERTY()
-	FUVEditorBackgroundUDIMBlocks ActiveUDIMBlocks;
 
 	/** The component containing the quad visualization */
 	UPROPERTY()

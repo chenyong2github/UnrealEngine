@@ -38,6 +38,8 @@
 #include "UVEditorToolAnalyticsUtils.h"
 #include "Editor.h"
 #include "UVEditorUXSettings.h"
+#include "UDIMUtilities.h"
+#include "EditorSupportDelegates.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -134,6 +136,69 @@ const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
 	return ToolTargetRequirements;
 }
 
+void UUVEditorUDIMProperties::PostAction(EUVEditorModeActions Action)
+{
+	if (Action == EUVEditorModeActions::ConfigureUDIMsFromTexture)
+	{
+		UpdateActiveUDIMsFromTexture();
+	}
+	if (Action == EUVEditorModeActions::ConfigureUDIMsFromAsset)
+	{
+		UpdateActiveUDIMsFromAsset();
+	}
+}
+
+const TArray<FString>& UUVEditorUDIMProperties::GetAssetNames()
+{
+	return UVAssetNames;
+}
+
+int32 UUVEditorUDIMProperties::AssetByIndex() const
+{
+	return UVAssetNames.Find(UDIMSourceAsset);
+}
+
+void UUVEditorUDIMProperties::InitializeAssets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
+{
+	UVAssetNames.Reset(TargetsIn.Num());
+
+	for (int i = 0; i < TargetsIn.Num(); ++i)
+	{
+		UVAssetNames.Add(UE::ToolTarget::GetHumanReadableName(TargetsIn[i]->SourceTarget));
+	}
+}
+
+void UUVEditorUDIMProperties::UpdateActiveUDIMsFromTexture()
+{
+	ActiveUDIMs.Empty();
+	if (UDIMSourceTexture && UDIMSourceTexture->IsCurrentlyVirtualTextured() && UDIMSourceTexture->Source.GetNumBlocks() > 1)
+	{
+		for (int32 Block = 0; Block < UDIMSourceTexture->Source.GetNumBlocks(); ++Block)
+		{
+			FTextureSourceBlock SourceBlock;
+			UDIMSourceTexture->Source.GetBlock(Block, SourceBlock);
+
+			ActiveUDIMs.Add(FUDIMSpecifier({ UE::TextureUtilitiesCommon::GetUDIMIndex(SourceBlock.BlockX, SourceBlock.BlockY),
+				                             SourceBlock.BlockX, SourceBlock.BlockY }));
+		}
+	}
+	CheckAndUpdateWatched();
+
+	// Make sure we're updating the viewport immediately.
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
+void UUVEditorUDIMProperties::UpdateActiveUDIMsFromAsset()
+{
+	ActiveUDIMs.Empty();
+	int32 AssetID = AssetByIndex();
+	ParentMode->PopulateUDIMsByAsset(AssetID, ActiveUDIMs);
+	CheckAndUpdateWatched();
+
+	// Make sure we're updating the viewport immediately.
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
 UUVEditorMode::UUVEditorMode()
 {
 	Info = FEditorModeInfo(
@@ -157,13 +222,11 @@ void UUVEditorMode::Enter()
 	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
 		[this](bool IsVisible) {
 			UpdateTriangleMaterialBasedOnBackground(IsVisible);
-			UpdateViewportUDIMLabels(IsVisible);			
 		});
 
 	BackgroundVisualization->OnBackgroundMaterialChange.AddWeakLambda(this,
 		[this](TObjectPtr<UMaterialInstanceDynamic> MaterialInstance) {
 			UpdatePreviewMaterialBasedOnBackground();
-			UpdateViewportUDIMLabels(true);
 		});
 
 	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
@@ -191,6 +254,30 @@ void UUVEditorMode::Enter()
 		});
 
 	PropertyObjectsToTick.Add(UVEditorGridProperties);
+
+	UVEditorUDIMProperties = NewObject< UUVEditorUDIMProperties >(this);
+	UVEditorUDIMProperties->Initialize(this);
+	UDIMsChangedWatcherId = UVEditorUDIMProperties->WatchProperty(UVEditorUDIMProperties->ActiveUDIMs,
+		[this](const TArray<FUDIMSpecifier>& ActiveUDIMs) {
+			UpdateActiveUDIMs();
+		},
+		[](const TArray<FUDIMSpecifier>& ActiveUDIMsOld, const TArray<FUDIMSpecifier>& ActiveUDIMsNew) {
+			TSet<FUDIMSpecifier> NewCopy(ActiveUDIMsNew);
+			TSet<FUDIMSpecifier> OldCopy(ActiveUDIMsOld);
+
+			if (OldCopy.Num() != NewCopy.Num())
+			{
+				return true;
+			}
+			TSet<FUDIMSpecifier> Test = OldCopy.Union(NewCopy);
+			if (Test.Num() != OldCopy.Num())
+			{
+				return true;
+			}
+			return false;
+		});
+
+	PropertyObjectsToTick.Add(UVEditorUDIMProperties);
 
 	RegisterTools();
 
@@ -277,6 +364,14 @@ UObject* UUVEditorMode::GetGridSettingsObject()
 	return nullptr;
 }
 
+UObject* UUVEditorMode::GetUDIMSettingsObject()
+{
+	if (UVEditorUDIMProperties)
+	{
+		return UVEditorUDIMProperties;
+	}
+	return nullptr;
+}
 
 void UUVEditorMode::ActivateDefaultTool()
 {
@@ -578,6 +673,10 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	// Prep things for layer/channel selection
 	InitializeAssetNames(ToolTargets, AssetNames);
 	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());
+	if (UVEditorUDIMProperties)
+	{
+		UVEditorUDIMProperties->InitializeAssets(ToolInputObjects);
+	}
 }
 
 void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
@@ -616,7 +715,8 @@ void UUVEditorMode::ApplyChanges()
 	GetToolManager()->EndUndoTransaction();
 }
 
-void UUVEditorMode::UpdateViewportUDIMLabels(bool IsVisible)
+
+void UUVEditorMode::UpdateActiveUDIMs()
 {
 	bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
 	if (!bEnableUDIMSupport)
@@ -624,26 +724,80 @@ void UUVEditorMode::UpdateViewportUDIMLabels(bool IsVisible)
 		return;
 	}
 
+	if (!UVEditorUDIMProperties)
+	{
+		return;
+	}
+
+	TSet<FUDIMSpecifier> ActiveUDIMs(UVEditorUDIMProperties->ActiveUDIMs);
 	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
 	UUVTool2DViewportAPI* UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
 	if (UVTool2DViewportAPI)
 	{
 		TArray<FUDIMBlock> Blocks;
-		if (IsVisible)
+		if (ActiveUDIMs.Num() > 0)
 		{
-			Blocks.SetNum(BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks.Num());
-			for (int32 BlockIndex = 0; BlockIndex < BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks.Num(); ++BlockIndex)
+			Blocks.Reserve(ActiveUDIMs.Num());
+			for (FUDIMSpecifier& UDIMSpecifier : ActiveUDIMs)
 			{
-				Blocks[BlockIndex].BlockX = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockX;
-				Blocks[BlockIndex].BlockY = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockY;
-				Blocks[BlockIndex].SizeX = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].SizeX;
-				Blocks[BlockIndex].SizeY = BackgroundVisualization->ActiveUDIMBlocks.UDIMBlocks[BlockIndex].SizeY;
+				Blocks.Add({ UDIMSpecifier.UDIM });
+				UDIMSpecifier.UCoord = Blocks.Last().BlockU();
+				UDIMSpecifier.VCoord = Blocks.Last().BlockV();
 			}
 		}
 		UVTool2DViewportAPI->SetUDIMBlocks(Blocks, true);
 	}
+	UVEditorUDIMProperties->ActiveUDIMs = ActiveUDIMs.Array();
+	UVEditorUDIMProperties->SilentUpdateWatcherAtIndex(UDIMsChangedWatcherId);
+
+	if (BackgroundVisualization)
+	{
+		BackgroundVisualization->Settings->UDIMBlocks.Empty();
+		BackgroundVisualization->Settings->UDIMBlocks.Reserve(ActiveUDIMs.Num());
+		for (FUDIMSpecifier& UDIMSpecifier : ActiveUDIMs)
+		{
+			BackgroundVisualization->Settings->UDIMBlocks.Add(UDIMSpecifier.UDIM);
+		}
+		BackgroundVisualization->Settings->CheckAndUpdateWatched();
+	}
 }
 
+void UUVEditorMode::PopulateUDIMsByAsset(int32 AssetId, TArray<FUDIMSpecifier>& UDIMsOut) const
+{
+	UDIMsOut.Empty();
+	if (AssetId < 0 || AssetId >= ToolInputObjects.Num())
+	{
+		return;
+	}
+	if (ToolInputObjects[AssetId]->AppliedCanonical->HasAttributes())
+	{
+		for (int32 GroupLayerIndex = 0; GroupLayerIndex < ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->NumPolygroupLayers(); ++GroupLayerIndex)
+		{
+			if (ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->GetPolygroupLayer(GroupLayerIndex)->GetName() == "UDIM")
+			{
+				FDynamicMeshPolygroupAttribute* UDIMPolygroup = ToolInputObjects[AssetId]->AppliedCanonical->Attributes()->GetPolygroupLayer(GroupLayerIndex);
+
+				// This isn't very efficient, as a linear pass over all Tids. But there doesn't seem to be a better way to list all the groups present.
+				for (int32 Tid : ToolInputObjects[AssetId]->AppliedCanonical->TriangleIndicesItr())
+				{
+					int32 UDIMValue = UDIMPolygroup->GetValue(Tid);
+
+					// Discard any invalid UDIM group labels
+					if (UDIMValue < 1001)
+					{
+						continue;
+					}
+					FUDIMSpecifier UDIMSpecifier;
+					UDIMSpecifier.UDIM = UDIMValue;
+					UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIMValue, UDIMSpecifier.UCoord, UDIMSpecifier.VCoord);
+					UDIMsOut.AddUnique(UDIMSpecifier);
+				}
+			}
+
+			break; // Skip looking at other polygroup layers.
+		}
+	}
+}
 
 void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible)
 {
@@ -756,6 +910,7 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 		ToolInput->AppliedPreview->Tick(DeltaTime);
 		ToolInput->UnwrapPreview->Tick(DeltaTime);
 	}
+
 }
 
 int32 UUVEditorMode::GetNumUVChannels(int32 AssetID) const

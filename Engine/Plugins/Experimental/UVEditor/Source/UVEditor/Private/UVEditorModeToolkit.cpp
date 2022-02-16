@@ -287,40 +287,23 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateChannelMenu()
 
 TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
 {
-	TSharedRef<SBorder> BackgroundDetailsContainer =
-		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"));
-
-	TSharedRef<SWidget> Widget = SNew(SBorder)
-		.HAlign(HAlign_Fill)
-		.Padding(4)
-		[
-			SNew(SBox)			
-				.MinDesiredWidth(500)				
-			[
-				BackgroundDetailsContainer				
-			]
-		];
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs BackgroundDetailsViewArgs;
-	BackgroundDetailsViewArgs.bAllowSearch = false;
-	BackgroundDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	BackgroundDetailsViewArgs.bHideSelectionTip = true;
-	BackgroundDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-	BackgroundDetailsViewArgs.bShowOptions = false;
-	BackgroundDetailsViewArgs.bAllowMultipleTopLevelObjects = false;
-
 	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
-	TSharedRef<IDetailsView> BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
-	BackgroundDetailsView->SetObject(Mode->GetBackgroundSettingsObject());
-	BackgroundDetailsContainer->SetContent(BackgroundDetailsView);
-
-	return Widget;
+	return CreateDisplaySettingsWidget(Mode->GetBackgroundSettingsObject());
 }
 
 TSharedRef<SWidget> FUVEditorModeToolkit::CreateGridSettingsWidget()
+{
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	return CreateDisplaySettingsWidget(Mode->GetGridSettingsObject());
+}
+
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateUDIMSettingsWidget()
+{
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	return CreateDisplaySettingsWidget(Mode->GetUDIMSettingsObject());
+}
+
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateDisplaySettingsWidget(UObject* SettingsObject) const
 {
 	TSharedRef<SBorder> GridDetailsContainer =
 		SNew(SBorder)
@@ -347,13 +330,14 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateGridSettingsWidget()
 	GridDetailsViewArgs.bShowOptions = false;
 	GridDetailsViewArgs.bAllowMultipleTopLevelObjects = false;
 
-	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
 	TSharedRef<IDetailsView> GridDetailsView = PropertyEditorModule.CreateDetailView(GridDetailsViewArgs);
-	GridDetailsView->SetObject(Mode->GetGridSettingsObject());
+	GridDetailsView->SetObject(SettingsObject);
 	GridDetailsContainer->SetContent(GridDetailsView);
 
 	return Widget;
+
 }
+
 
 void FUVEditorModeToolkit::UpdateActiveToolProperties()
 {

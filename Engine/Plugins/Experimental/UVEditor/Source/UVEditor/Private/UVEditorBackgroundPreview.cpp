@@ -8,6 +8,7 @@
 #include "ToolSetupUtil.h"
 #include "Async/Async.h"
 #include "UVEditorUXSettings.h"
+#include "UDIMUtilities.h"
 
 using namespace UE::Geometry;
 
@@ -18,6 +19,7 @@ void UUVEditorBackgroundPreview::OnCreated()
 	Settings->WatchProperty(Settings->SourceType, [this](EUVEditorBackgroundSourceType) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->SourceTexture, [this](UTexture2D*) {bSettingsModified = true; });
 	Settings->WatchProperty(Settings->SourceMaterial, [this](UMaterial*) {bSettingsModified = true; });
+	Settings->WatchProperty(Settings->UDIMBlocks, [this](const TArray<int32>&) {bSettingsModified = true; });
 
 	bSettingsModified = false;
 
@@ -28,6 +30,14 @@ void UUVEditorBackgroundPreview::OnCreated()
 
 void UUVEditorBackgroundPreview::OnTick(float DeltaTime)
 {
+	// Check if the CVAR has been updated behind the scenes
+	bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
+	if (Settings->bUDIMsEnabled != bEnableUDIMSupport)
+	{
+		Settings->bUDIMsEnabled = bEnableUDIMSupport;
+		bSettingsModified = true;
+	}
+
 	if (bSettingsModified)
 	{		
 		UpdateBackground();
@@ -42,7 +52,6 @@ void UUVEditorBackgroundPreview::UpdateVisibility()
 	if (Settings->bVisible == false)
 	{
 		BackgroundComponent->SetVisibility(false);
-		ActiveUDIMBlocks.UDIMBlocks.SetNum(0);
 		return;
 	}
 
@@ -52,15 +61,12 @@ void UUVEditorBackgroundPreview::UpdateVisibility()
 
 void UUVEditorBackgroundPreview::UpdateBackground()
 {
-	bool bEnableUDIMSupport = (FUVEditorUXSettings::CVarEnablePrototypeUDIMSupport.GetValueOnGameThread() > 0);
-
 	const FVector Normal(0, 0, 1);
 	const FColor BackgroundColor = FColor::Blue;
 
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/UVEditor/Materials/UVEditorBackground"));
 	check(Material);	
 	BackgroundMaterial = UMaterialInstanceDynamic::Create(Material, this);
-	ActiveUDIMBlocks.UDIMBlocks.SetNum(0);
 	switch (Settings->SourceType)
 	{
 		case EUVEditorBackgroundSourceType::Checkerboard:
@@ -86,21 +92,6 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 				{
 					BackgroundMaterial->SetTextureParameterValue(TEXT("BackgroundVTBaseMap"), Settings->SourceTexture);
 					BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundVirtualTextureSwitch"), 1);
-
-					// Check for UDIMs
-					if (bEnableUDIMSupport && Settings->SourceTexture->Source.GetNumBlocks() > 1) {
-						ActiveUDIMBlocks.UDIMBlocks.SetNum(Settings->SourceTexture->Source.GetNumBlocks());						
-					
-						for (int32 Block = 0; Block < Settings->SourceTexture->Source.GetNumBlocks(); ++Block) {
-							FTextureSourceBlock SourceBlock;
-							Settings->SourceTexture->Source.GetBlock(Block, SourceBlock);
-
-							ActiveUDIMBlocks.UDIMBlocks[Block].BlockX = SourceBlock.BlockX;
-							ActiveUDIMBlocks.UDIMBlocks[Block].BlockY = SourceBlock.BlockY;
-							ActiveUDIMBlocks.UDIMBlocks[Block].SizeX = SourceBlock.SizeX;
-							ActiveUDIMBlocks.UDIMBlocks[Block].SizeY = SourceBlock.SizeY;
-						}
-					}
 				}
 				else
 				{
@@ -119,12 +110,18 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 	BackgroundComponent->Clear();
 
 	TArray<FVector2f> UDimBlocksToRender;
-	for (int32 BlockIndex = 0; BlockIndex < ActiveUDIMBlocks.UDIMBlocks.Num(); ++BlockIndex)
+	if (Settings->bUDIMsEnabled)
 	{
-		UDimBlocksToRender.Push(FVector2f(
-			ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockX,
-			ActiveUDIMBlocks.UDIMBlocks[BlockIndex].BlockY
-			));
+		// TODO: Find a way to access the list of UDIMs from the context object instead? 
+		for (int32 BlockIndex = 0; BlockIndex < Settings->UDIMBlocks.Num(); ++BlockIndex)
+		{
+			FVector2f Block;
+			int32 UCoord, VCoord;
+			UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(Settings->UDIMBlocks[BlockIndex], UCoord, VCoord);
+			Block.X = UCoord;
+			Block.Y = VCoord;
+			UDimBlocksToRender.Push(Block);
+		}
 	}
 	if (UDimBlocksToRender.Num() == 0)
 	{

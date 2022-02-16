@@ -16,7 +16,6 @@
 #include "Engine/Canvas.h"
 #include "Math/Box.h"
 #include "MathUtil.h"
-#include "UDIMUtilities.h"
 
 namespace FUVEditor2DViewportClientLocals {
 
@@ -488,14 +487,14 @@ void FUVEditor2DViewportClient::DrawUDIMLabels(FViewport& InViewport, FSceneView
 	for (const FUDIMBlock& Block : UVTool2DViewportAPI->GetUDIMBlocks())
 	{
 		FVector2D TextSize;
-		FText UDIMLabel = FText::AsNumber(UE::TextureUtilitiesCommon::GetUDIMIndex(Block.BlockX, Block.BlockY), &FormatOptions);
+		FText UDIMLabel = FText::AsNumber(Block.UDIM, &FormatOptions);
 		Canvas.TextSize(Font, UDIMLabel.ToString(), TextSize[0], TextSize[1]);
 		if(TextSize[0] > MaxAllowedLabelWidth)
 		{
 			continue; // Don't draw if our label is bigger than the visual size of one UDIM "block" in the viewport
 		}			
 
-		FVector2D UDimUV(Block.BlockX + 1.0, Block.BlockY + 1.0);
+		FVector2D UDimUV(Block.BlockU() + 1.0, Block.BlockV() + 1.0);
 		FVector2D UDimPixel;
 		FUVEditor2DViewportClientLocals::ConvertUVToPixel(UDimUV, UDimPixel, View);
 

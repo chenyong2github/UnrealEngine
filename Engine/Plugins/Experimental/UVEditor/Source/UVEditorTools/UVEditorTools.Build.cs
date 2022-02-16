@@ -49,6 +49,7 @@ public class UVEditorTools : ModuleRules
 				"GeometryCore",
 				"ModelingComponents",
 				"ModelingOperators",
+				"TextureUtilitiesCommon"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
