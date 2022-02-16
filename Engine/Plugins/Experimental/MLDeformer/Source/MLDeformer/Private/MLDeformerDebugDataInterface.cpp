@@ -281,26 +281,28 @@ void FMLDeformerDebugDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuil
 	GraphBuilder.QueueBufferUpload(GroundTruthBuffer, GroundTruthPositions.GetData(), sizeof(FVector3f) * GroundTruthPositions.Num(), ERDGInitialDataFlags::None);
 }
 
-void FMLDeformerDebugDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
+void FMLDeformerDebugDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	const int32 SectionIdx = InvocationIndex;
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FMLDeformerDebugDataInterfaceParameters)))
+	{
+		return;
+	}
+
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
 
-	FMLDeformerDebugDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
-	Parameters.NumVertices = 0;
-	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
-	Parameters.HeatMapMode = HeatMapMode;
-	Parameters.HeatMapScale = HeatMapScale;
-	Parameters.GroundTruthLerp = GroundTruthLerp;
-	Parameters.GroundTruthBufferSize = GroundTruthPositions.Num();
-	Parameters.PositionGroundTruthBuffer = GroundTruthBufferSRV;
-	Parameters.VertexMapBuffer = VertexMapBufferSRV;
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(Parameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(Parameters));
-	OutBindings.Structs.Add(TTuple<FString, TArray<uint8>>(UID, MoveTemp(ParamData)));
+		FMLDeformerDebugDataInterfaceParameters* Parameters = (FMLDeformerDebugDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->NumVertices = 0;
+		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
+		Parameters->HeatMapMode = HeatMapMode;
+		Parameters->HeatMapScale = HeatMapScale;
+		Parameters->GroundTruthLerp = GroundTruthLerp;
+		Parameters->GroundTruthBufferSize = GroundTruthPositions.Num();
+		Parameters->PositionGroundTruthBuffer = GroundTruthBufferSRV;
+		Parameters->VertexMapBuffer = VertexMapBufferSRV;
+	}
 }

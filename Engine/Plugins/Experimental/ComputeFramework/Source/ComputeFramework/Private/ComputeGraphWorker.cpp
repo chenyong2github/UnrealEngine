@@ -29,64 +29,28 @@ void FComputeGraphTaskWorker::Enqueue(const FComputeGraphRenderProxy* ComputeGra
 	}
 
 	const int32 NumSubInvocations = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetInvocationCount() : 1;
-	GraphInvocation.NumSubInvocations = NumSubInvocations;
 
+	GraphInvocation.ComputeShaders.Reserve(NumSubInvocations);
 	for (FComputeGraphRenderProxy::FKernelInvocation const& Invocation : ComputeGraph->KernelInvocations)
 	{
+		FShaderInvocation& ShaderInvocation = GraphInvocation.ComputeShaders.AddDefaulted_GetRef();
+		ShaderInvocation.KernelName = Invocation.KernelName;
+		ShaderInvocation.KernelResource = Invocation.KernelResource;
+		ShaderInvocation.ShaderParamMetadata = Invocation.ShaderMetadata;
+		ShaderInvocation.ShaderPermutationVector = Invocation.ShaderPermutationVector;
+		ShaderInvocation.ShaderParamBindings = Invocation.ShaderParamBindings;
+
+		// todo[CF]: dispatch dimension logic needs to be way more involved
+		TArray<FIntVector> DispatchDimensions;
+		ShaderInvocation.DispatchDimensions.SetNum(NumSubInvocations);
 		for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
 		{
-			// Get kernel resource permutation vector...
-			FComputeKernelPermutationId PermutationId(*Invocation.ShaderPermutationVector);
-			for (int32 ProviderIndex : Invocation.BoundProviderIndices)
-			{
-				ComputeDataProviders[ProviderIndex]->GetPermutations(SubInvocationIndex, PermutationId);
-			}
-
-			TShaderRef<FComputeKernelShader> Shader = Invocation.KernelResource->GetShader(PermutationId.Get());
-
-			if (!Shader.IsValid())
-			{
-				// todo[CF]: If you hit this then shader compilation might not have happened yet.
-				continue;
-			}
-
-			if (Shader->Bindings.StructureLayoutHash != Invocation.ShaderMetadata->GetLayoutHash())
-			{
-				// todo[CF]: Fix issue where shader metadata is updated out of sync with shader compilation.
-				continue;
-			}
-
-			// todo[CF]: dispatch dimension logic needs to be way more involved
-			const FIntVector DispatchDim = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
-
-			FShaderInvocation ShaderInvocation = {
-				Invocation.KernelName,
-				DispatchDim,
-				Invocation.ShaderMetadata,
-				Invocation.ShaderParamBindings,
-				Shader,
-				SubInvocationIndex };
-
-			GraphInvocation.ComputeShaders.Emplace(ShaderInvocation);
+			ShaderInvocation.DispatchDimensions[SubInvocationIndex] = FirstProvider != -1 ? ComputeDataProviders[FirstProvider]->GetDispatchDim(SubInvocationIndex, Invocation.GroupDim) : FIntVector(1, 1, 1);
 		}
 	}
 
-	GraphInvocation.DataProviders = MoveTemp(ComputeDataProviders);
+	GraphInvocation.DataProviderProxies = MoveTemp(ComputeDataProviders);
 }
-
-struct FComputeExecutionBuffer
-{
-	FComputeExecutionBuffer() = default;
-
-	FComputeExecutionBuffer(FName InName, FRDGBufferRef InBufferRef)
-		: Name(InName)
-		, BufferRef(InBufferRef)
-	{
-	}
-
-	FName Name;
-	FRDGBufferRef BufferRef;
-};
 
 void FComputeGraphTaskWorker::SubmitWork(
 	FRHICommandListImmediate& RHICmdList,
@@ -104,51 +68,41 @@ void FComputeGraphTaskWorker::SubmitWork(
 		SCOPED_GPU_STAT(RHICmdList, ComputeFramework_ExecuteBatches);
 
 		FRDGBuilder GraphBuilder(RHICmdList);
-		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 		for (int32 GraphIndex = 0; GraphIndex < GraphInvocations.Num(); ++GraphIndex)
 		{
-			// Gather from all providers.
-			// todo[CF]: This is first pass and needs profiling. Probably with some care we can remove a bunch of heap allocations.
-			TArray<FComputeDataProviderRenderProxy::FBindings> AllBindings;
-			AllBindings.AddDefaulted(GraphInvocations[GraphIndex].NumSubInvocations);
-
-			TArray<FComputeDataProviderRenderProxy*> const& DataProviders = GraphInvocations[GraphIndex].DataProviders;
-			for (int32 DataProviderIndex = 0; DataProviderIndex < DataProviders.Num(); ++DataProviderIndex)
+			FGraphInvocation const& GraphInvocation = GraphInvocations[GraphIndex];
+			
+			for (int32 DataProviderIndex = 0; DataProviderIndex < GraphInvocation.DataProviderProxies.Num(); ++DataProviderIndex)
 			{
-				FComputeDataProviderRenderProxy* DataProvider = DataProviders[DataProviderIndex];
+				FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderProxies[DataProviderIndex];
 				if (DataProvider != nullptr)
 				{
 					DataProvider->AllocateResources(GraphBuilder);
-
-					for (int32 InvocationIndex = 0; InvocationIndex < AllBindings.Num(); ++InvocationIndex)
-					{
-						TCHAR const* UID = UComputeGraph::GetDataInterfaceUID(DataProviderIndex);
-						DataProvider->GetBindings(InvocationIndex, UID, AllBindings[InvocationIndex]);
-					}
 				}
 			}
 
-			// Add compute passes.
-			TArray<FShaderInvocation> const& ComputeShaders = GraphInvocations[GraphIndex].ComputeShaders;
-			for (FShaderInvocation const& Compute : ComputeShaders)
+			for (int32 KernelIndex = 0; KernelIndex < GraphInvocation.ComputeShaders.Num(); ++KernelIndex)
 			{
-				FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateBufferDesc(4, 32);
+				FShaderInvocation const& KernelInvocation = GraphInvocation.ComputeShaders[KernelIndex];
 
-				void* RawBuffer = GraphBuilder.Alloc(Compute.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
-				FMemory::Memzero(RawBuffer, Compute.ShaderParamMetadata->GetSize());
+				const int32 NumSubInvocations = KernelInvocation.DispatchDimensions.Num();
+				const int32 ParameterBufferSize = Align(KernelInvocation.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
-				uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
-				const TArray<FShaderParametersMetadata::FMember>& ParamMembers = Compute.ShaderParamMetadata->GetMembers();
+				void* RawBuffer = GraphBuilder.Alloc(NumSubInvocations * ParameterBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+				FMemory::Memzero(RawBuffer, NumSubInvocations * ParameterBufferSize);
+				uint8* ParameterBuffer = static_cast<uint8*>(RawBuffer);
+
+				TArray<FShaderParametersMetadata::FMember> const& ParamMembers = KernelInvocation.ShaderParamMetadata->GetMembers();
 
 				// Copy in the shader parameter bindings first.
-				for (const TPair<int32, TArray<uint8>>& Binding: Compute.ShaderParamBindings)
+				for (const TPair<int32, TArray<uint8>>& Binding : KernelInvocation.ShaderParamBindings)
 				{
 					const FShaderParametersMetadata::FMember& Member = ParamMembers[Binding.Key];
 					const TArray<uint8>& ParamValue = Binding.Value;
 
 					SIZE_T ParamSize;
-					if (const FShaderParametersMetadata *StructMetaData = Member.GetStructMetadata())
+					if (const FShaderParametersMetadata* StructMetaData = Member.GetStructMetadata())
 					{
 						// TODO: Rows/Columns/ElemCount?
 						ParamSize = StructMetaData->GetSize();
@@ -160,79 +114,62 @@ void FComputeGraphTaskWorker::SubmitWork(
 
 					if (ensure(ParamSize == ParamValue.Num()))
 					{
-						FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue.GetData(), ParamSize);
+						// Need to fill in for each sub invocation.
+						for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
+						{
+							FMemory::Memcpy(&ParameterBuffer[Member.GetOffset() + SubInvocationIndex * ParameterBufferSize], ParamValue.GetData(), ParamSize);
+						}
 					}
-				}				
-
-				// Then all the data interface bindings.
-				FComputeDataProviderRenderProxy::FBindings& Bindings = AllBindings[Compute.SubInvocationIndex];
-
-				bool bBindFailed = false;
-				for (auto& Member : ParamMembers)
-				{
-					switch (Member.GetBaseType())
-					{
-					case EUniformBufferBaseType::UBMT_INT32:
-						{
-							int32* ParamValue = Bindings.ParamsInt.Find(Member.GetName());
-							if (ParamValue)
-							{
-								*reinterpret_cast<int32*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
-							}
-						}
-						break;
-
-					case EUniformBufferBaseType::UBMT_UINT32:
-						{
-							uint32* ParamValue = Bindings.ParamsUint.Find(Member.GetName());
-							if (ParamValue)
-							{
-								*reinterpret_cast<uint32*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
-							}
-						}
-					break;
-
-					case EUniformBufferBaseType::UBMT_FLOAT32:
-						{
-							float* ParamValue = Bindings.ParamsFloat.Find(Member.GetName());
-							if (ParamValue)
-							{
-								*reinterpret_cast<float*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
-							}
-						}
-						break;
-
-					case EUniformBufferBaseType::UBMT_NESTED_STRUCT:
-						{
-							TArray<uint8>* ParamValue = Bindings.Structs.Find(Member.GetName());
-							if (ParamValue != nullptr)
-							{
-								FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue->GetData(), Member.GetStructMetadata()->GetSize());
-							}
-						}
-						break;
-
-					default:
-						check(!"Unsupported type");
-						bBindFailed = true;
-						break;
-					};
 				}
 
-				if (ensure(!bBindFailed))
+				// Iterate data providers to fill data structures.
+				FComputeDataProviderRenderProxy::FCollectedDispatchData DispatchData;
+				DispatchData.ParameterBuffer = ParameterBuffer;
+				DispatchData.PermutationId.AddZeroed(NumSubInvocations);
+
+				FComputeDataProviderRenderProxy::FDispatchSetup DispatchSetup{ NumSubInvocations, 0, ParameterBufferSize, 0, *KernelInvocation.ShaderPermutationVector };
+
+				for (int32 DataProviderIndex = 0; DataProviderIndex < GraphInvocation.DataProviderProxies.Num(); ++DataProviderIndex)
 				{
-					TCHAR KernelName[128];
-					Compute.KernelName.ToString(KernelName);
+					FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderProxies[DataProviderIndex];
+					if (DataProvider != nullptr)
+					{
+						bool bFound = false;
+						TCHAR const* UID = UComputeGraph::GetDataInterfaceUID(DataProviderIndex);
+						for (FShaderParametersMetadata::FMember const& Member : ParamMembers)
+						{
+							if (Member.GetBaseType() == EUniformBufferBaseType::UBMT_NESTED_STRUCT && Member.GetName() == UID)
+							{
+								DispatchSetup.ParameterBufferOffset = Member.GetOffset();
+								DispatchSetup.ParameterStructSizeForValidation = Member.GetStructMetadata()->GetSize();
+								bFound = true;
+								break;
+							}
+						}
+
+						if (bFound)
+						{
+							DataProvider->GatherDispatchData(DispatchSetup, DispatchData);
+						}
+					}
+				}
+
+				TCHAR KernelName[128];
+				KernelInvocation.KernelName.ToString(KernelName);
+
+				for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
+				{
+					TShaderRef<FComputeKernelShader> Shader = KernelInvocation.KernelResource->GetShader(DispatchData.PermutationId[SubInvocationIndex]);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
-						RDG_EVENT_NAME("Compute[%s]", KernelName),
+						RDG_EVENT_NAME("Compute[%s (%d)]", KernelName, SubInvocationIndex),
 						ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-						Compute.Shader,
-						Compute.ShaderParamMetadata,
-						static_cast<FComputeKernelShader::FParameters*>(RawBuffer),
-						Compute.DispatchDim
-						);		
+						Shader,
+						KernelInvocation.ShaderParamMetadata,
+						reinterpret_cast<FComputeKernelShader::FParameters*>(ParameterBuffer + ParameterBufferSize * SubInvocationIndex),
+						KernelInvocation.DispatchDimensions[SubInvocationIndex]
+					);
 				}
 			}
 		}
@@ -245,7 +182,7 @@ void FComputeGraphTaskWorker::SubmitWork(
 
 FComputeGraphTaskWorker::FGraphInvocation::~FGraphInvocation()
 {
-	for (FComputeDataProviderRenderProxy* DataProvider : DataProviders)
+	for (FComputeDataProviderRenderProxy* DataProvider : DataProviderProxies)
 	{
 		delete DataProvider;
 	}

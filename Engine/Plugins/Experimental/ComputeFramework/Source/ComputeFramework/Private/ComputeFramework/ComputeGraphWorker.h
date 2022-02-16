@@ -10,7 +10,7 @@
 
 class FComputeDataProviderRenderProxy;
 class FComputeGraphRenderProxy;
-class FComputeKernelShader;
+class FComputeKernelResource;
 
 /** 
  * Class that manages the scheduling of Compute Graph work.
@@ -30,15 +30,15 @@ public:
 		ERHIFeatureLevel::Type FeatureLevel ) override;
 
 private:
-	/** Description of each dispatch that is enqueued. */
+	/** Description of each kernel that is enqueued. */
 	struct FShaderInvocation
 	{
 		FName KernelName;
-		FIntVector DispatchDim;
-		const FShaderParametersMetadata* ShaderParamMetadata = nullptr;
+		FComputeKernelResource const* KernelResource = nullptr;
+		FShaderParametersMetadata const* ShaderParamMetadata = nullptr;
+		FComputeKernelPermutationVector const* ShaderPermutationVector = nullptr;
 		TMap<int32, TArray<uint8>> ShaderParamBindings;
-		TShaderRef<FComputeKernelShader> Shader;
-		int32 SubInvocationIndex = 0;
+		TArray<FIntVector> DispatchDimensions;
 	};
 
 	/**
@@ -49,9 +49,9 @@ private:
 	{
 		/** Shader invocations to dispatch. */
 		TArray<FShaderInvocation> ComputeShaders;
-		TArray<FComputeDataProviderRenderProxy*> DataProviders;
-		int32 NumSubInvocations;
-	
+		/** Data provider proxies. */
+		TArray<FComputeDataProviderRenderProxy*> DataProviderProxies;
+		
 		~FGraphInvocation();
 	};
 

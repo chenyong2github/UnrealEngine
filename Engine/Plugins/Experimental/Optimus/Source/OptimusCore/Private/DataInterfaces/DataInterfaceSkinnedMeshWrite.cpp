@@ -241,25 +241,30 @@ void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 #endif
 }
 
-void FSkinnedMeshWriteDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
+void FSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	const int32 SectionIdx = InvocationIndex;
-
-	FSkinedMeshWriteDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(FSkinedMeshWriteDataInterfaceParameters));
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSkinedMeshWriteDataInterfaceParameters)))
+	{
+		return;
+	}
 
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+	const int32 NumInvocations = LodRenderData->RenderSections.Num();
+	if (!ensure(NumInvocations == InDispatchSetup.NumInvocations))
+	{
+		return;
+	}
 
-	Parameters.NumVertices = RenderSection.GetNumVertices();
-	Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
- 	Parameters.PositionBufferUAV = PositionBufferUAV;
-	Parameters.TangentBufferUAV = TangentBufferUAV;
-	Parameters.ColorBufferUAV = ColorBufferUAV;
+	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
+	{
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(FSkinedMeshWriteDataInterfaceParameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(FSkinedMeshWriteDataInterfaceParameters));
-	OutBindings.Structs.Add(TTuple<FString, TArray<uint8> >(UID, MoveTemp(ParamData)));
+		FSkinedMeshWriteDataInterfaceParameters* Parameters = (FSkinedMeshWriteDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->NumVertices = RenderSection.GetNumVertices();
+		Parameters->OutputStreamStart = RenderSection.GetVertexBufferIndex();
+		Parameters->PositionBufferUAV = PositionBufferUAV;
+		Parameters->TangentBufferUAV = TangentBufferUAV;
+		Parameters->ColorBufferUAV = ColorBufferUAV;
+	}
 }

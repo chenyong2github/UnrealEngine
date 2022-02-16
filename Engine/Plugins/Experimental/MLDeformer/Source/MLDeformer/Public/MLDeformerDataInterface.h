@@ -63,7 +63,7 @@ public:
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
-	void GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:

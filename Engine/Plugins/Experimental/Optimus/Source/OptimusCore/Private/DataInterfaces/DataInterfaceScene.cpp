@@ -114,16 +114,18 @@ FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent
 	FrameNumber = bUseSceneTime ? SceneComponent->GetScene()->GetFrameNumber() : 0;
 }
 
-void FSceneDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
+void FSceneDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	FSceneDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
-	Parameters.GameTime = GameTime;
-	Parameters.GameTimeDelta = GameTimeDelta;
-	Parameters.FrameNumber = FrameNumber;
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FSceneDataInterfaceParameters)))
+	{
+		return;
+	}
 
-	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(Parameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(Parameters));
-	OutBindings.Structs.Add(TTuple<FString, TArray<uint8> >(UID, MoveTemp(ParamData)));
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		FSceneDataInterfaceParameters* Parameters = (FSceneDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->GameTime = GameTime;
+		Parameters->GameTimeDelta = GameTimeDelta;
+		Parameters->FrameNumber = FrameNumber;
+	}
 }

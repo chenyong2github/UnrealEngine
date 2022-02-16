@@ -55,8 +55,7 @@ public:
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetInvocationCount() const override;
 	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
-	void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const override;
-	void GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:

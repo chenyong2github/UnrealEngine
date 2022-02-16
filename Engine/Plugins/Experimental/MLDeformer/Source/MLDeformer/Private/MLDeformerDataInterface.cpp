@@ -144,25 +144,27 @@ void FMLDeformerDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 	BufferSRV = GraphBuilder.CreateSRV(Buffer, PF_R32_FLOAT);
 }
 
-void FMLDeformerDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
+void FMLDeformerDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	const int32 SectionIdx = InvocationIndex;
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FMLDeformerDataInterfaceParameters)))
+	{
+		return;
+	}
+
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
 
-	FMLDeformerDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
-	Parameters.NumVertices = 0;
-	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
-	Parameters.VertexDeltaScale = (FVector3f)VertexDeltaScale;
-	Parameters.VertexDeltaMean = (FVector3f)VertexDeltaMean;
-	Parameters.VertexDeltaMultiplier = VertexDeltaMultiplier;
-	Parameters.PositionDeltaBuffer = BufferSRV;
-	Parameters.VertexMapBuffer = VertexMapBufferSRV;
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(Parameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(Parameters));
-	OutBindings.Structs.Add(TTuple<FString, TArray<uint8>>(UID, MoveTemp(ParamData)));
+		FMLDeformerDataInterfaceParameters* Parameters = (FMLDeformerDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->NumVertices = 0;
+		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
+		Parameters->VertexDeltaScale = (FVector3f)VertexDeltaScale;
+		Parameters->VertexDeltaMean = (FVector3f)VertexDeltaMean;
+		Parameters->VertexDeltaMultiplier = VertexDeltaMultiplier;
+		Parameters->PositionDeltaBuffer = BufferSRV;
+		Parameters->VertexMapBuffer = VertexMapBufferSRV;
+	}
 }

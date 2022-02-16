@@ -188,46 +188,60 @@ FIntVector FClothDataProviderProxy::GetDispatchDim(int32 InvocationIndex, FIntVe
 	return FIntVector(NumGroups, 1, 1);
 }
 
-void FClothDataProviderProxy::GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const
+struct FClothDataInterfacePermutationIds
 {
-	static FString EnableDeformerCloth(TEXT("ENABLE_DEFORMER_CLOTH"));
-	static uint32 EnableDeformerClothHash = GetTypeHash(EnableDeformerCloth);
-	// todo[CF]: Only enable for segments with cloth.
-	OutPermutation.Set(EnableDeformerCloth, EnableDeformerClothHash, 1);
-}
+	uint32 EnableDeformerCloth = 0;
 
-void FClothDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
+	FClothDataInterfacePermutationIds(FComputeKernelPermutationVector const& PermutationVector)
+	{
+		{
+			static FString Name(TEXT("ENABLE_DEFORMER_CLOTH"));
+			static uint32 Hash = GetTypeHash(Name);
+			EnableDeformerCloth = PermutationVector.GetPermutationBits(Name, Hash, 1);
+		}
+	}
+};
+
+void FClothDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	const int32 SectionIdx = InvocationIndex;
-
-	FClothDataInterfaceParameters Parameters;
-	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FClothDataInterfaceParameters)))
+	{
+		return;
+	}
 
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+	if (!ensure(LodRenderData->RenderSections.Num() == InDispatchSetup.NumInvocations))
+	{
+		return;
+	}
 
-	const uint32 NumWrapDeformerWeights = RenderSection.ClothMappingDataLODs.Num() > 0 ? RenderSection.ClothMappingDataLODs[0].Num() : 0;
-	const bool bMultipleWrapDeformerInfluences = RenderSection.NumVertices < NumWrapDeformerWeights;
-	const int32 NumClothInfluencesPerVertex = bMultipleWrapDeformerInfluences ? 5 : 1; // From ClothingMeshUtils.cpp. Could make this a permutation like with skin cache.
-
-	const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
-	const bool bPreviousFrame = false;
-	FSkeletalMeshDeformerHelpers::FClothBuffers ClothBuffers = FSkeletalMeshDeformerHelpers::GetClothBuffersForReading(SkeletalMeshObject, LodIndex, SectionIdx, FrameNumber, bPreviousFrame);
-	const bool bValidCloth = (ClothBuffers.ClothInfluenceBuffer != nullptr) && (ClothBuffers.ClothSimulatedPositionAndNormalBuffer != nullptr);
+	FClothDataInterfacePermutationIds PermutationIds(InDispatchSetup.PermutationVector);
 
 	FRHIShaderResourceView* NullSRVBinding = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI.GetReference();
 
-	Parameters.NumVertices = RenderSection.NumVertices;
-	Parameters.InputStreamStart = ClothBuffers.ClothInfluenceBufferOffset;
- 	Parameters.ClothBlendWeight = bValidCloth ? ClothBlendWeight : 0.f;
-	Parameters.NumInfluencesPerVertex = bValidCloth ? NumClothInfluencesPerVertex : 0;
-	Parameters.ClothToLocal = ClothBuffers.ClothToLocal;
- 	Parameters.ClothBuffer = bValidCloth ? ClothBuffers.ClothInfluenceBuffer : NullSRVBinding;
- 	Parameters.ClothPositionsAndNormalsBuffer = bValidCloth ? ClothBuffers.ClothSimulatedPositionAndNormalBuffer : NullSRVBinding;
+	for (int32 InvocationIndex = 0; InvocationIndex < InDispatchSetup.NumInvocations; ++InvocationIndex)
+	{
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
 
-	TArray<uint8> ParamData;
-	ParamData.SetNum(sizeof(Parameters));
-	FMemory::Memcpy(ParamData.GetData(), &Parameters, sizeof(Parameters));
-	OutBindings.Structs.Add(TTuple<FString, TArray<uint8> >(UID, MoveTemp(ParamData)));
+		const uint32 NumWrapDeformerWeights = RenderSection.ClothMappingDataLODs.Num() > 0 ? RenderSection.ClothMappingDataLODs[0].Num() : 0;
+		const bool bMultipleWrapDeformerInfluences = RenderSection.NumVertices < NumWrapDeformerWeights;
+		const int32 NumClothInfluencesPerVertex = bMultipleWrapDeformerInfluences ? 5 : 1; // From ClothingMeshUtils.cpp. Could make this a permutation like with skin cache.
+
+		const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
+		const bool bPreviousFrame = false;
+		FSkeletalMeshDeformerHelpers::FClothBuffers ClothBuffers = FSkeletalMeshDeformerHelpers::GetClothBuffersForReading(SkeletalMeshObject, LodIndex, InvocationIndex, FrameNumber, bPreviousFrame);
+		const bool bValidCloth = (ClothBuffers.ClothInfluenceBuffer != nullptr) && (ClothBuffers.ClothSimulatedPositionAndNormalBuffer != nullptr);
+
+		FClothDataInterfaceParameters* Parameters = (FClothDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		Parameters->NumVertices = RenderSection.NumVertices;
+		Parameters->InputStreamStart = ClothBuffers.ClothInfluenceBufferOffset;
+		Parameters->ClothBlendWeight = bValidCloth ? ClothBlendWeight : 0.f;
+		Parameters->NumInfluencesPerVertex = bValidCloth ? NumClothInfluencesPerVertex : 0;
+		Parameters->ClothToLocal = ClothBuffers.ClothToLocal;
+		Parameters->ClothBuffer = bValidCloth ? ClothBuffers.ClothInfluenceBuffer : NullSRVBinding;
+		Parameters->ClothPositionsAndNormalsBuffer = bValidCloth ? ClothBuffers.ClothSimulatedPositionAndNormalBuffer : NullSRVBinding;
+
+		InOutDispatchData.PermutationId[InvocationIndex] |= (bValidCloth ? PermutationIds.EnableDeformerCloth : 0);
+	}
 }

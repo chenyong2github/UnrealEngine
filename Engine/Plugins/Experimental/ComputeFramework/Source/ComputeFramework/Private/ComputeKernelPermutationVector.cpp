@@ -35,19 +35,21 @@ void FComputeKernelPermutationVector::AddPermutationSet(struct FComputeKernelPer
 	}
 }
 
-void FComputeKernelPermutationId::Set(FString const& Name, uint32 PrecomputedNameHash, uint32 Value)
+uint32 FComputeKernelPermutationVector::GetPermutationBits(FString const& Name, uint32 PrecomputedNameHash, uint32 Value) const
 {
-	uint32 const* PackedPermutationBits = PermutationVector.Permutations.FindByHash(PrecomputedNameHash, Name);
-	if (ensure(PackedPermutationBits != nullptr))
+	uint32 const* PackedPermutationBits = Permutations.FindByHash(PrecomputedNameHash, Name);
+	if (!ensure(PackedPermutationBits != nullptr))
 	{
-		FComputeKernelPermutationVector::FPermutationBits PermutationBits;
-		PermutationBits.PackedValue = *PackedPermutationBits;
-		ensure(Value < PermutationBits.NumValues);
-		PermutationId |= (Value << PermutationBits.BitIndex);
+		return 0;
 	}
+
+	FComputeKernelPermutationVector::FPermutationBits PermutationBits;
+	PermutationBits.PackedValue = *PackedPermutationBits;
+	ensure(Value < PermutationBits.NumValues);
+	return (Value << PermutationBits.BitIndex);
 }
 
-void FComputeKernelPermutationId::Set(FString const& Name, uint32 Value)
+uint32 FComputeKernelPermutationVector::GetPermutationBits(FString const& Name, uint32 Value) const
 {
-	Set(Name, GetTypeHash(Name), Value);
+	return GetPermutationBits(Name, GetTypeHash(Name), Value);
 }

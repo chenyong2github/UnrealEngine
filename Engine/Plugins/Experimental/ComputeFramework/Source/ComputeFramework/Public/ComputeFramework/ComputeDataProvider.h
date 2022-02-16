@@ -6,7 +6,7 @@
 #include "ComputeDataProvider.generated.h"
 
 class FComputeDataProviderRenderProxy;
-class FComputeKernelPermutationId;
+struct FComputeKernelPermutationVector;
 class FRDGBuilder;
 
 /**
@@ -46,28 +46,25 @@ public:
 	/** Called on render thread to determine dispatch dimension required to do all work on the associated data provider. */
 	virtual FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const { return FIntVector(1, 1, 1); }
 
-	/** 
-	 * Get the shader permutations required for this data provider. 
-	 * All potential data permutations should already have been registered by the associated data interface to ensure that the compiled permutation exists. 
-	 */
-	virtual void GetPermutations(int32 InvocationIndex, FComputeKernelPermutationId& OutPermutation) const {}
-
-	/* Called once before any calls to GetBindings() to allow any RDG resource allocation. */
+	/* Called once before any calls to GatherDispatchData() to allow any RDG resource allocation. */
 	virtual void AllocateResources(FRDGBuilder& GraphBuilder) {}
 
-	/** 
-	 * The name-value shader bindings that are collected from data providers.
-	 * All names should already have been registered by the associated data interface. 
-	 * todo[CF]: Investigate if this can be replaced with something more efficient. We know that data providers should only need to expose structs and could fill and return them directly.
-	 */
-	struct FBindings
+	/** */
+	struct FDispatchSetup
 	{
-		TMap< FString, int32 > ParamsInt;
-		TMap< FString, uint32 > ParamsUint;
-		TMap< FString, float > ParamsFloat;
-		TMap< FString, TArray<uint8> > Structs;
+		int32 NumInvocations;
+		int32 ParameterBufferOffset;
+		int32 ParameterBufferStride;
+		int32 ParameterStructSizeForValidation;
+		FComputeKernelPermutationVector const& PermutationVector;
 	};
 
-	/** Gather the shader bindings for the data provider. */
-	virtual void GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const {}
+	/** Collected data during kernel dispatch. */
+	struct FCollectedDispatchData
+	{
+		uint8* ParameterBuffer;
+		TArray<int32> PermutationId;
+	};
+
+	virtual void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) {}
 };
