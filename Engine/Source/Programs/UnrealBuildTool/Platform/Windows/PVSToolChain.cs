@@ -585,16 +585,15 @@ namespace UnrealBuildTool
 				AnalyzeAction.CommandDescription = "Analyzing";
 				AnalyzeAction.StatusDescription = BaseFileName;
 				AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				AnalyzeAction.CommandPath = BuildHostPlatform.Current.Shell;
+				AnalyzeAction.CommandPath = AnalyzerFile;
 
 				StringBuilder Arguments = new StringBuilder();
-				Arguments.Append($"/C \"\"{AnalyzerFile}\" --source-file \"{SourceFileItem.AbsolutePath}\" --output-file \"{OutputFileLocation}\" --cfg \"{ConfigFileItem.AbsolutePath}\" --i-file=\"{PreprocessedFileItem.AbsolutePath}\" --analysis-mode {(uint)Settings.ModeFlags}");
+				Arguments.Append($"--source-file \"{SourceFileItem.AbsolutePath}\" --output-file \"{OutputFileLocation}\" --cfg \"{ConfigFileItem.AbsolutePath}\" --i-file=\"{PreprocessedFileItem.AbsolutePath}\" --analysis-mode {(uint)Settings.ModeFlags}");
 				if (LicenseFile != null)
 				{
 					Arguments.Append($" --lic-file \"{LicenseFile}\"");
 					AnalyzeAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(LicenseFile));
 				}
-				Arguments.Append($" && echo. >>\"{OutputFileLocation}\"\"");
 				AnalyzeAction.CommandArguments = Arguments.ToString();
 
 				AnalyzeAction.PrerequisiteItems.Add(ConfigFileItem);
@@ -634,6 +633,8 @@ namespace UnrealBuildTool
 			FileItem InputFileListItem = Makefile.CreateIntermediateTextFile(OutputFile.ChangeExtension(".input"), InputFiles.Select(x => x.FullName));
 
 			Action AnalyzeAction = Makefile.CreateAction(ActionType.Compile);
+			AnalyzeAction.ActionType = ActionType.PostBuildStep;
+			AnalyzeAction.CommandDescription = "Process PVS-Studio Results";
 			AnalyzeAction.CommandPath = UnrealBuildTool.GetUBTPath();
 			AnalyzeAction.CommandArguments = String.Format("-Mode=PVSGather -Input=\"{0}\" -Output=\"{1}\" ", InputFileListItem.Location, OutputFile);
 			AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
