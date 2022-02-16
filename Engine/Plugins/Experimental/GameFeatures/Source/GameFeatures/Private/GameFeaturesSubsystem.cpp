@@ -491,20 +491,26 @@ const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForRegisteredP
 	return nullptr;
 }
 
+bool UGameFeaturesSubsystem::IsGameFeaturePluginLoaded(const FString& PluginURL) const
+{
+	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	{
+		return StateMachine->GetCurrentState() >= EGameFeaturePluginState::Loaded;
+	}
+	return false;
+}
+
 void UGameFeaturesSubsystem::LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	if (IsGameFeaturePluginLoaded(PluginURL))
 	{
-		if (StateMachine->GetCurrentState() >= EGameFeaturePluginState::Loaded)
-		{
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-				{
-					CompleteDelegate.ExecuteIfBound(MakeValue());
-					return false;
-				}));
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
+			{
+				CompleteDelegate.ExecuteIfBound(MakeValue());
+				return false;
+			}));
 
-			return; // Early out, we are already loaded.
-		}
+		return; // Early out, we are already loaded.
 	}
 
 	ChangeGameFeatureTargetState(PluginURL, EGameFeatureTargetState::Loaded, CompleteDelegate);

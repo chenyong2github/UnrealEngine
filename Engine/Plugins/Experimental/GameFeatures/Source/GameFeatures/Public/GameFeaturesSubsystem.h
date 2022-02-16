@@ -227,6 +227,9 @@ public:
 	/** Returns the game feature data for a registered plugin specified by PluginURL */
 	const UGameFeatureData* GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL);
 
+	/** Determines if a plugin is in the Loaded state.*/
+	bool IsGameFeaturePluginLoaded(const FString& PluginURL) const;
+
 	/** Loads a single game feature plugin. */
 	void LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);
 
