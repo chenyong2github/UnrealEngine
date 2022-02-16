@@ -76,6 +76,7 @@ namespace Horde.Storage.Implementation
                 ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
                 try
                 {
+                    _logger.Information("Building snapshot for {Namespace}", ns);
                     BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _settings.CurrentValue.SnapshotStorageNamespace, _cancellationTokenSource.Token);
                     _logger.Information("Snapshot built for {Namespace} with id {Id}", ns, snapshotBlob);
 
@@ -109,6 +110,6 @@ namespace Horde.Storage.Implementation
         public bool Enabled { get; set; } = false;
 
         public NamespaceId SnapshotStorageNamespace { get; set; } = INamespacePolicyResolver.JupiterInternalNamespace;
-        public int MaxCountOfNamespacesToSnapshotInParallel { get; set; } = 2;
+        public int MaxCountOfNamespacesToSnapshotInParallel { get; set; } = 1;
     }
 }

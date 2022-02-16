@@ -90,27 +90,29 @@ namespace Horde.Storage.Implementation
                     {
                         IBlobIndex.BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
 
-                        if (blobIndex != null)
+                        if (blobIndex == null)
                         {
-                            foreach ((BucketId bucket, IoHashKey key) in blobIndex.References)
-                            {
-                                if (cancellationToken.IsCancellationRequested)
-                                    break;
+                            continue;
+                        }
 
-                                try
-                                {
-                                    (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] {"name"});
-                                    found = true;
-                                }
-                                catch (ObjectNotFoundException)
-                                {
-                                    // this is not a valid reference so we should delete
-                                }
-                                catch (MissingBlobsException)
-                                {
-                                    // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
-                                    found = true;
-                                }
+                        foreach ((BucketId bucket, IoHashKey key) in blobIndex.References)
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                break;
+
+                            try
+                            {
+                                (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] {"name"});
+                                found = true;
+                            }
+                            catch (ObjectNotFoundException)
+                            {
+                                // this is not a valid reference so we should delete
+                            }
+                            catch (MissingBlobsException)
+                            {
+                                // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
+                                found = true;
                             }
                         }
                     }
