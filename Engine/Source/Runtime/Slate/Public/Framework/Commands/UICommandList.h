@@ -96,6 +96,16 @@ public:
 	virtual void MapAction( const TSharedPtr< const FUICommandInfo > InUICommandInfo, const FUIAction& InUIAction );
 
 	/**
+	 * Maps a command info to a series of delegates that are executed by a multibox or mouse/keyboard input
+	 * Additionally, add a container of context objects to also associate with this command
+	 *
+	 * @param InUICommandInfo	The command info to map
+	 * @param InUIAction		Action to map to this command
+	 * @param InUIActionContext	Action context to map to this command
+	 */
+	virtual void MapAction(const TSharedPtr< const FUICommandInfo > InUICommandInfo, const FUIAction& InUIAction, const FUIActionContext& InUIActionContext);
+
+	/**
 	 * Append commands in InCommandsToAppend to this command list.
 	 */
 	void Append( const TSharedRef<FUICommandList>& InCommandsToAppend );
@@ -187,6 +197,13 @@ public:
 	  */
 	const FUIAction* GetActionForCommand(TSharedPtr<const FUICommandInfo> Command) const;
 
+	/** 
+	  * Attempts to find an context for the specified command in the current UICommandList. This is a wrapper for GetContextForCommandRecursively.
+	  *
+	  * @param Command				The UI command for which you are discovering an action
+	  */
+	const FUIActionContext* GetContextForCommand(TSharedPtr<const FUICommandInfo> Command) const;
+
 protected:
 
 	/**
@@ -212,6 +229,17 @@ protected:
 	  */
 	const FUIAction* GetActionForCommandRecursively(const TSharedRef<const FUICommandInfo>& Command, bool bIncludeChildren, bool bIncludeParents, TSet<TSharedRef<const FUICommandList>>& InOutVisitedLists) const;
 
+	/**
+	  * Attempts to find an context for the specified command in the current UICommandList. If it is not found, the context for the
+	  * specified command is discovered in the children recursively then the parents recursively.
+	  *
+	  * @param Command				The UI command for which you are discovering an action
+	  * @param bIncludeChildren		If true, children of this command list will be searched in the event that the action is not found
+	  * @param bIncludeParents		If true, parents of this command list will be searched in the event that the action is not found
+	  * @param OutVisitedLists		The set of visited lists during recursion. This is used to prevent cycles.
+	  */
+	const FUIActionContext* GetContextForCommandRecursively(const TSharedRef<const FUICommandInfo>& Command, bool bIncludeChildren, bool bIncludeParents, TSet<TSharedRef<const FUICommandList>>& InOutVisitedLists) const;
+
 	/** Returns all contexts associated with this list. This is a wrapper for GatherContextsForListRecursively */
 	void GatherContextsForList(TSet<FName>& OutAllContexts) const;
 
@@ -220,7 +248,8 @@ protected:
 
 private:
 
-	typedef TMap< const TSharedPtr< const FUICommandInfo >, FUIAction > FUIBindingMap;
+	using FUIBindingMap = TMap<const TSharedPtr<const FUICommandInfo>, FUIAction>;
+	using FUIContextMap = TMap<const TSharedPtr<const FUICommandInfo>, FUIActionContext>;
 	
 	/** Known contexts in this list.  Each context must be known so we can quickly look up commands from bindings */
 	TSet<FName> ContextsInList;
@@ -228,10 +257,16 @@ private:
 	/** Mapping of command to action */
 	FUIBindingMap UICommandBindingMap;
 
+	/** Mapping of command to action context, used for special cases and thus much more sparse */
+	FUIContextMap UICommandContextMap;
+
 	/** The list of parent and children UICommandLists */
 	TArray<TWeakPtr<FUICommandList>> ParentUICommandLists;
 	TArray<TWeakPtr<FUICommandList>> ChildUICommandLists;
 
 	/** Determines if this UICommandList is capable of producing an action for the supplied command */
 	FCanProduceActionForCommand CanProduceActionForCommand;
+
+	/** Helper struct for list recursion */
+	friend struct RecursiveCommandDataGetter;
 };

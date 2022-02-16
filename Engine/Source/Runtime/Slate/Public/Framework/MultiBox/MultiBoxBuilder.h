@@ -535,6 +535,13 @@ public:
 	 */
 	void AddComboButton( const FUIAction& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), bool bInSimpleComboBox = false, FName InTutorialHighlightName = NAME_None );
 
+	/**
+	 * Adds a tool bar stack button
+	 *
+	 * @param	InCommand				The command associated with this tool bar button
+	 * @param	InTutorialHighlightName	Name to identify this widget and highlight during tutorials
+	 */
+	void AddToolbarStackButton(const TSharedPtr< const FUICommandInfo > InCommand, FName InTutorialHighlightName = NAME_None);
 
 	/**
 	 * Adds any widget to the toolbar

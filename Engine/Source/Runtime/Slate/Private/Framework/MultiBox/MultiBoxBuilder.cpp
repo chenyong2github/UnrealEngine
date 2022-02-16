@@ -12,6 +12,7 @@
 #include "Framework/MultiBox/SToolBarSeparatorBlock.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Framework/MultiBox/SToolBarComboButtonBlock.h"
+#include "Framework/MultiBox/SToolBarStackButtonBlock.h"
 #include "Framework/MultiBox/SEditableTextBlock.h"
 #include "Framework/MultiBox/SButtonRowBlock.h"
 #include "Framework/MultiBox/SWidgetBlock.h"
@@ -488,6 +489,24 @@ void FToolBarBuilder::AddComboButton( const FUIAction& InAction, const FOnGetCon
 	NewToolBarComboButtonBlock->SetStyleNameOverride(CurrentStyleOverride);
 
 	MultiBox->AddMultiBlock( NewToolBarComboButtonBlock );
+}
+
+void FToolBarBuilder::AddToolbarStackButton(const TSharedPtr< const FUICommandInfo > InCommand, FName InTutorialHighlightName)
+{
+	ApplySectionBeginning();
+
+	TSharedRef< FToolBarStackButtonBlock > NewToolBarStackButtonBlock(new FToolBarStackButtonBlock(InCommand.ToSharedRef(), CommandListStack.Last()));
+
+	if (LabelVisibility.IsSet())
+	{
+		NewToolBarStackButtonBlock->SetLabelVisibility(LabelVisibility.GetValue());
+	}
+
+	NewToolBarStackButtonBlock->SetForceSmallIcons(bForceSmallIcons);
+	NewToolBarStackButtonBlock->SetTutorialHighlightName(GenerateTutorialIdentfierName(TutorialHighlightName, InTutorialHighlightName, InCommand, MultiBox->GetBlocks().Num()));
+	NewToolBarStackButtonBlock->SetStyleNameOverride(CurrentStyleOverride);
+
+	MultiBox->AddMultiBlock(NewToolBarStackButtonBlock);
 }
 
 void FToolBarBuilder::AddToolBarWidget( TSharedRef<SWidget> InWidget, const TAttribute<FText>& InLabel, FName InTutorialHighlightName, bool bSearchable )

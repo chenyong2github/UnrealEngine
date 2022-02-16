@@ -207,3 +207,33 @@ public:
 		return ECheckBoxState::Unchecked;
 	}
 };
+
+/**
+ * Base type for UI Action context object. 
+ * 
+ * Note: not using UObjects to avoid overhead.
+ */
+struct SLATE_API IUIActionContextBase
+{
+
+public:
+	virtual FName GetContextName() const = 0;
+};
+
+/**
+ * Container of multiple 'IUIActionContextBase' context objects for FUIActions.
+ * Use if you need or want to associate a FUICommandInfo with additional data.
+ * 
+ * Ex: An FOnGetContent delegate that can be called to generate a widget.
+ */
+struct SLATE_API FUIActionContext
+{
+public:
+
+	TSharedPtr<IUIActionContextBase> FindContext(const FName InName) const;
+
+	void AddContext(const TSharedPtr<IUIActionContextBase>& InContext);
+
+private:
+	TArray<TSharedPtr<IUIActionContextBase>> Contexts;
+};

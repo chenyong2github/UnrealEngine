@@ -62,6 +62,17 @@ void FUICommandList::MapAction( const TSharedPtr< const FUICommandInfo > InUICom
 	UICommandBindingMap.Add( InUICommandInfo, InUIAction );
 }
 
+void FUICommandList::MapAction(const TSharedPtr< const FUICommandInfo > InUICommandInfo, const FUIAction& InUIAction, const FUIActionContext& InUIActionContext)
+{
+	if (!ensure(InUICommandInfo.IsValid()))
+	{
+		return;
+	}
+
+	ContextsInList.Add(InUICommandInfo->GetBindingContext());
+	UICommandBindingMap.Add(InUICommandInfo, InUIAction);
+	UICommandContextMap.Add(InUICommandInfo, InUIActionContext);
+}
 
 void FUICommandList::Append( const TSharedRef<FUICommandList>& InCommandsToAppend )
 {
@@ -79,6 +90,7 @@ void FUICommandList::Append( const TSharedRef<FUICommandList>& InCommandsToAppen
 void FUICommandList::UnmapAction( const TSharedPtr< const FUICommandInfo > InUICommandInfo )
 {
 	UICommandBindingMap.Remove( InUICommandInfo );
+	UICommandContextMap.Remove( InUICommandInfo );
 }
 
 bool FUICommandList::IsActionMapped(const TSharedPtr< const FUICommandInfo > InUICommandInfo) const
@@ -258,6 +270,31 @@ const FUIAction* FUICommandList::GetActionForCommand(TSharedPtr<const FUICommand
 }
 
 
+const FUIActionContext* FUICommandList::GetContextForCommand(TSharedPtr<const FUICommandInfo> Command) const
+{
+	// Make sure the command is valid
+	if (!ensure(Command.IsValid()))
+	{
+		return NULL;
+	}
+
+	// Check in my own binding map. This should not be prevented by CanProduceActionForCommand.
+	// Any action directly requested from a command list should be returned if it actually exists in the list.
+	const FUIActionContext* Context = UICommandContextMap.Find(Command);
+
+	if (!Context)
+	{
+		// We did not find the action in our own list. Recursively attempt to find the command in children and parents.
+		const bool bIncludeChildren = true;
+		const bool bIncludeParents = true;
+		TSet<TSharedRef<const FUICommandList>> VisitedLists;
+		Context = GetContextForCommandRecursively(Command.ToSharedRef(), bIncludeChildren, bIncludeParents, VisitedLists);
+	}
+
+	return Context;
+}
+
+
 const FUIAction* FUICommandList::GetActionForCommandRecursively(const TSharedRef<const FUICommandInfo>& Command, bool bIncludeChildren, bool bIncludeParents, TSet<TSharedRef<const FUICommandList>>& InOutVisitedLists) const
 {
 	// Detect cycles in the graph
@@ -326,6 +363,77 @@ const FUIAction* FUICommandList::GetActionForCommandRecursively(const TSharedRef
 	}
 
 	return Action;
+}
+
+
+const FUIActionContext* FUICommandList::GetContextForCommandRecursively(const TSharedRef<const FUICommandInfo>& Command, bool bIncludeChildren, bool bIncludeParents, TSet<TSharedRef<const FUICommandList>>& InOutVisitedLists) const
+{
+	// Detect cycles in the graph
+	{
+		const TSharedRef<const FUICommandList>& ListAsShared = AsShared();
+		if ( InOutVisitedLists.Contains(ListAsShared) )
+		{
+			// This node was already visited. End recursion.
+			return NULL;
+		}
+
+		InOutVisitedLists.Add( ListAsShared );
+	}
+
+	const FUIActionContext* Context = nullptr;
+
+	// Make sure I am capable of processing this command
+	bool bCapableOfCommand = true;
+	if ( CanProduceActionForCommand.IsBound() )
+	{
+		bCapableOfCommand = CanProduceActionForCommand.Execute(Command);
+	}
+
+	if ( bCapableOfCommand )
+	{
+		// Check in my own binding map
+		Context = UICommandContextMap.Find(Command);
+	
+		// If the context was not found, check in my children binding maps
+		if ( !Context && bIncludeChildren )
+		{
+			for ( auto ChildIt = ChildUICommandLists.CreateConstIterator(); ChildIt; ++ChildIt )
+			{
+				TWeakPtr<FUICommandList> Child = *ChildIt;
+				if ( Child.IsValid() )
+				{
+					const bool bShouldIncludeChildrenOfChild = true;
+					const bool bShouldIncludeParentsOfChild = false;
+					Context = Child.Pin()->GetContextForCommandRecursively(Command, bShouldIncludeChildrenOfChild, bShouldIncludeParentsOfChild, InOutVisitedLists);
+					if (Context)
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// If the context was not found, check in my parent binding maps
+	if ( !Context && bIncludeParents )
+	{
+		for ( auto ParentIt = ParentUICommandLists.CreateConstIterator(); ParentIt; ++ParentIt )
+		{
+			TWeakPtr<FUICommandList> Parent = *ParentIt;
+			if ( Parent.IsValid() )
+			{
+				const bool bShouldIncludeChildrenOfParent = false;
+				const bool bShouldIncludeParentsOfParent = true;
+				Context = Parent.Pin()->GetContextForCommandRecursively(Command, bShouldIncludeChildrenOfParent, bShouldIncludeParentsOfParent, InOutVisitedLists);
+				if (Context)
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	return Context;
 }
 
 

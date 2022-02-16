@@ -131,6 +131,15 @@ public:
 
 	virtual void Enter();
 
+	/**
+	 * Registers and maps the provided UI command to actions that start / stop a given tool.
+	 * Later on this UI command can be referenced to add the tool to a toolbar.
+	 * 
+	 * @param	UICommand		Command to map tool start / stop actions to
+	 * @param	ToolIdentifier	Unique string identifier for the tool, used to check if tool is active
+	 * @param	Builder			Builder for tool to be used by actions
+	 * @param	ToolScope		Scope to determine lifetime of tool (Editor, Mode, etc)
+	 */
 	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope = EToolsContextScope::Default);
 
 	/** 
@@ -231,7 +240,7 @@ public:
 
 	/**
 	 * Default Scope for InteractiveToolsContext API functions, eg RegisterTool(), GetToolManager(), GetInteractiveToolsContext().
-	 * See EToolsContextScope for details. Defaults to Editor scope.
+	 * See EToolsContextScope for details. Defaults to Ed Mode scope. 
 	 */
 	EToolsContextScope GetDefaultToolScope() const { return EToolsContextScope::EdMode; }
 

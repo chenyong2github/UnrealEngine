@@ -66,3 +66,24 @@ FUIAction::FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCan
 	, RepeatMode(InitRepeatMode)
 { 
 }
+
+/////////////////////////////////////////////////////
+// FUIActionContext
+
+TSharedPtr<IUIActionContextBase> FUIActionContext::FindContext(const FName InName) const
+{
+	for (const TSharedPtr<IUIActionContextBase>& Context : Contexts)
+	{
+		if (Context && Context->GetContextName().IsEqual(InName))
+		{
+			return Context;
+		}
+	}
+
+	return nullptr;
+}
+
+void FUIActionContext::AddContext(const TSharedPtr<IUIActionContextBase>& InContext)
+{
+	Contexts.Add(InContext);
+}

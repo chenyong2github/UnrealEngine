@@ -14,6 +14,8 @@ class FToolBarButtonBlock;
 class SToolBarButtonBlock;
 class FToolBarComboButtonBlock;
 class SToolBarComboButtonBlock;
+class FToolBarStackButtonBlock;
+class SToolBarStackButtonBlock;
 class SHyperlink;
 class SRichTextHyperlink;
 class SThrobber;
