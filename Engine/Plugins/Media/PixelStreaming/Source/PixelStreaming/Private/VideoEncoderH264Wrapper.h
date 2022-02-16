@@ -4,6 +4,11 @@
 #include "VideoEncoder.h"
 #include "EncoderFrameFactory.h"
 
+namespace webrtc
+{
+	class VideoFrame;
+}
+
 namespace UE {
 	namespace PixelStreaming {
 		class FVideoEncoderFactory;

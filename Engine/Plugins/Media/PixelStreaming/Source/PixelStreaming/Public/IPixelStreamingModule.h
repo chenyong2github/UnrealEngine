@@ -7,15 +7,16 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/RefCounting.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
 #include "IPixelStreamingPumpedVideoSource.h"
-#include "Templates/SharedPointer.h"
 
 #include "IInputDevice.h"
 
 class UTexture2D;
 class UPixelStreamingInput;
+class FRHIGPUFence;
 
 namespace webrtc
 {
@@ -197,5 +198,5 @@ public:
 	/*
 	 * Create add a task to the GPU fence poller.
 	 */
-	virtual void AddGPUFencePollerTask(FGPUFenceRHIRef Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task) = 0;
+	virtual void AddGPUFencePollerTask(TRefCountPtr<FRHIGPUFence> Fence, TSharedRef<bool, ESPMode::ThreadSafe> bIsEnabled, TFunction<void()> Task) = 0;
 };

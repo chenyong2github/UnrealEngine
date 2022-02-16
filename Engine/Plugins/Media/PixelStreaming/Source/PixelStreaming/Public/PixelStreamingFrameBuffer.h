@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "Templates/RefCounting.h"
+#include "Templates/SharedPointer.h"
+
 #include "api/video/video_frame_buffer.h"
 #include "api/video/i420_buffer.h"
 #include "api/scoped_refptr.h"
 
-class FTexture2DRHI;
+class FRHITexture2D;
 class IPixelStreamingTextureSource;
 
 namespace UE
@@ -108,7 +111,7 @@ public:
 	virtual ~FLayerFrameBuffer();
 
 	virtual UE::PixelStreaming::EFrameBufferType GetFrameBufferType() const { return UE::PixelStreaming::EFrameBufferType::Layer; }
-	FTexture2DRHIRef GetFrame() const;
+	TRefCountPtr<FRHITexture2D> GetFrame() const;
 
 	virtual int width() const override;
 	virtual int height() const override;
@@ -128,7 +131,7 @@ public:
 	virtual ~FFrameBufferI420();
 
 	virtual UE::PixelStreaming::EFrameBufferType GetFrameBufferType() const { return UE::PixelStreaming::EFrameBufferType::Layer; }
-	FTexture2DRHIRef GetFrame() const;
+	TRefCountPtr<FRHITexture2D> GetFrame() const;
 
 	virtual int width() const override;
 	virtual int height() const override;
