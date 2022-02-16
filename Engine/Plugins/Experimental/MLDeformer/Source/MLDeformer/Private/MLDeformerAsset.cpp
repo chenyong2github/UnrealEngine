@@ -733,7 +733,7 @@ FMLDeformerInputInfo UMLDeformerAsset::CreateInputInfo() const
 	}
 	else
 	{
-		UE_LOG(LogMLDeformer, Display, TEXT("Including ALL bones of skeleton in training."));
+		UE_LOG(LogMLDeformer, Display, TEXT("Including ALL curves of skeleton in training."));
 	}
 
 	Result.Init(Settings);

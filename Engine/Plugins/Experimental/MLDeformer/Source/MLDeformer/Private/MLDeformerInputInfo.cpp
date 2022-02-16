@@ -238,36 +238,29 @@ void FMLDeformerInputInfo::ExtractBoneRotations(USkeletalMeshComponent* SkelMesh
 {
 	const TArray<FTransform>& BoneTransforms = SkelMeshComponent->GetBoneSpaceTransforms();
 	const int32 NumBones = GetNumBones();
-	OutRotations.Reset(NumBones * 4); // xyzw
-	OutRotations.AddUninitialized(NumBones * 4);
+	const int32 NumFloats = NumBones * 6; // 2 Columns of the rotation matrix.
+	OutRotations.Reset(NumFloats);
+	OutRotations.AddUninitialized(NumFloats);
+	int32 Offset = 0;
 	for (int32 Index = 0; Index < NumBones; ++Index)
 	{
 		const FName BoneName = GetBoneName(Index);
 		const int32 SkelMeshBoneIndex = SkelMeshComponent->GetBoneIndex(BoneName);
-		if (SkelMeshBoneIndex != INDEX_NONE)
-		{
-			const int32 Offset = Index * 4;
-			const FQuat Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
-			const float QuatSign = Rotation.W < 0.f ? -1.f : 1.f;
-			OutRotations[Offset] = Rotation.X * QuatSign;
-			OutRotations[Offset+1] = Rotation.Y * QuatSign;
-			OutRotations[Offset+2] = Rotation.Z * QuatSign;
-			OutRotations[Offset+3] = Rotation.W * QuatSign;
-		}
-		else
-		{
-			const int32 Offset = Index * 4;
-			OutRotations[Offset] = 0.0f;	// Set to identity quat.
-			OutRotations[Offset+1] = 0.0f;
-			OutRotations[Offset+2] = 0.0f;
-			OutRotations[Offset+3] = 1.0f;
-		}
+		const FMatrix RotationMatrix = (SkelMeshBoneIndex != INDEX_NONE) ? BoneTransforms[SkelMeshBoneIndex].GetRotation().ToMatrix() : FMatrix::Identity;
+		const FVector X = RotationMatrix.GetColumn(0);
+		const FVector Y = RotationMatrix.GetColumn(1);	
+		OutRotations[Offset++] = X.X;
+		OutRotations[Offset++] = X.Y;
+		OutRotations[Offset++] = X.Z;
+		OutRotations[Offset++] = Y.X;
+		OutRotations[Offset++] = Y.Y;
+		OutRotations[Offset++] = Y.Z;
 	}
 }
 
 int32 FMLDeformerInputInfo::CalcNumNeuralNetInputs() const
 {
 	return 
-		BoneNameStrings.Num() * 4 +	// Four floats per bone.
+		BoneNameStrings.Num() * 6 +	// Six floats per bone.
 		CurveNameStrings.Num();		// One float per curve.
 }

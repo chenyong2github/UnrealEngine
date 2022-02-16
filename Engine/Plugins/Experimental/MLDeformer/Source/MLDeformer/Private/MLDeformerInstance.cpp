@@ -115,27 +115,19 @@ int64 FMLDeformerInstance::SetBoneTransforms(float* OutputBuffer, int64 OutputBu
 	const FMLDeformerInputInfo& InputInfo = DeformerAsset->GetInputInfo();
 	const int32 AssetNumBones = InputInfo.GetNumBones();
 	int64 Index = StartIndex;
-	check((Index + AssetNumBones * 4) <= OutputBufferSize); // Make sure we don't write past the OutputBuffer.
+	check((Index + AssetNumBones * 6) <= OutputBufferSize); // Make sure we don't write past the OutputBuffer. (6 because of two columns of the 3x3 rotation matrix)
 	for (int32 BoneIndex = 0; BoneIndex < AssetNumBones; ++BoneIndex)
 	{
 		const int32 SkelMeshBoneIndex = AssetBonesToSkelMeshMappings[BoneIndex];
-		if (SkelMeshBoneIndex != INDEX_NONE)
-		{
-			const FQuat& Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
-			const float QuatSign = Rotation.W < 0.f ? -1.f : 1.f;
-			OutputBuffer[Index++] = Rotation.X * QuatSign;
-			OutputBuffer[Index++] = Rotation.Y * QuatSign;
-			OutputBuffer[Index++] = Rotation.Z * QuatSign;
-			OutputBuffer[Index++] = Rotation.W * QuatSign;
-		}
-		else
-		{
-			// Use an identity quaternion as input.
-			OutputBuffer[Index++] = 0.0f;
-			OutputBuffer[Index++] = 0.0f;
-			OutputBuffer[Index++] = 0.0f;
-			OutputBuffer[Index++] = 1.0f;
-		}
+		const FMatrix RotationMatrix = (SkelMeshBoneIndex != INDEX_NONE) ? BoneTransforms[SkelMeshBoneIndex].GetRotation().ToMatrix() : FMatrix::Identity;
+		const FVector X = RotationMatrix.GetColumn(0);
+		const FVector Y = RotationMatrix.GetColumn(1);	
+		OutputBuffer[Index++] = X.X;
+		OutputBuffer[Index++] = X.Y;
+		OutputBuffer[Index++] = X.Z;
+		OutputBuffer[Index++] = Y.X;
+		OutputBuffer[Index++] = Y.Y;
+		OutputBuffer[Index++] = Y.Z;
 	}
 
 	return Index;

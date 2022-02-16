@@ -121,7 +121,7 @@ public:
 
 	/**
 	 * Extract bone space rotations, as a float array.
-	 * The number of output rotations are NumBones * 4, where the array contains values like: xyzw,xyzw,xyzw,... where each xyzw are the 
+	 * The number of output rotations are NumBones * 6, where the array contains a set two columns of a 3x3 rotation matrix values.
 	 * components of the bone's bone space (local space) rotation quaternion.
 	 * @param SkelMeshComponent The skeletal mesh component to sample from.
 	 * @param OutRotations The output rotation values. This array will be resized internally.
