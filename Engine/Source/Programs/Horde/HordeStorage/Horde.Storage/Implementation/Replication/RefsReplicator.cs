@@ -154,7 +154,7 @@ namespace Horde.Storage.Implementation
                 Guid? lastEvent = null;
 
                 bool haveRunBefore = _refsState.LastBucket != null && _refsState.LastEvent != null;
-                if (!haveRunBefore)
+                if (!haveRunBefore && !_replicatorSettings.SkipSnapshot)
                 {
                     // have not run before, replicate a snapshot
                     _logger.Information("{Name} Have not run replication before, attempting to use snapshot. State: {@State}", _name, _refsState);
@@ -210,6 +210,16 @@ namespace Horde.Storage.Implementation
 
                     if (useSnapshotException != null)
                     {
+                        // if we are told to use a snapshot but are configured to not do so we will simply reset the state tracking and thus start from the oldest incremental event
+                        // this will result in a partial replication
+                        if (_replicatorSettings.SkipSnapshot)
+                        {
+                            lastBucket = null;
+                            lastEvent = null;
+                            retry = true;
+                            continue;
+                        }
+
                         // if we have already attempted to recover using a snapshot and we still fail we just give up and throw the exception onwards.
                         if (haveAttemptedSnapshot)
                             throw new AggregateException(useSnapshotException);

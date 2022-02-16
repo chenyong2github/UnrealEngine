@@ -81,6 +81,11 @@ namespace Horde.Storage
         /// Max number of offsets to skip when finding broken events in the transaction logs, higher value means we scan further increasing the likelihood of finding a valid entry, but also means risk that we skip records you would want.
         /// </summary>
         public int? MaxOffsetsAttempted { get; set; } = 100000;
+
+        /// <summary>
+        /// Do not read in old history using a snapshot, instead just start replicating the new incremental state. Means we will only have partial state but we will also get going quicker on relatively useful blobs.
+        /// </summary>
+        public bool SkipSnapshot { get; set; } = true;
     }
 
     public enum ReplicatorVersion
