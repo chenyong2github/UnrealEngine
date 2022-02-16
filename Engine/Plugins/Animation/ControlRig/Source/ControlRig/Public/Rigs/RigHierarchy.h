@@ -2537,6 +2537,20 @@ private:
 	*/
 	static void DestroyElement(FRigBaseElement*& InElement); 
 
+	/*
+	 * Templated helper function to create an element
+	 */
+	template<typename ElementType = FRigBaseElement>
+	FORCEINLINE static ElementType* NewElement(int32 Num = 1)
+	{
+		ElementType* Elements = (ElementType*)FMemory::Malloc(sizeof(ElementType) * Num);
+		for(int32 Index=0;Index<Num;Index++)
+		{
+			new(&Elements[Index]) ElementType(); 
+		}
+		return Elements;
+	}
+
 	/**
 	 * Marks all affected elements of a given element as dirty
 	 * @param InTransformElement The element that has changed

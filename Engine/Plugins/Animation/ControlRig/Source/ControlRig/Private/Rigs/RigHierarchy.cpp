@@ -3357,12 +3357,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigBoneElement);
 			}
-			FRigBoneElement* Elements = (FRigBoneElement*)FMemory::Malloc(sizeof(FRigBoneElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigBoneElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigBoneElement>(InCount);
 			break;
 		}
 		case ERigElementType::Null:
@@ -3371,12 +3366,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigNullElement);
 			}
-			FRigNullElement* Elements = (FRigNullElement*)FMemory::Malloc(sizeof(FRigNullElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigNullElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigNullElement>(InCount);
 			break;
 		}
 		case ERigElementType::Control:
@@ -3385,12 +3375,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigControlElement);
 			}
-			FRigControlElement* Elements = (FRigControlElement*)FMemory::Malloc(sizeof(FRigControlElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigControlElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigControlElement>(InCount);
 			break;
 		}
 		case ERigElementType::Curve:
@@ -3399,12 +3384,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigCurveElement);
 			}
-			FRigCurveElement* Elements = (FRigCurveElement*)FMemory::Malloc(sizeof(FRigCurveElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigCurveElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigCurveElement>(InCount);
 			break;
 		}
 		case ERigElementType::RigidBody:
@@ -3413,12 +3393,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigRigidBodyElement);
 			}
-			FRigRigidBodyElement* Elements = (FRigRigidBodyElement*)FMemory::Malloc(sizeof(FRigRigidBodyElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigRigidBodyElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigRigidBodyElement>(InCount);
 			break;
 		}
 		case ERigElementType::Reference:
@@ -3427,12 +3402,7 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32
 			{
 				*OutStructureSize = sizeof(FRigReferenceElement);
 			}
-			FRigReferenceElement* Elements = (FRigReferenceElement*)FMemory::Malloc(sizeof(FRigReferenceElement) * InCount);
-			for(int32 Index=0;Index<InCount;Index++)
-			{
-				new(&Elements[Index]) FRigReferenceElement(); 
-			} 
-			Element = Elements;
+			Element = NewElement<FRigReferenceElement>(InCount);
 			break;
 		}
 		default:
