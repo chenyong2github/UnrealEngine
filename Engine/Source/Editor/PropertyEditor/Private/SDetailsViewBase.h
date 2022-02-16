@@ -228,6 +228,9 @@ protected:
 	 */
 	TSharedRef<ITableRow> OnGenerateRowForDetailTree( TSharedRef<FDetailTreeNode> InTreeNode, const TSharedRef<STableViewBase>& OwnerTable );
 
+	/** Clear focus when the row is scrolled out of view. */
+	void OnRowReleasedForDetailTree(const TSharedRef<ITableRow>& TableRow);
+
 	/** @return true if show only modified is checked */
 	bool IsShowOnlyModifiedChecked() const { return CurrentFilter.bShowOnlyModified; }
 

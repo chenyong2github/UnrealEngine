@@ -72,6 +72,23 @@ TSharedRef<ITableRow> SDetailsViewBase::OnGenerateRowForDetailTree(TSharedRef<FD
 	return InTreeNode->GenerateWidgetForTableView(OwnerTable, DetailsViewArgs.bAllowFavoriteSystem);
 }
 
+void SDetailsViewBase::OnRowReleasedForDetailTree(const TSharedRef<ITableRow>& TableRow)
+{
+	// search upwards from the current keyboard-focused widget to see if it's contained in our row
+	TSharedPtr<SWidget> CurrentWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+	while (CurrentWidget.IsValid())
+	{
+		if (CurrentWidget == TableRow->AsWidget())
+		{
+			// if so, clear focus so that any pending value changes are committed
+			FSlateApplication::Get().ClearKeyboardFocus();
+			return;
+		}
+
+		CurrentWidget = CurrentWidget->GetParentWidget();
+	}
+}
+
 void SDetailsViewBase::SetRootExpansionStates(const bool bExpand, const bool bRecurse)
 {
 	if(ContainsMultipleTopLevelObjects())

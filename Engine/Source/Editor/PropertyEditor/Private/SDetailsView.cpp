@@ -430,6 +430,7 @@ TSharedRef<SDetailTree> SDetailsView::ConstructTreeView( TSharedRef<SScrollBar>&
 		.OnGetChildren(this, &SDetailsView::OnGetChildrenForDetailTree)
 		.OnSetExpansionRecursive(this, &SDetailsView::SetNodeExpansionStateRecursive)
 		.OnGenerateRow(this, &SDetailsView::OnGenerateRowForDetailTree)
+		.OnRowReleased(this, &SDetailsView::OnRowReleasedForDetailTree)
 		.OnExpansionChanged(this, &SDetailsView::OnItemExpansionChanged)
 		.SelectionMode(ESelectionMode::None)
 		.HandleDirectionalNavigation(false)
