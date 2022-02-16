@@ -531,7 +531,15 @@ namespace HordeServer.Collections.Impl
 			}
 			if (Name != null)
 			{
-				Filter &= FilterBuilder.Eq(x => x.Name, Name);
+				if (Name.StartsWith("$", StringComparison.InvariantCulture))
+				{
+					BsonRegularExpression Regex = new BsonRegularExpression(Name.Substring(1), "i");
+					Filter &= FilterBuilder.Regex(x => x.Name, Regex);
+				}
+				else
+				{
+					Filter &= FilterBuilder.Eq(x => x.Name, Name);
+				}				
 			}
 			if (Templates != null)
 			{
