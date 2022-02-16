@@ -139,10 +139,11 @@ public:
         FRigElementKey InParent,
         FRigControlSettings InSettings,
         FRigControlValue InValue,
-        bool bSetupUndo = true
+        bool bSetupUndo = true,
+        bool bPrintPythonCommand = false
     )
 	{
-		return AddControl(InName, InParent, InSettings, InValue, FTransform::Identity, FTransform::Identity, bSetupUndo);
+		return AddControl(InName, InParent, InSettings, InValue, FTransform::Identity, FTransform::Identity, bSetupUndo, bPrintPythonCommand);
 	}
 
 	/**
