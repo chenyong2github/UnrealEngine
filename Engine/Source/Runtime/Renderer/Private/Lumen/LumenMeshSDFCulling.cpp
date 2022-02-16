@@ -457,6 +457,8 @@ void CombineObjectIndexBuffers(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	bool bCullMeshSDFObjects,
+	bool bCullHeightfieldObjects,
 	FObjectCullingContext& Context,
 	FRDGBufferRef& CombinedObjectIndexBuffer
 )
@@ -464,11 +466,10 @@ void CombineObjectIndexBuffers(
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	uint32 NumDistanceFields = DistanceFieldSceneData.NumObjectsInBuffer;
-	uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
-
-	if (NumDistanceFields > 0 && NumHeightfields > 0)
+	if (bCullMeshSDFObjects && bCullHeightfieldObjects)
 	{
+		uint32 NumDistanceFields = DistanceFieldSceneData.NumObjectsInBuffer;
+		uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
 		uint32 MaxNumObjects = FMath::RoundUpToPowerOfTwo(NumDistanceFields + NumHeightfields);
 		CombinedObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumObjects), TEXT("Lumen.CombinedObjectIndexBuffer"));
 
@@ -492,11 +493,11 @@ void CombineObjectIndexBuffers(
 			PassParameters,
 			FIntVector(GroupSize, 1, 1));
 	}
-	else if (NumHeightfields > 0)
+	else if (bCullHeightfieldObjects)
 	{
 		CombinedObjectIndexBuffer = Context.HeightfieldObjectIndexBuffer;
 	}
-	else //if (NumDistanceFields > 0)
+	else //if (bCullMeshSDFObjects)
 	{
 		CombinedObjectIndexBuffer = Context.MeshSDFObjectIndexBuffer;
 	}
@@ -1039,6 +1040,8 @@ void CullMeshObjectsToViewGrid(
 			GraphBuilder,
 			Scene,
 			View,
+			bCullMeshSDFObjects,
+			bCullHeightfieldObjects,
 			Context,
 			CombinedObjectIndexBuffer);
 

@@ -41,7 +41,6 @@ namespace Lumen
 	void DebugResetSurfaceCache();
 	void DebugResetVoxelLighting();
 
-	float GetDistanceSceneNaniteLODScaleFactor();
 	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
 	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
 	bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
@@ -56,6 +55,7 @@ namespace Lumen
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
+	float GetDistanceSceneNaniteLODScaleFactor();
 
 	bool ShouldUpdateLumenSceneViewOrigin();
 	int32 GetGlobalDFResolution();

@@ -35,13 +35,6 @@ FAutoConsoleVariableRef CVarLumenGlobalIllumination(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-FAutoConsoleVariableRef GVarLumenDiffuseMaxMeshSDFTraceDistance(
-	TEXT("r.Lumen.DiffuseIndirect.MaxMeshSDFTraceDistance"),
-	GLumenGatherCvars.MeshSDFTraceDistance,
-	TEXT("Max trace distance for the diffuse indirect card rays."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GDiffuseTraceStepFactor = 1;
 FAutoConsoleVariableRef CVarDiffuseTraceStepFactor(
 	TEXT("r.Lumen.DiffuseIndirect.TraceStepFactor"),
@@ -120,6 +113,13 @@ FAutoConsoleVariableRef CVarLumenAllowTraceMeshSDFs(
 	TEXT("r.Lumen.TraceMeshSDFs.Allow"),
 	GLumenAllowTracingMeshSDFs,
 	TEXT("Whether Lumen should trace against Mesh Signed Distance fields.  When enabled, Lumen's Software Tracing will be more accurate, but scenes with high instance density (overlapping meshes) will have high tracing costs.  When disabled, lower resolution Global Signed Distance Field will be used instead."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+FAutoConsoleVariableRef GVarLumenDiffuseMaxMeshSDFTraceDistance(
+	TEXT("r.Lumen.TraceMeshSDFs.TraceDistance"),
+	GLumenGatherCvars.MeshSDFTraceDistance,
+	TEXT("Max trace distance against Mesh Distance Fields and Heightfields."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 

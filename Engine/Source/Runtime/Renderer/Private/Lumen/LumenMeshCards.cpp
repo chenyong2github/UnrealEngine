@@ -211,7 +211,7 @@ public:
 		OutData[4].W = *((float*)&PackedHiResPageTableOffset);
 
 		float AverageTexelSize = 100.0f;
-		if (Card.MinAllocatedResLevel > 0)
+		if (Card.IsAllocated())
 		{
 			FLumenMipMapDesc MipMapDesc;
 			Card.GetMipMapDesc(Card.MinAllocatedResLevel, MipMapDesc);

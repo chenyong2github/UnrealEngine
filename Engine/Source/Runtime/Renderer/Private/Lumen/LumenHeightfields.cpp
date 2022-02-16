@@ -32,7 +32,9 @@ bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSc
 
 bool Lumen::UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData)
 {
-	return UseHeightfieldTracingForVoxelLighting(LumenSceneData) && ViewFamily.EngineShowFlags.LumenDetailTraces;
+	return UseHeightfieldTracingForVoxelLighting(LumenSceneData)
+		&& Lumen::UseMeshSDFTracing(ViewFamily)
+		&& ViewFamily.EngineShowFlags.LumenDetailTraces;
 }
 
 int32 Lumen::GetHeightfieldMaxTracingSteps()

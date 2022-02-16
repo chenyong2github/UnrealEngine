@@ -1020,14 +1020,18 @@ FIntPoint FLumenCard::ResLevelToResLevelXYBias() const
 		Bias.X = FMath::FloorLog2(FMath::RoundToInt(WorldOBB.Extent.Y / WorldOBB.Extent.X));
 	}
 
+	Bias.X = FMath::Clamp(Bias.X, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
+	Bias.Y = FMath::Clamp(Bias.Y, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
 	return Bias;
 }
 
 void FLumenCard::GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& Desc) const
 {
+	check(ResLevel >= Lumen::MinResLevel && ResLevel <= Lumen::MaxResLevel);
+
 	const FIntPoint ResLevelBias = ResLevelToResLevelXYBias();
-	Desc.ResLevelX = FMath::Max<int32>(ResLevel - ResLevelBias.X, Lumen::MinResLevel);
-	Desc.ResLevelY = FMath::Max<int32>(ResLevel - ResLevelBias.Y, Lumen::MinResLevel);
+	Desc.ResLevelX = FMath::Clamp<int32>(ResLevel - ResLevelBias.X, Lumen::MinResLevel, Lumen::MaxResLevel);
+	Desc.ResLevelY = FMath::Clamp<int32>(ResLevel - ResLevelBias.Y, Lumen::MinResLevel, Lumen::MaxResLevel);
 
 	// Allocations which exceed a physical page are aligned to multiples of a virtual page to maximize atlas usage
 	if (Desc.ResLevelX > Lumen::SubAllocationResLevel || Desc.ResLevelY > Lumen::SubAllocationResLevel)
@@ -1192,7 +1196,7 @@ void FLumenSceneData::ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, i
 		MipMap.SizeInPagesY = MipMapDesc.SizeInPages.Y;
 		MipMap.ResLevelX = MipMapDesc.ResLevelX;
 		MipMap.ResLevelY = MipMapDesc.ResLevelY;
-		MipMap.PageTableSpanSize += MipMapDesc.SizeInPages.X * MipMapDesc.SizeInPages.Y;
+		MipMap.PageTableSpanSize = MipMapDesc.SizeInPages.X * MipMapDesc.SizeInPages.Y;
 		MipMap.PageTableSpanOffset = PageTable.AddSpan(MipMap.PageTableSpanSize);
 
 		for (int32 LocalPageIndex = 0; LocalPageIndex < MipMapDesc.SizeInPages.X * MipMapDesc.SizeInPages.Y; ++LocalPageIndex)
