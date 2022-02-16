@@ -29,3 +29,6 @@ FAutoConsoleVariableRef CVarChaosJointLinearVelocityThresholdToApplyRestitution(
 float Chaos_Joint_AngularVelocityThresholdToApplyRestitution = 1e-2f;
 FAutoConsoleVariableRef CVarChaosJointAngularVelocityThresholdToApplyRestitution(TEXT("p.Chaos.Joint.AngularVelocityThresholdToApplyRestitution"), Chaos_Joint_AngularVelocityThresholdToApplyRestitution, TEXT("Apply restitution only if initial velocity is higher than this threshold (used in Quasipbd)"));
 
+bool bChaos_Joint_StablePointConstraint = false;
+FAutoConsoleVariableRef CVarChaosJointStablePointConstraint(TEXT("p.Chaos.Joint.StablePointConstraint"), bChaos_Joint_StablePointConstraint, TEXT("Improve stability for the point constraint (increase computation time)"));
+

@@ -29,19 +29,27 @@ struct FAxisConstraintDatas
 		const int32 ConstraintIndex,
 		const FVec3& DatasAxis,
 		const FReal DatasCX,
-		const FVec3& DatasIA0,
-		const FVec3& DatasIA1,
-		const FReal DatasIM,
 		const FReal DatasRestitution,
-		const FReal Dt,
 		const bool bCheckLimit = true,
 		const FVec3& DatasArm0 = FVec3::Zero(),
 		const FVec3& DatasArm1 = FVec3::Zero(),
 		const FReal DatasVX = 0.0);
+
+	/** Update the mass dependent datas */
+	void UpdateMass(
+		const int32 ConstraintIndex,
+		const FVec3& DatasIA0,
+		const FVec3& DatasIA1,
+		const FReal DatasIM,
+		const FReal Dt);
 	
-	FVec3 ConstraintSoftStiffness;
 	FVec3 ConstraintHardStiffness;
-	FVec3 ConstraintDamping;
+	FVec3 ConstraintSoftStiffness;
+	FVec3 ConstraintSoftDamping;
+	
+	FVec3 SettingsSoftDamping;
+	FVec3 SettingsSoftStiffness;
+	
 	FVec3 ConstraintArms[3][2];
 	FVec3 ConstraintAxis[3];
 	FVec3 ConstraintLimits;
@@ -71,11 +79,10 @@ struct FPointConstraintDatas
 	/** Update the point joint datas with axis, limits, arms... */
 	void UpdateDatas(
 		const FVec3& DatasCX,
-		const FMatrix33& DatasIM,
 		const FVec3& DatasArm0,
 		const FVec3& DatasArm1);
 	
-	bool bValidDatas;
+	bool bValidDatas = false;
 	
 	FReal ConstraintStiffness;
 	FVec3 ConstraintArms[2];
@@ -251,7 +258,8 @@ struct FPointConstraintDatas
 
 		void SetInvMassScales(
 			const FReal InvMScale0,
-			const FReal InvMScale1);
+			const FReal InvMScale1,
+			const FReal Dt);
 
 	private:
 
@@ -288,6 +296,8 @@ struct FPointConstraintDatas
 			const FPBDJointSettings& JointSettings);
 		
 		void InitPointPositionConstraint();
+
+		void InitPointPositionMass();
 		
 		void InitPositionConstraintDatas(
 			const int32 ConstraintIndex,
@@ -297,6 +307,11 @@ struct FPointConstraintDatas
 			const FReal Dt,
 			const FReal ConstraintLimit,
 			const EJointMotionType JointType);
+
+		void InitPositionDatasMass(
+			FAxisConstraintDatas& PositionDatas,
+			const int32 ConstraintIndex,
+			const FReal Dt);
 
 		void InitSphericalPositionConstraint(
 			const FPBDJointSettings& JointSettings,
@@ -321,6 +336,8 @@ struct FPointConstraintDatas
 			const FReal Dt);
 		
 		void ApplyPointPositionConstraint();
+		
+		FVec3 ComputePointCX();
 		
 		void ApplyAxisPositionConstraint(
 			const int32 ConstraintIndex,
@@ -374,6 +391,11 @@ struct FPointConstraintDatas
 			const FReal ConstraintRestitution,
 			const FReal Dt,
 			const bool bCheckLimit);
+
+		void InitRotationDatasMass(
+			FAxisConstraintDatas& RotationDatas, 
+			const int32 ConstraintIndex,
+			const FReal Dt);
 		
 		void InitTwistConstraint(
 			const FPBDJointSettings& JointSettings,

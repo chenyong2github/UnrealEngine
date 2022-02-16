@@ -1150,7 +1150,7 @@ namespace Chaos
 			// Set parent inverser mass scale based on current shock propagation state
 			// @todo(chaos): needs to handle the parent/child being in opposite order
 			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			if (!bWasActive && !Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
 			{
@@ -1285,7 +1285,7 @@ namespace Chaos
 			// Set parent inverser mass scale based on current shock propagation state
 			// @todo(chaos): needs to handle the parent/child being in opposite order
 			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			// For quasipbd, we may still need to stabilize velocities and solve for restitution.
 			if (!bWasActive && !Solver.GetIsActive() && SolverType != EConstraintSolverType::QuasiPbd && bChaos_Joint_EarlyOut_Enabled)
